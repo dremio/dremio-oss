@@ -122,7 +122,7 @@ export default class Checkbox extends PureComponent {
               height: 10,
               width: 12,
               marginBottom: 3,
-              color: "var(--dremio--color--neutral--000)",
+              color: "white",
             }}
           />
         ) : (

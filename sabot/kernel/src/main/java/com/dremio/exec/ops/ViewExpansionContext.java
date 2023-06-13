@@ -70,6 +70,8 @@ public class ViewExpansionContext {
   private final CatalogIdentity catalogIdentity;
   private final ObjectIntHashMap<CatalogIdentity> userTokens = new ObjectIntHashMap<>();
 
+  private boolean substitutedWithDRR = false;
+
   public ViewExpansionContext(CatalogIdentity catalogIdentity) {
     super();
 
@@ -145,5 +147,16 @@ public class ViewExpansionContext {
 
   public CatalogIdentity getQueryUser() {
     return catalogIdentity;
+  }
+
+  public boolean isSubstitutedWithDRR() {
+    return substitutedWithDRR;
+  }
+
+  /**
+   * Indicates that query has been substituted with a default raw reflection during conversion.
+   */
+  public void setSubstitutedWithDRR() {
+    this.substitutedWithDRR = true;
   }
 }

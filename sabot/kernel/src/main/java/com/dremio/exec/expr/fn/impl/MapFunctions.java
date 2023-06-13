@@ -45,6 +45,7 @@ public class MapFunctions {
     @Output
     BaseWriter.ComplexWriter out;
 
+    @Override
     public void setup() {
     }
 
@@ -68,6 +69,7 @@ public class MapFunctions {
     @Output
     BaseWriter.ComplexWriter out;
 
+    @Override
     public void setup() {
     }
 
@@ -91,6 +93,7 @@ public class MapFunctions {
     @Output
     NullableIntHolder out;
 
+    @Override
     public void setup() {
     }
 
@@ -107,6 +110,7 @@ public class MapFunctions {
   }
 
   public static class KeyValueOutputLastMatching implements OutputDerivation {
+    @Override
     public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
       Field entryStruct = getEntryStruct(args, "GetLastMatchingMapEntryForKey");
       return CompleteType.fromField(entryStruct);
@@ -114,6 +118,7 @@ public class MapFunctions {
   }
 
   public static class ListOfKeys implements OutputDerivation {
+    @Override
     public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
       Field entryStruct = getEntryStruct(args, "getMapKeys");
       return CompleteType.fromField(entryStruct.getChildren().get(0)).asList();
@@ -121,6 +126,7 @@ public class MapFunctions {
   }
 
   public static class ListOfValues implements OutputDerivation {
+    @Override
     public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
       Field entryStruct = getEntryStruct(args, "getMapValues");
       return CompleteType.fromField(entryStruct.getChildren().get(1)).asList();

@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "moduleResolution": "nodenext",
+    "resolveJsonModule": true,
+    "sourceMap": true,
+    "strict": true
+  }
+}

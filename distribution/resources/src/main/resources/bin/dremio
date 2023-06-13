@@ -48,6 +48,7 @@ fi
 export DREMIO_IN_CONTAINER
 export DREMIO_LOG_TO_CONSOLE
 export DREMIO_ENV_SCRIPT="dremio-env"
+export DREMIO_ADMIN_ONLY=false
 . "$bin"/dremio-config
 
 # get arguments
@@ -120,6 +121,8 @@ dremio_internal_start() {
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS $DREMIO_GC_OPTS"
     # User options
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS $DREMIO_JAVA_SERVER_EXTRA_OPTS $DREMIO_JAVA_EXTRA_OPTS "
+    # Start in administrator only mode
+    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Ddremio.admin-only-mode=${DREMIO_ADMIN_ONLY}"
     # Add this option only if it is Java 8
     if [ "$JAVA_MAJOR_VERSION" -eq 8 ]; then
       DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:+PrintClassHistogramBeforeFullGC"
@@ -223,7 +226,10 @@ fi
 DREMIO_NICENESS="${DREMIO_NICENESS:-0}"
 
 thiscmd=$0
+
 args=$@
+# args may be empty as they could be striped out. Reading them.
+args=$([ "${DREMIO_ADMIN_ONLY}" == "true" ] && echo "--admin-only")
 
 mkdir -p "${DREMIO_LOG_DIR}"
 
@@ -232,7 +238,7 @@ case $startStopStatus in
 (start)
     check_before_start
     echo Starting $command, logging to $logout
-    nohup $thiscmd internal_start $args < /dev/null >> ${logout} 2>&1  &
+    nohup $thiscmd $args internal_start < /dev/null >> ${logout} 2>&1  &
     sleep 1;
     echo Check the log file to make sure $command started successfully and did not run into any issues.
   ;;

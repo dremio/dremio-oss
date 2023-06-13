@@ -112,6 +112,7 @@ public class ParquetScanPrel extends ScanPrelBase implements PruneableScan {
     return filter != null;
   }
 
+  @Override
   public ParquetScanFilter getFilter() {
     return filter;
   }

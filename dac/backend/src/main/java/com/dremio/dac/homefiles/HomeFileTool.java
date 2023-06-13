@@ -34,7 +34,6 @@ import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.service.errors.SourceBadStateException;
 import com.dremio.exec.proto.UserBitShared;
-import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.file.FilePath;
@@ -45,6 +44,8 @@ import com.dremio.service.namespace.file.proto.FileType;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
+
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 
 /**
  * Injectable tool for doing home file manipulation.
@@ -57,10 +58,10 @@ public class HomeFileTool {
   private final HostNameProvider hostNameProvider;
   private final SecurityContext securityContext;
 
-  public interface HostNameProvider extends Supplier<String> {};
+  public interface HostNameProvider extends Supplier<String> {}
 
   @Inject
-  public HomeFileTool(SabotContext context, CatalogService catalog, HostNameProvider hostnameProvider, @Context SecurityContext securityContext) throws ExecutionSetupException {
+  public HomeFileTool(CatalogService catalog, HostNameProvider hostnameProvider, @Context SecurityContext securityContext) throws ExecutionSetupException {
     StoragePlugin plugin;
     try {
       plugin = catalog.getSource(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME);
@@ -101,11 +102,11 @@ public class HomeFileTool {
    */
   @VisibleForTesting
   public Path getStagingLocation(FilePath filePath, String extension) {
-    FilePath uniquePath = filePath.rename(format("%s_%s-%s", filePath.getFileName().toString(), extension, UUID.randomUUID().toString()));
+    FilePath uniquePath = filePath.rename(format("%s_%s-%s", filePath.getFileName().toString(), extension, UUID.randomUUID()));
     return Path.mergePaths(config.getStagingPath(hostNameProvider.get()), PathUtils.toFSPath(uniquePath.toPathList()));
   }
 
-  public HomeFileConf getConf() {
+  public HomeFileConf getConfForBackup() {
     return config;
   }
 
@@ -114,7 +115,7 @@ public class HomeFileTool {
    *
    * @param parent parent directory
    * @param fileName file name
-   * @return
+   * @return Returns the file path.
    */
   private Path filePath(Path parent, String fileName) throws IOException {
     return fs.canonicalizePath(parent.resolve(fileName));
@@ -130,8 +131,9 @@ public class HomeFileTool {
    * @param filePath file path in under home space
    * @param input input stream containing file's data
    * @return location where file is staged
-   * @throws IOException
+   * @throws IOException - An exception that might occur if the file system cannot be written to.
    */
+  @WithSpan
   public Path stageFile(FilePath filePath, String extension, InputStream input) throws IOException {
     final Path stagingLocation = getStagingLocation(filePath, extension);
     fs.mkdirs(stagingLocation, HomeFileSystemStoragePlugin.DEFAULT_PERMISSIONS);
@@ -142,6 +144,7 @@ public class HomeFileTool {
     return fs.makeQualified(stagingLocation);
   }
 
+  @WithSpan
   public Path saveFile(String stagingLocation, FilePath filePath, FileType fileType) throws IOException {
     return saveFile(Path.of(stagingLocation), filePath, FileFormat.getExtension(fileType));
   }
@@ -151,8 +154,9 @@ public class HomeFileTool {
    * @param stagingLocation staging directory where file is uploaded
    * @param filePath file path in under home space
    * @return final location of file
-   * @throws IOException
+   * @throws IOException - An exception if the file system cannot be written to.
    */
+  @VisibleForTesting
   public Path saveFile(Path stagingLocation, FilePath filePath, String extension) throws IOException {
     if (!validStagingLocation(stagingLocation)) {
       throw new IllegalArgumentException("Invalid staging location provided");
@@ -160,7 +164,6 @@ public class HomeFileTool {
 
     final Path uploadLocation = getUploadLocation(filePath, extension);
     fs.mkdirs(uploadLocation.getParent());
-    // rename staging dir to uploadPath
     fs.rename(stagingLocation, uploadLocation);
     return uploadLocation;
   }
@@ -171,6 +174,7 @@ public class HomeFileTool {
    * @param stagingLocation staging directory where file is uploaded
    * @return if the location is valid or not
    */
+  @WithSpan
   public boolean validStagingLocation(Path stagingLocation) {
     final Path stagingPath = fs.makeQualified(stagingLocation);
 
@@ -184,8 +188,9 @@ public class HomeFileTool {
 
   /**
    * Delete file uploaded by user
-   * @throws IOException
+   * @throws IOException - An exception if the file system cannot be written to.
    */
+  @WithSpan
   public void deleteFile(String fileLocation) throws IOException {
     if (fileLocation != null) {
       fs.delete(Path.of(fileLocation), true);
@@ -198,10 +203,11 @@ public class HomeFileTool {
 
   /**
    * Delete the contents in given user home.
-   * @param userHome
+   * @param userHome - The location of a user's home space.
    * @return Whether successful or not.
-   * @throws IOException
+   * @throws IOException - An exception if the file system cannot be written to.
    */
+  @WithSpan
   public boolean deleteHomeAndContents(String userHome) throws IOException {
     final Path homePath = config.getInnerUploads().resolve(userHome);
     if (fs.exists(homePath)) {

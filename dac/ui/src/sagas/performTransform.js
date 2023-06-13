@@ -50,8 +50,8 @@ import {
   loadTableData,
   cancelDataLoad,
   loadDataset,
-  listenToJobProgress,
 } from "@app/sagas/performLoadDataset";
+import { listenToJobProgress } from "@app/sagas/performLoadDatasetNew";
 import { transformHistoryCheck } from "sagas/transformHistoryCheck";
 import { getExploreState, getExplorePageDataset } from "selectors/explore";
 import { getExploreViewState } from "selectors/resources";
@@ -88,13 +88,15 @@ import {
   fetchFilteredJobsList,
   JOB_PAGE_NEW_VIEW_ID,
   resetFilteredJobsList,
+  resetUniqueSavingJob,
 } from "@app/actions/joblist/jobList";
 import { extractSql, toQueryRange } from "@app/utils/statements/statement";
 import {
   handlePostNewQueryJobSuccess,
-  postNewQueryJob,
+  newPerformTransformSingle,
 } from "./performTransformNew";
 import { getFeatureFlag } from "@app/selectors/featureFlagsSelector";
+import { PHYSICAL_DATASET_TYPES } from "@app/constants/datasetTypes";
 
 export default function* watchPerformTransform() {
   yield all([
@@ -132,6 +134,10 @@ export function* performTransform(payload) {
       isSaveViewAs,
       isRun,
       viewId,
+      forceDataLoad,
+      queryContext,
+      transformData,
+      useOptimizedJobFlow,
     } = payload;
     yield put(setIsMultiQueryRunning({ running: true }));
 
@@ -153,6 +159,7 @@ export function* performTransform(payload) {
     // callback is passed in when clicking on actions
     if (!callback && indexToModify == undefined) {
       yield put(resetFilteredJobsList());
+      yield put(resetUniqueSavingJob());
       yield put(setQueryStatuses({ statuses: queryStatuses }));
       yield put(setQuerySelections({ selections }));
       yield put(setPreviousMultiSql({ sql: currentSql }));
@@ -181,26 +188,53 @@ export function* performTransform(payload) {
 
       let willProceed = true;
 
+      const datasetType = dataset.get("datasetType");
+
       const isNotDataset =
         !dataset.get("datasetVersion") ||
         (!dataset.get("datasetType") && !dataset.get("sql"));
+
+      const references = yield getNessieReferences();
+
+      const sql = !isSaveViewAs
+        ? queryStatuses[i].sqlStatement
+        : runningSql || currentSql;
+
+      const finalTransformData = yield call(
+        getTransformData,
+        dataset,
+        sql || dataset.get("sql"),
+        queryContext,
+        transformData,
+        references
+      );
 
       const useNewQueryFlow = yield select(
         getFeatureFlag,
         "job_status_in_sql_runner"
       );
 
-      // the process for running/previewing a new query is handled differently
-      // submit job request -> listen to job progress -> fetch dataset data
-      // if job fails -> call jobs API to fetch error details
-      if (isNotDataset && useNewQueryFlow !== "DISABLED") {
-        const [response] = yield call(postNewQueryJob, {
-          ...payload,
-          sessionId,
-          sqlStatement: queryStatuses[i].sqlStatement,
-        });
+      // The process for running/previewing a new query is now handled differently.
+      // submit job request -> listen to job progress -> fetch dataset data,
+      // if job fails -> call jobs API to fetch error details.
+      // useOptimizedQueryFlow guarantees that this logic is only followed when cliking on run/preview
+      // OR trying to save a new or modified query that hasn't been ran/previewed yet
+      if (
+        useNewQueryFlow !== "DISABLED" &&
+        (useOptimizedJobFlow ||
+          (isSaveViewAs && (isNotDataset || finalTransformData)))
+      ) {
+        const [response, navigateOptions, newVersion] = yield call(
+          newPerformTransformSingle,
+          {
+            ...payload,
+            sessionId,
+            sqlStatement: queryStatuses[i].sqlStatement,
+            finalTransformData,
+            references,
+          }
+        );
 
-        // TODO: this can be cleaned up by being put in a saga since we fetch queryStatuses in multiple places
         exploreState = yield select(getExploreState);
 
         if (!exploreState) {
@@ -220,32 +254,47 @@ export function* performTransform(payload) {
 
         // handle successful job submission
         if (response?.payload) {
+          let newDataset = undefined;
           let datasetPath = "";
           let datasetVersion = "";
           let jobId = "";
           let paginationUrl = "";
 
           // destructure response and update the queryStatuses object in Redux
-          [datasetPath, datasetVersion, jobId, paginationUrl, sessionId] =
-            yield call(handlePostNewQueryJobSuccess, {
-              response,
-              queryStatuses: mostRecentStatuses,
-              curIndex: i,
-              indexToModify,
-              callback,
-            });
+          [
+            newDataset,
+            datasetPath,
+            datasetVersion,
+            jobId,
+            paginationUrl,
+            sessionId,
+          ] = yield call(handlePostNewQueryJobSuccess, {
+            response,
+            newVersion,
+            queryStatuses: mostRecentStatuses,
+            curIndex: i,
+            indexToModify,
+            callback,
+          });
 
-          if (!isSaveViewAs) {
-            // add job definition to jobs table
-            yield put(fetchFilteredJobsList(jobId, JOB_PAGE_NEW_VIEW_ID));
-          }
+          // add job definition to jobs table
+          yield put(
+            fetchFilteredJobsList(
+              jobId,
+              JOB_PAGE_NEW_VIEW_ID,
+              undefined,
+              isSaveViewAs
+            )
+          );
 
           // start the job listener and track job progress in Redux
           willProceed = yield call(
             listenToJobProgress,
+            newDataset,
             datasetVersion,
             jobId,
             paginationUrl,
+            navigateOptions,
             isRun,
             datasetPath,
             callback,
@@ -279,9 +328,20 @@ export function* performTransform(payload) {
         continue;
       }
 
+      const isSavingPDS =
+        isSaveViewAs && PHYSICAL_DATASET_TYPES.has(datasetType);
+
+      // need to call the /preview endpoint when trying to save a PDS that wasn't ran/previewed first
       const [response, newVersion] = yield call(
         performTransformSingle,
-        { ...payload, sessionId },
+        {
+          ...payload,
+          sessionId,
+          forceDataLoad:
+            isSavingPDS && preUpdatedQueryStatuses?.length === 0
+              ? true
+              : forceDataLoad,
+        },
         queryStatuses[i]
       );
 
@@ -538,7 +598,11 @@ function handlePerformTransformError(e) {
   );
 }
 
-export function* handleRunDatasetSql({ isPreview, selectedSql }) {
+export function* handleRunDatasetSql({
+  isPreview,
+  selectedSql,
+  useOptimizedJobFlow,
+}) {
   const dataset = yield select(getExplorePageDataset);
   const exploreViewState = yield select(getExploreViewState);
   const exploreState = yield select(getExploreState);
@@ -554,6 +618,7 @@ export function* handleRunDatasetSql({ isPreview, selectedSql }) {
       runningSql,
       queryContext,
       viewId,
+      useOptimizedJobFlow,
     };
 
     if (isPreview) {

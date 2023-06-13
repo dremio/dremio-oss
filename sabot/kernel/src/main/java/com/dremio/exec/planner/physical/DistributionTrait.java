@@ -83,6 +83,7 @@ public class DistributionTrait implements RelTrait {
     return this.equals(trait);
   }
 
+  @Override
   public RelTraitDef<DistributionTrait> getTraitDef() {
     return DistributionTraitDef.INSTANCE;
   }

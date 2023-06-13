@@ -30,7 +30,9 @@ public class NoSupportedUpPromotionOrCoercionException extends RuntimeException 
   private final CompleteType fileType;
   private final CompleteType tableType;
   private final List<String> columns;
+  @SuppressWarnings("checkstyle:MutableException")
   private List<String> datasetPath;
+  @SuppressWarnings("checkstyle:MutableException")
   private String filePath;
 
   public NoSupportedUpPromotionOrCoercionException(CompleteType fileType, CompleteType tableType) {

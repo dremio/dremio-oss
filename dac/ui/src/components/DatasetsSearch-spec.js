@@ -15,6 +15,8 @@
  */
 import { shallow } from "enzyme";
 import Immutable from "immutable";
+import * as sqlPaths from "dremio-ui-common/paths/sqlEditor.js";
+import { constructFullPath } from "@app/utils/pathUtils";
 
 import DatasetsSearch from "./DatasetsSearch";
 
@@ -93,19 +95,36 @@ describe("DatasetsSearch-spec", () => {
     const dataset = wrapper.find(".dataset-wrapper").find(".dataset");
     const mainSettingsBtn = dataset.at(1).find(".main-settings-btn");
 
+    const firstFullPath = constructFullPath(
+      commonProps.searchData.get(0).get("fullPath")
+    );
+    const secondFullPath = constructFullPath(
+      commonProps.searchData.get(1).get("fullPath")
+    );
+
+    const firstTo = {
+      pathname: sqlPaths.sqlEditor.link(),
+      search: `?context="${encodeURIComponent(
+        "@test_user"
+      )}"&queryPath=${firstFullPath}`,
+    };
+
+    const secondTo = {
+      pathname: sqlPaths.sqlEditor.link(),
+      search: `?context="${encodeURIComponent(
+        "@test_user"
+      )}"&queryPath=${secondFullPath}`,
+    };
+
     expect(dataset).have.length(2);
 
-    expect(dataset.at(0).prop("to")).equal(
-      commonProps.searchData.get(0).getIn(["links", "self"])
-    );
-    expect(dataset.at(1).prop("to")).equal(
-      commonProps.searchData.get(1).getIn(["links", "self"])
-    );
+    expect(dataset.at(0).prop("to")).deep.equal(firstTo);
+    expect(dataset.at(1).prop("to")).deep.equal(secondTo);
     expect(mainSettingsBtn.childAt(0).prop("to")).equal(
       commonProps.searchData.get(1).getIn(["links", "edit"])
     );
-    expect(mainSettingsBtn.childAt(1).prop("to")).equal(
-      commonProps.searchData.get(1).getIn(["links", "self"])
+    expect(mainSettingsBtn.childAt(1).prop("fullPath")).equal(
+      constructFullPath(commonProps.searchData.get(1).get("fullPath"))
     );
   });
 });

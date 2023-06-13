@@ -64,14 +64,78 @@ public class TestTextReaderResults extends TestTextReaderHelper {
           "custom_comment.csv"
         },
         {
-          new  TextFileConfig().setLineDelimiter("\n").setEscape("'"), // To distinct between quote and escape as they are same by default
-          new String[][] {
-            {"c1","c2","c3"},
-            {"\"r1c1","r1c2","\"r1c3"},
-            {"r2c1","\"r2c2","r2c3"}
+          new TextFileConfig().setFieldDelimiter(",$").setLineDelimiter("\n"),
+          new String[][]{
+            {"c1", "c2", "c3"},
+            {"r1c1", "r1c2", "r1c3"},
+            {"r2c1", "r2c2", "r2c3"}
+          },
+          "multi_char_field_delimiter.txt"
+        },
+        {
+          new TextFileConfig().setLineDelimiter("\n").setFieldDelimiter("¦"),
+          new String[][]{
+            {"c1", "c2", "c3"},
+            {"r1c1", "r1c2", "r1c3"},
+            {"r2c1", "r2c2", "r2c3"}
+          },
+          "broken_pipe.txt"
+        },
+        {
+          new TextFileConfig().setEscape("'").setLineDelimiter("\n"),
+          new String[][]{
+            {"c1", "c2", "c3"},
+            {"r1\"c1", "r1c2", "r1\"c3"},
+            {"r2c1", "r2c2\"", "r2c3"}
+          },
+          "unescaped_quote.csv"
+        },
+        {
+          new TextFileConfig().setLineDelimiter("$"),
+          new String[][]{
+            {"c1", "c2", "c3"},
+            {"r1c1", "r1c2", "r1c3"},
+            {"r2c1", "r2c2", "r2c3"}
+          },
+          "custom_line_delimiter.csv"
+        },
+        {
+          new TextFileConfig().setLineDelimiter("\n"),
+          new String[][]{
+            {"c1", "c2", "c3"},
+            {"\"r1\"c1\"", "r1c2", "\"r1\"c3\""},
+            {"r2c1", "\"r2c2\"", "r2c3"}
           },
           "quote_escape.csv"
-        }
+        },
+        {
+          new TextFileConfig().setEscape("\\").setLineDelimiter("\n"),
+          new String[][]{
+            {"c1", "c2", "c3"},
+            {"\"r1\"\\c1\"", "r1c2", "\"r1c3\""},
+            {"r2c1", "\"r2c2\"", "r2c3"}
+          },
+          "custom_quote_escape.csv"
+        },
+        {
+          // Failure to load
+          new TextFileConfig().setEscape("\\").setLineDelimiter("\n"),
+          new String[][]{
+            {"c1", "c2", "c3"},
+            {"r1c1", "This is value field value with an \"embedded\" quoted word using backslash-quote", "r1c3"},
+            {"r2c1", "This is value field value with an \"embedded\" quoted word using double-double-quote", "r2c3"}
+          },
+          "double_double_quote.csv"
+        },
+        {
+          new TextFileConfig().setLineDelimiter("$"),
+          new String[][] {
+            {"c1","c2","c3"},
+            {"r1c1$","r1c2","r1c3$"},
+            {"r2c1","r2c2$","r2c3"}
+          },
+          "custom_ld_inside_quoted.csv"
+        },
       }
     );
   }

@@ -69,6 +69,8 @@ import com.dremio.exec.store.SampleMutator;
 import com.dremio.exec.store.file.proto.FileProtobuf;
 import com.dremio.exec.store.parquet.InputStreamProvider;
 import com.dremio.exec.store.parquet.MutableParquetMetadata;
+import com.dremio.exec.store.parquet.ParquetFilterCreator;
+import com.dremio.exec.store.parquet.ParquetFilters;
 import com.dremio.exec.store.parquet.ParquetReaderUtility;
 import com.dremio.exec.store.parquet.ParquetScanProjectedColumns;
 import com.dremio.exec.store.parquet.SchemaDerivationHelper;
@@ -95,9 +97,9 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
   private static final long NUM_ROWS_IN_DATA_FILE = 200_000L;
   private static final String BUFFER_ALLOCATOR_NAME = "deltalake-checkpoint-alloc";
   private static final List<SchemaPath> META_PROJECTED_COLS = ImmutableList.of(
-    SchemaPath.getSimplePath(DELTA_FIELD_ADD),
-    SchemaPath.getSimplePath(DELTA_FIELD_METADATA),
-    SchemaPath.getSimplePath(DELTA_FIELD_PROTOCOL));
+      SchemaPath.getSimplePath(DELTA_FIELD_ADD),
+      SchemaPath.getSimplePath(DELTA_FIELD_METADATA),
+      SchemaPath.getSimplePath(DELTA_FIELD_PROTOCOL));
   private static final int BATCH_SIZE = 500;
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
   long netBytesAdded = 0, netRecordsAdded = 0, numFilesModified = 0;
@@ -137,9 +139,10 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
           return o1.getPath().toString().compareTo(o2.getPath().toString());
         }
       });
-      FileAttributes fileAttributes = fileAttributesList.get(0);
       List<DatasetSplit> snapSplitsList = new ArrayList<>();
       long totalBlocks = 0L;
+      int numRowsRead = 0;
+      int numFilesReadToEstimateRowCount = 0;
       for (FileAttributes fileAttributesCurrent : fileAttributesList) {
         logger.debug("Reading footer and generating splits for checkpoint parquet file {}", fileAttributesCurrent.getPath());
         MutableParquetMetadata currentMetadata = readCheckpointParquetFooter(fs, fileAttributesCurrent.getPath(), fileAttributesCurrent.size());
@@ -149,83 +152,86 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
         snapSplitsList.addAll(generateSplits(fileAttributesCurrent, version, currentMetadata));
 
         if (checkParquetContainsMetadata(currentMetadata.getBlocks())) {
-          fileAttributes = fileAttributesCurrent;
           this.parquetMetadata = currentMetadata;
         }
-      }
-      Preconditions.checkState(totalBlocks > 0, "Illegal Deltalake checkpoint parquet file(s) with no row groups");
-      final CompressionCodecFactory codec = CodecFactory.createDirectCodecFactory(
-        new Configuration(), new ParquetDirectByteBufferAllocator(operatorContext.getAllocator()), 0);
 
-      // we know that these are deltalake files and do not have the date corruption bug in Drill
-      final SchemaDerivationHelper schemaHelper = SchemaDerivationHelper.builder()
-        .readInt96AsTimeStamp(operatorContext.getOptions().getOption(PARQUET_READER_INT96_AS_TIMESTAMP).getBoolVal())
-        .dateCorruptionStatus(ParquetReaderUtility.DateCorruptionStatus.META_SHOWS_NO_CORRUPTION)
-        .mapDataTypeEnabled(operatorContext.getOptions().getOption(ENABLE_MAP_DATA_TYPE))
-        .build();
+        // calculate row estimations for each checkpoint files if it is a multi-part checkpoint
+        final CompressionCodecFactory codec = CodecFactory.createDirectCodecFactory(
+            new Configuration(), new ParquetDirectByteBufferAllocator(operatorContext.getAllocator()), 0);
 
-      int numRowsRead = 0;
-      int numFilesReadToEstimateRowCount = 0;
-      long prevRecordCntEstimate = 0;
-      boolean isRowCountEstimateConverged = false;
-      try (InputStreamProvider streamProvider = new SingleStreamProvider(fs, fileAttributes.getPath(), fileAttributes.size(),
-        maxFooterLen, false, parquetMetadata, operatorContext, false)) {
+        // we know that these are deltalake files and do not have the date corruption bug in Drill
+        final SchemaDerivationHelper schemaHelper = SchemaDerivationHelper.builder()
+            .readInt96AsTimeStamp(operatorContext.getOptions().getOption(PARQUET_READER_INT96_AS_TIMESTAMP).getBoolVal())
+            .dateCorruptionStatus(ParquetReaderUtility.DateCorruptionStatus.META_SHOWS_NO_CORRUPTION)
+            .mapDataTypeEnabled(operatorContext.getOptions().getOption(ENABLE_MAP_DATA_TYPE))
+            .build();
 
-        for (int rowGroupIdx = 0; rowGroupIdx < parquetMetadata.getBlocks().size() && !protocolVersionFound && !schemaFound; ++rowGroupIdx) {
-          long rowCount = parquetMetadata.getBlocks().get(rowGroupIdx).getRowCount();
-          long noOfBatches = rowCount / BATCH_SIZE + 1;
+        long prevRecordCntEstimate = 0;
+        boolean isRowCountEstimateConverged = false;
+        try (InputStreamProvider streamProvider = new SingleStreamProvider(fs, fileAttributesCurrent.getPath(), fileAttributesCurrent.size(),
+            maxFooterLen, false, currentMetadata, operatorContext, false, ParquetFilters.NONE, ParquetFilterCreator.DEFAULT)) {
 
-          if (protocolVersionFound && schemaFound && (isRowCountEstimateConverged || numFilesReadToEstimateRowCount > numAddedFilesReadLimit)) {
-            break;
-          }
+          for (int rowGroupIdx = 0; rowGroupIdx < currentMetadata.getBlocks().size() ; ++rowGroupIdx) {
+            long rowCount = currentMetadata.getBlocks().get(rowGroupIdx).getRowCount();
+            long noOfBatches = rowCount / BATCH_SIZE + 1;
 
-          try (RecordReader reader = new ParquetRowiseReader(operatorContext, parquetMetadata, rowGroupIdx,
-            fileAttributes.getPath().toString(), ParquetScanProjectedColumns.fromSchemaPaths(META_PROJECTED_COLS),
-            fs, schemaHelper, streamProvider, codec, true)) {
-            reader.setup(mutator);
-            mutator.allocate(BATCH_SIZE);
-            // Read the parquet file to populate inner list types
-            mutator.getContainer().buildSchema(BatchSchema.SelectionVectorMode.NONE);
-            long batchesRead = 0;
-            while (batchesRead < noOfBatches) {
-              int recordCount = reader.next();
-              numRowsRead += recordCount;
-              batchesRead++;
-              prepareValueVectors(mutator);
-              numFilesReadToEstimateRowCount += estimateStats(fs, rootFolder, recordCount);
-              protocolVersionFound = protocolVersionFound || assertMinReaderVersion();
-              schemaFound = schemaFound || findSchemaAndPartitionCols();
-              long newRecordCountEstimate = numFilesReadToEstimateRowCount == 0 ? 0 : Math.round((netRecordsAdded * netFilesAdded * 1.0) / numFilesReadToEstimateRowCount);
-              isRowCountEstimateConverged = prevRecordCntEstimate == 0 ? false :
-                      isRowCountEstimateConverged || isRecordEstimateConverged(prevRecordCntEstimate, newRecordCountEstimate);
-              if (protocolVersionFound && schemaFound && (isRowCountEstimateConverged || numFilesReadToEstimateRowCount > numAddedFilesReadLimit)) {
-                break;
-              }
-              prevRecordCntEstimate = newRecordCountEstimate;
-              // reset vectors as they'll be reused in next batch
-              resetVectors();
+            if (protocolVersionFound && schemaFound && (isRowCountEstimateConverged || numFilesReadToEstimateRowCount > numAddedFilesReadLimit)) {
+              break;
             }
-          } catch (Exception e) {
-            logger.error("IOException occurred while reading deltalake table", e);
-            throw new IOException(e);
+
+            try (RecordReader reader = new ParquetRowiseReader(operatorContext, currentMetadata, rowGroupIdx,
+                fileAttributesCurrent.getPath().toString(), ParquetScanProjectedColumns.fromSchemaPaths(META_PROJECTED_COLS),
+                fs, schemaHelper, streamProvider, codec, true)) {
+              reader.setup(mutator);
+              mutator.allocate(BATCH_SIZE);
+              // Read the parquet file to populate inner list types
+              mutator.getContainer().buildSchema(BatchSchema.SelectionVectorMode.NONE);
+              long batchesRead = 0;
+              while (batchesRead < noOfBatches) {
+                int recordCount = reader.next();
+                numRowsRead += recordCount;
+                batchesRead++;
+                prepareValueVectors(mutator);
+                numFilesReadToEstimateRowCount += estimateStats(fs, rootFolder, recordCount);
+                protocolVersionFound = protocolVersionFound || assertMinReaderVersion();
+                schemaFound = schemaFound || findSchemaAndPartitionCols();
+                long newRecordCountEstimate = numFilesReadToEstimateRowCount == 0 ? 0 : Math.round((netRecordsAdded * netFilesAdded * 1.0) / numFilesReadToEstimateRowCount);
+                isRowCountEstimateConverged = prevRecordCntEstimate == 0 ? false :
+                    isRowCountEstimateConverged || isRecordEstimateConverged(prevRecordCntEstimate, newRecordCountEstimate);
+                if (protocolVersionFound && schemaFound && (isRowCountEstimateConverged || numFilesReadToEstimateRowCount > numAddedFilesReadLimit)) {
+                  break;
+                }
+                prevRecordCntEstimate = newRecordCountEstimate;
+                // reset vectors as they'll be reused in next batch
+                resetVectors();
+              }
+            } catch (Exception e) {
+              logger.error("IOException occurred while reading deltalake table", e);
+              throw new IOException(e);
+            } finally {
+              codec.release();
+            }
           }
         }
+        Preconditions.checkState(totalBlocks > 0, "Illegal Deltalake checkpoint parquet file(s) with no row groups");
+
+        if (!protocolVersionFound || !schemaFound) {
+          UserException.invalidMetadataError()
+              .message("Metadata read Failed. Malformed checkpoint parquet %s", fileAttributesCurrent.getPath())
+              .build(logger);
+        }
+
+        logger.debug("Checkpoint parquet file {}, numRowsRead {}, numFilesReadToEstimateRowCount {}",
+            fileAttributesCurrent.getPath(), numRowsRead, numFilesReadToEstimateRowCount);
       }
 
-      if (!protocolVersionFound || !schemaFound) {
-        UserException.invalidMetadataError()
-          .message("Metadata read Failed. Malformed checkpoint parquet %s", fileAttributes.getPath())
-          .build(logger);
-      }
+      logger.debug("Total rows read for combined multi-part checkpoint files: {}", numRowsRead);
+      estimatedNetBytesAdded = Math.round((netBytesAdded * netFilesAdded * 1.0) / numFilesReadToEstimateRowCount);
+      estimatedNetRecordsAdded = Math.round((netRecordsAdded * netFilesAdded * 1.0) / numFilesReadToEstimateRowCount);
 
-        logger.debug("Total rows read: {}", numRowsRead);
-        estimatedNetBytesAdded = Math.round((netBytesAdded * netFilesAdded * 1.0) / numFilesReadToEstimateRowCount);
-        estimatedNetRecordsAdded = Math.round((netRecordsAdded * netFilesAdded * 1.0) / numFilesReadToEstimateRowCount);
-
-      logger.debug("Checkpoint parquet file {}, netFilesAdded {}, estimatedNetBytesAdded {}, estimatedNetRecordsAdded {}",
-        fileAttributes.getPath(), netFilesAdded, estimatedNetBytesAdded, estimatedNetRecordsAdded);
+      logger.debug("Stat Estimations: netFilesAdded {}, estimatedNetBytesAdded {}, estimatedNetRecordsAdded {}", netFilesAdded, estimatedNetBytesAdded, estimatedNetRecordsAdded);
       final DeltaLogSnapshot snap = new DeltaLogSnapshot("UNKNOWN", netFilesAdded,
-        estimatedNetBytesAdded, estimatedNetRecordsAdded, netFilesAdded, System.currentTimeMillis(), true);
+          estimatedNetBytesAdded, estimatedNetRecordsAdded, netFilesAdded, System.currentTimeMillis(), true);
       snap.setSchema(schemaString, partitionCols);
       snap.setSplits(snapSplitsList);
       return snap;
@@ -242,7 +248,7 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
   }
 
   private MutableParquetMetadata readCheckpointParquetFooter(FileSystem fs, Path filePath, long fileSize) throws Exception {
-    try (SingleStreamProvider singleStreamProvider = new SingleStreamProvider(fs, filePath, fileSize, maxFooterLen, false, null, null, false)) {
+    try (SingleStreamProvider singleStreamProvider = new SingleStreamProvider(fs, filePath, fileSize, maxFooterLen, false, null, null, false, ParquetFilters.NONE, ParquetFilterCreator.DEFAULT)) {
       final MutableParquetMetadata footer = singleStreamProvider.getFooter();
       return footer;
     }
@@ -261,7 +267,7 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
       if (!protocolVector.isNull(i)) {
         int minReaderVersion = ((IntVector) protocolVector.getChild(PROTOCOL_MIN_READER_VERSION)).get(i);
         Preconditions.checkState(minReaderVersion <= 1,
-          "Protocol version %s is incompatible for Dremio plugin", minReaderVersion);
+            "Protocol version %s is incompatible for Dremio plugin", minReaderVersion);
         return true;
       }
     }
@@ -291,9 +297,9 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
       long numFilesAdded, numFilesRemoved;
       try {
         ColumnChunkMetaData addColChunk = blockMetaData.getColumns().stream().filter(
-          colChunk -> colChunk.getPath().equals(ColumnPath.get(DELTA_FIELD_ADD, "path"))).findFirst().get();
+            colChunk -> colChunk.getPath().equals(ColumnPath.get(DELTA_FIELD_ADD, "path"))).findFirst().get();
         ColumnChunkMetaData removeColChunk = blockMetaData.getColumns().stream().filter(
-          colChunk -> colChunk.getPath().equals(ColumnPath.get(DELTA_FIELD_REMOVE, "path"))).findFirst().get();
+            colChunk -> colChunk.getPath().equals(ColumnPath.get(DELTA_FIELD_REMOVE, "path"))).findFirst().get();
         numFilesAdded = numRows - addColChunk.getStatistics().getNumNulls();
         numFilesRemoved = numRows - removeColChunk.getStatistics().getNumNulls();
         netFilesAdded += numFilesAdded;
@@ -311,7 +317,7 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
       long numRows = blockMetaData.getRowCount();
       try {
         ColumnChunkMetaData metadataColChunk = blockMetaData.getColumns().stream().filter(
-          colChunk -> colChunk.getPath().equals(ColumnPath.get(DELTA_FIELD_METADATA, DELTA_FIELD_METADATA_SCHEMA_STRING))).findFirst().get();
+            colChunk -> colChunk.getPath().equals(ColumnPath.get(DELTA_FIELD_METADATA, DELTA_FIELD_METADATA_SCHEMA_STRING))).findFirst().get();
         numMetadataEntries = numRows - metadataColChunk.getStatistics().getNumNulls();
         if (numMetadataEntries > 0) {
           break;
@@ -417,36 +423,36 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
 
   private List<DatasetSplit> generateSplits(FileAttributes fileAttributes, long version, MutableParquetMetadata currentMetadata) {
     FileProtobuf.FileSystemCachedEntity fileProto = FileProtobuf.FileSystemCachedEntity
-      .newBuilder()
-      .setPath(fileAttributes.getPath().toString())
-      .setLength(fileAttributes.size())
-      .setLastModificationTime(0) // using 0 as the mtime to signify that these splits are immutable
-      .build();
+        .newBuilder()
+        .setPath(fileAttributes.getPath().toString())
+        .setLength(fileAttributes.size())
+        .setLastModificationTime(0) // using 0 as the mtime to signify that these splits are immutable
+        .build();
 
     int rowGrpIdx = 0;
 
     final List<DatasetSplit> datasetSplits = new ArrayList<>(currentMetadata.getBlocks().size());
     for (BlockMetaData blockMetaData : currentMetadata.getBlocks()) {
       final DeltaLakeProtobuf.DeltaCommitLogSplitXAttr deltaExtended = DeltaLakeProtobuf.DeltaCommitLogSplitXAttr
-        .newBuilder().setRowGroupIndex(rowGrpIdx).setVersion(version).build();
+          .newBuilder().setRowGroupIndex(rowGrpIdx).setVersion(version).build();
       rowGrpIdx++;
 
       final EasyProtobuf.EasyDatasetSplitXAttr splitExtended = EasyProtobuf.EasyDatasetSplitXAttr.newBuilder()
-        .setPath(fileAttributes.getPath().toString())
-        .setStart(blockMetaData.getStartingPos())
-        .setLength(blockMetaData.getCompressedSize())
-        .setUpdateKey(fileProto)
-        .setExtendedProperty(deltaExtended.toByteString())
-        .build();
+          .setPath(fileAttributes.getPath().toString())
+          .setStart(blockMetaData.getStartingPos())
+          .setLength(blockMetaData.getCompressedSize())
+          .setUpdateKey(fileProto)
+          .setExtendedProperty(deltaExtended.toByteString())
+          .build();
       datasetSplits.add(DatasetSplit.of(Collections.EMPTY_LIST, blockMetaData.getCompressedSize(),
-        blockMetaData.getRowCount(), splitExtended::writeTo));
+          blockMetaData.getRowCount(), splitExtended::writeTo));
     }
     return datasetSplits;
   }
 
   private static JsonNode findNode(JsonNode node, String... paths) {
     for (String path : paths) {
-      if (node==null) {
+      if (node == null) {
         return node;
       }
       node = node.get(path);
@@ -457,7 +463,7 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
   // get an optional value
   private static <T> T get(JsonNode node, T defaultVal, Function<JsonNode, T> typeFunc, String... paths) {
     node = findNode(node, paths);
-    return (node==null) ? defaultVal:typeFunc.apply(node);
+    return (node == null) ? defaultVal : typeFunc.apply(node);
   }
 
   private static boolean isRecordEstimateConverged(long prevRecordCntEstimate, long newRecordCntEstimate) {

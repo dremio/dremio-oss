@@ -109,17 +109,12 @@ public class TestIcebergSplitGenTableFunction extends BaseTestTableFunction {
 
       Table input = t(
           th(SystemSchemas.DATAFILE_PATH, SystemSchemas.FILE_SIZE, SystemSchemas.PARTITION_INFO, SystemSchemas.COL_IDS,
-              "input_only_col1", "input_only_col2"),
-          tr("path1", 1000L * 1024 * 1024, IcebergSerDe.serializeToByteArray(PARTITION_1), COL_IDS_1,
-              "ignore", "ignore"),
-          tr("path2", 100L * 1024 * 1024, IcebergSerDe.serializeToByteArray(PARTITION_1), COL_IDS_1,
-              "ignore", "ignore"),
-          tr("path3", 500L * 1024 * 1024, IcebergSerDe.serializeToByteArray(PARTITION_3), COL_IDS_3,
-              "ignore", "ignore"),
-          tr("path4", 200L * 1024 * 1024, IcebergSerDe.serializeToByteArray(PARTITION_2), COL_IDS_2,
-              "ignore", "ignore"),
-          tr("path5", 350L * 1024 * 1024, IcebergSerDe.serializeToByteArray(PARTITION_3), COL_IDS_3,
-              "ignore", "ignore"));
+            "input_only_col1", "input_only_col2"),
+          tr("path1", 1000L * 1024 * 1024, IcebergSerDe.serializeToByteArray(PARTITION_1), COL_IDS_1, "ignore", "ignore"),
+          tr("path2", 100L * 1024 * 1024, IcebergSerDe.serializeToByteArray(PARTITION_1), COL_IDS_1, "ignore", "ignore"),
+          tr("path3", 500L * 1024 * 1024, IcebergSerDe.serializeToByteArray(PARTITION_3), COL_IDS_3, "ignore", "ignore"),
+          tr("path4", 200L * 1024 * 1024, IcebergSerDe.serializeToByteArray(PARTITION_2), COL_IDS_2, "ignore", "ignore"),
+          tr("path5", 350L * 1024 * 1024, IcebergSerDe.serializeToByteArray(PARTITION_3), COL_IDS_3, "ignore", "ignore"));
 
       Table output = t(
           th(
@@ -183,9 +178,8 @@ public class TestIcebergSplitGenTableFunction extends BaseTestTableFunction {
     validateOutputBufferNotReused(getPop(), input, 3);
   }
 
-
   private Fixtures.DataRow inputRow(String path, long fileSizeInMb, NormalizedPartitionInfo partitionInfo,
-      byte[] colIds) throws Exception {
+                                    byte[] colIds) throws Exception {
     return tr(path, fileSizeInMb * 1024 * 1024, IcebergSerDe.serializeToByteArray(partitionInfo), colIds);
   }
 
@@ -194,17 +188,15 @@ public class TestIcebergSplitGenTableFunction extends BaseTestTableFunction {
     return tr(
         tuple(path, offsetInMb * 1024 * 1024, sizeInMb * 1024 * 1024, fileSizeInMb * 1024 * 1024),
         createSplitInformation(path, offsetInMb * 1024 * 1024, sizeInMb * 1024 * 1024,
-            fileSizeInMb * 1024 * 1024, 0, partitionInfo),
-        colIds);
+            fileSizeInMb * 1024 * 1024, 0, partitionInfo), colIds);
   }
 
   private Fixtures.DataRow outputRowWithVersion(String path, long version, long offsetInMb, long sizeInMb,
-      long fileSizeInMb, NormalizedPartitionInfo partitionInfo, byte[] colIds) throws Exception {
+                                                long fileSizeInMb, NormalizedPartitionInfo partitionInfo, byte[] colIds) throws Exception {
     return tr(
-        tuple(path, offsetInMb * 1024 * 1024, sizeInMb * 1024 * 1024, fileSizeInMb * 1024 * 1024),
-        createSplitInformation(path, offsetInMb * 1024 * 1024, sizeInMb * 1024 * 1024,
-            fileSizeInMb * 1024 * 1024, version, partitionInfo),
-        colIds);
+      tuple(path, offsetInMb * 1024 * 1024, sizeInMb * 1024 * 1024, fileSizeInMb * 1024 * 1024),
+      createSplitInformation(path, offsetInMb * 1024 * 1024, sizeInMb * 1024 * 1024,
+        fileSizeInMb * 1024 * 1024, version, partitionInfo), colIds);
   }
 
   private TableFunctionPOP getPop() {

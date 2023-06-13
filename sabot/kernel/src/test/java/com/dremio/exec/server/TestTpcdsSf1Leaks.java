@@ -17,7 +17,6 @@ package com.dremio.exec.server;
 
 import static com.dremio.exec.ExecConstants.SLICE_TARGET;
 import static com.dremio.exec.ExecConstants.SLICE_TARGET_DEFAULT;
-import static org.junit.Assert.fail;
 
 import org.junit.BeforeClass;
 import org.junit.Ignore;
@@ -67,12 +66,7 @@ public class TestTpcdsSf1Leaks extends BaseTestQuery {
       final String query = getFile("tpcds-sf1/q73.sql");
       for (int i = 0; i < 20; i++) {
         System.out.printf("%nRun #%d%n", i+1);
-
-        try {
-          runSQL(query);
-        } catch (final Exception e) {
-          fail("query failed: " + e.getMessage());
-        }
+        runSQL(query);
       }
     }finally {
       setSessionOption(SLICE_TARGET, Long.toString(SLICE_TARGET_DEFAULT));

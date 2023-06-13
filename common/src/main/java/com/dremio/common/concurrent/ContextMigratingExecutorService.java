@@ -57,6 +57,20 @@ public class ContextMigratingExecutorService<E extends ExecutorService> implemen
     this.tracer = tracer;
   }
 
+  public static Runnable makeContextMigratingTask(Runnable runnable, String taskName) {
+    return new ContextMigratingRunnableTask() {
+      @Override
+      public String getSpanName() {
+        return taskName;
+      }
+
+      @Override
+      public void run() {
+        runnable.run();
+      }
+    };
+  }
+
   @Override
   public void shutdown() {
     delegate.shutdown();

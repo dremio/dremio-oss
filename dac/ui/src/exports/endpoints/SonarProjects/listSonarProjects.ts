@@ -14,24 +14,30 @@
  * limitations under the License.
  */
 
-import localStorageUtils from "@inject/utils/storageUtils/localStorageUtils";
 import { getUsersDetails } from "../Users/getUsersDetails";
 import { UserDetails } from "../Users/UserDetails.type";
 import { transformSonarProject } from "./transformSonarProject";
+import { APIV2Call } from "@app/core/APICall";
+import { getApiContext } from "dremio-ui-common/contexts/ApiContext.js";
 
-import CLOUD_VENDORS from "@inject/constants/vendors";
+import VENDORS from "@inject/constants/vendors";
 
-export const listSonarProjectsUrl = "/ui/projects";
+export const listSonarProjectsUrl = () =>
+  new APIV2Call().projectScope(false).paths("projects").toString();
 
 export type SonarProject = {
   id: string;
   type: "DATA_PLANE" | "QUERY_ENGINE";
-  cloudType: typeof CLOUD_VENDORS.AWS | typeof CLOUD_VENDORS.AZURE;
+  cloudType: typeof VENDORS.AWS | typeof VENDORS.AZURE;
   createdBy: string;
   createdByDetails?: UserDetails;
   projectStore: string;
   credentials: {
-    type: "IAM_ROLE" | "IAM_ROLE" | "CLIENT_ACCESS" | "SHARED_ACCESS";
+    type:
+      | "IAM_ROLE"
+      | "IAM_ROLE"
+      | "AZURE_STORAGE_CLIENT_CREDENTIALS"
+      | "SHARED_ACCESS";
     accessKeyId: string;
     secretAccessKey: null;
   };
@@ -47,11 +53,8 @@ type ListSonarProjectsParams = {
 export const listSonarProjects = (
   params: ListSonarProjectsParams
 ): Promise<SonarProject[]> =>
-  fetch(listSonarProjectsUrl, {
-    headers: {
-      Authorization: localStorageUtils!.getAuthToken(),
-    },
-  })
+  getApiContext()
+    .fetch(listSonarProjectsUrl())
     .then((res) => res.json())
     .then(async (sonarProjects: SonarProject[]) => {
       let filteredProjects = sonarProjects;

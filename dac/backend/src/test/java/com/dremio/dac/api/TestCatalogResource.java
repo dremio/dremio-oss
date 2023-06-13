@@ -39,13 +39,14 @@ import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.Response;
 
-import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.TestTools;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.explore.model.DatasetPath;
@@ -53,6 +54,8 @@ import com.dremio.dac.homefiles.HomeFileConf;
 import com.dremio.dac.model.common.Field;
 import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.server.BaseTestServer;
+import com.dremio.dac.server.FamilyExpectation;
+import com.dremio.dac.server.ValidationErrorMessage;
 import com.dremio.dac.service.catalog.CatalogServiceHelper;
 import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.exec.catalog.CatalogServiceImpl;
@@ -184,34 +187,84 @@ public class TestCatalogResource extends BaseTestServer {
 
   @Test
   public void testFoldersInSpace() throws Exception {
-    // create a new space
-    Space newSpace = new Space(null, "final frontier", null, null, null);
-    Space space = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSpace)), new GenericType<Space>() {});
+    for (boolean deleteFolderFirst : new boolean[] { false, true }) {
+      // create a new space
+      Space newSpace = new Space(null, "final frontier", null, null, null);
+      Space space = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSpace)), new GenericType<Space>() {});
 
-    // no children at this point
-    assertNull(space.getChildren());
+      // no children at this point
+      assertNull(space.getChildren());
 
-    // add a folder
-    Folder newFolder = getFolderConfig(Arrays.asList(space.getName(), "myFolder"));
-    Folder folder = createFolder(newFolder);
-    assertEquals(newFolder.getPath(), folder.getPath());
+      // add a folder
+      Folder newFolder = getFolderConfig(Arrays.asList(space.getName(), "myFolder"));
+      Folder folder = createFolder(newFolder);
+      assertEquals(newFolder.getPath(), folder.getPath());
 
-    // make sure folder shows up under space
-    space = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(space.getId())).buildGet(), new GenericType<Space>() {});
+      // make sure folder shows up under space
+      space = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(space.getId())).buildGet(), new GenericType<Space>() {});
 
-    // make sure that trying to create the folder again fails
-    expectStatus(Response.Status.CONFLICT, getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newFolder)));
+      // make sure that trying to create the folder again fails
+      expectStatus(Response.Status.CONFLICT, getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newFolder)));
 
-    // one child at this point
-    assertEquals(space.getChildren().size(), 1);
-    assertEquals(space.getChildren().get(0).getId(), folder.getId());
+      // one child at this point
+      assertEquals(space.getChildren().size(), 1);
+      assertEquals(space.getChildren().get(0).getId(), folder.getId());
 
-    // delete the folder
-    expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId())).buildDelete());
-    space = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(space.getId())).buildGet(), new GenericType<Space>() {});
-    assertEquals(space.getChildren().size(), 0);
+      if (deleteFolderFirst) {
+        // delete the folder
+        expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId())).buildDelete());
+        space = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(space.getId())).buildGet(), new GenericType<Space>() {});
+        assertEquals(space.getChildren().size(), 0);
 
-    newNamespaceService().deleteSpace(new NamespaceKey(space.getName()), space.getTag());
+        newNamespaceService().deleteSpace(new NamespaceKey(space.getName()), space.getTag());
+      } else {
+        newNamespaceService().deleteSpace(new NamespaceKey(space.getName()), space.getTag());
+
+        // delete the folder
+        expectError(
+          FamilyExpectation.CLIENT_ERROR,
+          getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId())).buildDelete(),
+          ValidationErrorMessage.class);
+      }
+    }
+  }
+
+  @Test
+  public void testFunctionsInSpace() throws Exception {
+    for (boolean deleteFunctionFirst : new boolean[] { false, true }) {
+      // create a new space
+      Space newSpace = new Space(null, "mySpace123", null, null, null);
+      Space space = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSpace)), new GenericType<Space>() {});
+
+      // no children at this point
+      assertNull(space.getChildren());
+
+      // add a function
+      runQuery("CREATE FUNCTION mySpace123.foo()\n" +
+        "RETURNS int\n" +
+        "RETURN 6");
+
+      // make sure function shows up under space
+      space = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(space.getId())).buildGet(), new GenericType<Space>() {});
+      assertEquals(space.getChildren().size(), 1);
+
+      if (deleteFunctionFirst) {
+        runQuery("DROP FUNCTION mySpace123.foo");
+
+        space = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(space.getId())).buildGet(), new GenericType<Space>() {});
+        assertEquals(space.getChildren().size(), 0);
+
+        newNamespaceService().deleteSpace(new NamespaceKey(space.getName()), space.getTag());
+      } else {
+        newNamespaceService().deleteSpace(new NamespaceKey(space.getName()), space.getTag());
+        try {
+          runQuery("DROP FUNCTION mySpace123.foo");
+          Assert.fail("Should not be able to drop a function when we already dropped the space.");
+        } catch (UserException ue) {
+          // We expect a user exception, since we deleted the space.
+        }
+      }
+    }
   }
 
   @Test
@@ -1123,189 +1176,6 @@ public class TestCatalogResource extends BaseTestServer {
   }
 
   @Test
-  public void testSourceMetadataRefresh() throws Exception {
-
-    // create a temporary copy of some test data
-    TemporaryFolder tempFolder = new TemporaryFolder();
-    tempFolder.create();
-    tempFolder.newFolder("json");
-
-    // Copys test data
-    String numbers_src = TestTools.getWorkingPath() + "/src/test/resources/json/numbers.json";
-    java.io.File numbers = new java.io.File(numbers_src);
-    java.io.File numbers_copy = tempFolder.newFile("json/numbers.json");
-    FileUtils.copyFile(numbers, numbers_copy);
-
-    NASConf nasConf = new NASConf();
-    nasConf.path = tempFolder.getRoot().getAbsolutePath();
-    Source newSource = new Source();
-    newSource.setName("catalog-test");
-    newSource.setType("NAS");
-    newSource.setConfig(nasConf);
-
-    Source source = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSource)),  new GenericType<Source>() {});
-
-    // browse to the json directory
-    String id = getFolderIdByName(source.getChildren(), "json");
-    assertNotNull(id, "Failed to find json directory");
-
-    // load the json dir
-    Folder folder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(id))).buildGet(), new GenericType<Folder>() {});
-    assertEquals(folder.getChildren().size(), 1);
-
-    String fileId = null;
-
-    for (CatalogItem item : folder.getChildren()) {
-      List<String> path = item.getPath();
-      // get the numbers.json file
-      if (item.getType() == CatalogItem.CatalogItemType.FILE && path.get(path.size() - 1).equals("numbers.json")) {
-        fileId = item.getId();
-        break;
-      }
-    }
-
-    assertNotNull(fileId, "Failed to find numbers.json file");
-
-    // load the file
-    File file = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(fileId))).buildGet(), new GenericType<File>() {
-    });
-
-    // promote the file (dac/backend/src/test/resources/json/numbers.json)
-    Dataset dataset = createPDS(CatalogServiceHelper.getPathFromInternalId(file.getId()), new JsonFileConfig());
-
-    dataset = expectSuccess(
-      getBuilder(getPublicAPI(3)
-        .path(CATALOG_PATH)
-        .path(com.dremio.common.utils.PathUtils.encodeURIComponent(fileId)))
-        .buildPost(Entity.json(dataset)),
-      new GenericType<Dataset>() { });
-
-    // load the dataset
-    dataset = expectSuccess(
-      getBuilder(getPublicAPI(3)
-        .path(CATALOG_PATH)
-        .path(dataset.getId())).buildGet(),
-      new GenericType<Dataset>() { });
-
-    // verify listing
-    folder = expectSuccess(
-      getBuilder(getPublicAPI(3)
-        .path(CATALOG_PATH)
-        .path(com.dremio.common.utils.PathUtils.encodeURIComponent(id)))
-        .buildGet(),
-      new GenericType<Folder>() { });
-    assertEquals(folder.getChildren().size(), 1);
-
-    // test metadata/refresh endpoint
-    CatalogResource.MetadataRefreshResponse response = new CatalogResource.MetadataRefreshResponse(false, false);
-
-    // test with wrong ID type (expect BAD_REQUEST)
-    expectStatus(Response.Status.BAD_REQUEST,
-      getBuilder(getPublicAPI(3)
-        .path(CATALOG_PATH)
-        .path(com.dremio.common.utils.PathUtils.encodeURIComponent(id))
-        .path("metadata/refresh"))
-        .buildPost(Entity.json(response)));
-
-    // test with bad ID (expect NOT_FOUND)
-     expectStatus(Response.Status.NOT_FOUND,
-      getBuilder(getPublicAPI(3)
-        .path(CATALOG_PATH)
-        .path(com.dremio.common.utils.PathUtils.encodeURIComponent("asdfasdf"))
-        .path("metadata/refresh"))
-        .buildPost(Entity.json(response)));
-
-    /*** test with promoted data ***/
-    response = expectSuccess(getBuilder(getPublicAPI(3)
-      .path(CATALOG_PATH)
-      .path(com.dremio.common.utils.PathUtils.encodeURIComponent(dataset.getId()))
-      .path("metadata/refresh"))
-      .buildPost(Entity.json(response)),
-      new GenericType<CatalogResource.MetadataRefreshResponse>() { });
-    assertTrue(response.getChanged());
-    assertFalse(response.getDeleted());
-
-    // test forceUpdate
-    response = expectSuccess(getBuilder(getPublicAPI(3)
-      .path(CATALOG_PATH)
-      .path(com.dremio.common.utils.PathUtils.encodeURIComponent(dataset.getId()))
-      .path("metadata/refresh")
-      .queryParam("forceUpdate", "true"))
-      .buildPost(Entity.json(response)),
-      new GenericType<CatalogResource.MetadataRefreshResponse>() { });
-    assertTrue(response.getChanged());
-    assertFalse(response.getDeleted());
-
-    // test deleteWhenMissing
-    response = expectSuccess(getBuilder(getPublicAPI(3)
-        .path(CATALOG_PATH)
-        .path(com.dremio.common.utils.PathUtils.encodeURIComponent(dataset.getId()))
-        .path("metadata/refresh")
-        .queryParam("deleteWhenMissing", "true"))
-        .buildPost(Entity.json(response)),
-      new GenericType<CatalogResource.MetadataRefreshResponse>() { });
-    assertTrue(response.getChanged());
-    assertFalse(response.getDeleted());
-
-    // test autoPromotion
-    response = expectSuccess(getBuilder(getPublicAPI(3)
-        .path(CATALOG_PATH)
-        .path(com.dremio.common.utils.PathUtils.encodeURIComponent(dataset.getId()))
-        .path("metadata/refresh")
-        .queryParam("autoPromotion", "true"))
-        .buildPost(Entity.json(response)),
-      new GenericType<CatalogResource.MetadataRefreshResponse>() { });
-    assertTrue(response.getChanged());
-    assertFalse(response.getDeleted());
-
-    // test all query params
-    response = expectSuccess(getBuilder(getPublicAPI(3)
-        .path(CATALOG_PATH)
-        .path(com.dremio.common.utils.PathUtils.encodeURIComponent(dataset.getId()))
-        .path("metadata/refresh")
-        .queryParam("forceUpdate", "true")
-        .queryParam("deleteWhenMissing", "true")
-        .queryParam("autoPromotion", "true"))
-        .buildPost(Entity.json(response)),
-      new GenericType<CatalogResource.MetadataRefreshResponse>() { });
-    assertTrue(response.getChanged());
-    assertFalse(response.getDeleted());
-
-    // now delete the temporary folder
-    numbers_copy.delete();
-
-    // test keep missing metadata
-    response = expectSuccess(getBuilder(getPublicAPI(3)
-        .path(CATALOG_PATH)
-        .path(com.dremio.common.utils.PathUtils.encodeURIComponent(dataset.getId()))
-        .path("metadata/refresh")
-        .queryParam("forceUpdate", "false")
-        .queryParam("deleteWhenMissing", "false")
-        .queryParam("autoPromotion", "false"))
-        .buildPost(Entity.json(response)),
-      new GenericType<CatalogResource.MetadataRefreshResponse>() { });
-    assertFalse(response.getChanged());
-    assertFalse(response.getDeleted());
-
-    // test enabling metadata deletion when missing
-    response = expectSuccess(getBuilder(getPublicAPI(3)
-      .path(CATALOG_PATH)
-      .path(com.dremio.common.utils.PathUtils.encodeURIComponent(dataset.getId()))
-      .path("metadata/refresh")
-      .queryParam("forceUpdate", "false")
-      .queryParam("deleteWhenMissing", "true")
-      .queryParam("autoPromotion", "false"))
-      .buildPost(Entity.json(response)),
-    new GenericType<CatalogResource.MetadataRefreshResponse>() { });
-    assertTrue(response.getChanged());
-    assertTrue(response.getDeleted());
-
-    // cleanup
-    tempFolder.delete();
-    expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(source.getId())).buildDelete());
-  }
-
-  @Test
   public void testSourceEditWithoutSecret() throws Exception {
     // fakesource only works if password is the same as the name, else with fail to create
     final FakeSource fakeConf = new FakeSource();
@@ -1639,5 +1509,13 @@ public class TestCatalogResource extends BaseTestServer {
 
   private Folder createFolder(Folder folder) {
     return expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(folder)), new GenericType<Folder>() {});
+  }
+
+  private void runQuery(String query) {
+    submitJobAndWaitUntilCompletion(
+    JobRequest.newBuilder()
+      .setSqlQuery(new SqlQuery(query, DEFAULT_USERNAME))
+      .setQueryType(QueryType.UI_INTERNAL_RUN)
+      .build());
   }
 }

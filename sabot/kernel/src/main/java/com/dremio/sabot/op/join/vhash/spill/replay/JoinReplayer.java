@@ -115,6 +115,7 @@ public class JoinReplayer implements YieldingRunnable {
       replayEntry.getProbeFiles(), setupParams.getBuildKeyPivot(), setupParams.getLeft().getSchema(), setupParams.getMaxInputBatchSize());
   }
 
+  @Override
   public int run() throws Exception {
     logger.trace("entry replayState {}", replayState);
     int ret = 0;
@@ -159,6 +160,7 @@ public class JoinReplayer implements YieldingRunnable {
     return ret;
   }
 
+  @Override
   public boolean isFinished() {
     return replayState == ReplayState.DONE;
   }

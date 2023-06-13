@@ -36,8 +36,6 @@ public class NessieDatastoreInstance implements DatabaseConnectionProvider<Datas
   private KVStore<String, byte[]> refNames;
   private KVStore<String, byte[]> globalLog;
   private KVStore<String, byte[]> commitLog;
-  private KVStore<String, byte[]> attachments;
-  private KVStore<String, byte[]> attachmentKeys;
   private KVStore<String, byte[]> keyList;
 
   private DatastoreDbConfig config;
@@ -61,8 +59,6 @@ public class NessieDatastoreInstance implements DatabaseConnectionProvider<Datas
     refNames = kvStoreProvider.get().getStore(NessieRefNamesStoreBuilder.class);
     globalLog = kvStoreProvider.get().getStore(NessieGlobalLogStoreBuilder.class);
     commitLog = kvStoreProvider.get().getStore(NessieCommitLogStoreBuilder.class);
-    attachments = kvStoreProvider.get().getStore(NessieAttachmentsStoreBuilder.class);
-    attachmentKeys = kvStoreProvider.get().getStore(NessieAttachmentKeysStoreBuilder.class);
     keyList = kvStoreProvider.get().getStore(NessieKeyListStoreBuilder.class);
   }
 
@@ -84,14 +80,6 @@ public class NessieDatastoreInstance implements DatabaseConnectionProvider<Datas
 
   public KVStore<String, byte[]> getGlobalPointer() {
     return globalPointer;
-  }
-
-  public KVStore<String, byte[]> getAttachments() {
-    return attachments;
-  }
-
-  public KVStore<String, byte[]> getAttachmentKeys() {
-    return attachmentKeys;
   }
 
   public KVStore<String, byte[]> getNamedRefHeads() {

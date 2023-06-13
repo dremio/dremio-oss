@@ -82,6 +82,7 @@ public class RoundRobinExchangePrel extends ExchangePrel {
     return new RoundRobinExchangePrel(getCluster(), traitSet, sole(inputs));
   }
 
+  @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
     Prel child = (Prel) this.getInput();
 

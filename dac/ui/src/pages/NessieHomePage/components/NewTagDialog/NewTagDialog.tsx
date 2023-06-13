@@ -17,11 +17,16 @@
 import { useState } from "react";
 import { useDispatch } from "react-redux";
 import { FormattedMessage, useIntl } from "react-intl";
-import { Button, ModalContainer, DialogContent } from "dremio-ui-lib/dist-esm";
+import {
+  Button,
+  ModalContainer,
+  DialogContent,
+} from "dremio-ui-lib/components";
 import { TextField } from "@mui/material";
 import { Reference } from "@app/types/nessie";
 import { useNessieContext } from "../../utils/context";
 import { addNotification } from "actions/notification";
+import { ReferenceType } from "@app/services/nessie/client/index";
 
 import "./NewTagDialog.less";
 
@@ -38,7 +43,7 @@ function NewTagDialog({
   forkFrom,
   refetch,
 }: NewTagDialogProps): JSX.Element {
-  const { api } = useNessieContext();
+  const { apiV2 } = useNessieContext();
   const [newTagName, setNewTagName] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [errorText, setErrorText] = useState<JSX.Element | null>(null);
@@ -58,13 +63,10 @@ function NewTagDialog({
   const onAdd = async () => {
     setIsSending(true);
     try {
-      await api.createReference({
-        sourceRefName: forkFrom ? forkFrom.name : undefined,
-        reference: {
-          type: "TAG",
-          hash: forkFrom ? forkFrom.hash : null,
-          name: newTagName,
-        } as Reference,
+      await apiV2.createReferenceV2({
+        name: newTagName,
+        type: ReferenceType.Tag,
+        reference: forkFrom,
       });
 
       setErrorText(null);
@@ -123,7 +125,7 @@ function NewTagDialog({
               <span className="new-tag-dialog-body-commit">
                 <dremio-icon name="vcs/commit" />
                 <span className="new-tag-dialog-body-commit-hash">
-                  {forkFrom.hash.substring(0, 30)}
+                  {forkFrom.hash.substring(0, 8)}
                 </span>
               </span>
             </div>

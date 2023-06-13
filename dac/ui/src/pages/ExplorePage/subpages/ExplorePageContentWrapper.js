@@ -53,10 +53,15 @@ import Reflections from "@app/pages/ExplorePage/subpages/reflections/Reflections
 
 import {
   updateColumnFilter,
-  setQuerySelections,
+  setCustomDefaultSql,
   setPreviousAndCurrentSql,
   setSelectedSql,
+  setQuerySelections,
 } from "@app/actions/explore/view";
+import {
+  toggleExploreSql,
+  setResizeProgressState,
+} from "@app/actions/explore/ui";
 
 import NavCrumbs, {
   showNavCrumbs,
@@ -107,9 +112,10 @@ import { getSortedSources } from "@app/selectors/home";
 import { isVersionedSource } from "@app/utils/sourceUtils";
 import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
 import { DATASET_PATH_FROM_ONBOARDING } from "@inject/components/SonarOnboardingModal/constants";
+import { selectState } from "@app/selectors/nessie/nessie";
+import { REFLECTION_ARCTIC_ENABLED } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
 
 const newQueryLink = newQuery();
-const DATASET_PATH_FROM_OVERLAY = "datasetPathFromOverlay";
 const EXPLORE_DRAG_TYPE = "explorePage";
 const HISTORY_BAR_WIDTH = 34;
 const SIDEBAR_MIN_WIDTH = 300;
@@ -122,6 +128,8 @@ const CREATE_NEW_QUERY = "SELECT * FROM /* Insert dataset here */";
 const resizeColumn = new ResizeObserver(
   debounce((item) => {
     const column = item[0];
+    if (!column) return;
+
     if (column.contentRect.width <= 1000) {
       column.target.classList.add("--minimal");
     } else {
@@ -184,6 +192,7 @@ export class ExplorePageContentWrapper extends PureComponent {
     setPreviousAndCurrentSql: PropTypes.func,
     selectedSql: PropTypes.string,
     setSelectedSql: PropTypes.func,
+    setCustomDefaultSql: PropTypes.func,
     isMultiQueryRunning: PropTypes.bool,
     queryTabNumber: PropTypes.number,
     setQueryTabNumber: PropTypes.func,
@@ -193,6 +202,9 @@ export class ExplorePageContentWrapper extends PureComponent {
     isNessieOrArcticSource: PropTypes.bool,
     fetchFilteredJobsList: PropTypes.func,
     resetFilteredJobsList: PropTypes.func,
+    setResizeProgressState: PropTypes.func,
+    toggleExploreSql: PropTypes.func,
+    nessieState: PropTypes.object,
   };
 
   static contextTypes = {
@@ -240,17 +252,18 @@ export class ExplorePageContentWrapper extends PureComponent {
     this.headerRef = createRef();
     this.dremioSideBarRef = createRef();
     this.dremioSideBarDrag = createRef();
-
     this.explorePageRef = createRef();
   }
+  timeoutRef = undefined;
 
   componentDidMount() {
     // fetch support flags here for powerbi and tableau only if its not enterprise
-    const isEnterpriseFlag = isEnterprise && isEnterprise();
-    const isCommunityFlag = isCommunity && isCommunity();
-    if (!(isEnterpriseFlag || isCommunityFlag)) {
+    if (!(isEnterprise?.() || isCommunity?.())) {
       this.props.fetchSupportFlags("client.tools.tableau");
       this.props.fetchSupportFlags("client.tools.powerbi");
+    }
+    if (!isCommunity?.()) {
+      this.props.fetchSupportFlags(REFLECTION_ARCTIC_ENABLED);
     }
 
     Mousetrap.bind(["mod+enter", "mod+shift+enter"], this.kbdShorthand);
@@ -270,9 +283,26 @@ export class ExplorePageContentWrapper extends PureComponent {
     // Observing content column
     resizeColumn.observe(document.querySelector(".dremioContent__content"));
 
-    const { location, setPreviousAndCurrentSql } = this.props;
+    const { location, router, setCustomDefaultSql, setPreviousAndCurrentSql } =
+      this.props;
     if (location.query?.create) {
       setPreviousAndCurrentSql({ sql: CREATE_NEW_QUERY });
+    } else if (location.query?.queryPath) {
+      // executes when navigating to the editor to query a dataset
+      const sql = exploreUtils.createNewQueryFromDatasetOverlay(
+        location.query.queryPath
+      );
+
+      setPreviousAndCurrentSql({ sql });
+      setCustomDefaultSql({ sql });
+
+      router.replace({
+        ...location,
+        query: {
+          ...location.query,
+          queryPath: undefined,
+        },
+      });
     }
 
     if (sessionStorage.getItem(DATASET_PATH_FROM_ONBOARDING)) {
@@ -284,14 +314,6 @@ export class ExplorePageContentWrapper extends PureComponent {
         ),
       });
       sessionStorage.removeItem(DATASET_PATH_FROM_ONBOARDING);
-    } else if (sessionStorage.getItem(DATASET_PATH_FROM_OVERLAY)) {
-      // updates the sql when coming from a dataset's overlay query button
-      setPreviousAndCurrentSql({
-        sql: exploreUtils.createNewQueryFromDatasetOverlay(
-          sessionStorage.getItem(DATASET_PATH_FROM_OVERLAY)
-        ),
-      });
-      sessionStorage.removeItem(DATASET_PATH_FROM_OVERLAY);
     }
   }
 
@@ -301,6 +323,7 @@ export class ExplorePageContentWrapper extends PureComponent {
     document.removeEventListener("mousemove", this.sidebarMouseMove);
     window.removeEventListener("resize", this.handleResize);
     resizeColumn.unobserve(document.querySelector(".dremioContent__content"));
+    clearTimeout(this.timeoutRef);
 
     // Sidebar resizing
     if (this.dremioSideBarDrag.current) {
@@ -330,20 +353,26 @@ export class ExplorePageContentWrapper extends PureComponent {
       isMultiQueryRunning,
       jobDetails,
       location,
+      router,
     } = this.props;
     const loc = rmProjectBase(location.pathname);
     // This is specific to using the overlay query button from the dataset page.
     if (
       loc === newQueryLink &&
-      sessionStorage.getItem(DATASET_PATH_FROM_OVERLAY) &&
+      location.query?.queryPath &&
       this.getMonacoEditorInstance()
     ) {
       this.insertFullPathAtCursor(
-        exploreUtils.createNewQueryFromDatasetOverlay(
-          sessionStorage.getItem(DATASET_PATH_FROM_OVERLAY)
-        )
+        exploreUtils.createNewQueryFromDatasetOverlay(location.query.queryPath)
       );
-      sessionStorage.removeItem(DATASET_PATH_FROM_OVERLAY);
+
+      router.replace({
+        ...location,
+        query: {
+          ...location.query,
+          queryPath: undefined,
+        },
+      });
     }
 
     // if a single job, force the explore table to be in view
@@ -659,6 +688,16 @@ export class ExplorePageContentWrapper extends PureComponent {
     }
   };
 
+  toggleSqlPaneDisplay = () => {
+    clearTimeout(this.timeoutRef);
+    this.props.setResizeProgressState(true);
+    this.props.toggleExploreSql?.();
+    this.timeoutRef = setTimeout(
+      () => this.props.setResizeProgressState(false),
+      500
+    ); // ref for calculating height isn't auto updated
+  };
+
   getBottomContent() {
     const {
       dataset,
@@ -695,7 +734,6 @@ export class ExplorePageContentWrapper extends PureComponent {
           pageType={pageType}
           dataset={dataset}
           location={location}
-          sqlSize={this.props.sqlSize}
           rightTreeVisible={this.props.rightTreeVisible}
           exploreViewState={this.props.exploreViewState}
         />
@@ -709,7 +747,6 @@ export class ExplorePageContentWrapper extends PureComponent {
             <DataGraph
               dragType={EXPLORE_DRAG_TYPE}
               dataset={dataset}
-              sqlState={this.props.sqlState}
               rightTreeVisible={this.props.rightTreeVisible}
             />
           )
@@ -744,8 +781,6 @@ export class ExplorePageContentWrapper extends PureComponent {
             dataset={dataset}
             dragType={EXPLORE_DRAG_TYPE}
             location={location}
-            sqlSize={this.props.sqlSize}
-            sqlState={this.props.sqlState}
             rightTreeVisible={this.props.rightTreeVisible}
             exploreViewState={this.props.exploreViewState}
             canSelect={canSelect}
@@ -768,9 +803,7 @@ export class ExplorePageContentWrapper extends PureComponent {
   getControlsBlock() {
     const {
       dataset,
-      sqlSize,
       location,
-      sqlState,
       rightTreeVisible,
       exploreViewState,
       pageType,
@@ -798,10 +831,8 @@ export class ExplorePageContentWrapper extends PureComponent {
         return (
           <TableControls
             dataset={dataset}
-            sqlSize={sqlSize}
             location={location}
             pageType={pageType}
-            sqlState={sqlState}
             rightTreeVisible={rightTreeVisible}
             exploreViewState={exploreViewState}
             disableButtons={
@@ -834,6 +865,7 @@ export class ExplorePageContentWrapper extends PureComponent {
       statusesArray,
       isMultiQueryRunning,
       queryTabNumber,
+      sqlState,
     } = this.props;
     return (
       pageType === PageTypes.default && (
@@ -844,6 +876,7 @@ export class ExplorePageContentWrapper extends PureComponent {
           queryStatuses={queryStatuses}
           statusesArray={statusesArray}
           isMultiQueryRunning={isMultiQueryRunning}
+          sqlState={sqlState}
         />
       )
     );
@@ -885,6 +918,7 @@ export class ExplorePageContentWrapper extends PureComponent {
             statusesArray={this.props.statusesArray}
             resetSqlTabs={this.resetTabToJobList}
             supportFlagsObj={this.props.supportFlagsObj}
+            toggleSqlPaneDisplay={this.toggleSqlPaneDisplay}
           />
         );
       default:
@@ -1114,6 +1148,7 @@ export class ExplorePageContentWrapper extends PureComponent {
                 toggleRightTree={this.props.toggleRightTree}
                 rightTreeVisible={this.props.rightTreeVisible}
                 exploreViewState={this.props.exploreViewState}
+                nessieState={this.props.nessieState}
               />
             </div>
 
@@ -1152,7 +1187,11 @@ export class ExplorePageContentWrapper extends PureComponent {
 
                 {this.getTabsBlock()}
 
-                <div className="dremioContent__table gutter-right">
+                <div
+                  className={`dremioContent__table ${
+                    this.props.pageType === PageTypes.wiki ? "fullHeight" : ""
+                  }`}
+                >
                   {this.getControlsBlock()}
 
                   <SqlErrorSection
@@ -1178,6 +1217,7 @@ function mapStateToProps(state, ownProps) {
   const isSource = loc.startsWith("/source/");
   const sources = getSortedSources(state);
   let isNessieOrArcticSource = false;
+  let nessieState;
   if (isSource && sources?.size > 0) {
     const sourceId = loc.split("/")[2];
     const source = (sources || []).find(
@@ -1185,6 +1225,7 @@ function mapStateToProps(state, ownProps) {
     );
     if (source && isVersionedSource(source.get("type"))) {
       isNessieOrArcticSource = true;
+      nessieState = selectState(state.nessie, `ref/${source.get("name")}`);
     }
   }
   const entityId = getDatasetEntityId(state, location);
@@ -1265,6 +1306,7 @@ function mapStateToProps(state, ownProps) {
     supportFlagsObj,
     jobDetails,
     isNessieOrArcticSource,
+    nessieState,
   };
 }
 
@@ -1282,10 +1324,13 @@ export default withRouter(
       setQuerySelections,
       setPreviousAndCurrentSql,
       setSelectedSql,
+      setCustomDefaultSql,
       setQueryTabNumber,
       fetchSupportFlags,
       fetchFilteredJobsList,
       resetFilteredJobsList,
+      toggleExploreSql,
+      setResizeProgressState,
     },
     null,
     { forwardRef: true }

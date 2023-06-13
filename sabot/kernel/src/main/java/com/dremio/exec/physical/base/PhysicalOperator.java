@@ -56,6 +56,7 @@ public interface PhysicalOperator extends GraphValue<PhysicalOperator> {
   @JsonIgnore
   PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) throws ExecutionSetupException;
 
+  @Override
   default void accept(GraphVisitor<PhysicalOperator> visitor) {
     visitor.enter(this);
     if (this.iterator() == null) {

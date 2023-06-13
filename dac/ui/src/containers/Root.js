@@ -21,7 +21,6 @@ import { Provider } from "react-redux";
 
 import { Router, browserHistory } from "react-router";
 import { syncHistoryWithStore } from "react-router-redux";
-import { isDataPlaneEnabled } from "@inject/utils/dataPlaneUtils";
 import { useProjectContext } from "@inject/utils/storageUtils/localStorageUtils";
 import routes from "routes";
 
@@ -30,7 +29,12 @@ import { add } from "utils/storageUtils/localStorageListener";
 import { setUserState } from "@app/actions/account";
 import { intl } from "@app/utils/intl";
 import { MantineProvider } from "@mantine/core";
-import { mantineTheme } from "dremio-ui-lib/dist-esm/mantineTheme";
+import { mantineTheme } from "dremio-ui-lib/components";
+
+import { NetworkConnectivityBanner } from "dremio-ui-common/components/NetworkConnectivityBanner.js";
+import { ErrorBoundary } from "@app/components/ErrorBoundary/ErrorBoundary";
+
+import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";
 
 function Root({ store }) {
   const history = syncHistoryWithStore(browserHistory, store);
@@ -54,15 +58,20 @@ function Root({ store }) {
   if (localeLoading) return null;
 
   return (
-    <MantineProvider theme={mantineTheme}>
-      <RawIntlProvider value={intl}>
-        <Provider store={store}>
-          <Router key={renderKey} history={history}>
-            {routes(store.dispatch, projectContext, isDataPlaneEnabled)}
-          </Router>
-        </Provider>
-      </RawIntlProvider>
-    </MantineProvider>
+    <ErrorBoundary
+      title={getIntlContext().t("Common.Errors.UnexpectedError.Root")}
+    >
+      <MantineProvider theme={mantineTheme}>
+        <RawIntlProvider value={intl}>
+          <Provider store={store}>
+            <NetworkConnectivityBanner />
+            <Router key={renderKey} history={history}>
+              {routes(store.dispatch, projectContext)}
+            </Router>
+          </Provider>
+        </RawIntlProvider>
+      </MantineProvider>
+    </ErrorBoundary>
   );
 }
 Root.propTypes = {

@@ -36,10 +36,8 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.store.RecordReader;
-import com.dremio.exec.store.iceberg.DremioFileIO;
 import com.dremio.exec.store.iceberg.SupportsIcebergRootPointer;
 import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -61,6 +59,7 @@ final class IcebergMetadataFunctionsRecordReader implements RecordReader {
   private IcebergMetadataValueVectorWriter valueWriter;
   private final List<SchemaPath> columns;
   private final Table icebergTable ;
+  private final MetadataTableType tableType;
 
   public IcebergMetadataFunctionsRecordReader(OperatorContext context,
                                     SupportsIcebergRootPointer pluginForIceberg,
@@ -75,18 +74,26 @@ final class IcebergMetadataFunctionsRecordReader implements RecordReader {
     this.dataset = config.getReferencedTables().iterator().next();
     this.props = config.getProps();
     this.columns = config.getColumns();
-    MetadataTableType tableType = IcebergMetadataFunctionsTable.valueOf(config.getmFunction().getName().toUpperCase(Locale.ROOT)).getTableType();
+    this.tableType = IcebergMetadataFunctionsTable.valueOf(config.getmFunction().getName().toUpperCase(Locale.ROOT)).getTableType();
     this.icebergTable = MetadataTableUtils.createMetadataTableInstance(getTableOps(),null ,null, tableType);
   }
 
   @Override
   public void setup(OutputMutator output) throws ExecutionSetupException {
     this.tmpBuf = context.getAllocator().buffer(4096);
-    this.valueWriter = new IcebergMetadataValueVectorWriter(output, context.getTargetBatchSize(),
-      columns, icebergTable.schema(), icebergTable
-      .newScan()
-      .planFiles()
-      .iterator(),tmpBuf);
+    if (this.tableType == MetadataTableType.PARTITIONS) {
+      this.valueWriter = new IcebergMetadataValueVectorWriter(output, context.getTargetBatchSize(),
+        columns, icebergTable.schema(), getTableOps().current().spec(), icebergTable
+        .newScan()
+        .planFiles()
+        .iterator(), tmpBuf);
+    } else {
+      this.valueWriter = new IcebergMetadataValueVectorWriter(output, context.getTargetBatchSize(),
+        columns, icebergTable.schema(), icebergTable
+        .newScan()
+        .planFiles()
+        .iterator(), tmpBuf);
+    }
   }
 
 
@@ -118,8 +125,8 @@ final class IcebergMetadataFunctionsRecordReader implements RecordReader {
     } catch (IOException e) {
       throw new RuntimeException("Failed creating filesystem", e);
     }
-    return new StaticTableOperations(metadataLocation, new DremioFileIO(
-      fs, context, dataset, null, null, pluginForIceberg.getFsConfCopy(), (MutablePlugin)pluginForIceberg));
+    return new StaticTableOperations(metadataLocation, pluginForIceberg.createIcebergFileIO(
+      fs, context, dataset, null, null));
   }
 
 }

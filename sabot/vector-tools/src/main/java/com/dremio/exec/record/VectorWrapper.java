@@ -31,6 +31,7 @@ public interface VectorWrapper<T extends ValueVector> extends AutoCloseable {
   public T[] getValueVectors();
   public boolean isHyper();
   public void clear();
+  @Override
   public void close();
   public VectorWrapper<T> cloneAndTransfer(BufferAllocator allocator, CallBack callback);
   public VectorWrapper<?> getChildWrapper(int[] ids);

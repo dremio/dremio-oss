@@ -71,7 +71,7 @@ public class DropTableHandler extends SimpleDirectHandler {
 
     try {
       ResolvedVersionContext resolvedVersionContext = CatalogUtil.resolveVersionContext(catalog, sourceName, sessionVersion);
-      CatalogUtil.validateResolvedVersionIsBranch(resolvedVersionContext, path.toString());
+      CatalogUtil.validateResolvedVersionIsBranch(resolvedVersionContext);
       TableMutationOptions tableMutationOptions = TableMutationOptions.newBuilder()
         .setResolvedVersionContext(resolvedVersionContext)
         .build();

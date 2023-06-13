@@ -54,6 +54,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 
 public class SystemStoragePlugin implements StoragePlugin, SupportsReadSignature, SupportsListingDatasets {
+  public static final String NAME = "sys";
 
   private static final ImmutableMap<EntityPath, SystemTable> DATASET_MAP =
       ImmutableMap.copyOf(Stream.of(SystemTable.values())
@@ -66,7 +67,7 @@ public class SystemStoragePlugin implements StoragePlugin, SupportsReadSignature
   private final JobResultInfoProvider jobResultInfoProvider;
 
   SystemStoragePlugin(SabotContext context, String name) {
-    Preconditions.checkArgument("sys".equals(name));
+    Preconditions.checkArgument(NAME.equals(name));
     this.context = context;
     this.jobResultInfoProvider = context.getJobResultInfoProvider();
   }

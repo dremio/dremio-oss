@@ -107,10 +107,10 @@ public class GraphAlgos {
 
     private int index = 0;
     private List<AdjacencyList<V>.Node> stack = new LinkedList<AdjacencyList<V>.Node>();
-    private List<List<AdjacencyList<V>.Node>> SCC = new LinkedList<List<AdjacencyList<V>.Node>>();
+    private List<List<AdjacencyList<V>.Node>> scc = new LinkedList<>();
 
     public List<List<AdjacencyList<V>.Node>> executeTarjan(AdjacencyList<V> graph) {
-      SCC.clear();
+      scc.clear();
       index = 0;
       stack.clear();
       if (graph != null) {
@@ -121,7 +121,7 @@ public class GraphAlgos {
           }
         }
       }
-      return SCC;
+      return scc;
     }
 
     private List<List<AdjacencyList<V>.Node>> tarjan(AdjacencyList<V>.Node v, AdjacencyList<V> list) {
@@ -148,9 +148,9 @@ public class GraphAlgos {
           n = stack.remove(0);
           component.add(n);
         } while (n != v);
-        SCC.add(component);
+        scc.add(component);
       }
-      return SCC;
+      return scc;
     }
   }
 

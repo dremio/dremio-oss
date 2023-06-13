@@ -88,6 +88,10 @@ public abstract class BaseElasticStoragePluginConfig<T extends ConnectionConf<T,
   @DisplayMetadata(label = "Use index/doc fields when pushing down aggregates and filters on analyzed and normalized fields (may produce unexpected results)")
   public boolean allowPushdownOnNormalizedOrAnalyzedFields = false;
 
+  @Tag(20)
+  @DisplayMetadata(label = "Perform keyword searches when pushing down fields mapped as text and keyword")
+  public boolean pushdownWithKeyword = false;
+
   @Tag(15)
   @NotMetadataImpacting
   @DisplayMetadata(label = "If the number of records returned from Elasticsearch is less than the expected number, warn instead of failing the query")
@@ -114,6 +118,7 @@ public abstract class BaseElasticStoragePluginConfig<T extends ConnectionConf<T,
       boolean usePainless,
       int scrollSize,
       boolean allowPushdownOnNormalizedOrAnalyzedFields,
+      boolean pushdownWithKeyword,
       boolean warnOnRowCountMismatch,
       EncryptionValidationMode encryptionValidationMode,
       boolean forceDoublePrecision) {
@@ -125,6 +130,7 @@ public abstract class BaseElasticStoragePluginConfig<T extends ConnectionConf<T,
     this.usePainless = usePainless;
     this.scrollSize = scrollSize;
     this.allowPushdownOnNormalizedOrAnalyzedFields = allowPushdownOnNormalizedOrAnalyzedFields;
+    this.pushdownWithKeyword = pushdownWithKeyword;
     this.warnOnRowCountMismatch = warnOnRowCountMismatch;
     this.encryptionValidationMode = encryptionValidationMode;
     this.forceDoublePrecision = forceDoublePrecision;

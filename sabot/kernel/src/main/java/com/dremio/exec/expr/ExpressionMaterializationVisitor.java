@@ -373,8 +373,6 @@ class ExpressionMaterializationVisitor
   public LogicalExpression visitCaseExpression(CaseExpression caseExpression, FunctionLookupContext functionLookupContext) throws RuntimeException {
     List<CaseExpression.CaseConditionNode> newConditions = new ArrayList<>();
     LogicalExpression newElseExpr = caseExpression.elseExpr.accept(this, functionLookupContext);
-    final CompleteType elseType = newElseExpr.getCompleteType();
-    final MinorType elseMinor = elseType.toMinorType();
     CompleteType outputType = caseExpression.outputType;
     boolean newElseExprReWritten = false;
 
@@ -383,31 +381,33 @@ class ExpressionMaterializationVisitor
       LogicalExpression newThen = conditionNode.thenExpr.accept(this, functionLookupContext);
       CaseExpression.CaseConditionNode condition = new CaseExpression.CaseConditionNode(newWhen, newThen);
 
-      final CompleteType thenType = newThen.getCompleteType();
-      final MinorType thenMinor = thenType.toMinorType();
+      final CompleteType newelseType = newElseExpr.getCompleteType();
+      final MinorType newelseMinor = newelseType.toMinorType();
+      final CompleteType newthenType = newThen.getCompleteType();
+      final MinorType newthenMinor = newthenType.toMinorType();
 
       // if the types aren't equal (and one of them isn't null), we need to unify them.
-      if(!thenType.equals(elseType) && !thenType.isNull() && !elseType.isNull()){
+      if(!newthenType.equals(newelseType) && !newthenType.isNull() && !newelseType.isNull()){
 
         final MinorType leastRestrictive = TypeCastRules.getLeastRestrictiveType((Arrays.asList
-          (thenMinor, elseMinor)));
-        if (leastRestrictive != thenMinor && leastRestrictive != elseMinor && leastRestrictive !=
+          (newthenMinor, newelseMinor)));
+        if (leastRestrictive != newthenMinor && leastRestrictive != newelseMinor && leastRestrictive !=
           null) {
           // Implicitly cast then and else to common type
           CompleteType toType = CompleteType.fromMinorType(leastRestrictive);
           condition = new CaseExpression.CaseConditionNode(newWhen, ExpressionTreeMaterializer
             .addImplicitCastExact(newThen, toType, functionLookupContext, errorCollector, allowGandivaFunctions));
           newElseExpr = ExpressionTreeMaterializer.addImplicitCastExact(newElseExpr, toType, functionLookupContext, errorCollector, allowGandivaFunctions);
-        }else if (leastRestrictive != thenMinor) {
+        }else if (leastRestrictive != newthenMinor) {
           // Implicitly cast the then expression
           condition = new CaseExpression.CaseConditionNode(newWhen, ExpressionTreeMaterializer
             .addImplicitCastExact(newThen, newElseExpr.getCompleteType(), functionLookupContext, errorCollector, allowGandivaFunctions));
-        } else if (leastRestrictive != elseMinor) {
+        } else if (leastRestrictive != newelseMinor) {
           // Implicitly cast the else expression
           newElseExpr = ExpressionTreeMaterializer.addImplicitCastExact(newElseExpr, newThen.getCompleteType(), functionLookupContext, errorCollector, allowGandivaFunctions);
         } else{
           // casting didn't work, now we need to merge the types.
-          outputType = thenType.merge(elseType, ALLOW_MIXED_DECIMALS);
+          outputType = newthenType.merge(newelseType, ALLOW_MIXED_DECIMALS);
           condition = new CaseExpression.CaseConditionNode(newWhen, ExpressionTreeMaterializer
             .addImplicitCastExact(newElseExpr, outputType, functionLookupContext, errorCollector, allowGandivaFunctions));
           newElseExpr = ExpressionTreeMaterializer.addImplicitCastExact(newElseExpr, outputType, functionLookupContext, errorCollector, allowGandivaFunctions);

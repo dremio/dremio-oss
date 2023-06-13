@@ -32,6 +32,7 @@ import com.dremio.dac.explore.model.InitialPreviewResponse;
 import com.dremio.dac.proto.model.dataset.FromSQL;
 import com.dremio.dac.proto.model.dataset.TransformUpdateSQL;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
+import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
 import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.ViewCreatorFactory;
@@ -186,12 +187,16 @@ public class DACViewCreatorFactory implements ViewCreatorFactory {
 
     @Override
     public void dropView(List<String> path) {
+      DatasetPath datasetPath = new DatasetPath(path);
       try {
-        DatasetPath datasetPath = new DatasetPath(path);
-        final VirtualDatasetUI virtualDataset = datasetService.get(datasetPath);
-        String savedTag = virtualDataset.getSavedTag();
-        datasetService.deleteDataset(datasetPath, savedTag);
-      } catch (Exception e) {
+        try {
+          final VirtualDatasetUI virtualDataset = datasetService.get(datasetPath);
+          String savedTag = virtualDataset.getSavedTag();
+          datasetService.deleteDataset(datasetPath, savedTag);
+        } catch (DatasetVersionNotFoundException e) {
+          datasetService.deleteDataset(datasetPath, null);
+        }
+      }catch (Exception e) {
         Throwables.propagate(e);
       }
     }

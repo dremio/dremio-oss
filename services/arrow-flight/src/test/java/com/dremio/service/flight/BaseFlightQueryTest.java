@@ -178,6 +178,7 @@ public class BaseFlightQueryTest extends BaseTestQuery {
       getBindingProvider().provider(OptionManager.class),
       userSessionServiceProvider,
       () -> new DremioFlightAuthProviderImpl(Providers.of(dremioConfig), getBindingProvider().provider(UserService.class), getBindingProvider().provider(TokenManager.class)),
+      Providers.of(FlightRequestContextDecorator.DEFAULT),
       getBindingProvider().provider(CredentialsService.class),
       runQueryResponseHandlerFactory
       );
@@ -302,6 +303,7 @@ public class BaseFlightQueryTest extends BaseTestQuery {
           }
         }
       )),
+      Providers.of(FlightRequestContextDecorator.DEFAULT),
       getBindingProvider().provider(CredentialsService.class),
       runQueryResponseHandlerFactory) {
 

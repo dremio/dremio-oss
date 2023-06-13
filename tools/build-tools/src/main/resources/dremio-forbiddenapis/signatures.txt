@@ -1,6 +1,9 @@
 # Protostuff
 io.protostuff.JsonIOUtil @ Use io.protostuff.JsonIOUtils instead
 
+# Nessie relocated jars
+org.projectnessie.nessie.relocated.** @ Use the original library instead
+
 # JUnit
 junit.framework.TestCase @ Use org.junit.Test or org.junit.Assert instead
 junit.framework.Assert @ Use org.junit.Assert instead
@@ -10,11 +13,13 @@ org.junit.rules.ExpectedException @ Use org.assertj.core.api.Assertions.assertTh
 
 # Guava copies
 org.apache.iceberg.relocated.com.google.common.** @ Use com.google.common directly instead
+org.testcontainers.shaded.** @ Use com.google.common directly instead
 org.apache.arrow.util.Preconditions @ Use com.google.common.base.Preconditions instead
 org.apache.arrow.util.VisibleForTesting @ Use com.google.common.annotations.VisibleForTesting instead
 org.apache.parquet.Preconditions @ Use com.google.common.base.Preconditions instead
 org.apache.parquet.Strings @ Use com.google.common.base.Strings instead
 org.apache.hadoop.util.Preconditions @ Use com.google.common.base.Preconditions instead
+org.apache.hadoop.thirdparty.** @ Use com.google.common directly instead
 org.glassfish.jersey.internal.guava.** @ Use com.google.common directly instead
 
 # Mockito
@@ -49,6 +54,7 @@ org.apache.commons.collections4.map.HashedMap @ Use java.util.HashMap instead
 org.apache.commons.io.Charsets @ Use java.nio.charset.StandardCharsets instead
 com.google.common.base.Charsets @ Use java.nio.charset.StandardCharsets instead
 com.google.common.base.Optional @ Use java.util.Optional instead
+io.opentelemetry.extension.annotations.WithSpan @ Use io.opentelemetry.instrumentation.annotations.WithSpan instead
 
 # XML Factories
 @defaultMessage Use SafeXMLFactories methods instead

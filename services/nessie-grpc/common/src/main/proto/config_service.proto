@@ -22,6 +22,8 @@ option java_outer_classname = "ConfigApiProto";
 
 package com.dremio.services.nessie.grpc.proto;
 
+import "google/protobuf/timestamp.proto";
+
 service ConfigService {
   rpc getConfig (Empty) returns (NessieConfiguration) {}
 }
@@ -29,4 +31,11 @@ service ConfigService {
 message NessieConfiguration {
   optional string default_branch = 1;
   int32 maxSupportedApiVersion = 2;
+  optional int32 minSupportedApiVersion = 3;
+  optional string specVersion = 4;
+  optional string noAncestorHash = 5;
+  optional google.protobuf.Timestamp repositoryCreationTimestamp = 6;
+  optional google.protobuf.Timestamp oldestPossibleCommitTimestamp = 7;
+  map<string, string> additionalProperties = 8;
+  optional int32 actualApiVersion = 9;
 }

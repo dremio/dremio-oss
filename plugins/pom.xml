@@ -24,7 +24,7 @@
   <parent>
     <artifactId>dremio-parent</artifactId>
     <groupId>com.dremio</groupId>
-    <version>24.0.0-202302100528110223-3a169b7c</version>
+    <version>24.1.0-202306130653310132-d30779f6</version>
   </parent>
 
   <groupId>com.dremio.plugins</groupId>
@@ -62,6 +62,7 @@
         <module>hive3</module>
         <module>awsglue</module>
         <module>gcs</module>
+        <module>dataplane</module>
       </modules>
     </profile>
     <profile>

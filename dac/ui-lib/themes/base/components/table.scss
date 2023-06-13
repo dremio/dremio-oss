@@ -1,0 +1,121 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+.leantable--fixed-header .leantable__header-cell {
+  position: sticky;
+  top: 0;
+  z-index: 300;
+}
+
+.leantable--fixed-header .leantable__header-cell.leantable-sticky-column {
+  z-index: 350;
+}
+
+.leantable-sticky-column--left::after {
+  box-shadow: inset 10px 0 8px -8px #00000026;
+  position: absolute;
+  top: -1px;
+  right: 0;
+  bottom: 0;
+  width: 30px;
+  transform: translate(100%);
+  content: "";
+  pointer-events: none;
+}
+
+.leantable--grid-layout.leantable__table {
+  display: grid;
+  grid-auto-rows: var(--leantable--row--height);
+}
+
+.leantable--grid-layout .leantable__header,
+.leantable--grid-layout .leantable__header-row,
+.leantable--grid-layout .leantable__body,
+.leantable--grid-layout .leantable__body-row {
+  display: contents;
+}
+
+.leantable--grid-layout .leantable__body-cell,
+.leantable--grid-layout .leantable__header-cell {
+  display: flex;
+  align-items: center;
+  flex-direction: row;
+}
+
+.leantable-row-hover-visibility > * {
+  visibility: hidden;
+}
+
+.leantable__body-row:hover .leantable-row-hover-visibility > *,
+.leantable__body-row:focus-visible .leantable-row-hover-visibility > * {
+  visibility: visible;
+}
+
+.leantable-sticky-column--right.leantable-row-hover-visibility {
+  background: none !important;
+}
+
+.leantable-sticky-column {
+  position: sticky;
+  z-index: 200;
+}
+.leantable-sticky-column--left {
+  left: 0;
+}
+.leantable-sticky-column--right {
+  right: 0;
+}
+
+.leantable--table-layout.leantable__table {
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.leantable--table-layout .leantable__header-row,
+.leantable--table-layout .leantable__body-row {
+  height: var(--leantable--row--height);
+}
+
+.leantable__table {
+  white-space: nowrap;
+}
+
+.leantable__body-cell__content {
+  min-width: 0;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.leantable__body-cell {
+  background: var(--leantable--row--background);
+  border-top: var(--leantable--row--border);
+  padding-inline: var(--leantable--column--gap);
+}
+
+.leantable__header-cell {
+  background: var(--leantable--header--background);
+  padding-inline: var(--leantable--column--gap);
+  text-align: var(--leantable--header--text-align);
+}
+
+.leantable__body-row:hover .leantable__body-cell {
+  background: var(--leantable--row--hover--background) !important;
+}
+
+.leantable__header-cell[aria-sort] {
+  cursor: pointer;
+  user-select: none;
+}

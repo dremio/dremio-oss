@@ -27,8 +27,8 @@ public class CoordinatorHeapClawBackStrategy implements HeapClawBackStrategy {
   // CancelQueryContext for cancelling queries in planning phase.
   private static final CancelQueryContext CANCEL_QUERY_CONTEXT =
     new CancelQueryContext(UserException.OOM_MSG,
-                          "Query cancelled by coordinator heap monitor",
-                          true);
+      "Query cancelled by coordinator heap monitor",
+      true);
 
   public CoordinatorHeapClawBackStrategy(Consumer<CancelQueryContext> cancelConsumer) {
     this.cancelConsumer = cancelConsumer;

@@ -47,6 +47,7 @@ import com.dremio.service.job.proto.SpillJobDetails;
 import com.dremio.service.job.proto.TableDatasetProfile;
 import com.dremio.service.job.proto.TopOperation;
 import com.dremio.service.jobs.JobsProtoUtil;
+import com.dremio.service.jobs.JobsServiceUtil;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -318,7 +319,7 @@ public class JobDetailsUI {
         failureInfo,
         cancellationInfo,
         attempts.get(0).getInfo().getSql(),
-        attempts.get(0).getInfo().getDescription(),
+        JobsServiceUtil.getJobDescription(attempts.get(0).getInfo().getRequestType(), attempts.get(0).getInfo().getSql(), attempts.get(0).getInfo().getDescription()),
         Util.last(attempts).getStats(),
         DatasetType.VIRTUAL_DATASET, // TODO: return correct result. This is closest since only the ui submits queries and they are using virtual datasets...
         datasetVersion,

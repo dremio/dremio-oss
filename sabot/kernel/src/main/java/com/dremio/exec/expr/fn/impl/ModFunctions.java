@@ -42,9 +42,11 @@ public class ModFunctions {
     @Param IntHolder input2;
     @Output IntHolder out;
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.value = (int) (input2.value == 0 ? input1.value : (input1.value  %  input2.value));
     }
@@ -57,9 +59,11 @@ public class ModFunctions {
     @Param BigIntHolder input2;
     @Output BigIntHolder out;
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.value = (long) (input2.value == 0 ? input1.value : (input1.value  %  input2.value));
     }

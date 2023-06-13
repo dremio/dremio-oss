@@ -78,6 +78,7 @@ public class PartitionerDecorator implements AutoCloseable {
   /**
    * decorator method to call multiple Partitioners close()
    */
+  @Override
   public void close() throws Exception {
     AutoCloseables.close(partitioners);
   }

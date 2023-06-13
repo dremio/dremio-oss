@@ -30,6 +30,7 @@ import java.nio.file.Paths;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -240,6 +241,10 @@ public final class HiveTestDataGenerator {
     try (DriverState driverState = new DriverState(newHiveConf())) {
       generatorFunction.apply(driverState.driver);
     }
+  }
+
+  public static List<String> listStoreAsFormatsForTests() {
+    return Arrays.asList("orc", "rcfile", "textfile", "sequencefile");
   }
 
   private void generateTestData() throws Exception {
@@ -509,7 +514,9 @@ public final class HiveTestDataGenerator {
       // create a Hive table that has columns with data types which are supported for reading in Dremio.
       createAllTypesTextTable(hiveDriver, "readtest");
       createAllTypesTable(hiveDriver, "parquet", "readtest");
-      createAllTypesTable(hiveDriver, "orc", "readtest");
+      for (String tableFormat : listStoreAsFormatsForTests()) {
+        createAllTypesTable(hiveDriver, tableFormat, "readtest");
+      }
       createTimestampToStringTable(hiveDriver, "timestamptostring");
       createDoubleToStringTable(hiveDriver, "doubletostring");
 
@@ -531,21 +538,21 @@ public final class HiveTestDataGenerator {
       createNestedListWithNullsHiveTables(hiveDriver);
       createNestedStructWithNullsHiveTables(hiveDriver);
       createParuqetComplexFilterTestTable(hiveDriver);
-      createComplexTypesTextTable(hiveDriver, "orccomplex");
-      createComplexTypesTable(hiveDriver, "orc", "orccomplex");
       createComplexVarcharHiveTables(hiveDriver);
 
+      createComplexTypesTextTable(hiveDriver, "orccomplex");
       createListTypesTextTable(hiveDriver, "orclist");
-      createListTypesTable(hiveDriver, "orc", "orclist");
-
       createStructTypesTextTable(hiveDriver, "orcstruct");
-      createStructTypesTable(hiveDriver, "orc", "orcstruct");
-
       createUnionTypesTextTable(hiveDriver, "orcunion");
-      createUnionTypesTable(hiveDriver, "orc", "orcunion");
-
       createMapTypesTextTable(hiveDriver, "orcmap");
-      createMapTypesTable(hiveDriver, "orc", "orcmap");
+
+      for (String tableFormat : listStoreAsFormatsForTests()) {
+        createComplexTypesTable(hiveDriver, tableFormat, "orccomplex");
+        createListTypesTable(hiveDriver, tableFormat, "orclist");
+        createStructTypesTable(hiveDriver, tableFormat, "orcstruct");
+        createUnionTypesTable(hiveDriver, tableFormat, "orcunion");
+        createMapTypesTable(hiveDriver, tableFormat, "orcmap");
+      }
 
       createORCDecimalCompareTestTable(hiveDriver, "orcdecimalcompare");
       createMixedPartitionTypeTable(hiveDriver, "parquet_mixed_partition_type");
@@ -571,10 +578,140 @@ public final class HiveTestDataGenerator {
       createORCPartitionSchemaTestTable(hiveDriver);
       createFlattenOrcHiveTable(hiveDriver);
 
+      for (String tableFormat : listStoreAsFormatsForTests()) {
+        createTableWithMapOfIntKey(hiveDriver, tableFormat);
+        createTableWithMapOfBigIntKey(hiveDriver, tableFormat);
+        createTableWithMapOfBooleanKey(hiveDriver, tableFormat);
+        createTableWithMapOfDateKey(hiveDriver, tableFormat);
+        createTableWithMapOfDecimalKey(hiveDriver, tableFormat);
+        createTableWithMapOfDoubleKey(hiveDriver, tableFormat);
+        createTableWithMapOfFloatKey(hiveDriver, tableFormat);
+        createTableWithMapOfStringKey(hiveDriver, tableFormat);
+        createTableWithMapOfTimestampKey(hiveDriver, tableFormat);
+        createTableWithMapOfVarbinaryKey(hiveDriver, tableFormat);
+        createTableWithMapOfNullValues(hiveDriver, tableFormat);
+        createTableWithMapOfList(hiveDriver, tableFormat);
+        createTableWithMapOfStruct(hiveDriver, tableFormat);
+        createTableWithMapOfMap(hiveDriver, tableFormat);
+      }
+
+
       // This test requires a systemop alteration. Refresh metadata on hive seems to timeout the test preventing re-use of an existing table. Hence, creating a new table.
       createParquetDecimalSchemaChangeFilterTestTable(hiveDriver, "test_nonvc_parqdecimalschemachange_table");
       createTableWithMapColumn(hiveDriver, "parquet_with_map_column");
     }
+  }
+
+  private void createTableWithMapOfIntKey(Driver hiveDriver, String format) {
+    String createTable = "create table map_of_int_" + format + " (col1 map<int,string>) stored as " + format;
+    String insert = "insert into map_of_int_" + format + " select map(1, 'value1',2,'value2') ";
+
+    executeQuery(hiveDriver, createTable);
+    executeQuery(hiveDriver, insert);
+  }
+
+  private void createTableWithMapOfBigIntKey(Driver hiveDriver, String format) {
+    String createTable = "create table map_of_bigint_" + format + " (col1 map<bigint,string>) stored as " + format;
+    String insert = "insert into map_of_bigint_" + format + " select map(9223372036854775800, 'value1',9223372036854775801,'value2') ";
+
+    executeQuery(hiveDriver, createTable);
+    executeQuery(hiveDriver, insert);
+  }
+
+  private void createTableWithMapOfBooleanKey(Driver hiveDriver, String format) {
+    String createTable = "create table map_of_boolean_" + format + " (col1 map<boolean,string>) stored as " + format;
+    String insert = "insert into map_of_boolean_" + format + " select map(true, 'value1',false,'value2') ";
+
+    executeQuery(hiveDriver, createTable);
+    executeQuery(hiveDriver, insert);
+  }
+
+  private void createTableWithMapOfDateKey(Driver hiveDriver, String format) {
+    String createTable = "create table map_of_date_" + format + " (col1 map<date,string>) stored as " + format;
+    String insert = "insert into map_of_date_" + format + " select map(cast('1993-05-26' as date), 'value1',cast('1993-05-27' as date),'value2') ";
+
+    executeQuery(hiveDriver, createTable);
+    executeQuery(hiveDriver, insert);
+  }
+
+  private void createTableWithMapOfDecimalKey(Driver hiveDriver, String format) {
+    String createTable = "create table map_of_decimal_" + format + " (col1 map<decimal(3,2),string>) stored as " + format;
+    String insert = "insert into map_of_decimal_" + format + " select map(cast(1.1 as decimal(3,2)), 'value1', cast(1.2 as decimal(3,2)),'value2') ";
+
+    executeQuery(hiveDriver, createTable);
+    executeQuery(hiveDriver, insert);
+  }
+
+  private void createTableWithMapOfDoubleKey(Driver hiveDriver, String format) {
+    String createTable = "create table map_of_double_" + format + " (col1 map<double,string>) stored as " + format;
+    String insert = "insert into map_of_double_" + format + " select map(cast(1.10 as double), 'value1',cast(1.20 as double),'value2') ";
+
+    executeQuery(hiveDriver, createTable);
+    executeQuery(hiveDriver, insert);
+  }
+
+  private void createTableWithMapOfFloatKey(Driver hiveDriver, String format) {
+    String createTable = "create table map_of_float_" + format + " (col1 map<float,string>) stored as " + format;
+    String insert = "insert into map_of_float_" + format + " select map(cast(1.1 as float), 'value1',cast(1.2 as float),'value2') ";
+
+    executeQuery(hiveDriver, createTable);
+    executeQuery(hiveDriver, insert);
+  }
+
+  private void createTableWithMapOfStringKey(Driver hiveDriver, String format) {
+    String createTable = "create table map_of_string_" + format + " (col1 map<string,string>) stored as " + format;
+    String insert = "insert into map_of_string_" + format + " select map('key1', 'value1','key2','value2') ";
+
+    executeQuery(hiveDriver, createTable);
+    executeQuery(hiveDriver, insert);
+  }
+
+  private void createTableWithMapOfTimestampKey(Driver hiveDriver, String format) {
+    String createTable = "create table map_of_timestamp_" + format + " (col1 map<timestamp,string>) stored as " + format;
+    String insert = "insert into map_of_timestamp_" + format + " select map(cast('1993-05-26 11:12:33' as timestamp), 'value1',cast('1993-05-26 11:12:35' as timestamp),'value2') ";
+
+    executeQuery(hiveDriver, createTable);
+    executeQuery(hiveDriver, insert);
+  }
+
+  private void createTableWithMapOfVarbinaryKey(Driver hiveDriver, String format) {
+    String createTable = "create table map_of_varbinary_" + format + " (col1 map<binary,string>) stored as " + format;
+    String insert = "insert into map_of_varbinary_" + format + " select map(cast('1234' as binary), 'value1') ";
+
+    executeQuery(hiveDriver, createTable);
+    executeQuery(hiveDriver, insert);
+  }
+
+  private void createTableWithMapOfNullValues(Driver hiveDriver, String format) {
+    String createTable = "create table map_of_null_values_" + format + " (col1 map<string,string>) stored as " + format;
+    String insert = "insert into map_of_null_values_" + format + " select map('key1',null) ";
+
+    executeQuery(hiveDriver, createTable);
+    executeQuery(hiveDriver, insert);
+  }
+
+  private void createTableWithMapOfList(Driver hiveDriver, String format) {
+    String createTable = "create table map_of_list_values_" + format + " (col1 map<string,array<int>>) stored as " + format;
+    String insert = "insert into map_of_list_values_" + format + " select map('key1',array(1,2)) ";
+
+    executeQuery(hiveDriver, createTable);
+    executeQuery(hiveDriver, insert);
+  }
+
+  private void createTableWithMapOfStruct(Driver hiveDriver, String format) {
+    String createTable = "create table map_of_struct_values_" + format + " (col1 map<string,struct<f1:int>>) stored as " + format;
+    String insert = "insert into map_of_struct_values_" + format + " select map('key1',named_struct('f1',1)) ";
+
+    executeQuery(hiveDriver, createTable);
+    executeQuery(hiveDriver, insert);
+  }
+
+  private void createTableWithMapOfMap(Driver hiveDriver, String format) {
+    String createTable = "create table map_of_map_values_" + format + " (col1 map<string,map <string, int>>) stored as " + format;
+    String insert = "insert into map_of_map_values_" + format + " select map('key1',map('innerKey1',1)) ";
+
+    executeQuery(hiveDriver, createTable);
+    executeQuery(hiveDriver, insert);
   }
 
   private File getTempFile() throws Exception {
@@ -1151,6 +1288,7 @@ public final class HiveTestDataGenerator {
         " bigint_field: bigint, " +
         " float_field: float, " +
         " double_field: double, " +
+        " decimal_field: decimal(6,2), " +
         " string_field: string> " +
         ") ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t' COLLECTION ITEMS TERMINATED BY ','");
     executeQuery(hiveDriver,
@@ -1168,6 +1306,7 @@ public final class HiveTestDataGenerator {
         " bigint_field: bigint, " +
         " float_field: float, " +
         " double_field: double, " +
+        " decimal_field: decimal(6,2), " +
         " string_field: string> " +
         ") ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t' COLLECTION ITEMS TERMINATED BY ',' STORED AS " + format);
     executeQuery(hiveDriver, "INSERT OVERWRITE TABLE " + table + format + " SELECT * FROM " + table);
@@ -1738,11 +1877,13 @@ public final class HiveTestDataGenerator {
       String bigint_field = Long.toString(90000000000L);
       String float_field = Float.toString(row);
       String double_field = Double.toString(row);
+      String decimal_field = Double.toString(row);
       String string_field = Integer.toString(row);
 
       printWriter.println(rownum + "\t" + tinyint_field + "," +
         smallint_field + "," + int_field + "," + bigint_field + "," +
-        float_field + "," + double_field + "," + string_field);
+        float_field + "," + double_field + "," + decimal_field + "," +
+        string_field);
     }
     printWriter.close();
 

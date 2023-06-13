@@ -81,6 +81,7 @@ public class MergingReceiverPOP extends AbstractReceiver {
     return CoreOperatorType.MERGING_RECEIVER_VALUE;
   }
 
+  @Override
   @JsonProperty("senders")
   public List<MinorFragmentIndexEndpoint> getProvidingEndpoints() {
     return senders;

@@ -81,6 +81,7 @@ public class HeapMonitorThread extends Thread implements AutoCloseable {
 
   private class LowMemListener implements javax.management.NotificationListener {
 
+    @Override
     public void handleNotification(Notification notification, Object handback)  {
       if (notification.getType().equals(MemoryNotificationInfo.MEMORY_COLLECTION_THRESHOLD_EXCEEDED)) {
         // wakeup the main thread.

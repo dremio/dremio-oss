@@ -22,13 +22,18 @@ import java.util.Set;
 import java.util.UUID;
 
 import com.dremio.common.utils.PathUtils;
+import com.dremio.exec.catalog.CatalogEntityKey;
+import com.dremio.exec.catalog.CatalogUtil;
+import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.catalog.EntityExplorer;
+import com.dremio.exec.catalog.TableVersionContext;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.service.job.proto.Acceleration;
 import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.ScanPath;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.NamespaceService;
-import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.reflection.DependencyEntry.DatasetDependency;
 import com.dremio.service.reflection.DependencyEntry.ReflectionDependency;
 import com.dremio.service.reflection.DependencyEntry.TableFunctionDependency;
@@ -123,10 +128,10 @@ public class DependencyUtils {
    *
    * @throws NamespaceException if can't access a dataset dependency in the Namespace
    */
-  public static ExtractedDependencies extractDependencies(final NamespaceService namespaceService, final JobInfo jobInfo,
-                                                          final RefreshDecision decision) throws NamespaceException {
+  public static ExtractedDependencies extractDependencies(final JobInfo jobInfo,
+                                                          final RefreshDecision decision, CatalogService catalogService) throws NamespaceException {
     final Set<DependencyEntry> plandDependencies = Sets.newHashSet();
-
+    EntityExplorer catalog = CatalogUtil.getSystemCatalogForReflections(catalogService);
     // add all substitutions
     if (jobInfo.getAcceleration() != null) {
       final List<Acceleration.Substitution> substitutions = jobInfo.getAcceleration().getSubstitutionsList();
@@ -143,9 +148,16 @@ public class DependencyUtils {
       for (ScanPath scanPath : jobScanPaths) {
         // make sure to exclude scans from materializations
         if (!scanPath.getPathList().get(0).equals(ACCELERATOR_STORAGEPLUGIN_NAME)) {
-          final List<String> path = scanPath.getPathList();
-          final DatasetConfig config = namespaceService.getDataset(new NamespaceKey(path));
-          plandDependencies.add(DependencyEntry.of(config.getId().getId(), path));
+          TableVersionContext versionContext = null;
+          if (scanPath.getVersionContext() != null) {
+            versionContext = TableVersionContext.deserialize(scanPath.getVersionContext());
+          }
+          DremioTable table = CatalogUtil.getTable(CatalogEntityKey.newBuilder().
+            keyComponents(scanPath.getPathList()).tableVersionContext(versionContext).build(), catalog);
+          if (table == null) {
+            throw new NamespaceNotFoundException(new NamespaceKey(scanPath.getPathList()), "Dataset not found in catalog " + scanPath.getVersionContext());
+          }
+          plandDependencies.add(DependencyEntry.of(table.getDatasetConfig().getId().getId(), scanPath.getPathList()));
         }
       }
     }
@@ -162,9 +174,16 @@ public class DependencyUtils {
     final List<ScanPath> scanPaths = decision.getScanPathsList();
     if (scanPaths != null) {
       for (ScanPath scanPath : scanPaths) {
-        final List<String> path = scanPath.getPathList();
-        final DatasetConfig config = namespaceService.getDataset(new NamespaceKey(path));
-        decisionDependencies.add(DependencyEntry.of(config.getId().getId(), path));
+        TableVersionContext versionContext = null;
+        if (scanPath.getVersionContext() != null) {
+          versionContext = TableVersionContext.deserialize(scanPath.getVersionContext());
+        }
+        DremioTable table = CatalogUtil.getTable(CatalogEntityKey.newBuilder().
+          keyComponents(scanPath.getPathList()).tableVersionContext(versionContext).build(), catalog);
+        if (table == null) {
+          throw new NamespaceNotFoundException(new NamespaceKey(scanPath.getPathList()), "Dataset not found in catalog " + scanPath.getVersionContext());
+        }
+        decisionDependencies.add(DependencyEntry.of(table.getDatasetConfig().getId().getId(), scanPath.getPathList()));
       }
     }
 

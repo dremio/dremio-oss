@@ -26,6 +26,7 @@ import com.dremio.service.job.proto.DurationDetails;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.JobsProtoUtil;
+import com.dremio.service.jobs.JobsServiceUtil;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -158,7 +159,7 @@ public class PartialJobListingItem {
       input.getOutputRecords() + " Records";
     this.spilled = input.getSpilled();
     this.isStarFlakeAccelerated = input.getSnowflakeAccelerated();
-    this.description = input.getDescription();
+    this.description = JobsServiceUtil.getJobDescription(input.getRequestType(), input.getSql(), input.getDescription());
     this.requestType = input.getRequestType();
     this.datasetVersion = input.getDatasetVersion();
     this.outputLimited = input.getOutputLimited();

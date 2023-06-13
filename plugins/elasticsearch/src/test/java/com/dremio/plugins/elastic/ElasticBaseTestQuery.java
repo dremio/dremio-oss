@@ -154,6 +154,12 @@ public class ElasticBaseTestQuery extends PlanTestBase {
     boolean enabled() default false;
   }
 
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target({ElementType.TYPE})
+  public @interface PushdownWithKeyword {
+    boolean enabled() default false;
+  }
+
   @Before
   public void before() throws Exception {
     schema = schemaName();
@@ -210,11 +216,18 @@ public class ElasticBaseTestQuery extends PlanTestBase {
       allowPushdownNormalizedOrAnalyzedFields = pushdownAnalyzed.enabled();
     }
 
+    PushdownWithKeyword pushdownKeyword =
+      this.getClass().getAnnotation(PushdownWithKeyword.class);
+    boolean pushdownWithKeyword = false;
+    if (pushdownKeyword != null) {
+      pushdownWithKeyword = pushdownKeyword.enabled();
+    }
+
     getSabotContext().getOptionManager().setOption(OptionValue.createLong(OptionValue.OptionType.SYSTEM, ExecConstants.ELASTIC_ACTION_RETRIES, 3));
     elastic = new ElasticsearchCluster(scrollSize, new Random(), scriptsEnabled, showIDColumn, publishHost, sslEnabled, getSabotContext().getOptionManager().getOption(ELASTIC_ACTION_RETRIES_VALIDATOR), forceDoublePrecision);
     SourceConfig sc = new SourceConfig();
     sc.setName("elasticsearch");
-    sc.setConnectionConf(elastic.config(allowPushdownNormalizedOrAnalyzedFields));
+    sc.setConnectionConf(elastic.config(allowPushdownNormalizedOrAnalyzedFields, pushdownWithKeyword));
     sc.setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY);
     createSourceWithRetry(sc);
     ElasticVersionBehaviorProvider elasticVersionBehaviorProvider = new ElasticVersionBehaviorProvider(elastic.getMinVersionInCluster());

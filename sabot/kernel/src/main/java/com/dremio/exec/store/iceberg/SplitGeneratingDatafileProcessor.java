@@ -147,7 +147,7 @@ public class SplitGeneratingDatafileProcessor implements ManifestEntryProcessor 
   }
 
   @Override
-  public void initialise(PartitionSpec partitionSpec) {
+  public void initialise(PartitionSpec partitionSpec, int row) {
     icebergPartitionSpec = partitionSpec;
     fileSchema = icebergPartitionSpec.schema();
     colToIDMap = getColToIDMap();
@@ -174,7 +174,7 @@ public class SplitGeneratingDatafileProcessor implements ManifestEntryProcessor 
     final String fullPath = currentDataFile.path().toString();
     long version = PathUtils.getQueryParam(fullPath, FILE_VERSION, 0L, Long::parseLong);
 
-    initialiseDatafileInfo(currentDataFile, version);
+    initialiseDatafileInfo(currentDataFile, version, manifestEntry.sequenceNumber());
 
     int currentOutputCount = 0;
     final List<SplitIdentity> splitsIdentity = new ArrayList<>();
@@ -246,7 +246,7 @@ public class SplitGeneratingDatafileProcessor implements ManifestEntryProcessor 
       }
       Type fieldType = icebergField.type();
 
-      Object value;
+      Object value = null;
 
       switch (suffix) {
         case "min":
@@ -264,9 +264,15 @@ public class SplitGeneratingDatafileProcessor implements ManifestEntryProcessor 
           value = getValueFromByteBuffer(upperBound, fieldType);
           break;
         case "val":
-          Preconditions.checkArgument(partColToKeyMap.containsKey(colName), "partition column not found");
-          int partColPos = partColToKeyMap.get(colName);
-          value = currentDataFile.partition().get(partColPos, getPartitionColumnClass(icebergPartitionSpec, partColPos));
+          //For select, there will never be a case
+          // where partColToKeyMap doesn't have a colName.
+          // It always brings those data files which have identity partition details.
+          //In case of OPTIMIZE,
+          // it can fetch the data files which have non-identity partitions also where partition evolution has happened.
+          if (partColToKeyMap.containsKey(colName)) {
+            int partColPos = partColToKeyMap.get(colName);
+            value = currentDataFile.partition().get(partColPos, getPartitionColumnClass(icebergPartitionSpec, partColPos));
+          }
           break;
         default:
           throw new RuntimeException("unexpected suffix for column: " + fieldName);
@@ -294,7 +300,7 @@ public class SplitGeneratingDatafileProcessor implements ManifestEntryProcessor 
     }
   }
 
-  private void initialiseDatafileInfo(DataFile dataFile, long version) {
+  private void initialiseDatafileInfo(DataFile dataFile, long version, long sequenceNo) {
     if (currentDataFileOffset == 0) {
       dataFilePartitionAndStats = getDataFileStats(dataFile, version);
       dataFilePartitionInfo = ManifestEntryProcessorHelper.getDataFilePartitionInfo(
@@ -303,7 +309,8 @@ public class SplitGeneratingDatafileProcessor implements ManifestEntryProcessor 
         fileSchema,
         nameToFieldMap,
         dataFile,
-        version);
+        version,
+        sequenceNo);
     }
   }
 

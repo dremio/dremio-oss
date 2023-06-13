@@ -42,6 +42,7 @@ public class MayBeDistFileSystemPlugin<C extends MayBeDistFileSystemConf<C, ?>> 
     super(config, context, name, idProvider);
   }
 
+  @Override
   protected List<Property> getProperties() {
     List<Property> props = new ArrayList<>(super.getProperties());
 
@@ -68,6 +69,7 @@ public class MayBeDistFileSystemPlugin<C extends MayBeDistFileSystemConf<C, ?>> 
     return props;
   }
 
+  @Override
   protected FileSystem newFileSystem(String userName, OperatorContext operatorContext) throws IOException {
     if (!Strings.isNullOrEmpty(getConfig().getSecretKey())) {
       getFsConf().set("fs.dremioS3.impl", "com.dremio.plugins.s3.store.S3FileSystem");

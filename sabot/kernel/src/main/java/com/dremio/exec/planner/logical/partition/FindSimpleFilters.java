@@ -215,10 +215,9 @@ public class FindSimpleFilters extends RexVisitorImpl<FindSimpleFilters.StateHol
         }
         return new StateHolder(Type.CONDITION, null)
             .add((RexCall) builder.makeCall(call.getType(), call.getOperator(), Arrays.asList(a.node, b.node)));
-      } else {
-        // the two inputs are not literals/direct inputs.
-        return new StateHolder(Type.OTHER, call);
       }
+      // the two inputs are not literals/direct inputs.
+      break;
     }
 
     case AND:
@@ -241,6 +240,7 @@ public class FindSimpleFilters extends RexVisitorImpl<FindSimpleFilters.StateHol
       if (a.type == Type.CONDITION) {
         return a;
       }
+      break;
     }
 
     case CAST:
@@ -249,14 +249,14 @@ public class FindSimpleFilters extends RexVisitorImpl<FindSimpleFilters.StateHol
         (call.getOperands().size() == 1 && call.getOperands().get(0) instanceof RexLiteral)) { // If its a single literal cast
         return call.getOperands().get(0).accept(this);
       }
-
-      // fallthrough
+      break;
     }
 
     default:
-      return new StateHolder(Type.OTHER, call);
+      break;
     }
 
+    return new StateHolder(Type.OTHER, call);
   }
 
   private RexNode composeConjunction(RexNode a, RexNode b) {

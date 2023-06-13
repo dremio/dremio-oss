@@ -581,6 +581,7 @@ public class RangeConditionRewriteVisitor extends StatelessRelShuttleImpl {
     return logicalSort;
   }
 
+  @SuppressWarnings("FallThrough") // FIXME: remove suppression by properly handling switch fallthrough
   private RexNode getStartValueNode(RelDataType type, RexBuilder rexBuilder, double intervalWidth, RexNode zeroInputRef) {
     switch (type.getSqlTypeName().getFamily()) {
       case NUMERIC:
@@ -599,7 +600,7 @@ public class RangeConditionRewriteVisitor extends StatelessRelShuttleImpl {
       case TIME: // TODO
       case TIMESTAMP: // TODO
       default:
-        throw new RuntimeException(String.format("Unsupported type: %s", type.toString()));
+        throw new RuntimeException("Unsupported type: " + type);
     }
   }
 

@@ -41,11 +41,13 @@ public abstract class LogicalExpressionBase implements LogicalExpression {
     throw new UnsupportedOperationException(String.format("The type of %s doesn't currently support LogicalExpression.getCompleteType().", this.getClass().getName()));
   }
 
+  @Override
   @JsonIgnore
   public int getSelfCost() {
     return 0;
   }
 
+  @Override
   @JsonIgnore
   public int getCumulativeCost() {
     int cost = this.getSelfCost();
@@ -57,6 +59,7 @@ public abstract class LogicalExpressionBase implements LogicalExpression {
     return cost;
   }
 
+  @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
     ExpressionStringBuilder esb = new ExpressionStringBuilder();

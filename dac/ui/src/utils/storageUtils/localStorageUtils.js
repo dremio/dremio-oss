@@ -153,6 +153,11 @@ export class LocalStorageUtils {
   }
 
   getDefaultSqlState() {
+    const sqlState = localStorage.getItem("sqlState");
+    if (sqlState == null) {
+      this.setDefaultSqlState(true);
+      return true;
+    }
     return localStorage.getItem("sqlState") === "true";
   }
 

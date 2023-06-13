@@ -97,7 +97,7 @@ public class ITTestLimit extends ElasticBaseTestQuery {
     AutoCloseables.close(jobTelemetryClient);
   }
 
-  String AGG_LIMIT = "="
+  private static final String AGG_LIMIT = "="
       + "[{\n" +
       "  \"size\" : 0,\n" +
       "  \"query\" : {\n" +

@@ -328,8 +328,7 @@ public class DremioORCRecordUtils {
       if (zcr != null) {
         try {
           return readDiskRangesUsingZCR(fs, file, path, zcr, pool, baseOffset, range);
-        }
-        catch (UnsupportedOperationException ioe) {
+        } catch (UnsupportedOperationException ioe) {
           // zero copy read failed. Clear all buffers and unset zero copy read
           if (pool != null) {
             pool.clear();
@@ -658,10 +657,12 @@ public class DremioORCRecordUtils {
         this.byteBuffer = byteBuffer;
       }
 
+      @Override
       public boolean equals(Object rhs) {
         return (rhs instanceof ByteBufferWrapper) && (this.byteBuffer == ((ByteBufferWrapper) rhs).byteBuffer);
       }
 
+      @Override
       public int hashCode() {
         return System.identityHashCode(byteBuffer);
       }

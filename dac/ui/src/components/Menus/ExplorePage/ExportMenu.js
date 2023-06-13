@@ -19,7 +19,7 @@ import { connect } from "react-redux";
 import { injectIntl } from "react-intl";
 
 import { LIST, MAP, MIXED, STRUCT } from "@app/constants/DataTypes";
-import { getExploreJobId, getExploreState } from "@app/selectors/explore";
+import { getExploreState } from "@app/selectors/explore";
 import { isSqlChanged } from "@app/sagas/utils";
 import { addNotification } from "actions/notification";
 import { MSG_CLEAR_DELAY_SEC } from "@app/constants/Constants";
@@ -188,10 +188,10 @@ function mapStateToProps(state) {
   const currentSql = explorePageState.view.currentSql;
   const queryStatuses = explorePageState.view.queryStatuses;
   const queryTabNumber = explorePageState.view.queryTabNumber;
+  const jobId = queryStatuses[queryTabNumber - 1]?.jobId;
   const isMultiSqlEdited =
     currentSql !== explorePageState.view.previousMultiSql;
 
-  const jobId = getExploreJobId(state);
   return {
     jobId,
     currentSql,

@@ -114,10 +114,11 @@ public class AmazonElasticStoragePluginConfig extends BaseElasticStoragePluginCo
       boolean usePainless,
       int scrollSize,
       boolean allowPushdownOnNormalizedOrAnalyzedFields,
+      boolean pushdownWithKeyword,
       boolean warnOnRowCountMismatch,
       EncryptionValidationMode encryptionValidationMode, boolean forceDoublePrecision) {
     super(scriptsEnabled, showHiddenIndices, showIdColumn, readTimeoutMillis, scrollTimeoutMillis, usePainless,
-      scrollSize, allowPushdownOnNormalizedOrAnalyzedFields, warnOnRowCountMismatch, encryptionValidationMode, forceDoublePrecision);
+      scrollSize, allowPushdownOnNormalizedOrAnalyzedFields, pushdownWithKeyword, warnOnRowCountMismatch, encryptionValidationMode, forceDoublePrecision);
     this.hostname = hostname;
     this.port = port;
     this.accessKey = accessKey;
@@ -178,6 +179,7 @@ public class AmazonElasticStoragePluginConfig extends BaseElasticStoragePluginCo
       true,
       amazonOSStoragePluginConfig.scrollSize,
       amazonOSStoragePluginConfig.allowPushdownOnNormalizedOrAnalyzedFields,
+      amazonOSStoragePluginConfig.pushdownWithKeyword,
       amazonOSStoragePluginConfig.warnOnRowCountMismatch,
       amazonOSStoragePluginConfig.encryptionValidationMode,
       false);

@@ -42,6 +42,7 @@ public interface ErrorCollector extends AutoCloseable {
 
     public int getErrorCount();
 
+    @Override
     public void close();
     String toErrorString();
 }

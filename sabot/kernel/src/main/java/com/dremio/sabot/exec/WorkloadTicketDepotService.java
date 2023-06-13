@@ -47,10 +47,12 @@ public class WorkloadTicketDepotService implements Service {
     ticketDepot = null;
   }
 
+  @Override
   public void start() throws Exception {
     ticketDepot = newTicketDepot(allocator.get(), dremioConfig.get().getSabotConfig());
   }
 
+  @Override
   public void close() throws Exception {
     AutoCloseables.close(ticketDepot);
   }

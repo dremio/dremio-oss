@@ -107,7 +107,7 @@ public final class AncestorsVisitor implements SqlVisitor<List<SqlIdentifier>> {
               SqlFunction tableFunction = (SqlFunction)((SqlCall)operand).getOperator();
               return asList(tableFunction.getSqlIdentifier());
             }
-            // pass through
+            return Collections.emptyList();
           case VALUES:
             return Collections.emptyList();
           default:
@@ -128,6 +128,7 @@ public final class AncestorsVisitor implements SqlVisitor<List<SqlIdentifier>> {
               return Collections.emptyList();
             }
           }
+          // fall through
         default:
           throw new UnsupportedOperationException("Unexpected operator in call: " + operator.getKind() + "\n" + SqlNodes.toTreeString(call));
         }

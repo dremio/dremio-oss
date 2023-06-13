@@ -70,6 +70,7 @@ public class ExtractRecommender extends Recommender<ExtractRule, Selection> {
     return rules;
   }
 
+  @Override
   public TransformRuleWrapper<ExtractRule> wrapRule(ExtractRule extractRule) {
     switch (extractRule.getType()) {
       case pattern:

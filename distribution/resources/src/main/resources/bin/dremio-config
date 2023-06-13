@@ -58,6 +58,9 @@ while [ $# -gt 1 ]; do
     confdir=$1
     shift
     DREMIO_CONF_DIR=$confdir
+  elif [ "--admin-only" = "$1" ]; then
+    DREMIO_ADMIN_ONLY=true
+    shift
   else
     # Presume we are at end of options and break
     break
@@ -196,7 +199,7 @@ if [ ! -x "$JAVA" ]; then
   exit 1
 fi
 # Ensure that Java version is at least 1.8
-JAVA_VERSION_STRING=`"$JAVA" -version 2>&1 | grep "version" | sed 's/.*"\(.*\)".*/\1/g'`
+JAVA_VERSION_STRING=`"$JAVA" -version 2>&1 | sed -n -E 's/(java|openjdk) version "([0-9\\._]+)".*/\2/p'`
 JAVA_MAJOR_VERSION=
 if `echo $JAVA_VERSION_STRING | egrep -q -e "^1\.[0-9]{1,}\."`; then
     JAVA_MAJOR_VERSION=`echo $JAVA_VERSION_STRING | sed 's/^1\.\([0-9]\{1,\}\)\..*/\1/g'`
@@ -237,7 +240,7 @@ then
     echo "Dremio requires at least 4 GB memory to run. ${DREMIO_MAX_MEMORY_SIZE_MB} MB is too low."
     exit 1
   fi
-  ROLES=`$JAVA -cp "$DREMIO_CLASSPATH" -Ddremio.log.path=${DREMIO_LOG_DIR} com.dremio.dac.daemon.GetRolesCommand`
+  ROLES=`$JAVA -cp "$DREMIO_CLASSPATH" $DREMIO_JAVA_EXTRA_OPTS -Ddremio.log.path=${DREMIO_LOG_DIR} com.dremio.dac.daemon.GetRolesCommand`
   if ( echo $ROLES | grep -q "executor" ); then
     DEFAULT_MAX_HEAP_MEMORY_EXECUTOR_MB=2048
     if [ 6144 -le $DREMIO_MAX_MEMORY_SIZE_MB ]; then
@@ -349,6 +352,42 @@ case $startStopStatus in
 (*)
   ;;
 esac
+
+if [ "$JAVA_MAJOR_VERSION" -ge 9 ]; then
+  DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED"
+fi
+
+# Force -XX:UseAVX=2 on Intel Skylake and Cascade Lake CPUs to improve
+# performance.  See https://bugs.openjdk.org/browse/JDK-8286823.
+#
+# Skylake and Cascade Lake CPUs can be detected by checking for family 6 and
+# model=85 in /proc/cpuinfo.
+#
+# When family is equal to 6, the value of `model` in /proc/cpuinfo is the
+# concatenation of the 'Extended Model' (4 leftmost bits) and the CPU 'Model'
+# (4 rightmost bits).
+#
+# - Family=6 and model=85 denotes Cascade Lake and Skylake CPUs (Extended
+#   Model=0x5 and Model=0x5)
+# - Family=6 and model=106 denotes Ice Lake (Extended Model=0x6 and Model=0xA)
+# - ...
+#
+# Source: https://en.wikichip.org/wiki/intel/cpuid
+#
+# The code below adds -XX:UseAVX=2 to Dremio Java opts if at *least one* of the
+# CPU sockets on the server is running the Skylake or Cascade Lake
+# architecture.  I.e. it also works on servers with multiple, heterogeneous
+# CPUs.
+CPU_VENDOR=$((grep vendor_id /proc/cpuinfo 2>/dev/null || echo '- - None') | sort -u | awk '{print $3}')
+IS_CPU_FAMILY_6=$(grep -Eq '^cpu family\s*: 6$' /proc/cpuinfo 2>/dev/null && echo true || echo false)
+IS_CPU_SKYLAKE_OR_CASCADELAKE=$(grep -Eq '^model\s*: 85$' /proc/cpuinfo 2>/dev/null && echo true || echo false)
+if [ "$JAVA_MAJOR_VERSION" -ge 11 ] && \
+   [ "$CPU_VENDOR" = "GenuineIntel" ] && \
+   [ "$IS_CPU_FAMILY_6" = "true" ] && \
+   [ "$IS_CPU_SKYLAKE_OR_CASCADELAKE" = "true" ]
+then
+  DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:UseAVX=2"
+fi
 
 # make sure allocator chunks are done as mmap'd memory (and reduce arena overhead)
 # Newer versions of glibc use an arena memory allocator that causes virtual

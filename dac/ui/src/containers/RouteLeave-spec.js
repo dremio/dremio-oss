@@ -155,7 +155,7 @@ describe("RouteLeave.js", () => {
 
         changeValue(true);
         //check transitions
-        // Todo: Fix the below UT (https://dremio.atlassian.net/browse/DX-30942)
+        // Todo: Fix the below UT (DX-30942)
         // changeValue(false); // true -> false
         changeValue(true); // false -> true
       });

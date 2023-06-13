@@ -51,8 +51,7 @@ public class Distributions
                 URL resource = Resources.getResource("dists.dss");
                 checkState(resource != null, "Distribution file 'dists.dss' not found");
                 DEFAULT_DISTRIBUTIONS = new Distributions(loadDistribution(Resources.asCharSource(resource, UTF_8)));
-            }
-            catch (IOException e) {
+            } catch (IOException e) {
                 throw Throwables.propagate(e);
             }
         }

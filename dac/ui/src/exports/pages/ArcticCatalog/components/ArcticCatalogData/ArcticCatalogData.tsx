@@ -15,13 +15,15 @@
  */
 import { SearchField } from "@app/components/Fields";
 import { useIntl } from "react-intl";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { type WithRouterProps } from "react-router";
 import {
   constructArcticUrl,
   parseArcticCatalogUrl,
   useArcticCatalogContext,
 } from "../../arctic-catalog-utils";
+import { useResourceSnapshot } from "smart-resource/react";
+import { getCatalogConfigResource } from "@app/exports/resources/CatalogConfigurationResource";
 import { getViewStateFromReq } from "@app/utils/smartPromise";
 import StatefulTableViewer from "@app/components/StatefulTableViewer";
 import PageBreadcrumbHeader from "@app/pages/NessieHomePage/components/PageBreadcrumbHeader/PageBreadcrumbHeader";
@@ -30,9 +32,8 @@ import useNamespaceList from "@app/pages/NessieHomePage/utils/useNamespaceList";
 import { last } from "lodash";
 import ArcticCatalogDataItem from "./ArcticCatalogDataItem";
 import ProjectHistoryButton from "../ProjectHistoryButton";
-import { Skeleton } from "dremio-ui-lib/dist-esm";
+import { Skeleton } from "dremio-ui-lib/components";
 import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
-
 import "./ArcticCatalogData.less";
 import * as headerClasses from "@app/exports/components/ArcticTableHeader/ArcticTableHeader.module.less";
 
@@ -80,6 +81,17 @@ const ArcticCatalogData = (props: WithRouterProps) => {
     api,
   });
 
+  const resource = getCatalogConfigResource(params?.arcticCatalogId);
+  useEffect(() => {
+    try {
+      resource?.fetch();
+    } catch (e) {
+      //
+    }
+  }, [resource]);
+  //@ts-ignore
+  const [config] = useResourceSnapshot(resource);
+
   const tableData = useMemo(() => {
     const items = data?.entries ?? [];
     const filteredItems = !searchFilter
@@ -96,7 +108,12 @@ const ArcticCatalogData = (props: WithRouterProps) => {
         rowClassName: "row" + i,
         data: {
           name: {
-            node: () => <ArcticCatalogDataItem entry={entry} />,
+            node: () => (
+              <ArcticCatalogDataItem
+                entry={entry}
+                configState={config?.state}
+              />
+            ),
             ...(elements?.length > 0 && {
               value: elements[elements.length - 1],
             }),
@@ -104,7 +121,7 @@ const ArcticCatalogData = (props: WithRouterProps) => {
         },
       };
     });
-  }, [data, searchFilter]);
+  }, [data, searchFilter, config]);
 
   return (
     <div className="arctic-catalog-data">

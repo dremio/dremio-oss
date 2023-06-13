@@ -20,7 +20,9 @@ import static com.dremio.exec.store.iceberg.IcebergSerDe.serializedSchemaAsJson;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.calcite.sql.SqlNode;
 import org.apache.iceberg.PartitionSpec;
@@ -71,6 +73,7 @@ public class CreateEmptyTableHandler extends SimpleDirectHandler {
   private final OptionManager optionManager;
   private final UserSession userSession;
   private final boolean ifNotExists;
+  private Map<String, String> tableProperties = new HashMap<>();
 
   public CreateEmptyTableHandler(Catalog catalog, SqlHandlerConfig config, UserSession userSession, boolean ifNotExists) {
     this.catalog = Preconditions.checkNotNull(catalog);
@@ -156,6 +159,11 @@ public class CreateEmptyTableHandler extends SimpleDirectHandler {
         .buildSilently();
     }
 
+    if (!(sqlCreateEmptyTable.getTablePropertyNameList() == null || sqlCreateEmptyTable.getTablePropertyNameList().isEmpty())) {
+      IcebergUtils.validateTablePropertiesRequest(optionManager);
+      tableProperties = IcebergUtils.convertTableProperties(sqlCreateEmptyTable.getTablePropertyNameList(), sqlCreateEmptyTable.getTablePropertyValueList(), false);
+    }
+
     // validate if source supports providing table location
     DataAdditionCmdHandler.validateCreateTableLocation(this.catalog, key, sqlCreateEmptyTable);
 
@@ -196,8 +204,7 @@ public class CreateEmptyTableHandler extends SimpleDirectHandler {
     if (table != null) {
       if(ifNotExists){
         return Collections.singletonList(new SimpleCommandResult(true, String.format("Table [%s] already exists.", key)));
-      }
-      else {
+      } else {
         throw UserException.validationError()
           .message("A table or view with given name [%s] already exists.", key)
           .buildSilently();
@@ -233,7 +240,7 @@ public class CreateEmptyTableHandler extends SimpleDirectHandler {
     final String sourceName = key.getRoot();
     final VersionContext sessionVersion = userSession.getSessionVersionForSource(sourceName);
     final ResolvedVersionContext version = CatalogUtil.resolveVersionContext(catalog, sourceName, sessionVersion);
-    CatalogUtil.validateResolvedVersionIsBranch(version, key.toString());
+    CatalogUtil.validateResolvedVersionIsBranch(version);
     List<DremioSqlColumnDeclaration> columnDeclarations = SqlHandlerUtil.columnDeclarationsFromSqlNodes(sqlCreateEmptyTable.getFieldList(), sql);
     SqlHandlerUtil.checkForDuplicateColumns(columnDeclarations, BatchSchema.of(), sql);
     BatchSchema batchSchema = SqlHandlerUtil.batchSchemaFromSqlSchemaSpec(config, columnDeclarations, sql);
@@ -262,8 +269,7 @@ public class CreateEmptyTableHandler extends SimpleDirectHandler {
     if (table != null) {
       if(ifNotExists){
         return Collections.singletonList(new SimpleCommandResult(true, String.format("Table [%s] already exists.", key)));
-      }
-      else {
+      } else {
         throw UserException.validationError()
           .message("A table with the given name already exists")
           .buildSilently();

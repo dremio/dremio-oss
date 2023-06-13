@@ -95,6 +95,7 @@ enum WorkloadType {
   FLIGHT = 12;
   METADATA_REFRESH = 13;
   INTERNAL_ICEBERG = 14;
+  D2D = 15;
 }
 
 message DremioPBError{
@@ -366,6 +367,8 @@ message QueryProfile {
   repeated AttemptEvent state_list = 38;
   optional int32 num_plan_cache_used = 39;
   map<string, RelNodeInfo> rel_info_map = 40;
+  optional int32 num_joins_in_user_query = 41;
+  optional int32 num_joins_in_final_prel = 42;
 }
 
 message RelNodeInfo{
@@ -513,6 +516,7 @@ message PlanPhaseProfile {
   optional string plan = 3;
   optional string planner_dump = 4;
   optional FragmentRpcSizeStats size_stats = 5;
+  map<string, int64> time_breakdown_per_rule = 6;
 }
 
 message MajorFragmentProfile {
@@ -627,6 +631,8 @@ message OperatorProfile {
   optional int32 operator_subtype = 11;
   optional int64 outputRecords = 12;
   optional int64 outputBytes = 13;
+  optional int64 addedFiles = 14; // DML
+  optional int64 removedFiles = 15; // DML
 }
 
 message StreamProfile {
@@ -731,6 +737,7 @@ enum CoreOperatorType {
   BRIDGE_FILE_READER = 62;
   ICEBERG_MANIFEST_WRITER = 63;
   ICEBERG_METADATA_FUNCTIONS_READER = 64;
+  ICEBERG_SNAPSHOTS_SUB_SCAN = 65;
 }
 
 message MetricDef {

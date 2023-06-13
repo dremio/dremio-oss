@@ -36,7 +36,8 @@ import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
 import com.dremio.exec.planner.sql.parser.SqlCreateTable;
 import com.dremio.exec.planner.sql.parser.SqlGrant.Privilege;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.exec.store.iceberg.DremioFileIO;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.annotations.VisibleForTesting;
@@ -76,6 +77,7 @@ public class CreateTableHandler extends DataAdditionCmdHandler {
     final ResolvedVersionContext version = CatalogUtil.resolveVersionContext(catalog, sourceName, sessionVersion);
 
     try {
+      CatalogUtil.validateResolvedVersionIsBranch(version);
       validateVersionedTableFormatOptions(catalog, path);
       checkExistenceValidity(path, getDremioTable(catalog, path));
       logger.debug("Creating versioned table '{}'  at version '{}' resolved version {} ",
@@ -139,21 +141,16 @@ public class CreateTableHandler extends DataAdditionCmdHandler {
       String tableLocation = isIcebergTable() ?
         tableEntry.getIcebergTableProps().getTableLocation():
         tableEntry.getLocation();
-      DremioFileIO dremioFileIO = new DremioFileIO(tableEntry.getPlugin().getFsConfCopy(), tableEntry.getPlugin());
+      FileSystem fs = tableEntry.getPlugin().createFS(tableLocation, tableEntry.getUserName(), null);
 
-      cleanUpImpl(dremioFileIO, datasetCatalog, key, tableLocation);
-    } catch (Exception e) {
-      logger.warn(String.format("cleanup failed for CTAS query + %s", e.getMessage()));
-    }
-  }
-
-  @VisibleForTesting
-  public static void cleanUpImpl(DremioFileIO dremioFileIO, DatasetCatalog datasetCatalog, NamespaceKey key, String tableLocation) {
-    try {
       // delete folders created by CTAS
-      dremioFileIO.deleteFile(tableLocation, true, dremioFileIO.getPlugin() instanceof FileSystemPlugin);
+      Path path = Path.of(tableLocation);
+      if (!fs.supportsPathsWithScheme()) {
+        path = Path.of(Path.getContainerSpecificRelativePath(path));
+      }
+      fs.delete(path, true);
 
-      if(!(dremioFileIO.getPlugin() instanceof FileSystemPlugin)){
+      if(!(tableEntry.getPlugin() instanceof FileSystemPlugin)){
         //try deleting table from hive and glue metastore
         datasetCatalog.dropTable(key, null);
       } else {

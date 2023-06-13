@@ -79,6 +79,9 @@ import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterators;
 
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
+
 /**
  * A resource focused on guessing, previewing and applying formats to files and folders.
  */
@@ -137,7 +140,10 @@ public class FormatTools {
 
       // determine whether folder or file.
       final boolean isFolder;
-      switch(physicalDatasetConfig.getType()) {
+      final DatasetType datasetType = physicalDatasetConfig.getType();
+      Span.current().setAttribute("formattools.getOrDetectFormat.datasetType", datasetType.name());
+
+      switch(datasetType) {
         case PHYSICAL_DATASET_HOME_FILE:
         case PHYSICAL_DATASET_SOURCE_FILE:
           isFolder = false;
@@ -157,7 +163,7 @@ public class FormatTools {
       fileFormat.setVersion(physicalDatasetConfig.getTag());
       return fileFormat;
     } catch (PhysicalDatasetNotFoundException nfe) {
-      // ignore and fall through to detect the format so we don't have extra nested blocks.
+      // ignore and fall through to detect the format, so we don't have extra nested blocks.
     }
 
     final NamespaceKey key = folderPath.toNamespaceKey();
@@ -187,7 +193,7 @@ public class FormatTools {
         }
       }
     } catch(IOException ex) {
-      // we could return unknown but if there no files, what's the point.
+      // we could return unknown but if there are no files, what's the point.
       throw UserException.ioExceptionError(ex)
         .message("No files detected or unable to read file format with selected option.")
         .build(logger);
@@ -205,7 +211,7 @@ public class FormatTools {
           return asFormat(key, path,false, nullableFileFormat.get());
         }
       } catch(IOException ex) {
-        // we could return unknown but if there no files, what's the point.
+        // we could return unknown but if there are no files, what's the point.
         throw UserException.ioExceptionError(ex)
           .message("No files detected or unable to read file format with selected option.")
           .build(logger);
@@ -278,6 +284,7 @@ public class FormatTools {
     return FileFormat.getForFolder(config);
   }
 
+  @WithSpan
   public JobDataFragment previewData(FileFormat format, NamespacePath namespacePath, boolean useFormatLocation) {
     final NamespaceKey key = namespacePath.toNamespaceKey();
     final FileSystemPlugin<?> plugin = getPlugin(key);
@@ -294,7 +301,7 @@ public class FormatTools {
     try {
       attributes = fs.getFileAttributes(path);
     } catch(IOException ex) {
-      // we could return unknown but if there no files, what's the point.
+      // we could return unknown but if there are no files, what's the point.
       throw new IllegalStateException("No files detected or unable to read data.", ex);
     }
 
@@ -426,7 +433,7 @@ public class FormatTools {
   }
 
 
-  private final FileSystemPlugin<?> getPlugin(NamespaceKey key) {
+  private FileSystemPlugin<?> getPlugin(NamespaceKey key) {
     StoragePlugin plugin = catalogService.getSource(key.getRoot());
     if(plugin instanceof FileSystemPlugin) {
       return (FileSystemPlugin<?>) plugin;

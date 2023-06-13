@@ -130,6 +130,7 @@ public class Source implements CatalogEntity {
     this.reader = reader;
   }
 
+  @Override
   public String getId() {
     return this.id;
   }

@@ -14,15 +14,17 @@
  * limitations under the License.
  */
 
-// Base button CSS
+@use "../../utilities";
+
 .dremio-button {
-  align-items: center;
+  @extend .items-center;
+  @extend .flex-row;
+  @extend .overflow-hidden;
+  @extend .no-select;
+
   box-sizing: border-box;
   display: inline-flex;
-  flex-direction: row;
   max-inline-size: 100%;
-  overflow: hidden;
-  user-select: none;
   vertical-align: middle;
 
   &:disabled,
@@ -31,37 +33,18 @@
   }
 
   &__content {
-    align-items: center;
+    @extend .items-center;
+    @extend .flex-1;
+    @extend .flex-row;
+    @extend .justify-center;
+    @extend .overflow-hidden;
+    @extend .whitespace-nowrap;
     display: inline-flex;
-    flex: 1;
-    flex-direction: row;
-    justify-content: center;
-    overflow: hidden;
-    white-space: nowrap;
 
     > * {
-      flex-shrink: 0;
+      @extend .shrink-0;
       max-block-size: 100%;
     }
-  }
-
-  background: var(--dremio--button--background);
-  block-size: var(--dremio--button--height);
-  border: var(--dremio--button--border-size) var(--dremio--button--border-style)
-    var(--dremio--button--border-color);
-  border-radius: var(--dremio--button--border-radius);
-  color: var(--dremio--button--color);
-  font-size: var(
-    --dremio--button--font-size,
-    var(--dremio--font-size--default)
-  );
-  font-weight: var(--dremio--button--font-weight);
-  min-inline-size: var(--dremio--button--min-width);
-  transition: var(--dremio--button--transition);
-
-  &__content {
-    gap: var(--dremio--button--icon-gap);
-    padding-inline: var(--dremio--button--padding-inline);
   }
 }
 

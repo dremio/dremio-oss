@@ -36,6 +36,7 @@ export default {
   outsideCommunicationDisabled: false,
   lowerProvisioningSettingsEnabled: false,
   allowFileUploads: true,
+  allowDownload: true,
   allowSpaceManagement: false,
   allowSourceManagement: false,
   subhourAccelerationPoliciesEnabled: false,
@@ -61,7 +62,9 @@ export default {
   ...((window && window.dremioConfig) || {}),
   displayTutorialsLink: false,
   showNewJobsPage: true,
+  useNewDatasetNavigation: true,
   showOldReflectionsListing: false,
   showMetadataValidityCheckbox: false,
+  arcticReflectionsEnabled: false,
   ...((window && window.dremioConfig) || {}),
 };

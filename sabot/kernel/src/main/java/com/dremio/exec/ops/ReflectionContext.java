@@ -38,4 +38,6 @@ public class ReflectionContext {
   public boolean isAdmin() {
     return isAdmin;
   }
+
+
 }

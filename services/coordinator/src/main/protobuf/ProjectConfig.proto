@@ -63,5 +63,6 @@ message ProjectConfig {
   DistStoreConfig dist_store_config = 1;
   string org_id = 2;
   DataCredentials data_credentials = 3;
+  optional bool resolve_results_from_dist = 4;
 }
 

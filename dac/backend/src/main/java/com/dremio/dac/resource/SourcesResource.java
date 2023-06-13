@@ -28,9 +28,6 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.model.sources.SourceUI;
@@ -51,8 +48,6 @@ import com.dremio.service.namespace.source.proto.SourceConfig;
 @Path("/sources")
 @Consumes(APPLICATION_JSON) @Produces(APPLICATION_JSON)
 public class SourcesResource {
-  private static final Logger logger = LoggerFactory.getLogger(SourcesResource.class);
-
   private final NamespaceService namespaceService;
   private final SourceService sourceService;
 

@@ -56,7 +56,7 @@ public final class CursorTests {
 
   @Test
   public void testTokenizeWithCursor() {
-    new GoldenFileTestBuilder<>(CursorTests::testTokenizeWithCursorImplementation)
+    GoldenFileTestBuilder.create(CursorTests::testTokenizeWithCursorImplementation)
       .add("EMPTY STRING", new Input("", 0))
       .add("END OF TOKEN", new Input("HELLO", "HELLO".length()))
       .add("START OF TOKEN", new Input("HELLO", 0))

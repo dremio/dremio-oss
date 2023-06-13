@@ -17,7 +17,7 @@ package com.dremio.service.reflection;
 
 import java.util.Optional;
 
-import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.exec.catalog.CatalogEntityKey;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.RefreshRequest;
@@ -30,7 +30,7 @@ import com.dremio.service.reflection.proto.RefreshRequest;
  */
 public interface DependencyResolutionContext extends AutoCloseable {
   Optional<Long> getLastSuccessfulRefresh(ReflectionId id);
-  AccelerationSettings getReflectionSettings(NamespaceKey key);
+  AccelerationSettings getReflectionSettings(CatalogEntityKey key);
   RefreshRequest getRefreshRequest(String datasetId);
 
   /**

@@ -27,7 +27,6 @@ import org.junit.Test;
 import com.dremio.BaseTestQuery;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.ParserConfig;
-import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
@@ -53,7 +52,7 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
     test(alterTableCmd);
   }
 
-  private void testColumnRenameComplex(String complex_column_rename_test, String testSchema, IcebergCatalogType catalogType) throws Exception {
+  private void testColumnRenameComplex(String complex_column_rename_test, String testSchema) throws Exception {
     try {
       String createCommandSql = "create table " + testSchema + "." + complex_column_rename_test +
         " as select * from cp.\"/parquet/very_complex.parquet\"";
@@ -90,7 +89,7 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
       Thread.sleep(1001);
 
       File rootFolder = new File(getDfsTestTmpSchemaLocation(), complex_column_rename_test);
-      IcebergModel icebergModel = getIcebergModel(rootFolder, catalogType);
+      IcebergModel icebergModel = getIcebergModel(testSchema);
       icebergModel.renameColumn(
               icebergModel.getTableIdentifier(
                       rootFolder.getPath()),
@@ -132,7 +131,7 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
   @Test
   public void testColumnRenameComplex() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
-      testColumnRenameComplex("complex_column_rename_test", TEMP_SCHEMA_HADOOP, IcebergCatalogType.HADOOP);
+      testColumnRenameComplex("complex_column_rename_test", TEMP_SCHEMA_HADOOP);
     }
   }
 

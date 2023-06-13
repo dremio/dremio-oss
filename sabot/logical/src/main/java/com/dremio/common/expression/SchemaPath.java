@@ -52,6 +52,7 @@ public class SchemaPath extends BasePath implements LogicalExpression, Comparabl
     return new SchemaPath(s);
   }
 
+  @Override
   public PathSegment getLastSegment() {
     PathSegment s= rootSegment;
     while (s.getChild() != null) {
@@ -77,6 +78,7 @@ public class SchemaPath extends BasePath implements LogicalExpression, Comparabl
    * A simple is a path where there are no repeated elements outside the lowest level of the path.
    * @return Whether this path is a simple path.
    */
+  @Override
   public boolean isSimplePath() {
     PathSegment seg = rootSegment;
     while (seg != null) {
@@ -217,6 +219,7 @@ public class SchemaPath extends BasePath implements LogicalExpression, Comparabl
     return this.getAsUnescapedPath().compareTo(o.getAsUnescapedPath());
   }
 
+  @Override
   @JsonIgnore
   public int getSelfCost() {
     return 0;

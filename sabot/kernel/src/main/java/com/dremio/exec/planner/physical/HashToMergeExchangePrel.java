@@ -85,6 +85,7 @@ public class HashToMergeExchangePrel extends ExchangePrel {
         this.collation, numEndPoints);
   }
 
+  @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
     Prel child = (Prel) this.getInput();
 

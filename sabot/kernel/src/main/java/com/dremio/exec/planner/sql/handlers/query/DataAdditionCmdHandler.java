@@ -15,11 +15,14 @@
  */
 package com.dremio.exec.planner.sql.handlers.query;
 
+import static com.dremio.exec.planner.sql.handlers.SqlHandlerUtil.PLANNER_SOURCE_TARGET_SOURCE_TYPE_SPAN_ATTRIBUTE_NAME;
+
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.apache.calcite.plan.RelOptUtil;
@@ -63,7 +66,6 @@ import com.dremio.exec.physical.base.TableFormatWriterOptions;
 import com.dremio.exec.physical.base.TableFormatWriterOptions.TableFormatOperation;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.DremioRexBuilder;
-import com.dremio.exec.planner.DremioVolcanoPlanner;
 import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.planner.logical.ProjectRel;
 import com.dremio.exec.planner.logical.Rel;
@@ -94,6 +96,7 @@ import com.dremio.exec.store.iceberg.SupportsIcebergMutablePlugin;
 import com.dremio.exec.store.iceberg.model.IcebergCommandType;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.exec.work.foreman.SqlUnsupportedException;
+import com.dremio.io.file.FileSystem;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.annotations.VisibleForTesting;
@@ -101,6 +104,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.protostuff.ByteString;
 
 public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
@@ -108,6 +113,7 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
 
 
   private String textPlan;
+  private Rel drel;
   private CreateTableEntry tableEntry = null;
   private BatchSchema tableSchemaFromKVStore = null;
   private List<String> partitionColumns = null;
@@ -138,7 +144,8 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
 
   protected void cleanUp(DatasetCatalog datasetCatalog, NamespaceKey key) {}
 
-  public PhysicalPlan getPlan(DatasetCatalog datasetCatalog,
+  @WithSpan
+  public PhysicalPlan getPlan(Catalog catalog,
                               NamespaceKey path,
                               SqlHandlerConfig config,
                               String sql,
@@ -146,7 +153,9 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
                               ResolvedVersionContext version
   ) throws Exception {
     try {
+      Span.current().setAttribute(PLANNER_SOURCE_TARGET_SOURCE_TYPE_SPAN_ATTRIBUTE_NAME, SqlHandlerUtil.getSourceType(catalog, path.getRoot()));
       final ConvertedRelNode convertedRelNode = PrelTransformer.validateAndConvert(config, sqlCmd.getQuery());
+      try (ViewAccessEvaluator ignored = ViewAccessEvaluator.createAsyncEvaluator(config, convertedRelNode)) {
       final RelDataType validatedRowType = convertedRelNode.getValidatedRowType();
 
       long maxColumnCount = config.getContext().getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX);
@@ -155,14 +164,8 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
       }
 
       // Get and cache table info (if not already retrieved) to avoid multiple retrievals
-      getDremioTable(datasetCatalog, path);
+      getDremioTable(catalog, path);
       final RelNode queryRelNode = convertedRelNode.getConvertedNode();
-      ViewAccessEvaluator viewAccessEvaluator = null;
-      if (config.getConverter().getSubstitutionProvider().isDefaultRawReflectionEnabled()) {
-        final RelNode convertedRelWithExpansionNodes = ((DremioVolcanoPlanner) queryRelNode.getCluster().getPlanner()).getOriginalRoot();
-        viewAccessEvaluator = new ViewAccessEvaluator(convertedRelWithExpansionNodes, config);
-        config.getContext().getExecutorService().submit(viewAccessEvaluator);
-      }
       final RelNode newTblRelNode = SqlHandlerUtil.resolveNewTableRel(false, sqlCmd.getFieldNames(),
           validatedRowType, queryRelNode, !isCreate());
 
@@ -201,10 +204,10 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
       );
 
       // Convert the query to Dremio Logical plan and insert a writer operator on top.
-      Rel drel = this.convertToDrel(
+      drel = this.convertToDrel(
         config,
         newTblRelNodeWithPCol,
-        datasetCatalog,
+        catalog,
         path,
         options,
         newTblRelNode.getRowType(),
@@ -217,20 +220,13 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
 
       PhysicalPlan plan = PrelTransformer.convertToPlan(config, pop,
         isIcebergTable() && !isVersionedTable() ?
-          () -> refreshDataset(datasetCatalog, path, isCreate())
+          () -> refreshDataset(catalog, path, isCreate())
           : null,
-        () -> cleanUp(datasetCatalog, path));
+        () -> cleanUp(catalog, path));
 
       PrelTransformer.log(config, "Dremio Plan", plan, logger);
-
-      if (viewAccessEvaluator != null) {
-        viewAccessEvaluator.getLatch().await(config.getContext().getPlannerSettings().getMaxPlanningPerPhaseMS(), TimeUnit.MILLISECONDS);
-        if (viewAccessEvaluator.getException() != null) {
-          throw viewAccessEvaluator.getException();
-        }
+        return plan;
       }
-
-      return plan;
 
     } catch(Exception ex){
       throw SqlExceptionHelper.coerceException(logger, sql, ex, true);
@@ -422,22 +418,28 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
 
     BatchSchema querySchema = icebergTableProps.getFullSchema();
     Preconditions.checkState(tableEntry.getPlugin() instanceof SupportsIcebergMutablePlugin, "Plugin not instance of SupportsIcebergMutablePlugin");
-    IcebergModel icebergModel = ((SupportsIcebergMutablePlugin) tableEntry.getPlugin())
-      .getIcebergModel(icebergTableProps, tableEntry.getUserName(), null, null);
-    Table table = icebergModel.getIcebergTable(icebergModel.getTableIdentifier(icebergTableProps.getTableLocation()));
-    SchemaConverter schemaConverter = SchemaConverter.getBuilder().setTableName(table.name()).setMapTypeEnabled(config.getContext().getOptions().getOption(ExecConstants.ENABLE_MAP_DATA_TYPE)).build();
-    BatchSchema icebergSchema = schemaConverter.fromIceberg(table.schema());
+    SupportsIcebergMutablePlugin plugin = (SupportsIcebergMutablePlugin) tableEntry.getPlugin();
+    try (FileSystem fs = plugin.createFS(icebergTableProps.getTableLocation(), tableEntry.getUserName(), null)) {
+      IcebergModel icebergModel = plugin.getIcebergModel(icebergTableProps, tableEntry.getUserName(), null, fs);
+      Table table = icebergModel.getIcebergTable(icebergModel.getTableIdentifier(icebergTableProps.getTableLocation()));
+      SchemaConverter schemaConverter = SchemaConverter.getBuilder().setTableName(table.name())
+          .setMapTypeEnabled(config.getContext().getOptions().getOption(ExecConstants.ENABLE_MAP_DATA_TYPE)).build();
+      BatchSchema icebergSchema = schemaConverter.fromIceberg(table.schema());
 
-    // this check can be removed once we support schema evolution in dremio.
-    if (!icebergSchema.equalsIgnoreCase(tableSchemaFromKVStore)) {
-      throw UserException.validationError().message("The schema for table %s does not match with the iceberg %s.",
-        tableSchemaFromKVStore, icebergSchema).buildSilently();
-    }
+      // this check can be removed once we support schema evolution in dremio.
+      if (!icebergSchema.equalsIgnoreCase(tableSchemaFromKVStore)) {
+        throw UserException.validationError().message("The schema for table %s does not match with the iceberg %s.",
+            tableSchemaFromKVStore, icebergSchema).buildSilently();
+      }
 
-    BatchSchema partSchemaWithSelectedFields = tableSchemaFromKVStore.subset(fieldNames).orElse(tableSchemaFromKVStore);
-    if (!querySchema.equalsTypesWithoutPositions(partSchemaWithSelectedFields)) {
-      throw UserException.validationError().message("Table %s doesn't match with query %s.",
-          partSchemaWithSelectedFields, querySchema).buildSilently();
+      BatchSchema partSchemaWithSelectedFields = tableSchemaFromKVStore.subset(fieldNames)
+          .orElse(tableSchemaFromKVStore);
+      if (!querySchema.equalsTypesWithoutPositions(partSchemaWithSelectedFields)) {
+        throw UserException.validationError().message("Table %s doesn't match with query %s.",
+            partSchemaWithSelectedFields, querySchema).buildSilently();
+      }
+    } catch (IOException ex) {
+      throw new UncheckedIOException(ex);
     }
   }
 
@@ -578,5 +580,10 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
   @Override
   public String getTextPlan() {
     return textPlan;
+  }
+
+  @Override
+  public Rel getLogicalPlan() {
+    return drel;
   }
 }

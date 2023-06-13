@@ -13,7 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { DATASET_TYPES_TO_ICON_TYPES } from "@app/constants/datasetTypes";
+import {
+  DATASET_TYPES_TO_ICEBERG_TYPES,
+  DATASET_TYPES_TO_ICON_TYPES,
+  PHYSICAL_DATASET,
+  VIRTUAL_DATASET,
+} from "@app/constants/datasetTypes";
 import { NESSIE, ARCTIC } from "@app/constants/sourceTypes";
 import { formatMessage } from "./locale";
 
@@ -24,7 +29,7 @@ const FILE_TYPES_TO_ICON_TYPES = {
   physicalDatasets: "PhysicalDataset",
 };
 
-const ICEBERG_ICON_TYPES = {
+const FILE_TYPES_TO_ICEBERG_ICON_TYPES = {
   table: "IcebergTable",
   dataset: "IcebergView",
   physicalDatasets: "IcebergTable",
@@ -50,12 +55,18 @@ export function getIconDataTypeFromEntity(entity) {
 export function getIcebergIconTypeFromEntity(entity) {
   const fileType = entity.get("fileType");
   if (["table", "dataset", "physicalDatasets"].includes(fileType)) {
-    return ICEBERG_ICON_TYPES[fileType];
+    return FILE_TYPES_TO_ICEBERG_ICON_TYPES[fileType];
   } else return getIconDataTypeFromEntity(entity);
 }
 
 export function getIconDataTypeFromDatasetType(datasetType) {
   return DATASET_TYPES_TO_ICON_TYPES[datasetType];
+}
+
+export function getIcebergIconDataTypeFromDatasetType(datasetType) {
+  if ([VIRTUAL_DATASET, PHYSICAL_DATASET].includes(datasetType)) {
+    return DATASET_TYPES_TO_ICEBERG_TYPES[datasetType];
+  } else return getIconDataTypeFromDatasetType(datasetType);
 }
 
 const STATUSES_ICON_POSTFIX = {

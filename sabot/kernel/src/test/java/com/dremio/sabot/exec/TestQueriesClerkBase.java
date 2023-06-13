@@ -132,38 +132,49 @@ public class TestQueriesClerkBase {
       numAllocators++;
     }
 
+    @Override
     public BufferAllocator newChildAllocator(String childName, long dummy1, long limit) {
       return newChildAllocator(childName, null, dummy1, limit);
     }
+    @Override
     public BufferAllocator newChildAllocator(String childName, AllocationListener listener, long dummy1, long limit) {
       return new TestAllocator(this, childName, limit);
     }
+    @Override
     public void close() {
       numAllocators--;
     }
 
     // NB: None of the functions below are implemented
+    @Override
     public ArrowBuf buffer(long var1) {
       throw new UnsupportedOperationException();
     }
+    @Override
     public ArrowBuf buffer(long var1, BufferManager var2) {
       throw new UnsupportedOperationException();
     }
+    @Override
     public long getAllocatedMemory() {
       throw new UnsupportedOperationException();
     }
+    @Override
     public long getLimit() {
       return limit;
     }
+    @Override
     public long getInitReservation() {
       throw new UnsupportedOperationException();
     }
+    @Override
     public void setLimit(long var1) {
       throw new UnsupportedOperationException();
     }
+    @Override
     public long getPeakMemoryAllocation() {
       return 0;
     }
+    @Override
     public long getHeadroom() {
       throw new UnsupportedOperationException();
     }
@@ -178,21 +189,27 @@ public class TestQueriesClerkBase {
       throw new UnsupportedOperationException();
     }
 
+    @Override
     public AllocationReservation newReservation() {
       throw new UnsupportedOperationException();
     }
+    @Override
     public ArrowBuf getEmpty() {
       throw new UnsupportedOperationException();
     }
+    @Override
     public String getName() {
       return name;
     }
+    @Override
     public boolean isOverLimit() {
       throw new UnsupportedOperationException();
     }
+    @Override
     public String toVerboseString() {
       throw new UnsupportedOperationException();
     }
+    @Override
     public void assertOpen() {
       throw new UnsupportedOperationException();
     }

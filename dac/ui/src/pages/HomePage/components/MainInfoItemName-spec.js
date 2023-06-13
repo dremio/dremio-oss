@@ -15,7 +15,7 @@
  */
 import { shallow } from "enzyme";
 
-import MainInfoItemName from "./MainInfoItemName";
+import { MainInfoItemName } from "./MainInfoItemName";
 
 describe("MainInfoItemName", () => {
   const commonProps = {

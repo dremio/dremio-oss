@@ -32,6 +32,7 @@ import org.apache.iceberg.StructLike;
 
 import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
+import com.dremio.exec.store.SystemSchemas;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.ByteString;
@@ -48,7 +49,8 @@ public class ManifestEntryProcessorHelper {
     Schema fileSchema,
     Map<String, Field> nameToFieldMap,
     ContentFile<? extends ContentFile<?>> currentFile,
-    long version) {
+    long version,
+    long sequenceNo) {
     PartitionProtobuf.NormalizedPartitionInfo.Builder partitionInfoBuilder = PartitionProtobuf.NormalizedPartitionInfo.newBuilder().setId(String.valueOf(1));
 
     // get table partition spec
@@ -75,15 +77,20 @@ public class ManifestEntryProcessorHelper {
       writePartitionValue(partitionValueBuilder, value, nameToFieldMap.get(partColName.toLowerCase()));
       partitionInfoBuilder.addValues(partitionValueBuilder.build());
     }
-    addImplicitCols(partitionInfoBuilder, version);
+    addImplicitCols(partitionInfoBuilder, version, sequenceNo);
     return partitionInfoBuilder.build();
   }
 
-  private static void addImplicitCols(PartitionProtobuf.NormalizedPartitionInfo.Builder partitionInfoBuilder, long version) {
+  private static void addImplicitCols(PartitionProtobuf.NormalizedPartitionInfo.Builder partitionInfoBuilder, long version, long sequenceNo) {
     PartitionProtobuf.PartitionValue.Builder partitionValueBuilder = PartitionProtobuf.PartitionValue.newBuilder();
     partitionValueBuilder.setColumn(IncrementalUpdateUtils.UPDATE_COLUMN);
     partitionValueBuilder.setLongValue(version);
     partitionInfoBuilder.addValues(partitionValueBuilder.build());
+
+    // Sequence number as an implicit partition col value, so it can be projected if needed along with the data.
+    partitionInfoBuilder.addValues(
+      PartitionProtobuf.PartitionValue.newBuilder()
+        .setColumn(SystemSchemas.IMPLICIT_SEQUENCE_NUMBER).setLongValue(sequenceNo).build());
   }
 
   private static void writePartitionValue(PartitionProtobuf.PartitionValue.Builder partitionValueBuilder, Object value, Field field) {

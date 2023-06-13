@@ -21,7 +21,7 @@ import java.util.ListIterator;
 import java.util.Optional;
 
 import org.apache.arrow.memory.ArrowBuf;
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -72,13 +72,13 @@ public class PropertyTable {
   }
 
   private void processSector(int sectorOffset) {
-    final int property_count = sectorSize / POIFSConstants.PROPERTY_SIZE;
+    final int propertyCount = sectorSize / POIFSConstants.PROPERTY_SIZE;
 
     byte[] bytes = new byte[POIFSConstants.PROPERTY_SIZE];
 
     int index = properties.size();
     is.seek(sectorOffset);
-    for (int k = 0; k < property_count; k++, index++) {
+    for (int k = 0; k < propertyCount; k++, index++) {
       try {
         is.read(bytes, 0, bytes.length);
       } catch (IOException e) {

@@ -18,7 +18,7 @@ import PropTypes from "prop-types";
 import Immutable from "immutable";
 
 import { tabLabel } from "@app/uiTheme/less/layout.less";
-import { nav, navBtn, navBtnActive } from "./NavPanel.less";
+import { nav, navBtn, navBtnActive, icon } from "./NavPanel.less";
 
 export default class NavPanel extends PureComponent {
   static propTypes = {
@@ -54,6 +54,9 @@ export default class NavPanel extends PureComponent {
             className={this.props.activeTab === key ? navBtnActive : navBtn}
           >
             <span className={tabLabel}>
+              {!!labelConfig.icon && (
+                <span className={icon}>{labelConfig.icon}</span>
+              )}
               <span>{labelConfig.text}</span>
             </span>
           </div>

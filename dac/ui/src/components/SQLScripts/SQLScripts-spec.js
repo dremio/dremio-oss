@@ -125,7 +125,7 @@ describe("SQLScripts", () => {
       script: {
         ...testScripts[0],
         colors: { backgroundColor: "#D02362", color: "#FFF" },
-        userNameFirst2: undefined,
+        initials: "",
       },
     });
   });

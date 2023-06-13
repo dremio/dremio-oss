@@ -38,6 +38,7 @@ import com.google.common.collect.ImmutableList;
 public class DremioSqlColumnDeclaration extends SqlCall {
   private static final SqlSpecialOperator OPERATOR =
     new SqlSpecialOperator("COLUMN_DECL", SqlKind.COLUMN_DECL) {
+      @Override
       public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
         if (operands.length == 2) {
           return new DremioSqlColumnDeclaration(pos, (SqlColumnPolicyPair) operands[0], (SqlDataTypeSpec) operands[1], null);

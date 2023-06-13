@@ -33,9 +33,9 @@ type RepoViewProps = {
 };
 function RepoView(props: RepoViewProps) {
   const { showHeader = true } = props;
-  const { state, api } = useNessieContext();
+  const { state, apiV2 } = useNessieContext();
   const defaultReferenceLoading = isDefaultReferenceLoading(state);
-  const repoViewContext = useRepoViewContext(api);
+  const repoViewContext = useRepoViewContext(apiV2);
   const { setDefaultRef } = repoViewContext;
 
   useEffect(() => {

@@ -32,7 +32,7 @@ import org.apache.arrow.vector.complex.impl.VectorContainerWriter;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.ColumnReader;
 import org.apache.parquet.compression.CompressionCodecFactory;
@@ -274,7 +274,9 @@ public class ParquetRowiseReader extends AbstractParquetReader {
         Path filePath = Path.of(path);
 
         BlockMetaData blockMetaData = footer.getBlocks().get(rowGroupIndex);
-        Preconditions.checkArgument(blockMetaData != null, "Parquet footer does not contain information about row group");
+        Preconditions.checkArgument(blockMetaData != null,
+          "Parquet file '%s' footer does not have information about row group %s",
+          this.path, rowGroupIndex);
 
         recordCount = blockMetaData.getRowCount();
 
@@ -307,7 +309,8 @@ public class ParquetRowiseReader extends AbstractParquetReader {
             recordReader = columnIO.getRecordReader(pageReadStore, recordMaterializer, new UnboundRecordFilter() {
               @Override
               public RecordFilter bind(Iterable<ColumnReader> readers) {
-                return vectorizedBasedFilter = new VectorizedBasedFilter(readers, deltas);
+                vectorizedBasedFilter = new VectorizedBasedFilter(readers, deltas);
+                return vectorizedBasedFilter;
               }
             });
           } else {

@@ -1033,26 +1033,26 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
     String sqlQuery = "select city from elasticsearch." + schema + "." + table + " where case when stars < 2 then city else state end = 'San Francisco'";
     verifyJsonInPlan(sqlQuery, new String[]{
       "[{\n" +
-        "  \"from\" : 0,\n" +
-        "  \"size\" : 4000,\n" +
-        "  \"query\" : {\n" +
-        "    \"script\" : {\n" +
-        "      \"script\" : {\n" +
-        "        \"source\" : \"(def) ((doc[\\\"stars\\\"].empty) ? false : ( ( ( ( doc[\\\"stars\\\"].value < 2 ) ) ? (def) ( (doc[\\\"city\\\"].empty) ? null : doc[\\\"city\\\"].value ) : (def) ( (doc[\\\"state\\\"].empty) ? null : doc[\\\"state\\\"].value ) ) == 'San Francisco' ))\",\n" +
-        "        \"lang\" : \"painless\"\n" +
-        "      },\n" +
-        "      \"boost\" : 1.0\n" +
-        "    }\n" +
-        "  },\n" +
-        "  \"_source\" : {\n" +
-        "    \"includes\" : [\n" +
-        "      \"city\",\n" +
-        "      \"stars\",\n" +
-        "      \"state\"\n" +
+        "  \"from\":0,\n" +
+        "  \"size\":4000,\n" +
+        "  \"query\":{\n" +
+        "    \"script\":{\n" +
+        "      \"script\":{\n" +
+        "        \"source\":\"(def) ((doc[\\\"stars\\\"].empty) ? false : ( ( ( doc[\\\"stars\\\"].value < 2 ) ) ? (def) ( (doc[\\\"city\\\"].empty) ? null : ( doc[\\\"city\\\"].value == 'San Francisco' ) ) : (def) ( (doc[\\\"state\\\"].empty) ? null : ( doc[\\\"state\\\"].value == 'San Francisco' ) ) ))\",\n" +
+        "        \"lang\":\"painless\"\n" +
+        "       },\n" +
+        "       \"boost\":1.0\n" +
+        "       }\n" +
+        "     },\n" +
+        "    \"_source\":{\n" +
+        "     \"includes\":[\n" +
+        "     \"city\",\n" +
+        "     \"stars\",\n" +
+        "     \"state\"\n" +
         "    ],\n" +
-        "    \"excludes\" : [ ]\n" +
-        "  }\n" +
-        "}]"
+        "    \"excludes\":[]\n" +
+        "    }\n" +
+        "    }]"
     });
     testBuilder().sqlQuery(sqlQuery).unOrdered().baselineColumns("city")
       .baselineValues("San Francisco")

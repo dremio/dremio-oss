@@ -87,7 +87,7 @@ public class CaseExpressionSplitterNestedTest extends BaseExpressionSplitterTest
     tr(100, 300, 250, 99, 200)  // 500, 1, 500
   );
 
-  Fixtures.Table nestedCaseOutput = t(
+  private static final Fixtures.Table nestedCaseOutput = t(
     th("out"),
     tr(80),
     tr(26),
@@ -100,7 +100,7 @@ public class CaseExpressionSplitterNestedTest extends BaseExpressionSplitterTest
     tr(500)
   );
 
-  Fixtures.Table nestedCaseSimpleOutput = t(
+  private static final Fixtures.Table nestedCaseSimpleOutput = t(
     th("out"),
     tr(-10),
     tr(13),
@@ -113,7 +113,7 @@ public class CaseExpressionSplitterNestedTest extends BaseExpressionSplitterTest
     tr(1)
   );
 
-  Fixtures.Table nestedCaseWithConstantsOutput = t(
+  private static final Fixtures.Table nestedCaseWithConstantsOutput = t(
     th("out"),
     tr(80),
     tr(12),
@@ -145,6 +145,7 @@ public class CaseExpressionSplitterNestedTest extends BaseExpressionSplitterTest
     splitAndVerifyCase(nestedCaseQuery, nestedCaseInput, nestedCaseOutput, expSplits, annotator);
   }
 
+  @SuppressWarnings("checkstyle:LocalFinalVariableName")
   @Test
   public void testNestedCaseQuerySimple() throws Exception {
     final String _xxx0g = "(case when (greater_than_or_equal_to(c0, c1)) then (0i) else (1i) end)";
@@ -177,6 +178,7 @@ public class CaseExpressionSplitterNestedTest extends BaseExpressionSplitterTest
     splitAndVerifyCase(nestedCaseQuerySimple, nestedCaseInput, nestedCaseSimpleOutput, expSplits, annotator);
   }
 
+  @SuppressWarnings("checkstyle:LocalFinalVariableName")
   @Test
   public void testNestedMixedSplits() throws Exception {
     final String _xxx0g = "(case when (greater_than_or_equal_to(c0, c1)) then (0i) else (-1i) end)";

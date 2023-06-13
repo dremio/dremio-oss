@@ -34,6 +34,7 @@ public class ITHiveOrcIncrementalRefresh extends ITHiveRefreshDatasetIncremental
     return "ORC";
   }
 
+  @Override
   @Test
   public void testIncrementalRefreshSchemaEvolution() throws Exception {
     final String tableName = "incrrefresh_v2_test_schema_" + getFileFormatLowerCase();
@@ -67,8 +68,7 @@ public class ITHiveOrcIncrementalRefresh extends ITHiveRefreshDatasetIncremental
         .go();
 
       verifyIcebergExecution(EXPLAIN_PLAN + selectQuery, finalIcebergMetadataLocation);
-    }
-    finally {
+    } finally {
       forgetMetadata(tableName);
       dropTable(tableName);
     }

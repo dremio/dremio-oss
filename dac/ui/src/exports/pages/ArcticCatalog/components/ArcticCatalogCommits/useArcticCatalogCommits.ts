@@ -19,10 +19,10 @@ import { SmartResource } from "smart-resource";
 import { useResourceSnapshot, useResourceStatus } from "smart-resource/react";
 import { useNessieContext } from "@app/pages/NessieHomePage/utils/context";
 import { useArcticCatalogContext } from "@app/exports/pages/ArcticCatalog/arctic-catalog-utils";
-import { FetchOption, LogEntry } from "@app/services/nessie/client/index";
+import { FetchOption, LogEntryV2 } from "@app/services/nessie/client/index";
 
 type CommitsState = {
-  logEntries: LogEntry[] | null;
+  logEntries: LogEntryV2[] | null;
   key?: string;
 };
 
@@ -60,7 +60,7 @@ export const useArcticCatalogCommits = ({
   pageToken?: string;
   hash?: string | null;
 }) => {
-  const { api } = useNessieContext();
+  const { apiV2 } = useNessieContext();
   const { reservedNamespace } = useArcticCatalogContext() ?? {};
 
   const extractedPath = useMemo(
@@ -96,10 +96,9 @@ export const useArcticCatalogCommits = ({
 
   const ArcticCatalogCommitsResource = useRef(
     new SmartResource(({ name, hash, search, path, token }) =>
-      api.getCommitLog({
-        ref: name,
+      apiV2.getCommitLogV2({
+        ref: hash ? `${name}@${hash}` : name,
         fetch: path.length ? FetchOption.All : FetchOption.Minimal,
-        ...(hash && { endHash: hash }),
         filter: genFilter(path, search),
         maxRecords: pageSize,
         pageToken: token,

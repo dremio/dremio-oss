@@ -40,7 +40,7 @@ function validate(values, props) {
     errors[values.type] = {};
     for (const key in curType) {
       // "sheetName" field on XLS form can be empty
-      // https://dremio.atlassian.net/browse/DX-7497
+      // DX-7497
       if (!curType[key] && curType[key] !== false && key !== "sheetName") {
         errors[values.type][key] = intl.formatMessage({
           id: "Error.NotEmptyField",

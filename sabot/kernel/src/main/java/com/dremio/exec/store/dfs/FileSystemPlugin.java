@@ -39,7 +39,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
 
 import javax.annotation.Nullable;
 import javax.inject.Provider;
@@ -52,11 +51,11 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.TableOperations;
+import org.apache.iceberg.io.FileIO;
 
 import com.dremio.cache.AuthorizationCacheException;
 import com.dremio.cache.AuthorizationCacheService;
 import com.dremio.common.config.LogicalPlanPersistence;
-import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.InvalidMetadataErrorContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.logical.FormatPluginConfig;
@@ -90,7 +89,6 @@ import com.dremio.exec.catalog.RollbackOption;
 import com.dremio.exec.catalog.SortColumnsOption;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.TableMutationOptions;
-import com.dremio.exec.catalog.VacuumOption;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.dotfile.DotFile;
 import com.dremio.exec.dotfile.DotFileType;
@@ -99,6 +97,7 @@ import com.dremio.exec.dotfile.View;
 import com.dremio.exec.exception.NoSupportedUpPromotionOrCoercionException;
 import com.dremio.exec.hadoop.HadoopCompressionCodecFactory;
 import com.dremio.exec.hadoop.HadoopFileSystem;
+import com.dremio.exec.hadoop.HadoopFileSystemConfigurationAdapter;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.ViewOptions;
@@ -131,6 +130,7 @@ import com.dremio.exec.store.TimedRunnable;
 import com.dremio.exec.store.dfs.SchemaMutability.MutationType;
 import com.dremio.exec.store.file.proto.FileProtobuf.FileSystemCachedEntity;
 import com.dremio.exec.store.file.proto.FileProtobuf.FileUpdateKey;
+import com.dremio.exec.store.iceberg.DremioFileIO;
 import com.dremio.exec.store.iceberg.IcebergModelCreator;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.iceberg.SupportsIcebergMutablePlugin;
@@ -407,6 +407,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     return fsConf;
   }
 
+  @Override
   public Configuration getFsConfCopy() {
     return new Configuration(fsConf);
   }
@@ -438,17 +439,6 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     } else {
       return new FileSystemRefreshIncrementalPlanBuilder(config, sqlRefreshDataset, metadataProvider);
     }
-  }
-
-  @Override
-  public Supplier<org.apache.hadoop.fs.FileSystem> getHadoopFsSupplier(String path, Iterable<Map.Entry<String, String>> conf, String queryUser) {
-    return () -> {
-      try {
-        return hadoopFS.get(getFSUser(queryUser));
-      } catch (ExecutionException e) {
-        throw new RuntimeException(String.format("Failed to get file system for path: %s", path.toString()), e);
-      }
-    };
   }
 
   /**
@@ -512,6 +502,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     return userName;
   }
 
+  @Override
   public void clear(String userOrGroup) throws AuthorizationCacheException {
     try {
       hadoopFS.invalidate(userOrGroup);
@@ -521,6 +512,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     }
   }
 
+  @Override
   public void clear() throws AuthorizationCacheException {
     try {
       hadoopFS.invalidateAll();
@@ -711,6 +703,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
 
       if (datasetAccessor == null &&
           retrievalOptions.autoPromote()) {
+        boolean formatFound = false;
         for (final FormatMatcher matcher : matchers) {
           try {
             final FileSelectionProcessor fileSelectionProcessor = matcher.getFormatPlugin().getFileSelectionProcessor(fs, fileSelection);
@@ -719,6 +712,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
               return null;
             }
             if (matcher.matches(fs, fileSelection, codecFactory)) {
+              formatFound = true;
               final DatasetType type = fs.isDirectory(Path.of(fileSelection.getSelectionRoot()))
                       ? DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER : DatasetType.PHYSICAL_DATASET_SOURCE_FILE;
 
@@ -736,6 +730,13 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
           } catch (IOException e) {
             logger.debug("File read failed.", e);
           }
+        }
+
+        if (!formatFound) {
+          String errorMessage = String.format("The file format for '%s' could not be identified. In order for automatic format detection to succeed, " +
+            "files must include a file extension. Alternatively, manual promotion can be used to explicitly specify the format.", datasetPath.getSchemaPath());
+          throw UserException.unsupportedError()
+            .message(errorMessage).buildSilently();
         }
       }
 
@@ -852,6 +853,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     return formatCreator.getFormatPluginByName(name);
   }
 
+  @Override
   public FormatPlugin getFormatPlugin(FormatPluginConfig config) {
     FormatPlugin plugin = formatCreator.getFormatPluginByConfig(config);
     if (plugin == null) {
@@ -1009,6 +1011,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
    *
    * @return
    */
+  @Override
   public FileSystem getSystemUserFS() {
     return systemUserFS;
   }
@@ -1174,7 +1177,8 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
       boolean isLayeredTable = tableMutationOptions != null && tableMutationOptions.isLayered();
       fileSelection = isLayeredTable ? FileSelection.createNotExpanded(fs, fullPath) : FileSelection.create(fs, fullPath);
     } catch (IOException e) {
-      throw new RuntimeException(e);
+      throw new RuntimeException(
+        String.format("Unable to drop table [%s]. %s", SqlUtils.quotedCompound(tableSchemaPath.getPathComponents()), e.getMessage()));
     }
 
     if (fileSelection == null) {
@@ -1246,23 +1250,12 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
       icebergModel.getTableIdentifier(validateAndGetPath(tableSchemaPath, schemaConfig.getUserName()).toString()), rollbackOption);
   }
 
-  @Override
-  public void vacuumTable(NamespaceKey tableSchemaPath,
-                          DatasetConfig datasetConfig,
-                          SchemaConfig schemaConfig,
-                          VacuumOption vacuumOption,
-                          TableMutationOptions tableMutationOptions) {
-    IcebergModel icebergModel = getIcebergModel();
-    icebergModel.vacuumTable(
-      icebergModel.getTableIdentifier(validateAndGetPath(tableSchemaPath, schemaConfig.getUserName()).toString()), vacuumOption);
-  }
-
   public void deleteIcebergTableRootPointer(String userName, Path icebergTablePath) {
 
     FileSystem fs;
     try {
       fs = createFS(userName);
-      IcebergModel icebergModel = getIcebergModel(fs);
+      IcebergModel icebergModel = getIcebergModel(fs, null, null);
       icebergModel.deleteTableRootPointer(icebergModel.getTableIdentifier(String.valueOf(icebergTablePath)));
 
     } catch (IOException e) {
@@ -1276,32 +1269,6 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
       throw new RuntimeException(e);
     }
 
-  }
-
-  private FileSystem getMetadataFS() throws ExecutionSetupException {
-    FileSystem metadataFs = null;
-    if (metadataFs == null) {
-      try {
-        metadataFs = getSystemUserFS();
-      } catch (Exception e) {
-        logger.debug("Could  not get FS ",e);
-      }
-    }
-    return metadataFs;
-  }
-
-  public void deleteMetadataIcebergTable(String icebergTableUuid) {
-
-    Path icebergTablePath = Path.of(getConfig().getPath().toString()).resolve(icebergTableUuid);
-    IcebergModel icebergModel = null;
-    try {
-      icebergModel = getIcebergModel(getMetadataFS());
-      icebergModel.deleteTable(icebergModel.getTableIdentifier(String.valueOf(icebergTablePath)));
-    } catch (ExecutionSetupException e) {
-      String message = String.format("The dataset is now forgotten by dremio, but there was an error while cleaning up respective metadata files residing at %s.",icebergTablePath);
-      logger.error(message);
-      throw new RuntimeException(e);
-    }
   }
 
   @Override
@@ -1379,7 +1346,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     final Path path;
     if (DatasetHelper.isInternalIcebergTable(datasetConfig)) {
       final FileSystemPlugin<?> metaStoragePlugin = context.getCatalogService().getSource(METADATA_STORAGE_PLUGIN_NAME);
-      icebergModel = metaStoragePlugin.getIcebergModel(metaStoragePlugin.getSystemUserFS());
+      icebergModel = metaStoragePlugin.getIcebergModel();
       String metadataTableName = datasetConfig.getPhysicalDataset().getIcebergMetadata().getTableUuid();
       path = metaStoragePlugin.resolveTablePathToValidPath(metadataTableName);
     } else if (DatasetHelper.isIcebergDataset(datasetConfig)) {
@@ -1741,7 +1708,17 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     }
 
     if(handle.isPresent()) {
-      return handle;
+      // handle is UnlimitedSplitsDatasetHandle, dataset is parquet
+      if(DatasetRetrievalOptions.of(options).autoPromote() ) {
+        // autoPromote will allow this handle to work, regardless whether dataset is/is-not promoted
+        return handle;
+      } else if(fileConfig != null){
+        // dataset has already been promoted
+        return handle;
+      } else {
+        // dataset not promoted, handle cannot be used without incorrectly triggering auto-promote
+        return Optional.empty();
+      }
     }
 
     final PreviousDatasetInfo pdi = new PreviousDatasetInfo(fileConfig, currentSchema, sortColumns, droppedColumns, updatedColumns, isSchemaLearningEnabled);
@@ -1787,16 +1764,9 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
       return false;
     }
   }
+
   public IcebergModel getIcebergModel() {
-    return getIcebergModel(null, null, null);
-  }
-
-  public IcebergModel getIcebergModel(FileSystem fs) {
-    return getIcebergModel(fs, null, null);
-  }
-
-  public IcebergModel getIcebergModel(OperatorContext operatorContext) {
-    return getIcebergModel(null, operatorContext, null);
+    return getIcebergModel(getSystemUserFS(), null, null);
   }
 
   @Override
@@ -1808,10 +1778,9 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     return basePath.toString();
   }
 
-  /* if fs is null it will use iceberg HadoopFileIO class instead of DremioFileIO class */
-  public IcebergModel getIcebergModel(FileSystem fs, OperatorContext operatorContext, List<String> dataset) {
+  private IcebergModel getIcebergModel(FileSystem fs, OperatorContext operatorContext, List<String> dataset) {
     return IcebergModelCreator.createIcebergModel(
-            getFsConfCopy(), context, fs, operatorContext, dataset, this);
+        getFsConfCopy(), context, fs, operatorContext, dataset, this);
   }
 
   @Override
@@ -1842,7 +1811,16 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
 
   @Override
   public TableOperations createIcebergTableOperations(FileSystem fs, String queryUserName, IcebergTableIdentifier tableIdentifier) {
-    return new IcebergHadoopTableOperations(new org.apache.hadoop.fs.Path(((IcebergHadoopTableIdentifier)tableIdentifier).getTableFolder()), getFsConfCopy(), fs, null, this);
+    return new IcebergHadoopTableOperations(
+        new org.apache.hadoop.fs.Path(((IcebergHadoopTableIdentifier)tableIdentifier).getTableFolder()),
+        getFsConfCopy(), fs, createIcebergFileIO(fs, null, null, null, null));
+  }
+
+  @Override
+  public FileIO createIcebergFileIO(FileSystem fs, OperatorContext context, List<String> dataset,
+      String datasourcePluginUID, Long fileLength) {
+    return new DremioFileIO(fs, context, dataset, datasourcePluginUID, fileLength,
+        new HadoopFileSystemConfigurationAdapter(fsConf));
   }
 
   @Override
@@ -1856,7 +1834,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     }
 
     Optional<FileSelection> selection = generateFileSelectionForPathComponents(datasetPath, SystemUser.SYSTEM_USERNAME);
-    if(!retrievalOptions.autoPromote() || !selection.isPresent()) {
+    if(!selection.isPresent()) {
       return Optional.empty();
     }
 
@@ -1893,6 +1871,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     return Optional.of(fileSelection);
   }
 
+  @Override
   public String getDefaultCtasFormat() {
     return config.getDefaultCtasFormat();
   }
@@ -1901,6 +1880,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     return config.isPartitionInferenceEnabled();
   }
 
+  @Override
   public DirListingRecordReader createDirListRecordReader(OperatorContext context,
                                                             FileSystem fs,
                                                             DirListInputSplitProto.DirListInputSplit dirListInputSplit,

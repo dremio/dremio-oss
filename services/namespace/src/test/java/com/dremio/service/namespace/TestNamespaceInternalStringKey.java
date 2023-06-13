@@ -74,47 +74,40 @@ public class TestNamespaceInternalStringKey {
     @Parameterized.Parameters
     public static Collection<Object[]> input() {
       return Arrays.asList(new Object[][]{
-        //inputPath, expectedKey, expectedRangeStartKey, expectedRangeEndKey, normalize
-        {"a.b.c", "2.a.1.b.0.c", "3.a.2.b.1.c.0.", "3.a.2.b.1.c.0.", true},
-        {"a.b.c.d", "3.a.2.b.1.c.0.d", "4.a.3.b.2.c.1.d.0.", "4.a.3.b.2.c.1.d.0.", true},
-        {"a", "0.a", "1.a.0.", "1.a.0.", true},
-        {"a.b", "1.a.0.b", "2.a.1.b.0.", "2.a.1.b.0.", true},
-        {"a1.b.c", "2.a1.1.b.0.c", "3.a1.2.b.1.c.0.", "3.a1.2.b.1.c.0.", true},
-        {"a.a.a.a", "3.a.2.a.1.a.0.a", "4.a.3.a.2.a.1.a.0.", "4.a.3.a.2.a.1.a.0.", true},
-        {"0", "0.0", "1.0.0.", "1.0.0.", true},
-        {"0a.b.3", "2.0a.1.b.0.3", "3.0a.2.b.1.3.0.", "3.0a.2.b.1.3.0.", true},
-        {"1.2.3", "2.1.1.2.0.3", "3.1.2.2.1.3.0.", "3.1.2.2.1.3.0.", true},
-        {"0.0.0.0", "3.0.2.0.1.0.0.0", "4.0.3.0.2.0.1.0.0.", "4.0.3.0.2.0.1.0.0.", true},
-        {"Aa.bB.cC.Dd", "3.aa.2.bb.1.cc.0.dd", "4.aa.3.bb.2.cc.1.dd.0.", "4.aa.3.bb.2.cc.1.dd.0.", true},
-        {"1A.2b.3C.4d", "3.1a.2.2b.1.3c.0.4d", "4.1a.3.2b.2.3c.1.4d.0.", "4.1a.3.2b.2.3c.1.4d.0.", true},
-        {"0.0.0.0", "3.0.2.0.1.0.0.0", "4.0.3.0.2.0.1.0.0.", "4.0.3.0.2.0.1.0.0.", false},
-        {"Aa.bB.cC.Dd", "3.Aa.2.bB.1.cC.0.Dd", "4.Aa.3.bB.2.cC.1.Dd.0.", "4.Aa.3.bB.2.cC.1.Dd.0.", false},
-        {"1A.2b.3C.4d", "3.1A.2.2b.1.3C.0.4d", "4.1A.3.2b.2.3C.1.4d.0.", "4.1A.3.2b.2.3C.1.4d.0.", false},
-        {"A.A.A.A", "3.A.2.A.1.A.0.A", "4.A.3.A.2.A.1.A.0.", "4.A.3.A.2.A.1.A.0.", false}});
+        //inputPath, expectedKey, expectedRangeStartKey, expectedRangeEndKey
+        {"a.b.c", "2.a.1.b.0.c", "3.a.2.b.1.c.0.", "3.a.2.b.1.c.0."},
+        {"a.b.c.d", "3.a.2.b.1.c.0.d", "4.a.3.b.2.c.1.d.0.", "4.a.3.b.2.c.1.d.0."},
+        {"a", "0.a", "1.a.0.", "1.a.0."},
+        {"a.b", "1.a.0.b", "2.a.1.b.0.", "2.a.1.b.0."},
+        {"a1.b.c", "2.a1.1.b.0.c", "3.a1.2.b.1.c.0.", "3.a1.2.b.1.c.0."},
+        {"a.a.a.a", "3.a.2.a.1.a.0.a", "4.a.3.a.2.a.1.a.0.", "4.a.3.a.2.a.1.a.0."},
+        {"0", "0.0", "1.0.0.", "1.0.0."},
+        {"0a.b.3", "2.0a.1.b.0.3", "3.0a.2.b.1.3.0.", "3.0a.2.b.1.3.0."},
+        {"1.2.3", "2.1.1.2.0.3", "3.1.2.2.1.3.0.", "3.1.2.2.1.3.0."},
+        {"0.0.0.0", "3.0.2.0.1.0.0.0", "4.0.3.0.2.0.1.0.0.", "4.0.3.0.2.0.1.0.0."},
+        {"Aa.bB.cC.Dd", "3.aa.2.bb.1.cc.0.dd", "4.aa.3.bb.2.cc.1.dd.0.", "4.aa.3.bb.2.cc.1.dd.0."},
+        {"1A.2b.3C.4d", "3.1a.2.2b.1.3c.0.4d", "4.1a.3.2b.2.3c.1.4d.0.", "4.1a.3.2b.2.3c.1.4d.0."}});
     }
 
     private final String inputPath;
     private final String expectedKey;
     private final String expectedRangeStartKey;
     private final String expectedRangeEndKey;
-    private final boolean normalize;
 
     public TestStringKeys (String inputPath, String expectedKey,
-                                           String expectedRangeStartKey, String expectedRangeEndKey,
-                                           boolean normalize) {
+                                           String expectedRangeStartKey, String expectedRangeEndKey) {
       this.inputPath = inputPath;
       this.expectedKey = expectedKey;
       this.expectedRangeStartKey = expectedRangeStartKey;
       this.expectedRangeEndKey = expectedRangeEndKey;
-      this.normalize = normalize;
     }
 
     private NamespaceInternalKey newKey(String path) {
-      return new NamespaceInternalKey(new NamespaceKey(PathUtils.parseFullPath(path)), normalize);
+      return new NamespaceInternalKey(new NamespaceKey(PathUtils.parseFullPath(path)));
     }
-    private NamespaceInternalKey parseKey(byte[] keyBytes, boolean normalize) {
+    private NamespaceInternalKey parseKey(byte[] keyBytes) {
       String path = extractKey(keyBytes, false);
-      return new NamespaceInternalKey(new NamespaceKey(PathUtils.parseFullPath(path)), normalize);
+      return new NamespaceInternalKey(new NamespaceKey(PathUtils.parseFullPath(path)));
     }
 
     @Test
@@ -138,38 +131,38 @@ public class TestNamespaceInternalStringKey {
     @Test
     public void testParsedKeyPath() {
       final NamespaceInternalKey key = newKey(inputPath);
-      final NamespaceInternalKey parsedKey = parseKey(key.getKey().getBytes(StandardCharsets.UTF_8), normalize);
-      final NamespaceKey expectedPath = (normalize)? key.getPath().asLowerCase() : key.getPath();
+      final NamespaceInternalKey parsedKey = parseKey(key.getKey().getBytes(StandardCharsets.UTF_8));
+      final NamespaceKey expectedPath = key.getPath().asLowerCase();
       assertThat(parsedKey.getPath()).isEqualTo(expectedPath);
     }
 
     @Test
     public void testParsedKey() {
       final NamespaceInternalKey key = newKey(inputPath);
-      final NamespaceInternalKey parsedKey = parseKey(key.getKey().getBytes(StandardCharsets.UTF_8), normalize);
+      final NamespaceInternalKey parsedKey = parseKey(key.getKey().getBytes(StandardCharsets.UTF_8));
       assertThat(parsedKey.getKey()).isEqualTo(key.getKey());
     }
 
     @Test
     public void testParsedRangeStartKey() {
       final NamespaceInternalKey key = newKey(inputPath);
-      final NamespaceInternalKey parsedKey = parseKey(key.getKey().getBytes(StandardCharsets.UTF_8), normalize);
+      final NamespaceInternalKey parsedKey = parseKey(key.getKey().getBytes(StandardCharsets.UTF_8));
       assertThat(parsedKey.getRangeStartKey()).isEqualTo(key.getRangeStartKey());
     }
 
     @Test
     public void testParsedRangeEndKey() {
       final NamespaceInternalKey key = newKey(inputPath);
-      final NamespaceInternalKey parsedKey = parseKey(key.getKey().getBytes(StandardCharsets.UTF_8), normalize);
+      final NamespaceInternalKey parsedKey = parseKey(key.getKey().getBytes(StandardCharsets.UTF_8));
       assertThat(parsedKey.getRangeEndKey()).isEqualTo(key.getRangeEndKey());
     }
 
     @Test
     public void testPathProcessing() {
-      final String paths = (normalize)? inputPath.toLowerCase() : inputPath;
+      final String paths = inputPath.toLowerCase();
       final List<String> expectedPaths = Arrays.asList(paths.split("["+ NamespaceInternalKey.PATH_DELIMITER +"]"));
       final List<String> actualPaths = NamespaceInternalKey.processPathComponents(
-        new NamespaceKey(PathUtils.parseFullPath(inputPath)), normalize);
+        new NamespaceKey(PathUtils.parseFullPath(inputPath)));
       assertThat(actualPaths).isEqualTo(expectedPaths);
     }
   }

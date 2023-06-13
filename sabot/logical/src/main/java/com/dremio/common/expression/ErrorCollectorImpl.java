@@ -94,6 +94,7 @@ public class ErrorCollectorImpl implements ErrorCollector, AutoCloseable {
     return "\n" + Joiner.on("\n").join(errors);
   }
 
+  @Override
   public void close(){
       if(!errors.isEmpty()){
         throw UserException.functionError().message(Joiner.on("\n").join(errors)).build(logger);

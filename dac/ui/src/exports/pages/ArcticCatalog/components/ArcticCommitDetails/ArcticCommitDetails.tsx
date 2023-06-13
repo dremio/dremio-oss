@@ -17,7 +17,7 @@
 import { WithRouterProps } from "react-router";
 import ArcticCommitDetailsHeader from "./components/ArcticCommitDetailsHeader/ArcticCommitDetailsHeader";
 import ArcticCommitDetailsBody from "./components/ArcticCommitDetailsBody/ArcticCommitDetailsBody";
-import { Spinner } from "dremio-ui-lib/dist-esm";
+import { Spinner } from "dremio-ui-lib/components";
 import {
   constructArcticUrl,
   useArcticCatalogContext,
@@ -37,7 +37,7 @@ type ArcticCommitDetailsProps = WithRouterProps;
 function ArcticCommitDetails({ router, params }: ArcticCommitDetailsProps) {
   const {
     state: { reference, hash },
-    source,
+    stateKey,
     baseUrl,
   } = useNessieContext();
   const { reservedNamespace, isCatalog } = useArcticCatalogContext() ?? {};
@@ -71,7 +71,7 @@ function ArcticCommitDetails({ router, params }: ArcticCommitDetailsProps) {
             },
             hash: params.commitId,
           },
-          source.name
+          stateKey
         )
       );
     }

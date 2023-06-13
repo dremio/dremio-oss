@@ -33,7 +33,12 @@ export const restoreMockData = () => {
 };
 
 export const getFeatureFlagEnabledHandler = rest.get(
-  getFeatureFlagEnabledUrl(":featureId"),
+  decodeURIComponent(
+    getFeatureFlagEnabledUrl(":featureId").replace(
+      `//${window.location.host}`,
+      ""
+    )
+  ),
   (req, res, ctx) => {
     const response: FeatureFlagResponse = {
       entitlement: mockData[req.params.featureId as string] || "ENABLED",

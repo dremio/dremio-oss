@@ -106,8 +106,7 @@ public class TracingProxyDriverTest extends ExecTest {
     try {
       nameThis.redirect();
       proxyConnection.isClosed();
-    }
-    finally {
+    } finally {
       nameThis.unredirect();
     }
 
@@ -145,11 +144,9 @@ public class TracingProxyDriverTest extends ExecTest {
     try {
       stdErrCapturer.redirect();
       statement.execute( "" );
-    }
-    catch ( final SQLException e ) {
+    } catch ( final SQLException e ) {
       // "already closed" is expected
-    }
-    finally {
+    } finally {
       stdErrCapturer.unredirect();
     }
 

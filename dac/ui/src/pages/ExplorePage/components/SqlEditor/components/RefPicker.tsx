@@ -24,7 +24,6 @@ import {
   bindPopper,
 } from "material-ui-popup-state/hooks";
 
-import { isDataPlaneEnabled } from "@inject/utils/dataPlaneUtils";
 import { getSortedSources } from "@app/selectors/home";
 import FontIcon from "@app/components/Icon/FontIcon";
 import { NESSIE_REF_PREFIX } from "@app/constants/nessie";
@@ -132,7 +131,7 @@ function RefPicker({
   const menuRef = useRef<any>(null);
   const anchorEl = popupState.isOpen ? ref.current : null;
 
-  if (!isDataPlaneEnabled || dataPlaneSources.length === 0 || hide) return null;
+  if (dataPlaneSources.length === 0 || hide) return null;
 
   return (
     <div className="sqlAutocomplete__context">

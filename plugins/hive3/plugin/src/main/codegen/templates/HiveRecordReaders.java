@@ -195,8 +195,7 @@ public class Hive${entry.hiveReader}Reader extends HiveAbstractReader {
         if (!hasNext) {
           break;
         }
-      }
-      catch(FSError e) {
+      } catch (FSError e) {
         throw HadoopFileSystemWrapper.propagateFSError(e);
       }
       Object deSerializedValue = partitionSerDe.deserialize((Writable) value);
@@ -226,8 +225,7 @@ public class Hive${entry.hiveReader}Reader extends HiveAbstractReader {
       <#else>
       try (OperatorStats.WaitRecorder recorder = OperatorStats.getWaitRecorder(this.context.getStats())){
         reader.close();
-      }
-      catch(FSError e) {
+      } catch (FSError e) {
         throw HadoopFileSystemWrapper.propagateFSError(e);
       }
       </#if>

@@ -68,6 +68,8 @@ import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.file.FileFormat;
 import com.dremio.service.users.SystemUser;
 
+import io.opentelemetry.instrumentation.annotations.WithSpan;
+
 /**
  * A per RequestScoped class used to execute queries.
  */
@@ -136,6 +138,7 @@ public class QueryExecutor {
    * @param runInSameThread runs attemptManager in a single thread
    * @param ignoreColumnLimits ignores the max number of columns allowed for a scan
    */
+  @WithSpan
   JobData runQueryWithListener(SqlQuery query, QueryType queryType, DatasetPath datasetPath,
       DatasetVersion version, JobStatusListener statusListener, boolean runInSameThread, boolean ignoreColumnLimits) {
     String messagePath = datasetPath + (version == null ? "" : "/" + version);
@@ -219,7 +222,7 @@ public class QueryExecutor {
     return data;
   }
 
-  public List<String> getColumnList(final String username, DatasetPath path, List<SourceVersionReference> referenceList) {
+  public List<String> getColumnList(DatasetPath path, List<SourceVersionReference> referenceList) {
     Map<String, VersionContext> sourceVersionMapping = QueryExecutorUtils.createSourceVersionMapping(referenceList);
     EntityExplorer entityExplorer = catalogService.getCatalog(MetadataRequestOptions.of(
         SchemaConfig.newBuilder(CatalogUser.from(context.getUserPrincipal().getName())).build(), sourceVersionMapping));

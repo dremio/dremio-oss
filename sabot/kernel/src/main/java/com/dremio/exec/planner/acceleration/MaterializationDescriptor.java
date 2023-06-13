@@ -170,7 +170,7 @@ public class MaterializationDescriptor {
     return partition;
   }
 
-  public boolean isApplicable(Set<List<String>> queryTablesUsed, Set<List<String>> queryVdsUsed, Set<SubstitutionUtils.ExternalQueryDescriptor> externalQueries) {
+  public boolean isApplicable(Set<SubstitutionUtils.VersionedPath> queryTablesUsed, Set<SubstitutionUtils.VersionedPath> queryVdsUsed, Set<SubstitutionUtils.ExternalQueryDescriptor> externalQueries) {
     return true;
   }
 

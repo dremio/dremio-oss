@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import SourceBranchPicker from "@app/pages/HomePage/components/SourceBranchPicker/SourceBranchPicker";
-import { isDataPlaneEnabled } from "@inject/utils/dataPlaneUtils";
 import { MutableRefObject } from "react";
 
 type TreeNodeBranchPickerProps = {
@@ -29,8 +28,6 @@ function TreeNodeBranchPicker({
   anchorRef,
   onApply,
 }: TreeNodeBranchPickerProps) {
-  if (!isDataPlaneEnabled) return null;
-
   return (
     <SourceBranchPicker
       source={source}

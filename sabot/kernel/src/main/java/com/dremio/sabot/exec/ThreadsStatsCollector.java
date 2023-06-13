@@ -155,6 +155,7 @@ public class ThreadsStatsCollector extends Thread implements AutoCloseable {
     }
   }
 
+  @Override
   public void close(){
     this.interrupt();
   }

@@ -23,7 +23,7 @@
   <parent>
     <artifactId>dremio-plugin-parent</artifactId>
     <groupId>com.dremio.plugins</groupId>
-    <version>24.0.0-202302100528110223-3a169b7c</version>
+    <version>24.1.0-202306130653310132-d30779f6</version>
   </parent>
 
   <artifactId>dremio-awsglue-plugin</artifactId>
@@ -141,30 +141,6 @@
   <build>
     <plugins>
       <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>build-helper-maven-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>reserve-network-port</id>
-            <goals>
-              <goal>reserve-network-port</goal>
-            </goals>
-            <phase>process-resources</phase>
-            <configuration>
-              <!-- avoid using system range for ephemeral ports as servers are not
-                immediately started, and pre-allocated ports might have been reused by OS
-                Some tests also use fixed port in the 20000 range -->
-              <!-- Always use non-overlapping ranges in each pom to avoid port conflict -->
-              <minPortNumber>16000</minPortNumber>
-              <maxPortNumber>16999</maxPortNumber>
-              <portNames>
-                <portName>s3mock.reserved.port</portName>
-              </portNames>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
         <artifactId>maven-dependency-plugin</artifactId>
         <executions>
           <execution>
@@ -188,14 +164,6 @@
           <outputDirectory>${project.build.directory}/connectors</outputDirectory>
           <overWriteReleases>true</overWriteReleases>
           <overWriteSnapshots>true</overWriteSnapshots>
-        </configuration>
-      </plugin>
-      <plugin>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <configuration>
-          <systemPropertyVariables>
-            <s3mock.reserved.port>${s3mock.reserved.port}</s3mock.reserved.port>
-          </systemPropertyVariables>
         </configuration>
       </plugin>
       <plugin>

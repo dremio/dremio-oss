@@ -29,6 +29,7 @@ export class PollingResource<T> extends SmartResource<T> {
   private _pollingInterval: number;
   private _stopAfterErrors: number;
   private _timer: number | null = null;
+  private _onNext: ((value: Awaited<T>) => void) | null = null;
 
   constructor(fetcher: Fetcher<T>, options: Options<T>) {
     super(fetcher, options);
@@ -53,11 +54,15 @@ export class PollingResource<T> extends SmartResource<T> {
   /**
    * Starts (or restarts) polling with a new argument fetcher function
    */
-  start(getArgs: () => any[] = () => []): void {
+  start(
+    getArgs: () => any[] = () => [],
+    onNext?: (value: Awaited<T>) => void
+  ): void {
     this._errorCount = 0;
     this._getFetcherArgs = getArgs;
     this._clearTimer();
     this.fetch(...(this._getFetcherArgs?.() || []));
+    this._onNext = onNext || null;
   }
 
   stop(): void {
@@ -80,6 +85,7 @@ export class PollingResource<T> extends SmartResource<T> {
   protected _next(value: Awaited<T>) {
     super._next(value);
     this._startTimer();
+    this._onNext?.(value);
   }
 
   protected _error(err: any) {

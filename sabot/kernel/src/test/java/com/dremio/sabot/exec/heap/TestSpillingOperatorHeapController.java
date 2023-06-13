@@ -28,11 +28,9 @@ import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 import javax.management.ObjectName;
 
-import org.junit.Assert;
 import org.junit.Test;
 
 public class TestSpillingOperatorHeapController {
@@ -73,14 +71,7 @@ public class TestSpillingOperatorHeapController {
         allFutures.add(CompletableFuture.supplyAsync(() ->
           generateAndRemove(100 + rand.nextInt(100), 1000 + rand.nextInt(1000), sut, false)));
       }
-      allFutures.forEach((f) -> {
-        try {
-          f.get();
-        } catch (InterruptedException ignored) {
-        } catch (ExecutionException e) {
-          Assert.fail(e.getMessage());
-        }
-      });
+      allFutures.forEach(CompletableFuture::join);
       assertEquals(0, sut.maxParticipantsPerSlot());
       assertEquals(0, sut.numParticipants());
       assertEquals(0, sut.computeTotalOverhead());

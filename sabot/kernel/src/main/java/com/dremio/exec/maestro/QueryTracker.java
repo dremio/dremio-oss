@@ -35,6 +35,11 @@ interface QueryTracker extends AutoCloseable {
   void allocateResources() throws ExecutionSetupException, ResourceAllocationException;
 
   /**
+   * Interrupts allocation, provided we are in an interruptible stage within allocation.
+   */
+  void interruptAllocation();
+
+  /**
    * Execution planning include parallelization of the query fragments.
    * @throws ExecutionSetupException
    */

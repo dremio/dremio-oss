@@ -18,12 +18,12 @@
 // Default tooltip colors. Moved out of the main theme for readability
 .MuiTooltip-tooltip,
 .tooltip {
-  background-color: var(--dremio--color--neutral--700) !important;
+  background-color: var(--color--neutral--800) !important;
   .MuiTooltip-arrow {
-    color: var(--dremio--color--neutral--700) !important;
+    color: var(--color--neutral--800) !important;
   }
   .MuiTooltip-arrow::before {
-    background-color: var(--dremio--color--neutral--700) !important;
+    background-color: var(--color--neutral--800) !important;
   }
 
   &.MuiTooltip-tooltip {
@@ -38,15 +38,15 @@
 
 // Custom tooltip
 .richTooltip {
-  background-color: var(--dremio--color--neutral--000) !important;
+  background-color: white !important;
   max-width: 400px !important;
   color: var(--dremio--color--text--main) !important;
   padding: 16px 0px 20px 0px !important;
   box-shadow: var(--dremio--shadow--layer-1) !important;
   .MuiTooltip-arrow {
-    color: var(--dremio--color--neutral--000) !important;
+    color: white !important;
   }
   .MuiTooltip-arrow::before {
-    background-color: var(--dremio--color--neutral--000) !important;
+    background-color: white !important;
   }
 }

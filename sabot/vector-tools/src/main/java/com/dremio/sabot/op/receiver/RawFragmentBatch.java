@@ -53,6 +53,7 @@ public class RawFragmentBatch implements AutoCloseable {
     return "RawFragmentBatch [header=" + header + ", body=" + body + "]";
   }
 
+  @Override
   public void close() {
     if (body != null) {
       body.close();

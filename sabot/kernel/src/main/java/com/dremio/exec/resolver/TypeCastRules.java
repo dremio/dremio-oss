@@ -910,18 +910,16 @@ public class TypeCastRules {
         /* Precedence rules does not allow to implicitly cast, however check
          * if the seconday rules allow us to cast
          */
-        Set<MinorType> rules;
-        if ((rules = (ResolverTypePrecedence.SECONDARY_IMPLICIT_CAST_RULES.get(parmType.toMinorType()))) != null &&
-            rules.contains(argType.toMinorType())) {
+        Set<MinorType> rules = ResolverTypePrecedence.SECONDARY_IMPLICIT_CAST_RULES.get(parmType.toMinorType());
+        if (rules != null && rules.contains(argType.toMinorType())) {
           secondaryCast = true;
         } else {
           return -1;
         }
       }
 
-      int castCost;
-
-      if ((castCost = (parmVal - argVal)) >= 0) {
+      int castCost = parmVal - argVal;
+      if (castCost >= 0) {
         nCasts++;
         cost += castCost;
       }

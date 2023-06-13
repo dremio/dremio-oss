@@ -320,45 +320,6 @@ export function removeDataset(dataset) {
   };
 }
 
-export const RENAME_FOLDER_START = "RENAME_FOLDER_START";
-export const RENAME_FOLDER_SUCCESS = "RENAME_FOLDER_SUCCESS";
-export const RENAME_FOLDER_FAILURE = "RENAME_FOLDER_FAILURE";
-
-function fetchRenameFolder(folder, newName) {
-  const meta = { invalidateViewIds: [HOME_CONTENTS_VIEW_ID] };
-
-  const apiCall = new APIV2Call()
-    .paths(folder.getIn(["links", "rename"]))
-    .params({ renameTo: newName });
-
-  return {
-    [RSAA]: {
-      types: [
-        {
-          type: RENAME_FOLDER_START,
-          meta,
-        },
-        {
-          type: RENAME_FOLDER_SUCCESS,
-          meta,
-        },
-        {
-          type: RENAME_FOLDER_FAILURE,
-          meta,
-        },
-      ],
-      method: "POST",
-      endpoint: apiCall,
-    },
-  };
-}
-
-export function renameFolder(folder, oldName, newName) {
-  return (dispatch) => {
-    return dispatch(fetchRenameFolder(folder, oldName, newName));
-  };
-}
-
 export const LOAD_DEPENDENT_DATASETS_STARTED =
   "LOAD_DEPENDENT_DATASETS_STARTED";
 export const LOAD_DEPENDENT_DATASETS_SUCCESS =

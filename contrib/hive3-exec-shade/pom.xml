@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.contrib</groupId>
     <artifactId>dremio-contrib-parent</artifactId>
-    <version>24.0.0-202302100528110223-3a169b7c</version>
+    <version>24.1.0-202306130653310132-d30779f6</version>
   </parent>
 
   <artifactId>dremio-hive3-exec-shaded</artifactId>
@@ -40,7 +40,6 @@
       <groupId>org.apache.hive</groupId>
       <artifactId>hive-exec</artifactId>
       <version>${hive.version}</version>
-      <scope>compile</scope>
       <exclusions>
         <exclusion>
           <groupId>org.apache.logging.log4j</groupId>
@@ -108,6 +107,11 @@
         </exclusion>
       </exclusions>
     </dependency>
+    <!-- Overwrite protobuf version packaged with hive-exec -->
+    <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java</artifactId>
+    </dependency>
   </dependencies>
 
   <build>
@@ -131,6 +135,7 @@
                   <include>com.fasterxml.jackson.core:jackson-annotations</include>
                   <include>com.fasterxml.jackson.core:jackson-core</include>
                   <include>com.fasterxml.jackson.core:jackson-databind</include>
+                  <include>com.google.protobuf:protobuf-java</include>
                 </includes>
               </artifactSet>
               <createDependencyReducedPom>false</createDependencyReducedPom>
@@ -147,6 +152,9 @@
                     <exclude>org/apache/hadoop/hive/llap/**</exclude>
                     <!-- Exclude Thrift version packaged inside hive-exec -->
                     <exclude>org/apache/thrift/**</exclude>
+                    <!-- Exclude Protobuf version packaged inside hive-exec -->
+                    <exclude>com/google/protobuf/**</exclude>
+                    <exclude>META-INF/maven/com.google.protobuf/**</exclude>
                   </excludes>
                 </filter>
               </filters>

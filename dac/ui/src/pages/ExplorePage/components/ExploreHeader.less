@@ -28,7 +28,7 @@
     display: flex;
     flex-direction: row;
     justify-content: space-between;
-    padding: 0.4rem 1rem;
+    padding: 4px 10px;
 
     .ExploreHeader__left,
     .ExploreHeader__right {
@@ -41,14 +41,41 @@
       .preview-btn.--outlined,
       .discard-btn.--outlined,
       .edit-btn.--outlined {
-        color: var(--dremio--color--neutral--600);
+        color: var(--color--neutral--600);
       }
 
       .run-btn.--disabled,
       .preview-btn.--disabled,
       .discard-btn.--disabled,
       .edit-btn.--disabled {
-        color: var(--dremio--color--neutral--300);
+        color: var(--color--neutral--200);
+      }
+    }
+
+    .ExploreHeader__right {
+      .show-hide-sql-btn {
+        display: flex;
+        align-items: center;
+        border-radius: 4px;
+        border: none;
+        height: 32px;
+        font-size: 14px;
+        padding: 8px 7px;
+        font-weight: 500;
+        cursor: pointer;
+        text-decoration: none !important;
+        color: var(--dremio--color--link);
+        gap: 4px;
+
+        &:hover {
+          background: var(--color--brand--25);
+        }
+
+        &__icon {
+          height: 20px;
+          width: 20px;
+          color: var(--dremio--color--link);
+        }
       }
     }
   }
@@ -66,7 +93,7 @@
       margin-left: 6px;
       padding: 2px 8px;
       border-radius: 8px;
-      background-color: var(--dremio--color--neutral--600);
+      background-color: var(--color--neutral--600);
     }
   }
 }

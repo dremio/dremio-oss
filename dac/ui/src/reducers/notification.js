@@ -42,10 +42,13 @@ export default function notification(state = {}, action) {
         message: action.message,
         level: action.level,
         autoDismiss: action.autoDismiss,
+        uid: action.uid,
+        options: action.options,
       };
     case ActionTypes.REMOVE_NOTIFICATION:
       return {
         removeMessageType: action.messageType,
+        uid: action?.uid || null,
       };
     default:
       return state;

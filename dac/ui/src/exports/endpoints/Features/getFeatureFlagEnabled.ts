@@ -16,9 +16,10 @@
 import moize from "moize";
 import { getApiContext } from "dremio-ui-common/contexts/ApiContext.js";
 import { type FeatureFlagResponse } from "./FeatureFlagResponse.type";
+import { APIV2Call } from "@app/core/APICall";
 
 export const getFeatureFlagEnabledUrl = (flagId: string) =>
-  `/ui/features/${flagId}` as const;
+  new APIV2Call().projectScope(false).paths(`features/${flagId}`).toString();
 
 export const getFeatureFlagEnabled = moize(
   (flagId: string): Promise<boolean> => {

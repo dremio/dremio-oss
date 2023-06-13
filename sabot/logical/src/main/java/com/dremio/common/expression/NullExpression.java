@@ -38,8 +38,10 @@ public class NullExpression implements LogicalExpression {
     return visitor.visitNullExpression(this, value);
   }
 
+  @Override
   public int getSelfCost() { return 0 ; }
 
+  @Override
   public int getCumulativeCost() { return 0; }
 
 }

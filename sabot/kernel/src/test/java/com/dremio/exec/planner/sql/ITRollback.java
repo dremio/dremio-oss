@@ -27,6 +27,7 @@ public class ITRollback extends ITDmlQueryBase {
   // Defining SOURCE such that you can easily copy and paste the same test across other test variations
   private static final String SOURCE = TEMP_SCHEMA_HADOOP;
 
+  @Override
   @Before
   public void before() throws Exception {
     test("USE %s", SOURCE);

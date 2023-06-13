@@ -215,6 +215,7 @@ public class FindPartitionConditions extends RexVisitorImpl<Void> {
     return false;
   }
 
+  @Override
   public Void visitInputRef(RexInputRef inputRef) {
     if(dirs.get(inputRef.getIndex())){
       pushStatusStack.add(PushDirFilter.PUSH);
@@ -225,22 +226,26 @@ public class FindPartitionConditions extends RexVisitorImpl<Void> {
     return null;
   }
 
+  @Override
   public Void visitLiteral(RexLiteral literal) {
     pushStatusStack.add(PushDirFilter.PUSH);
     addResult(literal);
     return null;
   }
 
+  @Override
   public Void visitOver(RexOver over) {
     // assume NO_PUSH until proven otherwise
     analyzeCall(over, PushDirFilter.NO_PUSH);
     return null;
   }
 
+  @Override
   public Void visitCorrelVariable(RexCorrelVariable correlVariable) {
     return pushVariable();
   }
 
+  @Override
   public Void visitCall(RexCall call) {
     analyzeCall(call, PushDirFilter.PUSH);
     return null;
@@ -326,14 +331,17 @@ public class FindPartitionConditions extends RexVisitorImpl<Void> {
     pushStatusStack.add(callPushDirFilter);
   }
 
+  @Override
   public Void visitDynamicParam(RexDynamicParam dynamicParam) {
     return pushVariable();
   }
 
+  @Override
   public Void visitRangeRef(RexRangeRef rangeRef) {
     return pushVariable();
   }
 
+  @Override
   public Void visitFieldAccess(RexFieldAccess fieldAccess) {
     return pushVariable();
   }

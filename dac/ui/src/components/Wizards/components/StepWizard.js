@@ -17,8 +17,7 @@ import { PureComponent } from "react";
 
 import PropTypes from "prop-types";
 
-import { Button } from "dremio-ui-lib";
-import * as ButtonTypes from "components/Buttons/ButtonTypes";
+import { Button } from "dremio-ui-lib/components";
 import WizardFooter from "./WizardFooter";
 import { intl } from "@app/utils/intl";
 
@@ -38,20 +37,19 @@ class StepWizard extends PureComponent {
           disabled={!this.props.hasActiveDataset}
           onMouseDown={this.props.changeFormType.bind(this, "apply")}
           onClick={this.props.onNextClick}
-          color={ButtonTypes.UI_LIB_PRIMARY}
-          style={{ marginBottom: 0 }}
-          disableMargin
+          variant="primary"
           key="details-wizard-next"
-          text={intl.formatMessage({ id: "Common.Next" })}
-        />
+        >
+          {intl.formatMessage({ id: "Common.Next" })}
+        </Button>
         <Button
-          style={{ marginLeft: 5, marginBottom: 0, marginRight: 5 }}
-          color={ButtonTypes.UI_LIB_SECONDARY}
-          disableMargin
+          style={{ marginLeft: 5, marginRight: 5 }}
+          variant="secondary"
           onClick={this.props.onCancelClick}
           key="details-wizard-cancel"
-          text={intl.formatMessage({ id: "Common.Cancel" })}
-        />
+        >
+          {intl.formatMessage({ id: "Common.Cancel" })}
+        </Button>
       </WizardFooter>
     );
   }

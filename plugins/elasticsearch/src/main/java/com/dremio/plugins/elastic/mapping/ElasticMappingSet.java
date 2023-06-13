@@ -220,32 +220,36 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
     private final List<String> formats;
     private final ImmutableList<ElasticField> children;
     private final boolean docValues;
+    private final ImmutableList<ElasticField> fields;
 
     private ElasticField(
-        String name,
-        Type type,
-        Indexing indexing,
-        boolean normalized,
-        List<String> formats,
-        boolean docValues,
-        List<ElasticField> children) {
+      String name,
+      Type type,
+      Indexing indexing,
+      boolean normalized,
+      List<String> formats,
+      boolean docValues,
+      List<ElasticField> children,
+      List<ElasticField> fields) {
       this.name = name;
       this.type = type;
       this.indexing = indexing;
       this.normalized = normalized;
       this.formats = formats;
       this.docValues = docValues;
-      this.children = ImmutableList.copyOf(children);
+      this.children = asList(children);
+      this.fields = asList(fields);
     }
 
     public ElasticField(
-        @JacksonInject(CurentNameInjectable.CURRENT_NAME) String name,
-        @JsonProperty("type") Type type,
-        @JsonProperty("index") Indexing indexing,
-        @JsonProperty("normalizer") String normalizer,
-        @JsonProperty("format") String format,
-        @JsonProperty("doc_values") Boolean docValues,
-        @JsonProperty("properties") Map<String,ElasticField> children){
+      @JacksonInject(CurentNameInjectable.CURRENT_NAME) String name,
+      @JsonProperty("type") Type type,
+      @JsonProperty("index") Indexing indexing,
+      @JsonProperty("normalizer") String normalizer,
+      @JsonProperty("format") String format,
+      @JsonProperty("doc_values") Boolean docValues,
+      @JsonProperty("properties") Map<String,ElasticField> children,
+      @JsonProperty("fields") Map<String,ElasticField> fields){
       this.name = Preconditions.checkNotNull(name, "Field didn't have name.");
       this.formats = DateFormats.getFormatList(format);
 
@@ -290,7 +294,12 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
         this.docValues = docValues;
       }
       this.children = asList(children);
-
+      // Check if this is a string having a nested fields.keyword entry
+      if (this.type == Type.TEXT && fields != null && fields.get("keyword") != null) {
+        this.fields = asList(fields);
+      } else {
+        this.fields = null;
+      }
     }
 
     public void setTypeUnknown() {
@@ -354,7 +363,7 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
       boolean normalized = this.normalized || field.normalized;
 
       // we just have different fields. Let's merge them.
-      return new ElasticField(name, mergedType, indexing, normalized, formats, docValues, mergeFields(mapping, children, field.children, curr_mapping, other_mapping, curr_index, other_index));
+      return new ElasticField(name, mergedType, indexing, normalized, formats, docValues, mergeFields(mapping, children, field.children, curr_mapping, other_mapping, curr_index, other_index), fields);
     }
 
     public void logDataReadErrorHelper(ElasticField field, String curr_mapping, String other_mapping, String curr_index, String other_index, String diff, String first, String second) {
@@ -412,6 +421,10 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
 
     public boolean hasDocValues(){
       return docValues;
+    }
+
+    public boolean hasFields() {
+      return fields != null && !fields.isEmpty();
     }
 
     @Override
@@ -757,6 +770,14 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
       return ImmutableList.of();
     } else {
       return ImmutableList.copyOf(map.values());
+    }
+  }
+
+  private static <T> ImmutableList<T> asList(List<T> list){
+    if(list == null){
+      return ImmutableList.of();
+    } else {
+      return ImmutableList.copyOf(list);
     }
   }
 

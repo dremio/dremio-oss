@@ -105,12 +105,11 @@ public final class EnhancedFilterJoinSimplifier {
     // If no common extraction, return the original filter
     if (commonExtractedFilter == null || commonExtractedFilter.isAlwaysTrue()) {
       return RexUtil.composeDisjunction(rexBuilder, originalFilters, false);
-    }
+    } else {
+      // Else, return disjunction of simplified non-entirely pushed child nodes (need to supply
+      // non-common part) and entirely pushed child nodes. We need to preserve the order of child nodes
+      // in the disjunction because we have checks whether a child gets entirely pushed elsewhere
 
-    // Else, return disjunction of simplified non-entirely pushed child nodes (need to supply
-    // non-common part) and entirely pushed child nodes. We need to preserve the order of child nodes
-    // in the disjunction because we have checks whether a child gets entirely pushed elsewhere
-    else {
       // Record the order of extractions
       Map<RexNode, Integer> extractionIndex = Maps.newHashMap();
       for (int i = 0; i < extractions.size(); ++i) {

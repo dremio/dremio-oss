@@ -78,6 +78,7 @@ public class CompactRefreshHandler implements SqlToPlanHandler {
   private final WriterOptionManager writerOptionManager;
 
   private String textPlan;
+  private Rel drel;
 
   public CompactRefreshHandler() {
     this.writerOptionManager = WriterOptionManager.Instance;
@@ -158,7 +159,7 @@ public class CompactRefreshHandler implements SqlToPlanHandler {
       final PlanNormalizer planNormalizer = new PlanNormalizer(config);
       final RelNode initial = getPlan(config, tableSchemaPath, planNormalizer);
 
-      final Rel drel = PrelTransformer.convertToDrelMaintainingNames(config, initial);
+      drel = PrelTransformer.convertToDrelMaintainingNames(config, initial);
       final List<String> fields = drel.getRowType().getFieldNames();
       final long ringCount = config.getContext().getOptions().getOption(PlannerSettings.RING_COUNT);
       final Rel writerDrel = new WriterRel(
@@ -197,6 +198,11 @@ public class CompactRefreshHandler implements SqlToPlanHandler {
   @Override
   public String getTextPlan() {
     return textPlan;
+  }
+
+  @Override
+  public Rel getLogicalPlan() {
+    return drel;
   }
 
   private RelNode getPlan(SqlHandlerConfig sqlHandlerConfig, List<String> refreshTablePath, PlanNormalizer planNormalizer) {

@@ -32,3 +32,11 @@ export type NessieState = {
   loading: { [key: string]: boolean };
   errors: { [key: string]: any };
 };
+
+export enum Type {
+  Unknown = "UNKNOWN",
+  IcebergTable = "ICEBERG_TABLE",
+  DeltaLakeTable = "DELTA_LAKE_TABLE",
+  IcebergView = "ICEBERG_VIEW",
+  Namespace = "NAMESPACE",
+}

@@ -1,0 +1,90 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+.content {
+  align-items: stretch;
+}
+
+.footer {
+  flex-shrink: 0;
+}
+
+.editor {
+  flex: 1;
+}
+
+.childModalBody {
+  height: 94px;
+  display: flex;
+  flex-flow: column wrap;
+  justify-content: space-evenly;
+  font-size: var(--dremio--font-size--default);
+}
+
+.sections-container .section-item {
+  border-bottom: unset;
+}
+
+// had to add global to 1. handle expanding of wiki modal, 2. overwrite few common dialog classes
+:global {
+  .modalBody {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 840px;
+  }
+
+  .dremio-dialog-content--expanded {
+    .modalBody {
+      width: 90vw;
+      .view-state-wrapper {
+        height: 83vh !important;
+      }
+    }
+  }
+  .dremio-dialog-content__header {
+    justify-content: space-between;
+  }
+
+  .dremio-dialog-content__header-toolbar > button {
+    &:focus {
+      outline: none;
+      color: var(--color--neutral--600);
+    }
+    &:hover {
+      color: var(--dremio--color--link);
+    }
+  }
+
+  .dremio-dialog-content__footer {
+    .confirm-cancel-footer {
+      border-top: unset !important;
+    }
+  }
+  .dremio-drawer {
+    .dremio-dialog-content__main {
+      height: 100%;
+      padding-block: unset;
+    }
+    .dremio-dialog-content > * {
+      padding-inline: unset;
+    }
+  }
+
+  .dremio-modal-container .CodeMirror .CodeMirror-lines {
+    max-width: none;
+  }
+}

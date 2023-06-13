@@ -47,7 +47,7 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.type.SqlTypeName;
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.After;
 import org.junit.Before;
@@ -393,7 +393,8 @@ public class TestDml extends BaseTestQuery {
           assertThat(scanCrel.isSubstitutable()).as("Target scanCrel should not be substitutable after rewrite").isFalse();
         } else {
           assertThat(scanCrel.isSubstitutable()).as("Source scanCrel (different from target scanCrel) should still be substitutable after rewrite").isTrue();
-        }});
+        }
+      });
     nation.close();
   }
 
@@ -465,10 +466,10 @@ public class TestDml extends BaseTestQuery {
 
   @Test
   public void testMerge_updateOnly() throws Exception {
-    final String merge_updateOnly = "merge into " + table.getTableName() + " using " + table.getTableName()
+    final String mergeUpdateOnly = "merge into " + table.getTableName() + " using " + table.getTableName()
       + " as s on " + table.getTableName() + ".order_id = s.order_id when matched then update set order_id = -1";
 
-    testMerge(merge_updateOnly, 1, MergeType.UPDATE_ONLY);
+    testMerge(mergeUpdateOnly, 1, MergeType.UPDATE_ONLY);
   }
 
   @Test
@@ -481,10 +482,10 @@ public class TestDml extends BaseTestQuery {
 
   @Test
   public void testMerge_updateWithInsert() throws Exception {
-    final String merge_updateWithInsert = "merge into " + table.getTableName() + " using " + table.getTableName()
+    final String mergeUpdateWithInsert = "merge into " + table.getTableName() + " using " + table.getTableName()
       + " as s on " + table.getTableName() + ".order_id = s.order_id when matched then update set order_id = -1 WHEN NOT MATCHED THEN INSERT(order_id) VALUES(-3) ";
 
-    testMerge(merge_updateWithInsert, 1, MergeType.UPDATE_INSERT);
+    testMerge(mergeUpdateWithInsert, 1, MergeType.UPDATE_INSERT);
   }
 
   @Test
@@ -557,7 +558,8 @@ public class TestDml extends BaseTestQuery {
 
   private Prel getDmlPlan(Catalog catalog, SqlNode sqlNode) throws Exception {
     DmlHandler dmlHandler = getDmlHandler(sqlNode);
-    return dmlHandler.getNonPhysicalPlan(catalog, config, sqlNode, DmlUtils.getTablePath(catalog, dmlHandler.getTargetTablePath(sqlNode)));
+    dmlHandler.getPlan(catalog, config, null, sqlNode, DmlUtils.getTablePath(catalog, dmlHandler.getTargetTablePath(sqlNode)));
+    return dmlHandler.getPrel();
   }
 
   private Prel getDmlPlan(String sql) throws Exception {
@@ -656,8 +658,7 @@ public class TestDml extends BaseTestQuery {
 
       FilterPrel filterPrel = filterPrels.get(0);
       assertThat(filterPrel).as("filter is expected").isNotNull();
-    }
-    else {
+    } else {
       assertThat(filterPrels.size()).as("no filter is expected").isEqualTo(0);
     }
   }
@@ -731,20 +732,20 @@ public class TestDml extends BaseTestQuery {
     List<TableFunctionPrel> writerPrels= NodeFinder.find(unionAllPrel.getInput(0), writerDescriptor);
     boolean writerIsOnZeroUnionInput = CollectionUtils.isNotEmpty(writerPrels);
 
-    validateDeletedDataFilesTableFunction(unionAllPrel.getInput(writerIsOnZeroUnionInput ? 1 : 0), mergeType);
+    validateDeletedFilesTableFunction(unionAllPrel.getInput(writerIsOnZeroUnionInput ? 1 : 0), mergeType);
 
     validateBaseCopyOnWriteJoinPlan(unionAllPrel.getInput(writerIsOnZeroUnionInput ? 0 : 1), joinType, mergeType);
   }
 
-  private static void validateDeletedDataFilesTableFunction(RelNode plan, MergeType mergeType) {
+  private static void validateDeletedFilesTableFunction(RelNode plan, MergeType mergeType) {
     TargetNodeDescriptor descriptor =  new TargetNodeDescriptor(TableFunctionPrel.class, null);
     List<TableFunctionPrel> tableFunctionPrels= NodeFinder.find(plan, descriptor);
     assertThat(tableFunctionPrels).isNotNull();
 
-    TableFunctionPrel deletedDataFilesTableFunctionPre = tableFunctionPrels.get(0);
-    assertThat(TableFunctionConfig.FunctionType.DELETED_DATA_FILES_METADATA).isEqualTo(deletedDataFilesTableFunctionPre.getTableFunctionConfig().getType());
+    TableFunctionPrel deletedFilesTableFunctionPre = tableFunctionPrels.get(0);
+    assertThat(TableFunctionConfig.FunctionType.DELETED_FILES_METADATA).isEqualTo(deletedFilesTableFunctionPre.getTableFunctionConfig().getType());
 
-    validateDmlAgg(deletedDataFilesTableFunctionPre, mergeType);
+    validateDmlAgg(deletedFilesTableFunctionPre, mergeType);
   }
 
   private static void validateBaseCopyOnWriteJoinPlan(RelNode plan, JoinRelType joinType, MergeType mergeType) {
@@ -768,7 +769,7 @@ public class TestDml extends BaseTestQuery {
   private static void validateFilePathJoin(RelNode plan, MergeType mergeType) {
     Map<String, String> attributes = ImmutableMap.of(
       "joinType", "inner",
-      "condition", "=($0, $7)"
+      "condition", "=($0, $8)"
     );
 
     HashJoinPrel hashJoinPrel = findSingleNode(plan, HashJoinPrel.class, attributes);
@@ -871,6 +872,10 @@ public class TestDml extends BaseTestQuery {
         break;
       case UPDATE_INSERT:
         assertThat(aggInput.getRowType().getFieldCount()).isEqualTo(userColumnCount + 2 + updatedColumns);
+        break;
+      case INVALID:
+      default:
+        throw new IllegalArgumentException("invalid merge type: " + mergeType);
     }
     // Verify column name
     testResultColumnName(mergeQuery);

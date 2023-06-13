@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Button, DialogContent } from "dremio-ui-lib/dist-esm";
+import { Button, DialogContent } from "dremio-ui-lib/components";
 import { TextInput } from "@mantine/core";
 import { useForm } from "react-hook-form";
 import { usePromise } from "react-smart-promise";
@@ -63,6 +63,7 @@ export const DeleteArcticCatalogDialog = (props: Props) => {
       onSuccess();
     }
   }, [onSuccess, createStatus]);
+  const errorMessage = (err as any)?.responseBody?.errorMessage;
   return (
     <form
       style={{ display: "contents" }}
@@ -78,13 +79,16 @@ export const DeleteArcticCatalogDialog = (props: Props) => {
           !(err instanceof InvalidParamsError) && (
             <GenericServerSectionMessage
               error={err}
-              title="An unexpected error occurred and the Arctic catalog could not be deleted."
+              title={
+                errorMessage ??
+                "An unexpected error occurred and the Arctic catalog could not be deleted."
+              }
             />
           )
         }
         title={
           <>
-            <dremio-icon name="interface/information"></dremio-icon> Delete{" "}
+            <dremio-icon name="interface/warning"></dremio-icon> Delete{" "}
             {props.catalogName}?
           </>
         }

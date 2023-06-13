@@ -16,7 +16,7 @@
 
 import { useMemo, useState } from "react";
 import StatefulTableViewer from "@app/components/StatefulTableViewer";
-import { LogEntry } from "@app/services/nessie/client";
+import { LogEntryV2 as LogEntry } from "@app/services/nessie/client";
 import { generateTableRows, getCommitsTableColumns } from "./utils";
 import { useNessieContext } from "@app/pages/NessieHomePage/utils/context";
 import { Reference } from "@app/types/nessie";

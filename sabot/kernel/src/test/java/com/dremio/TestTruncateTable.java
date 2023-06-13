@@ -15,18 +15,17 @@
  */
 package com.dremio;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 import java.io.File;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.dremio.common.exceptions.UserException;
 import com.dremio.config.DremioConfig;
 import com.dremio.exec.planner.sql.DmlQueryTestUtils;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.test.TemporarySystemProperties;
+import com.dremio.test.UserExceptionAssert;
 
 public class TestTruncateTable extends PlanTestBase {
 
@@ -41,9 +40,9 @@ public class TestTruncateTable extends PlanTestBase {
   @Test
   public void truncateInvalidSQL() {
     String truncSql = "TRUNCATE";
-    assertThatThrownBy(() -> test(truncSql))
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("PARSE ERROR: Failure parsing the query.");
+    UserExceptionAssert
+      .assertThatThrownBy(() -> test(truncSql))
+      .hasErrorType(UserBitShared.DremioPBError.ErrorType.PARSE);
   }
 
   @Test
@@ -54,8 +53,8 @@ public class TestTruncateTable extends PlanTestBase {
       test(ctas);
       try (AutoCloseable ignoredAgain = disableIcebergFlag()) {
         String truncSql = String.format("TRUNCATE TABLE %s.%s", TEMP_SCHEMA_HADOOP, tableName);
-        assertThatThrownBy(() -> test(truncSql))
-          .isInstanceOf(UserException.class)
+        UserExceptionAssert
+          .assertThatThrownBy(() -> test(truncSql))
           .hasMessageContaining("Please contact customer support for steps to enable the iceberg tables feature.");
       }
     } finally {
@@ -69,8 +68,8 @@ public class TestTruncateTable extends PlanTestBase {
     for (String testSchema: SCHEMAS_FOR_TEST) {
       String truncSql = "TRUNCATE TABLE " + testSchema + ".truncTable6";
       try (AutoCloseable c = enableIcebergTables()) {
-        assertThatThrownBy(() -> test(truncSql))
-          .isInstanceOf(UserException.class)
+        UserExceptionAssert
+          .assertThatThrownBy(() -> test(truncSql))
           .hasMessageContaining("Table [" + testSchema + ".truncTable6] does not exist.");
       }
     }
@@ -99,8 +98,8 @@ public class TestTruncateTable extends PlanTestBase {
       test(ctas);
       String truncSql = "TRUNCATE TABLE " + TEMP_SCHEMA + ".truncTable5";
       try (AutoCloseable c = enableIcebergTables()) {
-        assertThatThrownBy(() -> test(truncSql))
-          .isInstanceOf(UserException.class)
+        UserExceptionAssert
+          .assertThatThrownBy(() -> test(truncSql))
           .hasMessageContaining("Table [" + TEMP_SCHEMA + ".truncTable5] is not configured to support DML operations");
       } finally {
         FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), "truncTable5"));
@@ -115,8 +114,8 @@ public class TestTruncateTable extends PlanTestBase {
 
     String name = DmlQueryTestUtils.createRandomId();
     test("CREATE VIEW %s.%s AS SELECT * FROM INFORMATION_SCHEMA.CATALOGS", TEMP_SCHEMA, name);
-    assertThatThrownBy(() -> test("TRUNCATE TABLE %s.%s", TEMP_SCHEMA, name))
-      .isInstanceOf(UserException.class)
+    UserExceptionAssert
+      .assertThatThrownBy(() -> test("TRUNCATE TABLE %s.%s", TEMP_SCHEMA, name))
       .hasMessageContaining("TRUNCATE TABLE is not supported on this VIEW at [%s.%s].", TEMP_SCHEMA, name);
 
     test("DROP VIEW %s.%s", TEMP_SCHEMA, name);
@@ -162,8 +161,8 @@ public class TestTruncateTable extends PlanTestBase {
       String ctas = String.format("CREATE TABLE %s.%s.%s(id INT)", TEMP_SCHEMA_HADOOP, path, tableName);
       test(ctas);
       String truncSql = String.format("TRUNCATE TABLE %s.%s", path, tableName);
-      assertThatThrownBy(() -> test(truncSql))
-        .isInstanceOf(UserException.class)
+      UserExceptionAssert
+        .assertThatThrownBy(() -> test(truncSql))
         .hasMessageContaining("Table [%s.%s] does not exist.", path, tableName);
     } finally {
       test("DROP TABLE %s.%s.%s", TEMP_SCHEMA_HADOOP, path, tableName);
@@ -258,5 +257,4 @@ public class TestTruncateTable extends PlanTestBase {
       }
     }
   }
-
 }

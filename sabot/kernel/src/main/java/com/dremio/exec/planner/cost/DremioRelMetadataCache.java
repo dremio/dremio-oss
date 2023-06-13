@@ -97,16 +97,17 @@ public class DremioRelMetadataCache implements RelMetadataCache {
       if (value != NullSentinel.ACTIVE || relNode instanceof RelSubset || relNode instanceof HepRelVertex) {
         Map<Object, Object> row = map.get(relNode);
         if (row == null) {
-          //Only check when a we see a new RelNode to make sure the overhead is minimized.
-          final PlannerSettings settings;
-          if (planner instanceof AbstractRelOptPlanner
-              && null != (settings = PrelUtil.getPlannerSettings(planner))) {
-            long maxCallCount = settings.maxMetadataCallCount();
-            if (pcc > maxCallCount) {
-              throw UserException.planError()
+          //Only check when we see a new RelNode to make sure the overhead is minimized.
+          if (planner instanceof AbstractRelOptPlanner) {
+            PlannerSettings settings = PrelUtil.getPlannerSettings(planner);
+            if (settings != null) {
+              long maxCallCount = settings.maxMetadataCallCount();
+              if (pcc > maxCallCount) {
+                throw UserException.planError()
                   .message(MAX_METADATA_CALL_ERROR_MESSAGE).buildSilently();
+              }
+              ((AbstractRelOptPlanner) planner).checkCancel();
             }
-            ((AbstractRelOptPlanner) planner).checkCancel();
           }
           row = new HashMap<>();
           map.put(relNode, row);

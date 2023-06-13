@@ -161,7 +161,8 @@
     "EXPIRE",
     "SNAPSHOTS",
     "OLDER_THAN",
-    "RETAIN_LAST"
+    "RETAIN_LAST",
+    "TBLPROPERTIES"
   ]
 
   nonReservedKeywords: [
@@ -580,6 +581,7 @@
     "SqlLoadMaterialization()",
     "SqlCompactMaterialization()",
     "SqlExplainJson()",
+    "SqlExplainQueryDML()",
     "SqlAlterClearPlanCache()",
     "SqlGrant()",
     "SqlRevoke()",
@@ -599,7 +601,8 @@
     "SqlDescribeFunction()",
     "SqlShowFunctions()",
     "SqlOptimize()",
-    "SqlVacuum()"
+    "SqlVacuum()",
+    "SqlCreateFolder()"
   ]
 
   # List of methods for parsing custom literals.

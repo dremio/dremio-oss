@@ -247,6 +247,7 @@ public class ArrowRecordBatchLoader implements VectorAccessible, Iterable<Vector
     close();
   }
 
+  @Override
   public void close(){
     container.clear();
     resetRecordCount();

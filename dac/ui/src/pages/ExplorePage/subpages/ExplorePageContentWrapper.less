@@ -23,7 +23,7 @@
     &.--collpase {
       .dremioSidebar {
         background-color: @SECONDARY_150;
-        width: 3.6rem;
+        width: 36px;
       }
 
       .dremioSidebar__drag {
@@ -65,11 +65,11 @@
     width: 100%;
 
     &__header {
-      border-left: 1px solid var(--dremio--color--neutral--150);
-      border-bottom: 1px solid var(--dremio--color--neutral--150);
+      border-left: 1px solid var(--color--neutral--50);
+      border-bottom: 1px solid var(--color--neutral--50);
       align-items: center;
       display: flex;
-      gap: 1rem;
+      gap: 10px;
       height: 54px;
       justify-content: space-between;
 
@@ -78,7 +78,7 @@
       }
 
       .input__container {
-        font-size: 1.5rem;
+        font-size: 15px;
         border: none;
 
         > input::placeholder {
@@ -88,20 +88,20 @@
       }
 
       .validationError {
-        margin-left: 0.8rem;
+        margin-left: 8px;
       }
     }
 
     &__actions {
       display: flex;
       justify-content: space-between;
-      margin: 1.5rem 1rem 0;
-      padding-bottom: 1rem;
+      margin: 15px 10px 0;
+      padding-bottom: 10px;
     }
 
     // Catalog, Graph, Reflections content area
     &__content {
-      border-left: 1px solid var(--dremio--color--neutral--150);
+      border-left: 1px solid var(--color--neutral--50);
       height: 100%;
       overflow: auto;
     }
@@ -111,6 +111,10 @@
       display: grid;
       grid-template-rows: auto 1fr;
       overflow-y: hidden;
+    }
+
+    &__table.fullHeight {
+      height: 100%;
     }
 
     &__main {
@@ -129,13 +133,20 @@
     .ExploreHeader__left,
     .dremioContent__table .left-controls {
       .btn.--outlined {
-        min-width: 3.6rem !important;
+        min-width: 36px !important;
         text-indent: -99999px; // stopped working for Safari 16
-        width: 3.6rem !important;
+        width: 36px !important;
 
         .btn__content {
           gap: 0;
         }
+      }
+    }
+    .ExploreHeader__right {
+      .show-hide-sql-btn {
+        min-width: 32px !important;
+        text-indent: -99999px;
+        width: 32px !important;
       }
     }
   }
@@ -174,7 +185,7 @@
   .dremioContent-rightCol {
     align-items: center;
     display: flex;
-    margin-right: 0.5rem;
+    margin-right: 5px;
 
     &__time {
       height: 100%;
@@ -203,13 +214,13 @@
     align-items: center;
     flex: 1 1 auto;
     display: flex;
-    margin: 0 1.2rem 1.6rem;
+    margin: 0 12px 16px;
     justify-content: space-between;
     transition: 300ms ease margin;
 
     &-nav {
       flex: 1 1 auto;
-      max-width: 25rem;
+      max-width: 250px;
       opacity: 1;
       transition: 300ms ease-out max-width, 300ms ease opacity;
       visibility: visible;
@@ -218,14 +229,14 @@
         position: relative;
         text-transform: uppercase;
         width: 50%;
-        padding: 2rem 0;
+        padding: 20px 0;
         text-align: center;
 
         &::after {
           background-color: @ELM;
           bottom: 0;
           content: "";
-          height: 0.3rem;
+          height: 3px;
           left: 0;
           position: absolute;
           width: 100%;
@@ -242,36 +253,36 @@
     min-width: 260px;
     &__heading {
       text-transform: uppercase;
-      font-size: 1.4rem;
-      padding: 1rem;
+      font-size: 14px;
+      padding: 10px;
     }
 
     .divider {
       background-color: @SECONDARY_200;
-      height: 0.1rem;
+      height: 1px;
       width: 100%;
     }
 
     &__list {
-      padding: 1rem;
+      padding: 10px;
       min-width: 160px;
       li {
         display: flex;
-        font-size: 1.4rem;
+        font-size: 14px;
         justify-content: space-between;
         align-items: center;
 
         &:not(:last-child) {
-          margin-bottom: 1rem;
+          margin-bottom: 10px;
         }
 
         span {
           background-color: @SECONDARY_200;
-          border-radius: 0.8rem;
+          border-radius: 8px;
           display: inline-block;
-          font-size: 1.4rem;
-          padding: 0.3rem 0.8rem;
-          height: 2.4rem;
+          font-size: 14px;
+          padding: 3px 8px;
+          height: 24px;
         }
       }
     }

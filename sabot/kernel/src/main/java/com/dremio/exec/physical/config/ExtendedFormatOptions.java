@@ -22,6 +22,20 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 
 @JsonTypeName("ExtendedFormatOptions")
 public class ExtendedFormatOptions {
+  /*
+  areStringTransformationsNeeded is a special flag variable that we use to keep track of whether certain string transformations
+  like NULL_IF are set in the query. This is useful to us in scenarios where we can follow optimised code paths with fewer steps
+  and save time.
+
+  One example of this in action is SchemaImposedOutput::writeValueInCurrentVector where we follow an optimised path
+  provided the following conditions are met:
+  1. The target column data type is VARCHAR
+  2. Transformations like NULL_IF are not used.
+
+  In future, if we add more string transformations or modify any existing ones, it is recommended that we also explore whether
+  this flag can be used in that case for any optimisations.
+   */
+  private Boolean areStringTransformationsNeeded = false;
   private Boolean trimSpace;
   private Boolean emptyAsNull = true;
   private String dateFormat;
@@ -88,6 +102,19 @@ public class ExtendedFormatOptions {
 
   public void setNullIfExpressions(final List<String> nullIfExpressions) {
     this.nullIfExpressions = nullIfExpressions;
+    // Check if nullIfExpressions is non-null and non-empty.
+    final boolean nullIfExpressionsContainsData = (nullIfExpressions != null && !nullIfExpressions.isEmpty());
+    // In case 'nullIfExpressionsContainsData' is false, we want to preserve areStringTransformationsNeeded's original value.
+    // Hence, use logical OR here while setting areStringTransformationsNeeded.
+    setAreStringTransformationsNeeded(areStringTransformationsNeeded || nullIfExpressionsContainsData);
+  }
+
+  public boolean getAreStringTransformationsNeeded() {
+    return areStringTransformationsNeeded;
+  }
+
+  private void setAreStringTransformationsNeeded(final Boolean areStringTransformationsNeeded) {
+    this.areStringTransformationsNeeded = areStringTransformationsNeeded;
   }
 
   @Override

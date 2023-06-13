@@ -33,5 +33,6 @@ public interface Sorter extends  AutoCloseable {
   public ExpandableHyperContainer getHyperBatch();
   public int getHyperBatchSize();
   public SelectionVector4 getFinalSort(BufferAllocator copyTargetAllocator, int targetBatchSize);
+  @Override
   public void close() throws Exception;
 }

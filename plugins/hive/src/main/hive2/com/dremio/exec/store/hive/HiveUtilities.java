@@ -55,7 +55,6 @@ import com.dremio.common.types.TypeProtos.DataMode;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.util.Closeable;
 import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.store.hive.deltalake.DeltaHiveInputFormat;
 import com.dremio.exec.work.ExecErrorConstants;
 import com.dremio.hive.proto.HiveReaderProto.Prop;
 import com.dremio.hive.proto.HiveReaderProto.SerializedInputSplit;
@@ -122,7 +121,7 @@ public class HiveUtilities {
    * @throws Exception
    */
   public static final Class<? extends InputFormat<?, ?>> getInputFormatClass(final JobConf jobConf, Optional<String> inputFormat,
-    Optional<String> storageHandlerName, final OptionManager options) throws Exception {
+    Optional<String> storageHandlerName) throws Exception {
     if (inputFormat.isPresent()) {
       return (Class<? extends InputFormat<?, ?>>) Class.forName(inputFormat.get());
     }
@@ -131,9 +130,6 @@ public class HiveUtilities {
       try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
         // HiveUtils.getStorageHandler() depends on the current context classloader if you query and HBase table,
         // and don't have an HBase session open.
-        if (DeltaHiveInputFormat.isDeltaTable(storageHandlerName.get(), options)) {
-          return DeltaHiveInputFormat.class;
-        }
         final HiveStorageHandler storageHandler = HiveUtils.getStorageHandler(jobConf, storageHandlerName.get());
         return (Class<? extends InputFormat<?, ?>>) storageHandler.getInputFormatClass();
       }

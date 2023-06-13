@@ -28,4 +28,8 @@ public class NessieNamespaceAlreadyExistsException extends RuntimeException {
   public NessieNamespaceAlreadyExistsException(Throwable cause) {
     super(cause);
   }
+
+  public NessieNamespaceAlreadyExistsException(String message) {
+    super(message);
+  }
 }

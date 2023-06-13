@@ -49,6 +49,7 @@ public class Folder implements CatalogEntity {
     return Iterables.getLast(getPath());
   }
 
+  @Override
   public String getId() {
     return id;
   }

@@ -125,6 +125,10 @@ public class BasicResourceAllocator implements ResourceAllocator {
     return resourceSchedulingResult;
   }
 
+  @Override
+  public void cancel(ResourceSchedulingContext queryContext) {
+  }
+
   protected QueueType getQueueNameFromSchedulingProperties(final ResourceSchedulingContext queryContext,
                                                         final ResourceSchedulingProperties resourceSchedulingProperties) {
     final Double cost = resourceSchedulingProperties.getQueryCost();

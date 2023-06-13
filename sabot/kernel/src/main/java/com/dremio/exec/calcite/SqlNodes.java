@@ -108,7 +108,9 @@ class PrinterVisitor implements SqlVisitor<Void> {
       case 9:
         return "fetch";
       default:
+        break;
       }
+      break;
     case ORDER_BY:
       switch(i) {
       case 0:
@@ -120,8 +122,11 @@ class PrinterVisitor implements SqlVisitor<Void> {
       case 3:
         return "fetch";
       default:
+        break;
       }
+      break;
     default:
+      break;
     }
     return String.valueOf(i);
   }

@@ -31,6 +31,8 @@ import { getEdition, getAboutMode } from "@inject/utils/versionUtils";
 import timeUtils from "utils/timeUtils";
 
 import { TabsNavigationItem } from "dremio-ui-lib";
+import config from "@inject/utils/config";
+
 import { clusterData, dremioLogo } from "./AboutModal.less";
 
 const numDaysBack = 7;
@@ -287,7 +289,10 @@ export default class AboutModal extends Component {
   render() {
     const { isOpen, hide, intl } = this.props;
     const { activeTab } = this.state;
-    const betaStyles = isBeta ? { background: "rgb(52, 66, 83)" } : {};
+    const betaStyles =
+      isBeta && config.whiteLabelUrl === "dremio"
+        ? { background: "rgb(52, 66, 83)" }
+        : {};
 
     return (
       <Modal

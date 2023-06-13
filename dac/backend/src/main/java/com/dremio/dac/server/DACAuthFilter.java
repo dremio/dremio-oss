@@ -15,6 +15,8 @@
  */
 package com.dremio.dac.server;
 
+import static com.dremio.dac.server.ContextualizedResourceMethodInvocationHandlerProvider.USER_CONTEXT_ATTRIBUTE;
+
 import java.util.List;
 import java.util.Map;
 
@@ -29,6 +31,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.Provider;
 
 import com.dremio.common.collections.Tuple;
+import com.dremio.context.UserContext;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.annotations.TemporaryAccess;
 import com.dremio.dac.model.usergroup.UserName;
@@ -62,6 +65,7 @@ public class DACAuthFilter implements ContainerRequestFilter {
       final UserName userName = getUserNameFromToken(requestContext);
       final User userConfig = userService.get().getUser(userName.getName());
       requestContext.setSecurityContext(new DACSecurityContext(userName, userConfig, requestContext));
+      requestContext.setProperty(USER_CONTEXT_ATTRIBUTE, new UserContext(userConfig.getUID().getId()));
     } catch (UserNotFoundException | NotAuthorizedException e) {
       requestContext.abortWith(Response.status(Response.Status.UNAUTHORIZED).build());
     }

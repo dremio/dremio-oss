@@ -1,28 +1,6 @@
-<svg id='data-types/TypeDateTime' viewBox="0 0 24 18" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:sketch="http://www.bohemiancoding.com/sketch/ns">
-    <!-- Generator: Sketch 3.5.1 (25234) - http://www.bohemiancoding.com/sketch -->
-    <desc>Created with Sketch.</desc>
-    <defs></defs>
-    <g id="Icons" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" sketch:type="MSPage">
-        <g id="Icon/Type-Date-Time" sketch:type="MSArtboardGroup">
-            <g sketch:type="MSLayerGroup">
-                <g id="icon-box-24-copy-10" sketch:type="MSShapeGroup">
-                    <rect id="icon-box-16" x="0" y="0" width="24" height="18"></rect>
-                </g>
-                <g id="Mini-Calendar" transform="translate(5.500000, 1.500000)" sketch:type="MSShapeGroup">
-                    <g id="Line-+-Line-Copy-2" transform="translate(2.500000, 0.500000)" stroke="#77818F" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M1.5,0.5 L1.5,2.5" id="Line"></path>
-                        <path d="M5.5,0.5 L5.5,2.5" id="Line-Copy-2"></path>
-                    </g>
-                    <g id="Group" transform="translate(0.000000, 2.000000)">
-                        <rect id="Rectangle-90-Copy" fill-opacity="0.25" fill="#77818F" x="0" y="0" width="12" height="3"></rect>
-                        <path d="M6,9 L0,9 L0,0 L12,0 L12,3" id="Line" stroke="#77818F" stroke-linecap="round" stroke-linejoin="round"></path>
-                    </g>
-                </g>
-                <g id="Mini-Clock" transform="translate(13.500000, 8.500000)" stroke="#77818F" stroke-linecap="round" sketch:type="MSShapeGroup" stroke-linejoin="round">
-                    <path d="M8,4 C8,6.2093913 6.20869565,8 4,8 C1.79026087,8 0,6.2093913 0,4 C0,1.7906087 1.79026087,0 4,0 C6.20869565,0 8,1.7906087 8,4 L8,4 Z" id="Stroke-3958"></path>
-                    <path d="M4,2.5 L4,3.875 L5.5,5.25" id="Stroke-3959"></path>
-                </g>
-            </g>
-        </g>
-    </g>
+<svg id="data-types/TypeDateTime" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M8.08333 3.75C8.08333 3.33579 7.74755 3 7.33333 3C6.91912 3 6.58333 3.33579 6.58333 3.75V5H5.25C3.45507 5 2 6.45507 2 8.25V17.75C2 19.5449 3.45507 21 5.25 21H11.8096C11.3832 20.5557 11.0194 20.051 10.7322 19.5H5.25C4.2835 19.5 3.5 18.7165 3.5 17.75V12.75H11.1902C11.5979 12.1736 12.0972 11.6666 12.6668 11.25L3.5 11.25V8.25C3.5 7.2835 4.2835 6.5 5.25 6.5H6.58333V7.75C6.58333 8.16421 6.91912 8.5 7.33333 8.5C7.74755 8.5 8.08333 8.16421 8.08333 7.75V6.5H15.9167V7.75C15.9167 8.16421 16.2525 8.5 16.6667 8.5C17.0809 8.5 17.4167 8.16421 17.4167 7.75V6.5H18.75C19.7165 6.5 20.5 7.2835 20.5 8.25V11.25H20.3332C20.9947 11.7338 21.5613 12.3396 22 13.0343V8.25C22 6.45508 20.5449 5 18.75 5H17.4167V3.75C17.4167 3.33579 17.0809 3 16.6667 3C16.2525 3 15.9167 3.33579 15.9167 3.75V5H8.08333V3.75Z" fill="#505862"/>
+<path d="M16 13.75C16.4142 13.75 16.75 14.0858 16.75 14.5V16.25H18C18.4142 16.25 18.75 16.5858 18.75 17C18.75 17.4142 18.4142 17.75 18 17.75H16C15.5858 17.75 15.25 17.4142 15.25 17V14.5C15.25 14.0858 15.5858 13.75 16 13.75Z" fill="#505862"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M16.5 22C19.5376 22 22 19.5376 22 16.5C22 13.4624 19.5376 11 16.5 11C13.4624 11 11 13.4624 11 16.5C11 19.5376 13.4624 22 16.5 22ZM16.5 20.5C18.7091 20.5 20.5 18.7091 20.5 16.5C20.5 14.2909 18.7091 12.5 16.5 12.5C14.2909 12.5 12.5 14.2909 12.5 16.5C12.5 18.7091 14.2909 20.5 16.5 20.5Z" fill="#505862"/>
 </svg>
+

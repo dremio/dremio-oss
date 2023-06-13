@@ -17,8 +17,8 @@
 import { APIV3Call } from "@app/core/APICall";
 import { getApiContext } from "dremio-ui-common/contexts/ApiContext.js";
 import {
-  ReflectionSummary,
-  ReflectionSummaryParams,
+  type ReflectionSummaries,
+  type ReflectionSummaryParams,
 } from "dremio-ui-common/sonar/types/ReflectionSummary.type.js";
 
 const reflectionSummaryUrl = (params: ReflectionSummaryParams) =>
@@ -51,47 +51,92 @@ type Params = {
   reflectionType?: ("RAW" | "AGGREGATION")[];
   refreshStatus?: [];
   reflectionNameOrDatasetPath?: string;
+  reflectionIds?: string[];
   sort?: [columnId: string, direction: string];
   pageSize: number;
   pageToken?: string;
 };
 
 const getFilterConfig = (params: Params) => {
-  //@ts-ignore
-  if (!params || params?.filter) return params;
-
-  const availabilityStatus = params.availabilityStatus
+  const availabilityStatus = (params.availabilityStatus || [])
     .map((x) => availabilityStatusMatrix[x].availabilityStatus)
     .filter(Boolean);
-  const configStatus = params.availabilityStatus
+  const configStatus = (params.availabilityStatus || [])
     .map((x) => availabilityStatusMatrix[x].configStatus)
     .filter(Boolean);
-  const enabledFlag = !params.availabilityStatus.some(
+  const enabledFlag = !(params.availabilityStatus || []).some(
     (x) => availabilityStatusMatrix[x].enabledFlag === false
   );
+  const filter = {
+    ...(params.reflectionNameOrDatasetPath && {
+      reflectionNameOrDatasetPath: encodeURIComponent(
+        params.reflectionNameOrDatasetPath
+      ),
+    }),
+    ...(availabilityStatus.length && { availabilityStatus }),
+    ...(configStatus.length && { configStatus }),
+    ...(params.reflectionType && { reflectionType: params.reflectionType }),
+    ...(!enabledFlag && { enabledFlag: false }),
+    ...(params.refreshStatus?.length && {
+      refreshStatus: params.refreshStatus,
+    }),
+    reflectionIds: params.reflectionIds,
+  };
   return {
-    maxResults: params.pageSize,
+    ...(params.pageSize && { maxResults: params.pageSize }),
     ...(params.pageToken && { pageToken: params.pageToken }),
-    filter: {
-      ...(params.reflectionNameOrDatasetPath && {
-        reflectionNameOrDatasetPath: params.reflectionNameOrDatasetPath,
-      }),
-      ...(availabilityStatus.length && { availabilityStatus }),
-      ...(configStatus.length && { configStatus }),
-      ...(params.reflectionType && { reflectionType: params.reflectionType }),
-      ...(!enabledFlag && { enabledFlag: false }),
-      ...(params.refreshStatus?.length && {
-        refreshStatus: params.refreshStatus,
-      }),
-    },
+    filter: getApiContext().doubleEncodeJsonParam
+      ? encodeURIComponent(JSON.stringify(filter))
+      : filter,
     ...(params.sort && { orderBy: getSortString(...params.sort) }),
   };
 };
 
+const extractJobLinkFilters = (
+  reflectionSummaries: ReflectionSummaries
+): ReflectionSummaries => {
+  const result = {
+    ...reflectionSummaries,
+    data: reflectionSummaries.data.map((reflectionSummary) => {
+      return {
+        ...reflectionSummary,
+        chosenJobsFilters: reflectionSummary.chosenJobsLink
+          ? JSON.parse(
+              decodeURIComponent(
+                reflectionSummary.chosenJobsLink.replace("/jobs?filters=", "")
+              )
+            )
+          : null,
+        consideredJobsFilters: reflectionSummary.consideredJobsLink
+          ? JSON.parse(
+              decodeURIComponent(
+                reflectionSummary.consideredJobsLink.replace(
+                  "/jobs?filters=",
+                  ""
+                )
+              )
+            )
+          : null,
+        matchedJobsFilters: reflectionSummary.matchedJobsLink
+          ? JSON.parse(
+              decodeURIComponent(
+                reflectionSummary.matchedJobsLink.replace("/jobs?filters=", "")
+              )
+            )
+          : null,
+      };
+    }),
+  };
+  return result;
+};
+
 export const getReflectionSummary = async (
   params: Params
-): Promise<ReflectionSummary> => {
+): Promise<ReflectionSummaries> => {
   return getApiContext()
     .fetch(reflectionSummaryUrl(getFilterConfig(params)))
-    .then((res) => res.json());
+    .then((res) => res.json())
+    .then((reflectionSummaries: ReflectionSummaries) =>
+      extractJobLinkFilters(reflectionSummaries)
+    );
 };

@@ -17,11 +17,14 @@ package com.dremio.exec.planner.sql.handlers;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -32,6 +35,8 @@ import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Aggregate;
+import org.apache.calcite.rel.core.Join;
+import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.SetOp;
 import org.apache.calcite.rel.core.Window;
@@ -52,6 +57,8 @@ import org.apache.calcite.rex.RexVisitor;
 import org.apache.calcite.rex.RexVisitorImpl;
 import org.apache.calcite.rex.RexWindowBound;
 import org.apache.calcite.sql.SqlAggFunction;
+import org.apache.calcite.sql.SqlExplainLevel;
+import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql2rel.RelFieldTrimmer;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.util.ImmutableBitSet;
@@ -62,43 +69,56 @@ import org.apache.calcite.util.mapping.Mapping;
 import org.apache.calcite.util.mapping.MappingType;
 import org.apache.calcite.util.mapping.Mappings;
 
+import com.dremio.common.collections.Tuple;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.calcite.logical.SampleCrel;
 import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.calcite.logical.TableModifyCrel;
-import com.dremio.exec.planner.logical.DremioRelFactories;
+import com.dremio.exec.planner.common.FlattenRelBase;
 import com.dremio.exec.planner.logical.FlattenVisitors;
 import com.dremio.exec.planner.logical.LimitRel;
 import com.dremio.exec.planner.logical.WindowRel;
 import com.dremio.exec.planner.logical.partition.PruneFilterCondition;
 import com.dremio.exec.store.dfs.FilesystemScanDrel;
 import com.dremio.service.Pointer;
+import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-public class DremioFieldTrimmer extends RelFieldTrimmer {
+public final class DremioFieldTrimmer extends RelFieldTrimmer {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioFieldTrimmer.class);
 
+  private static final Double ONE = new Double(1);
+
   private final RelBuilder builder;
-  private final boolean isRelPlanning;
-  private final boolean trimProjectedColumn;
+  private final DremioFieldTrimmerParameters parameters;
 
-  public static DremioFieldTrimmer of(RelOptCluster cluster, boolean isRelPlanning, boolean trimProjectedColumn) {
-    RelBuilder builder = DremioRelFactories.CALCITE_LOGICAL_BUILDER.create(cluster, null);
-    return new DremioFieldTrimmer(builder, isRelPlanning, trimProjectedColumn);
-  }
-
-  public static DremioFieldTrimmer of(RelBuilder builder) {
-    return new DremioFieldTrimmer(builder, false, true);
-  }
-
-  private DremioFieldTrimmer(RelBuilder builder, boolean isRelPlanning, boolean trimProjectedColumn) {
+  public DremioFieldTrimmer(
+    RelBuilder builder,
+    DremioFieldTrimmerParameters parameters) {
     super(null, builder);
     this.builder = builder;
-    this.isRelPlanning = isRelPlanning;
-    this.trimProjectedColumn = trimProjectedColumn;
+    this.parameters = parameters;
+  }
+
+  @Override
+  public RelNode trim(RelNode root) {
+    if (!parameters.shouldLog()) {
+      return super.trim(root);
+    }
+
+    Stopwatch stopwatch = Stopwatch.createStarted();
+    RelNode trimmedNode = super.trim(root);
+    stopwatch.stop();
+
+    String plan = RelOptUtil.toString(root, SqlExplainLevel.ALL_ATTRIBUTES);
+    long duration = stopwatch.elapsed(TimeUnit.MILLISECONDS);
+    String logMessage = String.format("FieldTrimmer took %dms for the following RelNode:\n%s", duration, plan);
+    logger.debug(logMessage);
+
+    return trimmedNode;
   }
 
   public TrimResult trimFields(
@@ -165,7 +185,7 @@ public class DremioFieldTrimmer extends RelFieldTrimmer {
       ImmutableBitSet fieldsUsed,
       Set<RelDataTypeField> extraFields) {
 
-    if(fieldsUsed.cardinality() == crel.getRowType().getFieldCount() || !trimProjectedColumn) {
+    if (fieldsUsed.cardinality() == crel.getRowType().getFieldCount() || !parameters.trimProjectedColumn()) {
       return result(crel, Mappings.createIdentity(crel.getRowType().getFieldCount()));
     }
 
@@ -203,7 +223,7 @@ public class DremioFieldTrimmer extends RelFieldTrimmer {
     Set<RelDataTypeField> extraFields) {
 
     // if we've already pushed down projection of nested columns, we don't want to trim anymore
-    if (drel.getProjectedColumns().stream().anyMatch(c -> !c.isSimplePath()) || !trimProjectedColumn) {
+    if (drel.getProjectedColumns().stream().anyMatch(c -> !c.isSimplePath()) || !parameters.trimProjectedColumn()) {
       return result(drel, Mappings.createIdentity(drel.getRowType().getFieldCount()));
     }
 
@@ -291,6 +311,44 @@ public class DremioFieldTrimmer extends RelFieldTrimmer {
     return super.trimFields(setOp, fieldsUsed, extraFields);
   }
 
+  /**
+   * Handler method to trim fields for @FlattenCrel
+   * @param flatten
+   * @param fieldsUsed
+   * @param extraFields
+   * @return
+   */
+  public TrimResult trimFields(FlattenRelBase flatten, ImmutableBitSet fieldsUsed, Set<RelDataTypeField> extraFields) {
+    final RelDataType rowType = flatten.getRowType();
+    final int fieldCount = rowType.getFieldCount();
+    final RelNode input = flatten.getInput();
+
+    // We use the fields used by the consumer, plus any fields used in the
+    // flatten.
+    final ImmutableBitSet inputFieldsUsed = fieldsUsed.union(ImmutableBitSet.of(flatten.getFlattenedIndices()));
+
+    TrimResult trimResult = trimChild(flatten, input, inputFieldsUsed, extraFields);
+    RelNode newInput = trimResult.left;
+    final Mapping inputMapping = trimResult.right;
+
+    //When input didn't change and we have to project all the columns as before.
+    if (newInput == input
+      && fieldsUsed.cardinality() == fieldCount) {
+      return result(flatten, Mappings.createIdentity(fieldCount));
+    }
+
+    final RexVisitor<RexNode> shuttle = new RexPermuteInputsShuttle(inputMapping, newInput);
+
+    final List<RexInputRef> flattenFields = new ArrayList<>();
+
+    // Update flatten fields in case if the input fields have changed the mapping.
+    for(final RexInputRef flattenField : flatten.getToFlatten()){
+      flattenFields.add((RexInputRef) flattenField.accept(shuttle));
+    }
+
+    return result(flatten.copy(Arrays.asList(newInput), flattenFields), inputMapping);
+  }
+
   @Override
   public TrimResult trimFields(Project project, ImmutableBitSet fieldsUsed, Set<RelDataTypeField> extraFields) {
     int count = FlattenVisitors.count(project.getProjects());
@@ -300,7 +358,7 @@ public class DremioFieldTrimmer extends RelFieldTrimmer {
 
     // if it is rel planning mode, removing top project would generate wrong sql query.
     // make sure to have a top project after trimming
-    if (isRelPlanning && !(result.left instanceof Project)) {
+    if (parameters.isRelPlanning() && !(result.left instanceof Project)) {
       List<RexNode> identityProject = new ArrayList<>();
       for (int i = 0; i < result.left.getRowType().getFieldCount(); i++) {
         identityProject.add(new RexInputRef(i, result.left.getRowType().getFieldList().get(i).getType()));
@@ -404,6 +462,257 @@ public class DremioFieldTrimmer extends RelFieldTrimmer {
       return result(limit, Mappings.createIdentity(fieldCount));
     }
     return result(limit.copy(newInput.getTraitSet(), ImmutableList.of(newInput)), inputMapping);
+  }
+
+  /**
+   * Variant of {@link #trimFields(RelNode, ImmutableBitSet, Set)} for
+   * {@link org.apache.calcite.rel.logical.LogicalJoin}.
+   * Checks to see that we are projecting from a single side of the JOIN that doesn't modify the output rows.
+   * If so, then we remove the join and recurse onto the side we are projecting from.
+   */
+  @Override
+  public TrimResult trimFields(
+    Join join,
+    ImmutableBitSet fieldsUsed,
+    Set<RelDataTypeField> extraFields) {
+    if (!parameters.trimJoinBranch()) {
+      return super.trimFields(join, fieldsUsed, extraFields);
+    }
+
+    Optional<Tuple<RelNode, Mapping>> optionalTrimResult = tryTrimJoin(join, fieldsUsed);
+    if (!optionalTrimResult.isPresent()) {
+      return super.trimFields(join, fieldsUsed, extraFields);
+    }
+
+    Tuple<RelNode, Mapping> trimResult = optionalTrimResult.get();
+    return result(trimResult.first, trimResult.second);
+  }
+
+  private static Optional<Tuple<RelNode, Mapping>> tryTrimJoin(
+    Join join,
+    ImmutableBitSet fieldsUsed) {
+    /**
+     * The internal algorithm checks to see if we have a JOIN that can be removed.
+     * It does so by asking:
+     * 1) Are we projecting from the side that is being JOINed on?
+     * 2) Is the JOIN NOT modifying the rows emitted?
+     *
+     * If we answer yes to all of these, then we can remove the JOIN
+     */
+    if (!join.getSystemFieldList().isEmpty()) {
+      // If there are system fields, then we can't apply the optimization
+      return Optional.empty();
+    }
+
+    Optional<JoinRelType> optionalProjectType = tryGetProjectType(join, fieldsUsed);
+    if (!optionalProjectType.isPresent()) {
+      return Optional.empty();
+    }
+
+    JoinRelType projectType = optionalProjectType.get();
+    if (!joinTypeCompatibleWithProjectType(join, projectType)) {
+      return Optional.empty();
+    }
+
+    // At this point we know the JOIN will not DECREASE the cardinality
+    // We need to also check that the JOIN will not INCREASE the cardinality
+    // This is done by making sure the JOIN condition matches the elements from the left table
+    // with at most one element in the right table.
+    if (!isJoinConditionOneToOne(join, projectType)) {
+      return Optional.empty();
+    }
+
+    final RelNode mainBranch = projectType == JoinRelType.LEFT ? join.getLeft() : join.getRight();
+    Mapping mapping = Mappings.create(
+      MappingType.SURJECTION,
+      join.getRowType().getFieldCount(),
+      mainBranch.getRowType().getFieldCount());
+    if (projectType == JoinRelType.LEFT) {
+      for (int i = 0; i < mainBranch.getRowType().getFieldCount(); i++) {
+        mapping.set(i, i);
+      }
+    } else {
+      int leftFieldCount = join.getLeft().getRowType().getFieldCount();
+      for (int i = 0; i < mainBranch.getRowType().getFieldCount(); i++) {
+        mapping.set(i + leftFieldCount, i);
+      }
+    }
+
+    return Optional.of(Tuple.of(mainBranch, mapping));
+  }
+
+  /**
+   * Tries to return the side we are projecting from.
+   * @param join
+   * @param fieldsUsed
+   * @return The side we are projecting from (LEFT, RIGHT, or EMPTY if both).
+   */
+  private static Optional<JoinRelType> tryGetProjectType(Join join, ImmutableBitSet fieldsUsed) {
+    int minFieldIndex = Integer.MAX_VALUE;
+    int maxFiledIndex = -1;
+    for (int index : fieldsUsed) {
+      minFieldIndex = Math.min(minFieldIndex, index);
+      maxFiledIndex = Math.max(maxFiledIndex, index);
+    }
+
+    int numLeftColumns = join.getLeft().getRowType().getFieldCount();
+    boolean projectsFromBothSides = (minFieldIndex < numLeftColumns) && (maxFiledIndex >= numLeftColumns);
+    if (projectsFromBothSides) {
+      return Optional.empty();
+    }
+
+    boolean isLeftOnlyJoin = (minFieldIndex < numLeftColumns) && (maxFiledIndex < numLeftColumns);
+    JoinRelType projectType = isLeftOnlyJoin ? JoinRelType.LEFT : JoinRelType.RIGHT;
+    return Optional.of(projectType);
+  }
+
+  private static boolean joinTypeCompatibleWithProjectType(Join join,  JoinRelType projectType) {
+    switch (join.getJoinType()) {
+    case FULL:
+      // A full join will have all the rows from both the LEFT and RIGHT table
+      return true;
+
+    case INNER:
+      // This is the same as a FULL JOIN
+      return join.getCondition().isAlwaysTrue();
+
+    case LEFT:
+      return projectType == JoinRelType.LEFT;
+
+    case RIGHT:
+      return projectType == JoinRelType.RIGHT;
+
+    default:
+      // We don't know how to support these other join types yet.
+      return false;
+    }
+  }
+
+  private static boolean isJoinConditionOneToOne(Join join, JoinRelType projectType) {
+    final RelNode sideBranch = projectType == JoinRelType.LEFT ? join.getRight() : join.getLeft();
+    // We need metadata query to do any row count operations,
+    // so if it's not available, then just give up.
+    if (sideBranch.getCluster() == null || sideBranch.getCluster().getMetadataQuery() == null) {
+      return false;
+    }
+
+    RexNode condition = join.getCondition();
+    boolean isOneToOne;
+    if (condition.isAlwaysTrue()) {
+      isOneToOne = ONE.equals(sideBranch.getCluster().getMetadataQuery().getMaxRowCount(sideBranch))
+        && ONE.equals(sideBranch.getCluster().getMetadataQuery().getMinRowCount(sideBranch));
+    } else if (condition instanceof RexCall) {
+      RexCall rexCall = (RexCall) condition;
+      isOneToOne = isJoinConditionOneToOneRexCall(join, rexCall, sideBranch);
+    } else {
+      isOneToOne = false;
+    }
+
+    return isOneToOne;
+  }
+
+  private static boolean isJoinConditionOneToOneRexCall(Join join, RexCall condition, RelNode sideBranch) {
+    switch (condition.getKind()) {
+    case EQUALS:
+      return isJoinConditionOneToOneRexCallEquals(join, condition, sideBranch);
+    case AND:
+      return isJoinConditionOneToOneRexCallAnd(join, condition, sideBranch);
+    default:
+      return false;
+    }
+  }
+
+  private static boolean isJoinConditionOneToOneRexCallEquals(Join join, RexCall condition, RelNode sideBranch) {
+    assert condition.getKind() == SqlKind.EQUALS;
+    // We need to have an equi join on the sideBranch with only unique values
+    // Example:
+    //     JoinRel(condition=[=($0, $2)], joinType=[left])"
+    //       ProjectRel(col1=[$0], col2=[$1])"
+    //         FilesystemScanDrel(table=[cp.\"dx56085/t1.json\"], columns=[`col1`, `col2`], splits=[1])"
+    //       AggregateRel(group=[{0}])"
+    // We know that =($0, $2) can match at most one value, since $2 is a groupkey
+    Optional<Integer> optionalSideBranchEqualityIndex = tryGetSideBranchEqualityIndex(join, condition, sideBranch);
+    if (!optionalSideBranchEqualityIndex.isPresent()) {
+      return false;
+    }
+
+    int sideBranchEqualityIndex = optionalSideBranchEqualityIndex.get();
+    ImmutableBitSet columns = ImmutableBitSet
+      .builder()
+      .addAll(ImmutableList.of(sideBranchEqualityIndex))
+      .build();
+
+    return Boolean.TRUE.equals(sideBranch
+      .getCluster()
+      .getMetadataQuery()
+      .areColumnsUnique(sideBranch, columns));
+  }
+
+  private static boolean isJoinConditionOneToOneRexCallAnd(Join join, RexCall condition, RelNode sideBranch) {
+    assert condition.getKind() == SqlKind.AND;
+    // If the condition is the AND of a bunch of equality checks that when unioned span unique column sets
+    // Then we can remove the JOIN
+    // For example:
+    //   ProjectRel(col1=[$0])"
+    //     JoinRel(condition=[AND(=($0, $2), =($1, $3))], joinType=[left])"
+    //       FilesystemScanDrel(table=[cp.\"dx56085/t1.json\"], columns=[`col1`, `col2`], splits=[1])"
+    //       AggregateRel(group=[{0, 1}])"
+    //         FilesystemScanDrel(table=[cp.\"dx56085/t2.json\"], columns=[`col1`, `col2`], splits=[1])"
+    // Is doing an equality check on $2 and $3 which when combined gets us the full group=[{0, 1}] which is unique
+    List<Integer> columns = condition
+      .getOperands()
+      .stream()
+      .map(operand -> tryGetSideBranchEqualityIndex(join, operand, sideBranch))
+      .filter(optional -> optional.isPresent())
+      .map(optional -> optional.get())
+      .collect(Collectors.toList());
+
+    ImmutableBitSet columnBitSet = ImmutableBitSet
+      .builder()
+      .addAll(columns)
+      .build();
+
+    return Boolean.TRUE.equals(sideBranch
+      .getCluster()
+      .getMetadataQuery()
+      .areColumnsUnique(sideBranch, columnBitSet));
+  }
+
+  private static Optional<Integer> tryGetSideBranchEqualityIndex(Join join, RexNode condition, RelNode sideBranch) {
+    if (condition.getKind() != SqlKind.EQUALS) {
+      return Optional.empty();
+    }
+
+    RexCall equalsConditon = (RexCall) condition;
+    if (equalsConditon.getOperands().size() != 2) {
+      throw new UnsupportedOperationException("Expected equals condition to have exactly 2 operands.");
+    }
+
+    for (RexNode operand : equalsConditon.getOperands()) {
+      if (!(operand instanceof RexInputRef)) {
+        return Optional.empty();
+      }
+    }
+
+    int leftIndex = ((RexInputRef)equalsConditon.getOperands().get(0)).getIndex();
+    int rightIndex = ((RexInputRef)equalsConditon.getOperands().get(1)).getIndex();
+    if (leftIndex > rightIndex) {
+      int temp = leftIndex;
+      leftIndex = rightIndex;
+      rightIndex = temp;
+    }
+
+    int numLeftColumns = join.getLeft().getRowType().getFieldCount();
+    if ((leftIndex >= numLeftColumns) || (rightIndex < numLeftColumns)) {
+      return Optional.empty();
+    }
+
+    // We want the index of the column participating in the join condition on the side branch
+    // If the side branch is the right join,
+    // then we need to adjust the index to be relative side branch,
+    // since it's currently relative to the whole join.
+    int adjustedIndex = sideBranch.equals(join.getRight()) ? rightIndex - numLeftColumns : leftIndex;
+    return Optional.of(adjustedIndex);
   }
 
   /**

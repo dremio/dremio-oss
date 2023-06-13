@@ -102,6 +102,7 @@ public abstract class BaseHiveStoragePluginConfig<T extends ConnectionConf<T, P>
   @DisplayMetadata(label = "Default CTAS Format")
   public DefaultCtasFormatSelection defaultCtasFormat = DefaultCtasFormatSelection.ICEBERG;
 
+  @Override
   public String getDefaultCtasFormat() {
     return defaultCtasFormat.getDefaultCtasFormat();
   }

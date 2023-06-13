@@ -16,10 +16,10 @@
 package com.dremio.dac.cmd;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.File;
@@ -32,11 +32,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+import javax.annotation.Nonnull;
+
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.hadoop.conf.Configuration;
-import org.jetbrains.annotations.NotNull;
 import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -157,8 +157,7 @@ public class ITBackupManager extends BaseTestServer {
       return Arrays.asList("json", "binary");
   }
 
-  @Test
-  public void testBackup() throws Exception {
+  private void testBackup(String compression) throws Exception {
     boolean binary = "binary".equals(mode);
     int httpPort = getCurrentDremioDaemon().getWebServer().getPort();
     DACConfig dacConfig = ITBackupManager.dacConfig.httpPort(httpPort);
@@ -170,7 +169,7 @@ public class ITBackupManager extends BaseTestServer {
     // take backup 1
     CheckPoint cp1 = checkPoint();
     Path backupDir1 = Path.of(BackupRestoreUtil.createBackup(
-      fs, new BackupOptions(BaseTestServer.folder1.newFolder().getAbsolutePath(), binary, false),
+      fs, new BackupOptions(BaseTestServer.folder1.newFolder().getAbsolutePath(), binary, false, compression),
       localKVStoreProvider, homeFileStore, null).getBackupPath());
 
     // add dataset, delete dataset, upload file
@@ -191,7 +190,7 @@ public class ITBackupManager extends BaseTestServer {
     // take backup 2 using rest api
     final URI backupPath = BaseTestServer.folder1.newFolder().getAbsoluteFile().toURI();
     Path backupDir2 = Path.of(
-      Backup.createBackup(dacConfig, () -> null, DEFAULT_USERNAME, DEFAULT_PASSWORD, false, backupPath, binary, false)
+      Backup.createBackup(dacConfig, () -> null, DEFAULT_USERNAME, DEFAULT_PASSWORD, false, backupPath, binary, false, compression)
       .getBackupPath());
 
     // destroy everything
@@ -255,6 +254,31 @@ public class ITBackupManager extends BaseTestServer {
       fail("@tshiran.comma should not be present in backup1");
     } catch (NamespaceNotFoundException e) {
     }
+  }
+
+  /**
+   * Test backup and restore for all the compression methods available.
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testBackup() throws Exception {
+    testBackup("");
+  }
+
+  @Test
+  public void testSnappyCompressionBackup() throws Exception {
+    testBackup("snappy");
+  }
+
+  @Test
+  public void testLZ4CompressionBackup() throws Exception {
+    testBackup("lz4");
+  }
+
+  @Test
+  public void testNullCompressionBackup() throws Exception {
+    testBackup(null);
   }
 
   /**
@@ -341,7 +365,7 @@ public class ITBackupManager extends BaseTestServer {
     final String tempPath = TEMP_FOLDER.getRoot().getAbsolutePath();
 
     Path backupDir1 = Path.of(BackupRestoreUtil.createBackup(
-      fs, new BackupOptions(BaseTestServer.folder1.newFolder().getAbsolutePath(), binary, false),
+      fs, new BackupOptions(BaseTestServer.folder1.newFolder().getAbsolutePath(), binary, false, ""),
       localKVStoreProvider, homeFileStore, null).getBackupPath());
 
     // Do some things
@@ -417,7 +441,7 @@ public class ITBackupManager extends BaseTestServer {
     startDaemon(dacConfig);
   }
 
-  @NotNull
+  @Nonnull
   private static Optional<java.nio.file.Path> findLastModifiedBackup(String workingDir) throws IOException {
     try (Stream<java.nio.file.Path> stream = java.nio.file.Files.list(Paths.get(workingDir))) {
       return stream
@@ -465,19 +489,18 @@ public class ITBackupManager extends BaseTestServer {
     private List<SpaceConfig> spaces;
     private List<HomeConfig> homes;
     private List<DatasetConfig> datasets;
-    private List<? extends User> users;
+    private List<User> users;
     private List<VirtualDatasetUI> virtualDatasetVersions;
     private List<JobSummary> jobs;
 
     private void checkEquals(CheckPoint o) {
-      assertTrue(CollectionUtils.isEqualCollection(sources, o.sources));
-      assertTrue(CollectionUtils.isEqualCollection(spaces, o.spaces));
-      assertTrue(CollectionUtils.isEqualCollection(homes, o.homes));
-      assertTrue(CollectionUtils.isEqualCollection(datasets, o.datasets));
-      assertTrue(CollectionUtils.isEqualCollection(users, o.users));
-      assertTrue(CollectionUtils.isEqualCollection(virtualDatasetVersions, o.virtualDatasetVersions));
-      assertTrue(CollectionUtils.isEqualCollection(jobs, o.jobs));
+      assertThat(sources).containsExactlyInAnyOrderElementsOf(o.sources);
+      assertThat(spaces).containsExactlyInAnyOrderElementsOf(o.spaces);
+      assertThat(homes).containsExactlyInAnyOrderElementsOf(o.homes);
+      assertThat(datasets).containsExactlyInAnyOrderElementsOf(o.datasets);
+      assertThat(users).containsExactlyInAnyOrderElementsOf(o.users);
+      assertThat(virtualDatasetVersions).containsExactlyInAnyOrderElementsOf(o.virtualDatasetVersions);
+      assertThat(jobs).containsExactlyInAnyOrderElementsOf(o.jobs);
     }
   }
-
 }

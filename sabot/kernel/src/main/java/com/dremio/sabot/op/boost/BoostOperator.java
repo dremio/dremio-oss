@@ -125,8 +125,8 @@ public class BoostOperator extends ScanOperator {
     state.is(State.CAN_PRODUCE);
     currentReader.allocate(fieldVectorMap);
 
-    int recordCount;
-    if ((recordCount = currentReader.next()) == 0) {
+    int recordCount = currentReader.next();
+    if (recordCount == 0) {
       if (!readers.hasNext()) {
         // We're on the last reader, and it has no (more) rows.
         // no need to close the reader (will be done when closing the operator)

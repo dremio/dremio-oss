@@ -44,8 +44,9 @@ public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall 
   public static final SqlSpecialOperator CREATE_EMPTY_TABLE_OPERATOR = new SqlSpecialOperator("CREATE_EMPTY_TABLE", SqlKind.OTHER_DDL) {
     @Override
     public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 11, "SqlCreateEmptyTable.createCall() " +
-        "has to get 11 operands!");
+      Preconditions.checkArgument(operands.length == 13, "SqlCreateEmptyTable.createCall() " +
+              "has to get 13 operands!");
+
 
       if (((SqlNodeList) operands[1]).getList().size() == 0) {
         throw UserException.parseError().message("Columns/Fields not specified for table.").buildSilently();
@@ -69,7 +70,9 @@ public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall 
         (SqlLiteral) operands[6],
         (SqlNodeList) operands[7],
         (SqlNodeList) operands[8],
-        (SqlPolicy) operands[10]);
+        (SqlPolicy) operands[10],
+        (SqlNodeList) operands[11],
+        (SqlNodeList) operands[12]);
     }
   };
 
@@ -84,6 +87,8 @@ public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall 
   protected final SqlPolicy policy;
   protected final SqlLiteral singleWriter;
   protected final boolean ifNotExists;
+  protected final SqlNodeList tablePropertyNameList;
+  protected final SqlNodeList tablePropertyValueList;
 
   public SqlCreateEmptyTable(
     SqlParserPos pos,
@@ -97,7 +102,9 @@ public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall 
     SqlLiteral singleWriter,
     SqlNodeList sortFieldList,
     SqlNodeList distributionColumns,
-    SqlPolicy policy) {
+    SqlPolicy policy,
+    SqlNodeList  tablePropertyNameList,
+    SqlNodeList  tablePropertyValueList) {
     super(pos);
     this.tblName = tblName;
     this.fieldList = fieldList;
@@ -110,6 +117,8 @@ public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall 
     this.distributionColumns = distributionColumns;
     this.ifNotExists = ifNotExists;
     this.policy = policy;
+    this.tablePropertyNameList = tablePropertyNameList;
+    this.tablePropertyValueList = tablePropertyValueList;
   }
 
   @Override
@@ -131,6 +140,8 @@ public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall 
     ops.add(distributionColumns);
     ops.add(SqlLiteral.createBoolean(ifNotExists, SqlParserPos.ZERO));
     ops.add(policy);
+    ops.add(tablePropertyNameList);
+    ops.add(tablePropertyValueList);
     return ops;
   }
 
@@ -190,12 +201,25 @@ public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall 
       writer.keyword("POLICY");
       policy.unparse(writer, leftPrec, rightPrec);
     }
+    if(tablePropertyNameList != null) {
+      writer.keyword("TBLPROPERTIES");
+      writer.keyword("(");
+      for (int i = 0; i < tablePropertyNameList.size(); i++) {
+        if (i > 0) {
+          writer.keyword(",");
+        }
+        tablePropertyNameList.get(i).unparse(writer, leftPrec, rightPrec);
+        tablePropertyValueList.get(i).unparse(writer, leftPrec, rightPrec);
+      }
+      writer.keyword(")");
+    }
   }
 
   public NamespaceKey getPath() {
     return new NamespaceKey(tblName.names);
   }
 
+  @Override
   public List<String> getFieldNames() {
     List<String> columnNames = Lists.newArrayList();
     for (SqlNode node : fieldList.getList()) {
@@ -213,6 +237,7 @@ public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall 
     return null;
   }
 
+  @Override
   public List<String> getSortColumns() {
     List<String> columnNames = Lists.newArrayList();
     for(SqlNode node : sortColumns.getList()) {
@@ -221,6 +246,7 @@ public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall 
     return columnNames;
   }
 
+  @Override
   public List<String> getDistributionColumns() {
     List<String> columnNames = Lists.newArrayList();
     for(SqlNode node : distributionColumns.getList()) {
@@ -255,6 +281,14 @@ public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall 
       .collect(Collectors.toList());
   }
 
+  public List<String> getTablePropertyNameList() {
+    return tablePropertyNameList.getList().stream().map(x -> ((SqlLiteral)x).toValue()).collect(Collectors.toList());
+  }
+
+  public List<String> getTablePropertyValueList() {
+    return tablePropertyValueList.getList().stream().map(x -> ((SqlLiteral)x).toValue()).collect(Collectors.toList());
+  }
+
   public SqlNodeList getFieldList() {
     return fieldList;
   }
@@ -275,10 +309,12 @@ public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall 
     return ifNotExists;
   }
 
+  @Override
   public boolean isSingleWriter() {
     return singleWriter.booleanValue();
   }
 
+  @Override
   public PartitionDistributionStrategy getPartitionDistributionStrategy(
     SqlHandlerConfig config, List<String> partitionFieldNames, Set<String> fieldNames) {
     return partitionDistributionStrategy;

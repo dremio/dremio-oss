@@ -29,7 +29,6 @@ import com.dremio.exec.catalog.ResolvedVersionContext;
 import com.dremio.exec.catalog.TableMutationOptions;
 import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
-import com.dremio.exec.planner.sql.parser.SqlRollbackTable;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -69,7 +68,7 @@ public abstract class TableManagementDirectHandler extends SimpleDirectHandler {
     final String sourceName = path.getRoot();
     final VersionContext sessionVersion = config.getContext().getSession().getSessionVersionForSource(sourceName);
     ResolvedVersionContext resolvedVersionContext = CatalogUtil.resolveVersionContext(catalog, sourceName, sessionVersion);
-    CatalogUtil.validateResolvedVersionIsBranch(resolvedVersionContext, path.toString());
+    CatalogUtil.validateResolvedVersionIsBranch(resolvedVersionContext);
     TableMutationOptions tableMutationOptions = TableMutationOptions.newBuilder()
       .setResolvedVersionContext(resolvedVersionContext)
       .build();
@@ -89,6 +88,6 @@ public abstract class TableManagementDirectHandler extends SimpleDirectHandler {
   protected void checkValidations(Catalog catalog, SqlHandlerConfig config, NamespaceKey path) throws Exception {
     validateFeatureEnabled(config);
     validatePrivileges(catalog, path, config.getContext().getQueryUserName());
-    IcebergUtils.checkTableExistenceAndMutability(catalog, config, path, SqlRollbackTable.OPERATOR, false);
+    IcebergUtils.checkTableExistenceAndMutability(catalog, config, path, getSqlOperator(), false);
   }
 }

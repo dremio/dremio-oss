@@ -27,6 +27,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.complex.ListVector;
@@ -34,14 +35,12 @@ import org.apache.arrow.vector.complex.impl.UnionListWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.iceberg.ContentFile;
-import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DremioManifestReaderUtils.ManifestEntryWrapper;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Types;
 
-import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.physical.config.TableFunctionContext;
@@ -59,12 +58,14 @@ public class DataFileContentReader implements ManifestEntryProcessor {
   private Schema fileSchema;
   private PartitionSpec icebergPartitionSpec;
   private boolean doneWithCurrentDatafile;
-  private final ArrowBuf tmpBuf;
   private Map<Integer, Type> idTypeMap;
+  private ArrowBuf tmpBuf;
+  private BufferManager bufferManager;
 
   public DataFileContentReader(OperatorContext context, TableFunctionContext functionContext) {
     outputSchema = functionContext.getFullSchema();
-    tmpBuf = context.getAllocator().buffer(4096);
+    bufferManager = context.getBufferManager();
+    tmpBuf = bufferManager.getManagedBuffer(4096);
   }
 
   @Override
@@ -87,7 +88,7 @@ public class DataFileContentReader implements ManifestEntryProcessor {
   }
 
   @Override
-  public void initialise(PartitionSpec partitionSpec) {
+  public void initialise(PartitionSpec partitionSpec, int row) {
     icebergPartitionSpec = partitionSpec;
     fileSchema = icebergPartitionSpec.schema();
     idTypeMap = fileSchema.columns().stream().collect(
@@ -99,7 +100,7 @@ public class DataFileContentReader implements ManifestEntryProcessor {
    */
   @Override
   public int processManifestEntry(ManifestEntryWrapper<? extends ContentFile<?>> manifestEntry, int startOutIndex, int maxOutputCount) {
-    DataFile currentDataFile = (DataFile) manifestEntry.file();
+    ContentFile currentDataFile = manifestEntry.file();
     if (!shouldProcessCurrentDatafile(maxOutputCount)) {
       return 0;
     }
@@ -119,7 +120,7 @@ public class DataFileContentReader implements ManifestEntryProcessor {
     return 1;
   }
 
-  private Supplier<Object> getFieldValueSupplier(String fieldName, DataFile currentDataFile) {
+  private Supplier<Object> getFieldValueSupplier(String fieldName, ContentFile currentDataFile) {
     switch (fieldName){
       case "content": return () -> currentDataFile.content().name();
       case "file_path":
@@ -212,7 +213,7 @@ public class DataFileContentReader implements ManifestEntryProcessor {
       structWriter.varChar(fieldName).writeNull();
     } else {
       byte[] path = value.getBytes(StandardCharsets.UTF_8);
-      tmpBuf.reallocIfNeeded(path.length);
+      tmpBuf = tmpBuf.reallocIfNeeded(path.length);
       tmpBuf.setBytes(0, path);
       structWriter.varChar(fieldName).writeVarChar(0, path.length, tmpBuf);
     }
@@ -223,16 +224,16 @@ public class DataFileContentReader implements ManifestEntryProcessor {
    * @param currentDataFile
    * @return
    */
-  private String getPartitionData(DataFile currentDataFile) {
+  private String getPartitionData(ContentFile currentDataFile) {
     StringBuilder stringBuilder = new StringBuilder();
     stringBuilder.append("{");
     List<Types.NestedField> fields = icebergPartitionSpec.partitionType().asStructType().fields();
     for (int i = 0; i < fields.size(); i++) {
-      Types.NestedField nestedField = fields.get(i);
-      stringBuilder.append(currentDataFile.partition().get(i, nestedField.type().typeId().javaClass()));
-      if (i != fields.size()-1) {
+      if (i > 0) {
         stringBuilder.append(", ");
       }
+      Types.NestedField nestedField = fields.get(i);
+      stringBuilder.append(nestedField.name()).append("=").append(currentDataFile.partition().get(i, nestedField.type().typeId().javaClass()));
     }
     stringBuilder.append("}");
     return stringBuilder.toString();
@@ -252,7 +253,8 @@ public class DataFileContentReader implements ManifestEntryProcessor {
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(tmpBuf);
+    // release tmpBuf and allocate a zero-sized one, but rely on bufferManager to close the buffers it's allocated
+    bufferManager.replace(tmpBuf, 0);
   }
 
   private boolean shouldProcessCurrentDatafile(int maxOutputCount) {

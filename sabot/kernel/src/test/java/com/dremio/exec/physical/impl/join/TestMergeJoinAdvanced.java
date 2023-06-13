@@ -102,11 +102,11 @@ public class TestMergeJoinAdvanced extends BaseTestQuery {
     setSessionOption(ExecConstants.SLICE_TARGET, "1");
     setSessionOption(GroupResourceInformation.MAX_WIDTH_PER_NODE_KEY, "23");
 
-    final String TEST_RES_PATH = TestTools.getWorkingPath() + "/src/test/resources";
+    final String testResPath = TestTools.getWorkingPath() + "/src/test/resources";
 
     try {
       test("select * from dfs.\"%s/join/j1\" j1 left outer join dfs.\"%s/join/j2\" j2 on (j1.c_varchar = j2.c_varchar)",
-        TEST_RES_PATH, TEST_RES_PATH);
+        testResPath, testResPath);
     } finally {
       setSessionOption(PlannerSettings.BROADCAST.getOptionName(), String.valueOf(PlannerSettings.BROADCAST.getDefault
         ().getBoolVal()));

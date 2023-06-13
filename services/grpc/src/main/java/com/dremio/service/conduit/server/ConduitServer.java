@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 import com.dremio.common.AutoCloseables;
 import com.dremio.service.Service;
 import com.dremio.service.grpc.CloseableBindableService;
+import com.dremio.service.grpc.ContextualizedServerInterceptor;
 import com.dremio.ssl.SSLEngineFactory;
 import com.dremio.telemetry.utils.TracerFacade;
 import com.google.common.annotations.VisibleForTesting;
@@ -97,7 +98,9 @@ public class ConduitServer implements Service {
 
     final TracingServerInterceptor tracingServerInterceptor = TracingServerInterceptor.newBuilder().withTracer(TracerFacade.INSTANCE.getTracer()).build();
     serverBuilder.intercept(tracingServerInterceptor);
+    serverBuilder.intercept(ContextualizedServerInterceptor.buildBasicContextualizedServerInterceptor());
     inProcessServerBuilder.intercept(tracingServerInterceptor);
+    inProcessServerBuilder.intercept(ContextualizedServerInterceptor.buildBasicContextualizedServerInterceptor());
 
     for (CloseableBindableService closeableService : registry.getCloseableServiceList()) {
       logger.debug("Conduit service being added {}", closeableService.getClass().getName());

@@ -92,6 +92,7 @@ class BlobContainerProvider implements ContainerProvider {
     }
   }
 
+  @Override
   public void verfiyContainersExist() {
     List<String> list = containers.asList();
     for(String c : list) {

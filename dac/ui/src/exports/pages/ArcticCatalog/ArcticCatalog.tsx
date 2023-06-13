@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Page } from "dremio-ui-lib/dist-esm";
+import { Page } from "dremio-ui-lib/components";
 import { useEffect, useMemo, useState } from "react";
 import { withRouter, type WithRouterProps } from "react-router";
 import * as PATHS from "../../paths";
@@ -43,6 +43,7 @@ import {
 import { NotFound } from "@app/exports/components/ErrorViews/NotFound";
 import { ArcticCatalogProvider } from "@app/exports/providers/ArcticCatalogProvider";
 import { getTracingContext } from "dremio-ui-common/contexts/TracingContext.js";
+import { ARCTIC_STATE_PREFIX } from "@app/constants/nessie";
 
 export type ArcticCatalogTabsType =
   | "data"
@@ -50,7 +51,8 @@ export type ArcticCatalogTabsType =
   | "tags"
   | "branches"
   | "settings"
-  | "commit";
+  | "commit"
+  | "jobs";
 
 export const arcticCatalogTabs: ArcticCatalogTabsType[] = [
   "data",
@@ -59,10 +61,11 @@ export const arcticCatalogTabs: ArcticCatalogTabsType[] = [
   "branches",
   "settings",
   "commit",
+  "jobs",
 ];
 
 // Don't show tabs UI for these pages
-const notInTabView: ArcticCatalogTabsType[] = ["settings", "commit"];
+const notInTabView: ArcticCatalogTabsType[] = ["settings", "commit", "jobs"];
 
 type ArcticCatalogProps = {
   children: any;
@@ -192,6 +195,7 @@ const ArcticCatalogWithNessie = ({ children, ...props }: any) => (
           name: props?.params?.branchName,
           hash: props?.location?.query?.hash,
         }}
+        statePrefix={ARCTIC_STATE_PREFIX}
         pathname={props.location.pathname}
         {...providerProps}
       >

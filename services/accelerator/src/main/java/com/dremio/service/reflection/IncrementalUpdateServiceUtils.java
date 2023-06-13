@@ -17,6 +17,7 @@ package com.dremio.service.reflection;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.TableScan;
@@ -29,6 +30,8 @@ import org.apache.calcite.sql.SqlKind;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.exec.catalog.CatalogEntityKey;
+import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.planner.RoutingShuttle;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.exec.planner.acceleration.ExpansionNode;
@@ -37,6 +40,8 @@ import com.dremio.service.Pointer;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.dataset.proto.RefreshMethod;
+import com.dremio.service.reflection.proto.ReflectionEntry;
+import com.dremio.service.reflection.proto.ReflectionId;
 import com.google.common.base.Preconditions;
 
 /**
@@ -48,9 +53,9 @@ public class IncrementalUpdateServiceUtils {
   /**
    * compute acceleration settings from the plan
    */
-  public static AccelerationSettings extractRefreshSettings(final RelNode normalizedPlan, ReflectionSettings reflectionSettings) {
-    final boolean incremental = getIncremental(normalizedPlan, reflectionSettings);
-    final String refreshField = !incremental ? null : findRefreshField(normalizedPlan, reflectionSettings);
+  public static AccelerationSettings extractRefreshSettings(final RelNode normalizedPlan, ReflectionSettings reflectionSettings, ReflectionService service) {
+    final boolean incremental = getIncremental(normalizedPlan, reflectionSettings, service);
+    final String refreshField = !incremental ? null : findRefreshField(normalizedPlan, reflectionSettings, service);
     final RefreshMethod refreshMethod = incremental ? RefreshMethod.INCREMENTAL : RefreshMethod.FULL;
 
     return new AccelerationSettings()
@@ -58,14 +63,29 @@ public class IncrementalUpdateServiceUtils {
       .setRefreshField(refreshField);
   }
 
-  private static String findRefreshField(RelNode plan, final ReflectionSettings reflectionSettings) {
+  private static String findRefreshField(RelNode plan, final ReflectionSettings reflectionSettings, ReflectionService service) {
     final Pointer<String> refreshField = new Pointer<>();
     plan.accept(new StatelessRelShuttleImpl() {
       @Override
       public RelNode visit(TableScan tableScan) {
         List<String> tablePath = tableScan.getTable().getQualifiedName();
-        final AccelerationSettings settings = reflectionSettings.getReflectionSettings(new NamespaceKey(tablePath));
-        refreshField.value = settings.getRefreshField();
+        NamespaceKey tableKey = new NamespaceKey(tablePath);
+        // If the scan is over a reflection inherit its refresh field.
+        // Search the ReflectionService using the ReflectionId.
+        if (tableKey.getRoot().equals(ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME)) {
+          Optional<ReflectionEntry> entry = service.getEntry(new ReflectionId(tablePath.get(1)));
+          refreshField.value = entry.get().getRefreshField();
+        } else {
+          DremioTable table = tableScan.getTable().unwrap(DremioTable.class);
+          final CatalogEntityKey.Builder builder =
+            CatalogEntityKey.newBuilder().keyComponents(table.getPath().getPathComponents());
+          if (table.getDataset().getVersionContext() != null) {
+            builder.tableVersionContext(table.getDataset().getVersionContext());
+          }
+          final CatalogEntityKey catalogEntityKey = builder.build();
+          final AccelerationSettings settings = reflectionSettings.getReflectionSettings(catalogEntityKey);
+          refreshField.value = settings.getRefreshField();
+        }
         return tableScan;
       }
     });
@@ -75,8 +95,8 @@ public class IncrementalUpdateServiceUtils {
   /**
    * Check if a plan can support incremental update
    */
-  private static boolean getIncremental(RelNode plan, final ReflectionSettings reflectionSettings) {
-    IncrementalChecker checker = new IncrementalChecker(reflectionSettings);
+  private static boolean getIncremental(RelNode plan, final ReflectionSettings reflectionSettings, ReflectionService service) {
+    IncrementalChecker checker = new IncrementalChecker(reflectionSettings, service);
     plan.accept(checker);
     return checker.isIncremental();
   }
@@ -89,14 +109,16 @@ public class IncrementalUpdateServiceUtils {
    */
   private static class IncrementalChecker extends RoutingShuttle {
     private final ReflectionSettings reflectionSettings;
+    private final ReflectionService service;
 
     private RelNode unsupportedOperator = null;
     private List<SqlAggFunction> unsupportedAggregates = new ArrayList<>();
     private boolean isIncremental = false;
     private int aggCount = 0;
 
-    IncrementalChecker(ReflectionSettings reflectionSettings) {
+    IncrementalChecker(ReflectionSettings reflectionSettings, ReflectionService service) {
       this.reflectionSettings = Preconditions.checkNotNull(reflectionSettings, "reflection settings required");
+      this.service = Preconditions.checkNotNull(service,"reflection service required");
     }
 
     public boolean isIncremental() {
@@ -136,11 +158,27 @@ public class IncrementalUpdateServiceUtils {
     @Override
     public RelNode visit(TableScan tableScan) {
       List<String> tablePath = tableScan.getTable().getQualifiedName();
-      final AccelerationSettings settings = reflectionSettings.getReflectionSettings(new NamespaceKey(tablePath));
-      isIncremental  = settings.getMethod() == RefreshMethod.INCREMENTAL;
+      NamespaceKey tableKey = new NamespaceKey(tablePath);
+      // If the scan is over a reflection inherit its refresh method.
+      // Search the ReflectionService using the ReflectionId.
+      if (tableKey.getRoot().equals(ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME)) {
+        Optional<ReflectionEntry> entry = service.getEntry(new ReflectionId(tablePath.get(1)));
+        isIncremental = entry.get().getRefreshMethod() == RefreshMethod.INCREMENTAL;
+      } else {
+        DremioTable table = tableScan.getTable().unwrap(DremioTable.class);
+        final CatalogEntityKey.Builder builder =
+          CatalogEntityKey.newBuilder().keyComponents(table.getPath().getPathComponents());
+        if (table.getDataset().getVersionContext() != null) {
+          builder.tableVersionContext(table.getDataset().getVersionContext());
+        }
+        final CatalogEntityKey catalogEntityKey = builder.build();
+        final AccelerationSettings settings = reflectionSettings.getReflectionSettings(catalogEntityKey);
+        isIncremental = settings.getMethod() == RefreshMethod.INCREMENTAL;
+      }
       return tableScan;
     }
 
+    @Override
     public RelNode visit(LogicalAggregate aggregate) {
       aggCount++;
       aggregate.getAggCallList().forEach(a -> {

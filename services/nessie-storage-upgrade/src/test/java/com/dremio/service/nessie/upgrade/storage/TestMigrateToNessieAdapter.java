@@ -40,11 +40,12 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.projectnessie.model.CommitMeta;
 import org.projectnessie.model.Content;
+import org.projectnessie.model.ContentKey;
 import org.projectnessie.model.IcebergTable;
+import org.projectnessie.nessie.relocated.protobuf.ByteString;
 import org.projectnessie.versioned.BranchName;
 import org.projectnessie.versioned.GetNamedRefsParams;
 import org.projectnessie.versioned.ImmutablePut;
-import org.projectnessie.versioned.Key;
 import org.projectnessie.versioned.ReferenceInfo;
 import org.projectnessie.versioned.VersionStore;
 import org.projectnessie.versioned.persist.adapter.CommitLogEntry;
@@ -62,7 +63,6 @@ import com.dremio.service.nessie.DatastoreDatabaseAdapterFactory;
 import com.dremio.service.nessie.ImmutableDatastoreDbConfig;
 import com.dremio.service.nessie.NessieDatastoreInstance;
 import com.google.common.collect.ImmutableList;
-import com.google.protobuf.ByteString;
 
 /**
  * Unit tests for {@link MigrateToNessieAdapter}.
@@ -89,6 +89,7 @@ class TestMigrateToNessieAdapter extends AbstractNessieUpgradeTest {
 
     NonTransactionalDatabaseAdapterConfig adapterCfg = ImmutableAdjustableNonTransactionalDatabaseAdapterConfig
       .builder()
+      .validateNamespaces(false)
       .build();
     adapter = new DatastoreDatabaseAdapterFactory().newBuilder()
       .withConfig(adapterCfg)
@@ -128,11 +129,11 @@ class TestMigrateToNessieAdapter extends AbstractNessieUpgradeTest {
 
     VersionStore versionStore = new PersistVersionStore(adapter);
 
-    Key extraKey = Key.of("existing", "table", "abc");
+    ContentKey extraKey = ContentKey.of("existing", "table", "abc");
     versionStore.commit(BranchName.of("main"), Optional.empty(), CommitMeta.fromMessage("test"),
       Collections.singletonList(ImmutablePut.builder()
         .key(extraKey)
-        .value(IcebergTable.of("test-metadata-location", 1, 2, 3, 4, "extra-content-id"))
+        .valueSupplier(() -> IcebergTable.of("test-metadata-location", 1, 2, 3, 4, "extra-content-id"))
         .build()));
 
     task.upgrade(storeProvider, UPGRADE_BRANCH_NAME, c -> {});
@@ -159,7 +160,7 @@ class TestMigrateToNessieAdapter extends AbstractNessieUpgradeTest {
   @ParameterizedTest
   @ValueSource(ints = {1, 2, 40, 99, 100, 101, 499, 500, 501})
   void testUpgrade(int numCommits) throws Exception {
-    List<Key> keys = new ArrayList<>();
+    List<ContentKey> keys = new ArrayList<>();
     List<String> testEntries = new ArrayList<>();
 
     task.upgrade(storeProvider, UPGRADE_BRANCH_NAME, c -> {
@@ -169,7 +170,7 @@ class TestMigrateToNessieAdapter extends AbstractNessieUpgradeTest {
 
         c.migrateCommit("main", key, location);
 
-        Key nessieKey = Key.of(key.toArray(new String[0]));
+        ContentKey nessieKey = ContentKey.of(key.toArray(new String[0]));
         keys.add(nessieKey);
         testEntries.add(location + "|" + nessieKey);
       }
@@ -177,10 +178,10 @@ class TestMigrateToNessieAdapter extends AbstractNessieUpgradeTest {
 
     VersionStore versionStore = new PersistVersionStore(adapter);
 
-    Map<Key, Content> tables = versionStore.getValues(BranchName.of("main"), keys);
+    Map<ContentKey, Content> tables = versionStore.getValues(BranchName.of("main"), keys);
 
     assertThat(tables.entrySet().stream().map(e -> {
-      Key key = e.getKey();
+      ContentKey key = e.getKey();
       IcebergTable table = (IcebergTable) e.getValue();
       return table.getMetadataLocation() + "|" + key;
     })).containsExactlyInAnyOrder(testEntries.toArray(new String[0]));

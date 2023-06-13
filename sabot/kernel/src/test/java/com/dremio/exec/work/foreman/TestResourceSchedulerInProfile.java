@@ -108,6 +108,10 @@ public class TestResourceSchedulerInProfile extends DremioTest {
       }
 
       @Override
+      public void cancel(ResourceSchedulingContext queryContext) {
+      }
+
+      @Override
       public GroupResourceInformation getGroupResourceInformation(OptionManager optionManager,
                                                                   ResourceSchedulingProperties resourceSchedulingProperties) {
         return null;

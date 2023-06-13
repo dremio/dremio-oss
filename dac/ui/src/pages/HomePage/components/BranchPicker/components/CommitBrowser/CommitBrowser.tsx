@@ -17,10 +17,10 @@ import debounce from "lodash/debounce";
 import classNames from "clsx";
 import { SearchField } from "@app/components/Fields";
 import {
-  DefaultApi,
+  V2BetaApi,
   FetchOption,
-  LogEntry,
-  LogResponse,
+  LogEntryV2 as LogEntry,
+  LogResponseV2 as LogResponse,
 } from "@app/services/nessie/client";
 import { useCallback, useEffect, useMemo, useReducer } from "react";
 import InfiniteScroller from "../InfiniteScroller/InfiniteScroller";
@@ -42,17 +42,19 @@ function CommitBrowser({
   selectedHash,
   disabled,
   pageSize = PAGE_SIZE,
-  api,
+  api: apiV2,
+  tableName,
 }: {
   branch: Reference;
   path?: string[];
+  tableName?: string;
   hasSearch?: boolean;
   onDataChange?: (arg: LogResponse | undefined) => void;
   onClick?: (arg: LogEntry) => void;
   selectedHash?: string | null;
   disabled?: boolean;
   pageSize?: number;
-  api: DefaultApi;
+  api: V2BetaApi;
 }) {
   const [{ search, data, numRows }, dispatch] = useReducer(
     CommitBrowserReducer,
@@ -78,16 +80,17 @@ function CommitBrowser({
 
   const loadMoreRows = useCallback(
     async function () {
-      const value = await api.getCommitLog({
+      const value = await apiV2.getCommitLogV2({
         ref: branch.name,
         pageToken: token,
         maxRecords: pageSize,
-        filter: formatQuery(search, path),
-        fetch: !path?.length ? FetchOption.Minimal : FetchOption.All,
+        filter: formatQuery(search, path, tableName),
+        fetch:
+          !path?.length && !tableName ? FetchOption.Minimal : FetchOption.All,
       });
       dispatch({ type: "SET_DATA", value });
     },
-    [branch.name, token, search, path, pageSize, api]
+    [branch.name, token, search, path, pageSize, apiV2, tableName]
   );
 
   return (

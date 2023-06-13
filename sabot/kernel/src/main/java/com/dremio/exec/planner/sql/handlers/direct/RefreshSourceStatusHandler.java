@@ -48,7 +48,7 @@ public class RefreshSourceStatusHandler extends SimpleDirectHandler {
     sourceCatalog.validatePrivilege(path, SqlGrant.Privilege.ALTER);
 
     String root = path.getRoot();
-    if(root.startsWith("@") || root.equalsIgnoreCase("sys") || root.equalsIgnoreCase("INFORMATION_SCHEMA")) {
+    if (root.startsWith("@") || "sys".equalsIgnoreCase(root) || "INFORMATION_SCHEMA".equalsIgnoreCase(root)) {
       throw UserException.parseError().message("Unable to find source %s.", path).build(logger);
     }
 

@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.apache.calcite.sql.SqlNode;
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUser;

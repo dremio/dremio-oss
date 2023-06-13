@@ -28,7 +28,8 @@ import com.dremio.plugins.elastic.ElasticsearchCluster.ColumnData;
 import com.google.common.collect.Lists;
 
 public class ITTestProjectPushdown extends ElasticBaseTestQuery {
-  private String PARQUET_TABLE = null;
+  private static final String PARQUET_TABLE = "dfs.\"[WORKING_PATH]/src/test/resources/small_business.parquet\"";
+  @SuppressWarnings("checkstyle:MemberName")
   private String ELASTIC_TABLE = null;
 
   private static final String NEW_COLUMN_1 = "/json/new_column/file1.json";
@@ -41,9 +42,7 @@ public class ITTestProjectPushdown extends ElasticBaseTestQuery {
     super.before();
     ColumnData[] data = getBusinessData();
     load(schema, table, data);
-    PARQUET_TABLE = "dfs.\"[WORKING_PATH]/src/test/resources/small_business.parquet\"";
     ELASTIC_TABLE = String.format("elasticsearch.%s.%s", schema, table);
-
   }
 
   /**

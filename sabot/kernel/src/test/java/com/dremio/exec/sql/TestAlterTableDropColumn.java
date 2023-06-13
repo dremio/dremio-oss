@@ -21,6 +21,8 @@ import org.apache.commons.io.FileUtils;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
+import com.dremio.exec.proto.UserBitShared;
+import com.dremio.test.UserExceptionAssert;
 
 public class TestAlterTableDropColumn extends BaseTestQuery {
 
@@ -30,7 +32,9 @@ public class TestAlterTableDropColumn extends BaseTestQuery {
         "ALTER TABLE tbl DROP COLUMN",
         "ALTER TABLE DROP COLUMN col1"};
     for (String q : queries) {
-      errorMsgTestHelper(q, "Failure parsing the query.");
+      UserExceptionAssert
+        .assertThatThrownBy(() -> test(q))
+        .hasErrorType(UserBitShared.DremioPBError.ErrorType.PARSE);
     }
   }
 

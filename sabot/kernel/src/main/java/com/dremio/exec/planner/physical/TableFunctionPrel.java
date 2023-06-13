@@ -238,6 +238,7 @@ public class TableFunctionPrel extends SinglePrel implements RuntimeFilteredRel,
     return functionConfig.getFunctionContext().getScanFilter() != null;
   }
 
+  @Override
   public TableMetadata getTableMetadata() {
     return tableMetadata;
   }
@@ -293,6 +294,7 @@ public class TableFunctionPrel extends SinglePrel implements RuntimeFilteredRel,
     }
   }
 
+  @Override
   public Function<RelMetadataQuery, Double> getEstimateRowCountFn() {
     return estimateRowCountFn;
   }

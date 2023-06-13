@@ -24,7 +24,7 @@ import {
   parseArcticCatalogUrl,
   useArcticCatalogContext,
 } from "@app/exports/pages/ArcticCatalog/arctic-catalog-utils";
-import { Spinner } from "dremio-ui-lib/dist-esm";
+import { Spinner } from "dremio-ui-lib/components";
 import { SearchField } from "@app/components/Fields";
 import { ArcticCatalogTabsType } from "@app/exports/pages/ArcticCatalog/ArcticCatalog";
 import { useNessieContext } from "@app/pages/NessieHomePage/utils/context";
@@ -32,7 +32,7 @@ import { useArcticCatalogCommits } from "./useArcticCatalogCommits";
 import { isSmartFetchLoading } from "@app/utils/isSmartFetchLoading";
 import { debounce } from "lodash";
 import { getGoToDataButton } from "./utils";
-import { LogEntry } from "@app/services/nessie/client/index";
+import { LogEntryV2 as LogEntry } from "@app/services/nessie/client/index";
 import { useDispatch } from "react-redux";
 import * as headerClasses from "@app/exports/components/ArcticTableHeader/ArcticTableHeader.module.less";
 import { setReference } from "@app/actions/nessie/nessie";
@@ -49,7 +49,7 @@ function ArcticCatalogCommits(props: ArcticCatalogCommitsProps) {
   const {
     state: { reference, hash },
     baseUrl,
-    source,
+    stateKey,
   } = useNessieContext();
   const { isCatalog, reservedNamespace } = useArcticCatalogContext() ?? {};
   const dispatch = useDispatch();
@@ -77,7 +77,7 @@ function ArcticCatalogCommits(props: ArcticCatalogCommitsProps) {
             },
             hash: item.commitMeta.hash,
           },
-          source.name
+          stateKey
         )
       );
     }
@@ -91,7 +91,7 @@ function ArcticCatalogCommits(props: ArcticCatalogCommitsProps) {
   const path = useMemo(() => {
     return parseArcticCatalogUrl(
       rmProjectBase(location.pathname) || "/",
-      `${baseUrl}/commits/${params?.branchName}`,
+      rmProjectBase(`${baseUrl}/commits/${params?.branchName}`),
       "commits",
       params?.branchName
     );

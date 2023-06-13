@@ -47,8 +47,8 @@ import com.dremio.service.users.UserService;
  * Starts the SampleDataPopulator
  */
 public class SampleDataPopulatorService implements Service {
-  private final Provider<SabotContext> contextProvider;
-  private final Provider<UserService> userService;
+  private final Provider<SabotContext> sabotContextProvider;
+  private final Provider<UserService> userServiceProvider;
   private final Provider<LegacyKVStoreProvider> kvStore;
   private final Provider<InitializerRegistry> init;
   private final Provider<JobsService> jobsService;
@@ -63,9 +63,9 @@ public class SampleDataPopulatorService implements Service {
   private final boolean addDefaultUser;
 
   public SampleDataPopulatorService(
-    Provider<SabotContext> contextProvider,
+    Provider<SabotContext> sabotContextProvider,
     Provider<LegacyKVStoreProvider> kvStore,
-    Provider<UserService> userService,
+    Provider<UserService> userServiceProvider,
     Provider<InitializerRegistry> init,
     Provider<JobsService> jobsService,
     Provider<CatalogService> catalogService,
@@ -74,9 +74,9 @@ public class SampleDataPopulatorService implements Service {
     Provider<OptionManager> optionManager,
     boolean prepopulate,
     boolean addDefaultUser) {
-    this.contextProvider = contextProvider;
+    this.sabotContextProvider = sabotContextProvider;
     this.kvStore = kvStore;
-    this.userService = userService;
+    this.userServiceProvider = userServiceProvider;
     this.init = init;
     this.jobsService = jobsService;
     this.catalogService = catalogService;
@@ -94,24 +94,25 @@ public class SampleDataPopulatorService implements Service {
   @Override
   public void start() throws Exception {
     final LegacyKVStoreProvider kv = kvStore.get();
-    final NamespaceService ns = contextProvider.get().getNamespaceService(SystemUser.SYSTEM_USERNAME);
+    final NamespaceService systemUserNamespaceService = sabotContextProvider.get().getNamespaceService(SystemUser.SYSTEM_USERNAME);
 
     addDefaultUser();
     if (prepopulate) {
-      final ReflectionServiceHelper reflectionServiceHelper = new SampleReflectionServiceHelper(ns, kvStore);
+      final ReflectionServiceHelper reflectionServiceHelper = new SampleReflectionServiceHelper(systemUserNamespaceService, kvStore, optionManager);
 
-      final DatasetVersionMutator data = new DatasetVersionMutator(init.get(), kv, ns, jobsService.get(),
+      final DatasetVersionMutator data = new DatasetVersionMutator(init.get(), kv, systemUserNamespaceService, jobsService.get(),
         catalogService.get(), optionManager.get());
-      SecurityContext context = new DACSecurityContext(new UserName(SystemUser.SYSTEM_USERNAME), SystemUser.SYSTEM_USER, null);
-      final SourceService ss = new SourceService(contextProvider.get(), ns, data, catalogService.get(), reflectionServiceHelper, null, connectionReader.get(), context);
+      SecurityContext securityContext = new DACSecurityContext(new UserName(SystemUser.SYSTEM_USERNAME), SystemUser.SYSTEM_USER, null);
+      final SourceService ss = new SourceService(sabotContextProvider.get(), systemUserNamespaceService, data, catalogService.get(), reflectionServiceHelper, null, connectionReader.get(), securityContext);
+      final UserService userService = sabotContextProvider.get().getUserService();
       sample = new SampleDataPopulator(
-          contextProvider.get(),
+          sabotContextProvider.get(),
           ss,
           data,
-          userService.get(),
-          contextProvider.get().getNamespaceService(SampleDataPopulator.DEFAULT_USER_NAME),
+          userServiceProvider.get(),
+          sabotContextProvider.get().getNamespaceService(SampleDataPopulator.DEFAULT_USER_NAME),
           SampleDataPopulator.DEFAULT_USER_NAME,
-          new CollaborationHelper(kv, contextProvider.get(), ns, context, searchService.get())
+          new CollaborationHelper(kv, systemUserNamespaceService, securityContext, searchService.get(), userService)
       );
 
       sample.populateInitialData();
@@ -119,10 +120,10 @@ public class SampleDataPopulatorService implements Service {
   }
 
   public void addDefaultUser() throws Exception {
-    final NamespaceService ns = contextProvider.get().getNamespaceService(SystemUser.SYSTEM_USERNAME);
+    final NamespaceService ns = sabotContextProvider.get().getNamespaceService(SystemUser.SYSTEM_USERNAME);
 
     if (addDefaultUser) {
-      addDefaultDremioUser(userService.get(), ns);
+      addDefaultDremioUser(userServiceProvider.get(), ns);
     }
   }
 
@@ -138,15 +139,17 @@ public class SampleDataPopulatorService implements Service {
     private final NamespaceService namespace;
     private final Provider<LegacyKVStoreProvider> storeProvider;
 
-    public SampleReflectionServiceHelper(NamespaceService namespace, Provider<LegacyKVStoreProvider> storeProvider) {
-      super(null, null);
+    public SampleReflectionServiceHelper(NamespaceService namespace,
+                                         Provider<LegacyKVStoreProvider> storeProvider,
+                                         Provider<OptionManager> optionManagerProvider) {
+      super(null, null, optionManagerProvider.get());
       this.namespace = namespace;
       this.storeProvider = storeProvider;
     }
 
     @Override
     public ReflectionSettings getReflectionSettings() {
-      return new ReflectionSettingsImpl(() -> namespace, storeProvider);
+      return new ReflectionSettingsImpl(() -> namespace, catalogService, storeProvider);
     }
   }
 }

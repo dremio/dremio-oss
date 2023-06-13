@@ -65,6 +65,7 @@ public abstract class ReconnectingConnection<CONNECTION_TYPE extends RemoteConne
 
   private final AtomicReference<CONNECTION_TYPE> connectionHolder = new AtomicReference<CONNECTION_TYPE>();
   private final AtomicBoolean closed = new AtomicBoolean(false);
+  private final AtomicReference<String> clientConnectedHostname = new AtomicReference<String>(null);
   private final String host;
   private final int port;
   private final OUTBOUND_HANDSHAKE handshake;
@@ -93,6 +94,8 @@ public abstract class ReconnectingConnection<CONNECTION_TYPE extends RemoteConne
     this.connectionSuccessTimeoutMS = connectionSuccessTimeoutMS;
     this.timeBetweenAttemptMS = timeBetweenAttemptMS;
   }
+
+  protected abstract String getLocalAddress();
 
   protected abstract AbstractClient<?, CONNECTION_TYPE, OUTBOUND_HANDSHAKE> getNewClient() throws RpcException;
 
@@ -130,6 +133,14 @@ public abstract class ReconnectingConnection<CONNECTION_TYPE extends RemoteConne
     }
   }
 
+  private String getConnectionName(CONNECTION_TYPE connection) {
+    if (connection != null) {
+      return connection.getName();
+    } else {
+      return "connection is null";
+    }
+  }
+
   /**
    * Listens for connection closes and clears connection holder.
    */
@@ -160,8 +171,24 @@ public abstract class ReconnectingConnection<CONNECTION_TYPE extends RemoteConne
   }
 
   public void addExternalConnection(CONNECTION_TYPE connection) {
-    // if the connection holder is not set, set it to this incoming connection. We'll simply ignore if already set.
-    this.connectionHolder.compareAndSet(null, connection);
+    // let's check if the client has not initiated the connection, and only the "greater" node will win.
+    // Will win means, allow only one connection between 2 nodes, e.g. A -> B should be used when A is talking to B and
+    // B is talking to A, never having both client conn
+    String clientHost = clientConnectedHostname.get();
+    if (clientHost == null || (host != null && host.compareTo(clientHost) > 0)) {
+      // if the connection holder is not set, set it to this incoming connection. We'll simply ignore if already set.
+      final boolean wasSet = this.connectionHolder.compareAndSet(null, connection);
+      if (logger.isDebugEnabled()) {
+        if (wasSet) {
+          logger.debug("Adding external connection - {}", getConnectionName(connection));
+        } else {
+          logger.debug("Ignoring external connection because connection holder is already set. External connection: - {}",
+            getConnectionName(connection));
+        }
+      }
+    } else {
+      logger.debug("Not adding external connection because client has already initiated the connection L {} -> R {}", clientHost, host);
+    }
   }
 
   @Override
@@ -174,6 +201,7 @@ public abstract class ReconnectingConnection<CONNECTION_TYPE extends RemoteConne
     CONNECTION_TYPE c = connectionHolder.getAndSet(null);
     if (c != null) {
       try {
+        logger.debug("Closing channel: {}", getConnectionName(c));
         c.getChannel().close().sync();
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
@@ -206,7 +234,6 @@ public abstract class ReconnectingConnection<CONNECTION_TYPE extends RemoteConne
 
     @Override
     public void run() {
-
       // try to use the active connection. If someone else is setting, restart with the new value.
       while(true) {
         // first, try to get existing connection.
@@ -216,9 +243,17 @@ public abstract class ReconnectingConnection<CONNECTION_TYPE extends RemoteConne
           return;
         }
 
+        if (logger.isDebugEnabled()) {
+          logger.debug("connection runner: conn status {}", getConnectionName(conn));
+        }
+
         // bad connection, clear it.
         if(!connectionHolder.compareAndSet(conn, null)) {
           // if we failed to clear, someone changed the connection, restart the process.
+
+          if (logger.isDebugEnabled()) {
+            logger.debug("Someone has changed the connection, restarting it: {}", getConnectionName(conn));
+          }
           continue;
         }
 
@@ -232,9 +267,9 @@ public abstract class ReconnectingConnection<CONNECTION_TYPE extends RemoteConne
         return;
       }
 
-      logger.info("[{}]: No connection active, opening new connection to {}:{}.", name, host, port);
+      logger.info("[{}]: No connection active, opening new connection {} -> {}:{}.",
+        name, getLocalAddress(), host, port);
       final long runUntil = System.currentTimeMillis() + connectionSuccessTimeoutMS;
-
 
       ConnectionResult lastResult = null;
       // keep attempting a connection until we hit the timeout.
@@ -281,22 +316,51 @@ public abstract class ReconnectingConnection<CONNECTION_TYPE extends RemoteConne
     }
 
     private ConnectionResult attempt(long runUntil) throws RpcException {
+      // let's check an external connection being configured when we have the client initiated the connection initiated
+      clientConnectedHostname.set(getLocalAddress());
+
       ConnectionHandle future = new ConnectionHandle();
       AbstractClient<?, CONNECTION_TYPE, OUTBOUND_HANDSHAKE> client = getNewClient();
       client.connectAsClient(future, handshake, host, port);
 
+      logger.debug("Connection attempt - Waiting for connection to be finished: {} -> {}:{}",
+        getLocalAddress(), host, port);
       ConnectionResult result = future.waitForFinished(runUntil);
+      logger.debug("Connection attempt - Connection finished: {} -> {}:{}, result {}|{}",
+        getLocalAddress(), host, port, result.ok(), result);
+
       if (!result.ok()) {
+        clientConnectedHostname.set(null);
         return result;
       }
 
+      if (logger.isDebugEnabled()) {
+        CONNECTION_TYPE conn = connectionHolder.get();
+        logger.debug("Connection attempt - connection holder: client to {}:{}, result {}|{}. ConnectionHolder {}",
+          host, port, result.ok(), result,
+          getConnectionName(conn)
+        );
+      }
+
       boolean wasSet = connectionHolder.compareAndSet(null, result.connection);
-      if(wasSet) {
+
+      if (logger.isDebugEnabled()) {
+        CONNECTION_TYPE conn = connectionHolder.get();
+        logger.debug("Connection attempt - connectionHolder wasSet {}: client to {}:{}, result {}|{}. ConnectionHolder {}",
+          wasSet, host, port, result.ok(), result,
+          getConnectionName(conn)
+        );
+      }
+
+      if (wasSet) {
+        clientConnectedHostname.set(null);
         return result;
       }
 
       // we failed to set the new connection, close it.
       result.discard();
+
+      clientConnectedHostname.set(null);
 
       CONNECTION_TYPE outsideSet = connectionHolder.get();
       if(outsideSet == null) {
@@ -305,7 +369,6 @@ public abstract class ReconnectingConnection<CONNECTION_TYPE extends RemoteConne
       } else {
         return new ConnectionResult(false, outsideSet);
       }
-
     }
 
     /**
@@ -321,8 +384,8 @@ public abstract class ReconnectingConnection<CONNECTION_TYPE extends RemoteConne
       try {
         // no need to set timing here since the lower layers have the timeouts necessary.
         ConnectionResult result = futureConnection.get();
-        if(result.ok()) {
-          if(result.hadToConnect()) {
+        if (result.ok()) {
+          if (result.hadToConnect()) {
             cmd.connectionSucceeded(result.connection);
           } else {
             cmd.connectionAvailable(result.connection);
@@ -330,18 +393,14 @@ public abstract class ReconnectingConnection<CONNECTION_TYPE extends RemoteConne
         } else {
           cmd.connectionFailed(result.failure.type, result.failure.throwable);
         }
-
       } catch (InterruptedException e) {
         // shouldn't happen
         cmd.connectionFailed(FailureType.CONNECTION, e);
-      } catch (ExecutionException e) {
+      } catch (ExecutionException | IllegalStateException e) {
         // shouldn't happen
         cmd.connectionFailed(FailureType.CONNECTION, e.getCause());
       }
     }
-
-
-
   }
 
   /**
@@ -368,6 +427,7 @@ public abstract class ReconnectingConnection<CONNECTION_TYPE extends RemoteConne
 
       // close channel since it took too long to create.
       try {
+        logger.debug("Closing channel because took too long: {}", getConnectionName(connection));
         connection.getChannel().close().sync();
       } catch (InterruptedException e) {
         // ignore.
@@ -434,6 +494,7 @@ public abstract class ReconnectingConnection<CONNECTION_TYPE extends RemoteConne
 
     public void discard() {
       if (connection != null) {
+        logger.debug("Discarding connection. Closing channel {}", getConnectionName(connection));
         try {
           connection.getChannel().close().sync();
         } catch (InterruptedException e) {
@@ -486,6 +547,7 @@ public abstract class ReconnectingConnection<CONNECTION_TYPE extends RemoteConne
 
   }
 
+  @Override
   public String toString() {
     return String.format("[%s] %s:%d", name, host, port);
   }

@@ -89,6 +89,7 @@ export class ExistingForm extends Component {
           showDataSets
           showSources
           style={{ flex: 1, minHeight: 0, height: 210 }}
+          shouldShowOverlay={false}
         />
       ),
       Search: (
@@ -112,11 +113,19 @@ export class ExistingForm extends Component {
           showDataSets
           showSources
           style={{ flex: 1, minHeight: 0, height: 210 }}
+          shouldShowOverlay={false}
         />
-      )
+      ),
     });
 
-    return <TabControl tabs={searchComponentConfig.showSearchComponent ? enterpriseTabs : cloudTabs} style={this.props.style} />;
+    return (
+      <TabControl
+        tabs={
+          searchComponentConfig.showSearchComponent ? enterpriseTabs : cloudTabs
+        }
+        style={this.props.style}
+      />
+    );
   }
 }
 

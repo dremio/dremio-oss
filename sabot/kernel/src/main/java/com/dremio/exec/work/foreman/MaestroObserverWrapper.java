@@ -25,13 +25,16 @@ import com.dremio.resource.ResourceSchedulingDecisionInfo;
 
 public class MaestroObserverWrapper implements MaestroObserver {
   private final AttemptObserver observer;
+  private final ExecutionStageChangeListener stageChangeListener;
 
-  public MaestroObserverWrapper(final AttemptObserver observer) {
+  public MaestroObserverWrapper(final AttemptObserver observer, ExecutionStageChangeListener listener) {
     this.observer = observer;
+    this.stageChangeListener = listener;
   }
 
   @Override
   public void beginState(AttemptEvent event) {
+    this.stageChangeListener.moveToNextStage(event.getState());
     observer.beginState(event);
   }
 

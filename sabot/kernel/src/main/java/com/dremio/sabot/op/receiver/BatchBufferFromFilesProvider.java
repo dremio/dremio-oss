@@ -33,6 +33,7 @@ import com.dremio.sabot.threads.sharedres.SharedResourceType;
 import com.google.common.base.Preconditions;
 
 public class BatchBufferFromFilesProvider implements RawFragmentBatchProvider {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BatchBufferFromFilesProvider.class);
   private final FileCursorManager cursorManager;
   private final FileCursorManager.Observer observer;
   private final BufferAllocator allocator;
@@ -40,6 +41,7 @@ public class BatchBufferFromFilesProvider implements RawFragmentBatchProvider {
   private int currentFileSeq = 0;
   private InputStream currentInputStream;
   private boolean isStreamDone;
+  private final String resourceName;
 
   public BatchBufferFromFilesProvider(String uniqueId,
                                       int readerMajorFragId,
@@ -48,7 +50,8 @@ public class BatchBufferFromFilesProvider implements RawFragmentBatchProvider {
                                       FileCursorManagerFactory cursorManagerFactory) {
     this.cursorManager = cursorManagerFactory.getManager(uniqueId);
 
-    final SharedResource resource = resourceGroup.createResource("reader-" + readerMajorFragId + "-file-" + uniqueId,
+    this.resourceName = "reader-" + readerMajorFragId + "-file-" + uniqueId;
+    final SharedResource resource = resourceGroup.createResource(this.resourceName,
       SharedResourceType.SEND_MSG_DATA);
     this.observer = cursorManager.registerReader(resource);
     this.allocator = parentAllocator.newChildAllocator("bridgeFileReader", 0, Long.MAX_VALUE);
@@ -79,6 +82,11 @@ public class BatchBufferFromFilesProvider implements RawFragmentBatchProvider {
     }
 
     FileExec.FileMessage fileMessage = FileExec.FileMessage.parseDelimitedFrom(currentInputStream);
+    if (fileMessage == null) {
+      String message = "Failure reading next batch of data from file - " + this.resourceName + ".";
+      logger.error(message);
+      throw new IOException(message);
+    }
     Preconditions.checkState(fileMessage.hasMsgSeq(), "invalid msg found in file");
     if (!fileMessage.hasType()) {
       // indicates end-of-file, switch to next file

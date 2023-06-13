@@ -36,6 +36,7 @@ public class FilterMergeCrule extends RelOptRule {
     super(operand(clazz, operand(clazz, any())), relBuilderFactory, null);
   }
 
+  @Override
   public void onMatch(RelOptRuleCall call) {
     final Filter topFilter = call.rel(0);
     final Filter bottomFilter = call.rel(1);

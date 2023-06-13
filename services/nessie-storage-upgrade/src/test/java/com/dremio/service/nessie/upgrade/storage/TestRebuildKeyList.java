@@ -30,10 +30,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.projectnessie.model.CommitMeta;
+import org.projectnessie.model.ContentKey;
 import org.projectnessie.model.IcebergTable;
 import org.projectnessie.versioned.BranchName;
 import org.projectnessie.versioned.GetNamedRefsParams;
-import org.projectnessie.versioned.Key;
 import org.projectnessie.versioned.ReferenceConflictException;
 import org.projectnessie.versioned.ReferenceInfo;
 import org.projectnessie.versioned.ReferenceNotFoundException;
@@ -48,11 +48,11 @@ import org.projectnessie.versioned.persist.nontx.ImmutableAdjustableNonTransacti
 import org.projectnessie.versioned.persist.nontx.NonTransactionalDatabaseAdapterConfig;
 import org.projectnessie.versioned.store.DefaultStoreWorker;
 
+import com.dremio.common.SuppressForbidden;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.service.nessie.DatastoreDatabaseAdapterFactory;
 import com.dremio.service.nessie.ImmutableDatastoreDbConfig;
 import com.dremio.service.nessie.NessieDatastoreInstance;
-import com.google.protobuf.ByteString;
 
 class TestRebuildKeyList extends AbstractNessieUpgradeTest {
 
@@ -73,6 +73,7 @@ class TestRebuildKeyList extends AbstractNessieUpgradeTest {
 
     NonTransactionalDatabaseAdapterConfig adapterCfg = ImmutableAdjustableNonTransactionalDatabaseAdapterConfig
       .builder()
+      .validateNamespaces(false)
       .keyListDistance(10) // build key lists every 10 commits
       .maxKeyListSize(0) // force key list entities to be used even for small keys (i.e. prevent in-commit key lists)
       .maxKeyListEntitySize(0)
@@ -91,7 +92,7 @@ class TestRebuildKeyList extends AbstractNessieUpgradeTest {
     }
   }
 
-  private void put(Key key) throws ReferenceNotFoundException, ReferenceConflictException {
+  private void put(ContentKey key) throws ReferenceNotFoundException, ReferenceConflictException {
     IcebergTable table = IcebergTable.of(key.toString() + "-loc", 1, 2, 3, 4, UUID.randomUUID().toString());
 
     ContentId contentId = ContentId.of(UUID.randomUUID().toString());
@@ -99,25 +100,25 @@ class TestRebuildKeyList extends AbstractNessieUpgradeTest {
     adapter.commit(commit
       .toBranch(BranchName.of("main"))
       .commitMetaSerialized(METADATA_SERIALIZER.toBytes(CommitMeta.fromMessage("test-" + key)))
-      .addPuts(KeyWithBytes.of(key, contentId, DefaultStoreWorker.payloadForContent(table),
-        DefaultStoreWorker.instance().toStoreOnReferenceState(table, commit::addAttachments)))
+      .addPuts(KeyWithBytes.of(key, contentId, (byte) DefaultStoreWorker.payloadForContent(table),
+        DefaultStoreWorker.instance().toStoreOnReferenceState(table)))
       .build());
   }
 
-  private void validateActiveKeys(Collection<Key> activeKeys) throws ReferenceNotFoundException {
-    ReferenceInfo<ByteString> main = adapter.namedRef("main", GetNamedRefsParams.DEFAULT);
+  @SuppressForbidden // This method has to use Nessie's relocated ByteString in method parameters.
+  private void validateActiveKeys(Collection<ContentKey> activeKeys) throws ReferenceNotFoundException {
+    ReferenceInfo<?> main = adapter.namedRef("main", GetNamedRefsParams.DEFAULT);
     try (Stream<KeyListEntry> keys = adapter.keys(main.getHash(), KeyFilterPredicate.ALLOW_ALL)) {
       assertThat(keys.map(KeyListEntry::getKey)).containsExactlyInAnyOrderElementsOf(activeKeys);
     }
 
-    Map<Key, ContentAndState> values = adapter.values(main.getHash(), activeKeys, KeyFilterPredicate.ALLOW_ALL);
+    Map<ContentKey, ContentAndState> values = adapter.values(main.getHash(), activeKeys, KeyFilterPredicate.ALLOW_ALL);
 
     assertThat(values).hasSize(activeKeys.size());
     activeKeys.forEach(k -> {
       ContentAndState value = values.get(k);
-      ByteString refState = value.getRefState();
       IcebergTable table = (IcebergTable) DefaultStoreWorker.instance().valueFromStore(
-        value.getPayload(), refState, () -> null, keys -> Stream.empty());
+        value.getPayload(), value.getRefState(), () -> null);
       assertThat(table.getMetadataLocation()).isEqualTo(k.toString() + "-loc");
     });
   }
@@ -125,9 +126,9 @@ class TestRebuildKeyList extends AbstractNessieUpgradeTest {
   @ParameterizedTest
   @ValueSource(ints = {0, 1, 2, 3, 5, 9, 10, 11, 99, 100, 101, 200, 1000})
   void testUpgrade(int numKeys) throws Exception {
-    List<Key> keys = new ArrayList<>();
+    List<ContentKey> keys = new ArrayList<>();
     for (int i = 0; i < numKeys; i++) {
-      Key key = Key.of("test", "key-" + i);
+      ContentKey key = ContentKey.of("test", "key-" + i);
       put(key);
       keys.add(key);
     }

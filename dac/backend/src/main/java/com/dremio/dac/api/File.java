@@ -35,6 +35,7 @@ public class File implements CatalogEntity {
     this.path = path;
   }
 
+  @Override
   public String getId() {
     return id;
   }

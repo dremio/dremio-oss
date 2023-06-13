@@ -155,6 +155,7 @@ class AdjacencyList<V extends GraphValue<V>> {
       this.nodeValue = operator;
     }
 
+    @Override
     public int compareTo(final Node argNode) {
       // just do an identity compare since elsewhere you should ensure that only one node exists for each nodeValue.
       return argNode == this ? 0 : -1;

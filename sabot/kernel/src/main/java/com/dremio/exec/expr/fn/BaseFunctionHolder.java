@@ -215,7 +215,7 @@ public abstract class BaseFunctionHolder extends AbstractFunctionHolder {
   protected void generateBody(ClassGenerator<?> g, BlockType bt, String body, HoldingContainer[] inputVariables,
       JVar[] workspaceJVars, boolean decConstantInputOnly) {
     final String trimmedBody = Strings.nullToEmpty(body).trim();
-    if (!trimmedBody.isEmpty() && !trimmedBody.equals("{}")) {
+    if (!trimmedBody.isEmpty() && !"{}".equals(trimmedBody)) {
       JBlock sub = new JBlock(true, true);
       if (decConstantInputOnly) {
         addProtectedBlock(g, sub, body, inputVariables, workspaceJVars, true);
@@ -312,6 +312,10 @@ public abstract class BaseFunctionHolder extends AbstractFunctionHolder {
 
   @Override
   public CompleteType getReturnType(final List<LogicalExpression> args) {
+    if (derivation instanceof OutputDerivation.Dummy) {
+      String functionName = registeredNames.length != 0 ? registeredNames[0] : "unknown";
+      throw new UnsupportedOperationException(String.format("Unable to determine output type for %s function.", functionName));
+    }
     return derivation.getOutputType(returnValue.type, args);
   }
 
@@ -319,6 +323,7 @@ public abstract class BaseFunctionHolder extends AbstractFunctionHolder {
     return returnValue.name;
   }
 
+  @Override
   public NullHandling getNullHandling() {
     return attributes.getNullHandling();
   }
@@ -447,6 +452,7 @@ public abstract class BaseFunctionHolder extends AbstractFunctionHolder {
     }
   }
 
+  @Override
   public boolean checkPrecisionRange() {
     return false;
   }
@@ -454,6 +460,7 @@ public abstract class BaseFunctionHolder extends AbstractFunctionHolder {
   /**
    * Does this function always return the same type, no matter the inputs?
    */
+  @Override
   public boolean isReturnTypeIndependent(){
     return derivation.getClass() == OutputDerivation.Default.class;
   }

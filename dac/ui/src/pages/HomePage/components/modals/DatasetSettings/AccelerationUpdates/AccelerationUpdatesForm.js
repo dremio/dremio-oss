@@ -17,12 +17,7 @@ import { Component } from "react";
 import Immutable from "immutable";
 import PropTypes from "prop-types";
 import { connectComplexForm } from "components/Forms/connectComplexForm";
-import {
-  FormBody,
-  FormTitle,
-  ModalForm,
-  modalFormProps,
-} from "components/Forms";
+import { FormBody, ModalForm, modalFormProps } from "components/Forms";
 import { label, section } from "uiTheme/radium/forms";
 import { FieldSelect, Radio } from "components/Fields";
 import DataFreshnessSection from "components/Forms/DataFreshnessSection";
@@ -127,7 +122,7 @@ export class AccelerationUpdatesForm extends Component {
         : formatMessage({ id: "Incremental.Update" });
     return (
       <div>
-        <div style={section}>
+        <div style={{ ...section, marginBottom: 26 }}>
           <span style={styles.label}>
             {formatMessage({ id: "Refresh.Method" })}
             <HoverHelp content={helpContent} />
@@ -175,19 +170,13 @@ export class AccelerationUpdatesForm extends Component {
 
   render() {
     const { handleSubmit, onCancel } = this.props;
-    const { formatMessage } = intl;
     return (
       <ModalForm
         {...modalFormProps(this.props)}
         onSubmit={handleSubmit(this.submitForm)}
         onCancel={onCancel}
       >
-        <FormBody>
-          <FormTitle>
-            {formatMessage({ id: "Acceleration.RefreshPolicy" })}
-          </FormTitle>
-          {this.renderContent()}
-        </FormBody>
+        <FormBody>{this.renderContent()}</FormBody>
       </ModalForm>
     );
   }
@@ -214,8 +203,9 @@ const styles = {
     display: "flex",
     alignItems: "center",
     fontSize: 18,
-    fontWeight: 300,
-    marginBottom: 10,
+    fontWeight: 600,
+    marginBottom: 16,
+    color: "var(--color--neutral--900)",
   },
 };
 

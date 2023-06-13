@@ -14,17 +14,26 @@
  * limitations under the License.
  */
 import CommitBrowser from "@app/pages/HomePage/components/BranchPicker/components/CommitBrowser/CommitBrowser";
-import { LogEntry, LogResponse } from "@app/services/nessie/client";
+import {
+  LogEntryV2 as LogEntry,
+  LogResponseV2 as LogResponse,
+} from "@app/services/nessie/client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNessieContext } from "../../../../utils/context";
 import CommitDetails from "../../../CommitDetails/CommitDetails";
 
 import "./TableHistoryContent.less";
 
-function TableHistoryContent({ path }: { path: string[] }) {
+function TableHistoryContent({
+  path,
+  tableName,
+}: {
+  path: string[];
+  tableName?: string;
+}) {
   const {
     state: { reference },
-    api,
+    apiV2,
   } = useNessieContext();
   const [commit, setCommit] = useState<LogEntry>();
   const [list, setList] = useState<LogResponse | undefined>();
@@ -48,6 +57,7 @@ function TableHistoryContent({ path }: { path: string[] }) {
       <span className="tableDetailsPage-commits">
         {!!reference && (
           <CommitBrowser
+            tableName={tableName}
             pageSize={25}
             path={path}
             hasSearch={false}
@@ -55,7 +65,7 @@ function TableHistoryContent({ path }: { path: string[] }) {
             onDataChange={onDataChange}
             selectedHash={commitMeta?.hash}
             onClick={setCommit}
-            api={api}
+            api={apiV2}
           />
         )}
       </span>

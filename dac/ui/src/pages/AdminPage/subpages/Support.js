@@ -19,6 +19,7 @@ import PropTypes from "prop-types";
 
 import { compose } from "redux";
 import { connect } from "react-redux";
+import { FormattedMessage } from "react-intl";
 
 import authorize from "@inject/containers/authorize";
 
@@ -136,6 +137,17 @@ export class Support extends PureComponent {
 
     const valueEle = <span style={{ wordBreak: "break-all" }}>{value}</span>;
 
+    if (value?.startsWith("%") && value.length < 3) {
+      this.props.addNotification(
+        <FormattedMessage
+          id="Support.Error.InvalidSearch"
+          values={{ value }}
+        />,
+        "error"
+      );
+      return;
+    }
+
     if (this.getShownSettings().some((e) => e.id === value)) {
       this.props.addNotification(
         <span>Setting “{valueEle}” already shown.</span>, // todo: loc substitution engine
@@ -236,7 +248,7 @@ export class Support extends PureComponent {
     // SettingsMicroForm has a logic for error display. We should not duplicate it in the viewState
     const viewStateWithoutError = this.props.viewState.set("isFailed", false);
     const advancedForm = (
-      <form style={{ flex: "0 0 auto" }} onSubmit={this.addAdvanced}>
+      <form className="flex" onSubmit={this.addAdvanced}>
         <TextField
           placeholder={la("Support Key")}
           data-qa="support-key-search"

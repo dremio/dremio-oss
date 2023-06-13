@@ -32,16 +32,16 @@ public class LogStatementWithStringFormatTest {
     helper
         .addSourceLines(
             "Test.java",
-            "import org.slf4j.Logger;\n"
-                + "import org.slf4j.LoggerFactory;\n"
-                + "\n"
-                + "public class Test {\n"
-                + "    private final Logger logger = LoggerFactory.getLogger(getClass());\n"
-                + "    void method() {\n"
-                + "        // BUG: Diagnostic contains: Do not use String.format when calling a logging method\n"
-                + "        logger.info(String.format(\"hello %s\", \"world\"));"
-                + "    }\n"
-                + "}")
+            "import org.slf4j.Logger;",
+            "import org.slf4j.LoggerFactory;",
+            "",
+            "public class Test {",
+            "    private final Logger logger = LoggerFactory.getLogger(getClass());",
+            "    void method() {",
+            "        // BUG: Diagnostic contains:",
+            "        logger.info(String.format(\"hello %s\", \"world\"));",
+            "    }",
+            "}")
         .doTest();
   }
 
@@ -50,20 +50,20 @@ public class LogStatementWithStringFormatTest {
     helper
         .addSourceLines(
             "Test.java",
-            "import org.slf4j.Logger;\n"
-                + "import org.slf4j.LoggerFactory;\n"
-                + "import org.slf4j.MarkerFactory;\n"
-                + "import org.slf4j.Marker;\n"
-                + "\n"
-                + "public class Test {\n"
-                + "    private final Logger logger = LoggerFactory.getLogger(getClass());\n"
-                + "    private final Marker marker = MarkerFactory.getMarker(\"Sample\");\n"
-                + "\n"
-                + "    void method() {\n"
-                + "        // BUG: Diagnostic contains: Do not use String.format when calling a logging method\n"
-                + "        logger.warn(marker, String.format(\"hello %s\", \"world\"));"
-                + "    }\n"
-                + "}")
+            "import org.slf4j.Logger;",
+            "import org.slf4j.LoggerFactory;",
+            "import org.slf4j.MarkerFactory;",
+            "import org.slf4j.Marker;",
+            "",
+            "public class Test {",
+            "    private final Logger logger = LoggerFactory.getLogger(getClass());",
+            "    private final Marker marker = MarkerFactory.getMarker(\"Sample\");",
+            "",
+            "    void method() {",
+            "        // BUG: Diagnostic contains:",
+            "        logger.warn(marker, String.format(\"hello %s\", \"world\"));",
+            "    }",
+            "}")
         .doTest();
   }
 }

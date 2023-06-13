@@ -18,6 +18,7 @@ export type SessionContext = {
   handleInvalidSession: () => void;
   handleLogout: () => void;
   getSessionIdentifier: () => string;
+  getOrganizationId?: () => string;
 };
 
 let sessionContext: SessionContext;

@@ -31,9 +31,9 @@ import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.io.FileIO;
 
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.store.iceberg.DremioFileIO;
 import com.dremio.exec.store.iceberg.manifestwriter.IcebergCommitOpHelper;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.writer.WriterCommitterOperator;
@@ -77,7 +77,7 @@ public class IcebergTableCreationCommitter implements IcebergOpCommitter {
       /* OperatorStats are null when create empty table is executed via Coordinator*/
       if(operatorStats != null) {
         operatorStats.addLongStat(WriterCommitterOperator.Metric.ICEBERG_COMMIT_TIME, totalCommitTime);
-        operatorStats.addLongStat(WriterCommitterOperator.Metric.SNAPSHOT_COMMIT_STATUS, COMMITTED.value());
+        IcebergOpCommitter.writeSnapshotStats(operatorStats, COMMITTED, snapshot);
       }
 
       return snapshot;
@@ -95,8 +95,8 @@ public class IcebergTableCreationCommitter implements IcebergOpCommitter {
   }
 
   @Override
-  public void cleanup(DremioFileIO dremioFileIO) {
-    IcebergCommitOpHelper.deleteManifestFiles(dremioFileIO, manifestFileList, true);
+  public void cleanup(FileIO fileIO) {
+    IcebergCommitOpHelper.deleteManifestFiles(fileIO, manifestFileList, true);
   }
 
   @Override
@@ -114,6 +114,7 @@ public class IcebergTableCreationCommitter implements IcebergOpCommitter {
     throw new UnsupportedOperationException("Delete data file operation not allowed in Create table Transaction");
   }
 
+  @Override
   public void updateSchema(BatchSchema newSchema) {
     throw new UnsupportedOperationException("Updating schema is not supported for Creation table Transaction");
   }

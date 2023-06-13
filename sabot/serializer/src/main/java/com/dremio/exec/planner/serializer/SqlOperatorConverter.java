@@ -22,15 +22,19 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Stream;
 
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.exec.catalog.udf.UserDefinedFunctionArgumentOperator;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.planner.sql.DremioSqlOperatorTable;
 import com.dremio.exec.planner.sql.OperatorTable;
 import com.dremio.exec.planner.sql.SqlFunctionImpl;
+import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
+import com.dremio.plan.serialization.PFunctionParameter;
 import com.dremio.plan.serialization.PSqlOperator;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.BiMap;
@@ -80,34 +84,58 @@ public class SqlOperatorConverter {
   }
 
   public PSqlOperator toProto(SqlOperator o) {
+    PSqlOperator.Builder builder = PSqlOperator.newBuilder();
     SyEq<SqlOperator> wrapped = new SyEq<>(o);
     String key = SQL_STD_OPERATORS.inverse().get(wrapped);
-    if(key != null) {
-      return PSqlOperator.newBuilder().setName(key).build();
+
+    if (key != null) {
+      return builder.setName(key).build();
     }
 
     final String functionName = o.getName();
+    builder.setDname(functionName);
+
     final String className = o.getClass().getName();
+    builder.setClassName(className);
+
     int minOperands = -1;
     int maxOperands = -1;
     if (o.getOperandTypeChecker() != null) {
       minOperands = o.getOperandTypeChecker().getOperandCountRange().getMin();
       maxOperands = o.getOperandTypeChecker().getOperandCountRange().getMax();
     }
-    if(operators.get(new FunctionKey(functionName, className, minOperands, maxOperands)) != null) {
-      return PSqlOperator.newBuilder()
-        .setDname(functionName)
-        .setClassName(className)
-        .setMinOperands(minOperands)
-        .setMaxOperands(maxOperands).build();
+
+    builder
+      .setMinOperands(minOperands)
+      .setMaxOperands(maxOperands);
+
+    if (operators.get(new FunctionKey(functionName, className, minOperands, maxOperands)) != null) {
+      return builder.build();
     }
 
-    if( !(o instanceof SqlFunctionImpl)) {
+    if (o instanceof UserDefinedFunctionArgumentOperator.ArgumentOperator) {
+      UserDefinedFunctionArgumentOperator.ArgumentOperator argument = (UserDefinedFunctionArgumentOperator.ArgumentOperator) o;
+      int ordinal = argument.getOrdinal();
+      String name = argument.getName();
+      RelDataType type = argument.getReturnRelDataType();
+
+      TypeSerde typeSerde = new TypeSerde(JavaTypeFactoryImpl.INSTANCE);
+      PFunctionParameter pFunctionParameter = PFunctionParameter.newBuilder()
+        .setOrdinal(ordinal)
+        .setName(name)
+        .setType(typeSerde.toProto(type))
+        .build();
+
+      return builder
+        .setFunctionParameter(pFunctionParameter)
+        .build();
+    }
+
+    if (!(o instanceof SqlFunctionImpl)) {
       throw new UnsupportedOperationException(String.format("Unable to serialize operator [%s] of type [%s]", o.getClass().getName(), o.getName()));
     }
 
     throw new UnsupportedOperationException("Unable to support Dremio functions yet.");
-
   }
 
   private static BiMap<String, SyEq<SqlOperator>> populate() {

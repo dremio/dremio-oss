@@ -68,7 +68,9 @@ public class HiveClientWithAuthz extends HiveClientImpl {
         final HiveConf hiveConfCopy = new HiveConf(hiveConf);
         hiveConfCopy.set("user.name", userName);
         hiveConfCopy.set("proxy.user.name", userName);
-        client = Hive.get(hiveConfCopy).getMSC();
+        // skip registering Hive functions as this could be expensive, especially on Glue, and we don't have any
+        // need for them
+        client = Hive.getWithFastCheck(hiveConfCopy, false).getMSC();
         return null;
       },
         ugiForRpc,

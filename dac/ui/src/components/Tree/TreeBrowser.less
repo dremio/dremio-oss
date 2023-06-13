@@ -48,11 +48,11 @@
     }
 
     &-heading {
-      border-bottom: 0.1rem solid @SECONDARY_200;
+      border-bottom: 1px solid @SECONDARY_200;
       display: flex;
       align-items: center;
-      height: 3.9rem;
-      padding: 0 0.8rem;
+      height: 39px;
+      padding: 0 8px;
 
       &.--dataset {
         .TreeBrowser-tab {
@@ -61,24 +61,24 @@
       }
 
       &.--collapsed {
-        padding: 0 0.4rem;
+        padding: 0 4px;
       }
 
       h3 {
-        font-size: 1.2rem;
+        font-size: 12px;
         font-weight: 600;
-        line-height: 1.8rem;
+        line-height: 18px;
       }
     }
 
     &-items {
-      max-height: calc(100vh - 26rem);
-      padding: 0.4rem 1.2rem;
+      max-height: calc(100vh - 260px);
+      padding: 4px 12px;
       overflow-y: auto;
 
       .dragSource {
         align-items: center;
-        border-radius: 0.4rem;
+        border-radius: 4px;
         display: flex;
         flex-direction: row;
 
@@ -123,10 +123,9 @@
   transition: 300ms ease filter;
   height: 24px;
   width: 24px;
-
+  cursor: pointer;
+  color: var(--dremio--color--icon--main);
   &:hover {
-    filter: invert(53%) sepia(45%) saturate(6859%) hue-rotate(157deg)
-      brightness(70%) contrast(73%);
-    cursor: pointer;
+    color: var(--dremio--color--link);
   }
 }

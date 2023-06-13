@@ -53,8 +53,7 @@ import com.dremio.test.UserExceptionAssert;
 public class TestExampleQueries extends PlanTestBase {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestExampleQueries.class);
 
-  final String WORKING_PATH = TestTools.getWorkingPath();
-  final String TEST_RES_PATH = WORKING_PATH + "/src/test/resources";
+  private static final String TEST_RES_PATH = TestTools.getWorkingPath() + "/src/test/resources";
 
   @Rule
   public TemporarySystemProperties properties = new TemporarySystemProperties();
@@ -321,13 +320,13 @@ public class TestExampleQueries extends PlanTestBase {
   public void testCacheFlowWithAQueryWithSplitsInGandivaAndJava() throws Exception {
     try {
       test(String.format("alter session set %s = true", ExecConstants.PARQUET_AUTO_CORRECT_DATES));
-      final String SqlQuery = "SELECT o_orderkey,  extractYear(castDate(o_orderdate)) as y1,  " +
+      final String sqlQuery = "SELECT o_orderkey,  extractYear(castDate(o_orderdate)) as y1,  " +
         "extractYear(TO_DATE(o_orderdate, 'yyyy-mm-dd')) as y2 "
         + "FROM "
         + "cp.\"tpch/orders.parquet\" "
         + "ORDER BY o_orderkey limit 1";
       testBuilder()
-        .sqlQuery(SqlQuery)
+        .sqlQuery(sqlQuery)
         .unOrdered()
         .baselineColumns("o_orderkey", "y1", "y2")
         .baselineValues(1, 1996L, 1996L)
@@ -1154,6 +1153,15 @@ public class TestExampleQueries extends PlanTestBase {
     }
   }
 
+  @Test
+  public void testFullOuterJoinTrueCondition() throws Exception {
+    try(AutoCloseable ac = withOption(PlannerSettings.ENABLE_REDUCE_JOIN, true)){
+      test("with n as (SELECT * FROM cp.\"tpch/nation.parquet\" nations WHERE nations.N_REGIONKEY = 1),\n" +
+        "r as (SELECT * FROM cp.\"tpch/region.parquet\" regions WHERE regions.R_REGIONKEY = 1)\n" +
+        "SELECT count(*) FROM n FULL OUTER JOIN r\n" +
+        "on n.N_REGIONKEY = r.R_REGIONKEY");
+    }
+  }
 
   @Test
   public void testWhere() throws Exception {
@@ -1522,9 +1530,6 @@ public class TestExampleQueries extends PlanTestBase {
 
   @Test
   public void testExchangeRemoveForJoinPlan() throws Exception {
-    final String WORKING_PATH = TestTools.getWorkingPath();
-    final String TEST_RES_PATH = WORKING_PATH + "/src/test/resources";
-
     String sql = String.format("select t2.n_nationkey from dfs.\"%s/tpchmulti/region\" t1 join dfs.\"%s/tpchmulti/nation\" t2 on t2.n_regionkey = t1.r_regionkey", TEST_RES_PATH, TEST_RES_PATH);
 
     testBuilder()
@@ -2424,7 +2429,7 @@ public class TestExampleQueries extends PlanTestBase {
   }
 
   @Test
-  public void TestCopier5() throws Exception {
+  public void testCopier5() throws Exception {
     String query = "SELECT * FROM cp.\"parquet/52864-1.parquet\" t where id0 = '2' or id0 = '4' or id0 = '6' or id0 = '7' or id0 = '8'";
 
     testBuilder()
@@ -2455,6 +2460,26 @@ public class TestExampleQueries extends PlanTestBase {
       .baselineValues(new BigDecimal("7000.0"), 575.7124242453957, new BigDecimal("7000.0"))
       .baselineValues(new BigDecimal("4000.0"), 627.8740198036597, new BigDecimal("4000.0"))
       .baselineValues(new BigDecimal("0.0"), null, new BigDecimal("0.0"))
+      .build()
+      .run();
+  }
+
+  @Test
+  public void TestColLike() throws Exception {
+    String query = "select " +
+      "b.pat, col_like(a.term, replace(b.pat, '*', '%')) as c1 " +
+      "from cp.\"parquet/like_test.parquet\" as a " +
+      "JOIN cp.\"parquet/like_test_2.parquet\" as b " +
+      "ON a.id = b.id";
+
+    testBuilder()
+      .unOrdered()
+      .sqlQuery(query)
+      .baselineColumns("pat", "c1")
+      .baselineValues("*hp*", true)
+      .baselineValues("*hp*", true)
+      .baselineValues("*zinni*", true)
+      .baselineValues("*rugged shark*", true)
       .build()
       .run();
   }

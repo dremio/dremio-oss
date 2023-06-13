@@ -44,12 +44,12 @@ public class HiveFullRefreshReadSignatureProvider extends AbstractReadSignatureP
     pathsInReadSignature = new HashSet<>();
   }
 
+  @Override
   public ByteString compute(Set<IcebergPartitionData> addedPartitions, Set<IcebergPartitionData> deletedPartitions) {
     // Add table root dir for non-partitioned table and if not already present
     if (partitionPaths.size() == 0 && (pathsInReadSignature.size() == 0 || !pathsInReadSignature.contains(tableRoot))) {
       pathsInReadSignature.add(tableRoot);
-    }
-    else {
+    } else {
       assertPartitionsCount(addedPartitions, deletedPartitions);
       pathsInReadSignature.addAll(partitionPaths);
     }

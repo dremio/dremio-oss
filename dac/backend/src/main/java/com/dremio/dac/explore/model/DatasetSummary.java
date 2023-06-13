@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import com.dremio.common.utils.PathUtils;
+import com.dremio.dac.api.JsonISODateTime;
 import com.dremio.dac.model.job.JobFilters;
 import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.service.jobs.JobIndexKeys;
@@ -31,11 +31,11 @@ import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.VirtualDataset;
+import com.dremio.service.users.User;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 
 /**
  * Dataset summary for overlay
@@ -50,6 +50,16 @@ public class DatasetSummary {
   private final DatasetVersion datasetVersion;
   private final Map<String, VersionContextReq> references;
   private final List<String> tags;
+  private final String entityId;
+  private Boolean hasReflection;
+  private final String ownerName;
+  private final String ownerEmail;
+  private final String lastModifyingUserName;
+  private final String lastModifyingUserEmail;
+  @JsonISODateTime
+  private final Long createdAt;
+  @JsonISODateTime
+  private final Long lastModified;
 
   public DatasetSummary(@JsonProperty("fullPath") List<String> fullPath,
                         @JsonProperty("jobCount") int jobCount,
@@ -58,7 +68,15 @@ public class DatasetSummary {
                         @JsonProperty("datasetType") DatasetType datasetType,
                         @JsonProperty("datasetVersion") DatasetVersion datasetVersion,
                         @JsonProperty("tags") List<String> tags,
-                        @JsonProperty("references") Map<String, VersionContextReq> references) {
+                        @JsonProperty("references") Map<String, VersionContextReq> references,
+                        @JsonProperty("entityId") String entityId,
+                        @JsonProperty("hasReflection") Boolean hasReflection,
+                        @JsonProperty("ownerName") String ownerName,
+                        @JsonProperty("ownerEmail") String ownerEmail,
+                        @JsonProperty("lastModifyingUserName") String lastModifyingUserName,
+                        @JsonProperty("lastModifyingUserEmail") String lastModifyingUserEmail,
+                        @JsonProperty("createdAt") Long createdAt,
+                        @JsonProperty("lastModified") Long lastModified) {
     this.fullPath = fullPath;
     this.jobCount = jobCount;
     this.descendants = descendants;
@@ -67,9 +85,18 @@ public class DatasetSummary {
     this.datasetVersion = datasetVersion;
     this.tags = tags;
     this.references = references;
+    this.entityId = entityId;
+    this.hasReflection = hasReflection;
+    this.ownerName = ownerName;
+    this.ownerEmail = ownerEmail;
+    this.lastModifyingUserName = lastModifyingUserName;
+    this.lastModifyingUserEmail = lastModifyingUserEmail;
+    this.createdAt = createdAt;
+    this.lastModified = lastModified;
   }
 
-  public static DatasetSummary newInstance(DatasetConfig datasetConfig, int jobCount, int descendants, Map<String, VersionContextReq> references, List<String> tags) {
+  public static DatasetSummary newInstance(DatasetConfig datasetConfig, int jobCount, int descendants, Map<String, VersionContextReq> references, List<String> tags,
+                                           Boolean hasReflection, User owner, User lastModifyingUser) {
     List<String> fullPath = datasetConfig.getFullPathList();
 
     DatasetType datasetType = datasetConfig.getType();
@@ -99,7 +126,16 @@ public class DatasetSummary {
       datasetVersion = null;
     }
 
-    return new DatasetSummary(fullPath, jobCount, descendants, fields, datasetType, datasetVersion, tags, references);
+    final String entityId = datasetConfig.getId() == null ? null : datasetConfig.getId().getId();
+    final String ownerName = owner != null ? owner.getUserName() : null;
+    final String ownerEmail = owner != null ? owner.getEmail() : null;
+    final String lastModifyingUserName = lastModifyingUser != null ? lastModifyingUser.getUserName() : null;
+    final String lastModifyingUserEmail = lastModifyingUser != null ? lastModifyingUser.getEmail() : null;
+    final Long createdAt = datasetConfig.getCreatedAt();
+    final Long lastModified = datasetConfig.getLastModified();
+
+    return new DatasetSummary(fullPath, jobCount, descendants, fields, datasetType, datasetVersion, tags, references,
+      entityId, hasReflection, ownerName, ownerEmail, lastModifyingUserName, lastModifyingUserEmail, createdAt, lastModified);
   }
 
   public DatasetVersion getDatasetVersion() {
@@ -134,6 +170,36 @@ public class DatasetSummary {
     return references;
   }
 
+  public String getEntityId() {
+    return entityId;
+  }
+
+  public Boolean getHasReflection() { return hasReflection; }
+
+  public String getOwnerName() {
+    return ownerName;
+  }
+
+  public String getOwnerEmail() {
+    return ownerEmail;
+  }
+
+  public String getLastModifyingUserName() {
+    return lastModifyingUserName;
+  }
+
+  public String getLastModifyingUserEmail() {
+    return lastModifyingUserEmail;
+  }
+
+  public Long getCreatedAt() {
+    return createdAt;
+  }
+
+  public Long getLastModified() {
+    return lastModified;
+  }
+
   // links
   // TODO make this consistent with DatasetUI.createLinks. In ideal case, both methods should use the same util method
   public Map<String, String> getLinks() {
@@ -146,42 +212,6 @@ public class DatasetSummary {
     if (datasetType == DatasetType.VIRTUAL_DATASET) {
       links.put("edit", datasetPath.getQueryUrlPath() + "?mode=edit&version="
         + (datasetVersion == null ? datasetVersion : encodeURIComponent(datasetVersion.toString())));
-    }
-    return links;
-  }
-
-  // api links
-  public Map<String, String> getApiLinks() {
-    final Map<String, String> links = Maps.newHashMap();
-    final NamespaceKey datasetPath = new NamespaceKey(fullPath);
-    final String dottedFullPath = datasetPath.toUrlEncodedString();
-    final String fullPathString = PathUtils.toFSPath(fullPath).toString();
-
-    links.put("jobs", this.getJobsUrl());
-    switch (datasetType) {
-      case VIRTUAL_DATASET:
-        links.put("edit", "/dataset/" + dottedFullPath + "/version/" + datasetVersion + "/preview"); // edit dataset
-        final DatasetVersion datasetVersion = DatasetVersion.newVersion();
-        links.put("run", "/datasets/new_untitled?parentDataset=" + dottedFullPath + "&newVersion="
-          + (datasetVersion == null ? datasetVersion : encodeURIComponent(datasetVersion.toString()))); //create new dataset
-        break;
-      case PHYSICAL_DATASET_HOME_FILE:
-        links.put("run", "/home/" + fullPath.get(0) + "new_untitled_from_file" + fullPathString);
-        break;
-      case PHYSICAL_DATASET_HOME_FOLDER:
-        // Folder not supported yet
-        break;
-      case PHYSICAL_DATASET_SOURCE_FILE:
-        links.put("run", "/source/" + fullPath.get(0) + "new_untitled_from_file" + fullPathString);
-        break;
-      case PHYSICAL_DATASET_SOURCE_FOLDER:
-        links.put("run", "/source/" + fullPath.get(0) + "new_untitled_from_folder" + fullPathString);
-        break;
-      case PHYSICAL_DATASET:
-        links.put("run", "/source/" + fullPath.get(0) + "new_untitled_from_physical_dataset" + fullPathString);
-        break;
-      default:
-        break;
     }
     return links;
   }

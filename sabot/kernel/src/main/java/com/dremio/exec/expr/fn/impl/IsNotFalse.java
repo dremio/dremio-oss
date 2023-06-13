@@ -31,8 +31,10 @@ public class IsNotFalse {
     @Param NullableBitHolder in;
     @Output NullableBitHolder out;
 
+    @Override
     public void setup() { }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {

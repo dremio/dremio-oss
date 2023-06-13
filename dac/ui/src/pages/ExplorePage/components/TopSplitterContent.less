@@ -17,7 +17,7 @@
 :global {
   .dremioSidebar {
     flex-basis: 300px;
-    font-size: 1.4rem;
+    font-size: 14px;
     max-width: 480px;
     position: relative;
     width: 300px;
@@ -73,19 +73,44 @@
   }
 
   .resizeEditor {
+    height: 17px;
+    width: 100%;
     position: absolute;
+    bottom: -17px;
     left: 50%;
     transform: translateX(-50%);
     z-index: 10;
-    width: 32px;
-    height: 4px;
-    display: inline-block;
-    bottom: 5px;
-    background: #c5cad0;
-    border-radius: 2px;
+
+    .resizeIndicator {
+      height: 1px;
+      width: 100%;
+      position: absolute;
+      top: 8px;
+      background-color: var(--color--neutral--50);
+      transition: background-color 0.25s linear;
+
+      &.--dragging {
+        background-color: var(--color--neutral--50) !important;
+        transition: none;
+      }
+    }
 
     &:hover {
       cursor: row-resize;
+
+      .resizeIndicator {
+        background-color: var(--dremio--color--link);
+      }
     }
+  }
+
+  .resizingDisplay {
+    height: 1px;
+    width: 100%;
+    position: absolute;
+    left: 8.5px;
+    z-index: 10;
+    cursor: row-resize;
+    background-color: var(--dremio--color--link);
   }
 }

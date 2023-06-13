@@ -66,6 +66,7 @@ public class RelMdPopulationSize
     this.isNoOp = statisticsService == StatisticsService.NO_OP;
   }
 
+  @Override
   public MetadataDef<PopulationSize> getDef() {
     return PopulationSize.DEF;
   }

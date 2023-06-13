@@ -36,11 +36,12 @@ const DATA_OPTIMIZATION = "data_optimization";
 
 type NessieHomePageProps = {
   children: any;
-  source: { id: string; name: string; endpoint?: string };
+  source: { id: string; name: string; endpoint?: string; endpointV1?: string };
   viewState: any;
   isBareMinimumNessie?: boolean;
   baseUrl?: string;
   initialRef?: Branch;
+  statePrefix?: string;
 };
 
 type ConnectedProps = {
@@ -84,25 +85,26 @@ function HomePageContentUnconnected({
   source: sourceInfo,
   baseUrl,
   initialRef,
+  statePrefix = "",
 }: NessieHomePageProps & ConnectedProps) {
   const contextValue = useMemo(
-    () => createNessieContext(sourceInfo, nessie, ARCTIC_STATE_PREFIX, baseUrl),
-    [baseUrl, nessie, sourceInfo]
+    () => createNessieContext(sourceInfo, nessie, statePrefix, baseUrl),
+    [baseUrl, nessie, sourceInfo, statePrefix]
   );
   const initReference = useRef<Branch | undefined>(initialRef);
 
-  const { stateKey, api } = contextValue;
+  const { stateKey, apiV2 } = contextValue;
   useEffect(() => {
-    fetchDefaultReference(stateKey, api);
-  }, [fetchDefaultReference, stateKey, api]);
+    fetchDefaultReference(stateKey, apiV2);
+  }, [fetchDefaultReference, stateKey, apiV2]);
 
   useEffect(() => {
     // prevent infinite refetching by destructuring params
-    fetchBranchReference(stateKey, api, {
+    fetchBranchReference(stateKey, apiV2, {
       name: initReference.current?.name,
       hash: initReference.current?.hash,
     } as Branch);
-  }, [fetchBranchReference, stateKey, api]);
+  }, [fetchBranchReference, stateKey, apiV2]);
 
   useEffect(() => {
     // DX-53967: fetchFeatureFlag does not exist in enterprise (backend team uses enterprise for local development)

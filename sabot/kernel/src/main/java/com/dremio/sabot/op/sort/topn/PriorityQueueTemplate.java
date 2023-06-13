@@ -54,8 +54,8 @@ public abstract class PriorityQueueTemplate implements PriorityQueue {
     this.limit = limit;
     this.context = context;
     this.allocator = allocator;
-    final ArrowBuf ArrowBuf = allocator.buffer(4 * (limit + 1));
-    this.heapSv4 = new SelectionVector4(ArrowBuf, limit, Character.MAX_VALUE);
+    ArrowBuf buffer = allocator.buffer(4 * (limit + 1));
+    this.heapSv4 = new SelectionVector4(buffer, limit, Character.MAX_VALUE);
     this.hasSv2 = hasSv2;
     this.hyperBatch = hyperBatch;
     this.maxSize = maxSize;
@@ -73,8 +73,8 @@ public abstract class PriorityQueueTemplate implements PriorityQueue {
     hyperBatch = new Sv4HyperContainer(allocator, schema);
     hyperBatch.addBatch(newQueue);
     batchCount = hyperBatch.iterator().next().getValueVectors().length;
-    final ArrowBuf ArrowBuf = allocator.buffer(4 * (limit + 1));
-    heapSv4 = new SelectionVector4(ArrowBuf, limit, Character.MAX_VALUE);
+    ArrowBuf buffer = allocator.buffer(4 * (limit + 1));
+    heapSv4 = new SelectionVector4(buffer, limit, Character.MAX_VALUE);
     // Reset queue size (most likely to be set to limit).
     queueSize = 0;
     for (int i = 0; i < oldHeap.getTotalCount(); i++) {
@@ -120,8 +120,8 @@ public abstract class PriorityQueueTemplate implements PriorityQueue {
   @Override
   public void generate() throws SchemaChangeException {
     Stopwatch watch = Stopwatch.createStarted();
-    final ArrowBuf ArrowBuf = allocator.buffer(4 * queueSize);
-    finalSv4 = new SelectionVector4(ArrowBuf, queueSize, maxSize);
+    ArrowBuf buffer = allocator.buffer(4 * queueSize);
+    finalSv4 = new SelectionVector4(buffer, queueSize, maxSize);
     for (int i = queueSize - 1; i >= 0; i--) {
       finalSv4.set(i, pop());
     }

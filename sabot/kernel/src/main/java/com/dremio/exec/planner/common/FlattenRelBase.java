@@ -63,6 +63,8 @@ public abstract class FlattenRelBase extends SingleRel {
     return toFlatten;
   }
 
+  public abstract FlattenRelBase copy(List<RelNode> inputs, List<RexInputRef> toFlatten);
+
   @Override
   protected RelDataType deriveRowType() {
     if (PrelUtil.getPlannerSettings(getCluster()).isFullNestedSchemaSupport()) {
@@ -92,7 +94,8 @@ public abstract class FlattenRelBase extends SingleRel {
     return super.deriveRowType();
   }
 
-  @Override public double estimateRowCount(RelMetadataQuery mq) {
+  @Override
+  public double estimateRowCount(RelMetadataQuery mq) {
     // We expect for flattens output to be expanding. Use a constant to expand the data.
     return mq.getRowCount(input) * toFlatten.size() * PrelUtil.getPlannerSettings(getCluster().getPlanner()).getFlattenExpansionAmount();
   }
@@ -124,6 +127,7 @@ public abstract class FlattenRelBase extends SingleRel {
     }
   }
 
+  @Override
   public RelWriter explainTerms(RelWriter pw) {
     return super.explainTerms(pw).item("flattenField", this.toFlatten);
   }

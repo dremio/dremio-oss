@@ -20,6 +20,7 @@ import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.proto.UserBitShared.QueryResult;
 import com.dremio.exec.proto.UserBitShared.QueryResult.QueryState;
+import com.dremio.sabot.exec.AbstractHeapClawBackStrategy;
 import com.google.common.base.Preconditions;
 
 /**
@@ -36,11 +37,14 @@ public class UserResult {
   private final UserException exception;
   private final String cancelReason;
   private final boolean clientCancelled;
+  private final boolean timedoutWaitingForEngine;
+  private final boolean runTimeExceeded;
 
   private QueryResult result;
 
   public UserResult(Object extraValue, QueryId queryId, QueryState state, QueryProfile profile,
-                    UserException exception, String cancelReason, boolean clientCancelled) {
+                    UserException exception, String cancelReason, boolean clientCancelled,
+                    boolean timedoutWaitingForEngine, boolean runTimeExceeded) {
     this.extraValue = extraValue;
     this.queryId = queryId;
     this.state = state;
@@ -48,6 +52,44 @@ public class UserResult {
     this.exception = exception;
     this.cancelReason = cancelReason;
     this.clientCancelled = clientCancelled;
+    this.timedoutWaitingForEngine = timedoutWaitingForEngine;
+    this.runTimeExceeded = runTimeExceeded;
+  }
+
+  public UserException.AttemptCompletionState getAttemptCompletionState() {
+    if (state == QueryState.COMPLETED) {
+      // Attempt completed successfully
+      return UserException.AttemptCompletionState.SUCCESS;
+    }
+
+    if (this.clientCancelled) {
+      return UserException.AttemptCompletionState.CLIENT_CANCELLED;
+    }
+
+    // Query did not complete successfully and was not cancelled
+    if (this.timedoutWaitingForEngine) {
+      return UserException.AttemptCompletionState.ENGINE_TIMEOUT;
+    }
+
+    if (this.runTimeExceeded) {
+      return UserException.AttemptCompletionState.RUNTIME_EXCEEDED;
+    }
+
+    if (exception == null) {
+      return UserException.AttemptCompletionState.UNKNOWN;
+    }
+
+    UserException.AttemptCompletionState attemptCompletionState = exception.getAttemptCompletionState();
+    if (attemptCompletionState != UserException.AttemptCompletionState.UNKNOWN) {
+      return attemptCompletionState;
+    }
+
+    String errMessage = exception.getMessage();
+    if ((errMessage != null) && (errMessage.indexOf(AbstractHeapClawBackStrategy.FAIL_CONTEXT) >= 0)) {
+      return UserException.AttemptCompletionState.HEAP_MONITOR_E;
+    }
+
+    return UserException.AttemptCompletionState.DREMIO_PB_ERROR;
   }
 
   public QueryResult toQueryResult() {
@@ -104,7 +146,7 @@ public class UserResult {
   }
 
   public UserResult withNewQueryId(QueryId newQueryId) {
-    return new UserResult(extraValue, newQueryId, state, profile, exception, cancelReason, clientCancelled);
+    return new UserResult(extraValue, newQueryId, state, profile, exception, cancelReason, clientCancelled, timedoutWaitingForEngine, runTimeExceeded);
   }
 
   public UserResult withException(Exception ex) {
@@ -125,7 +167,7 @@ public class UserResult {
       profile = addError(exception, builder).build();
     }
 
-    return new UserResult(extraValue, queryId, QueryState.FAILED, profile, exception, cancelReason, clientCancelled);
+    return new UserResult(extraValue, queryId, QueryState.FAILED, profile, exception, cancelReason, clientCancelled, timedoutWaitingForEngine, runTimeExceeded);
   }
 
   public static QueryProfile.Builder addError(UserException ex, QueryProfile.Builder profileBuilder) {
@@ -143,6 +185,6 @@ public class UserResult {
   public UserResult replaceException(UserException e) {
     UserException exception =  UserException.systemError(e)
         .build(logger);
-    return new UserResult(extraValue, queryId, QueryState.FAILED, profile, exception, cancelReason, clientCancelled);
+    return new UserResult(extraValue, queryId, QueryState.FAILED, profile, exception, cancelReason, clientCancelled, timedoutWaitingForEngine, runTimeExceeded);
   }
 }

@@ -51,6 +51,7 @@ import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.security.AccessControlException;
 import org.apache.hadoop.security.Credentials;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.util.Progressable;
 
@@ -131,7 +132,7 @@ public class HadoopFsWrapperWithCachePluginClassLoader extends FileSystem {
     try {
       String pluginConfIdentifier = conf.get(HiveFsUtils.UNIQUE_CONF_IDENTIFIER_PROPERTY_NAME);
       return cache.get(pluginConfIdentifier)
-        .getHadoopFsSupplierPluginClassLoader(name.toString(), conf).get();
+        .getHadoopFsSupplierPluginClassLoader(name.toString(), conf, UserGroupInformation.getCurrentUser().getUserName()).get();
     } catch (Exception e) {
       logger.error("FileSystem can not be created", e);
       throw new Exception("FileSystem can not be created");

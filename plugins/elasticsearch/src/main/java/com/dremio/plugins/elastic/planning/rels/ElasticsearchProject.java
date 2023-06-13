@@ -115,6 +115,7 @@ public class ElasticsearchProject extends ProjectRelBase implements Elasticsearc
     return pluginId;
   }
 
+  @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
     if (needsScript && !scriptsEnabled) {
       return planner.getCostFactory().makeInfiniteCost();

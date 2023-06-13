@@ -59,6 +59,7 @@ public abstract class DecimalMixedEndianComparatorImpl implements DecimalMixedEn
    * @param startIndexRight starting index in the buffer.
    * @return
    */
+  @Override
   public int compare(ArrowBuf left, int startIndexLeft,
                      int valueLength, ArrowBuf right, int startIndexRight) {
 

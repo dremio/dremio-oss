@@ -50,6 +50,8 @@ import com.dremio.exec.store.SampleMutator;
 import com.dremio.exec.store.dfs.implicit.AdditionalColumnsRecordReader;
 import com.dremio.exec.store.parquet.InputStreamProvider;
 import com.dremio.exec.store.parquet.MutableParquetMetadata;
+import com.dremio.exec.store.parquet.ParquetFilterCreator;
+import com.dremio.exec.store.parquet.ParquetFilters;
 import com.dremio.exec.store.parquet.ParquetReaderUtility;
 import com.dremio.exec.store.parquet.ParquetScanProjectedColumns;
 import com.dremio.exec.store.parquet.ParquetTypeHelper;
@@ -122,12 +124,11 @@ public class ParquetFooterReader implements FooterReader, SupportsTypeCoercionsA
   }
 
   private BatchSchema createBatchSchemaIfNeeded(MutableParquetMetadata parquetMetadata, String path, long fileSize) throws IOException {
-    if (tableSchema != null) {
-      return tableSchema;
+    if (tableSchema == null) {
+      tableSchema = batchSchemaFromParquetFooter(parquetMetadata, path, fileSize);
     }
-    return tableSchema = batchSchemaFromParquetFooter(parquetMetadata, path, fileSize);
+    return tableSchema;
   }
-
 
   private List<Field> getFieldsUsingParquetTypeHelper(MutableParquetMetadata footer) throws Exception {
     List<Field> fields = new ArrayList<>();
@@ -209,7 +210,7 @@ public class ParquetFooterReader implements FooterReader, SupportsTypeCoercionsA
 
 
       final long maxFooterLen = opContext.getOptions().getOption(ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR);
-      try (InputStreamProvider streamProvider = new SingleStreamProvider(fs, Path.of(path), fileSize, maxFooterLen, false, null, null, false);
+      try (InputStreamProvider streamProvider = new SingleStreamProvider(fs, Path.of(path), fileSize, maxFooterLen, false, null, null, false, ParquetFilters.NONE, ParquetFilterCreator.DEFAULT);
            RecordReader reader = new AdditionalColumnsRecordReader(opContext, new ParquetRowiseReader(opContext, mutableParquetMetadata, 0,
              path, ParquetScanProjectedColumns.fromSchemaPaths(GroupScan.ALL_COLUMNS),
              fs, schemaHelper, streamProvider, codec, true), new ArrayList<>(), sampleAllocator)) {
@@ -224,6 +225,8 @@ public class ParquetFooterReader implements FooterReader, SupportsTypeCoercionsA
         return mutator.getContainer().getSchema();
       } catch (Exception e) {
         throw new IOException(e.getMessage());
+      } finally {
+        codec.release();
       }
     }
   }
@@ -231,7 +234,7 @@ public class ParquetFooterReader implements FooterReader, SupportsTypeCoercionsA
   private MutableParquetMetadata readFooter(String path, long fileSize) throws IOException {
     logger.debug("Reading footer of file [{}]", path);
     try (SingleStreamProvider singleStreamProvider = new SingleStreamProvider(this.fs, Path.of(path), fileSize,
-      maxFooterLen(), false, null, opContext, false)) {
+      maxFooterLen(), false, null, opContext, false, ParquetFilters.NONE, ParquetFilterCreator.DEFAULT)) {
       return singleStreamProvider.getFooter();
     }
   }

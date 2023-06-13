@@ -47,10 +47,12 @@ public final class ZeroArgFunction extends SqlFunction {
     return SqlOperandCountRanges.of(0);
   }
 
+  @Override
   public boolean checkOperandTypes(SqlCallBinding sqlCallBinding, boolean throwOnFailure) {
     return sqlCallBinding.operands().size() == 0;
   }
 
+  @Override
   public RelDataType inferReturnType(
     SqlOperatorBinding opBinding) {
     return JavaTypeFactoryImpl.INSTANCE.createSqlType(SqlTypeName.DOUBLE);

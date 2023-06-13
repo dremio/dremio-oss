@@ -28,6 +28,7 @@ import { confirmBodyText, modalContent } from "uiTheme/radium/modal";
 import localStorageUtils from "utils/storageUtils/localStorageUtils";
 import Keys from "@app/constants/Keys.json";
 import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
+import * as confirmModalClasses from "./ConfirmModal.module.less";
 
 export default class ConfirmModal extends Component {
   static propTypes = {
@@ -55,6 +56,7 @@ export default class ConfirmModal extends Component {
     className: PropTypes.string,
     headerIcon: PropTypes.node,
     size: PropTypes.string,
+    asyncSubmitting: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -147,6 +149,7 @@ export default class ConfirmModal extends Component {
       this.props;
 
     let textRenderer = text;
+    let tooltip = text;
     if (Array.isArray(text)) {
       textRenderer = text.map((textVal, index) => {
         return (
@@ -158,6 +161,7 @@ export default class ConfirmModal extends Component {
           </p>
         );
       });
+      tooltip = undefined;
     }
 
     return (
@@ -168,7 +172,13 @@ export default class ConfirmModal extends Component {
         justifyContent="space-evenly"
         classes={{ root: "full-height margin-bottom--double margin-top" }}
       >
-        <Grid item>{textRenderer}</Grid>
+        <Grid
+          item
+          className={confirmModalClasses["confirm-modal-content"]}
+          title={tooltip}
+        >
+          {textRenderer}
+        </Grid>
         {showPrompt && <Grid item>{this.renderPrompt()}</Grid>}
         {doNotAskAgainKey && doNotAskAgainText && (
           <Grid item>{this.renderDonotAskAgainCheckbox()}</Grid>
@@ -195,6 +205,7 @@ export default class ConfirmModal extends Component {
       className,
       headerIcon,
       size = "smallest",
+      asyncSubmitting,
     } = this.props;
     const hideCancel = this.props.hideCancelButton || showOnlyConfirm;
     const onHide = showOnlyConfirm ? () => {} : onCancel;
@@ -243,6 +254,7 @@ export default class ConfirmModal extends Component {
           cancelText={cancelText || la("Cancel")}
           cancel={onCancel}
           canSubmit={canSubmit}
+          submitting={asyncSubmitting}
         />
       </Modal>
     );

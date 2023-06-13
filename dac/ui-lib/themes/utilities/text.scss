@@ -1,0 +1,54 @@
+.font-sans {
+  font-family: var(--font-family--sans);
+}
+.font-mono {
+  font-family: var(--font-family--mono);
+}
+
+.text-sm {
+  font-size: calc(12rem / 14);
+}
+
+.text-base {
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.text-lg {
+  font-size: calc(16rem / 14);
+}
+
+.text-xl {
+  font-size: calc(18rem / 14);
+}
+
+.text-light {
+  font-weight: 300;
+}
+
+.text-normal {
+  font-weight: 400;
+}
+
+.text-medium {
+  font-weight: 500;
+}
+
+.text-semibold {
+  font-weight: 600;
+}
+
+.text-bold {
+  font-weight: 700;
+}
+
+.truncate {
+  display: inline-block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.whitespace-nowrap {
+  white-space: nowrap;
+}

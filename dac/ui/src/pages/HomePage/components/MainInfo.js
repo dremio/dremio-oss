@@ -19,7 +19,7 @@ import { Link } from "react-router";
 import Immutable from "immutable";
 import PropTypes from "prop-types";
 import DocumentTitle from "react-document-title";
-import { FormattedMessage, injectIntl } from "react-intl";
+import { injectIntl } from "react-intl";
 import urlParse from "url-parse";
 
 import MainInfoMixin from "dyn-load/pages/HomePage/components/MainInfoMixin";
@@ -37,6 +37,7 @@ import { IconButton } from "dremio-ui-lib";
 import { TagsAlert } from "@app/pages/HomePage/components/TagsAlert";
 
 import { NESSIE, ARCTIC } from "@app/constants/sourceTypes";
+import { NEW_DATASET_NAVIGATION } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
 import { tableStyles } from "../tableStyles";
 import BrowseTable from "./BrowseTable";
 import { HeaderButtons } from "./HeaderButtons";
@@ -51,11 +52,15 @@ import { constructArcticUrl } from "@app/exports/pages/ArcticCatalog/arctic-cata
 import { isVersionedSource as checkIsVersionedSource } from "@app/utils/sourceUtils";
 import { fetchSupportFlagsDispatch } from "@inject/actions/supportFlags";
 import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
+import WikiDrawerWrapper from "@app/components/WikiDrawerWrapper";
+import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
+import { getCommonWikiDrawerTitle } from "@app/utils/WikiDrawerUtils";
 
 const folderPath = "/folder/";
 
 const shortcutBtnTypes = {
   edit: "edit",
+  goToTable: "goToTable",
   settings: "settings",
 };
 
@@ -92,11 +97,13 @@ export class MainInfoView extends Component {
 
   state = {
     isWikiShown: localStorageUtils.getWikiVisibleState(),
+    datasetDetails: Immutable.Map({}),
+    isDrawerOpen: false,
   };
 
   componentDidMount() {
     this.fetchWiki();
-    this.fetchUploadFlag();
+    this.fetchSupportFlags();
   }
 
   componentDidUpdate(prevProps) {
@@ -111,10 +118,13 @@ export class MainInfoView extends Component {
     }
   }
 
-  fetchUploadFlag() {
+  fetchSupportFlags() {
     const { dispatchFetchSupportFlags } = this.props;
 
     dispatchFetchSupportFlags?.("ui.upload.allow");
+    dispatchFetchSupportFlags?.("client.tools.tableau");
+    dispatchFetchSupportFlags?.("client.tools.powerbi");
+    dispatchFetchSupportFlags?.(NEW_DATASET_NAVIGATION);
   }
 
   getActionCell(item) {
@@ -224,7 +234,6 @@ export class MainInfoView extends Component {
 
   // this method is targeted for dataset like entities: PDS, VDS and queriable files
   getShortcutButtons(item, entityType) {
-    const { isVersionedSource } = this.props;
     const allBtns = this.getShortcutButtonsData(
       item,
       entityType,
@@ -251,7 +260,7 @@ export class MainInfoView extends Component {
         <DatasetMenu
           entity={item}
           entityType={entityType}
-          isVersionedSource={isVersionedSource}
+          openWikiDrawer={this.openWikiDrawer}
         />,
         item
       ),
@@ -289,13 +298,18 @@ export class MainInfoView extends Component {
     const [name, jobs, action] = this.getTableColumns();
     const jobsCount =
       item.get("jobCount") || item.getIn(["extendedConfig", "jobCount"]) || 0;
-    const isArcticSource = this.isArctic();
+    const versionContext = getVersionContextFromId(item.get("id"));
+    const isNeitherNessieOrArctic = this.isNeitherNessieOrArctic();
     return {
       rowClassName: item.get("name"),
       data: {
         [name.key]: {
           node: () => (
-            <MainInfoItemNameAndTag isIceberg={isArcticSource} item={item} />
+            <MainInfoItemNameAndTag
+              isIceberg={!!versionContext}
+              showMetadataCard={isNeitherNessieOrArctic}
+              item={item}
+            />
           ),
           value: item.get("name"),
         },
@@ -424,10 +438,11 @@ export class MainInfoView extends Component {
     return !this.isNessie() && !this.isArctic();
   };
 
-  constructArcticSourceLink = () => {
+  constructVersionSourceLink = () => {
     const { source, nessieState = {} } = this.props;
     const { hash, reference } = nessieState;
     const { pathname } = this.context.location;
+    const versionBase = this.isArctic() ? "arctic" : "nessie";
     let namespace = reference?.name || "";
     if (pathname.includes(folderPath)) {
       namespace = pathname.substring(
@@ -440,7 +455,7 @@ export class MainInfoView extends Component {
     }
     return constructArcticUrl({
       type: "source",
-      baseUrl: `/sources/arctic/${source.get("name")}`,
+      baseUrl: `/sources/${versionBase}/${source.get("name")}`,
       tab: "commits",
       namespace: namespace,
       hash: hash ? `?hash=${hash}` : "",
@@ -448,18 +463,11 @@ export class MainInfoView extends Component {
   };
 
   renderExternalLink = () => {
-    const { source } = this.props;
     if (this.isNeitherNessieOrArctic()) return null;
-    else if (this.isNessie()) {
-      return (
-        <Link to={`/sources/dataplane/${source.get("name")}/branches`}>
-          <FormattedMessage id="Nessie.ViewAllBranches" />
-        </Link>
-      );
-    } else {
+    else {
       return (
         <Link
-          to={this.constructArcticSourceLink()}
+          to={this.constructVersionSourceLink()}
           style={{ textDecoration: "none" }}
         >
           <ProjectHistoryButton />
@@ -474,6 +482,44 @@ export class MainInfoView extends Component {
     return <SourceBranchPicker source={source.toJS()} />;
   };
 
+  openWikiDrawer = (dataset) => {
+    this.setState({
+      datasetDetails: dataset,
+      isDrawerOpen: true,
+    });
+  };
+
+  openDatasetInNewTab = () => {
+    const { datasetDetails } = this.state;
+
+    const selfLink = datasetDetails.getIn(["links", "query"]);
+    const editLink = datasetDetails.getIn(["links", "edit"]);
+    const canAlter = datasetDetails.getIn(["permissions", "canAlter"]);
+    const toLink = canAlter && editLink ? editLink : selfLink;
+    const urldetails = new URL(window.location.origin + toLink);
+    const pathname = urldetails.pathname + "/wiki" + urldetails.search;
+    window.open(wrapBackendLink(pathname), "_blank");
+  };
+
+  closeWikiDrawer = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    this.setState({
+      datasetDetails: Immutable.fromJS({}),
+      isDrawerOpen: false,
+    });
+  };
+
+  wikiDrawerTitle = () => {
+    const { datasetDetails } = this.state;
+
+    return getCommonWikiDrawerTitle(
+      datasetDetails,
+      datasetDetails?.get("fullPath"),
+      this.closeWikiDrawer
+    );
+  };
+
   render() {
     const {
       canUploadFile,
@@ -482,6 +528,7 @@ export class MainInfoView extends Component {
       isVersionedSource,
       rootEntityType,
     } = this.props;
+    const { datasetDetails, isWikiShown, isDrawerOpen } = this.state;
     const { pathname } = this.context.location;
     const showWiki =
       entity && !entity.get("fileSystemFolder") && !this.isArctic(); // should be removed when DX-13804 would be fixed
@@ -498,37 +545,45 @@ export class MainInfoView extends Component {
     );
 
     return (
-      <BrowseTable
-        title={
-          entity && (
-            <BreadCrumbs
-              fullPath={entity.get("fullPathList")}
-              pathname={pathname}
-              showCopyButton
-              includeQuotes
-            />
-          )
-        }
-        buttons={buttons}
-        key={pathname} /* trick to clear out the searchbox on navigation */
-        columns={this.getTableColumns()}
-        rightSidebar={showWiki ? <WikiView item={entity} /> : null}
-        rightSidebarExpanded={this.state.isWikiShown}
-        toggleSidebar={this.toggleWikiShow}
-        tableData={this.getTableData()}
-        viewState={viewState}
-        renderExternalLink={this.renderExternalLink}
-        renderTitleExtraContent={this.renderTitleExtraContent}
-        disableZebraStripes
-        rowHeight={40}
-      >
-        <DocumentTitle
+      <>
+        <BrowseTable
           title={
-            (entity && formatFullPath(entity.get("fullPathList")).join(".")) ||
-            ""
+            entity && (
+              <BreadCrumbs
+                fullPath={entity.get("fullPathList")}
+                pathname={pathname}
+                showCopyButton
+                includeQuotes
+                extraContent={this.renderTitleExtraContent()}
+              />
+            )
           }
+          buttons={buttons}
+          key={pathname} /* trick to clear out the searchbox on navigation */
+          columns={this.getTableColumns()}
+          rightSidebar={showWiki ? <WikiView item={entity} /> : null}
+          rightSidebarExpanded={isWikiShown}
+          toggleSidebar={this.toggleWikiShow}
+          tableData={this.getTableData()}
+          viewState={viewState}
+          renderExternalLink={this.renderExternalLink}
+          disableZebraStripes
+          rowHeight={40}
+        >
+          <DocumentTitle
+            title={
+              (entity &&
+                formatFullPath(entity.get("fullPathList")).join(".")) ||
+              ""
+            }
+          />
+        </BrowseTable>
+        <WikiDrawerWrapper
+          drawerIsOpen={isDrawerOpen}
+          wikiDrawerTitle={this.wikiDrawerTitle()}
+          datasetDetails={datasetDetails}
         />
-      </BrowseTable>
+      </>
     );
   }
 }

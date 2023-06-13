@@ -23,32 +23,26 @@ import javax.annotation.Nullable;
 
 import com.dremio.common.expression.CompleteType;
 
-public class UserDefinedFunction {
-
+public final class UserDefinedFunction {
   private final String name;
   private final String functionSql;
   private final CompleteType returnType;
   private final List<FunctionArg> functionArgList;
   private final List<String> fullPath;
+  private final byte[] serializedFunctionPlan;
 
   @Nullable
   private Timestamp createdAt;
   @Nullable
   private Timestamp modifiedAt;
 
-  public UserDefinedFunction(String name, String functionSql, CompleteType returnType, List<FunctionArg> functionArgList, List<String> fullPath) {
-    this.name = name;
-    this.functionSql = functionSql;
-    this.returnType = returnType;
-    this.functionArgList = functionArgList;
-    this.fullPath = fullPath;
-  }
-
-  public UserDefinedFunction(String name,
+  public UserDefinedFunction(
+    String name,
     String functionSql,
     CompleteType returnType,
     List<FunctionArg> functionArgList,
     List<String> fullPath,
+    byte[] serializedFunctionPlan,
     Timestamp createdAt,
     Timestamp modifiedAt) {
     this.name = name;
@@ -56,6 +50,7 @@ public class UserDefinedFunction {
     this.returnType = returnType;
     this.functionArgList = functionArgList;
     this.fullPath = fullPath;
+    this.serializedFunctionPlan = serializedFunctionPlan;
     this.createdAt = createdAt;
     this.modifiedAt = modifiedAt;
   }
@@ -90,6 +85,10 @@ public class UserDefinedFunction {
     return fullPath;
   }
 
+  public byte[] getSerializedFunctionPlan() {
+    return serializedFunctionPlan;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -111,10 +110,12 @@ public class UserDefinedFunction {
   public static class FunctionArg {
     private final CompleteType dataType;
     private final String name;
+    private final String defaultExpression;
 
-    public FunctionArg(String name, CompleteType dataType) {
+    public FunctionArg(String name, CompleteType dataType, String defaultExpression) {
       this.dataType = dataType;
       this.name = name;
+      this.defaultExpression = defaultExpression;
     }
 
     public String getName() {
@@ -123,6 +124,10 @@ public class UserDefinedFunction {
 
     public CompleteType getDataType() {
       return dataType;
+    }
+
+    public String getDefaultExpression() {
+      return defaultExpression;
     }
 
     @Override
@@ -134,17 +139,19 @@ public class UserDefinedFunction {
         return false;
       }
       FunctionArg that = (FunctionArg) o;
-      return this.dataType.equals(that.dataType) && name.equals(that.name);
+      return this.dataType.equals(that.dataType)
+        && name.equals(that.name)
+        && defaultExpression.equals(that.defaultExpression);
     }
 
     @Override
     public String toString() {
-      return String.format("{\"name\": \"%s\", \"type\": \"%s\"}", name, dataType.toString());
+      return String.format("{\"name\": \"%s\", \"type\": \"%s\", \"default_expr\": \"%s\"}", name, dataType.toString(), defaultExpression);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(dataType, name);
+      return Objects.hash(dataType, name, defaultExpression);
     }
   }
 }

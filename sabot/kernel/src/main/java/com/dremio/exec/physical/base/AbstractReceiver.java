@@ -59,6 +59,7 @@ public abstract class AbstractReceiver extends AbstractBase implements Receiver 
     return physicalVisitor.visitReceiver(this, value);
   }
 
+  @Override
   public int getSenderMajorFragmentId() {
     return senderMajorFragmentId;
   }

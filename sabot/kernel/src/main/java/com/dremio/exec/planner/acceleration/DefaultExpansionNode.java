@@ -23,18 +23,21 @@ import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 
+import com.dremio.exec.catalog.TableVersionContext;
 import com.dremio.service.namespace.NamespaceKey;
 
 /**
   * Represents a location where the query was expanded from a VDS to a default reflection
   */
 public class DefaultExpansionNode extends ExpansionNode {
-  protected DefaultExpansionNode(NamespaceKey path, RelDataType rowType, RelOptCluster cluster, RelTraitSet traits, RelNode input, boolean contextSensitive) {
-    super(path, rowType, cluster, traits, input, contextSensitive);
+  protected DefaultExpansionNode(NamespaceKey path, RelDataType rowType, RelOptCluster cluster, RelTraitSet traits, RelNode input,
+                                 boolean contextSensitive, TableVersionContext versionContext) {
+    super(path, rowType, cluster, traits, input, contextSensitive, versionContext);
   }
 
-  public static DefaultExpansionNode wrap(NamespaceKey path, RelNode node, RelDataType rowType, boolean contextSensitive) {
-    return new DefaultExpansionNode(path, rowType, node.getCluster(), node.getTraitSet(), node, contextSensitive);
+  public static DefaultExpansionNode wrap(NamespaceKey path, RelNode node, RelDataType rowType,
+                                          boolean contextSensitive, TableVersionContext versionContext) {
+    return new DefaultExpansionNode(path, rowType, node.getCluster(), node.getTraitSet(), node, contextSensitive, versionContext);
   }
 
   @Override
@@ -44,11 +47,13 @@ public class DefaultExpansionNode extends ExpansionNode {
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new DefaultExpansionNode(getPath(), rowType, this.getCluster(), traitSet, inputs.get(0), isContextSensitive());
+    return new DefaultExpansionNode(getPath(), rowType, this.getCluster(), traitSet, inputs.get(0),
+      isContextSensitive(), getVersionContext());
   }
 
   @Override
   public RelNode copyWith(CopyWithCluster copier) {
-    return new DefaultExpansionNode(getPath(), rowType, copier.getCluster(), copier.copyOf(getTraitSet()), getInput().accept(copier), isContextSensitive());
+    return new DefaultExpansionNode(getPath(), rowType, copier.getCluster(), copier.copyOf(getTraitSet()),
+      getInput().accept(copier), isContextSensitive(), getVersionContext());
   }
 }

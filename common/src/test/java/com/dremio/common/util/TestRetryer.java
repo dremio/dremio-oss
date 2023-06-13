@@ -38,7 +38,7 @@ public class TestRetryer {
 
   @Test
   public void testMaxRetries() {
-    Retryer<Boolean> retryer = new Retryer.Builder<Boolean>()
+    Retryer retryer = Retryer.newBuilder()
       .setWaitStrategy(Retryer.WaitStrategy.FLAT, 1, 1)
       .retryIfExceptionOfType(RuntimeException.class)
       .setMaxRetries(MAX_RETRIES).build();
@@ -57,7 +57,7 @@ public class TestRetryer {
 
   @Test
   public void testNoRetryAfterSuccess() {
-    Retryer<Boolean> retryer = new Retryer.Builder<Boolean>()
+    Retryer retryer = Retryer.newBuilder()
       .setWaitStrategy(Retryer.WaitStrategy.FLAT, 1, 1)
       .retryIfExceptionOfType(RuntimeException.class)
       .setMaxRetries(MAX_RETRIES).build();
@@ -81,7 +81,7 @@ public class TestRetryer {
   public void testFlatWaitStrategy() {
     final int expectedWait = 100;
 
-    Retryer<Boolean> retryer = spy(new Retryer.Builder<Boolean>()
+    Retryer retryer = spy(Retryer.newBuilder()
       .setWaitStrategy(Retryer.WaitStrategy.FLAT, expectedWait, expectedWait)
       .retryIfExceptionOfType(RuntimeException.class)
       .setMaxRetries(MAX_RETRIES).build());
@@ -100,7 +100,7 @@ public class TestRetryer {
 
   @Test(expected = RuntimeException.class)
   public void testRetryIfException() {
-    Retryer<Boolean> retryer = new Retryer.Builder<Boolean>()
+    Retryer retryer = Retryer.newBuilder()
       .setWaitStrategy(Retryer.WaitStrategy.FLAT, 1, 1)
       .retryIfExceptionOfType(IOException.class)
       .retryIfExceptionOfType(SQLException.class)
@@ -127,7 +127,7 @@ public class TestRetryer {
 
   @Test(expected = RuntimeException.class)
   public void testRetryIfExceptionFunc() {
-    Retryer<Boolean> retryer = new Retryer.Builder<Boolean>()
+    Retryer retryer = Retryer.newBuilder()
       .setWaitStrategy(Retryer.WaitStrategy.FLAT, 1, 1)
       .retryOnExceptionFunc(ex -> ex instanceof IOException || ex instanceof SQLException)
       .setMaxRetries(MAX_RETRIES).build();

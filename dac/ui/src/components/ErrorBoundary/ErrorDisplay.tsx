@@ -22,7 +22,7 @@ import { intl } from "@app/utils/intl";
 
 type Props = {
   className?: string;
-  title: string;
+  title: string | (() => string);
   error: Error;
   errorInfo?: ErrorInfo | null;
 };
@@ -42,7 +42,13 @@ export const ErrorDisplay = (props: Props): JSX.Element => {
       production={process.env.NODE_ENV !== "development"}
       renderSupportInfo={() => <SupportInfo />}
       supportMessage={intl.formatMessage({ id: "Support.contact" })}
-      title={props.title || "An unexpected error occurred"}
+      title={
+        props.title
+          ? typeof props.title === "function"
+            ? props.title()
+            : props.title
+          : "An unexpected error occurred"
+      }
     />
   );
 };

@@ -252,7 +252,7 @@ public class ProtobufRecordReader {
     count.getAndAdd(1);
 
     if(count.get() == recordBatchSize) {
-      LOGGER.debug("Sending a RecordBatch to SysFlight stream.");
+      LOGGER.debug("Sending a RecordBatch of size {} to SysFlight stream.", recordBatchSize);
       stream(vectorMap, count.get(), root, allocator, listener, false);
       count.set(0);
     }

@@ -22,15 +22,11 @@ import java.io.IOException;
  */
 public class TransformationException extends IOException {
 
-  int lineNumber;
+  private final int lineNumber;
 
   public TransformationException(String message, int lineNumber) {
     super(message);
     this.lineNumber = lineNumber;
-  }
-
-  public TransformationException(String message) {
-    super(message);
   }
 
   public int getLineNumber() {

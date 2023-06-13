@@ -76,6 +76,7 @@ public class TestJobResource extends JobResource {
    * @throws JobResourceNotFoundException
    * @throws JobNotFoundException
    */
+  @Override
   @GET
   @Path("download")
   @Consumes(MediaType.APPLICATION_JSON)

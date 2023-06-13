@@ -17,14 +17,17 @@ package com.dremio.dac.cmd.upgrade;
 
 import java.util.stream.StreamSupport;
 
+import javax.inject.Provider;
+
 import com.dremio.common.Version;
 import com.dremio.dac.cmd.AdminLogger;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.service.DirectProvider;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.reflection.ReflectionUtils;
+import com.dremio.service.reflection.DatasetHashUtils;
 import com.dremio.service.reflection.proto.ExternalReflection;
 import com.dremio.service.reflection.store.ExternalReflectionStore;
 import com.google.common.collect.ImmutableList;
@@ -39,6 +42,7 @@ public class UpdateExternalReflectionHash extends UpgradeTask implements LegacyU
   static final String taskUUID = "79312f25-49d6-40e7-8096-7e132e1b64c4";
 
   private NamespaceService namespace;
+  private Provider<CatalogService> catalogServiceProvider;
   private ExternalReflectionStore store;
 
   public UpdateExternalReflectionHash() {
@@ -90,7 +94,7 @@ public class UpdateExternalReflectionHash extends UpgradeTask implements LegacyU
     }
 
     try {
-      return ReflectionUtils.computeDatasetHash(dataset, namespace, false);
+      return DatasetHashUtils.computeDatasetHash(dataset, catalogServiceProvider.get(), false);
     } catch (NamespaceException e) {
       return null;
     }

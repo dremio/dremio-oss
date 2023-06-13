@@ -183,7 +183,7 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
       this.fs = fs;
       this.attributes = attributes;
       final long maxFooterLen = context.getOptions().getOption(ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR);
-      this.streamProvider = new SingleStreamProvider(fs, attributes.getPath(), attributes.size(), maxFooterLen, false, null, null, false);
+      this.streamProvider = new SingleStreamProvider(fs, attributes.getPath(), attributes.size(), maxFooterLen, false, null, null, false, ParquetFilters.NONE, ParquetFilterCreator.DEFAULT);
       this.footer = this.streamProvider.getFooter();
       boolean autoCorrectCorruptDates = context.getOptions().getOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES_VALIDATOR) &&
         getConfig().autoCorrectCorruptDates;
@@ -200,7 +200,7 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
 
     @Override
     public void close() throws Exception {
-      AutoCloseables.close(current, streamProvider);
+      AutoCloseables.close(current, streamProvider, codec::release);
     }
 
     @Override

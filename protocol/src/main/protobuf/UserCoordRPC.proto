@@ -734,6 +734,7 @@ enum SubmissionSource {
   JDBC = 3;
   ODBC = 4;
   FLIGHT = 5;
+  D2D = 6;
 }
 
 /*

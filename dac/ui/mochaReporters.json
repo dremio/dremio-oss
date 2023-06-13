@@ -1,0 +1,7 @@
+{
+  "reporterEnabled": "mocha-junit-reporter",
+  "mochaJunitReporterReporterOptions": {
+    "mochaFile": "{id}/mocha-reports/test-results.xml",
+    "testsuitesTitle": "{id}"
+  }
+}

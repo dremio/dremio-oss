@@ -58,16 +58,18 @@ import org.apache.calcite.sql2rel.SqlRexConvertletTable;
 import org.apache.calcite.sql2rel.SqlToRelConverter;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.util.Util;
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 
 import com.dremio.exec.calcite.logical.CopyIntoTableCrel;
 import com.dremio.exec.calcite.logical.TableModifyCrel;
 import com.dremio.exec.calcite.logical.TableOptimizeCrel;
+import com.dremio.exec.calcite.logical.VacuumTableCrel;
 import com.dremio.exec.catalog.CatalogIdentity;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioCatalogReader;
 import com.dremio.exec.catalog.DremioPrepareTable;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.catalog.TableVersionContext;
 import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.ops.ViewExpansionContext.ViewExpansionToken;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
@@ -79,9 +81,11 @@ import com.dremio.exec.planner.sql.handlers.query.OptimizeOptions;
 import com.dremio.exec.planner.sql.parser.SqlCopyIntoTable;
 import com.dremio.exec.planner.sql.parser.SqlDmlOperator;
 import com.dremio.exec.planner.sql.parser.SqlOptimize;
+import com.dremio.exec.planner.sql.parser.SqlVacuumTable;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.users.UserNotFoundException;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -227,15 +231,25 @@ public class DremioSqlToRelConverter extends SqlToRelConverter {
    */
   private RelRoot convertOther(SqlNode query, boolean top, RelDataType targetRowType) {
     if (query instanceof SqlOptimize) {
-      NamespaceKey path = ((SqlOptimize)query).getPath();
+      SqlOptimize optimizeNode = ((SqlOptimize)query);
+      NamespaceKey path = optimizeNode.getPath();
       Prepare.PreparingTable nsTable = catalogReader.getTable(path.getPathComponents());
-      return RelRoot.of(new TableOptimizeCrel(cluster, cluster.traitSetOf(Convention.NONE), nsTable.toRel(createToRelContext()), nsTable, null, OptimizeOptions.DEFAULT), SqlKind.OTHER);
+      //Get rel node with filters.
+      RelNode rel = convertQueryRecursive(((SqlOptimize) query).getSourceSelect(), top, targetRowType).rel;
+      return RelRoot.of(new TableOptimizeCrel(cluster, cluster.traitSetOf(Convention.NONE),rel.getInput(0), nsTable, null, OptimizeOptions.createInstance(optimizeNode)),
+        SqlKind.OTHER);
     } else if (query instanceof SqlCopyIntoTable) {
       NamespaceKey path = ((SqlCopyIntoTable)query).getPath();
       Prepare.PreparingTable nsTable = catalogReader.getTable(path.getPathComponents());
       CopyIntoTableContext  copyIntoTableContext= new CopyIntoTableContext((SqlCopyIntoTable)query);
       return RelRoot.of(new CopyIntoTableCrel(cluster, cluster.traitSetOf(Convention.NONE), nsTable,  copyIntoTableContext), SqlKind.OTHER);
-    } else  {
+    } else if (query instanceof SqlVacuumTable) {
+      NamespaceKey path = ((SqlVacuumTable) query).getPath();
+      Prepare.PreparingTable nsTable = catalogReader.getTable(path.getPathComponents());
+      return RelRoot.of(
+        new VacuumTableCrel(cluster, cluster.traitSetOf(Convention.NONE), nsTable.toRel(createToRelContext()), nsTable,
+          null, ((SqlVacuumTable) query).getVacuumOptions()), SqlKind.OTHER);
+    } else {
       return super.convertQueryRecursive(query, top, targetRowType);
     }
   }
@@ -430,38 +444,26 @@ public class DremioSqlToRelConverter extends SqlToRelConverter {
     SqlValidatorAndToRelContext.Builder builder = SqlValidatorAndToRelContext.builder(sqlConverter)
       .withSchemaPath(context)
       .withSystemDefaultParserConfig();
-    if(viewOwner != null) {
+    if (viewOwner != null) {
       builder = builder.withUser(viewOwner);
     }
-    // versionContext is the version specified within the View Definition itself
-    // (i.e for a  view whose SQL is : select * from <inner view> AT <ref> ver1
-    // versionContext would be ver1
-    // viewExpansionVersionContext is the "outer" version specified at the parent level where this view is  being expanded.
-    // For example :
-    //   SELECT * FROM V2 AT TAG tag1 ==> tag1 is the viewExpansionVersionContext
-    //   Definition of V2 : SELECT * FROM V1 AT tag0 ==> tag0 is the versionContext
-    // The version specified in the view definition (versionContex) should always override the outer version(viewExpansionVersionContext).
+    TableVersionContext tableVersionContext = null;
     if (versionContext != null && versionContext.isSpecified()) {
+      // Nested views/tables should inherit this version context (unless explicitly overridden by the nested view/table)
       builder = builder.withVersionContext(path.getRoot(), versionContext);
-    } else if (sqlConverter.viewExpansionVersionContext != null && sqlConverter.viewExpansionVersionContext.isSpecified()) {
-      builder = builder.withVersionContext(path.getRoot(), sqlConverter.viewExpansionVersionContext);
+      tableVersionContext = TableVersionContext.of(versionContext);
     }
     SqlValidatorAndToRelContext newConverter = builder.build();
     final SqlNode parsedNode = newConverter.getSqlConverter().parse(queryString);
     final SqlNode validatedNode = newConverter.validate(parsedNode);
     if (path != null && sqlConverter.getSubstitutionProvider().isDefaultRawReflectionEnabled()) {
       final RelRootPlus unflattenedRoot = newConverter.toConvertibleRelRoot(validatedNode, true, false, false);
-      ExpansionNode expansionNode = (ExpansionNode) wrapExpansionNode(
-        sqlConverter,
-        batchSchema,
-        path,
-        unflattenedRoot.rel,
-        unflattenedRoot.validatedRowType,
-        unflattenedRoot.isContextSensitive() || ExpansionNode.isContextSensitive(unflattenedRoot.rel));
+      final RelRootPlus rootWithCast = adjustIcebergSchema(path, sqlConverter, unflattenedRoot);
+      ExpansionNode expansionNode = (ExpansionNode) wrapExpansionNode(sqlConverter, batchSchema, path, rootWithCast, tableVersionContext);
       if (expansionNode.isDefault()) {
+        sqlConverter.getViewExpansionContext().setSubstitutedWithDRR();
         sqlConverter.getFunctionContext().getContextInformation().setPlanCacheable(unflattenedRoot.isPlanCacheable());
-        return new RelRoot(expansionNode, unflattenedRoot.validatedRowType, unflattenedRoot.kind,
-          unflattenedRoot.fields, unflattenedRoot.collation, ImmutableList.of());
+        return rootWithCast.withExpansionNode(expansionNode);  // Successfully replaced with default raw reflection during ConvertToRel
       }
     }
     final RelRootPlus root = newConverter.toConvertibleRelRoot(validatedNode, true, true);
@@ -470,24 +472,52 @@ public class DremioSqlToRelConverter extends SqlToRelConverter {
       return root;
     }
 
-    boolean versionedView = false;
-    String sourceName = path.getRoot();
-    if (CatalogUtil.requestedPluginSupportsVersionedTables(sourceName, sqlConverter.getCatalog())) {
-      versionedView = true;
+    final RelRootPlus rootWithCast = adjustIcebergSchema(path, sqlConverter, root);
+    return rootWithCast.withExpansionNode(ExpansionNode.wrap(path, rootWithCast.rel, rootWithCast.validatedRowType,
+                                  rootWithCast.isContextSensitive(), false, tableVersionContext));
+  }
+
+  /**
+   * Dremio has multiple schema types that it has to convert between:
+   *
+   * - Calcite schema used for planning
+   * - Arrow batch schema used for query execution
+   * - Iceberg schema used within Iceberg tables/views
+   *
+   * Calcite schema contains the most type precision and nullability whereas Arrow batch schema loses information
+   * and this is propagated down into the Iceberg schemas that Dremio engine creates.  For example, Arrow does
+   * not include VARCHAR precision or NOT NULL on any type.  As a result, when querying Iceberg tables and views
+   * (including reflection materializations), we need to CAST the Calcite query tree underneath the table/view into
+   * the table/view's lossy Arrow/Iceberg schema.
+   *
+   * Iceberg tables and view use {@link com.dremio.exec.store.iceberg.SchemaConverter} to convert between Iceberg schema
+   * and Arrow batch schema.
+   *
+   * Sonar Views don't have this type mismatch problem because they store both:
+   * - Arrow batch schema fields.  See {@link com.dremio.exec.util.ViewFieldsHelper#getBatchSchemaFields(BatchSchema)}
+   * - Calcite fields.  See {@link com.dremio.exec.util.ViewFieldsHelper#getCalciteViewFields(DatasetConfig)}
+   *
+   * @param path View path
+   * @param sqlConverter
+   * @param root Root of View's query tree
+   * @return new root with CAST if needed
+   */
+  private static RelRootPlus adjustIcebergSchema(NamespaceKey path, SqlConverter sqlConverter, RelRootPlus root) {
+    if (!CatalogUtil.requestedPluginSupportsVersionedTables(path.getRoot(), sqlConverter.getCatalog())) {
+      return root;
     }
-    // we need to make sure that if a inner expansion is context sensitive, we consider the current
-    // expansion context sensitive even if it isn't locally.
-    final boolean contextSensitive = root.isContextSensitive() || ExpansionNode.isContextSensitive(root.rel);
-    if (versionedView) {
-      RelDataType adjustedRowType = ((JavaTypeFactoryImpl) sqlConverter.getTypeFactory()).createTypeWithMaxVarcharPrecision(root.validatedRowType);
-      // Need to cast the rowtype to be nullable to prevent null check conflicts. (DX-49215)
-      RelDataType nullableRowType = sqlConverter.getTypeFactory().createTypeWithNullability(adjustedRowType, true);
-      return new RelRoot(ExpansionNode.wrap(path, root.rel, nullableRowType, contextSensitive, false),
-        nullableRowType, root.kind, root.fields, root.collation, ImmutableList.of());
-    } else {
-      return new RelRoot(ExpansionNode.wrap(path, root.rel, root.validatedRowType, contextSensitive, false),
-        root.validatedRowType, root.kind, root.fields, root.collation, ImmutableList.of());
-    }
+    final JavaTypeFactoryImpl typeFactory = (JavaTypeFactoryImpl) sqlConverter.getTypeFactory();
+
+    // Adjust the validated row type from the SqlNode
+    final RelDataType validatedRowTypeNullableMaxVarchar = typeFactory.createTypeWithNullability(
+      typeFactory.createTypeWithMaxVarcharPrecision(root.validatedRowType), true);
+
+    // Apply CAST to the query tree
+    final RelDataType relNodeRowTypeNullableMaxVarchar = typeFactory.createTypeWithNullability(
+      typeFactory.createTypeWithMaxVarcharPrecision(root.rel.getRowType()), true);
+    final RelNode relNodeWithCast = MoreRelOptUtil.createCastRel(root.rel, relNodeRowTypeNullableMaxVarchar);
+
+    return RelRootPlus.of(root, relNodeWithCast, validatedRowTypeNullableMaxVarchar);
   }
 
   public static RelRoot expandView(NamespaceKey path,
@@ -516,13 +546,15 @@ public class DremioSqlToRelConverter extends SqlToRelConverter {
     }
   }
 
-  private static RelNode wrapExpansionNode(SqlConverter sqlConverter, BatchSchema batchSchema, NamespaceKey path, RelNode root, RelDataType rowType, boolean contextSensitive) {
+  private static RelNode wrapExpansionNode(SqlConverter sqlConverter, BatchSchema batchSchema, NamespaceKey path,
+                                           RelRootPlus root, TableVersionContext versionContext) {
     List<String> vdsFields = batchSchema == null ?
       new ArrayList<>() :
       batchSchema.getFields().stream()
         .map(Field::getName)
         .sorted()
         .collect(Collectors.toList());
-    return sqlConverter.getSubstitutionProvider().wrapExpansionNode(path, root, vdsFields, rowType, contextSensitive);
+    return sqlConverter.getSubstitutionProvider().wrapExpansionNode(path, root.rel, vdsFields, root.validatedRowType,
+      root.isContextSensitive(), versionContext, sqlConverter.getCatalog());
   }
 }

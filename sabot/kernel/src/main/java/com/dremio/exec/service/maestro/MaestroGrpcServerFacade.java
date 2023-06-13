@@ -45,6 +45,7 @@ public class MaestroGrpcServerFacade extends MaestroServiceGrpc.MaestroServiceIm
   /**
    * Handles screen completion events from executors.
    */
+  @Override
   public void screenComplete(com.dremio.exec.proto.CoordExecRPC.NodeQueryScreenCompletion request,
                              io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
     handleMessage(request, new Consumer<com.dremio.exec.proto.CoordExecRPC.NodeQueryScreenCompletion>() {
@@ -74,6 +75,7 @@ public class MaestroGrpcServerFacade extends MaestroServiceGrpc.MaestroServiceIm
   /**
    * Handles node query complete events from Executors.
    */
+  @Override
   public void nodeQueryComplete(com.dremio.exec.proto.CoordExecRPC.NodeQueryCompletion request,
                                 io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
     handleMessage(request, new Consumer<com.dremio.exec.proto.CoordExecRPC.NodeQueryCompletion>() {
@@ -91,6 +93,7 @@ public class MaestroGrpcServerFacade extends MaestroServiceGrpc.MaestroServiceIm
   /**
    * Handles first error while processing a query from executors.
    */
+  @Override
   public void nodeFirstError(com.dremio.exec.proto.CoordExecRPC.NodeQueryFirstError request,
                              io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
     handleMessage(request, new Consumer<com.dremio.exec.proto.CoordExecRPC.NodeQueryFirstError>() {

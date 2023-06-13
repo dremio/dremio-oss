@@ -38,6 +38,7 @@ import io.netty.channel.socket.SocketChannel;
  * Fabric server that accepts connection.
  */
 class FabricServer extends BasicServer<RpcType, FabricConnection>{
+  private final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(this.getClass());
 
   private final FabricMessageHandler handler;
   private final ConnectionManagerRegistry connectionRegistry;
@@ -115,6 +116,10 @@ class FabricServer extends BasicServer<RpcType, FabricConnection>{
 
           // update the close handler.
           connection.wrapCloseHandler(manager.getCloseHandlerCreator());
+
+          if (logger.isDebugEnabled()) {
+            logger.debug("Will ask to add an external connection: {}", connection.getName());
+          }
 
           // add to the connection manager.
           manager.addExternalConnection(connection);

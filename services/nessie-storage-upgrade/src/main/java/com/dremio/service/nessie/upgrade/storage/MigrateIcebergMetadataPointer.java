@@ -31,12 +31,12 @@ import java.util.function.BiConsumer;
 import java.util.stream.Stream;
 
 import org.projectnessie.model.CommitMeta;
+import org.projectnessie.model.ContentKey;
 import org.projectnessie.model.IcebergTable;
 import org.projectnessie.server.store.proto.ObjectTypes;
 import org.projectnessie.versioned.BranchName;
 import org.projectnessie.versioned.GetNamedRefsParams;
 import org.projectnessie.versioned.Hash;
-import org.projectnessie.versioned.Key;
 import org.projectnessie.versioned.ReferenceInfo;
 import org.projectnessie.versioned.ReferenceNotFoundException;
 import org.projectnessie.versioned.TagName;
@@ -51,6 +51,7 @@ import org.projectnessie.versioned.persist.adapter.KeyWithBytes;
 import org.projectnessie.versioned.persist.nontx.ImmutableAdjustableNonTransactionalDatabaseAdapterConfig;
 import org.projectnessie.versioned.store.DefaultStoreWorker;
 
+import com.dremio.common.SuppressForbidden;
 import com.dremio.dac.cmd.AdminLogger;
 import com.dremio.dac.cmd.upgrade.UpgradeContext;
 import com.dremio.dac.cmd.upgrade.UpgradeTask;
@@ -59,8 +60,6 @@ import com.dremio.service.nessie.DatastoreDatabaseAdapterFactory;
 import com.dremio.service.nessie.ImmutableDatastoreDbConfig;
 import com.dremio.service.nessie.NessieDatastoreInstance;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.protobuf.ByteString;
-import com.google.protobuf.InvalidProtocolBufferException;
 
 /**
  * Migrates legacy on-reference state entries using the {@code ICEBERG_METADATA_POINTER} type to current format.
@@ -94,6 +93,7 @@ public class MigrateIcebergMetadataPointer extends UpgradeTask {
       DatabaseAdapter adapter = new DatastoreDatabaseAdapterFactory().newBuilder()
         .withConnector(store)
         .withConfig(ImmutableAdjustableNonTransactionalDatabaseAdapterConfig.builder()
+          .validateNamespaces(false)
           // Suppress periodic key list generation by the DatabaseAdapter. We'll do that once at the end of the upgrade.
           .keyListDistance(Integer.MAX_VALUE)
           .build())
@@ -104,7 +104,7 @@ public class MigrateIcebergMetadataPointer extends UpgradeTask {
       adapter.initializeRepo("main");
 
       // Legacy data was stored only on `main`, so migrate data only on this branch.
-      ReferenceInfo<ByteString> main = adapter.namedRef("main", GetNamedRefsParams.DEFAULT);
+      ReferenceInfo<?> main = adapter.namedRef("main", GetNamedRefsParams.DEFAULT);
 
       // The upgrade is performed in two phases:
       // 1) Scan the commit log to find ICEBERG_METADATA_POINTER entries. Those entries can only exist in
@@ -128,13 +128,13 @@ public class MigrateIcebergMetadataPointer extends UpgradeTask {
       BranchName upgradeBranch = BranchName.of(branchName);
       Hash upgradeStartHash = adapter.noAncestorHash();
       try {
-        ReferenceInfo<ByteString> branchInfo = adapter.namedRef(branchName, GetNamedRefsParams.DEFAULT);
+        ReferenceInfo<?> branchInfo = adapter.namedRef(branchName, GetNamedRefsParams.DEFAULT);
         AdminLogger.log("Resetting old upgrade branch: " + branchInfo);
         adapter.assign(upgradeBranch, Optional.empty(), upgradeStartHash);
       } catch (Exception e1) {
         // Create a new upgrade branch
         try {
-          upgradeStartHash = adapter.create(upgradeBranch, upgradeStartHash);
+          upgradeStartHash = adapter.create(upgradeBranch, upgradeStartHash).getHash();
         } catch (Exception e2) {
           IllegalStateException ex = new IllegalStateException("Unable to create upgrade branch: " + branchName, e2);
           ex.addSuppressed(e1);
@@ -165,7 +165,7 @@ public class MigrateIcebergMetadataPointer extends UpgradeTask {
         .build();
 
       // Make an empty commit to force key list computation in the adapter
-      Hash upgradedHead = adapter1.commit(keyListCommit);
+      Hash upgradedHead = adapter1.commit(keyListCommit).getCommitHash();
       AdminLogger.log("Committed post-upgrade key list as {}", upgradedHead);
 
       // Tag old `main` branch
@@ -183,7 +183,7 @@ public class MigrateIcebergMetadataPointer extends UpgradeTask {
   private static final class Converter {
     private final DatabaseAdapter adapter;
     private final Hash sourceBranch;
-    private final Set<Key> activeKeys = new HashSet<>();
+    private final Set<ContentKey> activeKeys = new HashSet<>();
 
     private BranchName targetBranch;
     private ImmutableCommitParams.Builder commit;
@@ -227,7 +227,7 @@ public class MigrateIcebergMetadataPointer extends UpgradeTask {
       }
 
       try {
-        head = adapter.commit(commit.build());
+        head = adapter.commit(commit.build()).getCommitHash();
         numCommits++;
       } catch (Exception e) {
         throw new IllegalStateException(e);
@@ -240,7 +240,7 @@ public class MigrateIcebergMetadataPointer extends UpgradeTask {
     }
 
     private void processValues(BiConsumer<CommitLogEntry, KeyWithBytes> action) {
-      Set<Key> keysToProcess = new HashSet<>(activeKeys);
+      Set<ContentKey> keysToProcess = new HashSet<>(activeKeys);
       try (Stream<CommitLogEntry> log = adapter.commitLog(sourceBranch);
            Stream<CommitLogEntry> commitLog = takeUntilExcludeLast(log, k -> keysToProcess.isEmpty())) {
         commitLog.forEach(entry -> entry.getPuts().forEach(put -> {
@@ -258,7 +258,7 @@ public class MigrateIcebergMetadataPointer extends UpgradeTask {
       AtomicLong current = new AtomicLong();
 
       processValues((logEntry, keyWithBytes) -> {
-        ObjectTypes.Content.ObjectTypeCase refType = parseContent(keyWithBytes.getValue()).getObjectTypeCase();
+        ObjectTypes.Content.ObjectTypeCase refType = parseContent(keyWithBytes).getObjectTypeCase();
 
         if (refType == ObjectTypes.Content.ObjectTypeCase.ICEBERG_METADATA_POINTER) {
           legacy.incrementAndGet();
@@ -286,16 +286,17 @@ public class MigrateIcebergMetadataPointer extends UpgradeTask {
       AdminLogger.log("Processed {} entries.", totalEntries);
     }
 
-    private ObjectTypes.Content parseContent(ByteString content) {
+    @SuppressForbidden // This method has to use Nessie's relocated ByteString in method parameters.
+    private ObjectTypes.Content parseContent(KeyWithBytes kb) {
       try {
-        return ObjectTypes.Content.parseFrom(content);
-      } catch (InvalidProtocolBufferException e) {
+        return ObjectTypes.Content.parseFrom(kb.getValue());
+      } catch (Exception e) {
         throw new IllegalStateException(e);
       }
     }
 
     private void upgradeValue(CommitLogEntry logEntry, KeyWithBytes kb) {
-      ObjectTypes.Content refState = parseContent(kb.getValue());
+      ObjectTypes.Content refState = parseContent(kb);
       ObjectTypes.Content.ObjectTypeCase refType = refState.getObjectTypeCase();
 
       if (refType == ObjectTypes.Content.ObjectTypeCase.ICEBERG_METADATA_POINTER) {
@@ -312,8 +313,8 @@ public class MigrateIcebergMetadataPointer extends UpgradeTask {
           KeyWithBytes.of(
             kb.getKey(),
             contentId,
-            DefaultStoreWorker.payloadForContent(table),
-            DefaultStoreWorker.instance().toStoreOnReferenceState(table, commit::addAttachments)));
+            (byte) DefaultStoreWorker.payloadForContent(table),
+            DefaultStoreWorker.instance().toStoreOnReferenceState(table)));
 
       } else {
         // This case is not expected during actual upgrades. It is handled only for the sake of completeness.

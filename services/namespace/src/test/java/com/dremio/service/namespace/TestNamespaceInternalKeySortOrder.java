@@ -92,22 +92,17 @@ public class TestNamespaceInternalKeySortOrder {
   @Parameterized.Parameters
   public static Collection<Object[]> input() {
     return Arrays.asList(new Object[][]{
-      {PATHS, true},
-      {NUMBERED_PATHS, true},
-      {MIXED_CASING_PATHS, true},
-      {PATHS, false},
-      {NUMBERED_PATHS, false},
-      {MIXED_CASING_PATHS, false}
+      {PATHS},
+      {NUMBERED_PATHS},
+      {MIXED_CASING_PATHS}
     });
   }
 
   private final List<String> input;
-  private final boolean normalize;
   private final List<Map.Entry<String, NamespaceInternalKey>> expected;
 
-  public TestNamespaceInternalKeySortOrder(List<String> input, boolean normalize) {
+  public TestNamespaceInternalKeySortOrder(List<String> input) {
     this.input = input;
-    this.normalize = normalize;
     this.expected = generateExpectedResults();
   }
 
@@ -201,7 +196,7 @@ public class TestNamespaceInternalKeySortOrder {
    * @return NamespaceInternalKey.
    */
   private NamespaceInternalKey newKey(String path) {
-    return new NamespaceInternalKey(new NamespaceKey(PathUtils.parseFullPath(path)), normalize);
+    return new NamespaceInternalKey(new NamespaceKey(PathUtils.parseFullPath(path)));
   }
 
   /**
@@ -211,7 +206,7 @@ public class TestNamespaceInternalKeySortOrder {
    * @return LegacyNamespaceInternalKey.
    */
   private LegacyNamespaceInternalKey newLegacyKey(String path) {
-    return new LegacyNamespaceInternalKey(new NamespaceKey(PathUtils.parseFullPath(path)), normalize);
+    return new LegacyNamespaceInternalKey(new NamespaceKey(PathUtils.parseFullPath(path)));
   }
 
   /**

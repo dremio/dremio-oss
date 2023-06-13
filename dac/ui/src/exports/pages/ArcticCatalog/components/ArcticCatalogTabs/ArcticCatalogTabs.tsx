@@ -29,6 +29,14 @@ import { useNessieContext } from "@app/pages/NessieHomePage/utils/context";
 
 import classes from "./ArcticCatalogTabs.module.less";
 
+const nonCatalogTabs: ArcticCatalogTabsType[] = ["settings", "commit", "jobs"];
+const nonSourceTabs: ArcticCatalogTabsType[] = [
+  "settings",
+  "commit",
+  "jobs",
+  "data",
+];
+
 const ArcticCatalogTabs = ({ router, children }: any & WithRouterProps) => {
   const intl = useIntl();
   const {
@@ -39,8 +47,8 @@ const ArcticCatalogTabs = ({ router, children }: any & WithRouterProps) => {
 
   const tabs = arcticCatalogTabs.filter((tab) =>
     arcticCtx?.isCatalog
-      ? tab !== "settings" && tab !== "commit"
-      : tab !== "settings" && tab !== "commit" && tab !== "data"
+      ? !nonCatalogTabs.includes(tab)
+      : !nonSourceTabs.includes(tab)
   );
 
   const onTabClick = (tab: ArcticCatalogTabsType) => {

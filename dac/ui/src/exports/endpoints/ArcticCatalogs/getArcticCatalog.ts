@@ -20,9 +20,13 @@ import type {
   ArcticCatalogResponse,
 } from "./ArcticCatalog.type";
 import { transformCatalog } from "./transformCatalog";
+import { APIV2Call } from "@app/core/APICall";
 
 export const getArcticCatalogUrl = (catalogId: string) =>
-  new URL(`/ui/arctic/catalogs/${catalogId}`, window.location.origin);
+  new APIV2Call()
+    .projectScope(false)
+    .paths(`arctic/catalogs/${catalogId}`)
+    .toString();
 
 type GetArcticCatalogParams = {
   catalogId: string;

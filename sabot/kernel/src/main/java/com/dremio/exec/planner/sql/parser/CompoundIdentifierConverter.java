@@ -134,6 +134,9 @@ public class CompoundIdentifierConverter extends SqlShuttle {
           break;
         case ENABLE:
           enableComplex = true;
+          break;
+        default:
+          break;
         }
       }
       SqlNode newOperand = operand.accept(CompoundIdentifierConverter.this);
@@ -153,8 +156,11 @@ public class CompoundIdentifierConverter extends SqlShuttle {
   }
 
   static {
+    @SuppressWarnings("checkstyle:LocalFinalVariableName")
     final RewriteType E = RewriteType.ENABLE;
+    @SuppressWarnings("checkstyle:LocalFinalVariableName")
     final RewriteType D = RewriteType.DISABLE;
+    @SuppressWarnings("checkstyle:LocalFinalVariableName")
     final RewriteType U = RewriteType.UNCHANGED;
 
     /*
@@ -173,8 +179,8 @@ public class CompoundIdentifierConverter extends SqlShuttle {
 
     rules.put(SqlSelect.class, R(D, E, D, E, E, E, E, E, E, D, D, D));
     rules.put(SqlInsertTable.class, R(D, E, D));
-    rules.put(SqlCreateTable.class, R(D, D, D, D, D, D, D, E, D, D, D, D));
-    rules.put(SqlCreateEmptyTable.class, R(D, D, D, D, D, D, D, D, D, D, D));
+    rules.put(SqlCreateTable.class, R(D, D, D, D, D, D, D, E, D, D, D, D, D, D));
+    rules.put(SqlCreateEmptyTable.class, R(D, D, D, D, D, D, D, D, D, D, D, D, D));
     rules.put(SqlCreateView.class, R(D, E, E, D, D));
     rules.put(SqlDescribeTable.class, R(D, D, E));
     rules.put(SqlDropView.class, R(D, D));
@@ -186,9 +192,9 @@ public class CompoundIdentifierConverter extends SqlShuttle {
     rules.put(SqlDropTable.class, R(D, D));
     rules.put(SqlTruncateTable.class, R(D, D, D));
     rules.put(SqlSetOption.class, R(D, D, D));
-    rules.put(SqlCreateReflection.class, R(D,D,D,D,D,D,D,D,D,D,D));
-    rules.put(SqlDropReflection.class, R(D,D));
-    rules.put(SqlAccelToggle.class, R(D,D, D));
+    rules.put(SqlCreateReflection.class, R(D,D,D,D,D,D,D,D,D,D,D,D));
+    rules.put(SqlDropReflection.class, R(D,D,D));
+    rules.put(SqlAccelToggle.class, R(D,D,D,D));
     rules.put(SqlForgetTable.class, R(D));
     rules.put(SqlRefreshDataset.class, R(D,D,D,D,D,D,D,D,D,D));
     rules.put(SqlRefreshTable.class, R(D,D,D,D,D,D,D,D,D,D));
@@ -213,6 +219,7 @@ public class CompoundIdentifierConverter extends SqlShuttle {
 
   // Each type in the input arguments refers to
   // each data field in the class
+  @SuppressWarnings("checkstyle:MethodName")
   private static RewriteType[] R(RewriteType... types){
     return types;
   }

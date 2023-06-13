@@ -38,6 +38,7 @@ public class VectorRecordMaterializer implements RecordMaterializer{
     assert incoming.getSchema() != null : "Schema must be defined.";
   }
 
+  @Override
   public QueryWritableBatch convertNext(int count) {
 
     final WritableBatch w = WritableBatch.get(incoming).transfer(allocator);

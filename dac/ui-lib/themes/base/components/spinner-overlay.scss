@@ -1,7 +1,7 @@
 @use "../utility-classes/overlay-container";
 
 @mixin dremio-spinner-overlay-shown {
-  color: var(--dremio--color--neutral--600);
+  color: var(--color--neutral--600);
   opacity: 1;
 }
 

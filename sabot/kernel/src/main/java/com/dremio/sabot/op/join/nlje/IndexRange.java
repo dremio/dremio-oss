@@ -55,6 +55,7 @@ class IndexRange extends DualRange {
     this.buildBatchSizes = buildBatchSizes;
   }
 
+  @Override
   public boolean hasNext() {
     return hasRemainingProbe() || hasRemainingBuild();
   }
@@ -72,6 +73,7 @@ class IndexRange extends DualRange {
     return currentProbeRange.isEmpty();
   }
 
+  @Override
   public IndexRange nextOutput() {
     if (hasRemainingProbe()) {
       final IntRange nextProbe = IntRange.of(currentProbeRange.end, Math.min(totalProbeRange.end, currentProbeRange.end + probeBatchSize));

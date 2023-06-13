@@ -32,6 +32,10 @@ public final class UIOptions {
 
   public static final BooleanValidator ALLOW_AUTOCOMPLETE  = new BooleanValidator("ui.autocomplete.allow", true);
 
+  public static final BooleanValidator AUTOCOMPLETE_V2 = new BooleanValidator("ui.autocomplete.v2.enabled", false);
+
+  public static final BooleanValidator ALLOW_DOWNLOAD  = new BooleanValidator("ui.download.allow", true);
+
   public static final StringValidator WHITE_LABEL_URL  = new StringValidator("ui.whitelabel.url", "dremio");
 
   public static final BooleanValidator ALLOW_FORMATTING = new BooleanValidator("ui.formatter.allow", true);
@@ -69,4 +73,9 @@ public final class UIOptions {
    * Specifies whether new jobs profile UI should be shown
    */
   public static final BooleanValidator JOBS_PROFILE_UI_CHECK = new BooleanValidator("dremio.query.visualiser.enabled", false);
+
+  /*
+  * Specifies whether the UI will use the new dataset navigation behavior
+  */
+  public static final BooleanValidator DATASET_NAVIGATION_CHECK = new BooleanValidator("ui.dataset.navigation.new", true);
 }

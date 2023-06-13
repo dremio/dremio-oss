@@ -108,8 +108,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
         .sqlBaselineQuery("SELECT n_nationkey ID, n_regionkey CODE from cp.\"tpch/nation.parquet\"")
         .build()
         .run();
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tblName));
     }
   }
@@ -181,8 +180,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
         UserExceptionAssert.assertThatThrownBy(() -> test(insertQuery))
           .hasMessageContaining(String.format("Table [%s] does not exist.", tblName));
       });
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tblName));
     }
   }
@@ -449,8 +447,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
         .baselineValues(1L)
         .build()
         .run();
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), insert_values_test));
     }
   }
@@ -488,8 +485,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
         .baselineValues(1L)
         .build()
         .run();
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), insert_values_test));
     }
   }
@@ -525,8 +521,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
         .baselineValues(1L)
         .build()
         .run();
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), insert_values_test));
     }
   }
@@ -546,8 +541,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
       String insert = "insert into " + schema + "." + newTable + " select * from (values('abcd'))";
       UserExceptionAssert.assertThatThrownBy(() -> test(insert))
         .hasMessageContaining("Failed to cast the string abcd to int32_t");
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable));
     }
   }
@@ -585,8 +579,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
         .baselineColumns("col1", "col2", "col3")
         .baselineValues(new Long("1"), new BigDecimal("12345.340"), new Double("0.3"))
         .go();
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_1"));
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_2"));
     }
@@ -629,8 +622,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
         .baselineValues(2L)
         .build()
         .run();
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_1"));
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_2"));
     }
@@ -668,8 +660,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
       String expected = isComplexTypeSupport() ? "Table schema(listcol1::list<int64>) doesn't match with query schema(listcol2::list<int32>)" : "Table schema(listcol1::list<int64>) doesn't match with query schema(listcol1::list<int32>)";
       UserExceptionAssert.assertThatThrownBy(() -> test(insertQuery))
         .hasMessageContaining(expected);
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_1"));
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_2"));
     }
@@ -712,8 +703,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
         .baselineValues(2L)
         .build()
         .run();
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_1"));
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_2"));
     }
@@ -751,8 +741,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
       String expected = isComplexTypeSupport() ? "Table schema(structcol1::struct<name::varchar, age::int64>) doesn't match with query schema(structcol2::struct<name::varchar, age::int32>)" : "schema(structcol1::struct<name::varchar, age::int64>) doesn't match with query schema(structcol1::struct<name::varchar, age::int32>)";
       UserExceptionAssert.assertThatThrownBy(() -> test(insertQuery))
         .hasMessageContaining(expected);
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_1"));
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_2"));
     }
@@ -790,8 +779,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
       String expected = isComplexTypeSupport() ? "Table schema(structcol1::struct<name::varchar, age::int64>) doesn't match with query schema(name::varchar)" : "Table schema(structcol1::struct<name::varchar, age::int64>) doesn't match with query schema(structcol1::varchar)";
       UserExceptionAssert.assertThatThrownBy(() -> test(insertQuery))
         .hasMessageContaining(expected);
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_1"));
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_2"));
     }
@@ -833,8 +821,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
 
       File tableFolder = new File(getDfsTestTmpSchemaLocation(), newTable + "_2");
       checkSinglePartitionValue(tableFolder, Long.class, new Long(1), catalogType);
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_1"));
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_2"));
     }
@@ -883,8 +870,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
 
       File tableFolder = new File(getDfsTestTmpSchemaLocation(), newTable + "_2");
       checkSinglePartitionValue(tableFolder, Long.class, new Long(1), catalogType);
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_1"));
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_2"));
     }
@@ -921,8 +907,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
         .baselineColumns("col2")
         .baselineValues(new BigDecimal("12345.34"))
         .go();
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_1"));
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_2"));
     }
@@ -953,8 +938,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
         " select * from " + schema + "." + newTable + "_1";
       UserExceptionAssert.assertThatThrownBy(() -> test(insertUppromoting))
         .hasMessageContaining("Table schema(col2::decimal(20,2)) doesn't match with query schema(zcol1::decimal(10,5))");
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_1"));
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_2"));
     }
@@ -985,8 +969,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
         " select * from " + schema + "." + newTable + "_1";
       UserExceptionAssert.assertThatThrownBy(() -> test(insertUppromoting))
         .hasMessageContaining("Table schema(col2::decimal(9,2)) doesn't match with query schema(zcol1::decimal(10,2))");
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_1"));
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_2"));
     }
@@ -1028,8 +1011,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
         " select * from " + schema + "." + newTable + "_1";
       UserExceptionAssert.assertThatThrownBy(() -> test(insertUppromotingFailure))
         .hasMessageContaining("Table schema(col3::decimal(16,2)) doesn't match with query schema(zcol1::double)");
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_1"));
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_2"));
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_3"));
@@ -1070,8 +1052,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
         " select * from " + schema + "." + newTable + "_1";
       UserExceptionAssert.assertThatThrownBy(() -> test(insertUppromotingFailure))
         .hasMessageContaining("Table schema(col3::decimal(7,1)) doesn't match with query schema(zcol1::float)");
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_1"));
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_2"));
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_3"));
@@ -1117,8 +1098,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
         " select * from " + schema + "." + newTable + "_1";
       UserExceptionAssert.assertThatThrownBy(() -> test(insertUppromotingFailure))
         .hasMessageContaining("Table schema(col3::decimal(20,2)) doesn't match with query schema(zcol1::int64)");
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_1"));
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_2"));
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_3"));
@@ -1164,8 +1144,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
         " select * from " + schema + "." + newTable + "_1";
       UserExceptionAssert.assertThatThrownBy(() -> test(insertUppromotingFailure))
         .hasMessageContaining("Table schema(col3::decimal(11,2)) doesn't match with query schema(zcol1::int32)");
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_1"));
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_2"));
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_3"));
@@ -1220,8 +1199,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
         .baselineColumns("c")
         .baselineValues(new Long(2))
         .go();
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_1"));
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_2"));
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_3"));
@@ -1276,8 +1254,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
         .baselineColumns("c")
         .baselineValues(new Long(2))
         .go();
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_1"));
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_2"));
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_3"));
@@ -1309,8 +1286,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
         " select * from " + testSchema + "." + newTable + "_1";
       UserExceptionAssert.assertThatThrownBy(() -> test(insertUppromoting))
         .hasMessageContaining("Table schema(col2::int32) doesn't match with query schema(zcol1::int64)");
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_1"));
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_2"));
     }
@@ -1341,8 +1317,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
         " select * from " + testSchema + "." + newTable + "_1";
       UserExceptionAssert.assertThatThrownBy(() -> test(insertUppromoting))
         .hasMessageContaining("Table schema(col2::float) doesn't match with query schema(zcol1::double)");
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_1"));
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_2"));
     }
@@ -1548,8 +1523,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
           .baselineValues(1, "name1")
           .baselineValues(null, "name2")
           .go();
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable));
     }
   }
@@ -1568,8 +1542,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
       Thread.sleep(1001);
       String insertTable = String.format("insert into %s.%s(id, id) select id, id from %s.%s", tempSchema, newTable, tempSchema, newTable);
       errorMsgTestHelper(insertTable, "Duplicate column name [id]");
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable));
     }
   }
@@ -1607,8 +1580,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
       Thread.sleep(1001);
       String insertTable = String.format("insert into %s.%s(id, id1, id2) select id, id, id from %s.%s", schema, newTable, schema, newTable);
       errorMsgTestHelper(insertTable, "Specified column(s) [id2, id1] not found in schema.");
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable));
     }
   }
@@ -1627,8 +1599,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
       Thread.sleep(1001);
       String insertTable = String.format("insert into %s.%s(id) select name from %s.%s", schema, newTable, schema, newTable);
       errorMsgTestHelper(insertTable, "Table schema(id::int32) doesn't match with query schema(name::varchar)");
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable));
     }
   }
@@ -1658,8 +1629,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
           .baselineValues(1, "name1", "address1", 1)
           .baselineValues(null, "name2", null, 2)
           .go();
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable));
     }
   }
@@ -1685,8 +1655,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
           .baselineColumns("id", "name")
           .baselineValues(1, "name1")
           .go();
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable));
     }
   }
@@ -1712,8 +1681,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
           .baselineColumns("id", "name")
           .baselineValues(1.0f, "name1")
           .go();
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable));
     }
   }
@@ -1753,8 +1721,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
           .baselineColumns("col1", "col2", "col3")
           .baselineValues(new Long("1"), new BigDecimal("12345.340"), new Double("0.3"))
           .go();
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_1"));
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_2"));
     }

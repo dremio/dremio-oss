@@ -332,7 +332,9 @@ public class TestConvertFunctions extends BaseTestQuery {
 
   @Test
   public void testHadooopVInt() throws Exception {
+    @SuppressWarnings("checkstyle:LocalFinalVariableName")
     final int _0 = 0;
+    @SuppressWarnings("checkstyle:LocalFinalVariableName")
     final int _9 = 9;
     final ArrowBuf buffer = getAllocator().buffer(_9);
 

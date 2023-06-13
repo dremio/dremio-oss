@@ -206,7 +206,7 @@ public final class CopyIntoTableContext {
       case TRIM_SPACE:
       case EMPTY_AS_NULL:
         String upperValue = value.toUpperCase();
-        if (!upperValue.equals("FALSE") && !upperValue.equals("TRUE") ) {
+        if (!"FALSE".equals(upperValue) && !"TRUE".equals(upperValue) ) {
           break;
         }
         return Boolean.valueOf(upperValue);

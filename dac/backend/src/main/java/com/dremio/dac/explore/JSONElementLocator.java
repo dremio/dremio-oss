@@ -379,10 +379,12 @@ public class JSONElementLocator {
       return path.peek();
     }
 
+    @Override
     public Iterator<JsonPathElement> iterator() {
       return path.descendingIterator();
     }
 
+    @Override
     public String toString() {
       return Joiner.on("").join(path.descendingIterator());
     }

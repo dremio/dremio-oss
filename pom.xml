@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-parent</artifactId>
-  <version>24.0.0-202302100528110223-3a169b7c</version>
+  <version>24.1.0-202306130653310132-d30779f6</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Parent</name>
@@ -38,12 +38,11 @@
         Submodules should rely on dependenciesManagement as much as possible
     -->
     <arrow.version>9.0.0-20221123064031-c39b8a6253-dremio</arrow.version>
-    <avatica.version>1.22.0</avatica.version>
-    <calcite.version>1.16.0-202212291946520071-31c33937</calcite.version>
+    <avatica.version>1.23.0</avatica.version>
+    <calcite.version>1.17.0-202305081555330806-ba52e3e7</calcite.version>
     <derby.version>10.14.2.0</derby.version>
-    <jcommander.version>1.81</jcommander.version>
+    <jcommander.version>1.82</jcommander.version>
     <javax.servlet.version>3.1.0</javax.servlet.version>
-    <simpleclient.version>0.7.0</simpleclient.version>
     <foodmart-data-hsqldb.version>0.3</foodmart-data-hsqldb.version>
     <fmpp.version>0.9.16</fmpp.version>
     <freemarker.version>2.3.31</freemarker.version>
@@ -52,26 +51,25 @@
 
     <hibernate-validator.version>6.2.0.Final</hibernate-validator.version>
 
-    <hadoop.version>3.3.2-dremio-202207041927090255-61c2bd1</hadoop.version>
+    <hadoop.version>3.3.2-dremio-202305122016210436-942ab1c</hadoop.version>
     <avro.version>1.10.2</avro.version>
-    <iceberg.version>1.0.0-e2bb9ad-20221027154339-e865afe</iceberg.version>
+    <iceberg.version>1.2.0-e340ad5-20230511162417-de84403</iceberg.version>
 
     <plugin.hive2.azure-storage.version>8.3.0</plugin.hive2.azure-storage.version>
     <plugin.hive2.azure-datalake.version>2.3.10-202208021035330109-f5bda9e</plugin.hive2.azure-datalake.version>
-    <plugin.hive2.hadoop-azure.version>2.8.5-dremio-r2-202106241733540604-acdda22</plugin.hive2.hadoop-azure.version>
+    <plugin.hive2.hadoop-azure.version>2.8.5-dremio-r2-202305092225000902-c107c46</plugin.hive2.hadoop-azure.version>
     <plugin.hive2.hadoop-azure-datalake.version>2.8.5</plugin.hive2.hadoop-azure-datalake.version>
-    <plugin.hive2.aws-sdk.version>1.11.761</plugin.hive2.aws-sdk.version>
     <plugin.hive2.hadoop.version>2.8.5</plugin.hive2.hadoop.version>
-    <plugin.hive2.hive.version>2.3.9-dremio-202209290028370685-7b6189f</plugin.hive2.hive.version>
+    <plugin.hive2.hive.version>2.3.9-dremio-202305101625150255-0beca91</plugin.hive2.hive.version>
     <plugin.hive2.datanucleus-api-jdo.version>4.2.1</plugin.hive2.datanucleus-api-jdo.version>
     <plugin.hive2.datanucleus-core.version>4.1.6</plugin.hive2.datanucleus-core.version>
     <plugin.hive2.datanucleus-rdbms.version>4.1.7</plugin.hive2.datanucleus-rdbms.version>
     <plugin.hive2.datanucleus-jdo.version>3.2.0-m3</plugin.hive2.datanucleus-jdo.version>
     <plugin.hive2.jdo-api.version>3.0.1</plugin.hive2.jdo-api.version>
     <plugin.hive2.mapr.hadoop.version>2.7.6.200-eep-810</plugin.hive2.mapr.hadoop.version>
-    <plugin.hive2.mapr.hive.version>2.3.9.0-eep-810-dremio-202209290029560475-99ee21d</plugin.hive2.mapr.hive.version>
+    <plugin.hive2.mapr.hive.version>2.3.9.0-eep-810-dremio-202305101622080327-3ed1ada</plugin.hive2.mapr.hive.version>
     <plugin.hive2.mapr.maprfs.version>6.2.0.20-mapr</plugin.hive2.mapr.maprfs.version>
-    <plugin.hive2.aws.glue.version>1.10.0-202211080432360347-3b40cc3</plugin.hive2.aws.glue.version>
+    <plugin.hive2.aws.glue.version>1.10.0-202302080426290085-edca6ae</plugin.hive2.aws.glue.version>
 
     <!-- [DX-18063] HBase versions older than 1.1.7 get version info using package-info.class
     metadata. However it is unreliable to get this when both the parent and child classloaders
@@ -79,32 +77,31 @@
     -->
     <plugin.hive2.hbase.version>1.1.13</plugin.hive2.hbase.version>
 
-    <plugin.hive3.hadoop.version>3.3.2-dremio-202207041927090255-61c2bd1</plugin.hive3.hadoop.version>
+    <plugin.hive3.hadoop.version>3.3.2-dremio-202305122016210436-942ab1c</plugin.hive3.hadoop.version>
     <plugin.hive3.azure-storage.version>8.3.0</plugin.hive3.azure-storage.version>
     <plugin.hive3.azure-datalake.version>2.3.10-202208021035330109-f5bda9e</plugin.hive3.azure-datalake.version>
     <plugin.hive3.hadoop-azure.version>${plugin.hive3.hadoop.version}</plugin.hive3.hadoop-azure.version>
     <plugin.hive3.hadoop-azure-datalake.version>${plugin.hive3.hadoop.version}</plugin.hive3.hadoop-azure-datalake.version>
     <plugin.hive3.aws-hadoop.version>${plugin.hive3.hadoop.version}</plugin.hive3.aws-hadoop.version>
-    <plugin.hive3.aws-sdk.version>${aws-sdk.version}</plugin.hive3.aws-sdk.version>
-    <plugin.hive3.hive.version>3.1.1-dremio-202108260418420981-22681bb</plugin.hive3.hive.version>
-    <plugin.hive3.hbase.version>2.2.0</plugin.hive3.hbase.version>
-    <plugin.hive3.orc.version>1.5.1-dremio-202007271350010286-8131f30</plugin.hive3.orc.version>
+    <plugin.hive3.hive.version>3.1.1-dremio-202305102143550145-5934df5</plugin.hive3.hive.version>
+    <plugin.hive3.hbase.version>2.5.3</plugin.hive3.hbase.version>
+    <plugin.hive3.orc.version>1.5.1-dremio-202305092131550668-2f32481</plugin.hive3.orc.version>
     <plugin.hive3.datanucleus-api-jdo.version>4.2.4</plugin.hive3.datanucleus-api-jdo.version>
     <plugin.hive3.datanucleus-core.version>4.1.17</plugin.hive3.datanucleus-core.version>
     <plugin.hive3.datanucleus-rdbms.version>4.1.19</plugin.hive3.datanucleus-rdbms.version>
     <plugin.hive3.datanucleus-jdo.version>3.2.0-m3</plugin.hive3.datanucleus-jdo.version>
     <plugin.hive3.jdo-api.version>3.0.1</plugin.hive3.jdo-api.version>
     <plugin.hive3.hikaricp.version>2.6.1</plugin.hive3.hikaricp.version>
-    <gcs-connector-version>2.2.2-dremio-202208181741250538-215a1b7</gcs-connector-version>
+    <gcs-connector-version>2.2.2-dremio-202302142306550801-5be8d7e</gcs-connector-version>
 
     <errorprone.version>2.10.0</errorprone.version>
     <errorprone.type>jar</errorprone.type>
     <errorprone.javac.version>9+181-r4173-1</errorprone.javac.version>
-    <errorprone-slf4j.version>0.1.16</errorprone-slf4j.version>
+    <errorprone-slf4j.version>0.1.18</errorprone-slf4j.version>
     <!-- modules can override this to upgrade/downgrade the severity of certain checks -->
     <errorprone.module.args></errorprone.module.args>
     <errorprone.args.jdk11></errorprone.args.jdk11>
-    <errorprone.args>-Xplugin:ErrorProne -Xep:LockNotBeforeTry:ERROR -Xep:OrphanedFormatString:ERROR -Xep:NonAtomicVolatileUpdate:ERROR -Xep:ComplexBooleanConstant:ERROR -Xep:AssertionFailureIgnored:ERROR -Xep:UnnecessaryAssignment:ERROR -Xep:UseCorrectAssertInTests:ERROR -Xep:StreamResourceLeak:ERROR -Xep:DoubleCheckedLocking:ERROR -Xep:InconsistentHashCode:ERROR -Xep:ArgumentSelectionDefectChecker:ERROR -Xep:ModifyCollectionInEnhancedForLoop:ERROR -Xep:EqualsIncompatibleType:ERROR -Xep:OptionalNotPresent:ERROR -Xep:JUnitAmbiguousTestClass:ERROR -Xep:ShortCircuitBoolean:ERROR -Xep:PreconditionsCheckNotNullRepeated:ERROR -Xep:PreconditionsInvalidPlaceholder:ERROR ${errorprone.args.jdk11} -XepExcludedPaths:${project.build.directory}/.*generated-(test-)?sources/.*</errorprone.args>
+    <errorprone.args>-Xplugin:ErrorProne -Xep:MissingOverride:ERROR -Xep:LockNotBeforeTry:ERROR -Xep:OrphanedFormatString:ERROR -Xep:NonAtomicVolatileUpdate:ERROR -Xep:ComplexBooleanConstant:ERROR -Xep:AssertionFailureIgnored:ERROR -Xep:UnnecessaryAssignment:ERROR -Xep:UseCorrectAssertInTests:ERROR -Xep:StreamResourceLeak:ERROR -Xep:DoubleCheckedLocking:ERROR -Xep:InconsistentHashCode:ERROR -Xep:ArgumentSelectionDefectChecker:ERROR -Xep:ModifyCollectionInEnhancedForLoop:ERROR -Xep:EqualsIncompatibleType:ERROR -Xep:OptionalNotPresent:ERROR -Xep:JUnitAmbiguousTestClass:ERROR -Xep:ShortCircuitBoolean:ERROR -Xep:PreconditionsCheckNotNullRepeated:ERROR -Xep:PreconditionsInvalidPlaceholder:ERROR ${errorprone.args.jdk11} -XepExcludedPaths:${project.build.directory}/.*generated-(test-)?sources/.*</errorprone.args>
 
     <mysql.dist.version>5.6.14</mysql.dist.version>
     <!--
@@ -125,53 +122,56 @@
     </surefire.argLine>
 
     <hsqldb.version>2.3.1</hsqldb.version>
-    <immutables.version>2.9.2</immutables.version>
-    <jackson.version>2.13.2.20220328</jackson.version>
-    <jersey.version>2.35</jersey.version>
-    <jetty.version>9.4.47.v20220610</jetty.version>
+    <immutables.version>2.9.3</immutables.version>
+    <snakeyaml.version>1.33</snakeyaml.version>
+    <!-- make sure the snakeyaml version is equal or newer than the one in jackson -->
+    <jackson.version>2.14.2</jackson.version>
+    <jersey.version>2.39.1</jersey.version>
+    <jetty.version>9.4.51.v20230217</jetty.version>
     <javax.ws.rs-api.version>2.1.1</javax.ws.rs-api.version>
     <junit4.version>4.13.2</junit4.version>
-    <junit5.version>5.9.1</junit5.version>
-    <mockito.version>4.8.1</mockito.version>
-    <assertj.version>3.23.1</assertj.version>
+    <junit5.version>5.9.2</junit5.version>
+    <mockito.version>4.11.0</mockito.version>
+    <assertj.version>3.24.1</assertj.version>
     <lilith.version>8.3.0</lilith.version>
     <logback.version>1.2.11</logback.version>
     <metrics.version>4.1.19</metrics.version>
     <mariadb.connector.version>3.0.8</mariadb.connector.version>
-    <nessie-cel.version>0.2.4</nessie-cel.version>
-    <nessie-apprunner.version>0.21.4</nessie-apprunner.version>
-    <nessie.version>0.44.0</nessie.version>
-    <netty.version>4.1.68.Final</netty.version>
-    <netty.tcnative.version>2.0.46.Final</netty.tcnative.version>
+    <nessie-cel.version>0.3.12</nessie-cel.version>
+    <nessie-apprunner.version>0.28.1</nessie-apprunner.version>
+    <!-- try to keep above nessie versions in sync -->
+    <nessie.version>0.59.0</nessie.version>
+    <!-- netty-tcnative version must be the same as in the netty-bom -->
+    <netty.version>4.1.89.Final</netty.version>
+    <netty-tcnative.version>2.0.56.Final</netty-tcnative.version>
+    <!-- custom-built legacy artifact of https://mvnrepository.com/artifact/io.netty/netty -->
     <netty3.version>3.10.6.Final-nohttp</netty3.version>
-    <netty.boringssl.version>2.0.43.Final</netty.boringssl.version>
-    <parquet.version>1.12.0-202210150148350243-15cbcc2</parquet.version>
+    <parquet.version>1.12.0-202302141732150599-28d943b</parquet.version>
     <pf4j.version>3.6.0</pf4j.version>
     <postgresql.version>42.4.1</postgresql.version>
     <protobuf.version>3.21.9</protobuf.version>
     <protostuff.version>1.4.4</protostuff.version>
     <scott-data-hsqldb.version>0.1</scott-data-hsqldb.version>
     <slf4j.version>1.7.36</slf4j.version>
-    <snowflake-jdbc.version>3.13.24-dremio-0</snowflake-jdbc.version>
+    <snowflake-jdbc.version>3.13.30</snowflake-jdbc.version>
     <twill.version>0.14.0-202111020547020344-41637331</twill.version>
     <zkclient.version>0.10</zkclient.version>
     <zookeeper.version>3.4.14</zookeeper.version>
     <curator.version>4.2.0</curator.version>
     <curator-test.version>2.12.0</curator-test.version>
-    <aws-sdk.version>1.12.261</aws-sdk.version>
-    <aws-sdk-2.version>2.16.104</aws-sdk-2.version>
+    <aws-sdk.version>1.12.400</aws-sdk.version>
+    <aws-sdk-2.version>2.17.295</aws-sdk-2.version>
     <openhft-affinity.version>3.1.7</openhft-affinity.version>
     <fbs.version>1.12.0</fbs.version>
     <rocksdb.version>5.14.2</rocksdb.version>
     <opencensus.version>0.31.1</opencensus.version>
-    <grpc.version>1.45.0</grpc.version>
-    <snakeyaml.version>1.31</snakeyaml.version>
+    <grpc.version>1.54.1</grpc.version>
     <guava.version>31.1-jre</guava.version>
-    <guice.version>4.2.2</guice.version>
+    <guice.version>5.1.0</guice.version>
     <redis.clients.jedis.version>4.2.3</redis.clients.jedis.version>
-    <opentelemetry.version>1.18.0</opentelemetry.version>
+    <opentelemetry.version>1.25.0</opentelemetry.version>
     <scim2-sdk.version>2.3.5</scim2-sdk.version>
-    <openapitools.plugin.version>5.4.0</openapitools.plugin.version>
+    <openapitools.plugin.version>6.3.0</openapitools.plugin.version>
     <swagger-annotations-version>1.6.4</swagger-annotations-version>
     <threeten-version>1.7.0</threeten-version>
     <bouncycastle.version>1.64</bouncycastle.version>
@@ -183,6 +183,7 @@
     <tests.elasticsearch.mvn.plugin.version>6.22</tests.elasticsearch.mvn.plugin.version>
     <!-- IMPORTANT NOTE: always use the same version of lucene as elasticsearch -->
     <lucene.version>7.7.3</lucene.version>
+    <json-smart.version>2.4.10</json-smart.version>
 
     <!-- Surefire/Failsafe argline property -->
     <argLine></argLine>
@@ -196,7 +197,7 @@
     <npm.buildscript>build</npm.buildscript>
     <pnpm.installscript>install --frozen-lockfile --prefer-offline --reporter=silent</pnpm.installscript>
     <pnpm.execinstallscript>pnpm@${pnpm.version} ${pnpm.installscript}</pnpm.execinstallscript>
-    <pnpm.version>7.2.1</pnpm.version> <!-- This property is used by external script too -->
+    <pnpm.version>8.1.0</pnpm.version> <!-- This property is used by external script too -->
     <dremio.mapr.distribution>nonmapr</dremio.mapr.distribution>
     <dremio.release>false</dremio.release>
     <dremio.beta>false</dremio.beta>
@@ -340,6 +341,25 @@
           </plugin>
           </plugins>
         </pluginManagement>
+        <plugins>
+          <!--
+          use as plugin instead of extension to resolve issues in Eclipse
+          see https://github.com/trustin/os-maven-plugin/blob/master/README.md
+          -->
+          <plugin>
+            <groupId>kr.motd.maven</groupId>
+            <artifactId>os-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <phase>initialize</phase>
+                <goals>
+                  <goal>detect</goal>
+                </goals>
+              </execution>
+            </executions>
+            <extensions>false</extensions>
+          </plugin>
+        </plugins>
       </build>
     </profile>
     <profile>
@@ -374,9 +394,7 @@
       </properties>
       <dependencyManagement>
         <dependencies>
-          <!--
-            Bug in jsonschema2pojo forces using the wrong Generated annotation
-           -->
+          <!-- required because of https://github.com/joelittlejohn/jsonschema2pojo/issues/1473 -->
           <dependency>
             <groupId>org.jsonschema2pojo</groupId>
             <artifactId>jsonschema2pojo-jdk-annotation</artifactId>
@@ -471,8 +489,8 @@
         <jdk>[11,)</jdk>
       </activation>
       <properties>
-        <errorprone.version>2.16</errorprone.version>
-        <errorprone.args.jdk11>-Xep:AlreadyChecked:ERROR -Xep:DoubleBraceInitialization:WARN -Xep:Slf4jLoggerShouldBeFinal:ERROR -Xep:Slf4jIllegalPassedClass:ERROR -Xep:Slf4jSignOnlyFormat:WARN -Xep:Slf4jFormatShouldBeConst:WARN -Xep:Slf4jDoNotLogMessageOfExceptionExplicitly:WARN -Xep:Slf4jLoggerShouldBeNonStatic:OFF ${errorprone.module.args}</errorprone.args.jdk11>
+        <errorprone.version>2.18.0</errorprone.version>
+        <errorprone.args.jdk11>-Xep:FallThrough:ERROR -Xep:AlreadyChecked:ERROR -Xep:DoubleBraceInitialization:WARN -Xep:Slf4jLoggerShouldBeFinal:ERROR -Xep:Slf4jIllegalPassedClass:ERROR -Xep:Slf4jSignOnlyFormat:WARN -Xep:Slf4jFormatShouldBeConst:WARN -Xep:Slf4jDoNotLogMessageOfExceptionExplicitly:WARN -Xep:Slf4jLoggerShouldBeNonStatic:OFF ${errorprone.module.args}</errorprone.args.jdk11>
       </properties>
       <build>
         <plugins>
@@ -534,7 +552,7 @@
         <!-- All mapr-hive dependencies versions below correspond to EEP-8.1
              The hive version is built using dremio/hive-private:2.3.9.0-eep-810 branch
         -->
-        <plugin.hive2.hive.version>2.3.9.0-eep-810-dremio-202209290029560475-99ee21d</plugin.hive2.hive.version>
+        <plugin.hive2.hive.version>2.3.9.0-eep-810-dremio-202305101622080327-3ed1ada</plugin.hive2.hive.version>
         <hadoop.version>2.7.6.200-eep-810</hadoop.version>
         <yarn.common.version>2.7.4.0-mapr-700</yarn.common.version>
         <maprfs.version>6.2.0.20-mapr</maprfs.version>
@@ -610,6 +628,9 @@
         <repository>
           <id>dremio-free</id>
           <url>https://maven.dremio.com/free/</url>
+          <snapshots>
+            <enabled>false</enabled>
+          </snapshots>
         </repository>
       </repositories>
       <dependencyManagement>
@@ -745,18 +766,9 @@
         </executions>
       </plugin>
       <plugin>
-        <!-- use as plugin instead of extension to resolve issues in Eclipse. See https://github.com/xolstice/protobuf-maven-plugin/issues/10#issuecomment-419529938 for more detail -->
         <groupId>kr.motd.maven</groupId>
         <artifactId>os-maven-plugin</artifactId>
-        <version>1.7.0</version>
-        <executions>
-          <execution>
-            <phase>initialize</phase>
-            <goals>
-              <goal>detect</goal>
-            </goals>
-          </execution>
-        </executions>
+        <extensions>true</extensions>
       </plugin>
       <plugin>
         <groupId>com.diffplug.spotless</groupId>
@@ -797,7 +809,6 @@
           <testSourceDirectories>
             <testSourceDirectory>${project.basedir}/src/test/java</testSourceDirectory>
           </testSourceDirectories>
-          <encoding>UTF-8</encoding>
           <failsOnError>true</failsOnError>
           <consoleOutput>true</consoleOutput>
           <includeResources>true</includeResources>
@@ -846,9 +857,9 @@
           <useIncrementalCompilation>false</useIncrementalCompilation>
           <compilerArgs>
             <arg>-Xmaxerrs</arg>
-            <arg>5000</arg>
+            <arg>9000</arg>
             <arg>-Xmaxwarns</arg>
-            <arg>5000</arg>
+            <arg>9000</arg>
           </compilerArgs>
           <!-- setting the following to true shows all compiler and errorprone warnings -->
           <showWarnings>false</showWarnings>
@@ -906,6 +917,7 @@
                     <exclude>org.mortbay.jetty:servlet-api-2.5</exclude>
                     <exclude>org.apache.logging.log4j:log4j-slf4j-impl</exclude>
                     <exclude>log4j:*</exclude>
+                    <exclude>org.slf4j:slf4j-log4j12</exclude>
                     <exclude>io.netty:*:*</exclude> <!-- exclude all netty versions. The versions needed are explicitly included below. -->
                     <!-- For the sake of space do not include all AWS dependencies but rely on BOM and include individual ones when needed -->
                     <exclude>com.amazonaws:aws-java-sdk</exclude>
@@ -914,8 +926,8 @@
                   <includes>
                     <include>io.netty:*:${netty.version}</include> <!-- include the netty packages that match the version -->
                     <include>io.netty:netty:${netty3.version}</include> <!-- include 3.10.6.Final version without the http classes, the http classes are deemed insecure -->
-                    <include>io.netty:netty-tcnative-boringssl-static:${netty.boringssl.version}</include>
-                    <include>io.netty:netty-tcnative-classes:${netty.tcnative.version}</include>
+                    <include>io.netty:netty-tcnative-boringssl-static:${netty-tcnative.version}</include>
+                    <include>io.netty:netty-tcnative-classes:${netty-tcnative.version}</include>
                   </includes>
                 </bannedDependencies>
                 <bannedPlugins>
@@ -1281,7 +1293,7 @@ limitations under the License.
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-wrapper-plugin</artifactId>
-          <version>3.1.1</version>
+          <version>3.2.0</version>
         </plugin>
         <plugin>
           <artifactId>maven-clean-plugin</artifactId>
@@ -1289,19 +1301,19 @@ limitations under the License.
         </plugin>
         <plugin>
           <artifactId>maven-dependency-plugin</artifactId>
-          <version>3.3.0</version>
+          <version>3.5.0</version>
         </plugin>
         <plugin>
           <artifactId>maven-resources-plugin</artifactId>
-          <version>3.3.0</version>
+          <version>3.3.1</version>
         </plugin>
         <plugin>
           <artifactId>maven-compiler-plugin</artifactId>
-          <version>3.10.1</version>
+          <version>3.11.0</version>
         </plugin>
         <plugin>
           <artifactId>maven-enforcer-plugin</artifactId>
-          <version>3.1.0</version>
+          <version>3.2.1</version>
         </plugin>
         <plugin>
           <artifactId>maven-jar-plugin</artifactId>
@@ -1309,7 +1321,7 @@ limitations under the License.
         </plugin>
         <plugin>
           <artifactId>maven-surefire-plugin</artifactId>
-          <version>3.0.0-M7</version>
+          <version>3.0.0</version>
           <configuration>
             <argLine>
               ${surefire.argLine}
@@ -1342,7 +1354,7 @@ limitations under the License.
         </plugin>
         <plugin>
           <artifactId>maven-failsafe-plugin</artifactId>
-          <version>3.0.0-M7</version>
+          <version>3.0.0</version>
           <configuration>
             <trimStackTrace>false</trimStackTrace>
             <additionalClasspathElements>
@@ -1368,15 +1380,15 @@ limitations under the License.
         </plugin>
         <plugin>
           <artifactId>maven-assembly-plugin</artifactId>
-          <version>3.4.2</version>
+          <version>3.5.0</version>
         </plugin>
         <plugin>
           <artifactId>maven-checkstyle-plugin</artifactId>
-          <version>3.2.0</version>
+          <version>3.2.1</version>
         </plugin>
         <plugin>
           <artifactId>maven-shade-plugin</artifactId>
-          <version>3.2.4</version>
+          <version>3.4.1</version>
         </plugin>
         <plugin>
           <artifactId>maven-plugin-plugin</artifactId>
@@ -1389,7 +1401,7 @@ limitations under the License.
         <!-- Please keep in sync with tools/build-tools/pom.xml -->
         <plugin>
           <artifactId>maven-install-plugin</artifactId>
-          <version>3.0.1</version>
+          <version>3.1.1</version>
         </plugin>
         <!-- Please keep in sync with tools/build-tools/pom.xml -->
         <plugin>
@@ -1433,7 +1445,7 @@ limitations under the License.
         <plugin>
           <groupId>org.owasp</groupId>
           <artifactId>dependency-check-maven</artifactId>
-          <version>7.2.1</version>
+          <version>8.1.2</version>
           <dependencies>
             <dependency>
               <groupId>com.dremio.tools</groupId>
@@ -1466,7 +1478,7 @@ limitations under the License.
           <configuration>
             <nodeVersion>v16.15.0</nodeVersion>
             <npmVersion>7.7.5</npmVersion>
-            <pnpmVersion>7.2.1</pnpmVersion>
+            <pnpmVersion>8.1.0</pnpmVersion>
             <installDirectory>${project.build.directory}/frontend</installDirectory>
             <workingDirectory>${project.build.directory}</workingDirectory>
             <environmentVariables>
@@ -1599,7 +1611,17 @@ limitations under the License.
         <plugin>
           <groupId>com.diffplug.spotless</groupId>
           <artifactId>spotless-maven-plugin</artifactId>
-          <version>2.22.8</version>
+          <version>2.29.0</version>
+        </plugin>
+        <plugin>
+          <groupId>org.jboss.jandex</groupId>
+          <artifactId>jandex-maven-plugin</artifactId>
+          <version>1.2.1</version>
+        </plugin>
+        <plugin>
+          <groupId>kr.motd.maven</groupId>
+          <artifactId>os-maven-plugin</artifactId>
+          <version>1.7.1</version>
         </plugin>
       </plugins>
     </pluginManagement>
@@ -1631,10 +1653,37 @@ limitations under the License.
       <scope>test</scope>
     </dependency>
     <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-params</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <!-- engine for executing junit5 tests -->
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-engine</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <!-- engine for executing junit4 tests -->
+      <groupId>org.junit.vintage</groupId>
+      <artifactId>junit-vintage-engine</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <!-- Mockito needs to be on the class path after JUnit (or Hamcrest)
         as long as Mockito _contains_ older Hamcrest classes. -->
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-junit-jupiter</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -1969,15 +2018,33 @@ limitations under the License.
         <version>${mariadb.connector.version}</version>
       </dependency>
       <dependency>
-        <!-- Address CVE-2019-12402 -->
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-compress</artifactId>
-        <version>1.21</version>
+        <version>1.22</version>
       </dependency>
       <dependency>
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-text</artifactId>
         <version>${commons-text.version}</version>
+      </dependency>
+      <dependency>
+        <!--
+        we keep this in order to upgrade transitive dependencies, but dremio modules
+        should only depend on commons-collections4 instead
+        -->
+        <groupId>commons-collections</groupId>
+        <artifactId>commons-collections</artifactId>
+        <version>3.2.2</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.commons</groupId>
+        <artifactId>commons-collections4</artifactId>
+        <version>4.4</version>
+      </dependency>
+      <dependency>
+        <groupId>org.yaml</groupId>
+        <artifactId>snakeyaml</artifactId>
+        <version>${snakeyaml.version}</version>
       </dependency>
       <dependency>
         <groupId>org.apache.curator</groupId>
@@ -2038,23 +2105,10 @@ limitations under the License.
       <!-- required for exporting dropwizard metrics to prometheus format -->
       <dependency>
         <groupId>io.prometheus</groupId>
-        <artifactId>simpleclient</artifactId>
-        <version>${simpleclient.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.prometheus</groupId>
-        <artifactId>simpleclient_servlet</artifactId>
-        <version>${simpleclient.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.prometheus</groupId>
-        <artifactId>simpleclient_dropwizard</artifactId>
-        <version>${simpleclient.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.prometheus</groupId>
-        <artifactId>simpleclient_hotspot</artifactId>
-        <version>${simpleclient.version}</version>
+        <artifactId>simpleclient_bom</artifactId>
+        <version>0.16.0</version>
+        <type>pom</type>
+        <scope>import</scope>
       </dependency>
       <dependency>
         <groupId>io.dropwizard.metrics</groupId>
@@ -2081,12 +2135,12 @@ limitations under the License.
       <dependency>
         <groupId>com.google.code.findbugs</groupId>
         <artifactId>annotations</artifactId>
-        <version>3.0.1</version>
+        <version>3.0.1u2</version>
       </dependency>
       <dependency>
         <groupId>com.google.code.findbugs</groupId>
         <artifactId>jsr305</artifactId>
-        <version>3.0.1</version>
+        <version>3.0.2</version>
       </dependency>
       <dependency>
         <groupId>com.google.guava</groupId>
@@ -2094,14 +2148,16 @@ limitations under the License.
         <version>${guava.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.google.protobuf</groupId>
-        <artifactId>protobuf-java</artifactId>
-        <version>${protobuf.version}</version>
+        <groupId>com.github.ben-manes.caffeine</groupId>
+        <artifactId>caffeine</artifactId>
+        <version>2.9.3</version>
       </dependency>
       <dependency>
         <groupId>com.google.protobuf</groupId>
-        <artifactId>protobuf-java-util</artifactId>
+        <artifactId>protobuf-bom</artifactId>
         <version>${protobuf.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
       </dependency>
       <dependency>
         <groupId>com.fasterxml.jackson</groupId>
@@ -2111,9 +2167,23 @@ limitations under the License.
         <type>pom</type>
       </dependency>
       <dependency>
+        <!-- needs to come after jackson-bom because cel-jackson uses jackson -->
+        <!-- needs to come before nessie-bom because nessie uses cel -->
+        <groupId>org.projectnessie.cel</groupId>
+        <artifactId>cel-bom</artifactId>
+        <version>${nessie-cel.version}</version>
+        <scope>import</scope>
+        <type>pom</type>
+      </dependency>
+      <dependency>
+        <groupId>com.google.code.gson</groupId>
+        <artifactId>gson</artifactId>
+        <version>2.10.1</version>
+      </dependency>
+      <dependency>
         <groupId>com.fasterxml.woodstox</groupId>
         <artifactId>woodstox-core</artifactId>
-        <version>5.2.1</version>
+        <version>5.4.0</version>
       </dependency>
       <dependency>
         <groupId>com.github.slugify</groupId>
@@ -2128,7 +2198,7 @@ limitations under the License.
       <dependency>
         <groupId>com.typesafe</groupId>
         <artifactId>config</artifactId>
-        <version>1.4.1</version>
+        <version>1.4.2</version>
       </dependency>
       <dependency>
         <groupId>com.google.flatbuffers</groupId>
@@ -2138,7 +2208,7 @@ limitations under the License.
       <dependency>
         <groupId>commons-codec</groupId>
         <artifactId>commons-codec</artifactId>
-        <version>1.4</version>
+        <version>1.15</version>
       </dependency>
       <dependency>
        <groupId>org.objenesis</groupId>
@@ -2154,6 +2224,27 @@ limitations under the License.
         <groupId>io.opentelemetry</groupId>
         <artifactId>opentelemetry-bom</artifactId>
         <version>${opentelemetry.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>io.opentelemetry</groupId>
+        <artifactId>opentelemetry-bom-alpha</artifactId>
+        <version>${opentelemetry.version}-alpha</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>io.opentelemetry.instrumentation</groupId>
+        <artifactId>opentelemetry-instrumentation-bom</artifactId>
+        <version>${opentelemetry.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>io.opentelemetry.instrumentation</groupId>
+        <artifactId>opentelemetry-instrumentation-bom-alpha</artifactId>
+        <version>${opentelemetry.version}-alpha</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -2232,33 +2323,28 @@ limitations under the License.
         <version>1.5.0</version>
       </dependency>
       <dependency>
-        <groupId>io.grpc</groupId>
-        <artifactId>grpc-bom</artifactId>
-        <version>${grpc.version}</version>
-        <type>pom</type>
-        <scope>import</scope>
-      </dependency>
-      <dependency>
-        <groupId>org.yaml</groupId>
-        <artifactId>snakeyaml</artifactId>
-        <version>${snakeyaml.version}</version>
-      </dependency>
-      <dependency>
         <groupId>io.netty</groupId>
         <artifactId>netty</artifactId>
         <version>${netty3.version}</version>
       </dependency>
       <dependency>
+        <!--
+        netty-bom manages netty-tcnative artifacts as well
+        since https://github.com/netty/netty/pull/11609
+        -->
         <groupId>io.netty</groupId>
         <artifactId>netty-bom</artifactId>
         <version>${netty.version}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
+      <!-- grpc-netty uses netty, so grpc-bom should come after netty-bom -->
       <dependency>
-        <groupId>io.netty</groupId>
-        <artifactId>netty-tcnative-boringssl-static</artifactId>
-        <version>${netty.boringssl.version}</version>
+        <groupId>io.grpc</groupId>
+        <artifactId>grpc-bom</artifactId>
+        <version>${grpc.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
       </dependency>
       <dependency>
         <groupId>io.protostuff</groupId>
@@ -2304,13 +2390,22 @@ limitations under the License.
       </dependency>
       <dependency>
         <groupId>org.mockito</groupId>
-        <artifactId>mockito-junit-jupiter</artifactId>
+        <artifactId>mockito-bom</artifactId>
         <version>${mockito.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.assertj</groupId>
+        <artifactId>assertj-bom</artifactId>
+        <version>${assertj.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
       </dependency>
       <dependency>
         <groupId>joda-time</groupId>
         <artifactId>joda-time</artifactId>
-        <version>2.9</version>
+        <version>2.12.1</version>
       </dependency>
       <dependency>
         <groupId>net.hydromatic</groupId>
@@ -2340,17 +2435,18 @@ limitations under the License.
       <dependency>
         <groupId>org.apache.httpcomponents</groupId>
         <artifactId>httpclient</artifactId>
-        <version>4.5.13</version>
+        <version>4.5.14</version>
+        <exclusions>
+          <exclusion>
+            <artifactId>commons-logging</artifactId>
+            <groupId>commons-logging</groupId>
+          </exclusion>
+        </exclusions>
       </dependency>
       <dependency>
         <groupId>org.apache.httpcomponents</groupId>
         <artifactId>httpcore</artifactId>
-        <version>4.4.9</version>
-      </dependency>
-      <dependency>
-        <groupId>org.projectnessie.cel</groupId>
-        <artifactId>cel-tools</artifactId>
-        <version>${nessie-cel.version}</version>
+        <version>4.4.16</version>
       </dependency>
       <dependency>
         <groupId>org.apache.arrow</groupId>
@@ -2505,6 +2601,11 @@ limitations under the License.
         <version>${commons-io.version}</version>
       </dependency>
       <dependency>
+        <groupId>org.apache.commons</groupId>
+        <artifactId>commons-math3</artifactId>
+        <version>3.6.1</version>
+      </dependency>
+      <dependency>
         <groupId>org.asynchttpclient</groupId>
         <artifactId>async-http-client</artifactId>
         <version>2.7.0</version>
@@ -2574,10 +2675,6 @@ limitations under the License.
           <exclusion>
             <groupId>org.mortbay.jetty</groupId>
             <artifactId>servlet-api</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.mortbay.jetty</groupId>
-            <artifactId>servlet-api-2.5</artifactId>
           </exclusion>
           <exclusion>
             <groupId>org.mortbay.jetty</groupId>
@@ -2780,10 +2877,6 @@ limitations under the License.
             <artifactId>servlet-api-2.5</artifactId>
           </exclusion>
           <exclusion>
-            <groupId>org.mortbay.jetty</groupId>
-            <artifactId>servlet-api-2.5</artifactId>
-          </exclusion>
-          <exclusion>
             <groupId>javax.servlet</groupId>
             <artifactId>servlet-api</artifactId>
           </exclusion>
@@ -2953,7 +3046,7 @@ limitations under the License.
       <dependency>
         <groupId>net.minidev</groupId>
         <artifactId>json-smart</artifactId>
-        <version>2.4.8</version>
+        <version>${json-smart.version}</version>
       </dependency>
       <dependency>
         <groupId>org.apache.hadoop</groupId>
@@ -2993,10 +3086,6 @@ limitations under the License.
           <exclusion>
             <groupId>org.mortbay.jetty</groupId>
             <artifactId>servlet-api</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.mortbay.jetty</groupId>
-            <artifactId>servlet-api-2.5</artifactId>
           </exclusion>
           <exclusion>
             <groupId>org.mortbay.jetty</groupId>
@@ -3045,10 +3134,6 @@ limitations under the License.
           <exclusion>
             <groupId>com.sun.jersey</groupId>
             <artifactId>jersey-json</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>com.sun.jersey</groupId>
-            <artifactId>jersey-core</artifactId>
           </exclusion>
           <exclusion>
             <artifactId>core</artifactId>
@@ -3100,10 +3185,6 @@ limitations under the License.
           <exclusion>
             <groupId>org.mortbay.jetty</groupId>
             <artifactId>servlet-api-2.5</artifactId>
-          </exclusion>
-          <exclusion>
-            <artifactId>slf4j-log4j12</artifactId>
-            <groupId>org.slf4j</groupId>
           </exclusion>
           <exclusion>
             <artifactId>slf4j-log4j12</artifactId>
@@ -3228,7 +3309,6 @@ limitations under the License.
       <dependency>
         <groupId>org.apache.hive</groupId>
         <artifactId>hive-exec</artifactId>
-        <scope>compile</scope>
         <exclusions>
           <exclusion>
             <groupId>org.mortbay.jetty</groupId>
@@ -3241,6 +3321,10 @@ limitations under the License.
           <exclusion>
             <groupId>commons-logging</groupId>
             <artifactId>commons-logging-api</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.ivy</groupId>
+            <artifactId>ivy</artifactId>
           </exclusion>
           <exclusion>
             <artifactId>slf4j-log4j12</artifactId>
@@ -3261,10 +3345,6 @@ limitations under the License.
           <exclusion>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>jline</groupId>
-            <artifactId>jline</artifactId>
           </exclusion>
           <exclusion>
             <groupId>com.google.protobuf</groupId>
@@ -3438,6 +3518,16 @@ limitations under the License.
         <groupId>org.apache.zookeeper</groupId>
         <artifactId>zookeeper</artifactId>
         <version>${zookeeper.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>log4j</groupId>
+            <artifactId>log4j</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
       <!-- No BOM for bouncycastle -->
       <dependency>
@@ -3476,24 +3566,9 @@ limitations under the License.
         <version>1.0.6</version>
       </dependency>
       <dependency>
-        <groupId>org.assertj</groupId>
-        <artifactId>assertj-core</artifactId>
-        <version>${assertj.version}</version>
-      </dependency>
-      <dependency>
         <groupId>org.hsqldb</groupId>
         <artifactId>hsqldb</artifactId>
         <version>${hsqldb.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.mockito</groupId>
-        <artifactId>mockito-core</artifactId>
-        <version>${mockito.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.mockito</groupId>
-        <artifactId>mockito-inline</artifactId>
-        <version>${mockito.version}</version>
       </dependency>
       <dependency>
         <groupId>com.github.tomakehurst</groupId>
@@ -3589,12 +3664,12 @@ limitations under the License.
       <dependency>
         <groupId>net.java.dev.jna</groupId>
         <artifactId>jna</artifactId>
-        <version>4.5.0</version>
+        <version>5.12.1</version>
       </dependency>
       <dependency>
         <groupId>net.java.dev.jna</groupId>
         <artifactId>jna-platform</artifactId>
-        <version>4.5.0</version>
+        <version>5.12.1</version>
       </dependency>
       <dependency>
         <groupId>software.amazon.awssdk</groupId>
@@ -3618,7 +3693,7 @@ limitations under the License.
       <dependency>
         <groupId>org.apache.hadoop</groupId>
         <artifactId>hadoop-azure</artifactId>
-        <version>2.8.5-dremio-r2-202106241733540604-acdda22</version>
+        <version>2.8.5-dremio-r2-202305092225000902-c107c46</version>
         <exclusions>
           <exclusion>
             <groupId>org.apache.hadoop</groupId>
@@ -3695,7 +3770,7 @@ limitations under the License.
       <dependency>
         <groupId>com.hubspot.jackson</groupId>
         <artifactId>jackson-datatype-protobuf</artifactId>
-        <version>0.9.12</version>
+        <version>0.9.13</version>
       </dependency>
       <dependency>
         <groupId>org.eclipse.jetty</groupId>
@@ -3759,6 +3834,11 @@ limitations under the License.
         <version>8.8</version>
       </dependency>
       <dependency>
+        <groupId>com.nimbusds</groupId>
+        <artifactId>oauth2-oidc-sdk</artifactId>
+        <version>9.3</version>
+      </dependency>
+      <dependency>
         <groupId>org.codehaus.groovy</groupId>
         <artifactId>groovy-all</artifactId>
         <version>2.4.21</version>
@@ -3770,7 +3850,7 @@ limitations under the License.
         <scope>runtime</scope>
       </dependency>
       <dependency>
-        <groupId>org.projectnessie</groupId>
+        <groupId>org.projectnessie.nessie</groupId>
         <artifactId>nessie-bom</artifactId>
         <version>${nessie.version}</version>
         <type>pom</type>
@@ -3848,6 +3928,9 @@ limitations under the License.
     <repository>
       <id>dremio-public</id>
       <url>https://maven.dremio.com/public/</url>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
     </repository>
   </repositories>
 </project>

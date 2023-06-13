@@ -108,7 +108,9 @@ public class HiveORCCopiers {
 
   private abstract static class ORCCopierBase implements ORCCopier {
     private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HiveORCCopiers.class);
+    @Override
     public abstract void copy(int inputIdx, int count, int outputIdx);
+    @Override
     public abstract void ensureHasRequiredCapacity(int required);
     protected void ensureVectorHasRequiredCapacity(ValueVector vector, int required) {
       while (required > vector.getValueCapacity()) {
@@ -187,8 +189,7 @@ public class HiveORCCopiers {
     } else if (output instanceof BigIntVector) {
       if (input instanceof  LongColumnVector) {
         return new BigIntCopier((LongColumnVector) input, (BigIntVector) output);
-      }
-      else {
+      } else {
         return new NoOpCopier(null, null);
       }
     } else if (output instanceof Float4Vector) {
@@ -196,8 +197,7 @@ public class HiveORCCopiers {
          return new DoubleToFloat4Copier((DoubleColumnVector) input, (Float4Vector) output);
       } else if (input instanceof  LongColumnVector) {
         return new LongToFloat4Copier((LongColumnVector) input, (Float4Vector) output);
-      }
-      else {
+      } else {
         return new NoOpCopier(null, null);
       }
     } else if (output instanceof Float8Vector) {
@@ -213,15 +213,13 @@ public class HiveORCCopiers {
     } else if (output instanceof DateMilliVector) {
       if (input instanceof  LongColumnVector) {
         return new DateMilliCopier((LongColumnVector) input, (DateMilliVector) output);
-      }
-      else {
+      } else {
         return new NoOpCopier(null, null);
       }
     } else if (output instanceof TimeStampMilliVector) {
       if (input instanceof  TimestampColumnVector) {
         return new TimeStampMilliCopier((TimestampColumnVector) input, (TimeStampMilliVector) output);
-      }
-      else {
+      } else {
         return new NoOpCopier(null, null);
       }
     } else if (output instanceof DecimalVector) {
@@ -239,32 +237,28 @@ public class HiveORCCopiers {
     } else if (output instanceof BitVector) {
       if (input instanceof  LongColumnVector) {
         return new BitCopier((LongColumnVector) input, (BitVector) output);
-      }
-      else {
+      } else {
         return new NoOpCopier(null, null);
       }
     } else if (output instanceof ListVector) {
       if (input instanceof  MultiValuedColumnVector) {
         return new ListCopier(columnVectorData, ordinalId,
           (MultiValuedColumnVector) input, (ListVector) output, operatorContextOptions, vectorToNameMap);
-      }
-      else {
+      } else {
         return new NoOpCopier(null, null);
       }
     } else if (output instanceof StructVector) {
       if (input instanceof  StructColumnVector) {
         return new StructCopier(columnVectorData, ordinalId,
           (StructColumnVector) input, (StructVector) output, operatorContextOptions, vectorToNameMap);
-      }
-      else {
+      } else {
         return new NoOpCopier(null, null);
       }
     } else if (output instanceof UnionVector) {
       if (input instanceof  UnionColumnVector) {
         return new UnionCopier(columnVectorData, ordinalId,
           (UnionColumnVector) input, (UnionVector) output, operatorContextOptions, vectorToNameMap);
-      }
-      else {
+      } else {
         return new NoOpCopier(null, null);
       }
     }
@@ -365,18 +359,15 @@ public class HiveORCCopiers {
           Preconditions.checkNotNull(vectorToNameMap.get(hiveElementVector),"The hiveElementVector is not present in the map that maps all the inputVectors with their corresponding names");
           if(arrowElementVector == null){
             fieldCopiers.add(new NoOpCopier(null, null));
-          }
-          else if(vectorToNameMap.get(hiveElementVector).equals(arrowElementVector.getName())) {
+          } else if(vectorToNameMap.get(hiveElementVector).equals(arrowElementVector.getName())) {
             ORCCopier childCopier = createCopier(columnVectorData, childPos,
               arrowElementVector, hiveElementVector, operatorContextOptions, vectorToNameMap);
             fieldCopiers.add(childCopier);
             arrowIdx++;
-          }
-          else{
+          } else {
             fieldCopiers.add(new NoOpCopier(null, null));
           }
-        }
-        else {
+        } else {
           fieldCopiers.add(new NoOpCopier(null, null));
         }
         childPos += columnVectorData.getTotalVectorCount(childPos);
@@ -734,8 +725,7 @@ public class HiveORCCopiers {
               .unscaledValue()
               .toByteArray();
             outputVector.setBigEndian(outputIdx, decimalValue);
-          }
-          catch (Exception e) {
+          } catch (Exception e) {
             // ignoring exception creates null entry
           }
         }
@@ -753,8 +743,7 @@ public class HiveORCCopiers {
                 .unscaledValue()
                 .toByteArray();
               outputVector.setBigEndian(outputIdx, decimalValue);
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
               // ignoring exception creates null entry
             }
           }
@@ -810,8 +799,7 @@ public class HiveORCCopiers {
               .unscaledValue()
               .toByteArray();
             outputVector.setBigEndian(outputIdx, decimalValue);
-          }
-          catch (Exception e) {
+          } catch (Exception e) {
             // ignoring exception creates null entry
           }
         }
@@ -829,8 +817,7 @@ public class HiveORCCopiers {
                 .unscaledValue()
                 .toByteArray();
               outputVector.setBigEndian(outputIdx, decimalValue);
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
               // ignoring exception creates null entry
             }
           }
@@ -891,8 +878,7 @@ public class HiveORCCopiers {
               .unscaledValue()
               .toByteArray();
             outputVector.setBigEndian(outputIdx, decimalValue);
-          }
-          catch (Exception e) {
+          } catch (Exception e) {
 
           }
         }
@@ -960,8 +946,7 @@ public class HiveORCCopiers {
           try {
             final byte[] value = HiveDecimal.enforcePrecisionScale(input[inputIdx].getHiveDecimal(), outputPrecision, outputScale).bigDecimalValue().movePointRight(outputScale).unscaledValue().toByteArray();
             outputVector.setBigEndian(outputIdx, value);
-          }
-          catch (Exception e) {
+          } catch (Exception e) {
             // ignoring exception sets null.
             // enforcePrecisionScale returns null when it cannot enforce
           }
@@ -973,8 +958,7 @@ public class HiveORCCopiers {
             try {
               byte[] v = HiveDecimal.enforcePrecisionScale(input[inputIdx].getHiveDecimal(), outputPrecision, outputScale).bigDecimalValue().movePointRight(outputScale).unscaledValue().toByteArray();
               outputVector.setBigEndian(outputIdx, v);
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
               // ignoring exception sets null.
               // enforcePrecisionScale returns null when it cannot enforce
             }
@@ -1148,8 +1132,7 @@ public class HiveORCCopiers {
               String strValue = new String(vector[inputIdx], start[inputIdx], length[inputIdx], StandardCharsets.UTF_8);
               double doubleValue = Double.parseDouble(strValue);
               outputVector.set(outputIdx, doubleValue);
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
 
             }
           }

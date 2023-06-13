@@ -41,6 +41,7 @@ public class JobResultsBindableService implements CloseableBindableService {
     this.jobResultsGrpcServerFacade = jobResultsGrpcServerFacade;
   }
 
+  @Override
   public ServerServiceDefinition bindService() {
     ServerServiceDefinition.Builder serviceBuilder = ServerServiceDefinition.builder(JobResultsServiceGrpc.SERVICE_NAME);
 

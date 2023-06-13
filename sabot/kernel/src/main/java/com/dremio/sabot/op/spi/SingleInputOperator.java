@@ -62,6 +62,7 @@ public interface SingleInputOperator extends Operator.Producer, Operator.SingleC
    *
    * @return current operator state.
    */
+  @Override
   SingleInputOperator.State getState();
 
   interface Creator<T extends PhysicalOperator> {

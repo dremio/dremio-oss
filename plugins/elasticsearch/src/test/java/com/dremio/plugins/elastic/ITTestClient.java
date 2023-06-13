@@ -54,6 +54,7 @@ public class ITTestClient extends ElasticBaseTestQuery {
     Assume.assumeFalse(ElasticsearchCluster.USE_EXTERNAL_ES5);
   }
 
+  @Override
   @Before
   public void before() throws Exception {
     super.before();

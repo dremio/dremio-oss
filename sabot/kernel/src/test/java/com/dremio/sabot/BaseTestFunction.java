@@ -103,7 +103,6 @@ public class BaseTestFunction extends BaseTestOperator {
       try {
         validateSingle(p, ProjectOperator.class, input.toGenerator(getTestAllocator()), output, DEFAULT_BATCH);
       } catch(AssertionError | Exception e) {
-        e.printStackTrace();
         throw new RuntimeException("Failure while testing function using code compilation.", e);
       }
 
@@ -118,9 +117,6 @@ public class BaseTestFunction extends BaseTestOperator {
     }catch(AssertionError | Exception e){
       throw new RuntimeException(String.format("Failure while attempting to evaluate expr [%s] using inputs/outputs of %s.", stringExpression, Arrays.toString(fieldsArr)), e);
     }
-
-
-    System.out.println("Passed: " + stringExpression);
   }
 
   private void testInterp(Project project, LogicalExpression expr, Table input, Table expected) throws Exception {

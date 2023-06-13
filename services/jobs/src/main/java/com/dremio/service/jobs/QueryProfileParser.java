@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -134,6 +135,17 @@ class QueryProfileParser {
     } else {
       jobStats.setOutputRecords(outputRecords);
     }
+  }
+
+  private void setDmlStats(OperatorProfile operatorProfile) {
+    if (operatorProfile == null) {
+      return;
+    }
+    long addedFiles = Optional.ofNullable(jobStats.getAddedFiles()).orElse(0L) + operatorProfile.getAddedFiles();
+    jobStats.setAddedFiles(addedFiles);
+
+    long removedFiles = Optional.ofNullable(jobStats.getRemovedFiles()).orElse(0L) + operatorProfile.getRemovedFiles();
+    jobStats.setRemovedFiles(removedFiles);
   }
 
   private long toMillis(long nanos) {
@@ -451,6 +463,7 @@ class QueryProfileParser {
 
             case HASH_JOIN:
               setJoinSpillInfo(operatorType, operatorProfile);
+              // fall through
             case MERGE_JOIN:
             case NESTED_LOOP_JOIN:
               setOperationStats(OperationType.Join, toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
@@ -523,6 +536,9 @@ class QueryProfileParser {
               break;
             case DELTALAKE_SUB_SCAN:
               setOperationStats(OperationType.Reading, toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
+              break;
+            case WRITER_COMMITTER:
+              setDmlStats(operatorProfile);
               break;
             default:
               break;

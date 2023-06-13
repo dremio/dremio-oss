@@ -23,6 +23,8 @@ import java.util.Set;
 
 import org.apache.calcite.rel.RelNode;
 
+import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.TableVersionContext;
 import com.dremio.exec.planner.acceleration.substitution.MaterializationProvider;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionUtils;
 import com.dremio.exec.planner.sql.SqlConverter;
@@ -68,8 +70,10 @@ public class MaterializationList implements MaterializationProvider {
   }
 
   @Override
-  public java.util.Optional<DremioMaterialization> getDefaultRawMaterialization(NamespaceKey path, List<String> vdsFields) {
-    return getDefaultRawMaterialization(provider, path, vdsFields);
+  public java.util.Optional<DremioMaterialization> getDefaultRawMaterialization(NamespaceKey path,
+    TableVersionContext versionContext,
+    List<String> vdsFields, Catalog catalog) {
+    return getDefaultRawMaterialization(provider, path, versionContext, vdsFields, catalog);
   }
 
   public Optional<MaterializationDescriptor> getDescriptor(final List<String> path) {
@@ -83,8 +87,8 @@ public class MaterializationList implements MaterializationProvider {
 
   @Override
   public List<DremioMaterialization> buildApplicableMaterializations(RelNode userQueryNode) {
-    final Set<List<String>> queryTablesUsed = SubstitutionUtils.findTables(userQueryNode);
-    final Set<List<String>> queryVdsUsed = SubstitutionUtils.findExpansionNodes(userQueryNode);
+    final Set<SubstitutionUtils.VersionedPath> queryTablesUsed = SubstitutionUtils.findTables(userQueryNode);
+    final Set<SubstitutionUtils.VersionedPath> queryVdsUsed = SubstitutionUtils.findExpansionNodes(userQueryNode);
     final Set<SubstitutionUtils.ExternalQueryDescriptor> externalQueries = SubstitutionUtils.findExternalQueries(userQueryNode);
 
     final Set<String> exclusions = Sets.newHashSet(session.getSubstitutionSettings().getExclusions());
@@ -132,11 +136,15 @@ public class MaterializationList implements MaterializationProvider {
    * @return materializations used by planner
    */
   @VisibleForTesting
-  protected java.util.Optional<DremioMaterialization> getDefaultRawMaterialization(final MaterializationDescriptorProvider provider, NamespaceKey path, List<String> vdsFields) {
+  protected java.util.Optional<DremioMaterialization> getDefaultRawMaterialization(
+    final MaterializationDescriptorProvider provider, NamespaceKey path,
+    TableVersionContext versionContext, List<String> vdsFields, Catalog catalog) {
+
     final Set<String> exclusions = Sets.newHashSet(session.getSubstitutionSettings().getExclusions());
     final Set<String> inclusions = Sets.newHashSet(session.getSubstitutionSettings().getInclusions());
     final boolean hasInclusions = !inclusions.isEmpty();
-    final java.util.Optional<MaterializationDescriptor> opt = provider.getDefaultRawMaterialization(path, vdsFields);
+    final java.util.Optional<MaterializationDescriptor> opt = provider.getDefaultRawMaterialization(path,
+      versionContext, vdsFields, catalog);
 
     if (opt.isPresent()) {
       MaterializationDescriptor descriptor = opt.get();

@@ -142,6 +142,7 @@ public class View {
       case INTERVAL_MINUTE_SECOND:
       case INTERVAL_SECOND:
         p = dataType.getIntervalQualifier().getStartPrecisionPreservingDefault();
+        break;
       default:
         break;
       }

@@ -16,12 +16,9 @@
 package com.dremio.sabot.op.writer;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.arrow.vector.ValueVector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,7 +28,6 @@ import com.dremio.exec.physical.config.WriterCommitterPOP;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
-import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.iceberg.manifestwriter.IcebergCommitOpHelper;
 import com.dremio.exec.store.iceberg.model.IcebergCommandType;
@@ -114,17 +110,14 @@ public class WriterCommitterOperator implements SingleInputOperator {
   private final ExecutionControls executionControls;
 
   private boolean success = false;
-  private final List<ValueVector> vectors = new ArrayList<>();
 
-  private final IcebergCommitOpHelper icebergCommitHelper;
+  private IcebergCommitOpHelper icebergCommitHelper;
   private WriterCommitterOutputHandler outputHandler;
 
   public WriterCommitterOperator(OperatorContext context, WriterCommitterPOP config) {
     this.config = config;
     this.context = context;
-    this.icebergCommitHelper = IcebergCommitOpHelper.getInstance(context, config);
     this.executionControls = context.getExecutionControls();
-    this.outputHandler = WriterCommitterOutputHandler.getInstance(context, config, this.icebergCommitHelper.hasCustomOutput());
   }
 
   @Override
@@ -134,9 +127,6 @@ public class WriterCommitterOperator implements SingleInputOperator {
 
   @Override
   public VectorAccessible setup(VectorAccessible accessible) throws Exception {
-    for (VectorWrapper<?> vectorWrapper : accessible) {
-      vectors.add(vectorWrapper.getValueVector());
-    }
     final BatchSchema schema = accessible.getSchema();
     if (!schema.equals(RecordWriter.SCHEMA)) {
       throw new IllegalStateException(String.format("Incoming record writer schema doesn't match intended. Expected %s, received %s", RecordWriter.SCHEMA, schema));
@@ -147,8 +137,10 @@ public class WriterCommitterOperator implements SingleInputOperator {
       config.getProps().getUserName(), context);
     addMetricStat(Metric.FILE_SYSTEM_CREATE_TIME, stopwatch.elapsed(TimeUnit.MILLISECONDS));
 
-    this.icebergCommitHelper.setup(accessible);
-    return this.outputHandler.setup(accessible);
+    icebergCommitHelper = IcebergCommitOpHelper.getInstance(context, config, fs);
+    outputHandler = WriterCommitterOutputHandler.getInstance(context, config, icebergCommitHelper.hasCustomOutput());
+    icebergCommitHelper.setup(accessible);
+    return outputHandler.setup(accessible);
   }
 
   @Override
@@ -168,8 +160,7 @@ public class WriterCommitterOperator implements SingleInputOperator {
       cleanUpFiles();
     } catch (Exception e) {
       logger.warn("Cleanup of files in writer committer failed.", e);
-    }
-    finally {
+    } finally {
       final OperatorStats operatorStats = context.getStats();
       AutoCloseables.close(outputHandler, fs, icebergCommitHelper);
 

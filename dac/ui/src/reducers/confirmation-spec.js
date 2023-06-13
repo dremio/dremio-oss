@@ -62,6 +62,7 @@ describe("confirmation reducer", () => {
         validatePromptText: validateFn,
         isCentered: true,
         size: "small",
+        isAsyncAction: false,
       });
       expect(result).to.be.eql({
         isOpen: true,
@@ -87,6 +88,7 @@ describe("confirmation reducer", () => {
         validatePromptText: validateFn,
         isCentered: true,
         size: "small",
+        isAsyncAction: false,
       });
     });
   });

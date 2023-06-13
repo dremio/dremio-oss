@@ -66,11 +66,13 @@ public class MaestroSoftwareClient implements MaestroClient {
       future,
       new FutureCallback<GeneralRPCProtos.Ack>() {
         // we want this handler to run immediately after we push the big red button!
+        @Override
         public void onSuccess(GeneralRPCProtos.Ack explosion) {
           responseObserver.onNext(Empty.getDefaultInstance());
           responseObserver.onCompleted();
         }
 
+        @Override
         public void onFailure(Throwable thrown) {
           responseObserver.onError(thrown);
         }

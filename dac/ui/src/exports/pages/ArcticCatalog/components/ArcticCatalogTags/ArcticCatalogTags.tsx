@@ -18,7 +18,7 @@ import { useState } from "react";
 import { type WithRouterProps } from "react-router";
 import ArcticTableHeader from "@app/exports/components/ArcticTableHeader/ArcticTableHeader";
 import ArcticCatalogTagsTable from "./components/ArcticCatalogTagsTable/ArcticCatalogTagsTable";
-import { Spinner } from "dremio-ui-lib/dist-esm";
+import { Spinner } from "dremio-ui-lib/components";
 import { ArcticCatalogTabsType } from "../../ArcticCatalog";
 import {
   constructArcticUrl,
@@ -37,10 +37,10 @@ import * as classes from "./ArcticCatalogTags.module.less";
 type ArcticCatalogTagsProps = WithRouterProps;
 
 function ArcticCatalogTags(props: ArcticCatalogTagsProps) {
-  const { formatMessage } = useIntl()
+  const { formatMessage } = useIntl();
   const { router } = props;
   const [searchFilter, setSearchFilter] = useState("");
-  const { baseUrl, source } = useNessieContext();
+  const { baseUrl, stateKey } = useNessieContext();
   const { isCatalog } = useArcticCatalogContext() ?? {};
   const dispatch = useDispatch();
 
@@ -56,7 +56,7 @@ function ArcticCatalogTags(props: ArcticCatalogTagsProps) {
     tab: ArcticCatalogTabsType,
     tag: { type: "TAG" } & Tag
   ) => {
-    dispatch(setReference({ reference: tag }, source.name));
+    dispatch(setReference({ reference: tag }, stateKey));
     return router.push(getPath(tab, tag));
   };
 
@@ -68,7 +68,7 @@ function ArcticCatalogTags(props: ArcticCatalogTagsProps) {
         placeholder="ArcticCatalog.Tags.SearchPlaceholder"
         onSearchChange={setSearchFilter}
         loading={!!data && isSmartFetchLoading(status)}
-        name={formatMessage({ id: "ArcticCatalog.Tags.Header"})}
+        name={formatMessage({ id: "ArcticCatalog.Tags.Header" })}
       />
       {!data && isSmartFetchLoading(status) ? (
         <Spinner className={classes["arctic-tags-spinner"]} />

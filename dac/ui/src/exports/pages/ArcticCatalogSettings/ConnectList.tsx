@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { ExternalLink } from "dremio-ui-lib/dist-esm";
+import { ExternalLink } from "dremio-ui-lib/components";
 import classes from "./ConnectList.module.less";
 import sparkIcon from "dremio-ui-lib/icons/dremio/corporate/spark.svg";
 import flinkIcon from "dremio-ui-lib/icons/dremio/corporate/flink.svg";

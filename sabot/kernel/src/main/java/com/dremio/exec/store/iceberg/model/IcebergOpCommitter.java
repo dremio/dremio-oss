@@ -15,16 +15,25 @@
  */
 package com.dremio.exec.store.iceberg.model;
 
+import static com.dremio.exec.store.iceberg.model.IcebergConstants.ADDED_DATA_FILES;
+import static com.dremio.exec.store.iceberg.model.IcebergConstants.DELETED_DATA_FILES;
+import static com.dremio.sabot.op.writer.WriterCommitterOperator.Metric.SNAPSHOT_COMMIT_STATUS;
+import static com.dremio.sabot.op.writer.WriterCommitterOperator.SnapshotCommitStatus.COMMITTED;
+
 import java.util.Map;
+import java.util.Optional;
 
 import org.apache.iceberg.DataFile;
+import org.apache.iceberg.DeleteFile;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.io.FileIO;
 
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.store.iceberg.DremioFileIO;
+import com.dremio.sabot.exec.context.OperatorStats;
+import com.dremio.sabot.op.writer.WriterCommitterOperator.SnapshotCommitStatus;
 import com.dremio.sabot.op.writer.WriterCommitterOutputHandler;
 import com.google.protobuf.ByteString;
 
@@ -56,6 +65,15 @@ public interface IcebergOpCommitter {
    * @throws UnsupportedOperationException
    */
   void consumeDeleteDataFile(DataFile icebergDeleteDatafile) throws UnsupportedOperationException;
+
+  /**
+   * Stores the DeleteFile instance to delete during commit operation
+   * @param icebergDeleteDeletefile DeleteFile instance to delete from table
+   * @throws UnsupportedOperationException
+   */
+  default void consumeDeleteDeleteFile(DeleteFile icebergDeleteDeletefile) throws UnsupportedOperationException {
+    throw new UnsupportedOperationException();
+  }
 
   /**
    * Stores data file path to delete during commit operation
@@ -116,5 +134,19 @@ public interface IcebergOpCommitter {
   /**
    * Cleanup in case of exceptions during commit
    */
-  default void cleanup(DremioFileIO dremioFileIO) {}
+  default void cleanup(FileIO fileIO) {}
+
+  /**
+   * Writes operator stats if a new snapshot is created
+   */
+  static void writeSnapshotStats(OperatorStats stats, SnapshotCommitStatus commitStatus, Snapshot snapshot) {
+    stats.addLongStat(SNAPSHOT_COMMIT_STATUS, commitStatus.value());
+
+    if (commitStatus.equals(COMMITTED) && snapshot != null) {
+      long addedFiles = Optional.ofNullable(snapshot.summary().get(ADDED_DATA_FILES)).map(Long::parseLong).orElse(0L);
+      long removedFiles = Optional.ofNullable(snapshot.summary().get(DELETED_DATA_FILES)).map(Long::parseLong).orElse(0L);
+      stats.recordAddedFiles(addedFiles);
+      stats.recordRemovedFiles(removedFiles);
+    }
+  }
 }

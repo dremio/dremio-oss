@@ -172,7 +172,7 @@ public class TestTransformer extends BaseTestServer { // needed for parsing quer
   private TransformResult transform(TransformBase tb, Boolean preview) {
     QueryExecutor executor = new QueryExecutor(null, null, null){
       @Override
-      public List<String> getColumnList(String username, DatasetPath path, List<SourceVersionReference> sourceVersionReferenceList) {
+      public List<String> getColumnList(DatasetPath path, List<SourceVersionReference> sourceVersionReferenceList) {
         return asList("bar", "baz");
       }
     };

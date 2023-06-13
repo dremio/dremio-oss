@@ -16,6 +16,7 @@
 package com.dremio.exec.planner.sql.handlers.direct;
 
 import static com.dremio.exec.ExecConstants.VERSIONED_VIEW_ENABLED;
+import static com.dremio.exec.planner.sql.parser.ParserUtil.isTimeTravelQuery;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
@@ -29,7 +30,6 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.schema.Schema;
-import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
@@ -58,11 +58,10 @@ import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.planner.sql.parser.ParserUtil;
 import com.dremio.exec.planner.sql.parser.SqlCreateView;
-import com.dremio.exec.planner.sql.parser.SqlVersionedTableMacroCall;
+import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.SchemaBuilder;
 import com.dremio.exec.work.foreman.ForemanSetupException;
-import com.dremio.service.Pointer;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Throwables;
@@ -90,6 +89,7 @@ public class CreateViewHandler extends SimpleDirectHandler {
 
     final NamespaceKey path = catalog.resolveSingle(createView.getPath());
 
+    catalog.validatePrivilege(path, SqlGrant.Privilege.ALTER);
     if (isVersioned(path)) {
       return createVersionedView(createView, sql);
     } else {
@@ -102,6 +102,12 @@ public class CreateViewHandler extends SimpleDirectHandler {
       throw UserException.unsupportedError().message("Currently do not support create versioned view").buildSilently();
     }
 
+    if (isTimeTravelQuery(createView)) {
+      throw UserException.unsupportedError()
+        .message("Versioned views not supported for time travel queries. Please use AT TAG or AT COMMIT instead")
+        .buildSilently();
+    }
+
     final String newViewName = createView.getFullName();
     View view = getView(createView, sql);
 
@@ -111,6 +117,7 @@ public class CreateViewHandler extends SimpleDirectHandler {
     boolean exists = checkViewExistence(viewPath, newViewName, isUpdate);
     isUpdate &= exists;
     final ViewOptions viewOptions = getViewOptions(viewPath, isUpdate);
+    CatalogUtil.validateResolvedVersionIsBranch(viewOptions.getVersion());
     if (isUpdate) {
       catalog.updateView(viewPath, view, viewOptions);
     } else {
@@ -332,31 +339,15 @@ public class CreateViewHandler extends SimpleDirectHandler {
     final VersionContext sessionVersion = config.getContext().getSession().getSessionVersionForSource(sourceName);
     ResolvedVersionContext version = CatalogUtil.resolveVersionContext(catalog, viewPath.getRoot(), sessionVersion);
 
-    ViewOptions viewOptions = new ViewOptions.ViewOptionsBuilder()
-      .version(version)
-      .batchSchema(viewSchema)
-      .viewUpdate(isUpdate)
-      .build();
+    ViewOptions viewOptions =
+        new ViewOptions.ViewOptionsBuilder()
+            .version(version)
+            .batchSchema(viewSchema)
+            .actionType(
+                isUpdate ? ViewOptions.ActionType.UPDATE_VIEW : ViewOptions.ActionType.CREATE_VIEW)
+            .build();
 
     return viewOptions;
-  }
-
-  private boolean isTimeTravelQuery(SqlNode sqlNode) {
-    Pointer<Boolean> timeTravel = new Pointer<>(false);
-    SqlVisitor<Void> visitor = new SqlBasicVisitor<Void>() {
-      @Override
-      public Void visit(SqlCall call) {
-        if (call instanceof SqlVersionedTableMacroCall) {
-          timeTravel.value = true;
-          return null;
-        }
-
-        return super.visit(call);
-      }
-    };
-
-    sqlNode.accept(visitor);
-    return timeTravel.value;
   }
 
   public static CreateViewHandler create(SqlHandlerConfig config) throws SqlParseException {

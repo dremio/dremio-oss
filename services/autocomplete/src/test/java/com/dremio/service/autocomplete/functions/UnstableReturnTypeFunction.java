@@ -47,10 +47,12 @@ public final class UnstableReturnTypeFunction extends SqlFunction {
     return SqlOperandCountRanges.of(1);
   }
 
+  @Override
   public boolean checkOperandTypes(SqlCallBinding sqlCallBinding, boolean throwOnFailure) {
     return sqlCallBinding.operands().size() == 1;
   }
 
+  @Override
   public RelDataType inferReturnType(
     SqlOperatorBinding opBinding) {
     RelDataType relDataType = opBinding.getOperandType(0);

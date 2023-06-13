@@ -251,7 +251,7 @@ class ScanWithHiveReader {
           partitionStorageHandlerName = HiveReaderProtoUtil.getPartitionStorageHandler(tableXattr, partitionXattr);
         }
 
-        jobConf.setInputFormat(getInputFormatClass(jobConf, partitionInputFormat, partitionStorageHandlerName, context.getOptions()));
+        jobConf.setInputFormat(getInputFormatClass(jobConf, partitionInputFormat, partitionStorageHandlerName));
         partitionOI = getStructOI(partitionSerDe);
         updateFileFormatStat(context.getStats(), partitionInputFormat);
 
@@ -263,7 +263,7 @@ class ScanWithHiveReader {
       } else {
         partitionSerDe = null;
         partitionOI = null;
-        jobConf.setInputFormat(getInputFormatClass(jobConf, tableInputFormat, HiveReaderProtoUtil.getTableStorageHandler(tableXattr), context.getOptions()));
+        jobConf.setInputFormat(getInputFormatClass(jobConf, tableInputFormat, HiveReaderProtoUtil.getTableStorageHandler(tableXattr)));
         updateFileFormatStat(context.getStats(), tableInputFormat);
       }
 

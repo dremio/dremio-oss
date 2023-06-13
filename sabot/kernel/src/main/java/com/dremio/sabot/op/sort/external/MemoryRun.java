@@ -199,7 +199,8 @@ class MemoryRun implements AutoCloseable {
       final boolean first = size == 0;
       if (first) {
         maxBatchSize = rbi.getMemorySize();
-        head = tail = rbi;
+        head = rbi;
+        tail = rbi;
         sorter.setup(rbi.data.getContainer());
       } else {
         maxBatchSize = Math.max(maxBatchSize, batchSize);

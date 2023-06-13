@@ -71,8 +71,7 @@ class TracingInvocationHandler<INTF> implements InvocationHandler
 
       if ( null == rawReturnedResult ) {
         netReturnedResult = null;
-      }
-      else {
+      } else {
         Class<?> methodReturnType = method.getReturnType();
 
         if ( ! methodReturnType.isInterface() ) {
@@ -80,20 +79,17 @@ class TracingInvocationHandler<INTF> implements InvocationHandler
           // instance.  (We could proxy and intercept some methods, but we can't
           // intercept all, so intercepting only some would be misleading.)
           netReturnedResult = rawReturnedResult;
-        }
-        else {
+        } else {
           // Get the new or existing proxying instance for the returned instance.
           netReturnedResult =
               proxiesManager.getProxyInstanceForOriginal( rawReturnedResult,
                                                           methodReturnType );
         }
       }
-    }
-    catch ( IllegalAccessException | IllegalArgumentException e ) {
+    } catch ( IllegalAccessException | IllegalArgumentException e ) {
       throw new RuntimeException(
           "Unexpected/unhandled error calling proxied method: " + e, e );
-    }
-    catch ( InvocationTargetException e ) {
+    } catch ( InvocationTargetException e ) {
       Throwable thrownResult = e.getCause();
       // Report that method threw exception:
       callReporter.methodThrew( proxiedObject, proxiedInterface, method, args,

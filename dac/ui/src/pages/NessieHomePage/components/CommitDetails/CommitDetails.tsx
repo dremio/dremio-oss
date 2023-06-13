@@ -17,7 +17,7 @@ import { useIntl } from "react-intl";
 import CommitHash from "@app/pages/HomePage/components/BranchPicker/components/CommitBrowser/components/CommitHash/CommitHash";
 import UserIcon from "@app/pages/HomePage/components/BranchPicker/components/CommitBrowser/components/UserIcon/UserIcon";
 import { formatDate } from "@app/utils/date";
-import { CommitMeta } from "@app/services/nessie/client";
+import { CommitMetaV2 as CommitMeta } from "@app/services/nessie/client";
 import { Reference } from "@app/types/nessie";
 
 import "./CommitDetails.less";
@@ -30,6 +30,8 @@ function CommitDetails({
   branch: Reference;
 }) {
   const intl = useIntl();
+
+  const author = commitMeta.authors?.[0];
   return (
     <span className="commitDetails">
       <div className="commitDetails-header">
@@ -47,18 +49,18 @@ function CommitDetails({
       </div>
       <div className="commitDetails-content">
         <span className="commitDetails-details">
-          {commitMeta.author && (
+          {author && (
             <span className="commitDetails-metaSection">
               <div className="commitDetails-metaHeader">
                 {intl.formatMessage({ id: "Common.Author" })}
               </div>
               <div
                 className="commitDetails-userInfo commitDetails-metaDetail"
-                title={commitMeta.author}
+                title={author}
               >
-                <UserIcon user={commitMeta.author} />
+                <UserIcon user={author} />
                 <span className="commitDetails-userName text-ellipsis">
-                  {commitMeta.author}
+                  {author}
                 </span>
               </div>
             </span>

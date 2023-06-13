@@ -63,14 +63,19 @@ import com.sun.codemodel.JClass;
 import com.sun.codemodel.JCodeModel;
 import com.sun.codemodel.JType;
 
-public class CodeModelArrowHelper {
+public final class CodeModelArrowHelper {
+
+  private CodeModelArrowHelper() {
+    // utility class
+  }
+
   public static JClass getHolderType(CompleteType type, final JCodeModel model) {
     return model.ref(type.getHolderClass());
   }
 
   public static JType getHolderType(JCodeModel model, com.dremio.common.types.TypeProtos.MinorType type,
       com.dremio.common.types.TypeProtos.DataMode mode) {
-    outside: switch (type) {
+    switch (type) {
     case UNION:
       return model._ref(UnionHolder.class);
     case STRUCT:
@@ -85,8 +90,9 @@ public class CodeModelArrowHelper {
       case OPTIONAL:
         return model._ref(NullableTinyIntHolder.class);
       default:
-        break outside;
+        break;
       }
+      break;
     case UINT1:
       switch (mode) {
       case REQUIRED:
@@ -94,8 +100,9 @@ public class CodeModelArrowHelper {
       case OPTIONAL:
         return model._ref(NullableUInt1Holder.class);
       default:
-        break outside;
+        break;
       }
+      break;
     case UINT2:
       switch (mode) {
       case REQUIRED:
@@ -103,8 +110,9 @@ public class CodeModelArrowHelper {
       case OPTIONAL:
         return model._ref(NullableUInt2Holder.class);
       default:
-        break outside;
+        break;
       }
+      break;
     case SMALLINT:
       switch (mode) {
       case REQUIRED:
@@ -112,8 +120,9 @@ public class CodeModelArrowHelper {
       case OPTIONAL:
         return model._ref(NullableSmallIntHolder.class);
       default:
-        break outside;
+        break;
       }
+      break;
     case INT:
       switch (mode) {
       case REQUIRED:
@@ -121,8 +130,9 @@ public class CodeModelArrowHelper {
       case OPTIONAL:
         return model._ref(NullableIntHolder.class);
       default:
-        break outside;
+        break;
       }
+      break;
     case UINT4:
       switch (mode) {
       case REQUIRED:
@@ -130,8 +140,9 @@ public class CodeModelArrowHelper {
       case OPTIONAL:
         return model._ref(NullableUInt4Holder.class);
       default:
-        break outside;
+        break;
       }
+      break;
     case FLOAT4:
       switch (mode) {
       case REQUIRED:
@@ -139,8 +150,9 @@ public class CodeModelArrowHelper {
       case OPTIONAL:
         return model._ref(NullableFloat4Holder.class);
       default:
-        break outside;
+        break;
       }
+      break;
     case INTERVALYEAR:
       switch (mode) {
       case REQUIRED:
@@ -148,8 +160,9 @@ public class CodeModelArrowHelper {
       case OPTIONAL:
         return model._ref(NullableIntervalYearHolder.class);
       default:
-        break outside;
+        break;
       }
+      break;
     case TIME:
       switch (mode) {
       case REQUIRED:
@@ -157,8 +170,9 @@ public class CodeModelArrowHelper {
       case OPTIONAL:
         return model._ref(NullableTimeMilliHolder.class);
       default:
-        break outside;
+        break;
       }
+      break;
     case BIGINT:
       switch (mode) {
       case REQUIRED:
@@ -166,8 +180,9 @@ public class CodeModelArrowHelper {
       case OPTIONAL:
         return model._ref(NullableBigIntHolder.class);
       default:
-        break outside;
+        break;
       }
+      break;
     case UINT8:
       switch (mode) {
       case REQUIRED:
@@ -175,8 +190,9 @@ public class CodeModelArrowHelper {
       case OPTIONAL:
         return model._ref(NullableUInt8Holder.class);
       default:
-        break outside;
+        break;
       }
+      break;
     case FLOAT8:
       switch (mode) {
       case REQUIRED:
@@ -184,8 +200,9 @@ public class CodeModelArrowHelper {
       case OPTIONAL:
         return model._ref(NullableFloat8Holder.class);
       default:
-        break outside;
+        break;
       }
+      break;
     case DATE:
       switch (mode) {
       case REQUIRED:
@@ -193,8 +210,9 @@ public class CodeModelArrowHelper {
       case OPTIONAL:
         return model._ref(NullableDateMilliHolder.class);
       default:
-        break outside;
+        break;
       }
+      break;
     case TIMESTAMP:
       switch (mode) {
       case REQUIRED:
@@ -202,8 +220,9 @@ public class CodeModelArrowHelper {
       case OPTIONAL:
         return model._ref(NullableTimeStampMilliHolder.class);
       default:
-        break outside;
+        break;
       }
+      break;
     case INTERVALDAY:
       switch (mode) {
       case REQUIRED:
@@ -211,8 +230,9 @@ public class CodeModelArrowHelper {
       case OPTIONAL:
         return model._ref(NullableIntervalDayHolder.class);
       default:
-        break outside;
+        break;
       }
+      break;
     case DECIMAL:
       switch (mode) {
       case REQUIRED:
@@ -220,8 +240,9 @@ public class CodeModelArrowHelper {
       case OPTIONAL:
         return model._ref(NullableDecimalHolder.class);
       default:
-        break outside;
+        break;
       }
+      break;
     case FIXEDSIZEBINARY:
       switch (mode) {
       case REQUIRED:
@@ -229,22 +250,29 @@ public class CodeModelArrowHelper {
       case OPTIONAL:
         return model._ref(NullableFixedSizeBinaryHolder.class);
       default:
-        break outside;
+        break;
       }
+      break;
     case VARBINARY:
       switch (mode) {
       case REQUIRED:
         return model._ref(VarBinaryHolder.class);
       case OPTIONAL:
         return model._ref(NullableVarBinaryHolder.class);
+      default:
+        break;
       }
+      break;
     case VARCHAR:
       switch (mode) {
       case REQUIRED:
         return model._ref(VarCharHolder.class);
       case OPTIONAL:
         return model._ref(NullableVarCharHolder.class);
+      default:
+        break;
       }
+      break;
     case BIT:
       switch (mode) {
       case REQUIRED:
@@ -252,8 +280,9 @@ public class CodeModelArrowHelper {
       case OPTIONAL:
         return model._ref(NullableBitHolder.class);
       default:
-        break outside;
+        break;
       }
+      break;
     case GENERIC_OBJECT: {
       return model._ref(ObjectHolder.class);
     }

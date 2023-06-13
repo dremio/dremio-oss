@@ -189,9 +189,7 @@ import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValue;
-import com.dremio.service.jobs.HybridJobsService;
 import com.dremio.service.jobs.JobRequest;
-import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
@@ -285,8 +283,11 @@ public class TestServerExplore extends BaseTestServer {
     assertEquals(dataString, INITIAL_RESULTSET_SIZE, data.getReturnedRowCount());
 
     // Preview the data in initial dataset
-    InitialPreviewResponse previewResponse = getPreview(dataset);
-    data = previewResponse.getData();
+    final InitialPreviewResponse previewResponse = getPreview(dataset);
+    waitForJobComplete(previewResponse.getJobId().getId());
+
+    data = getData(previewResponse.getPaginationUrl(), 0, INITIAL_RESULTSET_SIZE);
+
     dataString = JSONUtil.toString(data);
     assertEquals(dataString, 7, data.getColumns().size());
     assertEquals(dataString, "s_suppkey", data.getColumns().get(0).getName());
@@ -309,10 +310,8 @@ public class TestServerExplore extends BaseTestServer {
     createDatasetFromParentAndSave(datasetPath, "cp.\"json/mixed_example.json\"");
     DatasetUI dataset = getDataset(datasetPath);
 
-    InitialPreviewResponse previewResponse = getPreview(dataset);
-
-    // Initial response contains limited records
-    assertEquals(INITIAL_RESULTSET_SIZE, previewResponse.getData().getReturnedRowCount());
+    final InitialPreviewResponse previewResponse = getPreview(dataset);
+    waitForJobComplete(previewResponse.getJobId().getId());
 
     JobDataFragment data1 = getData(previewResponse.getPaginationUrl(), 0, 200);
     assertEquals(105, data1.getReturnedRowCount());
@@ -366,6 +365,7 @@ public class TestServerExplore extends BaseTestServer {
     sourceService.registerSourceWithRuntime(source);
 
     InitialDataPreviewResponse resp = getPreview(new DatasetPath(asList("testNAS", "users.json")));
+
     assertEquals(3, resp.getData().getReturnedRowCount());
     assertEquals(2, resp.getData().getColumns().size());
 
@@ -1199,7 +1199,7 @@ public class TestServerExplore extends BaseTestServer {
   public void testSaveDataset() throws Exception {
     setSpace();
 
-    expectSuccess(getBuilder(getAPIv2().path("space/space1")).buildPut(Entity.json(new Space(null, "space1", null, null, null, 0, null))), Space.class);
+    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space1", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
     DatasetPath datasetPath = new DatasetPath("spacefoo.folderbar.folderbaz.datasetbuzz");
     doc("creating dataset");
     DatasetUI dataset = createDatasetFromParentAndSave(datasetPath, "cp.\"tpch/supplier.parquet\"");
@@ -1267,7 +1267,7 @@ public class TestServerExplore extends BaseTestServer {
   public void testSaveDatasetWrongFolder() throws Exception {
     setSpace();
 
-    expectSuccess(getBuilder(getAPIv2().path("space/space1")).buildPut(Entity.json(new Space(null, "space1", null, null, null, 0, null))), Space.class);
+    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space1", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
     DatasetPath datasetPath = new DatasetPath("spacefoo.folderbar.folderblahz.datasetbuzz");
     InitialPreviewResponse preview = createDatasetFromParent("cp.\"tpch/supplier.parquet\"");
 
@@ -1280,9 +1280,8 @@ public class TestServerExplore extends BaseTestServer {
   }
 
   @Test
-  public void testVirtualDatasetWithNotNullFields() throws Exception {
-    final HybridJobsService jobsService = (HybridJobsService) l(JobsService.class);
-    expectSuccess(getBuilder(getAPIv2().path("space/space1")).buildPut(Entity.json(new Space(null, "space1", null, null, null, 0, null))), Space.class);
+  public void testVirtualDatasetWithNotNullFields() {
+    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space1", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
     final String pathName = "space1.v1";
     final DatasetPath numbersJsonPath = new DatasetPath(pathName);
     DatasetUI numbersJsonVD = createDatasetFromSQLAndSave(numbersJsonPath,
@@ -1293,8 +1292,7 @@ public class TestServerExplore extends BaseTestServer {
 
   @Test
   public void testVirtualDatasetWithTimestampDiff() throws Exception {
-    final HybridJobsService jobsService = (HybridJobsService) l(JobsService.class);
-    expectSuccess(getBuilder(getAPIv2().path("space/space1")).buildPut(Entity.json(new Space(null, "space1", null, null, null, 0, null))), Space.class);
+    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space1", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
     final String pathName = "space1.v1";
     final DatasetPath datetimePath = new DatasetPath(pathName);
     DatasetUI dateTimeVD = createDatasetFromSQLAndSave(datetimePath,
@@ -1304,9 +1302,8 @@ public class TestServerExplore extends BaseTestServer {
   }
 
   @Test
-  public void testVirtualDatasetWithChar() throws Exception {
-    final HybridJobsService jobsService = (HybridJobsService) l(JobsService.class);
-    expectSuccess(getBuilder(getAPIv2().path("space/space1")).buildPut(Entity.json(new Space(null,"space1", null, null, null, 0, null))), Space.class);
+  public void testVirtualDatasetWithChar() {
+    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space1", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
     final String pathName = "space1.v1";
     final DatasetPath numbersJsonPath = new DatasetPath(pathName);
     DatasetUI numbersJsonVD = createDatasetFromSQLAndSave(numbersJsonPath,
@@ -1320,8 +1317,8 @@ public class TestServerExplore extends BaseTestServer {
 
   @Test
   public void testReapplyDataset() {
-    expectSuccess(getBuilder(getAPIv2().path("space/space1")).buildPut(Entity.json(new Space(null, "space1", null, null, null, 0, null))), Space.class);
-    expectSuccess(getBuilder(getAPIv2().path("space/space2")).buildPut(Entity.json(new Space(null, "space2", null, null, null, 0, null))), Space.class);
+    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space1", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
+    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space2", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
 
     DatasetPath d1Path = new DatasetPath("space1.ds1");
     DatasetPath d2Path = new DatasetPath("space1.ds2");
@@ -1359,7 +1356,7 @@ public class TestServerExplore extends BaseTestServer {
 
   @Test
   public void testReapplyAndSave(){
-    expectSuccess(getBuilder(getAPIv2().path("space/reapplyAndSave")).buildPut(Entity.json(new Space(null, "reapplyAndSave", null, null, null, 0, null))), Space.class);
+    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "reapplyAndSave", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
     DatasetPath d1Path = new DatasetPath("reapplyAndSave.ds1");
     createDatasetFromSQLAndSave(d1Path, "select s_name, s_phone from cp.\"tpch/supplier.parquet\"", asList("cp"));
     final DatasetUI d2 = createDatasetFromParent("reapplyAndSave.ds1").getDataset();
@@ -1375,7 +1372,7 @@ public class TestServerExplore extends BaseTestServer {
 
   @Test
   public void testReapplyAndSaveWrongFolder(){
-    expectSuccess(getBuilder(getAPIv2().path("space/reapplyAndSave")).buildPut(Entity.json(new Space(null, "reapplyAndSave", null, null, null, 0, null))), Space.class);
+    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "reapplyAndSave", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
     DatasetPath d1Path = new DatasetPath("reapplyAndSave.ds1");
     createDatasetFromSQLAndSave(d1Path, "select s_name, s_phone from cp.\"tpch/supplier.parquet\"", asList("cp"));
     final DatasetUI d2 = createDatasetFromParent("reapplyAndSave.ds1").getDataset();
@@ -1387,8 +1384,8 @@ public class TestServerExplore extends BaseTestServer {
 
   @Test
   public void testRenameDataset() throws Exception {
-    expectSuccess(getBuilder(getAPIv2().path("space/space1")).buildPut(Entity.json(new Space(null, "space1", null, null, null, 0, null))), Space.class);
-    expectSuccess(getBuilder(getAPIv2().path("space/space2")).buildPut(Entity.json(new Space(null, "space2", null, null, null, 0, null))), Space.class);
+    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space1", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
+    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space2", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
 
     doc("creating dataset");
     DatasetPath datasetPath = new DatasetPath("space1.ds1");
@@ -1548,24 +1545,11 @@ public class TestServerExplore extends BaseTestServer {
 
   @Test
   public void testDatasets() throws Exception {
-    expectSuccess(getBuilder(getAPIv2().path("space/space1")).buildPut(Entity.json(new Space(null, "space1", null, null, null, 0, null))), Space.class);
-    expectSuccess(getBuilder(getAPIv2().path("space/space2")).buildPut(Entity.json(new Space(null, "space2", null, null, null, 0, null))), Space.class);
-    expectSuccess(getBuilder(getAPIv2().path("space/space3")).buildPut(Entity.json(new Space(null, "space3", null, null, null, 0, null))), Space.class);
+    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space1", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
+    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space2", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
+    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space3", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
 
     expectError(CLIENT_ERROR, getDatasetInvocation(new DatasetPath("space.myspace")), NotFoundErrorMessage.class);
-
-    /**
-     * TODO: This doesn't seem like valid. Creating datasets directly in namespace
-    // create few datasets
-    VirtualDatasetUI vds = newDataSetFromParent(new DatasetPath("space1.ds12"), "cp.\"tpch/supplier.parquet\"");
-    namespaceService.addOrUpdateDataset(new DatasetPath("space1.ds1").toNamespaceKey(),
-        toVirtualDatasetVersion(ProtostuffUtil.copy(vds).setName("ds1").setLegacyTag(DatasetVersion.newVersion())).getDataset());
-    namespaceService.addOrUpdateDataset(new DatasetPath("space1.ds2").toNamespaceKey(),
-      toVirtualDatasetVersion(ProtostuffUtil.copy(vds).setName("ds2").setLegacyTag(DatasetVersion.newVersion())).getDataset());
-
-    getDatasetService().deleteDataset(new DatasetPath("space1.ds1"), 0);
-    getDatasetService().deleteDataset(new DatasetPath("space1.ds2"), 0);
-    */
 
     createDatasetFromSQLAndSave(new DatasetPath("space1.ds2"),
         "select s.s_name from cp.\"tpch/supplier.parquet\" s", asList("cp"));
@@ -1590,7 +1574,7 @@ public class TestServerExplore extends BaseTestServer {
 
   @Test
   public void testCreateDatasets() throws Exception {
-    expectSuccess(getBuilder(getAPIv2().path("space/spaceCreateDataset")).buildPut(Entity.json(new Space(null, "spaceCreateDataset", null, null, null, 0, null))), Space.class);
+    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "spaceCreateDataset", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
     DatasetPath datasetPath = new DatasetPath("spaceCreateDataset.ds1");
     DatasetUI ds1 = createDatasetFromSQLAndSave(datasetPath,
         "select s.s_name from cp.\"tpch/supplier.parquet\" s", asList("cp"));
@@ -1605,7 +1589,7 @@ public class TestServerExplore extends BaseTestServer {
 
   @Test
   public void canReapplyIsCorrect(){
-    expectSuccess(getBuilder(getAPIv2().path("space/canReapplyDataset")).buildPut(Entity.json(new Space(null, "canReapplyDataset", null, null, null, 0, null))), Space.class);
+    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "canReapplyDataset", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
     InitialPreviewResponse createFromPhysical = createDatasetFromParent("cp.\"tpch/supplier.parquet\"");
     List<String> displayFullPath = createFromPhysical.getDataset().getDisplayFullPath();
     // datasets directly derived from other datasets should have their display path set to their parent
@@ -1676,7 +1660,8 @@ public class TestServerExplore extends BaseTestServer {
     DatasetUI ds = getDataset(getDatasetPath(dataset));
 
     doc("Get data for join_reco so that there's a job for it");
-    getPreview(ds);
+    final InitialPreviewResponse previewResponse = getPreview(ds);
+    waitForJobComplete(previewResponse.getJobId().getId());
 
     doc("Get dataset join recommendations join_reco");
 
@@ -1685,7 +1670,8 @@ public class TestServerExplore extends BaseTestServer {
     assertEquals(0, recommendations.getRecommendations().size());
 
     DatasetUI djointest = createDatasetFromParentAndSave(new DatasetPath(getRoot(dataset) + ".djointest"), getDatasetPath(dataset).toString());
-    getPreview(djointest);
+    final InitialPreviewResponse previewResponseA = getPreview(djointest);
+    waitForJobComplete(previewResponseA.getJobId().getId());
 
     DatasetUI sibling = getDataset(getDatasetPath(djointest));
 
@@ -2100,8 +2086,9 @@ public class TestServerExplore extends BaseTestServer {
 
       DatasetUI dataset = createDatasetFromParentAndSave("cellTrunc", "cp.\"json/cell_truncation.json\"");
 
-      InitialPreviewResponse previewResponse = getPreview(dataset);
-      DataPOJO data = (DataPOJO) previewResponse.getData();
+      final InitialPreviewResponse previewResponse = getPreview(dataset);
+      waitForJobComplete(previewResponse.getJobId().getId());
+      final DataPOJO data = (DataPOJO) getData(previewResponse.getPaginationUrl(), 0, INITIAL_RESULTSET_SIZE);
 
       List<CellPOJO> row0Cells = data.getRows().get(0).getRow();
       fetchAndVerifyFullCellValue(row0Cells.get(1).getUrl(),
@@ -2226,8 +2213,8 @@ public class TestServerExplore extends BaseTestServer {
 
   @Test
   public void testReapplyForCopiedRenamedMovedDataset() throws Exception {
-    expectSuccess(getBuilder(getAPIv2().path("space/space1")).buildPut(Entity.json(new Space(null, "space1", null, null, null, 0, null))), Space.class);
-    expectSuccess(getBuilder(getAPIv2().path("space/space2")).buildPut(Entity.json(new Space(null, "space2", null, null, null, 0, null))), Space.class);
+    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space1", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
+    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space2", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
 
     //create dataset
     DatasetPath datasetPath = new DatasetPath("space1.ds1");

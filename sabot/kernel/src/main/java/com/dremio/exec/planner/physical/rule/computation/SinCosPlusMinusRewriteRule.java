@@ -56,7 +56,10 @@ class SinCosPlusMinusRewriteRule extends RexRewriter.RewriteRule {
               childCall.getOperands().get(0),
               childCall.getOperands().get(1));
           }
+          default:
+            break;
         }
+        break;
       }
       case "COS": {
         RexNode child = call.getOperands().get(0);
@@ -75,11 +78,15 @@ class SinCosPlusMinusRewriteRule extends RexRewriter.RewriteRule {
               childCall.getOperands().get(0),
               childCall.getOperands().get(1));
           }
+          default:
+            break;
         }
+        break;
       }
       default:
-        return null;
+        break;
     }
+    return null;
   }
 
   public static final SqlFunction SIN_PLUS =

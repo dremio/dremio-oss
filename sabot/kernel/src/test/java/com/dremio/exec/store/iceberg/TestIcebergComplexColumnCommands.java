@@ -26,6 +26,8 @@ import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.proto.UserBitShared;
+import com.dremio.test.UserExceptionAssert;
 
 @SuppressWarnings("UseCorrectAssertInTests")
 public class TestIcebergComplexColumnCommands extends BaseTestQuery {
@@ -297,7 +299,9 @@ public class TestIcebergComplexColumnCommands extends BaseTestQuery {
         String.format("create table %s.%s (element ROW(x ARRAY(DECIMAL(40,8))))",
           TEMP_SCHEMA, newTblName);
       //element is a keyword and cannot be used as column name. Without this restriction we cannot parse LIST datatype.
-      errorMsgTestHelper(query, "PARSE ERROR: Failure parsing the query.");
+      UserExceptionAssert
+        .assertThatThrownBy(() -> test(query))
+        .hasErrorType(UserBitShared.DremioPBError.ErrorType.PARSE);
     } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTblName));
     }

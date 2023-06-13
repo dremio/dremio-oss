@@ -48,6 +48,11 @@ public class ITDelete extends ITDmlQueryBase {
   }
 
   @Test
+  public void testDeleteByIdWithEqualNull() throws Exception {
+    DeleteTests.testDeleteByIdWithEqualNull(allocator, SOURCE);
+  }
+
+  @Test
   public void testDeleteTargetTableWithAndWithoutAlias() throws Exception {
     DeleteTests.testDeleteTargetTableWithAndWithoutAlias(allocator, SOURCE);
   }

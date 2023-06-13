@@ -36,7 +36,6 @@ import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorCatalogReader;
 import org.apache.calcite.sql2rel.SqlToRelConverter;
 
-import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.DremioCatalogReader;
 import com.dremio.exec.catalog.SimpleCatalog;
 import com.dremio.exec.context.AdditionalContext;
@@ -115,6 +114,7 @@ public final class MockDremioQueryParser extends DremioQueryParser {
    * @param sql Sql to parse.
    * @return The validated SqlTree tree.
    */
+  @Override
   public SqlNode parse(String sql) {
     try {
       SqlParser parser = SqlParser.create(sql, parserConfig);
@@ -124,12 +124,13 @@ public final class MockDremioQueryParser extends DremioQueryParser {
       SqlNode sqlNode = validator.validate(node);
       return sqlNode;
     } catch (SqlParseException e) {
-      UserException.Builder builder = SqlExceptionHelper.parseError(sql, e);
-      builder.message(SqlExceptionHelper.QUERY_PARSING_ERROR);
-      throw builder.build(logger);
+      throw SqlExceptionHelper
+        .parseError(sql, e)
+        .build(logger);
     }
   }
 
+  @Override
   public RelNode toRel(String query) {
     final SqlNode sqlNode = parse(query);
     return convertSqlNodeToRel(sqlNode);
@@ -139,6 +140,7 @@ public final class MockDremioQueryParser extends DremioQueryParser {
    * Get the rel from a previously parsed sql tree.
    * @return The RelNode tree.
    */
+  @Override
   public RelNode convertSqlNodeToRel(SqlNode sqlNode) {
     final SqlToRelConverter.Config config = SqlToRelConverter.configBuilder()
       .withInSubQueryThreshold((int) 1024)

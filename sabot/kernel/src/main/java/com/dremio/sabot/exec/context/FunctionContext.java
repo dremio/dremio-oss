@@ -148,5 +148,5 @@ public interface FunctionContext {
    */
   ValueHolder getConstantValueHolder(String value, MinorType type, Function<ArrowBuf, ValueHolder> holderInitializer);
 
-  Pair<Long, Long> getSurvivingRowCountWithPruneFilter(ScanRelBase scan, PruneFilterCondition pruneCondition);
+  Pair<Long, Long> getSurvivingRowCountWithPruneFilter(ScanRelBase scan, PruneFilterCondition pruneCondition) throws Exception;
 }

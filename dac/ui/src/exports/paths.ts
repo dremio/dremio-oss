@@ -28,7 +28,7 @@ export type CommitId = string;
 export type Namespace = string;
 export type BranchIdParam = { branchId: BranchId };
 export type CatalogIdParam = { arcticCatalogId: ArcticCatalogId };
-export type SettingsPageParam = { pageType?: "general" | "configuration" };
+export type ConfigEditParam = { mode?: "new" | "edit" };
 export type CommitIdParam = { commitId: CommitId };
 export type NamespaceParam = { namespace?: Namespace };
 
@@ -70,15 +70,36 @@ export const arcticCatalogData = (
     params.namespace ? `/${params.namespace}` : ""
   }` as const;
 
-export const arcticCatalogSettings = (
-  params: CatalogIdParam & SettingsPageParam
-) =>
-  `${arcticCatalog(params)}/settings${
-    params.pageType ? `/${params.pageType}` : ""
-  }` as const;
+export const arcticCatalogSettings = (params: CatalogIdParam) =>
+  `${arcticCatalog(params)}/settings` as const;
+
+export const arcticCatalogSettingsGeneral = (params: CatalogIdParam) =>
+  `${arcticCatalogSettings(params)}/general` as const;
+
+export const arcticCatalogSettingsConfiguration = (
+  params: CatalogIdParam & ConfigEditParam
+) => `${arcticCatalogSettings(params)}/configuration` as const;
+
+export const arcticCatalogSettingsPrivileges = (params: CatalogIdParam) =>
+  `${arcticCatalogSettings(params)}/privileges` as const;
+
+export const arcticCatalogSettingsConfigurationSummary = (
+  params: CatalogIdParam & ConfigEditParam
+) => `${arcticCatalogSettingsConfiguration(params)}/summary` as const;
+
+export const arcticCatalogSettingsConfigurationNew = (
+  params: CatalogIdParam & ConfigEditParam
+) => `${arcticCatalogSettingsConfiguration(params)}/new` as const;
+
+export const arcticCatalogSettingsConfigurationEdit = (
+  params: CatalogIdParam & ConfigEditParam
+) => `${arcticCatalogSettingsConfiguration(params)}/edit` as const;
 
 export const arcticCatalogTags = (params: CatalogIdParam) =>
   `${arcticCatalog(params)}/tags` as const;
+
+export const arcticCatalogJobs = (params: CatalogIdParam) =>
+  `${arcticCatalog(params)}/jobs` as const;
 
 export const arcticCatalogs = () => `${arcticBase}` as const;
 
@@ -168,3 +189,30 @@ export const newQuery = () => `/new_query` as const;
  */
 export const jobs = () => `/jobs` as const;
 export const login = () => `/login` as const;
+
+/**
+ * Nessie Sources in Software
+ */
+
+const nessieBase = "/nessie";
+
+export const nessieSourceBase = (params: SourceIdParam & ProjectIdParam) =>
+  `${sourceBase({ projectId: params.projectId })}${nessieBase}/${
+    params.sourceId
+  }` as const;
+
+export const nessieSourceCommitsBase = (
+  params: SourceIdParam & ProjectIdParam
+) => `${nessieSourceBase(params)}/commits` as const;
+
+export const nessieSourceCommitsNonBase = () => `commits` as const;
+export const nessieSourceTagsNonBase = () => `tags` as const;
+export const nessieSourceBranchesNonBase = () => `branches` as const;
+
+export const nessieSourceCommits = (params: BranchIdParam & NamespaceParam) =>
+  `${arcticSourceCommitsNonBase()}/${params.branchId}${
+    params.namespace ? `/${params.namespace}` : ""
+  }` as const;
+
+export const nessieSourceCommit = (params: BranchIdParam & CommitIdParam) =>
+  `commit/${params.branchId}/${params.commitId}` as const;

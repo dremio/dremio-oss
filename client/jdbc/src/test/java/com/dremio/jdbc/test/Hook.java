@@ -30,6 +30,7 @@ public enum Hook {
   public Closeable add(final Function handler) {
     handlers.add(handler);
     return new Closeable() {
+      @Override
       public void close() {
         remove(handler);
       }
@@ -50,6 +51,7 @@ public enum Hook {
 
   /** Removes a Hook after use. */
   public interface Closeable extends AutoCloseable {
+    @Override
     void close(); // override, removing "throws"
   }
 }

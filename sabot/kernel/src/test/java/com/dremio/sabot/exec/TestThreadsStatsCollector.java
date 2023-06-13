@@ -26,6 +26,7 @@ public class TestThreadsStatsCollector {
   public void testOldThreadsArePruned() throws InterruptedException {
 
     Thread t = new Thread() {
+      @Override
       public void run () {
         try {
           sleep(400L);
@@ -35,6 +36,7 @@ public class TestThreadsStatsCollector {
     };
 
     Thread t1 = new Thread() {
+      @Override
       public void run () {
         try {
           sleep(400L);

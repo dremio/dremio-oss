@@ -27,11 +27,13 @@ import com.dremio.dac.model.folder.FolderPath;
 import com.dremio.dac.model.folder.SourceFolderPath;
 import com.dremio.dac.model.job.JobFilters;
 import com.dremio.dac.model.sources.PhysicalDatasetPath;
+import com.dremio.dac.model.sources.VirtualDatasetPath;
 import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.proto.model.dataset.Derivation;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.util.DatasetUIUtils;
 import com.dremio.dac.util.DatasetsUtil;
+import com.dremio.exec.catalog.VersionedDatasetId;
 import com.dremio.file.FilePath;
 import com.dremio.file.SourceFilePath;
 import com.dremio.service.jobs.JobIndexKeys;
@@ -43,6 +45,7 @@ import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.ParentDataset;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 
 
@@ -52,7 +55,7 @@ import com.google.common.collect.ImmutableMap;
 public class DatasetUI {
 
   private final String id;
-  private String entityId;
+  private final String entityId;
   private final String sql;
   private final List<String> context;
   // full path to use when making transforms on this dataset like transforms
@@ -97,7 +100,7 @@ public class DatasetUI {
       datasetType = DatasetType.VIRTUAL_DATASET;
     } else {
       // if its tmp.UNTITLED we want to get the parent dataset path to display.  The UI uses displayFullPath for history
-      // requests and therefore we need to be precise here. We manually check the path as this code would previously get
+      // requests, and therefore we need to be precise here. We manually check the path as this code would previously get
       // triggered for history dataset entries that derive from another dataset.
       if (isUnsaved && vds.getDerivation() == Derivation.DERIVED_VIRTUAL && parentsList.size() > 0
         && Arrays.asList("tmp", "UNTITLED").equals(fullPath)) {
@@ -118,17 +121,37 @@ public class DatasetUI {
       entityId = namespaceService.getEntityIdByPath(new NamespaceKey(displayFullPath));
     }
 
+    final String datasetId = vds.getId();
     Map<String, VersionContextReq> versionContextReqMap = DatasetUIUtils.createVersionContextMap(vds.getReferencesList());
 
-    // if it's versioned, vds'id will be the same as entityId
-    if(entityId == null && context!=null && context.size() >= 1 && versionContextReqMap.containsKey(context.get(0))) {
-      entityId = vds.getId();
+    if (VersionedDatasetId.tryParse(datasetId) != null) {
+      Preconditions.checkArgument(entityId == null);
+      entityId = datasetId;
     }
-    return new DatasetUI(vds.getId(), sql, context, fullPath, displayFullPath, vds.getSavedTag(), vds.getVersion(),
-        null, null, canReapply, datasetType,
-        createLinks(fullPath, displayFullPath, vds.getVersion(), isUnsavedDirectPhysicalDataset),
-        createApiLinks(fullPath, displayFullPath, datasetType, vds.getVersion(), isUnsaved, isDerivedDirectly),
-        /* entityId */ entityId, versionContextReqMap);
+
+    return new DatasetUI(
+        datasetId,
+        sql,
+        context,
+        fullPath,
+        displayFullPath,
+        vds.getSavedTag(),
+        vds.getVersion(),
+        null,
+        null,
+        canReapply,
+        datasetType,
+        createLinks(
+            fullPath,
+            displayFullPath,
+            vds.getVersion(),
+            isUnsavedDirectPhysicalDataset,
+            entityId,
+            datasetType),
+        createApiLinks(
+            fullPath, displayFullPath, datasetType, vds.getVersion(), isUnsaved, isDerivedDirectly),
+        entityId,
+        versionContextReqMap);
   }
 
   @JsonCreator
@@ -258,15 +281,29 @@ public class DatasetUI {
   public String getEntityId() { return entityId; }
 
   // TODO make this consistent with DatasetSummary.getLinks. In ideal case, both methods should use the same util method
-  public static Map<String, String> createLinks(List<String> fullPath, List<String> displayFullPath, DatasetVersion datasetVersion, boolean isUnsavedDirectPhysicalDataset) {
+  public static Map<String, String> createLinks(
+      List<String> fullPath,
+      List<String> displayFullPath,
+      DatasetVersion datasetVersion,
+      boolean isUnsavedDirectPhysicalDataset,
+      String entityId,
+      DatasetType datasetType) {
     String dottedFullPath = PathUtils.constructFullPath(fullPath);
     String queryUrlPath;
+
+    final boolean isVersionedDataset = VersionedDatasetId.tryParse(entityId) != null;
     if (isUnsavedDirectPhysicalDataset) {
       if (displayFullPath.get(0).startsWith(HomeName.HOME_PREFIX)) {
         queryUrlPath = new DatasetPath(displayFullPath).getQueryUrlPath();
       } else {
         queryUrlPath = new PhysicalDatasetPath(displayFullPath).getQueryUrlPath();
       }
+    } else if (isVersionedDataset) {
+      queryUrlPath =
+          ((datasetType == DatasetType.VIRTUAL_DATASET)
+                  ? new VirtualDatasetPath(displayFullPath)
+                  : new PhysicalDatasetPath(displayFullPath))
+              .getQueryUrlPath();
     } else {
       queryUrlPath = new DatasetPath(displayFullPath).getQueryUrlPath();
     }
@@ -279,7 +316,6 @@ public class DatasetUI {
       .addFilter(JobIndexKeys.ALL_DATASETS, dottedFullPath)
       .addFilter(JobIndexKeys.QUERY_TYPE, JobIndexKeys.UI, JobIndexKeys.EXTERNAL);
     links.put("jobs", jobFilters.toUrl());
-    links.put("context", "/datasets/context" + queryUrlPath);
 
     return links;
   }

@@ -15,156 +15,95 @@
  */
 package com.dremio.exec.planner.logical;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static com.dremio.test.dsl.RexDsl.and;
+import static com.dremio.test.dsl.RexDsl.eq;
+import static com.dremio.test.dsl.RexDsl.intInput;
+import static com.dremio.test.dsl.RexDsl.literal;
+import static com.dremio.test.dsl.RexDsl.lt;
+import static com.dremio.test.dsl.RexDsl.or;
+import static com.dremio.test.dsl.RexDsl.varcharInput;
+import static com.dremio.test.scaffolding.ScaffoldingRel.TYPE_FACTORY;
 
 import java.util.BitSet;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
-import org.apache.calcite.adapter.java.JavaTypeFactory;
-import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
-import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Test;
 
 import com.dremio.exec.planner.DremioRexBuilder;
 import com.dremio.exec.planner.logical.partition.FindPartitionConditions;
-import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
+import com.dremio.test.GoldenFileTestBuilder;
 
 public class FilterSplitTest {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FilterSplitTest.class);
 
-  final JavaTypeFactory t = JavaTypeFactoryImpl.INSTANCE;
-  final RexBuilder builder = new DremioRexBuilder(t);
-  final RelDataType intType = t.createSqlType(SqlTypeName.INTEGER);
-  final RelDataType sType = t.createSqlType(SqlTypeName.VARCHAR, 20);
-
+  private static final RexBuilder REX_BUILDER = new DremioRexBuilder(TYPE_FACTORY);
   @Test
-  public void simpleCompound() {
-    // a < 1 AND dir0 in (2,3)
-    RexNode n = and(
-          lt(c(0), lit(1)),
+  public void goldenTest() {
+    new GoldenFileTestBuilder<>(this::transform, rex -> GoldenFileTestBuilder.MultiLineString.create(rex.toString()))
+      .add("simpleCompound: (a < 1 AND dir0 in (2,3))",
+        and(
+          lt(c(0), literal(1)),
           or(
-              eq(c(1), lit(2)),
-              eq(c(1), lit(3))
-              )
-        );
-
-    BitSet bs = new BitSet();
-    bs.set(1);
-    FindPartitionConditions c = new FindPartitionConditions(bs, builder);
-    c.analyze(n);
-
-    RexNode partNode = c.getFinalCondition();
-    assertEquals(n.toString(), "AND(<($0, 1), OR(=($1, 2), =($1, 3)))");
-    assertEquals(partNode.toString(), "OR(=($1, 2), =($1, 3))");
+            eq(c(1), literal(2)),
+            eq(c(1), literal(3)))))
+      .add("badFunc (dir0 || 1)", fn(cs(0), cs(1)))
+      .add("twoLevelDir: (dir0 = 1 and dir1 = 2) OR (dir0 = 3 and dir1 = 4)",
+        or(
+          and(
+            eq(c(1), literal(1)),
+            eq(c(2), literal(2))),
+          and(
+            eq(c(1), literal(3)),
+            eq(c(2), literal(4)))))
+      .add("badOr: (dir0 = 1 and dir1 = 2) OR (a < 5)",
+        or(
+          and(
+            eq(c(1), literal(1)),
+            eq(c(2), literal(2))),
+          lt(c(0), literal(5))))
+      .add("disjunctiveNormalForm (a, dir0) IN ((0, 1), (2, 3))",
+        or(
+          and(
+            eq(c(0), literal(0)),
+            eq(c(1), literal( 1))),
+          and(
+            eq(c(0), literal(2)),
+            eq(c(1), literal(3)))))
+      .add("Large DNF (a, dir0) IN (....)",
+        or(
+          IntStream.range(0, 100)
+            .mapToObj(i ->
+              and(eq(c(0), literal(i)), eq(c(1), literal(i))))
+            .collect(Collectors.toList())))
+      .runTests();
   }
 
-  @Test
-  public void twoLevelDir() {
-    // (dir0 = 1 and dir1 = 2) OR (dir0 = 3 and dir1 = 4)
-    RexNode n = or(
-          and(
-              eq(c(1), lit(1)),
-              eq(c(2), lit(2))
-              ),
-          and(
-              eq(c(1), lit(3)),
-              eq(c(2), lit(4))
-              )
-
-        );
-
+  public String transform (RexNode rexNode){
     BitSet bs = new BitSet();
     bs.set(1);
     bs.set(2);
-    FindPartitionConditions c = new FindPartitionConditions(bs, builder);
-    c.analyze(n);
-
+    FindPartitionConditions c = new FindPartitionConditions(bs, REX_BUILDER);
+    c.analyze(rexNode);
     RexNode partNode = c.getFinalCondition();
-    assertEquals("OR(AND(=($1, 1), =($2, 2)), AND(=($1, 3), =($2, 4)))", n.toString());
-    assertEquals("OR(AND(=($1, 1), =($2, 2)), AND(=($1, 3), =($2, 4)))", partNode.toString());
+    if(partNode != null) {
+      return partNode.toString();
+    } else {
+      return null;
+    }
   }
 
-  @Test
-  public void badOr() {
-    // (dir0 = 1 and dir1 = 2) OR (a < 5)
-    RexNode n = or(
-          and(
-              eq(c(1), lit(1)),
-              eq(c(2), lit(2))
-              ),
-          lt(c(0), lit(5))
-
-        );
-
-    BitSet bs = new BitSet();
-    bs.set(1);
-    bs.set(2);
-    FindPartitionConditions c = new FindPartitionConditions(bs, builder);
-    c.analyze(n);
-
-    RexNode partNode = c.getFinalCondition();
-    assertEquals("OR(AND(=($1, 1), =($2, 2)), <($0, 5))", n.toString());
-    assertTrue(partNode == null);
+  private static RexNode fn(RexNode...nodes){
+    return REX_BUILDER.makeCall(SqlStdOperatorTable.CONCAT, nodes);
   }
 
-
-  @Test
-  public void badFunc() {
-    // (dir0 = 1 and dir1 = 2) OR (a < 5)
-    RexNode n = fn(
-        cs(0),
-        cs(1)
-        );
-
-    BitSet bs = new BitSet();
-    bs.set(1);
-    bs.set(2);
-    FindPartitionConditions c = new FindPartitionConditions(bs, builder);
-    c.analyze(n);
-
-    RexNode partNode = c.getFinalCondition();
-    assertEquals("||($0, $1)", n.toString());
-    assertTrue(partNode == null);
+  private static RexNode c(int index){
+    return intInput(index);
   }
-
-
-  private RexNode and(RexNode...nodes){
-    return builder.makeCall(SqlStdOperatorTable.AND, nodes);
-  }
-
-  private RexNode fn(RexNode...nodes){
-    return builder.makeCall(SqlStdOperatorTable.CONCAT, nodes);
-  }
-
-  private RexNode or(RexNode...nodes){
-    return builder.makeCall(SqlStdOperatorTable.OR, nodes);
-  }
-
-  private RexNode lt(RexNode left, RexNode right){
-    return builder.makeCall(SqlStdOperatorTable.LESS_THAN, left, right);
-  }
-
-  private RexNode eq(RexNode left, RexNode right){
-    return builder.makeCall(SqlStdOperatorTable.EQUALS, left, right);
-  }
-
-  private RexNode lit(int value){
-    return builder.makeLiteral(value, intType, true);
-  }
-
-  private RexNode c(int index){
-    return builder.makeInputRef(intType, index);
-  }
-
 
   private RexNode cs(int index){
-    return builder.makeInputRef(sType, index);
-  }
-
-  private RexNode str(String s){
-    return builder.makeLiteral(s);
+    return varcharInput(index);
   }
 }

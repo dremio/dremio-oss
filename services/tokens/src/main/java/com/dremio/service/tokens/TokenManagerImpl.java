@@ -264,6 +264,7 @@ public class TokenManagerImpl implements TokenManager {
     return TokenDetails.of(token, value.getUsername(), value.getExpiresAt(), value.getClientId(), value.getScopesList());
   }
 
+  @Override
   public TokenDetails validateTemporaryToken(String token,
                                              String path,
                                              Map<String, List<String>> queryParams) throws IllegalArgumentException {

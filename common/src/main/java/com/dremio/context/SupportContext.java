@@ -16,14 +16,21 @@
 package com.dremio.context;
 
 import java.util.Arrays;
+import java.util.Map;
+
+import com.google.common.collect.ImmutableMap;
 
 /**
  * Support context.
  */
-public class SupportContext {
+public class SupportContext implements SerializableContext {
   public static final RequestContext.Key<SupportContext> CTX_KEY = RequestContext.newKey("support_ctx_key");
 
   private static final String ROLES_DELIMITER = ",";
+
+  private static final String SUPPORT_TICKET_HEADER_KEY = "x-dremio-support-ticket-key";
+  private static final String SUPPORT_EMAIL_HEADER_KEY = "x-dremio-support-email-key";
+  private static final String SUPPORT_ROLES_HEADER_KEY = "x-dremio-support-roles-key";
 
   // Note: This refers to the UserID field held within the UserContext,
   // but this constant only appears if the SupportContext is set.
@@ -35,7 +42,8 @@ public class SupportContext {
     BASIC_SUPPORT_ROLE("basic-support"),
     BILLING_ROLE("billing"),
     ORG_DELETE_ROLE("org-delete"),
-    CONSISTENCY_FIXER_ROLE("consistency-fixer");
+    CONSISTENCY_FIXER_ROLE("consistency-fixer"),
+    DEBUG_ROLE("debug-role");
 
     private final String value;
 
@@ -95,6 +103,10 @@ public class SupportContext {
     return isSupportUser() && isSupportUserHasRole(SupportRole.CONSISTENCY_FIXER_ROLE);
   }
 
+  public static boolean isSupportUserWithDebugRole() {
+    return isSupportUser() && isSupportUserHasRole(SupportRole.DEBUG_ROLE);
+  }
+
   public static boolean doesSupportUserHaveRole(SupportContext supportContext, SupportRole role) {
     return supportContext.roles.length > 0 && Arrays.stream(supportContext.roles).anyMatch(r -> r.equals(role.value));
   }
@@ -110,12 +122,37 @@ public class SupportContext {
     return doesSupportUserHaveRole(RequestContext.current().get(SupportContext.CTX_KEY), role);
   }
 
-  public static String serializeSupportRoles(String[] rolesArr) {
+  @Override
+  public void serialize(ImmutableMap.Builder<String, String> builder) {
+    builder.put(SUPPORT_TICKET_HEADER_KEY, ticket);
+    builder.put(SUPPORT_EMAIL_HEADER_KEY, email);
+    builder.put(SUPPORT_ROLES_HEADER_KEY, serializeSupportRoles(roles));
+  }
+
+  private static String serializeSupportRoles(String[] rolesArr) {
     return rolesArr != null ? String.join(ROLES_DELIMITER, rolesArr) : "";
   }
 
-  public static String[] deserializeSupportRoles(String rolesStr) {
-    return rolesStr != null ? rolesStr.split(ROLES_DELIMITER) : new String[0];
+  public static class Transformer implements SerializableContextTransformer {
+    @Override
+    public RequestContext deserialize(final Map<String, String> headers, RequestContext builder) {
+      if (headers.containsKey(SUPPORT_TICKET_HEADER_KEY)
+        && headers.containsKey(SUPPORT_EMAIL_HEADER_KEY)
+        && headers.containsKey(SUPPORT_ROLES_HEADER_KEY))
+      {
+        return builder.with(
+          SupportContext.CTX_KEY,
+          new SupportContext(
+            headers.get(SUPPORT_TICKET_HEADER_KEY),
+            headers.get(SUPPORT_EMAIL_HEADER_KEY),
+            deserializeSupportRoles(headers.get(SUPPORT_ROLES_HEADER_KEY))));
+      }
+
+      return builder;
+    }
   }
 
+  private static String[] deserializeSupportRoles(String rolesStr) {
+    return rolesStr != null ? rolesStr.split(ROLES_DELIMITER) : new String[0];
+  }
 }

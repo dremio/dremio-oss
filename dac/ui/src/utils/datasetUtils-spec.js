@@ -35,6 +35,7 @@ describe("datasetUtils", () => {
         canMove: false,
         canDelete: false,
         canSetAccelerationUpdates: true,
+        isPhysical: true,
       });
     });
 
@@ -48,6 +49,7 @@ describe("datasetUtils", () => {
         canMove: false,
         canDelete: true,
         canSetAccelerationUpdates: false,
+        isPhysical: true,
       });
     });
 
@@ -59,6 +61,7 @@ describe("datasetUtils", () => {
         canMove: false,
         canDelete: false,
         canSetAccelerationUpdates: true,
+        isPhysical: true,
       });
     });
 
@@ -70,6 +73,7 @@ describe("datasetUtils", () => {
         canMove: false,
         canDelete: false,
         canSetAccelerationUpdates: true,
+        isPhysical: true,
       });
     });
 
@@ -81,6 +85,7 @@ describe("datasetUtils", () => {
         canMove: true,
         canDelete: true,
         canSetAccelerationUpdates: false,
+        isPhysical: false,
       });
     });
   });

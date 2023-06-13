@@ -71,6 +71,7 @@ final class MetadataFunctionsGroupScan extends AbstractBase implements GroupScan
       metadataLocation);
   }
 
+  @Override
   public int getOperatorType() {
     return UserBitShared.CoreOperatorType.ICEBERG_METADATA_FUNCTIONS_READER.getNumber();
   }

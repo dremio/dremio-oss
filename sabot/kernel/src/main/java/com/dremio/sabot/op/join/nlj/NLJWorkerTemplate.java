@@ -49,6 +49,7 @@ public abstract class NLJWorkerTemplate implements NLJWorker {
    * @param rightContainer Hyper container
    * @param outgoing Output batch
    */
+  @Override
   public void setupNestedLoopJoin(
       FunctionContext context,
       VectorAccessible left,
@@ -67,6 +68,7 @@ public abstract class NLJWorkerTemplate implements NLJWorker {
    * @param targetTotalOutput
    * @return
    */
+  @Override
   public int emitRecords(int outputIndex, int targetTotalOutput) {
     assert outputIndex < targetTotalOutput;
 

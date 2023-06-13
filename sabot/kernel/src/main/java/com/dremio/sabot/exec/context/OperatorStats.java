@@ -71,6 +71,10 @@ public class OperatorStats {
   private long numberOfBatches = 0;
   private long outputSizeInBytes = 0;
 
+  // DML specific stats
+  private long addedFilesCount = 0;
+  private long removedFilesCount = 0;
+
   private boolean recordOutput = false;
 
   enum State {
@@ -363,7 +367,9 @@ public class OperatorStats {
       .setWaitNanos(getWaitNanos())
       .setOperatorSubtype(operatorSubType)
       .setOutputRecords(outputRecords)
-      .setOutputBytes(outputSizeInBytes);
+      .setOutputBytes(outputSizeInBytes)
+      .setAddedFiles(addedFilesCount)
+      .setRemovedFiles(removedFilesCount);
 
     if (allocator != null) {
       b.setPeakLocalMemoryAllocated(Long.max(allocator.getPeakMemoryAllocation(), allocator.getInitReservation()));
@@ -384,8 +390,7 @@ public class OperatorStats {
   public long getRecordsProcessed() {
     if (recordOutput) {
       return outputRecords;
-    }
-    else {
+    } else {
       long recordsProcessed = 0;
       for(int i = 0; i < recordsReceivedByInput.length; i++) {
         recordsProcessed += recordsReceivedByInput[i];
@@ -411,6 +416,14 @@ public class OperatorStats {
               .setSize(sizeInBytesReceivedByInput[i])
       );
     }
+  }
+
+  public void recordAddedFiles(long addedFilesCount) {
+    this.addedFilesCount += addedFilesCount;
+  }
+
+  public void recordRemovedFiles(long removedFilesCount) {
+    this.removedFilesCount += removedFilesCount;
   }
 
   private class LongProc implements IntLongProcedure {
@@ -585,8 +598,7 @@ public class OperatorStats {
   public static WaitRecorder getMetadataWaitRecorder(OperatorStats operatorStats, Path path) {
       if(operatorStats == null || path == null) {
         return NO_OP_RECORDER;
-      }
-      else {
+      } else {
         return operatorStats.createMetadataWaitRecorder(path.toString(), OperatorStats.getWaitRecorder(operatorStats));
       }
   }

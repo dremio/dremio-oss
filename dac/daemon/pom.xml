@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>24.0.0-202302100528110223-3a169b7c</version>
+    <version>24.1.0-202306130653310132-d30779f6</version>
   </parent>
 
   <artifactId>dremio-dac-daemon</artifactId>
@@ -283,6 +283,11 @@
           <version>${project.version}</version>
         </dependency>
         <dependency>
+          <groupId>com.dremio.community.contrib</groupId>
+          <artifactId>db2-shade</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+        <dependency>
           <groupId>com.dremio.community.plugins</groupId>
           <artifactId>dremio-ce-parquet-plugin</artifactId>
           <version>${project.version}</version>
@@ -385,6 +390,11 @@
         <dependency>
           <groupId>com.dremio.plugins</groupId>
           <artifactId>dremio-gcs-plugin</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>com.dremio.plugins</groupId>
+          <artifactId>dremio-dataplane-plugin</artifactId>
           <version>${project.version}</version>
         </dependency>
       </dependencies>

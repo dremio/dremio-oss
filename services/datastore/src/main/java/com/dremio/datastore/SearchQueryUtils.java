@@ -84,6 +84,21 @@ public final class SearchQueryUtils {
   /**
    * Create a term query
    *
+   * @param field the field to scan
+   * @param value the value to look for
+   * @return a query instance
+   * @throws NullPointerException if {@code field} or {@code value} is {@code null}
+   */
+  public static final SearchQuery newTermQuery(String field, boolean value) {
+    return SearchQuery.newBuilder()
+      .setType(SearchQuery.Type.TERM_BOOLEAN)
+      .setTermBoolean(SearchQuery.TermBoolean.newBuilder().setField(field).setValue(value))
+      .build();
+  }
+
+  /**
+   * Create a term query
+   *
    * @param indexKey the index key to scan
    * @param value the value to look for
    * @return a query instance

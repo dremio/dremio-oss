@@ -36,6 +36,7 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
 import com.dremio.service.users.SystemUser;
 
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.protostuff.ByteString;
 
 /**
@@ -79,6 +80,7 @@ abstract class MetadataOperations {
     return datasetConfig.getPhysicalDataset().getIcebergMetadata().getTableUuid();
   }
 
+  @WithSpan
   protected void checkAndRepair() {
     RepairKvstoreFromIcebergMetadata repairOperation = new RepairKvstoreFromIcebergMetadata(
       datasetConfig, context.getCatalogService().getSource(METADATA_STORAGE_PLUGIN_NAME),

@@ -16,7 +16,6 @@
 package com.dremio.exec.store.dfs;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -68,7 +67,7 @@ public class TestEasySplitGenTableFunction extends BaseTestQuery {
     }
 
     @Test
-    public void testNoPartitionSplits() {
+    public void testNoPartitionSplits() throws Exception {
         try (VarCharVector pathVector = new VarCharVector(MetadataRefreshExecConstants.DirList.OUTPUT_SCHEMA.FILE_PATH, allocator);
              BigIntVector sizeVector = new BigIntVector(MetadataRefreshExecConstants.DirList.OUTPUT_SCHEMA.FILE_SIZE, allocator);
              BigIntVector mtimeVector = new BigIntVector(MetadataRefreshExecConstants.DirList.OUTPUT_SCHEMA.MODIFICATION_TIME, allocator);
@@ -107,9 +106,6 @@ public class TestEasySplitGenTableFunction extends BaseTestQuery {
             assertEquals(2, outgoingSplits.getValueCount());
             assertSplit(extractSplit(outgoingSplits, 1), file2, 0L,file2Length);
             tableFunction.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
         }
     }
 

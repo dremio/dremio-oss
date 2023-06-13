@@ -35,5 +35,6 @@ public interface SplaySorterInterface extends AutoCloseable {
   SelectionVector4 getFinalSort(BufferAllocator allocator, int targetBatchSize);
   ExpandableHyperContainer getHyperBatch();
   void setDataBuffer(ArrowBuf data);
+  @Override
   void close() throws Exception;
 }

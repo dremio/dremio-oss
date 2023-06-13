@@ -18,15 +18,24 @@ import Immutable from "immutable";
 import PropTypes from "prop-types";
 import { Link } from "react-router";
 import ViewStateWrapper from "components/ViewStateWrapper";
+import { IconButton } from "dremio-ui-lib/components";
 import { injectIntl } from "react-intl";
 import { getIconDataTypeFromDatasetType } from "utils/iconUtils";
-import { Tooltip, TagList } from "dremio-ui-lib";
+import { TagList } from "dremio-ui-lib";
+import { shouldUseNewDatasetNavigation } from "@app/utils/datasetNavigationUtils";
 import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
+import { constructFullPath } from "@app/utils/pathUtils";
+import * as sqlPaths from "dremio-ui-common/paths/sqlEditor.js";
 import { bodySmall } from "uiTheme/radium/typography";
 
 import { PALE_NAVY } from "uiTheme/radium/colors";
 import DatasetItemLabel from "./Dataset/DatasetItemLabel";
+import QueryDataset from "@app/components/QueryDataset/QueryDataset";
 import "./DatasetsSearch.less";
+import {
+  DATASET_TYPES_TO_ICON_TYPES,
+  VIRTUAL_DATASET,
+} from "@app/constants/datasetTypes";
 
 const emptyList = new Immutable.List();
 
@@ -46,8 +55,23 @@ class DatasetsSearch extends PureComponent {
 
   getDatasetsList(searchData, inputValue) {
     const { globalSearch } = this.props;
+
     return searchData.map((value, key) => {
+      const resourceId = value.getIn(["fullPath", 0]);
+      const newFullPath = constructFullPath(value.get("fullPath"));
       const name = value.getIn(["fullPath", -1]);
+
+      const href = {
+        pathname: sqlPaths.sqlEditor.link(),
+        search: `?context="${encodeURIComponent(
+          resourceId
+        )}"&queryPath=${newFullPath}`,
+      };
+
+      const toLink = shouldUseNewDatasetNavigation()
+        ? href
+        : wrapBackendLink(value.getIn(["links", "self"]));
+
       const datasetItem = (
         <div
           key={key}
@@ -75,12 +99,13 @@ class DatasetsSearch extends PureComponent {
           {this.getActionButtons(value)}
         </div>
       );
+
       return globalSearch ? (
         <Link
           key={key}
           className="dataset"
           style={{ textDecoration: "none" }}
-          to={wrapBackendLink(value.getIn(["links", "self"]))}
+          to={toLink}
           onClick={this.onClickDataSetItem}
         >
           {datasetItem}
@@ -95,32 +120,41 @@ class DatasetsSearch extends PureComponent {
     const {
       intl: { formatMessage },
     } = this.props;
+    const datasetIconType = getIconDataTypeFromDatasetType(
+      dataset.get("datasetType")
+    );
+
     return (
       <span className="main-settings-btn min-btn" style={styles.actionButtons}>
         {dataset.getIn(["links", "edit"]) && (
-          <Link to={wrapBackendLink(dataset.getIn(["links", "edit"]))}>
-            <Tooltip title={formatMessage({ id: "Common.Edit" })}>
-              <button className="settings-button" data-qa="edit">
-                <dremio-icon
-                  name="common/Edit"
-                  style={styles.icon}
-                  alt={formatMessage({ id: "Common.Edit" })}
-                ></dremio-icon>
-              </button>
-            </Tooltip>
-          </Link>
+          <IconButton
+            as={Link}
+            tooltip={formatMessage({ id: "Common.Edit" })}
+            to={wrapBackendLink(dataset.getIn(["links", "edit"]))}
+            data-qa="edit"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <dremio-icon name="common/Edit" style={styles.icon}></dremio-icon>
+          </IconButton>
         )}
-        <Link to={wrapBackendLink(dataset.getIn(["links", "self"]))}>
-          <Tooltip title={formatMessage({ id: "Common.DoQuery" })}>
-            <button className="settings-button" data-qa="query">
-              <dremio-icon
-                name="common/SQLRunner"
-                style={styles.icon}
-                alt={formatMessage({ id: "Common.DoQuery" })}
-              ></dremio-icon>
-            </button>
-          </Tooltip>
-        </Link>
+        {datasetIconType !== DATASET_TYPES_TO_ICON_TYPES[VIRTUAL_DATASET] && (
+          <IconButton
+            as={Link}
+            tooltip={formatMessage({ id: "Go.To.Table" })}
+            to={wrapBackendLink(dataset.getIn(["links", "self"]))}
+            data-qa="edit"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <dremio-icon
+              name="navigation-bar/go-to-dataset"
+              style={styles.icon}
+            ></dremio-icon>
+          </IconButton>
+        )}
+        <QueryDataset
+          fullPath={constructFullPath(dataset.get("fullPath"))}
+          resourceId={dataset.get("fullPath").get(0)}
+        />
       </span>
     );
   }

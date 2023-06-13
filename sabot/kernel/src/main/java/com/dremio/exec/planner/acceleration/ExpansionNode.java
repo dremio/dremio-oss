@@ -36,6 +36,7 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql2rel.RelStructuredTypeFlattener;
 import org.apache.calcite.sql2rel.RelStructuredTypeFlattener.SelfFlatteningRel;
 
+import com.dremio.exec.catalog.TableVersionContext;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.service.Pointer;
 import com.dremio.service.namespace.NamespaceKey;
@@ -48,25 +49,30 @@ public class ExpansionNode extends SingleRel implements CopyToCluster, SelfFlatt
 
   private final NamespaceKey path;
   private final boolean contextSensitive;
+  private final TableVersionContext versionContext;
 
-  protected ExpansionNode(NamespaceKey path, RelDataType rowType, RelOptCluster cluster, RelTraitSet traits, RelNode input, boolean contextSensitive) {
+  protected ExpansionNode(NamespaceKey path, RelDataType rowType, RelOptCluster cluster, RelTraitSet traits, RelNode input,
+                          boolean contextSensitive, TableVersionContext versionContext) {
     super(cluster, traits, input);
     this.path = path;
     this.contextSensitive = contextSensitive;
     this.rowType = rowType;
+    this.versionContext = versionContext;
   }
 
-  public static RelNode wrap(NamespaceKey path, RelNode node, RelDataType rowType, boolean contextSensitive, boolean isDefault) {
+  public static RelNode wrap(NamespaceKey path, RelNode node, RelDataType rowType, boolean contextSensitive,
+                             boolean isDefault, TableVersionContext versionContext) {
     if (isDefault) {
-      return new DefaultExpansionNode(path, rowType, node.getCluster(), node.getTraitSet(), node, contextSensitive);
+      return new DefaultExpansionNode(path, rowType, node.getCluster(), node.getTraitSet(), node, contextSensitive, versionContext);
     } else {
-      return new ExpansionNode(path, rowType, node.getCluster(), node.getTraitSet(), node, contextSensitive);
+      return new ExpansionNode(path, rowType, node.getCluster(), node.getTraitSet(), node, contextSensitive, versionContext);
     }
   }
 
   @Override
   public RelNode copyWith(CopyWithCluster copier) {
-    return new ExpansionNode(path, rowType, copier.getCluster(), copier.copyOf(getTraitSet()), getInput().accept(copier), contextSensitive);
+    return new ExpansionNode(path, rowType, copier.getCluster(), copier.copyOf(getTraitSet()), getInput().accept(copier),
+      contextSensitive, versionContext);
   }
 
   @Override
@@ -78,7 +84,8 @@ public class ExpansionNode extends SingleRel implements CopyToCluster, SelfFlatt
   public RelWriter explainTerms(RelWriter pw) {
     return super.explainTerms(pw)
       .item("path", path.toUnescapedString())
-      .itemIf("contextSensitive", contextSensitive, contextSensitive);
+      .itemIf("contextSensitive", contextSensitive, contextSensitive)
+      .itemIf("version", versionContext, versionContext != null);
   }
 
   public boolean isContextSensitive() {
@@ -91,7 +98,7 @@ public class ExpansionNode extends SingleRel implements CopyToCluster, SelfFlatt
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new ExpansionNode(path, rowType, this.getCluster(), traitSet, inputs.get(0), contextSensitive);
+    return new ExpansionNode(path, rowType, this.getCluster(), traitSet, inputs.get(0), contextSensitive, versionContext);
   }
 
   @Override
@@ -107,6 +114,8 @@ public class ExpansionNode extends SingleRel implements CopyToCluster, SelfFlatt
   public NamespaceKey getPath() {
     return path;
   }
+
+  public TableVersionContext getVersionContext() { return versionContext; }
 
   public static RelNode removeFromTree(RelNode tree) {
     return tree.accept(new RelShuttleImpl() {

@@ -22,21 +22,14 @@ import com.dremio.test.GoldenFileTestBuilder;
 public final class DropStatementCompletionTests extends AutocompleteEngineTests {
   @Test
   public void tests() {
-    new GoldenFileTestBuilder<>(this::executeTestWithRootContext)
-      .add("Empty name",
-        GoldenFileTestBuilder.MultiLineString.create("DROP TABLE ^"))
-      .add("Works with completed path",
-        GoldenFileTestBuilder.MultiLineString.create("DROP TABLE \"space\".\"folder\".EMP ^"))
-      .add("Works with folder name",
-        GoldenFileTestBuilder.MultiLineString.create("DROP TABLE \"space\".^"))
-      .add("Works with folder with spaces",
-        GoldenFileTestBuilder.MultiLineString.create("DROP TABLE \"space with a space in the name\".^"))
-      .add("Works with IF EXISTS",
-        GoldenFileTestBuilder.MultiLineString.create("DROP TABLE IF EXISTS \"space\".^"))
-      .add("Works with VIEW",
-        GoldenFileTestBuilder.MultiLineString.create("DROP VIEW \"space\".^"))
-      .add("Works with VDS",
-        GoldenFileTestBuilder.MultiLineString.create("DROP VDS \"space\".^"))
+    new GoldenFileTestBuilder<>(this::executeTestWithRootContext, GoldenFileTestBuilder.MultiLineString::create)
+      .add("Empty name", "DROP TABLE ^")
+      .add("Works with completed path", "DROP TABLE \"space\".\"folder\".EMP ^")
+      .add("Works with folder name", "DROP TABLE \"space\".^")
+      .add("Works with folder with spaces", "DROP TABLE \"space with a space in the name\".^")
+      .add("Works with IF EXISTS", "DROP TABLE IF EXISTS \"space\".^")
+      .add("Works with VIEW", "DROP VIEW \"space\".^")
+      .add("Works with VDS", "DROP VDS \"space\".^")
       .runTests();
   }
 }

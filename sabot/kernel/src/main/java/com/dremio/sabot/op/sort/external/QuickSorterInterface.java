@@ -34,5 +34,6 @@ public interface QuickSorterInterface extends AutoCloseable {
   SelectionVector4 getFinalSort(BufferAllocator allocator, int targetBatchSize);
   ExpandableHyperContainer getHyperBatch();
   void setDataBuffer(SimpleIntVector intVectorBuffer);
+  @Override
   void close() throws Exception;
 }

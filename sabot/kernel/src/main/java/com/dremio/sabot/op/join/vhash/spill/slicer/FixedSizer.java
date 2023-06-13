@@ -63,8 +63,7 @@ class FixedSizer implements Sizer {
     if (dataSizeInBits == 1 ){
       //numberOfRecords number of bits to store data buffer + numberOfRecords number of bits to store validity bitmap buffer
       return 2 * RoundUtil.round64up(numberOfRecords);
-    }
-    else {
+    } else {
       final int dataBits = RoundUtil.round64up(dataSizeInBits * numberOfRecords); //data buffer
       final int validityBits = Sizer.getValidityBufferSizeInBits(numberOfRecords);//validity buffer
 

@@ -61,7 +61,7 @@ public class DeltaMetadataFetchJob implements Supplier {
   public long version;
   public long subparts;
 
-  private static Retryer retryer = new Retryer.Builder()
+  private static Retryer retryer = Retryer.newBuilder()
     .retryIfExceptionOfType(RuntimeException.class)
     .setWaitStrategy(Retryer.WaitStrategy.EXPONENTIAL, 250, 1500)
     .setMaxRetries(5).retryIfExceptionOfType(IOException.class).build();
@@ -153,7 +153,7 @@ public class DeltaMetadataFetchJob implements Supplier {
   private Optional<FileAttributes> getFileAttrs(Path p) throws IOException {
     FileAttributes attr;
 
-    Callable retryBlock = () -> {
+    Callable<FileAttributes> retryBlock = () -> {
       try {
         return fs.getFileAttributes(p);
       } catch (FileNotFoundException f) {
@@ -164,9 +164,8 @@ public class DeltaMetadataFetchJob implements Supplier {
     };
 
     try {
-      attr = (FileAttributes) retryer.call(retryBlock);
-    }
-    catch (Retryer.OperationFailedAfterRetriesException e) {
+      attr = retryer.call(retryBlock);
+    } catch (Retryer.OperationFailedAfterRetriesException e) {
       throw e.getWrappedCause(IOException.class, ex -> new IOException(ex));
     }
 

@@ -94,6 +94,7 @@ public final class FromClause extends Statement {
     this.joinConditions = joinConditions;
   }
 
+  @Override
   public ImmutableList<DremioToken> getTokens() {
     return tokens;
   }

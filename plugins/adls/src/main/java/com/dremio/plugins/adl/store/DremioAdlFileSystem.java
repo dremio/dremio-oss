@@ -56,6 +56,7 @@ public class DremioAdlFileSystem extends AdlFileSystem implements MayProvideAsyn
       return this.aclBit;
     }
 
+    @Override
     public boolean equals(Object obj) {
       if (!(obj instanceof FsPermission)) {
         return false;
@@ -65,6 +66,7 @@ public class DremioAdlFileSystem extends AdlFileSystem implements MayProvideAsyn
       }
     }
 
+    @Override
     public int hashCode() {
       return this.toShort();
     }

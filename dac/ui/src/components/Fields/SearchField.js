@@ -34,9 +34,11 @@ class SearchField extends Component {
     dataQa: PropTypes.string,
     className: PropTypes.string,
     onClick: PropTypes.func,
+    onBlur: PropTypes.func,
     showIcon: PropTypes.bool,
     disabled: PropTypes.bool,
     loading: PropTypes.bool,
+    autoFocus: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -107,6 +109,8 @@ class SearchField extends Component {
           onChange={(e) => this.onChange(e.target.value)}
           onKeyDown={this.handleKeyDown}
           onClick={this.props.onClick}
+          onBlur={this.props.onBlur}
+          autoFocus={this.props.autoFocus}
         />
         {showCloseIcon && (
           <FontIcon

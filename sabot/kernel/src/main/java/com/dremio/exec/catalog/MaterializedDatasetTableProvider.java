@@ -86,10 +86,17 @@ public class MaterializedDatasetTableProvider implements Provider<MaterializedDa
     final Supplier<DatasetConfig> datasetConfig = Suppliers.memoize(
         () -> createDatasetConfig(partitionChunkListing, partitionChunks));
 
-    final boolean timeTravel = options.getTimeTravelRequest() != null;
+    TableVersionContext versionContext =
+      options.versionedDatasetAccessOptions() != null && this.options.versionedDatasetAccessOptions().getVersionContext() != null ?
+        TableVersionContext.of(this.options.versionedDatasetAccessOptions().getVersionContext()) : null;
+    if (versionContext == null && options.getTimeTravelRequest() != null) {
+      // Only applies to versioned tables outside of Nessie
+      versionContext = TableVersionContext.of(options.getTimeTravelRequest());
+    }
+
     return new MaterializedDatasetTable(MetadataObjectsUtils.toNamespaceKey(handle.getDatasetPath()), pluginId,
         schemaConfig.getUserName(), datasetConfig, partitionChunks,
-        optionManager.getOption(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT), timeTravel);
+        optionManager.getOption(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT), versionContext);
   }
 
   private PartitionChunkListing getPartitionChunkListing() {
@@ -129,14 +136,26 @@ public class MaterializedDatasetTableProvider implements Provider<MaterializedDa
     final DatasetConfig toReturn = currentConfig != null ? currentConfig :
       MetadataObjectsUtils.newShallowConfig(handle);
     if (handle instanceof VersionedDatasetHandle) {
+      //AT BRANCH/TAG/COMMIT case
       VersionedDatasetHandle versionedDatasetHandle = handle.unwrap(VersionedDatasetHandle.class);
-      VersionedDatasetId versionedDatasetId = new VersionedDatasetId(
-        handle.getDatasetPath().getComponents(),
-        versionedDatasetHandle.getContentId(),
-        TableVersionContext.of(this.options.versionedDatasetAccessOptions().getVersionContext()));
+      VersionedDatasetId.Builder builder = new VersionedDatasetId.Builder()
+        .setTableKey(handle.getDatasetPath().getComponents())
+        .setContentId(versionedDatasetHandle.getContentId())
+        .setTableVersionContext(this.options.getTimeTravelRequest() != null ?
+          TableVersionContext.of(this.options.getTimeTravelRequest()) :
+          TableVersionContext.of(this.options.versionedDatasetAccessOptions().getVersionContext()));
+      VersionedDatasetId versionedDatasetId = builder.build();
       toReturn.setId(new EntityId(versionedDatasetId.asString()));
-
+    } else if (this.options.getTimeTravelRequest() != null) {
+      //AT TIMESTAMP/SNAPSHOT case
+      VersionedDatasetId.Builder builder = new VersionedDatasetId.Builder()
+        .setTableKey(handle.getDatasetPath().getComponents())
+        .setContentId(null)
+        .setTableVersionContext(TableVersionContext.of(this.options.getTimeTravelRequest()));
+      VersionedDatasetId versionedDatasetId = builder.build();
+      toReturn.setId(new EntityId(versionedDatasetId.asString()));
     }
+    //Otherwise use the generated datasetId in other cases
     final DatasetMetadata datasetMetadata;
     try {
       datasetMetadata = plugin.getDatasetMetadata(handle, listingSupplier.get(),

@@ -80,17 +80,18 @@ public class IcebergExpGenVisitor extends RexVisitorImpl<Expression> {
         }
         if (inputRef != null && other != null) {
             Object val = getValueAsInputRef(inputRef, (RexLiteral) other);
+            String columnName = fieldNames.get(inputRef.getIndex());
+            usedColumns.add(columnName);
             if (Objects.isNull(val)) {
                 return Expressions.alwaysFalse();
             }
-            String columnName = fieldNames.get(inputRef.getIndex());
-            usedColumns.add(columnName);
             return getOperatorExpression(call, columnName, val, inputFirst);
         } else {
             boolean isAND = false;
             switch (call.getOperator().getKind()) {
                 case AND:
                     isAND = true;
+                    // fall through
                 case OR:
                     List<RexNode> nodeList = call.getOperands();
                     Expression left = nodeList.get(0).accept(this);

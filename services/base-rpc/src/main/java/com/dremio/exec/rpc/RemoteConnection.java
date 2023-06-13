@@ -97,6 +97,7 @@ public abstract class RemoteConnection implements ConnectionThrottle, AutoClosea
     }
   }
 
+  @Override
   public void setAutoRead(boolean enableAutoRead) {
     channel.config().setAutoRead(enableAutoRead);
   }

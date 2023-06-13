@@ -85,6 +85,7 @@ public abstract class TpchGenerator implements Generator {
     return returned;
   }
 
+  @Override
   public int next(int desiredCount){
     final long termination = Math.min(startIndex + rowCount, index + desiredCount);
     final int recordsGenerated = (int) (termination - index);
@@ -116,6 +117,7 @@ public abstract class TpchGenerator implements Generator {
 
   protected abstract void generateRecord(long globalRecordIndex, int outputIndex);
 
+  @Override
   public void close() throws Exception {
     AutoCloseables.close((AutoCloseable) all, returned);
   }

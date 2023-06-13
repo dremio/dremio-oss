@@ -17,19 +17,18 @@ package com.dremio.sabot.op.join.vhash.spill.io;
 
 import java.io.IOException;
 
-import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.util.LargeMemoryUtil;
 import org.apache.arrow.vector.FieldVector;
 
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorWrapper;
-import com.dremio.exec.util.RoundUtil;
 import com.dremio.sabot.op.join.vhash.spill.pool.PageSupplier;
+import com.dremio.sabot.op.join.vhash.spill.slicer.Sizer;
 import com.dremio.sabot.op.sort.external.SpillManager.SpillInputStream;
 import com.dremio.sabot.op.sort.external.SpillManager.SpillOutputStream;
 
 public interface SpillSerializable {
+
   /**
    * Serialize and write a chunk to the output stream.
    *
@@ -54,11 +53,13 @@ public interface SpillSerializable {
   static int computeUnpivotedSizeRounded(VectorAccessible va) {
     int total = 0;
     for (VectorWrapper<?> wrapper : va) {
-      for (ArrowBuf buf : ((FieldVector) wrapper.getValueVector()).getFieldBuffers()) {
-        // we do a roundup for 64-bit alignment since that is a more accurate value for the size of buffers that
-        // need to be allocated for unload/merge.
-        total += RoundUtil.round8up(LargeMemoryUtil.checkedCastToInt(buf.readableBytes()));
-      }
+      FieldVector fieldVector = (FieldVector) wrapper.getValueVector();
+      //Get Sizer implementation for the current vector type
+      Sizer sizer = Sizer.get(fieldVector);
+
+
+      total += sizer.getSizeInBytesStartingFromOrdinal(0, fieldVector.getValueCount());
+
     }
     return total;
   }

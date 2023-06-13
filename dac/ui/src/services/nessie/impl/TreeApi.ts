@@ -15,17 +15,11 @@
  */
 
 import moize from "moize";
-import {
-  DefaultApi,
-  GetAllReferencesRequest,
-  GetReferenceByNameRequest,
-  GetCommitLogRequest,
-  GetEntriesRequest,
-  CreateReferenceRequest,
-  DeleteReferenceRequest,
-  MergeRefIntoBranchRequest,
-} from "../client";
-import SwaggerConfig, { createSwaggerConfig } from "./SwaggerConfig";
+import { DefaultApi, GetEntriesRequest, V2BetaApi } from "../client";
+import SwaggerConfig, {
+  createSwaggerConfig,
+  createSwaggerV2Config,
+} from "./SwaggerConfig";
 
 //Use default Atlantis project API
 const TreeApi = new DefaultApi(SwaggerConfig);
@@ -33,43 +27,26 @@ const TreeApi = new DefaultApi(SwaggerConfig);
 //Get and cache (moize) endpoint-specific API (empty endpoint = default Atlantis API)
 export const getTreeApi = moize(
   function (endpoint?: string) {
-    return new DefaultApi(createSwaggerConfig(endpoint));
+    return new DefaultApi(
+      createSwaggerConfig(endpoint?.replace("/nessie/", "/nessieV1/"))
+    );
   },
   {
     maxSize: 10,
   }
 );
 
-export function getDefaultBranch() {
-  return TreeApi.getDefaultBranch();
-}
-
-export function getAllReferences(requestParameters: GetAllReferencesRequest) {
-  return TreeApi.getAllReferences(requestParameters);
-}
-
-export function getReferenceByName(req: GetReferenceByNameRequest) {
-  return TreeApi.getReferenceByName(req);
-}
-
-export function getCommitLog(req: GetCommitLogRequest) {
-  return TreeApi.getCommitLog(req);
-}
+export const getApiV2 = moize(
+  function (endpoint?: string) {
+    return new V2BetaApi(createSwaggerV2Config(endpoint));
+  },
+  {
+    maxSize: 50,
+  }
+);
 
 export function getEntries(req: GetEntriesRequest) {
   return TreeApi.getEntries(req);
-}
-
-export function createReference(req: CreateReferenceRequest) {
-  return TreeApi.createReference(req);
-}
-
-export function deleteReference(req: DeleteReferenceRequest) {
-  return TreeApi.deleteReference(req);
-}
-
-export function mergeReference(req: MergeRefIntoBranchRequest) {
-  return TreeApi.mergeRefIntoBranch(req);
 }
 
 export default TreeApi;

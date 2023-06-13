@@ -328,18 +328,20 @@ public class SampleDataPopulator implements AutoCloseable {
     // add physical datasets
     {
       PhysicalDatasetPath dacSampleAllTypes = new PhysicalDatasetPath(asList("LocalFS1", allTypesJson));
-      DatasetConfig dacSample1 = new DatasetConfig();
-      dacSample1.setCreatedAt(System.currentTimeMillis());
-      dacSample1.setFullPathList(dacSampleAllTypes.toPathList());
-      dacSample1.setType(DatasetType.PHYSICAL_DATASET_SOURCE_FILE);
-      dacSample1.setName(allTypesJson);
-      dacSample1.setPhysicalDataset(new PhysicalDataset().setFormatSettings(new JsonFileConfig().asFileConfig()));
-      namespaceService.addOrUpdateDataset(dacSampleAllTypes.toNamespaceKey(), dacSample1);
+      DatasetConfig dacAllTypes = new DatasetConfig();
+      dacAllTypes.setOwner(username);
+      dacAllTypes.setCreatedAt(System.currentTimeMillis());
+      dacAllTypes.setFullPathList(dacSampleAllTypes.toPathList());
+      dacAllTypes.setType(DatasetType.PHYSICAL_DATASET_SOURCE_FILE);
+      dacAllTypes.setName(allTypesJson);
+      dacAllTypes.setPhysicalDataset(new PhysicalDataset().setFormatSettings(new JsonFileConfig().asFileConfig()));
+      namespaceService.addOrUpdateDataset(dacSampleAllTypes.toNamespaceKey(), dacAllTypes);
     }
 
     {
       PhysicalDatasetPath dacSample1Path = new PhysicalDatasetPath(asList("LocalFS1", "dac-sample1.json"));
       DatasetConfig dacSample1 = new DatasetConfig();
+      dacSample1.setOwner(username);
       dacSample1.setCreatedAt(System.currentTimeMillis());
       dacSample1.setFullPathList(dacSample1Path.toPathList());
       dacSample1.setType(DatasetType.PHYSICAL_DATASET_SOURCE_FILE);
@@ -355,6 +357,7 @@ public class SampleDataPopulator implements AutoCloseable {
     {
       PhysicalDatasetPath dacSample2Path = new PhysicalDatasetPath(asList("LocalFS2", "dac-sample2.json"));
       DatasetConfig dacSample2 = new DatasetConfig();
+      dacSample2.setOwner(username);
       dacSample2.setCreatedAt(System.currentTimeMillis());
       dacSample2.setFullPathList(dacSample2Path.toPathList());
       dacSample2.setType(DatasetType.PHYSICAL_DATASET_SOURCE_FILE);
@@ -429,7 +432,9 @@ public class SampleDataPopulator implements AutoCloseable {
   private VirtualDatasetUI newDataset(DatasetPath datasetPath, DatasetVersion version,
       From from, List<String> sqlContext) {
 
-    final VirtualDatasetUI ds = com.dremio.dac.explore.DatasetTool.newDatasetBeforeQueryMetadata(datasetPath, version, from, sqlContext, username);
+    final VirtualDatasetUI ds =
+        com.dremio.dac.explore.DatasetTool.newDatasetBeforeQueryMetadata(
+            datasetPath, version, from, sqlContext, username, null, null);
     final SqlQuery query = new SqlQuery(ds.getSql(), ds.getState().getContextList(), username);
     ds.setLastTransform(new Transform(TransformType.createFromParent).setTransformCreateFromParent(new TransformCreateFromParent(from)));
     final QueryMetadata metadata;

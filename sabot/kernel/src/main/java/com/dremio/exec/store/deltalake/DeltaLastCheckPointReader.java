@@ -21,7 +21,10 @@ import java.io.InputStreamReader;
 import java.util.Optional;
 
 import org.apache.calcite.util.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.io.FSInputStream;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
@@ -35,6 +38,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  */
 public class DeltaLastCheckPointReader {
 
+  private static final Logger logger = LoggerFactory.getLogger(DeltaLastCheckPointReader.class);
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   private DeltaLastCheckPointReader() {
@@ -47,6 +51,10 @@ public class DeltaLastCheckPointReader {
            final BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(lastCheckPointFs))) {
         final LastCheckpoint checkpoint = OBJECT_MAPPER.readValue(bufferedReader.readLine(), LastCheckpoint.class);
         return new Pair(Optional.of(checkpoint.version), Optional.ofNullable(checkpoint.parts));
+      } catch (Exception e) {
+        throw UserException.dataReadError(e).
+          message(String.format("Failed to read _last_checkpoint file %s. Error %s", versionFilePath, e.getMessage()))
+          .build(logger);
       }
     }
 

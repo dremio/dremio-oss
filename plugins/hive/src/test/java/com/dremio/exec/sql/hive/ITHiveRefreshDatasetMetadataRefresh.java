@@ -17,7 +17,6 @@ package com.dremio.exec.sql.hive;
 
 import static com.dremio.exec.store.hive.exec.HiveDatasetOptions.HIVE_PARQUET_ENFORCE_VARCHAR_WIDTH;
 import static com.dremio.exec.store.metadatarefresh.RefreshDatasetTestUtils.fsDelete;
-import static com.dremio.exec.store.metadatarefresh.RefreshDatasetTestUtils.setupLocalFS;
 import static com.dremio.exec.store.metadatarefresh.RefreshDatasetTestUtils.verifyIcebergMetadata;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -210,8 +209,7 @@ public class ITHiveRefreshDatasetMetadataRefresh extends LazyDataGeneratingHiveT
         HIVE_PARQUET_ENFORCE_VARCHAR_WIDTH, "true")))
         .isInstanceOf(UserRemoteException.class)
         .hasMessageContaining("ALTER unsupported on table 'hive.\"default\".refresh_v2_test_table_option_" + formatType + "'");
-    }
-    finally {
+    } finally {
       dataGenerator.executeDDL("DROP TABLE IF EXISTS " + tableName);
     }
   }
@@ -254,8 +252,7 @@ public class ITHiveRefreshDatasetMetadataRefresh extends LazyDataGeneratingHiveT
         .asInstanceOf(InstanceOfAssertFactories.type(UserRemoteException.class))
         .extracting(UserRemoteException::getErrorType)
         .isEqualTo(UserBitShared.DremioPBError.ErrorType.PERMISSION);
-    }
-    finally {
+    } finally {
       fs.setPermission(tableDir, new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
     }
   }
@@ -280,8 +277,7 @@ public class ITHiveRefreshDatasetMetadataRefresh extends LazyDataGeneratingHiveT
         .asInstanceOf(InstanceOfAssertFactories.type(UserRemoteException.class))
         .extracting(UserRemoteException::getErrorType)
         .isEqualTo(UserBitShared.DremioPBError.ErrorType.PERMISSION);
-    }
-    finally {
+    } finally {
       fs.setPermission(partitionDir, new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
     }
   }

@@ -18,16 +18,22 @@ import { useState } from "react";
 import { FormattedMessage } from "react-intl";
 // @ts-ignore
 import { IconButton } from "dremio-ui-lib";
-import { Avatar } from "dremio-ui-lib/dist-esm";
+import { Avatar } from "dremio-ui-lib/components";
 import { Reference } from "@app/types/nessie";
-import { LogEntry, Tag } from "@app/services/nessie/client/index";
+import { LogEntryV2 as LogEntry, Tag } from "@app/services/nessie/client/index";
 import { nameToInitials } from "@app/exports/utilities/nameToInitials";
 import { useNessieContext } from "@app/pages/NessieHomePage/utils/context";
 import { getLabeledTags } from "./utils";
 import NewTagDialog from "@app/pages/NessieHomePage/components/NewTagDialog/NewTagDialog";
 import { convertISOStringWithTooltip } from "@app/pages/NessieHomePage/components/RepoView/components/RepoViewBody/components/RepoViewBranchList/utils";
+import DeleteTagDialog from "@app/pages/NessieHomePage/components/DeleteTagDialog/DeleteTagDialog";
 
 import * as classes from "./ArcticCommitDetailsBody.module.less";
+
+const INITIAL_TAG_STATE_VALUE = {
+  openDialog: false,
+  fromRef: { type: "TAG" } as Reference,
+};
 
 type ArcticCommitDetailsBodyProps = {
   references: any[];
@@ -42,21 +48,23 @@ function ArcticCommitDetailsBody({
   commitData,
   refetch,
 }: ArcticCommitDetailsBodyProps) {
-  const [dialogState, setDialogState] = useState(false);
+  const [addTagDialogState, setAddTagDialogState] = useState(false);
+  const [deleteTagDialogState, setDeleteTagDialogState] = useState(
+    INITIAL_TAG_STATE_VALUE
+  );
+
   const {
     state: { reference },
   } = useNessieContext();
 
-  const openDialog = () => {
-    setDialogState(true);
-  };
-
-  const closeDialog = () => {
-    setDialogState(false);
-  };
-
   const tags: ({ type: "TAG" } & Tag)[] = references;
   const commitMeta = commitData?.commitMeta;
+
+  const handleDeleteTag = (tagRef: Reference) => {
+    setDeleteTagDialogState({ openDialog: true, fromRef: tagRef });
+  };
+
+  const author = commitMeta?.authors?.[0];
 
   return (
     <>
@@ -66,10 +74,10 @@ function ArcticCommitDetailsBody({
             <FormattedMessage id="Common.Author" />
             <div className={classes["commit-details-body__section--subtext"]}>
               <Avatar
-                initials={nameToInitials(commitMeta?.author ?? "")}
+                initials={nameToInitials(author ?? "")}
                 className={classes["user-avatar"]}
               />
-              {commitMeta?.author}
+              {author}
             </div>
           </span>
           <span className={classes["commit-details-body__section"]}>
@@ -89,7 +97,7 @@ function ArcticCommitDetailsBody({
               className={`${classes["commit-details-body__section--subtext"]} ${classes["icon-wrapper"]}`}
             >
               {tags.length ? (
-                getLabeledTags(tags)
+                getLabeledTags(tags, handleDeleteTag)
               ) : (
                 <span className={classes["no-tag-placeholder"]}>
                   <FormattedMessage id="ArcticCatalog.Commits.Details.NoTags" />
@@ -98,7 +106,7 @@ function ArcticCommitDetailsBody({
               <IconButton
                 tooltip="ArcticCatalog.Tags.Dialog.AddTag"
                 disabled={reference === null}
-                onClick={openDialog}
+                onClick={() => setAddTagDialogState(true)}
                 className={classes["icon-button"]}
               >
                 <dremio-icon name="interface/add-small" />
@@ -116,9 +124,15 @@ function ArcticCommitDetailsBody({
         </div>
       </div>
       <NewTagDialog
-        open={dialogState}
+        open={addTagDialogState}
         forkFrom={{ ...reference, hash: commitId } as Reference}
-        closeDialog={closeDialog}
+        closeDialog={() => setAddTagDialogState(false)}
+        refetch={() => refetch({ hash: commitId })}
+      />
+      <DeleteTagDialog
+        open={deleteTagDialogState.openDialog}
+        forkFrom={deleteTagDialogState.fromRef}
+        closeDialog={() => setDeleteTagDialogState(INITIAL_TAG_STATE_VALUE)}
         refetch={() => refetch({ hash: commitId })}
       />
     </>

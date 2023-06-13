@@ -27,6 +27,7 @@ public interface Timer {
    * Content used to finish a particular timer observation.
    */
   public static interface TimerContext extends AutoCloseable {
+    @Override
     void close();
   }
 

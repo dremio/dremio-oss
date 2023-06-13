@@ -46,6 +46,7 @@ class TestPurgeObsoleteKeyLists extends AbstractNessieUpgradeTest {
 
     NonTransactionalDatabaseAdapterConfig adapterCfg = ImmutableAdjustableNonTransactionalDatabaseAdapterConfig
       .builder()
+      .validateNamespaces(false)
       .build();
     new DatastoreDatabaseAdapterFactory().newBuilder()
       .withConfig(adapterCfg)

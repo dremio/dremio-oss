@@ -98,7 +98,10 @@ public class LuceneQueryConverter {
     case TERM_DOUBLE:
       return toTermDoubleQuery(query.getTermDouble());
 
-    case EXISTS:
+    case TERM_BOOLEAN:
+      return toTermBooleanQuery(query.getTermBoolean());
+
+      case EXISTS:
       return toExistsquery(query.getExists());
 
     case DOES_NOT_EXIST:
@@ -267,6 +270,13 @@ public class LuceneQueryConverter {
       term.getField(),
       term.getValue(),
       term.getValue());
+  }
+
+  private Query toTermBooleanQuery(SearchQuery.TermBoolean term) {
+    // there is no BooleanPoint or any other structure that can carry boolean query in lucene
+    // support for it will be handled in DX-60829
+    throw new UnsupportedOperationException("The TermBoolean is not supported for " + LuceneQueryConverter.class.getName() +
+      ". For more info, see: DX-60829.");
   }
 
   private Query toExistsquery(SearchQuery.Exists exists) {

@@ -104,7 +104,6 @@ public class TestReflectionStatusService {
 
     statusService = new ReflectionStatusServiceImpl(
       sabotContext::getExecutors,
-      DirectProvider.wrap(namespaceService),
       DirectProvider.<CacheViewer>wrap(new ConstantCacheViewer(isMaterializationCached)),
       goalsStore,
       entriesStore,
@@ -251,7 +250,6 @@ public class TestReflectionStatusService {
 
     ReflectionStatusServiceImpl reflectionStatusService = new ReflectionStatusServiceImpl(
       sabotContext::getExecutors,
-      DirectProvider.wrap(namespaceService),
       DirectProvider.<CacheViewer>wrap(new ConstantCacheViewer(false)),
       goalsStore,
       entriesStore,
@@ -261,20 +259,25 @@ public class TestReflectionStatusService {
       DirectProvider.wrap(catalogService)
     );
 
+    final Catalog catalog = mock(Catalog.class);
+    when(catalogService.getCatalog(any(MetadataRequestOptions.class))).thenReturn(catalog);
     // mock query dataset
     DatasetConfig queryDatasetConfig = new DatasetConfig();
     queryDatasetConfig.setType(DatasetType.PHYSICAL_DATASET);
-    Integer queryHash = ReflectionUtils.computeDatasetHash(queryDatasetConfig, namespaceService, false);
+    Integer queryHash = DatasetHashUtils.computeDatasetHash(queryDatasetConfig, catalogService, false);
     String queryDatasetId = UUID.randomUUID().toString();
-    when(namespaceService.findDatasetByUUID(queryDatasetId)).thenReturn(queryDatasetConfig);
+    final DremioTable queryTable = mock(DremioTable.class);
+    when(queryTable.getDatasetConfig()).thenReturn(queryDatasetConfig);
+    when(catalog.getTable(queryDatasetId)).thenReturn(queryTable);
 
     // mock target dataset
     DatasetConfig targetDatasetConfig = new DatasetConfig();
     targetDatasetConfig.setType(DatasetType.PHYSICAL_DATASET);
-    Integer targetHash = ReflectionUtils.computeDatasetHash(targetDatasetConfig, namespaceService, false);
+    Integer targetHash = DatasetHashUtils.computeDatasetHash(targetDatasetConfig, catalogService, false);
     String targetDatasetId = UUID.randomUUID().toString();
-    when(namespaceService.findDatasetByUUID(targetDatasetId)).thenReturn(targetDatasetConfig);
-
+    final DremioTable targetTable = mock(DremioTable.class);
+    when(targetTable.getDatasetConfig()).thenReturn(targetDatasetConfig);
+    when(catalog.getTable(targetDatasetId)).thenReturn(targetTable);
 
     // mock external reflection
     ReflectionId reflectionId = new ReflectionId(UUID.randomUUID().toString());
@@ -287,7 +290,6 @@ public class TestReflectionStatusService {
     externalReflection.setTargetDatasetHash(targetHash + 1);
 
     when(externalReflectionStore.get(reflectionId.getId())).thenReturn(externalReflection);
-
     // since the hashes don't match, should return OUT_OF_SYNC
     ExternalReflectionStatus externalReflectionStatus = reflectionStatusService.getExternalReflectionStatus(reflectionId);
     assertEquals(externalReflectionStatus.getConfigStatus(), ExternalReflectionStatus.STATUS.OUT_OF_SYNC);

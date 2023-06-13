@@ -21,15 +21,15 @@
   <parent>
     <groupId>com.dremio.distribution</groupId>
     <artifactId>dremio-distribution-parent</artifactId>
-    <version>24.0.0-202302100528110223-3a169b7c</version>
+    <version>24.1.0-202306130653310132-d30779f6</version>
   </parent>
 
   <artifactId>dremio-jdbc-driver</artifactId>
   <name>Distribution - All-in-one JDBC JAR</name>
 
   <properties>
-    <!-- Disabling because of classloader issues -->
-    <forbiddenapis.skip>true</forbiddenapis.skip>
+    <!-- You will also need to increase the maxSize for the MapR version, under a profile in this file  -->
+    <dremio.distribution.jar.maxSize>40000000</dremio.distribution.jar.maxSize>
   </properties>
 
   <dependencies>
@@ -379,6 +379,20 @@
       <groupId>org.apache.calcite.avatica</groupId>
       <artifactId>avatica-core</artifactId>
     </dependency>
+    <dependency>
+      <groupId>org.apache.zookeeper</groupId>
+      <artifactId>zookeeper</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-log4j12</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>log4j</groupId>
+          <artifactId>log4j</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
 
     <!-- Test Dependencies -->
     <dependency>
@@ -485,6 +499,10 @@
           <additionalClasspathElements>
             <additionalClasspathElement>${junit:junit:jar}</additionalClasspathElement>
             <additionalClasspathElement>${org.hamcrest:hamcrest-core:jar}</additionalClasspathElement>
+            <additionalClasspathElement>${org.junit.jupiter:junit-jupiter-api:jar}</additionalClasspathElement>
+            <additionalClasspathElement>${org.junit.jupiter:junit-jupiter-params:jar}</additionalClasspathElement>
+            <additionalClasspathElement>${org.junit.jupiter:junit-jupiter-engine:jar}</additionalClasspathElement>
+            <additionalClasspathElement>${org.junit.vintage:junit-vintage-engine:jar}</additionalClasspathElement>
             <additionalClasspathElement>${org.assertj:assertj-core:jar}</additionalClasspathElement>
             <additionalClasspathElement>${org.slf4j:slf4j-api:jar}</additionalClasspathElement>
             <additionalClasspathElement>${ch.qos.logback:logback-classic:jar}</additionalClasspathElement>
@@ -802,7 +820,7 @@
                     This is likely due to you adding new dependencies to a sabot-kernel and not updating the excludes in this module. This is important as it minimizes the size of the dependency of Dremio application users.
 
                   </message>
-                  <maxsize>40000000</maxsize>
+                  <maxsize>${dremio.distribution.jar.maxSize}</maxsize>
                   <minsize>15000000</minsize>
                   <files>
                     <file>${project.build.directory}/dremio-jdbc-driver-${project.version}.jar</file>
@@ -814,29 +832,20 @@
           </execution>
         </executions>
       </plugin>
-
     </plugins>
   </build>
 
   <profiles>
     <profile>
-      <id>jdk9-or-higher</id>
+      <id>mapr</id>
       <activation>
-        <jdk>[9,)</jdk>
+        <property>
+          <name>mapr</name>
+        </property>
       </activation>
-
-      <build>
-        <plugins>
-          <plugin>
-            <artifactId>maven-failsafe-plugin</artifactId>
-            <configuration>
-              <jdkToolchain>
-                <version>1.8</version>
-              </jdkToolchain>
-            </configuration>
-          </plugin>
-        </plugins>
-      </build>
+      <properties>
+        <dremio.distribution.jar.maxSize>41000000</dremio.distribution.jar.maxSize>
+      </properties>
     </profile>
   </profiles>
 </project>

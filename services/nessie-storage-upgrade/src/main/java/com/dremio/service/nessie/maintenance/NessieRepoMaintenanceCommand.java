@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+import org.projectnessie.nessie.relocated.protobuf.ByteString;
 import org.projectnessie.versioned.GetNamedRefsParams;
 import org.projectnessie.versioned.ReferenceInfo;
 import org.projectnessie.versioned.persist.adapter.DatabaseAdapter;
@@ -45,7 +46,6 @@ import com.dremio.service.nessie.NessieDatastoreInstance;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.protobuf.ByteString;
 
 /**
  * Admin CLI tool to invoking Embedded Nessie maintenance operations and performing basic repository sanity checks.
@@ -128,6 +128,7 @@ public class NessieRepoMaintenanceCommand {
   static String execute(LocalKVStoreProvider kvStore, Options options) throws Exception {
     NonTransactionalDatabaseAdapterConfig adapterCfg = ImmutableAdjustableNonTransactionalDatabaseAdapterConfig
       .builder()
+      .validateNamespaces(false)
       .build();
     NessieDatastoreInstance store = new NessieDatastoreInstance();
     store.configure(new ImmutableDatastoreDbConfig.Builder().setStoreProvider(() -> kvStore).build());

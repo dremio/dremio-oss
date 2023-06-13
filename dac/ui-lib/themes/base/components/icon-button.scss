@@ -20,7 +20,7 @@
   display: inline-flex;
   justify-content: center;
   user-select: none;
-  color: var(--dremio--color--neutral--600);
+  color: var(--color--neutral--600);
   padding: var(--dremio--spacing--05);
   transition: color 125ms ease-in-out;
   vertical-align: middle;
@@ -34,7 +34,7 @@
   &[aria-disabled="true"] {
     cursor: not-allowed;
     pointer-events: none;
-    color: var(--dremio--color--neutral--200);
+    color: var(--color--neutral--100);
   }
 
   // Restrict clickable area to button (Useful when Icon overflows the bound of the button)

@@ -25,7 +25,7 @@
     justify-content: space-between;
 
     &:hover {
-      border-radius: 0.4rem;
+      border-radius: 4px;
 
       .datasetItemLabel-item__add {
         opacity: 1;
@@ -38,17 +38,17 @@
     &__iconBlock {
       display: flex;
       align-items: center;
-      margin-right: 0.5rem;
-      gap: 0.4rem;
+      margin-right: 5px;
+      gap: 4px;
     }
 
     &__add {
-      height: 2.4rem;
-      width: 2.4rem;
+      height: 24px;
+      width: 24px;
       opacity: 0;
       transition: 300ms ease all;
       padding: 0;
-      color: var(--dremio--color--neutral--600) !important;
+      color: var(--color--neutral--600) !important;
 
       &:hover {
         color: var(--dremio--color--link) !important;
@@ -56,13 +56,13 @@
     }
 
     &__starIcon {
-      height: 2.4rem;
-      width: 2.4rem;
-      margin-right: 0.5rem;
+      height: 24px;
+      width: 24px;
+      margin-right: 5px;
       transition: 300ms ease all;
       opacity: 0;
       padding: 0;
-      color: var(--dremio--color--neutral--600) !important;
+      color: var(--color--neutral--600) !important;
 
       &:hover {
         color: var(--dremio--color--link) !important;
@@ -98,7 +98,7 @@
       }
 
       .font-icon {
-        min-width: 2.4rem;
+        min-width: 24px;
         justify-content: center;
       }
       .searchHeading {
@@ -117,7 +117,7 @@
   }
 
   .resourceTree .datasetItemLabel-item__content.--isNotExpandable {
-    margin-left: 2.4rem;
+    margin-left: 24px;
   }
 
   .dependantItem {
@@ -154,7 +154,7 @@
     }
 
     .EllipsedText {
-      margin-left: 0.5rem;
+      margin-left: 5px;
     }
   }
 
@@ -162,7 +162,7 @@
     // .ColumnMenuItem__content
     margin-left: 21px;
     margin-right: 0;
-    padding: 0 0.4rem;
+    padding: 0 4px;
     width: 100%;
   }
 
@@ -174,7 +174,7 @@
   .search_draggable-row {
     // .ColumnMenuItem__content
     .draggable-row {
-      width: calc(100% - 21px - 0.5rem);
+      width: calc(100% - 21px - 5px);
     }
   }
 }

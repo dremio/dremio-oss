@@ -12,7 +12,7 @@ Documentation is available at https://docs.dremio.com.
 
 * JDK 8 or 11 (OpenJDK or Oracle) as the default JDK (`JAVA_HOME` set to it)
 * JDK 8 (OpenJDK or Oracle) in Maven toolchain, required to run certain integration tests
-* (Optional) Maven 3.3.9 or later (using Homebrew: `brew install maven`)
+* (Optional) Maven 3.9.1 or later (using Homebrew: `brew install maven`)
 
 Run the following commands to verify that you have the correct versions of Maven and JDK installed:
 

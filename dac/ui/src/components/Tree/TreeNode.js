@@ -21,7 +21,6 @@ import classNames from "clsx";
 import { intl } from "@app/utils/intl";
 import { DATASET_TYPES_TO_ICON_TYPES } from "@app/constants/datasetTypes";
 import { clearResourceTreeByName as clearResourceTreeByNameAction } from "@app/actions/resources/tree";
-
 import {
   CONTAINER_ENTITY_TYPES,
   DATASET_ENTITY_TYPES,
@@ -47,6 +46,11 @@ import "./TreeNode.less";
 import "@app/components/Dataset/DatasetItemLabel.less";
 import { getSourceByName, isBranchSelected } from "@app/utils/nessieUtils";
 import { getNodeBranchId } from "./resourceTreeUtils";
+import DatasetSummaryOverlay from "../Dataset/DatasetSummaryOverlay";
+import WikiDrawerWrapper from "@app/components/WikiDrawerWrapper";
+import { FeatureSwitch } from "@app/exports/components/FeatureSwitch/FeatureSwitch";
+import { CATALOG_ARS_ENABLED } from "@app/exports/flags/CATALOG_ARS_ENABLED";
+import { getCommonWikiDrawerTitle } from "@app/utils/WikiDrawerUtils";
 
 export const TreeNode = (props) => {
   const {
@@ -57,7 +61,7 @@ export const TreeNode = (props) => {
     shouldAllowAdd,
     selectedNodeId,
     dragType,
-    shouldShowOverlay,
+    shouldShowOverlay = true,
     addtoEditor,
     handleSelectedNodeChange,
     formatIdFromNode,
@@ -87,6 +91,9 @@ export const TreeNode = (props) => {
     intl.formatMessage({ id: "Message.Code.WS_CLOSED.Message" })
   );
   const [loadingTimer, setLoadingtimer] = useState(null);
+  const [datasetDetails, setDatasetDetails] = useState(Immutable.fromJS({}));
+  const [drawerIsOpen, setDrawerIsOpen] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     handleLoadingState();
@@ -94,7 +101,7 @@ export const TreeNode = (props) => {
 
   const clearSelection = (node) => {
     const nodeName = node.get("name");
-    clearResourceTreeByName(nodeName);
+    clearResourceTreeByName(nodeName, fromModal);
     // DX-53668 - Tree not refreshing when switching branches
     if (isNodeExpanded(node)) {
       handleSelectedNodeChange(node, isNodeExpanded(node));
@@ -235,6 +242,11 @@ export const TreeNode = (props) => {
         : { id: "Resource.Tree.Add.Star.Alt" }
     );
 
+    const showSummaryOverlay =
+      shouldShowOverlay &&
+      (nodeToRender.get("type").includes("PHYSICAL_DATASET") ||
+        nodeToRender.get("type").includes("VIRTUAL_DATASET"));
+
     const iconBlock = shouldAllowAdd ? (
       <>
         {node.get("isColumnItem") && node.get("isSorted") && (
@@ -276,42 +288,49 @@ export const TreeNode = (props) => {
         >
           <dremio-icon name="interface/add-small" />
         </IconButton>
-        {isNodeExpandable(nodeToRender) && nodeToRender.get("id") && (
-          <IconButton
-            tooltip={
-              isStarred
-                ? intl.formatMessage({ id: "Resource.Tree.Added.Star" })
-                : unstarredWording
-            }
-            onClick={() => {
-              if (!isStarred && !isStarredLimitReached) {
-                starNode(nodeToRender.get("id"));
-              } else if (isStarred) {
-                unstarNode(nodeToRender.get("id"));
-              }
-            }}
-            className={
-              isStarred
-                ? "resourceTreeNode__starIcon"
-                : `resourceTreeNode__starIcon resourceTreeNode${
-                    isStarredLimitReached ? "--limitReached" : "--unstarred"
-                  }`
-            }
-          >
-            <dremio-icon
-              name={
-                isStarred
-                  ? "interface/star-starred"
-                  : "interface/star-unstarred"
-              }
-              alt={
-                isStarred
-                  ? intl.formatMessage({ id: "Resource.Tree.Added.Star" })
-                  : unstarredAltText
-              }
-            />
-          </IconButton>
-        )}
+        <FeatureSwitch
+          flag={CATALOG_ARS_ENABLED}
+          renderEnabled={() => null}
+          renderDisabled={() =>
+            isNodeExpandable(nodeToRender) &&
+            nodeToRender.get("id") && (
+              <IconButton
+                tooltip={
+                  isStarred
+                    ? intl.formatMessage({ id: "Resource.Tree.Added.Star" })
+                    : unstarredWording
+                }
+                onClick={() => {
+                  if (!isStarred && !isStarredLimitReached) {
+                    starNode(nodeToRender.get("id"));
+                  } else if (isStarred) {
+                    unstarNode(nodeToRender.get("id"));
+                  }
+                }}
+                className={
+                  isStarred
+                    ? "resourceTreeNode__starIcon"
+                    : `resourceTreeNode__starIcon resourceTreeNode${
+                        isStarredLimitReached ? "--limitReached" : "--unstarred"
+                      }`
+                }
+              >
+                <dremio-icon
+                  name={
+                    isStarred
+                      ? "interface/star-starred"
+                      : "interface/star-unstarred"
+                  }
+                  alt={
+                    isStarred
+                      ? intl.formatMessage({ id: "Resource.Tree.Added.Star" })
+                      : unstarredAltText
+                  }
+                />
+              </IconButton>
+            )
+          }
+        />
       </>
     ) : null;
 
@@ -357,13 +376,39 @@ export const TreeNode = (props) => {
                 style={style.icon}
               />
             )}
-            <Tooltip placement="top" title={node.get("name")}>
-              <EllipsedText
-                className="node-text"
-                style={style.text}
-                text={node.get("name")}
-              />
-            </Tooltip>
+
+            <>
+              {!isDragging ? (
+                <Tooltip
+                  type={showSummaryOverlay && "richTooltip"}
+                  placement={showSummaryOverlay ? "right" : "top"}
+                  title={
+                    showSummaryOverlay ? (
+                      <DatasetSummaryOverlay
+                        inheritedTitle={nodeToRender.get("fullPath").last()}
+                        fullPath={nodeToRender.get("fullPath")}
+                        openWikiDrawer={openWikiDrawer}
+                        hideSqlEditorIcon
+                      />
+                    ) : (
+                      node.get("name")
+                    )
+                  }
+                >
+                  <EllipsedText
+                    className="node-text"
+                    style={style.text}
+                    text={node.get("name")}
+                  />
+                </Tooltip>
+              ) : (
+                <EllipsedText
+                  className="node-text"
+                  style={style.text}
+                  text={node.get("name")}
+                />
+              )}
+            </>
           </div>
         </Tooltip>
         {!!nessieSource && (
@@ -437,6 +482,7 @@ export const TreeNode = (props) => {
       <div>
         <DragSource
           dragType={dragType}
+          onDrag={setIsDragging}
           id={isColumnItem ? node.get("name") : nodeToRender.get("fullPath")}
           key={isColumnItem ? `${nodeId}-${node.get("name")}` : nodeId}
           className={activeClass}
@@ -446,6 +492,26 @@ export const TreeNode = (props) => {
       </div>
     ) : (
       <div>{nodeWrapWithOverlay}</div>
+    );
+  };
+
+  const openWikiDrawer = (dataset) => {
+    setDatasetDetails(dataset);
+    setDrawerIsOpen(true);
+  };
+
+  const closeWikiDrawer = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setDatasetDetails(Immutable.fromJS({}));
+    setDrawerIsOpen(false);
+  };
+
+  const wikiDrawerTitle = () => {
+    return getCommonWikiDrawerTitle(
+      datasetDetails,
+      datasetDetails?.get("fullPath"),
+      closeWikiDrawer
     );
   };
 
@@ -466,6 +532,11 @@ export const TreeNode = (props) => {
     >
       <span ref={nodeRef}>{renderNode(node, nodeRef)}</span>
       {isNodeExpanded(node) && renderResources()}
+      <WikiDrawerWrapper
+        drawerIsOpen={drawerIsOpen}
+        wikiDrawerTitle={wikiDrawerTitle()}
+        datasetDetails={datasetDetails}
+      />
     </div>
   );
 };

@@ -73,7 +73,7 @@ public class TestPathGeneratingDatafileProcessor extends BaseTestQuery {
     datafileProcessor = new DataFileContentReader(operatorContext, tableFunctionContext);
     datafileProcessor.setup(null, outgoing);
     setupPartitionData();
-    datafileProcessor.initialise(partitionSpec);
+    datafileProcessor.initialise(partitionSpec, 0);
   }
 
   @After

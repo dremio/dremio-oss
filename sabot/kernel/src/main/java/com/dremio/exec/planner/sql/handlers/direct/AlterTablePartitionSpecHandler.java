@@ -78,7 +78,7 @@ public class AlterTablePartitionSpecHandler extends SimpleDirectHandler {
         final String sourceName = path.getRoot();
         final VersionContext sessionVersion = config.getContext().getSession().getSessionVersionForSource(sourceName);
         ResolvedVersionContext resolvedVersionContext = CatalogUtil.resolveVersionContext(catalog, sourceName, sessionVersion);
-        CatalogUtil.validateResolvedVersionIsBranch(resolvedVersionContext, path.toString());
+        CatalogUtil.validateResolvedVersionIsBranch(resolvedVersionContext);
         TableMutationOptions tableMutationOptions = TableMutationOptions.newBuilder()
                 .setResolvedVersionContext(resolvedVersionContext)
                 .build();

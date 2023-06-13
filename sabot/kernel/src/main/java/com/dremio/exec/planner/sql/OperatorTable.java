@@ -30,16 +30,20 @@ import com.google.common.collect.Lists;
 
 /**
  * Dremio's hand rolled ChainedOperatorTable
+ *
+ * This class composes both the DremioCompositeSqlOperatorTable and the provided FunctionImplementationRegistry
  */
 public class OperatorTable implements SqlOperatorTable {
-  private static final DremioCompositeSqlOperatorTable dremioCompositeOperatorTable =
-      new DremioCompositeSqlOperatorTable();
-  private List<SqlOperator> operators;
-  private ArrayListMultimap<String, SqlOperator> opMap = ArrayListMultimap.create();
+  private static final DremioCompositeSqlOperatorTable DREMIO_COMPOSITE_SQL_OPERATOR_TABLE = new DremioCompositeSqlOperatorTable();
+
+  private final List<SqlOperator> operators;
+  private final ArrayListMultimap<String, SqlOperator> opMap;
 
   public OperatorTable(FunctionImplementationRegistry registry) {
     operators = Lists.newArrayList();
-    operators.addAll(dremioCompositeOperatorTable.getOperatorList());
+    operators.addAll(DREMIO_COMPOSITE_SQL_OPERATOR_TABLE.getOperatorList());
+
+    opMap = ArrayListMultimap.create();
 
     registry.register(this);
   }
@@ -55,17 +59,23 @@ public class OperatorTable implements SqlOperatorTable {
                                       SqlSyntax syntax, List<SqlOperator> operatorList,
                                       SqlNameMatcher nameMatcher) {
     // don't try to evaluate operators that have non name.
-    if(opName == null || opName.names == null) {
+    if (opName == null || opName.names == null) {
       return;
     }
 
-    dremioCompositeOperatorTable.lookupOperatorOverloads(opName,category,syntax,operatorList, nameMatcher);
+    DREMIO_COMPOSITE_SQL_OPERATOR_TABLE.lookupOperatorOverloads(
+      opName,
+      category,
+      syntax,
+      operatorList,
+      nameMatcher);
+    if (!operatorList.isEmpty()) {
+      return;
+    }
 
-    if (operatorList.isEmpty() && syntax == SqlSyntax.FUNCTION && opName.isSimple()) {
+    if (syntax == SqlSyntax.FUNCTION && opName.isSimple()) {
       List<SqlOperator> ops = opMap.get(opName.getSimple().toUpperCase());
-      if (ops != null) {
-        operatorList.addAll(ops);
-      }
+      operatorList.addAll(ops);
     }
   }
 

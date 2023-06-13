@@ -27,19 +27,18 @@ import org.slf4j.LoggerFactory;
 import com.dremio.io.ExponentialBackoff;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.errorprone.annotations.CheckReturnValue;
 
 /**
  * Simple retrying utility
- *
- * @param <T>
  */
 @SuppressWarnings("checkstyle:FinalClass")
-public class Retryer<T> implements ExponentialBackoff {
+public class Retryer implements ExponentialBackoff {
   private static final Logger logger = LoggerFactory.getLogger(Retryer.class);
 
   public enum WaitStrategy {EXPONENTIAL, FLAT}  //Can be extended
 
-  private Set<Class<? extends Exception>> retryableExceptionClasses = new HashSet<>();
+  private final Set<Class<? extends Exception>> retryableExceptionClasses = new HashSet<>();
   private WaitStrategy waitStrategy = WaitStrategy.EXPONENTIAL;
   private int maxRetries = 4; // default
   private int baseMillis = 250;
@@ -52,7 +51,7 @@ public class Retryer<T> implements ExponentialBackoff {
   private Retryer() {
   }
 
-  public T call(Callable<T> callable) {
+  public <T> T call(Callable<T> callable) {
     for (int attemptNo = 1; infiniteRetries || (attemptNo <= maxRetries); attemptNo++) {
       try {
         return callable.call();
@@ -139,47 +138,56 @@ public class Retryer<T> implements ExponentialBackoff {
     return maxRetries;
   }
 
-  public static class Builder<T> {
-    private Retryer<T> retryer = new Retryer<>();
+  @CheckReturnValue
+  public static Builder newBuilder() {
+    return new Retryer.Builder();
+  }
 
-    public Builder<T> retryIfExceptionOfType(Class<? extends Exception> clazz) {
+  public static class Builder {
+    private final Retryer retryer = new Retryer();
+
+    private Builder() {
+      // use static factory method newBuilder instead
+    }
+
+    public Builder retryIfExceptionOfType(Class<? extends Exception> clazz) {
       Preconditions.checkState(retryer.isRetriable == retryer.isExceptionClassRetriable,
         "Retryer does not support mix of exception class and exception function");
       retryer.retryableExceptionClasses.add(clazz);
       return this;
     }
 
-    public Builder<T> retryOnExceptionFunc(Function<Exception, Boolean> function) {
+    public Builder retryOnExceptionFunc(Function<Exception, Boolean> function) {
       Preconditions.checkState(retryer.retryableExceptionClasses.isEmpty(),
         "Retryer does not support mix of exception class and exception function");
       retryer.isRetriable = function;
       return this;
     }
 
-    public Builder<T> setWaitStrategy(WaitStrategy waitStrategy, int baseMillis, int maxMillis) {
+    public Builder setWaitStrategy(WaitStrategy waitStrategy, int baseMillis, int maxMillis) {
       retryer.waitStrategy = waitStrategy;
       retryer.baseMillis = baseMillis;
       retryer.maxMillis = maxMillis;
       return this;
     }
 
-    public Builder<T> setMaxRetries(int maxRetries) {
+    public Builder setMaxRetries(int maxRetries) {
       retryer.maxRetries = maxRetries;
       return this;
     }
 
-    public Builder<T> setInfiniteRetries(boolean infiniteRetries) {
+    public Builder setInfiniteRetries(boolean infiniteRetries) {
       retryer.infiniteRetries = infiniteRetries;
       return this;
     }
 
-    public Retryer<T> build() {
+    public Retryer build() {
       return retryer;
     }
   }
 
-  public Retryer<T> copy() {
-    Retryer<T> copy = new Retryer<>();
+  public Retryer copy() {
+    Retryer copy = new Retryer();
     copy.waitStrategy = waitStrategy;
     copy.baseMillis = baseMillis;
     copy.maxMillis = maxMillis;
@@ -199,7 +207,8 @@ public class Retryer<T> implements ExponentialBackoff {
     }
 
     public <T extends Exception> T getWrappedCause(Class<T> clazz, Function<Throwable, T> conversionFunc) {
-      return clazz.isInstance(getCause()) ? (T)getCause() : conversionFunc.apply(getCause());
+      Throwable cause = getCause();
+      return clazz.isInstance(cause) ? clazz.cast(cause) : conversionFunc.apply(cause);
     }
   }
 }

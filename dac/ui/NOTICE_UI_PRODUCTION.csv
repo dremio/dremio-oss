@@ -39,7 +39,9 @@
 ,@floating-ui/core,,,0.7.3,https://github.com/floating-ui/floating-ui,MIT,,,,Copyright (c) 2021 Floating UI contributors,
 ,@floating-ui/dom,,,0.5.4,https://github.com/floating-ui/floating-ui,MIT,,,,Copyright (c) 2021 Floating UI contributors,
 ,@floating-ui/react-dom-interactions,,,0.6.6,https://github.com/floating-ui/floating-ui,MIT,,,,Copyright (c) 2021 Floating UI contributors,
+,@floating-ui/react-dom-interactions,,,0.9.3,https://github.com/floating-ui/floating-ui,MIT,,,,Copyright (c) 2021 Floating UI contributors,
 ,@floating-ui/react-dom,,,0.7.2,https://github.com/floating-ui/floating-ui,MIT,,,,Copyright (c) 2021 Floating UI contributors,
+,@floating-ui/react-dom,,,1.3.0,https://github.com/floating-ui/floating-ui,MIT,,,,Copyright (c) 2021 Floating UI contributors,
 ,@formatjs/ecma402-abstract,,,1.9.8,https://github.com/formatjs/formatjs,MIT,,,,Copyright (c) 2021 FormatJS,
 ,@formatjs/fast-memoize,,,1.2.0,https://github.com/formatjs/formatjs,ISC,,,,Copyright (c) 2021 FormatJS,
 ,@formatjs/icu-messageformat-parser,,,2.0.11,,MIT,,,,Copyright (c) 2021 FormatJS,
@@ -58,10 +60,13 @@
 ,@jridgewell/trace-mapping,,,0.3.13,https://github.com/jridgewell/trace-mapping,MIT,,,,Copyright 2022 Justin Ridgewell <justin@ridgewell.name>,
 ,@jridgewell/trace-mapping,,,0.3.15,https://github.com/jridgewell/trace-mapping,MIT,,,,Copyright 2022 Justin Ridgewell <justin@ridgewell.name>,
 ,@mantine/core,,,5.0.2,https://github.com/mantinedev/mantine,MIT,,,,Copyright (c) 2021 Vitaly Rtishchev,
+,@mantine/dates,,,5.9.3,https://github.com/mantinedev/mantine,MIT,,,,Copyright (c) 2021 Vitaly Rtishchev,
 ,@mantine/hooks,,,5.0.2,https://github.com/mantinedev/mantine,MIT,,,,Copyright (c) 2021 Vitaly Rtishchev,
 ,@mantine/styles,,,5.0.2,https://github.com/mantinedev/mantine,MIT,,,,Copyright (c) 2021 Vitaly Rtishchev,
 ,@mantine/utils,,,5.0.2,https://github.com/mantinedev/mantine,MIT,,,,Copyright (c) 2021 Vitaly Rtishchev,
+,@mantine/utils,,,5.9.3,https://github.com/mantinedev/mantine,MIT,,,,Copyright (c) 2021 Vitaly Rtishchev,
 ,@mui/base,,,5.0.0-alpha.91,https://github.com/mui/material-ui,MIT,,,,Copyright (c) 2014 Call-Em-All,
+,@mui/material,,,5.9.0,https://github.com/mui/material-ui,MIT,,,,Copyright (c) 2014 Call-Em-All,
 ,@mui/material,,,5.9.2,https://github.com/mui/material-ui,MIT,,,,Copyright (c) 2014 Call-Em-All,
 ,@mui/private-theming,,,5.9.1,https://github.com/mui/material-ui,MIT,,,,Copyright (c) 2014 Call-Em-All,
 ,@mui/styled-engine,,,5.8.7,https://github.com/mui/material-ui,MIT,,,,Copyright (c) 2014 Call-Em-All,
@@ -83,21 +88,15 @@
 ,@radix-ui/react-use-layout-effect,,,1.0.0,https://github.com/radix-ui/primitives,MIT,,,,Copyright (c) 2022 WorkOS,
 ,@remix-run/router,,,1.0.3,https://github.com/remix-run/react-router,MIT,,,,"Copyright (c) React Training 2015-2019
 Copyright (c) Remix Software 2020-2022",
-,@sentry/browser,,,5.13.2,https://github.com/getsentry/sentry-javascript,BSD-3-Clause,,,,"Copyright (c) 2019, Sentry
-All rights reserved.",
-,@sentry/core,,,5.13.2,https://github.com/getsentry/sentry-javascript,BSD-3-Clause,,,,"Copyright (c) 2019, Sentry
-All rights reserved.",
-,@sentry/hub,,,5.13.2,https://github.com/getsentry/sentry-javascript,BSD-3-Clause,,,,"Copyright (c) 2019, Sentry
-All rights reserved.",
-,@sentry/minimal,,,5.13.2,https://github.com/getsentry/sentry-javascript,BSD-3-Clause,,,,"Copyright (c) 2019, Sentry
-All rights reserved.",
-,@sentry/types,,,5.13.2,https://github.com/getsentry/sentry-javascript,BSD-3-Clause,,,,"Copyright (c) 2019, Sentry
-All rights reserved.",
-,@sentry/utils,,,5.13.2,https://github.com/getsentry/sentry-javascript,BSD-3-Clause,,,,"Copyright (c) 2019, Sentry
-All rights reserved.",
+,@sentry/browser,,,7.43.0,https://github.com/getsentry/sentry-javascript,MIT,,,,Copyright (c) 2019 Sentry (https://sentry.io) and individual contributors. All rights reserved.,
+,@sentry/core,,,7.43.0,https://github.com/getsentry/sentry-javascript,MIT,,,,Copyright (c) 2019 Sentry (https://sentry.io) and individual contributors. All rights reserved.,
+,@sentry/replay,,,7.43.0,https://github.com/getsentry/sentry-javascript,MIT,,,,Copyright (c) 2022 Sentry (https://sentry.io) and individual contributors. All rights reserved.,
+,@sentry/types,,,7.43.0,https://github.com/getsentry/sentry-javascript,MIT,,,,Copyright (c) 2019 Sentry (https://sentry.io) and individual contributors. All rights reserved.,
+,@sentry/utils,,,7.43.0,https://github.com/getsentry/sentry-javascript,MIT,,,,Copyright (c) 2019 Sentry (https://sentry.io) and individual contributors. All rights reserved.,
 ,@types/hast,,,2.3.4,https://github.com/DefinitelyTyped/DefinitelyTyped,MIT,,,,,
 ,@types/hoist-non-react-statics,,,3.3.1,https://github.com/DefinitelyTyped/DefinitelyTyped,MIT,,,,,
 ,@types/lodash,,,4.14.168,https://github.com/DefinitelyTyped/DefinitelyTyped,MIT,,,,,
+,@types/lodash,,,4.14.191,https://github.com/DefinitelyTyped/DefinitelyTyped,MIT,,,,,
 ,@types/node,,,16.7.1,https://github.com/DefinitelyTyped/DefinitelyTyped,MIT,,,,,
 ,@types/parse-json,,,4.0.0,https://wwwhub.com/DefinitelyTyped/DefinitelyTyped,MIT,,,,,
 ,@types/prop-types,,,15.7.3,https://github.com/DefinitelyTyped/DefinitelyTyped,MIT,,,,,
@@ -105,14 +104,19 @@ All rights reserved.",
 ,@types/react-dom,,,18.0.5,https://github.com/DefinitelyTyped/DefinitelyTyped,MIT,,,,,
 ,@types/react-is,,,17.0.3,https://github.com/DefinitelyTyped/DefinitelyTyped,MIT,,,,,
 ,@types/react-transition-group,,,4.4.5,https://github.com/DefinitelyTyped/DefinitelyTyped,MIT,,,,,
-,@types/react,,,16.14.23,https://github.com/DefinitelyTyped/DefinitelyTyped,MIT,,,,,
 ,@types/react,,,17.0.44,https://github.com/DefinitelyTyped/DefinitelyTyped,MIT,,,,,
 ,@types/react,,,18.0.14,https://github.com/DefinitelyTyped/DefinitelyTyped,MIT,,,,,
+,@types/react,,,18.0.24,https://github.com/DefinitelyTyped/DefinitelyTyped,MIT,,,,,
+,@types/react,,,18.0.25,https://github.com/DefinitelyTyped/DefinitelyTyped,MIT,,,,,
 ,@types/scheduler,,,0.16.1,https://github.com/DefinitelyTyped/DefinitelyTyped,MIT,,,,,
 ,@types/unist,,,2.0.6,https://github.com/DefinitelyTyped/DefinitelyTyped,MIT,,,,,
 ,@types/use-sync-external-store,,,0.0.3,https://github.com/DefinitelyTyped/DefinitelyTyped,MIT,,,,,
 ,almost-equal,,,1.1.0,https://github.com/mikolalysenko/almost-equal,MIT,,,,Copyright (c) 2013 Mikola Lysenko,
 ,ansi-styles,,,3.2.1,https://github.com/chalk/ansi-styles,MIT,,,,,
+,antlr4-c3,,,2.2.3,https://github.com/mike-lischke/antlr4-c3,MIT,,,,"Copyright (c) 2016, 2017, Mike Lischke",
+,antlr4ts,,,0.5.0-alpha.4,https://github.com/tunnelvisionlabs/antlr4ts,BSD-3-Clause,,,,"[The ""BSD license""]
+Copyright (c) 2016 The ANTLR Project
+All rights reserved.",
 ,aria-hidden,,,1.1.3,https://github.com/theKashey/aria-hidden,ISC,,,,,
 ,asap,,,2.0.6,https://github.com/kriskowal/asap,MIT,,,,Copyright 2009–2014 Contributors. All rights reserved.,
 ,assert,,,2.0.0,https://github.com/browserify/commonjs-assert,MIT,,,,"Copyright Joyent, Inc. and other Node contributors. All rights reserved.
@@ -154,6 +158,7 @@ Copyright (c) 2015 Dmitry Ivanov",
 ,convert-source-map,,,1.8.0,https://github.com/thlorenz/convert-source-map,MIT,,,,"Copyright 2013 Thorsten Lorenz. 
 All rights reserved.",
 ,copy-to-clipboard,,,3.0.8,https://github.com/sudodoki/copy-to-clipboard,MIT,,,,,
+,copy-to-clipboard,,,3.3.1,https://github.com/sudodoki/copy-to-clipboard,MIT,,,,Copyright (c) 2017 sudodoki <smd.deluzion@gmail.com>,
 ,core-js,,,1.2.7,https://github.com/zloirock/core-js,MIT,,,,Copyright (c) 2015 Denis Pushkarev,
 ,core-js,,,2.6.12,https://github.com/zloirock/core-js,MIT,,,,Copyright (c) 2014-2020 Denis Pushkarev,
 ,core-js,,,3.22.3,https://github.com/zloirock/core-js,MIT,,,,Copyright (c) 2014-2022 Denis Pushkarev,
@@ -194,10 +199,40 @@ Copyright (c) 2018-2021 Josh Junon",
 ,deep-equal,,,1.0.1,https://github.com/substack/node-deep-equal,MIT,,,,,
 ,deepmerge,,,2.2.1,https://github.com/KyleAMathews/deepmerge,MIT,,,,Copyright (c) 2012 Nicholas Fisher,
 ,define-properties,,,1.1.4,https://github.com/ljharb/define-properties,MIT,,,,Copyright (C) 2015 Jordan Harband,
+,define-route,,,0.3.1,https://github.com/erictooth/define-route,Apache-2.0,,,,,
+,dialog-polyfill,,,0.5.6,https://github.com/GoogleChrome/dialog-polyfill,BSD-3-Clause,,,,"// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
+//
+//    * Redistributions of source code must retain the above copyright
+// notice, this list of conditions and the following disclaimer.
+//    * Redistributions in binary form must reproduce the above
+// copyright notice, this list of conditions and the following disclaimer
+// in the documentation and/or other materials provided with the
+// distribution.
+//    * Neither the name of Google Inc. nor the names of its
+// contributors may be used to endorse or promote products derived from
+// this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// ""AS IS"" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.",
 ,dnd-core,,,7.0.2,https://github.com/react-dnd/react-dnd,MIT,,,,Copyright (c) 2015 Dan Abramov,
 ,dom-helpers,,,2.4.0,https://github.com/jquense/dom-helpers,MIT,,,,Copyright (c) 2015 Jason Quense,
 ,dom-helpers,,,3.4.0,https://github.com/jquense/dom-helpers,MIT,,,,Copyright (c) 2015 Jason Quense,
 ,dom-helpers,,,5.2.1,https://github.com/react-bootstrap/dom-helpers,MIT,,,,Copyright (c) 2015 Jason Quense,
+,downshift,,,7.2.0,https://github.com/downshift-js/downshift,MIT,,,,"The MIT License (MIT)
+Copyright (c) 2017 PayPal",
 ,easy-peasy,,,4.0.1,https://github.com/ctrlplusb/easy-peasy,MIT,,,,Copyright (c) 2018 Sean Matheson,
 ,echarts,,,5.3.1,https://github.com/apache/echarts,Apache-2.0,,,,,
 ,electron-to-chromium,,,1.4.170,https://github.com/kilian/electron-to-chromium,ISC,,,,Copyright 2018 Kilian Valkhof,
@@ -221,7 +256,7 @@ All rights reserved.",
 ,find-root,,,1.1.0,https://github.com/js-n/find-root,MIT,,,,Copyright © 2017 jsdnxx,
 ,fixed-data-table-2,,,1.1.2,https://github.com/schrodinger/fixed-data-table-2,BSD-3-Clause,,,,"Copyright (c) 2016, Schrodinger, Inc. All rights reserved.",
 ,for-each,,,0.3.3,https://github.com/Raynos/for-each,MIT,,,,Copyright (c) 2012 Raynos.,
-,format,,,0.2.2,https://github.com/samsonjs/format,MIT,,,,"<p>Copyright © 2022 <a href=""https://samhuri.net"">Sami Samhuri, http://samhuri.net</a> &lt;<a href=""/cdn-cgi/l/email-protection#0172606c684172606c697473682f6f6475""><span class=""__cf_email__"" data-cfemail=""ec9f8d8185ac9f8d8184999e85c2828998"">[email&#160;protected]</span></a>&gt;</p>",
+,format,,,0.2.2,https://github.com/samsonjs/format,MIT,,,,"<p>Copyright © 2023 <a href=""https://samhuri.net"">Sami Samhuri, http://samhuri.net</a> &lt;<a href=""/cdn-cgi/l/email-protection#0c7f6d61654c7f6d6164797e6522626978""><span class=""__cf_email__"" data-cfemail=""2251434f4b6251434f4a57504b0c4c4756"">[email&#160;protected]</span></a>&gt;</p>",
 ,formik,,,2.2.6,https://github.com/formium/formik,Apache-2.0,,,,"Copyright 2020 Formik, Inc.",
 ,function-bind,,,1.1.1,https://github.com/Raynos/function-bind,MIT,,,,Copyright (c) 2013 Raynos.,
 ,function.prototype.name,,,1.1.5,https://github.com/es-shims/Function.prototype.name,MIT,,,,Copyright (c) 2016 Jordan Harband,
@@ -256,6 +291,7 @@ Copyright (c) 2016 Florian Dormont",
 ,import-fresh,,,3.1.0,https://github.com/sindresorhus/import-fresh,MIT,,,,,
 ,inherits,,,2.0.4,https://github.com/isaacs/inherits,ISC,,,,,
 ,internal-slot,,,1.0.3,https://github.com/ljharb/internal-slot,MIT,,,,Copyright (c) 2019 Jordan Harband,
+,intl-messageformat,,,10.2.1,https://github.com/formatjs/formatjs,BSD-3-Clause,,,,"Copyright (c) 2021, Oath Inc.",
 ,intl-messageformat,,,9.9.1,https://github.com/formatjs/formatjs,BSD-3-Clause,,,,"Copyright (c) 2021, Oath Inc.",
 ,invariant,,,2.2.4,https://github.com/zertosh/invariant,MIT,,,,"Copyright (c) 2013-present, Facebook, Inc.",
 ,is-alphabetical,,,1.0.4,https://github.com/wooorm/is-alphabetical,MIT,,,,Copyright (c) 2016 Titus Wormer <tituswormer@gmail.com>,
@@ -293,6 +329,8 @@ Copyright npm, Inc.",
 ,jsplumb,,,2.1.4,https://github.com/sporritt/jsPlumb,MIT,,,,"Copyright (c) 2010 - 2014 jsPlumb, http://jsplumbtoolkit.com/",
 ,jwt-decode,,,3.1.2,https://github.com/auth0/jwt-decode,MIT,,,,"Copyright (c) 2015 Auth0, Inc. <support@auth0.com> (http://auth0.com)",
 ,leantable,,,0.2.6,https://github.com/erictooth/leantable,Apache-2.0,,,,,
+,leantable,,,0.4.11,https://github.com/erictooth/leantable,Apache-2.0,,,,,
+,leantable,,,0.4.12,https://github.com/erictooth/leantable,Apache-2.0,,,,,
 ,lines-and-columns,,,1.2.4,https://github.com/eventualbuddha/lines-and-columns,MIT,,,,Copyright (c) 2015 Brian Donovan,
 ,linkifyjs,,,2.1.9,https://github.com/SoapBox/linkifyjs,MIT,,,,Copyright (c) 2018 SoapBox Innovations Inc.,
 ,lodash-es,,,4.17.21,https://github.com/lodash/lodash,MIT,,,,Copyright OpenJS Foundation and other contributors <https://openjsf.org/>,
@@ -315,9 +353,11 @@ Copyright npm, Inc.",
 ,memoizerific,,,1.11.3,https://github.com/thinkloop/memoizerific,MIT,,,,Copyright (c) 2016 Baz,
 ,micro-memoize,,,4.0.9,https://github.com/planttheidea/micro-memoize,MIT,,,,Copyright (c) 2018 Tony Quetano,
 ,moize,,,6.1.0,https://github.com/planttheidea/moize,MIT,,,,Copyright (c) 2016 Tony Quetano,
+,moize,,,6.1.3,https://github.com/planttheidea/moize,MIT,,,,Copyright (c) 2016 Tony Quetano,
 ,monaco-editor,,,0.10.0,https://github.com/Microsoft/monaco-editor,MIT,,,,Copyright (c) 2016 Microsoft Corporation,
 ,mousetrap,,,1.6.1,https://github.com/ccampbell/mousetrap,Apache-2.0,,,,,
 ,ms,,,2.1.2,https://github.com/zeit/ms,MIT,,,,"Copyright (c) 2016 Zeit, Inc.",
+,msw,,,1.2.0,https://github.com/mswjs/msw,MIT,,,,Copyright (c) 2018–present Artem Zakharchenko,
 ,mumath,,,3.3.4,https://github.com/dfcreative/mumath,Unlicense,,,,,
 ,nanoclone,,,0.2.1,https://github.com/kelin2025/nanoclone,MIT,,,,Copyright (c) 2017 Anton Kosykh,
 ,nanoid,,,3.3.4,https://github.com/ai/nanoid,MIT,,,,Copyright 2017 Andrey Sitnik <andrey@sitnik.ru>,
@@ -344,6 +384,8 @@ Copyright npm, Inc.",
 ,prismjs,,,1.28.0,https://github.com/PrismJS/prism,MIT,,,,Copyright (c) 2012 Lea Verou,
 ,promise,,,7.3.1,https://github.com/then/promise,MIT,,,,Copyright (c) 2014 Forbes Lindesay,
 ,prop-types-extra,,,1.1.0,https://github.com/react-bootstrap/prop-types-extra,MIT,,,,Copyright (c) 2015 react-bootstrap,
+,prop-types,,,15.5.10,https://github.com/reactjs/prop-types,BSD-3-Clause,,,,"Copyright (c) 2013-present, Facebook, Inc.
+All rights reserved.",
 ,prop-types,,,15.5.8,https://github.com/reactjs/prop-types,BSD-3-Clause,,,,"Copyright (c) 2013-present, Facebook, Inc.
 All rights reserved.",
 ,prop-types,,,15.7.2,https://github.com/facebook/prop-types,MIT,,,,"Copyright (c) 2013-present, Facebook, Inc.",
@@ -386,6 +428,8 @@ Copyright (c) 2017 Evgeny Poberezkin",
 ,react-gtm-module,,,2.0.11,https://github.com/alinemorelli/react-gtm,MIT,,,,Copyright (c) 2016 HolidayCheck,
 ,react-hook-form,,,7.34.0,https://github.com/react-hook-form/react-hook-form,MIT,,,,Copyright (c) 2019-present Beier(Bill) Luo,
 ,react-immutable-proptypes,,,2.1.0,https://github.com/HurricaneJames/react-immutable-proptypes,MIT,,,,Copyright (c) 2015 James Burnett,
+,react-intl,,,2.9.0,https://github.com/yahoo/react-intl,BSD-3-Clause,,,,"Copyright 2014 Yahoo Inc.
+All rights reserved.",
 ,react-intl,,,5.20.10,https://github.com/formatjs/formatjs,BSD-3-Clause,,,,"Copyright 2019 Oath Inc.
 All rights reserved.",
 ,react-is,,,16.13.1,https://github.com/facebook/react,MIT,,,,,
@@ -418,6 +462,9 @@ Copyright (c) Remix Software 2020-2022",
 ,react-transition-group,,,4.4.2,https://github.com/reactjs/react-transition-group,BSD-3-Clause,,,,"Copyright (c) 2018, React Community
 Forked from React (https://github.com/facebook/react) Copyright 2013-present, Facebook, Inc.
 All rights reserved.",
+,react-transition-group,,,4.4.5,https://github.com/reactjs/react-transition-group,BSD-3-Clause,,,,"Copyright (c) 2018, React Community
+Forked from React (https://github.com/facebook/react) Copyright 2013-present, Facebook, Inc.
+All rights reserved.",
 ,react-virtualized-tree,,,3.4.1,https://github.com/diogofcunha/react-virtualized-tree,MIT,,,,Copyright (c) 2018 Diogo Cunha,
 ,react-virtualized,,,9.22.3,https://github.com/bvaughn/react-virtualized,MIT,,,,Copyright (c) 2015 Brian Vaughn,
 ,react,,,18.2.0,https://github.com/facebook/react,MIT,,,,,
@@ -439,6 +486,7 @@ All rights reserved.",
 ,reselect,,,4.0.0,https://github.com/reduxjs/reselect,MIT,,,,Copyright (c) 2015-2018 Reselect Contributors,
 ,resolve-from,,,4.0.0,https://github.com/sindresorhus/resolve-from,MIT,,,,,
 ,resolve,,,1.20.0,https://github.com/browserify/resolve,MIT,,,,Copyright (c) 2012 James Halliday,
+,rxjs,,,7.5.5,https://github.com/reactivex/rxjs,Apache-2.0,,,,"Copyright (c) 2015-2018 Google, Inc., Netflix, Inc., Microsoft Corp. and contributors",
 ,safe-buffer,,,5.1.1,https://github.com/feross/safe-buffer,MIT,,,,,
 ,safe-buffer,,,5.2.1,https://github.com/feross/safe-buffer,MIT,,,,,
 ,safer-buffer,,,2.1.2,https://github.com/ChALkeR/safer-buffer,MIT,,,,Copyright (c) 2018 Nikita Skovoroda <chalkerx@gmail.com>,
@@ -449,8 +497,10 @@ All rights reserved.",
 ,shallowequal,,,1.1.0,https://github.com/dashed/shallowequal,MIT,,,,Copyright (c) 2017 Alberto Leal <mailforalberto@gmail.com> (github.com/dashed),
 ,side-channel,,,1.0.4,https://github.com/ljharb/side-channel,MIT,,,,Copyright (c) 2019 Jordan Harband,
 ,simplemde,,,1.11.2,https://github.com/NextStepWebs/simplemde-markdown-editor,MIT,,,,"Copyright (c) 2015 Next Step Webs, Inc.",
-,smart-resource,,,0.3.6,https://github.com/erictooth/smart-resource,Apache-2.0,,,,,
-,solid-js,,,1.4.8,https://github.com/solidjs/solid,MIT,,,,Copyright (c) 2016-2019 Ryan Carniato,
+,smart-icon,,,1.4.3,,Apache-2.0,,,,,
+,smart-resource,,,0.3.8,https://github.com/erictooth/smart-resource,Apache-2.0,,,,,
+,smart-resource,,,1.0.0,https://github.com/erictooth/smart-resource,Apache-2.0,,,,,
+,solid-js,,,1.6.2,https://github.com/solidjs/solid,MIT,,,,Copyright (c) 2016-2019 Ryan Carniato,
 ,source-map,,,0.5.7,https://github.com/mozilla/source-map,BSD-3-Clause,,,,"Copyright (c) 2009-2011, Mozilla Foundation and contributors
 All rights reserved.",
 ,space-separated-tokens,,,1.1.5,https://github.com/wooorm/space-separated-tokens,MIT,,,,Copyright (c) 2016 Titus Wormer <tituswormer@gmail.com>,
@@ -505,6 +555,7 @@ sell copies of the Software, and to permit persons to whom the Software is
 furnished to do so, subject to the following conditions:",
 ,uuid,,,2.0.3,https://github.com/defunctzombie/node-uuid,MIT,,,,"Copyright (c) 2010-2012 Robert Kieffer
 MIT License - http://opensource.org/licenses/mit-license.php",
+,uuid,,,8.3.2,https://github.com/uuidjs/uuid,MIT,,,,Copyright (c) 2010-2020 Robert Kieffer and other contributors,
 ,warning,,,3.0.0,https://github.com/BerkeleyTrue/warning,BSD-3-Clause,,,,"Copyright (c) 2013-2015, Facebook, Inc.
 All rights reserved.",
 ,warning,,,4.0.3,https://github.com/BerkeleyTrue/warning,MIT,,,,"Copyright (c) 2013-present, Facebook, Inc.",

@@ -49,6 +49,7 @@ public class SystemTableManagerImpl implements SystemTableManager {
     this.tablesProvider = tablesProvider;
   }
 
+  @Override
   public void streamData(SysFlightTicket ticket, ServerStreamListener listener) throws Exception {
     if (tablesProvider.get().containsKey(TABLES.fromString(ticket.getDatasetName()))) {
       tablesProvider.get().get(TABLES.fromString(ticket.getDatasetName()))
@@ -58,6 +59,7 @@ public class SystemTableManagerImpl implements SystemTableManager {
     }
   }
 
+  @Override
   public void listSchemas(StreamListener<FlightInfo> listener) {
     for(TABLES t : TABLES.values()) {
       try {
@@ -73,6 +75,7 @@ public class SystemTableManagerImpl implements SystemTableManager {
     listener.onCompleted();
   }
 
+  @Override
   public Schema getSchema(String datasetName) {
     if (tablesProvider.get().containsKey(TABLES.fromString(datasetName))) {
       return tablesProvider.get().get(TABLES.fromString(datasetName)).getSchema();
@@ -82,6 +85,7 @@ public class SystemTableManagerImpl implements SystemTableManager {
     return null;
   }
 
+  @Override
   @VisibleForTesting
   public void setRecordBatchSize(int recordBatchSize) {
     this.recordBatchSize = recordBatchSize;

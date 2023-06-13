@@ -419,6 +419,7 @@ public abstract class PartitionerTemplate implements Partitioner {
       throw new UnsupportedOperationException();
     }
 
+    @Override
     public void close(){
       vectorContainer.close();
     }

@@ -43,6 +43,11 @@ public class FlattenCrel extends FlattenRelBase implements CopyToCluster {
   }
 
   @Override
+  public FlattenRelBase copy(List<RelNode> inputs, List<RexInputRef> toFlatten) {
+    return new FlattenCrel(getCluster(), getTraitSet(), sole(inputs), toFlatten, numProjectsPushed);
+  }
+
+  @Override
   public RelNode copyWith(CopyWithCluster copier) {
     final RelNode input = getInput().accept(copier);
     return new FlattenCrel(

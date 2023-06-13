@@ -18,7 +18,6 @@ package com.dremio.exec.catalog;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Supplier;
 
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.hadoop.conf.Configuration;
@@ -38,7 +37,6 @@ import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.users.SystemUser;
 
 public interface MutablePlugin extends StoragePlugin {
 
@@ -68,12 +66,6 @@ public interface MutablePlugin extends StoragePlugin {
                      SchemaConfig schemaConfig,
                      RollbackOption rollbackOption,
                      TableMutationOptions tableMutationOptions);
-
-  void vacuumTable(NamespaceKey tableSchemaPath,
-                   DatasetConfig datasetConfig,
-                   SchemaConfig schemaConfig,
-                   VacuumOption vacuumOption,
-                   TableMutationOptions tableMutationOptions);
 
   boolean createOrUpdateView(NamespaceKey tableSchemaPath,
                              SchemaConfig schemaConfig,
@@ -166,23 +158,4 @@ public interface MutablePlugin extends StoragePlugin {
   default Configuration getFsConfCopy() {
     throw new UnsupportedOperationException("getFsConfCopy is not Implemented");
   }
-
-  /**
-   * This provides the supplier of fs which is created in dremio class loader
-   * @param path Path for which hadoop file system is being created
-   * @param conf Configuration for creating hadoop file system
-   * @return Supplier of hadoopFs
-   */
-  default Supplier<org.apache.hadoop.fs.FileSystem> getHadoopFsSupplier(String path,  Iterable<Map.Entry<String, String>> conf) {
-    return getHadoopFsSupplier(path, conf, SystemUser.SYSTEM_USERNAME);
-  }
-
-  /**
-   * This provides the supplier of fs which is created in dremio class loader
-   * @param path Path for which hadoop file system is being created
-   * @param conf Configuration for creating hadoop file system
-   * @param queryUser query user using which file System will be created
-   * @return Supplier of hadoopFs
-   */
-   Supplier<org.apache.hadoop.fs.FileSystem> getHadoopFsSupplier(String path, Iterable<Map.Entry<String, String>> conf, String queryUser);
 }

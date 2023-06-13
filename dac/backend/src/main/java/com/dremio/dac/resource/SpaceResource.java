@@ -18,15 +18,12 @@ package com.dremio.dac.resource;
 import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.SPACE;
 
 import java.security.AccessControlException;
-import java.util.ConcurrentModificationException;
 import java.util.List;
 
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
-import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
-import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
@@ -43,19 +40,20 @@ import com.dremio.dac.explore.model.Dataset;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.DatasetResourcePath;
 import com.dremio.dac.explore.model.DatasetVersionResourcePath;
+import com.dremio.dac.model.common.ResourcePath;
 import com.dremio.dac.model.namespace.NamespaceTree;
 import com.dremio.dac.model.spaces.Space;
 import com.dremio.dac.model.spaces.SpaceName;
 import com.dremio.dac.model.spaces.SpacePath;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
-import com.dremio.dac.server.GenericErrorMessage;
 import com.dremio.dac.service.collaboration.CollaborationHelper;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
-import com.dremio.dac.service.errors.ClientErrorException;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.errors.FileNotFoundException;
+import com.dremio.dac.service.errors.NotSupportedException;
 import com.dremio.dac.service.errors.SpaceNotFoundException;
-import com.dremio.dac.util.ResourceUtil;
+import com.dremio.exec.catalog.CatalogFeatures;
+import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.BoundedDatasetCount;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceNotFoundException;
@@ -79,18 +77,21 @@ public class SpaceResource {
   private final CollaborationHelper collaborationService;
   private final SpaceName spaceName;
   private final SpacePath spacePath;
+  private final OptionManager optionManager;
 
   @Inject
   public SpaceResource(
       NamespaceService namespaceService,
       DatasetVersionMutator datasetService,
       CollaborationHelper collaborationService,
-      @PathParam("spaceName") SpaceName spaceName) {
+      @PathParam("spaceName") SpaceName spaceName,
+      OptionManager optionManager) {
     this.namespaceService = namespaceService;
     this.datasetService = datasetService;
     this.collaborationService = collaborationService;
     this.spaceName = spaceName;
     this.spacePath = new SpacePath(spaceName);
+    this.optionManager = optionManager;
   }
 
   protected Space newSpace(SpaceConfig spaceConfig, NamespaceTree contents, int datasetCount) throws Exception {
@@ -101,6 +102,8 @@ public class SpaceResource {
   @Produces(MediaType.APPLICATION_JSON)
   public Space getSpace(@QueryParam("includeContents") @DefaultValue("true") boolean includeContents)
       throws Exception {
+    throwIfNotSupported();
+
     try {
       final SpaceConfig config = namespaceService.getSpace(spacePath.toNamespaceKey());
       final int datasetCount = namespaceService.getDatasetCount(spacePath.toNamespaceKey(), BoundedDatasetCount.SEARCH_TIME_LIMIT_MS, BoundedDatasetCount.COUNT_LIMIT_TO_STOP_SEARCH).getCount();
@@ -117,39 +120,13 @@ public class SpaceResource {
     }
   }
 
-  @DELETE
-  @Produces(MediaType.APPLICATION_JSON)
-  @Deprecated
-  public void deleteSpace(@QueryParam("version") String version) throws NamespaceException, SpaceNotFoundException, UserException {
-    if (version == null) {
-      throw new ClientErrorException(GenericErrorMessage.MISSING_VERSION_PARAM_MSG);
-    }
-
-    try {
-      namespaceService.deleteSpace(spacePath.toNamespaceKey(), version);
-    } catch (NamespaceNotFoundException nfe) {
-      throw new SpaceNotFoundException(spacePath.getSpaceName().getName(), nfe);
-    } catch (ConcurrentModificationException e) {
-      throw ResourceUtil.correctBadVersionErrorMessage(e, "space", spaceName.getName());
-    }
-  }
-
-  @POST
-  @Path("/rename")
-  @Produces(MediaType.APPLICATION_JSON)
-  @Deprecated // UI does not allow to rename a space
-  public Space renameSpace(@QueryParam("renameTo") String renameTo)
-    throws NamespaceException, SpaceNotFoundException {
-    throw UserException.unsupportedError()
-        .message("Renaming a space is not supported")
-        .build(logger);
-  }
-
   @GET
   @Path("dataset/{path: .*}")
   @Produces(MediaType.APPLICATION_JSON)
   public Dataset getDataset(@PathParam("path") String path)
-    throws NamespaceException, FileNotFoundException, DatasetNotFoundException {
+    throws NamespaceException, FileNotFoundException, DatasetNotFoundException, NotSupportedException {
+    throwIfNotSupported();
+
     DatasetPath datasetPath = DatasetPath.fromURLPath(spaceName, path);
     final DatasetConfig datasetConfig = namespaceService.getDataset(datasetPath.toNamespaceKey());
     final VirtualDatasetUI vds = datasetService.get(datasetPath, datasetConfig.getVirtualDataset().getVersion());
@@ -166,5 +143,16 @@ public class SpaceResource {
 
   protected NamespaceTree newNamespaceTree(List<NameSpaceContainer> children) throws DatasetNotFoundException, NamespaceException {
     return NamespaceTree.newInstance(datasetService, children, SPACE, collaborationService);
+  }
+
+  protected OptionManager getOptionManager() {
+    return optionManager;
+  }
+
+  protected void throwIfNotSupported() {
+    CatalogFeatures features = CatalogFeatures.get(optionManager);
+    if (!features.isFeatureEnabled(CatalogFeatures.Feature.SPACE)) {
+      throw new NotSupportedException(ResourcePath.defaultImpl("/space"));
+    }
   }
 }

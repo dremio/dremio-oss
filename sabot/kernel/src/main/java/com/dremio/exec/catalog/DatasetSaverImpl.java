@@ -46,7 +46,7 @@ import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.users.SystemUser;
 import com.google.common.base.Preconditions;
 
-import io.opentelemetry.extension.annotations.WithSpan;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.protostuff.ByteString;
 
 /**
@@ -195,7 +195,8 @@ public class DatasetSaverImpl implements DatasetSaver {
           if (uex.getMessage().contains(unsupportedPartitionListingError)) {
             logger.error("REFRESH DATASET query failed. Using old refresh mechanism", uex);
             return false;
-          } // else continue and throw error
+          }
+          // fall through and throw error
         default:
           throw UserException.refreshDatasetError(uex).message(firstLine(uex.getMessage())).build(logger);
       }

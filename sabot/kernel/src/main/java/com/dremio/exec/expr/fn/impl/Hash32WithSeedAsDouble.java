@@ -40,9 +40,11 @@ public class Hash32WithSeedAsDouble {
     @Output NullableIntHolder out;
 
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {
@@ -61,9 +63,11 @@ public class Hash32WithSeedAsDouble {
     @Output NullableIntHolder out;
 
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {
@@ -82,15 +86,16 @@ public class Hash32WithSeedAsDouble {
     @Output NullableIntHolder out;
 
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {
         out.value = seed.value;
-      }
-      else {
+      } else {
         out.value = com.dremio.common.expression.fn.impl.HashHelper.hash32((double) in.value, seed.value);
       }
     }
@@ -103,15 +108,16 @@ public class Hash32WithSeedAsDouble {
     @Output NullableIntHolder out;
 
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {
         out.value = seed.value;
-      }
-      else {
+      } else {
         out.value = com.dremio.common.expression.fn.impl.HashHelper.hash32((double) in.value, seed.value);
       }
     }

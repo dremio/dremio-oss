@@ -35,6 +35,7 @@ public class DrainableByteBufInputStream extends ByteBufInputStream implements D
     this.buf = buffer;
   }
 
+  @Override
   public int drainTo(OutputStream target) throws IOException {
     int size = this.buf.readableBytes();
     if (!ByteBufToStreamCopier.add(this.buf, target)) {
@@ -45,6 +46,7 @@ public class DrainableByteBufInputStream extends ByteBufInputStream implements D
     return size;
   }
 
+  @Override
   public void close() {
     if (!isClosed) {
       if (this.buf.refCnt() > 0) {

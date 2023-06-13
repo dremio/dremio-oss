@@ -17,6 +17,8 @@ package com.dremio.dac.explore.model;
 
 import java.util.Locale;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Strings;
@@ -48,11 +50,10 @@ public class VersionContextReq {
    * Case-insensitive enum conversion.
    * Returns null on most failures.
    */
-  public static VersionContextReq tryParse(String type, String value) {
+  public static @Nullable VersionContextReq tryParse(String type, String value) {
     if (Strings.isNullOrEmpty(type) || Strings.isNullOrEmpty(value)) {
       return null;
     }
-
     return new VersionContextReq(
       VersionContextType.valueOf(type.toUpperCase(Locale.ROOT)),
       value);

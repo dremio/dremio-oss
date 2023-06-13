@@ -26,6 +26,7 @@ function ArcticCatalogHomePage(props: any) {
         name: props.catalog?.name,
         id: props.arcticCatalogId,
         endpoint: getArcticProjectUrl(props.arcticCatalogId),
+        endpointV1: getArcticProjectUrl(props.arcticCatalogId, "v1"),
       }}
       isBareMinimumNessie
       baseUrl={PATHS.arcticCatalogBase({

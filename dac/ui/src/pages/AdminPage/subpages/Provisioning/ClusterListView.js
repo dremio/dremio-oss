@@ -18,8 +18,9 @@ import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import Immutable from "immutable";
 import { get } from "lodash/object";
+import clsx from "clsx";
 
-import StatefulTableViewer from "@app/components/StatefulTableViewer";
+import { StoreSubscriber } from "./StoreSubscriber";
 import { getViewState } from "@app/selectors/resources";
 
 import { page, pageContent } from "uiTheme/radium/general";
@@ -35,6 +36,8 @@ import {
 } from "@app/pages/AdminPage/subpages/Provisioning/provisioningUtils";
 import { CLUSTER_STATE } from "@app/constants/provisioningPage/provisioningConstants";
 import { DEFAULT_ENGINE_FILTER_SELECTIONS } from "dyn-load/constants/provisioningPage/provisioningConstants";
+import { Table } from "leantable/react";
+import { getSortedTableData } from "@app/components/Table/TableUtils";
 
 export const VIEW_ID = "ClusterListView";
 export const STATUS_VIEW_ID = "ClusterListViewStatus";
@@ -55,6 +58,10 @@ export class ClusterListView extends Component {
     //connected
     viewState: PropTypes.instanceOf(Immutable.Map),
     statusViewState: PropTypes.instanceOf(Immutable.Map),
+    enginesTable: PropTypes.any,
+    sortedColumns: PropTypes.any,
+    scrolledDirections: PropTypes.any,
+    scrollContainerRef: PropTypes.any,
   };
 
   static defaultProps = {
@@ -146,7 +153,25 @@ export class ClusterListView extends Component {
   getEngines = () => {
     const engines = this.props.provisions;
     const filters = get(this.state, "filterState.filters");
-    return getFilteredEngines(engines, filters);
+    const filteredEngines = getFilteredEngines(engines, filters);
+
+    const sort = Array.from(this.props.sortedColumns)[0];
+    if (sort) {
+      const sortDirection =
+        sort?.[1] === "ascending"
+          ? "ASC"
+          : sort?.[1] === "descending"
+          ? "DESC"
+          : undefined;
+      const sortedFilteredEngines = getSortedTableData(
+        filteredEngines,
+        sort?.[0],
+        sortDirection
+      );
+      return sortedFilteredEngines;
+    }
+
+    return filteredEngines;
   };
 
   getTableData = () => {
@@ -154,11 +179,43 @@ export class ClusterListView extends Component {
     return engines.map((engine) => this.getEngineData(engine, engines.size));
   };
 
+  onRowClick = (engineId) => {
+    this.props.selectEngine(engineId);
+  };
+
+  getRow = (rowIndex) => {
+    const engines = this.getEngines();
+    let eng = {};
+    engines.map((engine, index) => {
+      if (rowIndex === index) {
+        eng = engine;
+      }
+    });
+    const engineId = eng.get("id");
+    return {
+      id: engineId,
+      data: eng,
+    };
+  };
+
   render() {
     // provisions are sorted in selectors/provision
-    const { viewState } = this.props;
-    const columns = this.getTableColumns();
+    const {
+      statusViewState,
+      enginesTable,
+      scrolledDirections,
+      scrollContainerRef,
+      sortedColumns,
+    } = this.props;
     const tableData = this.getTableData();
+
+    const sort = Array.from(sortedColumns)[0];
+    const columns = this.getTableColumns({
+      numEngines: tableData.size,
+      statusViewState: statusViewState,
+      onRowClick: this.onRowClick,
+      sort: sort,
+    });
 
     return (
       <div id="admin-engines" style={page}>
@@ -169,17 +226,22 @@ export class ClusterListView extends Component {
             style={{ flexShrink: 0 }}
           />
         </>
-        <div style={pageContent}>
-          <StatefulTableViewer
-            virtualized
-            viewState={viewState}
-            tableData={tableData}
+        <div
+          className={clsx({
+            "dremio-scrolled-container--left": scrolledDirections.has("left"),
+          })}
+          style={{
+            width: "calc(100vw - 388px)",
+            ...pageContent,
+          }}
+          ref={scrollContainerRef}
+        >
+          <Table
+            {...enginesTable}
+            className="leantable--fixed-header"
+            rowCount={tableData.size}
+            getRow={this.getRow}
             columns={columns}
-            scrollableTable
-            fixedColumnCount={2}
-            defaultSortDirection="ASC"
-            onClick={this.props.selectEngine}
-            onClickId={"engine"}
           />
         </div>
       </div>
@@ -194,4 +256,4 @@ function mapStateToProps(state) {
   };
 }
 
-export default connect(mapStateToProps)(ClusterListView);
+export default connect(mapStateToProps)(StoreSubscriber(ClusterListView));

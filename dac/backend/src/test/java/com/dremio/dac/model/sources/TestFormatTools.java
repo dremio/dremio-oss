@@ -48,7 +48,7 @@ import ch.qos.logback.classic.Level;
  * Test FormatTools via REST api explored by {@SourceResource}
  */
 public class TestFormatTools extends BaseTestServer {
-  private static ch.qos.logback.classic.Logger rootLogger = ((ch.qos.logback.classic.Logger)org.slf4j.LoggerFactory.getLogger("com.dremio"));
+  private static final ch.qos.logback.classic.Logger rootLogger = ((ch.qos.logback.classic.Logger)org.slf4j.LoggerFactory.getLogger("com.dremio"));
   private static Level originalLogLevel;
 
   @BeforeClass

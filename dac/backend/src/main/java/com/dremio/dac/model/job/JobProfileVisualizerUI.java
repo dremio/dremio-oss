@@ -320,12 +320,14 @@ public class JobProfileVisualizerUI {
   }
 
   Comparator<UserBitShared.MinorFragmentProfile> minorIdComparator = new Comparator<UserBitShared.MinorFragmentProfile>() {
+    @Override
     public int compare(final UserBitShared.MinorFragmentProfile o1, final UserBitShared.MinorFragmentProfile o2) {
       return Long.compare(o1.getMinorFragmentId(), o2.getMinorFragmentId());
     }
   };
 
   Comparator<UserBitShared.OperatorProfile> operatorIdComparator = new Comparator<UserBitShared.OperatorProfile>() {
+    @Override
     public int compare(final UserBitShared.OperatorProfile o1, final UserBitShared.OperatorProfile o2) {
       return Long.compare(o1.getOperatorId(), o2.getOperatorId());
     }

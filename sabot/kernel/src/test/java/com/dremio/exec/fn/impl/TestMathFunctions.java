@@ -49,7 +49,8 @@ public class TestMathFunctions extends BaseTestFunction {
         Assert.fail();
       } catch (Exception exception) {
         Assert.assertEquals("divide by zero",
-          exception.getCause().getCause().getMessage());      }
+          exception.getCause().getCause().getMessage());
+      }
       try {
         testFunctions(new Object[][]{
           {"c0/c1", 1.1d, 0.0d, Double.NaN}

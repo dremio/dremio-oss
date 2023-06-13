@@ -88,6 +88,7 @@ public class SingleMergeExchangePrel extends ExchangePrel {
     return new SingleMergeExchangePrel(getCluster(), traitSet, sole(inputs), collation);
   }
 
+  @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
     Prel child = (Prel) this.getInput();
 

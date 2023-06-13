@@ -53,6 +53,7 @@ public class ITHiveOrcMetadataRefresh extends ITHiveRefreshDatasetMetadataRefres
       .go();
   }
 
+  @Override
   @Test
   @Ignore // Test is not valid for ORC format
   public void testFailTableOptionQuery() throws Exception {

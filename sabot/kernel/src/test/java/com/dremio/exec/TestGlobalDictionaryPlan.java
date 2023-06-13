@@ -62,14 +62,17 @@ public class TestGlobalDictionaryPlan extends PlanTestBase {
     testNoResult("CREATE TABLE dfs_test.places AS SELECT * FROM cp.\"places.json\"");
     final Configuration conf = new Configuration();
     codec = CodecFactory.createDirectCodecFactory(conf, new ParquetDirectByteBufferAllocator(testAllocator), 0);
+    try {
+      fs = HadoopFileSystem.getLocal(conf);
 
-    fs = HadoopFileSystem.getLocal(conf);
+      tableDirPath1 = Path.of(getDfsTestTmpSchemaLocation() + "/globaldictionary");
+      GlobalDictionaryBuilder.createGlobalDictionaries(codec, fs, tableDirPath1, testAllocator);
 
-    tableDirPath1 = Path.of(getDfsTestTmpSchemaLocation() + "/globaldictionary");
-    GlobalDictionaryBuilder.createGlobalDictionaries(codec, fs, tableDirPath1, testAllocator);
-
-    tableDirPath2 = Path.of(getDfsTestTmpSchemaLocation() + "/places");
-    GlobalDictionaryBuilder.createGlobalDictionaries(codec, fs, tableDirPath2, testAllocator);
+      tableDirPath2 = Path.of(getDfsTestTmpSchemaLocation() + "/places");
+      GlobalDictionaryBuilder.createGlobalDictionaries(codec, fs, tableDirPath2, testAllocator);
+    } finally {
+      codec.release();
+    }
   }
 
   @AfterClass

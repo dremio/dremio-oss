@@ -15,31 +15,16 @@
  */
 package com.dremio.exec.planner.sql;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
-import com.dremio.exec.ExecConstants;
-import com.dremio.options.OptionValue;
 
 /**
- * Test OPTIMIZE TABLE
+ * Test OPTIMIZE TABLE scenarios
  */
 public class ITOptimizeTable extends BaseTestQuery {
   // Defining SOURCE such that you can easily copy and paste the same test across other test variations
   private static final String SOURCE = TEMP_SCHEMA_HADOOP;
-
-  @BeforeClass
-  public static void setUp() throws Exception {
-    getSabotContext().getOptionManager().setOption(OptionValue.createBoolean(
-      OptionValue.OptionType.SYSTEM, ExecConstants.ENABLE_ICEBERG_OPTIMIZE.getOptionName(), true));
-  }
-
-  @AfterClass
-  public static void tearDown() throws Exception {
-    getSabotContext().getOptionManager().setOption(ExecConstants.ENABLE_ICEBERG_OPTIMIZE.getDefault());
-  }
 
   @Test
   public void testOnUnPartitioned() throws Exception {
@@ -52,7 +37,7 @@ public class ITOptimizeTable extends BaseTestQuery {
   }
 
   @Test
-  public void testOnUnpartitionedMinInputFilesCriteria() throws Exception {
+  public void testOnUnPartitionedMinInputFilesCriteria() throws Exception {
     OptimizeTests.testOnUnpartitionedMinInputFilesCriteria(SOURCE, allocator);
   }
 
@@ -94,5 +79,60 @@ public class ITOptimizeTable extends BaseTestQuery {
   @Test
   public void testEvolvedPartitions() throws Exception {
     OptimizeTests.testEvolvedPartitions(SOURCE, allocator);
+  }
+
+  @Test
+  public void testOptimizeDataOnlyUnPartitioned() throws Exception {
+    OptimizeTests.testOptimizeDataFilesUnPartitioned(SOURCE, allocator);
+  }
+
+  @Test
+  public void testOptimizeDataOnlyPartitioned() throws Exception {
+    OptimizeTests.testOptimizeDataOnPartitioned(SOURCE, allocator);
+  }
+
+  @Test
+  public void testOptimizeManifestsOnlyUnPartitioned() throws Exception {
+    OptimizeTests.testOptimizeManifestsOnlyUnPartitioned(SOURCE, allocator);
+  }
+
+  @Test
+  public void testOptimizeManifestsOnlyPartitioned() throws Exception {
+    OptimizeTests.testOptimizeManifestsOnlyPartitioned(SOURCE, allocator);
+  }
+
+  @Test
+  public void testOptimizeLargeManifests() throws Exception {
+    OptimizeTests.testOptimizeLargeManifests(SOURCE, allocator);
+  }
+
+  @Test
+  public void testOptimizeManifestsModesIsolations() throws Exception {
+    OptimizeTests.testOptimizeManifestsModesIsolations(SOURCE, allocator);
+  }
+
+  @Test
+  public void testOptimizeManifestsWithOptimalSize() throws Exception {
+    OptimizeTests.testOptimizeManifestsWithOptimalSize(SOURCE, allocator);
+  }
+
+  @Test
+  public void testOptimizeOnEmptyTableNoSnapshots() throws Exception {
+    OptimizeTests.testOptimizeOnEmptyTableNoSnapshots(SOURCE, allocator);
+  }
+
+  @Test
+  public void testOptimizeOnEmptyTableHollowSnapshot() throws Exception {
+    OptimizeTests.testOptimizeOnEmptyTableHollowSnapshot(SOURCE, allocator);
+  }
+
+  @Test
+  public void testOptimizeNoopOnResidualDataManifests() throws Exception {
+    OptimizeTests.testOptimizeNoopOnResidualDataManifests(SOURCE, allocator);
+  }
+
+  @Test
+  public void testRewriteManifestsForEvolvedPartitionSpec() throws Exception {
+    OptimizeTests.testRewriteManifestsForEvolvedPartitionSpec(SOURCE, allocator);
   }
 }

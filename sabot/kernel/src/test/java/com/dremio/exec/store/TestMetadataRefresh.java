@@ -28,8 +28,10 @@ import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.exec.catalog.CatalogServiceImpl;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.dfs.InternalFileConf;
 import com.dremio.service.namespace.source.proto.SourceConfig;
+import com.dremio.test.UserExceptionAssert;
 
 public class TestMetadataRefresh extends BaseTestQuery {
 
@@ -45,7 +47,9 @@ public class TestMetadataRefresh extends BaseTestQuery {
       "ALTER TABLE tbl REFRESH METADATA FOR FILES ()",
       "ALTER TABLE tbl REFRESH METADATA FOR FILES LAZY UPDATE"};
     for (String q : queries) {
-      errorMsgTestHelper(q, "Failure parsing the query.");
+      UserExceptionAssert
+        .assertThatThrownBy(() -> test(q))
+        .hasErrorType(UserBitShared.DremioPBError.ErrorType.PARSE);
     }
   }
 
@@ -215,7 +219,7 @@ public class TestMetadataRefresh extends BaseTestQuery {
       fail("Source should be unavailable.");
     } catch (Exception e) {
       assertTrue(e.getMessage()
-          .contains(String.format(" '%s' not found", name)));
+          .contains(String.format(" '%s.blue.metadata_refresh' not found", name)));
     }
 
     // AUTO PROMOTION, data source should be promoted and Table metadata should be refreshed

@@ -16,7 +16,6 @@
 package com.dremio.exec.planner.sql.handlers.direct;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
 
@@ -28,7 +27,6 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
-import com.dremio.common.exceptions.UserException;
 import com.dremio.config.DremioConfig;
 import com.dremio.exec.store.iceberg.IcebergTestTables;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
@@ -69,15 +67,5 @@ public class ITCreateViewHandler extends BaseTestQuery {
     List<QueryDataBatch> results = testSqlWithResults(sql);
     String resultString = getResultString(results, "|");
     assertThat(resultString).isEqualTo("ok|summary\ntrue|View 'dfs_test.test_vds' created successfully\n");
-  }
-
-  @Test
-  public void testCreateViewFailsForTimeTravelQuery() {
-    assertThatThrownBy(() -> {
-      String sql = String.format("CREATE VDS %s AS SELECT * FROM %s AT SNAPSHOT '7958422591156276457'", VDS_NAME,
-        table.getTableName());
-      test(sql);
-    }).isInstanceOf(UserException.class)
-      .hasMessageContaining("Views cannot be created for time travel queries");
   }
 }

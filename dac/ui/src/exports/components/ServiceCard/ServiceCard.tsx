@@ -15,7 +15,7 @@
  */
 
 import { type FunctionComponent } from "react";
-import { Card } from "dremio-ui-lib/dist-esm";
+import { Card } from "dremio-ui-lib/components";
 import classes from "./ServiceCard.less";
 import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
 

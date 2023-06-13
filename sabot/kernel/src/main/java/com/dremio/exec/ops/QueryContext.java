@@ -162,17 +162,18 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
     final SabotContext sabotContext,
     QueryId queryId
   ) {
-    this(session, sabotContext, queryId, Optional.empty());
+    this(session, sabotContext, queryId, Optional.empty(), Optional.empty());
   }
 
   public QueryContext(
       final UserSession session,
       final SabotContext sabotContext,
       QueryId queryId,
-      Optional<Boolean> checkMetadataValidity
+      Optional<Boolean> checkMetadataValidity,
+      Optional<Boolean> neverPromote
   ) {
     this(session, sabotContext, queryId, null, Long.MAX_VALUE, Predicates.alwaysTrue(),
-        checkMetadataValidity);
+        checkMetadataValidity, neverPromote);
   }
 
   public QueryContext(
@@ -183,7 +184,7 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
       long maxAllocation,
       Predicate<DatasetConfig> datasetValidityChecker
   ) {
-    this(session, sabotContext, queryId, priority, maxAllocation, datasetValidityChecker, Optional.empty());
+    this(session, sabotContext, queryId, priority, maxAllocation, datasetValidityChecker, Optional.empty(), Optional.empty());
   }
 
   public QueryContext(
@@ -195,7 +196,7 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
     Predicate<DatasetConfig> datasetValidityChecker,
     PlanCache planCache
   ) {
-    this(session, sabotContext, queryId, priority, maxAllocation, datasetValidityChecker, Optional.empty());
+    this(session, sabotContext, queryId, priority, maxAllocation, datasetValidityChecker, Optional.empty(), Optional.empty());
     this.planCache = planCache;
   }
 
@@ -206,7 +207,9 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
       QueryPriority priority,
       long maxAllocation,
       Predicate<DatasetConfig> datasetValidityChecker,
-      Optional<Boolean> checkMetadataValidity
+      Optional<Boolean> checkMetadataValidity,
+      Optional<Boolean> neverPromote
+
   ) {
     this.sabotContext = sabotContext;
     this.session = session;
@@ -249,10 +252,17 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
         .setDatasetValidityChecker(datasetValidityChecker)
         .build();
 
+    // Using caching namespace for query planning.  The lifecycle of the cache is associated with the life cycle of
+    // the Catalog.
     final ImmutableMetadataRequestOptions.Builder requestOptions = MetadataRequestOptions.newBuilder()
         .setSchemaConfig(schemaConfig)
-        .setSourceVersionMapping(CaseInsensitiveMap.newImmutableMap(session.getSourceVersionMapping()));
+        .setSourceVersionMapping(CaseInsensitiveMap.newImmutableMap(session.getSourceVersionMapping()))
+        .setUseCachingNamespace(true);
     checkMetadataValidity.ifPresent(requestOptions::setCheckValidity);
+    neverPromote.ifPresent(requestOptions::setNeverPromote);
+    if (priority != null && priority.getWorkloadType() == WorkloadType.ACCELERATOR) {
+      requestOptions.setErrorOnUnspecifiedSourceVersion(true);
+    }
     this.catalog = sabotContext.getCatalogService()
         .getCatalog(requestOptions.build());
     this.substitutionProviderFactory = sabotContext.getConfig()
@@ -342,6 +352,7 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
   /**
    * Get the OptionManager for this context.
    */
+  @Override
   public OptionManager getOptions() {
     return optionManager;
   }
@@ -550,7 +561,7 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
   }
 
   @Override
-  public Pair<Long, Long> getSurvivingRowCountWithPruneFilter(ScanRelBase scan, PruneFilterCondition pruneCondition) {
+  public Pair<Long, Long> getSurvivingRowCountWithPruneFilter(ScanRelBase scan, PruneFilterCondition pruneCondition) throws Exception {
     if (pruneCondition != null && getPlannerSettings().getOptions().getOption(ENABLE_PARTITION_STATS_USAGE)) {
       List<String> table = scan.getTableMetadata().getName().getPathComponents();
       if (!survivingRowCountsWithPruneFilter.containsKey(table)) {

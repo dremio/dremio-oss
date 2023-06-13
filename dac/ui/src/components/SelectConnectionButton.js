@@ -16,11 +16,11 @@
 import { Component } from "react";
 import PropTypes from "prop-types";
 import classNames from "clsx";
+import { Button } from "dremio-ui-lib/components";
 import SourceIcon from "components/Icon/SourceIcon";
 import {
   buttonBase,
   buttonDisabled,
-  buttonClickable,
   connectionLabel,
   pill,
   pillBeta,
@@ -57,22 +57,18 @@ export default class SelectConnectionButton extends Component {
     const buttonClass = classNames({
       [buttonBase]: true,
       [buttonDisabled]: disabled,
-      [buttonClickable]: !disabled,
     });
     return (
-      <button
+      <Button
+        variant="tertiary"
         disabled={disabled}
         className={buttonClass}
-        onClick={
-          !disabled
-            ? () => {
-                onClick();
-                if (sampleSource) {
-                  sonarEvents.sourceAddComplete();
-                }
-              }
-            : undefined
-        }
+        onClick={() => {
+          onClick();
+          if (sampleSource) {
+            sonarEvents.sourceAddComplete();
+          }
+        }}
         data-qa={dremioIcon}
       >
         <div className={iconContainer}>
@@ -90,7 +86,7 @@ export default class SelectConnectionButton extends Component {
             {pillText}
           </div>
         )}
-      </button>
+      </Button>
     );
   }
 }
@@ -98,8 +94,8 @@ export default class SelectConnectionButton extends Component {
 const styles = {
   iconStyle: {
     margin: 0,
-    width: 33,
-    height: 33,
+    width: 40,
+    height: 40,
     display: "flex",
   },
 };

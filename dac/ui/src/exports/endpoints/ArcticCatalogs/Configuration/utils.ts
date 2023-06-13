@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-import { APIV2Call } from "@app/core/APICall";
+import { APIV3Call } from "@app/core/APICall";
 
-export const getCatalogConfigurationUrl = (catalogId: string) => {
-  return new APIV2Call()
+export const getEngineConfigurationUrl = (catalogId: string) => {
+  return new APIV3Call()
     .projectScope(false)
-    .paths(`arctic/catalogs/${catalogId}/config`)
+    .paths(`arctic/catalogs/${catalogId}/engine`)
     .toString();
 };

@@ -96,7 +96,7 @@ public class TestSerializerRoundtrip {
 
   @Test
   public void testQueries() {
-    new GoldenFileTestBuilder<String, Output>(TestSerializerRoundtrip::executeTest)
+    GoldenFileTestBuilder.<String, Output>create(TestSerializerRoundtrip::executeTest)
       .add("SELECT", "select a,b,c from t1")
       .add("SELECT AS", "select T.a as A, T.b as B, T.c as C from t1 as T")
       .add("SELECT DISTINCT", "select distinct a from t1 where b > 10")
@@ -133,7 +133,7 @@ public class TestSerializerRoundtrip {
 
   @Test
   public void testColumnAliases() {
-    new GoldenFileTestBuilder<String, Output>(TestSerializerRoundtrip::executeTest)
+    GoldenFileTestBuilder.<String, Output>create(TestSerializerRoundtrip::executeTest)
       .add("SELECT", "SELECT ename as employee_name, LOWER(employee_name) as lower_employee_name FROM emp")
       // This fails since the alias extender only does one layer of unaliasing
       //.add("Double aliasing", "SELECT ename as employee_name, LOWER(employee_name) as lower_employee_name, UPPER(lower_employee_name) as upper_employee_name FROM emp")
@@ -145,7 +145,7 @@ public class TestSerializerRoundtrip {
 
   @Test
   public void testQualify() {
-    new GoldenFileTestBuilder<String, Output>(TestSerializerRoundtrip::executeTest)
+    GoldenFileTestBuilder.<String, Output>create(TestSerializerRoundtrip::executeTest)
         .add("QUALIFY WITHOUT REFERENCES", "SELECT empno, ename, deptno FROM emp QUALIFY ROW_NUMBER() over (partition by ename order by deptno) = 1")
         .add("QUALIFY WITHOUT REFERENCES AND FILTER", "SELECT empno, ename, deptno FROM emp WHERE deptno > 5 QUALIFY ROW_NUMBER() over (partition by ename order by deptno) = 1")
         .add("QUALIFY WITH REFERENCES", "SELECT empno, ename, deptno, ROW_NUMBER() over (partition by ename order by deptno) as row_num FROM emp QUALIFY row_num = 1")
@@ -168,7 +168,7 @@ public class TestSerializerRoundtrip {
 
   @Test
   public void testSqlFunction() {
-    new GoldenFileTestBuilder<String, Output>(TestSerializerRoundtrip::executeTest)
+    GoldenFileTestBuilder.<String, Output>create(TestSerializerRoundtrip::executeTest)
       .add("ROUND", "SELECT ROUND(CAST(9.9 AS DECIMAL(2,1)))FROM (VALUES (1)) AS t(a)")
       .add("TRUNCATE", "SELECT TRUNCATE(CAST(9.9 AS DECIMAL(2,1))) FROM (VALUES (1)) AS t(a)")
       .add("MEDAIN", "SELECT MEDIAN(A) OVER (PARTITION BY b) FROM (VALUES(1, 2)) AS t(a, b)")
@@ -179,7 +179,7 @@ public class TestSerializerRoundtrip {
 
   @Test
   public void testSqlToRelConvertTests() {
-    new GoldenFileTestBuilder<String, Output>(TestSerializerRoundtrip::executeTest)
+    GoldenFileTestBuilder.<String, Output>create(TestSerializerRoundtrip::executeTest)
       .allowExceptions()
       .add(
         "Integer Literal",
@@ -997,8 +997,8 @@ public class TestSerializerRoundtrip {
 
   @Test
   public void testTpchQueries() throws URISyntaxException, IOException {
-    GoldenFileTestBuilder<MultiLineString, Output> builder =
-        new GoldenFileTestBuilder<MultiLineString, Output>(TestSerializerRoundtrip::executeTest)
+    GoldenFileTestBuilder<MultiLineString, Output, MultiLineString> builder =
+        GoldenFileTestBuilder.<MultiLineString, Output>create(TestSerializerRoundtrip::executeTest)
           .allowExceptions();
 
     for (Path path : getQueryFilePaths()) {

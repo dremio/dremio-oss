@@ -23,11 +23,11 @@ import com.dremio.service.userpreferences.proto.UserPreferenceProto;
 /**
  * Class PreferenceData
  */
-public class PreferenceData {
+public final class PreferenceData {
   private final UserPreferenceProto.PreferenceType preferenceType;
   private final List<Entity> entities;
 
-  public PreferenceData(UserPreferenceProto.PreferenceType preferenceType, List<Entity> entities) {
+  public PreferenceData(final UserPreferenceProto.PreferenceType preferenceType, final List<Entity> entities) {
     this.preferenceType = preferenceType;
     this.entities = entities;
   }

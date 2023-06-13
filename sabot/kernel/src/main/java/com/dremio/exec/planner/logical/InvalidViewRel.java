@@ -137,7 +137,7 @@ public final class InvalidViewRel extends SingleRel implements SelfFlatteningRel
               }
               currVersionContext = VersionContext.ofBranch(resolvedVersionContext.getRefName());
               viewOptions = new ViewOptions.ViewOptionsBuilder()
-                .viewUpdate(true)
+                .actionType(ViewOptions.ActionType.UPDATE_VIEW)
                 .version(resolvedVersionContext)
                 .batchSchema(CalciteArrowHelper.fromCalciteRowType(rowType))
                 .build();

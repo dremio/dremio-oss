@@ -852,6 +852,7 @@ public class EvaluationVisitor {
       return null;
     }
 
+    @Override
     public HoldingContainer visitQuotedStringConstant(QuotedString e, ClassGenerator<?> generator)
       throws RuntimeException {
       CompleteType completeType = CompleteType.VARCHAR;

@@ -77,16 +77,20 @@ public class Soundex {
 
       final byte[] outBytea;
       if (in.end <= in.start || in.isSet == 0) {
-        out.buffer = buffer = buffer.reallocIfNeeded(0);
-        out.start = out.end = 0;
+        buffer = buffer.reallocIfNeeded(0);
+        out.buffer = buffer;
+        out.start = 0;
+        out.end = 0;
         out.isSet = 1;
       } else {
         String text = com.dremio.exec.expr.fn.impl.StringFunctionUtil.soundexCleanUtf8(in, errCtx);
 
         int len = text.length();
         if (len == 0) {
-          out.buffer = buffer = buffer.reallocIfNeeded(0);
-          out.start = out.end = 0;
+          buffer = buffer.reallocIfNeeded(0);
+          out.buffer = buffer;
+          out.start = 0;
+          out.end = 0;
           out.isSet = 0;
         } else {
           byte[] soundex = new byte[len];
@@ -136,7 +140,8 @@ public class Soundex {
           }
 
           outBytea = new String(ret).getBytes(java.nio.charset.StandardCharsets.UTF_8);
-          out.buffer = buffer = buffer.reallocIfNeeded(outBytea.length);
+          buffer = buffer.reallocIfNeeded(outBytea.length);
+          out.buffer = buffer;
           out.buffer.setBytes(0, outBytea);
           out.start = 0;
           out.end = outBytea.length;

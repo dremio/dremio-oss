@@ -24,6 +24,7 @@ import static com.dremio.exec.util.VectorUtil.getVectorFromSchemaPath;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -75,10 +76,12 @@ public class PathGeneratingManifestEntryProcessor implements ManifestEntryProces
 
   private static final Set<String> BASE_OUTPUT_FIELDS =
     Stream.concat(
+      Stream.concat(
         Stream.concat(
           SystemSchemas.ICEBERG_MANIFEST_SCAN_SCHEMA.getFields().stream(),
           SystemSchemas.ICEBERG_DELETE_MANIFEST_SCAN_SCHEMA.getFields().stream()),
-        Stream.of(SystemSchemas.ICEBERG_METADATA_FIELD))
+          SystemSchemas.CARRY_FORWARD_FILE_PATH_TYPE_SCHEMA.getFields().stream()) ,
+          Stream.of(SystemSchemas.ICEBERG_METADATA_FIELD))
       .map(f -> f.getName().toLowerCase())
       .collect(Collectors.toSet());
 
@@ -88,6 +91,7 @@ public class PathGeneratingManifestEntryProcessor implements ManifestEntryProces
   private final Map<Field, ValueVector> columnStatsVectorMap = new HashMap<>();
   private final ManifestContent manifestContent;
 
+  private byte[] colIdMapRaw;
   private Map<String, Integer> colToIDMap;
   private VarBinaryVector inputColIds;
   private VarCharVector outputFilePath;
@@ -98,6 +102,7 @@ public class PathGeneratingManifestEntryProcessor implements ManifestEntryProces
   private VarBinaryVector outputPartitionInfo;
   private VarBinaryVector outputColIds;
   private StructVector outputDeleteFile;
+  private VarCharVector outputFileContent;
   private PartitionSpec icebergPartitionSpec;
   private Map<String, Integer> partColToKeyMap;
   private ArrowBuf tempBuf;
@@ -128,13 +133,13 @@ public class PathGeneratingManifestEntryProcessor implements ManifestEntryProces
     outputSequenceNumber = (BigIntVector) getVectorFromSchemaPath(outgoing, SystemSchemas.SEQUENCE_NUMBER);
     outputSpecId = (IntVector) getVectorFromSchemaPath(outgoing, SystemSchemas.PARTITION_SPEC_ID);
     outputPartitionKey = (VarBinaryVector) getVectorFromSchemaPath(outgoing, SystemSchemas.PARTITION_KEY);
+    outputFilePath = (VarCharVector) getVectorFromSchemaPath(outgoing, SystemSchemas.DATAFILE_PATH);
+    outputFileSize = (BigIntVector) getVectorFromSchemaPath(outgoing, SystemSchemas.FILE_SIZE);
+    outputPartitionInfo = (VarBinaryVector) getVectorFromSchemaPath(outgoing, SystemSchemas.PARTITION_INFO);
+    outputColIds = (VarBinaryVector) getVectorFromSchemaPath(outgoing, SystemSchemas.COL_IDS);
+    outputFileContent = (VarCharVector) getVectorFromSchemaPath(outgoing, SystemSchemas.FILE_CONTENT);
     // output columns vary between data and delete manifest scans
-    if (manifestContent == ManifestContent.DATA) {
-      outputFilePath = (VarCharVector) getVectorFromSchemaPath(outgoing, SystemSchemas.DATAFILE_PATH);
-      outputFileSize = (BigIntVector) getVectorFromSchemaPath(outgoing, SystemSchemas.FILE_SIZE);
-      outputPartitionInfo = (VarBinaryVector) getVectorFromSchemaPath(outgoing, SystemSchemas.PARTITION_INFO);
-      outputColIds = (VarBinaryVector) getVectorFromSchemaPath(outgoing, SystemSchemas.COL_IDS);
-    } else {
+    if (manifestContent == ManifestContent.DELETES) {
       outputDeleteFile = (StructVector) getVectorFromSchemaPath(outgoing, SystemSchemas.DELETE_FILE);
     }
 
@@ -150,9 +155,9 @@ public class PathGeneratingManifestEntryProcessor implements ManifestEntryProces
   }
 
   @Override
-  public void initialise(PartitionSpec partitionSpec) {
+  public void initialise(PartitionSpec partitionSpec, int row) {
     icebergPartitionSpec = partitionSpec;
-    colToIDMap = getColToIDMap();
+    setColIdMap(row);
     partColToKeyMap = new HashMap<>();
 
     for (int i = 0; i < icebergPartitionSpec.fields().size(); i++) {
@@ -160,6 +165,13 @@ public class PathGeneratingManifestEntryProcessor implements ManifestEntryProces
       if (partitionField.transform().isIdentity()) {
         partColToKeyMap.put(icebergPartitionSpec.schema().findField(partitionField.sourceId()).name().toLowerCase(), i);
       }
+    }
+  }
+
+  private void setColIdMap(int row) {
+    if (colToIDMap == null || colIdMapRaw == null) {
+      colToIDMap = getColToIDMap(row);
+      colIdMapRaw = inputColIds.get(row);
     }
   }
 
@@ -175,22 +187,25 @@ public class PathGeneratingManifestEntryProcessor implements ManifestEntryProces
     outputSequenceNumber.setSafe(startOutIndex, manifestEntry.sequenceNumber());
     outputSpecId.setSafe(startOutIndex, manifestEntry.file().specId());
     outputPartitionKey.setSafe(startOutIndex, serializePartitionKey(manifestEntry.file().partition()));
+    outputFilePath.setSafe(startOutIndex, path);
+    outputFileSize.setSafe(startOutIndex, manifestEntry.file().fileSizeInBytes());
+    outputColIds.setSafe(startOutIndex, colIdMapRaw);
+    IcebergFileType fileType = IcebergFileType.valueById(manifestEntry.file().content().id());
+    outputFileContent.setSafe(startOutIndex, fileType.name().getBytes(StandardCharsets.UTF_8));
 
     long version = PathUtils.getQueryParam(manifestEntry.file().path().toString(), FILE_VERSION, 0L, Long::parseLong);
-    if (manifestContent == ManifestContent.DATA) {
-      outputFilePath.setSafe(startOutIndex, path);
-      outputFileSize.setSafe(startOutIndex, manifestEntry.file().fileSizeInBytes());
-      outputColIds.setSafe(startOutIndex, inputColIds.get(0));
-      Schema fileSchema = icebergPartitionSpec.schema();
-      PartitionProtobuf.NormalizedPartitionInfo partitionInfo = ManifestEntryProcessorHelper.getDataFilePartitionInfo(
-        icebergPartitionSpec,
-        invalidColumnsForPruning,
-        fileSchema,
-        nameToFieldMap,
-        manifestEntry.file(),
-        version);
-      outputPartitionInfo.setSafe(startOutIndex, IcebergSerDe.serializeToByteArray(partitionInfo));
-    } else {
+    Schema fileSchema = icebergPartitionSpec.schema();
+    PartitionProtobuf.NormalizedPartitionInfo partitionInfo = ManifestEntryProcessorHelper.getDataFilePartitionInfo(
+      icebergPartitionSpec,
+      invalidColumnsForPruning,
+      fileSchema,
+      nameToFieldMap,
+      manifestEntry.file(),
+      version,
+      manifestEntry.sequenceNumber());
+    outputPartitionInfo.setSafe(startOutIndex, IcebergSerDe.serializeToByteArray(partitionInfo));
+
+    if (manifestContent == ManifestContent.DELETES) {
       NullableStructWriter structWriter = outputDeleteFile.getWriter();
       structWriter.setPosition(startOutIndex);
       structWriter.start();
@@ -251,12 +266,13 @@ public class PathGeneratingManifestEntryProcessor implements ManifestEntryProces
     return !doneWithCurrentEntry && maxOutputCount > 0;
   }
 
-  private Map<String, Integer> getColToIDMap() {
+  private Map<String, Integer> getColToIDMap(int row) {
     if (colToIDMap == null) {
       Preconditions.checkArgument(inputColIds.getValueCount() > 0);
       IcebergProtobuf.IcebergDatasetXAttr icebergDatasetXAttr;
       try {
-        icebergDatasetXAttr = LegacyProtobufSerializer.parseFrom(IcebergProtobuf.IcebergDatasetXAttr.PARSER, inputColIds.get(0));
+        icebergDatasetXAttr = LegacyProtobufSerializer.parseFrom(
+          IcebergProtobuf.IcebergDatasetXAttr.PARSER, inputColIds.get(row));
       } catch (InvalidProtocolBufferException ie) {
         throw new RuntimeException("Could not deserialize Iceberg dataset info", ie);
       } catch (Exception e) {
@@ -295,7 +311,7 @@ public class PathGeneratingManifestEntryProcessor implements ManifestEntryProces
       }
       Type fieldType = icebergField.type();
 
-      Object value;
+      Object value = null;
 
       switch (suffix) {
         case "min":
@@ -313,9 +329,15 @@ public class PathGeneratingManifestEntryProcessor implements ManifestEntryProces
           value = getValueFromByteBuffer(upperBound, fieldType);
           break;
         case "val":
-          Preconditions.checkArgument(partColToKeyMap.containsKey(colName), "partition column not found");
-          int partColPos = partColToKeyMap.get(colName);
-          value = currentFile.partition().get(partColPos, getPartitionColumnClass(icebergPartitionSpec, partColPos));
+          //For select, there will never be a case
+          // where partColToKeyMap doesn't have a colName.
+          // It always brings those data files which have identity partition details.
+          //In case of OPTIMIZE,
+          // it can fetch the data files which have non-identity partitions also where partition evolution has happened.
+          if (partColToKeyMap.containsKey(colName)) {
+            int partColPos = partColToKeyMap.get(colName);
+            value = currentFile.partition().get(partColPos, getPartitionColumnClass(icebergPartitionSpec, partColPos));
+          }
           break;
         default:
           throw new RuntimeException("unexpected suffix for column: " + fieldName);

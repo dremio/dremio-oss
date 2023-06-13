@@ -19,6 +19,8 @@ import java.util.regex.Pattern;
 
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlOrderBy;
+import org.apache.calcite.sql.SqlWith;
 
 import com.dremio.exec.expr.fn.impl.RegexpUtil;
 import com.dremio.exec.work.foreman.ForemanSetupException;
@@ -50,6 +52,21 @@ public class SqlNodeUtil {
     String str = ((SqlCharStringLiteral) node).toValue().trim();
     return Pattern.compile(RegexpUtil.sqlToRegexLike(str),
         Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.DOTALL);
+  }
+
+  public static String getQueryKind(SqlNode sqlNode) {
+    // A few of these need special handling!
+    if (sqlNode instanceof SqlOrderBy) {
+      sqlNode = ((SqlOrderBy) sqlNode).query;
+    } else if (sqlNode instanceof SqlWith) {
+      sqlNode = ((SqlWith) sqlNode).body;
+    }
+
+    if (sqlNode == null) {
+      return "unknown";
+    }
+
+    return sqlNode.getKind().lowerName;
   }
 
   // prevent instantiation

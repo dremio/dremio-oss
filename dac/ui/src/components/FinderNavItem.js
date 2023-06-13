@@ -39,6 +39,8 @@ import ResourcePin from "./ResourcePin";
 import EllipsedText from "./EllipsedText";
 
 import "./FinderNavItem.less";
+import { FeatureSwitch } from "@app/exports/components/FeatureSwitch/FeatureSwitch";
+import { CATALOG_ARS_ENABLED } from "@app/exports/flags/CATALOG_ARS_ENABLED";
 
 const mapStateToPropsV3 = (state, { entityId }) => {
   const type = getRootEntityTypeByIdV3(state, entityId);
@@ -78,7 +80,11 @@ export class FinderNavItemV3 extends PureComponent {
           style={{ marginRight: 5, width: "191px" }}
         />
         <ContainerDatasetCountV3 entityId={entityId} />
-        {entityId && <ResourcePin entityId={entityId} />}
+        <FeatureSwitch
+          flag={CATALOG_ARS_ENABLED}
+          renderEnabled={() => null}
+          renderDisabled={() => entityId && <ResourcePin entityId={entityId} />}
+        />
       </EntityLink>
     );
   }
@@ -208,7 +214,11 @@ class FinderNavItem extends Component {
                     count={numberOfDatasets}
                     isBounded={datasetCountBounded}
                   />
-                  {id && <ResourcePin entityId={id} />}
+                  <FeatureSwitch
+                    flag={CATALOG_ARS_ENABLED}
+                    renderEnabled={() => null}
+                    renderDisabled={() => id && <ResourcePin entityId={id} />}
+                  />
                 </>
               )}
             </EntityLink>

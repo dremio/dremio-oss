@@ -17,8 +17,6 @@ package com.dremio.test;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileAlreadyExistsException;
@@ -28,8 +26,10 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 
 import org.apache.commons.lang3.tuple.Pair;
@@ -37,6 +37,7 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.yaml.snakeyaml.LoaderOptions;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -67,37 +68,36 @@ import com.google.common.io.Resources;
 /**
  * Class generating golden files used for baseline / data-driven testing
  */
-public final class GoldenFileTestBuilder<I, O> {
+public final class GoldenFileTestBuilder<I, O, I_W> {
   private static final Logger LOGGER = LoggerFactory.getLogger(GoldenFileTestBuilder.class);
   private static final Path LICENSE_HEADER_PATH = Paths.get(Resources.getResource("goldenfiles/header.txt").getPath());
-  private static final ObjectMapper objectMapper = getObjectMapper();
+  private static final ObjectMapper objectMapper = createObjectMapper();
 
+  private final List<DescriptionAndInput<I>> descriptionAndInputs = new ArrayList<>();
   private final ThrowingFunction<I, O> executeTestFunction;
-  private final List<DescriptionAndInput<I>> descriptionAndInputs;
-  private boolean allowExceptions;
-  private boolean showFullStackTrace;
+  private Function<Throwable, String> exceptionSerializer;
+  private Function<I, I_W> inputSerializer;
+  private boolean allowUnorderedMatch;
 
-  public GoldenFileTestBuilder(ThrowingFunction<I, O> executeTestFunction) {
+  public <X, Y> GoldenFileTestBuilder(
+    ThrowingFunction<I, O> executeTestFunction,
+    Function<I, I_W> inputSerializer) {
     this.executeTestFunction = executeTestFunction;
-    this.descriptionAndInputs = new ArrayList<>();
+    this.inputSerializer = inputSerializer;
+    this.allowUnorderedMatch = false;
   }
 
-  public GoldenFileTestBuilder<I, O> allowExceptions() {
-    this.allowExceptions = true;
+  public GoldenFileTestBuilder<I, O, I_W> add(String description, I input) {
+    this.descriptionAndInputs.add(new DescriptionAndInput<I>(description, input, false));
     return this;
   }
 
-  public GoldenFileTestBuilder<I, O> showFullStackTrace() {
-    this.showFullStackTrace = true;
+  public GoldenFileTestBuilder<I, O, I_W> addButIgnore(String description, I input) {
+    this.descriptionAndInputs.add(new DescriptionAndInput<I>(description, input, true));
     return this;
   }
 
-  public GoldenFileTestBuilder<I, O> add(String description, I input) {
-    this.descriptionAndInputs.add(new DescriptionAndInput<I>(description, input));
-    return this;
-  }
-
-  public <T> GoldenFileTestBuilder<I, O> addListByRule(List<T> list, Function<T, Pair<String, I>> rule) {
+  public <T> GoldenFileTestBuilder<I, O, I_W> addListByRule(List<T> list, Function<T, Pair<String, I>> rule) {
     for (T item : list) {
       Pair<String, I> output = rule.apply(item);
       String description = output.getLeft();
@@ -108,40 +108,54 @@ public final class GoldenFileTestBuilder<I, O> {
     return this;
   }
 
+  public GoldenFileTestBuilder<I, O, I_W> setExceptionSerializer(Function<Throwable, String> exceptionSerializer) {
+    this.exceptionSerializer = exceptionSerializer;
+    return this;
+  }
+
+  public GoldenFileTestBuilder<I, O, I_W> allowExceptions() {
+    return setExceptionSerializer(GoldenFileTestBuilder::defaultExceptionSerializer);
+  }
+
+  public GoldenFileTestBuilder<I, O, I_W> allowUnorderedMatch() {
+    allowUnorderedMatch = true;
+    return this;
+  }
+
   public void runTests() {
     try {
       Preconditions.checkState(!descriptionAndInputs.isEmpty(), "No test cases found.");
       // Generate the Input and Output pairs
-      List<InputAndOutput<I, O>> actualInputAndOutputList = new ArrayList<>();
-      for (DescriptionAndInput<I> descriptionAndInput : this.descriptionAndInputs) {
-        InputAndOutput<I, O> inputAndOutput;
+      List<InputAndOutput<I_W, O>> actualInputAndOutputList = new ArrayList<>();
+      for (DescriptionAndInput<I> descriptionAndInput : descriptionAndInputs) {
+        InputAndOutput<I_W, O> inputAndOutput;
+        I_W inputForSerialization = inputSerializer.apply(descriptionAndInput.input);
+
         try {
           inputAndOutput = InputAndOutput.createSuccess(
               descriptionAndInput.description,
-              descriptionAndInput.input,
-              this.executeTestFunction.apply(descriptionAndInput.input));
+              inputForSerialization,
+              executeTestFunction.apply(descriptionAndInput.input));
         } catch (Throwable t) {
-          if (this.allowExceptions) {
-            inputAndOutput = InputAndOutput.createFailure(
-                descriptionAndInput.description,
-                descriptionAndInput.input,
-                t,
-                this.showFullStackTrace);
-          } else {
+          if (exceptionSerializer == null) {
             throw new RuntimeException(t);
           }
+
+          inputAndOutput = InputAndOutput.createFailure(
+              descriptionAndInput.description,
+              inputForSerialization,
+              t,
+              exceptionSerializer);
         }
 
         actualInputAndOutputList.add(inputAndOutput);
       }
 
-
-
       // Write the actual values, so user's can diff with the expected and overwrite the golden file if the change is acceptable.
       Path goldenFileActualPath = getGoldenFileActualPath();
       writeActualGoldenFile(goldenFileActualPath, actualInputAndOutputList);
 
-      List<InputAndOutput<I, O>> expectedInputAndOutputList = readExpectedFile();
+      List<InputAndOutput<I_W, O>> expectedInputAndOutputList = readExpectedFile();
 
       // Assert equality
       assertGoldenFilesAreEqual(expectedInputAndOutputList, actualInputAndOutputList);
@@ -150,40 +164,43 @@ public final class GoldenFileTestBuilder<I, O> {
     }
   }
 
-  private List<InputAndOutput<I, O>> readExpectedFile() {
+  private List<InputAndOutput<I_W, O>> readExpectedFile() {
     String path = goldenFileResource();
     try {
       return objectMapper.readValue(
           Resources.getResource(path),
-          new TypeReference<List<InputAndOutput<I, O>>>(){});
+          new TypeReference<List<InputAndOutput<I_W, O>>>(){});
     } catch(IllegalArgumentException|IOException ex) {
       LOGGER.error("Exception while read expected file", ex);
       return ImmutableList.of(); //Return empty list so file is generated for the first run.
     }
   }
 
-  public static String findFileName() {
-    Pair<String, String> callingClassAndMethod = GoldenFileTestBuilder.findCallingTestClassAndMethod();
-
+  public String findFileName() {
+    Pair<String, String> callingClassAndMethod = findCallingTestClassAndMethod();
     return callingClassAndMethod.getLeft() + "." + callingClassAndMethod.getRight();
   }
 
-  private static Pair<String, String> findCallingTestClassAndMethod() {
+  private Pair<String, String> findCallingTestClassAndMethod() {
     StackTraceElement[] stElements = Thread.currentThread().getStackTrace();
-    for (int i=1; i<stElements.length; i++) {
+    for (int i = 1; i < stElements.length; i++) {
       StackTraceElement ste = stElements[i];
-      if(ste.getClassName().equals(GoldenFileTestBuilder.class.getName())) {
+      if (ste.getClassName().equals(GoldenFileTestBuilder.class.getName())) {
         continue;
-      } else if(ste.getClassName().indexOf("java.lang.Thread") == 0) {
+      } else if (ste.getClassName().indexOf("java.lang.Thread") == 0) {
         continue;
       }
+
       try {
         Class<?> clazz = Class.forName(ste.getClassName());
-        for(Method method : clazz.getMethods()) {
-          if(method.getName().equals(ste.getMethodName())
+        for (Method method : clazz.getMethods()) {
+          if (method.getName().equals(ste.getMethodName())
             && method.getDeclaredAnnotation(Test.class) != null) {
             String[] classNamespaceTokens = ste.getClassName().split("\\.");
-            return Pair.of(classNamespaceTokens[classNamespaceTokens.length - 1], ste.getMethodName());
+            String testClassName = classNamespaceTokens[classNamespaceTokens.length - 1];
+            String methodName = ste.getMethodName();
+
+            return Pair.of(testClassName, methodName);
           }
         }
       } catch (ClassNotFoundException e) {
@@ -193,19 +210,19 @@ public final class GoldenFileTestBuilder<I, O> {
     throw new RuntimeException("No @Test method found");
   }
 
-  private static Path getGoldenFileActualPath() throws IOException {
+  private Path getGoldenFileActualPath() throws IOException {
     return Paths.get("target","goldenfiles", "actual", findFileName() + ".yaml");
   }
 
-  public static String goldenFileResource() {
+  public String goldenFileResource() {
     return "goldenfiles/expected/" + findFileName() + ".yaml";
   }
 
-  public static String inputFileResource() {
+  public String inputFileResource() {
     return "goldenfiles/input/" + findFileName() + ".yaml";
   }
 
-  private static String messageToFix() {
+  private String messageToFix() {
     try {
       String actualPath = getGoldenFileActualPath().toString();
       String goldenPath = "src/test/resources/" + goldenFileResource();
@@ -217,6 +234,10 @@ public final class GoldenFileTestBuilder<I, O> {
     } catch (IOException exception) {
       return null;
     }
+  }
+
+  public static <I, O> GoldenFileTestBuilder<I, O, I> create(ThrowingFunction<I, O> executeTestFunction) {
+    return new GoldenFileTestBuilder<>(executeTestFunction, i -> i);
   }
 
   private static <I, O> void writeActualGoldenFile(
@@ -245,39 +266,80 @@ public final class GoldenFileTestBuilder<I, O> {
     Files.write(goldenFileActualPath, fileContentWithLicence.getBytes(StandardCharsets.UTF_8));
   }
 
-  private static <I, O> void assertGoldenFilesAreEqual(
-    List<InputAndOutput<I, O>> expectedInputAndOutputList,
-    List<InputAndOutput<I, O>> actualInputAndOutputList) throws JsonProcessingException {
+  private void assertGoldenFilesAreEqual(
+    List<InputAndOutput<I_W, O>> expectedInputAndOutputList,
+    List<InputAndOutput<I_W, O>> actualInputAndOutputList) throws JsonProcessingException {
     String messageToFix = messageToFix();
     Assert.assertEquals(messageToFix, expectedInputAndOutputList.size(), actualInputAndOutputList.size());
 
     for (int i = 0; i < expectedInputAndOutputList.size(); i++) {
       InputAndOutput expectedInputAndOutput = expectedInputAndOutputList.get(i);
       InputAndOutput actualInputAndOutput = actualInputAndOutputList.get(i);
+      DescriptionAndInput<I> descriptionAndInput = descriptionAndInputs.get(i);
 
-      Assert.assertEquals(
-        "Descriptions differ,\n" + messageToFix,
-        expectedInputAndOutput.description,
-        actualInputAndOutput.description);
-      String expectedInputString = objectMapper.writeValueAsString(expectedInputAndOutput.input);
-      String actualInputString = objectMapper.writeValueAsString(actualInputAndOutput.input);
-      Assert.assertEquals(
-        "Inputs for baseline differ,\n" + messageToFix,
-        expectedInputString,
-        actualInputString);
+      if (!descriptionAndInput.ignore) {
+        Assert.assertEquals(
+          "Descriptions differ,\n" + messageToFix,
+          expectedInputAndOutput.description,
+          actualInputAndOutput.description);
+        String expectedInputString = objectMapper.writeValueAsString(expectedInputAndOutput.input);
+        String actualInputString = objectMapper.writeValueAsString(actualInputAndOutput.input);
+        Assert.assertEquals(
+          "Inputs for baseline differ,\n" + messageToFix,
+          expectedInputString,
+          actualInputString);
 
-      String expectedOutputString = objectMapper.writeValueAsString(expectedInputAndOutput.output);
-      String actualOutputString = objectMapper.writeValueAsString(actualInputAndOutput.output);
-      Assert.assertEquals(
-        "Outputs for baselines differ,\n" + messageToFix + " with input " + expectedInputString,
-        expectedOutputString,
-        actualOutputString);
+        Assert.assertEquals(
+          "Exception Message for baselines differ, \n" + messageToFix + " with input " + expectedInputString,
+          expectedInputAndOutput.exceptionMessage,
+          actualInputAndOutput.exceptionMessage);
 
-      Assert.assertEquals(
-        "Exceptions for baselines differ,\n" + messageToFix+ " with input " + expectedInputString,
-        expectedInputAndOutput.exceptionMessage,
-        actualInputAndOutput.exceptionMessage);
+        String expectedOutputString = objectMapper.writeValueAsString(expectedInputAndOutput.output);
+        String actualOutputString = objectMapper.writeValueAsString(actualInputAndOutput.output);
+        if (!expectedOutputString.equals(actualOutputString)) {
+          if (allowUnorderedMatch) {
+            if (!isPermutation(expectedInputString, actualInputString)) {
+              Assert.assertEquals(
+                "Outputs for baselines differ,\n" + messageToFix + " with input " + expectedInputString,
+                expectedOutputString,
+                actualOutputString);
+            }
+          } else {
+            Assert.assertEquals(
+              "Outputs for baselines differ,\n" + messageToFix + " with input " + expectedInputString,
+              expectedOutputString,
+              actualOutputString);
+          }
+        }
+
+        Assert.assertEquals(
+          "Exceptions for baselines differ,\n" + messageToFix+ " with input " + expectedInputString,
+          expectedInputAndOutput.exceptionMessage,
+          actualInputAndOutput.exceptionMessage);
+      }
     }
+  }
+
+  public static boolean isPermutation(String str1, String str2) {
+    if (str1.length() != str2.length()) {
+      return false;
+    }
+
+    Map<Character, Integer> map1 = new HashMap<>();
+    Map<Character, Integer> map2 = new HashMap<>();
+
+    for (int i = 0; i < str1.length(); i++) {
+      char c1 = str1.charAt(i);
+      char c2 = str2.charAt(i);
+      map1.put(c1, map1.getOrDefault(c1, 0) + 1);
+      map2.put(c2, map2.getOrDefault(c2, 0) + 1);
+    }
+
+    return map1.equals(map2);
+  }
+
+  private static String defaultExceptionSerializer(Throwable throwable) {
+    return throwable.getMessage();
   }
 
   @FunctionalInterface
@@ -288,13 +350,15 @@ public final class GoldenFileTestBuilder<I, O> {
   private static final class DescriptionAndInput<I> {
     private final String description;
     private final I input;
+    private final boolean ignore;
 
-    private DescriptionAndInput(String description, I input) {
+    private DescriptionAndInput(String description, I input, boolean ignore) {
       assert description != null;
       assert input != null;
 
       this.description = description;
       this.input = input;
+      this.ignore = ignore;
     }
   }
 
@@ -307,14 +371,14 @@ public final class GoldenFileTestBuilder<I, O> {
     public final O output;
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    public final String exceptionMessage;
+    public final MultiLineString exceptionMessage;
 
     @JsonCreator
     private InputAndOutput(
       @JsonProperty("description") String description,
       @JsonProperty("input") I input,
       @JsonProperty("output") O output,
-      @JsonProperty("exceptionMessage") String exceptionMessage) {
+      @JsonProperty("exceptionMessage") MultiLineString exceptionMessage) {
       this.description = description;
       this.input = input;
       this.output = output;
@@ -325,24 +389,16 @@ public final class GoldenFileTestBuilder<I, O> {
       return new InputAndOutput(description, input, output, null);
     }
 
-    public static <I, O> InputAndOutput createFailure(String description, I input, Throwable throwable, boolean showFullStackTrace) {
-      String exceptionMessage;
-      if (showFullStackTrace) {
-        StringWriter sw = new StringWriter();
-        PrintWriter pw = new PrintWriter(sw);
-        throwable.printStackTrace(pw);
-
-        exceptionMessage = sw.toString().replace("\t", "");
-      } else {
-        exceptionMessage = throwable.getMessage();
-
-      }
-
-      if(exceptionMessage == null) {
-        exceptionMessage = throwable.toString();
-      }
-
-      return new InputAndOutput(description, input, null, exceptionMessage);
+    public static <I, O> InputAndOutput createFailure(
+      String description, I input,
+      Throwable throwable,
+      Function<Throwable, String> exceptionSerializer) {
+      String exceptionMessage = exceptionSerializer.apply(throwable);
+      return new InputAndOutput(
+        description,
+        input,
+        null,
+        MultiLineString.create(exceptionMessage));
     }
   }
 
@@ -471,12 +527,16 @@ public final class GoldenFileTestBuilder<I, O> {
     }
   }
 
-  private static ObjectMapper getObjectMapper(){
+  private static ObjectMapper createObjectMapper(){
+    LoaderOptions loaderOptions = new LoaderOptions();
+    loaderOptions.setCodePointLimit(10 * 1024 * 1024); // Set loader option to load a file as large as 10 MB
     return new ObjectMapper(
-      new YAMLFactory()
+      YAMLFactory.builder()
+        .loaderOptions(loaderOptions)
         .disable(YAMLGenerator.Feature.SPLIT_LINES)
         .disable(YAMLGenerator.Feature.CANONICAL_OUTPUT)
-        .enable(YAMLGenerator.Feature.INDENT_ARRAYS))
+        .enable(YAMLGenerator.Feature.INDENT_ARRAYS)
+        .build())
       .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
       .enable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
       .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
@@ -505,7 +565,7 @@ public final class GoldenFileTestBuilder<I, O> {
       } else if (node.isArray()) {
         List<String> lines = new ArrayList<>();
         Iterator<JsonNode> iterator = node.iterator();
-        while(iterator.hasNext()) {
+        while (iterator.hasNext()) {
           JsonNode element = iterator.next();
           lines.add(element.asText());
         }

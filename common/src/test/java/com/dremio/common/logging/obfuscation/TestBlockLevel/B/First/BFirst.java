@@ -19,18 +19,15 @@ import java.util.List;
 
 import com.dremio.TestBlockLevel.TestBlockLevelLogging;
 
-import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 
 /**
  * class for testing custom log filtering
  */
 public class BFirst {
-
-  private static ch.qos.logback.classic.Logger logger = (Logger) org.slf4j.LoggerFactory.getLogger(BFirst.class);
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BFirst.class);
 
   public List<ILoggingEvent> testLogFiltering() {
     return TestBlockLevelLogging.testLogFilteringUtil(logger);
-
   }
 }

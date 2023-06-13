@@ -102,6 +102,7 @@ public class BaseGrpcChannelBuilderFactory implements GrpcChannelBuilderFactory 
     return newInProcessChannelBuilder(processName, defaultServiceConfigProvider.get());
   }
 
+  @Override
   public ManagedChannelBuilder<?> newInProcessChannelBuilder(String processName, Map<String, Object> defaultServiceConfigProvider) {
     final ManagedChannelBuilder<?> builder = InProcessChannelBuilder.forName(processName);
     addDefaultBuilderProperties(builder, defaultServiceConfigProvider);

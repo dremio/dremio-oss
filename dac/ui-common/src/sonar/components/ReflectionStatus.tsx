@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Spinner, Tooltip } from "dremio-ui-lib/dist-esm";
+import { Spinner, Tooltip } from "dremio-ui-lib/components";
 import { getIntlContext } from "../../contexts/IntlContext";
 
 const ICON_BASE = "/static/icons/dremio";

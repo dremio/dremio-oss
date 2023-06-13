@@ -24,7 +24,8 @@ import java.util.Map;
 public enum OperationType {
   ADD_DATAFILE(0),
   DELETE_DATAFILE(1),
-  ADD_MANIFESTFILE(2);
+  ADD_MANIFESTFILE(2),
+  DELETE_DELETEFILE(3);
 
   public final Integer value;
 

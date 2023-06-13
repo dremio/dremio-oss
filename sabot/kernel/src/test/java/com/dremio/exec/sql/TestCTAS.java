@@ -67,7 +67,6 @@ import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.iceberg.IcebergFormatMatcher;
 import com.dremio.exec.store.iceberg.SchemaConverter;
 import com.dremio.exec.store.iceberg.hadoop.IcebergHadoopModel;
-import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.exec.store.parquet.SingletonParquetFooterCache;
 import com.dremio.io.file.FileSystem;
@@ -681,7 +680,7 @@ public class TestCTAS extends PlanTestBase {
 
       FileSystemPlugin fileSystemPlugin = BaseTestQuery.getMockedFileSystemPlugin();
 
-      IcebergHadoopModel icebergHadoopModel = new IcebergHadoopModel(new Configuration(), fileSystemPlugin);
+      IcebergHadoopModel icebergHadoopModel = new IcebergHadoopModel(fileSystemPlugin);
       when(fileSystemPlugin.getIcebergModel()).thenReturn(icebergHadoopModel);
       Table table = icebergHadoopModel.getIcebergTable(icebergHadoopModel.getTableIdentifier(tableFolder.toString()));
       SchemaConverter schemaConverter = SchemaConverter.getBuilder().setTableName(table.name()).build();
@@ -897,8 +896,7 @@ public class TestCTAS extends PlanTestBase {
       final String createTableQuery = String.format("CREATE TABLE %s(id int, code int)", tblName);
       UserExceptionAssert.assertThatThrownBy(() -> test(createTableQuery))
         .hasMessageContaining(String.format("Invalid path. Given path, [%s] is not valid.", tblName));
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tblName));
     }
   }
@@ -934,13 +932,12 @@ public class TestCTAS extends PlanTestBase {
                       " AS SELECT n_nationkey, n_regionkey from cp.\"tpch/nation.parquet\" limit 1",
               TEMP_SCHEMA_HADOOP, newTblName);
       test(ctasQuery);
-      //Try with wrong (nessie) catalog
+      // Try with wrong catalog (TEMP_SCHEMA is configured to use Nessie catalog)
       File tableFolder = new File(getDfsTestTmpSchemaLocation(), newTblName);
-      IcebergModel icebergModel = getIcebergModel(tableFolder, IcebergCatalogType.NESSIE);
+      IcebergModel icebergModel = getIcebergModel(TEMP_SCHEMA);
       UserExceptionAssert.assertThatThrownBy(() -> icebergModel.getIcebergTable(icebergModel.getTableIdentifier(tableFolder.getPath())))
         .hasMessageContaining("Failed to load the Iceberg table.");
     }
-
   }
 
   @Test

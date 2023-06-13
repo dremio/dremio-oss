@@ -26,6 +26,7 @@ import {
   SET_QUERY_SELECTIONS,
   SET_PREVIOUS_MULTI_SQL,
   SET_SELECTED_SQL,
+  SET_CUSTOM_DEFAULT_SQL,
   SET_IS_MULTI_QUERY_RUNNING,
   SET_QUERY_TAB_NUMBER,
   RESET_QUERY_STATE,
@@ -77,6 +78,17 @@ const selectedSql = (state = null, { type, sql }) => {
       return sql === undefined ? null : sql;
     case RESET_QUERY_STATE:
       return "";
+    default:
+      return state;
+  }
+};
+
+const customDefaultSql = (state = null, { type, sql }) => {
+  switch (type) {
+    case SET_CUSTOM_DEFAULT_SQL:
+      return sql === undefined ? null : sql;
+    case RESET_QUERY_STATE:
+      return null;
     default:
       return state;
   }
@@ -183,6 +195,7 @@ export default combineReducers({
   currentSql,
   previousMultiSql,
   selectedSql,
+  customDefaultSql,
   updateSqlFromHistory,
   isMultiQueryRunning,
   sqlEditorFocusKey,

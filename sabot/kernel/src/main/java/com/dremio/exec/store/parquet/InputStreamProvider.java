@@ -87,4 +87,9 @@ public interface InputStreamProvider extends AutoCloseable {
    */
   void enableColumnIndices(List<ColumnChunkMetaData> selectedColumns) throws IOException;
 
+  default boolean isRowGroupFilteredForReading() {
+    return true;
+  }
+
+
 }

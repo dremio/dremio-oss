@@ -19,12 +19,14 @@ import org.apache.arrow.memory.ArrowBuf;
 
 public class IntDecimalComparator extends DecimalMixedEndianComparatorImpl {
 
+  @Override
   public int compare(ArrowBuf left, int startIndexLeft,
                      int valueLength, ArrowBuf right, int startIndexRight) {
     setCommonValues(left, startIndexLeft, right, startIndexRight);
     return compareInner(left, startIndexLeft, valueLength, right, startIndexRight);
   }
 
+  @Override
   protected int compareInner(ArrowBuf left, int startIndexLeft, int valueLength,
                              ArrowBuf right, int startIndexRight) {
     long leftValLow = left.getInt(startIndexLeft);

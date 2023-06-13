@@ -110,6 +110,7 @@ public class WebServer implements Service {
   private final SingletonRegistry registry;
   private final Provider<RestServerV2> restServerProvider;
   private final Provider<APIServer> apiServerProvider;
+  private final Provider<NessieProxyRestServer> nessieProxyResetServerV2;
   private final DremioServer server;
   private final DACConfig config;
   private final Provider<CredentialsService> credentialsServiceProvider;
@@ -123,6 +124,7 @@ public class WebServer implements Service {
       Provider<CredentialsService> credentialsServiceProvider,
       Provider<RestServerV2> restServer,
       Provider<APIServer> apiServer,
+      Provider<NessieProxyRestServer> nessieProxyResetServerV2,
       Provider<DremioServer> server,
       DremioBinder dremioBinder,
       String uiType,
@@ -132,6 +134,7 @@ public class WebServer implements Service {
     this.credentialsServiceProvider = credentialsServiceProvider;
     this.restServerProvider = restServer;
     this.apiServerProvider = apiServer;
+    this.nessieProxyResetServerV2 = nessieProxyResetServerV2;
     this.dremioBinder = dremioBinder;
     this.uiType = uiType;
     this.isInternalUS = isInternalUS;
@@ -196,6 +199,16 @@ public class WebServer implements Service {
     final ServletHolder apiHolder = new ServletHolder(new ServletContainer(apiServer));
     apiHolder.setInitOrder(3);
     servletContextHandler.addServlet(apiHolder, "/api/v3/*");
+
+    // Nessie Source REST API
+    ResourceConfig nessieProxyRestServerV2 = nessieProxyResetServerV2.get();
+
+    nessieProxyRestServerV2.register(dremioBinder);
+    nessieProxyRestServerV2.register((DynamicFeature) (resourceInfo, context) -> context.register(DremioServer.TracingFilter.class));
+
+    final ServletHolder proxyNessieRestHolder = new ServletHolder(new ServletContainer(nessieProxyRestServerV2));
+    proxyNessieRestHolder.setInitOrder(4);
+    servletContextHandler.addServlet(proxyNessieRestHolder, "/nessie-proxy/*");
   }
 
   public int getPort() {

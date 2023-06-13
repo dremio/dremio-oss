@@ -15,7 +15,7 @@
  */
 
 import { useState } from "react";
-import { FormattedMessage } from "react-intl";
+import { useIntl, FormattedMessage } from "react-intl";
 import NewBranchDialog from "@app/pages/NessieHomePage/components/NewBranchDialog/NewBranchDialog";
 // @ts-ignore
 import { Button, IconButton } from "dremio-ui-lib";
@@ -23,6 +23,7 @@ import { ArcticCatalogTabsType } from "@app/exports/pages/ArcticCatalog/ArcticCa
 import { Reference } from "@app/types/nessie";
 
 import * as classes from "./ArcticCommitDetailsHeader.module.less";
+import CopyButton from "@app/components/Buttons/CopyButton";
 
 type ArcticCommitDetailsHeaderProps = {
   commitId: string;
@@ -36,7 +37,7 @@ function ArcticCommitDetailsHeader({
   handleTabNavigation,
 }: ArcticCommitDetailsHeaderProps) {
   const [dialogState, setDialogState] = useState(false);
-
+  const { formatMessage } = useIntl();
   const closeDialog = () => {
     setDialogState(false);
   };
@@ -52,7 +53,16 @@ function ArcticCommitDetailsHeader({
             <dremio-icon name="interface/circled-arrow-left" />
           </IconButton>
           <span className={classes["commit-details-header__left--hash"]}>
-            {commitId}
+            {formatMessage(
+              { id: "ArcticCatalog.Commits.Commit.WithHash" },
+              { hash: commitId.substring(0, 8) }
+            )}
+          </span>
+          <span>
+            <CopyButton
+              text={commitId}
+              title={formatMessage({ id: "ArcticCatalog.Commits.CommitID.Copy" })}
+            />
           </span>
         </span>
         <span className={classes["commit-details-header__right"]}>

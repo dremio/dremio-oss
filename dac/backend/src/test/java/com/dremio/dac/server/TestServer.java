@@ -42,6 +42,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.Invocation;
@@ -64,7 +65,6 @@ import com.dremio.dac.daemon.TestSpacesStoragePlugin;
 import com.dremio.dac.explore.DatasetsResource;
 import com.dremio.dac.explore.model.Column;
 import com.dremio.dac.explore.model.CreateFromSQL;
-import com.dremio.dac.explore.model.DatasetDetails;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.DatasetSummary;
 import com.dremio.dac.explore.model.DatasetUI;
@@ -83,7 +83,6 @@ import com.dremio.dac.model.spaces.Home;
 import com.dremio.dac.model.spaces.Space;
 import com.dremio.dac.model.spaces.SpaceName;
 import com.dremio.dac.model.spaces.SpacePath;
-import com.dremio.dac.model.spaces.Spaces;
 import com.dremio.dac.model.usergroup.UserLogin;
 import com.dremio.dac.model.usergroup.UserLoginSession;
 import com.dremio.dac.proto.model.dataset.DataType;
@@ -200,7 +199,7 @@ public class TestServer extends BaseTestServer {
 
   @Test
   public void testValidSpace() throws Exception {
-    expectSuccess(getBuilder(getAPIv2().path("space/AB")).buildPut(Entity.json(new Space(null, "AB", null, null, null, 0, null))));
+    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "AB", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
   }
 
   @Test
@@ -246,10 +245,8 @@ public class TestServer extends BaseTestServer {
     final Space space2 = expectSuccess(getBuilder(getAPIv2().path("space/space2")).buildGet(), Space.class);
     assertEquals(config2.getName(), space2.getName());
 
-    final Space config3 = new Space(null, "space3", "dremio eng", null, null, 0, null);
-    final Space space3 = expectSuccess(getBuilder(getAPIv2().path("space/space3")).buildPut(Entity.json(config3)), Space.class);
+    final com.dremio.dac.api.Space space3 = expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space3", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
     assertEquals("space3", space3.getName());
-    assertEquals(config3.getDescription(), space3.getDescription());
 
     final UserService userService = l(UserService.class);
     User dt = SimpleUser.newBuilder().setUserName("user").setCreatedAt(System.currentTimeMillis()).
@@ -257,21 +254,13 @@ public class TestServer extends BaseTestServer {
     dt = userService.createUser(dt, "user1234");
     UserLoginSession uls = expectSuccess(getAPIv2().path("/login").request(JSON).buildPost(Entity.json(new UserLogin("user", "user1234"))), UserLoginSession.class);
 
-    final Space config4 = new Space(null, "space4", "different user space", null, null, 0, null);
-    final Space space4 = expectSuccess(getBuilder(getAPIv2().path("space/space4")).buildPut(Entity.json(config4)), Space.class);
+    final com.dremio.dac.api.Space space4 = expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "space4", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
     assertEquals("space4", space4.getName());
-    assertEquals(config4.getDescription(), space4.getDescription());
 
-    final Space config5 = new Space(null, "test1", "different space name", null, null, 0, null);
-    @SuppressWarnings("unused")
-    final Space space5 = expectSuccess(getBuilder(getAPIv2().path("space/test1")).buildPut(Entity.json(config5)), Space.class);
+    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "test1", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
 
-    final Space config6 = new Space(null, "test2", "different space name", null, null, 0, null);
-    @SuppressWarnings("unused")
-    final Space space6 = expectSuccess(getBuilder(getAPIv2().path("space/test2")).buildPut(Entity.json(config6)), Space.class);
+    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "test2", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
 
-    final Spaces spaces1 = expectSuccess(getBuilder(getAPIv2().path("spaces")).buildGet(), Spaces.class);
-    assertEquals(spaces1.toString(), 6, spaces1.getSpaces().size());
 
     final JobFilterItems spaces2 = expectSuccess(getBuilder(getAPIv2().path("jobs/filters/spaces").queryParam("filter", "test")).buildGet(), JobFilterItems.class);
     assertEquals(spaces2.toString(), 2, spaces2.getItems().size());
@@ -297,7 +286,9 @@ public class TestServer extends BaseTestServer {
         ).buildGet(),
         InitialPreviewResponse.class);
 
-      JobDataFragment dataA = previewResponseA.getData();
+      waitForJobComplete(previewResponseA.getJobId().getId());
+      final JobDataFragment dataA = getData(previewResponseA.getPaginationUrl(), 0, INITIAL_RESULTSET_SIZE);
+
       assertEquals(10, dataA.getReturnedRowCount());
       assertEquals(4, dataA.getColumns().size());
       assertEquals(asList(
@@ -318,7 +309,8 @@ public class TestServer extends BaseTestServer {
         ).buildGet(),
         InitialPreviewResponse.class);
 
-      final JobDataFragment dataB = previewResponseB.getData();
+      waitForJobComplete(previewResponseB.getJobId().getId());
+      final JobDataFragment dataB = getData(previewResponseB.getPaginationUrl(), 0, INITIAL_RESULTSET_SIZE);
 
       assertEquals(INITIAL_RESULTSET_SIZE, dataB.getReturnedRowCount());
       assertEquals(2, dataB.getColumns().size());
@@ -341,7 +333,7 @@ public class TestServer extends BaseTestServer {
   @Test
   public void testFolderOCC() throws Exception {
 
-    expectSuccess(getBuilder(getAPIv2().path("space/s1")).buildPut(Entity.json(new Space(null, "s1", null, null, null, 0, null))), Space.class);
+    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "s1", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
 
     String spaceResource = "space/s1/folder/f1";
     doc("create folder 1");
@@ -371,9 +363,10 @@ public class TestServer extends BaseTestServer {
   public void testFolder() throws Exception {
     // create spaces.
     doc("create spaces");
-    expectSuccess(getBuilder(getAPIv2().path("space/s1")).buildPut(Entity.json(new Space(null, "s1", null, null, null, 0, null))), Space.class);
-    expectSuccess(getBuilder(getAPIv2().path("space/s2")).buildPut(Entity.json(new Space(null, "s2", null, null, null, 0, null))), Space.class);
-    expectSuccess(getBuilder(getAPIv2().path("space/s3")).buildPut(Entity.json(new Space(null, "s3", null, null, null, 0, null))), Space.class);
+    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "s1", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
+    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "s2", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
+    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "s3", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
+
 
     doc("create folders");
     expectSuccess(getBuilder(getAPIv2().path("space/s1/folder/")).buildPost(Entity.json("{\"name\": \"f1\"}")), Folder.class);
@@ -470,26 +463,11 @@ public class TestServer extends BaseTestServer {
     assertEquals(1, lists3.getFolders().size());
 
     assertNull(expectSuccess(getBuilder(getAPIv2().path("space/s1").queryParam("includeContents", false)).buildGet(), Space.class).getContents());
-
-    /* Renames are disabled in beta1
-    expectSuccess(getBuilder(getAPIv2().path("space/s1/rename_folder/f1").queryParam("renameTo", "f1r")).buildPost(Entity.json(new FolderConfig())), Folder.class);
-    lists1f1 = expectSuccess(getBuilder(getAPIv2().path("space/s1/folder/f1r")).buildGet(), Folder.class).getContents();
-    assertEquals(2, lists1f1.getDatasets().size());
-    assertEquals(2, lists1f1.getFolders().size());
-    expectError(FamilyExpectation.CLIENT_ERROR, getBuilder(getAPIv2().path("space/s1/folder/f1")).buildGet(), NotFoundErrorMessage.class);
-
-    expectSuccess(getBuilder(getAPIv2().path("space/s1/rename").queryParam("renameTo", "s1r")).buildPost(Entity.json(new SpaceConfig())), Space.class);
-    lists1 = expectSuccess(getBuilder(getAPIv2().path("space/s1r")).buildGet(), Space.class).getContents();
-    assertEquals(1, lists1.getDatasets().size());
-    assertEquals(1, lists1.getFolders().size());
-
-    expectError(FamilyExpectation.CLIENT_ERROR, getBuilder(getAPIv2().path("space/s1")).buildGet(), NotFoundErrorMessage.class);
-    */
   }
 
   @Test
   public void testFolderParentNotFound() throws Exception {
-    expectSuccess(getBuilder(getAPIv2().path("space/s1")).buildPut(Entity.json(new Space(null, "s1", null, null, null, 0, null))), Space.class);
+    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "s1", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
     expectSuccess(getBuilder(getAPIv2().path("space/s1/folder/")).buildPost(Entity.json("{\"name\": \"f1\"}")), Folder.class);
 
     expectStatus(Status.BAD_REQUEST, getBuilder(getAPIv2().path("space/s1/folder/wrongfolder/")).buildPost(Entity.json("{\"name\": \"f1\"}")));
@@ -586,10 +564,6 @@ public class TestServer extends BaseTestServer {
     NamespaceTree nst = home.getContents();
     assertEquals(1, nst.getFolders().size());
 
-    doc("list all spaces");
-    final Spaces spaces = expectSuccess(getBuilder(getAPIv2().path("spaces")).buildGet(), Spaces.class);
-    assertEquals(1, spaces.getSpaces().size());
-
     doc("get space");
     final Space space1 = expectSuccess(getBuilder(getAPIv2().path("space/space1")).buildGet(), Space.class);
     assertEquals(2, space1.getDatasetCount());
@@ -612,6 +586,13 @@ public class TestServer extends BaseTestServer {
     assertEquals(0, (int)summary.getJobCount());
     assertEquals(3, summary.getFields().size());
     assertEquals(Arrays.asList("tag1", "tag2"), summary.getTags());
+    assertEquals(summary.getEntityId(), UUID.fromString(summary.getEntityId()).toString());
+    assertFalse(summary.getHasReflection());
+    assertEquals("dremio", summary.getOwnerName());
+    assertEquals("dremio@dremio.test", summary.getOwnerEmail());
+    assertEquals("dremio", summary.getLastModifyingUserName());
+    assertEquals("dremio@dremio.test", summary.getLastModifyingUserEmail());
+    assertTrue(summary.getCreatedAt() <= summary.getLastModified());
     doc("get dataset summary for virtual dataset DG.dsg4 with empty tags");
     summary = expectSuccess(getBuilder(getAPIv2().path("/datasets/summary/DG/dsg4")).buildGet(), DatasetSummary.class);
     assertEquals(new ArrayList<>(), summary.getTags());
@@ -622,6 +603,13 @@ public class TestServer extends BaseTestServer {
     assertEquals(0, (int) summary.getJobCount());
     assertEquals(3, summary.getFields().size());
     assertEquals(Arrays.asList("tag3", "tag4"), summary.getTags());
+    assertEquals(summary.getEntityId(), UUID.fromString(summary.getEntityId()).toString());
+    assertFalse(summary.getHasReflection());
+    assertEquals("dremio", summary.getOwnerName());
+    assertEquals("dremio@dremio.test", summary.getOwnerEmail());
+    assertEquals("dremio", summary.getLastModifyingUserName());
+    assertEquals("dremio@dremio.test", summary.getLastModifyingUserEmail());
+    assertTrue(summary.getCreatedAt() <= summary.getLastModified());
     doc("get dataset summary for physical dataset with empty tags");
     summary = expectSuccess(getBuilder(getAPIv2().path("/datasets/summary/LocalFS2/dac-sample2.json")).buildGet(), DatasetSummary.class);
     assertEquals(new ArrayList<>(), summary.getTags());
@@ -638,6 +626,13 @@ public class TestServer extends BaseTestServer {
     assertEquals(6, (int) summary.getDescendants());
     assertEquals(0, (int)summary.getJobCount());
     assertEquals(3, summary.getFields().size());
+    assertEquals(summary.getEntityId(), UUID.fromString(summary.getEntityId()).toString());
+    assertFalse(summary.getHasReflection());
+    assertEquals("dremio", summary.getOwnerName());
+    assertEquals("dremio@dremio.test", summary.getOwnerEmail());
+    assertEquals("dremio", summary.getLastModifyingUserName());
+    assertEquals("dremio@dremio.test", summary.getLastModifyingUserEmail());
+    assertTrue(summary.getCreatedAt() <= summary.getLastModified());
 
     references = new HashMap<>();
     references.put("DG", new VersionContextReq(VersionContextReq.VersionContextType.TAG, "tag"));
@@ -646,6 +641,13 @@ public class TestServer extends BaseTestServer {
     assertEquals(6, (int) summary.getDescendants());
     assertEquals(0, (int)summary.getJobCount());
     assertEquals(3, summary.getFields().size());
+    assertEquals(summary.getEntityId(), UUID.fromString(summary.getEntityId()).toString());
+    assertFalse(summary.getHasReflection());
+    assertEquals("dremio", summary.getOwnerName());
+    assertEquals("dremio@dremio.test", summary.getOwnerEmail());
+    assertEquals("dremio", summary.getLastModifyingUserName());
+    assertEquals("dremio@dremio.test", summary.getLastModifyingUserEmail());
+    assertTrue(summary.getCreatedAt() <= summary.getLastModified());
 
     references = new HashMap<>();
     references.put("DG", new VersionContextReq(VersionContextReq.VersionContextType.COMMIT, "d0628f078890fec234b98b873f9e1f3cd140988a"));
@@ -654,20 +656,17 @@ public class TestServer extends BaseTestServer {
     assertEquals(6, (int) summary.getDescendants());
     assertEquals(0, (int)summary.getJobCount());
     assertEquals(3, summary.getFields().size());
+    assertEquals(summary.getEntityId(), UUID.fromString(summary.getEntityId()).toString());
+    assertFalse(summary.getHasReflection());
+    assertEquals("dremio", summary.getOwnerName());
+    assertEquals("dremio@dremio.test", summary.getOwnerEmail());
+    assertEquals("dremio", summary.getLastModifyingUserName());
+    assertEquals("dremio@dremio.test", summary.getLastModifyingUserEmail());
+    assertTrue(summary.getCreatedAt() <= summary.getLastModified());
     assertThat(summary.getReferences()).usingRecursiveComparison().isEqualTo(references);
 
     webTarget = getAPIv2().path("/datasets/summary/DG/dsg3").queryParam("refType", "INVALID").queryParam("refValue", "invalid");
     expectStatus(Status.BAD_REQUEST, getBuilder(webTarget).buildGet());
-  }
-
-  @Test
-  public void testDatasetDetails() throws Exception {
-    populateInitialData();
-    doc("get dataset summary for virtual dataset DG.dsg3");
-    DatasetDetails details = expectSuccess(getBuilder(getAPIv2().path("/datasets/context/space/DG/dsg3")).buildGet(), DatasetDetails.class);
-    assertEquals(6, (int) details.getDescendants());
-    assertEquals(0, (int) details.getJobCount());
-    doc("get dataset summary for physical dataset");
   }
 
   @Test

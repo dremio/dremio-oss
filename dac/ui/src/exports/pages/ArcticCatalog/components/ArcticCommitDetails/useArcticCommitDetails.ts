@@ -23,11 +23,11 @@ export const useArcticCommitDetails = (
   commitId: string,
   branchName?: string
 ) => {
-  const { api } = useNessieContext();
+  const { apiV2 } = useNessieContext();
 
   const ArcticCommitDetailsResource = useRef(
     new SmartResource(({ name, hash }) =>
-      api.getCommitLog({
+      apiV2.getCommitLogV2({
         ref: name,
         filter: `commit.hash=='${hash}'`,
       })

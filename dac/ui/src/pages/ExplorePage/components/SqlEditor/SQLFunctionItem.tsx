@@ -13,24 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { useMemo } from "react";
-import { TagList } from "@app/pages/HomePage/components/TagList";
-import { IconButton } from "@app/../../ui-lib/dist-esm/IconButton";
-import { ExternalLink } from "@app/../../ui-lib/dist-esm/ExternalLink";
+import React from "react";
+import { ExternalLink, IconButton } from "dremio-ui-lib/components";
 import DragSource from "components/DragComponents/DragSource";
 import { intl } from "@app/utils/intl";
-import { ModifiedSQLFunction as SQLFunction } from "@app/endpoints/SQLFunctions/listSQLFunctions";
-import { Parameter, SampleCode } from "@app/types/sqlFunctions";
-import { FunctionCategoryLabels } from "@app/utils/sqlFunctionUtils";
+import { ModifiedSQLFunction } from "@app/endpoints/SQLFunctions/listSQLFunctions";
+import {
+  Parameter,
+  ParameterKindEnum,
+  SampleCode,
+} from "@app/types/sqlFunctions";
+import TextHighlight from "@app/components/TextHighlight";
+import { Tag } from "../TagsEditor/Tag";
 
 import * as classes from "./SQLFunctionItem.module.less";
 
 type SQLFunctionItemProps = {
-  sqlFunction: SQLFunction;
+  sqlFunction: ModifiedSQLFunction;
   addFuncToSqlEditor: (name: string, args?: string) => void;
   onRowClick: (key: string) => void;
   isActiveRow: boolean;
   dragType: string;
+  searchKey: string;
 };
 
 const SQLFunctionItem = ({
@@ -39,36 +43,19 @@ const SQLFunctionItem = ({
   onRowClick,
   isActiveRow,
   dragType,
+  searchKey,
 }: SQLFunctionItemProps) => {
-  const { name, signature, description, functionCategories, key } = sqlFunction;
   const {
-    parameters = [],
-    returnType,
-    snippetOverride,
-    sampleCodes = [],
-  } = signature;
-
-  const [functionLabel, functionSnippet, functionTags] = useMemo(() => {
-    let params = "";
-    if (parameters.length > 0) {
-      parameters.forEach((param: Parameter, idx: number) => {
-        params += `${param.type}${param?.name ? ` ${param.name}` : ""}${
-          idx !== parameters.length - 1 ? ", " : ""
-        }`;
-      });
-    }
-
-    let snippet = "($1)";
-    if (snippetOverride) {
-      // BE response snippet is `<name>()`, and monaco only reads `()`
-      snippet = snippetOverride.substring(name.length, snippetOverride.length);
-    }
-
-    const label = `${name}(${params}) → ${returnType}`;
-    const tags = functionCategories?.map((cat) => FunctionCategoryLabels[cat]);
-
-    return [label, snippet, tags];
-  }, [name, parameters, returnType, snippetOverride, functionCategories]);
+    name,
+    signature,
+    description,
+    key,
+    link,
+    tags: functionTags,
+    label: functionLabel,
+    snippet: functionSnippet,
+  } = sqlFunction;
+  const { parameters = [], sampleCodes = [] } = signature;
 
   return (
     <div
@@ -85,7 +72,10 @@ const SQLFunctionItem = ({
           key={key}
         >
           <span className={classes["function-item__header"]}>
-            <TagList tags={functionTags ?? []} />
+            <div className={classes["function-item__header__tags"]}>
+              {functionTags.length > 0 &&
+                functionTags.map((tag) => <Tag text={tag} title key={tag} />)}
+            </div>
             <IconButton
               tooltip={intl.formatMessage({ id: "Tooltip.SQL.Editor.Add" })}
               onClick={(e: any) => {
@@ -101,6 +91,11 @@ const SQLFunctionItem = ({
             </IconButton>
           </span>
           <span className={classes["function-item__label"]}>
+            <TextHighlight
+              text={name}
+              inputValue={searchKey}
+              showTooltip={false}
+            />
             {functionLabel}
           </span>
         </DragSource>
@@ -120,7 +115,12 @@ const SQLFunctionItem = ({
                 <ul>
                   {parameters.map((param: Parameter, i: number) => (
                     <li key={i}>
-                      <b>{param.name ?? `x${i + 1}`}</b>
+                      <b>
+                        {param.name ?? `x${i + 1}`}
+                        {param?.kind === ParameterKindEnum.OPTIONAL
+                          ? intl.formatMessage({ id: "Dataset.OptionalParam" })
+                          : ""}
+                      </b>
                       {`${
                         param.description ?? param?.type
                           ? `: ${param.description ?? param?.type}`
@@ -146,11 +146,14 @@ const SQLFunctionItem = ({
             )}
             {description && (
               <ExternalLink
-                href={`https://docs.dremio.com/cloud/sql/sql-functions/functions/${name}/`}
+                href={link}
                 className={classes["function-item__learnMore"]}
                 hideIcon
+                onClick={(e: any) => {
+                  e?.stopPropagation();
+                }}
               >
-                {intl.formatMessage({ id: "Common.LearnMoreNoDots" })}
+                <>{intl.formatMessage({ id: "Common.LearnMoreNoDots" })}</>
               </ExternalLink>
             )}
           </>
@@ -163,7 +166,11 @@ const SQLFunctionItem = ({
 const MemoizedSQLFunctionItem = React.memo(
   SQLFunctionItem,
   (prevProps: SQLFunctionItemProps, nextProps: SQLFunctionItemProps) =>
-    prevProps.isActiveRow === nextProps.isActiveRow
+    // return false if one of these props are different
+    !(
+      prevProps.isActiveRow !== nextProps.isActiveRow ||
+      prevProps.searchKey !== nextProps.searchKey
+    )
 );
 
 export default MemoizedSQLFunctionItem;

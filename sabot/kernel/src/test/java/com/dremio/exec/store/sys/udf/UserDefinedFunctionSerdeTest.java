@@ -35,27 +35,34 @@ public class UserDefinedFunctionSerdeTest {
 
   @Test
   public void testToProto() {
-      new GoldenFileTestBuilder<>(UserDefinedFunctionSerde::toProto)
-        .add("No args",
-          new UserDefinedFunction(
-            "foo",
-            "SELECT 1",
-            CompleteType.INT,
-            ImmutableList.of(), ImmutableList.of("dir", "space")))
-        .add("1 arg",
-          new UserDefinedFunction(
-            "foo",
-            "SELECT 1",
-            CompleteType.INT,
-            ImmutableList.of(
-              new UserDefinedFunction.FunctionArg("bar", CompleteType.VARCHAR)
-            ), null))
-        .runTests();
+    GoldenFileTestBuilder.create(UserDefinedFunctionSerde::toProto)
+      .add("No args",
+        new UserDefinedFunction(
+          "foo",
+          "SELECT 1",
+          CompleteType.INT,
+          ImmutableList.of(),
+          ImmutableList.of("dir", "space"),
+          null,
+          null,
+          null))
+      .add("1 arg",
+        new UserDefinedFunction(
+          "foo",
+          "SELECT 1",
+          CompleteType.INT,
+          ImmutableList.of(
+            new UserDefinedFunction.FunctionArg("bar", CompleteType.VARCHAR, null)),
+          null,
+          null,
+          null,
+          null))
+      .runTests();
   }
 
   @Test
   public void testFromProto () {
-    new GoldenFileTestBuilder<>(UserDefinedFunctionSerde::fromProto)
+    GoldenFileTestBuilder.create(UserDefinedFunctionSerde::fromProto)
       .add("No Args",
         new FunctionConfig()
           .setName("foo")
@@ -88,7 +95,7 @@ public class UserDefinedFunctionSerdeTest {
   public void testRoundTrip () {
     ProtostuffSerializer<FunctionConfig> protostuffSerializer =
       new ProtostuffSerializer<>(FunctionConfig.getSchema());
-    new GoldenFileTestBuilder<>((UserDefinedFunction fc) -> {
+    GoldenFileTestBuilder.create((UserDefinedFunction fc) -> {
       FunctionConfig proto1 = UserDefinedFunctionSerde.toProto(fc);
       byte[] bytes = protostuffSerializer.convert(proto1);
       FunctionConfig proto2 = protostuffSerializer.revert(bytes);
@@ -99,15 +106,15 @@ public class UserDefinedFunctionSerdeTest {
           "foo",
           "SELECT 1",
           CompleteType.INT,
-          ImmutableList.of(), ImmutableList.of("dir", "space")))
+          ImmutableList.of(), ImmutableList.of("dir", "space"), null, null, null))
       .add("1 arg",
         new UserDefinedFunction(
           "foo",
           "SELECT 1",
           CompleteType.INT,
           ImmutableList.of(
-            new UserDefinedFunction.FunctionArg("bar", CompleteType.VARCHAR)
-          ), null))
+            new UserDefinedFunction.FunctionArg("bar", CompleteType.VARCHAR, null)
+          ), null, null, null, null))
       .runTests();
   }
 }

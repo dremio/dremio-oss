@@ -46,8 +46,7 @@ public class GandivaUtils {
       .map((rf) ->{
         if(rf.isComplexType()) {
           return rf.getModifiedField();
-        }
-        else {
+        } else {
           return rf.getReferencedFieldVector().getField();
         }
       })

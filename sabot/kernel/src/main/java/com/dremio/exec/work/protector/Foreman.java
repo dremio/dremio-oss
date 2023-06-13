@@ -18,6 +18,7 @@ package com.dremio.exec.work.protector;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Executor;
 
@@ -29,8 +30,10 @@ import org.apache.calcite.sql.SqlNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.common.concurrent.ContextMigratingExecutorService;
 import com.dremio.common.exceptions.InvalidMetadataErrorContext;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.tracing.TracingUtils;
 import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.common.utils.protos.QueryIdHelper;
@@ -75,6 +78,7 @@ import com.dremio.service.jobtelemetry.JobTelemetryClient;
 import com.dremio.service.jobtelemetry.PutTailProfileRequest;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.telemetry.utils.TracerFacade;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
@@ -84,7 +88,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.Empty;
 
 import io.netty.buffer.ByteBuf;
-import io.opentelemetry.api.trace.Span;
+import io.opentracing.Span;
 
 /**
  * Can re-run a query if needed/possible without the user noticing.
@@ -118,6 +122,7 @@ public class Foreman {
   private RuleBasedEngineSelector ruleBasedEngineSelector;
 
   private AttemptId attemptId; // id of last attempt
+  private Span attemptSpan; // span of the last attempt
 
   private volatile AttemptManager attemptManager; // last running query
 
@@ -168,7 +173,8 @@ public class Foreman {
   }
 
   private void newAttempt(AttemptReason reason, Predicate<DatasetConfig> datasetValidityChecker) {
-    Span.current().setAttribute("attemptId", attemptId.toString());
+    attemptSpan = TracingUtils.buildChildSpan(TracerFacade.INSTANCE, "job-attempt");
+    attemptSpan.setTag("attemptId", attemptId.toString());
     try {
       // we should ideally check if the query wasn't cancelled before starting a new attempt but this will over-complicate
       // things as the observer expects a query profile at completion and this may not be available if the cancellation
@@ -211,7 +217,7 @@ public class Foreman {
       }
 
       final UserResult result = new UserResult(null, attemptId.toQueryId(), QueryState.FAILED,
-        profileBuilder.build(), uex, null, false);
+        profileBuilder.build(), uex, null, false, false, false);
       observer.execCompletion(result);
       throw t;
     }
@@ -219,7 +225,7 @@ public class Foreman {
     if (request.runInSameThread()) {
       attemptManager.run();
     } else {
-      executor.execute(attemptManager);
+      executor.execute(ContextMigratingExecutorService.makeContextMigratingTask(attemptManager, "AttemptManager.run"));
     }
   }
 
@@ -249,7 +255,6 @@ public class Foreman {
   private boolean recoverFromFailure(AttemptReason reason, Predicate<DatasetConfig> datasetValidityChecker) {
     // request a new attemptId
     attemptId = attemptId.nextAttempt();
-
     logger.info("{}: Starting new attempt because of {}", attemptId, reason);
 
     synchronized (this) {
@@ -314,17 +319,17 @@ public class Foreman {
     return attemptId.getExternalId();
   }
 
-  public synchronized void cancel(String reason, boolean clientCancelled) {
-    cancel(reason, clientCancelled, null, false);
+  public synchronized void cancel(String reason, boolean clientCancelled, boolean runTimeExceeded) {
+    cancel(reason, clientCancelled, null, false, runTimeExceeded);
   }
 
   public synchronized void cancel(String reason, boolean clientCancelled, String cancelContext,
-                                  boolean isCancelledByHeapMonitor) {
+                                  boolean isCancelledByHeapMonitor, boolean runTimeExceeded) {
     if (!canceled) {
       canceled = true;
 
       if (attemptManager != null) {
-        attemptManager.cancel(reason, clientCancelled, cancelContext, isCancelledByHeapMonitor);
+        attemptManager.cancel(reason, clientCancelled, cancelContext, isCancelledByHeapMonitor, runTimeExceeded);
       }
     } else {
       logger.debug("Cancel of queryId:{} was already attempted before. Ignoring cancelling request now.",
@@ -354,8 +359,7 @@ public class Foreman {
   private static boolean containsHashAggregate(final RelNode relNode) {
     if (relNode instanceof HashAggPrel) {
       return true;
-    }
-    else {
+    } else {
       for (final RelNode child : relNode.getInputs()) {
         if (containsHashAggregate(child)) {
           return true;
@@ -397,11 +401,12 @@ public class Foreman {
     }
 
     @Override
-    public void planRelTransform(PlannerPhase phase, RelOptPlanner planner, RelNode before, RelNode after, long millisTaken) {
+    public void planRelTransform(PlannerPhase phase, RelOptPlanner planner, RelNode before, RelNode after,
+                                 long millisTaken, Map<String, Long> timeBreakdownPerRule) {
       if (phase == PlannerPhase.PHYSICAL) {
         containsHashAgg = containsHashAggregate(after);
       }
-      super.planRelTransform(phase, planner, before, after, millisTaken);
+      super.planRelTransform(phase, planner, before, after, millisTaken, timeBreakdownPerRule);
     }
 
     private UserException handleSchemaChangeException(UserException schemaChange) {
@@ -465,6 +470,13 @@ public class Foreman {
       // TODO(DX-10101): Define the guarantee of #attemptCompletion or rework #attemptCompletion
 
       attemptManager = null; // make sure we don't pass cancellation requests to this attemptManager anymore
+      AttemptAnalyser attemptAnalyser = new AttemptAnalyser(attemptSpan);
+      try {
+        attemptAnalyser.analyseAttemptCompletion(result);
+      } finally {
+        attemptSpan.finish();
+        attemptAnalyser = null;
+      }
 
       final QueryState queryState = result.getState();
       final boolean queryFailed = queryState == QueryState.FAILED;

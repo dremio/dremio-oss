@@ -78,24 +78,29 @@ public class HiveSubScan extends HiveProxiedSubScan {
     this(props, null, fullSchema, tablePath, filter, pluginId, columns, partitionColumns, extendedProperty);
   }
 
+  @Override
   @JsonProperty("pluginId")
   public StoragePluginId getPluginId(){
     return pluginId;
   }
 
+  @Override
   @JsonProperty("filter")
   public ScanFilter getFilter(){
     return filter;
   }
 
+  @Override
   @JsonIgnore
   public List<SplitAndPartitionInfo> getSplits() {
     return splits;
   }
 
+  @Override
   @JsonProperty("extendedProperty")
   public byte[] getExtendedProperty() { return this.extendedProperty; }
 
+  @Override
   @JsonProperty("partitionColumns")
   public List<String> getPartitionColumns() {
     return partitionColumns;

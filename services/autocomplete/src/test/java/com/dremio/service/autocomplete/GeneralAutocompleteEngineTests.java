@@ -22,79 +22,47 @@ import com.dremio.test.GoldenFileTestBuilder;
 public final class GeneralAutocompleteEngineTests extends AutocompleteEngineTests {
   @Test
   public void prefixFiltering() {
-    new GoldenFileTestBuilder<>(this::executeTestWithFolderContext)
-      .add(
-        "PREFIX FILTERING FUNCTION",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT AB^"))
-      .add(
-        "PREFIX FILTERING PARAMETER",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT ABS(EMP.DEPT^ FROM EMP"))
-      .add(
-        "PREFIX FILTERING CATALOG ENTRIES",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT * FROM dep^"))
-      .add(
-        "PREFIX FILTERING CATALOG ENTRIES WITH DOUBLE QUOTES",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT * FROM \"dep^\""))
-      .add(
-        "PREFIX FILTERING COLUMNS",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT E^ FROM EMP"))
-      .add(
-        "PREFIX FILTERING KEYWORDS",
-        GoldenFileTestBuilder.MultiLineString.create("S^"))
+    new GoldenFileTestBuilder<>(this::executeTestWithFolderContext, GoldenFileTestBuilder.MultiLineString::create)
+      .add("PREFIX FILTERING FUNCTION", "SELECT AB^")
+      .add("PREFIX FILTERING PARAMETER", "SELECT ABS(EMP.DEPT^ FROM EMP")
+      .add("PREFIX FILTERING CATALOG ENTRIES", "SELECT * FROM dep^")
+      .add("PREFIX FILTERING CATALOG ENTRIES WITH DOUBLE QUOTES", "SELECT * FROM \"dep^\"")
+      .add("PREFIX FILTERING COLUMNS", "SELECT E^ FROM EMP")
+      .add("PREFIX FILTERING KEYWORDS", "S^")
       .runTests();
   }
 
   @Test
   public void keywordOrFunction() {
-    new GoldenFileTestBuilder<>(this::executeTestWithFolderContext)
-      .add(
-        "BINARY FUNCTIONS SHOULD SURFACE AS KEYWORDS",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT * FROM EMP WHERE EMP.EMPNO ^"))
-      .add(
-        "NO DUPLICATES FOR SYSTEM FUNCTIONS",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT COUN^ FROM EMP"))
-      .add(
-        "LEFT AS KEYWORD",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT * FROM EMP LEF^"))
-      .add(
-        "LEFT AS FUNCTION",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT LEF^"))
-      .add(
-        "ABS IS ONLY EVER A FUNCTION",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT AB^"))
-      .add(
-        "MIN AS FUNCTION",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT MI^"))
+    new GoldenFileTestBuilder<>(this::executeTestWithFolderContext, GoldenFileTestBuilder.MultiLineString::create)
+      .add("BINARY FUNCTIONS SHOULD SURFACE AS KEYWORDS", "SELECT * FROM EMP WHERE EMP.EMPNO ^")
+      .add("NO DUPLICATES FOR SYSTEM FUNCTIONS", "SELECT COUN^ FROM EMP")
+      .add("LEFT AS KEYWORD", "SELECT * FROM EMP LEF^")
+      .add("LEFT AS FUNCTION", "SELECT LEF^")
+      .add("ABS IS ONLY EVER A FUNCTION", "SELECT AB^")
+      .add("MIN AS FUNCTION", "SELECT MI^")
       .add(
         "MIN AS KEYWORD",
-        GoldenFileTestBuilder.MultiLineString.create("ALTER TABLE EMP CREATE AGGREGATE REFLECTION myReflection\n" +
+        "ALTER TABLE EMP CREATE AGGREGATE REFLECTION myReflection\n" +
           "USING \n"+
           "DIMENSIONS(EMPNO BY DAY, ENAME)\n" +
-          "MEASURES(EMPNO (COUNT, MI^"))
+          "MEASURES(EMPNO (COUNT, MI^")
       .runTests();
   }
 
   @Test
   public void sqlStateMachine() {
-    new GoldenFileTestBuilder<>(this::executeTestWithFolderContext)
-      .add(
-        "INSIDE OF COMMENT BLOCK",
-        GoldenFileTestBuilder.MultiLineString.create("--SELECT ^"))
-      .add(
-        "OUTSIDE OF COMMENT BLOCK",
-        GoldenFileTestBuilder.MultiLineString.create("/*SELECT */ SELECT * ^"))
-      .add(
-        "INSIDE DOUBLE QUOTES",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT * FROM \"^\""))
+    GoldenFileTestBuilder.create(this::executeTestWithFolderContext)
+      .add("INSIDE OF COMMENT BLOCK", "--SELECT ^")
+      .add("OUTSIDE OF COMMENT BLOCK", "/*SELECT */ SELECT * ^")
+      .add("INSIDE DOUBLE QUOTES", "SELECT * FROM \"^\"")
       .runTests();
   }
 
   @Test
   public void tests() {
-    new GoldenFileTestBuilder<>(this::executeTestWithFolderContext)
-      .add(
-        "EMPTY STRING",
-        GoldenFileTestBuilder.MultiLineString.create("^"))
+    GoldenFileTestBuilder.create(this::executeTestWithFolderContext)
+      .add("EMPTY STRING", "^")
       .runTests();
   }
 }

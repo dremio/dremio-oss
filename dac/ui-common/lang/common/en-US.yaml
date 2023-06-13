@@ -19,6 +19,13 @@
 Common.Actions.Accept: Accept
 Common.Actions.Cancel: Cancel
 Common.Actions.OK: OK
+Common.Actions.Yes: "Yes"
+
+# Route leave warning dialog messages
+Common.RouteLeaveDialog.Title: Unsaved Changes
+Common.RouteLeaveDialog.Message: Are you sure you want to leave without saving changes?
+Common.RouteLeaveDialog.Actions.Leave: Leave
+Common.RouteLeaveDialog.Actions.Stay: Stay
 
 Common.Columns.Count: "{numColumns, plural, =0 {No columns} =1 {1 column} other {# columns}}"
 
@@ -26,7 +33,18 @@ Common.Columns.Count: "{numColumns, plural, =0 {No columns} =1 {1 column} other 
 Common.Errors.Persists: If the problem persists, please contact Dremio support.
 Common.Errors.Unexpected: An unexpected error occurred.
 Common.Errors.404: The page you are looking for doesn’t exist.
+Common.Errors.UnexpectedError.Root: An unexpected error occurred when we tried to load the page.
 
 Common.Settings: Settings
 
 Common.LoadingMore: Loading more…
+
+NetworkConnectivity.Offline: Your internet connection appears to be offline.
+NetworkConnectivity.Unreachable: There was a problem communicating with Dremio. Please verify that you’re on a network that can reach {server_origin}.
+NetworkConnectivity.WebsocketFailure: There was a problem establishing a WebSocket connection with Dremio.
+
+# Privileges table messages
+Admin.Privileges.OwnerChangeTitle: Make this user/role the owner?
+Admin.Privileges.OwnerChangeContent: The new owner can perform all actions on this object and objects within the object. Actions include modifying object settings, granting/revoking user and role access, and deleting the object. You might also lose the ability to change privileges settings.
+Admin.Privileges.RemoveGranteeTitle: Remove user/role?
+Admin.Privileges.RemoveGranteeContent: “{name}” will not be able to perform any actions on this object, are you sure?

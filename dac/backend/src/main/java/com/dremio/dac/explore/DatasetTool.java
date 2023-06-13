@@ -20,11 +20,9 @@ import static com.dremio.dac.explore.model.InitialPreviewResponse.INITIAL_RESULT
 
 import java.security.AccessControlException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -82,14 +80,12 @@ import com.dremio.dac.service.errors.NewDatasetQueryException;
 import com.dremio.dac.util.InvalidQueryErrorConverter;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUtil;
+import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.RecordBatchHolder;
 import com.dremio.exec.util.ViewFieldsHelper;
 import com.dremio.service.job.JobDetails;
 import com.dremio.service.job.JobDetailsRequest;
-import com.dremio.service.job.JobSummary;
-import com.dremio.service.job.SearchJobsRequest;
-import com.dremio.service.job.VersionedDatasetPath;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.JobState;
@@ -98,7 +94,6 @@ import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.job.proto.SessionId;
 import com.dremio.service.jobs.JobDataClientUtils;
 import com.dremio.service.jobs.JobNotFoundException;
-import com.dremio.service.jobs.JobStatusListener;
 import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.JobsVersionContext;
@@ -106,7 +101,6 @@ import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.jobs.metadata.proto.QueryMetadata;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.NamespaceUtils;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.FieldOrigin;
@@ -116,6 +110,7 @@ import com.dremio.service.namespace.dataset.proto.ViewFieldType;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.protostuff.ByteString;
 
 /**
@@ -149,21 +144,28 @@ public class DatasetTool {
    * @throws DatasetVersionNotFoundException
    */
   InitialPreviewResponse createPreviewResponseForExistingDataset (
-      BufferAllocator allocator,
       VirtualDatasetUI newDataset,
       DatasetVersionResourcePath tipVersion,
-      Integer limit,
       String engineName,
       String sessionId,
       String triggerJob
-      ) throws DatasetVersionNotFoundException, NamespaceException, JobNotFoundException {
+      ) throws DatasetVersionNotFoundException, NamespaceException {
+    JobId jobId = null;
     if (shouldTriggerJob(triggerJob)) {
       SqlQuery query = new SqlQuery(newDataset.getSql(), newDataset.getState().getContextList(), username(), engineName, sessionId);
-      JobData jobData = executor.runQueryWithListener(query, QueryType.UI_PREVIEW, tipVersion.getDataset(), newDataset.getVersion(), JobStatusListener.NO_OP);
-      return createPreviewResponse(newDataset, jobData, tipVersion, allocator, limit, true);
-    } else {
-      return getInitialPreviewResponse(newDataset, null, new SessionId().setId(sessionId), tipVersion, null, null);
+      MetadataJobStatusListener listener = new MetadataJobStatusListener(this, newDataset, null);
+      // The saved dataset is incomplete, we want save the dataset again once the metadata is collected.
+      if (newDataset.getSqlFieldsList() == null) {
+        listener.waitToApplyMetadataAndSaveDataset();
+      }
+
+      JobData jobData = executor.runQueryWithListener(query, QueryType.UI_PREVIEW, tipVersion.getDataset(), newDataset.getVersion(), listener);
+      jobId = jobData.getJobId();
+      if (newDataset.getSqlFieldsList() == null) {
+        listener.setJobId(jobId);
+      }
     }
+    return getInitialPreviewResponse(newDataset, jobId, new SessionId().setId(sessionId), tipVersion, null, null);
   }
 
   // Convert String to boolean, but with default as true.
@@ -187,8 +189,8 @@ public class DatasetTool {
    * Helper method to create {@link InitialPreviewResponse} from given inputs
    * @param datasetUI
    * @param job
-   * @param tipVersion a combination of dataset verion + path to a dataset. It represent a top history version. Path here
-   *                   could differs from path that {@code datasetUI} has, as {@code datasetUI} could be
+   * @param tipVersion a combination of dataset version + path to a dataset. It represents a top history version. Path here
+   *                   could differ from path that {@code datasetUI} has, as {@code datasetUI} could be
    *                   a history version, that references on other dataset with different path.
    * @param maxRecords
    * @param catchExecutionError
@@ -231,6 +233,7 @@ public class DatasetTool {
         }
 
         if (ex instanceof UserException) {
+          // TODO - Why is this not thrown?
           toInvalidQueryException((UserException) ex, datasetUI.getSql(), ImmutableList.<String>of(), job.getJobId(), job.getSessionId());
         }
         error = new ApiErrorModel<Void>(ApiErrorModel.ErrorType.INITIAL_PREVIEW_ERROR, ex.getMessage(), GenericErrorMessage.printStackTrace(ex), null);
@@ -250,8 +253,7 @@ public class DatasetTool {
                                                            JobDataFragment dataLimited,
                                                            ApiErrorModel<?> error) throws DatasetVersionNotFoundException, NamespaceException {
     final History history = getHistory(tipVersion.getDataset(), datasetUI.getVersion(), tipVersion.getVersion());
-    // VBesschetnov 2019-01-08
-    // this is requires as BE generates apiLinks, that is used by UI to send requests for preview/run. In case, when history
+    // This is requires as BE generates apiLinks, that is used by UI to send requests for preview/run. In case, when history
     // of a dataset reference on a version for other dataset. And a user navigate to that version and tries to preview it,
     // we would not be resolve a tip version and preview will fail. We should always send requests to original dataset
     // path (tip version path) to be able to get a preview/run data
@@ -559,6 +561,7 @@ public class DatasetTool {
    * @throws DatasetVersionNotFoundException
    * @throws NamespaceException
    */
+  @WithSpan
   public InitialPreviewResponse newUntitled(
       BufferAllocator allocator,
       FromBase from,
@@ -573,8 +576,7 @@ public class DatasetTool {
       Map<String, VersionContextReq> references)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
 
-    final VirtualDatasetUI newDataset = createNewUntitledMetadataOnly(from, version, context,
-      DatasetResourceUtils.createSourceVersionReferenceList(references));
+    final VirtualDatasetUI newDataset = createNewUntitledMetadataOnly(from, version, context, references);
     final Map<String, JobsVersionContext> sourceVersionMapping = createSourceVersionMapping(references);
     final SqlQuery query = new SqlQuery(newDataset.getSql(), newDataset.getState().getContextList(), username(), engineName, sessionId, sourceVersionMapping);
 
@@ -600,6 +602,7 @@ public class DatasetTool {
       List<String> parentDataset = getParentDataset(from);
 
       if (ex instanceof UserException) {
+        // TODO - Why is this not thrown?
         toInvalidQueryException((UserException) ex, query.getSql(), context, parentSummary, jobId, jobDataSessionId);
       }
 
@@ -627,12 +630,10 @@ public class DatasetTool {
     List<String> context,
     String engineName,
     String sessionId,
-    Map<String, VersionContextReq> references,
-    Integer limit)
+    Map<String, VersionContextReq> references)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
 
-    final VirtualDatasetUI vds = createNewUntitledMetadataOnly(from, version, context,
-      DatasetResourceUtils.createSourceVersionReferenceList(references));
+    final VirtualDatasetUI vds = createNewUntitledMetadataOnly(from, version, context, references);
     final Map<String, JobsVersionContext> sourceVersionMapping = createSourceVersionMapping(references);
     final SqlQuery query = new SqlQuery(vds.getSql(), vds.getState().getContextList(), username(), engineName, sessionId, sourceVersionMapping);
 
@@ -675,12 +676,15 @@ public class DatasetTool {
     VirtualDatasetUI createNewUntitledMetadataOnly(FromBase from,
                                                    DatasetVersion version,
                                                    List<String> context,
-                                                   List<SourceVersionReference> sourceVersionReferences) {
-    final DatasetPath datasetPath = TMP_DATASET_PATH;
-    final VirtualDatasetUI newDataset = newDatasetBeforeQueryMetadata(datasetPath, version, from.wrap(), context, username());
+                                                   Map<String, VersionContextReq> references) {
+    final VirtualDatasetUI newDataset = newDatasetBeforeQueryMetadata(TMP_DATASET_PATH, version, from.wrap(), context, username(), datasetService.getCatalog(), references);
     newDataset.setLastTransform(new Transform(TransformType.createFromParent).setTransformCreateFromParent(new TransformCreateFromParent(from.wrap())));
+
+    final List<SourceVersionReference> sourceVersionReferences =
+        DatasetResourceUtils.createSourceVersionReferenceList(references);
     newDataset.setReferencesList(sourceVersionReferences);
     newDataset.getState().setReferenceList(sourceVersionReferences);
+
     return newDataset;
   }
 
@@ -690,10 +694,9 @@ public class DatasetTool {
                                        String engineName,
                                        String sessionId,
                                        Map<String, VersionContextReq> references)
-    throws DatasetNotFoundException, NamespaceException, DatasetVersionNotFoundException, InterruptedException {
+    throws DatasetNotFoundException, NamespaceException, DatasetVersionNotFoundException {
 
-    final VirtualDatasetUI newDataset = createNewUntitledMetadataOnly(from, version, context,
-      DatasetResourceUtils.createSourceVersionReferenceList(references));
+    final VirtualDatasetUI newDataset = createNewUntitledMetadataOnly(from, version, context, references);
     final Map<String, JobsVersionContext> sourceVersionMapping = createSourceVersionMapping(references);
     final SqlQuery query = new SqlQuery(newDataset.getSql(), newDataset.getState().getContextList(), username(), engineName, sessionId, sourceVersionMapping);
 
@@ -732,7 +735,7 @@ public class DatasetTool {
    * @param version Initial version of the new dataset
    * @param context Dataset context or current schema
    * @param engineName Engine to runt the query
-   * @param sessionId Session Id
+   * @param sessionId SessionId
    * @param references References
    * @return {@link InitialUntitledRunResponse)}
    * @throws DatasetNotFoundException
@@ -746,8 +749,7 @@ public class DatasetTool {
                                                   Map<String, VersionContextReq> references)
     throws DatasetNotFoundException, DatasetVersionNotFoundException {
 
-    final VirtualDatasetUI newDataset = createNewUntitledMetadataOnly(from, version, context,
-      DatasetResourceUtils.createSourceVersionReferenceList(references));
+    final VirtualDatasetUI newDataset = createNewUntitledMetadataOnly(from, version, context, references);
     final Map<String, JobsVersionContext> sourceVersionMapping = createSourceVersionMapping(references);
     final SqlQuery query = new SqlQuery(newDataset.getSql(), newDataset.getState().getContextList(), username(), engineName, sessionId, sourceVersionMapping);
 
@@ -795,13 +797,6 @@ public class DatasetTool {
     return sourceVersionMapping;
   }
 
-  InitialRunResponse newUntitledAndRun(FromBase from,
-                                       DatasetVersion version,
-                                       List<String> context)
-    throws DatasetNotFoundException, NamespaceException, DatasetVersionNotFoundException, InterruptedException {
-    return newUntitledAndRun(from, version, context, null, null, null);
-  }
-
   public void applyQueryMetaToDatasetAndSave(JobId jobId,
                                              QueryMetadata queryMetadata,
                                              VirtualDatasetUI newDataset,
@@ -817,7 +812,7 @@ public class DatasetTool {
 
     QuerySemantics.populateSemanticFields(JobsProtoUtil.toStuff(queryMetadata.getFieldTypeList()), newDataset.getState());
     applyQueryMetadata(newDataset, jobInfo, queryMetadata);
-    if (from.wrap().getType() == FromType.SQL) {
+    if (from == null || from.wrap().getType() == FromType.SQL) {
       newDataset.setState(QuerySemantics.extract(queryMetadata));
     }
 
@@ -825,29 +820,17 @@ public class DatasetTool {
   }
 
   public static VirtualDatasetUI newDatasetBeforeQueryMetadata(
-      DatasetPath datasetPath,
-      DatasetVersion version,
-      From from,
-      List<String> sqlContext,
-      String owner) {
+      final DatasetPath datasetPath,
+      final DatasetVersion version,
+      final From from,
+      final List<String> sqlContext,
+      final String owner,
+      Catalog catalog,
+      final Map<String, VersionContextReq> references) {
     VirtualDatasetState dss = new VirtualDatasetState()
         .setFrom(from);
     dss.setContextList(sqlContext);
     VirtualDatasetUI vds = new VirtualDatasetUI();
-    switch(from.getType()){
-    case SQL:
-      vds.setDerivation(Derivation.SQL);
-      break;
-    case Table:
-      vds.setDerivation(Derivation.DERIVED_UNKNOWN);
-      dss.setReferredTablesList(Arrays.asList(from.getTable().getAlias()));
-      break;
-    case SubQuery:
-    default:
-      vds.setDerivation(Derivation.UNKNOWN);
-      dss.setReferredTablesList(Arrays.asList(from.getSubQuery().getAlias()));
-      break;
-    }
 
     vds.setOwner(owner);
     vds.setIsNamed(false);
@@ -858,6 +841,23 @@ public class DatasetTool {
     vds.setSql(SQLGenerator.generateSQL(dss));
     vds.setId(UUID.randomUUID().toString());
     vds.setContextList(sqlContext);
+
+    switch (from.getType()) {
+      case SQL:
+        vds.setDerivation(Derivation.SQL);
+        break;
+      case Table:
+        vds.setDerivation(Derivation.DERIVED_UNKNOWN);
+        dss.setReferredTablesList(Collections.singletonList(from.getTable().getAlias()));
+
+        updateVersionedDatasetId(vds, from, catalog, references);
+        break;
+      case SubQuery:
+      default:
+        vds.setDerivation(Derivation.UNKNOWN);
+        dss.setReferredTablesList(Collections.singletonList(from.getSubQuery().getAlias()));
+        break;
+    }
 
     // if we're doing a select * from table, and the context matches the base path of the table, let's avoid qualifying the table name.
     if(from.getType() == FromType.Table) {
@@ -871,8 +871,32 @@ public class DatasetTool {
   }
 
   /**
+   * Update the datasetId in the given dataset UI. This method only applies to versioned table.
+   */
+  private static void updateVersionedDatasetId(
+    VirtualDatasetUI vds,
+    final From from,
+    Catalog catalog,
+    final Map<String, VersionContextReq> references) {
+    if (references == null || references.isEmpty() || catalog == null) {
+      return;
+    }
+
+    final NamespaceKey namespaceKey =
+        new DatasetPath(from.getTable().getDatasetPath()).toNamespaceKey();
+    final Map<String, VersionContext> versionContextMapping =
+        DatasetResourceUtils.createSourceVersionMapping(references);
+
+    if (!CatalogUtil.requestedPluginSupportsVersionedTables(namespaceKey, catalog)) {
+      return;
+    }
+
+    vds.setId(catalog.resolveCatalog(versionContextMapping).getDatasetId(namespaceKey));
+  }
+
+  /**
    * Get the history before a given version. This should only be used if this version is known to be
-   * the last version in the history. Otherwise the other version of this method that takes a tip
+   * the last version in the history. Otherwise, the other version of this method that takes a tip
    * version as well as a current version.
    *
    * @param datasetPath
@@ -894,7 +918,7 @@ public class DatasetTool {
    *
    * @param datasetPath the dataset path of the version at the tip of the history
    * @param versionToMarkCurrent the version currently selected in the client
-   * @param tipVersion the latest history item known, which may be passed the selected versionToMarkCurrent,
+   * @param tipVersion the latest history item known which may be passed the selected versionToMarkCurrent,
    *                   this can be null and the tip will be assumed to be the versionToMarkCurrent the
    *                   same behavior as the version of this method that lacks the tipVersion entirely
    * @return
@@ -916,27 +940,8 @@ public class DatasetTool {
         DatasetVersionResourcePath versionedResourcePath =
           new DatasetVersionResourcePath(currentPath, currentVersion);
 
-        // grab the most recent job for this dataset version (note the use of limit 1 to avoid
-        // retrieving all results, the API just returns a list, so this also has to index into the returned list
-        // that will always contain a single element)
-        final SearchJobsRequest request = SearchJobsRequest.newBuilder()
-          .setDataset(VersionedDatasetPath.newBuilder()
-            .addAllPath(currentDataset.getFullPathList())
-            .setVersion(currentDataset.getVersion().getVersion())
-            .build())
-          .setLimit(1)
-          .build();
-        Iterable<JobSummary> jobSummaries = jobsService.searchJobs(request);
-        final JobState jobState;
-        // jobs are not persisted forever so we may not have a job for this version of the dataset
-        Iterator<JobSummary> iterator = jobSummaries.iterator();
-        if (iterator.hasNext()) {
-          jobState = JobsProtoUtil.toStuff(iterator.next().getJobState());
-        } else {
-          jobState = JobState.COMPLETED;
-        }
         historyItems.add(
-          new HistoryItem(versionedResourcePath, jobState,
+          new HistoryItem(versionedResourcePath, JobState.COMPLETED,
             TransformBase.unwrap(currentDataset.getLastTransform()).accept(new DescribeTransformation()), username(),
             currentDataset.getCreatedAt(), 0L, true, null, null));
 
@@ -999,7 +1004,7 @@ public class DatasetTool {
    * @throws NamespaceException
    */
   void rewriteHistory(final VirtualDatasetUI versionToSave, final DatasetPath newPath)
-      throws DatasetVersionNotFoundException, DatasetNotFoundException, NamespaceException {
+      throws DatasetVersionNotFoundException, DatasetNotFoundException {
 
     DatasetVersion previousDatasetVersion;
     DatasetPath previousPath;
@@ -1019,6 +1024,16 @@ public class DatasetTool {
         previousPath = new DatasetPath(previousVersion.getDatasetPath());
         previousDatasetVersion = new DatasetVersion(previousVersion.getDatasetVersion());
         previousVersionRequiresRename = !previousPath.equals(newPath);
+        VirtualDatasetUI previousDataset = datasetService.getVersion(previousPath, previousDatasetVersion);
+        // If the previous VDS version is incomplete, ignore that version.  This could happen when the user click on a
+        // PDS, an incomplete VDS version is created to show the PDS in UI.  If the user modify the SQL and save the
+        // VDS, the previous VDS version is incomplete since it never run and doesn't have metadata.
+        try {
+          DatasetVersionMutator.validate(previousPath, previousDataset);
+        } catch (Exception e) {
+          previousVersionRequiresRename = false;
+        }
+
         if (previousVersionRequiresRename) {
           // create a new link to the previous dataset with a changed dataset path
           NameDatasetRef prev = new NameDatasetRef()
@@ -1027,7 +1042,7 @@ public class DatasetTool {
           currentDataset.setPreviousVersion(prev);
           currentDataset.setName(newPath.getDataset().getName());
           datasetService.putVersion(currentDataset);
-          currentDataset = datasetService.getVersion(previousPath, previousDatasetVersion);
+          currentDataset = previousDataset;
         } else {
           datasetService.putVersion(currentDataset);
         }
@@ -1041,7 +1056,7 @@ public class DatasetTool {
   public static void applyQueryMetadata(VirtualDatasetUI dataset, JobInfo jobInfo, QueryMetadata metadata) {
     applyQueryMetadata(dataset,
       Optional.ofNullable(jobInfo.getParentsList()),
-      Optional.ofNullable(jobInfo.getBatchSchema()).map((b) -> BatchSchema.deserialize(b)),
+      Optional.ofNullable(jobInfo.getBatchSchema()).map(BatchSchema::deserialize),
       Optional.ofNullable(jobInfo.getFieldOriginsList()),
       Optional.ofNullable(jobInfo.getGrandParentsList()),
       metadata);
@@ -1069,12 +1084,8 @@ public class DatasetTool {
       }
       dataset.setParentsList(otherParents);
     }
-    if (fieldOrigins.isPresent()) {
-      dataset.setFieldOriginsList(fieldOrigins.get());
-    }
-    if (grandParents.isPresent()) {
-      dataset.setGrandParentsList(grandParents.get());
-    }
+    fieldOrigins.ifPresent(dataset::setFieldOriginsList);
+    grandParents.ifPresent(dataset::setGrandParentsList);
     updateDerivationAfterLearningOriginsAndAncestors(dataset);
   }
 
@@ -1121,29 +1132,45 @@ public class DatasetTool {
    * @param from
    * @param newVersion
    * @param context
-   * @param parentSummary
+   * @param parentType
+   * @param parentFullPathList
    * @param references
    * @return
    * @throws NamespaceException
    */
+  @WithSpan
   protected InitialPreviewResponse createPreviewResponseForPhysicalDataset(FromBase from, DatasetVersion newVersion, List<String> context,
-                                                                           DatasetSummary parentSummary, Map<String, VersionContextReq> references)
+                                                                           DatasetType parentType, List<String> parentFullPathList, Map<String, VersionContextReq> references)
     throws NamespaceException {
-    final VirtualDatasetUI newDataset = createNewUntitledMetadataOnly(from, newVersion, context,
-      DatasetResourceUtils.createSourceVersionReferenceList(references));
+    final VirtualDatasetUI newDataset = createNewUntitledMetadataOnly(from, newVersion, context, references);
     List<ParentDataset> parents = new ArrayList<>();
-    final DatasetType parentType = parentSummary.getDatasetType();
-    ParentDataset parent = new ParentDataset().setDatasetPathList(parentSummary.getFullPath()).setType(parentType);
+    final ParentDataset parent = new ParentDataset().setDatasetPathList(parentFullPathList).setType(parentType);
     parents.add(parent);
     newDataset.setParentsList(parents);
-    if (NamespaceUtils.isPhysicalDataset(parentType)) {
-      newDataset.setDerivation(Derivation.DERIVED_PHYSICAL);
-    } else if (parentType == DatasetType.VIRTUAL_DATASET) {
-      newDataset.setDerivation(Derivation.DERIVED_VIRTUAL);
-    } else {
-      newDataset.setDerivation(Derivation.DERIVED_UNKNOWN);
+    switch (parentType) {
+      case PHYSICAL_DATASET:
+      case PHYSICAL_DATASET_SOURCE_FILE:
+      case PHYSICAL_DATASET_SOURCE_FOLDER:
+      case PHYSICAL_DATASET_HOME_FILE:
+      case PHYSICAL_DATASET_HOME_FOLDER:
+        newDataset.setDerivation(Derivation.DERIVED_PHYSICAL);
+        break;
+
+      case VIRTUAL_DATASET:
+        newDataset.setDerivation(Derivation.DERIVED_VIRTUAL);
+        break;
+
+      default:
+        newDataset.setDerivation(Derivation.DERIVED_UNKNOWN);
     }
 
-    return InitialPreviewResponse.of(newDataset(newDataset, null), true, null, null);
+    // Save the incomplete dataset (without metadata) to allow data graph and catalog working on UI.
+    // Later run/preview calls will save the complete dataset.
+    datasetService.putTempVersionWithoutValidation(newDataset);
+
+    final DatasetUI datasetUI = newDataset(newDataset, null);
+    final History history = getHistory(new DatasetPath(datasetUI.getFullPath()), newDataset.getVersion(), null);
+
+    return InitialPreviewResponse.of(datasetUI, null, new SessionId(), null, true, history, null);
   }
 }

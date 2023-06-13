@@ -61,7 +61,7 @@ public class AlterTableChangeColumnSetOptionHandler extends SimpleDirectHandler 
     }
 
     final String scope = sqlColumnOption.getScope();
-    if (!scope.equalsIgnoreCase("COLUMN")) {
+    if (!"COLUMN".equalsIgnoreCase(scope)) {
       throw UserException.validationError()
                          .message("[%s] is not supported", sql)
                          .buildSilently();

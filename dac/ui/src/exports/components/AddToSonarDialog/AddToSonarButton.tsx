@@ -22,7 +22,7 @@ import {
   Button,
   ModalContainer,
   useModalContainer,
-} from "dremio-ui-lib/dist-esm";
+} from "dremio-ui-lib/components";
 import AddToSonarDialogContent from "./components/AddToSonarDialogContent/AddToSonarDialogContent";
 import { ArcticCatalog } from "@app/exports/endpoints/ArcticCatalogs/ArcticCatalog.type";
 import { SonarProject } from "@app/exports/endpoints/SonarProjects/listSonarProjects";

@@ -54,10 +54,8 @@ public class IcebergManifestListScanCreator implements ProducerOperator.Creator<
         } catch (InvalidProtocolBufferException e) {
             throw new RuntimeException("Could not deserialize split info", e);
         }
-        final RecordReader reader = new
-                IcebergManifestListRecordReader(context,
-                splitXAttr.getPath(), plugin, config.getTableSchemaPath(),
-                config.getDatasourcePluginId().getName(), config.getFullSchema(), config.getProps(),
+        final RecordReader reader = new IcebergManifestListRecordReader(context, splitXAttr.getPath(), plugin,
+                config.getTableSchemaPath(), config.getDatasourcePluginId().getName(), config.getFullSchema(), config.getProps(),
                 config.getPartitionColumns(), config.getIcebergExtendedProp(), config.getManifestContent());
         return new ScanOperator(config, context, RecordReaderIterator.from(reader));
     }

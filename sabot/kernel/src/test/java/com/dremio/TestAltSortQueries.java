@@ -66,4 +66,24 @@ public class TestAltSortQueries extends BaseTestQuery{
         " limit 5");
   }
 
+  /**
+   * Test for DX-48015 a column aliased as the same name
+   * as the original column in a group by expression
+   * returns an error that it's not being grouped.
+   * @throws Exception
+   */
+  @Test
+  public void testColumnAliasWithGroupBy() throws Exception{
+    test("SELECT\n" +
+        "  DATE_TRUNC('day', hire_date) AS hire_date,\n" +
+        "       position_id AS position_id,\n" +
+        "       sum(salary) AS salary\n" +
+        "FROM  cp.\"employee.json\"\n" +
+        "WHERE hire_date >= TO_DATE('1987-06-17', 'YYYY-MM-DD')\n" +
+        "  AND hire_date < TO_DATE('1989-09-21', 'YYYY-MM-DD')\n" +
+        "GROUP BY DATE_TRUNC('day', hire_date),\n" +
+        "         position_id\n" +
+        "ORDER BY salary");
+  }
+
 }

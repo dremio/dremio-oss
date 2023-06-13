@@ -30,6 +30,7 @@ import org.junit.Test;
 import com.dremio.BaseTestQuery;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 
 public class TestExtendedTypes extends BaseTestQuery {
@@ -80,15 +81,17 @@ public class TestExtendedTypes extends BaseTestQuery {
       testNoResult(String.format("ALTER SESSION SET \"%s\" = 'json'", ExecConstants.OUTPUT_FORMAT_VALIDATOR.getOptionName()));
       testNoResult(String.format("ALTER SESSION SET \"%s\" = true", ExecConstants.JSON_EXTENDED_TYPES.getOptionName()));
 
-      int actualRecordCount = testSql(String.format("select * from dfs.\"%s\"", originalFile));
-      assertEquals(
+      try (AutoCloseable ignore = withSystemOption(PlannerSettings.ENFORCE_VALID_JSON_DATE_FORMAT_ENABLED, false)) {
+        int actualRecordCount = testSql(String.format("select * from dfs.\"%s\"", originalFile));
+        assertEquals(
           String.format(
-              "Received unexpected number of rows in output: expected=%d, received=%s",
-              1, actualRecordCount), 1, actualRecordCount);
-      List<QueryDataBatch> resultList = testSqlWithResults(String.format("select * from dfs.\"%s\"", originalFile));
-      String actual = getResultString(resultList, ",");
-      String expected = "dremio_timestamp_millies,bin,bin1\n2015-07-07T03:59:43.488,dremio,dremio\n";
-      Assert.assertEquals(expected, actual);
+            "Received unexpected number of rows in output: expected=%d, received=%s",
+            1, actualRecordCount), 1, actualRecordCount);
+        List<QueryDataBatch> resultList = testSqlWithResults(String.format("select * from dfs.\"%s\"", originalFile));
+        String actual = getResultString(resultList, ",");
+        String expected = "dremio_timestamp_millies,bin,bin1\n2015-07-07T03:59:43.488,dremio,dremio\n";
+        Assert.assertEquals(expected, actual);
+      }
     } finally {
       testNoResult(String.format("ALTER SESSION SET \"%s\" = '%s'",
           ExecConstants.OUTPUT_FORMAT_VALIDATOR.getOptionName(),

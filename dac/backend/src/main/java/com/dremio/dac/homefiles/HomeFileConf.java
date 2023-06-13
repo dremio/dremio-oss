@@ -197,38 +197,47 @@ public class HomeFileConf extends MayBeDistFileSystemConf<HomeFileConf, HomeFile
     return SchemaMutability.USER_VIEW;
   }
 
+  @Override
   public String getAccessKey() {
     return accessKey;
   }
 
+  @Override
   public String getSecretKey() {
     return secretKey;
   }
 
+  @Override
   public String getIamRole() {
     return iamRole;
   }
 
+  @Override
   public String getExternalId() {
     return externalId;
   }
 
+  @Override
   public String getTokenEndpoint() {
     return tokenEndpoint;
   }
 
+  @Override
   public String getClientId() {
     return clientId;
   }
 
+  @Override
   public String getClientSecret() {
     return clientSecret;
   }
 
+  @Override
   public String getAccountName() {
     return accountName;
   }
 
+  @Override
   public String getAccountKind() {
     return accountKind;
   }

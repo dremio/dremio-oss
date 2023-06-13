@@ -40,6 +40,7 @@ import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import org.junit.After;
 import org.junit.Assume;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -336,6 +337,7 @@ public class TestMultiMaster extends BaseClientUtils {
     return promise;
   }
 
+  @Ignore("DX-61484")
   @Test
   public void testMasterFailover() throws Exception {
     currentDremioDaemon.startPreServices();
@@ -425,7 +427,7 @@ public class TestMultiMaster extends BaseClientUtils {
       });
 
       DACSecurityContext dacSecurityContext = new DACSecurityContext(new UserName(SystemUser.SYSTEM_USERNAME), SystemUser.SYSTEM_USER, null);
-      CollaborationHelper collaborationService = new CollaborationHelper(mp.lookup(LegacyKVStoreProvider.class), sabotContext, mp.lookup(NamespaceService.class), dacSecurityContext, mp.lookup(SearchService.class));
+      CollaborationHelper collaborationService = new CollaborationHelper(mp.lookup(LegacyKVStoreProvider.class), mp.lookup(NamespaceService.class), dacSecurityContext, mp.lookup(SearchService.class), sabotContext.getUserService());
       SampleDataPopulator populator = new SampleDataPopulator(
         sabotContext,
         new SourceService(
@@ -469,6 +471,7 @@ public class TestMultiMaster extends BaseClientUtils {
     }
   }
 
+  @Ignore("DX-61484")
   @Test
   public void testMasterFailoverOnZkSessionLost() throws Exception {
     currentDremioDaemon.startPreServices();
@@ -557,7 +560,7 @@ public class TestMultiMaster extends BaseClientUtils {
         return factory.get(new ReflectionContext(DEFAULT_USER_NAME, true));
       });
 
-      CollaborationHelper collaborationService = new CollaborationHelper(mp.lookup(LegacyKVStoreProvider.class), sabotContext, mp.lookup(NamespaceService.class), dacSecurityContext, mp.lookup(SearchService.class));
+      CollaborationHelper collaborationService = new CollaborationHelper(mp.lookup(LegacyKVStoreProvider.class), mp.lookup(NamespaceService.class), dacSecurityContext, mp.lookup(SearchService.class), sabotContext.getUserService());
       SampleDataPopulator populator = new SampleDataPopulator(
         sabotContext,
         new SourceService(

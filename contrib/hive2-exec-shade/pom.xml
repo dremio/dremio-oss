@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.contrib</groupId>
     <artifactId>dremio-contrib-parent</artifactId>
-    <version>24.0.0-202302100528110223-3a169b7c</version>
+    <version>24.1.0-202306130653310132-d30779f6</version>
   </parent>
 
   <artifactId>dremio-hive2-exec-shaded</artifactId>
@@ -124,7 +124,6 @@
       <dependency>
         <groupId>org.apache.avro</groupId>
         <artifactId>avro</artifactId>
-        <scope>compile</scope>
       </dependency>
     </dependencies>
    </profile>
@@ -135,7 +134,6 @@
       <groupId>org.apache.hive</groupId>
       <artifactId>hive-exec</artifactId>
       <version>${hive.version}</version>
-      <scope>compile</scope>
       <exclusions>
         <exclusion>
           <groupId>org.apache.hive</groupId>
@@ -201,6 +199,10 @@
           <groupId>org.apache.calcite.avatica</groupId>
           <artifactId>*</artifactId>
         </exclusion>
+        <exclusion>
+          <groupId>org.pentaho</groupId>
+          <artifactId>pentaho-aggdesigner-algorithm</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
     <!-- Overwrite thrift version packaged with hive-exec -->
@@ -223,6 +225,11 @@
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-common</artifactId>
+    </dependency>
+    <!-- Overwrite protobuf version packaged with hive-exec -->
+    <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java</artifactId>
     </dependency>
   </dependencies>
 
@@ -256,9 +263,9 @@
                   <include>org.apache.commons:commons-lang3</include>
                   <include>commons-codec:commons-codec</include>
                   <include>com.google.guava:guava</include>
+                  <include>com.google.protobuf:protobuf-java</include>
                 </includes>
                 <excludes>
-                  <exclude>com.google.protobuf:protobuf-java</exclude>
                   <exclude>com.fasterxml.jackson.*:*</exclude>
                 </excludes>
               </artifactSet>
@@ -279,6 +286,9 @@
                     <exclude>org/apache/thrift/**</exclude>
                     <exclude>org/apache/calcite/**</exclude>
                     <exclude>org/slf4j/**</exclude>
+                    <!-- Exclude Protobuf version packaged inside hive-exec -->
+                    <exclude>com/google/protobuf/**</exclude>
+                    <exclude>META-INF/maven/com.google.protobuf/**</exclude>
                   </excludes>
                 </filter>
               </filters>

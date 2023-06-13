@@ -17,14 +17,19 @@ package com.dremio.exec.hive;
 
 import static com.dremio.exec.hive.HiveTestUtilities.executeQuery;
 import static org.joda.time.DateTimeZone.UTC;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
+import java.util.regex.Pattern;
 
 import org.apache.hadoop.hive.ql.Driver;
 import org.joda.time.DateTime;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import com.dremio.common.exceptions.UserRemoteException;
 
 public class ITHiveParquetCoercions extends LazyDataGeneratingHiveTestBase {
   @BeforeClass
@@ -217,7 +222,16 @@ public class ITHiveParquetCoercions extends LazyDataGeneratingHiveTestBase {
   private void hiveTestIncompatibleTypeConversions(Object[][] testcases) {
     for (Object[] testcase : testcases) {
       String query = "SELECT * FROM hive." + testcase[0] + "_to_" + testcase[1] + "_parquet_ext";
-      errorMsgTestHelper(query, "Field [col1] has incompatible types in file and table.");
+      String expectedErrorMsg = ".*Field \\[col1] has incompatible types in file and table\\..*file Path: .*";
+      try {
+        test(query);
+      } catch (Exception e) {
+        if (!(e instanceof UserRemoteException)) {
+          fail("Unexpected Error");
+        }
+        boolean errorMsgMatched = Pattern.compile(expectedErrorMsg, Pattern.DOTALL).matcher(e.getMessage()).matches();
+        assertTrue("error Message didn't match",errorMsgMatched);
+      }
     }
   }
 }

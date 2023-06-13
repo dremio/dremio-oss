@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 package com.dremio.hadoop.security.alias;
+
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collections;
@@ -38,6 +39,7 @@ import com.google.common.base.Strings;
 public class DremioCredentialProvider extends CredentialProvider {
 
   public static final String DREMIO_SCHEME_PREFIX = "dremio+";
+  public static final String PROTOCOL_PREFIX = "https://";
 
   private static final Logger logger = LoggerFactory.getLogger(DremioCredentialProvider.class);
 
@@ -57,8 +59,7 @@ public class DremioCredentialProvider extends CredentialProvider {
    /**
    * @param alias the name of a specific credential
    * @return a pair of the credential name and its resolved secret.
-   * Return null if fail to resolve the provided conf value.
-   * @throws IOException
+   * @throws IOException if secret resolution fails.
    */
   @Override
   public CredentialEntry getCredentialEntry(String alias) throws IOException {
@@ -66,29 +67,41 @@ public class DremioCredentialProvider extends CredentialProvider {
     if (pattern == null) {
       return null;
     }
+
+    // Trim prefix "dremio+". If the prefix does not exist, return null. This implies the input is invalid here.
+    if (!pattern.toLowerCase(Locale.ROOT).startsWith(DREMIO_SCHEME_PREFIX)) {
+      return null;
+    }
+    final String trimmedPattern = pattern.substring(DREMIO_SCHEME_PREFIX.length());
+
+    // Convert the input to a URI.
     final URI secretUri;
     try {
       secretUri = CredentialsServiceUtils.safeURICreate(pattern);
     } catch (IllegalArgumentException e) {
-      return null;
+      // If it's not a URI, return the `pattern` as it is without "dremio+".
+      return new DremioCredentialEntry(alias, trimmedPattern.toCharArray());
     }
+
+    // Check if there is a scheme.
+    // If scheme does not exist, return the `pattern` as it is without "dremio+".
+    // If scheme exists, continue to Dremio credentials service.
     final String scheme = secretUri.getScheme();
     if (Strings.isNullOrEmpty(scheme)) {
-      return null;
+      return new DremioCredentialEntry(alias, trimmedPattern.toCharArray());
     }
-    if (!scheme.toLowerCase(Locale.ROOT).startsWith(DREMIO_SCHEME_PREFIX)) {
-      return null;
-    }
-    final String trimmedPattern = pattern.substring(DREMIO_SCHEME_PREFIX.length());
     final char[] secretBytes;
     try {
       String secret = credentialsService.lookup(trimmedPattern);
       secretBytes = secret.toCharArray();
       secret = null;
       return new DremioCredentialEntry(alias, secretBytes);
-    } catch (CredentialsException | IllegalArgumentException e) {
+    } catch (IllegalArgumentException e) {
       logger.error("Failed to resolve {}", alias);
-      return null;
+      throw new IOException(String.format("Failed to resolve '%s'", alias), e);
+    } catch (CredentialsException e) {
+      logger.error("Failed to resolve {}", alias);
+      throw new IOException("Failed to resolve credentials: " + e.getMessage(), e);
     }
   }
 

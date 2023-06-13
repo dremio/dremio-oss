@@ -333,8 +333,6 @@ privilege :
     | CREATE PROJECT
     | CREATE CATALOG
     | CONFIGURE SECURITY
-    | CREATE OAUTH APPLICATION
-    | CREATE EXTERNAL TOKENS PROVIDER
     | INSERT
     | TRUNCATE
     | DELETE
@@ -819,7 +817,7 @@ sqlTypeName2 : (BINARY VARYING? | VARBINARY) precisionOpt  ;
 
 sqlTypeName3 : 
     ((DECIMAL | DEC | NUMERIC) | ANY) (LPAREN unsignedIntLiteral (COMMA unsignedIntLiteral)? RPAREN)?
-    | DOUBLE PRECISION? (LPAREN unsignedIntLiteral (COMMA unsignedIntLiteral)? RPAREN)?
+    | DOUBLE PRECISION?
 	  ;
 
 jdbcOdbcDataTypeName : 

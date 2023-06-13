@@ -56,6 +56,7 @@ public class QuickSorter implements Sorter {
     quickSorterBuffer = new SimpleIntVector("QuickSorterSimpleIntVector", allocator);
   }
 
+  @Override
   public boolean expandMemoryIfNecessary(int newRequiredSize) {
     try {
       // Realloc QuickSorter SimpleIntVector, doubles size each time.
@@ -69,6 +70,7 @@ public class QuickSorter implements Sorter {
     return true;
   }
 
+  @Override
   public void setup(VectorAccessible batch) throws ClassTransformationException, SchemaChangeException, IOException {
     // Compile sorting classes.
     CodeGenerator<QuickSorterInterface> cg = classProducer.createGenerator(QuickSorterInterface.TEMPLATE_DEFINITION);
@@ -80,12 +82,14 @@ public class QuickSorter implements Sorter {
     quickSorter.setDataBuffer(quickSorterBuffer);
   }
 
+  @Override
   public void addBatch(RecordBatchData data, BufferAllocator copyTargetAllocator) throws SchemaChangeException {
     // No need to sort individual batches here, will sort all at end, just insert the values into the
     // quick sorter implementation here.
     quickSorter.add(data);
   }
 
+  @Override
   public ExpandableHyperContainer getHyperBatch() {
     if (quickSorter != null) {
       return quickSorter.getHyperBatch();
@@ -94,6 +98,7 @@ public class QuickSorter implements Sorter {
     }
   }
 
+  @Override
   public int getHyperBatchSize() {
     if (quickSorter != null) {
       return quickSorter.getHyperBatch().size();
@@ -102,10 +107,12 @@ public class QuickSorter implements Sorter {
     }
   }
 
+  @Override
   public SelectionVector4 getFinalSort(BufferAllocator copyTargetAllocator, int targetBatchSize) {
     return quickSorter.getFinalSort(copyTargetAllocator, targetBatchSize);
   }
 
+  @Override
   public void close() throws Exception {
     final List<AutoCloseable> closeables = Lists.newArrayList();
 

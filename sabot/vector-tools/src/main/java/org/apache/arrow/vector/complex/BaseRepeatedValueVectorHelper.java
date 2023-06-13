@@ -37,6 +37,7 @@ public abstract class BaseRepeatedValueVectorHelper<T extends BaseRepeatedValueV
     this.vector = vector;
   }
 
+  @Override
   public SerializedField.Builder getMetadataBuilder() {
     SerializedField offsetField = buildOffsetMetadata();
     return super.getMetadataBuilder()

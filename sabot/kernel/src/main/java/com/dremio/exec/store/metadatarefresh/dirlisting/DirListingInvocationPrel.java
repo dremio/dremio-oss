@@ -38,7 +38,6 @@ import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
 import org.apache.calcite.util.Pair;
-import org.apache.iceberg.ManifestContent;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.utils.PathUtils;
@@ -67,6 +66,7 @@ import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.iceberg.IcebergManifestListPrel;
 import com.dremio.exec.store.iceberg.InternalIcebergScanTableMetadata;
+import com.dremio.exec.store.iceberg.ManifestContentType;
 import com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants;
 import com.dremio.options.Options;
 import com.google.common.collect.ImmutableList;
@@ -180,7 +180,7 @@ public class DirListingInvocationPrel extends ScanPrelBase implements Prel, Prel
     final RelDataType manifestListRowType = getRowTypeFromProjectedColumns(manifestListReaderColumns, manifestListReaderSchema, getCluster());
 
     IcebergManifestListPrel manifestListPrel = new IcebergManifestListPrel(getCluster(), traitSet, icebergScanTableMetadata, manifestListReaderSchema, manifestListReaderColumns,
-      manifestListRowType, null, ManifestContent.DATA); //TODO: check icebergExpression can be null or not
+      manifestListRowType, null, ManifestContentType.DATA); //TODO: check icebergExpression can be null or not
     return manifestListPrel;
   }
 
@@ -230,6 +230,7 @@ public class DirListingInvocationPrel extends ScanPrelBase implements Prel, Prel
     return fieldPair;
   }
 
+  @Override
   public double getObservedRowcountAdjustment() {
     return 1.0;
   }

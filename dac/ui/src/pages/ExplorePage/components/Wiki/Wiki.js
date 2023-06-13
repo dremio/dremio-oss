@@ -15,38 +15,26 @@
  */
 import { PureComponent } from "react";
 import PropTypes from "prop-types";
-import classNames from "clsx";
 import { createSelector } from "reselect";
 import { OrderedMap, fromJS } from "immutable";
+import Immutable from "immutable";
 import { connect } from "react-redux";
 import { withRouter } from "react-router";
-import { isDcsEdition } from "dyn-load/utils/versionUtils";
+import { isNotSoftware } from "dyn-load/utils/versionUtils";
 import { withRouteLeaveSubscription } from "@app/containers/RouteLeave.js";
-import { TagsView } from "@app/pages/ExplorePage/components/TagsEditor/Tags.js";
-import ViewStateWrapper from "@app/components/ViewStateWrapper";
 import MarkdownEditor from "@app/components/MarkdownEditor";
 import { toolbarHeight as toolbarHeightCssValue } from "@app/components/MarkdownEditor.less";
 import { startSearch as startSearchAction } from "actions/search";
 import ApiUtils from "@app/utils/apiUtils/apiUtils";
 import { showConfirmationDialog } from "@app/actions/confirmation";
 import { addNotification } from "@app/actions/notification";
-import { DataColumnList } from "@app/pages/ExplorePage/components/DataColumns/DataColumnList";
-import { WikiModal } from "@app/pages/ExplorePage/components/Wiki/WikiModal";
 import WikiEmptyState from "@app/components/WikiEmptyState";
-import { getTableColumns, isWikAvailable } from "@app/selectors/explore";
-import { SectionTitle, getIconButtonConfig } from "./SectionTitle";
-import ImmutablePropTypes from "react-immutable-proptypes";
-import { columnPropTypes } from "@app/pages/ExplorePage/components/DataColumns/DataColumn";
+import { IconButton } from "dremio-ui-lib";
+import { injectIntl } from "react-intl";
 
-import {
-  leftColumn,
-  sectionsContainer,
-  sectionItem,
-  tags as tagsCls,
-  rightColumn,
-  layout,
-  sectionTitle as sectionTitleCls,
-} from "./Wiki.less";
+import { editor, collapsibleToolbarIcon, collapseButton } from "./Wiki.less";
+import WikiWrapper from "./WikiModal/WikiWrapper";
+import ShrinkableSearch from "./ShrinkableSearch/ShrinkableSearch";
 
 const toolbarHeight = parseInt(toolbarHeightCssValue, 10);
 
@@ -67,11 +55,9 @@ const getLoadViewState = createSelector(
     })
 );
 
-const mapStateToProps = (state, { location }) => {
-  const loc = state.routing.locationBeforeTransitions || {};
+const mapStateToProps = () => {
   return {
-    showLoadMask: !isWikAvailable(state, location), // means either dataset data is not loaded yet or we should not get to the wiki page for current data set
-    columns: getTableColumns(state, loc.query && loc.query.version, loc),
+    showLoadMask: false,
   };
 };
 
@@ -88,15 +74,13 @@ export class WikiView extends PureComponent {
     showTags: PropTypes.bool,
     addNotification: PropTypes.func,
     dataset: PropTypes.instanceOf(Immutable.Map),
-    columns: ImmutablePropTypes.listOf(
-      ImmutablePropTypes.contains(columnPropTypes)
-    ),
+    intl: PropTypes.object.isRequired,
+    overlay: PropTypes.bool,
   };
 
   static defaultProps = {
     showWikiContent: true,
     showTags: true,
-    columns: fromJS([]),
   };
 
   // state and related properties ----------------------------
@@ -105,6 +89,7 @@ export class WikiView extends PureComponent {
     wikiViewState: fromJS({}),
     wiki: "",
     wikiVersion: null,
+    sidebarCollapsed: false,
 
     // Tags
     ...defaultTagsState,
@@ -112,6 +97,7 @@ export class WikiView extends PureComponent {
 
     // Fields
     fields: fromJS([]),
+    searchTerm: "",
   };
 
   wikiChanged = false;
@@ -135,7 +121,7 @@ export class WikiView extends PureComponent {
         isInProgress: true,
       }),
     });
-
+    const { intl } = this.props;
     //load tags and wiki
     ApiUtils.fetchJson(
       `catalog/${entityId}/collaboration/tag`,
@@ -143,7 +129,9 @@ export class WikiView extends PureComponent {
       (error) => {
         if (this.isError(error)) {
           this.setState({
-            tagsViewState: this.getErrorViewState(la("Failed to load Tags.")),
+            tagsViewState: this.getErrorViewState(
+              intl.formatMessage({ id: "Wiki.FailedTags" })
+            ),
           });
         } else {
           // init state with default value
@@ -158,7 +146,9 @@ export class WikiView extends PureComponent {
       (error) => {
         if (this.isError(error)) {
           this.setState({
-            wikiViewState: this.getErrorViewState(la("Failed to load Wiki.")),
+            wikiViewState: this.getErrorViewState(
+              intl.formatMessage({ id: "Wiki.FailedWiki" })
+            ),
           });
         } else {
           // init state with default value
@@ -176,6 +166,15 @@ export class WikiView extends PureComponent {
       {},
       2
     );
+  };
+
+  initFieldsOverlay = (dataset) => {
+    if (this.props.overlay) {
+      this.setState({
+        fields: dataset.get("fields"),
+        origFields: dataset.get("fields"),
+      });
+    }
   };
 
   setOriginalTags = ({
@@ -211,12 +210,13 @@ export class WikiView extends PureComponent {
     const {
       dataset: { fields },
     } = response;
-    this.setState({ fields: fromJS(fields) });
+    this.setState({ fields: fromJS(fields), origFields: fromJS(fields) });
   };
 
   componentWillMount() {
     this.handlePropsChange(undefined, this.props);
     this.props.addHasChangesHook(this.hasChanges);
+    this.initFieldsOverlay(this.props.dataset);
   }
 
   componentWillUpdate(newProps) {
@@ -225,14 +225,12 @@ export class WikiView extends PureComponent {
 
   handlePropsChange = (
     /* prevProps */ { entityId: prevEntityId, dataset: prevDataset } = {},
-    /* newProps */ { entityId, dataset, columns } = {}
+    /* newProps */ { entityId, dataset } = {}
   ) => {
     if (prevEntityId !== entityId && entityId) {
       this.initEntity(entityId);
     }
-
     if (
-      columns?.size === 0 &&
       prevDataset?.getIn(["apiLinks", "datagraph"]) == null &&
       dataset?.getIn(["apiLinks", "datagraph"]) != null
     ) {
@@ -241,7 +239,7 @@ export class WikiView extends PureComponent {
   };
 
   saveTags = () => {
-    const { entityId } = this.props;
+    const { entityId, intl } = this.props;
     const { tagsVersion, tags } = this.state;
     const tagsToSave = tags.toList().toJS();
 
@@ -264,12 +262,12 @@ export class WikiView extends PureComponent {
         return response.json().then((e) => {
           // User-friendly error messages for CME are currently only supported on DCS
           // If on software, use the existing error message
-          if (isDcsEdition() && e?.errorMessage) {
+          if (isNotSoftware() && e?.errorMessage) {
             this.props.addNotification(e?.errorMessage, "error");
           } else {
             this.setState({
               tagsViewState: this.getErrorViewState(
-                la("Error: Tags are not saved")
+                intl.formatMessage({ id: "Wiki.TagsNotSaved" })
               ),
             });
           }
@@ -294,12 +292,16 @@ export class WikiView extends PureComponent {
 
   removeTag = (tag) => {
     const dialog = this.props.showConfirmationDialog;
+    const { intl } = this.props;
     return new Promise((resolve, reject) => {
       dialog({
-        title: la("Remove tag"),
-        cancelText: la("Cancel"),
-        confirmText: la("Remove"),
-        text: la(`Are you sure that you want to remove '${tag}' tag?`),
+        title: intl.formatMessage({ id: "Wiki.RemoveTag" }),
+        cancelText: intl.formatMessage({ id: "Common.Cancel" }),
+        confirmText: intl.formatMessage({ id: "Common.Remove" }),
+        text: intl.formatMessage(
+          { id: "Wiki.RemoveTagConfirmation" },
+          { tag: tag }
+        ),
         confirm: () => {
           this.setState(
             ({ tags }) => ({
@@ -314,7 +316,9 @@ export class WikiView extends PureComponent {
     });
   };
 
-  editWiki = () => {
+  editWiki = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
     this.setState({
       isWikiInEditMode: true,
     });
@@ -323,7 +327,9 @@ export class WikiView extends PureComponent {
   cancelWikiEdit = () => {
     this.setState({
       isWikiInEditMode: false,
-      wikiViewState: fromJS({}), // reset errors if any
+      wikiViewState: fromJS({
+        isInProgress: false,
+      }), // reset errors if any
     });
     this.wikiChanged = false;
   };
@@ -362,12 +368,70 @@ export class WikiView extends PureComponent {
     if (isInProgress === undefined || isInProgress) {
       return null;
     } else if (wiki) {
-      return <MarkdownEditor value={wiki} readMode onChange={this.onChange} />;
+      return (
+        <MarkdownEditor
+          value={wiki}
+          readMode
+          onChange={this.onChange}
+          className={editor} // todo
+        />
+      );
     } else {
       return (
         <WikiEmptyState onAddWiki={isEditAllowed ? this.editWiki : null} />
       );
     }
+  };
+
+  renderCollapseIcon = () => {
+    return (
+      <IconButton
+        tooltip={
+          !this.state.sidebarCollapsed ? "Common.Collapse" : "Common.Expand"
+        }
+        onClick={this.toggleRightPanel}
+        className={collapseButton}
+      >
+        <dremio-icon
+          name={
+            !this.state.sidebarCollapsed
+              ? "scripts/CollapseRight"
+              : "scripts/CollapseLeft"
+          }
+        />
+      </IconButton>
+    );
+  };
+
+  toggleRightPanel = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    this.setState({
+      sidebarCollapsed: !this.state.sidebarCollapsed,
+    });
+  };
+
+  searchColumns = (searchVal) => {
+    const { overlay, dataset } = this.props;
+    const { origFields } = this.state;
+    if (searchVal === "") {
+      this.setState({
+        fields: origFields || new Immutable.List(),
+        searchTerm: "",
+      });
+      return;
+    }
+    let columnDetails = origFields;
+    if (overlay) {
+      columnDetails = dataset?.get("fields");
+    }
+    const filteredColumns = columnDetails?.filter((column) =>
+      column?.get("name")?.toLowerCase().includes(searchVal?.toLowerCase())
+    );
+    this.setState({
+      fields: filteredColumns || new Immutable.List(),
+      searchTerm: searchVal,
+    });
   };
 
   render() {
@@ -376,100 +440,108 @@ export class WikiView extends PureComponent {
       startSearch,
       entityId,
       isEditAllowed,
-      showLoadMask,
       showTags = true,
       showWikiContent = true,
-      columns,
+      dataset,
+      intl,
+      overlay,
     } = this.props;
-    const { isWikiInEditMode, wiki, wikiVersion, tags, fields } = this.state;
+    const {
+      isWikiInEditMode,
+      wiki,
+      wikiVersion,
+      tags,
+      fields,
+      sidebarCollapsed,
+      searchTerm,
+    } = this.state;
+    const columnDetails = fields;
     const wrapperStylesFix = {
       height: "auto", // need reset a height from 100% to auto, as we need to fit wrapper to it's content
     };
     const messageStyle = {
       top: toolbarHeight, // We should display and error below the title
     };
+    const columnToolbar = [
+      {
+        name: "search",
+        component: (
+          <ShrinkableSearch
+            search={this.searchColumns}
+            tooltip={intl.formatMessage({ id: "Common.Search" })}
+          />
+        ),
+        onClickHandle: () => {},
+        componentClass: "collapsibleToolbarIconContainer",
+      },
+      // can be uncommented when edit column description is ready from backend
+      // {
+      //   name: "edit",
+      //   tooltip: "Edit",
+      //   component: (
+      //     <dremio-icon
+      //       key="edit"
+      //       name="interface/edit"
+      //       onClick={() => {
+      //         this.editWiki();
+      //       }}
+      //       // className={collapsibleToolbarIcon}
+      //     />
+      //   ),
+      // },
+    ];
+    const wikiToolbar = [];
+    if (isEditAllowed && wiki)
+      wikiToolbar.push({
+        name: "edit",
+        tooltip: intl.formatMessage({ id: "Common.Edit" }),
+        component: (
+          <IconButton
+            tooltip="Common.Edit"
+            onClick={this.editWiki}
+            className={collapsibleToolbarIcon}
+          >
+            <dremio-icon name="interface/edit" />
+          </IconButton>
+        ),
+        componentClass: "collapsibleToolbarEditIconContainer",
+      });
 
     // If wiki is empty we show empty content placeholder with "Add wiki" button and hide edit button in toolbar
     return (
-      <ViewStateWrapper
-        viewState={getLoadViewState(showLoadMask)}
-        style={{ height: "auto", display: "flex", flex: 1, minHeight: 0 }}
-      >
-        <div className={layout} data-qa="wikiSection">
-          {showWikiContent && (
-            <div
-              className={classNames(leftColumn, className)}
-              data-qa="wikiWrapper"
-            >
-              <ViewStateWrapper
-                viewState={this.state.wikiViewState}
-                style={wrapperStylesFix}
-                hideChildrenWhenFailed={false}
-                messageStyle={messageStyle}
-              >
-                <SectionTitle
-                  className={sectionTitleCls}
-                  title={la("Wiki")}
-                  buttons={
-                    isEditAllowed && wiki
-                      ? [
-                          getIconButtonConfig({
-                            key: "edit",
-                            icon: "interface/edit",
-                            altText: "Edit",
-                            onClick: this.editWiki,
-                            styles: {
-                              width: 17,
-                              height: 18,
-                              color: "var(--dremio--color--neutral--600)",
-                            },
-                          }),
-                        ]
-                      : null
-                  }
-                />
-                {this.renderWikiContent()}
-                <WikiModal
-                  isOpen={isWikiInEditMode}
-                  entityId={entityId}
-                  onChange={this.onChange}
-                  wikiValue={wiki}
-                  wikiVersion={wikiVersion}
-                  save={this.saveWiki}
-                  cancel={this.cancelWikiEdit}
-                />
-              </ViewStateWrapper>
-            </div>
-          )}
-          <div
-            className={classNames(rightColumn, sectionsContainer)}
-            data-qa="tagsSection"
-          >
-            {showTags && (
-              <ViewStateWrapper
-                viewState={this.state.tagsViewState}
-                className={sectionItem}
-                style={wrapperStylesFix}
-                hideChildrenWhenFailed={false}
-                messageStyle={messageStyle}
-              >
-                <SectionTitle title={la("Tags")} className={sectionTitleCls} />
-                <TagsView
-                  className={tagsCls}
-                  tags={getTags(tags)}
-                  onAddTag={isEditAllowed ? this.addTag : null}
-                  onRemoveTag={isEditAllowed ? this.removeTag : null}
-                  onTagClick={startSearch}
-                />
-              </ViewStateWrapper>
-            )}
-            <DataColumnList
-              className={sectionItem}
-              columns={columns?.size ? columns : fields}
-            />
-          </div>
-        </div>
-      </ViewStateWrapper>
+      <WikiWrapper
+        getLoadViewState={getLoadViewState}
+        showLoadMask={false}
+        showWikiContent={showWikiContent}
+        extClassName={className}
+        wikiViewState={this.state.wikiViewState}
+        wrapperStylesFix={wrapperStylesFix}
+        messageStyle={messageStyle}
+        columnDetails={columnDetails}
+        columnToolbar={columnToolbar}
+        wikiToolbar={wikiToolbar}
+        renderWikiContent={this.renderWikiContent}
+        isWikiInEditMode={isWikiInEditMode}
+        entityId={entityId}
+        onChange={this.onChange}
+        wiki={wiki}
+        wikiVersion={wikiVersion}
+        saveWiki={this.saveWiki}
+        cancelWikiEdit={this.cancelWikiEdit}
+        sidebarCollapsed={sidebarCollapsed}
+        tagsViewState={this.state.tagsViewState}
+        getTags={getTags}
+        tags={tags}
+        isEditAllowed={isEditAllowed}
+        addTag={this.addTag}
+        removeTag={this.removeTag}
+        startSearch={startSearch}
+        showTags={showTags}
+        renderCollapseIcon={this.renderCollapseIcon}
+        dataset={dataset}
+        overlay={overlay}
+        searchTerm={searchTerm}
+      />
     );
   }
 }
@@ -483,5 +555,5 @@ export const Wiki = withRouter(
     addNotification() {
       return dispatch(addNotification(...arguments));
     },
-  }))(withRouteLeaveSubscription(WikiView))
+  }))(withRouteLeaveSubscription(injectIntl(WikiView)))
 );

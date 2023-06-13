@@ -97,10 +97,12 @@ public class BlockLogLevelTurboFilter extends TurboFilter {
     this.defaultLogLevelThreshold = Level.toLevel(defaultLogLevelThreshold);
   }
 
+  @Override
   public void stop() {
     this.start = false;
   }
 
+  @Override
   public void start() {
     if (this.defaultLogLevelThreshold != null) {
       super.start();

@@ -177,24 +177,28 @@ public class TestNLJE extends BaseTestJoin {
       2047, expected);
   }
 
+  @Override
   @Test
   public void noNullEquivalenceWithNullsLeft() {
     // disable since ordering is different.
     Assume.assumeFalse(true);
   }
 
+  @Override
   @Test
   public void noNullEquivalenceWithZeroKeyLeft() {
     // disable since ordering is different.
     Assume.assumeFalse(true);
   }
 
+  @Override
   @Test
   public void hugeBatch() {
     // disable ass this takes too long in unit tests (4B comparisons are required)
     Assume.assumeFalse(true);
   }
 
+  @Override
   @Test
    public void regionNationInner() {
     // disable since ordering is different.

@@ -100,8 +100,7 @@ public class IcebergExecutionDatasetAccessor extends BaseIcebergExecutionDataset
         .newBuilder()
         .addCachedEntities(cachedEntity)
         .build()::writeTo;
-    }
-    catch (IOException ioe) {
+    } catch (IOException ioe) {
       Throwables.propagateIfPossible(ioe, ConnectorException.class);
       throw new ConnectorException(ioe);
     }

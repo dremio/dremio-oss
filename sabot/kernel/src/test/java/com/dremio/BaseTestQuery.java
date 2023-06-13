@@ -16,7 +16,6 @@
 package com.dremio;
 
 import static com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl.DEFAULT_PASSWORD;
-import static com.dremio.exec.store.iceberg.IcebergModelCreator.DREMIO_NESSIE_DEFAULT_NAMESPACE;
 import static com.dremio.exec.store.parquet.ParquetFormatDatasetAccessor.PARQUET_SCHEMA_FALLBACK_DISABLED;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -38,6 +37,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.DirectoryStream;
+import java.nio.file.FileSystems;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
@@ -51,7 +51,6 @@ import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import org.apache.arrow.vector.ValueVector;
@@ -59,14 +58,15 @@ import org.apache.arrow.vector.VarCharVector;
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.hadoop.HadoopFileIO;
+import org.apache.iceberg.hadoop.HadoopTableOperations;
+import org.apache.iceberg.util.LockManagers;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.ObjectAssert;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.rules.ExternalResource;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
@@ -79,8 +79,8 @@ import com.dremio.exec.ExecTest;
 import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.exception.SchemaChangeException;
-import com.dremio.exec.hadoop.DremioHadoopUtils;
 import com.dremio.exec.hadoop.HadoopFileSystem;
+import com.dremio.exec.hadoop.HadoopFileSystemConfigurationAdapter;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
@@ -94,12 +94,12 @@ import com.dremio.exec.rpc.ConnectionThrottle;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.SabotNode;
 import com.dremio.exec.server.SimpleJobRunner;
+import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.exec.store.iceberg.hadoop.IcebergHadoopModel;
+import com.dremio.exec.store.iceberg.DremioFileIO;
+import com.dremio.exec.store.iceberg.SupportsIcebergMutablePlugin;
 import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
-import com.dremio.exec.store.iceberg.nessie.IcebergNessieModel;
-import com.dremio.exec.store.metadatarefresh.committer.DatasetCatalogGrpcClient;
 import com.dremio.exec.util.TestUtilities;
 import com.dremio.exec.util.VectorUtil;
 import com.dremio.exec.work.user.LocalQueryExecutor;
@@ -122,7 +122,6 @@ import com.dremio.service.BindingCreator;
 import com.dremio.service.BindingProvider;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
-import com.dremio.service.users.SystemUser;
 import com.dremio.services.credentials.CredentialsService;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -359,7 +358,7 @@ public class BaseTestQuery extends ExecTest {
     setEnableReAttempts(false);
   }
 
-  protected static void setEnableReAttempts(boolean enabled) throws Exception {
+  public static void setEnableReAttempts(boolean enabled) throws Exception {
     runSQL("ALTER SYSTEM SET " + SqlUtils.QUOTE + ExecConstants.ENABLE_REATTEMPTS.getOptionName() + SqlUtils.QUOTE + " = " + enabled);
   }
 
@@ -734,9 +733,23 @@ public class BaseTestQuery extends ExecTest {
 
   protected static void copyFromJar(String sourceElement, final java.nio.file.Path target) throws URISyntaxException, IOException {
     URI resource = Resources.getResource(sourceElement).toURI();
-    java.nio.file.Path srcDir = java.nio.file.Paths.get(resource);
-    try (Stream<java.nio.file.Path> stream = java.nio.file.Files.walk(srcDir)) {
-      stream.forEach(source -> copy(source, target.resolve(srcDir.relativize(source))));
+
+    if (resource.getScheme().equals("jar")) {
+      try (java.nio.file.FileSystem fileSystem = FileSystems.newFileSystem(resource, Collections.emptyMap())) {
+        sourceElement = !sourceElement.startsWith("/") ?  "/" + sourceElement : sourceElement;
+        java.nio.file.Path srcDir = fileSystem.getPath(sourceElement);
+        try (Stream<java.nio.file.Path> stream = java.nio.file.Files.walk(srcDir)) {
+          stream.forEach(source -> {
+            java.nio.file.Path dest = target.resolve(Paths.get(srcDir.relativize(source).toString()));
+            copy(source, dest);
+          });
+        }
+      }
+    } else {
+      java.nio.file.Path srcDir = java.nio.file.Paths.get(resource);
+      try (Stream<java.nio.file.Path> stream = java.nio.file.Files.walk(srcDir)) {
+        stream.forEach(source -> copy(source, target.resolve(srcDir.relativize(source))));
+      }
     }
   }
 
@@ -921,20 +934,6 @@ public class BaseTestQuery extends ExecTest {
         PlannerSettings.EXCHANGE.getDefault().getBoolVal().toString());
   }
 
-  protected static AutoCloseable enableINPushDown() {
-    setSystemOption(PlannerSettings.ENABLE_PARQUET_IN_EXPRESSION_PUSH_DOWN, "true");
-    return () ->
-      setSystemOption(PlannerSettings.ENABLE_PARQUET_IN_EXPRESSION_PUSH_DOWN,
-        PlannerSettings.ENABLE_PARQUET_IN_EXPRESSION_PUSH_DOWN.getDefault().getBoolVal().toString());
-  }
-
-  protected static AutoCloseable enableMultipleConditionPushDown() {
-    setSystemOption(PlannerSettings.ENABLE_PARQUET_MULTI_COLUMN_FILTER_PUSH_DOWN, "true");
-    return () ->
-      setSystemOption(PlannerSettings.ENABLE_PARQUET_MULTI_COLUMN_FILTER_PUSH_DOWN,
-        PlannerSettings.ENABLE_PARQUET_MULTI_COLUMN_FILTER_PUSH_DOWN.getDefault().getBoolVal().toString());
-  }
-
   protected static AutoCloseable treatScanAsBoost() {
     setSystemOption(ExecConstants.ENABLE_BOOSTING, "true");
     return () ->
@@ -958,6 +957,13 @@ public class BaseTestQuery extends ExecTest {
     return () ->
       setSystemOption(ExecConstants.ENABLE_MAP_DATA_TYPE,
         ExecConstants.ENABLE_MAP_DATA_TYPE.getDefault().getBoolVal().toString());
+  }
+
+  protected static AutoCloseable enableComplexHiveType() {
+    setSystemOption(ExecConstants.ENABLE_COMPLEX_HIVE_DATA_TYPE, "true");
+    return () ->
+      setSystemOption(ExecConstants.ENABLE_COMPLEX_HIVE_DATA_TYPE,
+        ExecConstants.ENABLE_COMPLEX_HIVE_DATA_TYPE.getDefault().getBoolVal().toString());
   }
 
   protected static AutoCloseable disableHiveParquetComplexTypes() {
@@ -1215,35 +1221,29 @@ public class BaseTestQuery extends ExecTest {
     assertThat(getValueInFirstRecord(query, column)).contains(expected);
   }
 
-  protected static IcebergModel getIcebergModel(File tableRoot, IcebergCatalogType catalogType) {
-    FileSystemPlugin fileSystemPlugin = BaseTestQuery.getMockedFileSystemPlugin();
-    IcebergModel icebergModel = null;
-    switch (catalogType) {
-      case UNKNOWN:
-        break;
-      case NESSIE:
-        icebergModel = new IcebergNessieModel(DREMIO_NESSIE_DEFAULT_NAMESPACE, new Configuration(),
-                getSabotContext().getNessieClientProvider(),
-                null, null, new DatasetCatalogGrpcClient(getSabotContext().getDatasetCatalogBlockingStub().get()), fileSystemPlugin);
-
-        when(fileSystemPlugin.getIcebergModel()).thenReturn(icebergModel);
-        break;
-      case HADOOP:
-
-        icebergModel = new IcebergHadoopModel(new Configuration(), fileSystemPlugin);
-        when(fileSystemPlugin.getIcebergModel()).thenReturn(icebergModel);
-        break;
+  protected static IcebergModel getIcebergModel(String pluginName) {
+    StoragePlugin plugin = getSabotContext().getCatalogService().getSource(pluginName);
+    if (plugin instanceof SupportsIcebergMutablePlugin) {
+      SupportsIcebergMutablePlugin icebergMutablePlugin = (SupportsIcebergMutablePlugin) plugin;
+      return icebergMutablePlugin.getIcebergModel(null, null, null, localFs);
+    } else {
+      throw new UnsupportedOperationException(
+          String.format("Plugin %s does not implement SupportsIcebergMutablePlugin", pluginName));
     }
-    return icebergModel;
   }
 
-  public static Table getIcebergTable(File tableRoot, IcebergCatalogType catalogType) {
-    IcebergModel icebergModel = getIcebergModel(tableRoot, catalogType);
+  public static Table getIcebergTable(IcebergModel icebergModel, File tableRoot) {
     return icebergModel.getIcebergTable(icebergModel.getTableIdentifier(tableRoot.getPath()));
   }
 
+  public static Table getIcebergTable(File tableRoot, IcebergCatalogType catalogType) {
+    IcebergModel icebergModel =
+        getIcebergModel(catalogType == IcebergCatalogType.NESSIE ? TEMP_SCHEMA : TEMP_SCHEMA_HADOOP);
+    return getIcebergTable(icebergModel, tableRoot);
+  }
+
   public static Table getIcebergTable(File tableRoot) {
-    return getIcebergTable(tableRoot, IcebergCatalogType.NESSIE);
+    return getIcebergTable(getIcebergModel(TEMP_SCHEMA), tableRoot);
   }
 
   protected static String getDfsTestTmpDefaultCtasFormat(String pluginName) {
@@ -1252,40 +1252,19 @@ public class BaseTestQuery extends ExecTest {
   }
 
   public static FileSystemPlugin getMockedFileSystemPlugin() {
-    FileSystemPlugin fileSystemPlugin = mock(FileSystemPlugin.class);
-    when(fileSystemPlugin.getHadoopFsSupplier(any(String.class), any(Configuration.class), any(String.class))).
-      thenAnswer(
-        new Answer<Object>() {
-          @Override
-          public Object answer(InvocationOnMock invocation) throws Throwable {
-            Object[] args = invocation.getArguments();
-            Supplier<org.apache.hadoop.fs.FileSystem> fileSystemSupplier = getFileSystemSupplier(DremioHadoopUtils.toHadoopPath((String) args[0]).toUri(), (Configuration) args[1], (String) args[2]);
-            return fileSystemSupplier;
-          }
-        });
+    try {
 
-    when(fileSystemPlugin.getHadoopFsSupplier(any(String.class), any(Configuration.class))).
-      thenAnswer(
-        new Answer<Object>() {
-          @Override
-          public Object answer(InvocationOnMock invocation) throws Throwable {
-            Object[] args = invocation.getArguments();
-            Supplier<org.apache.hadoop.fs.FileSystem> fileSystemSupplier = getFileSystemSupplier(DremioHadoopUtils.toHadoopPath((String) args[0]).toUri(), (Configuration) args[1], SystemUser.SYSTEM_USERNAME);
-
-            return fileSystemSupplier;
-          }
-        });
-    return fileSystemPlugin;
-  }
-
-  private static Supplier<org.apache.hadoop.fs.FileSystem> getFileSystemSupplier(final URI uri, final Configuration conf, String user) {
-    return () -> {
-      try {
-        return org.apache.hadoop.fs.FileSystem.get(uri, conf, user);
-      } catch (IOException | InterruptedException e) {
-        throw new RuntimeException();
-      }
-    };
+      FileSystemPlugin fileSystemPlugin = mock(FileSystemPlugin.class);
+      FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
+      when(fileSystemPlugin.getSystemUserFS()).thenReturn(fs);
+      when(fileSystemPlugin.getFsConfCopy()).thenReturn(new Configuration());
+      when(fileSystemPlugin.createIcebergFileIO(any(), any(), any(), any(), any()))
+          .thenReturn(new DremioFileIO(fs, null, null, null, null,
+              new HadoopFileSystemConfigurationAdapter(new Configuration())));
+      return fileSystemPlugin;
+    } catch (IOException ex) {
+      throw new UncheckedIOException(ex);
+    }
   }
 
   public static boolean areAzureStorageG1CredentialsNull(){
@@ -1321,5 +1300,21 @@ public class BaseTestQuery extends ExecTest {
       return true;
     }
     return false;
+  }
+
+  protected static org.apache.hadoop.fs.FileSystem setupLocalFS() throws IOException {
+    Configuration conf = new Configuration();
+    conf.set("fs.default.name", "local");
+    return org.apache.hadoop.fs.FileSystem.get(conf);
+  }
+
+  protected static void refresh(String table) throws Exception {
+    runSQL(String.format("alter table %s refresh metadata", table));
+  }
+
+  protected static final class TestHadoopTableOperations extends HadoopTableOperations {
+    public TestHadoopTableOperations(org.apache.hadoop.fs.Path location, Configuration conf) {
+      super(location, new HadoopFileIO(conf), conf, LockManagers.defaultLockManager());
+    }
   }
 }

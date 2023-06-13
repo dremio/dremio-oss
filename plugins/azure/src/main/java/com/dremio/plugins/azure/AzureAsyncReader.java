@@ -28,6 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.exec.hadoop.DremioHadoopUtils;
+import com.dremio.http.BufferBasedCompletionHandler;
 import com.dremio.io.ExponentialBackoff;
 import com.dremio.io.ReusableAsyncByteReader;
 import com.dremio.plugins.async.utils.AsyncReadWithRetry;
@@ -45,6 +46,9 @@ public class AzureAsyncReader extends ReusableAsyncByteReader implements AutoClo
   private static final int BASE_MILLIS_TO_WAIT = 250; // set to the average latency of an async read
   private static final int MAX_MILLIS_TO_WAIT = 10 * BASE_MILLIS_TO_WAIT;
 
+  /** The maximum range size for which azure storage provides MD5 checksums. */
+  private static final int MAX_LEN_FOR_MD5_CHECKSUM = 1 << 22;
+
   private static final Logger logger = LoggerFactory.getLogger(AzureAsyncReader.class);
   private final AsyncHttpClient asyncHttpClient;
   private final AzureAuthTokenProvider authProvider;
@@ -53,6 +57,7 @@ public class AzureAsyncReader extends ReusableAsyncByteReader implements AutoClo
   private final String url;
   private final String threadName;
   private final AsyncReadWithRetry asyncReaderWithRetry;
+  private final boolean enableMD5Checksum;
   private final ExponentialBackoff backoff = new ExponentialBackoff() {
     @Override public int getBaseMillis() { return BASE_MILLIS_TO_WAIT; }
     @Override public int getMaxMillis() { return MAX_MILLIS_TO_WAIT; }
@@ -64,8 +69,9 @@ public class AzureAsyncReader extends ReusableAsyncByteReader implements AutoClo
                           final AzureAuthTokenProvider authProvider,
                           final String version,
                           final boolean isSecure,
-                          final AsyncHttpClient asyncHttpClient) {
-    this(azureEndpoint, accountName, path, authProvider, version, isSecure, asyncHttpClient, new AsyncReadWithRetry(throwable -> {
+                          final AsyncHttpClient asyncHttpClient,
+                          final boolean enableMD5Checksum) {
+    this(azureEndpoint, accountName, path, authProvider, version, isSecure, asyncHttpClient, enableMD5Checksum, new AsyncReadWithRetry(throwable -> {
       if (throwable.getMessage().contains("ConditionNotMet")) {
         return AsyncReadWithRetry.Error.PRECONDITION_NOT_MET;
       } else if (throwable.getMessage().contains("PathNotFound")) {
@@ -83,6 +89,7 @@ public class AzureAsyncReader extends ReusableAsyncByteReader implements AutoClo
                           final String version,
                           final boolean isSecure,
                           final AsyncHttpClient asyncHttpClient,
+                          final boolean enableMD5Checksum,
                           AsyncReadWithRetry asyncReadWithRetry) {
     this.authProvider = authProvider;
     this.path = path;
@@ -95,25 +102,42 @@ public class AzureAsyncReader extends ReusableAsyncByteReader implements AutoClo
     this.url = String.format("%s/%s/%s", baseURL, container, AzureAsyncHttpClientUtils.encodeUrl(subPath));
     this.threadName = Thread.currentThread().getName();
     this.asyncReaderWithRetry = asyncReadWithRetry;
+    this.enableMD5Checksum = enableMD5Checksum;
   }
 
   @Override
   public CompletableFuture<Void> readFully(long offset, ByteBuf dst, int dstOffset, int len) {
-    return read(offset, dst, dstOffset, len, 0);
+    return read(offset, len, this.createResponseHandler(dst, dstOffset, len), 0);
   }
 
-  public CompletableFuture<Void> read(long offset, ByteBuf dst, int dstOffset, long len, int retryAttemptNum) {
+  public CompletableFuture<Void> read(long offset, long len, BufferBasedCompletionHandler responseHandler, int retryAttemptNum) {
     MetricsLogger metrics = getMetricLogger();
     java.util.function.Function<Void, Request> requestBuilderFunction = getRequestBuilderFunction(offset, len, metrics);
+
     return asyncReaderWithRetry.read(asyncHttpClient, requestBuilderFunction,
-            metrics, path, threadName, dst, dstOffset, retryAttemptNum, backoff);
+            metrics, path, threadName, responseHandler, retryAttemptNum, backoff);
+  }
+
+  private BufferBasedCompletionHandler createResponseHandler(ByteBuf buf, int dstOffset, int len) {
+    if (this.requireChecksum(len)) {
+      return new ChecksumVerifyingCompletionHandler(buf, dstOffset);
+    } else {
+      return new BufferBasedCompletionHandler(buf, dstOffset);
+    }
+  }
+
+  @VisibleForTesting
+  boolean requireChecksum(long len) {
+   return enableMD5Checksum && len <= MAX_LEN_FOR_MD5_CHECKSUM;
   }
 
   java.util.function.Function<Void, Request> getRequestBuilderFunction(long offset, long len, MetricsLogger metrics) {
     java.util.function.Function<Void, Request> requestBuilderFunction = (Function<Void, Request>) unused -> {
       long rangeEnd = offset + len - 1L;
+      boolean requestChecksum = this.requireChecksum(len);
       RequestBuilder requestBuilder = AzureAsyncHttpClientUtils.newDefaultRequestBuilder()
               .addHeader("Range", String.format("bytes=%d-%d", offset, rangeEnd))
+              .addHeader("x-ms-range-get-content-md5", requestChecksum ? "true" : "false")
               .setUrl(url);
       if (version != null) {
         requestBuilder.addHeader("If-Unmodified-Since", version);

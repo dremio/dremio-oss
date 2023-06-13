@@ -16,6 +16,7 @@
 package com.dremio.exec.store.easy.text.compliant;
 
 import static com.dremio.exec.store.easy.EasyFormatUtils.getValue;
+import static com.dremio.exec.store.easy.EasyFormatUtils.isVarcharOptimizationPossible;
 import static com.dremio.exec.store.iceberg.IcebergUtils.writeToVector;
 
 import java.nio.charset.StandardCharsets;
@@ -25,6 +26,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.types.pojo.Field;
 
 import com.dremio.common.exceptions.UserException;
@@ -93,8 +95,20 @@ class SchemaImposedOutput extends FieldTypeOutput {
   }
   @Override
   protected void writeValueInCurrentVector(int index, byte[] fieldBytes, int startIndex, int endIndex) {
-    String s = new String(fieldBytes, 0, currentDataPointer, StandardCharsets.UTF_8);
-    Object v = getValue(currentVector.getField(), s, extendedFormatOptions);
-    writeToVector(currentVector, recordCount, v);
+    if (isVarcharOptimizationPossible(extendedFormatOptions, currentVector.getField().getType())) {
+      // If we do not need to apply any string transformations and if our target field type is VARCHAR,
+      // then we can skip converting to String type and directly write to currentValueVector
+      if(currentDataPointer == 0 && extendedFormatOptions.getEmptyAsNull()) {
+        // We will enter this block when the input string is empty AND we are required to treat empty strings as null.
+        // Hence, write NULL to currentVector at position 'recordCount'
+        ((VarCharVector) currentVector).setNull(recordCount);
+      } else {
+        ((VarCharVector) currentVector).setSafe(recordCount, fieldBytes, 0, currentDataPointer);
+      }
+    } else {
+      String s = new String(fieldBytes, 0, currentDataPointer, StandardCharsets.UTF_8);
+      Object v = getValue(currentVector.getField(), s, extendedFormatOptions);
+      writeToVector(currentVector, recordCount, v);
+    }
   }
 }

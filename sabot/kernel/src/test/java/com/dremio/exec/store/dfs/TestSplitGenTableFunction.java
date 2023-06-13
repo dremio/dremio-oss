@@ -16,7 +16,6 @@
 package com.dremio.exec.store.dfs;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -66,7 +65,7 @@ public class TestSplitGenTableFunction extends BaseTestQuery {
     }
 
     @Test
-    public void testNoPartitionSplits() {
+    public void testNoPartitionSplits() throws Exception {
         try (VarCharVector pathVector = new VarCharVector(DeltaConstants.SCHEMA_ADD_PATH, allocator);
              BigIntVector sizeVector = new BigIntVector(DeltaConstants.SCHEMA_ADD_SIZE, allocator);
              BigIntVector mtimeVector = new BigIntVector(DeltaConstants.SCHEMA_ADD_MODIFICATION_TIME, allocator);
@@ -112,14 +111,11 @@ public class TestSplitGenTableFunction extends BaseTestQuery {
             assertSplit(extractSplit(outgoingSplits, 1), "/test/file2.parquet", 0L,2054L, 2054L, currentTime);
             assertSplit(extractSplit(outgoingSplits, 2), "/test/file3.parquet", 0L,211L, 211L, currentTime);
             tableFunction.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
         }
     }
 
     @Test
-    public void testSplitsLargerThanMaxRecords() {
+    public void testSplitsLargerThanMaxRecords() throws Exception {
         final long blockSize = getOpCtx().getOptions().getOption(ExecConstants.PARQUET_SPLIT_SIZE).getNumVal();
         final int batchSize = 5;
         try (VarCharVector pathVector = new VarCharVector(DeltaConstants.SCHEMA_ADD_PATH, allocator);
@@ -170,9 +166,6 @@ public class TestSplitGenTableFunction extends BaseTestQuery {
             assertEquals(11, outgoingSplits.getValueCount());
             assertSplit(extractSplit(outgoingSplits, 10), "/test/file2.parquet", 0L, 2054L, 2054L, currentTime);
             tableFunction.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
         }
     }
 

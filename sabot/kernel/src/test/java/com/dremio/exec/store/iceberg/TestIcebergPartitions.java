@@ -55,7 +55,6 @@ import com.dremio.connector.metadata.PartitionValue;
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.proto.UserBitShared;
-import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.google.common.collect.ImmutableList;
 
@@ -137,7 +136,7 @@ public class TestIcebergPartitions extends BaseTestQuery {
   @Test
   public void testPartitions() throws Exception {
     File root = tempDir.newFolder();
-    IcebergModel icebergModel = getIcebergModel(root, IcebergCatalogType.HADOOP);
+    IcebergModel icebergModel = getIcebergModel(TEMP_SCHEMA_HADOOP);
     HadoopTables tables = new HadoopTables(conf);
     Table table = tables.create(schema, spec, root.getAbsolutePath());
 
@@ -188,7 +187,7 @@ public class TestIcebergPartitions extends BaseTestQuery {
   @Test
   public void testNonIdentityPartitions() throws Exception {
     File root = tempDir.newFolder();
-    IcebergModel icebergModel = getIcebergModel(root, IcebergCatalogType.HADOOP);
+    IcebergModel icebergModel = getIcebergModel(TEMP_SCHEMA_HADOOP);
     HadoopTables tables = new HadoopTables(conf);
     PartitionSpec partitionSpec = PartitionSpec
         .builderFor(schema)

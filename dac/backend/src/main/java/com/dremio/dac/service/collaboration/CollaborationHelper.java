@@ -37,13 +37,13 @@ import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
-import com.dremio.exec.server.SabotContext;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.users.User;
 import com.dremio.service.users.UserNotFoundException;
+import com.dremio.service.users.UserService;
 import com.google.common.base.Preconditions;
 
 /**
@@ -52,22 +52,38 @@ import com.google.common.base.Preconditions;
 public class CollaborationHelper {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CollaborationHelper.class);
 
+  private static final String DEFAULT_HOME_WIKI_TEXT = "#  Wikis & Tags\n" +
+    "\n" +
+    "![Gnarly Catalog](https://d33wubrfki0l68.cloudfront.net/c1a54376c45a9276c080f3d10ed25ce61c17bcd2/2b946/img/home/open-source-for-everyone.svg)\n" +
+    "\n" +
+    "You are reading the wiki for your home space! You can create and edit this information for any source, space, or folder." +
+    "\n" +
+    "\n" +
+    "This sidebar always shows the wiki for the current source, space or folder you are browsing.\n" +
+    "\n" +
+    "When previewing datasets, click on the `Catalog` tab to create a wiki or add tags to that dataset.\n" +
+    "\n" +
+    "**Tip:** You can hide the wiki by clicking on the sidebar icon on upper right hand side.";
+
   private final CollaborationTagStore tagsStore;
   private final CollaborationWikiStore wikiStore;
   private final NamespaceService namespaceService;
-  private final SecurityContext context;
-  private final SabotContext sabotContext;
+  private final SecurityContext securityContext;
   private final SearchService searchService;
+  private final UserService userService;
 
   @Inject
-  public CollaborationHelper(LegacyKVStoreProvider kvStoreProvider, SabotContext sabotContext,
-                             NamespaceService namespaceService, SecurityContext context, SearchService searchService) {
+  public CollaborationHelper(final LegacyKVStoreProvider kvStoreProvider,
+                             final NamespaceService namespaceService,
+                             final SecurityContext securityContext,
+                             final SearchService searchService,
+                             final UserService userService) {
     this.tagsStore = new CollaborationTagStore(kvStoreProvider);
     this.wikiStore = new CollaborationWikiStore(kvStoreProvider);
     this.namespaceService = namespaceService;
-    this.context = context;
-    this.sabotContext = sabotContext;
+    this.securityContext = securityContext;
     this.searchService = searchService;
+    this.userService = userService;
   }
 
   public Optional<Tags> getTags(String entityId) throws NamespaceException {
@@ -89,7 +105,7 @@ public class CollaborationHelper {
 
     final Optional<CollaborationTag> existingTag = tagsStore.getTagsForEntityId(entityId);
 
-    // if it is a update, copy over the id so we overwrite the existing entry
+    // If it is an update, copy over the id, so we overwrite the existing entry.
     collaborationTag.setId(existingTag.map(CollaborationTag::getId).orElse(UUID.randomUUID().toString()));
 
     tagsStore.save(collaborationTag);
@@ -114,7 +130,7 @@ public class CollaborationHelper {
     return wiki.map(Wiki::fromCollaborationWiki);
   }
 
-  private final String getDescription(NameSpaceContainer container) {
+  private String getDescription(NameSpaceContainer container) {
     String description = null;
     switch (container.getType()) {
       case SOURCE:
@@ -123,20 +139,9 @@ public class CollaborationHelper {
       case SPACE:
         description = container.getSpace().getDescription();
         break;
-      case HOME: // for home space we should pre populate wiki with default text
-        description = "#  Wikis & Tags\n" +
-          "\n" +
-          "![Gnarly Catalog](https://d33wubrfki0l68.cloudfront.net/c1a54376c45a9276c080f3d10ed25ce61c17bcd2/2b946/img/home/open-source-for-everyone.svg)\n" +
-          "\n" +
-          "You are reading the wiki for your home space! You can create and edit this information for any source, space, or folder." +
-          "\n" +
-          "\n" +
-          "This sidebar always shows the wiki for the current source, space or folder you are browsing.\n" +
-          "\n" +
-          "When previewing datasets, click on the `Catalog` tab to create a wiki or add tags to that dataset.\n" +
-          "\n" +
-          "**Tip:** You can hide the wiki by clicking on the sidebar icon on upper right hand side.";
-          break;
+      case HOME:
+        description = DEFAULT_HOME_WIKI_TEXT;
+        break;
       default:
         break;
     }
@@ -153,11 +158,11 @@ public class CollaborationHelper {
     collaborationWiki.setCreatedAt(System.currentTimeMillis());
 
     // store the user
-    User user = null;
+    User user;
     try {
-      user = sabotContext.getUserService().getUser(context.getUserPrincipal().getName());
+      user = userService.getUser(securityContext.getUserPrincipal().getName());
     } catch (UserNotFoundException e) {
-      throw new RuntimeException(String.format("Could not load user [%s].", context.getUserPrincipal().getName()));
+      throw new RuntimeException(String.format("Could not load user [%s].", securityContext.getUserPrincipal().getName()));
     }
 
     collaborationWiki.setId(UUID.randomUUID().toString());
@@ -268,15 +273,11 @@ public class CollaborationHelper {
     Map<String, CollaborationTag> tags = new HashMap<>();
 
     List<SearchQuery> queries = new ArrayList<>();
-    ids.stream().limit(maxTagRequestCount).forEach(input -> {
-      queries.add(SearchQueryUtils.newTermQuery(CollaborationTagStore.ENTITY_ID, input));
-    });
+    ids.stream().limit(maxTagRequestCount).forEach(input -> queries.add(SearchQueryUtils.newTermQuery(CollaborationTagStore.ENTITY_ID, input)));
 
     findByCondition.setCondition(SearchQueryUtils.or(queries));
 
-    tagsStore.find(findByCondition).forEach(pair -> {
-      tags.put(pair.getKey(), pair.getValue());
-    });
+    tagsStore.find(findByCondition).forEach(pair -> tags.put(pair.getKey(), pair.getValue()));
 
     return new TagsSearchResult(tags, ids.size() > maxTagRequestCount);
   }

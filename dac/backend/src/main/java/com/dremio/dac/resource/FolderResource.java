@@ -16,7 +16,6 @@
 package com.dremio.dac.resource;
 
 import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.SPACE;
-import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
 import java.util.Arrays;
 import java.util.ConcurrentModificationException;
@@ -35,10 +34,10 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 
-import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
+import com.dremio.dac.model.common.ResourcePath;
 import com.dremio.dac.model.folder.Folder;
 import com.dremio.dac.model.folder.FolderName;
 import com.dremio.dac.model.folder.FolderPath;
@@ -50,7 +49,10 @@ import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.ClientErrorException;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.errors.FolderNotFoundException;
+import com.dremio.dac.service.errors.NotSupportedException;
 import com.dremio.dac.util.ResourceUtil;
+import com.dremio.exec.catalog.CatalogFeatures;
+import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
@@ -65,29 +67,32 @@ import com.dremio.service.namespace.space.proto.FolderConfig;
 @RolesAllowed({"admin", "user"})
 @Path("/space/{space}")
 public class FolderResource {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FolderResource.class);
-
   private final DatasetVersionMutator datasetService;
   private final NamespaceService namespaceService;
   private final CollaborationHelper collaborationHelper;
   private final SpaceName spaceName;
+  private final OptionManager optionManager;
 
   @Inject
   public FolderResource(
       DatasetVersionMutator datasetService,
       NamespaceService namespaceService,
       CollaborationHelper collaborationHelper,
-      @PathParam("space") SpaceName spaceName) {
+      @PathParam("space") SpaceName spaceName,
+      OptionManager optionManager) {
     this.datasetService = datasetService;
     this.namespaceService = namespaceService;
     this.collaborationHelper = collaborationHelper;
     this.spaceName = spaceName;
+    this.optionManager = optionManager;
   }
 
   @GET
   @Path("/folder/{path: .*}")
   @Produces(MediaType.APPLICATION_JSON)
   public Folder getFolder(@PathParam("path") String path, @QueryParam("includeContents") @DefaultValue("true") boolean includeContents) throws NamespaceException, FolderNotFoundException, DatasetNotFoundException {
+    throwIfNotSupported();
+
     FolderPath folderPath = FolderPath.fromURLPath(spaceName, path);
     try {
       final FolderConfig folderConfig = namespaceService.getFolder(folderPath.toNamespaceKey());
@@ -104,6 +109,8 @@ public class FolderResource {
   @Path("/folder/{path: .*}")
   @Produces(MediaType.APPLICATION_JSON)
   public void deleteFolder(@PathParam("path") String path, @QueryParam("version") String version) throws NamespaceException, FolderNotFoundException {
+    throwIfNotSupported();
+
     FolderPath folderPath = FolderPath.fromURLPath(spaceName, path);
     if (version == null) {
       throw new ClientErrorException(GenericErrorMessage.MISSING_VERSION_PARAM_MSG);
@@ -123,6 +130,8 @@ public class FolderResource {
   @Produces(MediaType.APPLICATION_JSON)
   @Consumes(MediaType.APPLICATION_JSON)
   public Folder createFolder(FolderName name, @PathParam("path") String path) throws NamespaceException  {
+    throwIfNotSupported();
+
     String fullPath = PathUtils.toFSPathString(Arrays.asList(path, name.toString()));
     FolderPath folderPath = FolderPath.fromURLPath(spaceName, fullPath);
 
@@ -146,14 +155,14 @@ public class FolderResource {
     return NamespaceTree.newInstance(datasetService, children, SPACE, collaborationHelper);
   }
 
-  @POST
-  @Produces(APPLICATION_JSON)
-  @Path("/rename_folder/{path: .*}")
-  public Folder renameFolder(@PathParam("path") String path, @QueryParam("renameTo") String renameTo)
-      throws NamespaceException, FolderNotFoundException {
-    throw UserException.unsupportedError()
-        .message("Renaming a folder is not supported")
-        .build(logger);
+  protected OptionManager getOptionManager() {
+    return optionManager;
   }
 
+  private void throwIfNotSupported() throws NotSupportedException {
+    CatalogFeatures features = CatalogFeatures.get(optionManager);
+    if (!features.isFeatureEnabled(CatalogFeatures.Feature.SPACE)) {
+      throw new NotSupportedException(ResourcePath.defaultImpl("/space"));
+    }
+  }
 }

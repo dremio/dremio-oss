@@ -83,7 +83,7 @@ class S3AsyncByteReader extends ReusableAsyncByteReader {
     if(len == 0) {
       throw new IllegalArgumentException("Empty reads not allowed.");
     }
-    logger.debug("[{}] Submitted request to queue for bucket {}, path {} for {}", threadName, bucket, path, range(offset, len));
+    logger.debug("[{}] Submitted request to read from s3 bucket {}, path {} at starting offset {} for length {} ", threadName, bucket, path, offset, len);
     return asyncReadWithRetry(offset, dst, dstOffset, len, 1);
   }
 
@@ -161,6 +161,7 @@ class S3AsyncByteReader extends ReusableAsyncByteReader {
       }
     }).thenCompose(Function.identity());
   }
+
 
   /**
    * Used to read a single byte range.

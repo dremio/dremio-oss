@@ -38,6 +38,7 @@ public class SumZeroAccumulatorsNoSpill {
       super(input, output);
     }
 
+    @Override
     public void accumulate(final long memoryAddr, final int count) {
       final long maxAddr = memoryAddr + count * 4;
       final long incomingBit = getInput().getValidityBufferAddress();
@@ -63,6 +64,7 @@ public class SumZeroAccumulatorsNoSpill {
       super(input, output);
     }
 
+    @Override
     public void accumulate(final long memoryAddr, final int count) {
       final long maxAddr = memoryAddr + count * 4;
       final long incomingBit = getInput().getValidityBufferAddress();
@@ -87,6 +89,7 @@ public class SumZeroAccumulatorsNoSpill {
       super(input, output);
     }
 
+    @Override
     public void accumulate(final long memoryAddr, final int count) {
       final long maxAddr = memoryAddr + count * 4;
       final long incomingBit = getInput().getValidityBufferAddress();
@@ -112,6 +115,7 @@ public class SumZeroAccumulatorsNoSpill {
       super(input, output);
     }
 
+    @Override
     public void accumulate(final long memoryAddr, final int count) {
       final long maxAddr = memoryAddr + count * 4;
       final long incomingBit = getInput().getValidityBufferAddress();
@@ -139,6 +143,7 @@ public class SumZeroAccumulatorsNoSpill {
       super(input, output);
     }
 
+    @Override
     public void accumulate(final long memoryAddr, final int count) {
       final long maxAddr = memoryAddr + count * WIDTH_ORDINAL;
       FieldVector inputVector = getInput();
@@ -169,6 +174,7 @@ public class SumZeroAccumulatorsNoSpill {
       super(input, output);
     }
 
+    @Override
     public void accumulate(final long memoryAddr, final int count) {
       final long maxAddr = memoryAddr + count * WIDTH_ORDINAL;
       FieldVector inputVector = getInput();

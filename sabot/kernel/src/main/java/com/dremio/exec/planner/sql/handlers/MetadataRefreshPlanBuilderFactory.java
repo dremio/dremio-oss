@@ -38,10 +38,13 @@ import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.iceberg.SupportsInternalIcebergTable;
 import com.dremio.service.namespace.NamespaceKey;
 
+import io.opentelemetry.instrumentation.annotations.WithSpan;
+
 public class MetadataRefreshPlanBuilderFactory {
 
   private static final Logger logger = LoggerFactory.getLogger(MetadataRefreshPlanBuilderFactory.class);
 
+  @WithSpan
   public static MetadataRefreshPlanBuilder getPlanBuilder(SqlHandlerConfig config, SqlRefreshDataset sqlRefreshDataset)
     throws IOException {
 

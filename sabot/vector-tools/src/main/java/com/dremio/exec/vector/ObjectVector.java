@@ -100,6 +100,7 @@ public class ObjectVector extends BaseValueVector implements FieldVector {
     count = valueCount;
   }
 
+  @Override
   public void reset() {
     count = 0;
     maxCount = 0;

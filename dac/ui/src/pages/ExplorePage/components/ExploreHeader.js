@@ -136,6 +136,7 @@ export class ExploreHeader extends PureComponent {
     getSelectedSql: PropTypes.func,
     statusesArray: PropTypes.array,
     resetSqlTabs: PropTypes.func,
+    toggleSqlPaneDisplay: PropTypes.func,
 
     // connected
     history: PropTypes.instanceOf(Immutable.Map),
@@ -238,6 +239,7 @@ export class ExploreHeader extends PureComponent {
       case "saveView":
         return this.handleSaveView();
       case "saveViewAs":
+        this.setState({ actionState: "savingAs" });
         return this.handleSaveViewAs();
       case "saveScript":
         return this.handleSaveScript();
@@ -604,7 +606,8 @@ export class ExploreHeader extends PureComponent {
     const disableEnginePickMenu =
       isCancellable &&
       (this.state.actionState === "run" ||
-        this.state.actionState === "preview");
+        this.state.actionState === "preview" ||
+        this.state.actionState === "savingAs");
     const cancelText = intl.formatMessage({ id: "Common.Cancel" });
     const runText = intl.formatMessage({ id: "Common.Run" });
     const previewText = intl.formatMessage({ id: "Common.Preview" });
@@ -738,6 +741,7 @@ export class ExploreHeader extends PureComponent {
           )}
         </div>
         <div className="ExploreHeader__right">
+          {this.renderShowHideSQLPane()}
           {this.renderPrivilegesIconButton()}
           {this.renderAnalyzeButtons()}
           {this.renderSaveButton()}
@@ -893,6 +897,34 @@ export class ExploreHeader extends PureComponent {
     );
   };
 
+  renderShowHideSQLPane = () => {
+    const { intl, sqlState, toggleSqlPaneDisplay } = this.props;
+    const message = intl.formatMessage({
+      id: `SQL.SQLEditor.${sqlState ? "Hide" : "Show"}SQLPane`,
+    });
+    return (
+      <Tooltip
+        title={message}
+        placement="top"
+        enterDelay={500}
+        enterNextDelay={500}
+      >
+        <div
+          data-qa="show-hide-sql-btn"
+          className="show-hide-sql-btn"
+          onClick={toggleSqlPaneDisplay}
+        >
+          <dremio-icon
+            name={`sql-editor/panel-${sqlState ? "hide" : "show"}`}
+            alt="+"
+            class="show-hide-sql-btn__icon"
+          />
+          {message}
+        </div>
+      </Tooltip>
+    );
+  };
+
   getDefaultSaveButton = () => {
     const { location, activeScript, numberOfMineScripts, intl } = this.props;
     const isUntitledScript = !activeScript.id;
@@ -988,7 +1020,7 @@ export class ExploreHeader extends PureComponent {
   }
 
   render() {
-    const { dataset, location } = this.props;
+    const { dataset, location, router } = this.props;
     const { isSaveAsModalOpen } = this.state;
     const isDatasetPage = exploreUtils.isExploreDatasetPage(location);
     const projectId = getSonarContext()?.getSelectedProjectId?.();
@@ -1014,13 +1046,18 @@ export class ExploreHeader extends PureComponent {
               fetchAllAndMineScripts(this.props.fetchScripts, null);
               this.props.setActiveScript({ script: payload });
             }}
-            {...(isDatasetPage && {
-              push: () =>
-                this.props.router.push({
-                  pathname: sqlPaths.sqlEditor.link({ projectId }),
-                  state: { renderScriptTab: true },
-                }),
-            })}
+            push={(payload) => {
+              isDatasetPage
+                ? router.push({
+                    pathname: sqlPaths.sqlEditor.link({ projectId }),
+                    query: { scriptId: payload.id },
+                    state: { renderScriptTab: true },
+                  })
+                : router.push({
+                    pathname: location.pathname,
+                    query: { ...location.query, scriptId: payload.id },
+                  });
+            }}
           />
         )}
       </div>

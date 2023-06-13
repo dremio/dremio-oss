@@ -16,6 +16,7 @@
 import { Component } from "react";
 import PropTypes from "prop-types";
 import { actionBtn, actionIcon } from "./actionButtons.less";
+import { IconButton } from "dremio-ui-lib/components";
 
 export class EditButton extends Component {
   static propTypes = {
@@ -33,14 +34,14 @@ export class EditButton extends Component {
     const { title, onClick, dataQa } = this.props;
 
     return (
-      <button
+      <IconButton
         className={actionBtn}
         onClick={onClick}
-        title={title}
+        tooltip={title}
         data-qa={dataQa}
       >
         <dremio-icon name="interface/edit" alt={title} class={actionIcon} />
-      </button>
+      </IconButton>
     );
   }
 }

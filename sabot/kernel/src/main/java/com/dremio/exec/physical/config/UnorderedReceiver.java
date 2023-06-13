@@ -76,6 +76,7 @@ public class UnorderedReceiver extends AbstractReceiver implements OpWithMinorSp
     return new UnorderedReceiver(props, getSchema(), getSenderMajorFragmentId(), senders, isSpooling());
   }
 
+  @Override
   @JsonIgnore
   public List<MinorFragmentIndexEndpoint> getProvidingEndpoints() {
     return senders;

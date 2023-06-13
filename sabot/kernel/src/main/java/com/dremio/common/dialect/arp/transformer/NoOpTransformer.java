@@ -30,6 +30,7 @@ public class NoOpTransformer extends CallTransformer {
   /**
    * The set of SqlOperators that match this CallTransformer.
    */
+  @Override
   public Set<SqlOperator> getCompatibleOperators() {
     throw new UnsupportedOperationException("NoOpTransformer matches every operator");
   }

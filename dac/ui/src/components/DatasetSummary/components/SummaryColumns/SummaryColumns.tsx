@@ -26,39 +26,49 @@ type SummaryColumnsProps = {
     isSorted: boolean;
   }[];
   fieldsCount: number;
+  showColumns?: boolean;
 };
 
-const SummaryColumns = ({ fields, fieldsCount }: SummaryColumnsProps) => {
+const SummaryColumns = ({
+  fields,
+  fieldsCount,
+  showColumns,
+}: SummaryColumnsProps) => {
   const { formatMessage } = intl;
 
   return (
-    <div className={classes["summary-columns-container"]}>
-      <div className={classes["summary-columns-title"]}>
-        {formatMessage({ id: "Common.Columns" })}
-        {fieldsCount && ` (${fieldsCount})`}
-      </div>
-      <div className={classes["summary-rows"]}>
-        {fields ? (
-          fields.map((field: any, i: number) => {
-            return (
-              <ColumnMenuItem
-                dragType="NONE"
-                className={classes["summary-row"]}
-                key={i}
-                item={field}
-                preventDrag
+    <>
+      {showColumns && (
+        <div className={classes["summary-columns-container"]}>
+          <div className={classes["summary-columns-title"]}>
+            {formatMessage({ id: "Common.Columns" })}
+            {fieldsCount && ` (${fieldsCount})`}
+          </div>
+          <div className={classes["summary-rows"]}>
+            {fields ? (
+              fields.map((field: any, i: number) => {
+                return (
+                  <ColumnMenuItem
+                    dragType="NONE"
+                    className={classes["summary-row"]}
+                    key={i}
+                    item={field}
+                    preventDrag
+                    showReadonlyTooltip={false}
+                  />
+                );
+              })
+            ) : (
+              <LoadingBar
+                width={144}
+                height={12}
+                className={classes["summary-column-loader"]}
               />
-            );
-          })
-        ) : (
-          <LoadingBar
-            width={144}
-            height={12}
-            className={classes["summary-column-loader"]}
-          />
-        )}
-      </div>
-    </div>
+            )}
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 

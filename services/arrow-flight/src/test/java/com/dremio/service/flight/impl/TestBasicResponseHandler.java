@@ -30,11 +30,13 @@ import com.dremio.service.flight.impl.RunQueryResponseHandler.BasicResponseHandl
  */
 public class TestBasicResponseHandler extends BaseTestRunQueryResponseHandler {
 
+  @Override
   protected RunQueryResponseHandler createHandler() {
     return new BasicResponseHandler(getExternalId(), getUserSession(), getWorkerProvider(),
       getListener(), getAllocator(), () -> {});
   }
 
+  @Override
   @Before
   public void setUp() {
     super.setUp();

@@ -330,7 +330,7 @@ public class BatchSchemaFieldTest extends DremioTest {
       String fieldName = fieldPrefix + c;
       Optional<Field> field = searchableBatchSchema.findFieldIgnoreCase(fieldName);
       Assert.assertTrue(field.isPresent());
-      Assert.assertNotNull(field.get());
+      Assert.assertEquals(fieldName, field.get().getName());
     }
 
     String fieldName = fieldPrefix + "non_existent";

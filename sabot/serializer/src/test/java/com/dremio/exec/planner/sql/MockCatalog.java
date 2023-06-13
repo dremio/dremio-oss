@@ -80,6 +80,11 @@ public class MockCatalog implements SimpleCatalog<MockCatalog> {
   }
 
   @Override
+  public DremioTable getTableSnapshotForQuery(NamespaceKey key, TableVersionContext context) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
   public DremioTable getTableSnapshot(NamespaceKey key, TableVersionContext context) {
     throw new UnsupportedOperationException();
   }

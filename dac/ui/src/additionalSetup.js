@@ -18,6 +18,8 @@ import { consoleLogger } from "dremio-ui-common/utilities/consoleLogger.js";
 import "./contexts/SonarContext";
 import "./contexts/TracingContext";
 import { setupLang } from "./setupLang";
+import "./contexts/ApiContext";
+import "./contexts/SessionContext";
 
 export const additionalSetup = async () => {
   await setupLang();

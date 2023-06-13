@@ -139,14 +139,14 @@ export default class Select extends PureComponent {
       <SelectView
         content={
           <span
-            className={classNames([labelCls, "pointerCursor"])}
+            className={classNames([labelCls])}
             style={{ ...formDefault, ...customLabelStyle }}
           >
             {buttonLabel}
           </span>
         }
         disabled={disabled}
-        className={classNames(["field", button, className])}
+        className={classNames(["field", button, className, "pointerCursor"])}
         style={style}
         listClass={classNames([listCls, listClass])}
         listStyle={listStyle ? {...listStyle} : { width: 388 }}

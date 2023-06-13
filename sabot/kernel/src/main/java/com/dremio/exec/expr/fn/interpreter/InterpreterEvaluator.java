@@ -447,7 +447,10 @@ public class InterpreterEvaluator {
             return TypeHelper.nullify(ValueHolderHelper.getBitHolder(0));
           case NULL:
             hasNull = true;
+            break;
           case TRUE:
+          default:
+            break;
         }
       }
 
@@ -478,7 +481,10 @@ public class InterpreterEvaluator {
             return TypeHelper.nullify(ValueHolderHelper.getBitHolder(1));
           case NULL:
             hasNull = true;
+            break;
           case FALSE:
+          default:
+            break;
         }
       }
 

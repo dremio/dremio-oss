@@ -21,12 +21,14 @@ import com.google.common.base.Predicates;
 
 interface Filters {
   Predicate<MinorFragmentProfile> hasOperators = new Predicate<MinorFragmentProfile>() {
+    @Override
     public boolean apply(MinorFragmentProfile arg0) {
       return arg0.getOperatorProfileCount() != 0;
     }
   };
 
   Predicate<MinorFragmentProfile> hasTimes = new Predicate<MinorFragmentProfile>() {
+    @Override
     public boolean apply(MinorFragmentProfile arg0) {
       return arg0.hasStartTime() && arg0.hasEndTime();
     }

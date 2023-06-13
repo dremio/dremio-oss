@@ -646,13 +646,11 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
   private MutableParquetMetadata safelyGetFooter() throws IOException {
     try {
       return inputStreamProviderOfFirstRowGroup.getFooter();
-    }
-    catch (IOException e) {
+    } catch (IOException e) {
       //Close the inputStreamProvider
       try {
         inputStreamProviderOfFirstRowGroup.close();
-      }
-      catch (Exception ex) {
+      } catch (Exception ex) {
         logger.debug("Ignoring the exception on inputStreamProvider close.", ex);
       }
       throw e;
@@ -696,8 +694,13 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
 
     Preconditions.checkArgument(formatSettings.getType() != FileType.ICEBERG || icebergSchemaFields != null);
     ParquetScanProjectedColumns projectedColumns = ParquetScanProjectedColumns.fromSchemaPathAndIcebergSchema(
-            realFields, icebergSchemaFields, isConvertedIcebergDataset, context, fullSchema);
-
+      realFields, icebergSchemaFields, isConvertedIcebergDataset, context, fullSchema);
+    ParquetReaderFactory.ManagedSchemaType schemaType = null;
+    if (!isConvertedIcebergDataset && DatasetHelper.isIcebergFile(formatSettings)) {
+      schemaType = ParquetReaderFactory.ManagedSchemaType.ICEBERG;
+    } else if (DatasetHelper.isDeltaLake(formatSettings)) {
+      schemaType = ParquetReaderFactory.ManagedSchemaType.ICEBERG;
+    }
     // If the ExecOption to ReadColumnIndexes is True and the configuration has a Filter, set readColumnIndices to true.
     boolean readColumnIndices = context.getOptions().getOption(READ_COLUMN_INDEXES) &&
       filters.hasPushdownFilters();
@@ -715,7 +718,9 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
             dataset,
             mTime,
             arrowCachingEnabled,
-            readColumnIndices);
+            readColumnIndices,
+            filters,
+            readerFactory.newFilterCreator(context, schemaType, null, context.getAllocator()));
   }
 
   public void setIcebergExtendedProperty(byte[] extendedProperty) {

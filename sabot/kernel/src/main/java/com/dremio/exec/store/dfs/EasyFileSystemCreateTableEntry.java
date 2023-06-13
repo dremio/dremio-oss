@@ -126,16 +126,19 @@ public class EasyFileSystemCreateTableEntry implements CreateTableEntry {
     return formatPlugin.getConfig();
   }
 
+  @Override
   @JsonProperty("location")
   public String getLocation() {
     return location;
   }
 
+  @Override
   @JsonIgnore
   public FileSystemPlugin<?> getPlugin() {
     return plugin;
   }
 
+  @Override
   public EasyFileSystemCreateTableEntry cloneWithNewLocation(String newLocation){
     return new EasyFileSystemCreateTableEntry(userName, plugin, formatPlugin, newLocation, icebergTableProps, options, datasetPath);
   }
@@ -165,14 +168,17 @@ public class EasyFileSystemCreateTableEntry implements CreateTableEntry {
     return formatPlugin.getWriter(child, location, plugin, options, props);
   }
 
+  @Override
   public WriterOptions getOptions() {
     return options;
   }
 
+  @Override
   public IcebergTableProps getIcebergTableProps() {
     return icebergTableProps;
   }
 
+  @Override
   public NamespaceKey getDatasetPath() {
     return datasetPath;
   }

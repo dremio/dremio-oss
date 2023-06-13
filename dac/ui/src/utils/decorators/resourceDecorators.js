@@ -82,7 +82,7 @@ export function decorateFolder(folder) {
 
 export function decorateFile(file) {
   // todo: remove hacks: making files "quack" like other things
-  // pending new API in https://dremio.atlassian.net/browse/DX-4760
+  // pending new API in DX-4760
   const uiProperties = Immutable.fromJS({
     fileType: "file",
     entityType: "file",

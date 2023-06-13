@@ -30,6 +30,7 @@ import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.maestro.MaestroObserver;
 import com.dremio.exec.maestro.MaestroService;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.observer.AttemptObserver;
@@ -97,7 +98,7 @@ import io.netty.buffer.ByteBuf;
  *   messages are sent to running fragments to terminate
  * - when all fragments complete, state change messages drive the state to COMPLETED
  */
-public class AttemptManager implements Runnable {
+public class AttemptManager implements Runnable, MaestroObserver.ExecutionStageChangeListener {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AttemptManager.class);
   private static final ControlsInjector injector = ControlsInjectorFactory.getInjector(AttemptManager.class);
 
@@ -147,6 +148,12 @@ public class AttemptManager implements Runnable {
   @VisibleForTesting
   public static final String INJECTOR_DURING_PLANNING_PAUSE = "during-planning-pause";
 
+  @VisibleForTesting
+  public static final String INJECTOR_COMMIT_FAILURE = "commit-failure";
+
+  @VisibleForTesting
+  public static final String INJECTOR_CLEANING_FAILURE = "cleaning-failure";
+
   private final AttemptId attemptId;
   private final QueryId queryId;
   private RuleBasedEngineSelector ruleBasedEngineSelector;
@@ -163,12 +170,21 @@ public class AttemptManager implements Runnable {
   private final AttemptResult foremanResult = new AttemptResult();
   private Object extraResultData;
   private final AttemptProfileTracker profileTracker;
-  private final AttemptObserver observer;
+  private final AttemptObserver profileObserver;
   private final Pointer<QueryId> prepareId;
   private final CommandPool commandPool;
+  // Since there are two threads (REST api thread and foreman) vying, make this volatile. It is possible that
+  // the move to currentExecutionStage can race with incoming cancel REST API request. Due to this whenever execution
+  // stage is moved to the next stage by foreman, the cancel flag is checked again and cancel exception thrown.
+  // See clientCancelled flag above.
+  private volatile AttemptEvent.State currentExecutionStage;
   private CommandRunner<?> command;
   private Optional<Runnable> committer = Optional.empty();
   private Optional<Runnable> queryCleaner = Optional.empty();
+
+  // set to true, if the query failed due to an engine timeout
+  private boolean timedoutWaitingForEngine = false;
+  private boolean runTimeExceeded = false;
 
   /**
    * if set to true, query is not going to be scheduled on a separate thread
@@ -185,7 +201,7 @@ public class AttemptManager implements Runnable {
     final SabotContext sabotContext,
     final AttemptId attemptId,
     final UserRequest queryRequest,
-    final AttemptObserver observer,
+    final AttemptObserver attemptObserver,
     final OptionProvider options,
     final Cache<Long, PreparedPlan> preparedPlans,
     final QueryContext queryContext,
@@ -206,6 +222,7 @@ public class AttemptManager implements Runnable {
     this.commandPool = commandPool;
     this.maestroService = maestroService;
     this.runInSameThread = runInSameThread;
+    this.currentExecutionStage = AttemptEvent.State.INVALID_STATE;
 
     prepareId = new Pointer<>();
     final OptionManager optionManager = this.queryContext.getOptions();
@@ -215,14 +232,26 @@ public class AttemptManager implements Runnable {
     profileTracker = new AttemptProfileTracker(queryId, queryContext,
       queryRequest.getDescription(),
       () -> state,
-      observer, jobTelemetryClient);
-    this.observer = profileTracker.getObserver();
+      attemptObserver, jobTelemetryClient);
+    this.profileObserver = profileTracker.getObserver();
 
     RUN_15M.increment();
     RUN_1D.increment();
     TOTAL.increment();
     recordNewState(QueryState.ENQUEUED);
     injector.injectUnchecked(queryContext.getExecutionControls(), INJECTOR_CONSTRUCTOR_ERROR);
+  }
+
+  @Override
+  public void moveToNextStage(AttemptEvent.State nextStage) {
+    this.currentExecutionStage = nextStage;
+    if (clientCancelled && !isTerminalStage(nextStage)) {
+      // double check here if client has cancelled before we moved to next stage.
+      // this will remove the window where the system is just entering a stage and therefor
+      // fails to get interrupted from its wait states as it is just entering it.
+      // for now, do this only when client has issued a cancel.
+      throw new UserCancellationException(profileTracker.getCancelReason());
+    }
   }
 
   private class CompletionListenerImpl implements CompletionListener {
@@ -255,9 +284,9 @@ public class AttemptManager implements Runnable {
       Arrays.stream(data).filter(d -> d != null).count() > 0) {
       // we're going to send this some place, we need increment to ensure this is around long enough to send.
       Arrays.stream(data).filter(d -> d != null).forEach(d->d.retain());
-      observer.execDataArrived(new ScreenShuttle(sender), new QueryWritableBatch(header, data));
+      profileObserver.execDataArrived(new ScreenShuttle(sender), new QueryWritableBatch(header, data));
     } else {
-      observer.execDataArrived(new ScreenShuttle(sender), new QueryWritableBatch(header));
+      profileObserver.execDataArrived(new ScreenShuttle(sender), new QueryWritableBatch(header));
     }
   }
 
@@ -341,18 +370,29 @@ public class AttemptManager implements Runnable {
    * @param clientCancelled true if the client application explicitly issued a cancellation (via end user action), or
    *                        false otherwise (i.e. when pushing the cancellation notification to the end user)
    */
-  public void cancel(String reason, boolean clientCancelled, String cancelContext, boolean isCancelledByHeapMonitor) {
+  public void cancel(String reason, boolean clientCancelled, String cancelContext, boolean isCancelledByHeapMonitor, boolean runTimeExceeded) {
     // Note this can be called from outside of run() on another thread, or after run() completes
-    this.clientCancelled = clientCancelled;
     profileTracker.setCancelReason(reason);
+    this.clientCancelled = clientCancelled;
+    this.runTimeExceeded = runTimeExceeded;
     // Set the cancelFlag, so that query in planning phase will be canceled
     // by super.checkCancel() in DremioVolcanoPlanner and DremioHepPlanner
     queryContext.getPlannerSettings().cancelPlanning(reason,
                                                      queryContext.getCurrentEndpoint(),
                                                      cancelContext,
                                                      isCancelledByHeapMonitor);
+    // interrupt execution immediately if query is blocked in any of the stages where it can get blocked.
+    // For instance, in ENGINE START stage, query could be blocked for engine to start or in QUEUED stage,
+    // the query could be blocked on a slot to become available when number of concurrent queries exceeds number of
+    // available slots (max concurrency).
+    maestroService.interruptExecutionInWaitStates(queryId, currentExecutionStage);
     // Do not cancel queries in running state when canceled by coordinator heap monitor
     if (!isCancelledByHeapMonitor) {
+      // Put the cancel in the event queue:
+      // Note: Since the event processor only processes events after the attempt manager has completed all coordinator
+      // stages (including maestro's executeQuery), it is assumed that the interruptions done above will make the
+      // meastro end the executeQuery prematurely so that the state machine gets started and all pending events
+      // including this cancel gets processed.
       addToEventQueue(QueryState.CANCELED, null);
     }
   }
@@ -387,15 +427,15 @@ public class AttemptManager implements Runnable {
     final Thread currentThread = Thread.currentThread();
     final String originalName = currentThread.getName();
     currentThread.setName(queryIdString + ":foreman");
-
+    final MaestroObserverWrapper maestroObserver = new MaestroObserverWrapper(this.profileObserver, this);
 
     try {
       injector.injectChecked(queryContext.getExecutionControls(), INJECTOR_TRY_BEGINNING_ERROR,
         ForemanException.class);
 
-      observer.beginState(AttemptObserver.toEvent(AttemptEvent.State.PENDING));
+      maestroObserver.beginState(AttemptObserver.toEvent(AttemptEvent.State.PENDING));
 
-      observer.queryStarted(queryRequest, queryContext.getSession().getCredentials().getUserName());
+      profileObserver.queryStarted(queryRequest, queryContext.getSession().getCredentials().getUserName());
 
       String ruleSetEngine = ruleBasedEngineSelector.resolveAndUpdateEngine(queryContext);
       ResourceSchedulingProperties resourceSchedulingProperties = new ResourceSchedulingProperties();
@@ -413,7 +453,7 @@ public class AttemptManager implements Runnable {
         attemptId.toString() + ":foreman-planning",
         "foreman-planning",
         (waitInMillis) -> {
-          observer.commandPoolWait(waitInMillis);
+          profileObserver.commandPoolWait(waitInMillis);
 
           injector.injectPause(queryContext.getExecutionControls(), INJECTOR_PENDING_PAUSE, logger);
           injector.injectChecked(queryContext.getExecutionControls(), INJECTOR_PENDING_ERROR,
@@ -426,7 +466,6 @@ public class AttemptManager implements Runnable {
           return null;
         }, runInSameThread).get();
 
-
       if (command.getCommandType() == CommandType.ASYNC_QUERY) {
         AsyncCommand asyncCommand = (AsyncCommand) command;
         committer = asyncCommand.getPhysicalPlan().getCommitter();
@@ -434,20 +473,21 @@ public class AttemptManager implements Runnable {
 
         moveToState(QueryState.STARTING, null);
         maestroService.executeQuery(queryId, queryContext, asyncCommand.getPhysicalPlan(), runInSameThread,
-          new MaestroObserverWrapper(observer), new CompletionListenerImpl());
+          maestroObserver, new CompletionListenerImpl());
         asyncCommand.executionStarted();
       }
 
-      observer.beginState(AttemptObserver.toEvent(AttemptEvent.State.RUNNING));
+      maestroObserver.beginState(AttemptObserver.toEvent(AttemptEvent.State.RUNNING));
       moveToState(QueryState.RUNNING, null);
 
       injector.injectChecked(queryContext.getExecutionControls(), INJECTOR_TRY_END_ERROR,
         ForemanException.class);
     } catch (ResourceUnavailableException e) {
+      timedoutWaitingForEngine = true;
       // resource allocation failure is treated as a cancellation and not a failure
       try {
         // the caller (JobEventCollatingObserver) expects metadata event before a cancel/complete event.
-        observer.planCompleted(null);
+        profileObserver.planCompleted(null);
       } catch (Exception ignore) {
       }
       profileTracker.setCancelReason(e.getMessage());
@@ -510,9 +550,10 @@ public class AttemptManager implements Runnable {
 
   private void plan() throws Exception {
     // query parsing and dataset retrieval (both from source and kvstore).
-    observer.beginState(AttemptObserver.toEvent(AttemptEvent.State.METADATA_RETRIEVAL));
+    profileObserver.beginState(AttemptObserver.toEvent(AttemptEvent.State.METADATA_RETRIEVAL));
+    moveToNextStage(AttemptEvent.State.METADATA_RETRIEVAL);
 
-    CommandCreator creator = newCommandCreator(queryContext, observer, prepareId);
+    CommandCreator creator = newCommandCreator(queryContext, profileObserver, prepareId);
     command = creator.toCommand();
     logger.debug("Using command: {}.", command);
 
@@ -678,17 +719,14 @@ public class AttemptManager implements Runnable {
         currentThread.setName(queryIdString + ":foreman");
 
         try {
-          injector.injectChecked(queryContext.getExecutionControls(), "commit-failure", UnsupportedOperationException.class);
+          injector.injectChecked(queryContext.getExecutionControls(), INJECTOR_CLEANING_FAILURE, UnsupportedOperationException.class);
 
-          if (resultState == QueryState.COMPLETED) {
-            // The commit handler can internally invoke other grpcs. So, forking the context here.
-            Context.current().fork().run(() -> committer.ifPresent(Runnable::run));
-          } else if (resultState == QueryState.CANCELED || resultState ==  QueryState.FAILED) {
+          if (resultState == QueryState.CANCELED || resultState ==  QueryState.FAILED) {
             Context.current().fork().run(() -> queryCleaner.ifPresent(Runnable::run));
           }
         } catch (Exception e) {
           addException(e);
-          logger.warn("Exception during commit after attempt completion", resultException);
+          logger.warn("Exception during cleaning after attempt completion", resultException);
           recordNewState(QueryState.FAILED);
           foremanResult.setForceFailure(e);
         }
@@ -714,7 +752,9 @@ public class AttemptManager implements Runnable {
         if (resultState != state) {
           recordNewState(resultState);
         }
-        observer.beginState(AttemptObserver.toEvent(convertTerminalToAttemptState(resultState)));
+        AttemptEvent.State terminalStage = convertTerminalToAttemptState(resultState);
+        profileObserver.beginState(AttemptObserver.toEvent(terminalStage));
+        moveToNextStage(terminalStage);
 
         UserException uex;
         if (resultException != null) {
@@ -786,9 +826,10 @@ public class AttemptManager implements Runnable {
         }
 
         try {
-          final UserResult result = new UserResult(extraResultData, queryId, resultState,
-            queryProfile, uex, profileTracker.getCancelReason(), clientCancelled);
-          observer.attemptCompletion(result);
+          UserResult result = new UserResult(extraResultData, queryId, resultState,
+            queryProfile, uex, profileTracker.getCancelReason(), clientCancelled,
+            timedoutWaitingForEngine, runTimeExceeded);
+          profileObserver.attemptCompletion(result);
         } catch (final Exception e) {
           addException(e);
           logger.warn("Exception sending result to client", resultException);
@@ -867,7 +908,7 @@ public class AttemptManager implements Runnable {
         case RUNNING: {
           recordNewState(QueryState.RUNNING);
           try {
-            observer.execStarted(profileTracker.getPlanningProfile());
+            profileObserver.execStarted(profileTracker.getPlanningProfile());
           } catch (UserCancellationException ucx) {
             //Ignore this exception here.
           }
@@ -914,6 +955,16 @@ public class AttemptManager implements Runnable {
 
           case COMPLETED: {
             assert exception == null;
+
+            try {
+              injector.injectChecked(queryContext.getExecutionControls(), INJECTOR_COMMIT_FAILURE, ForemanException.class);
+              // The commit handler can internally invoke other grpcs. So, forking the context here.
+              Context.current().fork().run(() -> committer.ifPresent(Runnable::run));
+            } catch (ForemanException e) {
+              moveToState(QueryState.FAILED, e);
+              return;
+            }
+
             recordNewState(QueryState.COMPLETED);
             foremanResult.setCompleted(QueryState.COMPLETED);
             foremanResult.close();
@@ -988,6 +1039,18 @@ public class AttemptManager implements Runnable {
 
   private void recordNewState(final QueryState newState) {
     state = newState;
+  }
+
+  private boolean isTerminalStage(AttemptEvent.State stage) {
+    switch(stage) {
+      case CANCELED:
+      case COMPLETED:
+      case FAILED:
+      case INVALID_STATE:
+        return true;
+      default:
+        return false;
+    }
   }
 
   private AttemptEvent.State convertTerminalToAttemptState(final QueryState state) {

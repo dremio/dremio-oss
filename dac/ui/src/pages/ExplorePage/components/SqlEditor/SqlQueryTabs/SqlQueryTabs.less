@@ -18,32 +18,44 @@
 
 :global {
   .sql-query-results-tabs {
-    margin: var(--dremio--spacing--1) 0 0;
+    margin: var(--dremio--spacing--1) 10px 0 11px;
     border-top: 1px solid @sideBar-icon-image-color;
     display: flex;
     align-items: center;
-    padding: 1rem 0 0.1rem;
+    padding: 10px 0 1px;
     height: 36px;
     min-width: 0;
+
+    &.sql-hidden {
+      border-top: none;
+      margin-top: 0px;
+      padding-top: 8px;
+    }
 
     &--empty {
       height: 1px;
       background-color: @sideBar-icon-image-color;
-      margin: 8px 16px 8px 8px;
+      margin: var(--dremio--spacing--1) var(--dremio--spacing--2);
+      margin-left: 11px;
+
+      &.sql-hidden {
+        height: 0px;
+        margin-top: 0px;
+      }
     }
 
     .MuiTabs-root {
-      min-height: 2.8rem !important;
-      height: 2.8rem;
+      min-height: 28px !important;
+      height: 28px;
 
       .MuiTabs-flexContainer {
-        height: 2.8rem;
+        height: 28px;
 
         .MuiButtonBase-root {
           margin-right: 24px;
           min-height: 0;
           min-width: 0;
-          width: 8.9rem;
+          width: 89px;
           font-size: 14px;
           text-transform: none;
           font-weight: 400;
@@ -56,13 +68,13 @@
             &-icon {
               height: 24px;
               width: 24px;
-              color: var(--dremio--color--neutral--600);
+              color: var(--color--neutral--600);
             }
           }
         }
 
         .MuiButtonBase-root:first-child {
-          width: 4rem;
+          width: 40px;
         }
 
         .Mui-selected {

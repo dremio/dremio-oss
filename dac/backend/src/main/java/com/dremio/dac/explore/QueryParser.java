@@ -19,6 +19,7 @@ import static com.dremio.common.perf.Timer.time;
 
 import java.security.AccessControlException;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.calcite.plan.RelOptCost;
@@ -195,7 +196,8 @@ public final class QueryParser {
     }
 
     @Override
-    public void planRelTransform(PlannerPhase phase, RelOptPlanner planner, RelNode before, RelNode after, long millisTaken) {
+    public void planRelTransform(PlannerPhase phase, RelOptPlanner planner, RelNode before, RelNode after,
+                                 long millisTaken, Map<String, Long> timeBreakdownPerRule) {
       switch(phase){
       case JOIN_PLANNING_MULTI_JOIN:
         // Join optimization starts with multijoin analysis phase
@@ -210,8 +212,10 @@ public final class QueryParser {
         break;
       case REDUCE_EXPRESSIONS:
         builder.addExpandedPlan(before);
+        break;
       default:
         // noop.
+        break;
       }
     }
 

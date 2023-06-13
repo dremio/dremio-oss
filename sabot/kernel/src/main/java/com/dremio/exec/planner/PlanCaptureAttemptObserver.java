@@ -101,6 +101,10 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
 
   private int numPlanCacheUses = 0;
 
+  private Integer numJoinsInUserQuery = null;
+
+  private Integer numJoinsInFinalPrel = null;
+
   private final CachedAccelDetails accelDetails = new CachedAccelDetails();
 
   public PlanCaptureAttemptObserver(final boolean verbose, final boolean includeDatasetProfiles,
@@ -331,6 +335,14 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
     return numPlanCacheUses;
   }
 
+  public Integer getNumJoinsInUserQuery() {
+    return numJoinsInUserQuery;
+  }
+
+  public Integer getNumJoinsInFinalPrel() {
+    return numJoinsInFinalPrel;
+  }
+
   // Serializes and stores plans
   private void serializeAndStoreRel(RelNode converted) throws Exception{
     PlannerSettings settings = PrelUtil.getSettings(converted.getCluster());
@@ -381,7 +393,8 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
   }
 
   @Override
-  public void planRelTransform(final PlannerPhase phase, RelOptPlanner planner, final RelNode before, final RelNode after, final long millisTaken) {
+  public void planRelTransform(final PlannerPhase phase, RelOptPlanner planner, final RelNode before,
+                               final RelNode after, final long millisTaken, final Map<String, Long> timeBreakdownPerRule) {
     final boolean noTransform = before == after;
     final String planAsString = toStringOrEmpty(after, noTransform || phase.forceVerbose());
     final long millisTakenFinalize = (phase.useMaterializations) ? millisTaken - (findMaterializationMillis + normalizationMillis + substitutionMillis) : millisTaken;
@@ -390,12 +403,14 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
         .setPhaseName(PlannerPhase.PLAN_REL_TRANSFORM)
         .setDurationMillis(substitutionMillis)
         .setPlan("")
+        .putAllTimeBreakdownPerRule(timeBreakdownPerRule)
         .build());
     }
 
     PlanPhaseProfile.Builder b = PlanPhaseProfile.newBuilder()
         .setPhaseName(phase.description)
         .setDurationMillis(millisTakenFinalize)
+        .putAllTimeBreakdownPerRule(timeBreakdownPerRule)
         .setPlan(planAsString);
 
     // dump state of volcano planner to troubleshoot costing issues (or long planning issues).
@@ -547,6 +562,16 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
   @Override
   public void updateReflectionsWithHints(ReflectionExplanationsAndQueryDistance reflectionExplanationsAndQueryDistance) {
     detailsPopulator.addReflectionHints(reflectionExplanationsAndQueryDistance);
+  }
+
+  @Override
+  public void setNumJoinsInUserQuery(Integer joins) {
+    this.numJoinsInUserQuery = joins;
+  }
+
+  @Override
+  public void setNumJoinsInFinalPrel(Integer joins) {
+    this.numJoinsInFinalPrel = joins;
   }
 
   public String getText() {

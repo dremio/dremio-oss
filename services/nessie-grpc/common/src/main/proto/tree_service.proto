@@ -17,7 +17,6 @@ syntax = "proto3";
 
 package com.dremio.services.nessie.grpc.proto;
 
-import "google/protobuf/timestamp.proto";
 import "util.proto";
 import "content_service.proto";
 
@@ -30,51 +29,18 @@ service TreeService {
   rpc getReferenceByName (GetReferenceByNameRequest) returns (Reference) {}
   rpc createReference (CreateReferenceRequest) returns (Reference) {}
   rpc getDefaultBranch (Empty) returns (Reference) {}
-  rpc assignReference (AssignReferenceRequest) returns (Empty) {}
-  rpc deleteReference (DeleteReferenceRequest) returns (Empty) {}
+  rpc assignReference (AssignReferenceRequest) returns (ReferenceResponse) {}
+  rpc deleteReference (DeleteReferenceRequest) returns (ReferenceResponse) {}
   rpc getCommitLog (CommitLogRequest) returns (CommitLogResponse) {}
   rpc getEntries (EntriesRequest) returns (EntriesResponse) {}
   rpc transplantCommitsIntoBranch (TransplantRequest) returns (MergeResponse) {}
   rpc mergeRefIntoBranch (MergeRequest) returns (MergeResponse) {}
-  rpc commitMultipleOperations (CommitRequest) returns (Branch) {}
+  rpc commitMultipleOperations (CommitRequest) returns (CommitResponse) {}
 }
 
 enum ReferenceType {
   BRANCH = 0;
   TAG = 1;
-}
-
-message Reference {
-  oneof type {
-    Branch branch = 1;
-    Tag tag = 2;
-    Detached detached = 3;
-  }
-}
-
-message Branch {
-  string name = 1;
-  optional string hash = 2;
-  optional ReferenceMetadata metadata = 3;
-}
-
-message Tag {
-  string name = 1;
-  optional string hash = 2;
-  optional ReferenceMetadata metadata = 3;
-}
-
-message Detached {
-  optional string hash = 2;
-  optional ReferenceMetadata metadata = 3;
-}
-
-message ReferenceMetadata {
-  optional int32 numCommitsAhead = 1;
-  optional int32 numCommitsBehind = 2;
-  optional CommitMeta commitMetaOfHEAD = 3;
-  optional string commonAncestorHash = 4;
-  optional int64 numTotalCommits = 5;
 }
 
 message CreateReferenceRequest {
@@ -91,6 +57,8 @@ message GetAllReferencesRequest {
 
 message GetAllReferencesResponse {
   repeated Reference reference = 1;
+  bool hasMore = 2;
+  optional string pageToken = 3;
 }
 
 message GetReferenceByNameRequest {
@@ -107,6 +75,10 @@ message AssignReferenceRequest {
     Detached detached = 5;
   }
   ReferenceType reference_type = 6;
+}
+
+message ReferenceResponse {
+  optional Reference reference = 1;
 }
 
 message DeleteReferenceRequest {
@@ -154,6 +126,13 @@ message ContentKeyDetails {
   ContentKeyConflict conflictType = 3;
   repeated string sourceCommitHashes = 4;
   repeated string targetCommitHashes = 5;
+  optional ContentKeyConflictDetails conflict = 6;
+}
+
+message ContentKeyConflictDetails {
+  string conflictType = 1; // the canonical enum for this value is the OSS ConflictType java class
+  ContentKey key = 2;
+  string message = 3;
 }
 
 enum ContentKeyConflict {
@@ -173,17 +152,6 @@ message CommitLogEntry {
   repeated CommitOperation operations = 3;
 }
 
-message CommitMeta {
-  optional string hash = 1;
-  optional string committer = 2;
-  optional string author = 3;
-  optional string signedOffBy = 4;
-  string message = 5;
-  optional google.protobuf.Timestamp commitTime = 6;
-  optional google.protobuf.Timestamp authorTime = 7;
-  map<string, string> properties = 8;
-}
-
 message EntriesRequest {
   string namedRef = 1;
   optional string hashOnRef = 2;
@@ -191,12 +159,18 @@ message EntriesRequest {
   optional string pageToken = 4;
   optional string filter = 5;
   optional int32 namespaceDepth = 6;
+  optional bool withContent = 7;
+  optional ContentKey minKey = 8;
+  optional ContentKey maxKey = 9;
+  optional ContentKey prefixKey = 10;
+  repeated ContentKey keys = 11;
 }
 
 message EntriesResponse {
   repeated Entry entries = 1;
   bool hasMore = 2;
   optional string token = 3;
+  optional Reference effectiveReference = 4;
 }
 
 enum ContentType {
@@ -210,6 +184,8 @@ enum ContentType {
 message Entry {
   ContentType type = 1;
   ContentKey contentKey = 2;
+  optional string contentId = 3;
+  optional Content content = 4;
 }
 
 message TransplantRequest {
@@ -237,6 +213,8 @@ message MergeRequest {
   optional bool fetchAdditionalInfo = 9;
   optional MergeBehavior defaultKeyMergeMode = 10;
   repeated MergeKeyBehavior mergeModes = 11;
+  optional string message = 12;
+  optional CommitMeta commitMeta = 13;
 }
 
 message MergeKeyBehavior {
@@ -248,6 +226,22 @@ message CommitRequest {
   string branch = 1;
   string hash = 2;
   CommitOps commitOperations = 3;
+}
+
+message CommitResponse {
+  // Inlined Branch fields for backward compatibility with older servers (Dremio version < 25.0.0)
+  optional string name = 1;
+  optional string hash = 2;
+  optional ReferenceMetadata metadata = 3;
+  // End of backward-compatibility fields - remove them with DX-61406
+
+  Branch branch = 4;
+  repeated AddedContent addedContent = 5;
+}
+
+message AddedContent {
+  ContentKey key = 1;
+  string contentId = 2;
 }
 
 message CommitOps {

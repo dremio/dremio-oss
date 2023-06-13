@@ -1,0 +1,8 @@
+@use "../../base/components/empty-overlay";
+
+.dremio-empty-overlay {
+  --dremio-empty-overlay--background: var(--color--neutral--50);
+  --dremio-empty-overlay--color: var(--dremio--color--text--faded);
+  --dremio-empty-overlay--font-size: 18px;
+  --dremio-empty-overlay--padding: var(--dremio--spacing--2);
+}

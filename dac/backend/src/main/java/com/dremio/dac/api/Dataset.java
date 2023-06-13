@@ -100,6 +100,7 @@ public class Dataset implements CatalogEntity {
     this(id, type, path, null, createdAt, tag, accelerationRefreshPolicy, sql, sqlContext, format, approximateStatisticsAllowed);
   }
 
+  @Override
   public String getId() {
     return id;
   }

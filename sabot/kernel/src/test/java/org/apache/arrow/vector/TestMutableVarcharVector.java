@@ -424,8 +424,7 @@ public class TestMutableVarcharVector extends DremioTest {
       //counters must match
       Assert.assertEquals(startIdx, j);
       Assert.assertEquals(TOTAL_STRINGS + firstIndex, v1.getNullCount());
-    }
-    finally {
+    } finally {
       m1.close();
       v1.close();
     }
@@ -487,8 +486,7 @@ public class TestMutableVarcharVector extends DremioTest {
       Assert.assertEquals(startIdx, j);
       Assert.assertEquals(TOTAL_STRINGS + firstIndex, v2.getNullCount());
 
-    }
-    finally {
+    } finally {
       m1.close();
       v2.close();
     }

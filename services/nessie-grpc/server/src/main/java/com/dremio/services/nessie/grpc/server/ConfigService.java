@@ -20,8 +20,6 @@ import static com.dremio.services.nessie.grpc.client.GrpcExceptionMapper.handle;
 
 import java.util.function.Supplier;
 
-import org.projectnessie.api.ConfigApi;
-
 import com.dremio.services.nessie.grpc.api.ConfigServiceGrpc;
 import com.dremio.services.nessie.grpc.api.Empty;
 import com.dremio.services.nessie.grpc.api.NessieConfiguration;
@@ -33,9 +31,9 @@ import io.grpc.stub.StreamObserver;
  */
 public class ConfigService extends ConfigServiceGrpc.ConfigServiceImplBase {
 
-  private final Supplier<ConfigApi> bridge;
+  private final Supplier<? extends org.projectnessie.services.spi.ConfigService> bridge;
 
-  public ConfigService(Supplier<ConfigApi> bridge) {
+  public ConfigService(Supplier<? extends org.projectnessie.services.spi.ConfigService> bridge) {
     this.bridge = bridge;
   }
 

@@ -30,8 +30,10 @@ public class NullOpMap {
     @Param FieldReader fieldReader;
     @Output NullableBitHolder out;
 
+    @Override
     public void setup() { }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       out.value = fieldReader.isSet() ? 0 : 1;
@@ -44,8 +46,10 @@ public class NullOpMap {
     @Param FieldReader fieldReader;
     @Output NullableBitHolder out;
 
+    @Override
     public void setup() { }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       out.value = fieldReader.isSet() ? 1 : 0;

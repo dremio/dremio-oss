@@ -21,9 +21,13 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import org.apache.calcite.plan.RelOptUtil;
+import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.dialect.CalciteSqlDialect;
 
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.ManagedStoragePlugin;
 import com.dremio.exec.ops.QueryContext;
@@ -90,7 +94,14 @@ public class PlanCache {
     }
   }
 
-  public static boolean supportPlanCache(PlanCache planCache, SqlHandlerConfig config, SqlNode sqlNode) {
+  public static boolean supportPlanCache(PlanCache planCache, SqlHandlerConfig config, SqlNode sqlNode, Catalog catalog) {
+    for (DremioTable table : catalog.getAllRequestedTables()) {
+      if (CatalogUtil.requestedPluginSupportsVersionedTables(table.getPath(), catalog)) {
+        // Versioned tables don't have a mtime - they have snapshot ids.  Since we don't have a way to invalidate
+        // cache entries containing versioned datasets, don't allow these plans to enter the cache.
+        return false;
+      }
+    }
     if (org.apache.commons.lang3.StringUtils.containsIgnoreCase(sqlNode.toString(), "external_query")) {
       return false;
     }
@@ -98,12 +109,18 @@ public class PlanCache {
       && planCache != null && config.getContext().getPlannerSettings().isPlanCacheEnabled();
   }
 
-  public static String generateCacheKey(String sql, QueryContext context) {
+  public static String generateCacheKey(SqlNode sqlNode, RelNode relNode, QueryContext context) {
     Hasher hasher = Hashing.sha256().newHasher();
 
-    hasher.putString(sql, UTF_8)
+    hasher
+      .putString(sqlNode.toSqlString(CalciteSqlDialect.DEFAULT).getSql(), UTF_8)
+      .putString(RelOptUtil.toString(relNode), UTF_8)
       .putString(context.getWorkloadType().name(), UTF_8)
       .putString(context.getContextInformation().getCurrentDefaultSchema(), UTF_8);
+
+    if (context.getPlannerSettings().isPlanCacheEnableSecuredUserBasedCaching()){
+      hasher.putString(context.getQueryUserName(), UTF_8);
+    }
 
     context.getOptions().getNonDefaultOptions()
         .stream()

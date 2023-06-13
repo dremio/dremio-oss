@@ -78,6 +78,7 @@ public class IcebergDmlMergeDuplicateCheckPrel extends TableFunctionPrel {
       getTableMetadata(), getTableFunctionConfig(), getRowType());
   }
 
+  @Override
   protected double defaultEstimateRowCount(TableFunctionConfig ignored, RelMetadataQuery mq) {
     return mq.getRowCount(input);
   }

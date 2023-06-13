@@ -15,11 +15,12 @@
  */
 package com.dremio.service.grpc;
 
-import java.util.Collections;
-import java.util.Set;
-
+import com.dremio.context.SupportContext;
+import com.dremio.context.TenantContext;
+import com.dremio.context.UserContext;
 import com.dremio.telemetry.utils.GrpcTracerFacade;
 import com.dremio.telemetry.utils.TracerFacade;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 
 import io.grpc.ServerInterceptor;
@@ -29,13 +30,14 @@ import io.opentracing.Tracer;
  * gRPC server factory with multi-tenancy support.
  */
 public final class MultiTenantGrpcServerBuilderFactory extends BaseGrpcServerBuilderFactory {
-  private static final ServerInterceptor mtInterceptor = new MultiTenantServerInterceptor();
+  private static final ServerInterceptor mtInterceptor =
+    new ContextualizedServerInterceptor(ImmutableList.of(
+      new TenantContext.Transformer(),
+      new UserContext.Transformer(),
+      new SupportContext.Transformer()
+    ));
 
   public MultiTenantGrpcServerBuilderFactory(Tracer tracer) {
     super(new GrpcTracerFacade((TracerFacade) tracer), Sets.newHashSet(mtInterceptor));
-  }
-
-  public MultiTenantGrpcServerBuilderFactory(GrpcTracerFacade tracer, Set<ServerInterceptor> serverInterceptors) {
-    super(tracer, Sets.union(serverInterceptors, Collections.singleton(mtInterceptor)));
   }
 }

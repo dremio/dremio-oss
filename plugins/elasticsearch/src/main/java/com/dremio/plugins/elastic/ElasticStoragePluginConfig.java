@@ -104,10 +104,11 @@ public class ElasticStoragePluginConfig extends BaseElasticStoragePluginConfig<E
       boolean useWhitelist,
       int scrollSize,
       boolean allowPushdownOnNormalizedOrAnalyzedFields,
+      boolean pushdownWithKeyword,
       boolean warnOnRowCountMismatch,
       EncryptionValidationMode encryptionValidationMode, boolean forceDoublePrecision) {
     super(scriptsEnabled, showHiddenIndices, showIdColumn, readTimeoutMillis, scrollTimeoutMillis, usePainless,
-      scrollSize, allowPushdownOnNormalizedOrAnalyzedFields, warnOnRowCountMismatch, encryptionValidationMode, forceDoublePrecision);
+      scrollSize, allowPushdownOnNormalizedOrAnalyzedFields, pushdownWithKeyword, warnOnRowCountMismatch, encryptionValidationMode, forceDoublePrecision);
     this.hostList = hostList;
     this.username = username;
     this.password = password;
@@ -152,6 +153,7 @@ public class ElasticStoragePluginConfig extends BaseElasticStoragePluginConfig<E
       elasticStoragePluginConfig.useWhitelist,
       elasticStoragePluginConfig.scrollSize,
       elasticStoragePluginConfig.allowPushdownOnNormalizedOrAnalyzedFields,
+      elasticStoragePluginConfig.pushdownWithKeyword,
       elasticStoragePluginConfig.warnOnRowCountMismatch,
       elasticStoragePluginConfig.encryptionValidationMode,
     elasticStoragePluginConfig.forceDoublePrecision);

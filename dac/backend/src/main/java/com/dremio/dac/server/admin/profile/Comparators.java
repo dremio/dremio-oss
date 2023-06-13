@@ -33,48 +33,56 @@ import com.dremio.exec.proto.UserBitShared.OperatorProfile;
 interface Comparators {
 
   Comparator<MajorFragmentProfile> majorId = new Comparator<MajorFragmentProfile>() {
+    @Override
     public int compare(final MajorFragmentProfile o1, final MajorFragmentProfile o2) {
       return Long.compare(o1.getMajorFragmentId(), o2.getMajorFragmentId());
     }
   };
 
   Comparator<MinorFragmentProfile> minorId = new Comparator<MinorFragmentProfile>() {
+    @Override
     public int compare(final MinorFragmentProfile o1, final MinorFragmentProfile o2) {
       return Long.compare(o1.getMinorFragmentId(), o2.getMinorFragmentId());
     }
   };
 
   Comparator<MinorFragmentProfile> startTime = new Comparator<MinorFragmentProfile>() {
+    @Override
     public int compare(final MinorFragmentProfile o1, final MinorFragmentProfile o2) {
       return Long.compare(o1.getStartTime(), o2.getStartTime());
     }
   };
 
   Comparator<MinorFragmentProfile> lastUpdate = new Comparator<MinorFragmentProfile>() {
+    @Override
     public int compare(final MinorFragmentProfile o1, final MinorFragmentProfile o2) {
       return Long.compare(o1.getLastUpdate(), o2.getLastUpdate());
     }
   };
 
   Comparator<MinorFragmentProfile> lastProgress = new Comparator<MinorFragmentProfile>() {
+    @Override
     public int compare(final MinorFragmentProfile o1, final MinorFragmentProfile o2) {
       return Long.compare(o1.getLastProgress(), o2.getLastProgress());
     }
   };
 
   Comparator<MinorFragmentProfile> endTime = new Comparator<MinorFragmentProfile>() {
+    @Override
     public int compare(final MinorFragmentProfile o1, final MinorFragmentProfile o2) {
       return Long.compare(o1.getEndTime(), o2.getEndTime());
     }
   };
 
   Comparator<MinorFragmentProfile> fragmentPeakMemory = new Comparator<MinorFragmentProfile>() {
+    @Override
     public int compare(final MinorFragmentProfile o1, final MinorFragmentProfile o2) {
       return Long.compare(o1.getMaxMemoryUsed(), o2.getMaxMemoryUsed());
     }
   };
 
   Comparator<MinorFragmentProfile> runTime = new Comparator<MinorFragmentProfile>() {
+    @Override
     public int compare(final MinorFragmentProfile o1, final MinorFragmentProfile o2) {
       return Long.compare(o1.getEndTime() - o1.getStartTime(), o2.getEndTime() - o2.getStartTime());
     }
@@ -88,30 +96,35 @@ interface Comparators {
   };
 
   Comparator<OperatorProfile> operatorId = new Comparator<OperatorProfile>() {
+    @Override
     public int compare(final OperatorProfile o1, final OperatorProfile o2) {
       return Long.compare(o1.getOperatorId(), o2.getOperatorId());
     }
   };
 
   Comparator<Pair<OperatorProfile, Integer>> setupTime = new Comparator<Pair<OperatorProfile, Integer>>() {
+    @Override
     public int compare(final Pair<OperatorProfile, Integer> o1, final Pair<OperatorProfile, Integer> o2) {
       return Long.compare(o1.getLeft().getSetupNanos(), o2.getLeft().getSetupNanos());
     }
   };
 
   Comparator<Pair<OperatorProfile, Integer>> processTime = new Comparator<Pair<OperatorProfile, Integer>>() {
+    @Override
     public int compare(final Pair<OperatorProfile, Integer> o1, final Pair<OperatorProfile, Integer> o2) {
       return Long.compare(o1.getLeft().getProcessNanos(), o2.getLeft().getProcessNanos());
     }
   };
 
   Comparator<Pair<OperatorProfile, Integer>> waitTime = new Comparator<Pair<OperatorProfile, Integer>>() {
+    @Override
     public int compare(final Pair<OperatorProfile, Integer> o1, final Pair<OperatorProfile, Integer> o2) {
       return Long.compare(o1.getLeft().getWaitNanos(), o2.getLeft().getWaitNanos());
     }
   };
 
   Comparator<Pair<OperatorProfile, Integer>> operatorPeakMemory = new Comparator<Pair<OperatorProfile, Integer>>() {
+    @Override
     public int compare(final Pair<OperatorProfile, Integer> o1, final Pair<OperatorProfile, Integer> o2) {
       return Long.compare(o1.getLeft().getPeakLocalMemoryAllocated(), o2.getLeft().getPeakLocalMemoryAllocated());
     }
@@ -125,6 +138,7 @@ interface Comparators {
   };
 
   Comparator<AttemptEvent> stateStartTime = new Comparator<AttemptEvent>() {
+    @Override
     public int compare(final AttemptEvent a1, final AttemptEvent a2) {
       return Long.compare(a1.getStartTime(), a2.getStartTime());
     }

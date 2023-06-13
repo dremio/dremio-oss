@@ -530,8 +530,11 @@ public class TestConditionalCopier6RoundTrip extends BaseTestOperator {
       List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getSixByteConditionalCopiers(ImmutableList.of(in), ImmutableList.of(out));
       List<FieldBufferCopier> emptyCopiers = ConditionalFieldBufferCopier6Util.getEmptySourceFourByteCopiers(ImmutableList.<FieldVector>of(out));
       try(
+        @SuppressWarnings("checkstyle:LocalFinalVariableName")
         final ArrowBuf sv6_0 = allocator.buffer(SV6_SIZE * countPerBatch);
+        @SuppressWarnings("checkstyle:LocalFinalVariableName")
         final ArrowBuf sv6_1 = allocator.buffer(SV6_SIZE * countPerBatch);
+        @SuppressWarnings("checkstyle:LocalFinalVariableName")
         final ArrowBuf sv6_2 = allocator.buffer(SV6_SIZE * countPerBatch);
       ){
         fillSV6Full(sv6_0, 0, countPerBatch);

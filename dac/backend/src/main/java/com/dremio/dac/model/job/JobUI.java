@@ -35,6 +35,7 @@ import com.dremio.service.job.proto.SessionId;
 import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.jobs.JobsServiceUtil;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -149,7 +150,7 @@ public class JobUI {
       .setAcceleration(info.getAcceleration())
       .setGrandParentsList(info.getGrandParentsList())
       .setDownloadInfo(info.getDownloadInfo())
-      .setDescription(info.getDescription())
+      .setDescription(JobsServiceUtil.getJobDescription(info.getRequestType(), info.getSql(), info.getDescription()))
       .setMaterializationFor(info.getMaterializationFor())
       .setOriginalCost(info.getOriginalCost())
       .setPartitionsList(info.getPartitionsList())

@@ -71,7 +71,7 @@ public class TextRecordWriter extends StringOutputRecordWriter {
     this.context = context;
     this.location = config.getLocation();
     this.prefix = String.format("%d_%d", handle.getMajorFragmentId(), handle.getMinorFragmentId());
-    this.fieldDelimiter = textConfig.getFieldDelimiterAsString();
+    this.fieldDelimiter = textConfig.getFieldDelimiter();
     this.lineDelimiter = textConfig.getLineDelimiter();
     this.extension = textConfig.outputExtension;
     this.currentRecord = new StringBuilder();

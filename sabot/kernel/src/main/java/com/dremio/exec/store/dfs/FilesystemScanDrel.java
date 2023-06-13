@@ -164,6 +164,7 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
     return new FilesystemScanDrel(this, arrowCachingEnabled);
   }
 
+  @Override
   public ParquetScanFilter getFilter() {
     return filter;
   }

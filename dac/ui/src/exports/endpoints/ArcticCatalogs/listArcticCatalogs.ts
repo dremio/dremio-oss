@@ -20,15 +20,14 @@ import type {
   ArcticCatalogResponse,
 } from "./ArcticCatalog.type";
 import { transformCatalog } from "./transformCatalog";
+import { APIV2Call } from "@app/core/APICall";
 
-export const listArcticCatalogsUrl = new URL(
-  "/ui/arctic/catalogs",
-  window.location.origin
-);
+export const listArcticCatalogUrl = () =>
+  new APIV2Call().projectScope(false).paths("arctic/catalogs").toString();
 
 export const listArcticCatalogs = (): Promise<ArcticCatalog[]> =>
   getApiContext()
-    .fetch(listArcticCatalogsUrl)
+    .fetch(listArcticCatalogUrl())
     .then((res) => res.json())
     .then((catalogsResponse: ArcticCatalogResponse[]) =>
       catalogsResponse.map(transformCatalog)

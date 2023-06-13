@@ -18,6 +18,6 @@ import path from "path";
 import { generateIconManifest } from "./generateIconManifest";
 
 fs.writeFileSync(
-  path.join(__dirname, "../example/manifest.json"),
+  path.join(__dirname, "../iconmanifest.json"),
   JSON.stringify(generateIconManifest(), null, 2) + "\n"
 );

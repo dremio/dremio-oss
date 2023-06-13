@@ -24,12 +24,13 @@ import { MenuItem } from "@mui/material";
 import CommitHash from "@app/pages/HomePage/components/BranchPicker/components/CommitBrowser/components/CommitHash/CommitHash";
 //@ts-ignore
 import { Tooltip } from "dremio-ui-lib";
-import { Avatar } from "dremio-ui-lib/dist-esm";
+import { Avatar } from "dremio-ui-lib/components";
 import PromiseViewState from "@app/components/PromiseViewState/PromiseViewState";
 import { Reference } from "@app/types/nessie";
 import { RepoViewContext } from "../../../../RepoView";
 import { convertISOStringWithTooltip, renderIcons } from "./utils";
 import { useNessieContext } from "@app/pages/NessieHomePage/utils/context";
+import { nameToInitials } from "@app/exports/utilities/nameToInitials";
 import {
   constructArcticUrl,
   useArcticCatalogContext,
@@ -73,10 +74,7 @@ function RepoViewBranchList({
     new Array(rows.length).fill(false)
   );
 
-  const {
-    source: { name },
-    baseUrl,
-  } = useNessieContext();
+  const { baseUrl, stateKey } = useNessieContext();
 
   const { isCatalog } = useArcticCatalogContext() ?? {};
 
@@ -88,7 +86,7 @@ function RepoViewBranchList({
     const cur = rows[index];
 
     const goToDatasetOnClick = () => {
-      dispatchSetReference({ reference: cur }, name);
+      dispatchSetReference({ reference: cur }, stateKey);
 
       router.push(
         constructArcticUrl({
@@ -132,7 +130,7 @@ function RepoViewBranchList({
 
             {cur.metadata &&
               cur.metadata.commitMetaOfHEAD &&
-              cur.metadata.commitMetaOfHEAD.author && (
+              cur.metadata.commitMetaOfHEAD.authors?.[0] && (
                 <div className="branch-list-item-content-bottom">
                   {cur.hash && cur.name && (
                     <span
@@ -143,7 +141,7 @@ function RepoViewBranchList({
                       <CommitHash
                         branch={cur}
                         hash={cur.hash}
-                        enableCopy={false}
+                        enableCopy={true}
                       />
                     </span>
                   )}
@@ -166,13 +164,12 @@ function RepoViewBranchList({
                   </span>
                   <span className="branch-list-item-by">by</span>
                   <Avatar
-                    initials={cur.metadata.commitMetaOfHEAD.author.substring(
-                      0,
-                      2
+                    initials={nameToInitials(
+                      cur.metadata.commitMetaOfHEAD.authors[0]
                     )}
                   />
                   <span className="branch-list-item-author">
-                    {cur.metadata.commitMetaOfHEAD.author}
+                    {cur.metadata.commitMetaOfHEAD.authors[0] || ""}
                   </span>
                   <span className="branch-list-item-divider"></span>
                   <span onClick={(e) => stopPropagation(e)}>

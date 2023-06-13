@@ -33,7 +33,7 @@ public class DremioAgent {
     String option = argsArray[1];
 
     if ("export-profiles".equals(command)) {
-      Preconditions.checkArgument(argsArray.length == 2, "Expected length of args of 4.");
+      Preconditions.checkArgument(argsArray.length == 2, "Expected length of args of 2.");
       LocalAdmin.getInstance().exportProfiles(ExportProfilesParams.fromParamString(option));
     } else if ("backup".equals(command)) {
       Preconditions.checkArgument(argsArray.length == 4, "Expected length of args of 4.");

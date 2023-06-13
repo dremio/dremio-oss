@@ -17,7 +17,6 @@ package com.dremio.exec.store.metadatarefresh.footerread;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -125,7 +124,7 @@ public class TestFooterReadTableFunction extends BaseTestQuery {
   }
 
   @Test
-  public void testFooterReadTableFunctionForFSTables() throws URISyntaxException, ExecutionSetupException {
+  public void testFooterReadTableFunctionForFSTables() throws Exception {
     FooterReadTableFunction tableFunction = new FooterReadTableFunction(getFragmentExecutionContext(), getOpCtx(), null, getConfig(null, FileType.PARQUET));
     tableFunction.setFs(fs);
     AtomicInteger counter = new AtomicInteger(0);
@@ -235,14 +234,11 @@ public class TestFooterReadTableFunction extends BaseTestQuery {
 
     } catch (IllegalArgumentException e) {
       assertTrue(e.getMessage().contains("Unable to read footer for file"));
-    } catch (Exception e) {
-      e.printStackTrace();
-      fail(e.getMessage());
     }
   }
 
   @Test
-  public void testFooterReadTableFunctionForHiveTables() throws URISyntaxException, ExecutionSetupException {
+  public void testFooterReadTableFunctionForHiveTables() throws Exception {
     incomingRow.accept(getFullPath("int96.parquet", FileType.PARQUET), 431L, currentTime, 0, true);
     // For hive case, we are setting the table schema to later check that outputSchemaVector returns the same schema
     // and doesn't learns the schema from the input file.
@@ -251,7 +247,6 @@ public class TestFooterReadTableFunction extends BaseTestQuery {
     FooterReadTableFunction tableFunction = new FooterReadTableFunction(getFragmentExecutionContext(), getOpCtx(), null, tableFunctionConfig);
     tableFunction.setFs(fs);
 
-    try {
       incoming.setAllCount(1);
       incoming.buildSchema();
       outgoing = tableFunction.setup(incoming);
@@ -269,20 +264,14 @@ public class TestFooterReadTableFunction extends BaseTestQuery {
 
       assertEquals(1, tableFunction.processRow(0, 5));
       verifyOutput(outputDatafileVector.get(0), outputOperationType.get(0), outputSchemaVector.get(0), tableSchema, new IcebergPartitionData(PartitionSpec.unpartitioned().partitionType()), OperationType.ADD_DATAFILE);
-    }
-    catch (Exception e) {
-      e.printStackTrace();
-      fail(e.getMessage());
-    }
   }
 
   @Test
-  public void testFooterReadTableFunctionForUnions() throws URISyntaxException, ExecutionSetupException {
+  public void testFooterReadTableFunctionForUnions() throws Exception {
     incomingRow.accept(getFullPath("union_bigint_varchar_col2.parquet", FileType.PARQUET), 1507L, currentTime, 0, true);
     FooterReadTableFunction tableFunction = new FooterReadTableFunction(getFragmentExecutionContext(), getOpCtx(), null, getConfig(null, FileType.PARQUET));
     tableFunction.setFs(fs);
 
-    try {
       incoming.setAllCount(2);
       incoming.buildSchema();
       outgoing = tableFunction.setup(incoming);
@@ -302,13 +291,10 @@ public class TestFooterReadTableFunction extends BaseTestQuery {
         BatchSchema.of(Field.nullable("col1", new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), Field.nullable("col2", new ArrowType.Utf8())),
         new IcebergPartitionData(PartitionSpec.unpartitioned().partitionType()), OperationType.ADD_DATAFILE);
       tableFunction.closeRow();
-    } catch (Exception e) {
-      fail(e.getMessage());
-    }
   }
 
   @Test
-  public void testFooterReadTableFunctionForListOfNull() throws URISyntaxException, ExecutionSetupException {
+  public void testFooterReadTableFunctionForListOfNull() throws Exception {
     incomingRow.accept(getFullPath("list_of_null_in_footer.parquet", FileType.PARQUET), 8416L, currentTime, 0, true);
     /*File schema:
     schema(id:: varchar, count:: int32, creationTime:: timestamp,
@@ -322,7 +308,6 @@ public class TestFooterReadTableFunction extends BaseTestQuery {
     FooterReadTableFunction tableFunction = new FooterReadTableFunction(getFragmentExecutionContext(), getOpCtx(), null, getConfig(null, FileType.PARQUET));
     tableFunction.setFs(fs);
 
-    try {
       incoming.setAllCount(20);
       incoming.buildSchema();
       outgoing = tableFunction.setup(incoming);
@@ -360,9 +345,6 @@ public class TestFooterReadTableFunction extends BaseTestQuery {
           Field.nullable("type", new ArrowType.Utf8())),
         new IcebergPartitionData(PartitionSpec.unpartitioned().partitionType()), OperationType.ADD_DATAFILE);
       tableFunction.closeRow();
-    } catch (Exception e) {
-      fail(e.getMessage());
-    }
   }
 
   @Test

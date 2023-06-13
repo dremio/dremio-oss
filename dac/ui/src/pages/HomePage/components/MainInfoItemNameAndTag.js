@@ -31,6 +31,7 @@ class MainInfoItemNameAndTag extends Component {
     intl: PropTypes.object.isRequired,
     startSearch: PropTypes.func, // (textToSearch) => {}
     isIceberg: PropTypes.bool,
+    showMetadataCard: PropTypes.bool,
   };
 
   constructor() {
@@ -54,12 +55,16 @@ class MainInfoItemNameAndTag extends Component {
   };
 
   render() {
-    const { item, intl, isIceberg } = this.props;
+    const { item, intl, isIceberg, showMetadataCard } = this.props;
     const tagsFromItem = item.get("tags");
     const fullPath = constructFullPath(getFullPathListFromEntity(item));
     return (
       <div style={{ display: "flex", alignItems: "center" }}>
-        <MainInfoItemName item={item} isIceberg={isIceberg} />
+        <MainInfoItemName
+          item={item}
+          isIceberg={isIceberg}
+          showMetadataCard={showMetadataCard}
+        />
         {fullPath && (
           <CopyButton
             text={fullPath}

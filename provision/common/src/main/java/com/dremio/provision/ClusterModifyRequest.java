@@ -33,6 +33,7 @@ public interface ClusterModifyRequest extends ConsistentProps {
 
   @NotNull String getId();
 
+  @Override
   @NotNull ClusterType getClusterType();
 
   @NotNull DynamicConfig getDynamicConfig();
@@ -41,8 +42,10 @@ public interface ClusterModifyRequest extends ConsistentProps {
 
   @NotNull ClusterDesiredState getDesiredState();
 
+  @Override
   YarnPropsApi getYarnProps();
 
+  @Override
   AwsPropsApi getAwsProps();
 
   boolean isAllowAutoStart();

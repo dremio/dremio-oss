@@ -42,6 +42,7 @@ public class Home implements CatalogEntity {
     this.children = children;
   }
 
+  @Override
   public String getId() {
     return id;
   }

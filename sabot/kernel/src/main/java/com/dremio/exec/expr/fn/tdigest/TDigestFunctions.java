@@ -60,6 +60,7 @@ public class TDigestFunctions {
     @Inject
     OptionResolver options;
 
+    @Override
     public void setup() {
       digest = new ObjectHolder();
       compression.value = (int) options.getOption(com.dremio.exec.ExecConstants.TDIGEST_COMPRESSION);
@@ -108,6 +109,7 @@ public class TDigestFunctions {
     @Inject
     OptionResolver options;
 
+    @Override
     public void setup() {
       digest = new ObjectHolder();
       compression.value = (int) options.getOption(com.dremio.exec.ExecConstants.TDIGEST_COMPRESSION);
@@ -157,6 +159,7 @@ public class TDigestFunctions {
     @Inject
     OptionResolver options;
 
+    @Override
     public void setup() {
       digest = new ObjectHolder();
       compression.value = (int) options.getOption(com.dremio.exec.ExecConstants.TDIGEST_COMPRESSION);
@@ -205,6 +208,7 @@ public class TDigestFunctions {
     @Inject
     OptionResolver options;
 
+    @Override
     public void setup() {
       digest = new ObjectHolder();
       compression.value = (int) options.getOption(com.dremio.exec.ExecConstants.TDIGEST_COMPRESSION);
@@ -253,6 +257,7 @@ public class TDigestFunctions {
     @Inject
     OptionResolver options;
 
+    @Override
     public void setup() {
       digest = new ObjectHolder();
       compression.value = (int) options.getOption(com.dremio.exec.ExecConstants.TDIGEST_COMPRESSION);
@@ -302,6 +307,7 @@ public class TDigestFunctions {
     @Inject
     OptionResolver options;
 
+    @Override
     public void setup() {
       digest = new ObjectHolder();
       compression.value = (int) options.getOption(com.dremio.exec.ExecConstants.TDIGEST_COMPRESSION);

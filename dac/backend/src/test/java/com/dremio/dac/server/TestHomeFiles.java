@@ -57,7 +57,6 @@ import com.dremio.common.utils.PathUtils;
 import com.dremio.common.utils.SqlUtils;
 import com.dremio.dac.api.Dataset;
 import com.dremio.dac.explore.model.FileFormatUI;
-import com.dremio.dac.explore.model.InitialPreviewResponse;
 import com.dremio.dac.homefiles.HomeFileConf;
 import com.dremio.dac.homefiles.HomeFileSystemStoragePlugin;
 import com.dremio.dac.homefiles.HomeFileTool;
@@ -91,7 +90,6 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.file.FileFormat;
 import com.dremio.service.namespace.file.proto.ExcelFileConfig;
-import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.namespace.file.proto.JsonFileConfig;
 import com.dremio.service.namespace.file.proto.TextFileConfig;
@@ -120,7 +118,7 @@ public class TestHomeFiles extends BaseTestServer {
   public void setup() throws Exception {
     clearAllDataExceptUser();
     getPopulator().populateTestUsers();
-    this.fs = l(HomeFileTool.class).getConf().getFilesystemAndCreatePaths(getCurrentDremioDaemon().getDACConfig().thisNode);
+    this.fs = l(HomeFileTool.class).getConfForBackup().getFilesystemAndCreatePaths(getCurrentDremioDaemon().getDACConfig().thisNode);
     allocator = getSabotContext().getAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
   }
 
@@ -250,26 +248,6 @@ public class TestHomeFiles extends BaseTestServer {
       assertEquals(2, truncData.getColumns().size());
     }
 
-    doc("creating dataset from home file");
-    InitialPreviewResponse response = expectSuccess(getBuilder(getAPIv2().path(
-      "/home/" + HOME_NAME + "/new_untitled_from_file/file1")).buildPost(Entity.json("")), InitialPreviewResponse.class);
-    assertEquals(2, response.getData().getColumns().size());
-
-    doc("renaming file");
-    File file3 = expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME + "/file_rename/file1").queryParam("renameTo", "file1r"))
-      .buildPost(Entity.json(new FileConfig())), File.class);
-    FileFormat file3Format = file3.getFileFormat().getFileFormat();
-
-    assertEquals("file1r", file3Format.getName());
-    assertEquals(asList(HOME_NAME, "file1r"), file3Format.getFullPath());
-    assertEquals(FileType.JSON, file3Format.getFileType());
-
-    expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME + "/file/file1r")).buildGet(), File.class);
-    expectError(CLIENT_ERROR, getBuilder(getAPIv2().path("home/" + HOME_NAME + "/file/file1")).buildGet(), NotFoundErrorMessage.class);
-
-    Home home1 = expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME)).buildGet(), Home.class);
-    assertEquals(1, home1.getContents().getFiles().size());
-
     doc("creating a folder");
     String folderPath = "home/" + HOME_NAME + "/folder/";
 
@@ -384,11 +362,6 @@ public class TestHomeFiles extends BaseTestServer {
     JobDataFragment data = expectSuccess(getBuilder(getAPIv2().path("/home/" + HOME_NAME + "/file_preview/excel")).buildPost(Entity.json(file2Format)), JobDataFragment.class);
     assertEquals(5, data.getReturnedRowCount());
     assertEquals(5, data.getColumns().size());
-
-    doc("creating dataset from excel file");
-    InitialPreviewResponse previewResponse = expectSuccess(getBuilder(getAPIv2().path(
-      "/home/" + HOME_NAME + "/new_untitled_from_file/excel")).buildPost(Entity.json("")), InitialPreviewResponse.class);
-    assertEquals(5, previewResponse.getData().getColumns().size());
   }
 
   public static void uploadFile(HomeFileConf homeFileStore, Path inputFile, String name, String extension ,FileFormat fileFormat, FolderPath parent) throws Exception {

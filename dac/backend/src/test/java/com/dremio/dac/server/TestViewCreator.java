@@ -19,13 +19,13 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import javax.ws.rs.client.Entity;
+import javax.ws.rs.core.GenericType;
 
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
 import com.dremio.dac.model.folder.Folder;
-import com.dremio.dac.model.spaces.Space;
 import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.JobSummaryRequest;
 import com.dremio.service.job.proto.JobId;
@@ -49,7 +49,7 @@ public class TestViewCreator extends BaseTestServer {
   public void createQueryDrop() throws Exception {
     JobsService jobsService = l(JobsService.class);
 
-    expectSuccess(getBuilder(getAPIv2().path("space/mySpace")).buildPut(Entity.json(new Space(null, "mySpace", null, null, null, 0, null))));
+    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "mySpace", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
 
     expectSuccess(getBuilder(getAPIv2().path("space/mySpace/folder/")).buildPost(Entity.json("{\"name\": \"myFolder\"}")), Folder.class);
 
@@ -92,7 +92,7 @@ public class TestViewCreator extends BaseTestServer {
   @Test
   public void createQueryDDLSql() {
     enableVersionedViews();
-    expectSuccess(getBuilder(getAPIv2().path("space/mySpace")).buildPut(Entity.json(new Space(null, "mySpace", null, null, null, 0, null))));
+    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "mySpace", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
 
     expectSuccess(getBuilder(getAPIv2().path("space/mySpace/folder/")).buildPost(Entity.json("{\"name\": \"myFolder\"}")), Folder.class);
 

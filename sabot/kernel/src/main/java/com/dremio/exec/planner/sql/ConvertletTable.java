@@ -107,14 +107,15 @@ public class ConvertletTable extends ReflectiveConvertletTable {
               final RexBuilder rexBuilder = cx.getRexBuilder();
               return rexBuilder.makeCall(
                   e.getType(), SqlStdOperatorTable.MINUS_DATE, e.getOperands());
-
             default:
-              return e;
+              break;
             }
           }
+          break;
         default:
-          return e;
+          break;
         }
+        return e;
       }
     });
     // For normalizing TimestampAdd to Datetime_Plus
@@ -130,9 +131,12 @@ public class ConvertletTable extends ReflectiveConvertletTable {
             // TODO(DX-11268): Support sub-second intervals with TIMESTAMPADD.
             case MILLISECOND:
             case MICROSECOND:
+            case NANOSECOND:
               throw UserException.unsupportedError()
                 .message("TIMESTAMPADD function supports the following time units: YEAR, QUARTER, MONTH, WEEK, DAY, HOUR, MINUTE, SECOND")
                 .build();
+            default:
+              break;
           }
           final RexNode timestampNode = cx.convertExpression(call.operand(2));
           final RexNode multiplyNode = rexBuilder.makeCall(SqlStdOperatorTable.MULTIPLY,
@@ -168,12 +172,10 @@ public class ConvertletTable extends ReflectiveConvertletTable {
    */
   @Override
   public SqlRexConvertlet get(SqlCall call) {
-    SqlRexConvertlet convertlet;
-
-    if ((convertlet = super.get(call)) != null) {
+    SqlRexConvertlet convertlet = super.get(call);
+    if (convertlet != null) {
       return convertlet;
     }
-
     return StandardConvertletTable.INSTANCE.get(call);
   }
 
@@ -245,6 +247,9 @@ public class ConvertletTable extends ReflectiveConvertletTable {
             case NUMERIC:
               nonCharacterTypes.add(
                   cx.getTypeFactory().createSqlType(SqlTypeName.BIGINT));
+              break;
+            default:
+              break;
             }
           }
         }

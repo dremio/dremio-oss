@@ -27,6 +27,7 @@ public class CountOneAccumulatorNoSpill extends BaseSingleAccumulatorNoSpill {
     super(null, output);
   }
 
+  @Override
   public void accumulate(final long offsetAddr, final int count){
     final long maxAddr = offsetAddr + count * 4;
     for(long ordinalAddr = offsetAddr; ordinalAddr < maxAddr; ordinalAddr += 4){

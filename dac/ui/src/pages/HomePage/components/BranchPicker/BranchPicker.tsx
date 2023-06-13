@@ -26,14 +26,17 @@ import ClickAwayListener from "react-click-away-listener";
 import { FormattedMessage } from "react-intl";
 import DatePicker, { ReactDatePicker } from "react-datepicker";
 
-import { Button, DialogContent } from "dremio-ui-lib/dist-esm";
+import { Button, DialogContent } from "dremio-ui-lib/components";
 
 import {
   fetchCommitBeforeTime as fetchCommitBeforeTimeAction,
   setReference as setReferenceAction,
   type SetReferenceAction,
 } from "@app/actions/nessie/nessie";
-import { LogEntry, LogResponse } from "@app/services/nessie/client";
+import {
+  LogEntryV2 as LogEntry,
+  LogResponseV2 as LogResponse,
+} from "@app/services/nessie/client";
 import { Reference } from "@app/types/nessie";
 import Radio from "@mui/material/Radio";
 import RadioGroup from "@mui/material/RadioGroup";
@@ -81,7 +84,7 @@ function BranchPicker({
   onApply = () => {},
 }: BranchPickerProps & ConnectedProps & { router?: any }) {
   const { ref } = useBranchPickerContext();
-  const { state, api, stateKey } = useNessieContext();
+  const { state, apiV2, stateKey } = useNessieContext();
   const [refState, setRefState] = useState<SetReferenceAction["payload"]>({
     reference: state.reference,
     hash: state.hash,
@@ -92,6 +95,14 @@ function BranchPicker({
     popupId: "branchPickerPopover",
   });
   const toggleProps = bindToggle(popupState);
+
+  useEffect(() => {
+    setRefState({
+      reference: state.reference,
+      hash: state.hash,
+      date: state.date,
+    });
+  }, [state]);
 
   useImperativeHandle(ref, () => popupState);
 
@@ -149,11 +160,11 @@ function BranchPicker({
       state.reference,
       newDate,
       stateKey,
-      api
+      apiV2
     );
     if (resultState) {
       setRefState(resultState as any);
-      // Picker will be replaced in https://dremio.atlassian.net/browse/DX-53586
+      // Picker will be replaced in DX-53586
       if (!e) hidePicker(); // Workaround to close picker after time select: event is undefined when clicking time
     }
   }
@@ -295,7 +306,7 @@ function BranchPicker({
                                   branch={reference}
                                   onClick={setHash}
                                   selectedHash={hash}
-                                  api={api}
+                                  api={apiV2}
                                 />
                               </>
                             }

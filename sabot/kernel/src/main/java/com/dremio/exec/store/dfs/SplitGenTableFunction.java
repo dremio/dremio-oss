@@ -21,9 +21,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
-import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
-import java.net.URLDecoder;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -129,11 +128,10 @@ public class SplitGenTableFunction extends AbstractTableFunction {
     this.row = row;
   }
 
-  protected void setCurrentPath(int row) throws UnsupportedEncodingException {
-    final Path currentPathResolved = Path.of(functionConfig.getFunctionContext().getFormatSettings().getLocation())
-            .resolve(new String(pathVector.get(row), StandardCharsets.UTF_8));
-    currentPath = currentPathResolved.toString();
-    currentPath = URLDecoder.decode(currentPath, "UTF-8");
+  protected void setCurrentPath(int row) throws Exception {
+    final String tableLocation = functionConfig.getFunctionContext().getFormatSettings().getLocation();
+    final String rowPath = new String(pathVector.get(row), StandardCharsets.UTF_8);
+    currentPath = Path.of(tableLocation).resolve(Path.of(new URI(rowPath))).toString();
   }
 
   @Override

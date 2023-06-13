@@ -20,8 +20,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.collections4.MapUtils;
-
 import com.dremio.dac.explore.model.VersionContextReq;
 import com.dremio.dac.proto.model.dataset.SourceVersionReference;
 import com.dremio.dac.proto.model.dataset.VersionContextType;
@@ -31,12 +29,16 @@ import com.google.common.collect.ImmutableMap;
 /**
  * Utility classes for DatasetResource
  */
-public class DatasetResourceUtils {
+public final class DatasetResourceUtils {
 
-  public static Map<String, VersionContext> createSourceVersionMapping(Map<String, VersionContextReq> references) {
+  private DatasetResourceUtils() {
+    // utils class
+  }
+
+  public static Map<String, VersionContext> createSourceVersionMapping(final Map<String, VersionContextReq> references) {
 
     final Map<String, VersionContext> sourceVersionMapping = new HashMap<>();
-    if (MapUtils.isNotEmpty(references)) {
+    if (references != null) {
       for (Map.Entry<String, VersionContextReq> entry: references.entrySet()) {
         VersionContextReq.VersionContextType versionContextType = entry.getValue().getType();
         switch (versionContextType) {
@@ -60,7 +62,7 @@ public class DatasetResourceUtils {
 
   public static List<SourceVersionReference> createSourceVersionReferenceList(Map<String, VersionContextReq> references) {
     List<SourceVersionReference> sourceVersionReferenceList = new ArrayList<>();
-    if (MapUtils.isNotEmpty(references)) {
+    if (references != null) {
       for (Map.Entry<String, VersionContextReq> entry: references.entrySet()) {
         VersionContextReq versionContextReq = entry.getValue();
         VersionContextReq.VersionContextType versionContextType = versionContextReq.getType();

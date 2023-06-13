@@ -30,7 +30,9 @@ import org.apache.calcite.rel.metadata.RelColumnOrigin;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.util.Pair;
 
+import com.dremio.exec.catalog.TableVersionContext;
 import com.dremio.exec.planner.RoutingShuttle;
+import com.dremio.exec.planner.acceleration.substitution.SubstitutionUtils;
 import com.dremio.exec.planner.common.ContainerRel;
 import com.dremio.exec.planner.physical.HashJoinPrel;
 import com.dremio.exec.planner.physical.JoinPrel;
@@ -42,6 +44,7 @@ import com.dremio.exec.planner.physical.visitor.BasePrelVisitor;
 import com.dremio.service.Pointer;
 import com.dremio.service.job.proto.JoinCondition;
 import com.dremio.service.job.proto.JoinTable;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 
 /**
@@ -50,7 +53,7 @@ import com.google.common.collect.Iterables;
 public final class JoinPreAnalyzer extends BasePrelVisitor<Prel, Map<Prel, OpId>, RuntimeException> {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JoinPreAnalyzer.class);
 
-  private Map<List<String>, Integer> tablesMap;
+  private Map<SubstitutionUtils.VersionedPath, Integer> tablesMap;
   private List<JoinTable> joinTables;
   private List<JoinPreAnalysisInfo> joinInfos;
 
@@ -71,7 +74,8 @@ public final class JoinPreAnalyzer extends BasePrelVisitor<Prel, Map<Prel, OpId>
           .map(entry ->
             new JoinTable()
               .setTableId(entry.getValue())
-              .setTableSchemaPathList(entry.getKey()))
+              .setTableSchemaPathList(entry.getKey().left)
+              .setVersionContext(entry.getKey().right != null ? entry.getKey().right.serialize() : null))
           .collect(Collectors.toList());
 
       // Collect join info.
@@ -134,8 +138,10 @@ public final class JoinPreAnalyzer extends BasePrelVisitor<Prel, Map<Prel, OpId>
           return new JoinCondition()
             .setBuildSideColumn(rightTable.getRowType().getFieldList().get(rightOrdinal).getName())
             .setProbeSideColumn(leftTable.getRowType().getFieldList().get(leftOrdinal).getName())
-            .setBuildSideTableId(tablesMap.get(rightTable.getQualifiedName()))
-            .setProbeSideTableId(tablesMap.get(leftTable.getQualifiedName()));
+            .setBuildSideTableId(Preconditions.checkNotNull(tablesMap.get(SubstitutionUtils.VersionedPath.of(rightTable.getQualifiedName(),
+                                                                          SubstitutionUtils.getVersionContext(rightTable)))))
+            .setProbeSideTableId(Preconditions.checkNotNull(tablesMap.get(SubstitutionUtils.VersionedPath.of(leftTable.getQualifiedName(),
+                                                                          SubstitutionUtils.getVersionContext(leftTable)))));
         })
         .collect(Collectors.toList());
     } catch (Exception e) {
@@ -150,9 +156,9 @@ public final class JoinPreAnalyzer extends BasePrelVisitor<Prel, Map<Prel, OpId>
    */
   public static class TableScanCollector extends RoutingShuttle {
     private final Pointer<Integer> counter = new Pointer<>(0);
-    private Map<List<String>, Integer> tables = new HashMap<>();
+    private Map<SubstitutionUtils.VersionedPath, Integer> tables = new HashMap<>();
 
-    public static Map<List<String>, Integer> collectTableScans(Prel root) {
+    public static Map<SubstitutionUtils.VersionedPath, Integer> collectTableScans(Prel root) {
       TableScanCollector collector = new TableScanCollector();
       collector.visit(root);
       return collector.tables;
@@ -161,7 +167,7 @@ public final class JoinPreAnalyzer extends BasePrelVisitor<Prel, Map<Prel, OpId>
     @Override
     public RelNode visit(TableScan scan) {
       List<String> table = scan.getTable().getQualifiedName();
-      tables.put(table, counter.value++);
+      tables.put(SubstitutionUtils.VersionedPath.of(table), counter.value++);
       return scan;
     }
 
@@ -174,7 +180,8 @@ public final class JoinPreAnalyzer extends BasePrelVisitor<Prel, Map<Prel, OpId>
         TableFunctionPrel tableFunctionPrel = ((TableFunctionPrel) other);
         if (tableFunctionPrel.getTable() != null) {
           List<String> table = tableFunctionPrel.getTable().getQualifiedName();
-          tables.put(table, counter.value++);
+          TableVersionContext versionContext = tableFunctionPrel.getTableMetadata().getVersionContext();
+          tables.put(SubstitutionUtils.VersionedPath.of(table, versionContext), counter.value++);
         }
       }
       return super.visit(other);

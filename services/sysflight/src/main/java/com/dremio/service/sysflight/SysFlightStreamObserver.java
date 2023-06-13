@@ -38,18 +38,23 @@ public class SysFlightStreamObserver<E extends Message> implements StreamObserve
 
   private final BufferAllocator allocator;
   private final ServerStreamListener listener;
+  private final Descriptors.Descriptor descriptor;
   private final int recordBatchSize;
 
   private final Map<String, ValueVector> vectorMap;
   private final VectorSchemaRoot root;
   private final AtomicInteger count = new AtomicInteger(0);
 
+  private final AtomicInteger totalMsgCount = new AtomicInteger(0);
+
   public SysFlightStreamObserver(BufferAllocator allocator,
                                  ServerStreamListener listener,
                                  Descriptors.Descriptor descriptor,
                                  int recordBatchSize) {
+    LOGGER.info("Requesting to fetch system table data for {}", descriptor.getFullName());
     this.allocator = allocator.newChildAllocator("sys-flight-stream-observer-allocator", 0, Long.MAX_VALUE);
     this.listener = listener;
+    this.descriptor = descriptor;
     this.recordBatchSize = recordBatchSize;
 
     vectorMap = ProtobufRecordReader.setup(descriptor, allocator);
@@ -59,25 +64,29 @@ public class SysFlightStreamObserver<E extends Message> implements StreamObserve
 
   @Override
   public void onNext(E e) {
+    totalMsgCount.getAndAdd(1);
+    LOGGER.debug("Received data {}:{} for {}", totalMsgCount, e, descriptor.getFullName());
     ProtobufRecordReader.handleMessage(e, root, vectorMap, allocator, listener, count, recordBatchSize);
   }
 
   @Override
   public void onError(Throwable th) {
     try {
+      LOGGER.error("Exception fetching system table data for {}", descriptor.getFullName(), th);
       close(th);
     } catch (Exception ex) {
-      LOGGER.error("Exception while closing SysFlightStreamObserver: ", ex);
+      LOGGER.error("Exception closing SysFlightStreamObserver:onError for {}", descriptor.getFullName(), ex);
     }
   }
 
   @Override
   public void onCompleted() {
     try {
+      LOGGER.debug("Completed receiving data for {}, total received {}", descriptor.getFullName(), totalMsgCount);
       close(null);
     } catch (Throwable ex) {
       listener.error(ex);
-      LOGGER.error("Exception while closing SysFlightStreamObserver: ", ex);
+      LOGGER.error("Exception closing SysFlightStreamObserver:onCompleted for {}", descriptor.getFullName(), ex);
     }
   }
 

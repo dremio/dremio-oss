@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>24.0.0-202302100528110223-3a169b7c</version>
+    <version>24.1.0-202306130653310132-d30779f6</version>
   </parent>
 
   <groupId>com.dremio.services</groupId>
@@ -51,48 +51,48 @@
       <artifactId>dremio-services-options</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.projectnessie</groupId>
+      <groupId>org.projectnessie.nessie</groupId>
       <artifactId>nessie-rest-services</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.projectnessie</groupId>
+      <groupId>org.projectnessie.nessie</groupId>
       <artifactId>nessie-server-store</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.projectnessie</groupId>
+      <groupId>org.projectnessie.nessie</groupId>
       <artifactId>nessie-services</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.projectnessie</groupId>
+      <groupId>org.projectnessie.nessie</groupId>
       <artifactId>nessie-versioned-persist-store</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.projectnessie</groupId>
+      <groupId>org.projectnessie.nessie</groupId>
       <artifactId>nessie-versioned-spi</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.projectnessie</groupId>
+      <groupId>org.projectnessie.nessie</groupId>
       <artifactId>nessie-versioned-persist-adapter</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.projectnessie</groupId>
+      <groupId>org.projectnessie.nessie</groupId>
       <artifactId>nessie-versioned-persist-serialize</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.projectnessie</groupId>
+      <groupId>org.projectnessie.nessie</groupId>
       <artifactId>nessie-versioned-persist-non-transactional</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.projectnessie</groupId>
+      <groupId>org.projectnessie.nessie</groupId>
       <artifactId>nessie-versioned-persist-in-memory</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.projectnessie</groupId>
+      <groupId>org.projectnessie.nessie</groupId>
       <artifactId>nessie-versioned-tests</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.projectnessie</groupId>
+      <groupId>org.projectnessie.nessie</groupId>
       <artifactId>nessie-versioned-persist-tests</artifactId>
       <scope>test</scope>
     </dependency>
@@ -109,11 +109,6 @@
     <dependency>
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-scheduler</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-junit-jupiter</artifactId>
-      <scope>test</scope>
     </dependency>
   </dependencies>
 

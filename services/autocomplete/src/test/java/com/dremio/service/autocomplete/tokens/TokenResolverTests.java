@@ -29,7 +29,7 @@ import com.google.common.collect.ImmutableList;
 public final class TokenResolverTests {
   @Test
   public void tests() {
-    new GoldenFileTestBuilder<>(TokenResolverTests::executeTest)
+    GoldenFileTestBuilder.create(TokenResolverTests::executeTest)
       .add("EMPTY STRING", "")
       .add("SELECT", "SELECT ")
       .add("SELECT STAR", "SELECT * ")
@@ -44,7 +44,7 @@ public final class TokenResolverTests {
 
   @Test
   public void multiSql() {
-    new GoldenFileTestBuilder<>(TokenResolverTests::executeTest)
+    GoldenFileTestBuilder.create(TokenResolverTests::executeTest)
       .add(
         "MULTI SQL",
         "SELECT * FROM EMP; ^")
@@ -62,7 +62,7 @@ public final class TokenResolverTests {
 
   @Test
   public void testDDL() {
-    new GoldenFileTestBuilder<>(TokenResolverTests::executeTest)
+    GoldenFileTestBuilder.create(TokenResolverTests::executeTest)
       .add("SHOW", "SHOW ")
       .add("EXPLAIN", "EXPLAIN ")
       .add("DROP", "DROP ")
@@ -75,7 +75,7 @@ public final class TokenResolverTests {
 
   @Test
   public void testSubquery() {
-    new GoldenFileTestBuilder<>(TokenResolverTests::executeTest)
+    GoldenFileTestBuilder.create(TokenResolverTests::executeTest)
       .add("AFTER OPEN PARENS", "SELECT ( ")
       .add("IN", "SELECT * FROM EMP WHERE EMP.age IN (")
       .add("NOT IN", "SELECT * FROM EMP WHERE EMP.age NOT IN ( ")
@@ -98,7 +98,7 @@ public final class TokenResolverTests {
 
   @Test
   public void testNessie() {
-    new GoldenFileTestBuilder<>(TokenResolverTests::executeTest)
+    GoldenFileTestBuilder.create(TokenResolverTests::executeTest)
       .add("JUST FINISHED TABLE NAME", "SELECT * FROM EMP ")
       .add("JUST FINISHED TABLE NAME WITH AT", "SELECT * FROM EMP AT ")
       .add("BRANCH", "SELECT * FROM EMP AT BRANCH ")
@@ -110,7 +110,7 @@ public final class TokenResolverTests {
   @Test
   @Ignore
   public void comparisonOperators() {
-    new GoldenFileTestBuilder<>(TokenResolverTests::executeTest)
+    GoldenFileTestBuilder.create(TokenResolverTests::executeTest)
       .add("Equals", "SELECT * FROM EMP WHERE EMP.age = ")
       .add("Not equal", "SELECT * FROM EMP WHERE EMP.age <> ")
       .add("Not equal", "SELECT * FROM EMP WHERE EMP.age != ")
@@ -158,7 +158,7 @@ public final class TokenResolverTests {
 
   @Test
   public void logicalOperators() {
-    new GoldenFileTestBuilder<>(TokenResolverTests::executeTest)
+    GoldenFileTestBuilder.create(TokenResolverTests::executeTest)
       .add("OR", "SELECT * FROM EMP WHERE EMP.age = 5 OR ")
       .add("AND", "SELECT * FROM EMP WHERE EMP.age = 5 AND  ")
       .add("NOT", "SELECT * FROM EMP WHERE NOT ")
@@ -175,7 +175,7 @@ public final class TokenResolverTests {
 
   @Test
   public void arithmeticOperators() {
-    new GoldenFileTestBuilder<>(TokenResolverTests::executeTest)
+    GoldenFileTestBuilder.create(TokenResolverTests::executeTest)
       .add("positive", "SELECT +")
       .add("negative", "SELECT -")
       .add("plus", "SELECT EMP.age + ")
@@ -188,14 +188,14 @@ public final class TokenResolverTests {
 
   @Test
   public void characterOperators() {
-    new GoldenFileTestBuilder<>(TokenResolverTests::executeTest)
+    GoldenFileTestBuilder.create(TokenResolverTests::executeTest)
       .add("concat", "SELECT 'asdf' || ")
       .runTests();
   }
 
   @Test
   public void reflections() {
-    new GoldenFileTestBuilder<>(TokenResolverTests::executeTest)
+    GoldenFileTestBuilder.create(TokenResolverTests::executeTest)
       .add("ALTER + CREATE", "ALTER DATASET blah CREATE ")
       // RAW REFLECTIONS
       .add("RAW REFLECTION", "ALTER DATASET blah CREATE RAW REFLECTION ")
@@ -225,7 +225,7 @@ public final class TokenResolverTests {
 
   @Test
   public void specialSyntaxFunctions() {
-    new GoldenFileTestBuilder<>(TokenResolverTests::executeTest)
+    GoldenFileTestBuilder.create(TokenResolverTests::executeTest)
       .add("CAST", "SELECT CAST(")
       .add("CAST", "SELECT CAST(myValue ")
       .add("CAST", "SELECT CAST(myValue AS")
@@ -367,7 +367,7 @@ public final class TokenResolverTests {
 
   @Test
   public void collectionFunctions() {
-    new GoldenFileTestBuilder<>(TokenResolverTests::executeTest)
+    GoldenFileTestBuilder.create(TokenResolverTests::executeTest)
       // MULTISET CONSTRUCTION
       .add("MULTISET CONSTRUCTION", "SELECT MULTISET")
       .add("MULTISET CONSTRUCTION SUBQUERY", "SELECT MULTISET(")
@@ -459,7 +459,7 @@ public final class TokenResolverTests {
 
   @Test
   public void periodPredicates() {
-    new GoldenFileTestBuilder<>(TokenResolverTests::executeTest)
+    GoldenFileTestBuilder.create(TokenResolverTests::executeTest)
       // PERIOD CONSTRUCTION
       .add("(", "SELECT (")
       .add("(datetime", "SELECT (datetime")
@@ -487,7 +487,7 @@ public final class TokenResolverTests {
 
   @Test
   public void valueOperations() {
-    new GoldenFileTestBuilder<>(TokenResolverTests::executeTest)
+    GoldenFileTestBuilder.create(TokenResolverTests::executeTest)
       // Index is not recommended and close bracket is not high enough priority
       .add("ROW", "SELECT ROW")
       .add("ROW CONSTRUCTOR", "SELECT ROW(")

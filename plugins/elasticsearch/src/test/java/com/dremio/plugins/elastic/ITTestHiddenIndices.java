@@ -43,6 +43,7 @@ public class ITTestHiddenIndices extends ElasticBaseTestQuery {
   }
 
 
+  @Override
   @Before
   public void before() throws Exception {
     super.before();

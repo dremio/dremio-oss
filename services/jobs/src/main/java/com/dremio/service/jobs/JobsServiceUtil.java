@@ -36,7 +36,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,6 +62,7 @@ import com.dremio.service.job.ActiveJobSummary;
 import com.dremio.service.job.JobDetails;
 import com.dremio.service.job.JobStats;
 import com.dremio.service.job.JobSummary;
+import com.dremio.service.job.RequestType;
 import com.dremio.service.job.StoreJobResultRequest;
 import com.dremio.service.job.SubmitJobRequest;
 import com.dremio.service.job.UsedReflections;
@@ -310,7 +311,7 @@ public final class JobsServiceUtil {
   static JobFailureInfo toFailureInfo(String verboseError) {
     // TODO: Would be easier if profile had structured error too
     String[] lines = verboseError.split("\n");
-    if (lines.length < 3) {
+    if (lines.length < 2) {
       return null;
     }
     final JobFailureInfo.Type type;
@@ -365,10 +366,10 @@ public final class JobsServiceUtil {
     List<JobFailureInfo.Error> errors;
     JobFailureInfo.Error error = new JobFailureInfo.Error()
       .setMessage(message);
-    if (lines.length > 3) {
+    if (lines.length > 2) {
       // Parse all the context lines
       Map<String, String> context = new HashMap<>();
-      for (int i = 3; i < lines.length; i++) {
+      for (int i = 2; i < lines.length; i++) {
         String line = lines[i];
         if (line.isEmpty()) {
           break;
@@ -801,8 +802,11 @@ public final class JobsServiceUtil {
   /**
    * Creates JobInfo from SubmitJobRequest
    */
-  public static JobInfo createJobInfo(SubmitJobRequest jobRequest, JobId jobId, String inSpace) {
-    final JobInfo jobInfo = new JobInfo(jobId, jobRequest.getSqlQuery().getSql(),
+  public static JobInfo createJobInfo(SubmitJobRequest jobRequest, JobId jobId, String inSpace, int sqlTruncateLen) {
+    boolean isSqlTruncated = jobRequest.getSqlQuery().getSql().length() > sqlTruncateLen;
+    String sqlText = isSqlTruncated ? jobRequest.getSqlQuery().getSql().substring(0, sqlTruncateLen) : jobRequest.getSqlQuery().getSql();
+
+    final JobInfo jobInfo = new JobInfo(jobId, sqlText,
       jobRequest.getVersionedDataset().getVersion(), JobsProtoUtil.toStuff(jobRequest.getQueryType()))
       .setSpace(inSpace)
       .setUser(jobRequest.getUsername())
@@ -810,7 +814,8 @@ public final class JobsServiceUtil {
       .setDatasetPathList(jobRequest.getVersionedDataset().getPathList())
       .setResultMetadataList(new ArrayList<ArrowFileMetadata>())
       .setContextList(jobRequest.getSqlQuery().getContextList())
-      .setQueryLabel(JobsProtoUtil.toStuff(jobRequest.getQueryLabel()));
+      .setQueryLabel(JobsProtoUtil.toStuff(jobRequest.getQueryLabel()))
+      .setIsTruncatedSql(isSqlTruncated);
 
     if (jobRequest.hasDownloadSettings()) {
       jobInfo.setDownloadInfo(new DownloadInfo()
@@ -894,5 +899,14 @@ public final class JobsServiceUtil {
         JobIndexKeys.UI_EXTERNAL_JOBS_FILTER,
         JobIndexKeys.ACCELERATION_JOBS_FILTER));
     return SearchQueryUtils.and(builder.build());
+  }
+
+  public static String getJobDescription(com.dremio.proto.model.attempts.RequestType requestType, String sql, String desc) {
+    return getJobDescription(RequestType.valueOf(requestType.toString()), sql, desc);
+  }
+
+  public static String getJobDescription(RequestType requestType, String sql, String desc) {
+    // description of a job is same as the sql text for RUN_SQL request types (Ref. UserRequest.java)
+    return requestType == RequestType.RUN_SQL ? sql : desc;
   }
 }

@@ -66,7 +66,8 @@ public class TestAssignment {
     ListMultimap<Integer, CompleteWork> mappings = AssignmentCreator.getMappings(incomingEndpoints, chunks);
     System.out.println(mappings.keySet().size());
     for (int i = 0; i < width; i++) {
-      Assert.assertTrue("no mapping for entry " + i, mappings.get(i) != null && mappings.get(i).size() > 0);
+      Assert.assertTrue("no mapping for entry " + i, mappings.containsKey(i));
+      Assert.assertFalse("mapping for entry " + i + " was empty", mappings.get(i).isEmpty());
     }
   }
 

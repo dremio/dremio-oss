@@ -152,6 +152,7 @@ class MaestroProxyQueryTracker implements QueryTracker {
     return true;
   }
 
+  @Override
   public NodeEndpoint getForeman() {
     return foreman;
   }

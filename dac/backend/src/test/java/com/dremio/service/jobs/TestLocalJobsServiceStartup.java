@@ -37,6 +37,7 @@ import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import com.dremio.common.logging.StructuredLogger;
 import com.dremio.datastore.api.LegacyIndexedStore;
 import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
@@ -56,6 +57,7 @@ import com.google.common.collect.Sets;
  */
 public class TestLocalJobsServiceStartup {
   private LegacyIndexedStore<JobId, JobResult> jobStore;
+  private StructuredLogger<Job> jobResultLogger;
   private Collection<NodeEndpoint> availableCoords;
   private static final String issuingAddress = "issuingAddress";
   private static final com.dremio.exec.proto.beans.NodeEndpoint nodeEndpoint =
@@ -86,6 +88,8 @@ public class TestLocalJobsServiceStartup {
   public void beforeEach() {
     jobStore = (LegacyIndexedStore<JobId, JobResult>) mock(LegacyIndexedStore.class);
 
+    jobResultLogger = (StructuredLogger<Job>) mock(StructuredLogger.class);
+
     when(jobStore.find(any(LegacyFindByCondition.class)))
       .thenReturn(Sets.difference(EnumSet.allOf(JobState.class), finalJobStates)
         .stream()
@@ -111,7 +115,7 @@ public class TestLocalJobsServiceStartup {
   public void cleanupJobStateOnStartUp() throws Exception {
     availableCoords = issuerRestart();
 
-    LocalJobsService.setAbandonedJobsToFailedState(jobStore, availableCoords);
+    LocalJobsService.setAbandonedJobsToFailedState(jobStore, availableCoords, jobResultLogger);
 
     assertTrue("all job states must be final, or handled by the above method",
         allJobsCleanedUp(returns));
@@ -124,7 +128,7 @@ public class TestLocalJobsServiceStartup {
     // The issuing coordinator is present, so no jobs are cleaned up on startup
     availableCoords = issuerPresent();
 
-    LocalJobsService.setAbandonedJobsToFailedState(jobStore, availableCoords);
+    LocalJobsService.setAbandonedJobsToFailedState(jobStore, availableCoords, jobResultLogger);
 
     assertTrue("All job states are final and not issued by the current restarted coordinator",
       noJobsCleanedUp(returns));
@@ -136,7 +140,7 @@ public class TestLocalJobsServiceStartup {
     // so its jobs are cleaned up
     availableCoords = issuerRestart();
 
-    LocalJobsService.setAbandonedJobsToFailedState(jobStore, availableCoords);
+    LocalJobsService.setAbandonedJobsToFailedState(jobStore, availableCoords, jobResultLogger);
 
     assertTrue("All job states are final and issued by the current restarted coordinator, " +
         "and must have failed", allJobsCleanedUp(returns));
@@ -149,7 +153,7 @@ public class TestLocalJobsServiceStartup {
     // The issuing coordinator is present during the cleanup task, so no jobs are cleaned up
     availableCoords = issuerPresent();
 
-    LocalJobsService.setAbandonedJobsToFailedState(jobStore, availableCoords);
+    LocalJobsService.setAbandonedJobsToFailedState(jobStore, availableCoords, jobResultLogger);
 
     assertTrue("All job states must be final, and jobs issued by a present coordinator, ",
       noJobsCleanedUp(returns));
@@ -160,7 +164,7 @@ public class TestLocalJobsServiceStartup {
     // The issuing coordinator is absent during the cleanup task, so all jobs are cleaned up
     availableCoords = issuerAbsent();
 
-    LocalJobsService.setAbandonedJobsToFailedState(jobStore, availableCoords);
+    LocalJobsService.setAbandonedJobsToFailedState(jobStore, availableCoords, jobResultLogger);
 
     assertTrue("All job states must be final, and jobs issued by an absent coordinator, ",
       allJobsCleanedUp(returns));

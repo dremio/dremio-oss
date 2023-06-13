@@ -45,6 +45,7 @@ class TestNessieRepoMaintenanceCommand {
 
     NonTransactionalDatabaseAdapterConfig adapterCfg = ImmutableAdjustableNonTransactionalDatabaseAdapterConfig
       .builder()
+      .validateNamespaces(false)
       .build();
     NessieDatastoreInstance store = new NessieDatastoreInstance();
     store.configure(new ImmutableDatastoreDbConfig.Builder().setStoreProvider(() -> storeProvider).build());

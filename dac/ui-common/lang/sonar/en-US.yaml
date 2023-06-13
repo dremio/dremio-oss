@@ -95,3 +95,4 @@ Sonar.Reflection.Column.AcceleratedCount.Label: "Accelerated Count"
 Sonar.Reflection.Column.AcceleratedCount.Hint: "Number of user jobs that were accelerated by the reflection."
 Sonar.Reflection.Column.RefreshHistory.Label: "Refresh Job History"
 Sonar.Reflection.Column.RefreshHistory.Link: "History"
+Sonar.Reflection.TableError: Something went wrong when we tried to display the list of Reflections.

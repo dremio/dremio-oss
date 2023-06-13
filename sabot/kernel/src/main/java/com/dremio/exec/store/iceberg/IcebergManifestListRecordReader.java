@@ -38,7 +38,6 @@ import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.complex.impl.NullableStructWriter;
 import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.iceberg.ManifestContent;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
@@ -48,13 +47,13 @@ import org.apache.iceberg.TableMetadataParser;
 import org.apache.iceberg.exceptions.RuntimeIOException;
 import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.expressions.ManifestEvaluator;
+import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.types.Type;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
-import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RecordReader;
@@ -82,18 +81,22 @@ public class IcebergManifestListRecordReader implements RecordReader {
 
   private Schema icebergTableSchema;
   private byte[] icebergDatasetXAttr;
-  private final SupportsIcebergRootPointer pluginForIceberg;
+  protected final SupportsIcebergRootPointer pluginForIceberg;
   private final OpProps props;
   private ArrowBuf tmpBuf;
   private boolean emptyTable;
   private final String datasourcePluginUID;
   private Expression icebergFilterExpression;
-  private final String path;
-  private final ManifestContent manifestContent;
+  private final String metadataLocation;
+  private final ManifestContentType manifestContent;
   private Map<Integer, PartitionSpec> partitionSpecMap;
 
+  private StructVector splitIdentityVector;
+  private VarBinaryVector splitInfoVector;
+  private VarBinaryVector colIdsVector;
+
   public IcebergManifestListRecordReader(OperatorContext context,
-                                         String path,
+                                         String metadataLocation,
                                          SupportsIcebergRootPointer pluginForIceberg,
                                          List<String> dataset,
                                          String dataSourcePluginId,
@@ -101,8 +104,8 @@ public class IcebergManifestListRecordReader implements RecordReader {
                                          OpProps props,
                                          List<String> partitionCols,
                                          IcebergExtendedProp icebergExtendedProp,
-                                         ManifestContent manifestContent) {
-    this.path = path;
+                                         ManifestContentType manifestContent) {
+    this.metadataLocation = metadataLocation;
     this.context = context;
     this.pluginForIceberg = pluginForIceberg;
     this.dataset = dataset;
@@ -129,13 +132,12 @@ public class IcebergManifestListRecordReader implements RecordReader {
     this.output = output;
     FileSystem fs;
     try {
-      fs = pluginForIceberg.createFSWithAsyncOptions(this.path, props.getUserName(), context);
+      fs = pluginForIceberg.createFSWithAsyncOptions(this.metadataLocation, props.getUserName(), context);
     } catch (IOException e) {
       throw new RuntimeException("Failed creating filesystem", e);
     }
-    DremioFileIO io = new DremioFileIO(
-      fs, context, dataset, datasourcePluginUID, null, pluginForIceberg.getFsConfCopy(), (MutablePlugin) pluginForIceberg);
-    TableMetadata tableMetadata = TableMetadataParser.read(io, this.path);
+    FileIO io = pluginForIceberg.createIcebergFileIO(fs, context, dataset, datasourcePluginUID, null);
+    TableMetadata tableMetadata = TableMetadataParser.read(io, this.metadataLocation);
     if (!context.getOptions().getOption(ENABLE_ICEBERG_SPEC_EVOL_TRANFORMATION)) {
       checkForPartitionSpecEvolution(tableMetadata);
     }
@@ -167,13 +169,29 @@ public class IcebergManifestListRecordReader implements RecordReader {
         .message("Iceberg V2 tables with equality deletes are not supported.")
         .buildSilently();
     }
+    List<ManifestFile> manifestFileList;
+    switch (manifestContent) {
+      case DATA:
+        manifestFileList = snapshot.dataManifests(io);
+        break;
+      case DELETES:
+        manifestFileList = snapshot.deleteManifests(io);
+        break;
+      case ALL:
+        manifestFileList = snapshot.allManifests(io);
+        break;
+      default:
+        throw new IllegalStateException("Invalid ManifestContentType " + manifestContent);
+    }
 
-    List<ManifestFile> manifestFileList = manifestContent == ManifestContent.DELETES ?
-      snapshot.deleteManifests(io) : snapshot.dataManifests(io);
     manifestFileList = filterManifestFiles(manifestFileList);
     manifestFileIterator = manifestFileList.iterator();
+    Map<String, Integer> colIdMap = manifestContent == ManifestContentType.DELETES ?
+      IcebergUtils.getColIDMapWithReservedDeleteFields(icebergTableSchema) :
+      IcebergUtils.getIcebergColumnNameToIDMap(icebergTableSchema);
     icebergDatasetXAttr = IcebergProtobuf.IcebergDatasetXAttr.newBuilder()
-      .addAllColumnIds(IcebergUtils.getIcebergColumnNameToIDMap(icebergTableSchema).entrySet().stream()
+      .addAllColumnIds(colIdMap.entrySet()
+        .stream()
         .map(c -> IcebergProtobuf.IcebergSchemaField.newBuilder()
           .setSchemaPath(c.getKey())
           .setId(c.getValue())
@@ -182,6 +200,10 @@ public class IcebergManifestListRecordReader implements RecordReader {
       .build()
       .toByteArray();
     tmpBuf = context.getAllocator().buffer(4096);
+
+    splitIdentityVector = (StructVector) output.getVector(RecordReader.SPLIT_IDENTITY);
+    splitInfoVector = (VarBinaryVector)output.getVector(RecordReader.SPLIT_INFORMATION);
+    colIdsVector = (VarBinaryVector)output.getVector(RecordReader.COL_IDS);
   }
 
   @Override
@@ -193,17 +215,18 @@ public class IcebergManifestListRecordReader implements RecordReader {
 
   @Override
   public int next() {
+    return nextBatch(0, context.getTargetBatchSize());
+  }
+
+  public int nextBatch(int startOutIndex, int maxOutIndex) {
     if (emptyTable) {
       return 0;
     }
 
-    int outIndex = 0;
+    int outIndex = startOutIndex;
     try {
-      StructVector splitIdentityVector = (StructVector) output.getVector(RecordReader.SPLIT_IDENTITY);
       NullableStructWriter splitIdentityWriter = splitIdentityVector.getWriter();
-      VarBinaryVector splitInfoVector = (VarBinaryVector)output.getVector(RecordReader.SPLIT_INFORMATION);
-      VarBinaryVector colIdsVector = (VarBinaryVector)output.getVector(RecordReader.COL_IDS);
-      while (manifestFileIterator.hasNext() && outIndex < context.getTargetBatchSize()) {
+      while (manifestFileIterator.hasNext() && outIndex < maxOutIndex) {
         ManifestFile manifestFile = manifestFileIterator.next();
         SplitIdentity splitIdentity = new SplitIdentity(manifestFile.path(), 0, manifestFile.length(), manifestFile.length());
 
@@ -219,15 +242,16 @@ public class IcebergManifestListRecordReader implements RecordReader {
         }
         outIndex++;
       }
-      int valueCount = outIndex;
-      output.getVectors().forEach(v -> v.setValueCount(valueCount));
+
+      int lastOutIndex = outIndex;
+      output.getVectors().forEach(v -> v.setValueCount(lastOutIndex));
+      return lastOutIndex - startOutIndex;
     } catch (Exception e) {
       throw UserException
         .dataReadError(e)
         .message("Unable to read manifest list files for table '%s'", PathUtils.constructFullPath(dataset))
         .build(logger);
     }
-    return outIndex;
   }
 
   private Object getStatValue(ManifestFile manifestFile, Field field) {

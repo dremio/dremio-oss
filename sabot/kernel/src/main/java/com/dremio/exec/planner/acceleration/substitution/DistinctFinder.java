@@ -33,6 +33,7 @@ class DistinctFinder extends StatelessRelShuttleImpl {
     return foundDistinct;
   }
 
+  @Override
   public RelNode visit(LogicalAggregate aggregate) {
     List<AggregateCall> aggCallList = aggregate.getAggCallList();
 
@@ -46,6 +47,7 @@ class DistinctFinder extends StatelessRelShuttleImpl {
     return visitChildren(aggregate);
   }
 
+  @Override
   public RelNode visit(RelNode node) {
     return visitChildren(node);
   }

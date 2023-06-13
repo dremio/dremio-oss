@@ -26,17 +26,13 @@ type ReflectionsTableProps = {
   columns: any;
   onScrolledBottom?: () => void;
   onColumnsSorted: (sortedColumns: any) => void;
-  reflections: any[];
   pollingCache: Map<string, any>;
+  getRow: (rowIndex: number) => any;
+  rowCount: number;
 };
 
 export const ReflectionsTable = (props: ReflectionsTableProps) => {
-  const {
-    columns,
-    reflections,
-    pollingCache = new Map<string, any>(),
-    onScrolledBottom = () => {},
-  } = props;
+  const { columns, onScrolledBottom = () => {}, getRow, rowCount } = props;
 
   const scrolledBottomRef = useRef(onScrolledBottom);
   scrolledBottomRef.current = onScrolledBottom;
@@ -47,22 +43,6 @@ export const ReflectionsTable = (props: ReflectionsTableProps) => {
       infiniteScrolling(() => scrolledBottomRef.current()),
     ]);
   }, []);
-
-  const getRow = useCallback(
-    (rowIndex: number) => {
-      const data = reflections[rowIndex];
-      const polledData =
-        data?.id && pollingCache.has(data.id)
-          ? pollingCache.get(data.id)
-          : data;
-
-      return {
-        id: data?.id || rowIndex,
-        data: polledData || null,
-      };
-    },
-    [reflections, pollingCache]
-  );
 
   const sortedColumns = useExternalStoreState(
     reflectionsTable.store,
@@ -79,7 +59,7 @@ export const ReflectionsTable = (props: ReflectionsTableProps) => {
       className="leantable--fixed-header"
       columns={columns}
       getRow={getRow}
-      rowCount={reflections.length}
+      rowCount={rowCount}
     />
   );
 };

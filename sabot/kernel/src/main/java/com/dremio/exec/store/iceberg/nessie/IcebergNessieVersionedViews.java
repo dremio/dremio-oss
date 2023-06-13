@@ -33,9 +33,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.catalog.ResolvedVersionContext;
-import com.dremio.exec.store.iceberg.DremioFileIO;
+import com.dremio.exec.store.iceberg.SupportsIcebergMutablePlugin;
 import com.dremio.plugins.NessieClient;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
@@ -49,7 +48,8 @@ public class IcebergNessieVersionedViews implements IcebergVersionedViews {
   private final String warehouseLocation;
   private final NessieClient nessieClient;
   private final Configuration fileSystemConfig;
-  private final MutablePlugin plugin;
+  private final SupportsIcebergMutablePlugin plugin;
+  private final String userName;
 
   public static final String DIALECT = "DREMIO";
 
@@ -57,7 +57,8 @@ public class IcebergNessieVersionedViews implements IcebergVersionedViews {
       String warehouseLocation,
       NessieClient nessieClient,
       Configuration fileSystemConfig,
-      MutablePlugin plugin) {
+      SupportsIcebergMutablePlugin plugin,
+      String userName) {
     requireNonNull(warehouseLocation);
     this.warehouseLocation =
         warehouseLocation.endsWith("/")
@@ -66,6 +67,7 @@ public class IcebergNessieVersionedViews implements IcebergVersionedViews {
     this.nessieClient = nessieClient;
     this.fileSystemConfig = fileSystemConfig;
     this.plugin = plugin;
+    this.userName = userName;
   }
 
   protected String defaultWarehouseLocation(List<String> viewKey) {
@@ -175,6 +177,7 @@ public class IcebergNessieVersionedViews implements IcebergVersionedViews {
   protected BaseMetastoreViewOperations newViewOps(
       List<String> viewKey, ResolvedVersionContext version) {
     return new IcebergNessieVersionedViewOperations(
-        new DremioFileIO(fileSystemConfig, plugin), nessieClient, viewKey, DIALECT, version);
+        plugin.createIcebergFileIO(plugin.getSystemUserFS(), null, null, null, null),
+        nessieClient, viewKey, DIALECT, version, userName);
   }
 }

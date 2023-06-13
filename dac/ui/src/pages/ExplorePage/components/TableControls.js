@@ -43,8 +43,6 @@ export class TableControls extends PureComponent {
     defaultColumnName: PropTypes.string, // would be used for addField button as default value
     exploreViewState: PropTypes.instanceOf(Immutable.Map).isRequired,
     pageType: pageTypesProp.isRequired,
-    sqlState: PropTypes.bool.isRequired,
-    sqlSize: PropTypes.number.isRequired,
     toggleExploreSql: PropTypes.func,
     collapseExploreSql: PropTypes.func.isRequired,
     location: PropTypes.object.isRequired,
@@ -169,7 +167,6 @@ export class TableControls extends PureComponent {
   render() {
     const {
       dataset,
-      sqlState,
       approximate,
       rightTreeVisible,
       exploreViewState,
@@ -200,7 +197,6 @@ export class TableControls extends PureComponent {
         dataset={curDataset || dataset}
         exploreViewState={exploreViewState}
         addField={this.addField}
-        sqlState={sqlState}
         groupBy={this.groupBy.bind(this)}
         join={this.join}
         approximate={approximate}

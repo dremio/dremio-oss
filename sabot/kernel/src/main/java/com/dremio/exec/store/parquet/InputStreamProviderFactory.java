@@ -35,14 +35,14 @@ public interface InputStreamProviderFactory {
   InputStreamProvider create(FileSystem fs, OperatorContext context,
                              Path path, long fileLength, long splitSize, ParquetScanProjectedColumns projectedColumns,
                              MutableParquetMetadata footerIfKnown, InputStreamProvider inputStreamProviderIfKnown, Function<MutableParquetMetadata, Integer> rowGroupIndexProvider,
-                             boolean readFullFile, List<String> dataset, long mTime, boolean enableBoosting, boolean readIndices) throws IOException;
+                             boolean readFullFile, List<String> dataset, long mTime, boolean enableBoosting, boolean readIndices, ParquetFilters parquetFilters, ParquetFilterCreator parquetFilterCreator) throws IOException;
 
   InputStreamProviderFactory DEFAULT = new InputStreamProviderFactory() {
     @Override
     public InputStreamProvider create(FileSystem fs, OperatorContext context,
                                       Path path, long fileLength, long splitSize, ParquetScanProjectedColumns projectedColumns,
                                       MutableParquetMetadata footerIfKnown, InputStreamProvider inputStreamProviderIfKnown, Function<MutableParquetMetadata, Integer> rowGroupIndexProvider,
-                                      boolean readFullFile, List<String> dataset, long mTime, boolean enableBoosting, boolean readColumnIndices) throws IOException {
+                                      boolean readFullFile, List<String> dataset, long mTime, boolean enableBoosting, boolean readColumnIndices, ParquetFilters parquetFilters, ParquetFilterCreator parquetFilterCreator) throws IOException {
       OptionManager options = context.getOptions();
       boolean useSingleStream =
         // option is set for single stream
@@ -57,8 +57,8 @@ public interface InputStreamProviderFactory {
 
       final long maxFooterLen = context.getOptions().getOption(ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR);
       return useSingleStream
-        ? new SingleStreamProvider(fs, path, fileLength, maxFooterLen, readFullFile, footerIfKnown, context, readColumnIndices)
-        : new StreamPerColumnProvider(fs, path, fileLength, maxFooterLen, footerIfKnown, context, readColumnIndices);
+        ? new SingleStreamProvider(fs, path, fileLength, maxFooterLen, readFullFile, footerIfKnown, context, readColumnIndices, parquetFilters, parquetFilterCreator)
+        : new StreamPerColumnProvider(fs, path, fileLength, maxFooterLen, footerIfKnown, context, readColumnIndices, parquetFilters, parquetFilterCreator);
     }
   };
 

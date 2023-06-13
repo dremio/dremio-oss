@@ -79,11 +79,11 @@ public class MockMetadataCatalog implements SimpleCatalog<MockMetadataCatalog> {
 
   @Override
   public DremioTable getTable(NamespaceKey key) {
-    return getTableSnapshot(key, TableVersionContext.LATEST_VERSION);
+    return getTableSnapshotForQuery(key, TableVersionContext.LATEST_VERSION);
   }
 
   @Override
-  public DremioTable getTableSnapshot(NamespaceKey key, TableVersionContext context) {
+  public DremioTable getTableSnapshotForQuery(NamespaceKey key, TableVersionContext context) {
     NodeMetadata schemas;
     switch (context.getType()) {
       case BRANCH:
@@ -111,6 +111,11 @@ public class MockMetadataCatalog implements SimpleCatalog<MockMetadataCatalog> {
     fullPath.addAll(key.getPathComponents());
 
     return resolve(key, fullPath, schemas);
+  }
+
+  @Override
+  public DremioTable getTableSnapshot(NamespaceKey key, TableVersionContext context) {
+    return getTableSnapshotForQuery(key, context);
   }
 
   private DremioTable resolve(NamespaceKey key, List<String> path, NodeMetadata metadata) {

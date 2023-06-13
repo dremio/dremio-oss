@@ -96,8 +96,7 @@ public class ITTestDateTypesMixDateTime extends ElasticBaseTestQuery {
         .baselineValues(formatter.parse(value1, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")).toString().replace("T", " ") + ".000")
         .baselineValues(formatter.parse(value2, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")).toString().replace("T", " ") + ".000")
         .go();
-    }
-    else {
+    } else {
       testBuilder()
         .sqlQuery(sql)
         .ordered()

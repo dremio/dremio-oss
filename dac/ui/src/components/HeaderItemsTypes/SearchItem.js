@@ -114,7 +114,6 @@ export class SearchItem extends Component {
 
   handleSearchHide = () => {
     this.setState({ searchVisible: false });
-    this.input.focus();
   };
 
   startSearch(text) {

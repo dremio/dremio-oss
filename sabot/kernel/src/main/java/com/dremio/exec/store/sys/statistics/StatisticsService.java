@@ -50,10 +50,13 @@ public interface StatisticsService extends Service, StatisticsAdministrationServ
     boolean isItemsSketchSet();
   }
 
+  @Override
   String requestStatistics(List<Field> fields, NamespaceKey key, Double samplingRate);
 
+  @Override
   List<String> deleteStatistics(List<String> fields, NamespaceKey key);
 
+  @Override
   boolean deleteRowCountStatistics(NamespaceKey key);
 
   @Override

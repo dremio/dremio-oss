@@ -44,7 +44,8 @@ public abstract class TableOptimizePruleBase extends Prule {
       tableMetadata,
       optimizeRel.getCreateTableEntry(),
       context,
-      optimizeRel.getOptimizeOptions());
+      optimizeRel.getOptimizeOptions(),
+      optimizeRel.getPartitionFilter());
     return planGenerator.getPlan();
   }
 }

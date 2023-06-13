@@ -33,9 +33,11 @@ public class CastTimestampToBigInt implements SimpleFunction {
   @Output
   BigIntHolder out;
 
+  @Override
   public void setup() {
   }
 
+  @Override
   public void eval() {
     out.value = in.value;
   }

@@ -78,7 +78,7 @@ public final class SchemaField extends RexInputRef {
   private static final String OPEN_BQ = "[\"";
   private static final String CLOSE_BQ = "\"]";
 
-  private final SchemaPath path;
+  private SchemaPath path;
   private final CompleteType type;
   private final FieldAnnotation annotation;
   private final ElasticSpecialType specialType;
@@ -99,6 +99,10 @@ public final class SchemaField extends RexInputRef {
 
   public SchemaPath getPath() {
     return path;
+  }
+
+  public void setPath(SchemaPath path) {
+    this.path = path;
   }
 
   public CompleteType getCompleteType() {

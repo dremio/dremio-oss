@@ -43,10 +43,11 @@ import com.dremio.exec.expr.fn.AbstractFunctionHolder;
 import com.dremio.exec.resolver.FunctionResolver;
 import com.dremio.exec.resolver.FunctionResolverFactory;
 import com.esotericsoftware.kryo.serializers.FieldSerializer;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 
-public class TypeInferenceUtils {
+public final class TypeInferenceUtils {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TypeInferenceUtils.class);
 
   private static final ImmutableMap<TypeProtos.MinorType, SqlTypeName> MINOR_TO_CALCITE_TYPE_MAPPING = ImmutableMap.<TypeProtos.MinorType, SqlTypeName> builder()
@@ -355,30 +356,24 @@ public class TypeInferenceUtils {
   private static class ConcatSqlReturnTypeInference implements SqlReturnTypeInference {
     private static final ConcatSqlReturnTypeInference INSTANCE = new ConcatSqlReturnTypeInference();
 
+    /**
+     * Calculate the expected return type of CONCAT based on the types of the operands.
+     * For simplicity, we just return a max-width VARCHAR type since it makes no difference in resource usage.
+     * @param opBinding Binding to the operands used in this function call.
+     * @return The return type for this call to CONCAT.
+     */
     @Override
     public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
       final RelDataTypeFactory factory = opBinding.getTypeFactory();
+      final boolean isNullable =
+        opBinding.collectOperandTypes().stream().allMatch(relDataType -> relDataType.isNullable());
 
-      boolean isNullable = true;
-      int precision = 0;
-      for(RelDataType relDataType : opBinding.collectOperandTypes()) {
-        if(!relDataType.isNullable()) {
-          isNullable = false;
-        }
-
-        // If the underlying columns cannot offer information regarding the precision (i.e., the length) of the VarChar,
-        // Dremio uses the largest to represent it
-        if(relDataType.getPrecision() == TypeHelper.VARCHAR_DEFAULT_CAST_LEN
-            || relDataType.getPrecision() == RelDataType.PRECISION_NOT_SPECIFIED) {
-          precision = TypeHelper.VARCHAR_DEFAULT_CAST_LEN;
-        } else {
-          precision += relDataType.getPrecision();
-        }
-      }
-
-      return factory.createTypeWithNullability(
-          factory.createSqlType(SqlTypeName.VARCHAR, precision),
-          isNullable);
+      // Set precision to null because createCalciteTypeWithNullability always makes VARCHAR max-width.
+      // We do this to avoid having complex logic here to calculate the maximum width for the string
+      // representation of a value with a given type, and because it doesn't make a difference in
+      // resource usage.
+      final Integer precision = null;
+      return createCalciteTypeWithNullability(factory, SqlTypeName.VARCHAR, isNullable, precision);
     }
   }
 
@@ -402,16 +397,15 @@ public class TypeInferenceUtils {
 
     @Override
     public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
-      final RelDataTypeFactory factory = opBinding.getTypeFactory();
-      final SqlTypeName sqlTypeName = SqlTypeName.VARCHAR;
+      Preconditions.checkArgument(opBinding.getOperandCount() == 3);
 
-      for(int i = 0; i < opBinding.getOperandCount(); ++i) {
-        if(opBinding.getOperandType(i).isNullable()) {
-          return createCalciteTypeWithNullability(factory, sqlTypeName, true, null);
-        }
-      }
-
-      return createCalciteTypeWithNullability(factory, sqlTypeName, false, 65536);
+      boolean isNullable = opBinding.collectOperandTypes().stream().anyMatch(RelDataType::isNullable);
+      // TODO: calculate a more reasonable upper bound on the char length after replacement
+      return createCalciteTypeWithNullability(
+        opBinding.getTypeFactory(),
+        SqlTypeName.VARCHAR,
+        isNullable,
+        null /*VARCHAR just uses a default precision*/);
     }
   }
 
@@ -570,8 +564,10 @@ public class TypeInferenceUtils {
         break;
       case VARCHAR:
         type = typeFactory.createSqlType(sqlTypeName, TypeHelper.VARCHAR_DEFAULT_CAST_LEN);
+        break;
       default:
         type = typeFactory.createSqlType(sqlTypeName);
+        break;
     }
     return typeFactory.createTypeWithNullability(type, isNullable);
   }
@@ -596,10 +592,7 @@ public class TypeInferenceUtils {
     return functionCall;
   }
 
-  /**
-   * This class is not intended to be instantiated
-   */
   private TypeInferenceUtils() {
-
+    // utility class
   }
 }

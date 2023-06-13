@@ -101,12 +101,15 @@ public class JsonReader extends BaseJsonProcessor {
 
   private Map<BaseWriter.StructWriter,Map<String, Field>> structWriterToFieldMap = new HashMap<>();
 
-  public JsonReader(ArrowBuf managedBuf, int maxFieldSize, int maxLeafLimit, boolean allTextMode, boolean skipOuterList, boolean readNumbersAsDouble) {
-    this(managedBuf, GroupScan.ALL_COLUMNS, maxFieldSize, maxLeafLimit, allTextMode, skipOuterList, readNumbersAsDouble, false, null, null, null);
+  public JsonReader(ArrowBuf managedBuf, int maxFieldSize, int maxLeafLimit, boolean allTextMode, boolean skipOuterList, boolean readNumbersAsDouble,
+                    boolean enforceValidJsonDateFormat) {
+    this(managedBuf, GroupScan.ALL_COLUMNS, maxFieldSize, maxLeafLimit, allTextMode, skipOuterList, readNumbersAsDouble, false, null, null, null,
+      enforceValidJsonDateFormat);
   }
 
   public JsonReader(ArrowBuf managedBuf, List<SchemaPath> columns, int maxFieldSize, int maxLeafLimit, boolean allTextMode,
-                    boolean skipOuterList, boolean readNumbersAsDouble, boolean schemaImposedMode, ExtendedFormatOptions extendedFormatOptions, OperatorContext context, BatchSchema targetSchema) {
+                    boolean skipOuterList, boolean readNumbersAsDouble, boolean schemaImposedMode, ExtendedFormatOptions extendedFormatOptions, OperatorContext context, BatchSchema targetSchema,
+                    boolean enforceValidJsonDateFormat) {
     assert Preconditions.checkNotNull(columns).size() > 0 : "JSON record reader requires at least one column";
     this.targetSchema = targetSchema;
     this.selection = FieldSelection.getFieldSelection(columns);
@@ -114,8 +117,8 @@ public class JsonReader extends BaseJsonProcessor {
     this.skipOuterList = skipOuterList;
     this.allTextMode = allTextMode;
     this.columns = columns;
-    this.mapOutput = new MapVectorOutput(workingBuffer);
-    this.listOutput = new ListVectorOutput(workingBuffer);
+    this.mapOutput = new MapVectorOutput(workingBuffer, enforceValidJsonDateFormat);
+    this.listOutput = new ListVectorOutput(workingBuffer, enforceValidJsonDateFormat);
     this.currentFieldName="<none>";
     this.readNumbersAsDouble = readNumbersAsDouble;
     this.maxFieldSize = maxFieldSize;
@@ -235,6 +238,7 @@ public class JsonReader extends BaseJsonProcessor {
     setSource(data.getBytes(UTF_8));
   }
 
+  @Override
   public void setSource(byte[] bytes) throws IOException {
     setSource(new SeekableBAIS(bytes));
   }
@@ -345,6 +349,7 @@ public class JsonReader extends BaseJsonProcessor {
         addNullValueForStruct(writer);
         break;
       }
+      // fall through
     default:
       throw
         getExceptionWithContext(

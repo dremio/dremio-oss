@@ -45,15 +45,18 @@ public class DremioParameterScope extends EmptyScope {
 
   //~ Methods ----------------------------------------------------------------
 
+  @Override
   public SqlQualified fullyQualify(SqlIdentifier identifier) {
     return SqlQualified.create(this, 1, null, identifier);
   }
 
+  @Override
   public SqlValidatorScope getOperandScope(SqlCall call) {
     return this;
   }
 
-  @Override public RelDataType resolveColumn(String name, SqlNode ctx) {
+  @Override
+  public RelDataType resolveColumn(String name, SqlNode ctx) {
     return nameToTypeMap.get(name);
   }
 }

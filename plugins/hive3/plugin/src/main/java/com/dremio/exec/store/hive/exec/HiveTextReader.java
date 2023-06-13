@@ -76,8 +76,7 @@ public class HiveTextReader extends HiveAbstractReader {
   public void internalInit(InputSplit inputSplit, JobConf jobConf, ValueVector[] vectors) throws IOException {
     try (OperatorStats.WaitRecorder recorder = OperatorStats.getWaitRecorder(this.context.getStats())) {
       reader = jobConf.getInputFormat().getRecordReader(inputSplit, jobConf, Reporter.NULL);
-    }
-    catch(FSError e) {
+    } catch (FSError e) {
       throw HadoopFileSystemWrapper.propagateFSError(e);
     }
 
@@ -123,8 +122,7 @@ public class HiveTextReader extends HiveAbstractReader {
         if (!hasNext) {
           break;
         }
-      }
-      catch(FSError e) {
+      } catch (FSError e) {
         throw HadoopFileSystemWrapper.propagateFSError(e);
       }
       if (skipRecordsInspector.doSkipHeader(recordCount++)) {
@@ -293,8 +291,7 @@ public class HiveTextReader extends HiveAbstractReader {
     if (reader != null) {
       try (OperatorStats.WaitRecorder recorder = OperatorStats.getWaitRecorder(this.context.getStats())) {
         reader.close();
-      }
-      catch(FSError e) {
+      } catch (FSError e) {
         throw HadoopFileSystemWrapper.propagateFSError(e);
       }
       reader = null;

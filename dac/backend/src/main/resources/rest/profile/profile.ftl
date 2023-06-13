@@ -201,7 +201,8 @@
           <#list layoutList as k, v>
             <#assign dsName = k.getDataset().getName()>
             <#assign dsPath = k.toParentPath()>
-            <li>${dsName} (${dsPath})</li>
+            <#assign dsVersion = k.getVersion()>
+            <li>${dsName}${dsVersion}(${dsPath})</li>
             <ul>
               <#list v as layout>
                 <#if layout.name?? && layout.name?trim?has_content >
@@ -279,7 +280,7 @@
           Reflection Id: ${layout.getLayoutId()}, Materialization Id: ${layout.getMaterializationId()}<br>
           Expiration:   ${layout.materializationExpirationTimestamp?number_to_datetime?iso_utc}<br>
           <#if model.accelerationDetails?? && model.accelerationDetails.hasRelationship(layout.layoutId) >
-          Dataset: ${model.accelerationDetails.getReflectionDatasetPath(layout.layoutId)}<br>
+          Dataset: ${model.accelerationDetails.getReflectionDatasetPath(layout.layoutId)}${model.accelerationDetails.getReflectionDatasetVersion(layout.layoutId)}<br>
           Age: ${(model.getPerdiodFromStart(model.accelerationDetails.getRefreshChainStartTime(layout.layoutId)))}<br>
           </#if>
           <#if layout.snowflake?has_content && layout.snowflake>
@@ -422,6 +423,40 @@
           <#if planPhase.hasSizeStats()><p><pre>${planPhase.sizeStats}</pre></p></#if>
           </p>
         </#list>
+        <h3>Rule Execution Times</h3>
+        <div class="panel-group" id="phases-accordion">
+          <div class="panel panel-default">
+            <div class="panel-heading">
+              <h4 class="panel-title">
+                <a data-toggle="collapse" href="#phases-overview">
+                  Overview
+                </a>
+              </h4>
+            </div>
+            <div id="phases-overview" class="panel-collapse collapse">
+              <div class="panel-body">
+                <table>
+                  <#list model.profile.planPhasesList as planPhase>
+                    <#if planPhase.timeBreakdownPerRuleMap?size gt 0>
+                      <tr>
+                        <td colspan="2">
+                          <b>${planPhase.getPhaseName()}</b>
+                        </td>
+                      </tr>
+                    </#if>
+                    <#list planPhase.timeBreakdownPerRuleMap?keys as k>
+                      <tr>
+                      <td style="padding-right: 40px">${k}</td>
+                      <td>${planPhase.timeBreakdownPerRuleMap[k]}mS</td>
+                      </tr>
+                    </#list>
+                    <tr />
+                  </#list>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
       <#else>
         <p>No planning phase information to show</p>
       </#if>
@@ -464,6 +499,20 @@
     <dd>${model.getCommandPoolWaitMillis()}</dd>
     <dt>Total Query Time:</dt>
     <dd>${model.getTotalTime()}</dd>
+    <#if model.profile.hasNumJoinsInUserQuery() >
+      <dt># Joins in user query:</dt>
+      <dd>${model.profile.getNumJoinsInUserQuery()}</dd>
+    </#if>
+    <#if model.profile.hasNumJoinsInFinalPrel() >
+      <dt># Joins in final plan:</dt>
+      <dd>${model.profile.getNumJoinsInFinalPrel()}</dd>
+    </#if>
+    <dt>Considered Reflections:</dt>
+    <dd>${model.getConsideredReflectionsCount()}</dd>
+    <dt>Matched Reflections:</dt>
+    <dd>${model.getMatchedReflectionsCount()}</dd>
+    <dt>Chosed Reflections:</dt>
+    <dd>${model.getChosenReflectionsCount()}</dd>
     <#if model.getPlanCacheUsed() != 0 >
       <dt>Cached plan was used</dt>
     </#if>

@@ -34,6 +34,7 @@ import org.apache.calcite.util.Pair;
 
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.CatalogUser;
+import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.EntityExplorer;
 import com.dremio.exec.catalog.MetadataRequestOptions;
@@ -46,7 +47,6 @@ import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.service.acceleration.ReflectionDescriptionServiceRPC;
 import com.dremio.service.accelerator.AccelerationUtils;
 import com.dremio.service.namespace.NamespaceException;
-import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.reflection.MaterializationCache.CacheViewer;
 import com.dremio.service.reflection.ReflectionStatus.AVAILABILITY_STATUS;
@@ -83,7 +83,6 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ReflectionStatusServiceImpl.class);
 
   private final Provider<Collection<NodeEndpoint>> nodeEndpointsProvider;
-  private final Provider<NamespaceService> namespaceService;
   private final Provider<CatalogService> catalogService;
   private final Provider<CacheViewer> cacheViewer;
 
@@ -100,7 +99,6 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
   @VisibleForTesting
   ReflectionStatusServiceImpl(
       Provider<Collection<NodeEndpoint>> nodeEndpointsProvider,
-      Provider<NamespaceService> namespaceService,
       Provider<CacheViewer> cacheViewer,
       ReflectionGoalsStore goalsStore,
       ReflectionEntriesStore entriesStore,
@@ -109,28 +107,24 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
       ReflectionValidator validator,
       Provider<CatalogService> catalogService) {
     this.nodeEndpointsProvider = nodeEndpointsProvider;
-    this.namespaceService = Preconditions.checkNotNull(namespaceService, "namespace service required");
     this.cacheViewer = Preconditions.checkNotNull(cacheViewer, "cache viewer required");
     this.goalsStore = Preconditions.checkNotNull(goalsStore, "goals store required");
     this.entriesStore = Preconditions.checkNotNull(entriesStore, "entries store required");
     this.materializationStore = Preconditions.checkNotNull(materializationStore, "materialization store required");
     this.externalReflectionStore = Preconditions.checkNotNull(externalReflectionStore, "external reflection store required");
-
     this.validator = Preconditions.checkNotNull(validator, "validator required");
     this.catalogService = Preconditions.checkNotNull(catalogService, "catalog service required");
   }
 
   public ReflectionStatusServiceImpl(
-      Provider<Collection<NodeEndpoint>> nodeEndpointsProvider,
-      Provider<NamespaceService> namespaceServiceProvider,
-      Provider<CatalogService> catalogService,
-      Provider<LegacyKVStoreProvider> storeProvider,
-      Provider<CacheViewer> cacheViewer) {
+    Provider<Collection<NodeEndpoint>> nodeEndpointsProvider,
+    Provider<CatalogService> catalogService,
+    Provider<LegacyKVStoreProvider> storeProvider,
+    Provider<CacheViewer> cacheViewer) {
     Preconditions.checkNotNull(storeProvider, "kv store provider required");
     Preconditions.checkNotNull(catalogService, "catalog service required");
     this.nodeEndpointsProvider = nodeEndpointsProvider;
     this.cacheViewer = Preconditions.checkNotNull(cacheViewer, "cache viewer required");
-    this.namespaceService = namespaceServiceProvider;
     this.catalogService = catalogService;
 
     goalsStore = new ReflectionGoalsStore(storeProvider);
@@ -242,7 +236,7 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
     if (lastMaterializationDone.isPresent()) {
       Materialization materialization = lastMaterializationDone.get();
       lastDataFetch = materialization.getLastRefreshFromPds();
-      lastRefreshDuration = materialization.getLastRefreshDurationMillis();
+      lastRefreshDuration = Optional.ofNullable(materialization.getLastRefreshDurationMillis()).orElse(-1L);
       expiresAt = Optional.ofNullable(materialization.getExpiration()).orElse(0L);
 
       final Set<String> activeHosts = getActiveHosts();
@@ -290,21 +284,22 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
   }
 
   private ExternalReflectionStatus.STATUS computeStatus(ExternalReflection reflection) {
+    EntityExplorer catalog = CatalogUtil.getSystemCatalogForReflections(catalogService.get());
     // check if the reflection is still valid
-    final DatasetConfig queryDataset = namespaceService.get().findDatasetByUUID(reflection.getQueryDatasetId());
-    if (queryDataset == null) {
+    DatasetConfig queryDatasetConfig = CatalogUtil.getDatasetConfig(catalog, reflection.getQueryDatasetId());
+    if (queryDatasetConfig == null) {
       return ExternalReflectionStatus.STATUS.INVALID;
     }
-    final DatasetConfig targetDataset = namespaceService.get().findDatasetByUUID(reflection.getTargetDatasetId());
-    if (targetDataset == null) {
+    DatasetConfig targetDatasetConfig = CatalogUtil.getDatasetConfig(catalog, reflection.getTargetDatasetId() );
+    if (targetDatasetConfig == null) {
       return ExternalReflectionStatus.STATUS.INVALID;
     }
 
     // now check if the query and target datasets didn't change
     try {
-      if (!ReflectionUtils.hashEquals(reflection.getQueryDatasetHash(), queryDataset, namespaceService.get())) {
+      if (!DatasetHashUtils.hashEquals(reflection.getQueryDatasetHash(), queryDatasetConfig, catalogService.get())) {
         return ExternalReflectionStatus.STATUS.OUT_OF_SYNC;
-      } else if (!ReflectionUtils.hashEquals(reflection.getTargetDatasetHash(), targetDataset, namespaceService.get())) {
+      } else if (!DatasetHashUtils.hashEquals(reflection.getTargetDatasetHash(), targetDatasetConfig, catalogService.get())) {
         return ExternalReflectionStatus.STATUS.OUT_OF_SYNC;
       }
     } catch (NamespaceException e) {
@@ -314,7 +309,7 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
 
     // check that we are still able to get a MaterializationDescriptor
     try {
-      if (ReflectionUtils.getMaterializationDescriptor(reflection, namespaceService.get(), catalogService.get()) == null) {
+      if (ReflectionUtils.getMaterializationDescriptor(reflection, catalogService.get()) == null) {
         return ExternalReflectionStatus.STATUS.INVALID;
       }
     } catch(NamespaceException e) {
@@ -344,53 +339,55 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
   public Iterator<AccelerationListManager.ReflectionInfo> getReflections() {
     final Iterable<ReflectionGoal> goalReflections = ReflectionUtils.getAllReflections(goalsStore);
     final Iterable<ExternalReflection> externalReflections = externalReflectionStore.getExternalReflections();
+    EntityExplorer catalog = CatalogUtil.getSystemCatalogForReflections(catalogService.get());
     Stream<AccelerationListManager.ReflectionInfo> reflections = StreamSupport.stream(goalReflections.spliterator(),
       false).map(goal -> {
-        try {
-          final DatasetConfig datasetConfig = namespaceService.get().findDatasetByUUID(goal.getDatasetId());
-          if (datasetConfig == null) {
-            return null;
-          }
-          final Optional<ReflectionStatus> statusOpt = getNoThrowStatus(goal.getId());
-          String combinedStatus = "UNKNOWN";
-          int numFailures = 0;
-          if (statusOpt.isPresent()) {
-            combinedStatus = statusOpt.get().getCombinedStatus().toString();
-            numFailures = statusOpt.get().getNumFailures();
-          }
-
-          return new AccelerationListManager.ReflectionInfo(
-            goal.getId().getId(),
-            goal.getName(),
-            goal.getType().toString(),
-            combinedStatus,
-            numFailures,
-            datasetConfig.getId().getId(),
-            quotedCompound(datasetConfig.getFullPathList()),
-            datasetConfig.getType().toString(),
-            JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getSortFieldList()).stream().map(ReflectionField::getName).collect(Collectors.toList())),
-            JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getPartitionFieldList()).stream().map(ReflectionField::getName).collect(Collectors.toList())),
-            JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getDistributionFieldList()).stream().map(ReflectionField::getName).collect(Collectors.toList())),
-            JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getDimensionFieldList()).stream().map(ReflectionDimensionField::getName).collect(Collectors.toList())),
-            JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getMeasureFieldList()).stream().map(ReflectionMeasureField::getName).collect(Collectors.toList())),
-            JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getDisplayFieldList()).stream().map(ReflectionField::getName).collect(Collectors.toList())),
-            null,
-            goal.getArrowCachingEnabled()
-          );
-        } catch (Exception e) {
-          logger.error("Unable to get ReflectionInfo for {}", getId(goal), e);
+      try {
+        final DatasetConfig datasetConfig = CatalogUtil.getDatasetConfig(catalog, goal.getDatasetId());
+        if (datasetConfig == null) {
+          return null;
         }
-        return null;
+        final Optional<ReflectionStatus> statusOpt = getNoThrowStatus(goal.getId());
+        String combinedStatus = "UNKNOWN";
+        int numFailures = 0;
+        if (statusOpt.isPresent()) {
+          combinedStatus = statusOpt.get().getCombinedStatus().toString();
+          numFailures = statusOpt.get().getNumFailures();
+        }
+
+        return new AccelerationListManager.ReflectionInfo(
+          goal.getId().getId(),
+          goal.getName(),
+          goal.getType().toString(),
+          combinedStatus,
+          numFailures,
+          datasetConfig.getId().getId(),
+          quotedCompound(datasetConfig.getFullPathList()),
+          datasetConfig.getType().toString(),
+          JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getSortFieldList()).stream().map(ReflectionField::getName).collect(Collectors.toList())),
+          JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getPartitionFieldList()).stream().map(ReflectionField::getName).collect(Collectors.toList())),
+          JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getDistributionFieldList()).stream().map(ReflectionField::getName).collect(Collectors.toList())),
+          JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getDimensionFieldList()).stream().map(ReflectionDimensionField::getName).collect(Collectors.toList())),
+          JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getMeasureFieldList()).stream().map(ReflectionMeasureField::getName).collect(Collectors.toList())),
+          JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getDisplayFieldList()).stream().map(ReflectionField::getName).collect(Collectors.toList())),
+          null,
+          goal.getArrowCachingEnabled()
+        );
+      } catch (Exception e) {
+        logger.debug("Unable to get ReflectionInfo for {}", getId(goal), e);
+      }
+      return null;
     }).filter(Objects::nonNull);
 
     Stream<AccelerationListManager.ReflectionInfo> externalReflectionsInfo = StreamSupport.stream
-      (externalReflections.spliterator(), false)
+        (externalReflections.spliterator(), false)
       .map(externalReflection -> {
-          DatasetConfig dataset = namespaceService.get().findDatasetByUUID(externalReflection.getQueryDatasetId());
+        try {
+          DatasetConfig dataset = CatalogUtil.getDatasetConfig(catalog, externalReflection.getQueryDatasetId());
           if (dataset == null) {
             return null;
           }
-          DatasetConfig targetDataset = namespaceService.get().findDatasetByUUID(externalReflection.getTargetDatasetId());
+          DatasetConfig targetDataset = CatalogUtil.getDatasetConfig(catalog, externalReflection.getTargetDatasetId());
           if (targetDataset == null) {
             return null;
           }
@@ -415,6 +412,10 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
             targetDatasetPath,
             false
           );
+        } catch (Exception e) {
+          logger.debug("Unable to get ReflectionInfo for {}", getId(externalReflection), e);
+        }
+        return null;
       }).filter(Objects::nonNull);
     return Stream.concat(reflections, externalReflectionsInfo).iterator();
   }

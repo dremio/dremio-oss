@@ -656,9 +656,8 @@ public class DremioRelToSqlConverter extends RelToSqlConverter {
     return new DremioSelectListContext(selectList);
   }
 
-  public SqlNode createIntervalLiteral(final RexLiteral interval) {
+  public SqlNode createIntervalLiteral(final RexLiteral interval, final SqlTypeFamily family) {
     final BigDecimal intervalValue = interval.getValueAs(BigDecimal.class);
-    final SqlTypeFamily family = interval.getTypeName().getFamily();
     final SqlIntervalQualifier qualifier = interval.getType().getIntervalQualifier();
 
     if (intervalValue == null) {
@@ -757,7 +756,7 @@ public class DremioRelToSqlConverter extends RelToSqlConverter {
 
             case INTERVAL_YEAR_MONTH:
             case INTERVAL_DAY_TIME:
-              return createIntervalLiteral(literal);
+              return createIntervalLiteral(literal, literal.getTypeName().getFamily());
 
             case BINARY:
             case ANY:
@@ -765,13 +764,13 @@ public class DremioRelToSqlConverter extends RelToSqlConverter {
               switch (literal.getTypeName()) {
                 case NULL:
                   return SqlLiteral.createNull(SqlImplementor.POS);
-
                 default:
-                  // Fall through.
+                  break;
               }
+              break;
 
             default:
-              // Fall through.
+              break;
           }
           break;
 
@@ -887,6 +886,8 @@ public class DremioRelToSqlConverter extends RelToSqlConverter {
               // would have been injected into SELECT lists. shouldAddExplicitCast will determine if an explicit cast
               // would be added, but we only want them in the SELECT list so strip them if they show up in comparisons.
               this.stripNumericCastFromInputRef = true;
+              break;
+            default:
               break;
           }
 
@@ -1456,7 +1457,7 @@ public class DremioRelToSqlConverter extends RelToSqlConverter {
         if (null == colAlias) {
           // Guard against possible null aliases being returned by generating a unique value.
           colAlias = SqlValidatorUtil.uniquify(colAlias, usedNames, SqlValidatorUtil.EXPR_SUGGESTER);
-        } else if (colAlias.equals("\"*\"")) {
+        } else if ("\"*\"".equals(colAlias)) {
           // If * is used as an alias, it ends up getting double quoted when it should not be.
           colAlias = "*";
         }

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from "react";
+import { Component } from "react";
 import PropTypes from "prop-types";
 import classNames from "clsx";
 import { formatMessage } from "utils/locale";
@@ -21,33 +21,48 @@ import {
   typeToIconType,
   typeToFormatMessageId,
 } from "@app/constants/DataTypes";
-import { name as nameCls, icon as iconCls, wrapper } from "./DataColumn.less";
+import {
+  name as nameCls,
+  icon as iconCls,
+  wrapper,
+  wrapperHover,
+  nameWiki,
+  iconWiki,
+} from "./DataColumn.less";
+
+import HighlightedColumnName from "./HighlightedColumnName";
 
 export const columnPropTypes = {
   type: PropTypes.string, //see constants/DataTypes for the list of available types
   name: PropTypes.string,
 };
 
-export class DataColumn extends PureComponent {
+export class DataColumn extends Component {
   static propTypes = {
     ...columnPropTypes,
     className: PropTypes.string,
+    detailsView: PropTypes.bool,
+    searchTerm: PropTypes.string,
   };
 
   render() {
-    const { type, name, className } = this.props;
+    const { type, name, className, detailsView, searchTerm } = this.props;
     const label = `data-types/${typeToIconType[type]}`;
     const alt = typeToFormatMessageId?.[type] ?? typeToFormatMessageId["ANY"];
 
     return (
-      <div className={classNames(wrapper, className)}>
+      <div
+        className={classNames(detailsView ? wrapper : wrapperHover, className)}
+      >
         <dremio-icon
           name={label}
           data-qa={label}
           alt={formatMessage(alt)}
-          class={iconCls}
+          class={detailsView ? iconWiki : iconCls}
         />
-        <div className={nameCls}>{name}</div>
+        <div className={detailsView ? nameWiki : nameCls}>
+          <HighlightedColumnName columnName={name} searchTerm={searchTerm} />
+        </div>
       </div>
     );
   }

@@ -32,6 +32,6 @@ class DefaultMetricsProvider implements MetricsProvider {
 
   @Override
   public Timer timer(String metricName) {
-    return timers.computeIfAbsent(metricName, (name) -> Metrics.newTimer(metricName, Metrics.ResetType.NEVER));
+    return timers.computeIfAbsent(metricName, (name) -> Metrics.newTimer(name, Metrics.ResetType.NEVER));
   }
 }

@@ -38,9 +38,12 @@ import { tableStyles } from "../../tableStyles";
 import { getSettingsLocation } from "components/Menus/HomePage/AllSourcesMenu";
 import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
 import { IconButton } from "dremio-ui-lib";
+import { CATALOG_ARS_ENABLED } from "@app/exports/flags/CATALOG_ARS_ENABLED";
+import { FeatureSwitch } from "@app/exports/components/FeatureSwitch/FeatureSwitch";
+import { isNotSoftware } from "dyn-load/utils/versionUtils";
 
 const btnTypes = {
-  settings: "settings"
+  settings: "settings",
 };
 
 class AllSourcesView extends PureComponent {
@@ -83,7 +86,13 @@ class AllSourcesView extends PureComponent {
                   <EntityLink entityId={item.get("id")}>
                     <EllipsedText text={item.get("name")} />
                   </EntityLink>
-                  <ResourcePin entityId={item.get("id")} />
+                  <FeatureSwitch
+                    flag={CATALOG_ARS_ENABLED}
+                    renderEnabled={() => null}
+                    renderDisabled={() => (
+                      <ResourcePin entityId={item.get("id")} />
+                    )}
+                  />
                 </div>
               ),
               value(sortDirection = null) {
@@ -107,7 +116,7 @@ class AllSourcesView extends PureComponent {
               value: new Date(item.get("ctime")),
             },
             [action.key]: {
-              node: () => this.getActionCell(item)
+              node: () => this.getActionCell(item),
             },
           },
         };
@@ -115,16 +124,18 @@ class AllSourcesView extends PureComponent {
   }
 
   getActionCell(item) {
-    return <ActionWrap>{this.getActionCellButtons(item)}</ActionWrap>
+    return <ActionWrap>{this.getActionCellButtons(item)}</ActionWrap>;
   }
 
   getActionCellButtons(item) {
-    const allBtns = [{
-      label: this.getInlineIcon("interface/settings"),
-      tooltip: "Common.Settings",
-      link: getSettingsLocation(this.context.location, item),
-      type: btnTypes.settings
-    }]
+    const allBtns = [
+      {
+        label: this.getInlineIcon("interface/settings"),
+        tooltip: "Common.Settings",
+        link: getSettingsLocation(this.context.location, item),
+        type: btnTypes.settings,
+      },
+    ];
     return [
       ...allBtns
         // return rendered link buttons
@@ -140,12 +151,7 @@ class AllSourcesView extends PureComponent {
             {btnType.label}
           </IconButton>
         )),
-      this.getSettingsBtnByType(
-        <AllSourcesMenu
-          item={item}
-        />,
-        item
-      ),
+      this.getSettingsBtnByType(<AllSourcesMenu item={item} />, item),
     ];
   }
 
@@ -179,14 +185,21 @@ class AllSourcesView extends PureComponent {
   }
 
   getTableColumns() {
-    const { intl } = this.props;
+    const { intl, isDataPlaneSource } = this.props;
     return [
       {
         key: "name",
         label: intl.formatMessage({ id: "Common.Name" }),
         flexGrow: 1,
       },
-      { key: "datasets", label: intl.formatMessage({ id: "Common.Datasets" }) },
+      {
+        key: "datasets",
+        label: intl.formatMessage({ id: "Common.Datasets" }),
+        headerStyle: isDataPlaneSource ? { ...tableStyles.hidden } : {},
+        style: {
+          display: this.props.isDataPlaneSource ? "none" : "block",
+        },
+      },
       { key: "created", label: intl.formatMessage({ id: "Common.Created" }) },
       {
         key: "action",
@@ -206,7 +219,9 @@ class AllSourcesView extends PureComponent {
     const headerId = isExternalSource
       ? "Source.AddDatabaseSource"
       : isDataPlaneSource
-      ? "Source.AddDataPlane"
+      ? isNotSoftware()
+        ? "Source.AddArcticCatalog"
+        : "Source.AddNessieCatalog"
       : isObjectStorageSource
       ? "Source.Add.Object.Storage"
       : "Source.Add.Metastore";

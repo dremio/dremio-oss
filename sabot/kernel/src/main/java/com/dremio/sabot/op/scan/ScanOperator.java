@@ -32,6 +32,7 @@ import java.util.stream.Collectors;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.AllocationHelper;
+import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -173,7 +174,10 @@ public class ScanOperator implements ProducerOperator {
     HIVE_FILE_FORMATS,// File Formats in hive sub scan represented as bitmap. Indices correspond to HiveFilFormat enum
     NUM_ZERO_SIZED_COLUMN, // Number of zero sized column
     NUM_EXTRA_FOOTER_READS, // Number of times footer is read for a split.
-    MAX_RECORD_READ_PER_READER // Maximum number of record read from Reader
+    MAX_RECORD_READ_PER_READER, // Maximum number of record read from Reader
+    ICEBERG_COMMIT_TIME,  // Time to commit an operation to Iceberg table
+    ORPHAN_FILE_DISCOVERY_TIME, // Time to discover the orphan files
+    NUM_ORPHAN_FILES  // Number of orphan files
     ;
 
     private final DisplayType displayType;
@@ -485,6 +489,18 @@ public class ScanOperator implements ProducerOperator {
       this.callBack = callBack;
     }
 
+    public ScanMutator(VectorContainer outgoing, OperatorContext context, MutatorSchemaChangeCallBack callBack) {
+      this.outgoing = outgoing;
+      this.fieldVectorMap = new HashMap<>();
+      this.context = context;
+      this.callBack = callBack;
+
+      outgoing.getSchema().getFields().forEach(field ->
+        fieldVectorMap.put(field.getName().toLowerCase(), outgoing.getValueAccessorById(FieldVector.class,
+          outgoing.getValueVectorId(SchemaPath.getSimplePath(field.getName())).getFieldIds()).getValueVector()));
+    }
+
+    @Override
     public void removeField(Field field) throws SchemaChangeException {
       ValueVector vector = fieldVectorMap.remove(field.getName().toLowerCase());
       if (vector == null) {
@@ -550,6 +566,12 @@ public class ScanOperator implements ProducerOperator {
     public void allocate(int recordCount) {
       for (final ValueVector v : fieldVectorMap.values()) {
         AllocationHelper.allocate(v, recordCount, 50, 10);
+      }
+    }
+
+    public void allocate() {
+      for (final ValueVector v : fieldVectorMap.values()) {
+        v.allocateNew();
       }
     }
 

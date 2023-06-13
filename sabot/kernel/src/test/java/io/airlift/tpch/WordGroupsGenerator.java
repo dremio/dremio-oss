@@ -49,6 +49,7 @@ public class WordGroupsGenerator extends TpchGenerator {
 
   }
 
+  @Override
   protected void generateRecord(final long globalRecordIndex, final int outputIndex) {
 
     final UnionListWriter listWriter = new UnionListWriter(wordGroups);

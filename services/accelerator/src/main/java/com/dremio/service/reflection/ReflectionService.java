@@ -24,10 +24,10 @@ import java.util.concurrent.FutureTask;
 
 import javax.inject.Provider;
 
+import com.dremio.exec.catalog.CatalogEntityKey;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.exec.store.sys.accel.AccelerationManager.ExcludedReflectionsProvider;
 import com.dremio.service.Service;
-import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.reflection.MaterializationCache.CacheViewer;
 import com.dremio.service.reflection.proto.ExternalReflection;
 import com.dremio.service.reflection.proto.Materialization;
@@ -52,6 +52,7 @@ public interface ReflectionService extends Service, ReflectionAdministrationServ
 
   ExcludedReflectionsProvider getExcludedReflectionsProvider();
 
+  @Override
   Optional<Materialization> getLastDoneMaterialization(ReflectionId reflectionId);
 
   Materialization getLastMaterialization(ReflectionId reflectionId);
@@ -76,8 +77,6 @@ public interface ReflectionService extends Service, ReflectionAdministrationServ
 
   ReflectionManager getReflectionManager();
 
-  void updateAccelerationBasePath();
-
   /**
    * mainly useful to reduce conflicts on the implementation when we update this interface
    */
@@ -88,7 +87,7 @@ public interface ReflectionService extends Service, ReflectionAdministrationServ
     }
 
     @Override
-    public Iterable<ReflectionGoal> getReflectionsByDatasetPath(NamespaceKey path) {
+    public Iterable<ReflectionGoal> getReflectionsByDatasetPath(CatalogEntityKey path) {
       return Collections.emptyList();
     }
 
@@ -238,9 +237,6 @@ public interface ReflectionService extends Service, ReflectionAdministrationServ
       return null;
     }
 
-    @Override
-    public void updateAccelerationBasePath() {
-    }
   }
 
   /**

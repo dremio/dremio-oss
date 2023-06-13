@@ -98,6 +98,7 @@ public class ParquetInputFormat extends FileInputFormat<NullWritable, ArrayWrita
     return new ParquetSplit(file, start, length, hosts, inMemoryHosts, fileSize, modificationTime);
   }
 
+  @Override
   public InputSplit[] getSplits(JobConf job, int numSplits)
     throws IOException {
     StopWatch sw = new StopWatch().start();
@@ -240,11 +241,9 @@ public class ParquetInputFormat extends FileInputFormat<NullWritable, ArrayWrita
       // Establish the bytes in this block
       if (index == startIndex) {
         bytesInThisBlock = bytesInFirstBlock;
-      }
-      else if (index == endIndex) {
+      } else if (index == endIndex) {
         bytesInThisBlock = bytesInLastBlock;
-      }
-      else {
+      } else {
         bytesInThisBlock = blkLocations[index].getLength();
       }
 
@@ -285,8 +284,7 @@ public class ParquetInputFormat extends FileInputFormat<NullWritable, ArrayWrita
             racksMap.put(parentNode,parentNodeInfo);
           }
           parentNodeInfo.addLeaf(nodeInfo);
-        }
-        else {
+        } else {
           nodeInfo = hostsMap.get(node);
           parentNode = node.getParent();
           parentNodeInfo = racksMap.get(parentNode);
@@ -387,6 +385,7 @@ public class ParquetInputFormat extends FileInputFormat<NullWritable, ArrayWrita
 
   private void sortInDescendingOrder(List<ParquetInputFormat.NodeInfo> mylist) {
     Collections.sort(mylist, new Comparator<ParquetInputFormat.NodeInfo>() {
+        @Override
         public int compare(ParquetInputFormat.NodeInfo obj1, ParquetInputFormat.NodeInfo obj2) {
 
           if (obj1 == null || obj2 == null) {
@@ -395,8 +394,7 @@ public class ParquetInputFormat extends FileInputFormat<NullWritable, ArrayWrita
 
           if (obj1.getValue() == obj2.getValue()) {
             return 0;
-          }
-          else {
+          } else {
             return ((obj1.getValue() < obj2.getValue()) ? 1 : -1);
           }
         }

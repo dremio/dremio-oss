@@ -141,7 +141,7 @@ export default class BrowseTable extends Component {
     const resetScrollTop = Boolean(
       window.navigator.userAgent.toLowerCase().includes("firefox") &&
         this.state.filter
-    ); //it's needed for https://dremio.atlassian.net/browse/DX-7140
+    ); //it's needed for DX-7140
 
     if (tableData.size) {
       passAlongProps.noDataText = intl.formatMessage(

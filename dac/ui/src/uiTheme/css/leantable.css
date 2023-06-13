@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-@import "../../../node_modules/leantable/dist-css/fixed-header.css";
-@import "../../../node_modules/leantable/dist-css/theme-hooks.css";
+@import "../../../node_modules/leantable2/dist-css/fixed-header.css";
+@import "../../../node_modules/leantable2/dist-css/theme-hooks.css";
 
 :root {
   --leantable--column--gap: 0;
@@ -61,7 +61,7 @@
   display: inline-block;
   width: 1px;
   height: 23px;
-  background: var(--dremio--color--neutral--150);
+  background: var(--color--neutral--50);
   position: absolute;
   left: 0;
   top: 9px;
@@ -74,6 +74,8 @@
   flex-grow: 1;
   margin-inline: -10px;
   padding-inline: 10px;
+  color: var(--dremio--color--link);
+  font-weight: 500;
 }
 
 .clickable-cell:hover {

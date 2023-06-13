@@ -19,7 +19,7 @@ import {
   ModalContainer,
   Section,
   useModalContainer,
-} from "dremio-ui-lib/dist-esm";
+} from "dremio-ui-lib/components";
 import { useCallback } from "react";
 import { browserHistory } from "react-router";
 import * as PATHS from "../../../paths";

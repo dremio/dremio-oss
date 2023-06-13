@@ -23,8 +23,11 @@ import static org.junit.Assert.assertTrue;
 import java.util.ArrayList;
 import java.util.Collections;
 
+import org.apache.calcite.runtime.CalciteContextException;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.sql.validate.SqlValidatorException;
+import org.apache.calcite.tools.ValidationException;
 import org.junit.Test;
 
 import com.dremio.common.exceptions.UserException;
@@ -76,6 +79,41 @@ public class TestJobsServiceUtil {
     assertEquals(JobFailureInfo.Type.PLAN, jobFailureInfo.getType());
     JobFailureInfo.Error error = jobFailureInfo.getErrorsList().get(0);
     assertEquals(errString, error.getMessage());
+  }
+  @Test
+  public void testValidationErrorMessageForMissingContext() {
+    String genericError = "unable to validate sql node";
+
+    String queryString = "SELECT * FROM trips";
+    // index location of "trips" inside the queryString
+    int startLineNumber = 1;
+    int startColumnNumber = 15;
+    int endLineNumber = 1;
+    int endColumnNumber = 19;
+    String contextExceptionLocation = String.format("From line %s, column %s to line %s, column %s",
+      startLineNumber, startColumnNumber, endLineNumber, endColumnNumber);
+
+    String actualError = "Object 'trips' not found";
+
+    // create the exception
+    SqlValidatorException sqlValidatorException = new SqlValidatorException(actualError, null);
+    CalciteContextException calciteContextException = new CalciteContextException(contextExceptionLocation,
+      sqlValidatorException, startLineNumber, startColumnNumber, endLineNumber, endColumnNumber);
+    ValidationException validationException = new ValidationException(genericError, calciteContextException);
+
+    // build the expected exception and convert it to failure info
+    UserException userException = SqlExceptionHelper.validationError(queryString, validationException)
+      .buildSilently();
+    String verboseError = userException.getVerboseMessage(false);
+    JobFailureInfo jobFailureInfo = JobsServiceUtil.toFailureInfo(verboseError);
+    assertEquals(JobFailureInfo.Type.VALIDATION, jobFailureInfo.getType());
+    JobFailureInfo.Error error = jobFailureInfo.getErrorsList().get(0);
+
+    assertEquals(actualError + ". Please check that it exists in the selected context.", error.getMessage());
+    assertEquals(startLineNumber, (int) error.getStartLine());
+    assertEquals(startColumnNumber, (int) error.getStartColumn());
+    assertEquals(endLineNumber, (int) error.getEndLine());
+    assertEquals(endColumnNumber, (int) error.getEndColumn());
   }
 
   @Test

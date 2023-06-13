@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.List;
 
 import javax.ws.rs.client.Entity;
+import javax.ws.rs.core.GenericType;
 
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -31,7 +32,6 @@ import org.junit.rules.TemporaryFolder;
 import com.dremio.connector.metadata.EntityPath;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.homefiles.HomeFileSystemStoragePlugin;
-import com.dremio.dac.model.spaces.Space;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.DatasetRetrievalOptions;
@@ -75,8 +75,7 @@ public class TestHomeFileStoragePlugin extends BaseTestServer {
     try {
       getNamespaceService().getSpace(new NamespaceKey(spaceName));
     } catch (NamespaceNotFoundException e) {
-      expectSuccess(getBuilder(getAPIv2().path("space/" + spaceName))
-        .buildPut(Entity.json(new Space(null, spaceName, null, null, null, 0, null))), Space.class);
+      expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, spaceName, null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
     }
 
     final DatasetPath vdsPath = new DatasetPath(spaceName + "." + vdsName);

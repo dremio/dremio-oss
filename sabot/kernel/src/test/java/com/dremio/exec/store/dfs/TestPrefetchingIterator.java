@@ -24,7 +24,6 @@ import static com.dremio.exec.ExecConstants.QUERY_EXEC_OPTION_KEY;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -196,9 +195,6 @@ public class TestPrefetchingIterator {
 
             assertFalse(it.hasNext());
             assertEquals(5L, ctx.getStats().getLongStat(ScanOperator.Metric.NUM_PARTITIONS_PRUNED));
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
         }
     }
 
@@ -238,9 +234,6 @@ public class TestPrefetchingIterator {
 
         assertFalse(it.hasNext());
         assertEquals(5L, ctx.getStats().getLongStat(ScanOperator.Metric.NUM_PARTITIONS_PRUNED));
-      } catch (Exception e) {
-        e.printStackTrace();
-        fail(e.getMessage());
       }
 
       it.close();
@@ -258,7 +251,7 @@ public class TestPrefetchingIterator {
   }
 
   @Test
-    public void testIteratorWithFilterNothingSkipped() {
+    public void testIteratorWithFilterNothingSkipped() throws Exception {
         CompositeReaderConfig readerConfig = mock(CompositeReaderConfig.class);
         when(readerConfig.getPartitionNVPairs(any(BufferAllocator.class), any(SplitAndPartitionInfo.class)))
                 .thenReturn(getMatchingNameValuePairs());
@@ -283,9 +276,6 @@ public class TestPrefetchingIterator {
                 inputStreamProvider = insertedCreator.getInputStreamProvider();
             }
             assertEquals(0L, ctx.getStats().getLongStat(ScanOperator.Metric.NUM_PARTITIONS_PRUNED));
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
         }
     }
 
@@ -307,9 +297,6 @@ public class TestPrefetchingIterator {
             assertEquals(0, recordReader.next());
             assertFalse(it.hasNext());
             assertEquals(10L, ctx.getStats().getLongStat(ScanOperator.Metric.NUM_PARTITIONS_PRUNED));
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
         }
     }
 
@@ -337,9 +324,6 @@ public class TestPrefetchingIterator {
                 it.next();
             }
             assertEquals(7L, ctx.getStats().getLongStat(ScanOperator.Metric.NUM_PARTITIONS_PRUNED));
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
         }
     }
 
@@ -368,9 +352,6 @@ public class TestPrefetchingIterator {
           it.next();
         }
         assertEquals(7L, ctx.getStats().getLongStat(ScanOperator.Metric.NUM_PARTITIONS_PRUNED));
-      } catch (Exception e) {
-        e.printStackTrace();
-        fail(e.getMessage());
       }
 
       it.close();
@@ -409,9 +390,6 @@ public class TestPrefetchingIterator {
               it.next();
             }
             assertEquals(8L , ctx.getStats().getLongStat(ScanOperator.Metric.NUM_PARTITIONS_PRUNED));
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
         }
     }
 
@@ -422,7 +400,7 @@ public class TestPrefetchingIterator {
     }
 
     @Test
-    public void testIteratorEmpty() {
+    public void testIteratorEmpty() throws Exception {
         CompositeReaderConfig readerConfig = mock(CompositeReaderConfig.class);
         when(readerConfig.getPartitionNVPairs(any(BufferAllocator.class), any(SplitAndPartitionInfo.class)))
                 .thenReturn(getMatchingNameValuePairs());
@@ -437,9 +415,6 @@ public class TestPrefetchingIterator {
             it.addRuntimeFilter(filter);
             assertFalse(it.hasNext());
             assertEquals(0L, ctx.getStats().getLongStat(ScanOperator.Metric.NUM_PARTITIONS_PRUNED));
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
         }
     }
 
@@ -644,7 +619,7 @@ public class TestPrefetchingIterator {
     when(config.getColumns()).thenReturn(Collections.singletonList(SchemaPath.getSimplePath("*")));
     when(config.getFormatSettings()).thenReturn(FileConfig.getDefaultInstance());
     when(optionManager.getOption(ExecConstants.FILESYSTEM_PARTITION_COLUMN_LABEL_VALIDATOR)).thenReturn("dir");
-    when(inputStreamProviderFactory.create(any(),any(),any(),anyLong(),anyLong(),any(),any(),any(),any(),anyBoolean(),any(),anyLong(),anyBoolean(),anyBoolean())).thenReturn(inputStreamProvider);
+    when(inputStreamProviderFactory.create(any(),any(),any(),anyLong(),anyLong(),any(),any(),any(),any(),anyBoolean(),any(),anyLong(),anyBoolean(),anyBoolean(), any(), any())).thenReturn(inputStreamProvider);
 
     BlockMetaData blockMetaData = mock(BlockMetaData.class);
     when(footer.getBlocks()).thenReturn(Collections.singletonList(blockMetaData));

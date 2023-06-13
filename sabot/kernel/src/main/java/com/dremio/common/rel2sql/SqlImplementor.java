@@ -290,6 +290,8 @@ public abstract class SqlImplementor {
               case CHAR:
               case VARCHAR:
                 return call.clone(call.getType(), ImmutableList.of(o0b, o1));
+              default:
+                break;
             }
           }
         }
@@ -301,9 +303,14 @@ public abstract class SqlImplementor {
               case CHAR:
               case VARCHAR:
                 return call.clone(call.getType(), ImmutableList.of(o0, o1b));
+              default:
+                break;
             }
           }
         }
+        break;
+      default:
+        break;
     }
     return node;
   }
@@ -523,11 +530,14 @@ public abstract class SqlImplementor {
               switch (literal.getTypeName()) {
                 case NULL:
                   return SqlLiteral.createNull(POS);
-                // fall through
+                default:
+                  break;
               }
+              break;
             default:
-              throw new AssertionError(literal + ": " + literal.getTypeName());
+              break;
           }
+          throw new AssertionError(literal + ": " + literal.getTypeName());
 
         case CASE:
           final RexCall caseCall = (RexCall) rex;
@@ -607,6 +617,9 @@ public abstract class SqlImplementor {
           switch (op.getKind()) {
             case SUM0:
               op = SqlStdOperatorTable.SUM;
+              break;
+            default:
+              break;
           }
           final List<SqlNode> nodeList = toSql(program, call.getOperands());
           switch (call.getKind()) {
@@ -617,6 +630,9 @@ public abstract class SqlImplementor {
               } else {
                 nodeList.add(dialect.getCastSpec(call.getType()));
               }
+              break;
+            default:
+              break;
           }
           if (op instanceof SqlBinaryOperator && nodeList.size() > 2) {
             // In RexNode trees, OR and AND have any number of children;
@@ -755,6 +771,9 @@ public abstract class SqlImplementor {
         case DESCENDING:
         case STRICTLY_DESCENDING:
           node = SqlStdOperatorTable.DESC.createCall(POS, node);
+          break;
+        default:
+          break;
       }
       if (rfc.getNullDirection()
         != dialect.defaultNullDirection(rfc.getDirection())) {
@@ -764,6 +783,8 @@ public abstract class SqlImplementor {
             break;
           case LAST:
             node = SqlStdOperatorTable.NULLS_LAST.createCall(POS, node);
+            break;
+          default:
             break;
         }
       }
@@ -853,6 +874,9 @@ public abstract class SqlImplementor {
         case DESCENDING:
         case STRICTLY_DESCENDING:
           node = SqlStdOperatorTable.DESC.createCall(POS, node);
+          break;
+        default:
+          break;
       }
       if (collation.nullDirection != dialect.defaultNullDirection(collation.direction)) {
         switch (collation.nullDirection) {
@@ -861,6 +885,8 @@ public abstract class SqlImplementor {
             break;
           case LAST:
             node = SqlStdOperatorTable.NULLS_LAST.createCall(POS, node);
+            break;
+          default:
             break;
         }
       }
@@ -1059,8 +1085,9 @@ public abstract class SqlImplementor {
             switch (selectItem.getKind()) {
               case AS:
                 return ((SqlCall) selectItem).operand(0);
+              default:
+                return selectItem;
             }
-            return selectItem;
           }
         };
       } else {

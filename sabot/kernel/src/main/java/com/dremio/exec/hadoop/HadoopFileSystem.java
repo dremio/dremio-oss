@@ -361,9 +361,9 @@ public class HadoopFileSystem
     throws FileNotFoundException, IOException {
     try (WaitRecorder metaRecorder = OperatorStats.getMetadataWaitRecorder(operatorStats, pattern)) {
       FileStatus[] fileStatuses = underlyingFs.globStatus(toHadoopPath(pattern), toPathFilter(filter));
-      if (logger.isTraceEnabled()) {
+      if (fileStatuses != null && logger.isTraceEnabled()) {
         for (FileStatus fileStatus : fileStatuses) {
-          logger.trace(fileStatus.toString());
+          logger.trace("HFS glob file status: {}", fileStatus.toString());
         }
       }
       return new ArrayDirectoryStream(fileStatuses);

@@ -15,7 +15,7 @@
  */
 package com.dremio.service.reflection.refresh;
 
-import com.dremio.service.namespace.NamespaceService;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.service.reflection.ReflectionSettings;
 import com.dremio.service.reflection.store.MaterializationStore;
 
@@ -23,7 +23,7 @@ import com.dremio.service.reflection.store.MaterializationStore;
  * An package private interface that allows sharing of ReflectionService assets for the RefreshHandler.
  */
 public interface RefreshHelper {
-  NamespaceService getNamespace();
   ReflectionSettings getReflectionSettings();
   MaterializationStore getMaterializationStore();
+  CatalogService getCatalogService();
 }

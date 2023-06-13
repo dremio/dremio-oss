@@ -73,7 +73,7 @@ public class BackupResource {
     final FileSystem fs = HadoopFileSystem.get(backupDirPath, new Configuration());
     // Checking if directory already exists and that the daemon can access it
     BackupRestoreUtil.checkOrCreateDirectory(fs, backupDirPath);
-    return BackupRestoreUtil.createBackup(fs, options, kvStoreProvider, fileStore.get().getConf(), null);
+    return BackupRestoreUtil.createBackup(fs, options, kvStoreProvider, fileStore.get().getConfForBackup(), null);
 
   }
 
@@ -99,7 +99,7 @@ public class BackupResource {
     final com.dremio.io.file.Path backupRootDirPath = backupDestinationDir.getParent();
     final FileSystem fs = HadoopFileSystem.get(backupRootDirPath, new Configuration());
     final BackupStats backupStats = new BackupStats(options.getBackupDestinationDirectory(), 0, 0);
-    BackupRestoreUtil.backupUploadedFiles(fs, backupDestinationDir, fileStore.get().getConf(), backupStats);
+    BackupRestoreUtil.backupUploadedFiles(fs, backupDestinationDir, fileStore.get().getConfForBackup(), backupStats);
     return backupStats;
   }
 

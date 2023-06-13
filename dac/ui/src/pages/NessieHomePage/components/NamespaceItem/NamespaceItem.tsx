@@ -16,7 +16,7 @@
 
 import FontIcon from "@app/components/Icon/FontIcon";
 import { useIntl } from "react-intl";
-import { Entry } from "@app/services/nessie/client";
+import { EntryV1 as Entry } from "@app/services/nessie/client";
 import { getUrlByType, getIconByType } from "../../utils/utils";
 import NessieLink from "../NessieLink/NessieLink";
 

@@ -18,13 +18,14 @@ import { FormattedMessage } from "react-intl";
 import SettingsBtn from "@app/components/Buttons/SettingsBtn";
 // @ts-ignore
 import { IconButton } from "dremio-ui-lib";
-import { Avatar } from "dremio-ui-lib/dist-esm";
+import { Avatar } from "dremio-ui-lib/components";
 import { ArcticCatalogTabsType } from "@app/exports/pages/ArcticCatalog/ArcticCatalog";
 import { Tag } from "@app/services/nessie/client";
 import { nameToInitials } from "@app/exports/utilities/nameToInitials";
 import ArcticGitActionsMenu from "../../../ArcticGitActionsMenu/ArcticGitActionsMenu";
 import { convertISOStringWithTooltip } from "@app/pages/NessieHomePage/components/RepoView/components/RepoViewBody/components/RepoViewBranchList/utils";
 import { getShortHash } from "@app/utils/nessieUtils";
+import CopyButton from "components/Buttons/CopyButton";
 
 export const getTagsTableColumns = () => {
   return [
@@ -64,6 +65,7 @@ export const generateTableRows = (
 
   data.forEach((tag) => {
     const commitData = tag?.metadata?.commitMetaOfHEAD;
+    const author = commitData?.authors?.[0];
 
     tableData.push({
       id: tag.hash,
@@ -80,10 +82,10 @@ export const generateTableRows = (
         author: {
           node: () => (
             <div className="author">
-              {commitData?.author && (
+              {author && (
                 <>
-                  <Avatar initials={nameToInitials(commitData?.author ?? "")} />
-                  <span className="author__name">{commitData?.author}</span>
+                  <Avatar initials={nameToInitials(author ?? "")} />
+                  <span className="author__name">{author}</span>
                 </>
               )}
             </div>
@@ -95,6 +97,14 @@ export const generateTableRows = (
               <dremio-icon name="vcs/commit" class="commit-id__icon" />
               <span className="commit-id__id">
                 {getShortHash(tag.hash || "")}
+              </span>
+              <span>
+                <CopyButton
+                  text={tag.hash || ""}
+                  title={
+                    <FormattedMessage id="ArcticCatalog.Commits.CommitID.Copy" />
+                  }
+                />
               </span>
             </div>
           ),
@@ -131,6 +141,7 @@ export const generateTableRows = (
                     <ArcticGitActionsMenu
                       fromItem={tag}
                       handleOpenDialog={handleOpenDialog}
+                      canDeleteTag
                     />
                   }
                   tooltip="Common.More"

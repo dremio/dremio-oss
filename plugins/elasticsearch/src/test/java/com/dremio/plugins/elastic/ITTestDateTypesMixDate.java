@@ -96,8 +96,7 @@ public class ITTestDateTypesMixDate extends ElasticBaseTestQuery {
         .baselineValues(formatter.parse(value1 , formatterToBaselineJT).toString().replace("T", " ")+ ":00.000")
         .baselineValues(formatter.parse(value2 , formatterToBaselineJT).toString().replace("T", " ")+ ":00.000")
         .go();
-    }
-    else {
+    } else {
       testBuilder()
         .sqlQuery(sql)
         .ordered()

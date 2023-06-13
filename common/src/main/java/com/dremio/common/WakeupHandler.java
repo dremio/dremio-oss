@@ -20,6 +20,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import javax.inject.Provider;
+
+import com.dremio.context.RequestContext;
 import com.google.common.base.Preconditions;
 
 /**
@@ -35,10 +38,17 @@ public class WakeupHandler {
 
   private final Runnable manager;
   private final ExecutorService executor;
+  private final Provider<RequestContext> requestContextProvider;
 
   public WakeupHandler(ExecutorService executor, Runnable manager) {
+    this(executor, manager, null);
+  }
+
+  public WakeupHandler(
+      ExecutorService executor, Runnable manager, Provider<RequestContext> requestContextProvider) {
     this.executor = Preconditions.checkNotNull(executor, "executor service required");
     this.manager = Preconditions.checkNotNull(manager, "runnable manager required");
+    this.requestContextProvider = requestContextProvider;
   }
 
   public Future<?> handle(String reason) {
@@ -62,7 +72,11 @@ public class WakeupHandler {
 
           try {
             wakeup.set(false);
-            manager.run();
+            if (requestContextProvider != null) {
+              requestContextProvider.get().run(() -> manager.run());
+            } else {
+              manager.run();
+            }
           } finally {
             running.set(false);
           }

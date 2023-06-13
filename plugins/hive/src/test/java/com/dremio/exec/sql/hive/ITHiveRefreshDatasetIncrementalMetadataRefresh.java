@@ -18,7 +18,6 @@ package com.dremio.exec.sql.hive;
 import static com.dremio.exec.sql.hive.ITHiveRefreshDatasetMetadataRefresh.EXPLAIN_PLAN;
 import static com.dremio.exec.sql.hive.ITHiveRefreshDatasetMetadataRefresh.verifyIcebergExecution;
 import static com.dremio.exec.store.metadatarefresh.RefreshDatasetTestUtils.fsDelete;
-import static com.dremio.exec.store.metadatarefresh.RefreshDatasetTestUtils.setupLocalFS;
 import static com.dremio.exec.store.metadatarefresh.RefreshDatasetTestUtils.verifyIcebergMetadata;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
@@ -117,8 +116,7 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
 
       //No change in snapshot Id
       assertEquals(oldSnapShotId, icebergTable.currentSnapshot().snapshotId());
-    }
-    finally {
+    } finally {
       forgetMetadata(tableName);
       dropTable(tableName);
     }
@@ -160,8 +158,7 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
 
       //No change in snapshot Id
       assertEquals(nextSnapshotId, icebergTable.currentSnapshot().snapshotId());
-    }
-    finally {
+    } finally {
       forgetMetadata(tableName);
       dropTable(tableName);
     }
@@ -215,8 +212,7 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
 
       //No change in snapshot Id
       assertEquals(nextSnapshotId, icebergTable.currentSnapshot().snapshotId());
-    }
-    finally {
+    } finally {
       forgetMetadata(tableName);
       dropTable(tableName);
     }
@@ -261,8 +257,7 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
         .go();
 
       verifyIcebergExecution(EXPLAIN_PLAN + selectQuery, finalIcebergMetadataLocation);
-    }
-    finally {
+    } finally {
       forgetMetadata(tableName);
       dropTable(tableName);
     }
@@ -307,8 +302,7 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
         .go();
 
       verifyIcebergExecution(EXPLAIN_PLAN + selectQuery, finalIcebergMetadataLocation);
-    }
-    finally {
+    } finally {
       forgetMetadata(tableName);
       dropTable(tableName);
     }
@@ -375,8 +369,7 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
         .go();
 
       verifyIcebergExecution(EXPLAIN_PLAN + selectQuery, finalIcebergMetadataLocation);
-    }
-    finally {
+    } finally {
       forgetMetadata(tableName);
       dropTable(tableName);
     }
@@ -415,8 +408,7 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
         .go();
 
       verifyIcebergExecution(EXPLAIN_PLAN + selectQuery, finalIcebergMetadataLocation);
-    }
-    finally {
+    } finally {
       forgetMetadata(tableName);
       dropTable(tableName);
     }
@@ -460,8 +452,7 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
       .go();
 
     verifyIcebergExecution(EXPLAIN_PLAN + selectQuery);*/
-    }
-    finally {
+    } finally {
       forgetMetadata(tableName);
       dropTable(tableName);
     }
@@ -501,8 +492,7 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
         .go();
 
       verifyIcebergExecution(EXPLAIN_PLAN + selectQuery, finalIcebergMetadataLocation);
-    }
-    finally {
+    } finally {
       forgetMetadata(tableName);
       dropTable(tableName);
     }
@@ -543,8 +533,7 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
         .go();
 
       verifyIcebergExecution(EXPLAIN_PLAN + selectQuery, finalIcebergMetadataLocation);
-    }
-    finally {
+    } finally {
       forgetMetadata(tableName);
       dropTable(tableName);
     }
@@ -566,8 +555,7 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
       assertThatThrownBy(() -> runFullRefresh(tableName))
         .isInstanceOf(Exception.class)
         .hasMessageContaining("Change in Hive partition definition detected for table");
-    }
-    finally {
+    } finally {
       forgetMetadata(tableName);
       dropTable(tableName);
     }
@@ -615,8 +603,7 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
         .go();
 
       verifyIcebergExecution(EXPLAIN_PLAN + selectQuery, finalIcebergMetadataLocation);
-    }
-    finally {
+    } finally {
       forgetMetadata(tableName);
       dropTable(tableName);
     }
@@ -659,8 +646,7 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
         Types.NestedField.optional(1, "id", new Types.IntegerType()),
         Types.NestedField.optional(2, "year", new Types.IntegerType()),
         Types.NestedField.optional(3, "month", new Types.StringType()))), Sets.newHashSet("year", "month"), 2);
-    }
-    finally {
+    } finally {
       forgetMetadata(tableName);
       dropTable(tableName);
     }
@@ -730,8 +716,7 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
         .baselineValues(2, "Feb", 2021)
         .baselineValues(3, "Feb", 2022)
         .go();
-    }
-    finally {
+    } finally {
       forgetMetadata(tableName);
       dropTable(tableName);
     }
@@ -764,8 +749,7 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
       } finally {
         fs.setPermission(partitionDir, new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
       }
-    }
-    finally {
+    } finally {
       forgetMetadata(tableName);
       dropTable(tableName);
     }
@@ -798,8 +782,7 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
       } finally {
         fs.setPermission(partitionDir, new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
       }
-    }
-    finally {
+    } finally {
       forgetMetadata(tableName);
       dropTable(tableName);
     }
@@ -834,8 +817,7 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
         .baselineValues(1)
         .baselineValues(1)
         .go();
-    }
-    finally {
+    } finally {
       forgetMetadata(tableName);
       dropTable(tableName);
     }
@@ -856,8 +838,7 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
       assertThatThrownBy(() -> runPartialRefresh(tableName, "(\"year\" = '20', \"month\" = 'FEB')"))
         .isInstanceOf(Exception.class)
         .hasMessageContaining("VALIDATION ERROR: Partition 'year=20/month=FEB' does not exist in default." + tableName);
-    }
-    finally {
+    } finally {
       forgetMetadata(tableName);
       dropTable(tableName);
     }
@@ -884,8 +865,7 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
         .go();
 
       verifyIcebergExecution(EXPLAIN_PLAN + selectQuery, finalIcebergMetadataLocation);
-    }
-    finally {
+    } finally {
       forgetMetadata(tableName);
       dropTable(tableName);
     }
@@ -920,8 +900,7 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
         Types.NestedField.optional(1, "id", new Types.IntegerType()),
         Types.NestedField.optional(2, "year", new Types.IntegerType()),
         Types.NestedField.optional(3, "month", new Types.StringType()))), Sets.newHashSet("year", "month"), 2);
-    }
-    finally {
+    } finally {
       forgetMetadata(tableName);
       dropTable(tableName);
     }

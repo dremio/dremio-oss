@@ -86,19 +86,109 @@
       kind: "Keyword"
       label: "."
      -
-      kind: "Keyword"
-      label: "("
+       kind: "Keyword"
+       label: "("
      -
       kind: "Keyword"
       label: "USING"
      -
       kind: "Keyword"
-      label: ";"
+      label: "FOR"
      -
-       kind: "Keyword"
-       label: "REWRITE"
+      kind: "Keyword"
+      label: ";"
     functionContext: null
     hasMoreResults: true
+ -
+  description: "OPTIMIZE + TABLE + TABLE NAME + FOR PARTITIONS"
+  input: "OPTIMIZE TABLE EMP FOR PARTITIONS ^"
+  output:
+    completions:
+      -
+        data:
+          column:
+            name: "COMM"
+            type: "INTEGER"
+          tableAlias: "EMP"
+        detail: "column (INTEGER) in EMP"
+        insertText: "EMP.COMM"
+        kind: "Column"
+        label: "COMM"
+      -
+        data:
+          column:
+            name: "DEPTNO"
+            type: "INTEGER"
+          tableAlias: "EMP"
+        detail: "column (INTEGER) in EMP"
+        insertText: "EMP.DEPTNO"
+        kind: "Column"
+        label: "DEPTNO"
+      -
+        data:
+          column:
+            name: "EMPNO"
+            type: "INTEGER"
+          tableAlias: "EMP"
+        detail: "column (INTEGER) in EMP"
+        insertText: "EMP.EMPNO"
+        kind: "Column"
+        label: "EMPNO"
+      -
+        data:
+          column:
+            name: "ENAME"
+            type: "VARCHAR"
+          tableAlias: "EMP"
+        detail: "column (VARCHAR) in EMP"
+        insertText: "EMP.ENAME"
+        kind: "Column"
+        label: "ENAME"
+      -
+        data:
+          column:
+            name: "HIREDATE"
+            type: "TIMESTAMP"
+          tableAlias: "EMP"
+        detail: "column (TIMESTAMP) in EMP"
+        insertText: "EMP.HIREDATE"
+        kind: "Column"
+        label: "HIREDATE"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "OPTIMIZE + TABLE + TABLE NAME + FOR PARTITIONS + BOOLEAN EXPRESSION"
+  input: "OPTIMIZE TABLE EMP FOR PARTITIONS NAME != 'Brandon' ^"
+  output:
+    completions:
+      -
+        kind: "Keyword"
+        label: "!="
+      -
+        kind: "Keyword"
+        label: "%"
+      -
+        kind: "Keyword"
+        label: "("
+      -
+        kind: "Keyword"
+        label: "*"
+      -
+        kind: "Keyword"
+        label: "+"
+    functionContext: null
+    hasMoreResults: true
+ -
+  description: "OPTIMIZE + TABLE + TABLE NAME + REWRITE"
+  input: "OPTIMIZE TABLE EMP REWRITE ^"
+  output:
+   completions:
+     - kind: "Keyword"
+       label: "DATA"
+     - kind: "Keyword"
+       label: "MANIFESTS"
+   functionContext: null
+   hasMoreResults: false
  -
   description: "OPTIMIZE + TABLE + TABLE NAME + PAREN"
   input: "OPTIMIZE TABLE EMP (^"

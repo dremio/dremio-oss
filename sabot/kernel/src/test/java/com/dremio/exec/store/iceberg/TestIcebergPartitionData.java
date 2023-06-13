@@ -20,7 +20,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import java.io.File;
 import java.io.IOException;
@@ -53,9 +52,8 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import com.dremio.BaseTestQuery;
-import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.exec.store.iceberg.hadoop.IcebergHadoopModel;
 import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
+import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.exec.store.iceberg.model.IcebergOpCommitter;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.google.common.collect.Lists;
@@ -231,9 +229,7 @@ public class TestIcebergPartitionData extends BaseTestQuery {
         .withPartition(partitionData)
         .build();
 
-      FileSystemPlugin fileSystemPlugin = BaseTestQuery.getMockedFileSystemPlugin();
-      IcebergHadoopModel icebergHadoopModel = new IcebergHadoopModel(new Configuration(), fileSystemPlugin);
-      when(fileSystemPlugin.getIcebergModel()).thenReturn(icebergHadoopModel);
+      IcebergModel icebergHadoopModel = getIcebergModel(TEMP_SCHEMA_HADOOP);
       SchemaConverter schemaConverter = SchemaConverter.getBuilder().setTableName(tableName).build();
       IcebergOpCommitter committer = icebergHadoopModel.getCreateTableCommitter(tableName,
         icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()),
@@ -255,8 +251,7 @@ public class TestIcebergPartitionData extends BaseTestQuery {
         }
       }
 
-    }
-    finally {
+    } finally {
       tableFolder.delete();
     }
 

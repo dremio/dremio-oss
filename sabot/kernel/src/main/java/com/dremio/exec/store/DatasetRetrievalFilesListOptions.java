@@ -33,6 +33,7 @@ public class DatasetRetrievalFilesListOptions extends DatasetRetrievalOptions {
     return filesList;
   }
 
+  @Override
   protected void addCustomOptions(List<ListPartitionChunkOption> options) {
     options.add(new RefreshTableFilterOption(filesList));
   }

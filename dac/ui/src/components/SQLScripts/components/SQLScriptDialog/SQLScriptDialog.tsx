@@ -30,7 +30,7 @@ type SQLScriptDialogProps = {
   onCancel: () => void;
   onSubmit: (payload: any, scriptId?: string, hideFail?: boolean) => void;
   postSubmit: (payload?: any) => void;
-  push?: () => void;
+  push?: (payload?: any) => void;
   hideFail: boolean;
   addNotification: any;
 };
@@ -62,7 +62,7 @@ function SQLScriptDialog(props: SQLScriptDialogProps): React.ReactElement {
       onSubmit(payload, script.id, hideFail)
     ).then((res: any) => {
       if (push) {
-        push();
+        push(res.payload);
       }
 
       postSubmit(res.payload);

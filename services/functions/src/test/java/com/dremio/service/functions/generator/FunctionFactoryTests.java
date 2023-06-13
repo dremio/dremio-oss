@@ -57,7 +57,7 @@ public final class FunctionFactoryTests {
       .sorted()
       .collect(Collectors.toList());
 
-    new GoldenFileTestBuilder<>((String functionName) -> executeTest(functionName))
+    GoldenFileTestBuilder.create((String functionName) -> executeTest(functionName))
       .addListByRule(names, (name) -> Pair.of(name,name))
       .runTests();
   }

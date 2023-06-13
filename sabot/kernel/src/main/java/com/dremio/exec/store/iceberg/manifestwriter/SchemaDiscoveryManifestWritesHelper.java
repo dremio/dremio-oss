@@ -85,6 +85,9 @@ public class SchemaDiscoveryManifestWritesHelper extends ManifestWritesHelper im
         try {
           currentSchema = currentSchema.mergeWithUpPromotion(newSchema, this);
         } catch (NoSupportedUpPromotionOrCoercionException e) {
+          if (currentDataFile != null) {
+            e.addFilePath(currentDataFile.path().toString());
+          }
           throw UserException.unsupportedError(e).message(e.getMessage()).build();
         }
         if (currentSchema.getTotalFieldCount() > columnLimit) {
@@ -100,7 +103,7 @@ public class SchemaDiscoveryManifestWritesHelper extends ManifestWritesHelper im
 
     @Override
     protected void addDataFile(DataFile dataFile) {
-        manifestWriter.add(dataFile);
+        manifestWriter.getInstance().add(dataFile);
         dataFiles.add(dataFile);
 
         // File system partitions follow dremio-derived nomenclature - dir[idx]. Example - dir0, dir1.. and so on.
@@ -124,7 +127,7 @@ public class SchemaDiscoveryManifestWritesHelper extends ManifestWritesHelper im
             deleteRunningManifestFile();
             super.startNewWriter(); // using currentSchema
             addPartitionData();
-            dataFiles.stream().forEach(manifestWriter::add);
+            dataFiles.stream().forEach(manifestWriter.getInstance()::add);
             hasSchemaChanged = false;
             currentNumDataFileAdded = dataFiles.size();
             dataFiles.clear();

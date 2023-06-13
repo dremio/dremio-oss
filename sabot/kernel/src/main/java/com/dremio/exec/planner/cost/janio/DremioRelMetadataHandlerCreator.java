@@ -154,7 +154,7 @@ public class DremioRelMetadataHandlerCreator {
     String simpleName = clazz.getSimpleName();
     //Previously the pattern was to have a nested in class named Handler
     //So we need to add the parents class to get a unique name
-    if (simpleName.equals("Handler")) {
+    if ("Handler".equals(simpleName)) {
       String[] parts = clazz.getName().split("\\.|\\$");
       return parts[parts.length - 2] + parts[parts.length - 1];
     } else {

@@ -41,7 +41,6 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorScope;
 
-import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.planner.sql.handlers.query.OptimizeHandler;
 import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
 import com.dremio.service.namespace.NamespaceKey;
@@ -53,23 +52,28 @@ import com.google.common.collect.ImmutableList;
 public class SqlOptimize extends SqlCall implements SqlToPlanHandler.Creator {
 
   public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("OPTIMIZE", SqlKind.OTHER) {
-      @Override
-      public SqlCall createCall(SqlLiteral functionQualifier,
-                                SqlParserPos pos, SqlNode... operands) {
-        return new SqlOptimize(pos,
-          (SqlIdentifier) operands[0],
-          (SqlLiteral) operands[1],
-          ((SqlLiteral) operands[2]).symbolValue(CompactionType.class),
-          (SqlNode) operands[3],
-          (SqlNodeList) operands[4],
-          (SqlNodeList) operands[5]);
-      }
 
-      @Override
-      public RelDataType deriveType(SqlValidator validator, SqlValidatorScope scope, SqlCall call) {
-        final RelDataTypeFactory typeFactory = validator.getTypeFactory();
-        return getRelDataType(typeFactory);
-      }
+    @Override
+    public SqlCall createCall(SqlLiteral functionQualifier,
+                              SqlParserPos pos, SqlNode... operands) {
+      return new SqlOptimize(pos,
+        (SqlIdentifier) operands[0],
+        (SqlLiteral) operands[1],
+        (SqlLiteral) operands[2],
+        ((SqlLiteral) operands[3]).symbolValue(CompactionType.class),
+        (SqlNode) operands[4],
+        (SqlNodeList) operands[5],
+        (SqlNodeList) operands[6]);
+    }
+
+    @Override
+    public RelDataType deriveType(SqlValidator validator, SqlValidatorScope scope, SqlCall call) {
+      final RelDataTypeFactory typeFactory = validator.getTypeFactory();
+      final SqlOptimize sqlOptimize = (SqlOptimize) call;
+      final boolean onlyOptimizeManifests = sqlOptimize.getRewriteManifests().booleanValue() &&
+        !sqlOptimize.getRewriteDataFiles().booleanValue();
+      return getRelDataType(typeFactory, onlyOptimizeManifests);
+    }
   };
 
   private static final List<String> OPTION_KEYS = ImmutableList.of(
@@ -81,6 +85,7 @@ public class SqlOptimize extends SqlCall implements SqlToPlanHandler.Creator {
 
   private SqlIdentifier table;
   private SqlLiteral rewriteManifests;
+  private SqlLiteral rewriteDataFiles;
   private CompactionType compactionType;
   private SqlNode condition;
   private SqlNodeList optionsList;
@@ -96,13 +101,13 @@ public class SqlOptimize extends SqlCall implements SqlToPlanHandler.Creator {
     return sourceSelect;
   }
 
-
   /**
    * Creates a SqlOptimize.
    */
   public SqlOptimize(SqlParserPos pos,
                      SqlIdentifier table,
                      SqlLiteral rewriteManifests,
+                     SqlLiteral rewriteDataFiles,
                      CompactionType compactionType,
                      SqlNode condition,
                      SqlNodeList optionsList,
@@ -110,6 +115,7 @@ public class SqlOptimize extends SqlCall implements SqlToPlanHandler.Creator {
     super(pos);
     this.table = table;
     this.rewriteManifests = rewriteManifests;
+    this.rewriteDataFiles = rewriteDataFiles;
     this.compactionType = compactionType;
     this.condition = condition;
     this.optionsList = optionsList;
@@ -123,9 +129,16 @@ public class SqlOptimize extends SqlCall implements SqlToPlanHandler.Creator {
     writer.keyword("OPTIMIZE");
     writer.keyword("TABLE");
     getTable().unparse(writer, leftPrec, rightPrec);
+
     if (!rewriteManifests.booleanValue()) {
       writer.keyword("REWRITE");
       writer.keyword("DATA");
+    } else if (!rewriteDataFiles.booleanValue()) {
+      writer.keyword("REWRITE");
+      writer.keyword("MANIFESTS");
+    }
+
+    if (rewriteDataFiles.booleanValue()) {
       writer.keyword("USING");
       if (compactionType != CompactionType.SORT) {
         writer.keyword("BIN_PACK");
@@ -133,10 +146,10 @@ public class SqlOptimize extends SqlCall implements SqlToPlanHandler.Creator {
         writer.keyword("SORT");
       }
       if (condition != null) {
-        writer.keyword("WHERE");
+        writer.keyword("FOR PARTITIONS");
         condition.unparse(writer, leftPrec, rightPrec);
       }
-      if(optionsList != null) {
+      if (optionsList != null) {
         writer.keyword("(");
         for (int i = 0; i < optionsList.size() - 1; i++) {
           optionsList.get(i).unparse(writer, leftPrec, rightPrec);
@@ -144,14 +157,11 @@ public class SqlOptimize extends SqlCall implements SqlToPlanHandler.Creator {
           optionsValueList.get(i).unparse(writer, leftPrec, rightPrec);
           writer.keyword(",");
         }
-        optionsList.get(optionsList.size()-1).unparse(writer, leftPrec, rightPrec);
+        optionsList.get(optionsList.size() - 1).unparse(writer, leftPrec, rightPrec);
         writer.keyword("=");
-        optionsValueList.get(optionsList.size()-1).unparse(writer, leftPrec, rightPrec);
+        optionsValueList.get(optionsList.size() - 1).unparse(writer, leftPrec, rightPrec);
         writer.keyword(")");
       }
-    } else {
-      writer.keyword("REWRITE");
-      writer.keyword("MANIFESTS");
     }
   }
 
@@ -165,16 +175,20 @@ public class SqlOptimize extends SqlCall implements SqlToPlanHandler.Creator {
         rewriteManifests = (SqlLiteral) operand;
         break;
       case 2:
-        compactionType = ((SqlLiteral) operand).symbolValue(CompactionType.class);
+        rewriteDataFiles = (SqlLiteral) operand;
         break;
       case 3:
-        condition = operand;
+        compactionType = ((SqlLiteral) operand).symbolValue(CompactionType.class);
         break;
       case 4:
-        optionsList = (SqlNodeList) operand;
+        condition = operand;
         break;
       case 5:
+        optionsList = (SqlNodeList) operand;
+        break;
+      case 6:
         optionsValueList = (SqlNodeList) operand;
+        break;
       default:
         throw new AssertionError(i);
     }
@@ -192,7 +206,7 @@ public class SqlOptimize extends SqlCall implements SqlToPlanHandler.Creator {
   @Override
   public List<SqlNode> getOperandList() {
     SqlLiteral compactionTypeSqlLiteral = SqlLiteral.createSymbol(compactionType, SqlParserPos.ZERO);
-    return Collections.unmodifiableList(Arrays.asList(getTable(), rewriteManifests, compactionTypeSqlLiteral, condition, optionsList, optionsValueList));
+    return Collections.unmodifiableList(Arrays.asList(getTable(), rewriteManifests, rewriteDataFiles, compactionTypeSqlLiteral, condition, optionsList, optionsValueList));
   }
 
   @Override
@@ -214,6 +228,10 @@ public class SqlOptimize extends SqlCall implements SqlToPlanHandler.Creator {
 
   public SqlLiteral getRewriteManifests() {
     return rewriteManifests;
+  }
+
+  public SqlLiteral getRewriteDataFiles() {
+    return rewriteDataFiles;
   }
 
   public CompactionType getCompactionType() {
@@ -242,10 +260,6 @@ public class SqlOptimize extends SqlCall implements SqlToPlanHandler.Creator {
 
   public Optional<Long> getMinInputFiles() {
     return Optional.ofNullable(minInputFiles);
-  }
-
-  public List<String> getPartitionCol(DremioTable dremioTable) {
-    return dremioTable.getDatasetConfig().getReadDefinition().getPartitionColumnsList();
   }
 
   private void populateOptions(SqlNodeList optionsList, SqlNodeList optionsValueList) {
@@ -295,4 +309,6 @@ public class SqlOptimize extends SqlCall implements SqlToPlanHandler.Creator {
   public void validate(SqlValidator validator, SqlValidatorScope scope) {
     validator.validate(this.sourceSelect);
   }
+
+
 }

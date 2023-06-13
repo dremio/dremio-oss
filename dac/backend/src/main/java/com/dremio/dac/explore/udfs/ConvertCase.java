@@ -48,8 +48,8 @@ public class ConvertCase {
 
     @Override
     public void eval() {
-      out.buffer = buffer.reallocIfNeeded(input.end - input.start);
-      buffer = out.buffer;
+      buffer = buffer.reallocIfNeeded(input.end - input.start);
+      out.buffer = buffer;
       out.start = 0;
       out.end = input.end - input.start;
 

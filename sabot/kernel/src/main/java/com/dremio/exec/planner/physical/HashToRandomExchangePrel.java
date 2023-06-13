@@ -123,6 +123,7 @@ public class HashToRandomExchangePrel extends ExchangePrel {
     return new HashToRandomExchangePrel(getCluster(), traitSet, sole(inputs), fields, hashFunctionName, tableFunctionCreator, windowPushedDown);
   }
 
+  @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
     Prel child = (Prel) this.getInput();
 

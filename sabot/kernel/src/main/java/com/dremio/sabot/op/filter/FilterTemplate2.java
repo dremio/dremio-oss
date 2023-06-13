@@ -48,6 +48,7 @@ public abstract class FilterTemplate2 implements Filterer{
     doSetup(context, incoming, outgoing);
   }
 
+  @Override
   public int filterBatch(int recordCount){
     if (recordCount == 0) {
       return 0;

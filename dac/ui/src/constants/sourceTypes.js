@@ -36,9 +36,11 @@ export const AMAZONELASTIC = "AMAZONELASTIC";
 export const AZURE_STORAGE = "AZURE_STORAGE";
 export const SYNAPSE = "SYNAPSE";
 export const ADX = "ADX";
-export const SNOWFLAKE = "SNOWFLAKE";
 export const MSACCESS = "MSAccess";
 export const SPARK = "SPARK";
+export const SNOWFLAKE = "SNOWFLAKE";
+export const DREMIOTODREMIO = "DREMIOTODREMIO";
+export const AZURE_SAMPLE_SOURCE = "SAMPLE_SOURCE";
 
 // These are not implemented in the backend yet.
 export const CASSANDRA = "CASSANDRA";
@@ -72,7 +74,8 @@ export const sourceProperties = [
   { label: "Google Cloud Storage", sourceType: GCS, beta: true },
   { label: "Microsoft Azure Synapse Analytics", sourceType: SYNAPSE },
   { label: "Microsoft Azure Data Explorer", sourceType: ADX },
-  { label: "Snowflake", sourceType: SNOWFLAKE }
+  { label: "Snowflake", sourceType: SNOWFLAKE },
+  { label: "Dremio to Dremio", sourceType: DREMIOTODREMIO },
 ];
 
 export const metastoresSourceType = {
@@ -90,6 +93,7 @@ export const objectStorageSourceType = {
   [NAS]: true,
   [GCS]: true,
   [HISTORYTABLES]: true,
+  [AZURE_SAMPLE_SOURCE]: true,
 };
 
 export const dataLakeSourceType = {
@@ -112,7 +116,11 @@ const dataPlaneSources = {
 };
 
 export const isDatabaseType = (sourceType) => {
-  return !dataLakeSourceType[sourceType] && !dataPlaneSources[sourceType];
+  return (
+    !dataPlaneSources[sourceType] &&
+    !dataLakeSourceType[sourceType] &&
+    sourceType !== AZURE_SAMPLE_SOURCE
+  );
 };
 
 export const isDataLakeSourceType = (sourceType) => {

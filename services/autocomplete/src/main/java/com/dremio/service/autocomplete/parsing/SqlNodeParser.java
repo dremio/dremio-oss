@@ -18,7 +18,6 @@ package com.dremio.service.autocomplete.parsing;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParseException;
 
-import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
 import com.dremio.service.autocomplete.tokens.DremioToken;
 import com.dremio.service.autocomplete.tokens.SqlQueryUntokenizer;
@@ -36,11 +35,11 @@ public abstract class SqlNodeParser {
     try {
       return parseWithException(sql);
     } catch (SqlParseException parseException) {
-      UserException.Builder builder = SqlExceptionHelper.parseError(
+      throw SqlExceptionHelper
+        .parseError(
         sql,
-        parseException);
-      builder.message(SqlExceptionHelper.QUERY_PARSING_ERROR);
-      throw builder.build(logger);
+        parseException)
+        .build(logger);
     }
   }
 
@@ -53,11 +52,11 @@ public abstract class SqlNodeParser {
     try {
       return parseWithException(tokens);
     } catch (SqlParseException parseException) {
-      UserException.Builder builder = SqlExceptionHelper.parseError(
-        SqlQueryUntokenizer.untokenize(tokens),
-        parseException);
-      builder.message(SqlExceptionHelper.QUERY_PARSING_ERROR);
-      throw builder.build(logger);
+      throw SqlExceptionHelper
+        .parseError(
+          SqlQueryUntokenizer.untokenize(tokens),
+          parseException)
+        .build(logger);
     }
   }
 }

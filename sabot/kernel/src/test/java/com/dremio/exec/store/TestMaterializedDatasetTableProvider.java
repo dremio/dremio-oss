@@ -66,7 +66,7 @@ public class TestMaterializedDatasetTableProvider {
 
     assertThat(rel).isInstanceOf(ScanCrel.class);
     ScanCrel scan = (ScanCrel) rel;
-    assertThat(scan.isSubstitutable()).isFalse();
+    assertThat(scan.isSubstitutable()).isTrue();
 
     provider = getProviderWithOptions(DatasetRetrievalOptions.DEFAULT);
     table = provider.get();

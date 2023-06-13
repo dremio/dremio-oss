@@ -16,7 +16,7 @@
 package com.dremio.service.namespace;
 
 import static com.dremio.service.namespace.NamespaceInternalKeyDumpUtil.parseKey;
-import static com.dremio.service.namespace.NamespaceUtils.getId;
+import static com.dremio.service.namespace.NamespaceUtils.getIdOrNull;
 import static com.dremio.service.namespace.NamespaceUtils.isListable;
 import static com.dremio.service.namespace.NamespaceUtils.isPhysicalDataset;
 import static com.dremio.service.namespace.NamespaceUtils.lastElement;
@@ -35,7 +35,6 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.AbstractMap;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -102,6 +101,9 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.protobuf.ByteString;
 
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
+
 /**
  * Namespace management.
  */
@@ -118,7 +120,6 @@ public class NamespaceServiceImpl implements NamespaceService {
   private final LegacyIndexedStore<String, NameSpaceContainer> namespace;
   private final LegacyIndexedStore<PartitionChunkId, PartitionChunk> partitionChunkStore;
   private final LegacyKVStore<PartitionChunkId, MultiSplit> multiSplitStore;
-  private final boolean keyNormalization;
 
   /**
    * Factory for {@code NamespaceServiceImpl}
@@ -146,14 +147,13 @@ public class NamespaceServiceImpl implements NamespaceService {
 
   @Inject
   public NamespaceServiceImpl(final LegacyKVStoreProvider kvStoreProvider) {
-    this(kvStoreProvider, true);
-  }
-
-  protected NamespaceServiceImpl(final LegacyKVStoreProvider kvStoreProvider, boolean keyNormalization) {
     this.namespace = createStore(kvStoreProvider);
     this.partitionChunkStore = kvStoreProvider.getStore(PartitionChunkCreator.class);
     this.multiSplitStore = kvStoreProvider.getStore(MultiSplitStoreCreator.class);
-    this.keyNormalization = keyNormalization;
+  }
+
+  LegacyIndexedStore<String, NameSpaceContainer> getNamespaceStore() {
+    return namespace;
   }
 
   protected LegacyIndexedStore<String, NameSpaceContainer> createStore(final LegacyKVStoreProvider kvStoreProvider) {
@@ -299,7 +299,6 @@ public class NamespaceServiceImpl implements NamespaceService {
         continue;
 
       default:
-        continue;
       }
     }
 
@@ -307,7 +306,7 @@ public class NamespaceServiceImpl implements NamespaceService {
     Collections.sort(ranges, PARTITION_CHUNK_RANGE_COMPARATOR);
 
     // Some explanations:
-    // ranges is setup to contain the current (exclusive) range of partition chunks for each dataset.
+    // ranges is set up to contain the current (exclusive) range of partition chunks for each dataset.
     // The function then iterates over all partition chunks present in the partition chunks store and verify
     // that the partition chunk belongs to one of the dataset partition chunk ranges. If not, the item is dropped.
     // The binary search provides the index in ranges where a partition chunk would be inserted if not
@@ -335,7 +334,7 @@ public class NamespaceServiceImpl implements NamespaceService {
             sb.delete(0, sb.length());
             count = 0;
           }
-          sb.append(id.toString()).append(" ");
+          sb.append(id).append(" ");
           count++;
         } else {
           logger.debug("Deleting partition chunk associated with key {} from the partition chunk store.", e.getKey());
@@ -369,7 +368,7 @@ public class NamespaceServiceImpl implements NamespaceService {
             sb.delete(0, sb.length());
             count = 0;
           }
-          sb.append(id.toString()).append(" ");
+          sb.append(id).append(" ");
           count++;
           if (partitionChunkStore.contains(id)) {
             logger.warn("MultiSplit being deleted, but PartitionChunk exists for id {}.", id.getSplitId());
@@ -394,7 +393,7 @@ public class NamespaceServiceImpl implements NamespaceService {
   /**
    * Helper method which creates a new entity or update the existing entity with given entity
    *
-   * @param entity
+   * @param entity - The Namespace Entity
    * @throws NamespaceException
    */
   private void createOrUpdateEntity(final NamespaceEntity entity, NamespaceAttribute... attributes) throws NamespaceException {
@@ -425,7 +424,7 @@ public class NamespaceServiceImpl implements NamespaceService {
    */
   // TODO: Remove this operation and move to kvstore
   protected boolean ensureIdExistsTypeMatches(NamespaceEntity newOrUpdatedEntity, NameSpaceContainer existingContainer) throws NamespaceException{
-    final String idInContainer = getId(newOrUpdatedEntity.getContainer());
+    final String idInContainer = getIdOrNull(newOrUpdatedEntity.getContainer());
 
     if (existingContainer == null) {
       if (idInContainer != null) {
@@ -445,7 +444,7 @@ public class NamespaceServiceImpl implements NamespaceService {
     if (newOrUpdatedEntity.getContainer().getType() == DATASET &&
       isPhysicalDataset(newOrUpdatedEntity.getContainer().getDataset().getType()) &&
       existingContainer.getType() == FOLDER) {
-      namespace.delete((new NamespaceInternalKey(new NamespaceKey(existingContainer.getFullPathList()), keyNormalization)).getKey(),
+      namespace.delete((new NamespaceInternalKey(new NamespaceKey(existingContainer.getFullPathList()))).getKey(),
         existingContainer.getFolder().getTag());
       return false;
     }
@@ -455,9 +454,11 @@ public class NamespaceServiceImpl implements NamespaceService {
       newOrUpdatedEntity.getContainer().getType() != existingContainer.getType() ||
         // If the id in new container is null, then it must be that the user is trying to create another entry of same type at the same path.
         idInContainer == null) {
+      List<String> existingPathList = existingContainer.getFullPathList();
       throw UserException.concurrentModificationError()
-        .message("There already exists an entity of type [%s] at given path [%s]",
-          existingContainer.getType(), newOrUpdatedEntity.getPathKey().getPath())
+        .message("The current location already contains a %s named \"%s\". Please use a unique name for the new %s.",
+          existingContainer.getType().toString().toLowerCase(), existingPathList.get(existingPathList.size() - 1),
+          newOrUpdatedEntity.getContainer().getType().toString().toLowerCase())
         .build(logger);
     }
 
@@ -472,7 +473,8 @@ public class NamespaceServiceImpl implements NamespaceService {
     }
 
     // make sure the id remains the same
-    final String idInExistingContainer = getId(existingContainer);
+    final String idInExistingContainer = getIdOrNull(existingContainer);
+    // TODO: Could throw a null pointer exception if idInExistingContainer == null.
     if (!idInExistingContainer.equals(idInContainer)) {
       throw UserException.invalidMetadataError().message("There already exists an entity of type [%s] at given path [%s] with Id %s. Unable to replace with Id %s",
           existingContainer.getType(), newOrUpdatedEntity.getPathKey().getPath(), idInExistingContainer, idInContainer).buildSilently();
@@ -483,12 +485,12 @@ public class NamespaceServiceImpl implements NamespaceService {
 
   @Override
   public void addOrUpdateSource(NamespaceKey sourcePath, SourceConfig sourceConfig, NamespaceAttribute... attributes) throws NamespaceException {
-    createOrUpdateEntity(NamespaceEntity.toEntity(SOURCE, sourcePath, sourceConfig, keyNormalization, new ArrayList<>()), attributes);
+    createOrUpdateEntity(NamespaceEntity.toEntity(SOURCE, sourcePath, sourceConfig, new ArrayList<>()), attributes);
   }
 
   @Override
   public void addOrUpdateSpace(NamespaceKey spacePath, SpaceConfig spaceConfig, NamespaceAttribute... attributes) throws NamespaceException {
-    createOrUpdateEntity(NamespaceEntity.toEntity(SPACE, spacePath, spaceConfig, keyNormalization, new ArrayList<>()), attributes);
+    createOrUpdateEntity(NamespaceEntity.toEntity(SPACE, spacePath, spaceConfig, new ArrayList<>()), attributes);
   }
 
   @Override
@@ -497,7 +499,7 @@ public class NamespaceServiceImpl implements NamespaceService {
       functionConfig.setCreatedAt(System.currentTimeMillis());
     }
     functionConfig.setLastModified(System.currentTimeMillis());
-    createOrUpdateEntity(NamespaceEntity.toEntity(FUNCTION, udfPath, functionConfig, keyNormalization, new ArrayList<>()), attributes);
+    createOrUpdateEntity(NamespaceEntity.toEntity(FUNCTION, udfPath, functionConfig, new ArrayList<>()), attributes);
   }
 
   @Override
@@ -533,7 +535,7 @@ public class NamespaceServiceImpl implements NamespaceService {
         break;
     }
 
-    createOrUpdateEntity(NamespaceEntity.toEntity(DATASET, datasetPath, dataset, keyNormalization, new ArrayList<>()), attributes);
+    createOrUpdateEntity(NamespaceEntity.toEntity(DATASET, datasetPath, dataset, new ArrayList<>()), attributes);
   }
 
   @Override
@@ -544,10 +546,7 @@ public class NamespaceServiceImpl implements NamespaceService {
     } catch (NamespaceException e) {
       throw new RuntimeException("failed during dataset listing of sub-tree under: " + key);
     }
-    if (FluentIterable.from(children).size() > 0) {
-      return true;
-    }
-    return false;
+    return FluentIterable.from(children).size() > 0;
   }
 
   /**
@@ -567,7 +566,7 @@ public class NamespaceServiceImpl implements NamespaceService {
     private long accumulatedRecordCount;
     private List<DatasetSplit> accumulatedSplits;
     private int totalNumSplits;
-    private boolean datasetMetadataConsistencyValidate;
+    private final boolean datasetMetadataConsistencyValidate;
 
     DatasetMetadataSaverImpl(NamespaceKey datasetPath, EntityId datasetId, long nextDatasetVersion, SplitCompression splitCompression, long maxSinglePartitionChunks, boolean datasetMetadataConsistencyValidate) {
       this.datasetPath = datasetPath;
@@ -808,13 +807,15 @@ public class NamespaceServiceImpl implements NamespaceService {
   }
 
   @Override
+  @WithSpan
   public void addOrUpdateFolder(NamespaceKey folderPath, FolderConfig folderConfig,  NamespaceAttribute... attributes) throws NamespaceException {
-    createOrUpdateEntity(NamespaceEntity.toEntity(FOLDER, folderPath, folderConfig, keyNormalization, new ArrayList<>()), attributes);
+    createOrUpdateEntity(NamespaceEntity.toEntity(FOLDER, folderPath, folderConfig, new ArrayList<>()), attributes);
   }
 
   @Override
+  @WithSpan
   public void addOrUpdateHome(NamespaceKey homePath, HomeConfig homeConfig) throws NamespaceException {
-    createOrUpdateEntity(NamespaceEntity.toEntity(HOME, homePath, homeConfig, keyNormalization, new ArrayList<>()));
+    createOrUpdateEntity(NamespaceEntity.toEntity(HOME, homePath, homeConfig, new ArrayList<>()));
   }
 
   @Override
@@ -839,23 +840,23 @@ public class NamespaceServiceImpl implements NamespaceService {
 
   @Override
   public String getEntityIdByPath(NamespaceKey datasetPath) throws NamespaceNotFoundException {
-    final List<NameSpaceContainer> entities = getEntities(Arrays.asList(datasetPath));
+    final List<NameSpaceContainer> entities = getEntities(Collections.singletonList(datasetPath));
     NameSpaceContainer entity = entities.get(0);
 
-    return entity != null ? NamespaceUtils.getId(entity) : null;
+    return entity != null ? NamespaceUtils.getIdOrNull(entity) : null;
   }
 
   @Override
   public NameSpaceContainer getEntityByPath(NamespaceKey datasetPath)
       throws NamespaceException {
-    final List<NameSpaceContainer> entities = getEntities(Arrays.asList(datasetPath));
+    final List<NameSpaceContainer> entities = getEntities(Collections.singletonList(datasetPath));
 
     return entities.get(0);
   }
 
   protected List<NameSpaceContainer> doGetEntities(List<NamespaceKey> lookupKeys) {
     final List<String> keys = lookupKeys.stream()
-      .map(input -> new NamespaceInternalKey(input, keyNormalization).getKey()).collect(Collectors.toList());
+      .map(input -> new NamespaceInternalKey(input).getKey()).collect(Collectors.toList());
 
     return namespace.get(keys);
   }
@@ -863,8 +864,9 @@ public class NamespaceServiceImpl implements NamespaceService {
   // GET
 
   @Override
+  @WithSpan
   public boolean exists(final NamespaceKey key, final Type type) {
-    final NameSpaceContainer container = namespace.get(new NamespaceInternalKey(key, keyNormalization).getKey());
+    final NameSpaceContainer container = namespace.get(new NamespaceInternalKey(key).getKey());
     return container != null && container.getType() == type;
   }
 
@@ -900,13 +902,11 @@ public class NamespaceServiceImpl implements NamespaceService {
       throw new NamespaceNotFoundException(key, "not found");
     }
 
-    return doGetEntity(key, container.getType(), entitiesOnPath);
+    return doGetEntity(entitiesOnPath);
   }
 
-  protected NameSpaceContainer doGetEntity(final NamespaceKey key, Type type, List<NameSpaceContainer> entitiesOnPath) {
-    NameSpaceContainer container = lastElement(entitiesOnPath);
-
-    return container;
+  protected NameSpaceContainer doGetEntity(List<NameSpaceContainer> entitiesOnPath) {
+    return lastElement(entitiesOnPath);
   }
 
   protected NameSpaceContainer getEntityByIndex(IndexKey key, String index, Type type) throws NamespaceException {
@@ -920,11 +920,13 @@ public class NamespaceServiceImpl implements NamespaceService {
   }
 
   @Override
+  @WithSpan
   public SourceConfig getSource(NamespaceKey sourcePath) throws NamespaceException {
     return getEntity(sourcePath, SOURCE).getSource();
   }
 
   @Override
+  @WithSpan
   public SourceConfig getSourceById(String id) throws NamespaceException {
     return getEntityByIndex(NamespaceIndexKeys.SOURCE_ID, id, SOURCE).getSource();
   }
@@ -945,6 +947,7 @@ public class NamespaceServiceImpl implements NamespaceService {
   }
 
   @Override
+  @WithSpan
   public NameSpaceContainer getEntityById(String id) throws NamespaceNotFoundException {
     final SearchQuery query = SearchQueryUtils.or(
       SearchQueryUtils.newTermQuery(DatasetIndexKeys.DATASET_UUID, id),
@@ -1020,16 +1023,33 @@ public class NamespaceServiceImpl implements NamespaceService {
   }
 
   @Override
+  @WithSpan
   public DatasetConfig getDataset(NamespaceKey datasetPath) throws NamespaceException {
     return getEntity(datasetPath, DATASET).getDataset();
   }
 
   @Override
+  public DatasetConfigAndEntitiesOnPath getDatasetAndEntitiesOnPath(NamespaceKey datasetPath) throws NamespaceException {
+    final List<NameSpaceContainer> entitiesOnPath = getEntitiesOnPath(datasetPath);
+    final NameSpaceContainer container = lastElement(entitiesOnPath);
+
+    if (container == null || container.getType() != DATASET) {
+      throw new NamespaceNotFoundException(datasetPath, "not found");
+    }
+
+    final DatasetConfig dataset = doGetEntity(entitiesOnPath).getDataset();
+
+    return DatasetConfigAndEntitiesOnPath.of(dataset, entitiesOnPath);
+  }
+
+  @Override
+  @WithSpan
   public FolderConfig getFolder(NamespaceKey folderPath) throws NamespaceException {
     return getEntity(folderPath, FOLDER).getFolder();
   }
 
   @Override
+  @WithSpan
   public HomeConfig getHome(NamespaceKey homePath) throws NamespaceException {
     return getEntity(homePath, HOME).getHome();
   }
@@ -1061,8 +1081,9 @@ public class NamespaceServiceImpl implements NamespaceService {
   }
 
   @Override
+  @WithSpan
   public List<SpaceConfig> getSpaces() {
-    return Lists.newArrayList(
+    final List<SpaceConfig> spaces = Lists.newArrayList(
       Iterables.transform(doGetRootNamespaceContainers(SPACE), new Function<NameSpaceContainer, SpaceConfig>() {
         @Override
         public SpaceConfig apply(NameSpaceContainer input) {
@@ -1070,6 +1091,8 @@ public class NamespaceServiceImpl implements NamespaceService {
         }
       })
     );
+    Span.current().setAttribute("dremio.namespace.getSpaces.numSpaces", spaces.size());
+    return spaces;
   }
 
   @Override
@@ -1085,6 +1108,7 @@ public class NamespaceServiceImpl implements NamespaceService {
   }
 
   @Override
+  @WithSpan
   public List<HomeConfig> getHomeSpaces() {
     return Lists.newArrayList(
       Iterables.transform(doGetRootNamespaceContainers(HOME), new Function<NameSpaceContainer, HomeConfig>() {
@@ -1097,8 +1121,9 @@ public class NamespaceServiceImpl implements NamespaceService {
   }
 
   @Override
+  @WithSpan
   public List<SourceConfig> getSources() {
-    return Lists.newArrayList(
+    final List<SourceConfig> sources = Lists.newArrayList(
       Iterables.transform(doGetRootNamespaceContainers(SOURCE), new Function<NameSpaceContainer, SourceConfig>() {
         @Override
         public SourceConfig apply(NameSpaceContainer input) {
@@ -1106,8 +1131,11 @@ public class NamespaceServiceImpl implements NamespaceService {
         }
       })
     );
+    Span.current().setAttribute("dremio.namespace.getSpaces.numSources", sources.size());
+    return sources;
   }
 
+  @Override
   public List<DatasetConfig> getDatasets() {
     final Iterable<Map.Entry<String, NameSpaceContainer>> containerEntries;
 
@@ -1131,7 +1159,7 @@ public class NamespaceServiceImpl implements NamespaceService {
 
   // returns the child containers of the given rootKey as an iterable
   protected Iterable<NameSpaceContainer> iterateEntity(final NamespaceKey rootKey) throws NamespaceException {
-    final NamespaceInternalKey rootInternalKey = new NamespaceInternalKey(rootKey, keyNormalization);
+    final NamespaceInternalKey rootInternalKey = new NamespaceInternalKey(rootKey);
     final Iterable<Map.Entry<String, NameSpaceContainer>> entries = namespace.find(
       new LegacyFindByRange<>(rootInternalKey.getRangeStartKey(), false, rootInternalKey.getRangeEndKey(), false));
     return FluentIterable.from(entries).transform(input -> input.getValue());
@@ -1139,7 +1167,7 @@ public class NamespaceServiceImpl implements NamespaceService {
 
   @Override
   public Iterable<NamespaceKey> getAllDatasets(final NamespaceKey root) throws NamespaceException {
-    final NameSpaceContainer rootContainer = namespace.get(new NamespaceInternalKey(root, keyNormalization).getKey());
+    final NameSpaceContainer rootContainer = namespace.get(new NamespaceInternalKey(root).getKey());
     if (rootContainer == null) {
       return Collections.emptyList();
     }
@@ -1152,7 +1180,7 @@ public class NamespaceServiceImpl implements NamespaceService {
   }
 
   /**
-   * Iterator that lazily loads dataset entries in the sub-tree under the given {@link NamespaceUtils#isListable
+   * Iterator that lazily loads dataset entries in the subtree under the given {@link NamespaceUtils#isListable
    * listable} root. This implementation uses depth-first-search algorithm, unlike {@link #traverseEntity} which uses
    * breadth-first-search algorithm. So this avoids queueing up "dataset" containers. Note that "stack" contains only
    * listable containers which have a small memory footprint.
@@ -1219,7 +1247,7 @@ public class NamespaceServiceImpl implements NamespaceService {
 
   @Override
   public Iterable<NameSpaceContainer> getAllDescendants(final NamespaceKey root) {
-    final NameSpaceContainer rootContainer = namespace.get(new NamespaceInternalKey(root, keyNormalization).getKey());
+    final NameSpaceContainer rootContainer = namespace.get(new NamespaceInternalKey(root).getKey());
     if (rootContainer == null) {
       return Collections.emptyList();
     }
@@ -1232,7 +1260,7 @@ public class NamespaceServiceImpl implements NamespaceService {
   }
 
   /**
-   * Iterator that lazily loads dataset entries in the sub-tree under the given {@link NamespaceUtils#isListable
+   * Iterator that lazily loads dataset entries in the subtree under the given {@link NamespaceUtils#isListable
    * listable} root. This implementation uses depth-first-search algorithm, unlike {@link #traverseEntity} which uses
    * breadth-first-search algorithm. So this avoids queueing up "dataset" containers. Note that "stack" contains only
    * listable containers which have a small memory footprint.
@@ -1309,6 +1337,7 @@ public class NamespaceServiceImpl implements NamespaceService {
   }
 
   @Override
+  @WithSpan
   public BoundedDatasetCount getDatasetCount(NamespaceKey root, long searchTimeLimitMillis, int countLimitToStopSearch)
     throws NamespaceException {
     return getDatasetCountHelper(root, searchTimeLimitMillis, countLimitToStopSearch, this::iterateEntity);
@@ -1359,7 +1388,9 @@ public class NamespaceServiceImpl implements NamespaceService {
   }
 
   @Override
+  @WithSpan
   public List<NameSpaceContainer> list(NamespaceKey root) throws NamespaceException {
+    // TODO: Do we need to get entitiesOnPath?
     final List<NameSpaceContainer> entitiesOnPath = getEntitiesOnPath(root);
     final NameSpaceContainer rootContainer = lastElement(entitiesOnPath);
     if (rootContainer == null) {
@@ -1369,14 +1400,15 @@ public class NamespaceServiceImpl implements NamespaceService {
     if (!isListable(rootContainer.getType())) {
       throw new NamespaceNotFoundException(root, "no listable entity found");
     }
-    return doList(root, entitiesOnPath);
+    return doList(root);
   }
 
-  protected List<NameSpaceContainer> doList(NamespaceKey root, List<NameSpaceContainer> entitiesOnPath) throws NamespaceException {
+  protected List<NameSpaceContainer> doList(NamespaceKey root) throws NamespaceException {
     return listEntity(root);
   }
 
   @Override
+  @WithSpan
   public List<Integer> getCounts(SearchQuery... queries) throws NamespaceException {
     final List<Integer> counts = namespace.getCounts(queries);
     if (counts.size() != queries.length) {
@@ -1408,7 +1440,7 @@ public class NamespaceServiceImpl implements NamespaceService {
 
   protected void doTraverseAndDeleteChildren(final NameSpaceContainer child, DeleteCallback callback) throws NamespaceException {
     final NamespaceInternalKey childKey =
-      new NamespaceInternalKey(new NamespaceKey(child.getFullPathList()), keyNormalization);
+      new NamespaceInternalKey(new NamespaceKey(child.getFullPathList()));
     traverseAndDeleteChildren(childKey, child, callback);
 
     switch (child.getType()) {
@@ -1420,6 +1452,9 @@ public class NamespaceServiceImpl implements NamespaceService {
           callback.onDatasetDelete(child.getDataset());
         }
         namespace.delete(childKey.getKey(), child.getDataset().getTag());
+        break;
+      case FUNCTION:
+        namespace.delete(childKey.getKey(), child.getFunction().getTag());
         break;
       default:
         // Only leaf level or intermediate namespace container types are expected here.
@@ -1438,8 +1473,9 @@ public class NamespaceServiceImpl implements NamespaceService {
     return doDeleteEntity(path, type, version, entitiesOnPath, deleteRoot, callback);
   }
 
+  @WithSpan
   protected NameSpaceContainer doDeleteEntity(final NamespaceKey path, final Type type, String version, List<NameSpaceContainer> entitiesOnPath, boolean deleteRoot, DeleteCallback callback) throws NamespaceException {
-    final NamespaceInternalKey key = new NamespaceInternalKey(path, keyNormalization);
+    final NamespaceInternalKey key = new NamespaceInternalKey(path);
     final NameSpaceContainer container = lastElement(entitiesOnPath);
     traverseAndDeleteChildren(key, container, callback);
     if (deleteRoot) {
@@ -1481,10 +1517,11 @@ public class NamespaceServiceImpl implements NamespaceService {
 
   @Override
   public void deleteEntity(NamespaceKey entityPath) throws NamespaceException {
-    namespace.delete(new NamespaceInternalKey(entityPath, keyNormalization).getKey());
+    namespace.delete(new NamespaceInternalKey(entityPath).getKey());
   }
 
   @Override
+  @WithSpan
   public void deleteDataset(final NamespaceKey datasetPath, String version, final NamespaceAttribute... attributes) throws NamespaceException {
     NameSpaceContainer container = deleteEntityWithCallback(datasetPath, DATASET, version, true, null);
     if (container.getDataset().getType() == PHYSICAL_DATASET_SOURCE_FOLDER) {
@@ -1499,6 +1536,7 @@ public class NamespaceServiceImpl implements NamespaceService {
   }
 
   @Override
+  @WithSpan
   public void deleteFolder(final NamespaceKey folderPath, String version) throws NamespaceException {
     deleteEntityWithCallback(folderPath, FOLDER, version, true, null);
   }
@@ -1510,7 +1548,7 @@ public class NamespaceServiceImpl implements NamespaceService {
 
   protected DatasetConfig doRenameDataset(NamespaceKey oldDatasetPath, NamespaceKey newDatasetPath) throws NamespaceException {
     final String newDatasetName = newDatasetPath.getName();
-    final NamespaceInternalKey oldKey = new NamespaceInternalKey(oldDatasetPath, keyNormalization);
+    final NamespaceInternalKey oldKey = new NamespaceInternalKey(oldDatasetPath);
 
     final NameSpaceContainer container = getEntity(oldDatasetPath, DATASET);
     final DatasetConfig datasetConfig = container.getDataset();
@@ -1535,7 +1573,7 @@ public class NamespaceServiceImpl implements NamespaceService {
     datasetConfig.setVersion(null);
     datasetConfig.setTag(null);
 
-    final NamespaceEntity newValue = NamespaceEntity.toEntity(DATASET, newDatasetPath, datasetConfig, keyNormalization,
+    final NamespaceEntity newValue = NamespaceEntity.toEntity(DATASET, newDatasetPath, datasetConfig,
         container.getAttributesList());
 
     namespace.put(newValue.getPathKey().getKey(), newValue.getContainer());
@@ -1552,7 +1590,7 @@ public class NamespaceServiceImpl implements NamespaceService {
       for (int i = 1; i < components.size() - 1; i++) {
         List<String> fullPathList = components.subList(0, i + 1);
         NamespaceKey key = new NamespaceKey(fullPathList);
-        final NamespaceInternalKey keyInternal = new NamespaceInternalKey(key, keyNormalization);
+        final NamespaceInternalKey keyInternal = new NamespaceInternalKey(key);
         NameSpaceContainer folderContainer = namespace.get(keyInternal.getKey());
 
         if (folderContainer == null) {
@@ -1581,7 +1619,7 @@ public class NamespaceServiceImpl implements NamespaceService {
             if (folderContainer.getDataset().getType() == PHYSICAL_DATASET_SOURCE_FOLDER) {
               continue;
             }
-            // Fall-through
+            // fall through
           default:
             return false;
         }
@@ -1591,10 +1629,11 @@ public class NamespaceServiceImpl implements NamespaceService {
   }
 
   @Override
+  @WithSpan
   public boolean tryCreatePhysicalDataset(NamespaceKey datasetPath, DatasetConfig datasetConfig, NamespaceAttribute... attributes) throws NamespaceException {
     if (createSourceFolders(datasetPath)) {
       datasetConfig.setSchemaVersion(DatasetHelper.CURRENT_VERSION);
-      final NamespaceInternalKey searchKey = new NamespaceInternalKey(datasetPath, keyNormalization);
+      final NamespaceInternalKey searchKey = new NamespaceInternalKey(datasetPath);
       NameSpaceContainer existingContainer = namespace.get(searchKey.getKey());
       return doTryCreatePhysicalDataset(datasetPath, datasetConfig, searchKey, existingContainer, attributes);
     }
@@ -1787,29 +1826,14 @@ public class NamespaceServiceImpl implements NamespaceService {
    * @param entityPath
    * @return
    */
-  public List<NameSpaceContainer> getEntitiesOnPath(NamespaceKey entityPath) throws NamespaceNotFoundException {
+  protected List<NameSpaceContainer> getEntitiesOnPath(NamespaceKey entityPath) throws NamespaceNotFoundException {
+    List<NameSpaceContainer> entitiesOnPath = getEntitiesOnPathWithoutValidation(entityPath);
 
-    final List<String> keys = Lists.newArrayListWithExpectedSize(entityPath.getPathComponents().size());
-
-    NamespaceKey currentPath = entityPath;
-    for (int i = 0; i < entityPath.getPathComponents().size(); i++) {
-      keys.add(new NamespaceInternalKey(currentPath, keyNormalization).getKey());
-
-      if (currentPath.hasParent()) {
-        currentPath = currentPath.getParent();
-      }
-    }
-
-    // reverse the keys so that the order of keys is from root to leaf level entity.
-    Collections.reverse(keys);
-
-    final List<NameSpaceContainer> entitiesOnPath = namespace.get(keys);
     for (int i = 0; i < entitiesOnPath.size() - 1; i++) {
       if (entitiesOnPath.get(i) == null) {
         throw new NamespaceNotFoundException(entityPath, "one or more elements on the path are not found in namespace");
       }
     }
-
     return entitiesOnPath;
   }
 
@@ -1825,7 +1849,7 @@ public class NamespaceServiceImpl implements NamespaceService {
 
     NamespaceKey currentPath = entityPath;
     for (int i = 0; i < entityPath.getPathComponents().size(); i++) {
-      keys.add(new NamespaceInternalKey(currentPath, keyNormalization).getKey());
+      keys.add(new NamespaceInternalKey(currentPath).getKey());
 
       if (currentPath.hasParent()) {
         currentPath = currentPath.getParent();
@@ -1835,9 +1859,7 @@ public class NamespaceServiceImpl implements NamespaceService {
     // reverse the keys so that the order of keys is from root to leaf level entity.
     Collections.reverse(keys);
 
-    final List<NameSpaceContainer> entitiesOnPath = namespace.get(keys);
-
-    return entitiesOnPath;
+    return namespace.get(keys);
   }
 
   /**

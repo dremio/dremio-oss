@@ -21,17 +21,17 @@ import { formDefault } from "uiTheme/radium/typography";
 import DurationField from "components/Fields/DurationField";
 import FieldWithError from "components/Fields/FieldWithError";
 import Checkbox from "components/Fields/Checkbox";
-import { Button } from "dremio-ui-lib";
-import * as ButtonTypes from "components/Buttons/ButtonTypes";
+import { Button } from "dremio-ui-lib/components";
 import ApiUtils from "utils/apiUtils/apiUtils";
 import NotificationSystem from "react-notification-system";
 import Message from "components/Message";
-import { isCME } from "dyn-load/utils/versionUtils";
+import { isCME, isNotSoftware } from "dyn-load/utils/versionUtils";
 import { intl } from "@app/utils/intl";
-import { HoverHelp } from "dremio-ui-lib";
+import { getSupportFlag } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
+import { SUBHOUR_ACCELERATION_POLICY } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
 
 const DURATION_ONE_HOUR = 3600000;
-const MIN_DURATION = config.subhourAccelerationPoliciesEnabled
+window.subhourMinDuration = config.subhourAccelerationPoliciesEnabled
   ? 60 * 1000
   : DURATION_ONE_HOUR; // when changed, must update validation error text
 
@@ -67,30 +67,30 @@ class DataFreshnessSection extends Component {
 
     if (
       values.accelerationRefreshPeriod === 0 ||
-      values.accelerationRefreshPeriod < MIN_DURATION
+      values.accelerationRefreshPeriod < window.subhourMinDuration
     ) {
-      if (config.subhourAccelerationPoliciesEnabled) {
+      if (window.subhourMinDuration === DURATION_ONE_HOUR) {
         errors.accelerationRefreshPeriod = la(
-          "Reflection refresh must be at least 1 minute."
+          "Reflection refresh must be at least 1 hour."
         );
       } else {
         errors.accelerationRefreshPeriod = la(
-          "Reflection refresh must be at least 1 hour."
+          "Reflection refresh must be at least 1 minute."
         );
       }
     }
 
     if (
       values.accelerationGracePeriod &&
-      values.accelerationGracePeriod < MIN_DURATION
+      values.accelerationGracePeriod < window.subhourMinDuration
     ) {
-      if (config.subhourAccelerationPoliciesEnabled) {
+      if (window.subhourMinDuration === DURATION_ONE_HOUR) {
         errors.accelerationGracePeriod = la(
-          "Reflection expiry must be at least 1 minute."
+          "Reflection expiry must be at least 1 hour."
         );
       } else {
         errors.accelerationGracePeriod = la(
-          "Reflection expiry must be at least 1 hour."
+          "Reflection expiry must be at least 1 minute."
         );
       }
     } else if (
@@ -111,7 +111,22 @@ class DataFreshnessSection extends Component {
     this.notificationSystemRef = createRef();
     this.state = {
       refreshingReflections: false,
+      minDuration: window.subhourMinDuration,
     };
+  }
+
+  async componentDidMount() {
+    if (isNotSoftware?.()) {
+      try {
+        const res = await getSupportFlag(SUBHOUR_ACCELERATION_POLICY);
+        this.setState({
+          minDuration: res?.value ? 60 * 1000 : DURATION_ONE_HOUR,
+        });
+        window.subhourMinDuration = res?.value ? 60 * 1000 : DURATION_ONE_HOUR;
+      } catch (e) {
+        //
+      }
+    }
   }
 
   refreshAll = () => {
@@ -159,7 +174,6 @@ class DataFreshnessSection extends Component {
   render() {
     const {
       entityType,
-      elementConfig,
       editing,
       fields: {
         accelerationRefreshPeriod,
@@ -188,21 +202,16 @@ class DataFreshnessSection extends Component {
       );
     }
 
-    // do not show Refresh Policy header and tooltip in configurable forms with elementConfig
     return (
-      <div>
+      <div style={styles.container}>
         <NotificationSystem
           style={notificationStyles}
           ref={this.notificationSystemRef}
           autoDismiss={0}
           dismissible={false}
         />
-        {!elementConfig && (
-          <span style={styles.label}>
-            {la("Refresh Policy")}
-            <HoverHelp content={helpContent} />
-          </span>
-        )}
+        <span style={styles.label}>{la("Refresh Policy")}</span>
+        <div style={styles.info}>{helpContent}</div>
         <table>
           <tbody>
             <tr>
@@ -228,25 +237,23 @@ class DataFreshnessSection extends Component {
                   <div style={{ display: "flex" }}>
                     <DurationField
                       {...accelerationRefreshPeriod}
-                      min={MIN_DURATION}
+                      min={this.state.minDuration}
                       style={styles.durationField}
                       disabled={!!accelerationNeverRefresh.value}
                     />
                     {this.isRefreshAllowed() && entityType === "dataset" && (
                       <Button
                         disabled={this.state.refreshingReflections}
-                        disableMargin
                         onClick={this.refreshAll}
-                        color={ButtonTypes.UI_LIB_SECONDARY}
+                        variant="secondary"
                         style={{
-                          marginBottom: 0,
                           marginLeft: 10,
-                          marginTop: 2,
                         }}
-                        text={intl.formatMessage({
+                      >
+                        {intl.formatMessage({
                           id: "Reflection.Refresh.Now",
                         })}
-                      />
+                      </Button>
                     )}
                   </div>
                 </FieldWithError>
@@ -274,7 +281,7 @@ class DataFreshnessSection extends Component {
                 >
                   <DurationField
                     {...accelerationGracePeriod}
-                    min={MIN_DURATION}
+                    min={this.state.minDuration}
                     style={styles.durationField}
                     disabled={!!accelerationNeverExpire.value}
                   />
@@ -296,6 +303,13 @@ class DataFreshnessSection extends Component {
 }
 
 const styles = {
+  container: {
+    marginTop: 6,
+  },
+  info: {
+    maxWidth: 525,
+    marginBottom: 26,
+  },
   section: {
     display: "flex",
     marginBottom: 6,
@@ -307,11 +321,11 @@ const styles = {
   },
   label: {
     fontSize: "18px",
-    fontWeight: 300,
+    fontWeight: 600,
     margin: "0 0 8px 0px",
-    color: "#555555",
     display: "flex",
     alignItems: "center",
+    color: "var(--color--neutral--900)",
   },
   inputLabel: {
     ...formDefault,

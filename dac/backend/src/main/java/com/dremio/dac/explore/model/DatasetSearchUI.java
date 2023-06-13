@@ -17,14 +17,11 @@ package com.dremio.dac.explore.model;
 
 import static com.dremio.common.utils.PathUtils.encodeURIComponent;
 
-import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.proto.model.collaboration.CollaborationTag;
-import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
@@ -167,40 +164,6 @@ public class DatasetSearchUI {
     if (datasetType == DatasetType.VIRTUAL_DATASET) {
       links.put("edit", datasetPath.getQueryUrlPath() + "?mode=edit&version="
         + (datasetVersion == null ? datasetVersion : encodeURIComponent(datasetVersion.toString())));
-    }
-    return links;
-  }
-
-  public Map<String, String> getApiLinks() throws UnsupportedEncodingException {
-    final NamespaceKey datasetPath = new NamespaceKey(fullPath);
-    final String dottedFullPath = datasetPath.toUrlEncodedString();
-    final String fullPathString = PathUtils.toFSPath(fullPath).toString();
-
-    Map<String, String> links = new HashMap<String, String>();
-    switch (datasetType) {
-      case VIRTUAL_DATASET:
-        links.put("edit", "/dataset/" + dottedFullPath + "/version/" + datasetVersion + "?view=explore"); //edit dataset
-        final DatasetVersion datasetVersion = DatasetVersion.newVersion();
-        links.put("run", "/datasets/new_untitled?parentDataset=" + dottedFullPath + "&newVersion="
-          + (datasetVersion == null ? datasetVersion : encodeURIComponent(datasetVersion.toString()))); //create new dataset
-        break;
-      case PHYSICAL_DATASET_HOME_FILE:
-        links.put("run", "/home/" + fullPath.get(0) + "new_untitled_from_file" + fullPathString);
-        break;
-      case PHYSICAL_DATASET_HOME_FOLDER:
-        // Folder not supported yet
-        break;
-      case PHYSICAL_DATASET_SOURCE_FILE:
-        links.put("run", "/source/" + fullPath.get(0) + "new_untitled_from_file" + fullPathString);
-        break;
-      case PHYSICAL_DATASET_SOURCE_FOLDER:
-        links.put("run", "/source/" + fullPath.get(0) + "new_untitled_from_folder" + fullPathString);
-        break;
-      case PHYSICAL_DATASET:
-        links.put("run", "/source/" + fullPath.get(0) + "new_untitled_from_physical_dataset" + fullPathString);
-        break;
-      default:
-        break;
     }
     return links;
   }

@@ -25,6 +25,7 @@ import { showConfirmationDialog } from "actions/confirmation";
 import { constructFullPath, getFullPathListFromEntity } from "utils/pathUtils";
 import { UpdateMode } from "pages/HomePage/components/modals/UpdateDataset/UpdateDatasetView";
 import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
+import { loadSummaryDataset } from "actions/resources/dataset";
 import DatasetMenuMixin from "dyn-load/components/Menus/HomePage/DatasetMenuMixin";
 
 // todo: all these entities have a lot of similarities (they are all Datasets of some sort)
@@ -55,20 +56,37 @@ export class DatasetMenu extends Component {
   static propTypes = {
     entity: PropTypes.instanceOf(Immutable.Map).isRequired,
     entityType: PropTypes.string.isRequired, // todo: remove and get from #entity (physicalDataset || dataset || file)
-    isVersionedSource: PropTypes.boolean,
 
     closeMenu: PropTypes.func.isRequired,
     removeDataset: PropTypes.func.isRequired,
     removeFile: PropTypes.func.isRequired,
     showConfirmationDialog: PropTypes.func,
+    summaryDataset: PropTypes.instanceOf(Immutable.Map),
+    loadSummaryDataset: PropTypes.func,
+    openWikiDrawer: PropTypes.func,
   };
 
-  getMenuItemUrl(itemCode) {
+  componentDidMount() {
+    const { entity } = this.props;
+    this.props.loadSummaryDataset(
+      entity.get("fullPathList").join("/"),
+      "SummaryDataset"
+    );
+  }
+
+  getMenuItemUrl(itemCode, hideTabs) {
     const { entity } = this.props;
     // todo: seems very brittle, and it should be a computed prop of the entity
     const url = wrapBackendLink(entity.getIn(["links", "query"]));
     const parseUrl = urlParse(url);
-    return `${parseUrl.pathname}/${itemCode}${parseUrl.query}`;
+
+    if (hideTabs) {
+      return parseUrl.query
+        ? `${parseUrl.pathname}/${itemCode}${parseUrl.query}&hideTabs=true`
+        : `${parseUrl.pathname}/${itemCode}?hideTabs=true`;
+    } else {
+      return `${parseUrl.pathname}/${itemCode}${parseUrl.query}`;
+    }
   }
 
   getLocationConfig = (mode) => {
@@ -132,8 +150,27 @@ export class DatasetMenu extends Component {
   };
 }
 
-export default connect(null, {
+function mapStateToProps(state, ownProps) {
+  const allSummaries = state.resources.entities.get("summaryDataset")?.toJS();
+  let summaryDataset;
+
+  for (const dataset in allSummaries) {
+    if (
+      allSummaries[dataset].fullPath.join("/") ===
+      ownProps.entity.get("fullPathList").join("/")
+    ) {
+      summaryDataset = Immutable.fromJS(allSummaries[dataset]);
+    }
+  }
+
+  return {
+    summaryDataset,
+  };
+}
+
+export default connect(mapStateToProps, {
   removeDataset,
   removeFile,
   showConfirmationDialog,
+  loadSummaryDataset,
 })(DatasetMenu);

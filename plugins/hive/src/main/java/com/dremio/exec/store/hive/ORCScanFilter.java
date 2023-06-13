@@ -74,6 +74,7 @@ public class ORCScanFilter extends HiveProxiedOrcScanFilter {
     return sarg;
   }
 
+  @Override
   @JsonIgnore
   public double getCostAdjustment() {
     return ScanRelBase.DEFAULT_COST_ADJUSTMENT;

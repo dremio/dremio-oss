@@ -42,6 +42,7 @@ public static class NullableBitBooleanOr implements AggrFunction{
   @Workspace BitHolder inter;
   @Output NullableBitHolder out;
 
+  @Override
   public void setup() {
   inter = new BitHolder();
 
@@ -81,6 +82,7 @@ public static class NullableBitBooleanAnd implements AggrFunction{
   @Workspace BitHolder inter;
   @Output NullableBitHolder out;
 
+  @Override
   public void setup() {
   inter = new BitHolder();
 

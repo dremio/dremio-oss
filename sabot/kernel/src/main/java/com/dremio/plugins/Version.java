@@ -51,8 +51,10 @@ public class Version implements Comparable<Version> {
     switch(components.length) {
       case 3:
         patch = Integer.parseInt(components[2]);
+        // fall through
       case 2:
         minor = Integer.parseInt(components[1]);
+        // fall through
       case 1:
         major = Integer.parseInt(components[0]);
         break;

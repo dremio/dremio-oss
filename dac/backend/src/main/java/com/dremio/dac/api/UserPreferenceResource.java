@@ -31,6 +31,7 @@ import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.GET;
+import javax.ws.rs.NotAuthorizedException;
 import javax.ws.rs.NotFoundException;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
@@ -52,6 +53,7 @@ import com.dremio.service.userpreferences.EntityNotFoundInPreferenceException;
 import com.dremio.service.userpreferences.EntityThresholdReachedException;
 import com.dremio.service.userpreferences.UserPreferenceService;
 import com.dremio.service.userpreferences.proto.UserPreferenceProto;
+import com.dremio.service.users.UserNotFoundException;
 import com.google.protobuf.util.Timestamps;
 
 @APIResource
@@ -60,8 +62,6 @@ import com.google.protobuf.util.Timestamps;
 @Consumes(APPLICATION_JSON)
 @Produces(APPLICATION_JSON)
 public class UserPreferenceResource {
-  private static final org.slf4j.Logger logger =
-    org.slf4j.LoggerFactory.getLogger(UserPreferenceResource.class);
 
   private final UserPreferenceService userPreferenceService;
   private final NamespaceService namespaceService;
@@ -79,38 +79,41 @@ public class UserPreferenceResource {
     @PathParam("preferenceType") String preferenceType,
     @QueryParam("showCatalogInfo") @DefaultValue("false") boolean showCatalogInfo)
     throws NamespaceNotFoundException {
+    try {
+      UserPreferenceProto.Preference preference = userPreferenceService.getPreferenceByType(validatePreferenceType(preferenceType));
 
-    UserPreferenceProto.Preference preference =
-      userPreferenceService.getPreferenceByType(validatePreferenceType(preferenceType));
-    if (showCatalogInfo) {
+      if (showCatalogInfo) {
+        Map<String, UserPreferenceProto.Entity> entityIdToEntityMap = preference.getEntitiesList()
+          .stream()
+          .collect(Collectors.toMap(UserPreferenceProto.Entity::getEntityId, entity -> entity));
 
-      Map<String, UserPreferenceProto.Entity> entityIdToEntityMap = preference.getEntitiesList()
-        .stream()
-        .collect(Collectors.toMap(UserPreferenceProto.Entity::getEntityId, entity -> entity));
+        List<NameSpaceContainer> entities =
+          namespaceService.getEntitiesByIds(preference.getEntitiesList()
+                                              .stream()
+                                              .map(UserPreferenceProto.Entity::getEntityId)
+                                              .collect(
+                                                Collectors.toList()));
+        return new PreferenceData(preference.getType(),
+                                  entities.parallelStream()
+                                    .map(container -> getEntityFromNameSpaceContainer(
+                                      container,
+                                      entityIdToEntityMap))
+                                    .collect(
+                                      Collectors.toList()));
+      }
 
-      List<NameSpaceContainer> entities =
-        namespaceService.getEntitiesByIds(preference.getEntitiesList()
-                                            .stream()
-                                            .map(UserPreferenceProto.Entity::getEntityId)
-                                            .collect(
-                                              Collectors.toList()));
       return new PreferenceData(preference.getType(),
-                                entities.parallelStream()
-                                  .map(container -> getEntityFromNameSpaceContainer(
-                                    container,
-                                    entityIdToEntityMap))
-                                  .collect(
-                                    Collectors.toList()));
-    }
-    return new PreferenceData(preference.getType(),
-                              preference.getEntitiesList().stream().map(
-                                entity -> new Entity(entity.getEntityId(),
-                                                     null,
-                                                     null,
-                                                     null,
-                                                     Timestamps.toMillis(entity.getTimestamp()))
+                                preference.getEntitiesList().stream().map(
+                                  entity -> new Entity(entity.getEntityId(),
+                                                       null,
+                                                       null,
+                                                       null,
+                                                       Timestamps.toMillis(entity.getTimestamp()))
                               ).collect(
                                 Collectors.toList()));
+    } catch (UserNotFoundException e) {
+      throw new NotAuthorizedException(e.getMessage());
+    }
   }
 
   @PUT
@@ -134,6 +137,8 @@ public class UserPreferenceResource {
       throw new BadRequestException(exception.getMessage());
     } catch (EntityThresholdReachedException | IllegalAccessException exception) {
       throw new ForbiddenException(exception.getMessage());
+    } catch (UserNotFoundException e) {
+      throw new NotAuthorizedException(e.getMessage());
     }
   }
 
@@ -156,6 +161,8 @@ public class UserPreferenceResource {
                                   Collectors.toList()));
     } catch (EntityNotFoundInPreferenceException exception) {
       throw new NotFoundException(exception.getMessage());
+    } catch (UserNotFoundException e) {
+      throw new NotAuthorizedException(e.getMessage());
     }
   }
 

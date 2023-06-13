@@ -128,6 +128,7 @@ public class SimpleUserService implements UserService, Service {
     return userInfos.size() == 0 ? null : userInfos.get(0);
   }
 
+
   @Override
   public User getUser(String userName) throws UserNotFoundException {
     if (SystemUser.isSystemUserName(userName)) {
@@ -381,6 +382,7 @@ public class SimpleUserService implements UserService, Service {
     return searchUsers(query, sortColumn, order, 0, limit);
   }
 
+  @Override
   public Iterable<? extends User> searchUsers(
     SearchQuery searchQuery,
     String sortColumn,
@@ -408,6 +410,7 @@ public class SimpleUserService implements UserService, Service {
       .collect(Collectors.toList());
   }
 
+  @Override
   public Integer getNumUsers(SearchQuery searchQuery) {
     if (searchQuery == null) {
       searchQuery = SearchQueryUtils.newMatchAllQuery();

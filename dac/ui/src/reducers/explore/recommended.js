@@ -112,7 +112,7 @@ export default function grid(oldState, action) {
         { cards: [action.payload] },
         actionType
       );
-      cards = cards.cards || cards;
+      cards = cards ? cards.cards ?? cards : [];
       const examplesList = (cards[0] && cards[0].examplesList) || [];
       const unmatchedCount = (cards[0] && cards[0].unmatchedCount) || 0;
       const matchedCount = (cards[0] && cards[0].matchedCount) || 0;

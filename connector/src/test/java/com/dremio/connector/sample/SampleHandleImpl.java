@@ -118,6 +118,7 @@ final class SampleHandleImpl implements DatasetHandle, DatasetMetadata, Partitio
     return partitionChunks;
   }
 
+  @Override
   public List<String> getPartitionColumns() {
     return datasetMetadata == null ?
       partitionColumns :

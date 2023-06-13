@@ -44,6 +44,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.ql.io.RCFileInputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat;
 import org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector.Category;
@@ -56,35 +57,52 @@ import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.apache.hadoop.hive.serde2.typeinfo.UnionTypeInfo;
 import org.apache.hadoop.mapred.InputFormat;
+import org.apache.hadoop.mapred.SequenceFileInputFormat;
+import org.apache.hadoop.mapred.TextInputFormat;
 
 import com.dremio.exec.catalog.ColumnNestedTooDeepException;
 import com.google.common.collect.Sets;
 
 public class HiveSchemaConverter {
 
-  private static Set<Category> ORC_SUPPORTED_TYPES = Sets.newHashSet(LIST, STRUCT, PRIMITIVE);
-  private static Set<Category> PARQUET_SUPPORTED_TYPES = Sets.newHashSet(LIST, STRUCT, PRIMITIVE, MAP);
-  private static boolean isTypeNotSupported(InputFormat<?,?> format, Category category, boolean includeParquetComplexTypes, boolean isMapTypeEnabled) {
+  private static final Set<Category> HIVE_SUPPORTED_TYPES = Sets.newHashSet(LIST, STRUCT, PRIMITIVE);
+  private static final Set<Category> PARQUET_SUPPORTED_TYPES = Sets.newHashSet(LIST, STRUCT, PRIMITIVE, MAP);
+
+  private static boolean isTypeNotSupported(InputFormat<?,?> format, Category category, HiveSchemaTypeOptions typeOptions) {
     // No restrictions on primitive types
     if (category.equals(PRIMITIVE)) {
       return false;
     }
 
     if (category.equals(MAP)) {
-      return !isMapTypeEnabled;
+      return !typeOptions.isMapTypeEnabled();
     }
 
-    // All complex types supported in Orc
-    if (format instanceof OrcInputFormat && ORC_SUPPORTED_TYPES.contains(category)) {
+    // All complex types supported in Orc, RCFile, Text, Sequence
+    if (isSupportedFormatForComplexTypes(format, typeOptions) && HIVE_SUPPORTED_TYPES.contains(category)) {
       return false;
     }
 
     // Support only list and struct in Parquet along with primitive types. // MapRedParquetInputFormat, VectorizedParquetInputformat
-    if (includeParquetComplexTypes && MapredParquetInputFormat.class.isAssignableFrom(format.getClass()) && PARQUET_SUPPORTED_TYPES.contains(category)) {
+    if (typeOptions.isParquetComplexTypesEnabled() && MapredParquetInputFormat.class.isAssignableFrom(format.getClass()) && PARQUET_SUPPORTED_TYPES.contains(category)) {
       return false;
     }
 
     return true;
+  }
+
+  private static boolean isSupportedFormatForComplexTypes(InputFormat<?,?> format, HiveSchemaTypeOptions typeOptions) {
+    if (format instanceof OrcInputFormat) {
+      return true;
+    }
+
+    if (typeOptions.isNativeComplexTypesEnabled()) {
+      return format instanceof RCFileInputFormat
+          || format instanceof TextInputFormat
+          || format instanceof SequenceFileInputFormat;
+    }
+
+    return false;
   }
 
   private static boolean supportsDroppingSubFields(InputFormat<?,?> format) {
@@ -94,8 +112,8 @@ public class HiveSchemaConverter {
     return false;
   }
 
-  public static Field getArrowFieldFromHiveType(String name, TypeInfo typeInfo, InputFormat<?, ?> format, boolean includeParquetComplexTypes, boolean isMapTypeEnabled) {
-    if (isTypeNotSupported(format, typeInfo.getCategory(), includeParquetComplexTypes, isMapTypeEnabled)) {
+  public static Field getArrowFieldFromHiveType(String name, TypeInfo typeInfo, InputFormat<?, ?> format, HiveSchemaTypeOptions typeOptions) {
+    if (isTypeNotSupported(format, typeInfo.getCategory(), typeOptions)) {
       return null;
     }
 
@@ -105,7 +123,7 @@ public class HiveSchemaConverter {
       case LIST: {
         ListTypeInfo lti = (ListTypeInfo) typeInfo;
         TypeInfo elementTypeInfo = lti.getListElementTypeInfo();
-        Field inner = HiveSchemaConverter.getArrowFieldFromHiveType("$data$", elementTypeInfo, format, includeParquetComplexTypes, isMapTypeEnabled);
+        Field inner = HiveSchemaConverter.getArrowFieldFromHiveType("$data$", elementTypeInfo, format, typeOptions);
         if (inner == null) {
           return null;
         }
@@ -119,7 +137,7 @@ public class HiveSchemaConverter {
         for (String fieldName : fieldNames) {
           TypeInfo fieldTypeInfo = sti.getStructFieldTypeInfo(fieldName);
           Field f = HiveSchemaConverter.getArrowFieldFromHiveType(fieldName,
-            fieldTypeInfo, format, includeParquetComplexTypes, isMapTypeEnabled);
+            fieldTypeInfo, format, typeOptions);
           if (f == null) {
             if (supportsDroppingSubFields(format)) {
               continue;
@@ -142,7 +160,7 @@ public class HiveSchemaConverter {
         int[] typeIds = new int[objectTypeInfos.size()];
         for (int idx = 0; idx < objectTypeInfos.size(); ++idx) {
           TypeInfo fieldTypeInfo = objectTypeInfos.get(idx);
-          Field fieldToGetArrowType = HiveSchemaConverter.getArrowFieldFromHiveType("", fieldTypeInfo, format, includeParquetComplexTypes, isMapTypeEnabled);
+          Field fieldToGetArrowType = HiveSchemaConverter.getArrowFieldFromHiveType("", fieldTypeInfo, format, typeOptions);
           if (fieldToGetArrowType == null) {
             return null;
           }
@@ -152,7 +170,7 @@ public class HiveSchemaConverter {
           }
           // In a union, Arrow expects the field name for each member to be the same as the "minor type" name.
           Types.MinorType minorType = Types.getMinorTypeForArrowType(arrowType);
-          Field f = HiveSchemaConverter.getArrowFieldFromHiveType(minorType.name().toLowerCase(), fieldTypeInfo, format, includeParquetComplexTypes, isMapTypeEnabled);
+          Field f = HiveSchemaConverter.getArrowFieldFromHiveType(minorType.name().toLowerCase(), fieldTypeInfo, format, typeOptions);
           if (f == null) {
             return null;
           }
@@ -169,7 +187,7 @@ public class HiveSchemaConverter {
           return null;
         }
         TypeInfo valueTypeInfo = mti.getMapValueTypeInfo();
-        Field valueField = HiveSchemaConverter.getArrowFieldFromHiveType("value", valueTypeInfo, format, includeParquetComplexTypes, isMapTypeEnabled);
+        Field valueField = HiveSchemaConverter.getArrowFieldFromHiveType("value", valueTypeInfo, format, typeOptions);
         if (valueField == null) {
           return null;
         }
@@ -230,9 +248,11 @@ public class HiveSchemaConverter {
       case UNKNOWN:
       case VOID:
       default:
-        // fall through.
+        break;
       }
+      break;
     default:
+      break;
     }
 
     return null;

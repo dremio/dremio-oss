@@ -22,8 +22,10 @@ import java.net.URLDecoder;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import com.dremio.dac.model.common.NamespacePath;
@@ -167,8 +169,6 @@ public class Folder {
         links.put("file_format", folderPath.toUrlPathWithAction("folder_format"));
         links.put("file_prefix", folderPath.toUrlPathWithAction("file"));
       }
-      // renames not allowed on source folders
-      links.put("rename", folderPath.toUrlPathWithAction("rename_folder"));
     }
     // add jobs if not already added.
     if (!links.containsKey("jobs")) {
@@ -212,6 +212,28 @@ public class Folder {
       }
     }
     throw new IllegalArgumentException("Not a valid filePath: " + urlPath);
+  }
+
+  public static Folder newInstance(RootEntity rootEntity, FolderConfig folderConfig, String id) {
+    return new Folder(
+      (id == null) ? UUID.randomUUID().toString() : id,
+      folderConfig.getName(),
+      new FolderPath(
+        rootEntity,
+        folderConfig.getFullPathList().subList(1, folderConfig.getFullPathList().size() - 1)
+          .stream()
+          .map(FolderName::new)
+          .collect(Collectors.toList()),
+        new FolderName(folderConfig.getName())).toUrlPath(),
+      false,
+      false,
+      false,
+      null,
+      null,
+      null,
+      null,
+      null,
+      0);
   }
 
   public static Folder newInstance(FolderPath folderPath, FolderConfig folderConfig, NamespaceTree contents, boolean isQueryable, boolean isFileSystemFolder) {

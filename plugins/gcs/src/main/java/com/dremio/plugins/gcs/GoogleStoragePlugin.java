@@ -178,6 +178,7 @@ public class GoogleStoragePlugin extends DirectorySupportLackingFileSystemPlugin
     return context != null && context.getOptions().getOption(ASYNC_READS);
   }
 
+  @Override
   public boolean supportReadSignature(DatasetMetadata metadata, boolean isFileDataset) {
     return false;
   }

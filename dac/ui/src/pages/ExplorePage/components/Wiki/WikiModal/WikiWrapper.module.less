@@ -1,0 +1,115 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+.layout {
+  display: flex;
+  flex: 1;
+  align-items: stretch;
+}
+
+.left-column {
+  border-right: 1px solid var(--color--neutral--50);
+  width: 100%;
+}
+
+.right-column {
+  width: 500px;
+}
+
+.dataset-wrapper {
+  padding: 0 var(--dremio--spacing--1);
+
+  & > div {
+    padding-right: var(--dremio--spacing--1);
+  }
+}
+
+.dataset-wrapper-overlay {
+  & > div > div > div:nth-child(3) {
+    margin-bottom: var(--dremio--spacing--1);
+  }
+}
+
+.sections-container .section-item {
+  max-height: calc(100vh - 200px);
+}
+
+.collapsed-right-section {
+  margin-top: var(--dremio--spacing--105);
+  min-width: 36px;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  font-size: var(--dremio--font-size--lg);
+  padding: var(--dremio--spacing--105);
+  padding-right: 0;
+  border-bottom: 1px solid var(--color--neutral--50);
+}
+
+.tags {
+  display: flex;
+  &:focus-visible {
+    outline: none;
+  }
+}
+
+.editor {
+  max-height: 550px;
+  overflow-y: scroll;
+}
+
+.datasetOverviewContainer {
+  border-bottom: 1px solid var(--color--neutral--50);
+}
+
+// overlay view
+.collapsibleBodyOverview {
+  max-height: none;
+  min-height: fit-content;
+}
+.collapsibleBodyOverlay {
+  overflow-y: auto;
+  max-height: 26.5vh;
+  min-height: 15vh;
+}
+
+.noColumns {
+  align-items: center;
+  justify-content: center;
+  display: flex;
+  font-size: var(--dremio--font-size--default);
+  color: var(--dremio--color--text--faded);
+}
+
+.noColumnsOverlayHeight {
+  max-height: 30vh;
+  min-height: 20vh;
+}
+
+.noColumnsHeight {
+  max-height: 40vh;
+  min-height: 36vh;
+}
+
+:global {
+  .dremioContent__main .view-state-wrapper .CodeMirror .editor-preview p {
+    max-width: none;
+  }
+}

@@ -27,7 +27,9 @@ import com.dremio.BaseTestQuery;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.ParserConfig;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.test.TemporarySystemProperties;
+import com.dremio.test.UserExceptionAssert;
 
 public class TestAlterTableToggleSchemaLearning extends BaseTestQuery {
 
@@ -51,7 +53,9 @@ public class TestAlterTableToggleSchemaLearning extends BaseTestQuery {
       "ALTER TABLE ENABLE SCHEMA LEARNING",
       "ALTER TABLE tbl ENABLE SCHEMALEARNING"};
     for (String q : queries) {
-      errorMsgTestHelper(q, "Failure parsing the query.");
+      UserExceptionAssert
+        .assertThatThrownBy(() -> test(q))
+        .hasErrorType(UserBitShared.DremioPBError.ErrorType.PARSE);
     }
   }
 

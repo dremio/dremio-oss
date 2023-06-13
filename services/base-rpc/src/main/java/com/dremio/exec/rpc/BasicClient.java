@@ -190,10 +190,10 @@ public abstract class BasicClient<T extends EnumLite, R extends RemoteConnection
    * @param host              server hostname
    * @param port              server port
    */
+  @Override
   protected void connectAsClient(RpcConnectionHandler<R> connectionHandler, HS handshakeValue, String host, int port) {
     ConnectionMultiListener cml = new ConnectionMultiListener(connectionHandler, handshakeValue, host, port);
-    b.connect(host, port)
-        .addListener(cml.establishmentListener);
+    b.connect(host, port).addListener(cml.establishmentListener);
   }
 
   public boolean isActive() {
@@ -206,11 +206,19 @@ public abstract class BasicClient<T extends EnumLite, R extends RemoteConnection
     connection.setAutoRead(enableAutoRead);
   }
 
+  private String getConnectionName(R connection) {
+    if (connection != null) {
+      return connection.getName();
+    } else {
+      return "connection is null";
+    }
+  }
+
   @Override
   public void close() {
-    logger.debug("Closing client");
     try {
       if (connection != null) {
+        logger.debug("Closing client in sync mode {}", getConnectionName(connection));
         connection.getChannel().close().sync();
       }
     } catch (final InterruptedException e) {
@@ -331,8 +339,7 @@ public abstract class BasicClient<T extends EnumLite, R extends RemoteConnection
         final SslHandler sslHandler = new SslHandler(clientEngine);
         sslHandler.handshakeFuture()
             .addListener(future -> {
-              logger.debug("SSL client state '{}' on connection '{}'", future.isSuccess(),
-                  connectionFuture.channel());
+              logger.debug("SSL client state '{}' on connection '{}'", future.isSuccess(), connectionFuture.channel());
 
               if (future.isSuccess()) {
                 logger.trace("Adding handshake negotiator on '{}', after SSL succeeded", connectionFuture.channel());
@@ -358,6 +365,10 @@ public abstract class BasicClient<T extends EnumLite, R extends RemoteConnection
     }
 
     void sendHandshake() {
+      if (logger.isDebugEnabled()) {
+        logger.debug("sendHandshake - channel active {}", getConnectionName(connection));
+      }
+
       Preconditions.checkState(connection != null, "connection is not yet initialized");
 
       // send a handshake on the current thread. This is the only time we will send from within the event thread.
@@ -376,15 +387,28 @@ public abstract class BasicClient<T extends EnumLite, R extends RemoteConnection
         ctx.channel().pipeline().remove(this);
       }
 
-      @Override // channel may already be active
+      @Override
       public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
+        // channel may already be active
         if (ctx.channel().isActive()) {
+          if (logger.isDebugEnabled()) {
+            logger.debug("sendHandshakeAndRemoveSelf - handler added: L {} -> R {}",
+              ctx.channel().localAddress(),
+              ctx.channel().remoteAddress()
+            );
+          }
           sendHandshakeAndRemoveSelf(ctx);
         }
       }
 
       @Override
       public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        if (logger.isDebugEnabled()) {
+          logger.debug("sendHandshakeAndRemoveSelf - channel active: L {} -> R {}",
+            ctx.channel().localAddress(),
+            ctx.channel().remoteAddress()
+          );
+        }
         sendHandshakeAndRemoveSelf(ctx);
         super.channelActive(ctx);
       }
@@ -397,21 +421,25 @@ public abstract class BasicClient<T extends EnumLite, R extends RemoteConnection
 
       @Override
       public void failed(RpcException ex) {
-        logger.debug("Failure while initiating handshake", ex);
+        logger.debug("Failure while initiating handshake for connection {}", getConnectionName(connection), ex);
         connectionHandler.connectionFailed(FailureType.HANDSHAKE_COMMUNICATION, ex);
       }
 
       @Override
       public void success(HR value, ByteBuf buffer) {
-        logger.debug("Handshake received on {}", connection);
+        if (logger.isDebugEnabled()) {
+          logger.debug("Handshake received on {}", getConnectionName(connection));
+        }
         try {
           validateHandshake(value);
           finalizeConnection(value, connection);
 
           connectionHandler.connectionSucceeded(connection);
-          logger.trace("Handshake completed successfully on {}", connection);
+          if (logger.isTraceEnabled()) {
+            logger.trace("Handshake completed successfully on {}", getConnectionName(connection));
+          }
         } catch (RpcException ex) {
-          logger.debug("Failure while validating handshake", ex);
+          logger.info("Failure while validating handshake for connection {}", getConnectionName(connection), ex);
           connectionHandler.connectionFailed(FailureType.HANDSHAKE_VALIDATION, ex);
         }
       }

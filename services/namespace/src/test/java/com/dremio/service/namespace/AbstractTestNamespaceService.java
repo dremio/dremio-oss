@@ -561,69 +561,6 @@ public abstract class AbstractTestNamespaceService {
     NamespaceTestUtils.addDS(namespaceService, "L.F.ds");
 
     Map<String, NameSpaceContainer> items;
-    /**
-    Map<String, NameSpaceContainer> items = listFolder(ns, "s.a");
-    //System.out.println("s.a--->" + items.keySet());
-    assertEquals(3, items.size());
-    assertTrue(items.containsKey("s.a.c"));
-    assertTrue(items.containsKey("s.a.b"));
-    assertTrue(items.containsKey("s.a.ds1"));
-
-    ns.renameFolder(new NamespaceKey(PathUtils.parseFullPath("s.a.c")), new NamespaceKey(PathUtils.parseFullPath("s.a.c1")));
-    items = listFolder(ns, "s.a.c1");
-    assertEquals(2, items.size());
-    assertTrue(items.keySet().toString(), items.containsKey("s.a.c1.ds3"));
-    assertTrue(items.keySet().toString(), items.containsKey("s.a.c1.file1"));
-
-    items = listFolder(ns, "s.a");
-    //System.out.println("s.a--->" + items.keySet());
-    assertEquals(3, items.size());
-    assertTrue(items.containsKey("s.a.c1"));
-    assertFalse(items.containsKey("s.a.c"));
-    assertTrue(items.containsKey("s.a.b"));
-    assertTrue(items.containsKey("s.a.ds1"));
-
-    ns.renameFolder(new NamespaceKey(PathUtils.parseFullPath("s.a")), new NamespaceKey(PathUtils.parseFullPath("s.a1")));
-    items = listFolder(ns, "s");
-    //System.out.println("s--->" + items.keySet());
-    assertEquals(3, items.size());
-    assertTrue(items.containsKey("s.a1"));
-    assertTrue(items.containsKey("s.b"));
-    assertTrue(items.containsKey("s.c"));
-
-    items = listFolder(ns, "s.a1");
-    //System.out.println("s-->" + items.keySet());
-    assertEquals(3, items.size());
-    assertTrue(items.containsKey("s.a1.c1"));
-    assertFalse(items.containsKey("s.a1.c"));
-    assertTrue(items.containsKey("s.a1.b"));
-    assertTrue(items.containsKey("s.a1.ds1"));
-
-
-    ns.renameSpace(new NamespaceKey("s"), new NamespaceKey("s1"));
-    items = listFolder(ns, "s1");
-    //System.out.println("s1--->" + items.keySet());
-    assertEquals(3, items.size());
-    assertTrue(items.containsKey("s1.a1"));
-    assertTrue(items.containsKey("s1.b"));
-    assertTrue(items.containsKey("s1.c"));
-
-    items = listFolder(ns, "s1.a1");
-    //System.out.println("s1-->" + items.keySet());
-    assertEquals(3, items.size());
-    assertTrue(items.containsKey("s1.a1.c1"));
-    assertFalse(items.containsKey("s1.a1.c"));
-    assertTrue(items.containsKey("s1.a1.b"));
-    assertTrue(items.containsKey("s1.a1.ds1"));
-
-    items = listFolder(ns, "s1.c.c.c.c");
-    assertEquals(1, items.size());
-    assertTrue(items.containsKey("s1.c.c.c.c.ds4"));
-
-    items = listFolder(ns, "s1.b");
-    assertEquals(1, items.size());
-    assertTrue(items.containsKey("s1.b.ds2"));
-    */
 
     final NamespaceKey namespaceKey = new NamespaceKey(PathUtils.parseFullPath("s.b.ds2"));
 
@@ -676,7 +613,7 @@ public abstract class AbstractTestNamespaceService {
     try {
       NamespaceTestUtils.addSource(namespaceService, "a");
     } catch(UserException ex) {
-      assertTrue(ex.getMessage().contains("There already exists an entity of type [SPACE] at given path [a]"));
+      assertTrue(ex.getMessage().contains("The current location already contains a space named \"a\". Please use a unique name for the new source."));
     }
 
     NamespaceTestUtils.addFolder(namespaceService, "a.foo");
@@ -686,7 +623,7 @@ public abstract class AbstractTestNamespaceService {
       NamespaceTestUtils.addDS(namespaceService, "a.foo");
       fail("Expected the above call to fail");
     } catch (UserException ex) {
-      assertTrue(ex.getMessage().contains("There already exists an entity of type [FOLDER] at given path [a.foo]"));
+      assertTrue(ex.getMessage().contains("The current location already contains a folder named \"foo\". Please use a unique name for the new dataset."));
     }
 
     // Try to add folder with path "a.foo". There already a folder at "a.foo"
@@ -694,7 +631,7 @@ public abstract class AbstractTestNamespaceService {
       NamespaceTestUtils.addFolder(namespaceService, "a.foo");
       fail("Expected the above call to fail");
     } catch (UserException ex) {
-      assertTrue(ex.getMessage().contains("There already exists an entity of type [FOLDER] at given path [a.foo]"));
+      assertTrue(ex.getMessage().contains("The current location already contains a folder named \"foo\". Please use a unique name for the new folder."));
     }
   }
 

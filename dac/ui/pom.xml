@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>24.0.0-202302100528110223-3a169b7c</version>
+    <version>24.1.0-202306130653310132-d30779f6</version>
   </parent>
   <artifactId>dremio-dac-ui</artifactId>
   <packaging>jar</packaging>
@@ -85,49 +85,6 @@
         </configuration>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-resources-plugin</artifactId>
-        <executions>
-          <execution>
-            <phase>generate-resources</phase>
-            <goals><goal>copy-resources</goal></goals>
-            <configuration>
-              <resources>
-                <resource>
-                  <directory>${project.basedir}</directory>
-                  <excludes>
-                    <exclude>build/**</exclude>
-                    <exclude>node_modules/**</exclude>
-                    <exclude>src/main/resources/**</exclude>
-                    <exclude>target/**</exclude>
-                  </excludes>
-                  <filtering>false</filtering>
-                </resource>
-              </resources>
-              <outputDirectory>${project.build.directory}/src-resources</outputDirectory>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>jar-resources</id>
-            <phase>package</phase>
-            <goals>
-              <goal>jar</goal>
-            </goals>
-            <configuration>
-              <classesDirectory>${project.build.directory}/src-resources</classesDirectory>
-              <skipIfEmpty>true</skipIfEmpty>
-              <classifier>resources</classifier>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
         <groupId>com.github.eirslett</groupId>
         <artifactId>frontend-maven-plugin</artifactId>
         <configuration>
@@ -159,7 +116,7 @@
               <goal>npm</goal>
             </goals>
             <configuration>
-              <arguments>run test:only -- --reporter mocha-junit-reporter --reporter-options mochaFile=${project.build.directory}/mocha-reports/test-results.xml,testsuitesTitle=dac-ui</arguments>
+              <arguments>run test:only -- --reporter mocha-multi-reporters --reporter-options configFile=${project.basedir}/mochaReporters.json,cmrOutput=mocha-junit-reporter+mochaFile+${project.build.directory}:mocha-junit-reporter+testsuitesTitle+dac-ui</arguments>
               <skip>${skipTests}</skip>
             </configuration>
           </execution>
@@ -171,7 +128,8 @@
             </goals>
             <configuration>
               <arguments>run report:oss -- --no-write</arguments>
-              <skip>${skipTests}</skip>
+              <!-- <skip>${skipTests}</skip> -->
+              <skip>true</skip>
             </configuration>
           </execution>
           <execution>

@@ -25,21 +25,24 @@
 
 .primaryButtonPsuedoClasses {
   &:hover {
-    border-color: var(--dremio--color--primary--600) !important;
-    background-color: var(--dremio--color--primary--600) !important;
+    border-color: var(--color--brand--400) !important;
+    background-color: var(--color--brand--400) !important;
+    outline: none !important;
   }
 }
 
 .secondaryButtonPsuedoClasses {
   &:hover {
-    background-color: var(--dremio--color--neutral--100) !important;
+    background-color: var(--color--neutral--25) !important;
     outline: none !important;
   }
 }
 
 .dangerButtonPsuedoClasses {
   &:hover {
-    background-color: var(--dremio--color--status--delete--background) !important;
+    background-color: var(
+      --dremio--color--status--delete--background
+    ) !important;
     outline: none !important;
   }
 }
@@ -47,23 +50,23 @@
 .textAreaPsuedoClasses {
   resize: none;
   &:hover {
-    border-color: var(--dremio--color--neutral--300) !important;
+    border-color: var(--color--neutral--200) !important;
   }
 
   &:focus {
     outline: none;
-    border-color: var(--dremio--color--primary--500) !important;
+    border-color: var(--color--brand--300) !important;
   }
 
   &:disabled {
-    background: var(--dremio--color--neutral--150) !important;
+    background: var(--color--neutral--50) !important;
     color: var(--dremio--color--text--disabled) !important;
   }
 }
 
 .contextCardPsuedoClasses {
   &:hover {
-    background-color: var(--dremio--color--neutral--000) !important;
+    background-color: white !important;
   }
 }
 

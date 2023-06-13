@@ -42,10 +42,21 @@ const getStarredResourcesData = (state) => {
   return state.resources.stars.get("starResourceList") || Immutable.List();
 };
 
+const getResourceTreeModalData = (state) => {
+  return state.resources.entities.get("treeModal") || Immutable.List();
+};
+
 export const getStarredResources = createSelector(
   [getStarredResourcesData],
   (starredResourceList) => {
     return Immutable.List(starredResourceList);
+  }
+);
+
+export const getResourceTreeModal = createSelector(
+  [getResourceTreeModalData],
+  (resourceModalList) => {
+    return Immutable.List(resourceModalList);
   }
 );
 

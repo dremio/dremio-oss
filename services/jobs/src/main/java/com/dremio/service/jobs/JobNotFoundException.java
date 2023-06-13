@@ -15,6 +15,8 @@
  */
 package com.dremio.service.jobs;
 
+import javax.annotation.Nullable;
+
 import com.dremio.service.job.proto.JobId;
 
 /**
@@ -23,40 +25,46 @@ import com.dremio.service.job.proto.JobId;
 public class JobNotFoundException extends JobException {
   private static final long serialVersionUID = 1L;
 
-  public enum causeOfFailure{
+  public enum CauseOfFailure {
     NOT_FOUND,
-    CANCEL_FAILED
+    CANCEL_FAILED;
+
+    private String buildErrorMessage(JobId jobId) {
+      if (this == CauseOfFailure.CANCEL_FAILED) {
+        return "Job " + jobId.getId() + " may have completed and cannot be canceled.";
+      }
+      return "Missing job " + jobId.getId();
+    }
   }
 
-  private final JobId jobId;
-  private causeOfFailure errorType = causeOfFailure.NOT_FOUND ;
+  private final CauseOfFailure errorType;
+
+  public JobNotFoundException(JobId jobId) {
+    this(jobId, CauseOfFailure.NOT_FOUND);
+  }
+
+  public JobNotFoundException(JobId jobId, CauseOfFailure errorType) {
+    this(jobId, errorType, null);
+  }
+
+  public JobNotFoundException(JobId jobId, Throwable cause) {
+    this(jobId, CauseOfFailure.NOT_FOUND, cause);
+  }
+
+  public JobNotFoundException(JobId jobId, CauseOfFailure errorType, Throwable cause) {
+    this(jobId, errorType, cause, null);
+  }
 
   public JobNotFoundException(JobId jobId, String error) {
-    super(jobId, error);
-    this.jobId = jobId;
+    this(jobId, CauseOfFailure.NOT_FOUND, null, error);
   }
 
-  public JobNotFoundException(JobId jobId, causeOfFailure errorType) {
-    super(jobId, errorType.equals(causeOfFailure.CANCEL_FAILED)?"Job " + jobId.getId() + " may have completed and cannot be canceled."
-      :"Missing job " + jobId.getId());
-    this.jobId = jobId;
+  private JobNotFoundException(JobId jobId, CauseOfFailure errorType, @Nullable Throwable cause, @Nullable String message) {
+    super(jobId, message != null ? message : errorType.buildErrorMessage(jobId), cause);
     this.errorType = errorType;
   }
 
-  public JobNotFoundException(JobId jobId, Exception error) {
-    super(jobId, "Missing job " + jobId.getId(), error);
-    this.jobId = jobId;
+  public CauseOfFailure getErrorType() {
+    return errorType;
   }
-
-  public JobNotFoundException(JobId jobId) {
-    super(jobId, "Missing job " + jobId.getId());
-    this.jobId = jobId;
-  }
-
-  @Override
-  public JobId getJobId() {
-    return jobId;
-  }
-
-  public causeOfFailure getErrorType(){return errorType;}
 }

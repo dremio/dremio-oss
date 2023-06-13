@@ -114,7 +114,7 @@ public class HiveConfFactory {
 
   protected HiveConf createBaseHiveConf(BaseHiveStoragePluginConfig<?,?> config) {
     // Note: HiveConf tries to use the context classloader first, then uses the classloader that it itself
-    // is in. If the context classloader is non-null, it will prevnt using the PF4J classloader.
+    // is in. If the context classloader is non-null, it will prevent using the PF4J classloader.
     // We do not need synchronization when changing this, since it is per-thread anyway.
     final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
     Thread.currentThread().setContextClassLoader(null);
@@ -171,6 +171,7 @@ public class HiveConfFactory {
     final Set<String> userPropertyNames = new HashSet<>();
     if(config.propertyList != null) {
       for(Property prop : config.propertyList) {
+        checkUnsupportedProps(prop.name, prop.value);
         userPropertyNames.add(prop.name);
         setConf(hiveConf, prop.name, prop.value);
         if(logger.isTraceEnabled()){
@@ -256,5 +257,11 @@ public class HiveConfFactory {
 
   protected static void setConf(HiveConf hiveConf, String propertyName, boolean booleanValue) {
     hiveConf.setBoolean(propertyName, booleanValue);
+  }
+
+  private static void checkUnsupportedProps(String name, String value) {
+    if ("parquet.column.index.access".equals(name) && Boolean.parseBoolean(value)) {
+      throw new IllegalArgumentException("Unsupported Hive config: " + name + '=' + value);
+    }
   }
 }

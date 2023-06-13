@@ -17,6 +17,7 @@ package com.dremio.exec.planner.observer;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.RelNode;
@@ -156,9 +157,10 @@ public class AttemptObservers implements AttemptObserver {
   }
 
   @Override
-  public void planRelTransform(PlannerPhase phase, RelOptPlanner planner, RelNode before, RelNode after, long millisTaken) {
+  public void planRelTransform(PlannerPhase phase, RelOptPlanner planner, RelNode before, RelNode after,
+                               long millisTaken, final Map<String, Long> timeBreakdownPerRule) {
     for (final AttemptObserver observer : observers) {
-      observer.planRelTransform(phase, planner, before, after, millisTaken);
+      observer.planRelTransform(phase, planner, before, after, millisTaken, timeBreakdownPerRule);
     }
   }
 
@@ -350,6 +352,19 @@ public class AttemptObservers implements AttemptObserver {
     observers.forEach(o -> o.tablesCollected(tables));
   }
 
+  @Override
+  public void setNumJoinsInUserQuery(Integer joins) {
+    for (final AttemptObserver observer : observers) {
+      observer.setNumJoinsInUserQuery(joins);
+    }
+  }
+
+  @Override
+  public void setNumJoinsInFinalPrel(Integer joins) {
+    for (final AttemptObserver observer : observers) {
+      observer.setNumJoinsInFinalPrel(joins);
+    }
+  }
   /**
    * Add to the collection of observers.
    *

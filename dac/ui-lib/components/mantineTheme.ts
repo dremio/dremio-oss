@@ -17,13 +17,13 @@
 export const mantineTheme = {
   colors: {
     primary: [
-      "var(--dremio--color--primary--100)",
-      "var(--dremio--color--primary--150)",
-      "var(--dremio--color--primary--200)",
-      "var(--dremio--color--primary--500)",
-      "var(--dremio--color--primary--600)",
-      "var(--dremio--color--primary--700)",
-      "var(--dremio--color--primary--800)",
+      "var(--color--brand--25)",
+      "var(--color--brand--50)",
+      "var(--color--brand--100)",
+      "var(--color--brand--300)",
+      "var(--color--brand--400)",
+      "var(--color--brand--600)",
+      "var(--color--brand--800)",
     ],
   },
   fontFamily: "var(--dremio--font-family)",

@@ -68,15 +68,18 @@ public class Mappify {
     @Output ComplexWriter writer;
     @Inject FunctionErrorContext errorContext;
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       buffer = com.dremio.exec.expr.fn.impl.MappifyUtility.mappify(reader, writer, buffer, errorContext);
     }
   }
 
   public static class KvGenOutput implements OutputDerivation {
+    @Override
     public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
       Preconditions.checkArgument(args.size() == 1);
       CompleteType type = args.get(0).getCompleteType();

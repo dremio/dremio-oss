@@ -92,6 +92,16 @@ public class DeleteTests {
     }
   }
 
+  public static void testDeleteByIdWithEqualNull(BufferAllocator allocator, String source) throws Exception {
+    // column = null should return false and no data should be deleted
+    try (Tables tables = createBasicNonPartitionedAndPartitionedTables(source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
+      for (Table table : tables.tables) {
+        testDmlQuery(allocator, "DELETE FROM %s WHERE id = %s", new Object[]{table.fqn, null}, table, 0,
+            ArrayUtils.subarray(table.originalData, 0, table.originalData.length));
+      }
+    }
+  }
+
   public static void testDeleteTargetTableWithAndWithoutAlias(BufferAllocator allocator, String source) throws Exception {
     // without target table aliasing
     try (Tables tables = createBasicNonPartitionedAndPartitionedTables(source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {

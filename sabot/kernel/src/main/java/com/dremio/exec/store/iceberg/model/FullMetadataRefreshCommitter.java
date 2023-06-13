@@ -29,7 +29,9 @@ import org.apache.iceberg.TableProperties;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.MutablePlugin;
+import com.dremio.exec.planner.common.ImmutableDremioFileAttrs;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.metadatarefresh.committer.DatasetCatalogGrpcClient;
 import com.dremio.exec.store.metadatarefresh.committer.DatasetCatalogRequestBuilder;
 import com.dremio.sabot.exec.context.OperatorStats;
@@ -92,7 +94,10 @@ public class FullMetadataRefreshCommitter extends IcebergTableCreationCommitter 
     datasetCatalogRequestBuilder.setNumOfRecords(numRecords);
     long numDataFiles = Long.parseLong(snapshot.summary().getOrDefault("total-data-files", "0"));
     datasetCatalogRequestBuilder.setNumOfDataFiles(numDataFiles);
-    datasetCatalogRequestBuilder.setIcebergMetadata(getRootPointer(), tableUuid, snapshot.snapshotId(), conf, isPartitioned, getCurrentSpecMap(), plugin, getCurrentSchema());
+    ImmutableDremioFileAttrs partitionStatsFileAttrs = IcebergUtils.getPartitionStatsFileAttrs(getRootPointer(), snapshot.snapshotId(),
+        icebergCommand.getFileIO());
+    datasetCatalogRequestBuilder.setIcebergMetadata(getRootPointer(), tableUuid, snapshot.snapshotId(),
+        getCurrentSpecMap(), getCurrentSchema(), partitionStatsFileAttrs.fileName(), partitionStatsFileAttrs.fileLength());
 
     try {
       addOrUpdateDataSet();

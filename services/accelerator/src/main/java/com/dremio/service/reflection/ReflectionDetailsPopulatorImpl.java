@@ -15,7 +15,7 @@
  */
 package com.dremio.service.reflection;
 
-import static com.dremio.service.reflection.ReflectionUtils.isPhysicalDataset;
+import static com.dremio.service.reflection.DatasetHashUtils.isPhysicalDataset;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -27,9 +27,12 @@ import java.util.stream.Collectors;
 
 import org.apache.calcite.rel.RelNode;
 
+import com.dremio.exec.catalog.CatalogUtil;
+import com.dremio.exec.catalog.EntityExplorer;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.sys.accel.AccelerationDetailsPopulator;
 import com.dremio.reflection.hints.ReflectionExplanationsAndQueryDistance;
 import com.dremio.sabot.kernel.proto.ReflectionExplanation;
@@ -49,7 +52,6 @@ import com.dremio.service.accelerator.proto.MeasureType;
 import com.dremio.service.accelerator.proto.ReflectionRelationship;
 import com.dremio.service.accelerator.proto.SubstitutionState;
 import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.reflection.proto.DimensionGranularity;
@@ -76,8 +78,8 @@ import com.google.common.collect.Lists;
 class ReflectionDetailsPopulatorImpl implements AccelerationDetailsPopulator {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ReflectionDetailsPopulatorImpl.class);
 
-  private final NamespaceService namespace;
   private final ReflectionService reflections;
+  private final CatalogService catalogService;
   private final AccelerationDetails details = new AccelerationDetails();
   private final Map<String, ReflectionState> consideredReflections = new HashMap<>();
   private List<String> substitutionErrors = Collections.emptyList();
@@ -85,9 +87,9 @@ class ReflectionDetailsPopulatorImpl implements AccelerationDetailsPopulator {
   private final List<String> matchedReflectionIds = new ArrayList<>();
   private final List<String> chosenReflectionIds = new ArrayList<>();
 
-  ReflectionDetailsPopulatorImpl(NamespaceService namespace, ReflectionService reflections) {
+  ReflectionDetailsPopulatorImpl(ReflectionService reflections, CatalogService catalogService) {
     this.reflections = reflections;
-    this.namespace = namespace;
+    this.catalogService = catalogService;
   }
 
   @Override
@@ -156,6 +158,7 @@ class ReflectionDetailsPopulatorImpl implements AccelerationDetailsPopulator {
 
   @Override
   public byte[] computeAcceleration() {
+    EntityExplorer catalog = CatalogUtil.getSystemCatalogForReflections(catalogService);
     try {
       if (!consideredReflections.isEmpty()) {
         List<ReflectionRelationship> relationships = Lists.newArrayList();
@@ -178,7 +181,7 @@ class ReflectionDetailsPopulatorImpl implements AccelerationDetailsPopulator {
               refreshChainStartTime = 0;
             }
 
-            DatasetConfig datasetConfig = namespace.findDatasetByUUID(reflection.getDatasetId());
+            DatasetConfig datasetConfig = CatalogUtil.getDatasetConfig(catalog, reflection.getDatasetId());
             if(datasetConfig == null) {
               continue;
             }
@@ -213,7 +216,7 @@ class ReflectionDetailsPopulatorImpl implements AccelerationDetailsPopulator {
 
             final ExternalReflection externalReflection = externalReflectionOptional.get();
 
-            DatasetConfig datasetConfig = namespace.findDatasetByUUID(externalReflection.getQueryDatasetId());
+            DatasetConfig datasetConfig = CatalogUtil.getDatasetConfig(catalog, externalReflection.getQueryDatasetId());
             if(datasetConfig == null) {
               continue;
             }

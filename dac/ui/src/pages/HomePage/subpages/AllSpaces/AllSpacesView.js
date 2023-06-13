@@ -43,13 +43,15 @@ import BrowseTable from "../../components/BrowseTable";
 import { tableStyles } from "../../tableStyles";
 import { getSettingsLocation } from "components/Menus/HomePage/AllSpacesMenu";
 import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
+import { FeatureSwitch } from "@app/exports/components/FeatureSwitch/FeatureSwitch";
+import { CATALOG_ARS_ENABLED } from "@app/exports/flags/CATALOG_ARS_ENABLED";
 
 const mapStateToProps = (state) => ({
   spaces: getSpaces(state),
 });
 
 const btnTypes = {
-  settings: "settings"
+  settings: "settings",
 };
 
 export class AllSpacesView extends PureComponent {
@@ -80,7 +82,11 @@ export class AllSpacesView extends PureComponent {
                   <EntityLink entityId={entityId}>
                     <EntityName entityId={entityId} />
                   </EntityLink>
-                  <ResourcePin entityId={entityId} />
+                  <FeatureSwitch
+                    flag={CATALOG_ARS_ENABLED}
+                    renderEnabled={() => null}
+                    renderDisabled={() => <ResourcePin entityId={entityId} />}
+                  />
                 </div>
               ),
               value(sortDirection = null) {
@@ -105,7 +111,7 @@ export class AllSpacesView extends PureComponent {
                 item.get("createdAt") ? new Date(item.get("createdAt")) : "",
             },
             [action.key]: {
-              node: () => this.getActionCell(item)
+              node: () => this.getActionCell(item),
             },
           },
         };
@@ -113,16 +119,18 @@ export class AllSpacesView extends PureComponent {
   };
 
   getActionCell(item) {
-    return <ActionWrap>{this.getActionCellButtons(item)}</ActionWrap>
+    return <ActionWrap>{this.getActionCellButtons(item)}</ActionWrap>;
   }
 
   getActionCellButtons(item) {
-    const allBtns = [{
-      label: this.getInlineIcon("interface/settings"),
-      tooltip: "Common.Settings",
-      link: getSettingsLocation(this.context.location, item.get("id")),
-      type: btnTypes.settings
-    }]
+    const allBtns = [
+      {
+        label: this.getInlineIcon("interface/settings"),
+        tooltip: "Common.Settings",
+        link: getSettingsLocation(this.context.location, item.get("id")),
+        type: btnTypes.settings,
+      },
+    ];
     return [
       ...allBtns
         // return rendered link buttons
@@ -139,9 +147,7 @@ export class AllSpacesView extends PureComponent {
           </IconButton>
         )),
       this.getSettingsBtnByType(
-        <AllSpacesMenu
-          spaceId={item.get("id")}
-        />,
+        <AllSpacesMenu spaceId={item.get("id")} />,
         item
       ),
     ];
@@ -184,9 +190,9 @@ export class AllSpacesView extends PureComponent {
         label: intl.formatMessage({ id: "Common.Name" }),
         flexGrow: 1,
       },
-      { 
-        key: "created", 
-        label: intl.formatMessage({ id: "Common.Created" })
+      {
+        key: "created",
+        label: intl.formatMessage({ id: "Common.Created" }),
       },
       {
         key: "action",

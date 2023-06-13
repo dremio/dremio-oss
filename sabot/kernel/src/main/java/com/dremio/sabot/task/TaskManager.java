@@ -23,7 +23,7 @@ package com.dremio.sabot.task;
  * In practice, each scheduler selects the best task from it's own runqueue, and the load balancer moves
  * tasks between the threads whenever there is an imbalance between their runqueues.
  */
-public interface TaskManager<T extends Task> extends GroupManager<T> {
+public interface TaskManager<T extends Task> extends GroupManager<T>, AutoCloseable {
 
   long MAX_WEIGHT = 1000; // using higher values that MAX_WEIGHT will cause vRuntime overflow to occur sooner than can be handled by the system
 
@@ -137,4 +137,7 @@ public interface TaskManager<T extends Task> extends GroupManager<T> {
   SchedulerStats getSchedulerStats();
 
   void changeObserver(Observer.Type observerType);
+
+  @Override
+  void close();
 }

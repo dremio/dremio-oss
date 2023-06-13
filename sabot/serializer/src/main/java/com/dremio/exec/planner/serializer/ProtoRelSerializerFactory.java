@@ -24,6 +24,9 @@ import org.apache.calcite.rel.RelNode;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.exec.catalog.DremioCatalogReader;
+import com.dremio.exec.catalog.DremioPrepareTable;
+import com.dremio.exec.catalog.DremioTranslatableTable;
+import com.dremio.exec.catalog.TableVersionContext;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.planner.logical.DremioRelFactories;
 import com.dremio.exec.planner.serialization.DeserializationException;
@@ -37,6 +40,7 @@ import com.dremio.plan.serialization.PRelList;
 import com.dremio.plan.serialization.PRelNodeTypes;
 import com.dremio.plan.serialization.PRexInputRef;
 import com.dremio.plan.serialization.PRexNodeTypes;
+import com.dremio.service.namespace.NamespaceKey;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.util.JsonFormat;
 import com.google.protobuf.util.JsonFormat.TypeRegistry;
@@ -98,7 +102,19 @@ public class ProtoRelSerializerFactory extends RelSerializerFactory {
 
   @Override
   public LogicalPlanDeserializer getDeserializer(RelOptCluster cluster, DremioCatalogReader catalogReader, FunctionImplementationRegistry registry, CatalogService catalogService) {
-    final TableRetriever tableRetriever = t -> catalogReader.getTable(t.getPathComponents());
+    final TableRetriever tableRetriever = new TableRetriever() {
+
+      @Override
+      public DremioPrepareTable getTable(NamespaceKey key) {
+         return catalogReader.getTable(key.getPathComponents());
+      }
+
+      @Override
+      public DremioTranslatableTable getTableSnapshot(NamespaceKey key, TableVersionContext context) {
+        return catalogReader.getTableSnapshot(key, context);
+      }
+    };
+
     final PluginRetriever pluginRetriever = t -> catalogService.getSource(t);
     final SqlOperatorConverter sqlOperatorConverter = new SqlOperatorConverter(registry);
     return new LogicalPlanDeserializer() {

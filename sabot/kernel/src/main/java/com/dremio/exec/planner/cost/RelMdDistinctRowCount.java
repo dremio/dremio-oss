@@ -452,6 +452,7 @@ public class RelMdDistinctRowCount extends org.apache.calcite.rel.metadata.RelMd
     return super.getDistinctRowCount(rel, mq, groupKey, predicate);
   }
 
+  @Override
   public Double getDistinctRowCount(Project rel, RelMetadataQuery mq,
                                     ImmutableBitSet groupKey, RexNode predicate) {
     if (predicate == null || predicate.isAlwaysTrue()) {

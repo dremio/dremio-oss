@@ -20,20 +20,23 @@ import java.util.List;
 import org.apache.calcite.rel.RelNode;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.catalog.EntityExplorer;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.planner.acceleration.PlanHasher;
 import com.dremio.exec.planner.serialization.LogicalPlanSerializer;
 import com.dremio.exec.planner.serialization.RelSerializerFactory;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.proto.model.UpdateId;
 import com.dremio.service.job.proto.ScanPath;
-import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.RefreshMethod;
+import com.dremio.service.reflection.DatasetHashUtils;
 import com.dremio.service.reflection.IncrementalUpdateServiceUtils;
+import com.dremio.service.reflection.ReflectionService;
 import com.dremio.service.reflection.ReflectionSettings;
-import com.dremio.service.reflection.ReflectionUtils;
 import com.dremio.service.reflection.proto.Materialization;
 import com.dremio.service.reflection.proto.ReflectionEntry;
 import com.dremio.service.reflection.proto.Refresh;
@@ -56,25 +59,26 @@ class RefreshDecisionMaker {
    * @return The refresh decisions made
    */
   static RefreshDecision getRefreshDecision(
-      ReflectionEntry entry,
-      Materialization materialization,
-      ReflectionSettings reflectionSettings,
-      NamespaceService namespace,
-      MaterializationStore materializationStore,
-      RelNode plan,
-      RelNode strippedPlan,
-      Iterable<DremioTable> requestedTables,
-      RelSerializerFactory serializerFactory,
-      boolean strictRefresh,
-      boolean forceFullUpdate,
-      FunctionImplementationRegistry functionImplementationRegistry) {
+    ReflectionEntry entry,
+    Materialization materialization,
+    ReflectionSettings reflectionSettings,
+    CatalogService catalogService,
+    MaterializationStore materializationStore,
+    RelNode plan,
+    RelNode strippedPlan,
+    Iterable<DremioTable> requestedTables,
+    RelSerializerFactory serializerFactory,
+    boolean strictRefresh,
+    boolean forceFullUpdate,
+    FunctionImplementationRegistry functionImplementationRegistry,
+    ReflectionService service) {
 
     final long newSeriesId = System.currentTimeMillis();
 
     final RefreshDecision decision = new RefreshDecision();
 
     // We load settings here to determine what type of update we need to do (full or incremental)
-    final AccelerationSettings settings = IncrementalUpdateServiceUtils.extractRefreshSettings(strippedPlan, reflectionSettings);
+    final AccelerationSettings settings = IncrementalUpdateServiceUtils.extractRefreshSettings(strippedPlan, reflectionSettings, service);
 
     decision.setAccelerationSettings(settings);
 
@@ -85,13 +89,17 @@ class RefreshDecisionMaker {
           @Override
           public boolean apply(DremioTable table) {
             final DatasetConfig dataset = table.getDatasetConfig();
-            return dataset != null && ReflectionUtils.isPhysicalDataset(dataset.getType());
+            return dataset != null && DatasetHashUtils.isPhysicalDataset(dataset.getType());
           }
         }).transform(new Function<DremioTable, ScanPath>() {
           @Override
           public ScanPath apply(DremioTable table) {
             final List<String> datasetPath = table.getPath().getPathComponents();
-            return new ScanPath().setPathList(datasetPath);
+            ScanPath path = new ScanPath().setPathList(datasetPath);
+            if (table.getDataset().getVersionContext() != null) {
+              path.setVersionContext(table.getDataset().getVersionContext().serialize());
+            }
+            return path;
           }
         }).toList();
       decision.setScanPathsList(scanPathsList);
@@ -113,20 +121,21 @@ class RefreshDecisionMaker {
 
     final Integer entryDatasetHash;
     final Integer decisionDatasetHash;
+    final EntityExplorer catalog = CatalogUtil.getSystemCatalogForReflections(catalogService);
     try {
-      final DatasetConfig dataset = namespace.findDatasetByUUID(entry.getDatasetId());
+      DatasetConfig datasetConfig = CatalogUtil.getDatasetConfig(catalog, entry.getDatasetId());
       if (!strictRefresh) {
         if (entry.getShallowDatasetHash() == null && refresh != null) {
-          decisionDatasetHash = ReflectionUtils.computeDatasetHash(dataset, namespace, false);
-          decision.setDatasetHash(ReflectionUtils.computeDatasetHash(dataset, namespace, true));
+          decisionDatasetHash = DatasetHashUtils.computeDatasetHash(datasetConfig, catalogService, strippedPlan, false);
+          decision.setDatasetHash(DatasetHashUtils.computeDatasetHash(datasetConfig, catalogService, strippedPlan,true));
           entryDatasetHash = entry.getDatasetHash();
         } else {
-          decisionDatasetHash = ReflectionUtils.computeDatasetHash(dataset, namespace, true);
+          decisionDatasetHash = DatasetHashUtils.computeDatasetHash(datasetConfig, catalogService, strippedPlan,true);
           decision.setDatasetHash(decisionDatasetHash);
           entryDatasetHash = entry.getShallowDatasetHash();
         }
       } else {
-        decisionDatasetHash = ReflectionUtils.computeDatasetHash(dataset, namespace, false);
+        decisionDatasetHash = DatasetHashUtils.computeDatasetHash(datasetConfig, catalogService, strippedPlan,false);
         decision.setDatasetHash(decisionDatasetHash);
         entryDatasetHash = entry.getDatasetHash();
       }

@@ -23,6 +23,7 @@ import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.GenericType;
 
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 
 import com.dremio.common.util.TestTools;
 import com.dremio.dac.api.MetadataPolicy;
@@ -32,11 +33,15 @@ import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.SqlQuery;
+import com.dremio.test.TemporarySystemProperties;
 
 /**
  * Base test class
  */
 public class TestSystemAutoPromotionBase extends BaseTestServer {
+
+  @ClassRule
+  public static final TemporarySystemProperties PROPERTIES = new TemporarySystemProperties();
 
   @BeforeClass
   public static void init() throws Exception {

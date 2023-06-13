@@ -46,6 +46,7 @@ public class CorrelateRel extends Correlate implements Rel {
       correlationId, requiredColumns, joinType);
   }
 
+  @Override
   public RelNode accept(RelShuttle shuttle) {
     return shuttle.visit(this);
   }

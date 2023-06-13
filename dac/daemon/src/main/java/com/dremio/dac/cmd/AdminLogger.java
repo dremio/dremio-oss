@@ -21,7 +21,7 @@ package com.dremio.dac.cmd;
 
 public final class AdminLogger {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger("admin");
+  public static final org.slf4j.Logger INSTANCE = org.slf4j.LoggerFactory.getLogger("admin");
 
   private AdminLogger(){}
 
@@ -33,7 +33,7 @@ public final class AdminLogger {
    * @param args Var args that are embedded in the msg for logging
    */
   public static void log(String msg, Object... args) {
-    logger.info(msg, args);
+    INSTANCE.info(msg, args);
   }
 
   /**
@@ -41,6 +41,6 @@ public final class AdminLogger {
    * @param t   Throwable to log
    */
   public static void log(String msg, Throwable t) {
-    logger.info(msg, t);
+    INSTANCE.info(msg, t);
   }
 }

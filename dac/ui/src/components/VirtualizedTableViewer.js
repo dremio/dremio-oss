@@ -368,7 +368,7 @@ class VirtualizedTableViewer extends Component {
             const tableHeight = height - TABLE_BOTTOM_CUSHION;
             return (
               <Table
-                scrollTop={resetScrollTop ? 0 : undefined} // it's needed for https://dremio.atlassian.net/browse/DX-7140
+                scrollTop={resetScrollTop ? 0 : undefined} // it's needed for DX-7140
                 onScroll={this.handleScroll}
                 scrollToIndex={scrollToIndex}
                 headerHeight={HEADER_HEIGHT}
@@ -419,9 +419,9 @@ class VirtualizedTableViewer extends Component {
                         const tabIndex =
                           opts.rowData.data.sql &&
                           opts.rowData.data.sql.tabIndex;
-
                         return (
                           <div
+                            className="text"
                             onClick={() => {
                               !item.disabledClick &&
                                 onClick &&
@@ -492,7 +492,7 @@ export class DeferredRenderer extends Component {
   render() {
     const { index } = this.props;
     if (this.state.initial) return null;
-    return <div className="text">{this.props.render(index)}</div>;
+    return this.props.render(index);
   }
 }
 export default VirtualizedTableViewer;

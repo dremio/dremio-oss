@@ -56,6 +56,7 @@ public class MultiConnectionCachingFactory implements CachingConnectionFactory {
   /**
    * Closes all active connections in the cache.
    */
+  @Override
   public void closeConnections() throws SQLException {
     for (Connection conn : cache.values()) {
       conn.close();

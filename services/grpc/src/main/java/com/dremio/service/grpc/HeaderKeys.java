@@ -20,18 +20,8 @@ import io.grpc.Metadata;
 /**
  * grpc header keys used across dremio services.
  */
-public class HeaderKeys {
-  public static final Metadata.Key<String> PROJECT_ID_HEADER_KEY =
-    Metadata.Key.of("x-dremio-project-id-key", Metadata.ASCII_STRING_MARSHALLER);
-
-  public static final Metadata.Key<String> TOKEN_HEADER_KEY =
-    Metadata.Key.of("x-dremio-token-key", Metadata.ASCII_STRING_MARSHALLER);
-
-  public static final Metadata.Key<String> ORG_ID_HEADER_KEY =
-    Metadata.Key.of("x-dremio-org-id-key", Metadata.ASCII_STRING_MARSHALLER);
-
-  public static final Metadata.Key<String> USER_HEADER_KEY =
-    Metadata.Key.of("x-dremio-user-key", Metadata.ASCII_STRING_MARSHALLER);
+public final class HeaderKeys {
+  private HeaderKeys() {}
 
   public static final Metadata.Key<String> RELEASE_NAME_HEADER_KEY =
     Metadata.Key.of("x-dremio-control-plane-service-release-name",
@@ -39,14 +29,4 @@ public class HeaderKeys {
 
   public static final Metadata.Key<String> SERVICE_NAME_HEADER_KEY =
     Metadata.Key.of("x-dremio-control-plane-service", Metadata.ASCII_STRING_MARSHALLER);
-
-  public static final Metadata.Key<String> SUPPORT_TICKET_HEADER_KEY =
-    Metadata.Key.of("x-dremio-support-ticket-key", Metadata.ASCII_STRING_MARSHALLER);
-
-  public static final Metadata.Key<String> SUPPORT_EMAIL_HEADER_KEY =
-    Metadata.Key.of("x-dremio-support-email-key", Metadata.ASCII_STRING_MARSHALLER);
-
-  public static final Metadata.Key<String> SUPPORT_ROLES_HEADER_KEY =
-    Metadata.Key.of("x-dremio-support-roles-key", Metadata.ASCII_STRING_MARSHALLER);
-
 }

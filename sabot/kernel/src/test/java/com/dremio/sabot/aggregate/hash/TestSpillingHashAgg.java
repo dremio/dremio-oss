@@ -192,8 +192,7 @@ public class TestSpillingHashAgg extends BaseTestOperator {
       exceptionThrown = true;
     } catch (Exception e) {
       e.printStackTrace();
-    }
-    finally {
+    } finally {
       Assert.assertEquals(true, shortLenSuccess);
       Assert.assertEquals(true, exceptionThrown);
     }

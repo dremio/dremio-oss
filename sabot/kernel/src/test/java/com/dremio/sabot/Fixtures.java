@@ -45,6 +45,7 @@ import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.StructVector;
+import org.apache.arrow.vector.complex.UnionVector;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
@@ -649,8 +650,7 @@ public final class Fixtures {
 
         allHeaders[headerIndex] = struct(header, fieldNameToChildren.get(header));
 
-      }
-      else {
+      } else {
         allHeaders[headerIndex] = convertToHeader(header);
       }
 
@@ -691,9 +691,7 @@ public final class Fixtures {
 
       if (objects[i] instanceof List){
         cells[i] = listToCell((List) objects[i], dataTypes.get(i));
-      }
-      //struct field
-      else if (objects[i] instanceof Map){
+      } else if (objects[i] instanceof Map){
         final Cell[] mapValueCells = new Cell[((Map<?, ?>) objects[i]).size()];
         int cellIndex =0;
         for (final Object value : ((Map<?, ?>) objects[i]).values()){
@@ -701,8 +699,7 @@ public final class Fixtures {
           cellIndex++;
         }
         cells[i] = toCell(mapValueCells);
-      }
-      else {
+      } else {
         cells[i] = toCell(objects[i]);
       }
 
@@ -725,7 +722,7 @@ public final class Fixtures {
    * @return
    */
   private static Cell listToCell(final List list, final String dataType){
-    if(dataType.equalsIgnoreCase("varchar")){
+    if("varchar".equalsIgnoreCase(dataType)){
       final VarCharList varcharList = new VarCharList();
       varcharList.addAll(list);
       return new ListCell(varcharList);
@@ -770,18 +767,15 @@ public final class Fixtures {
         IntList list = new IntList();
         list.addAll((List) obj);
         return new ListCell(list);
-      }
-      else if(((List<?>) obj).get(0) instanceof Long) {
+      } else if(((List<?>) obj).get(0) instanceof Long) {
         BigIntList list = new BigIntList();
         list.addAll((List) obj);
         return new ListCell(list);
-      }
-      else if(((List<?>) obj).get(0) instanceof String) {
+      } else if(((List<?>) obj).get(0) instanceof String || ((List<?>) obj).get(0) instanceof Text) {
         VarCharList list = new VarCharList();
         list.addAll((List) obj);
         return new ListCell(list);
-      }
-      else {
+      } else {
         throw new UnsupportedOperationException("Unknown list type");
       }
     }else if(obj instanceof BigDecimal) {
@@ -923,6 +917,7 @@ public final class Fixtures {
     }
 
 
+    @Override
     @SuppressWarnings("unchecked")
     public CellCompare compare(ValueVector vector, int index, boolean isValid) {
       V obj = isValid ? (V)getVectorObject(vector, index) : null;
@@ -1278,6 +1273,7 @@ public final class Fixtures {
       return Arrays.equals(obj1, obj2);
     }
 
+    @Override
     public String toString(byte[] obj){
       return BaseEncoding.base16().encode(obj);
     }
@@ -1323,6 +1319,131 @@ public final class Fixtures {
     @Override
     boolean evaluateEquality(BigDecimal val1, BigDecimal val2) {
       return val1.equals(val2);
+    }
+  }
+
+  /**
+   * Represents a cell of Union data type in tabular query results
+   */
+  public static class UnionCell implements Cell {
+    final Cell cell;
+    final Map<ArrowType, Boolean> types;
+
+    public UnionCell(final Cell cells, final Map<ArrowType, Boolean> types) {
+      this.cell = cells;
+      this.types = types;
+    }
+
+    @Override
+    public Field toField(final ColumnHeader header) {
+      Preconditions.checkArgument(header instanceof ComplexColumnHeader, "Header for complex(union) cell not provided.");
+      ComplexColumnHeader complexHeader = (ComplexColumnHeader) header;
+      Preconditions.checkArgument(complexHeader.fields.length == types.size(), "Union cell field count does not match header.");
+
+      ArrayList<Field> children = new ArrayList<>();
+      int i = 0;
+      for (Map.Entry<ArrowType, Boolean> entry : this.types.entrySet()) {
+        Field field = new Field(complexHeader.fields[i].name, new FieldType(true, entry.getKey(), null), null);
+        children.add(field);
+        i++;
+      }
+      final Field unionField = CompleteType.union(children).toField(complexHeader.name);
+      return unionField;
+    }
+
+    @Override
+    public CellCompare compare(final ValueVector vector,final int index, final boolean isValid) {
+      final UnionVector uv = (UnionVector) vector;
+      final int nFields = uv.getField().getChildren().size();
+
+      Object val = null;
+
+      if (isValid) {
+        val = uv.getObject(index);
+      }
+
+      if (cell == null && val == null) {
+        return new CellCompare(true, "null");
+      }
+      if (cell == null) {
+        return new CellCompare(false, valsToString(val) + " (null)");
+      }
+      if (val == null) {
+        return new CellCompare(false, "null (" + cellsToString(cell) + ")");
+      }
+
+      if (types.size() != nFields) {
+        return new CellCompare(false, valsToString(val) + " (" + cellsToString(cell) + ")");
+      }
+
+      boolean isEqual = true;
+
+      if (cell instanceof ValueCell) {
+        ValueCell<Object> valueCell = (ValueCell<Object>) cell;
+        isEqual = isEqual && valueCell.evaluateEquality(valueCell.obj, val);
+      } else {
+        throw new UnsupportedOperationException("Nested unions not supported");
+      }
+
+      if (isEqual) {
+        return new CellCompare(true, cellsToString(cell));
+      } else {
+        return new CellCompare(false, valsToString(val) + " (" + cellsToString(cell) + ")");
+      }
+    }
+
+    @Override
+    public void set(final ValueVector v, final int index, final ArrowBuf workBuffer) {
+      final UnionVector structVector = (UnionVector) v;
+      int i = 0;
+      for (Map.Entry<ArrowType, Boolean> entry : types.entrySet()) {
+        if (entry.getValue()) {
+          cell.set(structVector.getChildrenFromFields().get(i), index, workBuffer);
+        }
+        i++;
+
+      }
+    }
+
+    @Override
+    public Object unwrap() {
+      return cell;
+    }
+
+    private String cellsToString(final Cell... cells) {
+      StringBuilder builder = new StringBuilder();
+      builder.append("{ ");
+      for (int i = 0; i < cells.length; i++) {
+        if (i > 0) {
+          builder.append(", ");
+        }
+        if (cells[i] == null) {
+          builder.append("null");
+        } else {
+          builder.append(cells[i].unwrap().toString());
+        }
+      }
+      builder.append(" }");
+
+      return builder.toString();
+    }
+
+    private String valsToString(final Object... vals) {
+      StringBuilder builder = new StringBuilder();
+      builder.append("{ ");
+      for (int i = 0; i < vals.length; i++) {
+        if (i > 0) {
+          builder.append(", ");
+        }
+        if (vals[i] == null) {
+          builder.append("null");
+        } else {
+          builder.append(vals[i].toString());
+        }
+      }
+      builder.append(" }");
+
+      return builder.toString();
     }
   }
 
@@ -1445,6 +1566,16 @@ public final class Fixtures {
     return Arrays.stream(vals).map(Fixtures::toCell).toArray(Cell[]::new);
   }
 
+  /**
+   * Convert value to a union cell for tabular result comparison
+   * @param val
+   * @param types <All data types : is current value instance of this data type>
+   * @return
+   */
+  public static UnionCell toUnionCell(final Object val, final Map<ArrowType, Boolean> types) {
+    Cell cell = toCell(val);
+    return new UnionCell(cell, types);
+  }
   public abstract static class ValueList<T> extends ArrayList<T> {
 
     public abstract CompleteType getValueType();
@@ -1468,10 +1599,12 @@ public final class Fixtures {
 
   public static class IntList extends ValueList<Integer> {
 
+    @Override
     public CompleteType getValueType() {
       return CompleteType.INT;
     }
 
+    @Override
     public void write(BaseWriter.ListWriter writer, Integer val, ArrowBuf workBuffer) {
       writer.integer().writeInt(val);
     }
@@ -1479,10 +1612,12 @@ public final class Fixtures {
 
   public static class BigIntList extends ValueList<Long> {
 
+    @Override
     public CompleteType getValueType() {
       return CompleteType.BIGINT;
     }
 
+    @Override
     public void write(BaseWriter.ListWriter writer, Long val, ArrowBuf workBuffer) {
       writer.bigInt().writeBigInt(val);
     }
@@ -1496,10 +1631,12 @@ public final class Fixtures {
 
   public static class VarCharList extends ValueList<Text> {
 
+    @Override
     public CompleteType getValueType() {
       return CompleteType.VARCHAR;
     }
 
+    @Override
     public void write(BaseWriter.ListWriter writer, Text val, ArrowBuf workBuffer) {
       byte[] bytes = val.toString().getBytes();
       workBuffer.setBytes(0, bytes);

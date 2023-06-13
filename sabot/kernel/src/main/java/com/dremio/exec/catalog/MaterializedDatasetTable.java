@@ -56,7 +56,7 @@ public class MaterializedDatasetTable implements DremioTable {
   private final StoragePluginId pluginId;
   private final String user;
   private final boolean complexTypeSupport;
-  private final boolean timeTravel;
+  private final TableVersionContext versionContext;
 
   public MaterializedDatasetTable(
       NamespaceKey canonicalPath,
@@ -65,7 +65,7 @@ public class MaterializedDatasetTable implements DremioTable {
       Supplier<DatasetConfig> datasetConfig,
       Supplier<List<PartitionChunk>> partitionChunks,
       boolean complexTypeSupport,
-      boolean timeTravel
+      TableVersionContext versionContext
   ) {
     this.canonicalPath = canonicalPath;
     this.pluginId = pluginId;
@@ -73,7 +73,7 @@ public class MaterializedDatasetTable implements DremioTable {
     this.partitionChunks = partitionChunks;
     this.user = user;
     this.complexTypeSupport = complexTypeSupport;
-    this.timeTravel = timeTravel;
+    this.versionContext = versionContext;
   }
 
   @Override
@@ -87,12 +87,12 @@ public class MaterializedDatasetTable implements DremioTable {
         context.getCluster(),
         context.getCluster().traitSetOf(Convention.NONE),
         pluginId,
-        new MaterializedTableMetadata(pluginId, datasetConfig.get(), user, partitionChunks.get(), timeTravel),
+        new MaterializedTableMetadata(pluginId, datasetConfig.get(), user, partitionChunks.get(), versionContext),
         null,
         1.0d,
         ImmutableList.of(),
         true,
-        !timeTravel);
+        true);
   }
 
   @Override
@@ -146,14 +146,22 @@ public class MaterializedDatasetTable implements DremioTable {
     return true;
   }
 
+  @Override
+  public TableMetadata getDataset() {
+    return new MaterializedTableMetadata(pluginId, datasetConfig.get(), user, partitionChunks.get(), versionContext);
+  }
+
   private static class MaterializedTableMetadata extends TableMetadataImpl {
+
+    private final TableVersionContext versionContext;
 
     public MaterializedTableMetadata(StoragePluginId plugin,
                                      DatasetConfig config,
                                      String user,
                                      List<PartitionChunk> splits,
-                                     boolean timeTravel) {
+                                     TableVersionContext versionContext) {
       super(plugin, config, user, MaterializedSplitsPointer.oldObsoleteOf(getSplitVersion(config), splits, splits.size()), null);
+      this.versionContext = versionContext;
     }
 
     private static long getSplitVersion(DatasetConfig datasetConfig) {
@@ -167,6 +175,11 @@ public class MaterializedDatasetTable implements DremioTable {
     public TableMetadata prune(SearchTypes.SearchQuery partitionFilterQuery) {
       // Don't prune based on lucene query
       return this;
+    }
+
+    @Override
+    public TableVersionContext getVersionContext() {
+      return versionContext;
     }
   }
 }

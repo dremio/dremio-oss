@@ -41,9 +41,11 @@ public class Hash32Functions {
     @Param NullableFloat4Holder in;
     @Output NullableIntHolder out;
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {
@@ -60,9 +62,11 @@ public class Hash32Functions {
     @Param NullableFloat8Holder in;
     @Output NullableIntHolder out;
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {
@@ -79,9 +83,11 @@ public class Hash32Functions {
     @Param NullableVarBinaryHolder in;
     @Output NullableIntHolder out;
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {
@@ -98,9 +104,11 @@ public class Hash32Functions {
     @Param NullableVarCharHolder in;
     @Output NullableIntHolder out;
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {
@@ -117,15 +125,16 @@ public class Hash32Functions {
     @Param NullableBigIntHolder in;
     @Output NullableIntHolder out;
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {
         out.value = 0;
-      }
-      else {
+      } else {
         out.value = com.dremio.common.expression.fn.impl.HashHelper.hash32(in.value, 0);
       }
     }
@@ -136,15 +145,16 @@ public class Hash32Functions {
     @Param NullableIntHolder in;
     @Output NullableIntHolder out;
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {
         out.value = 0;
-      }
-      else {
+      } else {
         out.value = com.dremio.common.expression.fn.impl.HashHelper.hash32(in.value, 0);
       }
     }
@@ -155,9 +165,11 @@ public class Hash32Functions {
     @Param  NullableDateMilliHolder in;
     @Output NullableIntHolder out;
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {
@@ -173,9 +185,11 @@ public class Hash32Functions {
     @Param  NullableTimeStampMilliHolder in;
     @Output NullableIntHolder out;
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {
@@ -191,9 +205,11 @@ public class Hash32Functions {
     @Param  NullableTimeMilliHolder in;
     @Output NullableIntHolder out;
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {
@@ -209,9 +225,11 @@ public class Hash32Functions {
     @Param NullableDecimalHolder in;
     @Output NullableIntHolder out;
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {
@@ -229,9 +247,11 @@ public class Hash32Functions {
     @Param NullableBitHolder in;
     @Output NullableIntHolder out;
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {

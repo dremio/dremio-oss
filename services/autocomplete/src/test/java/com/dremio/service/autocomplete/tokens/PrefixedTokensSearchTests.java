@@ -37,7 +37,7 @@ public final class PrefixedTokensSearchTests {
    */
   @Test
   public void topLevelStatements() {
-    new GoldenFileTestBuilder<>(PrefixedTokensSearchTests::executeTest)
+    GoldenFileTestBuilder.create(PrefixedTokensSearchTests::executeTest)
       .add("EMPTY", new Input("", 1))
       .add("ANALYZE", new Input("ANALYZE", 3))
       .add("CALL", new Input("CALL", 3))
@@ -74,7 +74,7 @@ public final class PrefixedTokensSearchTests {
 
   @Test
   public void alterTable() {
-    new GoldenFileTestBuilder<>(PrefixedTokensSearchTests::executeTest)
+    GoldenFileTestBuilder.create(PrefixedTokensSearchTests::executeTest)
       .add("JUST ALTER TABLE", new Input("ALTER TABLE mytable", 1))
       .add("ALTER TABLE + ALTER", new Input("ALTER TABLE mytable ALTER", 4))
       .add("ALTER TABLE + CHANGE", new Input("ALTER TABLE mytable CHANGE", 4))

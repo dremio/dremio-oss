@@ -83,6 +83,7 @@ public class ListVectorHelper extends BaseRepeatedValueVectorHelper<ListVector> 
     listVector.validityBuffer.getReferenceManager().retain(1);
   }
 
+  @Override
   public void materialize(Field field) {
     if (field.getChildren().size() == 0) {
       return;
@@ -92,6 +93,7 @@ public class ListVectorHelper extends BaseRepeatedValueVectorHelper<ListVector> 
     TypeHelper.getHelper(innerVector).ifPresent(t -> t.materialize(innerField));
   }
 
+  @Override
   public SerializedField.Builder getMetadataBuilder() {
     return SerializedField.newBuilder()
             .setMajorType(MajorType.newBuilder().setMinorType(MinorType.LIST).setMode(DataMode.OPTIONAL).build())
@@ -103,6 +105,7 @@ public class ListVectorHelper extends BaseRepeatedValueVectorHelper<ListVector> 
             .addChild(TypeHelper.getMetadata(listVector.vector));
   }
 
+  @Override
   protected SerializedField buildValidityMetadata() {
     SerializedField.Builder validityBuilder = SerializedField.newBuilder()
       .setNamePart(NamePart.newBuilder().setName("$bits$").build())

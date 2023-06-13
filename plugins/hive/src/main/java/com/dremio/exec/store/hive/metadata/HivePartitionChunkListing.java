@@ -34,6 +34,7 @@ import com.dremio.connector.metadata.PartitionChunk;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.exec.catalog.DatasetSaverImpl;
 import com.dremio.exec.store.hive.HivePf4jPlugin;
+import com.dremio.exec.store.hive.deltalake.DeltaHiveInputFormat;
 import com.dremio.hive.proto.HiveReaderProto;
 import com.dremio.options.OptionManager;
 import com.google.common.base.Preconditions;
@@ -143,6 +144,29 @@ public final class HivePartitionChunkListing implements PartitionChunkListing {
         .build();
       metadataAccumulator.setRootPointer(rootPointer);
       return;
+    } else if (SplitType.DELTA_COMMIT_LOGS.equals(splitType)) {
+      if (logger.isDebugEnabled()) {
+        logger.debug("Table '{}', data read from delta root pointer.",
+          tableMetadata.getTable().getTableName());
+      }
+      //If it's a deltalake table only the partition xattr is needed.
+      currentPartitionMetadata = PartitionMetadata.newBuilder().partition(null)
+        .partitionXattr(HiveMetadataUtils.getPartitionXattr(tableMetadata.getTable(),
+          HiveMetadataUtils.fromProperties(tableMetadata.getTableProperties())))
+        .partitionValues(Collections.EMPTY_LIST)
+        .inputSplitBatchIterator(
+          InputSplitBatchIterator.newBuilder()
+            .partition(null)
+            .tableMetadata(tableMetadata)
+            .inputSplits(Collections.EMPTY_LIST)
+            .maxInputSplitsPerPartition(maxInputSplitsPerPartition)
+            .build())
+        .build();
+
+      metadataAccumulator.accumulateReaderType(DeltaHiveInputFormat.class);
+      metadataAccumulator.setTableLocation(DeltaHiveInputFormat.getLocation(tableMetadata.getTable(), optionManager));
+      metadataAccumulator.setNotAllFSBasedPartitions();
+      return;
     } else if (null == partitions) {
       if (logger.isDebugEnabled()) {
         logger.debug("Table '{}', 1 partition exists.",
@@ -179,7 +203,7 @@ public final class HivePartitionChunkListing implements PartitionChunkListing {
 
       metadataAccumulator.setTableLocation(tableMetadata.getTable().getSd().getLocation());
       final JobConf job = new JobConf(hiveConf);
-      final Class<? extends InputFormat> inputFormatClazz = HiveMetadataUtils.getInputFormatClass(job, tableMetadata.getTable(), null, optionsManager);
+      final Class<? extends InputFormat> inputFormatClazz = HiveMetadataUtils.getInputFormatClass(job, tableMetadata.getTable(), null);
       metadataAccumulator.accumulateReaderType(inputFormatClazz);
       return;
     }

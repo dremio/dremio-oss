@@ -38,8 +38,8 @@ export function abilities(
   const canDelete = !isPhysical || isHomeFile;
 
   // the "Acceleration Updates" tab should only be visible for physical datasets/folder
-  // https://dremio.atlassian.net/browse/DX-5019
-  // https://dremio.atlassian.net/browse/DX-5689
+  // DX-5019
+  // DX-5689
   // (doesn't make sense for home files though)
   const canSetAccelerationUpdates = isPhysical && !isHomeFile;
 
@@ -50,6 +50,7 @@ export function abilities(
     canMove,
     canDelete,
     canSetAccelerationUpdates,
+    isPhysical,
   };
 }
 

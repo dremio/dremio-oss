@@ -28,6 +28,7 @@ public class ITVacuum extends ITDmlQueryBase {
   // Defining SOURCE such that you can easily copy and paste the same test across other test variations
   private static final String SOURCE = TEMP_SCHEMA_HADOOP;
 
+  @Override
   @Before
   public void before() throws Exception {
     test("USE %s", SOURCE);
@@ -36,6 +37,11 @@ public class ITVacuum extends ITDmlQueryBase {
   @Test
   public void testMalformedVacuumQueries() throws Exception {
     VacuumTests.testMalformedVacuumQueries(SOURCE);
+  }
+
+  @Test
+  public void testSimpleExpireOlderThanRetainLastUsingEqual() throws Exception {
+    VacuumTests.testSimpleExpireOlderThanRetainLastUsingEqual(allocator, SOURCE);
   }
 
   @Test
@@ -69,6 +75,16 @@ public class ITVacuum extends ITDmlQueryBase {
   }
 
   @Test
+  public void testExpireOnTableWithPartitions() throws Exception {
+    VacuumTests.testExpireOnTableWithPartitions(allocator, SOURCE);
+  }
+
+  @Test
+  public void testExpireOnEmptyTableNoSnapshots() throws Exception {
+    VacuumTests.testExpireOnEmptyTableNoSnapshots(allocator, SOURCE);
+  }
+
+  @Test
   public void testRetainZeroSnapshots() throws Exception {
     VacuumTests.testRetainZeroSnapshots(SOURCE);
   }
@@ -91,5 +107,20 @@ public class ITVacuum extends ITDmlQueryBase {
   @Test
   public void testUnparseSqlVacuum() throws Exception {
     VacuumTests.testUnparseSqlVacuum(SOURCE);
+  }
+
+  @Test
+  public void testExpireOnTableOneSnapshot() throws Exception {
+    VacuumTests.testExpireOnTableOneSnapshot(SOURCE);
+  }
+
+  @Test
+  public void testRetainMoreSnapshots() throws Exception {
+    VacuumTests.testRetainMoreSnapshots(SOURCE);
+  }
+
+  @Test
+  public void testRetainAllSnapshots() throws Exception {
+    VacuumTests.testRetainAllSnapshots(allocator, SOURCE);
   }
 }

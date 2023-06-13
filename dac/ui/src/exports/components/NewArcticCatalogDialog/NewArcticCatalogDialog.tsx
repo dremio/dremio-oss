@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Button, DialogContent } from "dremio-ui-lib/dist-esm";
+import { Button, DialogContent } from "dremio-ui-lib/components";
 import { TextInput } from "@mantine/core";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";

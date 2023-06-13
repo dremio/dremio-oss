@@ -49,10 +49,12 @@ public class DremioArgChecker implements SqlSingleOperandTypeChecker {
     this.allowAny = allowAny;
   }
 
+  @Override
   public boolean isOptional(int i) {
     return false;
   }
 
+  @Override
   public boolean checkSingleOperandType(
       SqlCallBinding callBinding,
       SqlNode node,
@@ -128,6 +130,7 @@ public class DremioArgChecker implements SqlSingleOperandTypeChecker {
     return true;
   }
 
+  @Override
   public boolean checkOperandTypes(SqlCallBinding callBinding, boolean throwOnFailure) {
     if (checkers.size() != callBinding.getOperandCount()) {
       // assume this is an inapplicable sub-rule of a composite rule;
@@ -147,14 +150,17 @@ public class DremioArgChecker implements SqlSingleOperandTypeChecker {
     return true;
   }
 
+  @Override
   public SqlOperandCountRange getOperandCountRange() {
     return SqlOperandCountRanges.between(0, checkers.size());
   }
 
+  @Override
   public String getAllowedSignatures(SqlOperator op, String opName) {
     return String.format(signature, opName);
   }
 
+  @Override
   public Consistency getConsistency() {
     return Consistency.NONE;
   }

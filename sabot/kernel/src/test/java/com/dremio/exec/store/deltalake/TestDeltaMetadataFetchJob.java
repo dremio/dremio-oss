@@ -101,8 +101,7 @@ public class TestDeltaMetadataFetchJob {
 
     try {
       DeltaLogSnapshot snapshot = job.get();
-    }
-    catch (CompletionException e) {
+    } catch (CompletionException e) {
       assertTrue(e.getCause() instanceof DeltaMetadataFetchJob.InvalidFileException);
     }
   }
@@ -122,8 +121,7 @@ public class TestDeltaMetadataFetchJob {
 
     try {
       DeltaLogSnapshot snapshot = job.get();
-    }
-    catch (CompletionException e) {
+    } catch (CompletionException e) {
       assertTrue(e.getCause() instanceof DeltaMetadataFetchJob.InvalidFileException);
     }
   }
@@ -140,8 +138,7 @@ public class TestDeltaMetadataFetchJob {
 
     try {
       DeltaLogSnapshot snapshot = job.get();
-    }
-    catch (CompletionException e) {
+    } catch (CompletionException e) {
       assertTrue(e.getCause() instanceof DeltaMetadataFetchJob.InvalidFileException);
     }
   }

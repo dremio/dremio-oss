@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import "./contexts/index";
 import { additionalSetup } from "@inject/additionalSetup";
 import { createRoot } from "react-dom/client";
 import $ from "jquery";
@@ -28,7 +27,7 @@ import setupMetrics from "@inject/setupMetrics";
 import "@inject/vendor/segment";
 import "dremio-ui-lib/dist-themes/base/assets/fonts/inter-ui/inter.css";
 import "dremio-ui-lib/dist-themes/base/assets/fonts/FiraCode/FiraCode.css";
-import "dremio-ui-lib/dist-themes/dremio-light/index.css";
+import "dremio-ui-lib/dist-themes/dremio/index.css";
 import "dremio-ui-lib/dist/index.css";
 import "./main.less";
 import { iconBasePath } from "@app/utils/getIconPath";
@@ -41,7 +40,7 @@ import { iconBasePath } from "@app/utils/getIconPath";
 import "./uiTheme/css/typography.css";
 import Root from "./containers/Root";
 import configureStore from "./store/configureStore";
-import { configureDremioIcon } from "dremio-ui-lib/dist-esm/index";
+import { configureDremioIcon } from "dremio-ui-lib/components";
 
 // enable using mock data
 //import MirageServer from './MirageServer';

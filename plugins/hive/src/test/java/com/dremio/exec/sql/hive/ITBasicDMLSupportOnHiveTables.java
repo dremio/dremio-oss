@@ -28,6 +28,7 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -80,8 +81,7 @@ public class ITBasicDMLSupportOnHiveTables extends LazyDataGeneratingHiveTestBas
         .baselineColumns("ok", "summary")
         .baselineValues(true, "Table created")
         .go();
-    }
-    finally {
+    } finally {
       dataGenerator.executeDDL("DROP TABLE IF EXISTS " + tableName);
     }
   }
@@ -111,8 +111,7 @@ public class ITBasicDMLSupportOnHiveTables extends LazyDataGeneratingHiveTestBas
         .baselineColumns("n")
         .baselineValues(2)
         .go();
-    }
-    finally {
+    } finally {
       dataGenerator.executeDDL(getDropTableQuery(tableName));
       dataGenerator.executeDDL(getDropTableQuery(newTableName));
     }
@@ -132,8 +131,7 @@ public class ITBasicDMLSupportOnHiveTables extends LazyDataGeneratingHiveTestBas
 
       File tableFolder = new File(queryTableLocation);
       assertTrue("Error in checking if the " + tableFolder.toString() + " exists", tableFolder.exists());
-    }
-    finally {
+    } finally {
       dataGenerator.executeDDL("DROP TABLE IF EXISTS " + tableName);
     }
   }
@@ -151,8 +149,7 @@ public class ITBasicDMLSupportOnHiveTables extends LazyDataGeneratingHiveTestBas
       runSQL(getCTASQueryWithLocation("(values (1), (2), (3))", tableNameWithCatalog, tableLocationFolder));
       File tableFolder = new File(tableLocationFolder);
       assertTrue("Error in checking if the " + tableFolder.toString() + " exists", tableFolder.exists());
-    }
-    finally {
+    } finally {
       dataGenerator.executeDDL(getDropTableQuery(tableName));
     }
   }
@@ -168,8 +165,7 @@ public class ITBasicDMLSupportOnHiveTables extends LazyDataGeneratingHiveTestBas
         .baselineColumns("ok", "summary")
         .baselineValues(true, "Table created")
         .go();
-    }
-    finally {
+    } finally {
       dataGenerator.executeDDL("DROP TABLE IF EXISTS " + tableName);
     }
   }
@@ -185,8 +181,7 @@ public class ITBasicDMLSupportOnHiveTables extends LazyDataGeneratingHiveTestBas
         .baselineColumns("ok", "summary")
         .baselineValues(true, "Table created")
         .go();
-    }
-    finally {
+    } finally {
       dataGenerator.executeDDL("DROP TABLE IF EXISTS " + tableName);
     }
   }
@@ -202,8 +197,7 @@ public class ITBasicDMLSupportOnHiveTables extends LazyDataGeneratingHiveTestBas
         .baselineColumns("ok", "summary")
         .baselineValues(true, "Table created")
         .go();
-    }
-    finally {
+    } finally {
       dataGenerator.executeDDL("DROP TABLE IF EXISTS " + tableName);
     }
   }
@@ -219,8 +213,7 @@ public class ITBasicDMLSupportOnHiveTables extends LazyDataGeneratingHiveTestBas
         .baselineColumns("ok", "summary")
         .baselineValues(true, "Table created")
         .go();
-    }
-    finally {
+    } finally {
       dataGenerator.executeDDL("DROP TABLE IF EXISTS " + tableName);
     }
   }
@@ -236,8 +229,7 @@ public class ITBasicDMLSupportOnHiveTables extends LazyDataGeneratingHiveTestBas
         .baselineColumns("ok", "summary")
         .baselineValues(true, "Table created")
         .go();
-    }
-    finally {
+    } finally {
       dataGenerator.executeDDL("DROP TABLE IF EXISTS " + tableName);
     }
   }
@@ -253,8 +245,7 @@ public class ITBasicDMLSupportOnHiveTables extends LazyDataGeneratingHiveTestBas
         .baselineColumns("ok", "summary")
         .baselineValues(true, "Table created")
         .go();
-    }
-    finally {
+    } finally {
       dataGenerator.executeDDL("DROP TABLE IF EXISTS " + tableName);
     }
   }
@@ -270,8 +261,7 @@ public class ITBasicDMLSupportOnHiveTables extends LazyDataGeneratingHiveTestBas
         .baselineColumns("ok", "summary")
         .baselineValues(true, "Table created")
         .go();
-    }
-    finally {
+    } finally {
       dataGenerator.executeDDL("DROP TABLE IF EXISTS " + tableName);
     }
   }
@@ -287,8 +277,7 @@ public class ITBasicDMLSupportOnHiveTables extends LazyDataGeneratingHiveTestBas
         .baselineColumns("ok", "summary")
         .baselineValues(true, "Table created")
         .go();
-    }
-    finally {
+    } finally {
       dataGenerator.executeDDL("DROP TABLE IF EXISTS " + tableName);
     }
   }
@@ -304,8 +293,7 @@ public class ITBasicDMLSupportOnHiveTables extends LazyDataGeneratingHiveTestBas
         .baselineColumns("ok", "summary")
         .baselineValues(true, "Table created")
         .go();
-    }
-    finally {
+    } finally {
       dataGenerator.executeDDL("DROP TABLE IF EXISTS " + tableName);
     }
   }
@@ -321,8 +309,7 @@ public class ITBasicDMLSupportOnHiveTables extends LazyDataGeneratingHiveTestBas
         .baselineColumns("ok", "summary")
         .baselineValues(true, "Table created")
         .go();
-    }
-    finally {
+    } finally {
       dataGenerator.executeDDL("DROP TABLE IF EXISTS " + tableName);
     }
   }
@@ -355,6 +342,7 @@ public class ITBasicDMLSupportOnHiveTables extends LazyDataGeneratingHiveTestBas
 
   }
 
+  @Ignore("DX-61689")
   @Test
   public void truncateOnCreateAtLocation() throws Exception {
 

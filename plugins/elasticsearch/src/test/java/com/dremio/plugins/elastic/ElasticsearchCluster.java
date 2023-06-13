@@ -315,7 +315,7 @@ public class ElasticsearchCluster implements Closeable {
    * Creates a storage plugin config with values suitable for creating
    * connections to the embedded elasticsearch cluster.
    */
-  public BaseElasticStoragePluginConfig config(boolean allowPushdownAnalyzedOrNormalizedFields) {
+  public BaseElasticStoragePluginConfig config(boolean allowPushdownAnalyzedOrNormalizedFields, boolean pushdownWithKeyword) {
     if ((this.authenticationType == ES_ACCOUNT) || (this.authenticationType == NONE)) {
       AuthenticationType authenticationType;
       if (this.authenticationType == ES_ACCOUNT) {
@@ -338,6 +338,7 @@ public class ElasticsearchCluster implements Closeable {
         useWhiteList, /* use whitelist */
         scrollSize,
         allowPushdownAnalyzedOrNormalizedFields, /* allow group by on normalized fields */
+        pushdownWithKeyword,  /* allow group by on normalized fields */
         false, /* warn on row count mismatch */
         EncryptionValidationMode.NO_VALIDATION,
         forceDoublePrecision
@@ -369,6 +370,7 @@ public class ElasticsearchCluster implements Closeable {
         true, /* use painless */
         scrollSize,
         allowPushdownAnalyzedOrNormalizedFields, /* allow group by on normalized fields */
+        pushdownWithKeyword, /* allow .keyword in pushdowns */
         false, /* warn on row count mismatch */
         EncryptionValidationMode.NO_VALIDATION,
         forceDoublePrecision
@@ -379,7 +381,7 @@ public class ElasticsearchCluster implements Closeable {
 
 
   public BaseElasticStoragePluginConfig config() {
-    return config(false);
+    return config(false, false);
   }
 
   /**

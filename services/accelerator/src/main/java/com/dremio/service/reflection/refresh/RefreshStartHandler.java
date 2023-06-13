@@ -19,10 +19,10 @@ import java.util.UUID;
 
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.options.OptionManager;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.jobs.JobsService;
-import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.reflection.ReflectionManager.WakeUpCallback;
 import com.dremio.service.reflection.ReflectionUtils;
 import com.dremio.service.reflection.WakeUpManagerWhenJobDone;
@@ -42,15 +42,15 @@ import com.google.common.collect.FluentIterable;
 public class RefreshStartHandler {
   protected static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RefreshStartHandler.class);
 
-  private final NamespaceService namespaceService;
+  private final CatalogService catalogService;
   private final JobsService jobsService;
   private final MaterializationStore materializationStore;
   private final WakeUpCallback wakeUpCallback;
 
-  public RefreshStartHandler(NamespaceService namespaceService,
+  public RefreshStartHandler(CatalogService catalogService,
                              JobsService jobsService,
                              MaterializationStore materializationStore, WakeUpCallback wakeUpCallback) {
-    this.namespaceService = Preconditions.checkNotNull(namespaceService, "namespace service required");
+    this.catalogService = Preconditions.checkNotNull(catalogService, "Catalog service required");
     this.jobsService = Preconditions.checkNotNull(jobsService, "jobs service required");
     this.materializationStore = Preconditions.checkNotNull(materializationStore, "materialization store required");
     this.wakeUpCallback = Preconditions.checkNotNull(wakeUpCallback, "wakeup callback required");
@@ -79,7 +79,7 @@ public class RefreshStartHandler {
 
     final String sql = String.format("REFRESH REFLECTION '%s' AS '%s'", reflectionId.getId(), materialization.getId().getId());
 
-    final JobId jobId = ReflectionUtils.submitRefreshJob(jobsService, namespaceService, entry, materialization, sql,
+    final JobId jobId = ReflectionUtils.submitRefreshJob(jobsService, catalogService, entry, materialization, sql,
       new WakeUpManagerWhenJobDone(wakeUpCallback, "materialization job done"));
 
     logger.debug("Submitted REFRESH REFLECTION job {} for {}", jobId.getId(), ReflectionUtils.getId(entry, materialization));

@@ -30,6 +30,11 @@ import { stopPropagation } from "@app/utils/reactEventUtils";
 import { IconButton, Tooltip } from "dremio-ui-lib";
 import DatasetOverlayContent from "./DatasetOverlayContent";
 import DatasetSummaryOverlay from "./DatasetSummaryOverlay";
+import WikiDrawerWrapper from "@app/components/WikiDrawerWrapper";
+import { FeatureSwitch } from "@app/exports/components/FeatureSwitch/FeatureSwitch";
+import { CATALOG_ARS_ENABLED } from "@app/exports/flags/CATALOG_ARS_ENABLED";
+import { getCommonWikiDrawerTitle } from "@app/utils/WikiDrawerUtils";
+
 import "./DatasetItemLabel.less";
 
 export class DatasetItemLabel extends PureComponent {
@@ -58,6 +63,8 @@ export class DatasetItemLabel extends PureComponent {
     isStarredLimitReached: PropTypes.bool,
     isSearchItem: PropTypes.bool,
     showSummaryOverlay: PropTypes.bool,
+    versionContext: PropTypes.object,
+    tooltipPlacement: PropTypes.string,
   };
 
   static defaultProps = {
@@ -72,6 +79,8 @@ export class DatasetItemLabel extends PureComponent {
     isIconHovered: false,
     isDragInProgress: false,
     isLoadingData: false,
+    drawerIsOpen: false,
+    datasetDetails: Immutable.fromJS({}),
   };
 
   setOpenOverlay = () => this.setState({ isOpenOverlay: true });
@@ -144,6 +153,33 @@ export class DatasetItemLabel extends PureComponent {
     );
   }
 
+  openWikiDrawer = (dataset) => {
+    this.setState({
+      datasetDetails: dataset,
+      drawerIsOpen: true,
+    });
+  };
+
+  closeWikiDrawer = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    this.setState({
+      datasetDetails: Immutable.fromJS({}),
+      drawerIsOpen: false,
+    });
+  };
+
+  wikiDrawerTitle = () => {
+    const { fullPath } = this.props;
+    const { datasetDetails } = this.state;
+
+    return getCommonWikiDrawerTitle(
+      datasetDetails,
+      fullPath,
+      this.closeWikiDrawer
+    );
+  };
+
   render() {
     const {
       fullPath,
@@ -161,9 +197,11 @@ export class DatasetItemLabel extends PureComponent {
       unstarNode,
       isStarredLimitReached,
       showSummaryOverlay = true,
+      versionContext,
+      tooltipPlacement,
     } = this.props;
 
-    const { isOpenOverlay } = this.state;
+    const { isOpenOverlay, drawerIsOpen, datasetDetails } = this.state;
 
     const iconStyle = iconSize === "LARGE" ? styles.largeIcon : {};
     const labelTypeIcon = iconSize === "LARGE" ? `${typeIcon}Large` : typeIcon;
@@ -226,18 +264,29 @@ export class DatasetItemLabel extends PureComponent {
             {showSummaryOverlay &&
             labelTypeIcon !== "Script" &&
             labelTypeIcon !== "FileEmpty" ? (
-              <Tooltip
-                type="richTooltip"
-                enterDelay={1000}
-                title={
-                  <DatasetSummaryOverlay
-                    inheritedTitle={fullPath.last()}
-                    fullPath={fullPath}
-                  />
-                }
-              >
-                {renderDataItemLabel()}
-              </Tooltip>
+              <>
+                <Tooltip
+                  type="richTooltip"
+                  enterDelay={1000}
+                  placement={tooltipPlacement}
+                  title={
+                    <DatasetSummaryOverlay
+                      inheritedTitle={fullPath.last()}
+                      fullPath={fullPath}
+                      openWikiDrawer={this.openWikiDrawer}
+                      showColumns
+                      versionContext={versionContext}
+                    />
+                  }
+                >
+                  {renderDataItemLabel()}
+                </Tooltip>
+                <WikiDrawerWrapper
+                  drawerIsOpen={drawerIsOpen}
+                  wikiDrawerTitle={this.wikiDrawerTitle()}
+                  datasetDetails={datasetDetails}
+                />
+              </>
             ) : (
               renderDataItemLabel()
             )}
@@ -251,48 +300,54 @@ export class DatasetItemLabel extends PureComponent {
                   >
                     <dremio-icon name="interface/add-small" />
                   </IconButton>
-                  {nodeId && (
-                    <IconButton
-                      tooltip={
-                        isStarred
-                          ? intl.formatMessage({
-                              id: "Resource.Tree.Added.Star",
-                            })
-                          : unstarredWording
-                      }
-                      onClick={() => {
-                        if (!isStarred && !isStarredLimitReached) {
-                          starNode(nodeId);
-                        } else if (isStarred) {
-                          unstarNode(nodeId);
-                        }
-                      }}
-                      className={
-                        isStarred
-                          ? "datasetItemLabel-item__starIcon datasetItemLabel-item--starred"
-                          : `datasetItemLabel-item__starIcon resourceTreeNode${
-                              isStarredLimitReached
-                                ? "--limitReached"
-                                : "--unstarred"
-                            }`
-                      }
-                    >
-                      <dremio-icon
-                        name={
-                          isStarred
-                            ? "interface/star-starred"
-                            : "interface/star-unstarred"
-                        }
-                        alt={
-                          isStarred
-                            ? intl.formatMessage({
-                                id: "Resource.Tree.Added.Star",
-                              })
-                            : unstarredAltText
-                        }
-                      />
-                    </IconButton>
-                  )}
+                  <FeatureSwitch
+                    flag={CATALOG_ARS_ENABLED}
+                    renderEnabled={() => null}
+                    renderDisabled={() =>
+                      nodeId && (
+                        <IconButton
+                          tooltip={
+                            isStarred
+                              ? intl.formatMessage({
+                                  id: "Resource.Tree.Added.Star",
+                                })
+                              : unstarredWording
+                          }
+                          onClick={() => {
+                            if (!isStarred && !isStarredLimitReached) {
+                              starNode(nodeId);
+                            } else if (isStarred) {
+                              unstarNode(nodeId);
+                            }
+                          }}
+                          className={
+                            isStarred
+                              ? "datasetItemLabel-item__starIcon datasetItemLabel-item--starred"
+                              : `datasetItemLabel-item__starIcon resourceTreeNode${
+                                  isStarredLimitReached
+                                    ? "--limitReached"
+                                    : "--unstarred"
+                                }`
+                          }
+                        >
+                          <dremio-icon
+                            name={
+                              isStarred
+                                ? "interface/star-starred"
+                                : "interface/star-unstarred"
+                            }
+                            alt={
+                              isStarred
+                                ? intl.formatMessage({
+                                    id: "Resource.Tree.Added.Star",
+                                  })
+                                : unstarredAltText
+                            }
+                          />
+                        </IconButton>
+                      )
+                    }
+                  />
                 </>
               )}
             </div>

@@ -25,7 +25,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Predicate;
-import java.util.function.Supplier;
 
 import javax.inject.Provider;
 
@@ -38,9 +37,9 @@ import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.iceberg.CatalogProperties;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.TableOperations;
-import org.apache.iceberg.aws.AwsProperties;
 import org.apache.iceberg.aws.glue.DremioGlueTableOperations;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.util.LockManagers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,7 +70,6 @@ import com.dremio.exec.catalog.ResolvedVersionContext;
 import com.dremio.exec.catalog.RollbackOption;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.TableMutationOptions;
-import com.dremio.exec.catalog.VacuumOption;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.physical.base.OpProps;
@@ -102,7 +100,6 @@ import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FormatPlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.exec.store.hive.Hive2StoragePluginConfig;
-import com.dremio.exec.store.iceberg.DremioFileIO;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.iceberg.SupportsIcebergMutablePlugin;
 import com.dremio.exec.store.iceberg.SupportsIcebergRootPointer;
@@ -302,11 +299,6 @@ public class AWSGlueStoragePlugin implements StoragePlugin, MutablePlugin, Suppo
   }
 
   @Override
-  public Supplier<org.apache.hadoop.fs.FileSystem> getHadoopFsSupplier(String path, Iterable<Map.Entry<String, String>> conf, String queryUser) {
-    return ((MutablePlugin)hiveStoragePlugin).getHadoopFsSupplier(path, conf, queryUser);
-  }
-
-  @Override
   public Configuration getFsConfCopy() {
     return ((SupportsIcebergRootPointer) hiveStoragePlugin).getFsConfCopy();
   }
@@ -338,20 +330,24 @@ public class AWSGlueStoragePlugin implements StoragePlugin, MutablePlugin, Suppo
 
   @Override
   public TableOperations createIcebergTableOperations(FileSystem fs, String queryUserName, IcebergTableIdentifier tableIdentifier) {
-
     Map<String, String> properties = new HashMap<>();
     for (Map.Entry<String, String> property : glueConfTableOperations) {
       properties.put(property.getKey(), property.getValue());
     }
 
     IcebergGlueTableIdentifier glueTableIdentifier = (IcebergGlueTableIdentifier) tableIdentifier;
-    DremioFileIO fileIO = new DremioFileIO(fs, glueConfTableOperations, this);
+    FileIO fileIO = createIcebergFileIO(fs, null, null, null, null);
 
     return new DremioGlueTableOperations(getGlueClient(), LockManagers.from(properties),
-      IcebergGlueModel.GLUE, new AwsProperties(properties), fileIO,
+      IcebergGlueModel.GLUE, properties, fileIO,
       TableIdentifier.of(glueTableIdentifier.getNamespace(), glueTableIdentifier.getTableName()));
+  }
 
-
+  @Override
+  public FileIO createIcebergFileIO(FileSystem fs, OperatorContext context, List<String> dataset,
+      String datasourcePluginUID, Long fileLength) {
+    return ((SupportsIcebergRootPointer) hiveStoragePlugin).createIcebergFileIO(fs, context, dataset,
+        datasourcePluginUID, fileLength);
   }
 
   @Override
@@ -434,9 +430,9 @@ public class AWSGlueStoragePlugin implements StoragePlugin, MutablePlugin, Suppo
     } catch (IOException e) {
       throw UserException.validationError(e).message("Failure creating File System instance for path %s", location).buildSilently();
     }
-    Preconditions.checkArgument(key.size() >= 2, "key must be at least two parts");
-    String tableName = key.getName();
-    String dbName = key.getPathComponents().get(1);
+    List<String> dbAndTableName = resolveTableNameToValidPath(key.getPathComponents());
+    String dbName = dbAndTableName.get(0);
+    String tableName = dbAndTableName.get(1);
     return new IcebergGlueModel(dbName, tableName, fs, userName, null, this);
   }
 
@@ -452,7 +448,7 @@ public class AWSGlueStoragePlugin implements StoragePlugin, MutablePlugin, Suppo
     return new IcebergGlueModel(tableProps.getDatabaseName(), tableProps.getTableName(), fs, userName, null, this);
   }
 
-  private String resolveTableLocation(NamespaceKey tableSchemaPath, WriterOptions writerOptions) {
+  private String resolveTableLocation(String dbName, String tableName, WriterOptions writerOptions) {
     String queryLocation = writerOptions.getTableLocation();
     if (StringUtils.isNotEmpty(queryLocation)) {
       return PathUtils.removeTrailingSlash(queryLocation);
@@ -461,10 +457,6 @@ public class AWSGlueStoragePlugin implements StoragePlugin, MutablePlugin, Suppo
     if (!context.getOptionManager().getOption(ExecConstants.ENABLE_HIVE_DATABASE_LOCATION)) {
       return null;
     }
-
-    Preconditions.checkArgument(tableSchemaPath.size() >= 2, "tableSchemaPath must be at least two parts");
-    String tableName = tableSchemaPath.getName();
-    String dbName = tableSchemaPath.getPathComponents().get(1);
 
     try {
       GetDatabaseResponse response = getGlueClient().getDatabase(GetDatabaseRequest.builder().name(dbName).build());
@@ -487,7 +479,11 @@ public class AWSGlueStoragePlugin implements StoragePlugin, MutablePlugin, Suppo
   @Override
   public void createEmptyTable(NamespaceKey tableSchemaPath, SchemaConfig schemaConfig, BatchSchema batchSchema, WriterOptions writerOptions) {
 
-    String tableLocation = resolveTableLocation(tableSchemaPath, writerOptions);
+    List<String> dbAndTableName = resolveTableNameToValidPath(tableSchemaPath.getPathComponents());
+    String dbName = dbAndTableName.get(0);
+    String tableName = dbAndTableName.get(1);
+
+    String tableLocation = resolveTableLocation(dbName, tableName, writerOptions);
     if (StringUtils.isEmpty(tableLocation)) {
       String warehouseLocation = PathUtils.removeTrailingSlash(glueConfTableOperations.get(CatalogProperties.WAREHOUSE_LOCATION));
       if (StringUtils.isEmpty(warehouseLocation) || HiveConf.ConfVars.METASTOREWAREHOUSE.getDefaultValue().equals(warehouseLocation)) {
@@ -499,7 +495,6 @@ public class AWSGlueStoragePlugin implements StoragePlugin, MutablePlugin, Suppo
     }
 
     IcebergModel icebergModel = getIcebergModel(tableLocation, tableSchemaPath, schemaConfig.getUserName());
-    String tableName = tableSchemaPath.getName();
     PartitionSpec partitionSpec = Optional.ofNullable(writerOptions.getTableFormatOptions().getIcebergSpecificOptions()
       .getIcebergTableProps()).map(props -> props.getDeserializedPartitionSpec()).orElse(null);
     IcebergOpCommitter icebergOpCommitter = icebergModel.getCreateTableCommitter(tableName, icebergModel.getTableIdentifier(tableLocation), batchSchema,
@@ -552,18 +547,6 @@ public class AWSGlueStoragePlugin implements StoragePlugin, MutablePlugin, Suppo
     String metadataLocation = IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
     IcebergModel icebergModel = getIcebergModel(metadataLocation, tableSchemaPath, schemaConfig.getUserName());
     icebergModel.rollbackTable(icebergModel.getTableIdentifier(metadataLocation), rollbackOption);
-  }
-
-  @Override
-  public void vacuumTable(NamespaceKey tableSchemaPath,
-                          DatasetConfig datasetConfig,
-                          SchemaConfig schemaConfig,
-                          VacuumOption vacuumOption,
-                          TableMutationOptions tableMutationOptions) {
-    SplitsPointer splits = DatasetSplitsPointer.of(context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
-    String metadataLocation = IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
-    IcebergModel icebergModel = getIcebergModel(metadataLocation, tableSchemaPath, schemaConfig.getUserName());
-    icebergModel.vacuumTable(icebergModel.getTableIdentifier(metadataLocation), vacuumOption);
   }
 
   @Override
@@ -656,7 +639,7 @@ public class AWSGlueStoragePlugin implements StoragePlugin, MutablePlugin, Suppo
     final String path;
     if (DatasetHelper.isInternalIcebergTable(datasetConfig)) {
       final FileSystemPlugin<?> metaStoragePlugin = context.getCatalogService().getSource(METADATA_STORAGE_PLUGIN_NAME);
-      icebergModel = metaStoragePlugin.getIcebergModel(metaStoragePlugin.getSystemUserFS());
+      icebergModel = metaStoragePlugin.getIcebergModel();
       String metadataTableName = datasetConfig.getPhysicalDataset().getIcebergMetadata().getTableUuid();
       path = metaStoragePlugin.resolveTablePathToValidPath(metadataTableName).toString();
     } else if (DatasetHelper.isIcebergDataset(datasetConfig)) {

@@ -44,6 +44,7 @@ public class ExecutionPlanningResources implements AutoCloseable {
     return groupResourceInformation;
   }
 
+  @Override
   public void close() throws Exception {
     executorSelectionHandle.close();
   }

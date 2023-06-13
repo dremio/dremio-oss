@@ -19,7 +19,6 @@ package com.dremio.exec.util;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Proxy;
@@ -281,7 +280,7 @@ public class ValueListFilterTest {
     }
 
     @Test
-    public void testCustomDecimal() {
+    public void testCustomDecimal() throws Exception {
         final byte precision = 38;
         final byte scale = 3;
         final byte blockSize = 16;
@@ -303,8 +302,6 @@ public class ValueListFilterTest {
             assertEquals(Types.MinorType.DECIMAL, filter2.getFieldType());
             assertEquals(precision, filter2.getPrecision());
             assertEquals(scale, filter2.getScale());
-        } catch (Exception e) {
-            fail(e.getMessage());
         }
     }
 

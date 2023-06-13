@@ -141,8 +141,7 @@ class InvocationReporterImpl implements InvocationReporter
     String id;
     if ( null == object ) {
       id = "n/a";
-    }
-    else {
+    } else {
       id = objectsToIdsMap.get( object );
       if ( null == id ) {
         ++lastObjNum;
@@ -170,21 +169,18 @@ class InvocationReporterImpl implements InvocationReporter
           try {
             Class.forName( p.getName() + "." + type.getSimpleName() );
             sameSimpleNameCount++;
-          }
-          catch ( ClassNotFoundException e ) {
+          } catch ( ClassNotFoundException e ) {
             // Nothing to do.
           }
         }
         if ( 1 == sameSimpleNameCount ) {
           result = type.getSimpleName();
-        }
-        else {
+        } else {
           // Multiple classes with same simple name, so would be ambiguous to
           // abbreviate, so use fully qualified name.
           result = type.getName();
         }
-      }
-      else {
+      } else {
         result = type.getName();
       }
     }
@@ -218,13 +214,11 @@ class InvocationReporterImpl implements InvocationReporter
     final String result;
     if ( null == value ) {
       result = "null";
-    }
-    else {
+    } else {
       final Class<?> rawActualType = value.getClass();
       if ( String.class == rawActualType ) {
         result = formatString( (String) value );
-      }
-      else if ( rawActualType.isArray()
+      } else if ( rawActualType.isArray()
                 && ! rawActualType.getComponentType().isPrimitive() ) {
         // Array of non-primitive type
 
@@ -244,11 +238,9 @@ class InvocationReporterImpl implements InvocationReporter
         }
         buffer.append( " }" );
         result = buffer.toString();
-      }
-      else if ( DriverPropertyInfo.class == rawActualType ) {
+      } else if ( DriverPropertyInfo.class == rawActualType ) {
         result = formatDriverPropertyInfo( (DriverPropertyInfo) value );
-      }
-      else if (
+      } else if (
           // Is type seen and whose toString() renders value well.
           rawActualType == java.lang.Boolean.class
           || rawActualType == java.lang.Byte.class
@@ -263,16 +255,14 @@ class InvocationReporterImpl implements InvocationReporter
           || rawActualType == java.sql.Timestamp.class
           ) {
         result = value.toString();
-      }
-      else if (
+      } else if (
           // Is type seen and whose toString() has rendered value well--in cases
           // seen so far.
           rawActualType == java.util.Properties.class
           || rawActualType.isEnum()
           ) {
         result = value.toString();
-      }
-      else if (
+      } else if (
           // Is type to warn about (one case).
           rawActualType == com.dremio.jdbc.DremioResultSet.class
           ) {
@@ -281,8 +271,7 @@ class InvocationReporterImpl implements InvocationReporter
             + " (While it's a class, it can't be proxied, and some methods can't"
             + " be traced.)" );
         result = value.toString();
-      }
-      else if (
+      } else if (
           // Is type to warn about (second case).
           // Note:  Using strings rather than compiled-in class references to
           // avoid failing when run using JDBC-all Jar, which excludes
@@ -297,8 +286,7 @@ class InvocationReporterImpl implements InvocationReporter
         printWarningLine( "Should " + rawActualType
                           + " be appearing at JDBC interface?" );
         result = value.toString();
-      }
-      else {
+      } else {
         // Is other type--unknown whether it already formats well.
         // (No handled yet: byte[].)
         printWarningLine( "Unnoted type encountered in formatting (value might"
@@ -326,8 +314,7 @@ class InvocationReporterImpl implements InvocationReporter
       // Null--show no actual type or object ID.
       actualTypePart = "";
       actualValuePart = formatValue( value );
-    }
-    else {
+    } else {
       // Non-null value--show at least some representation of value.
       Class<?> rawActualType = value.getClass();
       Class<?> origActualType =
@@ -336,14 +323,12 @@ class InvocationReporterImpl implements InvocationReporter
         // String--show no actual type or object ID.
         actualTypePart = "";
         actualValuePart = formatValue( value );
-      }
-      else if ( origActualType.isPrimitive() ) {
+      } else if ( origActualType.isPrimitive() ) {
         // Primitive type--show no actual type or object ID.
         actualTypePart = "";
         // (Remember--primitive type is wrapped here.)
         actualValuePart = value.toString();
-      }
-      else {
+      } else {
         // Non-primitive, non-String value--include object ID.
         final String idPrefix = "<id=" + getObjectId( value ) + "> ";
         if ( declaredType.isInterface()
@@ -352,13 +337,11 @@ class InvocationReporterImpl implements InvocationReporter
           // (because object is proxied and therefore all uses will be traced).
           actualTypePart = "";
           actualValuePart = idPrefix + "...";
-        }
-        else if ( origActualType == declaredType ) {
+        } else if ( origActualType == declaredType ) {
           // Actual type is same as declared--don't show redundant actual type.
           actualTypePart = "";
           actualValuePart = idPrefix + formatValue( value );
-        }
-        else {
+        } else {
           // Other--show actual type and (try to) show value.
           actualTypePart = "(" + formatType( rawActualType) + ") ";
           actualValuePart = idPrefix + formatValue( value );
@@ -427,8 +410,7 @@ class InvocationReporterImpl implements InvocationReporter
     final String result;
     if ( null == argValues ) {
       result = "()";
-    }
-    else {
+    } else {
       final StringBuilder s = new StringBuilder();
       s.append( "( " );
       for ( int ax = 0; ax < argValues.length; ax++ ) {

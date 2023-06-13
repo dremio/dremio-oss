@@ -65,14 +65,17 @@ public class HistogramImpl implements StatisticsService.Histogram {
     }
   }
 
+  @Override
   public boolean isTDigestSet() {
     return tDigest != null;
   }
 
+  @Override
   public boolean isItemsSketchSet() {
     return itemsSketch != null;
   }
 
+  @Override
   public double quantile(double q) {
     return tDigest.quantile(q);
   }
@@ -85,10 +88,12 @@ public class HistogramImpl implements StatisticsService.Histogram {
    * There will be no false positives, i.e., no Type I error.
    * There may be items omitted from the set with true frequencies greater than the threshold (false negatives).
    */
+  @Override
   public Set<Object> getFrequentItems(long threshold){
     return Arrays.stream(itemsSketch.getFrequentItems(threshold,ErrorType.NO_FALSE_POSITIVES)).map(e -> e.getItem()).collect(Collectors.toSet());
   }
 
+  @Override
   public long estimateCount(Object e) {
     return itemsSketch.getEstimate(e);
   }
@@ -137,6 +142,7 @@ public class HistogramImpl implements StatisticsService.Histogram {
     return null;
   }
 
+  @Override
   public Long estimatedPointSelectivity(final RexNode filter) {
     if (!isItemsSketchSet()) {
       return null;

@@ -18,7 +18,6 @@ package com.dremio.exec.store.iceberg.glue;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.TableOperations;
 
-import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.store.iceberg.model.IcebergBaseCommand;
 import com.dremio.io.file.FileSystem;
 
@@ -30,8 +29,8 @@ import com.dremio.io.file.FileSystem;
  */
 public class IcebergGlueCommand extends IcebergBaseCommand {
 
-  public IcebergGlueCommand(Configuration configuration, String tableFolder, FileSystem fs, TableOperations tableOperations, MutablePlugin plugin) {
-    super(configuration, tableFolder, fs, tableOperations, plugin);
+  public IcebergGlueCommand(Configuration configuration, String tableFolder, FileSystem fs, TableOperations tableOperations) {
+    super(configuration, tableFolder, fs, tableOperations);
   }
 
   @Override

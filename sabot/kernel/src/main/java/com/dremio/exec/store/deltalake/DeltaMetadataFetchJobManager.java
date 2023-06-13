@@ -143,8 +143,7 @@ public class DeltaMetadataFetchJobManager {
     Pair<Optional<Long>, Optional<Long>> lastCheckpointVersionSubpartsPair;
     try {
       lastCheckpointVersionSubpartsPair = DeltaLastCheckPointReader.getLastCheckPoint(fs, lastCheckpoint);
-    }
-    catch (IOException e) {
+    } catch (IOException e) {
       throw UserException.dataReadError()
         .message("Failed to read _last_checkpoint file for delta dataset %s. Error %s", selectionRoot, e.getMessage())
         .build(logger);

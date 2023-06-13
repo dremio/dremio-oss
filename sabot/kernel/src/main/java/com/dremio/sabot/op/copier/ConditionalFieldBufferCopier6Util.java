@@ -82,6 +82,7 @@ public final class ConditionalFieldBufferCopier6Util {
       throw new UnsupportedOperationException("set null not supported");
     }
 
+    @Override
     public void allocate(int records){
       targetAlt.allocateNew(records);
     }
@@ -240,6 +241,7 @@ public final class ConditionalFieldBufferCopier6Util {
       cursor.setTargetIndex(targetIndex + count);
     }
 
+    @Override
     public void allocate(int records){
       targetAlt.allocateNew(records * AVG_VAR_WIDTH, records);
     }
@@ -316,6 +318,7 @@ public final class ConditionalFieldBufferCopier6Util {
       throw new UnsupportedOperationException("set null not supported");
     }
 
+    @Override
     public void allocate(int records){
       if(targetAlt != null){
         targetAlt.allocateNew(records);
@@ -370,6 +373,7 @@ public final class ConditionalFieldBufferCopier6Util {
       throw new UnsupportedOperationException("set null not supported");
     }
 
+    @Override
     public void allocate(int records){
       AllocationHelper.allocate(dst, records, 10);
     }

@@ -21,6 +21,7 @@ import java.util.Arrays;
 
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.Invocation;
+import javax.ws.rs.core.GenericType;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -30,7 +31,6 @@ import org.junit.runners.Parameterized;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.DatasetUI;
 import com.dremio.dac.explore.model.InitialDataPreviewResponse;
-import com.dremio.dac.model.spaces.Space;
 import com.dremio.dac.server.ApiErrorModel;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.server.FamilyExpectation;
@@ -188,8 +188,7 @@ public class TestDatasetDependencyChanges extends BaseTestServer {
   @Test
   public void testDatasetDependencyChange() {
     // Create initial dataset
-    expectSuccess(getBuilder(getAPIv2().path("space/spaceCreateDataset"))
-      .buildPut(Entity.json(new Space(null, "spaceCreateDataset", null, null, null, 0, null))), Space.class);
+    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "spaceCreateDataset", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
     DatasetUI ds1 = createDatasetFromSQLAndSave(new DatasetPath("spaceCreateDataset.ds1"),
       datasetDefOne, Arrays.asList("cp"));
 

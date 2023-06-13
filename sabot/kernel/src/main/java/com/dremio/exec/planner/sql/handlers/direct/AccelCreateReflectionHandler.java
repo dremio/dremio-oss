@@ -32,9 +32,10 @@ import org.apache.calcite.sql.type.SqlTypeFamily;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.SqlUtils;
 import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.ops.ReflectionContext;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.planner.sql.SchemaUtilities;
 import com.dremio.exec.planner.sql.SchemaUtilities.TableWithPath;
@@ -45,7 +46,8 @@ import com.dremio.exec.planner.sql.parser.SqlCreateReflection.NameAndMeasures;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.store.sys.accel.AccelerationManager;
 import com.dremio.exec.store.sys.accel.LayoutDefinition;
-import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.options.OptionManager;
+import com.dremio.sabot.rpc.user.UserSession;
 import com.google.common.base.Joiner;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
@@ -60,25 +62,23 @@ public class AccelCreateReflectionHandler extends SimpleDirectHandler {
   private final Catalog catalog;
   private final AccelerationManager accel;
   private final ReflectionContext reflectionContext;
-  private final boolean complexTypeSupport;
+  private final OptionManager optionManager;
+  private UserSession userSession;
 
-  public AccelCreateReflectionHandler(Catalog catalog, AccelerationManager accel, ReflectionContext reflectionContext, boolean complexTypeSupport) {
+  public AccelCreateReflectionHandler(Catalog catalog,
+                                      QueryContext context,
+                                      ReflectionContext reflectionContext) {
     this.catalog = catalog;
-    this.accel = accel;
+    this.accel = context.getAccelerationManager();
     this.reflectionContext = reflectionContext;
-    this.complexTypeSupport = complexTypeSupport;
+    this.optionManager = context.getOptions();
+    this.userSession = context.getSession();
   }
 
   @Override
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
     final SqlCreateReflection addLayout = SqlNodeUtil.unwrap(sqlNode, SqlCreateReflection.class);
-    final TableWithPath table = SchemaUtilities.verify(catalog, addLayout.getTblName());
-    NamespaceKey key = new NamespaceKey(table.getPath());
-    if (CatalogUtil.requestedPluginSupportsVersionedTables(key.getRoot(), catalog)) {
-      throw UserException.unsupportedError()
-        .message("Source %s does not support reflection creation.", key.getRoot())
-        .build(logger);
-    }
+    final TableWithPath table = SchemaUtilities.verify(catalog, addLayout.getTblName(), userSession, addLayout.getSqlTableVersionSpec(), optionManager);
     SqlIdentifier identifier = addLayout.getName();
     String name;
     if(identifier != null) {
@@ -91,14 +91,16 @@ public class AccelCreateReflectionHandler extends SimpleDirectHandler {
         addLayout.isRaw() ? LayoutDefinition.Type.RAW : LayoutDefinition.Type.AGGREGATE,
         table.qualifyColumns(addLayout.getDisplayList()),
         qualifyColumnsWithGranularity(table.getTable(), addLayout.getDimensionList()),
-        qualifyColumnsWithMeasures(table.getTable(), addLayout.getMeasureList(), complexTypeSupport),
+        qualifyColumnsWithMeasures(table.getTable(),
+          addLayout.getMeasureList(),
+          optionManager.getOption(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT)),
         table.qualifyColumns(addLayout.getSortList()),
         table.qualifyColumns(addLayout.getDistributionList()),
         table.qualifyColumns(addLayout.getPartitionList()),
         addLayout.getArrowCachingEnabled(),
         addLayout.getPartitionDistributionStrategy()
     );
-    accel.addLayout(table.getPath(), layout, reflectionContext);
+    accel.addLayout(table, layout, reflectionContext);
     return Collections.singletonList(SimpleCommandResult.successful("Layout added."));
   }
 

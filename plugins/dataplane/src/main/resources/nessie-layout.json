@@ -1,0 +1,168 @@
+{
+  "sourceType": "NESSIE",
+  "tags": [
+  ],
+  "metadataRefresh": {
+    "isFileSystemSource": true
+  },
+  "form": {
+    "tabs": [
+      {
+        "name": "General",
+        "isGeneral": true,
+        "sections": [
+          {
+            "elements" : [
+              {
+                "propName": "config.nessieEndpoint",
+                "errMsg": "Required"
+              },
+              {
+                "propName": "config.nessieAuthType",
+                "label": "Nessie Authentication Type",
+                "uiType": "container_selection",
+                "defaultValue": "BEARER",
+                "options": [
+                  {
+                    "value": "NONE",
+                    "container": {
+                      "help": {
+                        "position": "top",
+                        "text": "No authentication is enforced on Nessie server."
+                      }
+                    }
+                  },
+                  {
+                    "value": "BEARER",
+                    "container": {
+                      "elements": [
+                        {
+                          "propName": "config.nessieAccessToken",
+                          "size": "half",
+                          "secure": true
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Storage",
+        "sections": [
+          {
+            "name": "Authentication",
+            "elements": [
+              {
+                "propName": "config.credentialType",
+                "label": "Authentication Type",
+                "uiType": "container_selection",
+                "options": [
+                  {
+                    "value": "ACCESS_KEY",
+                    "container": {
+                      "elements": [
+                        {
+                          "propName": "config.awsAccessKey",
+                          "size": "full",
+                          "errMsg": "Both access secret and key are required for Access Key type authentication."
+                        },
+                        {
+                          "propName": "config.awsAccessSecret",
+                          "size": "full",
+                          "errMsg": "Both access secret and key are required for Access Key type authentication.",
+                          "secure": true
+                        },
+                        {
+                          "propName": "config.assumedRoleARN",
+                          "size": "full",
+                          "validate": {
+                            "isRequired": false
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "value": "EC2_METADATA",
+                    "container": {
+                      "elements": [
+                        {
+                          "propName": "config.assumedRoleARN",
+                          "size": "full",
+                          "validate": {
+                            "isRequired": false
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "value": "AWS_PROFILE",
+                    "container": {
+                      "elements": [
+                        {
+                          "propName": "config.awsProfile",
+                          "label": "AWS Profile (optional)",
+                          "placeholder": "default",
+                          "size": "full",
+                          "validate": {
+                            "isRequired": false
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "value": "NONE",
+                    "container": {
+                    }
+                  }
+                ]
+              },
+              {
+                "propName": "config.awsRootPath",
+                "placeholder": "/bucket-name/optional/folder/path"
+              },
+              {
+                "emptyLabel": "No properties added",
+                "addLabel": "Add property",
+                "propName": "config.propertyList"
+              },
+              {
+                "propName": "config.secure"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Advanced Options",
+        "sections": [
+          {
+            "elements": [
+              {
+                "propName": "config.asyncEnabled"
+              }
+            ]
+          },
+          {
+            "name": "Cache Options",
+            "checkboxController": "asyncEnabled",
+            "elements": [
+              {
+                "propName": "config.isCachingEnabled"
+              },
+              {
+                "propName": "config.maxCacheSpacePct"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

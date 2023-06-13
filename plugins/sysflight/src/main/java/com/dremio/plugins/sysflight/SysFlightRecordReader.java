@@ -130,6 +130,7 @@ public class SysFlightRecordReader extends AbstractRecordReader {
         if (batchHolderIsEmpty) {
           if (stream.next()) {
             batchHolder = stream.getRoot();
+            LOGGER.debug("Received recordBatch in SysFlight plugin stream {}", batchHolder.getRowCount());
             batchHolderIsEmpty = false;
             ptrToNextRecord = 0;
           } else {

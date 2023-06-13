@@ -182,7 +182,8 @@ public abstract class FieldBufferPreAllocedCopier {
       int targetIndex;
       int targetDataIndex;
       if (cursor == null) {
-        targetIndex =  targetDataIndex = 0;
+        targetIndex = 0;
+        targetDataIndex = 0;
       } else {
         targetIndex = cursor.targetIndex;
         targetDataIndex = cursor.targetDataIndex;

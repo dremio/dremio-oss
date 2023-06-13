@@ -28,19 +28,14 @@ import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
-import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexChecker;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
-import org.apache.calcite.rex.RexVisitorImpl;
-import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.util.Litmus;
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 
 import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.logical.partition.FindSimpleFilters;
-import com.dremio.exec.planner.physical.PrelUtil;
-import com.dremio.service.Pointer;
 
 /**
  * Dremio version of JoinPushTransitivePredicatesRule extended from Calcite
@@ -125,12 +120,6 @@ public class DremioJoinPushTransitivePredicatesRule extends RelOptRule {
     // To simplify predicates of the type "Input IS NOT DISTINCT FROM Constant" so that we don't end up
     // with filter conditions like: condition=[AND(=($0, 3), IS NOT DISTINCT FROM($0, CAST(3):INTEGER))]
     for (RexNode predicate : inferredPredicates) {
-      if (!isTransitiveFilterNotNullExprPushdownEnabled(join, predicate)) {
-        // If the filter condition contains "IS NOT NULL($*)", it generates
-        // illegal SQL during JDBC RelToSql, and fails to run the query.
-        // Disable pushing IS NOT NULL until DX-26452 is fixed.
-        continue;
-      }
       predicate = predicate.accept(new MoreRelOptUtil.RexLiteralCanonicalizer(builder));
       final FindSimpleFilters.StateHolder holder = predicate.accept(new FindSimpleFilters(builder, false));
       if (holder.hasConditions()) {
@@ -140,25 +129,6 @@ public class DremioJoinPushTransitivePredicatesRule extends RelOptRule {
       }
     }
     return predicates;
-  }
-
-  public static boolean isTransitiveFilterNotNullExprPushdownEnabled(RelNode join, RexNode predicate) {
-    // TODO: Remove this when DX-26452 is fixed
-    Pointer<Boolean> found = new Pointer<>(false);
-    predicate.accept(new RexVisitorImpl<Void>(true) {
-      @Override
-      public Void visitCall(RexCall call) {
-        if (call.getKind() == SqlKind.IS_NOT_NULL) {
-          found.value = true;
-          return null;
-        }
-        return super.visitCall(call);
-      }
-    });
-    if (found.value) {
-      return PrelUtil.getPlannerSettings(join.getCluster()).isTransitiveFilterNotNullExprPushdownEnabled();
-    }
-    return true;
   }
 
   private static boolean isValidFilter(List<RexNode> predicates) {

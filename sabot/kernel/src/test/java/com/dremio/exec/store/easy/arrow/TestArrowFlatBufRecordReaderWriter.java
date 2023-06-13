@@ -47,6 +47,7 @@ public class TestArrowFlatBufRecordReaderWriter extends ExecTest {
 
   @Test
   public void testReadWrite() throws Exception {
+    @SuppressWarnings("checkstyle:LocalFinalVariableName")
     final int RECORD_COUNT = 4;
     final List<ValueVector> vectorList = Lists.newArrayList();
 

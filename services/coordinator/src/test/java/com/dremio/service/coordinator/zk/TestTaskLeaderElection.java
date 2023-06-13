@@ -19,6 +19,7 @@ import static com.dremio.test.DremioTest.DEFAULT_SABOT_CONFIG;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.List;
@@ -29,6 +30,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.apache.zookeeper.data.Stat;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -86,7 +88,6 @@ public class TestTaskLeaderElection {
         .setRoles(ClusterCoordinator.Role.toEndpointRoles(Sets.newHashSet(ClusterCoordinator.Role.COORDINATOR)))
         .build();
 
-
       TaskLeaderElection taskLeaderElection1 =
         new TaskLeaderElection(
           SERVICE_NAME,
@@ -143,6 +144,9 @@ public class TestTaskLeaderElection {
       leader.close();
       taskLeaderElectionList.remove(leader);
 
+      Stat stat = zooKeeperServer.getZKClient().exists("/dremio/test/test-cluster-id/leader-latch/" + SERVICE_NAME, false);
+      assertNotNull(stat);
+
       // wait until the leader is removed
       waitUntilLeaderRemoved(taskLeaderElectionList, leader);
 
@@ -161,6 +165,9 @@ public class TestTaskLeaderElection {
       secondLeader.close();
       taskLeaderElectionList.remove(secondLeader);
 
+      stat = zooKeeperServer.getZKClient().exists("/dremio/test/test-cluster-id/leader-latch/" + SERVICE_NAME, false);
+      assertNotNull(stat);
+
       // wait until second leader is removed
       waitUntilLeaderRemoved(taskLeaderElectionList, secondLeader);
 
@@ -178,6 +185,9 @@ public class TestTaskLeaderElection {
       // stop third leader
       assertNotNull(thirdLeader);
       thirdLeader.close();
+
+      stat = zooKeeperServer.getZKClient().exists("/dremio/test/test-cluster-id/leader-latch/" + SERVICE_NAME, false);
+      assertNull(stat);
     }
   }
 
@@ -263,6 +273,9 @@ public class TestTaskLeaderElection {
             throw new RuntimeException(e);
           }
         });
+
+      Stat stat = zooKeeperServer.getZKClient().exists("/dremio/test/test-cluster-id/leader-latch/" + SERVICE_NAME, false);
+      assertNull(stat);
     }
   }
 

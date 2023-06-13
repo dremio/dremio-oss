@@ -49,6 +49,7 @@ import net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder;
 public class TestStructuredLogging extends DremioTest {
   private static final String LOGGER_NAME = "STRUCTURED-LOG-TEST";
   private LoggerContext localLoggerContext;
+  @SuppressWarnings("Slf4jLoggerShouldBeFinal")
   private Logger logger;
   @Rule
   public TemporaryFolder tempLogFolder = new TemporaryFolder();

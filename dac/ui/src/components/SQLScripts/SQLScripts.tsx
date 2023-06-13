@@ -38,6 +38,7 @@ import {
   deleteScript,
   setActiveScript,
 } from "@app/actions/resources/scripts";
+import { Avatar } from "dremio-ui-lib/components";
 import { usePrevious } from "@app/utils/jobsUtils";
 import { resetQueryState } from "@app/actions/explore/view";
 // @ts-ignore
@@ -311,13 +312,8 @@ function SQLScripts(props: SQLScriptsProps): React.ReactElement {
                   "sideNav__user sideNav-item__dropdownIcon",
                   "--narrow"
                 )}
-                style={{
-                  backgroundColor: script.colors.backgroundColor,
-                  color: script.colors.color,
-                  borderRadius: "50%",
-                }}
               >
-                <span>{script.userNameFirst2}</span>
+                <Avatar initials={script.initials} />
               </div>
               <div className="sqlScripts__menu-item__nameContent">
                 <TextHighlight

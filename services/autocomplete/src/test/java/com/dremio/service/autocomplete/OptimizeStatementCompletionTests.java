@@ -22,14 +22,17 @@ import com.dremio.test.GoldenFileTestBuilder;
 public class OptimizeStatementCompletionTests extends AutocompleteEngineTests {
   @Test
   public void tests() {
-    new GoldenFileTestBuilder<>(this::executeTestWithFolderContext)
-      .add("OPTIMIZE", GoldenFileTestBuilder.MultiLineString.create("OPTIMIZE ^"))
-      .add("OPTIMIZE + PARTIAL TABLE", GoldenFileTestBuilder.MultiLineString.create("OPTIMIZE TA^"))
-      .add("OPTIMIZE + TABLE", GoldenFileTestBuilder.MultiLineString.create("OPTIMIZE TABLE ^"))
-      .add("OPTIMIZE + TABLE + TABLE NAME", GoldenFileTestBuilder.MultiLineString.create("OPTIMIZE TABLE EMP ^"))
-      .add("OPTIMIZE + TABLE + TABLE NAME + PAREN", GoldenFileTestBuilder.MultiLineString.create("OPTIMIZE TABLE EMP (^"))
-      .add("OPTIMIZE + TABLE + TABLE NAME + OPTION", GoldenFileTestBuilder.MultiLineString.create("OPTIMIZE TABLE EMP (MIN_INPUT_FILES=5 ^"))
-      .add("OPTIMIZE + TABLE + TABLE NAME + MULTIPLE OPTIONS", GoldenFileTestBuilder.MultiLineString.create("OPTIMIZE TABLE EMP (MIN_INPUT_FILES=5 , ^"))
+    new GoldenFileTestBuilder<>(this::executeTestWithFolderContext, GoldenFileTestBuilder.MultiLineString::create)
+      .add("OPTIMIZE", "OPTIMIZE ^")
+      .add("OPTIMIZE + PARTIAL TABLE", "OPTIMIZE TA^")
+      .add("OPTIMIZE + TABLE", "OPTIMIZE TABLE ^")
+      .add("OPTIMIZE + TABLE + TABLE NAME", "OPTIMIZE TABLE EMP ^")
+      .add("OPTIMIZE + TABLE + TABLE NAME + FOR PARTITIONS", "OPTIMIZE TABLE EMP FOR PARTITIONS ^")
+      .add("OPTIMIZE + TABLE + TABLE NAME + FOR PARTITIONS + BOOLEAN EXPRESSION", "OPTIMIZE TABLE EMP FOR PARTITIONS NAME != 'Brandon' ^")
+      .add("OPTIMIZE + TABLE + TABLE NAME + REWRITE", "OPTIMIZE TABLE EMP REWRITE ^")
+      .add("OPTIMIZE + TABLE + TABLE NAME + PAREN", "OPTIMIZE TABLE EMP (^")
+      .add("OPTIMIZE + TABLE + TABLE NAME + OPTION", "OPTIMIZE TABLE EMP (MIN_INPUT_FILES=5 ^")
+      .add("OPTIMIZE + TABLE + TABLE NAME + MULTIPLE OPTIONS", "OPTIMIZE TABLE EMP (MIN_INPUT_FILES=5 , ^")
       .runTests();
   }
 }

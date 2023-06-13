@@ -36,6 +36,7 @@ import org.junit.Test;
 /**
  * Tests for HiveMetadataUtils
  */
+@SuppressWarnings("checkstyle:MemberName")
 public class TestHiveMetadataUtils {
 
   FileInputFormat mock_fileInputFormat = mock(FileInputFormat.class);

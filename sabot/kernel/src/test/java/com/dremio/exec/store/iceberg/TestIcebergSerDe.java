@@ -31,7 +31,9 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataFiles;
+import org.apache.iceberg.DeleteFile;
 import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.FileMetadata;
 import org.apache.iceberg.Files;
 import org.apache.iceberg.GenericManifestFile;
 import org.apache.iceberg.ManifestContent;
@@ -120,6 +122,56 @@ public class TestIcebergSerDe extends BaseTestQuery {
     Assert.assertEquals(d1RecordCount, d2RecordCount);
     Assert.assertEquals((Integer)(d2.partition().get(0, Integer.class)), Integer.valueOf(10));
     Assert.assertEquals((String)(d2.partition().get(1, String.class)), "def");
+  }
+
+  @Test
+  public void testDeleteFileSerDe() throws Exception {
+    File deleteFile = new File(folder.getRoot(), "a.parquet");
+    deleteFile.createNewFile();
+
+    PartitionSpec partitionSpec = PartitionSpec
+      .builderFor(schema)
+      .identity("i")
+      .identity("data")
+      .build();
+
+    IcebergPartitionData icebergPartitionData = new IcebergPartitionData(partitionSpec.partitionType());
+    icebergPartitionData.set(0, Integer.valueOf(10));
+    icebergPartitionData.set(1, "def");
+
+    DeleteFile df1 = FileMetadata.deleteFileBuilder(partitionSpec)
+      .ofPositionDeletes()
+      .withInputFile(Files.localInput(deleteFile))
+      .withRecordCount(50)
+      .withFormat(FileFormat.PARQUET)
+      .withPartition(icebergPartitionData)
+      .build();
+    long df1RecordCount = df1.recordCount();
+
+    DeleteFile df2 = FileMetadata.deleteFileBuilder(partitionSpec)
+      .ofEqualityDeletes()
+      .withInputFile(Files.localInput(deleteFile))
+      .withRecordCount(20)
+      .withFormat(FileFormat.PARQUET)
+      .withPartition(icebergPartitionData)
+      .build();
+    long df2RecordCount = df2.recordCount();
+
+    byte[] positionalDeleteFileBytes = IcebergSerDe.serializeDeleteFile(df1);
+    DeleteFile deserializePositionalDeleteFile = IcebergSerDe.deserializeDeleteFile(positionalDeleteFileBytes);
+    long positionalDeleteFileRecordCount = deserializePositionalDeleteFile.recordCount();
+    Assert.assertEquals(df1RecordCount, positionalDeleteFileRecordCount);
+    Assert.assertEquals((Integer)(deserializePositionalDeleteFile.partition().get(0, Integer.class)), Integer.valueOf(10));
+    Assert.assertEquals((String)(deserializePositionalDeleteFile.partition().get(1, String.class)), "def");
+    Assert.assertEquals(deserializePositionalDeleteFile.content().toString(), "POSITION_DELETES");
+
+    byte[] equalityDeleteFileBytes = IcebergSerDe.serializeDeleteFile(df2);
+    DeleteFile deserializeEqualityDeleteFile = IcebergSerDe.deserializeDeleteFile(equalityDeleteFileBytes);
+    long equalityDeleteFileRecordCount = deserializeEqualityDeleteFile.recordCount();
+    Assert.assertEquals(df2RecordCount, equalityDeleteFileRecordCount);
+    Assert.assertEquals((Integer)(deserializeEqualityDeleteFile.partition().get(0, Integer.class)), Integer.valueOf(10));
+    Assert.assertEquals((String)(deserializeEqualityDeleteFile.partition().get(1, String.class)), "def");
+    Assert.assertEquals(deserializeEqualityDeleteFile.content().toString(), "EQUALITY_DELETES");
   }
 
   @Test

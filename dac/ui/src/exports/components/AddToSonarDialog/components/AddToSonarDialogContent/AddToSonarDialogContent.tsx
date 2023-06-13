@@ -20,7 +20,7 @@ import { usePromise } from "react-smart-promise";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FormattedMessage } from "react-intl";
 
-import { Button, DialogContent } from "dremio-ui-lib/dist-esm";
+import { Button, DialogContent } from "dremio-ui-lib/components";
 import { intl } from "@app/utils/intl";
 import { InvalidParamsError } from "dremio-ui-common/errors/InvalidParamsError";
 import { SonarProjectsResource } from "@app/exports/resources/SonarProjectsResource";
@@ -34,8 +34,6 @@ import {
   setHookFormErrorsFromInvalidParamsError,
 } from "@app/exports/utilities/setHookFormErrorsFromInvalidParamsError";
 import { SonarProject } from "@app/exports/endpoints/SonarProjects/listSonarProjects";
-
-import CLOUD_VENDORS from "@inject/constants/vendors";
 
 import * as classes from "./AddToSonarDialogContent.module.less";
 
@@ -76,14 +74,6 @@ function AddToSonarDialogContent({
         (cur) => cur.id && cur.id === submittedData?.projectId
       ),
     [sonarProjects, submittedData]
-  );
-  const nonAzureSonarProjects = useMemo(
-    () =>
-      sonarProjects?.filter(
-        // @ts-ignore
-        ({ cloudType }) => cloudType !== CLOUD_VENDORS.AZURE
-      ) || [],
-    [sonarProjects]
   );
 
   const { handleSubmit, setValue, control, formState, setError } = useForm({

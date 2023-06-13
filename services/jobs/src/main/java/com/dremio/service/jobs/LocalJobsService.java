@@ -210,10 +210,12 @@ import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.JobSummaryRequest;
 import com.dremio.service.job.JobsWithParentDatasetRequest;
 import com.dremio.service.job.QueryProfileRequest;
+import com.dremio.service.job.QueryResultData;
 import com.dremio.service.job.ReflectionJobDetailsRequest;
 import com.dremio.service.job.ReflectionJobEventsRequest;
 import com.dremio.service.job.ReflectionJobProfileRequest;
 import com.dremio.service.job.ReflectionJobSummaryRequest;
+import com.dremio.service.job.RequestType;
 import com.dremio.service.job.SearchJobsRequest;
 import com.dremio.service.job.SearchReflectionJobsRequest;
 import com.dremio.service.job.SqlQuery;
@@ -226,6 +228,7 @@ import com.dremio.service.job.log.LoggedQuery;
 import com.dremio.service.job.proto.Acceleration;
 import com.dremio.service.job.proto.ExecutionNode;
 import com.dremio.service.job.proto.ExtraInfo;
+import com.dremio.service.job.proto.ExtraJobInfo;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobCancellationInfo;
 import com.dremio.service.job.proto.JobDetails;
@@ -275,7 +278,7 @@ import com.google.protobuf.util.Timestamps;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import io.opentelemetry.api.trace.Span;
-import io.opentelemetry.extension.annotations.WithSpan;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.protostuff.ByteString;
 
 /**
@@ -284,35 +287,21 @@ import io.protostuff.ByteString;
 public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJobRunner {
   private static final Logger logger = LoggerFactory.getLogger(LocalJobsService.class);
   public static final String QUERY_LOGGER = "query.logger";
-
   private static final ControlsInjector injector = ControlsInjectorFactory.getInjector(LocalJobsService.class);
-
   private static final int DISABLE_CLEANUP_VALUE = -1;
-
   private static final int DELAY_BEFORE_STARTING_CLEANUP_IN_MINUTES = 5;
-
   private static final long ONE_DAY_IN_MILLIS = TimeUnit.DAYS.toMillis(1);
-
   private static final long ONE_HOUR_IN_MILLIS = TimeUnit.HOURS.toMillis(1);
-
   private static final int MAX_NUMBER_JOBS_TO_FETCH = 20;
-
   public static final String JOBS_NAME = "jobs";
-
   private static final String LOCAL_TASK_LEADER_NAME = "localjobsclean";
-
   private static final String LOCAL_ONE_TIME_TASK_LEADER_NAME = "localjobsabandon";
-
   private static final int SEARCH_JOBS_PAGE_SIZE = 100;
-
   private static final long LOCAL_ABANDONED_JOBS_TASK_SCHEDULE_MILLIS = 1800000;
-
   @VisibleForTesting
   public static final String INJECTOR_ATTEMPT_COMPLETION_ERROR = "attempt-completion-error";
-
   @VisibleForTesting
   public static final String INJECTOR_ATTEMPT_COMPLETION_KV_ERROR = "attempt-completion-kv-error";
-
   private final Provider<LocalQueryExecutor> queryExecutor;
   private final Provider<LegacyKVStoreProvider> kvStoreProvider;
   private final Provider<JobResultsStoreConfig> jobResultsStoreConfig;
@@ -337,12 +326,12 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
   private final ContextMigratingCloseableExecutorService executorService;
   private final List<ExternalCleaner> extraExternalCleaners;
   private final CloseableExecutorService queryLoggerExecutorService;
-
   private NodeEndpoint identity;
   private LegacyIndexedStore<JobId, JobResult> store;
+  private LegacyIndexedStore<JobId, ExtraJobInfo> extraJobInfoStore;
   private NamespaceService namespaceService;
   private String storageName;
-  private JobResultsStore jobResultsStore;
+  private volatile JobResultsStore jobResultsStore;
   private Cancellable jobResultsCleanupTask;
   private Cancellable jobDependenciesCleanupTask;
   private Cancellable abandonLocalJobsTask;
@@ -350,7 +339,6 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
   private QueryObserverFactory queryObserverFactory;
   private JobTelemetryServiceGrpc.JobTelemetryServiceBlockingStub jobTelemetryServiceStub;
   private SessionOptionManagerFactory sessionOptionManagerFactory;
-
   private final RemoteJobServiceForwarder forwarder;
 
   private static final List<SearchFieldSorting> DEFAULT_SORTER = ImmutableList.of(
@@ -363,8 +351,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
    * @return
    */
   public static StructuredLogger<Job> createJobResultLogger() {
-    return StructuredLogger.get(LoggedQuery.class, QUERY_LOGGER)
-      .compose(new JobResultToLogEntryConverter());
+    return StructuredLogger.get(LoggedQuery.class, QUERY_LOGGER).compose(new JobResultToLogEntryConverter());
   }
 
   public LocalJobsService(
@@ -425,13 +412,12 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
   @Override
   public void start() throws IOException, InterruptedException {
     logger.info("Starting JobsService");
-
     this.identity = JobsServiceUtil.toStuff(nodeEndpointProvider.get());
     this.store = kvStoreProvider.get().getStore(JobsStoreCreator.class);
+    this.extraJobInfoStore = kvStoreProvider.get().getStore(ExtraJobInfoStoreCreator.class);
     this.namespaceService = namespaceServiceProvider.get();
     final JobResultsStoreConfig resultsStoreConfig = jobResultsStoreConfig.get();
     this.storageName = resultsStoreConfig.getStorageName();
-    this.jobResultsStore = jobResultsStoreProvider.get();
     this.jobTelemetryServiceStub = jobTelemetryClientProvider.get().getBlockingStub();
     this.sessionOptionManagerFactory = new SessionOptionManagerFactoryImpl(optionValidatorProvider.get());
 
@@ -440,8 +426,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
     final Cancellable task = schedulerService.get()
       .schedule(ScheduleUtils.scheduleToRunOnceNow(LOCAL_ONE_TIME_TASK_LEADER_NAME), () -> {
           try {
-            setAbandonedJobsToFailedState(store,
-            jobServiceInstances.get());
+            setAbandonedJobsToFailedState(store, jobServiceInstances.get(), jobResultLogger);
           } finally {
             wasRun.countDown();
           }
@@ -456,7 +441,6 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
     final OptionManager optionManager = optionManagerProvider.get();
     // job results
     final long maxJobResultsAgeInDays = optionManager.getOption(ExecConstants.RESULTS_MAX_AGE_IN_DAYS);
-
     // job profiles
     final long jobProfilesAgeOffsetInMillis = optionManager.getOption(ExecConstants.DEBUG_RESULTS_MAX_AGE_IN_MILLISECONDS);
     final long maxJobProfilesAgeInDays = optionManager.getOption(ExecConstants.JOB_MAX_AGE_IN_DAYS);
@@ -498,7 +482,6 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
         final Schedule resultSchedule = Schedule.Builder.everyDays(1, startTime)
           .withTimeZone(ZoneId.systemDefault())
           .build();
-
         jobResultsCleanupTask = schedulerService.get().schedule(resultSchedule, new JobResultsCleanupTask());
       }
 
@@ -512,8 +495,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
       final Schedule abandonedJobsSchedule = Schedule.Builder.everyMinutes(5)
         .withTimeZone(ZoneId.systemDefault())
         .build();
-      abandonLocalJobsTask = schedulerService.get()
-        .schedule(abandonedJobsSchedule, new AbandonLocalJobsTask());
+      abandonLocalJobsTask = schedulerService.get().schedule(abandonedJobsSchedule, new AbandonLocalJobsTask());
     }
 
     // schedule the task every 30 minutes to set abandoned jobs state to FAILED.
@@ -525,7 +507,8 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
 
   @VisibleForTesting
   static void setAbandonedJobsToFailedState(LegacyIndexedStore<JobId, JobResult> jobStore,
-                                            Collection<CoordinationProtos.NodeEndpoint> coordinators) {
+                                            Collection<CoordinationProtos.NodeEndpoint> coordinators,
+                                            StructuredLogger<Job> jobResultLogger) {
     final Set<Entry<JobId, JobResult>> apparentlyAbandoned =
       StreamSupport.stream(jobStore.find(new LegacyFindByCondition()
       .setCondition(JobsServiceUtil.getApparentlyAbandonedQuery())).spliterator(), false)
@@ -560,7 +543,9 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
           attempts.remove(numAttempts - 1);
           attempts.add(newLastAttempt);
           jobResult.setCompleted(true); // mark the job as completed
-          jobStore.put(entry.getKey(), entry.getValue());
+          jobStore.put(entry.getKey(), jobResult);
+          Job job = new Job(entry.getKey(), jobResult);
+          jobResultLogger.info(job, "Query: {}; outcome: {}", job.getJobId().getId(), job.getJobAttempt().getState());
         }
       }
     }
@@ -609,7 +594,6 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
 
   void registerListenerWithJob(Job job, StreamObserver<JobEvent> observer)
     throws JobNotFoundException {
-
     final QueryListener queryListener = runningJobs.get(job.getJobId());
     if (queryListener != null) {
       queryListener.listeners.register(observer, JobsServiceUtil.toJobSummary(job));
@@ -665,7 +649,8 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
                 NameSpaceContainer.Type.SPACE)
             ? jobRequest.getVersionedDataset().getPath(0) : null;
 
-    final JobInfo jobInfo = JobsServiceUtil.createJobInfo(jobRequest, jobId, inSpace);
+    int sqlTruncateLen = getSqlTruncateLenFromOptionMgr();
+    final JobInfo jobInfo = JobsServiceUtil.createJobInfo(jobRequest, jobId, inSpace, sqlTruncateLen);
     final JobAttempt jobAttempt = new JobAttempt()
         .setInfo(jobInfo)
         .setEndpoint(identity)
@@ -674,7 +659,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
     final Job job = new Job(jobId, jobAttempt, new SessionId().setId(sessionId));
 
     // (2) deduce execution configuration
-    final QueryType queryType = JobsProtoUtil.toStuff(jobRequest.getQueryType());
+    final QueryType queryType = jobInfo.getQueryType();
     final boolean enableLeafLimits = QueryTypeUtils.requiresLeafLimits(queryType);
     final LocalExecutionConfig config =
       LocalExecutionConfig.newBuilder()
@@ -700,6 +685,9 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
     final QueryListener jobObserver = new QueryListener(job, eventObserver, sessionObserver,
       planTransformationListener, jobRequest.getStreamResultsMode());
     storeJob(job);
+    if (jobInfo.getIsTruncatedSql()) {
+      extraJobInfoStore.put(jobId, new ExtraJobInfo().setSql(jobRequest.getSqlQuery().getSql()));
+    }
     runningJobs.put(jobId, jobObserver);
 
     final boolean isPrepare = queryType.equals(QueryType.PREPARE_INTERNAL);
@@ -717,8 +705,8 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
           .setSource(SubmissionSource.LOCAL)
           .setPlan(jobRequest.getSqlQuery().getSql())
           .setPriority(QueryPriority.newBuilder()
-          .setWorkloadClass(workloadClass)
-          .setWorkloadType(workloadType))
+            .setWorkloadClass(workloadClass)
+            .setWorkloadType(workloadType))
           .setQueryLabel(queryLabel)
           .build();
     }
@@ -779,7 +767,6 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
    */
   @VisibleForTesting
   static SubmitJobRequest validateJobRequest(SubmitJobRequest submitJobRequest) {
-
     final SubmitJobRequest.Builder submitJobRequestBuilder = SubmitJobRequest.newBuilder();
     Preconditions.checkArgument(submitJobRequest.hasSqlQuery(),"sql query not provided");
 
@@ -933,7 +920,6 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
 
   JobSubmissionHelper getJobSubmissionHelper(SubmitJobRequest jobRequest, StreamObserver<JobEvent> eventObserver, PlanTransformationListener planTransformationListener) {
     CommandPool commandPool = commandPoolService.get();
-
     if (commandPool instanceof ReleasableCommandPool) {
       ReleasableCommandPool releasableCommandPool = (ReleasableCommandPool) commandPool;
       // Protecting this code from callers who do not hold the command pool slot
@@ -961,7 +947,6 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
       .setUsername(userName)
       .setRunInSameThread(true)
       .build();
-
     final CompletionListener completionListener = new CompletionListener(false);
     final JobStatusListenerAdapter streamObserver = new JobStatusListenerAdapter(completionListener);
     final JobSubmissionHelper jobSubmissionHelper = getJobSubmissionHelper(jobRequest, streamObserver, PlanTransformationListener.NO_OP);
@@ -1016,7 +1001,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
     }
 
     SessionId sessionId = jobResult.getSessionId();
-    Job job = new Job(jobId, jobResult, jobResultsStore, sessionId);
+    Job job = new Job(jobId, jobResult, getJobResultsStore(), sessionId);
     populateJobDetailsFromFullProfile(job);
     return job;
   }
@@ -1079,6 +1064,10 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
         summary = JobsServiceUtil.toJobSummary(job);
       }
     }
+    if (job.getJobAttempt().getInfo().getIsTruncatedSql()) {
+      String fullSql = extraJobInfoStore.get(job.getJobId()).getSql();
+      summary = summary.toBuilder().setSql(fullSql).build();
+    }
     return summary;
   }
 
@@ -1094,7 +1083,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
     com.dremio.service.job.JobDetails details = null;
     if (getJobRequest.isFromStore()) {
       job = getJobFromStore(getJobRequest.getJobId());
-      details =  JobsServiceUtil.toJobDetails(job, jobDetailsRequest.getProvideResultInfo());
+      details = JobsServiceUtil.toJobDetails(job, jobDetailsRequest.getProvideResultInfo());
     } else {
       job = getJob(getJobRequest);
       if (mustForwardRequest(job)) {
@@ -1104,6 +1093,13 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
       } else {
         details = JobsServiceUtil.toJobDetails(job, jobDetailsRequest.getProvideResultInfo());
       }
+    }
+    if (job.getJobAttempt().getInfo().getIsTruncatedSql()) {
+      String fullSql = extraJobInfoStore.get(job.getJobId()).getSql();
+      int ai = details.getAttemptsCount() - 1;
+      com.dremio.service.job.proto.JobProtobuf.JobInfo info = details.getAttempts(ai).getInfo().toBuilder().setSql(fullSql).build();
+      com.dremio.service.job.proto.JobProtobuf.JobAttempt lastAttempt = details.getAttempts(ai).toBuilder().setInfo(info).build();
+      return details.toBuilder().setAttempts(ai, lastAttempt).build();
     }
     return details;
   }
@@ -1140,7 +1136,17 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
 
   @VisibleForTesting
   JobResultsStore getJobResultsStore() {
-    return jobResultsStore;
+    if (this.jobResultsStore == null) {
+      // Lazy initialization to allow the late setup on pre-warmed coordinators in the cloud use-cases.
+      this.jobResultsStore = jobResultsStoreProvider.get();
+    }
+    return this.jobResultsStore;
+  }
+
+  private int getSqlTruncateLenFromOptionMgr() {
+    int sqlTruncateLen = (int) optionManagerProvider.get().getOption(ExecConstants.SQL_TEXT_TRUNCATE_LENGTH);
+    // value of 0 in SQL_TEXT_TRUNCATE_LENGTH is used to disable truncation
+    return sqlTruncateLen == 0 ? Integer.MAX_VALUE : sqlTruncateLen;
   }
 
   private static final ImmutableList<SimpleEntry<JobStats.Type, SearchQuery>> JOBS_STATS_TYPE_TO_SEARCH_QUERY_MAPPING =
@@ -1315,7 +1321,6 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
     }
   }
 
-
    LegacyFindByCondition createCondition(SearchJobsRequest searchJobsRequest) {
     final LegacyFindByCondition condition = new LegacyFindByCondition();
     VersionedDatasetPath versionedDatasetPath = searchJobsRequest.getDataset();
@@ -1342,7 +1347,6 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
     if (!Strings.isNullOrEmpty(sortColumn)) {
       condition.addSortings(buildSorter(sortColumn, JobsProtoUtil.toStoreSortOrder(searchJobsRequest.getSortOrder())));
     }
-
     return condition;
   }
 
@@ -1425,7 +1429,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
     return Iterables.transform(entries, new Function<Entry<JobId, JobResult>, Job>() {
       @Override
       public Job apply(Entry<JobId, JobResult> input) {
-        return new Job(input.getKey(), input.getValue(), jobResultsStore, input.getValue().getSessionId());
+        return new Job(input.getKey(), input.getValue(), getJobResultsStore(), input.getValue().getSessionId());
       }
     });
   }
@@ -1439,7 +1443,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
           .build());
       if (job.isCompleted()) {
         final BatchSchema batchSchema = BatchSchema.deserialize(job.getJobAttempt().getInfo().getBatchSchema());
-        final List<String> tableName = jobResultsStore.getOutputTablePath(job.getJobId());
+        final List<String> tableName = getJobResultsStore().getOutputTablePath(job.getJobId());
         return java.util.Optional.of(new JobResultInfo(tableName, batchSchema));
       } // else, fall through
     } catch (JobNotFoundException ignored) {
@@ -1572,7 +1576,6 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
   }
 
   private final class QueryListener extends AbstractQueryObserver {
-
     private final Job job;
     private final ExternalId externalId;
     private final UserResponseHandler responseHandler;
@@ -1629,7 +1632,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
 
     private void setupJobData() {
       final JobLoader jobLoader = (isInternal && !streamResultsMode) ?
-          new InternalJobLoader(exception, completionLatch, job.getJobId(), jobResultsStore, store) :
+          new InternalJobLoader(exception, completionLatch, job.getJobId(), getJobResultsStore(), store) :
           new ExternalJobLoader(completionLatch, exception);
       JobData jobData = new JobDataImpl(jobLoader, job.getJobId(), job.getSessionId());
       job.setData(jobData);
@@ -1637,6 +1640,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
 
     @Override
     public AttemptObserver newAttempt(AttemptId attemptId, AttemptReason reason) {
+      Span.current().setAttribute("dremio.job.type", job.getQueryType().toString());
       // first attempt is already part of the job
       if (attemptId.getAttemptNum() > 0) {
         // create a new JobAttempt for the new attempt
@@ -1878,7 +1882,6 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
    * A query observer for internal queries with streamResultsMode. Delegates the data back to the original grpc connection.
    */
   private final class InternalJobResultStreamingListener extends JobResultListener {
-
     private final JobEventCollatingObserver eventObserver;
 
     InternalJobResultStreamingListener(AttemptId attemptId,
@@ -1904,8 +1907,11 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
           data.getBuffers()[i].readBytes(outputStream, data.getBuffers()[i].readableBytes());
           data.getBuffers()[i].release();
         }
-        // todo: fix ser/deser overhead (https://dremio.atlassian.net/browse/DX-46512)
-        eventObserver.onData(JobEvent.newBuilder().setResultData(outputStream.toByteString()).build(), outcomeListener);
+        QueryResultData.Builder queryResultsBuilder = QueryResultData.newBuilder()
+          .setHeader(data.getHeader())
+          .setResultData(outputStream.toByteString());
+        // todo: fix ser/deser overhead (DX-46512)
+        eventObserver.onData(JobEvent.newBuilder().setQueryResultData(queryResultsBuilder.build()).build(), outcomeListener);
       } catch (IOException ex) {
         outcomeListener.failed(new RpcException(ex));
         getDeferredException().addException(ex);
@@ -1936,7 +1942,6 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
    */
   private class JobResultListener extends AbstractAttemptObserver {
     private final AttemptId attemptId;
-
     private final DeferredException exception = new DeferredException();
     private final Job job;
     private final JobId jobId;
@@ -1951,7 +1956,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
     JobResultListener(AttemptId attemptId, Job job, BufferAllocator allocator,
                       JobEventCollatingObserver eventObserver, PlanTransformationListener planTransformationListener,
         ExternalListenerManager externalListenerManager) {
-      Preconditions.checkNotNull(jobResultsStore);
+      Preconditions.checkNotNull(getJobResultsStore());
       this.attemptId = attemptId;
       this.job = job;
       this.jobId = job.getJobId();
@@ -1995,8 +2000,20 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
     @Override
     public void queryStarted(UserRequest query, String user) {
       job.getJobAttempt().getInfo().setRequestType(query.getRequestType());
-      job.getJobAttempt().getInfo().setSql(query.getSql());
-      job.getJobAttempt().getInfo().setDescription(query.getDescription());
+      if (job.getJobAttempt().getInfo().getSql() == null || job.getJobAttempt().getInfo().getSql().equals("UNKNOWN")) {
+        int sqlTruncateLen = getSqlTruncateLenFromOptionMgr();
+        String sqlText = query.getSql().length() > sqlTruncateLen ? query.getSql().substring(0, sqlTruncateLen) : query.getSql();
+        job.getJobAttempt().getInfo().setSql(sqlText);
+        if (query.getSql().length() > sqlTruncateLen) {
+          job.getJobAttempt().getInfo().setIsTruncatedSql(true);
+          extraJobInfoStore.put(jobId, new ExtraJobInfo().setSql(query.getSql()));
+        }
+      }
+      if (RequestType.valueOf(query.getRequestType().toString()) != RequestType.RUN_SQL) {
+        job.getJobAttempt().getInfo().setDescription(query.getDescription());
+      } else {
+        job.getJobAttempt().getInfo().setDescription("NA");
+      }
       storeJob(job);
       if (externalListenerManager != null) {
         externalListenerManager.queryProgressed(JobsServiceUtil.toJobSummary(job));
@@ -2232,7 +2249,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
     }
 
     @Override
-    public void planRelTransform(PlannerPhase phase, RelOptPlanner planner, RelNode before, RelNode after, long millisTaken) {
+    public void planRelTransform(PlannerPhase phase, RelOptPlanner planner, RelNode before, RelNode after, long millisTaken, Map<String, Long> timeBreakdownPerRule) {
       planTransformationListener.onPhaseCompletion(phase, before, after, millisTaken);
       switch(phase){
       case LOGICAL:
@@ -2415,7 +2432,6 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
           });
         }
       });
-
       jobAttempt.setStats(profileParser.getJobStats());
     }
 
@@ -2514,7 +2530,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
 
   void remoteCancel(JobId jobId, ExternalId externalId, NodeEndpoint endpoint, String reason) throws JobException {
     if(endpoint.equals(identity)){
-      throw new JobNotFoundException(jobId, JobNotFoundException.causeOfFailure.CANCEL_FAILED);
+      throw new JobNotFoundException(jobId, JobNotFoundException.CauseOfFailure.CANCEL_FAILED);
     }
 
     try{
@@ -2524,7 +2540,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
         logger.debug("Job cancellation requested on {}.", endpoint.getAddress());
         return;
       } else {
-        throw new JobNotFoundException(jobId, JobNotFoundException.causeOfFailure.CANCEL_FAILED);
+        throw new JobNotFoundException(jobId, JobNotFoundException.CauseOfFailure.CANCEL_FAILED);
       }
     } catch(TimeoutException | RpcException | RuntimeException e){
       logger.info("Unable to cancel remote job for external id: {}", ExternalIdHelper.toString(externalId), e);
@@ -2537,7 +2553,6 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
    * Schedule in the background
    */
   class OnlineProfileCleaner extends ExternalCleaner {
-
     @Override
     public void doGo(JobAttempt jobAttempt) {
       jobTelemetryServiceStub
@@ -2547,7 +2562,6 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
             .build()
         );
     }
-
   }
 
   /**
@@ -2568,6 +2582,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
     LegacyKVStoreProvider provider, long maxMs) {
     long jobsDeleted = 0;
     LegacyIndexedStore<JobId, JobResult> jobStore = provider.getStore(JobsStoreCreator.class);
+    LegacyIndexedStore<JobId, ExtraJobInfo> extraJobInfoStore = provider.getStore(ExtraJobInfoStoreCreator.class);
     final LegacyFindByCondition oldJobs = getOldJobsCondition(0, System.currentTimeMillis() - maxMs)
       .setPageSize(MAX_NUMBER_JOBS_TO_FETCH);
     final ExternalCleanerRunner externalCleanerRunner = new ExternalCleanerRunner(externalCleaners);
@@ -2575,6 +2590,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
       JobResult result = entry.getValue();
       externalCleanerRunner.run(result);
       jobStore.delete(entry.getKey());
+      extraJobInfoStore.delete(entry.getKey());
       jobsDeleted++;
     }
     logger.debug("Job cleanup task completed with [{}] jobs deleted and and [{}] profiles deleted.", jobsDeleted, 0L);
@@ -2602,8 +2618,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
     }
 
     public void manage() {
-      setAbandonedJobsToFailedState(store,
-        jobServiceInstances.get());
+      setAbandonedJobsToFailedState(store, jobServiceInstances.get(), jobResultLogger);
     }
   }
 
@@ -2640,7 +2655,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
 
       for (Entry<JobId, JobResult> entry : store.find(condition)) {
         logger.debug("JobResultsCleanupTask getting cleaned up for key {}", entry.getKey());
-        jobResultsStore.cleanup(entry.getKey());
+        getJobResultsStore().cleanup(entry.getKey());
       }
       JOB_RESULTS_PREV_CUTOFF_TIME = cutOffTime - ONE_HOUR_IN_MILLIS; //Decreasing prev time by an hour to cover overlapping jobs
     }
@@ -2695,7 +2710,6 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
    * Creator for jobs.
    */
   public static class JobsStoreCreator implements LegacyIndexedStoreCreationFunction<JobId, JobResult> {
-
     @SuppressWarnings("unchecked")
     @Override
     public LegacyIndexedStore<JobId, JobResult> build(LegacyStoreBuildingFactory factory) {
@@ -2813,10 +2827,9 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
 
   String getReflectionSearchQuery(String reflectionId) {
     StringBuilder stringBuilder = new StringBuilder().append("(qt==\"ACCELERATION\");(")
-      .append("*")
-      .append("=contains=")
+      .append("sql==\"*")
       .append(reflectionId)
-      .append(")");
+      .append("*\")");
     return stringBuilder.toString();
   }
 
@@ -2843,12 +2856,10 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
       && jobServiceInstances.get().contains(JobsProtoUtil.toBuf(source))){
       return true;
     }
-
     return false;
   }
 
   class LocalAbandonedJobsHandler implements  AutoCloseable {
-
     private ScheduledFuture abandonedJobsTask;
     private final CloseableSchedulerThreadPool threadPool;
 
@@ -2934,6 +2945,8 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
                   attempts.add(newLastAttempt);
                   jobResult.setCompleted(true); // mark the job as completed
                   store.put(entry.getKey(), jobResult);
+                  Job job = new Job(entry.getKey(), jobResult);
+                  jobResultLogger.info(job, "Query: {}; outcome: {}", job.getJobId().getId(), job.getJobAttempt().getState());
                 }
               }
             }

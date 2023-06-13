@@ -17,11 +17,17 @@ package com.dremio.services.nessie.grpc;
 
 import static com.dremio.services.nessie.grpc.ProtoUtil.fromProto;
 import static com.dremio.services.nessie.grpc.ProtoUtil.refFromProto;
+import static com.dremio.services.nessie.grpc.ProtoUtil.refFromProtoResponse;
 import static com.dremio.services.nessie.grpc.ProtoUtil.refToProto;
 import static com.dremio.services.nessie.grpc.ProtoUtil.toProto;
+import static com.dremio.services.nessie.grpc.ProtoUtil.toProtoDiffRequest;
+import static com.dremio.services.nessie.grpc.ProtoUtil.toProtoEntriesRequest;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.groups.Tuple.tuple;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -29,17 +35,20 @@ import java.util.Collections;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
-import org.projectnessie.api.params.CommitLogParams;
-import org.projectnessie.api.params.DiffParams;
-import org.projectnessie.api.params.EntriesParams;
-import org.projectnessie.api.params.FetchOption;
-import org.projectnessie.api.params.GetReferenceParams;
-import org.projectnessie.api.params.MultipleNamespacesParams;
-import org.projectnessie.api.params.NamespaceParams;
-import org.projectnessie.api.params.ReferencesParams;
-import org.projectnessie.model.BaseMergeTransplant;
+import org.projectnessie.api.v1.params.CommitLogParams;
+import org.projectnessie.api.v1.params.EntriesParams;
+import org.projectnessie.api.v1.params.GetReferenceParams;
+import org.projectnessie.api.v1.params.ImmutableMerge;
+import org.projectnessie.api.v1.params.ImmutableTransplant;
+import org.projectnessie.api.v1.params.Merge;
+import org.projectnessie.api.v1.params.MultipleNamespacesParams;
+import org.projectnessie.api.v1.params.NamespaceParams;
+import org.projectnessie.api.v1.params.ReferencesParams;
+import org.projectnessie.api.v1.params.Transplant;
 import org.projectnessie.model.Branch;
 import org.projectnessie.model.CommitMeta;
+import org.projectnessie.model.CommitResponse;
+import org.projectnessie.model.CommitResponse.AddedContent;
 import org.projectnessie.model.Content;
 import org.projectnessie.model.Content.Type;
 import org.projectnessie.model.ContentKey;
@@ -47,7 +56,7 @@ import org.projectnessie.model.DeltaLakeTable;
 import org.projectnessie.model.Detached;
 import org.projectnessie.model.DiffResponse.DiffEntry;
 import org.projectnessie.model.EntriesResponse.Entry;
-import org.projectnessie.model.GenericMetadata;
+import org.projectnessie.model.FetchOption;
 import org.projectnessie.model.GetMultipleContentsRequest;
 import org.projectnessie.model.GetMultipleContentsResponse;
 import org.projectnessie.model.GetMultipleContentsResponse.ContentWithKey;
@@ -63,18 +72,16 @@ import org.projectnessie.model.ImmutableEntry;
 import org.projectnessie.model.ImmutableGetNamespacesResponse;
 import org.projectnessie.model.ImmutableLogEntry;
 import org.projectnessie.model.ImmutableLogResponse;
-import org.projectnessie.model.ImmutableMerge;
 import org.projectnessie.model.ImmutableMergeKeyBehavior;
 import org.projectnessie.model.ImmutableMergeResponse;
+import org.projectnessie.model.ImmutableNamespace;
 import org.projectnessie.model.ImmutableNessieConfiguration;
 import org.projectnessie.model.ImmutableOperations;
 import org.projectnessie.model.ImmutableRefLogResponseEntry;
 import org.projectnessie.model.ImmutableReferenceMetadata;
 import org.projectnessie.model.ImmutableTag;
-import org.projectnessie.model.ImmutableTransplant;
 import org.projectnessie.model.LogResponse;
 import org.projectnessie.model.LogResponse.LogEntry;
-import org.projectnessie.model.Merge;
 import org.projectnessie.model.MergeResponse;
 import org.projectnessie.model.Namespace;
 import org.projectnessie.model.NessieConfiguration;
@@ -87,7 +94,6 @@ import org.projectnessie.model.RefLogResponse.RefLogResponseEntry;
 import org.projectnessie.model.Reference;
 import org.projectnessie.model.ReferenceMetadata;
 import org.projectnessie.model.Tag;
-import org.projectnessie.model.Transplant;
 
 import com.dremio.services.nessie.grpc.api.CommitLogEntry;
 import com.dremio.services.nessie.grpc.api.CommitLogRequest;
@@ -101,10 +107,13 @@ import com.dremio.services.nessie.grpc.api.EntriesRequest;
 import com.dremio.services.nessie.grpc.api.EntriesResponse;
 import com.dremio.services.nessie.grpc.api.GetAllReferencesRequest;
 import com.dremio.services.nessie.grpc.api.GetReferenceByNameRequest;
+import com.dremio.services.nessie.grpc.api.MergeRequest;
 import com.dremio.services.nessie.grpc.api.MultipleContentsRequest;
 import com.dremio.services.nessie.grpc.api.MultipleContentsResponse;
 import com.dremio.services.nessie.grpc.api.RefLogParams;
 import com.dremio.services.nessie.grpc.api.RefLogResponse;
+import com.dremio.services.nessie.grpc.api.ReferenceResponse;
+import com.dremio.services.nessie.grpc.api.ReferenceType;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -139,6 +148,46 @@ public class ProtoUtilTest {
     assertThat(refFromProto(refToProto(t))).isEqualTo(t);
     assertThat(refFromProto(refToProto(t2))).isEqualTo(t2);
     assertThat(refFromProto(refToProto(d))).isEqualTo(d);
+  }
+
+  @Test
+  public void refToProtoDecomposed() {
+    assertThatThrownBy(() -> refToProto(ReferenceType.BRANCH, null, "hash"))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessage("Reference name must be non-null");
+
+    assertThatThrownBy(() -> refToProto(ReferenceType.UNRECOGNIZED, "name", "hash"))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessage("Reference type 'UNRECOGNIZED' should be Branch or Tag");
+
+    assertThat(refToProto(ReferenceType.BRANCH, "name", "1234567890123456"))
+      .extracting(r -> r.getBranch().getName(), r -> r.getBranch().getHash(), r -> r.getBranch().hasMetadata())
+      .containsExactly("name", "1234567890123456", false);
+    assertThat(refToProto(ReferenceType.BRANCH, "name", null))
+      .extracting(r -> r.getBranch().getName(), r -> r.getBranch().hasHash())
+      .containsExactly("name", false);
+
+    assertThat(refToProto(ReferenceType.TAG, "name", "1234567890123456"))
+      .extracting(r -> r.getTag().getName(), r -> r.getTag().getHash(), r -> r.getTag().hasMetadata())
+      .containsExactly("name", "1234567890123456", false);
+  }
+
+  @Test
+  public void refFromProtoResponseConversion() {
+    assertThatThrownBy(() -> refFromProtoResponse(null))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessage("Reference response must be non-null");
+
+    assertThat(refFromProtoResponse(ReferenceResponse.getDefaultInstance())).isNull();
+
+    assertThat(refFromProtoResponse(
+      ReferenceResponse.newBuilder().setReference(
+        com.dremio.services.nessie.grpc.api.Reference.newBuilder()
+          .setBranch(com.dremio.services.nessie.grpc.api.Branch.newBuilder().setName("br1").build())
+          .build())
+        .build()))
+      .extracting(r -> r.getType().name(), Reference::getName, Reference::getHash)
+      .containsExactly("BRANCH", "br1", null);
   }
 
   @Test
@@ -241,9 +290,9 @@ public class ProtoUtilTest {
       .sortOrderId(3)
       .specId(4)
       .metadataLocation("file")
-      .metadata(GenericMetadata.of("test", json))
+      .metadata(ImmutableMap.of("test", json))
       .build();
-    // DX-57058: GenericMetadata should be null
+    // DX-57058: metadata should be null
     assertThat(fromProto(toProto(icebergTable)).getMetadata()).isNull();
   }
 
@@ -274,9 +323,9 @@ public class ProtoUtilTest {
       .dialect("test-dialect")
       .sqlText("SELECT 1")
       .metadataLocation("file")
-      .metadata(GenericMetadata.of("test", json))
+      .metadata(ImmutableMap.of("test", json))
       .build();
-    // DX-57058: GenericMetadata should be null
+    // DX-57058: metadata should be null
     assertThat(fromProto(toProto(icebergView)).getMetadata()).isNull();
   }
 
@@ -319,6 +368,20 @@ public class ProtoUtilTest {
     NessieConfiguration config =
       ImmutableNessieConfiguration.builder().maxSupportedApiVersion(42).defaultBranch("main").build();
     assertThat(fromProto(toProto(config))).isEqualTo(config);
+
+    NessieConfiguration config2 =
+      ImmutableNessieConfiguration.builder()
+        .maxSupportedApiVersion(42)
+        .minSupportedApiVersion(24)
+        .actualApiVersion(99)
+        .specVersion("spec-test")
+        .defaultBranch("mymain")
+        .noAncestorHash("myhash")
+        .repositoryCreationTimestamp(Instant.now())
+        .oldestPossibleCommitTimestamp(Instant.now())
+        .additionalProperties(ImmutableMap.of("foo", "bar"))
+        .build();
+    assertThat(fromProto(toProto(config2))).isEqualTo(config2);
   }
 
   @Test
@@ -377,6 +440,10 @@ public class ProtoUtilTest {
     Entry entry =
       ImmutableEntry.builder().name(ContentKey.of("a.b.c.txt")).type(Type.ICEBERG_TABLE).build();
     assertThat(fromProto(toProto(entry))).isEqualTo(entry);
+
+    Entry entryWithContent = ImmutableEntry.builder().from(entry)
+      .contentId("id").content(IcebergTable.of("loc", 1, 2, 3, 4, "id")).build();
+    assertThat(fromProto(toProto(entryWithContent))).isEqualTo(entryWithContent);
   }
 
   @Test
@@ -403,6 +470,14 @@ public class ProtoUtilTest {
     CommitMeta minimalCommitMeta =
       CommitMeta.builder().message("commit msg").properties(ImmutableMap.of("a", "b")).build();
     assertThat(fromProto(toProto(minimalCommitMeta))).isEqualTo(minimalCommitMeta);
+
+    CommitMeta commitMetaWithParents = CommitMeta.builder()
+        .from(minimalCommitMeta)
+        .addParentCommitHashes("1122334455667700")
+        .addParentCommitHashes("1122334455667701")
+        .addParentCommitHashes("1122334455667702")
+        .build();
+    assertThat(fromProto(toProto(commitMetaWithParents))).isEqualTo(commitMetaWithParents);
   }
 
   @Test
@@ -483,25 +558,47 @@ public class ProtoUtilTest {
       .isInstanceOf(IllegalArgumentException.class)
       .hasMessage("EntriesRequest must be non-null");
 
-    assertThatThrownBy(() -> toProto(null, EntriesParams.empty()))
-      .isInstanceOf(IllegalArgumentException.class)
-      .hasMessage("refName must be non-null");
-
-    assertThatThrownBy(() -> toProto("main", (EntriesParams) null))
-      .isInstanceOf(IllegalArgumentException.class)
-      .hasMessage("EntriesParams must be non-null");
-
     EntriesParams params =
       EntriesParams.builder()
         .filter("a > b")
         .hashOnRef("123")
         .maxRecords(23)
-        .pageToken("abc")
         .build();
-    assertThat(fromProto(toProto("main", params))).isEqualTo(params);
+    assertThat(fromProto(toProtoEntriesRequest("main", "123", 23, "a > b", null, false, null, null, null, null)))
+      .isEqualTo(params);
+    assertThat(fromProto(toProtoEntriesRequest(null, "123", 23, "a > b", null, false, null, null, null, null)))
+      .isEqualTo(params);
+    assertThat(toProtoEntriesRequest(null, "1", 1, "", null, false, null, null, null, null).getNamedRef())
+      .isEqualTo(Detached.REF_NAME);
+    assertThat(toProtoEntriesRequest("main", "1", 1, "", null, false, null, null, null, null).getNamedRef())
+      .isEqualTo("main");
+    assertThat(toProtoEntriesRequest(null, "1", 1, "1", null, false, null, null, null, null).getWithContent())
+      .isFalse();
+    assertThat(toProtoEntriesRequest(null, "1", 1, "1", null, true, null, null, null, null).getWithContent())
+      .isTrue();
+    assertThat(toProtoEntriesRequest(null, "1", 1, "1", null, true, null, null, null, null).hasMinKey())
+      .isFalse();
+    assertThat(toProtoEntriesRequest(null, "1", 1, "1", null, true, null, null, null, null).hasMaxKey())
+      .isFalse();
+    assertThat(toProtoEntriesRequest(null, "1", 1, "1", null, true, null, null, null, null).hasPrefixKey())
+      .isFalse();
+    assertThat(toProtoEntriesRequest(null, "1", 1, "1", null, true, null, null, null, null).getKeysList())
+      .isEmpty();
+    assertThat(toProtoEntriesRequest(null, "1", 1, "1", null, true, ContentKey.of("min"), null, null, null)
+      .getMinKey().getElementsList()).containsExactly("min");
+    assertThat(toProtoEntriesRequest(null, "1", 1, "1", null, true, null, ContentKey.of("max"), null, null)
+      .getMaxKey().getElementsList()).containsExactly("max");
+    assertThat(toProtoEntriesRequest(null, "1", 1, "1", null, true, null, null, ContentKey.of("prefix"), null)
+      .getPrefixKey().getElementsList()).containsExactly("prefix");
+    assertThat(toProtoEntriesRequest(null, "1", 1, "1", null, true, null, null, null,
+      ImmutableList.of(ContentKey.of("k1"), ContentKey.of("k2"))).getKeysList())
+      .map(ProtoUtil::fromProto)
+      .containsExactly(ContentKey.of("k1"), ContentKey.of("k2"));
 
-    EntriesParams empty = EntriesParams.empty();
-    assertThat(fromProto(toProto("main", empty))).isEqualTo(empty);
+    assertThat(fromProto(
+      toProtoEntriesRequest("main", "123", 23, "a > b", null, false, null, null, null, null).toBuilder()
+        .setPageToken("token1").build()))
+      .isEqualTo(params.forNextPage("token1"));
   }
 
   @Test
@@ -509,10 +606,6 @@ public class ProtoUtilTest {
     assertThatThrownBy(() -> fromProto((CommitLogRequest) null))
       .isInstanceOf(IllegalArgumentException.class)
       .hasMessage("CommitLogRequest must be non-null");
-
-    assertThatThrownBy(() -> toProto(null, CommitLogParams.empty()))
-      .isInstanceOf(IllegalArgumentException.class)
-      .hasMessage("refName must be non-null");
 
     assertThatThrownBy(() -> toProto("main", (CommitLogParams) null))
       .isInstanceOf(IllegalArgumentException.class)
@@ -528,6 +621,8 @@ public class ProtoUtilTest {
         .fetchOption(FetchOption.ALL)
         .build();
     assertThat(fromProto(toProto("main", params))).isEqualTo(params);
+    assertThat(fromProto(toProto(null, params))).isEqualTo(params);
+    assertThat(toProto(null, params).getNamedRef()).isEqualTo(Detached.REF_NAME);
 
     CommitLogParams empty = CommitLogParams.empty();
     assertThat(fromProto(toProto("main", empty))).isEqualTo(empty);
@@ -561,6 +656,13 @@ public class ProtoUtilTest {
     org.projectnessie.model.EntriesResponse responseWithToken =
       org.projectnessie.model.EntriesResponse.builder().entries(entries).token("abc").build();
     assertThat(fromProto(toProto(responseWithToken))).isEqualTo(responseWithToken);
+
+    org.projectnessie.model.EntriesResponse responseWithRef =
+      org.projectnessie.model.EntriesResponse.builder()
+        .entries(entries)
+        .effectiveReference(Branch.of("ref", null))
+        .build();
+    assertThat(fromProto(toProto(responseWithRef))).isEqualTo(responseWithRef);
   }
 
   @Test
@@ -653,10 +755,6 @@ public class ProtoUtilTest {
       .hasMessage("ContentKey must be non-null");
 
     ContentKey key = ContentKey.of("test.me.txt");
-    assertThatThrownBy(() -> toProto(key, null, null))
-      .isInstanceOf(IllegalArgumentException.class)
-      .hasMessage("ref must be non-null");
-
     String ref = "main";
     String hashOnRef = "x";
     ContentRequest request = toProto(key, ref, null);
@@ -668,14 +766,15 @@ public class ProtoUtilTest {
     assertThat(request.getContentKey()).isEqualTo(toProto(key));
     assertThat(request.getRef()).isEqualTo(ref);
     assertThat(request.getHashOnRef()).isEqualTo(hashOnRef);
+
+    request = toProto(key, null, hashOnRef);
+    assertThat(request.getContentKey()).isEqualTo(toProto(key));
+    assertThat(request.getRef()).isEqualTo(Detached.REF_NAME);
+    assertThat(request.getHashOnRef()).isEqualTo(hashOnRef);
   }
 
   @Test
   public void multipleContentsRequestConversion() {
-    assertThatThrownBy(() -> toProto(null, null, (GetMultipleContentsRequest) null))
-      .isInstanceOf(IllegalArgumentException.class)
-      .hasMessage("ref must be non-null");
-
     String ref = "main";
     String hashOnRef = "x";
     ContentKey key = ContentKey.of("test.me.txt");
@@ -686,6 +785,11 @@ public class ProtoUtilTest {
 
     request = toProto(ref, hashOnRef, GetMultipleContentsRequest.of(key));
     assertThat(request.getRef()).isEqualTo(ref);
+    assertThat(request.getHashOnRef()).isEqualTo(hashOnRef);
+    assertThat(request.getRequestedKeysList()).containsExactly(toProto(key));
+
+    request = toProto(null, hashOnRef, GetMultipleContentsRequest.of(key));
+    assertThat(request.getRef()).isEqualTo("");
     assertThat(request.getHashOnRef()).isEqualTo(hashOnRef);
     assertThat(request.getRequestedKeysList()).containsExactly(toProto(key));
   }
@@ -704,7 +808,10 @@ public class ProtoUtilTest {
     IcebergTable icebergTable = IcebergTable.of("test.me.txt", 42L, 42, 42, 42);
     ContentWithKey c = ContentWithKey.of(key, icebergTable);
 
-    GetMultipleContentsResponse response = GetMultipleContentsResponse.of(Collections.singletonList(c));
+    GetMultipleContentsResponse response = GetMultipleContentsResponse.of(Collections.singletonList(c), null);
+    assertThat(fromProto(toProto(response))).isEqualTo(response);
+
+    response = GetMultipleContentsResponse.of(Collections.singletonList(c), Branch.of("test", null));
     assertThat(fromProto(toProto(response))).isEqualTo(response);
   }
 
@@ -769,29 +876,32 @@ public class ProtoUtilTest {
 
   @Test
   public void diffRequestConversion() {
-    assertThatThrownBy(() -> fromProto((DiffRequest) null))
-      .isInstanceOf(IllegalArgumentException.class)
-      .hasMessage("DiffRequest must be non-null");
+    DiffRequest request = toProtoDiffRequest("from", "fromHash", "to", "toHash", null, null, null, null, null, null);
+    assertThat(request.getFromRefName()).isEqualTo("from");
+    assertThat(request.getFromHashOnRef()).isEqualTo("fromHash");
+    assertThat(request.getToRefName()).isEqualTo("to");
+    assertThat(request.getToHashOnRef()).isEqualTo("toHash");
+    assertThat(request.hasMaxRecords()).isFalse();
+    assertThat(request.hasPageToken()).isFalse();
+    assertThat(request.hasMinKey()).isFalse();
+    assertThat(request.hasMaxKey()).isFalse();
+    assertThat(request.hasPrefixKey()).isFalse();
+    assertThat(request.hasFilter()).isFalse();
+    assertThat(request.getKeysList()).isEmpty();
 
-    assertThatThrownBy(() -> toProto((DiffParams) null))
-      .isInstanceOf(IllegalArgumentException.class)
-      .hasMessage("DiffParams must be non-null");
-
-    DiffParams params = DiffParams.builder().fromRef("x").toRef("y").build();
-    assertThat(fromProto(toProto(params))).isEqualTo(params);
-
-    params = DiffParams.builder().fromRef("x").toRef("y")
-      .fromHashOnRef("1234567890123456789012345678901234567890").build();
-    assertThat(fromProto(toProto(params))).isEqualTo(params);
-
-    params = DiffParams.builder().fromRef("x").toRef("y")
-      .toHashOnRef("1234567890123456789012345678901234567890").build();
-    assertThat(fromProto(toProto(params))).isEqualTo(params);
-
-    params = DiffParams.builder().fromRef("x").toRef("y")
-      .fromHashOnRef("1234567890123456789012345678901234567890")
-      .toHashOnRef("aabbccddeeffaabbccddeeffaabbccddeeffaabb").build();
-    assertThat(fromProto(toProto(params))).isEqualTo(params);
+    request = toProtoDiffRequest(null, null, null, null, 42, ContentKey.of("min"), ContentKey.of("max"),
+      ContentKey.of("prefix"), ImmutableList.of(ContentKey.of("k1"), ContentKey.of("k2")), "filter");
+    assertThat(request.getFromRefName()).isEqualTo(Detached.REF_NAME);
+    assertThat(request.hasFromHashOnRef()).isFalse();
+    assertThat(request.getToRefName()).isEqualTo(Detached.REF_NAME);
+    assertThat(request.hasToHashOnRef()).isFalse();
+    assertThat(request.getMaxRecords()).isEqualTo(42);
+    assertThat(request.hasPageToken()).isFalse();
+    assertThat(request.getMinKey().getElementsList()).containsExactly("min");
+    assertThat(request.getMaxKey().getElementsList()).containsExactly("max");
+    assertThat(request.getPrefixKey().getElementsList()).containsExactly("prefix");
+    assertThat(request.getKeysList()).containsExactly(toProto(ContentKey.of("k1")), toProto(ContentKey.of("k2")));
+    assertThat(request.getFilter()).isEqualTo("filter");
   }
 
   @Test
@@ -817,6 +927,24 @@ public class ProtoUtilTest {
 
     ImmutableDiffResponse diffResponse = ImmutableDiffResponse.builder().addAllDiffs(diffs).build();
     assertThat(fromProto(toProto(diffResponse))).isEqualTo(diffResponse);
+
+    ImmutableDiffResponse diffResponseWithMore = ImmutableDiffResponse.builder().isHasMore(true).build();
+    assertThat(fromProto(toProto(diffResponseWithMore))).isEqualTo(diffResponseWithMore);
+
+    ImmutableDiffResponse diffResponseWithToken = ImmutableDiffResponse.builder()
+      .isHasMore(true)
+      .token("token123")
+      .build();
+    assertThat(fromProto(toProto(diffResponseWithToken))).isEqualTo(diffResponseWithToken);
+
+    Branch from = Branch.of("from", null);
+    Tag to = Tag.of("from", "1234567890123456");
+    ImmutableDiffResponse diffResponseWithRefs = ImmutableDiffResponse.builder()
+      .addAllDiffs(diffs)
+      .effectiveFromReference(from)
+      .effectiveToReference(to)
+      .build();
+    assertThat(fromProto(toProto(diffResponseWithRefs))).isEqualTo(diffResponseWithRefs);
   }
 
   @Test
@@ -825,12 +953,12 @@ public class ProtoUtilTest {
       .isInstanceOf(IllegalArgumentException.class)
       .hasMessage("RefLogParams must be non-null");
 
-    assertThatThrownBy(() -> toProto((org.projectnessie.api.params.RefLogParams) null))
+    assertThatThrownBy(() -> toProto((org.projectnessie.api.v1.params.RefLogParams) null))
       .isInstanceOf(IllegalArgumentException.class)
       .hasMessage("RefLogParams must be non-null");
 
-    org.projectnessie.api.params.RefLogParams params =
-      org.projectnessie.api.params.RefLogParams.builder()
+    org.projectnessie.api.v1.params.RefLogParams params =
+      org.projectnessie.api.v1.params.RefLogParams.builder()
         .startHash("foo")
         .endHash("bar")
         .maxRecords(23)
@@ -838,7 +966,7 @@ public class ProtoUtilTest {
         .build();
     assertThat(fromProto(toProto(params))).isEqualTo(params);
 
-    org.projectnessie.api.params.RefLogParams empty = org.projectnessie.api.params.RefLogParams.empty();
+    org.projectnessie.api.v1.params.RefLogParams empty = org.projectnessie.api.v1.params.RefLogParams.empty();
     assertThat(fromProto(toProto(empty))).isEqualTo(empty);
   }
 
@@ -908,6 +1036,9 @@ public class ProtoUtilTest {
 
     Namespace namespace = Namespace.of("a", "b", "c");
     assertThat(fromProto(toProto(namespace))).isEqualTo(namespace);
+
+    Namespace namespaceWithId = ImmutableNamespace.builder().from(namespace).id("id1").build();
+    assertThat(fromProto(toProto(namespaceWithId))).isEqualTo(namespaceWithId);
 
     assertThat(fromProto(toProto(Namespace.EMPTY))).isEqualTo(Namespace.EMPTY);
     Namespace namespaceWithProperties = Namespace.of(ImmutableMap.of("key1", "prop1"), "a", "b", "c");
@@ -986,41 +1117,53 @@ public class ProtoUtilTest {
     assertThat(fromProto(toProto(response))).isEqualTo(response);
   }
 
+  private CommitMeta toCommitMeta(MergeRequest request) {
+    return ProtoUtil.fromProto(request::getMessage, request::hasCommitMeta, request::getCommitMeta);
+  }
+
   @Test
   public void mergeConversion() {
     assertThatThrownBy(() -> fromProto((com.dremio.services.nessie.grpc.api.MergeRequest) null))
       .isInstanceOf(IllegalArgumentException.class)
       .hasMessage("MergeRequest must be non-null");
 
-    assertThatThrownBy(() -> toProto("main", "x", (Merge) null))
+    assertThatThrownBy(() -> toProto("main", "x", (Merge) null, null, null))
       .isInstanceOf(IllegalArgumentException.class)
       .hasMessage("Merge must be non-null");
 
     String hash = "1234567890123456";
 
     Merge merge = ImmutableMerge.builder().fromRefName("main").fromHash(hash).build();
-    assertThat(fromProto(toProto("y", "z", merge))).isEqualTo(merge);
+    assertThat(fromProto(toProto("y", "z", merge, null, null))).isEqualTo(merge);
+    assertThat(fromProto(toProto("y", "z", merge, "msg", null))).isEqualTo(merge);
+    assertThat(toCommitMeta(toProto("y", "z", merge, null, null)).getMessage()).isEmpty();
+    assertThat(toCommitMeta(toProto("y", "z", merge, "m1", null)).getMessage()).isEqualTo("m1");
+    assertThat(toCommitMeta(toProto("y", "z", merge, "m1", CommitMeta.fromMessage(""))).getMessage()).isEqualTo("m1");
+    assertThat(toCommitMeta(toProto("y", "z", merge, "m1", CommitMeta.fromMessage("m2"))).getMessage()).isEqualTo("m2");
+    assertThat(toCommitMeta(toProto("y", "z", merge, "", CommitMeta.fromMessage("m2"))).getMessage()).isEqualTo("m2");
+    assertThat(toCommitMeta(toProto("y", "z", merge, "", CommitMeta.builder().author("a2").message("").build()))
+      .getAuthor()).isEqualTo("a2");
 
     Merge mergeWithKeepingCommits = ImmutableMerge.builder()
       .keepIndividualCommits(true)
       .fromRefName("main")
       .fromHash(hash)
       .build();
-    assertThat(fromProto(toProto("y", "z", mergeWithKeepingCommits))).isEqualTo(mergeWithKeepingCommits);
+    assertThat(fromProto(toProto("y", "z", mergeWithKeepingCommits, null, null))).isEqualTo(mergeWithKeepingCommits);
 
     Merge mergeWithExtraInfo = ImmutableMerge.builder()
       .from(mergeWithKeepingCommits)
       .isReturnConflictAsResult(true)
       .isFetchAdditionalInfo(true)
-      .defaultKeyMergeMode(BaseMergeTransplant.MergeBehavior.FORCE)
+      .defaultKeyMergeMode(org.projectnessie.model.MergeBehavior.FORCE)
       .addKeyMergeModes(ImmutableMergeKeyBehavior.builder()
-        .mergeBehavior(BaseMergeTransplant.MergeBehavior.DROP)
+        .mergeBehavior(org.projectnessie.model.MergeBehavior.DROP)
         .key(ContentKey.of("test", "key"))
         .build())
       .isDryRun(true)
       .isReturnConflictAsResult(true)
       .build();
-    assertThat(fromProto(toProto("y", "z", mergeWithExtraInfo))).isEqualTo(mergeWithExtraInfo);
+    assertThat(fromProto(toProto("y", "z", mergeWithExtraInfo, null, null))).isEqualTo(mergeWithExtraInfo);
   }
 
   @Test
@@ -1052,9 +1195,9 @@ public class ProtoUtilTest {
       .from(transplantWithKeepingCommits)
       .isReturnConflictAsResult(true)
       .isFetchAdditionalInfo(true)
-      .defaultKeyMergeMode(BaseMergeTransplant.MergeBehavior.FORCE)
+      .defaultKeyMergeMode(org.projectnessie.model.MergeBehavior.FORCE)
       .addKeyMergeModes(ImmutableMergeKeyBehavior.builder()
-        .mergeBehavior(BaseMergeTransplant.MergeBehavior.DROP)
+        .mergeBehavior(org.projectnessie.model.MergeBehavior.DROP)
         .key(ContentKey.of("test", "key"))
         .build())
       .isDryRun(true)
@@ -1130,12 +1273,77 @@ public class ProtoUtilTest {
       .details(ImmutableList.of(
         ImmutableContentKeyDetails.builder()
           .key(ContentKey.of("test", "key"))
-          .mergeBehavior(BaseMergeTransplant.MergeBehavior.FORCE)
+          .mergeBehavior(org.projectnessie.model.MergeBehavior.FORCE)
           .conflictType(MergeResponse.ContentKeyConflict.UNRESOLVABLE)
           .sourceCommits(ImmutableList.of("a", "b"))
           .targetCommits(ImmutableList.of("c", "d"))
           .build()))
       .build();
     assertThat(fromProto(toProto(mergeResponse))).isEqualTo(mergeResponse);
+  }
+
+  @Test
+  public void legacyCommitResponse() throws IOException {
+    ReferenceMetadata meta = ImmutableReferenceMetadata.builder().numCommitsAhead(1).numCommitsBehind(2).build();
+    Branch branch = Branch.builder().name("name").hash("1122334455667788").metadata(meta).build();
+
+    // Legacy servers return a Branch from commitMultipleOperations()
+    com.dremio.services.nessie.grpc.api.Branch protoBranch = toProto(branch);
+    ByteArrayOutputStream responsePayload = new ByteArrayOutputStream();
+    protoBranch.writeTo(responsePayload);
+
+    CommitResponse commitResponse = fromProto(
+            com.dremio.services.nessie.grpc.api.CommitResponse.parseFrom(responsePayload.toByteArray()));
+    assertThat(commitResponse.getTargetBranch()).isEqualTo(branch);
+    assertThat(commitResponse.getAddedContents()).isNull();
+  }
+
+  @Test
+  public void legacyCommitResponseReader() throws IOException {
+    ReferenceMetadata meta = ImmutableReferenceMetadata.builder().numCommitsAhead(1).numCommitsBehind(2).build();
+    Branch branch = Branch.builder().name("name").hash("1122334455667788").metadata(meta).build();
+
+    // Legacy clients should be able to read responses from new commitMultipleOperations() implementations as `Branch`
+    CommitResponse commitResponse = CommitResponse.builder()
+      .targetBranch(branch)
+      .build();
+    ByteArrayOutputStream responsePayload = new ByteArrayOutputStream();
+    toProto(commitResponse).writeTo(responsePayload);
+
+    Branch branchResponse = fromProto(
+      com.dremio.services.nessie.grpc.api.Branch.parseFrom(responsePayload.toByteArray()));
+    assertThat(branchResponse).isEqualTo(branch);
+  }
+
+  @Test
+  public void commitResponse() {
+    assertThatThrownBy(() -> toProto((CommitResponse) null))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("CommitResponse must be non-null");
+
+    assertThatThrownBy(() -> fromProto((com.dremio.services.nessie.grpc.api.CommitResponse) null))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("CommitResponse must be non-null");
+
+    ReferenceMetadata meta = ImmutableReferenceMetadata.builder().numCommitsAhead(1).numCommitsBehind(2).build();
+    Branch branch = Branch.builder().name("name").hash("1122334455667788").metadata(meta).build();
+
+    CommitResponse commitResponse = CommitResponse.builder()
+            .targetBranch(branch)
+            .build();
+    assertThat(fromProto(toProto(commitResponse)).getTargetBranch()).isEqualTo(branch);
+    assertThat(fromProto(toProto(commitResponse)).getAddedContents()).isNull();
+
+    ContentKey key1 = ContentKey.of("test1");
+    ContentKey key2 = ContentKey.of("test3");
+    commitResponse = CommitResponse.builder()
+            .targetBranch(branch)
+            .addAddedContents(AddedContent.addedContent(key1, "abc"))
+            .addAddedContents(AddedContent.addedContent(key2, "def"))
+            .build();
+    assertThat(fromProto(toProto(commitResponse)).getTargetBranch()).isEqualTo(branch);
+    assertThat(fromProto(toProto(commitResponse)).getAddedContents())
+            .extracting(AddedContent::getKey, AddedContent::contentId)
+            .containsExactly(tuple(key1, "abc"), tuple(key2, "def"));
   }
 }

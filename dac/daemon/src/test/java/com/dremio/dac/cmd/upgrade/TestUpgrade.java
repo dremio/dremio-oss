@@ -410,7 +410,7 @@ public class TestUpgrade extends DremioTest {
     // testNoDuplicateUUID() test - it will generate one
     // tasks will not include TestUpgradeFailORSuccessTask and TestUpgradeTask
     // because they don't have default ctor
-    assertThat(tasks).hasSize(11);
+    assertThat(tasks).hasSize(12);
     assertThat(tasks.get(0)).isInstanceOf(ReIndexAllStores.class);
     assertThat(tasks.get(1)).isInstanceOf(UpdateDatasetSplitIdTask.class);
     assertThat(tasks.get(2)).isInstanceOf(DeleteHistoryOfRenamedDatasets.class);
@@ -422,6 +422,7 @@ public class TestUpgrade extends DremioTest {
     assertThat(tasks.get(8)).isInstanceOf(SetExportType.class);
     assertThat(tasks.get(9)).isInstanceOf(TopPriorityTask.class);
     assertThat(tasks.get(10)).isInstanceOf(LowPriorityTask.class);
+    assertThat(tasks.get(11)).isInstanceOf(DeleteSnowflakeCommunitySource.class);
   }
 
   @Test
@@ -501,7 +502,7 @@ public class TestUpgrade extends DremioTest {
     // testNoDuplicateUUID() test - it will generate one
     // tasks will not include TestUpgradeFailORSuccessTask and TestUpgradeTask
     // because they don't have default ctor
-    assertThat(resolvedTasks).hasSize(11);
+    assertThat(resolvedTasks).hasSize(12);
     assertThat(resolvedTasks.get(0)).isInstanceOf(ReIndexAllStores.class);
     assertThat(resolvedTasks.get(1)).isInstanceOf(UpdateDatasetSplitIdTask.class);
     assertThat(resolvedTasks.get(2)).isInstanceOf(DeleteHistoryOfRenamedDatasets.class);
@@ -513,6 +514,7 @@ public class TestUpgrade extends DremioTest {
     assertThat(resolvedTasks.get(8)).isInstanceOf(SetExportType.class);
     assertThat(resolvedTasks.get(9)).isInstanceOf(TopPriorityTask.class);
     assertThat(resolvedTasks.get(10)).isInstanceOf(LowPriorityTask.class);
+    assertThat(resolvedTasks.get(11)).isInstanceOf(DeleteSnowflakeCommunitySource.class);
   }
 
   /**

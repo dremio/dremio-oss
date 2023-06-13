@@ -25,4 +25,17 @@
     height: 24px;
     cursor: pointer;
   }
+  .custom-button {
+    display: "flex";
+    align-items: "center";
+    justify-content: "center";
+    font-weight: 600;
+    color: var(--dremio--color--status--information--foreground);
+    &.error {
+      color: var(--dremio--color--status--error--foreground);
+    }
+    &.success {
+      color: var(--dremio--color--status--success--foreground);
+    }
+  }
 }

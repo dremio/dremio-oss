@@ -17,29 +17,35 @@ package com.dremio.exec.planner.observer;
 
 import java.util.concurrent.Executor;
 
+import javax.inject.Provider;
+
 import com.dremio.common.SerializedExecutor;
 import com.dremio.common.utils.protos.AttemptId;
+import com.dremio.context.RequestContext;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.work.protector.UserResult;
 import com.dremio.proto.model.attempts.AttemptReason;
 
-/**
- *
- */
 public class OutOfBandQueryObserver extends AbstractQueryObserver {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(OutOfBandQueryObserver.class);
 
   private final QueryObserver observer;
   private final Exec serializedExec;
+  private final Provider<RequestContext> requestContextProvider;
 
-  public OutOfBandQueryObserver(final QueryObserver observer, final Executor executor) {
+  public OutOfBandQueryObserver(
+      final QueryObserver observer,
+      final Executor executor,
+      final Provider<RequestContext> requestContextProvider) {
     this.observer = observer;
     this.serializedExec = new Exec(executor);
+    this.requestContextProvider = requestContextProvider;
   }
 
   @Override
   public AttemptObserver newAttempt(AttemptId attemptId, AttemptReason reason) {
-    return new OutOfBandAttemptObserver(observer.newAttempt(attemptId, reason), serializedExec);
+    return new OutOfBandAttemptObserver(
+        observer.newAttempt(attemptId, reason), serializedExec, requestContextProvider);
   }
 
   @Override

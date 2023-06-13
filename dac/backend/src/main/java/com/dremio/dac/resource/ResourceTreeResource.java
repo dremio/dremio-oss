@@ -272,5 +272,4 @@ public class ResourceTreeResource {
     }
     return resources;
   }
-
 }

@@ -272,6 +272,12 @@ class AttemptProfileTracker {
       builder.setTotalFragments(capturer.getNumFragments());
       builder.addAllDatasetProfile(capturer.getDatasets());
       builder.setNumPlanCacheUsed(capturer.getNumPlanCacheUses());
+      if (capturer.getNumJoinsInUserQuery() != null) {
+        builder.setNumJoinsInUserQuery(capturer.getNumJoinsInUserQuery());
+      }
+      if (capturer.getNumJoinsInFinalPrel() != null) {
+        builder.setNumJoinsInFinalPrel(capturer.getNumJoinsInFinalPrel());
+      }
 
       final String planText = capturer.getText();
       if (planText != null) {

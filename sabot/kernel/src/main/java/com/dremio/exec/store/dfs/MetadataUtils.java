@@ -180,8 +180,10 @@ public class MetadataUtils {
     boolean includeMax;
 
     public RangeQueryInput(Object value, SqlKind type) {
-      this.min = this.max = value;
-      this.includeMax = this.includeMin = false;
+      this.min = value;
+      this.max = value;
+      this.includeMin = false;
+      this.includeMax = false;
       switch (type) {
         case GREATER_THAN:
           this.max = null;
@@ -198,7 +200,8 @@ public class MetadataUtils {
           this.includeMax = true;
           break;
         case EQUALS:
-          this.includeMax = this.includeMin = true;
+          this.includeMax = true;
+          this.includeMin = true;
           break;
         default:
           throw new UnsupportedOperationException("Invalid kind " + type);

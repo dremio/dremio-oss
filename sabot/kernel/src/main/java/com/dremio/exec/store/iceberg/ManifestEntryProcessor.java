@@ -30,8 +30,7 @@ public interface ManifestEntryProcessor extends AutoCloseable {
 
   void setup(VectorAccessible incoming, VectorAccessible outgoing);
 
-  default void initialise(PartitionSpec partitionSpec) {
-  }
+  default void initialise(PartitionSpec partitionSpec, int row) {}
 
   int processManifestEntry(ManifestEntryWrapper<? extends ContentFile<?>> manifestEntry, int startOutIndex, int currentOutputCount) throws IOException;
 

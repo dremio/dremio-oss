@@ -81,8 +81,7 @@ class ProxiesManager {
     if ( null != existingProxy ) {
       // Repeated occurrence of original--return same proxy instance as before.
       proxyInstance = existingProxy;
-    }
-    else {
+    } else {
       // Original we haven't seen yet--create proxy instance and return that.
 
       Class<Proxy> proxyReturnClass = getProxyClassForInterface( declaredType );
@@ -101,8 +100,7 @@ class ProxiesManager {
             .newInstance( new Object[] { callHandler } );
         proxiedsToProxiesMap.put( originalInstance, newProxyInstance );
         proxyInstance = newProxyInstance;
-      }
-      catch ( InstantiationException | IllegalAccessException
+      } catch ( InstantiationException | IllegalAccessException
               | IllegalArgumentException | InvocationTargetException
               | NoSuchMethodException | SecurityException e ) {
         throw new RuntimeException(

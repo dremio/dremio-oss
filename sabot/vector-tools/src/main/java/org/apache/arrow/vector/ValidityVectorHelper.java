@@ -35,6 +35,7 @@ public class ValidityVectorHelper extends FixedWidthVectorHelper<BitVector> {
     this.vector = vector;
   }
 
+  @Override
   public void load(SerializedField metadata, ArrowBuf buffer) {
     Preconditions.checkArgument(vector.getName().equals(metadata.getNamePart().getName()), "The " +
       "field %s doesn't match the provided metadata %s.", vector.getName(), metadata);

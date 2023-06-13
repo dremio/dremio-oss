@@ -23,7 +23,7 @@ import ApiUtils from "@app/utils/apiUtils/apiUtils";
 import { sourceTypesIncludeS3 } from "@app/utils/sourceUtils";
 import { loadSourceListData } from "@app/actions/resources/sources";
 
-import { isDcsEdition } from "dyn-load/utils/versionUtils";
+import { isNotSoftware } from "dyn-load/utils/versionUtils";
 import { getViewState } from "@app/selectors/resources";
 import { fetchFeatureFlag } from "@inject/actions/featureFlag";
 import { page } from "@app/uiTheme/radium/general";
@@ -43,7 +43,6 @@ import "./HomePage.less";
 import HomePageActivating from "@inject/pages/HomePage/HomePageActivating";
 import { intl } from "@app/utils/intl";
 import { ErrorBoundary } from "@app/components/ErrorBoundary/ErrorBoundary";
-import { ORGANIZATION_LANDING } from "@app/exports/flags/ORGANIZATION_LANDING";
 import { isSonarUrlabilityEnabled } from "@app/exports/utilities/featureFlags";
 
 const PROJECT_CONTEXT = "projectContext";
@@ -61,7 +60,6 @@ class HomePage extends Component {
     children: PropTypes.node,
     style: PropTypes.object,
     isProjectInactive: PropTypes.bool,
-    orgLandingFlag: PropTypes.bool,
   };
 
   state = {
@@ -73,8 +71,7 @@ class HomePage extends Component {
   }
 
   componentDidMount() {
-    isDcsEdition() && this.props.fetchFeatureFlag(DATA_OPTIMIZATION);
-    isDcsEdition() && this.props.fetchFeatureFlag(ORGANIZATION_LANDING);
+    isNotSoftware() && this.props.fetchFeatureFlag(DATA_OPTIMIZATION);
     this.setStateWithSourceTypesFromServer();
   }
 
@@ -116,13 +113,12 @@ class HomePage extends Component {
 
   // Note were are getting the "ref" to the SearchBar React object.
   render() {
-    const { isProjectInactive, orgLandingFlag } = this.props;
+    const { isProjectInactive } = this.props;
     const homePageSearchClass = showHomePageTop()
       ? " --withSearch"
       : " --withoutSearch";
 
-    const homePageNavCrumbClass =
-      showNavCrumbs && orgLandingFlag ? " --withNavCrumbs" : "";
+    const homePageNavCrumbClass = showNavCrumbs ? " --withNavCrumbs" : "";
 
     const storage = isSonarUrlabilityEnabled() ? sessionStorage : localStorage;
     const projectName =
@@ -136,7 +132,7 @@ class HomePage extends Component {
           {!isProjectInactive && (
             <div className={"homePageBody"}>
               <HomePageTop />
-              {isDcsEdition() && <NavCrumbs />}
+              {isNotSoftware() && <NavCrumbs />}
               <div
                 className={
                   "homePageLeftTreeDiv" +
@@ -182,7 +178,6 @@ function mapStateToProps(state) {
     sources: getSortedSources(state),
     userInfo: state.home.config.get("userInfo"),
     sourcesViewState: getViewState(state, "AllSources"),
-    orgLandingFlag: state.featureFlag?.organization_landing_ui === "ENABLED",
   };
 }
 

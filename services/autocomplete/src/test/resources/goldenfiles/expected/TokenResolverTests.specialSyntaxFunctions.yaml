@@ -928,8 +928,8 @@
      - "DAY"
      - "FRAC_SECOND"
      - "MICROSECOND"
+     - "NANOSECOND"
      - "SQL_TSI_DAY"
-     - "SQL_TSI_FRAC_SECOND"
  -
   description: "TIMESTAMPADD"
   input: "SELECT TIMESTAMPADD(DAY"
@@ -1008,8 +1008,8 @@
      - "DAY"
      - "FRAC_SECOND"
      - "MICROSECOND"
+     - "NANOSECOND"
      - "SQL_TSI_DAY"
-     - "SQL_TSI_FRAC_SECOND"
  -
   description: "TIMESTAMPDIFF"
   input: "SELECT TIMESTAMPDIFF(DAY"

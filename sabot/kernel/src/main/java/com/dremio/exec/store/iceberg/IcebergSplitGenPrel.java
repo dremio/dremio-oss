@@ -74,6 +74,7 @@ public class IcebergSplitGenPrel extends TableFunctionPrel {
         getTableFunctionConfig(), getRowType());
   }
 
+  @Override
   protected double defaultEstimateRowCount(TableFunctionConfig functionConfig, RelMetadataQuery mq) {
     // estimate output row count based on planner.num_splits_per_file
     final PlannerSettings plannerSettings = PrelUtil.getPlannerSettings(getCluster().getPlanner());

@@ -20,13 +20,12 @@ import static com.dremio.service.accelerator.AccelerationUtils.selfOrEmpty;
 import static com.dremio.service.reflection.ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.LinkedList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
-import java.util.Queue;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -40,9 +39,14 @@ import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 
 import com.dremio.common.utils.PathUtils;
+import com.dremio.exec.catalog.CatalogUtil;
+import com.dremio.exec.catalog.EntityExplorer;
+import com.dremio.exec.catalog.TableVersionType;
+import com.dremio.exec.catalog.VersionContext;
+import com.dremio.exec.catalog.VersionedDatasetId;
 import com.dremio.exec.planner.acceleration.ExternalMaterializationDescriptor;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateSettings;
 import com.dremio.exec.planner.acceleration.JoinDependencyProperties;
@@ -75,10 +79,8 @@ import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.MultiJobStatusListener;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
-import com.dremio.service.namespace.dataset.proto.ParentDataset;
 import com.dremio.service.namespace.dataset.proto.RefreshMethod;
 import com.dremio.service.namespace.dataset.proto.ViewFieldType;
 import com.dremio.service.reflection.proto.DataPartition;
@@ -100,6 +102,7 @@ import com.dremio.service.reflection.proto.Refresh;
 import com.dremio.service.reflection.proto.RefreshId;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.dremio.service.reflection.store.ReflectionGoalsStore;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
@@ -109,8 +112,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
-import io.protostuff.LinkedBuffer;
-import io.protostuff.ProtostuffIOUtil;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 
 /**
  * Helper functions for Reflection management
@@ -118,68 +121,23 @@ import io.protostuff.ProtostuffIOUtil;
 public class ReflectionUtils {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ReflectionUtils.class);
 
-  /**
-   * @return true if the dataset type is PHYSICAL_*
-   */
-  public static boolean isPhysicalDataset(DatasetType t) {
-    return t == DatasetType.PHYSICAL_DATASET ||
-      t == DatasetType.PHYSICAL_DATASET_SOURCE_FILE ||
-      t == DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER ||
-      t == DatasetType.PHYSICAL_DATASET_HOME_FILE ||
-      t == DatasetType.PHYSICAL_DATASET_HOME_FOLDER;
-  }
-
   public static boolean isHomeDataset(DatasetType t) {
     return t == DatasetType.PHYSICAL_DATASET_HOME_FILE || t == DatasetType.PHYSICAL_DATASET_HOME_FOLDER;
   }
 
-  public static Integer computeDatasetHash(DatasetConfig dataset, NamespaceService namespaceService, boolean ignorePds) throws NamespaceException {
-    Queue<DatasetConfig> q = new LinkedList<>();
-    q.add(dataset);
-    int hash = 1;
-    boolean isFirst = true;
-    while (!q.isEmpty()) {
-      dataset = q.poll();
-      if (isPhysicalDataset(dataset.getType())) {
-        if (!ignorePds || isFirst) {
-          hash = 31 * hash + (dataset.getRecordSchema() == null ? 1 : dataset.getRecordSchema().hashCode());
-        }
-      } else {
-        int schemaHash = 0;
-        if (isFirst) {
-          final List<ViewFieldType> types = new ArrayList<>();
-          dataset.getVirtualDataset().getSqlFieldsList().forEach(type -> {
-            if (type.getSerializedField() != null) {
-              ViewFieldType newType = new ViewFieldType();
-              ProtostuffIOUtil.mergeFrom(ProtostuffIOUtil.toByteArray(type, ViewFieldType.getSchema(), LinkedBuffer.allocate()), newType, ViewFieldType.getSchema());
-              types.add(newType.setSerializedField(null));
-            } else {
-              types.add(type);
-            }
-          });
-          schemaHash = types.hashCode();
-        }
-        hash = 31 * hash + dataset.getVirtualDataset().getSql().hashCode() + schemaHash;
-          for (ParentDataset parent : dataset.getVirtualDataset().getParentsList()) {
-            int size = parent.getDatasetPathList().size();
-            if( !(size > 1 && parent.getDatasetPathList().get(size-1).equalsIgnoreCase("external_query"))) {
-              q.add(namespaceService.getDataset(new NamespaceKey(parent.getDatasetPathList())));
-            }
-          }
-      }
-      isFirst = false;
-    }
-    return hash;
-  }
+  @WithSpan
+  public static JobId submitRefreshJob(JobsService jobsService, CatalogService catalogService, ReflectionEntry entry,
+                                       Materialization materialization, String sql, JobStatusListener jobStatusListener) {
 
-  public static JobId submitRefreshJob(JobsService jobsService, NamespaceService namespaceService, ReflectionEntry entry,
-      Materialization materialization, String sql, JobStatusListener jobStatusListener) {
     final SqlQuery query = SqlQuery.newBuilder()
       .setSql(sql)
       .addAllContext(Collections.<String>emptyList())
       .setUsername(SYSTEM_USERNAME)
       .build();
-    NamespaceKey datasetPathList = new NamespaceKey(namespaceService.findDatasetByUUID(entry.getDatasetId()).getFullPathList());
+    EntityExplorer catalog = CatalogUtil.getSystemCatalogForReflections(catalogService);
+    DatasetConfig config = CatalogUtil.getDatasetConfig(catalog, entry.getDatasetId());
+
+    NamespaceKey datasetPathList = new NamespaceKey(config.getFullPathList());
     JobProtobuf.MaterializationSummary materializationSummary = JobProtobuf.MaterializationSummary.newBuilder()
       .setDatasetId(entry.getDatasetId())
       .setReflectionId(entry.getId().getId())
@@ -203,6 +161,11 @@ public class ReflectionUtils {
       new MultiJobStatusListener(submittedListener, jobStatusListener))
       .getJobId();
     submittedListener.await();
+    Span.current().setAttribute("dremio.reflectionmanager.jobId", jobId.getId());
+    Span.current().setAttribute("dremio.reflectionmanager.reflection", getId(entry));
+    Span.current().setAttribute("dremio.reflectionmanager.materialization", getId(materialization));
+    Span.current().setAttribute("dremio.reflectionmanager.datasetId", entry.getDatasetId());
+    Span.current().setAttribute("dremio.reflectionmanager.sql", sql);
     return jobId;
   }
 
@@ -223,6 +186,13 @@ public class ReflectionUtils {
    */
   public static String getId(ReflectionId reflectionId) {
     return String.format("reflection %s", reflectionId.getId());
+  }
+
+  /**
+   * computes a log-friendly external reflection id
+   */
+  public static String getId(ExternalReflection externalReflection) {
+    return String.format("external reflection %s[%s]", externalReflection.getId(), externalReflection.getName());
   }
 
   /**
@@ -301,43 +271,34 @@ public class ReflectionUtils {
     return !hosts.containsAll(partitionNames);
   }
 
-  /**
-   * check with ignorePds true and then also false, for backward compatibility
-   */
-  static boolean hashEquals(int hash, DatasetConfig dataset, NamespaceService ns) throws NamespaceException {
-    return
-      hash == computeDatasetHash(dataset, ns, true)
-        ||
-      hash == computeDatasetHash(dataset, ns, false);
-  }
-
   public static MaterializationDescriptor getMaterializationDescriptor(final ExternalReflection externalReflection,
-                                                                       final NamespaceService namespaceService, final CatalogService catalogService) throws NamespaceException {
-    DatasetConfig queryDataset = namespaceService.findDatasetByUUID(externalReflection.getQueryDatasetId());
-    DatasetConfig targetDataset = namespaceService.findDatasetByUUID(externalReflection.getTargetDatasetId());
+                                                                       final CatalogService catalogService) throws NamespaceException {
+    EntityExplorer catalog = CatalogUtil.getSystemCatalogForReflections(catalogService);
+    DatasetConfig  queryDatasetConfig = CatalogUtil.getDatasetConfig(catalog, externalReflection.getQueryDatasetId());
+    DatasetConfig targetDatasetConfig = CatalogUtil.getDatasetConfig(catalog, externalReflection.getTargetDatasetId());
 
-    if (queryDataset == null) {
+    if (queryDatasetConfig == null) {
       logger.debug("Dataset {} not found", externalReflection.getQueryDatasetId());
       return null;
     }
 
-    if (targetDataset == null) {
+    if (targetDatasetConfig  == null) {
       logger.debug("Dataset {} not found", externalReflection.getQueryDatasetId());
       return null;
     }
 
-    if (!hashEquals(externalReflection.getQueryDatasetHash(), queryDataset, namespaceService)) {
+    if (!DatasetHashUtils.hashEquals(externalReflection.getQueryDatasetHash(), queryDatasetConfig, catalogService)) {
       logger.debug("Reflection {} excluded because query dataset {} is out of sync",
         externalReflection.getName(),
-        PathUtils.constructFullPath(queryDataset.getFullPathList())
+        PathUtils.constructFullPath(queryDatasetConfig.getFullPathList())
       );
       return null;
     }
 
-    if (!hashEquals(externalReflection.getTargetDatasetHash(), targetDataset, namespaceService)) {
+    if (!DatasetHashUtils.hashEquals(externalReflection.getTargetDatasetHash(), targetDatasetConfig, catalogService)) {
       logger.debug("Reflection {} excluded because target dataset {} is out of sync",
         externalReflection.getName(),
-        PathUtils.constructFullPath(targetDataset.getFullPathList())
+        PathUtils.constructFullPath(targetDatasetConfig.getFullPathList())
       );
       return null;
     }
@@ -357,8 +318,8 @@ public class ReflectionUtils {
       ),
       externalReflection.getId(),
       Optional.ofNullable(externalReflection.getTag()).orElse("0"),
-      queryDataset.getFullPathList(),
-      targetDataset.getFullPathList(),
+      queryDatasetConfig.getFullPathList(),
+      targetDatasetConfig.getFullPathList(),
       catalogService
     );
   }
@@ -614,8 +575,8 @@ public class ReflectionUtils {
 
       // relative path to the acceleration base path
       final String path = PathUtils.relativePath(
-              Path.of(Path.getContainerSpecificRelativePath(Path.of(text.toString()))),
-              Path.of(Path.getContainerSpecificRelativePath(accelerationBasePath)));
+        Path.of(Path.getContainerSpecificRelativePath(Path.of(text.toString()))),
+        Path.of(Path.getContainerSpecificRelativePath(accelerationBasePath)));
 
       // extract first 2 components of the path "<reflection-id>."<modified-materialization-id>"
       List<String> components = PathUtils.toPathComponents(path);
@@ -674,9 +635,13 @@ public class ReflectionUtils {
     }
 
     final int numFiles = fileSizes.size();
-    // alternative is to implement QuickSelect to compute the median in linear time
-    Collections.sort(fileSizes);
-    final long medianFileSize = fileSizes.get(numFiles / 2);
+    long medianFileSize = 0;
+    //prevent an IndexOutOfBoundsException if numFiles is 0 and we are trying to get the 0th file
+    if(numFiles > 0){
+      // alternative is to implement QuickSelect to compute the median in linear time
+      Collections.sort(fileSizes);
+      medianFileSize = fileSizes.get(numFiles / 2);
+    }
 
     return new MaterializationMetrics()
       .setFootprint(footprint)
@@ -727,4 +692,35 @@ public class ReflectionUtils {
       return list1.equals(list2);
     }
   }
+
+  public static VersionedDatasetId getVersionDatasetId(String datasetId) {
+    if (!VersionedDatasetId.isVersioned(datasetId)) {
+      return null;
+    }
+    VersionedDatasetId versionedDatasetId;
+    try {
+      versionedDatasetId = VersionedDatasetId.fromString(datasetId);
+    } catch (JsonProcessingException e) {
+      throw new IllegalStateException(e);
+    }
+    return versionedDatasetId;
+  }
+
+  public static Map<String, VersionContext> buildVersionContext(String datasetId) {
+    Map<String, VersionContext> sourceMappings = new HashMap<>();
+    VersionedDatasetId versionedDatasetId = getVersionDatasetId(datasetId);
+    if (versionedDatasetId == null) {
+      return sourceMappings;
+    }
+    String source = versionedDatasetId.getTableKey().get(0);
+    if (versionedDatasetId.getVersionContext().getType() == TableVersionType.BRANCH) {
+      sourceMappings.put(source, VersionContext.ofBranch(versionedDatasetId.getVersionContext().getValue().toString()));
+    } else if (versionedDatasetId.getVersionContext().getType() == TableVersionType.TAG) {
+      sourceMappings.put(source, VersionContext.ofTag(versionedDatasetId.getVersionContext().getValue().toString()));
+    } else if (versionedDatasetId.getVersionContext().getType() == TableVersionType.COMMIT_HASH_ONLY) {
+      sourceMappings.put(source, VersionContext.ofBareCommit(versionedDatasetId.getVersionContext().getValue().toString()));
+    }
+    return sourceMappings;
+  }
+
 }

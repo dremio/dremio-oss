@@ -82,6 +82,7 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
     ));
   }
 
+  @Override
   public int getOperatorId() {
     return popConfig.getProps().getOperatorId();
   }
@@ -109,10 +110,12 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
     }
   }
 
+  @Override
   public T getInner(){
     return inner;
   }
 
+  @Override
   public OperatorContext getContext() {
     return context;
   }
@@ -609,6 +612,7 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
 
   }
 
+  @Override
   public String toString(){
     return inner.toString();
   }

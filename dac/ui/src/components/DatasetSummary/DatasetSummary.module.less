@@ -18,12 +18,85 @@
   &-container {
     display: flex;
     flex-direction: column;
-    font-size: 14px;
+    font-size: var(--dremio--font-size--default);
     width: 300px;
   }
+  &-wiki-container {
+    display: flex;
+    flex-direction: column;
+    font-size: var(--dremio--font-size--default);
+    width: 368px;
+    padding-top: var(--dremio--spacing--1);
+    padding-left: var(--dremio--spacing--1);
+    padding-bottom: 0;
+  }
   &-top-section {
-    padding: 0 16px;
-    margin-bottom: 16px;
-    border-bottom: 1px solid var(--dremio--color--neutral--150);
+    padding: 0 var(--dremio--spacing--2);
+    border-bottom: 1px solid var(--color--neutral--50);
+  }
+  &-sqleditor {
+    border-bottom: none;
+  }
+  &-tagsWrapper {
+    width: 100%;
+    white-space: nowrap;
+  }
+  &-tags-stats {
+    display: flex;
+    flex-direction: column;
+    padding-bottom: var(--dremio--spacing--2);
+  }
+  &-button-wrapper {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    gap: var(--dremio--spacing--1);
+  }
+  &-open-details-button {
+    display: flex;
+    width: 100%;
+    font-style: normal;
+    font-weight: 500;
+    font-size: var(--dremio--font-size--default);
+    line-height: 20px;
+    text-decoration: none !important;
+    color: var(--dremio--color--link);
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: var(--dremio--spacing--05);
+    border-radius: var(--dremio--radius--1);
+    &:hover {
+      background-color: var(--color--brand--25);
+    }
+  }
+  &-open-details-icon {
+    height: 24px;
+    width: 24px;
+    padding: 2px;
+  }
+
+  &-dataset-path {
+    display: flex;
+    align-items: center;
+
+    .hidden-button {
+      height: 0;
+      width: 0;
+      padding: 0;
+      border: 0;
+      opacity: 0;
+    }
+
+    .copy-button {
+      margin-bottom: var(--dremio--spacing--1);
+      opacity: 0;
+    }
+
+    &:hover {
+      .copy-button {
+        opacity: 1;
+      }
+    }
   }
 }

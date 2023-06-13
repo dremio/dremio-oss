@@ -35,6 +35,7 @@ import com.google.common.collect.ImmutableList;
 public class SqlColumnPolicyPair extends SqlCall {
   private static final SqlSpecialOperator OPERATOR =
     new SqlSpecialOperator("COLUMN_POLICY_PAIR", SqlKind.OTHER) {
+      @Override
       public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
         if(operands.length == 1) {
             return new SqlColumnPolicyPair(pos, (SqlIdentifier) operands[0], null);

@@ -145,6 +145,8 @@ message PRexSubQuery {
   PSqlOperator sql_operator = 2;
   repeated PRexNode operands = 3;
   repeated google.protobuf.Any details  = 4; // this is a PRelNode but is kept as bytes to avoid circular references in protobuf.
+  int32 correlation_id = 5;
+
 }
 
 message PRexVariable {
@@ -171,6 +173,7 @@ message PSqlOperator {
   string class_name = 4;
   int32 min_operands = 5;
   int32 max_operands = 6;
+  optional PFunctionParameter function_parameter = 7;
 }
 
 enum PSqlSyntax {
@@ -193,4 +196,10 @@ message PBigDecimal {
 message PRexPatternFieldRef {
   PRexInputRef rex_input_ref = 1;
   string alpha = 2;
+}
+
+message PFunctionParameter {
+  int32 ordinal = 1;
+  string name = 2;
+  PRelDataType type = 3;
 }

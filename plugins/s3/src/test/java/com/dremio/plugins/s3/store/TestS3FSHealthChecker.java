@@ -16,7 +16,6 @@
 package com.dremio.plugins.s3.store;
 
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -41,7 +40,7 @@ import com.google.common.collect.ImmutableSet;
 public class TestS3FSHealthChecker {
 
   @Test
-  public void testGoodHealthCheck() {
+  public void testGoodHealthCheck() throws Exception {
     TestExtendedS3FSHealthChecker fs = new TestExtendedS3FSHealthChecker(new Configuration());
     AmazonS3 mockedS3Client = mock(AmazonS3.class);
     ListObjectsV2Result result = new ListObjectsV2Result();
@@ -49,12 +48,8 @@ public class TestS3FSHealthChecker {
     when(mockedS3Client.listObjectsV2(any(ListObjectsV2Request.class))).thenReturn(result);
     fs.setCustomClient(mockedS3Client);
 
-    try {
-      Path p = Path.of("/bucket/prefix");
-      fs.healthCheck(p, ImmutableSet.of());
-    } catch (IOException e) {
-      fail(e.getMessage());
-    }
+    Path p = Path.of("/bucket/prefix");
+    fs.healthCheck(p, ImmutableSet.of());
   }
 
   @Test (expected = IOException.class)

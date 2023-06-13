@@ -22,15 +22,15 @@ import com.dremio.test.GoldenFileTestBuilder;
 public final class DeleteStatementCompletionTests extends AutocompleteEngineTests {
   @Test
   public void tests() {
-    new GoldenFileTestBuilder<>(this::executeTestWithFolderContext)
-      .add("DELETE", GoldenFileTestBuilder.MultiLineString.create("DELETE ^"))
-      .add("DELETE + PARTIAL FROM", GoldenFileTestBuilder.MultiLineString.create("DELETE FR^"))
-      .add("DELETE + FROM", GoldenFileTestBuilder.MultiLineString.create("DELETE FROM ^"))
-      .add("DELETE + FROM + TABLE", GoldenFileTestBuilder.MultiLineString.create("DELETE FROM EMP ^"))
-      .add("DELETE + FROM + TABLE + AS", GoldenFileTestBuilder.MultiLineString.create("DELETE FROM EMP AS ^"))
-      .add("DELETE + FROM + TABLE + AS + ALIAS", GoldenFileTestBuilder.MultiLineString.create("DELETE FROM EMP AS e ^"))
-      .add("DELETE + FROM + TABLE + WHERE", GoldenFileTestBuilder.MultiLineString.create("DELETE FROM EMP WHERE ^"))
-      .add("DELETE + FROM + TABLE + WHERE + CONDITION", GoldenFileTestBuilder.MultiLineString.create("DELETE FROM EMP WHERE EMP.NAME = 'Brandon' ^"))
+    GoldenFileTestBuilder.create(this::executeTestWithFolderContext)
+      .add("DELETE", "DELETE ^")
+      .add("DELETE + PARTIAL FROM", "DELETE FR^")
+      .add("DELETE + FROM", "DELETE FROM ^")
+      .add("DELETE + FROM + TABLE", "DELETE FROM EMP ^")
+      .add("DELETE + FROM + TABLE + AS", "DELETE FROM EMP AS ^")
+      .add("DELETE + FROM + TABLE + AS + ALIAS", "DELETE FROM EMP AS e ^")
+      .add("DELETE + FROM + TABLE + WHERE", "DELETE FROM EMP WHERE ^")
+      .add("DELETE + FROM + TABLE + WHERE + CONDITION", "DELETE FROM EMP WHERE EMP.NAME = 'Brandon' ^")
       .runTests();
   }
 }

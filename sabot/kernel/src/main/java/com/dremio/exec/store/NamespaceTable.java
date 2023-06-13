@@ -38,7 +38,7 @@ import org.apache.calcite.schema.Schema.TableType;
 import org.apache.calcite.schema.Statistic;
 import org.apache.calcite.schema.Table;
 import org.apache.calcite.util.ImmutableBitSet;
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.calcite.logical.ScanCrel;

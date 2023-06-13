@@ -51,6 +51,7 @@ public class JobResultToLogEntryConverter implements Function<Job, LoggedQuery> 
     }
     if (info.getSql() != null) {
       builder.setQueryText(info.getSql());
+      builder.setIsTruncatedQueryText(info.getIsTruncatedSql());
     }
     if (info.getFinishTime() != null) {
       builder.setFinish(info.getFinishTime());

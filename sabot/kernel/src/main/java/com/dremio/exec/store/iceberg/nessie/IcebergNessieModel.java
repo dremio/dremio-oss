@@ -20,8 +20,7 @@ import javax.inject.Provider;
 import org.apache.hadoop.conf.Configuration;
 import org.projectnessie.client.api.NessieApiV1;
 
-import com.dremio.exec.catalog.MutablePlugin;
-import com.dremio.exec.store.iceberg.DremioFileIO;
+import com.dremio.exec.store.iceberg.SupportsIcebergMutablePlugin;
 import com.dremio.exec.store.iceberg.model.IcebergBaseModel;
 import com.dremio.exec.store.iceberg.model.IcebergCommand;
 import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
@@ -34,24 +33,25 @@ import com.dremio.sabot.exec.context.OperatorContext;
  */
 public class IcebergNessieModel extends IcebergBaseModel {
     private final Provider<NessieApiV1> nessieApi;
-    private final MutablePlugin plugin;
+    private final SupportsIcebergMutablePlugin plugin;
 
     public IcebergNessieModel(String namespace, Configuration configuration,
                               Provider<NessieApiV1> api,
                               FileSystem fs, OperatorContext context,
                               DatasetCatalogGrpcClient datasetCatalogGrpcClient,
-                              MutablePlugin plugin) {
+                              SupportsIcebergMutablePlugin plugin) {
         super(namespace, configuration, fs, context, datasetCatalogGrpcClient, plugin);
         this.nessieApi = api;
         this.plugin = plugin;
     }
 
+  @Override
   protected IcebergCommand getIcebergCommand(IcebergTableIdentifier tableIdentifier) {
     IcebergNessieTableOperations tableOperations = new IcebergNessieTableOperations((context == null ? null : context.getStats()),
       nessieApi,
-      new DremioFileIO(fs, context, null, null, null, configuration, plugin),
+      plugin.createIcebergFileIO(fs, context, null, null, null),
       ((IcebergNessieTableIdentifier) tableIdentifier));
-    return new IcebergNessieCommand(tableIdentifier, configuration, fs, tableOperations, plugin);
+    return new IcebergNessieCommand(tableIdentifier, configuration, fs, tableOperations);
   }
 
     @Override

@@ -31,11 +31,14 @@ public interface ClusterCreateRequest extends ConsistentProps {
 
   String getName();
 
+  @Override
   @NotNull ClusterType getClusterType();
 
   @NotNull DynamicConfig getDynamicConfig();
 
+  @Override
   YarnPropsApi getYarnProps();
+  @Override
   AwsPropsApi getAwsProps();
   boolean isAllowAutoStart();
   boolean isAllowAutoStop();

@@ -1,0 +1,119 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use "../../base/components/button";
+@use "../../utilities";
+
+.dremio-button {
+  @extend .text-medium;
+  @extend .h-4;
+  @extend .border;
+  @extend .border-solid;
+  @extend .rounded;
+  border-color: transparent;
+
+  min-width: 100px;
+
+  transition: background 75ms ease-in-out, color 75ms ease-in-out;
+
+  &__content {
+    @extend .gap-05;
+    // @extend .px-105;
+    padding-inline: 10px;
+  }
+
+  &:disabled,
+  &[aria-disabled="true"] {
+    &:not([aria-busy="true"]) {
+      border-color: transparent !important;
+      @extend .bg-disabled;
+    }
+  }
+
+  &--primary {
+    @extend .bg-brand-300;
+
+    &:hover,
+    &:focus-visible {
+      &:not([aria-busy="true"]) {
+        @extend .bg-brand-400;
+      }
+    }
+  }
+
+  &--secondary {
+    background: white;
+    border-color: var(--color--neutral--100);
+    color: var(--color--neutral--600);
+
+    &:hover,
+    &:focus-visible {
+      &:not([aria-busy="true"]) {
+        background: var(--color--neutral--25);
+      }
+    }
+  }
+
+  &--tertiary {
+    background: transparent;
+    border-color: transparent;
+    color: var(--dremio--color--link);
+
+    &:hover,
+    &:focus-visible {
+      &:not([aria-busy="true"]) {
+        background: var(--color--brand--25);
+      }
+    }
+
+    &:disabled,
+    &[aria-disabled="true"] {
+      &:not([aria-busy="true"]) {
+        background: transparent !important;
+      }
+    }
+  }
+
+  &--primary-danger {
+    background: var(--dremio--color--status--error--foreground);
+    border-color: transparent;
+    color: white;
+
+    &:hover {
+      background: var(--dremio--color--status--delete--background);
+    }
+  }
+
+  &--secondary-danger {
+    background: transparent;
+    border-color: var(--color--neutral--100);
+    color: var(--dremio--color--status--error--foreground);
+
+    &:hover {
+      background: var(--dremio--color--status--error--background);
+      border-color: var(--dremio--color--status--error--background);
+    }
+  }
+}
+
+.dremio-dark .dremio-button {
+  &--primary {
+    @extend .bg-brand-700;
+    &:hover {
+      @extend .bg-brand-800;
+    }
+  }
+}

@@ -65,8 +65,7 @@ public class VectorUtil {
           //null value
           String value = "null";
           System.out.printf("%s%s", value, lastColumn ? "\n" : delimiter);
-        }
-        else if (o instanceof byte[]) {
+        } else if (o instanceof byte[]) {
           String value = new String((byte[]) o);
           System.out.printf("%s%s", value, lastColumn ? "\n" : delimiter);
         } else {

@@ -169,41 +169,4 @@ describe("Tests for time utils", () => {
       expect(TimeUtils.formatTimeDiff(61 * 60000)).to.equal("1:01:00");
     });
   });
-
-  describe("isMoreThanYearsFromNow", () => {
-    const secondsInYear = 365 * 24 * 60 * 60;
-    it("should compare valid datetime", () => {
-      const now = new Date();
-      expect(TimeUtils.isMoreThanYearsFromNow(now, 1)).to.be.false;
-      expect(
-        TimeUtils.isMoreThanYearsFromNow(moment().add(secondsInYear, "s"), 1)
-      ).to.be.false;
-      expect(
-        TimeUtils.isMoreThanYearsFromNow(
-          moment().add(secondsInYear * 2, "s"),
-          2
-        )
-      ).to.be.false;
-      expect(
-        TimeUtils.isMoreThanYearsFromNow(
-          moment().add(secondsInYear + 1000, "s"),
-          1
-        )
-      ).to.be.true;
-      expect(
-        TimeUtils.isMoreThanYearsFromNow(
-          moment().add(secondsInYear * 2 + 180 * 24 * 60 * 60, "s"),
-          2
-        )
-      ).to.be.true;
-    });
-    it("should compare valid timestamp", () => {
-      //04/04/2020
-      expect(TimeUtils.isMoreThanYearsFromNow(1586043405000, 1)).to.be.false;
-      //04/04/2022
-      expect(TimeUtils.isMoreThanYearsFromNow(1649115862000, 2)).to.be.false;
-      //04/04/2030
-      expect(TimeUtils.isMoreThanYearsFromNow(1901576205000, 1)).to.be.true;
-    });
-  });
 });

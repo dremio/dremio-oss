@@ -14,20 +14,20 @@
  * limitations under the License.
  */
 import {
-  ConfigCredentialsDef,
-  ConfigDef,
+  ConfigCredentials,
+  EngineWrite,
+  EngineSize,
+  EngineStateRead,
 } from "../../Configuration/CatalogConfiguration.types";
-import { sampleCatalogs } from "../sampleCatalogs";
 
 export const sampleConfigDef = {
   credentials: {
-    type: ConfigCredentialsDef.TypeEnum.KEYS,
+    type: ConfigCredentials.TypeEnum.ACCESSKEY,
     accessKeyId: "string",
     secretAccessKey: "string",
   },
-  engineSize: ConfigDef.EngineSizeEnum.XSMALLV1,
-  catalogId: sampleCatalogs[0].id,
-  cloudId: "string",
-  catalogStore: "string",
+  engineSize: EngineSize.XSMALLV1,
+  cloudId: "f01be93c-d4d5-4600-a621-69435e1dd49f",
   logStorageLocation: "string",
-} as ConfigDef;
+  state: EngineStateRead.ENABLED,
+} as EngineWrite;

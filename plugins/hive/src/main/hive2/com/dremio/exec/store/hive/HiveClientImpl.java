@@ -169,7 +169,9 @@ class HiveClientImpl implements HiveClient {
       doAsCommand(
         (PrivilegedExceptionAction<Void>) () -> {
           try(Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
-            client = Hive.get(hiveConf).getMSC();
+            // skip registering Hive functions as this could be expensive, especially on Glue, and we don't have any
+            // need for them
+            client = Hive.getWithFastCheck(hiveConf, false).getMSC();
           }
           return null;
         },

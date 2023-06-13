@@ -24,6 +24,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import javax.annotation.Nullable;
+
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.CorrelationId;
@@ -169,6 +171,7 @@ class RexDeserializer {
       list,
       cluster,
       sqlOperatorConverter);
+    CorrelationId correlationId = convertCorrelationId(subQuery.getCorrelationId());
     switch (operator.getKind()) {
       case IN:
       case NOT_IN:
@@ -179,16 +182,22 @@ class RexDeserializer {
               .getOperandsList()
               .stream()
               .map(this::convert)
-              .collect(Collectors.toList())));
+              .collect(Collectors.toList())),
+          correlationId);
       case EXISTS:
-        return RexSubQuery.exists(rel);
+        return RexSubQuery.exists(rel, correlationId);
       case SCALAR_QUERY:
-        return RexSubQuery.scalar(rel);
-      case SOME:
+        return RexSubQuery.scalar(rel, correlationId);
       default:
-        break;
+        throw new IllegalStateException("Unsupported type case: " + operator.getKind());
     }
-    throw new IllegalStateException("Unsupported type case: " + operator.getKind());
+  }
+
+  private CorrelationId convertCorrelationId(@Nullable Integer correlationId) {
+    if(correlationId == null) {
+      return null;
+    }
+    return new CorrelationId(correlationId);
   }
 
   private RexNode convertCorrelVariable(PRexCorrelVariable fieldAccess) {
@@ -430,7 +439,9 @@ class RexDeserializer {
         }
         return rexBuilder.makeNullLiteral(type);
       }
+      break;
     default:
+      break;
     }
 
     if(literal.getDataType().getTypeName() == PSqlTypeName.ANY) {

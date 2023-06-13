@@ -44,6 +44,7 @@ public class StructVectorHelper implements ValueVectorHelper {
     this.structVector = vector;
   }
 
+  @Override
   public void load(SerializedField metadata, ArrowBuf buf) {
     /* clear the current buffers (if any) */
     structVector.clear();
@@ -118,6 +119,7 @@ public class StructVectorHelper implements ValueVectorHelper {
     return bufOffset;
   }
 
+  @Override
   public void materialize(Field field) {
     List<Field> children = field.getChildren();
 
@@ -128,6 +130,7 @@ public class StructVectorHelper implements ValueVectorHelper {
     }
   }
 
+  @Override
   public SerializedField getMetadata() {
     int bufferSize = structVector.getBufferSize();
     SerializedField.Builder b = SerializedField.newBuilder()

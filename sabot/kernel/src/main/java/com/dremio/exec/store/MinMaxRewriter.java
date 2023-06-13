@@ -47,6 +47,7 @@ public class MinMaxRewriter extends RexShuttle {
       case LESS_THAN:
       case LESS_THAN_OR_EQUAL:
         isLessThan = true;
+        // fall through
       case GREATER_THAN:
       case GREATER_THAN_OR_EQUAL:
         final RexNode arg1 = call.getOperands().get(0);

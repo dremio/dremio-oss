@@ -45,12 +45,12 @@ public class TimezoneNames {
       .getSeconds());
 
     String standardOffsetId = standardOffset.getId();
-    if (standardOffsetId.equals("Z")) {
+    if ("Z".equals(standardOffsetId)) {
       standardOffsetId = "+00:00";
     }
 
     String dsOffsetId = dsOffset.getId();
-    if (dsOffsetId.equals("Z")) {
+    if ("Z".equals(dsOffsetId)) {
       dsOffsetId = "+00:00";
     }
     return new TimezoneRegion(zone, standardOffsetId, dsOffsetId, zoneRules.isDaylightSavings(now));

@@ -51,6 +51,7 @@ import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
+import com.dremio.exec.store.dfs.LoggedFileSystemWrapper;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.exec.store.sys.accel.AccelerationManager;
 import com.dremio.exec.store.sys.accesscontrol.AccessControlListingManager;
@@ -224,15 +225,17 @@ public class SabotContext implements AutoCloseable {
     this.viewCreatorFactory = viewCreatorFactory;
     this.queryPlanningAllocator = queryPlanningAllocator;
     this.spillService = spillService;
-    this.fileSystemWrapper = config.getInstance(
-      FileSystemWrapper.FILE_SYSTEM_WRAPPER_CLASS,
-      FileSystemWrapper.class,
-      (fs, storageId, conf, operatorContext, enableAsync, isMetadataEnabled) -> fs,
-      dremioConfig,
-      this.optionManager,
-      allocator,
-      new ServiceSetDecorator(coord.getServiceSet(Role.EXECUTOR)),
-      endpoint);
+    this.fileSystemWrapper = new LoggedFileSystemWrapper(
+        config.getInstance(
+            FileSystemWrapper.FILE_SYSTEM_WRAPPER_CLASS,
+            FileSystemWrapper.class,
+            (fs, storageId, conf, operatorContext, enableAsync, isMetadataEnabled) -> fs,
+            dremioConfig,
+            this.optionManager,
+            allocator,
+            new ServiceSetDecorator(coord.getServiceSet(Role.EXECUTOR)),
+            endpoint),
+        this.optionManager);
     this.credentialsService = credentialsService;
     this.jobResultInfoProvider = jobResultInfoProvider;
     this.rules = getRulesFactories(scan);

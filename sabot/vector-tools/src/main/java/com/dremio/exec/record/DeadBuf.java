@@ -85,6 +85,7 @@ public final class DeadBuf extends ByteBuf {
     throw new UnsupportedOperationException(ERROR_MESSAGE);
   }
 
+  @Override
   public ByteBuf writeLongLE(long value) {
     throw new UnsupportedOperationException(ERROR_MESSAGE);
   }

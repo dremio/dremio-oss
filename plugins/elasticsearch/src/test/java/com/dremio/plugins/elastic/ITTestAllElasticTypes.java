@@ -38,7 +38,7 @@ public class ITTestAllElasticTypes extends ElasticBaseTestQuery {
 
   DateTimeFormatter formatter = DateFunctionsUtils.getISOFormatterForFormatString("YYYY-MM-DD HH:MI:SS");
   // set in @Before method
-  private String ELASTIC_TABLE = null;
+  private String elasticTableName = null;
 
   @Before
   public void loadTable() throws IOException, ParseException {
@@ -148,7 +148,7 @@ public class ITTestAllElasticTypes extends ElasticBaseTestQuery {
     };
 
     elastic.load(schema, table, data);
-    ELASTIC_TABLE = String.format("elasticsearch.%s.%s", schema, table);
+    elasticTableName = String.format("elasticsearch.%s.%s", schema, table);
   }
 
   // TODO - see if source data is what is getting to groovy
@@ -173,7 +173,7 @@ public class ITTestAllElasticTypes extends ElasticBaseTestQuery {
     for (int i = 0; i < allCastTypes.length; i++) {
       String exprs = " cast(cast(%s as %s) as %s) = %s as outCol";
       testBuilder()
-          .sqlQuery(String.format("select " + exprs + " from %s", sourceFields[i], LONG_VARCHAR, allCastTypes[i], sourceFields[i], ELASTIC_TABLE))
+          .sqlQuery(String.format("select " + exprs + " from %s", sourceFields[i], LONG_VARCHAR, allCastTypes[i], sourceFields[i], elasticTableName))
           .ordered()
           .baselineColumns("outCol")
           .baselineValues(true)

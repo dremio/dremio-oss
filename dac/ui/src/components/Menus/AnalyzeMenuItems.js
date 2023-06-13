@@ -17,8 +17,8 @@ import { Component } from "react";
 import PropTypes from "prop-types";
 import { FormattedMessage } from "react-intl";
 
+import { fetchStatusOfAnalyzeTools } from "@app/utils/analyzeToolsUtils";
 import MenuItem from "components/Menus/MenuItem";
-import { HANDLE_THROUGH_API } from "@inject/pages/HomePage/components/HeaderButtonConstants";
 
 export default class AnalyzeMenuItems extends Component {
   static propTypes = {
@@ -30,27 +30,16 @@ export default class AnalyzeMenuItems extends Component {
 
   render() {
     const { analyzeToolsConfig } = this.props;
-
-    let showTableau = analyzeToolsConfig.tableau.enabled;
-    let showPowerBI = analyzeToolsConfig.powerbi.enabled;
-
-    if (HANDLE_THROUGH_API) {
-      const supportFlags = localStorage.getItem("supportFlags")
-        ? JSON.parse(localStorage.getItem("supportFlags"))
-        : null;
-
-      showTableau = supportFlags && supportFlags["client.tools.tableau"];
-      showPowerBI = supportFlags && supportFlags["client.tools.powerbi"];
-    }
+    const analyzeButtonsConfig = fetchStatusOfAnalyzeTools();
 
     return (
       <div>
-        {showTableau && (
+        {analyzeButtonsConfig["client.tools.tableau"] && (
           <MenuItem onClick={this.props.openTableau}>
             <FormattedMessage id="Dataset.Tableau" />
           </MenuItem>
         )}
-        {showPowerBI && (
+        {analyzeButtonsConfig["client.tools.powerbi"] && (
           <MenuItem onClick={this.props.openPowerBI}>
             <FormattedMessage id="Dataset.PowerBI" />
           </MenuItem>

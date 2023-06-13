@@ -106,7 +106,7 @@ public class DirListingRecordReader implements RecordReader {
   private BigIntVector sizeVector;
   private VarCharVector pathVector;
   private VarBinaryVector partitionInfoVector;
-  private Retryer retryer = new Retryer.Builder()
+  private final Retryer retryer = Retryer.newBuilder()
     .retryIfExceptionOfType(IOException.class)
     .retryIfExceptionOfType(RuntimeException.class)
     .setWaitStrategy(Retryer.WaitStrategy.EXPONENTIAL, 250, 2500)
@@ -152,8 +152,7 @@ public class DirListingRecordReader implements RecordReader {
     partitionInfoVector = (VarBinaryVector) outgoing.getVector(DirList.OUTPUT_SCHEMA.PARTITION_INFO);
     try {
       initDirIterator(isFile);
-    }
-    catch (IOException e) {
+    } catch (IOException e) {
       throw new IllegalStateException("Error listing directory " + operatingPath.toString(), e);
     }
   }
@@ -176,7 +175,7 @@ public class DirListingRecordReader implements RecordReader {
       String errorMessage = "Failed to list files of directory " + operatingPath.toString();
       if (isRateLimitingException(e)) {
         try {
-          generatedRecords = (int) retryer.call(() -> iterateDirectory());
+          generatedRecords = retryer.call(() -> iterateDirectory());
         } catch (Retryer.OperationFailedAfterRetriesException retriesException) {
           hasExceptionHandled = false;
           errorMessage = "With retry attempt failed to list files of directory " + operatingPath.toString();
@@ -248,7 +247,7 @@ public class DirListingRecordReader implements RecordReader {
     } catch (IOException e) {
       if (isRateLimitingException(e)) {
         try {
-          dirIterator = (Iterator<FileAttributes>) retryer.call(() -> fs.listFiles(operatingPath, isRecursive).iterator());
+          dirIterator = retryer.call(() -> fs.listFiles(operatingPath, isRecursive).iterator());
         } catch (Retryer.OperationFailedAfterRetriesException retriesException) {
           String retryErrorMessage = "Retry attempted ";
           if (e.getMessage() != null) {

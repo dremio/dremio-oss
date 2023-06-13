@@ -15,7 +15,7 @@
  */
 
 import { HttpError } from "../../errors/HttpError";
-import { SectionMessage } from "dremio-ui-lib/dist-esm";
+import { SectionMessage } from "dremio-ui-lib/components";
 import { HttpErrorSupportInfo } from "../SupportInfo/SupportInfo";
 
 const DEFAULT_MESSAGE = "An unexpected error occured.";

@@ -22,8 +22,6 @@ import {
   EXPLORE_PAGE_EXIT,
   updateExploreJobProgress,
   updateJobRecordCount,
-  stopExplorePageListener,
-  startExplorePageListener,
 } from "actions/explore/dataset/data";
 import { updateHistoryWithJobState } from "actions/explore/history";
 
@@ -46,11 +44,6 @@ import { loadJobDetails } from "@app/actions/jobs/jobs";
 import { intl } from "@app/utils/intl";
 import { addNotification } from "@app/actions/notification";
 import { JOB_DETAILS_VIEW_ID } from "@app/actions/joblist/jobList";
-import { loadNewDataset } from "actions/explore/dataset/edit";
-import { fetchDatasetMetadata } from "./transformWatcher";
-import { navigateToNextDataset } from "@app/actions/explore/dataset/common";
-import apiUtils from "@app/utils/apiUtils/apiUtils";
-import { fetchJobFailureInfo } from "./performTransformNew";
 
 const getJobDoneActionFilter = (jobId) => (action) =>
   (action.type === WS_MESSAGE_JOB_PROGRESS ||
@@ -116,74 +109,9 @@ export function* handleResumeRunDataset(
   }
 }
 
-export function* loadDatasetMetadata(
-  datasetVersion,
-  jobId,
-  isRun,
-  paginationUrl,
-  datasetPath,
-  callback,
-  curIndex,
-  sessionId,
-  viewId
-) {
-  const tableData = yield select(getTableDataRaw, datasetVersion);
-  const rows = tableData?.get("rows");
-
-  if (isRun || !rows) {
-    const { jobDone } = yield race({
-      jobDone: call(
-        handlePendingMetadataFetch,
-        datasetVersion,
-        paginationUrl,
-        jobId,
-        datasetPath,
-        callback,
-        curIndex,
-        sessionId,
-        viewId
-      ),
-      locationChange: call(explorePageChanged),
-    });
-
-    const willProceed = jobDone?.willProceed ?? false;
-    const newResponse = jobDone?.newResponse;
-
-    if (newResponse) {
-      yield put(stopExplorePageListener());
-      yield put(
-        navigateToNextDataset(newResponse, {
-          replaceNav: true,
-          preserveTip: true,
-          newJobId: jobId,
-        })
-      );
-      yield put(startExplorePageListener(false));
-    }
-
-    if (callback && newResponse !== undefined) {
-      const resultDataset = apiUtils.getEntityFromResponse(
-        "datasetUI",
-        newResponse
-      );
-
-      yield call(callback, true, resultDataset);
-    }
-
-    return willProceed;
-  }
-}
-
 export class DataLoadError {
   constructor(response) {
     this.name = "DataLoadError";
-    this.response = response;
-  }
-}
-
-export class JobFailedError {
-  constructor(response) {
-    this.name = "JobFailedError";
     this.response = response;
   }
 }
@@ -271,108 +199,6 @@ export function* waitForRunToComplete(
   } finally {
     yield call([socket, socket.stopListenToJobProgress], jobId);
   }
-}
-
-export function* handlePendingMetadataFetch(
-  datasetVersion,
-  paginationUrl,
-  jobId,
-  datasetPath,
-  callback,
-  curIndex,
-  sessionId,
-  viewId
-) {
-  let willProceed = true;
-  let newResponse;
-
-  try {
-    if (!socket.isOpen) {
-      const raceResult = yield race({
-        socketOpen: take(WS_CONNECTION_OPEN),
-        stop: take(LOGOUT_USER_SUCCESS),
-      });
-
-      if (raceResult.stop) {
-        return;
-      }
-    }
-
-    yield call([socket, socket.startListenToJobProgress], jobId, true);
-
-    const { jobDone } = yield race({
-      jobProgress: call(watchUpdateHistoryOnJobProgress, datasetVersion, jobId),
-      jobDone: take(getJobDoneActionFilter(jobId)),
-      locationChange: call(explorePageChanged),
-    });
-
-    if (jobDone) {
-      // if a job fails, throw an error to avoid calling the /preview endpoint
-      if (jobDone.payload?.update?.state === "FAILED") {
-        const failureInfo = jobDone.payload.update.failureInfo;
-        throw new JobFailedError(
-          failureInfo?.errors?.[0]?.message || failureInfo?.message
-        );
-      }
-
-      const apiAction = yield call(
-        loadNewDataset,
-        datasetPath,
-        sessionId,
-        datasetVersion,
-        jobId,
-        paginationUrl,
-        viewId
-      );
-
-      newResponse = yield call(fetchDatasetMetadata, apiAction, viewId);
-
-      if (!callback) {
-        const promise = yield put(
-          loadNextRows(datasetVersion, paginationUrl, 0)
-        );
-        const response = yield promise;
-        const exploreState = yield select(getExploreState);
-        const queryStatuses = cloneDeep(
-          exploreState?.view?.queryStatuses ?? []
-        );
-
-        if (response?.error) {
-          if (queryStatuses.length) {
-            const index = queryStatuses.findIndex(
-              (query) => query.jobId === jobId
-            );
-
-            if (index > -1 && !queryStatuses[index].error) {
-              const newStatuses = cloneDeep(queryStatuses);
-              newStatuses[index].error = response;
-              yield put(setQueryStatuses({ statuses: newStatuses }));
-            }
-          }
-        }
-
-        if (!response || response.error) {
-          throw new DataLoadError(response);
-        }
-
-        yield put(
-          updateHistoryWithJobState(
-            datasetVersion,
-            jobDone.payload.update.state
-          )
-        );
-        yield put(updateExploreJobProgress(jobDone.payload.update));
-        yield call(genLoadJobDetails, jobId, queryStatuses);
-      }
-    }
-  } catch (e) {
-    // if a job fails, fetch the correct job failure info using the Jobs API
-    willProceed = yield fetchJobFailureInfo(jobId, curIndex, callback);
-  } finally {
-    yield call([socket, socket.stopListenToJobProgress], jobId);
-  }
-
-  return { willProceed, newResponse };
 }
 
 /**

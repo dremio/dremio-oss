@@ -20,7 +20,7 @@ package com.dremio.resource.common;
  */
 public interface ReflectionRoutingManager {
 
-  default boolean checkQueueExists(String queueName) throws Exception {
+  default boolean checkQueueExists(String queueNameOrId) throws Exception {
     throw new UnsupportedOperationException();
   }
 
@@ -28,7 +28,7 @@ public interface ReflectionRoutingManager {
     throw new UnsupportedOperationException();
   }
 
-  default String getQueueIdByName(String queueName) throws Exception {
+  default String getQueueId(String queueNameOrId) throws Exception {
     throw new UnsupportedOperationException();
   }
 

@@ -20,7 +20,6 @@ import static org.mockito.Mockito.when;
 
 import java.io.File;
 
-import org.apache.hadoop.conf.Configuration;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -43,7 +42,7 @@ public class TestIcebergHadoopCommand {
     String tableName = "icebergtable";
     BatchSchema schema = BatchSchema.newBuilder().addField(CompleteType.INT.toField("int")).build();
     FileSystemPlugin fileSystemPlugin = BaseTestQuery.getMockedFileSystemPlugin();
-    IcebergHadoopModel icebergHadoopModel = new IcebergHadoopModel(new Configuration(), fileSystemPlugin);
+    IcebergHadoopModel icebergHadoopModel = new IcebergHadoopModel(fileSystemPlugin);
     when(fileSystemPlugin.getIcebergModel()).thenReturn(icebergHadoopModel);
     IcebergOpCommitter createTableCommitter = icebergHadoopModel.getCreateTableCommitter(
             tableName, icebergHadoopModel.getTableIdentifier(Path.of(tempDir.getRoot().getPath()).resolve(tableName).toString()),

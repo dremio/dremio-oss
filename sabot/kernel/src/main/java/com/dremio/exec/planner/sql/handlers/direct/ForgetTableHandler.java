@@ -45,7 +45,7 @@ public class ForgetTableHandler extends SimpleDirectHandler {
     final NamespaceKey path = catalog.resolveSingle(sqlForgetTable.getPath());
 
     String root = path.getRoot();
-    if(root.startsWith("@") || root.equalsIgnoreCase("sys") || root.equalsIgnoreCase("INFORMATION_SCHEMA")) {
+    if (root.startsWith("@") || "sys".equalsIgnoreCase(root) || "INFORMATION_SCHEMA".equalsIgnoreCase(root)) {
       throw UserException.parseError().message("FORGET METADATA is not supported on tables in homespace, sys, or INFORMATION_SCHEMA.").build(logger);
     }
 

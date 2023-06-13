@@ -17,7 +17,7 @@ import localStorageUtils from "@inject/utils/storageUtils/localStorageUtils";
 import { store } from "@app/store/store";
 // @ts-ignore
 import { resetPrivilegesState } from "@inject/actions/privileges";
-import { isDcsEdition } from "dyn-load/utils/versionUtils";
+import { isNotSoftware } from "dyn-load/utils/versionUtils";
 
 export const handleSonarProjectChange = (
   project: any,
@@ -25,7 +25,7 @@ export const handleSonarProjectChange = (
 ) => {
   (localStorageUtils as any)?.setProjectContext?.(project);
   (localStorageUtils as any)?.clearCurrentEngine?.();
-  if (isDcsEdition()) {
+  if (isNotSoftware()) {
     // reset redux state related to projects
     store.dispatch(resetPrivilegesState(["engineMapping"]));
   }

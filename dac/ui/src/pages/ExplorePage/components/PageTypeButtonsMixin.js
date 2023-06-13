@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 import { PageTypes } from "@app/pages/ExplorePage/pageTypes";
+import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
 
 export default function (input) {
   const originalFn = input.prototype.getAvailablePageTypes;
@@ -27,7 +28,11 @@ export default function (input) {
     getAvailablePageTypes() {
       const { dataset, showWiki } = this.props;
       const pageTypeList = originalFn.call(this);
-      if (showWiki) {
+
+      const versionedContextForDataset = getVersionContextFromId(
+        dataset.get("entityId")
+      );
+      if (showWiki && !versionedContextForDataset) {
         pageTypeList.push(PageTypes.wiki);
       }
       const isNewQuery =
@@ -36,6 +41,10 @@ export default function (input) {
 
       if (!isNewQuery) {
         pageTypeList.push(PageTypes.reflections);
+      }
+
+      if (versionedContextForDataset) {
+        pageTypeList.push(PageTypes.history);
       }
 
       return pageTypeList;

@@ -16,7 +16,10 @@
 package com.dremio.exec.planner.observer;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+
+import javax.inject.Provider;
 
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.RelNode;
@@ -26,7 +29,9 @@ import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.common.DeferredException;
 import com.dremio.common.SerializedExecutor;
+import com.dremio.common.tracing.TracingUtils;
 import com.dremio.common.utils.protos.QueryWritableBatch;
+import com.dremio.context.RequestContext;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.planner.CachedAccelDetails;
 import com.dremio.exec.planner.PlannerPhase;
@@ -45,6 +50,9 @@ import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.exec.work.protector.UserResult;
 import com.dremio.reflection.hints.ReflectionExplanationsAndQueryDistance;
 import com.dremio.resource.ResourceSchedulingDecisionInfo;
+import com.dremio.telemetry.utils.TracerFacade;
+
+import io.opentracing.Span;
 
 /**
  * Does query observations in order but not in the query execution thread. This
@@ -56,18 +64,42 @@ import com.dremio.resource.ResourceSchedulingDecisionInfo;
  * {@link #attemptCompletion(UserResult)} callback
  */
 public class OutOfBandAttemptObserver implements AttemptObserver {
-
   private final SerializedExecutor<Runnable> serializedExec;
   private final AttemptObserver innerObserver;
   private final DeferredException deferred = new DeferredException();
 
-  OutOfBandAttemptObserver(AttemptObserver innerObserver, SerializedExecutor<Runnable> serializedExec) {
+  private Span executionSpan;
+  private long numCallsToExecDataArrived = 0;
+  // log the next span event after this many calls to execDataArrived
+  private long recordNextEventOnNumCalls = 1;
+  private long eventNameSuffix = 1;
+  private final Provider<RequestContext> requestContextProvider;
+
+  OutOfBandAttemptObserver(
+      AttemptObserver innerObserver,
+      SerializedExecutor<Runnable> serializedExec,
+      Provider<RequestContext> requestContextProvider) {
     this.serializedExec = serializedExec;
     this.innerObserver = innerObserver;
+    this.requestContextProvider = requestContextProvider;
   }
 
   @Override
   public void beginState(final AttemptEvent event) {
+    switch (event.getState()) {
+      case RUNNING: {
+        executionSpan = TracingUtils.buildChildSpan(TracerFacade.INSTANCE, "execution-started");
+        break;
+      }
+      case COMPLETED:
+      case CANCELED:
+      case FAILED: {
+        if (executionSpan != null) {
+          executionSpan.finish();
+        }
+        break;
+      }
+    }
     execute(() -> innerObserver.beginState(event));
   }
 
@@ -97,8 +129,9 @@ public class OutOfBandAttemptObserver implements AttemptObserver {
   }
 
   @Override
-  public void planRelTransform(final PlannerPhase phase, final RelOptPlanner planner, final RelNode before, final RelNode after, final long millisTaken) {
-    execute(() -> innerObserver.planRelTransform(phase, planner, before, after, millisTaken));
+  public void planRelTransform(final PlannerPhase phase, final RelOptPlanner planner, final RelNode before,
+                               final RelNode after, final long millisTaken, final Map<String, Long> timeBreakdownPerRule) {
+    execute(() -> innerObserver.planRelTransform(phase, planner, before, after, millisTaken, timeBreakdownPerRule));
   }
 
   @Override
@@ -145,7 +178,13 @@ public class OutOfBandAttemptObserver implements AttemptObserver {
 
   @Override
   public void planCompleted(final ExecutionPlan plan) {
-    execute(() -> innerObserver.planCompleted(plan));
+    // TODO(DX-61807): The catalog lookup will be avoided if we use cache.
+    final RequestContext requestContext =
+        (RequestContext.current() != RequestContext.empty() || requestContextProvider == null)
+            ? RequestContext.current()
+            : requestContextProvider.get();
+
+    execute(() -> requestContext.run(() -> innerObserver.planCompleted(plan)));
   }
 
   @Override
@@ -155,6 +194,16 @@ public class OutOfBandAttemptObserver implements AttemptObserver {
 
   @Override
   public void execDataArrived(final RpcOutcomeListener<Ack> outcomeListener, final QueryWritableBatch result) {
+    if ((eventNameSuffix <= 10) && (executionSpan != null)) {
+      numCallsToExecDataArrived++;
+      if (numCallsToExecDataArrived == recordNextEventOnNumCalls) {
+        // log data-arrived event
+        executionSpan.log("execDataArrived-" + eventNameSuffix);
+        // increase the gap between events as the output data is large
+        recordNextEventOnNumCalls *= 2;
+        eventNameSuffix++;
+      }
+    }
     execute(() -> innerObserver.execDataArrived(outcomeListener, result));
   }
 
@@ -279,6 +328,16 @@ public class OutOfBandAttemptObserver implements AttemptObserver {
   @Override
   public void tablesCollected(Iterable<DremioTable> tables) {
     execute(() -> innerObserver.tablesCollected(tables));
+  }
+
+  @Override
+  public void setNumJoinsInUserQuery(Integer joins) {
+    execute(() -> innerObserver.setNumJoinsInUserQuery(joins));
+  }
+
+  @Override
+  public void setNumJoinsInFinalPrel(Integer joins) {
+    execute(() -> innerObserver.setNumJoinsInFinalPrel(joins));
   }
 
   /**

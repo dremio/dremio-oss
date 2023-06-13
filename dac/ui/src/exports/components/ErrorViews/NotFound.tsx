@@ -15,7 +15,7 @@
  */
 
 import { Link } from "react-router";
-import { Button } from "dremio-ui-lib/dist-esm/index";
+import { Button } from "dremio-ui-lib/components";
 import { intl } from "@app/utils/intl";
 import { ErrorView } from "./ErrorView";
 import * as orgPaths from "dremio-ui-common/paths/organization.js";
@@ -23,47 +23,47 @@ import * as commonPaths from "dremio-ui-common/paths/common.js";
 //@ts-ignore
 import narwhal404 from "dremio-ui-lib/icons/dremio/narwhal/narwhal-404.svg";
 import { FeatureSwitch } from "../FeatureSwitch/FeatureSwitch";
-import { ORGANIZATION_LANDING } from "../../flags/ORGANIZATION_LANDING";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
+import { getSessionContext } from "dremio-ui-common/contexts/SessionContext.js";
 
 export const NotFound = ({
   title,
   action,
+  img,
 }: {
   title?: string;
   action?: any;
+  img?: any;
 }) => {
   const { formatMessage } = intl;
   const projectId = getSonarContext()?.getSelectedProjectId?.();
+  const organizationLanding =
+    typeof getSessionContext().getOrganizationId === "function";
   return (
     <ErrorView
       title={title ?? formatMessage({ id: "404.ThePageDoesntExist" })}
-      image={<img src={narwhal404} alt="" />}
+      image={img ?? <img src={narwhal404} alt="" />}
       action={
         <>
-          <FeatureSwitch
-            flag={ORGANIZATION_LANDING}
-            renderEnabled={() =>
-              action ?? (
-                <Button
-                  as={Link}
-                  variant="primary"
-                  to={orgPaths.organization.link()}
-                >
-                  {formatMessage({ id: "404.GoToConsole" })}
-                </Button>
-              )
-            }
-            renderDisabled={() => (
+          {organizationLanding ? (
+            action ?? (
               <Button
                 as={Link}
                 variant="primary"
-                to={commonPaths.projectBase({ projectId })}
+                to={orgPaths.organization.link()}
               >
-                {formatMessage({ id: "404.GoToHome" })}
+                {formatMessage({ id: "404.GoToConsole" })}
               </Button>
-            )}
-          />
+            )
+          ) : (
+            <Button
+              as={Link}
+              variant="primary"
+              to={commonPaths.projectBase({ projectId })}
+            >
+              {formatMessage({ id: "404.GoToHome" })}
+            </Button>
+          )}
         </>
       }
     />

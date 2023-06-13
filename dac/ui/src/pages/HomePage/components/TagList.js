@@ -17,7 +17,7 @@
 import { useRef } from "react";
 import TagsModal from "pages/HomePage/components/modals/TagsModal/TagsModal";
 import { Tag } from "@app/pages/ExplorePage/components/TagsEditor/Tag";
-import { useOverflowIndex } from "dremio-ui-lib/dist-esm";
+import { useOverflowIndex } from "dremio-ui-lib/components";
 import clsx from "clsx";
 
 import classes from "./TagList.less";

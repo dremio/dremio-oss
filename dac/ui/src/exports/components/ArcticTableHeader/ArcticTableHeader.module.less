@@ -41,22 +41,18 @@
 
     input {
       &:hover {
-        border-color: var(--dremio--color--neutral--300);
+        border-color: var(--color--neutral--200);
       }
 
       &:focus {
-        border-color: var(--dremio--color--primary--500);
-        background-color: var(--dremio--color--neutral--000);
+        border-color: var(--color--brand--300);
+        background-color: white;
       }
     }
   }
 
   &__header-button {
-    min-width: auto;
-    span {
-      color: var(--dremio--color--icon--main);
-      font-size: 16px;
-      font-weight: 500;
-    }
+    font-size: var(--dremio--font-size--lg);
+    font-weight: 500;
   }
 }

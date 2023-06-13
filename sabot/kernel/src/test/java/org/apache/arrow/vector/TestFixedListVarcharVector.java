@@ -66,16 +66,16 @@ public class TestFixedListVarcharVector extends DremioTest {
   }
 
   @Test
-  public void TestBasic() {
-    TestBasic(false, false, false);
-    TestBasic(true, false, false);
-    TestBasic(false, true, false);
-    TestBasic(false, true, true);
-    TestBasic(true, true, false);
-    TestBasic(true, true, true);
+  public void testBasic() {
+    testBasic(false, false, false);
+    testBasic(true, false, false);
+    testBasic(false, true, false);
+    testBasic(false, true, true);
+    testBasic(true, true, false);
+    testBasic(true, true, true);
   }
 
-  private void TestBasic(boolean distinct, boolean orderby, boolean asc) {
+  private void testBasic(boolean distinct, boolean orderby, boolean asc) {
     int batchSize = 100;
 
     FixedListVarcharVector flv = new FixedListVarcharVector("TestCompactionThreshold", testAllocator,
@@ -108,8 +108,9 @@ public class TestFixedListVarcharVector extends DremioTest {
     }
   }
 
+  @SuppressWarnings("checkstyle:LocalFinalVariableName")
   @Test
-  public void TestDistinctBasic() {
+  public void testDistinctBasic() {
     // Input Provided:
     // 0: "AA", "AA", BB
     // 1: "AAA", "BBB", "AAA"
@@ -150,7 +151,7 @@ public class TestFixedListVarcharVector extends DremioTest {
   }
 
   @Test
-  public void TestMoveValuesAndFreeSpace() {
+  public void testMoveValuesAndFreeSpace() {
     VarCharVector v1 = new VarCharVector("TestCopyOutVarchar", testAllocator);
     VarCharVector v2 = new VarCharVector("TestCopyOutVarchar", testAllocator);
     VarCharVector v3 = new VarCharVector("TestCopyOutVarchar", testAllocator);
@@ -538,12 +539,13 @@ public class TestFixedListVarcharVector extends DremioTest {
   }
 
   @Test
-  public void TestLimitSizeBasic() {
+  public void testLimitSizeBasic() {
     // Input Provided:
     // 0: "AA", "AA", "BB"
     // 1: "AAA", "BBB", "AAA"
     // 2: "CC", "DDD"
     // 3: "CCC", "DDDD"
+    @SuppressWarnings("checkstyle:LocalFinalVariableName")
     final int SMALL_MAX_LIST_AGG_SIZE = 11;
     final String delimiter = ",";
     final ListVector tempSpace = FixedListVarcharVector.allocListVector(testAllocator, SMALL_MAX_LIST_AGG_SIZE);
@@ -583,8 +585,9 @@ public class TestFixedListVarcharVector extends DremioTest {
     flv.close();
   }
 
+  @SuppressWarnings("checkstyle:LocalFinalVariableName")
   @Test
-  public void TestCompactWithDistinctAndLimitSize() {
+  public void testCompactWithDistinctAndLimitSize() {
     // Input Provided:
     // 0: "AA", "AA", "BB", "BB", "A", "B"
     // 1: "a", "b", "a", "b"
@@ -629,8 +632,9 @@ public class TestFixedListVarcharVector extends DremioTest {
     flv.close();
   }
 
+  @SuppressWarnings("checkstyle:LocalFinalVariableName")
   @Test
-  public void TestOutputToVectorBasic() {
+  public void testOutputToVectorBasic() {
     // Input Provided:
     // 0: "AA", "AA", "BB"
     // 1: "AAA", "BBB", "AAA"
@@ -673,8 +677,9 @@ public class TestFixedListVarcharVector extends DremioTest {
     v1.close();
   }
 
+  @SuppressWarnings("checkstyle:LocalFinalVariableName")
   @Test
-  public void TestAddValueToRowGroup() {
+  public void testAddValueToRowGroup() {
     // Input Provided:
     // 0: "AA", "AA", "BB"
     // 1: "aaaa", "bbbb", "aaaa"
@@ -737,8 +742,9 @@ public class TestFixedListVarcharVector extends DremioTest {
     flv.close();
   }
 
+  @SuppressWarnings("checkstyle:LocalFinalVariableName")
   @Test
-  public void TestAddValueToRowGroupWithOrderby() {
+  public void testAddValueToRowGroupWithOrderby() {
     // Input Provided:
     // 0: "AA", "BB", "AA"
     // 1: "aaa", "bbb", "aaa"
@@ -843,7 +849,7 @@ public class TestFixedListVarcharVector extends DremioTest {
   }
 
   @Test
-  public void TestAddListVectorToRowGroup() {
+  public void testAddListVectorToRowGroup() {
     int batchSize = 100;
     final String delimiter = ",";
     VarCharVector v1 = new VarCharVector("TestCopyOutVarchar", testAllocator);
@@ -915,8 +921,9 @@ public class TestFixedListVarcharVector extends DremioTest {
     }
   }
 
+  @SuppressWarnings("checkstyle:LocalFinalVariableName")
   @Test
-  public void TestWriteRowGroupValues() {
+  public void testWriteRowGroupValues() {
     // ARRANGE
     final int VALUES_PER_BATCH = 64;
     final int MAX_LIST_AGG_SIZE = 1024 * 1024; // A high limit because this test isn't concerned with overflow behavior
@@ -946,8 +953,9 @@ public class TestFixedListVarcharVector extends DremioTest {
     flv.close();
   }
 
+  @SuppressWarnings("checkstyle:LocalFinalVariableName")
   @Test
-  public void TestOutputToListVector() {
+  public void testOutputToListVector() {
     // ARRANGE
     final int VALUES_PER_BATCH = 64;
     final int MAX_LIST_AGG_SIZE = 1024 * 1024; // A high limit because this test isn't concerned with overflow behavior
@@ -993,7 +1001,7 @@ public class TestFixedListVarcharVector extends DremioTest {
   }
 
   @Test
-  public void TestFlvWithAndWithoutAllowOneOverFlow() {
+  public void testFlvWithAndWithoutAllowOneOverFlow() {
     /**
      *  The test does the following.
      *  1. Insert values into flv which has allowOneOverFlow set to true.
@@ -1010,6 +1018,7 @@ public class TestFixedListVarcharVector extends DremioTest {
     // 3: "CC", "DDD"
     // 4: null
     // 5: "CCC", "DDDD"
+    @SuppressWarnings("checkstyle:LocalFinalVariableName")
     final int SMALL_MAX_LIST_AGG_SIZE = 11;
     final String delimiter = ",";
     final ListVector tempSpace = FixedListVarcharVector.allocListVector(testAllocator, MAX_VALUES_PER_BATCH);
@@ -1089,10 +1098,11 @@ public class TestFixedListVarcharVector extends DremioTest {
   }
 
   @Test
-  public void TestAdjustMaxListAggSize() {
+  public void testAdjustMaxListAggSize() {
     // Input Provided:
     // 0: "123456789012345", "123", "12345678901234567890123456789"
     // 1: "123", "123456789012345", "12345678901234567890123456789"
+    @SuppressWarnings("checkstyle:LocalFinalVariableName")
     final int SMALL_MAX_LIST_AGG_SIZE = 10;
     final String delimiter = ",";
     final ListVector tempSpace = FixedListVarcharVector.allocListVector(testAllocator, SMALL_MAX_LIST_AGG_SIZE);
@@ -1128,9 +1138,10 @@ public class TestFixedListVarcharVector extends DremioTest {
   }
 
   @Test
-  public void TestOrderbyMultipleCompacts() {
+  public void testOrderbyMultipleCompacts() {
     // Input Provided:
     // 0: "12345678", "12345678", "12345678"
+    @SuppressWarnings("checkstyle:LocalFinalVariableName")
     final int SMALL_MAX_LIST_AGG_SIZE = 25;
     final String delimiter = "";
     final ListVector tempSpace = FixedListVarcharVector.allocListVector(testAllocator, SMALL_MAX_LIST_AGG_SIZE);
@@ -1181,10 +1192,11 @@ public class TestFixedListVarcharVector extends DremioTest {
   }
 
   @Test
-  public void TestOutputToVector() {
+  public void testOutputToVector() {
     // Input Provided:
     // 0: "01234567890123456789"
     // 1: "12345678", "12345678"
+    @SuppressWarnings("checkstyle:LocalFinalVariableName")
     final int SMALL_MAX_LIST_AGG_SIZE = 10;
     final String delimiter = "";
     final ListVector tempSpace = FixedListVarcharVector.allocListVector(testAllocator, SMALL_MAX_LIST_AGG_SIZE);

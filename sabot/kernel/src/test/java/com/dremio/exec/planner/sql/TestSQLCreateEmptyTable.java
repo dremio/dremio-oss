@@ -18,6 +18,7 @@ package com.dremio.exec.planner.sql;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.calcite.sql.SqlKind;
@@ -28,6 +29,7 @@ import org.junit.Test;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.parser.SqlCreateEmptyTable;
+import com.dremio.exec.proto.UserBitShared;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 
@@ -207,6 +209,48 @@ public class TestSQLCreateEmptyTable {
       "CREATE TABLE t1 (date1 DATE, name VARCHAR) PARTITION BY (truncate(42, 'asdf', name))"))
       .isInstanceOf(UserException.class)
       .hasMessageContaining("Invalid arguments for partition transform");
+  }
+  @Test
+  public void testParseMalformedQueriesWithTableProperties() throws Exception {
+    List<String> malformedQueries = new ArrayList<String>() {{
+      add("create table s (a BIGINT) TBLPROPERTIES ()");
+      add("create table s (a BIGINT) TBLPROPERTIES");
+      add("create table s (a BIGINT) TBLPROPERTIES ('property_name' = 'property_value', 'property_name1' = )");
+      add("create table s (a BIGINT) TBLPROPERTIES ('property_name')");
+      add("create table s (a BIGINT) TBLPROPERTIES ('property_name', 'property_name1' )");
+      add("create table s (a BIGINT) TBLPROPERTIES ('property_name', 'property_name1' = )");
+      add("create table s (a BIGINT) TBLPROPERTIES ('property_name' = 'property_value', 'property_name1')");
+    }};
+
+    for (String malformedQuery : malformedQueries) {
+      parseAndVerifyMalFormat(malformedQuery);
+    }
+  }
+
+  @Test
+  public void testParseWellformedQueriesWithTableProperties() throws Exception {
+    List<String> wellformedQueries = new ArrayList<String>() {{
+      add("create table s (a BIGINT) TBLPROPERTIES ('property_name' = 'property_value')");
+      add("create table s (a BIGINT) TBLPROPERTIES ('property_name' = 'property_value', 'property_name1' = 'property_value1')");
+    }};
+
+    for (String wellformedQuery : wellformedQueries) {
+      parseAndVerifyWellFormat(wellformedQuery);
+    }
+  }
+
+  private void parseAndVerifyWellFormat(String sql) {
+    SqlNode sqlNode = SqlConverter.parseSingleStatementImpl(sql, parserConfig, false);
+    Assert.assertTrue(sqlNode instanceof SqlCreateEmptyTable);
+    Assert.assertTrue(sqlNode.isA(Sets.immutableEnumSet(SqlKind.OTHER_DDL)));
+  }
+
+  private void parseAndVerifyMalFormat(String sql) {
+    try {
+      SqlConverter.parseSingleStatementImpl(sql, parserConfig, false);
+    } catch (UserException ue) {
+      Assert.assertEquals(ue.getErrorType(), UserBitShared.DremioPBError.ErrorType.PARSE);
+    }
   }
 
   private List<PartitionTransform> parseAndGetPartitionTransforms(String sql) {

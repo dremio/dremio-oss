@@ -108,6 +108,7 @@ public final class SentinelSecureFilter implements PropertyFilter {
       }
     }
 
+    @Override
     public void serializeAsElement(Object bean,
         JsonGenerator gen,
         SerializerProvider prov) throws Exception {

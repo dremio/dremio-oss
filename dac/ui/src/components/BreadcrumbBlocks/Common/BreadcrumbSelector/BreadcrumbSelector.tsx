@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { useState } from "react";
 // @ts-ignore
 import { Select } from "dremio-ui-lib";
 import * as classes from "./BreadcrumbSelector.module.less";
@@ -28,14 +27,12 @@ const BreadcrumbSelector = ({
   defaultValue,
   refetchOnOpen,
 }: BreadcrumbSelectorProps) => {
-  const [value, setValue] = useState(defaultValue);
   return (
     <div className={classes["breadcrumbs-container"]}>
       <Select
-        value={value}
+        value={defaultValue}
         options={options}
         role="breadcrumb"
-        onChange={(e: any) => setValue(e.target.value)}
         onOpen={refetchOnOpen}
       />
     </div>

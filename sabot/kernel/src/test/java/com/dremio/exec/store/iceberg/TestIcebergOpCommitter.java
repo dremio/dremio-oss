@@ -63,6 +63,7 @@ import org.apache.iceberg.exceptions.ValidationException;
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.io.OutputFile;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
@@ -75,9 +76,7 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.iceberg.manifestwriter.IcebergCommitOpHelper;
-import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
 import com.dremio.exec.store.iceberg.model.IcebergDmlOperationCommitter;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.exec.store.iceberg.model.IcebergOpCommitter;
@@ -114,7 +113,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
 
   private final String folder = Files.createTempDir().getAbsolutePath();
   private final DatasetCatalogGrpcClient client = new DatasetCatalogGrpcClient(getSabotContext().getDatasetCatalogBlockingStub().get());
-  private IcebergModel icebergHadoopModel = getIcebergModel(null, IcebergCatalogType.NESSIE);
+  private IcebergModel icebergModel;
   private OperatorStats operatorStats;
   private OperatorContext operatorContext;
 
@@ -122,7 +121,8 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
     Field.nullablePrimitive("id", new ArrowType.Int(64, true)),
     Field.nullablePrimitive("data", new ArrowType.Utf8()));
 
-  public TestIcebergOpCommitter() {
+  @Before
+  public void beforeTest() {
     this.operatorStats = mock(OperatorStats.class);
     doNothing().when(operatorStats).addLongStat(any(), anyLong());
     this.operatorContext = mock(OperatorContext.class);
@@ -133,6 +133,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
     OptionManager optionManager = mock(OptionManager.class);
     when(optionManager.getOption(ExecConstants.ENABLE_MAP_DATA_TYPE)).thenReturn(true);
     when(operatorContext.getOptions()).thenReturn(optionManager);
+    icebergModel = getIcebergModel(TEMP_SCHEMA);
   }
 
   public String initialiseTableWithLargeSchema(BatchSchema schema, String tableName) throws IOException {
@@ -140,14 +141,12 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
     final File tableFolder = new File(folder, tableName);
     tableFolder.mkdirs();
 
-    FileSystemPlugin fileSystemPlugin = BaseTestQuery.getMockedFileSystemPlugin();
-    when(fileSystemPlugin.getIcebergModel()).thenReturn(icebergHadoopModel);
     DatasetConfig config = getDatasetConfig(datasetPath);
 
-    IcebergOpCommitter fullRefreshCommitter = icebergHadoopModel.getFullMetadataRefreshCommitter(tableName, datasetPath,
+    IcebergOpCommitter fullRefreshCommitter = icebergModel.getFullMetadataRefreshCommitter(tableName, datasetPath,
       tableFolder.toPath().toString(),
       tableName,
-      icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()),
+      icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
       schema,
       Collections.emptyList(), config, operatorStats, null);
     fullRefreshCommitter.commit();
@@ -160,17 +159,17 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
 
     String tag = getTag(datasetPath);
     config.setTag(tag);
-    Table table = getIcebergTable(new File(folder, tableName), IcebergCatalogType.NESSIE);
+    Table table = getIcebergTable(icebergModel, new File(folder, tableName));
     TableOperations tableOperations = ((BaseTable) table).operations();
     String metadataFileLocation = tableOperations.current().metadataFileLocation();
     IcebergMetadata icebergMetadata = new IcebergMetadata();
     icebergMetadata.setMetadataFileLocation(metadataFileLocation);
     config.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
 
-    IcebergOpCommitter incrementalRefreshCommitter = icebergHadoopModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName, datasetPath,
+    IcebergOpCommitter incrementalRefreshCommitter = icebergModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName, datasetPath,
             tableFolder.toPath().toString(),
             tableName,
-            icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()),
+            icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
             schema,
             Collections.emptyList(), true, config);
 
@@ -196,11 +195,11 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       IcebergMetadata icebergMetadata = new IcebergMetadata();
       icebergMetadata.setMetadataFileLocation(metadataFileLocation);
       datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
-      IcebergOpCommitter insertTableCommitter = icebergHadoopModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
+      IcebergOpCommitter insertTableCommitter = icebergModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
               datasetPath,
               tableName,
               tableFolder.toPath().toString(),
-              icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()),
+              icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
               schema,
               Collections.emptyList(), true, datasetConfig);
       DataFile dataFile6 = getDatafile("books/add1.parquet");
@@ -208,7 +207,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       ManifestFile m1 = writeManifest(tableFolder, "manifestFile2", dataFile6, dataFile7);
       insertTableCommitter.consumeManifestFile(m1);
       insertTableCommitter.commit();
-      Table table = getIcebergTable(tableFolder, IcebergCatalogType.NESSIE);
+      Table table = getIcebergTable(icebergModel, tableFolder);
       List<ManifestFile> manifestFileList = table.currentSnapshot().allManifests(table.io());
       Assert.assertEquals(2, manifestFileList.size());
       for (ManifestFile manifestFile : manifestFileList) {
@@ -236,11 +235,11 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       IcebergMetadata icebergMetadata = new IcebergMetadata();
       icebergMetadata.setMetadataFileLocation(metadataFileLocation);
       datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
-      IcebergOpCommitter metaDataRefreshCommitter = icebergHadoopModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
+      IcebergOpCommitter metaDataRefreshCommitter = icebergModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
         datasetPath,
         tableFolder.toPath().toString(),
         tableName,
-        icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()),
+        icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
         schema,
         Collections.emptyList(), true, datasetConfig);
 
@@ -259,7 +258,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       // After this operation manifestList was expected to have two manifest file
       // One is manifestFile2 and other one is newly created due to delete data file. as This newly created Manifest is due to rewriting
       // of manifestFile1 file. it is expected to 2 existing file account and 3 deleted file count.
-      Table table = getIcebergTable(tableFolder, IcebergCatalogType.NESSIE);
+      Table table = getIcebergTable(icebergModel, tableFolder);
       List<ManifestFile> manifestFileList = table.currentSnapshot().allManifests(table.io());
       for (ManifestFile manifestFile : manifestFileList) {
         if (manifestFile.path().contains("manifestFile2")) {
@@ -300,11 +299,11 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       IcebergMetadata icebergMetadata = new IcebergMetadata();
       icebergMetadata.setMetadataFileLocation(metadataFileLocation);
       datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
-      IcebergOpCommitter metaDataRefreshCommitter = icebergHadoopModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
+      IcebergOpCommitter metaDataRefreshCommitter = icebergModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
         datasetPath,
         tableFolder.toPath().toString(),
         tableName,
-        icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()),
+        icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
         schema,
         Collections.emptyList(), true, datasetConfig);
 
@@ -325,7 +324,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       // After this operation manifestList was expected to have two manifest file
       // One is manifestFile2 and other one is newly created due to delete data file. as This newly created Manifest is due to rewriting
       // of manifestFile1 file. it is expected to 2 existing file account and 3 deleted file count.
-      Table table = getIcebergTable(tableFolder, IcebergCatalogType.NESSIE);
+      Table table = getIcebergTable(icebergModel, tableFolder);
       List<ManifestFile> manifestFileList = table.currentSnapshot().allManifests(table.io());
       for (ManifestFile manifestFile : manifestFileList) {
         if (manifestFile.path().contains("manifestFile2")) {
@@ -351,9 +350,9 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       IcebergMetadata icebergMetadata = new IcebergMetadata();
       icebergMetadata.setMetadataFileLocation(metadataFileLocation);
       datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
-      IcebergOpCommitter deleteCommitter = icebergHadoopModel.getDmlCommitter(
+      IcebergOpCommitter deleteCommitter = icebergModel.getDmlCommitter(
         operatorContext.getStats(),
-        icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()),
+        icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
         datasetConfig);
 
       // Add a new manifest list, and delete several previous datafiles
@@ -377,7 +376,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       // After this operation, the manifestList was expected to have two manifest file.
       // One is 'manifestFileDelete' and the other is the newly created due to delete data file. This newly created manifest
       // is due to rewriting of 'manifestFile1' file. It is expected to 1 existing file account and 4 deleted file count.
-      Table table = getIcebergTable(tableFolder, IcebergCatalogType.NESSIE);
+      Table table = getIcebergTable(icebergModel, tableFolder);
       List<ManifestFile> manifestFileList = table.currentSnapshot().allManifests(table.io());
       Assert.assertEquals(2, manifestFileList.size());
       for (ManifestFile manifestFile : manifestFileList) {
@@ -405,13 +404,13 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       IcebergMetadata icebergMetadata = new IcebergMetadata();
       icebergMetadata.setMetadataFileLocation(metadataFileLocation);
       datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
-      Table oldTable = getIcebergTable(tableFolder, IcebergCatalogType.NESSIE);
+      Table oldTable = getIcebergTable(icebergModel, tableFolder);
       Assert.assertEquals(3, Iterables.size(oldTable.snapshots()));
-      IcebergOpCommitter metaDataRefreshCommitter = icebergHadoopModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
+      IcebergOpCommitter metaDataRefreshCommitter = icebergModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
         datasetPath,
         tableFolder.toPath().toString(),
         tableName,
-        icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()),
+        icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
         schema,
         Collections.emptyList(), true, datasetConfig);
 
@@ -425,7 +424,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       metaDataRefreshCommitter.consumeDeleteDataFile(dataFile5);
       metaDataRefreshCommitter.consumeManifestFile(m1);
       metaDataRefreshCommitter.commit();
-      Table table = getIcebergTable(tableFolder, IcebergCatalogType.NESSIE);
+      Table table = getIcebergTable(icebergModel, tableFolder);
       Assert.assertEquals(6, Iterables.size(table.snapshots()));
       table.refresh();
       TableOperations tableOperations = ((BaseTable) table).operations();
@@ -433,18 +432,18 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       icebergMetadata.setMetadataFileLocation(metadataFileLocation);
       datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
 
-      metaDataRefreshCommitter = icebergHadoopModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
+      metaDataRefreshCommitter = icebergModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
         datasetPath,
         tableFolder.toPath().toString(),
         tableName,
-        icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()),
+        icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
         schema,
         Collections.emptyList(), true, datasetConfig);
       DataFile dataFile2 = getDatafile("books/add2.parquet");
       ManifestFile m2 = writeManifest(tableFolder, "manifestFile3", dataFile2);
       metaDataRefreshCommitter.consumeManifestFile(m2);
       metaDataRefreshCommitter.commit();
-      table = getIcebergTable(tableFolder, IcebergCatalogType.NESSIE);
+      table = getIcebergTable(icebergModel, tableFolder);
       Assert.assertEquals(8, Iterables.size(table.snapshots()));
     } finally {
       FileUtils.deleteDirectory(tableFolder);
@@ -483,10 +482,10 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       IcebergMetadata icebergMetadata = new IcebergMetadata();
       icebergMetadata.setMetadataFileLocation(metadataFileLocation);
       datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
-      IcebergOpCommitter insertTableCommitter = icebergHadoopModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
+      IcebergOpCommitter insertTableCommitter = icebergModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
       datasetPath,
       tableFolder.toPath().toString(), tableName,
-      icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()), schema1,
+      icebergModel.getTableIdentifier(tableFolder.toPath().toString()), schema1,
       Collections.emptyList(),true, datasetConfig);
 
       BatchSchema schema2 = new BatchSchema(Arrays.asList(
@@ -516,7 +515,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       insertTableCommitter.updateSchema(consolidatedSchema);
       insertTableCommitter.commit();
 
-      Table table = getIcebergTable(tableFolder, IcebergCatalogType.NESSIE);
+      Table table = getIcebergTable(icebergModel, tableFolder);
       Schema sc = table.schema();
       SchemaConverter schemaConverter = SchemaConverter.getBuilder().setTableName(table.name()).build();
       Assert.assertTrue(consolidatedSchema.equalsTypesWithoutPositions(schemaConverter.fromIceberg(sc)));
@@ -536,10 +535,10 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       IcebergMetadata icebergMetadata = new IcebergMetadata();
       icebergMetadata.setMetadataFileLocation(metadataFileLocation);
       datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
-      IcebergOpCommitter insertTableCommitter = icebergHadoopModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
+      IcebergOpCommitter insertTableCommitter = icebergModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
         datasetPath,
         tableFolder.toPath().toString(), tableName,
-        icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()),
+        icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
         schema,
         Collections.emptyList(),true, datasetConfig);
 
@@ -566,7 +565,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       insertTableCommitter.consumeDeleteDataFile(dataFile5);
       insertTableCommitter.commit();
 
-      Table newTable = getIcebergTable(tableFolder, IcebergCatalogType.NESSIE);
+      Table newTable = getIcebergTable(icebergModel, tableFolder);
       Schema sc = newTable.schema();
       SchemaConverter schemaConverter = SchemaConverter.getBuilder().setTableName(newTable.name()).build();
       Assert.assertTrue(consolidatedSchema.equalsTypesWithoutPositions(schemaConverter.fromIceberg(sc)));
@@ -587,10 +586,10 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       IcebergMetadata icebergMetadata = new IcebergMetadata();
       icebergMetadata.setMetadataFileLocation(metadataFileLocation);
       datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
-      IcebergOpCommitter insertTableCommitter = icebergHadoopModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
+      IcebergOpCommitter insertTableCommitter = icebergModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
               datasetPath,
               tableFolder.toPath().toString(), tableName,
-              icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()),
+              icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
               schema,
               Collections.emptyList(), false, datasetConfig);
 
@@ -603,7 +602,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       insertTableCommitter.updateSchema(newSchema);
       insertTableCommitter.commit();
 
-      Table newTable = getIcebergTable(tableFolder, IcebergCatalogType.NESSIE);
+      Table newTable = getIcebergTable(icebergModel, tableFolder);
       Schema sc = newTable.schema();
       SchemaConverter schemaConverter = SchemaConverter.getBuilder().setTableName(newTable.name()).build();
       Assert.assertTrue(newSchema.equalsTypesWithoutPositions(schemaConverter.fromIceberg(sc)));
@@ -624,10 +623,10 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       icebergMetadata.setMetadataFileLocation(metadataFileLocation);
       datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
 
-      IcebergOpCommitter insertTableCommitter = icebergHadoopModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
+      IcebergOpCommitter insertTableCommitter = icebergModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
         datasetPath,
         tableFolder.toPath().toString(), tableName,
-        icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()),
+        icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
         schema,
         Collections.emptyList(), true, datasetConfig);
 
@@ -646,7 +645,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       insertTableCommitter.consumeDeleteDataFile(dataFile2Delete);
       insertTableCommitter.commit();
 
-      Table newTable = getIcebergTable(tableFolder, IcebergCatalogType.NESSIE);
+      Table newTable = getIcebergTable(icebergModel, tableFolder);
       Schema sc = newTable.schema();
 
       Assert.assertEquals(6, Iterables.size(newTable.snapshots()));
@@ -668,18 +667,18 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
 
       // Two concurrent iceberg committeres
-      IcebergOpCommitter insertTableCommitter1 = icebergHadoopModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
+      IcebergOpCommitter insertTableCommitter1 = icebergModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
         datasetPath,
         tableName,
         tableFolder.toPath().toString(),
-        icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()),
+        icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
         schema,
         Collections.emptyList(), true, datasetConfig);
-      IcebergOpCommitter insertTableCommitter2 = icebergHadoopModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
+      IcebergOpCommitter insertTableCommitter2 = icebergModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
         datasetPath,
         tableName,
         tableFolder.toPath().toString(),
-        icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()),
+        icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
         schema,
         Collections.emptyList(), true, datasetConfig);
 
@@ -698,7 +697,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
         .hasErrorType(CONCURRENT_MODIFICATION)
         .hasMessageContaining("Concurrent DML operation has updated the table, please retry.");
 
-      Table table = getIcebergTable(tableFolder, IcebergCatalogType.NESSIE);
+      Table table = getIcebergTable(icebergModel, tableFolder);
       List<ManifestFile> manifestFileList = table.currentSnapshot().allManifests(table.io());
       Assert.assertEquals(2, manifestFileList.size());
     } finally {
@@ -758,10 +757,10 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
      datasetConfig.getPhysicalDataset().getInternalSchemaSettings().setDroppedColumns(droppedColumns.toByteString());
      datasetConfig.getPhysicalDataset().getInternalSchemaSettings().setModifiedColumns(updatedColumns.toByteString());
 
-      IcebergOpCommitter insertTableCommitter = icebergHadoopModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
+      IcebergOpCommitter insertTableCommitter = icebergModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
         datasetPath,
         tableFolder.toPath().toString(), tableName,
-        icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()),
+        icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
         schema,
         Collections.emptyList(), false, datasetConfig);
 
@@ -778,7 +777,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       insertTableCommitter.updateSchema(newSchema);
       insertTableCommitter.commit();
 
-      Table newTable = getIcebergTable(tableFolder, IcebergCatalogType.NESSIE);
+      Table newTable = getIcebergTable(icebergModel, tableFolder);
       Schema sc = newTable.schema();
       SchemaConverter schemaConverter = SchemaConverter.getBuilder().setTableName(newTable.name()).build();
       Assert.assertTrue(expectedSchema.equalsTypesWithoutPositions(schemaConverter.fromIceberg(sc)));
@@ -793,7 +792,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
 
   ManifestFile writeManifest(File tableFolder, String fileName, Long snapshotId, DataFile... files) throws IOException {
     File manifestFile = new File(folder, fileName + ".avro");
-    Table table = getIcebergTable(tableFolder, IcebergCatalogType.NESSIE);
+    Table table = getIcebergTable(icebergModel, tableFolder);
     OutputFile outputFile = table.io().newOutputFile(manifestFile.getCanonicalPath());
 
     ManifestWriter<DataFile> writer = ManifestFiles.write(1, table.spec(), outputFile, snapshotId);
@@ -866,20 +865,20 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       IcebergMetadata icebergMetadata = new IcebergMetadata();
       icebergMetadata.setMetadataFileLocation(metadataFileLocation);
       datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
-      IcebergOpCommitter commiter1 = icebergHadoopModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
+      IcebergOpCommitter commiter1 = icebergModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
               datasetPath,
               tableFolder.toPath().toString(),
               tableName,
-              icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()),
+              icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
               schema,
               Collections.emptyList(), true, datasetConfig);
       Assert.assertTrue(commiter1 instanceof IncrementalMetadataRefreshCommitter);
 
-      IcebergOpCommitter commiter2 = icebergHadoopModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
+      IcebergOpCommitter commiter2 = icebergModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
               datasetPath,
               tableFolder.toPath().toString(),
               tableName,
-              icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()),
+              icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
               schema,
               Collections.emptyList(), true, datasetConfig);
       Assert.assertTrue(commiter2 instanceof IncrementalMetadataRefreshCommitter);
@@ -921,7 +920,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       // After this operation manifestList was expected to have two manifest file
       // One is manifestFile2 and other one is newly created due to delete data file. as This newly created Manifest is due to rewriting
       // of manifestFile1 file. it is expected to 2 existing file account and 3 deleted file count.
-      Table table = getIcebergTable(tableFolder, IcebergCatalogType.NESSIE);
+      Table table = getIcebergTable(icebergModel, tableFolder);
       List<ManifestFile> manifestFileList = table.currentSnapshot().allManifests(table.io());
       for (ManifestFile manifestFile : manifestFileList) {
         if (manifestFile.path().contains("manifestFile2")) {
@@ -963,15 +962,15 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       icebergMetadata.setMetadataFileLocation(metadataFileLocation);
       datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
 
-      IcebergOpCommitter committer1 = icebergHadoopModel.getDmlCommitter(
+      IcebergOpCommitter committer1 = icebergModel.getDmlCommitter(
         operatorContext.getStats(),
-        icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()),
+        icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
         datasetConfig);
       Assert.assertTrue(committer1 instanceof IcebergDmlOperationCommitter);
 
-      IcebergOpCommitter committer2 = icebergHadoopModel.getDmlCommitter(
+      IcebergOpCommitter committer2 = icebergModel.getDmlCommitter(
         operatorContext.getStats(),
-        icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()),
+        icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
         datasetConfig);
       Assert.assertTrue(committer2 instanceof IcebergDmlOperationCommitter);
 
@@ -1009,7 +1008,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       // After this operation, the manifestList was expected to have two manifest file.
       // One is 'manifestFileDelete' and the other is the newly created due to delete data file. This newly created manifest
       // is due to rewriting of 'manifestFile1' file. It is expected to 3 existing file account and 2 deleted file count.
-      Table table = getIcebergTable(tableFolder, IcebergCatalogType.NESSIE);
+      Table table = getIcebergTable(icebergModel, tableFolder);
       List<ManifestFile> manifestFileList = table.currentSnapshot().allManifests(table.io());
       Assert.assertEquals(2, manifestFileList.size());
       for (ManifestFile manifestFile : manifestFileList) {
@@ -1037,12 +1036,12 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       icebergMetadata.setMetadataFileLocation(metadataFileLocation);
       datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
 
-      Table tableBefore = getIcebergTable(tableFolder, IcebergCatalogType.NESSIE);
+      Table tableBefore = getIcebergTable(icebergModel, tableFolder);
       final int countBeforeDmlCommit = Iterables.size(tableBefore.snapshots());
 
-      IcebergOpCommitter committer = icebergHadoopModel.getDmlCommitter(
+      IcebergOpCommitter committer = icebergModel.getDmlCommitter(
         operatorContext.getStats(),
-        icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()),
+        icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
         datasetConfig);
       Assert.assertTrue(committer instanceof IcebergDmlOperationCommitter);
       IcebergDmlOperationCommitter dmlCommitter = (IcebergDmlOperationCommitter) committer;
@@ -1095,13 +1094,14 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       DataFile dataFile2 = getDatafile(dataFile2Name);
 
       ManifestFile m = writeManifest(tableFolder, "manifestFileDml", dataFile1, dataFile2);
-      Table table = getIcebergTable(tableFolder, IcebergCatalogType.NESSIE);
+      Table table = getIcebergTable(icebergModel, tableFolder);
       InputFile inputFile = table.io().newInputFile(m.path(), m.length());
       DremioFileIO dremioFileIO = Mockito.mock(DremioFileIO.class);
       Set<String> actualDeletedFiles = new HashSet<>();
 
       when(dremioFileIO.newInputFile(m.path(), m.length())).thenReturn(inputFile);
       doAnswer(new Answer<Void>() {
+        @Override
         public Void answer(InvocationOnMock invocation) {
           Object[] args = invocation.getArguments();
           Assert.assertEquals("one file path arg is expected", args.length, 1);

@@ -21,7 +21,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import org.apache.iceberg.ContentFile;
 import org.apache.iceberg.DataFile;
+import org.apache.iceberg.DeleteFile;
 import org.apache.iceberg.StructLike;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,6 +46,12 @@ public class IcebergOptimizeSingleFileTracker {
     PartitionInfo partitionInfo = new PartitionInfo(dataFile.specId(), dataFile.partition());
     RewritablePartitionFiles rewriteFiles = rewriteCandidates.computeIfAbsent(partitionInfo, p -> new RewritablePartitionFiles());
     rewriteFiles.consumeDeletedFilePath(dataFile);
+  }
+
+  public void consumeDeletedDeleteFile(DeleteFile deleteFile) {
+    PartitionInfo partitionInfo = new PartitionInfo(deleteFile.specId(), deleteFile.partition());
+    RewritablePartitionFiles rewriteFiles = rewriteCandidates.computeIfAbsent(partitionInfo, p -> new RewritablePartitionFiles());
+    rewriteFiles.consumeDeletedFilePath(deleteFile);
   }
 
   /**
@@ -70,12 +78,13 @@ public class IcebergOptimizeSingleFileTracker {
     private String firstDeletedFilePath = null;
     private long firstDeletedFileRecords = 0L;
     private boolean hasMultipleFiles = false;
+    private boolean hasDeletedDeleteFiles = false;
 
     public String getFirstAddedFilePath() {
       return firstAddedFilePath;
     }
 
-    public void consumeAddedFilePath(DataFile addedFile) {
+    public void consumeAddedFilePath(ContentFile<?> addedFile) {
       if (this.firstAddedFilePath != null) {
         this.hasMultipleFiles = true;
       } else {
@@ -88,7 +97,10 @@ public class IcebergOptimizeSingleFileTracker {
       return firstDeletedFilePath;
     }
 
-    public void consumeDeletedFilePath(DataFile deletedFile) {
+    public void consumeDeletedFilePath(ContentFile<?> deletedFile) {
+      if (deletedFile instanceof DeleteFile) {
+        this.hasDeletedDeleteFiles = true;
+      }
       if (this.firstDeletedFilePath != null) {
         this.hasMultipleFiles = true;
       } else {
@@ -103,6 +115,7 @@ public class IcebergOptimizeSingleFileTracker {
 
     public boolean isSameFileChange() {
       return !this.hasMultipleFiles()
+        && !this.hasDeletedDeleteFiles
         && this.getFirstAddedFilePath() != null
         && this.getFirstDeletedFilePath() != null
         && this.firstAddedFileRecords == this.firstDeletedFileRecords;

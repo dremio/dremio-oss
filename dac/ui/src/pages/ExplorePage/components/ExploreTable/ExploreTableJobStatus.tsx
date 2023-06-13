@@ -23,9 +23,9 @@ import RealTimeTimer from "@app/components/RealTimeTimer";
 import SampleDataMessage from "@app/pages/ExplorePage/components/SampleDataMessage";
 import jobsUtils from "@app/utils/jobsUtils";
 import {
-  getJobProgress,
+  getExploreState,
   getImmutableTable,
-  getExploreJobId,
+  getJobProgress,
   getRunStatus,
 } from "@app/selectors/explore";
 import { getCurrentSessionJobList, getJobList } from "selectors/jobs";
@@ -206,8 +206,11 @@ function mapStateToProps(
   props: ExploreTableJobStatusProps
 ) {
   const { approximate, version } = props;
+  const explorePageState = getExploreState(state);
+  const queryStatuses = explorePageState.view.queryStatuses;
+  const queryTabNumber = explorePageState.view.queryTabNumber;
+  const jobId = queryStatuses[queryTabNumber - 1]?.jobId;
   const jobProgress = getJobProgress(state, version);
-  const jobId = getExploreJobId(state);
   const jobDetails = getCurrentSessionJobList(state)?.toJS();
   const curJobDetails = jobDetails?.[jobId];
 

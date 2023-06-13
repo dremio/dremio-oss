@@ -149,6 +149,11 @@ public class DremioClient implements Closeable, ConnectionThrottle {
     }
 
     @Override
+    public void deleteServiceSet(String serviceName) {
+      clusterCoordinator.deleteServiceSet(serviceName);
+    }
+
+    @Override
     public Iterable<String> getServiceNames() throws Exception {
       return clusterCoordinator.getServiceNames();
     }
@@ -852,6 +857,7 @@ public class DremioClient implements Closeable, ConnectionThrottle {
     resources.add(clusterCoordinator);
 
     resources.add(new AutoCloseable() {
+      @Override
       public void close() throws Exception {
         try {
           eventLoopGroup.shutdownGracefully(0, 0, TimeUnit.SECONDS).sync();

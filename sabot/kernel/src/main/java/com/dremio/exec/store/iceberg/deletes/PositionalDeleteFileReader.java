@@ -170,8 +170,7 @@ public class PositionalDeleteFileReader implements AutoCloseable {
         right = mid - 1;
       } else if (left != mid) {
         right = mid;
-      }
-      else {
+      } else {
         return mid;
       }
     }

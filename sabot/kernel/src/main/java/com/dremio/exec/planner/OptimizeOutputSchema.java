@@ -28,11 +28,20 @@ public final class OptimizeOutputSchema {
   }
 
   public static final String REWRITTEN_DATA_FILE_COUNT = "rewritten_data_files_count";
+  public static final String REWRITTEN_DELETE_FILE_COUNT = "rewritten_delete_files_count";
   public static final String NEW_DATA_FILES_COUNT = "new_data_files_count";
+  public static final String OPTIMIZE_OUTPUT_SUMMARY = "summary";
 
-  public static RelDataType getRelDataType(RelDataTypeFactory typeFactory) {
+  public static RelDataType getRelDataType(RelDataTypeFactory typeFactory, boolean onlyOptimizeManifests) {
+    if (onlyOptimizeManifests) {
+      return typeFactory.builder()
+        .add(OptimizeOutputSchema.OPTIMIZE_OUTPUT_SUMMARY, typeFactory.createTypeWithNullability(typeFactory.createSqlType(SqlTypeName.VARCHAR), true))
+        .build();
+    }
+
     return typeFactory.builder()
       .add(OptimizeOutputSchema.REWRITTEN_DATA_FILE_COUNT, typeFactory.createTypeWithNullability(typeFactory.createSqlType(SqlTypeName.BIGINT), true))
+      .add(OptimizeOutputSchema.REWRITTEN_DELETE_FILE_COUNT, typeFactory.createTypeWithNullability(typeFactory.createSqlType(SqlTypeName.BIGINT), true))
       .add(OptimizeOutputSchema.NEW_DATA_FILES_COUNT, typeFactory.createTypeWithNullability(typeFactory.createSqlType(SqlTypeName.BIGINT), true))
       .build();
   }

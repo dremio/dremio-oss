@@ -39,9 +39,12 @@ class NessieDatasetSettingsModal extends Component<
     return (
       <Modal
         size="large"
-        title={`${formatMessage({
-          id: "Dataset.Settings.for",
-        })} ${modalTitle}`}
+        title={formatMessage(
+          {
+            id: "Dataset.Settings.for",
+          },
+          { title: modalTitle }
+        )}
         isOpen={isOpen}
         hide={hide}
       >

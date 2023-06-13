@@ -50,6 +50,7 @@ export default function confirmation(state = initialState, action) {
         className,
         headerIcon,
         size,
+        isAsyncAction,
       } = action;
       // list all to be sure to reset everything
       return {
@@ -77,6 +78,7 @@ export default function confirmation(state = initialState, action) {
         className,
         headerIcon,
         size,
+        isAsyncAction,
       };
     }
     case ActionTypes.HIDE_CONFIRMATION_DIALOG:

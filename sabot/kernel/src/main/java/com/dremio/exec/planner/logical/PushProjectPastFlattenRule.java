@@ -87,7 +87,7 @@ public class PushProjectPastFlattenRule extends RelOptRule {
 
     if (rexNode instanceof RexCall) {
       String functionName = ((RexCall) rexNode).getOperator().getName();
-      if (functionName.equalsIgnoreCase("item")) {
+      if ("item".equalsIgnoreCase(functionName)) {
         return findStructuredColumnInputRefIndex(((RexCall) rexNode).getOperands().get(0));
       } else if (functionName.equalsIgnoreCase(STRUCTURED_WRAPPER.getName())) {
         return findStructuredColumnInputRefIndex(((RexCall) rexNode).getOperands().get(0));
@@ -115,7 +115,7 @@ public class PushProjectPastFlattenRule extends RelOptRule {
 
     if (rexNode instanceof RexCall) {
       String functionName = ((RexCall) rexNode).getOperator().getName();
-      if (functionName.equalsIgnoreCase("item")) {
+      if ("item".equalsIgnoreCase(functionName)) {
         assert ((RexCall) rexNode).getOperands().size() == 2;
         RexNode newInput0 = replaceStructuredColumnInputRefIndex(rexBuilder, ((RexCall) rexNode).getOperands().get(0), orig, replace);
         RexNode newInput1 = replaceStructuredColumnInputRefIndex(rexBuilder, ((RexCall) rexNode).getOperands().get(1), orig, replace);

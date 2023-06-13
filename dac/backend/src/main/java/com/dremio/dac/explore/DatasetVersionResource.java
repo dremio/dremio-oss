@@ -33,7 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.concurrent.TimeUnit;
 
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
@@ -71,6 +70,7 @@ import com.dremio.dac.explore.model.DatasetResourcePath;
 import com.dremio.dac.explore.model.DatasetUI;
 import com.dremio.dac.explore.model.DatasetUIWithHistory;
 import com.dremio.dac.explore.model.DatasetVersionResourcePath;
+import com.dremio.dac.explore.model.FromBase;
 import com.dremio.dac.explore.model.HistogramValue;
 import com.dremio.dac.explore.model.History;
 import com.dremio.dac.explore.model.HistoryItem;
@@ -98,8 +98,12 @@ import com.dremio.dac.proto.model.dataset.ExtractRule;
 import com.dremio.dac.proto.model.dataset.FromSQL;
 import com.dremio.dac.proto.model.dataset.NameDatasetRef;
 import com.dremio.dac.proto.model.dataset.ReplacePatternRule;
+import com.dremio.dac.proto.model.dataset.SourceVersionReference;
 import com.dremio.dac.proto.model.dataset.SplitRule;
 import com.dremio.dac.proto.model.dataset.Transform;
+import com.dremio.dac.proto.model.dataset.TransformCreateFromParent;
+import com.dremio.dac.proto.model.dataset.TransformType;
+import com.dremio.dac.proto.model.dataset.VirtualDatasetState;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.resource.BaseResourceWithAllocator;
 import com.dremio.dac.server.BufferAllocatorFactory;
@@ -108,7 +112,6 @@ import com.dremio.dac.service.errors.ClientErrorException;
 import com.dremio.dac.service.errors.ConflictException;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
-import com.dremio.dac.service.errors.NewDatasetQueryException;
 import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUtil;
@@ -124,7 +127,6 @@ import com.dremio.service.job.proto.SessionId;
 import com.dremio.service.jobs.CompletionListener;
 import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobStatusListener;
-import com.dremio.service.jobs.JobSubmittedListener;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.JobsVersionContext;
 import com.dremio.service.jobs.SqlQuery;
@@ -152,23 +154,16 @@ import com.google.common.collect.Lists;
 public class DatasetVersionResource extends BaseResourceWithAllocator {
   private static final Logger logger = LoggerFactory.getLogger(DatasetVersionResource.class);
 
-  private static final int WAIT_FOR_RUN_HISTORY_S = 15;
-
   private final DatasetTool tool;
   private final QueryExecutor executor;
   private final DatasetVersionMutator datasetService;
-  private final JobsService jobsService;
-
   private final Transformer transformer;
   private final Recommenders recommenders;
   private final JoinRecommender joinRecommender;
-
   private final SecurityContext securityContext;
   private final DatasetPath datasetPath;
   private final DatasetVersion version;
   private final HistogramGenerator histograms;
-  private final CatalogService catalogService;
-
   @Inject
   public DatasetVersionResource (
     SabotContext context,
@@ -217,7 +212,6 @@ public class DatasetVersionResource extends BaseResourceWithAllocator {
     super(allocator);
     this.executor = executor;
     this.datasetService = datasetService;
-    this.jobsService = jobsService;
     this.recommenders = recommenders;
     this.transformer = transformer;
     this.joinRecommender = joinRecommender;
@@ -226,7 +220,6 @@ public class DatasetVersionResource extends BaseResourceWithAllocator {
     this.securityContext = securityContext;
     this.datasetPath = datasetPath;
     this.version = version;
-    this.catalogService = catalogService;
   }
 
   protected DatasetVersionResource(
@@ -247,7 +240,6 @@ public class DatasetVersionResource extends BaseResourceWithAllocator {
     super(allocatorFactory);
     this.executor = executor;
     this.datasetService = datasetService;
-    this.jobsService = jobsService;
     this.recommenders = recommenders;
     this.transformer = transformer;
     this.joinRecommender = joinRecommender;
@@ -256,7 +248,6 @@ public class DatasetVersionResource extends BaseResourceWithAllocator {
     this.securityContext = securityContext;
     this.datasetPath = datasetPath;
     this.version = version;
-    this.catalogService = catalogService;
   }
 
 
@@ -338,7 +329,7 @@ public class DatasetVersionResource extends BaseResourceWithAllocator {
       @QueryParam("refType") String refType,
       @QueryParam("refValue") String refValue,
       @QueryParam("triggerJob") String triggerJob) // "true" or "false". Default - "true". On error - "true"
-    throws DatasetVersionNotFoundException, NamespaceException, JobNotFoundException, NewDatasetQueryException, IOException {
+    throws DatasetVersionNotFoundException, NamespaceException, JobNotFoundException {
     Catalog catalog = datasetService.getCatalog();
     final boolean versioned = isVersionedPlugin(datasetPath, catalog);
 
@@ -348,16 +339,39 @@ public class DatasetVersionResource extends BaseResourceWithAllocator {
       final VirtualDatasetUI dataset = getDatasetConfig(versioned);
 
       return tool.createPreviewResponseForExistingDataset(
-          getOrCreateAllocator("getDatasetForVersion"),
           dataset,
           new DatasetVersionResourcePath(
               datasetPath, (tipVersion != null) ? tipVersion : dataset.getVersion()),
-          limit,
           engineName,
           sessionId,
           triggerJob);
     }
 
+    // Versioned sources
+    // First check if the version already exists as result of running the query
+    try {
+      final VirtualDatasetUI vds = getDatasetConfig(true);
+      return tool.createPreviewResponseForExistingDataset(
+        vds,
+        new DatasetVersionResourcePath(datasetPath, version),
+        engineName,
+        sessionId,
+        triggerJob);
+    } catch (DatasetVersionNotFoundException e) {
+      // ignore
+    }
+
+    // The version doesn't exist, generate initial preview response from source.
+    return getInitialPreviewResponseForVersionedSource(engineName, sessionId, refType, refValue, triggerJob);
+  }
+
+  private InitialPreviewResponse getInitialPreviewResponseForVersionedSource(
+      String engineName,
+      String sessionId,
+      String refType,
+      String refValue,
+      String triggerJob)
+    throws NamespaceException, JobNotFoundException {
     if (refType == null || refValue == null) {
       throw UserException
         .validationError()
@@ -366,55 +380,53 @@ public class DatasetVersionResource extends BaseResourceWithAllocator {
     }
 
     final Map<String, VersionContextReq> versionContextReqMapping =
-        DatasetResourceUtils.createSourceVersionMapping(
-            datasetPath.getRoot().getName(), refType, refValue);
+      DatasetResourceUtils.createSourceVersionMapping(datasetPath.getRoot().getName(), refType, refValue);
     final Map<String, VersionContext> versionContextMapping =
-        DatasetResourceUtils.createSourceVersionMapping(versionContextReqMapping);
+      DatasetResourceUtils.createSourceVersionMapping(versionContextReqMapping);
 
-    catalog = catalog.resolveCatalog(versionContextMapping);
+    final Catalog catalog = datasetService.getCatalog().resolveCatalog(versionContextMapping);
     DremioTable table = catalog.getTable(new NamespaceKey(datasetPath.toPathList()));
 
     if (!(table instanceof ViewTable)) {
       throw UserException.validationError()
-          .message("Expecting getting a view but returns a entity type of %s", table.getClass())
-          .buildSilently();
+        .message("Expecting getting a view but returns a entity type of %s", table.getClass())
+        .buildSilently();
     }
 
-    tool.newUntitled(
-        getOrCreateAllocator("newUntitled"),
-        new FromSQL(table.getDatasetConfig().getVirtualDataset().getSql()),
-        version,
-        table.getDatasetConfig().getVirtualDataset().getContextList(),
-        null,
-        false,
-        limit,
-        engineName,
-        sessionId,
-        versionContextReqMapping);
+    VirtualDatasetUI vds = new VirtualDatasetUI();
+    vds.setOwner(securityContext.getUserPrincipal().getName());
+    vds.setVersion(version);
+    vds.setFullPathList(datasetPath.toPathList());
+    vds.setName(datasetPath.getDataset().getName());
+    vds.setIsNamed(true);
+    vds.setId(table.getDatasetConfig().getId().getId());
+    vds.setContextList(table.getDatasetConfig().getVirtualDataset().getContextList());
+    vds.setSql(table.getDatasetConfig().getVirtualDataset().getSql());
+    vds.setSqlFieldsList(table.getDatasetConfig().getVirtualDataset().getSqlFieldsList());
+    final FromBase from = new FromSQL(table.getDatasetConfig().getVirtualDataset().getSql());
+    vds.setState(new VirtualDatasetState()
+      .setContextList(table.getDatasetConfig().getVirtualDataset().getContextList())
+      .setFrom(from.wrap()));
+    vds.setLastTransform(new Transform(TransformType.createFromParent)
+      .setTransformCreateFromParent(new TransformCreateFromParent(from.wrap())));
+    final List<SourceVersionReference> sourceVersionReferences =
+      DatasetResourceUtils.createSourceVersionReferenceList(versionContextReqMapping);
+    vds.setReferencesList(sourceVersionReferences);
+    vds.setSavedTag(table.getDatasetConfig().getTag());
 
-    String tag = table.getDatasetConfig().getTag();
-
-    VirtualDatasetUI virtualDatasetUI =
-        datasetService.getVersion(tool.TMP_DATASET_PATH, version, true);
-    virtualDatasetUI.setFullPathList(datasetPath.toPathList());
-    virtualDatasetUI.setName(datasetPath.getDataset().getName());
-    virtualDatasetUI.setIsNamed(true);
-    virtualDatasetUI.setSavedTag(tag);
-    logger.debug("Creating temp version {}  in datasetVersion for view {} at version {} ",
-      DatasetsUtil.printVersionViewInfo(virtualDatasetUI),
+    logger.debug("Creating temp version {} in datasetVersion for view {} at version {}.",
+      DatasetsUtil.printVersionViewInfo(vds),
       datasetPath.toUnescapedString(),
       versionContextMapping.get(datasetPath.getRoot().getName()));
-    datasetService.putVersion(virtualDatasetUI);
-    virtualDatasetUI = datasetService.getVersion(datasetPath, version, true);
+    datasetService.putVersion(vds);
+    vds = datasetService.getVersion(datasetPath, version, true);
 
     return tool.createPreviewResponseForExistingDataset(
-        getOrCreateAllocator("getDatasetForVersion"),
-        virtualDatasetUI,
-        new DatasetVersionResourcePath(datasetPath, version),
-        limit,
-        engineName,
-        sessionId,
-        triggerJob);
+      vds,
+      new DatasetVersionResourcePath(datasetPath, version),
+      engineName,
+      sessionId,
+      triggerJob);
   }
 
   @GET @Path("review")
@@ -450,8 +462,31 @@ public class DatasetVersionResource extends BaseResourceWithAllocator {
       throw new ClientErrorException("Query parameter 'newVersion' should not be null");
     }
 
-    final DatasetAndData datasetAndData = transformer.transformWithExecute(newVersion, datasetPath, getDatasetConfig(), transform, QueryType.UI_PREVIEW);
+    final DatasetAndData datasetAndData = transformer.transformWithExecute(newVersion, datasetPath, getDatasetConfig(), transform, false, QueryType.UI_PREVIEW);
     return tool.createPreviewResponse(datasetPath, datasetAndData, getOrCreateAllocator("transformAndPreview"), limit, false);
+  }
+
+  @POST @Path("transform_and_preview")
+  @Produces(APPLICATION_JSON) @Consumes(APPLICATION_JSON)
+  public InitialPreviewResponse transformAndPreviewAsync(
+    /* Body */ TransformBase transform,
+               @QueryParam("newVersion") DatasetVersion newVersion,
+               @QueryParam("limit") @DefaultValue("50") int limit)
+    throws DatasetVersionNotFoundException, DatasetNotFoundException, NamespaceException {
+    if (newVersion == null) {
+      throw new ClientErrorException("Query parameter 'newVersion' should not be null");
+    }
+
+    final DatasetAndData datasetAndData = transformer.transformWithExecute(newVersion, datasetPath, getDatasetConfig(), transform, true, QueryType.UI_PREVIEW);
+
+    return InitialPreviewResponse.of(
+      newDataset(datasetAndData.getDataset(), null),
+      datasetAndData.getJobId(),
+      datasetAndData.getSessionId(),
+      null,
+      true,
+      null,
+      null); // errors will be retrieved from job status
   }
 
   /**
@@ -477,7 +512,7 @@ public class DatasetVersionResource extends BaseResourceWithAllocator {
     }
 
     final DatasetVersionResourcePath resourcePath = resourcePath();
-    final DatasetAndData datasetAndData = transformer.transformWithExecute(newVersion, resourcePath.getDataset(), getDatasetConfig(), transform, QueryType.UI_RUN);
+    final DatasetAndData datasetAndData = transformer.transformWithExecute(newVersion, resourcePath.getDataset(), getDatasetConfig(), transform, false, QueryType.UI_RUN);
     final History history = tool.getHistory(resourcePath.getDataset(), datasetAndData.getDataset().getVersion());
     return InitialTransformAndRunResponse.of(
       newDataset(datasetAndData.getDataset(), null),
@@ -485,6 +520,38 @@ public class DatasetVersionResource extends BaseResourceWithAllocator {
       datasetAndData.getSessionId(),
       history);
   }
+
+  /**
+   * Apply the given transform on the dataset version and return initial results after the job is started. Also Creating
+   * a thread to save the transformed dataset as given new version after the metadata os retrieved.
+   *
+   * @param transform
+   * @param newVersion
+   * @return
+   * @throws DatasetVersionNotFoundException
+   * @throws DatasetNotFoundException
+   * @throws NamespaceException
+   */
+  @POST @Path("transform_and_run")
+  @Produces(APPLICATION_JSON) @Consumes(APPLICATION_JSON)
+  public InitialTransformAndRunResponse transformAndRunAsync(
+    /* Body */ TransformBase transform,
+               @QueryParam("newVersion") DatasetVersion newVersion
+  ) throws DatasetVersionNotFoundException, DatasetNotFoundException, NamespaceException {
+
+    if (newVersion == null) {
+      throw new ClientErrorException("Query parameter 'newVersion' should not be null");
+    }
+
+    final DatasetVersionResourcePath resourcePath = resourcePath();
+    final DatasetAndData datasetAndData = transformer.transformWithExecute(newVersion, resourcePath.getDataset(), getDatasetConfig(), transform, true, QueryType.UI_RUN);
+    return InitialTransformAndRunResponse.of(
+      newDataset(datasetAndData.getDataset(), null),
+      datasetAndData.getJobId(),
+      datasetAndData.getSessionId(),
+      null);
+  }
+
   protected DatasetUI newDataset(VirtualDatasetUI vds, DatasetVersion tipVersion) throws NamespaceException {
     return DatasetUI.newInstance(vds, null, datasetService.getNamespaceService());
   }
@@ -507,23 +574,23 @@ public class DatasetVersionResource extends BaseResourceWithAllocator {
 
     final SqlQuery query = new SqlQuery(virtualDatasetUI.getSql(), virtualDatasetUI.getState().getContextList(), securityContext,
       Strings.isNullOrEmpty(engineName)? null : engineName, sessionId, sourceVersionMapping);
-    JobSubmittedListener listener = new JobSubmittedListener();
+    MetadataJobStatusListener listener = new MetadataJobStatusListener(tool, virtualDatasetUI, null);
+    // The saved dataset is incomplete, we want save the dataset again once the metadata is collected.
+    if (virtualDatasetUI.getSqlFieldsList() == null) {
+      listener.waitToApplyMetadataAndSaveDataset();
+    }
     final JobData jobData = executor.runQueryWithListener(query, QueryType.UI_RUN, datasetPath, version, listener);
     final JobId jobId = jobData.getJobId();
     final SessionId jobDataSessionId = jobData.getSessionId();
-    // wait for job to start (or WAIT_FOR_RUN_HISTORY_S seconds).
-    boolean success = listener.await(WAIT_FOR_RUN_HISTORY_S, TimeUnit.SECONDS);
-    if (!success) {
-      throw new InterruptedException("Starting a query timed out after " + WAIT_FOR_RUN_HISTORY_S +
-          " seconds, please try again.");
+    if (virtualDatasetUI.getSqlFieldsList() == null) {
+      listener.setJobId(jobData.getJobId());
     }
 
     // tip version is optional, as it is only needed when we are navigated back in history
     // otherwise assume the current version is at the tip of the history
     tipVersion = tipVersion != null ? tipVersion : virtualDatasetUI.getVersion();
     final History history = tool.getHistory(datasetPath, virtualDatasetUI.getVersion(), tipVersion);
-    // VBesschetnov 2019-01-08
-    // this is requires as BE generates apiLinks, that is used by UI to send requests for preview/run. In case, when history
+    // This is requires as BE generates apiLinks, that is used by UI to send requests for preview/run. In case, when history
     // of a dataset reference on a version for other dataset. And a user navigate to that version and tries to preview it,
     // we would not be resolve a tip version and preview will fail. We should always send requests to original dataset
     // path (tip version path) to be able to get a preview/run data
@@ -559,9 +626,9 @@ public class DatasetVersionResource extends BaseResourceWithAllocator {
    * Saves this version as the current version of a dataset under the asDatasetPath if provided
    *
    * @param asDatasetPath
-   * @param savedTag the last OCC version known the the client. If no one else has saved
+   * @param savedTag the last OCC version known the client. If no one else has saved
    *                     to this name since the client making request learned of this OCC
-   *                     version then the request will be successful. Otherwise it will fail
+   *                     version then the request will be successful. Otherwise, it will fail
    *                     because saving would clobber the already saved dataset that the client
    *                     did not know about.
    * @return
@@ -587,13 +654,20 @@ public class DatasetVersionResource extends BaseResourceWithAllocator {
     if(versioned && !versionedViewEnabled){
       throw UserException.unsupportedError().message("Versioned view is not enabled").buildSilently();
     }
+    //Gets the latest version of the view from DatasetVersion store
     final VirtualDatasetUI vds = getDatasetConfig(versioned);
-    if(savedTag != null && branchName == null && versioned){
+    if(vds != null && branchName == null && versioned) {
       branchName = vds.getReferencesList().get(0).getReference().getValue();
     }
-    if(versioned && branchName != null){
-      setReference(vds, branchName);
+
+    if (versioned) {
+      if (branchName != null) {
+        setReference(vds, branchName);
+      } else {
+        throw UserException.unsupportedError().message("Tried to create a versioned view but branch name is null").buildSilently();
+      }
     }
+
     final DatasetUI savedDataset = save(vds, asDatasetPath, savedTag, branchName, versioned);
     return new DatasetUIWithHistory(savedDataset, tool.getHistory(asDatasetPath, savedDataset.getDatasetVersion()));
   }
@@ -627,19 +701,28 @@ public class DatasetVersionResource extends BaseResourceWithAllocator {
     return save(vds, asDatasetPath, savedTag, null, false, attributes);
   }
 
-  public DatasetUI save(VirtualDatasetUI vds, DatasetPath asDatasetPath, String savedTag, String branchName, boolean isVersionedSource, NamespaceAttribute... attributes)
+  public DatasetUI save(VirtualDatasetUI vds, DatasetPath asDatasetPath, String savedTag, String branchName, final boolean isVersionedSource, NamespaceAttribute... attributes)
     throws DatasetNotFoundException, UserNotFoundException, NamespaceException, DatasetVersionNotFoundException {
     checkSaveVersionedView(branchName, isVersionedSource);
     String queryString = vds.getSql();
-    boolean isVersionViewEnabled = datasetService.checkIfVersionedViewEnabled();
+    final boolean isVersionViewEnabled = datasetService.checkIfVersionedViewEnabled();
     if (isVersionViewEnabled) {
       ParserUtil.validateViewQuery(queryString);
     }
-    final String nameConflictErrorMsg = String.format("VDS '%s' already exists. Please enter a different name.",
-      asDatasetPath.getLeaf());
+
+    if (isVersionedSource) {
+      if (ParserUtil.checkTimeTravelOnView(queryString)){
+        throw UserException.unsupportedError()
+          .message("Versioned views not supported for time travel queries. Please use AT TAG or AT COMMIT instead")
+          .buildSilently();
+      }
+    }
+
     final List<String> fullPathList = asDatasetPath.toPathList();
     if(!isVersionedSource){
       if (isAncestor(vds, fullPathList)) {
+        final String nameConflictErrorMsg = String.format("VDS '%s' already exists. Please enter a different name.",
+          asDatasetPath.getLeaf());
         throw new ConflictException(nameConflictErrorMsg);
       }
       if (!datasetPath.equals(asDatasetPath)) {
@@ -679,7 +762,9 @@ public class DatasetVersionResource extends BaseResourceWithAllocator {
     } catch(NamespaceNotFoundException nfe) {
       throw new ClientErrorException("Parent folder doesn't exist", nfe);
     } catch(ConcurrentModificationException cme) {
-      throw new ConflictException(nameConflictErrorMsg, cme);
+      final String cmeMessage = String.format("View '%s' experienced a concurrent modification exception. Please ensure there are no self-references in your view and no other systems are editing this view.",
+        asDatasetPath.getLeaf());
+      throw new ConflictException(cmeMessage, cme);
     } catch (IOException e) {
       throw UserException.validationError().message("Error saving to the source: %s", e.getMessage()).buildSilently();
     }
@@ -688,7 +773,7 @@ public class DatasetVersionResource extends BaseResourceWithAllocator {
   }
 
   /**
-   * @return true if pathList is an ancestor (parent or grand parent) of the virtual dataset
+   * @return true if pathList is an ancestor (parent or grandparent) of the virtual dataset
    */
   private static boolean isAncestor(VirtualDatasetUI vds, List<String> pathList) {
     List<ParentDataset> parents = vds.getParentsList();
@@ -791,20 +876,19 @@ public class DatasetVersionResource extends BaseResourceWithAllocator {
   @POST @Path("/editOriginalSql")
   @Produces(APPLICATION_JSON)
   public InitialPreviewResponse reapplyDatasetAndPreview() throws DatasetVersionNotFoundException, DatasetNotFoundException, NamespaceException, JobNotFoundException {
-    Transformer.DatasetAndData datasetAndData = reapplyDataset(QueryType.UI_PREVIEW, JobStatusListener.NO_OP);
+    Transformer.DatasetAndData datasetAndData = reapplyDataset(JobStatusListener.NO_OP);
     //max records = 0 means, that we should not wait for job completion
     return tool.createPreviewResponse(new DatasetPath(datasetAndData.getDataset().getFullPathList()), datasetAndData, getOrCreateAllocator("reapplyDatasetAndPreview"), 0, false);
   }
 
-  private Transformer.DatasetAndData reapplyDataset(QueryType queryType, JobStatusListener listener) throws DatasetVersionNotFoundException, DatasetNotFoundException, NamespaceException {
+  private Transformer.DatasetAndData reapplyDataset(JobStatusListener listener) throws DatasetVersionNotFoundException, DatasetNotFoundException, NamespaceException {
     List<VirtualDatasetUI> items = getPreviousDatasetVersions(getDatasetConfig());
     List<Transform> transforms = new ArrayList<>();
     for(VirtualDatasetUI dataset : items){
       transforms.add(dataset.getLastTransform());
     }
 
-    return transformer.editOriginalSql(version, transforms, queryType, listener);
-
+    return transformer.editOriginalSql(version, transforms, QueryType.UI_PREVIEW, listener);
   }
 
   @POST @Path("/reapplyAndSave")
@@ -813,7 +897,7 @@ public class DatasetVersionResource extends BaseResourceWithAllocator {
       @QueryParam("as") DatasetPath asDatasetPath
   ) throws DatasetVersionNotFoundException, UserNotFoundException, DatasetNotFoundException, NamespaceException {
     final CompletionListener completionListener = new CompletionListener();
-    Transformer.DatasetAndData datasetAndData = reapplyDataset(QueryType.UI_PREVIEW, completionListener);
+    Transformer.DatasetAndData datasetAndData = reapplyDataset(completionListener);
     completionListener.awaitUnchecked();
     DatasetUI savedDataset = save(datasetAndData.getDataset(), asDatasetPath, null);
     return new DatasetUIWithHistory(savedDataset, tool.getHistory(asDatasetPath, datasetAndData.getDataset().getVersion()));
@@ -849,10 +933,10 @@ public class DatasetVersionResource extends BaseResourceWithAllocator {
     Set<String> selectedSet = new HashSet<>(selected);
     SqlQuery query = new SqlQuery(virtualDatasetUI.getSql(), virtualDatasetUI.getState().getContextList(), securityContext);
     DataType colType = getColType(selection.getColName());
-    Histogram<HistogramValue> histo = histograms.getHistogram(datasetPath, version, selection, colType, query, getOrCreateAllocator("genReplaceValuesCard"));
+    Histogram<HistogramValue> histogram = histograms.getHistogram(datasetPath, version, selection, colType, query, getOrCreateAllocator("genReplaceValuesCard"));
 
     long selectedCount = histograms.getSelectionCount(datasetPath, version, query, colType, selection.getColName(), selectedSet, getOrCreateAllocator("genReplaceValuesCard"));
-    return new ReplaceValuesCard(histo.getValues(), selectedCount, histo.getAvailableValues() - selectedCount, histo.getAvailableValues());
+    return new ReplaceValuesCard(histogram.getValues(), selectedCount, histogram.getAvailableValues() - selectedCount, histogram.getAvailableValues());
   }
 
   @POST @Path("replace_preview")
@@ -940,16 +1024,6 @@ public class DatasetVersionResource extends BaseResourceWithAllocator {
   private ReplaceValuesCard getValuesCard(ReplaceValuesPreviewReq req) throws DatasetVersionNotFoundException {
     Selection selection = req.getSelection();
     return genReplaceValuesCard(req.getReplacedValues(), selection);
-  }
-
-
-  @GET @Path("history")
-  @Produces(APPLICATION_JSON)
-  public History getHistory(@QueryParam("tipVersion") DatasetVersion tipVersion) throws DatasetVersionNotFoundException {
-    // tip version is optional, as it is only needed when we are navigated back in history
-    // otherwise assume the current version is at the tip of the history
-    tipVersion = tipVersion != null ? tipVersion : virtualDatasetUI.getVersion();
-    return tool.getHistory(datasetPath, version, tipVersion);
   }
 
   public static final List<DataType> AVAILABLE_TYPES_FOR_CLEANING = unmodifiableList(asList(TEXT, INTEGER, FLOAT));

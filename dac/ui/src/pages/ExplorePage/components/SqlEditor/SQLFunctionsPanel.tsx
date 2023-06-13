@@ -14,22 +14,13 @@
  * limitations under the License.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { intl } from "@app/utils/intl";
 import { debounce } from "lodash";
 import Immutable from "immutable";
-import {
-  AutoSizer,
-  CellMeasurer,
-  CellMeasurerCache,
-  List,
-} from "react-virtualized";
 
-import { useResourceSnapshot } from "smart-resource/react";
 import FilterSelectMenu from "@app/components/Fields/FilterSelectMenu";
 import SearchField from "@app/components/Fields/SearchField";
-import SQLFunctionsResource from "@app/resources/SQLFunctionsResource";
-import MemoizedSQLFunctionItem from "./SQLFunctionItem";
 import {
   sortAndFilterSQLFunctions,
   SQLFunctionCategories,
@@ -37,14 +28,10 @@ import {
 import { ModelFunctionFunctionCategoriesEnum as Categories } from "@app/types/sqlFunctions";
 import LoadingOverlay from "@app/components/LoadingOverlay";
 import EmptyStateContainer from "@app/pages/HomePage/components/EmptyStateContainer";
+import { useSqlFunctions } from "./hooks/useSqlFunctions";
+import MemoizedSQLFunctionItem from "./SQLFunctionItem";
 
 import * as classes from "./SQLFunctionsPanel.module.less";
-
-const cellCache = new CellMeasurerCache({
-  fixedWidth: true,
-  defaultHeight: 106,
-  minHeight: 68,
-});
 
 type SQLFunctionsPanelProps = {
   height: number;
@@ -57,21 +44,12 @@ const SQLFunctionsPanel = ({
   addFuncToSqlEditor,
   dragType,
 }: SQLFunctionsPanelProps) => {
-  const [sqlFunctions = []] = useResourceSnapshot(SQLFunctionsResource);
+  const [sqlFunctions, sqlFunctionsErr] = useSqlFunctions();
   const [searchKey, setSearchKey] = useState<string>("");
   const [selectedCategories, setCategories] = useState<Categories[]>([]);
   const [activeItem, setActiveItem] = useState<string | null>(null);
-  const listRef = useRef<any>();
-  const listIndices = useRef<{
-    startIndex: number;
-    stopIndex: number;
-  } | null>();
   const panelDisabled = sqlFunctions == null;
   const resetDisabled = selectedCategories?.length === 0;
-
-  useEffect(() => {
-    if (!sqlFunctions) SQLFunctionsResource.fetch();
-  }, [sqlFunctions]);
 
   const memoizedSQLFunctions = useMemo(() => {
     if (!sqlFunctions) return [];
@@ -87,25 +65,8 @@ const SQLFunctionsPanel = ({
     setSearchKey(val);
   }, 500);
 
-  const resetRangeCacheAndHeight = (startIndex: number, stopIndex?: number) => {
-    const curStopIndex = stopIndex ?? startIndex;
-    for (let idx = startIndex; idx <= curStopIndex; idx++) {
-      cellCache?.clear(idx, 0);
-      listRef.current?.recomputeRowHeights?.(idx);
-    }
-  };
-
-  const handleRowClick = (key: string, index: number) => {
-    if (listIndices?.current) {
-      // Reset previous item in view
-      resetRangeCacheAndHeight(
-        listIndices?.current.startIndex,
-        listIndices?.current.stopIndex
-      );
-    }
-
+  const handleRowClick = (key: string) => {
     setActiveItem(key === activeItem ? null : key);
-    resetRangeCacheAndHeight(index);
   };
 
   const onUnselectCategory = (id: Categories) => {
@@ -119,29 +80,6 @@ const SQLFunctionsPanel = ({
   const onResetCategories = () => {
     setCategories([]);
   };
-
-  // Need to reset cache when searching/category filtering
-  useEffect(() => {
-    cellCache?.clearAll();
-    listRef.current?.recomputeRowHeights?.();
-  }, [memoizedSQLFunctions.length]);
-
-  // Debouncing prevents max updates error
-  const debouncedRenderedRows = debounce(
-    (startIndex: number, stopIndex: number) => {
-      if (
-        listIndices?.current?.startIndex !== startIndex &&
-        listIndices?.current?.stopIndex !== stopIndex
-      ) {
-        listIndices.current = { startIndex, stopIndex };
-        const start = startIndex === 0 ? startIndex : startIndex - 1;
-        const stop =
-          stopIndex === memoizedSQLFunctions.length ? stopIndex : stopIndex + 1;
-        resetRangeCacheAndHeight(start, stop);
-      }
-    },
-    1
-  );
 
   const MenuHeader = (
     <div className={classes["sql-help-panel__filterHeader"]}>
@@ -208,65 +146,35 @@ const SQLFunctionsPanel = ({
           style={{
             height: height - 64,
             overflow: "auto",
+            contain: "content",
           }}
         >
-          <AutoSizer>
-            {({ width, height: panelHeight }) => {
-              return (
-                <List
-                  ref={(ref) => (listRef.current = ref)}
-                  deferredMeasurementCache={cellCache}
-                  noRowsRenderer={() =>
-                    sqlFunctions == null ? (
-                      <LoadingOverlay />
-                    ) : (
-                      <EmptyStateContainer
-                        title="Dataset.NoFunctionsFound"
-                        className={classes["sql-help-panel__noResults"]}
-                        titleValues={{ search: searchKey }}
-                        titleClassName={
-                          classes["sql-help-panel__noResults__title"]
-                        }
-                      />
-                    )
-                  }
-                  onRowsRendered={({ startIndex, stopIndex }) =>
-                    debouncedRenderedRows(startIndex, stopIndex)
-                  }
-                  rowRenderer={({ index, key, parent, style }) => {
-                    return (
-                      <CellMeasurer
-                        cache={cellCache}
-                        key={key}
-                        parent={parent}
-                        rowIndex={index}
-                        columnIndex={0}
-                      >
-                        <div key={key} style={style}>
-                          <MemoizedSQLFunctionItem
-                            key={memoizedSQLFunctions[index].key}
-                            sqlFunction={memoizedSQLFunctions[index]}
-                            addFuncToSqlEditor={addFuncToSqlEditor}
-                            onRowClick={(key: string) =>
-                              handleRowClick(key, index)
-                            }
-                            isActiveRow={
-                              memoizedSQLFunctions[index].key === activeItem
-                            }
-                            dragType={dragType}
-                          />
-                        </div>
-                      </CellMeasurer>
-                    );
-                  }}
-                  height={panelHeight}
-                  rowCount={memoizedSQLFunctions.length}
-                  rowHeight={cellCache?.rowHeight}
-                  width={width}
-                />
-              );
-            }}
-          </AutoSizer>
+          {sqlFunctions != null && memoizedSQLFunctions.length > 0 ? (
+            memoizedSQLFunctions.map((_, index) => (
+              <MemoizedSQLFunctionItem
+                key={memoizedSQLFunctions[index].key}
+                sqlFunction={memoizedSQLFunctions[index]}
+                addFuncToSqlEditor={addFuncToSqlEditor}
+                onRowClick={(key: string) => handleRowClick(key)}
+                isActiveRow={memoizedSQLFunctions[index].key === activeItem}
+                dragType={dragType}
+                searchKey={searchKey}
+              />
+            ))
+          ) : sqlFunctions == null && sqlFunctionsErr == null ? (
+            <LoadingOverlay />
+          ) : (
+            <EmptyStateContainer
+              title={
+                sqlFunctionsErr == null
+                  ? "Dataset.NoFunctionsFound"
+                  : "Dataset.FunctionsError"
+              }
+              className={classes["sql-help-panel__noResults"]}
+              titleValues={{ search: searchKey }}
+              titleClassName={classes["sql-help-panel__noResults__title"]}
+            />
+          )}
         </div>
       </>
     </div>

@@ -21,6 +21,8 @@ import java.util.stream.Collectors;
 
 import org.projectnessie.client.api.NessieApiV1;
 import org.projectnessie.error.NessieNotFoundException;
+import org.projectnessie.model.Reference;
+import org.projectnessie.model.Reference.ReferenceType;
 
 import com.dremio.service.autocomplete.nessie.Branch;
 import com.dremio.service.autocomplete.nessie.Commit;
@@ -41,15 +43,29 @@ public class NessieElementReaderImpl extends NessieElementReader {
     this.nessieApi = nessieApi;
   }
 
+  private static Branch toBranch(Reference reference) {
+    if (reference.getType() != ReferenceType.BRANCH) {
+      throw new IllegalStateException("Nessie did not respond with branch: " + reference);
+    }
+    return new Branch(reference.getName(), new Hash(reference.getHash()));
+  }
+
+  private static Tag toTag(Reference reference) {
+    if (reference.getType() != ReferenceType.TAG) {
+      throw new IllegalStateException("Nessie did not respond with tag: " + reference);
+    }
+    return new Tag(reference.getName(), new Hash(reference.getHash()));
+  }
+
   @Override
   public List<Branch> getBranches() {
     return nessieApi
       .getAllReferences()
+      .filter("refType == 'BRANCH'")
       .get()
       .getReferences()
       .stream()
-      .filter(reference -> reference instanceof org.projectnessie.model.Branch)
-      .map(reference -> new Branch(reference.getName(), new Hash(reference.getHash())))
+      .map(NessieElementReaderImpl::toBranch)
       .collect(Collectors.toList());
   }
 
@@ -76,11 +92,11 @@ public class NessieElementReaderImpl extends NessieElementReader {
   public List<Tag> getTags() {
     return nessieApi
       .getAllReferences()
+      .filter("refType == 'TAG'")
       .get()
       .getReferences()
       .stream()
-      .filter(reference -> reference instanceof org.projectnessie.model.Tag)
-      .map(reference -> new Tag(reference.getName(), new Hash(reference.getHash())))
+      .map(NessieElementReaderImpl::toTag)
       .collect(Collectors.toList());
   }
 

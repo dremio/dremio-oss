@@ -20,6 +20,7 @@ import java.util.Map;
 import org.immutables.value.Value;
 
 import com.dremio.ValidatingGnarlyStyle;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.map.CaseInsensitiveMap;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.service.namespace.NamespaceKey;
@@ -53,12 +54,58 @@ public abstract class MetadataRequestOptions {
 
   /**
    * If metadata validity should be checked.
+   * If set to false,
+   * -Completeness of the datasetConfig is still checked (see ManagedStoragePlugin#isComplete)
+   * -Validity - i.e freshness of metadata -schema, splits , partition info based on metadata policy is *not* checked.
+   * -newerThan() has no effect if this is set to false
+   * Change default to false when only if the following cases are desired :
+   *   - Cached version of a table or view from Dremio KV store that are complete
+   *   - Inline refresh will occur if DatasetConfig is incomplete
+   *   - Table from an External catalog - Nessie will be returned since metadata is always up to date
    * <p>
    * By default, the validity is checked.
    */
   @Value.Default
   public boolean checkValidity() {
     return true;
+  }
+
+  /**
+   * If this flag is set to true,
+   * - A null entry or shallow entry will not cause a promotion/inline refresh to occur
+   * Change default to true only if the following behavior is desired :
+   *   - Get only cached version of a table from Dremio KV store
+   *   - Get table from an External catalog - Nessie (These will be returned since they don't go through promotion)
+   * Note : By default, a null or shallow entry in Namepsace is considered "incomplete" and promotion will be
+   * attempted. Tables in Nessie are considered always valid and uptodate and promotion/refresh does not apply to them
+   * <p>
+   */
+  @Value.Default
+  public boolean neverPromote() {
+    return false;
+  }
+
+  /**
+   * If set to true and any versioned dataset is resolved using the default source version, then a validation
+   * exception is thrown.  This flag can be used to validate that the plan associated to a reflection refresh job
+   * or a view definition contains only table references that resolve using the AT SQL syntax or a source version
+   * mapping explicitly set by the caller.
+   *
+   * @return
+   */
+  @Value.Default
+  public boolean errorOnUnspecifiedSourceVersion() {
+    return false;
+  }
+
+  /**
+   * If set to true, request Catalog to use caching namespace to reduce duplicated calls to KV store.
+   *
+   * @return
+   */
+  @Value.Default
+  public boolean useCachingNamespace() {
+    return false;
   }
 
   MetadataRequestOptions cloneWith(CatalogIdentity subject, NamespaceKey newDefaultSchema, boolean checkValidity) {
@@ -127,7 +174,16 @@ public abstract class MetadataRequestOptions {
       .build();
   }
 
-  public VersionContext getVersionForSource(String sourceName) {
-    return getSourceVersionMapping().getOrDefault(sourceName.toLowerCase(), VersionContext.NOT_SPECIFIED);
+  public VersionContext getVersionForSource(String sourceName, NamespaceKey key) {
+    VersionContext versionContext = getSourceVersionMapping().get(sourceName);
+    if (versionContext == null) {
+      if (this.errorOnUnspecifiedSourceVersion()) {
+        throw UserException.validationError()
+          .message(String.format("Version context for table %s must be specified using AT SQL syntax", key.toString()))
+          .build();
+      }
+      versionContext = VersionContext.NOT_SPECIFIED;
+    }
+    return versionContext;
   }
 }

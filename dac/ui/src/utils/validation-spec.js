@@ -105,19 +105,20 @@ describe("validation", () => {
       expect(isEmail("email")({ email: "dremio@" })).to.eql({
         email: "Not a valid email address.",
       });
-      expect(isEmail("email")({ email: "dremio@gmail" })).to.eql({
-        email: "Not a valid email address.",
-      });
       expect(isEmail("email")({ email: "dremio@gmail." })).to.eql({
-        email: "Not a valid email address.",
-      });
-      expect(isEmail("email")({ email: "dremio@gmail.c" })).to.eql({
         email: "Not a valid email address.",
       });
     });
 
     it("should success for correct email", () => {
       expect(isEmail("email")({ email: "dremio@gmail.com" })).to.eql(undefined);
+      expect(
+        isEmail("email")({
+          email: "dremio@sdlkfjlskdjflsdf.sdflkjsdlkfjlskdjf",
+        })
+      ).to.eql(undefined);
+      expect(isEmail("email")({ email: "dremio@gmail.c" })).to.eql(undefined);
+      expect(isEmail("email")({ email: "dremio@gmail" })).to.eql(undefined);
     });
   });
 

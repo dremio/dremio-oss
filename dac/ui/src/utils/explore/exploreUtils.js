@@ -474,12 +474,14 @@ class ExploreUtils {
   getAPICallForUntitledDatasetConfig = (
     dottedFullPath,
     newVersion,
-    doNotWaitJobCompletion
+    doNotWaitJobCompletion,
+    willLoadTable
   ) => {
     const apiCall = new APIV2Call().paths("/datasets/new_untitled").params({
       parentDataset: dottedFullPath,
       newVersion,
       limit: doNotWaitJobCompletion ? 0 : ROWS_LIMIT,
+      triggerJob: willLoadTable,
     });
 
     return apiCall;
@@ -488,16 +490,28 @@ class ExploreUtils {
   getHrefForDatasetConfig = (resourcePath) =>
     `${resourcePath}?view=explore&limit=50`;
 
-  getDatasetMetadataLink = (datasetPath, sessionId, version) => {
+  getDatasetMetadataLink = (dataset, datasetPath, sessionId, version) => {
+    // there should always be a datasetPath or dataset self link, but if there isn't
+    // then there's no need make a call to 'undefined/preview', this is then handled as an error
+    if (!datasetPath && !dataset?.apiLinks?.self) {
+      return undefined;
+    }
+
     const apiCall = new APIV2Call()
-      .paths(`dataset/${datasetPath.join(".")}/version/${version}/preview`)
+      .paths(
+        datasetPath
+          ? `dataset/${datasetPath.join(".")}/version/${version}/preview`
+          : `${dataset.apiLinks.self}/preview`
+      )
       .params({
         view: "explore",
         limit: 0,
         triggerJob: false,
       });
 
-    // TODO: check if getRefQueryParamsFromDataset is needed here
+    if (dataset) {
+      apiCall.params(getRefQueryParamsFromDataset(dataset.fullPath));
+    }
 
     if (sessionId) {
       apiCall.params({ sessionId });
@@ -506,13 +520,35 @@ class ExploreUtils {
     return apiCall.toPath();
   };
 
-  getPreviewLink = (dataset, tipVersion, sessionId, willLoadTable) => {
+  getDatasetMetadata = (datasetPath, version) => {
+    const apiCall = new APIV2Call()
+      .paths(`dataset/${datasetPath}/version/${version}/preview`)
+      .params({
+        view: "explore",
+        limit: 0,
+        triggerJob: false,
+      });
+    return apiCall.toPath();
+  };
+
+  getPreviewLink = (
+    dataset,
+    tipVersion,
+    sessionId,
+    willLoadTable = true,
+    refType,
+    refValue
+  ) => {
     const apiCall = new APIV2Call()
       .paths(`${dataset.getIn(["apiLinks", "self"])}/preview`)
       .params({
         view: "explore",
         limit: 0,
       });
+
+    if (refType && refValue) {
+      apiCall.params({ refType, refValue });
+    }
 
     if (tipVersion) {
       apiCall.params({ tipVersion });
@@ -581,6 +617,14 @@ class ExploreUtils {
     return `${dataset.getIn(["apiLinks", "self"])}/${end}`;
   }
 
+  getNewPreviewTransformationLink(dataset, newVersion) {
+    const end = `transform_and_preview?newVersion=${encodeURIComponent(
+      newVersion
+    )}&limit=0`;
+
+    return `${dataset.getIn(["apiLinks", "self"])}/${end}`;
+  }
+
   getTransformPeekHref(dataset) {
     const newVersion = this.getNewDatasetVersion();
     const end = `transformPeek?newVersion=${encodeURIComponent(
@@ -610,15 +654,9 @@ class ExploreUtils {
   }
 
   getTmpUntitledSqlHref({ newVersion, sessionId }) {
-    if (sessionId) {
-      return `/datasets/new_tmp_untitled_sql?newVersion=${encodeURIComponent(
-        newVersion
-      )}&sessionId=${sessionId}&limit=0`;
-    } else {
-      return `/datasets/new_tmp_untitled_sql?newVersion=${encodeURIComponent(
-        newVersion
-      )}&limit=0`;
-    }
+    return `/datasets/new_tmp_untitled_sql?newVersion=${encodeURIComponent(
+      newVersion
+    )}${sessionId ? `&sessionId=${sessionId}` : ""}&limit=0`;
   }
 
   getUntitledSqlAndRunHref({ newVersion, sessionId }) {
@@ -635,15 +673,9 @@ class ExploreUtils {
   }
 
   getTmpUntitledSqlAndRunHref({ newVersion, sessionId }) {
-    if (sessionId) {
-      return `/datasets/new_tmp_untitled_sql_and_run?newVersion=${encodeURIComponent(
-        newVersion
-      )}&sessionId=${sessionId}`;
-    } else {
-      return `/datasets/new_tmp_untitled_sql_and_run?newVersion=${encodeURIComponent(
-        newVersion
-      )}`;
-    }
+    return `/datasets/new_tmp_untitled_sql_and_run?newVersion=${encodeURIComponent(
+      newVersion
+    )}${sessionId ? `&sessionId=${sessionId}` : ""}`;
   }
 
   getMappedDataForTransform(item, detailsType) {

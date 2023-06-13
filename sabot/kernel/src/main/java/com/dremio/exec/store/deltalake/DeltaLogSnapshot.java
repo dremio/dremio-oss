@@ -154,6 +154,7 @@ public final class DeltaLogSnapshot implements Comparable<DeltaLogSnapshot> {
         this.versionId = Math.max(this.versionId, that.versionId);
     }
 
+    @Override
     @VisibleForTesting
     public DeltaLogSnapshot clone() {
         DeltaLogSnapshot clone = new DeltaLogSnapshot(this.operationType, this.netFilesAdded, this.netBytesAdded,

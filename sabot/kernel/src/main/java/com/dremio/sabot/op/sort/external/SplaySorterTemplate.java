@@ -76,6 +76,7 @@ public abstract class SplaySorterTemplate implements SplaySorterInterface {
     logger.debug("Took {} us to add {} records", watch.elapsed(TimeUnit.MICROSECONDS), batch.getRecordCount());
   }
 
+  @Override
   public void setDataBuffer(ArrowBuf data){
     tree.setData(data);
   }

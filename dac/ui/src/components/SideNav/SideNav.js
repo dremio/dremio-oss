@@ -32,23 +32,20 @@ import SideNavExtra from "dyn-load/components/SideNav/SideNavExtra";
 import localStorageUtils, {
   useProjectContext,
 } from "@inject/utils/storageUtils/localStorageUtils";
-import getIconColor from "@app/utils/getIconColor";
-import getUserIconInitials from "@app/utils/userIcon";
 import ProjectActivationHOC from "@inject/containers/ProjectActivationHOC";
 import { usePrivileges } from "@inject/utils/sideNavUtils";
 import SideNavHoverMenu from "./SideNavHoverMenu";
 import AccountMenu from "./AccountMenu";
 import "@app/components/IconFont/css/DremioIcons-old.css";
 import "@app/components/IconFont/css/DremioIcons.css";
-
+import { Avatar } from "dremio-ui-lib/components";
+import { nameToInitials } from "@app/exports/utilities/nameToInitials";
 import { isActive } from "./SideNavUtils";
 import HelpMenu from "./HelpMenu";
 import { TopAction } from "./components/TopAction";
 import clsx from "clsx";
 import * as PATHS from "../../exports/paths";
 import CatalogsMenu from "./CatalogsMenu";
-import { FeatureSwitch } from "@app/exports/components/FeatureSwitch/FeatureSwitch";
-import { ORGANIZATION_LANDING } from "@app/exports/flags/ORGANIZATION_LANDING";
 import { useFeatureFlag } from "@app/exports/providers/useFeatureFlag";
 import { ARCTIC_CATALOG } from "@app/exports/flags/ARCTIC_CATALOG";
 import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
@@ -59,6 +56,7 @@ import * as sqlPaths from "dremio-ui-common/paths/sqlEditor.js";
 import * as adminPaths from "dremio-ui-common/paths/admin.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 import "./SideNav.less";
+import { getSessionContext } from "dremio-ui-common/contexts/SessionContext.js";
 
 const SideNav = (props) => {
   const {
@@ -74,6 +72,9 @@ const SideNav = (props) => {
     showOrganization = true,
   } = props;
 
+  const organizationLanding =
+    typeof getSessionContext().getOrganizationId === "function";
+
   useFeatureFlag(ARCTIC_CATALOG);
   //urlability
   const loc = rmProjectBase(location.pathname) || "/";
@@ -86,12 +87,7 @@ const SideNav = (props) => {
     ? localStorageUtils.isDataPlaneOnly(ctx)
     : false;
   const logoSVG = isDDPOnly ? "corporate/dremio-ddp" : "corporate/dremio";
-
-  const { backgroundColor: userBgColor, color: userColor } = getIconColor(
-    user.get("userId")
-  );
   const userName = user.get("userName");
-  const userNameFirst2 = getUserIconInitials(user);
   const userTooltip = intl.formatMessage({ id: "SideNav.User" }) + userName;
 
   const getNewQueryHref = () => {
@@ -157,65 +153,43 @@ const SideNav = (props) => {
               alt="SideNav.Jobs"
               data-qa="select-jobs"
             />
-            <FeatureSwitch
-              flag={ORGANIZATION_LANDING}
-              renderEnabled={() => (
-                <TopAction
-                  tooltipProps={{ placement: "right" }}
-                  active={isActive({ loc, admin: true })}
-                  url={adminPaths.general.link({ projectId })}
-                  icon="interface/settings"
-                  alt="SideNav.AdminMenuProjectSetting"
-                  data-qa="select-admin-settings"
-                />
-              )}
-            />
+            {organizationLanding && (
+              <TopAction
+                tooltipProps={{ placement: "right" }}
+                active={isActive({ loc, admin: true })}
+                url={adminPaths.general.link({ projectId })}
+                icon="interface/settings"
+                alt="SideNav.AdminMenuProjectSetting"
+                data-qa="select-admin-settings"
+              />
+            )}
           </>
         )}
       </div>
 
       <div className="sideNav__bottomSection">
-        <FeatureSwitch
-          flag={ORGANIZATION_LANDING}
-          renderEnabled={() => null}
-          renderDisabled={() => <SideNavExtra />}
-        />
-        <FeatureSwitch
-          flag={ORGANIZATION_LANDING}
-          renderEnabled={() => (
-            <SideNavHoverMenu
-              tooltipStringId="SideNav.DremioServices"
-              menu={<CatalogsMenu />}
-              icon="navigation-bar/go-to-catalogs"
-              isDCS={true}
+        {!organizationLanding && <SideNavExtra />}
+        {organizationLanding && (
+          <SideNavHoverMenu
+            tooltipStringId="SideNav.DremioServices"
+            menu={<CatalogsMenu />}
+            icon="navigation-bar/go-to-catalogs"
+            isDCS={true}
+          />
+        )}
+        {organizationLanding &&
+          (showOrganization ? (
+            <TopAction
+              tooltipProps={{ placement: "right" }}
+              url={orgPaths.organization.link()}
+              icon="navigation-bar/organization"
+              alt={intl.formatMessage({ id: "SideNav.Organization" })}
+              data-qa="go-to-landing-page"
             />
-          )}
-        />
-        <FeatureSwitch
-          flag={ORGANIZATION_LANDING}
-          renderEnabled={() => {
-            if (!showOrganization) {
-              return null;
-            }
+          ) : null)}
 
-            return (
-              <TopAction
-                tooltipProps={{ placement: "right" }}
-                url={orgPaths.organization.link()}
-                icon="navigation-bar/organization"
-                alt={intl.formatMessage({ id: "SideNav.Organization" })}
-                data-qa="go-to-landing-page"
-              />
-            );
-          }}
-        />
+        {!organizationLanding && <SideNavAdmin user={user} />}
 
-        <FeatureSwitch
-          flag={ORGANIZATION_LANDING}
-          renderEnabled={() => null}
-          renderDisabled={() => <SideNavAdmin user={user} />}
-          renderPending={() => <SideNavAdmin user={user} />}
-        />
         <SideNavHoverMenu
           tooltipStringId={"SideNav.Help"}
           menu={<HelpMenu />}
@@ -225,19 +199,7 @@ const SideNav = (props) => {
           aria-label="User options"
           tooltipString={userTooltip}
           menu={<AccountMenu />}
-          divBlob={
-            <div className="sideNav-item__customHoverMenu">
-              <div className="sideNav-items">
-                <div
-                  className="sideNav__user sideNav-item__dropdownIcon"
-                  style={{ backgroundColor: userBgColor, color: userColor }}
-                  data-qa="navigation-bar/user-settings"
-                >
-                  <span>{userNameFirst2}</span>
-                </div>
-              </div>
-            </div>
-          }
+          divBlob={<Avatar initials={nameToInitials(userName)} />}
         />
       </div>
     </div>

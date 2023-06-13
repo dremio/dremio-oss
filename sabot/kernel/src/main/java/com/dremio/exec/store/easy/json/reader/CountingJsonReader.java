@@ -55,8 +55,10 @@ public class CountingJsonReader extends BaseJsonProcessor {
           return ReadState.END_OF_STREAM;
         }
         throwIllegalStartException();
+        break;
       default:
         throwIllegalStartException();
+        break;
     }
 
     parser.skipChildren();

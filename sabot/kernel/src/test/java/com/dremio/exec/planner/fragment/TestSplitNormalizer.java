@@ -104,7 +104,8 @@ public class TestSplitNormalizer {
 
     // assign alternate splits to each node.
     List<SplitAndPartitionInfo>[] writeSplitsSharded = new List[2];
-    writeSplitsSharded[0] = writeSplitsSharded[1] = new ArrayList<>();
+    writeSplitsSharded[0] = new ArrayList<>();
+    writeSplitsSharded[1] = new ArrayList<>();
     for (int i = 0; i < writeSplits.size(); i++) {
       if (i % 2 == 0) {
         writeSplitsSharded[0].add(writeSplits.get(i));

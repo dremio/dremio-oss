@@ -125,6 +125,7 @@ public class LogicalListL1Converter extends GroupConverter implements ParquetLis
     listWriter.endList();
   }
 
+  @Override
   public boolean hasWritten() {
     return written;
   }

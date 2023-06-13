@@ -33,11 +33,13 @@ public class NoOpHiveTableOperations extends HiveTableOperations {
     super(conf, client, fileIO, catalogName, database, table);
   }
 
+  @Override
   protected long acquireLock() throws UnknownHostException, TException, InterruptedException {
     // no-op
     return 0L;
   }
 
+  @Override
   protected void doUnlock(long lockId) throws TException {
     //no-op
   }

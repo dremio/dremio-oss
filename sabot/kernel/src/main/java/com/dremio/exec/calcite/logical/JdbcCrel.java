@@ -82,6 +82,7 @@ public class JdbcCrel extends SingleRel implements CopyToCluster, Rel {
     return this.pluginId;
   }
 
+  @Override
   public RelNode accept(RelShuttle shuttle) {
     return shuttle.visit(this);
   }

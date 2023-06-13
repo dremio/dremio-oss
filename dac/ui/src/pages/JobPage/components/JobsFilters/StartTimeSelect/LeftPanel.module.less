@@ -17,7 +17,7 @@
   width: 160px;
   flex-shrink: 0;
   display: inline-block;
-  border-right: 1px solid var(--dremio--color--neutral--150);
+  border-right: 1px solid var(--color--neutral--50);
   overflow: auto;
   user-select: none;
 
@@ -26,20 +26,20 @@
     cursor: pointer;
 
     &:hover {
-      background-color: var(--dremio--color--primary--100);
+      background-color: var(--color--brand--25);
     }
 
     &--activeFilter {
       /* ,&.--activeInteval */
       &,
       &:hover {
-        background-color: var(--dremio--color--primary--150);
+        background-color: var(--color--brand--50);
       }
     }
   }
 
   &__interval-separator {
     height: 1px;
-    background-color: var(--dremio--color--neutral--150);
+    background-color: var(--color--neutral--50);
   }
 }

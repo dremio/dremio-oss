@@ -138,6 +138,7 @@ public class CreateParquetTableEntry implements CreateTableEntry {
     return new CreateParquetTableEntry(userName, plugin, location, icebergTableProps, writerOptions, datasetPath);
   }
 
+  @Override
   public String getUserName() {
     return userName;
   }

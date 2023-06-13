@@ -74,6 +74,7 @@ public class TestDeltaScan extends BaseTestQuery {
     copyFromJar("deltalake/newPlanDataset", java.nio.file.Paths.get((testRootPath + "/newDataset")));
     copyFromJar("deltalake/paritionenedNewPlan", java.nio.file.Paths.get((testRootPath + "/paritionenedNewPlan")));
     copyFromJar("deltalake/commitInfoAtOnlyJson", java.nio.file.Paths.get((testRootPath + "/commitInfoAtOnlyJson")));
+    copyFromJar("deltalake/deltaMixCharsName",  java.nio.file.Paths.get((testRootPath + "/deltaMixCharsName")));
   }
 
   @After
@@ -458,4 +459,20 @@ public class TestDeltaScan extends BaseTestQuery {
         .unOrdered().go();
     }
   }
+
+  @Test
+  public void testDeltaFileWithPlusSign () throws Exception {
+    try (AutoCloseable c = enableDeltaLake()) {
+      final String sql = "SELECT \"c1+c2/c3\" as col1 FROM dfs.tmp.deltalake.deltaMixCharsName";
+      testBuilder()
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("col1")
+        .baselineValues("a b+c")
+        .baselineValues("a=b")
+        .baselineValues("a?b%c")
+        .unOrdered().go();
+    }
+  }
+
 }

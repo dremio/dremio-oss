@@ -37,7 +37,6 @@ describe("JoinTables", () => {
         query: {},
         state: {},
       },
-      sqlSize: 111,
       rightTreeVisible: false,
       accessEntity: sinon.spy(),
       joinDataset: "",

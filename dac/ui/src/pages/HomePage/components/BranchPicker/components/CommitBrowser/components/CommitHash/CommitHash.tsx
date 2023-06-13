@@ -48,7 +48,7 @@ function CommitHash({
             ...branch,
           } as Reference,
         },
-        nessieCtx.source.name
+        nessieCtx.stateKey
       )
     );
   };

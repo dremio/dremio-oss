@@ -47,6 +47,7 @@ import com.dremio.connector.metadata.extensions.SupportsIcebergMetadata;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.FileConfigMetadata;
 import com.dremio.exec.catalog.MutablePlugin;
+import com.dremio.exec.planner.common.ImmutableDremioFileAttrs;
 import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.PartitionChunkListingImpl;
@@ -123,6 +124,7 @@ public abstract class BaseIcebergExecutionDatasetAccessor implements FileDataset
         Long.parseLong(snapshot.summary().getOrDefault("total-equality-deletes", "0")) : 0L;
     long numDeleteFiles = snapshot != null ?
       Long.parseLong(snapshot.summary().getOrDefault("total-delete-files", "0")) : 0L;
+    long lastModTime = snapshot != null ? snapshot.timestampMillis() : 0L;
 
     if (numDeleteFiles > 0 && !optionResolver.getOption(ExecConstants.ENABLE_ICEBERG_MERGE_ON_READ_SCAN)) {
       throw UserException.unsupportedError()
@@ -142,6 +144,7 @@ public abstract class BaseIcebergExecutionDatasetAccessor implements FileDataset
     final DatasetStats manifestStats = DatasetStats.of(numDataFiles, ScanCostFactor.EASY.getFactor());
     final DatasetStats deleteStats = DatasetStats.of(numPositionDeletes + numEqualityDeletes,
         ScanCostFactor.PARQUET.getFactor());
+    final DatasetStats equalityDeleteStats = DatasetStats.of(numEqualityDeletes, ScanCostFactor.PARQUET.getFactor());
     final DatasetStats deleteManifestStats = DatasetStats.of(numDeleteFiles, ScanCostFactor.EASY.getFactor());
 
     final SchemaConverter schemaConverter = SchemaConverter.getBuilder().setTableName(table.name()).setMapTypeEnabled(optionResolver.getOption(ExecConstants.ENABLE_MAP_DATA_TYPE)).build();
@@ -161,12 +164,13 @@ public abstract class BaseIcebergExecutionDatasetAccessor implements FileDataset
     ));
 
     if (snapshot != null && !table.spec().isUnpartitioned()) {
-      String partitionStatsFile = IcebergUtils.getPartitionStatsFile(
+      ImmutableDremioFileAttrs partitionStatsFileAttrs = IcebergUtils.getPartitionStatsFileAttrs(
           getMetadataLocation(),
           snapshot.snapshotId(),
-          new Configuration(configuration), plugin);
-      if (partitionStatsFile != null) {
-        icebergDatasetBuilder.setPartitionStatsFile(partitionStatsFile);
+          table.io());
+      if (partitionStatsFileAttrs.fileName() != null) {
+        icebergDatasetBuilder.setPartitionStatsFile(partitionStatsFileAttrs.fileName());
+        icebergDatasetBuilder.setPartitionStatsFileSize(partitionStatsFileAttrs.fileLength());
       }
     }
     final BytesOutput extraInfo = icebergDatasetBuilder.build()::writeTo;
@@ -180,8 +184,8 @@ public abstract class BaseIcebergExecutionDatasetAccessor implements FileDataset
     final String metadataFileLocation = getMetadataLocation();
     final long snapshotId = snapshot != null ? snapshot.snapshotId() : -1;
 
-    return new DatasetMetadataImpl(fileConfig, datasetStats, manifestStats, deleteStats, deleteManifestStats,
-        batchSchema, partitionColumns, extraInfo, metadataFileLocation, snapshotId, partitionSpecs, icebergSchema);
+    return new DatasetMetadataImpl(fileConfig, datasetStats, manifestStats, deleteStats, equalityDeleteStats, deleteManifestStats,
+        batchSchema, partitionColumns, extraInfo, metadataFileLocation, snapshotId, partitionSpecs, icebergSchema, lastModTime);
   }
 
   @Override
@@ -210,6 +214,7 @@ public abstract class BaseIcebergExecutionDatasetAccessor implements FileDataset
     private final DatasetStats datasetStats;
     private final DatasetStats manifestStats;
     private final DatasetStats deleteStats;
+    private final DatasetStats equalityDeleteStats;
     private final DatasetStats deleteManifestStats;
     private final org.apache.arrow.vector.types.pojo.Schema batchSchema;
     private final List<String> partitionColumns;
@@ -218,25 +223,28 @@ public abstract class BaseIcebergExecutionDatasetAccessor implements FileDataset
     private final long snapshotId;
     private final BytesOutput partitionSpecs;
     private final String icebergSchema;
+    private final long modificationTime;
 
     private DatasetMetadataImpl(
-        FileConfig fileConfig,
-        DatasetStats datasetStats,
-        DatasetStats manifestStats,
-        DatasetStats deleteStats,
-        DatasetStats deleteManifestStats,
-        Schema batchSchema,
-        List<String> partitionColumns,
-        BytesOutput extraInfo,
-        String metadataFileLocation,
-        long snapshotId,
-        BytesOutput partitionSpecs,
-        String icebergSchema
-    ) {
+      FileConfig fileConfig,
+      DatasetStats datasetStats,
+      DatasetStats manifestStats,
+      DatasetStats deleteStats,
+      DatasetStats equalityDeleteStats,
+      DatasetStats deleteManifestStats,
+      Schema batchSchema,
+      List<String> partitionColumns,
+      BytesOutput extraInfo,
+      String metadataFileLocation,
+      long snapshotId,
+      BytesOutput partitionSpecs,
+      String icebergSchema,
+      long modificationTime) {
       this.fileConfig = fileConfig;
       this.datasetStats = datasetStats;
       this.manifestStats = manifestStats;
       this.deleteStats = deleteStats;
+      this.equalityDeleteStats = equalityDeleteStats;
       this.deleteManifestStats = deleteManifestStats;
       this.batchSchema = batchSchema;
       this.partitionColumns = partitionColumns;
@@ -245,6 +253,7 @@ public abstract class BaseIcebergExecutionDatasetAccessor implements FileDataset
       this.snapshotId = snapshotId;
       this.partitionSpecs = partitionSpecs;
       this.icebergSchema = icebergSchema;
+      this.modificationTime = modificationTime;
     }
 
     @Override
@@ -268,9 +277,17 @@ public abstract class BaseIcebergExecutionDatasetAccessor implements FileDataset
     }
 
     @Override
+    public DatasetStats getEqualityDeleteStats() {
+      return equalityDeleteStats;
+    }
+
+    @Override
     public DatasetStats getDeleteManifestStats() {
       return deleteManifestStats;
     }
+
+    @Override
+    public long getMtime() { return modificationTime; }
 
     @Override
     public org.apache.arrow.vector.types.pojo.Schema getRecordSchema() {

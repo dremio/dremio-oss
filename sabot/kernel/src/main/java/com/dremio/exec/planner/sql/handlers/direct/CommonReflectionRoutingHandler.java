@@ -28,6 +28,7 @@ import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.SchemaUtilities;
 import com.dremio.exec.planner.sql.parser.SqlAlterDatasetReflectionRouting;
+import com.dremio.exec.planner.sql.parser.SqlTableVersionSpec;
 import com.dremio.resource.common.ReflectionRoutingManager;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
@@ -95,7 +96,7 @@ public abstract class CommonReflectionRoutingHandler extends SimpleDirectHandler
   }
 
   public String setRoutingForTable(SqlAlterDatasetReflectionRouting reflectionRouting, String destinationName) throws Exception {
-    final SchemaUtilities.TableWithPath table = SchemaUtilities.verify(catalog, reflectionRouting.getName());
+    final SchemaUtilities.TableWithPath table = SchemaUtilities.verify(catalog, reflectionRouting.getName(), context.getSession(), SqlTableVersionSpec.NOT_SPECIFIED, context.getOptions());
     DatasetConfig datasetConfig = table.getTable().getDatasetConfig();
 
     //set destination

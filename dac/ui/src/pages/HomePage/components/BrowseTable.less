@@ -21,12 +21,12 @@
 .search-field {
   input {
     &:hover {
-      border-color: var(--dremio--color--neutral--300);
+      border-color: var(--color--neutral--200);
     }
 
     &:focus {
-      border-color: var(--dremio--color--primary--500);
-      background-color: var(--dremio--color--neutral--000);
+      border-color: var(--color--brand--300);
+      background-color: white;
     }
   }
 }
@@ -36,7 +36,7 @@
   width: 257px !important; // accounts for 240px input width, 16px padding, 1px border
   margin-right: 8px !important;
   padding-right: 16px;
-  border-right: 1px solid var(--dremio--color--neutral--150);
+  border-right: 1px solid var(--color--neutral--50);
 }
 
 .active-wiki-button {
@@ -216,7 +216,7 @@
     overflow: hidden;
     height: 48px;
     flex-shrink: 0;
-    border-bottom: 1px solid var(--dremio--color--neutral--150);
+    border-bottom: 1px solid var(--color--neutral--50);
     .copy-button {
       display: none;
     }

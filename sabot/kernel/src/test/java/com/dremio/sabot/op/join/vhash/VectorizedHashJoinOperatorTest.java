@@ -19,7 +19,6 @@ package com.dremio.sabot.op.join.vhash;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -658,9 +657,6 @@ public class VectorizedHashJoinOperatorTest {
                  assertTrue(valueListFiltersCopy.get(0).isContainsFalse());
                  AutoCloseables.close(valueListFiltersCopy);
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
         }
     }
 

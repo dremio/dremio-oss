@@ -18,7 +18,7 @@ import { useState } from "react";
 import { connect } from "react-redux";
 import { FormattedMessage } from "react-intl";
 
-import { Button } from "dremio-ui-lib/dist-esm";
+import { Button } from "dremio-ui-lib/components";
 import {
   Dialog,
   DialogActions,
@@ -89,7 +89,7 @@ function RenameBranchDialog({
       await api.deleteReference({
         referenceName: referenceToRename.name,
         referenceType: ReferenceType.Branch,
-        expectedHash: referenceToRename.hash,
+        expectedHash: referenceToRename.hash || "",
       });
 
       if (reference && referenceToRename.name === reference.name) {

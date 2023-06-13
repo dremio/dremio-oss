@@ -41,7 +41,9 @@ import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataFiles;
+import org.apache.iceberg.DeleteFile;
 import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.FileMetadata;
 import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
@@ -110,6 +112,7 @@ public class TestIcebergCommitOpHelper extends BaseTestOperator {
 
   private static FileSystemPlugin<?> metadataPlugin;
   private static StoragePlugin sourceTablePlugin;
+  private static FileSystem metadataFileSystem;
   private static FileSystem sourceTableFileSystem;
 
   private ArrowBuf workBuf;
@@ -120,6 +123,7 @@ public class TestIcebergCommitOpHelper extends BaseTestOperator {
     testCloseables.add(workBuf);
 
     metadataPlugin = mock(FileSystemPlugin.class, RETURNS_DEEP_STUBS);
+    metadataFileSystem = mock(FileSystem.class);
     sourceTablePlugin = mock(StoragePlugin.class,
         withSettings().defaultAnswer(RETURNS_DEEP_STUBS).extraInterfaces(SupportsInternalIcebergTable.class));
     sourceTableFileSystem = mock(FileSystem.class);
@@ -150,6 +154,12 @@ public class TestIcebergCommitOpHelper extends BaseTestOperator {
         SPEC, ImmutableList.of(PARTITION_2A));
     addInputRow(input, createDataFile("no_partition_path_match", SPEC, PARTITION_2B),
         OperationType.DELETE_DATAFILE, SPEC, ImmutableList.of(PARTITION_2B));
+    addInputRow(input, createDeleteFile("posDelete1", SPEC, PARTITION_1C), OperationType.DELETE_DELETEFILE,
+        SPEC, ImmutableList.of(PARTITION_1C));
+    addInputRow(input, createDeleteFile("subdir/posDelete2", SPEC, PARTITION_2A), OperationType.DELETE_DELETEFILE,
+      SPEC, ImmutableList.of(PARTITION_2A));
+    addInputRow(input, createDeleteFile("no_partition_path_match_pos_delete", SPEC, PARTITION_2B),
+        OperationType.DELETE_DELETEFILE, SPEC, ImmutableList.of(PARTITION_2B));
 
     helper.setup(input);
     helper.consumeData(input.getRecordCount());
@@ -202,6 +212,10 @@ public class TestIcebergCommitOpHelper extends BaseTestOperator {
         UNPARTITIONED_SPEC, ImmutableList.of());
     addInputRow(input, createDataFile("delete2", UNPARTITIONED_SPEC), OperationType.DELETE_DATAFILE,
         UNPARTITIONED_SPEC, ImmutableList.of());
+    addInputRow(input, createDeleteFile("posDelete1", UNPARTITIONED_SPEC), OperationType.DELETE_DELETEFILE,
+        UNPARTITIONED_SPEC, ImmutableList.of());
+    addInputRow(input, createDeleteFile("posDelete2", UNPARTITIONED_SPEC), OperationType.DELETE_DELETEFILE,
+        UNPARTITIONED_SPEC, ImmutableList.of());
 
     helper.setup(input);
     helper.consumeData(input.getRecordCount());
@@ -221,7 +235,7 @@ public class TestIcebergCommitOpHelper extends BaseTestOperator {
     final OperatorContextImpl context = testContext.getNewOperatorContext(allocator, pop, BATCH_SIZE, null);
     testCloseables.add(context);
 
-    return new IcebergCommitOpHelper(context, pop);
+    return new IcebergCommitOpHelper(context, pop, metadataFileSystem);
   }
 
   private VectorContainer createInputContainer() {
@@ -330,6 +344,27 @@ public class TestIcebergCommitOpHelper extends BaseTestOperator {
 
   private static DataFile createDataFile(String name, PartitionSpec spec) {
     return DataFiles.builder(spec)
+        .withPath(SOURCE_TABLE_ROOT + "/" + name)
+        .withFormat(FileFormat.PARQUET)
+        .withFileSizeInBytes(1)
+        .withRecordCount(1)
+        .build();
+  }
+
+  private static DeleteFile createDeleteFile(String name, PartitionSpec spec, PartitionKey partitionKey) {
+    return FileMetadata.deleteFileBuilder(spec)
+        .ofPositionDeletes()
+        .withPath(partitionPath(partitionKey) + "/" + name)
+        .withFormat(FileFormat.PARQUET)
+        .withFileSizeInBytes(1)
+        .withRecordCount(1)
+        .withPartition(partitionKey)
+        .build();
+  }
+
+  private static DeleteFile createDeleteFile(String name, PartitionSpec spec) {
+    return FileMetadata.deleteFileBuilder(spec)
+        .ofPositionDeletes()
         .withPath(SOURCE_TABLE_ROOT + "/" + name)
         .withFormat(FileFormat.PARQUET)
         .withFileSizeInBytes(1)

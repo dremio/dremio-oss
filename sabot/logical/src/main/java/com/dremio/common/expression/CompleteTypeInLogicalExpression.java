@@ -41,6 +41,7 @@ public class CompleteTypeInLogicalExpression implements LogicalExpression {
     throw new UnsupportedOperationException();
   }
 
+  @Override
   public int getSelfCost() {
     throw new UnsupportedOperationException();
   }

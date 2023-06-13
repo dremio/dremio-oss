@@ -31,7 +31,6 @@ import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
-import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
 import com.google.common.base.Preconditions;
 
 /**
@@ -49,14 +48,10 @@ public final class NamespaceUtils {
         || datasetType == DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER);
   }
 
-  static boolean isRootEntity(Type type) {
-    return type == HOME || type == SOURCE || type == SPACE;
-  }
-
   /**
    * helper method that returns the id of the entity in given container
    */
-  public static String getId(NameSpaceContainer container) {
+  public static String getIdOrNull(NameSpaceContainer container) {
     EntityId entityId;
     switch (container.getType()) {
     case SOURCE:

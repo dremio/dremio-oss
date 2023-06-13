@@ -46,6 +46,7 @@ import com.dremio.common.concurrent.AutoCloseableLock;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.Closeable;
 import com.dremio.common.util.Retryer;
+import com.dremio.common.utils.PathUtils;
 import com.dremio.common.utils.ProtostuffUtil;
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.AttributeValue;
@@ -93,7 +94,8 @@ import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
 import com.google.common.primitives.Ints;
 
-import io.opentelemetry.extension.annotations.WithSpan;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 
 /**
  * Manages the Dremio system state related to a StoragePlugin.
@@ -148,6 +150,8 @@ public class ManagedStoragePlugin implements AutoCloseable {
    * Included in instance variables because it is very useful during debugging.
    */
   private final ReentrantReadWriteLock rwlock;
+
+  private final Lock refreshStateLock = new ReentrantLock();
 
   public ManagedStoragePlugin(
     SabotContext context,
@@ -600,7 +604,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
           }
 
           return state;
-        } catch(Throwable e) {
+        } catch (Throwable e) {
           if (config.getType() != MissingPluginConf.TYPE) {
             logger.warn("Error starting new source: {}", sourceConfig.getName(), e);
           }
@@ -619,10 +623,12 @@ public class ManagedStoragePlugin implements AutoCloseable {
           }
 
           throw new CompletionException(e);
-        }}
-      );
+        }
+      });
     } catch (Exception ex) {
-      return () -> {throw new CompletionException(ex);};
+      return () -> {
+        throw new CompletionException(ex);
+      };
     }
   }
 
@@ -771,8 +777,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
                       metadataPolicy.getNamesRefreshMs(),
                       metadataPolicy.getDatasetDefinitionRefreshAfterMs()),
                   Integer.MAX_VALUE);
-      final Retryer<Void> retryer =
-          new Retryer.Builder()
+      final Retryer retryer = Retryer.newBuilder()
               .retryIfExceptionOfType(BadSourceStateException.class)
               .setWaitStrategy(
                   Retryer.WaitStrategy.EXPONENTIAL,
@@ -901,6 +906,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
    * @param requestOptions request options
    * @return true iff the metadata is complete and meets validity constraints
    */
+  @WithSpan
   public boolean isCompleteAndValid(DatasetConfig datasetConfig, MetadataRequestOptions requestOptions, NamespaceService userNamespaceService) {
     try (AutoCloseableLock l = readLock()) {
       checkState();
@@ -947,7 +953,6 @@ public class ManagedStoragePlugin implements AutoCloseable {
     }
   }
 
-  @WithSpan("get-view")
   public ViewTable getView(NamespaceKey key, final MetadataRequestOptions options) {
     try(AutoCloseableLock l = readLock()) {
       checkState();
@@ -970,6 +975,9 @@ public class ManagedStoragePlugin implements AutoCloseable {
       } else {
         entityPath = MetadataObjectsUtils.toEntityPath(key);
       }
+
+      // include the full path of the dataset
+      Span.current().setAttribute("dremio.dataset.path", PathUtils.constructFullPath(entityPath.getComponents()));
       return plugin.getDatasetHandle(entityPath,
           retrievalOptions.asGetDatasetOptions(datasetConfig));
     }
@@ -980,58 +988,82 @@ public class ManagedStoragePlugin implements AutoCloseable {
    * @param config
    */
   private void setLocals(SourceConfig config) {
-    if (plugin == null) {
+    if (getPlugin() == null) {
       return;
     }
+    initPlugin(config);
+    this.pluginId = new StoragePluginId(sourceConfig, conf, getPlugin().getSourceCapabilities());
+  }
+
+  /**
+   * Reset the plugin locals to the state before the plugin was started.
+   * @param config the original source configuration, must be not-null
+   * @param pluginId the id of the plugin before startup
+   */
+  private void resetLocals(SourceConfig config, StoragePluginId pluginId) {
+    if (getPlugin() == null) {
+      return;
+    }
+    initPlugin(config);
+    this.pluginId = pluginId;
+  }
+
+  /**
+   * Helper function to set the plugin locals.
+   * @param config source config, must be not null
+   */
+  private void initPlugin(SourceConfig config) {
     this.sourceConfig = config;
     this.metadataPolicy = config.getMetadataPolicy() == null? CatalogService.NEVER_REFRESH_POLICY : config.getMetadataPolicy();
-    this.state = plugin.getState();
+    this.state = getPlugin().getState();
     this.conf = config.getConnectionConf(reader);
-    this.resolvedConf = resolveConnectionConf(this.conf);
-    this.pluginId = new StoragePluginId(sourceConfig, conf, plugin.getSourceCapabilities());
+    this.resolvedConf = resolveConnectionConf(getConnectionConf());
   }
 
   /**
    * Update the cached state of the plugin.
    *
-   * Note that if this is
    */
   public CompletableFuture<SourceState> refreshState() throws Exception {
     return CompletableFuture
     .supplyAsync(() -> {
       try {
-        while(true) {
-          if(plugin == null) {
-            Optional<AutoCloseableLock> writeLock = AutoCloseableLock.of(this.writeLock, true).tryOpen(5, TimeUnit.SECONDS);
-            if(!writeLock.isPresent()) {
-              // we failed to get the write lock, return current state;
+        Optional<AutoCloseableLock> refreshLock = AutoCloseableLock.of(this.refreshStateLock, true).tryOpen(0, TimeUnit.SECONDS);
+        if (!refreshLock.isPresent()) {
+          return state;
+        }
+        try (AutoCloseableLock rl = refreshLock.get()) {
+          while (true) {
+            if (plugin == null) {
+              Optional<AutoCloseableLock> writeLock = AutoCloseableLock.of(this.writeLock, true).tryOpen(5, TimeUnit.SECONDS);
+              if (!writeLock.isPresent()) {
+                return state;
+              }
+
+              try (AutoCloseableLock l = writeLock.get()) {
+                if (plugin != null) {
+                  // while waiting for write lock, someone else started things, start this loop over.
+                  continue;
+                }
+                plugin = resolvedConf.newPlugin(context, sourceConfig.getName(), this::getId);
+                return newStartSupplier(sourceConfig, false).get();
+              }
+            }
+
+            // the plugin is not null.
+            Optional<AutoCloseableLock> readLock = AutoCloseableLock.of(this.readLock, true).tryOpen(1, TimeUnit.SECONDS);
+            if (!readLock.isPresent()) {
               return state;
             }
 
-            // we have the write lock.
-            try(AutoCloseableLock l = writeLock.get()) {
-              if(plugin != null) {
-                // while waiting for write lock, someone else started things, start this loop over.
-                continue;
-              }
-              plugin = resolvedConf.newPlugin(context, sourceConfig.getName(), this::getId);
-              return newStartSupplier(sourceConfig, false).get();
+            try (Closeable a = readLock.get()) {
+              final SourceState state = plugin.getState();
+              this.state = state;
+              return state;
             }
           }
-
-          // the plugin is not null.
-          Optional<AutoCloseableLock> readLock = AutoCloseableLock.of(this.readLock, true).tryOpen(1, TimeUnit.SECONDS);
-          if(!readLock.isPresent()) {
-            return state;
-          }
-
-          try (Closeable a = readLock.get()) {
-            final SourceState state = plugin.getState();
-            this.state = state;
-            return state;
-          }
         }
-      } catch(Exception ex) {
+      } catch (Exception ex) {
         logger.debug("Failed to start plugin while trying to refresh state, error:", ex);
         this.state = SourceState.NOT_AVAILABLE;
         return SourceState.NOT_AVAILABLE;
@@ -1080,6 +1112,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
     // hold the old plugin until we successfully replace it.
     final SourceConfig oldConfig = sourceConfig;
     final StoragePlugin oldPlugin = plugin;
+    final StoragePluginId oldPluginId = pluginId;
     final ConnectionConf<?, ?> resolvedNewConnectionConf = resolveConnectionConf(newConnectionConf);
     this.plugin = resolvedNewConnectionConf.newPlugin(context, sourceKey.getRoot(), this::getId, influxSourcePred);
     try {
@@ -1099,7 +1132,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
       // the update failed, go back to previous state.
       this.plugin = oldPlugin;
       try {
-        setLocals(oldConfig);
+        resetLocals(oldConfig, oldPluginId);
       } catch (Exception e) {
         ex.addSuppressed(e);
       }
@@ -1279,11 +1312,6 @@ public class ManagedStoragePlugin implements AutoCloseable {
    * the manager can't cause problems with plugin locking.
    */
   class MetadataBridge {
-
-    // since refreshes coming from the metadata manager could back up if the refresh takes a long time, create a lock so
-    // only one is actually pending at any point in time.
-    private final Lock refreshStateLock = new ReentrantLock();
-
     SourceMetadata getMetadata() {
       try(AutoCloseableLock read = tryReadLock()) {
         if(plugin == null) {
@@ -1332,24 +1360,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
     }
 
     public void refreshState() throws Exception {
-      Optional<AutoCloseableLock> refreshLock = AutoCloseableLock.of(refreshStateLock, true).tryOpen(0, TimeUnit.SECONDS);
-      try {
-        CompletableFuture<SourceState> refreshState;
-        if (!refreshLock.isPresent()) {
-          // don't refresh the state multiple times through MetadataBridge. All calls that are secondary should be skipped.
-          refreshState = CompletableFuture.completedFuture(state);
-        } else {
-          try (AutoCloseableLock read = tryReadLock()) {
-            refreshState = ManagedStoragePlugin.this.refreshState();
-          }
-        }
-
-        refreshState.get(30, TimeUnit.SECONDS);
-      } finally {
-        if (refreshLock.isPresent()) {
-          refreshLock.get().close();
-        }
-      }
+      ManagedStoragePlugin.this.refreshState().get(30, TimeUnit.SECONDS);
     }
 
     SourceState getState() {

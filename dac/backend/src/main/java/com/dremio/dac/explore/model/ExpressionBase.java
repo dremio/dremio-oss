@@ -102,6 +102,7 @@ public class ExpressionBase {
       return visit(trim.getOperand());
     }
 
+    @Override
     public abstract T visit(ExpCalculatedField calculatedField) throws Exception;
 
     @Override

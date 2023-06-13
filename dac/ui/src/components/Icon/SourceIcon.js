@@ -29,7 +29,21 @@ export default class SourceIcon extends Component {
 
     // ADX icon has a <linearGradient> property so we need to handle it through <img>
     // NETEZZA is a png and needs to be handled separately
-    if (["sources/ADX", "sources/NETEZZA"].includes(dremioIcon)) {
+    if (
+      [
+        "sources/ADX",
+        "sources/NETEZZA",
+        "sources/AWSGLUE",
+        "sources/REDSHIFT",
+        "sources/S3",
+        "sources/MYSQL",
+        "sources/POSTGRES",
+        "sources/MSSQL",
+        "sources/ORACLE",
+        "sources/AMAZONELASTIC",
+        "sources/GCS",
+      ].includes(dremioIcon)
+    ) {
       return (
         <img
           src={getSrcPath(
@@ -38,7 +52,10 @@ export default class SourceIcon extends Component {
             dremioIcon === "sources/NETEZZA" ? "png" : "svg"
           )}
           alt={dremioIcon.split("/")[1]}
-          style={iconStyle}
+          style={{
+            ...iconStyle,
+            ...(dremioIcon === "sources/ADX" && { height: 34, width: 34 }),
+          }}
         />
       );
     }

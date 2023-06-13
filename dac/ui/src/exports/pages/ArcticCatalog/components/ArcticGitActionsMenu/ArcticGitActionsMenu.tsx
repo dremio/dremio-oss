@@ -23,12 +23,14 @@ type ArcticGitActionsMenuProps = {
   fromItem: Reference;
   handleOpenDialog: (dialogType: "TAG" | "BRANCH", dialogState: any) => void;
   closeMenu?: () => unknown;
+  canDeleteTag?: boolean;
 };
 
 function ArcticGitActionsMenu({
   fromItem,
   handleOpenDialog,
   closeMenu = () => {},
+  canDeleteTag,
 }: ArcticGitActionsMenuProps): JSX.Element {
   const fromRef = {
     type: fromItem.type,
@@ -40,10 +42,7 @@ function ArcticGitActionsMenu({
     <ul className={classes["git-arctic-actions-menu"]}>
       <li
         onClick={(e: any) => {
-          handleOpenDialog("BRANCH", {
-            openDialog: true,
-            fromRef,
-          });
+          handleOpenDialog("BRANCH", { openDialog: true, fromRef });
           e.stopPropagation();
           closeMenu();
         }}
@@ -53,10 +52,7 @@ function ArcticGitActionsMenu({
       </li>
       <li
         onClick={(e: any) => {
-          handleOpenDialog("TAG", {
-            openDialog: true,
-            fromRef,
-          });
+          handleOpenDialog("TAG", { openDialog: true, fromRef });
           e.stopPropagation();
           closeMenu();
         }}
@@ -64,6 +60,23 @@ function ArcticGitActionsMenu({
       >
         <FormattedMessage id="ArcticCatalog.Tags.AddTag" />
       </li>
+      {canDeleteTag && (
+        <li
+          onClick={(e: any) => {
+            handleOpenDialog("TAG", {
+              openDialog: true,
+              fromRef,
+              deleteTag: true,
+            });
+            e.stopPropagation();
+            closeMenu();
+          }}
+          key="delete-tag"
+          className={classes["delete-action"]}
+        >
+          <FormattedMessage id="ArcticCatalog.Tags.DeleteTag" />
+        </li>
+      )}
     </ul>
   );
 }

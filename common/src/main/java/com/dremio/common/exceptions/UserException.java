@@ -55,6 +55,19 @@ public class UserException extends RuntimeException {
 
   public static final String REFRESH_METADATA_FAILED_CONCURRENT_UPDATE_MSG = "Unable to refresh metadata for the dataset (due to concurrent updates). Please retry.";
 
+  // reasons for cancelling a query using UserException
+  public enum AttemptCompletionState {
+    SUCCESS, // attempt is successful (has UT)
+    CLIENT_CANCELLED, // cancelled by user (has UT)
+    PLANNING_TIMEOUT, // query cancelled because it exceeded planning time
+    ENGINE_TIMEOUT, // timeout waiting for an engine slot (has UT)
+    RUNTIME_EXCEEDED, // query camcelled because runtime exceeded (has UT)
+    HEAP_MONITOR_C, // query cancelled by coordinator heap monitor (has UT)
+    HEAP_MONITOR_E, // query cancelled by executor heap monitor
+    UNKNOWN, // Query cancellation reason is unknown
+    DREMIO_PB_ERROR, // DremioPB.ErrorType contains the error type
+  }
+
   /**
    * Creates a new INVALID_DATASET_METADATA exception builder.
    *
@@ -675,6 +688,7 @@ public class UserException extends RuntimeException {
     private ByteString rawAdditionalContext;
 
     private boolean fixedMessage; // if true, calls to message() are a no op
+    private AttemptCompletionState attemptCompletionState = AttemptCompletionState.UNKNOWN;
 
     /**
      * Wraps an existing exception inside a user exception.
@@ -871,6 +885,11 @@ public class UserException extends RuntimeException {
       return this;
     }
 
+    public Builder attemptCompletionState(AttemptCompletionState attemptCompletionState) {
+      this.attemptCompletionState = attemptCompletionState;
+      return this;
+    }
+
     /**
      * builds a user exception or returns the wrapped one. If the error is a system error, the error message is logged
      * to the given {@link Logger}.
@@ -981,6 +1000,8 @@ public class UserException extends RuntimeException {
 
   private final ByteString rawAdditionalContext;
 
+  private final AttemptCompletionState attemptCompletionState;
+
   protected UserException(final DremioPBError.ErrorType errorType, final String message, final Throwable cause,
                           final ByteString rawAdditionalContext) {
     super(message, cause);
@@ -988,6 +1009,7 @@ public class UserException extends RuntimeException {
     this.errorType = errorType;
     this.context = new UserExceptionContext();
     this.rawAdditionalContext = rawAdditionalContext;
+    this.attemptCompletionState = AttemptCompletionState.UNKNOWN;
   }
 
   private UserException(final Builder builder) {
@@ -995,6 +1017,7 @@ public class UserException extends RuntimeException {
     this.errorType = builder.errorType;
     this.context = builder.context;
     this.rawAdditionalContext = builder.rawAdditionalContext;
+    this.attemptCompletionState = builder.attemptCompletionState;
   }
 
   /**
@@ -1036,6 +1059,10 @@ public class UserException extends RuntimeException {
 
   public String getVerboseMessage(boolean includeErrorIdAndIdentity) {
     return generateMessage(includeErrorIdAndIdentity) + "\n\n" + ErrorHelper.buildCausesMessage(getCause());
+  }
+
+  public AttemptCompletionState getAttemptCompletionState() {
+    return attemptCompletionState;
   }
 
   /**

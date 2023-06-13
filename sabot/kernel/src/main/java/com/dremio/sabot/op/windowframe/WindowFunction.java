@@ -165,6 +165,7 @@ public abstract class WindowFunction {
       return aggregate.getCompleteType().toField(ne.getRef());
     }
 
+    @SuppressWarnings("checkstyle:LocalFinalVariableName")
     @Override
     void generateCode(ClassGenerator<WindowFramer> cg) {
       final GeneratorMapping EVAL_INSIDE = GeneratorMapping.create("setupEvaluatePeer", "evaluatePeer", null, null);

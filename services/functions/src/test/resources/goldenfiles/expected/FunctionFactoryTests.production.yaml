@@ -432,6 +432,23 @@
     signatures:
      - "(BOOLEAN, BOOLEAN) -> BOOLEAN"
  -
+  description: "ANY_VALUE"
+  input: "ANY_VALUE"
+  output:
+    name: "ANY_VALUE"
+    signatures:
+     - "(BOOLEAN) -> BOOLEAN"
+     - "(BYTES) -> BYTES"
+     - "(CHARACTERS) -> CHARACTERS"
+     - "(FLOAT) -> FLOAT"
+     - "(DECIMAL) -> DECIMAL"
+     - "(DOUBLE) -> DOUBLE"
+     - "(INT) -> INT"
+     - "(BIGINT) -> BIGINT"
+     - "(DATE) -> DATE"
+     - "(TIME) -> TIME"
+     - "(TIMESTAMP) -> TIMESTAMP"
+ -
   description: "APPROX_COUNT_DISTINCT"
   input: "APPROX_COUNT_DISTINCT"
   output:
@@ -1058,6 +1075,13 @@
   output:
     name: "COLLECT"
     signatures: []
+ -
+  description: "COL_LIKE"
+  input: "COL_LIKE"
+  output:
+    name: "COL_LIKE"
+    signatures:
+     - "(CHARACTERS, CHARACTERS) -> BOOLEAN"
  -
   description: "COMPARETYPE"
   input: "COMPARETYPE"
@@ -3988,6 +4012,20 @@
     signatures:
      - "() -> BIGINT"
  -
+  description: "REGEXP_COL_LIKE"
+  input: "REGEXP_COL_LIKE"
+  output:
+    name: "REGEXP_COL_LIKE"
+    signatures:
+     - "(CHARACTERS, CHARACTERS) -> BOOLEAN"
+ -
+  description: "REGEXP_COL_MATCHES"
+  input: "REGEXP_COL_MATCHES"
+  output:
+    name: "REGEXP_COL_MATCHES"
+    signatures:
+     - "(CHARACTERS, CHARACTERS) -> BOOLEAN"
+ -
   description: "REGEXP_EXTRACT"
   input: "REGEXP_EXTRACT"
   output:
@@ -4049,8 +4087,7 @@
   output:
     name: "REPLACE"
     signatures:
-     - "(BYTES, STRING, STRING) -> BYTES"
-     - "(CHARACTERS, STRING, STRING) -> CHARACTERS"
+     - "(CHARACTERS, CHARACTERS, CHARACTERS) -> CHARACTERS"
  -
   description: "REVERSE"
   input: "REVERSE"
@@ -4373,6 +4410,20 @@
     name: "STRPOS"
     signatures:
      - "(CHARACTERS, CHARACTERS) -> INT"
+ -
+  description: "ST_FROMGEOHASH"
+  input: "ST_FROMGEOHASH"
+  output:
+    name: "ST_FROMGEOHASH"
+    signatures:
+     - "(ANY) -> ANY"
+ -
+  description: "ST_GEOHASH"
+  input: "ST_GEOHASH"
+  output:
+    name: "ST_GEOHASH"
+    signatures:
+     - "(DOUBLE, DOUBLE, BIGINT?) -> CHARACTERS"
  -
   description: "SUBSTR"
   input: "SUBSTR"

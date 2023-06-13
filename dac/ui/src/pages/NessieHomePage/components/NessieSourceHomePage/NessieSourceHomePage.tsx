@@ -21,7 +21,7 @@ import { getViewState } from "@app/selectors/resources";
 import { loadSourceListData as loadSourceListDataAction } from "@app/actions/resources/sources";
 import HomePage from "@app/pages/HomePage/HomePage";
 import { HomePageContent } from "../../NessieHomePage";
-import { getEndpointFromSourceConfig } from "@app/utils/nessieUtils";
+import { getEndpointFromSource } from "@app/utils/nessieUtils";
 
 import "./NessieSourceHomePage.less";
 
@@ -36,11 +36,11 @@ function NessieSourceHomePage({
     );
     if (!source) return null;
 
-    const config = source.get("config");
     return {
       name: source.get("name"),
       id: source.get("id"),
-      endpoint: getEndpointFromSourceConfig(config.toJS()),
+      endpointV1: getEndpointFromSource(source.toJS(), "v1"),
+      endpoint: getEndpointFromSource(source.toJS()),
     };
   }, [props.params.sourceId, props.sources]);
 

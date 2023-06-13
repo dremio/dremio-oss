@@ -77,6 +77,7 @@ import org.apache.hadoop.mapred.JobConf;
 import org.apache.iceberg.BaseTable;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.io.FileIO;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.Closeable;
@@ -106,6 +107,7 @@ import com.dremio.exec.store.dfs.implicit.DecimalTools;
 import com.dremio.exec.store.hive.HiveClient;
 import com.dremio.exec.store.hive.HivePf4jPlugin;
 import com.dremio.exec.store.hive.HiveSchemaConverter;
+import com.dremio.exec.store.hive.HiveSchemaTypeOptions;
 import com.dremio.exec.store.hive.HiveStoragePlugin;
 import com.dremio.exec.store.hive.HiveUtilities;
 import com.dremio.exec.store.hive.deltalake.DeltaHiveInputFormat;
@@ -191,8 +193,11 @@ public class HiveMetadataUtils {
     }
   }
 
-  public static SchemaComponents resolveSchemaComponents(final List<String> pathComponents, boolean throwIfInvalid) {
+  public static boolean isValidPathSchema(final List<String> pathComponents) {
+    return pathComponents != null && (pathComponents.size() == 2 || pathComponents.size() == 3);
+  }
 
+  public static SchemaComponents resolveSchemaComponents(final List<String> pathComponents) {
     // extract database and table names from dataset path
     switch (pathComponents.size()) {
       case 2:
@@ -200,10 +205,6 @@ public class HiveMetadataUtils {
       case 3:
         return new SchemaComponents(pathComponents.get(1), pathComponents.get(2));
       default:
-        if (!throwIfInvalid) {
-          return null;
-        }
-
         // invalid. Guarded against at both entry points.
         throw UserException.connectionError()
           .message("Dataset path '%s' is invalid.", pathComponents)
@@ -258,7 +259,7 @@ public class HiveMetadataUtils {
     if (isDeltaTable(table, options)) {
       return new DeltaHiveInputFormat();
     }
-    final Class<? extends InputFormat> inputFormatClazz = getInputFormatClass(job, table, partition, options);
+    final Class<? extends InputFormat> inputFormatClazz = getInputFormatClass(job, table, partition);
     job.setInputFormat(inputFormatClazz);
     return job.getInputFormat();
   }
@@ -281,14 +282,14 @@ public class HiveMetadataUtils {
   }
 
   private static boolean isDeltaTable(Table table, OptionManager options) {
-    return DeltaHiveInputFormat.isDeltaTable(table.getParameters().get(META_TABLE_STORAGE), options);
+    return DeltaHiveInputFormat.isDeltaTable(table, options);
   }
 
-  public static BatchSchema getBatchSchema(Table table, final HiveConf hiveConf, boolean includeComplexParquetCols, boolean isMapTypeEnabled, HiveStoragePlugin plugin) {
+  public static BatchSchema getBatchSchema(Table table, final HiveConf hiveConf, HiveSchemaTypeOptions typeOptions, HiveStoragePlugin plugin) {
     InputFormat<?, ?> format = getInputFormat(table, hiveConf, plugin.getSabotContext().getOptionManager());
     final List<Field> fields = new ArrayList<>();
     final List<String> partitionColumns = new ArrayList<>();
-    HiveMetadataUtils.populateFieldsAndPartitionColumns(table, fields, partitionColumns, format, includeComplexParquetCols, isMapTypeEnabled);
+    HiveMetadataUtils.populateFieldsAndPartitionColumns(table, fields, partitionColumns, format, typeOptions);
     return BatchSchema.newBuilder().addFields(fields).build();
   }
 
@@ -336,18 +337,17 @@ public class HiveMetadataUtils {
     final List<Field> fields,
     final List<String> partitionColumns,
     InputFormat<?, ?> format,
-    final boolean includeComplexParquetCols,
-    final boolean isMapTypeEnabled) {
+    final HiveSchemaTypeOptions typeOptions) {
     for (FieldSchema hiveField : table.getSd().getCols()) {
       final TypeInfo typeInfo = TypeInfoUtils.getTypeInfoFromTypeString(hiveField.getType());
-      Field f = HiveSchemaConverter.getArrowFieldFromHiveType(hiveField.getName(), typeInfo, format, includeComplexParquetCols, isMapTypeEnabled);
+      Field f = HiveSchemaConverter.getArrowFieldFromHiveType(hiveField.getName(), typeInfo, format, typeOptions);
       if (f != null) {
         fields.add(f);
       }
     }
     for (FieldSchema field : table.getPartitionKeys()) {
       Field f = HiveSchemaConverter.getArrowFieldFromHiveType(field.getName(),
-        TypeInfoUtils.getTypeInfoFromTypeString(field.getType()), format, includeComplexParquetCols, isMapTypeEnabled);
+        TypeInfoUtils.getTypeInfoFromTypeString(field.getType()), format, typeOptions);
       if (f != null) {
         fields.add(f);
         partitionColumns.add(field.getName());
@@ -355,11 +355,11 @@ public class HiveMetadataUtils {
     }
   }
 
-  private static List<ColumnInfo> buildColumnInfo(final Table table, final InputFormat<?, ?> format, final boolean includeComplexParquetCols, final boolean isMapTypeEnabled) {
+  private static List<ColumnInfo> buildColumnInfo(final Table table, final InputFormat<?, ?> format, final HiveSchemaTypeOptions typeOptions) {
     final List<ColumnInfo> columnInfos = new ArrayList<>();
     for (FieldSchema hiveField : table.getSd().getCols()) {
       final TypeInfo typeInfo = TypeInfoUtils.getTypeInfoFromTypeString(hiveField.getType());
-      Field f = HiveSchemaConverter.getArrowFieldFromHiveType(hiveField.getName(), typeInfo, format, includeComplexParquetCols, isMapTypeEnabled);
+      Field f = HiveSchemaConverter.getArrowFieldFromHiveType(hiveField.getName(), typeInfo, format, typeOptions);
       if (f != null) {
         columnInfos.add(getColumnInfo(typeInfo));
       }
@@ -483,6 +483,9 @@ public class HiveMetadataUtils {
             .setScale(0)
             .setIsPrimitive(true)
             .build();
+
+        default:
+          break;
       }
     }
 
@@ -499,12 +502,12 @@ public class HiveMetadataUtils {
                                                final int maxMetadataLeafColumns,
                                                final int maxNestedLevels,
                                                final TimeTravelOption timeTravelOption,
-                                               final boolean includeComplexParquetCols,
+                                               final HiveSchemaTypeOptions typeOptions,
                                                final HiveConf hiveConf,
                                                final HiveStoragePlugin plugin) throws ConnectorException {
 
     try {
-      final SchemaComponents schemaComponents = resolveSchemaComponents(datasetPath.getComponents(), true);
+      final SchemaComponents schemaComponents = resolveSchemaComponents(datasetPath.getComponents());
 
       // if the dataset path is not canonized we need to get it from the source
       final Table table = client.getTable(schemaComponents.getDbName(), schemaComponents.getTableName(), ignoreAuthzErrors);
@@ -515,13 +518,12 @@ public class HiveMetadataUtils {
       final Properties tableProperties = MetaStoreUtils.getSchema(table.getSd(), table.getSd(), table.getParameters(), table.getDbName(), table.getTableName(), table.getPartitionKeys());
       TableMetadata tableMetadata;
       if (isIcebergTable(table)) {
-        tableMetadata = getTableMetadataFromIceberg(hiveConf, datasetPath, table, tableProperties, timeTravelOption, plugin);
+        tableMetadata = getTableMetadataFromIceberg(hiveConf, datasetPath, table, tableProperties, timeTravelOption, typeOptions, plugin);
       } else if (isDeltaTable(table, plugin.getSabotContext().getOptionManager())) {
-        tableMetadata = getTableMetadataFromDelta(table, tableProperties, maxMetadataLeafColumns, plugin);
+        tableMetadata = getTableMetadataFromDelta(table, tableProperties, maxMetadataLeafColumns, typeOptions, plugin);
       } else {
-        final boolean isMapTypeEnabled = plugin.getSabotContext().getOptionManager().getOption(ExecConstants.ENABLE_MAP_DATA_TYPE);
         tableMetadata = getTableMetadataFromHMS(table, tableProperties, datasetPath,
-          maxMetadataLeafColumns, maxNestedLevels, includeComplexParquetCols, hiveConf, isMapTypeEnabled, plugin);
+          maxMetadataLeafColumns, maxNestedLevels, typeOptions, hiveConf, plugin);
       }
       HiveMetadataUtils.injectOrcIncludeFileIdInSplitsConf(tableMetadata.getTableStorageCapabilities(), tableProperties);
       return tableMetadata;
@@ -532,14 +534,18 @@ public class HiveMetadataUtils {
     }
   }
 
-  private static TableMetadata getTableMetadataFromIceberg(final HiveConf hiveConf, final EntityPath datasetPath, final Table table,
-                                                           final Properties tableProperties, final TimeTravelOption timeTravelOption,
+  private static TableMetadata getTableMetadataFromIceberg(final HiveConf hiveConf,
+                                                           final EntityPath datasetPath,
+                                                           final Table table,
+                                                           final Properties tableProperties,
+                                                           final TimeTravelOption timeTravelOption,
+                                                           final HiveSchemaTypeOptions typeOptions,
                                                            final HiveStoragePlugin plugin) throws IOException {
     JobConf jobConf = new JobConf(hiveConf);
 
     String metadataLocation = tableProperties.getProperty(METADATA_LOCATION, "");
     com.dremio.io.file.FileSystem fs = plugin.createFS(metadataLocation, SystemUser.SYSTEM_USERNAME, null);
-    DremioFileIO fileIO = new DremioFileIO(fs, (Iterable<Map.Entry<String, String>>)jobConf, plugin);
+    FileIO fileIO = plugin.createIcebergFileIO(fs, null, null, null, null);
     IcebergHiveTableOperations hiveTableOperations = new IcebergHiveTableOperations(fileIO, metadataLocation);
     BaseTable icebergTable = new BaseTable(hiveTableOperations, new Path(metadataLocation).getName());
     icebergTable.refresh();
@@ -554,8 +560,7 @@ public class HiveMetadataUtils {
               TimeTravelProcessors.getTableSchemaProvider(travelRequest);
       snapshot = tableSnapshotProvider.apply(icebergTable);
       schema = tableSchemaProvider.apply(icebergTable, snapshot);
-    }
-    else {
+    } else {
       snapshot = icebergTable.currentSnapshot();
       schema = icebergTable.schema();
     }
@@ -584,7 +589,7 @@ public class HiveMetadataUtils {
     }
 
     SchemaConverter schemaConverter = SchemaConverter.getBuilder().setTableName(table.getTableName())
-        .setMapTypeEnabled(plugin.getSabotContext().getOptionManager().getOption(ExecConstants.ENABLE_MAP_DATA_TYPE)).build();
+        .setMapTypeEnabled(typeOptions.isMapTypeEnabled()).build();
     BatchSchema batchSchema = schemaConverter.fromIceberg(schema);
     Map<Integer, PartitionSpec> specsMap = icebergTable.specs();
     specsMap = IcebergUtils.getPartitionSpecMapBySchema(specsMap, schema);
@@ -604,7 +609,11 @@ public class HiveMetadataUtils {
             .setDeleteStats(new ScanStats()
                 .setScanFactor(ScanCostFactor.PARQUET.getFactor())
                 .setType(ScanStatsType.EXACT_ROW_COUNT)
-                .setRecordCount(numPositionDeletes));
+                .setRecordCount(numPositionDeletes))
+            .setEqualityDeleteStats(new ScanStats()
+              .setScanFactor(ScanCostFactor.PARQUET.getFactor())
+              .setType(ScanStatsType.EXACT_ROW_COUNT)
+              .setRecordCount(numEqualityDeletes));
 
     return TableMetadata.newBuilder()
       .table(table)
@@ -622,14 +631,14 @@ public class HiveMetadataUtils {
   private static TableMetadata getTableMetadataFromDelta(final Table table,
                                                          final Properties tableProperties,
                                                          final int maxMetadataLeafColumns,
+                                                         final HiveSchemaTypeOptions typeOptions,
                                                          final HiveStoragePlugin plugin) throws IOException {
-    final String tableLocation = table.getSd().getLocation();
+    final String tableLocation = DeltaHiveInputFormat.getLocation(table, plugin.getSabotContext().getOptionManager());
     final com.dremio.io.file.FileSystem fs = plugin.createFS(tableLocation, SystemUser.SYSTEM_USERNAME, null);
     final DeltaLakeTable deltaTable = new DeltaLakeTable(plugin.getSabotContext(), fs, tableLocation);
     final DeltaLogSnapshot snapshot = deltaTable.getConsolidatedSnapshot();
 
-    final boolean isMapTypeEnabled = plugin.getSabotContext().getOptionManager().getOption(ExecConstants.ENABLE_MAP_DATA_TYPE);
-    final BatchSchema batchSchema = DeltaLakeSchemaConverter.withMapEnabled(isMapTypeEnabled).fromSchemaString(snapshot.getSchema());
+    final BatchSchema batchSchema = DeltaLakeSchemaConverter.withMapEnabled(typeOptions.isMapTypeEnabled()).fromSchemaString(snapshot.getSchema());
     HiveMetadataUtils.checkLeafFieldCounter(batchSchema.getFields().size(), maxMetadataLeafColumns, "");
 
     return TableMetadata.newBuilder()
@@ -649,25 +658,24 @@ public class HiveMetadataUtils {
                                                        final EntityPath datasetPath,
                                                        final int maxMetadataLeafColumns,
                                                        final int maxNestedLevels,
-                                                       final boolean includeComplexParquetCols,
+                                                       final HiveSchemaTypeOptions typeOptions,
                                                        final HiveConf hiveConf,
-                                                       final boolean isMapTypeEnabled,
                                                        final HiveStoragePlugin plugin) throws ConnectorException {
 
 
-    final SchemaComponents schemaComponents = resolveSchemaComponents(datasetPath.getComponents(), true);
+    final SchemaComponents schemaComponents = resolveSchemaComponents(datasetPath.getComponents());
 
     final InputFormat<?, ?> format = getInputFormat(table, hiveConf, plugin.getSabotContext().getOptionManager());
 
     final List<Field> fields = new ArrayList<>();
     final List<String> partitionColumns = new ArrayList<>();
 
-    HiveMetadataUtils.populateFieldsAndPartitionColumns(table, fields, partitionColumns, format, includeComplexParquetCols, isMapTypeEnabled);
+    HiveMetadataUtils.populateFieldsAndPartitionColumns(table, fields, partitionColumns, format, typeOptions);
     HiveMetadataUtils.checkLeafFieldCounter(fields.size(), maxMetadataLeafColumns, schemaComponents.getTableName());
-    HiveSchemaConverter.checkFieldNestedLevels(table, maxNestedLevels, isMapTypeEnabled);
+    HiveSchemaConverter.checkFieldNestedLevels(table, maxNestedLevels, typeOptions.isMapTypeEnabled());
     final BatchSchema batchSchema = BatchSchema.newBuilder().addFields(fields).build();
 
-    final List<ColumnInfo> columnInfos = buildColumnInfo(table, format, includeComplexParquetCols, isMapTypeEnabled);
+    final List<ColumnInfo> columnInfos = buildColumnInfo(table, format, typeOptions);
 
     return TableMetadata.newBuilder()
       .table(table)
@@ -880,9 +888,9 @@ public class HiveMetadataUtils {
    */
   private static class InputSplitSizeRunnable extends TimedRunnable<Long> {
 
-    final InputSplit split;
-    final Configuration conf;
-    final String tableName;
+    private final InputSplit split;
+    private final Configuration conf;
+    private final String tableName;
 
     public InputSplitSizeRunnable(final Configuration conf, final String tableName, final InputSplit split) {
       this.conf = conf;
@@ -1086,7 +1094,7 @@ public class HiveMetadataUtils {
       boolean trimStats = trimStats(splitType);
       HiveDatasetStats metastoreStats = null;
       InputFormat<?, ?> format = getInputFormat(table, job, partition, optionManager);
-      Class<? extends InputFormat> inputFormatClazz = getInputFormatClass(job, table, partition, optionManager);
+      Class<? extends InputFormat> inputFormatClazz = getInputFormatClass(job, table, partition);
       metadataAccumulator.setTableLocation(table.getSd().getLocation());
 
       if (null == partition) {
@@ -1443,15 +1451,13 @@ public class HiveMetadataUtils {
           case DOUBLE:
             try {
               return PartitionValue.of(name, Double.parseDouble(value));
-            }
-            catch (NumberFormatException ex) {
+            } catch (NumberFormatException ex) {
               return PartitionValue.of(name);
             }
           case FLOAT:
             try {
               return PartitionValue.of(name, Float.parseFloat(value));
-            }
-            catch (NumberFormatException ex) {
+            } catch (NumberFormatException ex) {
               return PartitionValue.of(name);
             }
           case BYTE:
@@ -1459,15 +1465,13 @@ public class HiveMetadataUtils {
           case INT:
             try {
               return PartitionValue.of(name, Integer.parseInt(value));
-            }
-            catch (NumberFormatException ex) {
+            } catch (NumberFormatException ex) {
               return PartitionValue.of(name);
             }
           case LONG:
             try {
               return PartitionValue.of(name, Long.parseLong(value));
-            }
-            catch (NumberFormatException ex) {
+            } catch (NumberFormatException ex) {
               return PartitionValue.of(name);
             }
           case STRING:
@@ -1504,10 +1508,13 @@ public class HiveMetadataUtils {
             final BigInteger unscaled = original.movePointRight(decimalTypeInfo.scale()).unscaledValue();
             return PartitionValue.of(name, ByteBuffer.wrap(DecimalTools.signExtend16(unscaled.toByteArray())));
           default:
-            HiveUtilities.throwUnsupportedHiveDataTypeError(primitiveTypeInfo.getPrimitiveCategory().toString());
+            break;
         }
+        HiveUtilities.throwUnsupportedHiveDataTypeError(primitiveTypeInfo.getPrimitiveCategory().toString());
+        break;
       default:
         HiveUtilities.throwUnsupportedHiveDataTypeError(typeInfo.getCategory().toString());
+        break;
     }
 
     return null; // unreachable
@@ -1548,7 +1555,7 @@ public class HiveMetadataUtils {
     }
   }
 
-  public static Class<? extends InputFormat> getInputFormatClass(final JobConf job, final Table table, final Partition partition, OptionManager options) {
+  public static Class<? extends InputFormat> getInputFormatClass(final JobConf job, final Table table, final Partition partition) {
     try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
       if (partition != null) {
         if (partition.getSd().getInputFormat() != null) {
@@ -1566,9 +1573,6 @@ public class HiveMetadataUtils {
       }
 
       if (table.getParameters().get(META_TABLE_STORAGE) != null) {
-        if (isDeltaTable(table, options)) {
-          return DeltaHiveInputFormat.class;
-        }
         final HiveStorageHandler storageHandler = HiveUtils.getStorageHandler(job, table.getParameters().get(META_TABLE_STORAGE));
         return storageHandler.getInputFormatClass();
       }

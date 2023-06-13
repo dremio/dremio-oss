@@ -37,8 +37,7 @@ public class TestDeltaSnapshotListProcessor {
 
     try {
       processor.findValidSnapshots(list);
-    }
-    catch (Exception e) {
+    } catch (Exception e) {
       assertTrue(e instanceof UserException);
       assertEquals(e.getMessage(), "Missing version file 20");
       throw e;
@@ -87,8 +86,7 @@ public class TestDeltaSnapshotListProcessor {
     DeltaSnapshotListProcessor processor = new DeltaSnapshotListProcessor();
     try {
       processor.findValidSnapshots(list);
-    }
-    catch (Exception e) {
+    } catch (Exception e) {
       assertTrue(e instanceof IllegalStateException);
       assertEquals(e.getMessage(), "Commit Json for version 0 not found while reading metadata");
       throw e;

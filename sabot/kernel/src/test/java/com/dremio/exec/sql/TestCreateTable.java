@@ -236,8 +236,7 @@ public class TestCreateTable extends PlanTestBase {
         .baselineValues(2)
         .build()
         .run();
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), table1));
     }
   }
@@ -306,8 +305,7 @@ public class TestCreateTable extends PlanTestBase {
         .baselineValues(1, 2)
         .build()
         .run();
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), table1));
     }
   }
@@ -350,8 +348,7 @@ public class TestCreateTable extends PlanTestBase {
         .baselineValues(true,String.format("Table [%s.%s] already exists.", TEMP_SCHEMA, newTblName))
         .build()
         .run();
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTblName));
     }
   }
@@ -390,8 +387,7 @@ public class TestCreateTable extends PlanTestBase {
         .expectsEmptyResultSet()
         .build()
         .run();
-    }
-    finally {
+    } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTblName1));
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTblName2));
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTblName3));

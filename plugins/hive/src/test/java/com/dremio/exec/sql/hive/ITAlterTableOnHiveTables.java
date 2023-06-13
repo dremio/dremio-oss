@@ -68,8 +68,7 @@ public class ITAlterTableOnHiveTables extends LazyDataGeneratingHiveTestBase {
 
       test("alter table " + HIVE_TEST_PLUGIN_NAME + "." + tableName + " add columns (col4  ARRAY(int))");
       assertThat(runDescribeQuery(tableName)).contains("col4|ARRAY");
-    }
-    finally {
+    } finally {
       dataGenerator.executeDDL("DROP TABLE IF EXISTS " + tableName);
     }
   }
@@ -85,8 +84,7 @@ public class ITAlterTableOnHiveTables extends LazyDataGeneratingHiveTestBase {
       assertThat(runDescribeQuery(tableName)).contains("col3");
       test("alter table " + HIVE_TEST_PLUGIN_NAME + "." + tableName + " DROP COLUMN col3");
       assertThat(runDescribeQuery(tableName)).doesNotContain("col3");
-    }
-    finally {
+    } finally {
       dataGenerator.executeDDL("DROP TABLE IF EXISTS " + tableName);
     }
   }
@@ -103,8 +101,7 @@ public class ITAlterTableOnHiveTables extends LazyDataGeneratingHiveTestBase {
       assertThat(runDescribeQuery(tableName)).doesNotContain("col4");
       test("alter table " + HIVE_TEST_PLUGIN_NAME + "." + tableName + " CHANGE COLUMN col1 col4 bigint");
       assertThat(runDescribeQuery(tableName)).contains("col4|BIGINT");
-    }
-    finally {
+    } finally {
       dataGenerator.executeDDL("DROP TABLE IF EXISTS " + tableName);
     }
   }

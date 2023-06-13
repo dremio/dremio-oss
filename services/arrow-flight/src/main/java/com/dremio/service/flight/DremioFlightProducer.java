@@ -38,6 +38,7 @@ import static org.apache.arrow.flight.sql.impl.FlightSql.CommandStatementUpdate;
 import static org.apache.arrow.flight.sql.impl.FlightSql.TicketStatementQuery;
 
 import java.util.Collections;
+import java.util.concurrent.Callable;
 
 import javax.inject.Provider;
 
@@ -75,7 +76,6 @@ import com.dremio.service.flight.error.mapping.DremioFlightErrorMapper;
 import com.dremio.service.flight.impl.FlightPreparedStatement;
 import com.dremio.service.flight.impl.FlightWorkManager;
 import com.dremio.service.flight.impl.FlightWorkManager.RunQueryResponseHandlerFactory;
-import com.dremio.service.grpc.HeaderKeys;
 import com.dremio.service.usersessions.UserSessionService;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
@@ -93,26 +93,31 @@ public class DremioFlightProducer implements FlightSqlProducer {
   private final Location location;
   private final DremioFlightSessionsManager sessionsManager;
   private final BufferAllocator allocator;
+  private final Provider<FlightRequestContextDecorator> requestContextDecorator;
 
   public DremioFlightProducer(Location location, DremioFlightSessionsManager sessionsManager,
                               Provider<UserWorker> workerProvider, Provider<OptionManager> optionManagerProvider,
-                              BufferAllocator allocator,
+                              BufferAllocator allocator, Provider<FlightRequestContextDecorator> requestContextDecorator,
                               RunQueryResponseHandlerFactory runQueryResponseHandlerFactory) {
     this.location = location;
     this.sessionsManager = sessionsManager;
     this.allocator = allocator;
+    this.requestContextDecorator = requestContextDecorator;
 
     flightWorkManager = new FlightWorkManager(workerProvider, optionManagerProvider, runQueryResponseHandlerFactory);
   }
 
   @Override
   public void getStream(CallContext callContext, Ticket ticket, ServerStreamListener serverStreamListener) {
-    if (isFlightSqlTicket(ticket)) {
-      FlightSqlProducer.super.getStream(callContext, ticket, serverStreamListener);
-      return;
-    }
+    runWithRequestContext(callContext, () -> {
+      if (isFlightSqlTicket(ticket)) {
+        FlightSqlProducer.super.getStream(callContext, ticket, serverStreamListener);
+        return null;
+      }
 
-    getStreamLegacy(callContext, ticket, serverStreamListener);
+      getStreamLegacy(callContext, ticket, serverStreamListener);
+      return null;
+    });
   }
 
   private void getStreamLegacy(CallContext callContext, Ticket ticket, ServerStreamListener serverStreamListener) {
@@ -156,11 +161,13 @@ public class DremioFlightProducer implements FlightSqlProducer {
 
   @Override
   public SchemaResult getSchema(CallContext context, FlightDescriptor descriptor) {
-    if (isFlightSqlCommand(descriptor)) {
-      return FlightSqlProducer.super.getSchema(context, descriptor);
-    }
+    return runWithRequestContext(context, () -> {
+      if (isFlightSqlCommand(descriptor)) {
+        return FlightSqlProducer.super.getSchema(context, descriptor);
+      }
 
-    return getSchemaLegacy(context, descriptor);
+      return getSchemaLegacy(context, descriptor);
+    });
   }
 
   private SchemaResult getSchemaLegacy(CallContext context, FlightDescriptor descriptor) {
@@ -171,22 +178,27 @@ public class DremioFlightProducer implements FlightSqlProducer {
 
   @Override
   public void listFlights(CallContext callContext, Criteria criteria, StreamListener<FlightInfo> streamListener) {
-    throw CallStatus.UNIMPLEMENTED.withDescription("listFlights is not implemented.").toRuntimeException();
+    runWithRequestContext(callContext, () -> {
+      throw CallStatus.UNIMPLEMENTED.withDescription("listFlights is not implemented.").toRuntimeException();
+    });
   }
 
   @Override
   public FlightInfo getFlightInfo(CallContext callContext, FlightDescriptor flightDescriptor) {
-    if (isFlightSqlCommand(flightDescriptor)) {
-      return FlightSqlProducer.super.getFlightInfo(callContext, flightDescriptor);
-    }
+    return runWithRequestContext(callContext, () -> {
+      if (isFlightSqlCommand(flightDescriptor)) {
+        return FlightSqlProducer.super.getFlightInfo(callContext, flightDescriptor);
+      }
 
-    return getFlightInfoLegacy(callContext, flightDescriptor);
+      return getFlightInfoLegacy(callContext, flightDescriptor);
+    });
   }
 
   private FlightInfo getFlightInfoLegacy(CallContext callContext, FlightDescriptor flightDescriptor) {
     final UserSession session = getUserSessionData(callContext).getSession();
 
-    final FlightPreparedStatement flightPreparedStatement = flightWorkManager
+    final FlightPreparedStatement flightPreparedStatement =
+      flightWorkManager
       .createPreparedStatement(flightDescriptor, callContext::isCancelled, session);
 
     return flightPreparedStatement.getFlightInfoLegacy(location, flightDescriptor);
@@ -213,26 +225,41 @@ public class DremioFlightProducer implements FlightSqlProducer {
   @Override
   public Runnable acceptPut(CallContext callContext, FlightStream flightStream,
                             StreamListener<PutResult> streamListener) {
-    if (isFlightSqlCommand(flightStream.getDescriptor())) {
-      return FlightSqlProducer.super.acceptPut(callContext, flightStream, streamListener);
-    }
+    return runWithRequestContext(callContext, () -> {
+      if (isFlightSqlCommand(flightStream.getDescriptor())) {
+        return FlightSqlProducer.super.acceptPut(callContext, flightStream, streamListener);
+      }
 
-    throw CallStatus.UNIMPLEMENTED.withDescription("acceptPut is not implemented.").toRuntimeException();
+      throw CallStatus.UNIMPLEMENTED.withDescription("acceptPut is not implemented.").toRuntimeException();
+    });
   }
 
   @Override
   public void doAction(CallContext callContext, Action action, StreamListener<Result> streamListener) {
-    if (isFlightSqlAction(action)) {
-      FlightSqlProducer.super.doAction(callContext, action, streamListener);
-      return;
-    }
+    runWithRequestContext(callContext, () -> {
+      if (isFlightSqlAction(action)) {
+        FlightSqlProducer.super.doAction(callContext, action, streamListener);
+        return null;
+      }
 
-    throw CallStatus.UNIMPLEMENTED.withDescription("doAction is not implemented.").toRuntimeException();
+      throw CallStatus.UNIMPLEMENTED.withDescription("doAction is not implemented.").toRuntimeException();
+    });
   }
 
   @Override
   public void listActions(CallContext callContext, StreamListener<ActionType> streamListener) {
-    throw CallStatus.UNIMPLEMENTED.withDescription("listActions is not implemented.").toRuntimeException();
+    runWithRequestContext(callContext, () -> {
+      FlightSqlProducer.super.listActions(callContext, streamListener);
+      return null;
+    });
+  }
+
+  @Override
+  public void doExchange(CallContext callContext, FlightStream reader, ServerStreamListener writer) {
+    runWithRequestContext(callContext, () -> {
+      FlightSqlProducer.super.doExchange(callContext, reader, writer);
+      return null;
+    });
   }
 
   @Override
@@ -567,23 +594,36 @@ public class DremioFlightProducer implements FlightSqlProducer {
 
   }
 
+  /// Helper method to execute Flight requests with the correct RequestContext based on the supplied CallContext.
+  /// This should be called for FlightProducer interface methods (not FlightSqlProducer interface methods which
+  /// are just routed through FlightProducer methods). These methods are getFlightInfo(), getSchema(), getStream(),
+  /// acceptPut(), listActions(), doAction().
+  private <V> V runWithRequestContext(CallContext context, Callable<V> callable) {
+    try {
+      return requestContextDecorator.get().apply(RequestContext.current(), context).call(callable);
+    } catch (Exception ex) {
+      // Flight request handlers cannot throw any checked exceptions. So propagate RuntimeExceptions and convert
+      // checked exceptions to FlightRuntimeExceptions. Most exceptions thrown from above should really be
+      // FlightRuntimeExceptions already though.
+      if (ex instanceof RuntimeException) {
+        throw (RuntimeException) ex;
+      } else {
+        throw CallStatus.UNKNOWN.withCause(ex).toRuntimeException();
+      }
+    }
+  }
+
   private void runPreparedStatement(CallContext callContext,
                                     ServerStreamListener serverStreamListener,
                                     UserProtos.PreparedStatementHandle preparedStatementHandle) {
     final UserSessionService.UserSessionData sessionData = getUserSessionData(callContext);
     final ChangeTrackingUserSession userSession = new ChangeTrackingUserSession(sessionData.getSession());
 
-    final CallHeaders incomingHeaders = retrieveHeadersFromCallContext(callContext);
-    String projectId = incomingHeaders.get(HeaderKeys.PROJECT_ID_HEADER_KEY.name());
-    String orgId = incomingHeaders.get(HeaderKeys.ORG_ID_HEADER_KEY.name());
-
-    getRequestContext(projectId, orgId).run(() ->
-      flightWorkManager.runPreparedStatement(preparedStatementHandle, serverStreamListener, allocator, userSession, () -> {
-          if (userSession.isUpdated()) {
-            sessionsManager.updateSession(sessionData);
-          }
+    flightWorkManager.runPreparedStatement(preparedStatementHandle, serverStreamListener, allocator, userSession, () -> {
+        if (userSession.isUpdated()) {
+          sessionsManager.updateSession(sessionData);
         }
-      )
+      }
     );
   }
 

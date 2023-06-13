@@ -190,11 +190,16 @@ public class MetadataSynchronizer {
         return;
       }
       final Iterator<? extends DatasetHandle> iterator = datasetListing.iterator();
+      long entityCount = 0L;
       do {
         try {
+          // DX-60601, the current theory is that iterator exit earlier while we still have datasets not refreshed yet.
+          // Hence, it causes them to be deleted following this method. Let's log them for now specifically in
+          // handleExistingDataset when something bad happened to see if we still have datasets to be refreshed.
           if (!iterator.hasNext()) {
             break;
           }
+          ++entityCount;
           final DatasetHandle handle = iterator.next();
           final NamespaceKey datasetKey = MetadataObjectsUtils.toNamespaceKey(handle.getDatasetPath());
           final boolean existing = orphanedDatasets.remove(datasetKey);
@@ -203,7 +208,7 @@ public class MetadataSynchronizer {
           }
           if (existing) {
             addAncestors(datasetKey, ancestorsToKeep);
-            handleExistingDataset(datasetKey, handle);
+            handleExistingDataset(datasetKey, handle, iterator);
           } else {
             handleNewDataset(datasetKey, handle);
           }
@@ -212,7 +217,10 @@ public class MetadataSynchronizer {
           logger.error("Dataset {} sync failed ({}) due to Metadata too large. Please check.", e.getMessage(), existing ? "existing" : "new");
         }
       } while (true);
+      logger.info("Source '{}' iterated through {} entities", sourceKey, entityCount);
     }
+    // Intentionally leave without a catch block.
+    // TODO: Any unhandled exceptions will be handled by the caller if theory is confirmed.
   }
 
   /**
@@ -220,8 +228,9 @@ public class MetadataSynchronizer {
    *
    * @param datasetKey dataset key
    * @param handle     dataset handle
+   * @param iterator   dataset handle iterator
    */
-  private void handleExistingDataset(NamespaceKey datasetKey, DatasetHandle handle) {
+  private void handleExistingDataset(NamespaceKey datasetKey, DatasetHandle handle, Iterator<? extends DatasetHandle> iterator) {
     int tryCount = 0;
     while (true) {
       if (tryCount++ > NUM_RETRIES) {
@@ -236,14 +245,16 @@ public class MetadataSynchronizer {
       } catch (ConcurrentModificationException ignored) {
         // retry
         // continue;
-      } catch (DatasetNotFoundException e) {
+      } catch (DatasetNotFoundException | NamespaceNotFoundException e) {
         // race condition: metadata will be removed from catalog in next sync
-        logger.debug("Dataset '{}' is no longer valid, skipping sync", datasetKey, e);
+        logger.debug("Dataset '{}' is no longer valid, skipping sync. Has next? {}", datasetKey, iterator.hasNext(), e);
+        failedDatasets.add(Tuple.of(datasetKey.getSchemaPath(), e.getMessage()));
+        syncStatus.incrementExtendedUnreadable();
         break;
       } catch (Exception e) {
         // TODO: this should not be an Exception. Once exception handling is defined, change this. This is unfortunately
         //  the current behavior.
-        logger.debug("Dataset '{}' sync failed unexpectedly. Will retry next sync", datasetKey, e);
+        logger.debug("Dataset '{}' sync failed unexpectedly. Will retry next sync. Has next? {}", datasetKey, iterator.hasNext(), e);
         failedDatasets.add(Tuple.of(datasetKey.getSchemaPath(), e.getMessage()));
         syncStatus.incrementExtendedUnreadable();
         break;
@@ -268,14 +279,7 @@ public class MetadataSynchronizer {
     // invariant: only metadata attributes of currentConfig are overwritten, and then the same currentConfig is saved,
     // so the rest of the attributes are as is; so CME is handled by retrying this entire block
 
-    final DatasetConfig currentConfig;
-    try {
-      currentConfig = systemNamespace.getDataset(datasetKey);
-    } catch (NamespaceNotFoundException ignored) {
-      // race condition
-      logger.debug("Dataset '{}' no longer in namespace, skipping", datasetKey);
-      return;
-    }
+    final DatasetConfig currentConfig = systemNamespace.getDataset(datasetKey);
 
     final boolean isExtended = currentConfig.getReadDefinition() != null;
     if (updateMode == UpdateMode.PREFETCH_QUERIED && !isExtended) {

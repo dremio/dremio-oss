@@ -34,6 +34,7 @@ import org.junit.Test;
 import com.dremio.dac.daemon.TestSpacesStoragePlugin;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.DatasetUI;
+import com.dremio.dac.explore.model.InitialPreviewResponse;
 import com.dremio.dac.model.job.JobDetailsUI;
 import com.dremio.dac.model.job.JobListItem;
 import com.dremio.dac.model.job.JobUI;
@@ -272,7 +273,9 @@ public class TestServerJobs extends BaseTestServer {
     JobsService jobsService = l(JobsService.class);
     TestSpacesStoragePlugin.setup();
     // run at least one job
-    getPreview(getDataset(new DatasetPath("testB.dsB1"))); // This triggers a job
+    final InitialPreviewResponse previewResponse = getPreview(getDataset(new DatasetPath("testB.dsB1"))); // This triggers a job
+    waitForJobComplete(previewResponse.getJobId().getId());
+
     doc("getting list of all jobs");
     JobsUI allJobs = expectSuccess(getBuilder(getAPIv2().path("jobs")).buildGet(), JobsUI.class);
     int dsB1Jobs = 0;
@@ -296,7 +299,9 @@ public class TestServerJobs extends BaseTestServer {
       dsB1Jobs, jobsUI.getJobs().size());
     assertEquals(dsB1Jobs, jobsUI.getJobs().size());
 
-    getPreview(getDataset(new DatasetPath("testB.dsB1"))); // this triggers a job
+    final InitialPreviewResponse previewResponseA = getPreview(getDataset(new DatasetPath("testB.dsB1"))); // this triggers a job
+    waitForJobComplete(previewResponseA.getJobId().getId());
+
     jobsUI = expectSuccess(getBuilder(getAPIv2().path("jobs").queryParam("filter", "ds==testB.dsB1")).buildGet(), JobsUI.class);
     // getting the data 2x on the same version does not create a new job
     assertEquals(dsB1Jobs, jobsUI.getJobs().size());
@@ -392,7 +397,9 @@ public class TestServerJobs extends BaseTestServer {
     JobsService jobsService = l(JobsService.class);
     TestSpacesStoragePlugin.setup();
     // run at least one job
-    getPreview(getDataset(new DatasetPath("testB.dsB1"))); // This triggers a job
+    final InitialPreviewResponse previewResponse = getPreview(getDataset(new DatasetPath("testB.dsB1"))); // This triggers a job
+    waitForJobComplete(previewResponse.getJobId().getId());
+
     doc("getting list of all jobs");
     JobsUI allJobs = expectSuccess(getBuilder(getAPIv2().path("jobs")).buildGet(), JobsUI.class);
     int dsB1Jobs = 0;
@@ -416,7 +423,9 @@ public class TestServerJobs extends BaseTestServer {
       dsB1Jobs, jobsUI.getJobs().size());
     assertEquals(dsB1Jobs, jobsUI.getJobs().size());
 
-    getPreview(getDataset(new DatasetPath("testB.dsB1"))); // this triggers a job
+    final InitialPreviewResponse previewResponseA = getPreview(getDataset(new DatasetPath("testB.dsB1"))); // this triggers a job
+    waitForJobComplete(previewResponseA.getJobId().getId());
+
     jobsUI = expectSuccess(getBuilder(getAPIv2().path("jobs").queryParam("filter", "ds==testB.dsB1")).buildGet(), JobsUI.class);
     // getting the data 2x on the same version does not create a new job
     assertEquals(dsB1Jobs, jobsUI.getJobs().size());
@@ -523,7 +532,9 @@ public class TestServerJobs extends BaseTestServer {
     DatasetUI dataset = getDataset(new DatasetPath(datasetName));
 
     // run dataset twice. We do a run and a preview since subsequent previews won't actually rerun...
-    getPreview(dataset);
+    final InitialPreviewResponse previewResponse = getPreview(dataset);
+    waitForJobComplete(previewResponse.getJobId().getId());
+
     submitJobAndWaitUntilCompletion(
       JobRequest.newBuilder()
         .setSqlQuery(getQueryFromConfig(dataset))

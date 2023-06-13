@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-nessie-grpc</artifactId>
-    <version>24.0.0-202302100528110223-3a169b7c</version>
+    <version>24.1.0-202306130653310132-d30779f6</version>
   </parent>
 
   <artifactId>dremio-services-nessie-grpc-common</artifactId>
@@ -31,7 +31,7 @@
 
   <dependencies>
     <dependency>
-      <groupId>org.projectnessie</groupId>
+      <groupId>org.projectnessie.nessie</groupId>
       <artifactId>nessie-model</artifactId>
     </dependency>
     <dependency>
@@ -51,11 +51,6 @@
       <artifactId>jakarta.annotation-api</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter-api</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
     </dependency>
@@ -66,7 +61,6 @@
       <plugin>
         <groupId>org.jboss.jandex</groupId>
         <artifactId>jandex-maven-plugin</artifactId>
-        <version>1.2.1</version>
         <executions>
           <execution>
             <id>make-index</id>

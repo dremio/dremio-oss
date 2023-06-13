@@ -400,8 +400,7 @@ public class DremioTestWrapper {
             }
             combinedVectors.get(field).add(obj);
           }
-        }
-        else {
+        } else {
           for (ValueVector vv : vectors) {
             for (int j = 0; j < loader.getRecordCount(); j++) {
               int index;

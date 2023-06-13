@@ -27,12 +27,14 @@ public class HadoopFsCacheKey {
   final String authority;
   final Configuration conf;
   final URI uri;
+  final String userName;
 
-  public HadoopFsCacheKey(URI uri, Iterable<Map.Entry<String, String>> conf) {
+  public HadoopFsCacheKey(URI uri, Iterable<Map.Entry<String, String>> conf, String userName) {
     this.conf = (Configuration) conf;
     this.uri = uri;
     scheme = uri.getScheme() == null ? "" : StringUtils.toLowerCase(uri.getScheme());
     authority = uri.getAuthority() == null ? "" : StringUtils.toLowerCase(uri.getAuthority());
+    this.userName = userName;
   }
 
   public URI getUri() {
@@ -43,9 +45,13 @@ public class HadoopFsCacheKey {
     return conf;
   }
 
+  public String getUserName() {
+    return userName;
+  }
+
   @Override
   public int hashCode() {
-    return Objects.hash(scheme, authority);
+    return Objects.hash(scheme, authority, userName);
   }
 
   @Override
@@ -59,11 +65,12 @@ public class HadoopFsCacheKey {
     HadoopFsCacheKey key = (HadoopFsCacheKey) o;
     return
       com.google.common.base.Objects.equal(scheme, key.scheme) &&
-        com.google.common.base.Objects.equal(authority, key.authority);
+        com.google.common.base.Objects.equal(authority, key.authority) &&
+          com.google.common.base.Objects.equal(userName, key.userName);
   }
 
   @Override
   public String toString() {
-    return  scheme + "://" + authority;
+    return  userName + "@" + scheme + "://" + authority;
   }
 }

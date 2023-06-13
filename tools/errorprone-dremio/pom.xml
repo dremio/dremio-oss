@@ -24,7 +24,7 @@
   <!-- This file doesn't use dremio parent to avoid circular dependencies -->
   <groupId>com.dremio.tools</groupId>
   <artifactId>errorprone-dremio</artifactId>
-  <version>24.0.0-202302100528110223-3a169b7c</version>
+  <version>24.1.0-202306130653310132-d30779f6</version>
   <packaging>jar</packaging>
   <name>Tools - Dremio Error Prone Checks</name>
 
@@ -32,9 +32,9 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <auto-service.version>1.0.1</auto-service.version>
     <!-- Please keep versions in sync with oss parent pom.xml -->
-    <errorprone.version>2.16</errorprone.version>
+    <errorprone.version>2.18.0</errorprone.version>
     <slf4j.version>1.7.36</slf4j.version>
-    <grpc.version>1.45.0</grpc.version>
+    <grpc.version>1.54.1</grpc.version>
   </properties>
 
   <build>
@@ -42,7 +42,7 @@
       <!-- Please keep versions in sync with oss parent pom.xml -->
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.10.1</version>
+        <version>3.11.0</version>
         <configuration>
           <source>11</source>
           <target>11</target>
@@ -54,6 +54,7 @@
               -Xplugin:ErrorProne
               <!-- strict usage of errorprone internals -->
               -Xep:BugPatternNaming:ERROR
+              -Xep:InjectOnBugCheckers:ERROR
               -Xep:MemoizeConstantVisitorStateLookups:ERROR
               -Xep:ASTHelpersSuggestions:ERROR
               <!-- workaround for intellij -->
@@ -86,14 +87,14 @@
       </plugin>
       <plugin>
         <artifactId>maven-resources-plugin</artifactId>
-        <version>3.3.0</version>
+        <version>3.3.1</version>
         <configuration>
           <encoding>UTF-8</encoding>
         </configuration>
       </plugin>
       <plugin>
         <artifactId>maven-surefire-plugin</artifactId>
-        <version>3.0.0-M7</version>
+        <version>3.0.0</version>
       </plugin>
       <plugin>
         <groupId>com.mycila</groupId>
@@ -143,7 +144,7 @@ limitations under the License.
       <plugin>
         <groupId>com.diffplug.spotless</groupId>
         <artifactId>spotless-maven-plugin</artifactId>
-        <version>2.22.8</version>
+        <version>2.29.0</version>
         <configuration>
           <java>
             <endWithNewline/>

@@ -16,6 +16,7 @@
 package com.dremio.service.coordinator.zk;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
@@ -39,7 +40,6 @@ import javax.inject.Provider;
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
-import org.apache.curator.framework.imps.CuratorFrameworkState;
 import org.apache.curator.framework.recipes.leader.LeaderLatch;
 import org.apache.curator.framework.recipes.leader.LeaderLatch.CloseMode;
 import org.apache.curator.framework.recipes.leader.LeaderLatchListener;
@@ -127,19 +127,6 @@ class ZKClusterClient implements com.dremio.service.Service {
     this.clusterIdPath = "/" + this.clusterId;
   }
 
-  private synchronized void initializeConnection() {
-    if (isConnected == null) {
-      if (curator != null) {
-        logger.info("Starting ZkSupervisor for ZKClusterClient");
-        isConnected = curator.getState() == CuratorFrameworkState.STARTED;
-        curator.getConnectionStateListenable().addListener((x, newState) -> {
-          isConnected = newState.isConnected();
-          logger.info("ZKClusterClient: new state received[{}] - isConnected: {}", newState, isConnected);
-        });
-      }
-    }
-  }
-
   @Override
   public void start() throws Exception {
     if(localPortProvider != null){
@@ -215,8 +202,6 @@ class ZKClusterClient implements com.dremio.service.Service {
 
   private void runSupervisorCheck() {
     if (configFeatureProvider != null && configFeatureProvider.isFeatureEnabled(Features.COORDINATOR_ZK_SUPERVISOR.getFeatureName())) {
-      initializeConnection();
-
       boolean isProbeSucceeded = false;
       if (isConnected == null || !isConnected) {
         logger.error("ZKClusterClient: Not connected to ZK.");
@@ -331,8 +316,8 @@ class ZKClusterClient implements com.dremio.service.Service {
     final String id = UUID.randomUUID().toString();
     // In case of multicluster Dremio env. that use the same zookeeper
     // we need a root per Dremio clusterId
-    final LeaderLatch leaderLatch =
-      new LeaderLatch(curator, clusterIdPath + "/leader-latch/" + name, id, CloseMode.SILENT);
+    final String latchPath = clusterIdPath + "/leader-latch/" + name;
+    final LeaderLatch leaderLatch = new LeaderLatch(curator, latchPath, id, CloseMode.SILENT);
 
     logger.info("joinElection called {} - {}.", id, name);
 
@@ -478,6 +463,7 @@ class ZKClusterClient implements com.dremio.service.Service {
       public void close() {
         try {
           leaderLatch.close();
+          deleteServiceLeaderElectionPath();
         } catch (IOException e) {
           logger.error("Error when closing registration handle for election {}", name, e);
         }
@@ -497,11 +483,53 @@ class ZKClusterClient implements com.dremio.service.Service {
         }
         return 0;
       }
+
+      private void deleteServiceLeaderElectionPath() {
+        try {
+          boolean isZkConnected = isConnected != null && isConnected.equals(true);
+          if (isZkConnected && curator.checkExists().forPath(latchPath) != null) {
+            List<String> allChildren = curator.getChildren().forPath(latchPath);
+            // every element in the election has a child in the election path. When there is no more child elements in
+            // the election path (latchPath), we can clear the election path otherwise it will stay in zk, since it is
+            // a persistent path in zk.
+            if (allChildren.isEmpty()) {
+              curator.delete().guaranteed().forPath(latchPath);
+              logger.info("Closed leader latch. Deleted latch path {}", latchPath);
+            } else {
+              logger.info("Closed leader latch. Nothing to do about latch path {}. It has children: {}", latchPath, allChildren.size());
+            }
+          } else if (!isZkConnected) {
+            logger.warn("Closed leader latch. Nothing to do about latch path {}. Not connected to ZK", latchPath);
+          }
+        } catch (Exception e) {
+          logger.warn("Could not delete latch path {}", latchPath, e);
+        }
+      }
     };
   }
 
   public ZKServiceSet newServiceSet(String name) {
     return new ZKServiceSet(name, discovery);
+  }
+
+  public void deleteServiceSetZkNode(String name) {
+    String zkNodePath = clusterIdPath + "/" + name;
+    try {
+      boolean isZkConnected = isConnected != null && isConnected.equals(true);
+      if (isZkConnected && curator.checkExists().forPath(zkNodePath) != null) {
+        List<String> allChildren = curator.getChildren().forPath(zkNodePath);
+        if (allChildren.isEmpty()) {
+          curator.delete().guaranteed().forPath(zkNodePath);
+          logger.info("Deleted ZKServiceSet zk node path {}", zkNodePath);
+        } else {
+          logger.info("Deleted ZKServiceSet. Nothing to do about zk node path {}. It has children: {}", zkNodePath, allChildren.size());
+        }
+      } else if (!isZkConnected) {
+        logger.warn("Deleted ZKServiceSet. Nothing to do about zk node path {}. Not connected to ZK", zkNodePath);
+      }
+    } catch (Exception e) {
+      logger.warn("Deleted ZKServiceSet - Could not delete zk node path {}", zkNodePath, e);
+    }
   }
 
   private ServiceDiscovery<NodeEndpoint> newDiscovery(String clusterId) {
@@ -528,9 +556,8 @@ class ZKClusterClient implements com.dremio.service.Service {
 
     @Override
     public void stateChanged(CuratorFramework client, ConnectionState newState) {
-      if (connectionLostHandler.stateLoggingEnabled()) {
-        logger.info("ZK connection state changed to {}", newState);
-      }
+      isConnected = newState.isConnected();
+      logger.info("ZKClusterClient: new state received[{}] - isConnected: {}", newState, isConnected);
       connectionLostHandler.handleConnectionState(newState);
     }
   }

@@ -73,6 +73,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterables;
 
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.protostuff.ByteString;
 
 /**
@@ -108,6 +109,7 @@ public final class VersionedDatasetAdapter {
     return new VersionedDatasetAdapter.Builder();
   }
 
+  @WithSpan
   public DremioTable getTable(final String accessUserName) {
     return datasetHandle.unwrap(VersionedDatasetHandle.class).translateToDremioTable(this, accessUserName);
   }
@@ -137,6 +139,7 @@ public final class VersionedDatasetAdapter {
       TableVersionContext.of(versionContext));
     viewConfig.setId(new EntityId(versionedDatasetId.asString()));
     viewConfig.setRecordSchema(batchSchema.toByteString());
+    viewConfig.setLastModified(viewVersionMetadata.currentVersion().timestampMillis());
 
     final View view = Views.fieldTypesToView(Iterables.getLast(viewKeyPath),
       viewVersionMetadata.definition().sql(),
@@ -149,7 +152,7 @@ public final class VersionedDatasetAdapter {
     return new ViewTable(new NamespaceKey(viewKeyPath),
       view,
       null,
-      viewConfig, batchSchema);
+      viewConfig, batchSchema, TableVersionContext.of(versionContext).asVersionContext());
   }
 
   private DatasetConfig createShallowVirtualDatasetConfig(List<String> viewKeyPath,
@@ -163,6 +166,12 @@ public final class VersionedDatasetAdapter {
     virtualDataset.setCalciteFieldsList(viewFieldTypesList);
     virtualDataset.setSqlFieldsList(viewFieldTypesList);
 
+    if (viewVersionMetadata.properties().containsKey("enable_default_reflection")) {
+      final boolean enableDefaultReflection =
+          Boolean.parseBoolean(viewVersionMetadata.properties().get("enable_default_reflection"));
+      virtualDataset.setDefaultReflectionEnabled(enableDefaultReflection);
+    }
+
     versionedDatasetConfig.setName(Iterables.getLast(viewKeyPath));
     //TODO: DX-48432 View ownership should set the view owner to the view/dataset creator
     versionedDatasetConfig.setOwner("dremio");
@@ -171,6 +180,7 @@ public final class VersionedDatasetAdapter {
     return versionedDatasetConfig;
   }
 
+  @WithSpan
   public  DremioTable translateIcebergTable(final String accessUserName) {
     // Figure out the user we want to access the dataplane with.
     // *TBD*  Use the Filesystem(Iceberg) plugin to tell us the configuration/username
@@ -195,6 +205,7 @@ public final class VersionedDatasetAdapter {
 
     versionedDatasetConfig.setId(new EntityId(versionedDatasetId.asString()));
     setIcebergTableUUID(versionedDatasetConfig, versionedDatasetHandle.getUniqueInstanceId());
+    // TODO: DX-62735 Table ownership should be set, i.e. versionedDatasetConfig.setOwner()
 
     // Construct the TableMetadata
 
@@ -202,7 +213,13 @@ public final class VersionedDatasetAdapter {
       versionedDatasetConfig,
       accessUserName,
       splitsPointer,
-      getPrimaryKey(storagePlugin, versionedDatasetConfig, new NamespaceKey(versionedDatasetConfig.getFullPathList()), accessUserName, versionContext));
+      getPrimaryKey(storagePlugin, versionedDatasetConfig, new NamespaceKey(versionedDatasetConfig.getFullPathList()),
+        accessUserName, versionContext)) {
+      @Override
+      public TableVersionContext getVersionContext() {
+        return TableVersionContext.of(versionContext);
+      }
+    };
 
     return new NamespaceTable(tableMetadata, optionManager.getOption(FULL_NESTED_SCHEMA_SUPPORT));
   }

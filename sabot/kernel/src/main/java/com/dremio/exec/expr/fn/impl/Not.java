@@ -30,8 +30,10 @@ public class Not {
     @Param BitHolder in;
     @Output BitHolder out;
 
+    @Override
     public void setup() { }
 
+    @Override
     public void eval() {
       out.value = in.value == 0 ? 1 : 0;
     }

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Type } from "@app/services/nessie/client";
+import { Type } from "@app/types/nessie";
 //@ts-ignore
 import { useProjectContext } from "@inject/utils/storageUtils/localStorageUtils";
 
@@ -22,7 +22,7 @@ export function getIconByType(type?: string | null, elements?: string[]) {
     case Type.IcebergTable:
     case Type.DeltaLakeTable:
       return { type: "PhysicalDataset", id: `Nessie.${type}` };
-    case "ICEBERG_VIEW": // TODO, need to update generated types
+    case Type.IcebergView:
       return { type: "VirtualDataset", id: `Nessie.${type}` };
     default:
       return {

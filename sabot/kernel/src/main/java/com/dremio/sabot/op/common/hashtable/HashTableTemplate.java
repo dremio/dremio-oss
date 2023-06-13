@@ -394,6 +394,7 @@ public abstract class HashTableTemplate implements HashTable {
       }
     }
 
+    @Override
     public void close() throws Exception {
       AutoCloseables.close(Arrays.asList(htContainer, links, hashValues));
     }
@@ -499,10 +500,12 @@ public abstract class HashTableTemplate implements HashTable {
     return startIndices.getValueCount();
   }
 
+  @Override
   public int size() {
     return numEntries;
   }
 
+  @Override
   public void getStats(HashTableStats stats) {
     assert stats != null;
     stats.numBuckets = numBuckets();
@@ -511,10 +514,12 @@ public abstract class HashTableTemplate implements HashTable {
     stats.resizingTime = resizingTime.elapsed(TimeUnit.NANOSECONDS);
   }
 
+  @Override
   public boolean isEmpty() {
     return numEntries == 0;
   }
 
+  @Override
   public void close() throws Exception {
     List<AutoCloseable> closeables = new ArrayList<>();
     if (batchHolders != null) {
@@ -530,6 +535,7 @@ public abstract class HashTableTemplate implements HashTable {
     return hash & (numBuckets - 1);
   }
 
+  @SuppressWarnings("checkstyle:InnerAssignment")
   private static int roundUpToPowerOf2(int number) {
     int rounded = number >= MAXIMUM_CAPACITY
         ? MAXIMUM_CAPACITY
@@ -540,6 +546,7 @@ public abstract class HashTableTemplate implements HashTable {
     return rounded;
   }
 
+  @Override
   public int put(int incomingRowIdx) {
     final int hash = getHashBuild(incomingRowIdx);
     final int i = getBucketIndex(hash, numBuckets());
@@ -738,6 +745,7 @@ public abstract class HashTableTemplate implements HashTable {
     numResizing++;
   }
 
+  @Override
   public void outputKeys(int batchIdx, VectorContainer outContainer) {
     assert batchIdx < batchHolders.size();
     batchHolders.get(batchIdx).outputKeys(outContainer);

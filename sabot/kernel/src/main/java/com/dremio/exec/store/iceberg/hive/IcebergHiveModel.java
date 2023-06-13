@@ -17,7 +17,7 @@ package com.dremio.exec.store.iceberg.hive;
 
 import org.apache.iceberg.TableOperations;
 
-import com.dremio.exec.catalog.MutablePlugin;
+import com.dremio.exec.store.iceberg.SupportsIcebergMutablePlugin;
 import com.dremio.exec.store.iceberg.SupportsIcebergRootPointer;
 import com.dremio.exec.store.iceberg.model.IcebergBaseModel;
 import com.dremio.exec.store.iceberg.model.IcebergCommand;
@@ -40,8 +40,8 @@ public class IcebergHiveModel extends IcebergBaseModel {
                           FileSystem fs,
                           String queryUserName,
                           OperatorContext context,
-                          SupportsIcebergRootPointer plugin) {
-    super(namespace, plugin.getFsConfCopy(), fs, context, null, (MutablePlugin) plugin);
+                          SupportsIcebergMutablePlugin plugin) {
+    super(namespace, plugin.getFsConfCopy(), fs, context, null, plugin);
     this.queryUserName = queryUserName;
     this.plugin = plugin;
     this.tableName = tableName;
@@ -51,7 +51,7 @@ public class IcebergHiveModel extends IcebergBaseModel {
   protected IcebergCommand getIcebergCommand(IcebergTableIdentifier tableIdentifier) {
     TableOperations tableOperations = plugin.createIcebergTableOperations(fs, queryUserName, tableIdentifier);
     return new IcebergHiveCommand(configuration,
-      ((IcebergHiveTableIdentifier)tableIdentifier).getTableFolder(), fs, tableOperations, (MutablePlugin) plugin);
+      ((IcebergHiveTableIdentifier)tableIdentifier).getTableFolder(), fs, tableOperations);
   }
 
   @Override

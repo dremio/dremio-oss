@@ -24,8 +24,16 @@ import org.apache.calcite.sql.SqlIdentifier;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.SqlUtils;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.CatalogEntityKey;
+import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.catalog.TableVersionContext;
+import com.dremio.exec.catalog.TableVersionType;
+import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
+import com.dremio.exec.planner.sql.parser.SqlTableVersionSpec;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
+import com.dremio.options.OptionManager;
+import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
@@ -34,10 +42,22 @@ import com.google.common.collect.FluentIterable;
 public class SchemaUtilities {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SchemaUtilities.class);
 
-  public static TableWithPath verify(final Catalog catalog, SqlIdentifier identifier){
+  public static TableWithPath verify(final Catalog catalog, SqlIdentifier identifier, UserSession userSession, SqlTableVersionSpec sqlTableVersionSpec, OptionManager optionManager){
     NamespaceKey path = catalog.resolveSingle(new NamespaceKey(identifier.names));
-    DremioTable table = catalog.getTable(path);
-    if(table == null) {
+    SqlHandlerUtil.validateSupportForVersionedReflections(path.getRoot(), catalog, optionManager);
+    TableVersionContext tableVersionContext = null;
+    if (sqlTableVersionSpec != null && sqlTableVersionSpec.getTableVersionSpec().getTableVersionType() != TableVersionType.NOT_SPECIFIED) {
+      tableVersionContext = sqlTableVersionSpec.getTableVersionSpec().getTableVersionContext();
+    } else if (CatalogUtil.requestedPluginSupportsVersionedTables(path.getRoot(), catalog)) {
+      tableVersionContext = TableVersionContext.of(userSession.getSessionVersionForSource(path.getRoot()));
+    }
+    CatalogEntityKey catalogEntityKey = CatalogEntityKey.newBuilder()
+      .keyComponents(path.getPathComponents())
+      .tableVersionContext(tableVersionContext)
+      .build();
+
+    DremioTable table = CatalogUtil.getTable(catalogEntityKey, catalog);
+    if (table == null) {
       throw UserException.parseError().message("Unable to find table %s.", path).build(logger);
     }
 

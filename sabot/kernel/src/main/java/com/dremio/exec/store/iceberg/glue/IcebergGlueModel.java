@@ -17,8 +17,7 @@ package com.dremio.exec.store.iceberg.glue;
 
 import org.apache.iceberg.TableOperations;
 
-import com.dremio.exec.catalog.MutablePlugin;
-import com.dremio.exec.store.iceberg.SupportsIcebergRootPointer;
+import com.dremio.exec.store.iceberg.SupportsIcebergMutablePlugin;
 import com.dremio.exec.store.iceberg.model.IcebergBaseModel;
 import com.dremio.exec.store.iceberg.model.IcebergCommand;
 import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
@@ -32,7 +31,7 @@ import com.dremio.sabot.exec.context.OperatorContext;
  */
 public class IcebergGlueModel extends IcebergBaseModel {
 
-  private final SupportsIcebergRootPointer plugin;
+  private final SupportsIcebergMutablePlugin plugin;
   private final String tableName;
   private final String queryUserName;
   public static final String GLUE = "glue";
@@ -42,8 +41,8 @@ public class IcebergGlueModel extends IcebergBaseModel {
                           FileSystem fs,
                           String queryUserName,
                           OperatorContext context,
-                          SupportsIcebergRootPointer plugin) {
-    super(namespace, plugin.getFsConfCopy(), fs, context, null, (MutablePlugin)plugin);
+                          SupportsIcebergMutablePlugin plugin) {
+    super(namespace, plugin.getFsConfCopy(), fs, context, null, plugin);
     this.queryUserName = queryUserName;
     this.plugin = plugin;
     this.tableName = tableName;
@@ -53,7 +52,7 @@ public class IcebergGlueModel extends IcebergBaseModel {
   protected IcebergCommand getIcebergCommand(IcebergTableIdentifier tableIdentifier) {
     TableOperations tableOperations = plugin.createIcebergTableOperations(fs, queryUserName, tableIdentifier);
     return new IcebergGlueCommand(configuration,
-      ((IcebergGlueTableIdentifier)tableIdentifier).getTableFolder(), fs, tableOperations, (MutablePlugin) plugin);
+      ((IcebergGlueTableIdentifier)tableIdentifier).getTableFolder(), fs, tableOperations);
   }
 
   @Override

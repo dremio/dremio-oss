@@ -21,7 +21,8 @@ public final class VersionContextUtils {
   private VersionContextUtils() {
   }
 
-  public static VersionContext map(VersionContextReq from) {
+  public static VersionContext parse(String refType, String refValue) {
+    VersionContextReq from = VersionContextReq.tryParse(refType, refValue);
     if (from == null) {
       return VersionContext.NOT_SPECIFIED;
     }

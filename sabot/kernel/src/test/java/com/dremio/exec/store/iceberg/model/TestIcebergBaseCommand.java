@@ -26,14 +26,12 @@ import org.junit.rules.TemporaryFolder;
 import org.mockito.Mockito;
 
 import com.dremio.BaseTestQuery;
-import com.dremio.exec.catalog.MutablePlugin;
 
 public class TestIcebergBaseCommand extends BaseTestQuery {
   @Rule
   public TemporaryFolder folder = new TemporaryFolder();
 
   private final TableOperations tableOperations = Mockito.mock(TableOperations.class);
-  private final MutablePlugin mutablePlugin = Mockito.mock(MutablePlugin.class);
 
   @Test
   public void testMissingManifestOnLoadTable() {
@@ -51,8 +49,7 @@ public class TestIcebergBaseCommand extends BaseTestQuery {
 
   private class MockCommand extends IcebergBaseCommand {
     public MockCommand(File tableFolder) {
-      super(new Configuration(), tableFolder.getAbsolutePath(), null, TestIcebergBaseCommand.this.tableOperations,
-        TestIcebergBaseCommand.this.mutablePlugin);
+      super(new Configuration(), tableFolder.getAbsolutePath(), null, TestIcebergBaseCommand.this.tableOperations);
     }
   }
 }

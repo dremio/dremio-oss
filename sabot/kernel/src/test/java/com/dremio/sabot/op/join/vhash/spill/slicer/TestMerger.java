@@ -330,8 +330,7 @@ public class TestMerger extends DremioTest {
         if (index % 2 == 0) {
           unionWriter.writeInt(intList.get(intIndex));
           intIndex++;
-        }
-        else {
+        } else {
           final byte[] varCharVal = stringList.get(stringIndex).getBytes();
           tempBuf.setBytes(0, varCharVal);
           unionWriter.writeVarChar(0, varCharVal.length, tempBuf);

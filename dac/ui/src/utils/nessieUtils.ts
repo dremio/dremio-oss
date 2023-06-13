@@ -21,9 +21,11 @@ import { store } from "@app/store/store";
 import apiUtils from "@app/utils/apiUtils/apiUtils";
 import moize from "moize";
 import { isVersionedSource } from "./sourceUtils";
+import { NESSIE } from "@app/constants/sourceTypes";
+import { NESSIE_PROXY_URL_V2 } from "@app/constants/Api";
 
 export function getShortHash(hash?: string) {
-  return hash && hash.length > 6 ? hash.substring(0, 6) : hash;
+  return hash && hash.length > 6 ? hash.substring(0, 8) : hash;
 }
 
 export function getIconByType(refType: string, hash?: string | null) {
@@ -140,17 +142,15 @@ export function getProjectUrl(id?: string) {
   })}`;
 }
 
-export function getArcticProjectUrl(id?: string) {
+export function getArcticProjectUrl(
+  id: string | undefined,
+  nessieVersion?: string
+) {
   //@ts-ignore
   return `${window.location.protocol}${apiUtils.getAPIVersion("ARCTIC", {
     projectId: id,
+    nessieVersion,
   })}`;
-}
-
-export function getProjectIdFromUrl(url?: any) {
-  if (!url || typeof url !== "string") return "";
-  const value = url.substring(url.lastIndexOf("/") + 1, url.length) || "";
-  return value.replace("/", "");
 }
 
 export function isBranchSelected(state?: NessieState) {
@@ -177,21 +177,43 @@ export function parseNamespaceUrl(url: string, path: string) {
   return url.replace(`/${path}/`, "").split("/");
 }
 
+type SourceType = {
+  name: string;
+  type: string;
+  config?: CatalogSourceConfig | NessieSourceConfig;
+};
 type CatalogSourceConfig = { arcticCatalogId: string };
 type NessieSourceConfig = { nessieEndpoint: string };
-function isArcticCatalogConfig(
-  config: CatalogSourceConfig | NessieSourceConfig
+export function isArcticCatalogConfig(
+  config?: CatalogSourceConfig | NessieSourceConfig
 ): config is CatalogSourceConfig {
-  return (config as CatalogSourceConfig).arcticCatalogId != null;
+  return (config as CatalogSourceConfig)?.arcticCatalogId != null;
 }
 
-export function getEndpointFromSourceConfig(
-  config?: CatalogSourceConfig | NessieSourceConfig
+function getEndpointFromSourceConfig(
+  config: CatalogSourceConfig | NessieSourceConfig | undefined,
+  nessieVersion: string
 ) {
   if (!config) return "";
   if (isArcticCatalogConfig(config)) {
-    return getArcticProjectUrl(config.arcticCatalogId);
+    return getArcticProjectUrl(config.arcticCatalogId, nessieVersion);
   } else {
     return config.nessieEndpoint;
   }
+}
+
+function getNessieSourceUrl(sourceName: string) {
+  return `${NESSIE_PROXY_URL_V2}/${`source/${sourceName}`}`;
+}
+
+export function getEndpointFromSource(
+  source: SourceType | undefined,
+  nessieVersion = "v2"
+) {
+  if (!source) return "";
+  if (source.type === NESSIE) {
+    return getNessieSourceUrl(source.name);
+  }
+
+  return getEndpointFromSourceConfig(source.config, nessieVersion);
 }

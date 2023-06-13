@@ -106,6 +106,7 @@ public class ManagedHiveSchema implements ManagedSchema {
     return Optional.ofNullable(fieldInfo.get(fieldName));
   }
 
+  @Override
   public Map<String, ManagedSchemaField> getAllFields() {
     return this.fieldInfo;
   }

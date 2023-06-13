@@ -18,8 +18,8 @@ package com.dremio.service.reflection;
 import java.util.List;
 import java.util.Optional;
 
+import com.dremio.exec.catalog.CatalogEntityKey;
 import com.dremio.exec.ops.ReflectionContext;
-import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.reflection.proto.ExternalReflection;
 import com.dremio.service.reflection.proto.Materialization;
 import com.dremio.service.reflection.proto.ReflectionGoal;
@@ -31,7 +31,7 @@ import com.dremio.service.reflection.proto.ReflectionId;
 public interface ReflectionAdministrationService {
   Iterable<ReflectionGoal> getAllReflections();
 
-  Iterable<ReflectionGoal> getReflectionsByDatasetPath(NamespaceKey path);
+  Iterable<ReflectionGoal> getReflectionsByDatasetPath(CatalogEntityKey path);
 
   Iterable<ReflectionGoal> getReflectionsByDatasetId(String datasetid);
 

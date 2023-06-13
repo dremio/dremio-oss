@@ -260,6 +260,7 @@ public class InternalFileConf extends MayBeDistFileSystemConf<InternalFileConf, 
     return uri.get().getScheme().equals("pdfs");
   }
 
+  @Override
   public String getDefaultCtasFormat(){
     return  defaultCtasFormat.getDefaultCtasFormat();
   }

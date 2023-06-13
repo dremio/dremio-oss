@@ -193,7 +193,10 @@ public interface ExecConstants {
   LongValidator PARQUET_DICT_PAGE_SIZE_VALIDATOR = new LongValidator(PARQUET_DICT_PAGE_SIZE, 1024*1024);
   String PARQUET_WRITER_COMPRESSION_TYPE = "store.parquet.compression";
   EnumeratedStringValidator PARQUET_WRITER_COMPRESSION_TYPE_VALIDATOR = new EnumeratedStringValidator(
-      PARQUET_WRITER_COMPRESSION_TYPE, "snappy", "snappy", "gzip", "none");
+      PARQUET_WRITER_COMPRESSION_TYPE, "snappy", "snappy", "gzip", "zstd", "none");
+  String PARQUET_WRITER_COMPRESSION_ZSTD_LEVEL = "store.parquet.compression.zstd.level";
+  RangeLongValidator PARQUET_WRITER_COMPRESSION_ZSTD_LEVEL_VALIDATOR = new RangeLongValidator(
+    PARQUET_WRITER_COMPRESSION_ZSTD_LEVEL, Integer.MIN_VALUE, Integer.MAX_VALUE, -3);
 
   String PARQUET_MAX_FOOTER_LEN = "store.parquet.max_footer_length";
   LongValidator PARQUET_MAX_FOOTER_LEN_VALIDATOR = new LongValidator(PARQUET_MAX_FOOTER_LEN, 16*1024*1024);
@@ -412,6 +415,13 @@ public interface ExecConstants {
    * Enabling this support option enables the memory arbiter
    */
   BooleanValidator MEMORY_ARBITER_ENABLED = new BooleanValidator("exec.memory.arbiter.enabled", false);
+  // max memory that can be granted for a run - default: 40MB, max: 100MB
+  LongValidator MAX_MEMORY_GRANT_SIZE = new PositiveLongValidator("exec.memory.arbiter.max_memory_grant_bytes", 100 * (1 << 20), 40 * (1 << 20));
+  // percent memory to be set aside for other allocators like RPC
+  DoubleValidator PCT_MEMORY_SET_ASIDE = new RangeDoubleValidator("exec.memory.arbiter.pct_memory_set_aside", 0.0, 100.0, 10.0);
+
+  // if true dynamically track and consider prev N number of allocations for next allocation grant, else consider all previous allocations
+  BooleanValidator DYNAMICALLY_TRACK_ALLOCATIONS = new BooleanValidator("exec.memory.arbiter.dynamically_track_allocations", true);
 
   /**
    * This factor determines how much larger the load for a given slice can be than the expected size in order to maintain locality
@@ -531,10 +541,12 @@ public interface ExecConstants {
     new BooleanValidator("dremio.iceberg.merge_on_read_scan_with_equality_delete.enabled", false);
   BooleanValidator ENABLE_ICEBERG_DML_USE_HASH_DISTRIBUTION_FOR_WRITES = new BooleanValidator("dremio.iceberg.dml.use_hash_distribution_for_writes.enabled", true);
   BooleanValidator ENABLE_ICEBERG_DML_WITH_NATIVE_ROW_COLUMN_POLICIES = new BooleanValidator("dremio.iceberg.dml.native_row_column_policies.enabled", false);
+  BooleanValidator ENABLE_ICEBERG_TABLE_PROPERTIES = new BooleanValidator("dremio.iceberg.table.properties.enabled", false);
 
-  BooleanValidator ENABLE_ICEBERG_OPTIMIZE = new BooleanValidator("dremio.iceberg.optimize.enabled", true);
   BooleanValidator ENABLE_ICEBERG_ROLLBACK = new BooleanValidator("dremio.iceberg.rollback.enabled", true);
-  BooleanValidator ENABLE_ICEBERG_VACUUM = new BooleanValidator("dremio.iceberg.vacuum.enabled", false);
+  BooleanValidator ENABLE_ICEBERG_VACUUM = new BooleanValidator("dremio.iceberg.vacuum.enabled", true);
+  BooleanValidator ENABLE_ICEBERG_VACUUM_CATALOG = new BooleanValidator("dremio.iceberg.vacuum.catalog.enabled", false);
+
   BooleanValidator ENABLE_HIVE_DATABASE_LOCATION = new BooleanValidator("dremio.hive.database.location", true);
   BooleanValidator ENABLE_QUERY_LABEL = new BooleanValidator("dremio.query.label.enabled", true);
 
@@ -544,12 +556,12 @@ public interface ExecConstants {
   LongValidator OPTIMIZE_MINIMUM_INPUT_FILES = new LongValidator("dremio.iceberg.optimize.min_input_files", 5);
 
   BooleanValidator ENABLE_USE_VERSION_SYNTAX = new TypeValidators.BooleanValidator("dremio.sql.use_version.enabled", true);
-  BooleanValidator VERSIONED_VIEW_ENABLED = new TypeValidators.BooleanValidator("plugins.dataplane.view", false);
-  BooleanValidator VERSIONED_INFOSCHEMA_ENABLED = new TypeValidators.BooleanValidator("arctic.infoschema.enabled", false);
+  BooleanValidator VERSIONED_VIEW_ENABLED = new TypeValidators.BooleanValidator("plugins.dataplane.view", true);
+  BooleanValidator VERSIONED_INFOSCHEMA_ENABLED = new TypeValidators.BooleanValidator("arctic.infoschema.enabled", true);
   BooleanValidator ENABLE_AZURE_SOURCE = new TypeValidators.BooleanValidator("dremio.enable_azure_source", false);
 
   // warning threshold for running time of a task
-  PositiveLongValidator SLICING_WARN_MAX_RUNTIME_MS = new PositiveLongValidator("dremio.sliced.warn_max_runtime", Long.MAX_VALUE, 120000);
+  PositiveLongValidator SLICING_WARN_MAX_RUNTIME_MS = new PositiveLongValidator("dremio.sliced.warn_max_runtime", Long.MAX_VALUE, 20000);
   BooleanValidator SLICING_THREAD_MONITOR = new BooleanValidator("dremio.sliced.enable_monitor", true);
   BooleanValidator SLICING_OFFLOAD_ENQUEUE = new BooleanValidator("dremio.sliced.offload_enqueue", true);
   TypeValidators.EnumValidator<Observer.Type> SLICING_OBSERVER_TYPE =
@@ -611,6 +623,8 @@ public interface ExecConstants {
   BooleanValidator HADOOP_BLOCK_CACHE_ENABLED = new BooleanValidator("hadoop_block_affinity_cache.enabled", true);
 
   BooleanValidator ENABLE_DELTALAKE_HIVE_SUPPORT = new BooleanValidator("store.deltalake.hive_support.enabled", true);
+
+  BooleanValidator ENABLE_DELTALAKE_SPARK_SUPPORT = new BooleanValidator("store.deltalake.spark_support.enabled", true);
 
   /**
    * Controls the 'compression' factor for the TDigest algorithm.
@@ -698,6 +712,28 @@ public interface ExecConstants {
   DoubleValidator EXPR_COMPLEXITY_NO_CACHE_THRESHOLD = new DoubleValidator("exec.expression.complexity.no_cache.threshold", 100.00);
 
   BooleanValidator ENABLE_MAP_DATA_TYPE = new BooleanValidator("dremio.data_types.map.enabled", true);
+  BooleanValidator ENABLE_COMPLEX_HIVE_DATA_TYPE = new BooleanValidator("dremio.data_types.hive_complex.enabled", true);
 
   BooleanValidator EARLY_ACK_ENABLED = new BooleanValidator("dremio.jdbc_client.early_ack.enabled", true);
+
+  BooleanValidator RESULTS_CLEANUP_SERVICE_ENABLED = new BooleanValidator("dremio.results_cleanup.enabled", false);
+
+  BooleanValidator CATALOG_JOB_COUNT_ENABLED = new BooleanValidator("catalog.job_count.enabled", true);
+
+  // Option to specify the size to truncate large SQL queries; setting value to 0 disables truncation
+  LongValidator SQL_TEXT_TRUNCATE_LENGTH = new LongValidator("jobs.sql.truncate.length", 32000);
+
+  BooleanValidator NESSIE_SOURCE_API = new TypeValidators.BooleanValidator("nessie.source.api", true);
+
+  BooleanValidator PARQUET_READER_VECTORIZE_FOR_V2_ENCODINGS = new BooleanValidator("vectorized.read.parquet.v2.encodings", false);
+
+  /**
+   * Controls the WARN logging threshold for {@link com.dremio.exec.store.dfs.LoggedFileSystem} calls.
+   */
+  RangeLongValidator FS_LOGGER_WARN_THRESHOLD_MS = new RangeLongValidator("filesystem.logger.warn.io_threshold_ms", 0, Long.MAX_VALUE, 5000);
+
+  /**
+   * Controls the DEBUG logging threshold for {@link com.dremio.exec.store.dfs.LoggedFileSystem} calls.
+   */
+  RangeLongValidator FS_LOGGER_DEBUG_THRESHOLD_MS = new RangeLongValidator("filesystem.logger.debug.io_threshold_ms", 0, Long.MAX_VALUE, 50);
 }

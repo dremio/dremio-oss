@@ -22,17 +22,12 @@
   <parent>
     <artifactId>dremio-services-parent</artifactId>
     <groupId>com.dremio.services</groupId>
-    <version>24.0.0-202302100528110223-3a169b7c</version>
+    <version>24.1.0-202306130653310132-d30779f6</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
   <artifactId>dremio-services-functions</artifactId>
   <name>Services - Functions</name>
-
-  <properties>
-    <maven.compiler.source>8</maven.compiler.source>
-    <maven.compiler.target>8</maven.compiler.target>
-  </properties>
 
   <dependencies>
     <dependency>
@@ -71,11 +66,6 @@
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.google.errorprone</groupId>
-      <artifactId>javac-shaded</artifactId>
-      <version>9+181-r4173-1</version>
     </dependency>
   </dependencies>
 </project>

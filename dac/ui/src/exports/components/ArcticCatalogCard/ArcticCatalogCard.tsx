@@ -15,7 +15,7 @@
  */
 
 import { type FunctionComponent } from "react";
-import { Avatar, Card, IconButton } from "dremio-ui-lib/dist-esm";
+import { Avatar, Card, IconButton } from "dremio-ui-lib/components";
 import { intl } from "@app/utils/intl";
 import type { ArcticCatalog } from "../../endpoints/ArcticCatalogs/ArcticCatalog.type";
 import classes from "./ArcticCatalogCard.less";

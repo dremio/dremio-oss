@@ -33,6 +33,8 @@ import com.dremio.dac.explore.model.InitialPendingTransformResponse;
 import com.dremio.dac.explore.model.TransformBase;
 import com.dremio.dac.model.job.JobData;
 import com.dremio.dac.proto.model.dataset.FilterType;
+import com.dremio.dac.proto.model.dataset.From;
+import com.dremio.dac.proto.model.dataset.FromSQL;
 import com.dremio.dac.proto.model.dataset.FromType;
 import com.dremio.dac.proto.model.dataset.NameDatasetRef;
 import com.dremio.dac.proto.model.dataset.SourceVersionReference;
@@ -243,8 +245,10 @@ public class Transformer {
         SQLGenerator.generateSQL(protectAgainstNull(result, transform), isSupportedTransform(transform), catalogService);
     baseDataset.setSql(sql);
     baseDataset.setLastTransform(transform.wrap());
-    DatasetTool.applyQueryMetadata(baseDataset, actor.getParents(), actor.getBatchSchema(), actor.getFieldOrigins(),
-      actor.getGrandParents(), actor.getMetadata());
+    if (actor != null && actor.hasMetadata()) {
+      DatasetTool.applyQueryMetadata(baseDataset, actor.getParents(), actor.getBatchSchema(), actor.getFieldOrigins(),
+        actor.getGrandParents(), actor.getMetadata());
+    }
     return baseDataset;
   }
 
@@ -267,9 +271,10 @@ public class Transformer {
       DatasetPath path,
       VirtualDatasetUI original,
       TransformBase transform,
+      boolean isAsync,
       QueryType queryType)
-          throws DatasetNotFoundException, NamespaceException {
-    return this.transformWithExecute(newVersion, path, original, transform, queryType, false);
+          throws DatasetNotFoundException {
+    return this.transformWithExecute(newVersion, path, original, transform, isAsync, queryType, false);
   }
 
   /**
@@ -292,7 +297,7 @@ public class Transformer {
       BufferAllocator allocator,
       int limit)
       throws DatasetNotFoundException, NamespaceException {
-    final TransformResultDatsetAndData result = this.transformWithExecute(newVersion, path, original, transform, QueryType.UI_PREVIEW, true);
+    final TransformResultDatasetAndData result = this.transformWithExecute(newVersion, path, original, transform, false, QueryType.UI_PREVIEW, true);
     final TransformResult transformResult = result.getTransformResult();
     final List<String> highlightedColumnNames = Lists.newArrayList(transformResult.getModifiedColumns());
     highlightedColumnNames.addAll(transformResult.getAddedColumns());
@@ -338,14 +343,19 @@ public class Transformer {
 
   }
 
-  private TransformResultDatsetAndData transformWithExecute(
+  private TransformResultDatasetAndData transformWithExecute(
     DatasetVersion newVersion,
     DatasetPath path,
     VirtualDatasetUI original,
     TransformBase transform,
+    boolean isAsync,
     QueryType queryType,
     boolean isPreview)
-    throws DatasetNotFoundException, NamespaceException {
+    throws DatasetNotFoundException {
+
+    if (isAsync && transform.wrap().getType() == updateSQL) {
+      return updateSQLTransformWithExecuteAsync(newVersion, path, original, transform, queryType, isPreview);
+    }
 
     final ExecuteTransformActor actor = new ExecuteTransformActor(queryType, newVersion, original.getState(), isPreview, username(), path, executor);
     final TransformResult transformResult = transform.accept(actor);
@@ -357,10 +367,56 @@ public class Transformer {
       final SqlQuery query = new SqlQuery(sql, vss.getContextList(), securityContext, sourceVersionMapping);
       actor.getMetadata(query);
     }
-    final TransformResultDatsetAndData resultToReturn = new TransformResultDatsetAndData(actor.getJobData(),
+    final TransformResultDatasetAndData resultToReturn = new TransformResultDatasetAndData(actor.getJobData(),
       asDataset(newVersion, path, original, transform, transformResult, actor, catalogService), transformResult);
     // save this dataset version.
     datasetService.putVersion(resultToReturn.getDataset());
+
+    return resultToReturn;
+  }
+
+  // If isAsync is true and the transform type is updateSQL, we need skip the actor visit and submit the query later
+  // asynchronously.  The reason is that actor executes the query in visit() when the transform type is updateSQL.
+  private TransformResultDatasetAndData updateSQLTransformWithExecuteAsync(
+    DatasetVersion newVersion,
+    DatasetPath path,
+    VirtualDatasetUI original,
+    TransformBase transform,
+    QueryType queryType,
+    boolean isPreview)
+    throws DatasetNotFoundException {
+
+    Preconditions.checkArgument(transform.wrap().getType() == updateSQL);
+    final ExecuteTransformActor actor = new ExecuteTransformActor(queryType, newVersion, original.getState(), isPreview, username(), path, executor);
+    final TransformResult transformResult = new TransformResult(
+      new VirtualDatasetState()
+        .setFrom(new From(FromType.SQL).setSql(new FromSQL(transform.wrap().getUpdateSQL().getSql())))
+        .setContextList(transform.wrap().getUpdateSQL().getSqlContextList()));
+    setReferencesInVirtualDatasetUI(original, transform);
+    VirtualDatasetUI dataset = asDataset(newVersion, path, original, transform, transformResult, actor, catalogService);
+
+    VirtualDatasetState vss = protectAgainstNull(transformResult, transform);
+    Map<String, JobsVersionContext> sourceVersionMapping = TransformerUtils.createSourceVersionMapping(transform.getReferencesList());
+    String sql = SQLGenerator.generateSQL(vss, isSupportedTransform(transform), catalogService);
+
+    SqlQuery query = new SqlQuery(sql, vss.getContextList(), securityContext, transform.wrap().getUpdateSQL().getEngineName(),
+      transform.wrap().getUpdateSQL().getSessionId(), sourceVersionMapping);
+    AsyncMetadataJobStatusListener.MetaDataListener listener = new AsyncMetadataJobStatusListener.MetaDataListener() {
+      @Override
+      public void metadataCollected(com.dremio.service.jobs.metadata.proto.QueryMetadata metadata) {
+        // save this dataset version.
+        if (actor.hasMetadata()) {
+          DatasetTool.applyQueryMetadata(dataset, actor.getParents(), actor.getBatchSchema(), actor.getFieldOrigins(),
+            actor.getGrandParents(), actor.getMetadata());
+          dataset.setState(QuerySemantics.extract(actor.getMetadata()));
+        }
+        datasetService.putVersion(dataset);
+      }
+    };
+    actor.getMetadataAsync(query, listener);
+
+    final TransformResultDatasetAndData resultToReturn = new TransformResultDatasetAndData(actor.getJobData(),
+      dataset, transformResult);
 
     return resultToReturn;
   }
@@ -387,10 +443,10 @@ public class Transformer {
     }
   }
 
-  private static class TransformResultDatsetAndData extends DatasetAndData {
+  private static class TransformResultDatasetAndData extends DatasetAndData {
     private final TransformResult transformResult;
 
-    public TransformResultDatsetAndData(JobData jobData, VirtualDatasetUI dataset, TransformResult transformResult) {
+    public TransformResultDatasetAndData(JobData jobData, VirtualDatasetUI dataset, TransformResult transformResult) {
       super(jobData, dataset);
       this.transformResult = transformResult;
     }
@@ -478,19 +534,17 @@ public class Transformer {
       this.queryType = queryType;
     }
 
-    @Override
-    protected com.dremio.service.jobs.metadata.proto.QueryMetadata getMetadata(SqlQuery query) {
-      this.jobData = executor.runQueryWithListener(query, queryType, path, newVersion, collector);
+    private void applyMetadata(com.dremio.service.jobs.metadata.proto.QueryMetadata metadata, SqlQuery query) {
       JobId jobId = null;
       SessionId sessionId = null;
       try {
         jobId = jobData.getJobId();
         sessionId = jobData.getSessionId();
-        this.metadata = collector.getMetadata();
+        this.metadata = metadata;
         final JobDetails jobDetails = jobsService.getJobDetails(
           JobDetailsRequest.newBuilder()
             .setJobId(JobsProtoUtil.toBuf(jobId))
-            .setUserName(query.getUsername())
+            .setUserName(username())
             .build());
         final JobInfo jobInfo = JobsProtoUtil.getLastAttempt(jobDetails).getInfo();
         this.batchSchema = Optional.ofNullable(jobInfo.getBatchSchema()).map((b) -> BatchSchema.deserialize(b));
@@ -513,8 +567,27 @@ public class Transformer {
         this.batchSchema = queryMetadata.getBatchSchema();
         this.parents = queryMetadata.getParents();
       }
+    }
+
+    @Override
+    protected com.dremio.service.jobs.metadata.proto.QueryMetadata getMetadata(SqlQuery query) {
+      this.jobData = executor.runQueryWithListener(query, queryType, path, newVersion, collector);
+      applyMetadata(collector.getMetadata(), query);
 
       return metadata;
+    }
+
+    protected void getMetadataAsync(SqlQuery query, AsyncMetadataJobStatusListener.MetaDataListener listener) {
+      AsyncMetadataJobStatusListener.MetaDataListener metadataListener = new AsyncMetadataJobStatusListener.MetaDataListener() {
+        @Override
+        public void metadataCollected(com.dremio.service.jobs.metadata.proto.QueryMetadata metadata) {
+          ExecuteTransformActor.this.applyMetadata(metadata, query);
+        }
+      };
+      AsyncMetadataJobStatusListener asyncListener = new AsyncMetadataJobStatusListener(metadataListener);
+      asyncListener.addMetadataListener(listener);
+
+      this.jobData = executor.runQueryWithListener(query, queryType, path, newVersion, asyncListener);
     }
 
     @Override

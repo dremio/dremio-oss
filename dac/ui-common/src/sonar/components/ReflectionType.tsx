@@ -13,24 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+import { ReflectionSummary } from "../reflections/ReflectionSummary.type";
+
 const ICON_BASE = "/static/icons/dremio";
 
-type ReflectionTypeType = "RAW" | "AGGREGATION";
-
 type ReflectionTypeProps = {
-  type: ReflectionTypeType;
+  type: ReflectionSummary.ReflectionTypeEnum;
 };
 
-const getConfigForReflectionType = (type: ReflectionTypeType) => {
+const getConfigForReflectionType = (
+  type: ReflectionSummary.ReflectionTypeEnum
+) => {
   const icon = (() => {
     switch (type) {
-      case "RAW":
+      case ReflectionSummary.ReflectionTypeEnum.RAW:
         return {
           iconName: "interface/reflection-raw-mode",
           // iconTooltip: "Raw Reflection",
           label: "Raw",
         };
-      case "AGGREGATION":
+      case ReflectionSummary.ReflectionTypeEnum.AGGREGATION:
         return {
           iconName: "interface/reflection-aggregate",
           // iconTooltip: "Aggregation Reflection",

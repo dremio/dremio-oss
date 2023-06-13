@@ -15,14 +15,30 @@
  */
 
 import { Tag } from "@app/services/nessie/client/index";
+import { Reference } from "@app/types/nessie";
+// @ts-ignore
+import { IconButton } from "dremio-ui-lib";
 
 import * as classes from "./ArcticCommitDetailsBody.module.less";
 
-export const getLabeledTags = (tags: ({ type: "TAG" } & Tag)[]) => {
+export const getLabeledTags = (
+  tags: ({ type: "TAG" } & Tag)[],
+  handleDeleteTag: (ref: Reference) => void
+) => {
   return tags.map((tag) => (
     <span key={tag.name} className={classes["tag-name"]}>
       <dremio-icon name="vcs/tag" class={classes["tag-name__icon"]} />
       <span className={classes["tag-name__name"]}>{tag.name}</span>
+      <IconButton
+        tooltip="ArcticCatalog.Tags.DeleteTag"
+        className={classes["tag-name__icon"]}
+        onClick={() => handleDeleteTag(tag)}
+      >
+        <dremio-icon
+          name="interface/close-small"
+          class={classes["tag-name__icon"]}
+        />
+      </IconButton>
     </span>
   ));
 };

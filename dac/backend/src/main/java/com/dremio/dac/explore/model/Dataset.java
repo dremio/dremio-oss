@@ -20,8 +20,12 @@ import static com.dremio.common.utils.PathUtils.encodeURIComponent;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 import com.dremio.dac.model.common.AddressableResource;
+import com.dremio.dac.model.common.RootEntity;
+import com.dremio.dac.model.folder.FolderName;
 import com.dremio.dac.model.job.JobFilters;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.util.JSONUtil;
@@ -87,6 +91,33 @@ public class Dataset implements AddressableResource {
     List<String> tags) {
     // The history item is populated only after transform
     return new Dataset(datasetConfig.getId(), resourcePath, versionedResourcePath, datasetName, sql, datasetConfig, null, jobCount, tags);
+  }
+
+  public static Dataset newInstance(
+    RootEntity rootEntity,
+    List<String> folderNamespace,
+    String folderName,
+    String id) {
+    final List<FolderName> folderPath =
+      folderNamespace.stream()
+        .map(name -> new FolderName(name))
+        .collect(Collectors.toList());
+    final DatasetName datasetName = new DatasetName(folderName);
+    final DatasetPath datasetPath = new DatasetPath(rootEntity, folderPath, datasetName);
+
+    final DatasetVersion datasetVersion = DatasetVersion.newVersion();
+    final VirtualDatasetUI vds = new VirtualDatasetUI();
+    vds.setFullPathList(datasetPath.toPathList());
+    vds.setName(datasetName.getName());
+    vds.setId((id == null) ? UUID.randomUUID().toString() : id);
+    vds.setVersion(datasetVersion);
+
+    // For the iceberg view in nessie, we generate a datasetVersion for it.
+    final DatasetResourcePath datasetResourcePath = new DatasetResourcePath(datasetPath);
+    final DatasetVersionResourcePath datasetVersionResourcePath =
+      new DatasetVersionResourcePath(datasetPath, datasetVersion);
+
+    return new Dataset(vds.getId(), datasetResourcePath, datasetVersionResourcePath, datasetName, null, vds, null,0, null);
   }
 
   public int getJobCount() {

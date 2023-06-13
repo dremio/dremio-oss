@@ -16,7 +16,7 @@
 
 import { createContext, useContext } from "react";
 import { arcticCatalogTabs, ArcticCatalogTabsType } from "./ArcticCatalog";
-import { Type } from "@app/services/nessie/client";
+import { Type } from "@app/types/nessie";
 import * as PATHS from "../../paths";
 import * as commonPaths from "dremio-ui-common/paths/common.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
@@ -58,7 +58,7 @@ export function getIconByType(type?: string | null) {
       return { type: "IcebergTable", id: `Nessie.${type}` };
     case Type.DeltaLakeTable:
       return { type: "PhysicalDataset", id: `Nessie.${type}` };
-    case Type.IcebergView: // TODO, need to update generated types
+    case Type.IcebergView:
       return { type: "IcebergView", id: `Nessie.${type}` };
     default:
       return {
@@ -236,6 +236,10 @@ export const getArcticUrlForCatalog = (
       return PATHS.arcticCatalogSettings({
         arcticCatalogId: catalogId,
       });
+    case "jobs":
+      return PATHS.arcticCatalogJobs({
+        arcticCatalogId: catalogId,
+      });
     default:
       return PATHS.arcticCatalog({
         arcticCatalogId: catalogId,
@@ -244,7 +248,7 @@ export const getArcticUrlForCatalog = (
 };
 
 /**
- * Builds the url for traversing in an arctic source, or back to the source homepage
+ * Builds the url for traversing in an arctic or nessie source, or back to the source homepage
  **/
 export const getArcticUrlForSource = (
   baseUrl: string,
@@ -254,12 +258,16 @@ export const getArcticUrlForSource = (
   hash?: string
 ) => {
   const basePath = rmProjectBase(baseUrl) || "/";
+  const sourceVersion = basePath.split("/")[2];
   const sourceId = basePath.split("/")[3];
   const separatedNamespace = namespace.split("/");
   const branch = separatedNamespace.shift();
   const curNamespace = separatedNamespace.join("/");
   const projectId = getSonarContext()?.getSelectedProjectId?.();
-  const prefix = PATHS.arcticSourceBase({ sourceId, projectId });
+  const isNessieSource = sourceVersion === "nessie";
+  const prefix = isNessieSource
+    ? PATHS.nessieSourceBase({ sourceId, projectId })
+    : PATHS.arcticSourceBase({ sourceId, projectId });
 
   switch (tab) {
     case "data": {

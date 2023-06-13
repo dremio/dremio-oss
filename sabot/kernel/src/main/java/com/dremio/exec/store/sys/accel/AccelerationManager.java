@@ -18,13 +18,14 @@ package com.dremio.exec.store.sys.accel;
 import java.util.List;
 
 import com.dremio.exec.ops.ReflectionContext;
+import com.dremio.exec.planner.sql.SchemaUtilities;
 
 public interface AccelerationManager {
   void dropAcceleration(List<String> path, boolean raiseErrorIfNotFound);
-  void addLayout(List<String> path, LayoutDefinition definition, ReflectionContext reflectionContext);
+  void addLayout(SchemaUtilities.TableWithPath tableWithPath, LayoutDefinition definition, ReflectionContext reflectionContext);
   void addExternalReflection(String name, List<String> table, List<String> targetTable, ReflectionContext reflectionContext);
-  void dropLayout(List<String> path, String layoutId, ReflectionContext reflectionContext);
-  void toggleAcceleration(List<String> path, LayoutDefinition.Type type, boolean enable, ReflectionContext reflectionContext);
+  void dropLayout(SchemaUtilities.TableWithPath tableWithPath, String layoutId, ReflectionContext reflectionContext);
+  void toggleAcceleration(SchemaUtilities.TableWithPath tableWithPath, LayoutDefinition.Type type, boolean enable, ReflectionContext reflectionContext);
   void replanlayout(String layoutId);
   <T> T unwrap(Class<T> clazz);
 
@@ -39,7 +40,7 @@ public interface AccelerationManager {
     }
 
     @Override
-    public void addLayout(List<String> path, LayoutDefinition definition, ReflectionContext reflectionContext) {
+    public void addLayout(SchemaUtilities.TableWithPath tableWithPath, LayoutDefinition definition, ReflectionContext reflectionContext) {
       throw new UnsupportedOperationException("AccelerationManager.addLayout() called on a non-coordinator node");
     }
 
@@ -49,12 +50,12 @@ public interface AccelerationManager {
     }
 
     @Override
-    public void dropLayout(List<String> path, String layoutId, ReflectionContext reflectionContext) {
+    public void dropLayout(SchemaUtilities.TableWithPath tableWithPath, String layoutId, ReflectionContext reflectionContext) {
       throw new UnsupportedOperationException("AccelerationManager.dropLayout() called on a non-coordinator node");
     }
 
     @Override
-    public void toggleAcceleration(List<String> path, LayoutDefinition.Type type, boolean enable, ReflectionContext reflectionContext) {
+    public void toggleAcceleration(SchemaUtilities.TableWithPath tableWithPath, LayoutDefinition.Type type, boolean enable, ReflectionContext reflectionContext) {
       throw new UnsupportedOperationException("AccelerationManager.toggleAcceleration() called on a non-coordinator node");
     }
 

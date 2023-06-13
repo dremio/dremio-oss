@@ -108,7 +108,10 @@ export default class FileUtils {
   static getDatasetPathForClientTools(dataset) {
     if (dataset) {
       const path =
-        dataset.get("displayFullPath") ?? dataset.get("fullPathList") ?? "";
+        dataset.get("displayFullPath") ??
+        dataset.get("fullPathList") ??
+        dataset.get("fullPath") ??
+        "";
       return path.join("/");
     } else {
       return "";

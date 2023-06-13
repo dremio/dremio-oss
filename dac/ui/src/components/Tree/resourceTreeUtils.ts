@@ -230,8 +230,7 @@ export function starredResourceTreeNodeDecorator(
   const payloadResources = Immutable.fromJS(
     isSummaryDatasetResponse
       ? getSummaryDatasetPayload(action.payload, fullPath)
-      : // @ts-ignore
-        action.payload[payloadKey]
+      : action.payload?.[payloadKey]
   );
   const resources = payloadResources?.sort(
     (prevRes: any, res: any) =>
@@ -260,6 +259,7 @@ export function resourceTreeNodeDecorator(
       nodeExpanded: boolean;
       currNode: any;
       isSummaryDatasetResponse: boolean;
+      fromModal?: boolean;
     };
   }
 ) {
@@ -268,12 +268,17 @@ export function resourceTreeNodeDecorator(
     isExpand,
     isSummaryDatasetResponse,
     fullPath,
+    fromModal,
   } = action.meta;
   let nodes;
   if (isSummaryDatasetResponse) {
     nodes = fullPath.split("/");
   } else {
     nodes = path.length ? splitFullPath(path) : [];
+  }
+  let treeContextName = "tree";
+  if (fromModal) {
+    treeContextName = "treeModal";
   }
 
   const payloadResources = Immutable.fromJS(
@@ -282,7 +287,7 @@ export function resourceTreeNodeDecorator(
       : action.payload?.resources || []
   );
 
-  const builtPath = buildPath(state.get("tree"), nodes, undefined); // [1, 'resources']
+  const builtPath = buildPath(state.get(treeContextName), nodes, undefined); // [1, 'resources']
   const resources = payloadResources.sort(
     (prevRes: any, res: any) =>
       (prevRes.get("type") !== "HOME" && res.get("type") === "HOME") ||
@@ -293,7 +298,7 @@ export function resourceTreeNodeDecorator(
   if (resources.size === 0) return state;
 
   if (builtPath.length && !isExpand) {
-    builtPath.unshift("tree");
+    builtPath.unshift(treeContextName);
     const currentResources = state.getIn(builtPath);
 
     // If resources already exist, merge the payload results with current resources list
@@ -313,17 +318,24 @@ export function resourceTreeNodeDecorator(
     }
   }
   // Initial load of the resource tree
-  return state.set("tree", resources);
+  return state.set(treeContextName, resources);
 }
 
 export function getNodeBranchId(node: any) {
   return `${node.get("id")}-${node.get("branchId")}`;
 }
 
-export function clearResourcesByName(state: any, action: { payload: string }) {
-  const tree: TreeNode[] = state.get("tree").toJS();
-  const idx = tree.findIndex((cur) => cur.name === action.payload);
+export function clearResourcesByName(
+  state: any,
+  action: { payload: { rootNodeName: string; fromModal?: boolean } }
+) {
+  let treeContextName = "tree";
+  if (action.payload.fromModal) {
+    treeContextName = "treeModal";
+  }
+  const tree: TreeNode[] = state.get(treeContextName).toJS();
+  const idx = tree.findIndex((cur) => cur.name === action.payload.rootNodeName);
   if (idx === -1) return;
   if (tree[idx].resources) delete tree[idx].resources;
-  return state.set("tree", Immutable.fromJS(tree));
+  return state.set(treeContextName, Immutable.fromJS(tree));
 }

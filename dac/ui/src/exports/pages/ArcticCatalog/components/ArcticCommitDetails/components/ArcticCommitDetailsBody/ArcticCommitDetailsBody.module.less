@@ -20,7 +20,7 @@
   gap: var(--dremio--spacing--2);
   margin: var(--dremio--spacing--1) var(--dremio--spacing--2);
   padding: var(--dremio--spacing--2) var(--dremio--spacing--4);
-  border: 1px solid var(--dremio--color--neutral--150);
+  border: 1px solid var(--color--neutral--50);
   border-radius: var(--dremio--radius--2);
 }
 
@@ -64,11 +64,16 @@
     display: flex;
     align-items: center;
     gap: var(--dremio--spacing--05);
-    padding: 0 var(--dremio--spacing--05);
+    padding: 2px var(--dremio--spacing--05);
     border-radius: var(--dremio--radius--1);
-    background-color: var(--dremio--color--neutral--100);
+    background-color: var(--color--neutral--50);
+
+    &:hover {
+      background-color: var(--color--neutral--100);
+    }
 
     &__icon {
+      padding: 0;
       height: 20px;
       min-width: 20px;
     }

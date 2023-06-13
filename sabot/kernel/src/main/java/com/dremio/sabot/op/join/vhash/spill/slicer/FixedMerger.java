@@ -50,6 +50,7 @@ public class FixedMerger implements Merger {
     this.allocator = allocator;
   }
 
+  @Override
   public void merge(VectorContainerList srcContainers, Page dst, List<FieldVector> vectorOutput) {
     List<ValueVector> src = new ArrayList<>();
     for (VectorWrapper<?> wrapper : srcContainers.getWrappers(wrapperIdx)) {

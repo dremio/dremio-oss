@@ -20,11 +20,15 @@ import static com.dremio.test.DremioTest.DEFAULT_DREMIO_CONFIG;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
 import java.io.IOException;
 
 import org.apache.hadoop.conf.Configuration;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import com.dremio.services.credentials.CredentialsService;
 
@@ -35,6 +39,9 @@ public class TestDremioCredentialProviders {
   private static final String HADOOP_SECURITY_CREDENTIAL_PROVIDER_PATH = "hadoop.security.credential.provider.path";
   private static final String SECRET_KEY = "a.b.c.key";
   private CredentialsService credentialsService;
+
+  @Rule
+  public TemporaryFolder tempFolder = new TemporaryFolder();
 
   @Before
   public void setUp() throws Exception {
@@ -77,6 +84,15 @@ public class TestDremioCredentialProviders {
     assertEquals("abc123", new String(conf.getPassword(SECRET_KEY)));
   }
 
+  @Test
+  public void testClearTextPasswordFallback3() throws IOException {
+    Configuration conf = new Configuration();
+    conf.set(HADOOP_SECURITY_CREDENTIAL_PROVIDER_PATH, "dremio:///");
+    conf.set(SECRET_KEY, "dremio+abc123`?~!@#$%^&*()-_=+[]{}\\|;:'\",./<>");
+
+    assertEquals("abc123`?~!@#$%^&*()-_=+[]{}\\|;:'\",./<>", new String(conf.getPassword(SECRET_KEY)));
+  }
+
 
   @Test
   public void testSchemeCaseInsensitivity() throws IOException {
@@ -99,12 +115,33 @@ public class TestDremioCredentialProviders {
   }
 
   @Test
-  public void clearTextPasswordWithDremioScheme() throws IOException {
+  public void testInvalidSecret() throws IOException {
     Configuration conf = new Configuration();
     conf.set(HADOOP_SECURITY_CREDENTIAL_PROVIDER_PATH, "dremio:///");
     conf.set(SECRET_KEY, "dremio+data:abc123");
 
-    assertEquals("If an issue occurred when Dremio is resolving the secret URI, we will fallback to cleartext.",
-      "dremio+data:abc123", new String(conf.getPassword(SECRET_KEY)));
+    assertThatThrownBy(() -> conf.getPassword(SECRET_KEY))
+      .isInstanceOf(IOException.class)
+      .hasMessageContaining("Configuration problem with provider path.");
+  }
+
+  @Test
+  public void fileSecret() throws IOException {
+
+    final String originalString = "abc123";
+    final String file = "/test.file";
+
+    final String fileLoc = tempFolder.newFolder().getAbsolutePath().concat(file);
+
+    // create the password file
+    try (BufferedWriter writer = new BufferedWriter(new FileWriter(fileLoc))) {
+      writer.write(originalString);
+    }
+
+    Configuration conf = new Configuration();
+    conf.set(HADOOP_SECURITY_CREDENTIAL_PROVIDER_PATH, "dremio:///");
+    conf.set(SECRET_KEY, "dremio+file://".concat(fileLoc));
+
+    assertEquals(originalString, new String(conf.getPassword(SECRET_KEY)));
   }
 }

@@ -19,16 +19,15 @@ import Immutable from "immutable";
 import { injectIntl } from "react-intl";
 
 import ExploreTableColumnFilter from "pages/ExplorePage/components/ExploreTable/ExploreTableColumnFilter";
-
 import { Button, Tooltip } from "dremio-ui-lib";
 import ExploreCopyTableButton from "@app/pages/ExplorePage/components/ExploreTable/ExploreCopyTableButton";
-
 import modelUtils from "@app/utils/modelUtils";
 import { isSqlChanged } from "@app/sagas/utils";
 import { CombinedActionMenu } from "@app/components/Menus/ExplorePage/CombinedActionMenu";
 import { navigateToExploreDefaultIfNecessary } from "@app/utils/pathUtils";
 import DropdownMenu from "@app/components/Menus/DropdownMenu";
 import { PHYSICAL_DATASET_TYPES } from "@app/constants/datasetTypes";
+import { getSupportFlag } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
 
 import "./TableControls.less";
 import { memoOne } from "@app/utils/memoUtils";
@@ -39,6 +38,7 @@ import {
 import { SearchField } from "components/Fields";
 import { formatMessage } from "@app/utils/locale";
 import ExploreTableJobStatus from "../components/ExploreTable/ExploreTableJobStatus";
+import { ALLOW_DOWNLOAD } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
 
 const datasetColumnsMemoize = memoOne((tableColumns) => {
   return (
@@ -103,6 +103,17 @@ export class TableControlsView extends PureComponent {
       },
       isDownloading: false,
     };
+  }
+
+  async componentDidMount() {
+    try {
+      const res = await getSupportFlag(ALLOW_DOWNLOAD);
+      this.setState({
+        allowDownload: res?.value,
+      });
+    } catch (e) {
+      //
+    }
   }
 
   renderCopyToClipboard = () => {
@@ -294,6 +305,7 @@ export class TableControlsView extends PureComponent {
             {showJobsTable && (
               <div className={columnFilterWrapper} data-qa="columnFilter">
                 <SearchField
+                  disabled={disableButtons}
                   value={queryFilter}
                   onChange={(value) => filterQueries(value)}
                   className={searchField}
@@ -402,8 +414,8 @@ export class TableControlsView extends PureComponent {
                 approximate={approximate}
                 version={version}
               />
-              {this.renderSavedButton()}
-              {this.renderCopyToClipboard()}
+              {this.state.allowDownload ? this.renderSavedButton() : ""}
+              {this.state.allowDownload ? this.renderCopyToClipboard() : ""}
             </div>
           )}
         </div>

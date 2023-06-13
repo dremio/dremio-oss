@@ -16,6 +16,7 @@
 package com.dremio.exec.store.deltalake;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
@@ -43,5 +44,18 @@ public class TestDeltaLastCheckPointReader {
     Optional<Long> lastCheckPoint = DeltaLastCheckPointReader.getLastCheckPoint(fs, path).getKey();
 
     assertEquals(lastCheckPoint.get(), (Object)10L);
+  }
+
+  @Test
+  public void testVersionReadForEmptyCheckPoint() {
+    try {
+      File f = FileUtils.getResourceAsFile("/deltalake/empty_last_checkpoint");
+      FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
+      Path path = Path.of(f.getAbsolutePath());
+      Optional<Long> lastCheckPoint = DeltaLastCheckPointReader.getLastCheckPoint(fs, path).getKey();
+    } catch (Exception e) {
+      assertTrue(e.getMessage().contains("Failed to read _last_checkpoint file"));
+      assertTrue(e.getCause() instanceof IllegalArgumentException);
+    }
   }
 }

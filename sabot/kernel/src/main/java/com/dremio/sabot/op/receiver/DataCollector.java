@@ -23,5 +23,6 @@ interface DataCollector extends AutoCloseable {
   int getOppositeMajorFragmentId();
   RawBatchBuffer[] getBuffers();
   int getTotalIncomingFragments();
+  @Override
   void close() throws Exception;
 }

@@ -1,0 +1,18 @@
+:root {
+  --scale-1: 8px;
+  --scale-05: calc(var(--scale-1) * 0.5);
+  --scale-105: calc(var(--scale-1) * 1.5);
+  --scale-2: calc(var(--scale-1) * 2);
+  --scale-205: calc(var(--scale-1) * 2.5);
+  --scale-3: calc(var(--scale-1) * 3);
+  --scale-4: calc(var(--scale-1) * 4);
+  --scale-405: calc(var(--scale-1) * 4.5);
+  --scale-5: calc(var(--scale-1) * 5);
+  --scale-505: calc(var(--scale-1) * 5.5);
+  --scale-6: calc(var(--scale-1) * 6);
+  --scale-7: calc(var(--scale-1) * 7);
+  --scale-8: calc(var(--scale-1) * 8);
+  --scale-9: calc(var(--scale-1) * 9);
+  --scale-905: calc(var(--scale-1) * 9.5);
+  --scale-10: calc(var(--scale-1) * 10);
+}

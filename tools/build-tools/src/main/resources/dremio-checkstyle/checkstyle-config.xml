@@ -78,7 +78,9 @@
 
     <module name="IllegalImport">
       <!-- For "org.apache.commons.lang.*" classes use the corresponding class from "org.apache.commons.lang3.*" -->
-      <property name="illegalPkgs" value="com.google.hive12,com.beust.jcommander.internal,jersey.repackaged,org.apache.commons.lang,hive,oadd,org.kududb.client.shaded,org.jboss.netty,org.apache.curator.shaded,org.apache.htrace.fasterxml,twill"/>
+      <!-- For "org.apache.commons.math.*" classes use the corresponding class from "org.apache.commons.math3.*" -->
+      <!-- For "org.apache.commons.collections.*" classes use the corresponding class from "org.apache.commons.collections4.*" -->
+      <property name="illegalPkgs" value="com.google.hive12,com.beust.jcommander.internal,jersey.repackaged,org.apache.commons.lang,org.apache.commons.math,org.apache.commons.collections,hive,oadd,org.kududb.client.shaded,org.jboss.netty,org.apache.curator.shaded,org.apache.htrace.fasterxml,twill"/>
     </module>
 
     <module name="AvoidStarImport">
@@ -167,6 +169,7 @@
     <module name="EmptyStatement"/>
     <module name="EqualsAvoidNull"/>
     <module name="EqualsHashCode"/>
+    <module name="FallThrough"/>
     <module name="HiddenField">
       <!-- TODO: move to error -->
       <property name="severity" value="warning"/>
@@ -185,6 +188,7 @@
 
     <!-- Checks for class design -->
     <!-- See http://checkstyle.sf.net/config_design.html -->
+    <module name="MutableException"/>
     <module name="FinalClass"/>
     <module name="HideUtilityClassConstructor">
       <!-- TODO: move to error -->
@@ -236,9 +240,9 @@
   </module>
   <!-- Disable all checks in resource files that are not part of <resourceIncludes> in the maven plugin config -->
   <!-- This allows equivalent usage of this checkstyle config outside of maven -->
-  <module name="SuppressionSingleFilter">
-    <property name="checks" value=".*"/>
-    <property name="files" value="[\\/]src[\\/](test|main)[\\/]resources[\\/].+\.(?!properties$|conf$|json$|xml$).+$"/>
+  <!-- see https://checkstyle.org/config_filefilters.html#BeforeExecutionExclusionFileFilter -->
+  <module name="BeforeExecutionExclusionFileFilter">
+    <property name="fileNamePattern" value="[\\/]src[\\/](test|main)[\\/]resources[\\/].+\.(?!properties$|conf$|json$|xml$).+$"/>
   </module>
 
 </module>

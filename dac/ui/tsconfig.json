@@ -14,5 +14,11 @@
         "../scripts/stubModule.js"
       ]
     }
+  },
+  "ts-node": {
+    "compilerOptions": {
+      "esModuleInterop": true,
+      "module": "CommonJS"
+    }
   }
 }

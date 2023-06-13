@@ -107,6 +107,42 @@ public class StringFunctions{
     }
   }
 
+  @FunctionTemplate(name = "col_like", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  public static class ColLike implements SimpleFunction {
+    @Param VarCharHolder input;
+    @Param VarCharHolder pattern;
+    @Output BitHolder out;
+    @Workspace java.util.Map<String, java.util.regex.Pattern> compiledPatternCache;
+    @Inject FunctionErrorContext errCtx;
+
+    @Override
+    public void setup() {
+      compiledPatternCache = new java.util.HashMap<>();
+    }
+
+    @Override
+    public void eval() {
+      final int maxPatternCacheSize = 100;
+
+      com.dremio.exec.expr.fn.impl.CharSequenceWrapper charSequenceWrapper =
+        new com.dremio.exec.expr.fn.impl.CharSequenceWrapper(input.start, input.end, input.buffer);
+      String pat = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(pattern.start,  pattern.end,  pattern.buffer);
+      java.util.regex.Pattern compiledPattern;
+      if (compiledPatternCache.containsKey(pat)) {
+        compiledPattern = (java.util.regex.Pattern)compiledPatternCache.get(pat);
+      } else {
+        compiledPattern = com.dremio.exec.expr.fn.impl.StringFunctionUtil.compilePattern(
+          com.dremio.exec.expr.fn.impl.RegexpUtil.sqlToRegexLike(pat, errCtx), java.util.regex.Pattern.DOTALL, errCtx);
+        // bounding the size of the cache to avoid excess heap usage
+        if (compiledPatternCache.size() < maxPatternCacheSize) {
+          compiledPatternCache.put(pat, compiledPattern);
+        }
+      }
+      java.util.regex.Matcher matcher = compiledPattern.matcher(charSequenceWrapper);
+      out.value = matcher.matches()? 1:0;
+    }
+  }
+
   @FunctionTemplate(name = "ilike", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class ILike implements SimpleFunction {
 
@@ -275,13 +311,14 @@ public class StringFunctions{
         } while (result);
         matcher.appendTail(sb);
         final byte [] bytea = sb.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
-        out.buffer = buffer = buffer.reallocIfNeeded(bytea.length);
+        buffer = buffer.reallocIfNeeded(bytea.length);
+        out.buffer = buffer;
         out.buffer.setBytes(out.start, bytea);
         out.end = bytea.length;
-      }
-      else {
+      } else {
         // There is no matches, copy the input bytes into the output buffer
-        out.buffer = buffer = buffer.reallocIfNeeded(input.end - input.start);
+        buffer = buffer.reallocIfNeeded(input.end - input.start);
+        out.buffer = buffer;
         out.buffer.setBytes(0, input.buffer, input.start, input.end - input.start);
         out.end = input.end - input.start;
       }
@@ -298,7 +335,6 @@ public class StringFunctions{
 
     @Param VarCharHolder input;
     @Param(constant=true) VarCharHolder pattern;
-    @Inject ArrowBuf buffer;
     @Workspace java.util.regex.Matcher matcher;
     @Workspace com.dremio.exec.expr.fn.impl.CharSequenceWrapper charSequenceWrapper;
     @Output BitHolder out;
@@ -318,6 +354,45 @@ public class StringFunctions{
     public void eval() {
       charSequenceWrapper.setBuffer(input.start, input.end, input.buffer);
       matcher.reset();
+      out.value = matcher.find()? 1:0;
+    }
+  }
+
+  /*
+   * Match the given input against a regular expression specified by a column.
+   *
+   * This is similar to regexp_like, except that its 2nd argument is a column and not a literal constant
+   */
+  @FunctionTemplate(names = {"regexp_col_like", "regexp_col_matches"}, scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  public static class RegexpColLike implements SimpleFunction {
+    @Param VarCharHolder input;
+    @Param VarCharHolder pattern;
+    @Output BitHolder out;
+    @Workspace java.util.Map<String, java.util.regex.Pattern> compiledPatternCache;
+    @Inject FunctionErrorContext errCtx;
+
+    @Override
+    public void setup() {
+      compiledPatternCache = new java.util.HashMap<> ();
+    }
+
+    @Override
+    public void eval() {
+      final int maxPatternCacheSize = 100;
+
+      com.dremio.exec.expr.fn.impl.CharSequenceWrapper charSequenceWrapper =
+        new com.dremio.exec.expr.fn.impl.CharSequenceWrapper(input.start, input.end, input.buffer);
+      String pat = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(pattern.start, pattern.end, pattern.buffer);
+      java.util.regex.Pattern compiledPattern = (java.util.regex.Pattern)compiledPatternCache.get(pat);
+      if (compiledPattern == null) {
+        compiledPattern = com.dremio.exec.expr.fn.impl.StringFunctionUtil.compilePattern(
+          pat, java.util.regex.Pattern.DOTALL, errCtx);
+        if (compiledPatternCache.size() < maxPatternCacheSize) {
+          compiledPatternCache.put(pat, compiledPattern);
+        }
+      }
+
+      java.util.regex.Matcher matcher = compiledPattern.matcher(charSequenceWrapper);
       out.value = matcher.find()? 1:0;
     }
   }
@@ -555,13 +630,15 @@ public class StringFunctions{
 
     @Override
     public void eval() {
-      out.buffer = buffer = buffer.reallocIfNeeded(input.end - input.start);
+      buffer = buffer.reallocIfNeeded(input.end - input.start);
+      out.buffer = buffer;
       out.start = 0;
       out.end = input.end - input.start;
 
       final String toLower = (com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(input.start, input.end, input.buffer)).toLowerCase();
       final byte[] outBytea = toLower.getBytes(java.nio.charset.StandardCharsets.UTF_8);
-      out.buffer = buffer = buffer.reallocIfNeeded(outBytea.length);
+      buffer = buffer.reallocIfNeeded(outBytea.length);
+      out.buffer = buffer;
       out.buffer.setBytes(0, outBytea);
       out.start = 0;
       out.end = outBytea.length;
@@ -584,13 +661,15 @@ public class StringFunctions{
 
     @Override
     public void eval() {
-      out.buffer = buffer = buffer.reallocIfNeeded(input.end- input.start);
+      buffer = buffer.reallocIfNeeded(input.end- input.start);
+      out.buffer = buffer;
       out.start = 0;
       out.end = input.end - input.start;
 
       final String toUpper = (com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(input.start, input.end, input.buffer)).toUpperCase();
       final byte[] outBytea = toUpper.getBytes(java.nio.charset.StandardCharsets.UTF_8);
-      out.buffer = buffer = buffer.reallocIfNeeded(outBytea.length);
+      buffer = buffer.reallocIfNeeded(outBytea.length);
+      out.buffer = buffer;
       out.buffer.setBytes(0, outBytea);
       out.start = 0;
       out.end = outBytea.length;
@@ -620,7 +699,8 @@ public class StringFunctions{
       out.buffer = string.buffer;
       // if length is NOT positive, or input string is empty, return empty string.
       if (length.value <= 0 || string.end <= string.start) {
-        out.start = out.end = 0;
+        out.start = 0;
+        out.end = 0;
       } else {
         //Do 1st scan to counter # of character in string.
         final int charCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength
@@ -636,7 +716,8 @@ public class StringFunctions{
         }
 
         if (fromCharIdx <= 0 || fromCharIdx > charCount ) { // invalid offset, return empty string.
-          out.start = out.end = 0;
+          out.start = 0;
+          out.end = 0;
         } else {
           out.start = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(
             io.netty.buffer.NettyArrowBuf.unwrapBuffer(string.buffer), string.start, string.end, fromCharIdx-1, errCtx);
@@ -669,7 +750,8 @@ public class StringFunctions{
       out.buffer = string.buffer;
       // If the input string is empty, return empty string.
       if (string.end <= string.start) {
-        out.start = out.end = 0;
+        out.start = 0;
+        out.end = 0;
       } else {
         //Do 1st scan to counter # of character in string.
         final int charCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength
@@ -685,7 +767,8 @@ public class StringFunctions{
         }
 
         if (fromCharIdx <= 0 || fromCharIdx > charCount ) { // invalid offset, return empty string.
-          out.start = out.end = 0;
+          out.start = 0;
+          out.end = 0;
         } else {
           out.start = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(
             io.netty.buffer.NettyArrowBuf.unwrapBuffer(string.buffer), string.start, string.end, fromCharIdx-1, errCtx);
@@ -759,7 +842,8 @@ public class StringFunctions{
       out.buffer = string.buffer;
       // if length is 0, or input string is empty, return empty string.
       if (length.value == 0 || string.end <= string.start) {
-        out.start = out.end = 0;
+        out.start = 0;
+        out.end = 0;
       } else {
         //Do 1st scan to counter # of character in string.
         final int charCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength
@@ -799,7 +883,8 @@ public class StringFunctions{
       out.buffer = string.buffer;
       // invalid length.
       if (length.value == 0 || string.end <= string.start) {
-        out.start = out.end = 0;
+        out.start = 0;
+        out.end = 0;
       } else {
         //Do 1st scan to counter # of character in string.
         final int charCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength
@@ -816,7 +901,8 @@ public class StringFunctions{
 
         // invalid length :  right('abc', -5) -> ''
         if (charLen <= 0) {
-          out.start = out.end = 0;
+          out.start = 0;
+          out.end = 0;
         } else {
           //Do 2nd scan of string. Get bytes corresponding chars in range.
           out.start = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(
@@ -841,7 +927,8 @@ public class StringFunctions{
 
     @Override
     public void eval() {
-      out.buffer = buffer = buffer.reallocIfNeeded(input.end - input.start);
+      buffer = buffer.reallocIfNeeded(input.end - input.start);
+      out.buffer = buffer;
       out.start = 0;
       out.end = input.end - input.start;
       com.dremio.exec.expr.fn.impl.StringFunctionHelpers.initCap(input.start, input.end, input.buffer, out.buffer);
@@ -866,7 +953,8 @@ public class StringFunctions{
     @Override
     public void eval() {
       out.buffer = buffer;
-      out.start = out.end = 0;
+      out.start = 0;
+      out.end = 0;
       int fromL = from.end - from.start;
       int textL = text.end - text.start;
 
@@ -946,7 +1034,8 @@ public class StringFunctions{
       if (theLength <= 0) {
         //case 1: target length is <=0, then return an empty string.
         out.buffer = buffer;
-        out.start = out.end = 0;
+        out.start = 0;
+        out.end = 0;
       } else if (theLength == textCharCount || (theLength > textCharCount  && fillCharCount == 0) ) {
         //case 2: target length is same as text's length, or need fill into text but "fill" is empty, then return text directly.
         out.buffer = text.buffer;
@@ -962,7 +1051,8 @@ public class StringFunctions{
         //case 4: copy "fill" on left. Total # of char to copy : theLength - textCharCount
         int count = 0;
         out.buffer = buffer;
-        out.start = out.end = 0;
+        out.start = 0;
+        out.end = 0;
 
         while (count < theLength - textCharCount) {
           for (id = fill.start; id < fill.end; id++) {
@@ -1020,7 +1110,8 @@ public class StringFunctions{
       if (theLength <= 0) {
         //case 1: target length is <=0, then return an empty string.
         out.buffer = buffer;
-        out.start = out.end = 0;
+        out.start = 0;
+        out.end = 0;
       } else if (theLength == textCharCount) {
         //case 2: target length is same as text's length.
         out.buffer = text.buffer;
@@ -1036,7 +1127,8 @@ public class StringFunctions{
         //case 4: copy " " on left. Total # of char to copy : theLength - textCharCount
         int count = 0;
         out.buffer = buffer;
-        out.start = out.end = 0;
+        out.start = 0;
+        out.end = 0;
 
         while (count < theLength - textCharCount) {
           out.buffer.setByte(out.end++, spaceInByte);
@@ -1088,7 +1180,8 @@ public class StringFunctions{
       if (theLength <= 0) {
         //case 1: target length is <=0, then return an empty string.
         out.buffer = buffer;
-        out.start = out.end = 0;
+        out.start = 0;
+        out.end = 0;
       } else if (theLength == textCharCount || (theLength > textCharCount  && fillCharCount == 0) ) {
         //case 2: target length is same as text's length, or need fill into text but "fill" is empty, then return text directly.
         out.buffer = text.buffer;
@@ -1103,7 +1196,8 @@ public class StringFunctions{
       } else if (theLength > textCharCount) {
         //case 4: copy "text" into "out", then copy "fill" on the right.
         out.buffer = buffer;
-        out.start = out.end = 0;
+        out.start = 0;
+        out.end = 0;
 
         for (id = text.start; id < text.end; id++) {
           out.buffer.setByte(out.end++, text.buffer.getByte(id));
@@ -1165,7 +1259,8 @@ public class StringFunctions{
       if (theLength <= 0) {
         //case 1: target length is <=0, then return an empty string.
         out.buffer = buffer;
-        out.start = out.end = 0;
+        out.start = 0;
+        out.end = 0;
       } else if (theLength == textCharCount) {
         //case 2: target length is same as text's length.
         out.buffer = text.buffer;
@@ -1180,7 +1275,8 @@ public class StringFunctions{
       } else if (theLength > textCharCount) {
         //case 4: copy "text" into "out", then copy " " on the right.
         out.buffer = buffer;
-        out.start = out.end = 0;
+        out.start = 0;
+        out.end = 0;
 
         for (int id = text.start; id < text.end; id++) {
           out.buffer.setByte(out.end++, text.buffer.getByte(id));
@@ -1216,7 +1312,8 @@ public class StringFunctions{
     @Override
     public void eval() {
       out.buffer = text.buffer;
-      out.start = out.end = text.end;
+      out.start = text.end;
+      out.end = text.end;
 
       int bytePerChar = 0;
       //Scan from left of "text", stop until find a char not in "from"
@@ -1251,7 +1348,8 @@ public class StringFunctions{
     @Override
     public void eval() {
       out.buffer = text.buffer;
-      out.start = out.end = text.end;
+      out.start = text.end;
+      out.end = text.end;
 
       //Scan from left of "text", stop until find a char not " "
       for (int id = text.start; id < text.end; ++id) {
@@ -1281,7 +1379,8 @@ public class StringFunctions{
     @Override
     public void eval() {
       out.buffer = text.buffer;
-      out.start = out.end = text.start;
+      out.start = text.start;
+      out.end = text.start;
 
       int bytePerChar = 0;
       //Scan from right of "text", stop until find a char not in "from"
@@ -1319,7 +1418,8 @@ public class StringFunctions{
     @Override
     public void eval() {
       out.buffer = text.buffer;
-      out.start = out.end = text.start;
+      out.start = text.start;
+      out.end = text.start;
 
       //Scan from right of "text", stop until find a char not in " "
       for (int id = text.end - 1; id >= text.start; --id) {
@@ -1352,7 +1452,8 @@ public class StringFunctions{
     @Override
     public void eval() {
       out.buffer = text.buffer;
-      out.start = out.end = text.start;
+      out.start = text.start;
+      out.end = text.start;
       int bytePerChar = 0;
 
       //Scan from left of "text", stop until find a char not in "from"
@@ -1402,7 +1503,8 @@ public class StringFunctions{
     @Override
     public void eval() {
       out.buffer = text.buffer;
-      out.start = out.end = text.start;
+      out.start = text.start;
+      out.end = text.start;
 
       //Scan from left of "text", stop until find a char not " "
       for (int id = text.start; id < text.end; ++id) {
@@ -1438,8 +1540,10 @@ public class StringFunctions{
 
     @Override
     public void eval() {
-      out.buffer = buffer = buffer.reallocIfNeeded( (left.end - left.start) + (right.end - right.start));
-      out.start = out.end = 0;
+      buffer = buffer.reallocIfNeeded( (left.end - left.start) + (right.end - right.start));
+      out.buffer = buffer;
+      out.start = 0;
+      out.end = 0;
 
       int id = 0;
       for (id = left.start; id < left.end; id++) {
@@ -1464,8 +1568,10 @@ public class StringFunctions{
 
     @Override
     public void eval() {
-      out.buffer = buffer = buffer.reallocIfNeeded(in.end - in.start);
-      out.start = out.end = 0;
+      buffer = buffer.reallocIfNeeded(in.end - in.start);
+      out.buffer = buffer;
+      out.start = 0;
+      out.end = 0;
       out.end = com.dremio.common.util.DremioStringUtils.parseBinaryString(io.netty.buffer.NettyArrowBuf.unwrapBuffer(in.buffer), in.start,
         in.end, io.netty.buffer.NettyArrowBuf.unwrapBuffer(out.buffer));
       out.buffer.readerIndex(out.start);
@@ -1485,8 +1591,10 @@ public class StringFunctions{
 
     @Override
     public void eval() {
-      out.buffer = buffer = buffer.reallocIfNeeded(in.end - in.start);
-      out.start = out.end = 0;
+      buffer = buffer.reallocIfNeeded(in.end - in.start);
+      out.buffer = buffer;
+      out.start = 0;
+      out.end = 0;
       out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.parseBinaryStringNoFormat(io.netty.buffer.NettyArrowBuf.unwrapBuffer(in.buffer),
         in.start, in.end, io.netty.buffer.NettyArrowBuf.unwrapBuffer(out.buffer), errCtx);
       out.buffer.readerIndex(out.start);
@@ -1510,7 +1618,8 @@ public class StringFunctions{
     public void eval() {
       byte[] buf = com.dremio.common.util.DremioStringUtils.toBinaryStringNoFormat(io.netty.buffer.NettyArrowBuf.unwrapBuffer(in.buffer), in
         .start, in.end).getBytes(charset);
-      out.buffer = buffer = buffer.reallocIfNeeded(buf.length);
+      buffer = buffer.reallocIfNeeded(buf.length);
+      out.buffer = buffer;
       buffer.setBytes(0, buf);
       buffer.readerIndex(0);
       buffer.writerIndex(buf.length);
@@ -1583,7 +1692,8 @@ public class StringFunctions{
     @Override
     public void eval() {
       out.buffer = buf;
-      out.start = out.end = 0;
+      out.start = 0;
+      out.end = 0;
       out.buffer.setByte(0, in.value);
       ++out.end;
     }
@@ -1609,7 +1719,8 @@ public class StringFunctions{
       final int len = in.end - in.start;
       final int num = nTimes.value;
       out.start = 0;
-      out.buffer = buffer = buffer.reallocIfNeeded( len * num );
+      buffer = buffer.reallocIfNeeded( len * num );
+      out.buffer = buffer;
       for (int i =0; i < num; i++) {
         in.buffer.getBytes(in.start, out.buffer, i * len, len);
       }
@@ -1641,7 +1752,8 @@ public class StringFunctions{
         bytea[index] = in.buffer.getByte(i);
       }
       final byte[] outBytea = new String(bytea, inCharset).getBytes(java.nio.charset.StandardCharsets.UTF_8);
-      out.buffer = buffer = buffer.reallocIfNeeded(outBytea.length);
+      buffer = buffer.reallocIfNeeded(outBytea.length);
+      out.buffer = buffer;
       out.buffer.setBytes(0, outBytea);
       out.start = 0;
       out.end = outBytea.length;
@@ -1667,15 +1779,16 @@ public class StringFunctions{
       final int len = in.end - in.start;
       out.start = 0;
       out.end = len;
-      out.buffer = buffer = buffer.reallocIfNeeded(len);
+      buffer = buffer.reallocIfNeeded(len);
+      out.buffer = buffer;
       int charlen = 0;
 
       int index = len;
       int innerindex = 0;
 
       for (int id = in.start; id < in.end; id += charlen) {
-        innerindex = charlen = com.dremio.exec.expr.fn.impl.StringFunctionUtil.utf8CharLen(io.netty.buffer.NettyArrowBuf.unwrapBuffer(in.buffer),
-          id, errCtx);
+        charlen = com.dremio.exec.expr.fn.impl.StringFunctionUtil.utf8CharLen(io.netty.buffer.NettyArrowBuf.unwrapBuffer(in.buffer), id, errCtx);
+        innerindex = charlen;
 
         // retain byte order of multibyte characters
         while (innerindex > 0) {
@@ -1706,7 +1819,8 @@ public class StringFunctions{
     public void eval() {
       final byte[] outBytea = org.apache.commons.lang3.StringUtils.replaceChars(getStringFromVarCharHolder(in), getStringFromVarCharHolder(searchChars), getStringFromVarCharHolder(replaceChars)).getBytes();
 
-      out.buffer = buffer = buffer.reallocIfNeeded(outBytea.length);
+      buffer = buffer.reallocIfNeeded(outBytea.length);
+      out.buffer = buffer;
       out.buffer.setBytes(0, outBytea);
       out.start = 0;
       out.end = outBytea.length;
@@ -1735,7 +1849,8 @@ public class StringFunctions{
 
     @Override
     public void eval() {
-      out.start = out.end = 0;
+      out.start = 0;
+      out.end = 0;
       out.isSet = 0;
 
       if(separator.isSet == 0){
@@ -1753,7 +1868,8 @@ public class StringFunctions{
         }
         outputLength += (separator.end - separator.start) * (numValidInput > 1 ? numValidInput - 1 : 0);
 
-        out.buffer = buffer = buffer.reallocIfNeeded(outputLength);
+        buffer = buffer.reallocIfNeeded(outputLength);
+        out.buffer = buffer;
         com.dremio.exec.expr.fn.impl.StringFunctionUtil.concatWsWord(out, word1, separator);
         com.dremio.exec.expr.fn.impl.StringFunctionUtil.concatWsWord(out, word2, separator);
         out.isSet = 1;
@@ -1785,7 +1901,8 @@ public class StringFunctions{
 
     @Override
     public void eval() {
-      out.start = out.end = 0;
+      out.start = 0;
+      out.end = 0;
       out.isSet = 0;
 
       if(separator.isSet == 0){
@@ -1807,7 +1924,8 @@ public class StringFunctions{
         }
         outputLength += (separator.end - separator.start) * (numValidInput > 1 ? numValidInput - 1 : 0);
 
-        out.buffer = buffer = buffer.reallocIfNeeded(outputLength);
+        buffer = buffer.reallocIfNeeded(outputLength);
+        out.buffer = buffer;
         com.dremio.exec.expr.fn.impl.StringFunctionUtil.concatWsWord(out, word1, separator);
         com.dremio.exec.expr.fn.impl.StringFunctionUtil.concatWsWord(out, word2, separator);
         com.dremio.exec.expr.fn.impl.StringFunctionUtil.concatWsWord(out, word3, separator);
@@ -1842,7 +1960,8 @@ public class StringFunctions{
 
     @Override
     public void eval() {
-      out.start = out.end = 0;
+      out.start = 0;
+      out.end = 0;
       out.isSet = 0;
 
       if(separator.isSet == 0){
@@ -1868,7 +1987,8 @@ public class StringFunctions{
         }
         outputLength += (separator.end - separator.start) * (numValidInput > 1 ? numValidInput - 1 : 0);
 
-        out.buffer = buffer = buffer.reallocIfNeeded(outputLength);
+        buffer = buffer.reallocIfNeeded(outputLength);
+        out.buffer = buffer;
         com.dremio.exec.expr.fn.impl.StringFunctionUtil.concatWsWord(out, word1, separator);
         com.dremio.exec.expr.fn.impl.StringFunctionUtil.concatWsWord(out, word2, separator);
         com.dremio.exec.expr.fn.impl.StringFunctionUtil.concatWsWord(out, word3, separator);
@@ -1906,7 +2026,8 @@ public class StringFunctions{
 
     @Override
     public void eval() {
-      out.start = out.end = 0;
+      out.start = 0;
+      out.end = 0;
       out.isSet = 0;
 
       if(separator.isSet == 0){
@@ -1936,7 +2057,8 @@ public class StringFunctions{
         }
         outputLength += (separator.end - separator.start) * (numValidInput > 1 ? numValidInput - 1 : 0);
 
-        out.buffer = buffer = buffer.reallocIfNeeded(outputLength);
+        buffer = buffer.reallocIfNeeded(outputLength);
+        out.buffer = buffer;
         com.dremio.exec.expr.fn.impl.StringFunctionUtil.concatWsWord(out, word1, separator);
         com.dremio.exec.expr.fn.impl.StringFunctionUtil.concatWsWord(out, word2, separator);
         com.dremio.exec.expr.fn.impl.StringFunctionUtil.concatWsWord(out, word3, separator);

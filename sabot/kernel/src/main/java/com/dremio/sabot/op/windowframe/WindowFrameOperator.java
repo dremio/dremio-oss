@@ -276,6 +276,7 @@ public class WindowFrameOperator implements SingleInputOperator {
 
     {
       // generating framer.isSamePartition()
+      @SuppressWarnings("checkstyle:LocalFinalVariableName")
       final GeneratorMapping IS_SAME_PARTITION_READ = GeneratorMapping.create("isSamePartition", "isSamePartition", null, null);
       final MappingSet isaB1 = new MappingSet("b1Index", null, "b1", null, IS_SAME_PARTITION_READ, IS_SAME_PARTITION_READ);
       final MappingSet isaB2 = new MappingSet("b2Index", null, "b2", null, IS_SAME_PARTITION_READ, IS_SAME_PARTITION_READ);
@@ -284,6 +285,7 @@ public class WindowFrameOperator implements SingleInputOperator {
 
     {
       // generating framer.isPeer()
+      @SuppressWarnings("checkstyle:LocalFinalVariableName")
       final GeneratorMapping IS_SAME_PEER_READ = GeneratorMapping.create("isPeer", "isPeer", null, null);
       final MappingSet isaP1 = new MappingSet("b1Index", null, "b1", null, IS_SAME_PEER_READ, IS_SAME_PEER_READ);
       final MappingSet isaP2 = new MappingSet("b2Index", null, "b2", null, IS_SAME_PEER_READ, IS_SAME_PEER_READ);

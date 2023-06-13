@@ -85,8 +85,7 @@ public class VarcharTruncationReader implements AutoCloseable {
       if (!transfers.isEmpty()) {
         this.transferPair = transfers.get(0);
       }
-    }
-    catch (Exception e) {
+    } catch (Exception e) {
       throw Throwables.propagate(e);
     }
   }

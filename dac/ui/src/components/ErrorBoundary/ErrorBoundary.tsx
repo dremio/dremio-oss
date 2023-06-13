@@ -22,7 +22,7 @@ import sentryUtil from "@app/utils/sentryUtil";
 type ErrorBoundaryProps = {
   className?: string;
   children: ReactNode;
-  title: string;
+  title: string | (() => string);
 };
 type ErrorBoundaryState =
   | {

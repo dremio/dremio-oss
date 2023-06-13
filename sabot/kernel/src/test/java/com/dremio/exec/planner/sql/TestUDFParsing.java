@@ -165,9 +165,9 @@ public class TestUDFParsing {
     Assert.assertEquals("function body doesn't match", exp, sqlCreateFunctionResult.getExpression().toString());
     Assert.assertEquals("function arguments doesn't match", fieldList, sqlCreateFunctionResult.getFieldList().toString());
     if (scalarReturnType == null) {
-      Assert.assertNull("function return type doesn't match", sqlCreateFunctionResult.getScalarReturnType());
+      Assert.assertNull("function return type doesn't match", sqlCreateFunctionResult.getReturnType().getScalarReturnType());
     } else {
-      Assert.assertEquals("function return type doesn't match", scalarReturnType, sqlCreateFunctionResult.getScalarReturnType().toString());
+      Assert.assertEquals("function return type doesn't match", scalarReturnType, sqlCreateFunctionResult.getReturnType().getScalarReturnType().toString());
     }
     Assert.assertEquals("shouldReplace doesn't match", replacePolicy, sqlCreateFunctionResult.shouldReplace());
   }

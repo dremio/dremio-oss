@@ -15,8 +15,11 @@
  * limitations under the License.
  */
 
-export const nameToInitials = (name = ""): string =>
-  name
-    .split(" ")
-    .map((x) => x.charAt(0).toUpperCase())
-    .join("");
+export const nameToInitials = (name?: string): string => {
+  if (!name) return "";
+  const splitName = name.split(" ");
+  if (splitName.length > 1) {
+    return `${splitName[0][0]}${splitName[1][0]}`;
+  }
+  return `${name[0]}${name[1]}`;
+};

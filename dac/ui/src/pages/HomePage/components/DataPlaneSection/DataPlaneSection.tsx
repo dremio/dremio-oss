@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 import { useIntl } from "react-intl";
-// @ts-ignore
-import { isDataPlaneEnabled } from "@inject/utils/dataPlaneUtils";
 import FinderNav from "@app/components/FinderNav";
 import ViewStateWrapper from "@app/components/ViewStateWrapper";
 import SourceBranchPicker from "../SourceBranchPicker/SourceBranchPicker";
 import { spacesSourcesListSpinnerStyleFinderNav } from "@app/pages/HomePage/HomePageConstants";
 import * as commonPaths from "dremio-ui-common/paths/common.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
+import { isNotSoftware } from "dyn-load/utils/versionUtils";
 
 type DataPlaneSectionProps = {
   dataPlaneSources: any;
@@ -45,8 +44,6 @@ function DataPlaneSection({
   isCollapsible = false,
 }: DataPlaneSectionProps) {
   const intl = useIntl();
-  if (!isDataPlaneEnabled) return null;
-
   return (
     <div
       className="left-tree-wrap"
@@ -66,8 +63,16 @@ function DataPlaneSection({
           onToggle={onToggle}
           location={location}
           navItems={dataPlaneSources}
-          title={intl.formatMessage({ id: "Source.DataPlanes" })}
-          addTooltip={intl.formatMessage({ id: "Source.AddDataPlane" })}
+          title={intl.formatMessage({
+            id: isNotSoftware()
+              ? "Source.ArcticCatalogs"
+              : "Source.NessieCatalogs",
+          })}
+          addTooltip={intl.formatMessage({
+            id: isNotSoftware()
+              ? "Source.AddArcticCatalog"
+              : "Source.AddNessieCatalog",
+          })}
           isInProgress={sourcesViewState.get("isInProgress")}
           addHref={addHref}
           listHref={commonPaths.dataplane.link({

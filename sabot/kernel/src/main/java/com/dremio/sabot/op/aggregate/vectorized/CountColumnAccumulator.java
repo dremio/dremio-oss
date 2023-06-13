@@ -33,6 +33,7 @@ public class CountColumnAccumulator extends BaseSingleAccumulator {
           computationVectorAllocator);
   }
 
+  @Override
   public void accumulate(final long memoryAddr, final int count,
                          final int bitsInChunk, final int chunkOffsetMask){
     final long maxAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;

@@ -33,14 +33,14 @@ export const additionalColumns = [
   },
 ];
 
-const renderColumn = (data, isNumeric) => (
-  <ColumnCell data={data} isNumeric={isNumeric} />
-);
+const renderColumn = (data, isNumeric, className) => {
+  return <ColumnCell data={data} isNumeric={isNumeric} className={className} />;
+};
 
 export const additionalColumnName = (job) => [
   {
     qn: {
-      node: () => renderColumn(job.get("wlmQueue")),
+      node: () => renderColumn(job.get("wlmQueue"), false, "fullHeight"),
       value: job.get("wlmQueue"),
     },
   },

@@ -272,12 +272,13 @@ public class HashAggOperator implements SingleInputOperator {
       return false;
     }
     String functionName = ((FunctionHolderExpr)expr).getName();
-    if (!functionName.equals("min") && !functionName.equals("max")) {
+    if (!"min".equals(functionName) && !"max".equals(functionName)) {
       return false;
     }
     return !exprType.isFixedWidthScalar();
   }
 
+  @SuppressWarnings("checkstyle:LocalFinalVariableName")
   private void setupUpdateAggrValues(ClassGenerator<HashAggregator> cg) {
     final GeneratorMapping UPDATE_AGGR_INSIDE = GeneratorMapping.create("setupInterior", "updateAggrValuesInternal", "resetValues", "cleanup");
     final GeneratorMapping UPDATE_AGGR_OUTSIDE = GeneratorMapping.create("setupInterior", "outputRecordValues", "resetValues", "cleanup");
@@ -309,9 +310,9 @@ public class HashAggOperator implements SingleInputOperator {
       cg.getBlock("getVectorIndex")._return(var.invoke("getIndex").arg(JExpr.direct("recordIndex")));
       return;
     }
-
+    default:
+      throw new IllegalStateException("Unhandled SelectionVectorMode: " + incoming.getSchema().getSelectionVectorMode());
     }
-
   }
 
   @Override

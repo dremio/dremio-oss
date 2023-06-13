@@ -252,7 +252,10 @@
     hasMoreResults: true
  -
   description: "MULTIPLE JOINS"
-  input: "SELECT * FROM EMP JOIN DEPT ON EMP.DEPTNO = ^ JOIN SALGRADE ON SALGRADE.GRADE = DEPT.DEPTNO"
+  input:
+   - "SELECT * FROM EMP "
+   - "JOIN DEPT ON EMP.DEPTNO = ^ "
+   - "JOIN SALGRADE ON SALGRADE.GRADE = DEPT.DEPTNO"
   output:
     completions:
      -

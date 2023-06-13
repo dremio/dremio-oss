@@ -19,7 +19,6 @@ package com.dremio.dac.api;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
 import java.util.List;
-import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
 
 import javax.annotation.security.RolesAllowed;
@@ -41,13 +40,12 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.SecurityContext;
 
-import com.dremio.context.RequestContext;
-import com.dremio.context.UserContext;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.model.scripts.PaginatedResponse;
 import com.dremio.dac.model.scripts.ScriptData;
 import com.dremio.service.script.DuplicateScriptNameException;
+import com.dremio.service.script.MaxScriptsLimitReachedException;
 import com.dremio.service.script.ScriptNotAccessible;
 import com.dremio.service.script.ScriptNotFoundException;
 import com.dremio.service.script.ScriptService;
@@ -66,7 +64,6 @@ public class ScriptResource {
   private static final org.slf4j.Logger logger =
     org.slf4j.LoggerFactory.getLogger(ScriptResource.class);
   private final ScriptService scriptService;
-  private final SecurityContext securityContext;
   private final UserService userService;
 
   @Inject
@@ -74,7 +71,6 @@ public class ScriptResource {
                         @Context SecurityContext securityContext,
                         UserService userService) {
     this.scriptService = scriptService;
-    this.securityContext = securityContext;
     this.userService = userService;
   }
 
@@ -91,16 +87,12 @@ public class ScriptResource {
     final String finalOrderBy = (orderBy == null) ? "" : orderBy;
 
     try {
-
-      Long totalScripts = runWithUserContext(() -> scriptService.getCountOfMatchingScripts(
-        finalSearch, "", createdBy));
+      Long totalScripts = scriptService.getCountOfMatchingScripts(finalSearch, "", createdBy);
       List<ScriptData> scripts =
-        runWithUserContext(() -> scriptService.getScripts(finalOffset,
-                                                          finalMaxResults, finalSearch,
-                                                          finalOrderBy, "", createdBy)
+        scriptService.getScripts(finalOffset, finalMaxResults, finalSearch, finalOrderBy, "", createdBy)
           .parallelStream()
           .map(this::fromScript)
-          .collect(Collectors.toList()));
+          .collect(Collectors.toList());
       return new PaginatedResponse<>(totalScripts, scripts);
     } catch (Exception exception) {
       logger.error("GET on scripts failed.", exception);
@@ -111,9 +103,8 @@ public class ScriptResource {
   @POST
   public ScriptData postScripts(ScriptData scriptData) {
     try {
-      return fromScript(runWithUserContext(() -> scriptService.createScript(ScriptData.toScriptRequest(
-                                             scriptData))));
-    } catch (DuplicateScriptNameException exception) {
+      return fromScript(scriptService.createScript(ScriptData.toScriptRequest(scriptData)));
+    } catch (DuplicateScriptNameException | MaxScriptsLimitReachedException exception) {
       logger.error(exception.getMessage(), exception);
       throw new BadRequestException(exception.getMessage());
     } catch (Exception exception) {
@@ -126,7 +117,7 @@ public class ScriptResource {
   @Path("/{id}")
   public ScriptData getScript(@PathParam("id") String scriptId) {
     try {
-      return fromScript(runWithUserContext(() -> scriptService.getScriptById(scriptId)));
+      return fromScript(scriptService.getScriptById(scriptId));
     } catch (ScriptNotFoundException exception) {
       logger.error(exception.getMessage(), exception);
       throw new NotFoundException(exception.getMessage());
@@ -145,9 +136,7 @@ public class ScriptResource {
     // check if script exists with given scriptId
     try {
       // update the script
-      return fromScript(runWithUserContext(() -> scriptService.updateScript(scriptId,
-                                                                            ScriptData.toScriptRequest(
-                                                                              scriptData))));
+      return fromScript(scriptService.updateScript(scriptId, ScriptData.toScriptRequest(scriptData)));
     } catch (ScriptNotFoundException exception) {
       logger.error(exception.getMessage(), exception);
       throw new NotFoundException(exception.getMessage());
@@ -167,10 +156,7 @@ public class ScriptResource {
   @Path(("/{id}"))
   public Response deleteScript(@PathParam("id") String scriptId) {
     try {
-      runWithUserContext(() -> {
-        scriptService.deleteScriptById(scriptId);
-        return null;
-      });
+      scriptService.deleteScriptById(scriptId);
       return Response.noContent().build();
     } catch (ScriptNotFoundException exception) {
       logger.error(exception.getMessage(), exception);
@@ -199,25 +185,4 @@ public class ScriptResource {
                                              getUserInfoById(script.getCreatedBy()),
                                              getUserInfoById(script.getModifiedBy()));
   }
-
-  private String getCurrentUserId() {
-    try {
-      return userService.getUser(securityContext.getUserPrincipal().getName())
-        .getUID()
-        .getId();
-    } catch (UserNotFoundException exception) {
-      // ideally this case should never be reached.
-      logger.error("Couldn't find current logged in user : {}. Error {}",
-                   securityContext.getUserPrincipal().getName(),
-                   exception.getMessage());
-      throw new InternalServerErrorException(exception.getMessage());
-    }
-  }
-
-  private <V> V runWithUserContext(Callable<V> callable) throws Exception {
-    return RequestContext.current()
-      .with(UserContext.CTX_KEY, new UserContext(getCurrentUserId()))
-      .call(callable);
-  }
-
 }

@@ -28,6 +28,7 @@ import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.physical.config.ExtendedFormatOptions;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.store.AbstractRecordReader;
 import com.dremio.exec.store.easy.json.JsonProcessor.ReadState;
 import com.dremio.exec.store.easy.json.reader.CountingJsonReader;
@@ -179,7 +180,8 @@ public class JSONRecordReader extends AbstractRecordReader {
         final int maxLeafLimit = Math.toIntExact(this.context.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX));
         this.jsonReader = new JsonReader(
           context.getManagedBuffer(), ImmutableList.copyOf(getColumns()), sizeLimit, maxLeafLimit, enableAllTextMode, true, readNumbersAsDouble,
-                schemaImposedMode, extendedFormatOptions, context, output.getContainer() != null && output.getContainer().hasSchema()? output.getContainer().getSchema() : null);
+                schemaImposedMode, extendedFormatOptions, context, output.getContainer() != null && output.getContainer().hasSchema()? output.getContainer().getSchema() : null,
+                context.getOptions().getOption(PlannerSettings.ENFORCE_VALID_JSON_DATE_FORMAT_ENABLED));
       }
       setupParser();
     } catch(final Exception e) {

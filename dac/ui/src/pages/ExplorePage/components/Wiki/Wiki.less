@@ -16,39 +16,52 @@
 @import "~@app/uiTheme/less/variables.less";
 @import "~@app/uiTheme/less/variables.complex.less";
 @import "~@app/pages/ExplorePage/components/Wiki/Wiki.variables.less";
-
 @_border-padding: 15px; // a distance between vertical border and a content
-
 .layout {
   composes: horizontal-content-padding top-content-padding from "~@app/uiTheme/less/layout.less"; // exclude border1 for a while
   display: flex;
   flex: 1;
   align-items: stretch;
 }
-
 .left-column {
   overflow-y: auto;
   padding-right: @_border-padding;
   border-right: @collaboration-border;
   width: 100%;
 }
-
 .right-column {
   composes: flex-column-container from "~@app/uiTheme/less/layout.less";
   width: 400px;
   padding-left: @_border-padding;
 }
-
 .sections-container .section-item:not(:first-child) {
   margin-top: 30px;
   max-height: calc(100vh - 200px);
 }
-
 .section-title {
   margin-bottom: @wiki-title-margin;
   align-items: flex-start;
 }
-
 .tags {
   display: flex; // should take whole width
+}
+.collapsibleToolbarIcon {
+  color: var(--color--neutral--600) !important;
+
+  &:hover {
+    color: var(--dremio--color--link) !important;
+  }
+}
+.collapsibleToolbarIconContainer {
+  padding: var(--dremio--spacing--05);
+}
+
+.collapseButton {
+  height: 32px;
+  width: 32px;
+  color: var(--color--neutral--600) !important;
+
+  &:hover {
+    color: var(--dremio--color--link) !important;
+  }
 }

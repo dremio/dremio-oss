@@ -102,6 +102,18 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
   }
 
   @Override
+  public void deleteServiceSet(String name) {
+    LocalServiceSet localServiceSet = serviceSets.remove(name);
+    if (localServiceSet != null) {
+      try {
+        localServiceSet.close();
+      } catch (Exception e) {
+        logger.error("Unable to close LocalServiceSet {}", name, e);
+      }
+    }
+  }
+
+  @Override
   public Iterable<String> getServiceNames() {
     return serviceSets.keySet();
   }

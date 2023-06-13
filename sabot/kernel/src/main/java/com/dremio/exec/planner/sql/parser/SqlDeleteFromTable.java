@@ -55,6 +55,7 @@ public class SqlDeleteFromTable extends SqlDelete implements SqlDmlOperator {
     this.sourceOperand = source;
   }
 
+  @Override
   public void extendTableWithDataFileSystemColumns() {
     if (getTargetTable().getKind() == SqlKind.IDENTIFIER) {
       setOperand(0, DmlUtils.extendTableWithDataFileSystemColumns(getTargetTable()));

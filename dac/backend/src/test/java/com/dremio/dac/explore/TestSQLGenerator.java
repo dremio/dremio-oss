@@ -819,7 +819,7 @@ public class TestSQLGenerator {
   private TransformResult transform(TransformBase tb, VirtualDatasetState state) {
     QueryExecutor executor = new QueryExecutor(null, null, null){
       @Override
-      public List<String> getColumnList(String username, DatasetPath path, List<SourceVersionReference> sourceVersionReferenceList) {
+      public List<String> getColumnList(DatasetPath path, List<SourceVersionReference> sourceVersionReferenceList) {
         return asList("bar", "baz");
       }
     };

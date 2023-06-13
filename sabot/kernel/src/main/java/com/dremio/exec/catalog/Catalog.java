@@ -64,7 +64,9 @@ public interface Catalog extends SimpleCatalog<Catalog>, EntityExplorer, Dataset
    */
   Catalog resolveCatalog(CatalogIdentity subject);
 
-  MetadataStatsCollector getMetadataStatsCollector();
+  default MetadataStatsCollector getMetadataStatsCollector() {
+    return getMetadataRequestOptions().getStatsCollector();
+  }
 
   //TODO(DX-21034): Rework View Creator
   void createView(final NamespaceKey key, View view, ViewOptions viewOptions, NamespaceAttribute... attributes) throws IOException;
@@ -92,6 +94,7 @@ public interface Catalog extends SimpleCatalog<Catalog>, EntityExplorer, Dataset
    * @param table the table to get the column extended properties for
    * @return the column extended properties grouped by column name
    */
+  @Override
   Map<String, List<ColumnExtendedProperty>> getColumnExtendedProperties(DremioTable table);
 
   /**
@@ -101,5 +104,9 @@ public interface Catalog extends SimpleCatalog<Catalog>, EntityExplorer, Dataset
    */
   Catalog visit(Function<Catalog, Catalog> catalogRewrite);
 
-  public default void addCatalogStats() {}
+  default void addCatalogStats() {}
+
+  default void invalidateNamespaceCache(final NamespaceKey key) {}
+
+  MetadataRequestOptions getMetadataRequestOptions();
 }

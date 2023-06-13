@@ -37,6 +37,7 @@ public class ReusingPageSupplier implements PageSupplier, AutoCloseable {
     return pool.getAllocator();
   }
 
+  @Override
   public Page getPage(int size) {
     // round-up so that vector/buffer allocations happen at 8-byte alignments.
     size = RoundUtil.round8up(size);

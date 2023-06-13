@@ -83,6 +83,29 @@ public class TableVersionSpec {
     return new TableVersionContext(tableVersionType, value);
   }
 
+
+  public TableVersionContext getTableVersionContext() {
+    Preconditions.checkNotNull(versionSpecifier);
+    Object value = null;
+    switch (tableVersionType) {
+      case BRANCH:
+      case TAG:
+      case COMMIT_HASH_ONLY:
+      case REFERENCE:
+      case SNAPSHOT_ID:
+        Preconditions.checkState(versionSpecifier instanceof SqlCharStringLiteral);
+        value = ((SqlCharStringLiteral)versionSpecifier).getValueAs(String.class);
+        break;
+      case TIMESTAMP:
+        Preconditions.checkState(versionSpecifier instanceof SqlTimestampLiteral);
+        value = ((SqlTimestampLiteral)versionSpecifier).getValueAs(Calendar.class).getTimeInMillis();
+        break;
+    }
+
+    Preconditions.checkNotNull(value);
+    return new TableVersionContext(tableVersionType, value);
+  }
+
   /**
    * Resolves a TableVersionSpec by performing constant folding on the versionSpecifier.  An error will be reported
    * if the expression provided is not resolvable to a constant value of the appropriate type.

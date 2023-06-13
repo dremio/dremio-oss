@@ -48,6 +48,29 @@ import com.dremio.exec.util.LongRange;
 public class IcebergManifestScanPrel extends TableFunctionPrel {
 
   public IcebergManifestScanPrel(
+    RelOptCluster cluster,
+    RelTraitSet traitSet,
+    RelOptTable table,
+    RelNode child,
+    TableMetadata tableMetadata,
+    BatchSchema schema,
+    List<SchemaPath> projectedColumns,
+    ManifestScanFilters manifestScanFilters,
+    Long survivingRecords,
+    ManifestContent manifestContent) {
+    this(
+      cluster,
+      traitSet,
+      table,
+      child,
+      tableMetadata,
+      TableFunctionUtil.getManifestScanTableFunctionConfig(tableMetadata, projectedColumns, schema, null,
+        manifestContent, manifestScanFilters, false),
+      ScanRelBase.getRowTypeFromProjectedColumns(projectedColumns, schema, cluster),
+      survivingRecords);
+  }
+
+  public IcebergManifestScanPrel(
       RelOptCluster cluster,
       RelTraitSet traitSet,
       RelOptTable table,
@@ -57,7 +80,8 @@ public class IcebergManifestScanPrel extends TableFunctionPrel {
       List<SchemaPath> projectedColumns,
       ManifestScanFilters manifestScanFilters,
       Long survivingRecords,
-      ManifestContent manifestContent) {
+      ManifestContent manifestContent,
+      boolean enableCarryForward) {
     this(
         cluster,
         traitSet,
@@ -65,7 +89,7 @@ public class IcebergManifestScanPrel extends TableFunctionPrel {
         child,
         tableMetadata,
         TableFunctionUtil.getManifestScanTableFunctionConfig(tableMetadata, projectedColumns, schema, null,
-            manifestContent, manifestScanFilters),
+            manifestContent, manifestScanFilters, enableCarryForward),
         ScanRelBase.getRowTypeFromProjectedColumns(projectedColumns, schema, cluster),
         survivingRecords);
   }

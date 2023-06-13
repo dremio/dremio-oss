@@ -81,7 +81,9 @@ public class CalciteArrowHelper {
       } else {
         bs.forEach(f -> {
           if (inclusionPredicate.apply(f)) {
-            builder.add(f.getName(), toCalciteType(f, factory, withComplexTypeSupport));}});
+            builder.add(f.getName(), toCalciteType(f, factory, withComplexTypeSupport));
+          }
+        });
       }
 
       RelDataType rowType = builder.build();

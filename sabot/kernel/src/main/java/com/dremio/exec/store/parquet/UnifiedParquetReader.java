@@ -294,7 +294,9 @@ public class UnifiedParquetReader implements RecordReader {
   private void computeLocality(MutableParquetMetadata footer) throws ExecutionSetupException {
     try {
       BlockMetaData block = footer.getBlocks().get(readEntry.getRowGroupIndex());
-      Preconditions.checkArgument(block != null, "Parquet footer does not contain information about row group");
+      Preconditions.checkArgument(block != null,
+        "Parquet file '%s' footer does not have information about row group %s",
+        this.readEntry.getPath(), readEntry.getRowGroupIndex());
 
       Iterable<FileBlockLocation> blockLocations = fs.getFileBlockLocations(Path.of(readEntry.getPath()), block.getStartingPos(), block.getCompressedSize());
 
@@ -536,6 +538,7 @@ public class UnifiedParquetReader implements RecordReader {
       closeables.add(validityBuf);
       closeables.add(sv2);
       closeables.add(filters);
+      closeables.add(codecFactory::release);
       AutoCloseables.close(closeables);
     } finally {
       delegates = null;
@@ -549,7 +552,9 @@ public class UnifiedParquetReader implements RecordReader {
                             List<SchemaPath> nonVectorizableReaderColumns) {
     boolean isArrowSchemaPresent = DremioArrowSchema.isArrowSchemaPresent(footer.getFileMetaData().getKeyValueMetaData());
     final BlockMetaData block = footer.getBlocks().get(readEntry.getRowGroupIndex());
-    Preconditions.checkArgument(block != null, "Parquet footer does not contain information about row group");
+    Preconditions.checkArgument(block != null,
+      "Parquet file '%s' footer does not have information about row group %s",
+      this.readEntry.getPath(), readEntry.getRowGroupIndex());
     final Map<String, ColumnChunkMetaData> fieldsWithEncodingsSupportedByVectorizedReader = new HashMap<>();
     final List<Type> nonVectorizableTypes = new ArrayList<>();
     final List<Type> vectorizableTypes = new ArrayList<>();
@@ -557,7 +562,7 @@ public class UnifiedParquetReader implements RecordReader {
 
     for (ColumnChunkMetaData c : block.getColumns()) {
       String field = c.getPath().iterator().next();
-      if (!readerFactory.isSupported(c)) {
+      if (!readerFactory.isSupported(c, context)) {
         // we'll skip columns we can't read.
         fieldsWithPartialOrNoEncodingsSupportedByVectorizedReader.add(field);
         fieldsWithEncodingsSupportedByVectorizedReader.remove(field);
@@ -745,7 +750,7 @@ public class UnifiedParquetReader implements RecordReader {
           "Deprecated vectorized reader does not support reading the file name column");
         Preconditions.checkArgument(
           !unifiedReader.tableSchema.findFieldIgnoreCase(ColumnUtils.ROW_INDEX_COLUMN_NAME).isPresent(),
-          "Deprecated vectorized reader does not support reading the file name column");
+          "Deprecated vectorized reader does not support reading the row index column");
 
         List<RecordReader> returnList = new ArrayList<>();
           returnList.add(unifiedReader.addFilterIfNecessary(
@@ -895,7 +900,9 @@ public class UnifiedParquetReader implements RecordReader {
         }
 
         BlockMetaData block = blocks.get(rowGroupIdx);
-        Preconditions.checkArgument(block != null, "Parquet footer does not contain information about row group");
+        Preconditions.checkArgument(block != null,
+          "Parquet file '%s' footer does not have information about row group %s",
+          unifiedReader.readEntry.getPath(), unifiedReader.readEntry.getRowGroupIndex());
         final long rowCount = block.getRowCount();
         final long accumulatedRowCount = footer.getAccumulatedRowCount(rowGroupIdx);
         logger.debug("Row group {}, accumulated row count {}", rowGroupIdx, accumulatedRowCount);

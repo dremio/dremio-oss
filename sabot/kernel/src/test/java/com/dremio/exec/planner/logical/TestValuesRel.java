@@ -68,13 +68,13 @@ public class TestValuesRel {
   // Test the row type adjustment, modelling the tuples structure of an IN list.
   @Test
   public void testNumericValuesRelRowTypeAdjustment() {
-    final int INListLength = 20;
+    final int lengthOfINList = 20;
 
     // Build RowType & Tuples
     RelDataTypeField relDataType = new RelDataTypeFieldImpl("ROW_VALUE", 0, new BasicSqlType(RelDataTypeSystemImpl.REL_DATA_TYPE_SYSTEM, SqlTypeName.ANY));
     RelDataType rowType = new RelRecordType(StructKind.FULLY_QUALIFIED, Arrays.asList(relDataType));
     ImmutableList.Builder<ImmutableList<RexLiteral>> tuples = new ImmutableList.Builder<>();
-    for (int i = 0; i < INListLength; i++) {
+    for (int i = 0; i < lengthOfINList; i++) {
       tuples.add(new ImmutableList.Builder<RexLiteral>().add(new RexBuilder(typeFactory).makeExactLiteral(new BigDecimal(i))).build());
     }
 
@@ -94,13 +94,13 @@ public class TestValuesRel {
   // Test the row type adjustment, modelling the tuples structure of an IN list.
   @Test
   public void testCharValuesRelRowTypeAdjustment() {
-    final int INListLength = 20;
+    final int lengthOfINList = 20;
 
     // Build RowType & Tuples
     RelDataTypeField relDataType = new RelDataTypeFieldImpl("ROW_VALUE", 0, new BasicSqlType(RelDataTypeSystemImpl.REL_DATA_TYPE_SYSTEM, SqlTypeName.ANY));
     RelDataType rowType = new RelRecordType(StructKind.FULLY_QUALIFIED, Arrays.asList(relDataType));
     ImmutableList.Builder<ImmutableList<RexLiteral>> tuples = new ImmutableList.Builder<>();
-    for (int i = 0; i < INListLength; ++i) {
+    for (int i = 0; i < lengthOfINList; ++i) {
       tuples.add(new ImmutableList.Builder<RexLiteral>().add(new RexBuilder(typeFactory).makeLiteral(charLiteralBuilder(i))).build());
     }
 
@@ -115,7 +115,7 @@ public class TestValuesRel {
     RelDataType adjustedRowType = valuesRel.getRowType();
     assertEquals(1, adjustedRowType.getFieldCount());
     assertEquals(SqlTypeName.VARCHAR, adjustedRowType.getFieldList().get(0).getType().getSqlTypeName());
-    assertEquals(INListLength - 1, adjustedRowType.getFieldList().get(0).getType().getPrecision());
+    assertEquals(lengthOfINList - 1, adjustedRowType.getFieldList().get(0).getType().getPrecision());
   }
 
   private String charLiteralBuilder(int length) {

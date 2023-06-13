@@ -47,6 +47,7 @@ public class FragmentOptionManager extends BaseOptionManager {
     return optionMap;
   }
 
+  @Override
   protected boolean supportsOptionType(OptionType type) {
     throw new UnsupportedOperationException("FragmentOptionManager does not support the given option value.");
   }

@@ -178,6 +178,7 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator, Sh
     return state;
   }
 
+  @Override
   public VectorAccessible setup(VectorAccessible left, VectorAccessible right) throws Exception {
     state.is(State.NEEDS_SETUP);
 
@@ -892,7 +893,8 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator, Sh
 
     void init(int batchSize) {
       this.batchSize = batchSize;
-      startPivotIdx = numPivoted = 0;
+      this.startPivotIdx = 0;
+      this.numPivoted = 0;
     }
 
     void update(int startPivotIdx, int numPivoted) {

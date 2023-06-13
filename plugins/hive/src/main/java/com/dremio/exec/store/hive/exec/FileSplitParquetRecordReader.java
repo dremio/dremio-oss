@@ -241,7 +241,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
       boolean readColumnIndices = oContext.getOptions().getOption(READ_COLUMN_INDEXES);
       Preconditions.checkArgument(hiveStoragePlugin instanceof HadoopFsSupplierProviderPluginClassLoader, " plugin does not instance of HadoopFsSupplierProviderPluginClassLoader");
       final PrivilegedExceptionAction<FileSystem> getFsAction =
-        () -> hiveStoragePlugin.createFS(new DremioHadoopFileSystemWrapper(finalPath, jobConf, oContext.getStats(), cacheAndAsyncConf.isAsyncEnabled(), ((HadoopFsSupplierProviderPluginClassLoader)hiveStoragePlugin).getHadoopFsSupplierPluginClassLoader(finalPath.toString(), jobConf).get()),
+        () -> hiveStoragePlugin.createFS(new DremioHadoopFileSystemWrapper(finalPath, jobConf, oContext.getStats(), cacheAndAsyncConf.isAsyncEnabled(), ((HadoopFsSupplierProviderPluginClassLoader)hiveStoragePlugin).getHadoopFsSupplierPluginClassLoader(finalPath.toString(), jobConf, readerUgi.getUserName()).get()),
           oContext, cacheAndAsyncConf);
 
       fs = readerUgi.doAs(getFsAction);
@@ -285,7 +285,8 @@ public class FileSplitParquetRecordReader implements RecordReader {
         dataset,
         fileLastModificationTime,
         false,
-        filters.hasPushdownFilters() && readColumnIndices);
+        filters.hasPushdownFilters() && readColumnIndices, filters,
+        readerFactory.newFilterCreator(oContext, ParquetReaderFactory.ManagedSchemaType.HIVE, managedSchema, oContext.getAllocator()));
     } catch (Exception e) {
       // Close input stream provider in case of errors
       if (inputStreamProviderOfFirstRowGroup != null) {
@@ -521,7 +522,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
         BatchSchemaField batchSchemaFieldInTable = BatchSchemaField.fromField(fieldInTable.get());
         BatchSchemaField batchSchemaFieldInFile = BatchSchemaField.fromField(fieldInFileSchema);
         throw UserException.unsupportedError().message("Field [%s] has incompatible types in file and table." +
-            " Type in fileschema: [%s], type in tableschema: [%s]", fieldInFileSchema.getName(), batchSchemaFieldInFile, batchSchemaFieldInTable).buildSilently();
+            " Type in fileschema: [%s], type in tableschema: [%s], file Path: %s", fieldInFileSchema.getName(), batchSchemaFieldInFile, batchSchemaFieldInTable, filePath).buildSilently();
       }
     }
   }
@@ -641,7 +642,8 @@ public class FileSplitParquetRecordReader implements RecordReader {
           inputStreamProvider = inputStreamProviderFactory.create(fs, oContext, path, fileLength, splitXAttr.getLength(),
             ParquetScanProjectedColumns.fromSchemaPaths(columnsToRead), footer, lastInputStreamProvider, (f) -> splitXAttr.getRowGroupIndex(),
             readFullFile, dataset, splitXAttr.getLastModificationTime(), false,
-            filters.hasPushdownFilters() && readColumnIndices);
+            filters.hasPushdownFilters() && readColumnIndices, filters,
+            readerFactory.newFilterCreator(oContext, ParquetReaderFactory.ManagedSchemaType.HIVE, managedSchema, oContext.getAllocator()));
           return null;
         });
       }

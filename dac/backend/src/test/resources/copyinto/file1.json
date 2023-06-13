@@ -1,0 +1,17 @@
+[
+  {
+    "id": 1,
+    "name": "str1",
+    "distance": 1.23
+  },
+  {
+    "id": 2,
+    "name": "str2",
+    "distance": 13.27
+  },
+  {
+    "id": 3,
+    "name": "str3",
+    "distance": 56.42
+  }
+]

@@ -136,6 +136,7 @@ public final class AggregateChecker implements ExprVisitor<Boolean, ErrorCollect
   public Boolean visitBooleanConstant(BooleanExpression e, ErrorCollector errors) {
     return false;
   }
+  @Override
   public Boolean visitDecimalConstant(DecimalExpression decExpr, ErrorCollector errors) {
     return false;
   }

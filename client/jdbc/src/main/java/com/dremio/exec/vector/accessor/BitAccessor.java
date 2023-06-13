@@ -59,6 +59,7 @@ public class BitAccessor extends AbstractSqlAccessor {
     return ac.get(index);
   }
 
+  @Override
   public boolean getBoolean(int index) {
     if (ac.isNull(index)) {
       return false;

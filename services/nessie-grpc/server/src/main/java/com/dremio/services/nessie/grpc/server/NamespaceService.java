@@ -21,9 +21,6 @@ import static com.dremio.services.nessie.grpc.client.GrpcExceptionMapper.handle;
 
 import java.util.function.Supplier;
 
-import org.projectnessie.api.NamespaceApi;
-import org.projectnessie.api.params.ImmutableNamespaceUpdate;
-
 import com.dremio.services.nessie.grpc.api.Empty;
 import com.dremio.services.nessie.grpc.api.MultipleNamespacesRequest;
 import com.dremio.services.nessie.grpc.api.MultipleNamespacesResponse;
@@ -31,6 +28,7 @@ import com.dremio.services.nessie.grpc.api.Namespace;
 import com.dremio.services.nessie.grpc.api.NamespaceRequest;
 import com.dremio.services.nessie.grpc.api.NamespaceServiceGrpc.NamespaceServiceImplBase;
 import com.dremio.services.nessie.grpc.api.NamespaceUpdateRequest;
+import com.google.common.collect.ImmutableSet;
 
 import io.grpc.stub.StreamObserver;
 
@@ -39,44 +37,51 @@ import io.grpc.stub.StreamObserver;
  */
 public class NamespaceService extends NamespaceServiceImplBase {
 
-  private final Supplier<NamespaceApi> bridge;
+  private final Supplier<? extends org.projectnessie.services.spi.NamespaceService> bridge;
 
-  public NamespaceService(Supplier<NamespaceApi> bridge) {
+  public NamespaceService(Supplier<? extends org.projectnessie.services.spi.NamespaceService> bridge) {
     this.bridge = bridge;
   }
 
   @Override
   public void createNamespace(NamespaceRequest request, StreamObserver<Namespace> observer) {
-    handle(() -> toProto(bridge.get().createNamespace(fromProto(request), fromProto(request.getNamespace()))), observer);
+    handle(() -> toProto(bridge.get().createNamespace(request.getNamedRef(), fromProto(request.getNamespace()))),
+      observer);
   }
 
   @Override
   public void deleteNamespace(NamespaceRequest request, StreamObserver<Empty> observer) {
     handle(() -> {
-      bridge.get().deleteNamespace(fromProto(request));
+      bridge.get().deleteNamespace(request.getNamedRef(), fromProto(request.getNamespace()));
       return Empty.getDefaultInstance();
     }, observer);
   }
 
   @Override
   public void getNamespace(NamespaceRequest request, StreamObserver<Namespace> observer) {
-    handle(() -> toProto(bridge.get().getNamespace(fromProto(request))), observer);
+    handle(() -> toProto(bridge.get().getNamespace(
+      request.getNamedRef(),
+      fromProto(request::hasHashOnRef, request::getHashOnRef),
+      fromProto(request.getNamespace()))), observer);
   }
 
   @Override
   public void getNamespaces(MultipleNamespacesRequest request,
     StreamObserver<MultipleNamespacesResponse> observer) {
-    handle(() -> toProto(bridge.get().getNamespaces(fromProto(request))), observer);
+    handle(() -> toProto(bridge.get().getNamespaces(
+      request.getNamedRef(),
+      fromProto(request::hasHashOnRef, request::getHashOnRef),
+      fromProto(request.getNamespace()))), observer);
   }
 
   @Override
   public void updateProperties(NamespaceUpdateRequest request, StreamObserver<Empty> observer) {
     handle(() -> {
-      bridge.get().updateProperties(fromProto(request.getNamespaceRequest()),
-        ImmutableNamespaceUpdate.builder()
-          .propertyUpdates(request.getPropertyUpdatesMap())
-          .propertyRemovals(request.getPropertyRemovalsList())
-          .build());
+      bridge.get().updateProperties(
+        request.getNamespaceRequest().getNamedRef(),
+        fromProto(request.getNamespaceRequest().getNamespace()),
+        request.getPropertyUpdatesMap(),
+        ImmutableSet.<String>builder().addAll(request.getPropertyRemovalsList()).build());
       return Empty.getDefaultInstance();
     }, observer);
   }

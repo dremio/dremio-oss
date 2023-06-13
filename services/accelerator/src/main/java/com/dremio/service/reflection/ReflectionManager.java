@@ -57,13 +57,13 @@ import org.apache.iceberg.Table;
 import com.dremio.common.util.DremioEdition;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.datastore.WarningTimer;
+import com.dremio.exec.catalog.CatalogUtil;
+import com.dremio.exec.catalog.EntityExplorer;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.FileSelection;
-import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
-import com.dremio.io.file.Path;
 import com.dremio.options.OptionManager;
 import com.dremio.proto.model.UpdateId;
 import com.dremio.service.job.CancelJobRequest;
@@ -82,7 +82,6 @@ import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobStatusListener;
 import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.JobsService;
-import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.RefreshMethod;
 import com.dremio.service.reflection.ReflectionServiceImpl.DescriptorCache;
 import com.dremio.service.reflection.ReflectionServiceImpl.ExpansionHelper;
@@ -118,6 +117,9 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
+
 /**
  * Manages reflections, excluding external reflections, by observing changes to the reflection goals, datasets, materialization
  * jobs and executing the appropriate handling logic sequentially.
@@ -142,7 +144,6 @@ public class ReflectionManager implements Runnable {
   static final long WAKEUP_OVERLAP_MS = 60_000;
   private final SabotContext sabotContext;
   private final JobsService jobsService;
-  private final NamespaceService namespaceService;
   private final OptionManager optionManager;
   private final ReflectionGoalsStore userStore;
   private final ReflectionEntriesStore reflectionStore;
@@ -157,26 +158,22 @@ public class ReflectionManager implements Runnable {
   private final BufferAllocator allocator;
   private final ReflectionGoalChecker reflectionGoalChecker;
   private final RefreshStartHandler refreshStartHandler;
-  private final AccelerationStoragePlugin accelerationPlugin;
-  private volatile Path accelerationBasePath;
   private final CatalogService catalogService;
   private volatile EntryCounts lastStats = new EntryCounts();
   private long lastWakeupTime;
   private long lastOrphanCheckTime;
-  private IcebergModel icebergModel;
   private DependencyResolutionContextFactory dependencyResolutionContextFactory;
 
-  ReflectionManager(SabotContext sabotContext, JobsService jobsService, NamespaceService namespaceService,
+  ReflectionManager(SabotContext sabotContext, JobsService jobsService, CatalogService catalogService,
                     OptionManager optionManager, ReflectionGoalsStore userStore, ReflectionEntriesStore reflectionStore,
                     ExternalReflectionStore externalReflectionStore, MaterializationStore materializationStore,
                     DependencyManager dependencyManager, DescriptorCache descriptorCache,
                     Set<ReflectionId> reflectionsToUpdate, WakeUpCallback wakeUpCallback,
-                    Supplier<ExpansionHelper> expansionHelper, Supplier<PlanCacheInvalidationHelper> planCacheInvalidationHelper, BufferAllocator allocator, FileSystemPlugin accelerationPlugin,
-                    Path accelerationBasePath, ReflectionGoalChecker reflectionGoalChecker, RefreshStartHandler refreshStartHandler,
-                    CatalogService catalogService, DependencyResolutionContextFactory dependencyResolutionContextFactory) {
+                    Supplier<ExpansionHelper> expansionHelper, Supplier<PlanCacheInvalidationHelper> planCacheInvalidationHelper,
+                    BufferAllocator allocator, ReflectionGoalChecker reflectionGoalChecker, RefreshStartHandler refreshStartHandler,
+                    DependencyResolutionContextFactory dependencyResolutionContextFactory) {
     this.sabotContext = Preconditions.checkNotNull(sabotContext, "sabotContext required");
     this.jobsService = Preconditions.checkNotNull(jobsService, "jobsService required");
-    this.namespaceService = Preconditions.checkNotNull(namespaceService, "namespaceService required");
     this.optionManager = Preconditions.checkNotNull(optionManager, "optionManager required");
     this.userStore = Preconditions.checkNotNull(userStore, "reflection user store required");
     this.reflectionStore = Preconditions.checkNotNull(reflectionStore, "reflection store required");
@@ -190,8 +187,6 @@ public class ReflectionManager implements Runnable {
     this.planCacheInvalidationHelper = Preconditions.checkNotNull(planCacheInvalidationHelper, "planCacheInvalidatorHelper required");
     this.allocator = Preconditions.checkNotNull(allocator, "allocator required");
     this.catalogService = Preconditions.checkNotNull(catalogService, "catalogService required");
-    this.accelerationPlugin = (AccelerationStoragePlugin) Preconditions.checkNotNull(accelerationPlugin);
-    this.accelerationBasePath = Preconditions.checkNotNull(accelerationBasePath);
     this.reflectionGoalChecker = Preconditions.checkNotNull(reflectionGoalChecker);
     this.refreshStartHandler = Preconditions.checkNotNull(refreshStartHandler);
     this.dependencyResolutionContextFactory =  Preconditions.checkNotNull(dependencyResolutionContextFactory);
@@ -218,10 +213,11 @@ public class ReflectionManager implements Runnable {
     }
   }
 
+  @WithSpan
   @VisibleForTesting
   void sync() {
-    long lastWakeupTime = System.currentTimeMillis();
-    final long previousLastWakeupTime = lastWakeupTime - WAKEUP_OVERLAP_MS;
+    long currentTime = System.currentTimeMillis();
+    final long lookbackTime = currentTime - WAKEUP_OVERLAP_MS;
     // updating the store's lastWakeupTime here. This ensures that if we're failing we don't do a denial of service attack
     // this assumes we properly handle exceptions for each goal/entry independently and we don't exit the loop before we
     // go through all entities otherwise we may "skip" handling some entities in case of failures
@@ -230,17 +226,23 @@ public class ReflectionManager implements Runnable {
     final long orphanThreshold = System.currentTimeMillis() - optionManager.getOption(MATERIALIZATION_ORPHAN_REFRESH) * 1000;
     final long deletionThreshold = System.currentTimeMillis() - deletionGracePeriod;
     final int numEntriesToDelete = (int) optionManager.getOption(REFLECTION_DELETION_NUM_ENTRIES);
+    Span.current().setAttribute("dremio.reflectionmanager.deletion_grace_period", deletionGracePeriod);
+    Span.current().setAttribute("dremio.reflectionmanager.num_entries_to_delete", numEntriesToDelete);
+    Span.current().setAttribute("dremio.reflectionmanager.current_time", currentTime);
+    Span.current().setAttribute("dremio.reflectionmanager.last_wakeup_time", lastWakeupTime);
+
     handleReflectionsToUpdate();
     handleDeletedDatasets();
-    handleGoals(previousLastWakeupTime);
+    handleGoals(lookbackTime);
     try (DependencyResolutionContext context = dependencyResolutionContextFactory.create()) {
+      Span.current().setAttribute("dremio.reflectionmanager.has_acceleration_settings_changed", context.hasAccelerationSettingsChanged());
       handleEntries(context);
     }
     deleteDeprecatedMaterializations(deletionThreshold, numEntriesToDelete);
     deprecateMaterializations();
     deleteDeprecatedGoals(deletionThreshold);
     deleteMaterializationOrphans(orphanThreshold, deletionThreshold);
-    this.lastWakeupTime = lastWakeupTime;
+    this.lastWakeupTime = currentTime;
   }
 
   /**
@@ -269,7 +271,7 @@ public class ReflectionManager implements Runnable {
     }
   }
 
-
+  @WithSpan
   private void deleteMaterializationOrphans(long orphanThreshold, long depreciateDeletionThreshold) {
 
     if (orphanThreshold <= this.lastOrphanCheckTime) {
@@ -298,6 +300,7 @@ public class ReflectionManager implements Runnable {
    * handle all reflections marked by the reflection service as need to update.<br>
    * those are reflections with plans that couldn't be expended and thus need to be set in UPDATE state
    */
+  @WithSpan
   private void handleReflectionsToUpdate() {
     final Iterator<ReflectionId> iterator = reflectionsToUpdate.iterator();
     while (iterator.hasNext()) {
@@ -321,6 +324,7 @@ public class ReflectionManager implements Runnable {
    *
    * @param deletionThreshold threshold after which deprecated reflection goals are deleted
    */
+  @WithSpan
   private void deleteDeprecatedGoals(long deletionThreshold) {
     Iterable<ReflectionGoal> goalsDueForDeletion = userStore.getDeletedBefore(deletionThreshold);
     for (ReflectionGoal goal : goalsDueForDeletion) {
@@ -329,6 +333,7 @@ public class ReflectionManager implements Runnable {
     }
   }
 
+  @WithSpan
   private void deprecateMaterializations() {
     final long now = System.currentTimeMillis();
     Iterable<Materialization> materializations = materializationStore.getAllExpiredWhen(now);
@@ -347,6 +352,7 @@ public class ReflectionManager implements Runnable {
    * @param deletionThreshold threshold time after which deprecated materialization are deleted
    * @param numEntries        number of entries that should be deleted now
    */
+  @WithSpan
   private void deleteDeprecatedMaterializations(long deletionThreshold, int numEntries) {
     Iterable<Materialization> materializations = materializationStore.getDeletableEntriesModifiedBefore(deletionThreshold, numEntries);
     for (Materialization materialization : materializations) {
@@ -362,6 +368,7 @@ public class ReflectionManager implements Runnable {
   /**
    * 2nd pass: go through the reflection store
    */
+  @WithSpan
   private void handleEntries(DependencyResolutionContext dependencyResolutionContext) {
     final long noDependencyRefreshPeriodMs = optionManager.getOption(ReflectionOptions.NO_DEPENDENCY_REFRESH_PERIOD_SECONDS) * 1000;
 
@@ -377,19 +384,42 @@ public class ReflectionManager implements Runnable {
       }
     }
     this.lastStats = ec;
+    Span.current().setAttribute("dremio.reflectionmanager.entries_active", ec.active);
+    Span.current().setAttribute("dremio.reflectionmanager.entries_failed", ec.failed);
+    Span.current().setAttribute("dremio.reflectionmanager.entries_unknown", ec.unknown);
+    Span.current().setAttribute("dremio.reflectionmanager.entries_refreshing", ec.refreshing);
   }
 
+  @WithSpan
   private void handleDeletedDatasets() {
     Iterable<ReflectionGoal> goals = userStore.getAllNotDeleted();
+    EntityExplorer catalog = CatalogUtil.getSystemCatalogForReflections(catalogService);
+    int total = 0;
+    int errors = 0;
     for (ReflectionGoal goal : goals) {
-      handleDatasetDeletion(goal.getDatasetId(), goal);
+      try {
+        handleDatasetDeletion(goal.getDatasetId(), goal, catalog);
+      } catch (Exception exception) {
+        // Usually source is down but need to catch all exceptions
+        logger.debug("Unable the handleDatasetDeletion for {}", getId(goal), exception);
+        errors++;
+      }
+      total++;
     }
 
     Iterable<ExternalReflection> externalReflections = externalReflectionStore.getExternalReflections();
     for (ExternalReflection externalReflection : externalReflections) {
-      handleDatasetDeletionForExternalReflection(externalReflection);
+      try {
+        handleDatasetDeletionForExternalReflection(externalReflection, catalog);
+      } catch (Exception exception) {
+        // Usually source is down but need to catch all exceptions
+        logger.debug("Unable the handleDatasetDeletion for {}", getId(externalReflection), exception);
+        errors++;
+      }
+      total++;
     }
-
+    Span.current().setAttribute("dremio.reflectionmanager.handle_deleted_datasets.total", total);
+    Span.current().setAttribute("dremio.reflectionmanager.handle_deleted_datasets.errors", errors);
   }
 
   /**
@@ -438,6 +468,7 @@ public class ReflectionManager implements Runnable {
           // only refresh ACTIVE reflections when they are due for refresh
           break;
         }
+        // fall through to refresh ACTIVE reflections that are due for refresh
       case REFRESH:
         counts.refreshing++;
         logger.info("Refresh due for {}", getId(entry));
@@ -499,7 +530,7 @@ public class ReflectionManager implements Runnable {
     }
     JobAttempt lastAttempt = JobsProtoUtil.getLastAttempt(job);
     final RefreshDoneHandler handler = new RefreshDoneHandler(entry, m, job, jobsService,
-      namespaceService, materializationStore, dependencyManager, expansionHelper, accelerationBasePath, allocator,
+      materializationStore, dependencyManager, expansionHelper, getAccelerationPlugin().getConfig().getPath(), allocator,
       catalogService, dependencyResolutionContext);
     switch (lastAttempt.getState()) {
       case COMPLETED:
@@ -590,7 +621,7 @@ public class ReflectionManager implements Runnable {
 
     try {
       final RefreshDecision decision = refreshDoneHandler.getRefreshDecision(jobAttempt);
-      refreshDoneHandler.updateDependencies(entry, jobAttempt.getInfo(), decision, namespaceService,
+      refreshDoneHandler.updateDependencies(entry, jobAttempt.getInfo(), decision,
         dependencyManager);
     } catch (Exception | AssertionError e) {
       logger.warn("Couldn't retrieve any dependency for {}", getId(entry), e);
@@ -607,6 +638,7 @@ public class ReflectionManager implements Runnable {
    *
    * @param lastWakeupTime previous wakeup time
    */
+  @WithSpan
   private void handleGoals(long lastWakeupTime) {
     Iterable<ReflectionGoal> goals = userStore.getModifiedOrCreatedSince(lastWakeupTime);
     for (ReflectionGoal goal : goals) {
@@ -618,11 +650,24 @@ public class ReflectionManager implements Runnable {
     }
   }
 
-  private void handleDatasetDeletion(String datasetId, ReflectionGoal goal) {
+  /**
+   * Checks if dataset has been deleted from reflection manager's point of view.
+   * For example, a DROP TABLE will delete a table.  But a DROP BRANCH and DROP TAG
+   * could also result in a deleted table.  ASSIGN BRANCH and ASSIGN TAG could also
+   * result in a deleted table if the table is no longer present in the updated ref's commit log.
+   *
+   * Catalog returns null in the above scenarios.  Catalog could also throw a UserException when
+   * the source is down in which case we don't delete the dataset's reflections.
+   *
+   * @param datasetId
+   * @param goal
+   * @param catalog
+   */
+  private void handleDatasetDeletion(String datasetId, ReflectionGoal goal, EntityExplorer catalog) {
     // make sure the corresponding dataset was not deleted
-    if (namespaceService.findDatasetByUUID(datasetId) == null) {
+    if (catalog.getTable(datasetId) == null) {
       // dataset not found, mark goal as deleted
-      logger.debug("dataset deleted for {}", getId(goal));
+      logger.debug("dataset with id {} deleted for {}", datasetId, getId(goal));
 
       final ReflectionGoal goal2 = userStore.get(goal.getId());
       if (goal2 != null) {
@@ -631,20 +676,20 @@ public class ReflectionManager implements Runnable {
           return;
         } catch (ConcurrentModificationException cme) {
           // someone's changed the reflection goal, we'll delete it next time the manager wakes up
-          logger.debug("concurrent modification when updating goal state to deleted for {}", getId(goal2));
+          logger.debug("concurrent modification when updating goal state to deleted for {} on dataset with id {}",
+            getId(goal2),
+            datasetId);
         }
       }
 
       // something wrong here
-      throw new IllegalStateException("no reflection found for " + getId(goal));
+      throw new IllegalStateException("no reflection found for " + getId(goal) + "on dataset with id" + datasetId);
     }
   }
 
-
-
-  private void handleDatasetDeletionForExternalReflection(ExternalReflection externalReflection) {
-    if (namespaceService.findDatasetByUUID(externalReflection.getQueryDatasetId()) == null
-      || namespaceService.findDatasetByUUID(externalReflection.getTargetDatasetId()) == null) {
+  private void handleDatasetDeletionForExternalReflection(ExternalReflection externalReflection, EntityExplorer catalog) {
+    if (catalog.getTable(externalReflection.getQueryDatasetId()) == null
+      || catalog.getTable(externalReflection.getTargetDatasetId()) == null) {
       externalReflectionStore.deleteExternalReflection(externalReflection.getId());
     }
   }
@@ -817,20 +862,6 @@ public class ReflectionManager implements Runnable {
     // when the materialization entry is deleted
   }
 
-  void setAccelerationBasePath(Path path) {
-    if (path.equals(accelerationBasePath)) {
-      return;
-    }
-    Iterable<ReflectionEntry> entries = reflectionStore.find();
-    // if there are already reflections don't update the path if the input and current path is different.
-    if (Iterables.size(entries) > 0) {
-      logger.warn("Failed to set acceleration base path as there are reflections present. Input path {} existing path {}",
-        path, accelerationBasePath);
-      return;
-    }
-    this.accelerationBasePath = path;
-  }
-
   @VisibleForTesting
   void handleSuccessfulJob(ReflectionEntry entry, Materialization materialization, com.dremio.service.job.JobDetails job,
                            RefreshDoneHandler handler) {
@@ -965,7 +996,7 @@ public class ReflectionManager implements Runnable {
     // start compaction job
     final String sql = String.format("COMPACT MATERIALIZATION \"%s\".\"%s\" AS '%s'", entry.getId().getId(), materialization.getId().getId(), newMaterialization.getId().getId());
 
-    final JobId compactionJobId = submitRefreshJob(jobsService, namespaceService, entry, materialization, sql,
+    final JobId compactionJobId = submitRefreshJob(jobsService, catalogService, entry, materialization, sql,
       new WakeUpManagerWhenJobDone(wakeUpCallback, "compaction job done"));
 
     newMaterialization
@@ -992,7 +1023,8 @@ public class ReflectionManager implements Runnable {
     final JobDetails jobDetails = ReflectionUtils.computeJobDetails(lastAttempt);
     final List<DataPartition> dataPartitions = computeDataPartitions(jobInfo);
     final MaterializationMetrics metrics = ReflectionUtils.computeMetrics(job, jobsService, allocator, JobsProtoUtil.toStuff(job.getJobId()));
-    final List<String> refreshPath = ReflectionUtils.getRefreshPath(JobsProtoUtil.toStuff(job.getJobId()), accelerationBasePath, jobsService, allocator);
+    final List<String> refreshPath = ReflectionUtils.getRefreshPath(JobsProtoUtil.toStuff(job.getJobId()),
+      getAccelerationPlugin().getConfig().getPath(), jobsService, allocator);
     final boolean isIcebergRefresh = materialization.getIsIcebergDataset() != null && materialization.getIsIcebergDataset();
     final String icebergBasePath = ReflectionUtils.getIcebergReflectionBasePath(refreshPath, isIcebergRefresh);
     final Refresh refresh = ReflectionUtils.createRefresh(materialization.getReflectionId(), refreshPath, seriesId,
@@ -1057,7 +1089,7 @@ public class ReflectionManager implements Runnable {
     final String sql = String.format("LOAD MATERIALIZATION METADATA \"%s\".\"%s\"",
       materialization.getReflectionId().getId(), materialization.getId().getId());
 
-    final JobId jobId = submitRefreshJob(jobsService, namespaceService, entry, materialization, sql,
+    final JobId jobId = submitRefreshJob(jobsService, catalogService, entry, materialization, sql,
       new WakeUpManagerWhenJobDone(wakeUpCallback, "metadata refresh job done"));
 
     entry.setState(METADATA_REFRESH)
@@ -1165,15 +1197,22 @@ public class ReflectionManager implements Runnable {
     final String path = PathUtils.getPathJoiner().join(ImmutableList.of(
       reflectionId.getId(),
       basePath));
+    final AccelerationStoragePlugin accelerationPlugin = getAccelerationPlugin();
     final FileSelection fileSelection = accelerationPlugin.getIcebergFileSelection(path);
-    final IcebergModel icebergModel = getIcebergModel();
+    if (fileSelection == null) {
+      throw new IllegalStateException(String.format("Acceleration path does not exist: %s",
+        accelerationPlugin.resolveTablePathToValidPath(path).toString()));
+    }
+    final IcebergModel icebergModel = accelerationPlugin.getIcebergModel();
     return icebergModel.getIcebergTable(icebergModel.getTableIdentifier(fileSelection.getSelectionRoot()));
   }
 
-  private IcebergModel getIcebergModel() {
-    if (icebergModel == null) {
-      icebergModel = accelerationPlugin.getIcebergModel();
-    }
-    return icebergModel;
+  /**
+   * Dist path may be updated after coordinator startup so it's important
+   * to not cache the accelerator storage plugin or its dist path.
+   * @return
+   */
+  private AccelerationStoragePlugin getAccelerationPlugin() {
+    return catalogService.getSource(ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME);
   }
 }

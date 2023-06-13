@@ -86,8 +86,14 @@ message JobEvent {
     JobSummary progress_job_summary = 4;
     JobSummary final_job_summary = 5;
     com.dremio.service.job.proto.JobSubmission job_submission = 6;
-    bytes result_data = 7;
+    bytes result_data = 7 [deprecated = true];
+    QueryResultData query_result_data = 8;
   }
+}
+
+message QueryResultData {
+  exec.shared.QueryData header = 1;
+  bytes result_data = 2;
 }
 
 message StoreJobResultRequest {
@@ -306,6 +312,7 @@ enum QueryType {
   FLIGHT = 600; //query submitted by FlightClient
   METADATA_REFRESH = 700; // Queries related to metadata refresh
   INTERNAL_ICEBERG_METADATA_DROP = 800; // Queries related to internal iceberg metadata drop
+  D2D = 900;
 }
 
 enum QueryLabel {

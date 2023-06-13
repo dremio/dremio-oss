@@ -27,14 +27,17 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.projectnessie.client.api.NessieApi;
 import org.projectnessie.client.api.NessieApiV1;
+import org.projectnessie.client.api.NessieApiV2;
 import org.projectnessie.model.ContentKey;
+
+import com.dremio.services.nessie.grpc.client.impl.GrpcApiImpl;
 
 import io.grpc.ManagedChannel;
 import io.grpc.Metadata;
 import io.grpc.stub.MetadataUtils;
 
 /**
- * Tests for the {@link com.dremio.services.nessie.grpc.client.v1api.GrpcApiV1Impl}
+ * Tests for the {@link GrpcApiImpl}
  */
 public class TestNessieGrpcClient extends AbstractTestNessieGrpcClient{
   interface IncompatibleApiInterface extends NessieApi {
@@ -119,6 +122,21 @@ public class TestNessieGrpcClient extends AbstractTestNessieGrpcClient{
       GrpcClientBuilder.builder()
         .withChannel(serviceWithChannel.getChannel())
         .build(NessieApiV1.class);
+    assertThat(api.getConfig().getDefaultBranch()).isEqualTo(REF_NAME);
+    assertThat(api.getDefaultBranch().getName()).isEqualTo(REF_NAME);
+    assertThat(api.getAllReferences().get().getReferences()).containsExactly(REF);
+    assertThat(api.getContent().key(ContentKey.of("test")).refName(REF_NAME).get())
+      .containsValue(fromProto(ICEBERG_TABLE));
+  }
+
+  @Test
+  public void testApiV2Calls() throws IOException {
+    ServiceWithChannel serviceWithChannel = startGrpcServer();
+    assertThat(serviceWithChannel.getServer().getServices()).hasSize(3);
+    NessieApiV2 api =
+      GrpcClientBuilder.builder()
+        .withChannel(serviceWithChannel.getChannel())
+        .build(NessieApiV2.class);
     assertThat(api.getConfig().getDefaultBranch()).isEqualTo(REF_NAME);
     assertThat(api.getDefaultBranch().getName()).isEqualTo(REF_NAME);
     assertThat(api.getAllReferences().get().getReferences()).containsExactly(REF);

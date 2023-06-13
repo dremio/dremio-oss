@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-const menlo = "Menlo, monospace";
 const inter = "var(--dremio--font-family)";
 
 export const bodySmall = {
@@ -60,21 +59,21 @@ export const formPlaceholder = {
 };
 
 export const fixedWidthDefault = {
-  fontFamily: menlo,
+  fontFamily: "var(--dremio--font-family--monospace)",
   fontWeight: 400,
   fontSize: 12,
   color: "var(--dremio--color--text--main)",
 };
 
 export const fixedWidthSmall = {
-  fontFamily: menlo,
+  fontFamily: "var(--dremio--font-family--monospace)",
   fontWeight: 400,
   fontSize: 11,
   color: "var(--dremio--color--text--main)",
 };
 
 export const fixedWidthBold = {
-  fontFamily: menlo,
+  fontFamily: "var(--dremio--font-family--monospace)",
   fontWeight: 700,
   fontSize: 11,
   color: "var(--dremio--color--text--main)",
@@ -139,42 +138,42 @@ export const h2White = {
   fontFamily: inter,
   fontWeight: 300,
   fontSize: 18,
-  color: "var(--dremio--color--neutral--000)",
+  color: "white",
 };
 
 export const h3White = {
   fontFamily: inter,
   fontWeight: 300,
   fontSize: 16,
-  color: "var(--dremio--color--neutral--000)",
+  color: "white",
 };
 
 export const h4White = {
   fontFamily: inter,
   fontWeight: 500,
   fontSize: 13,
-  color: "var(--dremio--color--neutral--000)",
+  color: "white",
 };
 
 export const h5White = {
   fontFamily: inter,
   fontWeight: 500,
   fontSize: 12,
-  color: "var(--dremio--color--neutral--000)",
+  color: "white",
 };
 
 export const bodyWhite = {
   fontFamily: inter,
   fontWeight: 400,
   fontSize: 12,
-  color: "var(--dremio--color--neutral--000)",
+  color: "white",
 };
 
 export const bodySmallWhite = {
   fontFamily: inter,
   fontWeight: 400,
   fontSize: 11,
-  color: "var(--dremio--color--neutral--000)",
+  color: "white",
 };
 
 export const metadataWhite = {

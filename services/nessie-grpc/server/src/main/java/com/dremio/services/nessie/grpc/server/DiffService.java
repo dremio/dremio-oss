@@ -16,12 +16,15 @@
 package com.dremio.services.nessie.grpc.server;
 
 import static com.dremio.services.nessie.grpc.ProtoUtil.fromProto;
+import static com.dremio.services.nessie.grpc.ProtoUtil.refToProto;
 import static com.dremio.services.nessie.grpc.ProtoUtil.toProto;
 import static com.dremio.services.nessie.grpc.client.GrpcExceptionMapper.handle;
+import static org.projectnessie.services.impl.RefUtil.toReference;
 
 import java.util.function.Supplier;
 
-import org.projectnessie.api.DiffApi;
+import org.projectnessie.model.DiffResponse.DiffEntry;
+import org.projectnessie.services.spi.PagedCountingResponseHandler;
 
 import com.dremio.services.nessie.grpc.api.DiffRequest;
 import com.dremio.services.nessie.grpc.api.DiffResponse;
@@ -34,14 +37,51 @@ import io.grpc.stub.StreamObserver;
  */
 public class DiffService extends DiffServiceImplBase {
 
-  private final Supplier<DiffApi> bridge;
+  private final Supplier<? extends org.projectnessie.services.spi.DiffService> bridge;
 
-  public DiffService(Supplier<DiffApi> bridge) {
+  public DiffService(Supplier<? extends org.projectnessie.services.spi.DiffService> bridge) {
     this.bridge = bridge;
   }
 
   @Override
   public void getDiff(DiffRequest request, StreamObserver<DiffResponse> observer) {
-    handle(() -> toProto(bridge.get().getDiff(fromProto(request))), observer);
+
+    handle(() -> {
+        DiffResponse.Builder response = DiffResponse.newBuilder();
+        return bridge.get().getDiff(
+          request.getFromRefName(),
+          fromProto(request::hasFromHashOnRef, request::getFromHashOnRef),
+          request.getToRefName(),
+          fromProto(request::hasToHashOnRef, request::getToHashOnRef),
+          fromProto(request::hasPageToken, request::getPageToken),
+          new PagedCountingResponseHandler<DiffResponse, DiffEntry>(
+            fromProto(request::hasMaxRecords, request::getMaxRecords)) {
+
+            @Override
+            protected boolean doAddEntry(DiffEntry entry) {
+              response.addDiffs(toProto(entry));
+              return true;
+            }
+
+            @Override
+            public DiffResponse build() {
+              return response.build();
+            }
+
+            @Override
+            public void hasMore(String pagingToken) {
+              response.setHasMore(true).setPageToken(pagingToken);
+            }
+          },
+          fromReference -> response.setEffectiveFromRef(refToProto(toReference(fromReference))),
+          toReference -> response.setEffectiveToRef(refToProto(toReference(toReference))),
+          fromProto(request::hasMinKey, () -> fromProto(request.getMinKey())),
+          fromProto(request::hasMaxKey, () -> fromProto(request.getMaxKey())),
+          fromProto(request::hasPrefixKey, () -> fromProto(request.getPrefixKey())),
+          fromProto(request.getKeysList()),
+          fromProto(request::hasFilter, request::getFilter)
+        );
+      },
+      observer);
   }
 }

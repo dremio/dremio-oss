@@ -78,6 +78,7 @@ public class EmptyValues extends AbstractBase implements SubScan {
     return false;
   }
 
+  @Override
   public BatchSchema getFullSchema(){
     return schema;
   }

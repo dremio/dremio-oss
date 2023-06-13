@@ -59,6 +59,7 @@ public final class SampleCrel extends SampleRelBase implements CopyToCluster {
     return new SampleCrel(this.getCluster(), traitSet, sole(inputs));
   }
 
+  @Override
   public RelNode accept(RelShuttle shuttle) {
     return shuttle.visit(this);
   }

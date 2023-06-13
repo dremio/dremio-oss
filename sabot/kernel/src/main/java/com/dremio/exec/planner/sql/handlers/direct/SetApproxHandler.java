@@ -49,7 +49,7 @@ public class SetApproxHandler extends SimpleDirectHandler {
       final NamespaceKey path = catalog.resolveSingle(sqlSetApprox.getPath());
 
       String root = path.getRoot();
-      if(root.equalsIgnoreCase("sys") || root.equalsIgnoreCase("INFORMATION_SCHEMA")) {
+      if ("sys".equalsIgnoreCase(root) || "INFORMATION_SCHEMA".equalsIgnoreCase(root)) {
         throw UserException.parseError().message("System and Information Schema tables cannot be modified: %s", path).build(logger);
       }
 

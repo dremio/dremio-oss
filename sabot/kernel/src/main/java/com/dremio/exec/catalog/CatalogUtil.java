@@ -23,9 +23,11 @@ import com.dremio.connector.metadata.DatasetSplit;
 import com.dremio.connector.metadata.PartitionChunk;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.options.TimeTravelOption;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.NoDefaultBranchException;
 import com.dremio.exec.store.ReferenceConflictException;
 import com.dremio.exec.store.ReferenceNotFoundException;
+import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.service.namespace.DatasetMetadataSaver;
 import com.dremio.service.namespace.NamespaceKey;
@@ -33,6 +35,7 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.orphanage.Orphanage;
 import com.dremio.service.orphanage.proto.OrphanEntry;
+import com.dremio.service.users.SystemUser;
 
 public final class CatalogUtil {
 
@@ -137,11 +140,10 @@ public final class CatalogUtil {
     return deleteCallback;
   }
 
-  public static void validateResolvedVersionIsBranch(ResolvedVersionContext resolvedVersionContext, String tableName) {
+  public static void validateResolvedVersionIsBranch(ResolvedVersionContext resolvedVersionContext) {
     if ((resolvedVersionContext != null) && !resolvedVersionContext.isBranch()) {
       throw UserException.validationError()
-        .message("Unable to perform operation on %s - version %s is not a branch ",
-          tableName,
+        .message("DDL and DML operations are only supported for branches - not on tags or commits. %s is not a branch. ",
           resolvedVersionContext.getRefName())
         .buildSilently();
     }
@@ -163,10 +165,11 @@ public final class CatalogUtil {
 
     return ((MutablePlugin) storagePlugin).isSupportUserDefinedSchema(dataset);
 
-}
+  }
 
   /**
    * Utility to return TimeTravelRequest for query : select * from iceberg_table AT SNAPSHOT/TIMESTAMP
+   *
    * @param key
    * @param context
    * @return
@@ -194,4 +197,63 @@ public final class CatalogUtil {
         throw new AssertionError("Unsupported type " + context.getType());
     }
   }
+
+  /**
+   * This Catalog will allow the caller to search for entries but will not promote entries that are missing in Namespace KV store
+   * It will not check validity of metadata
+   *
+   * @param catalogService
+   * @return
+   */
+  public static EntityExplorer getSystemCatalogForReflections(CatalogService catalogService) {
+    return catalogService.getCatalog(MetadataRequestOptions.newBuilder()
+      .setSchemaConfig(SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build())
+      .setCheckValidity(false)
+      .setNeverPromote(true)
+      .build());
+  }
+
+  //TODO(DX-63224) : Remove this CatalogUtil function and have callers use the main Catalog API directly.
+
+  /**
+   * Throws UserException if source is temporarily unavailable.
+   * Throws AccessControlException if catalog user does not haves access.
+   * Returns null if table not found
+   *
+   * @param catalogEntityKey
+   * @param catalog
+   * @return
+   */
+  public static DremioTable getTable(CatalogEntityKey catalogEntityKey, EntityExplorer catalog) {
+    NamespaceKey key = catalogEntityKey.toNamespaceKey();
+    if (catalogEntityKey.getTableVersionContext() != null) {
+      try {
+        return catalog.getTableSnapshot(key, catalogEntityKey.getTableVersionContext());
+      } catch (UserException e) {
+        // getTableSnapshot returns a UserException when table is not found.
+        return null;
+      }
+    } else {
+      return catalog.getTable(key);
+    }
+  }
+
+  public static DatasetConfig  getDatasetConfig(EntityExplorer catalog, String datasetId) {
+    DremioTable dremioTable = catalog.getTable(datasetId);
+    DatasetConfig datasetConfig = null;
+    if (dremioTable != null) {
+      datasetConfig = dremioTable.getDatasetConfig();
+    }
+    return datasetConfig;
+  }
+
+  public static DatasetConfig  getDatasetConfig(EntityExplorer catalog, NamespaceKey key) {
+    DremioTable dremioTable = catalog.getTable(key);
+    DatasetConfig datasetConfig = null;
+    if (dremioTable != null) {
+      datasetConfig = dremioTable.getDatasetConfig();
+    }
+    return datasetConfig;
+  }
+
 }

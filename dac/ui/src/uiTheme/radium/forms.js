@@ -47,7 +47,7 @@ export const section = {
 export const sectionTitle = {
   marginTop: 24,
   marginBottom: 24,
-  fontSize: 18,
+  fontSize: 16,
   fontWeight: 600,
 };
 
@@ -81,7 +81,7 @@ export const textInputError = {
 export const textInputDisabled = {
   ...typography.formDescription,
   background: "#EEEFF1",
-  border: "1px solid var(--dremio--color--neutral--200)",
+  border: "1px solid var(--color--neutral--100)",
   color: "#B0B7BF",
 };
 
@@ -95,7 +95,7 @@ export const textArea = {
   height: "56px",
   width: "100%",
   display: "block",
-  border: "1px solid var(--dremio--color--neutral--200)",
+  border: "1px solid var(--color--neutral--100)",
 };
 
 export const description = {

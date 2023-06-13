@@ -55,11 +55,10 @@ final class NamespaceEntity {
       Type type,
       NamespaceKey path,
       Object config,
-      boolean keyNormalization,
       List<Any> attributes
   ) {
     final NameSpaceContainer container = new NameSpaceContainer();
-    final NamespaceInternalKey namespaceInternalKey = new NamespaceInternalKey(path, keyNormalization);
+    final NamespaceInternalKey namespaceInternalKey = new NamespaceInternalKey(path);
     container.setType(type);
     switch (type) {
       case DATASET:

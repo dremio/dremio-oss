@@ -279,8 +279,7 @@ class ExcelTestHelper {
         .baselineValues(3.0d, "Three and Three")
         .baselineValues(4.0d, "Four and Four, Five and Five")
         .baselineValues(5.0d, "Four and Four, Five and Five");
-    }
-    else {
+    } else {
       testBuilder
         .baselineValues(1.0d, "One")
         .baselineValues(2.0d, "Two")
@@ -336,8 +335,7 @@ class ExcelTestHelper {
         .baselineValues("Three and Three", "Three and Three")
         .baselineValues("Four and Four, Five and Five", "Four and Four, Five and Five")
         .baselineValues("Four and Four, Five and Five", "Four and Four, Five and Five");
-    }
-    else {
+    } else {
       testBuilder
         .baselineValues("One", "One")
         .baselineValues("Two", "Two")

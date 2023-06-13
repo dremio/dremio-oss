@@ -161,10 +161,12 @@ class EvaluatingJoinMatcher implements AutoCloseable, JoinMatcher {
     }
   }
 
+  @Override
   public long getCopyNanos() {
     return copyWatch.elapsed(TimeUnit.NANOSECONDS);
   }
 
+  @Override
   public long getMatchNanos() {
     return matchWatch.elapsed(TimeUnit.NANOSECONDS);
   }

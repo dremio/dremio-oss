@@ -41,6 +41,6 @@ export const engineRouting = admin.extend(() => "engine-routing");
 export const roles = admin.extend(() => "roles");
 export const roleId = roles.extend((params: RolesParam) => `${params.roleId}`);
 export const biApplications = admin.extend(() => "bi-applications");
-export const sql = admin.extend(() => "sql");
+export const preferences = admin.extend(() => "preferences");
 export const general = admin.extend(() => "general");
 export const errorHandling = admin.extend(() => "*");

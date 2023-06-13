@@ -26,7 +26,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -73,47 +72,31 @@ import io.grpc.ManagedChannel;
  * Plugin for System tables using Flight protocol, also aware of tables in {@link SystemTable}
  */
 public class SysFlightStoragePlugin implements StoragePlugin, SupportsListingDatasets {
-  static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(SysFlightStoragePlugin.class);
-
   private final Map<EntityPath, SystemTable> legacyTableMap =
     Stream.of(SystemTable.values())
       .collect(Collectors.toMap(systemTable -> canonicalize(systemTable.getDatasetPath()), Function.identity()));
 
   private volatile Set<EntityPath> flightTableList = new HashSet<>();
 
-  private final SysFlightPluginConf conf;
   private final SabotContext context;
   private final String name;
-  private final Boolean useConduit;
+  private final boolean useConduit;
   private final BufferAllocator allocator;
-  private final Predicate<String> userPredicate;
   private final JobResultInfoProvider jobResultInfoProvider;
 
   private volatile FlightClient flightClient;
   private volatile ManagedChannel prevChannel;
 
-  public SysFlightStoragePlugin(SysFlightPluginConf conf,
-                                SabotContext context,
+  public SysFlightStoragePlugin(SabotContext context,
                                 String name,
-                                Boolean useConduit,
-                                Predicate<String> userPredicate,
+                                boolean useConduit,
                                 List<SystemTable> excludeLegacyTablesList) {
     excludeLegacyTables(legacyTableMap, excludeLegacyTablesList);
-    this.conf = conf;
     this.context = context;
     this.jobResultInfoProvider = context.getJobResultInfoProvider();
     this.name = name;
     this.useConduit = useConduit;
-    this.userPredicate = userPredicate;
     allocator = context.getAllocator().newChildAllocator(SysFlightStoragePlugin.class.getName(), 0, Long.MAX_VALUE);
-  }
-
-  SysFlightStoragePlugin(SysFlightPluginConf conf,
-                         SabotContext context,
-                         String name,
-                         Boolean useConduit,
-                         List<SystemTable> excludeLegacyTablesList) {
-    this(conf, context, name, useConduit, s -> true, excludeLegacyTablesList);
   }
 
   Map<EntityPath, SystemTable> getLegacyTableMap() {
@@ -125,7 +108,7 @@ public class SysFlightStoragePlugin implements StoragePlugin, SupportsListingDat
     if (useConduit) {
       curChannel = context.getConduitProvider().getOrCreateChannelToMaster();
     } else {
-      curChannel = context.getConduitProvider().getOrCreateChannel(conf.endpoint);
+      curChannel = context.getConduitProvider().getOrCreateChannel(context.getEndpoint());
     }
 
     if (prevChannel != curChannel) {
@@ -152,7 +135,7 @@ public class SysFlightStoragePlugin implements StoragePlugin, SupportsListingDat
 
   @Override
   public boolean hasAccessPermission(String user, NamespaceKey key, DatasetConfig datasetConfig) {
-    return this.userPredicate.test(user);
+    return true;
   }
 
   @Override

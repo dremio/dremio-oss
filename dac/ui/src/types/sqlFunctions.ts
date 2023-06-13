@@ -130,7 +130,7 @@ export enum ModelFunctionFunctionCategoriesEnum {
   CONTEXT = <any>"CONTEXT",
   CONVERSION = <any>"CONVERSION",
   DATETIME = <any>"DATETIME",
-  DATETYPE = <any>"DATETYPE",
+  DATATYPE = <any>"DATATYPE",
   DIRECTORY = <any>"DIRECTORY",
   GEOSPATIAL = <any>"GEOSPATIAL",
   MATH = <any>"MATH",

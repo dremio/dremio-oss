@@ -178,7 +178,7 @@ describe("runDataset saga", () => {
         }
 
         // throw an exceotion
-        // Todo: Fix this to use .to.throw instead (https://dremio.atlassian.net/browse/DX-30942)
+        // Todo: Fix this to use .to.throw instead (DX-30942)
         try {
           checkFinallyBlock(response);
         } catch (ex) {

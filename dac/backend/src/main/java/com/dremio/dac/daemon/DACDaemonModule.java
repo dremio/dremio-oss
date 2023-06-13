@@ -56,6 +56,7 @@ import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.server.DremioServer;
 import com.dremio.dac.server.DremioServlet;
 import com.dremio.dac.server.LivenessService;
+import com.dremio.dac.server.NessieProxyRestServer;
 import com.dremio.dac.server.RestServerV2;
 import com.dremio.dac.server.WebServer;
 import com.dremio.dac.service.admin.KVStoreReportService;
@@ -227,6 +228,7 @@ import com.dremio.service.executor.ExecutorServiceClientFactory;
 import com.dremio.service.flight.DremioFlightAuthProvider;
 import com.dremio.service.flight.DremioFlightAuthProviderImpl;
 import com.dremio.service.flight.DremioFlightService;
+import com.dremio.service.flight.FlightRequestContextDecorator;
 import com.dremio.service.grpc.GrpcChannelBuilderFactory;
 import com.dremio.service.grpc.GrpcServerBuilderFactory;
 import com.dremio.service.grpc.MultiTenantGrpcServerBuilderFactory;
@@ -478,6 +480,12 @@ public class DACDaemonModule implements DACModule {
             bootstrap.getExecutor()
         ));
 
+    // Bind Credentials Service, this will select between Simple and Executor Credentials
+    final com.dremio.services.credentials.CredentialsService credentialsService =
+      com.dremio.services.credentials.CredentialsService.newInstance(config, scanResult);
+    registry.bind(com.dremio.services.credentials.CredentialsService.class,
+      credentialsService);
+
     DremioCredentialProviderFactory.configure(
       registry.provider(com.dremio.services.credentials.CredentialsService.class));
 
@@ -491,6 +499,7 @@ public class DACDaemonModule implements DACModule {
           "conduit"
         );
 
+      // TODO DX-66220: Make AzureVaultCredentialsProvider available before resolving secret URIs in SSL config
       conduitSslEngineFactory = SSLEngineFactory.create(
         conduitSslConfigurator.getSSLConfig(false, fabricAddress));
     } catch (Exception e) {
@@ -544,11 +553,7 @@ public class DACDaemonModule implements DACModule {
 
     registry.bindProvider(NessieApiV1.class, () -> createNessieClientProvider(config, registry));
 
-    // Bind base credentials on both coordinator and executor
-    com.dremio.services.credentials.CredentialsService credentialsService =
-      com.dremio.services.credentials.CredentialsService.newInstance(config, scanResult);
-    registry.bind(com.dremio.services.credentials.CredentialsService.class, credentialsService);
-
+    // Bind gRPC service for remote lookups
     if (isCoordinator) {
       conduitServiceRegistry.registerService(new CredentialsServiceImpl(
         registry.provider(com.dremio.services.credentials.CredentialsService.class)));
@@ -823,7 +828,7 @@ public class DACDaemonModule implements DACModule {
 
     registry.bindSelf(new SystemTablePluginConfigProvider());
 
-    registry.bind(SysFlightPluginConfigProvider.class, new SysFlightPluginConfigProvider(registry.provider(NodeEndpoint.class)));
+    registry.bind(SysFlightPluginConfigProvider.class, new SysFlightPluginConfigProvider());
 
     final MetadataRefreshInfoBroadcaster metadataRefreshInfoBroadcaster =
       new MetadataRefreshInfoBroadcaster(
@@ -851,8 +856,6 @@ public class DACDaemonModule implements DACModule {
         return softwareAssumeRoleCredentialsProvider;
       });
     }
-
-
 
     registry.bind(CatalogService.class, new CatalogServiceImpl(
         registry.provider(SabotContext.class),
@@ -1023,7 +1026,8 @@ public class DACDaemonModule implements DACModule {
         registry.provider(MaestroForwarder.class),
         bootstrapRegistry.lookup(Tracer.class),
         registry.provider(RuleBasedEngineSelector.class),
-        jobResultsAllocator);
+        jobResultsAllocator,
+        registry.provider(RequestContext.class));
 
       if (config.getBoolean(DremioConfig.JOBS_ENABLED_BOOL)) {
         registerJobsServices(conduitServiceRegistry, registry, bootstrap, jobResultsAllocator, optionManagerProvider);
@@ -1115,7 +1119,8 @@ public class DACDaemonModule implements DACModule {
         bootstrap.getExecutor(),
         registry.provider(ForemenWorkManager.class),
         isDistributedMaster,
-        bootstrap.getAllocator());
+        bootstrap.getAllocator(),
+        registry.provider(RequestContext.class));
 
       registry.bind(ReflectionService.class, reflectionService);
       registry.bind(ReflectionAdministrationService.Factory.class, (context) -> reflectionService);
@@ -1123,7 +1128,7 @@ public class DACDaemonModule implements DACModule {
       registry.replace(AccelerationManager.class, new AccelerationManagerImpl(
         registry.provider(ReflectionService.class),
         registry.provider(ReflectionAdministrationService.Factory.class),
-        namespaceServiceProvider));
+        registry.provider(CatalogService.class)));
 
       final StatisticsServiceImpl statisticsService = new StatisticsServiceImpl(
         registry.provider(LegacyKVStoreProvider.class),
@@ -1140,7 +1145,6 @@ public class DACDaemonModule implements DACModule {
 
       registry.bind(ReflectionStatusService.class, new ReflectionStatusServiceImpl(
         nodeEndpointsProvider,
-        namespaceServiceProvider,
         registry.provider(CatalogService.class),
         registry.provider(LegacyKVStoreProvider.class),
         reflectionService.getCacheViewerProvider()
@@ -1277,6 +1281,7 @@ public class DACDaemonModule implements DACModule {
       ));
 
       registry.bind(RestServerV2.class, new RestServerV2(bootstrap.getClasspathScan()));
+      registry.bind(NessieProxyRestServer.class, new NessieProxyRestServer());
       registry.bind(APIServer.class, new APIServer(bootstrap.getClasspathScan()));
 
       registry.bind(DremioServlet.class, new DremioServlet(dacConfig.getConfig(),
@@ -1322,6 +1327,7 @@ public class DACDaemonModule implements DACModule {
         registry.provider(UserService.class),
         registry.provider(TokenManager.class)
       ));
+      registry.bind(FlightRequestContextDecorator.class, FlightRequestContextDecorator.DEFAULT);
 
       registry.bindSelf(new DremioFlightService(
         registry.provider(DremioConfig.class),
@@ -1332,6 +1338,7 @@ public class DACDaemonModule implements DACModule {
         registry.provider(OptionManager.class),
         registry.provider(UserSessionService.class),
         registry.provider(DremioFlightAuthProvider.class),
+        registry.provider(FlightRequestContextDecorator.class),
         registry.provider(com.dremio.services.credentials.CredentialsService.class)
       ));
     } else {
@@ -1395,6 +1402,7 @@ public class DACDaemonModule implements DACModule {
         registry.provider(com.dremio.services.credentials.CredentialsService.class),
         registry.provider(RestServerV2.class),
         registry.provider(APIServer.class),
+        registry.provider(NessieProxyRestServer.class),
         registry.provider(DremioServer.class),
         new DremioBinder(registry),
         "ui",

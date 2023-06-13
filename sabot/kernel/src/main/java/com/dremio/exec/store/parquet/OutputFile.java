@@ -19,53 +19,31 @@ import java.io.IOException;
 
 import org.apache.parquet.io.PositionOutputStream;
 
-import com.dremio.exec.hadoop.FSDataOutputStreamWithStatsWrapper;
-import com.dremio.exec.hadoop.FSDataOutputStreamWrapper;
 import com.dremio.io.FSOutputStream;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
-import com.dremio.sabot.exec.context.OperatorStats;
 
 public final class OutputFile implements org.apache.parquet.io.OutputFile {
   private final FileSystem fs;
   private final Path path;
-  private final org.apache.hadoop.fs.FileSystem hadoopFs;
-  final OperatorStats operatorStats;
 
-
-  private OutputFile(FileSystem fs, Path path, org.apache.hadoop.fs.FileSystem hadoopFs, OperatorStats operatorStats) {
+  private OutputFile(FileSystem fs, Path path) {
     this.fs = fs;
     this.path = path;
-    this.hadoopFs = hadoopFs;
-    this.operatorStats = operatorStats;
-
   }
 
-  public static OutputFile of(FileSystem fs, Path path, org.apache.hadoop.fs.FileSystem hadoopFs, OperatorStats operatorStats) {
-    return new OutputFile(fs, path, hadoopFs, operatorStats);
-  }
-
-  private FSOutputStream getFSOutputStreamWithStats(OperatorStats operatorStats, boolean overwrite) throws IOException {
-    org.apache.hadoop.fs.Path fsPath = new org.apache.hadoop.fs.Path(path.toString());
-    FSOutputStream fsOutputStream = new FSDataOutputStreamWrapper(hadoopFs.create(fsPath, overwrite));
-    if (operatorStats != null) {
-      fsOutputStream = new FSDataOutputStreamWithStatsWrapper(fsOutputStream, operatorStats, path.toString());
-    }
-    return fsOutputStream;
+  public static OutputFile of(FileSystem fs, Path path) {
+    return new OutputFile(fs, path);
   }
 
   @Override
   public PositionOutputStream create(long blockSizeHint) throws IOException {
-    try (OperatorStats.WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
-      return new PositionOutputStreamWrapper(getFSOutputStreamWithStats(operatorStats, false));
-    }
+    return new PositionOutputStreamWrapper(fs.create(path));
   }
 
   @Override
   public PositionOutputStream createOrOverwrite(long blockSizeHint) throws IOException {
-    try (OperatorStats.WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
-      return new PositionOutputStreamWrapper(getFSOutputStreamWithStats(operatorStats, true));
-    }
+    return new PositionOutputStreamWrapper(fs.create(path, true));
   }
 
   @Override
@@ -122,6 +100,4 @@ public final class OutputFile implements org.apache.parquet.io.OutputFile {
       os.close();
     }
   }
-
-
 }

@@ -42,6 +42,7 @@ public class TableOptimizeRule extends RelOptRule {
     call.transformTo(new TableOptimizeRel(
       optimizeCrel.getCluster(),
       optimizeCrel.getTraitSet().plus(Rel.LOGICAL),
-      convertedInput, optimizeCrel.getTable(), optimizeCrel.getCreateTableEntry(), optimizeCrel.getOptimizeOptions()));
+      convertedInput, optimizeCrel.getTable(), optimizeCrel.getCreateTableEntry(),
+            optimizeCrel.getOptimizeOptions(), null));
   }
 }

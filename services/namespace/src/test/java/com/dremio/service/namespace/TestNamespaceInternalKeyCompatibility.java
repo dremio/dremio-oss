@@ -36,37 +36,31 @@ public class TestNamespaceInternalKeyCompatibility {
   @Parameterized.Parameters
   public static Collection<Object[]> input() {
     return Arrays.asList(new Object[][]{
-      {"a.b.c", true},
-      {"a.b.c.d", true},
-      {"a", true},
-      {"a.b", true},
-      {"a1.b.c", true},
-      {"a.a.a.a", true},
-      {"0", true},
-      {"0a.b.3", true},
-      {"1.2.3", true},
-      {"0.0.0.0", true},
-      {"Aa.bB.cC.Dd", true},
-      {"0.0.0.0", false},
-      {"Aa.bB.cC.Dd", false},
-      {"A.A.A.A", false},
-      {"1A.2b.3C.4d", false}});
+      {"a.b.c"},
+      {"a.b.c.d"},
+      {"a"},
+      {"a.b"},
+      {"a1.b.c"},
+      {"a.a.a.a"},
+      {"0"},
+      {"0a.b.3"},
+      {"1.2.3"},
+      {"0.0.0.0"},
+      {"Aa.bB.cC.Dd"}});
   }
 
   private String path;
-  private boolean normalized;
 
-  public TestNamespaceInternalKeyCompatibility(String path, boolean normalized) {
+  public TestNamespaceInternalKeyCompatibility(String path) {
     this.path = path;
-    this.normalized = normalized;
   }
 
   private NamespaceInternalKey newKey(String path) {
-    return new NamespaceInternalKey(new NamespaceKey(PathUtils.parseFullPath(path)), normalized);
+    return new NamespaceInternalKey(new NamespaceKey(PathUtils.parseFullPath(path)));
   }
 
   private LegacyNamespaceInternalKey newLegacyKey(String path) {
-    return new LegacyNamespaceInternalKey(new NamespaceKey(PathUtils.parseFullPath(path)), normalized);
+    return new LegacyNamespaceInternalKey(new NamespaceKey(PathUtils.parseFullPath(path)));
   }
 
   private void verifyRangeEndKey(byte[] expected, byte[] actual) {

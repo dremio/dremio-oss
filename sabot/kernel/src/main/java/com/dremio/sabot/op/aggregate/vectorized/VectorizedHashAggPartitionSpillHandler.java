@@ -923,8 +923,7 @@ public class VectorizedHashAggPartitionSpillHandler implements AutoCloseable {
     }
     try {
       AutoCloseables.close(activeSpilledPartitions);
-    }
-    catch (IOException ignored) {
+    } catch (IOException ignored) {
       /* Enter this catch block when disk is already full, and therefore cannot flush (write data) to disk
        * Making sure to catch this exception to allow this close() to complete
        * This ensures calling AutoCloseables.close(spillManager), hence clearing spill files
@@ -932,8 +931,7 @@ public class VectorizedHashAggPartitionSpillHandler implements AutoCloseable {
     }
     try {
       AutoCloseables.close(spilledPartitions);
-    }
-    catch (IOException ignored) {
+    } catch (IOException ignored) {
       /* Enter this catch block when disk is already full, and therefore cannot flush (write data) to disk
        * Making sure to catch this exception to allow this close() to complete
        * This ensures calling AutoCloseables.close(spillManager), hence clearing spill files

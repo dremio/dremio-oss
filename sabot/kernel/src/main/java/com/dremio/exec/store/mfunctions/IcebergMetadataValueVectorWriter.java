@@ -19,6 +19,7 @@ import static com.dremio.exec.store.iceberg.IcebergUtils.writeToVector;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -32,9 +33,11 @@ import org.apache.arrow.vector.complex.writer.BaseWriter;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.iceberg.Accessor;
 import org.apache.iceberg.FileScanTask;
+import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.io.CloseableIterator;
+import org.apache.iceberg.types.Types;
 import org.apache.iceberg.types.Types.NestedField;
 
 import com.dremio.common.exceptions.UserException;
@@ -56,6 +59,21 @@ final class IcebergMetadataValueVectorWriter {
   private final Map<String, Accessor<StructLike>> accessorByColumn;
   private final ArrowBuf tmpBuf;
   private CloseableIterator<StructLike> recordsIterator;
+  private PartitionSpec spec;
+
+  public IcebergMetadataValueVectorWriter(OutputMutator output, int targetBatchSize, List<SchemaPath> columns, Schema icebergSchema,
+                                          PartitionSpec spec, CloseableIterator<FileScanTask> iterator, ArrowBuf tmpBuf) {
+    Preconditions.checkNotNull(tmpBuf);
+    this.output = output;
+    this.targetBatchSize = targetBatchSize;
+    this.projectedColumns = columns;
+    this.icebergSchema = icebergSchema;
+    this.accessorByColumn = Maps.newHashMap();
+    this.tmpBuf = tmpBuf;
+    this.iterator = iterator;
+    this.recordsIterator = null;
+    this.spec = spec;
+  }
 
   public IcebergMetadataValueVectorWriter(OutputMutator output, int targetBatchSize, List<SchemaPath> columns, Schema icebergSchema,
                                           CloseableIterator<FileScanTask> iterator, ArrowBuf tmpBuf) {
@@ -68,6 +86,7 @@ final class IcebergMetadataValueVectorWriter {
     this.tmpBuf = tmpBuf;
     this.iterator = iterator;
     this.recordsIterator = null;
+    this.spec = null;
   }
 
   public int write() {
@@ -89,6 +108,8 @@ final class IcebergMetadataValueVectorWriter {
             } else if (targetVector instanceof StructVector) {
               StructVector vector = (StructVector) targetVector;
               writeToMapVector(vector, outIndex, (Map<String, String>) valueToWrite);
+            } else if (rootColumn.toLowerCase(Locale.ROOT).equals("partition") && valueToWrite instanceof StructLike) {
+              writeToVector(targetVector, outIndex, getPartitionData((StructLike) valueToWrite));
             } else {
               writeToVector(targetVector, outIndex, valueToWrite);
             }
@@ -169,6 +190,27 @@ final class IcebergMetadataValueVectorWriter {
     } else {
       structWriter.integer(fieldName).writeNull();
     }
+  }
+
+  private String getPartitionData(StructLike data) {
+    StringBuilder stringBuilder = new StringBuilder();
+    stringBuilder.append("{");
+    Preconditions.checkNotNull(spec, "Partition Spec not found");
+    List<Types.NestedField> fields = spec.partitionType().asStructType().fields();
+    Preconditions.checkState(fields.size() == data.size(), "Number of partition columns not match in partition spec and partition data");
+    for (int pos = 0; pos < fields.size(); pos++) {
+      Types.NestedField nestedField = fields.get(pos);
+      Object partitionValue = data.get(pos, nestedField.type().typeId().javaClass());
+      // Don't output null partition values
+      if (partitionValue != null) {
+        if (pos > 0) {
+          stringBuilder.append(", ");
+        }
+        stringBuilder.append(nestedField.name()).append("=").append(partitionValue);
+      }
+    }
+    stringBuilder.append("}");
+    return stringBuilder.toString();
   }
 
   /**

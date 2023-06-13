@@ -23,6 +23,7 @@ import { isWikAvailable } from "@app/selectors/explore";
 import { PageTypes, pageTypesProp } from "@app/pages/ExplorePage/pageTypes";
 import { changePageTypeInUrl } from "@app/pages/ExplorePage/pageTypeUtils";
 import { formatMessage } from "@app/utils/locale";
+import { fetchFeatureFlag } from "@inject/actions/featureFlag";
 import PageTypeButtonsMixin from "dyn-load/pages/ExplorePage/components/PageTypeButtonsMixin";
 import exploreUtils from "@app/utils/explore/exploreUtils";
 import {
@@ -33,8 +34,9 @@ import {
   iconActive,
 } from "./PageTypeButtons.less";
 import * as classes from "./PageTypeButtons.less";
-import { getSortedSources } from "@app/selectors/home";
-import { getSourceByName } from "@app/utils/nessieUtils";
+import { isCommunity } from "dyn-load/utils/versionUtils";
+import config from "@inject/utils/config";
+import { REFLECTION_ARCTIC_ENABLED } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
 
 export class SinglePageTypeButton extends Component {
   static propTypes = {
@@ -79,7 +81,6 @@ class ButtonController extends PureComponent {
     icon: PropTypes.string,
     dataQa: PropTypes.string,
     disabled: PropTypes.bool,
-
     //withRouter props
     location: PropTypes.object.isRequired,
     router: PropTypes.object.isRequired,
@@ -131,12 +132,12 @@ const buttonsConfigs = {
     dataQa: "Data",
   },
   [PageTypes.wiki]: {
-    intlId: "Dataset.Wiki",
+    intlId: "Common.Details",
     icon: "sql-editor/catalog",
     dataQa: "Wiki",
   },
   [PageTypes.graph]: {
-    intlId: "Dataset.Graph",
+    intlId: "Dataset.Lineage",
     icon: "sql-editor/graph",
     dataQa: "Graph",
   },
@@ -152,12 +153,17 @@ const buttonsConfigs = {
   },
 };
 
-const mapStateToProps = (state, { location, dataset }) => {
-  const sources = getSortedSources(state);
-  const sourceName = dataset?.get("displayFullPath").get(0);
+const mapStateToProps = (state, { location }) => {
+  let supportFlags = state.supportFlags;
+  if (isCommunity?.()) {
+    supportFlags = {
+      [REFLECTION_ARCTIC_ENABLED]: config.arcticReflectionsEnabled,
+    };
+  }
+
   return {
     showWiki: isWikAvailable(state, location),
-    versionedSource: getSourceByName(sourceName, sources.toJS()),
+    supportFlags,
   };
 };
 
@@ -169,6 +175,7 @@ export class PageTypeButtonsView extends PureComponent {
     showWiki: PropTypes.bool,
     dataQa: PropTypes.string,
     location: PropTypes.object,
+    fetchFeatureFlag: PropTypes.func,
   };
 
   getAvailablePageTypes() {
@@ -177,17 +184,17 @@ export class PageTypeButtonsView extends PureComponent {
 
   render() {
     const { selectedPageType, dataQa, location } = this.props;
-    const isSourcePage = exploreUtils.isExploreSourcePage(location);
-    const pageTypes = this.getAvailablePageTypes(isSourcePage);
+    const pageTypes = this.getAvailablePageTypes();
     const isDatasetPage = exploreUtils.isExploreDatasetPage(location);
+    const shouldHideTabs = location.query?.hideTabs;
 
     // Show tabbed content for dataset
-    if (pageTypes.length > 1 && isDatasetPage) {
+    if (pageTypes.length > 1 && isDatasetPage && !shouldHideTabs) {
       return (
         <span className={buttonsContainer} data-qa={dataQa}>
           {pageTypes.map((pageType) => {
-            const { intlId, ...rest } = buttonsConfigs[pageType];
-
+            let { intlId, ...rest } = buttonsConfigs[pageType];
+            if (pageType === "wiki") intlId = "Common.Details";
             return (
               <PageTypeButton
                 key={pageType}
@@ -210,5 +217,5 @@ export class PageTypeButtonsView extends PureComponent {
 }
 
 export const PageTypeButtons = withRouter(
-  connect(mapStateToProps)(PageTypeButtonsView)
+  connect(mapStateToProps, { fetchFeatureFlag })(PageTypeButtonsView)
 );

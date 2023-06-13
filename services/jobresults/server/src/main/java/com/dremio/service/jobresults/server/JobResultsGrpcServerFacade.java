@@ -68,6 +68,7 @@ public class JobResultsGrpcServerFacade extends JobResultsServiceGrpc.JobResults
     };
   }
 
+  @Override
   public StreamObserver<JobResultsRequest> jobResults(StreamObserver<JobResultsResponse> responseObserver) {
 
     return new StreamObserver<JobResultsRequest>() {

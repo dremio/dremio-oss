@@ -24,7 +24,9 @@ import org.apache.calcite.rel.RelShuttle;
 
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.catalog.EntityExplorer;
 import com.dremio.exec.planner.acceleration.ExpansionNode;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils.MaterializationShuttle;
@@ -34,14 +36,15 @@ import com.dremio.exec.planner.serialization.RelSerializerFactory;
 import com.dremio.exec.planner.sql.handlers.RelTransformer;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.proto.UserBitShared;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.options.OptionManager;
 import com.dremio.proto.model.UpdateId;
-import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.RefreshMethod;
 import com.dremio.service.reflection.IncrementalUpdateServiceUtils;
 import com.dremio.service.reflection.ReflectionOptions;
+import com.dremio.service.reflection.ReflectionService;
 import com.dremio.service.reflection.ReflectionSettings;
 import com.dremio.service.reflection.ReflectionUtils;
 import com.dremio.service.reflection.proto.Materialization;
@@ -59,7 +62,7 @@ class ReflectionPlanNormalizer implements RelTransformer {
   private final ReflectionGoal goal;
   private final ReflectionEntry entry;
   private final Materialization materialization;
-  private final NamespaceService namespace;
+  private final CatalogService catalogService;
   private final SabotConfig config;
   private final ReflectionSettings reflectionSettings;
   private final MaterializationStore materializationStore;
@@ -70,21 +73,21 @@ class ReflectionPlanNormalizer implements RelTransformer {
   private RefreshDecision refreshDecision;
 
   public ReflectionPlanNormalizer(
-      SqlHandlerConfig sqlHandlerConfig,
-      ReflectionGoal goal,
-      ReflectionEntry entry,
-      Materialization materialization,
-      NamespaceService namespace,
-      SabotConfig config,
-      ReflectionSettings reflectionSettings,
-      MaterializationStore materializationStore,
-      boolean forceFullUpdate,
-      int stripVersion) {
+    SqlHandlerConfig sqlHandlerConfig,
+    ReflectionGoal goal,
+    ReflectionEntry entry,
+    Materialization materialization,
+    CatalogService catalogService,
+    SabotConfig config,
+    ReflectionSettings reflectionSettings,
+    MaterializationStore materializationStore,
+    boolean forceFullUpdate,
+    int stripVersion) {
     this.sqlHandlerConfig = sqlHandlerConfig;
     this.goal = goal;
     this.entry = entry;
     this.materialization = materialization;
-    this.namespace = namespace;
+    this.catalogService = catalogService;
     this.config = config;
     this.reflectionSettings = reflectionSettings;
     this.materializationStore = materializationStore;
@@ -122,11 +125,12 @@ class ReflectionPlanNormalizer implements RelTransformer {
     }
 
     final RelNode datasetPlan = removeUpdateColumn(relNode);
-    final DatasetConfig dataset = namespace.findDatasetByUUID(goal.getDatasetId());
-    if (dataset == null) {
+    EntityExplorer catalog = CatalogUtil.getSystemCatalogForReflections(catalogService);
+    DatasetConfig datasetConfig = CatalogUtil.getDatasetConfig(catalog, goal.getDatasetId());
+    if (datasetConfig == null) {
       throw new IllegalStateException(String.format("Dataset %s not found for %s", goal.getDatasetId(), ReflectionUtils.getId(goal)));
     }
-    final ReflectionExpander expander = new ReflectionExpander(datasetPlan, dataset);
+    final ReflectionExpander expander = new ReflectionExpander(datasetPlan, datasetConfig);
     final RelNode plan = expander.expand(goal);
 
     // we serialize the plan before normalization so we can recreate later.
@@ -138,7 +142,9 @@ class ReflectionPlanNormalizer implements RelTransformer {
 
     // if we detect that the plan is in fact incrementally updateable after stripping and normalizing, we want to strip again with isIncremental flag set to true
     // to get the proper stripping
-    if (IncrementalUpdateServiceUtils.extractRefreshSettings(strippedPlan, reflectionSettings).getMethod() == RefreshMethod.INCREMENTAL) {
+    ReflectionService service = sqlHandlerConfig.getContext().getAccelerationManager().unwrap(ReflectionService.class);
+
+    if (IncrementalUpdateServiceUtils.extractRefreshSettings(strippedPlan, reflectionSettings, service).getMethod() == RefreshMethod.INCREMENTAL) {
       strippedPlan = factory.strip(plan, mapReflectionType(goal.getType()), true, stripVersion).getNormalized();
     }
 
@@ -155,7 +161,7 @@ class ReflectionPlanNormalizer implements RelTransformer {
       entry,
       materialization,
       reflectionSettings,
-      namespace,
+      catalogService,
       materializationStore,
       plan,
       strippedPlan,
@@ -163,7 +169,8 @@ class ReflectionPlanNormalizer implements RelTransformer {
       serializerFactory,
       strictRefresh,
       forceFullUpdate,
-      sqlHandlerConfig.getContext().getFunctionRegistry());
+      sqlHandlerConfig.getContext().getFunctionRegistry(),
+      service);
 
     if (isIncremental(refreshDecision)) {
       strippedPlan = strippedPlan.accept(getIncremental(refreshDecision));

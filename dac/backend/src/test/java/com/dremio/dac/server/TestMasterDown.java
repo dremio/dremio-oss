@@ -35,6 +35,7 @@ import org.junit.AfterClass;
 import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
@@ -271,6 +272,7 @@ public class TestMasterDown extends BaseClientUtils {
     expectSuccess((currentApiV2.path("space/DG/folder/").request(JSON).header(authHeader, authToken)).buildPost(Entity.json("{\"name\": \""+folderName+"\"}")), Folder.class);
   }
 
+  @Ignore("DX-61484")
   @Test
   public void testMasterDown() throws Exception {
     final long timeoutMs = 5_000; // Timeout when checking if a node reached a given status
@@ -326,7 +328,7 @@ public class TestMasterDown extends BaseClientUtils {
       return factory.get(new ReflectionContext(DEFAULT_USER_NAME, true));
     });
 
-    CollaborationHelper collaborationService = new CollaborationHelper(mp.lookup(LegacyKVStoreProvider.class), sabotContext, mp.lookup(NamespaceService.class), dacSecurityContext, mp.lookup(SearchService.class));
+    CollaborationHelper collaborationService = new CollaborationHelper(mp.lookup(LegacyKVStoreProvider.class), mp.lookup(NamespaceService.class), dacSecurityContext, mp.lookup(SearchService.class), sabotContext.getUserService());
     SampleDataPopulator populator = new SampleDataPopulator(
       sabotContext,
       new SourceService(

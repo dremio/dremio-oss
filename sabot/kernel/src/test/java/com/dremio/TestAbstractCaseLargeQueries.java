@@ -62,8 +62,8 @@ public abstract class TestAbstractCaseLargeQueries extends PlanTestBase {
       StringBuilder sb = new StringBuilder();
       sb.append("CASE n_regionkey").append(System.lineSeparator());
       for (int i = level2Size; i > 0; i--) {
-        final int region_idx = (i >= regions.length) ? 0 : i;
-        sb.append("WHEN ").append(i).append(" THEN ").append((getNextClause(1, regions[region_idx])))
+        final int regionIdx = (i >= regions.length) ? 0 : i;
+        sb.append("WHEN ").append(i).append(" THEN ").append((getNextClause(1, regions[regionIdx])))
           .append(System.lineSeparator());
       }
       sb.append("ELSE lower(concat(n_name, '_UNKNOWN')) END").append(System.lineSeparator());

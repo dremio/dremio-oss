@@ -16,12 +16,16 @@
 
 import * as React from "react";
 import { FormattedMessage } from "react-intl";
-import { Avatar } from "@mui/material";
+import { Avatar } from "dremio-ui-lib/components";
 import CommitHash from "@app/pages/HomePage/components/BranchPicker/components/CommitBrowser/components/CommitHash/CommitHash";
-import { DefaultApi, LogEntry, LogResponse } from "@app/services/nessie/client";
+import {
+  DefaultApi,
+  LogEntryV1 as LogEntry,
+  LogResponseV1 as LogResponse,
+} from "@app/services/nessie/client";
 import { convertISOStringWithTooltip } from "../../../RepoView/components/RepoViewBody/components/RepoViewBranchList/utils";
 import { Reference } from "@app/types/nessie";
-
+import { nameToInitials } from "@app/exports/utilities/nameToInitials";
 export const columns = [
   {
     key: "name",
@@ -41,17 +45,6 @@ export const columns = [
     label: <FormattedMessage id="Common.CommitTime" />,
   },
 ];
-
-const stringAvatar = (name: string | undefined) => {
-  if (!name) return { children: null };
-  const splitName = name.split(" ");
-  return {
-    children:
-      splitName.length > 1
-        ? `${splitName[0][0].toUpperCase()}${splitName[1][0].toUpperCase()}`
-        : `${splitName[0][0].toUpperCase()}`,
-  };
-};
 
 const handleLoadMoreCommits = async (
   branchName: string,
@@ -124,7 +117,9 @@ const createTableRow = (
               entry.commitMeta && (
                 <div className="commit-author">
                   <span className="commit-author-avatar">
-                    <Avatar {...stringAvatar(entry.commitMeta.author)} />
+                    <Avatar
+                      initials={nameToInitials(entry.commitMeta.author)}
+                    />
                   </span>
                   <span className="commit-author-username">
                     {entry.commitMeta.author}

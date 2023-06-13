@@ -115,6 +115,7 @@ import com.dremio.exec.testing.ControlsInjectorFactory;
 import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
+import com.dremio.options.OptionManager;
 import com.dremio.parquet.reader.ParquetDirectByteBufferAllocator;
 import com.dremio.sabot.exec.context.MetricDef;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -226,7 +227,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     this.context = context;
     this.codecAllocator = context.getAllocator().newChildAllocator("ParquetCodecFactory", 0, Long.MAX_VALUE);
     this.columnEncoderAllocator = context.getAllocator().newChildAllocator("ParquetColEncoder", 0, Long.MAX_VALUE);
-    this.codecFactory = CodecFactory.createDirectCodecFactory(new Configuration(),
+    this.codecFactory = CodecFactory.createDirectCodecFactory(createConfigForCodecFactory(context.getOptions()),
         new ParquetDirectByteBufferAllocator(codecAllocator), pageSize);
     this.extraMetaData.put(DREMIO_VERSION_PROPERTY, DremioVersionInfo.getVersion());
     this.extraMetaData.put(IS_DATE_CORRECT_PROPERTY, "true");
@@ -276,6 +277,9 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     case "gzip":
       codec = CompressionCodecName.GZIP;
       break;
+    case "zstd":
+      codec = CompressionCodecName.ZSTD;
+      break;
     case "none":
     case "uncompressed":
       codec = CompressionCodecName.UNCOMPRESSED;
@@ -290,6 +294,16 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     minRecordsForFlush = context.getOptions().getOption(ExecConstants.PARQUET_MIN_RECORDS_FOR_FLUSH_VALIDATOR);
     parquetFileWriteTimeThresholdMilliSecs = (int)context.getOptions().getOption(ExecConstants.PARQUET_WRITE_TIME_THRESHOLD_MILLI_SECS_VALIDATOR);
     parquetFileWriteIoRateThresholdMbps = context.getOptions().getOption(ExecConstants.PARQUET_WRITE_IO_RATE_THRESHOLD_MBPS_VALIDATOR);
+  }
+
+  private Configuration createConfigForCodecFactory(OptionManager options) {
+    Configuration conf = new Configuration();
+    int zstdLevel = (int) options.getOption(ExecConstants.PARQUET_WRITER_COMPRESSION_ZSTD_LEVEL_VALIDATOR);
+    // Set config for the Hadoop ZSTD codec
+    conf.setInt("io.compression.codec.zstd.level", zstdLevel);
+    // Set config for the Parquet zstd-jni codec
+    conf.setInt("parquet.compression.codec.zstd.level", zstdLevel);
+    return conf;
   }
 
   @Override
@@ -354,8 +368,9 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
   private void initRecordWriter() throws IOException {
 
     this.path = fs.canonicalizePath(partition.qualified(location, prefix + "_" + index + "." + extension));
-    parquetFileWriter = new ParquetFileWriter(OutputFile.of(fs, path, plugin.getHadoopFsSupplier(path.toString(), plugin.getFsConfCopy(), queryUser).get(), context.getStats()), checkNotNull(schema), ParquetFileWriter.Mode.CREATE, DEFAULT_BLOCK_SIZE,
-        MAX_PADDING_SIZE_DEFAULT, DEFAULT_COLUMN_INDEX_TRUNCATE_LENGTH, false);
+    parquetFileWriter = new ParquetFileWriter(OutputFile.of(fs, path), checkNotNull(schema),
+        ParquetFileWriter.Mode.CREATE, DEFAULT_BLOCK_SIZE, MAX_PADDING_SIZE_DEFAULT,
+        DEFAULT_COLUMN_INDEX_TRUNCATE_LENGTH, false);
     parquetFileWriter.start();
   }
 
@@ -938,10 +953,10 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
   @Override
   public void startPartition(WritePartition partition) throws Exception {
     if (index >= maxPartitions) {
+      logger.error(String.format("Throwing dataWriteError() from startPartition() because the index of %d is greater than or equal to the limit of %d set by store.max_partitions.", index, maxPartitions));
       throw UserException.dataWriteError()
-        .message("Materialization cancelled due to excessive partition creation. A single thread can only generate %d partitions. " +
-          "Typically, this is a problem if you configure a partition or distribution column that has high cardinality. " +
-          "If you want to increase this limit, you can change the \"store.max_partitions\" system option.", maxPartitions)
+        .message("CTAS query cancelled because it will generate more than the limit of %d partitions. " +
+          "You can retry the query using a different column for PARTITION BY.", maxPartitions)
         .build(logger);
     }
 
@@ -1068,6 +1083,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     }
   }
 
+  @Override
   public FieldConverter getNewMapConverter(int fieldId, String fieldName, FieldReader reader) {
     MapParquetConverter converter = new MapParquetConverter(fieldId, fieldName, reader);
     if (converter.keyConverter == null || converter.valueConverter == null) {
@@ -1234,13 +1250,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
       try {
         NoExceptionAutoCloseables.close(store, pageStore, parquetFileWriter);
       } finally {
-        AutoCloseables.close(new AutoCloseable() {
-            @Override
-            public void close() throws Exception {
-              codecFactory.release();
-            }
-          },
-          codecAllocator, columnEncoderAllocator);
+        AutoCloseables.close(codecFactory::release, codecAllocator, columnEncoderAllocator);
       }
     }
   }

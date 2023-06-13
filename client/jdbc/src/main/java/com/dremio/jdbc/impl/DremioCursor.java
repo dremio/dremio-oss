@@ -518,8 +518,7 @@ class DremioCursor implements Cursor {
           try {
             schemaChanged = currentBatchHolder.load(qrb.getHeader().getDef(),
                                                     qrb.getData());
-          }
-          finally {
+          } finally {
             qrb.release();
           }
           schema = currentBatchHolder.getSchema();
@@ -533,32 +532,27 @@ class DremioCursor implements Cursor {
           }
           return true;
         }
-      }
-      catch ( UserException e ) {
+      } catch ( UserException e ) {
         // A normally expected case--for any server-side error (e.g., syntax
         // error in SQL statement).
         // Construct SQLException with message text from the UserException.
         // TODO:  Map UserException error type to SQLException subclass (once
         // error type is accessible, of course. :-( )
         throw new SQLException( e.getMessage(), e );
-      }
-      catch ( TimeoutException e ) {
+      } catch ( TimeoutException e ) {
         throw new SqlTimeoutException(
             String.format("Cancelled after expiration of timeout of %d seconds.", statement.getQueryTimeout()),
             e);
-      }
-      catch ( InterruptedException e ) {
+      } catch ( InterruptedException e ) {
         // Not normally expected--Dremio doesn't interrupt in this area (right?)--
         // but JDBC client certainly could.
         throw new SQLException( "Interrupted.", e );
-      }
-      catch ( SchemaChangeException e ) {
+      } catch ( SchemaChangeException e ) {
         // TODO:  Clean:  DRILL-2933:  RecordBatchLoader.load(...) no longer
         // throws SchemaChangeException, so check/clean catch clause.
         throw new SQLException(
             "Unexpected SchemaChangeException from RecordBatchLoader.load(...)" );
-      }
-      catch ( RuntimeException e ) {
+      } catch ( RuntimeException e ) {
         throw new SQLException( "Unexpected RuntimeException: " + e.toString(), e );
       }
 
@@ -649,14 +643,12 @@ class DremioCursor implements Cursor {
     if ( afterLastRow ) {
       // We're already after end of rows/records--just report that after end.
       return false;
-    }
-    else if ( returnTrueForNextCallToNext ) {
+    } else if ( returnTrueForNextCallToNext ) {
       ++currentRowNumber;
       // We have a deferred "not after end" to report--reset and report that.
       returnTrueForNextCallToNext = false;
       return true;
-    }
-    else {
+    } else {
       accessors.clearLastColumnIndexedInRow();
       boolean res = nextRowInternally();
       if (res) { ++ currentRowNumber; }

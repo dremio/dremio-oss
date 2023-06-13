@@ -1,0 +1,142 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use "./helpers";
+
+.bg-background {
+  background: white;
+  color: lch(12.73% 2.2 272.68);
+}
+
+.bg-foreground {
+  background: white;
+  color: lch(12.73% 2.2 272.68);
+}
+
+.dremio-dark {
+  .bg-background,
+  &.bg-background {
+    background: var(--color--gray--900);
+    color: var(--color--gray--100);
+  }
+  .bg-foreground,
+  &.bg-foreground {
+    background: var(--color--gray--900);
+    color: var(--color--gray--100);
+  }
+}
+
+@each $shade in helpers.$shades {
+  @each $grade in helpers.$gradeScale {
+    .bg-#{$shade}-#{$grade} {
+      background-color: var(--color--#{$shade}--#{$grade});
+      @if $grade >= 500 {
+        color: white;
+      } @else {
+        color: black;
+      }
+    }
+  }
+}
+
+@each $grade in helpers.$gradeScale {
+  .bg-brand-#{$grade} {
+    background-color: var(--color--cyan--#{$grade});
+    @if $grade >= 500 {
+      color: white;
+    } @else {
+      color: black;
+    }
+  }
+}
+
+.bg-brand-300 {
+  color: white;
+}
+.bg-brand-400 {
+  color: white;
+}
+
+.bg-danger-50 {
+  background-color: var(--color--red--50);
+  color: black;
+}
+.bg-danger-500 {
+  background-color: var(--color--red--500);
+  color: white;
+}
+
+.bg-warning-50 {
+  background-color: var(--color--orange--50);
+  color: black;
+}
+.bg-warning-500 {
+  background-color: var(--color--orange--500);
+  color: white;
+}
+
+.bg-success-50 {
+  background-color: var(--color--green--50);
+  color: black;
+}
+.bg-success-300 {
+  background-color: var(--color--green--300);
+  color: black;
+}
+
+.bg-info-50 {
+  background-color: var(--color--blue--50);
+  color: black;
+}
+.bg-info-400 {
+  background-color: var(--color--blue--400);
+  color: black;
+}
+
+.bg-brand-bold {
+  @extend .bg-brand-300;
+}
+.bg-brand-subtle {
+  @extend .bg-brand-50;
+}
+.bg-success-subtle {
+  @extend .bg-success-50;
+}
+.bg-success-bold {
+  @extend .bg-success-300;
+}
+.bg-danger-subtle {
+  @extend .bg-danger-50;
+}
+.bg-danger-bold {
+  @extend .bg-danger-500;
+}
+.bg-info-subtle {
+  @extend .bg-info-50;
+}
+.bg-info-bold {
+  @extend .bg-info-400;
+}
+.bg-warning-subtle {
+  @extend .bg-warning-50;
+}
+.bg-warning-bold {
+  @extend .bg-warning-500;
+}
+.bg-disabled {
+  background-color: var(--color--neutral--25);
+  color: var(--color--neutral--200);
+}

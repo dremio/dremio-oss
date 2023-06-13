@@ -31,6 +31,7 @@ public class FixedWidthVectorHelper<T extends BaseFixedWidthVector> extends Base
     this.bitVector = vector instanceof BitVector;
   }
 
+  @Override
   public SerializedField.Builder getMetadataBuilder() {
     return super.getMetadataBuilder()
           .addChild(buildValidityMetadata())

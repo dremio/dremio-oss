@@ -39,10 +39,12 @@ public class ArrayContains {
     @Inject private FunctionErrorContext errCtx;
     @Workspace private Object inputValue;
 
+    @Override
     public void setup() {
       inputValue = value.readObject();
     }
 
+    @Override
     public void eval() {
       if (!in.isSet() || in.readObject() == null || inputValue == null) {
         out.isSet = 0;

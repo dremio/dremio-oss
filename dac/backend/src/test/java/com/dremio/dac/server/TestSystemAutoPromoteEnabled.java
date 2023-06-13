@@ -28,7 +28,7 @@ public class TestSystemAutoPromoteEnabled extends TestSystemAutoPromotionBase {
   public static void init() throws Exception {
     // Set the system property before starting dremio so it gets picked up
     // by com.dremio.exec.store.DatasetRetrievalOptions.DEFAULT_AUTO_PROMOTE_OPTIONAL
-    System.setProperty("dremio.datasets.auto_promote", "true");
+    PROPERTIES.set("dremio.datasets.auto_promote", "true");
     TestSystemAutoPromotionBase.init();
   }
 

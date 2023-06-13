@@ -51,8 +51,7 @@ import ExplorePage from "./ExplorePage";
 import * as commonPaths from "dremio-ui-common/paths/common.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
-import { newQuery } from "@app/exports/paths";
-import { isDcsEdition } from "dyn-load/utils/versionUtils";
+import { isNotSoftware } from "dyn-load/utils/versionUtils";
 import { fetchFeatureFlag } from "@inject/actions/featureFlag";
 import { SQL_JOB_STATUS } from "@app/exports/flags/SQL_JOB_STATUS";
 
@@ -111,7 +110,7 @@ export class ExplorePageControllerComponent extends Component {
       addHasChangesHook(this.shouldShowUnsavedChangesPopup);
     }
 
-    isDcsEdition() && this.props.fetchFeatureFlag(SQL_JOB_STATUS);
+    isNotSoftware() && this.props.fetchFeatureFlag(SQL_JOB_STATUS);
   }
 
   componentWillReceiveProps(nextProps) {
@@ -304,8 +303,7 @@ export class ExplorePageControllerComponent extends Component {
 }
 
 function mapStateToProps(state, ownProps) {
-  const { location, routeParams } = ownProps;
-  const isNewQuery = location.pathname.includes(newQuery());
+  const { routeParams } = ownProps;
   const dataset = getExplorePageDataset(state);
   const explorePageState = getExploreState(state);
   const sqlHeight = Math.min(
@@ -318,7 +316,7 @@ function mapStateToProps(state, ownProps) {
     dataset,
     history: getHistory(state, dataset.get("tipVersion")),
     // in New Query, force sql open, but don't change state in localStorage
-    sqlState: explorePageState.ui.get("sqlState") || isNewQuery,
+    sqlState: explorePageState.ui.get("sqlState"),
     sqlSize: sqlHeight,
     isResizeInProgress: explorePageState.ui.get("isResizeInProgress"),
     rightTreeVisible: state.ui.get("rightTreeVisible"),

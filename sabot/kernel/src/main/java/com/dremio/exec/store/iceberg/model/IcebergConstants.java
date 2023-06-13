@@ -21,4 +21,6 @@ package com.dremio.exec.store.iceberg.model;
 public interface IcebergConstants {
 
     String FILE_VERSION = "version";
+    String ADDED_DATA_FILES = "added-data-files";
+    String DELETED_DATA_FILES = "deleted-data-files";
 }

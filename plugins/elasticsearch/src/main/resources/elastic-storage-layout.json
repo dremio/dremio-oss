@@ -58,6 +58,9 @@
                 "propName": "config.allowPushdownOnNormalizedOrAnalyzedFields"
               },
               {
+                "propName": "config.pushdownWithKeyword"
+              },
+              {
                 "propName": "config.scriptsEnabled"
               },
               {

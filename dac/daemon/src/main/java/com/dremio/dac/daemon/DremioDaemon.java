@@ -89,6 +89,7 @@ public class DremioDaemon {
 
   public static void main(String[] args) throws Exception {
     try (TimedBlock b = Timer.time("main")) {
+      logger.info("Starting dremio daemon");
       final DACConfig config = DACConfig.newConfig();
       final SabotConfig sabotConfig = config.getConfig().getSabotConfig();
       final ScanResult classPathScan = ClassPathScanner.fromPrescan(sabotConfig);

@@ -84,6 +84,7 @@ public class DremioFlightService implements Service {
   private final Provider<OptionManager> optionManagerProvider;
   private final Provider<UserSessionService> userSessionServiceProvider;
   private final Provider<DremioFlightAuthProvider> authProvider;
+  private final Provider<FlightRequestContextDecorator> requestContextDecoratorProvider;
   private final Provider<CredentialsService> credentialsServiceProvider;
   private final RunQueryResponseHandlerFactory runQueryResponseHandlerFactory;
 
@@ -100,10 +101,12 @@ public class DremioFlightService implements Service {
                              Provider<OptionManager> optionManagerProvider,
                              Provider<UserSessionService> userSessionServiceProvider,
                              Provider<DremioFlightAuthProvider> authProvider,
+                             Provider<FlightRequestContextDecorator> requestContextDecoratorProvider,
                              Provider<CredentialsService> credentialsServiceProvider) {
     this(configProvider, bufferAllocator, userWorkerProvider,
       sabotContextProvider, tokenManagerProvider, optionManagerProvider, userSessionServiceProvider,
-      authProvider, credentialsServiceProvider, RunQueryResponseHandlerFactory.DEFAULT);
+      authProvider, requestContextDecoratorProvider, credentialsServiceProvider,
+      RunQueryResponseHandlerFactory.DEFAULT);
   }
 
   @VisibleForTesting
@@ -115,6 +118,7 @@ public class DremioFlightService implements Service {
                       Provider<OptionManager> optionManagerProvider,
                       Provider<UserSessionService> userSessionServiceProvider,
                       Provider<DremioFlightAuthProvider> authProvider,
+                      Provider<FlightRequestContextDecorator> requestContextDecoratorProvider,
                       Provider<CredentialsService> credentialsServiceProvider,
                       RunQueryResponseHandlerFactory runQueryResponseHandlerFactory
   ) {
@@ -127,6 +131,7 @@ public class DremioFlightService implements Service {
     this.runQueryResponseHandlerFactory = runQueryResponseHandlerFactory;
     this.userSessionServiceProvider = userSessionServiceProvider;
     this.authProvider = authProvider;
+    this.requestContextDecoratorProvider = requestContextDecoratorProvider;
     this.credentialsServiceProvider = credentialsServiceProvider;
   }
 
@@ -161,7 +166,7 @@ public class DremioFlightService implements Service {
       .maxConnectionAgeGrace(Integer.getInteger("dremio.services.arrow-flight.max-connection-age-grace", 0))
       .maxConnectionAge(Integer.getInteger("dremio.services.arrow-flight.max-connection-age", 0))
       .producer(new DremioFlightProducer(location, dremioFlightSessionsManager, userWorkerProvider,
-        optionManagerProvider, allocator, runQueryResponseHandlerFactory));
+        optionManagerProvider, allocator, requestContextDecoratorProvider, runQueryResponseHandlerFactory));
 
     builder.middleware(FLIGHT_CLIENT_PROPERTIES_MIDDLEWARE_KEY,
       new ServerCookieMiddleware.Factory());

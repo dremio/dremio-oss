@@ -46,6 +46,7 @@ public class CustomLocalKVStoreProvider extends LocalKVStoreProvider{
     this.storeCreators = storeCreators;
   }
 
+  @Override
   protected Supplier<ImmutableMap<Class<? extends StoreCreationFunction<?, ?, ?>>, KVStore<?, ?>>> getStoreProvider(){
     return () -> StoreLoader.buildStores(storeCreators, super::newStore);
   }

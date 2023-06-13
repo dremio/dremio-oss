@@ -367,6 +367,14 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
             TimeStampMilliWriter writer = isRepeated ? list(name).timeStampMilli() : getWriterProvider().timeStamp(name);
             return new TimeStampConverter(writer);
           }
+          case TIMESTAMP_MICROS: {
+              TimeStampMilliWriter writer = isRepeated ? list(name).timeStampMilli() : getWriterProvider().timeStamp(name);
+              return new TimeStampMicroConverter(writer);
+          }
+          case TIME_MICROS: {
+              TimeMilliWriter writer = isRepeated ? list(name).timeMilli() : getWriterProvider().time(name);
+              return new TimeMicroConverter(writer);
+          }
           default:
             // fall back to primitive type
           }
@@ -467,6 +475,7 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
     }
   }
 
+  @Override
   public boolean hasWritten() {
     return written;
   }
@@ -497,6 +506,7 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
       written = true;
     }
 
+    @Override
     public boolean hasWritten() {
       return written;
     }
@@ -656,6 +666,27 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
     }
   }
 
+  private static class TimeMicroConverter extends ParquetPrimitiveConverter {
+    private TimeMilliWriter writer;
+    private TimeMicroConverter(TimeMilliWriter writer) {
+      this.writer = writer;
+    }
+    @Override
+    public void addInt(int value) {
+      writer.writeTimeMilli(value / 1000);
+      setWritten();
+    }
+    @Override
+    public void addLong(long value) {
+      writer.writeTimeMilli((int)(value / 1000));
+      setWritten();
+    }
+    @Override
+    public void writeNullListElement() {
+      ((UnionListWriter)writer).writeNull();
+    }
+  }
+
   private static class BigIntConverter extends ParquetPrimitiveConverter {
     private BigIntWriter writer;
     private BigIntHolder holder = new BigIntHolder();
@@ -695,7 +726,24 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
       ((UnionListWriter)writer).writeNull();
     }
   }
-
+  private static class TimeStampMicroConverter extends ParquetPrimitiveConverter {
+    private TimeStampMilliWriter writer;
+    private TimeStampMicroConverter(TimeStampMilliWriter writer) {
+      this.writer = writer;
+    }
+    @Override
+    public void addLong(long value) {
+      //value is microseconds since epoch. Truncate the microseconds
+      //to fit it into a millisecond range.
+      //ie 1674475994560123 / 1000 = 1674475994560
+      writer.writeTimeStampMilli(value / 1000);
+      setWritten();
+    }
+    @Override
+    public void writeNullListElement() {
+      ((UnionListWriter)writer).writeNull();
+    }
+  }
   private static class Decimal18Converter extends ParquetPrimitiveConverter {
     private DecimalWriter writer;
     private DecimalHolder holder = new DecimalHolder();
@@ -809,7 +857,8 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
       if (value.length() > this.varValueSizeLimit) {
         throw createFieldSizeLimitException(value.length(), this.varValueSizeLimit);
       }
-      holder.buffer = buf = buf.reallocIfNeeded(value.length());
+      buf = buf.reallocIfNeeded(value.length());
+      holder.buffer = buf;
       buf.setBytes(0, value.toByteBuffer());
       holder.start = 0;
       holder.end = value.length();
@@ -840,7 +889,8 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
       if (value.length() > this.varValueSizeLimit) {
         throw createFieldSizeLimitException(value.length(), this.varValueSizeLimit);
       }
-      holder.buffer = buf = buf.reallocIfNeeded(value.length());
+      buf = buf.reallocIfNeeded(value.length());
+      holder.buffer = buf;
       buf.setBytes(0, value.toByteBuffer());
       holder.start = 0;
       holder.end = value.length();

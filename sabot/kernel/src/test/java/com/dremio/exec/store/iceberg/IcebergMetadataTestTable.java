@@ -15,10 +15,9 @@
  */
 package com.dremio.exec.store.iceberg;
 
-import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_METADATA_FUNCTIONS;
-
 import java.io.File;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -26,8 +25,8 @@ import org.apache.iceberg.HistoryEntry;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.junit.After;
+import org.junit.Before;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.common.expression.SchemaPath;
@@ -45,21 +44,21 @@ public abstract class IcebergMetadataTestTable extends BaseTestQuery {
 
   protected static Long FIRST_SNAPSHOT;
 
-  @BeforeClass
-  public static void initIcebergTable() throws Exception {
-    setSystemOption(ENABLE_ICEBERG_METADATA_FUNCTIONS, "true");
+  @Before
+  public void before() throws Exception {
     //Create a non-partitioned iceberg table,
     String createCommandSql = String.format("create table %s.%s(c1 int, c2 varchar, c3 double)", TEMP_SCHEMA_HADOOP, METADATA_TEST_TABLE_NAME);
-    test(createCommandSql);
+    runSQL(createCommandSql);
     Thread.sleep(1001);
     File tableFolder = new File(getDfsTestTmpSchemaLocation(), METADATA_TEST_TABLE_NAME);
     metadata_test_iceberg_table = getIcebergTable(tableFolder, IcebergCatalogType.HADOOP);
     FIRST_SNAPSHOT = metadata_test_iceberg_table.currentSnapshot().snapshotId();
   }
 
-  @AfterClass
-  public static void afterClass() throws Exception {
-    setSystemOption(ENABLE_ICEBERG_METADATA_FUNCTIONS, "false");
+  @After
+  public void after() throws Exception {
+    //Drop table
+    runSQL(String.format("DROP TABLE %s.%s", TEMP_SCHEMA_HADOOP, METADATA_TEST_TABLE_NAME));
     FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), METADATA_TEST_TABLE_NAME));
   }
 
@@ -83,8 +82,26 @@ public abstract class IcebergMetadataTestTable extends BaseTestQuery {
     metadata_test_iceberg_table = getIcebergTable(tableFolder, IcebergCatalogType.HADOOP);
   }
 
+  protected void addPartition(String partitionSpec) throws Exception {
+    String insertCommandSql = String.format("ALTER TABLE %s.%s ADD PARTITION FIELD %s", TEMP_SCHEMA_HADOOP, METADATA_TEST_TABLE_NAME, partitionSpec);
+    test(insertCommandSql);
+    Thread.sleep(1001);
+  }
+
   protected void insertOneRecord() throws Exception {
     String insertCommandSql = String.format("insert into %s.%s VALUES(1,'a', 2.0)", TEMP_SCHEMA_HADOOP, METADATA_TEST_TABLE_NAME);
+    test(insertCommandSql);
+    Thread.sleep(1001);
+  }
+
+  protected void insertTwoRecords() throws Exception {
+    String insertCommandSql = String.format("insert into %s.%s VALUES(1,'a', 2.0),(2,'b', 3.0)", TEMP_SCHEMA_HADOOP, METADATA_TEST_TABLE_NAME);
+    test(insertCommandSql);
+    Thread.sleep(1001);
+  }
+
+  protected void insertTwoLongRecords() throws Exception {
+    String insertCommandSql = String.format("insert into %s.%s VALUES(1,'abcdfg', 2.0),(2,'bcdfff', 3.0)", TEMP_SCHEMA_HADOOP, METADATA_TEST_TABLE_NAME);
     test(insertCommandSql);
     Thread.sleep(1001);
   }
@@ -107,4 +124,12 @@ public abstract class IcebergMetadataTestTable extends BaseTestQuery {
       .run();
   }
 
+  protected void queryAndMatchResults(String query, List<Map<String, Object>> expectedRecords) throws Exception {
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineRecords(expectedRecords)
+      .build()
+      .run();
+  }
 }

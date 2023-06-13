@@ -302,6 +302,7 @@ public class ExpressionStringBuilder extends AbstractExprVisitor<Void, StringBui
     case STRUCT:
     case LIST:
     case MAP:
+    case UNION:
       // do nothing else.
       break;
     case VAR16CHAR:

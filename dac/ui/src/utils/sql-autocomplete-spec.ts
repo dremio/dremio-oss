@@ -14,28 +14,8 @@
  * limitations under the License.
  */
 
-import {
-  constructTransformValues,
-  getAutoCompleteInsertText,
-} from "./sql-autocomplete";
+import { constructTransformValues } from "./sql-autocomplete";
 import { expect } from "chai";
-
-const subEntityExamples = [
-  {
-    contentWithPairedQuotes: ['select * from "samples or"'],
-    contentWithSoloQuote: ['select * from "samples or'],
-    position: { lineNumber: 1, column: 26 },
-    entity: '"samples original"',
-    activeWord: "or",
-  },
-  {
-    contentWithPairedQuotes: ['select * from "samples.or"'],
-    contentWithSoloQuote: ['select * from "samples.or'],
-    position: { lineNumber: 1, column: 26 },
-    entity: '"samples.original"',
-    activeWord: "or",
-  },
-];
 
 describe("sql-autocomplete", () => {
   const transformCases = {
@@ -83,72 +63,6 @@ describe("sql-autocomplete", () => {
         insideSoloDoubleQuote: true,
         entityLeftOfCursor: "SF Univer",
         replaceWithSubEntity: true,
-      });
-    });
-  });
-
-  describe("getAutoCompleteInsertText", () => {
-    it("should return the original insertText (without double quotes) if no transform is required", () => {
-      expect(
-        getAutoCompleteInsertText("samples", transformCases, "samples")
-      ).to.equal("samples");
-    });
-
-    it("should return the original insertText (with double quotes) if no transform is required", () => {
-      expect(
-        getAutoCompleteInsertText('"samples"', transformCases, '"samples"')
-      ).to.equal('"samples"');
-    });
-
-    it("should return insertText with only the right double quote", () => {
-      expect(
-        getAutoCompleteInsertText(
-          '"samples"',
-          { ...transformCases, insideSoloDoubleQuote: true },
-          '"samples"'
-        )
-      ).to.equal('samples"');
-    });
-
-    it("should return insertText with neither of the double quotes", () => {
-      expect(
-        getAutoCompleteInsertText(
-          '"samples"',
-          { ...transformCases, insidePairedDoubleQuote: true },
-          '"samples"'
-        )
-      ).to.equal("samples");
-    });
-
-    subEntityExamples.forEach((example: any) => {
-      it(`using ${example.entity}, it should return insertText with only the remaining subentities and no double quotes`, () => {
-        const subTransformCases = constructTransformValues(
-          example.contentWithPairedQuotes,
-          example.position,
-          example.activeWord
-        );
-        expect(
-          getAutoCompleteInsertText(
-            example.entity,
-            subTransformCases,
-            example.activeWord
-          )
-        ).to.equal("original");
-      });
-
-      it(`using ${example.entity}, it should return insertText with only the remaining subentities and with the right double quote`, () => {
-        const subTransformCases = constructTransformValues(
-          example.contentWithSoloQuote,
-          example.position,
-          example.activeWord
-        );
-        expect(
-          getAutoCompleteInsertText(
-            example.entity,
-            subTransformCases,
-            example.activeWord
-          )
-        ).to.equal('original"');
       });
     });
   });

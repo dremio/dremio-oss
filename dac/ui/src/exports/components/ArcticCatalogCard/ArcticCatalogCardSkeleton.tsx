@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Card, Skeleton } from "dremio-ui-lib/dist-esm";
+import { Card, Skeleton } from "dremio-ui-lib/components";
 import classes from "./ArcticCatalogCard.less";
 export const ArcticCatalogCardSkeleton = () => {
   return (

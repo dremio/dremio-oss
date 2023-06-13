@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { LogResponse } from "@app/services/nessie/client";
+import { LogResponseV2 as LogResponse } from "@app/services/nessie/client";
 
 type CommitBrowserState = {
   search?: string;
@@ -57,7 +57,8 @@ export function CommitBrowserReducer(
 
 export function formatQuery(
   search: string | undefined,
-  path: string[] | undefined
+  path: string[] | undefined,
+  tableName: string | undefined
 ) {
   let clauses: string[] = [];
   if (search) {
@@ -70,10 +71,21 @@ export function formatQuery(
     ];
   }
 
+  const opClauses = [];
   if (path?.length) {
-    //TODO Check with nessie team on escaping this namespace
     const namespace = path.map((c) => decodeURIComponent(c)).join(".");
-    clauses.push(`operations.exists(op, op.namespace == '${namespace}')`);
+    opClauses.push(`op.namespace == '${namespace}'`);
+  } else {
+    //Only add this filter clause if tableName is provided since we're looking for a specific one
+    if (tableName) opClauses.push("size(op.namespaceElements) == 0");
+  }
+
+  if (tableName) {
+    opClauses.push(`op.name == '${tableName}'`);
+  }
+
+  if (opClauses.length) {
+    clauses.push(`operations.exists(op, ${opClauses.join(" && ")})`);
   }
 
   return clauses.join(" || ");

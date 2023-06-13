@@ -18,6 +18,7 @@ package com.dremio.exec.store.parquet;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.parquet.bytes.BytesUtils;
@@ -31,6 +32,7 @@ import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Stopwatch;
 
 /**
  * Single object cache that holds the parquet footer for last file.
@@ -104,7 +106,7 @@ public class SingletonParquetFooterCache {
   private static ParquetMetadata readFooter(BulkInputStream file, String path, long fileLength, MetadataFilter filter, FileSystem fs,
                                             long maxFooterLen) throws IOException {
     Preconditions.checkArgument(fileLength >= MIN_FILE_SIZE || fileLength == -1, "%s is not a Parquet file (too small)", path);
-
+    Stopwatch w = Stopwatch.createStarted();
     if (fileLength == -1) {
       fileLength = fs.getFileAttributes(Path.of(path)).size();
     }
@@ -135,7 +137,7 @@ public class SingletonParquetFooterCache {
       int start = footerBytes.length - (size + FOOTER_METADATA_SIZE);
       footerBytes = ArrayUtils.subarray(footerBytes, start, start + size);
     }
-
+    logger.debug("Read footer of {} of length {} in {} ms ", path, size, w.elapsed(TimeUnit.MILLISECONDS));
     return ParquetFormatPlugin.parquetMetadataConverter.readParquetMetadata(new ByteArrayInputStream(footerBytes), filter);
   }
 }

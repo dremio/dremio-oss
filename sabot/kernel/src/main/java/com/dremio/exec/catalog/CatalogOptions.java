@@ -63,7 +63,10 @@ public final class CatalogOptions {
   // Enable secrets field look up/resolution on sources
   public static final TypeValidators.BooleanValidator SOURCE_SECRETS_RESOLUTION_ENABLED =
     new TypeValidators.BooleanValidator("auth.source-secrets-resolution.enabled", false);
-
+  // Enable reflection tab in NESSIE and ARCTIC source dialogs
+  public static final BooleanValidator REFLECTION_ARCTIC_ENABLED = new BooleanValidator("reflection.arctic.enabled", false);
+  // Enable Arctic Replacing Spaces
+  public static final BooleanValidator CATALOG_ARS_ENABLED = new TypeValidators.BooleanValidator("catalog_ars_enabled", false);
   // Do not instantiate
   private CatalogOptions() {
   }

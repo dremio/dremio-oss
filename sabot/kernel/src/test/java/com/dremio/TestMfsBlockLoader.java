@@ -35,7 +35,6 @@ import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.math3.stat.descriptive.moment.Mean;
-import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation;
 import org.apache.hadoop.fs.BlockLocation;
 import org.junit.Test;
 
@@ -121,15 +120,6 @@ public class TestMfsBlockLoader {
       max = Math.max(max, l);
     }
     return max;
-  }
-
-  private static double stdDev(List<Long> data) {
-    double[] asDouble = new double[data.size()];
-    int i = 0;
-    for (Long l : data) {
-      asDouble[i++] = (double) l;
-    }
-    return new StandardDeviation().evaluate(asDouble);
   }
 
   private static double mean(List<Long> data) {

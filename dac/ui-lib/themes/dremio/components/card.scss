@@ -1,0 +1,53 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use "../../base/components/card";
+@use "../../utilities";
+
+.dremio-card {
+  @extend .rounded;
+
+  > * {
+    @extend .p-2;
+  }
+
+  &__title,
+  &__title > * {
+    @extend .text-semibold;
+    font-size: 14px;
+  }
+}
+
+.dremio-card {
+  @extend .bg-foreground;
+  @extend .border;
+  @extend .border-solid;
+  @extend .border-foreground;
+
+  &__header {
+    border-block-end: 1px solid var(--color--neutral--50);
+  }
+}
+
+.dremio-dark .dremio-card {
+  @extend .border;
+  @extend .border-solid;
+  @extend .border-foreground;
+
+  &__header {
+    border-block-end: 1px solid var(--color--neutral--600);
+  }
+}

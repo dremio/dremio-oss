@@ -45,7 +45,9 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.exception.NoSupportedUpPromotionOrCoercionException;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
+import com.dremio.exec.planner.common.ImmutableDremioFileAttrs;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.iceberg.SchemaConverter;
 import com.dremio.exec.store.metadatarefresh.committer.DatasetCatalogGrpcClient;
 import com.dremio.exec.store.metadatarefresh.committer.DatasetCatalogRequestBuilder;
@@ -207,7 +209,10 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter, 
     datasetCatalogRequestBuilder.setNumOfRecords(numRecords);
     long numDataFiles = Long.parseLong(table.currentSnapshot().summary().getOrDefault("total-data-files", "0"));
     datasetCatalogRequestBuilder.setNumOfDataFiles(numDataFiles);
-    datasetCatalogRequestBuilder.setIcebergMetadata(getRootPointer(), tableUuid, table.currentSnapshot().snapshotId(), conf, isPartitioned, getCurrentSpecMap(), plugin, getCurrentSchema());
+    ImmutableDremioFileAttrs partitionStatsFileAttrs = IcebergUtils.getPartitionStatsFileAttrs(getRootPointer(),
+        table.currentSnapshot().snapshotId(), icebergCommand.getFileIO());
+    datasetCatalogRequestBuilder.setIcebergMetadata(getRootPointer(), tableUuid, table.currentSnapshot().snapshotId(),
+        getCurrentSpecMap(), getCurrentSchema(), partitionStatsFileAttrs.fileName(), partitionStatsFileAttrs.fileLength());
     BatchSchema newSchemaFromIceberg = SchemaConverter.getBuilder().setMapTypeEnabled(isMapDataTypeEnabled).build().fromIceberg(table.schema());
     newSchemaFromIceberg = BatchSchema.newBuilder().addFields(newSchemaFromIceberg.getFields())
       .addField(Field.nullable(IncrementalUpdateUtils.UPDATE_COLUMN, new ArrowType.Int(64, true))).build();

@@ -75,6 +75,7 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Sets;
 
+import io.opentelemetry.api.trace.Span;
 import io.protostuff.ByteString;
 
 
@@ -321,6 +322,7 @@ class SourceMetadataManager implements AutoCloseable {
     final Long updateTime = localUpdateTime.getIfPresent(key);
     final long currentTime = System.currentTimeMillis();
     final long expiryTime = bridge.getMetadataPolicy().getDatasetDefinitionExpireAfterMs();
+    Span.current().setAttribute("dremio.namespace.key.schemapath", key.getSchemaPath());
 
     final boolean isDatasetExpired = options.newerThan() < currentTime ||  //  request marks this expired
       ((updateTime == null || updateTime + expiryTime < currentTime) && // dataset was locally updated too long ago (or never)
@@ -369,7 +371,7 @@ class SourceMetadataManager implements AutoCloseable {
 
 
     boolean refreshDatasetNames() throws NamespaceException {
-      logger.debug("Name-only update for source '{}'", sourceKey);
+      logger.info("Name-only update for source '{}'", sourceKey);
       final Set<NamespaceKey> existingDatasets = Sets.newHashSet(systemNamespace.getAllDatasets(sourceKey));
 
       final SyncStatus syncStatus = new SyncStatus(false);
@@ -417,7 +419,7 @@ class SourceMetadataManager implements AutoCloseable {
     }
 
     boolean refreshFull(MetadataPolicy metadataPolicy) throws NamespaceException {
-      logger.debug("Full update for source '{}'", sourceKey);
+      logger.info("Full update for source '{}'", sourceKey);
       final DatasetRetrievalOptions retrievalOptions;
       if (metadataPolicy == null) {
         metadataPolicy = bridge.getMetadataPolicy();

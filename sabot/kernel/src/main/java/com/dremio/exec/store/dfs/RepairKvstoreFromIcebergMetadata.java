@@ -33,6 +33,7 @@ import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.PartitionStatsReader;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.io.InputFile;
 
 import com.dremio.common.exceptions.UserException;
@@ -47,11 +48,11 @@ import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.SourceMetadata;
 import com.dremio.datastore.LegacyProtobufSerializer;
 import com.dremio.exec.catalog.MetadataObjectsUtils;
+import com.dremio.exec.planner.common.ImmutableDremioFileAttrs;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.StoragePlugin;
-import com.dremio.exec.store.iceberg.DremioFileIO;
 import com.dremio.exec.store.iceberg.IcebergPartitionData;
 import com.dremio.exec.store.iceberg.IcebergSerDe;
 import com.dremio.exec.store.iceberg.IcebergUtils;
@@ -76,6 +77,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Streams;
 import com.google.protobuf.InvalidProtocolBufferException;
 
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.protostuff.ByteStringUtil;
 
 /**
@@ -112,16 +114,19 @@ public class RepairKvstoreFromIcebergMetadata {
     this.isMapDataTypeEnabled = isMapDataTypeEnabled;
   }
 
+  @WithSpan
   public boolean checkAndRepairDatasetWithQueryRetry() {
     return performCheckAndRepairDataset(true);
   }
 
+  @WithSpan
   public boolean checkAndRepairDatasetWithoutQueryRetry() {
     return performCheckAndRepairDataset(false);
   }
 
+  @WithSpan
   private boolean performCheckAndRepairDataset(boolean retryQuery) {
-    Retryer<Boolean> retryer = new Retryer.Builder()
+    Retryer retryer = Retryer.newBuilder()
       .setMaxRetries(MAX_REPAIR_ATTEMPTS)
       .retryOnExceptionFunc(
         ex ->
@@ -140,13 +145,14 @@ public class RepairKvstoreFromIcebergMetadata {
     });
   }
 
+  @WithSpan
   private boolean isRepairNeeded() {
     if(!DatasetHelper.isInternalIcebergTable(datasetConfig)) {
       return false;
     }
 
     oldIcebergMetadata = datasetConfig.getPhysicalDataset().getIcebergMetadata();
-    icebergModel = metaStoragePlugin.getIcebergModel(metaStoragePlugin.getSystemUserFS());
+    icebergModel = metaStoragePlugin.getIcebergModel();
     Path icebergTableRootFolder = Path.of(metaStoragePlugin.getConfig().getPath().toString()).resolve(oldIcebergMetadata.getTableUuid());
     final IcebergTableLoader icebergTableLoader = icebergModel.getIcebergTableLoader(icebergModel.getTableIdentifier(icebergTableRootFolder.toString()));
     currentIcebergTable = icebergTableLoader.getIcebergTable();
@@ -161,6 +167,7 @@ public class RepairKvstoreFromIcebergMetadata {
     return true;
   }
 
+  @WithSpan
   private void performRepair(boolean retryQuery) throws NamespaceException, ConnectorException, InvalidProtocolBufferException {
     logger.info("DatasetConfig of table {} in catalog is not up to date with Iceberg metadata." +
         "Current iceberg table version [Snapshot ID: {}, RootMetadataFile: {}], version in catalog [Snapshot ID: {}, RootMetadataFile: {}]. " +
@@ -168,15 +175,15 @@ public class RepairKvstoreFromIcebergMetadata {
       oldIcebergMetadata.getSnapshotId(), oldIcebergMetadata.getMetadataFileLocation());
 
     String oldPartitionStatsFile = oldIcebergMetadata.getPartitionStatsFile();
-    String newPartitionStatsFile = null;
+    ImmutableDremioFileAttrs newPartitionStatsFileAttrs = null;
     if (oldPartitionStatsFile != null) {
-      newPartitionStatsFile = IcebergUtils.getPartitionStatsFile(currentRootPointerFileLocation, currentIcebergSnapshot.snapshotId(), metaStoragePlugin.getFsConfCopy(), metaStoragePlugin);
+      newPartitionStatsFileAttrs = IcebergUtils.getPartitionStatsFileAttrs(currentRootPointerFileLocation, currentIcebergSnapshot.snapshotId(), currentIcebergTable.io());
     }
 
     repairSchema();
     repairStats();
     repairDroppedAndModifiedColumns();
-    repairReadSignature(newPartitionStatsFile);
+    repairReadSignature(newPartitionStatsFileAttrs.fileName());
     repairPrimaryKeys();
 
     // update iceberg metadata
@@ -189,8 +196,9 @@ public class RepairKvstoreFromIcebergMetadata {
     newIcebergMetadata.setPartitionSpecsJsonMap(ByteStringUtil.wrap(specs));
     newIcebergMetadata.setJsonSchema(serializedSchemaAsJson(currentIcebergTable.schema()));
 
-    if (newPartitionStatsFile != null) {
-      newIcebergMetadata.setPartitionStatsFile(newPartitionStatsFile);
+    if (newPartitionStatsFileAttrs.fileName() != null) {
+      newIcebergMetadata.setPartitionStatsFile(newPartitionStatsFileAttrs.fileName());
+      newIcebergMetadata.setPartitionStatsFileSize(newPartitionStatsFileAttrs.fileLength());
     }
 
     datasetConfig.getPhysicalDataset().setIcebergMetadata(newIcebergMetadata);
@@ -293,7 +301,8 @@ public class RepairKvstoreFromIcebergMetadata {
       logger.info("Restoring read signature of table {} from partition stats file {} of snapshot {}", datasetConfig.getFullPathList(),
         newPartitionStatsFile, currentIcebergSnapshot.snapshotId());
 
-      final InputFile partitionStatsInputFile = new DremioFileIO(metaStoragePlugin.getFsConfCopy(), metaStoragePlugin).newInputFile(newPartitionStatsFile);
+      FileIO io = metaStoragePlugin.createIcebergFileIO(metaStoragePlugin.getSystemUserFS(), null, null, null, null);
+      final InputFile partitionStatsInputFile = io.newInputFile(newPartitionStatsFile);
       PartitionStatsReader partitionStatsReader = new PartitionStatsReader(partitionStatsInputFile, spec);
 
       Streams.stream(partitionStatsReader)

@@ -38,4 +38,9 @@ public class FlattenRel extends FlattenRelBase implements Rel {
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
     return new FlattenRel(getCluster(), traitSet, sole(inputs), toFlatten, numProjectsPushed);
   }
+
+  @Override
+  public FlattenRelBase copy(List<RelNode> inputs, List<RexInputRef> toFlatten) {
+    return new FlattenRel(getCluster(), getTraitSet(), sole(inputs), toFlatten, numProjectsPushed);
+  }
 }

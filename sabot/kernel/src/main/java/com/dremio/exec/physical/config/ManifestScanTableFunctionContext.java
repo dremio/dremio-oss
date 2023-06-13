@@ -41,6 +41,7 @@ public class ManifestScanTableFunctionContext extends TableFunctionContext {
     private String icebergSchema;
     private final ManifestContent manifestContent;
     private final ManifestScanFilters manifestScanFilters;
+    private final boolean isCarryForwardEnabled;    // Enable TF to carry forward processed rows' info
 
     public ManifestScanTableFunctionContext(
         @JsonProperty("partitionSpecMap") ByteString partitionSpecMap,
@@ -62,13 +63,15 @@ public class ManifestScanTableFunctionContext extends TableFunctionContext {
         @JsonProperty("icebergMetadata") boolean isIcebergMetadata,
         @JsonProperty("userDefinedSchemaSettings") UserDefinedSchemaSettings userDefinedSchemaSettings,
         @JsonProperty("manifestContent") ManifestContent manifestContent,
-        @JsonProperty("metadataFilters") ManifestScanFilters manifestScanFilters) {
+        @JsonProperty("metadataFilters") ManifestScanFilters manifestScanFilters,
+        @JsonProperty("carryForwardEnabled") boolean isCarryForwardEnabled) {
         super(formatSettings, fullSchema, tableSchema, tablePath, scanFilter, pluginId, internalTablePluginId, columns, partitionColumns, globalDictionaryEncodedColumns, extendedProperty, arrowCachingEnabled, isConvertedIcebergDataset, isIcebergMetadata, userDefinedSchemaSettings);
         this.partitionSpecMap = partitionSpecMap;
         this.icebergSchema = icebergSchema;
         this.jsonPartitionSpecMap = jsonPartitionSpecMap;
         this.manifestScanFilters = manifestScanFilters;
         this.manifestContent = manifestContent;
+        this.isCarryForwardEnabled = isCarryForwardEnabled;
     }
 
     public ByteString getPartitionSpecMap() {
@@ -89,5 +92,9 @@ public class ManifestScanTableFunctionContext extends TableFunctionContext {
 
     public ManifestContent getManifestContent() {
       return manifestContent;
+    }
+
+    public boolean isCarryForwardEnabled() {
+      return isCarryForwardEnabled;
     }
 }

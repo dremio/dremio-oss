@@ -263,7 +263,7 @@ public class AllRowGroupsParquetReader implements RecordReader {
         dataset,
         fileAttributes.lastModifiedTime().toMillis(),
         false,
-        true);
+        true, filters, parquetReaderFactory.newFilterCreator(context, ParquetReaderFactory.ManagedSchemaType.ICEBERG, null, context.getAllocator()));
     } catch (IOException ex) {
       throw new UncheckedIOException(ex);
     }

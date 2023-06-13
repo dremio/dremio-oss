@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.base.PhysicalOperator;
+import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
@@ -35,6 +36,8 @@ import com.dremio.exec.planner.sql.parser.SqlRefreshDataset;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.store.pojo.PojoDataType;
 import com.google.common.base.Preconditions;
+
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 
 /**
  * Handler for internal {@link SqlRefreshDataset} command.
@@ -48,6 +51,7 @@ public class RefreshDatasetHandler implements SqlToPlanHandler {
     logger.info("Initialised {}", this.getClass().getName());
   }
 
+  @WithSpan
   @Override
   public PhysicalPlan getPlan(SqlHandlerConfig config, String sql, SqlNode sqlNode) throws Exception {
     assertRefreshEnabled(config);
@@ -93,4 +97,8 @@ public class RefreshDatasetHandler implements SqlToPlanHandler {
     return textPlan;
   }
 
+  @Override
+  public Rel getLogicalPlan() {
+    throw new UnsupportedOperationException();
+  }
 }

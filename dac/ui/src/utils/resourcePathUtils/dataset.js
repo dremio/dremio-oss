@@ -37,7 +37,7 @@ class DatasetResourcePathUtils {
   }
 
   /*
-   * Creating the dataset URL: https://dremio.atlassian.net/browse/DX-56494
+   * Creating the dataset URL: DX-56494
    *
    * Decoding the part separately before concatenating into a URL. Putting
    * the roote space before the rest of the namespace, so that

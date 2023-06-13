@@ -75,9 +75,9 @@
       kind: "Function"
       label: "AES_ENCRYPT(???, ???)"
      -
-      insertText: "BIN(${1:INT})"
+      insertText: "ANY_VALUE(${1:BOOLEAN})"
       kind: "Function"
-      label: "BIN(???)"
+      label: "ANY_VALUE(???)"
     functionContext:
       function:
         description: "Returns the portion of the STRING from the specified base expression starting at the specified characters."

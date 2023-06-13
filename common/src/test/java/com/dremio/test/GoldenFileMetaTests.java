@@ -19,6 +19,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 
 import org.junit.Assert;
+import org.junit.ComparisonFailure;
 import org.junit.Test;
 
 /**
@@ -27,7 +28,7 @@ import org.junit.Test;
 public final class GoldenFileMetaTests  {
   @Test
   public void testSuccessScenario() {
-    new GoldenFileTestBuilder<Input, Integer>(input -> input.left + input.right)
+    GoldenFileTestBuilder.<Input, Integer>create(input -> input.left + input.right)
       .add("3 plus 5", new Input(3, 5))
       .add("5 plus 8", new Input(5, 8))
       .runTests();
@@ -35,7 +36,7 @@ public final class GoldenFileMetaTests  {
 
   @Test
   public void testExpectedExceptionScenario() {
-    new GoldenFileTestBuilder<>(GoldenFileMetaTests::addWithException)
+    GoldenFileTestBuilder.create(GoldenFileMetaTests::addWithException)
       .allowExceptions()
       .add("3 plus 5", new Input(3, 5))
       .add("5 plus 8", new Input(5, 8))
@@ -45,7 +46,7 @@ public final class GoldenFileMetaTests  {
   @Test
   public void testUnexpectedExceptionScenario() {
     try {
-      new GoldenFileTestBuilder<>(GoldenFileMetaTests::addWithException)
+      GoldenFileTestBuilder.create(GoldenFileMetaTests::addWithException)
           .add("3 plus 5", new Input(3, 5))
           .runTests();
       Assert.fail();
@@ -54,11 +55,28 @@ public final class GoldenFileMetaTests  {
     }
   }
 
+  @Test
+  public void testIgnoreScenario() {
+    GoldenFileTestBuilder.<Input, Integer>create(input -> input.left + input.right)
+      .add("Correct Output And Ignore = false", new Input(3, 5))
+      .addButIgnore("Correct Output And Ignore = true", new Input(3, 5))
+      .addButIgnore("Incorrect Output And Ignore = true", new Input(3, 5))
+      .runTests();
+  }
+
+  @Test(expected = ComparisonFailure.class)
+  public void testIncorrectOutput() {
+    GoldenFileTestBuilder.<Input, Integer>create(input -> input.left + input.right)
+      .allowExceptions()
+      .add("Incorrect Output And Ignore = false", new Input(3, 5))
+      .runTests();
+  }
+
   @SuppressWarnings("AssertionFailureIgnored")
   @Test
   public void testFirstRun() {
     try {
-      new GoldenFileTestBuilder<>((Integer i) -> i)
+      GoldenFileTestBuilder.create((Integer i) -> i)
           .add("Example Test", 1)
           .runTests();
       Assert.fail();
@@ -81,7 +99,7 @@ public final class GoldenFileMetaTests  {
   @Test
   public void testNotCasesAdded() {
     try {
-      new GoldenFileTestBuilder<>((Integer i) -> i)
+      GoldenFileTestBuilder.create((Integer i) -> i)
           .runTests();
       Assert.fail();
     } catch (IllegalStateException error) {

@@ -28,6 +28,7 @@ public class DocumentNode extends EntryNode implements DocumentEntry {
     super(property, parent);
   }
 
+  @Override
   public DocumentProperty getProperty() {
     return (DocumentProperty) super.getProperty();
   }

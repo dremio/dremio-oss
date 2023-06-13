@@ -34,7 +34,8 @@ public interface TableFormatWriterOptions {
     INSERT,
     MERGE,
     UPDATE,
-    OPTIMIZE
+    OPTIMIZE,
+    VACUUM
   }
 
   /**
@@ -51,6 +52,14 @@ public interface TableFormatWriterOptions {
    */
   @Nullable
   Long getMinInputFilesBeforeOptimize();
+
+  /**
+   * SnapshotId for operation.
+   * Consuming operation: Starting snapshot ID for conflict
+   * resolution with delete files in optimization.
+   */
+  @Nullable
+  Long getSnapshotId();
 
   /**
    * Target file size to be used by writers.

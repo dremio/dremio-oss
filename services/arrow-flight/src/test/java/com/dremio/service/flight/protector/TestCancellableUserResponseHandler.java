@@ -72,7 +72,7 @@ public class TestCancellableUserResponseHandler {
     // Act
     UserResult userResult =
       new UserResult(expected, queryId, UserBitShared.QueryResult.QueryState.COMPLETED, resultProfile, null, null,
-        false);
+        false, false, false);
     cancellableUserResponseHandler.completed(userResult);
 
     // Assert
@@ -98,7 +98,7 @@ public class TestCancellableUserResponseHandler {
     UserException userException = UserException.parseError(expected).buildSilently();
     UserResult userResult =
       new UserResult(null, queryId, UserBitShared.QueryResult.QueryState.FAILED, resultProfile, userException, null,
-        false);
+        false, false, false);
     cancellableUserResponseHandler.completed(
       userResult);
 

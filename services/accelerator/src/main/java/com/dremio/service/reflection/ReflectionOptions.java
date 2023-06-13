@@ -68,6 +68,8 @@ public interface ReflectionOptions {
   BooleanValidator REFRESH_AFTER_DESERIALIZATION_FAILURE = new BooleanValidator("reflection.manager.auto_refresh_failed", false);
   // should reflection settings and refresh cache be enabled during reflection manager syncs
   BooleanValidator REFLECTION_MANAGER_SYNC_CACHE = new BooleanValidator("reflection.manager.sync.cache.enabled", true);
-  // Enable reflection tab in NESSIE and ARCTIC source dialogs
-  BooleanValidator REFLECTION_ARCTIC_ENABLED = new BooleanValidator("reflection.arctic.enabled", false);
+  // Allow default raw reflections to be used in REFRESH REFLECTION jobs
+  BooleanValidator ACCELERATION_ENABLE_DEFAULT_RAW_REFRESH = new BooleanValidator("accelerator.enable_default_raw_reflection_refresh", true);
+  // should incrementally refreshed default raw reflections containing filters/aggs be used
+  BooleanValidator ENABLE_INCREMENTAL_DEFAULT_RAW_REFLECTIONS_WITH_AGGS = new BooleanValidator("reflection.manager.enable_incremental_default_raw_with_aggs", true);
 }

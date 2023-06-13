@@ -22,34 +22,34 @@ import com.dremio.test.GoldenFileTestBuilder;
 public final class UpdateStatementCompletionTests extends AutocompleteEngineTests {
   @Test
   public void tests() {
-    new GoldenFileTestBuilder<>(this::executeTestWithFolderContext)
+    new GoldenFileTestBuilder<>(this::executeTestWithFolderContext, GoldenFileTestBuilder.MultiLineString::create)
       .add(
         "UPDATE",
-        GoldenFileTestBuilder.MultiLineString.create("UPDATE ^"))
+        "UPDATE ^")
       .add(
         "UPDATE + TABLE",
-        GoldenFileTestBuilder.MultiLineString.create("UPDATE EMP ^"))
+        "UPDATE EMP ^")
       .add(
         "UPDATE + TABLE + SET",
-        GoldenFileTestBuilder.MultiLineString.create("UPDATE EMP SET ^"))
+        "UPDATE EMP SET ^")
       .add(
         "UPDATE + TABLE + SET + PARTIAL ASSIGN",
-        GoldenFileTestBuilder.MultiLineString.create("UPDATE EMP SET NAME = ^"))
+        "UPDATE EMP SET NAME = ^")
       .add(
         "UPDATE + TABLE + SET + ASSIGN",
-        GoldenFileTestBuilder.MultiLineString.create("UPDATE EMP SET NAME = 'Brandon' ^"))
+        "UPDATE EMP SET NAME = 'Brandon' ^")
       .add(
         "UPDATE + TABLE + SET + PARTIAL ASSIGN LIST",
-        GoldenFileTestBuilder.MultiLineString.create("UPDATE EMP SET NAME = 'Brandon', ^"))
+        "UPDATE EMP SET NAME = 'Brandon', ^")
       .add(
         "UPDATE + TABLE + SET + ASSIGN LIST",
-        GoldenFileTestBuilder.MultiLineString.create("UPDATE EMP SET NAME = 'Brandon', AGE = 27 ^"))
+        "UPDATE EMP SET NAME = 'Brandon', AGE = 27 ^")
       .add(
         "UPDATE + TABLE + SET + ASSIGN LIST + WHERE",
-        GoldenFileTestBuilder.MultiLineString.create("UPDATE EMP SET NAME = 'Brandon', AGE = 27 WHERE ^"))
+        "UPDATE EMP SET NAME = 'Brandon', AGE = 27 WHERE ^")
       .add(
         "UPDATE + TABLE + SET + ASSIGN LIST + WHERE + BOOLEAN EXPRESSION",
-        GoldenFileTestBuilder.MultiLineString.create("UPDATE EMP SET NAME = 'Brandon', AGE = 27 WHERE NAME != 'Brandon' ^"))
+        "UPDATE EMP SET NAME = 'Brandon', AGE = 27 WHERE NAME != 'Brandon' ^")
       .runTests();
   }
 }

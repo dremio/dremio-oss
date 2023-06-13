@@ -119,6 +119,7 @@ public class ParquetScanFilter implements ScanFilter {
     return conditions.stream().map(ParquetFilterCondition::getPath).collect(Collectors.toList());
   }
 
+  @Override
   @JsonIgnore
   public RexNode getRexFilter() {
     if (conditions.get(0) == null) {

@@ -232,33 +232,24 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
       final Object result;
       if (! type.isPrimitive()) {
         result = null;
-      }
-      else {
+      } else {
         if (type == boolean.class) {
           result = false;
-        }
-        else if (type == byte.class) {
+        } else if (type == byte.class) {
           result = (byte) 0;
-        }
-        else if (type == short.class) {
+        } else if (type == short.class) {
           result = (short) 0;
-        }
-        else if (type == char.class) {
+        } else if (type == char.class) {
           result = (char) 0;
-        }
-        else if (type == int.class) {
+        } else if (type == int.class) {
           result = 0;
-        }
-        else if (type == long.class) {
+        } else if (type == long.class) {
           result = (long) 0L;
-        }
-        else if (type == float.class) {
+        } else if (type == float.class) {
           result = 0F;
-        }
-        else if (type == double.class) {
+        } else if (type == double.class) {
           result = 0.0;
-        }
-        else {
+        } else {
           fail("Test needs to be updated to handle type " + type);
           result = null;  // Not executed; for "final".
         }
@@ -323,13 +314,11 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
 
         if (isOkayNonthrowingMethod(method)) {
           successLinesBuf.append(resultLine);
-        }
-        else {
+        } else {
           logger.trace("Failure: " + resultLine);
           failureLinesBuf.append(resultLine);
         }
-      }
-      catch (InvocationTargetException e) {
+      } catch (InvocationTargetException e) {
         final Throwable cause = e.getCause();
         final String resultLine = "- " + methodLabel + " threw <" + cause + ">\n";
 
@@ -337,22 +326,19 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
              && normalClosedExceptionText.equals(cause.getMessage())) {
           // Common good case--our preferred exception class with our message.
           successLinesBuf.append(resultLine);
-        }
-        else if (NullPointerException.class == cause.getClass()
+        } else if (NullPointerException.class == cause.getClass()
                   && (method.getName().equals("isWrapperFor")
                       || method.getName().equals("unwrap"))) {
           // Known good-enough case--these methods don't throw already-closed
           // exception, but do throw NullPointerException because of the way
           // we call them (with null) and the way Avatica code implements them.
           successLinesBuf.append(resultLine);
-        }
-        else {
+        } else {
           // Not a case that base-class code here recognizes, but subclass may
           // know that it's okay.
           if (isOkaySpecialCaseException(method, cause)) {
             successLinesBuf.append(resultLine);
-          }
-          else {
+          } else {
             final String badResultLine =
                 "- " + methodLabel + " threw <" + cause + "> instead"
                 + " of " + AlreadyClosedSqlException.class.getSimpleName()
@@ -363,8 +349,7 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
             failureLinesBuf.append(badResultLine);
           }
         }
-      }
-      catch (IllegalAccessException | IllegalArgumentException e) {
+      } catch (IllegalAccessException | IllegalArgumentException e) {
         fail("Unexpected exception: " + e + ", cause = " + e.getCause()
               + "  from " + method);
       }
@@ -422,13 +407,11 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
       final boolean result;
       if (super.isOkayNonthrowingMethod(method)) {
         result = true;
-      }
-      else if (   method.getName().equals("beginRequest")
+      } else if (   method.getName().equals("beginRequest")
                || method.getName().equals("endRequest")) {
         // TODO: New Java 9 methods not implemented in Avatica.
         result = true;
-      }
-      else {
+      } else {
         result = false;
       }
       return result;
@@ -439,29 +422,25 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
       final boolean result;
       if (super.isOkaySpecialCaseException(method, cause)) {
         result = true;
-      }
-      else if (SQLClientInfoException.class == cause.getClass()
+      } else if (SQLClientInfoException.class == cause.getClass()
                 && normalClosedExceptionText.equals(cause.getMessage())
                 && (   method.getName().equals("setClientInfo")
                     || method.getName().equals("getClientInfo")
                     )) {
         // Special good case--we had to use SQLClientInfoException from those.
         result = true;
-      }
-      else if (RuntimeException.class == cause.getClass()
+      } else if (RuntimeException.class == cause.getClass()
                && normalClosedExceptionText.equals(cause.getMessage())
                && (   method.getName().equals("getCatalog")
                    || method.getName().equals("getSchema")
                    )) {
         // Special good-enough case--we had to use RuntimeException for now.
         result = true;
-      }
-      else if (   method.getName().equals("setShardingKeyIfValid")
+      } else if (   method.getName().equals("setShardingKeyIfValid")
                || method.getName().equals("setShardingKey")) {
         // TODO: New Java 9 methods not implemented in Avatica.
         result = true;
-      }
-      else {
+      } else {
         result = false;
       }
       return result;
@@ -501,20 +480,17 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
       final boolean result;
       if (super.isOkaySpecialCaseException(method, cause)) {
         result = true;
-      }
-      else if (   method.getName().equals("executeLargeBatch")
+      } else if (   method.getName().equals("executeLargeBatch")
                || method.getName().equals("executeLargeUpdate")) {
         // TODO: New Java 8 methods not implemented in Avatica.
         result = true;
-      }
-      else if (   method.getName().equals("enquoteLiteral")
+      } else if (   method.getName().equals("enquoteLiteral")
                || method.getName().equals("enquoteIdentifier")
                || method.getName().equals("enquoteNCharLiteral")
                || method.getName().equals("isSimpleIdentifier")) {
         // TODO: New Java 9 methods not implemented in Avatica.
         result = true;
-      }
-      else if (RuntimeException.class == cause.getClass()
+      } else if (RuntimeException.class == cause.getClass()
                && normalClosedExceptionText.equals(cause.getMessage())
                && (   method.getName().equals("getConnection")
                    || method.getName().equals("getFetchDirection")
@@ -524,8 +500,7 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
                    )) {
         // Special good-enough case--we had to use RuntimeException for now.
         result = true;
-      }
-      else {
+      } else {
         result = false;
       }
       return result;
@@ -565,8 +540,7 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
       final boolean result;
       if (super.isOkaySpecialCaseException(method, cause)) {
         result = true;
-      }
-      else if (RuntimeException.class == cause.getClass()
+      } else if (RuntimeException.class == cause.getClass()
                && normalClosedExceptionText.equals(cause.getMessage())
                && (   method.getName().equals("clearBatch")
                    || method.getName().equals("getConnection")
@@ -577,23 +551,20 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
                    )) {
         // Special good-enough case--we had to use RuntimeException for now.
         result = true;
-      }
-      else if (  method.getName().equals("setObject")
+      } else if (  method.getName().equals("setObject")
               || method.getName().equals("executeLargeUpdate")
               || method.getName().equals("executeLargeBatch")
               || method.getName().equals("getLargeMaxRows")
               ) {
         // TODO: Java 8 methods not yet supported by Avatica.
         result = true;
-      }
-      else if (   method.getName().equals("enquoteLiteral")
+      } else if (   method.getName().equals("enquoteLiteral")
                || method.getName().equals("enquoteIdentifier")
                || method.getName().equals("enquoteNCharLiteral")
                || method.getName().equals("isSimpleIdentifier")) {
         // TODO: New Java 9 methods not implemented in Avatica.
         result = true;
-      }
-      else {
+      } else {
         result = false;
       }
       return result;
@@ -628,19 +599,16 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
       final boolean result;
       if (super.isOkaySpecialCaseException(method, cause)) {
         result = true;
-      }
-      else if (RuntimeException.class == cause.getClass()
+      } else if (RuntimeException.class == cause.getClass()
                && normalClosedExceptionText.equals(cause.getMessage())
                && method.getName().equals("getStatement")) {
         // Special good-enough case--we had to use RuntimeException for now.
         result = true;
-      }
-      else if (SQLFeatureNotSupportedException.class == cause.getClass()
+      } else if (SQLFeatureNotSupportedException.class == cause.getClass()
                && (method.getName().equals("updateObject"))) {
         // TODO: Java 8 methods not yet supported by Avatica.
         result = true;
-      }
-      else {
+      } else {
         result = false;
       }
       return result;
@@ -741,14 +709,12 @@ public class Drill2489CallsAfterCloseThrowExceptionsTest extends JdbcTestBase {
       final boolean result;
       if (super.isOkaySpecialCaseException(method, cause)) {
         result = true;
-      }
-      else if (RuntimeException.class == cause.getClass()
+      } else if (RuntimeException.class == cause.getClass()
                && normalClosedExceptionText.equals(cause.getMessage())
                && method.getName().equals("getResultSetHoldability")) {
         // Special good-enough case--we had to use RuntimeException for now.
         result = true;
-      }
-      else {
+      } else {
         result = false;
       }
       return result;

@@ -48,8 +48,7 @@ public class HiveDirListingRecordReader extends DirListingRecordReader {
   protected void initDirIterator(boolean isFile) throws IOException {
     try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
       super.initDirIterator(false);
-    }
-    catch (FileNotFoundException e) {
+    } catch (FileNotFoundException e) {
       logger.debug("FNF error while listing directory " + operatingPath, e);
     }
   }

@@ -17,6 +17,7 @@ package com.dremio.exec.catalog;
 
 import javax.annotation.Nullable;
 
+import org.apache.commons.lang3.StringUtils;
 import org.immutables.value.Value;
 import org.immutables.value.Value.Style.ImplementationVisibility;
 
@@ -127,9 +128,14 @@ public abstract class VersionContext {
     return (getType() == Type.UNSPECIFIED) ? other : this;
   }
 
+  @SuppressWarnings("immutables")
   public static VersionContext NOT_SPECIFIED = ImmutableVersionContext.builder()
     .type(Type.UNSPECIFIED)
     .build();
+
+  public String toStringFirstLetterCapitalized() {
+    return StringUtils.capitalize(toString());
+  }
 
   @Override
   public String toString() {

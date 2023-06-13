@@ -16,6 +16,7 @@
 package com.dremio.exec.planner.observer;
 
 import java.util.List;
+import java.util.Map;
 
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.RelNode;
@@ -60,7 +61,8 @@ public abstract class AbstractAttemptObserver implements AttemptObserver {
   }
 
   @Override
-  public void planRelTransform(PlannerPhase phase, RelOptPlanner planner, RelNode before, RelNode after, long millisTaken) {
+  public void planRelTransform(PlannerPhase phase, RelOptPlanner planner, RelNode before, RelNode after,
+                               long millisTaken, final Map<String, Long> timeBreakdownPerRule) {
   }
 
   @Override
@@ -195,5 +197,13 @@ public abstract class AbstractAttemptObserver implements AttemptObserver {
 
   @Override
   public void updateReflectionsWithHints(ReflectionExplanationsAndQueryDistance reflectionExplanationsAndQueryDistance) {
+  }
+
+  @Override
+  public void setNumJoinsInUserQuery(Integer joins) {
+  }
+
+  @Override
+  public void setNumJoinsInFinalPrel(Integer joins) {
   }
 }

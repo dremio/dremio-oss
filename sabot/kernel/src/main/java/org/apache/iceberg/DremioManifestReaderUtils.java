@@ -31,11 +31,13 @@ public class DremioManifestReaderUtils {
     }
 
     public ManifestEntryWrapper(F file, long sequenceNumber) {
-      this.entry = new GenericManifestEntry<F>((Schema) null).wrapExisting(0L, sequenceNumber, file);
+      // TODO: add a constructor with 'file sequence number'.
+      // This method is only used for test code simulation. Also, 'data sequence number' is always passed as 0.
+      this.entry = new GenericManifestEntry<F>((Schema) null).wrapExisting(0L, sequenceNumber, sequenceNumber, file);
     }
 
     public Long sequenceNumber() {
-      return entry.sequenceNumber();
+      return entry.dataSequenceNumber();
     }
 
     public F file() {

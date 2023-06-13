@@ -21,8 +21,6 @@ import static com.dremio.services.nessie.grpc.client.GrpcExceptionMapper.handle;
 
 import java.util.function.Supplier;
 
-import org.projectnessie.api.RefLogApi;
-
 import com.dremio.services.nessie.grpc.api.RefLogParams;
 import com.dremio.services.nessie.grpc.api.RefLogResponse;
 import com.dremio.services.nessie.grpc.api.RefLogServiceGrpc.RefLogServiceImplBase;
@@ -34,14 +32,20 @@ import io.grpc.stub.StreamObserver;
  */
 public class RefLogService extends RefLogServiceImplBase {
 
-  private final Supplier<RefLogApi> bridge;
+  private final Supplier<? extends org.projectnessie.services.spi.RefLogService> bridge;
 
-  public RefLogService(Supplier<RefLogApi> bridge) {
+  public RefLogService(Supplier<? extends org.projectnessie.services.spi.RefLogService> bridge) {
     this.bridge = bridge;
   }
 
   @Override
   public void getRefLog(RefLogParams params, StreamObserver<RefLogResponse> observer) {
-    handle(() -> toProto(bridge.get().getRefLog(fromProto(params))), observer);
+    handle(() -> toProto(bridge.get().getRefLog(
+      fromProto(params::hasStartHash, params::getStartHash),
+      fromProto(params::hasEndHash, params::getEndHash),
+      fromProto(params::hasFilter, params::getFilter),
+      fromProto(params::hasMaxRecords, params::getMaxRecords),
+      fromProto(params::hasPageToken, params::getPageToken))
+      ), observer);
   }
 }

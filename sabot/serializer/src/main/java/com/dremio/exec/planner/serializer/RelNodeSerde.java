@@ -24,6 +24,8 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.tools.RelBuilder;
 
 import com.dremio.exec.catalog.DremioPrepareTable;
+import com.dremio.exec.catalog.DremioTranslatableTable;
+import com.dremio.exec.catalog.TableVersionContext;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.plan.serialization.PRelDataType;
@@ -212,6 +214,8 @@ public interface RelNodeSerde<REL_NODE extends RelNode, PROTO_NODE extends Messa
      * @return Table object.
      */
     DremioPrepareTable getTable(NamespaceKey key);
+
+    DremioTranslatableTable getTableSnapshot(NamespaceKey key, TableVersionContext context);
   }
 
   /**

@@ -39,20 +39,17 @@ import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.common.util.FileUtils;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.FileFormatUI;
-import com.dremio.dac.explore.model.InitialPreviewResponse;
 import com.dremio.dac.model.folder.Folder;
 import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.model.namespace.NamespaceTree;
 import com.dremio.dac.model.sources.FormatTools;
 import com.dremio.dac.model.sources.PhysicalDataset;
-import com.dremio.dac.model.sources.SourcePath;
 import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.model.sources.UIMetadataPolicy;
 import com.dremio.dac.server.BaseTestServer;
@@ -92,7 +89,7 @@ import ch.qos.logback.classic.Level;
  * in oss/dac/backend/src/test/java/com/dremio/dac/api/TestPromotion.java.
  */
 public class TestPhysicalDatasets extends BaseTestServer {
-  private static ch.qos.logback.classic.Logger rootLogger = ((ch.qos.logback.classic.Logger)org.slf4j.LoggerFactory.getLogger("com.dremio"));
+  private static final ch.qos.logback.classic.Logger rootLogger = ((ch.qos.logback.classic.Logger)org.slf4j.LoggerFactory.getLogger("com.dremio"));
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestPhysicalDatasets.class);
   private static Level originalLogLevel;
   private BufferAllocator allocator;
@@ -120,7 +117,6 @@ public class TestPhysicalDatasets extends BaseTestServer {
       source.setConfig(nas);
       source.setMetadataPolicy(UIMetadataPolicy.of(CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE));
       sourceService.registerSourceWithRuntime(source);
-//      namespaceService.addOrUpdateSource(new SourcePath(new SourceName(nas.getName())).toNamespaceKey(), nas.asSourceConfig());
     }
     allocator = getSabotContext().getAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
   }
@@ -193,13 +189,7 @@ public class TestPhysicalDatasets extends BaseTestServer {
       assertEquals(3, data.getReturnedRowCount());
       assertEquals(2, data.getColumns().size());
 
-      doc("creating dataset from source file");
-      InitialPreviewResponse createResponse = expectSuccess(getBuilder(getAPIv2().path(
-        "source/dacfs_test/new_untitled_from_file/" + getUrlPath("/datasets/users.json"))).buildPost(Entity.json("")),
-        InitialPreviewResponse.class);
-      assertEquals(2, createResponse.getData().getColumns().size());
-
-      checkCounts(fileParentUrlPath, "users.json", true, 2, 0, 0);
+      checkCounts(fileParentUrlPath, "users.json", true, 1, 0, 0);
     }
   }
 
@@ -235,7 +225,6 @@ public class TestPhysicalDatasets extends BaseTestServer {
     assertEquals(3, data.getColumns().size());
 
     fileConfig.setExtractHeader(true);
-//    fileConfig.setLegacyTag(0L);
     expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/file_format/" + fileUrlPath)).buildPut(Entity.json(fileConfig)));
     data = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/file_preview/"+ fileUrlPath)).buildPost(Entity.json(fileConfig)), JobDataFragment.class);
     assertEquals(3, data.getReturnedRowCount());
@@ -264,7 +253,6 @@ public class TestPhysicalDatasets extends BaseTestServer {
     assertEquals(3, data.getColumns().size());
 
     fileConfig.setExtractHeader(true);
-//    fileConfig.setLegacyTag(0L);
     expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/file_format/" + fileUrlPath)).buildPut(Entity.json(fileConfig)));
     data = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/file_preview/"+ fileUrlPath)).buildPost(Entity.json(fileConfig)), JobDataFragment.class);
     assertEquals(3, data.getReturnedRowCount());
@@ -467,47 +455,12 @@ public class TestPhysicalDatasets extends BaseTestServer {
 
       expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + filePath)).buildPut(Entity.json(fileConfig)));
 
-      doc("creating dataset from source folder");
-      expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/new_untitled_from_folder/" + filePath)).buildPost(Entity.json("")), InitialPreviewResponse.class);
-
       checkCounts(fileParentPath, "folderdataset", true, 1, 0, 0);
     } finally {
       resetSystemOption("dac.format.preview.batch_size");
     }
   }
 
-  private void noop() {
-  }
-  /*
-  @Test
-  public void testSubSchemaListing() throws Exception {
-    final StoragePluginRegistry pluginRegistry = getCurrentDremioDaemon().getDremio().getStoragePluginRegistry();
-    final FileSystemPlugin plugin = (FileSystemPlugin) pluginRegistry.getPlugin("dacfs_test");
-
-    SchemaPlus rootSchema = CalciteSchema.createRootSchema(false, false).plus();
-    Constructor<SchemaConfig> config = SchemaConfig.class.getDeclaredConstructor(String.class, SchemaConfigInfoProvider.class,
-      boolean.class);
-    config.setAccessible(true);
-    SchemaConfig schemaConfig = config.newInstance("test_user", null, true);
-    plugin.registerSchemas(schemaConfig, rootSchema);
-    assertEquals(0, rootSchema.getSubSchema("dacfs_test").getSubSchemaNames().size());
-    assertEquals(0, rootSchema.getSubSchema("dacfs_test").getTableNames().size());
-
-    getNamespaceService().tryCreatePhysicalDataset(new PhysicalDatasetPath("dacfs_test.tmp.foo1").toNamespaceKey(),
-      toDatasetConfig(new PhysicalDatasetConfig().setType(DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER)));
-    getNamespaceService().tryCreatePhysicalDataset(new PhysicalDatasetPath("dacfs_test.home.bar").toNamespaceKey(),
-      toDatasetConfig(new PhysicalDatasetConfig().setType(DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER)));
-    getNamespaceService().tryCreatePhysicalDataset(new PhysicalDatasetPath("dacfs_test.tmp.foo2").toNamespaceKey(),
-      toDatasetConfig(new PhysicalDatasetConfig().setType(DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER)));
-
-    rootSchema = CalciteSchema.createRootSchema(false, false).plus();
-    config.setAccessible(true);
-    plugin.registerSchemas(schemaConfig, rootSchema);
-
-    assertEquals(0, rootSchema.getSubSchema("dacfs_test").getSubSchemaNames().size());
-    assertEquals(3, rootSchema.getSubSchema("dacfs_test").getTableNames().size());
-  }
-  */
 
   @Test
   public void listSource() {
@@ -597,8 +550,6 @@ public class TestPhysicalDatasets extends BaseTestServer {
     TextFileConfig fileConfig = new TextFileConfig();
     fileConfig.setComment("#");
     fileConfig.setFieldDelimiter("|");
-    //fileConfig.setSkipFirstLine(true);
-    //fileConfig.setExtractHeader(true);
     fileConfig.setName("fff");
     fileConfig.setVersion(null);
 
@@ -694,55 +645,6 @@ public class TestPhysicalDatasets extends BaseTestServer {
       }
     }
 
-  }
-
-  @Test
-  @Ignore("DX-10523")
-  public void testPhysicalDatasetSourceFiles() throws Exception {
-    final NASConf config = new NASConf();
-    config.path = "/";
-    SourceUI source = new SourceUI();
-    source.setName("src");
-    source.setCtime(1000L);
-    source.setConfig(config);
-
-    NamespaceService namespaceService = newNamespaceService();
-    namespaceService.addOrUpdateSource(new SourcePath("src").toNamespaceKey(), source.asSourceConfig());
-
-    TextFileConfig fileConfig = new TextFileConfig();
-    fileConfig.setComment("#");
-    fileConfig.setFieldDelimiter("|");
-    fileConfig.setExtractHeader(true);
-    fileConfig.setName("fff");
-
-    doc("create physical dataset from source file/ set format settings on a file in source");
-    expectSuccess(getBuilder(getAPIv2().path(
-      "/source/src/file_format/file1")).buildPut(Entity.json(fileConfig)));
-
-    doc("get physical dataset config from source file/get format settings on a file in source");
-    TextFileConfig format1 = (TextFileConfig) expectSuccess(getBuilder(getAPIv2().path(
-      "/source/src/file_format/file1")).buildGet(), FileFormatUI.class).getFileFormat();
-
-    assertEquals(fileConfig.getName(), format1.getName());
-    assertEquals(fileConfig.getFieldDelimiter(), format1.getFieldDelimiter());
-    assertEquals(fileConfig.getExtractHeader(), format1.getExtractHeader());
-    assertEquals(fileConfig.asFileConfig().getType(), format1.asFileConfig().getType());
-    assertEquals(fileConfig.asFileConfig().getOwner(), format1.asFileConfig().getOwner());
-
-    doc("delete with bad version");
-    long badVersion = 1234L;
-    String expectedErrorMessage = String.format("Cannot delete file format \"%s\", version provided \"%s\" is different from version found \"%s\"",
-      "file1", badVersion, format1.getVersion());
-    final GenericErrorMessage errorDelete2 = expectStatus(CONFLICT,
-      getBuilder(getAPIv2().path("/source/src/file_format/file1").queryParam("version", badVersion)).buildDelete(),
-      GenericErrorMessage.class);
-    assertErrorMessage(errorDelete2, expectedErrorMessage);
-
-    doc("delete physical dataset for source file/delete format settings on a file in source");
-    expectSuccess(getBuilder(getAPIv2().path("/source/src/file_format/file1").queryParam("version", format1.getVersion())).buildDelete());
-
-    FileFormat fileFormat = expectSuccess(getBuilder(getAPIv2().path("/source/src/file_format/file1")).buildGet(), FileFormatUI.class).getFileFormat();
-    assertEquals(FileType.UNKNOWN, fileFormat.getFileType());
   }
 
   @Test
@@ -1100,60 +1002,4 @@ public class TestPhysicalDatasets extends BaseTestServer {
       assertEquals(2, jobData4.getColumns().size());
     }
   }
-
-  /*
-  @Test
-  public void testInfoSchema() throws Exception {
-    TextFileConfig fileConfig = new TextFileConfig();
-    fileConfig.setName("blah");
-
-    getNamespaceService().tryCreatePhysicalDataset(new PhysicalDatasetPath(getSchemaPath("/json")).toNamespaceKey(),
-      toDatasetConfig(new PhysicalDatasetConfig()
-        .setName("json")
-        .setFormatSettings(fileConfig.asFileConfig())
-        .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER)));
-    getNamespaceService().addOrUpdateDataset(new PhysicalDatasetPath(getSchemaPath("/nation_ctas")).toNamespaceKey(),
-      toDatasetConfig(new PhysicalDatasetConfig()
-        .setName("nation_ctas")
-        .setFormatSettings(fileConfig.asFileConfig())
-        .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER)));
-    getNamespaceService().tryCreatePhysicalDataset(new PhysicalDatasetPath(getSchemaPath("/datasets/csv/comma.csv")).toNamespaceKey(),
-      toDatasetConfig(new PhysicalDatasetConfig()
-        .setName("comma.csv")
-        .setFormatSettings(fileConfig.asFileConfig())
-        .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FILE)));
-
-    String query = "select * from INFORMATION_SCHEMA.\"TABLES\" where TABLE_SCHEMA like '%dacfs_test%'";
-    Job job1 = l(JobsService.class).submitExternalJob(new SqlQuery(query, "test_user"), QueryType.UNKNOWN);
-    JobData job1Data = job1.getData().trunc(500);
-    assertEquals(3, job1Data.getReturnedRowCount());
-
-    getNamespaceService().tryCreatePhysicalDataset(new PhysicalDatasetPath(getSchemaPath("/datasets/text/comma.txt")).toNamespaceKey(),
-      toDatasetConfig(new PhysicalDatasetConfig()
-        .setName("comma.txt")
-        .setFormatSettings(fileConfig.asFileConfig())
-        .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FILE)));
-
-    Job job2 = l(JobsService.class).submitExternalJob(new SqlQuery(query, "test_user"), QueryType.UNKNOWN);
-    JobData job2Data = job2.getData().trunc(500);
-    assertEquals(4, job2Data.getReturnedRowCount());
-
-    SchemaPlus rootSchema = CalciteSchema.createRootSchema(false, false).plus();
-    Constructor<SchemaConfig> config = SchemaConfig.class.getDeclaredConstructor(String.class, SchemaConfigInfoProvider.class,
-      boolean.class);
-    config.setAccessible(true);
-    SchemaConfig schemaConfig = config.newInstance("test_user", null, true);
-    getCurrentDremioDaemon().getDremio().getStoragePluginRegistry().getSchemaFactory().registerSchemas(schemaConfig, rootSchema);
-
-    for (int i = 0; i < 4; ++i) {
-      assertNotNull(rootSchema.getSubSchema((job2Data.extractValue("TABLE_SCHEMA", i)).toString()).
-        getTable((job2Data.extractValue("TABLE_NAME", i)).toString()));
-    }
-    getNamespaceService().deleteDataset(new PhysicalDatasetPath(getSchemaPath("/nation_ctas")).toNamespaceKey(), 0);
-    getNamespaceService().deleteDataset(new PhysicalDatasetPath(getSchemaPath("/json")).toNamespaceKey(), 0);
-    Job job3 = l(JobsService.class).submitExternalJob(new SqlQuery(query, "test_user"), QueryType.UNKNOWN);
-    JobData job3Data = job3.getData().trunc(500);
-    assertEquals(2, job3Data.getReturnedRowCount());
-  }
-  */
 }

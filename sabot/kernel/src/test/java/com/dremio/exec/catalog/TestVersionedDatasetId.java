@@ -29,14 +29,9 @@ import org.junit.Test;
 import com.fasterxml.jackson.core.JsonProcessingException;
 
 public class TestVersionedDatasetId {
-  private static final String REF_NAME = "refName";
-  private static final String BRANCH_NAME = "branchName";
-  private static final String TAG_NAME = "tagName";
-  final String folderName = "folder";
   final String tableName = "table";
 
   final String branchName = "branchName";
-  final String DATAPLANE_PLUGIN_NAME = "dataplane";
   List<String> tableKey = Arrays.asList(tableName);
   VersionContext sourceVersion = VersionContext.ofBranch(branchName);
   final String contentId ="contentId";
@@ -90,7 +85,7 @@ public class TestVersionedDatasetId {
   }
 
   @Test
-  public void testFromStringInvalid() throws JsonProcessingException {
+  public void testFromStringInvalid() {
 //Setup
     TableVersionContext sourceVersion = new TableVersionContext(TableVersionType.BRANCH,branchName);
     VersionedDatasetId versionedDatasetId = VersionedDatasetId.newBuilder()
@@ -103,6 +98,44 @@ public class TestVersionedDatasetId {
     String invalidDatasetId = org.apache.commons.lang.StringUtils.replace(convertedDatasetId, "contentId" , "invalidContentIdToken");
     //Assert
     assertThatThrownBy( ()->VersionedDatasetId.fromString(invalidDatasetId)).hasMessageContaining("Unrecognized field ");
+  }
+
+  @Test
+  public void testTimeTravelId() throws JsonProcessingException {
+    //Setup
+    long timestamp = System.currentTimeMillis();
+    TableVersionContext timeTravelVersion = new TableVersionContext(TableVersionType.TIMESTAMP, timestamp);
+
+    VersionedDatasetId versionedDatasetId = VersionedDatasetId.newBuilder()
+      .setTableKey(tableKey)
+      .setContentId(null)
+      .setTableVersionContext(timeTravelVersion)
+      .build();
+    //Act
+    String convertedDatasetId = versionedDatasetId.asString();
+
+    //Assert
+    assertThat(versionedDatasetId.getContentId() == null).isTrue();
+    assertThat(versionedDatasetId.equals(VersionedDatasetId.fromString(convertedDatasetId))).isTrue();
+  }
+
+  @Test
+  public void testSnapshotId() throws JsonProcessingException {
+    //Setup
+    String snapshotId = "1000";
+    TableVersionContext timeTravelVersion = new TableVersionContext(TableVersionType.SNAPSHOT_ID, snapshotId);
+
+    VersionedDatasetId versionedDatasetId = VersionedDatasetId.newBuilder()
+      .setTableKey(tableKey)
+      .setContentId(null)
+      .setTableVersionContext(timeTravelVersion)
+      .build();
+    //Act
+    String convertedDatasetId = versionedDatasetId.asString();
+
+    //Assert
+    assertThat(versionedDatasetId.getContentId() == null).isTrue();
+    assertThat(versionedDatasetId.equals(VersionedDatasetId.fromString(convertedDatasetId))).isTrue();
   }
 
 }

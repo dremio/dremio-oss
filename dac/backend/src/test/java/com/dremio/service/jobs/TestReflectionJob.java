@@ -265,7 +265,7 @@ public class TestReflectionJob extends BaseTestReflection {
     ReflectionId reflectionId = reflectionEntry.getId();
 
     Iterable<JobSummary> jobSummaries = searchJobs(reflectionId.getId(), DEFAULT_USERNAME);
-    jobSummaries.forEach(jobSummary -> assertTrue(jobSummary.getDescription().contains(reflectionId.getId())));
+    jobSummaries.forEach(jobSummary -> assertTrue(jobSummary.getSql().contains(reflectionId.getId())));
     assertEquals(2, Iterables.size(jobSummaries));
   }
 

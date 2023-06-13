@@ -42,6 +42,8 @@ public class DatasetPath extends NamespacePath {
 
   private static final String URL_PATH_TYPE = "dataset";
 
+  private String version = " ";
+
   public static DatasetPath fromURLPath(RootEntity root, String path) {
     List<String> components = PathUtils.toPathComponents(path);
 
@@ -54,6 +56,11 @@ public class DatasetPath extends NamespacePath {
 
   public DatasetPath(RootEntity root, List<FolderName> folderPath, DatasetName dataset) {
     super(root, folderPath, dataset);
+  }
+
+  public DatasetPath(String path, String version) {
+    super(path);
+    this.version = version;
   }
 
   @JsonCreator
@@ -102,6 +109,10 @@ public class DatasetPath extends NamespacePath {
 
   public DatasetName getDataset() {
     return (DatasetName)getLeaf();
+  }
+
+  public String getVersion() {
+    return version;
   }
 
   @Override

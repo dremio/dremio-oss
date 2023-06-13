@@ -117,6 +117,8 @@ message IcebergMetadata {
   optional bytes partition_specs_json_map = 8;
   optional ScanStats deleteStats = 9;
   optional ScanStats deleteManifestStats = 10;
+  optional ScanStats equalityDeleteStats = 11;
+  optional int64 partition_stats_file_size = 12; // size of partition stats file
 }
 
 message UserDefinedSchemaSettings {

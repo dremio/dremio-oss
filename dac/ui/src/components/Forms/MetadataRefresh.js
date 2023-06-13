@@ -32,10 +32,7 @@ const DETAILS_TOOLTIP = `Metadata Dremio needs for query planning such as inform
 Fetch Modes:
 
 Only Queried Datasets:
-Dremio updates details for previously queried objects in a source. This mode increases query performance as less work needs to be done at query time for these datasets.
-
-All Datasets (deprecated):
-Dremio updates details for all datasets in a source. This mode increases query performance as less work needs to be done at query time.`;
+Dremio updates details for previously queried objects in a source. This mode increases query performance as less work needs to be done at query time for these datasets.`;
 
 const AUTHORIZATION_TOOLTIP =
   "When impersonation is enabled, maximum amount of time Dremio will cache authorization information.";
@@ -126,7 +123,6 @@ export default class MetadataRefresh extends Component {
 
   refreshModeOptions = [
     { label: la("Only Queried Datasets"), option: "PREFETCH_QUERIED" },
-    { label: la("All Datasets (deprecated)"), option: "PREFETCH" },
   ];
 
   render() {

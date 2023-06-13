@@ -131,7 +131,7 @@ class DatasetStateMutator {
   private void shouldNotExist(String colName) {
     if (findCol(colName) != null) {
       throw new IllegalArgumentException(
-          format("Invalid new col name %s. It is already in the current schema", colName));
+          format("Invalid new column name %s. It is already in the current schema", colName));
     }
   }
 

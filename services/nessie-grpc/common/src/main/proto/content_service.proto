@@ -21,6 +21,8 @@ option java_outer_classname = "ContentApiProto";
 
 package com.dremio.services.nessie.grpc.proto;
 
+import "util.proto";
+
 service ContentService {
   rpc getContent (ContentRequest) returns (Content) {};
   rpc getMultipleContents (MultipleContentsRequest) returns (MultipleContentsResponse) {};
@@ -40,6 +42,7 @@ message MultipleContentsRequest {
 
 message MultipleContentsResponse {
   repeated ContentWithKey contentWithKey = 1;
+  optional Reference effectiveReference = 2;
 }
 
 message Content {
@@ -72,7 +75,7 @@ message IcebergTable {
 message IcebergView {
   string id = 1;
   string metadataLocation = 2;
-  int32 versionId = 3;
+  int64 versionId = 3;
   int32 schemaId = 4;
   string dialect = 5;
   string sqlText = 6;
@@ -88,4 +91,5 @@ message DeltaLakeTable {
 message Namespace {
   repeated string elements = 1;
   map<string, string> properties = 2;
+  string id = 3;
 }

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { isDcsEdition } from "dyn-load/utils/versionUtils";
+import { isNotSoftware } from "dyn-load/utils/versionUtils";
 
 type ProjectIdParam = { projectId: string };
 type FilterParams = {
@@ -24,7 +24,7 @@ type FilterParams = {
 };
 
 export const projectBase = (() => {
-  if (isDcsEdition()) {
+  if (isNotSoftware()) {
     return (params: ProjectIdParam) =>
       new URL(`/sonar/${params.projectId}/`, window.location.origin);
   }

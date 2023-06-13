@@ -29,6 +29,7 @@ import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.JobStats;
 import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobsProtoUtil;
+import com.dremio.service.jobs.JobsServiceUtil;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -105,7 +106,7 @@ public class PartialJobListItem {
     this.user = firstAttempt.getInfo().getUser();
     this.startTime = firstAttempt.getInfo().getStartTime();
     this.endTime = lastAttempt.getInfo().getFinishTime();
-    this.description = firstAttempt.getInfo().getDescription();
+    this.description = JobsServiceUtil.getJobDescription(lastAttempt.getInfo().getRequestType(), lastAttempt.getInfo().getSql(), lastAttempt.getInfo().getDescription());
     this.accelerated = lastAttempt.getInfo().getAcceleration() != null;
     this.requestType =  firstAttempt.getInfo().getRequestType();
     this.datasetVersion = firstAttempt.getInfo().getDatasetVersion();
@@ -129,7 +130,7 @@ public class PartialJobListItem {
     this.user = input.getUser();
     this.startTime = input.getStartTime() == 0 ? null : input.getStartTime();
     this.endTime = input.getEndTime() == 0 ? null : input.getEndTime();
-    this.description = Strings.isNullOrEmpty(input.getDescription()) ? null : input.getDescription();
+    this.description = JobsServiceUtil.getJobDescription(input.getRequestType(), input.getSql(), input.getDescription());
     this.accelerated = input.getAccelerated();
     this.requestType = JobsProtoUtil.toStuff(input.getRequestType());
     this.datasetVersion = input.getDatasetVersion();

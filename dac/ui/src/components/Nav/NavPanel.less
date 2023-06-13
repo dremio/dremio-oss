@@ -34,10 +34,27 @@
   cursor: pointer;
 }
 
+.icon {
+  margin-inline-end: var(--dremio--spacing--1);
+  :global {
+    dremio-icon {
+      color: var(--dremio--color--icon--main);
+    }
+  }
+}
+
 .nav-btn-active {
   composes: nav-btn;
   color: @WHITE;
   font-weight: 600;
   border-radius: 4px;
   background-color: @FIGMA_PRIMARY_600;
+
+  .icon {
+    :global {
+      dremio-icon {
+        color: white;
+      }
+    }
+  }
 }

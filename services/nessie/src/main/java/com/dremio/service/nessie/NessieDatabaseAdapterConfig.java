@@ -69,6 +69,11 @@ public class NessieDatabaseAdapterConfig implements NonTransactionalDatabaseAdap
   }
 
   @Override
+  public boolean validateNamespaces() {
+    return false;
+  }
+
+  @Override
   public int getCommitRetries() {
     return (int) optionManager.get().getOption(COMMIT_RETRIES);
   }

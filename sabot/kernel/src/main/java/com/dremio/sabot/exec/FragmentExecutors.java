@@ -425,6 +425,10 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
         }
 
         Map<Integer, Integer> priorityToWeightMap = buildPriorityToWeightMap();
+        double memorySetAsidePct = options.getOption(ExecConstants.PCT_MEMORY_SET_ASIDE);
+        if (useMemoryArbiter) {
+          memoryArbiter.setMemorySetAsidePct(memorySetAsidePct);
+        }
 
         for (PlanFragmentFull fragment : fullFragments) {
           FragmentExecutor fe = buildFragment(queryTicket, fragment, priorityToWeightMap.getOrDefault(fragment.getMajor().getFragmentExecWeight(), 1), schedulingInfo);

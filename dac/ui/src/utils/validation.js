@@ -19,6 +19,9 @@ import { capitalize } from "lodash";
 import Immutable from "immutable";
 
 // todo: loc
+// https://html.spec.whatwg.org/multipage/input.html#email-state-(type=email)
+const emailAddressExpr =
+  /^[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
 
 export function isEmptyValue(value) {
   const isInValidString =
@@ -100,7 +103,7 @@ export function confirmPassword(password, confirm) {
 export function isEmail(key) {
   return function (values) {
     const email = values[key];
-    if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i.test(email)) {
+    if (!emailAddressExpr.test(email)) {
       return set({}, key, "Not a valid email address.");
     }
   };

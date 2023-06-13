@@ -16,6 +16,8 @@
 package com.dremio.dac.service.source;
 
 import static com.dremio.dac.api.MetadataPolicy.ONE_MINUTE_IN_MS;
+import static com.dremio.dac.model.namespace.ExternalNamespaceTreeUtils.namespaceTreeOf;
+import static com.dremio.dac.service.source.ExternalResourceTreeUtils.generateResourceTreeEntityList;
 import static com.dremio.dac.util.DatasetsUtil.toDatasetConfig;
 import static com.dremio.dac.util.DatasetsUtil.toPhysicalDatasetConfig;
 import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.SOURCE;
@@ -40,6 +42,7 @@ import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.api.CatalogItem;
 import com.dremio.dac.api.Source;
+import com.dremio.dac.explore.model.VersionContextUtils;
 import com.dremio.dac.model.common.NamespacePath;
 import com.dremio.dac.model.folder.Folder;
 import com.dremio.dac.model.folder.SourceFolderPath;
@@ -69,15 +72,22 @@ import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.catalog.SourceCatalog;
+import com.dremio.exec.catalog.VersionContext;
+import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.NessieNamespaceAlreadyExistsException;
+import com.dremio.exec.store.NoDefaultBranchException;
+import com.dremio.exec.store.ReferenceNotFoundException;
+import com.dremio.exec.store.ReferenceTypeConflictException;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.SchemaEntity;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.file.File;
 import com.dremio.file.SourceFilePath;
+import com.dremio.plugins.ExternalNamespaceEntry;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceException;
@@ -104,12 +114,18 @@ import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
+
 /**
  * Source service.
  */
 public class SourceService {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SourceService.class);
+  public static final String LIST_SOURCE_TOTAL_COUNT_SPAN_ATTRIBUTE_NAME = "dremio.source_service.list_source_total_count";
+  public static final String IS_VERSIONED_PLUGIN_SPAN_ATTRIBUTE_NAME = "dremio.source_service.isVersionedPlugin";
+  public static final String IS_FILE_SYSTEM_PLUGIN_SPAN_ATTRIBUTE_NAME = "dremio.source_service.isFileSystemPlugin";
 
   private final SabotContext sabotContext;
   private final NamespaceService namespaceService;
@@ -207,6 +223,7 @@ public class SourceService {
     }
   }
 
+  @WithSpan
   public SourceConfig createSource(SourceConfig sourceConfig, NamespaceAttribute... attributes) throws ExecutionSetupException, NamespaceException, ResourceExistsException {
     validateSourceConfig(sourceConfig);
     validateConnectionConf(getConnectionConf(sourceConfig));
@@ -224,6 +241,7 @@ public class SourceService {
     return registerSourceWithRuntimeInternal(sourceConfig, createCatalog(), attributes);
   }
 
+  @WithSpan
   public SourceConfig updateSource(String id, SourceConfig sourceConfig, NamespaceAttribute... attributes) throws NamespaceException, SourceNotFoundException {
     validateSourceConfig(sourceConfig);
     validateConnectionConf(getConnectionConf(sourceConfig));
@@ -283,11 +301,11 @@ public class SourceService {
     }
   }
 
-  protected void addFileToNamespaceTree(NamespaceTree ns, SourceName source, SourceFilePath path, String owner) throws NamespaceNotFoundException {
+  protected void addFileToNamespaceTree(NamespaceTree ns, SourceFilePath path, String owner) throws NamespaceNotFoundException {
     final File file = File.newInstance(
       path.toUrlPath(),
       path,
-      getUnknownFileFormat(source, path),
+      getUnknownFileFormat(path),
       0, // files should not have any jobs, no need to check
       false,
       false,
@@ -298,7 +316,7 @@ public class SourceService {
     ns.addFile(file);
   }
 
-  protected FileFormat getUnknownFileFormat(SourceName sourceName, SourceFilePath sourceFilePath) {
+  protected FileFormat getUnknownFileFormat(SourceFilePath sourceFilePath) {
     final FileConfig config = new FileConfig();
     config.setCtime(System.currentTimeMillis());
     config.setFullPathList(sourceFilePath.toPathList());
@@ -323,7 +341,7 @@ public class SourceService {
     ns.addPhysicalDataset(new PhysicalDataset(path, name, datasetConfig, jobsCount, null));
   }
 
-  private void addToNamespaceTree(NamespaceTree ns, List<SchemaEntity> entities, SourceName source, String prefix)
+  private void addToNamespaceTree(NamespaceTree ns, List<SchemaEntity> entities, SourceName sourceName, String prefix)
     throws IOException, PhysicalDatasetNotFoundException, NamespaceException {
     for (SchemaEntity entity:  entities) {
       switch (entity.getType()) {
@@ -348,10 +366,10 @@ public class SourceService {
           datasetConfig.setTag("0");
           datasetConfig.setFullPathList(path.toPathList());
           addTableToNamespaceTree(ns,
-              new PhysicalDatasetResourcePath(source, path),
+              new PhysicalDatasetResourcePath(sourceName, path),
               new PhysicalDatasetName(path.getFileName().getName()),
               datasetConfig,
-              datasetService.getJobsCount(path.toNamespaceKey()));
+              datasetService.getJobsCount(path.toNamespaceKey(), sabotContext.getOptionManager()));
         }
         break;
 
@@ -360,7 +378,7 @@ public class SourceService {
           // TODO(Amit H): Should we ignore exceptions from getFilesystemPhysicalDataset?
           // Dataset could be marked as deleted by the time we come here.
           final SourceFilePath filePath = new SourceFilePath(prefix + '.' + entity.getPath());
-          final File file = getFileDataset(source, filePath, entity.getOwner());
+          final File file = getFileDataset(filePath, entity.getOwner());
           ns.addFile(file);
         }
         break;
@@ -370,7 +388,7 @@ public class SourceService {
 
           // TODO(Amit H): Should we ignore exceptions from getFilesystemPhysicalDataset?
           // Dataset could be marked as deleted by the time we come here.
-          final PhysicalDatasetConfig physicalDatasetConfig = getFilesystemPhysicalDataset(source, folderPath);
+          final PhysicalDatasetConfig physicalDatasetConfig = getFilesystemPhysicalDataset(folderPath);
           final FileConfig fileConfig = physicalDatasetConfig.getFormatSettings();
           fileConfig.setOwner(entity.getOwner());
 
@@ -383,14 +401,14 @@ public class SourceService {
           folderConfig.setTag(physicalDatasetConfig.getTag());
           fileConfig.setTag(physicalDatasetConfig.getTag());
 
-          addFolderTableToNamespaceTree(ns, folderPath, folderConfig, FileFormat.getForFolder(fileConfig), fileConfig.getType() != FileType.UNKNOWN, datasetService.getJobsCount(folderPath.toNamespaceKey()));
+          addFolderTableToNamespaceTree(ns, folderPath, folderConfig, FileFormat.getForFolder(fileConfig), fileConfig.getType() != FileType.UNKNOWN, datasetService.getJobsCount(folderPath.toNamespaceKey(), sabotContext.getOptionManager()));
         }
         break;
 
         case FILE:
         {
           final SourceFilePath path = new SourceFilePath(prefix + '.' + entity.getPath());
-          addFileToNamespaceTree(ns, source, path, entity.getOwner());
+          addFileToNamespaceTree(ns, path, entity.getOwner());
         }
         break;
 
@@ -400,20 +418,20 @@ public class SourceService {
     }
   }
 
-  public File getFileDataset(SourceName source, final SourceFilePath filePath, String owner)
+  public File getFileDataset(final SourceFilePath filePath, String owner)
       throws PhysicalDatasetNotFoundException, NamespaceException {
     final PhysicalDatasetConfig physicalDatasetConfig = getFilesystemPhysicalDataset(filePath, DatasetType.PHYSICAL_DATASET_SOURCE_FILE);
     final FileConfig fileConfig = physicalDatasetConfig.getFormatSettings();
     fileConfig.setOwner(owner);
     fileConfig.setTag(physicalDatasetConfig.getTag());
 
-    final File file = File.newInstance(physicalDatasetConfig.getId(), filePath, FileFormat.getForFile(fileConfig),
-      datasetService.getJobsCount(filePath.toNamespaceKey()),
+    return File.newInstance(physicalDatasetConfig.getId(), filePath, FileFormat.getForFile(fileConfig),
+      datasetService.getJobsCount(filePath.toNamespaceKey(), sabotContext.getOptionManager()),
       false, false, fileConfig.getType() != FileType.UNKNOWN, null
     );
-    return file;
   }
 
+  @WithSpan
   public NamespaceTree listSource(
       SourceName sourceName,
       SourceConfig sourceConfig,
@@ -422,17 +440,28 @@ public class SourceService {
       String refValue)
       throws IOException, PhysicalDatasetNotFoundException, NamespaceException {
     try {
+      final NamespaceKey sourceKey = new NamespaceKey(sourceName.getName());
+      final NamespaceTree namespaceTree;
       final StoragePlugin plugin = checkNotNull(catalogService.getSource(sourceName.getName()), "storage plugin %s not found", sourceName);
-      if (plugin instanceof FileSystemPlugin) {
-        final NamespaceTree ns = new NamespaceTree();
-        ns.setIsFileSystemSource(true);
-        ns.setIsImpersonationEnabled(((FileSystemPlugin<?>) plugin).getConfig().isImpersonationEnabled());
-        addToNamespaceTree(ns, ((FileSystemPlugin) plugin).list(singletonList(sourceName.getName()), userName), sourceName, sourceName.getName());
-        fillInTags(ns);
-        return ns;
+      if (plugin instanceof VersionedPlugin) {
+        List<ExternalNamespaceEntry> entries = versionedPluginListEntriesHelper(
+          (VersionedPlugin) plugin,
+          sourceKey,
+          refType,
+          refValue);
+        namespaceTree = namespaceTreeOf(sourceName, entries);
+      } else if (plugin instanceof FileSystemPlugin) {
+        namespaceTree = new NamespaceTree();
+        namespaceTree.setIsFileSystemSource(true);
+        namespaceTree.setIsImpersonationEnabled(((FileSystemPlugin<?>) plugin).getConfig().isImpersonationEnabled());
+        addToNamespaceTree(namespaceTree, ((FileSystemPlugin<?>) plugin).list(sourceKey.getPathComponents(), userName), sourceName, sourceName.getName());
+        fillInTags(namespaceTree);
       } else {
-        return newNamespaceTree(namespaceService.list(new NamespaceKey(singletonList(sourceConfig.getName()))), false, false);
+        namespaceTree = newNamespaceTree(namespaceService.list(sourceKey), false, false);
       }
+
+      Span.current().setAttribute(LIST_SOURCE_TOTAL_COUNT_SPAN_ATTRIBUTE_NAME, namespaceTree.totalCount());
+      return namespaceTree;
     } catch (IOException | DatasetNotFoundException e) {
       throw new RuntimeException(e);
     }
@@ -462,10 +491,12 @@ public class SourceService {
       throw new SourceFolderNotFoundException(sourceName, folderPath, null);
     }
     final boolean isFileSystemPlugin = (plugin instanceof FileSystemPlugin);
+    Span.current().setAttribute(IS_FILE_SYSTEM_PLUGIN_SPAN_ATTRIBUTE_NAME, isFileSystemPlugin);
+
     FolderConfig folderConfig;
     if (isFileSystemPlugin) {
       // this could be a physical dataset folder
-      DatasetConfig datasetConfig = null;
+      DatasetConfig datasetConfig;
       try {
         datasetConfig = namespaceService.getDataset(folderPath.toNamespaceKey());
         if (datasetConfig.getType() != DatasetType.VIRTUAL_DATASET) {
@@ -480,7 +511,7 @@ public class SourceService {
             new IllegalArgumentException(folderPath.toString() + " is a virtual dataset"));
         }
       } catch (NamespaceNotFoundException nfe) {
-        // folder on fileystem
+        // folder on filesystem
         folderConfig = new FolderConfig()
           .setFullPathList(folderPath.toPathList())
           .setName(folderPath.getFolderName().getName());
@@ -496,7 +527,23 @@ public class SourceService {
 
   public void deleteFolder(SourceFolderPath folderPath, SourceName sourceName,
                            String refType, String refValue) {
-    throw new UnsupportedOperationException("Deleting a folder in a source is not supported.");
+    final StoragePlugin plugin =
+      checkNotNull(
+        catalogService.getSource(sourceName.getName()),
+        "storage plugin %s not found",
+        sourceName);
+    final boolean isVersionedPlugin = plugin instanceof VersionedPlugin;
+    Span.current().setAttribute(IS_VERSIONED_PLUGIN_SPAN_ATTRIBUTE_NAME, isVersionedPlugin);
+    if (isVersionedPlugin) {
+      final VersionContext version = VersionContextUtils.parse(refType, refValue);
+      deleteFolderForVersionedPlugin(folderPath, (VersionedPlugin) plugin, version);
+    } else {
+      throw new UnsupportedOperationException("Deleting a folder in a source is not supported.");
+    }
+  }
+
+  public void deleteFolderForVersionedPlugin(SourceFolderPath folderPath, VersionedPlugin plugin, VersionContext version) {
+    plugin.deleteFolder(folderPath.toNamespaceKey(), version);
   }
 
   public Folder createFolder(
@@ -505,18 +552,60 @@ public class SourceService {
       String userName,
       String refType,
       String refValue) {
-    throw new UnsupportedOperationException("Creating folder is not supported");
+    final StoragePlugin plugin =
+      checkNotNull(
+        catalogService.getSource(sourceName.getName()),
+        "storage plugin %s not found",
+        sourceName);
+    final boolean isVersionedPlugin = plugin instanceof VersionedPlugin;
+    Span.current().setAttribute(IS_VERSIONED_PLUGIN_SPAN_ATTRIBUTE_NAME, isVersionedPlugin);
+
+    if (!isVersionedPlugin) {
+      throw new UnsupportedOperationException("Creating folder is not supported");
+    }
+
+    final VersionContext version = getVersionContext(refType, refValue);
+    FolderConfig folderConfig = getFolderConfig(folderPath);
+
+    try {
+      ((VersionedPlugin) plugin).createNamespace(folderPath.toNamespaceKey(), version);
+      return Folder.newInstance(
+        sourceName,
+        folderConfig,
+        null);
+    } catch (NessieNamespaceAlreadyExistsException e) {
+      throw UserException.validationError(e)
+        .message(
+          "Nessie namespace %s already exists on source %s.",
+          folderPath.getPathWithoutRoot().toPathString(), sourceName.getName())
+        .buildSilently();
+    } catch (ReferenceNotFoundException e) {
+      throw UserException.validationError(e)
+        .message("Requested %s not found on source %s.", version, sourceName.getName())
+        .buildSilently();
+    } catch (NoDefaultBranchException e) {
+      throw UserException.validationError(e)
+        .message(
+          "Unable to resolve source version. Version was not specified and Source %s does not"
+            + " have a default branch set.",
+          sourceName.getName())
+        .buildSilently();
+    } catch (ReferenceTypeConflictException e) {
+      throw UserException.validationError(e)
+        .message(
+          "Requested %s in source %s is not the requested type.", version, sourceName.getName())
+        .buildSilently();
+    }
   }
 
   protected Folder newFolder(SourceFolderPath folderPath, FolderConfig folderConfig, NamespaceTree contents, boolean isQueryable, boolean isFileSystemPlugin)
       throws NamespaceNotFoundException {
     // TODO: why do we need to look up the dataset again in isPhysicalDataset?
-    Folder folder = Folder.newInstance(folderPath, folderConfig, null, contents, isQueryable, isFileSystemPlugin, 0);
-    return folder;
+    return Folder.newInstance(folderPath, folderConfig, null, contents, isQueryable, isFileSystemPlugin, 0);
   }
 
   protected NamespaceTree newNamespaceTree(List<NameSpaceContainer> children, boolean isFileSystemSource, boolean isImpersonationEnabled) throws DatasetNotFoundException, NamespaceException {
-    return NamespaceTree.newInstance(datasetService, children, SOURCE, collaborationService, isFileSystemSource, isImpersonationEnabled);
+    return NamespaceTree.newInstance(datasetService, children, SOURCE, collaborationService, isFileSystemSource, isImpersonationEnabled, null);
   }
 
   public NamespaceTree listFolder(
@@ -530,7 +619,16 @@ public class SourceService {
     final String prefix = folderPath.toPathString();
     try {
       final StoragePlugin plugin = checkNotNull(catalogService.getSource(name), "storage plugin %s not found", sourceName);
-      if (plugin instanceof FileSystemPlugin) {
+      if (plugin instanceof VersionedPlugin) {
+        final NamespaceKey folderKey = folderPath.toNamespaceKey();
+        List<ExternalNamespaceEntry> entries = versionedPluginListEntriesHelper(
+          (VersionedPlugin) plugin,
+          folderKey,
+          refType,
+          refValue);
+
+        return namespaceTreeOf(sourceName, entries);
+      } else if (plugin instanceof FileSystemPlugin) {
         final NamespaceTree ns = new NamespaceTree();
         ns.setIsFileSystemSource(true);
         ns.setIsImpersonationEnabled(((FileSystemPlugin<?>) plugin).getConfig().isImpersonationEnabled());
@@ -552,6 +650,7 @@ public class SourceService {
     return listFolder(sourceName, folderPath, userName, null, null);
   }
 
+  @WithSpan
   public List<ResourceTreeEntity> listPath(
       NamespaceKey path,
       boolean showDatasets,
@@ -559,6 +658,24 @@ public class SourceService {
       String refValue)
       throws NamespaceException, UnsupportedEncodingException {
     final List<ResourceTreeEntity> resources = Lists.newArrayList();
+    final String sourceName = path.getRoot();
+    final StoragePlugin plugin =
+      checkNotNull(
+        catalogService.getSource(sourceName),
+        "storage plugin %s not found",
+        sourceName);
+    final boolean isVersionedPlugin = plugin instanceof VersionedPlugin;
+    Span.current().setAttribute(IS_VERSIONED_PLUGIN_SPAN_ATTRIBUTE_NAME, isVersionedPlugin);
+
+    if (isVersionedPlugin) {
+      List<ExternalNamespaceEntry> entries = versionedPluginListEntriesHelper(
+        (VersionedPlugin) plugin,
+        path,
+        refType,
+        refValue);
+
+      return generateResourceTreeEntityList(path, entries);
+    }
 
     for (NameSpaceContainer container : namespaceService.list(path)) {
       if (container.getType() == Type.FOLDER) {
@@ -571,6 +688,44 @@ public class SourceService {
     return resources;
   }
 
+  protected VersionContext getVersionContext(String refType, String refValue) {
+    return VersionContextUtils.parse(refType, refValue);
+  }
+
+  protected FolderConfig getFolderConfig(SourceFolderPath folderPath) {
+    return new FolderConfig()
+      .setFullPathList(folderPath.toPathList())
+      .setName(folderPath.getFolderName().getName());
+  }
+
+  protected List<ExternalNamespaceEntry> versionedPluginListEntriesHelper(
+    VersionedPlugin plugin,
+    NamespaceKey namespaceKey,
+    String refType,
+    String refValue) {
+    VersionContext version = VersionContextUtils.parse(refType, refValue);
+    String sourceName = namespaceKey.getRoot();
+    try {
+      return plugin.listEntries(
+          namespaceKey.getPathWithoutRoot(),
+          version)
+        .collect(Collectors.toList());
+    } catch (ReferenceNotFoundException e) {
+      throw UserException.validationError(e)
+        .message("Requested %s not found on source %s.", version, sourceName)
+        .buildSilently();
+    } catch (NoDefaultBranchException e) {
+      throw UserException.validationError(e)
+        .message("Unable to resolve source version. Version was not specified and Source %s does not have a default branch set.",
+          sourceName)
+        .buildSilently();
+    } catch (ReferenceTypeConflictException e) {
+      throw UserException.validationError(e)
+        .message("Requested %s in source %s is not the requested type.", version, sourceName)
+        .buildSilently();
+    }
+  }
+
   // Process all items in the namespacetree and get their tags in one go
   private void fillInTags(NamespaceTree ns) {
     List<File> files = ns.getFiles();
@@ -581,8 +736,7 @@ public class SourceService {
     //we populate tags not for all files
     ns.setCanTagsBeSkipped(tagsInfo.getCanTagsBeSkipped());
 
-    for(int i = 0; i < files.size(); i++) {
-      File input = files.get(i);
+    for (File input : files) {
       CollaborationTag collaborationTag = tags.get(input.getId());
       if (collaborationTag != null) {
         input.setTags(collaborationTag.getTagsList());
@@ -658,18 +812,18 @@ public class SourceService {
     }
   }
 
-  public PhysicalDatasetConfig getFilesystemPhysicalDataset(SourceName sourceName, SourceFolderPath path) throws NamespaceException {
+  public PhysicalDatasetConfig getFilesystemPhysicalDataset(SourceFolderPath path) throws NamespaceException {
     return getFilesystemPhysicalDataset(path, DatasetType.PHYSICAL_DATASET_HOME_FOLDER);
   }
 
-  public PhysicalDatasetConfig getFilesystemPhysicalDataset(SourceName sourceName, SourceFilePath path) throws NamespaceException {
+  public PhysicalDatasetConfig getFilesystemPhysicalDataset(SourceFilePath path) throws NamespaceException {
     return getFilesystemPhysicalDataset(path, DatasetType.PHYSICAL_DATASET_HOME_FILE);
   }
 
 
   // For all tables including filesystem tables.
   // Physical datasets may be missing
-  public PhysicalDataset getPhysicalDataset(SourceName sourceName, PhysicalDatasetPath physicalDatasetPath) throws NamespaceException {
+  public PhysicalDataset getPhysicalDataset(PhysicalDatasetPath physicalDatasetPath) throws NamespaceException {
     final int jobsCount =  datasetService.getJobsCount(physicalDatasetPath.toNamespaceKey());
     try {
       final DatasetConfig datasetConfig = namespaceService.getDataset(physicalDatasetPath.toNamespaceKey());
@@ -724,15 +878,7 @@ public class SourceService {
   }
 
   public SourceState getSourceState(String sourceName) {
-    try {
-      SourceState state = catalogService.getSourceState(sourceName);
-      if(state == null) {
-        return SourceState.badState(String.format("Source %s could not be found, please verify the source name.", "Unable to find source."));
-      }
-      return state;
-    } catch (Exception e) {
-      return SourceState.badState("", e);
-    }
+    return catalogService.getSourceState(sourceName);
   }
 
   @VisibleForTesting
@@ -744,6 +890,7 @@ public class SourceService {
     return plugin;
   }
 
+  @WithSpan
   public List<SourceConfig> getSources() {
     final List<SourceConfig> sources = new ArrayList<>();
 
@@ -760,8 +907,7 @@ public class SourceService {
 
   public SourceConfig getById(String id) throws SourceNotFoundException, NamespaceException {
     try {
-      SourceConfig config = namespaceService.getSourceById(id);
-      return config;
+      return namespaceService.getSourceById(id);
     } catch (NamespaceNotFoundException e) {
       throw new SourceNotFoundException(id);
     }

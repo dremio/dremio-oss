@@ -24,6 +24,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
@@ -36,6 +37,7 @@ import java.security.AccessControlException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -49,6 +51,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -56,6 +59,8 @@ import javax.annotation.Nullable;
 import javax.ws.rs.core.UriBuilder;
 
 import org.apache.commons.io.IOUtils;
+import org.xerial.snappy.SnappyInputStream;
+import org.xerial.snappy.SnappyOutputStream;
 
 import com.dremio.common.VM;
 import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
@@ -93,6 +98,9 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
+import net.jpountz.lz4.LZ4BlockInputStream;
+import net.jpountz.lz4.LZ4BlockOutputStream;
+
 /**
  * Backup Service running only on master.
  */
@@ -105,10 +113,11 @@ public final class BackupRestoreUtil {
       PosixFilePermission.OWNER_WRITE,
       PosixFilePermission.OWNER_EXECUTE
       );
-
   private static final String BACKUP_FILE_SUFFIX_JSON = "_backup.json";
   private static final String BACKUP_FILE_SUFFIX_BINARY = "_backup.pb";
   private static final String BACKUP_INFO_FILE_SUFFIX = "_info.json";
+
+  private static final String[] SUPPORTED_COMPRESSION_METHODS = {"lz4", "snappy", "none"};
 
   private static final Predicate<Path> BACKUP_FILES_FILTER_JSON = PathFilters.endsWith(BACKUP_FILE_SUFFIX_JSON);
   private static final Predicate<Path> BACKUP_FILES_FILTER_BINARY = PathFilters.endsWith(BACKUP_FILE_SUFFIX_BINARY);
@@ -157,15 +166,15 @@ public final class BackupRestoreUtil {
   }
 
   private static <K, V> void dumpTable(FileSystem fs, Path backupRootDir, BackupFileInfo backupFileInfo,
-    CoreKVStore<K, V> coreKVStore, boolean binary) throws IOException {
+    CoreKVStore<K, V> coreKVStore, boolean binary,Compression compression) throws IOException {
     final Path backupFile = backupRootDir.resolve(format("%s%s", backupFileInfo.getKvstoreInfo().getTablename(),
       binary ? BACKUP_FILE_SUFFIX_BINARY : BACKUP_FILE_SUFFIX_JSON));
     final Iterator<Document<KVStoreTuple<K>, KVStoreTuple<V>>> iterator = coreKVStore.find().iterator();
     long records = 0;
 
     if (binary) {
+      OutputStream fsout = compression.getOutputStream(fs.create(backupFile, true));
       try (
-        final OutputStream fsout = fs.create(backupFile, true);
         final DataOutputStream bos = new DataOutputStream(fsout);
       ) {
         while (iterator.hasNext()) {
@@ -187,9 +196,9 @@ public final class BackupRestoreUtil {
         backupFileInfo.setBinary(true);
       }
     } else {
+      OutputStream fsout = compression.getOutputStream(fs.create(backupFile, true));
       final ObjectMapper objectMapper = new ObjectMapper();
       try (
-        final OutputStream fsout = fs.create(backupFile, true);
         final BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(fsout))) {
         while (iterator.hasNext()) {
           Document<KVStoreTuple<K>, KVStoreTuple<V>> keyval = iterator.next();
@@ -212,9 +221,12 @@ public final class BackupRestoreUtil {
     }
   }
 
-  private static <K, V> void restoreTable(FileSystem fs, CoreKVStore<K, V> coreKVStore, Path filePath, boolean binary, long records) throws IOException {
+  private static <K, V> void restoreTable(FileSystem fs, CoreKVStore<K, V> coreKVStore, Path filePath, boolean binary, long records,
+                                          BackupFileInfo.Compression compressionValue) throws IOException {
     if (binary) {
-      try(DataInputStream dis = new DataInputStream(fs.open(filePath))) {
+      Compression compression = Compression.valueOf(compressionValue.toString().toUpperCase());
+      InputStream in = compression.getInputStream(fs.open(filePath));
+      try(DataInputStream dis = new DataInputStream(in)) {
         for(long i =0; i < records; i++) {
           final KVStoreTuple<K> key = coreKVStore.newKey();
           {
@@ -237,8 +249,9 @@ public final class BackupRestoreUtil {
       }
       return;
     }
-
-    try(final BufferedReader reader = new BufferedReader(new InputStreamReader(fs.open(filePath)));) {
+    Compression compression = Compression.valueOf(compressionValue.toString().toUpperCase());
+    InputStream in = compression.getInputStream(fs.open(filePath));
+    try(final BufferedReader reader = new BufferedReader(new InputStreamReader(in))) {
       final ObjectMapper objectMapper = new ObjectMapper();
       String line;
       while ((line = reader.readLine()) != null) {
@@ -337,7 +350,6 @@ public final class BackupRestoreUtil {
     }
   }
 
-
   public static void restoreUploadedFiles(FileSystem fs, Path backupDir, HomeFileConf homeFileStore, BackupStats backupStats, String hostname) throws IOException {
     // restore uploaded files
     final Path uploadsBackupDir = Path.withoutSchemeAndAuthority(backupDir).resolve("uploads");
@@ -365,13 +377,16 @@ public final class BackupRestoreUtil {
     private final boolean binary;
     private final boolean includeProfiles;
 
+    private String compression;
+
     @JsonCreator
     public BackupOptions(@JsonProperty("backupDir") String backupDir, @JsonProperty("binary") boolean binary,
-      @JsonProperty("includeProfiles") boolean includeProfiles) {
+      @JsonProperty("includeProfiles") boolean includeProfiles, @JsonProperty("compression") String compression) {
       super();
       this.backupDir = backupDir;
       this.binary = binary;
       this.includeProfiles = includeProfiles;
+      this.compression = compression;
     }
 
     public String getBackupDir() {
@@ -390,13 +405,23 @@ public final class BackupRestoreUtil {
     public boolean isIncludeProfiles() {
       return includeProfiles;
     }
+
+    public String getCompression() {
+      return this.compression;
+    }
+
   }
 
   public static BackupStats createBackup(FileSystem fs, BackupOptions options,
     LocalKVStoreProvider localKVStoreProvider, HomeFileConf homeFileStore,
     @Nullable CheckpointInfo checkpointInfo) throws IOException, NamespaceException {
     String msg = checkpointInfo == null ? "Tables and uploads" : "Tables";
-    logger.info("{} Backup started", msg);
+    if (options.getCompression() == (null) || options.getCompression().equals("")) {
+      logger.info("{} Backup started.", msg);
+    } else {
+      logger.info("{} Backup started with {} compression.", msg, options.getCompression());
+    }
+
     final BackupStats backupStats = new BackupStats();
 
     final LocalDateTime now = LocalDateTime.now(ZoneId.of("UTC"));
@@ -462,7 +487,9 @@ public final class BackupRestoreUtil {
         }
 
         final BackupFileInfo backupFileInfo = new BackupFileInfo().setKvstoreInfo(kvstoreInfo);
-        dumpTable(fs, backupDir, backupFileInfo, entry.getValue(), options.isBinary());
+        Compression compression = validateSupportedCompression(options);
+        backupFileInfo.setCompression(BackupFileInfo.Compression.valueOf(options.getCompression().toUpperCase()));
+        dumpTable(fs, backupDir, backupFileInfo, entry.getValue(), options.isBinary(), compression);
         backupStats.incrementTables();
       } catch(IOException ex) {
         throw new CompletionException(ex);
@@ -523,13 +550,12 @@ public final class BackupRestoreUtil {
         Map<String, CompletableFuture<Void>> futureMap = new HashMap<>();
         for (String tableName : tableToInfo.keySet()) {
           CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
-
             try {
               BackupFileInfo info = tableToInfo.get(tableName);
               final CoreKVStore<?, ?> store = localKVStoreProvider.getStore(info.getKvstoreInfo());
               try {
                 restoreTable(fs, store, tableToBackupFiles.get(tableName),
-                  info.getBinary(), info.getRecords());
+                  info.getBinary(), info.getRecords(), info.getCompression());
                 backupStats.incrementTables();
               } catch (Exception e) {
                 throw new CompletionException(
@@ -627,6 +653,48 @@ public final class BackupRestoreUtil {
 
     public long getFiles() {
       return files.get();
+    }
+  }
+
+  private static Compression validateSupportedCompression(BackupOptions options) {
+    if (options.getCompression() == null || options.getCompression().equals("")) {
+      options.compression = "none";
+    }
+    Compression compression;
+    if (Arrays.stream(SUPPORTED_COMPRESSION_METHODS).anyMatch(options.getCompression()::equals)) {
+      compression = Compression.valueOf(options.getCompression().toUpperCase());
+    } else {
+      logger.warn("Compression value should be a string and can either be empty or snappy or lz4.");
+      throw new RuntimeException("Compression value should be a string and can either be empty or snappy or lz4.");
+    }
+    return compression;
+  }
+
+  enum Compression {
+    NONE(outputStream -> outputStream, inputStream -> inputStream),
+    SNAPPY(outputStream -> new SnappyOutputStream(outputStream), inputStream -> {
+      try {
+        return new SnappyInputStream(inputStream);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    }),
+    LZ4(outputStream -> new LZ4BlockOutputStream(outputStream), inputStream -> new LZ4BlockInputStream(inputStream));
+
+    private final Function<OutputStream, OutputStream> outputStreamFunction;
+    private final Function<InputStream, InputStream> inputStreamFunction;
+
+    Compression(Function<OutputStream, OutputStream> outputStreamFunction, Function<InputStream, InputStream> inputStreamFunction) {
+      this.outputStreamFunction = outputStreamFunction;
+      this.inputStreamFunction = inputStreamFunction;
+    }
+
+    public InputStream getInputStream(InputStream in) {
+      return this.inputStreamFunction.apply(in);
+    }
+
+    public OutputStream getOutputStream(OutputStream out) {
+      return this.outputStreamFunction.apply(out);
     }
   }
 

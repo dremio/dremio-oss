@@ -27,16 +27,21 @@ import com.google.common.base.Strings;
 /**
  * Validator for the {@code CheckAzureConf} annotation.
  */
-public class CheckAzureConfValidator implements ConstraintValidator<CheckAzureConf, AzureStorageConf> {
+public class CheckAzureConfValidator implements ConstraintValidator<CheckAzureConf, AbstractAzureStorageConf> {
 
   @Override
-  public boolean isValid(AzureStorageConf value, ConstraintValidatorContext context) {
+  public boolean isValid(AbstractAzureStorageConf value, ConstraintValidatorContext context) {
     if (value == null || value.credentialsType == AzureAuthenticationType.AZURE_ACTIVE_DIRECTORY ) {
       return true;
     }
 
     context.disableDefaultConstraintViolation();
-    final String key = value.accessKey;
+    final String key;
+    if (value.getSharedAccessSecretType() == SharedAccessSecretType.SHARED_ACCESS_SECRET_KEY) {
+      key = value.accessKey;
+    } else { // Azure Key Vault
+      key = value.getAccessKeyUri();
+    }
     final String account = value.accountName;
 
     boolean credentialsPresent = true;

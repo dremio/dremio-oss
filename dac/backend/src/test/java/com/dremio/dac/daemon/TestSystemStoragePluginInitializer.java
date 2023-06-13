@@ -237,7 +237,7 @@ public class TestSystemStoragePluginInitializer {
       () -> sabotContext,
       () -> new LocalSchedulerService(1),
       () -> new SystemTablePluginConfigProvider(),
-      () -> new SysFlightPluginConfigProvider(() -> sabotContext.getEndpoint()),
+      () -> new SysFlightPluginConfigProvider(),
       () -> fabricService,
       () -> ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig),
       () -> allocator,

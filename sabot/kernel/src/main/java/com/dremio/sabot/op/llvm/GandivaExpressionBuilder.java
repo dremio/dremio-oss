@@ -317,6 +317,7 @@ public class GandivaExpressionBuilder extends AbstractExprVisitor<TreeNode, Void
     return TreeBuilder.makeNull(constant.getCompleteType().getType());
   }
 
+  @Override
   public TreeNode visitDecimalConstant(DecimalExpression decimalExpression, Void value) {
     BigInteger unScaledValue = decimalExpression.getDecimal().unscaledValue();
     return TreeBuilder.makeDecimalLiteral(unScaledValue.toString(),

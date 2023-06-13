@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio.sabot</groupId>
     <artifactId>dremio-sabot-parent</artifactId>
-    <version>24.0.0-202302100528110223-3a169b7c</version>
+    <version>24.1.0-202306130653310132-d30779f6</version>
   </parent>
   <artifactId>dremio-sabot-kernel</artifactId>
   <name>Sabot - Kernel</name>
@@ -114,6 +114,16 @@
       <groupId>com.hubspot.jackson</groupId>
       <artifactId>jackson-datatype-protobuf</artifactId>
     </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.datatype</groupId>
+      <artifactId>jackson-datatype-guava</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.datatype</groupId>
+      <artifactId>jackson-datatype-jdk8</artifactId>
+      <scope>test</scope>
+    </dependency>
 
     <dependency>
       <groupId>com.dremio.services</groupId>
@@ -121,9 +131,8 @@
     </dependency>
 
     <dependency>
-      <groupId>io.opentelemetry</groupId>
-      <artifactId>opentelemetry-extension-annotations</artifactId>
-      <version>${opentelemetry.version}</version>
+      <groupId>io.opentelemetry.instrumentation</groupId>
+      <artifactId>opentelemetry-instrumentation-annotations</artifactId>
     </dependency>
 
     <dependency>
@@ -177,12 +186,12 @@
     </dependency>
 
     <dependency>
-      <groupId>org.projectnessie</groupId>
+      <groupId>org.projectnessie.nessie</groupId>
       <artifactId>nessie-client</artifactId>
     </dependency>
 
     <dependency>
-      <groupId>org.projectnessie</groupId>
+      <groupId>org.projectnessie.nessie-integrations</groupId>
       <artifactId>iceberg-views</artifactId>
       <version>${nessie.version}</version>
     </dependency>
@@ -329,8 +338,8 @@
 
     <dependency>
       <groupId>org.apache.commons</groupId>
-      <artifactId>commons-math</artifactId>
-      <version>2.2</version>
+      <artifactId>commons-math3</artifactId>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>com.thoughtworks.paranamer</groupId>
@@ -664,6 +673,10 @@
       <version>3.1.6</version>
     </dependency>
     <dependency>
+      <groupId>com.github.ben-manes.caffeine</groupId>
+      <artifactId>caffeine</artifactId>
+    </dependency>
+    <dependency>
       <groupId>joda-time</groupId>
       <artifactId>joda-time</artifactId>
     </dependency>
@@ -757,18 +770,8 @@
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter-api</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.junit.vintage</groupId>
-      <artifactId>junit-vintage-engine</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.projectnessie</groupId>
-      <artifactId>nessie-jaxrs-testextension</artifactId>
+      <groupId>org.projectnessie.nessie</groupId>
+      <artifactId>nessie-compatibility-common</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -794,7 +797,6 @@
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-orphanage</artifactId>
       <version>${project.version}</version>
-      <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>com.dremio.services</groupId>
@@ -1185,6 +1187,17 @@
         </executions>
       </plugin>
       <plugin>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>integration-test</goal>
+              <goal>verify</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
         <executions>
@@ -1224,6 +1237,15 @@
         <filtering>false</filtering>
       </resource>
     </resources>
+    <testResources>
+      <testResource>
+        <directory>${project.basedir}/src/test/resources</directory>
+      </testResource>
+      <testResource>
+        <directory>${project.basedir}/src/test/resources-nessie</directory>
+        <filtering>true</filtering>
+      </testResource>
+    </testResources>
   </build>
 
 </project>

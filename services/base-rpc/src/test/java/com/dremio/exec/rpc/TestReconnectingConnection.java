@@ -183,6 +183,11 @@ public class TestReconnectingConnection {
     }
 
     @Override
+    protected String getLocalAddress() {
+      return "";
+    }
+
+    @Override
     protected ResponseClient getNewClient() throws RpcException {
       if(!iter.hasNext()) {
         throw new RpcException("Failure creating client");

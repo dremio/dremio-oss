@@ -21,6 +21,8 @@ import java.util.Optional;
 
 import org.apache.calcite.rel.RelNode;
 
+import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.TableVersionContext;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.sql.handlers.RelTransformer;
 import com.dremio.service.namespace.NamespaceKey;
@@ -52,8 +54,9 @@ public abstract class AbstractSubstitutionProvider implements SubstitutionProvid
     return getMaterializationProvider().buildApplicableMaterializations(origRoot);
   }
 
-  public Optional<DremioMaterialization> getDefaultRawMaterialization(NamespaceKey path, List<String> vdsFields) {
-    return getMaterializationProvider().getDefaultRawMaterialization(path, vdsFields);
+  public Optional<DremioMaterialization> getDefaultRawMaterialization(NamespaceKey path,
+                                                                      TableVersionContext versionContext, List<String> vdsFields, Catalog catalog) {
+    return getMaterializationProvider().getDefaultRawMaterialization(path, versionContext, vdsFields, catalog);
   }
 
   @Override

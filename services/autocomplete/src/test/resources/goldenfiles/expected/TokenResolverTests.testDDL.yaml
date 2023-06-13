@@ -65,10 +65,10 @@
     hasMoreResults: true
     tokens:
      - "BRANCH"
+     - "FOLDER"
      - "FUNCTION"
      - "OR"
      - "ROLE"
-     - "TABLE"
  -
   description: "CREATE TABLE"
   input: "CREATE TABLE "

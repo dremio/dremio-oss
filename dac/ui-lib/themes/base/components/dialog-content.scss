@@ -52,6 +52,11 @@
       font-size: var(--dremio--dialog-content--title--font-size);
       font-weight: var(--dremio--dialog-content--title--font-weight);
       gap: 6px;
+      inline-size: 100%;
+    }
+
+    &-toolbar {
+      display: flex;
     }
   }
 

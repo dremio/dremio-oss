@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 @import "../../../components/colors.less"; // contains only variables
+@import "~@app/uiTheme/less/mixins.less";
 
 :global {
   // DX-11429 TODO reafactor component to use css modules instead fo global classes
@@ -167,6 +168,15 @@
       font-size: 12px;
       font-weight: 400;
       color: #202124;
+    }
+
+    .referenceTag {
+      color: var(--dremio--color--link);
+      display: inline-flex;
+      min-width: 0;
+      max-width: 100px;
+      vertical-align: middle;
+      padding-left: 2px;
     }
   }
 }

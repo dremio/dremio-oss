@@ -71,8 +71,7 @@ public class ColumnReaderFactory {
           }
         } else if (convertedType == ConvertedType.INTERVAL) {
           throw new UnsupportedOperationException("unsupported type " + type);
-        }
-        else {
+        } else {
           return new FixedByteAlignedReader.FixedBinaryReader(recordReader, allocateSize, descriptor, columnChunkMetaData, (VariableWidthVector) v, schemaElement);
         }
       } else if (columnChunkMetaData.getType() == PrimitiveType.PrimitiveTypeName.INT32 && convertedType == ConvertedType.DATE){
@@ -91,7 +90,7 @@ public class ColumnReaderFactory {
                     recordReader.getDateCorruptionStatus()));
         }
       } else{
-        if (columnChunkMetaData.getEncodings().contains(Encoding.PLAIN_DICTIONARY)) {
+        if (columnChunkMetaData.getEncodings().contains(Encoding.PLAIN_DICTIONARY) || columnChunkMetaData.getEncodings().contains(Encoding.RLE_DICTIONARY)) {
           switch (columnChunkMetaData.getType()) {
             case INT32:
               if (convertedType == null) {
@@ -136,8 +135,7 @@ public class ColumnReaderFactory {
               fixedLength, v, schemaElement);
         }
       }
-    }
-    else { // if the column is nullable
+    } else { // if the column is nullable
       if (columnChunkMetaData.getType() == PrimitiveType.PrimitiveTypeName.BOOLEAN){
         return new BitReader(recordReader, allocateSize, descriptor, columnChunkMetaData,
             fixedLength, (BitVector) v, schemaElement);
@@ -217,7 +215,7 @@ public class ColumnReaderFactory {
                                                                 SchemaElement schemaElement) throws ExecutionSetupException {
     ConvertedType convertedType = schemaElement.getConverted_type();
 
-    if (! columnChunkMetaData.getEncodings().contains(Encoding.PLAIN_DICTIONARY)) {
+    if (!columnChunkMetaData.getEncodings().contains(Encoding.PLAIN_DICTIONARY) && !columnChunkMetaData.getEncodings().contains(Encoding.RLE_DICTIONARY)) {
       if (columnDescriptor.getType() == PrimitiveType.PrimitiveTypeName.INT96) {
          // TODO: check convertedType once parquet support TIMESTAMP_NANOS type annotation.
         if (parentReader.readInt96AsTimeStamp()) {

@@ -20,15 +20,23 @@ import { InvalidParamsError } from "dremio-ui-common/errors/InvalidParamsError";
 import { getApiContext } from "dremio-ui-common/contexts/ApiContext.js";
 import { SonarProject } from "../SonarProjects/listSonarProjects";
 import { ArcticCatalog } from "./ArcticCatalog.type";
+import { APIV2Call } from "@app/core/APICall";
 
 type AddToSonarParams = {
   project: SonarProject;
   catalog: ArcticCatalog;
 };
 
+const constructUrl = (params: AddToSonarParams) => {
+  return new APIV2Call()
+    .projectScope(false)
+    .paths(`projects/${params.project.id}/source/${params.catalog.name}`)
+    .toString();
+};
+
 export const addCatalogToSonar = (params: AddToSonarParams): Promise<any> => {
   return getApiContext()
-    .fetch(`/ui/projects/${params.project.id}/source/${params.catalog.name}`, {
+    .fetch(constructUrl(params), {
       method: "put",
       headers: {
         "Content-Type": "application/json",

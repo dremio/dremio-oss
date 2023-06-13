@@ -20,6 +20,8 @@ import { connectComplexForm } from "components/Forms/connectComplexForm";
 import ResourceTreeContainer from "components/Tree/ResourceTreeContainer";
 import { TextField, FieldWithError } from "components/Fields";
 
+import * as classes from "./SelectContextForm.module.less";
+
 export const FIELDS = ["context"];
 
 export class SelectContextForm extends Component {
@@ -53,7 +55,10 @@ export class SelectContextForm extends Component {
         >
           <FormBody>
             <label>{la("Select New Context")}</label>
-            <div style={style.resourceTree}>
+            <div
+              style={style.resourceTree}
+              className={classes["resourceTreeContainer"]}
+            >
               <ResourceTreeContainer
                 hideDatasets
                 onChange={this.handleChangeSelectedNode}
@@ -90,7 +95,7 @@ export default connectComplexForm(
 
 const style = {
   resourceTree: {
-    height: "250px",
+    height: "382px",
   },
   resourceInput: {
     marginTop: "20px",

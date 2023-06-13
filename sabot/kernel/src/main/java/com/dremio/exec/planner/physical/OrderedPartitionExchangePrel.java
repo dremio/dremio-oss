@@ -68,6 +68,7 @@ public class OrderedPartitionExchangePrel extends ExchangePrel {
     return new OrderedPartitionExchangePrel(getCluster(), traitSet, sole(inputs));
   }
 
+  @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
     throw new IOException(this.getClass().getSimpleName() + " not supported yet!");
   }

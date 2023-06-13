@@ -21,8 +21,10 @@ import static com.dremio.exec.planner.sql.handlers.RelTransformer.NO_OP_TRANSFOR
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -53,9 +55,9 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
 import org.apache.calcite.sql2rel.DremioRelDecorrelator;
-import org.apache.calcite.sql2rel.RelFieldTrimmer;
 import org.apache.calcite.tools.Program;
 import org.apache.calcite.tools.Programs;
+import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.tools.RelConversionException;
 import org.apache.calcite.tools.RuleSet;
 import org.apache.calcite.tools.ValidationException;
@@ -88,12 +90,14 @@ import com.dremio.exec.planner.acceleration.substitution.AccelerationAwareSubsti
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.common.ContainerRel;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
+import com.dremio.exec.planner.common.RelNodeCounter;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.logical.ConstExecutor;
 import com.dremio.exec.planner.logical.DremioRelFactories;
 import com.dremio.exec.planner.logical.InvalidViewRel;
 import com.dremio.exec.planner.logical.PreProcessRel;
 import com.dremio.exec.planner.logical.ProjectRel;
+import com.dremio.exec.planner.logical.RedundantSortEliminator;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.ScreenRel;
 import com.dremio.exec.planner.logical.ValuesRewriteShuttle;
@@ -108,10 +112,12 @@ import com.dremio.exec.planner.physical.visitor.CSEIdentifier;
 import com.dremio.exec.planner.physical.visitor.ComplexToJsonPrelVisitor;
 import com.dremio.exec.planner.physical.visitor.EmptyPrelPropagator;
 import com.dremio.exec.planner.physical.visitor.ExcessiveExchangeIdentifier;
+import com.dremio.exec.planner.physical.visitor.ExpandNestedFunctionVisitor;
 import com.dremio.exec.planner.physical.visitor.FinalColumnReorderer;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryVisitor;
 import com.dremio.exec.planner.physical.visitor.InsertHashProjectVisitor;
 import com.dremio.exec.planner.physical.visitor.InsertLocalExchangeVisitor;
+import com.dremio.exec.planner.physical.visitor.JoinConditionValidatorVisitor;
 import com.dremio.exec.planner.physical.visitor.JoinPrelRenameVisitor;
 import com.dremio.exec.planner.physical.visitor.RelUniqifier;
 import com.dremio.exec.planner.physical.visitor.RuntimeFilterDecorator;
@@ -145,6 +151,9 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
+
 /**
  * Collection of Rel, Drel and Prel transformations used in various planning cycles.
  */
@@ -152,6 +161,23 @@ public class PrelTransformer {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PrelTransformer.class);
   @SuppressWarnings("Slf4jIllegalPassedClass") // intentionally using logger from another class
   private static final org.slf4j.Logger CALCITE_LOGGER = org.slf4j.LoggerFactory.getLogger(RelOptPlanner.class);
+
+  private static class TransformationContext {
+    private RelNode relNode;
+    private Map<String, Long> timeBreakdownPerRule;
+    TransformationContext(RelNode relNode, Map<String, Long> timeBreakdownPerRule) {
+      this.relNode = relNode;
+      this.timeBreakdownPerRule = timeBreakdownPerRule;
+    }
+
+    public RelNode getRelNode() {
+      return relNode;
+    }
+
+    public Map<String, Long> getTimeBreakdownPerRule() {
+      return timeBreakdownPerRule;
+    }
+  }
 
   protected static void log(final PlannerType plannerType, final PlannerPhase phase, final RelNode node, final Logger logger,
       Stopwatch watch) {
@@ -191,8 +217,22 @@ public class PrelTransformer {
 
     final SqlNode validated = validatedTypedSqlNode.getKey();
     final RelNode rel = convertToRel(config, sqlValidatorAndToRelContext, validated, relTransformer);
-    final RelNode preprocessedRel = preprocessNode(config.getContext().getOperatorTable(), rel);
+    config.getObserver().setNumJoinsInUserQuery(countRelNodesInPlan(rel, config, new RelNodeCounter.LogicalJoinCounter()));
+    final PlannerSettings plannerSettings = config.getContext().getPlannerSettings();
+    final RelNode redundantSortsRemoved = plannerSettings.isSortInJoinRemoverEnabled() ?  RedundantSortEliminator.apply(rel) : rel;
+    final RelNode preprocessedRel = preprocessNode(config.getContext().getOperatorTable(), redundantSortsRemoved);
     return new ConvertedRelNode(preprocessedRel, validatedTypedSqlNode.getValue());
+  }
+
+  private static Integer countRelNodesInPlan(final RelNode plan, final SqlHandlerConfig config, final RelNodeCounter counter) {
+    final PlannerSettings plannerSettings = config.getContext().getPlannerSettings();
+    final boolean verboseProfile = plannerSettings.getOptions().getOption(PlannerSettings.VERBOSE_PROFILE);
+    Integer ret = null;
+    if (verboseProfile) {
+      plan.accept(counter);
+      ret = counter.getCount();
+    }
+    return ret;
   }
 
   private static Pair<SqlNode, RelDataType> validateNode(SqlHandlerConfig config,
@@ -224,20 +264,6 @@ public class PrelTransformer {
     return typedSqlNode;
   }
 
-  public static RelNode trimFields(final RelNode relNode, boolean shouldLog, boolean isRelPlanning, boolean trimProjectedColumn) {
-    final Stopwatch w = Stopwatch.createStarted();
-    final RelFieldTrimmer trimmer = DremioFieldTrimmer.of(relNode.getCluster(), isRelPlanning, trimProjectedColumn);
-    final RelNode trimmed = trimmer.trim(relNode);
-    if(shouldLog) {
-      log(PlannerType.HEP, PlannerPhase.FIELD_TRIMMING, trimmed, logger, w);
-    }
-    return trimmed;
-  }
-
-  public static RelNode trimFields(final RelNode relNode, boolean shouldLog, boolean isRelPlanning) {
-    return trimFields(relNode, shouldLog, isRelPlanning, true);
-  }
-
   /**
    *  Given a relNode tree for SELECT statement, convert to Dremio Logical RelNode tree.
    * @param relNode
@@ -245,17 +271,29 @@ public class PrelTransformer {
    * @throws SqlUnsupportedException
    */
   public static Rel convertToDrel(SqlHandlerConfig config, final RelNode relNode) throws SqlUnsupportedException {
-
     try {
       final PlannerSettings plannerSettings = config.getContext().getPlannerSettings();
-      final RelNode trimmed = trimFields(relNode, true, true);
-      final RelNode rangeConditionRewrite = trimmed.accept(new RangeConditionRewriteVisitor(plannerSettings));
+      final RelBuilder relBuilder = DremioRelFactories.CALCITE_LOGICAL_BUILDER.create(relNode.getCluster(), null);
+      final RelNode trimmed = new DremioFieldTrimmer(
+        relBuilder,
+        DremioFieldTrimmerParameters
+          .builder()
+          .shouldLog(true)
+          .isRelPlanning(true)
+          .trimProjectedColumn(true)
+          .trimJoinBranch(plannerSettings.trimJoinBranch())
+          .build())
+        .trim(relNode);
+      final RelNode flattenCaseExprs = plannerSettings.getOptions().getOption(PlannerSettings.FLATTEN_CASE_EXPRS_ENABLED) ?
+        FlattenCaseExpressionsVisitor.simplify(trimmed) :
+        trimmed;
+      final RelNode rangeConditionRewrite = flattenCaseExprs.accept(new RangeConditionRewriteVisitor(plannerSettings));
       final RelNode projPush = transform(config, PlannerType.HEP_AC, PlannerPhase.PROJECT_PUSHDOWN, rangeConditionRewrite, rangeConditionRewrite.getTraitSet(), true);
-      final RelNode expandOperators = expandOperators(config,projPush,plannerSettings);
-      final RelNode projPull = projectPullUp(config,expandOperators,plannerSettings);
-      final RelNode preLog = transform(config, PlannerType.HEP_AC, PlannerPhase.PRE_LOGICAL, projPull, projPull.getTraitSet(), true);
-      final RelNode preLogTransitive = getPreLogicalTransitive(config, preLog, plannerSettings);
-      final RelNode logical = transform(config, PlannerType.VOLCANO, PlannerPhase.LOGICAL, preLogTransitive, preLogTransitive.getTraitSet().plus(Rel.LOGICAL), true);
+      final RelNode projPull = projectPullUp(config, projPush, plannerSettings);
+      final RelNode filterConstantPushdown = transform(config, PlannerType.HEP_AC, PlannerPhase.FILTER_CONSTANT_RESOLUTION_PUSHDOWN, projPull, projPull.getTraitSet(), true);
+      final RelNode transitiveFilterPushdown = transitiveFilterPushdown(config, filterConstantPushdown, plannerSettings);
+      final RelNode preLog = transform(config, PlannerType.HEP_AC, PlannerPhase.PRE_LOGICAL, transitiveFilterPushdown, transitiveFilterPushdown.getTraitSet(), true);
+      final RelNode logical = transform(config, PlannerType.VOLCANO, PlannerPhase.LOGICAL, preLog, preLog.getTraitSet().plus(Rel.LOGICAL), true);
       final RelNode rowCountAdjusted = getRowCountAdjusted(logical, plannerSettings);
       final RelNode postLogical = getPostLogical(config, rowCountAdjusted, plannerSettings);
       final RelNode nestedProjectPushdown = getNestedProjectPushdown(config, postLogical, plannerSettings);
@@ -284,31 +322,24 @@ public class PrelTransformer {
     }
   }
 
-  private static RelNode expandOperators(SqlHandlerConfig config, RelNode projPush, PlannerSettings plannerSettings){
-    if(plannerSettings.isExpandOperatorsEnabled()){
-      return transform(config, PlannerType.HEP_AC, PlannerPhase.EXPAND_OPERATORS, projPush, projPush.getTraitSet(), true);
+  private static RelNode projectPullUp(SqlHandlerConfig config, RelNode projPush, PlannerSettings plannerSettings){
+    if(plannerSettings.isProjectPullUpEnabled()){
+      return transform(config, PlannerType.HEP_AC, PlannerPhase.PROJECT_PULLUP, projPush, projPush.getTraitSet(), true);
     }else{
       return projPush;
     }
   }
-  private static RelNode projectPullUp(SqlHandlerConfig config, RelNode expandOperators, PlannerSettings plannerSettings){
-    if(plannerSettings.isProjectPullUpEnabled()){
-      return transform(config, PlannerType.HEP_AC, PlannerPhase.PROJECT_PULLUP, expandOperators, expandOperators.getTraitSet(), true);
-    }else{
-      return expandOperators;
-    }
-  }
 
-  private static RelNode getPreLogicalTransitive(SqlHandlerConfig config, RelNode preLog, PlannerSettings plannerSettings) {
+  @WithSpan("PrelTransformer.transitiveFilterPushdown")
+  private static RelNode transitiveFilterPushdown(SqlHandlerConfig config, RelNode filterPushdown, PlannerSettings plannerSettings) {
     if (plannerSettings.isTransitiveFilterPushdownEnabled()) {
       Stopwatch watch = Stopwatch.createStarted();
-      final RelNode joinPullFilters = preLog.accept(new JoinPullTransitiveFiltersVisitor());
+      final RelNode joinPullFilters = filterPushdown.accept(new JoinPullTransitiveFiltersVisitor());
       log(PlannerType.HEP, PlannerPhase.TRANSITIVE_PREDICATE_PULLUP, joinPullFilters, logger, watch);
-      config.getObserver().planRelTransform(PlannerPhase.TRANSITIVE_PREDICATE_PULLUP, null, preLog, joinPullFilters, watch.elapsed(TimeUnit.MILLISECONDS));
-      return transform(config, PlannerType.HEP_AC, PlannerPhase.PRE_LOGICAL_TRANSITIVE, joinPullFilters, joinPullFilters.getTraitSet(), true);
-    } else {
-      return preLog;
+      config.getObserver().planRelTransform(PlannerPhase.TRANSITIVE_PREDICATE_PULLUP, null, filterPushdown, joinPullFilters, watch.elapsed(TimeUnit.MILLISECONDS), Collections.emptyMap());
+      return transform(config, PlannerType.HEP_AC, PlannerPhase.FILTER_CONSTANT_RESOLUTION_PUSHDOWN, joinPullFilters, joinPullFilters.getTraitSet(), true);
     }
+    return filterPushdown;
   }
 
   private static RelNode getRowCountAdjusted(RelNode logical, PlannerSettings plannerSettings) {
@@ -338,8 +369,7 @@ public class PrelTransformer {
       relWithoutMultipleConstantGroupKey = rowCountAdjusted;
     }
     final RelNode decorrelatedNode = DremioRelDecorrelator.decorrelateAndValidateQuery(relWithoutMultipleConstantGroupKey, DremioRelFactories.LOGICAL_BUILDER.create(relWithoutMultipleConstantGroupKey.getCluster(), null), true);
-    final RelNode sortRemoved = (plannerSettings.isSortInJoinRemoverEnabled())? DremioSortInJoinRemover.remove(decorrelatedNode): decorrelatedNode;
-    final RelNode jdbcPushDown = transform(config, PlannerType.HEP_AC, PlannerPhase.RELATIONAL_PLANNING, sortRemoved, sortRemoved.getTraitSet().plus(Rel.LOGICAL), true);
+    final RelNode jdbcPushDown = transform(config, PlannerType.HEP_AC, PlannerPhase.RELATIONAL_PLANNING, decorrelatedNode, decorrelatedNode.getTraitSet().plus(Rel.LOGICAL), true);
     return jdbcPushDown.accept(new ShortenJdbcColumnAliases()).accept(new ConvertJdbcLogicalToJdbcRel(DremioRelFactories.LOGICAL_BUILDER));
   }
 
@@ -399,17 +429,28 @@ public class PrelTransformer {
    * @throws SqlUnsupportedException
    */
   public static Rel convertToDrel(SqlHandlerConfig config, RelNode relNode, RelDataType validatedRowType) throws RelConversionException, SqlUnsupportedException {
-
+    final PlannerSettings plannerSettings = config.getContext().getPlannerSettings();
     Rel convertedRelNode = convertToDrel(config, relNode);
 
-    final DremioFieldTrimmer trimmer = DremioFieldTrimmer.of(DremioRelFactories.LOGICAL_BUILDER.create(convertedRelNode.getCluster(), null));
-    Rel trimmedRelNode = (Rel) trimmer.trim(convertedRelNode);
+    RelBuilder relBuilder = DremioRelFactories.LOGICAL_BUILDER.create(convertedRelNode.getCluster(), null);
+    // We might have to trim again after decorrelation ...
+    DremioFieldTrimmer trimmer = new DremioFieldTrimmer(
+      relBuilder,
+      DremioFieldTrimmerParameters
+        .builder()
+        .shouldLog(true)
+        .isRelPlanning(false)
+        .trimProjectedColumn(true)
+        .trimJoinBranch(plannerSettings.trimJoinBranch())
+        .build());
+    // Trimming twice, since some columns weren't being trimmed
+    Rel trimmedRelNode = (Rel) trimmer.trim(trimmer.trim(convertedRelNode));
 
     // Put a non-trivial topProject to ensure the final output field name is preserved, when necessary.
     trimmedRelNode = addRenamedProject(config, trimmedRelNode, validatedRowType);
 
     trimmedRelNode = SqlHandlerUtil.storeQueryResultsIfNeeded(config.getConverter().getParserConfig(),
-        config.getContext(), trimmedRelNode);
+      config.getContext(), trimmedRelNode);
     return new ScreenRel(trimmedRelNode.getCluster(), trimmedRelNode.getTraitSet(), trimmedRelNode);
   }
 
@@ -494,7 +535,7 @@ public class PrelTransformer {
     final RuleSet rules = config.getRules(phase);
     final RelTraitSet toTraits = targetTraits.simplify();
     final RelOptPlanner planner;
-    final Supplier<RelNode> toPlan;
+    final Supplier<TransformationContext> toPlan;
     final PlannerSettings plannerSettings = config.getContext().getPlannerSettings();
 
     CALCITE_LOGGER.trace("Starting Planning for phase {} with target traits {}.", phase, targetTraits);
@@ -513,7 +554,7 @@ public class PrelTransformer {
       hepPgmBldr.addMatchLimit(matchLimit);
 
       MatchCountListener matchCountListener = new MatchCountListener(relNodeCount, rulesCount, matchLimit,
-        plannerSettings.getOptions().getOption(PlannerSettings.VERBOSE_RULE_MATCH_LISTENER));
+        plannerSettings.getOptions().getOption(PlannerSettings.VERBOSE_PROFILE));
 
       hepPgmBldr.addMatchOrder(plannerType.getMatchOrder());
       if(plannerType.isCombineRules()) {
@@ -542,11 +583,12 @@ public class PrelTransformer {
       planner = hepPlanner;
       toPlan = () -> {
         RelNode relNode = hepPlanner.findBestExp();
+        Map<String, Long> timeBreakdownPerRule = matchCountListener.getRuleToTotalTime();
         if (log) {
           logger.debug("Phase: {}", phase);
           logger.debug(matchCountListener.toString());
         }
-        return relNode;
+        return new TransformationContext(relNode, timeBreakdownPerRule);
       };
     } else {
       // as weird as it seems, the cluster's only planner is the volcano planner.
@@ -577,11 +619,12 @@ public class PrelTransformer {
       toPlan = () -> {
         try {
           RelNode relNode = program.run(volcanoPlanner, input, toTraits, ImmutableList.of(), ImmutableList.of());
+          Map<String, Long> timeBreakdownPerRule = volcanoPlanner.getMatchCountListener().getRuleToTotalTime();
           if (log) {
             logger.debug("Phase: {}", phase);
             logger.debug(volcanoPlanner.getMatchCountListener().toString());
           }
-          return relNode;
+          return new TransformationContext(relNode, timeBreakdownPerRule);
         } finally {
           substitutions.setEnabled(false);
         }
@@ -605,11 +648,16 @@ public class PrelTransformer {
     };
   }
 
-  private static RelNode doTransform(SqlHandlerConfig config, final PlannerType plannerType, final PlannerPhase phase, final RelOptPlanner planner, final RelNode input, boolean log, Supplier<RelNode> toPlan) {
+  @WithSpan("transform-plan")
+  private static RelNode doTransform(SqlHandlerConfig config, final PlannerType plannerType, final PlannerPhase phase,
+                                     final RelOptPlanner planner, final RelNode input, boolean log,
+                                     Supplier<TransformationContext> toPlan) {
+    Span.current().setAttribute("dremio.planner.phase", phase.name());
     final Stopwatch watch = Stopwatch.createStarted();
 
     try {
-      final RelNode intermediateNode = toPlan.get();
+      final TransformationContext context = toPlan.get();
+      final RelNode intermediateNode = context.getRelNode();
       final RelNode output;
       if (phase == PlannerPhase.LOGICAL) {
         output = processBoostedMaterializations(config, intermediateNode);
@@ -619,7 +667,8 @@ public class PrelTransformer {
 
       if (log) {
         log(plannerType, phase, output, logger, watch);
-        config.getObserver().planRelTransform(phase, planner, input, output, watch.elapsed(TimeUnit.MILLISECONDS));
+        config.getObserver().planRelTransform(phase, planner, input, output, watch.elapsed(TimeUnit.MILLISECONDS),
+          context.getTimeBreakdownPerRule());
       }
 
       CALCITE_LOGGER.trace("Completed Phase: {}.", phase);
@@ -629,7 +678,8 @@ public class PrelTransformer {
       // log our input state as oput anyway so we can ensure that we have details.
       try {
         log(plannerType, phase, input, logger, watch);
-        config.getObserver().planRelTransform(phase, planner, input, input, watch.elapsed(TimeUnit.MILLISECONDS));
+        config.getObserver().planRelTransform(phase, planner, input, input, watch.elapsed(TimeUnit.MILLISECONDS),
+          Collections.emptyMap());
       } catch (Throwable unexpected) {
         t.addSuppressed(unexpected);
       }
@@ -925,6 +975,17 @@ public class PrelTransformer {
       }
     }
 
+    /* 10.0)
+     * Expand nested functions. Need to do that here at the end of planning
+     * so that we don't merge the projects back again.
+     */
+    phyRelNode = ExpandNestedFunctionVisitor.pushdownNestedFunctions(phyRelNode, queryOptions);
+
+    /*
+    * validate the join conditions after all prel transformation
+    * */
+    phyRelNode = JoinConditionValidatorVisitor.validate(phyRelNode, queryOptions);
+
     final String textPlan;
     if (logger.isDebugEnabled() || config.getObserver() != null) {
       textPlan = PrelSequencer.setPlansWithIds(phyRelNode, SqlExplainLevel.ALL_ATTRIBUTES, config.getObserver(), finalPrelTimer.elapsed(TimeUnit.MILLISECONDS));
@@ -936,6 +997,8 @@ public class PrelTransformer {
     }
 
     config.getObserver().finalPrel(phyRelNode);
+    Integer joins = countRelNodesInPlan(phyRelNode, config, new RelNodeCounter.JoinPrelCounter());
+    config.getObserver().setNumJoinsInFinalPrel(joins);
     return Pair.of(phyRelNode, textPlan);
   }
 

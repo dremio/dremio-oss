@@ -17,7 +17,9 @@ package com.dremio.exec.catalog;
 
 import static com.dremio.exec.planner.physical.PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT;
 import static com.dremio.exec.store.Views.isComplexType;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Fail.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
@@ -41,9 +43,13 @@ import org.apache.calcite.rel.type.StructKind;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
 import org.junit.Test;
+import org.mockito.ArgumentMatchers;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.connector.impersonation.extensions.SupportsImpersonation;
+import com.dremio.connector.metadata.DatasetHandle;
+import com.dremio.connector.metadata.EntityPath;
+import com.dremio.connector.metadata.GetDatasetOption;
 import com.dremio.exec.catalog.CatalogImpl.IdentityResolver;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.dotfile.View;
@@ -69,6 +75,7 @@ import com.dremio.service.namespace.dataset.proto.ViewFieldType;
 import com.dremio.service.namespace.dataset.proto.VirtualDataset;
 import com.dremio.service.namespace.proto.EntityId;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 
 /**
  * Tests for DatasetManager
@@ -355,5 +362,156 @@ public class TestDatasetManager {
     assertThatThrownBy(() -> datasetManager.getTable(namespaceKey, metadataRequestOptions, false))
       .isInstanceOf(UserException.class)
       .hasCauseInstanceOf(InvalidImpersonationTargetException.class);
+  }
+
+  @Test
+  public void checkNeverPromoteWithNullConfig() throws Exception {
+    final NamespaceKey namespaceKey = new NamespaceKey("test");
+
+
+    final SchemaConfig schemaConfig = mock(SchemaConfig.class);
+    when(schemaConfig.getUserName()).thenReturn("username");
+
+    final MetadataRequestOptions metadataRequestOptions = MetadataRequestOptions.newBuilder()
+      .setSchemaConfig(schemaConfig)
+      .setCheckValidity(false)
+      .setNeverPromote(true)
+      .build();
+
+    ExtendedStoragePlugin sp = mock(ExtendedStoragePlugin.class);
+
+    DatasetHandle handle = () -> new EntityPath(Lists.newArrayList("test"));
+    when(sp.getDatasetHandle(any(), ArgumentMatchers.<GetDatasetOption[]>any()))
+      .thenReturn(Optional.of(handle));
+
+    final ManagedStoragePlugin managedStoragePlugin = mock(ManagedStoragePlugin.class);
+    when(managedStoragePlugin.getId()).thenReturn(mock(StoragePluginId.class));
+    when(managedStoragePlugin.getDefaultRetrievalOptions()).thenReturn(DatasetRetrievalOptions.DEFAULT);
+    when(managedStoragePlugin.getDatasetHandle(any(), any(),any()))
+      .thenReturn(Optional.of(handle));
+
+    final PluginRetriever pluginRetriever = mock(PluginRetriever.class);
+    when(pluginRetriever.getPlugin(namespaceKey.getRoot(), false)).thenReturn(managedStoragePlugin);
+
+    final NamespaceService namespaceService = mock(NamespaceService.class);
+    when(namespaceService.getDataset(namespaceKey)).thenReturn(null);
+
+    final OptionManager optionManager = mock(OptionManager.class);
+
+    final DatasetManager datasetManager = new DatasetManager(pluginRetriever, namespaceService, optionManager, "username",
+      null, null);
+    DremioTable table = datasetManager.getTable(namespaceKey, metadataRequestOptions, true);
+    assertThat(table).isNull();
+  }
+
+  @Test
+  public void checkNeverPromoteWithShallowConfig() throws Exception {
+    final NamespaceKey namespaceKey = new NamespaceKey("test");
+
+
+    final SchemaConfig schemaConfig = mock(SchemaConfig.class);
+    when(schemaConfig.getUserName()).thenReturn("username");
+
+
+    final MetadataRequestOptions metadataRequestOptions = MetadataRequestOptions.newBuilder()
+      .setSchemaConfig(schemaConfig)
+      .setCheckValidity(false)
+      .setNeverPromote(true)
+      .build();
+
+    final ReadDefinition readDefinition = new ReadDefinition();
+    readDefinition.setSplitVersion(0L);
+
+    final DatasetConfig shallowDatasetConfig = new DatasetConfig();
+    shallowDatasetConfig.setType(DatasetType.PHYSICAL_DATASET);
+    shallowDatasetConfig.setId(new EntityId("test"));
+    shallowDatasetConfig.setFullPathList(ImmutableList.of("test", "file", "foobar"));
+    shallowDatasetConfig.setTotalNumSplits(0);
+
+    ExtendedStoragePlugin sp = mock(ExtendedStoragePlugin.class);
+
+    DatasetHandle handle = () -> new EntityPath(Lists.newArrayList("test"));
+    when(sp.getDatasetHandle(any(), ArgumentMatchers.<GetDatasetOption[]>any()))
+      .thenReturn(Optional.of(handle));
+
+    final ManagedStoragePlugin managedStoragePlugin = mock(ManagedStoragePlugin.class);
+    when(managedStoragePlugin.getId()).thenReturn(mock(StoragePluginId.class));
+    when(managedStoragePlugin.getDefaultRetrievalOptions()).thenReturn(DatasetRetrievalOptions.DEFAULT);
+    when(managedStoragePlugin.getDatasetHandle(any(), any(),any()))
+      .thenReturn(Optional.of(handle));
+
+    final PluginRetriever pluginRetriever = mock(PluginRetriever.class);
+    when(pluginRetriever.getPlugin(namespaceKey.getRoot(), false)).thenReturn(managedStoragePlugin);
+
+    final NamespaceService namespaceService = mock(NamespaceService.class);
+    when(namespaceService.getDataset(namespaceKey)).thenReturn(shallowDatasetConfig);
+
+    final OptionManager optionManager = mock(OptionManager.class);
+
+    final DatasetManager datasetManager = new DatasetManager(pluginRetriever, namespaceService, optionManager, "username",
+      null, null);
+    DremioTable table = datasetManager.getTable(namespaceKey, metadataRequestOptions, true);
+    assertThat(table).isNull();
+  }
+
+  /**
+   * Validates metadata request option that is used to throw an exception when a table's version context is resolved
+   * using the default source version mapping (instead of via AT syntax or via session's source version mapping)
+   *
+   * The main use case for this option is with the REFRESH REFLECTION job where we need to validate
+   * that any cross Arctic catalog joins do not resolve using the default source version mapping.
+   *
+   * @throws Exception
+   */
+  @Test
+  public void checkErrorOnUnspecifiedSourceVersion() throws Exception {
+    final NamespaceKey sourceKey = new NamespaceKey("ArcticCatalog");
+
+    final SchemaConfig schemaConfig = mock(SchemaConfig.class);
+    when(schemaConfig.getUserName()).thenReturn("username");
+
+    // Same options as what the planner would use for a REFRESH REFLECTION job
+    final MetadataRequestOptions metadataRequestOptions = MetadataRequestOptions.newBuilder()
+      .setSchemaConfig(schemaConfig)
+      .setCheckValidity(true)
+      .setNeverPromote(false)
+      .setErrorOnUnspecifiedSourceVersion(true)
+      .build();
+
+    final DatasetConfig shallowDatasetConfig = new DatasetConfig();
+    shallowDatasetConfig.setType(DatasetType.PHYSICAL_DATASET);
+    shallowDatasetConfig.setFullPathList(ImmutableList.of("ArcticCatalog", "Table"));
+
+    FakeVersionedPlugin sp = mock(FakeVersionedPlugin.class);
+
+    final ManagedStoragePlugin managedStoragePlugin = mock(ManagedStoragePlugin.class);
+    when(managedStoragePlugin.getId()).thenReturn(mock(StoragePluginId.class));
+    when(managedStoragePlugin.getDefaultRetrievalOptions()).thenReturn(DatasetRetrievalOptions.DEFAULT);
+    when(managedStoragePlugin.getPlugin()).thenReturn(sp);
+    when(managedStoragePlugin.getName()).thenReturn(sourceKey);
+
+    final PluginRetriever pluginRetriever = mock(PluginRetriever.class);
+    when(pluginRetriever.getPlugin(sourceKey.getRoot(), false)).thenReturn(managedStoragePlugin);
+
+    final NamespaceService namespaceService = mock(NamespaceService.class);
+    when(namespaceService.getDataset(sourceKey)).thenReturn(shallowDatasetConfig);
+
+    final OptionManager optionManager = mock(OptionManager.class);
+
+    final DatasetManager datasetManager = new DatasetManager(pluginRetriever, namespaceService, optionManager, "username",
+      null, null);
+    try {
+      datasetManager.getTable(sourceKey, metadataRequestOptions, true);
+    } catch (UserException e) {
+      assertThat(e.getMessage()).contains("Version context for table ArcticCatalog.\"Table\" must be specified using AT SQL syntax");
+      return;
+    }
+    fail("getTable should have thrown exception");
+  }
+
+  /**
+   * Fake Versioned Plugin interface for test
+   */
+  private interface FakeVersionedPlugin extends VersionedPlugin, StoragePlugin {
   }
 }

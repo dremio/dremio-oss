@@ -30,8 +30,7 @@ import org.joda.time.DateTime;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.dremio.BaseTestQuery;
-import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.exec.hadoop.HadoopFileSystemConfigurationAdapter;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
@@ -43,11 +42,9 @@ public class TestDremioFileIO {
 
   @Before
   public void beforeTest() throws Exception {
-    FileSystemPlugin fileSystemPlugin = BaseTestQuery.getMockedFileSystemPlugin();
     fs = mock(FileSystem.class);
-    Configuration conf = new Configuration();
-    conf.set("fs.default.name", "local");
-    io = new DremioFileIO(fs, conf,  fileSystemPlugin);
+    io = new DremioFileIO(fs, null, null, null, null,
+        new HadoopFileSystemConfigurationAdapter(new Configuration()));
   }
 
   @Test

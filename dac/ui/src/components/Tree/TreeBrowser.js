@@ -34,6 +34,8 @@ import TreeNode from "./TreeNode";
 import { TabsNavigationItem } from "dremio-ui-lib";
 import "./TreeBrowser.less";
 import * as classes from "./TreeBrowser.less";
+import { useFeatureFlag } from "@app/exports/providers/useFeatureFlag";
+import { CATALOG_ARS_ENABLED } from "@app/exports/flags/CATALOG_ARS_ENABLED";
 
 export const TreeBrowser = (props) => {
   const {
@@ -49,16 +51,26 @@ export const TreeBrowser = (props) => {
     selectedStarredTab,
   } = props;
 
-  const [selectedTab, setSelectedTab] = useState(DATA_SCRIPT_TABS.Data);
+  const [selectedTab, setSelectedTab] = useState(
+    location?.query?.scriptId ? DATA_SCRIPT_TABS.Scripts : DATA_SCRIPT_TABS.Data
+  );
   const [sort, setSort] = useState(RESOURCE_LIST_SORT_MENU[1]);
 
   const [collapaseText, setCollapseText] = useState();
-
-  const starredTabsArray = [
+  const [starredTabsArray, setStarredTabsArray] = useState([
     intl.formatMessage({ id: "Resource.Tree.All" }),
-    intl.formatMessage({ id: "Resource.Tree.Starred" }) +
-      ` (${starredItems && starredItems.length})`,
-  ];
+  ]);
+
+  const [disableStarred, loading] = useFeatureFlag(CATALOG_ARS_ENABLED);
+  useEffect(() => {
+    if (loading || disableStarred) return;
+
+    setStarredTabsArray([
+      intl.formatMessage({ id: "Resource.Tree.All" }),
+      intl.formatMessage({ id: "Resource.Tree.Starred" }) +
+        ` (${starredItems && starredItems.length})`,
+    ]);
+  }, [disableStarred, starredItems, loading]);
 
   useEffect(() => {
     if (location && location.state && location.state.renderScriptTab) {

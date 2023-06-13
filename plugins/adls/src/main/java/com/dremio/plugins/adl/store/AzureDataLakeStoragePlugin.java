@@ -102,6 +102,7 @@ public class AzureDataLakeStoragePlugin extends DirectorySupportLackingFileSyste
     return context != null && context.getOptions().getOption(AzureDataLakeOptions.ASYNC_READS);
   }
 
+  @Override
   public boolean supportReadSignature(DatasetMetadata metadata, boolean isFileDataset) {
     return false;
   }

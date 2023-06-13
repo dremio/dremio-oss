@@ -17,8 +17,13 @@
 import { useMemo, useState } from "react";
 import { useDispatch } from "react-redux";
 import { FormattedMessage, useIntl } from "react-intl";
-import { Button, ModalContainer, DialogContent } from "dremio-ui-lib/dist-esm";
-import { Merge, MergeRefIntoBranchRequest } from "@app/services/nessie/client";
+import {
+  Button,
+  ModalContainer,
+  DialogContent,
+  SectionMessage,
+  MessageDetails,
+} from "dremio-ui-lib/components";
 import { Reference } from "@app/types/nessie";
 import { Select } from "@mantine/core";
 import { useNessieContext } from "../../utils/context";
@@ -36,6 +41,7 @@ type MergeBranchDialogProps = {
 };
 
 // The reason mergeTo is still here is for the old UI, once that is deprecated the mergeTo conditionals can be removed.
+type Err = Record<string, unknown> | null;
 
 function MergeBranchDialog({
   open,
@@ -47,10 +53,10 @@ function MergeBranchDialog({
 }: MergeBranchDialogProps): JSX.Element {
   const [selectedBranch, setSelectedBranch] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
-  const [errorText, setErrorText] = useState<JSX.Element | null>(null);
-  const { api } = useNessieContext();
+  const [error, setError] = useState<Err>(null);
+  const { apiV2 } = useNessieContext();
   const dispatch = useDispatch();
-  const intl = useIntl();
+  const { formatMessage } = useIntl();
 
   const onMerge = async () => {
     setIsSending(true);
@@ -62,14 +68,13 @@ function MergeBranchDialog({
       const fromRefName = mergeFrom.name;
       const fromHash = mergeFrom.hash as string;
 
-      await api.mergeRefIntoBranch({
-        branchName,
-        expectedHash,
+      await apiV2.mergeV2({
+        branch: expectedHash ? `${branchName}@${expectedHash}` : branchName,
         merge: {
           fromRefName,
           fromHash,
-        } as Merge,
-      } as MergeRefIntoBranchRequest);
+        },
+      });
 
       if (setSuccessMessage) {
         setSuccessMessage(
@@ -77,10 +82,10 @@ function MergeBranchDialog({
         );
       }
 
-      setErrorText(null);
+      setError(null);
       dispatch(
         addNotification(
-          intl.formatMessage(
+          formatMessage(
             { id: "ArcticCatalog.Merge.Dialog.SuccessMessage" },
             { branchName, fromRefName }
           ),
@@ -90,27 +95,36 @@ function MergeBranchDialog({
       closeDialog();
       setIsSending(false);
     } catch (error: any) {
-      if (error.status === 409) {
-        setErrorText(
-          <FormattedMessage id="BranchHistory.Dialog.MergeBranch.Error.Conflict" />
-        );
-      } else if (error.status === 400) {
-        setErrorText(
-          <FormattedMessage id="BranchHistory.Dialog.MergeBranch.Error.NoHashes" />
-        );
-      } else {
-        setErrorText(
-          <FormattedMessage id="RepoView.Dialog.DeleteBranch.Error" />
-        );
+      try {
+        const body = await error.json();
+        setError(body);
+      } catch (e: any) {
+        setError(e);
+      } finally {
+        setIsSending(false);
       }
-
-      setIsSending(false);
     }
+  };
+
+  const getErrorProps = (err: Err) => {
+    let id = "RepoView.Dialog.DeleteBranch.Error";
+    if (err?.status === 409) {
+      id = "BranchHistory.Dialog.MergeBranch.Error.Conflict";
+    } else if (err?.status === 400) {
+      id = "BranchHistory.Dialog.MergeBranch.Error.NoHashes";
+    } else if (err?.errorCode === "REFERENCE_NOT_FOUND") {
+      id = "BranchHistory.Dialog.MergeBranch.Error.RefNotFound";
+    }
+
+    return {
+      message: formatMessage({ id }),
+      details: err instanceof TypeError ? undefined : (err?.message as string),
+    };
   };
 
   const onClose = () => {
     setSelectedBranch(null);
-    setErrorText(null);
+    setError(null);
     closeDialog();
   };
 
@@ -132,8 +146,17 @@ function MergeBranchDialog({
       className="modal-container-overflow"
     >
       <DialogContent
+        error={
+          error ? (
+            <SectionMessage appearance="danger">
+              <MessageDetails {...getErrorProps(error)} />
+            </SectionMessage>
+          ) : (
+            <></>
+          )
+        }
         className="merge-branch-dialog"
-        title={intl.formatMessage(
+        title={formatMessage(
           {
             id: mergeTo
               ? "RepoView.Dialog.CreateBranch.CreateBranch"
@@ -173,9 +196,6 @@ function MergeBranchDialog({
                   onChange={(value: string) => setSelectedBranch(value)}
                   styles={() => ({ item: styles.options })}
                 />
-                <div className="merge-branch-dialog-body-error">
-                  {errorText}
-                </div>
               </>
             )}
           </>

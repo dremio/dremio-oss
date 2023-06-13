@@ -15,109 +15,68 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import static org.apache.iceberg.TableProperties.MAX_SNAPSHOT_AGE_MS_DEFAULT;
+import static org.apache.iceberg.TableProperties.MIN_SNAPSHOTS_TO_KEEP_DEFAULT;
+
 import java.util.List;
 
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlNumericLiteral;
-import org.apache.calcite.sql.SqlOperator;
-import org.apache.calcite.sql.SqlSpecialOperator;
-import org.apache.calcite.sql.SqlWriter;
+import org.apache.calcite.sql.SqlSelect;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.sql.validate.SqlValidator;
+import org.apache.calcite.sql.validate.SqlValidatorScope;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.catalog.VacuumOption;
+import com.dremio.exec.catalog.VacuumOptions;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
+import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
 import com.dremio.service.namespace.NamespaceKey;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
-
-public class SqlVacuum extends SqlCall {
-  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("VACUUM", SqlKind.OTHER) {
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 3, "SqlVacuum.createCall() " +
-        "has 3 operands!");
-      return new SqlVacuum(
-        pos,
-        (SqlIdentifier) operands[0],
-        (SqlNodeList) operands[1],
-        (SqlNodeList) operands[2]);
-    }
-  };
-
-  private static final long MAX_SNAPSHOT_AGE_MS_DEFAULT = 5 * 24 * 60 * 60 * 1000; // 5 days
-  private static final int MIN_SNAPSHOTS_TO_KEEP_DEFAULT = 1;
-  private static final List<String> OPTION_KEYS = ImmutableList.of(
+public abstract class SqlVacuum extends SqlCall implements SqlToPlanHandler.Creator {
+  protected static final List<String> OPTION_KEYS = ImmutableList.of(
     "older_than",
     "retain_last"
   );
 
-  private final SqlIdentifier table;
-  private final SqlNodeList optionsList;
-  private final SqlNodeList optionsValueList;
-  private String oldThanTimestamp;
-  private Integer retainLastValue;
+  protected final SqlNodeList optionsList;
+  protected final SqlNodeList optionsValueList;
+  protected String oldThanTimestamp;
+  protected Integer retainLastValue;
+
+  private SqlSelect sourceSelect;
+
+  public SqlSelect getSourceSelect() {
+    return sourceSelect;
+  }
 
   /**
    * Creates a SqlVacuum.
    */
   public SqlVacuum(
     SqlParserPos pos,
-    SqlIdentifier table,
     SqlNodeList optionsList,
     SqlNodeList optionsValueList) {
     super(pos);
-    this.table = table;
     this.optionsList = optionsList;
     this.optionsValueList = optionsValueList;
     populateOptions(optionsList, optionsValueList);
   }
 
-  @Override
-  public SqlOperator getOperator() {
-    return OPERATOR;
+  public void setSourceSelect(SqlSelect select) {
+    this.sourceSelect = select;
   }
 
-  @Override
-  public List<SqlNode> getOperandList() {
-    final List<SqlNode> ops =
-      ImmutableList.of(
-        table,
-        optionsList,
-        optionsValueList);
-    return ops;
-  }
+  public abstract NamespaceKey getPath();
 
-  public NamespaceKey getPath() {
-    return new NamespaceKey(table.names);
-  }
-
-  @Override
-  public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-    writer.keyword("VACUUM");
-    writer.keyword("TABLE");
-    table.unparse(writer, leftPrec, rightPrec);
-
-    writer.keyword("EXPIRE");
-    writer.keyword("SNAPSHOTS");
-    if(optionsList != null) {
-      for (int i = 0; i < optionsList.size(); i++) {
-        optionsList.get(i).unparse(writer, leftPrec, rightPrec);
-        writer.keyword("=");
-        optionsValueList.get(i).unparse(writer, leftPrec, rightPrec);
-      }
-    }
-  }
-
-  public VacuumOption getVacuumOption() {
-    Long olderThanInMillis = null;
+  public VacuumOptions getVacuumOptions() {
+    long olderThanInMillis;
     if (oldThanTimestamp != null) {
       olderThanInMillis = SqlHandlerUtil.convertToTimeInMillis(oldThanTimestamp, pos);
     } else {
@@ -125,7 +84,7 @@ public class SqlVacuum extends SqlCall {
       olderThanInMillis = currentTime - MAX_SNAPSHOT_AGE_MS_DEFAULT;
     }
     int retainLast = retainLastValue != null ? retainLastValue : MIN_SNAPSHOTS_TO_KEEP_DEFAULT;
-    return new VacuumOption(VacuumOption.Type.TABLE, olderThanInMillis, retainLast);
+    return new VacuumOptions(VacuumOptions.Type.TABLE, olderThanInMillis, retainLast);
   }
 
   private void populateOptions(SqlNodeList optionsList, SqlNodeList optionsValueList) {
@@ -160,5 +119,10 @@ public class SqlVacuum extends SqlCall {
       }
       idx++;
     }
+  }
+
+  @Override
+  public void validate(SqlValidator validator, SqlValidatorScope scope) {
+    validator.validate(this.sourceSelect);
   }
 }

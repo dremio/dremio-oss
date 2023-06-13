@@ -19,8 +19,7 @@ import { Tooltip } from "dremio-ui-lib";
 import { PageTypes } from "../../pageTypes";
 import TimeDot from "./TimeDot";
 import * as classes from "./HistoryLine.module.less";
-import { useFeatureFlag } from "@app/exports/providers/useFeatureFlag";
-import { ORGANIZATION_LANDING } from "@app/exports/flags/ORGANIZATION_LANDING";
+import { getSessionContext } from "dremio-ui-common/contexts/SessionContext.js";
 
 type HistoryLineProps = {
   historyItems?: any;
@@ -38,9 +37,12 @@ type HistoryLineProps = {
 
 const HistoryLine = (props: HistoryLineProps) => {
   const { activeVersion, historyItems, location, pageType, tipVersion } = props;
-  const [result] = useFeatureFlag(ORGANIZATION_LANDING);
+  const organizationLanding =
+    typeof getSessionContext().getOrganizationId === "function";
 
-  const adjustMaxHeight = !result ? { maxHeight: "calc(100vh - 55px)" } : {};
+  const adjustMaxHeight = !organizationLanding
+    ? { maxHeight: "calc(100vh - 55px)" }
+    : {};
 
   const renderContent = () => {
     switch (pageType) {

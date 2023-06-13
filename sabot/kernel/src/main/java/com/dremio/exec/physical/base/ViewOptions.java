@@ -15,6 +15,9 @@
  */
 package com.dremio.exec.physical.base;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import com.dremio.exec.catalog.ResolvedVersionContext;
 import com.dremio.exec.record.BatchSchema;
 import com.google.common.base.Preconditions;
@@ -25,26 +28,43 @@ import com.google.common.base.Preconditions;
 public class ViewOptions {
   private final ResolvedVersionContext version;
   private final BatchSchema batchSchema; // tracks the columns of the table to create from
-  private final boolean isViewUpdate;
+  private final ActionType actionType;
+  private final Map<String, String> properties;
 
   private ViewOptions(ViewOptionsBuilder builder) {
     this.version = builder.version;
     this.batchSchema = builder.batchSchema;
-    this.isViewUpdate = builder.isViewUpdate;
+    this.actionType = builder.actionType;
+    this.properties = builder.properties;
+  }
+
+  public enum ActionType {
+    CREATE_VIEW,
+    UPDATE_VIEW,
+    ALTER_VIEW
   }
 
   public ResolvedVersionContext getVersion(){
     return version;
   }
 
-  public BatchSchema getBatchSchema() {return batchSchema;}
+  public BatchSchema getBatchSchema() { return batchSchema; }
 
-  public boolean isViewUpdate() { return isViewUpdate; }
+  public ActionType getActionType() { return actionType; }
 
-  public static class ViewOptionsBuilder{
+  public boolean isViewCreate() { return actionType == ActionType.CREATE_VIEW; }
+
+  public boolean isViewUpdate() { return actionType == ActionType.UPDATE_VIEW; }
+
+  public boolean isViewAlter() { return actionType == ActionType.ALTER_VIEW; }
+
+  public Map<String, String> getProperties() { return properties; }
+
+  public static class ViewOptionsBuilder {
     private ResolvedVersionContext version;
     private BatchSchema batchSchema;
-    private boolean isViewUpdate;
+    private ActionType actionType;
+    private Map<String, String> properties;
 
     public ViewOptionsBuilder() {
     }
@@ -61,8 +81,14 @@ public class ViewOptions {
       return this;
     }
 
-    public  ViewOptionsBuilder viewUpdate(boolean isViewUpdate) {
-      this.isViewUpdate = isViewUpdate;
+    public ViewOptionsBuilder actionType(ActionType actionType) {
+      this.actionType = actionType;
+      return this;
+    }
+
+    public ViewOptionsBuilder properties(Map<String, String> properties) {
+      Preconditions.checkArgument(!properties.isEmpty());
+      this.properties = new HashMap<>(properties);
       return this;
     }
 

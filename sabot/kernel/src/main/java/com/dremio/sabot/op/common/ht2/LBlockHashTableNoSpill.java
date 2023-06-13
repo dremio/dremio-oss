@@ -458,14 +458,17 @@ public final class LBlockHashTableNoSpill implements AutoCloseable {
     return true;
   }
 
+  @Override
   public int hashCode() {
     return System.identityHashCode(this);
   }
 
+  @Override
   public String toString() {
     return "BlockHashTable";
   }
 
+  @Override
   public boolean equals(Object obj) {
     return this == obj;
   }

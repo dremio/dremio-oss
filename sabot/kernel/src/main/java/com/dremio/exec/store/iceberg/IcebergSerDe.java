@@ -31,6 +31,7 @@ import java.util.stream.Collectors;
 
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.iceberg.DataFile;
+import org.apache.iceberg.DeleteFile;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.PartitionSpecParser;
@@ -65,6 +66,24 @@ public class IcebergSerDe {
       throw new RuntimeIOException(e, "failed to deserialize DataFile");
     } catch (ClassNotFoundException e) {
       throw new RuntimeException("failed to deserialize DataFile", e);
+    }
+  }
+
+  public static byte[] serializeDeleteFile(DeleteFile deleteFile) {
+    try {
+      return serializeToByteArray(deleteFile);
+    } catch (IOException e) {
+      throw new RuntimeIOException(e, "failed to serialize DeleteFile");
+    }
+  }
+
+  public static DeleteFile deserializeDeleteFile(byte[] serialized) {
+    try {
+      return (DeleteFile) deserializeFromByteArray(serialized);
+    } catch (IOException e) {
+      throw new RuntimeIOException(e, "failed to deserialize DeleteFile");
+    } catch (ClassNotFoundException e) {
+      throw new RuntimeException("failed to deserialize DeleteFile", e);
     }
   }
 

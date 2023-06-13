@@ -64,6 +64,7 @@ public class ElasticsearchLimit extends LimitRelBase implements ElasticsearchPre
     assert offsetSize == 0; // currently do not support offset
   }
 
+  @Override
   public StoragePluginId getPluginId() {
     return pluginId;
   }

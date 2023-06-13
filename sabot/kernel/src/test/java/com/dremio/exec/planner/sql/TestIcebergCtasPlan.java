@@ -15,22 +15,14 @@
  */
 package com.dremio.exec.planner.sql;
 
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doAnswer;
-
 import org.apache.calcite.sql.SqlNode;
 import org.junit.Assert;
 import org.junit.Test;
-import org.mockito.Mockito;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 import com.dremio.PlanTestBase;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.PassthroughQueryObserver;
-import com.dremio.exec.catalog.DatasetCatalog;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.planner.observer.AttemptObserver;
@@ -42,12 +34,9 @@ import com.dremio.exec.proto.UserProtos;
 import com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.SessionOptionManagerImpl;
-import com.dremio.exec.store.iceberg.DremioFileIO;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValue;
 import com.dremio.sabot.rpc.user.UserSession;
-import com.dremio.service.namespace.NamespaceKey;
-import com.google.common.collect.ImmutableList;
 
 public class TestIcebergCtasPlan extends PlanTestBase {
 
@@ -111,33 +100,5 @@ public class TestIcebergCtasPlan extends PlanTestBase {
           "Writer.*" +
           "IcebergManifestList.*"});
     }
-  }
-
-  @Test
-  public void testCTASCleaner() {
-    DatasetCatalog datasetCatalog = Mockito.mock(DatasetCatalog.class);
-    DremioFileIO dremioFileIO = Mockito.mock(DremioFileIO.class);
-
-    final String tableFolderToDelete = "dummyTableFolderToDelete";
-    final NamespaceKey tableName = new NamespaceKey(ImmutableList.of("dummyTable"));
-    final String[] actualTableFolderDeleted = new String[1];
-
-    doAnswer(new Answer<Void>() {
-      public Void answer(InvocationOnMock invocation) {
-        Object[] args = invocation.getArguments();
-        Assert.assertEquals(args.length, 3);
-
-        // table location
-        actualTableFolderDeleted[0] = (String)args[0];
-
-        // "recursive" flag
-        Assert.assertTrue((boolean)args[1]);
-        return null;
-      }
-    }).when(dremioFileIO).deleteFile(anyString(), anyBoolean(), anyBoolean());
-
-    CreateTableHandler.cleanUpImpl(dremioFileIO, datasetCatalog, tableName, tableFolderToDelete);
-
-    Assert.assertEquals(tableFolderToDelete, actualTableFolderDeleted[0]);
   }
 }

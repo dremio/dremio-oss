@@ -181,15 +181,19 @@ public final class VM {
         case "t":
         case "T":
           multiplier *= 1024;
+          // fall through
         case "g":
         case "G":
           multiplier *= 1024;
+          // fall through
         case "m":
         case "M":
           multiplier *= 1024;
+          // fall through
         case "k":
         case "K":
           multiplier *= 1024;
+          // fall through
         default:
           break;
         }

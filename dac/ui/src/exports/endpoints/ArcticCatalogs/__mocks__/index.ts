@@ -18,16 +18,14 @@ import { createArcticCatalogHandler } from "./createArcticCatalog.handler";
 import { deleteArcticCatalogHandler } from "./deleteArcticCatalog.handler";
 import { getArcticCatalogHandler } from "./getArcticCatalog.handler";
 import { listArcticCatalogsHandler } from "./listArcticCatalogs.handler";
-import { createCatalogConfiguration } from "./Configuration/createCatalogConfiguration.handler";
-import { getCatalogConfiguration } from "./Configuration/getCatalogConfiguration.handler";
-import { modifyCatalogConfiguration } from "./Configuration/modifyCatalogConfiguration.handler";
+import { configureCatalogEngine } from "./Configuration/configureCatalogEngine.handler";
+import { getCatalogEngine } from "./Configuration/getCatalogEngine.handler";
 
 export {
   createArcticCatalogHandler,
   deleteArcticCatalogHandler,
   getArcticCatalogHandler,
   listArcticCatalogsHandler,
-  getCatalogConfiguration,
-  createCatalogConfiguration,
-  modifyCatalogConfiguration,
+  getCatalogEngine,
+  configureCatalogEngine,
 };

@@ -32,6 +32,7 @@ type SqlQueryTabsProps = {
   tabNumber: number;
   statusesArray: [];
   isMultiQueryRunning: boolean;
+  sqlState: boolean;
 };
 
 function SqlQueryTabs({
@@ -42,7 +43,10 @@ function SqlQueryTabs({
   tabNumber,
   statusesArray,
   isMultiQueryRunning,
+  sqlState,
 }: SqlQueryTabsProps): JSX.Element {
+  const paneClassName = sqlState ? "" : "sql-hidden";
+
   const handleChange = (_: any, value: any) => {
     handleTabChange(value);
   };
@@ -51,8 +55,8 @@ function SqlQueryTabs({
     <div
       className={
         queryStatuses.length > 0
-          ? "sql-query-results-tabs"
-          : "sql-query-results-tabs--empty"
+          ? `sql-query-results-tabs ${paneClassName}`
+          : `sql-query-results-tabs--empty ${paneClassName}`
       }
     >
       {queryStatuses.length > 0 && (

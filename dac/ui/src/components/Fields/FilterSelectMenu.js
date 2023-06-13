@@ -131,7 +131,13 @@ export function FilterSelectMenuItem({
           label={[
             item.icon &&
               (isJobStatus ? (
-                <dremio-icon name={item.icon} />
+                <dremio-icon
+                  name={item.icon}
+                  style={{
+                    ...styles.checkboxLabelContainer,
+                    ...(item?.iconStyles ?? {}),
+                  }}
+                />
               ) : (
                 <FontIcon
                   type={item.icon}

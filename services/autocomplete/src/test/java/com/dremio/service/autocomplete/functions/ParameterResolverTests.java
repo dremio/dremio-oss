@@ -98,7 +98,7 @@ public final class ParameterResolverTests {
 
   @Test
   public void tests() {
-    new GoldenFileTestBuilder<>(ParameterResolverTests::executeTest)
+    GoldenFileTestBuilder.create(ParameterResolverTests::executeTest)
       .add("NO FUNCTION", "SELECT ^")
       .add("COMPLETED FUNCTION", "ZERO_ARG_FUNCTION(^)")
       .add("NO PARAMETER FUNCTION", "ZERO_ARG_FUNCTION(^")

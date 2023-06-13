@@ -314,13 +314,15 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
       mfconditions.add(pruneCondition.getPartitionRange());
     }
 
+    ManifestContentType contentType = manifestScanOptions.getManifestContent().equals(ManifestContent.DATA) ?
+      ManifestContentType.DATA : ManifestContentType.DELETES;
     IcebergManifestListPrel manifestListPrel = new IcebergManifestListPrel(getCluster(),
       getTraitSet(),
       tableMetadata,
       manifestListReaderSchema, manifestListReaderColumns,
       getRowTypeFromProjectedColumns(manifestListReaderColumns, manifestListReaderSchema, getCluster()),
       icebergPartitionPruneExpression,
-      manifestScanOptions.getManifestContent());
+      contentType);
 
     RelNode input = manifestListPrel;
 
@@ -381,6 +383,10 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
   }
 
   public Prel buildDataFileScan(RelNode input2) {
+    return buildDataFileScanWithImplicitPartitionCols(input2, Collections.EMPTY_LIST);
+  }
+
+  public Prel buildDataFileScanWithImplicitPartitionCols(RelNode input2, List<String> implicitPartitionCols) {
     DistributionTrait.DistributionField distributionField = new DistributionTrait.DistributionField(0);
     DistributionTrait distributionTrait = new DistributionTrait(DistributionTrait.DistributionType.HASH_DISTRIBUTED, ImmutableList.of(distributionField));
     RelTraitSet relTraitSet = getCluster().getPlanner().emptyTraitSet().plus(Prel.PHYSICAL).plus(distributionTrait);
@@ -393,7 +399,8 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
 
     // table scan phase
     TableFunctionConfig tableFunctionConfig = TableFunctionUtil.getDataFileScanTableFunctionConfig(
-      tableMetadata, filter, getProjectedColumns(), arrowCachingEnabled, isConvertedIcebergDataset, limitDataScanParallelism, survivingFileCount);
+      tableMetadata, filter, getProjectedColumns(), arrowCachingEnabled, isConvertedIcebergDataset,
+      limitDataScanParallelism, survivingFileCount, implicitPartitionCols);
 
     return new TableFunctionPrel(getCluster(), getTraitSet().plus(DistributionTrait.ANY), getTable(), parquetSplitsExchange, tableMetadata,
       tableFunctionConfig, getRowType(), getSurvivingRowCount());
@@ -421,6 +428,7 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
     int updateColIndex = projectedColumns.indexOf(SchemaPath.getSimplePath(IncrementalUpdateUtils.UPDATE_COLUMN));
     final AtomicBoolean isImplicit = new AtomicBoolean(false);
     partitionExpression.accept(new RexVisitorImpl<Void>(true) {
+      @Override
       public Void visitInputRef(RexInputRef inputRef) {
         isImplicit.set(updateColIndex==inputRef.getIndex());
         return null;

@@ -71,6 +71,7 @@ import com.dremio.exec.dotfile.View;
 import com.dremio.exec.physical.base.ViewOptions;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
+import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
@@ -139,7 +140,8 @@ public class DatasetVersionMutator {
     return new DatasetDownloadManager(jobsService, namespaceService, downloadPlugin.getConfig().getPath(),
       downloadPlugin.getSystemUserFS(), jobResultsPlugin.getConfig().isPdfsBased(), optionManager);
   }
-  private void validate(DatasetPath path, VirtualDatasetUI ds) {
+
+  public static void validate(DatasetPath path, VirtualDatasetUI ds) {
     if (ds.getSqlFieldsList() == null || ds.getSqlFieldsList().isEmpty()) {
       throw new IllegalArgumentException("SqlFields can't be null for " + path);
     }
@@ -148,13 +150,24 @@ public class DatasetVersionMutator {
     }
   }
 
-
-  public void putVersion(VirtualDatasetUI ds) throws DatasetNotFoundException, NamespaceException {
+  private void putVersion(VirtualDatasetUI ds, boolean doValidation) throws DatasetNotFoundException {
     DatasetPath path = new DatasetPath(ds.getFullPathList());
-    validate(path, ds);
+    if (doValidation) {
+      validate(path, ds);
+    }
     ds.setCreatedAt(System.currentTimeMillis());
     final VersionDatasetKey datasetKey = new VersionDatasetKey(path, ds.getVersion());
     datasetVersions.put(datasetKey, toVirtualDatasetVersion(ds));
+  }
+
+  public void putVersion(VirtualDatasetUI ds) throws DatasetNotFoundException {
+    putVersion(ds, true);
+  }
+
+  public void putTempVersionWithoutValidation(VirtualDatasetUI ds) throws DatasetNotFoundException {
+    Preconditions.checkArgument(isTemporaryPath(ds.getFullPathList()),
+      "Only temp untitled dataset can bypass validation.");
+    putVersion(ds, false);
   }
 
   public void put(VirtualDatasetUI ds, NamespaceAttribute... attributes) throws DatasetNotFoundException, NamespaceException {
@@ -170,13 +183,16 @@ public class DatasetVersionMutator {
   }
 
   public void putWithVersionedSource(VirtualDatasetUI ds, DatasetPath path, String branchName,
-                                     String savedTag, NamespaceAttribute... attributes)
+                                     String savedTag)
     throws DatasetNotFoundException, IOException, NamespaceException {
     DatasetConfig datasetConfig = toVirtualDatasetVersion(ds).getDataset();
     Preconditions.checkNotNull(path);
     VersionContext versionContext = VersionContext.ofBranch(branchName);
     Map<String, VersionContext> contextMap = ImmutableMap.of(path.getRoot().toString(), versionContext);
     Catalog catalog = getCatalog().resolveCatalog(contextMap);
+
+    //TODO: Once DX-65418 is fixed, injected catalog will validate the right entity accordingly
+    catalog.validatePrivilege(new NamespaceKey(path.getRoot().getName()), SqlGrant.Privilege.ALTER);
     BatchSchema schema = DatasetHelper.getSchemaBytes(datasetConfig) != null ? CalciteArrowHelper.fromDataset(datasetConfig) : null;
     View view = Views.fieldTypesToView(
       Iterables.getLast(datasetConfig.getFullPathList()),
@@ -187,20 +203,25 @@ public class DatasetVersionMutator {
     );
     DremioTable exist = catalog.getTable(new NamespaceKey(path.toPathList()));
     if (exist != null && !(exist instanceof ViewTable)) {
-      throw UserException.validationError().message("Expecting getting a view but returns a entity type of %s", exist.getClass()).buildSilently();
-    } else if (exist != null && savedTag == null){
-      throw UserException.validationError().message("SavedTag cannot be null when updating a view").buildSilently();
-    } else if (exist != null && !savedTag.equals(exist.getDatasetConfig().getTag())){
-      throw UserException.resourceError().message("Your dataset may not be the most updated, please refresh").buildSilently();
+      throw UserException.validationError().message("Expecting getting a view but returns a entity type of %s", exist.getDatasetConfig().getType()).buildSilently();
+    } else if (exist != null &&  (savedTag == null|| !savedTag.equals(exist.getDatasetConfig().getTag()))) {
+      throw UserException.concurrentModificationError()
+        .message("The specified location already contains a view named \"%s\". Please provide a unique view name or open the existing view, edit and then save.",
+          path.toPathList().get(path.toPathList().size() - 1))
+        .build(logger);
     }
     final boolean viewExists = (exist != null);
 
     ResolvedVersionContext resolvedVersionContext = CatalogUtil.resolveVersionContext(catalog, path.getRoot().getName(), versionContext);
-    ViewOptions viewOptions = new ViewOptions.ViewOptionsBuilder()
-      .version(resolvedVersionContext)
-      .batchSchema(schema)
-      .viewUpdate(viewExists)
-      .build();
+    ViewOptions viewOptions =
+        new ViewOptions.ViewOptionsBuilder()
+            .version(resolvedVersionContext)
+            .batchSchema(schema)
+            .actionType(
+                viewExists
+                    ? ViewOptions.ActionType.UPDATE_VIEW
+                    : ViewOptions.ActionType.CREATE_VIEW)
+            .build();
     if (viewExists) {
       catalog.updateView(new NamespaceKey(path.toPathList()), view, viewOptions);
     } else {
@@ -220,6 +241,7 @@ public class DatasetVersionMutator {
   }
 
   public Catalog getCatalog() {
+    // TODO - Why are we using the System User when interacting with Catalog when most of the DatasetTool should be in the context of a user?
     return catalogService.getCatalog(MetadataRequestOptions.of(SchemaConfig.newBuilder(CatalogUser.from(SYSTEM_USERNAME))
       .build()));
   }
@@ -305,12 +327,13 @@ public class DatasetVersionMutator {
    */
 
   public VirtualDatasetUI getVersion(DatasetPath path, DatasetVersion version, boolean isVersionedSource)
-      throws DatasetVersionNotFoundException, DatasetNotFoundException {
-    VirtualDatasetVersion datasetVersion = datasetVersions.get(new VersionDatasetKey(path, version));
-    VirtualDatasetUI virtualDatasetUI = toVirtualDatasetUI(datasetVersions.get(new VersionDatasetKey(path, version)));
+    throws DatasetVersionNotFoundException {
+    VirtualDatasetUI virtualDatasetUI = null;
     try {
+      VirtualDatasetVersion datasetVersion = getVirtualDatasetVersion(path, version);
+      virtualDatasetUI = toVirtualDatasetUI(datasetVersion);
       DatasetConfig datasetConfig;
-      if(isVersionedSource){
+      if(isVersionedSource && virtualDatasetUI != null) {
         datasetConfig = datasetVersion.getDataset();
         logger.debug("For versioned view {} got datasetConfig {} from datasetVersion store",
           path.toUnescapedString(),
@@ -337,13 +360,34 @@ public class DatasetVersionMutator {
     return virtualDatasetUI;
   }
 
-  public VirtualDatasetVersion getVirtualDatasetVersion(DatasetPath path, DatasetVersion version) {
-    return datasetVersions.get(new VersionDatasetKey(path, version));
+  private DatasetPath getDatasetPathInOriginalCase(DatasetPath path) {
+    // namespaceService key is by default case-insensitive, but datasetVersions is case-sensitive.
+    // Here we use the Dataset Path in original case preserved in namespaceService value.
+    DatasetPath datasetPath = path;
+
+    // Temporary VDS are not saved in namespace.
+    if (!isTemporaryPath(path.toPathList())) {
+      try {
+        final DatasetConfig datasetConfig = namespaceService.getDataset(path.toNamespaceKey());
+        datasetPath = new DatasetPath(datasetConfig.getFullPathList());
+      } catch (NamespaceException e) {
+        // We have tests save dataset versions without saving to namespace. If the dataset is not found in namespace,
+        // fallback to the path passed in.
+      }
+    }
+
+    return datasetPath;
   }
 
-  public Iterable<VirtualDatasetUI> getAllVersions(DatasetPath path) throws DatasetVersionNotFoundException {
+  public VirtualDatasetVersion getVirtualDatasetVersion(DatasetPath path, DatasetVersion version) {
+    DatasetPath datasetPath = getDatasetPathInOriginalCase(path);
+    return datasetVersions.get(new VersionDatasetKey(datasetPath, version));
+  }
+
+  public Iterable<VirtualDatasetUI> getAllVersions(DatasetPath path) throws DatasetVersionNotFoundException, NamespaceException {
+    DatasetPath datasetPath = getDatasetPathInOriginalCase(path);
     return Iterables.transform(datasetVersions.find(
-        new LegacyFindByRange<>(new VersionDatasetKey(path, MIN_VERSION), false, new VersionDatasetKey(path, MAX_VERSION), false)),
+        new LegacyFindByRange<>(new VersionDatasetKey(datasetPath, MIN_VERSION), false, new VersionDatasetKey(datasetPath, MAX_VERSION), false)),
       new Function<Entry<VersionDatasetKey, VirtualDatasetVersion>, VirtualDatasetUI> () {
         @Override
         public VirtualDatasetUI apply(Entry<VersionDatasetKey, VirtualDatasetVersion> input) {
@@ -362,9 +406,9 @@ public class DatasetVersionMutator {
   public VirtualDatasetUI get(DatasetPath path) throws DatasetNotFoundException, NamespaceException {
     try {
       final DatasetConfig datasetConfig = namespaceService.getDataset(path.toNamespaceKey());
-      final VirtualDatasetVersion virtualDatasetVersion = datasetVersions.get(new VersionDatasetKey(path, datasetConfig.getVirtualDataset().getVersion()));
+      final VirtualDatasetVersion virtualDatasetVersion = getVirtualDatasetVersion(path, datasetConfig.getVirtualDataset().getVersion());
       if (virtualDatasetVersion == null) {
-        throw new DatasetNotFoundException(path, format("Missing version %s.", datasetConfig.getVirtualDataset().getVersion().toString()));
+        throw new DatasetVersionNotFoundException(path, datasetConfig.getVirtualDataset().getVersion());
       }
       final VirtualDatasetUI virtualDatasetUI = toVirtualDatasetUI(virtualDatasetVersion)
           .setId(datasetConfig.getId().getId())
@@ -378,9 +422,9 @@ public class DatasetVersionMutator {
   public VirtualDatasetUI get(DatasetPath path, DatasetVersion version) throws DatasetNotFoundException, NamespaceException {
     try {
       final DatasetConfig datasetConfig = namespaceService.getDataset(path.toNamespaceKey());
-      final VirtualDatasetVersion virtualDatasetVersion = datasetVersions.get(new VersionDatasetKey(path, version));
+      final VirtualDatasetVersion virtualDatasetVersion = getVirtualDatasetVersion(path, version);
       if (virtualDatasetVersion == null) {
-        throw new DatasetNotFoundException(path, format("Missing version %s.", version.toString()));
+        throw new DatasetVersionNotFoundException(path, datasetConfig.getVirtualDataset().getVersion());
       }
       final VirtualDatasetUI virtualDatasetUI =  toVirtualDatasetUI(virtualDatasetVersion)
           .setId(datasetConfig.getId().getId())
@@ -434,6 +478,14 @@ public class DatasetVersionMutator {
         return new DatasetPath(input.getKey().getPathComponents());
       }
     });
+  }
+
+  public int getJobsCount(NamespaceKey path, OptionManager optionManager) {
+    int jobCount = 0;
+    if((optionManager == null) || (optionManager.getOption(ExecConstants.CATALOG_JOB_COUNT_ENABLED))){
+      jobCount = getJobsCount(path);
+    }
+    return jobCount;
   }
 
   public int getJobsCount(NamespaceKey path) {

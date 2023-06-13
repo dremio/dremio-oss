@@ -136,6 +136,17 @@ public class UpdateTests {
     }
   }
 
+  public static void testUpdateByIdWithEqualNull(BufferAllocator allocator, String source) throws Exception {
+    // column = null should return false and no data should be updated
+    try (Tables tables = createBasicNonPartitionedAndPartitionedTables(source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
+      for (Table table : tables.tables) {
+        testDmlQuery(allocator, "UPDATE %s SET id = %s WHERE id = %s",
+            new Object[]{table.fqn, (int) table.originalData[5][0] * 10, null}, table, 0,
+            ArrayUtils.subarray(table.originalData, 0, table.originalData.length));
+      }
+    }
+  }
+
   public static void testUpdateTargetTableWithAndWithoutAlias(BufferAllocator allocator, String source) throws Exception {
     // without target table aliasing
     try (Tables tables = createBasicNonPartitionedAndPartitionedTables(source, 2, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {

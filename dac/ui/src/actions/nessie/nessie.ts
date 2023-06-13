@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Branch, DefaultApi } from "@app/services/nessie/client";
+import { Branch, V2BetaApi } from "@app/services/nessie/client";
 import { store } from "@app/store/store";
 import { NessieRootState, Reference } from "@app/types/nessie";
 
@@ -132,7 +132,7 @@ export function resetNessieState() {
   };
 }
 
-export function fetchDefaultReferenceIfNeeded(source: string, api: DefaultApi) {
+export function fetchDefaultReferenceIfNeeded(source: string, api: V2BetaApi) {
   return async (dispatch: any) => {
     const nessie = store.getState().nessie as NessieRootState;
     if (nessie[source]?.defaultReference) return;
@@ -140,12 +140,14 @@ export function fetchDefaultReferenceIfNeeded(source: string, api: DefaultApi) {
   };
 }
 
-export function fetchDefaultReference(source: string, api: DefaultApi) {
+export function fetchDefaultReference(source: string, api: V2BetaApi) {
   return async (dispatch: any) => {
     if (!source) return;
     dispatch({ type: DEFAULT_REF_REQUEST, source });
     try {
-      const reference = await api.getDefaultBranch();
+      // https://github.com/projectnessie/nessie/issues/6210
+      //@ts-ignore
+      const { reference } = await api.getReferenceByNameV2({ ref: "-" });
       dispatch({
         type: DEFAULT_REF_REQUEST_SUCCESS,
         payload: reference,
@@ -163,30 +165,30 @@ export function fetchDefaultReference(source: string, api: DefaultApi) {
 
 export function fetchBranchReference(
   source: string,
-  api: DefaultApi,
+  api: V2BetaApi,
   initialRef?: Branch
 ) {
   return async (dispatch: any) => {
     dispatch({ type: SET_REF_REQUEST, source });
     try {
-      let curReference;
-      if (initialRef?.name) {
-        curReference = (await api.getReferenceByName({
-          ref: initialRef?.name,
-        })) as Reference;
+      if (!initialRef?.name) return;
+      // https://github.com/projectnessie/nessie/issues/6210
+      //@ts-ignore
+      const { reference } = (await api.getReferenceByNameV2({
+        ref: initialRef?.name,
+      })) as Reference;
 
-        dispatch({
-          type: SET_REF,
-          payload: {
-            reference: {
-              ...curReference,
-              hash: initialRef?.hash ?? null,
-            },
+      dispatch({
+        type: SET_REF,
+        payload: {
+          reference: {
+            ...reference,
             hash: initialRef?.hash ?? null,
           },
-          source,
-        });
-      }
+          hash: initialRef?.hash ?? null,
+        },
+        source,
+      });
     } catch (e) {
       dispatch({
         type: SET_REF_REQUEST_FAILURE,
@@ -209,7 +211,7 @@ export function fetchCommitBeforeTime(
   reference: Reference | null,
   date: Date,
   source: string,
-  api: DefaultApi
+  api: V2BetaApi
 ) {
   return async (dispatch: any) => {
     let result = null;
@@ -217,7 +219,7 @@ export function fetchCommitBeforeTime(
     dispatch({ type: COMMIT_BEFORE_TIME_REQUEST, source });
     try {
       const timestampISO = date.toISOString();
-      const log = await api.getCommitLog({
+      const log = await api.getCommitLogV2({
         ref: reference.name,
         maxRecords: 1,
         filter: `timestamp(commit.commitTime) <= timestamp('${timestampISO}')`,

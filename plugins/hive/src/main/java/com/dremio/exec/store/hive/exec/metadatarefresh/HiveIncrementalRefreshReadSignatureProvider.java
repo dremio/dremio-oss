@@ -41,6 +41,7 @@ public class HiveIncrementalRefreshReadSignatureProvider extends HiveFullRefresh
     this.existingReadSignature = decodeHiveReadSignatureByteString(existingReadSignature);
   }
 
+  @Override
   protected void assertPartitionsCount(Set<IcebergPartitionData> addedPartitions, Set<IcebergPartitionData> deletedPartitions) {
   }
 }

@@ -122,6 +122,7 @@ public abstract class ClusterCoordinator implements ClusterServiceSetManager, Cl
    * @return a provider for a collection of endpoints
    * @throws NullPointerException if role is {@code null}
    */
+  @Override
   public abstract ServiceSet getServiceSet(Role role);
 
   /**
@@ -129,7 +130,15 @@ public abstract class ClusterCoordinator implements ClusterServiceSetManager, Cl
    * @param serviceName
    * @return
    */
+  @Override
   public abstract ServiceSet getOrCreateServiceSet(String serviceName);
+
+  /**
+   * Delete a {@link ServiceSet} for the given service name
+   * @param serviceName
+   */
+  @Override
+  public abstract void deleteServiceSet(String serviceName);
 
   /**
    * Get the set of service names registered in the ClusterCoordinator ServiceSet.
@@ -137,6 +146,7 @@ public abstract class ClusterCoordinator implements ClusterServiceSetManager, Cl
    *
    * @return An Iterable of service names.
    */
+  @Override
   public abstract Iterable<String> getServiceNames() throws Exception;
 
   public abstract DistributedSemaphore getSemaphore(String name, int maximumLeases);
@@ -147,5 +157,6 @@ public abstract class ClusterCoordinator implements ClusterServiceSetManager, Cl
    * @param name the name of the election
    * @return an handle to be closed when leaving the election
    */
+  @Override
   public abstract ElectionRegistrationHandle joinElection(String name, ElectionListener listener);
 }

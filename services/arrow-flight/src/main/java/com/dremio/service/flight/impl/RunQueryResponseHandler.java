@@ -349,6 +349,7 @@ public abstract class RunQueryResponseHandler implements UserResponseHandler {
       this.optionManager = workerProvider.get().getSystemOptions();
     }
 
+    @Override
     @VisibleForTesting
     WaitResult clientIsReadyForData() {
       return runQueryBackpressureStrategy.waitForListener(

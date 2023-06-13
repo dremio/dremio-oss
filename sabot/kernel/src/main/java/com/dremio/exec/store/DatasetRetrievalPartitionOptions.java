@@ -34,6 +34,7 @@ public class DatasetRetrievalPartitionOptions extends DatasetRetrievalOptions {
     return partition;
   }
 
+  @Override
   protected void addCustomOptions(List<ListPartitionChunkOption> options) {
     options.add(new RefreshTableFilterOption(partition));
   }

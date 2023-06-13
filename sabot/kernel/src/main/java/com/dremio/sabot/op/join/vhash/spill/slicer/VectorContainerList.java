@@ -37,11 +37,7 @@ public class VectorContainerList {
 
       int wrapperIdx = 0;
       for (VectorWrapper<?> wrapper : current) {
-        List<VectorWrapper<?>> oldList;
-        if ((oldList = wrapperIdToWrappers.get(wrapperIdx)) == null) {
-          oldList = new ArrayList<>();
-          wrapperIdToWrappers.put(wrapperIdx, oldList);
-        }
+        List<VectorWrapper<?>> oldList = wrapperIdToWrappers.computeIfAbsent(wrapperIdx, i -> new ArrayList<>());
         oldList.add(wrapper);
         ++wrapperIdx;
       }

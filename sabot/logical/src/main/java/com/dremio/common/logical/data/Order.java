@@ -153,11 +153,9 @@ public class Order extends SingleInputOperator {
     private static Direction filterSupportedDirections(Direction direction) {
       if (direction == null || direction == Direction.ASCENDING) {
         return Direction.ASCENDING;
-      }
-      else if (Direction.DESCENDING.equals( direction) ) {
+      } else if (Direction.DESCENDING.equals( direction) ) {
         return direction;
-      }
-      else {
+      } else {
         throw new IllegalArgumentException(
             "Unknown <ordering specification> string (not \"ASC\", \"DESC\", "
             + "or null): \"" + direction + "\"" );

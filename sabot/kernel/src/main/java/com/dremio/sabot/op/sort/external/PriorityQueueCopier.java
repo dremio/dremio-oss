@@ -39,5 +39,6 @@ public interface PriorityQueueCopier extends AutoCloseable, MovingCopier {
       VectorAccessible incoming,
       VectorContainer outgoing) throws SchemaChangeException, IOException ;
 
+  @Override
   int copy(int targetRecordCount);
 }

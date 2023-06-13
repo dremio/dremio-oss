@@ -24,6 +24,7 @@ import com.dremio.exec.proto.UserBitShared.QueryProfile;
  * Tool for interacting with the foremen manager.
  */
 public interface ForemenTool {
+  // Used by REST APIs to cancel running queries
   boolean cancel(ExternalId id, String reason);
   Optional<QueryProfile> getProfile(ExternalId id);
 

@@ -651,8 +651,7 @@ public class DiskRunManager implements AutoCloseable {
          * data.
          */
         outputBatch = new VectorAccessibleSerializable(batch, null, compressSpilledBatchAllocator, true);
-      }
-      else {
+      } else {
         /* no need for an allocator on the spill path if compression is not enabled */
         outputBatch = new VectorAccessibleSerializable(batch, null, null, false);
       }

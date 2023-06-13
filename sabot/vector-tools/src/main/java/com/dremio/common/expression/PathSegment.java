@@ -82,6 +82,7 @@ public abstract class PathSegment {
       return this;
     }
 
+    @Override
     public <IN, OUT> OUT accept(SchemaPathVisitor<IN, OUT> visitor, IN in){
       return visitor.visitArray(this, in);
     }
@@ -179,6 +180,7 @@ public abstract class PathSegment {
       return this;
     }
 
+    @Override
     public <IN, OUT> OUT accept(SchemaPathVisitor<IN, OUT> visitor, IN in){
       return visitor.visitName(this, in);
     }

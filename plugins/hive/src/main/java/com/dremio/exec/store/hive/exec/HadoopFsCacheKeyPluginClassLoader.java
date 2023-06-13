@@ -27,6 +27,7 @@ public class HadoopFsCacheKeyPluginClassLoader {
   final String authority;
   final Configuration conf;
   final URI uri;
+  final String userName;
 
   /**
    *  This key is used for the cache which loads FileSystem using the Plugin class loader to avoid class Cast exceptions
@@ -34,12 +35,14 @@ public class HadoopFsCacheKeyPluginClassLoader {
    *  This key is used for cache which stores the fs at plugin level.
    * @param uri - uri for which fileSystem will be created or checked
    * @param conf - configuration for creating FileSystem
+   * @param userName - username tied to the FileSystem
    */
-  public HadoopFsCacheKeyPluginClassLoader(URI uri, Iterable<Map.Entry<String, String>> conf) {
+  public HadoopFsCacheKeyPluginClassLoader(URI uri, Iterable<Map.Entry<String, String>> conf, String userName) {
     this.conf = (Configuration) conf;
     this.uri = uri;
     scheme = uri.getScheme() == null ? "" : StringUtils.toLowerCase(uri.getScheme());
     authority = uri.getAuthority() == null ? "" : StringUtils.toLowerCase(uri.getAuthority());
+    this.userName = userName;
   }
 
   public URI getUri() {
@@ -51,9 +54,13 @@ public class HadoopFsCacheKeyPluginClassLoader {
     return conf;
   }
 
+  public String getUserName() {
+    return userName;
+  }
+
   @Override
   public int hashCode() {
-    return Objects.hash(scheme, authority);
+    return Objects.hash(scheme, authority, userName);
   }
 
   @Override
@@ -67,11 +74,12 @@ public class HadoopFsCacheKeyPluginClassLoader {
     HadoopFsCacheKeyPluginClassLoader key = (HadoopFsCacheKeyPluginClassLoader) o;
     return
       com.google.common.base.Objects.equal(scheme, key.scheme) &&
-        com.google.common.base.Objects.equal(authority, key.authority);
+        com.google.common.base.Objects.equal(authority, key.authority) &&
+          com.google.common.base.Objects.equal(userName, key.userName);
   }
 
   @Override
   public String toString() {
-    return "@" + scheme + "://" + authority;
+    return userName + "@" + scheme + "://" + authority;
   }
 }

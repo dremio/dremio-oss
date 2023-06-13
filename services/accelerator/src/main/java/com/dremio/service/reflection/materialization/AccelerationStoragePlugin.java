@@ -143,7 +143,13 @@ public class AccelerationStoragePlugin extends MayBeDistFileSystemPlugin<Acceler
 
   @Override
   public FileSystem createFS(String userName, OperatorContext operatorContext, boolean metadata) throws IOException {
-    return new AccelerationFileSystem(super.createFS(userName, operatorContext, metadata));
+    FileSystem fs = new AccelerationFileSystem(super.createFS(userName, operatorContext, metadata));
+    if (fs.isPdfs()) {
+      // Logging to help with debugging DX-54664
+      IllegalStateException exception = new IllegalStateException("AccelerationStoragePlugin does not support PDFS.  User: " + userName);
+      logger.error(exception.getMessage(), exception);
+    }
+    return fs;
   }
 
   @Override

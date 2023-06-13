@@ -351,7 +351,7 @@ export class JobsUtils {
       url = jobPaths.reflection.link({ projectId, reflectionId: id });
     } else {
       url = `${jobPaths.jobs.link({ projectId })}?filters=${encodeURIComponent(
-        JSON.stringify({ contains: [id] })
+        JSON.stringify({ sql: ["*" + id + "*"], qt: ["ACCELERATION"] })
       )}`;
     }
     return createFullUrl ? window.location.origin + url : url;

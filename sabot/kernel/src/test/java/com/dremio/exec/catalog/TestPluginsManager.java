@@ -170,6 +170,7 @@ public class TestPluginsManager {
     PositiveLongValidator option = ExecConstants.MAX_CONCURRENT_METADATA_REFRESHES;
     modifiableSchedulerService = new ModifiableLocalSchedulerService(1, "modifiable-scheduler-",
       option, () -> optionManager) {
+      @Override
       public Cancellable schedule(Schedule schedule, Runnable task) {
         Cancellable wakeupTask = super.schedule(schedule, task);
         scheduledTasks.add(wakeupTask);

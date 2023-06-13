@@ -66,8 +66,6 @@ export class ExploreTableView extends PureComponent {
     openDetailsWizard: PropTypes.func.isRequired,
     updateColumnName: PropTypes.func.isRequired,
     dragType: PropTypes.string,
-    sqlSize: PropTypes.number,
-    sqlState: PropTypes.bool,
     isResizeInProgress: PropTypes.bool,
     pageType: PropTypes.string,
     makeTransform: PropTypes.func.isRequired,
@@ -213,7 +211,7 @@ export class ExploreTableView extends PureComponent {
       this.lastLoaded = 0;
     }
 
-    // https://dremio.atlassian.net/browse/DX-5848
+    // DX-5848
     // https://github.com/facebook/fixed-data-table/issues/401
     // https://github.com/facebook/fixed-data-table/issues/415
     $(".fixedDataTableCellLayout_columnResizerContainer").on(
@@ -340,7 +338,7 @@ export class ExploreTableView extends PureComponent {
       ({ index }) => index === columnKey
     );
 
-    // https://dremio.atlassian.net/browse/DX-5848
+    // DX-5848
     // https://github.com/facebook/fixed-data-table/issues/401
     // https://github.com/facebook/fixed-data-table/issues/415
     $(".fixedDataTableColumnResizerLineLayout_main").addClass(
@@ -540,10 +538,13 @@ export class ExploreTableView extends PureComponent {
             message={intl.formatMessage({ id: messageId })}
             viewState={viewState}
             dataIsNotAvailable={this.shouldShowNoData(viewState)}
+            offsetHeight={this.nodeRef.current?.offsetHeight}
             customStyle={{
+              flexDirection: "column-reverse",
+              gap: 16,
+              fontSize: 16,
+              lineHeight: "normal",
               bottom: tableHeight / 2,
-              position: "absolute",
-              height: 0,
             }}
           />
         </ViewStateWrapper>

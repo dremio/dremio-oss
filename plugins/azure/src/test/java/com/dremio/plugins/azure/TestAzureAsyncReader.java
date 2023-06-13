@@ -21,6 +21,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -33,11 +34,13 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.util.Base64;
 import java.util.Locale;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
+import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.hadoop.fs.Path;
 import org.asynchttpclient.AsyncCompletionHandler;
 import org.asynchttpclient.AsyncHttpClient;
@@ -48,7 +51,6 @@ import org.asynchttpclient.Request;
 import org.asynchttpclient.Response;
 import org.junit.Test;
 
-import com.dremio.http.BufferBasedCompletionHandler;
 import com.dremio.plugins.async.utils.AsyncReadWithRetry;
 import com.dremio.plugins.async.utils.MetricsLogger;
 
@@ -84,13 +86,37 @@ public class TestAzureAsyncReader {
       assertEquals(FileNotFoundException.class, e.getCause().getClass());
       assertTrue(e.getCause().getMessage().contains("Version of file has changed"));
     } finally {
-      verify(azureAsyncReader, times(1)).read(0, buf, 0, 20, 0);
+      verify(azureAsyncReader, times(1)).read(eq(0L), eq(20L), any(ChecksumVerifyingCompletionHandler.class), eq(0));
     }
   }
 
   @Test
   public void testFileVersionChanged() {
     verifyTestFileVersionChanged(true);
+  }
+
+
+  // chunks of size > 4MB can not use checksums due to limits in the azure blob storage API.
+  // chunks of size > 4MB can not use checksums due to limits in the azure blob storage API.
+  @Test
+  public void testNoChecksumRequiredForLargeChunk() {
+    AzureAsyncReader reader = new AzureAsyncReader(AZURE_ENDPOINT,
+      "account", new Path("container/directory/file_00.parquet"),
+      getMockAuthTokenProvider(), "0", true, mock(AsyncHttpClient.class),
+      true,
+      mock(AsyncReadWithRetry.class));
+    assertTrue(reader.requireChecksum(4194304));
+    assertTrue(!reader.requireChecksum(4194305));
+  }
+
+  @Test public void testRespectNoChecksumArg() {
+    AzureAsyncReader reader = new AzureAsyncReader(AZURE_ENDPOINT,
+      "account", new Path("container/directory/file_00.parquet"),
+      getMockAuthTokenProvider(), "0", true, mock(AsyncHttpClient.class),
+      false,
+      mock(AsyncReadWithRetry.class));
+    assertTrue(!reader.requireChecksum(4194304));
+    assertTrue(!reader.requireChecksum(4194305));
   }
 
   void verifyTestPathNotFound(boolean checkVersion) {
@@ -107,7 +133,7 @@ public class TestAzureAsyncReader {
       assertEquals(FileNotFoundException.class, e.getCause().getClass());
       assertTrue(e.getMessage().contains("PathNotFound"));
     } finally {
-      verify(azureAsyncReader, times(1)).read(0, buf, 0, 20, 0);
+      verify(azureAsyncReader, times(1)).read(eq(0L), eq(20L), any(ChecksumVerifyingCompletionHandler.class), eq(0));
     }
   }
 
@@ -122,10 +148,12 @@ public class TestAzureAsyncReader {
       "\\nRequestId:5b544bd0-c01f-0048-03f0-16bacd000000\\nTime:2020-04-20T08:51:53.7856703Z\"}}";
     final int responseCode = 500;
     AzureAsyncReader azureAsyncReader = prepareAsyncReader(responseBody, responseCode, checkVersion);
-    ByteBuf buf = Unpooled.buffer(20);
 
+    int len = 20;
+    ChecksumVerifyingCompletionHandler responseHandler =
+      new ChecksumVerifyingCompletionHandler(Unpooled.buffer(len), len);
     try {
-      azureAsyncReader.readFully(0, buf, 0, 20).get();
+      azureAsyncReader.read(0, len, responseHandler, 0).get();
       fail("Should fail because of failing condition match");
     } catch (Exception e) {
       assertEquals(RuntimeException.class, e.getCause().getClass());
@@ -136,9 +164,9 @@ public class TestAzureAsyncReader {
       for (int retryAttempt = 0; retryAttempt < expectedRetries; retryAttempt++) {
         AsyncReadWithRetry asyncReadWithRetry = azureAsyncReader.getAsyncReaderWithRetry();
         verify(asyncReadWithRetry).read(azureAsyncReader.getAsyncHttpClient(),
-                azureAsyncReader.getRequestBuilderFunction(0, 20, azureAsyncReader.getMetricLogger()),
+                azureAsyncReader.getRequestBuilderFunction(0, len, azureAsyncReader.getMetricLogger()),
                 azureAsyncReader.getMetricLogger(), azureAsyncReader.getPath(), azureAsyncReader.getThreadName(),
-                buf, 0, retryAttempt, azureAsyncReader.getBackoff());
+                responseHandler, retryAttempt, azureAsyncReader.getBackoff());
       }
     }
   }
@@ -174,6 +202,8 @@ public class TestAzureAsyncReader {
     LocalDateTime versionDate = LocalDateTime.now(ZoneId.of("GMT")).minusDays(2);
 
     byte[] responseBytes = getRandomBytes(20);
+    when(response.getHeader(ChecksumVerifyingCompletionHandler.CHECKSUM_RESPONSE_HEADER))
+      .thenReturn(md5Checksum(responseBytes));
     HttpResponseBodyPart responsePart = mock(HttpResponseBodyPart.class);
     when(responsePart.getBodyByteBuffer()).thenReturn(ByteBuffer.wrap(responseBytes));
 
@@ -200,7 +230,7 @@ public class TestAzureAsyncReader {
 
       // Fill in response
       AsyncCompletionHandler<Response> responseHandler = invocationOnMock.getArgument(1, AsyncCompletionHandler.class);
-      assertEquals(responseHandler.getClass(), BufferBasedCompletionHandler.class);
+      assertEquals(responseHandler.getClass(), ChecksumVerifyingCompletionHandler.class);
 
       responseHandler.onBodyPartReceived(responsePart);
       responseHandler.onStatusReceived(status);
@@ -215,14 +245,11 @@ public class TestAzureAsyncReader {
       azureAsyncReader = getReader("0", isSecure, client);
     }
 
-    try {
       ByteBuf buf = Unpooled.buffer(20);
-      azureAsyncReader.readFully(0, buf, 0, 20).get();
+      int len = 20;
+      azureAsyncReader.readFully(0, buf, 0, len).join();
       assertEquals(new String(buf.array()), new String(responseBytes));
-      verify(azureAsyncReader).read(0, buf, 0, 20, 0);
-    } catch (Exception e) {
-      fail(e.getMessage());
-    }
+      verify(azureAsyncReader).read(eq(0L), eq(20L), any(ChecksumVerifyingCompletionHandler.class), eq(0));
   }
 
   AzureAsyncReader getReader(String version, boolean isSecure, AsyncHttpClient client) {
@@ -237,23 +264,19 @@ public class TestAzureAsyncReader {
     }));
     return spy(new AzureAsyncReader(AZURE_ENDPOINT,
       "account", new Path("container/directory/file_00.parquet"),
-      getMockAuthTokenProvider(), version, isSecure, client, asyncReadWithRetry
+      getMockAuthTokenProvider(), version, isSecure, client, true, asyncReadWithRetry
     ));
   }
 
   @Test
   public void testAsyncReaderWithRandomCharacterInPath() {
     AsyncHttpClient client = mock(AsyncHttpClient.class);
-    try {
-      LocalDateTime versionDate = LocalDateTime.now(ZoneId.of("GMT")).minusDays(2);
-      AzureAsyncReader azureAsyncReader = new AzureAsyncReader(AZURE_ENDPOINT,
-        "account", new Path("/testdir/$#%&New Folder to test abc 123/0_0_0.parquet"),
-        getMockAuthTokenProvider(), String.valueOf(versionDate.atZone(ZoneId.of("GMT")).toInstant().toEpochMilli()),
-        false, client
-      );
-    } catch (Exception e) {
-      fail(e.getMessage());
-    }
+    LocalDateTime versionDate = LocalDateTime.now(ZoneId.of("GMT")).minusDays(2);
+    AzureAsyncReader azureAsyncReader = new AzureAsyncReader(AZURE_ENDPOINT,
+      "account", new Path("/testdir/$#%&New Folder to test abc 123/0_0_0.parquet"),
+      getMockAuthTokenProvider(), String.valueOf(versionDate.atZone(ZoneId.of("GMT")).toInstant().toEpochMilli()),
+      false, client, true
+    );
   }
 
   @Test
@@ -265,7 +288,7 @@ public class TestAzureAsyncReader {
     AzureAsyncReader azureAsyncReader = spy(new AzureAsyncReader(AZURE_ENDPOINT,
       "account", new Path("container/directory/file_00.parquet"),
       getMockAuthTokenProvider(), String.valueOf(versionDate.atZone(ZoneId.of("GMT")).toInstant().toEpochMilli()),
-      false, client
+      false, client, true
     ));
 
     try {
@@ -275,7 +298,6 @@ public class TestAzureAsyncReader {
       assertEquals("AsyncHttpClient is closed", e.getMessage());
     }
   }
-
 
   private AzureAsyncReader prepareAsyncReader(final String responseBody, final int responseCode, boolean checkVersion) {
     // Prepare response
@@ -288,11 +310,10 @@ public class TestAzureAsyncReader {
     CompletableFuture<Response> future = new CompletableFuture<>(); //CompletableFuture.completedFuture(response);
     ListenableFuture<Response> resFuture = mock(ListenableFuture.class);
     when(resFuture.toCompletableFuture()).thenReturn(future);
-    LocalDateTime versionDate = LocalDateTime.now(ZoneId.of("GMT")).minusDays(2);
 
     when(client.executeRequest(any(Request.class), any(AsyncCompletionHandler.class))).then(invocationOnMock -> {
       AsyncCompletionHandler<Response> responseHandler = invocationOnMock.getArgument(1, AsyncCompletionHandler.class);
-      assertEquals(responseHandler.getClass(), BufferBasedCompletionHandler.class);
+      assertEquals(responseHandler.getClass(), ChecksumVerifyingCompletionHandler.class);
       responseHandler.onStatusReceived(status);
       try {
         responseHandler.onCompleted(response);
@@ -304,16 +325,14 @@ public class TestAzureAsyncReader {
 
     AzureAsyncReader azureAsyncReader;
     if (checkVersion) {
+      LocalDateTime versionDate = LocalDateTime.now(ZoneId.of("GMT")).minusDays(2);
       azureAsyncReader = getReader(String.valueOf(versionDate.atZone(ZoneId.of("GMT")).toInstant().toEpochMilli()), true, client);
     } else {
       azureAsyncReader = getReader("0", true, client);
     }
     MetricsLogger metricsLogger = mock(MetricsLogger.class);
     when(azureAsyncReader.getMetricLogger()).thenReturn(metricsLogger);
-    Function<Void, Request> requestFunction = unused -> {
-      Request request = mock(Request.class);
-      return request;
-    };
+    Function<Void, Request> requestFunction = unused -> mock(Request.class);
 
     when(azureAsyncReader.getRequestBuilderFunction(0, 20, metricsLogger)).thenReturn(requestFunction);
     return azureAsyncReader;
@@ -330,5 +349,9 @@ public class TestAzureAsyncReader {
     when(authTokenProvider.checkAndUpdateToken()).thenReturn(false);
     when(authTokenProvider.getAuthzHeaderValue(any(Request.class))).thenReturn("Bearer testtoken");
     return authTokenProvider;
+  }
+
+  private String md5Checksum(byte[] bytes) {
+    return Base64.getEncoder().encodeToString(DigestUtils.md5(bytes));
   }
 }

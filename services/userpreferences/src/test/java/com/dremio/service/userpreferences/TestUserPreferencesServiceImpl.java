@@ -46,6 +46,7 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.userpreferences.proto.UserPreferenceProto;
 import com.dremio.service.users.SimpleUser;
+import com.dremio.service.users.UserNotFoundException;
 import com.dremio.service.users.UserService;
 import com.dremio.service.users.proto.UID;
 
@@ -63,6 +64,8 @@ public class TestUserPreferencesServiceImpl {
   private LocalKVStoreProvider kvStoreProvider;
   private UserPreferenceService userPreferenceService;
   private NamespaceService namespaceService;
+  private UserService userService;
+
 
   @Before
   public void setUp() throws Exception {
@@ -74,12 +77,7 @@ public class TestUserPreferencesServiceImpl {
     userPreferenceStore.start();
 
     namespaceService = Mockito.mock(NamespaceService.class);
-
-    UserService userService = Mockito.mock(UserService.class);
-    Mockito.doReturn(SimpleUser.newBuilder()
-                       .setUserName(USER_NAME_1)
-                       .setUID(new UID(USER_ID_1))
-                       .build()).when(userService).getUser(USER_NAME_1);
+    userService = Mockito.mock(UserService.class);
 
     SecurityContext securityContext = Mockito.mock(SecurityContext.class);
     Principal principal = Mockito.mock(Principal.class);
@@ -101,8 +99,8 @@ public class TestUserPreferencesServiceImpl {
   @Test
   public void testStarEntity()
     throws EntityThresholdReachedException, EntityAlreadyInPreferenceException, NamespaceNotFoundException, IllegalAccessException {
-    //given
     try (MockedStatic<RequestContext> mocked = mockCurrentUser()) {
+      mockUserService();
       mockValidEntity();
 
       UserPreferenceProto.Preference preference = userPreferenceService.getPreferenceByType(
@@ -118,6 +116,8 @@ public class TestUserPreferencesServiceImpl {
 
       // assert added entry is present.
       Assert.assertTrue(getIdsFromEntities(preference.getEntitiesList()).contains(entityId1.toString()));
+    } catch (UserNotFoundException exception) {
+      Assert.fail("User not found exception thrown.");
     }
   }
 
@@ -139,6 +139,16 @@ public class TestUserPreferencesServiceImpl {
     Mockito.doReturn(new NameSpaceContainer()).when(namespaceService).getEntityById(any());
   }
 
+  private void mockUserService() throws UserNotFoundException {
+    Mockito.doReturn(SimpleUser.newBuilder()
+      .setUserName(USER_NAME_1)
+      .setUID(new UID(USER_ID_1))
+      .build()).when(userService).getUser(USER_NAME_1);
+  }
+
+  private void mockNoUser() throws UserNotFoundException {
+    Mockito.doThrow(new UserNotFoundException("User Exception")).when(userService).getUser(USER_NAME_1);
+  }
 
   @Test
   public void testStarTwoEntities()
@@ -146,6 +156,7 @@ public class TestUserPreferencesServiceImpl {
     // star two entites and assert both are present and
     // assert correct order i.e second entity comes after first
     try (MockedStatic<RequestContext> mocked = mockCurrentUser()) {
+      mockUserService();
       mockValidEntity();
 
       // when two entites are added one after the other
@@ -177,14 +188,16 @@ public class TestUserPreferencesServiceImpl {
       }
 
       Assert.assertTrue(index1 < index2);
+    } catch (UserNotFoundException e) {
+      Assert.fail("UserNotFoundException thrown.");
     }
   }
 
   @Test
   public void testStarDuplicateEntity()
     throws EntityThresholdReachedException, EntityAlreadyInPreferenceException, NamespaceNotFoundException, IllegalAccessException {
-    //given
     try (MockedStatic<RequestContext> mocked = mockCurrentUser()) {
+      mockUserService();
       mockValidEntity();
 
       UUID entityId1 = UUID.randomUUID();
@@ -197,14 +210,16 @@ public class TestUserPreferencesServiceImpl {
         .isInstanceOf(EntityAlreadyInPreferenceException.class)
         .hasMessage(String.format("entityId : %s already exists in starred list.",
                                         entityId1));
+    } catch (UserNotFoundException e) {
+      Assert.fail("UserNotFoundException thrown.");
     }
   }
 
   @Test
   public void testStarAndUnstarEntity()
     throws EntityThresholdReachedException, EntityAlreadyInPreferenceException, EntityNotFoundInPreferenceException, NamespaceNotFoundException, IllegalAccessException {
-    //given
     try (MockedStatic<RequestContext> mocked = mockCurrentUser()) {
+      mockUserService();
       mockValidEntity();
 
       // when entity is starred and unstarred
@@ -217,13 +232,15 @@ public class TestUserPreferencesServiceImpl {
       // assert after unstaring entity is removed
       Assert.assertFalse(getIdsFromEntities(
         preference.getEntitiesList()).contains(entityId1.toString()));
+    } catch (UserNotFoundException e) {
+      Assert.fail("UserNotFoundException thrown.");
     }
   }
 
   @Test
   public void testUnstarNonexistingEntity() throws NamespaceNotFoundException {
-    //given
     try (MockedStatic<RequestContext> mocked = mockCurrentUser()) {
+      mockUserService();
       mockValidEntity();
 
       UUID entityId1 = UUID.randomUUID();
@@ -234,13 +251,15 @@ public class TestUserPreferencesServiceImpl {
         .isInstanceOf(EntityNotFoundInPreferenceException.class)
         .hasMessage(String.format("entityId : %s not found in starred list.",
                                         entityId1));
+    } catch (UserNotFoundException e) {
+      Assert.fail("UserNotFoundException thrown.");
     }
   }
 
   @Test
   public void testValidateEntity() throws NamespaceNotFoundException {
-    //given
     try (MockedStatic<RequestContext> mocked = mockCurrentUser()) {
+      mockUserService();
 
       // when returned Namespace container is null
       Mockito.doReturn(null).when(namespaceService).getEntityById(any());
@@ -253,6 +272,8 @@ public class TestUserPreferencesServiceImpl {
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessage(String.format("entityId %s provided is not a valid catalog entity.",
                                         entityId1.toString()));
+    } catch (UserNotFoundException e) {
+      Assert.fail("UserNotFoundException thrown.");
     }
   }
 
@@ -261,6 +282,7 @@ public class TestUserPreferencesServiceImpl {
   public void testDeleteEntity()
     throws NamespaceNotFoundException, EntityAlreadyInPreferenceException, EntityThresholdReachedException, IllegalAccessException {
     try (MockedStatic<RequestContext> mocked = mockCurrentUser()) {
+      mockUserService();
       mockValidEntity();
 
       // given a valid entity is in preference list
@@ -283,6 +305,8 @@ public class TestUserPreferencesServiceImpl {
 
       Assert.assertFalse(getIdsFromEntities(preference.getEntitiesList()).contains(entityId1.toString()));
       Assert.assertTrue(getIdsFromEntities(preference.getEntitiesList()).contains(entityId2.toString()));
+    } catch (UserNotFoundException e) {
+      Assert.fail("UserNotFoundException thrown.");
     }
   }
 
@@ -290,8 +314,8 @@ public class TestUserPreferencesServiceImpl {
   @Test
   public void testDeleteEntityFromStore()
     throws NamespaceNotFoundException, EntityAlreadyInPreferenceException, EntityThresholdReachedException, IllegalAccessException {
-
     try (MockedStatic<RequestContext> mocked = mockCurrentUser()) {
+      mockUserService();
       mockValidEntity();
 
       // given 3 valid entity is added in preference list
@@ -338,13 +362,35 @@ public class TestUserPreferencesServiceImpl {
       Assert.assertTrue(entityIds.contains(entityId1.toString()));
       Assert.assertFalse(entityIds.contains(entityId2.toString()));
       Assert.assertTrue(entityIds.contains(entityId3.toString()));
+    } catch (UserNotFoundException e) {
+        Assert.fail("UserNotFoundException thrown.");
     }
+  }
 
+  @Test
+  public void testUserNotFoundExceptionThrown()
+    throws NamespaceNotFoundException, EntityAlreadyInPreferenceException, EntityThresholdReachedException, IllegalAccessException {
+    try {
+      mockNoUser();
+      mockValidEntity();
 
+      UserPreferenceProto.Preference preference = userPreferenceService.getPreferenceByType(
+        UserPreferenceProto.PreferenceType.STARRED);
+      Assert.assertEquals(0, preference.getEntitiesCount());
+
+      UUID entityId1 = UUID.randomUUID();
+      preference =
+        userPreferenceService.addEntityToPreference(UserPreferenceProto.PreferenceType.STARRED,
+          entityId1);
+
+      // assert added entry is present.
+      Assert.assertTrue(getIdsFromEntities(preference.getEntitiesList()).contains(entityId1.toString()));
+      Assert.fail("UserNotFoundException was not thrown.");
+    } catch (UserNotFoundException exception) {
+      // We want to fire off this exception if the user is not found.
+    }
   }
 
   // TODO:
   //  8. star more than 25 entity
-
-
 }

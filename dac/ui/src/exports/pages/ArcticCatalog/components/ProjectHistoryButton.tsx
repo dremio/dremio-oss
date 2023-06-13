@@ -15,16 +15,15 @@
  */
 
 // @ts-ignore
-import { Button } from "dremio-ui-lib";
+import { Button } from "dremio-ui-lib/components";
 import { FormattedMessage } from "react-intl";
 
 import * as headerClasses from "@app/exports/components/ArcticTableHeader/ArcticTableHeader.module.less";
 
 const ProjectHistoryButton = (props: { onClick?: () => void }) => (
   <Button
-    color="secondary"
+    variant="secondary"
     onClick={props?.onClick}
-    disableMargin
     className={headerClasses["arctic-table-header__header-button"]}
   >
     <dremio-icon name="interface/history" />

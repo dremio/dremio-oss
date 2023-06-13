@@ -29,6 +29,7 @@ import com.dremio.exec.catalog.TableVersionContext;
  * select * from table(table_manifests('iceberg_table'))
  * select * from table(table_snapshot('iceberg_table'))
  * select * from table(table_files('iceberg_table'))
+ * select * from table(table_partitions('iceberg_table'))
  * will be translated into a call to this table macro, with the parsed TableVersionContext passed as a
  * parameter to apply().  The parsed table-id will be provided as a string in the 1st parameter to the macro.
  */
@@ -38,7 +39,8 @@ public class MetadataFunctionsMacro extends VersionedTableMacro {
     TABLE_HISTORY("table_history"),
     TABLE_MANIFESTS("table_manifests"),
     TABLE_SNAPSHOT("table_snapshot"),
-    TABLE_FILES("table_files");
+    TABLE_FILES("table_files"),
+    TABLE_PARTITIONS("table_partitions");
     private final String name;
     MacroName(String name) {
       this.name = name;

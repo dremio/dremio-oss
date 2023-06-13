@@ -43,9 +43,13 @@ public class StreamPerColumnProvider implements InputStreamProvider {
   private final BufferAllocator allocator;
   private final OperatorContext context;
 
+  private ParquetFilters parquetFilters;
+  private ParquetFilterCreator parquetFilterCreator;
+
   private final List<BulkInputStream> streams = new ArrayList<>();
 
-  public StreamPerColumnProvider(FileSystem fs, Path path, long length, long maxFooterLen, MutableParquetMetadata footer, OperatorContext context, boolean readColumnOffsetIndexes) {
+  public StreamPerColumnProvider(FileSystem fs, Path path, long length, long maxFooterLen, MutableParquetMetadata footer, OperatorContext context, boolean readColumnOffsetIndexes,
+                                 ParquetFilters parquetFilters, ParquetFilterCreator parquetFilterCreator) {
     this.fs = fs;
     this.path = path;
     this.length = length;
@@ -58,6 +62,8 @@ public class StreamPerColumnProvider implements InputStreamProvider {
       this.allocator = null;
     }
     this.context = context;
+    this.parquetFilters = parquetFilters;
+    this.parquetFilterCreator = parquetFilterCreator;
   }
 
   @Override

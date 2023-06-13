@@ -30,6 +30,8 @@ import MenuItemLink from "components/Menus/MenuItemLink";
 import MenuItem from "components/Menus/MenuItem";
 import Divider from "@mui/material/Divider";
 import { withLocation } from "containers/dremioLocation";
+import { getSupportFlag } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
+import { ALLOW_DOWNLOAD } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
 
 import "./SelectedTextPopover.less";
 
@@ -79,7 +81,19 @@ export class SelectedTextPopoverView extends Component {
 
     this.state = {
       open: false,
+      allowDownload: true,
     };
+  }
+
+  async componentDidMount() {
+    try {
+      const res = await getSupportFlag(ALLOW_DOWNLOAD);
+      this.setState({
+        allowDownload: res?.value,
+      });
+    } catch (e) {
+      //
+    }
   }
 
   componentWillMount() {
@@ -126,7 +140,11 @@ export class SelectedTextPopoverView extends Component {
   renderItem = (item, newState, index) => {
     const { location } = this.props;
     const href = {
-      pathname: `${location.pathname}/details`,
+      // This prevents having more than one '/details' in the URL in  case the user does a chain of SQL transformations.
+      // Having more than one '/details' in the URL will cause the 404 page to render since it's an invalid path.
+      pathname: `${location.pathname}${
+        !location.pathname.endsWith("/details") ? "/details" : ""
+      }`,
       query: {
         ...location.query,
         type: "transform",
@@ -171,21 +189,28 @@ export class SelectedTextPopoverView extends Component {
       return (
         <Menu>
           {itemsList}
-          {itemsList && <Divider />}
-          {this.renderCopySelectionItem()}
+          {itemsList && this.state.allowDownload && <Divider />}
+          {this.state.allowDownload && this.renderCopySelectionItem()}
         </Menu>
       );
     }
     return (
       <Menu>
         {items.map((item, index) => this.renderItem(item, newState, index))}
-        {items.size > 0 && <Divider />}
-        {this.renderCopySelectionItem()}
+        {items.size > 0 && this.state.allowDownload && <Divider />}
+        {this.state.allowDownload && this.renderCopySelectionItem()}
       </Menu>
     );
   }
 
   render() {
+    const {
+      location: { state: locationState },
+    } = this.props;
+
+    if (!(locationState?.listOfItems?.length > 1 || this.state.allowDownload)) {
+      return null;
+    }
     return (
       <Popover
         anchorEl={this.state.open ? this.props.anchor : null}

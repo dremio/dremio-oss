@@ -16,6 +16,7 @@
 package com.dremio.exec.planner.sql;
 
 import static com.dremio.BaseTestQuery.getDfsTestTmpSchemaLocation;
+import static com.dremio.BaseTestQuery.runSQL;
 import static com.dremio.BaseTestQuery.test;
 import static com.dremio.BaseTestQuery.testRunAndReturn;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -165,6 +166,35 @@ public class DmlQueryTestUtils {
     }
 
     return new Table(name, paths, fqn, Arrays.stream(schema).map(column -> column.name).toArray(String[]::new), data);
+  }
+
+  /**
+   * Creates a empty table with the given name, schema, and the source
+   *
+   * @param source where the table belongs
+   * @param paths paths
+   * @param name table name
+   * @return table that's created with data inserted
+   */
+  public static Table createEmptyTable(String source, String[] paths, String name, int columnCount) throws Exception {
+    ColumnInfo[] schema = new ColumnInfo[columnCount];
+    schema[0] = new ColumnInfo("id", SqlTypeName.INTEGER, false);
+    for (int c = 0; c < columnCount - 1; c++) {
+      schema[c + 1] = new ColumnInfo("column_" + c, SqlTypeName.VARCHAR, false);
+    }
+
+    String fullPath = String.join(".", paths);
+    String fqn = source + (fullPath.isEmpty() ? "" : "." + fullPath) + "." + name;
+    String createTableSql = getCreateTableSql(Arrays.stream(schema).filter(
+      columnInfo -> columnInfo.partitionColumn).map(
+      columnInfo -> columnInfo.name).collect(Collectors.toList()));
+    String schemaSql = Arrays.stream(schema).map(column ->
+        String.format("%s %s%s", column.name, column.typeName, Strings.isNullOrEmpty(column.extra) ? "" : " " + column.extra))
+      .collect(Collectors.joining(", "));
+
+    test(createTableSql, fqn, schemaSql);
+
+    return new Table(name, paths, fqn, Arrays.stream(schema).map(column -> column.name).toArray(String[]::new), null);
   }
 
   /**
@@ -651,7 +681,7 @@ public class DmlQueryTestUtils {
       UserExceptionAssert.assertThatThrownBy(() -> test(fullQuery))
         .withFailMessage("Query failed to generate the expected error:\n" + fullQuery)
         .satisfiesAnyOf(
-          ex -> assertThat(ex).hasMessageContaining("Failure parsing the query."),
+          ex -> assertThat(ex).hasMessageContaining("PARSE ERROR:"),
           ex -> assertThat(ex).hasMessageContaining("VALIDATION ERROR:"));
     }
   }
@@ -722,10 +752,13 @@ public class DmlQueryTestUtils {
     }
   }
 
-  public static org.apache.iceberg.Table loadTable(Table table, BufferAllocator allocator) {
+  public static org.apache.iceberg.Table loadTable(Table table) {
     String tablePath = getDfsTestTmpSchemaLocation() + "/" + table.name.replaceAll("\"", "");
-    org.apache.iceberg.Table loadedTable = hadoopTables.load(tablePath);
-    return loadedTable;
+    return hadoopTables.load(tablePath);
+  }
+
+  public static org.apache.iceberg.Table loadTable(String tablePath) {
+    return hadoopTables.load(tablePath);
   }
 
   public static void verifyData(BufferAllocator allocator, Table table, Object[]... expectedData) throws Exception {
@@ -776,5 +809,58 @@ public class DmlQueryTestUtils {
       current = System.currentTimeMillis();
     }
     return current;
+  }
+
+  public static void addColumn(DmlQueryTestUtils.Table table, BufferAllocator allocator, String column, String dataType) throws Exception {
+    new TestBuilder(allocator)
+      .sqlQuery("ALTER TABLE %s ADD COLUMNS (%s %s)", table.fqn, column, dataType)
+      .unOrdered()
+      .baselineColumns("ok", "summary")
+      .baselineValues(true, "New columns added.")
+      .go();
+  }
+
+  public static void addIdentityPartition(DmlQueryTestUtils.Table table, BufferAllocator allocator, String column) throws Exception {
+    runSQL(String.format("ALTER TABLE %s add PARTITION FIELD IDENTITY(%s)", table.fqn, column));
+  }
+
+  public static void dropIdentityPartition(DmlQueryTestUtils.Table table, BufferAllocator allocator, String column) throws Exception {
+    runSQL(String.format("ALTER TABLE %s drop PARTITION FIELD IDENTITY(%s)", table.fqn, column));
+  }
+
+  public static void addBucketPartition(DmlQueryTestUtils.Table table, BufferAllocator allocator, String column) throws Exception {
+    runSQL(String.format("ALTER TABLE %s add PARTITION FIELD BUCKET(10,%s)", table.fqn, column));
+  }
+
+  public static void dropBucketPartition(DmlQueryTestUtils.Table table, BufferAllocator allocator, String column) throws Exception {
+    runSQL(String.format("ALTER TABLE %s drop PARTITION FIELD BUCKET(10,%s)", table.fqn, column));
+  }
+
+  public static void addTruncate2Partition(DmlQueryTestUtils.Table table, BufferAllocator allocator, String column) throws Exception {
+    runSQL(String.format("ALTER TABLE %s add PARTITION FIELD TRUNCATE(2,%s)", table.fqn, column));
+  }
+
+  public static void dropTruncate2Partition(DmlQueryTestUtils.Table table, BufferAllocator allocator, String column) throws Exception {
+    runSQL(String.format("ALTER TABLE %s drop PARTITION FIELD TRUNCATE(2,%s)", table.fqn, column));
+  }
+
+  public static void addYearPartition(DmlQueryTestUtils.Table table, BufferAllocator allocator, String column) throws Exception {
+    runSQL(String.format("ALTER TABLE %s add PARTITION FIELD YEAR(%s)", table.fqn, column));
+  }
+
+  public static void addDayPartition(DmlQueryTestUtils.Table table, BufferAllocator allocator, String column) throws Exception {
+    runSQL(String.format("ALTER TABLE %s add PARTITION FIELD DAY(%s)", table.fqn, column));
+  }
+
+  public static void addMonthPartition(DmlQueryTestUtils.Table table, BufferAllocator allocator, String column) throws Exception {
+    runSQL(String.format("ALTER TABLE %s add PARTITION FIELD MONTH(%s)", table.fqn, column));
+  }
+
+  public static void dropYearPartition(DmlQueryTestUtils.Table table, BufferAllocator allocator, String column) throws Exception {
+    runSQL(String.format("ALTER TABLE %s drop PARTITION FIELD YEAR(%s)", table.fqn, column));
+  }
+
+  public static void insertIntoTable(String tableName, String columns, String values) throws Exception {
+    runSQL(String.format("INSERT INTO %s%s VALUES%s", tableName, columns, values));
   }
 }

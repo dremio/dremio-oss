@@ -86,7 +86,7 @@ const styles = {
     WebkitUserSelect: "text",
     UserSelect: "text",
     position: "relative",
-    fontFamily: "Menlo, monospace",
+    fontFamily: "var(--dremio--font-family--monospace)",
     fontWeight: 400,
     fontSize: 12,
     color: "rgb(51, 51, 51)",

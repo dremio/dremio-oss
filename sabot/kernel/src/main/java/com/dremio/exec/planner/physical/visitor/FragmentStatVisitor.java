@@ -41,6 +41,7 @@ public abstract class FragmentStatVisitor extends BasePrelVisitor<Prel, Fragment
     this.targetSliceSize = targetSliceSize;
   }
 
+  @Override
   public abstract Prel visitExchange(ExchangePrel prel, MajorFragmentStat s);
 
   @Override

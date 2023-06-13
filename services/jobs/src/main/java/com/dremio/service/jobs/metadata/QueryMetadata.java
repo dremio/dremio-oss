@@ -38,9 +38,11 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.tools.ValidationException;
 
 import com.dremio.common.utils.PathUtils;
+import com.dremio.exec.catalog.TableVersionContext;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.exec.planner.acceleration.ExpansionNode;
 import com.dremio.exec.planner.common.ContainerRel;
+import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.logical.TableModifyRel;
 import com.dremio.exec.planner.logical.TableOptimizeRel;
@@ -64,9 +66,7 @@ import com.dremio.service.namespace.dataset.proto.VirtualDataset;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
@@ -322,32 +322,47 @@ public class QueryMetadata {
       Preconditions.checkNotNull(rowType, "The validated row type must be observed before reporting metadata.");
 
       final List<SqlIdentifier> ancestors = new ArrayList<>();
-      if (expanded != null) {
-        expanded.accept(new RelShuttleImpl() {
-          @Override
-          public RelNode visit(RelNode other) {
-            List<String> path = null;
-            if (other instanceof ExpansionNode) {
-              path = ((ExpansionNode) other).getPath().getPathComponents();
-            } else if (other instanceof ExternalQueryRelBase) {
-              path = ((ExternalQueryRelBase) other).getPath().getPathComponents();
-            }
-            if (path != null) {
-              ancestors.add(new SqlIdentifier(path, SqlParserPos.ZERO));
-              return other;
-            }
-            return super.visit(other);
-          }
+      final List<TableVersionContext> versionContexts = new ArrayList<>();
 
-          @Override
-          public RelNode visit(TableScan scan) {
-            ancestors.add(new SqlIdentifier(scan.getTable().getQualifiedName(), SqlParserPos.ZERO));
-            return scan;
-          }
-        });
+      if (expanded != null) {
+        expanded.accept(
+            new RelShuttleImpl() {
+              @Override
+              public RelNode visit(RelNode other) {
+                List<String> path = null;
+                if (other instanceof ExpansionNode) {
+                  path = ((ExpansionNode) other).getPath().getPathComponents();
+                } else if (other instanceof ExternalQueryRelBase) {
+                  path = ((ExternalQueryRelBase) other).getPath().getPathComponents();
+                }
+
+                if (path != null) {
+                  ancestors.add(new SqlIdentifier(path, SqlParserPos.ZERO));
+                  versionContexts.add(
+                      (other instanceof ExpansionNode)
+                          ? ((ExpansionNode) other).getVersionContext()
+                          : null);
+
+                  return other;
+                }
+
+                return super.visit(other);
+              }
+
+              @Override
+              public RelNode visit(TableScan scan) {
+                ancestors.add(
+                    new SqlIdentifier(scan.getTable().getQualifiedName(), SqlParserPos.ZERO));
+                versionContexts.add(((ScanRelBase) scan).getTableMetadata().getVersionContext());
+
+                return scan;
+              }
+            });
       } else if (sql != null) {
-        ancestors.addAll(AncestorsVisitor.extractAncestors(sql).stream()
-          .filter(input -> !RESERVED_PARENT_NAMES.contains(input.toString())).collect(Collectors.toList()));
+        ancestors.addAll(
+            AncestorsVisitor.extractAncestors(sql).stream()
+                .filter(input -> !RESERVED_PARENT_NAMES.contains(input.toString()))
+                .collect(Collectors.toList()));
       }
 
       List<FieldOrigin> fieldOrigins = null;
@@ -365,15 +380,7 @@ public class QueryMetadata {
 
       List<ScanPath> scanPaths = null;
       if (logicalAfter != null) {
-        scanPaths = FluentIterable.from(getScans(logicalAfter))
-            .transform(new Function<List<String>, ScanPath>() {
-              @Override
-              public ScanPath apply(List<String> path) {
-                return new ScanPath().setPathList(path);
-              }
-            })
-            .toList();
-
+        scanPaths = getScans(logicalAfter);
         externalQuerySourceInfo = getExternalQuerySources(logicalAfter);
       }
 
@@ -386,7 +393,7 @@ public class QueryMetadata {
           ancestors, // list of parents
           fieldOrigins,
           null,
-          getParentsFromSql(ancestors), // convert parent to ParentDatasetInfo
+          getParentsFromSql(ancestors, versionContexts), // convert parent to ParentDatasetInfo
           sql,
           rowType,
           getGrandParents(ancestors), // list of all parents to be stored with dataset
@@ -468,7 +475,8 @@ public class QueryMetadata {
      * Return lists of {@link ParentDatasetInfo} from given list of directly referred tables in the query.
      * @return The list of directly referenced virtual or physical datasets
      */
-    private List<ParentDatasetInfo> getParentsFromSql(List<SqlIdentifier> ancestors) {
+    private List<ParentDatasetInfo> getParentsFromSql(
+        List<SqlIdentifier> ancestors, List<TableVersionContext> versionContexts) {
       if (ancestors == null) {
         return null;
       }
@@ -478,6 +486,17 @@ public class QueryMetadata {
           final NamespaceKey datasetPath = new NamespaceKey(sqlIdentifier.names);
           result.add(getDataset(datasetPath));
         }
+
+        final int versionContextsSize = versionContexts.size();
+        for (int index = 0; index < versionContextsSize; ++index) {
+          final TableVersionContext versionContext = versionContexts.get(index);
+          if (versionContext == null) {
+            continue;
+          }
+
+          result.get(index).setVersionContext(versionContext.serialize());
+        }
+
         return result;
       } catch (Throwable e) {
         logger.warn(
@@ -611,12 +630,17 @@ public class QueryMetadata {
     }
   }
 
-  public static List<List<String>> getScans(RelNode logicalPlan) {
-    final ImmutableList.Builder<List<String>> builder = ImmutableList.builder();
+  public static List<ScanPath> getScans(RelNode logicalPlan) {
+    final ImmutableList.Builder<ScanPath> builder = ImmutableList.builder();
     logicalPlan.accept(new StatelessRelShuttleImpl() {
       @Override
       public RelNode visit(final TableScan scan) {
-        builder.add(scan.getTable().getQualifiedName());
+        ScanPath path = new ScanPath().setPathList(scan.getTable().getQualifiedName());
+        TableVersionContext versionContext = ((ScanRelBase)scan).getTableMetadata().getVersionContext();
+        if (versionContext != null) {
+          path.setVersionContext(versionContext.serialize());
+        }
+        builder.add(path);
         return super.visit(scan);
       }
 

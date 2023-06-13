@@ -260,7 +260,8 @@ public class DeltaLakeScanPrel extends ScanRelBase implements Prel, PrelFinaliza
 
     // Parquet scan phase
     TableFunctionConfig parquetScanTableFunctionConfig = TableFunctionUtil.getDataFileScanTableFunctionConfig(
-      tableMetadata, filter, getProjectedColumns(), arrowCachingEnabled, false, false, tableMetadata.getApproximateRecordCount());
+      tableMetadata, filter, getProjectedColumns(), arrowCachingEnabled, false,
+      false, tableMetadata.getApproximateRecordCount(), Collections.EMPTY_LIST);
 
     return new TableFunctionPrel(getCluster(), getTraitSet().plus(DistributionTrait.ANY), table, parquetSplitsExchange, tableMetadata,
       parquetScanTableFunctionConfig, getRowType(), rm -> (double) tableMetadata.getApproximateRecordCount());
@@ -382,8 +383,7 @@ public class DeltaLakeScanPrel extends ScanRelBase implements Prel, PrelFinaliza
 
     if(scanForAddedPaths) {
       return creteAddSideScan(deltaLakeCommitLogScanPrel, rexBuilder);
-    }
-    else {
+    } else {
       return createRemoveSideScan(deltaLakeCommitLogScanPrel, rexBuilder);
     }
   }
@@ -486,8 +486,7 @@ public class DeltaLakeScanPrel extends ScanRelBase implements Prel, PrelFinaliza
         ImmutableList.of(groupSet),
         ImmutableList.of(aggByMaxVersion),
         null);
-    }
-    catch (InvalidRelException e) {
+    } catch (InvalidRelException e) {
       throw new RuntimeException("Failed to create HashAggPrel during Deltalake scan expansion.");
     }
   }

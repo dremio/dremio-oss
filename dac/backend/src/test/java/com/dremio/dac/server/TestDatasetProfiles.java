@@ -27,6 +27,7 @@ import java.util.Arrays;
 import java.util.Collections;
 
 import javax.ws.rs.client.Entity;
+import javax.ws.rs.core.GenericType;
 
 import org.apache.arrow.vector.types.Types.MinorType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -37,7 +38,6 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import com.dremio.dac.explore.model.DatasetPath;
-import com.dremio.dac.model.spaces.Space;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.job.proto.QueryType;
@@ -112,8 +112,7 @@ public class TestDatasetProfiles extends BaseTestServer {
     try {
       getNamespaceService().getSpace(new NamespaceKey(spaceName));
     } catch (NamespaceNotFoundException e) {
-      expectSuccess(getBuilder(getAPIv2().path("space/" + spaceName))
-        .buildPut(Entity.json(new Space(null, spaceName, null, null, null, 0, null))), Space.class);
+      expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, spaceName, null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
     }
 
     final DatasetPath vdsPath = new DatasetPath(spaceName + "." + vdsName);
@@ -133,8 +132,7 @@ public class TestDatasetProfiles extends BaseTestServer {
     try {
       getNamespaceService().getSpace(new NamespaceKey(spaceName));
     } catch (NamespaceNotFoundException e) {
-      expectSuccess(getBuilder(getAPIv2().path("space/" + spaceName))
-        .buildPut(Entity.json(new Space(null, spaceName, null, null, null, 0, null))), Space.class);
+      expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, spaceName, null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
     }
 
     final DatasetPath vdsPath = new DatasetPath(spaceName + "." + vdsName);

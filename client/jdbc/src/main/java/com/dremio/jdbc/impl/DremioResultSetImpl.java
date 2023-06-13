@@ -94,8 +94,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
         hasPendingCancelationNotification = false;
         throw new ExecutionCanceledSqlException(
             "SQL statement execution canceled; ResultSet now closed." );
-      }
-      else {
+      } else {
         throw new AlreadyClosedSqlException( "ResultSet is already closed." );
       }
     }
@@ -376,8 +375,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       return super.getCursorName();
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -472,8 +470,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       return super.isLast();
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -483,8 +480,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.beforeFirst();
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -494,8 +490,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.afterLast();
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -505,8 +500,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       return super.first();
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -516,8 +510,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       return super.last();
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -535,8 +528,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       return super.absolute( row );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -546,8 +538,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       return super.relative( rows );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -557,8 +548,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       return super.previous();
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -629,8 +619,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateNull( columnIndex );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -640,8 +629,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateBoolean( columnIndex, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -651,8 +639,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateByte( columnIndex, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -662,8 +649,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateShort( columnIndex, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -673,8 +659,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateInt( columnIndex, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -684,8 +669,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateLong( columnIndex, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -695,8 +679,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateFloat( columnIndex, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -706,8 +689,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateDouble( columnIndex, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -718,8 +700,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateBigDecimal( columnIndex, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -729,8 +710,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateString( columnIndex, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -740,8 +720,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateBytes( columnIndex, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -751,8 +730,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateDate( columnIndex, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -762,8 +740,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateTime( columnIndex, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -773,8 +750,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateTimestamp( columnIndex, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -785,8 +761,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateAsciiStream( columnIndex, x, length );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -797,8 +772,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateBinaryStream( columnIndex, x, length );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -809,8 +783,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateCharacterStream( columnIndex, x, length );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -821,8 +794,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateObject( columnIndex, x, scaleOrLength );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -832,8 +804,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateObject( columnIndex, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -843,8 +814,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateNull( columnLabel );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -854,8 +824,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateBoolean( columnLabel, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -865,8 +834,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateByte( columnLabel, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -876,8 +844,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateShort( columnLabel, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -887,8 +854,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateInt( columnLabel, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -898,8 +864,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateLong( columnLabel, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -909,8 +874,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateFloat( columnLabel, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -920,8 +884,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateDouble( columnLabel, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -932,8 +895,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateBigDecimal( columnLabel, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -943,8 +905,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateString( columnLabel, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -954,8 +915,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateBytes( columnLabel, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -965,8 +925,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateDate( columnLabel, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -976,8 +935,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateTime( columnLabel, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -987,8 +945,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateTimestamp( columnLabel, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -999,8 +956,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateAsciiStream( columnLabel, x, length );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1011,8 +967,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateBinaryStream( columnLabel, x, length );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1023,8 +978,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateCharacterStream( columnLabel, reader, length );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1035,8 +989,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateObject( columnLabel, x, scaleOrLength );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1046,8 +999,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateObject( columnLabel, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1057,8 +1009,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.insertRow();
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1068,8 +1019,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateRow();
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1079,8 +1029,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.deleteRow();
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1090,8 +1039,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.refreshRow();
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1101,8 +1049,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.cancelRowUpdates();
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1112,8 +1059,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.moveToInsertRow();
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1123,8 +1069,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.moveToCurrentRow();
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1253,8 +1198,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateRef( columnIndex, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1264,8 +1208,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateRef( columnLabel, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1275,8 +1218,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateBlob( columnIndex, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1286,8 +1228,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateBlob( columnLabel, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1297,8 +1238,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateClob( columnIndex, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1308,8 +1248,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateClob( columnLabel, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1319,8 +1258,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateArray( columnIndex, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1330,8 +1268,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateArray( columnLabel, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1342,8 +1279,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       return super.getRowId( columnIndex );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1353,8 +1289,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       return super.getRowId( columnLabel );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1364,8 +1299,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateRowId( columnIndex, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1375,8 +1309,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateRowId( columnLabel, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1398,8 +1331,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateNString( columnIndex, nString );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1410,8 +1342,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateNString( columnLabel, nString );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1421,8 +1352,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateNClob( columnIndex, nClob );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1432,8 +1362,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateNClob( columnLabel, nClob );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1468,8 +1397,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateSQLXML( columnIndex, xmlObject );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1480,8 +1408,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateSQLXML( columnLabel, xmlObject );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1516,8 +1443,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateNCharacterStream( columnIndex, x, length );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1528,8 +1454,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateNCharacterStream( columnLabel, reader, length );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1540,8 +1465,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateAsciiStream( columnIndex, x, length );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1552,8 +1476,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateBinaryStream( columnIndex, x, length );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1564,8 +1487,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateCharacterStream( columnIndex, x, length );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1576,8 +1498,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateAsciiStream( columnLabel, x, length );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1588,8 +1509,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateBinaryStream( columnLabel, x, length );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1600,8 +1520,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateCharacterStream( columnLabel, reader, length );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1612,8 +1531,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateBlob( columnIndex, inputStream, length );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1624,8 +1542,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateBlob( columnLabel, inputStream, length );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1636,8 +1553,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateClob( columnIndex, reader, length );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1648,8 +1564,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateClob( columnLabel, reader, length );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1660,8 +1575,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateNClob( columnIndex, reader, length );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1672,8 +1586,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateNClob( columnLabel, reader, length );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1685,8 +1598,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateNCharacterStream( columnIndex, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1697,8 +1609,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateNCharacterStream( columnLabel, reader );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1709,8 +1620,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateAsciiStream( columnIndex, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1721,8 +1631,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateBinaryStream( columnIndex, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1733,8 +1642,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateCharacterStream( columnIndex, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1745,8 +1653,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateAsciiStream( columnLabel, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1757,8 +1664,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateBinaryStream( columnLabel, x );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1769,8 +1675,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateCharacterStream( columnLabel, reader );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1781,8 +1686,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateBlob( columnIndex, inputStream );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1793,8 +1697,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateBlob( columnLabel, inputStream );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1804,8 +1707,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateClob( columnIndex, reader );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1815,8 +1717,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateClob( columnLabel, reader );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1826,8 +1727,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateNClob( columnIndex, reader );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1837,8 +1737,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     try {
       super.updateNClob( columnLabel, reader );
-    }
-    catch (UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new SQLFeatureNotSupportedException(e.getMessage(), e);
     }
   }
@@ -1878,8 +1777,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     if (signature.cursorFactory != null) {
       // Avatica accessors have to be wrapped to match Dremio behaviour regarding exception thrown
       super.execute();
-    }
-    else {
+    } else {
       DremioCursor cursor = new DremioCursor(connection, statement, signature);
       super.execute2(cursor, this.signature.columns);
 

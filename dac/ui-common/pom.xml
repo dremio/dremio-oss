@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>24.0.0-202302100528110223-3a169b7c</version>
+    <version>24.1.0-202306130653310132-d30779f6</version>
   </parent>
 
   <artifactId>dremio-ui-common</artifactId>
@@ -83,7 +83,7 @@
           </execution> -->
           <execution>
             <id>test</id>
-            <phase>process-sources</phase>
+            <phase>test</phase>
             <goals>
               <goal>npm</goal>
             </goals>
@@ -93,13 +93,13 @@
                 <JEST_JUNIT_OUTPUT_NAME>test-results.xml</JEST_JUNIT_OUTPUT_NAME>
                 <JEST_SUITE_NAME>ui-common</JEST_SUITE_NAME>
               </environmentVariables>
-              <arguments>run test -- --ci --reporters=jest-junit</arguments>
+              <arguments>run test -- --ci --reporters=jest-silent-reporter --reporters=jest-junit</arguments>
               <skip>${skipTests}</skip>
             </configuration>
           </execution>
           <execution>
             <id>build</id>
-            <phase>generate-resources</phase>
+            <phase>compile</phase>
             <goals>
               <goal>npm</goal>
             </goals>
@@ -119,7 +119,10 @@
               <followSymlinks>false</followSymlinks>
             </fileset>
             <fileset>
-              <directory>${project.basedir}/dist-*</directory>
+              <directory>${project.basedir}</directory>
+              <includes>
+                <include>dist-*/</include>
+              </includes>
               <followSymlinks>false</followSymlinks>
             </fileset>
           </filesets>

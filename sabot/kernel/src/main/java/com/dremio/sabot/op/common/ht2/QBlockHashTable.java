@@ -107,6 +107,7 @@ public final class QBlockHashTable implements AutoCloseable {
     return getOrInsert(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, false);
   }
 
+  @SuppressWarnings("checkstyle:InnerAssignment") // complex legacy code
   private final int getOrInsert(final long keyFixedVectorAddr, final long keyVarVectorAddr, final int keyIndex, boolean insertNew) {
     final int blockWidth = pivot.getBlockWidth();
     final int capacity = this.capacity;
@@ -305,6 +306,7 @@ public final class QBlockHashTable implements AutoCloseable {
     }
   }
 
+  @SuppressWarnings("checkstyle:InnerAssignment") // complex legacy code
   private final void rehash(int newCapacity) {
 
     // grab old references.
@@ -444,14 +446,17 @@ public final class QBlockHashTable implements AutoCloseable {
     return true;
   }
 
+  @Override
   public int hashCode() {
     return System.identityHashCode(this);
   }
 
+  @Override
   public String toString() {
     return "BlockHashTable";
   }
 
+  @Override
   public boolean equals(Object obj) {
     return this == obj;
   }

@@ -66,6 +66,7 @@ public class ZKClusterServiceSetManager implements ClusterServiceSetManager, Clu
       final ZKServiceSet newServiceSet = zkClient.newServiceSet(serviceName);
       try {
         newServiceSet.start();
+        logger.info("Started zkServiceSet for service {}", serviceName);
       } catch (Exception e) {
         throw new RuntimeException(String.format("Unable to start %s service in Zookeeper", serviceName), e);
       }
@@ -73,11 +74,28 @@ public class ZKClusterServiceSetManager implements ClusterServiceSetManager, Clu
     });
   }
 
+  @Override
+  public void deleteServiceSet(String serviceName) {
+    ZKServiceSet serviceSet = serviceSets.remove(serviceName);
+    if (serviceSet != null) {
+      try {
+        serviceSet.close();
+        zkClient.deleteServiceSetZkNode(serviceName);
+        logger.info("Stopped zkServiceSet for service {}", serviceName);
+      } catch (Exception e) {
+        logger.error("Unable to close zkService for service {}", serviceName, e);
+      }
+    } else {
+      logger.info("Nothing to do (delete) for zkServiceSet for service {}", serviceName);
+    }
+  }
+
   public ServiceSet getOrCreateServiceSet(String role, String serviceName) {
     return serviceSets.computeIfAbsent(role, s -> {
       final ZKServiceSet newServiceSet = zkClient.newServiceSet(serviceName);
       try {
         newServiceSet.start();
+        logger.info("Started zkServiceSet for service {} and role {}", serviceName, role);
       } catch (Exception e) {
         throw new RuntimeException(String.format("Unable to start %s service in Zookeeper", serviceName), e);
       }

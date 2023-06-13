@@ -25,9 +25,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
+import org.projectnessie.model.ContentKey;
 import org.projectnessie.versioned.GetNamedRefsParams;
 import org.projectnessie.versioned.Hash;
-import org.projectnessie.versioned.Key;
 import org.projectnessie.versioned.ReferenceInfo;
 import org.projectnessie.versioned.persist.adapter.CommitLogEntry;
 import org.projectnessie.versioned.persist.adapter.ImmutableKeyList;
@@ -38,6 +38,7 @@ import org.projectnessie.versioned.persist.adapter.serialize.ProtoSerialization;
 import org.projectnessie.versioned.persist.adapter.spi.DatabaseAdapterUtil;
 import org.projectnessie.versioned.persist.nontx.ImmutableAdjustableNonTransactionalDatabaseAdapterConfig;
 
+import com.dremio.common.SuppressForbidden;
 import com.dremio.dac.cmd.AdminLogger;
 import com.dremio.dac.cmd.upgrade.UpgradeContext;
 import com.dremio.dac.cmd.upgrade.UpgradeTask;
@@ -48,7 +49,6 @@ import com.dremio.service.nessie.DatastoreDatabaseAdapterFactory;
 import com.dremio.service.nessie.ImmutableDatastoreDbConfig;
 import com.dremio.service.nessie.NessieDatastoreInstance;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.protobuf.ByteString;
 
 /**
  * This upgrade task rebuilds the most recent key list to add missing commit IDs to key list entries.
@@ -87,11 +87,13 @@ public class RebuildKeyList extends UpgradeTask {
       store.initialize();
       DatastoreDatabaseAdapter adapter = (DatastoreDatabaseAdapter) new DatastoreDatabaseAdapterFactory().newBuilder()
         .withConnector(store)
-        .withConfig(ImmutableAdjustableNonTransactionalDatabaseAdapterConfig.builder().build())
+        .withConfig(ImmutableAdjustableNonTransactionalDatabaseAdapterConfig.builder()
+          .validateNamespaces(false)
+          .build())
         .build();
 
       // Only process main. Other branches in the Embedded Nessie are not utilized during runtime.
-      ReferenceInfo<ByteString> main = adapter.namedRef("main", GetNamedRefsParams.DEFAULT);
+      ReferenceInfo<?> main = adapter.namedRef("main", GetNamedRefsParams.DEFAULT);
       // Find the most recent key list
       AtomicReference<List<Hash>> keyListIds = new AtomicReference<>();
       try (Stream<CommitLogEntry> log = adapter.commitLog(main.getHash())) {
@@ -111,7 +113,7 @@ public class RebuildKeyList extends UpgradeTask {
       // Process all key list entities together. This will use memory, but will speed up the upgrade process.
       // Testing with some larger data sets of 300K keys, ~170 key list entities shown that default
       // upgrade process memory settings were sufficient.
-      Set<Key> activeKeys = new HashSet<>();
+      Set<ContentKey> activeKeys = new HashSet<>();
       Map<Hash, KeyList> keyLists = new HashMap<>();
       keyListIds.get().forEach(hash -> {
         Document<String, byte[]> doc = store.getKeyList().get(adapter.dbKey(hash));
@@ -126,7 +128,7 @@ public class RebuildKeyList extends UpgradeTask {
       });
 
       // Find relevant commit IDs for active keys.
-      Map<Key, Hash> activePuts = new HashMap<>();
+      Map<ContentKey, Hash> activePuts = new HashMap<>();
       AtomicInteger numCommits = new AtomicInteger();
       try (Stream<CommitLogEntry> log = adapter.commitLog(main.getHash())) {
         DatabaseAdapterUtil.takeUntilExcludeLast(log, c -> activeKeys.isEmpty())
@@ -150,7 +152,7 @@ public class RebuildKeyList extends UpgradeTask {
           if (keyListEntry == null) {
             updated.addKeys((KeyListEntry) null);
           } else {
-            Key key = keyListEntry.getKey();
+            ContentKey key = keyListEntry.getKey();
             Hash commitHash = activePuts.get(key);
             if (commitHash == null) {
               throw new IllegalStateException("Put not found for key: " + key);
@@ -162,9 +164,14 @@ public class RebuildKeyList extends UpgradeTask {
         });
 
         // Overwrite the key list entity at the same hash.
-        store.getKeyList().put(adapter.dbKey(keyListHash), ProtoSerialization.toProto(updated.build()).toByteArray());
+        store.getKeyList().put(adapter.dbKey(keyListHash), toBytes(updated.build()));
         AdminLogger.log("Updated key list {}", keyListHash);
       });
     }
+  }
+
+  @SuppressForbidden // This method has to use Nessie's relocated ByteString in method parameters.
+  private static byte[] toBytes(KeyList keyList) {
+    return ProtoSerialization.toProto(keyList).toByteArray();
   }
 }

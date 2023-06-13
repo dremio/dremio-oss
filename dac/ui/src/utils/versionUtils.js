@@ -27,6 +27,9 @@ export function getAboutMode() {
   return "full";
 }
 
-export function isDcsEdition() {
+export function isNotSoftware() {
   return false;
 }
+
+export const getDocsLink = () =>
+  "https://docs.dremio.com/software/sql-reference/sql-functions/functions";

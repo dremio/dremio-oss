@@ -23,6 +23,7 @@ import static org.junit.Assert.fail;
 
 import java.io.File;
 import java.io.FileWriter;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -32,7 +33,9 @@ import java.util.Map;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.RemoteIterator;
 import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.hadoop.util.PageHeaderUtil;
@@ -92,9 +95,9 @@ public class TestParquetWriter extends BaseTestQuery {
     List<String> allTypeSelectsAndCasts = new ArrayList<>();
     for (String s : allTypes.keySet()) {
       // don't need to cast a varchar, just add the column reference
-      if (s.equals("varchar")) {
+      if ("varchar".equals(s)) {
         allTypeSelectsAndCasts.add(String.format("\"%s_col\"", allTypes.get(s)));
-      } else if (s.equals("varbinary")) {
+      } else if ("varbinary".equals(s)) {
         allTypeSelectsAndCasts.add(String.format("convert_to(\"%s_col\", 'UTF8') \"%s_col\"", s, allTypes.get(s)));
       } else {
         allTypeSelectsAndCasts.add(String.format("cast(\"%s_col\" AS %S) \"%s_col\"", allTypes.get(s), s, allTypes.get(s)));
@@ -356,6 +359,44 @@ public class TestParquetWriter extends BaseTestQuery {
       test(String.format("alter session set \"%s\" = '%s'", ExecConstants.PARQUET_WRITER_COMPRESSION_TYPE,
         ExecConstants.PARQUET_WRITER_COMPRESSION_TYPE_VALIDATOR.getDefault().getStringVal()));
     }
+  }
+
+  @Test
+  public void testTPCHReadWriteDictZstd() throws Exception {
+    String outputTableMinLevel = "supplier_parquet_dict_zstd_minlevel";
+    String outputTableMaxLevel = "supplier_parquet_dict_zstd_maxlevel";
+    try {
+      test(String.format("ALTER SESSION SET \"%s\" = 'zstd'", ExecConstants.PARQUET_WRITER_COMPRESSION_TYPE));
+      String inputTable = "cp.\"tpch/supplier.parquet\"";
+
+      test(String.format("ALTER SESSION SET \"%s\" = %d", ExecConstants.PARQUET_WRITER_COMPRESSION_ZSTD_LEVEL, Integer.MIN_VALUE));
+      runTestAndValidate("*", "*", inputTable, outputTableMinLevel, false, true);
+
+      test(String.format("ALTER SESSION SET \"%s\" = %d", ExecConstants.PARQUET_WRITER_COMPRESSION_ZSTD_LEVEL, Integer.MAX_VALUE));
+      runTestAndValidate("*", "*", inputTable, outputTableMaxLevel, false, true);
+
+      // The only way to check if the level arrives to the compressors is to check the sizes of the generated files
+      long minLevelSize = calculateSize(new Path(getDfsTestTmpSchemaLocation(), outputTableMinLevel));
+      long maxLevelSize = calculateSize(new Path(getDfsTestTmpSchemaLocation(), outputTableMaxLevel));
+      assertTrue("The parquet files generated with minimum ZSTD compression level should be bigger than the" +
+        " ones generated with maximum compression level", minLevelSize > maxLevelSize);
+    } finally {
+      test(String.format("ALTER SESSION SET \"%s\" = '%s'", ExecConstants.PARQUET_WRITER_COMPRESSION_TYPE,
+        ExecConstants.PARQUET_WRITER_COMPRESSION_TYPE_VALIDATOR.getDefault().getStringVal()));
+      test(String.format("ALTER SESSION SET \"%s\" = %d", ExecConstants.PARQUET_WRITER_COMPRESSION_ZSTD_LEVEL,
+        ExecConstants.PARQUET_WRITER_COMPRESSION_ZSTD_LEVEL_VALIDATOR.getDefault().getNumVal()));
+      deleteTableIfExists(outputTableMinLevel);
+      deleteTableIfExists(outputTableMaxLevel);
+    }
+  }
+
+  private long calculateSize(Path path) throws IOException {
+    long size = 0L;
+    RemoteIterator<LocatedFileStatus> it = path.getFileSystem(new Configuration()).listFiles(path, true);
+    while (it.hasNext()) {
+      size += it.next().getLen();
+    }
+    return size;
   }
 
   // working to create an exhaustive test of the format for this one. including all convertedTypes
@@ -689,6 +730,10 @@ public class TestParquetWriter extends BaseTestQuery {
   }
 
   public void runTestAndValidate(String selection, String validationSelection, String inputTable, String outputFile, boolean sort) throws Exception {
+    runTestAndValidate(selection, validationSelection, inputTable, outputFile, sort, false);
+  }
+
+  public void runTestAndValidate(String selection, String validationSelection, String inputTable, String outputFile, boolean sort, boolean keepOutput) throws Exception {
     try {
       deleteTableIfExists(outputFile);
       test("use dfs_test");
@@ -715,7 +760,9 @@ public class TestParquetWriter extends BaseTestQuery {
         PageHeaderUtil.validatePageHeaders(file.getPath(), footer);
       }
     } finally {
-      deleteTableIfExists(outputFile);
+      if (!keepOutput) {
+        deleteTableIfExists(outputFile);
+      }
     }
   }
 

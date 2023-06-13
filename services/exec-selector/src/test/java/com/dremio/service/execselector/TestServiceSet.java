@@ -36,19 +36,23 @@ public class TestServiceSet implements ServiceSet {
   private Set<CoordinationProtos.NodeEndpoint> endpoints = new HashSet<>();
   private NodeStatusListener listener;
 
+  @Override
   public RegistrationHandle register(CoordinationProtos.NodeEndpoint endpoint) {
     throw new UnsupportedOperationException("never invoked");
   }
 
+  @Override
   public Collection<CoordinationProtos.NodeEndpoint> getAvailableEndpoints() {
     return endpoints;
   }
 
+  @Override
   public void addNodeStatusListener(NodeStatusListener listener) {
     assertNull(this.listener);
     this.listener = listener;
   }
 
+  @Override
   public void removeNodeStatusListener(NodeStatusListener listener) {
     assertEquals(this.listener, listener);
     this.listener = null;

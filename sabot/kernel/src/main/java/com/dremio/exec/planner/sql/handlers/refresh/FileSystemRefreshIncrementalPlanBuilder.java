@@ -47,6 +47,8 @@ import com.dremio.service.namespace.file.proto.FileType;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
+import io.opentelemetry.instrumentation.annotations.WithSpan;
+
 /**
  * Builds plan for filesystems in case of incremental and partial refresh.
  */
@@ -110,6 +112,7 @@ public class FileSystemRefreshIncrementalPlanBuilder extends FileSystemFullRefre
                                         ImmutableList.of());
   }
 
+  @Override
   public Prel getDirListToFooterReadExchange(Prel child) {
     return getHashToRandomExchangePrel(child);
   }
@@ -119,6 +122,7 @@ public class FileSystemRefreshIncrementalPlanBuilder extends FileSystemFullRefre
     isFileDataset = DatasetType.PHYSICAL_DATASET_SOURCE_FILE.equals(metadataProvider.getDatasetConfig().getType());
   }
 
+  @Override
   public List<String> generatePathsForPartialRefresh() {
     RefreshDatasetValidator validator = new FileSystemPartitionValidator(metadataProvider);
     validator.validate(sqlNode);
@@ -172,6 +176,7 @@ public class FileSystemRefreshIncrementalPlanBuilder extends FileSystemFullRefre
     return Math.max(baseRowCount, 1);
   }
 
+  @WithSpan
   @Override
   public boolean updateDatasetConfigWithIcebergMetadataIfNecessary() {
     return repairAndSaveDatasetConfigIfNecessary();

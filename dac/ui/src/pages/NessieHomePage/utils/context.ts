@@ -15,8 +15,8 @@
  */
 import { NessieRootState, NessieState } from "@app/types/nessie";
 import { selectState } from "@app/selectors/nessie/nessie";
-import { DefaultApi } from "@app/services/nessie/client";
-import { getTreeApi } from "@app/services/nessie/impl/TreeApi";
+import { DefaultApi, V2BetaApi } from "@app/services/nessie/client";
+import { getTreeApi, getApiV2 } from "@app/services/nessie/impl/TreeApi";
 import { createContext, useContext } from "react";
 import * as commonPaths from "dremio-ui-common/paths/common.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
@@ -25,12 +25,14 @@ type SourceInfo = {
   name: string;
   id: string;
   endpoint?: string;
+  endpointV1?: string;
 };
 
 type NessieContextType = {
   source: SourceInfo;
   state: NessieState;
   api: DefaultApi;
+  apiV2: V2BetaApi;
   baseUrl: string;
   stateKey: string;
 };
@@ -47,7 +49,7 @@ export function createNessieContext(
   source: SourceInfo,
   state: NessieRootState,
   prefix = "",
-  baseUrl = !source.endpoint
+  baseUrl = !source.endpoint && !source.endpointV1
     ? ""
     : commonPaths.dataplaneSource.link({
         sourceName: source.name,
@@ -59,7 +61,8 @@ export function createNessieContext(
     source,
     stateKey,
     state: selectState(state, stateKey),
-    api: getTreeApi(source.endpoint),
-    baseUrl: baseUrl, //Different routes for Dataplane only and Dataplane source
+    api: getTreeApi(source.endpointV1),
+    apiV2: getApiV2(source.endpoint),
+    baseUrl, //Different routes for Dataplane only and Dataplane source
   };
 }

@@ -20,7 +20,6 @@ import {
   getAutoCompleteSortTextValue,
   getAutoCompleteKind,
   constructTransformValues,
-  getAutoCompleteInsertText,
 } from "@app/utils/sql-autocomplete";
 
 const getItems = (monaco, sqlContextGetter) => {
@@ -40,6 +39,14 @@ const getItems = (monaco, sqlContextGetter) => {
     let pos = position.column - 1; // -1 to convert to zero-base index
     for (let i = 0; i < position.lineNumber - 1; i++) {
       pos += content[i].length + delimiter.length;
+    }
+
+    // If the previous char is a whitespace, don't trigger autocomplete
+    if (
+      position.column >= 2 &&
+      /\s/.test(content[position.lineNumber - 1][position.column - 2])
+    ) {
+      return [];
     }
 
     const requestBody = {
@@ -72,7 +79,7 @@ const getItems = (monaco, sqlContextGetter) => {
           if (kind == "Function") {
             // Snippet String
             // https://github.com/microsoft/monaco-editor/blob/v0.10.1/monaco.d.ts#L4119
-            insertTextOrSnippet = { "value": insertText };
+            insertTextOrSnippet = { value: insertText };
           } else {
             insertTextOrSnippet = insertText;
           }

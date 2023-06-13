@@ -67,6 +67,7 @@ message PScanCrel {
   int64 record_count = 5;
   repeated string partition_fields = 6;
   string dataset_version = 7;
+  string version_context = 8;
 }
 
 message PExternalQueryScanCrel {
@@ -81,12 +82,14 @@ message PExpansionNode {
   repeated string path = 2;
   bool context_sensitive = 3;
   bool isDefault = 4;
+  string version_context = 5;
 }
 
 message PDefaultExpansionNode {
   int32 input = 1;
   repeated string path = 2;
   bool context_sensitive = 3;
+  string version_context = 4;
 }
 
 message PRelList {

@@ -24,10 +24,10 @@ import java.util.function.Function;
 
 import org.projectnessie.client.NessieClientBuilder;
 import org.projectnessie.client.api.NessieApi;
-import org.projectnessie.client.api.NessieApiV1;
+import org.projectnessie.client.api.NessieApiV2;
 import org.projectnessie.client.auth.NessieAuthentication;
 
-import com.dremio.services.nessie.grpc.client.v1api.GrpcApiV1Impl;
+import com.dremio.services.nessie.grpc.client.impl.GrpcApiImpl;
 import com.google.common.base.Preconditions;
 
 import io.grpc.ClientInterceptor;
@@ -130,10 +130,10 @@ public final class GrpcClientBuilder implements NessieClientBuilder<GrpcClientBu
     Objects.requireNonNull(apiVersion, "API version class must be non-null");
     Preconditions.checkArgument(channel != null, "Channel must be configured");
 
-    if (apiVersion.isAssignableFrom(NessieApiV1.class)) {
+    if (apiVersion.isAssignableFrom(NessieApiV2.class)) {
       Preconditions.checkArgument(apiVersion.isInterface(),
         "must not use a concrete class for the apiVersion parameter");
-      return (API) new GrpcApiV1Impl(channel, shutdownChannel, clientInterceptors.toArray(new ClientInterceptor[0]));
+      return (API) new GrpcApiImpl(channel, shutdownChannel, clientInterceptors.toArray(new ClientInterceptor[0]));
     }
 
     throw new IllegalArgumentException(

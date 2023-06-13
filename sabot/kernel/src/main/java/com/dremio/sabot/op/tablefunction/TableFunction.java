@@ -35,7 +35,7 @@ public interface TableFunction extends AutoCloseable {
    * Start processing an input record batch.
    * @param records Number of records in the input batch.
    */
-  default void startBatch(int records) {
+  default void startBatch(int records) throws Exception {
     // do nothing
   }
 
@@ -83,5 +83,12 @@ public interface TableFunction extends AutoCloseable {
    */
   default long getFirstRowSize() {
     return -1L;
+  }
+
+  /**
+   * Signal to the table function that there's no more records to consume.
+   */
+  default void noMoreToConsume() throws Exception {
+    // Do nothing
   }
 }

@@ -16,6 +16,7 @@
 package com.dremio.exec.catalog;
 
 import org.immutables.value.Value;
+import org.projectnessie.model.Detached;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -48,7 +49,7 @@ public abstract class ResolvedVersionContext {
     BARE_COMMIT,
   }
 
-  public static final String DETACHED = "DETACHED";
+  public static final String DETACHED_REF_NAME = Detached.REF_NAME;
 
   public abstract Type getType();
   public abstract String getRefName();
@@ -73,7 +74,7 @@ public abstract class ResolvedVersionContext {
   public static ResolvedVersionContext ofBareCommit(String commitHash) {
     return ImmutableResolvedVersionContext.builder()
       .type(Type.BARE_COMMIT)
-      .refName(DETACHED)
+      .refName(DETACHED_REF_NAME)
       .commitHash(commitHash)
       .build();
   }
@@ -86,7 +87,7 @@ public abstract class ResolvedVersionContext {
         Preconditions.checkNotNull(getRefName());
         break;
       case BARE_COMMIT:
-        Preconditions.checkArgument(getRefName() == DETACHED);
+        Preconditions.checkArgument(DETACHED_REF_NAME.equals(getRefName()));
         break;
       default:
         throw new IllegalStateException("Unexpected value: " + getType());
@@ -102,6 +103,7 @@ public abstract class ResolvedVersionContext {
   @JsonIgnore
   public boolean isBareCommit() { return getType() == Type.BARE_COMMIT; }
 
+  @Override
   public String toString() {
     String out;
     switch (getType()) {

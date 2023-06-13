@@ -19,6 +19,7 @@ import * as React from "react";
 import clsx from "clsx";
 import { forwardRef, type ReactNode } from "react";
 import { Spinner } from "../Spinner/Spinner";
+import { Tooltip } from "../Tooltip/Tooltip";
 
 type ButtonProps = {
   as?: string | React.FunctionComponent<any> | React.ComponentClass<any, any>;
@@ -47,6 +48,11 @@ type ButtonProps = {
    * Keeps the button disabled after a pending state but restores original content
    */
   success?: boolean;
+
+  /**
+   * If defined, a tooltip will be added to the button
+   */
+  tooltip?: string;
 
   /**
    * The visual style of the button
@@ -84,6 +90,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       variant,
       pending,
       type = "button",
+      tooltip,
       ...rest
     } = props;
     const buttonProps =
@@ -109,7 +116,13 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       },
       <>
         {prefix && <div className="dremio-button__prefix">{prefix}</div>}
-        <div className="dremio-button__content">{getContent(props)}</div>
+        {tooltip ? (
+          <Tooltip content={tooltip} shouldWrapChildren>
+            <div className="dremio-button__content">{getContent(props)}</div>
+          </Tooltip>
+        ) : (
+          <div className="dremio-button__content">{getContent(props)}</div>
+        )}
         {suffix && <div className="dremio-button__suffix">{suffix}</div>}
       </>
     );

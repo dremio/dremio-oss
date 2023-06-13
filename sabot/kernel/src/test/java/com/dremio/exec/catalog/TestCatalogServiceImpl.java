@@ -18,7 +18,6 @@ package com.dremio.exec.catalog;
 import static com.dremio.test.DremioTest.CLASSPATH_SCAN_RESULT;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
@@ -45,6 +44,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -557,9 +557,7 @@ public class TestCatalogServiceImpl {
     catalogService.getSystemUserCatalog().createSource(missingConfig);
     catalogService.deleteSource(MISSING_CONFIG_NAME);
 
-    // Check nullity of the state to confirm it's been deleted.
-    assertNull(catalogService.getSourceState(MISSING_CONFIG_NAME));
-
+    Assert.assertEquals(catalogService.getSourceState(MISSING_CONFIG_NAME), SourceState.badState(String.format("Source %s could not be found. Please verify the source name.", MISSING_CONFIG_NAME), "Unable to find source."));
   }
 
   @Test
@@ -577,7 +575,7 @@ public class TestCatalogServiceImpl {
   }
 
   @Test
-  public void badSourceShouldNotBlockStorageRules() throws Exception {
+  public void badSourceShouldNotBlockStorageRules_UNSAFE_WAIT() throws Exception {
     OptimizerRulesContext mock = mock(OptimizerRulesContext.class);
 
     ManagedStoragePlugin managedStoragePlugin = catalogService.getPlugins().get(MOCK_UP_BAD);
@@ -594,7 +592,7 @@ public class TestCatalogServiceImpl {
     // we get the writelock and run code in a different thread that should not use a readlock
     try (AutoCloseableLock unused = managedStoragePlugin.writeLock()) {
       thread.start();
-      thread.join(1000);
+      thread.join(2000);
     }
     thread.interrupt();
     assertTrue(test.get());

@@ -100,6 +100,7 @@ public class Window extends SingleInputOperator {
       return this;
     }
 
+    @Override
     public Window internalBuild() {
       //TODO withins can actually be empty: over(), over(order by <expression>), ...
       checkState(!withins.isEmpty(), "Withins in window must not be empty.");

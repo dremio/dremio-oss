@@ -30,7 +30,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -40,6 +39,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import org.projectnessie.nessie.relocated.protobuf.ByteString;
+import org.projectnessie.nessie.relocated.protobuf.InvalidProtocolBufferException;
 import org.projectnessie.versioned.GetNamedRefsParams;
 import org.projectnessie.versioned.Hash;
 import org.projectnessie.versioned.NamedRef;
@@ -65,21 +66,19 @@ import org.projectnessie.versioned.persist.serialize.AdapterTypes;
 import org.projectnessie.versioned.persist.serialize.AdapterTypes.GlobalStateLogEntry;
 import org.projectnessie.versioned.persist.serialize.AdapterTypes.GlobalStatePointer;
 import org.projectnessie.versioned.persist.serialize.AdapterTypes.RefLogEntry;
-import org.rocksdb.RocksDBException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.common.SuppressForbidden;
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.KVStore;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Streams;
-import com.google.protobuf.ByteString;
-import com.google.protobuf.InvalidProtocolBufferException;
 
 /**
  * Datastore Database Adapter for Embedded Nessie.
  */
+@SuppressForbidden // This impl. of a Nessie Database Adapter has to use Nessie's relocated protobuf classes.
 public class DatastoreDatabaseAdapter extends NonTransactionalDatabaseAdapter<NonTransactionalDatabaseAdapterConfig> {
 
   private static final Logger logger = LoggerFactory.getLogger(DatastoreDatabaseAdapter.class);
@@ -441,8 +440,6 @@ public class DatastoreDatabaseAdapter extends NonTransactionalDatabaseAdapter<No
           db.getGlobalPointer(),
           db.getGlobalLog(),
           db.getCommitLog(),
-          db.getAttachments(),
-          db.getAttachmentKeys(),
           db.getNamedRefHeads(),
           db.getRefNames(),
           db.getRepoDescription(),
@@ -687,158 +684,6 @@ public class DatastoreDatabaseAdapter extends NonTransactionalDatabaseAdapter<No
     } finally {
       lock.unlock();
     }
-  }
-
-  @Override
-  protected void writeAttachments(Stream<Map.Entry<AdapterTypes.AttachmentKey, AdapterTypes.AttachmentValue>> attachments) {
-    Lock lock = db.getLock().writeLock();
-    lock.lock();
-    try {
-      attachments.forEach(b -> {
-        storeAttachmentKey(b.getKey());
-        db.getAttachments().put(dbKey(b.getKey().getAttachmentId()), b.getValue().toByteArray());
-      });
-    } finally {
-      lock.unlock();
-    }
-  }
-
-  @Override
-  protected boolean consistentWriteAttachment(AdapterTypes.AttachmentKey key, AdapterTypes.AttachmentValue value,
-                                              Optional<String> expectedVersion) {
-    Lock lock = db.getLock().writeLock();
-    lock.lock();
-    try {
-      String dbKey = dbKey(key.getAttachmentId());
-      Document<String, byte[]> current = db.getAttachments().get(dbKey);
-      if (expectedVersion.isPresent()) {
-        try {
-          if (current == null) {
-            return false;
-          }
-          AdapterTypes.AttachmentValue val = AdapterTypes.AttachmentValue.parseFrom(current.getValue());
-          if (!val.hasVersion() || !val.getVersion().equals(expectedVersion.get())) {
-            return false;
-          }
-        } catch (InvalidProtocolBufferException e) {
-          throw new RuntimeException(e);
-        }
-      } else {
-        if (current != null) {
-          return false;
-        }
-        storeAttachmentKey(key);
-      }
-      db.getAttachments().put(dbKey, value.toByteArray());
-      return true;
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    } finally {
-      lock.unlock();
-    }
-  }
-
-  private void storeAttachmentKey(AdapterTypes.AttachmentKey attachmentKey) {
-    String dbKey = dbKey(attachmentKey.getContentId().getId());
-    Document<String, byte[]> old = db.getAttachmentKeys().get(dbKey);
-    AdapterTypes.AttachmentKeyList.Builder keyList;
-    if (old == null) {
-      keyList = AdapterTypes.AttachmentKeyList.newBuilder().addKeys(attachmentKey);
-    } else {
-      try {
-        keyList = AdapterTypes.AttachmentKeyList.newBuilder().mergeFrom(old.getValue());
-      } catch (InvalidProtocolBufferException e) {
-        throw new RuntimeException(e);
-      }
-      if (!keyList.getKeysList().contains(attachmentKey)) {
-        keyList.addKeys(attachmentKey);
-      }
-    }
-    db.getAttachmentKeys().put(dbKey, keyList.build().toByteArray());
-  }
-
-  @Override
-  protected Stream<AdapterTypes.AttachmentKey> fetchAttachmentKeys(String contentId) {
-    try {
-      String dbKey = dbKey(contentId);
-      Document<String, byte[]> attachmentKeys = db.getAttachmentKeys().get(dbKey);
-      if (attachmentKeys == null) {
-        return Stream.empty();
-      }
-      AdapterTypes.AttachmentKeyList keyList;
-      try {
-        keyList = AdapterTypes.AttachmentKeyList.parseFrom(attachmentKeys.getValue());
-      } catch (InvalidProtocolBufferException e) {
-        throw new RuntimeException(e);
-      }
-      return keyList.getKeysList().stream();
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  @Override
-  protected Stream<Map.Entry<AdapterTypes.AttachmentKey, AdapterTypes.AttachmentValue>> fetchAttachments(
-    Stream<AdapterTypes.AttachmentKey> keys) {
-    try {
-      return keys.map(k -> {
-          Document<String, byte[]> entry = db.getAttachments().get(dbKey(k.getAttachmentId()));
-          if (entry == null) {
-            return null;
-          }
-
-          try {
-            return Maps.immutableEntry(k, AdapterTypes.AttachmentValue.parseFrom(entry.getValue()));
-          } catch (InvalidProtocolBufferException e) {
-            throw new RuntimeException(e);
-          }
-        })
-        .filter(Objects::nonNull);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  @Override
-  protected void purgeAttachments(Stream<AdapterTypes.AttachmentKey> keys) {
-    Lock lock = db.getLock().writeLock();
-    lock.lock();
-    try {
-      keys.forEach(
-        k -> {
-          try {
-            db.getAttachments().delete(dbKey(k.getAttachmentId()));
-            removeAttachmentKey(k);
-          } catch (RocksDBException e) {
-            throw new RuntimeException(e);
-          }
-        });
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    } finally {
-      lock.unlock();
-    }
-  }
-
-  private void removeAttachmentKey(AdapterTypes.AttachmentKey attachmentKey) throws RocksDBException {
-    String dbKey = attachmentKey.getContentId().getId();
-    Document<String, byte[]> old = db.getAttachmentKeys().get(dbKey);
-    if (old == null) {
-      return;
-    }
-    AdapterTypes.AttachmentKeyList.Builder keyList;
-    try {
-      keyList = AdapterTypes.AttachmentKeyList.newBuilder().mergeFrom(old.getValue());
-    } catch (InvalidProtocolBufferException e) {
-      throw new RuntimeException(e);
-    }
-    for (int i = 0; i < keyList.getKeysList().size(); i++) {
-      if (keyList.getKeys(i).equals(attachmentKey)) {
-        keyList.removeKeys(i);
-        break;
-      }
-    }
-    db.getAttachmentKeys().put(dbKey, keyList.build().toByteArray());
   }
 
   @Override

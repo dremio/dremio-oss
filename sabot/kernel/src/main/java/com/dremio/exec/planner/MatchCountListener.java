@@ -128,6 +128,10 @@ public class MatchCountListener implements RelOptListener {
     return matchLimit;
   }
 
+  public Map<String, Long> getRuleToTotalTime() {
+    return ruleToTotalTime;
+  }
+
   public void reset() {
     attemptCount = 0;
     matchCount = 0;

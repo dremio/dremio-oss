@@ -20,6 +20,7 @@
   margin: 0 0 0 auto;
   overflow: hidden;
   padding: 0;
+  z-index: 1000;
 
   &[open],
   &--open {

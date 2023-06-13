@@ -36,6 +36,7 @@ import com.dremio.common.util.TestTools;
 import com.dremio.exec.catalog.conf.AWSAuthenticationType;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.server.SabotContext;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
 import io.findify.s3mock.S3Mock;
@@ -53,19 +54,16 @@ public class TestS3Compat extends BaseTestQuery {
 
   @Before
   public void setup() {
-    Integer port = Integer.getInteger("s3mock.reserved.port");
-    if(port == null) {
-      throw new RuntimeException("Can't start test since s3.reserved.port property is not available.");
-    }
-    this.port = port;
-    this.api = new S3Mock.Builder().withPort(port).withFileBackend(TestTools.getWorkingPath() + "/src/test/resources/s3compat").build();
-    this.api.start();
+    Preconditions.checkState(api == null);
+    api = new S3Mock.Builder().withPort(0).withFileBackend(TestTools.getWorkingPath() + "/src/test/resources/s3compat").build();
+    port = api.start().localAddress().getPort();
   }
 
   @After
   public void teardown() {
-    if(api != null) {
-      api.stop();
+    if (api != null) {
+      api.shutdown();
+      api = null;
     }
   }
 

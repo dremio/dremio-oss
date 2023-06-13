@@ -74,10 +74,12 @@ public class ParquetColumnIcebergResolver implements ParquetColumnResolver {
     this.icebergColumnIDMap = CaseInsensitiveImmutableBiMap.newImmutableMap(icebergColumns);
   }
 
+  @Override
   public List<SchemaPath> getBatchSchemaProjectedColumns() {
     return projectedColumns;
   }
 
+  @Override
   public List<SchemaPath> getProjectedParquetColumns() {
     return this.projectedColumns.stream()
       .map(this::getParquetColumnPath)
@@ -85,6 +87,7 @@ public class ParquetColumnIcebergResolver implements ParquetColumnResolver {
       .collect(Collectors.toList());
   }
 
+  @Override
   public String getBatchSchemaColumnName(String columnInParquetFile) {
     if (!this.parquetColumnIDs.containsKey(columnInParquetFile)) {
       return null;
@@ -99,6 +102,7 @@ public class ParquetColumnIcebergResolver implements ParquetColumnResolver {
     return this.icebergColumnIDMap.inverse().get(id);
   }
 
+  @Override
   public List<String> getBatchSchemaColumnName(List<String> columnInParquetFile) {
     String columnName = String.join(".", columnInParquetFile);
 
@@ -121,6 +125,7 @@ public class ParquetColumnIcebergResolver implements ParquetColumnResolver {
     return Lists.newArrayList(columnInSchema.split("\\."));
   }
 
+  @Override
   public String getParquetColumnName(String name) {
     if (!this.icebergColumnIDMap.containsKey(name)) {
       return null;
@@ -135,6 +140,7 @@ public class ParquetColumnIcebergResolver implements ParquetColumnResolver {
     return this.parquetColumnIDs.inverse().get(id);
   }
 
+  @Override
   public List<SchemaPath> getBatchSchemaColumns(List<SchemaPath> parquestSchemaPaths) {
     return parquestSchemaPaths.stream()
       .map(this::getBatchSchemaColumnPath)
@@ -142,6 +148,7 @@ public class ParquetColumnIcebergResolver implements ParquetColumnResolver {
       .collect(Collectors.toList());
   }
 
+  @Override
   public SchemaPath getBatchSchemaColumnPath(SchemaPath pathInParquetFile) {
     List<String> pathSegmentsInParquet = pathInParquetFile.getComplexNameSegments();
     List<String> pathSegmentsInBatchSchema = getBatchSchemaColumnName(pathSegmentsInParquet);
@@ -150,6 +157,7 @@ public class ParquetColumnIcebergResolver implements ParquetColumnResolver {
       SchemaPath.getCompoundPath(pathSegmentsInBatchSchema.toArray(new String[0]));
   }
 
+  @Override
   public List<String> getNameSegments(SchemaPath schemaPath) {
     return shouldUseBatchSchemaForResolvingProjectedColumn && this.fieldInfoMap != null ?
       getComplexNameSegments(schemaPath) : schemaPath.getComplexNameSegments();
@@ -230,10 +238,12 @@ public class ParquetColumnIcebergResolver implements ParquetColumnResolver {
     return Lists.newArrayList(columnInParquet.split("\\."));
   }
 
+  @Override
   public List<String> convertColumnDescriptor(MessageType schema, ColumnDescriptor columnDescriptor) {
     return Lists.newArrayList(columnDescriptor.getPath());
   }
 
+  @Override
   public String toDotString(SchemaPath schemaPath, ValueVector vector) {
     return schemaPath.toDotString().toLowerCase();
   }

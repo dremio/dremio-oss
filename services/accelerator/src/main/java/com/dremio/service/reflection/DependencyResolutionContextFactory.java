@@ -19,8 +19,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
+import com.dremio.exec.catalog.CatalogEntityKey;
 import com.dremio.options.OptionManager;
-import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.reflection.proto.ReflectionEntry;
 import com.dremio.service.reflection.proto.ReflectionId;
@@ -44,7 +44,7 @@ public class DependencyResolutionContextFactory {
   private final ReflectionEntriesStore entriesStore;
 
   // Reflection settings by dataset.  These rarely change and so we can mostly reuse them between syncs.
-  private Map<NamespaceKey, AccelerationSettings> settingsMap;
+  private Map<CatalogEntityKey, AccelerationSettings> settingsMap;
   private int lastSettingsHash;
   DependencyResolutionContextFactory(ReflectionSettings reflectionSettings, RefreshRequestsStore requestsStore,
                                      OptionManager optionManager, ReflectionEntriesStore entriesStore) {
@@ -87,7 +87,7 @@ public class DependencyResolutionContextFactory {
       }
     }
     @Override
-    public AccelerationSettings getReflectionSettings(NamespaceKey key) {
+    public AccelerationSettings getReflectionSettings(CatalogEntityKey key) {
       return reflectionSettings.getReflectionSettings(key);
     }
     @Override
@@ -135,7 +135,7 @@ public class DependencyResolutionContextFactory {
       return entriesMap.get(id);
     }
     @Override
-    public AccelerationSettings getReflectionSettings(NamespaceKey key) {
+    public AccelerationSettings getReflectionSettings(CatalogEntityKey key) {
       settingsCacheRequests++;
       return settingsMap.computeIfAbsent(key, k -> {
         settingsCacheMisses++;

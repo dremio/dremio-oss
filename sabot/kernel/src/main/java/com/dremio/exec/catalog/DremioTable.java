@@ -50,10 +50,12 @@ public interface DremioTable extends DremioTranslatableTable, ExtensibleTable {
 
   DatasetConfig getDatasetConfig();
 
+  @Override
   default boolean isRolledUp(String column) {
     return false;
   }
 
+  @Override
   default boolean rolledUpColumnValidInsideAgg(
       String column,
       SqlCall call,
@@ -72,10 +74,12 @@ public interface DremioTable extends DremioTranslatableTable, ExtensibleTable {
    */
   String UNSUPPORTED_EXTENDED_TABLE = "The extended table of type '%s' is unsupported.";
 
+  @Override
   default Table extend(List<RelDataTypeField> fields) {
     throw new UnsupportedOperationException();
   }
 
+  @Override
   default int getExtendedColumnOffset() {
     throw new UnsupportedOperationException();
   }

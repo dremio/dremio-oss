@@ -303,6 +303,7 @@ SqlNode SqlCreateOrReplace() :
     SqlPolicy policy = null;
     boolean nullable = true;
     SqlComplexDataTypeSpec scalarReturnTypeSpec = null;
+    SqlFunctionReturnType returnType;
 }
 {
     <CREATE> { pos = getPos(); }
@@ -310,6 +311,10 @@ SqlNode SqlCreateOrReplace() :
     (
       <FUNCTION>
         [ <IF> <NOT> <EXISTS> { ifNotExists = true; } ]
+        {
+          if (replace && ifNotExists)
+            throw new ParseException("'OR REPLACE' and 'IF NOT EXISTS' can not both be set.");
+        }
         name = CompoundIdentifier()
         fieldList = ParseFunctionFieldList()
       <RETURNS>
@@ -326,7 +331,15 @@ SqlNode SqlCreateOrReplace() :
         )
       <RETURN> {
         expression = OrderedQueryOrExpr(ExprContext.ACCEPT_ALL);
-        return new SqlCreateFunction(pos, SqlLiteral.createBoolean(replace, SqlParserPos.ZERO), name, fieldList, scalarReturnTypeSpec, expression, SqlLiteral.createBoolean(ifNotExists, SqlParserPos.ZERO), tabularReturnType);
+        returnType = new SqlFunctionReturnType(pos, scalarReturnTypeSpec, tabularReturnType);
+        return new SqlCreateFunction(
+          pos,
+          SqlLiteral.createBoolean(replace, SqlParserPos.ZERO),
+          name,
+          fieldList,
+          expression,
+          SqlLiteral.createBoolean(ifNotExists, SqlParserPos.ZERO),
+          returnType);
       }
       |
       (<VIEW>|<VDS>)
@@ -417,20 +430,20 @@ SqlNodeList ParseFunctionReturnFieldList() :
 
 void FunctionReturnTypeCommaList(List<SqlNode> list) :
 {
-  SqlNodeList pair;
+  SqlReturnField returnField;
 }
 {
   (
-    pair = ReturnKeyValuePair() { list.add(pair); }
+    returnField = ReturnKeyValuePair() { list.add(returnField); }
     (
-      <COMMA> pair = ReturnKeyValuePair() {
-        list.add(pair);
+      <COMMA> returnField = ReturnKeyValuePair() {
+        list.add(returnField);
       }
     )*
   )?
 }
 
-SqlNodeList ReturnKeyValuePair() :
+SqlReturnField ReturnKeyValuePair() :
 {
   SqlNodeList pair = new SqlNodeList(getPos());
   SqlIdentifier name;
@@ -438,13 +451,11 @@ SqlNodeList ReturnKeyValuePair() :
   boolean nullable;
 }
 {
-  name = SimpleIdentifier() { pair.add(name); }
+  name = SimpleIdentifier()
   type = DataType()
-  nullable = NullableOptDefaultTrue()
-    {
-      pair.add(new SqlComplexDataTypeSpec(type.withNullable(nullable)));
-      return pair;
-    }
+  nullable = NullableOptDefaultTrue() {
+    return new SqlReturnField(getPos(), name, new SqlComplexDataTypeSpec(type.withNullable(nullable)));
+  }
 }
 
 SqlNodeList ParseFunctionFieldList() :
@@ -644,7 +655,7 @@ SqlPartitionTransform ParsePartitionTransform() :
 {
     SqlIdentifier id;
     SqlIdentifier columnName;
-    List<SqlLiteral> argList = Lists.newArrayList();
+    List<SqlLiteral> argList = new ArrayList<SqlLiteral>();
     SqlNode arg;
     Span s;
     Token token;
@@ -708,6 +719,17 @@ SqlNodeList ParsePartitionTransformList() :
     }
 }
 
+/** Parses a table property */
+void ParseTableProperty(SqlNodeList tablePropertyNameList, SqlNodeList tablePropertyValueList) :
+{
+    SqlNode name;
+    SqlNode value;
+}
+{
+    name = StringLiteral() { tablePropertyNameList.add(name); }
+    <EQ> value = StringLiteral() { tablePropertyValueList.add(value); }
+}
+
 /**
  * COPY INTO <source>.<path>.<table_name>
  * [( <col_name> [, <col_name>... ])]
@@ -724,7 +746,7 @@ SqlNode SqlCopyInto() :
     SqlParserPos pos;
     SqlIdentifier tblName;
     SqlNode location;
-    List<SqlNode> fileList = Lists.newArrayList();
+    List<SqlNode> fileList = new ArrayList<SqlNode>();
     SqlNodeList files = SqlNodeList.EMPTY;
     SqlNode file;
     SqlNode regexPattern = null;
@@ -840,6 +862,7 @@ SqlNode SqlCopyInto() :
  *       [ (STRIPED, HASH, ROUNDROBIN) PARTITION BY (field1, field2, ..) ]
  *       [ DISTRIBUTE BY (field1, field2, ..) ]
  *       [ LOCALSORT BY (field1, field2, ..) ]
+ *       [ TBLPROPERTIES ('property_name' = 'property_value', ...) ]
  *       [ STORE AS (opt1 => val1, opt2 => val3, ...) ]
  *       [ LOCATION location]
  *       [ WITH SINGLE WRITER ]
@@ -861,6 +884,8 @@ SqlNode SqlCreateTable() :
     SqlNode query;
     boolean ifNotExists = false;
     SqlPolicy policy = null;
+    SqlNodeList tablePropertyNameList;
+    SqlNodeList tablePropertyValueList;
 }
 {
     {
@@ -873,6 +898,8 @@ SqlNode SqlCreateTable() :
         partitionDistributionStrategy = PartitionDistributionStrategy.UNSPECIFIED;
         fieldList = SqlNodeList.EMPTY;
         policy = null;
+        tablePropertyNameList = SqlNodeList.EMPTY;
+        tablePropertyValueList = SqlNodeList.EMPTY;
     }
     <CREATE> { pos = getPos(); }
     <TABLE>
@@ -901,6 +928,19 @@ SqlNode SqlCreateTable() :
     )?
     (   <LOCALSORT> <BY>
         sortFieldList = ParseRequiredFieldList("Sort")
+    )?
+    (   <TBLPROPERTIES>
+        <LPAREN>
+            {
+                tablePropertyNameList = new SqlNodeList(getPos());
+                tablePropertyValueList = new SqlNodeList(getPos());
+            }
+            ParseTableProperty(tablePropertyNameList, tablePropertyValueList)
+            (
+                <COMMA>
+                ParseTableProperty(tablePropertyNameList, tablePropertyValueList)
+            )*
+        <RPAREN>
     )?
     (
             <LOCATION> { location = StringLiteral(); }
@@ -937,7 +977,7 @@ SqlNode SqlCreateTable() :
                 {
                     return new SqlCreateTable(pos, tblName, fieldList, ifNotExists, partitionDistributionStrategy,
                         partitionTransformList, formatOptions, location, singleWriter, sortFieldList,
-                        distributeFieldList, policy, query);
+                        distributeFieldList, policy, query, tablePropertyNameList, tablePropertyValueList);
                 }
             )
             |
@@ -945,7 +985,7 @@ SqlNode SqlCreateTable() :
                 {
                     return new SqlCreateEmptyTable(pos, tblName, fieldList, ifNotExists, partitionDistributionStrategy,
                         partitionTransformList, formatOptions, location, singleWriter, sortFieldList,
-                        distributeFieldList, policy);
+                        distributeFieldList, policy, tablePropertyNameList, tablePropertyValueList);
                 }
             )
         )
@@ -1131,7 +1171,7 @@ SqlUpdate DremioWhenMatchedClause(SqlNode table, SqlIdentifier alias) :
 SqlInsert DremioWhenNotMatchedClause(SqlIdentifier table) :
 {
     final Span insertSpan, valuesSpan;
-    final List<SqlLiteral> keywords = Lists.newArrayList();
+    final List<SqlLiteral> keywords = new ArrayList<SqlLiteral>();
     final SqlNodeList keywordList;
     SqlNodeList insertColumnList = null;
     SqlNode rowConstructor;
@@ -1217,33 +1257,75 @@ SqlNode SqlRollbackTable() :
     }
 }
 
+void VacuumExpireSnapshotOptions(SqlNodeList optionsList, SqlNodeList optionsValueList) :
+{
+    SqlNode exp;
+}
+{
+    <EXPIRE> <SNAPSHOTS>
+    [
+        <OLDER_THAN> [<EQ>] exp = StringLiteral()
+        {
+            optionsList.add(new SqlIdentifier("older_than", getPos()));
+            optionsValueList.add(exp);
+        }
+    ]
+    [
+        <RETAIN_LAST> [<EQ>] exp = UnsignedNumericLiteral()
+        {
+            optionsList.add(new SqlIdentifier("retain_last", getPos()));
+            optionsValueList.add(exp);
+        }
+    ]
+}
+
  /**
  * Parses a VACUUM statement.
  * VACUUM TABLE <name>
- * EXPIRE SNAPSHOTS [older_than = <value>] [retain_last = <value>]
+ * EXPIRE SNAPSHOTS [older_than [=] <value>] [retain_last [=] <value>]
  */
 SqlNode SqlVacuum() :
 {
     SqlParserPos pos;
+}
+{
+    <VACUUM> { pos = getPos(); }
+    (
+        <CATALOG>
+        {
+          return SqlVacuumCatalog(pos);
+        }
+        |
+        <TABLE>
+        {
+          return SqlVacuumTable(pos);
+        }
+    )
+}
+
+SqlNode SqlVacuumTable(SqlParserPos pos) :
+{
     SqlIdentifier tableName;
     SqlNodeList optionsList = new SqlNodeList(getPos());
     SqlNodeList optionsValueList = new SqlNodeList(getPos());
     SqlNode exp;
 }
 {
-    <VACUUM> { pos = getPos(); }
-    <TABLE> { tableName = CompoundIdentifier(); }
-    <EXPIRE> <SNAPSHOTS>
-    [
-        <OLDER_THAN> { optionsList.add(new SqlIdentifier("older_than", getPos())); }
-        <EQ> exp = StringLiteral() { optionsValueList.add(exp); }
-    ]
-    [
-        <RETAIN_LAST> { optionsList.add(new SqlIdentifier("retain_last", getPos())); }
-        <EQ> exp = UnsignedNumericLiteral() { optionsValueList.add(exp); }
-    ]
+    tableName = CompoundIdentifier()
+    VacuumExpireSnapshotOptions(optionsList, optionsValueList)
     {
-        return new SqlVacuum(pos, tableName, optionsList, optionsValueList);
+        return new SqlVacuumTable(pos, tableName, optionsList, optionsValueList);
+    }
+}
+
+SqlNode SqlVacuumCatalog(SqlParserPos pos) :
+{
+    SqlIdentifier catalogSource;
+}
+{
+    catalogSource = CompoundIdentifier()
+    {
+        return new SqlVacuumCatalog(pos, catalogSource, new SqlNodeList(pos), new SqlNodeList(pos));
     }
 }
 
@@ -1417,13 +1499,14 @@ SqlNode SqlRefreshDataset() :
              [  REWRITE MANIFESTS ]
              |[  REWRITE DATA USING BIN_PACK| SORT
                 [ ( option = <value> [, ... ] ) ]
-                [ WHERE <predicate> ] ]
+                [ FOR PARTITIONS <predicate> ] ]
  */
 SqlNode SqlOptimize() :
 {
     final SqlParserPos pos;
     final SqlIdentifier table;
-    SqlLiteral rewriteManifests = SqlLiteral.createBoolean(false, SqlParserPos.ZERO);
+    SqlLiteral rewriteManifests = SqlLiteral.createBoolean(true, SqlParserPos.ZERO);
+    SqlLiteral rewriteDataFiles = SqlLiteral.createBoolean(true, SqlParserPos.ZERO);
     CompactionType compactionType = CompactionType.BIN_PACK;
     SqlNode sortOrderId = null;
     SqlNode condition = null;
@@ -1433,22 +1516,40 @@ SqlNode SqlOptimize() :
 {
     <OPTIMIZE> { pos = getPos(); }
     <TABLE> { table = CompoundIdentifier(); }
-    [ <REWRITE> <DATA> { rewriteManifests = SqlLiteral.createBoolean(false, pos); } ]
-    [ <USING> <BIN_PACK> { compactionType = CompactionType.BIN_PACK; } ]
     [
-      <LPAREN>
+      <REWRITE> <MANIFESTS>
       {
-        optionsList = new SqlNodeList(getPos());
-        optionsValueList = new SqlNodeList(getPos());
+        rewriteManifests = SqlLiteral.createBoolean(true, pos);
+        rewriteDataFiles = SqlLiteral.createBoolean(false, pos);
       }
-        ParseOptimizeOptions(optionsList, optionsValueList)
-        (
-            <COMMA>
-            ParseOptimizeOptions(optionsList, optionsValueList)
-        )*
-      <RPAREN>
+    |
+      [
+        <REWRITE> <DATA>
+        {
+          rewriteManifests = SqlLiteral.createBoolean(false, pos);
+          rewriteDataFiles = SqlLiteral.createBoolean(true, pos);
+        }
+      ]
+      [
+        <USING> <BIN_PACK> { compactionType = CompactionType.BIN_PACK; }
+      ]
+      [ <FOR> <PARTITIONS> { condition = Expression(ExprContext.ACCEPT_SUB_QUERY); } ]
+      [
+         <LPAREN>
+         {
+           optionsList = new SqlNodeList(getPos());
+           optionsValueList = new SqlNodeList(getPos());
+         }
+         ParseOptimizeOptions(optionsList, optionsValueList)
+         (
+           <COMMA>
+           ParseOptimizeOptions(optionsList, optionsValueList)
+         )*
+         <RPAREN>
+      ]
+      <EOF>
     ]
-    { return new SqlOptimize(pos, table, rewriteManifests, compactionType, condition, optionsList, optionsValueList); }
+    { return new SqlOptimize(pos, table, rewriteManifests, rewriteDataFiles, compactionType, condition, optionsList, optionsValueList); }
 }
 
 /**
@@ -1547,3 +1648,93 @@ SqlNode SqlOptimize() :
           return new SqlArrayTypeSpec(getPos(), new SqlComplexDataTypeSpec(fType.withNullable(nullable)));
       }
   }
+
+  /**
+   * Parses an EXPLAIN PLAN statement. e.g.
+   * EXPLAIN PLAN FOR
+   * UPDATE targetTable
+   * SET <id> = <exp> [, <id> = <exp> ... ]
+   */
+  SqlNode SqlExplainQueryDML() :
+  {
+      SqlNode stmt;
+      SqlExplainLevel detailLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES;
+      SqlExplain.Depth depth;
+      final SqlExplainFormat format;
+  }
+  {
+      <EXPLAIN> <PLAN>
+      [ detailLevel = ExplainDetailLevel() ]
+      depth = ExplainDepth()
+      (
+          <AS> <XML> { format = SqlExplainFormat.XML; }
+      |
+          <AS> <JSON> { format = SqlExplainFormat.JSON; }
+      |
+          { format = SqlExplainFormat.TEXT; }
+      )
+      <FOR> stmt = SqlQueryOrTableDml() {
+          return new SqlExplain(getPos(),
+              stmt,
+              detailLevel.symbol(SqlParserPos.ZERO),
+              depth.symbol(SqlParserPos.ZERO),
+              format.symbol(SqlParserPos.ZERO),
+              nDynamicParams);
+      }
+  }
+
+  /** Parses a query (SELECT or VALUES)
+   * or DML statement (INSERT, UPDATE, DELETE, MERGE). */
+  SqlNode SqlQueryOrTableDml() :
+  {
+      SqlNode stmt;
+  }
+  {
+      (
+          stmt = SqlInsertTable()
+      |
+          stmt = SqlDeleteFromTable()
+      |
+          stmt = SqlUpdateTable()
+      |
+          stmt = SqlMergeIntoTable()
+      |
+          stmt = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
+      ) { return stmt; }
+  }
+
+/**
+ * CREATE FOLDER [ IF NOT EXISTS ] [source.]parentFolderName[.childFolder]
+ * [ AT ( REF[ERENCE) | BRANCH | TAG | COMMIT ) refValue ]
+ */
+SqlNode SqlCreateFolder() :
+{
+  SqlParserPos pos;
+  SqlLiteral ifNotExists = SqlLiteral.createBoolean(false, SqlParserPos.ZERO);
+  SqlIdentifier folderName;
+  ReferenceType refType = null;
+  SqlIdentifier refValue = null;
+}
+{
+  <CREATE> { pos = getPos(); }
+  <FOLDER>
+  [ <IF> <NOT> <EXISTS> { ifNotExists = SqlLiteral.createBoolean(true, SqlParserPos.ZERO); } ]
+  folderName = CompoundIdentifier()
+  [
+    <AT>
+    (
+      <REF> { refType = ReferenceType.REFERENCE; }
+      |
+      <REFERENCE> { refType = ReferenceType.REFERENCE; }
+      |
+      <BRANCH> { refType = ReferenceType.BRANCH; }
+      |
+      <TAG> { refType = ReferenceType.TAG; }
+      |
+      <COMMIT> { refType = ReferenceType.COMMIT; }
+    )
+    { refValue = SimpleIdentifier(); }
+  ]
+  { return new SqlCreateFolder(pos, ifNotExists, folderName, refType, refValue); }
+}
+

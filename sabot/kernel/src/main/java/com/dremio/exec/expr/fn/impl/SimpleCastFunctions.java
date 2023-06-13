@@ -41,10 +41,12 @@ public class SimpleCastFunctions {
     @Output BitHolder out;
     @Inject FunctionErrorContext errCtx;
 
+    @Override
     public void setup() {
 
     }
 
+    @Override
     public void eval() {
       byte[] buf = new byte[in.end - in.start];
       in.buffer.getBytes(in.start, buf, 0, in.end - in.start);
@@ -69,8 +71,10 @@ public class SimpleCastFunctions {
     @Output VarCharHolder out;
     @Inject ArrowBuf buffer;
 
+    @Override
     public void setup() {}
 
+    @Override
     public void eval() {
       byte[] outB = in.value == 1 ? com.dremio.exec.expr.fn.impl.SimpleCastFunctions.TRUE : com.dremio.exec.expr.fn.impl.SimpleCastFunctions.FALSE;
       buffer.setBytes(0, outB);

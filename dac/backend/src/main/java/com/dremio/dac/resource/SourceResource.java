@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 package com.dremio.dac.resource;
+
 import java.io.IOException;
 import java.security.AccessControlException;
 import java.util.Arrays;
@@ -39,17 +40,14 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
-import com.dremio.dac.explore.DatasetsResource;
 import com.dremio.dac.explore.QueryExecutor;
 import com.dremio.dac.explore.model.FileFormatUI;
-import com.dremio.dac.explore.model.InitialPreviewResponse;
 import com.dremio.dac.model.common.NamespacePath;
 import com.dremio.dac.model.folder.Folder;
 import com.dremio.dac.model.folder.FolderName;
 import com.dremio.dac.model.folder.SourceFolderPath;
 import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.model.sources.FormatTools;
-import com.dremio.dac.model.sources.PhysicalDataset;
 import com.dremio.dac.model.sources.PhysicalDatasetPath;
 import com.dremio.dac.model.sources.SourceName;
 import com.dremio.dac.model.sources.SourcePath;
@@ -57,9 +55,6 @@ import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.server.BufferAllocatorFactory;
 import com.dremio.dac.server.GenericErrorMessage;
 import com.dremio.dac.service.errors.ClientErrorException;
-import com.dremio.dac.service.errors.DatasetNotFoundException;
-import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
-import com.dremio.dac.service.errors.NewDatasetQueryException;
 import com.dremio.dac.service.errors.PhysicalDatasetNotFoundException;
 import com.dremio.dac.service.errors.SourceFileNotFoundException;
 import com.dremio.dac.service.errors.SourceFolderNotFoundException;
@@ -82,6 +77,7 @@ import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.file.FileFormat;
+import com.dremio.service.namespace.file.proto.UnknownFileConfig;
 import com.dremio.service.namespace.physicaldataset.proto.PhysicalDatasetConfig;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.reflection.ReflectionAdministrationService;
@@ -102,8 +98,7 @@ public class SourceResource extends BaseResourceWithAllocator {
   private final SourceName sourceName;
   private final SecurityContext securityContext;
   private final SourcePath sourcePath;
-  private final DatasetsResource datasetsResource;
-  private final ConnectionReader cReader;
+  private final ConnectionReader connectionReader;
   private final SourceCatalog sourceCatalog;
   private final FormatTools formatTools;
   private final ContextService context;
@@ -116,8 +111,7 @@ public class SourceResource extends BaseResourceWithAllocator {
       @PathParam("sourceName") SourceName sourceName,
       QueryExecutor executor,
       SecurityContext securityContext,
-      DatasetsResource datasetsResource,
-      ConnectionReader cReader,
+      ConnectionReader connectionReader,
       SourceCatalog sourceCatalog,
       FormatTools formatTools,
       ContextService context,
@@ -129,17 +123,16 @@ public class SourceResource extends BaseResourceWithAllocator {
     this.sourceService = sourceService;
     this.sourceName = sourceName;
     this.securityContext = securityContext;
-    this.datasetsResource = datasetsResource;
     this.sourcePath = new SourcePath(sourceName);
     this.executor = executor;
-    this.cReader = cReader;
+    this.connectionReader = connectionReader;
     this.sourceCatalog = sourceCatalog;
     this.formatTools = formatTools;
     this.context = context;
   }
 
   protected SourceUI newSource(SourceConfig config) throws Exception {
-    return SourceUI.get(config, cReader);
+    return SourceUI.get(config, connectionReader);
   }
 
   @GET
@@ -150,15 +143,15 @@ public class SourceResource extends BaseResourceWithAllocator {
     @QueryParam("refValue") String refValue)
       throws Exception {
     try {
-      final SourceConfig config = namespaceService.getSource(sourcePath.toNamespaceKey());
+      final SourceConfig sourceConfig = namespaceService.getSource(sourcePath.toNamespaceKey());
       final SourceState sourceState = sourceService.getSourceState(sourcePath.getSourceName().getName());
       if (sourceState == null) {
         throw new SourceNotFoundException(sourcePath.getSourceName().getName());
       }
 
-      final BoundedDatasetCount datasetCount = namespaceService.getDatasetCount(new NamespaceKey(config.getName()),
+      final BoundedDatasetCount datasetCount = namespaceService.getDatasetCount(new NamespaceKey(sourceConfig.getName()),
         BoundedDatasetCount.SEARCH_TIME_LIMIT_MS, BoundedDatasetCount.COUNT_LIMIT_TO_STOP_SEARCH);
-      final SourceUI source = newSource(config)
+      final SourceUI source = newSource(sourceConfig)
         .setNumberOfDatasets(datasetCount.getCount());
       source.setDatasetCountBounded(datasetCount.isCountBound() || datasetCount.isTimeBound());
 
@@ -173,7 +166,7 @@ public class SourceResource extends BaseResourceWithAllocator {
         source.setContents(
           sourceService.listSource(
             sourcePath.getSourceName(),
-            namespaceService.getSource(sourcePath.toNamespaceKey()),
+            sourceConfig,
             securityContext.getUserPrincipal().getName(),
             refType,
             refValue));
@@ -256,16 +249,6 @@ public class SourceResource extends BaseResourceWithAllocator {
       refValue);
  }
 
-  @GET
-  @Path("/dataset/{path: .*}")
-  @Produces(MediaType.APPLICATION_JSON)
-  public PhysicalDataset getPhysicalDataset(@PathParam("path") String path)
-      throws SourceNotFoundException, NamespaceException {
-    sourceService.checkSourceExists(sourceName);
-    PhysicalDatasetPath datasetPath = PhysicalDatasetPath.fromURLPath(sourceName, path);
-    return sourceService.getPhysicalDataset(sourceName, datasetPath);
-  }
-
   private boolean useFastPreview() {
     return context.get().getOptionManager().getOption(FormatTools.FAST_PREVIEW);
   }
@@ -276,13 +259,13 @@ public class SourceResource extends BaseResourceWithAllocator {
   public File getFile(@PathParam("path") String path)
       throws SourceNotFoundException, NamespaceException, PhysicalDatasetNotFoundException {
     if (useFastPreview()) {
-      return sourceService.getFileDataset(sourceName, asFilePath(path), null);
+      return sourceService.getFileDataset(asFilePath(path), null);
     }
 
     sourceService.checkSourceExists(sourceName);
 
     final SourceFilePath filePath = SourceFilePath.fromURLPath(sourceName, path);
-    return sourceService.getFileDataset(sourceName, filePath, null);
+    return sourceService.getFileDataset(filePath, null);
   }
 
   /**
@@ -318,7 +301,7 @@ public class SourceResource extends BaseResourceWithAllocator {
     SourceFilePath filePath = SourceFilePath.fromURLPath(sourceName, path);
     FileFormat fileFormat;
     try {
-      final PhysicalDatasetConfig physicalDatasetConfig = sourceService.getFilesystemPhysicalDataset(sourceName, filePath);
+      final PhysicalDatasetConfig physicalDatasetConfig = sourceService.getFilesystemPhysicalDataset(filePath);
       fileFormat = FileFormat.getForFile(physicalDatasetConfig.getFormatSettings());
       fileFormat.setVersion(physicalDatasetConfig.getTag());
     } catch (PhysicalDatasetNotFoundException nfe) {
@@ -334,6 +317,7 @@ public class SourceResource extends BaseResourceWithAllocator {
   @Consumes(MediaType.APPLICATION_JSON)
   public FileFormatUI saveFormatSettings(FileFormat fileFormat, @PathParam("path") String path)
       throws NamespaceException, SourceNotFoundException {
+    checkUnknownFileConfig(fileFormat);
     SourceFilePath filePath = SourceFilePath.fromURLPath(sourceName, path);
     sourceService.checkSourceExists(filePath.getSourceName());
     fileFormat.setFullPath(filePath.toPathList());
@@ -391,7 +375,7 @@ public class SourceResource extends BaseResourceWithAllocator {
     }
 
     try {
-      sourceService.deletePhysicalDataset(sourceName, new PhysicalDatasetPath(filePath), version, CatalogUtil.getDeleteCallback(context.get().getOrphanageFactory().get()));
+        sourceService.deletePhysicalDataset(sourceName, new PhysicalDatasetPath(filePath), version, CatalogUtil.getDeleteCallback(context.get().getOrphanageFactory().get()));
     } catch (ConcurrentModificationException e) {
       throw ResourceUtil.correctBadVersionErrorMessage(e, "file format", path);
     }
@@ -413,7 +397,7 @@ public class SourceResource extends BaseResourceWithAllocator {
 
     FileFormat fileFormat;
     try {
-      final PhysicalDatasetConfig physicalDatasetConfig = sourceService.getFilesystemPhysicalDataset(sourceName, folderPath);
+      final PhysicalDatasetConfig physicalDatasetConfig = sourceService.getFilesystemPhysicalDataset(folderPath);
       fileFormat = FileFormat.getForFolder(physicalDatasetConfig.getFormatSettings());
       fileFormat.setVersion(physicalDatasetConfig.getTag());
     } catch (PhysicalDatasetNotFoundException nfe) {
@@ -428,6 +412,7 @@ public class SourceResource extends BaseResourceWithAllocator {
   @Consumes(MediaType.APPLICATION_JSON)
   public FileFormatUI saveFolderFormat(FileFormat fileFormat, @PathParam("path") String path)
       throws NamespaceException, SourceNotFoundException {
+    checkUnknownFileConfig(fileFormat);
     SourceFolderPath folderPath = SourceFolderPath.fromURLPath(sourceName, path);
     sourceService.checkSourceExists(folderPath.getSourceName());
     fileFormat.setFullPath(folderPath.toPathList());
@@ -460,37 +445,15 @@ public class SourceResource extends BaseResourceWithAllocator {
     }
   }
 
-  @POST
-  @Path("new_untitled_from_file/{path: .*}")
-  @Produces(MediaType.APPLICATION_JSON)
-  @Consumes(MediaType.APPLICATION_JSON)
-  public InitialPreviewResponse createUntitledFromSourceFile(
-      @PathParam("path") String path,
-      @QueryParam("limit") Integer limit)
-    throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
-    return datasetsResource.createUntitledFromSourceFile(sourceName, path, limit);
-  }
-
-  @POST
-  @Path("new_untitled_from_folder/{path: .*}")
-  @Produces(MediaType.APPLICATION_JSON)
-  @Consumes(MediaType.APPLICATION_JSON)
-  public InitialPreviewResponse createUntitledFromSourceFolder(
-      @PathParam("path") String path,
-      @QueryParam("limit") Integer limit)
-    throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
-    return datasetsResource.createUntitledFromSourceFolder(sourceName, path, limit);
-  }
-
-  @POST
-  @Path("new_untitled_from_physical_dataset/{path: .*}")
-  @Produces(MediaType.APPLICATION_JSON)
-  @Consumes(MediaType.APPLICATION_JSON)
-  public InitialPreviewResponse createUntitledFromPhysicalDataset(
-      @PathParam("path") String path,
-      @QueryParam("limit") Integer limit)
-    throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
-    return datasetsResource.createUntitledFromPhysicalDataset(sourceName, path, limit);
+  /**
+   * checks if format was set to UNKNOWN. If so, an error message is sent to the user
+   * @param fileFormat: format configuration set by dropdown table when "save" was pressed
+   * @throws ClientErrorException
+   */
+  private void checkUnknownFileConfig(FileFormat fileFormat) throws ClientErrorException {
+    if (fileFormat instanceof UnknownFileConfig) {
+      throw new ClientErrorException(GenericErrorMessage.UNKNOWN_FORMAT_MSG);
+    }
   }
 
 }

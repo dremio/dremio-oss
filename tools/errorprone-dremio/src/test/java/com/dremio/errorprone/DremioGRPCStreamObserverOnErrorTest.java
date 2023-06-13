@@ -32,36 +32,36 @@ public class DremioGRPCStreamObserverOnErrorTest {
     helper
         .addSourceLines(
             "Test.java",
-            "import io.grpc.Status;\n"
-                + "import io.grpc.StatusException;\n"
-                + "import io.grpc.StatusRuntimeException;\n"
-                + "import io.grpc.stub.StreamObserver;\n"
-                + "\n"
-                + "public class Test {\n"
-                + "    private static class DummyStreamObserver implements StreamObserver<String> {\n"
-                + "        private StreamObserver<String> delegate;\n"
-                + "\n"
-                + "        public void onError(Throwable throwable) {\n"
-                + "            delegate.onError(throwable);\n"
-                + "        }\n"
-                + "\n"
-                + "        public void onNext(String str) {}\n"
-                + "        public void onCompleted() {}\n"
-                + "    }\n"
-                + "\n"
-                + "    void someMethod(Throwable t) {\n"
-                + "        DummyStreamObserver obs = new DummyStreamObserver();\n"
-                + "\n"
-                + "        obs.onError(new StatusException(Status.UNAVAILABLE));\n"
-                + "        obs.onError(new StatusRuntimeException(Status.NOT_FOUND));\n"
-                + "\n"
-                + "        // BUG: Diagnostic contains: StreamObserver.onError must be called with io.grpc.Status(Runtime)Exception, but it was: java.lang.Throwable\n"
-                + "        obs.onError(t);\n"
-                + "\n"
-                + "        // BUG: Diagnostic contains: StreamObserver.onError must be called with io.grpc.Status(Runtime)Exception, but it was: java.lang.RuntimeException\n"
-                + "        obs.onError(new RuntimeException());\n"
-                + "    }\n"
-                + "}")
+            "import io.grpc.Status;",
+            "import io.grpc.StatusException;",
+            "import io.grpc.StatusRuntimeException;",
+            "import io.grpc.stub.StreamObserver;",
+            "",
+            "public class Test {",
+            "    private static class DummyStreamObserver implements StreamObserver<String> {",
+            "        private StreamObserver<String> delegate;",
+            "",
+            "        public void onError(Throwable throwable) {",
+            "            delegate.onError(throwable);",
+            "        }",
+            "",
+            "        public void onNext(String str) {}",
+            "        public void onCompleted() {}",
+            "    }",
+            "",
+            "    void someMethod(Throwable t) {",
+            "        DummyStreamObserver obs = new DummyStreamObserver();",
+            "",
+            "        obs.onError(new StatusException(Status.UNAVAILABLE));",
+            "        obs.onError(new StatusRuntimeException(Status.NOT_FOUND));",
+            "",
+            "        // BUG: Diagnostic contains: StreamObserver.onError must be called with io.grpc.Status(Runtime)Exception, but it was: java.lang.Throwable",
+            "        obs.onError(t);",
+            "",
+            "        // BUG: Diagnostic contains: StreamObserver.onError must be called with io.grpc.Status(Runtime)Exception, but it was: java.lang.RuntimeException",
+            "        obs.onError(new RuntimeException());",
+            "    }",
+            "}")
         .doTest();
   }
 }

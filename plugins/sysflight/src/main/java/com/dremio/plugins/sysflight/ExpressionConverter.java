@@ -172,16 +172,15 @@ public final class ExpressionConverter {
       switch(operands.size()) {
 
         case 3:
-
           RexNode op3 = operands.get(2);
           if(op3 instanceof RexLiteral) {
             escape = ((RexLiteral) op3).getValue3().toString();
           } else {
             return null;
           }
+          // fall through
 
         case 2:
-
           RexNode op1 = operands.get(0);
           if(op1 instanceof RexInputRef) {
             RexInputRef input = ((RexInputRef) op1);
@@ -196,7 +195,6 @@ public final class ExpressionConverter {
           } else {
             return null;
           }
-
           break;
 
         default:

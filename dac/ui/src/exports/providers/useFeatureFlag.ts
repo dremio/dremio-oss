@@ -27,13 +27,14 @@ export const useFeatureFlag = (
   flag: Flag
 ): [result: boolean | null, loading: boolean] => {
   const [features] = useResourceSnapshot(FeaturesFlagsResource);
-  const isOSS = !getSonarContext()?.getSelectedProjectId;
+  const skipFetch = !getSonarContext()?.getSelectedProjectId;
 
   useEffect(() => {
+    if (skipFetch) return;
     loadFeatureFlags(flag);
-  }, [flag]);
+  }, [flag, skipFetch]);
 
-  if (isOSS) return [false, false];
+  if (skipFetch) return [false, false];
 
   const flags = Array.isArray(flag) ? flag : [flag];
 

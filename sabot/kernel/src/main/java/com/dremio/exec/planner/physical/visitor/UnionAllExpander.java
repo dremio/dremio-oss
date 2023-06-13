@@ -124,7 +124,7 @@ public final class UnionAllExpander extends BasePrelVisitor<Prel, Void, IOExcept
         try {
           UnionChild newInput = pq.poll();
           Prel newRight = addRoundRobin(newInput.relNode);
-          currentRel = new UnionAllPrel(prel.getCluster(), prel.getTraitSet(), ImmutableList.of(currentRel, newRight), false);
+          currentRel = new UnionAllPrel(prel.getCluster(), prel.getTraitSet().replace(DistributionTrait.ANY), ImmutableList.of(currentRel, newRight), false);
         } catch (InvalidRelException ex) {
           // This exception should not be thrown as we already checked compatibility
           logger.warn("Failed to expand unionAll as inputs are not compatible", ex);
@@ -148,7 +148,8 @@ public final class UnionAllExpander extends BasePrelVisitor<Prel, Void, IOExcept
           } else {
             currentWidth = Math.min(currentWidth, newWidth);
           }
-          currentRel = new UnionAllPrel(prel.getCluster(), prel.getTraitSet(), ImmutableList.of(currentRel, newRight), false);
+          //the DistributionTrait.ANY doesn't solve single thread problem. Need revisit (see DX-64339)
+          currentRel = new UnionAllPrel(prel.getCluster(), prel.getTraitSet().replace(DistributionTrait.ANY), ImmutableList.of(currentRel, newRight), false);
         } catch (InvalidRelException ex) {
           // This exception should not be thrown as we already checked compatibility
           logger.warn("Failed to expand unionAll as inputs are not compatible", ex);

@@ -22,6 +22,8 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.TableVersionContext;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.sql.handlers.RelTransformer;
 import com.dremio.service.namespace.NamespaceKey;
@@ -78,8 +80,9 @@ public class AccelerationAwareSubstitutionProvider implements SubstitutionProvid
   }
 
   @Override
-  public RelNode wrapExpansionNode(NamespaceKey path, final RelNode query, List<String> vdsFields, RelDataType rowType, boolean contextSensitive) {
-    return delegate.wrapExpansionNode(path, query, vdsFields, rowType, contextSensitive);
+  public RelNode wrapExpansionNode(NamespaceKey path, final RelNode query, List<String> vdsFields, RelDataType rowType,
+                                   boolean contextSensitive, TableVersionContext versionContext, Catalog catalog) {
+    return delegate.wrapExpansionNode(path, query, vdsFields, rowType, contextSensitive, versionContext, catalog);
   }
 
   @Override

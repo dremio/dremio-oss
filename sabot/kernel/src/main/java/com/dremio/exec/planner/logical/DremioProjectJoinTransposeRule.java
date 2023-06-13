@@ -49,6 +49,7 @@ public class DremioProjectJoinTransposeRule extends RelOptRule {
     this.preserveExprCondition = preserveExprCondition;
   }
 
+  @Override
   public void onMatch(final RelOptRuleCall call) {
     Project origProj = (Project)call.rel(0);
     Join join = (Join)call.rel(1);
@@ -56,6 +57,7 @@ public class DremioProjectJoinTransposeRule extends RelOptRule {
 
     if (!join.isSemiJoin()) {
       RexNode joinFilter = (RexNode)join.getCondition().accept(new RexShuttle() {
+        @Override
         public RexNode visitCall(RexCall rexCall) {
           RexNode node = super.visitCall(rexCall);
           return (RexNode)(!(node instanceof RexCall) ? node : RelOptUtil.collapseExpandedIsNotDistinctFromExpr((RexCall)node, call.builder().getRexBuilder()));

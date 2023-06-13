@@ -21,6 +21,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
+import java.util.Collections;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -36,8 +37,9 @@ import com.dremio.exec.store.CatalogService;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.reflection.proto.Materialization;
 import com.dremio.service.reflection.proto.MaterializationId;
+import com.dremio.test.DremioTest;
 
-public class TestMaterializationCache {
+public class TestMaterializationCache extends DremioTest {
   @Rule
   public MockitoRule rule = MockitoJUnit.rule().strictness(Strictness.STRICT_STUBS);
 
@@ -49,11 +51,12 @@ public class TestMaterializationCache {
   /**
    * Test in case materialization expansion (deserialization) takes too long time
    * {@code MaterializationCache.update(Materialization m)} does not race with
-   * {@code MaterializationCache.refresh()} and falls into infinite loop.
+   * {@code MaterializationCache.refresh()} and fall into infinite loop.
+   * (test will timeout in such case)
    */
-  @Test (timeout = 10000)
+  @Test
   public void testMaterializationCacheUpdate() throws Exception {
-    MaterializationCache materializationCache = spy(new MaterializationCache(provider, namespaceService, reflectionStatusService, catalogService));
+    MaterializationCache materializationCache = spy(new MaterializationCache(provider, reflectionStatusService, catalogService));
     Materialization m1 = new Materialization();
     Materialization m2 = new Materialization();
     CachedMaterializationDescriptor descriptor = mock(CachedMaterializationDescriptor.class);
@@ -65,39 +68,27 @@ public class TestMaterializationCache {
     // For materializationCache.refresh()
     when(provider.expand(m1)).thenReturn(descriptor);
     when(provider.getValidMaterializations()).thenReturn(Arrays.asList(m1));
-    when(provider.getExternalReflections()).thenReturn(Arrays.asList());
+    when(provider.getExternalReflections()).thenReturn(Collections.emptyList());
 
     // For materializationCache.update(m2);
     when(provider.expand(m2)).thenAnswer(new Answer<CachedMaterializationDescriptor>() {
       @Override
       public CachedMaterializationDescriptor answer(InvocationOnMock invocation) throws InterruptedException {
         // Simulate MaterializationCache.update(Materialization m) takes long time during expansion
-        Thread.sleep(3000);
+        // and during this time the cache entry has been refreshed. Before DX-54194's fix this will
+        // cause MaterializationCache.update(Materialization m) runs into infinite loop.
+        materializationCache.resetCache();
+        materializationCache.refresh();
+        // The sleep here is to avoid exhausting CPU time in case infinite loop happens.
+        try {
+          Thread.sleep(100);
+        } catch (InterruptedException e) {
+        }
         return descriptor;
       }
     });
 
-    Runnable refreshTask = new Runnable() {
-      @Override
-      public void run() {
-        while(true) {
-          materializationCache.resetCache();
-          materializationCache.refresh();
-          try {
-            Thread.sleep(1000);
-          } catch (InterruptedException e) {
-            return;
-          }
-        }
-      }
-    };
-
-    Thread refreshThread = new Thread(refreshTask);
-    refreshThread.start();
-
     materializationCache.update(m2);
     assertThat(materializationCache.get(mId2)).isEqualTo(descriptor);
-
-    refreshThread.interrupt();
   }
 }

@@ -19,16 +19,16 @@ import PropTypes from "prop-types";
 import { Link, withRouter } from "react-router";
 import { FormattedMessage } from "react-intl";
 import { Tooltip } from "dremio-ui-lib";
-import { FeatureSwitch } from "@app/exports/components/FeatureSwitch/FeatureSwitch";
-import { ORGANIZATION_LANDING } from "@app/exports/flags/ORGANIZATION_LANDING";
 import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
-
+import { getSessionContext } from "dremio-ui-common/contexts/SessionContext.js";
 import "./userNavigation.less";
 
 const UserNavigation = (props) => {
   const { location, sections, title, titleObject, navigationSection } = props;
   // urlability
   const loc = rmProjectBase(location.pathname) || "/";
+  const organizationLanding =
+    typeof getSessionContext().getOrganizationId === "function";
   const renderMenuItems = (menuItems) => {
     return menuItems.map((item, i) => {
       const selected = loc === item.url || loc.startsWith(`${item.url}/`);
@@ -119,31 +119,24 @@ const UserNavigation = (props) => {
     <div className="left-menu userNavigation__container" data-qa="left-menu">
       {titleObject ? (
         <div className="userNavigation__title">
-          <FeatureSwitch
-            flag={ORGANIZATION_LANDING}
-            renderEnabled={() => null}
-            renderDisabled={() => (
-              <div className="userNavigation__iconContainer">
-                <Link to={titleObject.url}>
-                  <dremio-icon
-                    name={titleObject.icon}
-                    alt={titleObject.title}
-                    class="userNavigation__title-icon"
-                  />
-                </Link>
-              </div>
-            )}
-          />
+          {!organizationLanding && (
+            <div className="userNavigation__iconContainer">
+              <Link to={titleObject.url}>
+                <dremio-icon
+                  name={titleObject.icon}
+                  alt={titleObject.title}
+                  class="userNavigation__title-icon"
+                />
+              </Link>
+            </div>
+          )}
           <div className="userNavigation__titleContainer">
-            <FeatureSwitch
-              flag={ORGANIZATION_LANDING}
-              renderEnabled={() => null}
-              renderDisabled={() => (
-                <span className="userNavigation__location">
-                  <FormattedMessage id={titleObject.topTitle} />
-                </span>
-              )}
-            />
+            {!organizationLanding && (
+              <span className="userNavigation__location">
+                <FormattedMessage id={titleObject.topTitle} />
+              </span>
+            )}
+
             <Tooltip title={titleObject.title}>
               <p className="text-ellipsis">{titleObject.title}</p>
             </Tooltip>

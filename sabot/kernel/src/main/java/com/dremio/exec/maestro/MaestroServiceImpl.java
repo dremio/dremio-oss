@@ -15,10 +15,10 @@
  */
 package com.dremio.exec.maestro;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
 
 import javax.inject.Provider;
 
@@ -123,7 +123,7 @@ public class MaestroServiceImpl implements MaestroService {
 
   @Override
   public void start() throws Exception {
-    Metrics.newGauge(Metrics.join("maestro", "active"), () -> activeQueryMap.size());
+    Metrics.newGauge(Metrics.join("maestro", "active"), activeQueryMap::size);
 
     execToCoordStatusHandlerImpl = new ExecToCoordStatusHandlerImpl(jobTelemetryClient);
     reader = sabotContext.get().getPlanReader();
@@ -181,6 +181,28 @@ public class MaestroServiceImpl implements MaestroService {
   }
 
   @Override
+  public void interruptExecutionInWaitStates(QueryId queryId, AttemptEvent.State currentStage) {
+    final QueryTracker queryTracker = activeQueryMap.get(queryId);
+    if (queryTracker == null) {
+      return;
+    }
+    switch (currentStage) {
+      case ENGINE_START:
+      case QUEUED:
+        if (logger.isDebugEnabled()) {
+          logger.debug("Interrupting allocation {} {}", QueryIdHelper.getQueryId(queryId), currentStage);
+        }
+        queryTracker.interruptAllocation();
+        break;
+
+      default:
+        // TODO: support interruptions in other interruptible states of query execution within maestro
+        //  as well (future PRs).
+        break;
+    }
+  }
+
+  @Override
   public void cancelQuery(QueryId queryId) {
     QueryTracker queryTracker = activeQueryMap.get(queryId);
     if (queryTracker == null) {
@@ -223,10 +245,7 @@ public class MaestroServiceImpl implements MaestroService {
 
   @Override
   public List<QueryId> getActiveQueryIds() {
-    return activeQueryMap
-      .keySet()
-      .stream()
-      .collect(Collectors.toList());
+    return new ArrayList<>(activeQueryMap.keySet());
   }
 
   /**
@@ -241,12 +260,17 @@ public class MaestroServiceImpl implements MaestroService {
 
     @Override
     public void screenCompleted(NodeQueryScreenCompletion completion) throws RpcException {
-      logger.debug("Screen complete message came in for id {}", QueryIdHelper.getQueryId(completion.getId()));
+      if (logger.isDebugEnabled()) {
+        logger.debug("Screen complete message came in for id {}", QueryIdHelper.getQueryId(completion.getId()));
+      }
       QueryTracker queryTracker = activeQueryMap.get(completion.getId());
 
       if (queryTracker != null) {
-        logger.debug("Received NodeQueryScreenCompletion request for Query {} from {} in {}",
-          QueryIdHelper.getQueryId(completion.getId()), completion.getEndpoint().getAddress(), completion.getForeman().getAddress());
+        if (logger.isDebugEnabled()) {
+          logger.debug("Received NodeQueryScreenCompletion request for Query {} from {} in {}",
+            QueryIdHelper.getQueryId(completion.getId()), completion.getEndpoint().getAddress(),
+            completion.getForeman().getAddress());
+        }
         queryTracker.screenCompleted(completion);
 
       } else {
@@ -256,13 +280,19 @@ public class MaestroServiceImpl implements MaestroService {
 
     @Override
     public void nodeQueryCompleted(NodeQueryCompletion completion) throws RpcException {
-      logger.debug("Node query complete message came in for id {}", QueryIdHelper.getQueryId(completion.getId()));
+      if (logger.isDebugEnabled()) {
+        logger.debug("Node query complete message came in for id {}",
+          QueryIdHelper.getQueryId(completion.getId()));
+      }
       updateFinalExecutorProfile(completion);
       QueryTracker queryTracker = activeQueryMap.get(completion.getId());
 
       if (queryTracker != null) {
-        logger.debug("Received NodeQueryCompletion request for Query {} from {} in {}",
-          QueryIdHelper.getQueryId(completion.getId()), completion.getEndpoint().getAddress(), completion.getForeman().getAddress());
+        if (logger.isDebugEnabled()) {
+          logger.debug("Received NodeQueryCompletion request for Query {} from {} in {}",
+            QueryIdHelper.getQueryId(completion.getId()), completion.getEndpoint().getAddress(),
+            completion.getForeman().getAddress());
+        }
         queryTracker.nodeCompleted(completion);
 
       } else {
@@ -293,12 +323,17 @@ public class MaestroServiceImpl implements MaestroService {
 
     @Override
     public void nodeQueryMarkFirstError(NodeQueryFirstError error) throws RpcException {
-      logger.debug("Node Query error came in for id {} ", QueryIdHelper.getQueryId(error.getHandle().getQueryId()));
+      if (logger.isDebugEnabled()) {
+        logger.debug("Node Query error came in for id {} ", QueryIdHelper.getQueryId(error.getHandle().getQueryId()));
+      }
       QueryTracker queryTracker = activeQueryMap.get(error.getHandle().getQueryId());
 
       if (queryTracker != null) {
-        logger.debug("Received NodeQueryFirstError request for Query {} from {} in {}",
-          QueryIdHelper.getQueryId(error.getHandle().getQueryId()), error.getEndpoint().getAddress(), error.getForeman().getAddress());
+        if (logger.isDebugEnabled()) {
+          logger.debug("Received NodeQueryFirstError request for Query {} from {} in {}",
+            QueryIdHelper.getQueryId(error.getHandle().getQueryId()), error.getEndpoint().getAddress(),
+            error.getForeman().getAddress());
+        }
         queryTracker.nodeMarkFirstError(error);
 
       } else {

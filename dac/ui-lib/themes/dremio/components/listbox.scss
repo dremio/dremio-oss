@@ -1,0 +1,54 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use "../../utilities/bg";
+@use "../../utilities/flex";
+@use "../../utilities/gap";
+@use "../../utilities/padding";
+
+.listbox > * {
+  @extend .flex;
+  @extend .gap-4;
+  @extend .items-center;
+  @extend .p-1;
+
+  &.listbox-item--active,
+  &[aria-selected="true"] {
+    @extend .bg-brand-50;
+  }
+
+  &.listbox-item--active[aria-selected="true"] {
+    @extend .bg-brand-100;
+  }
+}
+
+.dremio-dark .listbox {
+  > * {
+    background: lch(18% 7 242);
+    color: lch(95% 2 252);
+
+    &.listbox-item--active,
+    &[aria-selected="true"] {
+      background: lch(30% 12 242);
+      color: lch(95% 2 252);
+    }
+
+    &.listbox-item--active[aria-selected="true"] {
+      background: lch(38% 15 242);
+      color: lch(95% 2 252);
+    }
+  }
+}

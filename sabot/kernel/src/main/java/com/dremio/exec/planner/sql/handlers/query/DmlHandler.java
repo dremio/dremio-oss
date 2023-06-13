@@ -26,6 +26,8 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUtil;
+import com.dremio.exec.catalog.ResolvedVersionContext;
+import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.logical.CreateTableEntry;
@@ -37,6 +39,7 @@ import com.dremio.exec.planner.sql.handlers.ConvertedRelNode;
 import com.dremio.exec.planner.sql.handlers.PrelTransformer;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
+import com.dremio.exec.planner.sql.handlers.ViewAccessEvaluator;
 import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
 import com.dremio.exec.planner.sql.parser.SqlDmlOperator;
 import com.dremio.exec.store.iceberg.IcebergUtils;
@@ -56,44 +59,58 @@ public abstract class DmlHandler extends TableManagementHandler {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DmlHandler.class);
 
+  private String textPlan;
+  private Rel drel;
+  private Prel prel;
+
   @Override
   void checkValidations(Catalog catalog, SqlHandlerConfig config, NamespaceKey path, SqlNode sqlNode) throws Exception {
     validateDmlRequest(catalog, config, path, getSqlOperator());
     validatePrivileges(catalog, path, sqlNode);
   }
 
+  @VisibleForTesting
   @Override
-  protected PhysicalPlan getPlan(Catalog catalog, SqlHandlerConfig config, String sql, SqlNode sqlNode, NamespaceKey path) throws Exception {
+  public PhysicalPlan getPlan(Catalog catalog, SqlHandlerConfig config, String sql, SqlNode sqlNode, NamespaceKey path) throws Exception {
     try {
-      final Prel prel = getNonPhysicalPlan(catalog, config, sqlNode, path);
-      final PhysicalOperator pop = PrelTransformer.convertToPop(config, prel);
-      Runnable committer = !CatalogUtil.requestedPluginSupportsVersionedTables(path, catalog)
-        ? () -> refreshDataset(catalog, path, false)
-        : null;
-      // cleaner will call refreshDataset to avoid the issues like DX-49928
-      Runnable cleaner = committer;
-      // Metadata for non-versioned plugins happens via this call back. For versioned tables (currently
-      // only applies to Nessie), the metadata update happens during the operation within NessieClientImpl).
-      return PrelTransformer.convertToPlan(config, pop, committer, cleaner);
+      // Extends sqlNode's DML target table with system columns (e.g., file_name and row_index)
+      SqlDmlOperator sqlDmlOperator = SqlNodeUtil.unwrap(sqlNode, SqlDmlOperator.class);
+      sqlDmlOperator.extendTableWithDataFileSystemColumns();
+
+      final ConvertedRelNode convertedRelNode = PrelTransformer.validateAndConvert(config, sqlNode);
+      try (ViewAccessEvaluator ignored = ViewAccessEvaluator.createAsyncEvaluator(config, convertedRelNode)) {
+
+        final RelNode relNode = convertedRelNode.getConvertedNode();
+
+        drel = convertToDrel(config, sqlNode, path, catalog, relNode);
+        final Pair<Prel, String> prelAndTextPlan = PrelTransformer.convertToPrel(config, drel);
+
+        textPlan = prelAndTextPlan.getValue();
+        prel = prelAndTextPlan.getKey();
+
+        final PhysicalOperator pop = PrelTransformer.convertToPop(config, prel);
+        final String sourceName = path.getRoot();
+        final VersionContext sessionVersion = config.getContext().getSession().getSessionVersionForSource(sourceName);
+        final ResolvedVersionContext version = CatalogUtil.resolveVersionContext(catalog, sourceName, sessionVersion);
+        CatalogUtil.validateResolvedVersionIsBranch(version);
+        Runnable committer = !CatalogUtil.requestedPluginSupportsVersionedTables(path, catalog)
+          ? () -> refreshDataset(catalog, path, false)
+          : null;
+        // cleaner will call refreshDataset to avoid the issues like DX-49928
+        Runnable cleaner = committer;
+        // Metadata for non-versioned plugins happens via this call back. For versioned tables (currently
+        // only applies to Nessie), the metadata update happens during the operation within NessieClientImpl).
+        return PrelTransformer.convertToPlan(config, pop, committer, cleaner);
+      }
     } catch (Exception e) {
       throw SqlExceptionHelper.coerceException(logger, sql, e, true);
     }
   }
 
   @VisibleForTesting
-  public Prel getNonPhysicalPlan(Catalog catalog, SqlHandlerConfig config, SqlNode sqlNode, NamespaceKey path) throws Exception{
-    // Extends sqlNode's DML target table with system columns (e.g., file_name and row_index)
-    SqlDmlOperator sqlDmlOperator = SqlNodeUtil.unwrap(sqlNode, SqlDmlOperator.class);
-    sqlDmlOperator.extendTableWithDataFileSystemColumns();
-
-    final ConvertedRelNode convertedRelNode = PrelTransformer.validateAndConvert(config, sqlNode);
-
-    final RelNode relNode = convertedRelNode.getConvertedNode();
-
-    final Rel drel = convertToDrel(config, sqlNode, path, catalog, relNode);
-    final Pair<Prel, String> prelAndTextPlan = PrelTransformer.convertToPrel(config, drel);
-
-    return prelAndTextPlan.getKey();
+  public Prel getPrel()
+  {
+    return prel;
   }
 
   @VisibleForTesting
@@ -112,7 +129,7 @@ public abstract class DmlHandler extends TableManagementHandler {
   protected Rel convertToDrel(SqlHandlerConfig config, SqlNode sqlNode, NamespaceKey path, Catalog catalog, RelNode relNode) throws Exception {
     // Allow TableModifyCrel to access CreateTableEntry that can only be created now.
     CreateTableEntry createTableEntry = IcebergUtils.getIcebergCreateTableEntry(config, catalog,
-      catalog.getTable(path), getSqlOperator().getKind(), null);
+      catalog.getTable(path), getSqlOperator(), null);
     Rel convertedRelNode = PrelTransformer.convertToDrel(config, rewriteCrel(relNode, createTableEntry));
 
     // below is for results to be returned to client - delete/update/merge operation summary output
@@ -122,7 +139,13 @@ public abstract class DmlHandler extends TableManagementHandler {
     return new ScreenRel(convertedRelNode.getCluster(), convertedRelNode.getTraitSet(), convertedRelNode);
   }
 
+  @Override
+  public String getTextPlan() {
+    return textPlan;
+  }
 
-
-
+  @Override
+  public Rel getLogicalPlan() {
+    return drel;
+  }
 }

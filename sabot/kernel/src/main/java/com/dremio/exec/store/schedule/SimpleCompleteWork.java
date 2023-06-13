@@ -39,6 +39,7 @@ public class SimpleCompleteWork implements CompleteWork {
     return size;
   }
 
+  @Override
   public List<EndpointAffinity> getAffinity() {
     return affinity;
   }

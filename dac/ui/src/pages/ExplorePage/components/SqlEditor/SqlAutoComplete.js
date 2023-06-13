@@ -103,14 +103,7 @@ export class SqlAutoComplete extends Component {
       manuallyEnableAutocomplete: false,
       tooltipHover: false,
       showContextTooltip: false,
-      keyboardShortcuts: {
-        // Default to Windows commands
-        run: "CTRL + Shift + Enter",
-        preview: "CTRL + Enter",
-        comment: "CTRL + /",
-        find: "CTRL + F",
-        autocomplete: "CTRL + Space",
-      },
+      os: "windows",
     };
   }
 
@@ -118,9 +111,12 @@ export class SqlAutoComplete extends Component {
     //  fetch supportFlags only if its not enterprise edition
     const isEnterpriseFlag = isEnterprise && isEnterprise();
     const isCommunityFlag = isCommunity && isCommunity();
-    if (!(isEnterpriseFlag || isCommunityFlag)) {
-      this.props.fetchSupportFlags &&
-        this.props.fetchSupportFlags("ui.autocomplete.allow");
+    if (
+      !(isEnterpriseFlag || isCommunityFlag) &&
+      this.props.fetchSupportFlags
+    ) {
+      this.props.fetchSupportFlags("ui.autocomplete.allow");
+      this.props.fetchSupportFlags("ui.formatter.allow");
     }
     this.getUserOperatingSystem();
   }
@@ -164,6 +160,22 @@ export class SqlAutoComplete extends Component {
     }
   }
 
+  isFormatterEnabled() {
+    // reset this when it is rest at the project settings level
+    const isEnterpriseFlag = isEnterprise && isEnterprise();
+    const isCommunityFlag = isCommunity && isCommunity();
+
+    let formatterEnabled = false;
+
+    if (!(isEnterpriseFlag || isCommunityFlag) && this.props.supportFlags) {
+      formatterEnabled = this.props.supportFlags["ui.formatter.allow"];
+    } else if (isEnterpriseFlag || isCommunityFlag) {
+      formatterEnabled = config.allowFormatting;
+    }
+
+    return formatterEnabled;
+  }
+
   handleDrop = ({ id, args }) => {
     // because we move the cursor as we drag around, we can simply insert at the current position in the editor (default)
 
@@ -183,6 +195,27 @@ export class SqlAutoComplete extends Component {
 
   getMonaco() {
     return this.sqlAutoCompleteRef.monaco;
+  }
+
+  getKeyboardShortcuts() {
+    const isFormatterEnabled = this.isFormatterEnabled();
+    return this.state.os === "windows"
+      ? {
+          run: "CTRL + Shift + Enter",
+          preview: "CTRL + Enter",
+          comment: "CTRL + /",
+          find: "CTRL + F",
+          autocomplete: "CTRL + Space",
+          ...(isFormatterEnabled ? { format: "CTRL + Shift + F" } : {}),
+        }
+      : {
+          run: "⌘⇧↵",
+          preview: "⌘↵",
+          comment: "⌘/",
+          find: "⌘F",
+          autocomplete: "⌃ Space",
+          ...(isFormatterEnabled ? { format: "⌘⇧F" } : {}),
+        };
   }
 
   handleDragOver = (evt) => {
@@ -240,7 +273,7 @@ export class SqlAutoComplete extends Component {
     ranges = this.getMonacoEditorInstance().getSelections()
   ) {
     const hasArgs = args && args.length;
-    let text = name;
+    const text = name;
 
     if (!hasArgs) {
       // simple insert/replace
@@ -308,16 +341,12 @@ export class SqlAutoComplete extends Component {
     }
 
     // do snippet-style insertion last so that the selection ends up with token selection
+    // args comes in correct format from BE
     if (emptySelections.length) {
-      let i = 1; // starts with 1: https://code.visualstudio.com/docs/editor/userdefinedsnippets
-      text += args
-        .replace(/\[.*?\] /g, "")
-        .replace(/\{(.*?)\}/g, (m, p1) => `\${${i++}:${p1}}`);
-
       // insertSnippet only works with the current selection, so move the selection to the input range
       this.getMonacoEditorInstance().setSelections(emptySelections);
       this.sqlAutoCompleteRef.insertSnippet(
-        text,
+        text + args,
         undefined,
         undefined,
         false,
@@ -368,6 +397,7 @@ export class SqlAutoComplete extends Component {
         hide={this.hideSelectContextModal}
         size="small"
         title={la("Select Context")}
+        modalHeight="600px"
       >
         <SelectContextForm
           onFormSubmit={this.updateContext}
@@ -516,14 +546,7 @@ export class SqlAutoComplete extends Component {
   getUserOperatingSystem() {
     if (navigator.userAgent.indexOf("Mac OS X") !== -1) {
       this.setState({
-        keyboardShortcuts: {
-          run: "⌘⇧↵",
-          preview: "⌘↵",
-          comment: "⌘/",
-          find: "⌘F",
-          autocomplete: "⌃ Space",
-          ...(config.allowFormatting ? { format: "⌘⇧F" } : {}),
-        },
+        os: "mac",
       });
     }
   }
@@ -548,6 +571,9 @@ export class SqlAutoComplete extends Component {
       ? { width: this.props.editorWidth }
       : styles.SidebarEditorWidth;
 
+    const keyboardShortcuts = this.getKeyboardShortcuts();
+    const isFormatterEnabled = this.isFormatterEnabled();
+
     return (
       <DragTarget
         dragType={this.props.dragType}
@@ -567,7 +593,7 @@ export class SqlAutoComplete extends Component {
             ...(this.props.style || {}),
           }}
         >
-          <div className="sqlAutocomplete__actions">
+          <div className="sqlAutocomplete__actions text-sm">
             {this.renderSelectContextModal()}
             {query.type !== "transform" && this.renderContext()}
             {query.type !== "transform" && this.renderReferencePicker()}
@@ -639,28 +665,32 @@ export class SqlAutoComplete extends Component {
                 <ul className="tooltip-content__list">
                   <li>
                     <FormattedMessage id="Common.Run" />
-                    <span>{this.state.keyboardShortcuts.run}</span>
+                    <span>{keyboardShortcuts.run}</span>
                   </li>
                   <li>
                     <FormattedMessage id="Common.Preview" />
-                    <span>{this.state.keyboardShortcuts.preview}</span>
+                    <span>{keyboardShortcuts.preview}</span>
                   </li>
                   <li>
                     <FormattedMessage id="KeyboardShortcuts.Comment" />
-                    <span>{this.state.keyboardShortcuts.comment}</span>
+                    <span>{keyboardShortcuts.comment}</span>
                   </li>
                   <li>
                     <FormattedMessage id="KeyboardShortcuts.Find" />
-                    <span>{this.state.keyboardShortcuts.find}</span>
+                    <span>{keyboardShortcuts.find}</span>
                   </li>
-                  <li>
-                    <FormattedMessage id="KeyboardShortcuts.Autocomplete" />
-                    <span>{this.state.keyboardShortcuts.autocomplete}</span>
-                  </li>
-                  {config.allowFormatting ? (
+                  {this.state.isAutocomplete ? (
+                    <li>
+                      <FormattedMessage id="KeyboardShortcuts.Autocomplete" />
+                      <span>{keyboardShortcuts.autocomplete}</span>
+                    </li>
+                  ) : (
+                    <></>
+                  )}
+                  {isFormatterEnabled ? (
                     <li>
                       <FormattedMessage id="SQL.Format" />
-                      <span>{this.state.keyboardShortcuts.format}</span>
+                      <span>{keyboardShortcuts.format}</span>
                     </li>
                   ) : (
                     <></>
@@ -677,6 +707,7 @@ export class SqlAutoComplete extends Component {
             onChange={this.handleChange}
             errors={errors}
             autoCompleteEnabled={this.state.isAutocomplete}
+            formatterEnabled={isFormatterEnabled}
             sqlContext={context}
             customTheme
             theme={this.state.isContrast ? "vs-dark" : "vs"}

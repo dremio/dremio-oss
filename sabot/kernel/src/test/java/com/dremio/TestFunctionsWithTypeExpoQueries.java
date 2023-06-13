@@ -464,6 +464,7 @@ public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
         .run();
   }
 
+  @SuppressWarnings("checkstyle:LocalFinalVariableName")
   @Test
   public void testWindowRanking() throws Exception {
     final String queryCUME_DIST = "select CUME_DIST() over(order by n_nationkey) as col \n" +

@@ -32,7 +32,6 @@ public class DmlQueryOnHiveTestBase extends LazyDataGeneratingHiveTestBase {
   @BeforeClass
   public static void beforeClass() throws Exception {
     setSystemOption(ExecConstants.ENABLE_ICEBERG_ADVANCED_DML, "true");
-    setSystemOption(ExecConstants.ENABLE_ICEBERG_OPTIMIZE, "true");
     setSystemOption(ExecConstants.ENABLE_ICEBERG_VACUUM, "true");
 
     dataGenerator.updatePluginConfig((getSabotContext().getCatalogService()),
@@ -44,8 +43,6 @@ public class DmlQueryOnHiveTestBase extends LazyDataGeneratingHiveTestBase {
   public static void afterClass() {
     setSystemOption(ExecConstants.ENABLE_ICEBERG_ADVANCED_DML,
       ExecConstants.ENABLE_ICEBERG_ADVANCED_DML.getDefault().getBoolVal().toString());
-    setSystemOption(ExecConstants.ENABLE_ICEBERG_OPTIMIZE,
-      ExecConstants.ENABLE_ICEBERG_OPTIMIZE.getDefault().getBoolVal().toString());
     setSystemOption(ExecConstants.ENABLE_ICEBERG_VACUUM,
       ExecConstants.ENABLE_ICEBERG_VACUUM.getDefault().getBoolVal().toString());
   }

@@ -27,6 +27,8 @@ import org.apache.calcite.rel.RelNode;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
+import com.dremio.common.utils.protos.AttemptId;
+import com.dremio.common.utils.protos.AttemptIdUtils;
 import com.dremio.exec.planner.acceleration.MaterializationExpander;
 import com.dremio.exec.planner.acceleration.StrippingFactory;
 import com.dremio.exec.planner.acceleration.UpdateIdWrapper;
@@ -47,7 +49,6 @@ import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.JoinAnalyzer;
 import com.dremio.service.namespace.NamespaceException;
-import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.RefreshMethod;
 import com.dremio.service.reflection.DependencyGraph.DependencyException;
 import com.dremio.service.reflection.DependencyManager;
@@ -81,7 +82,6 @@ public class RefreshDoneHandler {
   protected static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RefreshDoneHandler.class);
 
   private final DependencyManager dependencyManager;
-  private final NamespaceService namespaceService;
   private final MaterializationStore materializationStore;
   private final Supplier<ExpansionHelper> expansionHelper;
   private final Path accelerationBasePath;
@@ -99,7 +99,6 @@ public class RefreshDoneHandler {
     Materialization materialization,
     com.dremio.service.job.JobDetails job,
     JobsService jobsService,
-    NamespaceService namespaceService,
     MaterializationStore materializationStore,
     DependencyManager dependencyManager,
     Supplier<ExpansionHelper> expansionHelper,
@@ -111,7 +110,6 @@ public class RefreshDoneHandler {
     this.materialization = Preconditions.checkNotNull(materialization, "materialization required");
     this.job = Preconditions.checkNotNull(job, "jobDetails required");
     this.jobsService = Preconditions.checkNotNull(jobsService, "jobsService required");
-    this.namespaceService = Preconditions.checkNotNull(namespaceService, "namespace service required");
     this.dependencyManager = Preconditions.checkNotNull(dependencyManager, "dependencies required");
     this.materializationStore = materializationStore;
     this.expansionHelper = Preconditions.checkNotNull(expansionHelper, "expansion helper required");
@@ -138,14 +136,16 @@ public class RefreshDoneHandler {
     final ByteString planBytes = Preconditions.checkNotNull(decision.getLogicalPlan(),
       "refresh jobInfo has no logical plan");
 
-    updateDependencies(reflection, lastAttempt.getInfo(), decision, namespaceService, dependencyManager);
+    updateDependencies(reflection, lastAttempt.getInfo(), decision, dependencyManager);
 
     failIfNotEnoughRefreshesAvailable(decision);
 
     final JobDetails details = ReflectionUtils.computeJobDetails(lastAttempt);
-    final boolean dataWritten = Optional.ofNullable(details.getOutputRecords()).orElse(0L) > 0;
-    if (dataWritten) {
-      createAndSaveRefresh(details, decision);
+    boolean dataWritten = Optional.ofNullable(details.getOutputRecords()).orElse(0L) > 0;
+
+    boolean isEmptyReflection = getIsEmptyReflection(decision.getInitialRefresh().booleanValue(), dataWritten, materialization);
+    if (dataWritten || isEmptyReflection) {
+      createAndSaveRefresh(details, decision, lastAttempt);
     } else {
       logger.debug("materialization {} didn't write any data, we won't create a refresh entry", getId(materialization));
     }
@@ -185,7 +185,7 @@ public class RefreshDoneHandler {
         .setLogicalPlanStrippedHash(decision.getLogicalPlanStrippedHash())
         .setStripVersion(StrippingFactory.LATEST_STRIP_VERSION)
         .setSeriesId(decision.getSeriesId())
-        .setSeriesOrdinal(dataWritten ? decision.getSeriesOrdinal() : decision.getSeriesOrdinal() - 1)
+        .setSeriesOrdinal(dataWritten ? decision.getSeriesOrdinal() : Math.max(decision.getSeriesOrdinal() - 1, 0))
         .setJoinAnalysis(computeJoinAnalysis())
         .setPartitionList(getDataPartitions());
     }
@@ -195,6 +195,21 @@ public class RefreshDoneHandler {
     return decision;
   }
 
+  /** Determines if the current reflection has 0 rows and is an Iceberg Reflection
+   * We will only allow the initial refresh for Iceberg Materialization to be empty
+   * We don't need to handle incremental refreshes, as we can still use the previous refresh in the series
+   * We don't want to handle non-Iceberg materialization due to possible path discrepancy
+   * @param initialRefresh is it Initial Refresh or later refresh
+   * @param dataWritten Was any data written while saving the reflection
+   * @param materialization current materialization
+   * @return true if it is based on an Empty Iceberg Reflection
+   */
+  public static boolean getIsEmptyReflection(boolean initialRefresh, boolean dataWritten, Materialization materialization){
+
+  boolean allowEmptyRefresh =  initialRefresh && materialization.getIsIcebergDataset() != null
+                                  && materialization.getIsIcebergDataset();
+  return  !dataWritten && allowEmptyRefresh;
+}
   public RefreshDecision getRefreshDecision(final JobAttempt jobAttempt) {
     if(jobAttempt.getExtraInfoList() == null || jobAttempt.getExtraInfoList().isEmpty()) {
       throw new IllegalStateException("No refresh decision found in refresh job.");
@@ -231,8 +246,8 @@ public class RefreshDoneHandler {
   }
 
   public void updateDependencies(final ReflectionEntry entry, final JobInfo info, final RefreshDecision decision,
-      final NamespaceService namespaceService, final DependencyManager dependencyManager) throws NamespaceException, DependencyException {
-    final ExtractedDependencies dependencies = DependencyUtils.extractDependencies(namespaceService, info, decision);
+                                 final DependencyManager dependencyManager) throws NamespaceException, DependencyException {
+    final ExtractedDependencies dependencies = DependencyUtils.extractDependencies(info, decision, catalogService);
     if (decision.getInitialRefresh()) {
       if (dependencies.isEmpty()) {
         throw UserException.reflectionError()
@@ -250,13 +265,14 @@ public class RefreshDoneHandler {
     dependencyManager.updateDontGiveUp(entry, dependencyResolutionContext);
   }
 
-  private void createAndSaveRefresh(final JobDetails details, final RefreshDecision decision) {
+  private void createAndSaveRefresh(final JobDetails details, final RefreshDecision decision,final JobAttempt lastAttempt) {
     final JobId jobId = JobsProtoUtil.toStuff(job.getJobId());
     final boolean isFull = decision.getAccelerationSettings().getMethod() == RefreshMethod.FULL;
     final UpdateId updateId = isFull ? new UpdateId() : getUpdateId(jobId, jobsService, allocator);
     final MaterializationMetrics metrics = ReflectionUtils.computeMetrics(job, jobsService, allocator, jobId);
     final List<DataPartition> dataPartitions = ReflectionUtils.computeDataPartitions(JobsProtoUtil.getLastAttempt(job).getInfo());
-    final List<String> refreshPath = ReflectionUtils.getRefreshPath(jobId, accelerationBasePath, jobsService, allocator);
+    final AttemptId attemptId = AttemptIdUtils.fromString(lastAttempt.getAttemptId());
+    final List<String> refreshPath = RefreshHandler.getRefreshPath(materialization.getReflectionId(),materialization,decision, attemptId);
     final boolean isIcebergRefresh = materialization.getIsIcebergDataset() != null && materialization.getIsIcebergDataset();
     final String icebergBasePath = ReflectionUtils.getIcebergReflectionBasePath(refreshPath, isIcebergRefresh);
     Preconditions.checkArgument(!isIcebergRefresh || decision.getInitialRefresh() || icebergBasePath.equals(materialization.getBasePath()));
@@ -268,7 +284,6 @@ public class RefreshDoneHandler {
 
     logger.debug("Refresh written to {} for {}", PathUtils.constructFullPath(refreshPath), ReflectionUtils.getId(materialization));
   }
-
   private List<DataPartition> getDataPartitions() {
     return ImmutableList.copyOf(materializationStore.getRefreshes(materialization)
       .transformAndConcat(new Function<Refresh, Iterable<DataPartition>>() {

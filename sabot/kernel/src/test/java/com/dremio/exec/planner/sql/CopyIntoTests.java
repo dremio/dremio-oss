@@ -48,6 +48,9 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.JsonStringArrayList;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.commons.lang3.ArrayUtils;
@@ -59,10 +62,13 @@ import org.mockito.Mockito;
 
 import com.dremio.TestBuilder;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.expression.CompleteType;
 import com.dremio.common.util.FileUtils;
+import com.dremio.exec.physical.config.ExtendedFormatOptions;
 import com.dremio.exec.planner.CopyIntoTablePlanBuilder;
 import com.dremio.exec.planner.sql.handlers.query.CopyIntoTableContext;
 import com.dremio.exec.planner.sql.parser.SqlCopyIntoTable;
+import com.dremio.exec.store.easy.EasyFormatUtils;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.test.UserExceptionAssert;
 import com.google.common.collect.ImmutableList;
@@ -123,7 +129,7 @@ public class CopyIntoTests extends ITDmlQueryBase {
       test(copyIntoQuery);
     } catch (UserException e) {
       exceptionThrown = true;
-      if(fileFormat.equals("csv")) {
+      if ("csv".equals(fileFormat)) {
         Assert.assertTrue(e.getMessage(), e.getMessage().contains("Error processing input: "));
         Assert.assertTrue(e.getMessage(), e.getMessage().contains("line=2"));
       } else {
@@ -182,6 +188,82 @@ public class CopyIntoTests extends ITDmlQueryBase {
       .baselineValues("1\"2", "3`\"4", "5\"\"6")
       .baselineValues("7\"\"\"\"2", "3\"4", "5|\"6")
       .go();
+  }
+
+  @Test
+  public void testCSVOptimizedFlowIsUsedForVarcharWithNoTransformations() {
+    // When running COPY INTO with CSV, we want to ensure that the optimised codepath is used only when:
+    // 1. target field type is VARCHAR
+    // 2. no string transformations like NULL_IF are needed.
+    // For all other supported data types or when we need string transformations are needed, we follow the normal codepath.
+    // Note that we can follow the optimised code path regardless of the value of TRIM_SPACE and EMPTY_AS_NULL.
+
+    // Test all possible combinations for VARCHAR datatype.
+    final Field sampleStringField = new Field("sampleStringField", FieldType.nullable(ArrowType.Utf8.INSTANCE), null);
+    ExtendedFormatOptions options = new ExtendedFormatOptions(false, false, "YYYY-MM-DD", "HH24:MI:SS.FFF", "YYYY-MM-DD HH24:MI:SS.FFF",null);
+
+    // TRIM_SPACE should have no effect on deciding whether we take the optimised write path.
+    options.setTrimSpace(false);
+    final boolean result1 = EasyFormatUtils.isVarcharOptimizationPossible(options, sampleStringField.getType());
+    assertThat(result1).isTrue();
+
+    options.setTrimSpace(true);
+    final boolean result2 = EasyFormatUtils.isVarcharOptimizationPossible(options, sampleStringField.getType());
+    assertThat(result2).isTrue();
+
+    // re-initialise options
+    options =  new ExtendedFormatOptions(false, false, "YYYY-MM-DD", "HH24:MI:SS.FFF", "YYYY-MM-DD HH24:MI:SS.FFF",null);
+
+    // EMPTY_AS_NULL should have no effect on deciding whether we take the optimised write path.
+    options.setEmptyAsNull(false);
+    boolean result3 = EasyFormatUtils.isVarcharOptimizationPossible(options, sampleStringField.getType());
+    assertThat(result3).isTrue();
+
+    options.setEmptyAsNull(true);
+    final boolean result4 = EasyFormatUtils.isVarcharOptimizationPossible(options, sampleStringField.getType());
+    assertThat(result4).isTrue();
+
+    // Passing a NULL_IF expressions list means we should take the write path that involves transformations.
+    final List<String> nullIfExpressions = new ArrayList<>();
+    nullIfExpressions.add("NA");
+    nullIfExpressions.add("None");
+    options.setNullIfExpressions(nullIfExpressions);
+    final boolean result5 = EasyFormatUtils.isVarcharOptimizationPossible(options, sampleStringField.getType());
+    assertThat(result5).isFalse();
+
+    // For all supported data types other than VARCHAR, we should be taking the write path with transformations.
+
+    // re-initialise options
+    options =  new ExtendedFormatOptions(false, false, "YYYY-MM-DD", "HH24:MI:SS.FFF", "YYYY-MM-DD HH24:MI:SS.FFF",null);
+
+    final boolean result6 = EasyFormatUtils.isVarcharOptimizationPossible(options, CompleteType.INT.getType());
+    assertThat(result6).isFalse();
+
+    final boolean result7 = EasyFormatUtils.isVarcharOptimizationPossible(options, CompleteType.BIGINT.getType());
+    assertThat(result7).isFalse();
+
+    final boolean result8 = EasyFormatUtils.isVarcharOptimizationPossible(options, CompleteType.FLOAT.getType());
+    assertThat(result8).isFalse();
+
+    final boolean result9 = EasyFormatUtils.isVarcharOptimizationPossible(options, CompleteType.BIT.getType()); // BIT --> BOOLEAN
+    assertThat(result9).isFalse();
+
+    final boolean result10 = EasyFormatUtils.isVarcharOptimizationPossible(options, CompleteType.DATE.getType());
+    assertThat(result10).isFalse();
+
+    final boolean result11 = EasyFormatUtils.isVarcharOptimizationPossible(options, CompleteType.TIME.getType());
+    assertThat(result11).isFalse();
+
+    final boolean result12 = EasyFormatUtils.isVarcharOptimizationPossible(options, CompleteType.TIMESTAMP.getType());
+    assertThat(result12).isFalse();
+
+    final boolean result13 = EasyFormatUtils.isVarcharOptimizationPossible(options, CompleteType.DOUBLE.getType());
+    assertThat(result13).isFalse();
+
+    // Use arbitrary precision and scale values for the sake of this test.
+    Field sampleDecimalField = new Field("sampleDecimalField", new FieldType(true, new ArrowType.Decimal(20, 10, 128), null), null);
+    final boolean result14 = EasyFormatUtils.isVarcharOptimizationPossible(options, sampleDecimalField.getType());
+    assertThat(result14).isFalse();
   }
   @Test
   public void testMalformedQueries() throws Exception {
@@ -1060,7 +1142,7 @@ public class CopyIntoTests extends ITDmlQueryBase {
     String storageLocation = "\'@" + source + "/" + location.getName() + "\'";
     String fileExtension = sourceFile.toLowerCase().endsWith("json")? "json" : "csv";
     String copyIntoQuery = String.format("COPY INTO %s.%s FROM %s FILE_FORMAT \'%s\'", TEMP_SCHEMA, tableName, storageLocation, fileExtension);
-    if (fileExtension.equals("csv")) {
+    if ("csv".equals(fileExtension)) {
       copyIntoQuery += " (RECORD_DELIMITER '\n')";
     }
     test(copyIntoQuery);

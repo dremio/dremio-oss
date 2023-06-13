@@ -48,6 +48,7 @@ const source = {
 @DragSource((props) => props.dragType, source, (connect, monitor) => ({
   connectDragSource: connect.dragSource(),
   isDragging: monitor.isDragging(),
+  betterIsDragging: !!monitor.getItem(),
 }))
 export default class DragSourceWrap extends Component {
   static propTypes = {
@@ -55,7 +56,9 @@ export default class DragSourceWrap extends Component {
     nativeDragData: PropTypes.object,
     isFromAnother: PropTypes.bool,
     isDragging: PropTypes.bool,
+    betterIsDragging: PropTypes.bool,
     preventDrag: PropTypes.bool,
+    onDrag: PropTypes.func,
     connectDragSource: PropTypes.func,
     index: PropTypes.number,
     args: PropTypes.string,
@@ -68,6 +71,14 @@ export default class DragSourceWrap extends Component {
   constructor(props) {
     super(props);
     this.onDragStart = this.onDragStart.bind(this);
+  }
+
+  componentDidUpdate(prevProps) {
+    const { betterIsDragging, onDrag: setDrag } = this.props;
+
+    if (prevProps.betterIsDragging !== betterIsDragging) {
+      setDrag?.(betterIsDragging);
+    }
   }
 
   onDragStart(ev) {

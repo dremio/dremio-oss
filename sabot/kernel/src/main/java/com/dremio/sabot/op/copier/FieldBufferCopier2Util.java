@@ -80,10 +80,12 @@ public final class FieldBufferCopier2Util {
       cursor.setTargetIndex(targetIndex + count);
     }
 
+    @Override
     public void copy(long offsetAddr, int count, long nullAddr, int nullCount, Cursor cursor) {
       copy(offsetAddr, count, cursor);
     }
 
+    @Override
     public void allocate(int records){
       targetAlt.allocateNew(records);
     }
@@ -298,6 +300,7 @@ public final class FieldBufferCopier2Util {
       cursor.setTargetIndex(targetIndex + count);
     }
 
+    @Override
     public void copy(long offsetAddr, int count, long nullAddr, int nullCount, Cursor cursor) {
       copy(offsetAddr, count, cursor);
     }
@@ -362,6 +365,7 @@ public final class FieldBufferCopier2Util {
       realloc.setCount(seekTo + offsetCount);
     }
 
+    @Override
     public void allocate(int records){
       targetAlt.allocateNew(records * AVG_VAR_WIDTH, records);
     }
@@ -411,8 +415,7 @@ public final class FieldBufferCopier2Util {
           final long addr = dstAddr + (targetIndex >>> 3);
           PlatformDependent.putByte(addr, (byte) (PlatformDependent.getByte(addr) | bitVal));
         }
-      }
-      else {
+      } else {
         for (; offsetAddr < maxAddr; offsetAddr += STEP_SIZE, targetIndex++) {
           final int recordIndex = Short.toUnsignedInt(PlatformDependent.getShort(offsetAddr));
           final int byteValue = PlatformDependent.getByte(srcAddr + (recordIndex >>> 3));
@@ -470,8 +473,7 @@ public final class FieldBufferCopier2Util {
           final long addr = dstAddr + (targetIndex >>> 3);
           PlatformDependent.putByte(addr, (byte) (PlatformDependent.getByte(addr) | bitVal));
         }
-      }
-      else {
+      } else {
         for (; offsetAddr < maxAddr; offsetAddr += STEP_SIZE, targetIndex++) {
           final int recordIndex = Short.toUnsignedInt(PlatformDependent.getShort(offsetAddr));
           final int byteValue = PlatformDependent.getByte(srcAddr + (recordIndex >>> 3));
@@ -502,6 +504,7 @@ public final class FieldBufferCopier2Util {
       seekAndCopy(offsetAddr, count, nullAddr, nullCount, 0);
     }
 
+    @Override
     public void copy(long offsetAddr, int count, long nullAddr, int nullCount, Cursor cursor) {
       int targetIndex = cursor.getTargetIndex();
       if (allocateAsFixed) {
@@ -586,6 +589,7 @@ public final class FieldBufferCopier2Util {
       }
     }
 
+    @Override
     public void allocate(int records){
       if(targetAlt != null){
         targetAlt.allocateNew(records);
@@ -628,6 +632,7 @@ public final class FieldBufferCopier2Util {
       copy(offsetAddr, count);
     }
 
+    @Override
     public void copy(long offsetAddr, int count, long nullAddr, int nullCount, Cursor cursor) {
       copy(offsetAddr, count, cursor);
     }
@@ -742,6 +747,7 @@ public final class FieldBufferCopier2Util {
       cursor.setTargetIndex(targetIndex + count);
     }
 
+    @Override
     public void copy(long offsetAddr, int count, long nullAddr, int nullCount, Cursor cursor) {
       copy(offsetAddr, count, cursor);
     }
@@ -849,6 +855,7 @@ public final class FieldBufferCopier2Util {
       cursor.setTargetIndex(targetIndex + count);
     }
 
+    @Override
     public void copy(long offsetAddr, int count, long nullAddr, int nullCount, Cursor cursor) {
       copy(offsetAddr, count, cursor);
     }
@@ -888,6 +895,7 @@ public final class FieldBufferCopier2Util {
       childCopiers.forEach(c -> c.copyInnerList(listOffsetBufAddr, count, seekTo));
     }
 
+    @Override
     public void allocate(int records){
       AllocationHelper.allocate(dst, records, 10);
     }

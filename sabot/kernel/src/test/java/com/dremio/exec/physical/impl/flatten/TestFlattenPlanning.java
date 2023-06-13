@@ -92,7 +92,7 @@ public class TestFlattenPlanning extends PlanTestBase {
       final String onvds = "SELECT str_list_col, flatten(str_list_list_col[0]) AS A\n" +
         "FROM dfs_test.flatten1";
 
-      PlanTestBase.testPlanMatchingPatterns(onvds, new String[]{"(?s)Flatten\\(flattenField=\\[\\$1\\]\\).*Flatten\\(flattenField=\\[\\$0\\]\\)"}, new String[]{});
+      PlanTestBase.testPlanMatchingPatterns(onvds, new String[]{"(?s)Flatten\\(flattenField=\\[\\$0\\]\\).*Flatten\\(flattenField=\\[\\$0\\]\\)"}, new String[]{});
     } finally {
       properties.clear(DremioConfig.LEGACY_STORE_VIEWS_ENABLED);
     }

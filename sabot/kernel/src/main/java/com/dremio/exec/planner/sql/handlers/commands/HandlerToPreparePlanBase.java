@@ -17,6 +17,7 @@ package com.dremio.exec.planner.sql.handlers.commands;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.calcite.plan.RelOptPlanner;
@@ -179,8 +180,9 @@ public abstract class HandlerToPreparePlanBase<T> implements CommandRunner<T> {
     }
 
     @Override
-    public void planRelTransform(final PlannerPhase phase, final RelOptPlanner planner, final RelNode before, final RelNode after, final long millisTaken) {
-      calls.add(observer -> observer.planRelTransform(phase, planner, before, after, millisTaken));
+    public void planRelTransform(final PlannerPhase phase, final RelOptPlanner planner, final RelNode before,
+                                 final RelNode after, final long millisTaken, Map<String, Long> timeBreakdownPerRule) {
+      calls.add(observer -> observer.planRelTransform(phase, planner, before, after, millisTaken, timeBreakdownPerRule));
     }
 
     @Override

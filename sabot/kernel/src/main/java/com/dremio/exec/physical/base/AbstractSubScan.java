@@ -108,6 +108,7 @@ public abstract class AbstractSubScan extends AbstractBase implements SubScan, O
     return Collections.emptyIterator();
   }
 
+  @Override
   @JsonProperty("fullSchema")
   public BatchSchema getFullSchema() {
     return fullSchema;

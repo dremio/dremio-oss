@@ -38,9 +38,9 @@ import com.dremio.BaseTestQuery;
 import com.dremio.exec.catalog.conf.AWSAuthenticationType;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.server.SabotContext;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
-import akka.http.scaladsl.Http;
 import io.findify.s3mock.S3Mock;
 import software.amazon.awssdk.regions.Region;
 
@@ -55,9 +55,9 @@ public class TestWhiteListedBuckets extends BaseTestQuery {
 
   @BeforeClass
   public static void setup() {
+    Preconditions.checkState(s3Mock == null);
     s3Mock = new S3Mock.Builder().withPort(0).withInMemoryBackend().build();
-    Http.ServerBinding binding = s3Mock.start();
-    port = binding.localAddress().getPort();
+    port = s3Mock.start().localAddress().getPort();
 
     EndpointConfiguration endpoint = new EndpointConfiguration(String.format("http://localhost:%d", port), Region.US_EAST_1.toString());
     AmazonS3 client = AmazonS3ClientBuilder
@@ -75,7 +75,8 @@ public class TestWhiteListedBuckets extends BaseTestQuery {
   @AfterClass
   public static void teardown() {
     if (s3Mock != null) {
-      s3Mock.stop();
+      s3Mock.shutdown();
+      s3Mock = null;
     }
   }
 

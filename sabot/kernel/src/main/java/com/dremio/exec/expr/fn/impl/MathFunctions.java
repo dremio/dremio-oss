@@ -52,8 +52,10 @@ public class MathFunctions{
     @Param BigIntHolder input;
     @Output BigIntHolder out;
 
+    @Override
     public void setup(){}
 
+    @Override
     public void eval(){
       out.value = -input.value;
       return;
@@ -67,8 +69,10 @@ public class MathFunctions{
     @Param Float8Holder input;
     @Output Float8Holder out;
 
+    @Override
     public void setup(){}
 
+    @Override
     public void eval(){
       out.value = -input.value;
       return;
@@ -82,8 +86,10 @@ public class MathFunctions{
     @Param Float4Holder input;
     @Output Float4Holder out;
 
+    @Override
     public void setup(){}
 
+    @Override
     public void eval(){
       out.value = -input.value;
       return;
@@ -143,8 +149,10 @@ public class MathFunctions{
     @Param Float8Holder b;
     @Output  Float8Holder out;
 
+    @Override
     public void setup(){}
 
+    @Override
     public void eval(){
       out.value = java.lang.Math.pow(a.value, b.value);
     }
@@ -158,10 +166,12 @@ public class MathFunctions{
     @Workspace
     java.util.Random random;
 
+    @Override
     public void setup() {
       random = new java.util.Random();
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       out.value = random.nextDouble();
@@ -175,11 +185,13 @@ public class MathFunctions{
     @Workspace private ObjectHolder random;
     @Workspace private IntHolder samplingRate;
 
+    @Override
     public void setup() {
       random = new ObjectHolder();
       random.obj = new java.util.SplittableRandom();
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       out.value = ((java.util.SplittableRandom) random.obj).nextDouble() * 100  < rate.value ? 1 : 0;
@@ -196,6 +208,7 @@ public class MathFunctions{
     @Workspace
     java.util.Random random;
 
+    @Override
     public void setup() {
       int seed = 0;
       if (seedHolder.isSet == 1) {
@@ -204,6 +217,7 @@ public class MathFunctions{
       random = new java.util.Random(seed);
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       out.value = random.nextDouble();
@@ -251,6 +265,7 @@ public class MathFunctions{
     @Output Float8Holder out;
     @Inject FunctionErrorContext errCtx;
 
+    @Override
     public void setup() {
       byte[] buf = new byte[right.end - right.start];
       right.buffer.getBytes(right.start, buf, 0, right.end - right.start);
@@ -258,6 +273,7 @@ public class MathFunctions{
       decimalDigits = inputFormat.getMaximumFractionDigits();
     }
 
+    @Override
     public void eval() {
       byte[] buf1 = new byte[left.end - left.start];
       left.buffer.getBytes(left.start, buf1, 0, left.end - left.start);
@@ -281,9 +297,11 @@ public class MathFunctions{
 
     @Output Float8Holder out;
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
         out.value = java.lang.Math.PI;
     }

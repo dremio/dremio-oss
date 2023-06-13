@@ -17,6 +17,8 @@
 package com.dremio.service.script;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -29,6 +31,9 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnitRunner;
 
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.ClassPathScanner;
@@ -36,11 +41,13 @@ import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.context.RequestContext;
 import com.dremio.context.UserContext;
 import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.SearchTypes;
 import com.dremio.service.script.proto.ScriptProto;
 
 /**
  * Test for script service
  */
+@RunWith(MockitoJUnitRunner.class)
 public class TestScriptServiceImpl {
 
   private static final SabotConfig DEFAULT_SABOT_CONFIG = SabotConfig.forClient();
@@ -51,6 +58,8 @@ public class TestScriptServiceImpl {
   private ScriptStore scriptStore;
   private LocalKVStoreProvider kvStoreProvider;
   private ScriptService scriptService;
+  @Mock
+  private ScriptStore mockedScriptStore;
 
   @Before
   public void setUp() throws Exception {
@@ -191,7 +200,7 @@ public class TestScriptServiceImpl {
     assertThatThrownBy(() -> runWithUserContext(USER_ID_1,
                                                 () -> scriptService.createScript(scriptRequest)))
       .isInstanceOf(IllegalArgumentException.class)
-      .hasMessage("Maximum 128 characters allowed in script name.");
+      .hasMessage("Maximum 128 characters allowed in script name. You have typed in 129 characters.");
   }
 
   // validate max length of content
@@ -201,14 +210,14 @@ public class TestScriptServiceImpl {
       .setName("scriptWithVeryLongContent")
       .setDescription("test description")
       .addAllContext(new ArrayList<>(Arrays.asList("a")))
-      .setContent(StringUtils.repeat("*", 10001))
+      .setContent(StringUtils.repeat("*", 250001))
       .build();
 
 
     assertThatThrownBy(() -> runWithUserContext(USER_ID_1,
                                                 () -> scriptService.createScript(scriptRequest)))
       .isInstanceOf(IllegalArgumentException.class)
-      .hasMessage("Maximum 10000 characters allowed in script content.");
+      .hasMessage("Maximum 250000 characters allowed in script content. You have typed in 250001 characters.");
   }
 
   // validate max length of description
@@ -224,7 +233,7 @@ public class TestScriptServiceImpl {
     assertThatThrownBy(() -> runWithUserContext(USER_ID_1,
                                                 () -> scriptService.createScript(scriptRequest)))
       .isInstanceOf(IllegalArgumentException.class)
-      .hasMessage("Maximum 1024 characters allowed in script description.");
+      .hasMessage("Maximum 1024 characters allowed in script description. You have typed in 1025 characters.");
   }
 
   // test a script can be read/update/delete by another user
@@ -414,7 +423,29 @@ public class TestScriptServiceImpl {
       .call(callable);
   }
 
-  // TODO:
-  // validate max number of script per user
-  // test get count of script
+  @Test
+  public void testMaxScriptsLimitReachedException() throws Exception {
+    // given script request
+    ScriptProto.ScriptRequest scriptRequest = ScriptProto.ScriptRequest.newBuilder()
+      .setName("testScript")
+      .setDescription("test description")
+      .addAllContext(new ArrayList<>(Arrays.asList("a", "b", "c")))
+      .setContent("select * from xyz")
+      .build();
+
+    long maxNumberOfScriptsPerUser = 100L;
+    ScriptStore mockedScriptStore = mock(ScriptStore.class);
+    when(mockedScriptStore.getCountByCondition(any(SearchTypes.SearchQuery.class))).thenReturn(maxNumberOfScriptsPerUser);
+    ScriptService testScriptService = new ScriptServiceImpl(() -> mockedScriptStore);
+    testScriptService.start();
+
+    // assert createScript raise MaxScriptsLimitReachedException
+    assertThatThrownBy(() -> runWithUserContext(USER_ID_1,
+      () -> testScriptService.createScript(scriptRequest)))
+      .isInstanceOf(MaxScriptsLimitReachedException.class)
+      .hasMessage(String.format("Maximum scripts limit per user is reached. Limit %s; Current %s.",
+        maxNumberOfScriptsPerUser, maxNumberOfScriptsPerUser));
+
+    verify(mockedScriptStore, times(1)).getCountByCondition(any(SearchTypes.SearchQuery.class));
+  }
 }

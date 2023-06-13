@@ -17,28 +17,30 @@ package com.dremio.exec.planner.logical.partition;
 
 import static com.dremio.exec.planner.common.MoreRelOptUtil.getInputRewriterFromProjectedFields;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.record.BatchSchema;
+import com.google.common.base.Preconditions;
 
 /**
  * PruneFilterCondition
  */
 public class PruneFilterCondition {
-  private RexNode partitionRange;
-  private RexNode nonPartitionRange;
-  private RexNode partitionExpression;
+  private final RexNode partitionRange;
+  private final RexNode nonPartitionRange;
+  private final RexNode partitionExpression;
 
   public PruneFilterCondition(RexNode partitionRange, RexNode nonPartitionRange, RexNode partitionExpression) {
+    //TODO use alwaysTrue instead of null to follow the calcite convention
+    Preconditions.checkArgument(null == partitionRange || !partitionRange.isAlwaysTrue());
+    Preconditions.checkArgument(null == nonPartitionRange || !nonPartitionRange.isAlwaysTrue());
+    Preconditions.checkArgument(null == partitionExpression || !partitionExpression.isAlwaysTrue());
     this.partitionRange = partitionRange;
     this.nonPartitionRange = nonPartitionRange;
     this.partitionExpression = partitionExpression;
@@ -60,38 +62,6 @@ public class PruneFilterCondition {
     return partitionRange == null && nonPartitionRange == null && partitionExpression == null;
   }
 
-  public static PruneFilterCondition mergeConditions(RexBuilder builder, List<PruneFilterCondition> conditions) {
-    if (conditions.size() == 1) {
-      return conditions.get(0);
-    }
-
-    List<RexNode> nonPartitionRangeList = new ArrayList<>();
-    List<RexNode> partitionRangeList = new ArrayList<>();
-    List<RexNode> expressionList = new ArrayList<>();
-    for (PruneFilterCondition condition : conditions) {
-      RexNode partitionRange = condition.getPartitionRange();
-      if (partitionRange != null) {
-        partitionRangeList.add(partitionRange);
-      }
-      RexNode nonPartitionRange = condition.getNonPartitionRange();
-      if (nonPartitionRange != null) {
-        nonPartitionRangeList.add(nonPartitionRange);
-      }
-      RexNode partitionExpression = condition.getPartitionExpression();
-      if (partitionExpression != null) {
-        expressionList.add(partitionExpression);
-      }
-    }
-    return new PruneFilterCondition(
-      buildConditionFromList(partitionRangeList, builder),
-      buildConditionFromList(nonPartitionRangeList, builder),
-      buildConditionFromList(expressionList, builder));
-  }
-
-  private static RexNode buildConditionFromList(List<RexNode> conditions, RexBuilder builder) {
-    return conditions.size() == 0 ? null : (conditions.size() == 1 ? conditions.get(0) : builder.makeCall(SqlStdOperatorTable.AND, conditions));
-  }
-
   public PruneFilterCondition applyProjection(List<SchemaPath> projection, RelDataType rowType, RelOptCluster cluster, BatchSchema batchSchema) {
     final PrelUtil.InputRewriter inputRewriter = getInputRewriterFromProjectedFields(projection, rowType, batchSchema, cluster);
     RexNode newPartitionRange = getPartitionRange() != null ? getPartitionRange().accept(inputRewriter) : null;
@@ -103,14 +73,14 @@ public class PruneFilterCondition {
   @Override
   public String toString() {
     StringBuilder builder = new StringBuilder();
-    if (partitionRange != null) {
-      builder.append("partition_range_filter:").append(partitionRange.toString()).append(";");
+    if (null != partitionRange) {
+      builder.append("partition_range_filter:").append(partitionRange).append(";");
     }
-    if (nonPartitionRange != null) {
-      builder.append("non_partition_range_filter:").append(nonPartitionRange.toString()).append(";");
+    if (null != nonPartitionRange) {
+      builder.append("non_partition_range_filter:").append(nonPartitionRange).append(";");
     }
-    if (partitionExpression != null) {
-      builder.append("other_partition_filter:").append(partitionExpression.toString()).append(";");
+    if (null != partitionExpression) {
+      builder.append("other_partition_filter:").append(partitionExpression).append(";");
     }
     return builder.toString();
   }

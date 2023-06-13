@@ -32,7 +32,8 @@ function fetchSummaryDataset(
   viewId,
   storageName,
   nodeExpanded,
-  currNode
+  currNode,
+  versionContext
 ) {
   const meta = {
     viewId,
@@ -43,9 +44,15 @@ function fetchSummaryDataset(
     currNode,
   };
 
+  const params = versionContext
+    ? {
+        refType: versionContext.type,
+        refValue: versionContext.value,
+      }
+    : getRefQueryParamsFromPath(fullPath, store.getState().nessie, "/");
   const apiCall = new APIV2Call()
     .paths("datasets/summary")
-    .params(getRefQueryParamsFromPath(fullPath, store.getState().nessie, "/"))
+    .params(params)
     .paths(fullPath);
 
   return {
@@ -82,9 +89,17 @@ function fetchSummaryDataset(
 }
 
 export const loadSummaryDataset =
-  (fullPath, viewId, storageName, nodeExpanded, currNode) => (dispatch) =>
+  (fullPath, viewId, storageName, nodeExpanded, currNode, versionContext) =>
+  (dispatch) =>
     dispatch(
-      fetchSummaryDataset(fullPath, viewId, storageName, nodeExpanded, currNode)
+      fetchSummaryDataset(
+        fullPath,
+        viewId,
+        storageName,
+        nodeExpanded,
+        currNode,
+        versionContext
+      )
     );
 
 export const LOAD_DATASET_START = "LOAD_DATASET_START";

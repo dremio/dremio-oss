@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { type Column } from "leantable/react";
-import { IconButton, Skeleton, Tooltip } from "dremio-ui-lib/dist-esm";
+import { IconButton, Skeleton, Tooltip } from "dremio-ui-lib/components";
 import { ReflectionType } from "../ReflectionType";
 import { formatBytes } from "../../../utilities/formatBytes";
 import { formatDuration } from "../../../utilities/formatDuration";
@@ -25,6 +25,9 @@ import { getIntlContext } from "../../../contexts/IntlContext";
 import { SortableHeaderCell } from "../../../components/TableCells/SortableHeaderCell";
 import { NullCell } from "../../../components/TableCells/NullCell";
 import { ClickableCell } from "../../../components/TableCells/ClickableCell";
+import { jobs } from "../../../paths/jobs";
+import { getSonarContext } from "../../../contexts/SonarContext";
+import { type ReflectionSummary } from "../../reflections/ReflectionSummary.type";
 
 export const getReflectionColumnLabels = () => {
   const { t } = getIntlContext();
@@ -58,7 +61,13 @@ export const reflectionsTableColumns = ({
   onReflectionDelete: (id: string) => void;
   onRowClick: (id: string) => void;
   renderDataset: any;
-}): Column<any>[] => {
+}): Column<
+  ReflectionSummary & {
+    chosenJobsFilters: any;
+    consideredJobsFilters: any;
+    matchedJobsFilters: any;
+  }
+>[] => {
   const reflectionColumnLabels = getReflectionColumnLabels();
   return [
     {
@@ -71,7 +80,16 @@ export const reflectionsTableColumns = ({
       ),
       renderCell: (row) => {
         if (!row.data) {
-          return <Skeleton width="17ch" />;
+          return (
+            <div className="dremio-icon-label">
+              <Skeleton
+                width="18px"
+                height="18px"
+                style={{ marginInlineStart: "3px" }}
+              />
+              <Skeleton width="17ch" />
+            </div>
+          );
         }
         return (
           <ClickableCell onClick={() => onRowClick(row.id)}>
@@ -95,7 +113,14 @@ export const reflectionsTableColumns = ({
         row.data ? (
           <ReflectionType type={row.data.reflectionType} />
         ) : (
-          <Skeleton width="8ch" />
+          <div className="dremio-icon-label">
+            <Skeleton
+              width="20px"
+              height="20px"
+              style={{ marginInlineStart: "2px" }}
+            />
+            <Skeleton width="9ch" />
+          </div>
         ),
       sortable: true,
     },
@@ -110,7 +135,16 @@ export const reflectionsTableColumns = ({
       },
       renderCell: (row) => {
         if (!row.data) {
-          return <Skeleton width="16ch" />;
+          return (
+            <div className="dremio-icon-label">
+              <Skeleton
+                width="22px"
+                height="22px"
+                style={{ marginInlineStart: "1px" }}
+              />
+              <Skeleton width="14ch" />
+            </div>
+          );
         }
         return renderDataset(row);
       },
@@ -383,7 +417,14 @@ export const reflectionsTableColumns = ({
         <NumericCell>
           {row.data ? (
             canViewJobs ? (
-              <a href={row.data.consideredJobsLink} target="_blank">
+              <a
+                href={jobs.link({
+                  //@ts-ignore
+                  projectId: getSonarContext().getSelectedProjectId?.(),
+                  filters: row.data.consideredJobsFilters,
+                })}
+                target="_blank"
+              >
                 {row.data.consideredCount.toLocaleString()}
               </a>
             ) : (
@@ -419,7 +460,14 @@ export const reflectionsTableColumns = ({
         <NumericCell>
           {row.data ? (
             canViewJobs ? (
-              <a href={row.data.matchedJobsLink} target="_blank">
+              <a
+                href={jobs.link({
+                  //@ts-ignore
+                  projectId: getSonarContext().getSelectedProjectId?.(),
+                  filters: row.data.matchedJobsFilters,
+                })}
+                target="_blank"
+              >
                 {row.data.matchedCount.toLocaleString()}
               </a>
             ) : (
@@ -459,7 +507,14 @@ export const reflectionsTableColumns = ({
         <NumericCell>
           {row.data ? (
             canViewJobs ? (
-              <a href={row.data.chosenJobsLink} target="_blank">
+              <a
+                href={jobs.link({
+                  //@ts-ignore
+                  projectId: getSonarContext().getSelectedProjectId?.(),
+                  filters: row.data.chosenJobsFilters,
+                })}
+                target="_blank"
+              >
                 {row.data.chosenCount.toLocaleString()}
               </a>
             ) : (

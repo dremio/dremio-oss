@@ -46,8 +46,7 @@ public final class MetadataRefreshUtils {
     FileSystemPlugin<?> metadataPlugin = null;
     try {
       metadataPlugin = catalogService.getSource(METADATA_STORAGE_PLUGIN_NAME);
-    }
-    catch (Exception e) {
+    } catch (Exception e) {
       logger.debug("Exception while getting the plugin for the source [{}].", METADATA_STORAGE_PLUGIN_NAME, e);
       return false;
     }

@@ -31,7 +31,27 @@ public class ITVacuumOnHive extends DmlQueryOnHiveTestBase {
   private static final String SOURCE = HIVE_TEST_PLUGIN_NAME;
 
   @Test
+  public void testSimpleExpireOlderThanRetainLastUsingEqual() throws Exception {
+    VacuumTests.testSimpleExpireOlderThanRetainLastUsingEqual(allocator, SOURCE);
+  }
+
+  @Test
   public void testSimpleExpireOlderThan() throws Exception {
     VacuumTests.testSimpleExpireOlderThan(allocator, SOURCE);
+  }
+
+  @Test
+  public void testExpireOnTableOneSnapshot() throws Exception {
+    VacuumTests.testExpireOnTableOneSnapshot(SOURCE);
+  }
+
+  @Test
+  public void testRetainMoreSnapshots() throws Exception {
+    VacuumTests.testRetainMoreSnapshots(SOURCE);
+  }
+
+  @Test
+  public void testRetainAllSnapshots() throws Exception {
+    VacuumTests.testRetainAllSnapshots(allocator, SOURCE);
   }
 }

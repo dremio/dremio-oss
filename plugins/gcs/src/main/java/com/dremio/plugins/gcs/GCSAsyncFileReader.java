@@ -35,6 +35,7 @@ import org.asynchttpclient.RequestBuilder;
 import org.asynchttpclient.uri.Uri;
 
 import com.dremio.exec.hadoop.DremioHadoopUtils;
+import com.dremio.http.BufferBasedCompletionHandler;
 import com.dremio.io.ExponentialBackoff;
 import com.dremio.io.ReusableAsyncByteReader;
 import com.dremio.plugins.async.utils.AsyncReadWithRetry;
@@ -119,7 +120,7 @@ class GCSAsyncFileReader extends ReusableAsyncByteReader {
     java.util.function.Function<Void, Request> requestBuilderFunction = getRequestBuilderFunction(offset, len);
 
     return asyncReaderWithRetry.read(asyncHttpClient, requestBuilderFunction,
-            metrics, path, threadName, dst, dstOffset, 0, backoff);
+            metrics, path, threadName, new BufferBasedCompletionHandler(dst, dstOffset), 0, backoff);
   }
 
   private java.util.function.Function<Void, Request> getRequestBuilderFunction(long offset, int len) {

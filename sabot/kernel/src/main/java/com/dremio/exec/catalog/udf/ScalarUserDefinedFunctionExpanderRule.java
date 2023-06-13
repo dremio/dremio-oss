@@ -15,222 +15,257 @@
  */
 package com.dremio.exec.catalog.udf;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
-import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelRule;
-import org.apache.calcite.rel.RelHomogeneousShuttle;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelShuttle;
 import org.apache.calcite.rel.core.CorrelationId;
 import org.apache.calcite.rel.core.Filter;
-import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexCorrelVariable;
+import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.rex.RexSubQuery;
 import org.apache.calcite.schema.Function;
 import org.apache.calcite.schema.FunctionParameter;
-import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlOperator;
-import org.apache.calcite.sql.SqlSelect;
+import org.apache.calcite.sql.fun.SqlQuantifyOperator;
 import org.apache.calcite.sql.validate.SqlUserDefinedFunction;
 import org.apache.calcite.util.Pair;
 
 import com.dremio.exec.planner.sql.SqlConverter;
-import com.dremio.exec.planner.sql.SqlValidatorAndToRelContext;
-import com.dremio.exec.store.sys.udf.FunctionOperatorTable;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 
-public abstract class ScalarUserDefinedFunctionExpanderRule
-  extends RelRule<RelRule.Config> {
+public class ScalarUserDefinedFunctionExpanderRule extends RelRule<RelRule.Config> {
+  private final SqlConverter sqlConverter;
 
-  private final Supplier<SqlValidatorAndToRelContext.Builder> sqlSubQueryConverterBuilderSupplier;
-
-  public ScalarUserDefinedFunctionExpanderRule(
-    Config config,
-    Supplier<SqlValidatorAndToRelContext.Builder> sqlSubQueryConverterBuilderSupplier) {
-    super(config);
-    this.sqlSubQueryConverterBuilderSupplier = sqlSubQueryConverterBuilderSupplier;
+  public ScalarUserDefinedFunctionExpanderRule(SqlConverter sqlConverter) {
+    super(Config.EMPTY
+      .withDescription("ScalarUserDefinedFunctionExpanderRuleFilter")
+      .withOperandSupplier(op1 ->
+        op1.operand(RelNode.class).anyInputs()));
+    this.sqlConverter = sqlConverter;
   }
 
-
-  protected Pair<RelNode, CorrelationId> convert(RelNode rel) {
-    CorrelationId correlationId = rel.getVariablesSet().isEmpty()
-      ? rel.getCluster().createCorrel()
-      : Iterables.getOnlyElement(rel.getVariablesSet());
-
-    ScalarParserValidator scalarParserValidator = new ScalarParserValidator(sqlSubQueryConverterBuilderSupplier.get());
-    UdfExpander udfExpander = new UdfExpander(scalarParserValidator, rel.getCluster().getRexBuilder());
-    return Pair.of(rel.accept(udfExpander), correlationId);
-  }
-
-  public static RelOptRule createFilterRule(
-    Supplier<SqlValidatorAndToRelContext.Builder> sqlSubQueryConverterBuilderSupplier){
-    return new ScalarUserDefinedFunctionExpanderRule(
-      Config.EMPTY
-        .withDescription("ScalarUserDefinedFunctionExpanderRuleFilter")
-        .withOperandSupplier(op1 ->
-          op1.operand(Filter.class).anyInputs()),
-      sqlSubQueryConverterBuilderSupplier) {
-
-      @Override public void onMatch(RelOptRuleCall relOptRuleCall) {
-        Filter rel = relOptRuleCall.rel(0);
-        Pair<RelNode, CorrelationId> relAndCor = convert(rel);
-        if (relAndCor.left == rel) {
-          return;
-        }
-
-        relOptRuleCall.transformTo(relOptRuleCall.builder()
-          .push(rel.getInput())
-          .filter(ImmutableList.of(relAndCor.right), ImmutableList.of(((Filter) relAndCor.left).getCondition()))
-          .build());
-      }
-    };
-  }
-
-
-  public static RelOptRule createProjectRule(
-    Supplier<SqlValidatorAndToRelContext.Builder> sqlSubQueryConverterBuilderSupplier){
-    return new ScalarUserDefinedFunctionExpanderRule(
-      Config.EMPTY
-        .withDescription("ScalarUserDefinedFunctionExpanderRuleProject")
-        .withOperandSupplier(op1 ->
-          op1.operand(Project.class).anyInputs()),
-      sqlSubQueryConverterBuilderSupplier) {
-
-      @Override public void onMatch(RelOptRuleCall relOptRuleCall) {
-        Project rel = relOptRuleCall.rel(0);
-        Pair<RelNode, CorrelationId> relAndCor = convert(rel);
-        if (relAndCor.left == rel) {
-          return;
-        }
-
-        //TODO project drop correlate node.....
-        relOptRuleCall.transformTo(relAndCor.left);
-      }
-    };
-  }
-}
-
-class ReplaceArgumentsVisitor extends RexShuttle {
-  private final List<RexNode> arguments;
-  private final List<SqlOperator> argumentsOperators;
-
-  public ReplaceArgumentsVisitor(List<RexNode> arguments,
-    List<SqlOperator> argumentsOperators) {
-    this.arguments = arguments;
-    this.argumentsOperators = argumentsOperators;
-  }
-
-  @Override public RexNode visitCall(RexCall call) {
-    int index = argumentsOperators.indexOf(call.getOperator());
-    if(index == -1) {
-      return super.visitCall(call);
-    } else {
-      return arguments.get(index);
+  @Override public void onMatch(RelOptRuleCall relOptRuleCall) {
+    RelNode rel = relOptRuleCall.rel(0);
+    Pair<RelNode, CorrelationId> relAndCor = convert(rel);
+    if (relAndCor.left == rel) {
+      return;
     }
-  }
 
-  @Override public RexNode visitSubQuery(RexSubQuery subQuery) {
-    RexShuttle rexShuttle = this;
-    RelNode relNode = subQuery.rel.accept(new RelHomogeneousShuttle() {
-      @Override public RelNode visit(RelNode other) {
-        return other.accept(rexShuttle);
-      }
-    });
-    List<RexNode> rexNodes = subQuery.getOperands().stream()
-      .map(o -> o.accept(rexShuttle))
-      .collect(ImmutableList.toImmutableList());
-
-    return subQuery
-      .clone(subQuery.type, rexNodes)
-      .clone(relNode);
-  }
-}
-
-class ScalarParserValidator {
-  private final SqlValidatorAndToRelContext.Builder sqlSubQueryConverterBuilder;
-
-  public ScalarParserValidator(SqlValidatorAndToRelContext.Builder sqlSubQueryConverterBuilder) {
-    this.sqlSubQueryConverterBuilder = sqlSubQueryConverterBuilder;
-  }
-
-  public SqlValidatorAndToRelContext.FunctionBodyAndArguments expand(
-    DremioScalarUserDefinedFunction dremioScalarUserDefinedFunction) {
-    SqlValidatorAndToRelContext sqlValidatorAndToRelContext = sqlSubQueryConverterBuilder
-      .withSchemaPath(ImmutableList.of())
-      .withUser(dremioScalarUserDefinedFunction.getOwner())
-      .withContextualSqlOperatorTable(new FunctionOperatorTable(
-        dremioScalarUserDefinedFunction.getName(),
-        dremioScalarUserDefinedFunction.getParameters()))
-      .build();
-
-
-    SqlNode sqlNode = parse(sqlValidatorAndToRelContext.getSqlConverter(), dremioScalarUserDefinedFunction);
-    return sqlValidatorAndToRelContext.validateAndConvertScalarFunction(sqlNode, dremioScalarUserDefinedFunction.getName(), dremioScalarUserDefinedFunction.getParameters());
-  }
-
-  private SqlNode parse(SqlConverter sqlConverter, DremioScalarUserDefinedFunction udf) {
-    SqlNode sqlNode = sqlConverter.parse(udf.getFunctionSql());
-    if (sqlNode instanceof SqlSelect) {
-      SqlSelect sqlSelect = (SqlSelect) sqlNode;
-      Preconditions.checkState(null == sqlSelect.getFrom());
-      Preconditions.checkState(sqlSelect.getSelectList().size() == 1);
-      return sqlSelect.getSelectList().get(0);
+    RelNode transformedRel;
+    if (!(rel instanceof Filter)) {
+      // Don't need to do anything with the correlate id.
+      transformedRel = relAndCor.left;
     } else {
-      throw new RuntimeException();
+      Filter filterRel = (Filter) rel;
+      transformedRel = relOptRuleCall
+        .builder()
+        .push(filterRel.getInput())
+        .filter(ImmutableList.of(relAndCor.right), ImmutableList.of(((Filter) relAndCor.left).getCondition()))
+        .build();
     }
-  }
-}
 
-
-
-class UdfExpander extends RexShuttle {
-  private final ScalarParserValidator scalarParserValidator;
-  private final RexBuilder rexBuilder;
-
-  public UdfExpander(ScalarParserValidator scalarParserValidator, RexBuilder rexBuilder) {
-    this.scalarParserValidator = scalarParserValidator;
-    this.rexBuilder = rexBuilder;
+    relOptRuleCall.transformTo(transformedRel);
   }
 
-  @Override public RexNode visitCall(RexCall call) {
-    SqlOperator operator = call.getOperator();
-    RexCall converted = (RexCall) super.visitCall(call);
+  private Pair<RelNode, CorrelationId> convert(RelNode relNode) {
+    RexBuilder rexBuilder = relNode.getCluster().getRexBuilder();
 
-    if (operator instanceof SqlUserDefinedFunction) {
+    CorrelationId correlationId = relNode.getVariablesSet().isEmpty()
+      ? relNode.getCluster().createCorrel()
+      : Iterables.getOnlyElement(relNode.getVariablesSet());
+    RexCorrelVariable rexCorrelVariable = relNode.getInputs().isEmpty() ? null : (RexCorrelVariable)rexBuilder.makeCorrel(
+      relNode.getInput(0).getRowType(),
+      correlationId);
+
+    UdfExpander udfExpander = new UdfExpander(sqlConverter, rexBuilder, rexCorrelVariable);
+    RelNode transformedRelNode = relNode.accept(udfExpander);
+    return Pair.of(transformedRelNode, correlationId);
+  }
+
+  private static final class UdfExpander extends RexShuttle {
+    private final SqlConverter sqlConverter;
+    private final RexBuilder rexBuilder;
+    private final RexCorrelVariable rexCorrelVariable;
+
+    public UdfExpander(
+      SqlConverter sqlConverter,
+      RexBuilder rexBuilder,
+      RexCorrelVariable rexCorrelVariable) {
+      this.sqlConverter = sqlConverter;
+      this.rexBuilder = rexBuilder;
+      this.rexCorrelVariable = rexCorrelVariable;
+    }
+
+    @Override public RexNode visitCall(RexCall call) {
+      SqlOperator operator = call.getOperator();
+
+      // Preorder traversal to handle nested UDFs
+      RexCall visitedCall = (RexCall) super.visitCall(call);
+      if (!(operator instanceof SqlUserDefinedFunction)) {
+        return visitedCall;
+      }
+
       Function function = ((SqlUserDefinedFunction) operator).getFunction();
-      if(function instanceof DremioScalarUserDefinedFunction) {
+      if (!(function instanceof DremioScalarUserDefinedFunction)) {
+        return visitedCall;
+      }
 
-        DremioScalarUserDefinedFunction dremioScalarUserDefinedFunction =
-          (DremioScalarUserDefinedFunction) function;
+      DremioScalarUserDefinedFunction dremioScalarUserDefinedFunction = (DremioScalarUserDefinedFunction) function;
 
-        SqlValidatorAndToRelContext.FunctionBodyAndArguments functionBodyAndArguments =
-          scalarParserValidator.expand(dremioScalarUserDefinedFunction);
-        List<RexNode> paramRexList = converted.getOperands();
-        List<RexNode> transformedArguments = new ArrayList<>();
-        Preconditions.checkState(function.getParameters().size() == paramRexList.size());
-        for (int i = 0; i < paramRexList.size(); i++) {
-          RexNode paramRex = paramRexList.get(i);
-          FunctionParameter param = dremioScalarUserDefinedFunction.getParameters().get(i);
-          transformedArguments.add(rexBuilder.makeCast(param.getType(rexBuilder.getTypeFactory()), paramRex));
-        }
+      RexNode udfExpression = dremioScalarUserDefinedFunction.extractExpression(sqlConverter);
+      RexNode rewrittenUdfExpression;
+      if (!CorrelatedUdfDetector.hasCorrelatedUdf(udfExpression)) {
+        rewrittenUdfExpression = ParameterizedQueryParameterReplacer.replaceParameters(
+          udfExpression,
+          function.getParameters(),
+          visitedCall.getOperands(),
+          rexBuilder);
+      } else {
+        RexInputRefToFieldAccess replacer = new RexInputRefToFieldAccess(
+          rexBuilder,
+          rexCorrelVariable);
+        List<RexNode> rewrittenCorrelateOperands = visitedCall
+          .getOperands()
+          .stream()
+          .map(operand -> operand.accept(replacer))
+          .collect(Collectors.toList());
+        rewrittenUdfExpression = RexArgumentReplacer.replaceArguments(
+          udfExpression,
+          function.getParameters(),
+          rewrittenCorrelateOperands,
+          visitedCall.getOperands(),
+          rexCorrelVariable.id,
+          rexBuilder);
+      }
 
-        ReplaceArgumentsVisitor replaceArgumentsVisitor = new ReplaceArgumentsVisitor(
-          transformedArguments,
-          functionBodyAndArguments.getUserDefinedFunctionArgumentOperators());
-        RexNode expandedNode = functionBodyAndArguments.getFunctionBody()
-          .accept(replaceArgumentsVisitor)
-          .accept(this);
-        return rexBuilder.makeCast(call.getType(), expandedNode, true);
+      RexNode castedNode = rexBuilder.makeCast(
+        call.getType(),
+        rewrittenUdfExpression,
+        true);
+
+      return castedNode;
+    }
+  }
+
+  private static final class RexInputRefToFieldAccess extends RexShuttle {
+    private final RexBuilder rexBuilder;
+    private final RexNode rexCorrelVariable;
+
+    public RexInputRefToFieldAccess(RexBuilder rexBuilder, RexNode rexCorrelVariable) {
+      this.rexBuilder = rexBuilder;
+      this.rexCorrelVariable = rexCorrelVariable;
+    }
+
+    @Override
+    public RexNode visitInputRef(RexInputRef inputRef) {
+      return rexBuilder.makeFieldAccess(rexCorrelVariable, inputRef.getIndex());
+    }
+  }
+
+  private static final class RexArgumentReplacer extends RexShuttle {
+    private final RelShuttle correlateRelReplacer;
+    private final RelShuttle refIndexRelReplacer;
+    private final RexShuttle correlateRexReplacer;
+    private final RexShuttle refIndexRexReplacer;
+    private final CorrelationId correlationId;
+
+    private RexArgumentReplacer(
+      RelShuttle correlateRelReplacer,
+      RelShuttle refIndexRelReplacer,
+      RexShuttle correlateRexReplacer,
+      RexShuttle refIndexRexReplacer,
+      CorrelationId correlationId) {
+      this.correlateRelReplacer = correlateRelReplacer;
+      this.refIndexRelReplacer = refIndexRelReplacer;
+      this.correlateRexReplacer = correlateRexReplacer;
+      this.refIndexRexReplacer = refIndexRexReplacer;
+      this.correlationId = correlationId;
+    }
+
+    @Override
+    public RexNode visitSubQuery(RexSubQuery subQuery) {
+      // For a subquery we want to rewrite the RelNode using correlates:
+      RelNode rewrittenRelNode = subQuery.rel.accept(correlateRelReplacer);
+      boolean relRewritten = rewrittenRelNode != subQuery.rel;
+
+      // And the operands with ref indexes:
+      List<RexNode> rewrittenOperands = subQuery
+        .getOperands()
+        .stream()
+        .map(operand -> operand.accept(refIndexRexReplacer))
+        .collect(ImmutableList.toImmutableList());
+
+      // This is because the operands are in relation to the outer query
+      // And the RelNode is in relation to the inner query
+
+      // This is more clear in the case of IN vs EXISTS:
+      // IN($0, {
+      //  LogicalProject(DEPTNO=[$6])
+      //  ScanCrel(table=[cp.scott."EMP.json"], columns=[`EMPNO`, `ENAME`, `JOB`, `MGR`, `HIREDATE`, `SAL`, `DEPTNO`, `COMM`], splits=[1])
+      //})
+      //
+      // EXISTS({
+      //  LogicalFilter(condition=[=($6, $cor1.DEPTNO)])
+      //  ScanCrel(table=[cp.scott."EMP.json"], columns=[`EMPNO`, `ENAME`, `JOB`, `MGR`, `HIREDATE`, `SAL`, `DEPTNO`, `COMM`], splits=[1])
+      //})
+
+
+      CorrelationId rewrittenCorrelateId = relRewritten ? correlationId : null;
+      // TODO: add RexSubQuery.clone(CorrelationId) so we don't need this switch case
+      SqlKind kind = subQuery.op.kind;
+      switch (kind) {
+      case SCALAR_QUERY:
+        return RexSubQuery.scalar(rewrittenRelNode, rewrittenCorrelateId);
+
+      case EXISTS:
+        return RexSubQuery.exists(rewrittenRelNode, rewrittenCorrelateId);
+
+      case IN:
+        return RexSubQuery.in(rewrittenRelNode, rewrittenOperands, rewrittenCorrelateId);
+
+      case SOME:
+        return RexSubQuery.some(rewrittenRelNode, rewrittenOperands, (SqlQuantifyOperator) subQuery.op, rewrittenCorrelateId);
+
+      default:
+        throw new UnsupportedOperationException("Can not support kind: " + kind);
       }
     }
-    return converted;
+
+    @Override
+    public RexNode visitCall(final RexCall call) {
+      RexNode visitedCall = super.visitCall(call);
+      // For regular calls we replace with ref indexes
+      return visitedCall.accept(refIndexRexReplacer);
+    }
+
+    public static RexNode replaceArguments(
+      RexNode rexNode,
+      List<FunctionParameter> functionParameters,
+      List<RexNode> correlateReplacements,
+      List<RexNode> refIndexReplacements,
+      CorrelationId correlationId,
+      RexBuilder rexBuilder) {
+      RelShuttle correlateRelReplacer = ParameterizedQueryParameterReplacer.createRelParameterReplacer(functionParameters, correlateReplacements, rexBuilder);
+      RelShuttle refIndexRelReplacer = ParameterizedQueryParameterReplacer.createRelParameterReplacer(functionParameters, refIndexReplacements, rexBuilder);
+      RexShuttle correlateRexReplacer = ParameterizedQueryParameterReplacer.createRexParameterReplacer(functionParameters, correlateReplacements, rexBuilder);
+      RexShuttle refIndexRexReplacer = ParameterizedQueryParameterReplacer.createRexParameterReplacer(functionParameters, refIndexReplacements, rexBuilder);
+      RexArgumentReplacer compositeReplacer = new RexArgumentReplacer(
+        correlateRelReplacer,
+        refIndexRelReplacer,
+        correlateRexReplacer,
+        refIndexRexReplacer,
+        correlationId);
+      return rexNode.accept(compositeReplacer);
+    }
   }
 }

@@ -21,7 +21,9 @@ import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.config.DremioConfig;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.test.TemporarySystemProperties;
+import com.dremio.test.UserExceptionAssert;
 
 public class TestAlterTableSetOption extends BaseTestQuery {
 
@@ -44,7 +46,9 @@ public class TestAlterTableSetOption extends BaseTestQuery {
         "ALTER SESSION tbl SET hive.parquet.enforce_varchar_width = ON",
     };
     for (String q : queries) {
-      errorMsgTestHelper(q, "Failure parsing the query");
+      UserExceptionAssert
+        .assertThatThrownBy(() -> test(q))
+        .hasErrorType(UserBitShared.DremioPBError.ErrorType.PARSE);
     }
   }
 

@@ -33,7 +33,11 @@ import com.dremio.exec.expr.ClassProducer;
 import com.dremio.exec.expr.HoldingContainerExpression;
 import com.google.common.collect.Lists;
 
-public class FunctionGenerationHelper {
+public final class FunctionGenerationHelper {
+  private FunctionGenerationHelper() {
+    // Utility class
+  }
+
   public static final String COMPARE_TO_NULLS_HIGH = "compare_to_nulls_high";
   public static final String COMPARE_TO_NULLS_LOW = "compare_to_nulls_low";
 
@@ -53,13 +57,13 @@ public class FunctionGenerationHelper {
       HoldingContainer left,
       HoldingContainer right,
       ClassProducer producer) {
-    final String comparator_name =
+    final String comparatorName =
         null_high ? COMPARE_TO_NULLS_HIGH : COMPARE_TO_NULLS_LOW;
 
     if (!left.getCompleteType().isComparable() || ! right.getCompleteType().isComparable()){
       throw new UnsupportedOperationException(formatCanNotCompareMsg(left.getCompleteType(), right.getCompleteType()));
     }
-    LogicalExpression comparisonFunctionExpression = getFunctionExpression(comparator_name, Types.required(MinorType.INT),
+    LogicalExpression comparisonFunctionExpression = getFunctionExpression(comparatorName, Types.required(MinorType.INT),
                                  left, right);
 
     if (!left.getCompleteType().isUnion() && !right.getCompleteType().isUnion()) {

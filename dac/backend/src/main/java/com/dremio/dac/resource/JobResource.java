@@ -138,7 +138,7 @@ public class JobResource extends BaseResourceWithAllocator {
           .build());
       return new NotificationResponse(ResponseType.OK, "Job cancellation requested");
     } catch (JobNotFoundException e) {
-      if (e.getErrorType() == JobNotFoundException.causeOfFailure.CANCEL_FAILED) {
+      if (e.getErrorType() == JobNotFoundException.CauseOfFailure.CANCEL_FAILED) {
         throw new ConflictException(String.format("Job %s may have completed and cannot be canceled.", jobId.getId()));
       } else {
         throw JobResourceNotFoundException.fromJobNotFoundException(e);

@@ -30,20 +30,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.datastore.LegacyProtobufSerializer;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.physical.config.ManifestScanFilters;
 import com.dremio.exec.planner.PlannerPhase;
-import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.partition.PruneScanRuleBase.PruneScanRuleFilterOnProject;
 import com.dremio.exec.planner.logical.partition.PruneScanRuleBase.PruneScanRuleFilterOnSampleScan;
 import com.dremio.exec.planner.logical.partition.PruneScanRuleBase.PruneScanRuleFilterOnScan;
 import com.dremio.exec.planner.physical.DistributionTrait;
 import com.dremio.exec.planner.physical.FileSystemTableOptimizePrule;
+import com.dremio.exec.planner.physical.FileSystemVacuumTablePrule;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.store.StoragePlugin;
@@ -59,14 +58,12 @@ import com.dremio.exec.store.iceberg.InternalIcebergScanTableMetadata;
 import com.dremio.exec.store.mfunctions.TableFilesFunctionTableMetadata;
 import com.dremio.exec.store.parquet.ParquetScanPrel;
 import com.dremio.options.OptionResolver;
-import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
-import com.google.protobuf.InvalidProtocolBufferException;
 
 /**
  * Rules for file system sources.
@@ -232,7 +229,8 @@ public class FileSystemRulesFactory extends StoragePluginTypeRulesFactory {
             ConvertCountToDirectScan.getAggOnScan(pluginType),
             ConvertCountToDirectScan.getAggProjOnScan(pluginType),
             new TableFilesFunctionScanPrule(pluginType),
-            new FileSystemTableOptimizePrule(optimizerContext)
+            new FileSystemTableOptimizePrule(optimizerContext),
+            new FileSystemVacuumTablePrule(optimizerContext)
             );
 
       default:
@@ -327,22 +325,6 @@ public class FileSystemRulesFactory extends StoragePluginTypeRulesFactory {
         throw new IllegalStateException(message);
       }
       return true;
-    }
-  }
-
-  public static String getPartitionStatsFile(ScanRelBase drel) {
-    if(DatasetHelper.isInternalIcebergTable(drel.getTableMetadata().getDatasetConfig())) {
-      return drel.getTableMetadata().getDatasetConfig().getPhysicalDataset().getIcebergMetadata().getPartitionStatsFile();
-    } else {
-      byte[] byteBuffer = drel.getTableMetadata().getReadDefinition().getExtendedProperty().toByteArray();
-
-      IcebergProtobuf.IcebergDatasetXAttr icebergDatasetXAttr;
-      try {
-        icebergDatasetXAttr = LegacyProtobufSerializer.parseFrom(IcebergProtobuf.IcebergDatasetXAttr.PARSER, byteBuffer);
-      } catch (InvalidProtocolBufferException e) {
-        throw new RuntimeException(e);
-      }
-      return icebergDatasetXAttr.getPartitionStatsFile();
     }
   }
 }

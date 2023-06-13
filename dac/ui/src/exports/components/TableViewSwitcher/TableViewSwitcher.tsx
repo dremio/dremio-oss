@@ -17,7 +17,7 @@
 import {
   SegmentedControl,
   SegmentedControlOption,
-} from "dremio-ui-lib/dist-esm";
+} from "dremio-ui-lib/components";
 import { intl } from "@app/utils/intl";
 
 export const TableViewSwitcher = (props) => {

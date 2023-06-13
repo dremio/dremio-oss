@@ -41,6 +41,7 @@ public class TestAutoRefreshConfiguration {
   private class TestConfListener implements Consumer<Integer> {
     private volatile List<Integer> log = new ArrayList<>();
 
+    @Override
     public void accept(Integer newInt) {
       log.add(newInt);
     }

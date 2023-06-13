@@ -188,43 +188,47 @@ public class TestGlobalDictionaryBuilder extends DremioTest {
   public void testGlobalDictionary() throws Exception {
     try (final BufferAllocator bufferAllocator = allocatorRule.newAllocator("test-global-dictionary-builder", 0, Long.MAX_VALUE)) {
       final CompressionCodecFactory codec = CodecFactory.createDirectCodecFactory(conf, new ParquetDirectByteBufferAllocator(bufferAllocator), 0);
-      Map<ColumnDescriptor, Path> globalDictionaries = GlobalDictionaryBuilder.createGlobalDictionaries(codec, fs, tableDirPath, bufferAllocator).getColumnsToDictionaryFiles();
-      assertEquals(1, globalDictionaries.size());
-      ColumnDescriptor column = globalDictionaries.entrySet().iterator().next().getKey();
-      assertTrue(Arrays.equals(new String[] {"phoneNumbers", "phone", "kind"}, column.getPath()));
-      long dictionaryVersion = GlobalDictionaryBuilder.getDictionaryVersion(fs, tableDirPath);
-      assertEquals(0, dictionaryVersion);
-      Path dictionaryRootPath = GlobalDictionaryBuilder.getDictionaryVersionedRootPath(fs, tableDirPath, dictionaryVersion);
-      try (final VectorContainer dict = GlobalDictionaryBuilder.readDictionary(fs, dictionaryRootPath, column, bufferAllocator)) {
-        assertEquals(4, dict.getRecordCount());
-        final VarBinaryVector dictValues = dict.getValueAccessorById(VarBinaryVector.class, 0).getValueVector();
-        assertEquals("cell", new String(dictValues.get(0), UTF_8));
-        assertEquals("landline", new String(dictValues.get(1), UTF_8));
-        assertEquals("mobile", new String(dictValues.get(2), UTF_8));
-        assertEquals("work", new String(dictValues.get(3), UTF_8));
-      }
-      assertEquals(1, GlobalDictionaryBuilder.listDictionaryFiles(fs, dictionaryRootPath).size());
+      try {
+        Map<ColumnDescriptor, Path> globalDictionaries = GlobalDictionaryBuilder.createGlobalDictionaries(codec, fs, tableDirPath, bufferAllocator).getColumnsToDictionaryFiles();
+        assertEquals(1, globalDictionaries.size());
+        ColumnDescriptor column = globalDictionaries.entrySet().iterator().next().getKey();
+        assertTrue(Arrays.equals(new String[]{"phoneNumbers", "phone", "kind"}, column.getPath()));
+        long dictionaryVersion = GlobalDictionaryBuilder.getDictionaryVersion(fs, tableDirPath);
+        assertEquals(0, dictionaryVersion);
+        Path dictionaryRootPath = GlobalDictionaryBuilder.getDictionaryVersionedRootPath(fs, tableDirPath, dictionaryVersion);
+        try (final VectorContainer dict = GlobalDictionaryBuilder.readDictionary(fs, dictionaryRootPath, column, bufferAllocator)) {
+          assertEquals(4, dict.getRecordCount());
+          final VarBinaryVector dictValues = dict.getValueAccessorById(VarBinaryVector.class, 0).getValueVector();
+          assertEquals("cell", new String(dictValues.get(0), UTF_8));
+          assertEquals("landline", new String(dictValues.get(1), UTF_8));
+          assertEquals("mobile", new String(dictValues.get(2), UTF_8));
+          assertEquals("work", new String(dictValues.get(3), UTF_8));
+        }
+        assertEquals(1, GlobalDictionaryBuilder.listDictionaryFiles(fs, dictionaryRootPath).size());
 
-      // update global dictionary
-      globalDictionaries = GlobalDictionaryBuilder.updateGlobalDictionaries(codec, fs, tableDirPath, partitionDirPath, bufferAllocator).getColumnsToDictionaryFiles();
-      assertEquals(1, globalDictionaries.size());
-      column = globalDictionaries.entrySet().iterator().next().getKey();
-      assertTrue(Arrays.equals(new String[] {"phoneNumbers", "phone", "kind"}, column.getPath()));
-      dictionaryVersion = GlobalDictionaryBuilder.getDictionaryVersion(fs, tableDirPath);
-      dictionaryRootPath = GlobalDictionaryBuilder.getDictionaryVersionedRootPath(fs, tableDirPath, dictionaryVersion);
-      assertEquals(1, dictionaryVersion);
-      try (final VectorContainer dict = GlobalDictionaryBuilder.readDictionary(fs, dictionaryRootPath, column, bufferAllocator)) {
-        assertEquals(5, dict.getRecordCount());
-        final VarBinaryVector dictValues = dict.getValueAccessorById(VarBinaryVector.class, 0).getValueVector();
-        assertEquals("cell", new String(dictValues.get(0), UTF_8));
-        assertEquals("home", new String(dictValues.get(1), UTF_8));
-        assertEquals("landline", new String(dictValues.get(2), UTF_8));
-        assertEquals("mobile", new String(dictValues.get(3), UTF_8));
-        assertEquals("work", new String(dictValues.get(4), UTF_8));
-      }
+        // update global dictionary
+        globalDictionaries = GlobalDictionaryBuilder.updateGlobalDictionaries(codec, fs, tableDirPath, partitionDirPath, bufferAllocator).getColumnsToDictionaryFiles();
+        assertEquals(1, globalDictionaries.size());
+        column = globalDictionaries.entrySet().iterator().next().getKey();
+        assertTrue(Arrays.equals(new String[]{"phoneNumbers", "phone", "kind"}, column.getPath()));
+        dictionaryVersion = GlobalDictionaryBuilder.getDictionaryVersion(fs, tableDirPath);
+        dictionaryRootPath = GlobalDictionaryBuilder.getDictionaryVersionedRootPath(fs, tableDirPath, dictionaryVersion);
+        assertEquals(1, dictionaryVersion);
+        try (final VectorContainer dict = GlobalDictionaryBuilder.readDictionary(fs, dictionaryRootPath, column, bufferAllocator)) {
+          assertEquals(5, dict.getRecordCount());
+          final VarBinaryVector dictValues = dict.getValueAccessorById(VarBinaryVector.class, 0).getValueVector();
+          assertEquals("cell", new String(dictValues.get(0), UTF_8));
+          assertEquals("home", new String(dictValues.get(1), UTF_8));
+          assertEquals("landline", new String(dictValues.get(2), UTF_8));
+          assertEquals("mobile", new String(dictValues.get(3), UTF_8));
+          assertEquals("work", new String(dictValues.get(4), UTF_8));
+        }
 
-      assertEquals(1, GlobalDictionaryBuilder.listDictionaryFiles(fs, dictionaryRootPath).size());
-      assertEquals(0, GlobalDictionaryBuilder.listDictionaryFiles(fs, partitionDirPath).size());
+        assertEquals(1, GlobalDictionaryBuilder.listDictionaryFiles(fs, dictionaryRootPath).size());
+        assertEquals(0, GlobalDictionaryBuilder.listDictionaryFiles(fs, partitionDirPath).size());
+      } finally {
+        codec.release();
+      }
     }
   }
 
@@ -232,24 +236,28 @@ public class TestGlobalDictionaryBuilder extends DremioTest {
   public void testLocalDictionaries() throws IOException {
     try (final BufferAllocator bufferAllocator = allocatorRule.newAllocator("test-global-dictionary-builder", 0, Long.MAX_VALUE)) {
       final CompressionCodecFactory codecFactory = CodecFactory.createDirectCodecFactory(conf, new ParquetDirectByteBufferAllocator(bufferAllocator), 0);
-      Pair<Map<ColumnDescriptor, Dictionary>, Set<ColumnDescriptor>> dictionaries1 =
-        LocalDictionariesReader.readDictionaries(fs, tableDirPath.resolve("phonebook1.parquet"), codecFactory);
-      Pair<Map<ColumnDescriptor, Dictionary>, Set<ColumnDescriptor>> dictionaries2 =
-        LocalDictionariesReader.readDictionaries(fs, tableDirPath.resolve("phonebook2.parquet"), codecFactory);
-      Pair<Map<ColumnDescriptor, Dictionary>, Set<ColumnDescriptor>> dictionaries3 =
-        LocalDictionariesReader.readDictionaries(fs, tableDirPath.resolve("phonebook3.parquet"), codecFactory);
-      Pair<Map<ColumnDescriptor, Dictionary>, Set<ColumnDescriptor>> dictionaries4 =
-        LocalDictionariesReader.readDictionaries(fs, partitionDirPath.resolve("phonebook4.parquet"), codecFactory);
+      try {
+        Pair<Map<ColumnDescriptor, Dictionary>, Set<ColumnDescriptor>> dictionaries1 =
+          LocalDictionariesReader.readDictionaries(fs, tableDirPath.resolve("phonebook1.parquet"), codecFactory);
+        Pair<Map<ColumnDescriptor, Dictionary>, Set<ColumnDescriptor>> dictionaries2 =
+          LocalDictionariesReader.readDictionaries(fs, tableDirPath.resolve("phonebook2.parquet"), codecFactory);
+        Pair<Map<ColumnDescriptor, Dictionary>, Set<ColumnDescriptor>> dictionaries3 =
+          LocalDictionariesReader.readDictionaries(fs, tableDirPath.resolve("phonebook3.parquet"), codecFactory);
+        Pair<Map<ColumnDescriptor, Dictionary>, Set<ColumnDescriptor>> dictionaries4 =
+          LocalDictionariesReader.readDictionaries(fs, partitionDirPath.resolve("phonebook4.parquet"), codecFactory);
 
-      assertEquals(2, dictionaries1.getKey().size()); // name and kind have dictionaries
-      assertEquals(1, dictionaries2.getKey().size());
-      assertEquals(1, dictionaries3.getKey().size());
-      assertEquals(1, dictionaries4.getKey().size());
+        assertEquals(2, dictionaries1.getKey().size()); // name and kind have dictionaries
+        assertEquals(1, dictionaries2.getKey().size());
+        assertEquals(1, dictionaries3.getKey().size());
+        assertEquals(1, dictionaries4.getKey().size());
 
-      assertEquals(0, dictionaries1.getValue().size());
-      assertEquals(1, dictionaries2.getValue().size()); // skip name
-      assertEquals(1, dictionaries3.getValue().size()); // skip name
-      assertEquals(1, dictionaries4.getValue().size()); // skip name
+        assertEquals(0, dictionaries1.getValue().size());
+        assertEquals(1, dictionaries2.getValue().size()); // skip name
+        assertEquals(1, dictionaries3.getValue().size()); // skip name
+        assertEquals(1, dictionaries4.getValue().size()); // skip name
+      } finally {
+        codecFactory.release();
+      }
     }
   }
 }

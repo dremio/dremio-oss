@@ -174,6 +174,7 @@ public class TestDropTable extends PlanTestBase {
         .go();
   }
 
+  @SuppressWarnings("checkstyle:LocalFinalVariableName")
   @Test
   public void testIsHomogenousShouldNotBeCalledForIcebergTables() throws Exception {
     test("use dfs_test_hadoop");

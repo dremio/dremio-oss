@@ -45,10 +45,13 @@ function BranchList({
 }: BranchListProps) {
   const intl = useIntl();
   const ref = useRef(null);
-  const { api } = useNessieContext();
+  const { apiV2 } = useNessieContext();
 
   const [, data] = usePromise(
-    useCallback(() => api.getAllReferences({ maxRecords: 1000000 }), [api])
+    useCallback(
+      () => apiV2.getAllReferencesV2({ maxRecords: 1000000 }),
+      [apiV2]
+    )
   );
   const branchList = useMemo(() => {
     if (!data) return [];

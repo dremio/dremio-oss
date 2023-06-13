@@ -282,6 +282,7 @@ public abstract class RpcBus<T extends EnumLite, C extends RemoteConnection> imp
       }
     }
 
+    @Override
     public void sendFailure(UserRpcException e){
       sendFailure(e, true);
     }
@@ -320,7 +321,7 @@ public abstract class RpcBus<T extends EnumLite, C extends RemoteConnection> imp
 
   }
 
-
+  @SuppressWarnings("checkstyle:MemberName")
   private final SecondFailureHandler RESPONSE_FAILURE_FAILURE = new SecondFailureHandler();
 
   private class SecondFailureHandler implements ChannelFutureListener {

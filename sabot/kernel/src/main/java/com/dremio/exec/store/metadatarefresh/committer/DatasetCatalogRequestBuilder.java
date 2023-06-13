@@ -23,19 +23,16 @@ import java.util.Map;
 
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.iceberg.IcebergSerDe;
-import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf;
 import com.dremio.service.catalog.AddOrUpdateDatasetRequest;
 import com.dremio.service.catalog.GetDatasetRequest;
@@ -228,7 +225,8 @@ public class DatasetCatalogRequestBuilder {
             .setBatchSchema(ByteString.copyFrom(batchSchema.serialize()));
   }
 
-  public void setIcebergMetadata(String rootPointer, String tableUuid, long snapshotId, Configuration conf, boolean isPartitioned, Map<Integer, PartitionSpec> partitionSpecMap, MutablePlugin plugin, Schema schema) {
+  public void setIcebergMetadata(String rootPointer, String tableUuid, long snapshotId,
+      Map<Integer, PartitionSpec> partitionSpecMap, Schema schema, String partitionStatsFile, Long partitionsStatsFileLength) {
     Preconditions.checkState(request != null, "Unexpected state");
     Preconditions.checkState(request.getDatasetConfigBuilder().getIcebergMetadataEnabled(), "Unexpected state");
     byte[] specs = IcebergSerDe.serializePartitionSpecAsJsonMap(partitionSpecMap);
@@ -238,11 +236,11 @@ public class DatasetCatalogRequestBuilder {
             .setSnapshotId(snapshotId)
             .setPartitionSpecsJsonMap(ByteString.copyFrom(specs))
             .setJsonSchema(serializedSchemaAsJson(schema));
-    if (isPartitioned) {
-      String partitionStatsFile = IcebergUtils.getPartitionStatsFile(rootPointer, snapshotId, conf, plugin);
-      if (partitionStatsFile != null) {
-        metadataBuilder.setPartitionStatsFile(partitionStatsFile);
-      }
+    if (partitionStatsFile != null) {
+      metadataBuilder.setPartitionStatsFile(partitionStatsFile);
+    }
+    if (partitionsStatsFileLength != null) {
+      metadataBuilder.setPartitionStatsFileSize(partitionsStatsFileLength);
     }
     request.getDatasetConfigBuilder().setIcebergMetadata(metadataBuilder.build());
   }

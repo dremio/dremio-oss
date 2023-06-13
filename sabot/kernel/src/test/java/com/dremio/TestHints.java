@@ -15,7 +15,11 @@
  */
 package com.dremio;
 
+import static com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType.PARSE;
+
 import org.junit.Test;
+
+import com.dremio.test.UserExceptionAssert;
 
 /**
  * Tests for query hints.
@@ -34,7 +38,9 @@ public class TestHints extends BaseTestQuery {
     };
 
     for (String query : testQueries) {
-      this.errorMsgTestHelper(query, "Failure parsing the query");
+      UserExceptionAssert
+        .assertThatThrownBy(() -> test(query))
+        .hasErrorType(PARSE);
     }
   }
 

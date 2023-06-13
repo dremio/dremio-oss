@@ -55,6 +55,7 @@ public class SampleMutator implements OutputMutator, AutoCloseable {
     this.bufferManager = new BufferManagerImpl(allocator);
   }
 
+  @Override
   public void removeField(Field field) throws SchemaChangeException {
     ValueVector vector = fieldVectorMap.remove(field.getName().toLowerCase());
     if (vector == null) {
@@ -65,6 +66,7 @@ public class SampleMutator implements OutputMutator, AutoCloseable {
     }
   }
 
+  @Override
   public <T extends ValueVector> T addField(Field field, Class<T> clazz) throws SchemaChangeException {
     ValueVector v = fieldVectorMap.get(field.getName().toLowerCase());
     if (v == null || v.getClass() != clazz) {
@@ -150,6 +152,7 @@ public class SampleMutator implements OutputMutator, AutoCloseable {
    * the mutator might not get cleaned up elsewhere. TextRecordReader will call
    * this method to clear any allocations
    */
+  @Override
   public void close() {
     logger.debug("closing mutator");
     for (final ValueVector v : fieldVectorMap.values()) {

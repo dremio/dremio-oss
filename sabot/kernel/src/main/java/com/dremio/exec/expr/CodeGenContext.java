@@ -202,6 +202,7 @@ public class CodeGenContext implements LogicalExpression {
   }
 
 
+  @Override
   public String toString() {
     LogicalExpression childWithoutContext = CodeGenerationContextRemover.removeCodeGenContext
       (child);
@@ -218,6 +219,7 @@ public class CodeGenContext implements LogicalExpression {
     return child.equals(obj);
   }
 
+  @Override
   public <T, V, E extends Exception> T accept(ExprVisitor<T, V, E> visitor, V value) throws E {
     return child.accept(visitor, value);
   }

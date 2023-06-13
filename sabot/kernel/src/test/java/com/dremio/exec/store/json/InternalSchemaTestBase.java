@@ -166,7 +166,9 @@ public class InternalSchemaTestBase extends PlanTestBase {
       .withMessageContaining("to the column's data type")
       .withMessageContaining(tableType)
       .withMessageContaining("in table")
-      .withMessageContaining(dirName);
+      .withMessageContaining(dirName)
+      .withMessageContaining("and file")
+      .withMessageContaining(".json");
   }
 
   void assertCastFailure(String dirName) {

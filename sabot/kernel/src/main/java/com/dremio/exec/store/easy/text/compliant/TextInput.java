@@ -132,7 +132,7 @@ final class TextInput {
    * splitFirstLine is enabled, input will move to appropriate complete line.
    * @throws IOException
    */
-  final void start() throws IOException {
+  final boolean start() throws IOException {
     lineCount = 0;
     if(startPos > 0) {
       input.setPosition(startPos);
@@ -143,17 +143,11 @@ final class TextInput {
       skipOptionalBOM();
     }
     if (length > 0) {
-      if(startPos > 0 || settings.isSkipFirstLine()){
-
-        // move to next full record.
-        try {
-          skipLines(1);
-        } catch (StreamFinishedPseudoException sfpe) {
-          // just stop parsing - as end of the input reached
-          throw new IllegalArgumentException("Only one data line detected. Please consider changing line delimiter.");
-        }
+      if(startPos > 0 ){
+        return true;
       }
     }
+    return false;
   }
 
 
@@ -241,81 +235,54 @@ final class TextInput {
     }
   }
 
+  boolean match(byte byteChar, byte[] parameter) throws IOException {
+    if (byteChar == parameter[0]) {
+      int bufferPtrTemp = bufferPtr - 1;
+      for (int i = 1; i < parameter.length; i++, bufferPtrTemp++) {
+        if (parameter[i] != buffer.getByte(bufferPtrTemp)) {
+          return false;
+        }
+      }
+
+      // we don't need to update buffer position if parameter is one byte long
+      if (parameter.length > 1) {
+        bufferPtr += (parameter.length - 1);
+        if (bufferPtr > length) {
+          if (length != -1) {
+            updateBuffer();
+          } else {
+            throw StreamFinishedPseudoException.INSTANCE;
+          }
+        }
+      }
+      return true;
+    }
+    return false;
+  }
+
   /**
    * Get next byte from stream.  Also maintains the current line count.  Will throw a StreamFinishedPseudoException
    * when the stream has run out of bytes.
    * @return next byte from stream.
-   * @throws IOException
+   * @throws IOException Reached End of Input
    */
-  public final byte nextChar() throws IOException {
+  public byte[] nextChar() throws IOException {
+    byte[] byteNType =  new byte[2];
     byte byteChar = nextCharNoNewLineCheck();
-    int bufferPtrTemp = bufferPtr - 1;
-    if (byteChar == lineSeparator[0]) {
-      for (int i = 1; i < lineSeparator.length; i++, bufferPtrTemp++) {
-        if (lineSeparator[i] != buffer.getByte(bufferPtrTemp)) {
-          return byteChar;
-        }
-      }
-
+    byteNType[1] = byteChar;
+    byte[] fieldSeparator = settings.getDelimiter();
+    if (match(byteChar, lineSeparator)) {
+      byteNType[0] = 1;
       lineCount++;
-      byteChar = normalizedLineSeparator;
-
-      // we don't need to update buffer position if line separator is one byte long
-      if (lineSeparator.length > 1) {
-        bufferPtr += (lineSeparator.length - 1);
-        if (bufferPtr > length) {
-          if (length != -1) {
-            updateBuffer();
-          } else {
-            throw StreamFinishedPseudoException.INSTANCE;
-          }
-        }
-      }
+      byteNType[1] = -1;
+    } else if (byteChar == normalizedLineSeparator) {
+      lineCount++;
+      byteNType[0] = 1;
+    } else if (match(byteChar, fieldSeparator)) {
+      byteNType[0] = 2;
     }
 
-    return byteChar;
-  }
-
-  /**
-   * Get next byte from stream. newLine means a new line.
-   * Also maintains the current line count.  Will throw a StreamFinishedPseudoException
-   * when the stream has run out of bytes.
-   * @param newLine the char that means a new line
-   * @return next byte from stream.
-   * @throws IOException
-   */
-  public final byte nextChar(byte newLine) throws IOException {
-    byte byteChar = nextCharNoNewLineCheck();
-    int bufferPtrTemp = bufferPtr - 1;
-    if (byteChar == lineSeparator[0]) {
-      for (int i = 1; i < lineSeparator.length; i++, bufferPtrTemp++) {
-        if (lineSeparator[i] != buffer.getByte(bufferPtrTemp)) {
-          return byteChar;
-        }
-      }
-      // a new line
-
-      lineCount++;
-      byteChar = normalizedLineSeparator;
-
-      // we don't need to update buffer position if line separator is one byte long
-      if (lineSeparator.length > 1) {
-        bufferPtr += (lineSeparator.length - 1);
-        if (bufferPtr > length) {
-          if (length != -1) {
-            updateBuffer();
-          } else {
-            throw StreamFinishedPseudoException.INSTANCE;
-          }
-        }
-      }
-    } else if (byteChar == newLine) {
-      // a new line
-      lineCount++;
-      byteChar = normalizedLineSeparator;
-    }
-
-    return byteChar;
+    return byteNType;
   }
 
   /**
@@ -373,31 +340,6 @@ final class TextInput {
     try {
       do {
         nextChar();
-      } while (lineCount < expectedLineCount /*&& bufferPtr < READ_CHARS_LIMIT*/);
-      if (lineCount < lines) {
-        throw new IllegalArgumentException("Unable to skip " + lines + " lines from line " + (expectedLineCount - lines) + ". End of input reached");
-      }
-    } catch (EOFException ex) {
-      throw new IllegalArgumentException("Unable to skip " + lines + " lines from line " + (expectedLineCount - lines) + ". End of input reached");
-    }
-  }
-
-  /**
-   * Skip forward the number of line delimiters. newLine means a new line.
-   * If you are in the middle of a line, a value of 1 will skip to the start of the next record.
-   * @param newLine the char that means a new line
-   * @param lines Number of lines to skip.
-   * @throws IOException
-   */
-  public final void skipLines(int lines, byte newLine) throws IOException {
-    if (lines < 1) {
-      return;
-    }
-    long expectedLineCount = this.lineCount + lines;
-
-    try {
-      do {
-        nextChar(newLine);
       } while (lineCount < expectedLineCount /*&& bufferPtr < READ_CHARS_LIMIT*/);
       if (lineCount < lines) {
         throw new IllegalArgumentException("Unable to skip " + lines + " lines from line " + (expectedLineCount - lines) + ". End of input reached");

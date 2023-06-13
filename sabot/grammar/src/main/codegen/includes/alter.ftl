@@ -38,9 +38,16 @@
     SqlNodeList partitionList = SqlNodeList.EMPTY;
     SqlPartitionTransform partitionTransform;
     SqlPolicy sqlPolicy;
+    SqlTableVersionSpec sqlTableVersionSpec = SqlTableVersionSpec.NOT_SPECIFIED ;
+    SqlNodeList tablePropertyNameList;
+    SqlNodeList tablePropertyValueList;
 
 }
 {
+    {
+        tablePropertyNameList = SqlNodeList.EMPTY;
+        tablePropertyValueList = SqlNodeList.EMPTY;
+    }
     <ALTER> { pos = getPos(); }
     (
       <SOURCE>
@@ -73,7 +80,8 @@
       |
       (<TABLE> | <VDS> | <VIEW> | <PDS> | <DATASET>)
         tblName = CompoundIdentifier()
-        (
+        [ sqlTableVersionSpec = ATVersionSpec() ]
+          (
           <ADD> <ROW> <ACCESS> <POLICY> sqlPolicy = Policy()
           { return new SqlAlterTableAddRowAccessPolicy(pos, tblName, sqlPolicy); }
           |
@@ -86,6 +94,39 @@
           |
           <ROUTE> (
             (<ALL> <REFLECTIONS> | <REFLECTIONS>)  { return SqlAlterDatasetReflectionRouting(pos, tblName, SqlLiteral.createSymbol(SqlAlterDatasetReflectionRouting.RoutingType.TABLE, pos)); }
+          )
+          |
+          <SET> (
+            <TBLPROPERTIES>
+            <LPAREN>
+                {
+                    tablePropertyNameList = new SqlNodeList(getPos());
+                    tablePropertyValueList = new SqlNodeList(getPos());
+                }
+                ParseTableProperty(tablePropertyNameList, tablePropertyValueList)
+                (
+                    <COMMA>
+                    ParseTableProperty(tablePropertyNameList, tablePropertyValueList)
+                )*
+            <RPAREN>
+            {
+              return new SqlAlterTableProperties(pos, tblName,
+                SqlLiteral.createSymbol(SqlAlterTableProperties.Mode.SET, pos), tablePropertyNameList, tablePropertyValueList);
+            }
+          )
+          |
+          <UNSET> (
+            <TBLPROPERTIES>
+            {
+                tablePropertyNameList = new SqlNodeList(getPos());
+            }
+            <LPAREN>
+                StringLiteralCommaList(tablePropertyNameList.getList())
+            <RPAREN>
+            {
+              return new SqlAlterTableProperties(pos, tblName,
+                SqlLiteral.createSymbol(SqlAlterTableProperties.Mode.UNSET, pos), tablePropertyNameList, tablePropertyValueList);
+            }
           )
           |
           <ADD> (
@@ -121,7 +162,7 @@
             )
           |
           <DROP> (
-            <REFLECTION> {return SqlDropReflection(pos, tblName);}
+            <REFLECTION> {return SqlDropReflection(pos, tblName, sqlTableVersionSpec);}
             |
             <PARTITION> <FIELD> partitionTransform = ParsePartitionTransform()
             {
@@ -137,9 +178,9 @@
           )
           |
           <CREATE> (
-            <AGGREGATE> <REFLECTION> name = SimpleIdentifier() {return SqlCreateAggReflection(pos, tblName, name);}
+            <AGGREGATE> <REFLECTION> name = SimpleIdentifier() {return SqlCreateAggReflection(pos, tblName, name, sqlTableVersionSpec);}
             |
-            <RAW> <REFLECTION> name = SimpleIdentifier() {return SqlCreateRawReflection(pos, tblName, name);}
+            <RAW> <REFLECTION> name = SimpleIdentifier() {return SqlCreateRawReflection(pos, tblName, name, sqlTableVersionSpec);}
             |
             <EXTERNAL> <REFLECTION> name = SimpleIdentifier() { return SqlAddExternalReflection(pos, tblName, name);}
           )
@@ -196,7 +237,7 @@
                 )
                 <ACCELERATION>
                 {
-                    return new SqlAccelToggle(pos, tblName, raw, SqlLiteral.createBoolean(true, SqlParserPos.ZERO));
+                    return new SqlAccelToggle(pos, tblName, raw, SqlLiteral.createBoolean(true, SqlParserPos.ZERO), sqlTableVersionSpec);
                 }
             )
            )
@@ -214,7 +255,7 @@
                 )
                 <ACCELERATION>
                 {
-                    return new SqlAccelToggle(pos, tblName, raw, SqlLiteral.createBoolean(false, SqlParserPos.ZERO));
+                    return new SqlAccelToggle(pos, tblName, raw, SqlLiteral.createBoolean(false, SqlParserPos.ZERO), sqlTableVersionSpec);
                 }
             )
            )
@@ -310,7 +351,7 @@ SqlNodeList KeyValuePair() :
    [ (STRIPED, CONSOLIDATED) PARTITION BY (field1, field2, ..) ]
    [ LOCALSORT BY (field1, field2, ..) ]
  */
-SqlNode SqlCreateAggReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdentifier name) :
+SqlNode SqlCreateAggReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdentifier name, SqlTableVersionSpec sqlTableVersionSpec) :
 {
     SqlNodeList dimensionList;
     SqlNodeList measureList;
@@ -361,7 +402,7 @@ SqlNode SqlCreateAggReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdent
     )?
     {
         return SqlCreateReflection.createAggregation(pos, tblName, dimensionList, measureList, distributionList,
-           partitionList, sortList, arrowCachingEnabled, partitionDistributionStrategy, name);
+           partitionList, sortList, arrowCachingEnabled, partitionDistributionStrategy, name, sqlTableVersionSpec);
     }
 }
 
@@ -462,6 +503,7 @@ void MeasureList(List<SqlNode> measures) :
 
 /**
    ALTER TABLE tblname
+   [AT (BRANCH | TAG | COMMIT | SNAPSHOT | TIMESTAMP (versionSpec)]
    ADD RAW REFLECTION name
    USING
    DISPLAY (field1, field2)
@@ -469,7 +511,7 @@ void MeasureList(List<SqlNode> measures) :
    [ (STRIPED, CONSOLIDATED) PARTITION BY (field1, field2, ..) ]
    [ LOCALSORT BY (field1, field2, ..) ]
  */
-SqlNode SqlCreateRawReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdentifier name) :
+SqlNode SqlCreateRawReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdentifier name, SqlTableVersionSpec sqlTableVersionSpec) :
 {
     SqlNodeList displayList;
     SqlNodeList distributionList;
@@ -516,21 +558,21 @@ SqlNode SqlCreateRawReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdent
     )?
     {
         return SqlCreateReflection.createRaw(pos, tblName, displayList, distributionList, partitionList, sortList,
-          arrowCachingEnabled, partitionDistributionStrategy, name);
+          arrowCachingEnabled, partitionDistributionStrategy, name, sqlTableVersionSpec);
     }
 }
 
 /**
  * ALTER TABLE tblname DROP REFLECTION [string reflection id]
  */
- SqlNode SqlDropReflection(SqlParserPos pos, SqlIdentifier tblName) :
+ SqlNode SqlDropReflection(SqlParserPos pos, SqlIdentifier tblName, SqlTableVersionSpec sqlTableVersionSpec) :
 {
     SqlIdentifier reflectionId;
 }
 {
     { reflectionId = SimpleIdentifier(); }
     {
-        return new SqlDropReflection(pos, tblName, reflectionId);
+        return new SqlDropReflection(pos, tblName, reflectionId, sqlTableVersionSpec);
     }
 }
 

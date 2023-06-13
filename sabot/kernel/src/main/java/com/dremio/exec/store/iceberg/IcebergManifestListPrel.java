@@ -28,7 +28,6 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.iceberg.ManifestContent;
 import org.apache.iceberg.expressions.Expression;
 
 import com.dremio.common.expression.SchemaPath;
@@ -61,7 +60,7 @@ public class IcebergManifestListPrel extends AbstractRelNode  implements LeafPre
     private final List<SchemaPath> projectedColumns;
     private final RelDataType relDataType;
     private final Expression icebergExpression;
-    private final ManifestContent manifestContent;
+    private final ManifestContentType manifestContent;
 
     public IcebergManifestListPrel(
         RelOptCluster cluster,
@@ -71,7 +70,7 @@ public class IcebergManifestListPrel extends AbstractRelNode  implements LeafPre
         List<SchemaPath> projectedColumns,
         RelDataType relDataType,
         Expression icebergExpression,
-        ManifestContent manifestContent) {
+        ManifestContentType manifestContent) {
 
         super(cluster, traitSet);
         this.tableMetadata = tableMetadata;

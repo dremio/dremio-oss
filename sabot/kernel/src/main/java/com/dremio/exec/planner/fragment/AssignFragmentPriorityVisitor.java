@@ -123,9 +123,11 @@ public class AssignFragmentPriorityVisitor extends AbstractPhysicalVisitor<Void,
     final int maxAssignPriority = Math.max(maxPrioritySeenAtExchange, 1);
     Integer prio = majorFragmentToPriorityMap.get(majorFragmentId);
     if (prio == null) {
-      // this should not happen, but let us not make it fatal if it does
-      logger.warn("Assigned Priority not found for major fragment {}. Defaulting to {}", majorFragmentId,
-        maxAssignPriority);
+      if (maxPrioritySeenAtExchange > 0 || majorFragmentId > 0) {
+        // this should not happen, except for single phase profiles, but let us not make it fatal if it does
+        logger.warn("Assigned Priority not found for major fragment {}. Defaulting to {}", majorFragmentId,
+          maxAssignPriority);
+      }
       return maxAssignPriority;
     } else {
       return maxAssignPriority - prio + 1;

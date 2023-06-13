@@ -183,7 +183,7 @@ public class TestUtilities {
 
   private static void addIcebergHadoopTables(CatalogService catalog, final String tmpDirPath) {
     CatalogServiceImpl catalogImpl = (CatalogServiceImpl) catalog;
-    // add dfs.
+    // add dfs_hadoop.
     {
       SourceConfig c = new SourceConfig();
       InternalFileConf conf = new InternalFileConf();
@@ -192,6 +192,19 @@ public class TestUtilities {
       conf.defaultCtasFormat = DefaultCtasFormatSelection.ICEBERG;
       c.setConnectionConf(conf);
       c.setName("dfs_hadoop");
+      c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
+      catalogImpl.getSystemUserCatalog().createSource(c);
+    }
+    //dfs_hadoop_mutable
+    {
+      SourceConfig c = new SourceConfig();
+      InternalFileConf conf = new InternalFileConf();
+      conf.connection = "file:///";
+      conf.path = "/tmp";
+      conf.mutability = SchemaMutability.ALL;
+      conf.defaultCtasFormat = DefaultCtasFormatSelection.ICEBERG;
+      c.setConnectionConf(conf);
+      c.setName("dfs_hadoop_mutable");
       c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
       catalogImpl.getSystemUserCatalog().createSource(c);
     }

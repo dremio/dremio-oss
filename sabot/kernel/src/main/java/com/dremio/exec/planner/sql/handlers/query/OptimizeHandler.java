@@ -23,12 +23,11 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.util.Pair;
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.calcite.logical.TableOptimizeCrel;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUtil;
@@ -60,6 +59,7 @@ public class OptimizeHandler extends TableManagementHandler {
   private static final Logger logger = LoggerFactory.getLogger(OptimizeHandler.class);
 
   private String textPlan;
+  private Rel drel;
 
   @Override
   public NamespaceKey getTargetTablePath(SqlNode sqlNode) throws Exception {
@@ -80,9 +80,7 @@ public class OptimizeHandler extends TableManagementHandler {
   @VisibleForTesting
   @Override
   void checkValidations(Catalog catalog, SqlHandlerConfig config, NamespaceKey path, SqlNode sqlNode) throws Exception {
-    validateOptimizeEnabled(config);
     validatePrivileges(catalog, path, sqlNode);
-    validateWhereClause(((SqlOptimize)sqlNode).getCondition());
     validateCompatibleTableFormat(catalog, config, path, getSqlOperator());
   }
 
@@ -91,10 +89,11 @@ public class OptimizeHandler extends TableManagementHandler {
 
     DremioTable table = catalog.getTable(path);
     List<String> partitionColumnsList = table.getDatasetConfig().getReadDefinition().getPartitionColumnsList();
-    OptimizeOptions optimizeOptions = new OptimizeOptions(config.getContext().getOptions(), (SqlOptimize) sqlNode, CollectionUtils.isEmpty(partitionColumnsList));
+    OptimizeOptions optimizeOptions = OptimizeOptions.createInstance(config.getContext().getOptions(),
+      (SqlOptimize) sqlNode, CollectionUtils.isEmpty(partitionColumnsList));
 
     CreateTableEntry createTableEntry = IcebergUtils.getIcebergCreateTableEntry(config, catalog,
-      table, getSqlOperator().getKind(), optimizeOptions);
+      table, getSqlOperator(), optimizeOptions);
 
     Rel convertedRelNode = PrelTransformer.convertToDrel(config, rewriteCrel(relNode, createTableEntry));
     convertedRelNode = SqlHandlerUtil.storeQueryResultsIfNeeded(config.getConverter().getParserConfig(),
@@ -128,38 +127,32 @@ public class OptimizeHandler extends TableManagementHandler {
     DremioTable table = catalog.getTable(path);
     List<String> partitionColumnsList = table.getDatasetConfig().getReadDefinition().getPartitionColumnsList();
 
-    final RelNode optimizeRelNode = ((TableOptimizeCrel) relNode).createWith(new OptimizeOptions(config.getContext().getOptions(), (SqlOptimize) sqlNode, CollectionUtils.isEmpty(partitionColumnsList)));
-    final Rel drel = convertToDrel(config, sqlNode, path, catalog, optimizeRelNode);
+    final RelNode optimizeRelNode = ((TableOptimizeCrel) relNode).createWith(
+      OptimizeOptions.createInstance(config.getContext().getOptions(), (SqlOptimize) sqlNode, CollectionUtils.isEmpty(partitionColumnsList)));
+    drel = convertToDrel(config, sqlNode, path, catalog, optimizeRelNode);
     final Pair<Prel, String> prelAndTextPlan = PrelTransformer.convertToPrel(config, drel);
     textPlan = prelAndTextPlan.getValue();
     return prelAndTextPlan.getKey();
   }
 
-  @VisibleForTesting
-  void validateWhereClause(SqlNode condition) {
-    if (condition != null) {
-      throw UserException.unsupportedError().message("OPTIMIZE TABLE does not support WHERE conditions.").buildSilently();
-    }
-  }
-
-  private void validateOptimizeEnabled(SqlHandlerConfig config) {
-    if (!config.getContext().getOptions().getOption(ExecConstants.ENABLE_ICEBERG_OPTIMIZE)) {
-      throw UserException.unsupportedError().message("OPTIMIZE TABLE command is not supported.").buildSilently();
-    }
-  }
-
   private void validateCompatibleTableFormat(Catalog catalog, SqlHandlerConfig config, NamespaceKey namespaceKey, SqlOperator sqlOperator) {
     // Validate table exists and is Iceberg table
     IcebergUtils.checkTableExistenceAndMutability(catalog, config, namespaceKey, sqlOperator, false);
-    // Validate table has no delete files
+    // Validate V2 tables are supported (if yes - verify table has no equality delete files)
     IcebergMetadata icebergMetadata = catalog.getTableNoResolve(namespaceKey).getDatasetConfig().getPhysicalDataset().getIcebergMetadata();
-    if (icebergMetadata.getDeleteManifestStats().getRecordCount() > 0) {
-      throw UserException.unsupportedError().message("OPTIMIZE TABLE command does not support tables with delete files.").buildSilently();
+    Long deleteStat = icebergMetadata.getEqualityDeleteStats().getRecordCount();
+    if (deleteStat > 0) {
+      throw UserException.unsupportedError().message("OPTIMIZE TABLE command does not support tables with equality delete files.").buildSilently();
     }
   }
 
   @Override
   public String getTextPlan() {
     return textPlan;
+  }
+
+  @Override
+  public Rel getLogicalPlan() {
+    return drel;
   }
 }

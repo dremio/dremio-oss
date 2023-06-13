@@ -37,9 +37,9 @@ public class VersionedDatasetId {
   private TableVersionContext versionContext;
 
   @JsonCreator
-  VersionedDatasetId (@JsonProperty("tableKey") List<String>  tableKey,
-                      @JsonProperty("contentId") String contentId,
-                      @JsonProperty("versionContext") TableVersionContext versionContext) {
+  VersionedDatasetId(@JsonProperty("tableKey") List<String> tableKey,
+                     @JsonProperty("contentId") String contentId,
+                     @JsonProperty("versionContext") TableVersionContext versionContext) {
     this.tableKey = tableKey;
     this.contentId = contentId;
     this.versionContext = versionContext;
@@ -55,16 +55,48 @@ public class VersionedDatasetId {
     try {
       return om.writeValueAsString(this);
     } catch (JsonProcessingException e) {
-      logger.debug("Could not map VersinedDatasetId to String", e);
+      logger.debug("Could not map VersionedDatasetId to String", e);
       return null;
     }
   }
 
   public static VersionedDatasetId fromString(String idAsString) throws JsonProcessingException {
-    //try lookup in external catalog
-    //parser the dataset id
+    //parse the dataset id
     ObjectMapper objectMapper = new ObjectMapper();
     return objectMapper.readValue(idAsString, VersionedDatasetId.class);
+  }
+
+
+  public static VersionedDatasetId tryParse(String idAsString) {
+    try {
+      return idAsString == null ? null : fromString(idAsString);
+    } catch (JsonProcessingException e) {
+      return null;
+    }
+  }
+
+
+  public static boolean isVersionedDatasetId(String idAsString) {
+    try {
+      VersionedDatasetId versionedDatasetId = fromString(idAsString);
+      return true;
+    } catch (JsonProcessingException j) {
+      return false;
+    }
+  }
+
+  public static boolean isTimeTravelDatasetId(String idAsString) {
+    try {
+      VersionedDatasetId versionedDatasetId = fromString(idAsString);
+      return isTimeTravelDatasetId(versionedDatasetId);
+    } catch (JsonProcessingException j) {
+      return false;
+    }
+  }
+
+  public static boolean isTimeTravelDatasetId(VersionedDatasetId versionedDatasetId) {
+    return versionedDatasetId.getVersionContext().getType() == TableVersionType.TIMESTAMP ||
+      versionedDatasetId.getVersionContext().getType() == TableVersionType.SNAPSHOT_ID;
   }
 
   @Override
@@ -84,6 +116,10 @@ public class VersionedDatasetId {
   @Override
   public int hashCode() {
     return Objects.hash(tableKey, contentId, versionContext);
+  }
+
+  public static boolean isVersioned(String datasetId) {
+    return datasetId.indexOf("versionContext") >= 0;
   }
 
   public static VersionedDatasetId.Builder newBuilder() {
@@ -114,14 +150,12 @@ public class VersionedDatasetId {
     public VersionedDatasetId build() {
       Preconditions.checkNotNull(tableKey);
       Preconditions.checkState(tableKey.size() > 0);
-      Preconditions.checkNotNull(contentId);
       Preconditions.checkNotNull(versionContext);
-      if (!(versionContext instanceof  TableVersionContext)) {
-        throw new IllegalArgumentException("Illegal TableVersionContext");
+      if (versionContext.getType() != TableVersionType.TIMESTAMP && versionContext.getType() != TableVersionType.SNAPSHOT_ID) {
+        Preconditions.checkNotNull(contentId);
       }
-      if ((versionContext.getType() == TableVersionType.SNAPSHOT_ID) || (versionContext.getType() == TableVersionType.TIMESTAMP)) {
-        //TODO (DX-58588) Needs to be revisited to support snapshot id and timestamp
-        throw new UnsupportedOperationException("No support yet for Snapshot and Timestamp");
+      if (!(versionContext instanceof TableVersionContext)) {
+        throw new IllegalArgumentException("versionContext must be of type TableVersionContext");
       }
       return new VersionedDatasetId(tableKey, contentId, versionContext);
     }

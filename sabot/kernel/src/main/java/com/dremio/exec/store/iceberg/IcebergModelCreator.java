@@ -22,7 +22,6 @@ import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
 
-import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.iceberg.hadoop.IcebergHadoopModel;
 import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
@@ -45,7 +44,7 @@ public class IcebergModelCreator {
     FileSystem fs, /* if fs is null it will use Iceberg HadoopFileIO class else it will use DremioFileIO class */
     OperatorContext operatorContext,
     List<String> dataset,
-    MutablePlugin plugin) {
+    SupportsIcebergMutablePlugin plugin) {
     // if parameter is not set then using Hadoop as default
     IcebergCatalogType catalogType = getIcebergCatalogType(configuration, context);
     String namespace = configuration.get(ICEBERG_NAMESPACE_KEY, DREMIO_NESSIE_DEFAULT_NAMESPACE);

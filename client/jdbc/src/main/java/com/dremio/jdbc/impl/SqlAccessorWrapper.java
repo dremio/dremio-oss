@@ -67,12 +67,10 @@ class SqlAccessorWrapper implements Accessor {
     if ( cursor.isAfterLast() ) {
       throw new InvalidCursorStateSqlException(
           "Result set cursor is already positioned past all rows." );
-    }
-    else if ( cursor.isBeforeFirst() ) {
+    } else if ( cursor.isBeforeFirst() ) {
       throw new InvalidCursorStateSqlException(
           "Result set cursor is positioned before all rows.  Call next() first." );
-    }
-    else {
+    } else {
       return cursor.getCurrentRecordNumber();
     }
   }

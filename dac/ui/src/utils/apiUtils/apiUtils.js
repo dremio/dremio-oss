@@ -21,6 +21,7 @@ import APICall from "@app/core/APICall";
 import ApiCallMixin from "@inject/utils/apiUtils/ApiUtilsMixin";
 
 import { DEFAULT_ERR_MSG } from "@inject/constants/errors";
+import { appFetchWithoutErrorHandling } from "dremio-ui-common/utilities/appFetch.js";
 
 /**
  * Error names from api middleware.
@@ -86,10 +87,11 @@ class ApiUtils {
     ];
   }
 
-  getFromNewQueryResponse(response) {
+  getFromJSONResponse(response) {
     const payload = response.payload;
 
     return {
+      dataset: payload.dataset,
       datasetPath: payload.datasetPath,
       datasetVersion: payload.datasetVersion,
       jobId: payload.jobId?.id,
@@ -185,18 +187,16 @@ class ApiUtils {
       ...fetchOptions
     } = options;
 
-    return fetch(url, { ...fetchOptions, headers })
-      .then((response) => {
-        return response.ok ? response : Promise.reject(response);
-      })
-      .catch((e) => {
-        if (!Object.prototype.isPrototypeOf.call(Response.prototype, e)) {
-          //Catch error that occurs when server doesnt respond (e.g. loss of internet connection)
-          return this.handleError(e);
-        } else {
-          throw e;
-        }
-      });
+    return appFetchWithoutErrorHandling(url, {
+      ...fetchOptions,
+      headers,
+    }).catch((e) => {
+      if (!Object.prototype.isPrototypeOf.call(Response.prototype, e)) {
+        return this.handleError(e);
+      } else {
+        throw e;
+      }
+    });
   };
 
   fetchJson(endpoint, jsonHandler, errorHandler, options = {}, version = 3) {
@@ -259,7 +259,7 @@ class ApiUtils {
       message = secondError;
     } else if (thirdError) {
       message = thirdError;
-    } else if (typeof error === "string" && !error) {
+    } else if (typeof error === "string" && error) {
       message = error;
     } else {
       message = "Error";

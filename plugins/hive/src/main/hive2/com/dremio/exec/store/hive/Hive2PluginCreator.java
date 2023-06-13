@@ -29,6 +29,7 @@ import com.dremio.exec.server.SabotContext;
 @Extension
 public class Hive2PluginCreator implements StoragePluginCreator {
 
+  @Override
   public HiveStoragePlugin createStoragePlugin(PluginManager pf4jManager, HiveStoragePluginConfig config,
                                            SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
     final HiveConfFactory confFactory = new HiveConfFactory();

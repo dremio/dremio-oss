@@ -110,7 +110,9 @@ public final class FunctionListCoverageTest {
 
       Assert.fail("" +
         "Functions that are neither documented nor undocumented have been detected.\n" +
-        "Take the yaml files in missing_function_specs and move to either resources/function_specs/documented or resources/function_specs/undocumented.\n" +
+        "Take the yaml files in services/functions/target/missing_function_specs \n" +
+        "and move to either services/functions/src/main/resources/function_specs/documented \n" +
+        "or services/functions/src/main/resources/function_specs/undocumented.\n" +
         "The following are new to the system: " + String.join("\n", newToSystem.stream().sorted().collect(Collectors.toList())));
     }
   }

@@ -1,0 +1,36 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+.arctic-catalog-settings {
+  height: 100vh;
+
+  :global {
+    .sideNav-container {
+      overflow: unset;
+    }
+    .sideNav {
+      height: 100vh;
+    }
+  }
+
+  .catalog-name {
+    padding-inline: var(--dremio--spacing--2);
+    padding-block: calc(var(--dremio--spacing--2) + var(--dremio--spacing--05));
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 256px;
+  }
+}

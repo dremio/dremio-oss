@@ -27,7 +27,7 @@ import java.util.Objects;
 import java.util.Set;
 
 import org.apache.calcite.sql.type.SqlTypeName;
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 
 import com.dremio.common.util.MajorTypeHelper;
 import com.dremio.dac.explore.DataTypeUtil;

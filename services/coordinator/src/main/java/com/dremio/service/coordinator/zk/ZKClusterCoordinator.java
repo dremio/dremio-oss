@@ -102,6 +102,11 @@ public class ZKClusterCoordinator extends ClusterCoordinator {
     return zkClusterServiceSetManager.getOrCreateServiceSet(serviceName);
   }
 
+  @Override
+  public void deleteServiceSet(String serviceName) {
+    zkClusterServiceSetManager.deleteServiceSet(serviceName);
+  }
+
   // this interface doesn't guarantee the consistency of the registered service names.
   @Override
   public Iterable<String> getServiceNames() throws Exception {

@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 import { Component } from "react";
+import { connect } from "react-redux";
 import { Link, location } from "react-router";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
@@ -30,14 +31,20 @@ import {
   checkIfUserShouldGetDeadLink,
   getHref,
 } from "@inject/utils/mainInfoUtils/mainInfoNameUtil";
+import { newGetHref } from "@inject/utils/mainInfoUtils/newMainInfoNameUtil";
+import { getRefQueryParams } from "@app/utils/nessieUtils";
+import { shouldUseNewDatasetNavigation } from "@app/utils/datasetNavigationUtils";
 
-class MainInfoItemName extends Component {
+export class MainInfoItemName extends Component {
   static propTypes = {
     item: PropTypes.instanceOf(Immutable.Map).isRequired,
     intl: PropTypes.object.isRequired,
     entity: PropTypes.object,
     onMount: PropTypes.func, // takes width parameter
     isIceberg: PropTypes.bool,
+    showMetadataCard: PropTypes.bool,
+    refType: PropTypes.string,
+    refValue: PropTypes.string,
   };
 
   static contextTypes = {
@@ -65,7 +72,7 @@ class MainInfoItemName extends Component {
   }
 
   renderDatasetItemLabel(shouldGetADeadLink) {
-    const { item, isIceberg } = this.props;
+    const { item, isIceberg, showMetadataCard } = this.props;
     const type = item.get("entityType");
     const typeIcon = isIceberg
       ? getIcebergIconTypeFromEntity(item)
@@ -91,13 +98,14 @@ class MainInfoItemName extends Component {
         <DatasetItemLabel
           name={item.get("name")}
           item={item}
-          showSummaryOverlay={!isIceberg}
+          showSummaryOverlay={showMetadataCard}
           fullPath={
             item.get("fullPathList") ||
             item.getIn(["fileFormat", "fullPath"]) ||
             splitFullPath(item.get("filePath"))
           }
           typeIcon={typeIcon}
+          tooltipPlacement="right"
         />
       );
     }
@@ -114,9 +122,27 @@ class MainInfoItemName extends Component {
   }
 
   render() {
-    const { item } = this.props;
+    const { item, refType, refValue } = this.props;
     const fileType = item.get("fileType");
-    const href = getHref(item, this.context);
+
+    let tempHref;
+    if (shouldUseNewDatasetNavigation()) {
+      tempHref = newGetHref(item, this.context);
+    } else {
+      tempHref = getHref(item, this.context);
+    }
+
+    let href;
+
+    if (typeof tempHref === "string") {
+      href =
+        tempHref?.includes?.("mode=edit") && refType && refValue
+          ? tempHref + `&refType=${refType}&refValue=${refValue}`
+          : tempHref;
+    } else {
+      href = tempHref?.href ? tempHref.href : tempHref;
+    }
+
     const shouldGetADeadLink = checkIfUserShouldGetDeadLink(item);
     const linkStyle =
       fileType === "folder" && !item.get("queryable")
@@ -158,4 +184,15 @@ const styles = {
     color: "#333",
   },
 };
-export default injectIntl(MainInfoItemName);
+
+const mapStateToProps = (state, ownProps) => {
+  const { isIceberg, item } = ownProps;
+
+  if (!isIceberg) return {};
+
+  const pathList = item?.toJS()?.fullPathList ?? [];
+  const sourceName = pathList[0];
+  return getRefQueryParams(state.nessie, sourceName);
+};
+
+export default injectIntl(connect(mapStateToProps)(MainInfoItemName));

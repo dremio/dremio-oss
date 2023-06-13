@@ -366,6 +366,18 @@ public class GroupSetToCrossJoinCaseStatement {
   );
 
   private static boolean canPreAggregate(Aggregate agg) {
+    // only pre-aggregate if the over-all set of grouping keys
+    // is included as specific grouping set. Otherwise, the
+    // pre-aggregation may be much higher cardinality than
+    // that of any of the grouping sets. For example, imagine
+    // GROUPING SETS ((a,b), (c,d), (e,f))
+    // each grouping set may itself be relatively low cardinality,
+    // but the combined grouping with all columns may end up being
+    // very high cardinality, and doing the pre-aggregate would
+    // result in much higher memory usage.
+    if (!agg.getGroupSets().contains(agg.getGroupSet())) {
+      return false;
+    }
     return agg.getAggCallList().stream()
       .allMatch(a -> PRE_AGGREGATION_FUNCTIONS.contains(a.getAggregation().getKind()));
   }

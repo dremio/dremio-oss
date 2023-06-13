@@ -44,7 +44,6 @@ import org.junit.rules.TemporaryFolder;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.exec.hadoop.HadoopFileSystem;
-import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.google.common.io.Resources;
 
@@ -92,7 +91,7 @@ public class TestIcebergTableDrop extends BaseTestQuery {
     try (AutoCloseable c = enableIcebergTables()) {
       Path rootPath = Paths.get(getDfsTestTmpSchemaLocation(), "iceberg", "nation");
       File tableRoot = rootPath.toFile();
-      IcebergModel icebergModel = getIcebergModel(tableRoot, IcebergCatalogType.HADOOP);
+      IcebergModel icebergModel = getIcebergModel(TEMP_SCHEMA_HADOOP);
       Files.createDirectories(rootPath);
       String root = rootPath.toString();
 
@@ -130,7 +129,7 @@ public class TestIcebergTableDrop extends BaseTestQuery {
 
       errorMsgTestHelper(
           "select count(*) c from " + tableName,
-          "Object 'nation' not found within 'dfs_test_hadoop.dfs_test_hadoop.iceberg'");
+          "Object 'nation' not found within 'dfs_test_hadoop.iceberg'");
     }
   }
 }

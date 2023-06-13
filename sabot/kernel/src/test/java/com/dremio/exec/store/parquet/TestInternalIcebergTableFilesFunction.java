@@ -16,7 +16,6 @@
 package com.dremio.exec.store.parquet;
 
 import static com.dremio.exec.store.metadatarefresh.RefreshDatasetTestUtils.fsDelete;
-import static com.dremio.exec.store.metadatarefresh.RefreshDatasetTestUtils.setupLocalFS;
 import static com.dremio.exec.store.metadatarefresh.RefreshDatasetTestUtils.verifyIcebergMetadata;
 
 import java.io.IOException;

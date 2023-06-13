@@ -50,6 +50,9 @@ export const dataplane = sources.extend(() => "dataplane/list");
 export const arcticSource = sources.extend(
   (params: SourceNameParam) => `arctic/${params.sourceName}`
 );
+export const nessieSource = sources.extend(
+  (params: SourceNameParam) => `nessie/${params.sourceName}`
+);
 export const source = projectBase.extend(
   (params: ResourceIdParam) => `source/${params.resourceId}`
 );

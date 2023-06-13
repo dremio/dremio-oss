@@ -25,5 +25,5 @@ import org.apache.hadoop.fs.FileSystem;
  * Interface for getting FileSystem objects created using plugin class loader
  */
 public interface HadoopFsSupplierProviderPluginClassLoader extends AutoCloseable {
-  Supplier<FileSystem> getHadoopFsSupplierPluginClassLoader(String path, Iterable<Map.Entry<String, String>> conf);
+  Supplier<FileSystem> getHadoopFsSupplierPluginClassLoader(String path, Iterable<Map.Entry<String, String>> conf, String userName);
 }

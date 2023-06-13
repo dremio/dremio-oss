@@ -64,8 +64,7 @@ public abstract class Property {
     if (name_length < 1)
     {
       _name = "";
-    }
-    else
+    } else
     {
       char[] char_array  = new char[ name_length ];
       int    name_offset = 0;

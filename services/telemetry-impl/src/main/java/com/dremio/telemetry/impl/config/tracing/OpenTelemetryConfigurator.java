@@ -159,12 +159,12 @@ public class OpenTelemetryConfigurator extends TracerConfigurator {
       }
     }
 
-    OpenTelemetrySdk.builder()
+    OpenTelemetrySdk openTelemetry = OpenTelemetrySdk.builder()
       .setTracerProvider(sdkTracerProviderBuilder.build())
       .setPropagators(contextPropagators)
       .buildAndRegisterGlobal();
 
-    return OpenTracingShim.createTracerShim();
+    return OpenTracingShim.createTracerShim(openTelemetry);
   }
 
   /**

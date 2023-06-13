@@ -26,6 +26,8 @@ import com.dremio.dac.model.job.acceleration.ReflectionExplanationUI;
 import com.dremio.dac.model.job.acceleration.UiMapper;
 import com.dremio.service.accelerator.proto.AccelerationDetails;
 import com.dremio.service.accelerator.proto.ReflectionRelationship;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
 
@@ -49,6 +51,18 @@ public class AccelerationWrapper {
     }catch (Exception e) {
       logger.warn("failed to get reflection dataset path", e);
       return "";
+    }
+  }
+
+  public String getReflectionDatasetVersion(String layoutId) {
+    try {
+      String unparsedJson = relationshipMap.get(layoutId).getDataset().getId();
+      ObjectMapper mapper = new ObjectMapper();
+      JsonNode parsedJson = mapper.readTree(unparsedJson);
+      JsonNode versionContext = parsedJson.get("versionContext");
+      return String.format(" [%s %s] ", versionContext.get("type").textValue(), versionContext.get("value").textValue());
+    } catch (Exception e) {
+      return " ";
     }
   }
 

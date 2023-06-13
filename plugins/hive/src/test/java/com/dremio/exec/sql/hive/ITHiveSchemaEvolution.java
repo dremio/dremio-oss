@@ -69,8 +69,7 @@ public class ITHiveSchemaEvolution extends LazyDataGeneratingHiveTestBase {
         .baselineValues(2)
         .build()
         .run();
-    }
-    finally {
+    } finally {
       dataGenerator.executeDDL(getDropTableQuery(tableName));
     }
   }
@@ -95,8 +94,7 @@ public class ITHiveSchemaEvolution extends LazyDataGeneratingHiveTestBase {
         .baselineValues(2, 4)
         .build()
         .run();
-    }
-    finally {
+    } finally {
       dataGenerator.executeDDL(getDropTableQuery(tableName));
     }
   }
@@ -124,8 +122,7 @@ public class ITHiveSchemaEvolution extends LazyDataGeneratingHiveTestBase {
         .build()
         .run();
       testCTAS(tableNameWithCatalog,  newTableNameWithCatalog);
-    }
-    finally {
+    } finally {
       dataGenerator.executeDDL(getDropTableQuery(tableName));
       dataGenerator.executeDDL(getDropTableQuery(newTableName));
     }
@@ -162,8 +159,7 @@ public class ITHiveSchemaEvolution extends LazyDataGeneratingHiveTestBase {
         .baselineValues(3, 4)
         .build()
         .run();
-    }
-    finally {
+    } finally {
       dataGenerator.executeDDL(getDropTableQuery(tableName));
     }
   }

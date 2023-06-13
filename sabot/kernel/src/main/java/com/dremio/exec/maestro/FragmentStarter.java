@@ -59,7 +59,7 @@ import com.google.protobuf.Empty;
 import com.google.protobuf.MessageLite;
 
 import io.grpc.stub.StreamObserver;
-import io.opentelemetry.extension.annotations.WithSpan;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 
 /**
  * Class used to start remote fragment execution.

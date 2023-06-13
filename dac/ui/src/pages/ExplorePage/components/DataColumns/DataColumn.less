@@ -15,7 +15,7 @@
  */
 @import "./DataColumn.variables.less";
 
-.wrapper {
+.wrapperHover {
   composes: flex-container from "~@app/uiTheme/less/layout.less";
   composes: form-label from "~@app/uiTheme/less/typography.less";
 
@@ -28,9 +28,23 @@
   }
 }
 
+.wrapper {
+  composes: flex-container from "~@app/uiTheme/less/layout.less";
+  composes: form-label from "~@app/uiTheme/less/typography.less";
+
+  align-items: center;
+  height: 30px;
+}
+
 .icon,
 .name {
   display: inline-block;
+}
+
+.nameWiki {
+  display: inline-block;
+  font-size: var(--dremio--font-size--default);
+  font-weight: 400;
 }
 
 .icon {
@@ -38,4 +52,22 @@
   width: 29.33px;
   margin-left: -5px; // needed for vertial alignment of icon with column title
   margin-right: 5px; // controls spacing between column name and type icon
+}
+
+.iconWiki {
+  height: 18px;
+  width: 18px;
+  margin-right: 4px;
+}
+
+.columnHighlight {
+  font-weight: 600;
+  color: var(--color--brand--300);
+}
+
+.columnNameContent {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: 350px;
 }

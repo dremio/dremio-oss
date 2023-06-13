@@ -304,8 +304,6 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
     logger.debug("Action:{}", action);
 
     switch (action) {
-      case NONE:
-        return getClusterInfo(clusterId);
       case START:
         return startCluster(clusterId);
       case STOP:
@@ -327,7 +325,6 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
           cluster.setDesiredState(modifiedCluster.getDesiredState());
           store.put(clusterId, cluster);
           stopCluster(clusterId);
-          return getClusterInfo(clusterId);
         }
         if (ClusterState.STOPPED == cluster.getState() || ClusterState.FAILED == cluster.getState()) {
           // just modify, no need to start
@@ -338,8 +335,9 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
             // start the cluster
             startCluster(clusterId);
           }
-          return getClusterInfo(clusterId);
         }
+        return getClusterInfo(clusterId);
+      case NONE:
       default:
         return getClusterInfo(clusterId);
     }

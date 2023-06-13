@@ -19,9 +19,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.common.types.TypeProtos;
@@ -32,9 +30,7 @@ import com.dremio.exec.planner.physical.PlannerSettings;
 
 public class TestParquetTimestampInt96 extends BaseTestQuery {
 
-  @Rule
-  public TemporaryFolder folder = new TemporaryFolder();
-  static FileSystem fs;
+  private static FileSystem fs;
 
   @BeforeClass
   public static void initFs() throws Exception {
@@ -86,10 +82,9 @@ public class TestParquetTimestampInt96 extends BaseTestQuery {
     */
   @Test
   public void testImpalaParquetBinaryAsTimeStamp_DictChange() throws Exception {
-    final String WORKING_PATH = TestTools.getWorkingPath();
-    final String TEST_RES_PATH = WORKING_PATH + "/src/test/resources";
+    final String testResPath = TestTools.getWorkingPath() + "/src/test/resources";
     testBuilder()
-      .sqlQuery("select int96_ts from dfs.\"%s/parquet/int96_dict_change\" order by int96_ts", TEST_RES_PATH)
+      .sqlQuery("select int96_ts from dfs.\"%s/parquet/int96_dict_change\" order by int96_ts", testResPath)
       .ordered()
       .csvBaselineFile("testframework/testParquetReader/testInt96DictChange/q1.tsv")
       .baselineTypes(TypeProtos.MinorType.TIMESTAMP)

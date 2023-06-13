@@ -62,9 +62,15 @@ public class ResultsCleanupService implements Service {
       logger.info("JobResultsStoreConfig is not available exiting...");
       return;
     }
+    final OptionManager optionManager = optionManagerProvider.get();
+    if (!optionManager.getOption(ExecConstants.RESULTS_CLEANUP_SERVICE_ENABLED)) {
+      logger.info("Results cleanup service is disabled, quitting...");
+      return;
+    }
+
     logger.info("Starting ResultsCleanupService..");
 
-    final OptionManager optionManager = optionManagerProvider.get();
+
     final long maxJobResultsAgeInDays = optionManager.getOption(ExecConstants.RESULTS_MAX_AGE_IN_DAYS);
     if (maxJobResultsAgeInDays != DISABLE_CLEANUP_VALUE) {
       final long jobResultsCleanupStartHour = optionManager.getOption(ExecConstants.JOB_RESULTS_CLEANUP_START_HOUR);

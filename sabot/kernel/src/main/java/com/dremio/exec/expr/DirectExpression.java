@@ -28,6 +28,7 @@ public class DirectExpression extends JExpressionImpl{
     this.source = source;
   }
 
+  @Override
   public void generate( JFormatter f ) {
     f.p('(').p(source).p(')');
   }

@@ -20,11 +20,10 @@ import java.util.List;
 
 import com.dremio.TestBlockLevel.TestBlockLevelLogging;
 
-import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 
 public class CSecond {
-  private static final ch.qos.logback.classic.Logger logger = (Logger) org.slf4j.LoggerFactory.getLogger(CSecond.class);
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CSecond.class);
   public List<ILoggingEvent> testLogFiltering() {
     return TestBlockLevelLogging.testLogFilteringUtil(logger);
   }

@@ -17,8 +17,6 @@ package com.dremio.exec.store.iceberg;
 
 import java.util.List;
 
-import org.apache.iceberg.ManifestContent;
-
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.OpProps;
@@ -48,7 +46,7 @@ public class IcebergManifestListSubScan extends SubScanWithProjection {
     private final List<String> partitionColumns;
     private final IcebergExtendedProp icebergExtendedProp;
     private final String location;
-    private final ManifestContent manifestContent;
+    private final ManifestContentType manifestContent;
 
     @JsonIgnore
     private List<SplitAndPartitionInfo> splits;
@@ -64,7 +62,7 @@ public class IcebergManifestListSubScan extends SubScanWithProjection {
             @JsonProperty("partitionColumns") List<String> partitionColumns,
             @JsonProperty("extendedProperty") ByteString extendedProperty,
             @JsonProperty("icebergExtendedProperties") IcebergExtendedProp icebergExtendedProp,
-            @JsonProperty("manifestContent") ManifestContent manifestContent) {
+            @JsonProperty("manifestContent") ManifestContentType manifestContent) {
         this(props, location, fullSchema, null, tablePath, pluginId, datasourcePluginId,
                 columns, partitionColumns, extendedProperty, icebergExtendedProp, manifestContent);
     }
@@ -81,7 +79,7 @@ public class IcebergManifestListSubScan extends SubScanWithProjection {
             List<String> partitionColumns,
             ByteString extendedProperty,
             IcebergExtendedProp icebergExtendedProp,
-            ManifestContent manifestContent) {
+            ManifestContentType manifestContent) {
         super(props, fullSchema, (tablePath == null) ? null : ImmutableList.of(tablePath), columns);
         this.location = location;
         this.pluginId = pluginId;
@@ -121,7 +119,7 @@ public class IcebergManifestListSubScan extends SubScanWithProjection {
         return splits;
     }
 
-    public ManifestContent getManifestContent() {
+    public ManifestContentType getManifestContent() {
       return manifestContent;
     }
 

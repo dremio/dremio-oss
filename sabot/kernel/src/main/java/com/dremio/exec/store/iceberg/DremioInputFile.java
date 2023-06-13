@@ -16,17 +16,13 @@
 package com.dremio.exec.store.iceberg;
 
 import java.io.IOException;
-import java.util.List;
+import java.io.UncheckedIOException;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.iceberg.hadoop.HadoopInputFile;
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.io.SeekableInputStream;
 
-import com.dremio.io.file.FileSystem;
+import com.dremio.exec.store.dfs.FileSystemConfigurationAdapter;
 import com.dremio.io.file.Path;
-import com.dremio.sabot.exec.context.OperatorContext;
-import com.google.common.base.Preconditions;
 
 /**
  * DremioInputFile is a dremio implementation of Iceberg InputFile interface.
@@ -35,54 +31,32 @@ import com.google.common.base.Preconditions;
  */
 public class DremioInputFile implements InputFile {
 
-  private final FileSystem fs;
-  private final Path path;
-  private final Long fileSize;
-  private final Long mtime;
-  private final OperatorContext context;
-  private final List<String> dataset;
-  private final String datasourcePluginUID; // this can be null if data files, metadata file can be accessed with same plugin
-  private final String locationWithScheme;
-  private HadoopInputFile hadoopInputFile;
-  private final Configuration configuration;
-  private final org.apache.hadoop.fs.FileSystem hadoopFs;
-  private final String filePath;
+  private final DremioFileIO io;
 
-  public DremioInputFile(FileSystem fs, Path path, Long fileSize, Long mtime, OperatorContext context, List<String> dataset,
-                         String datasourcePluginUID, Configuration conf, org.apache.hadoop.fs.FileSystem hadoopFs) {
-    this.fs = fs;
+  private final Path path;
+  private Long fileSize;
+  private final Long mtime;
+  private final String locationWithScheme;
+
+  public DremioInputFile(DremioFileIO io, Path path, Long fileSize, Long mtime, FileSystemConfigurationAdapter conf) {
+    this.io = io;
     this.path = path;
     this.fileSize = fileSize;
     this.mtime = mtime;
-    this.context = context;
-    this.dataset = dataset;
-    this.datasourcePluginUID = datasourcePluginUID; // this can be null if it is same as the plugin which created fs
-    this.configuration = conf;
-    String scheme;
-    if (fs == null) {
-      Preconditions.checkArgument(hadoopFs != null, "HadoopFs can not be null");
-      filePath = Path.getContainerSpecificRelativePath(path);
-      scheme = hadoopFs.getScheme();
-    } else {
-      scheme = fs.getScheme();
-      filePath = this.path.toString();
-    }
-    this.locationWithScheme = IcebergUtils.getValidIcebergPath(new org.apache.hadoop.fs.Path(filePath), conf, scheme);
-    this.hadoopFs = hadoopFs;
-  }
-
-  private HadoopInputFile getHadoopInputFile() {
-    if (hadoopInputFile != null) {
-      return hadoopInputFile;
-    }
-    Preconditions.checkState(hadoopFs != null, "Unexpected state");
-    this.hadoopInputFile = HadoopInputFile.fromPath(new org.apache.hadoop.fs.Path(filePath), hadoopFs, configuration);
-    return hadoopInputFile;
+    this.locationWithScheme = IcebergUtils.getValidIcebergPath(path.toString(), conf, io.getFs().getScheme());
   }
 
   @Override
   public long getLength() {
-    return fileSize != null? fileSize : getHadoopInputFile().getLength();
+    if (fileSize == null) {
+      try {
+        fileSize = io.getFs().getFileAttributes(path).size();
+      } catch (IOException e) {
+        throw new UncheckedIOException(String.format("Failed to get file attributes for file: %s", path), e);
+      }
+    }
+
+    return fileSize;
   }
 
   public long getVersion() {
@@ -92,15 +66,14 @@ public class DremioInputFile implements InputFile {
   @Override
   public SeekableInputStream newStream() {
     try {
-      if(context != null && fs != null) {
-        SeekableInputStreamFactory factory = context.getConfig().getInstance(SeekableInputStreamFactory.KEY, SeekableInputStreamFactory.class, SeekableInputStreamFactory.DEFAULT);
-        return factory.getStream(fs, context, path,
-          fileSize, mtime, dataset, datasourcePluginUID);
-      } else {
-        return getHadoopInputFile().newStream();
-      }
+      SeekableInputStreamFactory factory = io.getContext() == null || io.getDataset() == null ?
+          SeekableInputStreamFactory.DEFAULT :
+          io.getContext().getConfig().getInstance(SeekableInputStreamFactory.KEY, SeekableInputStreamFactory.class,
+              SeekableInputStreamFactory.DEFAULT);
+      return factory.getStream(io.getFs(), io.getContext(),
+          path, fileSize, mtime, io.getDataset(), io.getDatasourcePluginUID());
     } catch (IOException e) {
-      throw new RuntimeException(String.format("Failed to open a new stream for file : %s", path), e);
+      throw new UncheckedIOException(String.format("Failed to create new input stream for file: %s", path), e);
     }
   }
 
@@ -112,9 +85,9 @@ public class DremioInputFile implements InputFile {
   @Override
   public boolean exists() {
     try {
-      return fs != null? fs.exists(path) : getHadoopInputFile().exists();
+      return io.getFs().exists(path);
     } catch (IOException e) {
-      throw new RuntimeException(String.format("Failed to check existence of file %s", path.toString()), e);
+      throw new UncheckedIOException(String.format("Failed to check existence of file: %s", path), e);
     }
   }
 }

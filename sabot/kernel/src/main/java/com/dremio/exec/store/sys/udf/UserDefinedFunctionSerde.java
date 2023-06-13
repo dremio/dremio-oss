@@ -29,23 +29,31 @@ import com.google.common.collect.ImmutableList;
 
 import io.protostuff.ByteString;
 
-public class UserDefinedFunctionSerde {
+public final class UserDefinedFunctionSerde {
+  private UserDefinedFunctionSerde() {}
 
   public static UserDefinedFunction fromProto(FunctionConfig functionConfig) {
     FunctionDefinition functionDefinition = functionConfig.getFunctionDefinitionsList().get(0);
     List<UserDefinedFunction.FunctionArg> functionArgList =
       functionDefinition.getFunctionArgList() == null
         ? ImmutableList.of()
-        : functionDefinition.getFunctionArgList().stream()
+        : functionDefinition
+          .getFunctionArgList()
+          .stream()
           .map(functionArg ->
-            new UserDefinedFunction.FunctionArg(functionArg.getName(),
-              CompleteType.deserialize(functionArg.getRawDataType().toByteArray())))
+            new UserDefinedFunction.FunctionArg(
+              functionArg.getName(),
+              CompleteType.deserialize(functionArg.getRawDataType().toByteArray()),
+              functionArg.getDefaultExpression()))
           .collect(ImmutableList.toImmutableList());
     return new UserDefinedFunction(
       functionConfig.getName(),
       functionDefinition.getFunctionBody().getRawBody(),
       CompleteType.deserialize(functionConfig.getReturnType().getRawDataType().toByteArray()),
-      functionArgList, functionConfig.getFullPathList(), (functionConfig.getCreatedAt() != null) ? new Timestamp(functionConfig.getCreatedAt()) : null,
+      functionArgList,
+      functionConfig.getFullPathList(),
+      functionDefinition.getFunctionBody().getSerializedPlan().toByteArray(),
+      (functionConfig.getCreatedAt() != null) ? new Timestamp(functionConfig.getCreatedAt()) : null,
       (functionConfig.getLastModified() != null) ? new Timestamp(functionConfig.getLastModified()):null);
   }
 
@@ -53,14 +61,19 @@ public class UserDefinedFunctionSerde {
     return new FunctionConfig()
       .setName(userDefinedFunction.getName())
         .setFunctionDefinitionsList(ImmutableList.of(
-          new FunctionDefinition().setFunctionBody(new FunctionBody().setRawBody(userDefinedFunction.getFunctionSql()))
+          new FunctionDefinition().setFunctionBody(
+            new FunctionBody()
+              .setRawBody(userDefinedFunction.getFunctionSql())
+              .setSerializedPlan(ByteString.copyFrom(userDefinedFunction.getSerializedFunctionPlan())))
         .setFunctionArgList(userDefinedFunction.getFunctionArgsList().stream()
           .map(functionArg ->
             new FunctionArg()
               .setName(functionArg.getName())
-              .setRawDataType(ByteString.copyFrom(functionArg.getDataType().serialize())))
+              .setRawDataType(ByteString.copyFrom(functionArg.getDataType().serialize()))
+              .setDefaultExpression(functionArg.getDefaultExpression()))
           .collect(Collectors.toList()))
       ))
       .setFullPathList(userDefinedFunction.getFullPath())
       .setReturnType(new ReturnType().setRawDataType(ByteString.copyFrom(userDefinedFunction.getReturnType().serialize())));
-  }}
+  }
+}

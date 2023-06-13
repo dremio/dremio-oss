@@ -103,6 +103,7 @@ public class DremioAggregateProjectPullUpConstantsRule extends RelOptRule {
 
   //~ Methods ----------------------------------------------------------------
 
+  @Override
   public void onMatch(RelOptRuleCall call) {
     final Aggregate aggregate = call.rel(0);
     final RelNode input = call.rel(1);

@@ -13,251 +13,173 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/* eslint-disable */
 /**
  *
  * @export
- * @interface AccessKeyCredentialsDef
+ * @interface AccessKeyCredentials
  */
-export interface AccessKeyCredentialsDef extends ConfigCredentialsDef {
+export interface AccessKeyCredentials extends ConfigCredentials {
   /**
    *
    * @type {string}
-   * @memberof AccessKeyCredentialsDef
+   * @memberof AccessKeyCredentials
    */
   accessKeyId: string;
   /**
    *
    * @type {string}
-   * @memberof AccessKeyCredentialsDef
+   * @memberof AccessKeyCredentials
    */
   secretAccessKey: string;
 }
 
 /**
  * @export
- * @namespace AccessKeyCredentialsDef
+ * @namespace AccessKeyCredentials
  */
-// eslint-disable-next-line @typescript-eslint/no-namespace
-export namespace AccessKeyCredentialsDef {}
+export namespace AccessKeyCredentials {}
 /**
- *
+ * Credentials used by all jobs and schedules on this catalog
  * @export
- * @interface AccessKeyCredentialsInfo
+ * @interface ConfigCredentials
  */
-export interface AccessKeyCredentialsInfo extends ConfigCredentialsInfo {
+export interface ConfigCredentials {
   /**
    *
    * @type {string}
-   * @memberof AccessKeyCredentialsInfo
+   * @memberof ConfigCredentials
    */
-  accessKeyId: string;
+  type: ConfigCredentials.TypeEnum;
 }
 
 /**
  * @export
- * @namespace AccessKeyCredentialsInfo
+ * @namespace ConfigCredentials
  */
-// eslint-disable-next-line @typescript-eslint/no-namespace
-export namespace AccessKeyCredentialsInfo {}
-/**
- *
- * @export
- * @interface ConfigCredentialsDef
- */
-export interface ConfigCredentialsDef {
-  /**
-   *
-   * @type {string}
-   * @memberof ConfigCredentialsDef
-   */
-  type: ConfigCredentialsDef.TypeEnum;
-}
-
-/**
- * @export
- * @namespace ConfigCredentialsDef
- */
-// eslint-disable-next-line @typescript-eslint/no-namespace
-export namespace ConfigCredentialsDef {
+export namespace ConfigCredentials {
   /**
    * @export
    * @enum {string}
    */
   export enum TypeEnum {
-    KEYS = <any>"DATA_KEYS",
-    ROLE = <any>"DATA_ROLE",
+    ACCESSKEY = <any>"ACCESS_KEY",
+    IAMROLE = <any>"IAM_ROLE",
   }
 }
 /**
  *
  * @export
- * @interface ConfigCredentialsInfo
+ * @interface EngineInfoState
  */
-export interface ConfigCredentialsInfo {
+export interface EngineInfoState {
   /**
    *
-   * @type {string}
-   * @memberof ConfigCredentialsInfo
+   * @type {EngineStateRead}
+   * @memberof EngineInfoState
    */
-  type: ConfigCredentialsInfo.TypeEnum;
-}
-
-/**
- * @export
- * @namespace ConfigCredentialsInfo
- */
-// eslint-disable-next-line @typescript-eslint/no-namespace
-export namespace ConfigCredentialsInfo {
-  /**
-   * @export
-   * @enum {string}
-   */
-  export enum TypeEnum {
-    KEYS = <any>"DATA_KEYS",
-    ROLE = <any>"DATA_ROLE",
-  }
+  state: EngineStateRead;
 }
 /**
  *
  * @export
- * @interface ConfigDef
+ * @interface EngineRead
  */
-export interface ConfigDef {
+export interface EngineRead {
   /**
-   *
-   * @type {ConfigCredentialsDef}
-   * @memberof ConfigDef
-   */
-  credentials: ConfigCredentialsDef;
-  /**
-   *
+   * ID of the cloud in which to run jobs and schedules on this catalog
    * @type {string}
-   * @memberof ConfigDef
+   * @memberof EngineRead
    */
   cloudId: string;
   /**
    *
-   * @type {string}
-   * @memberof ConfigDef
+   * @type {ConfigCredentials}
+   * @memberof EngineRead
    */
-  engineSize: ConfigDef.EngineSizeEnum;
+  credentials?: ConfigCredentials;
   /**
    *
+   * @type {EngineSize}
+   * @memberof EngineRead
+   */
+  engineSize: EngineSize;
+  /**
+   * If this catalog configuration's creation was unsuccessful, then this property describes the problem
    * @type {string}
-   * @memberof ConfigDef
-   */
-  logStorageLocation: string;
-  /**
-   *
-   * @type {string}
-   * @memberof ConfigDef
-   */
-  state?: ConfigDef.StateEnum;
-}
-
-/**
- * @export
- * @namespace ConfigDef
- */
-// eslint-disable-next-line @typescript-eslint/no-namespace
-export namespace ConfigDef {
-  /**
-   * @export
-   * @enum {string}
-   */
-  export enum EngineSizeEnum {
-    XXSMALLV1 = <any>"XX_SMALL_V1",
-    XSMALLV1 = <any>"X_SMALL_V1",
-    SMALLV1 = <any>"SMALL_V1",
-    MEDIUMV1 = <any>"MEDIUM_V1",
-    LARGEV1 = <any>"LARGE_V1",
-    XLARGEV1 = <any>"X_LARGE_V1",
-    XXLARGEV1 = <any>"XX_LARGE_V1",
-    XXXLARGEV1 = <any>"XXX_LARGE_V1",
-  }
-  /**
-   * @export
-   * @enum {string}
-   */
-  export enum StateEnum {
-    ENABLED = <any>"ENABLED",
-    DISABLED = <any>"DISABLED",
-  }
-}
-/**
- *
- * @export
- * @interface ConfigInfo
- */
-export interface ConfigInfo {
-  /**
-   *
-   * @type {ConfigCredentialsInfo}
-   * @memberof ConfigInfo
-   */
-  credentials: ConfigCredentialsInfo;
-  /**
-   *
-   * @type {string}
-   * @memberof ConfigInfo
+   * @memberof EngineRead
    */
   errorMessage?: string;
   /**
-   *
+   * Location for runtime logs created Dremio engines
    * @type {string}
-   * @memberof ConfigInfo
-   */
-  cloudId: string;
-  /**
-   *
-   * @type {string}
-   * @memberof ConfigInfo
-   */
-  engineSize: ConfigInfo.EngineSizeEnum;
-  /**
-   *
-   * @type {string}
-   * @memberof ConfigInfo
+   * @memberof EngineRead
    */
   logStorageLocation: string;
   /**
    *
-   * @type {string}
-   * @memberof ConfigInfo
+   * @type {EngineStateRead}
+   * @memberof EngineRead
    */
-  state: ConfigInfo.StateEnum;
+  state: EngineStateRead;
 }
-
 /**
+ * Engine size used by this job
  * @export
- * @namespace ConfigInfo
+ * @enum {string}
  */
-// eslint-disable-next-line @typescript-eslint/no-namespace
-export namespace ConfigInfo {
+export enum EngineSize {
+  XXSMALLV1 = <any>"XX_SMALL_V1",
+  XSMALLV1 = <any>"X_SMALL_V1",
+  SMALLV1 = <any>"SMALL_V1",
+  MEDIUMV1 = <any>"MEDIUM_V1",
+  LARGEV1 = <any>"LARGE_V1",
+  XLARGEV1 = <any>"X_LARGE_V1",
+  XXLARGEV1 = <any>"XX_LARGE_V1",
+  XXXLARGEV1 = <any>"XXX_LARGE_V1",
+}
+/**
+ * State of this configuration
+ * @export
+ * @enum {string}
+ */
+export enum EngineStateRead {
+  CREATING = <any>"CREATING",
+  ENABLED = <any>"ENABLED",
+  DISABLED = <any>"DISABLED",
+  UPDATING = <any>"UPDATING",
+  FAILED = <any>"FAILED",
+}
+/**
+ *
+ * @export
+ * @interface EngineWrite
+ */
+export interface EngineWrite {
   /**
-   * @export
-   * @enum {string}
+   * ID of the cloud in which to run jobs and schedules on this catalog
+   * @type {string}
+   * @memberof EngineWrite
    */
-  export enum EngineSizeEnum {
-    XXSMALLV1 = <any>"XX_SMALL_V1",
-    XSMALLV1 = <any>"X_SMALL_V1",
-    SMALLV1 = <any>"SMALL_V1",
-    MEDIUMV1 = <any>"MEDIUM_V1",
-    LARGEV1 = <any>"LARGE_V1",
-    XLARGEV1 = <any>"X_LARGE_V1",
-    XXLARGEV1 = <any>"XX_LARGE_V1",
-    XXXLARGEV1 = <any>"XXX_LARGE_V1",
-  }
+  cloudId: string;
   /**
-   * @export
-   * @enum {string}
+   *
+   * @type {ConfigCredentials}
+   * @memberof EngineWrite
    */
-  export enum StateEnum {
-    CREATING = <any>"CREATING",
-    ENABLED = <any>"ENABLED",
-    DISABLED = <any>"DISABLED",
-    FAILED = <any>"FAILED",
-  }
+  credentials: ConfigCredentials;
+  /**
+   *
+   * @type {EngineSize}
+   * @memberof EngineWrite
+   */
+  engineSize: EngineSize;
+  /**
+   * Location for runtime logs created by Dremio engines
+   * @type {string}
+   * @memberof EngineWrite
+   */
+  logStorageLocation: string;
 }
 /**
  *
@@ -276,7 +198,7 @@ export interface ErrorResponse {
    * @type {string}
    * @memberof ErrorResponse
    */
-  reason: string;
+  id: string;
   /**
    *
    * @type {string}
@@ -288,14 +210,15 @@ export interface ErrorResponse {
    * @type {string}
    * @memberof ErrorResponse
    */
-  id: string;
+  reason: string;
 }
+
 /**
  *
  * @export
  * @interface IamRoleCredentials
  */
-export interface IamRoleCredentials {
+export interface IamRoleCredentials extends ConfigCredentials {
   /**
    *
    * @type {string}
@@ -307,33 +230,17 @@ export interface IamRoleCredentials {
    * @type {string}
    * @memberof IamRoleCredentials
    */
-  roleArn: string;
-  /**
-   *
-   * @type {string}
-   * @memberof IamRoleCredentials
-   */
   instanceProfileArn: string;
   /**
    *
    * @type {string}
    * @memberof IamRoleCredentials
    */
-  type: IamRoleCredentials.TypeEnum;
+  roleArn: string;
 }
 
 /**
  * @export
  * @namespace IamRoleCredentials
  */
-// eslint-disable-next-line @typescript-eslint/no-namespace
-export namespace IamRoleCredentials {
-  /**
-   * @export
-   * @enum {string}
-   */
-  export enum TypeEnum {
-    KEYS = <any>"DATA_KEYS",
-    ROLE = <any>"DATA_ROLE",
-  }
-}
+export namespace IamRoleCredentials {}

@@ -65,6 +65,7 @@ public class RuntimeFilterDecorator {
       this.nonParitionRuntimeFiltersEnabled = nonParitionRuntimeFiltersEnabled;
     }
 
+    @Override
     public Prel visitPrel(Prel prel, Void value) throws RuntimeException {
       List<RelNode> children = new ArrayList<>();
       for (Prel child : prel) {

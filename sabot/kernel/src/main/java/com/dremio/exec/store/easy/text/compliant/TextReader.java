@@ -16,6 +16,7 @@
 package com.dremio.exec.store.easy.text.compliant;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 import org.apache.arrow.memory.ArrowBuf;
 
@@ -36,43 +37,107 @@ import io.netty.buffer.NettyArrowBuf;
 final class TextReader implements AutoCloseable {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TextReader.class);
 
-  private static final byte NULL_BYTE = (byte) '\0';
-
   private final TextParsingContext context;
 
   private final long recordsToRead;
   private final TextParsingSettings settings;
 
   private final TextInput input;
-  private final TextOutput output;
+
   private final ArrowBuf workBuf;
+
+  // Records count i.e, comments are excluded
+  private long recordCount = 0;
 
   private byte ch;
 
-  // index of the field within this record
-  private int fieldIndex;
+  /**
+  * 0 -> ch is general byte
+  * 1 -> line delimiter or normalized newLine is detected starting with ch
+  * 2 -> field delimiter is detected starting with ch
+  * */
+  private byte chType;
+
+  private boolean chIsLineDelimiter() {
+    return (chType == 1);
+  }
+
+  private boolean chIsFieldDelimiter() {
+    return (chType == 2);
+  }
+
+  private boolean chIsDelimiter() {
+    return (chType == 1 || chType == 2);
+  }
+
+  /**
+   * Wrapper class to encapsulate the TextOutput to improve readability and
+   *    simplify the testing needed by the calling code
+   *    (i.e. eliminate repeated testing canAppend )
+   */
+  static class OutputWrapper {
+    /** 'canAppend' controls appending parsed content to output */
+    private boolean canAppend = true;
+    private final TextOutput output;
+
+    public OutputWrapper(TextOutput output) { this.output = output; }
+    public TextOutput Output() { return this.output; }
+
+    public boolean canAppend() { return canAppend; }
+    public void setCanAppend(boolean append) { canAppend = append; }
+
+    public void startBatch() { output.startBatch(); }
+    public void finishBatch() { output.finishBatch(); }
+
+    public void startField(int n) {
+      if (canAppend) { output.startField(n); }
+    }
+    public void endField() {
+      if(canAppend) { canAppend = output.endField(); }
+    }
+    public void endEmptyField() {
+      if(canAppend) { canAppend = output.endEmptyField(); }
+    }
+
+    public boolean rowHasData(){ return output.rowHasData(); }
+    public void finishRecord() { output.finishRecord(); }
+
+    public void setFieldCurrentDataPointer(int cur) {
+      if(canAppend) { output.setFieldCurrentDataPointer(cur);}
+    }
+    public int getFieldCurrentDataPointer() { return output.getFieldCurrentDataPointer() ; }
+
+    public void append(byte parameter) {
+      if(canAppend){ output.append(parameter); }
+    }
+    public void append(byte[] parameter) {
+      if(canAppend){
+        for (byte pByte : parameter) {
+          output.append(pByte);
+        }
+      }
+    }
+    public void appendIgnoringWhitespace(byte cur) {
+      if(canAppend) { output.appendIgnoringWhitespace(cur); }
+    }
+  }
+
+  private final OutputWrapper output;
 
   /** Behavior settings **/
   private final boolean ignoreTrailingWhitespace;
   private final boolean ignoreLeadingWhitespace;
   private final boolean parseUnescapedQuotes;
 
-  /**
-   * Input line delimiter differs with normalized line delimiter in two cases:
-   * - It is multi-byte
-   * - It is single byte but not same as normalized one
-   * Is there a third case? What if it is multi-byte but the first byte is same as
-   * normalized one?
-   * This flag tells whether input line delimiter is same as normalized line delimiter.
-   */
-  private final boolean isNormalLineDelimiter;
+  /** Temp buffer to save white spaces conditionally while parsing */
+  private NettyArrowBuf tempWhiteSpaceBuff;
 
-  /** Key Characters **/
-  private final byte comment;
-  private final byte delimiter;
-  private final byte quote;
-  private final byte quoteEscape;
-  private final byte newLine;
+  /** Key Parameters **/
+  private final byte[] comment;
+  private final byte[] fieldDelimiter;
+  private final byte[] quote;
+  private final byte[] quoteEscape;
+  final byte[] lineDelimiter;
 
   private String filePath;
   private boolean schemaImposedMode;
@@ -95,18 +160,14 @@ final class TextReader implements AutoCloseable {
     this.ignoreTrailingWhitespace = settings.isIgnoreTrailingWhitespaces();
     this.ignoreLeadingWhitespace = settings.isIgnoreLeadingWhitespaces();
     this.parseUnescapedQuotes = settings.isParseUnescapedQuotes();
-    this.delimiter = settings.getDelimiter();
+    this.fieldDelimiter = settings.getDelimiter();
     this.quote = settings.getQuote();
     this.quoteEscape = settings.getQuoteEscape();
-    this.newLine = settings.getNormalizedNewLine();
     this.comment = settings.getComment();
     this.schemaImposedMode = false;
-
+    this.lineDelimiter = settings.getNewLineDelimiter();
     this.input = input;
-    this.output = output;
-
-    final byte[] newLineDelimiter = settings.getNewLineDelimiter();
-    isNormalLineDelimiter = newLineDelimiter.length == 1 && newLineDelimiter[0] == settings.getNormalizedNewLine();
+    this.output = new OutputWrapper(output);
   }
 
   public TextReader(TextParsingSettings settings, TextInput input, TextOutput output, ArrowBuf workBuf, String filePath, boolean schemaImposedMode) {
@@ -116,14 +177,14 @@ final class TextReader implements AutoCloseable {
   }
 
   public TextOutput getOutput(){
-    return output;
+    return this.output.Output();
   }
 
   /* Check if the given byte is a white space. As per the univocity text reader
-   * any ASCII <= ' ' is considered a white space. However since byte in JAVA is signed
-   * we have an additional check to make sure its not negative
+   * any ASCII <= ' ' is considered a white space. However, since byte in JAVA is signed
+   * we have an additional check to make sure it's not negative
    */
-  static final boolean isWhite(byte b){
+  static boolean isWhite(byte b){
     return b <= ' ' && b > -1;
   }
 
@@ -141,298 +202,289 @@ final class TextReader implements AutoCloseable {
    * fields to parseField() function.
    * We mark the start of the record and if there are any failures encountered (OOM for eg)
    * then we reset the input stream to the marked position
-   * @return  true if parsing this record was successful; false otherwise
-   * @throws IOException
+   * @throws IOException if End of Input stream is reached
    */
-  private boolean parseRecord() throws IOException {
-    final byte newLine = this.newLine;
-    final TextInput input = this.input;
+  private void parseRecord() throws IOException {
+    // index of the field within this record
+    int fieldIndex = 0;
 
-    fieldIndex = 0;
+
     if (isWhite(ch) && ignoreLeadingWhitespace) {
-      skipWhitespace();
+      parseWhiteSpaces(true);
     }
 
-    int fieldsWritten = 0;
     try{
-      boolean earlyTerm = false;
-      while (ch != newLine) {
-        earlyTerm = !parseField();
-        fieldsWritten++;
-        if (ch != newLine) {
-          ch = input.nextChar();
-          if (ch == newLine) {
-            output.startField(fieldsWritten++);
+      while ( !chIsLineDelimiter() ) {
+        parseField(fieldIndex);
+        fieldIndex++;
+        if ( !chIsLineDelimiter() ) {
+          parseNextChar();
+          if ( chIsLineDelimiter() ) {
+            output.startField(fieldIndex);
             output.endEmptyField();
-            break;
           }
-        }
-        if(earlyTerm){
-          if(ch != newLine){
-            input.skipLines(1, newLine);
-          }
-          break;
         }
       }
-    }catch(StreamFinishedPseudoException e){
+      // re-enable the output for the next record
+      output.setCanAppend(true);
+      recordCount++;
+
+    } catch(StreamFinishedPseudoException e){
       // if we've written part of a field or all of a field, we should send this row.
-      if(fieldsWritten == 0 && !output.rowHasData()){
+      if(fieldIndex == 0 && !output.rowHasData()){
         throw e;
       }
     }
 
     output.finishRecord();
-    return true;
+  }
+
+  private void parseNextChar() throws IOException {
+    byte[] byteNtype = input.nextChar();
+    ch = byteNtype[1];
+    chType = byteNtype[0];
   }
 
   /**
-   * Function parses an individual field and ignores any white spaces encountered
+   * Function parses an individual field and skips Whitespaces if @ignoreTrailingWhitespace is true
    * by not appending it to the output vector
-   * @throws IOException
-   */
-  private void parseValueIgnore() throws IOException {
-    final byte newLine = this.newLine;
-    final byte delimiter = this.delimiter;
-    final TextOutput output = this.output;
-    final TextInput input = this.input;
-
-    byte ch = this.ch;
-    while (ch != delimiter && ch != newLine) {
-      output.appendIgnoringWhitespace(ch);
-//      fieldSize++;
-      ch = input.nextChar();
-    }
-    this.ch = ch;
-  }
-
-  private void parseValueAndHandleTrailingWhitespaces() throws IOException {
-    final byte newLine = this.newLine;
-    final byte delimiter = this.delimiter;
-    final TextOutput output = this.output;
-    final TextInput input = this.input;
-    int continuousSpace = 0;
-
-    byte ch = this.ch;
-    try {
-      while (ch != delimiter && ch != newLine) {
-        if (isWhite(ch)) {
-          continuousSpace++;
-        } else {
-          continuousSpace = 0;
-        }
-        output.append(ch);
-        ch = input.nextChar();
-      }
-    } finally {
-      output.setFieldCurrentDataPointer(output.getFieldCurrentDataPointer() - continuousSpace); // in case input.nextChar() fails with some exception or even StreamFinishedPseudoException, we still want currentDataPointer to be set properly before exit.
-    }
-    this.ch = ch;
-  }
-
-  /**
-   * Function parses an individual field and appends all characters till the delimeter (or newline)
-   * to the output, including white spaces
-   * @throws IOException
-   */
-  private void parseValueAll() throws IOException {
-    final byte newLine = this.newLine;
-    final byte delimiter = this.delimiter;
-    final TextOutput output = this.output;
-    final TextInput input = this.input;
-
-    byte ch = this.ch;
-    while (ch != delimiter && ch != newLine) {
-      output.append(ch);
-      ch = input.nextChar();
-    }
-    this.ch = ch;
-  }
-
-  /**
-   * Function simply delegates the parsing of a single field to the actual implementation based on parsing config
-   * @throws IOException
+   * @throws IOException if End of Input stream is reached
    */
   private void parseValue() throws IOException {
-    if (ignoreTrailingWhitespace) {
-      if (schemaImposedMode) {
-        parseValueAndHandleTrailingWhitespaces();
-      } else {
-        parseValueIgnore();
+    int continuousSpace = 0;
+    try {
+      while (!chIsDelimiter()) {
+        if (ignoreTrailingWhitespace) {
+          if (schemaImposedMode) {
+            if (isWhite(ch)) {
+              continuousSpace++;
+            } else {
+              continuousSpace = 0;
+            }
+            output.append(ch);
+          } else {
+            output.appendIgnoringWhitespace(ch);
+          }
+        } else {
+          output.append(ch);
+        }
+        parseNextChar();
       }
-    }else{
-      parseValueAll();
+    } finally {
+      // in case parseNextChar fails with some exception or even StreamFinishedPseudoException
+      //    we still want currentDataPointer to be set properly before exit.
+      if(continuousSpace > 0){
+        output.setFieldCurrentDataPointer(output.getFieldCurrentDataPointer() - continuousSpace);
+      }
     }
   }
 
   /**
-   * Recursive function invoked when a quote is encountered. Function also
-   * handles the case when there are non-white space characters in the field
-   * after the quoted value.
-   * @param prev  previous byte read
-   * @throws IOException
+   * Function invoked when a quote is encountered. Function also
+   * handles the unescaped quotes conditionally.
+   * @throws IOException if End of Input stream is reached
    */
-  private void parseQuotedValue(byte prev) throws IOException {
-    final byte newLine = this.newLine;
-    final byte delimiter = this.delimiter;
-    final TextOutput output = this.output;
-    final TextInput input = this.input;
-    final byte quote = this.quote;
-
-    ch = input.nextCharNoNewLineCheck();
-
-    while (!(prev == quote && (ch == delimiter || ch == newLine || isWhite(ch)))) {
-      if (ch != quote) {
-        if (prev == quote) { // unescaped quote detected
-          if (parseUnescapedQuotes) {
-            output.append(quote);
-            if (ch != quoteEscape) {
-              output.append(ch);
+  private void parseQuotedValue() throws IOException {
+    boolean isPrevQuoteEscape = false;
+    boolean isPrevQuote = false;
+    boolean quoteNescapeSame = Arrays.equals(quote, quoteEscape);
+    boolean isQuoteMatched;
+    while (true) {
+      if (isPrevQuote) { // encountered quote previously
+        if ( chIsDelimiter() ) { // encountered delimiter (line or field)
+          break;
+        }
+        isQuoteMatched = input.match(ch, quote);
+        if (quoteNescapeSame) { // quote and escape are same
+          if (!isQuoteMatched) {
+            if (isEndOfQuotedField()) {
+              break;
             }
-            parseQuotedValue(ch);
-            break;
           } else {
-            throw new TextParsingException(
-                context,
-                "Unescaped quote character '"
-                    + quote
-                    + "' inside quoted value of CSV field. To allow unescaped quotes, set 'parseUnescapedQuotes' to 'true' in the CSV parser settings. Cannot parse CSV input.");
+            output.append(quote);
+            parseNextChar();
+          }
+        } else {
+          if (isQuoteMatched){
+            // previous was a quote, ch is a quote
+            //    and since "" is equivalent to \" in SQL, treat previous as escaped quote
+            isPrevQuoteEscape = true;
+          } else if (isEndOfQuotedField()) {
+            break;
           }
         }
-        if (ch != quoteEscape) {
+        isPrevQuote = false;
+      }
+      if ( chIsLineDelimiter() ) {
+        if (isPrevQuoteEscape) {
+          output.append(quoteEscape);
+        }
+        if (ch==-1) {
+          output.append(lineDelimiter);
+        } else {
           output.append(ch);
         }
-        prev = ch;
-      } else if (prev == quoteEscape) {
-        output.append(quote);
-        prev = NULL_BYTE;
+        isPrevQuoteEscape = false;
+        parseNextChar();
+        continue;
+      } else if ( chIsFieldDelimiter() ) {
+        if (isPrevQuoteEscape) {
+          output.append(quoteEscape);
+        }
+        output.append(fieldDelimiter);
+        isPrevQuoteEscape = false;
+        parseNextChar();
+        continue;
+      }
+      isQuoteMatched = input.match(ch, quote);
+      if (!isQuoteMatched) {
+        if (!quoteNescapeSame) {
+          if (isPrevQuoteEscape) {
+            output.append(quoteEscape);
+          }
+          if (input.match(ch, quoteEscape)) {
+            isPrevQuoteEscape = true;
+          } else {
+            isPrevQuoteEscape = false;
+            output.append(ch);
+          }
+        } else {
+          output.append(ch);
+        }
       } else {
-        prev = ch;
+        if (!quoteNescapeSame) {
+          if (!isPrevQuoteEscape) {
+            isPrevQuote = true;
+          } else {
+            output.append(quote);
+          }
+          isPrevQuoteEscape = false;
+        } else {
+          isPrevQuote = true;
+        }
       }
-      ch = input.nextCharNoNewLineCheck();
-    }
-
-    // Handles whitespaces after quoted value:
-    // Whitespaces are ignored (i.e., ch <= ' ') if they are not used as delimiters (i.e., ch != ' ')
-    // For example, in tab-separated files (TSV files), '\t' is used as delimiter and should not be ignored
-    // Content after whitespaces may be parsed if 'parseUnescapedQuotes' is enabled.
-    if (ch != newLine && ch <= ' ' && ch != delimiter) {
-      final NettyArrowBuf workBuf = NettyArrowBuf.unwrapBuffer(this.workBuf);
-      workBuf.resetWriterIndex();
-      do {
-        // saves whitespaces after value
-        workBuf.writeByte(ch);
-        ch = input.nextChar();
-        // found a new line, go to next record.
-        if (ch == newLine) {
-          return;
-        }
-      } while (ch <= ' ' && ch != delimiter);
-
-      // there's more stuff after the quoted value, not only empty spaces.
-      if (!(ch == delimiter || ch == newLine) && parseUnescapedQuotes) {
-        output.append(quote);
-        for(int i =0; i < workBuf.writerIndex(); i++){
-          output.append(workBuf.getByte(i));
-        }
-        // the next character is not the escape character, put it there
-        if (ch != quoteEscape) {
-          output.append(ch);
-        }
-        // sets this character as the previous character (may be escaping)
-        // calls recursively to keep parsing potentially quoted content
-        parseQuotedValue(ch);
-      }
-    }
-
-    if (!(ch == delimiter || ch == newLine)) {
-      throw new TextParsingException(context, "Unexpected character '" + ch
-          + "' following quoted value of CSV field. Expecting '" + delimiter + "'. Cannot parse CSV input.");
+      parseNextChar();
     }
   }
 
-  /**
-   * Captures the entirety of parsing a single field and based on the input delegates to the appropriate function
-   * @return
-   * @throws IOException
-   */
-  private final boolean parseField() throws IOException {
+  private boolean isEndOfQuotedField() throws IOException {
+    boolean savedWhitespaces = false;
+    if (isWhite(ch)) {
+      // Handles whitespaces after quoted value:
+      // Whitespaces are ignored (i.e., ch <= ' ') if they are not used as delimiters (i.e., ch != ' ')
+      // For example, in tab-separated files (TSV files), '\t' is used as delimiter and should not be ignored
+      savedWhitespaces = true;
+      parseWhiteSpaces(false);
+      if ( chIsDelimiter() ) {
+        return true;
+      }
+    }
+    if (!parseUnescapedQuotes) {
+      throw new TextParsingException(
+        context,
+        String.format("Unescaped quote '%s' inside quoted value of CSV field. To allow unescaped quotes, set 'parseUnescapedQuotes' to 'true' in the CSV parser settings. Cannot parse CSV input.", Arrays.toString(quote)));
+    }
+    output.append(quote);
+    if (savedWhitespaces) {
+      for (int i = 0; i < tempWhiteSpaceBuff.writerIndex(); i++) {
+        output.append(tempWhiteSpaceBuff.getByte(i));
+      }
+    }
+    return false;
+  }
 
-    output.startField(fieldIndex++);
+  /**
+   * Captures the entirety of parsing a single field
+   * @throws IOException if End of Input stream is reached
+   */
+  private void parseField(int fieldIndex) throws IOException {
+
+    output.startField(fieldIndex);
 
     if (isWhite(ch) && ignoreLeadingWhitespace) {
-      skipWhitespace();
+      parseWhiteSpaces(true);
     }
 
-    if (ch == delimiter) {
-      return output.endEmptyField();
+    if ( chIsDelimiter() ) {
+      output.endEmptyField();
     } else {
-      if (ch == quote) {
-        parseQuotedValue(NULL_BYTE);
+      if (input.match(ch, quote)) {
+        parseNextChar();
+        parseQuotedValue();
       } else {
         parseValue();
       }
 
-      return output.endField();
+      output.endField();
     }
-
   }
 
   /**
-   * Helper function to skip white spaces occurring at the current input stream.
-   * @throws IOException
+   * Helper function to skip white spaces occurring at the current input stream and save them to buffer conditionally.
+   * @throws IOException if End of Input stream is reached
    */
-  private void skipWhitespace() throws IOException {
-    final byte delimiter = this.delimiter;
-    final byte newLine = this.newLine;
-    final TextInput input = this.input;
+  private void parseWhiteSpaces(boolean ignoreWhitespaces) throws IOException {
 
-    while (isWhite(ch) && ch != delimiter && ch != newLine) {
-      ch = input.nextChar();
+    // don't create buffers if code will not be able to output the cached bytes
+    boolean bufferOn = output.canAppend();
+
+    if (!chIsDelimiter())  {
+      if(bufferOn) {
+        tempWhiteSpaceBuff = NettyArrowBuf.unwrapBuffer(this.workBuf);
+        tempWhiteSpaceBuff.resetWriterIndex();
+      }
+      while (!chIsDelimiter() && isWhite(ch)) {
+        if (!ignoreWhitespaces && bufferOn) {
+          tempWhiteSpaceBuff.writeByte(ch);
+        }
+        parseNextChar();
+      }
     }
   }
 
   /**
    * Starting point for the reader. Sets up the input interface.
-   * @throws IOException
+   * @throws IOException if the record count is zero
    */
-  public final void start() throws IOException {
+  public void start() throws IOException {
     context.stopped = false;
-    input.start();
+    if (input.start() || settings.isSkipFirstLine()) {
+      // block output
+      output.setCanAppend(false);
+      parseNext();
+      if (recordCount == 0) {
+        // end of file most likely
+        throw new IllegalArgumentException("Only one data line detected. Please consider changing line delimiter.");
+      }
+    }
   }
 
 
   /**
-   * Parses the next record from the input. Will skip the line if its a comment,
+   * Parses the next record from the input. Will skip the line if it is a comment,
    * this is required when the file contains headers
-   * @throws IOException
+   * @throws IOException will rethrow some exceptions
    */
-  public final boolean parseNext() throws IOException {
+  public boolean parseNext() throws IOException {
     try {
       while (!context.stopped) {
-        ch = input.nextChar();
-        if (ch == comment) {
+        parseNextChar();
+        if (chIsLineDelimiter()) { // empty line
+          break;
+        } else if (chIsFieldDelimiter()) {
+          break;
+        } else if (input.match(ch, comment)) {
           input.skipLines(1);
-          continue;
-        }
-        if ((ch == newLine) && !isNormalLineDelimiter) {
           continue;
         }
         break;
       }
-      final long initialLineNumber = input.lineCount();
-      boolean success = parseRecord();
-      if (initialLineNumber + 1 < input.lineCount()) {
-        throw new TextParsingException(context, "Cannot use newline character within quoted string");
-      }
+      parseRecord();
 
-      if(success){
-        if (recordsToRead > 0 && context.currentRecord() >= recordsToRead) {
-          context.stop();
-        }
-        return true;
-      }else{
-        return false;
+      if (recordsToRead > 0 && context.currentRecord() >= recordsToRead) {
+        context.stop();
       }
+      return true;
 
     } catch (StreamFinishedPseudoException ex) {
       stopParsing();
@@ -470,8 +522,8 @@ final class TextReader implements AutoCloseable {
    * Helper method to handle exceptions caught while processing text files and generate better error messages associated with
    * the exception.
    * @param ex  Exception raised
-   * @return
-   * @throws IOException
+   * @return Exception replacement
+   * @throws IOException Selectively augments exception error messages and rethrows
    */
   private TextParsingException handleException(Exception ex) throws IOException {
 
@@ -501,7 +553,7 @@ final class TextReader implements AutoCloseable {
 
       if (tmp.contains("\n") || tmp.contains("\r")) {
         tmp = displayLineSeparators(tmp, true);
-        String lineSeparator = displayLineSeparators(settings.getLineSeparatorString(), false);
+        String lineSeparator = displayLineSeparators(Arrays.toString(settings.getNewLineDelimiter()), false);
         message += "\nIdentified line separator characters in the parsed content. This may be the cause of the error. The line separator in your parser settings is set to '"
             + lineSeparator + "'. Parsed content:\n\t" + tmp;
       }
@@ -539,14 +591,15 @@ final class TextReader implements AutoCloseable {
    */
   public void finishBatch(){
     output.finishBatch();
-//    System.out.println(String.format("line %d, cnt %d", input.getLineCount(), output.getRecordCount()));
+    // System.out.println(String.format("line %d, cnt %d", input.getLineCount(), output.getRecordCount()));
   }
 
   /**
-   * Invoked once there are no more records and we are done with the
+   * Invoked once there are no more records, and we are done with the
    * current record reader to clean up state.
-   * @throws IOException
+   * @throws IOException nested exception
    */
+  @Override
   public void close() throws IOException{
     input.close();
   }

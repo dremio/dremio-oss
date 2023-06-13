@@ -24,7 +24,7 @@ import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.planner.serialization.kryo.serializers.SourceConfigAwareConnectionConfDeserializer;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.StoragePlugin;
-import com.dremio.exec.store.hive.pf4j.NativeLibPluginManager;
+import com.dremio.plugins.pf4j.NativeLibPluginManager;
 
 /**
  * Hive 3.x storage plugin configuration.
@@ -34,7 +34,7 @@ public class Hive3StoragePluginConfig extends HiveStoragePluginConfig {
 
   @Override
   public StoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
-    final PluginManager manager = new NativeLibPluginManager();
+    final PluginManager manager = new NativeLibPluginManager(context.getOptionManager());
 
     manager.loadPlugins();
     manager.startPlugin(getPf4jPluginId());

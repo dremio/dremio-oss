@@ -17,7 +17,6 @@ package com.dremio.service.nessie;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.projectnessie.versioned.CommitMetaSerializer.METADATA_SERIALIZER;
-import static org.projectnessie.versioned.persist.tests.DatabaseAdapterTestUtils.ALWAYS_THROWING_ATTACHMENT_CONSUMER;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -36,12 +35,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.projectnessie.model.CommitMeta;
+import org.projectnessie.model.ContentKey;
 import org.projectnessie.model.IcebergTable;
 import org.projectnessie.server.store.TableCommitMetaStoreWorker;
 import org.projectnessie.versioned.BranchName;
 import org.projectnessie.versioned.GetNamedRefsParams;
 import org.projectnessie.versioned.Hash;
-import org.projectnessie.versioned.Key;
 import org.projectnessie.versioned.ReferenceConflictException;
 import org.projectnessie.versioned.ReferenceInfo;
 import org.projectnessie.versioned.ReferenceNotFoundException;
@@ -61,8 +60,8 @@ import org.projectnessie.versioned.persist.tests.extension.NessieDbAdapterName;
 import org.projectnessie.versioned.persist.tests.extension.NessieExternalDatabase;
 import org.projectnessie.versioned.store.DefaultStoreWorker;
 
+import com.dremio.common.SuppressForbidden;
 import com.google.common.collect.ImmutableMap;
-import com.google.protobuf.ByteString;
 
 @ExtendWith({DatabaseAdapterExtension.class})
 @NessieDbAdapterName(DatastoreDatabaseAdapterFactory.NAME)
@@ -111,7 +110,7 @@ class ITCommitLogMaintenance {
     return (DatastoreDatabaseAdapter) databaseAdapter;
   }
 
-  private void put(Key key, long timestamp) throws ReferenceNotFoundException, ReferenceConflictException {
+  private void put(ContentKey key, long timestamp) throws ReferenceNotFoundException, ReferenceConflictException {
     IcebergTable table = IcebergTable.of(key.toString() + "-loc", 1, 2, 3, 4, UUID.randomUUID().toString());
 
     clockMillis.set(timestamp);
@@ -119,12 +118,12 @@ class ITCommitLogMaintenance {
     adapter().commit(ImmutableCommitParams.builder()
       .toBranch(BranchName.of("main"))
       .commitMetaSerialized(METADATA_SERIALIZER.toBytes(CommitMeta.fromMessage("test-" + key)))
-      .addPuts(KeyWithBytes.of(key, contentId, DefaultStoreWorker.payloadForContent(table),
-        DefaultStoreWorker.instance().toStoreOnReferenceState(table, ALWAYS_THROWING_ATTACHMENT_CONSUMER)))
+      .addPuts(KeyWithBytes.of(key, contentId, (byte) DefaultStoreWorker.payloadForContent(table),
+        DefaultStoreWorker.instance().toStoreOnReferenceState(table)))
       .build());
   }
 
-  private void delete(Key key, long timestamp) throws ReferenceNotFoundException, ReferenceConflictException {
+  private void delete(ContentKey key, long timestamp) throws ReferenceNotFoundException, ReferenceConflictException {
     clockMillis.set(timestamp);
     adapter().commit(ImmutableCommitParams.builder()
       .toBranch(BranchName.of("main"))
@@ -135,23 +134,24 @@ class ITCommitLogMaintenance {
 
   @BeforeEach
   void resetRepo() throws ReferenceNotFoundException, ReferenceConflictException {
-    ReferenceInfo<ByteString> main = adapter().namedRef("main", GetNamedRefsParams.DEFAULT);
+    ReferenceInfo<?> main = adapter().namedRef("main", GetNamedRefsParams.DEFAULT);
     adapter().assign(main.getNamedRef(), Optional.empty(), adapter().noAncestorHash());
   }
 
-  private void validateActiveKeys(Collection<Key> activeKeys) throws ReferenceNotFoundException {
-    ReferenceInfo<ByteString> main = adapter().namedRef("main", GetNamedRefsParams.DEFAULT);
+  @SuppressForbidden // This method has to use Nessie's relocated ByteString in method parameters.
+  private void validateActiveKeys(Collection<ContentKey> activeKeys) throws ReferenceNotFoundException {
+    ReferenceInfo<?> main = adapter().namedRef("main", GetNamedRefsParams.DEFAULT);
     try (Stream<KeyListEntry> keys = adapter().keys(main.getHash(), KeyFilterPredicate.ALLOW_ALL)) {
       assertThat(keys.map(KeyListEntry::getKey)).containsExactlyInAnyOrderElementsOf(activeKeys);
     }
 
-    Map<Key, ContentAndState> values = adapter()
+    Map<ContentKey, ContentAndState> values = adapter()
       .values(main.getHash(), activeKeys, KeyFilterPredicate.ALLOW_ALL);
 
     activeKeys.forEach(k -> {
       ContentAndState value = values.get(k);
       IcebergTable table = (IcebergTable) worker.valueFromStore(value.getPayload(), value.getRefState(),
-        value::getGlobalState, keys -> Stream.empty());
+        value::getGlobalState);
       assertThat(table.getMetadataLocation()).isEqualTo(k.toString() + "-loc");
     });
     assertThat(values).hasSize(activeKeys.size());
@@ -159,11 +159,11 @@ class ITCommitLogMaintenance {
 
   @Test
   void testKeyListPurge() throws ReferenceNotFoundException, ReferenceConflictException {
-    Set<Key> activeKeys = new HashSet<>();
+    Set<ContentKey> activeKeys = new HashSet<>();
 
     // Generate commits to have one key list
     for (int i = 0; i < 20; i++) {
-      Key key = Key.of("test-" + i);
+      ContentKey key = ContentKey.of("test-" + i);
       put(key, 100);
       activeKeys.add(key);
     }
@@ -187,7 +187,7 @@ class ITCommitLogMaintenance {
 
     // Delete some old keys, but do not cause a new key list to be generated
     for (int i = 0; i < 8; i++) {
-      Key key = Key.of("test-" + i);
+      ContentKey key = ContentKey.of("test-" + i);
       delete(key, 200);
       activeKeys.remove(key);
     }
@@ -208,7 +208,7 @@ class ITCommitLogMaintenance {
 
     // Add more keys to cause a new key list to be generated
     for (int i = 0; i < 12; i++) {
-      Key key = Key.of("test2-" + i);
+      ContentKey key = ContentKey.of("test2-" + i);
       put(key, 300);
       activeKeys.add(key);
     }
@@ -230,7 +230,7 @@ class ITCommitLogMaintenance {
 
     // Delete all keys from the first key list (some of them for the second time)
     for (int i = 0; i < 20; i++) {
-      Key key = Key.of("test-" + i);
+      ContentKey key = ContentKey.of("test-" + i);
       delete(key, 400);
       activeKeys.remove(key);
     }
@@ -254,7 +254,7 @@ class ITCommitLogMaintenance {
   void testDryRun() throws ReferenceNotFoundException, ReferenceConflictException {
     // Generate commits to have two key lists
     for (int i = 0; i < 40; i++) {
-      Key key = Key.of("test-" + i);
+      ContentKey key = ContentKey.of("test-" + i);
       put(key, 100);
     }
     clockMillis.set(150);
@@ -280,7 +280,7 @@ class ITCommitLogMaintenance {
   void testProgress() throws ReferenceNotFoundException, ReferenceConflictException {
     // Generate commits to have three key lists
     for (int i = 0; i < 60; i++) {
-      Key key = Key.of("test-" + i);
+      ContentKey key = ContentKey.of("test-" + i);
       put(key, 100);
     }
     clockMillis.set(150);

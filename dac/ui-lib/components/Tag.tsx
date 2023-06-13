@@ -22,18 +22,13 @@ import clsx from "clsx";
 
 type TagProps = {
   className?: string;
-  variant: "success" | "info" | "warning" | "danger";
 };
 
 export const Tag = forwardRef<HTMLSpanElement, PropsWithChildren<TagProps>>(
   (props, ref) => {
-    const { className, children, variant, ...rest } = props;
+    const { className, children, ...rest } = props;
     return (
-      <span
-        {...rest}
-        ref={ref}
-        className={clsx("dremio-tag", className, `dremio-tag--${variant}`)}
-      >
+      <span {...rest} ref={ref} className={clsx("dremio-tag", className)}>
         {children}
       </span>
     );

@@ -19,6 +19,7 @@ import static com.dremio.dac.proto.model.dataset.DataType.DATE;
 import static com.dremio.dac.proto.model.dataset.MeasureType.Sum;
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
@@ -28,7 +29,6 @@ import java.util.Optional;
 import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.mockito.quality.Strictness;
@@ -64,6 +64,7 @@ import com.dremio.dac.proto.model.dataset.TransformGroupBy;
 import com.dremio.dac.proto.model.dataset.VersionContext;
 import com.dremio.dac.proto.model.dataset.VersionContextType;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetState;
+import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.StoragePlugin;
@@ -99,8 +100,8 @@ public class TestSQLGeneratorForVersionedSources {
       .setFrom(ref)
       .setReferenceList(sourceVersionReferenceListForRight);
 
-    when(catalogService.getSource("versioned_source1")).thenReturn(new FakeVersionedPlugin());
-    when(catalogService.getSource("versioned_source2")).thenReturn(new FakeVersionedPlugin());
+    when(catalogService.getSource("versioned_source1")).thenReturn(mock(FakeVersionedPlugin.class));
+    when(catalogService.getSource("versioned_source2")).thenReturn(mock(FakeVersionedPlugin.class));
     when(catalogService.getSource("non_versioned_source")).thenReturn(storagePlugin);
 
     //Both left and right tables are versioned sources
@@ -152,7 +153,7 @@ public class TestSQLGeneratorForVersionedSources {
   public void testOrderBy() {
     List<SourceVersionReference> sourceVersionReferenceList = new ArrayList<>();
     sourceVersionReferenceList.add(new SourceVersionReference("versioned_source", new VersionContext(VersionContextType.BRANCH, "branch")));
-    when(catalogService.getSource("versioned_source")).thenReturn(new FakeVersionedPlugin());
+    when(catalogService.getSource("versioned_source")).thenReturn(mock(FakeVersionedPlugin.class));
     VirtualDatasetState state = new VirtualDatasetState()
       .setFrom(new FromTable("versioned_source.tables.1234.test").wrap())
       .setReferenceList(sourceVersionReferenceList)
@@ -166,7 +167,7 @@ public class TestSQLGeneratorForVersionedSources {
     List<SourceVersionReference> sourceVersionReferenceList = new ArrayList<>();
     sourceVersionReferenceList.add(new SourceVersionReference("versioned_source", new VersionContext(VersionContextType.BRANCH, "branch")));
     From fromTable = new FromTable("versioned_source.parentDS").wrap();
-    when(catalogService.getSource("versioned_source")).thenReturn(new FakeVersionedPlugin());
+    when(catalogService.getSource("versioned_source")).thenReturn(mock(FakeVersionedPlugin.class));
     VirtualDatasetState state = new VirtualDatasetState()
       .setFrom(fromTable)
       .setReferenceList(sourceVersionReferenceList);
@@ -196,7 +197,7 @@ public class TestSQLGeneratorForVersionedSources {
     List<SourceVersionReference> sourceVersionReferenceList = new ArrayList<>();
     sourceVersionReferenceList.add(new SourceVersionReference("versioned_source", new VersionContext(VersionContextType.BRANCH, "branch")));
     From fromTable = new FromTable("versioned_source.parentDS").wrap();
-    when(catalogService.getSource("versioned_source")).thenReturn(new FakeVersionedPlugin());
+    when(catalogService.getSource("versioned_source")).thenReturn(mock(FakeVersionedPlugin.class));
     VirtualDatasetState state = new VirtualDatasetState()
       .setFrom(fromTable)
       .setReferenceList(sourceVersionReferenceList);
@@ -227,7 +228,7 @@ public class TestSQLGeneratorForVersionedSources {
     List<SourceVersionReference> sourceVersionReferenceList = new ArrayList<>();
     sourceVersionReferenceList.add(new SourceVersionReference("versioned_source", new VersionContext(VersionContextType.BRANCH, "branch")));
     From fromTable = new FromTable("versioned_source.parentDS").wrap();
-    when(catalogService.getSource("versioned_source")).thenReturn(new FakeVersionedPlugin());
+    when(catalogService.getSource("versioned_source")).thenReturn(mock(FakeVersionedPlugin.class));
     VirtualDatasetState state = new VirtualDatasetState()
       .setFrom(fromTable)
       .setReferenceList(sourceVersionReferenceList);
@@ -270,7 +271,7 @@ public class TestSQLGeneratorForVersionedSources {
     List<SourceVersionReference> sourceVersionReferenceList = new ArrayList<>();
     sourceVersionReferenceList.add(new SourceVersionReference("versioned_source", new VersionContext(VersionContextType.BRANCH, "branch")));
     From fromTable = new FromTable("versioned_source.parentDS").wrap();
-    when(catalogService.getSource("versioned_source")).thenReturn(new FakeVersionedPlugin());
+    when(catalogService.getSource("versioned_source")).thenReturn(mock(FakeVersionedPlugin.class));
     VirtualDatasetState state = new VirtualDatasetState()
       .setFrom(fromTable)
       .setReferenceList(sourceVersionReferenceList);
@@ -309,7 +310,7 @@ public class TestSQLGeneratorForVersionedSources {
   private TransformResult transform(TransformBase tb, VirtualDatasetState state) {
     QueryExecutor executor = new QueryExecutor(null, null, null){
       @Override
-      public List<String> getColumnList(String username, DatasetPath path, List<SourceVersionReference> sourceVersionReferenceList) {
+      public List<String> getColumnList(DatasetPath path, List<SourceVersionReference> sourceVersionReferenceList) {
         return asList("bar", "baz");
       }
     };
@@ -317,7 +318,7 @@ public class TestSQLGeneratorForVersionedSources {
     TransformActor actor = new TransformActor(state, false, "test_user", executor){
       @Override
       protected QueryMetadata getMetadata(SqlQuery query) {
-        return Mockito.mock(QueryMetadata.class);
+        return mock(QueryMetadata.class);
       }
 
       @Override
@@ -357,5 +358,11 @@ public class TestSQLGeneratorForVersionedSources {
   private void validateForTranformRelatedCalls(String expectedSQL, VirtualDatasetState state) {
     String sql = SQLGenerator.generateSQL(state, true, catalogService);
     assertEquals(expectedSQL, sql);
+  }
+
+  /**
+   * Fake Versioned Plugin interface for test
+   */
+  private interface FakeVersionedPlugin extends VersionedPlugin, StoragePlugin {
   }
 }

@@ -22,17 +22,12 @@
   <parent>
     <artifactId>dremio-services-parent</artifactId>
     <groupId>com.dremio.services</groupId>
-    <version>24.0.0-202302100528110223-3a169b7c</version>
+    <version>24.1.0-202306130653310132-d30779f6</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
   <artifactId>dremio-services-autocomplete</artifactId>
   <name>Services - Autocomplete</name>
-
-  <properties>
-    <maven.compiler.source>8</maven.compiler.source>
-    <maven.compiler.target>8</maven.compiler.target>
-  </properties>
 
   <dependencies>
     <dependency>

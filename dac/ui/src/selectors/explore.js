@@ -99,22 +99,34 @@ export function getPaginationUrl(state, datasetVersion) {
   return paginationUrl || datasetVersion;
 }
 
+export function oldGetExploreJobId(state) {
+  // this selector will have to change once we move jobId out of fullDataset and load it prior to metadata
+  const location = getLocation(state);
+  const version = getDatasetVersionFromLocation(location);
+  const fullDataset = getFullDataset(state, version);
+  return fullDataset ? fullDataset.getIn(["jobId", "id"], "") : "";
+}
+
 export function getExploreJobId(state) {
   // this selector will have to change once we move jobId out of fullDataset and load it prior to metadata
   const location = getLocation(state);
   const version = getDatasetVersionFromLocation(location);
   const fullDataset = getFullDataset(state, version);
+  const jobIdFromDataset = fullDataset?.getIn(["jobId", "id"]);
 
   // a dataset is not returned in the first response of the new_tmp_untitled_sql endpoints
   // so we need to get jobId from the jobList where the last job is the most recently submitted
   const jobListArray = getJobList(state).toArray();
-  const jobIdFromList = jobListArray?.[jobListArray.length - 1]?.get("id");
+  const jobIdFromList =
+    jobListArray?.[jobListArray.length - 1]?.get("id") ?? "";
 
-  return fullDataset
-    ? fullDataset.getIn(["jobId", "id"], "")
-    : jobIdFromList
+  return jobIdFromDataset !== jobIdFromList && jobIdFromList
     ? jobIdFromList
-    : "";
+    : jobIdFromDataset;
+}
+
+export function getSavingJob(state) {
+  return state.jobs.jobs.get("uniqueSavingJob");
 }
 
 export function getPaginationJobId(state, datasetVersion) {

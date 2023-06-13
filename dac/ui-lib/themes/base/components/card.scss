@@ -15,25 +15,16 @@
  */
 
 %dremio-card-hover {
-  --dremio--card--background: var(--dremio--color--primary--100);
+  --dremio--card--background: var(--color--brand--25);
 }
 
 .dremio-card {
-  background: var(--dremio--card--background);
-  border: var(--dremio--card--border);
-  border-radius: var(--dremio--card--border-radius);
-  color: var(--dremio--card--color);
   display: flex;
   flex-direction: column;
   overflow: hidden;
 
-  > * {
-    padding: var(--dremio--card--padding);
-  }
-
   &__header {
     align-items: center;
-    border-block-end: var(--dremio--card--header--border);
     display: flex;
     flex-direction: row;
 
@@ -49,8 +40,6 @@
 
   &__title,
   &__title > * {
-    font-size: var(--dremio--card--title--font-size);
-    font-weight: var(--dremio--card--title--font-weight);
     margin: 0;
     overflow: hidden;
     padding: 0;

@@ -181,6 +181,10 @@ public class Pipeline implements AutoCloseable {
     }
   }
 
+  public int numOperators() {
+    return operators.size();
+  }
+
   @Override
   public String toString(){
     StringBuilder sb = new StringBuilder();

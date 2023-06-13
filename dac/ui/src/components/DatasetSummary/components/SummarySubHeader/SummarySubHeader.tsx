@@ -17,14 +17,30 @@ import { useRef, useState } from "react";
 // @ts-ignore
 import { Tooltip } from "dremio-ui-lib";
 import { addTooltip } from "../../datasetSummaryUtils";
+import VersionContext, {
+  VersionContextType,
+} from "dremio-ui-common/components/VersionContext.js";
+
 import * as classes from "./SummarySubHeader.module.less";
 
-const SummarySubHeader = ({ subTitle }: { subTitle: string }) => {
+const SummarySubHeader = ({
+  subTitle,
+  versionContext,
+  detailsView,
+}: {
+  subTitle: string;
+  versionContext?: VersionContextType;
+  detailsView?: boolean;
+}) => {
   const [showTooltip, setShowTooltip] = useState(false);
   const subTitleRef = useRef(null);
 
   return (
-    <div className={classes["summary-subHeader-container"]}>
+    <div
+      className={`${classes["summary-subHeader-container"]} ${
+        detailsView ? classes["summary-subHeader-container__details"] : ""
+      }`}
+    >
       {showTooltip ? (
         <Tooltip interactive title={subTitle}>
           <p className={classes["summary-subHeader"]}>{subTitle}</p>
@@ -37,6 +53,13 @@ const SummarySubHeader = ({ subTitle }: { subTitle: string }) => {
         >
           {subTitle}
         </p>
+      )}
+      {versionContext && (
+        <VersionContext
+          versionContext={versionContext}
+          className={classes["summary-secondarySubHeader"]}
+          withRefKeyword
+        />
       )}
     </div>
   );

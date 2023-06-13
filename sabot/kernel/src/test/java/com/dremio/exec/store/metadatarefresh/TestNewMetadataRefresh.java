@@ -16,7 +16,6 @@
 package com.dremio.exec.store.metadatarefresh;
 
 import static com.dremio.exec.store.metadatarefresh.RefreshDatasetTestUtils.fsDelete;
-import static com.dremio.exec.store.metadatarefresh.RefreshDatasetTestUtils.setupLocalFS;
 import static com.dremio.exec.store.metadatarefresh.RefreshDatasetTestUtils.verifyIcebergMetadata;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertTrue;
@@ -34,6 +33,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -56,7 +56,16 @@ import org.junit.Test;
 import com.dremio.BaseTestQuery;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.exceptions.UserRemoteException;
+import com.dremio.connector.metadata.DatasetHandle;
+import com.dremio.connector.metadata.EntityPath;
+import com.dremio.exec.catalog.CatalogServiceImpl;
+import com.dremio.exec.catalog.MetadataObjectsUtils;
+import com.dremio.exec.store.DatasetRetrievalOptions;
+import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.service.namespace.NamespaceException;
+import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Stopwatch;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
@@ -1130,6 +1139,73 @@ public class TestNewMetadataRefresh extends BaseTestQuery {
         .baselineColumns("col1")
         .baselineRecords(recordBuilder2.build())
         .go();
+    }
+  }
+
+  /**
+   *   Verify that UnlimitedSplitsFileDatasetHandle will be used for Parquet Datasets
+   *     (Regression test for DX-60716)
+   *   when:
+   *      parquet dataset (file/folder)
+   *      unlimitedSplits on
+   *      (auto-promote is off && dataset was previously promoted
+   *         *or* auto-promote is on )
+   */
+  @Test
+  public void testForUnlimitedSplitsFileDatasetHandle() throws Exception {
+
+    try (AutoCloseable c1 = enableUnlimitedSplitsSupportFlags()) {
+      // Test to ensure that UnlimitedSplitsFileDatasetHandle gets returned from getDatasetHandle() for parquet datasets
+      {
+        File dir = new File(testRootPath + "datasetHandleParquetTest");
+        if (!dir.exists()) {
+          dir.mkdir();
+        }
+
+        File dataFile = new File(Resources.getResource("metadatarefresh/int.parquet").getFile());
+        FileUtils.copyFileToDirectory(dataFile, dir, false);
+
+        final CatalogServiceImpl pluginRegistry = (CatalogServiceImpl) getSabotContext().getCatalogService();
+        final FileSystemPlugin<?> msp = pluginRegistry.getSource("dfs");
+
+        // set auto-promote true to trigger getDatasetHandle() to return UnlimitedSplitsFileDatasetHandle if generated
+        DatasetRetrievalOptions options = DatasetRetrievalOptions.DEFAULT.toBuilder().setAutoPromote(true).build();
+        NamespaceKey namespaceKey = new NamespaceKey(Arrays.asList("dfs", "tmp", "metadatarefresh", "datasetHandleParquetTest"));
+        final EntityPath entityPath = MetadataObjectsUtils.toEntityPath(namespaceKey);
+        Optional<DatasetHandle> handle = msp.getDatasetHandle(entityPath, options.asGetDatasetOptions(null));
+
+        if (!handle.isPresent() || !(handle.get() instanceof UnlimitedSplitsFileDatasetHandle)) {
+          Assert.fail("Expected UnlimitedSplitsFileDatasetHandle to be created for parquet dataset");
+        }
+      }
+
+      // Test to ensure that UnlimitedSplitsFileDatasetHandle do not get returned from getDatasetHandle() for non-parquet datasets
+      {
+        File dir = new File(testRootPath + "datasetHandleCSVTest");
+        if (!dir.exists()) {
+          dir.mkdir();
+        }
+
+        File dataFile = new File(Resources.getResource("metadatarefresh/bogus.csv").getFile());
+        FileUtils.copyFileToDirectory(dataFile, dir, false);
+
+        final CatalogServiceImpl pluginRegistry = (CatalogServiceImpl) getSabotContext().getCatalogService();
+        final FileSystemPlugin<?> msp = pluginRegistry.getSource("dfs");
+
+        // set auto-promote true to trigger getDatasetHandle() to return UnlimitedSplitsFileDatasetHandle if generated
+        DatasetRetrievalOptions options = DatasetRetrievalOptions.DEFAULT.toBuilder().setAutoPromote(true).build();
+        NamespaceKey namespaceKey = new NamespaceKey(Arrays.asList("dfs", "tmp", "metadatarefresh", "datasetHandleCSVTest"));
+        final EntityPath entityPath = MetadataObjectsUtils.toEntityPath(namespaceKey);
+        Optional<DatasetHandle> handle = msp.getDatasetHandle(entityPath, options.asGetDatasetOptions(null));
+
+        if (handle.isPresent() && (handle.get() instanceof UnlimitedSplitsFileDatasetHandle)) {
+          // matching an UnlimitedSplitsFileDatasetHandle for a CSV should be a failure
+          Assert.fail("Should not create UnlimitedSplitsFileDatasetHandle for non-parquet dataset");
+        }
+      }
+
+    } catch (NamespaceException ex) {
+      throw Throwables.propagate(ex);
     }
   }
 }

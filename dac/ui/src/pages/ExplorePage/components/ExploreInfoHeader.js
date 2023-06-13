@@ -64,7 +64,12 @@ import FontIcon from "components/Icon/FontIcon";
 import { DatasetItemLabel } from "components/Dataset/DatasetItemLabel"; // {} for testing purposes since store is not needed here
 import { checkTypeToShowOverlay } from "utils/datasetUtils";
 
-import { getIconDataTypeFromDatasetType } from "utils/iconUtils";
+import {
+  getIconDataTypeFromDatasetType,
+  getIcebergIconDataTypeFromDatasetType,
+} from "utils/iconUtils";
+
+import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
 
 import {
   getHistory,
@@ -72,6 +77,7 @@ import {
   getExploreState,
 } from "selectors/explore";
 import { getActiveScript } from "@app/selectors/scripts";
+import { TagContent } from "@app/pages/HomePage/components/BranchPicker/components/BranchPickerTag/BranchPickerTag";
 
 import "./ExploreInfoHeader.less";
 
@@ -91,6 +97,7 @@ export class ExploreInfoHeader extends PureComponent {
     location: PropTypes.object,
     exploreViewState: PropTypes.instanceOf(Immutable.Map).isRequired,
     intl: PropTypes.object.isRequired,
+    nessieState: PropTypes.object,
 
     // connected
     history: PropTypes.instanceOf(Immutable.Map),
@@ -348,7 +355,8 @@ export class ExploreInfoHeader extends PureComponent {
   }
 
   renderDatasetLabel(dataset) {
-    const { activeScript, location, intl, currentSql } = this.props;
+    const { activeScript, location, intl, currentSql, nessieState } =
+      this.props;
     const nameForDisplay = ExploreInfoHeader.getNameForDisplay(
       dataset,
       activeScript,
@@ -367,10 +375,14 @@ export class ExploreInfoHeader extends PureComponent {
     const edited = intl.formatMessage({
       id: isSqlEditorTab ? "NewQuery.Unsaved" : "Dataset.Edited",
     });
-    const typeIcon = getIconDataTypeFromDatasetType(
-      !isSqlEditorTab ? dataset.get("datasetType") : SCRIPT
-    );
-    const showOverlay = checkTypeToShowOverlay(dataset.get("datasetType"));
+    const datasetType = dataset.get("datasetType");
+    const versionContext = getVersionContextFromId(dataset.get("entityId"));
+    const typeIcon = isSqlEditorTab
+      ? getIconDataTypeFromDatasetType(SCRIPT)
+      : versionContext != null
+      ? getIcebergIconDataTypeFromDatasetType(datasetType)
+      : getIconDataTypeFromDatasetType(datasetType);
+    const showOverlay = checkTypeToShowOverlay(datasetType);
 
     const isUntitledScript = isSqlEditorTab && !this.props.activeScript.name;
     const labelText = `${nameForDisplay}${
@@ -388,6 +400,8 @@ export class ExploreInfoHeader extends PureComponent {
         </span>
       </EllipsedText>
     );
+    const nessieStateRef =
+      nessieState?.reference ?? nessieState?.defaultReference;
 
     return (
       <DatasetItemLabel
@@ -412,12 +426,22 @@ export class ExploreInfoHeader extends PureComponent {
               {this.renderCopyToClipBoard(constructFullPath(fullPath))}
             </div>
             {fullPath && (
-              <BreadCrumbs
-                hideLastItem
-                longCrumbs={false}
-                fullPath={fullPath}
-                pathname={location.pathname}
-              />
+              <>
+                <BreadCrumbs
+                  hideLastItem
+                  longCrumbs={false}
+                  fullPath={fullPath}
+                  pathname={location.pathname}
+                />
+                {nessieStateRef && (
+                  <div className="referenceTag">
+                    <TagContent
+                      reference={nessieState.reference}
+                      hash={nessieState.hash}
+                    />
+                  </div>
+                )}
+              </>
             )}
             {
               <DocumentTitle

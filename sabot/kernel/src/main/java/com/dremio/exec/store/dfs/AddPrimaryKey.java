@@ -42,6 +42,7 @@ public class AddPrimaryKey extends PrimaryKeyOperations {
     super(datasetConfig, context, key, schemaConfig, model, path, storagePlugin);
   }
 
+  @Override
   public void performOperation(List<Field> columns) {
     super.performOperation(columns);
   }

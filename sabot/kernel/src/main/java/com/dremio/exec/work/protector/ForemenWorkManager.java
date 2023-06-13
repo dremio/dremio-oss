@@ -40,6 +40,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.protos.ExternalIdHelper;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.config.DremioConfig;
+import com.dremio.context.RequestContext;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.maestro.MaestroForwarder;
 import com.dremio.exec.maestro.MaestroService;
@@ -152,6 +153,7 @@ public class ForemenWorkManager implements Service, SafeExit {
   private final CloseableSchedulerThreadPool profileSender;
   private Cache<String, CachedPlan> cachedPlans;
   private PlanCache planCache;
+  private final Provider<RequestContext> requestContextProvider;
 
   public ForemenWorkManager(
           final Provider<FabricService> fabric,
@@ -162,7 +164,8 @@ public class ForemenWorkManager implements Service, SafeExit {
           final Provider<MaestroForwarder> forwarder,
           final Tracer tracer,
           final Provider<RuleBasedEngineSelector> ruleBasedEngineSelector,
-          final BufferAllocator jobResultsAllocator) {
+          final BufferAllocator jobResultsAllocator,
+          final Provider<RequestContext> requestContextProvider) {
     this.dbContext = dbContext;
     this.fabric = fabric;
     this.commandPool = commandPool;
@@ -177,6 +180,7 @@ public class ForemenWorkManager implements Service, SafeExit {
     this.queryCancelTool = new QueryCancelToolImpl();
     this.profileSender = new CloseableSchedulerThreadPool("profile-sender", 1);
     this.jobResultsAllocator = jobResultsAllocator;
+    this.requestContextProvider = requestContextProvider;
   }
 
   public ExecToCoordResultsHandler getExecToCoordResultsHandler() {
@@ -329,7 +333,7 @@ public class ForemenWorkManager implements Service, SafeExit {
 
       @Override
       public void operationComplete(Future<Void> future) throws Exception {
-        foreman.cancel("User - Connection closed", false);
+        foreman.cancel("User - Connection closed", false, false);
       }
     }
 
@@ -354,11 +358,12 @@ public class ForemenWorkManager implements Service, SafeExit {
    * @param reason          description of the cancellation
    * @param clientCancelled true if the client application explicitly issued a cancellation (via end user action), or
    *                        false otherwise (i.e. when pushing the cancellation notification to the end user)
+   * @param runTimeExceeded true if the query is being cancelled because the max runtime has been exceeded
    */
-  public boolean cancel(ExternalId externalId, String reason, boolean clientCancelled) {
+  public boolean cancel(ExternalId externalId, String reason, boolean clientCancelled, boolean runTimeExceeded) {
     final ManagedForeman managed = externalIdToForeman.get(externalId);
     if (managed != null) {
-      managed.foreman.cancel(reason, clientCancelled);
+      managed.foreman.cancel(reason, clientCancelled, runTimeExceeded);
       return true;
     }
 
@@ -375,9 +380,10 @@ public class ForemenWorkManager implements Service, SafeExit {
                        .stream()
                        .filter(mf->mf.foreman.canCancelByHeapMonitor())
                        .forEach(mf->mf.foreman.cancel(cancelQueryContext.getCancelReason(),
-                                                     false,
-                                                      cancelQueryContext.getCancelContext(),
-                                                      cancelQueryContext.isCancelledByHeapMonitor()));
+                         false,
+                         cancelQueryContext.getCancelContext(),
+                         cancelQueryContext.isCancelledByHeapMonitor(),
+                         false));
   }
 
   public boolean resume(ExternalId externalId) {
@@ -494,6 +500,7 @@ public class ForemenWorkManager implements Service, SafeExit {
    *
    * <p>This is intended to be used by com.dremio.exec.server.SabotNode#close(). </p>
    */
+  @Override
   public void waitToExit() {
     synchronized(this) {
       if (externalIdToForeman.isEmpty()) {
@@ -551,7 +558,7 @@ public class ForemenWorkManager implements Service, SafeExit {
       UserSession userSession) {
       try{
         // make sure we keep a local observer out of band.
-        final QueryObserver oobJobObserver = new OutOfBandQueryObserver(observer, executor);
+        final QueryObserver oobJobObserver = new OutOfBandQueryObserver(observer, executor, requestContextProvider);
 
         if (userSession == null) {
           userSession = UserSession.Builder.newBuilder()
@@ -604,6 +611,8 @@ public class ForemenWorkManager implements Service, SafeExit {
             profile,
             exception,
             null,
+            false,
+            false,
             false);
           responseHandler.completed(result);
         }
@@ -631,7 +640,7 @@ public class ForemenWorkManager implements Service, SafeExit {
     session.incrementQueryCount();
     final QueryObserver observer = dbContext.get().getQueryObserverFactory().get().createNewQueryObserver(
       externalId, session, responseHandler);
-    final QueryObserver oobObserver = new OutOfBandQueryObserver(observer, executor);
+    final QueryObserver oobObserver = new OutOfBandQueryObserver(observer, executor, requestContextProvider);
     final ReAttemptHandler attemptHandler = newExternalAttemptHandler(session.getOptions());
     submit(externalId, oobObserver, session, request, registry, null, attemptHandler);
     return null;
@@ -661,7 +670,7 @@ public class ForemenWorkManager implements Service, SafeExit {
 
     @Override
     public Ack cancelQuery(ExternalId query, String username) {
-      cancel(query, String.format("Query cancelled by user '%s'", username), true);
+      cancel(query, String.format("Query cancelled by user '%s'", username), true, false);
       return Acks.OK;
     }
 
@@ -680,9 +689,10 @@ public class ForemenWorkManager implements Service, SafeExit {
 
   private class ForemenToolImpl implements ForemenTool {
 
+    // Used by REST APIs to cancel running queries
     @Override
     public boolean cancel(ExternalId id, String reason) {
-      return ForemenWorkManager.this.cancel(id, reason, false);
+      return ForemenWorkManager.this.cancel(id, reason, true, false);
     }
 
     @Override
@@ -698,9 +708,11 @@ public class ForemenWorkManager implements Service, SafeExit {
 
   private class QueryCancelToolImpl implements QueryCancelTool {
 
+    // Not used when REST APIs are used to cancel queries
+    // Hence, clientCancelled is false
     @Override
-    public boolean cancel(ExternalId id, String reason) {
-      return ForemenWorkManager.this.cancel(id, reason, false);
+    public boolean cancel(ExternalId id, String reason, boolean runTimeExceeded) {
+      return ForemenWorkManager.this.cancel(id, reason, false, runTimeExceeded);
     }
   }
 

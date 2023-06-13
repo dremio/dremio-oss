@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import Immutable from "immutable";
-import { useEffect } from "react";
+import { ReactNode, useEffect } from "react";
 import { connect } from "react-redux";
 import { withRouter, WithRouterProps } from "react-router";
 import { loadSummaryDataset } from "actions/resources/dataset";
@@ -23,6 +23,7 @@ import { getViewState } from "selectors/resources";
 import { constructFullPath } from "@app/utils/pathUtils";
 import DatasetSummary from "../DatasetSummary/DatasetSummary";
 import DatasetSummaryNotFound from "../DatasetSummaryNotFound/DatasetSummaryNotFound";
+import { VersionContextType } from "dremio-ui-common/components/VersionContext.js";
 
 const VIEW_ID = "SummaryDataset";
 
@@ -33,6 +34,12 @@ type DatasetSummaryOverlayProps = {
   inheritedTitle?: string;
   viewState: Immutable.Map<any, any>;
   loadSummaryDataset: typeof loadSummaryDataset;
+  detailsView?: boolean;
+  tagsComponent?: ReactNode;
+  openWikiDrawer: (dataset: any) => void;
+  showColumns?: boolean;
+  hideSqlEditorIcon?: boolean;
+  versionContext?: VersionContextType;
 };
 
 const DatasetSummaryOverlay = (
@@ -46,13 +53,30 @@ const DatasetSummaryOverlay = (
     inheritedTitle,
     location,
     loadSummaryDataset: dispatchLoadSummaryDataset,
+    detailsView,
+    tagsComponent,
+    openWikiDrawer,
+    showColumns,
+    hideSqlEditorIcon,
+    versionContext,
   } = props;
 
-  useEffect(() => {
-    dispatchLoadSummaryDataset(fullPath.join("/"), VIEW_ID);
-  }, [dispatchLoadSummaryDataset, fullPath]);
+  const { type: contextType, value: contextValue } = versionContext ?? {};
 
-  const title = fullPath.get(fullPath.size - 1);
+  useEffect(() => {
+    dispatchLoadSummaryDataset(
+      fullPath?.join("/"),
+      VIEW_ID,
+      undefined,
+      undefined,
+      undefined,
+      contextType && contextValue
+        ? { value: contextValue, type: contextType }
+        : undefined
+    );
+  }, [dispatchLoadSummaryDataset, fullPath, contextType, contextValue]);
+
+  const title = fullPath?.get(fullPath.size - 1);
   const constructedFullPath = constructFullPath(fullPath);
   const showDeletedDatasetSummary = viewState.get("isFailed");
   const disableActionButtons = viewState.get("isInProgress");
@@ -70,6 +94,12 @@ const DatasetSummaryOverlay = (
       disableActionButtons={disableActionButtons}
       fullPath={constructedFullPath}
       dataset={summaryDataset}
+      detailsView={detailsView}
+      tagsComponent={tagsComponent}
+      openWikiDrawer={openWikiDrawer}
+      showColumns={showColumns}
+      hideSqlEditorIcon={hideSqlEditorIcon}
+      versionContext={versionContext}
     />
   );
 };
@@ -78,7 +108,7 @@ const mapStateToProps = (
   state: Record<string, any>,
   props: { fullPath: string[] }
 ) => {
-  const fullPath = props.fullPath.join(",");
+  const fullPath = props.fullPath?.join(",");
   return {
     summaryDataset: getSummaryDataset(state, fullPath),
     viewState: getViewState(state, VIEW_ID),

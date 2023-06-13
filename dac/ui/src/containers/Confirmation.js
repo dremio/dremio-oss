@@ -28,11 +28,25 @@ export class ConfirmationContainer extends Component {
     hideConfirmationDialog: PropTypes.func,
   };
 
-  onConfirm = (promptValue) => {
-    this.props.hideConfirmationDialog();
-    const { confirm } = this.props.confirmation;
-    if (confirm && typeof confirm === "function") {
-      confirm(promptValue);
+  state = {
+    submitting: false,
+  };
+
+  onConfirm = async (promptValue) => {
+    const { confirm, isAsyncAction } = this.props.confirmation;
+    const isFunction = confirm && typeof confirm === "function";
+    if (!isAsyncAction) {
+      this.props.hideConfirmationDialog();
+      if (isFunction) {
+        confirm(promptValue);
+      }
+    } else {
+      if (isFunction) {
+        this.setState({ submitting: true });
+        await confirm(promptValue);
+      }
+      this.setState({ submitting: false });
+      this.props.hideConfirmationDialog();
     }
   };
 
@@ -94,6 +108,7 @@ export class ConfirmationContainer extends Component {
         className={className}
         headerIcon={headerIcon}
         size={size}
+        asyncSubmitting={this.state.submitting}
       />
     );
   }

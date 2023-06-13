@@ -26,10 +26,10 @@ import com.dremio.exec.proto.UserBitShared.QueryId;
  * Abstract strategy for reducing heap usage.
  */
 public abstract class AbstractHeapClawBackStrategy implements HeapClawBackStrategy {
+  public static final String FAIL_CONTEXT = "Query canceled by executor heap monitor";
+
   protected FragmentExecutors fragmentExecutors;
   protected QueriesClerk queriesClerk;
-
-  private final String failContext = "Query canceled by executor heap monitor";
 
   public AbstractHeapClawBackStrategy(FragmentExecutors fragmentExecutors, QueriesClerk queriesClerk) {
     this.queriesClerk = queriesClerk;
@@ -73,7 +73,7 @@ public abstract class AbstractHeapClawBackStrategy implements HeapClawBackStrate
     for (QueryId queryId : queries) {
       fragmentExecutors.failFragments(queryId, queriesClerk,
         new OutOfHeapMemoryException("heap monitor detected that the heap is almost full"),
-        failContext);
+        FAIL_CONTEXT);
     }
   }
 }

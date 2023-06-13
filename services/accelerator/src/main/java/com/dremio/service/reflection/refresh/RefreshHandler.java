@@ -28,7 +28,7 @@ import org.apache.calcite.rel.metadata.RelColumnOrigin;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.util.Pair;
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
@@ -55,18 +55,19 @@ import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
 import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
 import com.dremio.exec.planner.sql.parser.SqlRefreshReflection;
 import com.dremio.exec.proto.UserBitShared;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.exec.store.iceberg.model.IcebergCommandType;
 import com.dremio.exec.store.sys.accel.AccelerationManager.ExcludedReflectionsProvider;
 import com.dremio.resource.common.ReflectionRoutingManager;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.RefreshMethod;
 import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.dremio.service.reflection.ReflectionGoalChecker;
+import com.dremio.service.reflection.ReflectionOptions;
 import com.dremio.service.reflection.ReflectionService;
 import com.dremio.service.reflection.ReflectionServiceImpl;
 import com.dremio.service.reflection.ReflectionSettings;
@@ -93,12 +94,14 @@ import io.protostuff.ByteString;
 public class RefreshHandler implements SqlToPlanHandler {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RefreshHandler.class);
 
+  private static final int MATERIALIZATION_ID_REFRESH_PATH_OFFSET = 2;
   public static final String DECISION_NAME = RefreshDecision.class.getName();
   public static final Serializer<RefreshDecision, byte[]> ABSTRACT_SERIALIZER = ProtostuffSerializer.of(RefreshDecision.getSchema());
 
   private final WriterOptionManager writerOptionManager;
 
   private String textPlan;
+  private Rel drel;
 
   public RefreshHandler() {
     this.writerOptionManager = WriterOptionManager.Instance;
@@ -151,40 +154,35 @@ public class RefreshHandler implements SqlToPlanHandler {
       }
 
       final RefreshHelper helper = ((ReflectionServiceImpl) service).getRefreshHelper();
-      final NamespaceService namespace = helper.getNamespace();
       final ReflectionSettings reflectionSettings = helper.getReflectionSettings();
       final MaterializationStore materializationStore = helper.getMaterializationStore();
+      final CatalogService catalogService = helper.getCatalogService();
 
-      // Disable default raw reflections during plan generation for a refresh
-      config.getConverter().getSubstitutionProvider().disableDefaultRawReflection();
       RefreshDecision[] refreshDecisions = new RefreshDecision[1];
+
       final RelNode initial = determineMaterializationPlan(
           config,
           goal,
           entry,
           materialization,
           service.getExcludedReflectionsProvider(),
-          namespace,
+          catalogService,
           config.getContext().getConfig(),
           reflectionSettings,
           materializationStore,
           refreshDecisions);
-      config.getConverter().getSubstitutionProvider().resetDefaultRawReflection();
+      if(!config.getContext().getOptions().getOption(ReflectionOptions.ACCELERATION_ENABLE_DEFAULT_RAW_REFRESH)){
+        config.getConverter().getSubstitutionProvider().resetDefaultRawReflection();
+      }
 
-      final Rel drel = PrelTransformer.convertToDrelMaintainingNames(config, initial);
+      drel = PrelTransformer.convertToDrelMaintainingNames(config, initial);
 
       // Append the attempt number to the table path
       final UserBitShared.QueryId queryId = config.getContext().getQueryId();
       final AttemptId attemptId = AttemptId.of(queryId);
 
-      final boolean isIcebergIncrementalRefresh = isIcebergInsertRefresh(materialization, refreshDecisions[0]);
-      final String materializationPath =  isIcebergIncrementalRefresh ?
-        materialization.getBasePath() : materialization.getId().getId() + "_" + attemptId.getAttemptNum();
-      final String materializationId = materializationPath.split("_")[0];
-      final List<String> tablePath =  ImmutableList.of(
-          ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME,
-          reflectionId.getId(),
-          materializationPath);
+      final List<String> tablePath =  getRefreshPath(reflectionId, materialization, refreshDecisions[0], attemptId);
+      final String materializationId = tablePath.get(MATERIALIZATION_ID_REFRESH_PATH_OFFSET).split("_")[0];
 
       List<String> primaryKey = getPrimaryKeyFromMaterializationPlan(initial);
       if(!CollectionUtils.isEmpty(primaryKey)) {
@@ -247,10 +245,12 @@ public class RefreshHandler implements SqlToPlanHandler {
         boolean inheritanceEnabled = config.getContext().getOptions().getOption("planner.reflection_routing_inheritance_enabled").getBoolVal();
         if (reflectionRoutingManager.getIsQueue()) {
           String queueId = datasetConfig.getQueueId();
+          final String queueName;
           if (queueId == null && inheritanceEnabled) {
-            queueId = getInheritedReflectionRouting(true, datasetConfig, config);
+            queueName = getInheritedReflectionRouting(true, datasetConfig, config);
+          } else {
+            queueName = reflectionRoutingManager.getQueueNameById(queueId);
           }
-          final String queueName = reflectionRoutingManager.getQueueNameById(queueId);
           if (queueName != null && reflectionRoutingManager.checkQueueExists(queueName)) {
             config.getContext().getSession().setRoutingQueue(queueName);
           } else if (queueName != null) {
@@ -276,6 +276,28 @@ public class RefreshHandler implements SqlToPlanHandler {
     }
   }
 
+  /**
+   * Returns the expected refresh path for the current refresh of a reflection
+   * @param reflectionId - the ID of the reflection we are finding the path for
+   * @param materialization - materialization for the reflection
+   * @param refreshDecision - refresh decision for the reflection
+   * @param attemptId - current attempt ID
+   * @return The refresh path represented as a list of strings
+   */
+  public static List<String> getRefreshPath(final ReflectionId reflectionId, final Materialization materialization,
+                                            final RefreshDecision refreshDecision, final AttemptId attemptId) {
+
+    final boolean isIcebergIncrementalRefresh = isIcebergInsertRefresh(materialization, refreshDecision);
+    final String materializationPath =  isIcebergIncrementalRefresh ?
+      materialization.getBasePath() : materialization.getId().getId() + "_" + attemptId.getAttemptNum();
+    //if you change the order of materializationPath in return value of this function
+    //please make sure you update MATERIALIZATION_ID_REFRESH_PATH_OFFSET
+    return ImmutableList.of(
+      ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME,
+      reflectionId.getId(),
+      materializationPath);
+  }
+
   private List<String> getPrimaryKeyFromMaterializationPlan(RelNode node) {
     SimpleReflectionFinderVisitor visitor = new SimpleReflectionFinderVisitor();
     node.accept(visitor);
@@ -297,12 +319,13 @@ public class RefreshHandler implements SqlToPlanHandler {
     return null;
   }
 
-  private String getInheritedReflectionRouting(boolean isQueue, DatasetConfig datasetConfig, SqlHandlerConfig config) {
+  private String getInheritedReflectionRouting(boolean isQueue, DatasetConfig datasetConfig, SqlHandlerConfig config) throws Exception {
     ImmutableList<String> pathList = ImmutableList.copyOf(datasetConfig.getFullPathList());
     // We want to try inherit routing queue from folder or space level.
     // The last entry in the path list will be the name of the current dataset,
     // so we remove it since it isn't a space or folder.
     pathList = pathList.subList(0, pathList.size() - 1);
+    ReflectionRoutingManager reflectionRoutingManager = config.getContext().getReflectionRoutingManager();
     while (!pathList.isEmpty()) {
       if (pathList.size() == 1) {
         try {
@@ -310,11 +333,14 @@ public class RefreshHandler implements SqlToPlanHandler {
           if (isQueue) {
             String inheritedQueueId = spaceConfig.getQueueId();
             if (inheritedQueueId != null) {
-              return inheritedQueueId;
+              final String queueName = reflectionRoutingManager.getQueueNameById(inheritedQueueId);
+              if (queueName != null && reflectionRoutingManager.checkQueueExists(queueName)) {
+                return queueName;
+              }
             }
           } else {
             String inheritedEngineName = spaceConfig.getEngineName();
-            if (inheritedEngineName != null) {
+            if (inheritedEngineName != null && reflectionRoutingManager.checkEngineExists(inheritedEngineName)) {
               return inheritedEngineName;
             }
           }
@@ -328,11 +354,14 @@ public class RefreshHandler implements SqlToPlanHandler {
           if (isQueue) {
             String inheritedQueueId = folderConfig.getQueueId();
             if (inheritedQueueId != null) {
-              return inheritedQueueId;
+              final String queueName = reflectionRoutingManager.getQueueNameById(inheritedQueueId);
+              if (queueName != null && reflectionRoutingManager.checkQueueExists(queueName)) {
+                return queueName;
+              }
             }
           } else {
             String inheritedEngineName = folderConfig.getEngineName();
-            if (inheritedEngineName != null) {
+            if (inheritedEngineName != null && reflectionRoutingManager.checkEngineExists(inheritedEngineName)) {
               return inheritedEngineName;
             }
           }
@@ -360,7 +389,7 @@ public class RefreshHandler implements SqlToPlanHandler {
     return icebergTableProps;
   }
 
-  private boolean isIcebergInsertRefresh(Materialization materialization, RefreshDecision refreshDecision) {
+  private static boolean isIcebergInsertRefresh(Materialization materialization, RefreshDecision refreshDecision) {
     return materialization.getIsIcebergDataset() &&
       !refreshDecision.getInitialRefresh() &&
       materialization.getBasePath() != null &&
@@ -368,23 +397,23 @@ public class RefreshHandler implements SqlToPlanHandler {
   }
 
   private RelNode determineMaterializationPlan(
-      final SqlHandlerConfig sqlHandlerConfig,
-      ReflectionGoal goal,
-      ReflectionEntry entry,
-      Materialization materialization,
-      ExcludedReflectionsProvider exclusionsProvider,
-      NamespaceService namespace,
-      SabotConfig config,
-      ReflectionSettings reflectionSettings,
-      MaterializationStore materializationStore,
-      RefreshDecision[] refreshDecisions) {
+    final SqlHandlerConfig sqlHandlerConfig,
+    ReflectionGoal goal,
+    ReflectionEntry entry,
+    Materialization materialization,
+    ExcludedReflectionsProvider exclusionsProvider,
+    CatalogService catalogService,
+    SabotConfig config,
+    ReflectionSettings reflectionSettings,
+    MaterializationStore materializationStore,
+    RefreshDecision[] refreshDecisions) {
 
-    final ReflectionPlanGenerator planGenerator = new ReflectionPlanGenerator(sqlHandlerConfig, namespace,
-      config, goal, entry, materialization,
+    // Disable default raw reflections for saving the materialization plan.
+    // The materialization plan should not include other reflections, otherwise it will fail to match into queries.
+    sqlHandlerConfig.getConverter().getSubstitutionProvider().disableDefaultRawReflection();
+    final ReflectionPlanGenerator planGenerator = new ReflectionPlanGenerator(sqlHandlerConfig,
+      catalogService, config, goal, entry, materialization,
       reflectionSettings, materializationStore, getForceFullRefresh(materialization), StrippingFactory.LATEST_STRIP_VERSION);
-
-    final RelNode normalizedPlan = planGenerator.generateNormalizedPlan();
-
 
     // avoid accelerating this CTAS with the materialization itself
     // we set exclusions before we get to the logical phase (since toRel() is triggered in SqlToRelConverter, prior to planning).
@@ -393,6 +422,8 @@ public class RefreshHandler implements SqlToPlanHandler {
       .add(goal.getId().getId())
       .build();
     sqlHandlerConfig.getConverter().getSession().getSubstitutionSettings().setExclusions(exclusions);
+
+    final RelNode normalizedPlan = planGenerator.generateNormalizedPlan();
 
     RefreshDecision decision = planGenerator.getRefreshDecision();
     refreshDecisions[0] = decision;
@@ -411,6 +442,16 @@ public class RefreshHandler implements SqlToPlanHandler {
       logger.trace(RelOptUtil.toString(normalizedPlan));
     }
 
+    // If the support key is enabled, allow the REFRESH REFLECTION job to be accelerated by default raw reflections
+    // by generating a second normalized plan with DRRs enabled.
+    if(sqlHandlerConfig.getContext().getOptions().getOption(ReflectionOptions.ACCELERATION_ENABLE_DEFAULT_RAW_REFRESH)){
+      sqlHandlerConfig.getConverter().getSubstitutionProvider().resetDefaultRawReflection();
+      final ReflectionPlanGenerator acceleratedPlanGenerator = new ReflectionPlanGenerator(sqlHandlerConfig,
+        catalogService, config, goal, entry, materialization,
+        reflectionSettings, materializationStore, getForceFullRefresh(materialization), StrippingFactory.LATEST_STRIP_VERSION);
+      return acceleratedPlanGenerator.generateNormalizedPlan();
+    }
+
     return normalizedPlan;
   }
 
@@ -422,6 +463,11 @@ public class RefreshHandler implements SqlToPlanHandler {
   @Override
   public String getTextPlan() {
     return textPlan;
+  }
+
+  @Override
+  public Rel getLogicalPlan() {
+    return drel;
   }
 
 }

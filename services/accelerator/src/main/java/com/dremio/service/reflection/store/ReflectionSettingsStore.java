@@ -25,7 +25,7 @@ import com.dremio.datastore.api.LegacyKVStoreCreationFunction;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.datastore.api.LegacyStoreBuildingFactory;
 import com.dremio.datastore.format.Format;
-import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.exec.catalog.CatalogEntityKey;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
@@ -37,27 +37,27 @@ import com.google.common.base.Suppliers;
 public class ReflectionSettingsStore {
   private static final String TABLE_NAME = "reflection_settings";
 
-  private final Supplier<LegacyKVStore<NamespaceKey, AccelerationSettings>> store;
+  private final Supplier<LegacyKVStore<CatalogEntityKey, AccelerationSettings>> store;
 
   public ReflectionSettingsStore(final Provider<LegacyKVStoreProvider> provider) {
     Preconditions.checkNotNull(provider, "kvstore provider required");
-    store = Suppliers.memoize(new Supplier<LegacyKVStore<NamespaceKey, AccelerationSettings>>() {
+    store = Suppliers.memoize(new Supplier<LegacyKVStore<CatalogEntityKey, AccelerationSettings>>() {
       @Override
-      public LegacyKVStore<NamespaceKey, AccelerationSettings> get() {
+      public LegacyKVStore<CatalogEntityKey, AccelerationSettings> get() {
         return provider.get().getStore(StoreCreator.class);
       }
     });
   }
 
-  public AccelerationSettings get(NamespaceKey key) {
+  public AccelerationSettings get(CatalogEntityKey key) {
     return store.get().get(key);
   }
 
-  public void save(NamespaceKey key, AccelerationSettings settings) {
+  public void save(CatalogEntityKey key, AccelerationSettings settings) {
     store.get().put(key, settings);
   }
 
-  public void delete(NamespaceKey key) {
+  public void delete(CatalogEntityKey key) {
     store.get().delete(key);
   }
 
@@ -86,19 +86,19 @@ public class ReflectionSettingsStore {
   /**
    * {@link ReflectionSettingsStore} creator
    */
-  public static final class StoreCreator implements LegacyKVStoreCreationFunction<NamespaceKey, AccelerationSettings> {
+  public static final class StoreCreator implements LegacyKVStoreCreationFunction<CatalogEntityKey, AccelerationSettings> {
     @Override
-    public LegacyKVStore<NamespaceKey, AccelerationSettings> build(LegacyStoreBuildingFactory factory) {
-      return factory.<NamespaceKey, AccelerationSettings>newStore()
+    public LegacyKVStore<CatalogEntityKey, AccelerationSettings> build(LegacyStoreBuildingFactory factory) {
+      return factory.<CatalogEntityKey, AccelerationSettings>newStore()
         .name(TABLE_NAME)
-        .keyFormat(Format.wrapped(NamespaceKey.class, NamespaceKey::toString, NamespaceKey::new, Format.ofString()))
+        .keyFormat(Format.wrapped(CatalogEntityKey.class, CatalogEntityKey::toString, CatalogEntityKey::new, Format.ofString()))
         .valueFormat(Format.ofProtostuff(AccelerationSettings.class))
         .versionExtractor(AccelerationSettingsVersionExtractor.class)
         .build();
     }
   }
 
-  public Iterable<Map.Entry<NamespaceKey, AccelerationSettings>> getAll() {
+  public Iterable<Map.Entry<CatalogEntityKey, AccelerationSettings>> getAll() {
     return store.get().find();
   }
 }

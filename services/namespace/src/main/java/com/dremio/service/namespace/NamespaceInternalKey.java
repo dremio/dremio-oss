@@ -52,12 +52,6 @@ import com.google.common.base.Strings;
 class NamespaceInternalKey {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NamespaceInternalKey.class);
 
-  /**
-   * Hard coded flag that allows disabling namespace key normalization.
-   * The purpose is to have one specific build with this set to false
-   */
-  private static final boolean ENABLE_KEY_NORMALIZATION = true;
-
   // TODO: make it independent of SQL
   // Back ticks are allowed to escape dot/keywords.
   private static final char QUOTE = SqlUtils.QUOTE;
@@ -135,11 +129,7 @@ class NamespaceInternalKey {
   private final NamespaceKey namespaceKey;
 
   NamespaceInternalKey(final NamespaceKey path) {
-    this(path, ENABLE_KEY_NORMALIZATION);
-  }
-
-  NamespaceInternalKey(final NamespaceKey path, boolean normalize) {
-    final List<String> processedPathComponents = processPathComponents(path, normalize);
+    final List<String> processedPathComponents = processPathComponents(path);
     this.key = buildKey(processedPathComponents);
     this.rangeStartKey = buildRangeStartKey(processedPathComponents);
     this.rangeEndKey = buildRangeEndKey(rangeStartKey);
@@ -177,10 +167,9 @@ class NamespaceInternalKey {
    * Returns a list of path components.
    *
    * @param path the NamespaceKey to process.
-   * @param normalize indicates whether path components should be converted to lower case.
    * @return a list of path components.
    */
-  static List<String> processPathComponents(final NamespaceKey path, boolean normalize) {
+  static List<String> processPathComponents(final NamespaceKey path) {
     final List<String> processedPathComponents = new ArrayList<>();
     final int numPathComponents = path.getPathComponents().size();
 
@@ -196,7 +185,7 @@ class NamespaceInternalKey {
         throw UserException.validationError().message("Invalid name space key. Given: %s, Expected format: %s",
           path.getSchemaPath(), ERROR_MSG_EXPECTED_NAMESPACE_PATH_FORMAT).build(logger);
       }
-      processedPathComponents.add((normalize)? component.toLowerCase(Locale.ROOT) : component);
+      processedPathComponents.add(component.toLowerCase(Locale.ROOT));
     });
 
     return processedPathComponents;

@@ -15,12 +15,24 @@
  */
 package com.dremio.service.reflection;
 
+import static com.dremio.service.reflection.ReflectionUtils.computeMetrics;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import java.util.Arrays;
 import java.util.Collections;
 
 import org.junit.Assert;
 import org.junit.Test;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 
+import com.dremio.service.job.proto.JobAttempt;
+import com.dremio.service.job.proto.JobInfo;
+import com.dremio.service.jobs.JobDataClientUtils;
+import com.dremio.service.jobs.JobDataFragment;
+import com.dremio.service.jobs.JobsProtoUtil;
+import com.dremio.service.reflection.proto.MaterializationMetrics;
 import com.dremio.service.reflection.proto.PartitionDistributionStrategy;
 import com.dremio.service.reflection.proto.ReflectionDetails;
 import com.dremio.service.reflection.proto.ReflectionField;
@@ -104,5 +116,25 @@ public class TestReflectionUtils {
     detail1.setPartitionDistributionStrategy(PartitionDistributionStrategy.STRIPED);
     detail2.setSortFieldList(Arrays.asList(new ReflectionField("test")));
     Assert.assertFalse(ReflectionUtils.areReflectionDetailsEqual(detail1, detail2));
+  }
+  @Test
+  public void testComputeMetricsEmptyReturnedRecordsCount() {
+    final JobDataFragment jobDataFragment = mock(JobDataFragment.class);
+    when(jobDataFragment.getReturnedRowCount()).thenReturn(0);
+    final JobInfo info = new JobInfo();
+    final JobAttempt jobAttempt = new JobAttempt();
+    jobAttempt.setInfo(info);
+    try (final MockedStatic<JobDataClientUtils> jobDataClientUtilsMockedStatic = Mockito.mockStatic(JobDataClientUtils.class)) {
+      jobDataClientUtilsMockedStatic.when(() -> JobDataClientUtils.getJobData(null,null,null,0,1000))
+        .thenReturn(jobDataFragment);
+      try(final MockedStatic<JobsProtoUtil> jobsProtoUtilMockedStatic = Mockito.mockStatic(JobsProtoUtil.class)) {
+        jobsProtoUtilMockedStatic.when(() -> JobsProtoUtil.getLastAttempt(null))
+          .thenReturn(jobAttempt);
+        final MaterializationMetrics materializationMetrics = computeMetrics(null, null, null, null);
+        Assert.assertEquals((Integer) 0, materializationMetrics.getNumFiles());      //then
+        jobDataClientUtilsMockedStatic.verify(
+          () -> JobDataClientUtils.getJobData(null, null, null, 0, 1000));
+      }
+    }
   }
 }

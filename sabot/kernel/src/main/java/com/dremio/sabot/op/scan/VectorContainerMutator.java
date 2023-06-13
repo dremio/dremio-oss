@@ -29,7 +29,7 @@ import com.google.common.base.Preconditions;
 
 public class VectorContainerMutator implements OutputMutator {
 
-  private static CallBack NOOP = new CallBack(){public void doWork(){}};
+  private static CallBack NOOP = () -> {};
 
   private final VectorContainer container;
   private final BufferManager manager;

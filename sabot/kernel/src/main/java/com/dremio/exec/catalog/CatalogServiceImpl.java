@@ -102,6 +102,8 @@ import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.Futures;
 import com.google.protobuf.ByteString;
 
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.protostuff.LinkedBuffer;
 import io.protostuff.ProtobufIOUtil;
 
@@ -116,13 +118,13 @@ import io.protostuff.ProtobufIOUtil;
 public class CatalogServiceImpl implements CatalogService {
   private static final Logger logger = LoggerFactory.getLogger(CatalogServiceImpl.class);
   public static final long CATALOG_SYNC = TimeUnit.MINUTES.toMillis(3);
-  private static final long CHANGE_COMMUNICATION_WAIT = TimeUnit.SECONDS.toMillis(5);
+  private static final long CHANGE_COMMUNICATION_WAIT = TimeUnit.SECONDS.toMillis(10);
 
   public static final String CATALOG_SOURCE_DATA_NAMESPACE = "catalog-source-data";
 
   public static final String SYSTEM_TABLE_SOURCE_NAME = "sys";
 
-  protected final Provider<SabotContext> context;
+  protected final Provider<SabotContext> sabotContext;
   protected final Provider<SchedulerService> scheduler;
   private final Provider<? extends Provider<ConnectionConf<?, ?>>> sysTableConfProvider;
   private final Provider<? extends Provider<ConnectionConf<?, ?>>> sysFlightTableConfProvider;
@@ -148,7 +150,7 @@ public class CatalogServiceImpl implements CatalogService {
   protected Provider<ModifiableSchedulerService> modifiableSchedulerService;
 
   public CatalogServiceImpl(
-    Provider<SabotContext> context,
+    Provider<SabotContext> sabotContext,
     Provider<SchedulerService> scheduler,
     Provider<? extends Provider<ConnectionConf<?, ?>>> sysTableConfProvider,
     Provider<? extends Provider<ConnectionConf<?, ?>>> sysFlightTableConfProvider,
@@ -163,13 +165,13 @@ public class CatalogServiceImpl implements CatalogService {
     EnumSet<Role> roles,
     Provider<ModifiableSchedulerService> modifiableSchedulerService
   ) {
-    this(context, scheduler, sysTableConfProvider, sysFlightTableConfProvider, fabric, connectionReaderProvider, bufferAllocator,
+    this(sabotContext, scheduler, sysTableConfProvider, sysFlightTableConfProvider, fabric, connectionReaderProvider, bufferAllocator,
       kvStoreProvider, datasetListingService, optionManager, broadcasterProvider, config, roles, CatalogServiceMonitor.DEFAULT, modifiableSchedulerService);
   }
 
   @VisibleForTesting
   CatalogServiceImpl(
-    Provider<SabotContext> context,
+    Provider<SabotContext> sabotContext,
     Provider<SchedulerService> scheduler,
     Provider<? extends Provider<ConnectionConf<?, ?>>> sysTableConfProvider,
     Provider<? extends Provider<ConnectionConf<?, ?>>> sysFlightTableConfProvider,
@@ -185,7 +187,7 @@ public class CatalogServiceImpl implements CatalogService {
     final CatalogServiceMonitor monitor,
     Provider<ModifiableSchedulerService> modifiableSchedulerService
   ) {
-    this.context = context;
+    this.sabotContext = sabotContext;
     this.scheduler = scheduler;
     this.sysTableConfProvider = sysTableConfProvider;
     this.sysFlightTableConfProvider = sysFlightTableConfProvider;
@@ -206,7 +208,7 @@ public class CatalogServiceImpl implements CatalogService {
 
   @Override
   public void start() throws Exception {
-    SabotContext context = this.context.get();
+    SabotContext context = this.sabotContext.get();
     this.allocator = bufferAllocator.get().newChildAllocator("catalog-protocol", 0, Long.MAX_VALUE);
     this.systemNamespace = context.getNamespaceService(SystemUser.SYSTEM_USERNAME);
     this.sourceDataStore = kvStoreProvider.get().getStore(CatalogSourceDataCreator.class);
@@ -283,25 +285,25 @@ public class CatalogServiceImpl implements CatalogService {
   }
 
   protected PluginsManager newPluginsManager() {
-    return new PluginsManager(context.get(), systemNamespace, context.get().getOrphanageFactory().get(), datasetListingService.get(), optionManager.get(),
+    return new PluginsManager(sabotContext.get(), systemNamespace, sabotContext.get().getOrphanageFactory().get(), datasetListingService.get(), optionManager.get(),
       config, sourceDataStore, scheduler.get(), connectionReaderProvider.get(), monitor, broadcasterProvider,
       isInfluxSource, modifiableSchedulerService.get());
   }
 
   public void communicateChange(SourceConfig config, RpcType rpcType) {
     final Set<NodeEndpoint> endpoints = new HashSet<>();
-    endpoints.add(context.get().getEndpoint());
+    endpoints.add(sabotContext.get().getEndpoint());
 
     List<RpcFuture<Ack>> futures = new ArrayList<>();
     SourceWrapper wrapper = SourceWrapper.newBuilder().setBytes(ByteString.copyFrom(ProtobufIOUtil.toByteArray(config, SourceConfig.getSchema(), LinkedBuffer.allocate()))).build();
-    for(NodeEndpoint e : Iterables.concat(this.context.get().getCoordinators(), this.context.get().getExecutors())) {
+    for(NodeEndpoint e : Iterables.concat(this.sabotContext.get().getCoordinators(), this.sabotContext.get().getExecutors())) {
       if(!endpoints.add(e)) {
         continue;
       }
 
       SendSource send = new SendSource(wrapper, rpcType);
       tunnelFactory.getCommandRunner(e.getAddress(), e.getFabricPort()).runCommand(send);
-      logger.trace("Sending [{}] to {}:{}", config.getName(), e.getAddress(), e.getUserPort());
+      logger.info("Sending [{}] to {}:{}", config.getName(), e.getAddress(), e.getUserPort());
       futures.add(send.getFuture());
     }
 
@@ -331,7 +333,7 @@ public class CatalogServiceImpl implements CatalogService {
   class CatalogChangeListener {
     void sourceUpdate(SourceConfig config) {
       try {
-        logger.debug("Received source update for [{}]", config.getName());
+        logger.info("Received source update for [{}]", config.getName());
         plugins.getSynchronized(config, isInfluxSource);
       } catch (Exception ex) {
         logger.warn("Failure while synchronizing source [{}].", config.getName(), ex);
@@ -340,7 +342,7 @@ public class CatalogServiceImpl implements CatalogService {
 
     void sourceDelete(SourceConfig config) {
       try {
-        logger.debug("Received delete source for [{}]", config.getName());
+        logger.info("Received delete source for [{}]", config.getName());
 
         plugins.closeAndRemoveSource(config);
       } catch (Exception ex) {
@@ -407,6 +409,7 @@ public class CatalogServiceImpl implements CatalogService {
     return false;
   }
 
+  @Override
   public boolean createSourceIfMissingWithThrow(SourceConfig config) {
     Preconditions.checkArgument(config.getTag() == null);
     if(!getPlugins().hasPlugin(config.getName())) {
@@ -487,8 +490,9 @@ public class CatalogServiceImpl implements CatalogService {
    * @param config
    * @param subject
    */
+  @WithSpan
   private void deleteSource(SourceConfig config, CatalogIdentity subject, NamespaceService.DeleteCallback callback) {
-    NamespaceService namespaceService = context.get().getNamespaceService(subject.getName());
+    NamespaceService namespaceService = sabotContext.get().getNamespaceService(subject.getName());
     boolean afterUnknownEx = false;
 
     try (AutoCloseable l = getDistributedLock(config.getName()) ) {
@@ -516,7 +520,7 @@ public class CatalogServiceImpl implements CatalogService {
 
   private AutoCloseable getDistributedLock(String sourceName) throws Exception {
     long millis = 15_000;
-    DistributedLease lease = context.get().getClusterCoordinator().getSemaphore("-source-" + sourceName.toLowerCase(), 1).acquire(millis, TimeUnit.MILLISECONDS);
+    DistributedLease lease = sabotContext.get().getClusterCoordinator().getSemaphore("-source-" + sourceName.toLowerCase(), 1).acquire(millis, TimeUnit.MILLISECONDS);
     if(lease == null) {
       throw UserException.resourceError().message("Unable to acquire source change lock for source [%s] within timeout.", sourceName).build(logger);
     }
@@ -555,13 +559,20 @@ public class CatalogServiceImpl implements CatalogService {
 
   private ManagedStoragePlugin getPlugin(String name, boolean errorOnMissing) {
     ManagedStoragePlugin plugin = getPlugins().get(name);
-    if(plugin != null) {
+
+    final boolean pluginFoundInPlugins = plugin != null;
+    Span.current().setAttribute("Catalog.CatalogServiceImpl.getPlugin.pluginFoundInPlugins", pluginFoundInPlugins);
+
+    if(pluginFoundInPlugins) {
       return plugin;
     }
 
     try {
       logger.debug("Synchronizing source [{}] with namespace", name);
-      if (isInfluxSource(name)) {
+      final boolean isSourceAnInfluxSource = isInfluxSource(name);
+      Span.current().setAttribute("Catalog.CatalogServiceImpl.getPlugin.isInfluxSource", isSourceAnInfluxSource);
+
+      if (isSourceAnInfluxSource) {
         if (!errorOnMissing) {
           return null;
         }
@@ -582,6 +593,7 @@ public class CatalogServiceImpl implements CatalogService {
     }
   }
 
+  @Override
   @VisibleForTesting
   public ManagedStoragePlugin getManagedSource(String name) {
     return getPlugins().get(name);
@@ -594,19 +606,22 @@ public class CatalogServiceImpl implements CatalogService {
   }
 
   @Override
+  @WithSpan
   public SourceState getSourceState(String name) {
-    // Preconditions.checkState(isCoordinator);
-    ManagedStoragePlugin plugin = getPlugin(name, false);
-    if(plugin == null) {
-      return null;
+    try {
+      ManagedStoragePlugin plugin = getPlugin(name, false);
+      if(plugin == null) {
+        return SourceState.badState(String.format("Source %s could not be found. Please verify the source name.", name), "Unable to find source.");
+      }
+      return plugin.getState();
+    } catch (Exception e) {
+      return SourceState.badState("", e);
     }
-    return plugin.getState();
   }
 
   @SuppressWarnings("unchecked")
   @Override
   public <T extends StoragePlugin> T getSource(String name) {
-    // Preconditions.checkState(isCoordinator); ??
     return (T) getPlugin(name, true).unwrap(StoragePlugin.class);
   }
 
@@ -639,14 +654,14 @@ public class CatalogServiceImpl implements CatalogService {
   }
 
   protected Catalog createCatalog(MetadataRequestOptions requestOptions) {
-    return createCatalog(requestOptions, new CatalogIdentityResolver(), context.get().getNamespaceServiceFactory());
+    return createCatalog(requestOptions, new CatalogIdentityResolver(), sabotContext.get().getNamespaceServiceFactory());
   }
 
   protected Catalog createCatalog(MetadataRequestOptions requestOptions, IdentityResolver identityProvider,
                                   NamespaceService.Factory namespaceServiceFactory) {
     OptionManager optionManager = requestOptions.getSchemaConfig().getOptions();
     if (optionManager == null) {
-      optionManager = context.get().getOptionManager();
+      optionManager = sabotContext.get().getOptionManager();
     }
 
     PluginRetriever retriever = new Retriever();
@@ -656,16 +671,17 @@ public class CatalogServiceImpl implements CatalogService {
       retriever,
       new SourceModifier(requestOptions.getSchemaConfig().getAuthContext().getSubject()),
       optionManager,
-      context.get().getNamespaceService(SystemUser.SYSTEM_USERNAME),
+      sabotContext.get().getNamespaceService(SystemUser.SYSTEM_USERNAME),
       namespaceServiceFactory,
-      context.get().getOrphanageFactory().get(),
-      context.get().getDatasetListing(),
-      context.get().getViewCreatorFactoryProvider().get(),
+      sabotContext.get().getOrphanageFactory().get(),
+      sabotContext.get().getDatasetListing(),
+      sabotContext.get().getViewCreatorFactoryProvider().get(),
       identityProvider,
       new VersionContextResolverImpl(retriever));
   }
 
   @Override
+  @WithSpan
   public boolean isSourceConfigMetadataImpacting(SourceConfig config) {
     return getPlugins().get(config.getName()).isSourceConfigMetadataImpacting(config);
   }
@@ -814,7 +830,7 @@ public class CatalogServiceImpl implements CatalogService {
         }
 
         try {
-          final User user = context.get().getUserService().getUser(identity.getName());
+          final User user = sabotContext.get().getUserService().getUser(identity.getName());
           return new NamespaceUser(() -> user);
         } catch (UserNotFoundException ignored) {
         }
@@ -824,6 +840,7 @@ public class CatalogServiceImpl implements CatalogService {
     }
   }
 
+  @Override
   public void communicateChangeToExecutors(List<CoordinationProtos.NodeEndpoint> nodeEndpointList, SourceConfig config, CatalogRPC.RpcType rpcType) {
     List<RpcFuture<GeneralRPCProtos.Ack>> futures = new ArrayList<>();
     CatalogRPC.SourceWrapper wrapper = CatalogRPC.SourceWrapper.newBuilder().setBytes(ByteString.copyFrom(ProtobufIOUtil.toByteArray(config, SourceConfig.getSchema(), LinkedBuffer.allocate()))).build();
@@ -836,7 +853,7 @@ public class CatalogServiceImpl implements CatalogService {
     }
 
     try {
-      Futures.successfulAsList(futures).get(10, TimeUnit.SECONDS);
+      Futures.successfulAsList(futures).get(CHANGE_COMMUNICATION_WAIT, TimeUnit.MILLISECONDS);
     } catch (InterruptedException | ExecutionException | TimeoutException e1) {
       // Error is ignored here as plugin propagation is best effort
       logger.warn("Failure while communicating source change [{}].", config.getName(), e1);

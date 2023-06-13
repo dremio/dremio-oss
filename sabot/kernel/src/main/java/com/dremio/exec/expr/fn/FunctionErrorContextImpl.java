@@ -69,28 +69,33 @@ public class FunctionErrorContextImpl implements FunctionErrorContext {
       b = UserException.functionError(cause);
     }
 
+    @Override
     public ExceptionBuilder message(final String message) {
       b.message(message);
       return this;
     }
 
+    @Override
     @FormatMethod
     public ExceptionBuilder message(final String format, final Object... args) {
       b.message(format, args);
       return this;
     }
 
+    @Override
     public ExceptionBuilder addContext(final String value) {
       b.addContext(value);
       return this;
     }
 
+    @Override
     @FormatMethod
     public ExceptionBuilder addContext(final String value, Object... args) {
       b.addContext(value, args);
       return this;
     }
 
+    @Override
     public ExceptionBuilder addContext(final String name, final String value) {
       b.addContext(name, value);
       return this;
@@ -99,6 +104,7 @@ public class FunctionErrorContextImpl implements FunctionErrorContext {
     /**
      * Builds an exception that can be thrown by the caller
      */
+    @Override
     public RuntimeException build() {
       return b.build(logger);
     }

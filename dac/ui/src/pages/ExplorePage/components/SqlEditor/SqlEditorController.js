@@ -30,13 +30,18 @@ import {
 import { constructFullPath } from "utils/pathUtils";
 import { replace } from "react-router-redux";
 import { showUnsavedChangesConfirmDialog } from "@app/actions/confirmation";
+import { addNotification } from "@app/actions/notification";
 
 import { compose } from "redux";
+import { INITIAL_CALL_VALUE } from "@app/components/SQLScripts/sqlScriptsUtils";
+import { fetchScripts, setActiveScript } from "@app/actions/resources/scripts";
 import { getActiveScript } from "@app/selectors/scripts";
 import SqlAutoComplete from "./SqlAutoComplete";
-import FunctionsHelpPanel from "./FunctionsHelpPanel";
+import SQLFunctionsPanel from "./SQLFunctionsPanel";
+import { memoOne } from "@app/utils/memoUtils";
 import { extractSqlErrorFromResponse } from "./utils/errorUtils";
 import { getLocation } from "@app/selectors/routing";
+import { intl } from "@app/utils/intl";
 
 const toolbarHeight = 42;
 
@@ -51,7 +56,6 @@ export class SqlEditorController extends PureComponent {
     dragType: PropTypes.string,
     handleSidebarCollapse: PropTypes.func,
     sidebarCollapsed: PropTypes.bool,
-    children: PropTypes.any,
     editorWidth: PropTypes.any,
 
     //connected by redux connect
@@ -65,9 +69,14 @@ export class SqlEditorController extends PureComponent {
     isMultiQueryRunning: PropTypes.bool,
     previousMultiSql: PropTypes.string,
     isOpenResults: PropTypes.bool,
+    scriptId: PropTypes.string,
+    isFromDataGraph: PropTypes.bool,
     //---------------------------
 
     // actions
+    addNotification: PropTypes.func,
+    fetchSQLScripts: PropTypes.func,
+    setActiveScript: PropTypes.func,
     setCurrentSql: PropTypes.func,
     setQueryContext: PropTypes.func,
     setUpdateSqlFromHistory: PropTypes.func,
@@ -85,6 +94,7 @@ export class SqlEditorController extends PureComponent {
     this.state = {
       funcHelpPanel: false,
       datasetsPanel: !!(props.dataset && props.dataset.get("isNewQuery")),
+      script: {},
     };
     this.receiveProps(this.props, {});
   }
@@ -148,12 +158,16 @@ export class SqlEditorController extends PureComponent {
   }
 
   receiveProps(nextProps, oldProps) {
-    const { dataset, setUpdateSqlFromHistory: changeUpdateSqlFromHistory } =
-      oldProps;
+    const {
+      dataset,
+      setUpdateSqlFromHistory: changeUpdateSqlFromHistory,
+      isFromDataGraph: oldIsFromDataGraph,
+    } = oldProps;
     const {
       dataset: nextDataset,
       updateSqlFromHistory: nextUpdateSqlFromHistory,
       isOpenResults,
+      isFromDataGraph,
     } = nextProps;
 
     // Sql editor needs to update sql on dataset load, or new query.
@@ -194,6 +208,14 @@ export class SqlEditorController extends PureComponent {
       }
 
       controller.setValue(nextDataset.get("sql"));
+    }
+
+    if (
+      oldIsFromDataGraph == null &&
+      isFromDataGraph &&
+      nextProps.currentSql === ""
+    ) {
+      this.handleSqlChange(nextDataset.get("sql"));
     }
   }
 
@@ -251,13 +273,15 @@ export class SqlEditorController extends PureComponent {
   renderSqlBlocks() {
     return (
       <div className="sql-btn" style={styles.btn}>
-        <FunctionsHelpPanel
-          height={this.props.sqlSize}
-          isVisible={this.state.funcHelpPanel}
-          dragType={this.props.dragType}
-          handleSidebarCollapse={this.props.handleSidebarCollapse}
-          addFuncToSqlEditor={this.insertFunc}
-        />
+        {this.state.funcHelpPanel && this.props.sqlState && (
+          <SQLFunctionsPanel
+            height={this.props.sqlSize + 8} // 8px padding added
+            isVisible={this.state.funcHelpPanel}
+            dragType={this.props.dragType}
+            handleSidebarCollapse={this.props.handleSidebarCollapse}
+            addFuncToSqlEditor={this.insertFunc}
+          />
+        )}
       </div>
     );
   }
@@ -335,7 +359,44 @@ export class SqlEditorController extends PureComponent {
     return multiQueryDecorations;
   }
 
+  getScriptValue = memoOne(async () => {
+    const {
+      activeScript,
+      addNotification,
+      fetchSQLScripts,
+      scriptId,
+      setActiveScript,
+      setCurrentSql,
+      setQueryContext,
+    } = this.props;
+
+    let script = {};
+    if (scriptId && !Object.keys(activeScript).length) {
+      const response = await fetchSQLScripts({
+        maxResults: INITIAL_CALL_VALUE,
+        searchTerm: null,
+        createdBy: null,
+      });
+      const scriptList = response.payload?.data || [];
+      script = scriptList.find((script) => script.id === scriptId) ?? {};
+      this.setState({ script });
+      setActiveScript({ script });
+      setCurrentSql({ sql: script.content });
+      setQueryContext({ context: Immutable.fromJS(script.context) });
+
+      // if script does not exist, show error banner
+      if (!Object.keys(script).length) {
+        addNotification(
+          intl.formatMessage({ id: "Script.Invalid" }, { scriptId }),
+          "error",
+          10
+        );
+      }
+    }
+  });
+
   render() {
+    this.getScriptValue();
     let errors;
     if (
       this.props.exploreViewState.getIn(["error", "message", "code"]) ===
@@ -349,6 +410,10 @@ export class SqlEditorController extends PureComponent {
       ]);
     }
 
+    const sqlStyle = this.props.sqlState
+      ? {}
+      : { height: 0, overflow: "hidden" };
+
     const sqlBlock = (
       <SqlAutoComplete
         dataset={this.props.dataset}
@@ -360,9 +425,9 @@ export class SqlEditorController extends PureComponent {
         onChange={this.handleSqlChange}
         onFunctionChange={this.toggleFunctionsHelpPanel.bind(this)}
         defaultValue={
-          this.props.previousMultiSql != null
+          this.props.previousMultiSql
             ? this.props.previousMultiSql
-            : this.props.dataset.get("sql")
+            : this.props.dataset.get("sql") || this.state.script.content
         }
         sqlSize={this.props.sqlSize - toolbarHeight}
         sidebarCollapsed={this.props.sidebarCollapsed}
@@ -372,10 +437,9 @@ export class SqlEditorController extends PureComponent {
         errors={errors}
         customDecorations={this.getCustomDecorations()}
         editorWidth={this.props.editorWidth}
-      >
-        {this.props.children}
-      </SqlAutoComplete>
+      />
     );
+
     return (
       <div style={{ width: "100%" }}>
         <div
@@ -384,7 +448,7 @@ export class SqlEditorController extends PureComponent {
           style={styles.base}
         >
           <div className="sql-functions">{this.renderSqlBlocks()}</div>
-          <div>{sqlBlock}</div>
+          <div style={sqlStyle}>{sqlBlock}</div>
         </div>
       </div>
     );
@@ -406,6 +470,8 @@ function mapStateToProps(state) {
     isMultiQueryRunning: explorePageState.view.isMultiQueryRunning,
     previousMultiSql: explorePageState.view.previousMultiSql,
     isOpenResults: location?.query?.openResults,
+    scriptId: location?.query?.scriptId,
+    isFromDataGraph: location?.state?.isFromDataGraph,
   };
 }
 
@@ -413,6 +479,9 @@ export default compose(
   connect(
     mapStateToProps,
     {
+      addNotification,
+      fetchSQLScripts: fetchScripts,
+      setActiveScript,
       setCurrentSql,
       setQueryContext,
       setUpdateSqlFromHistory,

@@ -24,13 +24,16 @@ import { getSortedSources } from "@app/selectors/home";
 import { withRouter, WithRouterProps } from "react-router";
 import { getTableAndNamespace } from "./utils";
 import {
-  getEndpointFromSourceConfig,
+  getEndpointFromSource,
   getSourceByName,
+  isArcticCatalogConfig,
 } from "@app/utils/nessieUtils";
 import TableHistoryContent from "@app/pages/NessieHomePage/components/TableDetailsPage/components/TableHistoryContent/TableHistoryContent";
 import { fetchDefaultReferenceIfNeeded as fetchDefaultReferenceAction } from "@app/actions/nessie/nessie";
 import { useEffect, useMemo } from "react";
 import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
+import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
+import * as commonPaths from "dremio-ui-common/paths/common.js";
 
 import "./HistoryPage.less";
 
@@ -48,28 +51,38 @@ function HistoryPage({
   nessie,
   namespace,
   fetchDefaultReference,
+  tableName,
 }: ConnectedProps & WithRouterProps) {
   const config = source?.config;
 
-  const endpoint = getEndpointFromSourceConfig(config);
+  const endpoint = getEndpointFromSource(source as any);
+  const isArcticConfig = isArcticCatalogConfig(config);
+
   const context = useMemo(
     () =>
       createNessieContext(
         { id: source?.id, name: source?.name, endpoint },
-        nessie
+        nessie,
+        undefined,
+        isArcticConfig
+          ? commonPaths.arcticSource.link({
+              sourceName: source?.name,
+              projectId: getSonarContext().getSelectedProjectId?.(),
+            })
+          : undefined
       ),
-    [endpoint, nessie, source?.name, source?.id]
+    [endpoint, nessie, source?.name, source?.id, isArcticConfig]
   );
 
   useEffect(() => {
-    fetchDefaultReference(source?.name, context.api);
-  }, [fetchDefaultReference, source?.name, context.api]);
+    fetchDefaultReference(source?.name, context.apiV2);
+  }, [fetchDefaultReference, source?.name, context.apiV2]);
 
   if (!source) return null;
 
   return (
     <NessieContext.Provider value={context}>
-      <TableHistoryContent path={namespace} />
+      <TableHistoryContent path={namespace} tableName={tableName} />
     </NessieContext.Provider>
   );
 }
@@ -79,13 +92,14 @@ const mapStateToProps = (state: any, { location }: WithRouterProps) => {
     rmProjectBase(location.pathname)
   );
   const namespace = (namespaceString || "").split(".");
-  namespace.pop();
+  const tableName = namespace.pop();
   const sources = getSortedSources(state);
   const source = getSourceByName(sourceName, sources.toJS());
   return {
     nessie: state.nessie,
     namespace,
     source,
+    tableName,
   };
 };
 

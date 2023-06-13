@@ -113,6 +113,13 @@ public class EasyFormatUtils {
     return new RuntimeException(errorMessageBuilder.toString());
   }
 
+  public static boolean isVarcharOptimizationPossible(ExtendedFormatOptions extendedFormatOptions, ArrowType type) {
+    // We can follow an optimised codepath for writing data when the following conditions are satisfied:
+    // 1. The target field type is VARCHAR
+    // 2. No string transformations like NULL_IF are needed i.e. areStringTransformationsNeeded is set to false.
+    return (!extendedFormatOptions.getAreStringTransformationsNeeded() && CompleteType.VARCHAR.getType().equals(type));
+  }
+
   public static String applyStringTransformations(String varcharValue, ExtendedFormatOptions extendedFormatOptions, Boolean trimSpace) {
     if (extendedFormatOptions == null) {
       return varcharValue;

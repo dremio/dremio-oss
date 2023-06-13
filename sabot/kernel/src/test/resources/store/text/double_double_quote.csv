@@ -1,0 +1,3 @@
+c1,"c2","c3"
+"r1c1","This is value field value with an \"embedded\" quoted word using backslash-quote","r1c3"
+r2c1,"This is value field value with an ""embedded"" quoted word using double-double-quote",r2c3

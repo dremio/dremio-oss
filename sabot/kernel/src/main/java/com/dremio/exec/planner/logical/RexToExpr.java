@@ -93,7 +93,12 @@ import com.google.common.collect.ImmutableList;
 /**
  * Utilities for Dremio's planner.
  */
-public class RexToExpr {
+public final class RexToExpr {
+
+  private RexToExpr() {
+    // utility class
+  }
+
   public static final String UNSUPPORTED_REX_NODE_ERROR = "Cannot convert RexNode to equivalent Dremio expression. ";
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RexToExpr.class);
   private static boolean warnDecimal = true;
@@ -273,8 +278,9 @@ public class RexToExpr {
         case IS_FALSE:
         case OTHER:
           return FunctionCallFactory.createExpression(call.getOperator().getName().toLowerCase(), call.getOperands().get(0).accept(this));
+        default:
+          throw new AssertionError("todo: implement syntax " + syntax + "(" + call + ")");
         }
-        throw new AssertionError("todo: implement syntax " + syntax + "(" + call + ")");
       case PREFIX:
         LogicalExpression arg = call.getOperands().get(0).accept(this);
         switch(call.getKind()){
@@ -288,8 +294,9 @@ public class RexToExpr {
             return visitCall((RexCall) rexBuilder.makeCall(
                 SqlStdOperatorTable.MULTIPLY,
                     operands));
+          default:
+            throw new AssertionError("todo: implement syntax " + syntax + "(" + call + ")");
         }
-        throw new AssertionError("todo: implement syntax " + syntax + "(" + call + ")");
       case SPECIAL:
         switch(call.getKind()){
         case CAST:
@@ -331,6 +338,8 @@ public class RexToExpr {
             }
           }
           return elseExpression;
+        default:
+          break;
         }
 
         if (call.getOperator() == SqlStdOperatorTable.ITEM) {
@@ -359,7 +368,7 @@ public class RexToExpr {
           case VARCHAR:
             return left.getChild(literal.getValue2().toString());
           default:
-            // fall through
+            break;
           }
         }
 
@@ -375,7 +384,7 @@ public class RexToExpr {
               case DECIMAL:
               case INTEGER:
               default:
-                // fall through
+                break;
             }
           }
         }
@@ -394,6 +403,8 @@ public class RexToExpr {
               case INTERVAL_MONTH:
               case INTERVAL_DAY:
                 return FunctionCallFactory.createCast(Types.required(MinorType.DATE), dtPlus);
+              default:
+                break;
             }
           }
 
@@ -403,7 +414,6 @@ public class RexToExpr {
         if (MoreRelOptUtil.isDatetimeMinusInterval(call)) {
           return doFunction(call, "-");
         }
-
         // fall through
       default:
         throw new AssertionError("todo: implement syntax " + syntax + "(" + call + ")");
@@ -430,6 +440,7 @@ public class RexToExpr {
       }
 
     }
+
     private LogicalExpression doUnknown(RexNode o){
       final String message = String.format(UNSUPPORTED_REX_NODE_ERROR + "RexNode Class: %s, RexNode Digest: %s", o.getClass().getName(), o.toString());
       if(throwUserException) {
@@ -475,6 +486,7 @@ public class RexToExpr {
       return reference.getChild(fieldAccess.getField().getName());
     }
 
+    @SuppressWarnings("FallThrough") // FIXME: remove suppression by properly handling switch fallthrough
     private LogicalExpression getCastFunction(RexCall call){
       Preconditions.checkArgument(call.getOperands().size() == 1);
 
@@ -568,6 +580,8 @@ public class RexToExpr {
             case INTERVAL_SECOND:
               multiplier = org.apache.arrow.vector.util.DateUtility.secondsToMillis;
               break;
+            default:
+              break;
             }
             arg = FunctionCallFactory.createExpression("multiply", arg,
               ValueExpressions.getBigInt(multiplier));
@@ -626,11 +640,15 @@ public class RexToExpr {
             final List<LogicalExpression> args = ImmutableList.of(castExpr, divider);
             return FunctionCallFactory.createExpression("divide", args);
           }
+          break;
+        default:
+          break;
       }
 
       return FunctionCallFactory.createCast(castType, arg);
     }
 
+    @SuppressWarnings("checkstyle:EqualsAvoidNull") // "functionName" is never null
     private LogicalExpression getFunction(RexCall call) {
       List<LogicalExpression> args = new ArrayList<>();
 
@@ -762,9 +780,10 @@ public class RexToExpr {
     }
 
     private LogicalExpression handleDateTruncFunction(final List<LogicalExpression> args) {
-      // Assert that the first argument to extract is a QuotedString
-      assert args.get(0) instanceof ValueExpressions.QuotedString;
-
+      if (!(args.get(0) instanceof ValueExpressions.QuotedString)){
+        throw new UnsupportedOperationException("The first argument of date_trunc function must be time units. Expecting   " +
+          "YEAR, MONTH, DAY, HOUR, MINUTE, SECOND, WEEK, QUARTER, DECADE, CENTURY, MILLENNIUM");
+      }
       // Get the unit of time to be extracted
       String timeUnitStr = ((ValueExpressions.QuotedString)args.get(0)).value.toUpperCase();
 
@@ -782,8 +801,9 @@ public class RexToExpr {
         case ("MILLENNIUM"):
           final String functionPostfix = timeUnitStr.substring(0, 1).toUpperCase() + timeUnitStr.substring(1).toLowerCase();
           return FunctionCallFactory.createExpression("date_trunc_" + functionPostfix, args.subList(1, 2));
+        default:
+          break;
       }
-
       throw new UnsupportedOperationException("date_trunc function supports the following time units: " +
           "YEAR, MONTH, DAY, HOUR, MINUTE, SECOND, WEEK, QUARTER, DECADE, CENTURY, MILLENNIUM");
     }
@@ -926,24 +946,21 @@ public class RexToExpr {
       case NULL:
         return NullExpression.INSTANCE;
       case ANY:
-        if (isLiteralNull(literal)) {
-          return NullExpression.INSTANCE;
-        }
-      case VARBINARY:
-        if (isLiteralNull(literal)) {
-          return createNullExpr(MinorType.VARBINARY);
-        }
       case ROW:
-        if (isLiteralNull(literal)) {
-          return NullExpression.INSTANCE;
-        }
       case ARRAY:
         if (isLiteralNull(literal)) {
           return NullExpression.INSTANCE;
         }
+        break;
+      case VARBINARY:
+        if (isLiteralNull(literal)) {
+          return createNullExpr(MinorType.VARBINARY);
+        }
+        break;
       default:
-        throw new UnsupportedOperationException(String.format("Unable to convert the value of %s and type %s to a Dremio constant expression.", literal, literal.getType().getSqlTypeName()));
+        break;
       }
+      throw new UnsupportedOperationException(String.format("Unable to convert the value of %s and type %s to a Dremio constant expression.", literal, literal.getType().getSqlTypeName()));
     }
   }
 

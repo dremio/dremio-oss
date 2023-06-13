@@ -161,6 +161,7 @@ export class AccelerationGrid extends Component {
       );
     } else if (lostFields && !shouldDelete) {
       const details = [];
+
       /* Older version for ref : "The following {fieldListName, select, partitionFields {Partition} distributionFields {Distribution} displayFields {Display}
       dimensionFields {Dimension} measureFields {Measure}} fields are no longer a part of the dataset and will be removed from the Reflection:", */
       const fieldDisplayMap = {
@@ -171,15 +172,8 @@ export class AccelerationGrid extends Component {
         partitionFields: "partition",
         distributionFields: "distribution",
       };
-      let finalFieldList = "";
-      let count = 0;
+
       for (const [fieldListName, value] of Object.entries(fieldDisplayMap)) {
-        if (lostFields[fieldListName]) {
-          count++;
-          finalFieldList = `${finalFieldList} ${count > 1 ? "," : ""} ${value}`;
-        }
-      }
-      for (const [fieldListName] of Object.entries(fieldDisplayMap)) {
         if (lostFields[fieldListName]) {
           details.push(
             <div>
@@ -187,7 +181,7 @@ export class AccelerationGrid extends Component {
                 {
                   id: "Reflection.LostFieldsPreamble",
                 },
-                { fieldNames: finalFieldList }
+                { fieldNames: value }
               )}
               <ul style={{ listStyle: "disc", margin: ".5em 0 1em 2em" }}>
                 {lostFields[fieldListName].map((field) => {

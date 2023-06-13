@@ -36,9 +36,11 @@ public class DateTimestampMinusFunctions {
     @Output
     IntervalDayHolder out;
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.days =  (int) ((input1.value - input2.value) / org.apache.arrow.vector.util.DateUtility.daysToStandardMillis);
       out.milliseconds = 0;
@@ -53,9 +55,11 @@ public class DateTimestampMinusFunctions {
     @Output
     IntervalDayHolder out;
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       long difference = (input1.value - input2.value);
       out.milliseconds = (int) (difference % org.apache.arrow.vector.util.DateUtility.daysToStandardMillis);

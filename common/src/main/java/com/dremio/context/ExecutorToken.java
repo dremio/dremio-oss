@@ -15,12 +15,24 @@
  */
 package com.dremio.context;
 
+import java.util.Map;
+
+import org.apache.commons.lang3.StringUtils;
+
+import com.google.common.collect.ImmutableMap;
+
+import io.grpc.Metadata;
+
 /**
  * Request Context Holder for executor token
  */
-public class ExecutorToken {
+public class ExecutorToken implements SerializableContext {
   public static final RequestContext.Key<ExecutorToken> CTX_KEY = RequestContext.newKey(
     "executor_token_key");
+
+  // Note: Public due to usage in some interceptors which do not need deserialization.
+  public static final Metadata.Key<String> TOKEN_HEADER_KEY =
+    Metadata.Key.of("x-dremio-token-key", Metadata.ASCII_STRING_MARSHALLER);
 
   private final String executorToken;
 
@@ -32,4 +44,21 @@ public class ExecutorToken {
     return executorToken;
   }
 
+  @Override
+  public void serialize(ImmutableMap.Builder<String, String> builder) {
+    builder.put(TOKEN_HEADER_KEY.name(), executorToken);
+  }
+
+  public static class Transformer implements SerializableContextTransformer {
+    @Override
+    public RequestContext deserialize(final Map<String, String> headers, RequestContext builder) {
+      if (headers.containsKey(TOKEN_HEADER_KEY.name()) && StringUtils.isNotEmpty(headers.get(TOKEN_HEADER_KEY.name()))) {
+        return builder.with(
+          ExecutorToken.CTX_KEY,
+          new ExecutorToken(headers.get(TOKEN_HEADER_KEY.name())));
+      }
+
+      return builder;
+    }
+  }
 }

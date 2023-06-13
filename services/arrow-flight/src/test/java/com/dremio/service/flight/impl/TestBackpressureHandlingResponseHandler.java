@@ -42,12 +42,14 @@ import com.dremio.service.flight.impl.RunQueryResponseHandler.BackpressureHandli
  */
 public class TestBackpressureHandlingResponseHandler extends BaseTestRunQueryResponseHandler {
 
+  @Override
   protected BackpressureHandlingResponseHandler createHandler() {
     return new BackpressureHandlingResponseHandler(
       getExternalId(), getUserSession(), getWorkerProvider(),
       getListener(), getAllocator(), () -> {});
   }
 
+  @Override
   @Before
   public void setUp() {
     super.setUp();

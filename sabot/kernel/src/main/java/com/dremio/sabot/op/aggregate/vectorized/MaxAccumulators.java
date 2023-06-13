@@ -56,6 +56,7 @@ public class MaxAccumulators {
       setNullAndValue(vector, INIT);
     }
 
+    @Override
     public void accumulate(final long memoryAddr, final int count,
                            final int bitsInChunk, final int chunkOffsetMask) {
       final long maxMemAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;
@@ -105,6 +106,7 @@ public class MaxAccumulators {
       setNullAndValue(vector, INIT);
     }
 
+    @Override
     public void accumulate(final long memoryAddr, final int count,
                            final int bitsInChunk, final int chunkOffsetMask) {
       final long maxMemAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;
@@ -153,6 +155,7 @@ public class MaxAccumulators {
       setNullAndValue(vector, Long.MIN_VALUE);
     }
 
+    @Override
     public void accumulate(final long memoryAddr, final int count,
                            final int bitsInChunk, final int chunkOffsetMask) {
       final long maxMemAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;
@@ -252,6 +255,7 @@ public class MaxAccumulators {
       setNullAndValue(vector, INIT);
     }
 
+    @Override
     public void accumulate(final long memoryAddr, final int count,
                            final int bitsInChunk, final int chunkOffsetMask) {
       final long maxMemAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;
@@ -301,6 +305,7 @@ public class MaxAccumulators {
       setNullAndValue(vector, INIT);
     }
 
+    @Override
     public void accumulate(final long memoryAddr, final int count,
                            final int bitsInChunk, final int chunkOffsetMask) {
       final long maxMemAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;
@@ -351,6 +356,7 @@ public class MaxAccumulators {
       setNullAndValue(vector, INIT);
     }
 
+    @Override
     public void accumulate(final long memoryAddr, final int count,
                            final int bitsInChunk, final int chunkOffsetMask) {
       final long maxMemAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;
@@ -415,6 +421,7 @@ public class MaxAccumulators {
       setNullAndZero(vector);
     }
 
+    @Override
     public void accumulate(final long memoryAddr, final int count,
                            final int bitsInChunk, final int chunkOffsetMask) {
       FieldVector inputVector = getInput();
@@ -488,6 +495,7 @@ public class MaxAccumulators {
       setNullAndValue(vector, INIT);
     }
 
+    @Override
     public void accumulate(final long memoryAddr, final int count,
                            final int bitsInChunk, final int chunkOffsetMask) {
       final long maxMemAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;
@@ -544,6 +552,7 @@ public class MaxAccumulators {
         maxVarWidthVecUsagePercent, accumIndex, tempAccumulatorHolder, varLenVectorResizer);
     }
 
+    @Override
     public void accumulate(final long memoryAddr, final int count,
                            final int bitsInChunk, final int chunkOffsetMask) {
       final long maxAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;

@@ -53,6 +53,7 @@ abstract class AbstractWriter<V extends ValueVector> implements PojoWriter{
     vector.allocateNew();
   }
 
+  @Override
   public void setValueCount(int valueCount){
     vector.setValueCount(valueCount);
   }

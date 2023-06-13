@@ -95,6 +95,7 @@ public class TestParquetRecordWriter extends BaseTestQuery {
     final FileSystem newFs = targetPath.getFileSystem(hadoopConf);
     assertTrue(newFs.mkdirs(targetPath));
 
+    @SuppressWarnings("checkstyle:LocalFinalVariableName")
     final BufferAllocator ALLOCATOR = allocatorRule.newAllocator("test-parquet-writer", 0, Long.MAX_VALUE);
 
     ParquetRecordWriter writer = mockParquetRecordWriter(hadoopConf, targetPath, 234234, ALLOCATOR, null);
@@ -149,6 +150,7 @@ public class TestParquetRecordWriter extends BaseTestQuery {
     final FileSystem newFs = targetPath.getFileSystem(hadoopConf);
     assertTrue(newFs.mkdirs(targetPath));
 
+    @SuppressWarnings("checkstyle:LocalFinalVariableName")
     final BufferAllocator ALLOCATOR = allocatorRule.newAllocator("test-parquet-writer", 0, Long.MAX_VALUE);
 
     ParquetRecordWriter writer = mockParquetRecordWriter(hadoopConf, targetPath, 234236, ALLOCATOR, 100 * 1024 * 1024L);
@@ -168,6 +170,7 @@ public class TestParquetRecordWriter extends BaseTestQuery {
     final FileSystem newFs = targetPath.getFileSystem(hadoopConf);
     assertTrue(newFs.mkdirs(targetPath));
 
+    @SuppressWarnings("checkstyle:LocalFinalVariableName")
     final BufferAllocator ALLOCATOR = allocatorRule.newAllocator("test-parquet-writer", 0, Long.MAX_VALUE);
 
     ParquetRecordWriter writer = mockParquetRecordWriter(hadoopConf, targetPath, 234236, ALLOCATOR, null);
@@ -187,6 +190,7 @@ public class TestParquetRecordWriter extends BaseTestQuery {
     final FileSystem newFs = targetPath.getFileSystem(hadoopConf);
     assertTrue(newFs.mkdirs(targetPath));
 
+    @SuppressWarnings("checkstyle:LocalFinalVariableName")
     final BufferAllocator ALLOCATOR = allocatorRule.newAllocator("test-parquet-writer", 0, Long.MAX_VALUE);
 
     ParquetRecordWriter writer = mockParquetRecordWriter(hadoopConf, targetPath, 234236, ALLOCATOR, 0L);
@@ -206,6 +210,7 @@ public class TestParquetRecordWriter extends BaseTestQuery {
     final FileSystem newFs = targetPath.getFileSystem(hadoopConf);
     assertTrue(newFs.mkdirs(targetPath));
 
+    @SuppressWarnings("checkstyle:LocalFinalVariableName")
     final BufferAllocator ALLOCATOR = allocatorRule.newAllocator("test-parquet-writer", 0, 128);
 
 

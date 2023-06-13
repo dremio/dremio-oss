@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>24.0.0-202302100528110223-3a169b7c</version>
+    <version>24.1.0-202306130653310132-d30779f6</version>
   </parent>
 
   <artifactId>dremio-ui-lib</artifactId>
@@ -45,57 +45,6 @@
             <run>SCRIPT_STYLE</run>
           </mapping>
         </configuration>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-resources-plugin</artifactId>
-        <executions>
-          <execution>
-            <phase>generate-resources</phase>
-            <goals>
-              <goal>copy-resources</goal>
-            </goals>
-            <configuration>
-              <resources>
-                <resource>
-                  <directory>${project.basedir}</directory>
-                  <includes>
-                    <include>dist/**</include>
-                    <include>dist-cjs/**</include>
-                    <include>dist-esm/**</include>
-                    <include>dist-themes/**</include>
-                    <include>icons/**</include>
-                    <include>images/**</include>
-                    <include>node_modules/**</include>
-                    <include>package.json</include>
-                    <include>pnpm-lock.yaml</include>
-                  </includes>
-                  <filtering>false</filtering>
-                </resource>
-              </resources>
-              <outputDirectory>${project.build.directory}/src-resources</outputDirectory>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>jar-resources</id>
-            <phase>package</phase>
-            <goals>
-              <goal>jar</goal>
-            </goals>
-            <configuration>
-              <classesDirectory>${project.build.directory}/src-resources</classesDirectory>
-              <skipIfEmpty>true</skipIfEmpty>
-              <classifier>resources</classifier>
-            </configuration>
-          </execution>
-        </executions>
       </plugin>
 
       <plugin>

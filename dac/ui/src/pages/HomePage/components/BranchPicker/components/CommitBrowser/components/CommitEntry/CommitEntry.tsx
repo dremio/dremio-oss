@@ -14,7 +14,10 @@
  * limitations under the License.
  */
 import { useIntl } from "react-intl";
-import { CommitMeta, LogEntry } from "@app/services/nessie/client";
+import {
+  CommitMetaV2 as CommitMeta,
+  LogEntryV2 as LogEntry,
+} from "@app/services/nessie/client";
 import {
   DEFAULT_FORMAT_WITH_TIME,
   formatDate,
@@ -23,10 +26,10 @@ import {
 import { Tooltip } from "@mui/material";
 import classNames from "clsx";
 import { useRef } from "react";
-
+import { Avatar } from "dremio-ui-lib/components";
 import CommitHash from "../CommitHash/CommitHash";
-import UserIcon from "../UserIcon/UserIcon";
 import { Reference } from "@app/types/nessie";
+import { nameToInitials } from "@app/exports/utilities/nameToInitials";
 
 import "./CommitEntry.less";
 
@@ -61,7 +64,7 @@ function CommitEntryTooltip({
               </tr>
               <tr>
                 <td>{intl.formatMessage({ id: "Common.Author" })}:</td>
-                <td>{commit.author}</td>
+                <td>{commit.authors?.[0] || ""}</td>
               </tr>
               <tr>
                 <td>{intl.formatMessage({ id: "Common.Created" })}:</td>
@@ -95,7 +98,7 @@ function CommitEntry({
 
   if (!commit) return null;
 
-  const user = commit.author || "";
+  const user = commit.authors?.[0] || "";
   return (
     <div className={classNames("commitEntry", { isSelected, disabled })}>
       {!disabled && (
@@ -116,7 +119,7 @@ function CommitEntry({
       <div className="commitEntry-desc text-ellipsis">{commit.message}</div>
       <div className="commitEntry-content" ref={ref}>
         <span className="commitEntry-userInfo">
-          {user && <UserIcon user={user} />}
+          {user && <Avatar initials={nameToInitials(user)} />}
           <span className="commitEntry-userName text-ellipsis">{user}</span>
         </span>
         {commit.hash && (

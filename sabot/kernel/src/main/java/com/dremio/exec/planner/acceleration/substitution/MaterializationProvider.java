@@ -20,6 +20,8 @@ import java.util.Optional;
 
 import org.apache.calcite.rel.RelNode;
 
+import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.TableVersionContext;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.service.namespace.NamespaceKey;
 
@@ -49,6 +51,8 @@ public interface MaterializationProvider {
    * for the VDS with the given path
    * @return The default reflection for the VDS
    */
-  Optional<DremioMaterialization> getDefaultRawMaterialization(NamespaceKey path, List<String> displayFields);
+  Optional<DremioMaterialization> getDefaultRawMaterialization(NamespaceKey path,
+    TableVersionContext versionContext,
+    List<String> displayFields, Catalog catalog);
 
 }

@@ -197,6 +197,7 @@ public class MutableParquetMetadata {
     blocks.set(rowGroupIndex, newBlockMetaData);
   }
 
+  @Override
   public String toString() {
     final long numNonNullBlocks = getBlocks()
       .stream()

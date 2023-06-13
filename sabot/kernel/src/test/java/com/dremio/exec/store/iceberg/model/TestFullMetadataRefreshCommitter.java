@@ -25,6 +25,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Answers;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
@@ -50,7 +51,7 @@ public class TestFullMetadataRefreshCommitter {
   private Table table;
   @Mock
   private Snapshot snapshot;
-  @Mock
+  @Mock(answer = Answers.RETURNS_DEEP_STUBS)
   private IcebergCommand icebergCommand;
 
   private FullMetadataRefreshCommitter fullMetadataRefreshCommitter;
@@ -87,7 +88,7 @@ public class TestFullMetadataRefreshCommitter {
     Mockito.when(icebergCommand.endTransaction()).thenReturn(table);
     Mockito.when(table.currentSnapshot()).thenReturn(snapshot);
     Mockito.when(snapshot.summary()).thenReturn(new HashMap<>());
-    Mockito.when(icebergCommand.getRootPointer()).thenReturn("/");
+    Mockito.when(icebergCommand.getRootPointer()).thenReturn("/test/metadata.json");
     Mockito.when(icebergCommand.getIcebergSchema()).thenReturn(new Schema(1, new ArrayList<>()));
   }
 

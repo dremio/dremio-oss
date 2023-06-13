@@ -47,6 +47,7 @@ class WyePipe extends Pipe {
     this.right = (Producer) rightOp;
   }
 
+  @Override
   public Result pump() {
     try {
       switch (downstream.getState()) {
@@ -110,6 +111,7 @@ class WyePipe extends Pipe {
     return visitor.visitWyePipe(this, down);
   }
 
+  @Override
   public Pipe getRequiredUpstream() {
     switch (downstream.getState()) {
     case CAN_CONSUME_L:

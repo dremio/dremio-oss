@@ -50,12 +50,14 @@ public class JsonConvertFrom {
     @Inject
     FunctionErrorContext errCtx;
 
+    @Override
     public void setup() {
       throw errCtx.error()
         .message("Operation not supported")
         .build();
     }
 
+    @Override
     public void eval() {
       throw errCtx.error()
         .message("Operation not supported")
@@ -78,12 +80,14 @@ public class JsonConvertFrom {
     @Inject
     FunctionErrorContext errCtx;
 
+    @Override
     public void setup() {
       throw errCtx.error()
         .message("Operation not supported")
         .build();
     }
 
+    @Override
     public void eval() {
       throw errCtx.error()
         .message("Operation not supported")

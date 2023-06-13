@@ -47,6 +47,7 @@ public final class OneArgBooleanFunction extends SqlFunction {
     return SqlOperandCountRanges.of(1);
   }
 
+  @Override
   public boolean checkOperandTypes(SqlCallBinding sqlCallBinding, boolean throwOnFailure) {
     if (sqlCallBinding.operands().size() != 1) {
       return false;
@@ -56,6 +57,7 @@ public final class OneArgBooleanFunction extends SqlFunction {
     return relDataType.getSqlTypeName() == SqlTypeName.BOOLEAN;
   }
 
+  @Override
   public RelDataType inferReturnType(
     SqlOperatorBinding opBinding) {
     return JavaTypeFactoryImpl.INSTANCE.createSqlType(SqlTypeName.BOOLEAN);

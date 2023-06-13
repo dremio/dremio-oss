@@ -57,10 +57,12 @@ class StraightThroughMatcher implements JoinMatcher {
     return 0;
   }
 
+  @Override
   public long getCopyNanos() {
     return 0;
   }
 
+  @Override
   public long getMatchNanos() {
     return 0;
   }

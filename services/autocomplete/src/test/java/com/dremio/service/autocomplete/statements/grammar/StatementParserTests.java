@@ -29,7 +29,7 @@ import com.google.common.collect.ImmutableList;
 public final class StatementParserTests {
   @Test
   public void statementListTests() {
-    new GoldenFileTestBuilder<>(StatementParserTests::executeTest)
+    GoldenFileTestBuilder.create(StatementParserTests::executeTest)
       .add("Empty String", MultiLineString.create("^"))
       .add("Only semicolons and cursor after one of them", MultiLineString.create(";^;;;"))
       .add("Ends with semicolon and cursor after", MultiLineString.create(";;;;^"))
@@ -45,7 +45,7 @@ public final class StatementParserTests {
 
   @Test
   public void queryStatementTests() {
-    new GoldenFileTestBuilder<>(StatementParserTests::executeTest)
+    GoldenFileTestBuilder.create(StatementParserTests::executeTest)
       .add("JUST SELECT", MultiLineString.create("SELECT ^"))
       .add("JUST SELECT *", MultiLineString.create("SELECT * ^"))
       .add("JUST SELECT * FROM ", MultiLineString.create("SELECT * FROM ^"))
@@ -145,7 +145,7 @@ public final class StatementParserTests {
 
   @Test
   public void fromClauseExtraction() {
-    new GoldenFileTestBuilder<>(StatementParserTests::executeTest)
+    GoldenFileTestBuilder.create(StatementParserTests::executeTest)
       .add(
         "NO FROM CLAUSE",
         GoldenFileTestBuilder.MultiLineString.create("SELECT *^"))
@@ -196,7 +196,7 @@ public final class StatementParserTests {
 
   @Test
   public void tableReferenceExtraction() {
-    new GoldenFileTestBuilder<>(StatementParserTests::executeTest)
+    GoldenFileTestBuilder.create(StatementParserTests::executeTest)
       .add(
         "Basic",
         GoldenFileTestBuilder.MultiLineString.create("SELECT * FROM EMP^"))
@@ -220,7 +220,7 @@ public final class StatementParserTests {
 
   @Test
   public void dropStatementTests() {
-    new GoldenFileTestBuilder<>(StatementParserTests::executeTest)
+    GoldenFileTestBuilder.create(StatementParserTests::executeTest)
       .add("JUST DROP", MultiLineString.create("DROP^"))
       .add("DROP INCOMPLETE / UNKNOWN TYPE", MultiLineString.create("DROP BR^"))
       .add("DROP BRANCH", MultiLineString.create("DROP BRANCH^"))
@@ -237,7 +237,7 @@ public final class StatementParserTests {
 
   @Test
   public void deleteStatementTests() {
-    new GoldenFileTestBuilder<>(StatementParserTests::executeTest)
+    GoldenFileTestBuilder.create(StatementParserTests::executeTest)
       .add("DELETE", MultiLineString.create("DELETE^"))
       .add("DELETE + PARTIAL FROM", MultiLineString.create("DELETE FR^"))
       .add("DELETE + FROM", MultiLineString.create("DELETE FROM^"))
@@ -252,7 +252,7 @@ public final class StatementParserTests {
 
   @Test
   public void updateStatementTests() {
-    new GoldenFileTestBuilder<>(StatementParserTests::executeTest)
+    GoldenFileTestBuilder.create(StatementParserTests::executeTest)
       .add(
         "UPDATE",
         MultiLineString.create("UPDATE ^"))
@@ -279,7 +279,7 @@ public final class StatementParserTests {
 
   @Test
   public void dQueryTests() {
-    new GoldenFileTestBuilder<>(StatementParserTests::executeTest)
+    GoldenFileTestBuilder.create(StatementParserTests::executeTest)
       .add("SET",
         MultiLineString.create("SET ^"))
       .add("SET T",
@@ -299,7 +299,7 @@ public final class StatementParserTests {
 
   @Test
   public void rawReflectionCreateTests() {
-    GoldenFileTestBuilder<MultiLineString, MultiLineString> builder = new GoldenFileTestBuilder<>(StatementParserTests::executeTest)
+    GoldenFileTestBuilder<MultiLineString, MultiLineString, MultiLineString> builder = GoldenFileTestBuilder.create(StatementParserTests::executeTest)
       .add(
         "USING",
         MultiLineString.create("ALTER TABLE myTable CREATE RAW REFLECTION myReflection\n" +
@@ -412,7 +412,7 @@ public final class StatementParserTests {
 
   @Test
   public void aggregateReflectionCreateTests() {
-    new GoldenFileTestBuilder<>(StatementParserTests::executeTest)
+    GoldenFileTestBuilder.create(StatementParserTests::executeTest)
       .add(
         "USING",
         MultiLineString.create("ALTER TABLE myTable CREATE AGGREGATE REFLECTION myReflection\n" +
@@ -469,7 +469,7 @@ public final class StatementParserTests {
 
   @Test
   public void externalReflectionCreateTests() {
-    new GoldenFileTestBuilder<>(StatementParserTests::executeTest)
+    GoldenFileTestBuilder.create(StatementParserTests::executeTest)
       .add(
         "USING",
         MultiLineString.create("ALTER TABLE EMP CREATE EXTERNAL REFLECTION myReflection\n" +
@@ -484,7 +484,7 @@ public final class StatementParserTests {
 
   @Test
   public void selectClauseTests() {
-    new GoldenFileTestBuilder<>(StatementParserTests::executeTest)
+    GoldenFileTestBuilder.create(StatementParserTests::executeTest)
       .add(
         "JUST SELECT",
         MultiLineString.create("SELECT "))

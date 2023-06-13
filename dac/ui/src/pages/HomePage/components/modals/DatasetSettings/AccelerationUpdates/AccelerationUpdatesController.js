@@ -33,7 +33,7 @@ import { formatMessage } from "@app/utils/locale";
 import { INCREMENTAL_TYPES } from "@app/constants/columnTypeGroups";
 import { getCurrentFormatUrl } from "@app/selectors/home";
 import { loadFileFormat } from "@app/actions/modals/addFileModal";
-
+import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
 import AccelerationUpdatesForm from "./AccelerationUpdatesForm";
 
 const VIEW_ID = "AccelerationUpdatesController";
@@ -100,6 +100,7 @@ export class AccelerationUpdatesController extends Component {
 
   loadDataset(id, entity) {
     const updateVS = this.props.updateViewState;
+    const versionContext = getVersionContextFromId(id);
 
     // We fetch to the full schema using the v3 catalog api here so we can filter out types.  v2 collapses types
     // by display types instead of returning the actual type.
@@ -111,7 +112,8 @@ export class AccelerationUpdatesController extends Component {
         this.setState({ dataset: json });
         this.props.loadDatasetAccelerationSettings(
           entity.get("fullPathList"),
-          VIEW_ID
+          VIEW_ID,
+          versionContext
         );
       },
       (error) => {
@@ -153,8 +155,13 @@ export class AccelerationUpdatesController extends Component {
 
   submit = (form) => {
     const fullPathList = this.props.entity.get("fullPathList");
+    const versionContext = getVersionContextFromId(this.props.entity.get("id"));
     return ApiUtils.attachFormSubmitHandlers(
-      this.props.updateDatasetAccelerationSettings(fullPathList, form)
+      this.props.updateDatasetAccelerationSettings(
+        fullPathList,
+        form,
+        versionContext
+      )
     ).then(() => {
       this.props.clearDataSetAccelerationSettings(fullPathList);
       this.props.onDone(null, true);

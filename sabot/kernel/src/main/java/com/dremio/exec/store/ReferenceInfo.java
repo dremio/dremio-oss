@@ -16,6 +16,8 @@
 
 package com.dremio.exec.store;
 
+import java.util.Objects;
+
 /**
  * Reference info used to support versioning.
  */
@@ -28,5 +30,22 @@ public final class ReferenceInfo {
     this.type = type;
     this.refName = refName;
     this.commitHash = commitHash;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    ReferenceInfo that = (ReferenceInfo) o;
+    return Objects.equals(type, that.type) && Objects.equals(refName, that.refName) && Objects.equals(commitHash, that.commitHash);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(type, refName, commitHash);
   }
 }

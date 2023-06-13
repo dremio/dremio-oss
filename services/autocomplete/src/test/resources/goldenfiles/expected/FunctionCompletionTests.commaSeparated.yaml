@@ -267,9 +267,9 @@
       kind: "Function"
       label: "AES_ENCRYPT(???, ???)"
      -
-      insertText: "BIN(${1:INT})"
+      insertText: "ANY_VALUE(${1:BOOLEAN})"
       kind: "Function"
-      label: "BIN(???)"
+      label: "ANY_VALUE(???)"
     functionContext:
       function:
         description: "Removes all occurrences of a specified subSTRING and replaces them with another STRING."
@@ -388,9 +388,9 @@
       kind: "Function"
       label: "AES_ENCRYPT(???, ???)"
      -
-      insertText: "BIN(${1:INT})"
+      insertText: "ANY_VALUE(${1:BOOLEAN})"
       kind: "Function"
-      label: "BIN(???)"
+      label: "ANY_VALUE(???)"
     functionContext:
       function:
         description: "Removes all occurrences of a specified subSTRING and replaces them with another STRING."
@@ -488,9 +488,9 @@
       kind: "Function"
       label: "AES_ENCRYPT(???, ???)"
      -
-      insertText: "BIN(${1:INT})"
+      insertText: "ANY_VALUE(${1:BOOLEAN})"
       kind: "Function"
-      label: "BIN(???)"
+      label: "ANY_VALUE(???)"
     functionContext:
       function:
         description: "Removes all occurrences of a specified subSTRING and replaces them with another STRING."

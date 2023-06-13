@@ -16,7 +16,6 @@
 package com.dremio.exec.store.parquet;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
@@ -235,10 +234,6 @@ public class TestBoostBufferManager {
       assertEquals("partition_extended_boostBuffer5", getPartitionExtendedProp((VarBinaryVector) mutator.getVector(BoostBufferManager.SPLITS_VECTOR),5));
       assertEquals("TestBytes", new String(((VarBinaryVector)mutator.getVector(BoostBufferManager.COL_IDS)).get(0)));
     }
-    catch (Exception e) {
-      e.printStackTrace();
-      fail(e.getMessage());
-    }
   }
 
   @Test
@@ -306,10 +301,6 @@ public class TestBoostBufferManager {
       assertEquals(totalRecordCount, 54);
       assertEquals(batchesRead, 6);
       assertEquals("TestBytes", new String(((VarBinaryVector)mutator.getVector(BoostBufferManager.COL_IDS)).get(0)));
-    }
-    catch (Exception e) {
-      e.printStackTrace();
-      fail(e.getMessage());
     }
   }
 

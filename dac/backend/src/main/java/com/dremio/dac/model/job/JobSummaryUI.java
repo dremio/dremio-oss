@@ -25,6 +25,7 @@ import com.dremio.proto.model.attempts.RequestType;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.ParentDatasetInfo;
 import com.dremio.service.jobs.JobsProtoUtil;
+import com.dremio.service.jobs.JobsServiceUtil;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -101,6 +102,7 @@ public class JobSummaryUI {
   }
 
   public static JobSummaryUI of(com.dremio.service.job.JobSummary input, NamespaceService service) {
+    String desc = JobsServiceUtil.getJobDescription(input.getRequestType(), input.getSql(), input.getDescription());
     final ParentDatasetInfo datasetInfo = JobsUI.getDatasetToDisplay(input, service);
     return new JobSummaryUI(
       input.getJobId().getId(),
@@ -113,7 +115,7 @@ public class JobSummaryUI {
       input.getUser(),
       input.getStartTime() == 0 ? null : input.getStartTime(),
       input.getEndTime() == 0 ? null : input.getEndTime(),
-      Strings.isNullOrEmpty(input.getDescription()) ? null : obfuscateSql(input.getDescription()),
+      Strings.isNullOrEmpty(desc) ? null : obfuscateSql(desc),
       JobsProtoUtil.toStuff(input.getRequestType()),
       input.getAccelerated(),
       input.getDatasetVersion(),

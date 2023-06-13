@@ -4,9 +4,13 @@
   "description": "A shareable ESLint configuration for Dremio UI projects",
   "main": "./index.js",
   "dependencies": {
-    "@typescript-eslint/eslint-plugin": "^5",
     "@typescript-eslint/parser": "^5",
     "eslint-config-prettier": "^8",
+    "typescript": "*"
+  },
+  "peerDependencies": {
+    "@typescript-eslint/eslint-plugin": "^5",
+    "eslint": "^8",
     "eslint-plugin-jest": "^26",
     "eslint-plugin-jest-dom": "^4",
     "eslint-plugin-jsx-a11y": "^6",
@@ -15,14 +19,7 @@
     "eslint-plugin-promise": "^6",
     "eslint-plugin-react": "^7",
     "eslint-plugin-react-hooks": "^4",
-    "eslint-plugin-testing-library": "^5"
-  },
-  "devDependencies": {
-    "eslint": "^8",
-    "typescript": "^4"
-  },
-  "peerDependencies": {
-    "eslint": "^8",
+    "eslint-plugin-testing-library": "^5",
     "typescript": "*"
   },
   "peerDependenciesMeta": {

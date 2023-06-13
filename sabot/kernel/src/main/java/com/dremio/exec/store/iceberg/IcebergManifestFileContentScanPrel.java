@@ -33,7 +33,6 @@ import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.iceberg.ManifestContent;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.physical.base.PhysicalOperator;
@@ -57,7 +56,6 @@ import com.google.common.collect.ImmutableList;
  * table_files Metadata Functions use IcebergManifestFileContentScanPrel to fetch data file content from manifest file.
  */
 public class IcebergManifestFileContentScanPrel extends ScanPrelBase implements PrelFinalizable {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(IcebergManifestFileContentScanPrel.class);
 
   public IcebergManifestFileContentScanPrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment, List<RelHint> hints) {
     super(cluster, traitSet, table, dataset.getStoragePluginId(), dataset, projectedColumns, observedRowcountAdjustment, hints, ImmutableList.of());
@@ -117,7 +115,7 @@ public class IcebergManifestFileContentScanPrel extends ScanPrelBase implements 
     RelTraitSet relTraitSet = getCluster().getPlanner().emptyTraitSet().plus(Prel.PHYSICAL).plus(distributionTrait);
 
     IcebergManifestListPrel manifestListPrel = new IcebergManifestListPrel(getCluster(), getTraitSet(), tableMetadata, manifestListReaderSchema, manifestListReaderColumns,
-      getRowTypeFromProjectedColumns(manifestListReaderColumns, manifestListReaderSchema, getCluster()), null, ManifestContent.DATA);
+      getRowTypeFromProjectedColumns(manifestListReaderColumns, manifestListReaderSchema, getCluster()), null, ManifestContentType.ALL);
 
 
     // exchange above manifest list scan, which is a leaf level easy scan

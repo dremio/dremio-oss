@@ -227,6 +227,13 @@ public class TimedKVStore<K, V> implements KVStore<K, V> {
     }
 
     @Override
+    public Iterable<Document<K, V>> findOnAllTenants(FindByCondition condition, FindOption... options) {
+      try(final OpTimer ctx = time(Ops.findForAllTenants)) {
+        return indexedStore.findOnAllTenants(condition, options);
+      }
+    }
+
+    @Override
     public Integer version() {
       return indexedStore.version();
     }

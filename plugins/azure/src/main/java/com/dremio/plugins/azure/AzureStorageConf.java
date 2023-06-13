@@ -15,28 +15,10 @@
  */
 package com.dremio.plugins.azure;
 
-import java.util.List;
+import static com.dremio.hadoop.security.alias.DremioCredentialProvider.PROTOCOL_PREFIX;
 
-import javax.inject.Provider;
-import javax.validation.constraints.Max;
-import javax.validation.constraints.Min;
-
-import com.dremio.exec.catalog.StoragePluginId;
-import com.dremio.exec.catalog.conf.DefaultCtasFormatSelection;
 import com.dremio.exec.catalog.conf.DisplayMetadata;
-import com.dremio.exec.catalog.conf.NotMetadataImpacting;
-import com.dremio.exec.catalog.conf.Property;
-import com.dremio.exec.catalog.conf.Secret;
 import com.dremio.exec.catalog.conf.SourceType;
-import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.dfs.CacheProperties;
-import com.dremio.exec.store.dfs.FileSystemConf;
-import com.dremio.exec.store.dfs.SchemaMutability;
-import com.dremio.io.file.Path;
-import com.dremio.options.OptionManager;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
 
 import io.protostuff.Tag;
 
@@ -45,184 +27,74 @@ import io.protostuff.Tag;
  */
 @CheckAzureConf
 @SourceType(value = "AZURE_STORAGE", label = "Azure Storage", uiConfig = "azure-storage-layout.json")
-public class AzureStorageConf extends FileSystemConf<AzureStorageConf, AzureStoragePlugin> {
-
-  public static final List<String> KEY_AUTH_PROPS = ImmutableList.of(
-    AzureStorageFileSystem.ACCOUNT,
-    AzureStorageFileSystem.SECURE,
-    AzureStorageFileSystem.CONTAINER_LIST,
-    AzureStorageFileSystem.KEY
-  );
-
-  public static final List<String> AZURE_AD_PROPS = ImmutableList.of(
-    AzureStorageFileSystem.ACCOUNT,
-    AzureStorageFileSystem.SECURE,
-    AzureStorageFileSystem.CONTAINER_LIST,
-    AzureStorageFileSystem.CLIENT_ID,
-    AzureStorageFileSystem.CLIENT_SECRET,
-    AzureStorageFileSystem.TOKEN_ENDPOINT
-  );
+public class AzureStorageConf extends AbstractAzureStorageConf {
 
   /**
-   * Type of Storage
+   * Secret Key <-> Azure Key Vault selector for 'Shared Access Key' authenticationType
    */
-  public enum AccountKind {
-    @Tag(1)
-    @DisplayMetadata(label = "StorageV1")
-    STORAGE_V1,
+  @Tag(18)
+  @DisplayMetadata(label = "Secret Store")
+  public SharedAccessSecretType sharedAccessSecretType = SharedAccessSecretType.SHARED_ACCESS_SECRET_KEY;
 
-    @Tag(2)
-    @DisplayMetadata(label = "StorageV2")
-    STORAGE_V2
-    ;
+  /**
+   * Secret Key <-> Azure Key Vault selector for 'Azure Active Directory' authenticationType
+   */
+  @Tag(19)
+  @DisplayMetadata(label = "Application Secret Store")
+  public AzureActiveDirectorySecretType azureADSecretType = AzureActiveDirectorySecretType.AZURE_ACTIVE_DIRECTORY_SECRET_KEY;
 
-    @JsonIgnore
-    public Prototype getPrototype(boolean enableSSL) {
-      if(this == AccountKind.STORAGE_V1) {
-        return enableSSL ? Prototype.WASBS : Prototype.WASB;
-      } else {
-        return enableSSL ? Prototype.ABFSS: Prototype.ABFS;
-      }
-    }
+  /**
+   * vault uri for 'Shared Access Key' authenticationType
+   */
+  @Tag(20)
+  @DisplayMetadata()
+  public String accessKeyUri;
+
+  /**
+   * vault uri for 'Azure Active Directory' authenticationType
+   */
+  @Tag(21)
+  @DisplayMetadata()
+  public String clientSecretUri;
+
+  /**
+   * @return the secret type (Secret Key 'dremio' vs. Azure Vault URI) for Shared Access authentication type
+   */
+  @Override
+  public SharedAccessSecretType getSharedAccessSecretType() {
+    return sharedAccessSecretType;
   }
 
-  @Tag(1)
-  @DisplayMetadata(label = "Account Kind")
-  public AccountKind accountKind = AccountKind.STORAGE_V2;
-
-  @Tag(2)
-  @DisplayMetadata(label = "Account Name")
-  public String accountName;
-
-  @Tag(3)
-  @Secret
-  @DisplayMetadata(label = "Shared Access Key")
-  public String accessKey;
-
-  @Tag(4)
-  @DisplayMetadata(label = "Root Path")
-  public String rootPath = "/";
-
-  @Tag(5)
-  @DisplayMetadata(label = "Advanced Properties")
-  public List<Property> propertyList;
-
-  @Tag(6)
-  @DisplayMetadata(label = "Blob Containers & Filesystem Allowlist")
-  public List<String> containers;
-
-  @Tag(7)
-  @NotMetadataImpacting
-  @DisplayMetadata(label = "Encrypt connection")
-  public boolean enableSSL = true;
-
-  @Tag(8)
-  @NotMetadataImpacting
-  @DisplayMetadata(label = "Enable exports into the source (CTAS and DROP)")
-  @JsonIgnore
-  public boolean allowCreateDrop = false;
-
-  @Tag(9)
-  @NotMetadataImpacting
-  @DisplayMetadata(label = "Enable asynchronous access when possible")
-  public boolean enableAsync = true;
-
-  @Tag(10)
-  @DisplayMetadata(label = "Application ID")
-  public String clientId;
-
-  @Tag(11)
-  @DisplayMetadata(label = "OAuth 2.0 Token Endpoint")
-  public String tokenEndpoint;
-
-  @Tag(12)
-  @Secret
-  @DisplayMetadata(label = "Client Secret")
-  public String clientSecret;
-
-  @Tag(13)
-  public AzureAuthenticationType credentialsType = AzureAuthenticationType.ACCESS_KEY;
-
-  @Tag(14)
-  @NotMetadataImpacting
-  @DisplayMetadata(label = "Enable local caching when possible")
-  public boolean isCachingEnabled = true;
-
-  @Tag(15)
-  @NotMetadataImpacting
-  @Min(value = 1, message = "Max percent of total available cache space must be between 1 and 100")
-  @Max(value = 100, message = "Max percent of total available cache space must be between 1 and 100")
-  @DisplayMetadata(label = "Max percent of total available cache space to use when possible")
-  public int maxCacheSpacePct = 100;
-
-  @Tag(16)
-  @NotMetadataImpacting
-  @DisplayMetadata(label = "Default CTAS Format")
-  public DefaultCtasFormatSelection defaultCtasFormat = DefaultCtasFormatSelection.ICEBERG;
-
-  @Tag(17)
-  @NotMetadataImpacting
-  @DisplayMetadata(label = "Enable partition column inference")
-  public boolean isPartitionInferenceEnabled = false;
-
+  /**
+   * @return the Shared Access Key Vault URI
+   */
   @Override
-  public AzureStoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
-    Preconditions.checkNotNull(accountName, "Account name must be provided.");
-    return new AzureStoragePlugin(this, context, name, pluginIdProvider);
+  public String getAccessKeyUri() {
+    accessKeyUri = prependProtocolIfNotExist(accessKeyUri, PROTOCOL_PREFIX);
+    return accessKeyUri;
   }
 
+  /**
+   * @return the secret type (Secret Key 'dremio' vs. Azure Vault URI) for Azure Active Directory authentication type
+   */
   @Override
-  public String getDefaultCtasFormat() {
-    return defaultCtasFormat.getDefaultCtasFormat();
+  public AzureActiveDirectorySecretType getAzureADSecretType() {
+    return azureADSecretType;
   }
 
+  /**
+   * @return the Azure Active Directory Key Vault URI
+   */
   @Override
-  public Path getPath() {
-    return Path.of(rootPath);
+  public String getClientSecretUri() {
+    clientSecretUri = prependProtocolIfNotExist(clientSecretUri, PROTOCOL_PREFIX);
+    return clientSecretUri;
   }
 
-  @Override
-  public boolean isImpersonationEnabled() {
-    return false;
-  }
-
-  @Override
-  public List<Property> getProperties() {
-    return propertyList;
-  }
-
-  @Override
-  public String getConnection() {
-    return String.format("%s:///", CloudFileSystemScheme.AZURE_STORAGE_FILE_SYSTEM_SCHEME.getScheme());
-  }
-
-  @Override
-  public SchemaMutability getSchemaMutability() {
-    return SchemaMutability.USER_TABLE;
-  }
-
-  @Override
-  public boolean isPartitionInferenceEnabled() {
-    return isPartitionInferenceEnabled;
-  }
-
-  @Override
-  public boolean isAsyncEnabled() {
-    return enableAsync;
-  }
-
-  @Override
-  public CacheProperties getCacheProperties() {
-    return new CacheProperties() {
-      @Override
-      public boolean isCachingEnabled(final OptionManager optionManager) {
-        return isCachingEnabled;
-      }
-
-      @Override
-      public int cacheMaxSpaceLimitPct() {
-        return maxCacheSpacePct;
-      }
-    };
+  /**
+   * @return the prepended uri (if protocol not yet present)
+   */
+  private String prependProtocolIfNotExist(String uri, String protocol) {
+    return uri.toLowerCase().contains(protocol) ? uri : protocol.concat(uri);
   }
 }

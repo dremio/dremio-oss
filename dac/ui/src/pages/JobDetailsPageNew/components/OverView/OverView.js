@@ -151,7 +151,7 @@ const OverView = (props) => {
                   height: 16,
                   width: 16,
                   marginLeft: 4,
-                  color: "var(--dremio--color--neutral--600)",
+                  color: "var(--color--neutral--600)",
                 }}
               ></dremio-icon>
             </Tooltip>

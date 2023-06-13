@@ -25,6 +25,7 @@ export default class ViewCheckContent extends Component {
     children: PropTypes.node,
     message: PropTypes.string,
     customStyle: PropTypes.object,
+    offsetHeight: PropTypes.number,
   };
 
   static defaultProps = {
@@ -32,16 +33,24 @@ export default class ViewCheckContent extends Component {
   };
 
   render() {
-    const { dataIsNotAvailable, viewState, children, message, customStyle } =
-      this.props;
+    const {
+      dataIsNotAvailable,
+      viewState,
+      children,
+      message,
+      customStyle,
+      offsetHeight,
+    } = this.props;
     return !viewState.get("isInProgress") && dataIsNotAvailable ? (
       <div style={{ ...style, ...customStyle }}>
         <span>{message || "Nothing Here"}</span>
-        <dremio-icon
-          name="narwhal/query"
-          alt="Gnarly"
-          style={{ height: 160, width: 161 }}
-        />
+        {offsetHeight >= 240 && (
+          <dremio-icon
+            name="narwhal/query"
+            alt="Gnarly"
+            style={{ height: 160, width: 160 }}
+          />
+        )}
       </div>
     ) : (
       children || null

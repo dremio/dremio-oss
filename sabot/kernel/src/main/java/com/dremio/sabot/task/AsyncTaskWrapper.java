@@ -107,6 +107,7 @@ public class AsyncTaskWrapper implements Task {
     return schedulingGroup;
   }
 
+  @Override
   public long getTaskWeight() {
     return taskWeight;
   }

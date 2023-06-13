@@ -20,7 +20,7 @@ import javax.inject.Provider;
 
 import com.dremio.context.RequestContext;
 import com.dremio.service.Service;
-import com.dremio.service.grpc.SingleTenantClientInterceptor;
+import com.dremio.service.grpc.ContextualizedClientInterceptor;
 
 import io.grpc.Channel;
 import io.grpc.ManagedChannel;
@@ -44,7 +44,7 @@ public class ConduitInProcessChannelProvider implements Service {
   public void start() throws Exception {
     inProcessChannel =
       InProcessChannelBuilder.forName(inProcessServerName).usePlaintext().intercept(
-        new SingleTenantClientInterceptor(requestContextProvider)).build();
+        ContextualizedClientInterceptor.buildSingleTenantClientInterceptorWithDefaults(requestContextProvider)).build();
   }
 
   public Channel getInProcessChannelToConduit() {

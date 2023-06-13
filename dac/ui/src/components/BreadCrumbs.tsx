@@ -13,19 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { useState, useRef } from "react";
+import { useState, useRef, ReactNode } from "react";
 //@ts-ignore
 import { Link } from "react-router";
 import Immutable from "immutable";
 //@ts-ignore
 import invariant from "invariant";
-import { intl } from "@app/utils/intl";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
+import { CopyButton } from "dremio-ui-lib/components";
 //@ts-ignore
 import { IconButton, Tooltip } from "dremio-ui-lib";
 import { splitFullPath } from "utils/pathUtils";
-import CopyButton from "@app/components/Buttons/CopyButton";
+
 import {
   rmProjectBase,
   addProjectBase,
@@ -41,6 +41,7 @@ type BreadCrumbsTypes = {
   hideLastItem?: boolean;
   showCopyButton?: boolean;
   includeQuotes?: boolean;
+  extraContent?: ReactNode;
 };
 
 export function formatFullPath(fullPath: any) {
@@ -87,6 +88,7 @@ const BreadCrumbs = ({
   linkStyle,
   showCopyButton = false,
   includeQuotes = false,
+  extraContent,
 }: BreadCrumbsTypes) => {
   const [anchorEl, setAnchorEl] = useState(null);
   const formattedFullPath = formatFullPath(fullPath);
@@ -130,12 +132,13 @@ const BreadCrumbs = ({
           <BreadCrumbItem longCrumbs={longCrumbs}>{lastCrumb}</BreadCrumbItem>
           {fullPath && showCopyButton && (
             <CopyButton
-              text={
+              className="copy-button"
+              contents={
                 includeQuotes
                   ? formatFullPath(fullPath).join(".")
                   : fullPath.join(".")
               }
-              title={intl.formatMessage({ id: "Path.Copy" })}
+              size="L"
             />
           )}
           <Menu
@@ -187,15 +190,17 @@ const BreadCrumbs = ({
           },
           []
         )}
+        {extraContent && <div className="margin-left">{extraContent}</div>}
         {fullPath && showCopyButton && (
           <CopyButton
-            // @ts-ignore
-            text={
+            className="copy-button"
+            contents={
               includeQuotes
                 ? formatFullPath(fullPath).join(".")
                 : fullPath.join(".")
             }
-            title={intl.formatMessage({ id: "Path.Copy" })}
+            size="L"
+            placement="bottom"
           />
         )}
       </>

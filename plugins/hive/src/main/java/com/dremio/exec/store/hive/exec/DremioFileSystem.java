@@ -55,6 +55,7 @@ import com.dremio.common.FSConstants;
 import com.dremio.common.util.Closeable;
 import com.dremio.common.util.concurrent.ContextClassLoaderSwapper;
 import com.dremio.exec.hadoop.HadoopFileSystem;
+import com.dremio.exec.store.hive.ContextClassLoaderAware;
 import com.dremio.io.AsyncByteReader;
 import com.dremio.io.FSInputStream;
 import com.dremio.io.FSOutputStream;
@@ -75,7 +76,7 @@ import com.google.common.collect.ImmutableSet;
  * Replaces class loader before any action to delegate all class loading to default
  * class loaders. This is to avoid loading non-hive/hadoop related classes here.
  */
-public class DremioFileSystem extends FileSystem {
+public class DremioFileSystem extends FileSystem implements ContextClassLoaderAware {
 
   private static final String FS_S3A_BUCKET = "fs.s3a.bucket.";
   private static final String FS_S3A_AWS_CREDENTIALS_PROVIDER = "fs.s3a.aws.credentials.provider";

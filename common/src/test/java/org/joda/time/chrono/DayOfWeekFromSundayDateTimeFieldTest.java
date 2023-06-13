@@ -39,29 +39,29 @@ public class DayOfWeekFromSundayDateTimeFieldTest {
 
   @Test
   public void getAsText() {
-    assertTrue("Sunday".equalsIgnoreCase(instance.getAsText(1526173261000L)));
-    assertTrue("Monday".equalsIgnoreCase(instance.getAsText(1526259661000L)));
-    assertTrue("Saturday".equalsIgnoreCase(instance.getAsText(1526086861000L)));
+    assertTrue("Sunday".equalsIgnoreCase(instance.getAsText(1526173261000L, Locale.US)));
+    assertTrue("Monday".equalsIgnoreCase(instance.getAsText(1526259661000L, Locale.US)));
+    assertTrue("Saturday".equalsIgnoreCase(instance.getAsText(1526086861000L, Locale.US)));
   }
 
   @Test
   public void getAsShortText() {
-    assertTrue("Sun".equalsIgnoreCase(instance.getAsShortText(1526173261000L)));
-    assertTrue("Mon".equalsIgnoreCase(instance.getAsShortText(1526259661000L)));
-    assertTrue("Sat".equalsIgnoreCase(instance.getAsShortText(1526086861000L)));
+    assertTrue("Sun".equalsIgnoreCase(instance.getAsShortText(1526173261000L, Locale.US)));
+    assertTrue("Mon".equalsIgnoreCase(instance.getAsShortText(1526259661000L, Locale.US)));
+    assertTrue("Sat".equalsIgnoreCase(instance.getAsShortText(1526086861000L, Locale.US)));
   }
 
   @Test
   public void getAsTextFieldValue() {
-    assertTrue("Sunday".equalsIgnoreCase(instance.getAsText(1, Locale.getDefault())));
-    assertTrue("Monday".equalsIgnoreCase(instance.getAsText(2, Locale.getDefault())));
-    assertTrue("Saturday".equalsIgnoreCase(instance.getAsText(7, Locale.getDefault())));
+    assertTrue("Sunday".equalsIgnoreCase(instance.getAsText(1, Locale.US)));
+    assertTrue("Monday".equalsIgnoreCase(instance.getAsText(2, Locale.US)));
+    assertTrue("Saturday".equalsIgnoreCase(instance.getAsText(7, Locale.US)));
   }
 
   @Test
   public void getAsShortTextFieldValue() {
-    assertTrue("Sun".equalsIgnoreCase(instance.getAsShortText(1, Locale.getDefault())));
-    assertTrue("Mon".equalsIgnoreCase(instance.getAsShortText(2, Locale.getDefault())));
-    assertTrue("Sat".equalsIgnoreCase(instance.getAsShortText(7, Locale.getDefault())));
+    assertTrue("Sun".equalsIgnoreCase(instance.getAsShortText(1, Locale.US)));
+    assertTrue("Mon".equalsIgnoreCase(instance.getAsShortText(2, Locale.US)));
+    assertTrue("Sat".equalsIgnoreCase(instance.getAsShortText(7, Locale.US)));
   }
 }

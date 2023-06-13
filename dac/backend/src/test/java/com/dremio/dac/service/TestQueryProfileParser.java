@@ -25,6 +25,7 @@ import org.junit.Test;
 
 import com.dremio.dac.daemon.TestSpacesStoragePlugin;
 import com.dremio.dac.explore.model.DatasetPath;
+import com.dremio.dac.explore.model.InitialPreviewResponse;
 import com.dremio.dac.model.job.JobUI;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.resource.GroupResourceInformation;
@@ -53,7 +54,9 @@ public class TestQueryProfileParser extends BaseTestServer {
   public void testQueryParser() throws Exception {
     TestSpacesStoragePlugin.setup();
 
-    getPreview(getDataset(new DatasetPath("testA.dsA1")));
+    final InitialPreviewResponse previewResponse = getPreview(getDataset(new DatasetPath("testA.dsA1")));
+    waitForJobComplete(previewResponse.getJobId().getId());
+
     final SearchJobsRequest searchJobsRequest = SearchJobsRequest.newBuilder()
         .setDataset(VersionedDatasetPath.newBuilder()
           .addAllPath(new DatasetPath("testA.dsA1").toPathList())

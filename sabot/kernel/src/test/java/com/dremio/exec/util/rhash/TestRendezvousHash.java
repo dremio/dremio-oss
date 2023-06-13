@@ -37,6 +37,7 @@ public class TestRendezvousHash {
   private static final Random rand = new Random();
   private static final HashFunction hfunc = Hashing.murmur3_128();
   private static final Funnel<String> strFunnel = new Funnel<String>(){
+    @Override
     public void funnel(String from, PrimitiveSink into) {
       into.putBytes(from.getBytes());
     }};

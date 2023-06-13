@@ -369,6 +369,7 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
    * @param index position of element to get
    * @return Text object for non-null element, null otherwise
    */
+   @Override
    public Text getObject(int index) {
      Text result = new Text();
      byte[] b;

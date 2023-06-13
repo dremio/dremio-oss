@@ -60,6 +60,7 @@ import org.apache.calcite.tools.RuleSet;
 import org.apache.calcite.tools.RuleSets;
 
 import com.dremio.exec.catalog.udf.ScalarUserDefinedFunctionExpanderRule;
+import com.dremio.exec.catalog.udf.TabularUserDefinedFunctionExpanderRule;
 import com.dremio.exec.expr.fn.hll.ConvertCountDistinctToHll;
 import com.dremio.exec.expr.fn.hll.RewriteNdvAsHll;
 import com.dremio.exec.ops.OptimizerRulesContext;
@@ -99,6 +100,7 @@ import com.dremio.exec.planner.logical.PercentileFunctionsRewriteRule;
 import com.dremio.exec.planner.logical.ProjectInputRefPastFilterRule;
 import com.dremio.exec.planner.logical.ProjectRel;
 import com.dremio.exec.planner.logical.ProjectRule;
+import com.dremio.exec.planner.logical.PushFilterPastFlattenrule;
 import com.dremio.exec.planner.logical.PushFilterPastProjectRule;
 import com.dremio.exec.planner.logical.PushJoinFilterIntoProjectRule;
 import com.dremio.exec.planner.logical.PushProjectForFlattenIntoScanRule;
@@ -106,6 +108,7 @@ import com.dremio.exec.planner.logical.PushProjectForFlattenPastProjectRule;
 import com.dremio.exec.planner.logical.PushProjectIntoFilesystemScanRule;
 import com.dremio.exec.planner.logical.PushProjectIntoScanRule;
 import com.dremio.exec.planner.logical.PushProjectPastFlattenRule;
+import com.dremio.exec.planner.logical.RegexpLikeToLikeRule;
 import com.dremio.exec.planner.logical.RemoveEmptyScansRule;
 import com.dremio.exec.planner.logical.RewriteProjectToFlattenRule;
 import com.dremio.exec.planner.logical.SampleRule;
@@ -115,6 +118,7 @@ import com.dremio.exec.planner.logical.TableModifyRule;
 import com.dremio.exec.planner.logical.TableOptimizeRule;
 import com.dremio.exec.planner.logical.UnionAllRule;
 import com.dremio.exec.planner.logical.UnionRel;
+import com.dremio.exec.planner.logical.VacuumTableRule;
 import com.dremio.exec.planner.logical.ValuesRule;
 import com.dremio.exec.planner.logical.WindowRule;
 import com.dremio.exec.planner.logical.rule.GroupSetToCrossJoinCaseStatement;
@@ -152,7 +156,6 @@ import com.dremio.exec.planner.physical.rule.computation.HashJoinComputationExtr
 import com.dremio.exec.planner.physical.rule.computation.NestedLoopJoinComputationExtractionRule;
 import com.dremio.exec.planner.rules.DremioRelRules;
 import com.dremio.exec.planner.sql.SqlConverter;
-import com.dremio.exec.planner.sql.SqlValidatorAndToRelContext;
 import com.dremio.exec.planner.tablefunctions.ExternalQueryScanPrule;
 import com.dremio.exec.planner.tablefunctions.ExternalQueryScanRule;
 import com.dremio.exec.store.mfunctions.MFunctionQueryScanPrule;
@@ -167,15 +170,16 @@ public enum PlannerPhase {
     public RuleSet getRules(OptimizerRulesContext context, SqlConverter sqlConverter) {
       //TODO there is a bug in the HEP planner where we need sub queries expaned first
       return RuleSets.ofList(
-        ScalarUserDefinedFunctionExpanderRule.createFilterRule(() -> SqlValidatorAndToRelContext.builder(sqlConverter)),
-        ScalarUserDefinedFunctionExpanderRule.createProjectRule(() -> SqlValidatorAndToRelContext.builder(sqlConverter)),
+        new ScalarUserDefinedFunctionExpanderRule(sqlConverter),
+        new TabularUserDefinedFunctionExpanderRule(sqlConverter),
         DremioRelRules.JOIN_SUB_QUERY_TO_CORRELATE,
         CoreRules.FILTER_SUB_QUERY_TO_CORRELATE,
         CoreRules.PROJECT_SUB_QUERY_TO_CORRELATE,
         CALC_REDUCE_EXPRESSIONS_CALCITE_RULE,
         CoreRules.PROJECT_TO_LOGICAL_PROJECT_AND_WINDOW,
         DremioRelRules.REDUCE_FUNCTIONS_FOR_GROUP_SETS,
-        GroupSetToCrossJoinCaseStatement.RULE
+        GroupSetToCrossJoinCaseStatement.RULE,
+        RewriteProjectToFlattenRule.INSTANCE
       );
     }
   },
@@ -240,16 +244,7 @@ public enum PlannerPhase {
         PUSH_PROJECT_PAST_FILTER_LOGICAL_INSTANCE,
         PUSH_PROJECT_PAST_JOIN_RULE_WITH_EXPR_JOIN,
         MergeProjectRule.LOGICAL_INSTANCE
-        );
-    }
-  },
-
-  EXPAND_OPERATORS("Expands Operators"){
-    @Override
-    public RuleSet getRules(OptimizerRulesContext context, SqlConverter sqlConverter){
-      ImmutableList.Builder<RelOptRule> b = ImmutableList.builder();
-      b.add(RewriteProjectToFlattenRule.INSTANCE);
-      return RuleSets.ofList(b.build());
+      );
     }
   },
 
@@ -277,6 +272,56 @@ public enum PlannerPhase {
     }
   },
 
+  FILTER_CONSTANT_RESOLUTION_PUSHDOWN("Filter Constant Resolution Pushdown"){
+    @Override
+    public RuleSet getRules(OptimizerRulesContext context, SqlConverter sqlConverter) {
+      ImmutableList.Builder<RelOptRule> b = ImmutableList.builder();
+      PlannerSettings ps = context.getPlannerSettings();
+      b.add(
+        PushFilterPastProjectRule.CALCITE_NO_CHILD_CHECK,
+        JoinFilterCanonicalizationRule.INSTANCE,
+        FILTER_SET_OP_TRANSPOSE_CALCITE_RULE,
+        FILTER_AGGREGATE_TRANSPOSE_CALCITE_RULE,
+        FILTER_MERGE_CALCITE_RULE,
+        FilterWindowTransposeRule.INSTANCE,
+        LOGICAL_FILTER_CORRELATE_RULE
+      );
+
+      if(ps.isPushFilterPastFlattenEnabled()){
+        b.add(PushFilterPastFlattenrule.INSTANCE);
+      }
+
+      if (ps.isEnhancedFilterJoinPushdownEnabled()) {
+        b.add(EnhancedFilterJoinRule.WITH_FILTER);
+        b.add(EnhancedFilterJoinRule.NO_FILTER);
+      }
+
+      if (ps.isTransitiveFilterPushdownEnabled()) {
+        // Add reduce expression rules to reduce any filters after applying transitive rule.
+        if (ps.options.getOption(PlannerSettings.REDUCE_ALGEBRAIC_EXPRESSIONS)) {
+          b.add(ReduceTrigFunctionsRule.INSTANCE);
+        }
+
+        if (ps.isConstantFoldingEnabled()) {
+          if (ps.isTransitiveReduceProjectExpressionsEnabled()) {
+            b.add(PROJECT_REDUCE_EXPRESSIONS_CALCITE_RULE);
+          }
+          if (ps.isTransitiveReduceFilterExpressionsEnabled()) {
+            b.add(FILTER_REDUCE_EXPRESSIONS_CALCITE_RULE);
+          }
+          if (ps.isTransitiveReduceCalcExpressionsEnabled()) {
+            b.add(CALC_REDUCE_EXPRESSIONS_CALCITE_RULE);
+          }
+        }
+      } else {
+        b.add(FILTER_INTO_JOIN_CALCITE_RULE,
+          JOIN_CONDITION_PUSH_CALCITE_RULE,
+          JOIN_PUSH_EXPRESSIONS_RULE);
+      }
+      return RuleSets.ofList(b.build());
+    }
+  },
+
   FILESYSTEM_PROJECT_PUSHDOWN("FileSystem Project Pushdown") {
     @Override
     public RuleSet getRules(OptimizerRulesContext context, SqlConverter sqlConverter) {
@@ -291,13 +336,9 @@ public enum PlannerPhase {
     @Override
     public RuleSet getRules(OptimizerRulesContext context, SqlConverter sqlConverter) {
       ImmutableList.Builder<RelOptRule> b = ImmutableList.builder();
-      PlannerSettings ps = context.getPlannerSettings();
       ImmutableList<RelOptRule> commonRules = getPreLogicalCommonRules(context);
       b.addAll(commonRules);
-      if (ps.isEnhancedFilterJoinPushdownEnabled()) {
-        b.add(EnhancedFilterJoinRule.WITH_FILTER);
-        b.add(EnhancedFilterJoinRule.NO_FILTER);
-      }
+      b.add(PlannerPhase.PUSH_PROJECT_PAST_JOIN_CALCITE_RULE);
       return RuleSets.ofList(b.build());
     }
   },
@@ -305,11 +346,7 @@ public enum PlannerPhase {
   PRE_LOGICAL_TRANSITIVE("Pre-Logical Transitive Filter Pushdown") {
     @Override
     public RuleSet getRules(OptimizerRulesContext context, SqlConverter sqlConverter) {
-      ImmutableList.Builder<RelOptRule> b = ImmutableList.builder();
-      ImmutableList<RelOptRule> commonRules = getPreLogicalCommonRules(context);
-      b.addAll(commonRules);
-      b.add(PlannerPhase.PUSH_PROJECT_PAST_JOIN_CALCITE_RULE);
-      return RuleSets.ofList(b.build());
+      return RuleSets.ofList(getPreLogicalCommonRules(context));
     }
   },
 
@@ -840,31 +877,35 @@ public enum PlannerPhase {
       }
     }
 
+    if (ps.isDistinctAggWithGroupingSetsEnabled()) {
+      userConfigurableRules.add(CoreRules.AGGREGATE_EXPAND_DISTINCT_AGGREGATES);
+    }
+
     userConfigurableRules.add(AggregateFilterToCaseRule.INSTANCE);
 
     userConfigurableRules.add(MedianRewriteRule.INSTANCE);
 
     userConfigurableRules.add(PercentileFunctionsRewriteRule.INSTANCE);
 
+    if (ps.isRegexpLikeToLikeEnabled()) {
+      userConfigurableRules.add(RegexpLikeToLikeRule.INSTANCE);
+    }
+
     return RuleSets.ofList(userConfigurableRules.build());
   }
 
   static ImmutableList<RelOptRule> getPreLogicalCommonRules(OptimizerRulesContext context) {
     ImmutableList.Builder<RelOptRule> b = ImmutableList.builder();
-    PlannerSettings ps = context.getPlannerSettings();
     b.add(
       DremioAggregateProjectPullUpConstantsRule.INSTANCE2_REMOVE_ALL,
       LogicalAggregateGroupKeyFixRule.RULE,
       ConvertCountDistinctToHll.INSTANCE,
       RewriteNdvAsHll.INSTANCE,
 
+      // Need to remove this rule as it has already been applied in the filter pushdown phase.
+      // However, while removing this rule, some acceleration tests are failing. DX-64115
       PushFilterPastProjectRule.CALCITE_NO_CHILD_CHECK,
 
-      JoinFilterCanonicalizationRule.INSTANCE,
-
-      FILTER_SET_OP_TRANSPOSE_CALCITE_RULE,
-      FILTER_AGGREGATE_TRANSPOSE_CALCITE_RULE,
-      FILTER_MERGE_CALCITE_RULE,
       CoreRules.INTERSECT_TO_DISTINCT,
       MinusToJoin.RULE,
 
@@ -873,34 +914,8 @@ public enum PlannerPhase {
       CoreRules.PROJECT_WINDOW_TRANSPOSE,
       CoreRules.PROJECT_SET_OP_TRANSPOSE,
       MergeProjectRule.CALCITE_INSTANCE,
-      RemoveEmptyScansRule.INSTANCE,
-      FilterWindowTransposeRule.INSTANCE
+      RemoveEmptyScansRule.INSTANCE
     );
-
-    b.add(LOGICAL_FILTER_CORRELATE_RULE);
-
-    if (ps.isTransitiveFilterPushdownEnabled()) {
-      // Add reduce expression rules to reduce any filters after applying transitive rule.
-      if (ps.options.getOption(PlannerSettings.REDUCE_ALGEBRAIC_EXPRESSIONS)) {
-        b.add(ReduceTrigFunctionsRule.INSTANCE);
-      }
-
-      if (ps.isConstantFoldingEnabled()) {
-        if (ps.isTransitiveReduceProjectExpressionsEnabled()) {
-          b.add(PROJECT_REDUCE_EXPRESSIONS_CALCITE_RULE);
-        }
-        if (ps.isTransitiveReduceFilterExpressionsEnabled()) {
-          b.add(FILTER_REDUCE_EXPRESSIONS_CALCITE_RULE);
-        }
-        if (ps.isTransitiveReduceCalcExpressionsEnabled()) {
-          b.add(CALC_REDUCE_EXPRESSIONS_CALCITE_RULE);
-        }
-      }
-    } else {
-      b.add(FILTER_INTO_JOIN_CALCITE_RULE,
-        JOIN_CONDITION_PUSH_CALCITE_RULE,
-        JOIN_PUSH_EXPRESSIONS_RULE);
-    }
 
     return b.build();
   }
@@ -971,7 +986,8 @@ public enum PlannerPhase {
       CorrelateRule.INSTANCE,
       TableModifyRule.INSTANCE,
       TableOptimizeRule.INSTANCE,
-      CopyIntoTableRule.INSTANCE
+      CopyIntoTableRule.INSTANCE,
+      VacuumTableRule.INSTANCE
       ).build());
 
   static final RuleSet getPhysicalRules(OptimizerRulesContext optimizerRulesContext) {

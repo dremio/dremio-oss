@@ -40,7 +40,6 @@ import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.exec.hadoop.HadoopFileSystem;
-import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.exec.util.ColumnUtils;
 
@@ -163,7 +162,7 @@ public class TestIcebergScan extends BaseTestQuery {
     copyFromJar("iceberg/partitionednation", testRootPath);
 
     File tableRoot = new File(testRootPath);
-    IcebergModel icebergModel = getIcebergModel(tableRoot, IcebergCatalogType.HADOOP);
+    IcebergModel icebergModel = getIcebergModel("dfs_hadoop");
     Table table = icebergModel.getIcebergTable(icebergModel.getTableIdentifier(tableRoot.getPath()));
 
     // n_regionkey was renamed to regionkey

@@ -28,8 +28,6 @@ import org.slf4j.LoggerFactory;
 import com.dremio.http.BufferBasedCompletionHandler;
 import com.dremio.io.ExponentialBackoff;
 
-import io.netty.buffer.ByteBuf;
-
 /**
  * Utility class that does read with retry
  */
@@ -54,8 +52,7 @@ public class AsyncReadWithRetry {
                                                MetricsLogger metrics,
                                                Path path,
                                                String threadName,
-                                               ByteBuf dst,
-                                               int dstOffset,
+                                               BufferBasedCompletionHandler responseHandler,
                                                int retryAttemptNum,
                                                ExponentialBackoff backoff) {
 
@@ -68,8 +65,7 @@ public class AsyncReadWithRetry {
       Request req = requestBuilderFunction.apply(null);
 
       metrics.startTimer("request");
-      dst.writerIndex(dstOffset);
-      return asyncHttpClient.executeRequest(req, new BufferBasedCompletionHandler(dst))
+      return asyncHttpClient.executeRequest(req, responseHandler)
         .toCompletableFuture()
         .whenComplete((response, throwable) -> {
           metrics.endTimer("request");
@@ -108,7 +104,8 @@ public class AsyncReadWithRetry {
 
           metrics.endTimer("total");
           metrics.logAllMetrics();
-          return read(asyncHttpClient, requestBuilderFunction, metrics, path, threadName, dst, dstOffset, retryAttemptNum + 1, backoff);
+          responseHandler.reset();
+          return read(asyncHttpClient, requestBuilderFunction, metrics, path, threadName, responseHandler, retryAttemptNum + 1, backoff);
         }).thenCompose(Function.identity());
     }
 }

@@ -27,7 +27,6 @@
     <packageLogLevel>com.dremio.common.logging.obfuscation.TestBlockLevel.B.Second,error</packageLogLevel>
     <packageLogLevel>com.dremio.common.logging.obfuscation.TestBlockLevel.B.Third,debug</packageLogLevel>
     <packageLogLevel>com.dremio.common.logging.obfuscation.TestBlockLevel.C.Second,trace</packageLogLevel>
-
   </turboFilter>
 
   <appender name="SOCKET" class="de.huxhorn.lilith.logback.appender.ClassicMultiplexSocketAppender">

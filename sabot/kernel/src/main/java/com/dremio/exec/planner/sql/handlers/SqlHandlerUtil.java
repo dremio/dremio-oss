@@ -57,12 +57,14 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.tools.ValidationException;
 import org.apache.calcite.util.TimestampString;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.text.StrTokenizer;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
@@ -98,6 +100,9 @@ import com.google.common.collect.Sets;
 
 public class SqlHandlerUtil {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SqlHandlerUtil.class);
+
+  private static final String UNKNOWN_SOURCE_TYPE = "Unknown";
+  public static final String PLANNER_SOURCE_TARGET_SOURCE_TYPE_SPAN_ATTRIBUTE_NAME = "dremio.planner.source.target.source_type";
 
   /**
    * Resolve final RelNode of the new table (or view) for given table field list and new table definition.
@@ -158,7 +163,7 @@ public class SqlHandlerUtil {
 
       // CTAS's query field list shouldn't have "*" when table's field list is specified.
       for (String field : validatedRowtype.getFieldNames()) {
-        if (field.equals("*")) {
+        if ("*".equals(field)) {
           final String tblType = isNewTableView ? "view" : "table";
           throw UserException.validationError()
               .message("%s's query field list has a '*', which is invalid when %s's field list is specified.",
@@ -581,5 +586,27 @@ public class SqlHandlerUtil {
     }
 
     return timestamp.substring(0, index);
+  }
+
+  public static void validateSupportForVersionedReflections(String source, Catalog catalog, OptionManager optionManager) {
+    if (CatalogUtil.requestedPluginSupportsVersionedTables(source, catalog)) {
+      if (!optionManager.getOption(CatalogOptions.REFLECTION_ARCTIC_ENABLED)) {
+        throw UserException.unsupportedError()
+          .message("Versioned source does not support reflection.")
+          .build(logger);
+      }
+    }
+  }
+
+  public static String getSourceType(Catalog catalog, String sourceName) {
+    if (!StringUtils.isEmpty(sourceName)) {
+      try {
+        return catalog.getSource(sourceName).getClass().getSimpleName();
+      } catch (UserException e) {
+        logger.debug("Unable to get source {} from the catalog: {}", sourceName, e.getOriginalMessage());
+      }
+    }
+
+    return UNKNOWN_SOURCE_TYPE;
   }
 }

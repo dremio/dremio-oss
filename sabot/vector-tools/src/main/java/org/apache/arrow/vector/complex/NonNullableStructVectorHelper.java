@@ -44,6 +44,7 @@ public class NonNullableStructVectorHelper implements ValueVectorHelper {
     this.structVector = vector;
   }
 
+  @Override
   public void load(SerializedField metadata, ArrowBuf buf) {
     final List<SerializedField> fields = metadata.getChildList();
     structVector.valueCount = metadata.getValueCount();
@@ -69,6 +70,7 @@ public class NonNullableStructVectorHelper implements ValueVectorHelper {
     Preconditions.checkState(bufOffset == buf.capacity());
   }
 
+  @Override
   public void materialize(Field field) {
     List<Field> children = field.getChildren();
 
@@ -79,6 +81,7 @@ public class NonNullableStructVectorHelper implements ValueVectorHelper {
     }
   }
 
+  @Override
   public SerializedField getMetadata() {
     SerializedField.Builder b = SerializedField.newBuilder()
         .setNamePart(NamePart.newBuilder().setName(structVector.getField().getName()))

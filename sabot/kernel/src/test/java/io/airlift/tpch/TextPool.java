@@ -54,6 +54,7 @@ public class TextPool {
 
   public TextPool(int size, Distributions distributions) {
     this(size, distributions, new TextGenerationProgressMonitor() {
+      @Override
       public void updateProgress(double progress) {
       }
     });
@@ -170,6 +171,7 @@ public class TextPool {
       case ',':
         builder.erase(1);
         builder.append(", ");
+        continue;
       case ' ':
         continue;
       default:

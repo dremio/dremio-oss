@@ -14,7 +14,7 @@ Note: This should work for both Community and Enterprise editions of Dremio.
 ## Single Node Deployment
 
 ```bash
-docker run -p 9047:9047 -p 31010:31010 -p 45678:45678 dremio/dremio-oss
+docker run -p 9047:9047 -p 31010:31010 -p 32010:32010 -p 45678:45678 dremio/dremio-oss
 ```
 This includes a single node deployment that starts up a single daemon that includes:
 * Embedded Zookeeper

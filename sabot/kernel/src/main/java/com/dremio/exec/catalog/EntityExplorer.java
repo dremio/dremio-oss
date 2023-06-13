@@ -99,5 +99,14 @@ public interface EntityExplorer {
    * @param context version context
    * @return translatable table
    */
+  DremioTable getTableSnapshotForQuery(NamespaceKey key, TableVersionContext context);
+
+  /**
+   * Retrieve a table snapshot when querying the table's data, without checking for privileges.
+   *
+   * @param key     path to table
+   * @param context version context
+   * @return translatable table
+   */
   DremioTable getTableSnapshot(NamespaceKey key, TableVersionContext context);
 }

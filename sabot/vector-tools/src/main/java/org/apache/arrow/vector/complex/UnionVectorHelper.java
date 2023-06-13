@@ -37,6 +37,7 @@ public class UnionVectorHelper implements ValueVectorHelper {
     this.unionVector = vector;
   }
 
+  @Override
   public void load(UserBitShared.SerializedField metadata, ArrowBuf buffer) {
     /* clear the current buffers (if any) */
     unionVector.clear();
@@ -62,6 +63,7 @@ public class UnionVectorHelper implements ValueVectorHelper {
     unionVector.typeBuffer .getReferenceManager().retain(1);
   }
 
+  @Override
   public void materialize(Field field) {
     for (Field child : field.getChildren()) {
       FieldVector v = TypeHelper.getNewVector(child, unionVector.getAllocator());
@@ -70,6 +72,7 @@ public class UnionVectorHelper implements ValueVectorHelper {
     }
   }
 
+  @Override
   public SerializedField getMetadata() {
     SerializedField.Builder b = SerializedField.newBuilder()
             .setNamePart(NamePart.newBuilder().setName(unionVector.getField().getName()))

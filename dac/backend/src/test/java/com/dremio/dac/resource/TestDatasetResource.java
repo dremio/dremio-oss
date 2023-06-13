@@ -20,6 +20,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import java.io.File;
+import java.io.PrintWriter;
 import java.util.concurrent.TimeUnit;
 
 import javax.ws.rs.client.Entity;
@@ -40,7 +42,6 @@ import com.dremio.dac.server.ValidationErrorMessage;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.NASConf;
-import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
@@ -55,9 +56,12 @@ import com.google.common.collect.ImmutableList;
  */
 public class TestDatasetResource extends BaseTestServer {
   private static final String SOURCE_NAME = "mysrc";
+  private static final String DATASET_NAME = "ds1.json";
+  private static final String DATASET_NAME_2 = "ds2.json";
   private static final long DEFAULT_REFRESH_PERIOD = TimeUnit.HOURS.toMillis(4);
   private static final long DEFAULT_GRACE_PERIOD = TimeUnit.HOURS.toMillis(12);
-  private static final DatasetPath DATASET_PATH = new DatasetPath(ImmutableList.of(SOURCE_NAME, "ds1"));
+  private static final DatasetPath DATASET_PATH = new DatasetPath(ImmutableList.of(SOURCE_NAME, DATASET_NAME));
+  private static final DatasetPath DATASET_PATH_2 = new DatasetPath(ImmutableList.of(SOURCE_NAME, DATASET_NAME_2));
 
   @Rule
   public final TemporaryFolder folder = new TemporaryFolder();
@@ -72,29 +76,40 @@ public class TestDatasetResource extends BaseTestServer {
     return Preconditions.checkNotNull(service, "source service is required");
   }
 
-  public void addPhysicalDataset(final DatasetPath path, final DatasetType type) throws Exception {
-    NamespaceKey datasetPath = path.toNamespaceKey();
-    final DatasetConfig datasetConfig = new DatasetConfig();
-    datasetConfig.setName(datasetPath.getName());
-    datasetConfig.setType(type);
-    datasetConfig.setPhysicalDataset(new PhysicalDataset());
-    getNamespaceService().tryCreatePhysicalDataset(datasetPath, datasetConfig);
+  private void createNewFile(String datasetName) throws Exception {
+    final File file2 = folder.newFile(datasetName);
+    try (PrintWriter writer = new PrintWriter(file2)) {
+      writer.print("{ \"key\" : \"A\", \"value\" : 0 }");
+    }
   }
 
   @Before
   public void setup() throws Exception {
     final NASConf nas = new NASConf();
     nas.path = folder.getRoot().getPath();
-    SourceUI source = new SourceUI();
+
+    final SourceUI source = new SourceUI();
     source.setName(SOURCE_NAME);
     source.setCtime(System.currentTimeMillis());
     source.setAccelerationRefreshPeriod(DEFAULT_REFRESH_PERIOD);
     source.setAccelerationGracePeriod(DEFAULT_GRACE_PERIOD);
-    // Please note: if this source is ever refreshed, the physical dataset added below will disappear
-    source.setMetadataPolicy(UIMetadataPolicy.of(CatalogService.NEVER_REFRESH_POLICY));
+    source.setMetadataPolicy(
+        UIMetadataPolicy.of(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE));
     source.setConfig(nas);
     getSourceService().registerSourceWithRuntime(source);
-    addPhysicalDataset(DATASET_PATH, DatasetType.PHYSICAL_DATASET);
+
+    createNewFile(DATASET_NAME);
+    getPreview(DATASET_PATH);
+
+    final DatasetConfig datasetConfig = new DatasetConfig();
+    datasetConfig.setName(DATASET_PATH_2.getLeaf().getName());
+    datasetConfig.setFullPathList(DATASET_PATH_2.toPathList());
+    datasetConfig.setType(DatasetType.PHYSICAL_DATASET);
+    datasetConfig.setPhysicalDataset(new PhysicalDataset());
+    getNamespaceService().addOrUpdateDataset(DATASET_PATH_2.toNamespaceKey(), datasetConfig);
+
+    createNewFile(DATASET_NAME_2);
+    getPreview(DATASET_PATH_2);
   }
 
   @After
@@ -175,10 +190,19 @@ public class TestDatasetResource extends BaseTestServer {
     goodDescriptor.setAccelerationNeverExpire(false);
     goodDescriptor.setAccelerationNeverRefresh(false);
 
-
     expectSuccess(
       getBuilder(getAPIv2().path(String.format("/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
         .buildPut(Entity.entity(goodDescriptor, JSON)));
+
+    final AccelerationSettingsDescriptor descriptor = new AccelerationSettingsDescriptor()
+      .setAccelerationRefreshPeriod(DEFAULT_REFRESH_PERIOD)
+      .setAccelerationGracePeriod(DEFAULT_GRACE_PERIOD)
+      .setMethod(RefreshMethod.FULL);
+
+    expectSuccess(
+      getBuilder(getAPIv2().path(String.format("/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
+        .buildPut(Entity.entity(descriptor, JSON)));
+
 
     final AccelerationSettingsDescriptor badDescriptor = expectSuccess(
       getBuilder(getAPIv2().path(endpoint)).buildGet(),
@@ -231,11 +255,11 @@ public class TestDatasetResource extends BaseTestServer {
         .setRefreshField("test-field");
 
       expectSuccess(
-          getBuilder(getAPIv2().path(String.format("/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
+          getBuilder(getAPIv2().path(String.format("/dataset/%s/acceleration/settings", DATASET_PATH_2.toPathString())))
               .buildPut(Entity.entity(descriptor, JSON)));
 
       final AccelerationSettingsDescriptor newDescriptor = expectSuccess(
-          getBuilder(getAPIv2().path(String.format("/dataset/%s/acceleration/settings", DATASET_PATH.toPathString()))).buildGet(),
+          getBuilder(getAPIv2().path(String.format("/dataset/%s/acceleration/settings", DATASET_PATH_2.toPathString()))).buildGet(),
           AccelerationSettingsDescriptor.class
       );
 
@@ -256,7 +280,7 @@ public class TestDatasetResource extends BaseTestServer {
         .setMethod(RefreshMethod.INCREMENTAL);
 
       expectStatus(Response.Status.BAD_REQUEST,
-          getBuilder(getAPIv2().path(String.format("/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
+          getBuilder(getAPIv2().path(String.format("/dataset/%s/acceleration/settings", DATASET_PATH_2.toPathString())))
               .buildPut(Entity.entity(descriptor, JSON)));
     }
 
@@ -273,9 +297,6 @@ public class TestDatasetResource extends BaseTestServer {
     }
 
     {
-      final DatasetPath path2 = new DatasetPath(ImmutableList.of(SOURCE_NAME, "ds2"));
-      addPhysicalDataset(path2, DatasetType.PHYSICAL_DATASET_SOURCE_FILE);
-
       final AccelerationSettingsDescriptor descriptor = new AccelerationSettingsDescriptor()
         .setAccelerationRefreshPeriod(DEFAULT_REFRESH_PERIOD)
         .setAccelerationGracePeriod(DEFAULT_GRACE_PERIOD)
@@ -283,7 +304,7 @@ public class TestDatasetResource extends BaseTestServer {
         .setRefreshField("some-field");
 
       expectStatus(Response.Status.BAD_REQUEST,
-          getBuilder(getAPIv2().path(String.format("/dataset/%s/acceleration/settings", path2.toPathString())))
+          getBuilder(getAPIv2().path(String.format("/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
               .buildPut(Entity.entity(descriptor, JSON)));
     }
 
@@ -296,7 +317,7 @@ public class TestDatasetResource extends BaseTestServer {
     {
       expectStatus(Response.Status.BAD_REQUEST,
         getBuilder(getAPIv2().path(String.format("/dataset/%s/rename/", DATASET_PATH.toPathString()))
-          .queryParam("renameTo", DATASET_PATH.getLeaf().toString()))
+          .queryParam("renameTo", DATASET_PATH_2.getLeaf().toString()))
           .build("POST"));
     }
 

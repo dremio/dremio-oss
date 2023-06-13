@@ -48,47 +48,6 @@ describe("App-spec", () => {
     });
   });
 
-  describe("#handleGlobalError()", () => {
-    it("should ignore when url origin is different than window.location.origin", () => {
-      sinon.stub(instance, "displayError");
-      sinon.stub(instance, "_getWindowOrigin").returns("http://localhost:4000");
-      instance.handleGlobalError(undefined, "message", "https://foo");
-      expect(instance.displayError).to.not.be.called;
-      instance.handleGlobalError(
-        undefined,
-        "message",
-        instance._getWindowOrigin()
-      );
-      expect(instance.displayError).to.be.called;
-    });
-
-    it('should ignore when url is ""', () => {
-      sinon.stub(instance, "displayError");
-      instance.handleGlobalError(undefined, "message", "");
-      expect(instance.displayError).to.not.be.called;
-    });
-
-    it("should pass error || message to displayError", () => {
-      sinon.stub(instance, "displayError");
-      sinon.stub(instance, "_getWindowOrigin").returns("http://localhost:4000");
-      instance.handleGlobalError(
-        undefined,
-        "message",
-        instance._getWindowOrigin(),
-        null,
-        null,
-        "error"
-      );
-      expect(instance.displayError).to.be.calledWith("error");
-    });
-
-    it("should call previous onerror if defined", () => {
-      const prevOnerror = sinon.stub();
-      instance.handleGlobalError(prevOnerror, "message", 1, 2, 3, "error");
-      expect(prevOnerror).to.be.calledWith("message", 1, 2, 3, "error");
-    });
-  });
-
   describe("#_shouldIgnoreExternalStack()", () => {
     it("returns true when stackOrigin is not current origin", () => {
       expect(instance._shouldIgnoreExternalStack()).to.be.false;

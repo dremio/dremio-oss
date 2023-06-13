@@ -88,15 +88,13 @@ public class DistributionLoader
             int weight;
             try {
                 weight = Integer.parseInt(parts.get(1));
-            }
-            catch (NumberFormatException e) {
+            } catch (NumberFormatException e) {
                 throw new IllegalStateException(String.format("Invalid distribution %s: invalid weight on line %s", name, line));
             }
 
-            if (value.equalsIgnoreCase("count")) {
+            if ("count".equalsIgnoreCase(value)) {
                 count = weight;
-            }
-            else {
+            } else {
                 members.put(value, weight);
             }
         }

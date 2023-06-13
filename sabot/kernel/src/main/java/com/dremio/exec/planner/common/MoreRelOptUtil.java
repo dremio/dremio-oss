@@ -102,7 +102,7 @@ import org.apache.calcite.tools.RelBuilderFactory;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Pair;
 import org.apache.calcite.util.Util;
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Triple;
 
@@ -133,6 +133,22 @@ public final class MoreRelOptUtil {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MoreRelOptUtil.class);
 
   private MoreRelOptUtil() {}
+
+  /**
+   * Finds all columns used by {@link RexInputRef} in a {@link RexNode}.
+   * @param rexNode {@link RexNode} to find inputs for
+   * @return set of columns used by the rexNode
+   */
+  public static ImmutableBitSet findColumnsUsed(RexNode rexNode) {
+    ImmutableBitSet.Builder inputs = ImmutableBitSet.builder();
+    rexNode.accept(new RexVisitorImpl<Void>(true){
+      @Override public Void visitInputRef(RexInputRef inputRef) {
+        inputs.set(inputRef.getIndex());
+        return super.visitInputRef(inputRef);
+      }
+    });
+    return inputs.build();
+  }
 
   /**
    * Computes the height of the rel tree under the input rel node.
@@ -1271,6 +1287,7 @@ public final class MoreRelOptUtil {
         this.builder = builder;
       }
 
+      @Override
       public RexNode visitCall(RexCall rexCall) {
         if (rexCall.isA(SqlKind.COMPARISON)) {
           if(rexCall.getOperands().get(0).getType().isStruct()) {
@@ -1490,24 +1507,28 @@ public final class MoreRelOptUtil {
   public static long longHashCode(RelNode relNode) {
     Hasher hasher = Hashing.sha256().newHasher();
     relNode.explain(new RelWriter() {
-      @Override public void explain(RelNode rel, List<Pair<String, Object>> valueList) {
+      @Override
+      public void explain(RelNode rel, List<Pair<String, Object>> valueList) {
         for(Pair<String, Object> pair: valueList) {
           item(pair.left, pair.right);
         }
         done(relNode);
       }
 
-      @Override public SqlExplainLevel getDetailLevel() {
+      @Override
+      public SqlExplainLevel getDetailLevel() {
         return SqlExplainLevel.DIGEST_ATTRIBUTES;
       }
 
-      @Override public RelWriter input(String term, RelNode input) {
+      @Override
+      public RelWriter input(String term, RelNode input) {
         hasher.putString(term, StandardCharsets.UTF_8);
         input.explain(this);
         return this;
       }
 
-      @Override public RelWriter item(String term, Object value) {
+      @Override
+      public RelWriter item(String term, Object value) {
         if(value instanceof RelNode) {
           input(term, (RelNode) value);
         } else {
@@ -1517,7 +1538,8 @@ public final class MoreRelOptUtil {
         return this;
       }
 
-      @Override public RelWriter itemIf(String term, Object value, boolean condition) {
+      @Override
+      public RelWriter itemIf(String term, Object value, boolean condition) {
         if(condition) {
           return item(term, value);
         } else {
@@ -1525,12 +1547,14 @@ public final class MoreRelOptUtil {
         }
       }
 
-      @Override public RelWriter done(RelNode node) {
+      @Override
+      public RelWriter done(RelNode node) {
         hasher.putString(node.getClass().toString(), StandardCharsets.UTF_8);
         return this;
       }
 
-      @Override public boolean nest() {
+      @Override
+      public boolean nest() {
         return true;
       }
     });

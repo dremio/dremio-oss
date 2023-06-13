@@ -122,8 +122,7 @@ public class DremioFileSystemCache {
       if (fs != null) {
         try {
           fs.close();
-        }
-        catch(IOException ioe) {
+        } catch (IOException ioe) {
           exceptions.add(ioe);
         }
       }

@@ -40,6 +40,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.planner.sql.PartitionTransform;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
+import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
@@ -66,7 +67,11 @@ public class SqlCopyIntoTable extends SqlCall implements DataAdditionCmdCall, Sq
 
     @Override
     public RelDataType deriveType(SqlValidator validator, SqlValidatorScope scope, SqlCall call) {
-      SqlValidatorTable nsTable = validator.getCatalogReader().getTable(DmlUtils.getPath(((SqlCopyIntoTable)call).getTargetTable()).getPathComponents());
+      NamespaceKey path = DmlUtils.getPath(((SqlCopyIntoTable) call).getTargetTable());
+      SqlValidatorTable nsTable = validator.getCatalogReader().getTable(path.getPathComponents());
+      if (nsTable == null) {
+        throw UserException.invalidMetadataError().message("Table with path %s cannot be found", path).buildSilently();
+      }
       return nsTable.getRowType();
     }
   };

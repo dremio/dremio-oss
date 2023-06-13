@@ -28,15 +28,18 @@ import io.opentracing.Tracer;
  * gRPC channel factory with multi-tenancy support.
  */
 public final class MultiTenantGrpcChannelBuilderFactory extends BaseGrpcChannelBuilderFactory {
-  private static final ClientInterceptor mtInterceptor = new MultiTenantClientInterceptor();
+  private static final ClientInterceptor mtInterceptor =
+    ContextualizedClientInterceptor.buildMultiTenantClientInterceptor();
 
   public MultiTenantGrpcChannelBuilderFactory(Tracer tracer, Provider<Map<String, Object>> defaultServiceConfigProvider) {
     super(tracer, Sets.newHashSet(mtInterceptor), defaultServiceConfigProvider);
   }
 
-  public MultiTenantGrpcChannelBuilderFactory(Tracer tracer,
-                                              Provider<Map<String, Object>> defaultServiceConfigProvider,
-                                              ClientInterceptor interceptor) {
+  public MultiTenantGrpcChannelBuilderFactory(
+    Tracer tracer,
+    Provider<Map<String, Object>> defaultServiceConfigProvider,
+    ClientInterceptor interceptor)
+  {
     super(tracer, Sets.newHashSet(mtInterceptor, interceptor), defaultServiceConfigProvider);
   }
 }

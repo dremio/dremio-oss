@@ -67,6 +67,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.expression.CompleteType;
+import com.dremio.common.expression.PathSegment;
+import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
@@ -287,7 +289,7 @@ public class PredicateAnalyzer {
 
     @Override
     public Expression visitInputRef(RexInputRef inputRef) {
-      return new NamedFieldExpression((SchemaField) inputRef);
+      return new NamedFieldExpression((SchemaField) inputRef, config.isPushdownWithKeyword());
     }
 
     @Override
@@ -361,7 +363,8 @@ public class PredicateAnalyzer {
             case IS_NOT_NULL:
             case IS_NULL:
               return true;
-            default: // fall through
+            default:
+              return false;
           }
         case FUNCTION_ID:
         case FUNCTION_STAR:
@@ -401,8 +404,9 @@ public class PredicateAnalyzer {
               operands.add(nodeExpr);
             }
             String query = convertQueryString(operands.subList(0, operands.size() - 1), operands.get(operands.size() - 1));
-            return QueryExpression.create(new NamedFieldExpression(null)).queryString(query);
+            return QueryExpression.create(new NamedFieldExpression(null, false)).queryString(query);
           }
+          // fall through
         default:
           throw new PredicateAnalyzerException(format("Unsupported syntax [%s] for call: [%s]", syntax, call));
       }
@@ -1041,12 +1045,20 @@ public class PredicateAnalyzer {
 
     private final SchemaField schemaField;
 
-    public NamedFieldExpression(SchemaField schemaField) {
+    public NamedFieldExpression(SchemaField schemaField, boolean pushdownWithKeyword) {
       this.schemaField = schemaField;
+      if (schemaField != null && pushdownWithKeyword && schemaField.getCompleteType().isText() && !getUnescapedName().contains(".keyword") &&
+         schemaField.getPath().isSimplePath() && schemaField.getAnnotation().getSpecialType() == ElasticSpecialType.STRING_WITH_KEYWORD) {
+        schemaField.setPath(new SchemaPath(new PathSegment.NameSegment(getUnescapedName() + ".keyword")));
+      }
     }
 
     public String getRootName(){
       return schemaField.getPath().getRootSegment().getPath();
+    }
+
+    public String getUnescapedName(){
+      return schemaField.getPath().getAsUnescapedPath();
     }
 
     public boolean isMetaField(){

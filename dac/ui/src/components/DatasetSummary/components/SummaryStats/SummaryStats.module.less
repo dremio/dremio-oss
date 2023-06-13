@@ -14,15 +14,37 @@
  * limitations under the License.
  */
 
-.summary-stats {
+.summary-stats-container {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 24px;
-  &-container {
+  flex-direction: column;
+  margin-bottom: var(--dremio--spacing--2);
+  font-size: var(--dremio--font-size--default);
+
+  .analyze-container {
     display: flex;
-    flex-direction: column;
-    margin-bottom: 16px;
-    font-size: 12px;
+    align-items: center;
+    gap: var(--dremio--spacing--1);
+
+    .analyze-button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 28px;
+      width: 36px;
+      padding: var(--dremio--spacing--1);
+      border: 1px solid var(--color--neutral--100);
+      border-radius: var(--dremio--radius--1);
+      transition: 300ms ease all;
+
+      &__icon {
+        height: 20px;
+        width: 20px;
+      }
+
+      &:hover {
+        cursor: pointer;
+        background-color: var(--color--neutral--25);
+      }
+    }
   }
 }

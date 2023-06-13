@@ -37,6 +37,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import javax.ws.rs.client.Entity;
+import javax.ws.rs.core.GenericType;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.junit.AfterClass;
@@ -44,10 +45,10 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.rules.TemporaryFolder;
 
+import com.dremio.dac.api.Space;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.DatasetUI;
 import com.dremio.dac.model.job.JobDataFragment;
-import com.dremio.dac.model.spaces.Space;
 import com.dremio.dac.model.spaces.SpacePath;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.server.JobsServiceTestUtils;
@@ -418,7 +419,8 @@ public class BaseTestReflection extends BaseTestServer {
   }
 
   protected void createSpace(String name) {
-    expectSuccess(getBuilder(getAPIv2().path("space/" + name)).buildPut(Entity.json(new Space(null, name, null, null, null, 0, null))), Space.class);
+    Space newSpace = new Space(null, name, null, null, null);
+    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(newSpace)), new GenericType<Space>() {});
   }
 
   /**

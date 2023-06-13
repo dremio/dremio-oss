@@ -25,15 +25,15 @@ import org.apache.calcite.rel.RelShuttleImpl;
 import org.apache.calcite.rel.core.TableScan;
 
 import com.dremio.exec.calcite.logical.ScanCrel;
+import com.dremio.exec.catalog.CatalogUtil;
+import com.dremio.exec.catalog.EntityExplorer;
 import com.dremio.exec.planner.acceleration.CachedMaterializationDescriptor;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.acceleration.MaterializationDescriptor;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.service.Pointer;
-import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.reflection.proto.ExternalReflection;
 import com.dremio.service.reflection.proto.Materialization;
@@ -86,13 +86,11 @@ class MaterializationCache {
   }
 
   private final CacheHelper provider;
-  private final NamespaceService namespaceService;
   private final ReflectionStatusService reflectionStatusService;
   private final CatalogService catalogService;
 
-  MaterializationCache(CacheHelper provider, NamespaceService namespaceService, ReflectionStatusService reflectionStatusService, CatalogService catalogService) {
+  MaterializationCache(CacheHelper provider, ReflectionStatusService reflectionStatusService, CatalogService catalogService) {
     this.provider = Preconditions.checkNotNull(provider, "materialization provider required");
-    this.namespaceService = Preconditions.checkNotNull(namespaceService, "namespace service required");
     this.reflectionStatusService = Preconditions.checkNotNull(reflectionStatusService, "reflection status service required");
     this.catalogService = Preconditions.checkNotNull(catalogService, "catalog service required");
   }
@@ -137,6 +135,8 @@ class MaterializationCache {
     final Iterable<Materialization> provided = provider.getValidMaterializations();
     // this will hold the updated cache
     final Map<String, CachedMaterializationDescriptor> updated = Maps.newHashMap();
+    EntityExplorer catalog = CatalogUtil.getSystemCatalogForReflections(catalogService);
+
 
     // cache is enabled so we want to reuse as much of the existing cache as possible. Make sure to:
     // remove all cached descriptors that no longer exist
@@ -146,7 +146,7 @@ class MaterializationCache {
       final CachedMaterializationDescriptor cachedDescriptor = old.get(materialization.getId().getId());
       if (cachedDescriptor == null ||
           !materialization.getTag().equals(cachedDescriptor.getVersion()) ||
-          schemaChanged(cachedDescriptor, materialization)) {
+          schemaChanged(cachedDescriptor, materialization, catalog)) {
         safeUpdateEntry(updated, materialization);
       } else {
         // descriptor already in the cache, we can just reuse it
@@ -158,7 +158,7 @@ class MaterializationCache {
       final CachedMaterializationDescriptor cachedDescriptor = old.get(externalReflection.getId());
       if (cachedDescriptor == null
           || isExternalReflectionOutOfSync(externalReflection.getId())
-          || isExternalReflectionMetadataUpdated(cachedDescriptor)) {
+          || isExternalReflectionMetadataUpdated(cachedDescriptor, catalog)) {
         updateEntry(updated, externalReflection);
       } else {
         // descriptor already in the cache, we can just reuse it
@@ -168,7 +168,7 @@ class MaterializationCache {
     return updated;
   }
 
-  private boolean isExternalReflectionMetadataUpdated(CachedMaterializationDescriptor descriptor) {
+  private boolean isExternalReflectionMetadataUpdated(CachedMaterializationDescriptor descriptor, EntityExplorer catalog) {
     DremioMaterialization materialization = descriptor.getMaterialization();
     Pointer<Boolean> updated = new Pointer<>(false);
     materialization.getTableRel().accept(new RelShuttleImpl() {
@@ -176,14 +176,14 @@ class MaterializationCache {
       public RelNode visit(TableScan tableScan) {
         if (tableScan instanceof ScanCrel) {
           String version = ((ScanCrel) tableScan).getTableMetadata().getVersion();
-          try {
-            DatasetConfig dataset = namespaceService.getDataset(new NamespaceKey(tableScan.getTable().getQualifiedName()));
-            if (!dataset.getTag().equals(version)) {
+          DatasetConfig datasetConfig = CatalogUtil.getDatasetConfig(catalog, new NamespaceKey(tableScan.getTable().getQualifiedName()));
+          if (datasetConfig == null) {
+            updated.value = true;
+          } else {
+            if (!datasetConfig.getTag().equals(version)) {
               logger.debug("Dataset {} has new data. Invalidating cache for external reflection", tableScan.getTable().getQualifiedName());
               updated.value = true;
             }
-          } catch (NamespaceException e) {
-            updated.value = true;
           }
         } else {
           updated.value = true;
@@ -230,20 +230,19 @@ class MaterializationCache {
     }
   }
 
-  private boolean schemaChanged(MaterializationDescriptor old, Materialization materialization) {
-    if (namespaceService == null) {
-      return false;
-    }
-    try {
-      //TODO is this enough ? shouldn't we use the dataset hash instead ??
-      final NamespaceKey matKey = new NamespaceKey(ReflectionUtils.getMaterializationPath(materialization));
-      ByteString schemaString = namespaceService.getDataset(matKey).getRecordSchema();
-      BatchSchema newSchema = BatchSchema.deserialize(schemaString);
-      BatchSchema oldSchema = ((CachedMaterializationDescriptor) old).getMaterialization().getSchema();
-      return !oldSchema.equals(newSchema);
-    } catch (NamespaceException e) {
+  private boolean schemaChanged(MaterializationDescriptor old, Materialization materialization, EntityExplorer catalog) {
+    //TODO is this enough ? shouldn't we use the dataset hash instead ??
+    final NamespaceKey matKey = new NamespaceKey(ReflectionUtils.getMaterializationPath(materialization));
+
+    DatasetConfig datasetConfig = CatalogUtil.getDatasetConfig(catalog, matKey);
+    if (datasetConfig == null ) {
       return true;
     }
+
+    ByteString schemaString = datasetConfig.getRecordSchema();
+    BatchSchema newSchema = BatchSchema.deserialize(schemaString);
+    BatchSchema oldSchema = ((CachedMaterializationDescriptor) old).getMaterialization().getSchema();
+    return !oldSchema.equals(newSchema);
   }
 
   /**

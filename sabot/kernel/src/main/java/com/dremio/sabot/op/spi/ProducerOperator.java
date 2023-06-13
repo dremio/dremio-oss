@@ -49,6 +49,7 @@ public interface ProducerOperator extends Producer {
     }
   }
 
+  @Override
   ProducerOperator.State getState();
 
   /**

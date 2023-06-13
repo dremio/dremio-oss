@@ -1,0 +1,166 @@
+<!--
+
+    Copyright (C) 2017-2019 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.dremio.services</groupId>
+    <artifactId>dremio-services-parent</artifactId>
+    <version>24.1.0-202306130653310132-d30779f6</version>
+  </parent>
+
+  <groupId>com.dremio.services</groupId>
+  <artifactId>dremio-services-nessie-proxy</artifactId>
+  <packaging>jar</packaging>
+  <name>Services - Nessie - Proxy</name>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-common</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-common</artifactId>
+      <classifier>tests</classifier>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-options</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.projectnessie.nessie</groupId>
+      <artifactId>nessie-model</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.projectnessie.nessie</groupId>
+      <artifactId>nessie-rest-services</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.projectnessie.nessie</groupId>
+      <artifactId>nessie-services</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.projectnessie.nessie</groupId>
+      <artifactId>nessie-client</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>javax.enterprise</groupId>
+      <artifactId>cdi-api</artifactId>
+      <version>2.0</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.hamcrest</groupId>
+      <artifactId>hamcrest</artifactId>
+      <version>2.1</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.projectnessie.nessie</groupId>
+      <artifactId>nessie-jaxrs-tests</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.projectnessie.nessie</groupId>
+      <artifactId>nessie-jaxrs-testextension</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>javax.ws.rs</groupId>
+      <artifactId>javax.ws.rs-api</artifactId>
+      <version>${javax.ws.rs-api.version}</version>
+    </dependency>
+  </dependencies>
+
+  <profiles>
+    <profile>
+      <id>jdk11-or-higher</id>
+      <activation>
+        <jdk>[11,)</jdk>
+      </activation>
+
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-failsafe-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>default-integration-test</id>
+                <goals>
+                  <goal>integration-test</goal>
+                  <goal>verify</goal>
+                </goals>
+                <configuration>
+                  <systemPropertyVariables>
+                    <nessie.server.url>
+                      ${nessie.server.url}
+                    </nessie.server.url>
+                  </systemPropertyVariables>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.projectnessie</groupId>
+            <artifactId>nessie-apprunner-maven-plugin</artifactId>
+            <version>0.29.0</version>
+            <configuration>
+              <skip>${skipTests}</skip>
+              <!-- Preferred way, specify the GAV of the Nessie Quarkus server runnable (uber-jar) -->
+              <appArtifactId>org.projectnessie.nessie:nessie-quarkus:jar:runner:${nessie.version}</appArtifactId>
+              <!-- The system properties passed to the Nessie server -->
+              <systemProperties>
+                <!-- The IN_MEMORY store type implies the "new" storage model (full pagination support). -->
+                <nessie.version.store.type>IN_MEMORY</nessie.version.store.type>
+              </systemProperties>
+              <!-- These system properties will be available in your integration tests and will contain the
+                   port and full URL of the Nessie Quarkus server's HTTP server. -->
+              <!-- quarkus.http.port is the default -->
+              <httpListenPortProperty>nessie.server.http.port</httpListenPortProperty>
+              <!-- quarkus.http.test-url is the default -->
+              <httpListenUrlProperty>nessie.server.url</httpListenUrlProperty>
+            </configuration>
+            <executions>
+              <execution>
+                <!-- Start the Nessie Server before the integration tests start -->
+                <id>start</id>
+                <phase>pre-integration-test</phase>
+                <goals><goal>start</goal></goals>
+              </execution>
+              <execution>
+                <!-- Stop the Nessie Server after the integration tests finished -->
+                <id>stop</id>
+                <phase>post-integration-test</phase>
+                <goals><goal>stop</goal></goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+</project>

@@ -23,7 +23,6 @@ import org.glassfish.jersey.server.ServerProperties;
 import com.dremio.common.perf.Timer;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.dac.annotations.APIResource;
-import com.fasterxml.jackson.jaxrs.base.JsonMappingExceptionMapper;
 import com.fasterxml.jackson.jaxrs.base.JsonParseExceptionMapper;
 
 /**
@@ -46,6 +45,9 @@ public class APIServer extends ResourceConfig {
       register(resource);
     }
 
+    // Enable request contextualization.
+    register(new AuthenticationBinder());
+
     // FEATURES
     register(DACAuthFilterFeature.class);
     register(DACJacksonJaxbJsonFeature.class);
@@ -53,7 +55,7 @@ public class APIServer extends ResourceConfig {
 
     // EXCEPTION MAPPERS
     register(JsonParseExceptionMapper.class);
-    register(JsonMappingExceptionMapper.class);
+    register(RestApiJsonMappingExceptionMapper.class);
 
     // PROPERTIES
     property(ServerProperties.RESPONSE_SET_STATUS_OVER_SEND_ERROR, "true");

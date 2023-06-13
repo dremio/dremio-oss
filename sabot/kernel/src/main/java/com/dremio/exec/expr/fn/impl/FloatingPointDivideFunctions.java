@@ -46,9 +46,11 @@ public class FloatingPointDivideFunctions {
     @Inject FunctionErrorContext errCtx;
 
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       if(in2.value == 0.0) {
         throw errCtx.error()
@@ -69,9 +71,11 @@ public class FloatingPointDivideFunctions {
     @Inject FunctionErrorContext errCtx;
 
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       if(in2.value == 0.0) {
         throw errCtx.error()

@@ -45,7 +45,7 @@ public class MFunctionCatalogMetadata {
   private final FileType underlyingTable;
   /**
    * table function name such as
-   * TABLE_HISTORY,TABLE_MANIFESTS, TABLE_SNAPSHOT,TABLE_FILES
+   * TABLE_HISTORY,TABLE_MANIFESTS, TABLE_SNAPSHOT,TABLE_FILES, TABLE_PARTITIONS
    */
   private final MetadataFunctionsMacro.MacroName mFunctionName;
 
@@ -62,6 +62,7 @@ public class MFunctionCatalogMetadata {
     switch (mFunctionName) {
       case TABLE_HISTORY:
       case TABLE_SNAPSHOT:
+      case TABLE_PARTITIONS:
         return FileType.JSON;
       case TABLE_FILES:
       case TABLE_MANIFESTS:

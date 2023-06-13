@@ -27,6 +27,7 @@ import com.dremio.datastore.format.Format;
  */
 public class TestByteSerializerFactoryJson extends AbstractTestByteSerializerFactory {
 
+  @Override
   protected <T> void runCircularTest(Format<T> format, T original) throws IOException {
     final Serializer<T, byte[]> serializer = getSerializer(format);
 

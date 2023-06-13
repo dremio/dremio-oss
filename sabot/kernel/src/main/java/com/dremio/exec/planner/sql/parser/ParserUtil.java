@@ -19,6 +19,7 @@ package com.dremio.exec.planner.sql.parser;
 import java.util.List;
 
 import org.apache.calcite.avatica.util.Quoting;
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
@@ -30,10 +31,14 @@ import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.parser.SqlParserUtil;
 import org.apache.calcite.sql.pretty.SqlPrettyWriter;
+import org.apache.calcite.sql.util.SqlBasicVisitor;
+import org.apache.calcite.sql.util.SqlVisitor;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.catalog.TableVersionType;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.ParserConfig;
+import com.dremio.service.Pointer;
 import com.google.common.collect.Lists;
 
 /**
@@ -92,6 +97,46 @@ public class ParserUtil {
       return;
     }
     validateParsedViewQuery(sqlNode);
+  }
+
+  public static boolean checkTimeTravelOnView(String viewQuery) throws UserException {
+    ParserConfig PARSER_CONFIG = new ParserConfig(
+      Quoting.DOUBLE_QUOTE,
+      1000,
+      true,
+      PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
+    SqlParser parser = SqlParser.create(viewQuery, PARSER_CONFIG);
+    try {
+      SqlNode sqlNode = parser.parseStmt();
+      return isTimeTravelQuery(sqlNode);
+    } catch (SqlParseException parseException) {
+      // Don't catch real parser exceptions here. The purpose for this methodis only for catching unsupported
+      // query types from successful parsed statments. If there is areal parser error, the existing  flow
+      // to run the query and get back job results will catch and handle the parse exception correctly with the
+      // error handling that's already in place.
+      return false;
+    }
+
+  }
+
+  public static boolean isTimeTravelQuery(SqlNode sqlNode) {
+    Pointer<Boolean> timeTravel = new Pointer<>(false);
+    SqlVisitor<Void> visitor = new SqlBasicVisitor<Void>() {
+      @Override
+      public Void visit(SqlCall call) {
+        if ((call instanceof SqlVersionedTableMacroCall) &&
+          ((((SqlVersionedTableMacroCall) call).getTableVersionSpec().getTableVersionType() == TableVersionType.TIMESTAMP) ||
+            (((SqlVersionedTableMacroCall) call).getTableVersionSpec().getTableVersionType() == TableVersionType.SNAPSHOT_ID))) {
+          timeTravel.value = true;
+          return null;
+        }
+
+        return super.visit(call);
+      }
+    };
+
+    sqlNode.accept(visitor);
+    return timeTravel.value;
   }
 
 }

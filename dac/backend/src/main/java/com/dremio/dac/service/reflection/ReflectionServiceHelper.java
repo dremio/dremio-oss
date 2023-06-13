@@ -15,6 +15,8 @@
  */
 package com.dremio.dac.service.reflection;
 
+import static com.dremio.exec.catalog.CatalogOptions.REFLECTION_ARCTIC_ENABLED;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -24,7 +26,9 @@ import org.apache.calcite.util.Pair;
 
 import com.dremio.dac.api.Reflection;
 import com.dremio.dac.service.errors.ReflectionNotFound;
+import com.dremio.exec.catalog.VersionedDatasetId;
 import com.dremio.exec.ops.ReflectionContext;
+import com.dremio.options.OptionManager;
 import com.dremio.service.reflection.ReflectionAdministrationService;
 import com.dremio.service.reflection.ReflectionSettings;
 import com.dremio.service.reflection.ReflectionStatus;
@@ -33,6 +37,9 @@ import com.dremio.service.reflection.proto.Materialization;
 import com.dremio.service.reflection.proto.MaterializationMetrics;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionId;
+import com.google.common.collect.Iterables;
+
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 
 /**
  * Reflection service helper
@@ -40,14 +47,16 @@ import com.dremio.service.reflection.proto.ReflectionId;
 public class ReflectionServiceHelper {
   private final ReflectionAdministrationService.Factory reflectionAdministrationServiceFactory;
   private final ReflectionStatusService reflectionStatusService;
+  private final OptionManager optionManager;
 
   @Inject
   public ReflectionServiceHelper(
     ReflectionAdministrationService.Factory reflectionAdministrationServiceFactory,
-    ReflectionStatusService reflectionStatusService
-  ) {
+    ReflectionStatusService reflectionStatusService,
+    OptionManager optionManager) {
     this.reflectionAdministrationServiceFactory = reflectionAdministrationServiceFactory;
     this.reflectionStatusService = reflectionStatusService;
+    this.optionManager = optionManager;
   }
   public ReflectionAdministrationService getReflectionAdministrationService() {
     return reflectionAdministrationServiceFactory.get(ReflectionContext.SYSTEM_USER_CONTEXT);
@@ -66,6 +75,7 @@ public class ReflectionServiceHelper {
   }
 
   public Iterable<ReflectionGoal> getReflectionsForDataset(String datasetid) {
+    isVersionedSourceEnabled(datasetid);
     return getReflectionAdministrationService().getReflectionsByDatasetId(datasetid);
   }
 
@@ -76,12 +86,14 @@ public class ReflectionServiceHelper {
   }
 
   public ReflectionGoal createReflection(ReflectionGoal goal) {
+    isVersionedSourceEnabled(goal.getDatasetId());
     ReflectionId id = getReflectionAdministrationService().create(goal);
 
     return getReflectionAdministrationService().getGoal(id).get();
   }
 
   public ReflectionGoal updateReflection(ReflectionGoal goal) {
+    isVersionedSourceEnabled(goal.getDatasetId());
     Optional<ReflectionGoal> existingGoal = getReflectionAdministrationService().getGoal(goal.getId());
 
     if (!existingGoal.isPresent()) {
@@ -156,6 +168,7 @@ public class ReflectionServiceHelper {
     return getReflectionAdministrationService().getEnabledReflectionCountForDataset(datasetId) > 0;
   }
 
+  @WithSpan
   public void refreshReflectionsForDataset(String datasetId) {
     getReflectionAdministrationService().requestRefresh(datasetId);
   }
@@ -168,5 +181,15 @@ public class ReflectionServiceHelper {
     final String goalId = goal.getId().getId();
     Pair<Long, Long> currentSize = getCurrentSize(goalId);
     return new Reflection(goal, getStatusForReflection(goalId), currentSize.left, getTotalSize(goalId));
+  }
+
+  public boolean doesDatasetHaveReflection(String datasetId) {
+    return Iterables.size(getReflectionAdministrationService().getReflectionsByDatasetId(datasetId)) > 0;
+  }
+
+  public void isVersionedSourceEnabled(String datasetId) {
+    if (!optionManager.getOption(REFLECTION_ARCTIC_ENABLED) && VersionedDatasetId.isVersionedDatasetId(datasetId)) {
+      throw new UnsupportedOperationException("Versioned source does not support reflection.");
+    }
   }
 }

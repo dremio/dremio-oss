@@ -69,7 +69,7 @@
     }
 
     .input__prefix {
-      background-color: var(--dremio--color--neutral--100);
+      background-color: var(--color--neutral--25);
       border-top-left-radius: $input-border-radius;
       border-bottom-left-radius: $input-border-radius;
       padding: 0px map-get($map: $gutter-sizes, $key: double);

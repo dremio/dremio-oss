@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-parent</artifactId>
-    <version>24.0.0-202302100528110223-3a169b7c</version>
+    <version>24.1.0-202306130653310132-d30779f6</version>
   </parent>
 
   <groupId>com.dremio.services</groupId>
@@ -50,6 +50,7 @@
     <module>maestro</module>
     <module>namespace</module>
     <module>nessie-grpc</module>
+    <module>nessie-proxy</module>
     <module>nessie</module>
     <module>nessie-storage-upgrade</module>
     <module>options</module>

@@ -141,11 +141,9 @@ public class CollaborationTagStore {
   }
 
   private static final class CollaborationTagConverter implements DocumentConverter<String, CollaborationTag> {
-    private Integer version = 0;
-
     @Override
     public Integer getVersion() {
-      return version;
+      return 0;
     }
 
     @Override

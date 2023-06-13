@@ -17,7 +17,6 @@ package com.dremio.dac.api;
 
 import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
 import static javax.ws.rs.core.Response.Status.CONFLICT;
-import static javax.ws.rs.core.Response.Status.NOT_FOUND;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -64,8 +63,9 @@ public class TestCollaborationResource extends BaseTestServer {
     createSpaceAndVDS(spacePath, vdsPath);
     DatasetConfig dataset = newNamespaceService().getDataset(new NamespaceKey(vdsPath));
 
-    // no tags initially, so expect a 404
-    expectStatus(NOT_FOUND, getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("tag")).buildGet());
+    // Test no tags
+    Tags noTags = expectSuccess(getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("tag")).buildGet(), Tags.class);
+    assertEquals(noTags.getTags().size(), 0);
 
     CollaborationHelper collaborationHelper = l(CollaborationHelper.class);
 
@@ -74,7 +74,6 @@ public class TestCollaborationResource extends BaseTestServer {
     Tags newTags = new Tags(tagList, null);
     collaborationHelper.setTags(dataset.getId().getId(), newTags);
 
-    // tags exist now
     Tags tags = expectSuccess(getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("tag")).buildGet(), Tags.class);
     assertEquals(tags.getTags().size(), 2);
     assertTrue(tags.getTags().containsAll(tagList));
@@ -110,7 +109,7 @@ public class TestCollaborationResource extends BaseTestServer {
     assertNotNull(tags.getVersion());
 
     // clear out tags
-    tagList = Arrays.asList();
+    tagList = Collections.emptyList();
     newTags = new Tags(tagList, tags.getVersion());
     tags = expectSuccess(getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("tag")).buildPost(Entity.json(newTags)), Tags.class);
 
@@ -171,15 +170,14 @@ public class TestCollaborationResource extends BaseTestServer {
     createSpaceAndVDS(spacePath, vdsPath);
     DatasetConfig dataset = newNamespaceService().getDataset(new NamespaceKey(vdsPath));
 
-    // no tags initially, so expect a 404
-    expectStatus(NOT_FOUND, getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("wiki")).buildGet());
+    Wiki emptyWiki = expectSuccess(getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("wiki")).buildGet(), Wiki.class);
+    assertEquals(emptyWiki.getText(), "");
 
     CollaborationHelper collaborationHelper = l(CollaborationHelper.class);
 
     Wiki newWiki = new Wiki("sample wiki text", null);
     collaborationHelper.setWiki(dataset.getId().getId(), newWiki);
 
-    // tags exist now
     Wiki wiki = expectSuccess(getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("wiki")).buildGet(), Wiki.class);
     assertEquals(wiki.getText(), newWiki.getText());
 
@@ -314,14 +312,14 @@ public class TestCollaborationResource extends BaseTestServer {
     final NameSpaceContainer container = newNamespaceService().getEntities(Collections.singletonList(new NamespaceKey(path))).get(0);
     final CollaborationHelper collaborationHelper = l(CollaborationHelper.class);
 
-    collaborationHelper.setWiki(NamespaceUtils.getId(container), new Wiki(text, null));
+    collaborationHelper.setWiki(NamespaceUtils.getIdOrNull(container), new Wiki(text, null));
   }
 
   private void addTags(List<String> path, List<String> tags) throws Exception {
     final NameSpaceContainer container = newNamespaceService().getEntities(Collections.singletonList(new NamespaceKey(path))).get(0);
     final CollaborationHelper collaborationHelper = l(CollaborationHelper.class);
 
-    collaborationHelper.setTags(NamespaceUtils.getId(container), new Tags(tags, null));
+    collaborationHelper.setTags(NamespaceUtils.getIdOrNull(container), new Tags(tags, null));
   }
 
   private String createSpaceAndVDS(NamespaceKey spacePath, List<String> vdsPath) throws NamespaceException {
@@ -339,7 +337,7 @@ public class TestCollaborationResource extends BaseTestServer {
     final VirtualDataset virtualDataset = new VirtualDataset();
     virtualDataset.setSql("select * from sys.version");
 
-    DatasetConfig datasetConfig = new DatasetConfig();
+    final DatasetConfig datasetConfig = new DatasetConfig();
     datasetConfig.setName(vdsPath.get(vdsPath.size() - 1));
     datasetConfig.setFullPathList(vdsPath);
     datasetConfig.setType(DatasetType.VIRTUAL_DATASET);

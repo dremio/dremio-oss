@@ -16,6 +16,7 @@
 
 package com.dremio.common.exceptions;
 
+import java.security.AccessControlException;
 import java.util.Optional;
 
 import org.slf4j.Logger;
@@ -29,8 +30,10 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.rpc.Status;
 
 import io.grpc.Status.Code;
+import io.grpc.StatusException;
 import io.grpc.StatusRuntimeException;
 import io.grpc.protobuf.StatusProto;
+import io.grpc.stub.StreamObserver;
 
 /**
  * Utility functions related to grpc errors.
@@ -107,6 +110,81 @@ public final class GrpcExceptionUtil {
         .setMessage(message)
         .addDetails(Any.pack(ue.getOrCreatePBError(false), AnyTypeUtil.DREMIO_TYPE_URL_PREFIX))
         .build());
+  }
+
+  /**
+   *  Handles unknown {@link Throwable} by passing it in the {@link StreamObserver} as a Status* exception
+   *  Only use this method after handling the throwable as accurately as possible, and when no other information about the throwable is available
+   * @param responseObserver responseObserver
+   * @param t unknown exception
+   * @param message High level description of what failed (can be found from the method name)
+   */
+  public static <V> void fallbackHandleException(StreamObserver<V> responseObserver, Throwable t, String message) {
+    logger.warn("Using fallback to handle unknown exception", t);
+    if (t instanceof UserException) {
+      responseObserver.onError(toStatusRuntimeException((UserException) t));
+    } else if (t instanceof StatusException) {
+      responseObserver.onError((StatusException) t);
+    } else if (t instanceof StatusRuntimeException) {
+      responseObserver.onError(statusRuntimeExceptionMapper(t));
+    } else if (t instanceof IllegalArgumentException) {
+      responseObserver.onError(io.grpc.Status.INVALID_ARGUMENT
+        .withCause(t)
+        .withDescription(message)
+        .asRuntimeException());
+    } else if (t instanceof IllegalStateException) {
+      responseObserver.onError(io.grpc.Status.INTERNAL
+        .withCause(t)
+        .withDescription(message)
+        .asRuntimeException());
+    } else if (t instanceof AccessControlException) {
+      responseObserver.onError(io.grpc.Status.PERMISSION_DENIED
+        .withCause(t)
+        .withDescription(message)
+        .asRuntimeException());
+    } else if (t instanceof RuntimeException) {
+      responseObserver.onError(io.grpc.Status.UNKNOWN
+        .withCause(t)
+        .withDescription(message)
+        .asRuntimeException()
+      );
+    } else {
+      responseObserver.onError(io.grpc.Status.UNKNOWN
+        .withCause(t)
+        .withDescription(message)
+        .asException()
+      );
+    }
+  }
+
+  private static StatusRuntimeException statusRuntimeExceptionMapper(Throwable t) {
+    if (!(t instanceof StatusRuntimeException)) {
+      return new StatusRuntimeException(
+        io.grpc.Status.UNKNOWN.withDescription(
+          "The server encountered an unexpected error. Please retry your request.")
+          .withCause(t));
+    }
+
+    StatusRuntimeException sre = (StatusRuntimeException) t;
+    // UNAVAILABLE error is shown as "UNAVAILABLE: no healthy upstream" to the user.
+    // Provide a readable error message to user.
+    if (sre.getStatus().getCode() == io.grpc.Status.Code.UNAVAILABLE) {
+      return new StatusRuntimeException(
+        io.grpc.Status.UNAVAILABLE.withDescription(
+          "The service is temporarily unavailable. Please retry your request.")
+          .withCause(t));
+    }
+    return sre;
+  }
+
+  /**
+   *  Handles unknown {@link Throwable} by passing it in the {@link StreamObserver} as a Status* exception
+   *  Only use this method after handling the throwable as accurately as possible, and when no other information about the throwable is available
+   * @param responseObserver responseObserver
+   * @param t unknown exception
+   */
+  public static <V> void fallbackHandleException(StreamObserver<V> responseObserver, Throwable t) {
+    fallbackHandleException(responseObserver, t, t.getMessage());
   }
 
   /**

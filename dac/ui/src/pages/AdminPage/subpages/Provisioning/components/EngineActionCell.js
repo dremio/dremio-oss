@@ -146,7 +146,7 @@ const styles = {
     height: 32,
     width: 100,
     marginTop: 5,
-    color: "var(--dremio--color--neutral--600)",
+    color: "var(--color--neutral--600)",
   },
   settingsButton: {
     display: "flex",
@@ -164,6 +164,6 @@ const styles = {
   buttonIcon: {
     height: 20,
     width: 20,
-    color: "var(--dremio--color--neutral--600)",
+    color: "var(--color--neutral--600)",
   },
 };

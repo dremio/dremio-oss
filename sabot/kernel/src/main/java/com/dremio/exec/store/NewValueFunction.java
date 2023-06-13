@@ -47,12 +47,14 @@ public class NewValueFunction {
     @Output NullableBitHolder out;
     @Inject ArrowBuf buf;
 
+    @Override
     public void setup() {
       initialized = false;
       previous.buffer = buf;
       previous.start = 0;
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
 
@@ -65,7 +67,8 @@ public class NewValueFunction {
       } else {
         out.value = 1; // it's a new partition
         if (in.isSet == 1) { // copy the partition's value in previous holder
-          previous.buffer = buf = buf.reallocIfNeeded(in.end - in.start);
+          buf = buf.reallocIfNeeded(in.end - in.start);
+          previous.buffer = buf;
           previous.buffer.setBytes(0, in.buffer, in.start, in.end - in.start);
           previous.end = in.end - in.start;
         }
@@ -87,12 +90,14 @@ public class NewValueFunction {
     @Output NullableBitHolder out;
     @Inject ArrowBuf buf;
 
+    @Override
     public void setup() {
       initialized = false;
       previous.buffer = buf;
       previous.start = 0;
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
 
@@ -105,7 +110,8 @@ public class NewValueFunction {
       } else {
         out.value = 1; // it's a new partition
         if (in.isSet == 1) { // copy the partition's value in previous holder
-          previous.buffer = buf = buf.reallocIfNeeded(in.end - in.start);
+          buf = buf.reallocIfNeeded(in.end - in.start);
+          previous.buffer = buf;
           previous.buffer.setBytes(0, in.buffer, in.start, in.end - in.start);
           previous.end = in.end - in.start;
         }

@@ -142,8 +142,7 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
       try (ByteArrayInputStream bis = new ByteArrayInputStream(inputSplits.get(record));
            ObjectInput in = new ObjectInputStream(bis)) {
         splits.add((SplitAndPartitionInfo) in.readObject());
-      }
-      catch (Exception e) {
+      } catch (Exception e) {
         throw UserException
                 .dataReadError(e)
                 .message("Failed to read input split information.")
@@ -230,6 +229,7 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
     return;
   }
 
+  @Override
   public boolean hasBufferedRemaining() {
     produceFromBufferedSplits = true;
     getRecordReaderIterator().produceFromBuffered(true);

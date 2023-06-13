@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.NotImplementedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -199,6 +199,7 @@ public class DeltaLakeFormatPlugin extends EasyFormatPlugin<DeltaLakeFormatConfi
     }
   }
 
+  @Override
   public RecordReader getRecordReader(
           OperatorContext context,
           FileSystem dfs,
@@ -273,13 +274,11 @@ public class DeltaLakeFormatPlugin extends EasyFormatPlugin<DeltaLakeFormatConfi
                 }
                 //Wrap the record reader to have the version column as additional columns
                 return new AdditionalColumnsRecordReader(opCtx, deltaRecordReader, Arrays.asList(new ConstantColumnPopulators.BigIntNameValuePair(VERSION, version)), context.getAllocator());
-              }
-              catch (com.google.protobuf.InvalidProtocolBufferException e) {
+              } catch (com.google.protobuf.InvalidProtocolBufferException e) {
                 throw UserException.dataReadError()
                   .addContext("Unable to retrive version info of commit ", input.getExtended().getPath())
                   .build(logger);
-              }
-              catch (ExecutionSetupException e) {
+              } catch (ExecutionSetupException e) {
                 if (e.getCause() instanceof FileNotFoundException) {
                   throw UserException.invalidMetadataError(e.getCause())
                           .addContext("File not found")

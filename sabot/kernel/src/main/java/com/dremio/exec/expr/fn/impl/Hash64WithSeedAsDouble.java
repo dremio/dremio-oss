@@ -99,8 +99,7 @@ public class Hash64WithSeedAsDouble {
       out.isSet = 1;
       if (in.isSet == 0) {
         out.value = seed.value;
-      }
-      else {
+      } else {
         out.value = com.dremio.common.expression.fn.impl.HashHelper.hash64((double) in.value, seed.value);
       }
     }
@@ -122,8 +121,7 @@ public class Hash64WithSeedAsDouble {
       out.isSet = 1;
       if (in.isSet == 0) {
         out.value = seed.value;
-      }
-      else {
+      } else {
         out.value = com.dremio.common.expression.fn.impl.HashHelper.hash64((double) in.value, seed.value);
       }
     }

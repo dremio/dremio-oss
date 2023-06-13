@@ -87,8 +87,7 @@ public class DirListingRecordReaderIterator implements RecordReaderIterator {
     if (fs == null) {
       try {
         fs = plugin.createFSWithoutHDFSCache(dirListInputSplit.getRootPath(), config.getProps().getUserName(), context);
-      }
-      catch (IOException e) {
+      } catch (IOException e) {
         throw UserException.ioExceptionError(e).buildSilently();
       }
     }

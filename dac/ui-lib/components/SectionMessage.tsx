@@ -28,13 +28,13 @@ type SectionMessageAppearance =
 type Props = {
   appearance: SectionMessageAppearance;
   children?: JSX.Element | JSX.Element[] | string;
-  title: JSX.Element | string;
+  title?: JSX.Element | string;
 } & React.HTMLAttributes<HTMLDivElement>;
 
 const appearanceIcons: Record<SectionMessageAppearance, string> = {
-  information: "",
+  information: "interface/warning",
   success: "engine-state/running-engine",
-  warning: "",
+  warning: "interface/warning",
   danger: "engine-state/stopped",
   discovery: "",
 };
@@ -59,7 +59,9 @@ export const SectionMessage = forwardRef<HTMLDivElement, Props>(
           <dremio-icon name={appearanceIcons[appearance]} alt=""></dremio-icon>
         </div>
         <div className="dremio-section-message__content">
-          <header className="dremio-section-message__header">{title}</header>
+          {title && (
+            <header className="dremio-section-message__header">{title}</header>
+          )}
           {children}
         </div>
       </section>

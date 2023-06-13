@@ -30,7 +30,6 @@ import { ArcticCatalogsResource } from "@app/exports/resources/ArcticCatalogsRes
 import { useResourceSnapshot } from "smart-resource/react";
 import { useDispatch } from "react-redux";
 import { resetNessieState } from "@app/actions/nessie/nessie";
-import { handleSonarProjectChange } from "@app/utils/projects";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
 
@@ -45,15 +44,13 @@ const CatalogSelector = () => {
   const [arcticCatalogs] = useResourceSnapshot(ArcticCatalogsResource);
   const [sonarProjects] = useResourceSnapshot(SonarProjectsResource);
 
-  // fetch if projects/catalogs are null
   useEffect(() => {
-    if (!sonarProjects && !isArctic) {
+    if (!isArctic) {
       SonarProjectsResource.fetch();
-    }
-    if (!arcticCatalogs && isArctic) {
+    } else {
       ArcticCatalogsResource.fetch();
     }
-  }, [sonarProjects, arcticCatalogs, isArctic]);
+  }, [isArctic]);
 
   const refetchOnOpen = () => {
     isArctic ? ArcticCatalogsResource.fetch() : SonarProjectsResource.fetch();
@@ -73,12 +70,10 @@ const CatalogSelector = () => {
     if (sonarProjectId === newProject?.id) {
       return;
     }
+  };
 
-    handleSonarProjectChange(newProject, () =>
-      browserHistory.push(
-        commonPaths.projectBase.link({ projectId: newProject.id })
-      )
-    );
+  const getToRoute = (newProject: Record<string, any>) => {
+    return commonPaths.projectBase.link({ projectId: newProject.id });
   };
 
   const iconName = isArctic
@@ -97,16 +92,24 @@ const CatalogSelector = () => {
           (project: Record<string, any>) =>
             project.state === PROJECT_STATES.ACTIVE ||
             project.state === PROJECT_STATES.INACTIVE ||
+            project.state === PROJECT_STATES.DEACTIVATING ||
             project.state === PROJECT_STATES.ACTIVATING
         )
         .map((project: Record<string, any>) => {
           return {
-            label: <Breadcrumb text={project.name} iconName={iconName} />,
-            onClick: () => changeProject(project),
+            label: (
+              <Breadcrumb
+                text={project.name}
+                iconName={iconName}
+                toRoute={isArctic ? undefined : getToRoute(project)}
+              />
+            ),
             value: project.id,
+            onClick: () => changeProject(project),
           };
         })
     );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectsToShow]);
 
   if (Array.isArray(projectOptions)) {

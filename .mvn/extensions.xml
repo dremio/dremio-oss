@@ -27,4 +27,12 @@
       <artifactId>maven-notifier</artifactId>
       <version>2.1.2</version>
     </extension>
+    <extension>
+      <!-- Disabled by default.
+           Check https://github.com/open-telemetry/opentelemetry-java-contrib/tree/main/maven-extension for configuration.
+      -->
+      <groupId>io.opentelemetry.contrib</groupId>
+      <artifactId>opentelemetry-maven-extension</artifactId>
+      <version>1.24.0-alpha</version>
+    </extension>
 </extensions>

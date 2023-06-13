@@ -26,6 +26,7 @@ import com.dremio.common.utils.PathUtils;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobResult;
+import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.job.proto.SessionId;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
@@ -55,6 +56,14 @@ public class Job {
     this.resultsStore = null;
     this.completed = false;
     attempts.add( checkNotNull(jobAttempt, "jobAttempt is null"));
+  }
+
+  public Job(JobId jobId, JobResult jobResult) {
+    this.jobId = jobId;
+    this.sessionId = jobResult.getSessionId();
+    this.resultsStore = null;
+    this.completed = jobResult.getCompleted();
+    attempts.addAll(jobResult.getAttemptsList());
   }
 
   /**
@@ -92,6 +101,11 @@ public class Job {
     Preconditions.checkState(attempts.size() >=1, "There should be at least one attempt in Job");
     int lastAttempt = attempts.size() - 1;
     return attempts.get(lastAttempt);
+  }
+
+  public QueryType getQueryType() {
+    Preconditions.checkState(attempts.size() >=1, "There should be at least one attempt in Job");
+    return attempts.get(0).getInfo().getQueryType();
   }
 
   void addAttempt(final JobAttempt jobAttempt) {

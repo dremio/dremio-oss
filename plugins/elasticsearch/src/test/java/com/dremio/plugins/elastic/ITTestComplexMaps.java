@@ -29,6 +29,7 @@ import com.google.common.collect.ImmutableMap;
 
 public class ITTestComplexMaps extends ElasticBaseTestQuery {
 
+  @SuppressWarnings("checkstyle:MemberName")
   private String ELASTIC_TABLE = null;
 
   @Override
@@ -650,6 +651,7 @@ public class ITTestComplexMaps extends ElasticBaseTestQuery {
       .go();
   }
 
+  @Override
   public void verifyJsonInPlan(String s, String[] s2){
 
   }

@@ -38,6 +38,12 @@ public interface ClusterServiceSetManager extends Service {
   ServiceSet getOrCreateServiceSet(String serviceName);
 
   /**
+   * Delete a {@link ServiceSet} for the given service name
+   * @param serviceName
+   */
+  void deleteServiceSet(String serviceName);
+
+  /**
    * Get the set of service names registered in the ClusterCoordinator ServiceSet.
    * NOTE: There is no guarantee of return object consistency depending on how Dremio is tracking the registered serivces.
    *

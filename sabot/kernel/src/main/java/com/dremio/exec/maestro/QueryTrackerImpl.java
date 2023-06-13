@@ -42,7 +42,7 @@ import com.dremio.service.jobtelemetry.JobTelemetryClient;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
-import io.opentelemetry.extension.annotations.WithSpan;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 
 public class QueryTrackerImpl implements QueryTracker {
   @VisibleForTesting
@@ -104,7 +104,15 @@ public class QueryTrackerImpl implements QueryTracker {
   @WithSpan("allocate-resources")
   @Override
   public void allocateResources() throws ExecutionSetupException, ResourceAllocationException  {
-    resourceTracker = new ResourceTracker(physicalPlan, context, queryResourceManager, observer);
+    resourceTracker = new ResourceTracker(context, queryResourceManager);
+    resourceTracker.allocate(physicalPlan, observer);
+  }
+
+  @Override
+  public void interruptAllocation() {
+    if (resourceTracker != null) {
+      resourceTracker.interruptAllocation();
+    }
   }
 
   @Override

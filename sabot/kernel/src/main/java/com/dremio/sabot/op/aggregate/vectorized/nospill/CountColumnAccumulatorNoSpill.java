@@ -27,6 +27,7 @@ public class CountColumnAccumulatorNoSpill extends BaseSingleAccumulatorNoSpill 
     super(input, output);
   }
 
+  @Override
   public void accumulate(final long offsetAddr, final int count){
     final long maxAddr = offsetAddr + count * 4;
     final long incomingBit = getInput().getValidityBufferAddress();

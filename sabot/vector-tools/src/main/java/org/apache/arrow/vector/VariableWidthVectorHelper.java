@@ -27,6 +27,7 @@ public class VariableWidthVectorHelper<T extends BaseVariableWidthVector> extend
     super(vector);
   }
 
+  @Override
   public SerializedField.Builder getMetadataBuilder() {
     return super.getMetadataBuilder()
           .addChild(buildValidityMetadata())

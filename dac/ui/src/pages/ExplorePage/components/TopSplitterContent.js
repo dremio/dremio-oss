@@ -23,9 +23,9 @@ import {
   updateSqlPartSize,
   toggleExploreSql,
 } from "./../../../actions/explore/ui";
-
-import "./TopSplitterContent.less";
+import { showNavCrumbs } from "@inject/components/NavCrumbs/NavCrumbs";
 import SqlEditorController from "./SqlEditor/SqlEditorController";
+import "./TopSplitterContent.less";
 
 const MIN_SQL_HEIGHT = 80;
 
@@ -100,9 +100,15 @@ export class TopSplitterContent extends Component {
     const nextHeight = prevSqlHeight + moveInPx;
 
     // Get the document's height,
-    // subtract the header element's height,
-    // and allow the editor the resize up to 70% of the content area
-    const maxHeight = (document.body.offsetHeight - 180) * 0.7;
+    // subtract the heights of everything on top and below the editor,
+    // and allow the editor to resize until the results table is at least 64px in height.
+    // 54px dataset name, 41px header buttons, 36px query tabs,
+    // 48px table controls, 64px min height of table, 30px various paddings
+
+    const pageHeaderHeight = showNavCrumbs ? 40 : 64;
+    const maxHeight =
+      document.body.offsetHeight -
+      (pageHeaderHeight + 54 + 41 + 36 + 48 + 64 + 30);
 
     if (nextHeight >= maxHeight) {
       return this.setState({
@@ -123,7 +129,7 @@ export class TopSplitterContent extends Component {
     }
     this.setState({
       isDragInProgress: false,
-      // see https://dremio.atlassian.net/browse/DX-7038
+      // see DX-7038
       resizeLineTop: height <= MIN_SQL_HEIGHT ? this.props.sqlSize : height,
     });
 
@@ -147,6 +153,7 @@ export class TopSplitterContent extends Component {
     const {
       dataset,
       dragType,
+      editorWidth,
       exploreViewState,
       handleSidebarCollapse,
       sqlState,
@@ -156,26 +163,41 @@ export class TopSplitterContent extends Component {
 
     return (
       <div className="topContent">
-        <SqlEditorController
-          dataset={dataset}
-          dragType={dragType}
-          sqlState={sqlState}
-          sqlSize={sqlSize}
-          exploreViewState={exploreViewState}
-          handleSidebarCollapse={handleSidebarCollapse}
-          sidebarCollapsed={sidebarCollapsed}
-          ref={(ref) => (this.topSplitterContentRef = ref)}
-          editorWidth={this.props.editorWidth}
-        >
-          <div className="resizeEditor" onMouseDown={this.startDrag}></div>
-        </SqlEditorController>
-        <div
-          style={{
-            ...styles.separatorLine,
-            display: isDragInProgress ? "block" : "none",
-            top: resizeLineTop,
-          }}
-        ></div>
+        <>
+          <SqlEditorController
+            dataset={dataset}
+            dragType={dragType}
+            sqlState={sqlState}
+            sqlSize={sqlSize}
+            exploreViewState={exploreViewState}
+            handleSidebarCollapse={handleSidebarCollapse}
+            sidebarCollapsed={sidebarCollapsed}
+            ref={(ref) => (this.topSplitterContentRef = ref)}
+            editorWidth={editorWidth}
+          />
+          <div
+            className="resizeEditor"
+            onMouseDown={this.startDrag}
+            style={{
+              width: editorWidth + 2.5,
+              display: sqlState ? "inline-block" : "none",
+            }}
+          >
+            <div
+              className={`resizeIndicator ${
+                isDragInProgress ? "--dragging" : ""
+              }`}
+            />
+          </div>
+          <div
+            className="resizingDisplay"
+            style={{
+              width: editorWidth + 2.5,
+              display: isDragInProgress ? "block" : "none",
+              top: resizeLineTop + 25,
+            }}
+          />
+        </>
       </div>
     );
   }
@@ -191,30 +213,3 @@ export default connect(
   null,
   { forwardRef: true }
 )(TopSplitterContent);
-
-const styles = {
-  base: {
-    position: "relative",
-    minHeight: 0,
-    backgroundColor: "#F5FCFF",
-    flexShrink: 0, // do not allow to reduce a height
-  },
-  separatorLine: {
-    position: "absolute",
-    height: 10,
-    background: "#ccc",
-    cursor: "row-resize",
-    zIndex: 10,
-    left: 0,
-    width: "100%",
-    opacity: ".6",
-    display: "block",
-  },
-  separator: {
-    Icon: {
-      fontSize: 17,
-      cursor: "row-resize",
-      color: "#CACACA",
-    },
-  },
-};

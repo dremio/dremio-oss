@@ -45,7 +45,6 @@ class MetadataJobStatusListener implements JobStatusListener {
   MetadataJobStatusListener(DatasetTool datasetTool, VirtualDatasetUI newDataset, FromBase from) {
     Preconditions.checkArgument(datasetTool != null, "datasetTool can't be null.");
     Preconditions.checkArgument(newDataset != null, "newDataset can't be null.");
-    Preconditions.checkArgument(from != null, "from can't be null.");
     this.datasetTool = datasetTool;
     this.newDataset = newDataset;
     this.from = from;
@@ -62,7 +61,9 @@ class MetadataJobStatusListener implements JobStatusListener {
 
   private void applyMetadataAndSaveDataset() {
     try {
-      latch.await();
+      synchronized (latch) {
+        latch.await();
+      }
     } catch (final InterruptedException ex) {
       Throwables.propagate(ex);
     }
@@ -98,17 +99,23 @@ class MetadataJobStatusListener implements JobStatusListener {
   @Override
   public void jobFailed(Exception e) {
     error = e;
-    latch.notifyAll();
+    synchronized (latch) {
+      latch.notifyAll();
+    }
   }
 
   @Override
   public void jobCompleted() {
-    latch.notifyAll();
+    synchronized (latch) {
+      latch.notifyAll();
+    }
   }
 
   @Override
   public void jobCancelled(String reason) {
     cancelled = true;
-    latch.notifyAll();
+    synchronized (latch) {
+      latch.notifyAll();
+    }
   }
 }

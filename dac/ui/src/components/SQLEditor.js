@@ -14,21 +14,29 @@
  * limitations under the License.
  */
 import { formatQuery } from "dremio-ui-common/sql/formatter/sqlFormatter.js";
-import { PureComponent } from "react";
+import { isNotSoftware } from "dyn-load/utils/versionUtils";
+import { debounce } from "lodash";
+import { forwardRef, PureComponent } from "react";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import MonacoEditor from "react-monaco-editor";
 import Immutable from "immutable";
 import * as SQLLanguage from "monaco-editor/dev/vs/basic-languages/src/sql";
+
+import { fetchSupportFlags } from "@app/actions/supportFlags";
 import { MSG_CLEAR_DELAY_SEC } from "@app/constants/Constants";
+import { AUTOCOMPLETE_UI_V2 as AUTOCOMPLETE_V2_SUPPORTFLAG } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
+import { AUTOCOMPLETE_UI_V2 as AUTOCOMPLETE_V2_FEATUREFLAG } from "@app/exports/flags/AUTOCOMPLETE_UI_V2";
+import { getFeatureFlag } from "@app/selectors/featureFlagsSelector";
+import { getSupportFlags } from "@app/selectors/supportFlags";
 import { intl } from "@app/utils/intl";
-import config from "@inject/utils/config";
+import { useSqlFunctions } from "@app/pages/ExplorePage/components/SqlEditor/hooks/useSqlFunctions";
+import { fetchFeatureFlag } from "@inject/actions/featureFlag";
 
 import { RESERVED_WORDS } from "utils/pathUtils";
 import { runDatasetSql, previewDatasetSql } from "actions/explore/dataset/run";
 import { addNotification } from "actions/notification";
 import { SQLAutoCompleteProvider } from "./SQLAutoCompleteProvider";
-import { debounce } from "lodash";
 
 import "./SQLEditor.less";
 
@@ -46,10 +54,15 @@ const staticPropTypes = {
   maxHeight: PropTypes.number, // is only applicable for fitHeightToContent case
   contextMenu: PropTypes.bool,
   autoCompleteEnabled: PropTypes.bool,
+  formatterEnabled: PropTypes.bool,
   sqlContext: PropTypes.instanceOf(Immutable.List),
   customDecorations: PropTypes.array,
   runDatasetSql: PropTypes.func,
   previewDatasetSql: PropTypes.func,
+  fetchFeatureFlag: PropTypes.func,
+  fetchSupportFlags: PropTypes.func,
+  autocompleteV2Enabled: PropTypes.bool,
+  sqlFunctions: PropTypes.array,
 };
 
 const checkHeightAndFitHeightToContentFlags = (
@@ -109,6 +122,10 @@ export class SQLEditor extends PureComponent {
     }
 
     this.fitHeightToContent();
+
+    if (this.props.autocompleteV2Enabled == undefined) {
+      this.fetchAutocompleteV2Flag();
+    }
   }
 
   // do this in componentDidUpdate so it only happens once mounted.
@@ -126,6 +143,14 @@ export class SQLEditor extends PureComponent {
       this.fitHeightToContent();
     }
 
+    if (
+      this.props.formatterEnabled &&
+      !prevProps.formatterEnabled &&
+      this.editor
+    ) {
+      this.addFormattingShortcut(this.editor);
+    }
+
     if (this.props.autoCompleteEnabled !== prevProps.autoCompleteEnabled) {
       this.setAutocompletion(this.props.autoCompleteEnabled);
     }
@@ -139,6 +164,14 @@ export class SQLEditor extends PureComponent {
 
   componentWillUnmount() {
     this.removeAutoCompletion();
+  }
+
+  fetchAutocompleteV2Flag() {
+    if (isNotSoftware?.()) {
+      this.props.fetchFeatureFlag?.(AUTOCOMPLETE_V2_FEATUREFLAG);
+    } else {
+      this.props.fetchSupportFlags?.(AUTOCOMPLETE_V2_SUPPORTFLAG);
+    }
   }
 
   observeSuggestWidget() {
@@ -483,9 +516,15 @@ export class SQLEditor extends PureComponent {
     }
   };
 
-  setFormatter(language) {
+  registerFormattingProvider(language) {
+    const actions = window.require("vs/platform/actions/common/actions");
+    const editorContextId = actions.MenuId.EditorContext.id;
+    // Remove the built-in format document context menu item since it does not reflect our custom shortcut
+    actions.MenuRegistry._menuItems[editorContextId] =
+      actions.MenuRegistry._menuItems[editorContextId].filter(
+        (menu) => menu.command.id != "editor.action.formatDocument"
+      );
     this.monaco.languages.registerDocumentFormattingEditProvider(language, {
-      displayName: intl.formatMessage({ id: "SQL.Format" }),
       provideDocumentFormattingEdits: (model) => [
         {
           range: model.getFullModelRange(),
@@ -520,9 +559,7 @@ export class SQLEditor extends PureComponent {
       monaco.languages.setMonarchTokensProvider(language, tokenProvider);
       monaco.languages.setLanguageConfiguration(language, conf);
 
-      if (config.allowFormatting) {
-        this.setFormatter(language);
-      }
+      this.registerFormattingProvider(language);
 
       SnippetController = window.require(
         "vs/editor/contrib/snippet/browser/snippetController2"
@@ -604,24 +641,30 @@ export class SQLEditor extends PureComponent {
       keybindingContext: null,
       run: this.onKbdRun,
     });
-    if (config.allowFormatting) {
-      editor.addAction({
-        id: "keys-format",
-        label: intl.formatMessage({ id: "SQL.Format" }),
-        keybindings: [
-          monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KEY_F,
-        ], // eslint-disable-line no-bitwise
-        precondition: null,
-        keybindingContext: null,
-        run: () => {
-          editor.getAction("editor.action.formatDocument").run();
-        },
-      });
+    if (this.props.formatterEnabled) {
+      this.addFormattingShortcut(editor);
     }
     // trigger autocomplete suggestWidget
     editor.addCommand(monaco.KeyMod.WinCtrl | monaco.KeyCode.Space, () =>
       editor.trigger("", "editor.action.triggerSuggest")
     );
+  };
+
+  addFormattingShortcut = (editor) => {
+    editor.addAction({
+      id: "keys-format",
+      label: intl.formatMessage({ id: "SQL.Format" }),
+      keybindings: [
+        monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KEY_F,
+      ], // eslint-disable-line no-bitwise
+      precondition: null,
+      keybindingContext: null,
+      run: () => {
+        editor.getAction("editor.action.formatDocument").run();
+      },
+      contextMenuGroupId: "1_modification", // Show a context menu item for the action
+      contextMenuOrder: 2, // After "Change All Occurrences"
+    });
   };
 
   onFormatQuery = (query) => {
@@ -694,13 +737,34 @@ export class SQLEditor extends PureComponent {
   }
 }
 
+const SqlEditorWithHooksProps = forwardRef((props, ref) => {
+  const [sqlFunctions] = useSqlFunctions();
+  return <SQLEditor sqlFunctions={sqlFunctions} {...props} ref={ref} />;
+});
+SqlEditorWithHooksProps.displayName = "SqlEditorWithHooksProps";
+
+const isAutocompleteV2Enabled = (state) => {
+  if (isNotSoftware?.()) {
+    const flagVal = getFeatureFlag(state, AUTOCOMPLETE_V2_FEATUREFLAG);
+    return flagVal ? flagVal == "ENABLED" : undefined;
+  } else {
+    return getSupportFlags(state)[AUTOCOMPLETE_V2_SUPPORTFLAG];
+  }
+};
+
+const mapStateToProps = (state) => ({
+  autocompleteV2Enabled: isAutocompleteV2Enabled(state),
+});
+
 export default connect(
-  null,
+  mapStateToProps,
   {
     runDatasetSql,
     previewDatasetSql,
     addNotification,
+    fetchFeatureFlag,
+    fetchSupportFlags,
   },
   null,
   { forwardRef: true }
-)(SQLEditor);
+)(SqlEditorWithHooksProps);

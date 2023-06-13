@@ -62,7 +62,7 @@ public class JobTelemetryServiceImpl extends JobTelemetryServiceGrpc.JobTelemetr
   private final ProgressMetricsPublisher progressMetricsPublisher;
   private final BackgroundProfileWriter bgProfileWriter;
   private final boolean saveFullProfileOnQueryTermination;
-  private Retryer retryer;
+  private final Retryer retryer;
 
   @Inject
   JobTelemetryServiceImpl(MetricsStore metricsStore, ProfileStore profileStore, GrpcTracerFacade tracer) {
@@ -85,7 +85,7 @@ public class JobTelemetryServiceImpl extends JobTelemetryServiceGrpc.JobTelemetr
       metricsPublishFrequencyMillis);
     this.bgProfileWriter = new BackgroundProfileWriter(profileStore, tracer);
     this.saveFullProfileOnQueryTermination = saveFullProfileOnQueryTermination;
-    this.retryer = new Retryer.Builder()
+    this.retryer = Retryer.newBuilder()
       .retryIfExceptionOfType(DatastoreException.class)
       .setMaxRetries(MAX_RETRIES)
       .build();

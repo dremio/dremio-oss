@@ -134,6 +134,20 @@ class SourceAccessChecker implements Catalog {
   }
 
   @Override
+  public String getDatasetId(NamespaceKey key) {
+    if (isInvisible(key)) {
+      return null;
+    }
+
+    return delegate.getDatasetId(key);
+  }
+
+  @Override
+  public DremioTable getTableSnapshotForQuery(NamespaceKey key, TableVersionContext context) {
+    return delegate.getTableSnapshotForQuery(key, context);
+  }
+
+  @Override
   public DremioTable getTableSnapshot(NamespaceKey key, TableVersionContext context) {
     return delegate.getTableSnapshot(key, context);
   }
@@ -160,11 +174,6 @@ class SourceAccessChecker implements Catalog {
   @Override
   public NamespaceKey resolveToDefault(NamespaceKey key) {
     return delegate.resolveToDefault(key);
-  }
-
-  @Override
-  public MetadataStatsCollector getMetadataStatsCollector() {
-    return delegate.getMetadataStatsCollector();
   }
 
   @Override
@@ -277,15 +286,6 @@ class SourceAccessChecker implements Catalog {
                             TableMutationOptions tableMutationOptions) {
     throwIfInvisible(key);
     delegate.rollbackTable(key, datasetConfig, rollbackOption, tableMutationOptions);
-  }
-
-  @Override
-  public void vacuumTable(NamespaceKey key,
-                          DatasetConfig datasetConfig,
-                          VacuumOption vacuumOption,
-                          TableMutationOptions tableMutationOptions) {
-    throwIfInvisible(key);
-    delegate.vacuumTable(key, datasetConfig, vacuumOption, tableMutationOptions);
   }
 
   @Override
@@ -566,5 +566,15 @@ class SourceAccessChecker implements Catalog {
   @Override
   public void validateOwnership(NamespaceKey key) {
     delegate.validateOwnership(key);
+  }
+
+  @Override
+  public void invalidateNamespaceCache(final NamespaceKey key) {
+    delegate.invalidateNamespaceCache(key);
+  }
+
+  @Override
+  public MetadataRequestOptions getMetadataRequestOptions() {
+    return options;
   }
 }

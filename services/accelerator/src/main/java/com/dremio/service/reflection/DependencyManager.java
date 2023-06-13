@@ -15,6 +15,7 @@
  */
 package com.dremio.service.reflection;
 
+import static com.dremio.exec.catalog.VersionedDatasetId.isVersionedDatasetId;
 import static com.dremio.service.reflection.DependencyUtils.filterDatasetDependencies;
 import static com.dremio.service.reflection.DependencyUtils.filterReflectionDependencies;
 import static com.dremio.service.reflection.DependencyUtils.filterTableFunctionDependencies;
@@ -29,8 +30,9 @@ import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
 
+import com.dremio.exec.catalog.CatalogEntityKey;
+import com.dremio.exec.catalog.VersionedDatasetId;
 import com.dremio.exec.store.sys.accel.AccelerationManager.ExcludedReflectionsProvider;
-import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.reflection.DependencyEntry.DatasetDependency;
 import com.dremio.service.reflection.DependencyEntry.ReflectionDependency;
@@ -45,10 +47,12 @@ import com.dremio.service.reflection.proto.RefreshRequest;
 import com.dremio.service.reflection.store.DependenciesStore;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.dremio.service.reflection.store.ReflectionEntriesStore;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Ordering;
 /**
@@ -134,10 +138,10 @@ public class DependencyManager {
     return filterReflectionDependencies(dependencies).allMatch(dependency -> {
       return dontGiveUpHelper(dependency.getReflectionId(), dependencyResolutionContext);
     }) && filterDatasetDependencies(dependencies).allMatch(dependency -> {
-      final AccelerationSettings settings = dependencyResolutionContext.getReflectionSettings(dependency.getNamespaceKey());
+      final AccelerationSettings settings = dependencyResolutionContext.getReflectionSettings(createCatalogEntityKey(dependency.getPath(), dependency.getId()));
       return Boolean.TRUE.equals(settings.getNeverRefresh());
     }) && filterTableFunctionDependencies(dependencies).allMatch(dependency -> {
-      final AccelerationSettings settings = dependencyResolutionContext.getReflectionSettings(new NamespaceKey(dependency.getSourceName()));
+      final AccelerationSettings settings = dependencyResolutionContext.getReflectionSettings(createCatalogEntityKey(ImmutableList.of(dependency.getSourceName()), dependency.getId()));
       return Boolean.TRUE.equals(settings.getNeverRefresh());
     });
   }
@@ -208,7 +212,7 @@ public class DependencyManager {
         @Override
         public Long apply(DatasetDependency dependency) {
           // first account for the dataset's refresh period
-          final AccelerationSettings settings = dependencyResolutionContext.getReflectionSettings(dependency.getNamespaceKey());
+          final AccelerationSettings settings = dependencyResolutionContext.getReflectionSettings(createCatalogEntityKey(dependency.getPath(), dependency.getId()));
           final long refreshStart = Boolean.TRUE.equals(settings.getNeverRefresh()) || settings.getRefreshPeriod() == 0 ? 0 : currentTime - settings.getRefreshPeriod();
 
           // then account for any refresh request against the dataset
@@ -225,7 +229,7 @@ public class DependencyManager {
           @Nullable
           @Override
           public Long apply(TableFunctionDependency entry) {
-            final AccelerationSettings settings = dependencyResolutionContext.getReflectionSettings(new NamespaceKey(entry.getSourceName()));
+            final AccelerationSettings settings = dependencyResolutionContext.getReflectionSettings(createCatalogEntityKey(ImmutableList.of(entry.getSourceName()), entry.getId()));
             final long refreshStart = Boolean.TRUE.equals(settings.getNeverRefresh()) || settings.getRefreshPeriod() == 0 ? 0 : currentTime -  settings.getRefreshPeriod();
             return refreshStart;
           }
@@ -283,7 +287,7 @@ public class DependencyManager {
         @Nullable
         @Override
         public Long apply(DatasetDependency entry) {
-          final AccelerationSettings settings = dependencyResolutionContext.getReflectionSettings(entry.getNamespaceKey());
+          final AccelerationSettings settings = dependencyResolutionContext.getReflectionSettings(createCatalogEntityKey(entry.getPath(), entry.getId()));
           // for reflections that never expire, use a grace period of 1000 years from now
           return Boolean.TRUE.equals(settings.getNeverExpire()) ? (TimeUnit.DAYS.toMillis(365)*1000) : settings.getGracePeriod();
         }
@@ -293,7 +297,7 @@ public class DependencyManager {
         @Nullable
         @Override
         public Long apply(TableFunctionDependency entry) {
-          final AccelerationSettings settings = dependencyResolutionContext.getReflectionSettings(new NamespaceKey(entry.getSourceName()));
+          final AccelerationSettings settings = dependencyResolutionContext.getReflectionSettings(createCatalogEntityKey(ImmutableList.of(entry.getSourceName()), entry.getId()));
           return Boolean.TRUE.equals(settings.getNeverExpire()) ? (TimeUnit.DAYS.toMillis(365)*1000) : settings.getGracePeriod();
         }
       }))
@@ -306,6 +310,31 @@ public class DependencyManager {
     }
 
     return Optional.of(Ordering.natural().min(gracePeriods));
+  }
+
+  /**
+   * Creates a CatalogEntityKey from a reflection dependency that can be used to retrieve the entity's reflection settings.
+   *
+   * For a dataset dependency, the dataset may be versioned in which case we extract the version context from the datasetId.
+   * For an external table dependency, only the root/source name will be passed in and datasetId can be ignored.
+   *
+   * @param path
+   * @param datasetId
+   * @return catalogEntityKey
+   */
+  private CatalogEntityKey createCatalogEntityKey(List<String> path, String datasetId) {
+    final CatalogEntityKey.Builder builder = CatalogEntityKey.newBuilder().keyComponents(path);
+    if (isVersionedDatasetId(datasetId)) {
+      VersionedDatasetId versionedDatasetId = null;
+      try {
+        versionedDatasetId = VersionedDatasetId.fromString(datasetId);
+      } catch (JsonProcessingException e) {
+        throw new IllegalStateException(String.format("Could not parse VersionedDatasetId from string : %s", datasetId), e);
+      }
+      assert (path.equals(versionedDatasetId.getTableKey()));
+      builder.tableVersionContext(versionedDatasetId.getVersionContext());
+    }
+    return builder.build();
   }
 
   /**

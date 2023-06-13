@@ -17,6 +17,7 @@ package com.dremio.exec.store.iceberg.manifestwriter;
 
 import com.dremio.exec.physical.config.WriterCommitterPOP;
 import com.dremio.exec.record.VectorAccessible;
+import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.writer.WriterCommitterOutputHandler;
 
@@ -25,23 +26,23 @@ import com.dremio.sabot.op.writer.WriterCommitterOutputHandler;
  */
 public class NoOpIcebergCommitOpHelper extends IcebergCommitOpHelper {
 
-    public NoOpIcebergCommitOpHelper(OperatorContext context, WriterCommitterPOP config) {
-        super(context, config);
-    }
+  public NoOpIcebergCommitOpHelper(OperatorContext context, WriterCommitterPOP config, FileSystem fs) {
+    super(context, config, fs);
+  }
+
+  @Override
+  public void setup(VectorAccessible incoming) {
+  }
 
     @Override
-    public void setup(VectorAccessible incoming) {
-    }
+  public void consumeData(int records) throws Exception {
+  }
 
-    @Override
-    public void consumeData(int records) throws Exception {
-    }
+  @Override
+  public void commit(WriterCommitterOutputHandler outputHandler) throws Exception {
+  }
 
-    @Override
-    public void commit(WriterCommitterOutputHandler outputHandler) throws Exception {
-    }
-
-    @Override
-    public void close() {
-    }
+  @Override
+  public void close() {
+  }
 }

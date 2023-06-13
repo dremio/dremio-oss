@@ -58,12 +58,6 @@ public class LogStatementWithStringFormat extends BugChecker
     if (!IS_STRING_FORMAT_METHOD.matches(expression, state)) {
       return Description.NO_MATCH;
     }
-    return Description.builder(
-            tree,
-            this.canonicalName(),
-            null,
-            WARNING,
-            "Do not use String.format when calling a logging method")
-        .build();
+    return buildDescription(tree).build();
   }
 }

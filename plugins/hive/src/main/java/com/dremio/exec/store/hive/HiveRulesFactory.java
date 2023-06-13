@@ -63,6 +63,7 @@ import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.RelOptHelper;
 import com.dremio.exec.planner.logical.TableModifyRel;
 import com.dremio.exec.planner.logical.TableOptimizeRel;
+import com.dremio.exec.planner.logical.VacuumTableRel;
 import com.dremio.exec.planner.logical.partition.PruneFilterCondition;
 import com.dremio.exec.planner.logical.partition.PruneScanRuleBase;
 import com.dremio.exec.planner.logical.partition.PruneScanRuleBase.PruneScanRuleFilterOnProject;
@@ -74,6 +75,7 @@ import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.physical.ScanPrelBase;
 import com.dremio.exec.planner.physical.TableModifyPruleBase;
 import com.dremio.exec.planner.physical.TableOptimizePruleBase;
+import com.dremio.exec.planner.physical.VacuumTablePruleBase;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RelOptNamespaceTable;
 import com.dremio.exec.store.ScanFilter;
@@ -190,6 +192,7 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
       return super.computeSelfCost(planner, mq);
     }
 
+    @Override
     public ScanFilter getFilter() {
       return filter;
     }
@@ -346,6 +349,7 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
       return filter != null;
     }
 
+    @Override
     public ScanFilter getFilter() {
       return filter;
     }
@@ -587,6 +591,29 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
     }
   }
 
+  public static class HiveVacuumTablePrule extends VacuumTablePruleBase {
+
+    public HiveVacuumTablePrule(StoragePluginId pluginId, OptimizerRulesContext context) {
+      super(RelOptHelper.some(VacuumTableRel.class, Rel.LOGICAL, RelOptHelper.any(RelNode.class)),
+        String.format("%sHiveVacuumTablePrule.%s.%s",
+          pluginId.getType().value(), SLUGIFY.slugify(pluginId.getName()), UUID.randomUUID()), context);
+    }
+
+    @Override
+    public void onMatch(RelOptRuleCall call) {
+      final VacuumTableRel vacuumRel = call.rel(0);
+      call.transformTo(getPhysicalPlan(
+        vacuumRel,
+        new HiveIcebergScanTableMetadata(((DremioPrepareTable) vacuumRel.getTable()).getTable().getDataset(),
+        (SupportsIcebergRootPointer) vacuumRel.getCreateTableEntry().getPlugin())));
+    }
+
+    @Override
+    public boolean matches(RelOptRuleCall call) {
+      return call.<VacuumTableRel>rel(0).getCreateTableEntry().getPlugin() instanceof BaseHiveStoragePlugin;
+    }
+  }
+
   @Override
   public Set<RelOptRule> getRules(OptimizerRulesContext optimizerContext, PlannerPhase phase, SourceType pluginType) {
     return ImmutableSet.of();
@@ -623,7 +650,8 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
           new HiveIcebergScanPrule(pluginId, optimizerContext),
           new HiveIcebergTableFileFunctionPrule(pluginId, optimizerContext),
           new HiveTableModifyPrule(pluginId, optimizerContext),
-          new HiveTableOptimzePrule(pluginId, optimizerContext)
+          new HiveTableOptimzePrule(pluginId, optimizerContext),
+          new HiveVacuumTablePrule(pluginId, optimizerContext)
         );
 
       default:

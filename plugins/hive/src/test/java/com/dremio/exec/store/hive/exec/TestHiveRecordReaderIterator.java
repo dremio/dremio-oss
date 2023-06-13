@@ -19,7 +19,6 @@ package com.dremio.exec.store.hive.exec;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -97,7 +96,7 @@ public class TestHiveRecordReaderIterator {
     }
 
     @Test
-    public void testIteratorWithFilterAddedInBetween() {
+    public void testIteratorWithFilterAddedInBetween() throws Exception {
         CompositeReaderConfig readerConfig = mock(CompositeReaderConfig.class);
         when(readerConfig.getPartitionNVPairs(any(BufferAllocator.class), any(SplitAndPartitionInfo.class)))
                 .thenReturn(getNonMatchingNameValuePairs());
@@ -119,14 +118,11 @@ public class TestHiveRecordReaderIterator {
             it.addRuntimeFilter(filter);
             assertFalse(it.hasNext());
             assertEquals(5L, ctx.getStats().getLongStat(ScanOperator.Metric.NUM_PARTITIONS_PRUNED));
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
         }
     }
 
     @Test
-    public void testIteratorWithFilterNothingSkipped() {
+    public void testIteratorWithFilterNothingSkipped() throws Exception {
         CompositeReaderConfig readerConfig = mock(CompositeReaderConfig.class);
         when(readerConfig.getPartitionNVPairs(any(BufferAllocator.class), any(SplitAndPartitionInfo.class)))
                 .thenReturn(getMatchingNameValuePairs());
@@ -145,14 +141,11 @@ public class TestHiveRecordReaderIterator {
                 assertEquals(reader, it.next());
             }
             assertEquals(0L, ctx.getStats().getLongStat(ScanOperator.Metric.NUM_PARTITIONS_PRUNED));
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
         }
     }
 
     @Test
-    public void testIteratorWithFilterAllSkipped() {
+    public void testIteratorWithFilterAllSkipped() throws Exception {
         CompositeReaderConfig readerConfig = mock(CompositeReaderConfig.class);
         when(readerConfig.getPartitionNVPairs(any(BufferAllocator.class), any(SplitAndPartitionInfo.class)))
                 .thenReturn(getNonMatchingNameValuePairs());
@@ -167,14 +160,11 @@ public class TestHiveRecordReaderIterator {
             it.addRuntimeFilter(filter);
             assertFalse(it.hasNext());
             assertEquals(10L, ctx.getStats().getLongStat(ScanOperator.Metric.NUM_PARTITIONS_PRUNED));
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
         }
     }
 
     @Test
-    public void testIteratorWithFilterSomeSkipped() {
+    public void testIteratorWithFilterSomeSkipped() throws Exception {
         Predicate<Integer> isSelectedSplit = i -> i==1 || i==3 || i==9;
         CompositeReaderConfig readerConfig = mock(CompositeReaderConfig.class);
         List<Pair<SplitAndPartitionInfo, RecordReader>> readers = getMockSplitReaders(10);
@@ -205,15 +195,12 @@ public class TestHiveRecordReaderIterator {
                 assertEquals(reader, it.next());
             }
             assertEquals(7L, ctx.getStats().getLongStat(ScanOperator.Metric.NUM_PARTITIONS_PRUNED));
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
         }
     }
 
 
     @Test
-    public void testMultipleFilters() {
+    public void testMultipleFilters() throws Exception {
         Predicate<Integer> isSelectedSplit1 = i -> i==1 || i==2 || i==3 || i==9;
         Predicate<Integer> isSelectedSplit2 = i -> i==3 || i==5 || i==9;
 
@@ -261,14 +248,11 @@ public class TestHiveRecordReaderIterator {
                 assertEquals(recordReader, it.next());
             }
             assertEquals(8L , ctx.getStats().getLongStat(ScanOperator.Metric.NUM_PARTITIONS_PRUNED));
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
         }
     }
 
     @Test
-    public void testIteratorEmpty() {
+    public void testIteratorEmpty() throws Exception {
         CompositeReaderConfig readerConfig = mock(CompositeReaderConfig.class);
         when(readerConfig.getPartitionNVPairs(any(BufferAllocator.class), any(SplitAndPartitionInfo.class)))
                 .thenReturn(getMatchingNameValuePairs());
@@ -302,9 +286,6 @@ public class TestHiveRecordReaderIterator {
             it.addRuntimeFilter(filter);
             assertFalse(it.hasNext());
             assertEquals(0L, ctx.getStats().getLongStat(ScanOperator.Metric.NUM_PARTITIONS_PRUNED));
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
         }
     }
 

@@ -23,7 +23,7 @@
   output:
    -
     image: "\a"
-    kind: 872
+    kind: 874
  -
   description: "END OF TOKEN"
   input:
@@ -32,7 +32,7 @@
   output:
    -
     image: "HELLO\a"
-    kind: 868
+    kind: 870
  -
   description: "START OF TOKEN"
   input:
@@ -41,10 +41,10 @@
   output:
    -
     image: "\a"
-    kind: 872
+    kind: 874
    -
     image: "HELLO"
-    kind: 868
+    kind: 870
  -
   description: "Unattached Bell Character"
   input:
@@ -53,7 +53,7 @@
   output:
    -
     image: "HELLO"
-    kind: 868
+    kind: 870
    -
     image: "\a"
-    kind: 872
+    kind: 874

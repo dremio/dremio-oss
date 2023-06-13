@@ -17,6 +17,8 @@ package com.dremio.exec.store.easy.text.compliant;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import java.util.Arrays;
+
 import com.dremio.exec.store.easy.text.TextFormatPlugin.TextFormatConfig;
 import com.univocity.parsers.common.TextParsingException;
 
@@ -27,17 +29,16 @@ public class TextParsingSettings {
 
   private String emptyValue = null;
   private boolean parseUnescapedQuotes = true;
-  private byte quote = b('"');
-  private byte quoteEscape = b('"');
-  private byte delimiter = b(',');
-  private byte comment = b('#');
+  private byte[] quote = {b('"')};
+  private byte[] quoteEscape = {b('"')};
+  private byte[] delimiter = {b(',')};
+  private byte[] comment = {b('#')};
 
   private long maxCharsPerColumn = Character.MAX_VALUE;
   private byte normalizedNewLine = b('\n');
   private byte[] newLineDelimiter = {normalizedNewLine};
   private boolean ignoreLeadingWhitespaces = false;
   private boolean ignoreTrailingWhitespaces = false;
-  private String lineSeparatorString = "\n";
   private boolean skipFirstLine = false;
   private boolean autoGenerateColumnNames = false;
   private boolean trimHeader = false;
@@ -47,11 +48,11 @@ public class TextParsingSettings {
   private int numberOfRecordsToRead = -1;
 
   public void set(TextFormatConfig config){
-    this.quote = bSafe(config.getQuote(), "quote");
-    this.quoteEscape = bSafe(config.getEscape(), "escape");
+    this.quote = config.getQuote().getBytes(UTF_8);
+    this.quoteEscape = config.getEscape().getBytes(UTF_8);
     this.newLineDelimiter = config.getLineDelimiter().getBytes(UTF_8);
-    this.delimiter = bSafe(config.getFieldDelimiter(), "fieldDelimiter");
-    this.comment = bSafe(config.getComment(), "comment");
+    this.delimiter = config.getFieldDelimiter().getBytes(UTF_8);
+    this.comment = config.getComment().getBytes(UTF_8);
     this.skipFirstLine = config.isSkipFirstLine();
     this.headerExtractionEnabled = config.isHeaderExtractionEnabled();
     this.autoGenerateColumnNames = config.isAutoGenerateColumnNames();
@@ -63,7 +64,7 @@ public class TextParsingSettings {
     }
   }
 
-  public byte getComment(){
+  public byte[] getComment(){
     return comment;
   }
 
@@ -87,15 +88,6 @@ public class TextParsingSettings {
     this.useRepeatedVarChar = useRepeatedVarChar;
   }
 
-
-  private static byte bSafe(char c, String name){
-    if(c > Byte.MAX_VALUE) {
-      throw new IllegalArgumentException(String.format("Failure validating configuration option %s.  Expected a "
-          + "character between 0 and 127 but value was actually %d.", name, (int) c));
-    }
-    return (byte) c;
-  }
-
   private static byte b(char c){
     return (byte) c;
   }
@@ -105,83 +97,78 @@ public class TextParsingSettings {
   }
 
   /**
-   * Returns the character used for escaping values where the field delimiter is part of the value. Defaults to '"'
-   * @return the quote character
+   * Returns the string used for escaping values where the field delimiter is part of the value. Defaults to '"'
+   * @return the quote string
    */
-  public byte getQuote() {
+  public byte[] getQuote() {
     return quote;
   }
 
   /**
-   * Defines the character used for escaping values where the field delimiter is part of the value. Defaults to '"'
-   * @param quote the quote character
+   * Defines the string used for escaping values where the field delimiter is part of the value. Defaults to '"'
+   * @param quote the quote string
    */
-  public void setQuote(byte quote) {
+  public void setQuote(byte[] quote) {
     this.quote = quote;
   }
 
-  public String getLineSeparatorString(){
-    return lineSeparatorString;
-  }
-
-
   /**
-   * Identifies whether or not a given character is used for escaping values where the field delimiter is part of the value
-   * @param ch the character to be verified
-   * @return true if the given character is the character used for escaping values, false otherwise
+   * Identifies whether or not a given String is used for escaping values where the field delimiter is part of the value
+   * @param str the string to be verified
+   * @return true if the given string is the string used for escaping values, false otherwise
    */
-  public boolean isQuote(byte ch) {
-    return this.quote == ch;
+  public boolean isQuote(byte[] str) {
+    return Arrays.equals(this.quote, str);
   }
 
   /**
-   * Returns the character used for escaping quotes inside an already quoted value. Defaults to '"'
-   * @return the quote escape character
+   * Returns the string used for escaping quotes inside an already quoted value. Defaults to '"'
+   * @return the quote escape string
    */
-  public byte getQuoteEscape() {
+  public byte[] getQuoteEscape() {
     return quoteEscape;
   }
 
   /**
-   * Defines the character used for escaping quotes inside an already quoted value. Defaults to '"'
-   * @param quoteEscape the quote escape character
+   * Defines the string used for escaping quotes inside an already quoted value. Defaults to '"'
+   * @param quoteEscape the quote escape string
    */
-  public void setQuoteEscape(byte quoteEscape) {
+  public void setQuoteEscape(byte[] quoteEscape) {
     this.quoteEscape = quoteEscape;
   }
 
   /**
-   * Identifies whether or not a given character is used for escaping quotes inside an already quoted value.
-   * @param ch the character to be verified
-   * @return true if the given character is the quote escape character, false otherwise
+   * Identifies whether or not a given String is used for escaping quotes inside an already quoted value.
+   * @param str the String to be verified
+   * @return true if the given String is the quote escape String, false otherwise
    */
-  public boolean isQuoteEscape(byte ch) {
-    return this.quoteEscape == ch;
+  public boolean isQuoteEscape(byte[] str) {
+    return Arrays.equals(this.quoteEscape,  str);
   }
 
   /**
-   * Returns the field delimiter character. Defaults to ','
-   * @return the field delimiter character
+   * Returns the field delimiter string. Defaults to ','
+   * @return the field delimiter string
    */
-  public byte getDelimiter() {
+  public byte[] getDelimiter() {
     return delimiter;
   }
 
   /**
-   * Defines the field delimiter character. Defaults to ','
-   * @param delimiter the field delimiter character
+   * Defines the field delimiter string. Defaults to ','
+   * @param delimiter the field delimiter string
    */
-  public void setDelimiter(byte delimiter) {
+  public void setDelimiter(byte[] delimiter) {
     this.delimiter = delimiter;
   }
 
   /**
-   * Identifies whether or not a given character represents a field delimiter
-   * @param ch the character to be verified
-   * @return true if the given character is the field delimiter character, false otherwise
+   * Identifies whether or not a given string represents a field delimiter
+   * @param str the string to be verified
+   * @return true if the given string is the field delimiter string, false otherwise
    */
-  public boolean isDelimiter(byte ch) {
-    return this.delimiter == ch;
+  public boolean isDelimiter(byte[] str) {
+    return Arrays.equals(this.delimiter, str);
   }
 
   /**
@@ -264,7 +251,7 @@ public class TextParsingSettings {
     this.maxCharsPerColumn = maxCharsPerColumn;
   }
 
-  public void setComment(byte comment) {
+  public void setComment(byte[] comment) {
     this.comment = comment;
   }
 

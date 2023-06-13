@@ -32,6 +32,7 @@ message IcebergDatasetXAttr {
   optional com.dremio.sabot.exec.store.parquet.proto.ParquetDatasetXAttr parquetDatasetXAttr = 1;
   repeated IcebergSchemaField column_ids = 2;
   optional string partition_stats_file = 3;  // path to partition stats file for the latest snapshot
+  optional int64 partition_stats_file_size = 4; // size of the partition stats file
 }
 
 message IcebergDatasetSplitXAttr {

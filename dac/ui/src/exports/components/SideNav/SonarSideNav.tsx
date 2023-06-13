@@ -18,10 +18,8 @@ import SideNav from "@app/components/SideNav/SideNav";
 import clsx from "clsx";
 import { Link } from "react-router";
 // @ts-ignore
-import { FeatureSwitch } from "@app/exports/components/FeatureSwitch/FeatureSwitch";
-// @ts-ignore
-import { ORGANIZATION_LANDING } from "@app/exports/flags/ORGANIZATION_LANDING";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
+import { getSessionContext } from "dremio-ui-common/contexts/SessionContext.js";
 import * as commonPaths from "dremio-ui-common/paths/common.js";
 
 const RenderHeaderAction = ({ logo = "sonar" }: { logo?: string }) => {
@@ -34,11 +32,17 @@ const RenderHeaderAction = ({ logo = "sonar" }: { logo?: string }) => {
   }, [projectId, isOSS]);
 
   return (
-    <div className="sideNav-item">
+    <div
+      className={clsx("sideNav-item", isOSS && "dremioLogoWithTextContainer")}
+    >
       <Link to={getLinkForLogo}>
         <div className={`sideNav-item__link`}>
           <div className="sideNav-item__logo">
-            <dremio-icon name={`corporate/${logo}`} alt={logo}></dremio-icon>
+            <dremio-icon
+              name={`corporate/${logo}`}
+              alt={logo}
+              class={isOSS ? "dremioLogoWithText" : ""}
+            ></dremio-icon>
           </div>
         </div>
       </Link>
@@ -46,16 +50,15 @@ const RenderHeaderAction = ({ logo = "sonar" }: { logo?: string }) => {
   );
 };
 
-const headerAction = (
-  <FeatureSwitch
-    flag={ORGANIZATION_LANDING}
-    renderEnabled={() => <RenderHeaderAction />}
-    renderDisabled={() => <RenderHeaderAction logo="dremio" />}
-  />
-);
-
 export const SonarSideNav = (props: any) => {
   const { className, ...rest } = props;
+  const organizationLanding =
+    typeof getSessionContext().getOrganizationId === "function";
+  const headerAction = organizationLanding ? (
+    <RenderHeaderAction />
+  ) : (
+    <RenderHeaderAction logo="dremio" />
+  );
   return (
     <SideNav
       className={clsx(className, "sideNav--sonar")}

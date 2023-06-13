@@ -65,6 +65,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 
+import io.opentelemetry.instrumentation.annotations.WithSpan;
+
 /**
  * Manages the creation, deletion and retrieval of storage plugins.
  *
@@ -359,6 +361,7 @@ public class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
     return plugins;
   }
 
+  @WithSpan
   public ManagedStoragePlugin getSynchronized(SourceConfig pluginConfig, java.util.function.Predicate<String> influxSourcePred) throws Exception {
     while (true) {
       ManagedStoragePlugin plugin = plugins.get(c(pluginConfig.getName()));
@@ -367,14 +370,14 @@ public class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
         plugin.synchronizeSource(pluginConfig);
         return plugin;
       }
-      //Try to create the plugin to synchronize.
+      // Try to create the plugin to synchronize.
       plugin = newPlugin(pluginConfig);
       plugin.replacePluginWithLock(pluginConfig, createWaitMillis(), true);
 
       // If this is a coordinator and a plugin is missing, it's probably been deleted from the CHM by a
-      // concurrent thread or a create operation may be in progress(check if it's in flux)  and has not
+      // concurrent thread or a create operation may be in progress (check if it's in flux) and has not
       // yet added it to the CHM.
-      // So lets skip it and allow this to be picked up int he next refresher run .
+      // So lets skip it and allow this to be picked up in the next refresher run.
       // For an executor, there should be no clashes with any mutation.
       if (influxSourcePred.test(pluginConfig.getName()) || (context.isCoordinator() && !systemNamespace.exists(new NamespaceKey(pluginConfig.getName())))) {
         throw new ConcurrentModificationException(String.format(

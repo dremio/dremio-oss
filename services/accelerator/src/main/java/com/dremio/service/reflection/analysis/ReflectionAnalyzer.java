@@ -35,6 +35,7 @@ import com.dremio.common.utils.SqlUtils;
 import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.MetadataRequestOptions;
+import com.dremio.exec.catalog.VersionedDatasetId;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
@@ -50,6 +51,7 @@ import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.users.SystemUser;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
@@ -60,8 +62,10 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Multimap;
 
 /**
- * Analyzes acceleration and generates statistics.
- */
+ * Analyzes a dataset by synchronously running a SQL statement to collect column statistics
+ * and total row count.  Since stats are collected as a preview job which considers only
+ * the first 10K rows (leaf level limit), the stats can be grossly inaccurate.
+ * */
 public class ReflectionAnalyzer {
   private static final Logger logger = LoggerFactory.getLogger(ReflectionAnalyzer.class);
   private static final NamespaceKey NONE_PATH = new NamespaceKey(ImmutableList.of("__none"));
@@ -109,8 +113,12 @@ public class ReflectionAnalyzer {
     this.bufferAllocator = Preconditions.checkNotNull(allocator, "Buffer allocator is required");
   }
 
-  public TableStats analyze(final NamespaceKey path) {
-    final RelDataType rowType = getRowType(path);
+  public TableStats analyze(final String datasetId) {
+    final DremioTable table = catalogService.getCatalog(MetadataRequestOptions.of(
+        SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build()))
+      .getTable(datasetId);
+    Preconditions.checkNotNull(table, "Unknown datasetId %s", datasetId);
+    final RelDataType rowType = table.getRowType(JavaTypeFactoryImpl.INSTANCE);
 
     final List<RelDataTypeField> fields = FluentIterable.from(rowType.getFieldList())
       .filter(new Predicate<RelDataTypeField>() {
@@ -139,7 +147,17 @@ public class ReflectionAnalyzer {
         }
       });
 
-    final String pathString = path.getSchemaPath();
+    String pathString = table.getPath().getSchemaPath();
+    // Append version context to dataset path if versioned
+    if (VersionedDatasetId.isVersionedDatasetId(datasetId)) {
+      final VersionedDatasetId versionedDatasetId;
+      try {
+        versionedDatasetId = VersionedDatasetId.fromString(datasetId);
+      } catch (JsonProcessingException e) {
+        throw new IllegalStateException(String.format("Unable to parse versionedDatasetId %s", datasetId), e);
+      }
+      pathString += " at " + versionedDatasetId.getVersionContext().toSql();
+    }
 
     final String selection = Joiner.on(", ").join(
       FluentIterable.from(statColumns)
@@ -185,14 +203,6 @@ public class ReflectionAnalyzer {
 
       return new TableStats().setColumns(columns).setCount(count);
     }
-  }
-
-  public RelDataType getRowType(final NamespaceKey path) {
-    DremioTable table = catalogService.getCatalog(MetadataRequestOptions.of(
-        SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build()))
-        .getTable(path);
-    Preconditions.checkNotNull(table, "Unknown dataset %s", path);
-    return table.getRowType(JavaTypeFactoryImpl.INSTANCE);
   }
 
   protected Iterable<StatColumn> getStatColumnsPerField(final RelDataTypeField field) {
@@ -322,7 +332,7 @@ public class ReflectionAnalyzer {
   /**
    * javadoc
    */
-  static class RField {
+  public static class RField {
     private String name;
     private String typeFamily;
 
@@ -348,7 +358,7 @@ public class ReflectionAnalyzer {
   /**
    * javadoc
    */
-  static class ColumnStats {
+  public static class ColumnStats {
     static final Long DEFAULT_CARDINALITY = -1L;
     static final Long DEFAULT_COUNT = -1L;
     static final Double DEFAULT_AVERAGE_LENGTH = -1.0d;

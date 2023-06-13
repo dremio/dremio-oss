@@ -49,6 +49,7 @@ public abstract class QuickSorterTemplate implements QuickSorterInterface, Index
     doSetup(context, hyperContainer, null);
   }
 
+  @Override
   public void setDataBuffer(SimpleIntVector intVectorBuffer) {
     intVector = intVectorBuffer;
     totalCount = 0;

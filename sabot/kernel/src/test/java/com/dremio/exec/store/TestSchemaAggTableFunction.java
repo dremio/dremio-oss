@@ -22,7 +22,6 @@ import static com.dremio.common.expression.CompleteType.FLOAT;
 import static com.dremio.common.expression.CompleteType.INT;
 import static com.dremio.common.expression.CompleteType.VARCHAR;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
 import java.util.Arrays;
@@ -93,10 +92,6 @@ public class TestSchemaAggTableFunction extends BaseTestQuery {
       VectorAccessible output = tableFunction.setup(container);
       closer.addAll(output);
       assertEquals(new BatchSchema(fieldList), output.getSchema());
-    }
-    catch (Exception e) {
-      e.printStackTrace();
-      fail(e.getMessage());
     }
   }
 
@@ -173,13 +168,8 @@ public class TestSchemaAggTableFunction extends BaseTestQuery {
       assertEquals(outputFloatVector.getValueCount(), 4);
       assertEquals(outputSchemaVector.getValueCount(), 1);
 
-
       compareVectors((VectorContainer) output, fieldList.get(0), IntVector.class, Arrays.asList(12, 13, 14, 15));
       compareVectors((VectorContainer) output, fieldList.get(1), Float4Vector.class, Arrays.asList(2.0f, 3.0f, 4.0f, 5.0f));
-
-    } catch (Exception e) {
-      e.printStackTrace();
-      fail(e.getMessage());
     }
   }
 
@@ -234,10 +224,6 @@ public class TestSchemaAggTableFunction extends BaseTestQuery {
 
       assertEquals(BatchSchema.deserialize(outVarBinaryVector.get(0)).toJSONString(), schema2.toJSONString());
       tableFunction.closeRow();
-    }
-    catch (Exception e) {
-      e.printStackTrace();
-      fail(e.getMessage());
     }
   }
 
@@ -295,10 +281,6 @@ public class TestSchemaAggTableFunction extends BaseTestQuery {
       assertEquals(BatchSchema.deserialize(outVarBinaryVector.get(0)).toJSONString(), finalSchema.toJSONString());
       tableFunction.closeRow();
     }
-    catch (Exception e) {
-      e.printStackTrace();
-      fail(e.getMessage());
-    }
   }
 
   @Test
@@ -340,10 +322,6 @@ public class TestSchemaAggTableFunction extends BaseTestQuery {
       BatchSchema finalSchema = new BatchSchema(fields);
       assertEquals(BatchSchema.deserialize(outVarBinaryVector.get(0)).toJSONString(), finalSchema.toJSONString());
       tableFunction.closeRow();
-    }
-    catch (Exception e) {
-      e.printStackTrace();
-      fail(e.getMessage());
     }
   }
 

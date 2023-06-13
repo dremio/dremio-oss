@@ -33,11 +33,18 @@ final class IcebergMetadataFunctionsSchema {
   private static final BatchSchema SNAPSHOTS;
   private static final BatchSchema MANIFESTS;
   private static final BatchSchema TABLE_FILES;
+  private static final BatchSchema PARTITIONS;
   private static final SchemaConverter schemaConverter = SchemaConverter.getBuilder().build();
 
   static {
     HISTORY = schemaConverter.fromIceberg(MetadataTableUtils.createMetadataTableInstance(null,
       null,null, MetadataTableType.HISTORY).schema());
+    PARTITIONS = schemaConverter.fromIceberg(new Schema(
+      Types.NestedField.required(1, "partition", Types.StringType.get()),
+      Types.NestedField.required(2, "record_count", Types.LongType.get()),
+      Types.NestedField.required(3, "file_count", Types.IntegerType.get()),
+      Types.NestedField.required(4, "spec_id", Types.IntegerType.get())
+    ));
     SNAPSHOTS = schemaConverter.fromIceberg(new Schema(
       Types.NestedField.required(1, "committed_at", Types.TimestampType.withZone()),
       Types.NestedField.required(2, "snapshot_id", Types.LongType.get()),
@@ -107,6 +114,10 @@ final class IcebergMetadataFunctionsSchema {
 
   public static BatchSchema getTableFilesRecordSchema() {
     return TABLE_FILES;
+  }
+
+  public static BatchSchema getPartitionsRecordSchema() {
+    return PARTITIONS;
   }
 
   private IcebergMetadataFunctionsSchema() {

@@ -75,8 +75,7 @@ class DremioMetaImpl extends MetaImpl {
           if (connection.getConfig().isServerMetadataDisabled() ||
               ! connection.getClient().getSupportedMethods().containsAll(requiredMetaMethods)) {
             delegate = new DremioMetaClientImpl(connection);
-          }
-          else {
+          } else {
             delegate = new DremioMetaServerImpl(connection);
           }
         }

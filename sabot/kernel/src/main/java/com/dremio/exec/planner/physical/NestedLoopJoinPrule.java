@@ -66,6 +66,8 @@ public class NestedLoopJoinPrule extends JoinPruleBase {
         return false;
       }
       break;
+    case FULL:
+      return join.getCondition().isAlwaysTrue();
     default:
       return false;
     }

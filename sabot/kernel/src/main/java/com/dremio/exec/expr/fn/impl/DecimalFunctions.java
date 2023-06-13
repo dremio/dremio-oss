@@ -457,6 +457,7 @@ public class DecimalFunctions {
     @Workspace NullableBigIntHolder nonNullCount;
     @Output NullableFloat8Holder out;
 
+    @Override
     public void setup() {
       sum = new NullableFloat8Holder();
       sum.isSet = 1;
@@ -465,6 +466,7 @@ public class DecimalFunctions {
       nonNullCount.isSet = 1;
       nonNullCount.value = 0;
     }
+    @Override
     public void add() {
       if (in.isSet != 0) {
         long index = (in.start / (org.apache.arrow.vector.DecimalVector.TYPE_WIDTH));
@@ -473,6 +475,7 @@ public class DecimalFunctions {
         nonNullCount.value++;
       }
     }
+    @Override
     public void output() {
       if (nonNullCount.value > 0) {
         out.isSet = 1;
@@ -482,6 +485,7 @@ public class DecimalFunctions {
         out.isSet = 0;
       }
     }
+    @Override
     public void reset() {
       sum.value = 0;
       nonNullCount.value = 0;
@@ -495,11 +499,13 @@ public class DecimalFunctions {
     @Workspace NullableFloat8Holder sum;
     @Output NullableFloat8Holder out;
 
+    @Override
     public void setup() {
       sum = new NullableFloat8Holder();
       sum.isSet = 1;
       sum.value = 0;
     }
+    @Override
     public void add() {
       if (in.isSet == 1) {
         long index = (in.start / (org.apache.arrow.vector.DecimalVector.TYPE_WIDTH));
@@ -507,10 +513,12 @@ public class DecimalFunctions {
         sum.value += bd.doubleValue();
       }
     }
+    @Override
     public void output() {
       out.isSet = 1;
       out.value = sum.value;
     }
+    @Override
     public void reset() {
       sum.value = 0;
     }
@@ -524,6 +532,7 @@ public class DecimalFunctions {
     @Workspace NullableBigIntHolder nonNullCount;
     @Output NullableFloat8Holder out;
 
+    @Override
     public void setup() {
       minVal = new NullableFloat8Holder();
       minVal.isSet = 1;
@@ -532,6 +541,7 @@ public class DecimalFunctions {
       nonNullCount.isSet = 1;
       nonNullCount.value = 0;
     }
+    @Override
     public void add() {
       if (in.isSet != 0) {
         nonNullCount.value = 1;
@@ -543,6 +553,7 @@ public class DecimalFunctions {
         }
       }
     }
+    @Override
     public void output() {
       if (nonNullCount.value > 0) {
         out.isSet = 1;
@@ -552,6 +563,7 @@ public class DecimalFunctions {
         out.isSet = 0;
       }
     }
+    @Override
     public void reset() {
       minVal.value = 0;
       nonNullCount.value = 0;
@@ -566,6 +578,7 @@ public class DecimalFunctions {
     @Workspace NullableBigIntHolder nonNullCount;
     @Output NullableFloat8Holder out;
 
+    @Override
     public void setup() {
       maxVal = new NullableFloat8Holder();
       maxVal.isSet = 1;
@@ -574,6 +587,7 @@ public class DecimalFunctions {
       nonNullCount.isSet = 1;
       nonNullCount.value = 0;
     }
+    @Override
     public void add() {
       if (in.isSet != 0) {
         nonNullCount.value = 1;
@@ -585,6 +599,7 @@ public class DecimalFunctions {
         }
       }
     }
+    @Override
     public void output() {
       if (nonNullCount.value > 0) {
         out.isSet = 1;
@@ -594,6 +609,7 @@ public class DecimalFunctions {
         out.isSet = 0;
       }
     }
+    @Override
     public void reset() {
       maxVal.value = 0;
       nonNullCount.value = 0;
@@ -610,6 +626,7 @@ public class DecimalFunctions {
     @Output NullableDecimalHolder out;
     @Inject ArrowBuf buffer;
 
+    @Override
     public void setup() {
       sum = new NullableDecimalHolder();
       sum.isSet = 1;
@@ -623,6 +640,7 @@ public class DecimalFunctions {
       nonNullCount.value = 0;
     }
 
+    @Override
     public void add() {
       if (in.isSet == 1) {
         com.dremio.exec.util.DecimalUtils.addSignedDecimalInLittleEndianBytes(sum.buffer, org.apache.arrow.memory.util.LargeMemoryUtil.capAtMaxInt(sum.start), in.buffer,
@@ -631,6 +649,7 @@ public class DecimalFunctions {
       }
     }
 
+    @Override
     public void output() {
       if (nonNullCount.value > 0) {
         out.isSet = 1;
@@ -642,6 +661,7 @@ public class DecimalFunctions {
       }
     }
 
+    @Override
     public void reset() {
       nonNullCount.value = 0;
       java.math.BigDecimal zero = new java.math.BigDecimal(java.math.BigInteger.ZERO, 0);
@@ -662,6 +682,7 @@ public class DecimalFunctions {
     @Output NullableDecimalHolder out;
     @Inject ArrowBuf buffer;
 
+    @Override
     public void setup() {
       sum = new NullableDecimalHolder();
       sum.isSet = 1;
@@ -672,6 +693,7 @@ public class DecimalFunctions {
       org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(zero, sum.buffer, 0, org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
     }
 
+    @Override
     public void add() {
       if (in.isSet == 1) {
         com.dremio.exec.util.DecimalUtils.addSignedDecimalInLittleEndianBytes(sum.buffer, org.apache.arrow.memory.util.LargeMemoryUtil.capAtMaxInt(sum.start), in.buffer,
@@ -679,12 +701,14 @@ public class DecimalFunctions {
       }
     }
 
+    @Override
     public void output() {
       out.isSet = 1;
       out.buffer = sum.buffer;
       out.start = sum.start;
     }
 
+    @Override
     public void reset() {
       java.math.BigDecimal zero = new java.math.BigDecimal(java.math.BigInteger.ZERO, 0);
       org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(zero, sum.buffer, 0, org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
@@ -701,6 +725,7 @@ public class DecimalFunctions {
     @Output NullableDecimalHolder out;
     @Inject ArrowBuf buffer;
 
+    @Override
     public void setup() {
       minVal = new NullableDecimalHolder();
       minVal.isSet = 1;
@@ -713,6 +738,7 @@ public class DecimalFunctions {
       nonNullCount.value = 0;
     }
 
+    @Override
     public void add() {
       if (in.isSet != 0) {
         nonNullCount.value = 1;
@@ -723,6 +749,7 @@ public class DecimalFunctions {
         }
       }
     }
+    @Override
     public void output() {
       if (nonNullCount.value > 0) {
         out.isSet = 1;
@@ -734,6 +761,7 @@ public class DecimalFunctions {
       }
     }
 
+    @Override
     public void reset() {
       org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(com.dremio.exec.util.DecimalUtils.MAX_DECIMAL, minVal.buffer, 0, org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
       nonNullCount.value = 0;
@@ -751,6 +779,7 @@ public class DecimalFunctions {
     @Output NullableDecimalHolder out;
     @Inject ArrowBuf buffer;
 
+    @Override
     public void setup() {
       maxVal = new NullableDecimalHolder();
       maxVal.isSet = 1;
@@ -762,6 +791,7 @@ public class DecimalFunctions {
       nonNullCount.isSet = 1;
       nonNullCount.value = 0;
     }
+    @Override
     public void add() {
       if (in.isSet != 0) {
         nonNullCount.value = 1;
@@ -772,6 +802,7 @@ public class DecimalFunctions {
         }
       }
     }
+    @Override
     public void output() {
       if (nonNullCount.value > 0) {
         out.isSet = 1;
@@ -782,6 +813,7 @@ public class DecimalFunctions {
         out.isSet = 0;
       }
     }
+    @Override
     public void reset() {
       org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(com.dremio.exec.util.DecimalUtils.MIN_DECIMAL, maxVal.buffer, 0, org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
       nonNullCount.value = 0;
@@ -803,8 +835,10 @@ public class DecimalFunctions {
     @Output
     NullableIntHolder out;
 
+    @Override
     public void setup() {}
 
+    @Override
     public void eval() {
       out.isSet = 1;
       outside:
@@ -843,8 +877,10 @@ public class DecimalFunctions {
     @Output
     NullableIntHolder out;
 
+    @Override
     public void setup() {}
 
+    @Override
     public void eval() {
       out.isSet = 1;
       outside:

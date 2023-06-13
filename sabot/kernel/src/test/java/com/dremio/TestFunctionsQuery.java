@@ -1086,8 +1086,8 @@ public class TestFunctionsQuery extends BaseTestQuery {
   @Test // TODO (DX-11268): Fix TIMESTAMPADD(SQL_TSI_FRAC_SECOND, ..., ...) function
   public void timestampAddNanoSecond() {
     UserExceptionAssert.assertThatThrownBy(() -> test("select timestampadd(NANOSECOND, 2, timestamp '2015-03-30 20:49:59.000') as ts from (values(1))"))
-      .hasErrorType(ErrorType.PARSE)
-      .hasMessageContaining("Failure parsing the query.");
+      .hasErrorType(ErrorType.UNSUPPORTED_OPERATION)
+      .hasMessageContaining("TIMESTAMPADD function supports the following time units: YEAR, QUARTER, MONTH, WEEK, DAY, HOUR, MINUTE, SECOND");
   }
 
   @Test

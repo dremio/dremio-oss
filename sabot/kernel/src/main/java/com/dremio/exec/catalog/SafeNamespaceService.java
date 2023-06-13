@@ -27,6 +27,7 @@ import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
 import com.dremio.datastore.api.LegacyKVStore.LegacyFindByRange;
 import com.dremio.exec.catalog.ManagedStoragePlugin.SafeRunner;
 import com.dremio.service.namespace.BoundedDatasetCount;
+import com.dremio.service.namespace.DatasetConfigAndEntitiesOnPath;
 import com.dremio.service.namespace.DatasetMetadataSaver;
 import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceException;
@@ -45,6 +46,8 @@ import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.dremio.service.namespace.space.proto.HomeConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
+
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 
 /**
  * A decorator for namespace service that only does operations underneath a safe runner to avoid making changes when
@@ -222,8 +225,14 @@ class SafeNamespaceService implements NamespaceService {
   }
 
   @Override
+  @WithSpan
   public DatasetConfig getDataset(NamespaceKey arg0) throws NamespaceException {
     return runner.doSafe(() -> delegate.getDataset(arg0));
+  }
+
+  @Override
+  public DatasetConfigAndEntitiesOnPath getDatasetAndEntitiesOnPath(NamespaceKey arg0) throws NamespaceException {
+    return runner.doSafe(() -> delegate.getDatasetAndEntitiesOnPath(arg0));
   }
 
   @Override
@@ -258,6 +267,7 @@ class SafeNamespaceService implements NamespaceService {
   }
 
   @Override
+  @WithSpan
   public FolderConfig getFolder(NamespaceKey arg0) throws NamespaceException {
     return runner.doSafe(() -> delegate.getFolder(arg0));
   }
@@ -278,6 +288,7 @@ class SafeNamespaceService implements NamespaceService {
   }
 
   @Override
+  @WithSpan
   public SourceConfig getSource(NamespaceKey arg0) throws NamespaceException {
     return runner.doSafe(() -> delegate.getSource(arg0));
   }

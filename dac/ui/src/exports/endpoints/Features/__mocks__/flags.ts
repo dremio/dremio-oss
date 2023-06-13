@@ -15,16 +15,25 @@
  */
 
 import { FeatureFlagResponse } from "../FeatureFlagResponse.type";
+import { AUTOCOMPLETE_UI_V2 } from "@app/exports/flags/AUTOCOMPLETE_UI_V2";
 import { SONAR_URLABILITY_UI } from "@app/exports/flags/SONAR_URLABILITY_UI";
 import { SQL_JOB_STATUS } from "@app/exports/flags/SQL_JOB_STATUS";
+import { DATA_OPTIMIZATION } from "@app/exports/flags/DATA_OPTIMIZATION";
+import { ORGANIZATION_PRIVILEGE_APIS } from "@app/exports/flags/ORGANIZATION_PRIVILEGE_APIS";
+import { CATALOG_ARS_ENABLED } from "@app/exports/flags/CATALOG_ARS_ENABLED";
+import { ARCTIC_CATALOG_LEVEL_ACCESS_CONTROL } from "@app/exports/flags/ARCTIC_CATALOG_LEVEL_ACCESS_CONTROL";
 
 export const flags: Record<string, FeatureFlagResponse["entitlement"]> = {
   arctic_catalog_creation: "ENABLED",
   arctic_catalog_creation_ui: "ENABLED",
   arctic_catalog_ui: "ENABLED",
-  organization_landing_ui: "ENABLED",
   data_plane_project_creation_ui: "ENABLED",
   disable_data_plane_project_creation_ui: "DISABLED",
   [SONAR_URLABILITY_UI as string]: "ENABLED",
   [SQL_JOB_STATUS as string]: "ENABLED",
+  [DATA_OPTIMIZATION as string]: "ENABLED",
+  [ORGANIZATION_PRIVILEGE_APIS as string]: "ENABLED",
+  [CATALOG_ARS_ENABLED as string]: "DISABLED",
+  [ARCTIC_CATALOG_LEVEL_ACCESS_CONTROL as string]: "ENABLED",
+  [AUTOCOMPLETE_UI_V2 as string]: "ENABLED",
 };

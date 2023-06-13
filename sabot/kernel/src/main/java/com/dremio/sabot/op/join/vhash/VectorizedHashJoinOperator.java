@@ -168,6 +168,7 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
     return state;
   }
 
+  @Override
   public VectorAccessible setup(VectorAccessible left, VectorAccessible right) throws Exception {
     state.is(State.NEEDS_SETUP);
 

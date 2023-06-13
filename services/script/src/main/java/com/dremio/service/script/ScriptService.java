@@ -50,8 +50,9 @@ public interface ScriptService extends Service {
    * @param scriptRequest
    * @return
    * @throws DuplicateScriptNameException
+   * @throws MaxScriptsLimitReachedException
    */
-  Script createScript(ScriptRequest scriptRequest) throws DuplicateScriptNameException;
+  Script createScript(ScriptRequest scriptRequest) throws DuplicateScriptNameException, MaxScriptsLimitReachedException;
 
   /**
    * update script

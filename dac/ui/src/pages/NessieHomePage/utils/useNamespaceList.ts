@@ -19,8 +19,6 @@ import { useMemo } from "react";
 import { usePromise } from "react-smart-promise";
 import { DefaultApi } from "@app/services/nessie/client";
 
-const QUERY_POSTFIX = "(\\\\.|$)";
-
 const memoGetEntries = moize(getEntries, {
   maxSize: 1,
   isPromise: true,
@@ -28,8 +26,9 @@ const memoGetEntries = moize(getEntries, {
 });
 
 function formatQuery(path: string[] = []) {
-  return `entry.namespace.matches('${
-    path.map((c) => decodeURIComponent(c)).join("\\\\.") + QUERY_POSTFIX
+  if (!path?.length) return;
+  return `entry.encodedKey.startsWith('${
+    path.map((c) => decodeURIComponent(c)).join(".") + "."
   }')`;
 }
 

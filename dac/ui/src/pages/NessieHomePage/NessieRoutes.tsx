@@ -23,6 +23,9 @@ import NessieProjectHomePage from "./components/NessieProjectHomePage/NessieProj
 import NessieSourceHomePage from "./components/NessieSourceHomePage/NessieSourceHomePage";
 import ArcticSourceWithNessie from "@app/exports/pages/ArcticSource/ArcticSource";
 import { ArcticSourceRoutes } from "@inject/additionalRequiredRoutes";
+import ArcticCatalogCommits from "@app/exports/pages/ArcticCatalog/components/ArcticCatalogCommits/ArcticCatalogCommits";
+import ArcticCatalogTags from "@app/exports/pages/ArcticCatalog/components/ArcticCatalogTags/ArcticCatalogTags";
+import ArcticCommitDetails from "@app/exports/pages/ArcticCatalog/components/ArcticCommitDetails/ArcticCommitDetails";
 
 import * as PATHS from "@app/exports/paths";
 
@@ -52,19 +55,70 @@ function nessieRoutes() {
   );
 }
 
+export const NessieHistorySourceRoutes = [
+  <Route
+    key="commits"
+    path={PATHS.nessieSourceCommitsNonBase()}
+    component={ArcticCatalogCommits}
+  />,
+  <Route
+    key="commits-branch-namespace"
+    path={PATHS.nessieSourceCommits({ branchId: ":branchName" })}
+    component={ArcticCatalogCommits}
+  />,
+  <Route
+    key="commits-namespace"
+    path={PATHS.nessieSourceCommits({
+      branchId: ":branchName",
+      namespace: "*",
+    })}
+    component={ArcticCatalogCommits}
+  />,
+  <Route
+    key="commitDetails"
+    path={PATHS.nessieSourceCommit({
+      branchId: ":branchName",
+      commitId: ":commitId",
+    })}
+    component={ArcticCommitDetails}
+  />,
+  <Route
+    key="tags"
+    path={PATHS.nessieSourceTagsNonBase()}
+    component={ArcticCatalogTags}
+  />,
+  <Route
+    key="branches"
+    path={PATHS.nessieSourceBranchesNonBase()}
+    component={() => <RepoView showHeader={false} />}
+  />,
+];
+
 export function nessieSourceRoutes() {
   return [
-    <Redirect
-      key="nessieSourceRoutes"
-      from="/sources/dataplane/:sourceId"
-      to="/sources/dataplane/:sourceId/branches"
-    />,
     <Route
       key="nessieSourceHomePage"
-      path="/sources/dataplane/:sourceId"
-      component={NessieSourceHomePage}
+      path={PATHS.nessieSourceBase({
+        sourceId: ":sourceId",
+        projectId: ":projectId",
+      })}
+      component={ArcticSourceWithNessie}
     >
-      {CommonRoutes}
+      <IndexRedirect
+        to={PATHS.nessieSourceCommitsBase({
+          sourceId: ":sourceId",
+          projectId: ":projectId",
+        })}
+      />
+      {NessieHistorySourceRoutes}
+      <Route
+        key="nessie-not-found"
+        path={`${PATHS.nessieSourceBase({
+          sourceId: ":sourceId",
+          projectId: ":projectId",
+        })}/*`}
+        component={() => null}
+      />
     </Route>,
   ];
 }

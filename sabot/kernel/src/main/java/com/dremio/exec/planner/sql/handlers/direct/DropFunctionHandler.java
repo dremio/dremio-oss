@@ -39,24 +39,37 @@ public class DropFunctionHandler extends SimpleDirectHandler {
 
   @Override
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
+    return Collections.singletonList(toResultImplementation(sql, sqlNode));
+  }
+
+  private SimpleCommandResult toResultImplementation(String sql, SqlNode sqlNode) throws Exception {
     final SqlDropFunction dropFunction = SqlNodeUtil.unwrap(sqlNode, SqlDropFunction.class);
     final Catalog catalog = context.getCatalog();
-    final NamespaceKey functionKey = catalog.resolveSingle(dropFunction.getPath());
+    NamespaceKey functionKey = catalog.resolveSingle(dropFunction.getPath());
 
     boolean functionExists = checkFunctionExists(functionKey, catalog);
-
     if (functionExists) {
       catalog.dropFunction(functionKey);
-      return Collections.singletonList(
-        SimpleCommandResult.successful(String.format("Function, %s, is dropped.", functionKey)));
-    } else if(dropFunction.isIfExists()) {
-      return Collections.singletonList(
-        SimpleCommandResult.successful("Function, %s, does not exists.", functionKey));
-    } else {
-      throw UserException.validationError()
-        .message("Function, %s, does not exists.", functionKey)
-        .buildSilently();
+      return SimpleCommandResult.successful(String.format("Function, %s, is dropped.", functionKey));
     }
+
+    // Try again but from the root context:
+    if (functionKey.size() > 1) {
+      functionKey = new NamespaceKey(functionKey.getLeaf());
+      functionExists = checkFunctionExists(functionKey, catalog);
+      if (functionExists) {
+        catalog.dropFunction(functionKey);
+        return SimpleCommandResult.successful(String.format("Function, %s, is dropped.", functionKey));
+      }
+    }
+
+    if (dropFunction.isIfExists()) {
+      return SimpleCommandResult.successful("Function, %s, does not exists.", functionKey);
+    }
+
+    throw UserException.validationError()
+      .message("Function, %s, does not exists.", functionKey)
+      .buildSilently();
   }
 
   private boolean checkFunctionExists (NamespaceKey functionKey, Catalog catalog) {

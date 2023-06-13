@@ -383,6 +383,7 @@ class HistogramGenerator {
           break;
         case MILLENNIUM:
           timeValue = toMillis(tmpValue.plusYears(1000));
+          break;
         default:
           break;
       }

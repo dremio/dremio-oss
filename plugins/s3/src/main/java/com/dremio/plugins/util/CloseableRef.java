@@ -49,6 +49,7 @@ public class CloseableRef<T extends AutoCloseable> implements AutoCloseable {
         return this.obj;
     }
 
+    @Override
     public void close() throws Exception {
         if (logger.isDebugEnabled()) {
             logger.debug("Class {} released the ref for {}:{}", getCallingClass(), obj.getClass().getSimpleName(), System.identityHashCode(obj));

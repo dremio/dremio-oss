@@ -359,7 +359,7 @@ SqlNode TableWithVersionContext(SqlNode tableRef) :
     SqlCall call;
     SqlBasicCall collectionTableCall;
     SqlBasicCall functionCall;
-    List<SqlNode> list = Lists.newArrayList();
+    List<SqlNode> list = new ArrayList<SqlNode>();
     List<String> timeTravelFunctionName = TableMacroNames.TIME_TRAVEL;
 }
 {
@@ -422,4 +422,49 @@ SqlNode TableWithVersionContext(SqlNode tableRef) :
             throw generateParseException();
         }
     }
+}
+/**
+ [AT (BRANCH | TAG | COMMIT | SNAPSHOT | TIMESTAMP (versionSpec)]
+*/
+SqlTableVersionSpec ATVersionSpec() :
+{
+    SqlParserPos pos;
+    SqlIdentifier simpleId;
+    TableVersionType tableVersionType = TableVersionType.NOT_SPECIFIED;
+    SqlNode specifier = SqlLiteral.createCharString("NOT_SPECIFIED",SqlParserPos.ZERO);
+}
+{
+    <AT> { pos = getPos(); }
+     (
+     <SNAPSHOT> specifier = StringLiteral() { tableVersionType = TableVersionType.SNAPSHOT_ID; }
+     |
+     <BRANCH> simpleId = SimpleIdentifier()
+     {
+      tableVersionType = TableVersionType.BRANCH;
+      specifier = SqlLiteral.createCharString(simpleId.toString(), simpleId.getParserPosition());
+     }
+     |
+     <TAG> simpleId = SimpleIdentifier()
+     {
+      tableVersionType = TableVersionType.TAG;
+      specifier = SqlLiteral.createCharString(simpleId.toString(), simpleId.getParserPosition());
+      }
+     |
+     <COMMIT> simpleId = SimpleIdentifier()
+     {
+      tableVersionType = TableVersionType.COMMIT_HASH_ONLY;
+      specifier = SqlLiteral.createCharString(simpleId.toString(), simpleId.getParserPosition());
+      }
+     |
+     (<REF> | <REFERENCE>) simpleId = SimpleIdentifier()
+     {
+      tableVersionType = TableVersionType.REFERENCE;
+      specifier = SqlLiteral.createCharString(simpleId.toString(), simpleId.getParserPosition());
+      }
+     |
+      specifier = Expression(ExprContext.ACCEPT_NON_QUERY) { tableVersionType = TableVersionType.TIMESTAMP; }
+     )
+     {
+       return new SqlTableVersionSpec(pos, tableVersionType, specifier);
+     }
 }

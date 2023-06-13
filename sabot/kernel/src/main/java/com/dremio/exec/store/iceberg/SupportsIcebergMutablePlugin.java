@@ -49,6 +49,7 @@ public interface SupportsIcebergMutablePlugin extends MutablePlugin, SupportsIce
   /**
    * @return A copy of the configuration to use for the plugin.
    */
+  @Override
   default Configuration getFsConfCopy() {
     throw new UnsupportedOperationException();
   }

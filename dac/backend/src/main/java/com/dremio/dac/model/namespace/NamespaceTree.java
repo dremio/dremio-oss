@@ -15,7 +15,6 @@
  */
 package com.dremio.dac.model.namespace;
 
-import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.FUNCTION;
 import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.SOURCE;
 
 import java.util.ArrayList;
@@ -49,6 +48,7 @@ import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.file.File;
 import com.dremio.file.FilePath;
 import com.dremio.file.SourceFilePath;
+import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceUtils;
@@ -96,21 +96,22 @@ public class NamespaceTree {
     Type rootEntityType,
     CollaborationHelper collaborationService) throws NamespaceException, DatasetNotFoundException {
 
-    return newInstance(datasetService, children, rootEntityType, collaborationService, null, null);
+    return newInstance(datasetService, children, rootEntityType, collaborationService, null, null, null);
   }
 
   public static NamespaceTree newInstance(
-      final DatasetVersionMutator datasetService,
-      List<NameSpaceContainer> children,
-      Type rootEntityType,
-      CollaborationHelper collaborationService,
-      Boolean fileSystemSource,
-      Boolean isImpersonationEnabled) throws NamespaceException, DatasetNotFoundException {
+    final DatasetVersionMutator datasetService,
+    List<NameSpaceContainer> children,
+    Type rootEntityType,
+    CollaborationHelper collaborationService,
+    Boolean fileSystemSource,
+    Boolean isImpersonationEnabled,
+    OptionManager optionManager) throws NamespaceException, DatasetNotFoundException {
     NamespaceTree result = new NamespaceTree();
     result.setIsFileSystemSource(fileSystemSource);
     result.setIsImpersonationEnabled(isImpersonationEnabled);
 
-    populateInstance(result, datasetService, children, rootEntityType, collaborationService);
+    populateInstance(result, datasetService, children, rootEntityType, collaborationService, optionManager);
 
     return result;
   }
@@ -120,14 +121,14 @@ public class NamespaceTree {
       DatasetVersionMutator datasetService,
       List<NameSpaceContainer> children,
       Type rootEntityType,
-      CollaborationHelper collaborationService)
+      CollaborationHelper collaborationService, OptionManager optionManager)
       throws NamespaceException, DatasetNotFoundException {
 
     // get a list of all ids so we can fetch all collaboration tags in one search
     final Map<String, CollaborationTag> tags = new HashMap<>();
     if (collaborationService != null) {
       TagsSearchResult tagsInfo = collaborationService.getTagsForIds(children.stream().
-        map(NamespaceUtils::getId).collect(Collectors.toSet()));
+        map(NamespaceUtils::getIdOrNull).collect(Collectors.toSet()));
 
       tags.putAll(tagsInfo.getTags());
       tree.setCanTagsBeSkipped(tagsInfo.getCanTagsBeSkipped());
@@ -157,7 +158,7 @@ public class NamespaceTree {
                 datasetPath.getDataset(),
                 vds.getSql(),
                 vds,
-                datasetService.getJobsCount(datasetPath.toNamespaceKey()),
+                datasetService.getJobsCount(datasetPath.toNamespaceKey(), optionManager),
                 rootEntityType,
                 tags.get(datasetConfig.getId().getId())
               );
@@ -170,7 +171,7 @@ public class NamespaceTree {
                 fileDSId,
                 new FilePath(container.getFullPathList()),
                 fileFormat,
-                datasetService.getJobsCount(datasetPath.toNamespaceKey()), false, true,
+                datasetService.getJobsCount(datasetPath.toNamespaceKey(), optionManager), false, true,
                 fileFormat.getFileType() != FileType.UNKNOWN, datasetConfig.getType(),
                 tags.get(fileDSId)
               );
@@ -183,7 +184,7 @@ public class NamespaceTree {
                 sourceFileDSId,
                 new SourceFilePath(container.getFullPathList()),
                 sourceFileFormat,
-                datasetService.getJobsCount(datasetPath.toNamespaceKey()), false, false,
+                datasetService.getJobsCount(datasetPath.toNamespaceKey(), optionManager), false, false,
                 sourceFileFormat.getFileType() != FileType.UNKNOWN, datasetConfig.getType(),
                 tags.get(sourceFileDSId)
               );
@@ -207,7 +208,7 @@ public class NamespaceTree {
                 new PhysicalDatasetResourcePath(new SourceName(container.getFullPathList().get(0)), path),
                 new PhysicalDatasetName(path.getFileName().getName()),
                 DatasetsUtil.toPhysicalDatasetConfig(container.getDataset()),
-                datasetService.getJobsCount(datasetPath.toNamespaceKey()),
+                datasetService.getJobsCount(datasetPath.toNamespaceKey(), optionManager),
                 tags.get(container.getDataset().getId().getId())
               );
               break;
@@ -333,4 +334,7 @@ public class NamespaceTree {
     this.isImpersonationEnabled = isImpersonationEnabled;
   }
 
+  public long totalCount() {
+    return getFolders().size() + getDatasets().size() + getFiles().size() + getPhysicalDatasets().size();
+  }
 }

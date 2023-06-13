@@ -15,7 +15,6 @@
  */
 package com.dremio.sabot.exec.fragment;
 
-import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
@@ -63,7 +62,7 @@ public class TestFragmentExecutor {
     private BufferAllocator allocator = new RootAllocator();
 
     @Test
-    public void testWorkOnOOBAfterSetup() {
+    public void testWorkOnOOBAfterSetup() throws Exception {
         try(ArrowBuf messageBuf = allocator.buffer(10L)) {
             FragmentExecutor exec = spy(getTestFragmentExecutor());
             doNothing().when(exec).setupExecution();
@@ -86,9 +85,6 @@ public class TestFragmentExecutor {
             listener.overrideIsSetup(true);
             asyncTask.run();
             verify(pipeline).workOnOOB(any(OutOfBandMessage.class));
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
         }
     }
 

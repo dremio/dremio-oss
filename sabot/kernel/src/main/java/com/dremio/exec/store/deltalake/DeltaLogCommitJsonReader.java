@@ -120,7 +120,7 @@ public class DeltaLogCommitJsonReader implements DeltaLogReader {
     public void populateSchema(DeltaLogSnapshot snapshot, JsonNode metadata) throws IOException {
         // Check data file format
         final String format = get(metadata, "parquet", JsonNode::asText, "format", "provider");
-        Preconditions.checkState(format.equalsIgnoreCase("parquet"), "Non-parquet delta lake tables aren't supported.");
+        Preconditions.checkState("parquet".equalsIgnoreCase(format), "Non-parquet delta lake tables aren't supported.");
 
         final List<String> partitionCols = new ArrayList<>();
         // Fetch partitions

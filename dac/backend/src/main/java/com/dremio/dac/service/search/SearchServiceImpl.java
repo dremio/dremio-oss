@@ -155,7 +155,7 @@ public class SearchServiceImpl implements SearchService {
     final LegacyIndexedStore.LegacyFindByCondition findByCondition = new LegacyIndexedStore.LegacyFindByCondition();
     final List<SearchTypes.SearchQuery> searchQueries = StreamSupport.stream(results.spliterator(), false)
       .map(input -> {
-        return newTermQuery(CollaborationTagStore.ENTITY_ID, NamespaceUtils.getId(input.getNamespaceContainer()));
+        return newTermQuery(CollaborationTagStore.ENTITY_ID, NamespaceUtils.getIdOrNull(input.getNamespaceContainer()));
       }).collect(Collectors.toList());
 
     findByCondition.setCondition(or(searchQueries));
@@ -168,7 +168,7 @@ public class SearchServiceImpl implements SearchService {
 
     // fill in
     results.forEach(input -> {
-      String id = NamespaceUtils.getId(input.getNamespaceContainer());
+      String id = NamespaceUtils.getIdOrNull(input.getNamespaceContainer());
       if (hash.containsKey(id)) {
         input.setCollaborationTag(hash.get(id));
       }
@@ -251,6 +251,7 @@ public class SearchServiceImpl implements SearchService {
   public void close() throws Exception {
   }
 
+  @Override
   public void wakeupManager(String reason) {
     if (wakeupHandler != null) {
       wakeupHandler.handle(reason);

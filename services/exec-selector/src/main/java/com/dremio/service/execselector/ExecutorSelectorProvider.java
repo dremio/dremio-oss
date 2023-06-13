@@ -31,6 +31,7 @@ public class ExecutorSelectorProvider implements Provider<ExecutorSelector> {
     this.currentSelector = selector;
   }
 
+  @Override
   public ExecutorSelector get() {
     return currentSelector;
   }

@@ -45,7 +45,6 @@ import com.dremio.exec.store.text.TextRecordWriter;
 import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf.EasyDatasetSplitXAttr;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -110,10 +109,10 @@ public class TextFormatPlugin extends EasyFormatPlugin<TextFormatPlugin.TextForm
 
     public List<String> extensions = ImmutableList.of("txt");
     public String lineDelimiter = "\n";
-    public char fieldDelimiter = '\u0000';
-    public char quote = '"';
-    public char escape = '"';
-    public char comment = '#';
+    public String fieldDelimiter = "\u0000";
+    public String quote = "\"";
+    public String escape = "\"";
+    public String comment = "#";
     public boolean skipFirstLine = false;
     public boolean extractHeader = false;
     public boolean autoGenerateColumnNames = false;
@@ -128,15 +127,15 @@ public class TextFormatPlugin extends EasyFormatPlugin<TextFormatPlugin.TextForm
       return extensions;
     }
 
-    public char getQuote() {
+    public String getQuote() {
       return quote;
     }
 
-    public char getEscape() {
+    public String getEscape() {
       return escape;
     }
 
-    public char getComment() {
+    public String getComment() {
       return comment;
     }
 
@@ -144,7 +143,7 @@ public class TextFormatPlugin extends EasyFormatPlugin<TextFormatPlugin.TextForm
       return lineDelimiter;
     }
 
-    public char getFieldDelimiter() {
+    public String getFieldDelimiter() {
       return fieldDelimiter;
     }
 
@@ -157,14 +156,9 @@ public class TextFormatPlugin extends EasyFormatPlugin<TextFormatPlugin.TextForm
       return autoGenerateColumnNames;
     }
 
-    @JsonIgnore
-    public String getFieldDelimiterAsString(){
-      return new String(new char[]{fieldDelimiter});
-    }
-
     @Deprecated
     @JsonProperty("delimiter")
-    public void setFieldDelimiter(char delimiter){
+    public void setFieldDelimiter(String delimiter){
       this.fieldDelimiter = delimiter;
     }
 
@@ -181,12 +175,12 @@ public class TextFormatPlugin extends EasyFormatPlugin<TextFormatPlugin.TextForm
     public int hashCode() {
       final int prime = 31;
       int result = 1;
-      result = prime * result + comment;
-      result = prime * result + escape;
+      result = prime * result + ((comment == null) ? 0 : comment.hashCode());
+      result = prime * result + ((escape == null) ? 0 : escape.hashCode());
       result = prime * result + ((extensions == null) ? 0 : extensions.hashCode());
-      result = prime * result + fieldDelimiter;
+      result = prime * result + ((fieldDelimiter == null) ? 0 : fieldDelimiter.hashCode());
       result = prime * result + ((lineDelimiter == null) ? 0 : lineDelimiter.hashCode());
-      result = prime * result + quote;
+      result = prime * result + ((quote == null) ? 0 : quote.hashCode());
       result = prime * result + (skipFirstLine ? 1231 : 1237);
       result = prime * result + (extractHeader? 1231 : 1237);
       result = prime * result + (autoGenerateColumnNames ? 1231 : 1237);
@@ -207,10 +201,10 @@ public class TextFormatPlugin extends EasyFormatPlugin<TextFormatPlugin.TextForm
         return false;
       }
       TextFormatConfig other = (TextFormatConfig) obj;
-      if (comment != other.comment) {
+      if (!Objects.equals(comment, other.comment)) {
         return false;
       }
-      if (escape != other.escape) {
+      if (!Objects.equals(escape, other.escape)) {
         return false;
       }
       if (extensions == null) {
@@ -220,7 +214,7 @@ public class TextFormatPlugin extends EasyFormatPlugin<TextFormatPlugin.TextForm
       } else if (!extensions.equals(other.extensions)) {
         return false;
       }
-      if (fieldDelimiter != other.fieldDelimiter) {
+      if (!Objects.equals(fieldDelimiter, other.fieldDelimiter)) {
         return false;
       }
       if (lineDelimiter == null) {
@@ -230,7 +224,7 @@ public class TextFormatPlugin extends EasyFormatPlugin<TextFormatPlugin.TextForm
       } else if (!lineDelimiter.equals(other.lineDelimiter)) {
         return false;
       }
-      if (quote != other.quote) {
+      if (!Objects.equals(quote, other.quote)) {
         return false;
       }
       if (skipFirstLine != other.skipFirstLine) {

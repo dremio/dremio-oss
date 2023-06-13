@@ -52,7 +52,6 @@ public class UnsupportedOperatorsVisitor extends SqlShuttle {
     disabledType.add(SqlTypeName.TINYINT.name());
     disabledType.add(SqlTypeName.SMALLINT.name());
     disabledType.add(SqlTypeName.REAL.name());
-    disabledOperators.add("CARDINALITY");
     dirExplorers.add("MAXDIR");
     dirExplorers.add("IMAXDIR");
     dirExplorers.add("MINDIR");

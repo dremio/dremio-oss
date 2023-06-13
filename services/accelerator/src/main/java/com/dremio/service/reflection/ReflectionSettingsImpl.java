@@ -21,6 +21,10 @@ import java.util.concurrent.TimeUnit;
 import javax.inject.Provider;
 
 import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.exec.catalog.CatalogEntityKey;
+import com.dremio.exec.catalog.CatalogUtil;
+import com.dremio.exec.catalog.EntityExplorer;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
@@ -39,20 +43,32 @@ public class ReflectionSettingsImpl implements ReflectionSettings {
 
   private final Provider<NamespaceService> namespace;
   private final ReflectionSettingsStore store;
+  private final Provider<CatalogService> catalogServiceProvider;
 
-  public ReflectionSettingsImpl(Provider<NamespaceService> namespace, Provider<LegacyKVStoreProvider> storeProvider) {
+  public ReflectionSettingsImpl(Provider<NamespaceService> namespace, Provider<CatalogService> catalogServiceProvider, Provider<LegacyKVStoreProvider> storeProvider) {
     this.namespace = Preconditions.checkNotNull(namespace, "namespace service required");
     this.store = new ReflectionSettingsStore(storeProvider);
+    this.catalogServiceProvider = catalogServiceProvider;
   }
 
   // only returns a AccelerationSettings if one is specifically defined for the specified key
   @Override
   public Optional<AccelerationSettings> getStoredReflectionSettings(NamespaceKey key) {
+    return getStoredReflectionSettings(CatalogEntityKey.fromNamespaceKey(key));
+  }
+
+  @Override
+  public Optional<AccelerationSettings> getStoredReflectionSettings(CatalogEntityKey key) {
     return Optional.ofNullable(store.get(key));
   }
 
   @Override
   public AccelerationSettings getReflectionSettings(NamespaceKey key) {
+   return getReflectionSettings(CatalogEntityKey.fromNamespaceKey(key));
+  }
+
+  @Override
+  public AccelerationSettings getReflectionSettings(CatalogEntityKey key) {
     // first check if the settings have been set at the dataset level
     AccelerationSettings settings = store.get(key);
     if (settings != null) {
@@ -60,10 +76,10 @@ public class ReflectionSettingsImpl implements ReflectionSettings {
     }
 
     // no settings found, try to retrieve the source's settings
-    final NamespaceKey rootKey = new NamespaceKey(key.getRoot());
-    if (!rootKey.equals(key)) {
+    final NamespaceKey rootKey = new NamespaceKey(key.getRootEntity());
+    if (!rootKey.equals(key.toNamespaceKey())) {
       try {
-        namespace.get().getSource(new NamespaceKey(key.getRoot()));
+        namespace.get().getSource(new NamespaceKey(key.getRootEntity()));
         // root parent is a source, return its settings from the store
         return getReflectionSettings(rootKey);
       } catch (NamespaceException e) {
@@ -73,11 +89,11 @@ public class ReflectionSettingsImpl implements ReflectionSettings {
 
     // otherwise, return the default settings, they depend if the dataset is a home dataset or not
     boolean homeDataset = false;
-    try {
-      DatasetConfig config = namespace.get().getDataset(key);
+    final EntityExplorer catalog = CatalogUtil.getSystemCatalogForReflections(catalogServiceProvider.get());
+    DatasetConfig config = CatalogUtil.getDatasetConfig(catalog, key.toNamespaceKey());
+    //Check if its a home dataset
+    if (config != null) {
       homeDataset = ReflectionUtils.isHomeDataset(config.getType());
-    } catch (NamespaceException e) {
-      // no dataset found, probably a source. In all cases it's not a home pds :)
     }
 
     if (homeDataset) {
@@ -95,6 +111,11 @@ public class ReflectionSettingsImpl implements ReflectionSettings {
 
   @Override
   public void setReflectionSettings(NamespaceKey key, AccelerationSettings settings) {
+    setReflectionSettings(CatalogEntityKey.fromNamespaceKey(key), settings);
+  }
+
+  @Override
+  public void setReflectionSettings(CatalogEntityKey key, AccelerationSettings settings) {
     // if some settings already exist just override them, otherwise remove the version as the passed settings may be
     // coming from the parent source
     AccelerationSettings previous = store.get(key);
@@ -113,6 +134,11 @@ public class ReflectionSettingsImpl implements ReflectionSettings {
 
   @Override
   public void removeSettings(NamespaceKey key) {
+    removeSettings(CatalogEntityKey.fromNamespaceKey(key));
+  }
+
+  @Override
+  public void removeSettings(CatalogEntityKey key) {
     store.delete(key);
   }
 
@@ -125,5 +151,4 @@ public class ReflectionSettingsImpl implements ReflectionSettings {
     }
     return result;
   }
-
 }

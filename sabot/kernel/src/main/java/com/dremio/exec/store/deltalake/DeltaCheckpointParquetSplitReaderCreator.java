@@ -51,6 +51,7 @@ import com.dremio.exec.store.parquet.InputStreamProvider;
 import com.dremio.exec.store.parquet.InputStreamProviderFactory;
 import com.dremio.exec.store.parquet.MutableParquetMetadata;
 import com.dremio.exec.store.parquet.ParquetDictionaryConvertor;
+import com.dremio.exec.store.parquet.ParquetFilterCreator;
 import com.dremio.exec.store.parquet.ParquetFilters;
 import com.dremio.exec.store.parquet.ParquetReaderFactory;
 import com.dremio.exec.store.parquet.ParquetReaderUtility;
@@ -135,7 +136,7 @@ public class DeltaCheckpointParquetSplitReaderCreator {
                     dataset,
                     parquetXAttr.getLastModificationTime(),
                     isArrowCachingEnabled,
-                    false);
+                    false, ParquetFilters.NONE, ParquetFilterCreator.DEFAULT);
           rollbackCloseable.add(inputStreamProvider);
           lastFooter = inputStreamProvider.getFooter();
           lastPath = inputStreamProvider.getStreamPath().toString();
@@ -328,7 +329,7 @@ public class DeltaCheckpointParquetSplitReaderCreator {
 
     private MutableParquetMetadata readFooter(String filePath, long fileSize) throws IOException {
         try (SingleStreamProvider singleStreamProvider = new SingleStreamProvider(fs, Path.of(filePath), fileSize,
-                maxFooterLen, false, null, null, false)) {
+                maxFooterLen, false, null, null, false, ParquetFilters.NONE,ParquetFilterCreator.DEFAULT )) {
             final MutableParquetMetadata footer = singleStreamProvider.getFooter();
             return footer;
         }

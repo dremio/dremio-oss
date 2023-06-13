@@ -34,18 +34,20 @@ public class SqlDropReflection extends SqlSystemCall {
   public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("DROP_REFLECTION", SqlKind.OTHER_DDL) {
     @Override
     public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 2, "SqlDropReflection.createCall() has to get 2 operands!");
-      return new SqlDropReflection(pos, (SqlIdentifier) operands[0], (SqlIdentifier) operands[1]);
+      Preconditions.checkArgument(operands.length == 3, "SqlDropReflection.createCall() has to get 3 operands!");
+      return new SqlDropReflection(pos, (SqlIdentifier) operands[0], (SqlIdentifier) operands[1], (SqlTableVersionSpec) operands[2]);
     }
   };
 
   private final SqlIdentifier tblName;
   private final SqlIdentifier layoutId;
+  private final SqlTableVersionSpec tableVersionSpec;
 
-  public SqlDropReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdentifier layoutId) {
+  public SqlDropReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdentifier layoutId, SqlTableVersionSpec tableVersionSpec) {
     super(pos);
     this.tblName = tblName;
     this.layoutId = layoutId;
+    this.tableVersionSpec = tableVersionSpec;
   }
 
   public SqlIdentifier getTblName() {
@@ -56,6 +58,10 @@ public class SqlDropReflection extends SqlSystemCall {
     return layoutId;
   }
 
+  public SqlTableVersionSpec getSqlTableVersionSpec() {
+    return tableVersionSpec;
+  }
+
   @Override
   public SqlOperator getOperator() {
     return OPERATOR;
@@ -63,7 +69,7 @@ public class SqlDropReflection extends SqlSystemCall {
 
   @Override
   public List<SqlNode> getOperandList() {
-    return ImmutableList.<SqlNode>of(tblName, layoutId);
+    return ImmutableList.<SqlNode>of(tblName, layoutId, tableVersionSpec);
   }
 
 }

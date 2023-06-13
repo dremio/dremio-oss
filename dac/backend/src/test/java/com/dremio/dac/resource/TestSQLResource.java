@@ -16,12 +16,10 @@
 package com.dremio.dac.resource;
 
 import static java.util.Arrays.asList;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -30,8 +28,6 @@ import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
-import org.apache.calcite.sql.parser.SqlParserUtil;
-import org.apache.calcite.sql.parser.StringAndPos;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -41,19 +37,22 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import com.dremio.dac.api.Folder;
-import com.dremio.dac.explore.model.AnalyzeRequest;
 import com.dremio.dac.explore.model.DatasetPath;
-import com.dremio.dac.explore.model.SuggestionResponse;
-import com.dremio.dac.explore.model.ValidationResponse;
-import com.dremio.dac.model.job.QueryError;
 import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.model.sources.UIMetadataPolicy;
-import com.dremio.dac.model.spaces.Space;
 import com.dremio.dac.server.BaseTestServer;
+import com.dremio.dac.server.FamilyExpectation;
+import com.dremio.dac.server.GenericErrorMessage;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.service.autocomplete.AutocompleteRequestImplementation;
+import com.dremio.service.autocomplete.AutocompleteV2Request;
+import com.dremio.service.autocomplete.AutocompleteV2RequestType;
+import com.dremio.service.autocomplete.ColumnSuggestions;
+import com.dremio.service.autocomplete.ContainerSuggestions;
+import com.dremio.service.autocomplete.SuggestionEntity;
+import com.dremio.service.autocomplete.SuggestionsType;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -61,13 +60,11 @@ import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 
 /**
  * Tests {@link com.dremio.dac.resource.SQLResource} API
  */
 public class TestSQLResource extends BaseTestServer {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestSQLResource.class);
   private static final String SOURCE_NAME = "mysrc";
   private static final long DEFAULT_REFRESH_PERIOD = TimeUnit.HOURS.toMillis(4);
   private static final long DEFAULT_GRACE_PERIOD = TimeUnit.HOURS.toMillis(12);
@@ -114,12 +111,14 @@ public class TestSQLResource extends BaseTestServer {
     addPhysicalDataset(DATASET_PATH_TWO, DatasetType.PHYSICAL_DATASET);
     addPhysicalDataset(DATASET_PATH_THREE, DatasetType.PHYSICAL_DATASET);
 
-    expectSuccess(getBuilder(getAPIv2().path("space/testSpace")).buildPut(Entity.json(new Space(null, "testSpace", null, null, null, 0, null))), Space.class);
+    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(new com.dremio.dac.api.Space(null, "testSpace", null, null, null))), new GenericType<com.dremio.dac.api.Space>() {});
+
     DatasetPath d1Path = new DatasetPath("testSpace.supplier");
     createDatasetFromSQLAndSave(d1Path, "select s_name, s_phone from cp.\"tpch/supplier.parquet\"", asList("cp"));
 
     Folder newFolder = new Folder(null, Arrays.asList("testSpace", "myFolder"), null, null);
-    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(newFolder)), new GenericType<Folder>() {});
+    expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(newFolder)), new GenericType<Folder>() {
+    });
 
     DatasetPath d2Path = new DatasetPath("testSpace.myFolder.supplier");
     createDatasetFromSQLAndSave(d2Path, "select s_name, s_phone from cp.\"tpch/supplier.parquet\"", asList("cp"));
@@ -128,434 +127,6 @@ public class TestSQLResource extends BaseTestServer {
   @After
   public void clear() throws Exception {
     clearAllDataExceptUser();
-  }
-
-  /**
-   * Logs the returned suggestions or validation errors
-   *
-   * @param advisorResponse       The SuggestionResponse or ValidationResponse containing suggestions or validation errors.
-   */
-  private <T> void logAdvisorResponse(T advisorResponse) {
-    if (advisorResponse == null || !logger.isTraceEnabled()) {
-      return;
-    }
-
-    StringBuilder sb = new StringBuilder();
-    sb.append("SQLAnalyzer response:\n");
-    sb.append(advisorResponse.toString());
-    logger.trace(sb.toString());
-  }
-
-  @Test
-  public void testSpaceFullSchemaCompletion() throws Exception {
-    final String partialQuery = "SELECT * from ^";
-    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
-    final SuggestionResponse returnedSuggestions = testSuggestSQL(stringAndPos.sql, stringAndPos.cursor, asList("mysrc"));
-
-    logAdvisorResponse(returnedSuggestions);
-    assertNotNull(returnedSuggestions);
-    assertNotNull(returnedSuggestions.getSuggestions());
-    assertEquals(23, returnedSuggestions.getSuggestions().size());
-  }
-
-  @Test
-  public void testSpaceVDSPartialSchemaCompletion() throws Exception {
-    final String partialQuery = "SELECT * from t^";
-    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
-    final SuggestionResponse returnedSuggestions = testSuggestSQL(stringAndPos.sql, stringAndPos.cursor, asList("mysrc"));
-
-    ArrayList<String> expectedTables = Lists.newArrayList();
-    expectedTables.addAll(
-      asList(
-        "INFORMATION_SCHEMA.\"TABLES\"",
-        "cp.\"tpch/supplier.parquet\"",
-        "testSpace.supplier"));
-
-    logAdvisorResponse(returnedSuggestions);
-    assertNotNull(returnedSuggestions);
-    assertNotNull(returnedSuggestions.getSuggestions());
-    assertEquals(7, returnedSuggestions.getSuggestions().size());
-    for (int i = 0; i < 4; i++) {
-      SuggestionResponse.Suggestion suggestion = returnedSuggestions.getSuggestions().get(i);
-      if (suggestion.getType().equals("TABLE")) {
-        assertTrue(expectedTables.contains(suggestion.getName()));
-      } else if (suggestion.getType().equals("SCHEMA")) {
-        assertEquals("testSpace", suggestion.getName());
-      } else if (suggestion.getType().equals("KEYWORD")) {
-        assertEquals("TABLE", suggestion.getName());
-      }
-    }
-  }
-
-  @Test
-  public void spacePDSPartialSchemaCompletion() throws Exception {
-    final String partialQuery = "SELECT * from c^";
-    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
-    final SuggestionResponse returnedSuggestions = testSuggestSQL(stringAndPos.sql, stringAndPos.cursor, asList("mysrc"));
-
-    ArrayList<String> expectedTables = Lists.newArrayList();
-    expectedTables.addAll(
-      asList(
-        "INFORMATION_SCHEMA.CATALOGS",
-        "INFORMATION_SCHEMA.COLUMNS",
-        "cp.\"tpch/supplier.parquet\""
-        ));
-
-    logAdvisorResponse(returnedSuggestions);
-    assertNotNull(returnedSuggestions);
-    assertNotNull(returnedSuggestions.getSuggestions());
-    assertEquals((expectedTables.size() + 1), returnedSuggestions.getSuggestions().size());
-    for (int i = 0; i < (expectedTables.size() + 1); i++) {
-      SuggestionResponse.Suggestion suggestion = returnedSuggestions.getSuggestions().get(i);
-      if (suggestion.getType().equals("TABLE")) {
-        assertTrue(expectedTables.contains(suggestion.getName()));
-      } else if (suggestion.getType().equals("SCHEMA")) {
-        assertEquals("cp", suggestion.getName());
-      }
-    }
-  }
-
-  @Test
-  public void testSpaceVDSFullDatasetCompletionNoPeriod() throws Exception {
-    final String partialQuery = "SELECT * from testSpace^";
-    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
-    final SuggestionResponse returnedSuggestions = testSuggestSQL(stringAndPos.sql, stringAndPos.cursor, asList("mysrc"));
-
-    logAdvisorResponse(returnedSuggestions);
-    assertNotNull(returnedSuggestions);
-    assertNotNull(returnedSuggestions.getSuggestions());
-    assertEquals(4, returnedSuggestions.getSuggestions().size());
-  }
-
-  @Test
-  public void testPDSFullDatasetCompletionNoPeriod() throws Exception {
-    final String partialQuery = "SELECT * from cp^";
-    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
-    final SuggestionResponse returnedSuggestions = testSuggestSQL(stringAndPos.sql, stringAndPos.cursor, asList("mysrc"));
-
-    logAdvisorResponse(returnedSuggestions);
-    assertNotNull(returnedSuggestions);
-    assertNotNull(returnedSuggestions.getSuggestions());
-    assertEquals(2, returnedSuggestions.getSuggestions().size());
-    for (int i = 0; i < 2; i++) {
-      SuggestionResponse.Suggestion suggestion = returnedSuggestions.getSuggestions().get(i);
-      if (suggestion.getType().equals("TABLE")) {
-        assertEquals("cp.\"tpch/supplier.parquet\"", suggestion.getName());
-      } else if (suggestion.getType().equals("SCHEMA")) {
-        assertEquals("cp", suggestion.getName());
-      }
-    }
-  }
-
-  @Test
-  public void testSpaceVDSFullDatasetCompletionWPeriod() throws Exception {
-    final String partialQuery = "SELECT * from testSpace.^";
-    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
-    final SuggestionResponse returnedSuggestions = testSuggestSQL(stringAndPos.sql, stringAndPos.cursor, asList("mysrc"));
-
-    logAdvisorResponse(returnedSuggestions);
-    assertNotNull(returnedSuggestions);
-    assertNotNull(returnedSuggestions.getSuggestions());
-    assertEquals(1, returnedSuggestions.getSuggestions().size());
-    SuggestionResponse.Suggestion suggestion = returnedSuggestions.getSuggestions().get(0);
-    assertEquals("TABLE", suggestion.getType());
-    assertEquals("testSpace.supplier", suggestion.getName());
-  }
-
-  @Test
-  public void testPDSFullDatasetCompletionWPeriod() throws Exception {
-    final String partialQuery = "SELECT * from cp.^";
-    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
-    final SuggestionResponse returnedSuggestions = testSuggestSQL(stringAndPos.sql, stringAndPos.cursor, asList("mysrc"));
-
-    logAdvisorResponse(returnedSuggestions);
-    assertNotNull(returnedSuggestions);
-    assertNotNull(returnedSuggestions.getSuggestions());
-    assertEquals(1, returnedSuggestions.getSuggestions().size());
-    SuggestionResponse.Suggestion suggestion = returnedSuggestions.getSuggestions().get(0);
-    assertEquals("TABLE", suggestion.getType());
-    assertEquals("cp.\"tpch/supplier.parquet\"", suggestion.getName());
-  }
-
-  @Test
-  public void testSpaceVDSPartialDatasetCompletion() throws Exception {
-    final String partialQuery = "SELECT * from testSpace.sup^";
-    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
-    final SuggestionResponse returnedSuggestions = testSuggestSQL(stringAndPos.sql, stringAndPos.cursor, asList("mysrc"));
-
-    logAdvisorResponse(returnedSuggestions);
-    assertNotNull(returnedSuggestions);
-    assertNotNull(returnedSuggestions.getSuggestions());
-    assertEquals(1, returnedSuggestions.getSuggestions().size());
-    SuggestionResponse.Suggestion suggestion = returnedSuggestions.getSuggestions().get(0);
-    assertEquals("TABLE", suggestion.getType());
-    assertEquals("testSpace.supplier", suggestion.getName());
-  }
-
-  @Test
-  public void testSpacePDSPartialDatasetCompletion() throws Exception {
-    final String partialQuery = "SELECT * from cp.t^";
-    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
-    final SuggestionResponse returnedSuggestions = testSuggestSQL(stringAndPos.sql, stringAndPos.cursor, asList("mysrc"));
-
-    logAdvisorResponse(returnedSuggestions);
-    assertNotNull(returnedSuggestions);
-    assertNotNull(returnedSuggestions.getSuggestions());
-    assertEquals(1, returnedSuggestions.getSuggestions().size());
-    SuggestionResponse.Suggestion suggestion = returnedSuggestions.getSuggestions().get(0);
-    assertEquals("TABLE", suggestion.getType());
-    assertEquals("cp.\"tpch/supplier.parquet\"", suggestion.getName());
-  }
-
-
-  @Test
-  public void testPartialColumnCompletionWithAlias() throws Exception {
-    final String partialQuery = "SELECT t1.s^ from testSpace.supplier t1";
-    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
-    final SuggestionResponse returnedSuggestions = testSuggestSQL(stringAndPos.sql, stringAndPos.cursor, asList("mysrc"));
-
-    ArrayList<String> expectedColumns = Lists.newArrayList();
-    expectedColumns.addAll(
-      asList(
-        "s_name",
-        "s_phone"));
-
-    logAdvisorResponse(returnedSuggestions);
-    assertNotNull(returnedSuggestions);
-    assertNotNull(returnedSuggestions.getSuggestions());
-    assertEquals(2, returnedSuggestions.getSuggestions().size());
-    for (int i = 0; i < 2; i++) {
-      SuggestionResponse.Suggestion suggestion = returnedSuggestions.getSuggestions().get(i);
-      if (suggestion.getType().equals("COLUMN")) {
-        assertTrue(expectedColumns.contains(suggestion.getName()));
-      }
-    }
-  }
-
-  @Test
-  public void testSQLAnalyzeSuggestInfoSchema() throws Exception {
-    final String partialQuery = "select * from i^";
-    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
-    final SuggestionResponse returnedSuggestions = testSuggestSQL(stringAndPos.sql, stringAndPos.cursor, asList("@dremio"));
-
-    ArrayList<String> expectedTables = Lists.newArrayList();
-    expectedTables.addAll(
-      asList(
-      "INFORMATION_SCHEMA.CATALOGS",
-      "INFORMATION_SCHEMA.COLUMNS",
-      "INFORMATION_SCHEMA.SCHEMATA",
-      "INFORMATION_SCHEMA.\"TABLES\"",
-      "INFORMATION_SCHEMA.VIEWS"));
-
-    logAdvisorResponse(returnedSuggestions);
-    assertNotNull(returnedSuggestions);
-    assertNotNull(returnedSuggestions.getSuggestions());
-    assertEquals(6, returnedSuggestions.getSuggestions().size());
-
-    for (SuggestionResponse.Suggestion suggestion : returnedSuggestions.getSuggestions()) {
-      if (suggestion.getType().equals("TABLE")) {
-        assertTrue(expectedTables.contains(suggestion.getName()));
-      } else if (suggestion.getType().equals("SCHEMA")) {
-        assertEquals("INFORMATION_SCHEMA", suggestion.getName());
-      }
-    }
-  }
-
-  @Test
-  public void testSuggestFromPartialSchema() throws Exception {
-    final String partialQuery = "Select * from m^";
-    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
-    final SuggestionResponse returnedSuggestions = testSuggestSQL(stringAndPos.sql, stringAndPos.cursor, asList("mysrc"));
-
-    ArrayList<String> expectedTables = Lists.newArrayList();
-    expectedTables.addAll(
-      asList(
-        "mysrc.ds1",
-        "mysrc.ds2",
-        "mysrc.ds3"));
-
-    logAdvisorResponse(returnedSuggestions);
-    assertNotNull(returnedSuggestions);
-    assertNotNull(returnedSuggestions.getSuggestions());
-    assertEquals((expectedTables.size() + 1), returnedSuggestions.getSuggestions().size());
-    for (int i = 0; i < (expectedTables.size() + 1); i++) {
-      SuggestionResponse.Suggestion suggestion = returnedSuggestions.getSuggestions().get(i);
-      if (suggestion.getType().equals("TABLE")) {
-        assertTrue(expectedTables.contains(suggestion.getName()));
-      } else if (suggestion.getType().equals("SCHEMA")) {
-        assertEquals("mysrc", suggestion.getName());
-      }
-    }
-  }
-
-  @Test
-  public void testSuggestFromFullSchema() throws Exception {
-    final String partialQuery = "Select * from mysrc^";
-    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
-    final SuggestionResponse returnedSuggestions = testSuggestSQL(stringAndPos.sql, stringAndPos.cursor, asList("mysrc"));
-
-    logAdvisorResponse(returnedSuggestions);
-    assertNotNull(returnedSuggestions);
-    assertNotNull(returnedSuggestions.getSuggestions());
-    assertEquals(4, returnedSuggestions.getSuggestions().size());
-    for (int i = 0; i < 4; i++) {
-      SuggestionResponse.Suggestion suggestion = returnedSuggestions.getSuggestions().get(i);
-      if (suggestion.getType().equals("TABLE")) {
-        assertEquals(String.format("mysrc.ds%d", i + 1), suggestion.getName());
-      } else if (suggestion.getType().equals("SCHEMA")) {
-        assertEquals("mysrc", suggestion.getName());
-      }
-    }
-  }
-
-  @Test
-  public void testSuggestFromSchemaSeparator() throws Exception {
-    final String partialQuery = "Select * from mysrc.^";
-    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
-    final SuggestionResponse returnedSuggestions = testSuggestSQL(stringAndPos.sql, stringAndPos.cursor, new ArrayList<String>());
-
-    logAdvisorResponse(returnedSuggestions);
-    assertNotNull(returnedSuggestions);
-    assertNotNull(returnedSuggestions.getSuggestions());
-    assertEquals(3, returnedSuggestions.getSuggestions().size());
-    for (int i = 0; i < 3; i++) {
-      SuggestionResponse.Suggestion suggestion = returnedSuggestions.getSuggestions().get(i);
-      assertEquals("TABLE", suggestion.getType());
-      assertEquals(String.format("mysrc.ds%d", i + 1), suggestion.getName());
-    }
-  }
-
-  @Test
-  public void testSuggestFromPartialDataset() throws Exception {
-    final String partialQuery = "Select * from mysrc.d^";
-    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
-    final SuggestionResponse returnedSuggestions = testSuggestSQL(stringAndPos.sql, stringAndPos.cursor, asList("mysrc"));
-
-    logAdvisorResponse(returnedSuggestions);
-    assertNotNull(returnedSuggestions);
-    assertNotNull(returnedSuggestions.getSuggestions());
-    assertEquals(3, returnedSuggestions.getSuggestions().size());
-    for (int i = 0; i < 3; i++) {
-      SuggestionResponse.Suggestion suggestion = returnedSuggestions.getSuggestions().get(i);
-      assertEquals("TABLE", suggestion.getType());
-      assertEquals(String.format("mysrc.ds%d", i + 1), suggestion.getName());
-    }
-  }
-
-  @Test // Could improve to suggest Dremio specific keywords
-  public void testSuggestSelectList() throws Exception {
-    final String partialQuery = "Select ^ from mysrc.ds1";
-    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
-    final SuggestionResponse returnedSuggestions = testSuggestSQL(stringAndPos.sql, stringAndPos.cursor, asList("mysrc"));
-
-    logAdvisorResponse(returnedSuggestions);
-    assertNotNull(returnedSuggestions);
-    assertNotNull(returnedSuggestions.getSuggestions());
-    for (int i = 0; i < returnedSuggestions.getSuggestions().size(); i++) {
-      assertEquals("KEYWORD", returnedSuggestions.getSuggestions().get(i).getType());
-    }
-  }
-
-  @Test
-  public void testSuggestColumn() throws Exception {
-    final String partialQuery = "SELECT t.^ FROM testSpace.supplier t";
-    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
-    final SuggestionResponse returnedSuggestions = testSuggestSQL(stringAndPos.sql, stringAndPos.cursor, asList("cp"));
-
-    ArrayList<String> expectedColumns = Lists.newArrayList();
-    expectedColumns.addAll(
-      asList(
-        "s_name",
-        "s_phone"));
-
-    logAdvisorResponse(returnedSuggestions);
-    assertNotNull(returnedSuggestions);
-    assertNotNull(returnedSuggestions.getSuggestions());
-    assertEquals(3, returnedSuggestions.getSuggestions().size());
-    for (SuggestionResponse.Suggestion suggestion : returnedSuggestions.getSuggestions()) {
-      if (suggestion.getType().equals("COLUMN")) {
-        assertTrue(expectedColumns.contains(suggestion.getName()));
-      } else if (suggestion.getType().equals("KEYWORD")) {
-        assertEquals("*", suggestion.getName());
-      }
-    }
-  }
-
-  @Test // Suggestions for partial require update to Calcite
-  public void testSuggestColumnPartial() throws Exception {
-    final String partialQuery = "SELECT t.s^ FROM testSpace.supplier t";
-    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
-    final SuggestionResponse returnedSuggestions = testSuggestSQL(stringAndPos.sql, stringAndPos.cursor, asList("cp"));
-
-    ArrayList<String> expectedColumns = Lists.newArrayList();
-    expectedColumns.addAll(
-      asList(
-        "s_name",
-        "s_phone"));
-
-    logAdvisorResponse(returnedSuggestions);
-    assertNotNull(returnedSuggestions);
-    assertNotNull(returnedSuggestions.getSuggestions());
-    assertEquals(2, returnedSuggestions.getSuggestions().size());
-    for (SuggestionResponse.Suggestion suggestion : returnedSuggestions.getSuggestions()) {
-        assertTrue(expectedColumns.contains(suggestion.getName()));
-    }
-  }
-
-  @Test // Range can be improved
-  public void testErrorUnrecognizedTable() throws Exception {
-    final String partialQuery = "Select * from m^";
-    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
-    final ValidationResponse returnedSuggestions = testValidateSQL(stringAndPos.sql, stringAndPos.cursor, asList("@dremio"));
-
-    logAdvisorResponse(returnedSuggestions);
-    assertNotNull(returnedSuggestions);
-    assertNotNull(returnedSuggestions.getErrors());
-    QueryError firstError =  returnedSuggestions.getErrors().get(0);
-    assertContains("'M' not found", firstError.getMessage());
-    assertEquals(new QueryError.Range(1,15,2,16), firstError.getRange());
-  }
-
-  @Test // Error message identical to current. (unrecognized * intead of missing keyword FROM) Can be improved.
-  public void testErrorIncompleteFrom() throws Exception {
-    final String partialQuery = "Select * fro^";
-    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
-    final ValidationResponse returnedSuggestions = testValidateSQL(stringAndPos.sql, stringAndPos.cursor, asList("@dremio"));
-
-    logAdvisorResponse(returnedSuggestions);
-    assertNotNull(returnedSuggestions);
-    assertNotNull(returnedSuggestions.getErrors());
-    QueryError firstError =  returnedSuggestions.getErrors().get(0);
-    assertEquals("Unknown identifier '*'", firstError.getMessage());
-    assertEquals(new QueryError.Range(1,8,2,9), firstError.getRange());
-  }
-
-  @Test // Current error-handling wraps this error in a generic parse error.
-  public void testErrorIncompleteSelect() throws Exception {
-    final String partialQuery = "Sel^";
-    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
-    final ValidationResponse returnedSuggestions = testValidateSQL(stringAndPos.sql, stringAndPos.cursor, asList("@dremio"));
-
-    logAdvisorResponse(returnedSuggestions);
-    assertNotNull(returnedSuggestions);
-    assertNotNull(returnedSuggestions.getErrors());
-    QueryError firstError =  returnedSuggestions.getErrors().get(0);
-    assertEquals("Non-query expression encountered in illegal context", firstError.getMessage());
-    assertEquals(new QueryError.Range(1,1,2,4), firstError.getRange());
-  }
-
-  @Test
-  public void testErrorUnrecognizedColumn() throws Exception {
-    final String partialQuery = "SELECT testCol^ FROM testSpace.supplier";
-    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
-    final ValidationResponse returnedSuggestions = testValidateSQL(stringAndPos.sql, stringAndPos.cursor, asList("cp"));
-
-    logAdvisorResponse(returnedSuggestions);
-    assertNotNull(returnedSuggestions);
-    assertNotNull(returnedSuggestions.getErrors());
-    QueryError firstError =  returnedSuggestions.getErrors().get(0);
-    assertEquals("Column 'TESTCOL' not found in any table", firstError.getMessage());
-    assertEquals(new QueryError.Range(1,8,2,15), firstError.getRange());
   }
 
   @Test
@@ -627,22 +198,322 @@ public class TestSQLResource extends BaseTestServer {
     Assert.assertTrue(autocompleteResponse.contains("Folder"));
   }
 
-  public SuggestionResponse testSuggestSQL(String queryString, int cursorPos, List<String> context) throws Exception {
-    final String endpoint = "/sql/analyze/suggest";
-
-    return expectSuccess(
-      getBuilder(getAPIv2().path(endpoint)).buildPost(Entity.entity(new AnalyzeRequest(queryString, context, cursorPos), MediaType.APPLICATION_JSON_TYPE)),
-      SuggestionResponse.class
-    );
+  @Test
+  public void testNullCatalogEntityKeys() throws Exception {
+    final String prefix = "";
+    final AutocompleteV2RequestType type = AutocompleteV2RequestType.CONTAINER;
+    final List<List<String>> catalogEntityKeys = null;
+    final List<String> queryContext = Collections.emptyList();
+    testAutocompleteV2Error(prefix, type, catalogEntityKeys, queryContext);
   }
 
-  public ValidationResponse testValidateSQL(String queryString, int cursorPos, List<String> context) {
-    final String endpoint = "/sql/analyze/validate";
+  @Test
+  public void testCatalogEntityKeysForContainerTypeIsSize2() throws Exception {
+    final String prefix = "";
+    final AutocompleteV2RequestType type = AutocompleteV2RequestType.CONTAINER;
+    final List<List<String>> catalogEntityKeys = Arrays.asList(Collections.EMPTY_LIST, Arrays.asList("@dremio", "mySpace"));
+    final List<String> queryContext = Collections.emptyList();
+    testAutocompleteV2Error(prefix, type, catalogEntityKeys, queryContext);
+  }
 
-    return expectSuccess(
-      getBuilder(getAPIv2().path(endpoint)).buildPost(Entity.entity(new AnalyzeRequest(queryString, context, cursorPos), MediaType.APPLICATION_JSON_TYPE)),
-      ValidationResponse.class
-    );
+  @Test
+  public void testCatalogEntityKeysForColumnTypeHasEmpty() throws Exception {
+    final String prefix = "";
+    final AutocompleteV2RequestType type = AutocompleteV2RequestType.COLUMN;
+    final List<List<String>> catalogEntityKeys = Arrays.asList(Collections.EMPTY_LIST);
+    final List<String> queryContext = Collections.emptyList();
+    testAutocompleteV2Error(prefix, type, catalogEntityKeys, queryContext);
+  }
+
+  @Test
+  public void testCatalogEntityKeysForBranchTypeHasEmpty() throws Exception {
+    final String prefix = "foo";
+    final AutocompleteV2RequestType type = AutocompleteV2RequestType.REFERENCE;
+    final List<List<String>> catalogEntityKeys = Arrays.asList(Collections.EMPTY_LIST);
+    final List<String> queryContext = Collections.emptyList();
+    testAutocompleteV2Error(prefix, type, catalogEntityKeys, queryContext);
+  }
+
+  @Test
+  public void testTopLevelContainersWithoutPrefix() {
+    final String prefix = "";
+    final AutocompleteV2RequestType type = AutocompleteV2RequestType.CONTAINER;
+    final List<List<String>> catalogEntityKeys = Arrays.asList(Collections.EMPTY_LIST);
+    final List<String> queryContext = Arrays.asList("testSpace");
+    final List<SuggestionEntity> expected = Arrays.asList(
+      new SuggestionEntity("[@dremio]","home"),
+      new SuggestionEntity("[testSpace]", "space"),
+      new SuggestionEntity("[cp]","source"),
+      new SuggestionEntity("[mysrc]", "source"),
+      new SuggestionEntity("[INFORMATION_SCHEMA]","source"),
+      new SuggestionEntity("[sys]","source"),
+      new SuggestionEntity("[testSpace, myFolder]","folder"),
+      new SuggestionEntity("[testSpace, supplier]","virtual"));
+    ContainerSuggestions containerSuggestions = testAutocompleteV2Success(prefix, type, catalogEntityKeys, queryContext, ContainerSuggestions.class);
+    Assert.assertNotNull(containerSuggestions);
+    Assert.assertTrue(containerSuggestions.getSuggestionsType().equals(SuggestionsType.CONTAINER.getType()));
+    Assert.assertArrayEquals(expected.toArray(), containerSuggestions.getContainers().toArray());
+  }
+
+  @Test
+  public void testTopLevelContainersWithPrefix() {
+    final String prefix = "s";
+    final AutocompleteV2RequestType type = AutocompleteV2RequestType.CONTAINER;
+    final List<List<String>> catalogEntityKeys = Arrays.asList(Collections.EMPTY_LIST);
+    final List<String> queryContext = Arrays.asList("testSpace");
+    final List<SuggestionEntity> expected = Arrays.asList(
+      new SuggestionEntity("[sys]","source"),
+      new SuggestionEntity("[testSpace, supplier]","virtual"));
+    ContainerSuggestions containerSuggestions = testAutocompleteV2Success(prefix, type, catalogEntityKeys, queryContext, ContainerSuggestions.class);
+    Assert.assertNotNull(containerSuggestions);
+    Assert.assertTrue(containerSuggestions.getSuggestionsType().equals(SuggestionsType.CONTAINER.getType()));
+    Assert.assertArrayEquals(expected.toArray(), containerSuggestions.getContainers().toArray());
+  }
+
+  @Test
+  public void testTopLevelContainersWithPrefixMatchingQueryContext() {
+    final String prefix = "test";
+    final AutocompleteV2RequestType type = AutocompleteV2RequestType.CONTAINER;
+    final List<List<String>> catalogEntityKeys = Arrays.asList(Collections.EMPTY_LIST);
+    final List<String> queryContext = Arrays.asList("testSpace");
+    final List<SuggestionEntity> expected = Arrays.asList(
+      new SuggestionEntity("[testSpace]", "space"));
+    ContainerSuggestions containerSuggestions = testAutocompleteV2Success(prefix, type, catalogEntityKeys, queryContext, ContainerSuggestions.class);
+    Assert.assertNotNull(containerSuggestions);
+    Assert.assertTrue(containerSuggestions.getSuggestionsType().equals(SuggestionsType.CONTAINER.getType()));
+    Assert.assertArrayEquals(expected.toArray(), containerSuggestions.getContainers().toArray());
+  }
+
+  @Test
+  public void testTopLevelContainersWithPrefixHappenToBeQueryContext() {
+    final String prefix = "testSpace";
+    final AutocompleteV2RequestType type = AutocompleteV2RequestType.CONTAINER;
+    final List<List<String>> catalogEntityKeys = Arrays.asList(Collections.EMPTY_LIST);
+    final List<String> queryContext = Arrays.asList("testSpace");
+    final List<SuggestionEntity> expected = Arrays.asList(
+      new SuggestionEntity("[testSpace]", "space"));
+    ContainerSuggestions containerSuggestions = testAutocompleteV2Success(prefix, type, catalogEntityKeys, queryContext, ContainerSuggestions.class);
+    Assert.assertNotNull(containerSuggestions);
+    Assert.assertTrue(containerSuggestions.getSuggestionsType().equals(SuggestionsType.CONTAINER.getType()));
+    Assert.assertArrayEquals(expected.toArray(), containerSuggestions.getContainers().toArray());
+  }
+
+  @Test
+  public void testTopLevelContainersWithPrefixIgnoredCase() {
+    final String prefix = "info";
+    final AutocompleteV2RequestType type = AutocompleteV2RequestType.CONTAINER;
+    final List<List<String>> catalogEntityKeys = Arrays.asList(Collections.EMPTY_LIST);
+    final List<String> queryContext = Arrays.asList("testSpace");
+    final List<SuggestionEntity> expected = Arrays.asList(
+      new SuggestionEntity("[INFORMATION_SCHEMA]","source"));
+    ContainerSuggestions containerSuggestions = testAutocompleteV2Success(prefix, type, catalogEntityKeys, queryContext, ContainerSuggestions.class);
+    Assert.assertNotNull(containerSuggestions);
+    Assert.assertTrue(containerSuggestions.getSuggestionsType().equals(SuggestionsType.CONTAINER.getType()));
+    Assert.assertArrayEquals(expected.toArray(), containerSuggestions.getContainers().toArray());
+  }
+
+  @Test
+  public void testTopLevelContainersWithoutMatch() {
+    final String prefix = "dremio";
+    final AutocompleteV2RequestType type = AutocompleteV2RequestType.CONTAINER;
+    final List<List<String>> catalogEntityKeys = Arrays.asList(Collections.EMPTY_LIST);
+    final List<String> queryContext = Arrays.asList("testSpace");
+    final List<SuggestionEntity> expected = Collections.EMPTY_LIST;
+    ContainerSuggestions containerSuggestions = testAutocompleteV2Success(prefix, type, catalogEntityKeys, queryContext, ContainerSuggestions.class);
+    Assert.assertNotNull(containerSuggestions);
+    Assert.assertTrue(containerSuggestions.getSuggestionsType().equals(SuggestionsType.CONTAINER.getType()));
+    Assert.assertArrayEquals(expected.toArray(), containerSuggestions.getContainers().toArray());
+  }
+
+  /**
+   * Home space @dremio is empty
+   */
+  @Test
+  public void testContainersInHomeWithoutPrefix() {
+    final String prefix = "";
+    final AutocompleteV2RequestType type = AutocompleteV2RequestType.CONTAINER;
+    final List<List<String>> catalogEntityKeys = Arrays.asList(Arrays.asList("@dremio"));
+    final List<String> queryContext = Collections.EMPTY_LIST;
+    final List<SuggestionEntity> expected = Collections.EMPTY_LIST;
+    ContainerSuggestions containerSuggestions = testAutocompleteV2Success(prefix, type, catalogEntityKeys, queryContext, ContainerSuggestions.class);
+    Assert.assertNotNull(containerSuggestions);
+    Assert.assertTrue(containerSuggestions.getSuggestionsType().equals(SuggestionsType.CONTAINER.getType()));
+    Assert.assertArrayEquals(expected.toArray(), containerSuggestions.getContainers().toArray());
+  }
+
+  @Test
+  public void testContainersInHomeWithPrefix() {
+    final String prefix = "no-match";
+    final AutocompleteV2RequestType type = AutocompleteV2RequestType.CONTAINER;
+    final List<List<String>> catalogEntityKeys = Arrays.asList(Arrays.asList("@dremio"));
+    final List<String> queryContext = Collections.EMPTY_LIST;
+    final List<SuggestionEntity> expected = Collections.EMPTY_LIST;
+    ContainerSuggestions containerSuggestions = testAutocompleteV2Success(prefix, type, catalogEntityKeys, queryContext, ContainerSuggestions.class);
+    Assert.assertNotNull(containerSuggestions);
+    Assert.assertTrue(containerSuggestions.getSuggestionsType().equals(SuggestionsType.CONTAINER.getType()));
+    Assert.assertArrayEquals(expected.toArray(), containerSuggestions.getContainers().toArray());
+  }
+
+  @Test
+  public void testContainersInSpaceWithoutPrefix() {
+    final String prefix = "";
+    final AutocompleteV2RequestType type = AutocompleteV2RequestType.CONTAINER;
+    final List<List<String>> catalogEntityKeys = Arrays.asList(Arrays.asList("testSpace"));
+    final List<String> queryContext = Collections.EMPTY_LIST;
+    final List<SuggestionEntity> expected = Arrays.asList(
+      new SuggestionEntity("[testSpace, myFolder]","folder"),
+      new SuggestionEntity("[testSpace, supplier]","virtual"));
+    ContainerSuggestions containerSuggestions = testAutocompleteV2Success(prefix, type, catalogEntityKeys, queryContext, ContainerSuggestions.class);
+    Assert.assertNotNull(containerSuggestions);
+    Assert.assertTrue(containerSuggestions.getSuggestionsType().equals(SuggestionsType.CONTAINER.getType()));
+    Assert.assertArrayEquals(expected.toArray(), containerSuggestions.getContainers().toArray());
+  }
+
+  @Test
+  public void testContainersInSpaceWithPrefix() {
+    final String prefix = "My";
+    final AutocompleteV2RequestType type = AutocompleteV2RequestType.CONTAINER;
+    final List<List<String>> catalogEntityKeys = Arrays.asList(Arrays.asList("testSpace"));
+    final List<String> queryContext = Collections.EMPTY_LIST;
+    final List<SuggestionEntity> expected = Arrays.asList(
+      new SuggestionEntity("[testSpace, myFolder]","folder"));
+    ContainerSuggestions containerSuggestions = testAutocompleteV2Success(prefix, type, catalogEntityKeys, queryContext, ContainerSuggestions.class);
+    Assert.assertNotNull(containerSuggestions);
+    Assert.assertTrue(containerSuggestions.getSuggestionsType().equals(SuggestionsType.CONTAINER.getType()));
+    Assert.assertArrayEquals(expected.toArray(), containerSuggestions.getContainers().toArray());
+  }
+
+  @Test
+  public void testContainersInSpaceFolderWithoutPrefix() {
+    final String prefix = "";
+    final AutocompleteV2RequestType type = AutocompleteV2RequestType.CONTAINER;
+    final List<List<String>> catalogEntityKeys = Arrays.asList(Arrays.asList("testSpace", "myFolder"));
+    final List<String> queryContext = Collections.EMPTY_LIST;
+    final List<SuggestionEntity> expected = Arrays.asList(
+      new SuggestionEntity("[testSpace, myFolder, supplier]","virtual"));
+    ContainerSuggestions containerSuggestions = testAutocompleteV2Success(prefix, type, catalogEntityKeys, queryContext, ContainerSuggestions.class);
+    Assert.assertNotNull(containerSuggestions);
+    Assert.assertTrue(containerSuggestions.getSuggestionsType().equals(SuggestionsType.CONTAINER.getType()));
+    Assert.assertArrayEquals(expected.toArray(), containerSuggestions.getContainers().toArray());
+  }
+
+  @Test
+  public void testContainersInSourceWithoutPrefix() {
+    final String prefix = "";
+    final AutocompleteV2RequestType type = AutocompleteV2RequestType.CONTAINER;
+    final List<List<String>> catalogEntityKeys = Arrays.asList(Arrays.asList("INFORMATION_SCHEMA"));
+    final List<String> queryContext = Collections.EMPTY_LIST;
+    final List<SuggestionEntity> expected = Arrays.asList(
+      new SuggestionEntity("[INFORMATION_SCHEMA, CATALOGS]", "direct"),
+      new SuggestionEntity("[INFORMATION_SCHEMA, COLUMNS]", "direct"),
+      new SuggestionEntity("[INFORMATION_SCHEMA, SCHEMATA]", "direct"),
+      new SuggestionEntity("[INFORMATION_SCHEMA, TABLES]", "direct"),
+      new SuggestionEntity("[INFORMATION_SCHEMA, VIEWS]", "direct"));
+    ContainerSuggestions containerSuggestions = testAutocompleteV2Success(prefix, type, catalogEntityKeys, queryContext, ContainerSuggestions.class);
+    Assert.assertNotNull(containerSuggestions);
+    Assert.assertTrue(containerSuggestions.getSuggestionsType().equals(SuggestionsType.CONTAINER.getType()));
+    Assert.assertArrayEquals(expected.toArray(), containerSuggestions.getContainers().toArray());
+  }
+
+  @Test
+  public void testContainersInSourceWithPrefix() {
+    final String prefix = "c";
+    final AutocompleteV2RequestType type = AutocompleteV2RequestType.CONTAINER;
+    final List<List<String>> catalogEntityKeys = Arrays.asList(Arrays.asList("INFORMATION_SCHEMA"));
+    final List<String> queryContext = Collections.EMPTY_LIST;
+    final List<SuggestionEntity> expected = Arrays.asList(
+      new SuggestionEntity("[INFORMATION_SCHEMA, CATALOGS]", "direct"),
+      new SuggestionEntity("[INFORMATION_SCHEMA, COLUMNS]", "direct"));
+    ContainerSuggestions containerSuggestions = testAutocompleteV2Success(prefix, type, catalogEntityKeys, queryContext, ContainerSuggestions.class);
+    Assert.assertNotNull(containerSuggestions);
+    Assert.assertTrue(containerSuggestions.getSuggestionsType().equals(SuggestionsType.CONTAINER.getType()));
+    Assert.assertArrayEquals(expected.toArray(), containerSuggestions.getContainers().toArray());
+  }
+
+  @Test
+  public void testColumnsWithoutPrefix() {
+    final String prefix = "";
+    final AutocompleteV2RequestType type = AutocompleteV2RequestType.COLUMN;
+    final List<List<String>> catalogEntityKeys = Arrays.asList(Arrays.asList("testSpace", "supplier"));
+    final List<String> queryContext = Collections.EMPTY_LIST;
+    final List<SuggestionEntity> expected = Arrays.asList(
+      new SuggestionEntity("[testSpace, supplier, s_name]", "TEXT"),
+      new SuggestionEntity("[testSpace, supplier, s_phone]", "TEXT"));
+    ColumnSuggestions columnSuggestions = testAutocompleteV2Success(prefix, type, catalogEntityKeys, queryContext, ColumnSuggestions.class);
+    Assert.assertNotNull(columnSuggestions);
+    Assert.assertTrue(columnSuggestions.getSuggestionsType().equals(SuggestionsType.COLUMN.getType()));
+    Assert.assertArrayEquals(expected.toArray(), columnSuggestions.getColumns().toArray());
+  }
+
+  @Test
+  public void testColumnsWithPrefix() {
+    final String prefix = "S_n";
+    final AutocompleteV2RequestType type = AutocompleteV2RequestType.COLUMN;
+    final List<List<String>> catalogEntityKeys = Arrays.asList(Arrays.asList("testSpace", "supplier"));
+    final List<String> queryContext = Collections.EMPTY_LIST;
+    final List<SuggestionEntity> expected = Arrays.asList(
+      new SuggestionEntity("[testSpace, supplier, s_name]", "TEXT"));
+    ColumnSuggestions columnSuggestions = testAutocompleteV2Success(prefix, type, catalogEntityKeys, queryContext, ColumnSuggestions.class);
+    Assert.assertNotNull(columnSuggestions);
+    Assert.assertTrue(columnSuggestions.getSuggestionsType().equals(SuggestionsType.COLUMN.getType()));
+    Assert.assertArrayEquals(expected.toArray(), columnSuggestions.getColumns().toArray());
+  }
+
+  @Test
+  public void testColumnsWithQueryContextIgnored() {
+    final String prefix = "S_n";
+    final AutocompleteV2RequestType type = AutocompleteV2RequestType.COLUMN;
+    final List<List<String>> catalogEntityKeys = Arrays.asList(Arrays.asList("testSpace", "supplier"));
+    final List<String> queryContext = Arrays.asList("testSpace");
+    final List<SuggestionEntity> expected = Arrays.asList(
+      new SuggestionEntity("[testSpace, supplier, s_name]", "TEXT"));
+    ColumnSuggestions columnSuggestions = testAutocompleteV2Success(prefix, type, catalogEntityKeys, queryContext, ColumnSuggestions.class);
+    Assert.assertNotNull(columnSuggestions);
+    Assert.assertTrue(columnSuggestions.getSuggestionsType().equals(SuggestionsType.COLUMN.getType()));
+    Assert.assertArrayEquals(expected.toArray(), columnSuggestions.getColumns().toArray());
+  }
+
+  @Test
+  public void testColumnsInInformationSchemaSourceWithoutPrefix() {
+    final String prefix = "";
+    final AutocompleteV2RequestType type = AutocompleteV2RequestType.COLUMN;
+    final List<List<String>> catalogEntityKeys = Arrays.asList(Arrays.asList("INFORMATION_SCHEMA", "CATALOGS"));
+    final List<String> queryContext = Collections.EMPTY_LIST;
+    final List<SuggestionEntity> expected = Arrays.asList(
+      new SuggestionEntity("[INFORMATION_SCHEMA, CATALOGS, CATALOG_NAME]", "TEXT"),
+      new SuggestionEntity("[INFORMATION_SCHEMA, CATALOGS, CATALOG_DESCRIPTION]", "TEXT"),
+      new SuggestionEntity("[INFORMATION_SCHEMA, CATALOGS, CATALOG_CONNECT]", "TEXT"));
+    ColumnSuggestions columnSuggestions = testAutocompleteV2Success(prefix, type, catalogEntityKeys, queryContext, ColumnSuggestions.class);
+    Assert.assertNotNull(columnSuggestions);
+    Assert.assertTrue(columnSuggestions.getSuggestionsType().equals(SuggestionsType.COLUMN.getType()));
+    Assert.assertArrayEquals(expected.toArray(), columnSuggestions.getColumns().toArray());
+  }
+
+  @Test
+  public void testColumnsInInformationSchemaSourceWithPrefix() {
+    final String prefix = "catalog_con";
+    final AutocompleteV2RequestType type = AutocompleteV2RequestType.COLUMN;
+    final List<List<String>> catalogEntityKeys = Arrays.asList(Arrays.asList("INFORMATION_SCHEMA", "CATALOGS"));
+    final List<String> queryContext = Collections.EMPTY_LIST;
+    final List<SuggestionEntity> expected = Arrays.asList(
+      new SuggestionEntity("[INFORMATION_SCHEMA, CATALOGS, CATALOG_CONNECT]", "TEXT"));
+    ColumnSuggestions columnSuggestions = testAutocompleteV2Success(prefix, type, catalogEntityKeys, queryContext, ColumnSuggestions.class);
+    Assert.assertNotNull(columnSuggestions);
+    Assert.assertTrue(columnSuggestions.getSuggestionsType().equals(SuggestionsType.COLUMN.getType()));
+    Assert.assertArrayEquals(expected.toArray(), columnSuggestions.getColumns().toArray());
+  }
+
+  @Test
+  public void testColumnsInNonDatasetContainer() {
+    final String prefix = "";
+    final AutocompleteV2RequestType type = AutocompleteV2RequestType.COLUMN;
+    final List<List<String>> catalogEntityKeys = Arrays.asList(Arrays.asList("INFORMATION_SCHEMA"));
+    final List<String> queryContext = Collections.EMPTY_LIST;
+    final List<SuggestionEntity> expected = Collections.EMPTY_LIST;
+    ColumnSuggestions columnSuggestions = testAutocompleteV2Success(prefix, type, catalogEntityKeys, queryContext, ColumnSuggestions.class);
+    Assert.assertNotNull(columnSuggestions);
+    Assert.assertTrue(columnSuggestions.getSuggestionsType().equals(SuggestionsType.COLUMN.getType()));
+    Assert.assertArrayEquals(expected.toArray(), columnSuggestions.getColumns().toArray());
   }
 
   private String testAutocomplete(String queryString, int cursorPos, List<String> context) {
@@ -656,5 +527,36 @@ public class TestSQLResource extends BaseTestServer {
               MediaType.APPLICATION_JSON_TYPE)));
     String json = response.readEntity(String.class);
     return json;
+  }
+
+  private void testAutocompleteV2Error(
+    String prefix,
+    AutocompleteV2RequestType type,
+    List<List<String>> catalogEntityKeys,
+    List<String> queryContext) {
+    final String endpoint = "/sql/autocomplete/v2";
+
+    expectError(
+      FamilyExpectation.CLIENT_ERROR,
+      getBuilder(getAPIv2().path(endpoint))
+        .buildPost(
+          Entity.entity(new AutocompleteV2Request(prefix, type, catalogEntityKeys, queryContext, null, null), MediaType.APPLICATION_JSON_TYPE)),
+      GenericErrorMessage.class);
+  }
+
+  private <T> T testAutocompleteV2Success(
+    String prefix,
+    AutocompleteV2RequestType type,
+    List<List<String>> catalogEntityKeys,
+    List<String> queryContext,
+    Class<T> entityType) {
+    final String endpoint = "/sql/autocomplete/v2";
+
+    Response response = expectSuccess(
+      getBuilder(getAPIv2().path(endpoint))
+        .buildPost(
+          Entity.entity(new AutocompleteV2Request(prefix, type, catalogEntityKeys, queryContext, null, null), MediaType.APPLICATION_JSON_TYPE)));
+    T suggestions = response.readEntity(entityType);
+    return suggestions;
   }
 }

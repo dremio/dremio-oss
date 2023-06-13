@@ -27,11 +27,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.io.IOException;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Supplier;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BitVector;
@@ -56,10 +53,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
-import com.dremio.exec.hadoop.DremioHadoopUtils;
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
@@ -79,7 +73,6 @@ import com.dremio.exec.store.easy.arrow.ArrowFileReader;
 import com.dremio.exec.store.easy.arrow.ArrowFormatPluginConfig;
 import com.dremio.exec.store.easy.arrow.ArrowRecordWriter;
 import com.dremio.sabot.exec.context.OperatorContext;
-import com.dremio.service.users.SystemUser;
 import com.dremio.test.AllocatorRule;
 import com.dremio.test.DremioTest;
 import com.google.common.collect.Iterators;
@@ -525,7 +518,7 @@ public class TestArrowFileReader extends DremioTest {
     when(writerConf.getProps()).thenReturn(OpProps.prototype());
 
     final EasyFormatPlugin formatPlugin = mock(EasyFormatPlugin.class);
-    final FileSystemPlugin fsPlugin = getMockedFileSystemPlugin();
+    final FileSystemPlugin fsPlugin = mock(FileSystemPlugin.class);
     when(writerConf.getFormatPlugin()).thenReturn(formatPlugin);
     when(formatPlugin.getFsPlugin()).thenReturn(fsPlugin);
     when(fsPlugin.createFS(notNull(), notNull())).thenReturn(HadoopFileSystem.getLocal(FS_CONF));
@@ -584,42 +577,5 @@ public class TestArrowFileReader extends DremioTest {
 
   public List<RecordBatchHolder> getRecords(ArrowFileReader reader, long start, long limit, BufferAllocator allocator) throws Exception {
     return reader.read(start, limit);
-  }
-
-  public static FileSystemPlugin getMockedFileSystemPlugin() {
-    FileSystemPlugin fileSystemPlugin = mock(FileSystemPlugin.class);
-    when(fileSystemPlugin.getHadoopFsSupplier(any(String.class), any(Configuration.class), any(String.class))).
-      thenAnswer(
-        new Answer<Object>() {
-          @Override
-          public Object answer(InvocationOnMock invocation) throws Throwable {
-            Object[] args = invocation.getArguments();
-            Supplier<FileSystem> fileSystemSupplier = getFileSystemSupplier(DremioHadoopUtils.toHadoopPath((String) args[0]).toUri(), (Configuration) args[1], (String) args[2]);
-            return fileSystemSupplier;
-          }
-        });
-
-    when(fileSystemPlugin.getHadoopFsSupplier(any(String.class), any(Configuration.class))).
-      thenAnswer(
-        new Answer<Object>() {
-          @Override
-          public Object answer(InvocationOnMock invocation) throws Throwable {
-            Object[] args = invocation.getArguments();
-            Supplier<org.apache.hadoop.fs.FileSystem> fileSystemSupplier = getFileSystemSupplier(DremioHadoopUtils.toHadoopPath((String) args[0]).toUri(), (Configuration) args[1], SystemUser.SYSTEM_USERNAME);
-
-            return fileSystemSupplier;
-          }
-        });
-    return fileSystemPlugin;
-  }
-
-  private static Supplier<FileSystem> getFileSystemSupplier(final URI uri, final Configuration conf, String user) {
-    return () -> {
-      try {
-        return FileSystem.get(uri, conf, user);
-      } catch (IOException | InterruptedException e) {
-        throw new RuntimeException();
-      }
-    };
   }
 }

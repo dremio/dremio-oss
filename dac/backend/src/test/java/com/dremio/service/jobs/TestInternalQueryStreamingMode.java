@@ -147,8 +147,8 @@ public class TestInternalQueryStreamingMode extends BaseTestServer {
     @Override
     public void onNext(JobEvent value) {
       eventCount.getAndIncrement();
-      if (value.hasResultData()) {
-        results.add(value.getResultData());
+      if (value.hasQueryResultData()) {
+        results.add(value.getQueryResultData().getResultData());
       } else if (value.hasFinalJobSummary()) {
         final JobSummary finalSummary = value.getFinalJobSummary();
         if (finalSummary.getJobState() == JobState.COMPLETED) {

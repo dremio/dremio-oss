@@ -25,6 +25,7 @@ type ElementConfigJSON = {
   placeholder?: string;
   label?: string;
   foundInFunctionalConfig?: boolean;
+  prefix?: string;
   value?: any;
   secure?: boolean;
   tooltip?: string;

@@ -15,18 +15,22 @@
  */
 package com.dremio.common.scanner;
 
+import java.io.File;
+import java.io.IOException;
 import java.net.URL;
 import java.util.Collection;
 import java.util.List;
 
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.persistence.ScanResult;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * Utility to scan classpath at runtime
  *
  */
 public class RunTimeScan {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RunTimeScan.class);
 
   /** result of prescan */
   private static final ScanResult PRESCANNED = BuildTimeScan.load();
@@ -43,13 +47,38 @@ public class RunTimeScan {
     return markedPaths;
   }
 
+  private static ScanResult createFromSavedScanResults() {
+    final String savedScanResults = System.getProperty("com.dremio.savedScanResults");
+    if (savedScanResults == null) {
+      return null;
+    }
+
+    final File scanResultsFile = new File(savedScanResults);
+    if (scanResultsFile.exists()) {
+      try {
+        return new ObjectMapper().readValue(scanResultsFile, ScanResult.class);
+      } catch (IOException e) {
+        logger.warn("Unable to read scan result from {} (proceeding to slow path): {}",
+          scanResultsFile.getName(), e.toString());
+      }
+    }
+    return null;
+  }
+
   /**
    * loads prescanned classpath info and scans for extra ones based on configuration.
    * (unless prescan is disabled with {@see ClassPathScanner#IMPLEMENTATIONS_SCAN_CACHE}=falses)
+   * If ScanResult was generated at build time and is indicated by com.dremio.savedScanResults,
+   * then short circuit to just load that and return
    * @param config to retrieve the packages to scan
    * @return the scan result
    */
   public static ScanResult fromPrescan(SabotConfig config) {
+    final ScanResult preCreated = createFromSavedScanResults();
+    if (preCreated != null) {
+      return preCreated;
+    }
+
     List<String> packagePrefixes = ClassPathScanner.getPackagePrefixes(config);
     List<String> scannedBaseClasses = ClassPathScanner.getScannedBaseClasses(config);
     List<String> scannedAnnotations = ClassPathScanner.getScannedAnnotations(config);

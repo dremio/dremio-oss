@@ -126,6 +126,18 @@ public class DremioSqlOperatorTable extends ReflectiveSqlOperatorTable {
           OperandTypes.NUMERIC_OPTIONAL_INTEGER,
           SqlFunctionCategory.NUMERIC);
 
+  // SqlStdOperatorTable.CARDINALITY is overridden here because
+  // it supports LIST, MAP as well as STRUCT. In Dremio, we want to
+  // allow only LIST and MAP. Not STRUCT.
+  public static final SqlFunction CARDINALITY =
+    new SqlFunction(
+      "CARDINALITY",
+      SqlKind.OTHER_FUNCTION,
+      ReturnTypes.INTEGER_NULLABLE,
+      null,
+      DremioOperandTypes.MAP_OR_LIST,
+      SqlFunctionCategory.SYSTEM);
+
 
   // -----------------------
   // Dremio Custom Functions

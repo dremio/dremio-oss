@@ -62,7 +62,7 @@ class FunctionsHelpPanel extends PureComponent {
       <div
         className="sql-help-panel"
         onClick={(e) => e.preventDefault()}
-        style={{ height }}
+        style={{ height: isVisible ? height : 0 }}
         ref={this.sqlHelpPanelRef}
       >
         {isVisible && (

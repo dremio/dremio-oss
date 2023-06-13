@@ -273,6 +273,7 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
    * @param index position of element to get
    * @return Text object for non-null element, null otherwise
    */
+  @Override
   public Text getObject(int index) {
     Text result = new Text();
     byte[] b;
@@ -623,6 +624,7 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
    * @param index position of the element to set
    * @param value array of bytes to write
    */
+  @Override
   public void set(int index, byte[] value) {
     assert index >= 0;
 
@@ -645,6 +647,7 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
    * @param index position of the element to set
    * @param value array of bytes to write
    */
+  @Override
   public void setSafe(int index, byte[] value) {
     assert index >= 0;
 
@@ -669,6 +672,7 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
    * @param start  start index in array of bytes
    * @param length length of data in array of bytes
    */
+  @Override
   public void set(int index, byte[] value, int start, int length) {
     assert index >= 0;
 
@@ -693,6 +697,7 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
    * @param start  start index in array of bytes
    * @param length length of data in array of bytes
    */
+  @Override
   public void setSafe(int index, byte[] value, int start, int length) {
     assert index >= 0;
 
@@ -717,6 +722,7 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
    * @param start  start index in ByteBuffer
    * @param length length of data in ByteBuffer
    */
+  @Override
   public void set(int index, ByteBuffer value, int start, int length) {
     assert index >= 0;
 
@@ -741,6 +747,7 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
    * @param start  start index in ByteBuffer
    * @param length length of data in ByteBuffer
    */
+  @Override
   public void setSafe(int index, ByteBuffer value, int start, int length) {
     assert index >= 0;
 
@@ -768,6 +775,7 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
    * @param buffer data buffer containing the variable width element to be stored
    *               in the vector
    */
+  @Override
   public void set(int index, int isSet, int start, int end, ArrowBuf buffer) {
     assert index >= 0;
 
@@ -794,6 +802,7 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
    * @param buffer data buffer containing the variable width element to be stored
    *               in the vector
    */
+  @Override
   public void setSafe(int index, int isSet, int start, int end, ArrowBuf buffer) {
     assert index >= 0;
 
@@ -819,6 +828,7 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
    * @param buffer data buffer containing the variable width element to be stored
    *               in the vector
    */
+  @Override
   public void set(int index, int start, int length, ArrowBuf buffer) {
     assert index >= 0;
 
@@ -844,6 +854,7 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
    * @param buffer data buffer containing the variable width element to be stored
    *               in the vector
    */
+  @Override
   public void setSafe(int index, int start, int length, ArrowBuf buffer) {
     assert index >= 0;
 

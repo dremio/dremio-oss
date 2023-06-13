@@ -107,7 +107,7 @@ class RepeatedVarCharOutput extends TextOutput {
         for (SchemaPath path : columns) {
           assert path.getRootSegment().isNamed() : "root segment should be named";
           pathStr = path.getRootSegment().getPath();
-          Preconditions.checkArgument(pathStr.equals(COL_NAME) || (pathStr.equals("*") && path.getRootSegment().getChild() == null),
+          Preconditions.checkArgument(pathStr.equals(COL_NAME) || ("*".equals(pathStr) && path.getRootSegment().getChild() == null),
               String.format("Selected column '%s' must have name 'columns' or must be plain '*'", pathStr));
 
           if (path.getRootSegment().getChild() != null) {
@@ -147,11 +147,10 @@ class RepeatedVarCharOutput extends TextOutput {
   }
 
   private void expandTmpBufIfNecessary() {
+    FieldSizeLimitExceptionHelper.checkSizeLimit(charLengthOffset+1, maxCellLimit, fieldIndex, logger);
     if (charLengthOffset < tmpBuf.capacity()) {
       return;
     }
-
-    FieldSizeLimitExceptionHelper.checkSizeLimit(charLengthOffset, maxCellLimit, fieldIndex, logger);
 
     byte[] tmp = new byte[LargeMemoryUtil.checkedCastToInt(tmpBuf.capacity())];
     tmpBuf.getBytes(0, tmp);
@@ -209,20 +208,18 @@ class RepeatedVarCharOutput extends TextOutput {
 
   @Override
   public void finishRecord() {
-    hasData = false;
-
-    if(fieldOpen){
-      endField();
+    if (hasData) {
+      if(fieldOpen) {
+        endField();
+      }
+      listWriter.endList();
+      hasData = false;
+    } else {
+      listWriter.writeNull();
     }
 
-    listWriter.endList();
-
-    // if there were no defined fields, skip.
-//    if(fieldIndex > -1){
-      batchIndex++;
-      recordCount++;
-//    }
-
+    batchIndex++;
+    recordCount++;
 
   }
 

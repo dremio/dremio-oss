@@ -20,6 +20,10 @@ export function sourceTypesIncludeS3(sourceTypes: { sourceType: string }[]) {
   return sourceTypes && !!sourceTypes.find((type) => type.sourceType === "S3");
 }
 
+export function sourceTypesIncludeSampleSource(sourceTypes: { sourceType: string }[]) {
+  return sourceTypes && !!sourceTypes.find((type) => type.sourceType === "SAMPLE_SOURCE");
+}
+
 export function isVersionedSource(type: string) {
   switch (type) {
     case NESSIE:

@@ -26,11 +26,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.projectnessie.model.CommitMeta;
+import org.projectnessie.model.ContentKey;
 import org.projectnessie.model.IcebergTable;
+import org.projectnessie.nessie.relocated.protobuf.ByteString;
 import org.projectnessie.versioned.BranchName;
 import org.projectnessie.versioned.GetNamedRefsParams;
 import org.projectnessie.versioned.Hash;
-import org.projectnessie.versioned.Key;
 import org.projectnessie.versioned.ReferenceConflictException;
 import org.projectnessie.versioned.ReferenceInfo;
 import org.projectnessie.versioned.ReferenceNotFoundException;
@@ -54,7 +55,6 @@ import com.dremio.service.nessie.NessieDatastoreInstance;
 import com.dremio.service.nessie.upgrade.version040.MetadataReader;
 import com.dremio.service.nessie.upgrade.version040.MetadataReader040;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.protobuf.ByteString;
 
 /**
  * Migrates legacy Nessie data stored in custom format in the KVStore to OSS format managed by
@@ -110,6 +110,7 @@ public class MigrateToNessieAdapter extends UpgradeTask {
 
       DatabaseAdapter adapter = new DatastoreDatabaseAdapterFactory().newBuilder().withConnector(store)
         .withConfig(ImmutableAdjustableNonTransactionalDatabaseAdapterConfig.builder()
+          .validateNamespaces(false)
           .keyListDistance(Integer.MAX_VALUE)
           .build())
         .build();
@@ -160,7 +161,7 @@ public class MigrateToNessieAdapter extends UpgradeTask {
               )));
         }
 
-        Key key = Key.of(contentKey.toArray(new String[0]));
+        ContentKey key = ContentKey.of(contentKey.toArray(new String[0]));
 
         AdminLogger.log("Migrating key: " + key + ", location: " + location);
 
@@ -177,8 +178,8 @@ public class MigrateToNessieAdapter extends UpgradeTask {
           KeyWithBytes.of(
             key,
             contentId,
-            DefaultStoreWorker.payloadForContent(table),
-            DefaultStoreWorker.instance().toStoreOnReferenceState(table, a -> commit.get().addAttachments(a))));
+            (byte) DefaultStoreWorker.payloadForContent(table),
+            DefaultStoreWorker.instance().toStoreOnReferenceState(table)));
 
         if (numEntries.incrementAndGet() >= MAX_ENTRIES_PER_COMMIT) {
           commit(adapter, commit.get(), numEntries.get(), totalEntries);
@@ -217,6 +218,7 @@ public class MigrateToNessieAdapter extends UpgradeTask {
     DatabaseAdapter adapter = new DatastoreDatabaseAdapterFactory().newBuilder()
       .withConnector(store)
       .withConfig(ImmutableAdjustableNonTransactionalDatabaseAdapterConfig.builder()
+        .validateNamespaces(false)
         .keyListDistance(1)
         .build())
       .build();
@@ -234,7 +236,7 @@ public class MigrateToNessieAdapter extends UpgradeTask {
       .build();
 
     // Make an empty commit to force key list computation in the adapter
-    Hash hash = adapter.commit(emptyCommit);
+    Hash hash = adapter.commit(emptyCommit).getCommitHash();
     AdminLogger.log("Committed post-upgrade key list ({} entries) as {}", totalEntries.get(), hash);
   }
 
@@ -244,7 +246,7 @@ public class MigrateToNessieAdapter extends UpgradeTask {
     }
 
     try {
-      Hash hash = adapter.commit(commit.build());
+      Hash hash = adapter.commit(commit.build()).getCommitHash();
       total.addAndGet(numEntries);
       AdminLogger.log("Committed {} (total {}) migrated tables as {}", numEntries, total.get(), hash);
     } catch (Exception e) {

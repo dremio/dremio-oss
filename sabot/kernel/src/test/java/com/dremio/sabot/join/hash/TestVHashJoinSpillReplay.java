@@ -32,6 +32,7 @@ public class TestVHashJoinSpillReplay extends TestVHashJoinSpill {
   private final OptionManager options = testContext.getOptions();
   private final int minReserve = VectorizedSpillingHashJoinOperator.MIN_RESERVE;
 
+  @Override
   @Before
   public void before() {
     options.setOption(OptionValue.createBoolean(OptionType.SYSTEM, HashJoinOperator.ENABLE_SPILL.getOptionName(), true));
@@ -42,6 +43,7 @@ public class TestVHashJoinSpillReplay extends TestVHashJoinSpill {
     VectorizedSpillingHashJoinOperator.MIN_RESERVE = 9 * 1024 * 1024;
   }
 
+  @Override
   @After
   public void after() {
     options.setOption(HashJoinOperator.ENABLE_SPILL.getDefault());

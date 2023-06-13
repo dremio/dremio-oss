@@ -20,14 +20,14 @@
   cursor: pointer;
 
   &:hover {
-    background-color: var(--dremio--color--primary--100);
+    background-color: var(--color--brand--25);
     .function-item__add-icon {
       display: flex !important;
     }
   }
 
   &.--isActive {
-    background-color: var(--dremio--color--primary--100);
+    background-color: var(--color--brand--25);
   }
 
   &__header {
@@ -35,11 +35,16 @@
     justify-content: space-between;
     align-items: center;
     height: 24px;
+
+    &__tags {
+      display: flex;
+      gap: 4px;
+    }
   }
 
   &__icon {
     padding: 0;
-    color: var(--dremio--color--neutral--600) !important;
+    color: var(--color--neutral--600) !important;
 
     &:hover {
       color: var(--dremio--color--link) !important;
@@ -56,7 +61,7 @@
     padding: 4px 0;
     font-size: 14px;
     line-height: 20px;
-    font-family: Menlo, monospace;
+    font-family: var(--dremio--font-family--monospace);
   }
 
   &__description,
@@ -74,7 +79,7 @@
   }
 
   &__divider {
-    background-color: var(--dremio--color--neutral--150);
+    background-color: var(--color--neutral--50);
     border: none;
     width: 100%;
     height: 1px;
@@ -82,7 +87,7 @@
   }
 
   &__extraHeader {
-    color: var(--dremio--color--primary--500);
+    color: var(--color--brand--300);
     font-weight: 600;
     margin-bottom: 4px;
   }
@@ -108,7 +113,7 @@
 
   :global {
     .tag-list__tag {
-      border-color: var(--dremio--color--primary--200) !important;
+      border-color: var(--color--brand--100) !important;
     }
     .tag__textWrapper {
       padding: 0 4px !important;

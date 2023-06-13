@@ -18,6 +18,9 @@ const digitColumn = {
 };
 
 export const tableStyles = {
+  hidden: {
+    display: "none",
+  },
   actionColumn: {
     height: "100%",
     display: "flex",

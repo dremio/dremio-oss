@@ -34,12 +34,10 @@ import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.avro.file.DataFileConstants;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.ManifestFile;
-import org.apache.iceberg.ManifestFiles;
-import org.apache.iceberg.ManifestWriter;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.TableProperties;
-import org.apache.iceberg.io.OutputFile;
+import org.apache.iceberg.io.FileIO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,7 +49,6 @@ import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.store.OperationType;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.dfs.IcebergTableProps;
-import com.dremio.exec.store.iceberg.DremioFileIO;
 import com.dremio.exec.store.iceberg.FieldIdBroker;
 import com.dremio.exec.store.iceberg.IcebergManifestWriterPOP;
 import com.dremio.exec.store.iceberg.IcebergMetadataInformation;
@@ -59,6 +56,7 @@ import com.dremio.exec.store.iceberg.IcebergPartitionData;
 import com.dremio.exec.store.iceberg.IcebergSerDe;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.iceberg.SchemaConverter;
+import com.dremio.exec.store.iceberg.SupportsIcebergRootPointer;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
@@ -77,10 +75,11 @@ public class ManifestWritesHelper {
   private final String ICEBERG_METADATA_FOLDER = "metadata";
   private final List<String> listOfFilesCreated;
 
-  protected ManifestWriter<DataFile> manifestWriter;
+  protected LazyManifestWriter manifestWriter;
   protected IcebergManifestWriterPOP writer;
   protected long currentNumDataFileAdded = 0;
-  protected DremioFileIO dremioFileIO;
+  protected DataFile currentDataFile;
+  protected FileIO fileIO;
 
   protected VarBinaryVector inputDatafiles;
   protected IntVector operationTypes;
@@ -111,7 +110,9 @@ public class ManifestWritesHelper {
       throw new RuntimeException("Unable to create File System", e);
     }
 
-    this.dremioFileIO = new DremioFileIO(fs, writer.getPlugin().getFsConfCopy(), writer.getPlugin());
+    Preconditions.checkArgument(writer.getPlugin() instanceof SupportsIcebergRootPointer,
+        "Invalid plugin in ManifestWritesHelper - plugin does not support Iceberg");
+    this.fileIO = ((SupportsIcebergRootPointer) writer.getPlugin()).createIcebergFileIO(fs, null, null, null, null);
   }
 
   public void setIncoming(VectorAccessible incoming) {
@@ -127,10 +128,10 @@ public class ManifestWritesHelper {
     final PartitionSpec partitionSpec = getPartitionSpec(writer.getOptions());
     this.partitionSpecId = Optional.of(partitionSpec.specId());
     final String icebergManifestFileExt = "." + outputExtension;
-    final OutputFile manifestLocation = dremioFileIO.newOutputFile(baseMetadataLocation + Path.SEPARATOR + UUID.randomUUID() + icebergManifestFileExt);
-    listOfFilesCreated.add(manifestLocation.location());
+    final String manifestLocation = baseMetadataLocation + Path.SEPARATOR + UUID.randomUUID() + icebergManifestFileExt;
+    listOfFilesCreated.add(manifestLocation);
     partitionDataInCurrentManifest.clear();
-    this.manifestWriter = ManifestFiles.write(partitionSpec, manifestLocation);
+    this.manifestWriter = new LazyManifestWriter(fileIO, manifestLocation, partitionSpec);
   }
 
   public void processIncomingRow(int recordIndex) throws IOException {
@@ -140,14 +141,19 @@ public class ManifestWritesHelper {
       final Integer operationTypeValue = operationTypes.get(recordIndex);
       final IcebergMetadataInformation icebergMetadataInformation = IcebergSerDe.deserializeFromByteArray(metaInfoBytes);
       final OperationType operationType = OperationType.valueOf(operationTypeValue);
+      currentDataFile = IcebergSerDe.deserializeDataFile(icebergMetadataInformation.getIcebergMetadataFileByte());
+      if (currentDataFile == null) {
+        throw new IOException("Iceberg data file cannot be empty or null.");
+      }
       switch (operationType) {
         case ADD_DATAFILE:
-          final DataFile dataFile = IcebergSerDe.deserializeDataFile(icebergMetadataInformation.getIcebergMetadataFileByte());
-          addDataFile(dataFile);
+          addDataFile(currentDataFile);
           currentNumDataFileAdded++;
           break;
         case DELETE_DATAFILE:
-          deletedDataFiles.put(IcebergSerDe.deserializeDataFile(icebergMetadataInformation.getIcebergMetadataFileByte()), metaInfoBytes);
+          deletedDataFiles.put(currentDataFile, metaInfoBytes);
+          break;
+        case DELETE_DELETEFILE:
           break;
         default:
           throw new IOException("Unsupported File type - " + operationType);
@@ -165,7 +171,7 @@ public class ManifestWritesHelper {
     if (writer.getOptions().isReadSignatureSupport()) {
       partitionDataInCurrentManifest.add(ipd);
     }
-    manifestWriter.add(dataFile);
+    manifestWriter.getInstance().add(dataFile);
   }
 
   public void processDeletedFiles(BiConsumer<DataFile, byte[]> processLogic) {
@@ -175,7 +181,7 @@ public class ManifestWritesHelper {
 
   public long length() {
     Preconditions.checkNotNull(manifestWriter);
-    return manifestWriter.length();
+    return manifestWriter.getInstance().length();
   }
 
   public boolean hasReachedMaxLen() {
@@ -188,8 +194,8 @@ public class ManifestWritesHelper {
       deleteRunningManifestFile();
       return Optional.empty();
     }
-    manifestWriter.close();
-    return Optional.of(manifestWriter.toManifestFile());
+    manifestWriter.getInstance().close();
+    return Optional.of(manifestWriter.getInstance().toManifestFile());
   }
 
   public byte[] getWrittenSchema() {
@@ -242,13 +248,13 @@ public class ManifestWritesHelper {
 
   protected void deleteRunningManifestFile() {
     try {
-      if (manifestWriter == null) {
+      if (manifestWriter == null || !manifestWriter.isInitialized()) {
         return;
       }
-      manifestWriter.close();
-      ManifestFile manifestFile = manifestWriter.toManifestFile();
+      manifestWriter.getInstance().close();
+      ManifestFile manifestFile = manifestWriter.getInstance().toManifestFile();
       logger.debug("Removing {} as it'll be re-written with a new schema", manifestFile.path());
-      deleteManifestFileIfExists(dremioFileIO, manifestFile.path());
+      deleteManifestFileIfExists(fileIO, manifestFile.path());
       manifestWriter = null;
     } catch (Exception e) {
       logger.warn("Error while closing stale manifest", e);
@@ -261,14 +267,14 @@ public class ManifestWritesHelper {
 
   protected void abort() {
     for (String path : this.listOfFilesCreated) {
-      ManifestWritesHelper.deleteManifestFileIfExists(dremioFileIO, path);
+      ManifestWritesHelper.deleteManifestFileIfExists(fileIO, path);
     }
   }
 
-  public static boolean deleteManifestFileIfExists(DremioFileIO dremioFileIO, String filePath) {
+  public static boolean deleteManifestFileIfExists(FileIO fileIO, String filePath) {
     try {
-      dremioFileIO.deleteFile(filePath);
-      deleteManifestCrcFileIfExists(dremioFileIO, filePath);
+      fileIO.deleteFile(filePath);
+      deleteManifestCrcFileIfExists(fileIO, filePath);
       return true;
     } catch (Exception e) {
       logger.warn("Error while deleting file {}", filePath, e);
@@ -276,13 +282,13 @@ public class ManifestWritesHelper {
     }
   }
 
-  public static boolean deleteManifestCrcFileIfExists(DremioFileIO dremioFileIO, String manifestFilePath) {
+  public static boolean deleteManifestCrcFileIfExists(FileIO fileIO, String manifestFilePath) {
     try{
       com.dremio.io.file.Path p = com.dremio.io.file.Path.of(manifestFilePath);
       String fileName = p.getName();
       com.dremio.io.file.Path parentPath = p.getParent();
       String crcFilePath = parentPath + com.dremio.io.file.Path.SEPARATOR + "." + fileName + "." + CRC_FILE_EXTENTION;
-      dremioFileIO.deleteFile(crcFilePath);
+      fileIO.deleteFile(crcFilePath);
       return true;
     } catch (Exception e) {
       logger.warn("Error while deleting crc file for {}", manifestFilePath, e);

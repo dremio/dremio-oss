@@ -72,6 +72,7 @@ public class SqlInsertTable extends SqlInsert implements DataAdditionCmdCall, Sq
     this.insertFields = insertFields;
   }
 
+  @Override
   public void extendTableWithDataFileSystemColumns() {
     if (extendedTargetTable == null) {
       extendedTargetTable = DmlUtils.extendTableWithDataFileSystemColumns(getTargetTable());
@@ -104,6 +105,7 @@ public class SqlInsertTable extends SqlInsert implements DataAdditionCmdCall, Sq
     query.unparse(writer, leftPrec, rightPrec);
   }
 
+  @Override
   public NamespaceKey getPath() {
     return new NamespaceKey(tblName.names);
   }
@@ -139,6 +141,7 @@ public class SqlInsertTable extends SqlInsert implements DataAdditionCmdCall, Sq
     return insertFields.getList().stream().map(SqlNode::toString).collect(Collectors.toList());
   }
 
+  @Override
   public SqlNode getQuery() {
     return query;
   }

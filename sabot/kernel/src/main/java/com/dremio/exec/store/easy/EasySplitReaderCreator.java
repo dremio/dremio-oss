@@ -106,6 +106,7 @@ public class EasySplitReaderCreator extends SplitReaderCreator implements AutoCl
   public void createInputStreamProvider(InputStreamProvider lastInputStreamProvider, MutableParquetMetadata lastFooter) {
   }
 
+  @Override
   protected <T> T handleEx(RunnableIO<T> r) {
     Preconditions.checkNotNull(easySplitXAttr);
     try {

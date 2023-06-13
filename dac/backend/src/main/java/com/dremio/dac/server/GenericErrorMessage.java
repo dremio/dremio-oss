@@ -31,6 +31,7 @@ public class GenericErrorMessage {
 
   public static final String NO_USER_MSG = "No User Available";
   public static final String MISSING_VERSION_PARAM_MSG = "Missing Version Parameter";
+  public static final String UNKNOWN_FORMAT_MSG = "The table cannot be saved when the format is set to UNKNOWN. Please select the correct format for the table";
   public static final String GENERIC_ERROR_MSG = "Something went wrong.";
 
   private final String errorMessage;

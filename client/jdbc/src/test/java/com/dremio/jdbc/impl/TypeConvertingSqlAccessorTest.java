@@ -80,6 +80,7 @@ public class TypeConvertingSqlAccessorTest {
       super( Types.optional(MinorType.TINYINT), value );
     }
 
+    @Override
     public byte getByte( int rowOffset ) {
       return (Byte) getValue();
     }
@@ -92,6 +93,7 @@ public class TypeConvertingSqlAccessorTest {
       super(Types.optional(MinorType.SMALLINT), value);
     }
 
+    @Override
     public short getShort( int rowOffset ) {
       return (Short) getValue();
     }
@@ -104,6 +106,7 @@ public class TypeConvertingSqlAccessorTest {
       super(Types.optional(MinorType.INT), value);
     }
 
+    @Override
     public int getInt( int rowOffset ) {
       return (Integer) getValue();
     }
@@ -117,6 +120,7 @@ public class TypeConvertingSqlAccessorTest {
       super(Types.optional(MinorType.BIGINT), value);
     }
 
+    @Override
     public long getLong( int rowOffset ) {
       return (Long) getValue();
     }
@@ -129,6 +133,7 @@ public class TypeConvertingSqlAccessorTest {
       super( Types.optional(MinorType.FLOAT4), value);
     }
 
+    @Override
     public float getFloat( int rowOffset ) {
       return (Float) getValue();
     }
@@ -140,6 +145,7 @@ public class TypeConvertingSqlAccessorTest {
       super(Types.optional(MinorType.FLOAT8), value);
     }
 
+    @Override
     public double getDouble( int rowOffset ) {
       return (double) getValue();
     }

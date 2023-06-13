@@ -22,6 +22,8 @@ export const API_V2 = "apiv2";
 export const API_URL_V3 = `//${host}/api/v3`;
 export const API_V3 = "api/v3";
 export const WEB_SOCKET_URL = `ws${isSecure ? "s" : ""}:${API_URL_V2}/socket`;
+export const NESSIE_PROXY_URL_V2 = `//${host}/nessie-proxy/v2`;
+
 class Api {
   toString() {
     console.warn(

@@ -17,27 +17,34 @@ package com.dremio.services.nessie.grpc;
 
 import java.time.Instant;
 import java.util.Collections;
+import java.util.List;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import org.projectnessie.api.params.CommitLogParams;
-import org.projectnessie.api.params.CommitLogParamsBuilder;
-import org.projectnessie.api.params.DiffParams;
-import org.projectnessie.api.params.DiffParamsBuilder;
-import org.projectnessie.api.params.EntriesParams;
-import org.projectnessie.api.params.EntriesParamsBuilder;
-import org.projectnessie.api.params.GetReferenceParams;
-import org.projectnessie.api.params.GetReferenceParamsBuilder;
-import org.projectnessie.api.params.MultipleNamespacesParams;
-import org.projectnessie.api.params.MultipleNamespacesParamsBuilder;
-import org.projectnessie.api.params.NamespaceParams;
-import org.projectnessie.api.params.NamespaceParamsBuilder;
-import org.projectnessie.api.params.RefLogParams;
-import org.projectnessie.api.params.RefLogParamsBuilder;
-import org.projectnessie.api.params.ReferencesParams;
-import org.projectnessie.api.params.ReferencesParamsBuilder;
-import org.projectnessie.model.BaseMergeTransplant;
+import javax.annotation.Nullable;
+
+import org.projectnessie.api.v1.params.CommitLogParams;
+import org.projectnessie.api.v1.params.CommitLogParamsBuilder;
+import org.projectnessie.api.v1.params.EntriesParams;
+import org.projectnessie.api.v1.params.EntriesParamsBuilder;
+import org.projectnessie.api.v1.params.GetReferenceParams;
+import org.projectnessie.api.v1.params.GetReferenceParamsBuilder;
+import org.projectnessie.api.v1.params.ImmutableMerge;
+import org.projectnessie.api.v1.params.ImmutableTransplant;
+import org.projectnessie.api.v1.params.Merge;
+import org.projectnessie.api.v1.params.MultipleNamespacesParams;
+import org.projectnessie.api.v1.params.MultipleNamespacesParamsBuilder;
+import org.projectnessie.api.v1.params.NamespaceParams;
+import org.projectnessie.api.v1.params.NamespaceParamsBuilder;
+import org.projectnessie.api.v1.params.RefLogParams;
+import org.projectnessie.api.v1.params.RefLogParamsBuilder;
+import org.projectnessie.api.v1.params.ReferencesParams;
+import org.projectnessie.api.v1.params.ReferencesParamsBuilder;
+import org.projectnessie.api.v1.params.Transplant;
 import org.projectnessie.model.Branch;
 import org.projectnessie.model.CommitMeta;
+import org.projectnessie.model.CommitResponse;
+import org.projectnessie.model.Conflict;
 import org.projectnessie.model.ContentKey;
 import org.projectnessie.model.DeltaLakeTable;
 import org.projectnessie.model.Detached;
@@ -51,8 +58,11 @@ import org.projectnessie.model.GetMultipleContentsResponse.ContentWithKey;
 import org.projectnessie.model.GetNamespacesResponse;
 import org.projectnessie.model.IcebergTable;
 import org.projectnessie.model.IcebergView;
+import org.projectnessie.model.ImmutableAddedContent;
 import org.projectnessie.model.ImmutableBranch;
 import org.projectnessie.model.ImmutableCommitMeta;
+import org.projectnessie.model.ImmutableCommitResponse;
+import org.projectnessie.model.ImmutableConflict;
 import org.projectnessie.model.ImmutableContentKeyDetails;
 import org.projectnessie.model.ImmutableDelete;
 import org.projectnessie.model.ImmutableDeltaLakeTable;
@@ -60,25 +70,24 @@ import org.projectnessie.model.ImmutableDetached;
 import org.projectnessie.model.ImmutableDiffEntry;
 import org.projectnessie.model.ImmutableDiffResponse;
 import org.projectnessie.model.ImmutableEntriesResponse;
+import org.projectnessie.model.ImmutableEntry;
 import org.projectnessie.model.ImmutableGetNamespacesResponse;
 import org.projectnessie.model.ImmutableIcebergTable;
 import org.projectnessie.model.ImmutableIcebergView;
 import org.projectnessie.model.ImmutableLogEntry;
 import org.projectnessie.model.ImmutableLogResponse;
-import org.projectnessie.model.ImmutableMerge;
 import org.projectnessie.model.ImmutableMergeKeyBehavior;
 import org.projectnessie.model.ImmutableMergeResponse;
+import org.projectnessie.model.ImmutableNamespace;
 import org.projectnessie.model.ImmutableNessieConfiguration;
 import org.projectnessie.model.ImmutableOperations;
 import org.projectnessie.model.ImmutablePut;
 import org.projectnessie.model.ImmutableRefLogResponse;
 import org.projectnessie.model.ImmutableReferenceMetadata;
 import org.projectnessie.model.ImmutableTag;
-import org.projectnessie.model.ImmutableTransplant;
 import org.projectnessie.model.ImmutableUnchanged;
 import org.projectnessie.model.LogResponse;
 import org.projectnessie.model.LogResponse.LogEntry;
-import org.projectnessie.model.Merge;
 import org.projectnessie.model.MergeResponse;
 import org.projectnessie.model.Namespace;
 import org.projectnessie.model.Operation;
@@ -92,7 +101,6 @@ import org.projectnessie.model.Reference;
 import org.projectnessie.model.Reference.ReferenceType;
 import org.projectnessie.model.ReferenceMetadata;
 import org.projectnessie.model.Tag;
-import org.projectnessie.model.Transplant;
 import org.projectnessie.model.types.ContentTypes;
 
 import com.dremio.services.nessie.grpc.api.CommitLogEntry;
@@ -102,6 +110,8 @@ import com.dremio.services.nessie.grpc.api.CommitOperation;
 import com.dremio.services.nessie.grpc.api.CommitOps;
 import com.dremio.services.nessie.grpc.api.Content;
 import com.dremio.services.nessie.grpc.api.ContentKeyConflict;
+import com.dremio.services.nessie.grpc.api.ContentKeyConflictDetails;
+import com.dremio.services.nessie.grpc.api.ContentKeyDetails;
 import com.dremio.services.nessie.grpc.api.ContentRequest;
 import com.dremio.services.nessie.grpc.api.ContentType;
 import com.dremio.services.nessie.grpc.api.DeltaLakeTable.Builder;
@@ -118,8 +128,11 @@ import com.dremio.services.nessie.grpc.api.MultipleNamespacesRequest;
 import com.dremio.services.nessie.grpc.api.MultipleNamespacesResponse;
 import com.dremio.services.nessie.grpc.api.NamespaceRequest;
 import com.dremio.services.nessie.grpc.api.NessieConfiguration;
+import com.dremio.services.nessie.grpc.api.ReferenceResponse;
 import com.dremio.services.nessie.grpc.api.TransplantRequest;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableList;
 import com.google.protobuf.Timestamp;
 
 /**
@@ -160,6 +173,36 @@ public final class ProtoUtil {
     throw new IllegalArgumentException(String.format("'%s' should be a Branch/Tag/Detached", ref));
   }
 
+  public static com.dremio.services.nessie.grpc.api.Reference refToProto(
+    com.dremio.services.nessie.grpc.api.ReferenceType type, String name, String hash) {
+    Preconditions.checkArgument(null != name, "Reference name must be non-null");
+    switch (type) {
+      case BRANCH:
+        return com.dremio.services.nessie.grpc.api.Reference.newBuilder()
+          .setBranch(toProto(Branch.of(name, hash)))
+          .build();
+
+      case TAG:
+        return com.dremio.services.nessie.grpc.api.Reference.newBuilder()
+          .setTag(toProto(Tag.of(name, hash)))
+          .build();
+
+      default:
+        throw new IllegalArgumentException(String.format("Reference type '%s' should be Branch or Tag", type));
+    }
+  }
+
+  @Nullable
+  public static Reference refFromProtoResponse(ReferenceResponse response) {
+    Preconditions.checkArgument(null != response, "Reference response must be non-null");
+
+    if (!response.hasReference()) {
+      return null;
+    }
+
+    return refFromProto(response.getReference());
+  }
+
   public static Branch fromProto(com.dremio.services.nessie.grpc.api.Branch branch) {
     Preconditions.checkArgument(null != branch, "Branch must be non-null");
     ImmutableBranch.Builder builder = ImmutableBranch.builder().name(branch.getName());
@@ -184,6 +227,59 @@ public final class ProtoUtil {
     if (null != branch.getMetadata()) {
       builder.setMetadata(toProto(branch.getMetadata()));
     }
+    return builder.build();
+  }
+
+  public static CommitResponse fromProto(com.dremio.services.nessie.grpc.api.CommitResponse commitResponse) {
+    Preconditions.checkArgument(null != commitResponse, "CommitResponse must be non-null");
+
+    if (!commitResponse.hasBranch()) { // legacy response
+      ImmutableBranch.Builder builder = ImmutableBranch.builder().name(commitResponse.getName());
+
+      if (commitResponse.hasHash()) {
+        builder.hash(commitResponse.getHash());
+      }
+      if (commitResponse.hasMetadata()) {
+        builder.metadata(fromProto(commitResponse.getMetadata()));
+      }
+
+      return CommitResponse.builder().targetBranch(builder.build()).build();
+    }
+
+    ImmutableCommitResponse.Builder builder = CommitResponse.builder();
+    builder.targetBranch(fromProto(commitResponse.getBranch()));
+
+    commitResponse.getAddedContentList().forEach(ac ->
+            builder.addAddedContents(ImmutableAddedContent.builder()
+                    .key(fromProto(ac.getKey()))
+                    .contentId(ac.getContentId())
+                    .build()));
+
+    return builder.build();
+  }
+
+  public static com.dremio.services.nessie.grpc.api.CommitResponse toProto(CommitResponse commitResponse) {
+    Preconditions.checkArgument(null != commitResponse, "CommitResponse must be non-null");
+    com.dremio.services.nessie.grpc.api.CommitResponse.Builder builder =
+            com.dremio.services.nessie.grpc.api.CommitResponse.newBuilder();
+
+    com.dremio.services.nessie.grpc.api.Branch branch = toProto(commitResponse.getTargetBranch());
+    builder.setBranch(branch);
+
+    if (commitResponse.getAddedContents() != null) {
+      commitResponse.getAddedContents().forEach(ac ->
+              builder.addAddedContentBuilder().setKey(toProto(ac.getKey())).setContentId(ac.contentId()));
+    }
+
+    // Allow older clients to read the response as `Branch` - remove these fields with DX-61406
+    builder.setName(branch.getName());
+    if (branch.hasHash()) {
+      builder.setHash(branch.getHash());
+    }
+    if (branch.hasMetadata()) {
+      builder.setMetadata(branch.getMetadata());
+    }
+
     return builder.build();
   }
 
@@ -430,10 +526,25 @@ public final class ProtoUtil {
   public static NessieConfiguration toProto(org.projectnessie.model.NessieConfiguration config) {
     Preconditions.checkArgument(null != config, "NessieConfiguration must be non-null");
     NessieConfiguration.Builder builder = NessieConfiguration.newBuilder()
-      .setMaxSupportedApiVersion(config.getMaxSupportedApiVersion());
+      .setMaxSupportedApiVersion(config.getMaxSupportedApiVersion())
+      .setMinSupportedApiVersion(config.getMinSupportedApiVersion())
+      .setActualApiVersion(config.getActualApiVersion());
     if (null != config.getDefaultBranch()) {
       builder.setDefaultBranch(config.getDefaultBranch());
     }
+    if (null != config.getSpecVersion()) {
+      builder.setSpecVersion(config.getSpecVersion());
+    }
+    if (null != config.getNoAncestorHash()) {
+      builder.setNoAncestorHash(config.getNoAncestorHash());
+    }
+    if (null != config.getRepositoryCreationTimestamp()) {
+      builder.setRepositoryCreationTimestamp(toProto(config.getRepositoryCreationTimestamp()));
+    }
+    if (null != config.getOldestPossibleCommitTimestamp()) {
+      builder.setOldestPossibleCommitTimestamp(toProto(config.getOldestPossibleCommitTimestamp()));
+    }
+    builder.putAllAdditionalProperties(config.getAdditionalProperties());
     return builder.build();
   }
 
@@ -441,9 +552,28 @@ public final class ProtoUtil {
     Preconditions.checkArgument(null != config, "NessieConfiguration must be non-null");
     ImmutableNessieConfiguration.Builder builder = ImmutableNessieConfiguration.builder()
       .maxSupportedApiVersion(config.getMaxSupportedApiVersion());
+    if (config.hasMinSupportedApiVersion()) {
+      builder.minSupportedApiVersion(config.getMinSupportedApiVersion());
+    }
+    if (config.hasSpecVersion()) {
+      builder.specVersion(config.getSpecVersion());
+    }
     if (config.hasDefaultBranch()) {
       builder.defaultBranch(config.getDefaultBranch());
     }
+    if (config.hasNoAncestorHash()) {
+      builder.noAncestorHash(config.getNoAncestorHash());
+    }
+    if (config.hasRepositoryCreationTimestamp()) {
+      builder.repositoryCreationTimestamp(fromProto(config.getRepositoryCreationTimestamp()));
+    }
+    if (config.hasOldestPossibleCommitTimestamp()) {
+      builder.oldestPossibleCommitTimestamp(fromProto(config.getOldestPossibleCommitTimestamp()));
+    }
+    if (config.hasActualApiVersion()) {
+      builder.actualApiVersion(config.getActualApiVersion());
+    }
+    builder.additionalProperties(config.getAdditionalPropertiesMap());
     return builder.build();
   }
 
@@ -457,6 +587,13 @@ public final class ProtoUtil {
   public static ContentKey fromProto(com.dremio.services.nessie.grpc.api.ContentKey key) {
     Preconditions.checkArgument(null != key, "ContentKey must be non-null");
     return ContentKey.of(key.getElementsList());
+  }
+
+  public static List<ContentKey> fromProto(List<com.dremio.services.nessie.grpc.api.ContentKey> keys) {
+    Preconditions.checkArgument(null != keys, "ContentKey list must be non-null");
+    ImmutableList.Builder<ContentKey> list = ImmutableList.builder();
+    keys.forEach(k -> list.add(fromProto(k)));
+    return list.build();
   }
 
   public static ContentWithKey fromProto(com.dremio.services.nessie.grpc.api.ContentWithKey c) {
@@ -474,18 +611,30 @@ public final class ProtoUtil {
 
   public static com.dremio.services.nessie.grpc.api.Entry toProto(Entry entry) {
     Preconditions.checkArgument(null != entry, "Entry must be non-null");
-    return com.dremio.services.nessie.grpc.api.Entry.newBuilder()
+    com.dremio.services.nessie.grpc.api.Entry.Builder builder = com.dremio.services.nessie.grpc.api.Entry.newBuilder()
       .setContentKey(toProto(entry.getName()))
-      .setType(ContentType.valueOf(entry.getType().name()))
-      .build();
+      .setType(ContentType.valueOf(entry.getType().name()));
+    if (null != entry.getContentId()) {
+      builder.setContentId(entry.getContentId());
+    }
+    if (null != entry.getContent()) {
+      builder.setContent(toProto(entry.getContent()));
+    }
+    return builder.build();
   }
 
   public static Entry fromProto(com.dremio.services.nessie.grpc.api.Entry entry) {
     Preconditions.checkArgument(null != entry, "Entry must be non-null");
-    return Entry.builder()
+    ImmutableEntry.Builder builder = Entry.builder()
       .type(ContentTypes.forName(entry.getType().name()))
-      .name(fromProto(entry.getContentKey()))
-      .build();
+      .name(fromProto(entry.getContentKey()));
+    if (entry.hasContentId()) {
+      builder.contentId(entry.getContentId());
+    }
+    if (entry.hasContent()) {
+      builder.content(fromProto(entry.getContent()));
+    }
+    return builder.build();
   }
 
   public static com.dremio.services.nessie.grpc.api.CommitMeta toProto(CommitMeta commitMeta) {
@@ -513,6 +662,7 @@ public final class ProtoUtil {
       builder.setCommitTime(toProto(commitMeta.getCommitTime()));
     }
     return builder
+      .addAllParentHashes(commitMeta.getParentCommitHashes())
       .setMessage(commitMeta.getMessage())
       .putAllProperties(commitMeta.getProperties())
       .build();
@@ -542,6 +692,7 @@ public final class ProtoUtil {
       builder.commitTime(fromProto(commitMeta.getCommitTime()));
     }
     return builder
+      .addAllParentCommitHashes(commitMeta.getParentHashesList())
       .message(commitMeta.getMessage())
       .properties(commitMeta.getPropertiesMap())
       .build();
@@ -652,24 +803,42 @@ public final class ProtoUtil {
     return builder.build();
   }
 
-  public static EntriesRequest toProto(String refName, EntriesParams params) {
-    Preconditions.checkArgument(null != refName, "refName must be non-null");
-    Preconditions.checkArgument(null != params, "EntriesParams must be non-null");
+  public static EntriesRequest toProtoEntriesRequest(@Nullable String refName,
+                                                     @Nullable String hashOnRef,
+                                                     @Nullable Integer maxRecords,
+                                                     @Nullable String filter,
+                                                     @Nullable Integer namespaceDepth,
+                                                     boolean withContent,
+                                                     @Nullable ContentKey minKey,
+                                                     @Nullable ContentKey maxKey,
+                                                     @Nullable ContentKey prefixKey,
+                                                     List<ContentKey> keys) {
+    refName = refNameOrDetached(refName);
     EntriesRequest.Builder builder = EntriesRequest.newBuilder().setNamedRef(refName);
-    if (null != params.hashOnRef()) {
-      builder.setHashOnRef(params.hashOnRef());
+    builder.setWithContent(withContent);
+    if (null != hashOnRef) {
+      builder.setHashOnRef(hashOnRef);
     }
-    if (null != params.maxRecords()) {
-      builder.setMaxRecords(params.maxRecords());
+    if (null != maxRecords) {
+      builder.setMaxRecords(maxRecords);
     }
-    if (null != params.pageToken()) {
-      builder.setPageToken(params.pageToken());
+    if (null != filter) {
+      builder.setFilter(filter);
     }
-    if (null != params.filter()) {
-      builder.setFilter(params.filter());
+    if (null != namespaceDepth) {
+      builder.setNamespaceDepth(namespaceDepth);
     }
-    if (null != params.namespaceDepth()) {
-      builder.setNamespaceDepth(params.namespaceDepth());
+    if (null != minKey) {
+      builder.setMinKey(toProto(minKey));
+    }
+    if (null != maxKey) {
+      builder.setMaxKey(toProto(maxKey));
+    }
+    if (null != prefixKey) {
+      builder.setPrefixKey(toProto(prefixKey));
+    }
+    if (null != keys) {
+      keys.forEach(k -> builder.addKeys(toProto(k)));
     }
     return builder.build();
   }
@@ -693,13 +862,17 @@ public final class ProtoUtil {
       builder.maxRecords(request.getMaxRecords());
     }
     if (request.hasFetchOption()) {
-      builder.fetchOption(org.projectnessie.api.params.FetchOption.valueOf(request.getFetchOption().name()));
+      builder.fetchOption(org.projectnessie.model.FetchOption.valueOf(request.getFetchOption().name()));
     }
     return builder.build();
   }
 
-  public static CommitLogRequest toProto(String refName, CommitLogParams params) {
-    Preconditions.checkArgument(null != refName, "refName must be non-null");
+  private static String refNameOrDetached(@Nullable String name) {
+    return name == null ? Detached.REF_NAME : name;
+  }
+
+  public static CommitLogRequest toProto(@Nullable String refName, CommitLogParams params) {
+    refName = refNameOrDetached(refName);
     Preconditions.checkArgument(null != params, "CommitLogParams must be non-null");
     CommitLogRequest.Builder builder = CommitLogRequest.newBuilder().setNamedRef(refName);
     if (null != params.startHash()) {
@@ -790,6 +963,9 @@ public final class ProtoUtil {
     if (entries.hasToken()) {
       builder.token(entries.getToken());
     }
+    if (entries.hasEffectiveReference()) {
+      builder.effectiveReference(refFromProto(entries.getEffectiveReference()));
+    }
     return builder.build();
   }
 
@@ -802,11 +978,14 @@ public final class ProtoUtil {
     if (null != entries.getToken()) {
       builder.setToken(entries.getToken());
     }
+    if (null != entries.getEffectiveReference()) {
+      builder.setEffectiveReference(refToProto(entries.getEffectiveReference()));
+    }
     return builder.build();
   }
 
-  public static ContentRequest toProto(ContentKey key, String ref, String hashOnRef) {
-    Preconditions.checkArgument(null != ref, "ref must be non-null");
+  public static ContentRequest toProto(ContentKey key, @Nullable String ref, String hashOnRef) {
+    ref = refNameOrDetached(ref);
     ContentRequest.Builder builder =
       ContentRequest.newBuilder().setContentKey(toProto(key)).setRef(ref);
     builder = null != hashOnRef ? builder.setHashOnRef(hashOnRef) : builder;
@@ -814,10 +993,12 @@ public final class ProtoUtil {
   }
 
   public static MultipleContentsRequest toProto(
-    String ref, String hashOnRef, GetMultipleContentsRequest request) {
-    Preconditions.checkArgument(null != ref, "ref must be non-null");
+    @Nullable String ref, String hashOnRef, GetMultipleContentsRequest request) {
     final MultipleContentsRequest.Builder builder =
-      MultipleContentsRequest.newBuilder().setRef(ref);
+      MultipleContentsRequest.newBuilder();
+    if (null != ref) {
+      builder.setRef(ref);
+    }
     if (null != hashOnRef) {
       builder.setHashOnRef(hashOnRef);
     }
@@ -832,15 +1013,23 @@ public final class ProtoUtil {
     Preconditions.checkArgument(null != response, "GetMultipleContentsResponse must be non-null");
     MultipleContentsResponse.Builder builder = MultipleContentsResponse.newBuilder();
     response.getContents().forEach(c -> builder.addContentWithKey(toProto(c)));
+    if (response.getEffectiveReference() != null) {
+      builder.setEffectiveReference(refToProto(response.getEffectiveReference()));
+    }
     return builder.build();
   }
 
   public static GetMultipleContentsResponse fromProto(MultipleContentsResponse response) {
     Preconditions.checkArgument(null != response, "MultipleContentsResponse must be non-null");
+    Reference effectiveRef = null;
+    if (response.hasEffectiveReference()) {
+      effectiveRef = refFromProto(response.getEffectiveReference());
+    }
     return GetMultipleContentsResponse.of(
       response.getContentWithKeyList().stream()
         .map(ProtoUtil::fromProto)
-        .collect(Collectors.toList()));
+        .collect(Collectors.toList()),
+      effectiveRef);
   }
 
   public static ReferencesParams fromProto(GetAllReferencesRequest request) {
@@ -856,7 +1045,7 @@ public final class ProtoUtil {
       builder.filter(request.getFilter());
     }
     if (request.hasFetchOption()) {
-      builder.fetchOption(org.projectnessie.api.params.FetchOption.valueOf(request.getFetchOption().name()));
+      builder.fetchOption(org.projectnessie.model.FetchOption.valueOf(request.getFetchOption().name()));
     }
     return builder.build();
   }
@@ -884,7 +1073,7 @@ public final class ProtoUtil {
     GetReferenceParamsBuilder builder = GetReferenceParams.builder()
       .refName(request.getNamedRef());
     if (request.hasFetchOption()) {
-      builder.fetchOption(org.projectnessie.api.params.FetchOption.valueOf(request.getFetchOption().name()));
+      builder.fetchOption(org.projectnessie.model.FetchOption.valueOf(request.getFetchOption().name()));
     }
     return builder.build();
   }
@@ -899,50 +1088,79 @@ public final class ProtoUtil {
     return builder.build();
   }
 
-  public static DiffParams fromProto(DiffRequest request) {
-    Preconditions.checkArgument(null != request, "DiffRequest must be non-null");
-    DiffParamsBuilder builder = DiffParams.builder()
-      .fromRef(request.getFromRefName())
-      .toRef(request.getToRefName());
-    if (request.hasFromHashOnRef()) {
-      builder.fromHashOnRef(request.getFromHashOnRef());
-    }
-    if (request.hasToHashOnRef()) {
-      builder.toHashOnRef(request.getToHashOnRef());
-    }
-    return builder.build();
-  }
-
-  public static DiffRequest toProto(DiffParams params) {
-    Preconditions.checkArgument(null != params, "DiffParams must be non-null");
+  public static DiffRequest toProtoDiffRequest(@Nullable String fromRef, String fromHashOnRef, String toRef,
+                                               String toHashOnRef, Integer maxRecords, ContentKey minKey,
+                                               ContentKey maxKey, ContentKey prefixKey, List<ContentKey> keys,
+                                               String filter) {
+    fromRef = refNameOrDetached(fromRef);
+    toRef = refNameOrDetached(toRef);
     DiffRequest.Builder builder = DiffRequest.newBuilder()
-      .setFromRefName(params.getFromRef())
-      .setToRefName(params.getToRef());
-    if (null != params.getFromHashOnRef()) {
-      builder.setFromHashOnRef(params.getFromHashOnRef());
+      .setFromRefName(fromRef)
+      .setToRefName(toRef);
+    if (null != fromHashOnRef) {
+      builder.setFromHashOnRef(fromHashOnRef);
     }
-    if (null != params.getToHashOnRef()) {
-      builder.setToHashOnRef(params.getToHashOnRef());
+    if (null != toHashOnRef) {
+      builder.setToHashOnRef(toHashOnRef);
+    }
+    if (null != maxRecords) {
+      builder.setMaxRecords(maxRecords);
+    }
+    if (null != minKey) {
+      builder.setMinKey(toProto(minKey));
+    }
+    if (null != maxKey) {
+      builder.setMaxKey(toProto(maxKey));
+    }
+    if (null != prefixKey) {
+      builder.setPrefixKey(toProto(prefixKey));
+    }
+    if (null != filter) {
+      builder.setFilter(filter);
+    }
+    if (null != keys) {
+      keys.forEach(k -> builder.addKeys(toProto(k)));
     }
     return builder.build();
   }
 
   public static DiffResponse fromProto(com.dremio.services.nessie.grpc.api.DiffResponse response) {
     Preconditions.checkArgument(null != response, "DiffResponse must be non-null");
-    return ImmutableDiffResponse.builder()
+    ImmutableDiffResponse.Builder builder = ImmutableDiffResponse.builder()
       .addAllDiffs(response.getDiffsList().stream()
         .map(ProtoUtil::fromProto)
         .collect(Collectors.toList()))
-      .build();
+      .isHasMore(response.getHasMore());
+    if (response.hasEffectiveFromRef()) {
+      builder.effectiveFromReference(refFromProto(response.getEffectiveFromRef()));
+    }
+    if (response.hasEffectiveToRef()) {
+      builder.effectiveToReference(refFromProto(response.getEffectiveToRef()));
+    }
+    if (response.hasPageToken()) {
+      builder.token(response.getPageToken());
+    }
+    return builder.build();
   }
 
   public static com.dremio.services.nessie.grpc.api.DiffResponse toProto(DiffResponse response) {
     Preconditions.checkArgument(null != response, "DiffResponse must be non-null");
-    return com.dremio.services.nessie.grpc.api.DiffResponse.newBuilder()
-      .addAllDiffs(response.getDiffs().stream()
-        .map(ProtoUtil::toProto)
-        .collect(Collectors.toList()))
-      .build();
+    com.dremio.services.nessie.grpc.api.DiffResponse.Builder builder =
+      com.dremio.services.nessie.grpc.api.DiffResponse.newBuilder()
+        .addAllDiffs(response.getDiffs().stream()
+          .map(ProtoUtil::toProto)
+          .collect(Collectors.toList()))
+        .setHasMore(response.isHasMore());
+    if (null != response.getEffectiveFromReference()) {
+      builder.setEffectiveFromRef(refToProto(response.getEffectiveFromReference()));
+    }
+    if (null != response.getEffectiveToReference()) {
+      builder.setEffectiveToRef(refToProto(response.getEffectiveToReference()));
+    }
+    if (null != response.getToken()) {
+      builder.setPageToken(response.getToken());
+    }
+    return builder.build();
   }
 
   public static DiffEntry fromProto(com.dremio.services.nessie.grpc.api.DiffEntry diffEntry) {
@@ -1063,15 +1281,26 @@ public final class ProtoUtil {
 
   public static com.dremio.services.nessie.grpc.api.Namespace toProto(Namespace namespace) {
     Preconditions.checkArgument(null != namespace, "Namespace must be non-null");
-    return com.dremio.services.nessie.grpc.api.Namespace.newBuilder()
-      .addAllElements(namespace.getElements())
-      .putAllProperties(namespace.getProperties())
-      .build();
+    com.dremio.services.nessie.grpc.api.Namespace.Builder builder =
+      com.dremio.services.nessie.grpc.api.Namespace.newBuilder()
+        .addAllElements(namespace.getElements())
+        .putAllProperties(namespace.getProperties());
+
+    // the ID is optional when a new table is created - will be assigned on the server side
+    if (null != namespace.getId()) {
+      builder.setId(namespace.getId());
+    }
+
+    return builder.build();
   }
 
   public static Namespace fromProto(com.dremio.services.nessie.grpc.api.Namespace namespace) {
     Preconditions.checkArgument(null != namespace, "Namespace must be non-null");
-    return Namespace.of(namespace.getElementsList(), namespace.getPropertiesMap());
+    return ImmutableNamespace.builder()
+      .id(asId(namespace.getId()))
+      .elements(namespace.getElementsList())
+      .properties(namespace.getPropertiesMap())
+      .build();
   }
 
   public static NamespaceRequest toProto(NamespaceParams params) {
@@ -1140,11 +1369,11 @@ public final class ProtoUtil {
       .build();
   }
 
-  private static BaseMergeTransplant.MergeBehavior fromProto(MergeBehavior mergeBehavior) {
-    return BaseMergeTransplant.MergeBehavior.valueOf(mergeBehavior.name());
+  private static org.projectnessie.model.MergeBehavior fromProto(MergeBehavior mergeBehavior) {
+    return org.projectnessie.model.MergeBehavior.valueOf(mergeBehavior.name());
   }
 
-  private static MergeBehavior toProto(BaseMergeTransplant.MergeBehavior mergeBehavior) {
+  private static MergeBehavior toProto(org.projectnessie.model.MergeBehavior mergeBehavior) {
     return MergeBehavior.valueOf(mergeBehavior.name());
   }
 
@@ -1154,6 +1383,45 @@ public final class ProtoUtil {
 
   private static ContentKeyConflict toProto(MergeResponse.ContentKeyConflict conflict) {
     return ContentKeyConflict.valueOf(conflict.name());
+  }
+
+  private static Conflict fromProto(ContentKeyConflictDetails conflict) {
+    return ImmutableConflict.builder()
+      .conflictType(Conflict.ConflictType.parse(conflict.getConflictType()))
+      .key(fromProto(conflict.getKey()))
+      .message(conflict.getMessage())
+      .build();
+  }
+
+  private static ContentKeyConflictDetails toProto(Conflict conflict) {
+    ContentKeyConflictDetails.Builder builder = ContentKeyConflictDetails.newBuilder();
+    builder.setMessage(conflict.message());
+    if (null != conflict.conflictType()) {
+      builder.setConflictType(conflict.conflictType().name());
+    }
+    if (null != conflict.key()) {
+      builder.setKey(toProto(conflict.key()));
+    }
+    return builder.build();
+  }
+
+  public static CommitMeta fromProto(Supplier<String> message, Supplier<Boolean> hasCommitMeta,
+                                     Supplier<com.dremio.services.nessie.grpc.api.CommitMeta> commitMeta) {
+    String msg = Strings.emptyToNull(message.get());
+
+    ImmutableCommitMeta.Builder meta = CommitMeta.builder();
+    if (hasCommitMeta.get()) {
+      com.dremio.services.nessie.grpc.api.CommitMeta requestMeta = commitMeta.get();
+      String metaMsg = Strings.emptyToNull(requestMeta.getMessage());
+      meta.from(fromProto(requestMeta));
+      if (metaMsg == null && msg != null) {
+        meta.message(msg);
+      }
+    } else {
+      meta.message(msg == null ? "" : msg);
+    }
+
+    return meta.build();
   }
 
   public static Merge fromProto(MergeRequest request) {
@@ -1184,7 +1452,8 @@ public final class ProtoUtil {
     return builder.build();
   }
 
-  public static MergeRequest toProto(String branchName, String hash, Merge merge) {
+  public static MergeRequest toProto(String branchName, String hash, Merge merge, String message,
+                                     CommitMeta commitMeta) {
     Preconditions.checkArgument(null != merge, "Merge must be non-null");
     MergeRequest.Builder builder =
       MergeRequest.newBuilder().setToBranch(branchName).setExpectedHash(hash);
@@ -1215,6 +1484,12 @@ public final class ProtoUtil {
           .setKey(toProto(m.getKey()))
           .setMergeBehavior(toProto(m.getMergeBehavior())));
     }
+    if (null != message) {
+      builder.setMessage(message);
+    }
+    if (null != commitMeta) {
+      builder.setCommitMeta(toProto(commitMeta));
+    }
     return builder.build();
   }
 
@@ -1244,6 +1519,10 @@ public final class ProtoUtil {
         .mergeBehavior(fromProto(m.getMergeBehavior()))
         .build()));
     return builder.build();
+  }
+
+  public static String fromProtoMessage(TransplantRequest request) {
+    return Strings.emptyToNull(request.getMessage());
   }
 
   public static TransplantRequest toProto(String branchName, String hash, String message, Transplant transplant) {
@@ -1303,13 +1582,20 @@ public final class ProtoUtil {
       builder.addAllTargetCommits(Collections.emptyList()); // make sure it is not null
       mergeResponse.getTargetCommits().getEntriesList().forEach(e -> builder.addTargetCommits(fromProto(e)));
     }
-    mergeResponse.getDetailsList().forEach(d -> builder.addDetails(ImmutableContentKeyDetails.builder()
-      .key(fromProto(d.getContentKey()))
-      .conflictType(fromProto(d.getConflictType()))
-      .mergeBehavior(fromProto(d.getMergeBehavior()))
-      .sourceCommits(d.getSourceCommitHashesList())
-      .targetCommits(d.getTargetCommitHashesList())
-      .build()));
+    mergeResponse.getDetailsList().forEach(d -> {
+      ImmutableContentKeyDetails.Builder details = ImmutableContentKeyDetails.builder()
+        .key(fromProto(d.getContentKey()))
+        .conflictType(fromProto(d.getConflictType()))
+        .mergeBehavior(fromProto(d.getMergeBehavior()))
+        .sourceCommits(d.getSourceCommitHashesList())
+        .targetCommits(d.getTargetCommitHashesList());
+
+      if (d.hasConflict()) {
+        details.conflict(fromProto(d.getConflict()));
+      }
+
+      builder.addDetails(details.build());
+    });
 
     return builder.build();
   }
@@ -1337,13 +1623,26 @@ public final class ProtoUtil {
         builder.getTargetCommitsBuilder(); // this call ensures the field is set even if the list is empty
       mergeResponse.getTargetCommits().forEach(e -> fieldBuilder.addEntries(toProto(e)));
     }
-    mergeResponse.getDetails().forEach(d -> builder
-      .addDetailsBuilder()
-      .setContentKey(toProto(d.getKey()))
-      .setConflictType(toProto(d.getConflictType()))
-      .addAllSourceCommitHashes(d.getSourceCommits())
-      .addAllTargetCommitHashes(d.getTargetCommits())
-      .setMergeBehavior(toProto(d.getMergeBehavior())));
+    mergeResponse.getDetails().forEach(d -> {
+      ContentKeyDetails.Builder details = builder
+        .addDetailsBuilder();
+      details.setContentKey(toProto(d.getKey()));
+      details.setConflictType(toProto(d.getConflictType()));
+      details.addAllSourceCommitHashes(d.getSourceCommits());
+      details.addAllTargetCommitHashes(d.getTargetCommits());
+      details.setMergeBehavior(toProto(d.getMergeBehavior()));
+      if (null != d.getConflict()) {
+        details.setConflict(toProto(d.getConflict()));
+      }
+    });
     return builder.build();
+  }
+
+  public static <T> T fromProto(Supplier<Boolean> isPresent, Supplier<T> value) {
+    if (!isPresent.get()) {
+      return null;
+    }
+
+    return value.get();
   }
 }

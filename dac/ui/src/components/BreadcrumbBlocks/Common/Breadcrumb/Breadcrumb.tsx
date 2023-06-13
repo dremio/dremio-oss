@@ -17,14 +17,16 @@ import { useRef, useState, useEffect } from "react";
 import * as classes from "./Breadcrumb.module.less";
 //@ts-ignore
 import { Tooltip } from "dremio-ui-lib";
+import { Link } from "react-router";
 
 const Breadcrumb = (props: {
   text: string;
   iconName?: string;
   containerClass?: string;
   onClick?: any;
+  toRoute?: string | any;
 }) => {
-  const { text, onClick, iconName, containerClass = "" } = props;
+  const { text, onClick, iconName, containerClass = "", toRoute } = props;
   const crumbRef = useRef<any>(null);
   const [showTooltip, setShowTooltip] = useState(false);
 
@@ -39,11 +41,8 @@ const Breadcrumb = (props: {
 
   const textClass = classes["breadcrumb-text"];
 
-  return (
-    <div
-      className={`${classes["breadcrumb"]} ${containerClass}`}
-      onClick={onClick}
-    >
+  const breadcrumbContent = (
+    <>
       {iconName && (
         <dremio-icon
           id="breadcrumb-icon"
@@ -62,7 +61,20 @@ const Breadcrumb = (props: {
           {text}
         </span>
       )}
+    </>
+  );
+
+  return !toRoute ? (
+    <div
+      className={`${classes["breadcrumb"]} ${containerClass}`}
+      onClick={onClick}
+    >
+      {breadcrumbContent}
     </div>
+  ) : (
+    <Link className={`${classes["breadcrumb"]} ${containerClass}`} to={toRoute}>
+      {breadcrumbContent}
+    </Link>
   );
 };
 

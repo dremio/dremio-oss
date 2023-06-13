@@ -74,6 +74,7 @@ public abstract class EntryNode implements Entry {
    *
    * @return name
    */
+  @Override
   public String getName()
   {
     return property.getName();
@@ -84,6 +85,7 @@ public abstract class EntryNode implements Entry {
    *
    * @return true if the Entry is a DirectoryEntry, else false
    */
+  @Override
   public boolean isDirectoryEntry()
   {
     return false;
@@ -94,6 +96,7 @@ public abstract class EntryNode implements Entry {
    *
    * @return true if the Entry is a DocumentEntry, else false
    */
+  @Override
   public boolean isDocumentEntry()
   {
     return false;
@@ -105,6 +108,7 @@ public abstract class EntryNode implements Entry {
    *
    * @return this Entry's parent; null iff this is the root Entry
    */
+  @Override
   public DirectoryEntry getParent() {
     throw new IllegalStateException("Not Implemented");
   }
@@ -121,6 +125,7 @@ public abstract class EntryNode implements Entry {
    *
    * @return true if the Entry was successfully deleted, else false
    */
+  @Override
   public boolean delete() {
     throw new IllegalStateException("Not Supported");
   }
@@ -140,6 +145,7 @@ public abstract class EntryNode implements Entry {
    * @return true if the operation succeeded, else false
    */
 
+  @Override
   public boolean renameTo(final String newName) {
     throw new IllegalStateException("Not Supported");
   }

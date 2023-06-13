@@ -18,6 +18,7 @@ package com.dremio.exec.planner.sql.handlers.query;
 import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.exec.physical.PhysicalPlan;
+import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 
 public interface SqlToPlanHandler {
@@ -25,6 +26,10 @@ public interface SqlToPlanHandler {
   PhysicalPlan getPlan(SqlHandlerConfig config, String sql, SqlNode sqlNode) throws Exception;
 
   String getTextPlan();
+
+  default Rel getLogicalPlan() {
+    return null;
+  }
 
   public interface Creator {
     SqlToPlanHandler toPlanHandler();

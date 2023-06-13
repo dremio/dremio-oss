@@ -71,6 +71,7 @@ public class LocalExecutorSetService implements ExecutorSetService {
     return executorSet;
   }
 
+  @Override
   public Collection<NodeEndpoint> getAllAvailableEndpoints() {
     if(executorSet != null) {
       return executorSet.getAvailableEndpoints();
@@ -125,6 +126,7 @@ public class LocalExecutorSetService implements ExecutorSetService {
   public void close() throws Exception {
   }
 
+  @Override
   public Map<EngineManagementProtos.SubEngineId, List<NodeEndpoint>> listAllEnginesExecutors() {
     if(executorSet != null) {
       Map<EngineManagementProtos.SubEngineId, List<CoordinationProtos.NodeEndpoint>> executorsGroupedByReplica =

@@ -16,6 +16,7 @@
 package com.dremio.exec.planner.observer;
 
 import java.util.List;
+import java.util.Map;
 
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.RelNode;
@@ -145,8 +146,10 @@ public interface AttemptObserver {
    * @param before The graph before the transformation occurred.
    * @param after The graph after the planning transformation took place
    * @param millisTaken The amount of time taken to complete the planning.
+   * @param timeBreakdownPerRule Breakdown of time spent by different rules.
    */
-  void planRelTransform(PlannerPhase phase, RelOptPlanner planner, RelNode before, RelNode after, long millisTaken);
+  void planRelTransform(PlannerPhase phase, RelOptPlanner planner, RelNode before, RelNode after, long millisTaken,
+                        final Map<String, Long> timeBreakdownPerRule);
 
   /**
    * Called when all tables have been collected from the plan
@@ -296,6 +299,19 @@ public interface AttemptObserver {
    * @param ex
    */
   void activateFragmentFailed(Exception ex);
+
+  /**
+   * Number of joins in the user-provided query
+   * @param joins
+   */
+  void setNumJoinsInUserQuery(Integer joins);
+
+  /**
+   * Number of joins in the final Prel plan
+   * @param joins
+   */
+  void setNumJoinsInFinalPrel(Integer joins);
+
 
   /**
    * ResourceScheduling related information

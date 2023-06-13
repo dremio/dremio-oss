@@ -62,3 +62,5 @@ export const AdminPageRouting = () => (
     </Route>
   </Route>
 );
+
+export const EulaRoute = () => null;

@@ -95,7 +95,7 @@ const JobDetailsPage = (props) => {
 
   // TODO: Revisit this to fetch the info from socket instead of making multiple calls to get job details
   useEffect(() => {
-    if (GetIsSocketForSingleJob() && jobDetailsFromStore) {
+    if (GetIsSocketForSingleJob()) {
       const { query: { attempts = 1 } = {} } = location || {};
 
       const skipStartAction =

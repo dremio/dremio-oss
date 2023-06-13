@@ -128,11 +128,15 @@ public class LocalDictionariesReader {
       final FileSystem fs = HadoopFileSystem.getLocal(fsConf);
       final Path filePath = Path.of(args[0]);
       final CompressionCodecFactory codecFactory = CodecFactory.createDirectCodecFactory(fsConf, new ParquetDirectByteBufferAllocator(bufferAllocator), 0);
-      final Pair<Map<ColumnDescriptor, Dictionary>, Set<ColumnDescriptor>> dictionaries = readDictionaries(fs, filePath, codecFactory);
-      for (Map.Entry<ColumnDescriptor, Dictionary> entry :  dictionaries.getLeft().entrySet()) {
-        printDictionary(entry.getKey(), entry.getValue());
+      try {
+        final Pair<Map<ColumnDescriptor, Dictionary>, Set<ColumnDescriptor>> dictionaries = readDictionaries(fs, filePath, codecFactory);
+        for (Map.Entry<ColumnDescriptor, Dictionary> entry : dictionaries.getLeft().entrySet()) {
+          printDictionary(entry.getKey(), entry.getValue());
+        }
+        System.out.println("Binary columns which are not dictionary encoded: " + dictionaries.getRight());
+      } finally {
+        codecFactory.release();
       }
-      System.out.println("Binary columns which are not dictionary encoded: " + dictionaries.getRight());
     } catch (IOException ioe) {
       logger.error("Failed ", ioe);
     }

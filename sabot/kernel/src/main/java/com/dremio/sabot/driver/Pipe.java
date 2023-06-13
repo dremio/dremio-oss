@@ -57,6 +57,7 @@ abstract class Pipe {
     UP visitStraightPipe(StraightPipe pipe, DOWN down) throws EXCEP;
   }
 
+  @Override
   public abstract String toString();
 
 

@@ -849,7 +849,8 @@ public class SabotNode implements AutoCloseable {
             Provider<MaestroService> maestroService,
             Provider<JobTelemetryClient> jobTelemetryClient,
             Provider<MaestroForwarder> forwarderProvider,
-            Provider<RuleBasedEngineSelector> ruleBasedEngineSelectorProvider
+            Provider<RuleBasedEngineSelector> ruleBasedEngineSelectorProvider,
+            Provider<RequestContext> requestContextProvider
     ) {
       final BufferAllocator jobResultsAllocator = bootstrap.getAllocator().newChildAllocator("JobResultsGrpcServer", 0, Long.MAX_VALUE);
       return new ForemenWorkManager(
@@ -861,7 +862,8 @@ public class SabotNode implements AutoCloseable {
               forwarderProvider,
               TracerFacade.INSTANCE,
               ruleBasedEngineSelectorProvider,
-              jobResultsAllocator
+              jobResultsAllocator,
+              requestContextProvider
       );
     }
 

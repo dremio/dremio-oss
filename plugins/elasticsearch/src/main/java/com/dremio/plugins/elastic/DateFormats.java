@@ -79,6 +79,7 @@ public final class DateFormats {
       this.isEpochMillis = isEpochMillis;
     }
 
+    @Override
     public long parseToLong(String value){
       //TODO-Following logic will be refactored using seperate subclasses for each flag. DX-33250:Polymorphic behaviour required for seperate behaviors
       if (formatter == null) {
@@ -96,6 +97,7 @@ public final class DateFormats {
       return DEFAULT_FORMATTERS[0].parseToLong(value);
     }
 
+    @Override
     public LocalDateTime parse(String value) {
       //TODO-Following logic will be refactored using seperate subclasses for each flag. DX-33250:Polymorphic behaviour required for seperate behaviors
       if (formatter == null) {
@@ -121,6 +123,7 @@ public final class DateFormats {
       return printer.print(com.dremio.common.util.DateTimes.toDateTime(value));
     }
 
+    @Override
     public ElasticMappingSet.Type type() {
       return type;
     }
@@ -345,6 +348,7 @@ public final class DateFormats {
       this.isEpochMillis = isEpochMillis;
     }
 
+    @Override
     public java.time.LocalDateTime parse(String value, java.time.format.DateTimeFormatter formatter) {
       return parseLocalDateTime(value, this.formatter);
     }
@@ -352,6 +356,7 @@ public final class DateFormats {
     /*
     Parse date string value to corresponding long value
      */
+    @Override
     public long parseToLong(String value) {
       //TODO-Following logic will be refactored using seperate subclasses for each flag. DX-33250:Polymorphic behaviour required for seperate behaviors
       if (formatter == null) {
@@ -364,8 +369,7 @@ public final class DateFormats {
       }
       try {
         return parseLongMillis(value, formatter);
-      }
-      catch (DateTimeParseException e) {
+      } catch (DateTimeParseException e) {
         throw new IllegalArgumentException();
       }
     }
@@ -374,6 +378,7 @@ public final class DateFormats {
       return AbstractFormatterAndType.getMillisGenericFormatter(value);
     }
 
+    @Override
     public ElasticMappingSet.Type type() {
       return type;
     }
@@ -693,6 +698,7 @@ public final class DateFormats {
     /*
      Parse date string value to corresponding long value
     */
+    @Override
     public long parseToLong(String value)  {
       //TODO-Following logic will be refactored using seperate subclasses for each flag. DX-33250:Polymorphic behaviour required for seperate behaviors
       if (formatterJT == null && formatterJD == null) {
@@ -706,8 +712,7 @@ public final class DateFormats {
       if (formatterJT != null && formatterJD == null) {
         try {
           return parseLongMillis(value, formatterJT);
-        }
-        catch (DateTimeParseException e) {
+        } catch (DateTimeParseException e) {
           throw new IllegalArgumentException();
         }
       } else {
@@ -719,6 +724,7 @@ public final class DateFormats {
       return DEFAULT_FORMATTERS_MIX[0].parseToLong(value);
     }
 
+    @Override
     public java.time.LocalDateTime parse(String value, java.time.format.DateTimeFormatter formatterJT) {
       return parseLocalDateTime(value, this.formatterJT);
     }
@@ -727,6 +733,7 @@ public final class DateFormats {
       return this.formatterJD.parseLocalDateTime(value);
     }
 
+    @Override
     public ElasticMappingSet.Type type() {
       return type;
     }

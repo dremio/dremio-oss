@@ -210,6 +210,7 @@ public abstract class HashJoinProbeTemplate implements HashJoinProbe {
    * @return Negative if partial batch complete. Otherwise, all of probe batch
    *         is complete.
    */
+  @Override
   public int probeBatch() {
     final int targetRecordsPerBatch = this.targetRecordsPerBatch;
     final boolean projectUnmatchedProbe = this.projectUnmatchedProbe;

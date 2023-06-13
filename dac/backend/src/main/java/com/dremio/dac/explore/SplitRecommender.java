@@ -54,6 +54,7 @@ public class SplitRecommender extends Recommender<SplitRule, Selection> {
     return rules;
   }
 
+  @Override
   public TransformRuleWrapper<SplitRule> wrapRule(SplitRule rule) {
     return new SplitTransformRuleWrapper(rule);
   }

@@ -29,6 +29,7 @@ public class NullVectorHelper implements ValueVectorHelper {
     this.vector = vector;
   }
 
+  @Override
   public SerializedField getMetadata() {
     return SerializedField.newBuilder()
         .setMajorType(com.dremio.common.types.Types.optional(com.dremio.common.types.TypeProtos.MinorType.NULL))
@@ -37,6 +38,7 @@ public class NullVectorHelper implements ValueVectorHelper {
         .build();
   }
 
+  @Override
   public void load(SerializedField metadata, ArrowBuf buffer) {
   }
 

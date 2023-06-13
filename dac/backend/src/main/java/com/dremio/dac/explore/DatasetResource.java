@@ -47,6 +47,7 @@ import com.dremio.dac.explore.model.DatasetUI;
 import com.dremio.dac.explore.model.InitialDataPreviewResponse;
 import com.dremio.dac.explore.model.VersionContextReq;
 import com.dremio.dac.explore.model.VersionContextReq.VersionContextType;
+import com.dremio.dac.explore.model.VersionContextUtils;
 import com.dremio.dac.model.job.JobData;
 import com.dremio.dac.model.job.JobDataWrapper;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
@@ -60,10 +61,14 @@ import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
 import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.dac.util.JobRequestUtil;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.CatalogEntityKey;
 import com.dremio.exec.catalog.CatalogUtil;
+import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.ResolvedVersionContext;
+import com.dremio.exec.catalog.TableVersionContext;
 import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.physical.base.ViewOptions;
+import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.job.QueryType;
 import com.dremio.service.job.SqlQuery;
@@ -95,10 +100,8 @@ import com.google.common.collect.Lists;
 
 import io.protostuff.ByteString;
 
-
 /**
  * Serves the datasets
- *
  */
 @RestResource
 @Secured
@@ -135,13 +138,6 @@ public class DatasetResource extends BaseResourceWithAllocator {
   }
 
   @GET
-  @Path("descendants/count")
-  @Produces(APPLICATION_JSON)
-  public long getDescendantsCount() {
-    return datasetService.getDescendantsCount(datasetPath.toNamespaceKey());
-  }
-
-  @GET
   @Path("descendants")
   @Produces(APPLICATION_JSON)
   public List<List<String>> getDescendants() throws NamespaceException {
@@ -155,8 +151,30 @@ public class DatasetResource extends BaseResourceWithAllocator {
   @GET
   @Path("acceleration/settings")
   @Produces(APPLICATION_JSON)
-  public AccelerationSettingsDescriptor getAccelerationSettings() throws NamespaceException {
-    final DatasetConfig config = namespaceService.getDataset(datasetPath.toNamespaceKey());
+  public AccelerationSettingsDescriptor getAccelerationSettings(
+      @QueryParam("versionType") String versionType,
+      @QueryParam("versionValue") String versionValue)
+      throws DatasetNotFoundException, NamespaceException {
+    final CatalogEntityKey.Builder builder =
+        CatalogEntityKey.newBuilder().keyComponents(datasetPath.toPathList());
+
+    if (isDatasetVersioned()) {
+      final VersionContext versionContext = generateVersionContext(versionType, versionValue);
+      final TableVersionContext tableVersionContext = TableVersionContext.of(versionContext);
+
+      builder.tableVersionContext(tableVersionContext);
+    }
+
+    final Catalog catalog = datasetService.getCatalog();
+    final CatalogEntityKey catalogEntityKey = builder.build();
+    final DremioTable table = CatalogUtil.getTable(catalogEntityKey, catalog);
+
+    if (table == null) {
+      throw new DatasetNotFoundException(datasetPath);
+    }
+
+    final DatasetConfig config = table.getDatasetConfig();
+
     if (config.getType() == DatasetType.VIRTUAL_DATASET) {
       final String msg = String.format("acceleration settings apply only to physical dataset. %s is a virtual dataset",
           datasetPath.toPathString());
@@ -164,37 +182,54 @@ public class DatasetResource extends BaseResourceWithAllocator {
     }
 
     final ReflectionSettings reflectionSettings = reflectionServiceHelper.getReflectionSettings();
-    final AccelerationSettings settings = reflectionSettings.getReflectionSettings(datasetPath.toNamespaceKey());
-    final AccelerationSettingsDescriptor descriptor = new AccelerationSettingsDescriptor()
-      .setAccelerationRefreshPeriod(settings.getRefreshPeriod())
-      .setAccelerationGracePeriod(settings.getGracePeriod())
-      .setMethod(settings.getMethod())
-      .setRefreshField(settings.getRefreshField())
-      .setAccelerationNeverExpire(settings.getNeverExpire())
-      .setAccelerationNeverRefresh(settings.getNeverRefresh());
+    final AccelerationSettings settings =
+        reflectionSettings.getReflectionSettings(catalogEntityKey);
 
+    final AccelerationSettingsDescriptor descriptor =
+        new AccelerationSettingsDescriptor()
+            .setAccelerationRefreshPeriod(settings.getRefreshPeriod())
+            .setAccelerationGracePeriod(settings.getGracePeriod())
+            .setMethod(settings.getMethod())
+            .setRefreshField(settings.getRefreshField())
+            .setAccelerationNeverExpire(settings.getNeverExpire())
+            .setAccelerationNeverRefresh(settings.getNeverRefresh());
     final ByteString schemaBytes = DatasetHelper.getSchemaBytes(config);
+
     if (schemaBytes != null) {
       final BatchSchema schema = BatchSchema.deserialize(schemaBytes.toByteArray());
-      descriptor.setFieldList(FluentIterable
-          .from(schema)
-          .transform(new Function<Field, String>() {
-            @Nullable
-            @Override
-            public String apply(@Nullable final Field field) {
-              return field.getName();
-            }
-          })
-          .toList()
-      );
+      descriptor.setFieldList(
+          FluentIterable.from(schema)
+              .transform(
+                  new Function<Field, String>() {
+                    @Nullable
+                    @Override
+                    public String apply(@Nullable final Field field) {
+                      return field.getName();
+                    }
+                  })
+              .toList());
     }
+
     return descriptor;
+  }
+
+  private VersionContext generateVersionContext(String versionType, String versionValue) {
+    final VersionContext versionContext = VersionContextUtils.parse(versionType, versionValue);
+    if (versionContext.getType() == VersionContext.Type.UNSPECIFIED) {
+      throw new ClientErrorException(
+          "Missing a versionType/versionValue pair for versioned dataset");
+    }
+    return versionContext;
   }
 
   @PUT
   @Path("acceleration/settings")
   @Produces(APPLICATION_JSON)
-  public void updateAccelerationSettings(final AccelerationSettingsDescriptor descriptor) throws NamespaceException {
+  public void updateAccelerationSettings(
+      final AccelerationSettingsDescriptor descriptor,
+      @QueryParam("versionType") String versionType,
+      @QueryParam("versionValue") String versionValue)
+      throws DatasetNotFoundException, NamespaceException {
     Preconditions.checkArgument(descriptor != null, "acceleration settings descriptor is required");
     Preconditions.checkArgument(descriptor.getAccelerationRefreshPeriod() != null, "refreshPeriod is required");
     Preconditions.checkArgument(descriptor.getAccelerationGracePeriod() != null, "gracePeriod is required");
@@ -202,7 +237,26 @@ public class DatasetResource extends BaseResourceWithAllocator {
     Preconditions.checkArgument(descriptor.getAccelerationNeverExpire() //we are good here
       || descriptor.getAccelerationNeverRefresh() //user never want to refresh, assume they just want to let it expire anyway
       || descriptor.getAccelerationRefreshPeriod() <= descriptor.getAccelerationGracePeriod() , "refreshPeriod must be less than gracePeriod");
-    final DatasetConfig config = namespaceService.getDataset(datasetPath.toNamespaceKey());
+
+    final CatalogEntityKey.Builder builder =
+        CatalogEntityKey.newBuilder().keyComponents(datasetPath.toPathList());
+
+    if (isDatasetVersioned()) {
+      final VersionContext versionContext = generateVersionContext(versionType, versionValue);
+      final TableVersionContext tableVersionContext = TableVersionContext.of(versionContext);
+
+      builder.tableVersionContext(tableVersionContext);
+    }
+
+    final Catalog catalog = datasetService.getCatalog();
+    final CatalogEntityKey catalogEntityKey = builder.build();
+    final DremioTable table = CatalogUtil.getTable(catalogEntityKey, catalog);
+
+    if (table == null) {
+      throw new DatasetNotFoundException(datasetPath);
+    }
+
+    final DatasetConfig config = table.getDatasetConfig();
 
     if (config.getType() == DatasetType.VIRTUAL_DATASET) {
       final String msg = String.format("acceleration settings apply only to physical dataset. %s is a virtual dataset",
@@ -211,7 +265,13 @@ public class DatasetResource extends BaseResourceWithAllocator {
     }
 
     if (descriptor.getMethod() == RefreshMethod.INCREMENTAL) {
-      if (config.getType() == DatasetType.PHYSICAL_DATASET) {
+      if (CatalogUtil.requestedPluginSupportsVersionedTables(table.getPath(), catalog)) {
+        // Validate Iceberg tables in Nessie Catalog
+        final String msg = "refresh field is required for incremental updates on Iceberg tables";
+        Preconditions.checkArgument(descriptor.getRefreshField() != null, msg);
+      } else if (config.getType() == DatasetType.PHYSICAL_DATASET) {
+        // Validate Iceberg tables outside of Nessie Catalog
+        // Validate non-directory datasets such as RDBMS tables, MongoDB, elasticsearch, etc.
         final String msg = "refresh field is required for incremental updates on non-filesystem datasets";
         Preconditions.checkArgument(descriptor.getRefreshField() != null, msg);
       } else {
@@ -224,26 +284,32 @@ public class DatasetResource extends BaseResourceWithAllocator {
     }
 
     final ReflectionSettings reflectionSettings = reflectionServiceHelper.getReflectionSettings();
-    final AccelerationSettings settings = reflectionSettings.getReflectionSettings(datasetPath.toNamespaceKey());
-    final AccelerationSettings descriptorSettings = new AccelerationSettings()
-      .setAccelerationTTL(settings.getAccelerationTTL()) // needed to use protobuf equals
-      .setTag(settings.getTag()) // needed to use protobuf equals
-      .setRefreshPeriod(descriptor.getAccelerationRefreshPeriod())
-      .setGracePeriod(descriptor.getAccelerationGracePeriod())
-      .setMethod(descriptor.getMethod())
-      .setRefreshField(descriptor.getRefreshField())
-      .setNeverExpire(descriptor.getAccelerationNeverExpire())
-      .setNeverRefresh(descriptor.getAccelerationNeverRefresh());
-    final boolean settingsUpdated = !settings.equals(descriptorSettings);
-    if (settingsUpdated) {
-      settings.setRefreshPeriod(descriptor.getAccelerationRefreshPeriod())
+    final AccelerationSettings settings =
+        reflectionSettings.getReflectionSettings(catalogEntityKey);
+    final AccelerationSettings descriptorSettings =
+        new AccelerationSettings()
+            .setAccelerationTTL(settings.getAccelerationTTL()) // needed to use protobuf equals
+            .setTag(settings.getTag()) // needed to use protobuf equals
+            .setRefreshPeriod(descriptor.getAccelerationRefreshPeriod())
+            .setGracePeriod(descriptor.getAccelerationGracePeriod())
+            .setMethod(descriptor.getMethod())
+            .setRefreshField(descriptor.getRefreshField())
+            .setNeverExpire(descriptor.getAccelerationNeverExpire())
+            .setNeverRefresh(descriptor.getAccelerationNeverRefresh());
+
+    if (settings.equals(descriptorSettings)) {
+      return;
+    }
+
+    settings
+        .setRefreshPeriod(descriptor.getAccelerationRefreshPeriod())
         .setGracePeriod(descriptor.getAccelerationGracePeriod())
         .setMethod(descriptor.getMethod())
         .setRefreshField(descriptor.getRefreshField())
         .setNeverExpire(descriptor.getAccelerationNeverExpire())
         .setNeverRefresh(descriptor.getAccelerationNeverRefresh());
-      reflectionSettings.setReflectionSettings(datasetPath.toNamespaceKey(), settings);
-    }
+
+    reflectionSettings.setReflectionSettings(catalogEntityKey, settings);
   }
 
   /**
@@ -285,6 +351,8 @@ public class DatasetResource extends BaseResourceWithAllocator {
     DatasetUI datasetUI = null;
     if (versioned) {
       final Catalog catalog = datasetService.getCatalog();
+      //TODO: Once DX-65418 is fixed, injected catalog will validate the right entity accordingly
+      catalog.validatePrivilege(new NamespaceKey(datasetPath.toPathList()), SqlGrant.Privilege.ALTER);
       final ResolvedVersionContext resolvedVersionContext =
           CatalogUtil.resolveVersionContext(
               catalog, datasetPath.getRoot().getName(), VersionContext.ofBranch(refValue));
@@ -293,10 +361,13 @@ public class DatasetResource extends BaseResourceWithAllocator {
 
       catalog.dropView(new NamespaceKey(datasetPath.toPathList()), viewOptions);
     } else {
-      final VirtualDatasetUI virtualDataset = datasetService.get(datasetPath);
-
-      datasetUI = newDataset(virtualDataset);
-      datasetService.deleteDataset(datasetPath, savedTag);
+      try {
+        final VirtualDatasetUI virtualDataset = datasetService.get(datasetPath);
+        datasetUI = newDataset(virtualDataset);
+        datasetService.deleteDataset(datasetPath, savedTag);
+      } catch (DatasetVersionNotFoundException e) {
+        datasetService.deleteDataset(datasetPath, null);
+      }
     }
 
     final ReflectionSettings reflectionSettings = reflectionServiceHelper.getReflectionSettings();
@@ -306,7 +377,7 @@ public class DatasetResource extends BaseResourceWithAllocator {
   }
 
   private boolean isDatasetVersioned() {
-    final NamespaceKey namespaceKey = new NamespaceKey(datasetPath.toPathList());
+    final NamespaceKey namespaceKey = datasetPath.toNamespaceKey();
     final Catalog catalog = datasetService.getCatalog();
 
     return CatalogUtil.requestedPluginSupportsVersionedTables(namespaceKey, catalog);

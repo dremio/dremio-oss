@@ -29,8 +29,8 @@ import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.List;
 import java.util.Properties;
-import java.util.Vector;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.AfterClass;
@@ -40,11 +40,13 @@ import org.junit.Test;
 import org.junit.rules.TestRule;
 import org.junit.rules.Timeout;
 
+import com.dremio.common.SuppressForbidden;
+
 public class ITTestShadedJar {
   private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(ITTestShadedJar.class);
 
   private static NodeClassLoader nodeLoader;
-  private static URLClassLoader rootClassLoader;
+  private static ClassLoader rootClassLoader;
   private static volatile String jdbcURL = null;
 
   private static URL getJdbcUrl() throws MalformedURLException {
@@ -145,7 +147,7 @@ public class ITTestShadedJar {
   @BeforeClass
   public static void setupDefaultTestCluster() throws Exception {
     nodeLoader = new NodeClassLoader();
-    rootClassLoader = (URLClassLoader) Thread.currentThread().getContextClassLoader();
+    rootClassLoader = Thread.currentThread().getContextClassLoader();
     try {
     runWithLoader("NodeStartThread", nodeLoader);
     } catch (Exception e) {
@@ -159,23 +161,12 @@ public class ITTestShadedJar {
     runWithLoader("NodeStopThread", nodeLoader);
   }
 
-  private static int getClassesLoadedCount(ClassLoader classLoader) {
-    try {
-      Field f = ClassLoader.class.getDeclaredField("classes");
-      f.setAccessible(true);
-      Vector<Class<?>> classes = (Vector<Class<?>>) f.get(classLoader);
-      return classes.size();
-    } catch (Exception e) {
-      System.out.println("Failure while loading class count.");
-      return -1;
-    }
-  }
-
+  @SuppressForbidden // needed for: setAccessible(true)
   private static void printClassesLoaded(String prefix, ClassLoader classLoader) {
     try {
       Field f = ClassLoader.class.getDeclaredField("classes");
       f.setAccessible(true);
-      Vector<Class<?>> classes = (Vector<Class<?>>) f.get(classLoader);
+      List<Class<?>> classes = (List<Class<?>>) f.get(classLoader);
       for (Class<?> c : classes) {
         System.out.println(prefix + ": " + c.getName());
       }

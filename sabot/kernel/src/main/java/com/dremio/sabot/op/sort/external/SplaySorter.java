@@ -62,6 +62,7 @@ public class SplaySorter implements Sorter {
     this.splayTreeBuffer = allocator.getEmpty();
   }
 
+  @Override
   public boolean expandMemoryIfNecessary(int newRequiredSize) {
     try {
       // Expand the SplayTree buffer, double size each time.
@@ -83,6 +84,7 @@ public class SplaySorter implements Sorter {
     return true;
   }
 
+  @Override
   public void setup(VectorAccessible batch) throws ClassTransformationException, SchemaChangeException, IOException {
     // Compile sorting classes.
     { // Local (single batch) sorter
@@ -104,6 +106,7 @@ public class SplaySorter implements Sorter {
     }
   }
 
+  @Override
   public void addBatch(RecordBatchData data, BufferAllocator copyTargetAllocator) throws SchemaChangeException {
     // We now generate an sv2 for the local sort. We do this even if the incoming
     // batch has an sv2. This is because we need to treat that one as immutable.
@@ -137,6 +140,7 @@ public class SplaySorter implements Sorter {
     }
   }
 
+  @Override
   public ExpandableHyperContainer getHyperBatch() {
     if (treeManager != null) {
       return treeManager.getHyperBatch();
@@ -145,6 +149,7 @@ public class SplaySorter implements Sorter {
     }
   }
 
+  @Override
   public int getHyperBatchSize() {
     if (treeManager != null) {
       return treeManager.getHyperBatch().size();
@@ -153,10 +158,12 @@ public class SplaySorter implements Sorter {
     }
   }
 
+  @Override
   public SelectionVector4 getFinalSort(BufferAllocator copyTargetAllocator, int targetBatchSize) {
     return treeManager.getFinalSort(copyTargetAllocator, targetBatchSize);
   }
 
+  @Override
   public void close() throws Exception {
     final List<AutoCloseable> closeables = Lists.newArrayList();
 

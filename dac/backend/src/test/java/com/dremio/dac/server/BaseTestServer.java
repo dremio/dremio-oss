@@ -31,6 +31,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.glassfish.jersey.CommonProperties.FEATURE_AUTO_DISCOVERY_DISABLE;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -93,6 +94,7 @@ import com.dremio.dac.explore.model.TransformBase;
 import com.dremio.dac.explore.model.ViewFieldTypeMixin;
 import com.dremio.dac.model.folder.FolderPath;
 import com.dremio.dac.model.job.JobDataFragment;
+import com.dremio.dac.model.job.JobUI;
 import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.model.spaces.SpaceName;
 import com.dremio.dac.model.spaces.SpacePath;
@@ -126,6 +128,7 @@ import com.dremio.service.Binder;
 import com.dremio.service.BindingProvider;
 import com.dremio.service.conduit.server.ConduitServer;
 import com.dremio.service.job.proto.JobId;
+import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.JobSubmission;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.JobNotFoundException;
@@ -162,6 +165,8 @@ public abstract class BaseTestServer extends BaseClientUtils {
   private static final String API_LOCATION = "apiv2";
   private static final String PUBLIC_API_LOCATION = "api";
   private static final String SCIM_V2_API_LOCATION = "scim/v2";
+  private static final String OAUTH_API_LOCATION = "oauth";
+
   protected static final String DEFAULT_USERNAME = SampleDataPopulator.DEFAULT_USER_NAME;
   protected static final String DEFAULT_PASSWORD = SampleDataPopulator.PASSWORD;
 
@@ -278,6 +283,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
   private static WebTarget publicAPI;
   private static WebTarget masterPublicAPI;
   private static WebTarget scimV2API;
+  private static WebTarget oAuthApi;
   private static DACDaemon executorDaemon;
   private static DACDaemon currentDremioDaemon;
   private static DACDaemon masterDremioDaemon;
@@ -307,6 +313,10 @@ public abstract class BaseTestServer extends BaseClientUtils {
 
   protected static WebTarget getScimAPIv2() {
     return scimV2API;
+  }
+
+  protected static WebTarget getOAuthApi() {
+    return oAuthApi;
   }
 
   protected static WebTarget getMetricsEndpoint() {
@@ -419,6 +429,8 @@ public abstract class BaseTestServer extends BaseClientUtils {
     apiV2 = rootTarget.path(API_LOCATION);
     publicAPI = rootTarget.path(PUBLIC_API_LOCATION);
     scimV2API = rootTarget.path(SCIM_V2_API_LOCATION);
+    oAuthApi = rootTarget.path(OAUTH_API_LOCATION);
+
     if (isMultinode()) {
       masterApiV2 = client.target("http://localhost:" + masterDremioDaemon.getWebServer().getPort()).path(API_LOCATION);
       masterPublicAPI = client.target("http://localhost:" + masterDremioDaemon.getWebServer().getPort()).path(PUBLIC_API_LOCATION);
@@ -998,6 +1010,34 @@ public abstract class BaseTestServer extends BaseClientUtils {
                 .queryParam("newVersion", newVersion())
         ).buildPost(entity(new CreateFromSQL(sql, context), JSON)), // => sending
         InitialPreviewResponse.class); // <= receiving
+  }
+
+  // Wait for the job complete
+  protected void waitForJobComplete(String jobId) {
+    int retry = 20;
+    while (retry-- >= 0) {
+      try {
+        Thread.sleep(1000);
+        JobUI job = expectSuccess(
+          getBuilder(getAPIv2().path(getPathJoiner().join("job", jobId))).buildGet(), // => sending
+          JobUI.class); // <= receiving
+        if (job.getJobAttempt().getState() == JobState.COMPLETED) {
+          break;
+        } else if (job.getJobAttempt().getState() == JobState.FAILED ||
+          job.getJobAttempt().getState() == JobState.CANCELED ||
+          job.getJobAttempt().getState() == JobState.CANCELLATION_REQUESTED) {
+          fail(String.format("Job (%s) failed.", jobId));
+        }
+      } catch (InterruptedException e) {
+        fail(e.getMessage());
+      } catch (Exception e) {
+        // Ignore, retry
+      }
+    }
+
+    if (retry == 0) {
+      fail(String.format("Job (%s) timed out.", jobId));
+    }
   }
 
   protected InitialPreviewResponse createDatasetFromParent(String parentDataset) {

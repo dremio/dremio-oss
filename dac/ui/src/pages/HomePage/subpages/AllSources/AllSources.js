@@ -32,6 +32,7 @@ import {
   isDataPlaneSourceType,
 } from "@app/constants/sourceTypes";
 import AllSourcesView from "./AllSourcesView.js";
+import { isNotSoftware } from "dyn-load/utils/versionUtils";
 
 @injectIntl
 export class AllSources extends PureComponent {
@@ -63,7 +64,9 @@ export class AllSources extends PureComponent {
       ? "Source.AllObjectStorage"
       : isMetastoreSource
       ? "Source.AllMetastores"
-      : "Source.AllDataPlanes";
+      : isNotSoftware()
+      ? "Source.AllArcticCatalogs"
+      : "Source.AllNessieCatalogs";
 
     const title = intl.formatMessage({ id: headerId });
     const metastoreSource = sources.filter((source) =>

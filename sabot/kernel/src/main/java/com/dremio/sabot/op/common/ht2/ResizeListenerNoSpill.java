@@ -16,7 +16,7 @@
 package com.dremio.sabot.op.common.ht2;
 
 public interface ResizeListenerNoSpill {
-  public static ResizeListenerNoSpill NO_OP = new ResizeListenerNoSpill() {public void resized(int newCapacity) {}};
+  public static ResizeListenerNoSpill NO_OP = newCapacity -> {};
 
   void resized(int newCapacity);
 

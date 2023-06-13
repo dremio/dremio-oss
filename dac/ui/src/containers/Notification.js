@@ -21,6 +21,17 @@ import deepEqual from "deep-equal";
 
 import Message from "components/Message";
 
+import {
+  CLOUD_CFT_NOTIFICATION_UID,
+  CLOUD_CFT_NOTIFICATION_ERROR_UID,
+  CLOUD_CFT_NOTIFICATION_SUCCESS_UID,
+} from "@inject/components/AddCloudModal/constants";
+import {
+  PROJECT_CFT_NOTIFICATION_UID,
+  PROJECT_CFT_NOTIFICATION_ERROR_UID,
+  PROJECT_CFT_NOTIFICATION_SUCCESS_UID,
+} from "@inject/components/AddProjectModal/constants";
+
 export class NotificationContainer extends Component {
   static propTypes = {
     notification: PropTypes.object,
@@ -37,11 +48,34 @@ export class NotificationContainer extends Component {
   }
 
   componentWillReceiveProps(newProps) {
-    const { message, level, autoDismiss, removeMessageType, detailsStyle } =
-      newProps.notification;
+    const {
+      uid,
+      level,
+      message,
+      autoDismiss,
+      detailsStyle,
+      removeMessageType,
+      options: { messageAction } = {},
+    } = newProps.notification;
     if (removeMessageType) {
-      this.removeMessages(removeMessageType);
+      this.removeMessages(removeMessageType, uid);
+    } else if (
+      // See DX-61151
+      [
+        CLOUD_CFT_NOTIFICATION_ERROR_UID,
+        CLOUD_CFT_NOTIFICATION_SUCCESS_UID,
+      ].includes(uid)
+    ) {
+      this.removeMessages("info", CLOUD_CFT_NOTIFICATION_UID);
+    } else if (
+      [
+        PROJECT_CFT_NOTIFICATION_ERROR_UID,
+        PROJECT_CFT_NOTIFICATION_SUCCESS_UID,
+      ].includes(uid)
+    ) {
+      this.removeMessages("info", PROJECT_CFT_NOTIFICATION_UID);
     }
+
     const handleDismiss = () => {
       this.notificationSystem.removeNotification(notification);
       return false;
@@ -54,18 +88,20 @@ export class NotificationContainer extends Component {
       this.notificationSystem.addNotification({
         children: (
           <Message
-            onDismiss={handleDismiss}
-            messageType={level}
             message={message}
+            messageType={level}
+            onDismiss={handleDismiss}
             detailsStyle={detailsStyle}
+            messageAction={messageAction}
           />
         ),
         // message,
         dismissible: false,
         level,
         position: "tc",
-        // see https://dremio.atlassian.net/browse/DX-5316 for commentary
+        // see DX-5316 for commentary
         autoDismiss: autoDismiss || (level === "success" ? 5 : 0),
+        uid: uid,
       });
     if (notification) {
       // if the notification is the same as last then remove the previous one instead of stack.
@@ -75,23 +111,30 @@ export class NotificationContainer extends Component {
       // message is defined if notification is truthy; if message has type, store it in the local list
       const messageType =
         message.messageType || (message.get && message.get("messageType"));
-      if (messageType) {
-        this.addedNotifications.push({ messageType, notification });
+      if (messageType || uid) {
+        this.addedNotifications.push({ messageType, notification, uid });
       }
     }
   }
 
-  removeMessages = (messageType) => {
-    // remove messages of the given type from notification system and hence from the screen
-    this.addedNotifications.forEach((entry) => {
-      if (entry.messageType === messageType) {
-        this.notificationSystem.removeNotification(entry.notification);
-      }
-    });
-    // remove messages of the given type from local array
-    this.addedNotifications = this.addedNotifications.filter(
-      (entry) => entry.messageType !== messageType
-    );
+  removeMessages = (messageType, uid) => {
+    if (uid) {
+      this.notificationSystem.removeNotification(uid);
+      this.addedNotifications = this.addedNotifications.filter(
+        (notification) => notification.uid !== uid
+      );
+    } else if (messageType) {
+      // remove messages of the given type from notification system and hence from the screen
+      this.addedNotifications.forEach((entry) => {
+        if (entry.messageType === messageType) {
+          this.notificationSystem.removeNotification(entry.notification);
+        }
+      });
+      // remove messages of the given type from local array
+      this.addedNotifications = this.addedNotifications.filter(
+        (entry) => entry.messageType !== messageType
+      );
+    }
   };
 
   render() {

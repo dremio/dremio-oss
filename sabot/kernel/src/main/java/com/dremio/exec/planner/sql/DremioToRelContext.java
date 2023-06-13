@@ -69,6 +69,7 @@ public interface DremioToRelContext {
   static DremioQueryToRelContext createQueryContext(final SqlConverter sqlConverter) {
     return new DremioQueryToRelContext() {
 
+      @Override
       public SqlValidatorAndToRelContext.Builder getSqlValidatorAndToRelContext() {
         return SqlValidatorAndToRelContext.builder(sqlConverter);
       }
@@ -83,6 +84,7 @@ public interface DremioToRelContext {
         return ImmutableList.of();
       }
 
+      @Override
       public RelRoot expandView(ViewTable view) {
         final RelRoot root;
 

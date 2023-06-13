@@ -16,6 +16,8 @@
 package com.dremio.exec.store.iceberg;
 
 import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_TIME_TRAVEL;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
@@ -30,8 +32,17 @@ import org.junit.Test;
 
 import com.dremio.ArrowDsUtil;
 import com.dremio.TestBuilder;
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.CatalogServiceImpl;
+import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.catalog.TableVersionContext;
+import com.dremio.exec.catalog.TableVersionType;
+import com.dremio.exec.catalog.VersionedDatasetId;
 import com.dremio.exec.proto.UserBitShared;
+import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.test.UserExceptionAssert;
+import com.fasterxml.jackson.core.JsonProcessingException;
 
 /**
  * Test class for Iceberg time travel query
@@ -45,9 +56,12 @@ public class TestIcebergTimeTravelQuery extends BaseIcebergTable {
   private static long secondTimestampMs;
   private static TimestampString secondTimestamp;
   private static long secondSnapshotId;
+  private static Catalog catalog;
 
   @BeforeClass
   public static void initTable() throws Exception {
+    final CatalogServiceImpl catalogService = (CatalogServiceImpl) getSabotContext().getCatalogService();
+    catalog = catalogService.getSystemUserCatalog();
     createIcebergTable();
     setSystemOption(ENABLE_ICEBERG_TIME_TRAVEL, "true");
     final BaseTable table = new BaseTable(ops, tableName);
@@ -198,6 +212,48 @@ public class TestIcebergTimeTravelQuery extends BaseIcebergTable {
       )
       .build()
       .run();
+  }
+
+  @Test
+  public void testVersionedDatasetIdWithSnapshot() throws JsonProcessingException {
+    String query = String.format("SELECT * FROM dfs_hadoop.\"%s\" AT SNAPSHOT '%d'", tableFolder.toPath(), firstSnapshotId);
+    List<String> keyPath = Arrays.asList("dfs_hadoop", tableFolder.toString());
+    DremioTable snapshotTable = catalog.getTableSnapshotForQuery( new NamespaceKey(keyPath), new TableVersionContext(TableVersionType.SNAPSHOT_ID, String.valueOf(firstSnapshotId)));
+    VersionedDatasetId versionedDatasetId = VersionedDatasetId.fromString(snapshotTable.getDatasetConfig().getId().getId());
+    DremioTable tableFromDatasetId = catalog.getTable(versionedDatasetId.asString());
+    assertThat(snapshotTable.getDatasetConfig().equals(tableFromDatasetId.getDatasetConfig())).isTrue();
+  }
+
+  @Test
+  public void testVersionedDatasetIdWithTimestamp() throws JsonProcessingException {
+    String query = String.format("SELECT * FROM dfs_hadoop.\"%s\" AT TIMESTAMP '%s'", tableFolder.toPath(), secondTimestamp);
+    List<String> keyPath = Arrays.asList("dfs_hadoop", tableFolder.toString());
+    DremioTable timestampTable = catalog.getTableSnapshotForQuery( new NamespaceKey(keyPath), new TableVersionContext(TableVersionType.TIMESTAMP, secondTimestampMs));
+    VersionedDatasetId versionedDatasetId = VersionedDatasetId.fromString(timestampTable.getDatasetConfig().getId().getId());
+    DremioTable tableFromDatasetId = catalog.getTable(versionedDatasetId.asString());
+    assertThat(timestampTable.getDatasetConfig().equals(tableFromDatasetId.getDatasetConfig())).isTrue();
+  }
+
+  @Test
+  public void testGetTableForNonexistentTable() {
+    String nonExistingTable = "NonExistentTable" +TimestampString.fromMillisSinceEpoch(System.currentTimeMillis());
+    String query = String.format("SELECT * FROM dfs_hadoop.\"%s\" AT SNAPSHOT '%d'", nonExistingTable, firstSnapshotId);
+    List<String> keyPath = Arrays.asList("dfs_hadoop", nonExistingTable);
+
+    String expectedErrorMsg = String.format("Table 'dfs_hadoop.\"%s\"' not found", nonExistingTable);
+    assertThatThrownBy(()->catalog.getTableSnapshotForQuery( new NamespaceKey(keyPath), new TableVersionContext(TableVersionType.SNAPSHOT_ID, String.valueOf(firstSnapshotId))))
+      .isInstanceOf(UserException.class)
+      .hasMessageContaining(expectedErrorMsg);
+
+    TableVersionContext timeTravelVersion = new TableVersionContext(TableVersionType.SNAPSHOT_ID, String.format("%d",firstSnapshotId));
+    VersionedDatasetId versionedDatasetId = VersionedDatasetId.newBuilder()
+      .setTableKey(keyPath)
+      .setContentId(null)
+      .setTableVersionContext(timeTravelVersion)
+      .build();
+
+    assertThat(catalog.getTable(versionedDatasetId.asString())).isNull();
+
   }
 
 }

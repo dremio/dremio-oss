@@ -53,6 +53,11 @@ public class ITUpdate extends ITDmlQueryBase {
   }
 
   @Test
+  public void testUpdateByIdWithEqualNull() throws Exception {
+    UpdateTests.testUpdateByIdWithEqualNull(allocator, SOURCE);
+  }
+
+  @Test
   public void testUpdateTargetTableWithAndWithoutAlias() throws Exception {
     UpdateTests.testUpdateTargetTableWithAndWithoutAlias(allocator, SOURCE);
   }

@@ -86,6 +86,7 @@ import com.dremio.exec.planner.DremioHepPlanner;
 import com.dremio.exec.planner.DremioVolcanoPlanner;
 import com.dremio.exec.proto.SearchProtos;
 import com.dremio.exec.proto.UserBitShared;
+import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.proto.beans.AttemptEvent;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
@@ -94,10 +95,13 @@ import com.dremio.exec.testing.Controls;
 import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.exec.testing.Injection;
 import com.dremio.exec.work.foreman.AttemptManager;
+import com.dremio.exec.work.protector.AttemptAnalyser;
 import com.dremio.exec.work.protector.ForemenWorkManager;
+import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValue.OptionType;
 import com.dremio.proto.model.attempts.AttemptReason;
+import com.dremio.proto.model.attempts.RequestType;
 import com.dremio.resource.exception.ResourceUnavailableException;
 import com.dremio.sabot.exec.CancelQueryContext;
 import com.dremio.sabot.exec.CoordinatorHeapClawBackStrategy;
@@ -109,6 +113,7 @@ import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.JobsWithParentDatasetRequest;
 import com.dremio.service.job.SearchJobsRequest;
 import com.dremio.service.job.VersionedDatasetPath;
+import com.dremio.service.job.proto.ExtraJobInfo;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobDetails;
 import com.dremio.service.job.proto.JobId;
@@ -136,6 +141,7 @@ public class TestJobService extends BaseTestServer {
   private HybridJobsService jobsService;
   private LocalJobsService localJobsService;
   private ForemenWorkManager foremenWorkManager;
+  private OptionManager optionManager;
 
   @Before
   public void setup() throws Exception {
@@ -143,6 +149,7 @@ public class TestJobService extends BaseTestServer {
     jobsService = (HybridJobsService) l(JobsService.class);
     localJobsService = l(LocalJobsService.class);
     foremenWorkManager = l(ForemenWorkManager.class);
+    optionManager = l(OptionManager.class);
   }
 
   private com.dremio.service.job.JobDetails getJobDetails(Job job) {
@@ -158,6 +165,24 @@ public class TestJobService extends BaseTestServer {
 
   public static void failFunction() {
     throw UserException.dataReadError().message("expected failure").buildSilently();
+  }
+
+  @Test
+  public void testInvalidSQLQuery() throws Exception {
+    final CompletionListener completionListener = new CompletionListener();
+
+    final JobRequest request = JobRequest.newBuilder()
+      .setSqlQuery(new SqlQuery("SELECT xyz", null, DEFAULT_USERNAME))
+      .build();
+    final JobId jobId = jobsService.submitJob(toSubmitJobRequest(request), completionListener)
+      .getJobId();
+    try {
+      completionListener.await();
+      fail("Query submission is expected to fail");
+    } catch (Exception e) {
+    }
+
+    assertEquals("pb_" + ErrorType.VALIDATION.toString(), AttemptAnalyser.LAST_ATTEMPT_COMPLETION_STATE);
   }
 
   // Test cancelling query past the planning phase.
@@ -186,8 +211,100 @@ public class TestJobService extends BaseTestServer {
       ).buildPost(entity(null, JSON)), NotificationResponse.class);
     completionListener.await();
 
+    // query cancelled by user
+    assertEquals(UserException.AttemptCompletionState.CLIENT_CANCELLED.toString(), AttemptAnalyser.LAST_ATTEMPT_COMPLETION_STATE);
     assertEquals("Job cancellation requested", response.getMessage());
     assertEquals(NotificationResponse.ResponseType.OK, response.getType());
+  }
+
+  @Test
+  public void testSqlTruncation() throws Exception {
+    optionManager.setOption(OptionValue.createLong(OptionValue.OptionType.SYSTEM, "jobs.sql.truncate.length", 5));
+    final CompletionListener completionListener = new CompletionListener();
+
+    final JobRequest request = JobRequest.newBuilder()
+      .setSqlQuery(new SqlQuery("SELECT 1", null, DEFAULT_USERNAME))
+      .build();
+    final JobId jobId = jobsService.submitJob(toSubmitJobRequest(request), completionListener)
+      .getJobId();
+
+    completionListener.await();
+
+    // verify SQL is truncated in Jobs Search API
+    Object searchRsp = expectSuccess(
+      getBuilder(
+        getAPIv2()
+          .path("jobs-listing")
+          .path("v1.0")
+      ).buildGet(), Object.class);
+    assertTrue(searchRsp.toString().contains("queryText=SELEC, "));
+    assertTrue(searchRsp.toString().contains("description=SELEC, "));
+
+    // verify SQL is not truncated in Job details API
+    Object detailRsp = expectSuccess(
+      getBuilder(
+        getAPIv2()
+          .path("jobs-listing")
+          .path("v1.0")
+          .path(jobId.getId())
+          .path("jobDetails")
+          .queryParam("detailLevel", "0")
+      ).buildGet(), Object.class);
+    assertTrue(detailRsp.toString().contains("queryText=SELECT 1, "));
+    assertTrue(detailRsp.toString().contains("description=SELECT 1, "));
+
+    // verify SQL is truncated in old Jobs Search API
+    Object oldSearchRsp = expectSuccess(
+      getBuilder(
+        getAPIv2()
+          .path("jobs")
+      ).buildGet(), Object.class);
+    assertTrue(oldSearchRsp.toString().contains("description=SELEC, "));
+
+    // verify SQL is not truncated in old Job summary API
+    Object summaryRsp = expectSuccess(
+      getBuilder(
+        getAPIv2()
+          .path("job")
+          .path(jobId.getId())
+          .path("summary")
+      ).buildGet(), Object.class);
+    assertTrue(summaryRsp.toString().contains("description=SELECT 1, "));
+
+    // verify SQL is not truncated in old Job Details API
+    Object oldDetailRsp = expectSuccess(
+      getBuilder(
+        getAPIv2()
+          .path("job")
+          .path(jobId.getId())
+          .path("details")
+      ).buildGet(), Object.class);
+    assertTrue(oldDetailRsp.toString().contains("sql=SELECT 1, "));
+    assertTrue(oldDetailRsp.toString().contains("description=SELECT 1, "));
+    assertEquals(UserException.AttemptCompletionState.SUCCESS.toString(), AttemptAnalyser.LAST_ATTEMPT_COMPLETION_STATE);
+  }
+
+  @Test
+  public void testSqlTruncationDisable() throws Exception {
+    optionManager.setOption(OptionValue.createLong(OptionValue.OptionType.SYSTEM, "jobs.sql.truncate.length", 0));
+    final CompletionListener completionListener = new CompletionListener();
+
+    final JobRequest request = JobRequest.newBuilder()
+      .setSqlQuery(new SqlQuery("SELECT 1", null, DEFAULT_USERNAME))
+      .build();
+    jobsService.submitJob(toSubmitJobRequest(request), completionListener);
+
+    completionListener.await();
+
+    // verify SQL is not truncated in Jobs Search API, when jobs.sql.truncate.length option is set to 0
+    Object response = expectSuccess(
+      getBuilder(
+        getAPIv2()
+          .path("jobs-listing")
+          .path("v1.0")
+      ).buildGet(), Object.class);
+    assertTrue(response.toString().contains("queryText=SELECT 1, "));
+    assertTrue(response.toString().contains("description=SELECT 1, "));
   }
 
   @Test
@@ -277,6 +394,8 @@ public class TestJobService extends BaseTestServer {
             .build()
         )).isInstanceOf(RuntimeException.class)
         .hasMessageContaining("Job has been cancelled");
+
+      assertEquals(UserException.AttemptCompletionState.ENGINE_TIMEOUT.toString(), AttemptAnalyser.LAST_ATTEMPT_COMPLETION_STATE);
     } finally {
       // reset, irrespective any exception, so that other test cases are not affected.
       ExecutionControls.setControlsOptionMapper(new ObjectMapper());
@@ -301,6 +420,7 @@ public class TestJobService extends BaseTestServer {
                                    AttemptEvent.State.PLANNING,
                                    AttemptEvent.State.FAILED };
 
+      assertEquals(UserException.AttemptCompletionState.HEAP_MONITOR_C.toString(), AttemptAnalyser.LAST_ATTEMPT_COMPLETION_STATE);
       assertArrayEquals("Since we paused during planning, there should be AttemptEvent.State.PLANNING" +
                         " before AttemptEvent.State.FAILED.",
                         expectedAttemptStates, observedAttemptStates);
@@ -797,6 +917,7 @@ public class TestJobService extends BaseTestServer {
             .setStartTime(start)
             .setFinishTime(end)
             .setQueryType(queryType)
+            .setRequestType(RequestType.RUN_SQL)
             .setResourceSchedulingInfo(new ResourceSchedulingInfo().setQueueName("SMALL")
                                                                     .setRuleName("ruleSmall"));
 
@@ -1379,6 +1500,39 @@ public class TestJobService extends BaseTestServer {
     assertNotNull("Job2 must be kept in the database", jobsService.getJobDetails(request2));
   }
 
+  @Test
+  public void testExtraJobInfoCleanup() throws Exception {
+    jobsService = (HybridJobsService) l(JobsService.class);
+    optionManager.setOption(OptionValue.createLong(OptionValue.OptionType.SYSTEM, "jobs.sql.truncate.length", 3));
+    SqlQuery ctas = getQueryFromSQL("SHOW SCHEMAS");
+    final com.dremio.service.job.JobDetails jobDetails0 = getJobDetails(ctas, "ds0", DatasetVersion.newVersion());
+    getJobDetails(ctas, "ds1", DatasetVersion.newVersion());
+    Thread.sleep(20);
+    long beforeJob2TS = System.currentTimeMillis();
+    getJobDetails(ctas, "ds2", DatasetVersion.newVersion());
+    Thread.sleep(20);
+    long diffBeforeJob2 = System.currentTimeMillis() - beforeJob2TS;
+
+    LegacyKVStoreProvider provider = l(LegacyKVStoreProvider.class);
+    LegacyKVStore<JobId, ExtraJobInfo> extraJobInfoStore = provider.getStore(ExtraJobInfoStoreCreator.class);
+    ExtraJobInfo extraJobInfo0 = extraJobInfoStore.get(JobsProtoUtil.toStuff(jobDetails0.getJobId()));
+    assertEquals("SHOW SCHEMAS", extraJobInfo0.getSql());
+
+    final List<ExternalCleaner> externalCleaners = Collections.singletonList(
+      l(LocalJobsService.class).new OnlineProfileCleaner());
+    String report =
+      LocalJobsService.deleteOldJobsAndDependencies(externalCleaners, provider , diffBeforeJob2);
+    String expectedReport = ""
+      + "Completed. Deleted 2 jobs."
+      + System.lineSeparator() + "\tJobAttempts: 2, Attempts with failure: 0"
+      + System.lineSeparator() + "\t" + LocalJobsService.OnlineProfileCleaner.class.getSimpleName() + " executions: 2, failures: 0"
+      + System.lineSeparator();
+    assertEquals(expectedReport, report);
+
+    assertEquals(null, extraJobInfoStore.get(JobsProtoUtil.toStuff(jobDetails0.getJobId())));
+    optionManager.setOption(OptionValue.createLong(OptionValue.OptionType.SYSTEM, "jobs.sql.truncate.length", 0));
+  }
+
   public static void cleanJobs() {
     final LegacyKVStoreProvider provider = l(LegacyKVStoreProvider.class);
     final List<ExternalCleaner> externalCleaners = Collections.singletonList(
@@ -1467,6 +1621,7 @@ public class TestJobService extends BaseTestServer {
       .setStartTime(start)
       .setFinishTime(end)
       .setFailureInfo(failureInfo)
+      .setRequestType(templateJobInfo.getRequestType())
       .setDatasetPathList(templateJobInfo.getDatasetPathList());
   }
 
@@ -1477,6 +1632,7 @@ public class TestJobService extends BaseTestServer {
         .setStartTime(start)
         .setFinishTime(end)
         .setFailureInfo(failureInfo)
+        .setRequestType(templateJobInfo.getRequestType())
         .setResourceSchedulingInfo(new ResourceSchedulingInfo().setResourceSchedulingStart(schedulingStart).setResourceSchedulingEnd(schedulingEnd))
         .setDatasetPathList(templateJobInfo.getDatasetPathList());
   }

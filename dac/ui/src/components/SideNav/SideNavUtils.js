@@ -38,7 +38,7 @@ export const isActive = ({
     isArctic &&
     name === "catalog" &&
     arcticCatalogTabs
-      .filter((tab) => tab !== "settings")
+      .filter((tab) => tab !== "settings" && tab !== "jobs")
       .includes(loc.split("/")[3])
   ) {
     return active;

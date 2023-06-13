@@ -64,8 +64,10 @@ public class UnionFunctions {
     @Param FieldReader input2;
     @Output NullableIntHolder out;
 
+    @Override
     public void setup() {}
 
+    @Override
     public void eval() {
       org.apache.arrow.vector.types.Types.MinorType type1;
       if (input1.isSet()) {
@@ -142,8 +144,10 @@ public class UnionFunctions {
     @Inject
     ArrowBuf buf;
 
+    @Override
     public void setup() {}
 
+    @Override
     public void eval() {
       out.isSet = 1;
 
@@ -168,8 +172,10 @@ public class UnionFunctions {
     @Output
     UnionHolder out;
 
+    @Override
     public void setup() {}
 
+    @Override
     public void eval() {
       out.reader = in;
       out.isSet = in.isSet() ? 1 : 0;
@@ -183,8 +189,10 @@ public class UnionFunctions {
     @Output ComplexWriter out;
     @Inject FunctionErrorContext errorContext;
 
+    @Override
     public void setup() {}
 
+    @Override
     public void eval() {
       if (in.isSet == 1) {
         if (in.reader.getMinorType() != org.apache.arrow.vector.types.Types.MinorType.LIST) {
@@ -236,8 +244,10 @@ public class UnionFunctions {
     @Param UnionHolder in;
     @Output NullableBitHolder out;
 
+    @Override
     public void setup() {}
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 1) {
@@ -256,8 +266,10 @@ public class UnionFunctions {
     @Output
     NullableDecimalHolder out;
 
+    @Override
     public void setup() {}
 
+    @Override
     public void eval() {
       if (in.isSet == 1) {
         in.reader.read(out);
@@ -299,8 +311,10 @@ public class UnionFunctions {
     @Param UnionHolder in;
     @Output NullableBitHolder out;
 
+    @Override
     public void setup() {}
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 1) {
@@ -321,8 +335,10 @@ public class UnionFunctions {
     @Output ComplexWriter out;
     @Inject FunctionErrorContext errorContext;
 
+    @Override
     public void setup() {}
 
+    @Override
     public void eval() {
       if (in.isSet == 1) {
         if (in.reader.getMinorType() != org.apache.arrow.vector.types.Types.MinorType.STRUCT) {
@@ -374,8 +390,10 @@ public class UnionFunctions {
     @Param UnionHolder in;
     @Output NullableBitHolder out;
 
+    @Override
     public void setup() {}
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 1) {
@@ -392,8 +410,10 @@ public class UnionFunctions {
     @Param UnionHolder input;
     @Output NullableBitHolder out;
 
+    @Override
     public void setup() { }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       out.value = input.isSet == 1 ? 1 : 0;
@@ -406,8 +426,10 @@ public class UnionFunctions {
     @Param UnionHolder input;
     @Output NullableBitHolder out;
 
+    @Override
     public void setup() { }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       out.value = input.isSet == 1 ? 0 : 1;

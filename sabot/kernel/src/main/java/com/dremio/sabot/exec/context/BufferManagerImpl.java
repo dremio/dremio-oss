@@ -63,6 +63,7 @@ public class BufferManagerImpl implements SlicedBufferManager {
     managedBuffers.clear();
   }
 
+  @Override
   public ArrowBuf replace(ArrowBuf old, long newSize) {
     if (managedBuffers.remove(old.memoryAddress()) == null) {
       throw new IllegalStateException("Tried to remove unmanaged buffer.");
@@ -71,16 +72,19 @@ public class BufferManagerImpl implements SlicedBufferManager {
     return getManagedBuffer(newSize);
   }
 
+  @Override
   public ArrowBuf getManagedBuffer() {
     return getManagedBuffer(256);
   }
 
+  @Override
   public ArrowBuf getManagedBuffer(long size) {
     ArrowBuf newBuf = allocator.buffer(size, this);
     managedBuffers.put(newBuf.memoryAddress(), newBuf);
     return newBuf;
   }
 
+  @Override
   public ArrowBuf getManagedBufferSliced(long size) {
 
     if (size >= largeBufCapacity) {

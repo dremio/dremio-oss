@@ -35,6 +35,7 @@ public class BasicAWSCredentialsProvider implements AWSCredentialsProvider {
     this.secretKey = secretKey;
   }
 
+  @Override
   public AWSCredentials getCredentials() {
     if (!StringUtils.isEmpty(accessKey) && !StringUtils.isEmpty(secretKey)) {
       return new BasicAWSCredentials(accessKey, secretKey);
@@ -43,6 +44,7 @@ public class BasicAWSCredentialsProvider implements AWSCredentialsProvider {
       "Access key or secret key is null");
   }
 
+  @Override
   public void refresh() {}
 
   @Override

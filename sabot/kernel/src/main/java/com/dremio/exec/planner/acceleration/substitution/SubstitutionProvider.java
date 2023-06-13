@@ -23,6 +23,8 @@ import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 
+import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.TableVersionContext;
 import com.dremio.exec.planner.acceleration.ExpansionNode;
 import com.dremio.exec.planner.sql.handlers.RelTransformer;
 import com.dremio.service.namespace.NamespaceKey;
@@ -85,10 +87,12 @@ public interface SubstitutionProvider {
    * @param vdsFields        List of all the fields in the VDS
    * @param rowType          Row data type
    * @param contextSensitive If the expansion node is context sensitive
+   * @param catalog          caching catalog to use for table lookups
    * @return Wrapped RelNode
    */
-  default RelNode wrapExpansionNode(NamespaceKey path, final RelNode query, List<String> vdsFields, RelDataType rowType, boolean contextSensitive) {
-    return ExpansionNode.wrap(path, query, rowType, contextSensitive, false);
+  default RelNode wrapExpansionNode(NamespaceKey path, final RelNode query, List<String> vdsFields, RelDataType rowType,
+                                    boolean contextSensitive, TableVersionContext versionContext, Catalog catalog) {
+    return ExpansionNode.wrap(path, query, rowType, contextSensitive, false, versionContext);
   }
 
   default boolean isDefaultRawReflectionEnabled() {

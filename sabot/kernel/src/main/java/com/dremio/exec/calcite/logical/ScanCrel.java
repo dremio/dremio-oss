@@ -56,7 +56,7 @@ public class ScanCrel extends ScanRelBase implements CopyToCluster, Incrementall
       boolean isSubstitutable) {
     super(cluster, traitSet, new RelOptNamespaceTable(metadata, cluster), pluginId, metadata, projectedColumns, observedRowcountAdjustment, hints);
     this.isDirectNamespaceDescendent = isDirectNamespaceDescendent;
-    this.isSubstitutable = isSubstitutable;
+    this.isSubstitutable = isSubstitutable; // TODO: Support reflections on Iceberg time travel
   }
 
   @Override

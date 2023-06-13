@@ -917,7 +917,11 @@ public class VectorizedHashAggOperator implements SingleInputOperator, Shrinkabl
       // TODO: Change this to true to get sibling fragments to spill as well
       boolean spilled = spillPartition(false);
       if (!spilled) {
-        throw UserException.memoryError(new Exception("Unable to find a partition to spill")).build(logger);
+        // did not find a victim partition that can be spilled
+        // this can happen in rare race conditions. Returning true
+        // to declare that this operator cannot shrink any more
+        logger.info("Unable to find a victim partition to spill");
+        return true;
       }
 
       // if micro-spilling is enabled, the state changes to CAN_PRODUCE
@@ -1197,8 +1201,7 @@ public class VectorizedHashAggOperator implements SingleInputOperator, Shrinkabl
                 inputCount = recordInfo.getNumOfElements();
               }
 
-            }
-            else {
+            } else {
               final BaseVariableWidthVector inVec = (BaseVariableWidthVector) varLenAccums.get(i).getInput();
               final int recordLen = VectorHelper.getVariableWidthVectorValueLength(inVec, keyIndex + recordsConsumed);
 

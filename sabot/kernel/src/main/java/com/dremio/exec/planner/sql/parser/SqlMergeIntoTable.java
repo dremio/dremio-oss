@@ -61,6 +61,7 @@ public class SqlMergeIntoTable extends SqlMerge implements SqlDmlOperator {
     super(pos, targetTable, condition, source, updateCall, insertCall, null, alias);
   }
 
+  @Override
   public void extendTableWithDataFileSystemColumns() {
     if (extendedTargetTable == null) {
       extendedTargetTable = DmlUtils.extendTableWithDataFileSystemColumns(getTargetTable());

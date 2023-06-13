@@ -23,6 +23,7 @@ import Checkbox from "@mui/material/Checkbox";
 import Chip from "@mui/material/Chip";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
+import Tooltip from "../Tooltip/index";
 
 import { ReactComponent as XIcon } from "../../art/XLarge.svg";
 
@@ -30,7 +31,7 @@ import Label from "../Label";
 
 import "./multiSelect.scss";
 
-const MultiSelect = (props) => {
+const MultiSelectComponent = (props) => {
   const {
     classes,
     form: { errors, touched, setFieldValue } = {},
@@ -46,6 +47,8 @@ const MultiSelect = (props) => {
     value,
     onChange,
     loadNextRecords,
+    nonClearableValue,
+    getCustomChipIcon,
   } = props;
 
   const [showMenu, setShowMenu] = useState(false);
@@ -185,7 +188,11 @@ const MultiSelect = (props) => {
   };
 
   const handleClear = (e) => {
-    updateValue([]);
+    if (nonClearableValue) {
+      updateValue([nonClearableValue]);
+    } else {
+      updateValue([]);
+    }
     onChange && onChange("");
     e.stopPropagation();
   };
@@ -211,8 +218,18 @@ const MultiSelect = (props) => {
 
   const renderValue = () => {
     const hasValue = value && value.length > 0;
+    const { innerRef } = props;
     return (
-      <div ref={valueContainerRef} className={valueClass} onClick={handleOpen}>
+      <div
+        ref={(node) => {
+          valueContainerRef.current = node;
+          if (innerRef) {
+            innerRef.current = node;
+          }
+        }}
+        className={valueClass}
+        onClick={handleOpen}
+      >
         <div className={inputContainerClass}>
           {visibleValues.map((selectedVal) => {
             const KEY = displayValues.length > 0 ? selectedVal.id : selectedVal;
@@ -220,13 +237,25 @@ const MultiSelect = (props) => {
               <Chip
                 icon={getChipIcon(selectedVal)}
                 classes={{
-                  root: "multiSelect__chip",
+                  root: clsx(
+                    "multiSelect__chip",
+                    selectedVal === nonClearableValue &&
+                      classes.nonClearableChip
+                  ),
                   icon: "icon --md multiSelect__chip__icon",
                 }}
                 key={KEY}
-                label={getDisplayName(selectedVal)}
+                label={
+                  <span title={getDisplayName(selectedVal)}>
+                    {getDisplayName(selectedVal)}
+                  </span>
+                }
                 onClick={handleChipClick}
-                onDelete={(ev) => handleDelete(ev, selectedVal)}
+                onDelete={
+                  selectedVal !== nonClearableValue
+                    ? (ev) => handleDelete(ev, selectedVal)
+                    : null
+                }
                 deleteIcon={<XIcon />}
               />
             );
@@ -241,6 +270,7 @@ const MultiSelect = (props) => {
               name={`${name}_typeahead`}
               onChange={handleTypeAhead}
               className={inputClass}
+              autoComplete="off"
               value={filterText}
               ref={inputRef}
               onKeyDown={handleInputKeyDown}
@@ -259,48 +289,74 @@ const MultiSelect = (props) => {
     );
   };
 
+  const renderMenuItemChipIcon = (item) => {
+    const { icon: IconComponent } = item;
+    if (getCustomChipIcon?.(item)) {
+      return getCustomChipIcon?.(item);
+    } else
+      return IconComponent ? (
+        <span className="multiSelect__optionIcon margin-right--half margin-left--half">
+          <IconComponent />
+        </span>
+      ) : null;
+  };
+
+  const EllipisedMenuItem = ({ label }) => {
+    const [showTooltip, setShowTooltip] = useState(false);
+    return showTooltip ? (
+      <Tooltip title={label}>
+        <span className="multiSelect__label">{label}</span>
+      </Tooltip>
+    ) : (
+      <span
+        className="multiSelect__label"
+        ref={(elem) => {
+          if (elem?.offsetWidth < elem?.scrollWidth) {
+            setShowTooltip(true);
+          }
+        }}
+      >
+        {label}
+      </span>
+    );
+  };
+
   const renderMenuItems = () => {
     if (filteredValues.length === 0) {
       return <MenuItem>No values</MenuItem>;
     }
 
-    return filteredValues.map(
-      (
-        { label: optionLabel, value: optionValue, icon: IconComponent },
-        idx
-      ) => {
-        const isSelected = value.indexOf(optionValue) !== -1;
-        return (
-          <MenuItem
-            key={idx}
-            value={optionValue}
-            onClick={() => handleMenuItemClick(optionValue)}
-            selected={isSelected}
+    return filteredValues.map((item, idx) => {
+      const isSelected = value.indexOf(item.value) !== -1;
+      const chip = renderMenuItemChipIcon(item);
+      return (
+        <MenuItem
+          key={idx}
+          value={item.value}
+          onClick={() => handleMenuItemClick(item.value)}
+          selected={isSelected}
+          classes={{
+            root: "multiSelect__option",
+            selected: "multiSelect__option --selected",
+          }}
+          disabled={item.disabled}
+        >
+          {/* Todo: Use font icons for checkboxes */}
+          <Checkbox
+            checked={isSelected}
+            color="primary"
             classes={{
-              root: "multiSelect__option",
-              selected: "multiSelect__option --selected",
+              root: "gutter--none gutter-right--half multiSelect__checkbox",
             }}
-          >
-            {/* Todo: Use font icons for checkboxes */}
-            <Checkbox
-              checked={isSelected}
-              color="primary"
-              classes={{
-                root: "gutter--none gutter-right--half multiSelect__checkbox",
-              }}
-            />
-            <div className="flex --alignCenter">
-              {IconComponent && (
-                <span className="multiSelect__optionIcon margin-right--half margin-left--half">
-                  <IconComponent />
-                </span>
-              )}
-              {optionLabel}
-            </div>
-          </MenuItem>
-        );
-      }
-    );
+            disabled={item.disabled}
+          />
+          <div className="multiSelect__label__container flex --alignCenter">
+            {chip}
+            <EllipisedMenuItem label={item.label} />
+          </div>
+        </MenuItem>
+      );
+    });
   };
 
   return (
@@ -340,12 +396,14 @@ const MultiSelect = (props) => {
   );
 };
 
-MultiSelect.propTypes = {
+MultiSelectComponent.propTypes = {
+  innerRef: PropTypes.any,
   classes: PropTypes.shape({
     root: PropTypes.string,
     value: PropTypes.string,
     input: PropTypes.string,
     label: PropTypes.string,
+    nonClearableChip: PropTypes.string,
   }),
   value: PropTypes.array,
   options: PropTypes.arrayOf(
@@ -371,9 +429,11 @@ MultiSelect.propTypes = {
     })
   ),
   disabled: PropTypes.bool,
+  nonClearableValue: PropTypes.string,
+  getCustomChipIcon: PropTypes.func,
 };
 
-MultiSelect.defaultProps = {
+MultiSelectComponent.defaultProps = {
   classes: {},
   value: [],
   displayValues: [],
@@ -384,4 +444,7 @@ MultiSelect.defaultProps = {
   hasChipIcon: false,
 };
 
+const MultiSelect = React.forwardRef((props, ref) => {
+  return <MultiSelectComponent {...props} innerRef={ref} />;
+});
 export default MultiSelect;

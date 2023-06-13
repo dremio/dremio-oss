@@ -30,6 +30,8 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataTypeField;
 
 import com.dremio.common.SuppressForbidden;
+import com.dremio.exec.catalog.TableVersionContext;
+import com.dremio.exec.planner.acceleration.substitution.SubstitutionUtils;
 import com.dremio.exec.proto.UserBitShared.MajorFragmentProfile;
 import com.dremio.exec.proto.UserBitShared.MinorFragmentProfile;
 import com.dremio.exec.proto.UserBitShared.OperatorProfile;
@@ -172,6 +174,17 @@ public final class JoinAnalyzer {
     return FluentIterable.from(operatorProfile.getMetricList()).firstMatch(input -> input.getMetricId() == id).get().getLongValue();
   }
 
+  /**
+   * When a reflection X is accelerated by reflection Y, we need to merge reflection Y's join analysis into
+   * reflection X so that reflection X's join analysis only contains physical datasets.  The join analysis is used
+   * for snowflake reflections by pruning away tables (from non-expanding joins) not found in the user query.
+   *
+   * @param left
+   * @param right
+   * @param rightPlan
+   * @param materializationId
+   * @return
+   */
   public static JoinAnalysis merge(JoinAnalysis left, JoinAnalysis right, final RelNode rightPlan, final String materializationId) {
     try {
       int leftMax = Integer.MIN_VALUE;
@@ -186,11 +199,12 @@ public final class JoinAnalyzer {
 
       JoinAnalysis newRight = remapJoinAnalysis(right, leftMax - rightMin + 1);
 
-      final Map<List<String>, JoinTable> newTableMapping = FluentIterable.from(newRight.getJoinTablesList())
-        .uniqueIndex(new Function<JoinTable, List<String>>() {
+      final Map<SubstitutionUtils.VersionedPath, JoinTable> newTableMapping = FluentIterable.from(newRight.getJoinTablesList())
+        .uniqueIndex(new Function<JoinTable, SubstitutionUtils.VersionedPath>() {
           @Override
-          public List<String> apply(JoinTable joinTable) {
-            return joinTable.getTableSchemaPathList();
+          public SubstitutionUtils.VersionedPath apply(JoinTable joinTable) {
+            return SubstitutionUtils.VersionedPath.of(joinTable.getTableSchemaPathList(),
+              joinTable.getVersionContext() != null ? TableVersionContext.deserialize(joinTable.getVersionContext()) : null );
           }
         });
 
@@ -239,7 +253,8 @@ public final class JoinAnalyzer {
                     }
                     RelColumnOrigin columnOrigin = metadataQuery.getColumnOrigin(rightPlan, field.getIndex());
                     RelOptTable originTable = columnOrigin.getOriginTable();
-                    newBuildTableId = newTableMapping.get(originTable.getQualifiedName()).getTableId();
+                    newBuildTableId = newTableMapping.get(SubstitutionUtils.VersionedPath.of(originTable.getQualifiedName(),
+                      SubstitutionUtils.getVersionContext(originTable))).getTableId();
                     newBuildColumn = originTable.getRowType().getFieldList().get(columnOrigin.getOriginColumnOrdinal()).getName();
                   } else {
                     newBuildTableId = condition.getBuildSideTableId();
@@ -255,7 +270,8 @@ public final class JoinAnalyzer {
                     }
                     RelColumnOrigin columnOrigin = metadataQuery.getColumnOrigin(rightPlan, field.getIndex());
                     RelOptTable originTable = columnOrigin.getOriginTable();
-                    newProbeTableId = newTableMapping.get(originTable.getQualifiedName()).getTableId();
+                    newProbeTableId = newTableMapping.get(SubstitutionUtils.VersionedPath.of(originTable.getQualifiedName(),
+                      SubstitutionUtils.getVersionContext(originTable))).getTableId();
                     newProbeColumn = originTable.getRowType().getFieldList().get(columnOrigin.getOriginColumnOrdinal()).getName();
                   } else {
                     newProbeTableId = condition.getProbeSideTableId();
@@ -287,7 +303,9 @@ public final class JoinAnalyzer {
         @Override
         public JoinTable apply(JoinTable joinTable) {
           int newId = joinTable.getTableId() + offset;
-          return new JoinTable().setTableId(newId).setTableSchemaPathList(joinTable.getTableSchemaPathList());
+          return new JoinTable().setTableId(newId)
+            .setTableSchemaPathList(joinTable.getTableSchemaPathList())
+            .setVersionContext(joinTable.getVersionContext());
         }
       })
       .toList();

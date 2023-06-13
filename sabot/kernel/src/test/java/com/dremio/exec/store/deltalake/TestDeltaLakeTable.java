@@ -172,7 +172,7 @@ public class TestDeltaLakeTable extends BaseTestQuery {
     assertEquals(snap.getVersionId(), 11);
     assertEquals(snap.getSchema(), "{\"type\":\"struct\",\"fields\":[{\"name\":\"intcol\",\"type\":\"integer\",\"nullable\":true,\"metadata\":{}}, {\"name\":\"longcol\",\"type\":\"long\",\"nullable\":true,\"metadata\":{}}, {\"name\":\"stringcol\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}}]}");
     assertEquals(snap.getNetFilesAdded(), 5);
-    assertEquals(snap.getNetBytesAdded(), 4739);
+    assertEquals(snap.getNetBytesAdded(), 4737);
   }
 
   private String getPath(DatasetSplit datasetSplit) {

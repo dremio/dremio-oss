@@ -15,10 +15,9 @@
  */
 import { compose } from "redux";
 import { injectIntl } from "react-intl";
-import { Button } from "dremio-ui-lib";
+import { Button } from "dremio-ui-lib/components";
 import { FormTitle } from "@app/components/Forms";
 import EllipsedText from "@app/components/EllipsedText";
-import * as ButtonTypes from "components/Buttons/ButtonTypes";
 import { intl } from "@app/utils/intl";
 
 function AccelerationFormMixin(input) {
@@ -41,23 +40,19 @@ function AccelerationFormMixin(input) {
         <div>
           <div style={{ float: "right", display: "flex", marginTop: "5px" }}>
             {mode === "ADVANCED" && (
-              <Button
-                disableMargin
-                onClick={this.clearReflections}
-                type={ButtonTypes.SECONDARY}
-                text={intl.formatMessage({ id: "Reflections.Remove.All" })}
-                style={{ fontSize: 10 }}
-              />
+              <Button onClick={this.clearReflections} variant="secondary">
+                {intl.formatMessage({ id: "Reflections.Remove.All" })}
+              </Button>
             )}
             <EllipsedText text={hoverTextForButton}>
               <Button
                 disabled={mode === "ADVANCED" && this.getMustBeInAdvancedMode()}
-                disableMargin
                 onClick={this.toggleMode}
-                color={ButtonTypes.UI_LIB_SECONDARY}
-                style={{ fontSize: 10, marginLeft: 10 }}
-                text={switchModeText}
-              />
+                variant="secondary"
+                style={{ marginLeft: 10 }}
+              >
+                {switchModeText}
+              </Button>
             </EllipsedText>
           </div>
           <FormTitle>{la("Reflections")}</FormTitle>

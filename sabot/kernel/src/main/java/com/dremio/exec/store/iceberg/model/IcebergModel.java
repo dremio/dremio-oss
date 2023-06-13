@@ -16,6 +16,7 @@
 package com.dremio.exec.store.iceberg.model;
 
 import java.util.List;
+import java.util.Map;
 
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.iceberg.PartitionSpec;
@@ -24,7 +25,6 @@ import org.apache.iceberg.types.Types;
 
 import com.dremio.exec.catalog.AlterTableOption;
 import com.dremio.exec.catalog.RollbackOption;
-import com.dremio.exec.catalog.VacuumOption;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.dfs.ColumnOperations;
 import com.dremio.exec.store.dfs.IcebergTableProps;
@@ -43,15 +43,17 @@ public interface IcebergModel {
                                              List<String> partitionColumnNames, OperatorStats operatorStats, PartitionSpec partitionSpec);
 
   /**
-     * Get Iceberg Op committer for Insert command
-     * @param tableIdentifier Table identifier
-     * @param operatorStats
+   * Get Iceberg Op committer for Insert command
+   *
+   * @param tableIdentifier Table identifier
+   * @param operatorStats
    * @return Insert committer
-     */
-    IcebergOpCommitter getInsertTableCommitter(IcebergTableIdentifier tableIdentifier, OperatorStats operatorStats);
+   */
+  IcebergOpCommitter getInsertTableCommitter(IcebergTableIdentifier tableIdentifier, OperatorStats operatorStats);
 
   /**
    * Get committer for Full metadata refresh
+   *
    * @param tableName
    * @param datasetPath
    * @param tableLocation
@@ -68,6 +70,7 @@ public interface IcebergModel {
 
   /**
    * Get Iceberg Op committer for Metadata Incremental Refresh command
+   *
    * @param opContext
    * @param tableName
    * @param datasetPath
@@ -87,14 +90,16 @@ public interface IcebergModel {
 
   /**
    * Get Iceberg Op committer for Alter command
+   *
    * @param tableIdentifier Table identifier
    * @return Alter committer
    */
-   IcebergOpCommitter getAlterTableCommitter(IcebergTableIdentifier tableIdentifier, ColumnOperations.AlterOperationType alterOperationType, BatchSchema droppedColumns, BatchSchema updatedColumns,
-                                                   String columnName, List<Field> columnTypes);
+  IcebergOpCommitter getAlterTableCommitter(IcebergTableIdentifier tableIdentifier, ColumnOperations.AlterOperationType alterOperationType, BatchSchema droppedColumns, BatchSchema updatedColumns,
+                                            String columnName, List<Field> columnTypes);
 
   /**
    * Iceberg Op committer for DML (Delete, Merge, Update) commands
+   *
    * @param operatorStats
    * @param tableIdentifier
    * @param datasetConfig
@@ -116,69 +121,73 @@ public interface IcebergModel {
    */
   IcebergOpCommitter getOptimizeCommitter(OperatorStats operatorStats, IcebergTableIdentifier tableIdentifier,
                                           DatasetConfig datasetConfig, Long minInputFilesBeforeOptimize,
-                                          IcebergTableProps icebergTableProps, FileSystem fs);
+                                          Long snapshotId, IcebergTableProps icebergTableProps, FileSystem fs);
 
   /**
    * Roll table back to the older snapshot.
+   *
    * @param tableIdentifier table identifier
-   * @param rollbackOption rollback table option
+   * @param rollbackOption  rollback table option
    */
   void rollbackTable(IcebergTableIdentifier tableIdentifier, RollbackOption rollbackOption);
 
   /**
-   * Vacuum a table to remove older snapshots or orphan files
+   * Expire table's snapshots, and return live snapshots after expiry and their manifest list file paths
+   */
+  Map<Long, String> expireSnapshots(IcebergTableIdentifier tableIdentifier, long olderThanInMillis, int retainLast);
+
+  /**
+   * Truncate a table
+   *
    * @param tableIdentifier table identifier
-   * @param vacuumOption vacuum table option
    */
-  void vacuumTable(IcebergTableIdentifier tableIdentifier, VacuumOption vacuumOption);
-
-    /**
-     * Truncate a table
-     * @param tableIdentifier table identifier
-     */
-    void truncateTable(IcebergTableIdentifier tableIdentifier);
+  void truncateTable(IcebergTableIdentifier tableIdentifier);
 
 
-    void deleteTable(IcebergTableIdentifier tableIdentifier);
+  void deleteTable(IcebergTableIdentifier tableIdentifier);
 
-    void alterTable(IcebergTableIdentifier tableIdentifier, AlterTableOption alterTableOption);
+  void alterTable(IcebergTableIdentifier tableIdentifier, AlterTableOption alterTableOption);
 
-    void deleteTableRootPointer(IcebergTableIdentifier tableIdentifier);
+  void deleteTableRootPointer(IcebergTableIdentifier tableIdentifier);
 
 
   /**
-     * Add columns to a table
-     * @param tableIdentifier table identifier
-     * @param columnsToAdd list of columns to add
-     * @return New root pointer for iceberg table
+   * Add columns to a table
+   *
+   * @param tableIdentifier table identifier
+   * @param columnsToAdd    list of columns to add
+   * @return New root pointer for iceberg table
    */
-    String addColumns(IcebergTableIdentifier tableIdentifier, List<Types.NestedField> columnsToAdd);
-
-    /**
-     * Drop a column from a table
-     * @param tableIdentifier table identifier
-     * @param columnToDrop Column name to drop
-     * @return New root pointer for iceberg table
-     */
-    String dropColumn(IcebergTableIdentifier tableIdentifier, String columnToDrop);
-
-    /**
-     * Change column type of a table
-     * @param tableIdentifier table identifier
-     * @param columnToChange existing column name
-     * @param newDef new type
-     * @return New root pointer for iceberg table
-     */
-    String changeColumn(IcebergTableIdentifier tableIdentifier, String columnToChange, Field newDef);
+  String addColumns(IcebergTableIdentifier tableIdentifier, List<Types.NestedField> columnsToAdd);
 
   /**
-     * Rename an existing column of a table
-     * @param tableIdentifier table identifier
-     * @param name existing column name
-     * @param newName new column name
-     * @return New root pointer for iceberg table
-     */
-    String renameColumn(IcebergTableIdentifier tableIdentifier, String name, String newName);
+   * Drop a column from a table
+   *
+   * @param tableIdentifier table identifier
+   * @param columnToDrop    Column name to drop
+   * @return New root pointer for iceberg table
+   */
+  String dropColumn(IcebergTableIdentifier tableIdentifier, String columnToDrop);
+
+  /**
+   * Change column type of a table
+   *
+   * @param tableIdentifier table identifier
+   * @param columnToChange  existing column name
+   * @param newDef          new type
+   * @return New root pointer for iceberg table
+   */
+  String changeColumn(IcebergTableIdentifier tableIdentifier, String columnToChange, Field newDef);
+
+  /**
+   * Rename an existing column of a table
+   *
+   * @param tableIdentifier table identifier
+   * @param name            existing column name
+   * @param newName         new column name
+   * @return New root pointer for iceberg table
+   */
+  String renameColumn(IcebergTableIdentifier tableIdentifier, String name, String newName);
 
   /**
    * @param tableIdentifier table identifier
@@ -188,24 +197,38 @@ public interface IcebergModel {
   String updatePrimaryKey(IcebergTableIdentifier tableIdentifier, List<Field> columns);
 
   /**
-     * Load and return an Iceberg table
-     * @param tableIdentifier table identifier
-     * @return Iceberg table
-     */
-    Table getIcebergTable(IcebergTableIdentifier tableIdentifier);
+   * Load and return an Iceberg table
+   *
+   * @param tableIdentifier table identifier
+   * @return Iceberg table
+   */
+  Table getIcebergTable(IcebergTableIdentifier tableIdentifier);
 
-    /**
-     * Get table identifer
-     *
-     * @param rootFolder path to root folder of the table
-     * @return table identifier
-     */
-    IcebergTableIdentifier getTableIdentifier(String rootFolder);
+  /**
+   * Get table identifer
+   *
+   * @param rootFolder path to root folder of the table
+   * @return table identifier
+   */
+  IcebergTableIdentifier getTableIdentifier(String rootFolder);
 
   /**
    * Returns an instance of Iceberg table loader
+   *
    * @param tableIdentifier table identifier
    * @return An instance of Iceberg table loader
    */
-    IcebergTableLoader getIcebergTableLoader(IcebergTableIdentifier tableIdentifier);
+  IcebergTableLoader getIcebergTableLoader(IcebergTableIdentifier tableIdentifier);
+
+  /**
+   * Finds the value of a table property
+   */
+  long propertyAsLong(IcebergTableIdentifier tableIdentifier, String propertyName, long defaultValue);
+
+  /**
+   * Fetch and reset to the latest version context
+   */
+  default void refreshVersionContext() {
+    // do nothing
+  }
 }

@@ -47,6 +47,7 @@ public class NessieRefKVStoreBuilder implements KVStoreCreationFunction<NessieRe
       super(name);
     }
 
+    @Override
     public String encode() {
       return String.format("B|%s", getName());
     }
@@ -57,6 +58,7 @@ public class NessieRefKVStoreBuilder implements KVStoreCreationFunction<NessieRe
       super(name);
     }
 
+    @Override
     public String encode() {
       return String.format("T|%s", getName());
     }

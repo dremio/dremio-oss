@@ -21,6 +21,7 @@ import org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCostFactory;
 import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelNode;
@@ -35,6 +36,7 @@ import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql2rel.SqlRexConvertletTable;
 import org.apache.calcite.util.ImmutableIntList;
+import org.apache.calcite.util.Litmus;
 import org.apache.calcite.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,11 +46,11 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUser;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.ops.ViewExpansionContext;
 import com.dremio.exec.planner.DremioRexBuilder;
 import com.dremio.exec.planner.DremioVolcanoPlanner;
+import com.dremio.exec.planner.acceleration.ExpansionNode;
 import com.dremio.exec.planner.acceleration.MaterializationList;
 import com.dremio.exec.planner.acceleration.substitution.AccelerationAwareSubstitutionProvider;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionProviderFactory;
@@ -92,7 +94,6 @@ public class SqlConverter {
   private final Catalog catalog;
   private final SqlRexConvertletTable convertletTable;
   private final ReflectionAllowedMonitoringConvertletTable.ConvertletTableNotes convertletTableNotes;
-  public VersionContext viewExpansionVersionContext;
 
   public SqlConverter(
       final PlannerSettings settings,
@@ -135,7 +136,6 @@ public class SqlConverter {
         new ConvertletTable(
           functionContext.getContextInformation(),
           settings.getOptions().getOption(PlannerSettings.IEEE_754_DIVIDE_SEMANTICS)));
-    this.viewExpansionVersionContext = null;
   }
 
   private SqlConverter(SqlConverter parent, ParserConfig parserConfig) {
@@ -159,7 +159,6 @@ public class SqlConverter {
     this.catalog = parent.catalog;
     this.convertletTable = parent.convertletTable;
     this.convertletTableNotes = parent.convertletTableNotes;
-    this.viewExpansionVersionContext = parent.viewExpansionVersionContext;
   }
 
   public SqlConverter withSystemDefaultParserConfig() {
@@ -171,9 +170,15 @@ public class SqlConverter {
       SqlParser parser = SqlParser.create(sql, parserConfig);
       return parser.parseStmtList();
     } catch (SqlParseException e) {
-      UserException.Builder builder = SqlExceptionHelper.parseError(sql, e);
+      UserException.Builder builder = SqlExceptionHelper
+        .parseError(sql, e);
 
-      builder.message(isInnerQuery ? SqlExceptionHelper.INNER_QUERY_PARSING_ERROR : SqlExceptionHelper.QUERY_PARSING_ERROR);
+      if (e.getCause() instanceof StackOverflowError) {
+        builder.message(SqlExceptionHelper.PLANNING_STACK_OVERFLOW_ERROR);
+      } else if (isInnerQuery) {
+        builder.message("Failure parsing a view your query is dependent upon.");
+      }
+
       throw builder.build(logger);
     }
   }
@@ -283,12 +288,12 @@ public class SqlConverter {
     return catalog;
   }
 
-  public void setViewExpansionVersionContext(VersionContext versionContext) {
-    viewExpansionVersionContext = versionContext;
-  }
-
   /**
-   * A RelRoot that carries additional conversion information.
+   * A RelRoot that carries additional conversion information such as:
+   *
+   * 1.  Whether the plan contains context sensitive functions such as current_date
+   *     which makes the plan ineligible for materializing in a reflection.
+   * 2.  Whether the plan can be put into the query plan cache.
    */
   public static class RelRootPlus extends RelRoot {
 
@@ -302,12 +307,8 @@ public class SqlConverter {
       this.planCacheable = planCacheable;
     }
 
-    public static RelRootPlus of(RelRoot root, boolean contextSensitive, boolean planCacheable) {
-      return new RelRootPlus(root.rel,root.validatedRowType,root.kind,root.fields,root.collation,contextSensitive,planCacheable);
-    }
-
-    public static RelRootPlus of(RelNode rel, RelDataType validatedRowType, SqlKind kind, boolean contextSensitive) {
-      return RelRootPlus.of(rel, validatedRowType,kind,contextSensitive,true);
+    public static RelRootPlus of(RelRootPlus root, RelNode rel, RelDataType validatedRowType) {
+      return new RelRootPlus(rel, validatedRowType, root.kind, root.fields, root.collation, root.contextSensitive, root.planCacheable);
     }
 
     public static RelRootPlus of(RelNode rel, RelDataType validatedRowType, SqlKind kind, boolean contextSensitive, boolean planCacheable) {
@@ -317,11 +318,22 @@ public class SqlConverter {
     }
 
     public boolean isContextSensitive() {
-      return contextSensitive;
+      return contextSensitive || ExpansionNode.isContextSensitive(rel);
     }
 
     public boolean isPlanCacheable() {
       return planCacheable;
+    }
+
+    /**
+     * Converts the RelRootPlus to a RelRoot with an ExpansionNode at the root
+     * @param node
+     * @return
+     */
+    public RelRoot withExpansionNode(RelNode node) {
+      assert node instanceof ExpansionNode;
+      assert RelOptUtil.equal("query", rel.getRowType(), "expansion", node.getRowType(), Litmus.THROW);
+      return new RelRoot(node, validatedRowType, kind, fields, collation, ImmutableList.of());
     }
   }
 

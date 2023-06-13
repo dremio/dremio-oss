@@ -16,8 +16,11 @@
 
 package com.dremio.exec.store.hive.deltalake;
 
+import static org.apache.hadoop.hive.metastore.api.hive_metastoreConstants.META_TABLE_STORAGE;
+
 import java.io.IOException;
 
+import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.io.ArrayWritable;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapred.FileInputFormat;
@@ -31,9 +34,29 @@ import com.dremio.options.OptionManager;
 
 public class DeltaHiveInputFormat extends FileInputFormat<NullWritable, ArrayWritable> {
   static final String DELTA_STORAGE_HANDLER = "io.delta.hive.DeltaStorageHandler";
+  static final String SPARK_SQL_SOURCES_PROVIDER = "spark.sql.sources.provider";
+  static final String DELTA = "delta";
+  static final String PATH = "path";
 
-  public static boolean isDeltaTable(String storageHandler, OptionManager options) {
-    return options.getOption(ExecConstants.ENABLE_DELTALAKE_HIVE_SUPPORT) && DELTA_STORAGE_HANDLER.equalsIgnoreCase(storageHandler);
+  public static boolean isDeltaTable(Table table, OptionManager options) {
+    return isDeltaByStorageHandler(table, options) || isDeltaBySparkFormat(table, options);
+  }
+
+  public static String getLocation(Table table, OptionManager options) {
+    if (isDeltaBySparkFormat(table, options)) {
+      return table.getSd().getSerdeInfo().getParameters().get(PATH);
+    }
+    return table.getSd().getLocation();
+  }
+
+  private static boolean isDeltaByStorageHandler(Table table, OptionManager options) {
+    return options.getOption(ExecConstants.ENABLE_DELTALAKE_HIVE_SUPPORT)
+        && DELTA_STORAGE_HANDLER.equalsIgnoreCase(table.getParameters().get(META_TABLE_STORAGE));
+  }
+
+  private static boolean isDeltaBySparkFormat(Table table, OptionManager options) {
+    return options.getOption(ExecConstants.ENABLE_DELTALAKE_SPARK_SUPPORT)
+      && DELTA.equalsIgnoreCase(table.getParameters().get(SPARK_SQL_SOURCES_PROVIDER));
   }
 
   public DeltaHiveInputFormat() {

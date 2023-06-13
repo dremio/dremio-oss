@@ -617,6 +617,8 @@ public final class JobsProtoUtil {
         return com.dremio.service.job.QueryType.UI_EXPORT;
       case ODBC:
         return com.dremio.service.job.QueryType.ODBC;
+      case D2D:
+        return com.dremio.service.job.QueryType.D2D;
       case JDBC:
         return com.dremio.service.job.QueryType.JDBC;
       case REST:
@@ -792,6 +794,8 @@ public final class JobsProtoUtil {
         return com.dremio.service.job.proto.QueryType.ACCELERATOR_EXPLAIN;
       case ODBC:
         return com.dremio.service.job.proto.QueryType.ODBC;
+      case D2D:
+        return com.dremio.service.job.proto.QueryType.D2D;
       case JDBC:
         return com.dremio.service.job.proto.QueryType.JDBC;
       case REST:

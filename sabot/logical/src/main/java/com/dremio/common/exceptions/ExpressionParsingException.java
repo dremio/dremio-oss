@@ -16,7 +16,6 @@
 package com.dremio.common.exceptions;
 
 public class ExpressionParsingException extends LogicalPlanParsingException {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExpressionParsingException.class);
 
   public ExpressionParsingException() {
     super();

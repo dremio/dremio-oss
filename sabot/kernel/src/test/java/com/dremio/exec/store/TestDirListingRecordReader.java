@@ -17,7 +17,6 @@ package com.dremio.exec.store;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -572,9 +571,6 @@ public class TestDirListingRecordReader extends BaseTestQuery {
       assertEquals(extractPartitionData(outputPartInfo.getObject(2)), "PartitionData{dir0=bar, dir1=subBar1}");
       assertEquals(mtime.get(2), 33);
       assertEquals(size.get(2), 1010);
-    } catch (Exception e) {
-      e.printStackTrace();
-      fail(e.getMessage());
     }
   }
 
@@ -750,8 +746,7 @@ public class TestDirListingRecordReader extends BaseTestQuery {
 
     try {
       int noRecordsRead = reader.next();
-    }
-    catch (Exception e) {
+    } catch (Exception e) {
       assertTrue(e instanceof UserException);
       assertEquals(e.getMessage(), "Failed to list files of directory /randompath/");
       assertEquals(e.getCause().getMessage(), "All the directories should have = in the partition structure. Path /randompath/id/data=value/file2.parquet");

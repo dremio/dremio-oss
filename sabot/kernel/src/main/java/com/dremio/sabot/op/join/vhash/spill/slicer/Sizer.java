@@ -37,7 +37,7 @@ import com.dremio.exec.util.RoundUtil;
  * A tool that determines size of an operation and then provides a copier to
  * later do that operation.
  */
-interface Sizer {
+public interface Sizer {
   int BYTE_SIZE_BITS = 8;
   int VALID_SIZE_BITS = 1;
   int OFFSET_SIZE_BYTES = 4;
@@ -85,6 +85,16 @@ interface Sizer {
    * @return
    */
   int getSizeInBitsStartingFromOrdinal(int ordinal, int len);
+
+  /**
+   * Size in bytes required for 'len' number of records starting from 'ordinal'th record in the vector.
+   * @param ordinal
+   * @param len
+   * @return
+   */
+  default int getSizeInBytesStartingFromOrdinal(int ordinal, int len) {
+    return getSizeInBitsStartingFromOrdinal(ordinal, len) / BYTE_SIZE_BITS;
+  }
 
   /**
    * Bits required to store offset values for given number of records

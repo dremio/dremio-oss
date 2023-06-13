@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.planner;
 
+import java.util.function.Function;
+
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
@@ -30,9 +32,11 @@ import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.planner.physical.DistributionTrait;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.TableFunctionPrel;
+import com.dremio.exec.planner.physical.TableFunctionUtil;
 import com.dremio.exec.planner.physical.UnionAllPrel;
 import com.dremio.exec.planner.physical.UnionExchangePrel;
 import com.dremio.exec.planner.physical.WriterPrule;
+import com.dremio.exec.store.OperationType;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.TableMetadata;
 import com.google.common.base.Preconditions;
@@ -71,7 +75,7 @@ public abstract class TableManagementPlanGenerator {
    *    UnionAllPrel ---------------------------------------------|
    *        |                                                     |
    *        |                                                     |
-   *    WriterPrel                                            TableFunctionPrel (DELETED_DATA_FILES_METADATA)
+   *    WriterPrel                                            TableFunctionPrel (DELETED_FILES_METADATA)
    *        |                                                 this converts a path into required IcebergMetadata blob
    *        |                                                     |
    *    (input from copyOnWriteResultsPlan)                       (deleted data files list from dataFileAggrPlan)
@@ -91,34 +95,66 @@ public abstract class TableManagementPlanGenerator {
       });
   }
 
-  private Prel getMetadataWriterPlan(RelNode dataFileAggrPlan, RelNode manifestWriterPlan) throws InvalidRelException {
-    ImmutableList<SchemaPath> projectedCols = RecordWriter.SCHEMA.getFields().stream()
-      .map(f -> SchemaPath.getSimplePath(f.getName()))
-      .collect(ImmutableList.toImmutableList());
+  /**
+   *    UnionAllPrel <------ WriterPrel
+   *        |
+   *        |
+   *    UnionAllPrel ---------------------------------------------|
+   *        |                                                     |
+   *        |                                                     |
+   *    TableFunctionPrel (DELETED_FILES_METADATA)            TableFunctionPrel (DELETED_FILES_METADATA)
+   *        |                                                 this converts deleteFile paths into required IcebergMetadata blob
+   *        |                                                     |
+   *    (deleted data files list from dataFileAggrPlan)       (deleted data files list from deleteFileAggrPlan)
+   */
+  protected Prel getDataWriterPlan(RelNode copyOnWriteResultsPlan, final Function<RelNode, Prel> metadataWriterFunction) {
+    return WriterPrule.createWriter(
+      copyOnWriteResultsPlan,
+      copyOnWriteResultsPlan.getRowType(),
+      tableMetadata.getDatasetConfig(),
+      createTableEntry,
+      metadataWriterFunction);
+  }
 
+  private Prel getMetadataWriterPlan(RelNode dataFileAggrPlan, RelNode manifestWriterPlan) throws InvalidRelException {
     // Insert a table function that'll pass the path through and set the OperationType
-    TableFunctionPrel deletedDataFilesTableFunctionPrel = new TableFunctionPrel(
-      dataFileAggrPlan.getCluster(),
-      dataFileAggrPlan.getTraitSet(),
-      table,
-      dataFileAggrPlan,
-      tableMetadata,
-      new TableFunctionConfig(
-        TableFunctionConfig.FunctionType.DELETED_DATA_FILES_METADATA,
-        true,
-        new TableFunctionContext(RecordWriter.SCHEMA, projectedCols, true)),
-      ScanRelBase.getRowTypeFromProjectedColumns(projectedCols,
-        RecordWriter.SCHEMA, dataFileAggrPlan.getCluster()));
+    TableFunctionPrel deletedFilesTableFunctionPrel = getDeleteFilesMetadataTableFunctionPrel(dataFileAggrPlan,
+      getProjectedColumns(), TableFunctionUtil.getDeletedFilesMetadataTableFunctionContext(
+        OperationType.DELETE_DATAFILE, RecordWriter.SCHEMA, getProjectedColumns(), true));
 
     final RelTraitSet traits = traitSet.plus(DistributionTrait.SINGLETON).plus(Prel.PHYSICAL);
 
     // Union the updating of the deleted data's metadata with the rest
+    return getUnionPrel(traits, manifestWriterPlan, deletedFilesTableFunctionPrel);
+  }
+
+  protected ImmutableList<SchemaPath> getProjectedColumns() {
+    return RecordWriter.SCHEMA.getFields().stream()
+      .map(f -> SchemaPath.getSimplePath(f.getName()))
+      .collect(ImmutableList.toImmutableList());
+  }
+
+  protected TableFunctionPrel getDeleteFilesMetadataTableFunctionPrel(RelNode input, ImmutableList<SchemaPath> projectedCols, TableFunctionContext tableFunctionContext) {
+    return new TableFunctionPrel(
+      input.getCluster(),
+      input.getTraitSet(),
+      table,
+      input,
+      tableMetadata,
+      new TableFunctionConfig(
+        TableFunctionConfig.FunctionType.DELETED_FILES_METADATA,
+        true,
+        tableFunctionContext),
+      ScanRelBase.getRowTypeFromProjectedColumns(projectedCols,
+        RecordWriter.SCHEMA, input.getCluster()));
+  }
+
+  protected Prel getUnionPrel(RelTraitSet traits, RelNode manifestWriterPlan, RelNode input) throws InvalidRelException {
     return new UnionAllPrel(cluster,
       traits,
       ImmutableList.of(manifestWriterPlan,
         new UnionExchangePrel(cluster, traits,
-          deletedDataFilesTableFunctionPrel)),
+          input)),
       false);
   }
-
 }

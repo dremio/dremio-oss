@@ -34,6 +34,7 @@ const initialState = Immutable.fromJS({
   isSupport: false,
   jobExecutionDetails: [],
   jobExecutionOperatorDetails: {},
+  uniqueSavingJob: undefined,
 });
 
 export default function jobs(state = initialState, action) {
@@ -162,6 +163,11 @@ export default function jobs(state = initialState, action) {
             state.get("jobList")?.toJS() ?? new Immutable.List();
           curJobList[action.meta.replaceIndex] = action.payload.jobs[0];
           return state.set("jobList", Immutable.fromJS(curJobList));
+        } else if (action.meta?.isSaveJob) {
+          return state.set(
+            "uniqueSavingJob",
+            Immutable.fromJS(jobsMapper.mapJobs(action.payload)[0])
+          );
         } else {
           return state.set(
             "jobList",
@@ -187,6 +193,9 @@ export default function jobs(state = initialState, action) {
 
     case JobListActionTypes.JOBS_LIST_RESET:
       return state.set("jobList", action.payload);
+
+    case JobListActionTypes.SAVE_JOB_RESET:
+      return state.set("uniqueSavingJob", action.payload);
 
     case JobListActionTypes.ITEMS_FOR_FILTER_JOBS_LIST_SUCCESS:
       return state.setIn(

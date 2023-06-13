@@ -18,26 +18,22 @@ package com.dremio.exec.hive;
 import static com.dremio.common.TestProfileHelper.assumeNonMaprProfile;
 import static com.dremio.common.utils.PathUtils.parseFullPath;
 import static com.dremio.exec.store.hive.exec.HiveDatasetOptions.HIVE_PARQUET_ENFORCE_VARCHAR_WIDTH;
-import static java.util.Arrays.asList;
-import static java.util.Collections.singletonList;
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.joda.time.DateTimeZone.UTC;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.File;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Timestamp;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
-import org.apache.arrow.vector.util.JsonStringArrayList;
 import org.apache.arrow.vector.util.JsonStringHashMap;
-import org.apache.arrow.vector.util.Text;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -48,9 +44,9 @@ import org.joda.time.LocalDateTime;
 import org.junit.AfterClass;
 import org.junit.Assume;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
+import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetMetadata;
@@ -60,7 +56,6 @@ import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.DatasetMetadataAdapter;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.UserBitShared;
-import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.ImpersonationUtil;
 import com.dremio.hive.proto.HiveReaderProto.FileSystemCachedEntity;
@@ -166,11 +161,6 @@ public class ITHiveStorage extends HiveTestBase {
   @Test
   public void readAllSupportedHiveDataTypesText() throws Exception {
     readAllSupportedHiveDataTypes("readtest");
-  }
-
-  @Test
-  public void readAllSupportedHiveDataTypesORC() throws Exception {
-    readAllSupportedHiveDataTypes("readtest_orc");
   }
 
   @Test
@@ -294,8 +284,16 @@ public class ITHiveStorage extends HiveTestBase {
     // convert int,string,double to decimals
     // string to decimal(col2) is an overflow
     query = "SELECT * FROM hive.decimal_conversion_test_parquet_rev_ext";
-    errorMsgTestHelper(query, "Field [col2] has incompatible types in file and table.");
-
+    String expectedErrorMsg = "(.*)Field \\[col2] has incompatible types in file and table\\.(.*)file Path: (.*)";
+    try {
+      test(query);
+    } catch (Exception e) {
+      if (!(e instanceof UserRemoteException)) {
+        fail("Unexpected Error");
+      }
+      boolean errorMsgMatched = Pattern.compile(expectedErrorMsg, Pattern.DOTALL).matcher(e.getMessage()).matches();
+      assertTrue("error Message didn't match",errorMsgMatched);
+    }
     // all conversions are valid
     query = "SELECT * FROM hive.decimal_conversion_test_parquet_decimal";
     testBuilder()
@@ -493,64 +491,6 @@ public class ITHiveStorage extends HiveTestBase {
       .baselineColumns("col1")
       .baselineValues("1.0")
       .go();
-  }
-
-  @Test
-  public void readComplexHiveDataTypesORC() throws Exception {
-    readComplexHiveDataTypes("orccomplexorc");
-  }
-
-  @Test
-  public void readListOfStructORC() throws Exception {
-    int[] testrows = {0, 500, 1022, 1023, 1024, 4094, 4095, 4096, 4999};
-    for (int index : testrows) {
-      testBuilder().sqlQuery("SELECT list_struct_field[0].name as name FROM hive.orccomplexorc" +
-          " order by rownum limit 1 offset " + index)
-          .ordered()
-          .baselineColumns("name")
-          .baselineValues("name" + index)
-          .go();
-      testBuilder().sqlQuery("SELECT list_struct_field[1].name as name FROM hive.orccomplexorc" +
-          " order by rownum limit 1 offset " + index)
-          .ordered()
-          .baselineColumns("name")
-          .baselineValues("name" + (index + 1))
-          .go();
-      testBuilder().sqlQuery("SELECT list_struct_field[0].age as age FROM hive.orccomplexorc" +
-          " order by rownum limit 1 offset " + index)
-          .ordered()
-          .baselineColumns("age")
-          .baselineValues(index)
-          .go();
-      testBuilder().sqlQuery("SELECT list_struct_field[1].age as age FROM hive.orccomplexorc" +
-          " order by rownum limit 1 offset " + index)
-          .ordered()
-          .baselineColumns("age")
-          .baselineValues(index + 1)
-          .go();
-    }
-  }
-
-  // DX-16748: dropping support for map data type in ORC
-  @Ignore
-  @Test
-  public void readMapValuesTest() throws Exception {
-    readMapValues("orcmaporc");
-  }
-
-  @Test
-  public void readListHiveDataTypesORC() throws Exception {
-    readListHiveDataTypes("orclistorc");
-  }
-
-  @Test
-  public void readStructHiveDataTypesORC() throws Exception {
-    readStructHiveDataTypes("orcstructorc");
-  }
-
-  @Test
-  public void testDropOfUnionHiveDataTypesORC() throws Exception {
-    readTableWithUnionHiveDataTypes("orcunionorc");
   }
 
   @Test
@@ -906,8 +846,8 @@ public class ITHiveStorage extends HiveTestBase {
   @Test
   public void testQueryNonExistingTable() {
     errorMsgTestHelper("SELECT * FROM hive.nonExistedTable", "'nonExistedTable' not found within 'hive'");
-    errorMsgTestHelper("SELECT * FROM hive.\"default\".nonExistedTable", "'nonExistedTable' not found within 'hive.hive.\"default\"'");
-    errorMsgTestHelper("SELECT * FROM hive.db1.nonExistedTable", "'nonExistedTable' not found within 'hive.hive.db1'");
+    errorMsgTestHelper("SELECT * FROM hive.\"default\".nonExistedTable", "'nonExistedTable' not found within 'hive.default'");
+    errorMsgTestHelper("SELECT * FROM hive.db1.nonExistedTable", "'nonExistedTable' not found within 'hive.db1'");
   }
 
   @Test
@@ -1545,173 +1485,6 @@ public class ITHiveStorage extends HiveTestBase {
         .baselineValues("")
         .go())
       .hasMessageContaining(exceptionMessage);
-  }
-
-  /**
-   * Test to ensure Dremio fails to read union data from hive
-   */
-  private void readTableWithUnionHiveDataTypes(String table) {
-    int[] testrows = {0, 500, 1022, 1023, 1024, 4094, 4095, 4096, 4999};
-    for (int row : testrows) {
-      try {
-        testBuilder().sqlQuery("SELECT * FROM hive." + table + " order by rownum limit 1 offset " + row)
-          .ordered()
-          .baselineColumns("rownum")
-          .baselineValues(row)
-          .go();
-      } catch (Exception e) {
-        e.printStackTrace();
-        assertThat(e.getMessage()).contains(BatchSchema.MIXED_TYPES_ERROR);
-      }
-    }
-  }
-
-  /**
-   * Test to ensure Dremio reads list of primitive data types
-   * @throws Exception
-   */
-  private void readStructHiveDataTypes(String table) throws Exception {
-    int[] testrows = {0, 500, 1022, 1023, 1024, 4094, 4095, 4096, 4999};
-    for (int index : testrows) {
-      JsonStringHashMap<String, Object> structrow1 = new JsonStringHashMap<>();
-      structrow1.put("tinyint_field", 1);
-      structrow1.put("smallint_field", 1024);
-      structrow1.put("int_field", index);
-      structrow1.put("bigint_field", 90000000000L);
-      structrow1.put("float_field", (float) index);
-      structrow1.put("double_field", (double) index);
-      structrow1.put("string_field", new Text(Integer.toString(index)));
-
-      testBuilder().sqlQuery("SELECT * FROM hive." + table +
-          " order by rownum limit 1 offset " + index)
-          .ordered()
-          .baselineColumns("rownum", "struct_field")
-          .baselineValues(index, structrow1)
-          .go();
-
-      testBuilder().sqlQuery("SELECT rownum, struct_field['string_field'] AS string_field, struct_field['int_field'] AS int_field FROM hive." + table +
-          " order by rownum limit 1 offset " + index)
-          .ordered()
-          .baselineColumns("rownum", "string_field", "int_field")
-          .baselineValues(index, Integer.toString(index), index)
-          .go();
-    }
-  }
-
-  /**
-   * Test to ensure Dremio reads list of primitive data types
-   * @throws Exception
-   */
-  private void readListHiveDataTypes(String table) throws Exception {
-    int[] testrows = {0, 500, 1022, 1023, 1024, 4094, 4095, 4096, 4999};
-    for (int testrow : testrows) {
-      if (testrow % 7 == 0) {
-        Integer index = testrow;
-        testBuilder()
-            .sqlQuery("SELECT rownum,double_field,string_field FROM hive." + table + " order by rownum limit 1 offset " + index.toString())
-            .ordered()
-            .baselineColumns("rownum", "double_field", "string_field")
-            .baselineValues(index, null, null)
-            .go();
-      } else {
-        JsonStringArrayList<Text> string_field = new JsonStringArrayList<>();
-        string_field.add(new Text(Integer.toString(testrow)));
-        string_field.add(new Text(Integer.toString(testrow + 1)));
-        string_field.add(new Text(Integer.toString(testrow + 2)));
-        string_field.add(new Text(Integer.toString(testrow + 3)));
-        string_field.add(new Text(Integer.toString(testrow + 4)));
-
-        testBuilder()
-            .sqlQuery("SELECT rownum,double_field,string_field FROM hive." + table + " order by rownum limit 1 offset " + testrow)
-            .ordered()
-            .baselineColumns("rownum", "double_field", "string_field")
-            .baselineValues(
-                testrow,
-                asList((double) testrow, (double) (testrow + 1), (double) (testrow + 2), (double) (testrow + 3), (double) (testrow + 4)),
-                string_field)
-            .go();
-      }
-    }
-  }
-
-  /**
-   * Test to ensure Dremio reads the all ORC complex types correctly
-   * @throws Exception
-   */
-  private void readComplexHiveDataTypes(String table) throws Exception {
-    int[] testrows = {0, 500, 1022, 1023, 1024, 4094, 4095, 4096, 4999};
-    for (int index : testrows) {
-      JsonStringHashMap<String, Object> structrow1 = new JsonStringHashMap<>();
-      structrow1.put("name", new Text("name" + index));
-      structrow1.put("age", index);
-
-      JsonStringHashMap<String, Object> structlistrow1 = new JsonStringHashMap<>();
-      structlistrow1.put("type", new Text("type" + index));
-      structlistrow1.put("value", new ArrayList<>(singletonList(new Text("elem" + index))));
-
-      JsonStringHashMap<String, Object> liststruct1 = new JsonStringHashMap<>();
-      liststruct1.put("name", new Text("name" + index));
-      liststruct1.put("age", index);
-      JsonStringHashMap<String, Object> liststruct2 = new JsonStringHashMap<>();
-      liststruct2.put("name", new Text("name" + (index + 1)));
-      liststruct2.put("age", index + 1);
-
-      JsonStringHashMap<String, Object> mapstruct1 = new JsonStringHashMap<>();
-      mapstruct1.put("key", new Text("name" + index));
-      mapstruct1.put("value", index);
-      JsonStringHashMap<String, Object> mapstruct2 = new JsonStringHashMap<>();
-      mapstruct2.put("key", new Text("name" + (index + 1)));
-      mapstruct2.put("value", index + 1);
-      JsonStringHashMap<String, Object> mapstruct3 = null;
-      if (index % 2 == 0) {
-        mapstruct3 = new JsonStringHashMap<>();
-        mapstruct3.put("key", new Text("name" + (index + 2)));
-        mapstruct3.put("value", index + 2);
-      }
-
-      JsonStringHashMap<String, Object> mapstructValue = new JsonStringHashMap<>();
-      mapstructValue.put("key", new Text("key" + index));
-      JsonStringHashMap<String, Object> mapstructValue2 = new JsonStringHashMap<>();
-      mapstructValue2.put("type", new Text("struct" + index));
-      mapstructValue.put("value", mapstructValue2);
-
-      testBuilder()
-          .sqlQuery("SELECT * FROM hive." + table + " order by rownum limit 1 offset " + index)
-          .ordered()
-          .baselineColumns("rownum", "list_field", "struct_field", "struct_list_field", "list_struct_field", "map_field", "map_struct_field")
-          .baselineValues(
-              index,
-              asList(index, index + 1, index + 2, index + 3, index + 4),
-              structrow1,
-              structlistrow1,
-              asList(liststruct1, liststruct2),
-              index % 2 == 0 ? asList(mapstruct1, mapstruct2, mapstruct3) : asList(mapstruct1, mapstruct2),
-              asList(mapstructValue))
-          .go();
-    }
-  }
-
-  private void readMapValues(String table) throws Exception {
-    int[] testrows = {0, 500, 1022, 1023, 1024, 4094, 4095, 4096, 4999};
-    for (Integer index : testrows) {
-      String mapquery = "WITH flatten_" + table + " AS (SELECT flatten(map_field) AS flatten_map_field from hive." + table + " ) " +
-          " select flatten_map_field['key'] as key_field from flatten_" + table + " order by flatten_map_field['key'] limit 1 offset " + index.toString();
-
-      testBuilder().sqlQuery(mapquery)
-          .ordered()
-          .baselineColumns("key_field")
-          .baselineValues(index)
-          .go();
-
-      mapquery = "WITH flatten" + table + " AS (SELECT flatten(map_field) AS flatten_map_field from hive." + table + " ) " +
-          " select flatten_map_field['value'] as value_field from flatten" + table + " order by flatten_map_field['value'] limit 1 offset " + index.toString();
-
-      testBuilder().sqlQuery(mapquery)
-          .ordered()
-          .baselineColumns("value_field")
-          .baselineValues(index)
-          .go();
-    }
   }
 
   /**

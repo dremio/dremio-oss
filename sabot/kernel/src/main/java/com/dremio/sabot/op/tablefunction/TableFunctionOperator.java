@@ -50,7 +50,12 @@ public class TableFunctionOperator implements SingleInputOperator {
     NUM_DELETE_FILE_READERS,
     PARQUET_DELETE_FILE_BYTES_READ,
     NUM_POS_DELETED_ROWS,
-    NUM_EQ_DELETED_ROWS;
+    NUM_EQ_DELETED_ROWS,
+    SNAPSHOT_COMMIT_STATUS,
+    NUM_SNAPSHOT_IDS,           // Number of snapshot ids
+    DELETE_ORPHAN_FILES_TIME,   // Time taken to delete orphan files
+    NUM_ORPHAN_FILES_DELETED,  // Number of orphan files deleted
+    NUM_ORPHAN_FILES_FAIL_TO_DELETE;  // Number of orphan files not deleted successfully
 
     @Override
     public int metricId() {
@@ -159,6 +164,8 @@ public class TableFunctionOperator implements SingleInputOperator {
 
   @Override
   public void noMoreToConsume() throws Exception {
+    tableFunction.noMoreToConsume();
+
     state.is(State.CAN_CONSUME);
     // if there are any buffered records remaining, we transition back to CAN_PRODUCE state else we are done
     state = tableFunction.hasBufferedRemaining() ? State.CAN_PRODUCE : State.DONE;

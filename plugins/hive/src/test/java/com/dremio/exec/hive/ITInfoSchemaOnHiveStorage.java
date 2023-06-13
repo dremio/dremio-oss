@@ -21,6 +21,7 @@ import org.junit.Test;
 import com.dremio.TestBuilder;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.hive.HiveTestDataGenerator;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Strings;
@@ -38,15 +39,17 @@ public class ITInfoSchemaOnHiveStorage extends HiveTestBase {
 
   @Test
   public void showTablesFromDb() throws Exception{
-    testBuilder()
+    TestBuilder tb = testBuilder()
         .sqlQuery("SHOW TABLES FROM hive.\"default\"")
         .unOrdered()
         .baselineColumns("TABLE_SCHEMA", "TABLE_NAME")
         .baselineValues("hive.default", "partition_pruning_test")
         .baselineValues("hive.default", "readtest")
-        .baselineValues("hive.default", "readtest_parquet")
-        .baselineValues("hive.default", "readtest_orc")
-        .baselineValues("hive.default", "empty_table")
+        .baselineValues("hive.default", "readtest_parquet");
+    for (String format : HiveTestDataGenerator.listStoreAsFormatsForTests()) {
+      tb.baselineValues("hive.default", "readtest_" + format);
+    }
+      tb.baselineValues("hive.default", "empty_table")
         .baselineValues("hive.default", "partitioned_empty_table")
         .baselineValues("hive.default", "infoschematest")
         .baselineValues("hive.default", "kv")
@@ -64,14 +67,18 @@ public class ITInfoSchemaOnHiveStorage extends HiveTestBase {
         .baselineValues("hive.default", "orc_with_two_files")
         .baselineValues("hive.default", "parquet_mult_rowgroups")
         .baselineValues("hive.default", "orccomplex")
-        .baselineValues("hive.default", "orccomplexorc")
+        .baselineValues("hive.default", "orcmap")
         .baselineValues("hive.default", "orclist")
-        .baselineValues("hive.default", "orclistorc")
         .baselineValues("hive.default", "orcstruct")
-        .baselineValues("hive.default", "orcstructorc")
-        .baselineValues("hive.default", "orcunion")
-        .baselineValues("hive.default", "orcunionorc")
-        .baselineValues("hive.default", "orcunion_int_input")
+        .baselineValues("hive.default", "orcunion");
+    for (String format : HiveTestDataGenerator.listStoreAsFormatsForTests()) {
+      tb.baselineValues("hive.default", "orccomplex" + format)
+        .baselineValues("hive.default", "orcmap" + format)
+        .baselineValues("hive.default", "orclist" + format)
+        .baselineValues("hive.default", "orcstruct" + format)
+        .baselineValues("hive.default", "orcunion" + format);
+    }
+      tb.baselineValues("hive.default", "orcunion_int_input")
         .baselineValues("hive.default", "orcunion_double_input")
         .baselineValues("hive.default", "orcunion_string_input")
         .baselineValues("hive.default", "parquetschemalearntest")
@@ -93,8 +100,6 @@ public class ITInfoSchemaOnHiveStorage extends HiveTestBase {
         .baselineValues("hive.default", "decimal_conversion_test_parquet_decimal_ext")
         .baselineValues("hive.default", "parquet_varchar_to_decimal_with_filter")
         .baselineValues("hive.default", "parquet_varchar_to_decimal_with_filter_ext")
-        .baselineValues("hive.default", "orcmap")
-        .baselineValues("hive.default", "orcmaporc")
         .baselineValues("hive.default", "orc_more_columns")
         .baselineValues("hive.default", "orc_more_columns_ext")
         .baselineValues("hive.default", "field_size_limit_test")
@@ -156,8 +161,24 @@ public class ITInfoSchemaOnHiveStorage extends HiveTestBase {
         .baselineValues("hive.default", "empty_float_field")
         .baselineValues("hive.default", "parquet_with_map_column")
         .baselineValues("hive.default", "flatten_orc")
-        .baselineValues("hive.default", "flatten_parquet")
-      .go();
+        .baselineValues("hive.default", "flatten_parquet");
+    for (String format : HiveTestDataGenerator.listStoreAsFormatsForTests()) {
+      tb.baselineValues("hive.default", "map_of_int_" + format)
+        .baselineValues("hive.default", "map_of_bigint_" + format)
+        .baselineValues("hive.default", "map_of_boolean_" + format)
+        .baselineValues("hive.default", "map_of_date_" + format)
+        .baselineValues("hive.default", "map_of_decimal_" + format)
+        .baselineValues("hive.default", "map_of_double_" + format)
+        .baselineValues("hive.default", "map_of_float_" + format)
+        .baselineValues("hive.default", "map_of_string_" + format)
+        .baselineValues("hive.default", "map_of_timestamp_" + format)
+        .baselineValues("hive.default", "map_of_varbinary_" + format)
+        .baselineValues("hive.default", "map_of_null_values_" + format)
+        .baselineValues("hive.default", "map_of_list_values_" + format)
+        .baselineValues("hive.default", "map_of_struct_values_" + format)
+        .baselineValues("hive.default", "map_of_map_values_" + format);
+    }
+    tb.go();
 
     testBuilder()
         .sqlQuery("SHOW TABLES IN hive.db1")
@@ -194,6 +215,7 @@ public class ITInfoSchemaOnHiveStorage extends HiveTestBase {
         .baselineValues("dfs_partition_inference")
         .baselineValues("dfs_test")
         .baselineValues("dfs_hadoop")
+        .baselineValues("dfs_hadoop_mutable")
         .baselineValues("dfs_test_hadoop")
         .baselineValues("dfs_static_test_hadoop")
         .baselineValues("dfs_root")

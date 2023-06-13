@@ -48,6 +48,7 @@ public final class OneArgNumericFunction extends SqlFunction {
     return SqlOperandCountRanges.of(1);
   }
 
+  @Override
   public boolean checkOperandTypes(SqlCallBinding sqlCallBinding, boolean throwOnFailure) {
     if (sqlCallBinding.operands().size() != 1) {
       return false;
@@ -57,6 +58,7 @@ public final class OneArgNumericFunction extends SqlFunction {
     return SqlTypeName.NUMERIC_TYPES.contains(relDataType.getSqlTypeName());
   }
 
+  @Override
   public RelDataType inferReturnType(
     SqlOperatorBinding opBinding) {
     return JavaTypeFactoryImpl.INSTANCE.createSqlType(SqlTypeName.DOUBLE);

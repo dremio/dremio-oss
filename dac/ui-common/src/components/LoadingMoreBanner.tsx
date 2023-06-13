@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Spinner } from "dremio-ui-lib/dist-esm";
+import { Spinner } from "dremio-ui-lib/components";
 import { getIntlContext } from "../contexts/IntlContext";
 export const LoadingMoreBanner = () => {
   return (

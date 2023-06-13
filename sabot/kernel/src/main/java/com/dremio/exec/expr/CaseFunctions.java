@@ -86,7 +86,7 @@ public class CaseFunctions {
           final AbstractFunctionHolder gtFnHolder = lookupIntFunction(GT_FUNCTION_NAME, context);
           final AbstractFunctionHolder ltFnHolder = lookupIntFunction(LT_FUNCTION_NAME, context);
           if (eqFnHolder != null && gtFnHolder != null && ltFnHolder != null) {
-            INSTANCE = lref = new CaseFunctions(eqFnHolder, gtFnHolder, ltFnHolder);
+            INSTANCE = new CaseFunctions(eqFnHolder, gtFnHolder, ltFnHolder);
           } else {
             throw new RuntimeException("Unable to load/find basic functions from registry. Should never happen");
           }

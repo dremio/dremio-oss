@@ -46,6 +46,7 @@ public class ExecToCoordTunnel extends JobResultsTunnel {
     this.endpoint = endpoint;
   }
 
+  @Override
   public void sendData(RpcOutcomeListener<Ack> outcomeListener, QueryWritableBatch data) {
     manager.runCommand(new SendBatch(outcomeListener, data));
   }

@@ -63,6 +63,7 @@ message JobSubmission {
 message ParentDatasetInfo {
   repeated string datasetPath = 1;
   optional com.dremio.service.namespace.dataset.proto.DatasetType type = 2;
+  optional string versionContext = 3;
 }
 
 message DownloadInfo {
@@ -82,6 +83,7 @@ message MaterializationSummary {
 
 message ScanPath {
   repeated string path = 1;
+  optional string versionContext = 2;
 }
 
 message JobFailureInfo {
@@ -119,7 +121,7 @@ message SpillJobDetails {
 
 message JobInfo {
   required JobId jobId = 1;
-  required string sql = 2;
+  required string sql = 2; // potentially truncated sql, is_truncated_sql is true if truncated
   optional com.dremio.proto.model.attempts.RequestType requestType = 3;
   optional string client = 4; // client from which job was submitted
   optional string user = 5;
@@ -140,7 +142,7 @@ message JobInfo {
   // list of all parents of parents.
   repeated com.dremio.service.namespace.dataset.proto.ParentDataset grandParents = 19;
   optional DownloadInfo downloadInfo = 20; // link to download data for UI_EXPORT jobs
-  optional string description = 21;
+  optional string description = 21; // it'll be 'NA' in case of RUN_SQL jobrequest types, as same data can be found in sql=2 above
   optional MaterializationSummary materializationFor = 22;
   optional double original_cost = 23 [default = 1.0];
   repeated string partitions = 24;
@@ -170,6 +172,7 @@ message JobInfo {
   repeated string matched_reflection_ids = 47;
   repeated string chosen_reflection_ids = 48;
   optional QueryLabel queryLabel = 49 [default = NONE];
+  optional bool is_truncated_sql = 50 [default = false];
 }
 
 message ResourceSchedulingInfo {
@@ -188,6 +191,7 @@ message ResourceSchedulingInfo {
 message JoinTable {
   optional int32 tableId = 1; // used to distinguish multiple instances of the same table in the query
   repeated string tableSchemaPath = 2;
+  optional string versionContext = 3;
 }
 
 // represents an equality condition
@@ -258,6 +262,7 @@ enum QueryType {
   FLIGHT = 15; // for queries submitted outside of dac using a FlightClient
   METADATA_REFRESH = 16; // Queries related to metadata refresh
   INTERNAL_ICEBERG_METADATA_DROP = 17; // Queries related to internal iceberg metadata drop
+  D2D = 18;
 }
 
 enum QueryLabel {
@@ -274,12 +279,18 @@ message JobStats {
   optional int64 inputRecords = 3;
   optional int64 outputRecords = 4;
   optional bool isOutputLimited = 5; // If true, the output was limited based on `planner.output_limit_size`
+  optional int64 addedFiles = 6; // DML specific stat
+  optional int64 removedFiles = 7; // DML specific stat
 }
 
 message JobResult {
   repeated JobAttempt attempts = 1;
   optional bool completed = 2 [default = true]; // because only "old" entries don't have this field, they are already completed
   optional SessionId sessionId = 3; // Store session id as value in the KVStore
+}
+
+message ExtraJobInfo {
+  optional string sql = 1; //full SQL text
 }
 
 message JobAttempt {
@@ -396,6 +407,7 @@ message DataSet {
   optional int32 datasetSizeRows = 5;
   repeated Reflection reflectionsDefined = 6;
   repeated string datasetPaths = 7;
+  optional string versionContext = 8;
 }
 
 message ScannedDataset {

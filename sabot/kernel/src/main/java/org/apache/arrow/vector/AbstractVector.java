@@ -94,6 +94,7 @@ public abstract class AbstractVector implements AutoCloseable {
     valueCount = 0;
   }
 
+  @Override
   public void close() {
     clear();
   }

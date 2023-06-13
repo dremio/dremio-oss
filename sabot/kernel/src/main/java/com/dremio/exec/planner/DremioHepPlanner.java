@@ -104,7 +104,7 @@ public class DremioHepPlanner extends HepPlanner {
     if (cancelFlag.isCancelRequested()) {
       ExceptionUtils.throwUserException(String.format("Query was cancelled because planning time exceeded %d seconds",
                                                       cancelFlag.getTimeoutInSecs()),
-                                        null, plannerSettings, phase, logger);
+                                        null, plannerSettings, phase, UserException.AttemptCompletionState.PLANNING_TIMEOUT, logger);
     }
 
     if (executionControls != null) {
@@ -115,7 +115,7 @@ public class DremioHepPlanner extends HepPlanner {
       super.checkCancel();
     } catch (CalciteException e) {
       if (plannerSettings.isCancelledByHeapMonitor()) {
-        ExceptionUtils.throwUserException(plannerSettings.getCancelReason(), e, plannerSettings, phase, logger);
+        ExceptionUtils.throwUserException(plannerSettings.getCancelReason(), e, plannerSettings, phase, UserException.AttemptCompletionState.HEAP_MONITOR_C, logger);
       } else {
         ExceptionUtils.throwUserCancellationException(plannerSettings);
       }

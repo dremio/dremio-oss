@@ -23,7 +23,7 @@ yarn-error.log*
 package-lock.json
 
 dist-*
-example/manifest.json
+iconmanifest.json
 !.config
 !.npmrc
 !.storybook

@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-hive2-plugin-parent</artifactId>
-    <version>24.0.0-202302100528110223-3a169b7c</version>
+    <version>24.1.0-202306130653310132-d30779f6</version>
   </parent>
 
   <artifactId>dremio-hive2-plugin</artifactId>
@@ -37,7 +37,6 @@
     <azure-datalake.version>${plugin.hive2.azure-datalake.version}</azure-datalake.version>
     <hadoop-azure.version>${plugin.hive2.hadoop-azure.version}</hadoop-azure.version>
     <hadoop-azure-datalake.version>${plugin.hive2.hadoop-azure-datalake.version}</hadoop-azure-datalake.version>
-    <aws-sdk.version>${plugin.hive2.aws-sdk.version}</aws-sdk.version>
     <hadoop.version>${plugin.hive2.hadoop.version}</hadoop.version>
     <hive.version>${plugin.hive2.hive.version}</hive.version>
     <hbase.version>${plugin.hive2.hbase.version}</hbase.version>
@@ -871,6 +870,14 @@
       <type>test-jar</type>
       <version>${hadoop.version}</version>
       <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <!-- The jsp-api 2.1 from Hadoop comes with an old version of javax.el.ExpressionFactory, which clashes
+               with the version expected by hibernate-validator. -->
+          <groupId>javax.servlet.jsp</groupId>
+          <artifactId>jsp-api</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency> <!-- needed for Hive test data generator -->
@@ -930,6 +937,10 @@
         <exclusion>
           <groupId>org.apache.calcite.avatica</groupId>
           <artifactId>*</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.pentaho</groupId>
+          <artifactId>pentaho-aggdesigner-algorithm</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -1502,7 +1513,6 @@
         <dependency>
           <groupId>org.apache.hadoop</groupId>
           <artifactId>hadoop-azure</artifactId>
-          <scope>compile</scope>
         </dependency>
         <dependency>
           <groupId>com.dremio.contrib</groupId>

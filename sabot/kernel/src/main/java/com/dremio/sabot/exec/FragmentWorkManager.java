@@ -143,6 +143,7 @@ public class FragmentWorkManager implements Service, SafeExit {
    *
    * <p>This is intended to be used by {@link SabotNode#close()}.</p>
    */
+  @Override
   public void waitToExit() {
     synchronized(this) {
       if (fragmentExecutors == null || fragmentExecutors.size() == 0) {

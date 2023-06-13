@@ -24,17 +24,23 @@ import javax.annotation.Nullable;
 import javax.inject.Provider;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.CatalogUtil;
+import com.dremio.exec.catalog.EntityExplorer;
+import com.dremio.exec.catalog.TableVersionType;
+import com.dremio.exec.catalog.VersionedDatasetId;
 import com.dremio.exec.ops.ReflectionContext;
+import com.dremio.exec.planner.sql.SchemaUtilities;
 import com.dremio.exec.planner.sql.parser.SqlCreateReflection;
 import com.dremio.exec.planner.sql.parser.SqlCreateReflection.MeasureType;
 import com.dremio.exec.planner.sql.parser.SqlCreateReflection.NameAndMeasures;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.sys.accel.AccelerationDetailsPopulator;
 import com.dremio.exec.store.sys.accel.AccelerationManager;
 import com.dremio.exec.store.sys.accel.LayoutDefinition;
 import com.dremio.exec.store.sys.accel.LayoutDefinition.Type;
 import com.dremio.service.accelerator.AccelerationUtils;
 import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.reflection.proto.DimensionGranularity;
 import com.dremio.service.reflection.proto.ExternalReflection;
@@ -46,6 +52,7 @@ import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionGoalState;
 import com.dremio.service.reflection.proto.ReflectionMeasureField;
 import com.dremio.service.reflection.proto.ReflectionType;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
@@ -57,17 +64,17 @@ public class AccelerationManagerImpl implements AccelerationManager {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AccelerationManagerImpl.class);
 
-  private final Provider<NamespaceService> namespaceService;
   private final Provider<ReflectionAdministrationService.Factory> reflectionAdministrationServiceFactory;
   private final Provider<ReflectionService> reflectionService;
+  private final Provider<CatalogService> catalogService;
 
   public AccelerationManagerImpl(
     Provider<ReflectionService> reflectionService,
     Provider<ReflectionAdministrationService.Factory> reflectionAdministrationServiceFactory,
-    Provider<NamespaceService> namespaceService) {
+    Provider<CatalogService> catalogService) {
     super();
     this.reflectionService = reflectionService;
-    this.namespaceService = namespaceService;
+    this.catalogService = catalogService;
     this.reflectionAdministrationServiceFactory = reflectionAdministrationServiceFactory;
   }
 
@@ -81,18 +88,21 @@ public class AccelerationManagerImpl implements AccelerationManager {
   }
 
   @Override
-  public void addLayout(List<String> path, LayoutDefinition definition, ReflectionContext reflectionContext) {
-    final NamespaceKey key = new NamespaceKey(path);
-    final DatasetConfig dataset;
-
+  public void addLayout(SchemaUtilities.TableWithPath tableWithPath, LayoutDefinition definition, ReflectionContext reflectionContext) {
+    final NamespaceKey key = new NamespaceKey(tableWithPath.getPath());
+    final DatasetConfig datasetConfig;
+    final EntityExplorer catalog = CatalogUtil.getSystemCatalogForReflections(catalogService.get());
+    String datasetId = null;
     try {
-      dataset = namespaceService.get().getDataset(key);
-      if(dataset == null) {
+      datasetId = tableWithPath.getTable().getDatasetConfig().getId().getId();
+      datasetConfig =  CatalogUtil.getDatasetConfig(catalog, datasetId);
+      if(datasetConfig == null) {
         throw UserException.validationError().message("Unable to find requested dataset %s.", key).build(logger);
       }
     } catch(Exception e) {
       throw UserException.validationError(e).message("Unable to find requested dataset %s.", key).build(logger);
     }
+    validateReflectionSupportForTimeTravelOnArctic(tableWithPath.getPath().get(0), datasetId, (Catalog) catalog);
 
     ReflectionGoal goal = new ReflectionGoal();
     ReflectionDetails details = new ReflectionDetails();
@@ -111,7 +121,7 @@ public class AccelerationManagerImpl implements AccelerationManager {
     goal.setArrowCachingEnabled(definition.getArrowCachingEnabled());
     goal.setState(ReflectionGoalState.ENABLED);
     goal.setType(definition.getType() == Type.AGGREGATE ? ReflectionType.AGGREGATION : ReflectionType.RAW);
-    goal.setDatasetId(dataset.getId().getId());
+    goal.setDatasetId(datasetConfig.getId().getId());
 
     reflectionAdministrationServiceFactory.get().get(reflectionContext).create(goal);
   }
@@ -185,10 +195,9 @@ public class AccelerationManagerImpl implements AccelerationManager {
   }
 
   @Override
-  public void dropLayout(List<String> path, final String layoutIdOrName, ReflectionContext reflectionContext) {
-    NamespaceKey key = new NamespaceKey(path);
+  public void dropLayout(SchemaUtilities.TableWithPath tableWithPath, final String layoutIdOrName, ReflectionContext reflectionContext) {
     ReflectionAdministrationService administrationReflectionService = reflectionAdministrationServiceFactory.get().get(reflectionContext);
-    for (ReflectionGoal rg : administrationReflectionService.getReflectionsByDatasetPath(key)) {
+    for (ReflectionGoal rg : administrationReflectionService.getReflectionsByDatasetId(tableWithPath.getTable().getDatasetConfig().getId().getId())) {
       if (rg.getId().getId().equals(layoutIdOrName) || layoutIdOrName.equals(rg.getName())) {
         administrationReflectionService.remove(rg);
         // only match first and exist.
@@ -196,7 +205,7 @@ public class AccelerationManagerImpl implements AccelerationManager {
       }
     }
 
-    Optional<ExternalReflection> er = StreamSupport.stream(administrationReflectionService.getExternalReflectionByDatasetPath(path).spliterator(), false)
+    Optional<ExternalReflection> er = StreamSupport.stream(administrationReflectionService.getExternalReflectionByDatasetPath(tableWithPath.getPath()).spliterator(), false)
       .filter(externalReflection -> {
         return layoutIdOrName.equalsIgnoreCase(externalReflection.getName()) ||
           layoutIdOrName.equals(externalReflection.getId());
@@ -211,10 +220,11 @@ public class AccelerationManagerImpl implements AccelerationManager {
   }
 
   @Override
-  public void toggleAcceleration(List<String> path, Type type, boolean enable, ReflectionContext reflectionContext) {
+  public void toggleAcceleration(SchemaUtilities.TableWithPath tableWithPath, Type type, boolean enable, ReflectionContext reflectionContext) {
     Exception ex = null;
     ReflectionAdministrationService administrationReflectionService = reflectionAdministrationServiceFactory.get().get(reflectionContext);
-    for(ReflectionGoal g : administrationReflectionService.getReflectionsByDatasetPath(new NamespaceKey(path))) {
+
+    for(ReflectionGoal g : administrationReflectionService.getReflectionsByDatasetId(tableWithPath.getTable().getDatasetConfig().getId().getId())) {
       if(
           (type == Type.AGGREGATE && g.getType() != ReflectionType.AGGREGATION) ||
           (type == Type.RAW && g.getType() != ReflectionType.RAW) ||
@@ -247,7 +257,7 @@ public class AccelerationManagerImpl implements AccelerationManager {
 
   @Override
   public AccelerationDetailsPopulator newPopulator() {
-    return new ReflectionDetailsPopulatorImpl(namespaceService.get(), reflectionService.get());
+    return new ReflectionDetailsPopulatorImpl( reflectionService.get(), catalogService.get());
   }
 
   @SuppressWarnings("unchecked")
@@ -257,5 +267,26 @@ public class AccelerationManagerImpl implements AccelerationManager {
       return (T) reflectionService.get();
     }
     return null;
+  }
+
+  // This helper is to determine if there ia TIMESTAMP specified on an Arctic table.
+  // We want to disallow AT TIMESTAMP specifiication when creating reflections. This is because the VersionDatasetId
+  // will not contain the branch information if we allow this. So when we later go to lookup the table using the saved VersionedDatasetId,
+  // we won't have the branch information to lookup the table in Nessie and will always lookup only in the default branch.
+  // Eg if the currrent context is dev and we are creating a reflection AT TIMESTAMP T1 , the table is resolved to <dev + T1>.
+  // Later when we lookup the table, we  don't save the 'dev' branch context in it, so we will lookup the tableat <default branch + T1>.
+  private void validateReflectionSupportForTimeTravelOnArctic(String source, String datasetId, Catalog catalog) {
+    VersionedDatasetId versionedDatasetId = null;
+    try {
+      // first check to see if it's a VersionedDatasetId
+      versionedDatasetId = VersionedDatasetId.fromString(datasetId);
+    } catch (JsonProcessingException e) {
+      // Assume this is a non versioned dataset id .
+      return;
+    }
+    if ((CatalogUtil.requestedPluginSupportsVersionedTables(source, catalog)) &&
+      versionedDatasetId.getVersionContext().getType() == TableVersionType.TIMESTAMP) {
+      throw UserException.validationError().message("Cannot create reflection on versioned table or view with TIMESTAMP specified. Please use BRANCH, TAG or COMMIT instead.").build(logger);
+    }
   }
 }

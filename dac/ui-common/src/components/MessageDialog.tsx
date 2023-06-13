@@ -20,7 +20,7 @@ import {
   type ModalContainerProps,
   type DialogContentProps,
   IconButton,
-} from "dremio-ui-lib/dist-esm";
+} from "dremio-ui-lib/components";
 
 type MessageDialogProps = ModalContainerProps &
   DialogContentProps & { expandable: boolean };

@@ -21,4 +21,51 @@ option java_outer_classname = "Util";
 
 package com.dremio.services.nessie.grpc.proto;
 
+import "google/protobuf/timestamp.proto";
+
 message Empty {}
+
+message CommitMeta {
+  optional string hash = 1;
+  optional string committer = 2;
+  optional string author = 3;
+  optional string signedOffBy = 4;
+  string message = 5;
+  optional google.protobuf.Timestamp commitTime = 6;
+  optional google.protobuf.Timestamp authorTime = 7;
+  map<string, string> properties = 8;
+  repeated string parentHashes = 9;
+}
+
+message Reference {
+  oneof type {
+    Branch branch = 1;
+    Tag tag = 2;
+    Detached detached = 3;
+  }
+}
+
+message Branch {
+  string name = 1;
+  optional string hash = 2;
+  optional ReferenceMetadata metadata = 3;
+}
+
+message Tag {
+  string name = 1;
+  optional string hash = 2;
+  optional ReferenceMetadata metadata = 3;
+}
+
+message Detached {
+  optional string hash = 2;
+  optional ReferenceMetadata metadata = 3;
+}
+
+message ReferenceMetadata {
+  optional int32 numCommitsAhead = 1;
+  optional int32 numCommitsBehind = 2;
+  optional CommitMeta commitMetaOfHEAD = 3;
+  optional string commonAncestorHash = 4;
+  optional int64 numTotalCommits = 5;
+}

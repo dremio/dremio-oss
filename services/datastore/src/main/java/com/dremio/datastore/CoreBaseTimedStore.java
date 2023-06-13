@@ -41,6 +41,7 @@ abstract class CoreBaseTimedStore<K, V> implements CoreKVStore<K, V> {
     return kvStore;
   }
 
+  @Override
   public String getName() {
     return name;
   }

@@ -141,6 +141,11 @@ public abstract class ScanRelBase extends TableScan {
       .map(IcebergMetadata::getSnapshotId)
       .ifPresent(snapshotId -> pw.item("snapshot", snapshotId));
 
+    Optional.ofNullable(tableMetadata)
+      .map(TableMetadata::getVersionContext)
+      .filter(x -> x != null)
+      .ifPresent(versionContext -> pw.item("version", versionContext));
+
     if(projectedColumns != null){
       pw.item("columns", FluentIterable.from(projectedColumns).transform(new Function<SchemaPath, String>(){
 

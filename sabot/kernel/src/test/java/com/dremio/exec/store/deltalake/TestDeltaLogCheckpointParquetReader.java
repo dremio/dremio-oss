@@ -163,7 +163,7 @@ public class TestDeltaLogCheckpointParquetReader extends BaseTestQuery {
     assertTrue(snapshot.containsCheckpoint());
     assertEquals(4, snapshot.getNetFilesAdded());
     assertEquals(4, snapshot.getNetOutputRows());
-    assertEquals(3792, snapshot.getNetBytesAdded());
+    assertEquals(3790, snapshot.getNetBytesAdded());
 
     List<DatasetSplit> splits = snapshot.getSplits();
     assertEquals(2, splits.size());

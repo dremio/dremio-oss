@@ -28,6 +28,7 @@ import {
   getResourceTree,
   getStarredItemIds,
   getStarredResources,
+  getResourceTreeModal,
 } from "selectors/tree";
 import { fetchScripts, setActiveScript } from "@app/actions/resources/scripts";
 
@@ -48,6 +49,12 @@ import {
 } from "@app/components/Tree/resourceTreeUtils";
 import { getViewState } from "@app/selectors/resources";
 import clsx from "clsx";
+import {
+  FeaturesFlagsResource,
+  loadFeatureFlags,
+} from "@app/exports/resources/FeaturesFlagsResource";
+import { CATALOG_ARS_ENABLED } from "@app/exports/flags/CATALOG_ARS_ENABLED";
+import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 
 export type ResourceTreeContainerProps = {
   className?: string;
@@ -77,6 +84,7 @@ export type ResourceTreeContainerProps = {
   loadingItems: object;
   datasetsPanel: boolean;
   stopAtDatasets: boolean;
+  resourceTreeModal: any;
   onChange: () => void;
   insertFullPathAtCursor: () => void;
   handleSidebarCollapse: () => void;
@@ -117,6 +125,7 @@ export const ResourceTreeContainer = ({
   loadingItems,
   datasetsPanel,
   stopAtDatasets,
+  resourceTreeModal,
   onChange,
   insertFullPathAtCursor,
   handleSidebarCollapse,
@@ -200,6 +209,17 @@ export const ResourceTreeContainer = ({
     currNode: object
   ): any => {
     if (isNodeExpanded) return;
+    if (fromModal) {
+      return dispatchLoadResourceTree(
+        LOAD_RESOURCE_TREE,
+        RESOURCE_TREE_VIEW_ID,
+        fullPath,
+        params,
+        isNodeExpanded,
+        currNode,
+        fromModal
+      );
+    }
     if (entityType === entityTypes.container) {
       return dispatchLoadResourceTree(
         LOAD_RESOURCE_TREE,
@@ -229,13 +249,20 @@ export const ResourceTreeContainer = ({
     }
   };
 
-  const fetchStarredResourceTreeResources = (
+  const fetchStarredResourceTreeResources = async (
     entityType: string,
     fullPath: string | undefined,
     params: object,
     isNodeExpanded: boolean | undefined,
     currNode: any
   ) => {
+    const skipFetch = !getSonarContext()?.getSelectedProjectId;
+    if (!skipFetch) await loadFeatureFlags(CATALOG_ARS_ENABLED as string); //Fetch feature flag
+    const skipStarredLoading = !!FeaturesFlagsResource.value?.get(
+      CATALOG_ARS_ENABLED as string
+    );
+    if (skipStarredLoading) return;
+
     if (isNodeExpanded === undefined) {
       return dispatchLoadStarredResources();
     } else if (!isNodeExpanded && entityType === entityTypes.container) {
@@ -316,7 +343,11 @@ export const ResourceTreeContainer = ({
         datasetsPanel={datasetsPanel}
         style={style}
         resourceTree={
-          tabRendered === starTabNames.all ? resourceTree : starredResourceTree
+          fromModal
+            ? resourceTreeModal
+            : tabRendered === starTabNames.all
+            ? resourceTree
+            : starredResourceTree
         }
         sources={sources}
         starredItems={starredItems}
@@ -350,6 +381,7 @@ const mapStateToProps = (state: { nessie: any; account: any }) => {
   return {
     resourceTree: getResourceTree(state),
     starredResourceTree: getStarredResources(state),
+    resourceTreeModal: getResourceTreeModal(state),
     starredItems: getStarredItemIds(state),
     sources: getSortedSources(state),
     user: state.account.get("user"),

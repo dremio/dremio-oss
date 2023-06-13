@@ -57,6 +57,7 @@ class AggJoinFinder extends RoutingShuttle {
     return foundAggOnJoin;
   }
 
+  @Override
   public RelNode visit(LogicalAggregate aggregate) {
     toState(aggregate, State.AGG);
     return visitChildren(aggregate);
@@ -98,6 +99,7 @@ class AggJoinFinder extends RoutingShuttle {
     return visitChildren(join);
   }
 
+  @Override
   public RelNode visit(LogicalJoin join) {
     return visitJoin(join);
   }

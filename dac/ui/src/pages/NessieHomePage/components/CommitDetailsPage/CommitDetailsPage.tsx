@@ -24,7 +24,7 @@ import { useNessieContext } from "../../utils/context";
 import "./CommitDetailsPage.less";
 
 function CommitDetailsPage({ params }: { params: any }) {
-  const { api } = useNessieContext();
+  const { apiV2 } = useNessieContext();
   const [branchName, commitHash] = useMemo(() => {
     const name = decodeURIComponent(params?.branchName || "");
     const hash = params?.commitHash || "";
@@ -37,11 +37,11 @@ function CommitDetailsPage({ params }: { params: any }) {
         !branchName || !commitHash
           ? null
           : () =>
-              api.getCommitLog({
+              apiV2.getCommitLogV2({
                 ref: branchName,
                 filter: `commit.hash == "${commitHash}"`,
               }),
-      [branchName, commitHash, api]
+      [branchName, commitHash, apiV2]
     )
   );
 

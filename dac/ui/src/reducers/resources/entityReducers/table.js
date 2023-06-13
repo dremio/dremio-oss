@@ -41,7 +41,7 @@ export default function table(state, action) {
       }
       return state;
     case LOAD_NEXT_ROWS_SUCCESS: {
-      const { rows, columns } = action.payload;
+      const { rows = [], columns = [] } = action?.payload || {};
       const { offset, datasetVersion } = action.meta;
       const oldRows =
         state.getIn(["tableData", datasetVersion, "rows"]) || Immutable.List();

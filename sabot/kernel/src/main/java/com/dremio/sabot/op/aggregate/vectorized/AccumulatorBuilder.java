@@ -100,7 +100,7 @@ public class AccumulatorBuilder {
       ImmutableList<LogicalExpression> exprCopy = ImmutableList.copyOf(expr);
 
       /* COUNT(1) */
-      if (funcName.equals("count") && (exprCopy.isEmpty() || (exprCopy.size() == 1 && isCountLiteral(exprCopy.get(0))))) {
+      if ("count".equals(funcName) && (exprCopy.isEmpty() || (exprCopy.size() == 1 && isCountLiteral(exprCopy.get(0))))) {
         accumulatorTypes[i] = (byte)AccumulatorType.COUNT1.ordinal();
         /* count1 doesn't need an input accumulator vector */
         inputVectors.add(null);

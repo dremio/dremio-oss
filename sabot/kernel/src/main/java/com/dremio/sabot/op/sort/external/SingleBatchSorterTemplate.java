@@ -34,6 +34,7 @@ public abstract class SingleBatchSorterTemplate implements SingleBatchSorterInte
 
   private SelectionVector2 vector2;
 
+  @Override
   public void setup(FunctionContext context, SelectionVector2 vector2, VectorAccessible incoming) throws SchemaChangeException{
     Preconditions.checkNotNull(vector2);
     this.vector2 = vector2;

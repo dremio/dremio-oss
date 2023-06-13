@@ -16,7 +16,6 @@
 package com.dremio.exec.planner.sql.handlers.refresh;
 
 import static com.dremio.exec.store.metadatarefresh.RefreshDatasetTestUtils.fsDelete;
-import static com.dremio.exec.store.metadatarefresh.RefreshDatasetTestUtils.setupLocalFS;
 
 import java.nio.file.Paths;
 

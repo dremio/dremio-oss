@@ -17,9 +17,12 @@ package com.dremio.exec.planner.serializer.logical;
 
 import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.catalog.DremioPrepareTable;
+import com.dremio.exec.catalog.DremioTranslatableTable;
+import com.dremio.exec.catalog.TableVersionContext;
 import com.dremio.exec.planner.serializer.RelNodeSerde;
 import com.dremio.plan.serialization.PScanCrel;
 import com.dremio.service.namespace.NamespaceKey;
+import com.google.common.base.Strings;
 
 /**
  * Serde for ScanCrel
@@ -39,6 +42,9 @@ public final class ScanCrelSerde implements RelNodeSerde<ScanCrel, PScanCrel> {
     if (scan.getTableMetadata().getVersion() != null) {
       builder.setDatasetVersion(scan.getTableMetadata().getVersion());
     }
+    if (scan.getTableMetadata().getVersionContext() != null) {
+      builder.setVersionContext(scan.getTableMetadata().getVersionContext().serialize());
+    }
     return builder
         .addAllPath(scan.getTableMetadata().getName().getPathComponents())
         .build();
@@ -46,11 +52,16 @@ public final class ScanCrelSerde implements RelNodeSerde<ScanCrel, PScanCrel> {
 
   @Override
   public ScanCrel deserialize(PScanCrel node, RelFromProto s) {
-    DremioPrepareTable table = s.tables().getTable(new NamespaceKey(node.getPathList()));
-    if(table == null) {
-      throw new UnsupportedOperationException("Unable to find table.");
+    if (Strings.isNullOrEmpty(node.getVersionContext())) {
+      DremioPrepareTable table = s.tables().getTable(new NamespaceKey(node.getPathList()));
+      if(table == null) {
+        throw new UnsupportedOperationException("Unable to find table.");
+      }
+      return (ScanCrel) table.toRel(s.toRelContext());
+    } else {
+      DremioTranslatableTable table = s.tables().getTableSnapshot(new NamespaceKey(node.getPathList()),
+        node.getVersionContext() == null ?  null : TableVersionContext.deserialize(node.getVersionContext()));
+      return (ScanCrel) table.toRel(s.toRelContext(), null);
     }
-
-    return (ScanCrel) table.toRel(s.toRelContext());
   }
 }

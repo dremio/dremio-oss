@@ -327,8 +327,7 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
         if (useCodec) {
           /* if we are serializing the spilled data, compress the ArrowBufs */
           writeCompressedBuf(buf, output);
-        }
-        else {
+        } else {
           writeBuf(buf, output);
         }
       }

@@ -20,14 +20,18 @@ import PropTypes from "prop-types";
 
 import SelectConnectionButton from "components/SelectConnectionButton";
 import { sourceTypesIncludeS3 } from "utils/sourceUtils";
+import { sourceTypesIncludeSampleSource } from "utils/sourceUtils";
 import {
   isDatabaseType,
   isMetastoreSourceType,
   isDataPlaneSourceType,
+  AZURE_SAMPLE_SOURCE,
 } from "@app/constants/sourceTypes.js";
-import { isDataPlaneEnabled } from "@inject/utils/dataPlaneUtils";
+import { isNotSoftware } from "dyn-load/utils/versionUtils";
 import "pages/HomePage/components/modals/AddSourceModal/SelectSourceType.less";
 import SearchSource from "./SearchSource";
+import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
+import VENDORS from "@inject/constants/vendors";
 
 @injectIntl
 export default class SelectSourceType extends Component {
@@ -128,10 +132,13 @@ export default class SelectSourceType extends Component {
     const { sourceTypes, intl } = this.props;
     const { filteredSourceTypes } = this.state;
     const sources = filteredSourceTypes || sourceTypes;
+    const isAzureProject =
+      getSonarContext()?.getProjectVendorType?.() === VENDORS.AZURE;
     const externalSources = sources.filter(
       (source) =>
         isDatabaseType(source.sourceType) &&
-        !isDataPlaneSourceType(source.sourceType)
+        !isDataPlaneSourceType(source.sourceType) &&
+        !(isAzureProject && source.sourceType === AZURE_SAMPLE_SOURCE)
     );
     return (
       externalSources.length > 0 && (
@@ -169,7 +176,11 @@ export default class SelectSourceType extends Component {
           <div className="main">
             <div className="source-type-section">
               <div className="source-type-header">
-                {intl.formatMessage({ id: "Source.Nessie" })}
+                {intl.formatMessage({
+                  id: isNotSoftware()
+                    ? "Source.ArcticCatalogs"
+                    : "Source.NessieCatalogs",
+                })}
               </div>
               {this.renderSourceTypes(
                 this.getEnabledSourceTypes(dataPlaneSources)
@@ -188,11 +199,15 @@ export default class SelectSourceType extends Component {
     const { sourceTypes, intl } = this.props;
     const { filteredSourceTypes, searchString } = this.state;
     const sources = filteredSourceTypes || sourceTypes;
+    const isAzureProject = isNotSoftware()
+      ? getSonarContext()?.getProjectVendorType?.() === VENDORS?.AZURE
+      : false;
     const fileStoreSources = sources.filter(
       (source) =>
         !isDatabaseType(source.sourceType) &&
         !isMetastoreSourceType(source.sourceType) &&
-        !isDataPlaneSourceType(source.sourceType)
+        !isDataPlaneSourceType(source.sourceType) &&
+        !(isAzureProject && source.sourceType === AZURE_SAMPLE_SOURCE)
     );
     const tableStoreSources = sources.filter((source) =>
       isMetastoreSourceType(source.sourceType)
@@ -201,6 +216,9 @@ export default class SelectSourceType extends Component {
     const renderSampleSource = filteredSourceTypes
       ? sampleSource.toLowerCase().indexOf(searchString) > -1
       : true;
+    const isSampleSourceIncludedInSources = isAzureProject
+      ? sourceTypesIncludeSampleSource(sourceTypes)
+      : sourceTypesIncludeS3(sourceTypes);
 
     return (
       (fileStoreSources.length > 0 ||
@@ -229,7 +247,7 @@ export default class SelectSourceType extends Component {
                 {this.renderSourceTypes(
                   this.getEnabledSourceTypes(fileStoreSources)
                 )}
-                {sourceTypesIncludeS3(sourceTypes) &&
+                {isSampleSourceIncludedInSources &&
                   renderSampleSource &&
                   this.renderSampleSource()}
                 {this.renderSourceTypes(
@@ -247,7 +265,7 @@ export default class SelectSourceType extends Component {
     return (
       <>
         {this.renderSearchBox()}
-        {isDataPlaneEnabled && this.renderDataPlanSources()}
+        {this.renderDataPlanSources()}
         {this.renderDataLakeSources()}
         {this.renderExternalSources()}
       </>

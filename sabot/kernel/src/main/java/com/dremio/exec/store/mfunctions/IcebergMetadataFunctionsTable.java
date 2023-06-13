@@ -27,7 +27,8 @@ public enum IcebergMetadataFunctionsTable {
   TABLE_HISTORY(IcebergMetadataFunctionsSchema.getHistoryRecordSchema(),MetadataTableType.HISTORY),
   TABLE_SNAPSHOT(IcebergMetadataFunctionsSchema.getSnapshotRecordSchema(),MetadataTableType.SNAPSHOTS),
   TABLE_MANIFESTS(IcebergMetadataFunctionsSchema.getManifestFilesRecordSchema(),MetadataTableType.MANIFESTS),
-  TABLE_FILES(IcebergMetadataFunctionsSchema.getTableFilesRecordSchema(),MetadataTableType.FILES);
+  TABLE_FILES(IcebergMetadataFunctionsSchema.getTableFilesRecordSchema(),MetadataTableType.FILES),
+  TABLE_PARTITIONS(IcebergMetadataFunctionsSchema.getPartitionsRecordSchema(),MetadataTableType.PARTITIONS);
 
   private final BatchSchema recordSchema;
   private final MetadataTableType tableType;

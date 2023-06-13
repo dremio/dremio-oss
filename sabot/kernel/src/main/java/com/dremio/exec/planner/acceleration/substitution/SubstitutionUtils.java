@@ -24,14 +24,18 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
+import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttle;
 import org.apache.calcite.rel.RelVisitor;
 import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.externalize.RelWriterImpl;
 import org.apache.calcite.sql.SqlExplainLevel;
+import org.apache.calcite.util.Pair;
 
 import com.dremio.exec.calcite.logical.ScanCrel;
+import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.catalog.TableVersionContext;
 import com.dremio.exec.planner.RoutingShuttle;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.exec.planner.acceleration.ExpansionNode;
@@ -58,14 +62,14 @@ public final class SubstitutionUtils {
 
   private SubstitutionUtils() { }
 
-  public static Set<List<String>> findExpansionNodes(final RelNode node) {
-    final Set<List<String>> usedVdsPaths = new LinkedHashSet<>();
+  public static Set<VersionedPath> findExpansionNodes(final RelNode node) {
+    final Set<VersionedPath> usedVdsPaths = new LinkedHashSet<>();
     final RelVisitor visitor = new RelVisitor() {
       @Override
       public void visit(final RelNode node, final int ordinal, final RelNode parent) {
         if (node instanceof ExpansionNode) {
           ExpansionNode expansionNode = (ExpansionNode) node;
-          usedVdsPaths.add(expansionNode.getPath().getPathComponents());
+          usedVdsPaths.add(VersionedPath.of(expansionNode.getPath().getPathComponents(), expansionNode.getVersionContext()));
         }
         super.visit(node, ordinal, parent);
       }
@@ -78,12 +82,16 @@ public final class SubstitutionUtils {
     return node instanceof TableScan && !(node instanceof ScanCrel && !((ScanCrel) node).isSubstitutable());
   }
 
-  public static Set<List<String>> findTables(final RelNode node) {
-    final Set<List<String>> usedTables = Sets.newLinkedHashSet();
+  public static Set<VersionedPath> findTables(final RelNode node) {
+    final Set<VersionedPath> usedTables = Sets.newLinkedHashSet();
     final RelVisitor visitor = new RelVisitor() {
       @Override public void visit(final RelNode node, final int ordinal, final RelNode parent) {
         if (isSubstitutableScan(node)) {
-          usedTables.add(node.getTable().getQualifiedName());
+          TableVersionContext versionContext = null;
+          if (node instanceof ScanCrel) {
+            versionContext = ((ScanCrel)node).getTableMetadata().getVersionContext();
+          }
+          usedTables.add(VersionedPath.of(node.getTable().getQualifiedName(), versionContext));
         }
         super.visit(node, ordinal, parent);
       }
@@ -123,12 +131,16 @@ public final class SubstitutionUtils {
    * Returns whether {@code table} uses one or more of the tables in
    * {@code usedTables}.
    */
-  public static boolean usesTableOrVds(final Set<List<String>> tables, final Set<List<String>> vdsPaths, final Set<ExternalQueryDescriptor> externalQueries, final RelNode rel) {
+  public static boolean usesTableOrVds(final Set<VersionedPath> tables, final Set<VersionedPath> vdsPaths, final Set<ExternalQueryDescriptor> externalQueries, final RelNode rel) {
     final Pointer<Boolean> used = new Pointer<>(false);
     rel.accept(new RoutingShuttle() {
       @Override
       public RelNode visit(TableScan scan) {
-        if (tables.contains(scan.getTable().getQualifiedName())) {
+        TableVersionContext versionContext = null;
+        if (scan instanceof ScanCrel) {
+          versionContext = ((ScanCrel)scan).getTableMetadata().getVersionContext();
+        }
+        if (tables.contains(VersionedPath.of(scan.getTable().getQualifiedName(), versionContext))) {
           used.value = true;
         }
         return scan;
@@ -147,7 +159,7 @@ public final class SubstitutionUtils {
         }
         if (other instanceof ExpansionNode) {
           ExpansionNode expansionNode = (ExpansionNode) other;
-          if (vdsPaths.contains(expansionNode.getPath().getPathComponents())) {
+          if (vdsPaths.contains(VersionedPath.of(expansionNode.getPath().getPathComponents(), expansionNode.getVersionContext()))) {
             used.value = true;
             return other;
           }
@@ -219,4 +231,33 @@ public final class SubstitutionUtils {
     return queryCode == candidateCode;
   }
 
+  /**
+   * VersionedPath is a table/view path with an optional TableVersionContext.
+   * For example, an Arctic table could have a "schema"."table" path with a "BRANCH main" table version context.
+   * Non-versioned tables such as RDBMS or filesystem parquet will have a null TableVersionContext.
+   *
+   * Since VersionedPath extends {@link Pair}, we can conveniently use VersionedPath as keys with various Java collections.
+   */
+  public static final class VersionedPath extends Pair<List<String>, TableVersionContext> {
+    /**
+     * Creates a Pair.
+     *
+     * @param path  left value
+     * @param versionContext right value
+     */
+    private VersionedPath(List<String> path, TableVersionContext versionContext) {
+      super(path, versionContext);
+    }
+    public static VersionedPath of(List<String> path, TableVersionContext versionContext) {
+      return new VersionedPath(path, versionContext);
+    }
+    public static VersionedPath of(List<String> path) {
+      return new VersionedPath(path, null);
+    }
+  }
+
+  public static TableVersionContext getVersionContext(RelOptTable table) {
+    DremioTable dremioTable = Preconditions.checkNotNull(table.unwrap(DremioTable.class));
+    return dremioTable.getDataset().getVersionContext();
+  }
 }

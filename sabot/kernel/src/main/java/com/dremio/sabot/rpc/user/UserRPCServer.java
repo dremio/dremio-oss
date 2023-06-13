@@ -33,6 +33,8 @@ import org.apache.calcite.avatica.util.Quoting;
 import com.carrotsearch.hppc.IntHashSet;
 import com.dremio.common.utils.protos.ExternalIdHelper;
 import com.dremio.common.utils.protos.QueryWritableBatch;
+import com.dremio.context.RequestContext;
+import com.dremio.context.UserContext;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.sql.handlers.commands.MetadataProvider;
 import com.dremio.exec.planner.sql.handlers.commands.PreparedStatementProvider;
@@ -83,6 +85,7 @@ import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValue.OptionType;
 import com.dremio.service.users.AuthResult;
 import com.dremio.service.users.UserLoginException;
+import com.dremio.service.users.UserNotFoundException;
 import com.dremio.service.users.UserService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
@@ -206,8 +209,7 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
     final Span span;
     if(connection.getSession().isTracingEnabled()) {
       span = tracer.buildSpan("user_rpc_request").start();
-    }
-    else {
+    } else {
       span = NoopSpan.INSTANCE;
     }
 
@@ -233,7 +235,30 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
 
   protected void feedWork(UserClientConnectionImpl connection, int rpcType, byte[] pBody, ByteBuf dBody,
                         RequestHandle requestHandle, Span span, ResponseSender wrappedSender) throws RpcException {
-    feedWorkHelper(connection, rpcType, pBody, dBody, requestHandle, span, wrappedSender);
+    String userUUID;
+    final String userName = connection.getSession().getCredentials().getUserName();
+    try {
+      //Connection will always have the user session; Without user credentials, we must throw error if user not found
+      userUUID = getUserServiceProvider().get().getUser(userName).getUID().getId();
+    } catch (UserNotFoundException e) {
+      throw new RpcException("Could not find user UUID for userName: " + userName, e);
+    }
+
+    try {
+      RequestContext.current()
+        .with(UserContext.CTX_KEY, new UserContext(userUUID))
+        .call(() -> {
+          feedWorkHelper(connection, rpcType, pBody, dBody, requestHandle, span, wrappedSender);
+          return null;
+        });
+    } catch (Exception e) {
+      if (e instanceof RpcException) {
+        throw (RpcException) e;
+      } else {
+        throw new RpcException(e);
+      }
+    }
+
   }
 
   protected void feedWorkHelper(UserClientConnectionImpl connection, int rpcType, byte[] pBody, ByteBuf dBody,

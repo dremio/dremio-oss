@@ -141,54 +141,27 @@ public class CatalogResource {
     }
   }
 
-  @POST
-  @Path("/{id}/metadata/refresh")
-  public MetadataRefreshResponse refreshCatalogItemMetadata(@PathParam("id") String id,
-                                                            @QueryParam("deleteWhenMissing") Boolean delete,
-                                                            @QueryParam("forceUpdate") Boolean force,
-                                                            @QueryParam("autoPromotion") Boolean promotion) {
-    try {
-      boolean changed = false;
-      boolean deleted = false;
-      switch(catalogServiceHelper.refreshCatalogItemMetadata(id, delete, force, promotion)) {
-        case CHANGED:
-          changed = true;
-          break;
-        case UNCHANGED:
-          break;
-        case DELETED:
-          changed = true;
-          deleted = true;
-          break;
-        default:
-          throw new IllegalStateException();
-      }
-
-      return new MetadataRefreshResponse(changed, deleted);
-    } catch (IllegalArgumentException e) {
-      throw new NotFoundException(e.getMessage());
-    } catch (UnsupportedOperationException e) {
-      throw new BadRequestException(e.getMessage());
-    }
-  }
-
   @GET
   @Path("/by-path/{segment:.*}")
   public CatalogEntity getCatalogItemByPath(
-    @PathParam("segment") List<PathSegment> segments,
-    @QueryParam("include") final List<String> include,
-    @QueryParam("exclude") final List<String> exclude
-  ) throws NamespaceException, BadRequestException {
+      @PathParam("segment") List<PathSegment> segments,
+      @QueryParam("include") final List<String> include,
+      @QueryParam("exclude") final List<String> exclude,
+      @QueryParam("versionType") final String versionType,
+      @QueryParam("versionValue") final String versionValue)
+      throws NamespaceException, BadRequestException {
     List<String> pathList = new ArrayList<>();
 
     for (PathSegment segment : segments) {
-      // with query parameters we may get a empty final segment
+      // with query parameters we may get an empty final segment
       if (!segment.getPath().isEmpty()) {
         pathList.add(segment.getPath());
       }
     }
 
-    Optional<CatalogEntity> entity = catalogServiceHelper.getCatalogEntityByPath(pathList, include, exclude);
+    final Optional<CatalogEntity> entity =
+        catalogServiceHelper.getCatalogEntityByPath(
+            pathList, include, exclude, versionType, versionValue);
 
     if (!entity.isPresent()) {
       throw new NotFoundException(String.format("Could not find entity with path [%s]", pathList));
@@ -200,9 +173,7 @@ public class CatalogResource {
   @GET
   @Path("/search")
   public ResponseList<CatalogItem> search(@QueryParam("query") String query) throws NamespaceException {
-    ResponseList<CatalogItem> catalogItems = new ResponseList<>(catalogServiceHelper.search(query));
-
-    return catalogItems;
+    return new ResponseList<>(catalogServiceHelper.search(query));
   }
 
   /**

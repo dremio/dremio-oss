@@ -30,6 +30,7 @@ import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.physical.base.ViewOptions;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.parser.SqlDropView;
+import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.service.namespace.NamespaceKey;
 
 /** Handler for Drop View [If Exists] DDL command. */
@@ -49,8 +50,9 @@ public class DropViewHandler implements SqlDirectHandler<SimpleCommandResult> {
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
     final SqlDropView dropView = SqlNodeUtil.unwrap(sqlNode, SqlDropView.class);
     NamespaceKey path = catalog.resolveSingle(dropView.getPath());
-
+    catalog.validatePrivilege(path, SqlGrant.Privilege.ALTER);
     DremioTable table = catalog.getTableNoColumnCount(path);
+
     if (!dropView.checkViewExistence()) {
       if(table == null) {
         throw UserException.validationError()

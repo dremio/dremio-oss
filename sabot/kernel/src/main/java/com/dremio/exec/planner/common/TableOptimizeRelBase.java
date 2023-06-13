@@ -67,7 +67,7 @@ public abstract class TableOptimizeRelBase extends SingleRel {
 
   @Override
   protected RelDataType deriveRowType() {
-    return getRelDataType(getCluster().getTypeFactory());
+    return getRelDataType(getCluster().getTypeFactory(), optimizeOptions.isOptimizeManifestsOnly());
   }
 
   public CreateTableEntry getCreateTableEntry() {

@@ -126,6 +126,7 @@ public class ReplaceRecommender extends Recommender<ReplacePatternRule, Selectio
     return rules;
   }
 
+  @Override
   public TransformRuleWrapper<ReplacePatternRule> wrapRule(ReplacePatternRule rule) {
     return new ReplaceTransformRuleWrapper(rule);
   }

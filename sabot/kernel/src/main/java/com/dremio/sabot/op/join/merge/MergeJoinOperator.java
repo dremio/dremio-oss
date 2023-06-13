@@ -397,19 +397,19 @@ public class MergeJoinOperator implements DualInputOperator {
 
       g.setMappingSet(mainMappingSet);
 
-      final boolean nulls_equal =
+      final boolean nullsEqual =
           JoinUtils.checkAndReturnSupportedJoinComparator(conditions.get(i)) == Comparator.IS_NOT_DISTINCT_FROM;
-      final boolean nulls_high = true;  /* TODO null_high, should use upstream config */
-      final boolean asc_sorted = true; // TODO: ASC or DESC order sorted?
+      final boolean nullsHigh = true; /* TODO null_high, should use upstream config */
+      final boolean ascSorted = true; // TODO: ASC or DESC order sorted?
 
       // handle case when null != null
-      if (!nulls_equal) {
+      if (!nullsEqual) {
         JConditional jc;
         jc = g.getEvalBlock()._if(left.getIsSet().eq(JExpr.lit(0)).cand(right.getIsSet().eq(JExpr.lit(0))));
         jc._then()._return(JExpr.lit(-1)); // ordering does not really matter in null comparison
       }
 
-      LogicalExpression fh = FunctionGenerationHelper.getOrderingComparator(nulls_high,
+      LogicalExpression fh = FunctionGenerationHelper.getOrderingComparator(nullsHigh,
           left, right, producer);
       HoldingContainer out = g.addExpr(fh, ClassGenerator.BlockCreateMode.MERGE);
 
@@ -418,7 +418,7 @@ public class MergeJoinOperator implements DualInputOperator {
       JConditional jc = g.getEvalBlock()._if(out.getValue().ne(JExpr.lit(0)));
 
       // Not equal case
-      if (asc_sorted) {
+      if (ascSorted) {
         jc._then()._return(out.getValue());
       } else {
         jc._then()._return(out.getValue().minus());

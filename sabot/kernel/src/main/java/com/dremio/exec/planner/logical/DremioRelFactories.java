@@ -194,6 +194,7 @@ public class DremioRelFactories {
    */
   private static class SetOpFactoryImpl implements RelFactories.SetOpFactory {
 
+    @Override
     public RelNode createSetOp(SqlKind kind, List<RelNode> inputs, boolean all) {
       final RelOptCluster cluster = inputs.get(0).getCluster();
       final RelTraitSet traitSet = cluster.traitSetOf(Rel.LOGICAL);

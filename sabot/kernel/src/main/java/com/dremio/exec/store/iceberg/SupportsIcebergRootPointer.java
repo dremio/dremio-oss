@@ -17,9 +17,11 @@
 package com.dremio.exec.store.iceberg;
 
 import java.io.IOException;
+import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.TableOperations;
+import org.apache.iceberg.io.FileIO;
 
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.exec.planner.physical.PlannerSettings;
@@ -102,4 +104,7 @@ public interface SupportsIcebergRootPointer {
    * Based on the source plugin, creates an instance of corresponding Iceberg Catalog table operations.
    */
   TableOperations createIcebergTableOperations(FileSystem fs, String queryUserName, IcebergTableIdentifier tableIdentifier);
+
+  FileIO createIcebergFileIO(FileSystem fs, OperatorContext context, List<String> dataset, String datasourcePluginUID,
+      Long fileLength);
 }

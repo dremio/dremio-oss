@@ -47,7 +47,6 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.glassfish.jersey.media.multipart.ContentDisposition;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -100,8 +99,9 @@ public class TestTableauMessageBodyGenerator {
   private final String tableName;
   private final String customProperties;
 
+  @SuppressWarnings("checkstyle:VisibilityModifier")
   @Mock
-  private Configuration configuration;
+  protected Configuration configuration;
   @SuppressWarnings("checkstyle:VisibilityModifier")
   @Mock
   protected OptionManager optionManager;
@@ -115,18 +115,14 @@ public class TestTableauMessageBodyGenerator {
     this.customProperties = customProperties;
   }
 
-  @Before
-  public void setUp() {
-    when(optionManager.getOption(EXTRA_CONNECTION_PROPERTIES)).thenReturn(customProperties);
-  }
-
-  protected TableauMessageBodyGenerator getGenerator() {
+  protected TableauMessageBodyGenerator buildGenerator() {
     return new TableauMessageBodyGenerator(configuration, ENDPOINT, optionManager, config);
   }
 
   @Test
   public void verifyOutput()
       throws IOException, SAXException, ParserConfigurationException, ParseException {
+    when(optionManager.getOption(EXTRA_CONNECTION_PROPERTIES)).thenReturn(customProperties);
     when(optionManager.getOption(TABLEAU_EXPORT_TYPE))
       .thenReturn(TableauExportType.ODBC.toString());
     final DatasetConfig datasetConfig = new DatasetConfig();
@@ -138,7 +134,7 @@ public class TestTableauMessageBodyGenerator {
     final MultivaluedMap<String, Object> httpHeaders = new MultivaluedHashMap<>();
     final ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
-    final TableauMessageBodyGenerator generator = new TableauMessageBodyGenerator(configuration, ENDPOINT, optionManager, config);
+    final TableauMessageBodyGenerator generator = buildGenerator();
     assertTrue(generator.isWriteable(datasetConfig.getClass(), null, null, WebServer.MediaType.APPLICATION_TDS_TYPE));
     generator.writeTo(datasetConfig, DatasetConfig.class, null, new Annotation[] {}, WebServer.MediaType.APPLICATION_TDS_TYPE, httpHeaders, baos);
 
@@ -154,10 +150,13 @@ public class TestTableauMessageBodyGenerator {
     final Element connection = (Element) connections.item(0);
     assertEquals("genericodbc", connection.getAttribute("class"));
     assertEquals("Dremio Connector", connection.getAttribute("odbc-driver"));
+
+    String expectedExtras = "AUTHENTICATIONTYPE=Basic Authentication;CONNECTIONTYPE=Direct;HOST=" + generator.getEndpoint().getAddress();
+    String actualExtras = connection.getAttribute("odbc-connect-string-extras");
     if (customProperties.isEmpty()) {
-      assertEquals("AUTHENTICATIONTYPE=Basic Authentication;CONNECTIONTYPE=Direct;HOST=foo", connection.getAttribute("odbc-connect-string-extras"));
+      assertEquals(expectedExtras, actualExtras);
     } else {
-      assertEquals(customProperties + ";AUTHENTICATIONTYPE=Basic Authentication;CONNECTIONTYPE=Direct;HOST=foo", connection.getAttribute("odbc-connect-string-extras"));
+      assertEquals(customProperties + ";" + expectedExtras, actualExtras);
     }
     assertEquals("DREMIO", connection.getAttribute("dbname"));
     assertEquals(path.toParentPath(), connection.getAttribute("schema"));
@@ -263,7 +262,7 @@ public class TestTableauMessageBodyGenerator {
     final MultivaluedMap<String, Object> httpHeaders = new MultivaluedHashMap<>();
     final ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
-    final TableauMessageBodyGenerator tableauMessageBodyGenerator = getGenerator();
+    final TableauMessageBodyGenerator tableauMessageBodyGenerator = buildGenerator();
     assertTrue(tableauMessageBodyGenerator.isWriteable(datasetConfig.getClass(), null, null, WebServer.MediaType.APPLICATION_TDS_TYPE));
     tableauMessageBodyGenerator.writeTo(datasetConfig, DatasetConfig.class, null, new Annotation[] {}, WebServer.MediaType.APPLICATION_TDS_TYPE, httpHeaders, baos);
 
@@ -314,7 +313,7 @@ public class TestTableauMessageBodyGenerator {
     final MultivaluedMap<String, Object> httpHeaders = new MultivaluedHashMap<>();
     final ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
-    final TableauMessageBodyGenerator tableauMessageBodyGenerator = getGenerator();
+    final TableauMessageBodyGenerator tableauMessageBodyGenerator = buildGenerator();
     assertTrue(tableauMessageBodyGenerator.isWriteable(datasetConfig.getClass(), null, null, WebServer.MediaType.APPLICATION_TDS_TYPE));
     tableauMessageBodyGenerator.writeTo(datasetConfig, DatasetConfig.class, null, new Annotation[] {}, WebServer.MediaType.APPLICATION_TDS_TYPE, httpHeaders, baos);
 
@@ -368,7 +367,7 @@ public class TestTableauMessageBodyGenerator {
     final MultivaluedMap<String, Object> httpHeaders = new MultivaluedHashMap<>();
     final ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
-    final TableauMessageBodyGenerator generator = new TableauMessageBodyGenerator(configuration, ENDPOINT, optionManager, config);
+    final TableauMessageBodyGenerator generator = buildGenerator();
     assertTrue(generator.isWriteable(datasetConfig.getClass(), null, null, WebServer.MediaType.APPLICATION_TDS_DRILL_TYPE));
     generator.writeTo(datasetConfig, DatasetConfig.class, null, new Annotation[] {}, WebServer.MediaType.APPLICATION_TDS_DRILL_TYPE, httpHeaders, baos);
 
@@ -383,8 +382,8 @@ public class TestTableauMessageBodyGenerator {
 
     assertEquals("drill", connection.getAttribute("class"));
     assertEquals("Direct", connection.getAttribute("connection-type"));
-    assertEquals("foo", connection.getAttribute("server"));
-    assertEquals("12345", connection.getAttribute("port"));
+    assertEquals(generator.getEndpoint().getAddress(), connection.getAttribute("server"));
+    assertEquals(generator.getEndpoint().getUserPort(), Integer.parseInt(connection.getAttribute("port")));
     assertEquals(path.toParentPath(), connection.getAttribute("schema"));
 
     verifyRelationElement(connection);

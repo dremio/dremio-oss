@@ -116,6 +116,8 @@ public class ParquetToMinorTypeConverter {
                   return TypeProtos.MinorType.INTERVALDAY;
                 case YEAR_MONTH:
                   return TypeProtos.MinorType.INTERVALYEAR;
+                default:
+                  break;
               }
             }
             throw new IllegalArgumentException("incompatible type " + arrowField);
@@ -123,6 +125,7 @@ public class ParquetToMinorTypeConverter {
           // TODO: older versions of Drill generated this
           return TypeProtos.MinorType.VARBINARY;
         }
+        // fall through
       default:
         throw new UnsupportedOperationException("Type not supported: " + primitiveTypeName);
     }

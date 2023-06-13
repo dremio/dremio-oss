@@ -20,6 +20,7 @@ import java.util.UUID;
 
 import com.dremio.service.userpreferences.proto.UserPreferenceProto.Preference;
 import com.dremio.service.userpreferences.proto.UserPreferenceProto.PreferenceType;
+import com.dremio.service.users.UserNotFoundException;
 
 /**
  * UserPreferenceService interface
@@ -32,7 +33,7 @@ public interface UserPreferenceService {
    * @param type
    * @return
    */
-  Preference getPreferenceByType(PreferenceType type);
+  Preference getPreferenceByType(PreferenceType type) throws UserNotFoundException;
 
   /**
    * add an entity to preference list of specific preference type
@@ -42,7 +43,7 @@ public interface UserPreferenceService {
    * @return
    */
   Preference addEntityToPreference(PreferenceType type, UUID entityId)
-    throws EntityAlreadyInPreferenceException, EntityThresholdReachedException, IllegalAccessException;
+    throws EntityAlreadyInPreferenceException, EntityThresholdReachedException, IllegalAccessException, UserNotFoundException;
 
   /**
    * remove an entity from specific preference type
@@ -52,5 +53,5 @@ public interface UserPreferenceService {
    * @return
    */
   Preference removeEntityFromPreference(PreferenceType type, UUID entityId)
-    throws EntityNotFoundInPreferenceException;
+    throws EntityNotFoundInPreferenceException, UserNotFoundException;
 }

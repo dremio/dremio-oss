@@ -53,6 +53,8 @@ public interface ResourceAllocator extends Service {
                                     final ResourceSchedulingObserver resourceSchedulingObserver,
                                     final Consumer<ResourceSchedulingDecisionInfo> resourceDecisionConsumer);
 
+  void cancel(final ResourceSchedulingContext queryContext);
+
   /**
    * Get group resource information, used for planning.
    *
@@ -79,6 +81,11 @@ public interface ResourceAllocator extends Service {
                                              ResourceSchedulingProperties resourceSchedulingProperties,
                                              ResourceSchedulingObserver resourceSchedulingObserver,
                                              Consumer<ResourceSchedulingDecisionInfo> resourceDecisionConsumer) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void cancel(ResourceSchedulingContext queryContext) {
       throw new UnsupportedOperationException();
     }
 

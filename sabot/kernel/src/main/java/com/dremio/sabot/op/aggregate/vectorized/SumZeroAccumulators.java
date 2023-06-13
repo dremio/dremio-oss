@@ -42,6 +42,7 @@ public class SumZeroAccumulators {
             computationVectorAllocator);
     }
 
+    @Override
     public void accumulate(final long memoryAddr, final int count,
                            final int bitsInChunk, final int chunkOffsetMask) {
       final long maxAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;
@@ -79,6 +80,7 @@ public class SumZeroAccumulators {
             computationVectorAllocator);
     }
 
+    @Override
     public void accumulate(final long memoryAddr, final int count,
                            final int bitsInChunk, final int chunkOffsetMask) {
       final long maxAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;
@@ -140,6 +142,7 @@ public class SumZeroAccumulators {
            intSumZeroAccumulator.getAccumulators());
     }
 
+    @Override
     public void accumulate(final long memoryAddr, final int count,
                            final int bitsInChunk, final int chunkOffsetMask) {
       final long maxAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;
@@ -247,6 +250,7 @@ public class SumZeroAccumulators {
       );
     }
 
+    @Override
     public void accumulate(final long memoryAddr, final int count,
                            final int bitsInChunk, final int chunkOffsetMask) {
       final long maxAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;
@@ -286,6 +290,7 @@ public class SumZeroAccumulators {
             computationVectorAllocator);
     }
 
+    @Override
     public void accumulate(final long memoryAddr, final int count,
                            final int bitsInChunk, final int chunkOffsetMask) {
       final long maxAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;
@@ -327,6 +332,7 @@ public class SumZeroAccumulators {
         computationVectorAllocator);
     }
 
+    @Override
     public void accumulate(final long memoryAddr, final int count,
                            final int bitsInChunk, final int chunkOffsetMask) {
       final long maxAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;

@@ -33,18 +33,26 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 
+/**
+ * expectations in this test depend on the log configuration in the logback-test.xml resource
+ */
 public class TestBlockLevelLogging {
-  boolean isLowestLevelPresentInLogList(List<ILoggingEvent> logsList, Level level)
+
+  private static void assertLowestLogLevel(List<ILoggingEvent> logsList, Level level)
   {
-    for (int i=0;i<logsList.size();i++) {
-          if(logsList.get(i).getLevel() == level)
-          {
-            return true;
-          }
+    Level lowestLevel = null;
+    for (ILoggingEvent event : logsList) {
+      Level eventLevel = event.getLevel();
+      if (lowestLevel == null || lowestLevel.isGreaterOrEqual(eventLevel)) {
+        lowestLevel = eventLevel;
+      }
     }
-    return false;
+    Assert.assertNotNull(lowestLevel);
+    Assert.assertTrue(lowestLevel.isGreaterOrEqual(level));
   }
-  public static List<ILoggingEvent> testLogFilteringUtil(ch.qos.logback.classic.Logger logger) {
+
+  public static List<ILoggingEvent> testLogFilteringUtil(org.slf4j.Logger slf4jLogger) {
+    ch.qos.logback.classic.Logger logger = (ch.qos.logback.classic.Logger) slf4jLogger;
     ListAppender<ILoggingEvent> listAppender = new ListAppender<>();
     listAppender.start();
     logger.addAppender(listAppender);
@@ -56,86 +64,60 @@ public class TestBlockLevelLogging {
     List<ILoggingEvent> logsList = listAppender.list;
     return logsList;
   }
+
   @Test
   public void testAFirst() {
     AFirst aFirst = new AFirst();
     List<ILoggingEvent> logsList = aFirst.testLogFiltering();
-    Assert.assertTrue(isLowestLevelPresentInLogList(logsList,Level.ERROR));
-    for (int i=0;i<logsList.size();i++) {
-       Assert.assertTrue(logsList.get(i).getLevel().isGreaterOrEqual(Level.toLevel("ERROR")));
-
-    }
+    assertLowestLogLevel(logsList, Level.ERROR);
   }
 
   @Test
   public void testASecond() {
     ASecond aSecond = new ASecond();
     List<ILoggingEvent> logsList = aSecond.testLogFiltering();
-    Assert.assertTrue(isLowestLevelPresentInLogList(logsList,Level.WARN));
-    for (int i=0;i<logsList.size();i++) {
-      Assert.assertTrue(logsList.get(i).getLevel().isGreaterOrEqual(Level.toLevel("WARN")));
-    }
+    assertLowestLogLevel(logsList, Level.WARN);
   }
 
   @Test
   public void testAThird() {
     AThird aThird = new AThird();
     List<ILoggingEvent> logsList = aThird.testLogFiltering();
-    Assert.assertTrue(isLowestLevelPresentInLogList(logsList,Level.WARN));
-    for (int i=0;i<logsList.size();i++) {
-      Assert.assertTrue(logsList.get(i).getLevel().isGreaterOrEqual(Level.toLevel("WARN")));
-    }
+    assertLowestLogLevel(logsList, Level.WARN);
   }
 
   @Test
   public void testBFirst() {
     BFirst bFirst = new BFirst();
     List<ILoggingEvent> logsList = bFirst.testLogFiltering();
-    Assert.assertTrue(isLowestLevelPresentInLogList(logsList,Level.INFO));
-    for (int i=0;i<logsList.size();i++) {
-      Assert.assertTrue(logsList.get(i).getLevel().isGreaterOrEqual(Level.toLevel("INFO")));
-    }
+    assertLowestLogLevel(logsList, Level.INFO);
   }
 
   @Test
   public void testBSecond() {
     BSecond bSecond = new BSecond();
     List<ILoggingEvent> logsList = bSecond.testLogFiltering();
-    Assert.assertTrue(isLowestLevelPresentInLogList(logsList,Level.ERROR));
-    for (int i=0;i<logsList.size();i++) {
-      Assert.assertTrue(logsList.get(i).getLevel().isGreaterOrEqual(Level.toLevel("ERROR")));
-    }
+    assertLowestLogLevel(logsList, Level.ERROR);
   }
 
   @Test
   public void testBThird() {
     BThird bThird = new BThird();
     List<ILoggingEvent> logsList = bThird.testLogFiltering();
-    Assert.assertTrue(isLowestLevelPresentInLogList(logsList,Level.DEBUG));
-    for (int i=0;i<logsList.size();i++) {
-      Assert.assertTrue(logsList.get(i).getLevel().isGreaterOrEqual(Level.toLevel("DEBUG")));
-    }
+    assertLowestLogLevel(logsList, Level.DEBUG);
   }
 
   @Test
   public void testCFirst() {
     CFirst cFirst = new CFirst();
     List<ILoggingEvent> logsList = cFirst.testLogFiltering();
-    Assert.assertTrue(isLowestLevelPresentInLogList(logsList,Level.DEBUG));
-    for (int i=0;i<logsList.size();i++) {
-      Assert.assertTrue(logsList.get(i).getLevel().isGreaterOrEqual(Level.toLevel("DEBUG")));
-    }
+    assertLowestLogLevel(logsList, Level.DEBUG);
   }
+
   @Test
   public void testCSecond() {
     CSecond cSecond = new CSecond();
     List<ILoggingEvent> logsList = cSecond.testLogFiltering();
-    Assert.assertTrue(isLowestLevelPresentInLogList(logsList,Level.TRACE));
-    Assert.assertTrue(Level.toLevel("TRACE").isGreaterOrEqual(Level.toLevel("TRACE")));
-
-    for (int i=0;i<logsList.size();i++) {
-      Assert.assertTrue(logsList.get(i).getLevel().isGreaterOrEqual(Level.toLevel("TRACE")));
-    }
+    assertLowestLogLevel(logsList, Level.TRACE);
   }
-
 }

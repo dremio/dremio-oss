@@ -47,6 +47,7 @@ public final class TwoArgNumericFunction extends SqlFunction {
     return SqlOperandCountRanges.of(2);
   }
 
+  @Override
   public boolean checkOperandTypes(SqlCallBinding sqlCallBinding, boolean throwOnFailure) {
     if (sqlCallBinding.operands().size() != 2) {
       return false;
@@ -65,6 +66,7 @@ public final class TwoArgNumericFunction extends SqlFunction {
     return true;
   }
 
+  @Override
   public RelDataType inferReturnType(
     SqlOperatorBinding opBinding) {
     return JavaTypeFactoryImpl.INSTANCE.createSqlType(SqlTypeName.DOUBLE);

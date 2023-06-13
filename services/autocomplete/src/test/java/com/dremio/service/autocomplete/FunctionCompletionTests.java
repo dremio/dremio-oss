@@ -26,70 +26,53 @@ import com.google.common.collect.ImmutableList;
 public final class FunctionCompletionTests extends AutocompleteEngineTests {
   @Test
   public void commaSeparated() {
-    new GoldenFileTestBuilder<>(this::executeTestWithFolderContext)
-      .add(
-        "SIMPLE",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT ABS(^ FROM EMP"))
-      .add(
-        "FUNCTION No Source",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT REPLACE('hello', ^"))
-      .add(
-        "FUNCTION ONE ARG",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT REPLACE(EMP.ENAME ^ FROM EMP"))
-      .add(
-        "FUNCTION ONE ARG + COMMA ",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT REPLACE(EMP.ENAME, ^ FROM EMP"))
-      .add(
-        "FUNCTION ONE ARG + COMMA + ONE ARG",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT REPLACE(EMP.ENAME, 'world'^ FROM EMP"))
-      .add(
-        "FUNCTION LAST ARG + COMPLETE FUNCTION",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT REPLACE(EMP.ENAME, EMP.ENAME, ^) FROM EMP"))
-      .add(
-        "FUNCTION MIDDLE ARG + COMPLETE FUNCTION",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT REPLACE(EMP.ENAME, ^, EMP.ENAME) FROM EMP"))
-      .add(
-        "COMPLEX ARG",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT REPLACE(EMP.ENAME + EMP.ENAME, ^ FROM EMP"))
+    GoldenFileTestBuilder.create(this::executeTestWithFolderContext)
+      .add("SIMPLE", "SELECT ABS(^ FROM EMP")
+      .add("FUNCTION No Source", "SELECT REPLACE('hello', ^")
+      .add("FUNCTION ONE ARG", "SELECT REPLACE(EMP.ENAME ^ FROM EMP")
+      .add("FUNCTION ONE ARG + COMMA ", "SELECT REPLACE(EMP.ENAME, ^ FROM EMP")
+      .add("FUNCTION ONE ARG + COMMA + ONE ARG",
+        "SELECT REPLACE(EMP.ENAME, 'world'^ FROM EMP")
+      .add("FUNCTION LAST ARG + COMPLETE FUNCTION",
+        "SELECT REPLACE(EMP.ENAME, EMP.ENAME, ^) FROM EMP")
+      .add("FUNCTION MIDDLE ARG + COMPLETE FUNCTION",
+        "SELECT REPLACE(EMP.ENAME, ^, EMP.ENAME) FROM EMP")
+      .add("COMPLEX ARG", "SELECT REPLACE(EMP.ENAME + EMP.ENAME, ^ FROM EMP")
       .runTests();
   }
 
   @Test
   public void substring() {
-    new GoldenFileTestBuilder<>(this::executeTestWithFolderContext)
+    GoldenFileTestBuilder.create(this::executeTestWithFolderContext)
       .add(
-        "SUBSTRING PREFIX",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT SUBSTRI^"))
+        "SUBSTRING PREFIX", "SELECT SUBSTRI^")
       .add(
-        "SUBSTRING SIMPLE",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT SUBSTRING(^ FROM EMP"))
+        "SUBSTRING SIMPLE", "SELECT SUBSTRING(^ FROM EMP")
       .add(
-        "SUBSTRING STRING PARAMETER",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT SUBSTRING(EMP.ENAME ^ FROM EMP"))
+        "SUBSTRING STRING PARAMETER", "SELECT SUBSTRING(EMP.ENAME ^ FROM EMP")
       .add(
-        "SUBSTRING STRING PARAMETER FROM",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT SUBSTRING(EMP.ENAME FROM ^ FROM EMP"))
+        "SUBSTRING STRING PARAMETER FROM", "SELECT SUBSTRING(EMP.ENAME FROM ^ FROM EMP")
       .add(
         "SUBSTRING STRING PARAMETER FROM INTEGER PARAMETER",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT SUBSTRING(EMP.ENAME FROM 2 ^ FROM EMP"))
+        "SELECT SUBSTRING(EMP.ENAME FROM 2 ^ FROM EMP")
       .add(
         "SUBSTRING STRING PARAMETER FROM INTEGER PARAMETER FOR",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT SUBSTRING(EMP.ENAME FROM 2 FOR ^ FROM EMP"))
+        "SELECT SUBSTRING(EMP.ENAME FROM 2 FOR ^ FROM EMP")
       .add(
         "SUBSTRING COMPLETE FUNCTION",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT SUBSTRING(EMP.ENAME FROM 2 FOR 3 ^ FROM EMP"))
+      "SELECT SUBSTRING(EMP.ENAME FROM 2 FOR 3 ^ FROM EMP")
       .add(
         "SUBSTRING STRING PARAMETER FROM WITH COMMA",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT SUBSTRING(EMP.ENAME, ^ FROM EMP"))
+        "SELECT SUBSTRING(EMP.ENAME, ^ FROM EMP")
       .add(
         "SUBSTRING STRING PARAMETER FROM INTEGER PARAMETER WITH COMMA",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT SUBSTRING(EMP.ENAME , 2 ^ FROM EMP"))
+        "SELECT SUBSTRING(EMP.ENAME , 2 ^ FROM EMP")
       .add(
         "SUBSTRING STRING PARAMETER FROM INTEGER PARAMETER FOR WITH COMMA",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT SUBSTRING(EMP.ENAME , 2 , ^ FROM EMP"))
+         "SELECT SUBSTRING(EMP.ENAME , 2 , ^ FROM EMP")
       .add(
         "SUBSTRING COMPLETE FUNCTION WITH COMMA",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT SUBSTRING(EMP.ENAME , 2 , 3 ^ FROM EMP"))
+        "SELECT SUBSTRING(EMP.ENAME , 2 , 3 ^ FROM EMP")
       .runTests();
   }
 
@@ -99,70 +82,61 @@ public final class FunctionCompletionTests extends AutocompleteEngineTests {
       "COLLECT", "MAX", "MIN", "STDDEV", "STDDEV_POP", "STDDEV_SAMP", "SUM", "VAR_POP", "VAR_SAMP", "LISTAGG");
     ImmutableList<String> commaSeparated = ImmutableList.of("COVAR_POP", "COVAR_SAMP", "REGR_SXX",
       "REGR_SYY", "APPROX_COUNT_DISTINCT");
-    GoldenFileTestBuilder<GoldenFileTestBuilder.MultiLineString, CompletionsForBaselines> testBuilder = new GoldenFileTestBuilder<>(this::executeTestWithFolderContext);
+    GoldenFileTestBuilder<String, CompletionsForBaselines, GoldenFileTestBuilder.MultiLineString> testBuilder =
+      new GoldenFileTestBuilder<>(this::executeTestWithFolderContext,
+        GoldenFileTestBuilder.MultiLineString::create);
 
     for (String function : distinctOrAll) {
       testBuilder
         .add(function + " AGGREGATE PARTIAL NAME",
-          GoldenFileTestBuilder.MultiLineString.create("SELECT " + function.substring(0, function.length() - 1) + "^"))
+          "SELECT " + function.substring(0, function.length() - 1) + "^")
         .add(function + " AGGREGATE ONLY NAME",
-          GoldenFileTestBuilder.MultiLineString.create("SELECT " + function + "( ^ FROM EMP"))
+          "SELECT " + function + "( ^ FROM EMP")
         .add(function + " AGGREGATE WITH ALL",
-          GoldenFileTestBuilder.MultiLineString.create("SELECT " + function + "( ALL ^ FROM EMP" ))
+          "SELECT " + function + "( ALL ^ FROM EMP" )
         .add(function + " AGGREGATE WITH DISTINCT",
-          GoldenFileTestBuilder.MultiLineString.create("SELECT " + function + "( DISTINCT ^ FROM EMP"))
+          "SELECT " + function + "( DISTINCT ^ FROM EMP")
         .add(function + " AGGREGATE WITH DISTINCT VALUE",
-          GoldenFileTestBuilder.MultiLineString.create("SELECT " + function + "( DISTINCT EMP.ENAME ^ FROM EMP"));
+          "SELECT " + function + "( DISTINCT EMP.ENAME ^ FROM EMP");
     }
 
     for (String function : commaSeparated) {
       testBuilder
         .add("COMMA SEPARATED PARTIAL NAME",
-          GoldenFileTestBuilder.MultiLineString.create("SELECT " + function.substring(0, function.length() - 1) + "^"))
+          "SELECT " + function.substring(0, function.length() - 1) + "^")
         .add("COMMA SEPARATED NAME WITH ONE PARAMETER",
-          GoldenFileTestBuilder.MultiLineString.create("SELECT " + function + "(EMP.ENAME ^ FROM EMP"))
+          "SELECT " + function + "(EMP.ENAME ^ FROM EMP")
         .add("COMMA SEPARATED NAME WITH ONE PARAMETER COMMA",
-          GoldenFileTestBuilder.MultiLineString.create("SELECT " + function + "(EMP.ENAME, ^ FROM EMP"))
+          "SELECT " + function + "(EMP.ENAME, ^ FROM EMP")
         .add("COMMA SEPARATED WITH SECOND PARAMETER",
-          GoldenFileTestBuilder.MultiLineString.create("SELECT " + function + "(^ , EMP.ENAME) FROM EMP"));
+          "SELECT " + function + "(^ , EMP.ENAME) FROM EMP");
     }
 
     testBuilder
-      .add("COUNT PARTIAL NAME",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT COUN^"))
-      .add("COUNT NAME ONLY",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT COUNT(^ FROM EMP"))
-      .add("COMPLETE COUNT WITH STAR",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT COUNT( * ^ FROM EMP"))
-      .add("COUNT WITH ALL ONE PARAMETER",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT COUNT( ALL EMP.ENAME ^ FROM EMP"))
+      .add("COUNT PARTIAL NAME", "SELECT COUN^")
+      .add("COUNT NAME ONLY", "SELECT COUNT(^ FROM EMP")
+      .add("COMPLETE COUNT WITH STAR", "SELECT COUNT( * ^ FROM EMP")
+      .add("COUNT WITH ALL ONE PARAMETER", "SELECT COUNT( ALL EMP.ENAME ^ FROM EMP")
       .add("COUNT WITH DISTINCT ONE PARAMETER COMMA",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT COUNT( DISTINCT EMP.ENAME, ^ FROM EMP"))
-      .add("MODE NAME ONLY",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT  MODE(^ FROM EMP"))
-      .add("MODE WITH ONE PARAMETER",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT  MODE(EMP.ENAME ^ FROM EMP"))
+        "SELECT COUNT( DISTINCT EMP.ENAME, ^ FROM EMP")
+      .add("MODE NAME ONLY", "SELECT  MODE(^ FROM EMP")
+      .add("MODE WITH ONE PARAMETER", "SELECT  MODE(EMP.ENAME ^ FROM EMP")
       .runTests();
   }
 
   @Test
   public void snippetScenarios() {
-    new GoldenFileTestBuilder<>(this::executeTestWithFolderContext)
+    GoldenFileTestBuilder.create(this::executeTestWithFolderContext)
       .add(
-        "SUBSTRING FIRST",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT * FROM EMP WHERE SUBSTRING(^ FROM fromIndex FOR forLength)"))
+        "SUBSTRING FIRST", "SELECT * FROM EMP WHERE SUBSTRING(^ FROM fromIndex FOR forLength)")
       .add(
-        "SUBSTRING MIDDLE",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT * FROM EMP WHERE SUBSTRING(string FROM ^ FOR forLength)"))
+        "SUBSTRING MIDDLE", "SELECT * FROM EMP WHERE SUBSTRING(string FROM ^ FOR forLength)")
       .add(
-        "SUBSTRING END",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT * FROM EMP WHERE SUBSTRING(string FROM fromIndex FOR ^)"))
+        "SUBSTRING END", "SELECT * FROM EMP WHERE SUBSTRING(string FROM fromIndex FOR ^)")
       .add(
-        "Multiple Argument Function 1",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT * FROM EMP WHERE BITWISE_AND(^, secondParameter)"))
+        "Multiple Argument Function 1", "SELECT * FROM EMP WHERE BITWISE_AND(^, secondParameter)")
       .add(
-        "Multiple Argument Function 2",
-        GoldenFileTestBuilder.MultiLineString.create("SELECT * FROM EMP WHERE BITWISE_AND(firstParameter, ^)"))
+        "Multiple Argument Function 2", "SELECT * FROM EMP WHERE BITWISE_AND(firstParameter, ^)")
       .runTests();
   }
 }

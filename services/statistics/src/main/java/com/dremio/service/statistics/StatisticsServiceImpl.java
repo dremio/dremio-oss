@@ -485,6 +485,7 @@ public class StatisticsServiceImpl implements StatisticsService {
    * StatisticsUpdater
    */
   private class StatisticsUpdater implements Runnable {
+    @Override
     public void run() {
       try {
         if (entries.entrySet().size() == 0) {
@@ -517,10 +518,12 @@ public class StatisticsServiceImpl implements StatisticsService {
                   Map<StatisticId, Statistic> statisticIdStatisticHashMap = statisticsInputBuilder.build();
                   statisticIdStatisticHashMap.forEach(statisticStore::save);
                 }
+                // fall through
               case CANCELED:
               case FAILED:
               case CANCELLATION_REQUESTED:
                 tablesToRemove.add(entry.getKey());
+                break;
               default:
                 break;
             }

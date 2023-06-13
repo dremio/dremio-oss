@@ -34,20 +34,26 @@ public class SqlAccelToggle extends SqlSystemCall {
   public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("ACCEL_TOGGLE", SqlKind.OTHER_DDL) {
     @Override
     public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 3, "SqlAccelToggle.createCall() has to get 3 operands!");
-      return new SqlAccelToggle(pos, (SqlIdentifier) operands[0], (SqlLiteral) operands[1], (SqlLiteral) operands[2]);
+      Preconditions.checkArgument(operands.length == 4, "SqlAccelToggle.createCall() has to get 4 operands!");
+      return new SqlAccelToggle(pos,
+        (SqlIdentifier) operands[0],
+        (SqlLiteral) operands[1],
+        (SqlLiteral) operands[2],
+        (SqlTableVersionSpec) operands[3]);
     }
   };
 
   private final SqlIdentifier tblName;
   private final SqlLiteral raw;
   private final SqlLiteral enable;
+  private final SqlTableVersionSpec tableVersionSpec;
 
-  public SqlAccelToggle(SqlParserPos pos, SqlIdentifier tblName, SqlLiteral raw, SqlLiteral enable) {
+  public SqlAccelToggle(SqlParserPos pos, SqlIdentifier tblName, SqlLiteral raw, SqlLiteral enable, SqlTableVersionSpec tableVersionSpec) {
     super(pos);
     this.tblName = tblName;
     this.raw = raw;
     this.enable = enable;
+    this.tableVersionSpec = tableVersionSpec;
   }
 
   public SqlIdentifier getTblName() {
@@ -62,9 +68,13 @@ public class SqlAccelToggle extends SqlSystemCall {
     return enable.booleanValue();
   }
 
+  public SqlTableVersionSpec getSqlTableVersionSpec() {
+    return tableVersionSpec;
+  }
+
   @Override
   public List<SqlNode> getOperandList() {
-    return ImmutableList.<SqlNode>of(tblName, raw, enable);
+    return ImmutableList.<SqlNode>of(tblName, raw, enable, tableVersionSpec);
   }
 
   @Override

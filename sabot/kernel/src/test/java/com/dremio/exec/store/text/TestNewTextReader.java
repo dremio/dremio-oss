@@ -35,7 +35,6 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.commons.io.ByteOrderMark;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapred.FileSplit;
-import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -63,8 +62,8 @@ import com.dremio.test.UserExceptionAssert;
 
 public class TestNewTextReader extends BaseTestQuery {
 
-  @ClassRule
-  public static final TemporaryFolder tempDir = new TemporaryFolder();
+  @Rule
+  public final TemporaryFolder tempDir = new TemporaryFolder();
 
   @Rule
   public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
@@ -117,6 +116,7 @@ public class TestNewTextReader extends BaseTestQuery {
 
   @Test
   public void ensureColumnNameDisplayedinError() throws Exception {
+    @SuppressWarnings("checkstyle:LocalFinalVariableName")
     final String COL_NAME = "col1";
 
     try {
@@ -217,21 +217,17 @@ public class TestNewTextReader extends BaseTestQuery {
   public void testCrLfSeparatedWithQuote() throws Exception {
     final String root = FileUtils.getResourceAsFile("/store/text/WithQuotedCrLf.tbl").toURI().toString();
     final String query = String.format("select columns[0] as c0, columns[1] as c1, columns[2] as c2 \n" +
-        "from dfs_test.\"%s\" ", root);
+      "from table(dfs_test.\"%s\" (type => 'text', fieldDelimiter => '|', lineDelimiter => '\r\n'))", root);
 
-    try {
-      testBuilder()
-        .sqlQuery(query)
-        .unOrdered()
-        .baselineColumns("c0", "c1", "c2")
-        .baselineValues("a\n1", "a", "a")
-        .baselineValues("a", "a\n2", "a")
-        .baselineValues("a", "a", "a\n3")
-        .build()
-        .run();
-    } catch (Exception e) {
-      assertTrue(e.getMessage().contains("did not find expected record in result set"));
-    }
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("c0", "c1", "c2")
+      .baselineValues("a\r\n1", "a", "a")
+      .baselineValues("a", "a\r\n2", "a")
+      .baselineValues("a", "a", "a\r\n3")
+      .build()
+      .run();
   }
 
   @Test

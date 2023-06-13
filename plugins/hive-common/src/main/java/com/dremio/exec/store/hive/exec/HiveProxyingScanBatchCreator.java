@@ -27,6 +27,7 @@ import com.dremio.sabot.op.spi.ProducerOperator;
  */
 public class HiveProxyingScanBatchCreator implements ProducerOperator.Creator<HiveProxyingSubScan> {
 
+  @Override
   public ProducerOperator create(FragmentExecutionContext fragmentExecContext, OperatorContext context,
                                  HiveProxyingSubScan config) throws ExecutionSetupException {
     final SupportsPF4JStoragePlugin pf4JStoragePlugin =

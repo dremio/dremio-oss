@@ -23,7 +23,7 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>24.0.0-202302100528110223-3a169b7c</version>
+    <version>24.1.0-202306130653310132-d30779f6</version>
   </parent>
 
   <artifactId>dremio-services-script</artifactId>
@@ -52,6 +52,10 @@
     <dependency>
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-users</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.opentelemetry.instrumentation</groupId>
+      <artifactId>opentelemetry-instrumentation-annotations</artifactId>
     </dependency>
   </dependencies>
 

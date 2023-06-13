@@ -56,6 +56,7 @@ public class ElasticsearchConf {
   private final boolean useWhitelist;
   private final int scrollSize;
   private final boolean allowPushdownOnNormalizedOrAnalyzedFields;
+  private final boolean pushdownWithKeyword;
   private final boolean warnOnRowCountMismatch;
   private final EncryptionValidationMode encryptionValidationMode;
   private final boolean forceDoublePrecision;
@@ -82,6 +83,7 @@ public class ElasticsearchConf {
       boolean useWhitelist,
       int scrollSize,
       boolean allowPushdownOnNormalizedOrAnalyzedFields,
+      boolean pushdownWithKeyword,
       boolean warnOnRowCountMismatch,
       EncryptionValidationMode encryptionValidationMode,
       boolean forceDoublePrecision) {
@@ -102,7 +104,8 @@ public class ElasticsearchConf {
     this.usePainless = usePainless;
     this.useWhitelist = useWhitelist;
     this.scrollSize = scrollSize;
-    this.allowPushdownOnNormalizedOrAnalyzedFields = allowPushdownOnNormalizedOrAnalyzedFields;
+    this.allowPushdownOnNormalizedOrAnalyzedFields = allowPushdownOnNormalizedOrAnalyzedFields || pushdownWithKeyword;
+    this.pushdownWithKeyword = pushdownWithKeyword;
     this.warnOnRowCountMismatch = warnOnRowCountMismatch;
     this.encryptionValidationMode = encryptionValidationMode;
     this.forceDoublePrecision = forceDoublePrecision;
@@ -162,6 +165,10 @@ public class ElasticsearchConf {
 
   public boolean isAllowPushdownOnNormalizedOrAnalyzedFields() {
     return allowPushdownOnNormalizedOrAnalyzedFields;
+  }
+
+  public boolean isPushdownWithKeyword() {
+    return pushdownWithKeyword;
   }
 
   public boolean isWarnOnRowCountMismatch() {

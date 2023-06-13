@@ -546,17 +546,21 @@ public class GlobalDictionaryBuilder {
       final Path tableDir  = Path.of(args[0]);
       final Configuration conf = new Configuration();
       final CompressionCodecFactory codecFactory = CodecFactory.createDirectCodecFactory(conf, new ParquetDirectByteBufferAllocator(bufferAllocator), 0);
-      final FileSystem fs = HadoopFileSystem.get(tableDir, conf);
-      if (fs.exists(tableDir) && fs.isDirectory(tableDir)) {
-        Map<ColumnDescriptor, Path> dictionaryEncodedColumns = createGlobalDictionaries(codecFactory, fs, tableDir, bufferAllocator).getColumnsToDictionaryFiles();
-        long version = getDictionaryVersion(fs, tableDir);
-        Path dictionaryRootDir = getDictionaryVersionedRootPath(fs, tableDir, version);
-        for (ColumnDescriptor columnDescriptor: dictionaryEncodedColumns.keySet()) {
-          final VectorContainer data = readDictionary(fs, dictionaryRootDir, columnDescriptor, bufferAllocator);
-          System.out.println("Dictionary for column [" + columnDescriptor.toString() + " size " + data.getRecordCount());
-          BatchPrinter.printBatch(data, true, false);
-          data.clear();
+      try {
+        final FileSystem fs = HadoopFileSystem.get(tableDir, conf);
+        if (fs.exists(tableDir) && fs.isDirectory(tableDir)) {
+          Map<ColumnDescriptor, Path> dictionaryEncodedColumns = createGlobalDictionaries(codecFactory, fs, tableDir, bufferAllocator).getColumnsToDictionaryFiles();
+          long version = getDictionaryVersion(fs, tableDir);
+          Path dictionaryRootDir = getDictionaryVersionedRootPath(fs, tableDir, version);
+          for (ColumnDescriptor columnDescriptor : dictionaryEncodedColumns.keySet()) {
+            final VectorContainer data = readDictionary(fs, dictionaryRootDir, columnDescriptor, bufferAllocator);
+            System.out.println("Dictionary for column [" + columnDescriptor.toString() + " size " + data.getRecordCount());
+            BatchPrinter.printBatch(data, true, false);
+            data.clear();
+          }
         }
+      } finally {
+        codecFactory.release();
       }
     } catch (IOException ioe) {
       logger.error("Failed ", ioe);

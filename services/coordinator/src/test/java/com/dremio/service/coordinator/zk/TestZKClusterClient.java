@@ -40,6 +40,7 @@ import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.ElectionListener;
 import com.dremio.service.coordinator.ElectionRegistrationHandle;
+import com.dremio.service.coordinator.RegistrationHandle;
 import com.dremio.test.DremioTest;
 import com.typesafe.config.ConfigValueFactory;
 
@@ -135,6 +136,29 @@ public class TestZKClusterClient extends DremioTest {
       Stat stat = zooKeeperServer.getZKClient().exists("/dremio3/test/test-cluster-id/coordinator", false);
       assertNotNull(stat);
       assertEquals(1, stat.getNumChildren());
+    }
+  }
+
+  @Test
+  public void test4ComponentsConnection() throws Exception {
+    assertNull(zooKeeperServer.getZKClient().exists("/dremio4/test/test-cluster-id", false));
+
+    try(ZKClusterClient client = new ZKClusterClient(
+      DEFAULT_ZK_CLUSTER_CONFIG,
+      String.format("%s/dremio4/test/test-cluster-id", zooKeeperServer.getConnectString()))
+    ) {
+      client.start();
+      ZKServiceSet serviceSet = client.newServiceSet("coordinator");
+      RegistrationHandle registrationHandle = serviceSet.register(NodeEndpoint.newBuilder().setAddress("foo").build());
+
+      Stat stat = zooKeeperServer.getZKClient().exists("/dremio4/test/test-cluster-id/coordinator", false);
+      assertNotNull(stat);
+      assertEquals(1, stat.getNumChildren());
+
+      serviceSet.unregister((ZKRegistrationHandle)registrationHandle);
+      client.deleteServiceSetZkNode("coordinator");
+      stat = zooKeeperServer.getZKClient().exists("/dremio4/test/test-cluster-id/coordinator", false);
+      assertNull(stat);
     }
   }
 

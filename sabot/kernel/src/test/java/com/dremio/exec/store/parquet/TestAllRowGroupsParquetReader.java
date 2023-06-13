@@ -240,7 +240,7 @@ public class TestAllRowGroupsParquetReader extends BaseTestOperator {
       eq(null),
       anyLong(),
       eq(false),
-      eq(true));
+      eq(true), eq(ParquetFilters.NONE), eq(ParquetFilterCreator.DEFAULT));
   }
 
   private void verifyRowGroupNotPrefetched(InputStreamProviderFactory spy, int rowGroupIndex) throws Exception {
@@ -258,7 +258,7 @@ public class TestAllRowGroupsParquetReader extends BaseTestOperator {
       eq(null),
       anyLong(),
       eq(false),
-      eq(true));
+      eq(true), eq(ParquetFilters.NONE), eq(ParquetFilterCreator.DEFAULT));
   }
 
   private void verifyDatasetKey(InputStreamProviderFactory spy, List<String> dataset) throws Exception {
@@ -276,7 +276,7 @@ public class TestAllRowGroupsParquetReader extends BaseTestOperator {
         eq(dataset),
         anyLong(),
         eq(false),
-        eq(true));
+        eq(true), eq(ParquetFilters.NONE), eq(ParquetFilterCreator.DEFAULT));
   }
 
   private void validateResults(AllRowGroupsParquetReader reader, int expectedStartRow, int expectedEndRow)

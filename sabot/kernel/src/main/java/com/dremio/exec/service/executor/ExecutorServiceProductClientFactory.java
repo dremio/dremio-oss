@@ -40,6 +40,7 @@ public class ExecutorServiceProductClientFactory implements ExecutorServiceClien
 
   }
 
+  @Override
   public ExecutorServiceProductClient getClientForEndpoint(CoordinationProtos.NodeEndpoint endpoint) {
     return new ExecutorServiceProductClient(tunnelCreator, endpoint);
   }

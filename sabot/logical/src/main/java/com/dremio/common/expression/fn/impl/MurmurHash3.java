@@ -45,6 +45,7 @@ public final class MurmurHash3 extends HashBase {
     return murmur3_128(bStart, bEnd, buffer, seed).getHash1();
   }
 
+  @SuppressWarnings({"FallThrough", "checkstyle:MissingSwitchDefault"})
   public static HashValPair murmur3_128(long bStart, long bEnd, ArrowBuf buffer, int seed) {
     long h1 = seed & 0x00000000FFFFFFFFL;
     long h2 = seed & 0x00000000FFFFFFFFL;
@@ -153,6 +154,7 @@ public final class MurmurHash3 extends HashBase {
 
   }
 
+  @SuppressWarnings({"FallThrough", "checkstyle:MissingSwitchDefault"})
   public static int murmur3_32(int bStart, int bEnd, ArrowBuf buffer, int seed) {
 
     final long c1 = 0xcc9e2d51L;

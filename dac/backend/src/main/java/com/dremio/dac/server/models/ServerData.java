@@ -46,7 +46,9 @@ public class ServerData {
   private final boolean showNewJobsPage;
   private final boolean showOldReflectionsListing;
   private final boolean allowAutoComplete;
+  private final boolean allowDownload;
   private final boolean allowFormatting;
+  private final boolean useNewDatasetNavigation;
 
   protected ServerData(Builder builder) {
     this.serverEnvironment = builder.serverEnvironment;
@@ -73,7 +75,9 @@ public class ServerData {
     this.showNewJobsPage = builder.showNewJobsPage;
     this.showOldReflectionsListing = builder.showOldReflectionsListing;
     this.allowAutoComplete = builder.allowAutoComplete;
+    this.allowDownload = builder.allowDownload;
     this.allowFormatting = builder.allowFormatting;
+    this.useNewDatasetNavigation = builder.useNewDatasetNavigation;
   }
 
   public String getServerEnvironment() {
@@ -181,7 +185,15 @@ public class ServerData {
     return allowAutoComplete;
   }
 
+  public boolean isAllowDownload() {
+    return allowDownload;
+  }
+
   public boolean isAllowFormatting() { return allowFormatting; }
+
+  public boolean isUseNewDatasetNavigation() {
+    return useNewDatasetNavigation;
+  }
 
   /**
    * A builder for server data
@@ -211,7 +223,9 @@ public class ServerData {
     private boolean showNewJobsPage;
     private boolean showOldReflectionsListing;
     private boolean allowAutoComplete;
+    private boolean allowDownload;
     private boolean allowFormatting;
+    private boolean useNewDatasetNavigation;
 
     protected Builder() {
     }
@@ -241,7 +255,9 @@ public class ServerData {
       this.showNewJobsPage = builder.showNewJobsPage;
       this.showOldReflectionsListing = builder.showOldReflectionsListing;
       this.allowAutoComplete = builder.allowAutoComplete;
+      this.allowDownload = builder.allowDownload;
       this.allowFormatting = builder.allowFormatting;
+      this.useNewDatasetNavigation = builder.useNewDatasetNavigation;
     }
 
     public Builder setServerEnvironment(String serverEnvironment) {
@@ -364,8 +380,18 @@ public class ServerData {
       return this;
     }
 
+    public Builder setAllowDownload(boolean allowDownload) {
+      this.allowDownload = allowDownload;
+      return this;
+    }
+
     public Builder setAllowFormatting(boolean allowFormatting) {
       this.allowFormatting = allowFormatting;
+      return this;
+    }
+
+    public Builder setUseNewDatasetNavigation(boolean useNewDatasetNavigation) {
+      this.useNewDatasetNavigation = useNewDatasetNavigation;
       return this;
     }
 

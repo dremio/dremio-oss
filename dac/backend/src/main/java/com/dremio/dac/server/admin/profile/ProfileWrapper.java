@@ -470,7 +470,8 @@ public class ProfileWrapper {
       if ("".equals(reflectionDatasetPath)) {
         path = new DatasetPath(Arrays.asList("unknown", "missing dataset"));
       } else {
-        path = new DatasetPath(reflectionDatasetPath);
+        String datasetVersion = accelerationDetails.getReflectionDatasetVersion(viewProfile.getLayoutId());
+        path = new DatasetPath(reflectionDatasetPath, datasetVersion);
       }
 
       if (!map.containsKey(path)) {
@@ -522,5 +523,35 @@ public class ProfileWrapper {
       return "";
     }
     return DurationFormatUtils.formatDurationWords( this.profile.getStart() - datetime, true, true);
+  }
+
+  public int getConsideredReflectionsCount() {
+    return profile.hasAccelerationProfile() ? profile.getAccelerationProfile().getLayoutProfilesCount() : 0;
+  }
+
+  public int getMatchedReflectionsCount() {
+    int ret = 0;
+    if (profile.hasAccelerationProfile() && profile.getAccelerationProfile().getLayoutProfilesCount() > 0) {
+      UserBitShared.AccelerationProfile accelerationProfile = profile.getAccelerationProfile();
+      for (UserBitShared.LayoutMaterializedViewProfile profile: accelerationProfile.getLayoutProfilesList()) {
+        if (profile.hasNumSubstitutions() && profile.getNumSubstitutions() > 0) {
+          ret ++;
+        }
+      }
+    }
+    return ret;
+  }
+
+  public int getChosenReflectionsCount() {
+    int ret = 0;
+    if (profile.hasAccelerationProfile() && profile.getAccelerationProfile().getLayoutProfilesCount() > 0) {
+      UserBitShared.AccelerationProfile accelerationProfile = profile.getAccelerationProfile();
+      for (UserBitShared.LayoutMaterializedViewProfile profile: accelerationProfile.getLayoutProfilesList()) {
+        if (profile.hasNumUsed() && profile.getNumUsed() > 0) {
+          ret ++;
+        }
+      }
+    }
+    return ret;
   }
 }

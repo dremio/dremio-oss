@@ -1,0 +1,193 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+.privileges {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+
+  &__page {
+    display: flex;
+    flex-direction: column;
+    margin-top: 0px;
+    height: 100%;
+  }
+
+  &__tableLoading {
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    dremio-icon {
+      height: 28px;
+      width: 28px;
+    }
+  }
+
+  &__form {
+    margin-top: 24px;
+    flex-grow: 1;
+    display: flex;
+    justify-content: space-between;
+    flex-direction: column;
+  }
+
+  &__tableWrapper {
+    overflow: auto;
+    height: 100%;
+  }
+
+  &__nameCell {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: var(--dremio--spacing--1);
+
+    &__rightSide,
+    &__leftSide {
+      display: flex;
+      align-items: center;
+    }
+
+    &__leftSide {
+      overflow: hidden;
+    }
+
+    &__leftIcon {
+      margin-right: var(--dremio--spacing--05);
+      inline-size: 24px;
+      block-size: 24px;
+
+      &__menuItem {
+        margin: 0px var(--dremio--spacing--05);
+      }
+    }
+
+    &__name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    &__ownerIcon {
+      color: var(--dremio--color--status--warning--foreground);
+    }
+
+    &__moreActions {
+      margin-left: 4px;
+
+      &-disabled {
+        color: var(--dremio--color--text--disabled) !important;
+        cursor: default;
+      }
+
+      &-remove {
+        color: var(--dremio--color--status--error--foreground);
+      }
+    }
+  }
+
+  :global {
+    .leantable__table {
+      border: 1px solid var(--color--neutral--50);
+    }
+
+    .leantable__body-cell {
+      &:first-child {
+        container-type: inline-size;
+        max-width: min(28cqw, 500px);
+        min-width: 280px;
+        border-right: 2px solid var(--color--neutral--50);
+      }
+    }
+
+    .leantable__header-row {
+      border-bottom: 2px solid var(--color--neutral--50);
+    }
+    .leantable__header-cell {
+      min-width: 14ch;
+      height: 60px;
+      font-weight: normal;
+      padding-block: 0;
+      padding-inline: var(--dremio--spacing--1);
+      white-space: normal;
+      text-align: center;
+      &::after {
+        height: 43px !important;
+        top: 8px !important;
+      }
+      &:first-child {
+        min-width: 280px;
+        max-width: 500px;
+        border-right: 2px solid var(--color--neutral--50);
+      }
+      &:nth-child(2)::after {
+        width: 0px !important;
+      }
+      &:last-child {
+        width: 100%;
+        min-width: 0px;
+        padding-inline: 0px;
+      }
+    }
+  }
+
+  &__tableCell {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    width: fit-content;
+    margin: auto;
+
+    &__dirtyIndicator {
+      height: 6px;
+      width: 6px;
+      border-radius: 3px;
+      background-color: var(--color--brand--300);
+      position: absolute;
+      top: -7px;
+      right: -8px;
+    }
+
+    :global {
+      input[type="checkbox"] {
+        margin: 0;
+      }
+    }
+  }
+
+  &__label {
+    display: flex;
+    height: 100%;
+    width: 100%;
+    &:hover {
+      cursor: pointer;
+    }
+  }
+
+  &__dialog {
+    width: 600px;
+
+    :global {
+      .dremio-dialog-content__main {
+        height: 128px;
+      }
+    }
+  }
+}

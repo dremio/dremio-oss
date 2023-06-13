@@ -35,6 +35,8 @@ import org.apache.iceberg.view.View;
 import org.apache.iceberg.view.ViewDefinition;
 import org.apache.iceberg.view.ViewUtils;
 import org.junit.jupiter.api.Test;
+import org.projectnessie.model.ContentKey;
+import org.projectnessie.model.Namespace;
 import org.projectnessie.model.TableReference;
 
 import com.dremio.common.exceptions.UserException;
@@ -80,6 +82,7 @@ public class TestIcebergNessieVersionedViews extends BaseIcebergViewTest {
   @Test
   public void testCreateView() {
     createBranch(CREATE_BRANCH, VersionContext.NOT_SPECIFIED);
+    createNamespacesIfMissing(CREATE_BRANCH, ContentKey.of(createViewKey));
 
     final ViewDefinition viewDefinition =
         ViewDefinition.of(SQL, SCHEMA, CATALOG_NAME, Collections.emptyList());
@@ -106,6 +109,7 @@ public class TestIcebergNessieVersionedViews extends BaseIcebergViewTest {
   @Test
   public void testReplaceView() {
     createBranch(REPLACE_BRANCH, VersionContext.NOT_SPECIFIED);
+    createNamespacesIfMissing(REPLACE_BRANCH, ContentKey.of(replaceViewKey));
 
     final ViewDefinition viewDefinition =
         ViewDefinition.of(SQL, SCHEMA, CATALOG_NAME, Collections.emptyList());
@@ -144,6 +148,7 @@ public class TestIcebergNessieVersionedViews extends BaseIcebergViewTest {
   @Test
   public void testDropView() {
     createBranch(DROP_BRANCH, VersionContext.NOT_SPECIFIED);
+    createNamespacesIfMissing(DROP_BRANCH, ContentKey.of(dropViewKey));
 
     final ViewDefinition viewDefinition =
         ViewDefinition.of(SQL, SCHEMA, CATALOG_NAME, Collections.emptyList());
@@ -176,6 +181,7 @@ public class TestIcebergNessieVersionedViews extends BaseIcebergViewTest {
   @Test
   public void testComplexDropView() {
     createBranch(COMPLEX_DROP_BRANCH, VersionContext.NOT_SPECIFIED);
+    createNamespacesIfMissing(COMPLEX_DROP_BRANCH, ContentKey.of(complexDropViewKey));
 
     final ViewDefinition viewDefinition =
         ViewDefinition.of(SQL, SCHEMA, CATALOG_NAME, Collections.emptyList());
@@ -226,6 +232,7 @@ public class TestIcebergNessieVersionedViews extends BaseIcebergViewTest {
   @Test
   public void testDropViewOnDifferentBranch() {
     createBranch(OLD_DROP_BRANCH, VersionContext.NOT_SPECIFIED);
+    createNamespacesIfMissing(OLD_DROP_BRANCH, ContentKey.of(newDropViewKey));
 
     final ViewDefinition viewDefinition =
         ViewDefinition.of(SQL, SCHEMA, CATALOG_NAME, Collections.emptyList());
@@ -266,7 +273,7 @@ public class TestIcebergNessieVersionedViews extends BaseIcebergViewTest {
   @Test
   public void testGlobalMetadata() {
     createBranch(GLOBAL_METADATA_BRANCH, VersionContext.NOT_SPECIFIED);
-
+    createNamespacesIfMissing(GLOBAL_METADATA_BRANCH, Namespace.of(VIEW_IDENTIFIER.namespace().levels()));
     final ViewDefinition viewDefinition =
         ViewDefinition.of(SQL, SCHEMA, CATALOG_NAME, Collections.emptyList());
     final TableIdentifier viewIdentifier =
@@ -314,6 +321,7 @@ public class TestIcebergNessieVersionedViews extends BaseIcebergViewTest {
   @Test
   public void testNonGlobalMetadata() {
     createBranch(NON_GLOBAL_METADATA_BRANCH, VersionContext.NOT_SPECIFIED);
+    createNamespacesIfMissing(NON_GLOBAL_METADATA_BRANCH, ContentKey.of(nonGlobalMetadataViewKey));
 
     final ViewDefinition viewDefinition =
         ViewDefinition.of(SQL, SCHEMA, CATALOG_NAME, Collections.emptyList());
@@ -347,6 +355,7 @@ public class TestIcebergNessieVersionedViews extends BaseIcebergViewTest {
   @Test
   public void testViewDialect() {
     createBranch(DIALECT_BRANCH, VersionContext.NOT_SPECIFIED);
+    createNamespacesIfMissing(DIALECT_BRANCH, ContentKey.of(createViewKey));
 
     final ViewDefinition viewDefinition =
         ViewDefinition.of(SQL, SCHEMA, CATALOG_NAME, Collections.emptyList());

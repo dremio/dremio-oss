@@ -115,6 +115,10 @@ public class Utilities {
     }
 
     final String name = clientInfos.getName().toLowerCase(Locale.ROOT);
+    if (name.contains("dremio-to-dremio")) {
+      return WorkloadType.D2D;
+    }
+
     if (name.contains("jdbc") || name.contains("java")) {
       return WorkloadType.JDBC;
     }
@@ -138,6 +142,8 @@ public class Utilities {
         return "Internal Run";
       case INTERNAL_PREVIEW:
         return "Internal Preview";
+      case D2D:
+        return "D2D";
       case JDBC:
         return "JDBC";
       case ODBC:

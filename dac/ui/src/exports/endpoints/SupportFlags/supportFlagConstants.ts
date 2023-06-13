@@ -14,3 +14,8 @@
  * limitations under the License.
  */
 export const REFLECTION_ARCTIC_ENABLED = "reflection.arctic.enabled";
+export const SUBHOUR_ACCELERATION_POLICY =
+  "accelerator.enable.subhour.policies";
+export const ALLOW_DOWNLOAD = "ui.download.allow";
+export const AUTOCOMPLETE_UI_V2 = "ui.autocomplete.v2.enabled";
+export const NEW_DATASET_NAVIGATION = "ui.dataset.navigation.new";

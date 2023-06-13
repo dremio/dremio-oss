@@ -44,8 +44,7 @@ public class ParquetInputFormatTest {
     try {
       InputSplit[] inputSplits = new ParquetInputFormat().getSplits(jobConf, 1);
       Assert.fail();
-    }
-    catch (IOException ioe) {
+    } catch (IOException ioe) {
       Assert.assertTrue(ioe.getMessage().contains("No input paths specified in job"));
     }
   }

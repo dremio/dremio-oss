@@ -63,35 +63,38 @@ public class TestTpchDistributedWithGlobalDictionaries extends PlanTestBase {
     testNoResult("alter session set \"store.parquet.enable_dictionary_encoding_binary_type\"=true");
     final Configuration conf = new Configuration();
     final CompressionCodecFactory codec = CodecFactory.createDirectCodecFactory(conf, new ParquetDirectByteBufferAllocator(testAllocator), 0);
+    try {
+      fs = HadoopFileSystem.getLocal(conf);
+      testNoResult("CREATE TABLE dfs_test.tpch_lineitem_gd AS SELECT * FROM cp.\"tpch/lineitem.parquet\"");
+      testNoResult("CREATE TABLE dfs_test.tpch_customer_gd AS SELECT * FROM cp.\"tpch/customer.parquet\"");
+      testNoResult("CREATE TABLE dfs_test.tpch_part_gd AS SELECT * FROM cp.\"tpch/part.parquet\"");
+      testNoResult("CREATE TABLE dfs_test.tpch_partsupp_gd AS SELECT * FROM cp.\"tpch/partsupp.parquet\"");
+      testNoResult("CREATE TABLE dfs_test.tpch_region_gd AS SELECT * FROM cp.\"tpch/region.parquet\"");
+      testNoResult("CREATE TABLE dfs_test.tpch_nation_gd AS SELECT * FROM cp.\"tpch/nation.parquet\"");
+      testNoResult("CREATE TABLE dfs_test.tpch_supplier_gd AS SELECT * FROM cp.\"tpch/supplier.parquet\"");
+      testNoResult("CREATE TABLE dfs_test.tpch_orders_gd AS SELECT * FROM cp.\"tpch/orders.parquet\"");
 
-    fs = HadoopFileSystem.getLocal(conf);
-    testNoResult("CREATE TABLE dfs_test.tpch_lineitem_gd AS SELECT * FROM cp.\"tpch/lineitem.parquet\"");
-    testNoResult("CREATE TABLE dfs_test.tpch_customer_gd AS SELECT * FROM cp.\"tpch/customer.parquet\"");
-    testNoResult("CREATE TABLE dfs_test.tpch_part_gd AS SELECT * FROM cp.\"tpch/part.parquet\"");
-    testNoResult("CREATE TABLE dfs_test.tpch_partsupp_gd AS SELECT * FROM cp.\"tpch/partsupp.parquet\"");
-    testNoResult("CREATE TABLE dfs_test.tpch_region_gd AS SELECT * FROM cp.\"tpch/region.parquet\"");
-    testNoResult("CREATE TABLE dfs_test.tpch_nation_gd AS SELECT * FROM cp.\"tpch/nation.parquet\"");
-    testNoResult("CREATE TABLE dfs_test.tpch_supplier_gd AS SELECT * FROM cp.\"tpch/supplier.parquet\"");
-    testNoResult("CREATE TABLE dfs_test.tpch_orders_gd AS SELECT * FROM cp.\"tpch/orders.parquet\"");
+      lineitem = Path.of(getDfsTestTmpSchemaLocation() + "/tpch_lineitem_gd");
+      customer = Path.of(getDfsTestTmpSchemaLocation() + "/tpch_customer_gd");
+      part = Path.of(getDfsTestTmpSchemaLocation() + "/tpch_part_gd");
+      partsupp = Path.of(getDfsTestTmpSchemaLocation() + "/tpch_partsupp_gd");
+      region = Path.of(getDfsTestTmpSchemaLocation() + "/tpch_region_gd");
+      nation = Path.of(getDfsTestTmpSchemaLocation() + "/tpch_nation_gd");
+      supplier = Path.of(getDfsTestTmpSchemaLocation() + "/tpch_supplier_gd");
+      orders = Path.of(getDfsTestTmpSchemaLocation() + "/tpch_orders_gd");
 
-    lineitem = Path.of(getDfsTestTmpSchemaLocation() + "/tpch_lineitem_gd");
-    customer = Path.of(getDfsTestTmpSchemaLocation() + "/tpch_customer_gd");
-    part = Path.of(getDfsTestTmpSchemaLocation() + "/tpch_part_gd");
-    partsupp = Path.of(getDfsTestTmpSchemaLocation() + "/tpch_partsupp_gd");
-    region = Path.of(getDfsTestTmpSchemaLocation() + "/tpch_region_gd");
-    nation = Path.of(getDfsTestTmpSchemaLocation() + "/tpch_nation_gd");
-    supplier = Path.of(getDfsTestTmpSchemaLocation() + "/tpch_supplier_gd");
-    orders = Path.of(getDfsTestTmpSchemaLocation() + "/tpch_orders_gd");
-
-    GlobalDictionaryBuilder.createGlobalDictionaries(codec, fs, lineitem, testAllocator);
-    GlobalDictionaryBuilder.createGlobalDictionaries(codec, fs, customer, testAllocator);
-    GlobalDictionaryBuilder.createGlobalDictionaries(codec, fs, part, testAllocator);
-    GlobalDictionaryBuilder.createGlobalDictionaries(codec, fs, partsupp, testAllocator);
-    GlobalDictionaryBuilder.createGlobalDictionaries(codec, fs, region, testAllocator);
-    GlobalDictionaryBuilder.createGlobalDictionaries(codec, fs, nation, testAllocator);
-    GlobalDictionaryBuilder.createGlobalDictionaries(codec, fs, supplier, testAllocator);
-    GlobalDictionaryBuilder.createGlobalDictionaries(codec, fs, orders, testAllocator);
-    disableGlobalDictionary();
+      GlobalDictionaryBuilder.createGlobalDictionaries(codec, fs, lineitem, testAllocator);
+      GlobalDictionaryBuilder.createGlobalDictionaries(codec, fs, customer, testAllocator);
+      GlobalDictionaryBuilder.createGlobalDictionaries(codec, fs, part, testAllocator);
+      GlobalDictionaryBuilder.createGlobalDictionaries(codec, fs, partsupp, testAllocator);
+      GlobalDictionaryBuilder.createGlobalDictionaries(codec, fs, region, testAllocator);
+      GlobalDictionaryBuilder.createGlobalDictionaries(codec, fs, nation, testAllocator);
+      GlobalDictionaryBuilder.createGlobalDictionaries(codec, fs, supplier, testAllocator);
+      GlobalDictionaryBuilder.createGlobalDictionaries(codec, fs, orders, testAllocator);
+      disableGlobalDictionary();
+    } finally {
+      codec.release();
+    }
   }
 
   @AfterClass

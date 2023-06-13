@@ -38,6 +38,7 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.exception.JsonFieldChangeExceptionContext;
 import com.dremio.exec.exception.SetupException;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.record.TypedFieldId;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorAccessibleComplexWriter;
@@ -207,7 +208,8 @@ public class ConvertFromJsonOperator implements SingleInputOperator {
       this.column = column;
       this.vector = vector;
       this.writer = VectorAccessibleComplexWriter.getWriter(column.getInputField(), outgoing);
-      this.reader = new JsonReader(context.getManagedBuffer(), sizeLimit, maxLeafLimit, context.getOptions().getOption(ExecConstants.JSON_READER_ALL_TEXT_MODE_VALIDATOR), false, false);
+      this.reader = new JsonReader(context.getManagedBuffer(), sizeLimit, maxLeafLimit, context.getOptions().getOption(ExecConstants.JSON_READER_ALL_TEXT_MODE_VALIDATOR), false, false,
+        context.getOptions().getOption(PlannerSettings.ENFORCE_VALID_JSON_DATE_FORMAT_ENABLED));
       this.outgoingVector = outgoingVector;
       this.sizeLimit = sizeLimit;
     }

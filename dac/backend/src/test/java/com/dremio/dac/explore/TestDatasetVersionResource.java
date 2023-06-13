@@ -15,6 +15,7 @@
  */
 package com.dremio.dac.explore;
 
+import static com.dremio.dac.server.JobsServiceTestUtils.submitJobAndGetData;
 import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
@@ -30,6 +31,7 @@ import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.Response;
 
+import org.apache.arrow.memory.BufferAllocator;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -41,6 +43,7 @@ import com.dremio.dac.explore.model.HistoryItem;
 import com.dremio.dac.explore.model.InitialPreviewResponse;
 import com.dremio.dac.explore.model.NewUntitledFromParentRequest;
 import com.dremio.dac.explore.model.VersionContextReq;
+import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.proto.model.dataset.SourceVersionReference;
 import com.dremio.dac.proto.model.dataset.TransformUpdateSQL;
 import com.dremio.dac.proto.model.dataset.VersionContext;
@@ -50,6 +53,9 @@ import com.dremio.dac.server.ApiErrorModel;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.InvalidQueryException;
+import com.dremio.service.jobs.JobRequest;
+import com.dremio.service.jobs.JobsService;
+import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
@@ -204,6 +210,66 @@ public class TestDatasetVersionResource extends BaseTestServer {
   }
 
   @Test
+  public void testAsyncTransformAndPreviewApiWithReferences() throws Exception {
+    // create a VDS in the space
+    Dataset newVDS = createVDS(Arrays.asList("dsvTest", "preview_VDS"),"select * from sys.version");
+    Dataset vds = expectSuccess(getBuilder(getPublicAPI(3).path("catalog")).buildPost(Entity.json(newVDS)), new GenericType<Dataset>() {});
+
+    // create a derivation of the VDS
+    String parentDataset = String.join(".", vds.getPath());
+    DatasetVersion datasetVersion = DatasetVersion.newVersion();
+    WebTarget target = getAPIv2()
+      .path("datasets")
+      .path("new_untitled")
+      .queryParam("parentDataset", parentDataset)
+      .queryParam("newVersion", datasetVersion)
+      .queryParam("limit", 120);
+    Map<String, VersionContextReq> references = new HashMap<>();
+    references.put("source1", new VersionContextReq(VersionContextReq.VersionContextType.BRANCH, "branch"));
+    references.put("source2", new VersionContextReq(VersionContextReq.VersionContextType.TAG, "tag"));
+    references.put("source3", new VersionContextReq(VersionContextReq.VersionContextType.COMMIT, "d0628f078890fec234b98b873f9e1f3cd140988a"));
+    InitialPreviewResponse initialPreviewResponse = expectSuccess(getBuilder(target).buildPost(Entity.json(new NewUntitledFromParentRequest(references))),
+      new GenericType<InitialPreviewResponse>() {});
+    assertThat(initialPreviewResponse.getDataset().getReferences()).usingRecursiveComparison().isEqualTo(references);
+
+    // save the derivation a new VDS
+    target = getAPIv2()
+      .path("dataset")
+      .path("tmp.UNTITLED")
+      .path("version")
+      .path(datasetVersion.getVersion())
+      .path("save")
+      .queryParam("as", "dsvTest.preview_VDS2");
+    DatasetUIWithHistory dswh = expectSuccess(getBuilder(target).buildPost(Entity.json(null)), new GenericType<DatasetUIWithHistory>() {});
+
+    // modify the sql of the new VDS by doing a transform
+    DatasetVersion datasetVersion2 = DatasetVersion.newVersion();
+    String dsPath = String.join(".", dswh.getDataset().getFullPath());
+    List<SourceVersionReference> sourceVersionReferenceList = new ArrayList<>();
+    VersionContext versionContext1 = new VersionContext(VersionContextType.BRANCH, "branch");
+    VersionContext versionContext2 = new VersionContext(VersionContextType.TAG, "tag");
+    VersionContext versionContext3 = new VersionContext(VersionContextType.COMMIT, "d0628f078890fec234b98b873f9e1f3cd140988a");
+    sourceVersionReferenceList.add(new SourceVersionReference("source1", versionContext1));
+    sourceVersionReferenceList.add(new SourceVersionReference("source2", versionContext2));
+    sourceVersionReferenceList.add(new SourceVersionReference("source3", versionContext3));
+
+    target = getAPIv2()
+      .path("dataset")
+      .path(dsPath)
+      .path("version")
+      .path(dswh.getDataset().getDatasetVersion().getVersion())
+      .path("transform_and_preview")
+      .queryParam("newVersion", datasetVersion2);
+
+    TransformUpdateSQL transformSql = new TransformUpdateSQL();
+    transformSql.setSql("SELECT \"version\" FROM dsvTest.preview_VDS");
+    transformSql.setReferencesList(sourceVersionReferenceList);
+
+    initialPreviewResponse = expectSuccess(getBuilder(target).buildPost(Entity.json(transformSql)), new GenericType<InitialPreviewResponse>() {});
+    assertThat(initialPreviewResponse.getDataset().getReferences()).usingRecursiveComparison().isEqualTo(references);
+  }
+
+  @Test
   public void testTransformAndRunApiWithReferences() throws Exception {
     Dataset newVDS = createVDS(Arrays.asList("dsvTest", "transformAndRunVDS"),"select * from sys.version");
     Dataset vds = expectSuccess(getBuilder(getPublicAPI(3).path("catalog")).buildPost(Entity.json(newVDS)), new GenericType<Dataset>() {});
@@ -271,6 +337,79 @@ public class TestDatasetVersionResource extends BaseTestServer {
     references = new HashMap<>();
     TransformUpdateSQL transformSql3 = new TransformUpdateSQL();
     transformSql3.setSql("SELECT \"version\" FROM dsvTest.transformAndRunVDS");
+    transformSql3.setReferencesList(new ArrayList<>());
+    initialPreviewResponse = expectSuccess(getBuilder(target).buildPost(Entity.json(transformSql3)), new GenericType<InitialPreviewResponse>() {});
+    assertThat(initialPreviewResponse.getDataset().getReferences()).usingRecursiveComparison().isEqualTo(references);
+  }
+
+  @Test
+  public void testAsyncTransformAndRunApiWithReferences() throws Exception {
+    Dataset newVDS = createVDS(Arrays.asList("dsvTest", "transformAndRun_VDS"),"select * from sys.version");
+    Dataset vds = expectSuccess(getBuilder(getPublicAPI(3).path("catalog")).buildPost(Entity.json(newVDS)), new GenericType<Dataset>() {});
+
+    // create a derivation of the VDS
+    String parentDataset = String.join(".", vds.getPath());
+    DatasetVersion datasetVersion = DatasetVersion.newVersion();
+    WebTarget target = getAPIv2()
+      .path("datasets")
+      .path("new_untitled")
+      .queryParam("parentDataset", parentDataset)
+      .queryParam("newVersion", datasetVersion)
+      .queryParam("limit", 120);
+    expectSuccess(getBuilder(target).buildPost(Entity.json(null)), new GenericType<InitialPreviewResponse>() {});
+
+    target = getAPIv2()
+      .path("dataset")
+      .path("tmp.UNTITLED")
+      .path("version")
+      .path(datasetVersion.getVersion())
+      .path("save")
+      .queryParam("as", "dsvTest.transformAndRun_VDS2");
+    DatasetUIWithHistory dswh = expectSuccess(getBuilder(target).buildPost(Entity.json(null)), new GenericType<DatasetUIWithHistory>() {});
+    String dsPath = String.join(".", dswh.getDataset().getFullPath());
+
+    //set references payload
+    datasetVersion = DatasetVersion.newVersion();
+    target = getAPIv2()
+      .path("dataset")
+      .path(dsPath)
+      .path("version")
+      .path(dswh.getDataset().getDatasetVersion().getVersion())
+      .path("transform_and_run")
+      .queryParam("newVersion", datasetVersion);
+    List<SourceVersionReference> sourceVersionReferenceList = new ArrayList<>();
+    VersionContext versionContext1 = new VersionContext(VersionContextType.BRANCH, "branch");
+    VersionContext versionContext2 = new VersionContext(VersionContextType.TAG, "tag");
+    VersionContext versionContext3 = new VersionContext(VersionContextType.COMMIT, "d0628f078890fec234b98b873f9e1f3cd140988a");
+    sourceVersionReferenceList.add(new SourceVersionReference("source1", versionContext1));
+    sourceVersionReferenceList.add(new SourceVersionReference("source2", versionContext2));
+    sourceVersionReferenceList.add(new SourceVersionReference("source3", versionContext3));
+
+    //set references payload
+    TransformUpdateSQL transformSql1 = new TransformUpdateSQL();
+    transformSql1.setSql("SELECT \"version\" FROM dsvTest.transformAndRun_VDS");
+    transformSql1.setReferencesList(sourceVersionReferenceList);
+
+    InitialPreviewResponse initialPreviewResponse = expectSuccess(getBuilder(target).buildPost(
+      Entity.json(transformSql1)), new GenericType<InitialPreviewResponse>() {});
+
+    Map<String, VersionContextReq> references = new HashMap<>();
+    references.put("source1", new VersionContextReq(VersionContextReq.VersionContextType.BRANCH, "branch"));
+    references.put("source2", new VersionContextReq(VersionContextReq.VersionContextType.TAG, "tag"));
+    references.put("source3", new VersionContextReq(VersionContextReq.VersionContextType.COMMIT, "d0628f078890fec234b98b873f9e1f3cd140988a"));
+    assertThat(initialPreviewResponse.getDataset().getReferences()).usingRecursiveComparison().isEqualTo(references);
+
+    //set null references payload
+    references = new HashMap<>();
+    TransformUpdateSQL transformSql2 = new TransformUpdateSQL();
+    transformSql2.setSql("SELECT \"version\" FROM dsvTest.transformAndRun_VDS");
+    initialPreviewResponse = expectSuccess(getBuilder(target).buildPost(Entity.json(transformSql2)), new GenericType<InitialPreviewResponse>() {});
+    assertThat(initialPreviewResponse.getDataset().getReferences()).usingRecursiveComparison().isEqualTo(references);
+
+    //set empty references payload
+    references = new HashMap<>();
+    TransformUpdateSQL transformSql3 = new TransformUpdateSQL();
+    transformSql3.setSql("SELECT \"version\" FROM dsvTest.transformAndRun_VDS");
     transformSql3.setReferencesList(new ArrayList<>());
     initialPreviewResponse = expectSuccess(getBuilder(target).buildPost(Entity.json(transformSql3)), new GenericType<InitialPreviewResponse>() {});
     assertThat(initialPreviewResponse.getDataset().getReferences()).usingRecursiveComparison().isEqualTo(references);
@@ -560,6 +699,27 @@ public class TestDatasetVersionResource extends BaseTestServer {
 
     expectStatus(Response.Status.BAD_REQUEST, getBuilder(target).buildPost(Entity.json(null)));
 
+  }
+
+  /**
+   * Views created through the Catalog API (as opposed to CREATE VIEW DDL statement) are allowed to contain
+   * duplicate column names.  Verify that we can still select from such a view.  See DX-63350
+   * @throws Exception
+   */
+  @Test
+  public void testDuplicateColumns() {
+    BufferAllocator allocator = getSabotContext().getAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
+    Dataset newVDS = createVDS(Arrays.asList("dsvTest", "testDuplicateColumns"),"select n_name, n_name from cp.\"tpch/nation.parquet\" order by 1 asc");
+    expectSuccess(getBuilder(getPublicAPI(3).path("catalog")).buildPost(Entity.json(newVDS)), new GenericType<Dataset>() {});
+
+    try (final JobDataFragment data = submitJobAndGetData(l(JobsService.class),
+      JobRequest.newBuilder().setSqlQuery(new SqlQuery("select * from dsvTest.testDuplicateColumns", DEFAULT_USERNAME)).build(), 0, 20, allocator)) {
+      assertEquals(20, data.getReturnedRowCount());
+      assertEquals("ALGERIA", data.extractValue("n_name", 0).toString());
+      assertEquals("ALGERIA", data.extractValue("n_name0", 0).toString());
+    } finally {
+      allocator.close();
+    }
   }
 
   private Dataset createVDS(List<String> path, String sql) {

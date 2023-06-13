@@ -50,6 +50,7 @@ public interface TerminalOperator extends Operator.SingleConsumer {
 
   };
 
+  @Override
   State getState();
   void setup(VectorAccessible incoming) throws Exception;
   void receivingFragmentFinished(FragmentHandle handle) throws Exception;

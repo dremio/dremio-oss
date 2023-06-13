@@ -23,6 +23,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -58,14 +59,20 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataFiles;
 import org.apache.iceberg.ManifestFile;
+import org.apache.iceberg.ManifestFiles;
+import org.apache.iceberg.ManifestWriter;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.hadoop.HadoopTables;
+import org.apache.iceberg.io.FileIO;
+import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.types.Types;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.exec.catalog.CatalogOptions;
@@ -882,6 +889,7 @@ public class TestManifestRecordWriter extends BaseTestQuery {
     when(fileSystemPlugin.getFsConfCopy()).thenReturn(configuration);
     final FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
     when(fileSystemPlugin.getSystemUserFS()).thenReturn(fs);
+    when(fileSystemPlugin.createFS(any(), any(), any())).thenReturn(fs);
     when(manifestWriterPOP.getLocation()).thenReturn(metadataLocation + "/queryID");
     when(manifestWriterPOP.getPlugin()).thenReturn(fileSystemPlugin);
     WriterOptions writerOptions = mock(WriterOptions.class);
@@ -899,5 +907,25 @@ public class TestManifestRecordWriter extends BaseTestQuery {
     when(writerOptions.getTableFormatOptions()).thenReturn(tableFormatOptions);
     when(writerOptions.getExtendedProperty()).thenReturn(null);
     return manifestWriterPOP;
+  }
+
+  @Test
+  public void testLazyManifestWriter() throws Exception {
+    FileIO mockIo = mock(FileIO.class);
+    OutputFile mockOutputFile = mock(OutputFile.class);
+    ManifestWriter<DataFile> mockManifestWriter = mock(ManifestWriter.class);
+
+    when(mockIo.newOutputFile(anyString()))
+      .thenReturn(mockOutputFile);
+
+    try (MockedStatic<ManifestFiles> manifestFiles = Mockito.mockStatic(ManifestFiles.class)) {
+      manifestFiles.when(() -> ManifestFiles.write(null, mockOutputFile)).thenReturn(mockManifestWriter);
+
+      LazyManifestWriter lazyManifestWriter = new LazyManifestWriter(mockIo, "hello", null);
+      assertTrue(!lazyManifestWriter.isInitialized());
+
+      lazyManifestWriter.getInstance();
+      assertTrue(lazyManifestWriter.isInitialized());
+    }
   }
 }

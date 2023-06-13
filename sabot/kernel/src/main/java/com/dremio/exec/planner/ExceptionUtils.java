@@ -31,6 +31,7 @@ public final class ExceptionUtils {
                                         Throwable t,
                                         PlannerSettings plannerSettings,
                                         PlannerPhase phase,
+                                        UserException.AttemptCompletionState attemptCompletionState,
                                         Logger logger) {
     UserException.Builder builder;
     if (t != null) {
@@ -39,6 +40,7 @@ public final class ExceptionUtils {
       builder = UserException.planError();
     }
     builder = builder.message(message);
+    builder = builder.attemptCompletionState(attemptCompletionState);
     if (phase != null) {
       builder = builder.addContext("Planner Phase", phase.description);
     }

@@ -101,6 +101,7 @@ class CatalogProtocol implements FabricProtocol, AutoCloseable {
     }
   }
 
+  @Override
   public void close() {
     executor.shutdownNow();
   }

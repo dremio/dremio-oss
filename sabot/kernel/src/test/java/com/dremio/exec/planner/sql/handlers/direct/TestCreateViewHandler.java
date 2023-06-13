@@ -23,6 +23,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.anySet;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
@@ -69,6 +70,7 @@ import com.dremio.exec.planner.sql.OperatorTable;
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.parser.SqlCreateView;
+import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.exec.proto.UserBitShared.UserCredentials;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
@@ -155,7 +157,7 @@ public class TestCreateViewHandler extends DremioTest {
   private ViewOptions replaceViewOptions = new ViewOptions.ViewOptionsBuilder()
     .version(DEFAULT_RESOLVED_VERSION_CONTEXT)
     .batchSchema(batchSchema)
-    .viewUpdate(true)
+    .actionType(ViewOptions.ActionType.UPDATE_VIEW)
     .build();
   private CreateViewHandler createViewHandler;
   private SqlConverter parser;
@@ -262,6 +264,12 @@ public class TestCreateViewHandler extends DremioTest {
   }
 
   private void setupResources() throws SqlParseException {
+    setupCreateViewHandler();
+    // versioned view test only
+    doReturn(true).when(createViewHandler).isVersioned(DEFAULT_NAMESPACE_KEY);
+  }
+
+  private void setupCreateViewHandler() {
     when(catalog.resolveSingle(default_input.getPath())).thenReturn(DEFAULT_NAMESPACE_KEY);
     when(context.getCatalog()).thenReturn(catalog);
     when(optionManager.getOption(VERSIONED_VIEW_ENABLED)).thenReturn(true);
@@ -271,8 +279,6 @@ public class TestCreateViewHandler extends DremioTest {
     when(sqlNode.toSqlString(CalciteSqlDialect.DEFAULT, true)).thenReturn(queryString);
     when(sqlNode.getKind()).thenReturn(SqlKind.SELECT);
     createViewHandler = spy(new CreateViewHandler(config));
-    // versioned view test only
-    doReturn(true).when(createViewHandler).isVersioned(DEFAULT_NAMESPACE_KEY);
   }
 
   @Test
@@ -351,6 +357,18 @@ public class TestCreateViewHandler extends DremioTest {
     runTestGetViewSql("CREATE VIEW foo AS\nSELECT * FROM [bar.baz.qux]", "SELECT * FROM \"bar.baz.qux\"");
     runTestGetViewSql("CREATE VIEW foo AS\nSELECT [*] FROM bar", "SELECT \"*\" FROM bar");
     runTestGetViewSql("CREATE VIEW foo AS\nSELECT [\"*\"] FROM bar", "SELECT \"\"\"*\"\"\" FROM bar");
+  }
+
+  @Test
+  public void createViewWithoutALTERPrivilege() throws Exception {
+    setupCreateViewHandler();
+    doThrow(UserException.validationError().message("permission denied").buildSilently())
+      .when(catalog)
+      .validatePrivilege(new NamespaceKey(DEFAULT_SOURCE_NAME), SqlGrant.Privilege.ALTER);
+
+    assertThatThrownBy(() -> createViewHandler.toResult("", default_input))
+      .isInstanceOf(UserException.class)
+      .hasMessage("permission denied");
   }
 
   private void runTestGetViewSql(String sql, String expected) throws UserException {

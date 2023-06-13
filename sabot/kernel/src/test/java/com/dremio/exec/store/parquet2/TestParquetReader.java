@@ -29,10 +29,8 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.Map;
-import java.util.stream.Stream;
 
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.commons.io.FileUtils;
 import org.apache.parquet.format.converter.ParquetMetadataConverter;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.junit.AfterClass;
@@ -169,7 +167,7 @@ public class TestParquetReader extends BaseTestQuery {
 
   @Test
   public void testFilterOnNonExistentColumn() throws Exception {
-    final String parquetFiles = setupParquetFiles("testFilterOnNonExistentColumn", "nonexistingcols", "bothcols.parquet");
+    final String parquetFiles = TestParquetUtil.setupParquetFiles("testFilterOnNonExistentColumn", "nonexistingcols", "bothcols.parquet", WORKING_PATH);
     try {
       testBuilder()
         .sqlQuery("SELECT * FROM dfs.\"" + parquetFiles + "\" where col1='bothvalscol1'")
@@ -185,13 +183,13 @@ public class TestParquetReader extends BaseTestQuery {
         .baselineValues("singlevalcol2")
         .go();
     } finally {
-      delete(Paths.get(parquetFiles));
+      TestParquetUtil.delete(Paths.get(parquetFiles));
     }
   }
 
   @Test
   public void testAggregationFilterOnNonExistentColumn() throws Exception {
-    final String parquetFiles = setupParquetFiles("testAggregationFilterOnNonExistentColumn", "nonexistingcols", "bothcols.parquet");
+    final String parquetFiles = TestParquetUtil.setupParquetFiles("testAggregationFilterOnNonExistentColumn", "nonexistingcols", "bothcols.parquet", WORKING_PATH);
     try {
       testBuilder()
         .sqlQuery("SELECT count(*) as cnt FROM dfs.\"" + parquetFiles + "\" where col1 = 'doesnotexist'")
@@ -214,7 +212,7 @@ public class TestParquetReader extends BaseTestQuery {
         .baselineValues(1L)
         .go();
     } finally {
-      delete(Paths.get(parquetFiles));
+      TestParquetUtil.delete(Paths.get(parquetFiles));
     }
   }
 
@@ -228,7 +226,7 @@ public class TestParquetReader extends BaseTestQuery {
      * This case expects no records to be returned in the query when there's no match. Also, there shouldn't be an error.
      */
 
-    final String parquetFiles = setupParquetFiles("testChainedVectorizedRowiseReaderNoResultCase", "chained_vectorised_rowwise_case", "yes_filter_col.parquet");
+    final String parquetFiles = TestParquetUtil.setupParquetFiles("testChainedVectorizedRowiseReaderNoResultCase", "chained_vectorised_rowwise_case", "yes_filter_col.parquet", WORKING_PATH);
     try {
       // No match case
       testBuilder()
@@ -255,7 +253,7 @@ public class TestParquetReader extends BaseTestQuery {
         .baselineValues("F1Val1", "F2Val2")
         .go();
     } finally {
-      delete(Paths.get(parquetFiles));
+      TestParquetUtil.delete(Paths.get(parquetFiles));
     }
   }
 
@@ -271,46 +269,5 @@ public class TestParquetReader extends BaseTestQuery {
         .expectsEmptyResultSet()
         .go();
     }
-  }
-
-  private String setupParquetFiles(String testName, String folderName, String primaryParquet) throws Exception {
-    /*
-     * Copy primary parquet in a temporary folder and promote the same. This way, primary parquet's schema will be
-     * taken as the dremio dataset's schema. Then copy remaining files and refresh the dataset.
-     */
-    final String parquetRefFolder = WORKING_PATH + "/src/test/resources/parquet/" + folderName;
-    String parquetFiles = Files.createTempDirectory(testName).toString();
-    try {
-      Files.copy(Paths.get(parquetRefFolder, primaryParquet), Paths.get(parquetFiles, primaryParquet), StandardCopyOption.REPLACE_EXISTING);
-      runSQL("SELECT * FROM dfs.\"" + parquetFiles + "\"");  // to detect schema and auto promote
-
-      // Copy remaining files
-      try (Stream<java.nio.file.Path> stream = Files.walk(Paths.get(parquetRefFolder))) {
-        stream
-          .filter(Files::isRegularFile)
-          .filter(p -> !p.getFileName().toString().equals(primaryParquet))
-          .forEach(p -> {
-            try {
-              Files.copy(p, Paths.get(parquetFiles, p.getFileName().toString()),
-                StandardCopyOption.REPLACE_EXISTING);
-            } catch (Exception e) {
-              throw new RuntimeException(e);
-            }
-          });
-      }
-      runSQL("alter table dfs.\"" + parquetFiles + "\" refresh metadata force update");  // so it detects second parquet
-      setEnableReAttempts(true);
-      runSQL("select * from dfs.\"" + parquetFiles + "\""); // need to run select * from pds to get correct schema update. Check DX-25496 for details.
-      return parquetFiles;
-    } catch (Exception e) {
-      delete(Paths.get(parquetFiles));
-      throw e;
-    } finally {
-      setEnableReAttempts(false);
-    }
-  }
-
-  private static void delete(java.nio.file.Path dir) throws Exception {
-    FileUtils.deleteDirectory(dir.toFile());
   }
 }

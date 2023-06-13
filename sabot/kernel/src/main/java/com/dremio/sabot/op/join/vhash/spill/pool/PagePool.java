@@ -151,6 +151,7 @@ public class PagePool implements AutoCloseable {
     return p;
   }
 
+  @Override
   public void close() {
     Preconditions.checkArgument(state != State.CLOSED);
 

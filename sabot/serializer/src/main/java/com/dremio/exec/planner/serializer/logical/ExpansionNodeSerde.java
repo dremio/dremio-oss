@@ -20,6 +20,7 @@ import java.util.List;
 
 import org.apache.calcite.rel.RelNode;
 
+import com.dremio.exec.catalog.TableVersionContext;
 import com.dremio.exec.planner.acceleration.ExpansionNode;
 import com.dremio.exec.planner.serializer.RelNodeSerde;
 import com.dremio.plan.serialization.PExpansionNode;
@@ -32,18 +33,22 @@ public final class ExpansionNodeSerde implements RelNodeSerde<ExpansionNode, PEx
   @Override
   public PExpansionNode serialize(ExpansionNode expansionNode, RelToProto s) {
     List<String> path = expansionNode.getPath().getPathComponents();
-    return PExpansionNode.newBuilder()
+    PExpansionNode.Builder builder = PExpansionNode.newBuilder()
       .setInput(s.toProto(expansionNode.getInput()))
       .addAllPath(path)
       .setContextSensitive(expansionNode.isContextSensitive())
-      .setIsDefault(expansionNode.isDefault())
-      .build();
+      .setIsDefault(expansionNode.isDefault());
+    if (expansionNode.getVersionContext() != null) {
+      builder.setVersionContext(expansionNode.getVersionContext().serialize());
+    }
+    return builder.build();
   }
 
   @Override
   public ExpansionNode deserialize(PExpansionNode node, RelFromProto s) {
     List<String> path = new ArrayList<>(node.getPathList());
     RelNode input = s.toRel(node.getInput());
-    return (ExpansionNode) ExpansionNode.wrap(new NamespaceKey(path), input, input.getRowType(), node.getContextSensitive(), node.getIsDefault());
+    return (ExpansionNode) ExpansionNode.wrap(new NamespaceKey(path), input, input.getRowType(), node.getContextSensitive(),
+      node.getIsDefault(), node.getVersionContext() == null ?  null : TableVersionContext.deserialize(node.getVersionContext()));
   }
 }

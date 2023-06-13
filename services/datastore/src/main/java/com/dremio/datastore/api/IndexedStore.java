@@ -108,6 +108,20 @@ public interface IndexedStore<K, V> extends KVStore<K, V> {
   }
 
   /**
+   * Creates a lazy iterable over items that match the provided condition, in
+   * the order requested. This is similar to find operation but it returns matching
+   * documents across all tenants.
+   *
+   * @param condition the find condition.
+   *                  The condition to match
+   * @param options extra configurations for find operation.
+   * @return A lazy iterable over the matching Documents.
+   */
+  default Iterable<Document<K, V>> findOnAllTenants(FindByCondition condition, FindOption... options) {
+    throw new UnsupportedOperationException("Only applicable for MultiTenantKVstore");
+  }
+
+  /**
    * Version for the indicies.
    *
    *  @return version number.

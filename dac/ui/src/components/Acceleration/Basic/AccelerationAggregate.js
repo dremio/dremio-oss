@@ -17,8 +17,7 @@ import { PureComponent } from "react";
 import PropTypes from "prop-types";
 import { overlay } from "uiTheme/radium/overlay";
 import Immutable from "immutable";
-import { Button } from "dremio-ui-lib";
-import * as ButtonTypes from "components/Buttons/ButtonTypes";
+import { Button } from "dremio-ui-lib/components";
 import FontIcon from "components/Icon/FontIcon";
 import { Toggle } from "components/Fields";
 import AggregateForm from "components/Aggregate/AggregateForm";
@@ -90,11 +89,11 @@ class AccelerationAggregate extends PureComponent {
                   {intl.formatMessage({ id: "Reflections.Auto.Aggregation" })}
                   <Button
                     style={{ marginLeft: "1em" }}
-                    disableMargin
                     onClick={skipRecommendations}
-                    color={ButtonTypes.UI_LIB_SECONDARY}
-                    text={intl.formatMessage({ id: "Reflections.Skip" })}
-                  />
+                    variant="secondary"
+                  >
+                    {intl.formatMessage({ id: "Reflections.Skip" })}
+                  </Button>
                 </span>
               }
             />

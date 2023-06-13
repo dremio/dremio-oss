@@ -32,6 +32,11 @@ export const DATASET_TYPES_TO_ICON_TYPES = {
   //  [PHYSICAL_DATASET_HOME_FOLDER]: 'FolderData'
 };
 
+export const DATASET_TYPES_TO_ICEBERG_TYPES = {
+  [PHYSICAL_DATASET]: "IcebergTable",
+  [VIRTUAL_DATASET]: "IcebergView",
+};
+
 export const datasetTypeToEntityType = {
   [VIRTUAL_DATASET]: "dataset",
   [PHYSICAL_DATASET]: "physicalDataset",

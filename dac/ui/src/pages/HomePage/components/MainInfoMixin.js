@@ -17,6 +17,8 @@ import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
 import { IconButton } from "dremio-ui-lib";
 import { getSettingsLocation } from "components/Menus/HomePage/DatasetMenu";
 import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
+import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
+import { shouldUseNewDatasetNavigation } from "@app/utils/datasetNavigationUtils";
 
 export default function (input) {
   Object.assign(input.prototype, {
@@ -37,15 +39,32 @@ export default function (input) {
       );
     },
 
+    // versionContext is needed to create ref info for versioned views.
+    // without it, trying to open a view in a new tab will fail to load.
+    // same solution used for DX-62856
     getShortcutButtonsData(item, entityType, btnTypes) {
+      const versionContext = getVersionContextFromId(item.get("id"));
+      const { type, value } = versionContext ?? {};
+
       const allBtns = [
         // Per DX-13304 we leave only Edit and Cog (Settings.svg) buttons
         {
           label: this.getInlineIcon("interface/edit"),
           tooltip: "Common.Edit",
-          link: wrapBackendLink(item.getIn(["links", "edit"])),
+          link: wrapBackendLink(
+            `${item.getIn(["links", "edit"])}${
+              type && value ? `&refType=${type}&refValue=${value}` : ""
+            }`
+          ),
           type: btnTypes.edit,
           isShown: entityType === "dataset",
+        },
+        {
+          label: this.getInlineIcon("navigation-bar/go-to-dataset"),
+          tooltip: "Go.To.Table",
+          link: wrapBackendLink(item.getIn(["links", "query"])),
+          type: btnTypes.goToTable,
+          isShown: shouldUseNewDatasetNavigation() && entityType !== "dataset",
         },
         {
           label: this.getInlineIcon("interface/settings"),

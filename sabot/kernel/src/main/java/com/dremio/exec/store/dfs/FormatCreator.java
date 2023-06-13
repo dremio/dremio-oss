@@ -96,12 +96,12 @@ public class FormatCreator {
 
   public static Map<String, FormatPluginConfig> getDefaultFormats() {
     Map<String, FormatPluginConfig> defaultFormats = new TreeMap<>();
-    defaultFormats.put("csv", createTextFormatPlugin(false, ',', Lists.newArrayList("csv")));
-    defaultFormats.put("csvh", createTextFormatPlugin(true, ',', Lists.newArrayList("csvh")));
-    defaultFormats.put("tsv", createTextFormatPlugin(false, '\t', Lists.newArrayList("tsv")));
-    defaultFormats.put("psv", createTextFormatPlugin(false, '|', Lists.newArrayList("psv", "tbl")));
-    defaultFormats.put("txt", createTextFormatPlugin(false, '\u0000', Lists.newArrayList("txt")));
-    TextFormatConfig psva = createTextFormatPlugin(false, '|', Lists.newArrayList("psva", "tbla"));
+    defaultFormats.put("csv", createTextFormatPlugin(false, ",", Lists.newArrayList("csv")));
+    defaultFormats.put("csvh", createTextFormatPlugin(true, ",", Lists.newArrayList("csvh")));
+    defaultFormats.put("tsv", createTextFormatPlugin(false, "\t", Lists.newArrayList("tsv")));
+    defaultFormats.put("psv", createTextFormatPlugin(false, "|", Lists.newArrayList("psv", "tbl")));
+    defaultFormats.put("txt", createTextFormatPlugin(false, "\u0000", Lists.newArrayList("txt")));
+    TextFormatConfig psva = createTextFormatPlugin(false, "|", Lists.newArrayList("psva", "tbla"));
     psva.autoGenerateColumnNames = true;
     defaultFormats.put("psva", psva);
 
@@ -124,7 +124,7 @@ public class FormatCreator {
    * @return - a new TextFormatConfig
    */
   public static TextFormatPlugin.TextFormatConfig createTextFormatPlugin(boolean extractHeader,
-      char fieldDelimiter,
+      String fieldDelimiter,
       List<String> extensions) {
     TextFormatPlugin.TextFormatConfig newText = new TextFormatPlugin.TextFormatConfig();
     newText.extractHeader = extractHeader;

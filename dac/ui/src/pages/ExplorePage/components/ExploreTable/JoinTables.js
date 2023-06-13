@@ -44,7 +44,6 @@ export class JoinTables extends PureComponent {
     exploreViewState: PropTypes.instanceOf(Immutable.Map),
     joinViewState: PropTypes.instanceOf(Immutable.Map),
     location: PropTypes.object,
-    sqlSize: PropTypes.number,
     rightTreeVisible: PropTypes.bool,
     accessEntity: PropTypes.func.isRequired,
     joinDatasetFullPath: PropTypes.string,
@@ -77,13 +76,8 @@ export class JoinTables extends PureComponent {
     if (!this.shouldRenderSecondTable()) {
       return null;
     }
-    const {
-      joinTableData,
-      joinViewState,
-      rightTreeVisible,
-      sqlSize,
-      location,
-    } = this.props;
+    const { joinTableData, joinViewState, rightTreeVisible, location } =
+      this.props;
     if (
       (!joinTableData || !joinTableData.get("columns").size) &&
       !joinViewState.get("isFailed")
@@ -108,7 +102,6 @@ export class JoinTables extends PureComponent {
         widthScale={WIDTH_SCALE}
         dragType="join"
         location={location}
-        sqlSize={sqlSize}
         rightTreeVisible={rightTreeVisible}
         shouldRenderInvisibles
       />
@@ -116,7 +109,7 @@ export class JoinTables extends PureComponent {
   }
 
   render() {
-    const { location, sqlSize, rightTreeVisible, dataset, exploreViewState } =
+    const { location, rightTreeVisible, dataset, exploreViewState } =
       this.props;
     const nameForDisplay = ExploreInfoHeader.getNameForDisplay(
       dataset,
@@ -139,7 +132,6 @@ export class JoinTables extends PureComponent {
             dragType="groupBy"
             widthScale={scale}
             location={location}
-            sqlSize={sqlSize}
             rightTreeVisible={rightTreeVisible}
             exploreViewState={exploreViewState}
             shouldRenderInvisibles

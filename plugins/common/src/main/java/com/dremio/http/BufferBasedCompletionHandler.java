@@ -16,6 +16,8 @@
 
 package com.dremio.http;
 
+import java.nio.ByteBuffer;
+
 import org.asynchttpclient.AsyncCompletionHandlerBase;
 import org.asynchttpclient.AsyncHandler;
 import org.asynchttpclient.HttpResponseBodyPart;
@@ -30,16 +32,31 @@ import io.netty.buffer.ByteBuf;
  * Response processor for async http
  */
 public class BufferBasedCompletionHandler extends AsyncCompletionHandlerBase {
-  private final Logger logger = LoggerFactory.getLogger(BufferBasedCompletionHandler.class);
+  private static final Logger logger = LoggerFactory.getLogger(BufferBasedCompletionHandler.class);
   private final ByteBuf outputBuffer;
+  private final int dstOffset;
   private boolean requestFailed = false;
 
-  public BufferBasedCompletionHandler(ByteBuf outputBuffer) {
+  public BufferBasedCompletionHandler(ByteBuf outputBuffer, int dstOffset) {
     this.outputBuffer = outputBuffer;
+    this.outputBuffer.writerIndex(dstOffset);
+    this.dstOffset = dstOffset;
   }
 
   public boolean isRequestFailed() {
     return requestFailed;
+  }
+
+  protected ByteBuffer getBodyBytes() {
+    return outputBuffer.nioBuffer(dstOffset, outputBuffer.writerIndex() - dstOffset);
+  }
+
+  /**
+   * Reset the buffer to its original state to make it usable for a retry.
+   */
+  public void reset() {
+    this.requestFailed = false;
+    this.outputBuffer.writerIndex(this.dstOffset);
   }
 
   @Override

@@ -15,7 +15,7 @@
  */
 
 import FontIcon from "@app/components/Icon/FontIcon";
-import { Entry } from "@app/services/nessie/client";
+import { EntryV1 as Entry } from "@app/services/nessie/client";
 import NessieLink from "../NessieLink/NessieLink";
 
 import "./RepoHeader.less";

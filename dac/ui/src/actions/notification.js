@@ -16,18 +16,27 @@
 export const ADD_NOTIFICATION = "ADD_NOTIFICATION";
 export const REMOVE_NOTIFICATION = "REMOVE_NOTIFICATION";
 
-export function addNotification(message, level, autoDismiss = 0) {
+export function addNotification(
+  message,
+  level,
+  autoDismiss = 0,
+  uid = null,
+  options = {}
+) {
   return {
     type: ADD_NOTIFICATION,
     message,
     level,
     autoDismiss,
+    uid,
+    options,
   };
 }
 
-export function removeNotification(messageType) {
+export function removeNotification(messageType, uid = null) {
   return {
     type: REMOVE_NOTIFICATION,
     messageType,
+    uid,
   };
 }

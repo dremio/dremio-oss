@@ -18,7 +18,13 @@ package com.dremio.exec.catalog;
 import java.util.List;
 import java.util.stream.Stream;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.store.ChangeInfo;
+import com.dremio.exec.store.NessieNamespaceAlreadyExistsException;
 import com.dremio.exec.store.NoDefaultBranchException;
+import com.dremio.exec.store.ReferenceAlreadyExistsException;
+import com.dremio.exec.store.ReferenceConflictException;
+import com.dremio.exec.store.ReferenceInfo;
 import com.dremio.exec.store.ReferenceNotFoundException;
 import com.dremio.exec.store.ReferenceTypeConflictException;
 import com.dremio.plugins.ExternalNamespaceEntry;
@@ -27,6 +33,7 @@ import com.dremio.service.catalog.SearchQuery;
 import com.dremio.service.catalog.Table;
 import com.dremio.service.catalog.TableSchema;
 import com.dremio.service.catalog.View;
+import com.dremio.service.namespace.NamespaceKey;
 
 /**
  * Versioning-specific methods for the Catalog interface.
@@ -110,4 +117,167 @@ public interface VersionedPlugin {
    */
   Stream<TableSchema> getAllInformationSchemaColumnInfo(SearchQuery searchQuery);
 
+  /**
+   * Gets contentId for the given key and version
+   */
+  String getContentId(List<String> key, ResolvedVersionContext version);
+
+  /**
+   * Checks that a commit hash exists in the server.
+   */
+  boolean commitExists(String commitHash);
+
+  /**
+   * List all branches.
+   */
+  Stream<ReferenceInfo> listBranches();
+
+  /**
+   * List all tags.
+   */
+  Stream<ReferenceInfo> listTags();
+
+  /**
+   * List all references (both branches and tags).
+   */
+  Stream<ReferenceInfo> listReferences();
+
+  /**
+   * List all changes for the given version.
+   *
+   * @param version If the version is NOT_SPECIFIED, the default branch is used (if it exists)
+   *
+   * @throws ReferenceNotFoundException If the given reference cannot be found
+   * @throws NoDefaultBranchException If the Nessie server does not have a default branch set
+   * @throws ReferenceTypeConflictException If the requested version type does not match the server
+   */
+  Stream<ChangeInfo> listChanges(VersionContext version);
+
+  /**
+   * List only entries under the given path for the given version.
+   *
+   * @param catalogPath Acts as the namespace filter. It will scope entries to this namespace.
+   * @param version If the version is NOT_SPECIFIED, the default branch is used (if it exists).
+   *
+   * @throws ReferenceNotFoundException If the given reference cannot be found
+   * @throws NoDefaultBranchException If the Nessie server does not have a default branch set
+   * @throws ReferenceTypeConflictException If the requested version type does not match the server
+   */
+  Stream<ExternalNamespaceEntry> listEntries(List<String> catalogPath, VersionContext version)
+    throws ReferenceNotFoundException, NoDefaultBranchException, ReferenceConflictException;
+
+  /**
+   * List all entries under the given path and subpaths for the given version.
+   *
+   * @param catalogPath Acts as the namespace filter. It will act as the root namespace.
+   * @param version If the version is NOT_SPECIFIED, the default branch is used (if it exists).
+   *
+   * @throws ReferenceNotFoundException If the given reference cannot be found.
+   * @throws NoDefaultBranchException If the Nessie server does not have a default branch set.
+   * @throws ReferenceConflictException If the requested version does not match the server.
+   */
+  Stream<ExternalNamespaceEntry> listEntriesIncludeNested(List<String> catalogPath, VersionContext version)
+    throws ReferenceNotFoundException, NoDefaultBranchException, ReferenceConflictException;
+
+  /**
+   * Create a namespace by the given path for the given version
+   * @param namespaceKey The namespacekey that is used to create a folder in Nessie.
+   * @param version If the version is NOT_SPECIFIED, the default branch is used (if it exists).
+   *
+   * @throws NessieNamespaceAlreadyExistsException If the namespace already exists.
+   * @throws ReferenceNotFoundException If the given reference cannot be found.
+   * @throws NoDefaultBranchException If the Nessie server does not have a default branch set.
+   * @throws ReferenceConflictException If the requested version does not match the server.
+   */
+  void createNamespace(NamespaceKey namespaceKey, VersionContext version);
+
+  /**
+   * Create a branch from the given source reference.
+   *
+   * @param sourceVersion If the version is NOT_SPECIFIED, the default branch is used (if it exists)
+   *
+   * @throws ReferenceAlreadyExistsException If the reference already exists.
+   * @throws ReferenceNotFoundException If the given source reference cannot be found
+   * @throws NoDefaultBranchException If the Nessie server does not have a default branch set
+   * @throws ReferenceTypeConflictException If the requested version type does not match the server
+   */
+  void createBranch(String branchName, VersionContext sourceVersion);
+
+  /**
+   * Create a tag from the given source reference.
+   *
+   * @param sourceVersion If the version is NOT_SPECIFIED, the default branch is used (if it exists)
+   *
+   * @throws ReferenceAlreadyExistsException If the reference already exists
+   * @throws ReferenceNotFoundException If the given source reference cannot be found
+   * @throws NoDefaultBranchException If the Nessie server does not have a default branch set
+   * @throws ReferenceTypeConflictException If the requested version type does not match the server
+   */
+  void createTag(String tagName, VersionContext sourceVersion);
+
+  /**
+   * Drop the given branch.
+   *
+   * @throws ReferenceConflictException If the drop has conflict on the given branch
+   * @throws ReferenceNotFoundException If the given branch cannot be found
+   */
+  void dropBranch(String branchName, String branchHash);
+
+  /**
+   * Drop the given tag.
+   *
+   * @throws ReferenceConflictException If the drop has conflict on the given tag
+   * @throws ReferenceNotFoundException If the given tag cannot be found
+   */
+  void dropTag(String tagName, String tagHash);
+
+  /**
+   * Merge the source branch into target branch.
+   *
+   * @param sourceBranchName The source branch we are merging from
+   * @param targetBranchName The target branch we are merging into
+   *
+   * @throws ReferenceConflictException If the target branch hash changes during merging
+   * @throws ReferenceNotFoundException If the source/target branch cannot be found
+   */
+  void mergeBranch(String sourceBranchName, String targetBranchName);
+
+  /**
+   * Update the reference for the given branch.
+   *
+   * @param branchName The branch we want to update the reference
+   * @param sourceVersion The source reference name
+   *
+   * @throws ReferenceConflictException If the branch hash or source reference hash changes during update
+   * @throws ReferenceNotFoundException If the given branch or source reference cannot be found
+   */
+
+  void assignBranch(String branchName, VersionContext sourceVersion)
+    throws ReferenceConflictException, ReferenceNotFoundException;
+
+  /**
+   * Update the reference for the given tag.
+   *
+   * @param tagName The tag we want to update the reference
+   * @param sourceVersion The reference we want to update to
+   *
+   *
+   * @throws ReferenceConflictException If the tag hash or source reference hash changes during update
+   * @throws ReferenceNotFoundException If the given tag or source reference cannot be found
+   */
+
+  void assignTag(String tagName,  VersionContext sourceVersion)
+    throws ReferenceConflictException, ReferenceNotFoundException;
+
+  /**
+   * Deletes an Empty Folder by the given path for the given version
+   * @param namespaceKey The namespacekey that is used to create a folder in Nessie.
+   * @param sourceVersion If the version is NOT_SPECIFIED, the default branch is used (if it exists).
+   *
+   * @throws ReferenceNotFoundException If the given reference cannot be found.
+   * @throws UserException If the requested folder to be deleted is not empty.
+   */
+
+  void deleteFolder(NamespaceKey namespaceKey, VersionContext sourceVersion)
+    throws ReferenceNotFoundException, UserException;
 }

@@ -19,7 +19,6 @@ package com.dremio.sabot.op.scan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
@@ -83,8 +82,7 @@ public class ScanOperatorTest {
     }
 
     @Test
-    public void testWorkOnOOBRuntimeFilter() {
-        try {
+    public void testWorkOnOOBRuntimeFilter() throws Exception {
             // Send 6 messages. 1/2 are independent filters, 3 is dup of 1 from a different minor frag and should be dropped, 4 comes from
             // a different sender but filter structure is similar to 2/3, 5 comes from same sender as 4 but has one extra column.
             // 6th comes from same sender as 4 but with one less non-partition column.
@@ -204,10 +202,6 @@ public class ScanOperatorTest {
             assertEquals(Lists.newArrayList("npCol3"), f5NonPartitionCols);
 
             AutoCloseables.close(scanOp.getRuntimeFilters());
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
     }
 
     @Test

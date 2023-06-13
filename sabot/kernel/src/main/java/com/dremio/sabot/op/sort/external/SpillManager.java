@@ -179,6 +179,7 @@ public class SpillManager implements AutoCloseable {
       super(out);
     }
 
+    @Override
     public int write(ArrowBuf buf) throws IOException {
       write.start();
       try {

@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-import { Component } from "react";
+import { Component, createRef } from "react";
 import { connect } from "react-redux";
 import classNames from "clsx";
 import { FormattedMessage, injectIntl } from "react-intl";
 import Immutable from "immutable";
-
+import { Tooltip } from "dremio-ui-lib";
 import PropTypes from "prop-types";
 import FinderNav from "components/FinderNav";
 import FinderNavItem from "components/FinderNavItem";
@@ -63,6 +63,10 @@ import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 import "./LeftTree.less";
 @injectIntl
 export class LeftTree extends Component {
+  constructor(props) {
+    super(props);
+    this.headerRef = createRef();
+  }
   state = {
     isAddingSampleSource: false,
   };
@@ -205,14 +209,20 @@ export class LeftTree extends Component {
     return (
       <div className={classes}>
         <h3
+          ref={this.headerRef}
           className={`header-viewer ${
             this.state.addTopShadow ? "add-shadow-top" : ""
           }`}
         >
-          {currentProject ? (
-            currentProject
+          {this.headerRef?.current?.offsetWidth <
+          this.headerRef?.current?.scrollWidth ? (
+            <Tooltip title={currentProject ?? "Dataset.Datasets"}>
+              <span>
+                {currentProject ?? <FormattedMessage id="Dataset.Datasets" />}
+              </span>
+            </Tooltip>
           ) : (
-            <FormattedMessage id="Dataset.Datasets" />
+            currentProject ?? <FormattedMessage id="Dataset.Datasets" />
           )}
         </h3>
         <div className="scrolling-container" onScroll={(e) => this.onScroll(e)}>

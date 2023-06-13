@@ -54,6 +54,7 @@ public class Space implements CatalogEntity {
     return name;
   }
 
+  @Override
   public String getId() {
     return id;
   }

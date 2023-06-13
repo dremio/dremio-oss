@@ -30,6 +30,7 @@ import org.apache.arrow.vector.holders.TimeMilliHolder;
 import org.apache.arrow.vector.holders.TimeStampMilliHolder;
 import org.apache.arrow.vector.holders.VarBinaryHolder;
 import org.apache.arrow.vector.holders.VarCharHolder;
+import org.apache.commons.lang3.StringUtils;
 import org.joda.time.DateTime;
 import org.joda.time.LocalDateTime;
 import org.joda.time.format.DateTimeFormatter;
@@ -56,9 +57,11 @@ abstract class VectorOutput {
   protected final WorkingBuffer work;
   protected JsonParser parser;
 
+  private final boolean enforceValidJsonDateFormat;
 
-  public VectorOutput(WorkingBuffer work){
+  public VectorOutput(WorkingBuffer work, boolean enforceValidJsonDateFormat){
     this.work = work;
+    this.enforceValidJsonDateFormat = enforceValidJsonDateFormat;
   }
 
   public void setParser(JsonParser parser){
@@ -96,7 +99,12 @@ abstract class VectorOutput {
         checkNextToken(JsonToken.END_OBJECT);
         return true;
       case ExtendedTypeName.TIMESTAMP:
-        writeTimestamp(checkNextToken(JsonToken.VALUE_STRING, JsonToken.VALUE_NUMBER_INT));
+        parser.nextToken();
+        if (enforceValidJsonDateFormat) {
+          parseExtendedTimestamp(parser);
+        } else {
+          writeTimestamp(checkCurrentToken(JsonToken.VALUE_STRING, JsonToken.VALUE_NUMBER_INT));
+        }
         checkNextToken(JsonToken.END_OBJECT);
         return true;
       case ExtendedTypeName.INTERVAL:
@@ -110,6 +118,34 @@ abstract class VectorOutput {
       }
     }
     return false;
+  }
+
+  private void parseExtendedTimestamp(JsonParser parser) throws IOException {
+    // We may have $date:{$numberLong: xxx}, in which case we still expect
+    // VALUE_STRING token for the xxx, but first we need to skip over the
+    // $numberLong token.
+    if (parser.getCurrentToken() == JsonToken.START_OBJECT) {
+      parser.nextToken();
+      String parserValue = parser.getValueAsString();
+      if (!ExtendedTypeName.INTEGER.equals(parserValue)) {
+        throw UserException.validationError()
+          .message(String.format("Invalid token %s", parserValue))
+          .build(LOG);
+      }
+      writeTimestamp(checkNextToken(JsonToken.VALUE_STRING));
+      // If we had a nested token, there is an extra end object (that of the outer token) that we need to skip over.
+      checkNextToken(JsonToken.END_OBJECT);
+    } else if (StringUtils.isNumeric(parser.getValueAsString())) {
+      // The fact that we have entered this method means ENFORCE_VALID_JSON_DATE_FORMAT_ENABLED flag is enabled.
+      // In this case, we don't support the invalid format of a numerical value for $date which we supported before.
+      throw UserException.unsupportedError()
+        .message("Invalid format for " + ExtendedTypeName.TIMESTAMP + ". Must be wrapped by $numberLong or "
+          + "follow any other valid ISO-8601 format.")
+        .build(LOG);
+    } else {
+      // Handle non-nested format
+      writeTimestamp(checkCurrentToken(JsonToken.VALUE_STRING));
+    }
   }
 
   public boolean checkNextToken(final JsonToken expected) throws IOException{
@@ -170,9 +206,11 @@ abstract class VectorOutput {
 
   static class ListVectorOutput extends VectorOutput{
     private ListWriter writer;
+    private boolean enforceValidJsonDateFormat;
 
-    public ListVectorOutput(WorkingBuffer work) {
-      super(work);
+    public ListVectorOutput(WorkingBuffer work, boolean enforceValidJsonDateFormat) {
+      super(work, enforceValidJsonDateFormat);
+      this.enforceValidJsonDateFormat = enforceValidJsonDateFormat;
     }
 
     public boolean run(ListWriter writer) throws IOException{
@@ -223,6 +261,12 @@ abstract class VectorOutput {
       if(!isNull){
         switch (parser.getCurrentToken()) {
         case VALUE_NUMBER_INT:
+          if (enforceValidJsonDateFormat) {
+            throw UserException.unsupportedError()
+              .message("Invalid format for " + ExtendedTypeName.TIMESTAMP + ". Must be wrapped by $numberLong or "
+                + "follow any other valid ISO-8601 format.")
+              .build(LOG);
+          }
           LocalDateTime dt = new LocalDateTime(parser.getLongValue(), org.joda.time.DateTimeZone.UTC);
           ts.writeTimeStampMilli(com.dremio.common.util.DateTimes.toMillis(dt));
           break;
@@ -252,9 +296,11 @@ abstract class VectorOutput {
 
     private StructWriter writer;
     private String fieldName;
+    boolean enforceValidJsonDateFormat;
 
-    public MapVectorOutput(WorkingBuffer work) {
-      super(work);
+    public MapVectorOutput(WorkingBuffer work, boolean enforceValidJsonDateFormat) {
+      super(work, enforceValidJsonDateFormat);
+      this.enforceValidJsonDateFormat = enforceValidJsonDateFormat;
     }
 
     public boolean run(StructWriter writer, String fieldName) throws IOException{
@@ -307,6 +353,12 @@ abstract class VectorOutput {
       if(!isNull){
         switch (parser.getCurrentToken()) {
         case VALUE_NUMBER_INT:
+          if (enforceValidJsonDateFormat) {
+            throw UserException.unsupportedError()
+              .message("Invalid format for " + ExtendedTypeName.TIMESTAMP + ". Must be wrapped by $numberLong or "
+                + "follow any other valid ISO-8601 format.")
+              .build(LOG);
+          }
           LocalDateTime dt = new LocalDateTime(parser.getLongValue(), org.joda.time.DateTimeZone.UTC);
           ts.writeTimeStampMilli(com.dremio.common.util.DateTimes.toMillis(dt));
           break;
@@ -323,8 +375,8 @@ abstract class VectorOutput {
             }
           }
           timestampLiteral = timestampLiteral.replace(' ', 'T'); // Support formats like 2020-039 09 that have a space between date and time
-          DateTime dateTime = new DateTime(timestampLiteral);
-          ts.writeTimeStampMilli(dateTime.getMillis());
+          long millis = StringUtils.isNumeric(timestampLiteral) ? Long.parseLong(timestampLiteral) : new DateTime(timestampLiteral).getMillis();
+          ts.writeTimeStampMilli(millis);
           break;
         default:
           throw UserException.unsupportedError()

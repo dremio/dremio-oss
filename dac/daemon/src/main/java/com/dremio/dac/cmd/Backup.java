@@ -95,6 +95,10 @@ public class Backup {
       hidden = true)
     private boolean sameProcess = false;
 
+    @Parameter(names = {"-c", "--compression"}, description = "choose backup compression method. Available options : " +
+      "snappy,lz4.", hidden = true)
+    private String compression = "";
+
   }
 
   public static BackupStats createBackup(
@@ -105,11 +109,12 @@ public class Backup {
     boolean checkSSLCertificates,
     URI uri,
     boolean binary,
-    boolean includeProfiles
+    boolean includeProfiles,
+    String compression
   ) throws IOException, GeneralSecurityException {
     final WebClient client = new WebClient(dacConfig, credentialsServiceProvider, userName, password,
       checkSSLCertificates);
-    BackupOptions options = new BackupOptions(uri.toString(), binary, includeProfiles);
+    BackupOptions options = new BackupOptions(uri.toString(), binary, includeProfiles, compression);
     return client.buildPost(BackupStats.class, "/backup", options);
   }
 
@@ -125,7 +130,7 @@ public class Backup {
   ) throws IOException, GeneralSecurityException {
     final WebClient client = new WebClient(dacConfig, credentialsServiceProvider, userName, password,
       checkSSLCertificates);
-    BackupOptions options = new BackupOptions(uri.toString(), binary, includeProfiles);
+    BackupOptions options = new BackupOptions(uri.toString(), binary, includeProfiles, "");
     return client.buildPost(CheckpointInfo.class, "/backup/checkpoint", options);
   }
 
@@ -234,7 +239,7 @@ public class Backup {
         if (!options.sameProcess) {
           LOGGER.info("Running backup using REST API");
           BackupStats backupStats = createBackup(dacConfig, () -> credService, options.userName, options.password,
-            checkSSLCertificates, target, !options.json, options.profiles);
+            checkSSLCertificates, target, !options.json, options.profiles, options.compression);
           AdminLogger.log("Backup created at {}, dremio tables {}, uploaded files {}",
             backupStats.getBackupPath(), backupStats.getTables(), backupStats.getFiles());
           result.setBackupStats(backupStats);
@@ -267,7 +272,7 @@ public class Backup {
       final FileSystem fs = HadoopFileSystem.get(backupDestinationDirPath,
         new Configuration());
       final BackupOptions backupOptions = new BackupOptions(checkpoint.getBackupDestinationDir(), !options.json,
-        options.profiles);
+        options.profiles, options.compression);
 
       final Optional<LocalKVStoreProvider> optionalKvStoreProvider =
         CmdUtils.getReadOnlyKVStoreProvider(dacConfig.getConfig().withValue(DremioConfig.DB_PATH_STRING,

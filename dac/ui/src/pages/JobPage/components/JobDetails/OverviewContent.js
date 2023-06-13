@@ -94,6 +94,8 @@ class OverviewContent extends PureComponent {
           return "Job.ODBCMetadataRequest";
         }
         return "Job.ODBCClient";
+      case "D2D":
+        return "Job.D2DClient";
       case "JDBC":
         if (isPrepareCreate) {
           return "Job.JDBCCreate";

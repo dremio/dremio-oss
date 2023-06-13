@@ -116,8 +116,8 @@ public class ExecutorServiceImpl extends ExecutorService {
     final WorkStats stats = context.getWorkStatsProvider().get();
     final CoordinationProtos.NodeEndpoint ep = context.getEndpoint();
     final double load = stats.getClusterLoad();
-    final int configured_max_width = (int)context.getClusterResourceInformation().getAverageExecutorCores(context.getOptionManager());
-    final int actual_max_width = (int) Math.max(1, configured_max_width * stats.getMaxWidthFactor());
+    final int configuredMaxWidth = (int) context.getClusterResourceInformation().getAverageExecutorCores(context.getOptionManager());
+    final int actualMaxWidth = (int) Math.max(1, configuredMaxWidth * stats.getMaxWidthFactor());
 
     double memory = 0;
     double cpu = 0;
@@ -152,8 +152,8 @@ public class ExecutorServiceImpl extends ExecutorService {
             .setIp(ip)
             .setStatus("green")
             .setLoad(load)
-            .setConfiguredMaxWidth(configured_max_width)
-            .setActualMaxWith(actual_max_width)
+            .setConfiguredMaxWidth(configuredMaxWidth)
+            .setActualMaxWith(actualMaxWidth)
             .setCurrent(false)
             .build();
   }
@@ -165,6 +165,7 @@ public class ExecutorServiceImpl extends ExecutorService {
    */
   public static final class NoExecutorService extends ExecutorService {
 
+    @Override
     @SuppressWarnings("DremioGRPCStreamObserverOnError")
     public void startFragments(com.dremio.exec.proto.CoordExecRPC.InitializeFragments request,
                                io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
@@ -172,6 +173,7 @@ public class ExecutorServiceImpl extends ExecutorService {
               "operations."));
     }
 
+    @Override
     @SuppressWarnings("DremioGRPCStreamObserverOnError")
     public void activateFragment(com.dremio.exec.proto.CoordExecRPC.ActivateFragments request,
                                  io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
@@ -179,6 +181,7 @@ public class ExecutorServiceImpl extends ExecutorService {
               "operations."));
     }
 
+    @Override
     @SuppressWarnings("DremioGRPCStreamObserverOnError")
     public void cancelFragments(com.dremio.exec.proto.CoordExecRPC.CancelFragments request,
                                 io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
@@ -202,6 +205,7 @@ public class ExecutorServiceImpl extends ExecutorService {
         "operations."));
     }
 
+    @Override
     @SuppressWarnings("DremioGRPCStreamObserverOnError")
     public void getNodeStats(com.google.protobuf.Empty request,
                              io.grpc.stub.StreamObserver<com.dremio.exec.proto.CoordExecRPC.NodeStatResp> responseObserver) {

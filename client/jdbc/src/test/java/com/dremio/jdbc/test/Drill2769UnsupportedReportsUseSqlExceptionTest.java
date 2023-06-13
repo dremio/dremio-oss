@@ -87,15 +87,13 @@ public class Drill2769UnsupportedReportsUseSqlExceptionTest extends JdbcWithServ
     try {
       getConnection().prepareCall("VALUES 'CallableStatement query'");
       fail("Test seems to be out of date.  Was prepareCall(...) implemented?");
-    }
-    catch (SQLException | UnsupportedOperationException e) {
+    } catch (SQLException | UnsupportedOperationException e) {
       // Expected.
     }
     try {
       getConnection().createArrayOf("STRUCT", new Object[0]);
       fail("Test seems to be out of date.  Were arrays implemented?");
-    }
-    catch (SQLException | UnsupportedOperationException e) {
+    } catch (SQLException | UnsupportedOperationException e) {
       // Expected.
     }
 
@@ -153,33 +151,24 @@ public class Drill2769UnsupportedReportsUseSqlExceptionTest extends JdbcWithServ
       final Object result;
       if (type == String.class) {
         result = "";
-      }
-      else if (! type.isPrimitive()) {
+      } else if (! type.isPrimitive()) {
         result = null;
-      }
-      else {
+      } else {
         if (type == boolean.class) {
           result = false;
-        }
-        else if (type == byte.class) {
+        } else if (type == byte.class) {
           result = (byte) 0;
-        }
-        else if (type == short.class) {
+        } else if (type == short.class) {
           result = (short) 0;
-        }
-        else if (type == int.class) {
+        } else if (type == int.class) {
           result = 0;
-        }
-        else if (type == long.class) {
+        } else if (type == long.class) {
           result = (long) 0L;
-        }
-        else if (type == float.class) {
+        } else if (type == float.class) {
           result = 0F;
-        }
-        else if (type == double.class) {
+        } else if (type == double.class) {
           result = 0.0;
-        }
-        else {
+        } else {
           fail("Test needs to be updated to handle type " + type);
           result = null;  // Not executed; for "final".
         }
@@ -242,8 +231,7 @@ public class Drill2769UnsupportedReportsUseSqlExceptionTest extends JdbcWithServ
         final String resultLine = "- " + methodLabel + " didn't throw\n";
 
         successLinesBuf.append(resultLine);
-      }
-      catch (InvocationTargetException wrapperEx) {
+      } catch (InvocationTargetException wrapperEx) {
         final Throwable cause = wrapperEx.getCause();
         final String resultLine = "- " + methodLabel + " threw <" + cause + ">\n";
 
@@ -254,28 +242,23 @@ public class Drill2769UnsupportedReportsUseSqlExceptionTest extends JdbcWithServ
           // Good case--almost any exception should be SQLException or subclass
           // (but make sure not accidentally closed).
           successLinesBuf.append(resultLine);
-        }
-        else if (NullPointerException.class == cause.getClass()
+        } else if (NullPointerException.class == cause.getClass()
                  && (method.getName().equals("isWrapperFor")
                      || method.getName().equals("unwrap"))) {
           // Known good-enough case--these methods throw NullPointerException
           // because of the way we call them (with null) and the way Avatica
           // code implements them.
           successLinesBuf.append(resultLine);
-        }
-        else if (isOkaySpecialCaseException(method, cause)) {
+        } else if (isOkaySpecialCaseException(method, cause)) {
           successLinesBuf.append(resultLine);
-        }
-
-        else {
+        } else {
           final String badResultLine =
               "- " + methodLabel + " threw <" + cause + "> instead"
               + " of a " + SQLException.class.getSimpleName() + "\n";
           logger.trace("Failure: " + resultLine);
           failureLinesBuf.append(badResultLine);
         }
-      }
-      catch (IllegalAccessException | IllegalArgumentException e) {
+      } catch (IllegalAccessException | IllegalArgumentException e) {
         fail("Unexpected exception: " + e + ", cause = " + e.getCause()
              + "  from " + method);
       }
@@ -286,20 +269,18 @@ public class Drill2769UnsupportedReportsUseSqlExceptionTest extends JdbcWithServ
         final String methodLabel = makeLabel(method);
         if ("close".equals(method.getName())) {
           logger.debug("Skipping (because closes): " + methodLabel);
-        }
         /* Uncomment to suppress calling DatabaseMetaData.getColumns(...), which
            sometimes takes about 2 minutes, and other DatabaseMetaData methods
            that query, collectively taking a while too:
-        else if (DatabaseMetaData.class == jdbcIntf
+        } else if (DatabaseMetaData.class == jdbcIntf
                  && "getColumns".equals(method.getName())) {
           logger.debug("Skipping (because really slow): " + methodLabel);
-        }
-        else if (DatabaseMetaData.class == jdbcIntf
+        } else if (DatabaseMetaData.class == jdbcIntf
                  && ResultSet.class == method.getReturnType()) {
           logger.debug("Skipping (because a bit slow): " + methodLabel);
         }
         */
-        else {
+        } else {
           logger.debug("Testing method " + methodLabel);
           testOneMethod(method);
         }

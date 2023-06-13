@@ -79,6 +79,7 @@ public class MaestroForwarderImpl implements MaestroForwarder {
     this.allocator = maestroForwarderAllocator;
   }
 
+  @Override
   public void screenCompleted(NodeQueryScreenCompletion completion) {
     if (mustForwardRequest(completion.getForeman())) {
       logger.debug("Forwarding NodeQueryScreenCompletion request for Query {} from {} to target {}",
@@ -93,6 +94,7 @@ public class MaestroForwarderImpl implements MaestroForwarder {
     }
   }
 
+  @Override
   public void nodeQueryCompleted(NodeQueryCompletion completion) {
     if (mustForwardRequest(completion.getForeman())) {
       logger.debug("Forwarding NodeQueryCompletion request for Query {} from {} to target {}",
@@ -107,6 +109,7 @@ public class MaestroForwarderImpl implements MaestroForwarder {
     }
   }
 
+  @Override
   public void nodeQueryMarkFirstError(NodeQueryFirstError error) {
     if (mustForwardRequest(error.getForeman())) {
       logger.debug("Forwarding NodeQueryFirstError request for Query {} from {} to target {}",
@@ -121,11 +124,13 @@ public class MaestroForwarderImpl implements MaestroForwarder {
     }
   }
 
+  @Override
   public void dataArrived(JobResultsRequestWrapper jobResultsRequestWrapper, ResponseSender sender) {
     logger.debug("MaestroForwarder dataArrived.requestWrapper");
     dataArrived(null, jobResultsRequestWrapper, sender);
   }
 
+  @Override
   public void dataArrived(JobResultsRequest jobResultsRequest, ResponseSender sender) {
     logger.debug("MaestroForwarder dataArrived.request");
     dataArrived(jobResultsRequest, null, sender);

@@ -69,6 +69,7 @@ public class ExecProtocol implements FabricProtocol {
     this.fragmentsManager = fragmentsManager;
   }
 
+  @Override
   public void handle(PhysicalConnection connection, int rpcType, ByteString pBody, ByteBuf body, ResponseSender sender) throws RpcException {
     switch(rpcType){
     case RpcType.REQ_RECORD_BATCH_VALUE: {

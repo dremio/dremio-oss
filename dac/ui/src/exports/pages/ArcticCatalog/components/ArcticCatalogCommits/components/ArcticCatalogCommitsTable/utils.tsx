@@ -15,8 +15,8 @@
  */
 
 import { FormattedMessage } from "react-intl";
-import { Avatar } from "dremio-ui-lib/dist-esm";
-import { LogEntry } from "@app/services/nessie/client";
+import { Avatar } from "dremio-ui-lib/components";
+import { LogEntryV2 as LogEntry } from "@app/services/nessie/client";
 import { nameToInitials } from "@app/exports/utilities/nameToInitials";
 // @ts-ignore
 import { IconButton } from "dremio-ui-lib";
@@ -25,6 +25,7 @@ import ArcticGitActionsMenu from "../../../ArcticGitActionsMenu/ArcticGitActions
 import { ArcticCatalogTabsType } from "@app/exports/pages/ArcticCatalog/ArcticCatalog";
 import { convertISOStringWithTooltip } from "@app/pages/NessieHomePage/components/RepoView/components/RepoViewBody/components/RepoViewBranchList/utils";
 import { getShortHash } from "@app/utils/nessieUtils";
+import CopyButton from "components/Buttons/CopyButton";
 
 export const getCommitsTableColumns = () => {
   return [
@@ -37,6 +38,7 @@ export const getCommitsTableColumns = () => {
       key: "commitID",
       label: <FormattedMessage id="ArcticCatalog.Commits.CommitID" />,
       disableSort: true,
+      disabledClick: true,
     },
     {
       key: "commitMessage",
@@ -67,12 +69,15 @@ export const generateTableRows = (
       rowClassName: commitData?.hash,
       data: {
         author: {
-          node: () => (
-            <div className="author">
-              <Avatar initials={nameToInitials(commitData?.author ?? "")} />
-              <span className="author__name">{commitData?.author}</span>
-            </div>
-          ),
+          node: () => {
+            const author = commitData?.authors?.[0];
+            return (
+              <div className="author">
+                <Avatar initials={nameToInitials(author ?? "")} />
+                <span className="author__name">{author}</span>
+              </div>
+            );
+          },
         },
         commitID: {
           node: () => (
@@ -80,6 +85,14 @@ export const generateTableRows = (
               <dremio-icon name="vcs/commit" class="commit-id__icon" />
               <span className="commit-id__id">
                 {getShortHash(commitData.hash || "")}
+              </span>
+              <span>
+                <CopyButton
+                  text={commitData.hash || ""}
+                  title={
+                    <FormattedMessage id="ArcticCatalog.Commits.CommitID.Copy" />
+                  }
+                />
               </span>
             </div>
           ),

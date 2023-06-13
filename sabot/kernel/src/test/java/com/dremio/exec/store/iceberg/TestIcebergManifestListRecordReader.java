@@ -27,7 +27,6 @@ import java.util.List;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.complex.StructVector;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.iceberg.ManifestContent;
 import org.apache.iceberg.expressions.Expressions;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -39,6 +38,7 @@ import com.dremio.common.expression.BasePath;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.hadoop.HadoopFileSystem;
+import com.dremio.exec.hadoop.HadoopFileSystemConfigurationAdapter;
 import com.dremio.exec.store.SplitIdentity;
 import com.dremio.exec.store.SystemSchemas;
 import com.dremio.exec.store.TestOutputMutator;
@@ -75,28 +75,32 @@ public class TestIcebergManifestListRecordReader extends BaseTestOperator {
   public void beforeTest() throws Exception {
     context = testContext.getNewOperatorContext(getTestAllocator(), null, DEFAULT_BATCH_SIZE, null);
     testCloseables.add(context);
-    fs = HadoopFileSystem.get(Path.of("/"), new Configuration(), context.getStats());
+    Configuration conf = new Configuration();
+    fs = HadoopFileSystem.get(Path.of("/"), conf, context.getStats());
 
     when(plugin.createFSWithAsyncOptions(anyString(), anyString(), any())).thenReturn(fs);
-    when(plugin.getFsConfCopy()).thenReturn(new Configuration());
+    when(plugin.getFsConfCopy()).thenReturn(conf);
+    when(plugin.createIcebergFileIO(any(), any(), any(), any(), any()))
+        .thenReturn(new DremioFileIO(fs, null, null, null, null,
+            new HadoopFileSystemConfigurationAdapter(conf)));
   }
 
   @Test
   public void testReadDataManifests() throws Exception {
-    readAndValidate(table.getLocation() + METADATA_JSON, SNAPSHOT_ID, ManifestContent.DATA,
+    readAndValidate(table.getLocation() + METADATA_JSON, SNAPSHOT_ID, ManifestContentType.DATA,
         ImmutableList.of(table.getLocation() + "/metadata/8a83125a-a077-4f1e-974b-fcbaf370b085-m0.avro"));
   }
 
   @Test
   public void testReadDeleteManifests() throws Exception {
-    readAndValidate(table.getLocation() + METADATA_JSON, SNAPSHOT_ID, ManifestContent.DELETES,
+    readAndValidate(table.getLocation() + METADATA_JSON, SNAPSHOT_ID, ManifestContentType.DELETES,
         ImmutableList.of(
             table.getLocation() + "/metadata/07fe993a-9195-4cbc-bf9a-6b81816b9758-m0.avro",
             table.getLocation() + "/metadata/d1e51173-03f4-4b54-865a-c6c3185a92a5-m0.avro",
             table.getLocation() + "/metadata/d45e915a-acf8-4914-9907-0772d5356e4a-m0.avro"));
   }
 
-  private void readAndValidate(String jsonPath, long snapshotId, ManifestContent manifestContent, List<String> expectedManifestFiles)
+  private void readAndValidate(String jsonPath, long snapshotId, ManifestContentType manifestContent, List<String> expectedManifestFiles)
       throws Exception {
     List<String> actual = new ArrayList<>();
     try (AutoCloseable closeable = with(ExecConstants.ENABLE_ICEBERG_MERGE_ON_READ_SCAN, true)) {

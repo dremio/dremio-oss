@@ -25,7 +25,7 @@ public abstract class SqlUnsupportedException extends ForemanSetupException {
     DATA_TYPE(UnsupportedDataTypeException.class.getSimpleName()),
     FUNCTION(UnsupportedFunctionException.class.getSimpleName());
 
-    private String exceptionType;
+    private final String exceptionType;
     ExceptionType(String exceptionType) {
       this.exceptionType = exceptionType;
     }

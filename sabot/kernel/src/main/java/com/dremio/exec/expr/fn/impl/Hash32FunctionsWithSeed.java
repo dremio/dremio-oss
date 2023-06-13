@@ -46,9 +46,11 @@ public class Hash32FunctionsWithSeed {
     @Output NullableIntHolder out;
 
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {
@@ -67,9 +69,11 @@ public class Hash32FunctionsWithSeed {
     @Output NullableIntHolder out;
 
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {
@@ -88,9 +92,11 @@ public class Hash32FunctionsWithSeed {
     @Output NullableIntHolder out;
 
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {
@@ -109,9 +115,11 @@ public class Hash32FunctionsWithSeed {
     @Output NullableIntHolder out;
 
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {
@@ -130,15 +138,16 @@ public class Hash32FunctionsWithSeed {
     @Output NullableIntHolder out;
 
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {
         out.value = seed.value;
-      }
-      else {
+      } else {
         out.value = com.dremio.common.expression.fn.impl.HashHelper.hash32(in.value, seed.value);
       }
     }
@@ -151,15 +160,16 @@ public class Hash32FunctionsWithSeed {
     @Output NullableIntHolder out;
 
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {
         out.value = seed.value;
-      }
-      else {
+      } else {
         out.value = com.dremio.common.expression.fn.impl.HashHelper.hash32(in.value, seed.value);
       }
     }
@@ -172,9 +182,11 @@ public class Hash32FunctionsWithSeed {
     @Output NullableIntHolder out;
 
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {
@@ -192,9 +204,11 @@ public class Hash32FunctionsWithSeed {
     @Output NullableIntHolder out;
 
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {
@@ -212,9 +226,11 @@ public class Hash32FunctionsWithSeed {
     @Output NullableIntHolder out;
 
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {
@@ -232,9 +248,11 @@ public class Hash32FunctionsWithSeed {
     @Param IntHolder seed;
     @Output NullableIntHolder out;
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {
@@ -254,9 +272,11 @@ public class Hash32FunctionsWithSeed {
     @Output NullableIntHolder out;
 
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {

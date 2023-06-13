@@ -19,7 +19,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.apache.calcite.sql.SqlCall;
-import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
@@ -45,24 +44,22 @@ public class SqlCreateFunction extends SqlCall {
   private final SqlIdentifier name;
   private final SqlNodeList fieldList;
   private final SqlNode expression;
-  private final SqlDataTypeSpec scalarReturnType;
-  private final SqlNodeList tabularReturnType;
+  private final SqlFunctionReturnType returnType;
   private boolean shouldReplace;
   private boolean ifNotExists;
 
   public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("CREATE_FUNCTION", SqlKind.OTHER) {
     @Override
     public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 7, "SqlCreateFunction.createCall() has to get 7 operands!");
+      Preconditions.checkArgument(operands.length == 6, "SqlCreateFunction.createCall() has to get 6 operands!");
       return new SqlCreateFunction(
         pos,
         (SqlLiteral) operands[0],
         (SqlIdentifier) operands[1],
         (SqlNodeList) operands[2],
-        (SqlDataTypeSpec) operands[3],
-        operands[4],
-        (SqlLiteral) operands[5],
-        (SqlNodeList) operands[6]
+        operands[3],
+        (SqlLiteral) operands[4],
+        (SqlFunctionReturnType) operands[5]
       );
     }
   };
@@ -72,18 +69,16 @@ public class SqlCreateFunction extends SqlCall {
       SqlLiteral shouldReplace,
       SqlIdentifier name,
       SqlNodeList fieldList,
-      SqlDataTypeSpec scalarReturnType,
       SqlNode expression,
       SqlLiteral ifNotExists,
-      SqlNodeList tabularReturnType) {
+      SqlFunctionReturnType returnType) {
     super(pos);
     this.shouldReplace = shouldReplace.booleanValue();
     this.name = name;
     this.fieldList = fieldList;
-    this.scalarReturnType = scalarReturnType;
     this.expression = expression;
     this.ifNotExists = ifNotExists.booleanValue();
-    this.tabularReturnType = tabularReturnType;
+    this.returnType = returnType;
   }
 
   public SqlIdentifier getName() {
@@ -105,12 +100,12 @@ public class SqlCreateFunction extends SqlCall {
     return fieldList;
   }
 
-  public SqlDataTypeSpec getScalarReturnType() {
-    return scalarReturnType;
+  public SqlFunctionReturnType getReturnType() {
+    return returnType;
   }
 
-  public SqlNodeList getTabularReturnType() {
-    return tabularReturnType;
+  public boolean isTabularFunction() {
+    return returnType.isTabular();
   }
 
   public SqlNode getExpression() {
@@ -136,10 +131,9 @@ public class SqlCreateFunction extends SqlCall {
       SqlLiteral.createBoolean(shouldReplace, SqlParserPos.ZERO),
       name,
       fieldList,
-      scalarReturnType,
       expression,
       SqlLiteral.createBoolean(ifNotExists, SqlParserPos.ZERO),
-      tabularReturnType);
+      returnType);
   }
 
   @Override
@@ -161,11 +155,8 @@ public class SqlCreateFunction extends SqlCall {
     }
 
     writer.keyword("RETURNS");
-    if (scalarReturnType != null) {
-      scalarReturnType.unparse(writer, leftPrec, rightPrec);
-    } else if (tabularReturnType.size() > 0) {
-      SqlHandlerUtil.unparseSqlNodeList(writer, leftPrec, rightPrec, tabularReturnType);
-    }
+    returnType.unparse(writer, leftPrec, rightPrec);
+
     writer.keyword("RETURN");
     expression.unparse(writer, leftPrec, rightPrec);
   }

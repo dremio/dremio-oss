@@ -131,6 +131,7 @@ public interface OutputDerivation {
    * the output as the second argument
    */
   class DecimalSetScaleTruncate implements OutputDerivation {
+    @Override
     public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
       assert (args.size() == 2) && (args.get(1) instanceof ValueExpressions.IntExpression);
       // Get the scale from the second argument which should be a constant
@@ -142,6 +143,7 @@ public interface OutputDerivation {
   }
 
   class DecimalSetScaleRound implements OutputDerivation {
+    @Override
     public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
       assert (args.size() == 2) && (args.get(1) instanceof ValueExpressions.IntExpression);
       // Get the scale from the second argument which should be a constant
@@ -153,6 +155,7 @@ public interface OutputDerivation {
   }
 
   class DecimalZeroScaleRound implements OutputDerivation {
+    @Override
     public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
       ArrowType.Decimal type =  getDecimalOutputTypeForRound(prec(args.get(0)),
         scale(args.get(0)), 0);
@@ -161,12 +164,14 @@ public interface OutputDerivation {
   }
 
   class DecimalNegativeScale implements OutputDerivation {
+    @Override
     public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
       return CompleteType.fromDecimalPrecisionScale(prec(args.get(0)), scale(args.get(0)));
     }
   }
 
   class DecimalZeroScaleTruncate implements OutputDerivation {
+    @Override
     public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
       ArrowType.Decimal type =  getDecimalOutputTypeForTruncate(prec(args.get(0)),
         scale(args.get(0)), 0);
@@ -216,6 +221,7 @@ public interface OutputDerivation {
    * trunc and round functions with single argument use this
    */
   class DecimalZeroScale implements OutputDerivation {
+    @Override
     public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
       int precision = 0;
       for (LogicalExpression e : args) {

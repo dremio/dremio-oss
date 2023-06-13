@@ -43,13 +43,15 @@ public class IcebergNessieVersionedTableOperations extends BaseMetastoreTableOpe
   private final String fullTableName;
   private final ResolvedVersionContext version;
   private final String jobId;
+  private final String userName;
   private String baseContentId;
 
   public IcebergNessieVersionedTableOperations(OperatorStats operatorStats,
                                                FileIO fileIO,
                                                NessieClient nessieClient,
                                                IcebergNessieVersionedTableIdentifier nessieVersionedTableIdentifier,
-                                               String jobId) {
+                                               String jobId,
+                                               String userName) {
     this.operatorStats = operatorStats;
     this.fileIO = fileIO;
     this.fullTableName = nessieVersionedTableIdentifier.getTableIdentifier().toString();
@@ -60,6 +62,7 @@ public class IcebergNessieVersionedTableOperations extends BaseMetastoreTableOpe
     this.version = nessieVersionedTableIdentifier.getVersion();
     this.jobId = jobId;
     this.baseContentId = null;
+    this.userName = userName;
   }
 
   @Override
@@ -75,7 +78,14 @@ public class IcebergNessieVersionedTableOperations extends BaseMetastoreTableOpe
   @Override
   protected void doRefresh() {
     baseContentId = nessieClient.getContentId(tableKey, version, jobId);
-    String metadataLocation = nessieClient.getMetadataLocation(tableKey, version, jobId);
+
+    String metadataLocation = null;
+    if (baseContentId != null) {
+      metadataLocation = nessieClient.getMetadataLocation(tableKey, version, jobId);
+      Preconditions.checkState(metadataLocation != null,
+        "No metadataLocation for iceberg table: " + tableKey + " ref: " + version);
+    }
+
     refreshFromMetadataLocation(metadataLocation, 2);
   }
 
@@ -99,7 +109,8 @@ public class IcebergNessieVersionedTableOperations extends BaseMetastoreTableOpe
           metadata.sortOrder().orderId()),
         version,
         baseContentId,
-        jobId);
+        jobId,
+        userName);
       threw = false;
       long totalCatalogUpdateTime = stopwatchCatalogUpdate.elapsed(TimeUnit.MILLISECONDS);
       if (operatorStats != null) {
@@ -114,6 +125,6 @@ public class IcebergNessieVersionedTableOperations extends BaseMetastoreTableOpe
   }
 
   public void deleteKey() {
-    nessieClient.deleteCatalogEntry(tableKey, version);
+    nessieClient.deleteCatalogEntry(tableKey, version, userName);
   }
 }

@@ -40,15 +40,16 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
+import io.opentelemetry.instrumentation.annotations.WithSpan;
+
 /**
  * ScriptService to perform various operations of script.
  */
 public class ScriptServiceImpl implements ScriptService {
-
   private static final org.slf4j.Logger logger =
     org.slf4j.LoggerFactory.getLogger(ScriptServiceImpl.class);
 
-  private static final Long CONTENT_MAX_LENGTH = 10_000L;
+  private static final Long CONTENT_MAX_LENGTH = 250_000L;
   private static final Long DESCRIPTION_MAX_LENGTH = 1024L;
   private static final Long MAX_SCRIPTS_PER_USER = 100L;
   private static final Long NAME_MAX_LENGTH = 128L;
@@ -68,6 +69,7 @@ public class ScriptServiceImpl implements ScriptService {
   }
 
   @Override
+  @WithSpan
   public List<Script> getScripts(int offset,
                                  int limit,
                                  String search,
@@ -114,12 +116,14 @@ public class ScriptServiceImpl implements ScriptService {
   }
 
   @Override
+  @WithSpan
   public Script createScript(ScriptRequest scriptRequest)
-    throws DuplicateScriptNameException {
+    throws DuplicateScriptNameException, MaxScriptsLimitReachedException {
     // create script entry
-    Preconditions.checkArgument(getCountOfScriptsByCurrentUser() < MAX_SCRIPTS_PER_USER,
-                                "Maximum %s scripts are allowed per user.",
-                                MAX_SCRIPTS_PER_USER);
+    long countOfScriptsByCurrentUser = getCountOfScriptsByCurrentUser();
+    if (countOfScriptsByCurrentUser >= MAX_SCRIPTS_PER_USER) {
+      throw new MaxScriptsLimitReachedException(MAX_SCRIPTS_PER_USER, countOfScriptsByCurrentUser);
+    }
     validateScriptRequest(scriptRequest);
     checkDuplicateScriptName(scriptRequest.getName());
 
@@ -134,22 +138,25 @@ public class ScriptServiceImpl implements ScriptService {
   }
 
   protected void validateScriptRequest(ScriptRequest scriptRequest) {
+    int scriptContentLength = scriptRequest.getContent().length();
     Preconditions.checkArgument(scriptRequest.getContent().length() <= CONTENT_MAX_LENGTH,
-                                "Maximum %s characters allowed in script content.",
-                                CONTENT_MAX_LENGTH);
+                                "Maximum %s characters allowed in script content. You have typed in %s characters.",
+                                CONTENT_MAX_LENGTH, scriptContentLength);
+    int scriptNameLength = scriptRequest.getName().length();
     Preconditions.checkArgument(scriptRequest.getName().length() <= NAME_MAX_LENGTH,
-                                "Maximum %s characters allowed in script name.",
-                                NAME_MAX_LENGTH);
+                                "Maximum %s characters allowed in script name. You have typed in %s characters.",
+                                NAME_MAX_LENGTH, scriptNameLength);
+    int descriptionLength = scriptRequest.getDescription().length();
     Preconditions.checkArgument(scriptRequest.getDescription().length() <= DESCRIPTION_MAX_LENGTH,
-                                "Maximum %s characters allowed in script description.",
-                                DESCRIPTION_MAX_LENGTH);
+                                "Maximum %s characters allowed in script description. You have typed in %s characters.",
+                                DESCRIPTION_MAX_LENGTH, descriptionLength);
   }
 
   @Override
+  @WithSpan
   public Script updateScript(String scriptId,
                              ScriptRequest scriptRequest)
     throws ScriptNotFoundException, DuplicateScriptNameException, ScriptNotAccessible {
-
     validateScriptRequest(scriptRequest);
 
     Script existingScript = getScriptById(scriptId);
@@ -178,6 +185,7 @@ public class ScriptServiceImpl implements ScriptService {
   }
 
   @Override
+  @WithSpan
   public Script getScriptById(String scriptId) throws ScriptNotFoundException, ScriptNotAccessible {
     // check if scriptId is valid
     validateScriptId(scriptId);
@@ -190,10 +198,10 @@ public class ScriptServiceImpl implements ScriptService {
   }
 
   @Override
+  @WithSpan
   public void deleteScriptById(String scriptId)
     throws ScriptNotFoundException, ScriptNotAccessible {
 
-    // check if scriptId is valid
     validateScriptId(scriptId);
 
     Script script = getScriptById(scriptId);
@@ -201,6 +209,7 @@ public class ScriptServiceImpl implements ScriptService {
   }
 
   @Override
+  @WithSpan
   public Long getCountOfMatchingScripts(String search,
                                         String filter,
                                         String createdBy) {

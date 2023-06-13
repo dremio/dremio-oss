@@ -38,42 +38,52 @@ public class ParquetColumnDefaultResolver implements ParquetColumnResolver {
     this.projectedColumns = projectedColumns;
   }
 
+  @Override
   public List<SchemaPath> getBatchSchemaProjectedColumns() {
     return projectedColumns;
   }
 
+  @Override
   public List<SchemaPath> getProjectedParquetColumns() {
     return projectedColumns;
   }
 
+  @Override
   public String getBatchSchemaColumnName(String columnInParquetFile) {
     return columnInParquetFile;
   }
 
+  @Override
   public List<String> getBatchSchemaColumnName(List<String> columnInParquetFile) {
     return columnInParquetFile;
   }
 
+  @Override
   public String getParquetColumnName(String name) {
     return name;
   }
 
+  @Override
   public List<SchemaPath> getBatchSchemaColumns(List<SchemaPath> parquestSchemaPaths) {
     return parquestSchemaPaths;
   }
 
+  @Override
   public SchemaPath getBatchSchemaColumnPath(SchemaPath pathInParquetFile) {
     return pathInParquetFile;
   }
 
+  @Override
   public List<String> getNameSegments(SchemaPath schemaPath) {
     return schemaPath.getNameSegments();
   }
 
+  @Override
   public List<String> convertColumnDescriptor(MessageType schema, ColumnDescriptor columnDesc) {
     return ParquetReaderUtility.convertColumnDescriptor(schema, columnDesc);
   }
 
+  @Override
   public String toDotString(SchemaPath schemaPath, ValueVector vector) {
     StringBuilder pathBuilder = new StringBuilder();
     boolean isListChild = (vector instanceof ListVector);

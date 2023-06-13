@@ -122,7 +122,7 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
   private static final String S3_CN_ENDPOINT_END = S3_ENDPOINT_END + ".cn";
   private static final ExecutorService threadPool = Executors.newCachedThreadPool(new NamedThreadFactory("s3-async-read-"));
 
-  private final Retryer retryer = new Retryer.Builder()
+  private final Retryer retryer = Retryer.newBuilder()
     .retryIfExceptionOfType(SdkClientException.class)
     .retryIfExceptionOfType(software.amazon.awssdk.core.exception.SdkClientException.class)
     .setWaitStrategy(Retryer.WaitStrategy.EXPONENTIAL, 250, 2500)
@@ -321,7 +321,7 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
     }
     logger.debug("Unknown container '{}' found ? {}", containerName, containerFound);
     if (!containerFound) {
-      throw new ContainerNotFoundException("Bucket " + containerName + " not found");
+      throw new ContainerNotFoundException("Bucket [" + containerName + "] not found.");
     }
     return new BucketCreator(getConf(), containerName).toContainerHolder();
   }

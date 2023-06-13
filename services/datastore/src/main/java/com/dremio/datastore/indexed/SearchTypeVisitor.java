@@ -35,6 +35,8 @@ public interface SearchTypeVisitor<R> {
         return visit(query.getTermLong());
       case TERM_DOUBLE:
         return visit(query.getTermDouble());
+      case TERM_BOOLEAN:
+        return visit(query.getTermBoolean());
       case CONTAINS:
         return visit(query.getContainsText());
       case BOOLEAN:
@@ -89,6 +91,11 @@ public interface SearchTypeVisitor<R> {
    * Method visited when a {@code TermDouble} is passed
    */
   R visit(SearchTypes.SearchQuery.TermDouble node);
+
+  /**
+   * Method visited when a {@code TermBoolean} is passed
+   */
+  R visit(SearchTypes.SearchQuery.TermBoolean node);
 
   /**
    * Method visited when a {@code Contains} is passed

@@ -48,6 +48,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.InvalidProtocolBufferException;
 
+import io.opentelemetry.instrumentation.annotations.WithSpan;
+
 public class HiveIncrementalRefreshDatasetPlanBuilder extends HiveFullRefreshDatasetPlanBuilder implements SupportPartialRefresh {
 
   private static final Logger logger = LoggerFactory.getLogger(HiveIncrementalRefreshDatasetPlanBuilder.class);
@@ -110,8 +112,7 @@ public class HiveIncrementalRefreshDatasetPlanBuilder extends HiveFullRefreshDat
 
     if (!partitionCols.equals(oldPartitionCols)) {
       return false;
-    }
-    else {
+    } else {
       for (String partition : partitionCols) {
         Field partitionField = schema.findField(partition);
         Field oldPartitionField = oldSchema.findField(partition);
@@ -135,8 +136,7 @@ public class HiveIncrementalRefreshDatasetPlanBuilder extends HiveFullRefreshDat
         try {
           DirListInputSplitProto.DirListInputSplit dirListInputSplit = DirListInputSplitProto.DirListInputSplit.parseFrom(datasetSplit.getSplitExtendedProperty().toByteArray());
           partitionPaths.add(dirListInputSplit.getOperatingPath());
-        }
-        catch (InvalidProtocolBufferException e) {
+        } catch (InvalidProtocolBufferException e) {
           throw UserException.parseError(e).buildSilently();
         }
       }
@@ -144,6 +144,7 @@ public class HiveIncrementalRefreshDatasetPlanBuilder extends HiveFullRefreshDat
     return partitionPaths;
   }
 
+  @WithSpan
   @Override
   public boolean updateDatasetConfigWithIcebergMetadataIfNecessary() {
     return repairAndSaveDatasetConfigIfNecessary();

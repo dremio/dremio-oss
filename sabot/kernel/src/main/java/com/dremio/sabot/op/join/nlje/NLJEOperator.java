@@ -29,6 +29,8 @@ import org.apache.calcite.rel.core.JoinRelType;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.FunctionCall;
+import com.dremio.common.expression.LogicalExpression;
+import com.dremio.common.expression.ValueExpressions.BooleanExpression;
 import com.dremio.exec.physical.config.NestedLoopJoinPOP;
 import com.dremio.exec.planner.physical.NestedLoopJoinPrel;
 import com.dremio.exec.record.ExpandableHyperContainer;
@@ -93,8 +95,15 @@ public class NLJEOperator implements DualInputOperator {
     case INNER:
     case LEFT:
       break; // supported.
+    case FULL:
+      LogicalExpression condition = config.getCondition();
+      if(condition instanceof BooleanExpression && ((BooleanExpression)condition).getBoolean()){
+        // DX-59222 support FOJ with true condition
+        break;
+      }
+      throw UserException.unsupportedError().message("When using NLJ, we only support full outer joins with a 'true' condition.").buildSilently();
     default:
-      throw UserException.unsupportedError().message("Joins of type %s using NLJ are not currenlty supported.", joinType.name()).buildSilently();
+      throw UserException.unsupportedError().message("Joins of type %s using NLJ are not currently supported.", joinType.name()).buildSilently();
     }
   }
 

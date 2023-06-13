@@ -17,7 +17,6 @@ import { COMMIT_TYPE } from "@app/constants/nessie";
 import { expect } from "chai";
 import {
   getNessieReferencePayload,
-  getProjectIdFromUrl,
   getReferenceListForTransform,
   getRefQueryParams,
   getTypeAndValue,
@@ -154,29 +153,6 @@ describe("nessieUtils", () => {
           sourceName: "ref/dataplane3",
         },
       ]);
-    });
-  });
-
-  describe("getProjectIdFromUrl", () => {
-    it("empty state", () => {
-      expect(getProjectIdFromUrl(undefined)).to.equal("");
-      expect(getProjectIdFromUrl(null)).to.equal("");
-      expect(getProjectIdFromUrl("")).to.equal("");
-    });
-
-    it("non-string values", () => {
-      expect(getProjectIdFromUrl(123)).to.equal("");
-    });
-
-    it("correctly formed url state", () => {
-      expect(
-        getProjectIdFromUrl(
-          "http://app.test1.dremio.site/v1/projects/test-guid"
-        )
-      ).to.equal("test-guid");
-      expect(
-        getProjectIdFromUrl("http://localhost:3005/v1/projects/test-guid")
-      ).to.equal("test-guid");
     });
   });
 });

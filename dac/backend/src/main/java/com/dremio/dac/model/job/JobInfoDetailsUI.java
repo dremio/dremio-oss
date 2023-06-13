@@ -43,7 +43,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import org.apache.calcite.util.Util;
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import com.dremio.dac.api.CatalogEntity;
@@ -72,6 +72,7 @@ import com.dremio.service.job.proto.ReflectionMatchingType;
 import com.dremio.service.job.proto.ReflectionType;
 import com.dremio.service.job.proto.ScannedDataset;
 import com.dremio.service.jobs.JobsProtoUtil;
+import com.dremio.service.jobs.JobsServiceUtil;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
@@ -110,6 +111,8 @@ public class JobInfoDetailsUI {
   private Long inputRecords;
   private Long outputBytes;
   private Long outputRecords;
+  private Long addedFiles;
+  private Long removedFiles;
   private Long duration;
   private List<DurationDetails> durationDetails;
   private int nrReflectionsConsidered;
@@ -169,6 +172,8 @@ public class JobInfoDetailsUI {
     @JsonProperty("inputRecords") Long inputRecords,
     @JsonProperty("outputBytes") Long outputBytes,
     @JsonProperty("outputRecords") Long outputRecords,
+    @JsonProperty("addedFiles") Long addedFiles,
+    @JsonProperty("removedFiles") Long removedFiles,
     @JsonProperty("duration") Long duration,
     @JsonProperty("durationDetails") List<DurationDetails> durationDetails,
     @JsonProperty("nrReflectionsConsidered") int nrReflectionsConsidered,
@@ -220,6 +225,8 @@ public class JobInfoDetailsUI {
     this.inputRecords = inputRecords;
     this.outputBytes = outputBytes;
     this.outputRecords = outputRecords;
+    this.addedFiles = addedFiles;
+    this.removedFiles = removedFiles;
     this.duration = duration;
     this.durationDetails = durationDetails;
     this.nrReflectionsConsidered = nrReflectionsConsidered;
@@ -280,10 +287,12 @@ public class JobInfoDetailsUI {
     inputRecords = jobAttempt.getStats().getInputRecords();
     outputBytes = jobAttempt.getStats().getOutputBytes();
     outputRecords = jobAttempt.getStats().getOutputRecords();
+    addedFiles = jobAttempt.getStats().getAddedFiles();
+    removedFiles = jobAttempt.getStats().getRemovedFiles();
     duration = JobUtil.getTotalDuration(jobDetails, attemptIndex);
     durationDetails = JobUtil.buildDurationDetails(jobAttempt.getStateListList());
     requestType = RequestType.valueOf(jobInfo.getRequestType().toString());
-    description = jobInfo.getDescription();
+    description = JobsServiceUtil.getJobDescription(RequestType.valueOf(jobInfo.getRequestType().toString()), jobInfo.getSql(), jobInfo.getDescription());
     attemptDetails = AttemptsUIHelper.fromAttempts(jobId, attempts);
     attemptsSummary = AttemptsUIHelper.constructSummary(attempts);
     datasetPaths = jobInfo.getDatasetPathList();
@@ -341,6 +350,8 @@ public class JobInfoDetailsUI {
       inputRecords,
       outputBytes,
       outputRecords,
+      addedFiles,
+      removedFiles,
       duration,
       durationDetails,
       nrReflectionsConsidered,
@@ -528,6 +539,14 @@ public class JobInfoDetailsUI {
 
   public Long getOutputRecords() {
     return outputRecords;
+  }
+
+  public Long getAddedFiles() {
+    return addedFiles;
+  }
+
+  public Long getRemovedFiles() {
+    return removedFiles;
   }
 
   public boolean isStarFlakeAccelerated() {

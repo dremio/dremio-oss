@@ -37,9 +37,11 @@ public class NumericFunctions {
     @Output
     NullableBitHolder out;
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       if (in.isSet == 0) {
         out.value = 0;
@@ -58,9 +60,11 @@ public class NumericFunctions {
     @Output
     NullableBitHolder out;
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       if (in.isSet == 0) {
         out.value = 0;
@@ -83,11 +87,13 @@ public class NumericFunctions {
     @Workspace
     java.util.regex.Matcher matcher;
 
+    @Override
     public void setup() {
       pattern = java.util.regex.Pattern.compile("[-+]?\\d+(\\.\\d+)?");
       matcher = pattern.matcher("");
     }
 
+    @Override
     public void eval() {
 
       if (in.isSet == 0) {

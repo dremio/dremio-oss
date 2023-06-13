@@ -152,6 +152,7 @@ public class ElasticActions {
   }
 
   public static class Health extends ElasticAction {
+    @Override
     public Result getResult(WebTarget target) {
       try {
         return new JsonResult(target.path("_cluster/health").request().header(CONTENT_TYPE, APPLICATION_JSON).buildGet().invoke(byte[].class));
@@ -273,6 +274,7 @@ public class ElasticActions {
       return this;
     }
 
+    @Override
     public Result getResult(WebTarget target) {
       try {
         return new JsonResult(target.path(Joiner.on(",").join(indexes)).path("_search_shards").request().header(CONTENT_TYPE, APPLICATION_JSON).buildGet().invoke(byte[].class));
@@ -309,6 +311,7 @@ public class ElasticActions {
       return this;
     }
 
+    @Override
     public Result getResult(WebTarget target) {
       try {
         return new CountResult(parse(target.path(Joiner.on(",").join(indexes)).path(Joiner.on(",").join(types)).path("_count").request().header(CONTENT_TYPE, APPLICATION_JSON).buildGet().invoke(String.class)).get("count").getAsLong());

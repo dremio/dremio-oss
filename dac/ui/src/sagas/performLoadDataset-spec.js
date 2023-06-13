@@ -20,7 +20,7 @@ import { getLocation } from "selectors/routing";
 import { updateViewState } from "actions/resources";
 import { handleResumeRunDataset, DataLoadError } from "sagas/runDataset";
 import { loadExistingDataset } from "actions/explore/dataset/edit";
-import { getExploreJobId, getFullDataset } from "@app/selectors/explore";
+import { oldGetExploreJobId, getFullDataset } from "@app/selectors/explore";
 import { newUntitled } from "actions/explore/dataset/new";
 import { EXPLORE_TABLE_ID } from "reducers/explore/view";
 import { focusSqlEditor } from "@app/actions/explore/view";
@@ -189,6 +189,8 @@ describe("performLoadDataset saga", () => {
           location.query.tipVersion,
           undefined,
           undefined,
+          undefined,
+          undefined,
           undefined
         )
       );
@@ -203,6 +205,8 @@ describe("performLoadDataset saga", () => {
           location.query.tipVersion,
           undefined,
           undefined,
+          undefined,
+          undefined,
           undefined
         )
       );
@@ -213,7 +217,13 @@ describe("performLoadDataset saga", () => {
       shouldWatchApiAction(
         location,
         datasetWithoutVersion,
-        call(newUntitled, datasetWithoutVersion, "foo.path.to.dataset", viewId)
+        call(
+          newUntitled,
+          datasetWithoutVersion,
+          "foo.path.to.dataset",
+          viewId,
+          undefined
+        )
       );
     });
   });
@@ -239,7 +249,7 @@ describe("performLoadDataset saga", () => {
       });
 
       next = loadTableDataGen.next(validDataset); // get job id
-      expect(next.value).to.be.eql(select(getExploreJobId));
+      expect(next.value).to.be.eql(select(oldGetExploreJobId));
       next = loadTableDataGen.next(jobId); //setExploreJobIdInProgress
       next = loadTableDataGen.next(); //spawn jobUpdateWatchers
       next = loadTableDataGen.next(); //update viewstate

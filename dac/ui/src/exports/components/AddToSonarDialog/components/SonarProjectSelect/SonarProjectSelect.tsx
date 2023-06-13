@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Skeleton } from "@app/../../ui-lib/dist-esm/Skeleton";
+import { Skeleton } from "dremio-ui-lib/components";
 import { intl } from "@app/utils/intl";
 import { Select } from "@mantine/core";
 import { orderBy } from "lodash";

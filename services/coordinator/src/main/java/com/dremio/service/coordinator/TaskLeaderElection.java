@@ -366,8 +366,6 @@ public class TaskLeaderElection implements AutoCloseable {
 
   @Override
   public void close() throws Exception {
-    logger.info("Stopping TaskLeaderElection for service {}", serviceName);
-
     if (isTaskLeader.compareAndSet(true, false)) {
       listeners.keySet().forEach(TaskLeaderChangeListener::onLeadershipLost);
     }
@@ -386,6 +384,8 @@ public class TaskLeaderElection implements AutoCloseable {
 
     closeHandles();
     AutoCloseables.close(taskLeaderStatusListener);
+
+    logger.info("Stopped TaskLeaderElection for service {}", serviceName);
   }
 
   private synchronized void closeHandles() throws Exception {

@@ -18,12 +18,25 @@ package com.dremio.exec.planner.sql;
 import static com.dremio.BaseTestQuery.getDfsTestTmpSchemaLocation;
 import static com.dremio.BaseTestQuery.getIcebergTable;
 import static com.dremio.BaseTestQuery.test;
+import static com.dremio.exec.planner.VacuumOutputSchema.DELETE_DATA_FILE_COUNT;
+import static com.dremio.exec.planner.VacuumOutputSchema.DELETE_EQUALITY_DELETE_FILES_COUNT;
+import static com.dremio.exec.planner.VacuumOutputSchema.DELETE_MANIFEST_FILES_COUNT;
+import static com.dremio.exec.planner.VacuumOutputSchema.DELETE_MANIFEST_LISTS_COUNT;
+import static com.dremio.exec.planner.VacuumOutputSchema.DELETE_PARTITION_STATS_FILES_COUNT;
+import static com.dremio.exec.planner.VacuumOutputSchema.DELETE_POSITION_DELETE_FILES_COUNT;
+import static com.dremio.exec.planner.sql.DmlQueryTestUtils.EMPTY_PATHS;
+import static com.dremio.exec.planner.sql.DmlQueryTestUtils.PARTITION_COLUMN_ONE_INDEX_SET;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.addQuotes;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.addRows;
+import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createBasicNonPartitionedAndPartitionedTables;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createBasicTable;
+import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createEmptyTable;
+import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createStockIcebergTable;
+import static com.dremio.exec.planner.sql.DmlQueryTestUtils.loadTable;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.testMalformedDmlQueries;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.testQueryValidateStatusSummary;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.verifyCountSnapshotQuery;
+import static com.dremio.exec.planner.sql.DmlQueryTestUtils.verifyData;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.waitUntilAfter;
 import static com.dremio.exec.planner.sql.handlers.SqlHandlerUtil.getTimestampFromMillis;
 
@@ -32,13 +45,13 @@ import java.util.Iterator;
 import java.util.Set;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.commons.lang3.ArrayUtils;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.io.FileIO;
 import org.junit.Assert;
 
+import com.dremio.TestBuilder;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
 import com.dremio.io.file.Path;
@@ -65,12 +78,33 @@ public class VacuumTests extends ITDmlQueryBase {
         "VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN",
         "VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN =",
         "VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN = %s RETAIN_LAST",
+        "VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN RETAIN_LAST",
+        "VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN %s RETAIN_LAST",
         "VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN = %s RETAIN_LAST =",
         "VACUUM TABLE %s EXPIRE SNAPSHOTS RETAIN_LAST",
         "VACUUM TABLE %s EXPIRE SNAPSHOTS RETAIN_LAST =",
         "VACUUM TABLE %s EXPIRE SNAPSHOTS RETAIN_LAST '3'",
         "VACUUM TABLE %s EXPIRE SNAPSHOTS RETAIN_LAST = '3'"
       );
+    }
+  }
+
+  public static void testSimpleExpireOlderThanRetainLastUsingEqual(BufferAllocator allocator, String source) throws Exception {
+    try (DmlQueryTestUtils.Table table = createBasicTable(source,2, 1)) {
+      Thread.sleep(100);
+      final long timestampMillisToExpire = System.currentTimeMillis();
+      // Insert more rows to increase snapshots
+      DmlQueryTestUtils.Table table2 = addRows(table, 1);
+      table2 = addRows(table2, 1);
+      validateOutputResult(
+        allocator,
+        "VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN = '%s' RETAIN_LAST = 1",
+        new Object[]{table.fqn, getTimestampFromMillis(timestampMillisToExpire)},
+        table,
+        new Long[] {0L, 0L, 0L, 0L, 2L, 0L});
+
+      // Data not changed.
+      verifyData(allocator, table2, table2.originalData);
     }
   }
 
@@ -81,12 +115,15 @@ public class VacuumTests extends ITDmlQueryBase {
       // Insert more rows to increase snapshots
       DmlQueryTestUtils.Table table2 = addRows(table, 1);
       table2 = addRows(table2, 1);
-      testQueryValidateStatusSummary(allocator,
-        "VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN = '%s'", new Object[]{table.fqn, getTimestampFromMillis(timestampMillisToExpire)},
+      validateOutputResult(
+        allocator,
+        "VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN '%s'",
+        new Object[]{table.fqn, getTimestampFromMillis(timestampMillisToExpire)},
         table,
-        true,
-        String.format("Table [%s] vacuumed", table.fqn),
-        ArrayUtils.subarray(table2.originalData, 0, table2.originalData.length));
+        new Long[] {0L, 0L, 0L, 0L, 2L, 0L});
+
+      // Data not changed.
+      verifyData(allocator, table2, table2.originalData);
     }
   }
 
@@ -110,12 +147,15 @@ public class VacuumTests extends ITDmlQueryBase {
       Assert.assertEquals("Should have four snapshots", 4, Iterables.size(updatedTable.snapshots()));
       Assert.assertEquals("Should have four history entries", 4, updatedTable.history().size());
 
-      testQueryValidateStatusSummary(allocator,
-        "VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN = '%s'", new Object[]{table.fqn, getTimestampFromMillis(timestampMillisToExpire)},
+      validateOutputResult(
+        allocator,
+        "VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN '%s'",
+        new Object[]{table.fqn, getTimestampFromMillis(timestampMillisToExpire)},
         table,
-        true,
-        String.format("Table [%s] vacuumed", table.fqn),
-        ArrayUtils.subarray(table2.originalData, 0, table2.originalData.length));
+        new Long[] {0L, 0L, 0L, 0L, 2L, 0L});
+
+      // Data not changed.
+      verifyData(allocator, table2, table2.originalData);
 
       Table vacuumedTable = getIcebergTable(tableFolder, IcebergCatalogType.HADOOP);
       Assert.assertEquals("Expire should keep last two snapshots", 2, Iterables.size(vacuumedTable.snapshots()));
@@ -146,12 +186,15 @@ public class VacuumTests extends ITDmlQueryBase {
       Assert.assertEquals("Should have four history entries", 4, updatedTable.history().size());
 
       // No snapshots are dated back to default 5 days ago, and no snapshots are expired, even claim to retain last 2.
-      testQueryValidateStatusSummary(allocator,
-        "VACUUM TABLE %s EXPIRE SNAPSHOTS RETAIN_LAST = %s", new Object[]{table.fqn, "2"},
+      validateOutputResult(
+        allocator,
+        "VACUUM TABLE %s EXPIRE SNAPSHOTS RETAIN_LAST %s",
+        new Object[]{table.fqn, "2"},
         table,
-        true,
-        String.format("Table [%s] vacuumed", table.fqn),
-        ArrayUtils.subarray(table2.originalData, 0, table2.originalData.length));
+        new Long[] {0L, 0L, 0L, 0L, 0L, 0L});
+
+      // Data not changed.
+      verifyData(allocator, table2, table2.originalData);
 
       Table vacuumedTable = getIcebergTable(tableFolder, IcebergCatalogType.HADOOP);
       Assert.assertEquals("Expire should keep last four snapshots", 4, Iterables.size(vacuumedTable.snapshots()));
@@ -183,13 +226,15 @@ public class VacuumTests extends ITDmlQueryBase {
       final long expectedSnapshotId = updatedTable.currentSnapshot().snapshotId();
 
       // Use the latest snapshot's timestamp for OLDER_THAN. But, it still needs to keep two snapshots as RETAIN_LAST is set.
-      testQueryValidateStatusSummary(allocator,
-        "VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN = '%s' RETAIN_LAST = %s",
+      validateOutputResult(
+        allocator,
+        "VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN '%s' RETAIN_LAST %s",
         new Object[]{table.fqn, getTimestampFromMillis(timestampMillisToExpire), "2"},
         table,
-        true,
-        String.format("Table [%s] vacuumed", table.fqn),
-        ArrayUtils.subarray(table2.originalData, 0, table2.originalData.length));
+        new Long[] {0L, 0L, 0L, 0L, 2L, 0L});
+
+      // Data not changed.
+      verifyData(allocator, table2, table2.originalData);
 
       Table vacuumedTable = getIcebergTable(tableFolder, IcebergCatalogType.HADOOP);
       Assert.assertEquals("Expire should keep last two snapshots", 2, Iterables.size(vacuumedTable.snapshots()));
@@ -228,12 +273,15 @@ public class VacuumTests extends ITDmlQueryBase {
         String.format("Table [%s] rollbacked", table.fqn),
         null);
 
-      testQueryValidateStatusSummary(allocator,
-        "VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN = '%s'", new Object[]{table.fqn, getTimestampFromMillis(timestampMillisToExpire)},
+      validateOutputResult(
+        allocator,
+        "VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN '%s'",
+        new Object[]{table.fqn, getTimestampFromMillis(timestampMillisToExpire)},
         table,
-        true,
-        String.format("Table [%s] vacuumed", table.fqn),
-        null);
+        new Long[] {3L, 0L, 0L, 3L, 4L, 0L});
+
+      // Data not changed.
+      verifyData(allocator, table, table.originalData);
 
       Table vacuumedTable = getIcebergTable(tableFolder, IcebergCatalogType.HADOOP);
       final Set<String> filesAfterVacuum = collectDataFilesFromTable(vacuumedTable);
@@ -271,12 +319,15 @@ public class VacuumTests extends ITDmlQueryBase {
         String.format("Table [%s] rollbacked", table.fqn),
         null);
 
-      testQueryValidateStatusSummary(allocator,
-        "VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN = '%s' RETAIN_LAST = 2", new Object[]{table.fqn, getTimestampFromMillis(timestampMillisToExpire)},
+      validateOutputResult(
+        allocator,
+        "VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN '%s' RETAIN_LAST 2",
+        new Object[]{table.fqn, getTimestampFromMillis(timestampMillisToExpire)},
         table,
-        true,
-        String.format("Table [%s] vacuumed", table.fqn),
-        null);
+        new Long[] {2L, 0L, 0L, 2L, 2L, 0L});
+
+      // Data not changed.
+      verifyData(allocator, table, table.originalData);
 
       Table vacuumedTable = getIcebergTable(tableFolder, IcebergCatalogType.HADOOP);
       Assert.assertEquals("Expire should keep last 2 snapshot", 2, Iterables.size(vacuumedTable.snapshots()));
@@ -288,6 +339,60 @@ public class VacuumTests extends ITDmlQueryBase {
     }
   }
 
+  public static void testExpireOnTableWithPartitions(BufferAllocator allocator, String source) throws Exception {
+    try (DmlQueryTestUtils.Tables tables = createBasicNonPartitionedAndPartitionedTables(source, 2, 3, PARTITION_COLUMN_ONE_INDEX_SET)) {
+      Assert.assertEquals("Should have two tables", 2, tables.tables.length);
+      // Second table has partitions
+      DmlQueryTestUtils.Table table = tables.tables[1];
+
+      String tableName = table.name.startsWith("\"") ? table.name.substring(1, table.name.length() - 1) : table.name;
+      File tableFolder = new File(getDfsTestTmpSchemaLocation(), tableName);
+      Table icebergTable = getIcebergTable(tableFolder, IcebergCatalogType.HADOOP);
+      Assert.assertEquals("Should have two snapshots", 2, Iterables.size(icebergTable.snapshots()));
+      Assert.assertEquals("Should have two history entries", 2, icebergTable.history().size());
+      final Snapshot firstSnapshot = Iterables.getFirst(icebergTable.snapshots(), null);
+      Assert.assertNotNull("Should get first snapshot", firstSnapshot);
+      final Snapshot secondSnapshot = Iterables.getLast(icebergTable.snapshots());
+      final long rollbackToSnapshotId = secondSnapshot.snapshotId();
+
+      // Insert more rows to increase snapshots and partition files
+      addRows(table, 2);
+      addRows(table, 2);
+
+      final long timestampMillisToExpire = waitUntilAfter(secondSnapshot.timestampMillis());
+
+      testQueryValidateStatusSummary(allocator,
+        "ROLLBACK TABLE %s TO SNAPSHOT '%s'", new Object[]{table.fqn, rollbackToSnapshotId},
+        table,
+        true,
+        String.format("Table [%s] rollbacked", table.fqn),
+        null);
+
+      validateOutputResult(
+        allocator,
+        "VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN '%s' RETAIN_LAST 2",
+        new Object[]{table.fqn, getTimestampFromMillis(timestampMillisToExpire)},
+        table,
+        new Long[] {4L, 0L, 0L, 2L, 2L, 4L});
+    }
+  }
+
+  public static void testExpireOnEmptyTableNoSnapshots(BufferAllocator allocator, String source) throws Exception {
+    try (DmlQueryTestUtils.Table table = createStockIcebergTable(source, 0, 2, "modes_isolation")) {
+      Table icebergTable = loadTable(table);
+      Assert.assertNull(icebergTable.currentSnapshot());
+      final String timestampToExpire = getTimestampFromMillis(System.currentTimeMillis());
+
+      UserExceptionAssert.assertThatThrownBy(() ->
+          test("VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN '%s'", table.fqn, timestampToExpire))
+        .hasErrorType(ErrorType.UNSUPPORTED_OPERATION)
+        .hasMessageContaining("Vacuum table succeeded, and the operation did not change the number of snapshots");
+
+      icebergTable.refresh();
+      Assert.assertNull(icebergTable.currentSnapshot());
+    }
+  }
+
   public static void testRetainZeroSnapshots(String source) throws Exception {
     try (DmlQueryTestUtils.Table table = createBasicTable(source,2, 1)) {
       String tableName = table.name.startsWith("\"") ? table.name.substring(1, table.name.length() - 1) : table.name;
@@ -296,7 +401,7 @@ public class VacuumTests extends ITDmlQueryBase {
       final long timestampMillisToExpire = waitUntilAfter(icebergTable.currentSnapshot().timestampMillis());
 
       UserExceptionAssert.assertThatThrownBy(() ->
-          test("VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN = '%s' RETAIN_LAST = 0", table.fqn, getTimestampFromMillis(timestampMillisToExpire)))
+          test("VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN '%s' RETAIN_LAST 0", table.fqn, getTimestampFromMillis(timestampMillisToExpire)))
         .hasErrorType(ErrorType.UNSUPPORTED_OPERATION)
         .hasMessageContaining("Minimum number of snapshots to retain can be 1");
     }
@@ -305,7 +410,7 @@ public class VacuumTests extends ITDmlQueryBase {
   public static void testInvalidTimestampLiteral(String source) throws Exception {
     try (DmlQueryTestUtils.Table table = createBasicTable(source,2, 1)) {
       UserExceptionAssert.assertThatThrownBy(() ->
-          test("VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN = '2022-09-01 abc'", table.fqn))
+          test("VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN '2022-09-01 abc'", table.fqn))
         .hasErrorType(ErrorType.PARSE)
         .hasMessageContaining("Literal '2022-09-01 abc' cannot be casted to TIMESTAMP");
     }
@@ -314,7 +419,7 @@ public class VacuumTests extends ITDmlQueryBase {
   public static void testEmptyTimestamp(String source) throws Exception {
     try (DmlQueryTestUtils.Table table = createBasicTable(source,2, 1)) {
       UserExceptionAssert.assertThatThrownBy(() ->
-          test("VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN = ''", table.fqn))
+          test("VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN ''", table.fqn))
         .hasErrorType(ErrorType.PARSE)
         .hasMessageContaining("Literal '' cannot be casted to TIMESTAMP");
     }
@@ -332,12 +437,12 @@ public class VacuumTests extends ITDmlQueryBase {
       addRows(table, 1);
       verifyCountSnapshotQuery(allocator, table.fqn, 4L);
 
-      testQueryValidateStatusSummary(allocator,
-        "VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN = '%s'", new Object[]{table.fqn, getTimestampFromMillis(timestampMillisToExpire)},
+      validateOutputResult(
+        allocator,
+        "VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN '%s'",
+        new Object[]{table.fqn, getTimestampFromMillis(timestampMillisToExpire)},
         table,
-        true,
-        String.format("Table [%s] vacuumed", table.fqn),
-        null);
+        new Long[] {0L, 0L, 0L, 0L, 2L, 0L});
 
       // The count table_snapshot query result should be refreshed and only 2 are left.
       verifyCountSnapshotQuery(allocator, table.fqn, 2L);
@@ -351,13 +456,55 @@ public class VacuumTests extends ITDmlQueryBase {
       Table icebergTable = getIcebergTable(tableFolder, IcebergCatalogType.HADOOP);
       final long timestampMillisToExpire = waitUntilAfter(icebergTable.currentSnapshot().timestampMillis());
 
-      final String vacuumQuery = String.format("VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN = '%s' RETAIN_LAST = 1",
+      final String vacuumQuery = String.format("VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN '%s' RETAIN_LAST 1",
         table.fqn, getTimestampFromMillis(timestampMillisToExpire));
 
 
-      final String expected = String.format("VACUUM TABLE %s EXPIRE SNAPSHOTS \"OLDER_THAN\" = '%s' \"RETAIN_LAST\" = 1",
+      final String expected = String.format("VACUUM TABLE %s EXPIRE SNAPSHOTS \"OLDER_THAN\" '%s' \"RETAIN_LAST\" 1",
         "\"" + source + "\"." + addQuotes(tableName), getTimestampFromMillis(timestampMillisToExpire));
       parseAndValidateSqlNode(vacuumQuery, expected);
+    }
+  }
+
+  public static void testExpireOnTableOneSnapshot(String source) throws Exception {
+    // Table has only one snapshot. Don't need to run expire snapshots query.
+    try (DmlQueryTestUtils.Table table = createEmptyTable(source,EMPTY_PATHS, "tableName", 1)) {
+      final long timestampMillisToExpire = System.currentTimeMillis();
+      UserExceptionAssert.assertThatThrownBy(() ->
+          test("VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN '%s'", table.fqn, getTimestampFromMillis(timestampMillisToExpire)))
+        .hasErrorType(ErrorType.UNSUPPORTED_OPERATION)
+        .hasMessageContaining("Vacuum table succeeded, and the operation did not change the number of snapshots");
+    }
+  }
+
+  public static void testRetainMoreSnapshots(String source) throws Exception {
+    // Table has less snapshot than the retained number. Don't need to run expire snapshots query.
+    try (DmlQueryTestUtils.Table table = createBasicTable(source,2, 1)) {
+      UserExceptionAssert.assertThatThrownBy(() ->
+          test("VACUUM TABLE %s EXPIRE SNAPSHOTS RETAIN_LAST 5", table.fqn))
+        .hasErrorType(ErrorType.UNSUPPORTED_OPERATION)
+        .hasMessageContaining("Vacuum table succeeded, and the operation did not change the number of snapshots");
+    }
+  }
+
+  public static void testRetainAllSnapshots(BufferAllocator allocator, String source) throws Exception {
+    try (DmlQueryTestUtils.Table table = createBasicTable(source,2, 1)) {
+      verifyCountSnapshotQuery(allocator, table.fqn, 2L);
+      // Insert more rows to increase snapshots
+      DmlQueryTestUtils.Table table2 = addRows(table, 1);
+      table2 = addRows(table2, 1);
+      table2 = addRows(table2, 1);
+      table2 = addRows(table2, 1);
+      addRows(table2, 1);
+      verifyCountSnapshotQuery(allocator, table.fqn, 7L);
+
+      // No snapshots are dated back to default 5 days ago, and no snapshots are expired, even claim to retain last 2.
+      validateOutputResult(
+        allocator,
+        "VACUUM TABLE %s EXPIRE SNAPSHOTS RETAIN_LAST %s",
+        new Object[]{table.fqn, "2"},
+        table,
+        new Long[]{0L, 0L, 0L, 0L, 0L, 0L});
     }
   }
 
@@ -382,5 +529,16 @@ public class VacuumTests extends ITDmlQueryBase {
 
   private static Set<String> pathSet(Iterable<DataFile> files) {
     return Sets.newHashSet(Iterables.transform(files, file -> file.path().toString()));
+  }
+
+  private static void validateOutputResult(BufferAllocator allocator, String query, Object[] args, DmlQueryTestUtils.Table table, Long[] results) throws Exception {
+    Assert.assertEquals(6, results.length);
+    new TestBuilder(allocator)
+      .sqlQuery(query, args)
+      .unOrdered()
+      .baselineColumns(DELETE_DATA_FILE_COUNT, DELETE_POSITION_DELETE_FILES_COUNT, DELETE_EQUALITY_DELETE_FILES_COUNT,
+        DELETE_MANIFEST_FILES_COUNT, DELETE_MANIFEST_LISTS_COUNT, DELETE_PARTITION_STATS_FILES_COUNT)
+      .baselineValues(results[0], results[1], results[2], results[3], results[4], results[5])
+      .go();
   }
 }

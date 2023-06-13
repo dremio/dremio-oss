@@ -140,6 +140,7 @@ public class LocalKVStore<K, V> implements KVStore<K, V> {
       return input.getTag();
     }
 
+    @Override
     public boolean equals(Object o) {
       if (!(o instanceof Document)) {
         return false;

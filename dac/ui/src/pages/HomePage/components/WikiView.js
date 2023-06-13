@@ -161,7 +161,7 @@ export default class WikiView extends Component {
       styles: {
         width: 17,
         height: 18,
-        color: "var(--dremio--color--neutral--600)",
+        color: "var(--color--neutral--600)",
       },
     });
   }

@@ -17,7 +17,7 @@
 @import "~@app/uiTheme/less/variables.less";
 @import "~@app/uiTheme/less/mixins.less";
 
-@icon-w: 24px - 1rem;
+@icon-w: 24px - 10px;
 
 :global {
   #branchPickerPopover {
@@ -48,7 +48,7 @@
     }
 
     max-height: 95vh;
-    background-color: var(--dremio--color--neutral--000);
+    background-color: white;
 
     display: flex;
     flex-direction: column;
@@ -76,8 +76,8 @@
       .react-datepicker__day-name,
       .react-datepicker__day,
       .react-datepicker__time-name {
-        width: 4rem;
-        line-height: 3rem;
+        width: 40px;
+        line-height: 30px;
       }
 
       .react-datepicker-wrapper {

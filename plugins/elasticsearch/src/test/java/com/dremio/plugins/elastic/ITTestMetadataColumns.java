@@ -41,6 +41,7 @@ import com.dremio.sabot.rpc.user.QueryDataBatch;
 @ShowIDColumn(enabled=true)
 public class ITTestMetadataColumns extends ElasticBaseTestQuery {
 
+  @SuppressWarnings("checkstyle:MemberName")
   protected String TABLENAME;
   protected String[] ids = new String[5];
   protected String[] uids = new String[5];

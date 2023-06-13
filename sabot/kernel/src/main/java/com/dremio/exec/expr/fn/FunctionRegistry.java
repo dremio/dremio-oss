@@ -92,8 +92,8 @@ public class FunctionRegistry implements PrimaryFunctionRegistry {
           String functionName = name.toLowerCase();
           registeredFunctions.put(functionName, holder);
           String functionSignature = functionName + functionInput;
-          String existingImplementation;
-          if ((existingImplementation = functionSignatureMap.get(functionSignature)) != null) {
+          String existingImplementation = functionSignatureMap.get(functionSignature);
+          if (existingImplementation != null) {
             throw new AssertionError(
                 String.format(
                     "Conflicting functions with similar signature found. Func Name: %s, Class name: %s " +
@@ -129,6 +129,7 @@ public class FunctionRegistry implements PrimaryFunctionRegistry {
     return this.registeredFunctions.get(name.toLowerCase());
   }
 
+  @Override
   public void register(OperatorTable operatorTable, boolean isDecimalV2Enabled) {
     for (Entry<String, Collection<AbstractFunctionHolder>> function : registeredFunctions.asMap().entrySet()) {
       final ArrayListMultimap<Pair<Integer, Integer>, BaseFunctionHolder> functions = ArrayListMultimap.create();

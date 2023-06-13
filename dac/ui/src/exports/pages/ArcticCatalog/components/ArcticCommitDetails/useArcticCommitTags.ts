@@ -21,11 +21,11 @@ import { useNessieContext } from "@app/pages/NessieHomePage/utils/context";
 import { FetchOption } from "@app/services/nessie/client/index";
 
 export const useArcticCommitTags = (commitId: string) => {
-  const { api } = useNessieContext();
+  const { apiV2 } = useNessieContext();
 
   const ArcticCommitTagsResource = useRef(
     new SmartResource(({ hash }) =>
-      api.getAllReferences({
+      apiV2.getAllReferencesV2({
         fetch: FetchOption.All,
         filter: `refType == 'TAG' && commit.hash == '${hash}'`,
       })

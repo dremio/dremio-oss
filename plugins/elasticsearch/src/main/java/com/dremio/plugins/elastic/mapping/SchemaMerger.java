@@ -336,6 +336,10 @@ public class SchemaMerger {
         resultToPopulate.hasNoDocValue(path);
       }
 
+      if (elasticField.hasFields()) {
+        resultToPopulate.isStringWithKeywordType(path);
+      }
+
       // handle special types.
       switch(elasticField.getType()){
       case GEO_POINT:
@@ -426,6 +430,10 @@ public class SchemaMerger {
 
     public void isScaledType(SchemaPath path){
       annotations.put(path,  anno(path).setSpecialType(ElasticSpecialType.SCALED_FLOAT).build());
+    }
+
+    public void isStringWithKeywordType(SchemaPath path) {
+      annotations.put(path, anno(path).setSpecialType(ElasticSpecialType.STRING_WITH_KEYWORD).build());
     }
 
     public void isAnalyzed(SchemaPath path){

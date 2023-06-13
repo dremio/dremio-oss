@@ -20,6 +20,7 @@ export const FETCH_JOBS_LIST_REQUEST = "FETCH_JOBS_LIST_REQUEST";
 export const FETCH_JOBS_LIST_SUCCESS = "FETCH_JOBS_LIST_SUCCESS";
 export const FETCH_JOBS_LIST_FAILURE = "FETCH_JOBS_LIST_FAILURE";
 export const JOBS_LIST_RESET = "JOBS_LIST_RESET";
+export const SAVE_JOB_RESET = "SAVE_JOB_RESET";
 export const FETCH_JOB_DETAILS_BY_ID_REQUEST =
   "FETCH_JOB_DETAILS_BY_ID_REQUEST";
 export const FETCH_JOB_DETAILS_BY_ID_SUCCESS =
@@ -92,12 +93,18 @@ export const resetFilteredJobsList = () => ({
   payload: Immutable.List(),
 });
 
+export const resetUniqueSavingJob = () => ({
+  type: SAVE_JOB_RESET,
+  payload: undefined,
+});
+
 function fetchFilteredJobsListForExplorePageAction(
   jobId = "",
   viewId,
-  replaceIndex
+  replaceIndex,
+  isSaveJob
 ) {
-  const meta = { viewId, isExplorePage: true, replaceIndex };
+  const meta = { viewId, isExplorePage: true, replaceIndex, isSaveJob };
   return (dispatch) => {
     return apiUtils
       .fetch(
@@ -159,10 +166,15 @@ export function fetchJobsList(queryState, viewId) {
   };
 }
 
-export function fetchFilteredJobsList(jobId, viewId, replaceIndex) {
+export function fetchFilteredJobsList(jobId, viewId, replaceIndex, isSaveJob) {
   return (dispatch) => {
     return dispatch(
-      fetchFilteredJobsListForExplorePageAction(jobId, viewId, replaceIndex)
+      fetchFilteredJobsListForExplorePageAction(
+        jobId,
+        viewId,
+        replaceIndex,
+        isSaveJob
+      )
     );
   };
 }

@@ -33,6 +33,7 @@ class TableBuilder extends ProfileBuilder {
     sb.append("</thead>\n</tr>\n");
   }
 
+  @Override
   public void appendCell(final String s) {
     if (w == 0) {
       sb.append("<tr>");

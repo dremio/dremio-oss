@@ -17,6 +17,8 @@
 import * as React from "react";
 import { Tooltip } from "./Tooltip/Tooltip";
 import { useHasClipboardPermissions } from "./utilities/useHasClipboardPermissions";
+import copy from "copy-to-clipboard";
+import { type Placement } from "@floating-ui/react-dom-interactions";
 
 const writeToClipboard = (text: string): Promise<void> => {
   return navigator.clipboard.writeText(text);
@@ -25,19 +27,16 @@ const writeToClipboard = (text: string): Promise<void> => {
 type Props = {
   children: JSX.Element;
   contents: string;
+  placement?: Placement;
 };
 
 export const CopyContainer = (props: Props) => {
   const hasPermission = useHasClipboardPermissions();
   const [hasCopied, setHasCopied] = React.useState(false);
 
-  if (!hasPermission) {
-    return null;
-  }
-
   return (
     <Tooltip
-      placement="top"
+      placement={props.placement || "top"}
       content={hasCopied ? <span>Copied</span> : <span>Copy</span>}
       onClose={() => {
         setHasCopied(false);
@@ -45,7 +44,9 @@ export const CopyContainer = (props: Props) => {
     >
       {React.cloneElement(props.children, {
         onClick: () => {
-          writeToClipboard(props.contents);
+          hasPermission
+            ? writeToClipboard(props.contents)
+            : copy(props.contents);
           setHasCopied(true);
         },
       })}

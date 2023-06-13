@@ -33,6 +33,7 @@ import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.common.utils.protos.AttemptIdUtils;
 import com.dremio.dac.daemon.TestSpacesStoragePlugin;
 import com.dremio.dac.explore.model.DatasetPath;
+import com.dremio.dac.explore.model.InitialPreviewResponse;
 import com.dremio.dac.model.job.JobInfoDetailsUI;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.service.reflection.ReflectionServiceHelper;
@@ -80,7 +81,8 @@ public class TestJobDetails extends BaseTestServer {
   @Test
   public void testJobDetailsAPI() throws Exception {
     TestSpacesStoragePlugin.setup();
-    getPreview(getDataset(new DatasetPath("testA.dsA1")));
+    final InitialPreviewResponse previewResponse = getPreview(getDataset(new DatasetPath("testA.dsA1")));
+    waitForJobComplete(previewResponse.getJobId().getId());
     String jobId = "1f3f8dad-f25e-8cbe-e952-1587f1647a00";
     String sql = "select * from \" testA.dsA1\"";
     UUID id = UUID.fromString(jobId);

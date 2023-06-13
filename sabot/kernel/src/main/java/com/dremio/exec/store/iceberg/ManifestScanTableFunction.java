@@ -69,7 +69,7 @@ public class ManifestScanTableFunction extends AbstractTableFunction {
   @Override
   public void startRow(int row) throws Exception {
     ManifestFile manifestFile = getManifestFile(row);
-    manifestFileProcessor.setupManifestFile(manifestFile);
+    manifestFileProcessor.setupManifestFile(manifestFile, row);
   }
 
   @Override

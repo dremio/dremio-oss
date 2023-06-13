@@ -226,6 +226,7 @@ public class S3StoragePlugin extends DirectorySupportLackingFileSystemPlugin<Abs
     return context != null && context.getOptions().getOption(S3Options.ASYNC);
   }
 
+  @Override
   public boolean supportReadSignature(DatasetMetadata metadata, boolean isFileDataset) {
     return false;
   }

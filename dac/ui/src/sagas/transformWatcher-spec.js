@@ -96,7 +96,7 @@ describe("transformWatcher saga", () => {
         expect(next.value).to.be.eql(put(completeDatasetMetadataLoad()));
         next = gen.next();
       };
-      // Todo: Fix this to use .to.throw instead (https://dremio.atlassian.net/browse/DX-30942)
+      // Todo: Fix this to use .to.throw instead (DX-30942)
       try {
         testException();
       } catch (ex) {
@@ -116,7 +116,7 @@ describe("transformWatcher saga", () => {
     });
 
     it("should throw TransformCanceledError if cancel wins the race", () => {
-      // Todo: Fix this to use .to.throw instead (https://dremio.atlassian.net/browse/DX-30942)
+      // Todo: Fix this to use .to.throw instead (DX-30942)
       try {
         gen.next({ cancel: "cancel" });
       } catch (ex) {
@@ -130,7 +130,7 @@ describe("transformWatcher saga", () => {
     it("should hide the modal and throw TransformCanceledError if resetNewQuery wins the race", () => {
       next = gen.next({ resetNewQuery: true });
       expect(next.value).to.eql(put(hideConfirmationDialog()));
-      // Todo: Fix this to use .to.throw instead (https://dremio.atlassian.net/browse/DX-30942)
+      // Todo: Fix this to use .to.throw instead (DX-30942)
       try {
         next = gen.next();
       } catch (ex) {
@@ -152,7 +152,7 @@ describe("transformWatcher saga", () => {
     it("should hide the modal and throw TransformCanceledByLocationChangeError if location change wins", () => {
       next = gen.next({ locationChange: "locationChange" });
       expect(next.value).to.eql(put(hideConfirmationDialog()));
-      // Todo: Fix this to use .to.throw instead (https://dremio.atlassian.net/browse/DX-30942)
+      // Todo: Fix this to use .to.throw instead (DX-30942)
       try {
         next = gen.next();
       } catch (ex) {

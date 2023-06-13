@@ -133,12 +133,14 @@ class ResourceTreeController extends PureComponent {
 
   // Async for testing purposes
   async componentDidMount() {
-    const { resourceTree, datasetsPanel, sidebarCollapsed } = this.props;
+    const { resourceTree, datasetsPanel, sidebarCollapsed, fromModal } =
+      this.props;
     const INITIAL_LOAD = true;
-    // Only create the Resource Tree if it has not been intialized
+    // Only create the Resource Tree if it has not been intialized || initialize resources when opening Save as Dataset modal
     if (
-      (resourceTree && resourceTree.size > 0 && !datasetsPanel) ||
-      (datasetsPanel && sidebarCollapsed)
+      ((resourceTree && resourceTree.size > 0 && !datasetsPanel) ||
+        (datasetsPanel && sidebarCollapsed)) &&
+      !fromModal
     )
       return;
     return this.initializeTree(INITIAL_LOAD);

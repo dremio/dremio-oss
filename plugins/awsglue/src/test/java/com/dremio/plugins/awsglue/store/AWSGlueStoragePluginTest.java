@@ -25,6 +25,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -36,6 +37,7 @@ import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.service.InitializerRegistry;
 import com.dremio.service.namespace.source.proto.SourceConfig;
+import com.google.common.base.Preconditions;
 
 import io.findify.s3mock.S3Mock;
 
@@ -47,7 +49,7 @@ public class AWSGlueStoragePluginTest extends BaseTestQuery {
   @ClassRule
   public static final TemporaryFolder folder = new TemporaryFolder();
 
-  private static Integer port;
+  private static int port;
   private static S3Mock s3Mock;
 
   @BeforeClass
@@ -65,6 +67,14 @@ public class AWSGlueStoragePluginTest extends BaseTestQuery {
 
     addGlueTestPlugin("testglue", getSabotContext().getCatalogService());
 
+  }
+
+  @AfterClass
+  public static void teardownDefaultTestCluster() throws Exception {
+    if (s3Mock != null) {
+      s3Mock.shutdown();
+      s3Mock = null;
+    }
   }
 
   @Test
@@ -143,18 +153,25 @@ public class AWSGlueStoragePluginTest extends BaseTestQuery {
       .hasMessageContaining("DATA_READ ERROR: Unable to get Hive table InputFormat class.");
   }
 
-  private static void setupS3Mock() {
-    port = Integer.getInteger("s3mock.reserved.port");
-    if (port == null) {
-      throw new RuntimeException("Can't start test since s3mock.reserved.port property is not available.");
-    }
+  @Test
+  public void testCreateLongPathShouldThrow() throws Exception {
+    assertThatThrownBy(() -> test("CREATE TABLE \"testglue\".\"default\".long.path.should.throw (c1 int)"))
+      .hasMessageContaining("Dataset path '[testglue, default, long, path, should, throw]' is invalid");
+  }
 
+  @Test
+  public void testCreateAsLongPathShouldThrow() throws Exception {
+    assertThatThrownBy(() -> test("CREATE TABLE \"testglue\".\"default\".long.ctas.path.should.throw (c1 int) as values (1), (2)"))
+      .hasMessageContaining("Dataset path '[testglue, default, long, ctas, path, should, throw]' is invalid");
+  }
+
+  private static void setupS3Mock() {
+    Preconditions.checkState(s3Mock == null);
     s3Mock = new S3Mock.Builder()
-      .withPort(port)
+      .withPort(0)
       .withFileBackend(folder.getRoot().getAbsolutePath())
       .build();
-
-    s3Mock.start();
+    port = s3Mock.start().localAddress().getPort();
   }
 
   private static void setupBucketAndFile() throws IOException {

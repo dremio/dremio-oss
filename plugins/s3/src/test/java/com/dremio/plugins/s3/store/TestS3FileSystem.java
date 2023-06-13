@@ -17,7 +17,6 @@ package com.dremio.plugins.s3.store;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.fail;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -108,7 +107,7 @@ public class TestS3FileSystem {
   }
 
   @Test
-  public void testUnknownContainerExists() {
+  public void testUnknownContainerExists() throws Exception {
     TestExtendedS3FileSystem fs = new TestExtendedS3FileSystem();
     AmazonS3 mockedS3Client = mock(AmazonS3.class);
     when(mockedS3Client.doesBucketExistV2(any(String.class))).thenReturn(true);
@@ -117,11 +116,7 @@ public class TestS3FileSystem {
     when(mockedS3Client.listObjectsV2(any(ListObjectsV2Request.class))).thenReturn(result);
 
     fs.setCustomClient(mockedS3Client);
-    try {
-      assertNotNull(fs.getUnknownContainer("testunknown"));
-    } catch (IOException e) {
-      fail(e.getMessage());
-    }
+    assertNotNull(fs.getUnknownContainer("testunknown"));
   }
 
   @Test (expected = ContainerNotFoundException.class)

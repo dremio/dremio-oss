@@ -36,6 +36,7 @@ class CorrelateFinder extends RoutingShuttle {
     return super.visit(other);
   }
 
+  @Override
   public RelNode visit(LogicalCorrelate correlate) {
     foundCorrelate = true;
     return correlate; // No need to recurse any further.  We found our first completion state.

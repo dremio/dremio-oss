@@ -73,7 +73,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 import io.opentelemetry.api.trace.Span;
-import io.opentelemetry.extension.annotations.WithSpan;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 
 /**
  * Dremio implementation of several interfaces that are typically provided by CalciteCatalogReader.
@@ -112,6 +112,10 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
       return null;
     }
     return new DremioPrepareTable(this, typeFactory, table);
+  }
+
+  public DremioTranslatableTable getTableSnapshot(NamespaceKey key, TableVersionContext context) {
+    return catalog.getTableSnapshotForQuery(key, context);
   }
 
   public DremioPrepareTable getTableUnchecked(List<String> paramList) {

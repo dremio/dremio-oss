@@ -75,7 +75,7 @@ h5,
 }
 
 .whiteText {
-  color: var(--dremio--color--neutral--000);
+  color: white;
 }
 
 .blueText {

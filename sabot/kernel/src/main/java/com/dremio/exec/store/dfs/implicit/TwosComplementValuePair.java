@@ -87,6 +87,7 @@ public class TwosComplementValuePair extends NameValuePair<byte[]>{
   private final class BigDecimalPopulator implements Populator, AutoCloseable {
     private DecimalVector vector;
 
+    @Override
     public void setup(OutputMutator output){
       vector = (DecimalVector)output.getVector(name);
       if (vector == null) {
@@ -95,6 +96,7 @@ public class TwosComplementValuePair extends NameValuePair<byte[]>{
       }
     }
 
+    @Override
     public void populate(final int count){
       final byte[] value = TwosComplementValuePair.this.value;
 
@@ -107,6 +109,7 @@ public class TwosComplementValuePair extends NameValuePair<byte[]>{
       vector.setValueCount(count);
     }
 
+    @Override
     public void allocate(){
       vector.allocateNew();
     }

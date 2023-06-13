@@ -27,13 +27,25 @@ export const LOAD_DATASET_ACCELERATION_SETTINGS_SUCCESS =
 export const LOAD_DATASET_ACCELERATION_SETTINGS_FAILURE =
   "LOAD_DATASET_ACCELERATION_SETTINGS_FAILURE";
 
-export function loadDatasetAccelerationSettings(fullPathList, viewId) {
+export function loadDatasetAccelerationSettings(
+  fullPathList,
+  viewId,
+  versionContext
+) {
   const meta = { viewId };
+
+  const params = versionContext
+    ? {
+        versionType: versionContext.type,
+        versionValue: versionContext.value,
+      }
+    : {};
 
   const apiCall = new APIV2Call()
     .path("dataset")
     .path(constructFullPath(fullPathList))
-    .paths("acceleration/settings");
+    .paths("acceleration/settings")
+    .params(params);
 
   // TODO: this is a workaround for accelerationSettings not having its own id
   return {
@@ -62,11 +74,23 @@ export const UPDATE_DATASET_ACCELERATION_SETTINGS_SUCCESS =
 export const UPDATE_DATASET_ACCELERATION_SETTINGS_FAILURE =
   "UPDATE_DATASET_ACCELERATION_SETTINGS_FAILURE";
 
-export function updateDatasetAccelerationSettings(fullPathList, form) {
+export function updateDatasetAccelerationSettings(
+  fullPathList,
+  form,
+  versionContext
+) {
+  const params = versionContext
+    ? {
+        versionType: versionContext.type,
+        versionValue: versionContext.value,
+      }
+    : {};
+
   const apiCall = new APIV2Call()
     .path("dataset")
     .path(constructFullPath(fullPathList))
-    .paths("acceleration/settings");
+    .paths("acceleration/settings")
+    .params(params);
 
   return {
     [RSAA]: {

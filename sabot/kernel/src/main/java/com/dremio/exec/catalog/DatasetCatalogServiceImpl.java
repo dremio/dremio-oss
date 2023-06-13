@@ -187,6 +187,9 @@ public class DatasetCatalogServiceImpl extends DatasetCatalogServiceGrpc.Dataset
         if (partitionStatsFile != null) {
           icebergMetadata.setPartitionStatsFile(partitionStatsFile);
         }
+        if (metadata.hasPartitionStatsFileSize()) {
+          icebergMetadata.setPartitionStatsFileSize(metadata.getPartitionStatsFileSize());
+        }
         config.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
       }
       saveDataset(namespaceService, catalog, request.getDatasetConfig(), name, config);

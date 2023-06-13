@@ -40,9 +40,11 @@ public class Hash32AsDouble {
     @Output
     NullableIntHolder out;
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {
@@ -61,9 +63,11 @@ public class Hash32AsDouble {
     @Output
     NullableIntHolder out;
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {
@@ -83,9 +87,11 @@ public class Hash32AsDouble {
     @Output
     NullableIntHolder out;
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {
@@ -103,9 +109,11 @@ public class Hash32AsDouble {
     @Output
     NullableIntHolder out;
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {

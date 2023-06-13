@@ -159,8 +159,7 @@ public class ServerMetaProvider {
         if (TypeCastRules.isCastable(from, to)) {
           if (from == MinorType.DECIMAL || to == MinorType.DECIMAL) {
             addDrill10DecimalConvertOps(supportedConvertedOps, from, to);
-          }
-          else {
+          } else {
             supportedConvertedOps.add(ConvertSupport.newBuilder().setFrom(from).setTo(to).build());
           }
         }

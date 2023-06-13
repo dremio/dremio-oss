@@ -105,6 +105,7 @@ class CustomerGenerator extends TpchGenerator {
     return sb.toString();
   }
 
+  @Override
   protected void generateRecord(long globalRecordIndex, int outputIndex){
     final long customerKey = globalRecordIndex;
     final long nationKey = nationKeyRandom.nextValue();

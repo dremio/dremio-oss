@@ -83,6 +83,7 @@ public class DirListingScanPrel extends ScanPrelBase implements RowCountEstimato
       tableMetadata, tableMetadata.getSchema(), projectedColumns, pluginId, allowRecursiveListing);
   }
 
+  @Override
   public double getObservedRowcountAdjustment() {
     return 1.0;
   }

@@ -54,9 +54,11 @@ class ColumnMenuItem extends PureComponent {
     shouldAllowAdd: PropTypes.bool,
     addtoEditor: PropTypes.func,
     draggableRowClassName: PropTypes.string,
+    showReadonlyTooltip: PropTypes.bool
   };
   static defaultProps = {
     fullPath: Immutable.List(),
+    showReadonlyTooltip: true
   };
 
   checkThatDragAvailable = (e) => {
@@ -89,6 +91,7 @@ class ColumnMenuItem extends PureComponent {
       shouldAllowAdd,
       addtoEditor,
       draggableRowClassName,
+      showReadonlyTooltip,
       intl: { formatMessage },
     } = this.props;
     const markAsDisabled = preventDrag || disabled;
@@ -96,7 +99,7 @@ class ColumnMenuItem extends PureComponent {
     // full paths are not yet supported by dremio in SELECT clauses, so force this to always be the simple name for now
     const idForDrag =
       true || // eslint-disable-line no-constant-condition
-      isGroupBy
+        isGroupBy
         ? item.get("name")
         : constructFullPath(this.props.fullPath.concat(item.get("name")));
     return (
@@ -138,8 +141,7 @@ class ColumnMenuItem extends PureComponent {
                 }
                 text={item.get("name")}
                 title={
-                  preventDrag
-                    ? formatMessage({ id: "Read.Only" })
+                  preventDrag && showReadonlyTooltip ? formatMessage({ id: "Read.Only" })
                     : item.get("name")
                 }
               >

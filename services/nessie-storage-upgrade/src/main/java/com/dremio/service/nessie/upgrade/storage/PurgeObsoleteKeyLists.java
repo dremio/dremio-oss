@@ -78,7 +78,9 @@ public class PurgeObsoleteKeyLists extends UpgradeTask {
 
       DatabaseAdapter adapter = new DatastoreDatabaseAdapterFactory().newBuilder()
         .withConnector(store)
-        .withConfig(ImmutableAdjustableNonTransactionalDatabaseAdapterConfig.builder().build())
+        .withConfig(ImmutableAdjustableNonTransactionalDatabaseAdapterConfig.builder()
+          .validateNamespaces(false)
+          .build())
         .build();
 
       Map<String, Map<String, String>> result = adapter.repoMaintenance(params);

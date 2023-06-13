@@ -15,7 +15,9 @@
  */
 package com.dremio.exec.planner.sql;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -26,28 +28,35 @@ import org.apache.calcite.sql.fun.SqlLibrary;
 import org.apache.calcite.sql.fun.SqlLibraryOperatorTableFactory;
 import org.apache.calcite.sql.fun.SqlLibraryOperators;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
-import org.apache.calcite.sql.util.ListSqlOperatorTable;
 import org.apache.calcite.sql.validate.SqlNameMatcher;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 
 public class DremioCompositeSqlOperatorTable implements SqlOperatorTable {
   private static final DremioCompositeSqlOperatorTable INSTANCE = new DremioCompositeSqlOperatorTable();
   private static final SqlOperatorTable DREMIO_OT = DremioSqlOperatorTable.instance();
-  private static final SqlOperatorTable STD_OT = SqlStdOperatorTable.instance();
-  private static final SqlOperatorTable ORACLE_OT =
-      new ListSqlOperatorTable(SqlLibraryOperatorTableFactory.INSTANCE
-          .getOperatorTable(SqlLibrary.ORACLE).getOperatorList().stream()
-          .filter(op -> op != SqlLibraryOperators.LTRIM)
-          .filter(op -> op != SqlLibraryOperators.RTRIM)
-          .filter(op -> op != SqlLibraryOperators.SUBSTR) // calcite does not support oracles substring CALCITE-4408
-          .filter(op -> op != SqlLibraryOperators.DECODE) // Dremio currently uses hive decode
-          .collect(ImmutableList.toImmutableList()));
+
+  private static final SqlOperatorTable STD_OT = FilteredSqlOperatorTable.create(
+    SqlStdOperatorTable.instance(),
+    // REPLACE just uses the precision of it's first argument, which is problematic if the string increases in length after replacement.
+    SqlStdOperatorTable.REPLACE,
+    // CARDINALITY in Calcite accepts MAP, LIST and STRUCT. In Dremio, we plan to support only MAP and LIST.
+    SqlStdOperatorTable.CARDINALITY
+  );
+  private static final SqlOperatorTable ORACLE_OT = FilteredSqlOperatorTable.create(
+    SqlLibraryOperatorTableFactory.INSTANCE.getOperatorTable(SqlLibrary.ORACLE),
+    SqlLibraryOperators.LTRIM,
+    SqlLibraryOperators.RTRIM,
+    SqlLibraryOperators.SUBSTR, // calcite does not support oracles substring CALCITE-4408
+    SqlLibraryOperators.DECODE // Dremio currently uses hive decode
+  );
   private static final List<SqlOperator> operators = ImmutableList.<SqlOperator>builder()
       .addAll(DREMIO_OT.getOperatorList())
       .addAll(STD_OT.getOperatorList().stream()
         .filter(op -> op != SqlStdOperatorTable.ROUND)
         .filter(op -> op != SqlStdOperatorTable.TRUNCATE)
+        .filter(op -> op != SqlStdOperatorTable.CARDINALITY)
         .collect(ImmutableList.toImmutableList()))
       .addAll(ORACLE_OT.getOperatorList())
       .build();
@@ -78,5 +87,59 @@ public class DremioCompositeSqlOperatorTable implements SqlOperatorTable {
 
   public static DremioCompositeSqlOperatorTable getInstance() {
     return INSTANCE;
+  }
+
+  /**
+   * Takes a SqlOperatorTable, but ignores lookups for a select number of functions.
+   * This is needed, since we don't want the default behavior or calcite's operator table,
+   * but we also don't want to create a whole new operator table which may have different behavior.
+   */
+  private static final class FilteredSqlOperatorTable implements SqlOperatorTable {
+    private final SqlOperatorTable sqlOperatorTable;
+    private final ImmutableSet<String> functionsToFilter;
+
+    private FilteredSqlOperatorTable(
+      SqlOperatorTable sqlOperatorTable,
+      ImmutableSet<String> functionsToFilter) {
+      this.functionsToFilter = functionsToFilter;
+      this.sqlOperatorTable = sqlOperatorTable;
+    }
+
+    @Override
+    public void lookupOperatorOverloads(
+      SqlIdentifier opName,
+      SqlFunctionCategory category,
+      SqlSyntax syntax,
+      List<SqlOperator> operatorList,
+      SqlNameMatcher nameMatcher) {
+      if (opName.isSimple() && functionsToFilter.contains(opName.getSimple().toUpperCase())) {
+        return;
+      }
+
+      sqlOperatorTable.lookupOperatorOverloads(
+        opName,
+        category,
+        syntax,
+        operatorList,
+        nameMatcher);
+    }
+
+    @Override
+    public List<SqlOperator> getOperatorList() {
+      return sqlOperatorTable
+        .getOperatorList()
+        .stream()
+        .filter(operator -> !functionsToFilter.contains(operator.getName().toUpperCase()))
+        .collect(Collectors.toList());
+    }
+
+    public static SqlOperatorTable create(SqlOperatorTable sqlOperatorTable, SqlOperator ... operatorsToFilter) {
+      ImmutableSet<String> functionsToFilter = Arrays
+        .stream(operatorsToFilter)
+        .map(operator -> operator.getName().toUpperCase())
+        .collect(ImmutableSet.toImmutableSet());
+
+      return new FilteredSqlOperatorTable(sqlOperatorTable, functionsToFilter);
+    }
   }
 }

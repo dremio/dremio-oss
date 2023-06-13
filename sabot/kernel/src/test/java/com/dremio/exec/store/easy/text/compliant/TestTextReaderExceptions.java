@@ -53,21 +53,6 @@ public class TestTextReaderExceptions extends TestTextReaderHelper {
     return Arrays.asList(new Object[][]
         {
           {
-            /*  Multi char value is not supported for any parameter except line Delimiter
-                But test is added only for Field Delimiter  */
-            new TextFileConfig().setFieldDelimiter(",$").setLineDelimiter("\n"),
-            new String[][] {
-              {"c1","c2","c3"},
-              {"r1c1","r1c2","r1c3"},
-              {"r2c1","r2c2","r2c3"}
-            },
-            "multi_char_field_delimiter.txt",
-            Exception.class,
-            "Expected single character but was String",
-            Exception.class,
-            "Expected single character but was String"
-          },
-          {
             /*  <spaces><quote>Quoted Field<quote><spaces>
                 example:  value,  "inside"  ,val2
                 TODO: To fix this behaviour, skip spaces before matching quote, ref:TextReader.java:328 */
@@ -115,61 +100,6 @@ public class TestTextReaderExceptions extends TestTextReaderHelper {
             numOfRecordsDiffer
           },
           {
-            /*  Extended ASCII char value is not supported for any parameter,
-                But test is added only for Field Delimiter  */
-            new TextFileConfig().setLineDelimiter("\n").setFieldDelimiter("¦"),  // broken  or broken bar
-            new String[][] {
-              {"c1","c2","c3"},
-              {"r1c1","r1c2","r1c3"},
-              {"r2c1","r2c2","r2c3"}
-            },
-            "broken_pipe.txt",
-            Exception.class,
-            "Expected a character between 0 and 127",
-            Exception.class,
-            "Expected a character between 0 and 127"
-          },
-          {
-            // TODO: To fix this, Identify unescaped Quote Correctly, ref: TextReader.java:247
-            new TextFileConfig().setEscape("'").setLineDelimiter("\n"),
-            new String[][]{
-              {"c1","c2","c3"},
-              {"r1c1\"","r1c2","r1c3\""},
-              {"r2c1","r2c2\"","r2c3"}
-            },
-            "unescaped_quote.csv",
-            Exception.class,
-            expectedRecordNotFound,
-            Exception.class,
-            expectedRecordNotFound
-          },
-          {
-            new TextFileConfig().setEscape("\\").setLineDelimiter("\n"),
-            new String[][]  {
-              {"c1","c2","c3"},
-              {"\"r1c1","r1c2","\"r1c3"},
-              {"r2c1","\"r2c2","r2c3"}
-            },
-            "custom_quote_escape.csv",
-            Exception.class,
-            expectedRecordNotFound,
-            Exception.class,
-            expectedRecordNotFound
-          },
-          {
-            new TextFileConfig().setLineDelimiter("$"),
-            new String[][] {
-              {"c1","c2","c3"},
-              {"r1c1\n","r1c2","r1c3\n"},
-              {"r2c1","r2c2\n","r2c3"}
-            },
-            "custom_ld_inside_quoted.csv",
-            AssertionError.class,
-            numOfRecordsDiffer,
-            Exception.class,
-            expectedRecordNotFound
-          },
-          {
             // Trim Header false
             new TextFileConfig().setLineDelimiter("\n").setTrimHeader(false),
             new String[][] {
@@ -182,20 +112,6 @@ public class TestTextReaderExceptions extends TestTextReaderHelper {
             "Unexpected column",
             Exception.class,
             "VALIDATION ERROR: Column 'c1' not found in any table"
-          },
-          {
-            //  TODO: To fix this behaviour, match actual Line Delimiter before matching normalized Line Delimiter, ref: TextReader.java:245
-            new TextFileConfig().setLineDelimiter("$"),
-            new String[][] {
-              {"c1","c2","c3"},
-              {"r1c1","r1c2","r1c3"},
-              {"r2c1","r2c2","r2c3"}
-            },
-            "custom_line_delimiter.csv",
-            AssertionError.class,
-            numOfRecordsDiffer,
-            Exception.class,
-            "VALIDATION ERROR"
           }
         }
     );

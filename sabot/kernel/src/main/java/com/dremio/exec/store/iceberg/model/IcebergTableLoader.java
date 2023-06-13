@@ -31,7 +31,7 @@ public class IcebergTableLoader {
 
     public Table getIcebergTable() {
       if (icebergTable == null) {
-        return icebergTable = icebergCommand.loadTable();
+        icebergTable = icebergCommand.loadTable();
       }
       return icebergTable;
     }

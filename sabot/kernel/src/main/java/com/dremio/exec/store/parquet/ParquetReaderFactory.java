@@ -35,7 +35,7 @@ public interface ParquetReaderFactory {
     ICEBERG
   }
 
-  boolean isSupported(ColumnChunkMetaData chunk);
+  boolean isSupported(ColumnChunkMetaData chunk, OperatorContext context);
 
   RecordReader newReader(OperatorContext context,
                          ParquetScanProjectedColumns projectedColumns,
@@ -64,7 +64,7 @@ public interface ParquetReaderFactory {
   ParquetReaderFactory NONE = new ParquetReaderFactory(){
 
     @Override
-    public boolean isSupported(ColumnChunkMetaData chunk) {
+    public boolean isSupported(ColumnChunkMetaData chunk, OperatorContext context) {
       return false;
     }
 

@@ -19,7 +19,11 @@
   description: "ANY_VALUE AGGREGATE PARTIAL NAME"
   input: "SELECT ANY_VALU^"
   output:
-    completions: []
+    completions:
+     -
+      insertText: "ANY_VALUE(${1:BOOLEAN})"
+      kind: "Function"
+      label: "ANY_VALUE(???)"
     functionContext: null
     hasMoreResults: false
  -
@@ -77,7 +81,336 @@
       insertText: "EMP.HIREDATE"
       kind: "Column"
       label: "HIREDATE"
-    functionContext: null
+    functionContext:
+      function:
+        description: "<DESCRIPTION GOES HERE>"
+        functionCategories: []
+        name: "ANY_VALUE"
+        signatures:
+         -
+          description: "<DESCRIPTION GOES HERE>"
+          parameters:
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "BOOLEAN"
+          returnType: "BOOLEAN"
+          sampleCodes:
+           -
+            call: "<SAMPLE CALL GOES HERE>"
+            result: "<SAMPLE RETURN GOES HERE>"
+         -
+          description: "<DESCRIPTION GOES HERE>"
+          parameters:
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "BYTES"
+          returnType: "BYTES"
+          sampleCodes:
+           -
+            call: "<SAMPLE CALL GOES HERE>"
+            result: "<SAMPLE RETURN GOES HERE>"
+         -
+          description: "<DESCRIPTION GOES HERE>"
+          parameters:
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "CHARACTERS"
+          returnType: "CHARACTERS"
+          sampleCodes:
+           -
+            call: "<SAMPLE CALL GOES HERE>"
+            result: "<SAMPLE RETURN GOES HERE>"
+         -
+          description: "<DESCRIPTION GOES HERE>"
+          parameters:
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "FLOAT"
+          returnType: "FLOAT"
+          sampleCodes:
+           -
+            call: "<SAMPLE CALL GOES HERE>"
+            result: "<SAMPLE RETURN GOES HERE>"
+         -
+          description: "<DESCRIPTION GOES HERE>"
+          parameters:
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "DECIMAL"
+          returnType: "DECIMAL"
+          sampleCodes:
+           -
+            call: "<SAMPLE CALL GOES HERE>"
+            result: "<SAMPLE RETURN GOES HERE>"
+         -
+          description: "<DESCRIPTION GOES HERE>"
+          parameters:
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "DOUBLE"
+          returnType: "DOUBLE"
+          sampleCodes:
+           -
+            call: "<SAMPLE CALL GOES HERE>"
+            result: "<SAMPLE RETURN GOES HERE>"
+         -
+          description: "<DESCRIPTION GOES HERE>"
+          parameters:
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "INT"
+          returnType: "INT"
+          sampleCodes:
+           -
+            call: "<SAMPLE CALL GOES HERE>"
+            result: "<SAMPLE RETURN GOES HERE>"
+         -
+          description: "<DESCRIPTION GOES HERE>"
+          parameters:
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "BIGINT"
+          returnType: "BIGINT"
+          sampleCodes:
+           -
+            call: "<SAMPLE CALL GOES HERE>"
+            result: "<SAMPLE RETURN GOES HERE>"
+         -
+          description: "<DESCRIPTION GOES HERE>"
+          parameters:
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "DATE"
+          returnType: "DATE"
+          sampleCodes:
+           -
+            call: "<SAMPLE CALL GOES HERE>"
+            result: "<SAMPLE RETURN GOES HERE>"
+         -
+          description: "<DESCRIPTION GOES HERE>"
+          parameters:
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "TIME"
+          returnType: "TIME"
+          sampleCodes:
+           -
+            call: "<SAMPLE CALL GOES HERE>"
+            result: "<SAMPLE RETURN GOES HERE>"
+         -
+          description: "<DESCRIPTION GOES HERE>"
+          parameters:
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "TIMESTAMP"
+          returnType: "TIMESTAMP"
+          sampleCodes:
+           -
+            call: "<SAMPLE CALL GOES HERE>"
+            result: "<SAMPLE RETURN GOES HERE>"
+      missingTypes:
+       - "BOOLEAN"
+       - "BYTES"
+       - "CHARACTERS"
+       - "FLOAT"
+       - "DECIMAL"
+       - "DOUBLE"
+       - "INT"
+       - "BIGINT"
+       - "DATE"
+       - "TIME"
+       - "TIMESTAMP"
+      signaturesMatched:
+       -
+        description: "<DESCRIPTION GOES HERE>"
+        parameters:
+         -
+          description: "<PARAMETER DESCRIPTION GOES HERE>"
+          format: "<PARAMETER FORMAT GOES HERE>"
+          kind: "REGULAR"
+          name: "<PARAMETER NAME GOES HERE>"
+          type: "BOOLEAN"
+        returnType: "BOOLEAN"
+        sampleCodes:
+         -
+          call: "<SAMPLE CALL GOES HERE>"
+          result: "<SAMPLE RETURN GOES HERE>"
+       -
+        description: "<DESCRIPTION GOES HERE>"
+        parameters:
+         -
+          description: "<PARAMETER DESCRIPTION GOES HERE>"
+          format: "<PARAMETER FORMAT GOES HERE>"
+          kind: "REGULAR"
+          name: "<PARAMETER NAME GOES HERE>"
+          type: "BYTES"
+        returnType: "BYTES"
+        sampleCodes:
+         -
+          call: "<SAMPLE CALL GOES HERE>"
+          result: "<SAMPLE RETURN GOES HERE>"
+       -
+        description: "<DESCRIPTION GOES HERE>"
+        parameters:
+         -
+          description: "<PARAMETER DESCRIPTION GOES HERE>"
+          format: "<PARAMETER FORMAT GOES HERE>"
+          kind: "REGULAR"
+          name: "<PARAMETER NAME GOES HERE>"
+          type: "CHARACTERS"
+        returnType: "CHARACTERS"
+        sampleCodes:
+         -
+          call: "<SAMPLE CALL GOES HERE>"
+          result: "<SAMPLE RETURN GOES HERE>"
+       -
+        description: "<DESCRIPTION GOES HERE>"
+        parameters:
+         -
+          description: "<PARAMETER DESCRIPTION GOES HERE>"
+          format: "<PARAMETER FORMAT GOES HERE>"
+          kind: "REGULAR"
+          name: "<PARAMETER NAME GOES HERE>"
+          type: "FLOAT"
+        returnType: "FLOAT"
+        sampleCodes:
+         -
+          call: "<SAMPLE CALL GOES HERE>"
+          result: "<SAMPLE RETURN GOES HERE>"
+       -
+        description: "<DESCRIPTION GOES HERE>"
+        parameters:
+         -
+          description: "<PARAMETER DESCRIPTION GOES HERE>"
+          format: "<PARAMETER FORMAT GOES HERE>"
+          kind: "REGULAR"
+          name: "<PARAMETER NAME GOES HERE>"
+          type: "DECIMAL"
+        returnType: "DECIMAL"
+        sampleCodes:
+         -
+          call: "<SAMPLE CALL GOES HERE>"
+          result: "<SAMPLE RETURN GOES HERE>"
+       -
+        description: "<DESCRIPTION GOES HERE>"
+        parameters:
+         -
+          description: "<PARAMETER DESCRIPTION GOES HERE>"
+          format: "<PARAMETER FORMAT GOES HERE>"
+          kind: "REGULAR"
+          name: "<PARAMETER NAME GOES HERE>"
+          type: "DOUBLE"
+        returnType: "DOUBLE"
+        sampleCodes:
+         -
+          call: "<SAMPLE CALL GOES HERE>"
+          result: "<SAMPLE RETURN GOES HERE>"
+       -
+        description: "<DESCRIPTION GOES HERE>"
+        parameters:
+         -
+          description: "<PARAMETER DESCRIPTION GOES HERE>"
+          format: "<PARAMETER FORMAT GOES HERE>"
+          kind: "REGULAR"
+          name: "<PARAMETER NAME GOES HERE>"
+          type: "INT"
+        returnType: "INT"
+        sampleCodes:
+         -
+          call: "<SAMPLE CALL GOES HERE>"
+          result: "<SAMPLE RETURN GOES HERE>"
+       -
+        description: "<DESCRIPTION GOES HERE>"
+        parameters:
+         -
+          description: "<PARAMETER DESCRIPTION GOES HERE>"
+          format: "<PARAMETER FORMAT GOES HERE>"
+          kind: "REGULAR"
+          name: "<PARAMETER NAME GOES HERE>"
+          type: "BIGINT"
+        returnType: "BIGINT"
+        sampleCodes:
+         -
+          call: "<SAMPLE CALL GOES HERE>"
+          result: "<SAMPLE RETURN GOES HERE>"
+       -
+        description: "<DESCRIPTION GOES HERE>"
+        parameters:
+         -
+          description: "<PARAMETER DESCRIPTION GOES HERE>"
+          format: "<PARAMETER FORMAT GOES HERE>"
+          kind: "REGULAR"
+          name: "<PARAMETER NAME GOES HERE>"
+          type: "DATE"
+        returnType: "DATE"
+        sampleCodes:
+         -
+          call: "<SAMPLE CALL GOES HERE>"
+          result: "<SAMPLE RETURN GOES HERE>"
+       -
+        description: "<DESCRIPTION GOES HERE>"
+        parameters:
+         -
+          description: "<PARAMETER DESCRIPTION GOES HERE>"
+          format: "<PARAMETER FORMAT GOES HERE>"
+          kind: "REGULAR"
+          name: "<PARAMETER NAME GOES HERE>"
+          type: "TIME"
+        returnType: "TIME"
+        sampleCodes:
+         -
+          call: "<SAMPLE CALL GOES HERE>"
+          result: "<SAMPLE RETURN GOES HERE>"
+       -
+        description: "<DESCRIPTION GOES HERE>"
+        parameters:
+         -
+          description: "<PARAMETER DESCRIPTION GOES HERE>"
+          format: "<PARAMETER FORMAT GOES HERE>"
+          kind: "REGULAR"
+          name: "<PARAMETER NAME GOES HERE>"
+          type: "TIMESTAMP"
+        returnType: "TIMESTAMP"
+        sampleCodes:
+         -
+          call: "<SAMPLE CALL GOES HERE>"
+          result: "<SAMPLE RETURN GOES HERE>"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
     hasMoreResults: true
  -
   description: "ANY_VALUE AGGREGATE WITH ALL"
@@ -134,7 +467,336 @@
       insertText: "EMP.HIREDATE"
       kind: "Column"
       label: "HIREDATE"
-    functionContext: null
+    functionContext:
+      function:
+        description: "<DESCRIPTION GOES HERE>"
+        functionCategories: []
+        name: "ANY_VALUE"
+        signatures:
+         -
+          description: "<DESCRIPTION GOES HERE>"
+          parameters:
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "BOOLEAN"
+          returnType: "BOOLEAN"
+          sampleCodes:
+           -
+            call: "<SAMPLE CALL GOES HERE>"
+            result: "<SAMPLE RETURN GOES HERE>"
+         -
+          description: "<DESCRIPTION GOES HERE>"
+          parameters:
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "BYTES"
+          returnType: "BYTES"
+          sampleCodes:
+           -
+            call: "<SAMPLE CALL GOES HERE>"
+            result: "<SAMPLE RETURN GOES HERE>"
+         -
+          description: "<DESCRIPTION GOES HERE>"
+          parameters:
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "CHARACTERS"
+          returnType: "CHARACTERS"
+          sampleCodes:
+           -
+            call: "<SAMPLE CALL GOES HERE>"
+            result: "<SAMPLE RETURN GOES HERE>"
+         -
+          description: "<DESCRIPTION GOES HERE>"
+          parameters:
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "FLOAT"
+          returnType: "FLOAT"
+          sampleCodes:
+           -
+            call: "<SAMPLE CALL GOES HERE>"
+            result: "<SAMPLE RETURN GOES HERE>"
+         -
+          description: "<DESCRIPTION GOES HERE>"
+          parameters:
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "DECIMAL"
+          returnType: "DECIMAL"
+          sampleCodes:
+           -
+            call: "<SAMPLE CALL GOES HERE>"
+            result: "<SAMPLE RETURN GOES HERE>"
+         -
+          description: "<DESCRIPTION GOES HERE>"
+          parameters:
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "DOUBLE"
+          returnType: "DOUBLE"
+          sampleCodes:
+           -
+            call: "<SAMPLE CALL GOES HERE>"
+            result: "<SAMPLE RETURN GOES HERE>"
+         -
+          description: "<DESCRIPTION GOES HERE>"
+          parameters:
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "INT"
+          returnType: "INT"
+          sampleCodes:
+           -
+            call: "<SAMPLE CALL GOES HERE>"
+            result: "<SAMPLE RETURN GOES HERE>"
+         -
+          description: "<DESCRIPTION GOES HERE>"
+          parameters:
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "BIGINT"
+          returnType: "BIGINT"
+          sampleCodes:
+           -
+            call: "<SAMPLE CALL GOES HERE>"
+            result: "<SAMPLE RETURN GOES HERE>"
+         -
+          description: "<DESCRIPTION GOES HERE>"
+          parameters:
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "DATE"
+          returnType: "DATE"
+          sampleCodes:
+           -
+            call: "<SAMPLE CALL GOES HERE>"
+            result: "<SAMPLE RETURN GOES HERE>"
+         -
+          description: "<DESCRIPTION GOES HERE>"
+          parameters:
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "TIME"
+          returnType: "TIME"
+          sampleCodes:
+           -
+            call: "<SAMPLE CALL GOES HERE>"
+            result: "<SAMPLE RETURN GOES HERE>"
+         -
+          description: "<DESCRIPTION GOES HERE>"
+          parameters:
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "TIMESTAMP"
+          returnType: "TIMESTAMP"
+          sampleCodes:
+           -
+            call: "<SAMPLE CALL GOES HERE>"
+            result: "<SAMPLE RETURN GOES HERE>"
+      missingTypes:
+       - "BOOLEAN"
+       - "BYTES"
+       - "CHARACTERS"
+       - "FLOAT"
+       - "DECIMAL"
+       - "DOUBLE"
+       - "INT"
+       - "BIGINT"
+       - "DATE"
+       - "TIME"
+       - "TIMESTAMP"
+      signaturesMatched:
+       -
+        description: "<DESCRIPTION GOES HERE>"
+        parameters:
+         -
+          description: "<PARAMETER DESCRIPTION GOES HERE>"
+          format: "<PARAMETER FORMAT GOES HERE>"
+          kind: "REGULAR"
+          name: "<PARAMETER NAME GOES HERE>"
+          type: "BOOLEAN"
+        returnType: "BOOLEAN"
+        sampleCodes:
+         -
+          call: "<SAMPLE CALL GOES HERE>"
+          result: "<SAMPLE RETURN GOES HERE>"
+       -
+        description: "<DESCRIPTION GOES HERE>"
+        parameters:
+         -
+          description: "<PARAMETER DESCRIPTION GOES HERE>"
+          format: "<PARAMETER FORMAT GOES HERE>"
+          kind: "REGULAR"
+          name: "<PARAMETER NAME GOES HERE>"
+          type: "BYTES"
+        returnType: "BYTES"
+        sampleCodes:
+         -
+          call: "<SAMPLE CALL GOES HERE>"
+          result: "<SAMPLE RETURN GOES HERE>"
+       -
+        description: "<DESCRIPTION GOES HERE>"
+        parameters:
+         -
+          description: "<PARAMETER DESCRIPTION GOES HERE>"
+          format: "<PARAMETER FORMAT GOES HERE>"
+          kind: "REGULAR"
+          name: "<PARAMETER NAME GOES HERE>"
+          type: "CHARACTERS"
+        returnType: "CHARACTERS"
+        sampleCodes:
+         -
+          call: "<SAMPLE CALL GOES HERE>"
+          result: "<SAMPLE RETURN GOES HERE>"
+       -
+        description: "<DESCRIPTION GOES HERE>"
+        parameters:
+         -
+          description: "<PARAMETER DESCRIPTION GOES HERE>"
+          format: "<PARAMETER FORMAT GOES HERE>"
+          kind: "REGULAR"
+          name: "<PARAMETER NAME GOES HERE>"
+          type: "FLOAT"
+        returnType: "FLOAT"
+        sampleCodes:
+         -
+          call: "<SAMPLE CALL GOES HERE>"
+          result: "<SAMPLE RETURN GOES HERE>"
+       -
+        description: "<DESCRIPTION GOES HERE>"
+        parameters:
+         -
+          description: "<PARAMETER DESCRIPTION GOES HERE>"
+          format: "<PARAMETER FORMAT GOES HERE>"
+          kind: "REGULAR"
+          name: "<PARAMETER NAME GOES HERE>"
+          type: "DECIMAL"
+        returnType: "DECIMAL"
+        sampleCodes:
+         -
+          call: "<SAMPLE CALL GOES HERE>"
+          result: "<SAMPLE RETURN GOES HERE>"
+       -
+        description: "<DESCRIPTION GOES HERE>"
+        parameters:
+         -
+          description: "<PARAMETER DESCRIPTION GOES HERE>"
+          format: "<PARAMETER FORMAT GOES HERE>"
+          kind: "REGULAR"
+          name: "<PARAMETER NAME GOES HERE>"
+          type: "DOUBLE"
+        returnType: "DOUBLE"
+        sampleCodes:
+         -
+          call: "<SAMPLE CALL GOES HERE>"
+          result: "<SAMPLE RETURN GOES HERE>"
+       -
+        description: "<DESCRIPTION GOES HERE>"
+        parameters:
+         -
+          description: "<PARAMETER DESCRIPTION GOES HERE>"
+          format: "<PARAMETER FORMAT GOES HERE>"
+          kind: "REGULAR"
+          name: "<PARAMETER NAME GOES HERE>"
+          type: "INT"
+        returnType: "INT"
+        sampleCodes:
+         -
+          call: "<SAMPLE CALL GOES HERE>"
+          result: "<SAMPLE RETURN GOES HERE>"
+       -
+        description: "<DESCRIPTION GOES HERE>"
+        parameters:
+         -
+          description: "<PARAMETER DESCRIPTION GOES HERE>"
+          format: "<PARAMETER FORMAT GOES HERE>"
+          kind: "REGULAR"
+          name: "<PARAMETER NAME GOES HERE>"
+          type: "BIGINT"
+        returnType: "BIGINT"
+        sampleCodes:
+         -
+          call: "<SAMPLE CALL GOES HERE>"
+          result: "<SAMPLE RETURN GOES HERE>"
+       -
+        description: "<DESCRIPTION GOES HERE>"
+        parameters:
+         -
+          description: "<PARAMETER DESCRIPTION GOES HERE>"
+          format: "<PARAMETER FORMAT GOES HERE>"
+          kind: "REGULAR"
+          name: "<PARAMETER NAME GOES HERE>"
+          type: "DATE"
+        returnType: "DATE"
+        sampleCodes:
+         -
+          call: "<SAMPLE CALL GOES HERE>"
+          result: "<SAMPLE RETURN GOES HERE>"
+       -
+        description: "<DESCRIPTION GOES HERE>"
+        parameters:
+         -
+          description: "<PARAMETER DESCRIPTION GOES HERE>"
+          format: "<PARAMETER FORMAT GOES HERE>"
+          kind: "REGULAR"
+          name: "<PARAMETER NAME GOES HERE>"
+          type: "TIME"
+        returnType: "TIME"
+        sampleCodes:
+         -
+          call: "<SAMPLE CALL GOES HERE>"
+          result: "<SAMPLE RETURN GOES HERE>"
+       -
+        description: "<DESCRIPTION GOES HERE>"
+        parameters:
+         -
+          description: "<PARAMETER DESCRIPTION GOES HERE>"
+          format: "<PARAMETER FORMAT GOES HERE>"
+          kind: "REGULAR"
+          name: "<PARAMETER NAME GOES HERE>"
+          type: "TIMESTAMP"
+        returnType: "TIMESTAMP"
+        sampleCodes:
+         -
+          call: "<SAMPLE CALL GOES HERE>"
+          result: "<SAMPLE RETURN GOES HERE>"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
     hasMoreResults: true
  -
   description: "ANY_VALUE AGGREGATE WITH DISTINCT"
@@ -191,7 +853,336 @@
       insertText: "EMP.HIREDATE"
       kind: "Column"
       label: "HIREDATE"
-    functionContext: null
+    functionContext:
+      function:
+        description: "<DESCRIPTION GOES HERE>"
+        functionCategories: []
+        name: "ANY_VALUE"
+        signatures:
+         -
+          description: "<DESCRIPTION GOES HERE>"
+          parameters:
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "BOOLEAN"
+          returnType: "BOOLEAN"
+          sampleCodes:
+           -
+            call: "<SAMPLE CALL GOES HERE>"
+            result: "<SAMPLE RETURN GOES HERE>"
+         -
+          description: "<DESCRIPTION GOES HERE>"
+          parameters:
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "BYTES"
+          returnType: "BYTES"
+          sampleCodes:
+           -
+            call: "<SAMPLE CALL GOES HERE>"
+            result: "<SAMPLE RETURN GOES HERE>"
+         -
+          description: "<DESCRIPTION GOES HERE>"
+          parameters:
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "CHARACTERS"
+          returnType: "CHARACTERS"
+          sampleCodes:
+           -
+            call: "<SAMPLE CALL GOES HERE>"
+            result: "<SAMPLE RETURN GOES HERE>"
+         -
+          description: "<DESCRIPTION GOES HERE>"
+          parameters:
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "FLOAT"
+          returnType: "FLOAT"
+          sampleCodes:
+           -
+            call: "<SAMPLE CALL GOES HERE>"
+            result: "<SAMPLE RETURN GOES HERE>"
+         -
+          description: "<DESCRIPTION GOES HERE>"
+          parameters:
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "DECIMAL"
+          returnType: "DECIMAL"
+          sampleCodes:
+           -
+            call: "<SAMPLE CALL GOES HERE>"
+            result: "<SAMPLE RETURN GOES HERE>"
+         -
+          description: "<DESCRIPTION GOES HERE>"
+          parameters:
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "DOUBLE"
+          returnType: "DOUBLE"
+          sampleCodes:
+           -
+            call: "<SAMPLE CALL GOES HERE>"
+            result: "<SAMPLE RETURN GOES HERE>"
+         -
+          description: "<DESCRIPTION GOES HERE>"
+          parameters:
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "INT"
+          returnType: "INT"
+          sampleCodes:
+           -
+            call: "<SAMPLE CALL GOES HERE>"
+            result: "<SAMPLE RETURN GOES HERE>"
+         -
+          description: "<DESCRIPTION GOES HERE>"
+          parameters:
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "BIGINT"
+          returnType: "BIGINT"
+          sampleCodes:
+           -
+            call: "<SAMPLE CALL GOES HERE>"
+            result: "<SAMPLE RETURN GOES HERE>"
+         -
+          description: "<DESCRIPTION GOES HERE>"
+          parameters:
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "DATE"
+          returnType: "DATE"
+          sampleCodes:
+           -
+            call: "<SAMPLE CALL GOES HERE>"
+            result: "<SAMPLE RETURN GOES HERE>"
+         -
+          description: "<DESCRIPTION GOES HERE>"
+          parameters:
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "TIME"
+          returnType: "TIME"
+          sampleCodes:
+           -
+            call: "<SAMPLE CALL GOES HERE>"
+            result: "<SAMPLE RETURN GOES HERE>"
+         -
+          description: "<DESCRIPTION GOES HERE>"
+          parameters:
+           -
+            description: "<PARAMETER DESCRIPTION GOES HERE>"
+            format: "<PARAMETER FORMAT GOES HERE>"
+            kind: "REGULAR"
+            name: "<PARAMETER NAME GOES HERE>"
+            type: "TIMESTAMP"
+          returnType: "TIMESTAMP"
+          sampleCodes:
+           -
+            call: "<SAMPLE CALL GOES HERE>"
+            result: "<SAMPLE RETURN GOES HERE>"
+      missingTypes:
+       - "BOOLEAN"
+       - "BYTES"
+       - "CHARACTERS"
+       - "FLOAT"
+       - "DECIMAL"
+       - "DOUBLE"
+       - "INT"
+       - "BIGINT"
+       - "DATE"
+       - "TIME"
+       - "TIMESTAMP"
+      signaturesMatched:
+       -
+        description: "<DESCRIPTION GOES HERE>"
+        parameters:
+         -
+          description: "<PARAMETER DESCRIPTION GOES HERE>"
+          format: "<PARAMETER FORMAT GOES HERE>"
+          kind: "REGULAR"
+          name: "<PARAMETER NAME GOES HERE>"
+          type: "BOOLEAN"
+        returnType: "BOOLEAN"
+        sampleCodes:
+         -
+          call: "<SAMPLE CALL GOES HERE>"
+          result: "<SAMPLE RETURN GOES HERE>"
+       -
+        description: "<DESCRIPTION GOES HERE>"
+        parameters:
+         -
+          description: "<PARAMETER DESCRIPTION GOES HERE>"
+          format: "<PARAMETER FORMAT GOES HERE>"
+          kind: "REGULAR"
+          name: "<PARAMETER NAME GOES HERE>"
+          type: "BYTES"
+        returnType: "BYTES"
+        sampleCodes:
+         -
+          call: "<SAMPLE CALL GOES HERE>"
+          result: "<SAMPLE RETURN GOES HERE>"
+       -
+        description: "<DESCRIPTION GOES HERE>"
+        parameters:
+         -
+          description: "<PARAMETER DESCRIPTION GOES HERE>"
+          format: "<PARAMETER FORMAT GOES HERE>"
+          kind: "REGULAR"
+          name: "<PARAMETER NAME GOES HERE>"
+          type: "CHARACTERS"
+        returnType: "CHARACTERS"
+        sampleCodes:
+         -
+          call: "<SAMPLE CALL GOES HERE>"
+          result: "<SAMPLE RETURN GOES HERE>"
+       -
+        description: "<DESCRIPTION GOES HERE>"
+        parameters:
+         -
+          description: "<PARAMETER DESCRIPTION GOES HERE>"
+          format: "<PARAMETER FORMAT GOES HERE>"
+          kind: "REGULAR"
+          name: "<PARAMETER NAME GOES HERE>"
+          type: "FLOAT"
+        returnType: "FLOAT"
+        sampleCodes:
+         -
+          call: "<SAMPLE CALL GOES HERE>"
+          result: "<SAMPLE RETURN GOES HERE>"
+       -
+        description: "<DESCRIPTION GOES HERE>"
+        parameters:
+         -
+          description: "<PARAMETER DESCRIPTION GOES HERE>"
+          format: "<PARAMETER FORMAT GOES HERE>"
+          kind: "REGULAR"
+          name: "<PARAMETER NAME GOES HERE>"
+          type: "DECIMAL"
+        returnType: "DECIMAL"
+        sampleCodes:
+         -
+          call: "<SAMPLE CALL GOES HERE>"
+          result: "<SAMPLE RETURN GOES HERE>"
+       -
+        description: "<DESCRIPTION GOES HERE>"
+        parameters:
+         -
+          description: "<PARAMETER DESCRIPTION GOES HERE>"
+          format: "<PARAMETER FORMAT GOES HERE>"
+          kind: "REGULAR"
+          name: "<PARAMETER NAME GOES HERE>"
+          type: "DOUBLE"
+        returnType: "DOUBLE"
+        sampleCodes:
+         -
+          call: "<SAMPLE CALL GOES HERE>"
+          result: "<SAMPLE RETURN GOES HERE>"
+       -
+        description: "<DESCRIPTION GOES HERE>"
+        parameters:
+         -
+          description: "<PARAMETER DESCRIPTION GOES HERE>"
+          format: "<PARAMETER FORMAT GOES HERE>"
+          kind: "REGULAR"
+          name: "<PARAMETER NAME GOES HERE>"
+          type: "INT"
+        returnType: "INT"
+        sampleCodes:
+         -
+          call: "<SAMPLE CALL GOES HERE>"
+          result: "<SAMPLE RETURN GOES HERE>"
+       -
+        description: "<DESCRIPTION GOES HERE>"
+        parameters:
+         -
+          description: "<PARAMETER DESCRIPTION GOES HERE>"
+          format: "<PARAMETER FORMAT GOES HERE>"
+          kind: "REGULAR"
+          name: "<PARAMETER NAME GOES HERE>"
+          type: "BIGINT"
+        returnType: "BIGINT"
+        sampleCodes:
+         -
+          call: "<SAMPLE CALL GOES HERE>"
+          result: "<SAMPLE RETURN GOES HERE>"
+       -
+        description: "<DESCRIPTION GOES HERE>"
+        parameters:
+         -
+          description: "<PARAMETER DESCRIPTION GOES HERE>"
+          format: "<PARAMETER FORMAT GOES HERE>"
+          kind: "REGULAR"
+          name: "<PARAMETER NAME GOES HERE>"
+          type: "DATE"
+        returnType: "DATE"
+        sampleCodes:
+         -
+          call: "<SAMPLE CALL GOES HERE>"
+          result: "<SAMPLE RETURN GOES HERE>"
+       -
+        description: "<DESCRIPTION GOES HERE>"
+        parameters:
+         -
+          description: "<PARAMETER DESCRIPTION GOES HERE>"
+          format: "<PARAMETER FORMAT GOES HERE>"
+          kind: "REGULAR"
+          name: "<PARAMETER NAME GOES HERE>"
+          type: "TIME"
+        returnType: "TIME"
+        sampleCodes:
+         -
+          call: "<SAMPLE CALL GOES HERE>"
+          result: "<SAMPLE RETURN GOES HERE>"
+       -
+        description: "<DESCRIPTION GOES HERE>"
+        parameters:
+         -
+          description: "<PARAMETER DESCRIPTION GOES HERE>"
+          format: "<PARAMETER FORMAT GOES HERE>"
+          kind: "REGULAR"
+          name: "<PARAMETER NAME GOES HERE>"
+          type: "TIMESTAMP"
+        returnType: "TIMESTAMP"
+        sampleCodes:
+         -
+          call: "<SAMPLE CALL GOES HERE>"
+          result: "<SAMPLE RETURN GOES HERE>"
+      suppliedParameterTypes:
+        afterCursor: []
+        beforeCursor: []
     hasMoreResults: true
  -
   description: "ANY_VALUE AGGREGATE WITH DISTINCT VALUE"
@@ -5007,9 +5998,9 @@
       kind: "Function"
       label: "AES_ENCRYPT(???, ???)"
      -
-      insertText: "BIN(${1:INT})"
+      insertText: "ANY_VALUE(${1:BOOLEAN})"
       kind: "Function"
-      label: "BIN(???)"
+      label: "ANY_VALUE(???)"
     functionContext:
       function:
         description: "Returns values concatenated into a string, delimited by separator (default ‘,’)"
@@ -5125,9 +6116,9 @@
       kind: "Function"
       label: "AES_ENCRYPT(???, ???)"
      -
-      insertText: "BIN(${1:INT})"
+      insertText: "ANY_VALUE(${1:BOOLEAN})"
       kind: "Function"
-      label: "BIN(???)"
+      label: "ANY_VALUE(???)"
     functionContext:
       function:
         description: "Returns values concatenated into a string, delimited by separator (default ‘,’)"
@@ -5243,9 +6234,9 @@
       kind: "Function"
       label: "AES_ENCRYPT(???, ???)"
      -
-      insertText: "BIN(${1:INT})"
+      insertText: "ANY_VALUE(${1:BOOLEAN})"
       kind: "Function"
-      label: "BIN(???)"
+      label: "ANY_VALUE(???)"
     functionContext:
       function:
         description: "Returns values concatenated into a string, delimited by separator (default ‘,’)"

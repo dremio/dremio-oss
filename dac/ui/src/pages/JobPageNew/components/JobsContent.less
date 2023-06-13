@@ -16,10 +16,14 @@
 @import "~@app/uiTheme/less/color-schema.less";
 :global {
   .jobsContent {
+    &__fullHeight {
+      line-height: 40px;
+    }
     &__durationSpill {
       display: flex;
       align-items: center;
       gap: 4px;
+      line-height: 40px;
     }
     &__spillIcon {
       height: 20px;
@@ -48,7 +52,7 @@
     }
     &__sqlTooltipText {
       color: @font-color1;
-      font-family: "Menlo";
+      font-family: var(--dremio--font-family--monospace);
       font-size: 12px;
       line-height: 20px;
     }
@@ -58,7 +62,7 @@
       white-space: nowrap;
     }
     &__sqlWrapper {
-      font-family: "Menlo";
+      font-family: var(--dremio--font-family--monospace);
       font-size: 12px;
       font-style: normal;
       font-weight: 400;
@@ -84,6 +88,7 @@
     &__leftAlign {
       display: block;
       text-align: right;
+      line-height: 40px;
     }
     &-dataset {
       display: flex;
@@ -136,6 +141,16 @@
         padding-left: 6px;
         overflow: hidden;
       }
+      &-icon {
+        cursor: pointer;
+        &:hover {
+          color: var(--dremio--color--link);
+        }
+      }
+    }
+    &-sql-content {
+      line-height: 40px;
+      width: fit-content;
     }
   }
   .ReactVirtualized__Table__Grid::-webkit-scrollbar {
@@ -163,5 +178,59 @@
     padding-left: 16px;
     max-height: 76px;
     overflow-y: auto;
+  }
+
+  .wikiOverlayTitle {
+    display: flex;
+    justify-content: space-between;
+    width: 400px;
+    padding: 0 var(--dremio--spacing--1) 0 var(--dremio--spacing--2);
+
+    &__info {
+      display: flex;
+      align-items: center;
+      max-width: calc(100% - 64px);
+
+      &-datasetIcon {
+        height: 24px;
+        width: 24px;
+        margin-right: var(--dremio--spacing--1);
+      }
+
+      &-name {
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+
+      &-reflection {
+        height: 24px;
+        width: 24px;
+        margin-left: var(--dremio--spacing--05);
+      }
+    }
+
+    &__hidden-button {
+      height: 0;
+      width: 0;
+      padding: 0;
+      border: 0;
+      opacity: 0;
+    }
+
+    &__actions {
+      display: flex;
+      align-items: center;
+
+      &-button {
+        height: 32px;
+        width: 32px;
+        color: var(--dremio--color--neutral--600) !important;
+
+        &:hover {
+          color: var(--dremio--color--link) !important;
+        }
+      }
+    }
   }
 }

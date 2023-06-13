@@ -93,6 +93,7 @@ public class BroadcastExchangePrel extends ExchangePrel{
     return new BroadcastExchangePrel(getCluster(), traitSet, sole(inputs));
   }
 
+  @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
     Prel child = (Prel) this.getInput();
     PhysicalOperator childPOP = child.getPhysicalOperator(creator);

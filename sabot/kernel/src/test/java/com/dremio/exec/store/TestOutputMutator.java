@@ -52,6 +52,7 @@ public class TestOutputMutator implements OutputMutator, Iterable<VectorWrapper<
     this.bufferManager = new BufferManagerImpl(allocator);
   }
 
+  @Override
   public void removeField(Field field) throws SchemaChangeException {
     ValueVector vector = fieldVectorMap.remove(field.getName().toLowerCase());
     if (vector == null) {
@@ -71,6 +72,7 @@ public class TestOutputMutator implements OutputMutator, Iterable<VectorWrapper<
     container.setRecordCount(recordCount);
   }
 
+  @Override
   public Iterator<VectorWrapper<?>> iterator() {
     return container.iterator();
   }
@@ -123,14 +125,17 @@ public class TestOutputMutator implements OutputMutator, Iterable<VectorWrapper<
     return null;
   }
 
+  @Override
   public VectorContainer getContainer() {
     return container;
   }
 
+  @Override
   public boolean getAndResetSchemaChanged() {
     return false;
   }
 
+  @Override
   public boolean getSchemaChanged() {
     return false;
   }

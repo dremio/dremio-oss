@@ -45,7 +45,9 @@ public class ResourceTracker implements AutoCloseable {
   private static final ControlsInjector injector =
     ControlsInjectorFactory.getInjector(ResourceTracker.class);
 
-  private ResourceSet resourceSet;
+  private final ResourceAllocator resourceAllocator;
+  private final QueryContext context;
+  private volatile ResourceSet resourceSet;
   private ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo;
 
   @VisibleForTesting
@@ -63,19 +65,25 @@ public class ResourceTracker implements AutoCloseable {
   @VisibleForTesting
   public static final String INJECTOR_QUEUED_PAUSE = "queued-pause";
 
-  ResourceTracker(
-    PhysicalPlan physicalPlan,
-    QueryContext context,
-    ResourceAllocator resourceAllocator,
-    MaestroObserver observer) throws ExecutionSetupException, ResourceAllocationException {
-
-    allocate(physicalPlan, context, resourceAllocator, observer);
+  ResourceTracker(QueryContext context, ResourceAllocator resourceAllocator) {
+    this.resourceAllocator = resourceAllocator;
+    this.resourceSet = null;
+    this.context = context;
   }
 
-  private void allocate(
+  /**
+   * Interrupts the allocation, esp if it is in any of the wait states.
+   * <p>
+   * Typically called when the cancel thread knows from the execution stage that we are somewhere in the
+   * allocator.
+   * </p>
+   */
+  void interruptAllocation() {
+    resourceAllocator.cancel(context);
+  }
+
+  void allocate(
     PhysicalPlan physicalPlan,
-    QueryContext context,
-    ResourceAllocator resourceAllocator,
     MaestroObserver observer) throws ExecutionSetupException, ResourceAllocationException {
 
     final double planCost = physicalPlan.getCost();
@@ -139,6 +147,8 @@ public class ResourceTracker implements AutoCloseable {
 
   @Override
   public void close() throws Exception {
-    resourceSet.close();
+    if (resourceSet != null) {
+      resourceSet.close();
+    }
   }
 }

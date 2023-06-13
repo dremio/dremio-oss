@@ -54,4 +54,12 @@ public interface MemoryArbiter {
   default boolean removeFromBlocked(MemoryArbiterTask memoryArbiterTask) {
     return false;
   }
+
+  /**
+   * Sets the memory set-aside by the MemoryArbiter
+   *
+   * @param memorySetAsidePct: percentage of memory that needs to be set-aside
+   */
+  default void setMemorySetAsidePct(double memorySetAsidePct) {
+  }
 }

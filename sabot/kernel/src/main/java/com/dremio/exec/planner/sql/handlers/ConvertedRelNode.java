@@ -18,7 +18,11 @@ package com.dremio.exec.planner.sql.handlers;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 
+/**
+ * A ConvertedRelNode is the result of converting a SqlNode into a RelNode with {@link org.apache.calcite.plan.Convention#NONE}.
+ */
 public class ConvertedRelNode {
+
   private final RelNode relNode;
   private final RelDataType validatedRowType;
 

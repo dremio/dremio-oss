@@ -48,7 +48,11 @@ public class SingleStreamProvider implements InputStreamProvider {
   private MutableParquetMetadata footer;
   private boolean readColumnOffsetIndices;
 
-  public SingleStreamProvider(FileSystem fs, Path path, long fileLength, long maxFooterLen, boolean readFullFile, MutableParquetMetadata footer, OperatorContext context, boolean readColumnOffsetIndices) {
+  private ParquetFilters parquetFilters;
+  private ParquetFilterCreator parquetFilterCreator;
+
+  public SingleStreamProvider(FileSystem fs, Path path, long fileLength, long maxFooterLen, boolean readFullFile, MutableParquetMetadata footer, OperatorContext context, boolean readColumnOffsetIndices, ParquetFilters parquetFilters,
+                              ParquetFilterCreator parquetFilterCreator) {
     this.fs = fs;
     this.path = path;
     this.fileLength = fileLength;
@@ -62,6 +66,8 @@ public class SingleStreamProvider implements InputStreamProvider {
       this.allocator = null;
     }
     this.readColumnOffsetIndices = readColumnOffsetIndices;
+    this.parquetFilters = parquetFilters;
+    this.parquetFilterCreator = parquetFilterCreator;
   }
 
   @Override

@@ -16,7 +16,6 @@
 package com.dremio.dac.util;
 
 import static com.dremio.service.jobs.JobsConstant.BYTES;
-import static com.dremio.service.jobs.JobsConstant.DEFAULT;
 import static com.dremio.service.jobs.JobsConstant.DEFAULT_DATASET_TYPE;
 import static com.dremio.service.jobs.JobsConstant.EMPTY_DATASET_FIELD;
 import static com.dremio.service.jobs.JobsConstant.EXTERNAL_QUERY;
@@ -63,45 +62,65 @@ public class JobUtil {
    return buildQueriedDatasets(jobInfo.getParentsList(), requestType, jobInfo.getDatasetPathList());
   }
 
-  public static List<DataSet> buildQueriedDatasets(List<ParentDatasetInfo> parents, RequestType requestType, List<String> pathList) {
+  public static List<DataSet> buildQueriedDatasets(
+      List<ParentDatasetInfo> parents, RequestType requestType, List<String> pathList) {
     List<DataSet> queriedDatasets = new ArrayList<>();
     if (parents != null && parents.size() > 0) {
-      parents.stream().forEach(
-        parent -> {
-          String datasetName = DEFAULT;
-          String datasetType = DEFAULT_DATASET_TYPE;
-          String datasetPath;
-          List<String> datasetPathList = parent.getDatasetPathList();
-          datasetName = datasetPathList.get(datasetPathList.size() - 1);
-          datasetPath = StringUtils.join(datasetPathList, ".");
-          if (!queriedDatasets.stream().anyMatch(dataSet -> dataSet.getDatasetPath().equals(datasetPath))) {
-            if (!parent.getDatasetPathList().contains(EXTERNAL_QUERY)) {
-              try {
-                datasetType = parent.getType().name();
-              } catch (NullPointerException ex) {
-                datasetType = com.dremio.service.namespace.dataset.proto.DatasetType.values()[0].toString();
-              }
-            }
-            populateQueriedDataset(queriedDatasets, datasetName, datasetType, datasetPath, parent.getDatasetPathList());
-          }
-        }
-      );
+      parents.stream()
+          .forEach(
+              parent -> {
+                final List<String> datasetPathList = parent.getDatasetPathList();
+                final String datasetName = datasetPathList.get(datasetPathList.size() - 1);
+                final String datasetPath = StringUtils.join(datasetPathList, ".");
+                final String versionContext = parent.getVersionContext();
+
+                if (!queriedDatasets.stream()
+                    .anyMatch(dataSet -> dataSet.getDatasetPath().equals(datasetPath))) {
+                  String datasetType = DEFAULT_DATASET_TYPE;
+                  if (!datasetPathList.contains(EXTERNAL_QUERY)) {
+                    try {
+                      datasetType = parent.getType().name();
+                    } catch (NullPointerException ex) {
+                      datasetType =
+                          com.dremio.service.namespace.dataset.proto.DatasetType.values()[0]
+                              .toString();
+                    }
+                  }
+
+                  populateQueriedDataset(
+                      queriedDatasets,
+                      datasetName,
+                      datasetType,
+                      datasetPath,
+                      datasetPathList,
+                      versionContext);
+                }
+              });
     } else if (isTruePath(pathList)) {
-      String datasetName = pathList.get(pathList.size() - 1);
-      String datasetPath = StringUtils.join(pathList, ".");
-      String datasetType = EMPTY_DATASET_FIELD;
-      populateQueriedDataset(queriedDatasets, datasetName, datasetType, datasetPath, pathList);
+      final String datasetName = pathList.get(pathList.size() - 1);
+      final String datasetPath = StringUtils.join(pathList, ".");
+      final String datasetType = EMPTY_DATASET_FIELD;
+      populateQueriedDataset(queriedDatasets, datasetName, datasetType, datasetPath, pathList, "");
     } else {
-      populateQueriedDataset(queriedDatasets, UNAVAILABLE, EMPTY_DATASET_FIELD, EMPTY_DATASET_FIELD, new ArrayList<>());
+      populateQueriedDataset(
+          queriedDatasets,
+          UNAVAILABLE,
+          EMPTY_DATASET_FIELD,
+          EMPTY_DATASET_FIELD,
+          new ArrayList<>(),
+          "");
       switch (requestType) {
         case GET_CATALOGS:
         case GET_COLUMNS:
         case GET_SCHEMAS:
         case GET_TABLES:
           queriedDatasets.get(queriedDatasets.size() - 1).setDatasetName(METADATA);
+          break;
         default:
+          break;
       }
     }
+
     return queriedDatasets;
   }
 
@@ -280,15 +299,29 @@ public class JobUtil {
     }
   }
 
-  private static void populateQueriedDataset(List<DataSet> queriedDatasets, String datasetName, String datasetType, String datasetPath, List<String> datasetPathList) {
-    queriedDatasets.add(new DataSet());
-    queriedDatasets.get(queriedDatasets.size() - 1).setDatasetName(datasetName);
-    queriedDatasets.get(queriedDatasets.size() - 1).setDatasetPath(datasetPath);
-    queriedDatasets.get(queriedDatasets.size() - 1).setDatasetType(datasetType);
-    queriedDatasets.get(queriedDatasets.size() - 1).setDatasetPathsList(datasetPathList);
+  private static void populateQueriedDataset(
+      List<DataSet> queriedDatasets,
+      String datasetName,
+      String datasetType,
+      String datasetPath,
+      List<String> datasetPathList,
+      String versionContext) {
+    final DataSet dataset =
+        new DataSet()
+            .setDatasetName(datasetName)
+            .setDatasetPath(datasetPath)
+            .setDatasetType(datasetType)
+            .setDatasetPathsList(datasetPathList);
+
+    if (versionContext != null) {
+      dataset.setVersionContext(versionContext);
+    }
+
+    queriedDatasets.add(dataset);
   }
 
   private static Comparator<UserBitShared.AttemptEvent> stateStartTime = new Comparator<UserBitShared.AttemptEvent>() {
+    @Override
     public int compare(final UserBitShared.AttemptEvent a1, final UserBitShared.AttemptEvent a2) {
       return Long.compare(a1.getStartTime(), a2.getStartTime());
     }

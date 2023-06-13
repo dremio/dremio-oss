@@ -258,6 +258,9 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
     mockRecordsRead = 0;
     rowGroupMetadata = footer.getBlocks().get(rowGroupIndex);
     Preconditions.checkArgument(rowGroupMetadata != null, "Parquet footer does not contain information about row group");
+    Preconditions.checkArgument(rowGroupMetadata != null,
+      "Parquet file '%s' footer does not have information about row group %s",
+      this.getFsPath(), rowGroupIndex);
 
     Field field;
 //    ParquetMetadataConverter metaConverter = new ParquetMetadataConverter();
@@ -321,8 +324,7 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
     if (columnsToScan != 0 && allFieldsFixedLength) {
       rowsPerBatch = (int) Math.min(Math.min(numBytesPerBatch / bitWidthAllFixedFields,
           rowGroupMetadata.getColumns().get(0).getValueCount()), 65535);
-    }
-    else {
+    } else {
       rowsPerBatch = DEFAULT_RECORDS_TO_READ_IF_NOT_FIXED_WIDTH;
     }
     this.numRowsPerBatch = Math.min(this.numRowsPerBatch, rowsPerBatch);
@@ -495,12 +497,10 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
       ColumnReader<?> firstColumnStatus;
       if (columnStatuses.size() > 0) {
         firstColumnStatus = columnStatuses.iterator().next();
-      }
-      else{
+      } else {
         if (varLengthReader.columns.size() > 0) {
           firstColumnStatus = varLengthReader.columns.iterator().next();
-        }
-        else{
+        } else {
           firstColumnStatus = null;
         }
       }

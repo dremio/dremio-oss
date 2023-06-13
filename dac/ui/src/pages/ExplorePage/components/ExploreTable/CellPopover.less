@@ -16,7 +16,7 @@
 :global {
   // DX-11429 TODO reafactor component to use css modules instead fo global classes
   .large_overlay_tree {
-    font-family: Menlo, monospace;
+    font-family: var(--dremio--font-family--monospace);
     font-weight: 500;
     font-size: 11px;
     margin-left: 1px;
@@ -56,7 +56,7 @@
         }
 
         &:hover {
-          background-color: var(--dremio--color--neutral--200);
+          background-color: var(--color--neutral--100);
         }
       }
 
@@ -90,7 +90,7 @@
 
     .Object-node,
     .Array-node {
-      font-family: Menlo, monospace;
+      font-family: var(--dremio--font-family--monospace);
       font-weight: 700;
       font-size: 11px;
       padding-top: 3px;

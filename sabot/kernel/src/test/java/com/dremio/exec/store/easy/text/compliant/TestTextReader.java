@@ -16,10 +16,12 @@
 package com.dremio.exec.store.easy.text.compliant;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.File;
 import java.io.FileWriter;
+import java.util.regex.Pattern;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.AfterClass;
@@ -178,7 +180,7 @@ public class TestTextReader extends BaseTestQuery {
     }
 
     try (FileWriter fwriter = new FileWriter(tblPathLarge)) {
-      int boundary = 1024*65;
+      int boundary = 32001;
       int j = 0;
       while (j++ < 3) {
         for (int i = 0; i < boundary; i++) {
@@ -234,6 +236,8 @@ public class TestTextReader extends BaseTestQuery {
       }
       UserRemoteException urex = (UserRemoteException) ex;
       assertEquals(UserBitShared.DremioPBError.ErrorType.UNSUPPORTED_OPERATION, urex.getErrorType());
+      boolean errorMsgMatched = Pattern.compile("(.*)Field with index(.*)exceeds the size limit(.*)", Pattern.DOTALL).matcher(ex.getMessage()).matches();
+      assertTrue(errorMsgMatched);
     }
   }
 

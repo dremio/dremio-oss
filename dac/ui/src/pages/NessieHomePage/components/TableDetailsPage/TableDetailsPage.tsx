@@ -20,6 +20,7 @@ import PageBreadcrumbHeader from "../PageBreadcrumbHeader/PageBreadcrumbHeader";
 import TableHistoryContent from "./components/TableHistoryContent/TableHistoryContent";
 import TableHistoryHeader from "./components/TableHistoryHeader/TableHistoryHeader";
 import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
+import { Type } from "@app/types/nessie";
 
 import "./TableDetailsPage.less";
 
@@ -40,7 +41,7 @@ function TableDetailsPage({
     <div className="tableDetailsPage">
       <PageBreadcrumbHeader />
       <TableHistoryHeader
-        type={isTable ? "ICEBERG_TABLE" : "ICEBERG_VIEW"}
+        type={isTable ? Type.IcebergTable : Type.IcebergView}
         namespace={namespace}
         tableName={tableName}
       />

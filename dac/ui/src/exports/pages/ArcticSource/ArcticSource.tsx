@@ -18,7 +18,7 @@ import { NotFound } from "@app/exports/components/ErrorViews/NotFound";
 import HomePage from "@app/pages/HomePage/HomePage";
 import { HomePageContent } from "@app/pages/NessieHomePage/NessieHomePage";
 import { getSortedSources } from "@app/selectors/home";
-import { getEndpointFromSourceConfig } from "@app/utils/nessieUtils";
+import { getEndpointFromSource } from "@app/utils/nessieUtils";
 import { useMemo } from "react";
 import { connect } from "react-redux";
 import { withRouter } from "react-router";
@@ -27,6 +27,9 @@ import ViewStateWrapper from "@app/components/ViewStateWrapper";
 import { fromJS } from "immutable";
 import * as commonPaths from "dremio-ui-common/paths/common.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
+import { NESSIE } from "@app/constants/sourceTypes";
+
+import "@app/pages/NessieHomePage/components/NessieSourceHomePage/NessieSourceHomePage.less";
 
 function ArcticSourceHomePage(props: any) {
   const sourceInfo = useMemo(() => {
@@ -35,13 +38,23 @@ function ArcticSourceHomePage(props: any) {
     );
     if (!source) return null;
 
-    const config = source.get("config");
     return {
       name: source.get("name"),
       id: source.get("id"),
-      endpoint: getEndpointFromSourceConfig(config.toJS()),
+      endpoint: getEndpointFromSource(source.toJS()),
+      type: source.get("type"),
     };
   }, [props.params.sourceId, props.sources]);
+
+  const pathProps = {
+    sourceName: sourceInfo?.name,
+    projectId: getSonarContext().getSelectedProjectId?.(),
+  };
+
+  const baseUrl =
+    sourceInfo?.type === NESSIE
+      ? commonPaths.nessieSource.link(pathProps)
+      : commonPaths.arcticSource.link(pathProps);
 
   return (
     // @ts-ignore
@@ -51,10 +64,7 @@ function ArcticSourceHomePage(props: any) {
           <HomePageContent
             key={JSON.stringify(sourceInfo)}
             source={sourceInfo}
-            baseUrl={commonPaths.arcticSource.link({
-              sourceName: sourceInfo?.name,
-              projectId: getSonarContext().getSelectedProjectId?.(),
-            })}
+            baseUrl={baseUrl}
             viewState={undefined}
             isBareMinimumNessie
             initialRef={{

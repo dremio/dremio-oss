@@ -178,8 +178,7 @@ public class ITTestAllDataTypes extends ElasticBaseTestQuery {
       ElasticsearchCluster.ColumnData[] dataNew = new ElasticsearchCluster.ColumnData[0];
       dataNew = operatedList.toArray(dataNew);
       elastic.load(schema, table, dataNew);
-    }
-    else {
+    } else {
       elastic.load(schema, table, data);
     }
   }

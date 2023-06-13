@@ -144,6 +144,7 @@ describe("performTransform saga", () => {
         viewId: exploreViewState.get("viewId"),
         isRun: true,
         runningSql: "",
+        useOptimizedJobFlow: undefined,
       };
       gen = handleRunDatasetSql({});
       next = gen.next(); // yield dataset
@@ -166,6 +167,7 @@ describe("performTransform saga", () => {
         viewId: exploreViewState.get("viewId"),
         forceDataLoad: true,
         runningSql: "",
+        useOptimizedJobFlow: undefined,
       };
       gen = handleRunDatasetSql({ isPreview: true });
       next = gen.next(); // yield dataset

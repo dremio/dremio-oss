@@ -106,15 +106,13 @@ public class TracingProxyDriver implements java.sql.Driver {
     final Driver proxyDriver;
     try {
       proxyDriver = new TracingProxyDriver();
-    }
-    catch ( SQLException e ) {
+    } catch ( SQLException e ) {
       throw new RuntimeException(
           "Error in initializing " + TracingProxyDriver.class + ": " + e, e );
     }
     try {
       DriverManager.registerDriver( proxyDriver );
-    }
-    catch ( SQLException e ) {
+    } catch ( SQLException e ) {
       throw new RuntimeException(
           "Error in registering " + TracingProxyDriver.class + ": " + e, e );
     }
@@ -154,8 +152,7 @@ public class TracingProxyDriver implements java.sql.Driver {
       if ( ! "".equals( classSpec ) ) {
         try {
           Class.forName( classSpec);
-        }
-        catch ( ClassNotFoundException e ) {
+        } catch ( ClassNotFoundException e ) {
           throw new ProxySetupSQLException(
               "Couldn't load class \"" + classSpec + "\""
               + " (from proxy driver URL \"" + url + "\" (between second and "
@@ -172,8 +169,7 @@ public class TracingProxyDriver implements java.sql.Driver {
             "DriverManager.getDriver( \"" + proxiedURL + "\" ) returned a(n) "
             + proxiedDriverForProxiedUrl.getClass().getName() + ": "
             + proxiedDriverForProxiedUrl + "." );
-      }
-      catch ( SQLException e ) {
+      } catch ( SQLException e ) {
         final String message =
             "Error getting driver from DriverManager for proxied URL \""
             + proxiedURL + "\" (from proxy driver URL \"" + url + "\""
@@ -220,8 +216,7 @@ public class TracingProxyDriver implements java.sql.Driver {
     final boolean accepted;
     if ( null == url || ! url.startsWith( JDBC_URL_PREFIX ) ) {
       accepted = false;
-    }
-    else {
+    } else {
       UrlHandler urlHandler = new UrlHandler( proxiesManager, url );
       setProxyDriver( urlHandler.getProxyDriver(), urlHandler.getProxiedDriver() );
 
@@ -242,16 +237,14 @@ public class TracingProxyDriver implements java.sql.Driver {
 
     if ( null == url || ! url.startsWith( JDBC_URL_PREFIX ) ) {
       result = null;  // (Not a URL understood by this driver.)
-    }
-    else {
+    } else {
       UrlHandler urlHandler = new UrlHandler( proxiesManager, url );
       setProxyDriver( urlHandler.getProxyDriver(), urlHandler.getProxiedDriver() );
 
       // (Call connect() through proxy so it gets traced too.)
       try {
         result = proxyDriver.connect( urlHandler.getProxiedUrl(), info );
-      }
-      catch ( SQLException e ) {
+      } catch ( SQLException e ) {
         throw new ProxySetupSQLException( "Exception from proxied driver: " + e,
                                            e );
       }

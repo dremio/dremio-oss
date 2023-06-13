@@ -39,7 +39,7 @@ abstract class FieldTypeOutput extends TextOutput {
   // track chars within field
   protected int currentDataPointer = 0;
   // track if field is still getting appended
-  protected boolean fieldOpen = true;
+  protected boolean fieldOpen = false;
   // holds chars for a field
   protected final byte[] fieldBytes;
 
@@ -96,7 +96,7 @@ abstract class FieldTypeOutput extends TextOutput {
       return;
     }
 
-    FieldSizeLimitExceptionHelper.checkSizeLimit(currentDataPointer, maxCellLimit, currentFieldIndex, logger);
+    FieldSizeLimitExceptionHelper.checkSizeLimit(currentDataPointer+1, maxCellLimit, currentFieldIndex, logger);
     fieldBytes[currentDataPointer++] = data;
     rowHasData =true;
   }

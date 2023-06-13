@@ -26,12 +26,15 @@ public abstract class MergerTemplate implements Merger {
 
   public MergerTemplate() throws SchemaChangeException { }
 
+  @Override
   public abstract void doSetup(@Named("context") FunctionContext context,
                                @Named("incoming") VectorAccessible incoming,
                                @Named("outgoing") VectorAccessible outgoing) throws SchemaChangeException;
 
+  @Override
   public abstract int doEval(@Named("leftIndex") int leftIndex,
                                 @Named("rightIndex") int rightIndex);
 
+  @Override
   public abstract void doCopy(@Named("inIndex") int inIndex, @Named("outIndex") int outIndex);
 }

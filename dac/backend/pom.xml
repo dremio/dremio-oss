@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>24.0.0-202302100528110223-3a169b7c</version>
+    <version>24.1.0-202306130653310132-d30779f6</version>
   </parent>
 
   <artifactId>dremio-dac-backend</artifactId>
@@ -72,6 +72,12 @@
       <artifactId>dremio-sabot-kernel</artifactId>
       <classifier>proto</classifier>
       <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.sabot</groupId>
+      <artifactId>dremio-sabot-serializer</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>com.dremio.services</groupId>
@@ -182,18 +188,11 @@
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-execselector</artifactId>
     </dependency>
-    <!-- required for dremio-servcies-coordinator:tests -->
+    <!-- required for dremio-services-coordinator:tests -->
     <dependency>
       <groupId>org.apache.curator</groupId>
       <artifactId>curator-test</artifactId>
-      <version>${curator-test.version}</version>
       <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <artifactId>log4j</artifactId>
-          <groupId>log4j</groupId>
-        </exclusion>
-      </exclusions>
     </dependency>
     <dependency>
       <groupId>com.dremio.services</groupId>
@@ -261,16 +260,6 @@
     <dependency>
       <groupId>org.apache.zookeeper</groupId>
       <artifactId>zookeeper</artifactId>
-      <exclusions>
-        <exclusion>
-          <groupId>org.slf4j</groupId>
-          <artifactId>slf4j-log4j12</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>log4j</groupId>
-          <artifactId>log4j</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.apache.commons</groupId>
@@ -280,7 +269,6 @@
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-configuration</artifactId>
       <version>${project.version}</version>
-      <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>com.dremio.services</groupId>
@@ -398,7 +386,6 @@
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-jobtelemetry-server</artifactId>
       <version>${project.version}</version>
-      <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>com.dremio.services</groupId>
@@ -421,6 +408,11 @@
     </dependency>
     <dependency>
       <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-nessie-proxy</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-orphanagecleaner</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -433,13 +425,11 @@
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-userpreferences</artifactId>
       <version>${project.version}</version>
-      <scope>compile</scope>
     </dependency>
     <dependency>
         <groupId>com.dremio.services</groupId>
         <artifactId>dremio-services-autocomplete</artifactId>
         <version>${project.version}</version>
-        <scope>compile</scope>
     </dependency>
     <dependency>
         <groupId>com.dremio.services</groupId>
@@ -456,6 +446,34 @@
           <artifactId>dremio-ce-jdbc-plugin</artifactId>
           <version>${project.version}</version>
       </dependency>
+    <dependency>
+      <groupId>io.findify</groupId>
+      <artifactId>s3mock_2.12</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.projectnessie.nessie</groupId>
+      <artifactId>nessie-compatibility-common</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.projectnessie.nessie</groupId>
+      <artifactId>nessie-versioned-tests</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.projectnessie.nessie</groupId>
+      <artifactId>nessie-jaxrs-tests</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-nessie-proxy</artifactId>
+      <classifier>tests</classifier>
+      <type>test-jar</type>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -693,7 +711,27 @@
           </execution>
         </executions>
       </plugin>
+      <plugin>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>integration-test</goal>
+              <goal>verify</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
+    <testResources>
+      <testResource>
+        <directory>${project.basedir}/src/test/resources</directory>
+      </testResource>
+      <testResource>
+        <directory>${project.basedir}/src/test/resources-nessie</directory>
+        <filtering>true</filtering>
+      </testResource>
+    </testResources>
   </build>
 
   <profiles>
@@ -711,12 +749,65 @@
             <configuration>
               <testExcludes>
                 <testExclude>com/dremio/dac/service/admin/TestKVStoreReportService.java</testExclude>
+                <!-- Excluded as these test depend on DataplanePlugin -->
+                <testExclude>com/dremio/dac/explore/TestAccelerationSettingsFromAPI.java</testExclude>
+                <testExclude>com/dremio/dac/explore/TestDatasetResource.java</testExclude>
+                <testExclude>com/dremio/dac/resource/TestNessieSourceResource.java</testExclude>
+                <testExclude>com/dremio/dac/resource/TestNessieSourceApi.java</testExclude>
+                <testExclude>com/dremio/dac/service/TestCatalogServiceHelperForVersioned.java</testExclude>
+                <testExclude>com/dremio/dac/service/source/TestSourceService.java</testExclude>
+                <testExclude>com/dremio/exec/catalog/dataplane/ITDataplanePlugin.java</testExclude>
+                <testExclude>com/dremio/exec/catalog/dataplane/ITDatasetVersionContextTestCases.java</testExclude>
+                <testExclude>com/dremio/exec/planner/sql/handlers/TestShowTagsHandler.java</testExclude>
+                <testExclude>com/dremio/exec/planner/sql/handlers/TestDropTagHandler.java</testExclude>
+                <testExclude>com/dremio/exec/planner/sql/handlers/TestShowLogsHandler.java</testExclude>
+                <testExclude>com/dremio/exec/planner/sql/handlers/TestUseVersionHandler.java</testExclude>
+                <testExclude>com/dremio/exec/planner/sql/handlers/TestCreateBranchHandler.java</testExclude>
+                <testExclude>com/dremio/exec/planner/sql/handlers/TestAssignBranchHandler.java</testExclude>
+                <testExclude>com/dremio/exec/planner/sql/handlers/TestCreateTagHandler.java</testExclude>
+                <testExclude>com/dremio/exec/planner/sql/handlers/TestMergeBranchHandler.java</testExclude>
+                <testExclude>com/dremio/exec/planner/sql/handlers/TestShowBranchesHandler.java</testExclude>
+                <testExclude>com/dremio/exec/planner/sql/handlers/TestShowTablesHandler.java</testExclude>
+                <testExclude>com/dremio/exec/planner/sql/handlers/TestShowViewsHandler.java</testExclude>
+                <testExclude>com/dremio/exec/planner/sql/handlers/TestDropBranchHandler.java</testExclude>
+                <testExclude>com/dremio/exec/planner/sql/handlers/TestAssignTagHandler.java</testExclude>
+                <testExclude>com/dremio/exec/planner/sql/handlers/TestCreateFolderHandler.java</testExclude>
+                <testExclude>com/dremio/dac/service/datasets/ITTestDatasetMutatorForVersionedViews.java</testExclude>
               </testExcludes>
             </configuration>
+            <executions>
+              <execution>
+                <id>default-testCompile</id>
+                <phase>test-compile</phase>
+                <configuration>
+                  <testExcludes>
+                    <exclude>com/dremio/exec/catalog/dataplane/*.java</exclude>
+                  </testExcludes>
+                </configuration>
+                <goals>
+                  <goal>testCompile</goal>
+                </goals>
+              </execution>
+            </executions>
           </plugin>
         </plugins>
       </build>
     </profile>
+    <profile>
+      <id>notmapr</id>
+      <activation>
+        <property>
+          <name>!mapr</name>
+        </property>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>com.dremio.plugins</groupId>
+          <artifactId>dremio-dataplane-plugin</artifactId>
+          <version>${project.version}</version>
+          <scope>test</scope>
+        </dependency>
+      </dependencies>
+    </profile>
   </profiles>
-
 </project>

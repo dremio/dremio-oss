@@ -60,7 +60,7 @@ public class AlterTableSetOptionHandler extends SimpleDirectHandler {
     }
 
     final String scope = sqlTableOption.getScope();
-    if (!scope.equalsIgnoreCase("TABLE")) {
+    if (!"TABLE".equalsIgnoreCase(scope)) {
       throw UserException.validationError()
                          .message("[%s] is not supported", sql)
                          .buildSilently();

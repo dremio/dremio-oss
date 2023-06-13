@@ -50,6 +50,7 @@ import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.ProjectPrel;
 import com.dremio.exec.planner.physical.visitor.BasePrelVisitor;
@@ -212,7 +213,8 @@ public class ConvertFromJsonConverter extends BasePrelVisitor<Prel, Void, Runtim
       final int sizeLimit = Math.toIntExact(context.getOptions().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES));
       final int maxLeafLimit = Math.toIntExact(context.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX));
       JsonReader jsonReader = new JsonReader(bufferManager.getManagedBuffer(), sizeLimit, maxLeafLimit,
-        context.getOptions().getOption(ExecConstants.JSON_READER_ALL_TEXT_MODE_VALIDATOR), false, false);
+        context.getOptions().getOption(ExecConstants.JSON_READER_ALL_TEXT_MODE_VALIDATOR), false, false,
+        context.getOptions().getOption(PlannerSettings.ENFORCE_VALID_JSON_DATE_FORMAT_ENABLED));
       jsonReader.setSource(bytes);
 
         ComplexWriter writer = new ComplexWriterImpl("dummy", vc);

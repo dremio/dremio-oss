@@ -35,10 +35,10 @@ public abstract class VarLengthColumn<V extends ValueVector> extends ColumnReade
                   ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, V v,
                   SchemaElement schemaElement) throws ExecutionSetupException {
     super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
-      if (columnChunkMetaData.getEncodings().contains(Encoding.PLAIN_DICTIONARY)) {
+      if (columnChunkMetaData.getEncodings().contains(Encoding.PLAIN_DICTIONARY)
+        || columnChunkMetaData.getEncodings().contains(Encoding.RLE_DICTIONARY)) {
         usingDictionary = true;
-      }
-      else {
+      } else {
         usingDictionary = false;
       }
   }

@@ -50,9 +50,12 @@ export class DatasetSettingsModal extends Component {
     } = this.props;
 
     const modalTitle = entityName
-      ? `${intl.formatMessage({
-          id: "Dataset.Settings.for",
-        })} ${entityName}`
+      ? intl.formatMessage(
+          {
+            id: "Dataset.Settings.for",
+          },
+          { title: entityName }
+        )
       : intl.formatMessage({
           id: "Dataset.Settings",
         });

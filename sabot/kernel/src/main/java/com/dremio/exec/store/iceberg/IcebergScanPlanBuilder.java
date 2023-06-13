@@ -15,7 +15,15 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import static com.dremio.exec.store.SystemSchemas.DATAFILE_PATH;
+import static com.dremio.exec.store.SystemSchemas.DELETE_FILE_PATH;
+import static com.dremio.exec.store.SystemSchemas.ICEBERG_POS_DELETE_FILE_SCHEMA;
+import static com.dremio.exec.store.SystemSchemas.IMPLICIT_SEQUENCE_NUMBER;
+import static com.dremio.exec.store.SystemSchemas.SEQUENCE_NUMBER;
+import static org.apache.calcite.sql.fun.SqlStdOperatorTable.EQUALS;
+
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
@@ -28,17 +36,22 @@ import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.calcite.util.Pair;
 import org.apache.iceberg.ManifestContent;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ops.OptimizerRulesContext;
+import com.dremio.exec.physical.config.ImmutableManifestScanFilters;
 import com.dremio.exec.physical.config.ManifestScanFilters;
+import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.common.ScanRelBase;
+import com.dremio.exec.planner.logical.partition.PruneFilterCondition;
 import com.dremio.exec.planner.physical.BroadcastExchangePrel;
 import com.dremio.exec.planner.physical.HashJoinPrel;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.ProjectPrel;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.DelegatingTableMetadata;
 import com.dremio.exec.store.SystemSchemas;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.dfs.FilterableScan;
@@ -59,7 +72,8 @@ public class IcebergScanPlanBuilder {
     TableMetadata tableMetadata,
     List<SchemaPath> projectedColumns,
     OptimizerRulesContext context,
-    ManifestScanFilters manifestScanFilters) {
+    ManifestScanFilters manifestScanFilters,
+    PruneFilterCondition pruneFilterCondition) {
     this.icebergScanPrel = new IcebergScanPrel(
       cluster,
       traitSet,
@@ -71,7 +85,7 @@ public class IcebergScanPlanBuilder {
       ImmutableList.of(),
       null,
       false,
-      null,
+      pruneFilterCondition,
       context,
       false,
       null,
@@ -158,8 +172,7 @@ public class IcebergScanPlanBuilder {
         new ImmutableManifestScanOptions.Builder().setManifestContent(ManifestContent.DELETES).build());
 
       output = buildDataAndDeleteFileJoinAndAggregate(data, deletes);
-      output = buildSplitGen(output);
-      output = icebergScanPrel.buildDataFileScan(output);
+      output = buildDataScanWithSplitGen(output);
     } else {
       // no delete files, just return IcebergScanPrel which will get expanded in FinalizeRel stage
       output = icebergScanPrel;
@@ -169,20 +182,73 @@ public class IcebergScanPlanBuilder {
   }
 
   /**
+   * Scan data manifests and HashJoin on file paths from reading delete files.
+   * Consuming operation: Selecting files to be optimized.
+   *
+   * HashJoin -----------------------------------------------|
+   * on path, TODO: sequencenum(<=)                          |
+   *   |                                                     |
+   *   |                                                   HashAgg
+   *   |                                                     |
+   *   |                                                   DataFileScan
+   *   |                                                     |
+   * ManifestListScan(DATA)                                ManifestListScan(DELETES)
+   */
+  public RelNode buildDataManifestScanWithDeleteJoin(RelNode delete) {
+    RelOptCluster cluster = icebergScanPrel.getCluster();
+
+    ManifestScanOptions manifestScanOptions = new ImmutableManifestScanOptions.Builder()
+      .setIncludesSplitGen(false)
+      .setManifestContent(ManifestContent.DATA)
+      .setIncludesIcebergMetadata(true)
+      .build();
+
+    RelNode manifestScan = buildManifestRel(manifestScanOptions, false);
+    RexBuilder rexBuilder = cluster.getRexBuilder();
+
+    Pair<Integer, RelDataTypeField> dataFilePathCol = MoreRelOptUtil.findFieldWithIndex(manifestScan.getRowType().getFieldList(), DATAFILE_PATH);
+    Pair<Integer, RelDataTypeField> deleteDataFilePathCol = MoreRelOptUtil.findFieldWithIndex(delete.getRowType().getFieldList(), DELETE_FILE_PATH);
+    Pair<Integer, RelDataTypeField> dataFileSeqNoCol = MoreRelOptUtil.findFieldWithIndex(manifestScan.getRowType().getFieldList(), SEQUENCE_NUMBER);
+    Pair<Integer, RelDataTypeField> deleteFileSeqNoCol = MoreRelOptUtil.findFieldWithIndex(delete.getRowType().getFieldList(), IMPLICIT_SEQUENCE_NUMBER);
+    int probeFieldCount = manifestScan.getRowType().getFieldCount();
+    RexNode joinCondition = rexBuilder.makeCall(
+      EQUALS,
+        rexBuilder.makeInputRef(dataFilePathCol.right.getType(), dataFilePathCol.left),
+        rexBuilder.makeInputRef(deleteDataFilePathCol.right.getType(), probeFieldCount + deleteDataFilePathCol.left));
+    RexNode extraJoinCondition = rexBuilder.makeCall(
+      SqlStdOperatorTable.LESS_THAN_OR_EQUAL,
+      rexBuilder.makeInputRef(dataFileSeqNoCol.right.getType(), dataFileSeqNoCol.left),
+      rexBuilder.makeInputRef(deleteFileSeqNoCol.right.getType(), probeFieldCount + deleteFileSeqNoCol.left));
+
+    return HashJoinPrel.create(cluster, manifestScan.getTraitSet(), manifestScan, delete, joinCondition, extraJoinCondition, JoinRelType.LEFT);
+  }
+
+  /**
    * This builds manifest scan plans both with and without delete files.
    */
   public RelNode buildManifestRel(ManifestScanOptions manifestScanOptions) {
+    return buildManifestRel(manifestScanOptions, true);
+  }
 
-    RelNode output = icebergScanPrel.buildManifestScan(getDataManifestRecordCount(),
-      new ImmutableManifestScanOptions.Builder().from(manifestScanOptions).setManifestContent(ManifestContent.DATA).build());
+  /**
+   * This builds manifest scan plans (With both data and delete files if combineScan is set to true
+   * , else for manifests that fit the {@code manifestScanOptions}).
+   */
+  public RelNode buildManifestRel(ManifestScanOptions manifestScanOptions, boolean combineScan) {
+    if (combineScan) {
+      RelNode output = icebergScanPrel.buildManifestScan(getDataManifestRecordCount(),
+        new ImmutableManifestScanOptions.Builder().from(manifestScanOptions).setManifestContent(ManifestContent.DATA).build());
 
-    if (hasDeleteFiles()) {
-      RelNode deletes = icebergScanPrel.buildManifestScan(getDataManifestRecordCount(),
-        new ImmutableManifestScanOptions.Builder().from(manifestScanOptions).setManifestContent(ManifestContent.DELETES).build());
-      output = buildDataAndDeleteFileJoinAndAggregate(output, deletes);
+      if (hasDeleteFiles()) {
+        RelNode deletes = icebergScanPrel.buildManifestScan(getDataManifestRecordCount(),
+          new ImmutableManifestScanOptions.Builder().from(manifestScanOptions).setManifestContent(ManifestContent.DELETES).build());
+        output = buildDataAndDeleteFileJoinAndAggregate(output, deletes);
+      }
+
+      return output;
+    } else {
+      return icebergScanPrel.buildManifestScan(getDataManifestRecordCount(), manifestScanOptions);
     }
-
-    return output;
   }
 
   public RelNode buildWithDmlDataFileFiltering(RelNode dataFileFilterList) {
@@ -202,9 +268,7 @@ public class IcebergScanPlanBuilder {
     }
 
     // perform split gen
-    output = buildSplitGen(output);
-
-    return icebergScanPrel.buildDataFileScan(output);
+    return buildDataScanWithSplitGen(output);
   }
 
   private RelNode buildSplitGen(RelNode input) {
@@ -218,7 +282,12 @@ public class IcebergScanPlanBuilder {
         icebergScanPrel.getTableMetadata(), splitGenOutputSchema, icebergScanPrel.isConvertedIcebergDataset());
   }
 
-  private RelNode buildDataAndDeleteFileJoinAndAggregate(RelNode data, RelNode deletes) {
+  public RelNode buildDataScanWithSplitGen(RelNode input) {
+    RelNode output = buildSplitGen(input);
+    return icebergScanPrel.buildDataFileScan(output);
+  }
+
+  public RelNode buildDataAndDeleteFileJoinAndAggregate(RelNode data, RelNode deletes) {
     // put delete files on the build side... we will always broadcast as regular table maintenance is assumed to keep
     // delete file counts at a reasonable level
     RelOptCluster cluster = icebergScanPrel.getCluster();
@@ -342,6 +411,66 @@ public class IcebergScanPlanBuilder {
         JoinRelType.INNER);
   }
 
+  /**
+   * Builds Manifest and File Scan for positional delete files
+   * Consuming operation: Optimize with positional deletes - Delete File scan is needed to determine which data files
+   * have positional deletes linked to them and subsequently, need to be rewritten.
+   *
+   * DataFileScan
+   *   |
+   *   |
+   * exchange on split identity
+   *   |
+   *   |
+   * SplitGen
+   *   |
+   *   |
+   * ManifestScan(DELETE)
+   *   |
+   *   |
+   * Exchange on split identity
+   *   |
+   *   |
+   * ManifestListScan(DELETE)
+   */
+  public Prel buildDeleteFileScan(OptimizerRulesContext context) {
+    DelegatingTableMetadata deleteFileTableMetadata = new DelegatingTableMetadata(icebergScanPrel.getTableMetadata()) {
+      @Override
+      public BatchSchema getSchema() {
+        return ICEBERG_POS_DELETE_FILE_SCHEMA;
+      }
+    };
+    IcebergScanPrel deleteFileScanPrel = new IcebergScanPrel(
+      icebergScanPrel.getCluster(),
+      icebergScanPrel.getTraitSet(),
+      icebergScanPrel.getTable(),
+      deleteFileTableMetadata.getStoragePluginId(),
+      deleteFileTableMetadata,
+      ICEBERG_POS_DELETE_FILE_SCHEMA.getFields().stream().map(i -> SchemaPath.getSimplePath(i.getName())).collect(Collectors.toList()),
+      1.0,
+      ImmutableList.of(),
+      null,
+      false,
+      null,
+      context,
+      false,
+      null,
+      null,
+      false,
+      ImmutableManifestScanFilters.empty()
+    );
+
+    ManifestScanOptions deleteManifestScanOptions = new ImmutableManifestScanOptions.Builder()
+      .setIncludesSplitGen(false)
+      .setManifestContent(ManifestContent.DELETES)
+      .setIncludesIcebergMetadata(true)
+      .build();
+    RelNode manifestDeleteScan = icebergScanPrel.buildManifestScan(getDeleteManifestRecordCount(), deleteManifestScanOptions);
+    manifestDeleteScan = new IcebergSplitGenPrel(manifestDeleteScan.getCluster(), manifestDeleteScan.getTraitSet(), icebergScanPrel.getTable(), manifestDeleteScan,
+      deleteFileTableMetadata, SystemSchemas.SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA, icebergScanPrel.isConvertedIcebergDataset());
+    return deleteFileScanPrel.buildDataFileScanWithImplicitPartitionCols(manifestDeleteScan, ImmutableList.of(IMPLICIT_SEQUENCE_NUMBER));
+  }
+
   private static RelDataTypeField getField(RelNode rel, String fieldName) {
     return rel.getRowType().getField(fieldName, false, false);
   }
@@ -366,7 +495,7 @@ public class IcebergScanPlanBuilder {
     return deleteManifestStats != null ? deleteManifestStats.getRecordCount() : 0;
   }
 
-  private boolean hasDeleteFiles() {
+  public boolean hasDeleteFiles() {
     return getDeleteRecordCount() > 0;
   }
 }

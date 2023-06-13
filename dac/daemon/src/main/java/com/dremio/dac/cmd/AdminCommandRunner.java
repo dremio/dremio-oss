@@ -26,6 +26,8 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.dac.server.DACConfig;
+import com.dremio.hadoop.security.alias.DremioCredentialProviderFactory;
+import com.dremio.services.credentials.CredentialsService;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 
@@ -35,7 +37,8 @@ import com.google.common.base.Throwables;
 public final class AdminCommandRunner {
 
   public static void main(String[] args) throws Exception {
-    final SabotConfig sabotConfig = DACConfig.newConfig().getConfig().getSabotConfig();
+    final DACConfig dacConfig = DACConfig.newConfig();
+    final SabotConfig sabotConfig = dacConfig.getConfig().getSabotConfig();
     final ScanResult classpathScan = ClassPathScanner.fromPrescan(sabotConfig);
 
     final List<Class<?>> adminCommands = classpathScan.getAnnotatedClasses(AdminCommand.class);
@@ -65,7 +68,10 @@ public final class AdminCommandRunner {
       System.exit(2);
     }
 
-    try {
+    try (CredentialsService credentialsService = CredentialsService.newInstance(dacConfig.getConfig(), classpathScan))
+    {
+      credentialsService.start();
+      DremioCredentialProviderFactory.configure(() -> credentialsService);
       runCommand(commandName, command, Arrays.copyOfRange(args, 1, args.length));
     } catch (Exception e) {
       AdminLogger.log(String.format("Failed to run '%s' command: %s", commandName, e.getMessage()));

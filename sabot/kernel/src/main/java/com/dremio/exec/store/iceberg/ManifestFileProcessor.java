@@ -33,12 +33,12 @@ import org.apache.iceberg.ManifestFiles;
 import org.apache.iceberg.ManifestReader;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.io.CloseableIterator;
+import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.io.FilterIterator;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.ManifestScanFilters;
@@ -67,8 +67,6 @@ public class ManifestFileProcessor implements AutoCloseable {
   private final OperatorStats operatorStats;
   private final ManifestEntryProcessor manifestEntryProcessor;
   private final Configuration conf;
-  private final ManifestContent manifestContent;
-
   private ManifestEntryWrapper<?> currentManifestEntry;
   private CloseableIterator<? extends ManifestEntryWrapper<?>> iterator;
   private ManifestReader<?> manifestReader;
@@ -96,8 +94,6 @@ public class ManifestFileProcessor implements AutoCloseable {
     } else if (functionContext.getPartitionSpecMap() != null){
       partitionSpecMap = IcebergSerDe.deserializePartitionSpecMap(functionContext.getPartitionSpecMap().toByteArray());
     }
-    this.manifestContent = functionContext.getManifestContent();
-
     this.manifestScanFilters = ((ManifestScanTableFunctionContext) functionConfig.getFunctionContext())
       .getManifestScanFilters();
   }
@@ -106,7 +102,7 @@ public class ManifestFileProcessor implements AutoCloseable {
     manifestEntryProcessor.setup(incoming, outgoing);
   }
 
-  public void setupManifestFile(ManifestFile manifestFile) {
+  public void setupManifestFile(ManifestFile manifestFile, int row) {
     manifestReader = getManifestReader(manifestFile);
     if (manifestScanFilters.doesIcebergAnyColExpressionExists()) {
       manifestReader.filterRows(manifestScanFilters.getIcebergAnyColExpressionDeserialized());
@@ -115,7 +111,7 @@ public class ManifestFileProcessor implements AutoCloseable {
     iterator = DremioManifestReaderUtils.liveManifestEntriesIterator(manifestReader).iterator();
     applyManifestScanFilters(manifestFile);
 
-    manifestEntryProcessor.initialise(manifestReader.spec());
+    manifestEntryProcessor.initialise(manifestReader.spec(), row);
   }
 
   private void applyManifestScanFilters(ManifestFile manifestFile) {
@@ -169,21 +165,20 @@ public class ManifestFileProcessor implements AutoCloseable {
 
   @VisibleForTesting
   ManifestReader<? extends ContentFile<?>> getManifestReader(ManifestFile manifestFile) {
-    if (manifestContent == ManifestContent.DATA) {
+    if (manifestFile.content() == ManifestContent.DATA) {
       return ManifestFiles.read(manifestFile, getFileIO(manifestFile), partitionSpecMap);
     } else {
       return ManifestFiles.readDeleteManifest(manifestFile, getFileIO(manifestFile), partitionSpecMap);
     }
   }
 
-  private DremioFileIO getFileIO(ManifestFile manifestFile) {
+  private FileIO getFileIO(ManifestFile manifestFile) {
 
     FileSystem fs = createFs(manifestFile.path(), context, opProps, icebergRootPointerPlugin);
     Preconditions.checkState(fs != null, "Unexpected state");
-    return new DremioFileIO(fs,
-      context, dataset, datasourcePluginUID, manifestFile.length(), conf, (MutablePlugin) icebergRootPointerPlugin);
+    return icebergRootPointerPlugin.createIcebergFileIO(fs, context, dataset, datasourcePluginUID,
+        manifestFile.length());
   }
-
 
   private void nextDataFile() {
     currentManifestEntry = iterator.next();

@@ -111,6 +111,16 @@ public abstract class DelegatingCatalog implements Catalog {
   }
 
   @Override
+  public String getDatasetId(NamespaceKey key) {
+    return delegate.getDatasetId(key);
+  }
+
+  @Override
+  public DremioTable getTableSnapshotForQuery(NamespaceKey key, TableVersionContext context) {
+    return delegate.getTableSnapshotForQuery(key, context);
+  }
+
+  @Override
   public DremioTable getTableSnapshot(NamespaceKey key, TableVersionContext context) {
     return delegate.getTableSnapshot(key, context);
   }
@@ -197,11 +207,6 @@ public abstract class DelegatingCatalog implements Catalog {
   }
 
   @Override
-  public MetadataStatsCollector getMetadataStatsCollector() {
-    return delegate.getMetadataStatsCollector();
-  }
-
-  @Override
   public CreateTableEntry createNewTable(NamespaceKey key, IcebergTableProps icebergTableProps,
                                          WriterOptions writerOptions, Map<String, Object> storageOptions) {
     return delegate.createNewTable(key, icebergTableProps, writerOptions, storageOptions);
@@ -257,11 +262,6 @@ public abstract class DelegatingCatalog implements Catalog {
   @Override
   public void rollbackTable(NamespaceKey path, DatasetConfig datasetConfig, RollbackOption rollbackOption, TableMutationOptions tableMutationOptions) {
     delegate.rollbackTable(path, datasetConfig, rollbackOption, tableMutationOptions);
-  }
-
-  @Override
-  public void vacuumTable(NamespaceKey path, DatasetConfig datasetConfig, VacuumOption vacuumOption, TableMutationOptions tableMutationOptions) {
-    delegate.vacuumTable(path, datasetConfig, vacuumOption, tableMutationOptions);
   }
 
   @Override
@@ -422,5 +422,13 @@ public abstract class DelegatingCatalog implements Catalog {
 
   @Override public Iterable<UserDefinedFunction> getAllFunctions() throws IOException {
     return delegate.getAllFunctions();
+  }
+
+  @Override public void invalidateNamespaceCache(final NamespaceKey key) {
+    delegate.invalidateNamespaceCache(key);
+  }
+
+  @Override public MetadataRequestOptions getMetadataRequestOptions() {
+    return delegate.getMetadataRequestOptions();
   }
 }

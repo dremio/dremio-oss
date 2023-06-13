@@ -23,7 +23,9 @@ import java.util.UUID;
 import org.apache.commons.lang3.NotImplementedException;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataFiles;
+import org.apache.iceberg.DeleteFile;
 import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.FileMetadata;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.io.InputFile;
@@ -171,6 +173,30 @@ public class TestIcebergOptimizeSingleFileTracker {
     assertThat(removed).containsExactly(add3.path().toString());
   }
 
+  @Test
+  public void testSingleDataFileRewrittenDeleteFile() {
+    IcebergOptimizeSingleFileTracker tracker = new IcebergOptimizeSingleFileTracker();
+
+    DataFile add1 = testDataFile(SPEC_PARTITIONED, 1);
+    DataFile del1 = testDataFile(SPEC_PARTITIONED, 1);
+    DeleteFile del2 = testDeleteFile(SPEC_PARTITIONED, 1);
+
+    tracker.consumeAddDataFile(add1);
+    tracker.consumeDeletedDataFile(del1);
+    tracker.consumeDeletedDeleteFile(del2);
+
+    Set<DataFile> addDataFiles = Sets.newHashSet(add1);
+    Set<DataFile> delDataFiles = Sets.newHashSet(del1);
+    Set<DeleteFile> delDeleteFiles = Sets.newHashSet(del2);
+
+    Set<String> removed = tracker.removeSingleFileChanges(addDataFiles, delDataFiles);
+
+    assertThat(addDataFiles).contains(add1);
+    assertThat(delDataFiles).contains(del1);
+    assertThat(delDeleteFiles).contains(del2);
+    assertThat(removed).isEmpty();
+  }
+
   public DataFile testDataFile(PartitionSpec spec, int partitionVal) {
     DataFiles.Builder builder = DataFiles.builder(spec);
     if (spec.isPartitioned()) {
@@ -180,6 +206,20 @@ public class TestIcebergOptimizeSingleFileTracker {
     return builder
       .withInputFile(new MockInputFile())
       .withRecordCount(25)
+      .withFormat(FileFormat.PARQUET)
+      .build();
+  }
+
+  public DeleteFile testDeleteFile(PartitionSpec spec, int partitionVal) {
+    FileMetadata.Builder builder = FileMetadata.deleteFileBuilder(spec);
+    if (spec.isPartitioned()) {
+      builder.withPartitionPath("n_nationkey=" + partitionVal);
+    }
+
+    return builder
+      .ofPositionDeletes()
+      .withInputFile(new MockInputFile())
+      .withRecordCount(4)
       .withFormat(FileFormat.PARQUET)
       .build();
   }

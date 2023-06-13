@@ -17,6 +17,7 @@ package com.dremio.exec.store.sys.udf;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import org.apache.calcite.schema.FunctionParameter;
 import org.apache.calcite.sql.SqlFunctionCategory;
@@ -34,8 +35,10 @@ public class FunctionOperatorTable implements SqlOperatorTable {
 
   public FunctionOperatorTable(String udfName,
     List<FunctionParameter> functionParameters) {
-    this.functionParameterList =
-      UserDefinedFunctionArgumentOperator.createArgumentOperator(udfName, functionParameters);
+    this.functionParameterList = functionParameters
+      .stream()
+      .map(parameter -> UserDefinedFunctionArgumentOperator.createArgumentOperator(udfName, parameter))
+      .collect(Collectors.toList());
   }
 
   @Override public void lookupOperatorOverloads(

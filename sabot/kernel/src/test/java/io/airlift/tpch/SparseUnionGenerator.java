@@ -80,8 +80,7 @@ public class SparseUnionGenerator  extends TpchGenerator {
 
         unionWriter.writeVarChar(0, varCharVal.length, tempBuf);
       }
-    }
-    else {
+    } else {
       unionWriter.writeInt(intRandom.nextValue());
 
     }

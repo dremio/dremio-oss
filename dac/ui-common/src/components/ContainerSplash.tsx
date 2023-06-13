@@ -22,7 +22,7 @@ type ContainerSplashProps = {
 
 export const ContainerSplash = (props: ContainerSplashProps): JSX.Element => {
   return (
-    <div className="centered-container" style={{ maxBlockSize: "400px" }}>
+    <div className="centered-container" style={{ maxBlockSize: "460px" }}>
       <div
         className="dremio-prose"
         style={{

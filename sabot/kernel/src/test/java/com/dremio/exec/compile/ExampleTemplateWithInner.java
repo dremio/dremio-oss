@@ -20,6 +20,7 @@ import com.dremio.exec.compile.sig.RuntimeOverridden;
 public abstract class ExampleTemplateWithInner implements ExampleInner{
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExampleTemplateWithInner.class);
 
+  @Override
   public abstract void doOutside();
   public class TheInnerClass{
 
@@ -39,6 +40,7 @@ public abstract class ExampleTemplateWithInner implements ExampleInner{
 
   }
 
+  @Override
   public void doInsideOutside(){
     TheInnerClass inner = new TheInnerClass();
     inner.doInside();

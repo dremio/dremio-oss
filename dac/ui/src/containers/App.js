@@ -25,11 +25,9 @@ import {
 } from "@mui/material/styles";
 import { replace } from "react-router-redux";
 import DocumentTitle from "react-document-title";
-import urlParse from "url-parse";
 
 import { showAppError } from "@app/actions/prodError";
 import { DnDContextDecorator } from "@app/components/DragComponents/DnDContextDecorator";
-import { ErrorBoundary } from "@app/components/OldErrorBoundary";
 import { Suspense } from "@app/components/Lazy";
 
 import socket from "@inject/utils/socket";
@@ -48,7 +46,7 @@ import ConfirmationContainer from "@app/containers/Confirmation";
 import ProdErrorContainer from "@app/containers/ProdError";
 import { LocationProvider } from "@app/containers/dremioLocation";
 import { withHookProvider } from "@app/containers/RouteLeave";
-import { isDcsEdition } from "dyn-load/utils/versionUtils";
+import { isNotSoftware } from "dyn-load/utils/versionUtils";
 
 import { themeStyles } from "dremio-ui-lib";
 import "../uiTheme/css/react-datepicker.css";
@@ -104,7 +102,7 @@ export class App extends Component {
   };
 
   static redirectForServerStatus(props) {
-    if (!isDcsEdition()) {
+    if (!isNotSoftware()) {
       const { location } = props;
       if (
         props.serverStatus.get("status") !== SERVER_STATUS_OK &&
@@ -125,9 +123,6 @@ export class App extends Component {
   constructor(props) {
     super(props);
 
-    // use window.onerror here instead of addEventListener('error') because ErrorEvent.error is
-    // experimental according to mdn. Can get both file url and error from either.
-    window.onerror = this.handleGlobalError.bind(this, window.onerror);
     window.onunhandledrejection = this.handleUnhandledRejection;
   }
 
@@ -148,29 +143,13 @@ export class App extends Component {
     App.redirectForServerStatus(props);
   }
 
-  handleGlobalError = (prevOnerror, msg, url, lineNo, columnNo, error) => {
-    prevOnerror && prevOnerror.call(window, msg, url, lineNo, columnNo, error);
-
-    // there is no URL for external scripts (at least in Chrome)
-    if (!url || urlParse(url).origin !== this._getWindowOrigin()) return;
-
-    console.error("Uncaught Error", error || msg);
-    this.displayError(error || msg);
-  };
-
   handleUnhandledRejection = (rejectionEvent) => {
     const error = rejectionEvent.reason;
     if (!error) return;
 
     if (error.stack && this._shouldIgnoreExternalStack(error.stack)) return;
 
-    //By default, Raven.js does not capture unhandled promise rejections.
     sentryUtil.logException(error);
-
-    console.error("UnhandledRejection", error);
-    if (error.status !== 401) {
-      this.displayError(error);
-    }
   };
 
   displayError(error) {
@@ -213,22 +192,20 @@ export class App extends Component {
     const { children } = this.props;
     return (
       <Fragment>
-        <ErrorBoundary>
-          <Suspense>
-            <LocationProvider location={this.props.location}>
-              <StyledEngineProvider injectFirst>
-                <ThemeProvider theme={theme}>{children}</ThemeProvider>
-              </StyledEngineProvider>
-              <AccountSettingsModalContainer />
-              <NotificationContainer />
-              <ConfirmationContainer />
-              <PATModalContainer />
-              <ModalsContainer modals={{ AboutModal }} />
-              <div className="popup-notifications" />
-              <div className="conifrmation-container" />
-            </LocationProvider>
-          </Suspense>
-        </ErrorBoundary>
+        <Suspense>
+          <LocationProvider location={this.props.location}>
+            <StyledEngineProvider injectFirst>
+              <ThemeProvider theme={theme}>{children}</ThemeProvider>
+            </StyledEngineProvider>
+            <AccountSettingsModalContainer />
+            <NotificationContainer />
+            <ConfirmationContainer />
+            <PATModalContainer />
+            <ModalsContainer modals={{ AboutModal }} />
+            <div className="popup-notifications" />
+            <div className="conifrmation-container" />
+          </LocationProvider>
+        </Suspense>
         <ProdErrorContainer />
       </Fragment>
     );

@@ -15,6 +15,7 @@
  */
 syntax = "proto3";
 
+import "util.proto";
 import "content_service.proto";
 
 option java_multiple_files = true;
@@ -32,10 +33,21 @@ message DiffRequest {
   string toRefName = 2;
   optional string fromHashOnRef = 3;
   optional string toHashOnRef = 4;
+  optional int32 maxRecords = 5;
+  optional string pageToken = 6;
+  optional ContentKey minKey = 7;
+  optional ContentKey maxKey = 8;
+  optional ContentKey prefixKey = 9;
+  optional string filter = 10;
+  repeated ContentKey keys = 11;
 }
 
 message DiffResponse {
   repeated DiffEntry diffs = 1;
+  optional Reference effectiveFromRef = 2;
+  optional Reference effectiveToRef = 3;
+  bool hasMore = 4;
+  optional string pageToken = 5;
 }
 
 message DiffEntry {

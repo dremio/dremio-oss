@@ -24,10 +24,10 @@ export const LOAD_RESOURCE_TREE_FAILURE = "LOAD_RESOURCE_TREE_FAILURE";
 
 export const CLEAR_RESOURCE_TREE_BY_NAME = "CLEAR_RESOURCE_TREE_BY_NAME";
 
-export const clearResourceTreeByName = (rootNodeName) => {
+export const clearResourceTreeByName = (rootNodeName, fromModal) => {
   return {
     type: CLEAR_RESOURCE_TREE_BY_NAME,
-    payload: rootNodeName,
+    payload: { rootNodeName: rootNodeName, fromModal: fromModal },
   };
 };
 
@@ -37,9 +37,17 @@ const fetchResourceTree = (
   fullPath,
   { showDatasets, showSpaces, showSources, showHomes, isExpand },
   nodeExpanded,
-  currNode
+  currNode,
+  fromModal
 ) => {
-  const meta = { viewId, path: fullPath, isExpand, nodeExpanded, currNode };
+  const meta = {
+    viewId,
+    path: fullPath,
+    isExpand,
+    nodeExpanded,
+    currNode,
+    fromModal,
+  };
 
   const apiCall = new APIV2Call().path("resourcetree").paths(fullPath);
 
@@ -84,7 +92,7 @@ const fetchResourceTree = (
 };
 
 export const loadResourceTree =
-  (storageName, viewId, fullPath, params, nodeExpanded, currNode) =>
+  (storageName, viewId, fullPath, params, nodeExpanded, currNode, fromModal) =>
   (dispatch) =>
     dispatch(
       fetchResourceTree(
@@ -93,6 +101,7 @@ export const loadResourceTree =
         fullPath,
         params,
         nodeExpanded,
-        currNode
+        currNode,
+        fromModal
       )
     );

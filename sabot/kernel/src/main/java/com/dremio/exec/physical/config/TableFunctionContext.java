@@ -23,6 +23,7 @@ import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.ScanFilter;
+import com.dremio.exec.store.iceberg.OptimizeManifestsTableFunctionContext;
 import com.dremio.service.namespace.dataset.proto.UserDefinedSchemaSettings;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -45,7 +46,10 @@ import io.protostuff.ByteString;
   @JsonSubTypes.Type(value = BoostTableFunctionContext.class, name = "boost"),
   @JsonSubTypes.Type(value = ManifestScanTableFunctionContext.class, name = "manifest-scan"),
   @JsonSubTypes.Type(value = PartitionTransformTableFunctionContext.class, name = "partition-transform-table"),
-  @JsonSubTypes.Type(value = EasyScanTableFunctionContext.class, name = "easy-scan-table-function")}
+  @JsonSubTypes.Type(value = EasyScanTableFunctionContext.class, name = "easy-scan-table-function"),
+  @JsonSubTypes.Type(value = DeletedFilesMetadataTableFunctionContext.class, name = "deleted-files-metadata-table-function"),
+  @JsonSubTypes.Type(value = OptimizeManifestsTableFunctionContext.class, name = "optimize-manifests"),
+  @JsonSubTypes.Type(value = ManifestListScanTableFunctionContext.class, name = "manifest-list-scan")}
 )
 public class TableFunctionContext {
   private final List<SchemaPath> columns;

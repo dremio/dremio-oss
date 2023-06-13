@@ -18,9 +18,13 @@ package com.dremio.dac.model.sources;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.dremio.dac.model.common.AddressableResource;
 import com.dremio.dac.model.common.ResourcePath;
+import com.dremio.dac.model.common.RootEntity;
 import com.dremio.dac.model.job.JobFilters;
 import com.dremio.service.jobs.JobIndexKeys;
 import com.dremio.service.namespace.physicaldataset.proto.PhysicalDatasetConfig;
@@ -83,6 +87,30 @@ public class PhysicalDataset implements AddressableResource {
       .addFilter(JobIndexKeys.QUERY_TYPE, JobIndexKeys.UI, JobIndexKeys.EXTERNAL);
     links.put("jobs", jobFilters.toUrl());
     return links;
+  }
+
+  public static PhysicalDataset newInstance(RootEntity rootEntity,
+                                            List<String> folderNamespace,
+                                            String folderName,
+                                            String id) {
+    List<String> fullPathList = Stream.of(
+        Stream.of(rootEntity.getName()),
+        folderNamespace.stream(),
+        Stream.of(folderName))
+      .reduce(Stream::concat)
+      .orElseThrow(IllegalStateException::new)
+      .collect(Collectors.toList());
+
+    final PhysicalDatasetPath path = new PhysicalDatasetPath(fullPathList);
+
+    return new PhysicalDataset(
+      new PhysicalDatasetResourcePath(new SourceName(rootEntity.getName()), path),
+      new PhysicalDatasetName(path.getFileName().getName()),
+      new PhysicalDatasetConfig()
+        .setId((id == null) ? UUID.randomUUID().toString() : id)
+        .setFullPathList(fullPathList),
+      null,
+      null);
   }
 
   public List<String> getTags() {

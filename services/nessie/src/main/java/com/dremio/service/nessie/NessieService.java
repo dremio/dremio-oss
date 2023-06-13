@@ -15,12 +15,16 @@
  */
 package com.dremio.service.nessie;
 
+import static org.projectnessie.services.authz.AbstractBatchAccessChecker.NOOP_ACCESS_CHECKER;
+
+import java.security.Principal;
 import java.util.List;
 import java.util.function.Supplier;
 
 import javax.inject.Provider;
 
 import org.projectnessie.server.store.TableCommitMetaStoreWorker;
+import org.projectnessie.services.authz.Authorizer;
 import org.projectnessie.services.impl.ConfigApiImpl;
 import org.projectnessie.services.impl.ContentApiImpl;
 import org.projectnessie.services.impl.TreeApiImpl;
@@ -53,12 +57,12 @@ public class NessieService implements Service {
   private final NessieConfig serverConfig;
   private final Supplier<DatabaseAdapter> adapter;
   private final Supplier<VersionStore> versionStoreSupplier;
-  private final Supplier<org.projectnessie.api.TreeApi> treeApi;
   private final TreeService treeService;
   private final ContentService contentService;
   private final ConfigService configService;
   private final Provider<OptionManager> optionManagerProvider;
   private final Supplier<Boolean> isMaster;
+  private final Principal nessieCommitter = () -> "Embedded Nessie Service";
 
   public NessieService(Provider<KVStoreProvider> kvStoreProvider,
                        Provider<OptionManager> optionManagerProvider,
@@ -74,10 +78,14 @@ public class NessieService implements Service {
     this.adapter = Suppliers.memoize(() -> createAdapter(inMemoryBackend));
     this.versionStoreSupplier = Suppliers.memoize(() -> new PersistVersionStore(adapter.get(), worker));
 
-    this.treeApi = Suppliers.memoize(() -> new TreeApiImpl(serverConfig, versionStoreSupplier.get(), null, null));
-    this.treeService = new TreeService(treeApi);
-    this.contentService = new ContentService(Suppliers.memoize(() -> new ContentApiImpl(serverConfig, versionStoreSupplier.get(), null, null)));
-    this.configService = new ConfigService(Suppliers.memoize(() -> new ConfigApiImpl(serverConfig)));
+    Supplier<Principal> principalSupplier = () -> nessieCommitter;
+    Authorizer authorizer = context -> NOOP_ACCESS_CHECKER;
+    this.treeService = new TreeService(Suppliers.memoize(() ->
+      new TreeApiImpl(serverConfig, versionStoreSupplier.get(), authorizer, principalSupplier)));
+    this.contentService = new ContentService(Suppliers.memoize(() ->
+      new ContentApiImpl(serverConfig, versionStoreSupplier.get(), authorizer, principalSupplier)));
+    this.configService = new ConfigService(Suppliers.memoize(() ->
+      new ConfigApiImpl(serverConfig, versionStoreSupplier.get(), 2)));
 
     this.isMaster = isMaster;
   }

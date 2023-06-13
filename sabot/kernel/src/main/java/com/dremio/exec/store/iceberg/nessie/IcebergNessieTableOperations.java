@@ -36,10 +36,12 @@ import com.dremio.plugins.NessieClientImpl;
 import com.dremio.plugins.NessieClientTableMetadata;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.writer.WriterCommitterOperator;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 
 /**
  * Iceberg nessie table operations
@@ -49,6 +51,7 @@ class IcebergNessieTableOperations extends BaseMetastoreTableOperations {
   private final FileIO fileIO;
   private final Provider<NessieApiV1> nessieApi;
   private final IcebergNessieTableIdentifier nessieTableIdentifier;
+  private final List<String> nessieTableKey;
   private ResolvedVersionContext reference;
   private final OperatorStats operatorStats;
   private String baseContentId;
@@ -57,6 +60,7 @@ class IcebergNessieTableOperations extends BaseMetastoreTableOperations {
     this.fileIO = fileIO;
     this.nessieApi = nessieApi;
     this.nessieTableIdentifier = nessieTableIdentifier;
+    this.nessieTableKey = parseNessieKey(nessieTableIdentifier.getTableIdentifier());
     this.reference = null;
     this.operatorStats = operatorStats;
   }
@@ -78,18 +82,25 @@ class IcebergNessieTableOperations extends BaseMetastoreTableOperations {
     return nessieTableIdentifier.toString();
   }
 
+  @WithSpan
   @Override
   protected void doRefresh() {
-    reference = getDefaultBranch();
-    baseContentId = nessieClient().getContentId(getNessieKey(nessieTableIdentifier.getTableIdentifier()),
-      reference, null);
-    String metadataLocation = nessieClient().getMetadataLocation(
-      getNessieKey(nessieTableIdentifier.getTableIdentifier()),
-      reference, null);
+    NessieClient nessieClient = nessieClient();
+
+    reference = getDefaultBranch(nessieClient);
+    baseContentId = nessieClient.getContentId(nessieTableKey, reference, null);
+
+    String metadataLocation = null;
+    if (baseContentId != null) {
+      metadataLocation = nessieClient.getMetadataLocation(nessieTableKey, reference, null);
+      Preconditions.checkState(metadataLocation != null,
+        "No metadataLocation for iceberg table: " + nessieTableKey + " ref: " + reference);
+    }
+
     refreshFromMetadataLocation(metadataLocation, 2);
   }
 
-  private List<String> getNessieKey(TableIdentifier tableIdentifier) {
+  private static List<String> parseNessieKey(TableIdentifier tableIdentifier) {
     return Arrays.asList(
       tableIdentifier.namespace().toString(),
       tableIdentifier.name());
@@ -106,12 +117,14 @@ class IcebergNessieTableOperations extends BaseMetastoreTableOperations {
     boolean threw = true;
     try {
       Stopwatch stopwatchCatalogUpdate = Stopwatch.createStarted();
-      nessieClient().commitTable(getNessieKey(nessieTableIdentifier.getTableIdentifier()),
+      nessieClient().commitTable(
+        nessieTableKey,
         newMetadataLocation,
         new NessieClientTableMetadata(
           metadata.currentSnapshot().snapshotId(), metadata.currentSchemaId(), metadata.defaultSpecId(), metadata.sortOrder().orderId()),
         reference,
         baseContentId,
+        null,
         null);
       threw = false;
       long totalCatalogUpdateTime = stopwatchCatalogUpdate.elapsed(TimeUnit.MILLISECONDS);
@@ -136,20 +149,19 @@ class IcebergNessieTableOperations extends BaseMetastoreTableOperations {
     }
   }
 
-  public void deleteKey(){
-   nessieClient().deleteCatalogEntry(
-     getNessieKey(nessieTableIdentifier.getTableIdentifier()),
-     getDefaultBranch());
+  public void deleteKey() {
+    NessieClient nessieClient = nessieClient();
+    ResolvedVersionContext version = getDefaultBranch(nessieClient);
+    nessieClient.deleteCatalogEntry(nessieTableKey, version, null);
   }
 
-  private ResolvedVersionContext getDefaultBranch() {
+  private ResolvedVersionContext getDefaultBranch(NessieClient nessieClient) {
     try {
-      return nessieClient().getDefaultBranch();
+      return nessieClient.getDefaultBranch();
     } catch (NoDefaultBranchException e) {
       throw UserException.sourceInBadState(e)
         .message("No default branch set.")
         .buildSilently();
     }
   }
-
 }

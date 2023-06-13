@@ -33,8 +33,10 @@ public class IsTrue {
     @Param NullableBitHolder in;
     @Output NullableBitHolder out;
 
+    @Override
     public void setup() { }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {
@@ -51,8 +53,10 @@ public class IsTrue {
     @Param NullableIntHolder in;
     @Output NullableBitHolder out;
 
+    @Override
     public void setup() { }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 1 && in.value != 0) {
@@ -69,8 +73,10 @@ public class IsTrue {
     @Param NullableBigIntHolder in;
     @Output NullableBitHolder out;
 
+    @Override
     public void setup() { }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 1 && in.value != 0L) {

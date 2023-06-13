@@ -17,7 +17,7 @@
 import { useIntl } from "react-intl";
 import { NotFound } from "./NotFound";
 import { Link } from "react-router";
-import { Button } from "dremio-ui-lib/dist-esm/index";
+import { Button } from "dremio-ui-lib/components";
 import * as commonPaths from "dremio-ui-common/paths/common.js";
 
 export const SonarProject404 = () => {

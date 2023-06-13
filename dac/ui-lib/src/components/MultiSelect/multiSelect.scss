@@ -83,10 +83,15 @@
       color: $trout !important;
     }
     svg {
+      min-width: 24px;
       path:last-of-type {
         fill: $trout !important;
       }
     }
+  }
+
+  &__chip__public {
+    padding: 4px 4px !important;
   }
 
   &__inputContainer {
@@ -128,5 +133,12 @@
     display: flex;
     cursor: pointer;
     padding-right: 4px;
+  }
+  &__label {
+    &__container {
+      overflow: hidden;
+    }
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }

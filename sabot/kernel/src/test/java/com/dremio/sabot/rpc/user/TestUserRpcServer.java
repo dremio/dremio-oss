@@ -30,6 +30,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
+import java.util.UUID;
 
 import javax.inject.Provider;
 
@@ -44,6 +45,7 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 import com.dremio.common.memory.DremioRootAllocator;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.rpc.Response;
 import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.rpc.RpcConfig;
@@ -53,7 +55,10 @@ import com.dremio.exec.server.options.SessionOptionManagerFactoryImpl;
 import com.dremio.exec.work.protector.UserWorker;
 import com.dremio.options.OptionValidatorListing;
 import com.dremio.sabot.rpc.user.UserRPCServer.UserClientConnectionImpl;
+import com.dremio.service.users.User;
+import com.dremio.service.users.UserNotFoundException;
 import com.dremio.service.users.UserService;
+import com.dremio.service.users.proto.UID;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelFuture;
@@ -72,6 +77,7 @@ public class TestUserRpcServer {
   @Mock Provider<UserService> userServiceProvider;
   @Mock Provider<NodeEndpoint> nodeEndpointProvider;
   @Mock WorkIngestor ingestor;
+  @Mock UserBitShared.UserCredentials userCredentials;
   @Mock Provider<UserWorker> worker;
   final BufferAllocator allocator = DremioRootAllocator.create(10, 1);
   final EventLoopGroup loopGroup = new DefaultEventLoop();
@@ -81,6 +87,9 @@ public class TestUserRpcServer {
   @Mock UserClientConnectionImpl connection;
   @Mock UserSession userSession; // Session is returned from the connection
   @Mock SocketChannel socketChannel;
+  @Mock UserService userService;
+  @Mock User user;
+  @Mock UID uid;
 
   final byte[] pBody = "abc".getBytes(UTF_8);
   @Mock ByteBuf dBody;
@@ -90,6 +99,8 @@ public class TestUserRpcServer {
 
   private MockTracer tracer = new MockTracer();
   private UserRPCServer server;
+
+  private static final String USERNAME = "test_user";
 
   @Captor ArgumentCaptor<ResponseSender> captorSender;
 
@@ -102,6 +113,17 @@ public class TestUserRpcServer {
     // Simply connect the session to the connection.
     // It's up to the individual tests return from calls to the session.
     when(connection.getSession()).thenReturn(userSession);
+    when(userSession.getCredentials()).thenReturn(userCredentials);
+    when(userCredentials.getUserName()).thenReturn(USERNAME);
+    when(userServiceProvider.get()).thenReturn(userService);
+    try {
+      when(userService.getUser(USERNAME)).thenReturn(user);
+    } catch (UserNotFoundException e) {
+      // This doesn't actually happen because the mock is stubbed to return a real value, but it
+      // prevents us from needing to declare the exception in the method signature.
+    }
+    when(user.getUID()).thenReturn(uid);
+    when(uid.getId()).thenReturn(UUID.randomUUID().toString());
     when(userSession.isTracingEnabled()).thenReturn(enabled);
     when(connection.newRequestHandle(anyInt())).thenReturn(() -> { closed[0] = true; });
 

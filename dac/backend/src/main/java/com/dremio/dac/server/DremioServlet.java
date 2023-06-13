@@ -146,7 +146,9 @@ public class DremioServlet implements Servlet {
       .setShowNewJobsPage(options.getOption(UIOptions.JOBS_UI_CHECK))
       .setShowOldReflectionsListing(options.getOption(UIOptions.REFLECTIONSLISTING_UI_CHECK))
       .setAllowAutoComplete(options.getOption(UIOptions.ALLOW_AUTOCOMPLETE))
-      .setAllowFormatting(options.getOption(UIOptions.ALLOW_FORMATTING));
+      .setAllowDownload(options.getOption(UIOptions.ALLOW_DOWNLOAD))
+      .setAllowFormatting(options.getOption(UIOptions.ALLOW_FORMATTING))
+      .setUseNewDatasetNavigation(options.getOption(UIOptions.DATASET_NAVIGATION_CHECK));
   }
 
   protected Provider<SupportService> getSupportService() {

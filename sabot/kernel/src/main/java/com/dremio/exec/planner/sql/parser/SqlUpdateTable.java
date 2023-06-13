@@ -69,6 +69,7 @@ public class SqlUpdateTable extends SqlUpdate implements SqlDmlOperator {
     this.sourceOperand = source;
   }
 
+  @Override
   public void extendTableWithDataFileSystemColumns() {
     if (extendedTargetTable == null) {
       extendedTargetTable = DmlUtils.extendTableWithDataFileSystemColumns(getTargetTable());

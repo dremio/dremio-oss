@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Spinner } from "dremio-ui-lib/dist-esm";
+import { Spinner } from "dremio-ui-lib/components";
 import * as classes from "./CardLoadingState.module.less";
+import clsx from "clsx";
 
 const CardLoadingState = ({
   loadingText = "Loading",
@@ -26,7 +27,9 @@ const CardLoadingState = ({
   return (
     <div className={classes["card-loading"]}>
       <Spinner iconName={iconName} />
-      <span className={classes["card-loading-text"]}>{loadingText}</span>
+      <span className={clsx(classes["card-loading-text"], "text-sm")}>
+        {loadingText}
+      </span>
     </div>
   );
 };

@@ -27,6 +27,7 @@ import config from "dyn-load/utils/config";
 import { modalFooter } from "uiTheme/radium/modal";
 import { formDescription } from "uiTheme/radium/typography";
 import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
+import { FormattedMessage } from 'react-intl';
 
 export default class ProdErrorModal extends Component {
   static propTypes = {
@@ -41,7 +42,7 @@ export default class ProdErrorModal extends Component {
       !config.outsideCommunicationDisabled && (
         <CopyButton
           text={valueToCopy}
-          title={"Common.Copy"}
+          title={<FormattedMessage id={"Common.Copy"} />}
           buttonStyle={styles.copyButton}
         />
       )

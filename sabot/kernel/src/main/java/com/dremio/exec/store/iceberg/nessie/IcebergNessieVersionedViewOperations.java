@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.exec.catalog.ResolvedVersionContext;
 import com.dremio.plugins.NessieClient;
+import com.google.common.base.Preconditions;
 
 /**
  * Versioned iceberg view operations.
@@ -47,6 +48,7 @@ public class IcebergNessieVersionedViewOperations extends BaseMetastoreViewOpera
   private final List<String> viewKey;
   private final String dialect;
   private final ResolvedVersionContext version;
+  private final String userName;
   private IcebergView icebergView;
   private String baseContentId;
 
@@ -55,21 +57,26 @@ public class IcebergNessieVersionedViewOperations extends BaseMetastoreViewOpera
       NessieClient nessieClient,
       List<String> viewKey,
       String dialect,
-      ResolvedVersionContext version) {
+      ResolvedVersionContext version,
+      String userName) {
     this.fileIO = fileIO;
     this.nessieClient = requireNonNull(nessieClient);
     this.viewKey = requireNonNull(viewKey);
     this.dialect = dialect;
     this.version = version;
     this.baseContentId = null;
-
+    this.userName = userName;
   }
 
   @Override
   public ViewVersionMetadata refresh() {
     baseContentId = nessieClient.getContentId(viewKey, version, null);
-    final String metadataLocation = nessieClient.getMetadataLocation(viewKey, version, null);
-
+    String metadataLocation = null;
+    if (baseContentId != null) {
+      metadataLocation = nessieClient.getMetadataLocation(viewKey, version, null);
+      Preconditions.checkState(metadataLocation != null,
+        "No metadataLocation for iceberg view: " + viewKey + " ref: " + version);
+    }
     refreshFromMetadataLocation(metadataLocation, RETRY_IF, MAX_RETRIES, this::loadViewMetadata);
 
     return current();
@@ -83,7 +90,7 @@ public class IcebergNessieVersionedViewOperations extends BaseMetastoreViewOpera
   @Override
   public void drop(String viewIdentifier) {
     logger.debug("Deleting key for view {} at version {} from Nessie ", viewKey, version);
-    nessieClient.deleteCatalogEntry(viewKey, version);
+    nessieClient.deleteCatalogEntry(viewKey, version, userName);
   }
 
   @Override
@@ -95,7 +102,7 @@ public class IcebergNessieVersionedViewOperations extends BaseMetastoreViewOpera
 
     boolean isFailedOperation = true;
     try {
-      nessieClient.commitView(viewKey, newMetadataLocation, icebergView, target, dialect, version, baseContentId);
+      nessieClient.commitView(viewKey, newMetadataLocation, icebergView, target, dialect, version, baseContentId, userName);
       isFailedOperation = false;
     } finally {
       if (isFailedOperation) {

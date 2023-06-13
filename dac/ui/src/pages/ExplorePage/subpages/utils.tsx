@@ -31,7 +31,6 @@ type StatusObjectType = {
   buttonAlt?: string;
   ranJob?: boolean;
   error?: any;
-  showGraph?: boolean;
 };
 
 export const assemblePendingOrRunningTabContent = (
@@ -78,7 +77,8 @@ export const assemblePendingOrRunningTabContent = (
         JOB_STATUS.running,
       ].includes(statusesArray[index])
     ) {
-      obj.showGraph = true;
+      obj.renderIcon = "RUNNING";
+      obj.text = <FormattedMessage id="NewQuery.Submitted" />;
     } else {
       return;
     }

@@ -16,5 +16,5 @@
 
 export const getSupportFlags = (state) => {
   const supportFlags = state.supportFlags;
-  return supportFlags || [];
+  return supportFlags || {};
 };

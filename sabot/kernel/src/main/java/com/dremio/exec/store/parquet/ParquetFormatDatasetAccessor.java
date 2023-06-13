@@ -291,7 +291,7 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle, Supports
         final ImplicitFilesystemColumnFinder finder = new ImplicitFilesystemColumnFinder(context.getOptionManager(), fs, GroupScan.ALL_COLUMNS, isAccelerator);
 
         final long maxFooterLen = context.getOptionManager().getOption(ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR);
-        try (InputStreamProvider streamProvider = new SingleStreamProvider(fs, firstFile.getPath(), firstFile.size(), maxFooterLen, false, null, null, false);
+        try (InputStreamProvider streamProvider = new SingleStreamProvider(fs, firstFile.getPath(), firstFile.size(), maxFooterLen, false, null, null, false, ParquetFilters.NONE, ParquetFilterCreator.DEFAULT);
             RecordReader reader = new AdditionalColumnsRecordReader(operatorContext, new ParquetRowiseReader(operatorContext, mutableParquetMetadata, 0,
                  firstFile.getPath().toString(), ParquetScanProjectedColumns.fromSchemaPaths(GroupScan.ALL_COLUMNS),
                  fs, schemaHelper, streamProvider, codec, true), finder.getImplicitFieldsForSample(selection), sampleAllocator)) {
@@ -304,6 +304,8 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle, Supports
 
           mutator.getContainer().buildSchema(BatchSchema.SelectionVectorMode.NONE);
           return mutator.getContainer().getSchema();
+        } finally {
+          codec.release();
         }
       }
     } catch (Exception e) {

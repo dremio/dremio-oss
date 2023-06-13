@@ -78,7 +78,6 @@ import apiUtils from "@app/utils/apiUtils/apiUtils";
 import DropdownForSelectedText from "./DropdownForSelectedText";
 import ExploreCellLargeOverlay from "./ExploreCellLargeOverlay";
 import ExploreTable from "./ExploreTable";
-import ExploreTableJobDiagram from "./ExploreTableJobDiagram";
 
 export class ExploreTableController extends PureComponent {
   static propTypes = {
@@ -99,8 +98,6 @@ export class ExploreTableController extends PureComponent {
     height: PropTypes.number,
     widthScale: PropTypes.number,
     rightTreeVisible: PropTypes.bool,
-    sqlSize: PropTypes.number,
-    sqlState: PropTypes.bool,
     isResizeInProgress: PropTypes.bool,
     children: PropTypes.node,
     getTableHeight: PropTypes.func,
@@ -631,22 +628,12 @@ export class ExploreTableController extends PureComponent {
             style={{ padding: "0 8px" }}
           />
         </>
-      ) : Object.keys(currentTab).length === 1 && currentTab.showGraph ? (
-        // if job was submitted but is not in the RUNNING state, only show the diagram
-        <div className="sqlEditor__pendingTable">
-          <ExploreTableJobDiagram />
-        </div>
       ) : (
-        // if a job was submitted and is in the RUNNING state, show graph + button
         <div className="sqlEditor__pendingTable">
-          {currentTab.buttonText === "Cancel Job" ? (
-            <ExploreTableJobDiagram />
-          ) : (
-            <div className="sqlEditor__pendingTable__statusMessage">
-              {currentTab.renderIcon && renderJobStatus(currentTab.renderIcon)}
-              {currentTab.text}
-            </div>
-          )}
+          <div className="sqlEditor__pendingTable__statusMessage">
+            {currentTab.renderIcon && renderJobStatus(currentTab.renderIcon)}
+            {currentTab.text}
+          </div>
           {currentTab.buttonFunc && (
             <Button
               className="sqlEditor__pendingTable__button"
@@ -685,8 +672,6 @@ export class ExploreTableController extends PureComponent {
             updateColumnName={this.updateColumnName}
             height={this.props.height}
             dragType={this.props.dragType}
-            sqlSize={this.props.sqlSize}
-            sqlState={this.props.sqlState}
             rightTreeVisible={this.props.rightTreeVisible}
             onCellTextSelect={this.handleCellTextSelect}
             onCellShowMore={this.handleCellShowMore}

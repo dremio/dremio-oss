@@ -24,8 +24,6 @@ import java.util.List;
 import javax.inject.Provider;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.GrpcExceptionUtil;
@@ -65,6 +63,7 @@ import com.dremio.service.job.proto.JobSubmission;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 
 /**
  * This is used by the clients of {@link JobsService}. This service redirects calls to {@link LocalJobsService} over
@@ -72,8 +71,6 @@ import io.opentelemetry.api.trace.Span;
  */
 @Deprecated //TODO DX-19547: Remove HJS
 public class HybridJobsService implements JobsService {
-  private static final Logger logger = LoggerFactory.getLogger(HybridJobsService.class);
-
   private final GrpcChannelBuilderFactory grpcFactory;
   private final Provider<BufferAllocator> allocator;
 
@@ -139,6 +136,7 @@ public class HybridJobsService implements JobsService {
   }
 
   @Override
+  @WithSpan
   public JobSubmission submitJob(SubmitJobRequest jobRequest, JobStatusListener statusListener) {
     final JobStatusListenerAdapter adapter = new JobStatusListenerAdapter(statusListener);
     getAsyncStub().submitJob(jobRequest, adapter);
@@ -176,6 +174,7 @@ public class HybridJobsService implements JobsService {
   }
 
   @Override
+  @WithSpan
   public JobCounts getJobCounts(JobCountsRequest request) {
     try {
       return getChronicleBlockingStub().getJobCounts(request);
@@ -328,7 +327,7 @@ public class HybridJobsService implements JobsService {
     case NOT_FOUND:
       throw new JobNotFoundException(jobId, sre);
     case FAILED_PRECONDITION:
-      throw new JobNotFoundException(jobId, JobNotFoundException.causeOfFailure.CANCEL_FAILED);
+      throw new JobNotFoundException(jobId, JobNotFoundException.CauseOfFailure.CANCEL_FAILED);
     case PERMISSION_DENIED:
       throw new AccessControlException(
           String.format("Permission denied on user [%s] to access job [%s]", username, jobId));
@@ -349,7 +348,7 @@ public class HybridJobsService implements JobsService {
       case NOT_FOUND:
         throw new JobNotFoundException(jobId, sre);
       case FAILED_PRECONDITION:
-        throw new JobNotFoundException(jobId, JobNotFoundException.causeOfFailure.CANCEL_FAILED);
+        throw new JobNotFoundException(jobId, JobNotFoundException.CauseOfFailure.CANCEL_FAILED);
       case PERMISSION_DENIED:
         throw new AccessControlException(
           String.format("Permission denied on user [%s] to access job for reflection [%s]", username, reflectionId));

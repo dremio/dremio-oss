@@ -24,6 +24,7 @@ option java_outer_classname = "UdfProtobuf";
 
 message FunctionBody {
   optional string raw_body = 1;
+  optional bytes serialized_plan = 2;
 }
 
 message ReturnType {
@@ -33,6 +34,7 @@ message ReturnType {
 message FunctionArg {
   optional string name = 1;
   optional bytes raw_data_type = 2;
+  optional string default_expression = 3;
 }
 
 message FunctionDefinition {

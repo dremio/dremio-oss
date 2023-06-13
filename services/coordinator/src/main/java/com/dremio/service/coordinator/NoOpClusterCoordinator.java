@@ -47,6 +47,11 @@ public class NoOpClusterCoordinator extends ClusterCoordinator {
   }
 
   @Override
+  public void deleteServiceSet(String serviceName) {
+    // do nothing
+  }
+
+  @Override
   public Iterable<String> getServiceNames() throws Exception {
     return Collections.emptySet();
   }

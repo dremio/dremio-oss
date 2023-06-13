@@ -18,7 +18,7 @@ package com.dremio.exec.planner.sql.handlers.direct;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
+import java.util.Map;
 
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.RelNode;
@@ -26,7 +26,6 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.planner.DremioVolcanoPlanner;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.observer.AbstractAttemptObserver;
@@ -67,24 +66,12 @@ public class ExplainJsonHandler implements SqlDirectHandler<ExplainJsonHandler.E
 
       Rel drel;
       final ConvertedRelNode convertedRelNode = PrelTransformer.validateAndConvert(config, innerNode);
-      final RelDataType validatedRowType = convertedRelNode.getValidatedRowType();
-      final RelNode queryRelNode = convertedRelNode.getConvertedNode();
-      ViewAccessEvaluator viewAccessEvaluator = null;
-      if (config.getConverter().getSubstitutionProvider().isDefaultRawReflectionEnabled()) {
-        final RelNode convertedRelWithExpansionNodes = ((DremioVolcanoPlanner) queryRelNode.getCluster().getPlanner()).getOriginalRoot();
-        viewAccessEvaluator = new ViewAccessEvaluator(convertedRelWithExpansionNodes, config);
-        config.getContext().getExecutorService().submit(viewAccessEvaluator);
+      try (ViewAccessEvaluator ignored = ViewAccessEvaluator.createAsyncEvaluator(config, convertedRelNode)) {
+        final RelDataType validatedRowType = convertedRelNode.getValidatedRowType();
+        final RelNode queryRelNode = convertedRelNode.getConvertedNode();
+        drel = PrelTransformer.convertToDrel(config, queryRelNode, validatedRowType);
+        PrelTransformer.convertToPrel(config, drel);
       }
-      drel = PrelTransformer.convertToDrel(config, queryRelNode, validatedRowType);
-      PrelTransformer.convertToPrel(config, drel);
-
-      if (viewAccessEvaluator != null) {
-        viewAccessEvaluator.getLatch().await(config.getContext().getPlannerSettings().getMaxPlanningPerPhaseMS(), TimeUnit.MILLISECONDS);
-        if (viewAccessEvaluator.getException() != null) {
-          throw viewAccessEvaluator.getException();
-        }
-      }
-
       return toResultInner(node.getPhase(), observer.nodes);
     } catch (Exception ex){
       throw SqlExceptionHelper.coerceException(logger, sql, ex, true);
@@ -151,7 +138,7 @@ public class ExplainJsonHandler implements SqlDirectHandler<ExplainJsonHandler.E
 
     @Override
     public void planRelTransform(PlannerPhase phase, RelOptPlanner planner, RelNode before, RelNode after,
-        long millisTaken) {
+        long millisTaken, Map<String, Long> timeBreakdownPerRule) {
       add(phase.name(), after);
     }
 

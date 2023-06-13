@@ -15,7 +15,10 @@
  */
 package com.dremio.exec.store.hive.exec;
 
+import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
+
 import java.io.IOException;
+import java.security.PrivilegedExceptionAction;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Supplier;
@@ -23,9 +26,11 @@ import java.util.function.Supplier;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -54,23 +59,35 @@ public class HadoopFsCacheWrapperPluginClassLoader implements HadoopFsSupplierPr
     .build(new CacheLoader<HadoopFsCacheKeyPluginClassLoader, FileSystem>() {
       @Override
       public org.apache.hadoop.fs.FileSystem load(HadoopFsCacheKeyPluginClassLoader key) throws Exception {
-        try {
+        final UserGroupInformation loginUser = UserGroupInformation.getLoginUser();
+        final UserGroupInformation ugi;
+        if (key.getUserName().equals(loginUser.getUserName()) || SYSTEM_USERNAME.equals(key.getUserName())) {
+          ugi = loginUser;
+        } else {
+          ugi = UserGroupInformation.createProxyUser(key.getUserName(), loginUser);
+        }
+
+        final PrivilegedExceptionAction<org.apache.hadoop.fs.FileSystem> fsFactory = () -> {
           final String disableCacheName = String.format("fs.%s.impl.disable.cache", key.getUri().getScheme());
           // Clone the conf and set cache to disable, so that a new instance is created rather than returning an existing
           final Configuration cloneConf = new Configuration(key.getConf());
           cloneConf.set(disableCacheName, "true");
           return org.apache.hadoop.fs.FileSystem.get(key.getUri(), key.getConf());
-        } catch (IOException e) {
+        };
+
+        try {
+          return ugi.doAs(fsFactory);
+        } catch (IOException | InterruptedException e) {
           throw new RuntimeException(e);
         }
-      };
+      }
     });
 
   @Override
-  public Supplier<FileSystem> getHadoopFsSupplierPluginClassLoader(String path, Iterable<Map.Entry<String, String>> conf) {
+  public Supplier<FileSystem> getHadoopFsSupplierPluginClassLoader(String path, Iterable<Map.Entry<String, String>> conf, String userName) {
     return () -> {
       try {
-        return  cache.get(new HadoopFsCacheKeyPluginClassLoader(new Path(path).toUri(), conf));
+        return  cache.get(new HadoopFsCacheKeyPluginClassLoader(new Path(path).toUri(), conf, userName));
       } catch (ExecutionException e) {
         throw new RuntimeException(e);
       }
@@ -82,5 +99,10 @@ public class HadoopFsCacheWrapperPluginClassLoader implements HadoopFsSupplierPr
     // Empty cache
     cache.invalidateAll();
     cache.cleanUp();
+  }
+
+  @VisibleForTesting
+  protected LoadingCache<HadoopFsCacheKeyPluginClassLoader, FileSystem> getCache() {
+      return cache;
   }
 }

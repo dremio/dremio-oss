@@ -230,9 +230,7 @@ export class JobsContent extends PureComponent {
     const renderColumn = (data, isNumeric, className) => (
       <ColumnCell data={data} isNumeric={isNumeric} className={className} />
     );
-    const renderSQL = (sql) => (
-      <SQLCell sql={sql} isFromExplorePage={isFromExplorePage} />
-    );
+    const renderSQL = (sql) => <SQLCell sql={sql} />;
     const renderDataset = (job) => (
       <DatasetCell job={job} isContextMenuOpen={contextMenu.isOpen} />
     );
@@ -298,9 +296,12 @@ export class JobsContent extends PureComponent {
             node: () => renderJobStatus(job.get("state")),
             value: job.get("state"),
           },
-          job: { node: () => renderColumn(jobIdForMap), value: jobIdForMap },
+          job: {
+            node: () => renderColumn(jobIdForMap, false, "fullHeight"),
+            value: jobIdForMap,
+          },
           usr: {
-            node: () => renderColumn(job.get("user")),
+            node: () => renderColumn(job.get("user"), false, "fullHeight"),
             value: job.get("queryUser"),
           },
           acceleration: {
@@ -315,7 +316,9 @@ export class JobsContent extends PureComponent {
           qt: {
             node: () =>
               renderColumn(
-                intl.formatMessage({ id: getFormatMessageIdForQueryType(job) })
+                intl.formatMessage({ id: getFormatMessageIdForQueryType(job) }),
+                false,
+                "fullHeight"
               ),
             value: job.get("queryType"),
           },
@@ -352,19 +355,26 @@ export class JobsContent extends PureComponent {
             }),
           },
           cost: {
-            node: () => renderColumn(formattedCost.toString(), true),
+            node: () =>
+              renderColumn(formattedCost.toString(), true, "fullHeight"),
             value: formattedCost.toString(),
           },
           planningTime: {
-            node: () => renderColumn(formattedPlanningTime, true),
+            node: () => renderColumn(formattedPlanningTime, true, "fullHeight"),
             value: formattedPlanningTime,
           },
           rowsScanned: {
-            node: () => renderColumn(formattedRowsScanned.toString(), true),
+            node: () =>
+              renderColumn(formattedRowsScanned.toString(), true, "fullHeight"),
             value: formattedRowsScanned.toString(),
           },
           rowsReturned: {
-            node: () => renderColumn(formattedRowsReturned.toString(), true),
+            node: () =>
+              renderColumn(
+                formattedRowsReturned.toString(),
+                true,
+                "fullHeight"
+              ),
             value: formattedRowsReturned.toString(),
           },
           buttons: { node: () => renderButtons(job.get("state"), jobIdForMap) },

@@ -55,9 +55,16 @@ public interface SupportsIcebergMetadata {
   /**
    * Provides statistics for number of position/equality delete records.
    *
-   * @return a DatasetStats instance with the count of delete records.
+   * @return a DatasetStats instance with the count of total delete records.
    */
   DatasetStats getDeleteStats();
+
+  /**
+   * Provides statistics for number of equality delete records.
+   *
+   * @return a DatasetStats instance with the count of equality delete records.
+   */
+  DatasetStats getEqualityDeleteStats();
 
   /**
    * Provides statistics for number of delete files.
@@ -65,4 +72,10 @@ public interface SupportsIcebergMetadata {
    * @return a DatasetStats instance with the count of delete files.
    */
   DatasetStats getDeleteManifestStats();
+
+  /**
+   * modification time for the snapshot
+   */
+  long getMtime();
+
 }

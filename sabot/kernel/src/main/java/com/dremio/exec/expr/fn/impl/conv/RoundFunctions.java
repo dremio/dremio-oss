@@ -42,9 +42,11 @@ public class RoundFunctions {
     @Param  IntHolder in;
     @Output IntHolder out;
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.value = in.value;
     }
@@ -56,9 +58,11 @@ public class RoundFunctions {
     @Param BigIntHolder in;
     @Output BigIntHolder out;
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.value = in.value;
     }
@@ -70,9 +74,11 @@ public class RoundFunctions {
     @Param Float4Holder in;
     @Output Float4Holder out;
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       java.math.BigDecimal input = java.math.BigDecimal.valueOf(in.value);
       out.value = input.setScale(0, java.math.RoundingMode.HALF_UP).floatValue();
@@ -85,9 +91,11 @@ public class RoundFunctions {
     @Param Float8Holder in;
     @Output Float8Holder out;
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       java.math.BigDecimal input = java.math.BigDecimal.valueOf(in.value);
       out.value = input.setScale(0, java.math.RoundingMode.HALF_UP).doubleValue();

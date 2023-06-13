@@ -18,16 +18,21 @@ package com.dremio.service.grpc;
 import java.util.Set;
 
 import com.dremio.telemetry.utils.GrpcTracerFacade;
+import com.dremio.telemetry.utils.TracerFacade;
 
 import io.grpc.ServerInterceptor;
 import io.opentracing.Tracer;
 
 /**
- * Grpc server factory without multi-tenancy support.
+ * Grpc server factory helper.  Most behavior depends on registered interceptors.
  */
 public final class SimpleGrpcServerBuilderFactory extends BaseGrpcServerBuilderFactory {
   public SimpleGrpcServerBuilderFactory(Tracer tracer) {
     super(tracer);
+  }
+
+  public SimpleGrpcServerBuilderFactory(TracerFacade tracer, Set<ServerInterceptor> serverInterceptorSet) {
+    super(new GrpcTracerFacade(tracer), serverInterceptorSet);
   }
 
   public SimpleGrpcServerBuilderFactory(GrpcTracerFacade tracer, Set<ServerInterceptor> serverInterceptorSet) {

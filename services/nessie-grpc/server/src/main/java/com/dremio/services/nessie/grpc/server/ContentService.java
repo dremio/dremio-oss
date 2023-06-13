@@ -23,9 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
 
-import org.projectnessie.api.ContentApi;
 import org.projectnessie.model.ContentKey;
-import org.projectnessie.model.GetMultipleContentsRequest;
 
 import com.dremio.services.nessie.grpc.api.Content;
 import com.dremio.services.nessie.grpc.api.ContentRequest;
@@ -40,9 +38,9 @@ import io.grpc.stub.StreamObserver;
  */
 public class ContentService extends ContentServiceGrpc.ContentServiceImplBase {
 
-  private final Supplier<ContentApi> bridge;
+  private final Supplier<? extends org.projectnessie.services.spi.ContentService> bridge;
 
-  public ContentService(Supplier<ContentApi> bridge) {
+  public ContentService(Supplier<? extends org.projectnessie.services.spi.ContentService> bridge) {
     this.bridge = bridge;
   }
 
@@ -53,8 +51,10 @@ public class ContentService extends ContentServiceGrpc.ContentServiceImplBase {
         toProto(
           bridge.get().getContent(
             fromProto(request.getContentKey()),
-            request.getRef(),
-            getHashOnRefFromProtoRequest(request.getHashOnRef()))),
+            getRefFromProtoRequest(request.getRef()),
+            getHashOnRefFromProtoRequest(request.getHashOnRef()),
+            false // TODO: support withDocumentation
+          ).getContent()),
       observer);
   }
 
@@ -67,14 +67,21 @@ public class ContentService extends ContentServiceGrpc.ContentServiceImplBase {
         request.getRequestedKeysList().forEach(k -> requestedKeys.add(fromProto(k)));
         return toProto(
           bridge.get().getMultipleContents(
-            request.getRef(),
+            getRefFromProtoRequest(request.getRef()),
             getHashOnRefFromProtoRequest(request.getHashOnRef()),
-            GetMultipleContentsRequest.of(requestedKeys)));
+            requestedKeys,
+            false // TODO: support withDocumentation
+          )
+        );
       },
       observer);
   }
 
   private String getHashOnRefFromProtoRequest(String hashOnRef) {
     return "".equals(hashOnRef) ? null : hashOnRef;
+  }
+
+  private String getRefFromProtoRequest(String ref) {
+    return "".equals(ref) ? null : ref;
   }
 }

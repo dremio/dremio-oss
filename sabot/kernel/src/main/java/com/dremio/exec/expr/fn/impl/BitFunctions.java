@@ -41,10 +41,12 @@ public class BitFunctions {
     @Workspace int partitionNumber;
     @Output IntHolder out;
 
+    @Override
     public void setup() {
       partitionNumber = 0;
     }
 
+    @Override
     public void eval() {
       partitionNumber += input.value;
       out.value = partitionNumber;
@@ -59,8 +61,10 @@ public class BitFunctions {
     @Param BitHolder right;
     @Output BitHolder out;
 
+    @Override
     public void setup() {}
 
+    @Override
     public void eval() {
       out.value = left.value | right.value;
     }
@@ -74,8 +78,10 @@ public class BitFunctions {
     @Param BitHolder right;
     @Output BitHolder out;
 
+    @Override
     public void setup() {}
 
+    @Override
     public void eval() {
       out.value = left.value & right.value;
     }
@@ -91,8 +97,10 @@ public class BitFunctions {
     @Param IntHolder right;
     @Output IntHolder out;
 
+    @Override
     public void setup() {}
 
+    @Override
     public void eval() {
       out.value = left.value ^ right.value;
     }

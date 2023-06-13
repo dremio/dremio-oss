@@ -47,9 +47,11 @@ public class Hash64FunctionsWithSeed {
     @Output NullableBigIntHolder out;
 
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {
@@ -68,9 +70,11 @@ public class Hash64FunctionsWithSeed {
     @Output NullableBigIntHolder out;
 
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {
@@ -89,9 +93,11 @@ public class Hash64FunctionsWithSeed {
     @Output NullableBigIntHolder out;
 
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {
@@ -110,9 +116,11 @@ public class Hash64FunctionsWithSeed {
     @Output NullableBigIntHolder out;
 
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {
@@ -131,15 +139,16 @@ public class Hash64FunctionsWithSeed {
     @Output NullableBigIntHolder out;
 
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {
         out.value = seed.value;
-      }
-      else {
+      } else {
         out.value = com.dremio.common.expression.fn.impl.HashHelper.hash64(in.value, seed.value);
       }
     }
@@ -152,15 +161,16 @@ public class Hash64FunctionsWithSeed {
     @Output NullableBigIntHolder out;
 
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {
         out.value = seed.value;
-      }
-      else {
+      } else {
         out.value = com.dremio.common.expression.fn.impl.HashHelper.hash64(in.value, seed.value);
       }
     }
@@ -173,9 +183,11 @@ public class Hash64FunctionsWithSeed {
     @Output NullableBigIntHolder out;
 
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {
@@ -193,9 +205,11 @@ public class Hash64FunctionsWithSeed {
     @Output NullableBigIntHolder out;
 
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {
@@ -213,9 +227,11 @@ public class Hash64FunctionsWithSeed {
     @Output NullableBigIntHolder out;
 
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {
@@ -233,9 +249,11 @@ public class Hash64FunctionsWithSeed {
     @Param BigIntHolder seed;
     @Output NullableBigIntHolder out;
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {
@@ -255,9 +273,11 @@ public class Hash64FunctionsWithSeed {
     @Output NullableBigIntHolder out;
 
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {

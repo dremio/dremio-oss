@@ -60,6 +60,7 @@ public class HiveSplitCreator implements BlockBasedSplitGenerator.SplitCreator {
     partitionXattrBytes = partitionXattr.toByteString();
   }
 
+  @Override
   public SplitAndPartitionInfo createSplit(PartitionProtobuf.NormalizedPartitionInfo filePartitionInfo, SplitIdentity splitIdentity, String fileFormat, long fileSize, long currentModTime) throws InvalidProtocolBufferException {
     InputSplit inputSplit;
     switch (fileFormat) {

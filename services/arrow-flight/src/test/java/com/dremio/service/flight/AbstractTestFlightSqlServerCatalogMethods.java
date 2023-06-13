@@ -448,4 +448,35 @@ public abstract class AbstractTestFlightSqlServerCatalogMethods extends BaseFlig
       stream.getRoot().clear();
     }
   }
+
+  private FlightStream getSqlInfoFlightStream() {
+    final FlightInfo flightInfo = flightSqlClient.getSqlInfo(new FlightSql.SqlInfo[] {},  getCallOptions());
+    return flightSqlClient.getStream(flightInfo.getEndpoints().get(0).getTicket(),
+      getCallOptions());
+  }
+
+  @Test
+  public void testGetSqlInfoClosingAfterStreamIsRetrieved() throws Exception {
+    final FlightStream stream = getSqlInfoFlightStream();
+    drainStream(stream);
+
+    stream.close();
+  }
+
+  @Test
+  public void testGetSqlInfoCancelingBeforeStreamIsRetrieved() throws Exception {
+    try (final FlightStream stream = getSqlInfoFlightStream()) {
+      stream.cancel("Metadata retrieved canceled", new Exception("Testing query data retrieval cancellation."));
+    }
+  }
+
+  @Test
+  public void testGetSqlInfoCancelingAfterStreamIsRetrieved() throws Exception {
+    try (final FlightStream stream = getSqlInfoFlightStream()) {
+      drainStream(stream);
+
+      stream.cancel("Metadata retrieved canceled", new Exception("Testing query data retrieval cancellation."));
+      stream.getRoot().clear();
+    }
+  }
 }

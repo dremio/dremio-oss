@@ -32,6 +32,7 @@ import java.util.Map;
     return true;
   }
 
+  @Override
   public boolean enter(V o) {
     visit(o);
     return true;

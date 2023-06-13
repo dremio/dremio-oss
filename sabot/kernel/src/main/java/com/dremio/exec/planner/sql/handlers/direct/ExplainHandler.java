@@ -17,26 +17,24 @@ package com.dremio.exec.planner.sql.handlers.direct;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.calcite.plan.RelOptUtil;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlExplain;
 import org.apache.calcite.sql.SqlExplainLevel;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.util.Pair;
+import org.apache.calcite.sql.dialect.CalciteSqlDialect;
 
 import com.dremio.common.logical.PlanProperties.Generator.ResultMode;
-import com.dremio.exec.planner.DremioVolcanoPlanner;
-import com.dremio.exec.planner.logical.Rel;
-import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
-import com.dremio.exec.planner.sql.handlers.ConvertedRelNode;
-import com.dremio.exec.planner.sql.handlers.PrelTransformer;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
-import com.dremio.exec.planner.sql.handlers.ViewAccessEvaluator;
+import com.dremio.exec.planner.sql.handlers.query.DeleteHandler;
+import com.dremio.exec.planner.sql.handlers.query.InsertTableHandler;
+import com.dremio.exec.planner.sql.handlers.query.MergeHandler;
+import com.dremio.exec.planner.sql.handlers.query.NormalHandler;
+import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
+import com.dremio.exec.planner.sql.handlers.query.UpdateHandler;
+
 
 public class ExplainHandler implements SqlDirectHandler<ExplainHandler.Explain> {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExplainHandler.class);
@@ -56,74 +54,70 @@ public class ExplainHandler implements SqlDirectHandler<ExplainHandler.Explain> 
       final SqlLiteral op = node.operand(2);
       final SqlExplain.Depth depth = (SqlExplain.Depth) op.getValue();
 
+      final SqlExplainLevel level = node.getDetailLevel() != null
+        ? node.getDetailLevel()
+        : SqlExplainLevel.ALL_ATTRIBUTES;
       final ResultMode mode;
-      SqlExplainLevel level = SqlExplainLevel.ALL_ATTRIBUTES;
-
-      if (node.getDetailLevel() != null) {
-        level = node.getDetailLevel();
-      }
-
       switch (depth) {
-      case LOGICAL:
-        mode = ResultMode.LOGICAL;
-        break;
-      case PHYSICAL:
-        mode = ResultMode.PHYSICAL;
-        break;
-      default:
-        throw new UnsupportedOperationException("Unknown depth " + depth);
+        case LOGICAL:
+          mode = ResultMode.LOGICAL;
+          break;
+        case PHYSICAL:
+          mode = ResultMode.PHYSICAL;
+          break;
+        default:
+          throw new UnsupportedOperationException("Unknown depth " + depth);
       }
 
+      // get plan
       final SqlNode innerNode = node.operand(0);
-
-      Rel drel;
-      final ConvertedRelNode convertedRelNode = PrelTransformer.validateAndConvert(config, innerNode);
-      final RelDataType validatedRowType = convertedRelNode.getValidatedRowType();
-      final RelNode queryRelNode = convertedRelNode.getConvertedNode();
-
-      ViewAccessEvaluator viewAccessEvaluator = null;
-      if (config.getConverter().getSubstitutionProvider().isDefaultRawReflectionEnabled()) {
-        final RelNode convertedRelWithExpansionNodes = ((DremioVolcanoPlanner) queryRelNode.getCluster().getPlanner()).getOriginalRoot();
-        viewAccessEvaluator = new ViewAccessEvaluator(convertedRelWithExpansionNodes, config);
-        config.getContext().getExecutorService().submit(viewAccessEvaluator);
+      SqlToPlanHandler innerNodeHandler;
+      switch (innerNode.getKind()) {
+        // We currently only support OrderedQueryOrExpr and Insert/Delete/Update/Merge
+        case INSERT:
+          innerNodeHandler = new InsertTableHandler();
+          break;
+        case DELETE:
+          innerNodeHandler = new DeleteHandler();
+          break;
+        case MERGE:
+          innerNodeHandler = new MergeHandler();
+          break;
+        case UPDATE:
+          innerNodeHandler = new UpdateHandler();
+          break;
+        // for OrderedQueryOrExpr such as select, use NormalHandler
+        default:
+          innerNodeHandler = new NormalHandler();
       }
 
-      PrelTransformer.log("Calcite", queryRelNode, logger, null);
-      drel = PrelTransformer.convertToDrel(config, queryRelNode, validatedRowType);
+      innerNodeHandler
+        .getPlan(
+          config,
+          innerNode.toSqlString(CalciteSqlDialect.DEFAULT).getSql(),
+          innerNode);
 
+      String planAsText;
       if (mode == ResultMode.LOGICAL) {
-        if (viewAccessEvaluator != null) {
-          viewAccessEvaluator.getLatch().await(config.getContext().getPlannerSettings().getMaxPlanningPerPhaseMS(), TimeUnit.MILLISECONDS);
-          if (viewAccessEvaluator.getException() != null) {
-            throw viewAccessEvaluator.getException();
-          }
-        }
-        return Collections.singletonList(new Explain(RelOptUtil.toString(drel, level)));
+        planAsText = RelOptUtil.toString(innerNodeHandler.getLogicalPlan(), level);
+      } else {
+        planAsText = innerNodeHandler.getTextPlan();
       }
 
-      final Pair<Prel, String> convertToPrel = PrelTransformer.convertToPrel(config, drel);
-      if (viewAccessEvaluator != null) {
-        viewAccessEvaluator.getLatch().await(config.getContext().getPlannerSettings().getMaxPlanningPerPhaseMS(), TimeUnit.MILLISECONDS);
-        if (viewAccessEvaluator.getException() != null) {
-          throw viewAccessEvaluator.getException();
-        }
-      }
-      final String text = convertToPrel.getValue();
-      return Collections.singletonList(new Explain(text));
-    } catch (Exception ex){
+      Explain explain = new Explain(planAsText);
+      return Collections.singletonList(explain);
+    } catch (Exception ex) {
       throw SqlExceptionHelper.coerceException(logger, sql, ex, true);
     }
   }
 
   public static class Explain {
-
     public final String text;
 
     public Explain(String text) {
       super();
       this.text = text;
     }
-
   }
 
   @Override

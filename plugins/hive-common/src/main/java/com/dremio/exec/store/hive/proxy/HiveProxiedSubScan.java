@@ -92,5 +92,6 @@ public abstract class HiveProxiedSubScan implements ExtensionPoint {
 
   public abstract boolean mayLearnSchema();
 
+  @Override
   public abstract HiveProxiedSubScan clone();
 }

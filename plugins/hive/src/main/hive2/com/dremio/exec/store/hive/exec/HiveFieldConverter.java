@@ -18,13 +18,12 @@ package com.dremio.exec.store.hive.exec;
 import static com.dremio.exec.store.hive.HiveUtilities.throwUnsupportedHiveDataTypeError;
 
 import java.lang.reflect.InvocationTargetException;
+import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import com.dremio.common.exceptions.FieldSizeLimitExceptionHelper;
-import com.dremio.exec.store.hive.exec.HiveAbstractReader.HiveOperatorContextOptions;
-
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.util.LargeMemoryUtil;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
@@ -34,15 +33,37 @@ import org.apache.arrow.vector.Float4Vector;
 import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.TimeStampMilliVector;
+import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
-import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.complex.MapVector;
+import org.apache.arrow.vector.complex.StructVector;
+import org.apache.arrow.vector.complex.impl.NullableStructWriter;
+import org.apache.arrow.vector.complex.impl.UnionListWriter;
+import org.apache.arrow.vector.complex.impl.UnionMapWriter;
+import org.apache.arrow.vector.complex.writer.BaseWriter;
+import org.apache.arrow.vector.complex.writer.BigIntWriter;
+import org.apache.arrow.vector.complex.writer.BitWriter;
+import org.apache.arrow.vector.complex.writer.DateMilliWriter;
+import org.apache.arrow.vector.complex.writer.DecimalWriter;
+import org.apache.arrow.vector.complex.writer.Float4Writer;
+import org.apache.arrow.vector.complex.writer.Float8Writer;
+import org.apache.arrow.vector.complex.writer.IntWriter;
+import org.apache.arrow.vector.complex.writer.TimeStampMilliWriter;
+import org.apache.arrow.vector.complex.writer.VarBinaryWriter;
+import org.apache.arrow.vector.complex.writer.VarCharWriter;
 import org.apache.arrow.vector.holders.DecimalHolder;
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.util.DecimalUtility;
 import org.apache.hadoop.hive.serde2.io.DateWritable;
 import org.apache.hadoop.hive.serde2.io.TimestampWritable;
+import org.apache.hadoop.hive.serde2.objectinspector.ListObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.MapObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector.PrimitiveCategory;
+import org.apache.hadoop.hive.serde2.objectinspector.StructField;
+import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.BinaryObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.BooleanObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.ByteObjectInspector;
@@ -58,9 +79,15 @@ import org.apache.hadoop.hive.serde2.objectinspector.primitive.ShortObjectInspec
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.StringObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.TimestampObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.DecimalTypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.ListTypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.MapTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.StructTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.io.Text;
+
+import com.dremio.common.exceptions.FieldSizeLimitExceptionHelper;
+import com.dremio.exec.store.hive.exec.HiveAbstractReader.HiveOperatorContextOptions;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.google.common.collect.Maps;
 
@@ -99,7 +126,6 @@ public abstract class HiveFieldConverter {
     primMap.put(PrimitiveCategory.CHAR, Char.class);
   }
 
-
   public static HiveFieldConverter create(TypeInfo typeInfo, OperatorContext context, HiveOperatorContextOptions options)
       throws IllegalAccessException, InstantiationException, NoSuchMethodException, InvocationTargetException {
     switch (typeInfo.getCategory()) {
@@ -122,38 +148,28 @@ public abstract class HiveFieldConverter {
         break;
 
       case LIST: {
-        Class<? extends HiveFieldConverter> clazz = List.class;
-        if (clazz != null) {
-          return clazz.getConstructor(HiveOperatorContextOptions.class).newInstance(options);
-        }
+        return new HiveList((ListTypeInfo) typeInfo, context, options);
       }
-      break;
       case STRUCT: {
-        Class<? extends HiveFieldConverter> clazz = Struct.class;
-        if (clazz != null) {
-          return clazz.getConstructor(HiveOperatorContextOptions.class).newInstance(options);
-        }
+        return new HiveStruct((StructTypeInfo) typeInfo, context, options);
       }
-      break;
       case MAP: {
-        Class<? extends HiveFieldConverter> clazz = HiveMap.class;
-        if (clazz != null) {
-          return clazz.getConstructor(HiveOperatorContextOptions.class).newInstance(options);
-        }
+        return new HiveMap((MapTypeInfo) typeInfo, context, options);
       }
-      break;
       case UNION: {
         Class<? extends HiveFieldConverter> clazz = Union.class;
         if (clazz != null) {
           return clazz.getConstructor(HiveOperatorContextOptions.class).newInstance(options);
         }
       }
+      break;
       default:
         throwUnsupportedHiveDataTypeError(typeInfo.getCategory().toString());
     }
 
     return null;
   }
+
   public static class Union extends HiveFieldConverter {
     public Union(HiveOperatorContextOptions options) {
       super(options);
@@ -165,37 +181,297 @@ public abstract class HiveFieldConverter {
       return;
     }
   }
-  public static class HiveMap extends HiveFieldConverter {
-    public HiveMap(HiveOperatorContextOptions options) {
+
+  public abstract static class BaseComplexConverter extends HiveFieldConverter {
+    private final OperatorContext context;
+
+    protected BaseComplexConverter(OperatorContext context, HiveOperatorContextOptions options) {
       super(options);
+      this.context = context;
     }
-    @Override
-    public void setSafeValue(ObjectInspector oi, Object hiveFieldValue, ValueVector outputVV, int outputIndex) {
-      // In ORC vectorized file reader path these functions are not called.
-      // Currently we support complex types in ORC format only
-      return;
+
+    protected void write(BaseWriter.ListWriter writer, TypeInfo typeInfo, ObjectInspector oi, Object value) {
+      if (value == null) {
+        return;
+      }
+
+      switch (typeInfo.getCategory()) {
+        case PRIMITIVE: {
+          final PrimitiveTypeInfo primitiveTypeInfo = (PrimitiveTypeInfo) typeInfo;
+          switch (primitiveTypeInfo.getPrimitiveCategory()) {
+            case BOOLEAN:
+              writeBoolean(writer.bit(), ((BooleanObjectInspector) oi).get(value));
+              break;
+            case DOUBLE:
+              writeDouble(writer.float8(), ((DoubleObjectInspector) oi).get(value));
+              break;
+            case FLOAT:
+              writeFloat(writer.float4(), ((FloatObjectInspector) oi).get(value));
+              break;
+            case DECIMAL:
+              writeDecimal(writer.decimal(), getDecimalValue((DecimalTypeInfo) typeInfo, oi, value));
+              break;
+            case BYTE:
+              writeInt(writer.integer(), ((ByteObjectInspector) oi).get(value));
+              break;
+            case INT:
+              writeInt(writer.integer(), ((IntObjectInspector) oi).get(value));
+              break;
+            case LONG:
+              writeLong(writer.bigInt(), ((LongObjectInspector) oi).get(value));
+              break;
+            case SHORT:
+              writeInt(writer.integer(), ((ShortObjectInspector) oi).get(value));
+              break;
+            case BINARY:
+              writeBinary(writer.varBinary(), ((BinaryObjectInspector) oi).getPrimitiveJavaObject(value));
+              break;
+            case STRING:
+              writeText(writer.varChar(), ((StringObjectInspector) oi).getPrimitiveWritableObject(value));
+              break;
+            case VARCHAR:
+              writeText(writer.varChar(), ((HiveVarcharObjectInspector) oi).getPrimitiveWritableObject(value).getTextValue());
+              break;
+            case TIMESTAMP:
+              writeTimestamp(writer.timeStampMilli(), ((TimestampObjectInspector) oi).getPrimitiveWritableObject(value));
+              break;
+            case DATE:
+              writeDate(writer.dateMilli(), ((DateObjectInspector) oi).getPrimitiveWritableObject(value));
+              break;
+            case CHAR:
+              writeText(writer.varChar(), ((HiveCharObjectInspector) oi).getPrimitiveWritableObject(value).getStrippedValue());
+              break;
+            default:
+              break;
+          }
+        }
+        break;
+        case LIST:
+          writeList(writer.list(), (ListTypeInfo) typeInfo, (ListObjectInspector) oi, value);
+          break;
+        case MAP:
+          writeMap(writer.map(false), (MapTypeInfo) typeInfo, (MapObjectInspector) oi, value);
+          break;
+        case STRUCT:
+          writeStruct(writer.struct(), (StructTypeInfo) typeInfo, (StructObjectInspector) oi, value);
+          break;
+        default:
+          break;
+      }
+    }
+
+    protected void write(BaseWriter.StructWriter writer, java.lang.String name, TypeInfo typeInfo, ObjectInspector oi, Object value) {
+      if (value == null) {
+        return;
+      }
+
+      switch (typeInfo.getCategory()) {
+        case PRIMITIVE: {
+          final PrimitiveTypeInfo primitiveTypeInfo = (PrimitiveTypeInfo) typeInfo;
+          switch (primitiveTypeInfo.getPrimitiveCategory()) {
+            case BOOLEAN:
+              writeBoolean(writer.bit(name), ((BooleanObjectInspector) oi).get(value));
+              break;
+            case DOUBLE:
+              writeDouble(writer.float8(name), ((DoubleObjectInspector) oi).get(value));
+              break;
+            case FLOAT:
+              writeFloat(writer.float4(name), ((FloatObjectInspector) oi).get(value));
+              break;
+            case DECIMAL: {
+              DecimalTypeInfo decimalTypeInfo = (DecimalTypeInfo) typeInfo;
+              writeDecimal(writer.decimal(name, decimalTypeInfo.scale(), decimalTypeInfo.precision()),
+                getDecimalValue(decimalTypeInfo, oi, value));
+            }
+            break;
+            case BYTE:
+              writeInt(writer.integer(name), ((ByteObjectInspector) oi).get(value));
+              break;
+            case INT:
+              writeInt(writer.integer(name), ((IntObjectInspector) oi).get(value));
+              break;
+            case LONG:
+              writeLong(writer.bigInt(name), ((LongObjectInspector) oi).get(value));
+              break;
+            case SHORT:
+              writeInt(writer.integer(name), ((ShortObjectInspector) oi).get(value));
+              break;
+            case BINARY:
+              writeBinary(writer.varBinary(name), ((BinaryObjectInspector) oi).getPrimitiveJavaObject(value));
+              break;
+            case STRING:
+              writeText(writer.varChar(name), ((StringObjectInspector) oi).getPrimitiveWritableObject(value));
+              break;
+            case VARCHAR:
+              writeText(writer.varChar(name), ((HiveVarcharObjectInspector) oi).getPrimitiveWritableObject(value).getTextValue());
+              break;
+            case TIMESTAMP:
+              writeTimestamp(writer.timeStampMilli(name), ((TimestampObjectInspector) oi).getPrimitiveWritableObject(value));
+              break;
+            case DATE:
+              writeDate(writer.dateMilli(name), ((DateObjectInspector) oi).getPrimitiveWritableObject(value));
+              break;
+            case CHAR:
+              writeText(writer.varChar(name), ((HiveCharObjectInspector) oi).getPrimitiveWritableObject(value).getStrippedValue());
+              break;
+            default:
+              break;
+          }
+        }
+        break;
+        case LIST:
+          writeList(writer.list(name), (ListTypeInfo) typeInfo, (ListObjectInspector) oi, value);
+          break;
+        case MAP:
+          writeMap(writer.map(name, false), (MapTypeInfo) typeInfo, (MapObjectInspector) oi, value);
+          break;
+        case STRUCT:
+          writeStruct(writer.struct(name), (StructTypeInfo) typeInfo, (StructObjectInspector) oi, value);
+          break;
+        default:
+          break;
+      }
+    }
+
+    private OperatorContext getContext() {
+      return context;
+    }
+
+    private static BigDecimal getDecimalValue(DecimalTypeInfo typeInfo, ObjectInspector oi, Object value) {
+      BigDecimal decimal = ((HiveDecimalObjectInspector) oi).getPrimitiveJavaObject(value).bigDecimalValue();
+      return decimal.setScale(typeInfo.scale(), RoundingMode.HALF_UP);
+    }
+
+    private void writeBinary(VarBinaryWriter writer, byte[] value) {
+      checkSizeLimit(value.length);
+      try (ArrowBuf buf = getContext().getAllocator().buffer(value.length)) {
+        buf.setBytes(0, value);
+        writer.writeVarBinary(0, value.length, buf);
+      }
+    }
+
+    private void writeBoolean(BitWriter writer, boolean value) {
+      writer.writeBit(value ? 1 : 0);
+    }
+
+    private void writeDouble(Float8Writer writer, double value) {
+      writer.writeFloat8(value);
+    }
+
+    private void writeFloat(Float4Writer writer, float value) {
+      writer.writeFloat4(value);
+    }
+
+    private void writeDecimal(DecimalWriter writer, BigDecimal value) {
+      writer.writeDecimal(value);
+    }
+
+    private void writeInt(IntWriter writer, int value) {
+      writer.writeInt(value);
+    }
+
+    private void writeLong(BigIntWriter writer, long value) {
+      writer.writeBigInt(value);
+    }
+
+    private void writeText(VarCharWriter writer, Text value) {
+      checkSizeLimit(value.getLength());
+      try (ArrowBuf buf = getContext().getAllocator().buffer(value.getLength())) {
+        buf.setBytes(0, value.getBytes());
+        writer.writeVarChar(0, value.getLength(), buf);
+      }
+    }
+
+    private void writeTimestamp(TimeStampMilliWriter writer, TimestampWritable value) {
+      long seconds = value.getSeconds();
+      long nanos = value.getNanos();
+      long millis = seconds * 1000 + nanos/1000/1000;
+      writer.writeTimeStampMilli(millis);
+    }
+
+    private void writeDate(DateMilliWriter writer, DateWritable value) {
+      writer.writeDateMilli(value.get().toLocalDate().toEpochDay() * Date.MILLIS_PER_DAY);
+    }
+
+    protected void writeMap(BaseWriter.MapWriter writer, MapTypeInfo typeInfo, MapObjectInspector oi, Object value) {
+      writer.startMap();
+      for (Map.Entry<?, ?> e : oi.getMap(value).entrySet()) {
+        writer.startEntry();
+        write(writer.key(), typeInfo.getMapKeyTypeInfo(), oi.getMapKeyObjectInspector(), e.getKey());
+        write(writer.value(), typeInfo.getMapValueTypeInfo(), oi.getMapValueObjectInspector(), e.getValue());
+        writer.endEntry();
+      }
+      writer.endMap();
+    }
+
+    protected void writeList(BaseWriter.ListWriter writer, ListTypeInfo typeInfo, ListObjectInspector listOi, Object value) {
+      writer.startList();
+      for (Object o : listOi.getList(value)) {
+        write(writer, typeInfo.getListElementTypeInfo(), listOi.getListElementObjectInspector(), o);
+      }
+      writer.endList();
+    }
+
+    protected void writeStruct(BaseWriter.StructWriter writer, StructTypeInfo typeInfo, StructObjectInspector oi, Object value) {
+      writer.start();
+      for (StructField field : oi.getAllStructFieldRefs()) {
+        write(writer, field.getFieldName(), typeInfo.getStructFieldTypeInfo(field.getFieldName()),
+          field.getFieldObjectInspector(), oi.getStructFieldData(value, field));
+      }
+      writer.end();
     }
   }
-  public static class List extends HiveFieldConverter {
-    public List(HiveOperatorContextOptions options) {
-      super(options);
+
+  public static class HiveMap extends BaseComplexConverter {
+    private final MapTypeInfo typeInfo;
+
+    public HiveMap(MapTypeInfo typeInfo, OperatorContext context, HiveOperatorContextOptions options) {
+      super(context, options);
+      this.typeInfo = typeInfo;
     }
+
     @Override
     public void setSafeValue(ObjectInspector oi, Object hiveFieldValue, ValueVector outputVV, int outputIndex) {
-      // In ORC vectorized file reader path these functions are not called.
-      // Currently we support complex types in ORC format only
-      return;
+      UnionMapWriter mapWriter = ((MapVector) outputVV).getWriter();
+      mapWriter.setPosition(outputIndex);
+      writeMap(mapWriter, typeInfo, (MapObjectInspector) oi, hiveFieldValue);
     }
   }
-  public static class Struct extends HiveFieldConverter {
-    public Struct(HiveOperatorContextOptions options) {
-      super(options);
+
+  public static class HiveList extends BaseComplexConverter {
+    private final ListTypeInfo typeInfo;
+
+    public HiveList(ListTypeInfo typeInfo, OperatorContext context, HiveOperatorContextOptions options) {
+      super(context, options);
+      this.typeInfo = typeInfo;
     }
     @Override
     public void setSafeValue(ObjectInspector oi, Object hiveFieldValue, ValueVector outputVV, int outputIndex) {
-      // In ORC vectorized file reader path these functions are not called.
-      // Currently we support complex types in ORC format only
-      return;
+      UnionListWriter listWriter = ((ListVector) outputVV).getWriter();
+      listWriter.setPosition(outputIndex);
+      writeList(listWriter, typeInfo, (ListObjectInspector) oi, hiveFieldValue);
+    }
+  }
+
+  public static class HiveStruct extends BaseComplexConverter {
+    private final StructTypeInfo typeInfo;
+
+    public HiveStruct(StructTypeInfo typeInfo, OperatorContext context, HiveOperatorContextOptions options) {
+      super(context, options);
+      this.typeInfo = typeInfo;
+    }
+    @Override
+    public void setSafeValue(ObjectInspector oi, Object hiveFieldValue, ValueVector outputVV, int outputIndex) {
+      StructObjectInspector structOi = (StructObjectInspector) oi;
+      NullableStructWriter structWriter = ((StructVector) outputVV).getWriter();
+      structWriter.setPosition(outputIndex);
+      structWriter.start();
+      for (Field writerField : structWriter.getField().getChildren()) {
+        StructField field = structOi.getStructFieldRef(writerField.getName());
+        write(structWriter, field.getFieldName(), typeInfo.getStructFieldTypeInfo(field.getFieldName()),
+          field.getFieldObjectInspector(), structOi.getStructFieldData(hiveFieldValue, field));
+      }
+      structWriter.end();
     }
   }
   public static class Binary extends HiveFieldConverter {
@@ -236,7 +512,7 @@ public abstract class HiveFieldConverter {
     @Override
     public void setSafeValue(ObjectInspector oi, Object hiveFieldValue, ValueVector outputVV, int outputIndex) {
       DecimalUtility.writeBigDecimalToArrowBuf(((HiveDecimalObjectInspector)oi).getPrimitiveJavaObject(hiveFieldValue).bigDecimalValue()
-          .setScale(holder.scale, RoundingMode.HALF_UP), holder.buffer, LargeMemoryUtil.capAtMaxInt(holder.start), DecimalVector.TYPE_WIDTH);
+        .setScale(holder.scale, RoundingMode.HALF_UP), holder.buffer, LargeMemoryUtil.capAtMaxInt(holder.start), DecimalVector.TYPE_WIDTH);
       ((DecimalVector) outputVV).setSafe(outputIndex, 1, 0, holder.buffer);
     }
   }
@@ -357,7 +633,7 @@ public abstract class HiveFieldConverter {
     public Date(HiveOperatorContextOptions options) {
       super(options);
     }
-    private static final long MILLIS_PER_DAY = TimeUnit.DAYS.toMillis(1L);
+    public static final long MILLIS_PER_DAY = TimeUnit.DAYS.toMillis(1L);
 
     @Override
     public void setSafeValue(ObjectInspector oi, Object hiveFieldValue, ValueVector outputVV, int outputIndex) {
@@ -379,5 +655,4 @@ public abstract class HiveFieldConverter {
       ((VarCharVector) outputVV).setSafe(outputIndex, valueBytes, 0, valueLen);
     }
   }
-
 }

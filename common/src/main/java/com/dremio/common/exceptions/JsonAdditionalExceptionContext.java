@@ -56,6 +56,7 @@ public abstract class JsonAdditionalExceptionContext implements AdditionalExcept
     }
   }
 
+  @Override
   public ByteString toByteString() {
     try {
       return ProtobufByteStringSerDe.writeValue(contextMapper, this,

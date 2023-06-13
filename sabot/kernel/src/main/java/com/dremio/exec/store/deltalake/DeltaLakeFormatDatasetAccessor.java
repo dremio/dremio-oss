@@ -189,12 +189,15 @@ public class DeltaLakeFormatDatasetAccessor implements FileDatasetHandle {
 
   @Override
   public boolean metadataValid(BytesOutput readSignature, DatasetHandle datasetHandle, DatasetMetadata metadata, FileSystem fileSystem) {
+    // if readSignature is NOT existing already, treat metadata as stale
+    if (readSignature == BytesOutput.NONE) {
+      return false;
+    }
     try {
       final DeltaLakeProtobuf.DeltaLakeReadSignature deltaLakeReadSignature = LegacyProtobufSerializer.parseFrom(DeltaLakeProtobuf.DeltaLakeReadSignature.PARSER, MetadataProtoUtils.toProtobuf(readSignature));
       initializeDeltaTableWrapper();
       return !deltaTable.checkMetadataStale(deltaLakeReadSignature);
-    }
-    catch (IOException e) {
+    } catch (IOException e) {
       //Do a refresh in case of exception
       logger.error("Exception occurred while trying to determine delta dataset metadata validity. Dataset path {}. ", fileSelection.toString(), e);
       return false;

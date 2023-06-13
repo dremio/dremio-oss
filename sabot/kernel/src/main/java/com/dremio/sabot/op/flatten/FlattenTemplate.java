@@ -62,6 +62,7 @@ public abstract class FlattenTemplate implements Flattener {
     this.fieldToFlatten = flattenField;
   }
 
+  @Override
   public RepeatedValueVector getFlattenField() {
     return fieldToFlatten;
   }

@@ -103,6 +103,7 @@ public class RelMdSelectivity extends org.apache.calcite.rel.metadata.RelMdSelec
     return super.getSelectivity(rel, mq, predicate);
   }
 
+  @Override
   public Double  getSelectivity(Join rel, RelMetadataQuery mq, RexNode predicate) {
     if (DremioRelMdUtil.isStatisticsEnabled(rel.getCluster().getPlanner(), isNoOp)) {
       double sel = 1.0;
@@ -336,14 +337,8 @@ public class RelMdSelectivity extends org.apache.calcite.rel.metadata.RelMdSelec
       if (pred.isA(RANGE_PREDICATE) && !isMultiColumnPredicate(pred)) {
         String col = getColumn(pred, fieldNames);
         if (col != null) {
-          List<RexNode> predList = null;
-          if ((predList = colToRangePredicateMap.get(col)) != null) {
-            predList.add(pred);
-          } else {
-            predList = new ArrayList<>();
-            predList.add(pred);
-            colToRangePredicateMap.put(col, predList);
-          }
+          List<RexNode> predList = colToRangePredicateMap.computeIfAbsent(col, s -> new ArrayList<>());
+          predList.add(pred);
         } else {
           nonRangePredList.add(pred);
         }

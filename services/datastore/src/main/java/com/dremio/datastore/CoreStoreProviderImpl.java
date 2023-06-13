@@ -118,6 +118,7 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
         break;
       case MEMORY:
         inMemory = true;
+        break;
       default:
         // noop
     }

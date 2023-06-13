@@ -25,7 +25,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -40,11 +39,7 @@ import com.dremio.BaseTestQuery;
 
 public class RefreshDatasetTestUtils {
 
-  public static FileSystem setupLocalFS() throws IOException {
-    Configuration conf = new Configuration();
-    conf.set("fs.default.name", "local");
-    return FileSystem.get(conf);
-  }
+
 
   public static void fsDelete(FileSystem fs, Path path) throws IOException {
     FileStatus[] statuses = fs.listStatus(path);

@@ -183,7 +183,7 @@ abstract class TransformActor implements TransformBase.TransformVisitor<Transfor
     List<String> columns = new ArrayList<>();
     List<String> joinedColumns = new ArrayList<>();
     List<String> allJoinedColumns = new ArrayList<>();
-    columns.addAll(executor.getColumnList(username, rightPath, join.getReferencesList()));
+    columns.addAll(executor.getColumnList(rightPath, join.getReferencesList()));
 
     final int edge = m.columnCount();
     for (JoinCondition jc : join.getJoinConditionsList()) {

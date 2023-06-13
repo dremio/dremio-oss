@@ -789,103 +789,103 @@ public class BasicTypeHelper {
     case TINYINT:
       if (holder instanceof NullableTinyIntHolder) {
         ((NullableTinyIntHolder) holder).isSet = 1;
-        return;
       }
+      return;
     case UINT1:
       if (holder instanceof NullableUInt1Holder) {
         ((NullableUInt1Holder) holder).isSet = 1;
-        return;
       }
+      return;
     case UINT2:
       if (holder instanceof NullableUInt2Holder) {
         ((NullableUInt2Holder) holder).isSet = 1;
-        return;
       }
+      return;
     case SMALLINT:
       if (holder instanceof NullableSmallIntHolder) {
         ((NullableSmallIntHolder) holder).isSet = 1;
-        return;
       }
+      return;
     case INT:
       if (holder instanceof NullableIntHolder) {
         ((NullableIntHolder) holder).isSet = 1;
-        return;
       }
+      return;
     case UINT4:
       if (holder instanceof NullableUInt4Holder) {
         ((NullableUInt4Holder) holder).isSet = 1;
-        return;
       }
+      return;
     case FLOAT4:
       if (holder instanceof NullableFloat4Holder) {
         ((NullableFloat4Holder) holder).isSet = 1;
-        return;
       }
+      return;
     case INTERVALYEAR:
       if (holder instanceof NullableIntervalYearHolder) {
         ((NullableIntervalYearHolder) holder).isSet = 1;
-        return;
       }
+      return;
     case TIMEMILLI:
       if (holder instanceof NullableTimeMilliHolder) {
         ((NullableTimeMilliHolder) holder).isSet = 1;
-        return;
       }
+      return;
     case BIGINT:
       if (holder instanceof NullableBigIntHolder) {
         ((NullableBigIntHolder) holder).isSet = 1;
-        return;
       }
+      return;
     case UINT8:
       if (holder instanceof NullableUInt8Holder) {
         ((NullableUInt8Holder) holder).isSet = 1;
-        return;
       }
+      return;
     case FLOAT8:
       if (holder instanceof NullableFloat8Holder) {
         ((NullableFloat8Holder) holder).isSet = 1;
-        return;
       }
+      return;
     case DATEMILLI:
       if (holder instanceof NullableDateMilliHolder) {
         ((NullableDateMilliHolder) holder).isSet = 1;
-        return;
       }
+      return;
     case TIMESTAMPMILLI:
       if (holder instanceof NullableTimeStampMilliHolder) {
         ((NullableTimeStampMilliHolder) holder).isSet = 1;
-        return;
       }
+      return;
     case INTERVALDAY:
       if (holder instanceof NullableIntervalDayHolder) {
         ((NullableIntervalDayHolder) holder).isSet = 1;
-        return;
       }
+      return;
     case DECIMAL:
       if (holder instanceof NullableDecimalHolder) {
         ((NullableDecimalHolder) holder).isSet = 1;
-        return;
       }
+      return;
     case FIXEDSIZEBINARY:
       if (holder instanceof NullableFixedSizeBinaryHolder) {
         ((NullableFixedSizeBinaryHolder) holder).isSet = 1;
-        return;
       }
+      return;
     case VARBINARY:
       if (holder instanceof NullableVarBinaryHolder) {
         ((NullableVarBinaryHolder) holder).isSet = 1;
-        return;
       }
+      return;
     case VARCHAR:
       if (holder instanceof NullableVarCharHolder) {
         ((NullableVarCharHolder) holder).isSet = 1;
-        return;
       }
+      return;
     case BIT:
       if (holder instanceof NullableBitHolder) {
         ((NullableBitHolder) holder).isSet = 1;
-        return;
       }
+      return;
     default:
       throw new UnsupportedOperationException(buildErrorMessage("set not null", type));
     }
@@ -1020,7 +1020,6 @@ public class BasicTypeHelper {
     }
   }
 
-  @SuppressWarnings("checkstyle:MissingSwitchDefault")
   public static void setValueSafe(ValueVector vector, int index, ValueHolder holder) {
     MajorType type = getMajorTypeForField(vector.getField());
 
@@ -1041,6 +1040,8 @@ public class BasicTypeHelper {
           ((TinyIntVector) vector).setSafe(index, (TinyIntHolder) holder);
         }
         return;
+      default:
+        return;
       }
     case UINT1:
       switch (type.getMode()) {
@@ -1057,6 +1058,8 @@ public class BasicTypeHelper {
         } else {
           ((UInt1Vector) vector).setSafe(index, (UInt1Holder) holder);
         }
+        return;
+      default:
         return;
       }
     case UINT2:
@@ -1075,6 +1078,8 @@ public class BasicTypeHelper {
           ((UInt2Vector) vector).setSafe(index, (UInt2Holder) holder);
         }
         return;
+      default:
+        return;
       }
     case SMALLINT:
       switch (type.getMode()) {
@@ -1091,6 +1096,8 @@ public class BasicTypeHelper {
         } else {
           ((SmallIntVector) vector).setSafe(index, (SmallIntHolder) holder);
         }
+        return;
+      default:
         return;
       }
     case INT:
@@ -1109,6 +1116,8 @@ public class BasicTypeHelper {
           ((IntVector) vector).setSafe(index, (IntHolder) holder);
         }
         return;
+      default:
+        return;
       }
     case UINT4:
       switch (type.getMode()) {
@@ -1126,6 +1135,8 @@ public class BasicTypeHelper {
           ((UInt4Vector) vector).setSafe(index, (UInt4Holder) holder);
         }
         return;
+      default:
+        return;
       }
     case FLOAT4:
       switch (type.getMode()) {
@@ -1142,6 +1153,8 @@ public class BasicTypeHelper {
         } else {
           ((Float4Vector) vector).setSafe(index, (Float4Holder) holder);
         }
+        return;
+      default:
         return;
       }
       // unsupported type DateDay
@@ -1161,6 +1174,8 @@ public class BasicTypeHelper {
           ((IntervalYearVector) vector).setSafe(index, (IntervalYearHolder) holder);
         }
         return;
+      default:
+        return;
       }
       // unsupported type TimeSec
     case TIME:
@@ -1179,6 +1194,8 @@ public class BasicTypeHelper {
           ((TimeMilliVector) vector).setSafe(index, (TimeMilliHolder) holder);
         }
         return;
+      default:
+        return;
       }
     case BIGINT:
       switch (type.getMode()) {
@@ -1195,6 +1212,8 @@ public class BasicTypeHelper {
         } else {
           ((BigIntVector) vector).setSafe(index, (BigIntHolder) holder);
         }
+        return;
+      default:
         return;
       }
     case UINT8:
@@ -1213,6 +1232,8 @@ public class BasicTypeHelper {
           ((UInt8Vector) vector).setSafe(index, (UInt8Holder) holder);
         }
         return;
+      default:
+        return;
       }
     case FLOAT8:
       switch (type.getMode()) {
@@ -1230,6 +1251,8 @@ public class BasicTypeHelper {
           ((Float8Vector) vector).setSafe(index, (Float8Holder) holder);
         }
         return;
+      default:
+        return;
       }
     case DATE:
       switch (type.getMode()) {
@@ -1246,6 +1269,8 @@ public class BasicTypeHelper {
         } else {
           ((DateMilliVector) vector).setSafe(index, (DateMilliHolder) holder);
         }
+        return;
+      default:
         return;
       }
       // unsupported type Duration
@@ -1265,6 +1290,8 @@ public class BasicTypeHelper {
         } else {
           ((TimeStampMilliVector) vector).setSafe(index, (TimeStampMilliHolder) holder);
         }
+        return;
+      default:
         return;
       }
       // unsupported type TimeStampMicro
@@ -1291,6 +1318,8 @@ public class BasicTypeHelper {
           ((IntervalDayVector) vector).setSafe(index, (IntervalDayHolder) holder);
         }
         return;
+      default:
+        return;
       }
     case DECIMAL:
       switch (type.getMode()) {
@@ -1307,6 +1336,8 @@ public class BasicTypeHelper {
         } else {
           ((DecimalVector) vector).setSafe(index, (DecimalHolder) holder);
         }
+        return;
+      default:
         return;
       }
     case FIXEDSIZEBINARY:
@@ -1325,6 +1356,8 @@ public class BasicTypeHelper {
           ((FixedSizeBinaryVector) vector).setSafe(index, (FixedSizeBinaryHolder) holder);
         }
         return;
+      default:
+        return;
       }
     case VARBINARY:
       switch (type.getMode()) {
@@ -1341,6 +1374,8 @@ public class BasicTypeHelper {
         } else {
           ((VarBinaryVector) vector).setSafe(index, (VarBinaryHolder) holder);
         }
+        return;
+      default:
         return;
       }
     case VARCHAR:
@@ -1359,6 +1394,8 @@ public class BasicTypeHelper {
           ((VarCharVector) vector).setSafe(index, (VarCharHolder) holder);
         }
         return;
+      default:
+        return;
       }
     case BIT:
       switch (type.getMode()) {
@@ -1376,9 +1413,12 @@ public class BasicTypeHelper {
           ((BitVector) vector).setSafe(index, (BitHolder) holder);
         }
         return;
+      default:
+        return;
       }
     case GENERIC_OBJECT:
       ((ObjectVector) vector).setSafe(index, (ObjectHolder) holder);
+      return;
     default:
       throw new UnsupportedOperationException(
           buildErrorMessage("set value safe", getArrowMinorType(type.getMinorType())));
@@ -1581,7 +1621,6 @@ public class BasicTypeHelper {
     }
   }
 
-  @SuppressWarnings("checkstyle:MissingSwitchDefault")
   public static ValueHolder deNullify(ValueHolder holder) {
     MajorType type = getValueHolderMajorType(holder.getClass());
 
@@ -1590,6 +1629,7 @@ public class BasicTypeHelper {
 
       switch (type.getMode()) {
       case REQUIRED:
+      case REPEATED:
         return holder;
       case OPTIONAL:
         if (((NullableTinyIntHolder) holder).isSet == 1) {
@@ -1601,13 +1641,14 @@ public class BasicTypeHelper {
         } else {
           throw new UnsupportedOperationException("You can not convert a null value into a non-null value!");
         }
-      case REPEATED:
-        return holder;
+      default:
+        throw new AssertionError("Unsupported data mode: " + type.getMode());
       }
     case UINT1:
 
       switch (type.getMode()) {
       case REQUIRED:
+      case REPEATED:
         return holder;
       case OPTIONAL:
         if (((NullableUInt1Holder) holder).isSet == 1) {
@@ -1619,13 +1660,14 @@ public class BasicTypeHelper {
         } else {
           throw new UnsupportedOperationException("You can not convert a null value into a non-null value!");
         }
-      case REPEATED:
-        return holder;
+      default:
+        throw new AssertionError("Unsupported data mode: " + type.getMode());
       }
     case UINT2:
 
       switch (type.getMode()) {
       case REQUIRED:
+      case REPEATED:
         return holder;
       case OPTIONAL:
         if (((NullableUInt2Holder) holder).isSet == 1) {
@@ -1637,13 +1679,14 @@ public class BasicTypeHelper {
         } else {
           throw new UnsupportedOperationException("You can not convert a null value into a non-null value!");
         }
-      case REPEATED:
-        return holder;
+      default:
+        throw new AssertionError("Unsupported data mode: " + type.getMode());
       }
     case SMALLINT:
 
       switch (type.getMode()) {
       case REQUIRED:
+      case REPEATED:
         return holder;
       case OPTIONAL:
         if (((NullableSmallIntHolder) holder).isSet == 1) {
@@ -1655,13 +1698,14 @@ public class BasicTypeHelper {
         } else {
           throw new UnsupportedOperationException("You can not convert a null value into a non-null value!");
         }
-      case REPEATED:
-        return holder;
+      default:
+        throw new AssertionError("Unsupported data mode: " + type.getMode());
       }
     case INT:
 
       switch (type.getMode()) {
       case REQUIRED:
+      case REPEATED:
         return holder;
       case OPTIONAL:
         if (((NullableIntHolder) holder).isSet == 1) {
@@ -1673,13 +1717,14 @@ public class BasicTypeHelper {
         } else {
           throw new UnsupportedOperationException("You can not convert a null value into a non-null value!");
         }
-      case REPEATED:
-        return holder;
+      default:
+        throw new AssertionError("Unsupported data mode: " + type.getMode());
       }
     case UINT4:
 
       switch (type.getMode()) {
       case REQUIRED:
+      case REPEATED:
         return holder;
       case OPTIONAL:
         if (((NullableUInt4Holder) holder).isSet == 1) {
@@ -1691,13 +1736,14 @@ public class BasicTypeHelper {
         } else {
           throw new UnsupportedOperationException("You can not convert a null value into a non-null value!");
         }
-      case REPEATED:
-        return holder;
+      default:
+        throw new AssertionError("Unsupported data mode: " + type.getMode());
       }
     case FLOAT4:
 
       switch (type.getMode()) {
       case REQUIRED:
+      case REPEATED:
         return holder;
       case OPTIONAL:
         if (((NullableFloat4Holder) holder).isSet == 1) {
@@ -1709,14 +1755,15 @@ public class BasicTypeHelper {
         } else {
           throw new UnsupportedOperationException("You can not convert a null value into a non-null value!");
         }
-      case REPEATED:
-        return holder;
+      default:
+        throw new AssertionError("Unsupported data mode: " + type.getMode());
       }
       // unsupported type DateDay
     case INTERVALYEAR:
 
       switch (type.getMode()) {
       case REQUIRED:
+      case REPEATED:
         return holder;
       case OPTIONAL:
         if (((NullableIntervalYearHolder) holder).isSet == 1) {
@@ -1728,14 +1775,15 @@ public class BasicTypeHelper {
         } else {
           throw new UnsupportedOperationException("You can not convert a null value into a non-null value!");
         }
-      case REPEATED:
-        return holder;
+      default:
+        throw new AssertionError("Unsupported data mode: " + type.getMode());
       }
       // unsupported type TimeSec
     case TIME:
 
       switch (type.getMode()) {
       case REQUIRED:
+      case REPEATED:
         return holder;
       case OPTIONAL:
         if (((NullableTimeMilliHolder) holder).isSet == 1) {
@@ -1747,13 +1795,14 @@ public class BasicTypeHelper {
         } else {
           throw new UnsupportedOperationException("You can not convert a null value into a non-null value!");
         }
-      case REPEATED:
-        return holder;
+      default:
+        throw new AssertionError("Unsupported data mode: " + type.getMode());
       }
     case BIGINT:
 
       switch (type.getMode()) {
       case REQUIRED:
+      case REPEATED:
         return holder;
       case OPTIONAL:
         if (((NullableBigIntHolder) holder).isSet == 1) {
@@ -1765,13 +1814,14 @@ public class BasicTypeHelper {
         } else {
           throw new UnsupportedOperationException("You can not convert a null value into a non-null value!");
         }
-      case REPEATED:
-        return holder;
+      default:
+        throw new AssertionError("Unsupported data mode: " + type.getMode());
       }
     case UINT8:
 
       switch (type.getMode()) {
       case REQUIRED:
+      case REPEATED:
         return holder;
       case OPTIONAL:
         if (((NullableUInt8Holder) holder).isSet == 1) {
@@ -1783,13 +1833,14 @@ public class BasicTypeHelper {
         } else {
           throw new UnsupportedOperationException("You can not convert a null value into a non-null value!");
         }
-      case REPEATED:
-        return holder;
+      default:
+        throw new AssertionError("Unsupported data mode: " + type.getMode());
       }
     case FLOAT8:
 
       switch (type.getMode()) {
       case REQUIRED:
+      case REPEATED:
         return holder;
       case OPTIONAL:
         if (((NullableFloat8Holder) holder).isSet == 1) {
@@ -1801,13 +1852,14 @@ public class BasicTypeHelper {
         } else {
           throw new UnsupportedOperationException("You can not convert a null value into a non-null value!");
         }
-      case REPEATED:
-        return holder;
+      default:
+        throw new AssertionError("Unsupported data mode: " + type.getMode());
       }
     case DATE:
 
       switch (type.getMode()) {
       case REQUIRED:
+      case REPEATED:
         return holder;
       case OPTIONAL:
         if (((NullableDateMilliHolder) holder).isSet == 1) {
@@ -1819,8 +1871,8 @@ public class BasicTypeHelper {
         } else {
           throw new UnsupportedOperationException("You can not convert a null value into a non-null value!");
         }
-      case REPEATED:
-        return holder;
+      default:
+        throw new AssertionError("Unsupported data mode: " + type.getMode());
       }
       // unsupported type Duration
       // unsupported type TimeStampSec
@@ -1828,6 +1880,7 @@ public class BasicTypeHelper {
 
       switch (type.getMode()) {
       case REQUIRED:
+      case REPEATED:
         return holder;
       case OPTIONAL:
         if (((NullableTimeStampMilliHolder) holder).isSet == 1) {
@@ -1839,8 +1892,8 @@ public class BasicTypeHelper {
         } else {
           throw new UnsupportedOperationException("You can not convert a null value into a non-null value!");
         }
-      case REPEATED:
-        return holder;
+      default:
+        throw new AssertionError("Unsupported data mode: " + type.getMode());
       }
       // unsupported type TimeStampMicro
       // unsupported type TimeStampNano
@@ -1854,6 +1907,7 @@ public class BasicTypeHelper {
 
       switch (type.getMode()) {
       case REQUIRED:
+      case REPEATED:
         return holder;
       case OPTIONAL:
         if (((NullableIntervalDayHolder) holder).isSet == 1) {
@@ -1866,13 +1920,14 @@ public class BasicTypeHelper {
         } else {
           throw new UnsupportedOperationException("You can not convert a null value into a non-null value!");
         }
-      case REPEATED:
-        return holder;
+      default:
+        throw new AssertionError("Unsupported data mode: " + type.getMode());
       }
     case DECIMAL:
 
       switch (type.getMode()) {
       case REQUIRED:
+      case REPEATED:
         return holder;
       case OPTIONAL:
         if (((NullableDecimalHolder) holder).isSet == 1) {
@@ -1887,13 +1942,14 @@ public class BasicTypeHelper {
         } else {
           throw new UnsupportedOperationException("You can not convert a null value into a non-null value!");
         }
-      case REPEATED:
-        return holder;
+      default:
+        throw new AssertionError("Unsupported data mode: " + type.getMode());
       }
     case FIXEDSIZEBINARY:
 
       switch (type.getMode()) {
       case REQUIRED:
+      case REPEATED:
         return holder;
       case OPTIONAL:
         if (((NullableFixedSizeBinaryHolder) holder).isSet == 1) {
@@ -1906,13 +1962,14 @@ public class BasicTypeHelper {
         } else {
           throw new UnsupportedOperationException("You can not convert a null value into a non-null value!");
         }
-      case REPEATED:
-        return holder;
+      default:
+        throw new AssertionError("Unsupported data mode: " + type.getMode());
       }
     case VARBINARY:
 
       switch (type.getMode()) {
       case REQUIRED:
+      case REPEATED:
         return holder;
       case OPTIONAL:
         if (((NullableVarBinaryHolder) holder).isSet == 1) {
@@ -1926,13 +1983,14 @@ public class BasicTypeHelper {
         } else {
           throw new UnsupportedOperationException("You can not convert a null value into a non-null value!");
         }
-      case REPEATED:
-        return holder;
+      default:
+        throw new AssertionError("Unsupported data mode: " + type.getMode());
       }
     case VARCHAR:
 
       switch (type.getMode()) {
       case REQUIRED:
+      case REPEATED:
         return holder;
       case OPTIONAL:
         if (((NullableVarCharHolder) holder).isSet == 1) {
@@ -1946,13 +2004,14 @@ public class BasicTypeHelper {
         } else {
           throw new UnsupportedOperationException("You can not convert a null value into a non-null value!");
         }
-      case REPEATED:
-        return holder;
+      default:
+        throw new AssertionError("Unsupported data mode: " + type.getMode());
       }
     case BIT:
 
       switch (type.getMode()) {
       case REQUIRED:
+      case REPEATED:
         return holder;
       case OPTIONAL:
         if (((NullableBitHolder) holder).isSet == 1) {
@@ -1964,15 +2023,14 @@ public class BasicTypeHelper {
         } else {
           throw new UnsupportedOperationException("You can not convert a null value into a non-null value!");
         }
-      case REPEATED:
-        return holder;
+      default:
+        throw new AssertionError("Unsupported data mode: " + type.getMode());
       }
     default:
       throw new UnsupportedOperationException(buildErrorMessage("deNullify", getArrowMinorType(type.getMinorType())));
     }
   }
 
-  @SuppressWarnings("checkstyle:MissingSwitchDefault")
   public static ValueHolder nullify(ValueHolder holder) {
     MajorType type = getValueHolderMajorType(holder.getClass());
 
@@ -1987,6 +2045,7 @@ public class BasicTypeHelper {
       case OPTIONAL:
         return holder;
       case REPEATED:
+      default:
         throw new UnsupportedOperationException("You can not convert repeated type " + type + " to nullable type!");
       }
     case UINT1:
@@ -1999,6 +2058,7 @@ public class BasicTypeHelper {
       case OPTIONAL:
         return holder;
       case REPEATED:
+      default:
         throw new UnsupportedOperationException("You can not convert repeated type " + type + " to nullable type!");
       }
     case UINT2:
@@ -2011,6 +2071,7 @@ public class BasicTypeHelper {
       case OPTIONAL:
         return holder;
       case REPEATED:
+      default:
         throw new UnsupportedOperationException("You can not convert repeated type " + type + " to nullable type!");
       }
     case SMALLINT:
@@ -2023,6 +2084,7 @@ public class BasicTypeHelper {
       case OPTIONAL:
         return holder;
       case REPEATED:
+      default:
         throw new UnsupportedOperationException("You can not convert repeated type " + type + " to nullable type!");
       }
     case INT:
@@ -2035,6 +2097,7 @@ public class BasicTypeHelper {
       case OPTIONAL:
         return holder;
       case REPEATED:
+      default:
         throw new UnsupportedOperationException("You can not convert repeated type " + type + " to nullable type!");
       }
     case UINT4:
@@ -2047,6 +2110,7 @@ public class BasicTypeHelper {
       case OPTIONAL:
         return holder;
       case REPEATED:
+      default:
         throw new UnsupportedOperationException("You can not convert repeated type " + type + " to nullable type!");
       }
     case FLOAT4:
@@ -2059,6 +2123,7 @@ public class BasicTypeHelper {
       case OPTIONAL:
         return holder;
       case REPEATED:
+      default:
         throw new UnsupportedOperationException("You can not convert repeated type " + type + " to nullable type!");
       }
       // unsupported type DateDay
@@ -2072,6 +2137,7 @@ public class BasicTypeHelper {
       case OPTIONAL:
         return holder;
       case REPEATED:
+      default:
         throw new UnsupportedOperationException("You can not convert repeated type " + type + " to nullable type!");
       }
       // unsupported type TimeSec
@@ -2085,6 +2151,7 @@ public class BasicTypeHelper {
       case OPTIONAL:
         return holder;
       case REPEATED:
+      default:
         throw new UnsupportedOperationException("You can not convert repeated type " + type + " to nullable type!");
       }
     case BIGINT:
@@ -2097,6 +2164,7 @@ public class BasicTypeHelper {
       case OPTIONAL:
         return holder;
       case REPEATED:
+      default:
         throw new UnsupportedOperationException("You can not convert repeated type " + type + " to nullable type!");
       }
     case UINT8:
@@ -2109,6 +2177,7 @@ public class BasicTypeHelper {
       case OPTIONAL:
         return holder;
       case REPEATED:
+      default:
         throw new UnsupportedOperationException("You can not convert repeated type " + type + " to nullable type!");
       }
     case FLOAT8:
@@ -2121,6 +2190,7 @@ public class BasicTypeHelper {
       case OPTIONAL:
         return holder;
       case REPEATED:
+      default:
         throw new UnsupportedOperationException("You can not convert repeated type " + type + " to nullable type!");
       }
     case DATE:
@@ -2133,6 +2203,7 @@ public class BasicTypeHelper {
       case OPTIONAL:
         return holder;
       case REPEATED:
+      default:
         throw new UnsupportedOperationException("You can not convert repeated type " + type + " to nullable type!");
       }
       // unsupported type Duration
@@ -2147,6 +2218,7 @@ public class BasicTypeHelper {
       case OPTIONAL:
         return holder;
       case REPEATED:
+      default:
         throw new UnsupportedOperationException("You can not convert repeated type " + type + " to nullable type!");
       }
       // unsupported type TimeStampMicro
@@ -2168,6 +2240,7 @@ public class BasicTypeHelper {
       case OPTIONAL:
         return holder;
       case REPEATED:
+      default:
         throw new UnsupportedOperationException("You can not convert repeated type " + type + " to nullable type!");
       }
     case DECIMAL:
@@ -2183,6 +2256,7 @@ public class BasicTypeHelper {
       case OPTIONAL:
         return holder;
       case REPEATED:
+      default:
         throw new UnsupportedOperationException("You can not convert repeated type " + type + " to nullable type!");
       }
     case FIXEDSIZEBINARY:
@@ -2196,6 +2270,7 @@ public class BasicTypeHelper {
       case OPTIONAL:
         return holder;
       case REPEATED:
+      default:
         throw new UnsupportedOperationException("You can not convert repeated type " + type + " to nullable type!");
       }
     case VARBINARY:
@@ -2210,6 +2285,7 @@ public class BasicTypeHelper {
       case OPTIONAL:
         return holder;
       case REPEATED:
+      default:
         throw new UnsupportedOperationException("You can not convert repeated type " + type + " to nullable type!");
       }
     case VARCHAR:
@@ -2224,6 +2300,7 @@ public class BasicTypeHelper {
       case OPTIONAL:
         return holder;
       case REPEATED:
+      default:
         throw new UnsupportedOperationException("You can not convert repeated type " + type + " to nullable type!");
       }
     case BIT:
@@ -2236,6 +2313,7 @@ public class BasicTypeHelper {
       case OPTIONAL:
         return holder;
       case REPEATED:
+      default:
         throw new UnsupportedOperationException("You can not convert repeated type " + type + " to nullable type!");
       }
     default:

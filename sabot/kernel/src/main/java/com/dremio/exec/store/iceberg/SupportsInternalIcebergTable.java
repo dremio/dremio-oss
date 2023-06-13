@@ -124,11 +124,9 @@ public interface SupportsInternalIcebergTable extends SupportsUnlimitedSplits {
                                                             boolean isFullRefresh, boolean isPartialRefresh) {
     if (isFullRefresh) {
       return new FullRefreshReadSignatureProvider(dataTableRoot, queryStartTime);
-    }
-    else if (isPartialRefresh) {
+    } else if (isPartialRefresh) {
       return new PartialRefreshReadSignatureProvider(existingReadSignature, dataTableRoot, queryStartTime, partitionExists);
-    }
-    else {
+    } else {
       return new IncrementalRefreshReadSignatureProvider(existingReadSignature, dataTableRoot, queryStartTime, partitionExists);
     }
   }

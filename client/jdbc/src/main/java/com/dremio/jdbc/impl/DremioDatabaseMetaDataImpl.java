@@ -1277,13 +1277,11 @@ class DremioDatabaseMetaDataImpl extends AvaticaDatabaseMetaData
     throwIfClosed();
     try {
       return super.ownUpdatesAreVisible(type);
-    }
-    catch (RuntimeException e) {
+    } catch (RuntimeException e) {
       if ("todo: implement this method".equals(e.getMessage())) {
         throw new SQLFeatureNotSupportedException(
             "ownUpdatesAreVisible(int) is not supported", e);
-      }
-      else {
+      } else {
         throw new SQLException(e.getMessage(), e);
       }
     }
@@ -1294,13 +1292,11 @@ class DremioDatabaseMetaDataImpl extends AvaticaDatabaseMetaData
     throwIfClosed();
     try {
       return super.ownDeletesAreVisible(type);
-    }
-    catch (RuntimeException e) {
+    } catch (RuntimeException e) {
       if ("todo: implement this method".equals(e.getMessage())) {
         throw new SQLFeatureNotSupportedException(
             "ownDeletesAreVisible(int) is not supported", e);
-      }
-      else {
+      } else {
         throw new SQLException(e.getMessage(), e);
       }
     }
@@ -1311,13 +1307,11 @@ class DremioDatabaseMetaDataImpl extends AvaticaDatabaseMetaData
     throwIfClosed();
     try {
       return super.ownInsertsAreVisible(type);
-    }
-    catch (RuntimeException e) {
+    } catch (RuntimeException e) {
       if ("todo: implement this method".equals(e.getMessage())) {
         throw new SQLFeatureNotSupportedException(
             "ownInsertsAreVisible(int) is not supported", e);
-      }
-      else {
+      } else {
         throw new SQLException(e.getMessage(), e);
       }
     }
@@ -1328,13 +1322,11 @@ class DremioDatabaseMetaDataImpl extends AvaticaDatabaseMetaData
     throwIfClosed();
     try {
       return super.othersUpdatesAreVisible(type);
-    }
-    catch (RuntimeException e) {
+    } catch (RuntimeException e) {
       if ("todo: implement this method".equals(e.getMessage())) {
         throw new SQLFeatureNotSupportedException(
             "othersUpdatesAreVisible(int) is not supported", e);
-      }
-      else {
+      } else {
         throw new SQLException(e.getMessage(), e);
       }
     }
@@ -1345,13 +1337,11 @@ class DremioDatabaseMetaDataImpl extends AvaticaDatabaseMetaData
     throwIfClosed();
     try {
       return super.othersDeletesAreVisible(type);
-    }
-    catch (RuntimeException e) {
+    } catch (RuntimeException e) {
       if ("todo: implement this method".equals(e.getMessage())) {
         throw new SQLFeatureNotSupportedException(
             "othersDeletesAreVisible(int) is not supported", e);
-      }
-      else {
+      } else {
         throw new SQLException(e.getMessage(), e);
       }
     }
@@ -1362,13 +1352,11 @@ class DremioDatabaseMetaDataImpl extends AvaticaDatabaseMetaData
     throwIfClosed();
     try {
       return super.othersInsertsAreVisible(type);
-    }
-    catch (RuntimeException e) {
+    } catch (RuntimeException e) {
       if ("todo: implement this method".equals(e.getMessage())) {
         throw new SQLFeatureNotSupportedException(
             "othersInsertsAreVisible(int) is not supported", e);
-      }
-      else {
+      } else {
         throw new SQLException(e.getMessage(), e);
       }
     }
@@ -1379,13 +1367,11 @@ class DremioDatabaseMetaDataImpl extends AvaticaDatabaseMetaData
     throwIfClosed();
     try {
       return super.updatesAreDetected(type);
-    }
-    catch (RuntimeException e) {
+    } catch (RuntimeException e) {
       if ("todo: implement this method".equals(e.getMessage())) {
         throw new SQLFeatureNotSupportedException(
             "updatesAreDetected(int) is not supported", e);
-      }
-      else {
+      } else {
         throw new SQLException(e.getMessage(), e);
       }
     }
@@ -1396,13 +1382,11 @@ class DremioDatabaseMetaDataImpl extends AvaticaDatabaseMetaData
     throwIfClosed();
     try {
       return super.deletesAreDetected(type);
-    }
-    catch (RuntimeException e) {
+    } catch (RuntimeException e) {
       if ("todo: implement this method".equals(e.getMessage())) {
         throw new SQLFeatureNotSupportedException(
             "deletesAreDetected(int) is not supported", e);
-      }
-      else {
+      } else {
         throw new SQLException(e.getMessage(), e);
       }
     }
@@ -1413,13 +1397,11 @@ class DremioDatabaseMetaDataImpl extends AvaticaDatabaseMetaData
     throwIfClosed();
     try {
       return super.insertsAreDetected(type);
-    }
-    catch (RuntimeException e) {
+    } catch (RuntimeException e) {
       if ("todo: implement this method".equals(e.getMessage())) {
         throw new SQLFeatureNotSupportedException(
             "insertsAreDetected(int) is not supported", e);
-      }
-      else {
+      } else {
         throw new SQLException(e.getMessage(), e);
       }
     }
@@ -1497,13 +1479,11 @@ class DremioDatabaseMetaDataImpl extends AvaticaDatabaseMetaData
     throwIfClosed();
     try {
       return super.supportsResultSetHoldability(holdability);
-    }
-    catch (RuntimeException e) {
+    } catch (RuntimeException e) {
       if ("todo: implement this method".equals(e.getMessage())) {
         throw new SQLFeatureNotSupportedException(
             "supportsResultSetHoldability(int) is not supported", e);
-      }
-      else {
+      } else {
         throw new SQLException(e.getMessage(), e);
       }
     }

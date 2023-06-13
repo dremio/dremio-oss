@@ -14,12 +14,8 @@
  * limitations under the License.
  */
 package com.dremio.common.exceptions;
-import com.dremio.common.logical.data.LogicalOperator;
 
 public class LogicalPlanParsingException extends RuntimeException{
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(LogicalPlanParsingException.class);
-
-  private LogicalOperator operator;
 
   public LogicalPlanParsingException() {
     super();
@@ -41,6 +37,5 @@ public class LogicalPlanParsingException extends RuntimeException{
   public LogicalPlanParsingException(Throwable cause) {
     super(cause);
   }
-
 
 }

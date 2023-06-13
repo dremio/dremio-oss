@@ -65,7 +65,7 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
     this.phase = null;
     this.maxNodesListener = new MaxNodesListener(plannerSettings.getMaxNodesPerPlan());
     this.matchCountListener = new MatchCountListener((int) plannerSettings.getOptions().getOption(PlannerSettings.HEP_PLANNER_MATCH_LIMIT),
-      plannerSettings.getOptions().getOption(PlannerSettings.VERBOSE_RULE_MATCH_LISTENER));
+      plannerSettings.getOptions().getOption(PlannerSettings.VERBOSE_PROFILE));
     // A hacky way to add listeners to first multicast listener and register that listener to the Volcano planner.
     // The Volcano planner currently only supports a single listener. Need to update that to use the multi class
     // listener from its super class AbstractRelOptPlanner.
@@ -148,7 +148,7 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
     if (cancelFlag.isCancelRequested()) {
       ExceptionUtils.throwUserException(String.format("Query was cancelled because planning time exceeded %d seconds",
                                                       cancelFlag.getTimeoutInSecs()),
-                                        null, plannerSettings, phase, logger);
+                                        null, plannerSettings, phase, UserException.AttemptCompletionState.PLANNING_TIMEOUT, logger);
     }
 
     if (executionControls != null) {
@@ -159,7 +159,7 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
       super.checkCancel();
     } catch (CalciteException e) {
       if (plannerSettings.isCancelledByHeapMonitor()) {
-        ExceptionUtils.throwUserException(plannerSettings.getCancelReason(), e, plannerSettings, phase, logger);
+        ExceptionUtils.throwUserException(plannerSettings.getCancelReason(), e, plannerSettings, phase, UserException.AttemptCompletionState.HEAP_MONITOR_C, logger);
       } else {
         ExceptionUtils.throwUserCancellationException(plannerSettings);
       }

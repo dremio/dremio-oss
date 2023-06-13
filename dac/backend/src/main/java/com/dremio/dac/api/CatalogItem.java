@@ -100,6 +100,10 @@ public class CatalogItem {
     return fromSourceConfig(sourceConfig, null);
   }
 
+  public static CatalogItem fromSource(Source source) {
+    return fromSourceConfig(source.getSourceConfig(), null);
+  }
+
   public static CatalogItem fromHomeConfig(HomeConfig homeConfig) {
     return new Builder()
       .setId(homeConfig.getId().getId())
@@ -126,7 +130,7 @@ public class CatalogItem {
   private static CatalogItem fromFunctionConfig(FunctionConfig functionConfig, CollaborationTag tags) {
     return new Builder()
       .setId(functionConfig.getId().getId())
-      .setPath(Lists.newArrayList(functionConfig.getName()))
+      .setPath(Lists.newArrayList(functionConfig.getFullPathList()))
       .setTag(String.valueOf(functionConfig.getTag()))
       .setType(CatalogItemType.CONTAINER)
       .setContainerType(ContainerSubType.FUNCTION)

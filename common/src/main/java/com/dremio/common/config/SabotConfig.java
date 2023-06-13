@@ -15,6 +15,7 @@
  */
 package com.dremio.common.config;
 
+import java.io.File;
 import java.lang.reflect.Constructor;
 import java.net.URL;
 import java.util.Collection;
@@ -30,6 +31,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigException;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigRenderOptions;
 import com.typesafe.config.ConfigValue;
@@ -247,6 +249,26 @@ public class SabotConfig extends NestedConfig {
     }
   }
 
+  private static SabotConfig createFromSavedSabotConfig() {
+    final String savedSabotConfigFile = System.getProperty("com.dremio.savedSabotConfig");
+    if (savedSabotConfigFile == null) {
+      return null;
+    }
+
+    final File savedSabotConfig = new File(savedSabotConfigFile);
+    if (savedSabotConfig.exists()) {
+      try {
+        Config config = ConfigFactory.parseFile(savedSabotConfig);
+        return new SabotConfig(config);
+      } catch (ConfigException e) {
+        logger.warn("Unable to read saved SabotConfig from '{}' (proceeding to slow path): {}",
+          savedSabotConfigFile, e.toString());
+      }
+    }
+
+    return null;
+  }
+
   /**
    * @param overrideFileResourcePathname
    *          see {@link #create(String)}'s {@code overrideFileResourcePathname}
@@ -263,6 +285,11 @@ public class SabotConfig extends NestedConfig {
         overrideFileResourcePathname == null
             ? CommonConstants.CONFIG_OVERRIDE_RESOURCE_PATHNAME
             : overrideFileResourcePathname;
+
+    final SabotConfig preCreated = createFromSavedSabotConfig();
+    if (preCreated != null) {
+      return preCreated;
+    }
 
     // 1. Load defaults configuration file.
     Config fallback = null;

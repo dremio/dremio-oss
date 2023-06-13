@@ -18,6 +18,7 @@ package com.dremio.dac.metadata;
 import static org.junit.Assert.assertEquals;
 
 import java.util.List;
+import java.util.Map;
 
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.RelNode;
@@ -76,7 +77,8 @@ public class TestFieldOriginExtractor extends BaseTestQuery {
                   }
 
                   @Override
-                  public void planRelTransform(PlannerPhase phase, RelOptPlanner planner, RelNode before, RelNode after, long millisTaken) {
+                  public void planRelTransform(PlannerPhase phase, RelOptPlanner planner, RelNode before, RelNode after,
+                                               long millisTaken, Map<String, Long> timeBreakdownPerRule) {
                     if (phase == PlannerPhase.LOGICAL) {
                       fields = FieldOriginExtractor.getFieldOrigins(before, rowType);
                     }

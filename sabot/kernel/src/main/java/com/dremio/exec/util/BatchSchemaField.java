@@ -34,6 +34,7 @@ public class BatchSchemaField extends Field {
     super(name, new FieldType(nullable, type, null), children);
   }
 
+  @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
     if (this.getName() != null) {

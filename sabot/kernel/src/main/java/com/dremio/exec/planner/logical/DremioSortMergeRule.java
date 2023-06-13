@@ -61,6 +61,7 @@ public class DremioSortMergeRule extends RelOptRule {
     return limitRelNode(bottomSort);
   }
 
+  @Override
   public void onMatch(RelOptRuleCall call) {
     final Sort topSort = call.rel(0);
     final Sort bottomSort = call.rel(1);

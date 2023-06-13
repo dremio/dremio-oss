@@ -18,7 +18,7 @@ import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 import { injectIntl } from "react-intl";
-import { IconButton } from "dremio-ui-lib";
+import { IconButton } from "dremio-ui-lib/components";
 
 import DropdownMenu from "@app/components/Menus/DropdownMenu";
 import { ENTITY_TYPES } from "@app/constants/Constants";
@@ -168,7 +168,7 @@ export class HeaderButtons extends Component {
   }
 
   render() {
-    const { rootEntityType, entity, isVersionedSource } = this.props;
+    const { rootEntityType, entity, isVersionedSource, intl } = this.props;
 
     const buttonsForCurrentPage = this.getButtonsForEntityType(rootEntityType);
 
@@ -187,7 +187,9 @@ export class HeaderButtons extends Component {
           <DropdownMenu
             customItemRenderer={
               <IconButton
-                aria-label="Add"
+                tooltip={intl.formatMessage({ id: "Common.Add" })}
+                tooltipPortal
+                tooltipPlacement="top"
                 className={classes["headerButtons__plusIcon"]}
               >
                 <dremio-icon name="interface/circle-plus"></dremio-icon>

@@ -16,7 +16,11 @@
 
 import { useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
-import { Button, ModalContainer, DialogContent } from "dremio-ui-lib/dist-esm";
+import {
+  Button,
+  ModalContainer,
+  DialogContent,
+} from "dremio-ui-lib/components";
 import { useDispatch } from "react-redux";
 import { setReference } from "@app/actions/nessie/nessie";
 import { Reference } from "@app/types/nessie";
@@ -47,7 +51,7 @@ function DeleteBranchDialog({
   const [isSending, setIsSending] = useState(false);
   const [errorText, setErrorText] = useState<JSX.Element | null>(null);
   const {
-    api,
+    apiV2,
     stateKey,
     state: { reference, defaultReference },
   } = useNessieContext();
@@ -56,10 +60,11 @@ function DeleteBranchDialog({
     setIsSending(true);
 
     try {
-      await api.deleteReference({
-        referenceName: referenceToDelete.name,
-        referenceType: ReferenceType.Branch,
-        expectedHash: referenceToDelete.hash,
+      await apiV2.deleteReferenceV2({
+        ref: referenceToDelete.hash
+          ? `${referenceToDelete.name}@${referenceToDelete.hash}`
+          : referenceToDelete.name,
+        type: ReferenceType.Branch,
       });
 
       if (allRefs && setAllRefs) {

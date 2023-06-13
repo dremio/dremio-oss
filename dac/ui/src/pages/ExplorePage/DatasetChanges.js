@@ -34,6 +34,7 @@ const mapStateToProp = (state, ownProps) => {
   const loc = rmProjectBase(location.pathname);
   const isNewQuery = loc === newQuery();
   const { query } = location || {};
+  const explorePageState = getExploreState(state);
 
   let datasetSql = "";
 
@@ -47,7 +48,8 @@ const mapStateToProp = (state, ownProps) => {
   return {
     datasetSql,
     history: getHistoryFromLocation(state, location),
-    currentSql: getExploreState(state).view.currentSql,
+    currentSql: explorePageState.view.currentSql,
+    customDefaultSql: explorePageState.view.customDefaultSql || "",
   };
 };
 
@@ -59,17 +61,22 @@ const mapStateToProp = (state, ownProps) => {
 export class DatasetChangesView extends Component {
   static propTypes = {
     currentSql: PropTypes.string,
+    customDefaultSql: PropTypes.string,
     datasetSql: PropTypes.string,
     history: PropTypes.instanceOf(Immutable.Map),
     childComp: PropTypes.any,
   };
 
   hasChanges = () => {
-    const { datasetSql, currentSql, history } = this.props;
+    const { datasetSql, currentSql, customDefaultSql, history } = this.props;
     return {
       // leaving modified sql?
       // currentSql === null means sql is unchanged.
-      sqlChanged: isSqlChanged(datasetSql, currentSql),
+
+      // if viewing a dataset, compare currentSql to datasetSql
+      // if querying a dataset, compare currentSql to pre-populated "SELECT * FROM ..."
+      // otherwise compare currentSql to an empty string
+      sqlChanged: isSqlChanged(datasetSql || customDefaultSql, currentSql),
       historyChanged: history ? history.get("isEdited") : false,
     };
   };

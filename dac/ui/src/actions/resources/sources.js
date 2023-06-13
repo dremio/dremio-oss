@@ -20,12 +20,16 @@ import schemaUtils from "utils/apiUtils/schemaUtils";
 import actionUtils from "utils/actionUtils/actionUtils";
 import sourceSchema from "dyn-load/schemas/source";
 import { updatePrivileges } from "dyn-load/actions/resources/sourcesMixin";
+import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 
 import sourcesMapper from "utils/mappers/sourcesMapper";
 import { getUniqueName } from "utils/pathUtils";
+import { isNotSoftware } from "dyn-load/utils/versionUtils";
 import DataFreshnessSection from "components/Forms/DataFreshnessSection";
 import { getSourceNames, getSpaceNames } from "@app/selectors/home";
 import { APIV2Call } from "@app/core/APICall";
+import { AZURE_SAMPLE_SOURCE } from "@app/constants/sourceTypes.js";
+import VENDORS from "@inject/constants/vendors";
 
 export const ADD_NEW_SOURCE_START = "ADD_NEW_SOURCE_START";
 export const ADD_NEW_SOURCE_SUCCESS = "ADD_NEW_SOURCE_SUCCESS";
@@ -121,6 +125,9 @@ export function createSampleSource(meta) {
     const name = getUniqueName(la("Samples"), (nameTry) => {
       return !existingNames.has(nameTry);
     });
+    const isAzureProject = isNotSoftware()
+      ? getSonarContext()?.getProjectVendorType?.() === VENDORS.AZURE
+      : false;
 
     const sourceModel = {
       config: {
@@ -136,14 +143,14 @@ export function createSampleSource(meta) {
         DataFreshnessSection.defaultFormValueGracePeriod(),
       accelerationNeverRefresh: true,
       accelerationNeverExpire: true,
-      type: "S3",
+      type: isAzureProject ? AZURE_SAMPLE_SOURCE : "S3",
     };
     return dispatch(postCreateSource(sourceModel, meta, true));
   };
 }
 export function isSampleSource(source) {
   if (!source) return false;
-  if (source.type !== "S3") return false;
+  if (source.type !== "S3" || source.type !== AZURE_SAMPLE_SOURCE) return false;
   if (
     !source.config.externalBucketList ||
     source.config.externalBucketList.length > 1

@@ -31,7 +31,7 @@ import com.google.common.collect.ImmutableList;
 public final class FunctionParserTests {
   @Test
   public void simple() {
-    new GoldenFileTestBuilder<>(FunctionParserTests::executeTest)
+    GoldenFileTestBuilder.create(FunctionParserTests::executeTest)
       .add("ONLY NAME", "myFunction")
       .add("NAME AND OPEN PARENS", "myFunction(")
       .add("SINGLE PARAMETER", "myFunction(1")
@@ -49,7 +49,7 @@ public final class FunctionParserTests {
 
   @Test
   public void substring() {
-    new GoldenFileTestBuilder<>(FunctionParserTests::executeTest)
+    GoldenFileTestBuilder.create(FunctionParserTests::executeTest)
       .add("ONLY NAME", "SUBSTRING")
       .add("NAME AND OPEN PARENS", "SUBSTRING(")
       .add("SINGLE STRING PARAMETER", "SUBSTRING('hello'")
@@ -79,7 +79,7 @@ public final class FunctionParserTests {
       "REGR_SYY", "APPROX_COUNT_DISTINCT");
     ImmutableList<String> conditioned = ImmutableList.of("EVERY", "SOME");
     ImmutableList<String> multisetFunctions = ImmutableList.of("FUSION", "INTERSECTION");
-    GoldenFileTestBuilder<String, MultiLineString> testBuilder = new GoldenFileTestBuilder<>(FunctionParserTests::executeTest);
+    GoldenFileTestBuilder<String, MultiLineString, String> testBuilder = GoldenFileTestBuilder.create(FunctionParserTests::executeTest);
 
     for (String function : distinctOrAll) {
       testBuilder

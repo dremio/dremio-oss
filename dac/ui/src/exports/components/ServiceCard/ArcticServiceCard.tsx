@@ -19,7 +19,7 @@ import { intl } from "@app/utils/intl";
 import arcticPreviewImg from "./images/arctic-preview.png";
 import { ServiceCard } from "./ServiceCard";
 import { Tooltip } from "dremio-ui-lib";
-import { ExternalLink } from "dremio-ui-lib/dist-esm";
+import { ExternalLink } from "dremio-ui-lib/components";
 import * as PATHS from "@app/exports/paths";
 
 type Props = {

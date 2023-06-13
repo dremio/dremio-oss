@@ -20,12 +20,13 @@ import java.util.List;
 import org.apache.hadoop.conf.Configuration;
 
 import com.dremio.common.utils.protos.QueryIdHelper;
-import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.catalog.ResolvedVersionContext;
-import com.dremio.exec.store.iceberg.DremioFileIO;
+import com.dremio.exec.catalog.VersionContext;
+import com.dremio.exec.store.iceberg.SupportsIcebergMutablePlugin;
 import com.dremio.exec.store.iceberg.model.IcebergBaseModel;
 import com.dremio.exec.store.iceberg.model.IcebergCommand;
 import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
+import com.dremio.io.file.FileSystem;
 import com.dremio.plugins.NessieClient;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.google.common.base.Preconditions;
@@ -33,44 +34,66 @@ import com.google.common.base.Preconditions;
 public class IcebergNessieVersionedModel extends IcebergBaseModel {
   private final List<String> tableKey;
   private final NessieClient nessieClient;
-  private final ResolvedVersionContext version;
-  private final  MutablePlugin plugin;
+  private ResolvedVersionContext version;
+  private final String userName;
 
   public IcebergNessieVersionedModel(List<String> tableKey,
                                      Configuration fsConf,
+                                     FileSystem fs,
                                      final NessieClient nessieClient,
                                      OperatorContext context, // Used to create DremioInputFile (valid only for insert/ctas)
                                      ResolvedVersionContext version,
-                                     MutablePlugin plugin) {
-    super(null, fsConf, null, context, null, plugin);
+                                     SupportsIcebergMutablePlugin plugin,
+                                     String userName) {
+    super(null, fsConf, fs, context, null, plugin);
 
     this.tableKey = tableKey;
     this.nessieClient = nessieClient;
+    this.userName = userName;
 
     Preconditions.checkNotNull(version);
     this.version = version;
-    this.plugin = plugin;
   }
 
+  @Override
   protected IcebergCommand getIcebergCommand(IcebergTableIdentifier tableIdentifier) {
+    IcebergNessieVersionedTableOperations tableOperations = new IcebergNessieVersionedTableOperations(
+      context == null ? null : context.getStats(),
+      plugin.createIcebergFileIO(fs, context, null, null, null),
+      nessieClient,
+      ((IcebergNessieVersionedTableIdentifier) tableIdentifier), getJobId(), userName);
+
+    return new IcebergNessieVersionedCommand(tableIdentifier, configuration,  fs, tableOperations);
+  }
+
+  @Override
+  public void refreshVersionContext() {
+    VersionContext versionContext;
+    switch (version.getType()) {
+      case BRANCH:
+        versionContext = VersionContext.ofBranch(version.getRefName());
+        break;
+      case TAG:
+        versionContext = VersionContext.ofTag(version.getRefName());
+        break;
+      default:
+        throw new UnsupportedOperationException("refreshVersionContext is supported for branch and tag ref types only");
+    }
+    version = nessieClient.resolveVersionContext(versionContext, getJobId());
+  }
+
+  @Override
+  public IcebergTableIdentifier getTableIdentifier(String rootFolder) {
+    return new IcebergNessieVersionedTableIdentifier(tableKey, rootFolder, version);
+  }
+
+  private String getJobId() {
     String jobId = null;
 
     //context is only available for executors
     if (context != null) {
       jobId = QueryIdHelper.getQueryId(context.getFragmentHandle().getQueryId());
     }
-
-    IcebergNessieVersionedTableOperations tableOperations = new IcebergNessieVersionedTableOperations(
-      context == null ? null : context.getStats(),
-      new DremioFileIO(fs, context, null, null, null, configuration, plugin),
-      nessieClient,
-      ((IcebergNessieVersionedTableIdentifier) tableIdentifier), jobId);
-
-    return new IcebergNessieVersionedCommand(tableIdentifier, configuration,  fs, tableOperations, plugin);
-  }
-
-  @Override
-  public IcebergTableIdentifier getTableIdentifier(String rootFolder) {
-    return new IcebergNessieVersionedTableIdentifier(tableKey, rootFolder, version);
+    return jobId;
   }
 }

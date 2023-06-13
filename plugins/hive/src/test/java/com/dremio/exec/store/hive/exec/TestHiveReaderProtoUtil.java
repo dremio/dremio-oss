@@ -42,7 +42,7 @@ import com.google.common.collect.Lists;
 public class TestHiveReaderProtoUtil {
 
   @Rule
-  public final TestRule REPEAT_RULE = TestTools.getRepeatRule(false);
+  public final TestRule repeatRule = TestTools.getRepeatRule(false);
 
   private static final int stringLength = 10;
 

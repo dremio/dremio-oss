@@ -123,6 +123,14 @@ public interface NamespaceService {
   DatasetConfig getDataset(NamespaceKey datasetPath) throws NamespaceException;
 
   /**
+   * Returns {@link DatasetConfigAndEntitiesOnPath} corresponding to given path.
+   *
+   * @param datasetPath  path whose config will be returned
+   * @throws NamespaceException  if a namespace or a dataset cannot be found for the given key
+   */
+  DatasetConfigAndEntitiesOnPath getDatasetAndEntitiesOnPath(NamespaceKey datasetPath) throws NamespaceException;
+
+  /**
    * Get multiple entities of given type
    * @param lookupKeys namespace keys
    * @return list of namespace containers with null if no value found for a key.
@@ -300,4 +308,6 @@ public interface NamespaceService {
    * @return dataset associated with this path or null, if there is no dataset.
    */
   NameSpaceContainer getEntityByPath(NamespaceKey datasetPath) throws NamespaceException;
+
+  default void invalidateNamespaceCache(final NamespaceKey key) {}
 }

@@ -53,6 +53,7 @@ public interface DualInputOperator extends Producer {
    * Returns the current state of the operator.
    * @return current operator state.
    */
+  @Override
   DualInputOperator.State getState();
   void noMoreToConsumeLeft() throws Exception;
   void noMoreToConsumeRight() throws Exception;

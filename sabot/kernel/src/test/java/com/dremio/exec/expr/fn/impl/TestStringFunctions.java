@@ -21,7 +21,7 @@ import static org.junit.Assert.assertTrue;
 import java.io.File;
 import java.io.PrintWriter;
 
-import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
@@ -31,8 +31,8 @@ import com.dremio.test.UserExceptionAssert;
 
 public class TestStringFunctions extends BaseTestQuery {
 
-  @ClassRule
-  public static final TemporaryFolder tempDir = new TemporaryFolder();
+  @Rule
+  public final TemporaryFolder tempDir = new TemporaryFolder();
 
   @Test
   public void testStrPosMultiByte() throws Exception {
@@ -573,96 +573,96 @@ public class TestStringFunctions extends BaseTestQuery {
 
   @Test
   public void testLpadTwoArgConvergeToLpad() throws Exception {
-    final String query_1 = "SELECT lpad(r_name, 25) \n" +
+    final String query1 = "SELECT lpad(r_name, 25) \n" +
         "FROM cp.\"tpch/region.parquet\"";
 
 
-    final String query_2 = "SELECT lpad(r_name, 25, ' ') \n" +
+    final String query2 = "SELECT lpad(r_name, 25, ' ') \n" +
         "FROM cp.\"tpch/region.parquet\"";
 
     testBuilder()
-        .sqlQuery(query_1)
+        .sqlQuery(query1)
         .unOrdered()
-        .sqlBaselineQuery(query_2)
+        .sqlBaselineQuery(query2)
         .build()
         .run();
   }
 
   @Test
   public void testRpadTwoArgConvergeToRpad() throws Exception {
-    final String query_1 = "SELECT rpad(r_name, 25) \n" +
+    final String query1 = "SELECT rpad(r_name, 25) \n" +
         "FROM cp.\"tpch/region.parquet\"";
 
 
-    final String query_2 = "SELECT rpad(r_name, 25, ' ') \n" +
+    final String query2 = "SELECT rpad(r_name, 25, ' ') \n" +
         "FROM cp.\"tpch/region.parquet\"";
 
     testBuilder()
-        .sqlQuery(query_1)
+        .sqlQuery(query1)
         .unOrdered()
-        .sqlBaselineQuery(query_2)
+        .sqlBaselineQuery(query2)
         .build()
         .run();
   }
 
   @Test
   public void testLtrimOneArgConvergeToLtrim() throws Exception {
-    final String query_1 = "SELECT ltrim(concat(' ', r_name, ' ')) \n" +
+    final String query1 = "SELECT ltrim(concat(' ', r_name, ' ')) \n" +
         "FROM cp.\"tpch/region.parquet\"";
 
 
-    final String query_2 = "SELECT ltrim(concat(' ', r_name, ' '), ' ') \n" +
+    final String query2 = "SELECT ltrim(concat(' ', r_name, ' '), ' ') \n" +
         "FROM cp.\"tpch/region.parquet\"";
 
     testBuilder()
-        .sqlQuery(query_1)
+        .sqlQuery(query1)
         .unOrdered()
-        .sqlBaselineQuery(query_2)
+        .sqlBaselineQuery(query2)
         .build()
         .run();
   }
 
   @Test
   public void testRtrimOneArgConvergeToRtrim() throws Exception {
-    final String query_1 = "SELECT rtrim(concat(' ', r_name, ' ')) \n" +
+    final String query1 = "SELECT rtrim(concat(' ', r_name, ' ')) \n" +
         "FROM cp.\"tpch/region.parquet\"";
 
 
-    final String query_2 = "SELECT rtrim(concat(' ', r_name, ' '), ' ') \n" +
+    final String query2 = "SELECT rtrim(concat(' ', r_name, ' '), ' ') \n" +
         "FROM cp.\"tpch/region.parquet\"";
 
     testBuilder()
-        .sqlQuery(query_1)
+        .sqlQuery(query1)
         .unOrdered()
-        .sqlBaselineQuery(query_2)
+        .sqlBaselineQuery(query2)
         .build()
         .run();
   }
 
   @Test
   public void testBtrimOneArgConvergeToBtrim() throws Exception {
-    final String query_1 = "SELECT btrim(concat(' ', r_name, ' ')) \n" +
+    final String query1 = "SELECT btrim(concat(' ', r_name, ' ')) \n" +
         "FROM cp.\"tpch/region.parquet\"";
 
 
-    final String query_2 = "SELECT btrim(concat(' ', r_name, ' '), ' ') \n" +
+    final String query2 = "SELECT btrim(concat(' ', r_name, ' '), ' ') \n" +
         "FROM cp.\"tpch/region.parquet\"";
 
     testBuilder()
-        .sqlQuery(query_1)
+        .sqlQuery(query1)
         .unOrdered()
-        .sqlBaselineQuery(query_2)
+        .sqlBaselineQuery(query2)
         .build()
         .run();
   }
 
   @Test
   public void testInitCap() throws Exception {
-    final String query_1 = "SELECT x, initcap(x) as y FROM (VALUES ('abc'), ('ABC'), ('12ABC')) as t1(x)";
+    final String query1 = "SELECT x, initcap(x) as y FROM (VALUES ('abc'), ('ABC'), ('12ABC')) as t1(x)";
     final String expected = "SELECT x, y FROM (VALUES ('abc', 'Abc'), ('ABC', 'Abc'), ('12ABC', '12abc')) as t1(x, y)";
 
     testBuilder()
-      .sqlQuery(query_1)
+      .sqlQuery(query1)
       .unOrdered()
       .sqlBaselineQuery(expected)
       .build()
@@ -677,6 +677,32 @@ public class TestStringFunctions extends BaseTestQuery {
       .unOrdered()
       .baselineColumns("full_name", "reverse_sub_name")
       .baselineValues("Sheri Nowmer", " ireh")
+      .go();
+  }
+
+  @Test
+  public void testRegexpColLike() throws Exception {
+    final String query = "select *, regexp_col_like(columns[0], columns[1]) as col_matches " +
+      "from cp.\"csv/regexp_col_like_test.csv\" " +
+      "where columns[2] != col_matches";
+
+    testBuilder()
+      .unOrdered()
+      .sqlQuery(query)
+      .expectsEmptyResultSet()
+      .go();
+  }
+
+  @Test
+  public void testRegexpColMatches() throws Exception {
+    final String query = "select *, regexp_col_matches(columns[0], columns[1]) as col_matches " +
+      "from cp.\"csv/regexp_col_like_test.csv\" " +
+      "where columns[2] != col_matches";
+
+    testBuilder()
+      .unOrdered()
+      .sqlQuery(query)
+      .expectsEmptyResultSet()
       .go();
   }
 }

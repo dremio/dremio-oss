@@ -44,7 +44,7 @@ import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.ImmutableBitSet;
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
@@ -133,6 +133,7 @@ public class DmlPlanGenerator extends TableManagementPlanGenerator {
     }
   }
 
+  @Override
   public Prel getPlan() {
     try {
       Prel dataFileAggPlan;
@@ -479,7 +480,8 @@ public class DmlPlanGenerator extends TableManagementPlanGenerator {
       tableMetadata,
       allColumns,
       context,
-      ManifestScanFilters.empty());
+      ManifestScanFilters.empty(),
+      null);
 
     return builder.buildWithDmlDataFileFiltering(dataFileListInput);
   }

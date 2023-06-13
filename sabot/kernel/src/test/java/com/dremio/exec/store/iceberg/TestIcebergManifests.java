@@ -141,7 +141,7 @@ public class TestIcebergManifests extends BaseTestQuery {
       tableFolder.mkdir();
 
       FileSystemPlugin fileSystemPlugin = BaseTestQuery.getMockedFileSystemPlugin();
-      IcebergHadoopModel icebergHadoopModel = new IcebergHadoopModel(new Configuration(), fileSystemPlugin);
+      IcebergHadoopModel icebergHadoopModel = new IcebergHadoopModel(fileSystemPlugin);
       when(fileSystemPlugin.getIcebergModel()).thenReturn(icebergHadoopModel);
       SchemaConverter schemaConverter = SchemaConverter.getBuilder().setTableName(tableName).build();
       IcebergOpCommitter committer = icebergHadoopModel.getCreateTableCommitter(tableName,
@@ -170,8 +170,7 @@ public class TestIcebergManifests extends BaseTestQuery {
       }
       table = getIcebergTable(tableFolder, IcebergCatalogType.HADOOP);
       return table.currentSnapshot().allManifests(table.io()).size();
-    }
-    finally {
+    } finally {
       tableFolder.delete();
     }
   }

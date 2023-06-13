@@ -21,11 +21,13 @@ import java.util.Set;
 
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.iceberg.DataFile;
+import org.apache.iceberg.DeleteFile;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.types.Types;
 
 import com.dremio.exec.catalog.PartitionSpecAlterOption;
@@ -36,159 +38,163 @@ import com.dremio.exec.record.BatchSchema;
  * represents an Iceberg catalog
  */
 public interface IcebergCommand {
-    /**
-     * Start of Create table command
-     * @param tableName name of the table
-     * @param writerSchema schema of the table
-     * @param partitionColumns partition specification of the table
-     * @param tableParameters icebeg table parameters
-     */
-    void beginCreateTableTransaction(String tableName, BatchSchema writerSchema, List<String> partitionColumns, Map<String, String> tableParameters, PartitionSpec partitionSpec);
 
-    /**
-     * Start of a tansaction
-     */
-    void beginTransaction();
+  /**
+   * Start of Create table command
+   * @param tableName name of the table
+   * @param writerSchema schema of the table
+   * @param partitionColumns partition specification of the table
+   * @param tableParameters icebeg table parameters
+   */
+  void beginCreateTableTransaction(String tableName, BatchSchema writerSchema, List<String> partitionColumns, Map<String, String> tableParameters, PartitionSpec partitionSpec);
 
-    /**
-     * End of a tansaction
-     */
+  /**
+   * Start of a tansaction
+   */
+  void beginTransaction();
 
-    Table endTransaction();
+  /**
+   * End of a tansaction
+   */
 
-    /**
-     * Start the overwrite operation
-     */
-    void beginOverwrite(long snapshotId);
+  Table endTransaction();
 
-    /**
-     * Commit the overwrite operation
-     */
-    Snapshot finishOverwrite();
+  /**
+   * Start the overwrite operation
+   */
+  void beginOverwrite(long snapshotId);
+
+  /**
+   * Commit the overwrite operation
+   */
+  Snapshot finishOverwrite();
 
 
   /**
    * Performs rewrite operation and commits the transaction
-   * @param removedFiles
-   * @param addedFiles
+   * @param removedDataFiles
+   * @param removedDeleteFiles
+   * @param addedDataFiles
+   * @param addedDeleteFiles
    * @return updated snapshot
    */
-    Snapshot rewriteDataFiles(Set<DataFile> removedFiles, Set<DataFile> addedFiles);
+    Snapshot rewriteFiles(Set<DataFile> removedDataFiles, Set<DeleteFile> removedDeleteFiles, Set<DataFile> addedDataFiles, Set<DeleteFile> addedDeleteFiles, Long snapshotId);
 
-    /**
-     * Consumes list of deleted data files using Overwrite
-     * @param filePathsList list of DataFile entries
-     */
-    void consumeDeleteDataFilesWithOverwriteByPaths(List<String> filePathsList);
+  /**
+   * Consumes list of deleted data files using Overwrite
+   * @param filePathsList list of DataFile entries
+   */
+  void consumeDeleteDataFilesWithOverwriteByPaths(List<String> filePathsList);
 
-    /**
-     * Consumes list of Manifest files using Overwrite
-     * @param filesList list of DataFile entries
-     */
-    void consumeManifestFilesWithOverwrite(List<ManifestFile> filesList);
+  /**
+   * Consumes list of Manifest files using Overwrite
+   * @param filesList list of DataFile entries
+   */
+  void consumeManifestFilesWithOverwrite(List<ManifestFile> filesList);
 
-    /**
-     * Start the delete operation
-     */
-    void beginDelete();
+  /**
+   * Start the delete operation
+   */
+  void beginDelete();
 
-    /**
-     * Commit the delete operation
-     */
-    Snapshot finishDelete();
+  /**
+   * Commit the delete operation
+   */
+  Snapshot finishDelete();
 
-    /**
-     *  Start the insert operation
-     */
-    void beginInsert();
+  /**
+   *  Start the insert operation
+   */
+  void beginInsert();
 
-    /**
-     *  Finish the insert operation
-     */
-    Snapshot finishInsert();
+  /**
+   *  Finish the insert operation
+   */
+  Snapshot finishInsert();
 
-    /**
-     * Remove older snapshots and their files which are no longer needed.
-     */
-    Snapshot expireSnapshots(Long olderThanInMillis, int retainLast);
+  /**
+   * Expire older snapshots, but don't clean orphan files.
+   * @return Live snapshots and their manifest list file paths
+  */
+ Map<Long, String> expireSnapshots(long olderThanInMillis, int retainLast);
 
-    /**
-     * Roll a table's data back to a specific snapshot identified either by id or before a given timestamp.
-     * @param rollbackOption rollback table option
-     */
-    void rollback(RollbackOption rollbackOption);
+  /**
+   * Roll a table's data back to a specific snapshot identified either by id or before a given timestamp.
+   * @param rollbackOption rollback table option
+   */
+  void rollback(RollbackOption rollbackOption);
 
-    /**
-     * consumes list of Manifest files as part of the current transaction
-     * @param filesList list of DataFile entries
-     */
-    void consumeManifestFiles(List<ManifestFile> filesList);
+  /**
+   * consumes list of Manifest files as part of the current transaction
+   * @param filesList list of DataFile entries
+   */
+  void consumeManifestFiles(List<ManifestFile> filesList);
 
-    /**
-     * consumes list of data files to be deleted as a part of
-     * the current transaction
-     * @param filesList list of DataFile entries
-     */
-    void consumeDeleteDataFiles(List<DataFile> filesList);
+  /**
+   * consumes list of data files to be deleted as a part of
+   * the current transaction
+   * @param filesList list of DataFile entries
+   */
+  void consumeDeleteDataFiles(List<DataFile> filesList);
 
-    /**
-     * consumes list of deleted data files by file paths as a part of
-     * the current transaction
-     * @param filePathsList list of data file paths
-     */
-    void consumeDeleteDataFilesByPaths(List<String> filePathsList);
+  /**
+   * consumes list of deleted data files by file paths as a part of
+   * the current transaction
+   * @param filePathsList list of data file paths
+   */
+  void consumeDeleteDataFilesByPaths(List<String> filePathsList);
 
-    /**
-     * consumes list of columns to be dropped
-     * as part of metadata refresh transaction.
-     * Used only in new metadata refresh flow
-     */
-    void consumeDroppedColumns(List<Types.NestedField> columns);
+  /**
+   * consumes list of columns to be dropped
+   * as part of metadata refresh transaction.
+   * Used only in new metadata refresh flow
+   */
+  void consumeDroppedColumns(List<Types.NestedField> columns);
 
-    /**
-     * consumes list of columns to be updated
-     * as part of metadata refresh transaction.
-     * Used only in new metadata refresh flow
-     */
-    void consumeUpdatedColumns(List<Types.NestedField> columns);
+  /**
+   * consumes list of columns to be updated
+   * as part of metadata refresh transaction.
+   * Used only in new metadata refresh flow
+   */
+  void consumeUpdatedColumns(List<Types.NestedField> columns);
 
-    /**
-     * consumes list of columns to be added to the schema
-     * as part of metadata refresh transaction. Used
-     * only in new metadata refresh flow
-     */
-    void consumeAddedColumns(List<Types.NestedField> columns);
+  /**
+   * consumes list of columns to be added to the schema
+   * as part of metadata refresh transaction. Used
+   * only in new metadata refresh flow
+   */
+  void consumeAddedColumns(List<Types.NestedField> columns);
 
-    /**
-     * truncates the table
-     */
-    void truncateTable();
+  /**
+   * truncates the table
+   */
+  void truncateTable();
 
-    /**
-     * adds new columns
-     * @param columnsToAdd list of columns fields to add
-     */
-    void addColumns(List<Types.NestedField> columnsToAdd);
+  /**
+   * adds new columns
+   * @param columnsToAdd list of columns fields to add
+   */
+  void addColumns(List<Types.NestedField> columnsToAdd);
 
-    /**
-     * drop an existing column
-     * @param columnToDrop existing column name
-     */
-    void dropColumn(String columnToDrop);
+  /**
+   * drop an existing column
+   * @param columnToDrop existing column name
+   */
+  void dropColumn(String columnToDrop);
 
-    /**
-     * change column type
-     * @param columnToChange existing column name
-     * @param batchField new column type
-     */
-    void changeColumn(String columnToChange, Field batchField);
+  /**
+   * change column type
+   * @param columnToChange existing column name
+   * @param batchField new column type
+   */
+  void changeColumn(String columnToChange, Field batchField);
 
-    /**
-     * change column name
-     * @param name existing column name
-     * @param newName new column name
-     */
-    void renameColumn(String name, String newName);
+  /**
+   * change column name
+   * @param name existing column name
+   * @param newName new column name
+   */
+  void renameColumn(String name, String newName);
 
   /**
    * Update primary key
@@ -213,41 +219,45 @@ public interface IcebergCommand {
    * Load an Iceberg table from disk
    * @return Iceberg table instance
    */
-   Table loadTable();
+  Table loadTable();
 
   /**
    * @return returns the latest snapshot on which the transaction is performed
    */
-   Snapshot getCurrentSnapshot();
+  Snapshot getCurrentSnapshot();
 
    /**
     * @return return Iceberg table metadata file location
     */
-   String getRootPointer();
+  String getRootPointer();
 
   /**
    * Delete the root pointer of the table
    *
    */
-   void deleteTableRootPointer();
+  void deleteTableRootPointer();
 
-   void deleteTable();
+  void deleteTable();
 
-    Map<Integer, PartitionSpec> getPartitionSpecMap();
+  Map<Integer, PartitionSpec> getPartitionSpecMap();
 
-    Schema getIcebergSchema();
+  Schema getIcebergSchema();
 
-    void beginAlterTableTransaction();
+  void beginAlterTableTransaction();
 
-    Table endAlterTableTransaction();
+  Table endAlterTableTransaction();
 
-    void addColumnsInternalTable(List<Field> columnsToAdd);
+  void addColumnsInternalTable(List<Field> columnsToAdd);
 
-    void dropColumnInternalTable(String columnToDrop);
+  void dropColumnInternalTable(String columnToDrop);
 
-    void changeColumnForInternalTable(String columnToChange, Field batchField);
+  void changeColumnForInternalTable(String columnToChange, Field batchField);
 
-    void updatePropertiesMap(Map<String, String> propertiesMap);
+  void updatePropertiesMap(Map<String, String> propertiesMap);
 
-    void updatePartitionSpec(PartitionSpecAlterOption partitionSpecAlterOption);
+  void updatePartitionSpec(PartitionSpecAlterOption partitionSpecAlterOption);
+
+  long propertyAsLong(String propertyName, long defaultValue);
+
+  FileIO getFileIO();
 }

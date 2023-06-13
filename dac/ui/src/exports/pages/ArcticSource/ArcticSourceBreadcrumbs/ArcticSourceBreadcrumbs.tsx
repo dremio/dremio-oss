@@ -25,7 +25,7 @@ import * as classes from "./ArcticSourceBreadcrumbs.module.less";
 
 const ArcticSourceBreadcrumbs = () => {
   const { source, baseUrl } = useNessieContext();
-  const { reservedNamespace, activeTab } = useArcticCatalogContext() ?? {};
+  const { activeTab } = useArcticCatalogContext() ?? {};
   return activeTab === "commit" ? null : (
     <>
       <p className={classes["arcticSourceBreadcrumbs"]}>
@@ -34,7 +34,7 @@ const ArcticSourceBreadcrumbs = () => {
             type: "source",
             baseUrl,
             tab: "data",
-            namespace: reservedNamespace ?? "",
+            namespace: "",
           })}
         >
           {source.name}

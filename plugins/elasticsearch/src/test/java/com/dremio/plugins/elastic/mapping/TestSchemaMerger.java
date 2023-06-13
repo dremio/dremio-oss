@@ -66,8 +66,8 @@ public class TestSchemaMerger {
       null,
       null,
       true,
-      innerFields2
-    );
+      innerFields2,
+      null);
 
     final Map<String, ElasticMappingSet.ElasticField> innerFields1 = new HashMap<>();
     innerFields1.put("1", createElasticTextField("stringLevel1"));
@@ -81,8 +81,8 @@ public class TestSchemaMerger {
       null,
       null,
       true,
-      innerFields1
-    );
+      innerFields1,
+      null);
 
     final Map<String, ElasticMappingSet.ElasticField> fields = new HashMap<>();
     fields.put("1", createElasticTextField("stringLevel0"));
@@ -101,8 +101,8 @@ public class TestSchemaMerger {
       null,
       null,
       true,
-      Collections.emptyMap()
-    );
+      Collections.emptyMap(),
+      null);
   }
 
   private ElasticMappingSet.ElasticField createElasticField(String name, ElasticMappingSet.Type type, boolean normalized) {
@@ -113,8 +113,8 @@ public class TestSchemaMerger {
       normalized ? "true" : null,
       null,
       true,
-      Collections.emptyMap()
-    );
+      Collections.emptyMap(),
+      null);
   }
 
   private ElasticMappingSet.ElasticField createElasticFloatField(String name) {
@@ -125,8 +125,8 @@ public class TestSchemaMerger {
       null,
       null,
       true,
-      Collections.emptyMap()
-    );
+      Collections.emptyMap(),
+      null);
   }
 
   private void createSchema() {

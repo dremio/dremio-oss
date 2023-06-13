@@ -116,13 +116,13 @@ public class PhysicalDatasetUtils {
         final TextFileConfig textFileConfig = (TextFileConfig)TextFileConfig.getForFile(fileConfig);
         final TextFormatConfig textFormatConfig = new TextFormatConfig();
 
-        textFormatConfig.comment = textFileConfig.getComment().charAt(0);
-        textFormatConfig.escape = textFileConfig.getEscape().charAt(0);
+        textFormatConfig.comment = textFileConfig.getComment();
+        textFormatConfig.escape = textFileConfig.getEscape();
         textFormatConfig.extractHeader = textFileConfig.getExtractHeader();
         textFormatConfig.skipFirstLine = textFileConfig.getSkipFirstLine();
-        textFormatConfig.fieldDelimiter = textFileConfig.getFieldDelimiter().charAt(0);
+        textFormatConfig.fieldDelimiter = textFileConfig.getFieldDelimiter();
         textFormatConfig.lineDelimiter = textFileConfig.getLineDelimiter();
-        textFormatConfig.quote = textFileConfig.getQuote().charAt(0);
+        textFormatConfig.quote = textFileConfig.getQuote();
         textFormatConfig.extensions = extensions;
         textFormatConfig.autoGenerateColumnNames = textFileConfig.getAutoGenerateColumnNames();
         textFormatConfig.trimHeader = textFileConfig.getTrimHeader();
@@ -216,10 +216,10 @@ public class PhysicalDatasetUtils {
       final TextFileConfig textFileConfig = new TextFileConfig();
       TextParsingSettings settings = new TextParsingSettings();
       settings.set((TextFormatConfig) formatPlugin.getConfig());
-      textFileConfig.setComment(new Character((char) settings.getComment()).toString());
-      textFileConfig.setEscape(new Character((char) settings.getQuoteEscape()).toString());
-      textFileConfig.setFieldDelimiter(new Character((char) settings.getDelimiter()).toString());
-      textFileConfig.setQuote(new Character((char) settings.getQuote()).toString());
+      textFileConfig.setComment(new String(settings.getComment()));
+      textFileConfig.setEscape(new String(settings.getQuoteEscape()));
+      textFileConfig.setFieldDelimiter(new String(settings.getDelimiter()));
+      textFileConfig.setQuote(new String(settings.getQuote()));
       textFileConfig.setExtractHeader(settings.isHeaderExtractionEnabled());
       textFileConfig.setSkipFirstLine(settings.isSkipFirstLine());
       textFileConfig.setLineDelimiter(new String(settings.getNewLineDelimiter()));

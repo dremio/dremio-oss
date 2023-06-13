@@ -1,0 +1,97 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/* stylelint-disable selector-class-pattern */
+.mantine-Input-invalid {
+  border-color: var(--dremio--color--status--error--foreground) !important;
+  color: inherit !important;
+}
+
+.mantine-InputWrapper-error {
+  color: var(--dremio--color--status--error--foreground) !important;
+}
+
+.mantine-InputWrapper-label {
+  font-weight: 400 !important;
+  margin-block-end: 2px !important;
+  inline-size: 100%;
+}
+
+.mantine-TextInput-icon--text {
+  .mantine-TextInput-icon {
+    color: var(--dremio--color--text--main);
+    background-color: var(--color--neutral--25);
+    inset: 1px;
+    border-end-start-radius: var(--dremio--radius--1);
+    border-start-start-radius: var(--dremio--radius--1);
+  }
+}
+
+.mantine-ScrollArea-viewport > div > div {
+  padding: var(--dremio--spacing--05) 0 !important;
+}
+
+.mantine-Select-dropdown {
+  border: none;
+  color: inherit;
+  border-radius: var(--dremio--radius--1);
+}
+
+.mantine-Select-item {
+  border-radius: 0;
+  color: var(--dremio--color--text--main);
+}
+
+.mantine-Select-item[data-hovered="true"] {
+  background-color: var(--color--brand--25);
+}
+
+.mantine-Select-item[data-selected="true"] {
+  color: var(--dremio--color--text--main);
+  background-color: var(--color--brand--50);
+
+  &:hover {
+    background-color: var(--color--brand--100);
+  }
+}
+
+.mantine-Input-input {
+  block-size: 32px;
+  min-block-size: 32px;
+  line-height: 32px;
+}
+
+.mantine-Select-rightSection {
+  pointer-events: none;
+}
+
+.mantine-NumberInput-control {
+  border: none;
+}
+
+.mantine-Checkbox-input {
+  border-color: var(--color--neutral--100);
+  &:hover {
+    cursor: pointer;
+    border-color: var(--color--neutral--200);
+  }
+  &:checked {
+    &:hover {
+      background-color: var(--color--brand--400);
+      border-color: var(--color--brand--400);
+    }
+  }
+}

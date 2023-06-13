@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.planner.sql.handlers.query;
 
+import static com.dremio.exec.planner.sql.handlers.SqlHandlerUtil.PLANNER_SOURCE_TARGET_SOURCE_TYPE_SPAN_ATTRIBUTE_NAME;
+
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.type.RelDataType;
@@ -24,6 +26,7 @@ import org.apache.calcite.sql.SqlOperator;
 import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.calcite.logical.TableModifyCrel;
 import com.dremio.exec.calcite.logical.TableOptimizeCrel;
+import com.dremio.exec.calcite.logical.VacuumTableCrel;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioPrepareTable;
 import com.dremio.exec.physical.PhysicalPlan;
@@ -32,9 +35,14 @@ import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
+import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.planner.sql.parser.DmlUtils;
+import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.annotations.VisibleForTesting;
+
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 
 /**
  * Abstraction of the plan building components, within table modification operations, such as DML and OPTIMIZE.
@@ -48,10 +56,12 @@ public abstract class TableManagementHandler implements SqlToPlanHandler {
    * Run  {@link #checkValidations(Catalog, SqlHandlerConfig, NamespaceKey, SqlNode)}
    * and return Plan {@link #getPlan(Catalog, SqlHandlerConfig, String, SqlNode, NamespaceKey)}
    */
+  @WithSpan
   @Override
   public final PhysicalPlan getPlan(SqlHandlerConfig config, String sql, SqlNode sqlNode) throws Exception {
     final Catalog catalog = config.getContext().getCatalog();
     final NamespaceKey path = DmlUtils.getTablePath(catalog, getTargetTablePath(sqlNode));
+    Span.current().setAttribute(PLANNER_SOURCE_TARGET_SOURCE_TYPE_SPAN_ATTRIBUTE_NAME, SqlHandlerUtil.getSourceType(catalog, path.getRoot()));
     checkValidations(catalog, config, path, sqlNode);
     return getPlan(catalog, config, sql, sqlNode, path);
   }
@@ -116,6 +126,10 @@ public abstract class TableManagementHandler implements SqlToPlanHandler {
 
       if (other instanceof TableOptimizeCrel) {
         other = ((TableOptimizeCrel) other).createWith(createTableEntry);
+      }
+
+      if (other instanceof VacuumTableCrel) {
+          other = ((VacuumTableCrel) other).createWith(createTableEntry);
       }
 
       return super.visit(other);
@@ -201,4 +215,8 @@ public abstract class TableManagementHandler implements SqlToPlanHandler {
     }
   }
 
+  protected void validateTableExistenceAndMutability(Catalog catalog, SqlHandlerConfig config, NamespaceKey namespaceKey) {
+    // Validate table exists and is Iceberg table
+    IcebergUtils.checkTableExistenceAndMutability(catalog, config, namespaceKey, getSqlOperator(), false);
+  }
 }

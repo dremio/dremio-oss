@@ -22,6 +22,7 @@ import { ArcticCatalogTabsType } from "@app/exports/pages/ArcticCatalog/ArcticCa
 import { Tag } from "@app/services/nessie/client";
 import { Reference } from "@app/types/nessie";
 import { generateTableRows, getTagsTableColumns } from "./utils";
+import DeleteTagDialog from "@app/pages/NessieHomePage/components/DeleteTagDialog/DeleteTagDialog";
 
 import "./ArcticCatalogTagsTable.less";
 
@@ -49,17 +50,29 @@ function ArcticCatalogTagsTable({
   const [branchDialogState, setBranchDialogState] = useState(
     INITIAL_BRANCH_STATE_VALUE
   );
-  const [tagDialogState, setTagDialogState] = useState(INITIAL_TAG_STATE_VALUE);
+  const [addTagDialogState, setAddTagDialogState] = useState(
+    INITIAL_TAG_STATE_VALUE
+  );
+  const [deleteTagDialogState, setDeleteTagDialogState] = useState(
+    INITIAL_TAG_STATE_VALUE
+  );
 
   const closeDialog = () => {
     setBranchDialogState(INITIAL_BRANCH_STATE_VALUE);
-    setTagDialogState(INITIAL_TAG_STATE_VALUE);
+    setAddTagDialogState(INITIAL_TAG_STATE_VALUE);
+    setDeleteTagDialogState(INITIAL_TAG_STATE_VALUE);
   };
 
   const handleOpenDialog = (type: "TAG" | "BRANCH", dialogState: any) => {
-    type === "TAG"
-      ? setTagDialogState(dialogState)
-      : setBranchDialogState(dialogState);
+    if (type === "TAG") {
+      if (dialogState?.deleteTag) {
+        setDeleteTagDialogState(dialogState);
+      } else {
+        setAddTagDialogState(dialogState);
+      }
+    } else {
+      setBranchDialogState(dialogState);
+    }
   };
 
   const tableData = useMemo(() => {
@@ -86,8 +99,14 @@ function ArcticCatalogTagsTable({
         fromType="TAG"
       />
       <NewTagDialog
-        open={tagDialogState.openDialog}
-        forkFrom={tagDialogState.fromRef}
+        open={addTagDialogState.openDialog}
+        forkFrom={addTagDialogState.fromRef}
+        closeDialog={closeDialog}
+        refetch={refetch}
+      />
+      <DeleteTagDialog
+        open={deleteTagDialogState.openDialog}
+        forkFrom={deleteTagDialogState.fromRef}
         closeDialog={closeDialog}
         refetch={refetch}
       />

@@ -183,10 +183,10 @@ public class HashAggPrel extends AggregatePrel implements Prel{
        * ListAggExpression is not an instance of FunctionHolderExpr so it will be skipped here.
        * ListAgg support spilling so no additional config options are necessary
        */
-      if (expr != null && (expr instanceof FunctionHolderExpr)) {
+      if (expr instanceof FunctionHolderExpr) {
         final String functionName = ((FunctionHolderExpr) expr).getName();
-        final boolean isMinMaxFn = (functionName.equals("min") || functionName.equals("max"));
-        final boolean isNDVFn = (functionName.equals("hll") || functionName.equals("hll_merge"));
+        final boolean isMinMaxFn = ("min".equals(functionName) || "max".equals(functionName));
+        final boolean isNDVFn = ("hll".equals(functionName) || "hll_merge".equals(functionName));
         if ((isNDVFn && !isNdvSpillEnabled) ||
           (isMinMaxFn && expr.getCompleteType().isVariableWidthScalar() && !isVarLenMinMaxSpillEnabled)) {
           useSpill = false;
@@ -275,8 +275,9 @@ public class HashAggPrel extends AggregatePrel implements Prel{
             case INT:
             case DECIMAL:
               continue;
+            default:
+              break;
           }
-
           return false;
 
         case "min":
@@ -287,6 +288,7 @@ public class HashAggPrel extends AggregatePrel implements Prel{
               if (!enabledSpillVarchar && !enabledVarcharNdv) {
                 return false;
               }
+              // fall through
             case BIGINT:
             case FLOAT4:
             case FLOAT8:
@@ -299,8 +301,9 @@ public class HashAggPrel extends AggregatePrel implements Prel{
             case TIMESTAMP:
             case DECIMAL:
               continue;
+            default:
+              break;
           }
-
           return false;
 
         case "hll":

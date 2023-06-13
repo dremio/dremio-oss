@@ -1,7 +1,7 @@
 {
   "sourceType": "AZURE_STORAGE",
   "metadataRefresh": {
-    "datasetDiscovery": true,
+    "datasetDiscovery": false,
     "isFileSystemSource": true
   },
   "form": {
@@ -38,10 +38,39 @@
                     "container": {
                       "elements": [
                         {
-                          "propName": "config.accessKey",
-                          "size": "half",
-                          "errMsg": "Access key is required for Azure storage accounts",
-                          "secure": true
+                          "propName": "config.sharedAccessSecretType",
+                          "uiType": "container_selection",
+                          "options": [
+                            {
+                              "value": "SHARED_ACCESS_SECRET_KEY",
+                              "container": {
+                                "elements": [
+                                  {
+                                    "propName": "config.accessKey",
+                                    "placeholder": "Type secret here",
+                                    "size": "half",
+                                    "errMsg": "Access key is required for Azure storage accounts",
+                                    "secure": true
+                                  }
+                                ]
+                              }
+                            },
+                            {
+                              "value": "SHARED_ACCESS_AZURE_KEY_VAULT",
+                              "container": {
+                                "elements": [
+                                  {
+                                    "name": "Azure Key Vault",
+                                    "propName": "config.accessKeyUri",
+                                    "prefix":"https://",
+                                    "placeholder": "<vault URI>/secrets/<secret_name>",
+                                    "size": "half",
+                                    "errMsg": "Vault URI"
+                                  }
+                                ]
+                              }
+                            }
+                          ]
                         }
                       ]
                     }
@@ -61,10 +90,38 @@
                           "errMsg": "Token endpoint is required for Azure Active Directory OAuth 2.0"
                         },
                         {
-                          "propName": "config.clientSecret",
-                          "size": "half",
-                          "errMsg": "Client secret is required for Azure Active Directory OAuth 2.0",
-                          "secure": true
+                          "propName": "config.azureADSecretType",
+                          "uiType": "container_selection",
+                          "options": [
+                            {
+                              "value": "AZURE_ACTIVE_DIRECTORY_SECRET_KEY",
+                              "container": {
+                                "elements": [
+                                  {
+                                    "propName": "config.clientSecret",
+                                    "placeholder": "Type secret here",
+                                    "size": "half",
+                                    "errMsg": "Access key is required for Azure storage accounts",
+                                    "secure": true
+                                  }
+                                ]
+                              }
+                            },
+                            {
+                              "value": "AZURE_ACTIVE_DIRECTORY_KEY_VAULT",
+                              "container": {
+                                "elements": [
+                                  {
+                                    "propName": "config.clientSecretUri",
+                                    "prefix": "https://",
+                                    "placeholder": "<vault URI>/secrets/<secret_name>",
+                                    "size": "half",
+                                    "errMsg": "Vault URI"
+                                  }
+                                ]
+                              }
+                            }
+                          ]
                         }
                       ]
                     }

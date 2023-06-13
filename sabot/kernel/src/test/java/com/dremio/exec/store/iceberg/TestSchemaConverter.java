@@ -243,7 +243,7 @@ public class TestSchemaConverter extends DremioTest {
     Configuration conf = new Configuration();
 
     FileSystemPlugin fileSystemPlugin = BaseTestQuery.getMockedFileSystemPlugin();
-    IcebergHadoopModel icebergHadoopModel = new IcebergHadoopModel(new Configuration(), fileSystemPlugin);
+    IcebergHadoopModel icebergHadoopModel = new IcebergHadoopModel(fileSystemPlugin);
     when(fileSystemPlugin.getIcebergModel()).thenReturn(icebergHadoopModel);
 
     IcebergOpCommitter createTableCommitter = icebergHadoopModel.getCreateTableCommitter("testTableName",

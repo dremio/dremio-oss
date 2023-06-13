@@ -64,8 +64,7 @@ class DremioStatementRegistry {
       try {
         logger.debug( "Auto-closing (via open-statements registry): " + statement );
         statement.close();
-      }
-      catch ( SQLException e ) {
+      } catch ( SQLException e ) {
         logger.error( "Error auto-closing statement " + statement + ": " + e, e );
         // Otherwise ignore the error, to close which statements we can close.
       }

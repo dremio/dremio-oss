@@ -60,7 +60,7 @@ public class TestResolvedVersionContext {
     assertTrue(version.isBareCommit());
 
     assertEquals(ResolvedVersionContext.Type.BARE_COMMIT, version.getType());
-    assertEquals("DETACHED", version.getRefName());
+    assertEquals(ResolvedVersionContext.DETACHED_REF_NAME, version.getRefName());
     assertEquals(REASONABLE_HASH, version.getCommitHash());
   }
 

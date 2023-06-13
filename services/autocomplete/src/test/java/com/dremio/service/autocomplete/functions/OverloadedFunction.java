@@ -71,6 +71,7 @@ public final class OverloadedFunction extends SqlFunction {
     this.operandTypes = operandTypes;
   }
 
+  @Override
   public boolean checkOperandTypes(SqlCallBinding sqlCallBinding, boolean throwOnFailure) {
     if (sqlCallBinding.operands().size() != operandTypes.size()) {
       return false;
@@ -100,6 +101,7 @@ public final class OverloadedFunction extends SqlFunction {
     return SqlOperandCountRanges.of(operandTypes.size());
   }
 
+  @Override
   public RelDataType inferReturnType(
     SqlOperatorBinding opBinding) {
     return JavaTypeFactoryImpl.INSTANCE.createSqlType(SqlTypeName.DOUBLE);

@@ -163,6 +163,7 @@ public final class MetadataObjectsUtils {
       final SupportsIcebergMetadata newMetadata = (SupportsIcebergMetadata) newExtended;
       final PhysicalDataset pds = getPhysicalDataset(datasetConfig);
       final DatasetStats deleteStats = newMetadata.getDeleteStats();
+      final DatasetStats equalityDeleteStats = newMetadata.getEqualityDeleteStats();
       final DatasetStats deleteManifestStats = newMetadata.getDeleteManifestStats();
 
       final IcebergMetadata icebergMetadata = new IcebergMetadata();
@@ -179,6 +180,13 @@ public final class MetadataObjectsUtils {
                 ScanStatsType.NO_EXACT_ROW_COUNT)
             .setRecordCount(deleteStats.getRecordCount()));
       }
+      if (equalityDeleteStats != null) {
+        icebergMetadata.setEqualityDeleteStats(new ScanStats()
+          .setScanFactor(equalityDeleteStats.getScanFactor())
+          .setType(equalityDeleteStats.isExactRecordCount() ? ScanStatsType.EXACT_ROW_COUNT :
+            ScanStatsType.NO_EXACT_ROW_COUNT)
+          .setRecordCount(equalityDeleteStats.getRecordCount()));
+      }
       if (deleteManifestStats != null) {
         icebergMetadata.setDeleteManifestStats(new ScanStats()
             .setScanFactor(deleteManifestStats.getScanFactor())
@@ -187,6 +195,7 @@ public final class MetadataObjectsUtils {
             .setRecordCount(deleteManifestStats.getRecordCount()));
       }
       pds.setIcebergMetadata(icebergMetadata);
+      datasetConfig.setLastModified(newMetadata.getMtime());
     } else { // TODO(DX-43317): try deprecated way of populating iceberg metadata, until DX-43317 is resolved.
 
       final byte[] icebergMetadataBytes = newExtended.getIcebergMetadata();

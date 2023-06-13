@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { Avatar } from "dremio-ui-lib/dist-esm";
-import { createTable, type Columns } from "leantable/core";
+import { Avatar } from "dremio-ui-lib/components";
+import { createTable, type Columns } from "leantable2/core";
 import { useMemo } from "react";
 import { useIntl } from "react-intl";
 import { Link } from "react-router";

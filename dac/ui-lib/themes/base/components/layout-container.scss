@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 %dremio-layout-container,
 .dremio-layout-container {
   box-sizing: border-box;
@@ -23,12 +22,14 @@
   overflow: hidden;
 
   > * {
+    box-sizing: border-box;
+    flex-grow: 1;
     overflow: auto;
   }
 
   /* stylelint-disable-next-line selector-class-pattern */
   > .--fixed {
-    box-sizing: border-box;
+    flex-grow: 0;
     flex-shrink: 0;
   }
 

@@ -70,4 +70,39 @@ public class TestAccelParser {
   public void toggleAggOff() throws SqlParseException {
     parse("ALTER TABLE a.b.c DISABLE AGGREGATE ACCELERATION");
   }
+
+  @Test
+  public void createRawWithSpecifier() throws SqlParseException {
+    parse("ALTER TABLE a.b.c AT BRANCH main CREATE RAW REFLECTION reflection USING DISPLAY(x,y) DISTRIBUTE BY (r,z) PARTITION BY (s,l) LOCALSORT BY (n,x)");
+  }
+
+  @Test
+  public void createAggReflectionWithSpecifier() throws SqlParseException {
+    parse("ALTER TABLE a.b.c AT TAG footag CREATE AGGREGATE REFLECTION reflection USING DIMENSIONS (x by day,y) MEASURES (b (COUNT, SUM),c (COUNT, MIN, MAX)) DISTRIBUTE BY (r,z) PARTITION BY (s,l) LOCALSORT BY (n,x)");
+  }
+
+  @Test
+  public void dropReflectionWithSpecifier() throws SqlParseException {
+    parse("ALTER TABLE a.b.c AT REFERENCE foo DROP REFLECTION \"123\"");
+  }
+
+  @Test
+  public void toggleRawOnWithSpecifier() throws SqlParseException {
+    parse("ALTER TABLE a.b.c AT TAG foo ENABLE RAW ACCELERATION");
+  }
+
+  @Test
+  public void toggleRawOffWithSpecifier() throws SqlParseException {
+    parse("ALTER TABLE a.b.c AT BRANCH dev DISABLE RAW ACCELERATION");
+  }
+
+  @Test
+  public void toggleAggOnWithSpecifier() throws SqlParseException {
+    parse("ALTER TABLE a.b.c AT REFERENCE fooref ENABLE AGGREGATE ACCELERATION");
+  }
+  @Test
+  public void toggleAggOffWithSpecifier() throws SqlParseException {
+    parse("ALTER TABLE a.b.c AT BRANCH main DISABLE AGGREGATE ACCELERATION");
+  }
+
 }

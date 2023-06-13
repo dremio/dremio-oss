@@ -40,6 +40,7 @@ message SearchQuery {
         BOOST = 17;
         CONTAINS = 18;
         PREFIX = 19;
+        TERM_BOOLEAN = 20;
     }
 
     enum BooleanOp {
@@ -68,6 +69,11 @@ message SearchQuery {
     message TermInt {
       required string field = 1;
       required int32 value = 2;
+    }
+
+    message TermBoolean {
+      required string field = 1;
+      required bool value = 2;
     }
 
     message TermLong {
@@ -168,6 +174,7 @@ message SearchQuery {
     optional Boost          boost = 17;
     optional Contains       containsText = 18;
     optional Prefix         prefix = 19;
+    optional TermBoolean    termBoolean = 20;
 }
 
 enum SortOrder {

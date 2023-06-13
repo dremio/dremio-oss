@@ -47,7 +47,6 @@ public interface MaestroObserver {
 
   /**
    * The planning and parallelization phase of the query is completed.
-   *
    * An {@link ExecutionPlan execution plan} is provided to observer.
    */
   void planCompleted(ExecutionPlan plan);
@@ -71,7 +70,7 @@ public interface MaestroObserver {
 
   /**
    * The decisions made for parallelizations and fragments were completed.
-   * @param planningSet
+   * @param planningSet parallelized execution plan
    */
   void planParallelized(PlanningSet planningSet);
 
@@ -107,25 +106,32 @@ public interface MaestroObserver {
 
   /**
    * Time taken for sending start fragment rpcs to all nodes.
-   * @param millisTaken
+   * @param millisTaken time in millis
    */
   void fragmentsStarted(long millisTaken, FragmentRpcSizeStats stats);
 
   /**
    * Time taken for sending activate fragment rpcs to all nodes.
-   * @param millisTaken
+   * @param millisTaken time in millis
    */
   void fragmentsActivated(long millisTaken);
 
   /**
    * Failed to activate fragment.
-   * @param ex
+   * @param ex actual cause of failure
    */
   void activateFragmentFailed(Exception ex);
 
   /**
    * ResourceScheduling related information
-   * @param resourceSchedulingDecisionInfo
+   * @param resourceSchedulingDecisionInfo Information of completed resource allocation
    */
   void resourcesScheduled(ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo);
+
+  /**
+   * Signals movement to next stage within maestro
+   */
+  interface ExecutionStageChangeListener {
+    void moveToNextStage(AttemptEvent.State nextStage);
+  }
 }

@@ -367,8 +367,7 @@ class WriteHolders {
   // Call to generic formatter parsing to handle specific scenarios.
     try {
       return DateFormats.AbstractFormatterAndType.getMillisGenericFormatter(value);
-    }
-    catch (Exception e) {
+    } catch (Exception e) {
       throw UserException.dataReadError()
         .message("Failed to parse date time value %s in field %s.", value, path.getAsUnescapedPath())
         .build(logger);

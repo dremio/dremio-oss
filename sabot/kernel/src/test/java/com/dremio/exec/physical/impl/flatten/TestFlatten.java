@@ -242,7 +242,7 @@ public class TestFlatten extends PlanTestBase {
   @Test
   public void drill1671() throws Exception{
     String query = "select * from (select count(*) as cnt from (select id, flatten(evnts1), flatten(evnts2), flatten(evnts3), flatten(evnts4), flatten(evnts5), flatten(evnts6), flatten(evnts7), flatten(evnts8), flatten(evnts9), flatten(evnts10), flatten(evnts11) from cp.\"/flatten/many-arrays-50.json\")x )y where cnt = 2048";
-    testPlanSubstrPatterns(query, new String[] {"columns=[`id`, `evnts1`, `evnts2`, `evnts3`, `evnts4`, `evnts5`, `evnts6`, `evnts7`, `evnts8`, `evnts9`, `evnts10`, `evnts11`]"}, null);
+    testPlanSubstrPatterns(query, new String[] {"columns=[`evnts1`, `evnts2`, `evnts3`, `evnts4`, `evnts5`, `evnts6`, `evnts7`, `evnts8`, `evnts9`, `evnts10`, `evnts11`]"}, null);
     int rowCount = testSql(query);
     assertEquals(1, rowCount);
   }

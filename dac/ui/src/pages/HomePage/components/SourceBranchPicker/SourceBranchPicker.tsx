@@ -25,8 +25,8 @@ import { isDefaultReferenceLoading } from "@app/selectors/nessie/nessie";
 import FontIcon from "@app/components/Icon/FontIcon";
 import { getRootEntityLinkUrl } from "@app/selectors/home";
 import BranchPicker from "../BranchPicker/BranchPicker";
-import { getEndpointFromSourceConfig } from "@app/utils/nessieUtils";
-import { ARCTIC } from "@app/constants/sourceTypes";
+import { getEndpointFromSource } from "@app/utils/nessieUtils";
+import { ARCTIC, NESSIE } from "@app/constants/sourceTypes";
 import * as commonPaths from "dremio-ui-common/paths/common.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 
@@ -55,14 +55,17 @@ function SourceBranchPicker({
   redirectUrl,
   onApply,
 }: SourceBranchPickerProps & ConnectedProps) {
-  const config = source.config;
-  const endpoint = getEndpointFromSourceConfig(config);
+  const endpoint = getEndpointFromSource(source);
+  const pathProps = {
+    sourceName: source.name,
+    projectId: getSonarContext().getSelectedProjectId?.(),
+  };
+
   const baseUrl =
-    source.type === ARCTIC
-      ? commonPaths.arcticSource.link({
-          sourceName: source.name,
-          projectId: getSonarContext().getSelectedProjectId?.(),
-        })
+    source.type === NESSIE
+      ? commonPaths.nessieSource.link(pathProps)
+      : source.type === ARCTIC
+      ? commonPaths.arcticSource.link(pathProps)
       : undefined;
   const context = useMemo(
     () =>
@@ -76,7 +79,7 @@ function SourceBranchPicker({
   );
 
   const stateKey = `${prefix}${source.name}`;
-  const apiRef = useRef(context.api);
+  const apiRef = useRef(context.apiV2);
   useEffect(() => {
     fetchDefaultReferenceIfNeeded(stateKey, apiRef.current);
   }, [fetchDefaultReferenceIfNeeded, stateKey]);

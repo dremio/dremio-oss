@@ -55,6 +55,7 @@ public final class CatalogPath extends LeafStatement {
       switch (token.getKind()) {
       case IDENTIFIER:
         identifiersBuilder.add(token.getImage());
+        // fall through
       default:
         tokensBuilder.add(token);
         break;

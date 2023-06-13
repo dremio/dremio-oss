@@ -84,6 +84,7 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
           onClose={onTooltipClose}
           portal={tooltipPortal}
           delay={tooltipDelay}
+          shouldWrapChildren
         >
           {ButtonElement}
         </Tooltip>

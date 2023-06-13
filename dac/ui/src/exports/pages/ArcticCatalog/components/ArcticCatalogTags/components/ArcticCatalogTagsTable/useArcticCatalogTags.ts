@@ -21,12 +21,12 @@ import { useNessieContext } from "@app/pages/NessieHomePage/utils/context";
 import { FetchOption } from "@app/services/nessie/client";
 
 export const useArcticCatalogTags = (searchFilter: string) => {
-  const { api } = useNessieContext();
+  const { apiV2 } = useNessieContext();
 
   const ArcticCatalogTagsResource = useRef(
     new SmartResource(
       ({ search }) =>
-        api.getAllReferences({
+        apiV2.getAllReferencesV2({
           fetch: FetchOption.All,
           filter: search
             ? `refType == 'TAG' && ref.name.matches('(?i)${search}')`

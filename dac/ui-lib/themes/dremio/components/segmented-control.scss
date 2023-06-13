@@ -1,0 +1,43 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use "../../base/components/segmented-control";
+
+.dremio-segmented-control {
+  --dremio--segmented-control--border-radius: var(--dremio--radius--1);
+  --dremio--segmented-control-option--gap: 0;
+
+  &-option {
+    transition: background 75ms ease-in-out, color 75ms ease-in-out;
+
+    --dremio--segmented-control-option--background: var(--color--neutral--25);
+    --dremio--segmented-control-option--border: none;
+    --dremio--segmented-control-option--color: var(--color--neutral--600);
+    --dremio--segmented-control-option--font-weight: 600;
+    --dremio--segmented-control-option--padding: var(--dremio--spacing--05);
+
+    &:hover {
+      --dremio--segmented-control-option--background: var(
+        --color--neutral--100
+      );
+    }
+
+    &[aria-pressed="true"] {
+      --dremio--segmented-control-option--background: var(--color--brand--50);
+      --dremio--segmented-control-option--color: var(--dremio--color--link);
+    }
+  }
+}

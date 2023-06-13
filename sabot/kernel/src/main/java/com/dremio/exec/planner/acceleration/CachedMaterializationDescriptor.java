@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.planner.acceleration;
 
-import java.util.List;
 import java.util.Set;
 
 import org.apache.calcite.plan.CopyWithCluster;
@@ -106,7 +105,7 @@ public class CachedMaterializationDescriptor extends MaterializationDescriptor {
    * @return
    */
   @Override
-  public boolean isApplicable(Set<List<String>> queryTablesUsed, Set<List<String>> queryVdsUsed, Set<SubstitutionUtils.ExternalQueryDescriptor> externalQueries) {
+  public boolean isApplicable(Set<SubstitutionUtils.VersionedPath> queryTablesUsed, Set<SubstitutionUtils.VersionedPath> queryVdsUsed, Set<SubstitutionUtils.ExternalQueryDescriptor> externalQueries) {
     return SubstitutionUtils.usesTableOrVds(queryTablesUsed, queryVdsUsed, externalQueries, materialization.getQueryRel());
   }
 }

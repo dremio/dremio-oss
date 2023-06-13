@@ -20,6 +20,7 @@ import java.util.List;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.PhysicalPlan;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.work.SafeExit;
 import com.dremio.exec.work.foreman.CompletionListener;
@@ -53,8 +54,8 @@ public interface MaestroService extends Service, SafeExit {
    * @param observer observer to notify on state changes, and progress.
    * @param listener listener to notify on completion or failures.
    *
-   * @throws ExecutionSetupException
-   * @throws ResourceAllocationException
+   * @throws ExecutionSetupException failure in execution planning
+   * @throws ResourceAllocationException failure in resource allocation
    */
   void executeQuery(
     QueryId queryId,
@@ -64,6 +65,15 @@ public interface MaestroService extends Service, SafeExit {
     MaestroObserver observer,
     CompletionListener listener)
     throws ExecutionSetupException, ResourceAllocationException;
+
+  /**
+   * Interrupts the execution if in wait states. Different stages of query execution require(s) different action as
+   * they may be waiting/blocking for different resources.
+   *
+   * @param queryId Id of the query whose execution needs to be interrupted
+   * @param currentStage current Stage of the query (Interrupt actions may depend on the stage of the query)
+   */
+  void interruptExecutionInWaitStates(QueryId queryId, UserBitShared.AttemptEvent.State currentStage);
 
   /**
    * Cancel a previously triggered query.

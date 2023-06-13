@@ -123,6 +123,7 @@ public final class DremioFlightServer implements AutoCloseable {
   }
 
   /** Shutdown the server, waits for up to 6 seconds for successful shutdown before returning. */
+  @Override
   public void close() throws InterruptedException {
     shutdown();
     final boolean terminated = awaitTermination(3000, TimeUnit.MILLISECONDS);

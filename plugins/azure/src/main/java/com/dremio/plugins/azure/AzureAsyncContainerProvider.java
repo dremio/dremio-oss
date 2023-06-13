@@ -98,7 +98,7 @@ public class AzureAsyncContainerProvider implements ContainerProvider {
     this.isSecure = isSecure;
     this.asyncHttpClient = asyncHttpClient;
     this.rootPath = rootPath;
-    this.retryer = new Retryer.Builder()
+    this.retryer = Retryer.newBuilder()
       .retryIfExceptionOfType(RuntimeException.class)
       .setWaitStrategy(Retryer.WaitStrategy.EXPONENTIAL, BASE_MILLIS_TO_WAIT, MAX_MILLIS_TO_WAIT)
       .setMaxRetries(10).build();

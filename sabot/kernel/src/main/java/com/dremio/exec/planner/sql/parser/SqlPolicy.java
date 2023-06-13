@@ -41,6 +41,7 @@ import com.google.common.collect.ImmutableList;
 public class SqlPolicy extends SqlCall {
   private static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("POLICY", SqlKind.OTHER)
   {
+    @Override
     public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
       Preconditions.checkArgument(operands.length == 2, "SqlPolicy.createCall() has to get 2 operand!");
       return new SqlPolicy(pos, (SqlIdentifier) operands[0], (SqlNodeList) operands[1]);

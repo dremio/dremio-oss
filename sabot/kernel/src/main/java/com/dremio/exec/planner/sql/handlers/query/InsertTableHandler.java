@@ -109,6 +109,7 @@ public class InsertTableHandler extends DataAdditionCmdHandler {
     final VersionContext sessionVersion = config.getContext().getSession().getSessionVersionForSource(sourceName);
     final ResolvedVersionContext version = CatalogUtil.resolveVersionContext(catalog, sourceName, sessionVersion);
     try {
+      CatalogUtil.validateResolvedVersionIsBranch(version);
       validateVersionedTableFormatOptions(catalog, path);
       checkExistenceValidity(path, getDremioTable(catalog, path));
       logger.debug("Insert into versioned table '{}' at version '{}' resolved version '{}' ",

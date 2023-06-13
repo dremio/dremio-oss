@@ -18,11 +18,12 @@ import { getApiContext } from "dremio-ui-common/contexts/ApiContext.js";
 import moize from "moize";
 import { type UserDetails } from "./UserDetails.type";
 import { joinName } from "../../utilities/joinName";
+import { APIV2Call } from "@app/core/APICall";
 
 type GetUserParams = { id: string };
 
 export const userDetailsUrl = (params: GetUserParams) =>
-  `/ui/user/${params.id}`;
+  new APIV2Call().projectScope(false).paths(`user/${params.id}`).toString();
 
 export const getUserDetails = moize(
   (params: GetUserParams): Promise<UserDetails> => {

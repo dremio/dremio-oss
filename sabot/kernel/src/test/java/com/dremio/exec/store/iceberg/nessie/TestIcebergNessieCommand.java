@@ -16,34 +16,39 @@
 package com.dremio.exec.store.iceberg.nessie;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 
+import org.apache.hadoop.conf.Configuration;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
-import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
+import com.dremio.io.file.FileSystem;
 
 class TestIcebergNessieCommand {
   private static final IcebergTableIdentifier ID = new IcebergNessieTableIdentifier("ns", "ptr");
 
+  private final Configuration conf = new Configuration();
+
   @Test
-  void testDeleteTableFailure() {
-    MutablePlugin plugin = Mockito.mock(MutablePlugin.class);
+  void testDeleteTableFailure() throws Exception {
+    FileSystem fs = Mockito.mock(FileSystem.class);
     IcebergNessieTableOperations ops = Mockito.mock(IcebergNessieTableOperations.class);
-    IcebergNessieCommand command = new IcebergNessieCommand(ID, null, null, ops, plugin);
-    Mockito.when(plugin.getFsConfCopy()).thenThrow(new RuntimeException("test-exception-1"));
+    IcebergNessieCommand command = new IcebergNessieCommand(ID, conf, fs, ops);
+    Mockito.when(fs.delete(any(), anyBoolean())).thenThrow(new RuntimeException("test-exception-1"));
     assertThatThrownBy(command::deleteTable).isInstanceOf(RuntimeException.class).hasMessage("test-exception-1");
     Mockito.verify(ops, Mockito.times(1)).deleteKey();
   }
 
   @Test
-  void testDoubleFailure() {
-    MutablePlugin plugin = Mockito.mock(MutablePlugin.class);
+  void testDoubleFailure() throws Exception {
+    FileSystem fs = Mockito.mock(FileSystem.class);
     IcebergNessieTableOperations ops = Mockito.mock(IcebergNessieTableOperations.class);
-    IcebergNessieCommand command = new IcebergNessieCommand(ID, null, null, ops, plugin);
+    IcebergNessieCommand command = new IcebergNessieCommand(ID, conf, fs, ops);
     RuntimeException innerException = new RuntimeException("test-exception-1");
     Mockito.doThrow(innerException).when(ops).deleteKey();
-    Mockito.when(plugin.getFsConfCopy()).thenThrow(new RuntimeException("test-exception-2"));
+    Mockito.when(fs.delete(any(), anyBoolean())).thenThrow(new RuntimeException("test-exception-2"));
     assertThatThrownBy(command::deleteTable)
       .isInstanceOf(RuntimeException.class)
       .hasMessage("test-exception-2")

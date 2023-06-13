@@ -37,12 +37,4 @@ describe("SelectSourceType", () => {
     const wrapper = shallow(<SelectSourceType {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
-
-  it("should render SelectConnectionButton for each source + sample source", () => {
-    const wrapper = shallow(<SelectSourceType {...commonProps} />);
-    expect(wrapper.find("SelectConnectionButton")).to.have.length(
-      // + 1 for sample source
-      sourceProperties.length + 1
-    );
-  });
 });

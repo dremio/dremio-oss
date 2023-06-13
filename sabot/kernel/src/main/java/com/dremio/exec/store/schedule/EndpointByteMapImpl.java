@@ -28,23 +28,28 @@ public class EndpointByteMapImpl implements EndpointByteMap{
 
   private long maxBytes;
 
+  @Override
   public boolean isSet(HostAndPort endpoint){
     return map.containsKey(endpoint);
   }
 
+  @Override
   public long get(HostAndPort endpoint){
     return map.get(endpoint);
   }
 
+  @Override
   public boolean isEmpty(){
     return map.isEmpty();
   }
 
+  @Override
   public void add(HostAndPort endpoint, long bytes){
     assert endpoint != null;
     maxBytes = Math.max(maxBytes, map.putOrAdd(endpoint, bytes, bytes)+1);
   }
 
+  @Override
   public long getMaxBytes() {
     return maxBytes;
   }

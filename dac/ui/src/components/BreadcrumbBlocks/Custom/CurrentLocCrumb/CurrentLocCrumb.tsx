@@ -129,6 +129,13 @@ const CurrentLocCrumb = (props: WithRouterProps & CurrentLocCrumbProps) => {
     iconName = "interface/settings";
   }
 
+  // Catalog Settings path
+  if (splitPath[2] === "jobs") {
+    text = formatMessage({ id: "SideNav.Jobs" });
+    to = PATHS.arcticCatalogJobs({ arcticCatalogId: splitPath[1] });
+    iconName = "brand/arctic-jobs";
+  }
+
   return (
     text &&
     to &&

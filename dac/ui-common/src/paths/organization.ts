@@ -23,24 +23,25 @@ type InviteParam = { inviteId: string };
 export const organization = defineRoute(() => "/organization");
 
 /** Org Settings */
-export const setting = organization.extend(() => "settings");
-export const general = setting.extend(() => "general");
-export const projects = setting.extend(() => "projects");
-export const clouds = setting.extend(() => "clouds");
-export const billing = setting.extend(() => "billing");
+export const settings = organization.extend(() => "settings");
+export const general = settings.extend(() => "general");
+export const projects = settings.extend(() => "projects");
+export const clouds = settings.extend(() => "clouds");
+export const billing = settings.extend(() => "billing");
 export const billingAccountId = billing.extend(
   (params: BillingAccountIdParam) => `${params.billingAccountId}`
 );
-export const usage = setting.extend(() => "usage");
-export const authentication = setting.extend(() => "authentication");
-export const biApplications = setting.extend(() => "bi-applications");
-export const externalTokens = setting.extend(() => "external-tokens");
-export const oauthApps = setting.extend(() => "oauth-applications");
-export const users = setting.extend(() => "users");
+export const usage = settings.extend(() => "usage");
+export const authentication = settings.extend(() => "authentication");
+export const biApplications = settings.extend(() => "bi-applications");
+export const externalTokens = settings.extend(() => "external-tokens");
+export const oauthApps = settings.extend(() => "oauth-applications");
+export const users = settings.extend(() => "users");
 export const userId = users.extend((params: UserIdParam) => `${params.userId}`);
-export const roles = setting.extend(() => "roles");
+export const roles = settings.extend(() => "roles");
+export const privileges = settings.extend(() => "privileges");
 export const roleId = roles.extend((params: RoleIdParam) => `${params.roleId}`);
-export const errorHandling = setting.extend(() => "*");
+export const errorHandling = settings.extend(() => "*");
 
 export const invite = defineRoute(
   (params: InviteParam) => `/invite/${params.inviteId}`

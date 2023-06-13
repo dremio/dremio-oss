@@ -59,7 +59,8 @@ public class TestJobUtils {
         new Object[] {com.dremio.service.job.proto.QueryType.ACCELERATOR_DROP,    QueryType.ACCELERATOR_DROP},
         new Object[] {com.dremio.service.job.proto.QueryType.PREPARE_INTERNAL,    QueryType.PREPARE_INTERNAL},
         new Object[] {com.dremio.service.job.proto.QueryType.UI_INITIAL_PREVIEW,  QueryType.UI_INITIAL_PREVIEW},
-        new Object[] {com.dremio.service.job.proto.QueryType.FLIGHT,              QueryType.FLIGHT});
+        new Object[] {com.dremio.service.job.proto.QueryType.FLIGHT,              QueryType.FLIGHT},
+        new Object[] {com.dremio.service.job.proto.QueryType.D2D,                 QueryType.D2D});
     }
 
     public QueryTypeBufStuffMappingTest(com.dremio.service.job.proto.QueryType pb2Type, QueryType pb3Type) {
@@ -97,7 +98,8 @@ public class TestJobUtils {
         new Object[]{"C++",           com.dremio.service.job.proto.QueryType.ODBC},
         new Object[]{"c++",           com.dremio.service.job.proto.QueryType.ODBC},
         new Object[]{"Arrow Flight",  com.dremio.service.job.proto.QueryType.FLIGHT},
-        new Object[]{"ARROW FLIGHT",  com.dremio.service.job.proto.QueryType.FLIGHT}
+        new Object[]{"ARROW FLIGHT",  com.dremio.service.job.proto.QueryType.FLIGHT},
+        new Object[]{"Dremio-to-Dremio",           com.dremio.service.job.proto.QueryType.D2D}
       );
     }
 
@@ -142,7 +144,8 @@ public class TestJobUtils {
         new Object[]{com.dremio.service.job.proto.QueryType.PREPARE_INTERNAL,     UserBitShared.WorkloadType.DDL,               UserBitShared.WorkloadClass.NRT},
         new Object[]{com.dremio.service.job.proto.QueryType.ACCELERATOR_CREATE,   UserBitShared.WorkloadType.ACCELERATOR,       UserBitShared.WorkloadClass.BACKGROUND},
         new Object[]{com.dremio.service.job.proto.QueryType.ACCELERATOR_EXPLAIN,  UserBitShared.WorkloadType.ACCELERATOR,       UserBitShared.WorkloadClass.BACKGROUND},
-        new Object[]{com.dremio.service.job.proto.QueryType.FLIGHT,               UserBitShared.WorkloadType.FLIGHT,            UserBitShared.WorkloadClass.GENERAL}
+        new Object[]{com.dremio.service.job.proto.QueryType.FLIGHT,               UserBitShared.WorkloadType.FLIGHT,            UserBitShared.WorkloadClass.GENERAL},
+        new Object[]{com.dremio.service.job.proto.QueryType.D2D,                  UserBitShared.WorkloadType.D2D,               UserBitShared.WorkloadClass.GENERAL}
       );
     }
 

@@ -21,9 +21,10 @@ import org.apache.commons.io.FileUtils;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
+import com.dremio.exec.proto.UserBitShared;
+import com.dremio.test.UserExceptionAssert;
 
 public class TestAlterTableAddColumns extends BaseTestQuery {
-
   @Test
   public void badSql() {
     String[] queries = {
@@ -31,8 +32,11 @@ public class TestAlterTableAddColumns extends BaseTestQuery {
         "ALTER TABLE ADD COLUMNS(col1 varchar)",
         "ALTER TABLE tbl ADD COLUMNS()"
     };
+
     for (String q : queries) {
-      errorMsgTestHelper(q, "Failure parsing the query");
+      UserExceptionAssert
+        .assertThatThrownBy(() -> test(q))
+        .hasErrorType(UserBitShared.DremioPBError.ErrorType.PARSE);
     }
   }
 

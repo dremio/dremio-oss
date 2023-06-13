@@ -26,7 +26,7 @@ import {
   Skeleton,
   Spinner,
   useModalContainer,
-} from "dremio-ui-lib/dist-esm";
+} from "dremio-ui-lib/components";
 
 import { fieldWithError } from "../../../FormWrappers.less";
 import { ArcticCatalog } from "@app/exports/endpoints/ArcticCatalogs/ArcticCatalog.type";
@@ -107,7 +107,8 @@ function getOptions(
   catalogs: ArcticCatalog[] | null,
   status: RequestStatus,
   enableNewCatalogItem: boolean,
-  arcticSourceIds: string[]
+  arcticSourceIds: string[],
+  canAddCatalog: boolean
 ) {
   if (status === "pending") {
     return Skeletons;
@@ -119,7 +120,7 @@ function getOptions(
         disabled: arcticSourceIds.includes(cur.id),
       })
     );
-    if (enableNewCatalogItem) {
+    if (enableNewCatalogItem && canAddCatalog) {
       options.push({
         value: NEW_CATALOG_ITEM,
         label: "",
@@ -143,6 +144,11 @@ function ArcticCatalogSelect({
 }: ArcticCatalogSelectProps) {
   const { editing } = useContext(FormContext);
   const sources = useSelector(getSortedSources);
+  const canAddCatalog = useSelector(
+    (state: Record<string, any>) =>
+      state.privileges.organization?.arcticCatalogs?.canCreate
+  );
+
   const arcticSourceIds = useMemo(() => {
     return sources
       .toJS()
@@ -183,8 +189,9 @@ function ArcticCatalogSelect({
   );
 
   const options = useMemo(
-    () => getOptions(catalogs, status, !!result, arcticSourceIds),
-    [catalogs, status, result, arcticSourceIds]
+    () =>
+      getOptions(catalogs, status, !!result, arcticSourceIds, canAddCatalog),
+    [catalogs, status, result, arcticSourceIds, canAddCatalog]
   );
 
   return (
@@ -199,6 +206,7 @@ function ArcticCatalogSelect({
         // maxDropdownHeight={200}
         value={value}
         onChange={onSelectChange}
+        rightSection={<dremio-icon name="interface/caretDown" />}
         {...(status === "pending" && {
           icon: <Spinner />,
         })}

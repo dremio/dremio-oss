@@ -76,6 +76,7 @@ public final class FieldBufferCopier6Util {
       throw new UnsupportedOperationException("set null not supported");
     }
 
+    @Override
     public void allocate(int records){
       targetAlt.allocateNew(records);
     }
@@ -226,6 +227,7 @@ public final class FieldBufferCopier6Util {
       cursor.setTargetIndex(targetIndex + count);
     }
 
+    @Override
     public void allocate(int records){
       targetAlt.allocateNew(records * 15, records);
     }
@@ -301,6 +303,7 @@ public final class FieldBufferCopier6Util {
       throw new UnsupportedOperationException("set null not supported");
     }
 
+    @Override
     public void allocate(int records){
       if(targetAlt != null){
         targetAlt.allocateNew(records);
@@ -354,6 +357,7 @@ public final class FieldBufferCopier6Util {
       cursor.setTargetIndex(curTargetIndex +  count);
     }
 
+    @Override
     public void allocate(int records){
       AllocationHelper.allocate(dst, records, 10);
     }

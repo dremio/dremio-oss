@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { LogEntry } from "@app/services/nessie/client";
+import { LogEntryV1 as LogEntry } from "@app/services/nessie/client";
 
 export const countUniqueAuthors = (
   logEntries: LogEntry[] | undefined
@@ -22,7 +22,7 @@ export const countUniqueAuthors = (
   const authorSet = new Set<string>();
 
   if (logEntries) {
-    for (let logEntry of logEntries) {
+    for (const logEntry of logEntries) {
       if (logEntry.commitMeta && logEntry.commitMeta.author) {
         authorSet.add(logEntry.commitMeta.author);
       }

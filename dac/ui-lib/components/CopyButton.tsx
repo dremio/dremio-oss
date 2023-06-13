@@ -17,24 +17,38 @@
 import * as React from "react";
 import { IconButton } from "./IconButton";
 import { CopyContainer } from "./CopyContainer";
+import { type Placement } from "@floating-ui/react-dom-interactions";
 
 type Props = {
   contents: string;
+  className?: string;
+  size?: "S" | "L";
+  placement?: Placement;
 };
 
 export const CopyButton = (props: Props) => {
+  const { size = "S", contents, className, placement } = props;
+  let copyButtonStyle;
+  switch (size) {
+    case "S":
+      copyButtonStyle = {
+        blockSize: "1.25em",
+        inlineSize: "1.25em",
+      };
+      break;
+    case "L":
+      copyButtonStyle = {
+        blockSize: "1.75em",
+        inlineSize: "1.75em",
+      };
+      break;
+  }
+
   return (
-    <CopyContainer contents={props.contents}>
-      <IconButton aria-label="Copy">
+    <CopyContainer contents={contents} placement={placement}>
+      <IconButton aria-label="Copy" className={className}>
         {/*@ts-ignore*/}
-        <dremio-icon
-          name="interface/copy"
-          alt=""
-          style={{
-            blockSize: "1.25em",
-            inlineSize: "1.25em",
-          }}
-        >
+        <dremio-icon name="interface/copy" alt="" style={copyButtonStyle}>
           {/*@ts-ignore*/}
         </dremio-icon>
       </IconButton>

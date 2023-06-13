@@ -18,10 +18,10 @@ import sentryUtil from "@app/utils/sentryUtil";
 import { SQLScriptsProps } from "./SQLScripts";
 import { intl } from "@app/utils/intl";
 import getIconColor from "@app/utils/getIconColor";
-import { getUserIconInitialsForAllUsers } from "@app/utils/userIcon";
 import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
 import * as sqlPaths from "dremio-ui-common/paths/sqlEditor.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
+import { nameToInitials } from "@app/exports/utilities/nameToInitials";
 
 export const ALL_MINE_SCRIPTS_TABS = {
   all: "All",
@@ -136,7 +136,7 @@ export const prepareScriptsFromList = ({
     return {
       ...script,
       colors: getIconColor(script.createdBy.id),
-      userNameFirst2: getUserIconInitialsForAllUsers(script.createdBy),
+      initials: nameToInitials(script.createdBy.name || script.createdBy.email),
     };
   });
 };
@@ -242,7 +242,7 @@ export const handleDeleteScript = (
     confirmText: intl.formatMessage({ id: "Common.Delete" }),
     text: intl.formatMessage({ id: `Script.${deleteId}` }),
     confirm: () => confirmDelete(renderedProps, script, searchTerm),
-    closeButtonType: "XBig",
+    closeButtonType: "CloseBig",
     className: "--newModalStyles",
     headerIcon: (
       <dremio-icon
@@ -273,6 +273,7 @@ export const handleOpenScript = (
 
   const openScript = () => {
     router.push({
+      query: { scriptId: script.id },
       pathname: sqlPaths.sqlEditor.link({ projectId }),
       state: { discard: true },
     });

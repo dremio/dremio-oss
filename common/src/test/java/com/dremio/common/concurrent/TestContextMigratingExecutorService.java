@@ -149,7 +149,7 @@ public class TestContextMigratingExecutorService {
   public void testContextWithCallable() throws Exception {
     final String testUser = "testUser1";
 
-    Callable<String> callable = () -> RequestContext.current().get(UserContext.CTX_KEY).serialize();
+    Callable<String> callable = () -> RequestContext.current().get(UserContext.CTX_KEY).getUserId();
     Future<String> future = RequestContext.empty()
       .with(UserContext.CTX_KEY, new UserContext(testUser))
       .call(() -> pool.submit(callable));
@@ -161,7 +161,7 @@ public class TestContextMigratingExecutorService {
     final String testUser = "testUser2";
     final Pointer<String> foundUser = new Pointer<>();
 
-    Runnable runnable = () -> foundUser.value = RequestContext.current().get(UserContext.CTX_KEY).serialize();
+    Runnable runnable = () -> foundUser.value = RequestContext.current().get(UserContext.CTX_KEY).getUserId();
     Future<?> future = RequestContext.empty()
       .with(UserContext.CTX_KEY, new UserContext(testUser))
       .call(() -> pool.submit(runnable));

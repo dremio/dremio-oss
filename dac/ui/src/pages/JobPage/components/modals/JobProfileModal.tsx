@@ -18,7 +18,7 @@ import { useIntl } from "react-intl";
 //@ts-ignore
 import { IconButton } from "dremio-ui-lib";
 import Keys from "@app/constants/Keys.json";
-import { DialogContent, ModalContainer } from "dremio-ui-lib/dist-esm";
+import { DialogContent, ModalContainer } from "dremio-ui-lib/components";
 
 import * as classes from "./JobProfileModal.module.less";
 

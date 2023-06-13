@@ -27,7 +27,7 @@ export const FunctionCategoryLabels = {
   [FunctionCategories.CONTEXT]: "Context",
   [FunctionCategories.CONVERSION]: "Conversion",
   [FunctionCategories.DATETIME]: "Date/Time",
-  [FunctionCategories.DATETYPE]: "Data type",
+  [FunctionCategories.DATATYPE]: "Data type",
   [FunctionCategories.DIRECTORY]: "Directory",
   [FunctionCategories.GEOSPATIAL]: "Geospatial",
   [FunctionCategories.MATH]: "Math",

@@ -17,6 +17,7 @@ package com.dremio.service.reflection;
 
 import java.util.Optional;
 
+import com.dremio.exec.catalog.CatalogEntityKey;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 
@@ -25,12 +26,25 @@ import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
  */
 public interface ReflectionSettings {
   // only returns a AccelerationSettings if one is specifically defined for the specified key
+  @Deprecated
   Optional<AccelerationSettings> getStoredReflectionSettings(NamespaceKey key);
 
+  // only returns a AccelerationSettings if one is specifically defined for the specified key
+  Optional<AccelerationSettings> getStoredReflectionSettings(CatalogEntityKey key);
+
+  @Deprecated
   AccelerationSettings getReflectionSettings(NamespaceKey key);
 
+  AccelerationSettings getReflectionSettings(CatalogEntityKey key);
+
+  @Deprecated
   void setReflectionSettings(NamespaceKey key, AccelerationSettings settings);
 
+  void setReflectionSettings(CatalogEntityKey key, AccelerationSettings settings);
+
   void removeSettings(NamespaceKey key);
+
+  void removeSettings(CatalogEntityKey key);
+
   default int getAllHash() { return 0; };
 }

@@ -33,6 +33,7 @@ public class FileName extends LeafEntity {
     this.name = name;
   }
 
+  @Override
   @Pattern(regexp = "^[^@:{/.][^@:{/]*$", message = "File name cannot start with a period, contain a colon, forward slash, at sign, or open curly bracket.")
   public String getName() {
     return super.getName();

@@ -35,12 +35,13 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.projectnessie.model.CommitMeta;
 import org.projectnessie.model.Content;
+import org.projectnessie.model.ContentKey;
 import org.projectnessie.model.IcebergTable;
+import org.projectnessie.nessie.relocated.protobuf.ByteString;
 import org.projectnessie.versioned.BranchName;
 import org.projectnessie.versioned.GetNamedRefsParams;
 import org.projectnessie.versioned.Hash;
 import org.projectnessie.versioned.ImmutablePut;
-import org.projectnessie.versioned.Key;
 import org.projectnessie.versioned.ReferenceConflictException;
 import org.projectnessie.versioned.ReferenceInfo;
 import org.projectnessie.versioned.ReferenceNotFoundException;
@@ -54,11 +55,11 @@ import org.projectnessie.versioned.persist.nontx.ImmutableAdjustableNonTransacti
 import org.projectnessie.versioned.persist.nontx.NonTransactionalDatabaseAdapterConfig;
 import org.projectnessie.versioned.persist.store.PersistVersionStore;
 
+import com.dremio.common.SuppressForbidden;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.service.nessie.DatastoreDatabaseAdapterFactory;
 import com.dremio.service.nessie.ImmutableDatastoreDbConfig;
 import com.dremio.service.nessie.NessieDatastoreInstance;
-import com.google.protobuf.ByteString;
 
 /**
  * Unit tests for {@link MigrateIcebergMetadataPointer}.
@@ -88,6 +89,7 @@ class TestMigrateIcebergMetadataPointer extends AbstractNessieUpgradeTest {
 
     NonTransactionalDatabaseAdapterConfig adapterCfg = ImmutableAdjustableNonTransactionalDatabaseAdapterConfig
       .builder()
+      .validateNamespaces(false)
       .build();
     adapter = new DatastoreDatabaseAdapterFactory().newBuilder()
       .withConfig(adapterCfg)
@@ -102,7 +104,8 @@ class TestMigrateIcebergMetadataPointer extends AbstractNessieUpgradeTest {
     }
   }
 
-  private void commitLegacyData(Key key, ContentId contentId)
+  @SuppressForbidden // This method has to use Nessie's relocated ByteString to interface with Nessie Database Adapters.
+  private void commitLegacyData(ContentKey key, ContentId contentId)
     throws ReferenceNotFoundException, ReferenceConflictException {
 
     ByteString refState = ByteString.copyFrom(Base64.getDecoder().decode(LEGACY_REF_STATE_BASE64));
@@ -124,8 +127,8 @@ class TestMigrateIcebergMetadataPointer extends AbstractNessieUpgradeTest {
   void testUpgrade(int numExtraTables) throws Exception {
     adapter.initializeRepo("main");
     // Load a legacy entry into the adapter
-    List<Key> keys = new ArrayList<>();
-    Key key1 = Key.of("test", "table", "11111");
+    List<ContentKey> keys = new ArrayList<>();
+    ContentKey key1 = ContentKey.of("test", "table", "11111");
     ContentId contentId1 = ContentId.of("test-content-id");
     commitLegacyData(key1, contentId1);
     keys.add(key1);
@@ -134,11 +137,13 @@ class TestMigrateIcebergMetadataPointer extends AbstractNessieUpgradeTest {
 
     // Create some extra Iceberg tables in current Nessie format
     for (int i = 0; i < numExtraTables; i++) {
-      Key extraKey = Key.of("test", "table", "current-" + i);
+      ContentKey extraKey = ContentKey.of("test", "table", "current-" + i);
+      IcebergTable table = IcebergTable.of("test-metadata-location", 1, 2, 3, 4,
+        "extra-content-id-" + i);
       versionStore.commit(BranchName.of("main"), Optional.empty(), CommitMeta.fromMessage("test"),
         Collections.singletonList(ImmutablePut.builder()
           .key(extraKey)
-          .value(IcebergTable.of("test-metadata-location", 1, 2, 3, 4, "extra-content-id-" + i))
+          .valueSupplier(() -> table)
           .build()));
       keys.add(extraKey);
     }
@@ -150,9 +155,9 @@ class TestMigrateIcebergMetadataPointer extends AbstractNessieUpgradeTest {
       assertThat(refs).noneMatch(r -> r.getNamedRef().getName().equals(UPGRADE_BRANCH_NAME));
     }
 
-    Map<Key, Content> tables = versionStore.getValues(BranchName.of("main"), keys);
+    Map<ContentKey, Content> tables = versionStore.getValues(BranchName.of("main"), keys);
 
-    assertThat(tables.keySet()).containsExactlyInAnyOrder(keys.toArray(new Key[0]));
+    assertThat(tables.keySet()).containsExactlyInAnyOrder(keys.toArray(new ContentKey[0]));
     assertThat(tables).allSatisfy((k, v) -> {
       assertThat(v).isInstanceOf(IcebergTable.class)
         .extracting("metadataLocation")
@@ -200,9 +205,10 @@ class TestMigrateIcebergMetadataPointer extends AbstractNessieUpgradeTest {
     VersionStore versionStore = new PersistVersionStore(adapter);
     Hash head = versionStore.commit(BranchName.of("main"), Optional.empty(), CommitMeta.fromMessage("test"),
       Collections.singletonList(ImmutablePut.builder()
-        .key(Key.of("test-key"))
-        .value(table)
-        .build()));
+        .key(ContentKey.of("test-key"))
+        .valueSupplier(() -> table)
+        .build()))
+      .getCommitHash();
 
     task.upgrade(storeProvider, UPGRADE_BRANCH_NAME);
 
@@ -214,7 +220,7 @@ class TestMigrateIcebergMetadataPointer extends AbstractNessieUpgradeTest {
   void testUnnecessaryUpgradeOfDeletedEntry() throws Exception {
     adapter.initializeRepo("main");
     // Load a legacy entry into the adapter
-    Key key1 = Key.of("test", "table", "11111");
+    ContentKey key1 = ContentKey.of("test", "table", "11111");
     ContentId contentId1 = ContentId.of("test-content-id");
     commitLegacyData(key1, contentId1);
 
@@ -223,7 +229,8 @@ class TestMigrateIcebergMetadataPointer extends AbstractNessieUpgradeTest {
       .toBranch(BranchName.of("main"))
       .commitMetaSerialized(METADATA_SERIALIZER.toBytes(CommitMeta.fromMessage("test delete")))
       .addDeletes(key1)
-      .build());
+      .build())
+      .getCommitHash();
 
     task.upgrade(storeProvider, UPGRADE_BRANCH_NAME);
 
@@ -235,7 +242,7 @@ class TestMigrateIcebergMetadataPointer extends AbstractNessieUpgradeTest {
   void testUnnecessaryUpgradeOfReplacedEntry() throws Exception {
     adapter.initializeRepo("main");
     // Load a legacy entry into the adapter
-    Key key1 = Key.of("test", "table", "11111");
+    ContentKey key1 = ContentKey.of("test", "table", "11111");
     ContentId contentId1 = ContentId.of("test-content-id");
     commitLegacyData(key1, contentId1);
 
@@ -245,8 +252,9 @@ class TestMigrateIcebergMetadataPointer extends AbstractNessieUpgradeTest {
     Hash head = versionStore.commit(BranchName.of("main"), Optional.empty(), CommitMeta.fromMessage("test"),
       Collections.singletonList(ImmutablePut.builder()
         .key(key1)
-        .value(table)
-        .build()));
+        .valueSupplier(() -> table)
+        .build()))
+      .getCommitHash();
 
     task.upgrade(storeProvider, UPGRADE_BRANCH_NAME);
 
@@ -257,7 +265,7 @@ class TestMigrateIcebergMetadataPointer extends AbstractNessieUpgradeTest {
   @Test
   void testUpgradeBranchReset() throws Exception {
     adapter.initializeRepo("main");
-    commitLegacyData(Key.of("test1"), ContentId.of("test-cid"));
+    commitLegacyData(ContentKey.of("test1"), ContentId.of("test-cid"));
 
     adapter.create(BranchName.of(UPGRADE_BRANCH_NAME), adapter.noAncestorHash());
     task.upgrade(storeProvider, UPGRADE_BRANCH_NAME);

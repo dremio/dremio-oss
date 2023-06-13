@@ -27,7 +27,7 @@ import {
   getIconDataTypeFromEntity,
   getIcebergIconTypeFromEntity,
 } from "utils/iconUtils";
-import { isArcticSource } from "@app/utils/sourceUtils";
+import { isArcticSource, isVersionedSource } from "@app/utils/sourceUtils";
 
 import DatasetOverviewFormMixin from "dyn-load/pages/HomePage/components/modals/DatasetSettings/DatasetOverviewFormMixin"; // eslint-disable-line max-len
 
@@ -49,20 +49,19 @@ export default class DatasetOverviewForm extends PureComponent {
     const typeIcon = isArcticSource(source?.type)
       ? getIcebergIconTypeFromEntity(entity)
       : getIconDataTypeFromEntity(entity);
-
     // todo: if a real form likely want wrapped in ModalForm like siblings?
     return (
       <FormBody>
         <FormTitle>
           <FormattedMessage id="Common.Overview" />
         </FormTitle>
-        <div>
+        <div style={{ display: "inline-block" }}>
           <DatasetItemLabel
             name={entity.get("name")}
             fullPath={entity.get("fullPathList")}
             showFullPath
             typeIcon={typeIcon}
-            showSummaryOverlay={!isArcticSource(source?.type)}
+            showSummaryOverlay={!isVersionedSource(source?.type)}
           />
         </div>
       </FormBody>

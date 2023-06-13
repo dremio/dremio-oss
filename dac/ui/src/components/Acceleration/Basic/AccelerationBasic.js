@@ -87,10 +87,15 @@ export class AccelerationBasic extends Component {
     );
     const highlightedSection = this.getHighlightedSection();
 
+    // if this error is encountered, no error message should be rendered
+    const SUPPORT_ERROR =
+      "Permission denied. A support user cannot create a reflection";
+
     const rawError = this.context.reflectionSaveErrors.get(
       fields.rawReflections[0].id.value
     );
-    const rawErrorMessage = rawError && (
+    const rawErrorInfo = rawError?.get("message")?.get("errorMessage");
+    const rawErrorMessage = rawError && rawErrorInfo !== SUPPORT_ERROR && (
       <Message
         messageType="error"
         inFlow={false}
@@ -103,7 +108,8 @@ export class AccelerationBasic extends Component {
     const aggError = this.context.reflectionSaveErrors.get(
       fields.aggregationReflections[0].id.value
     );
-    const aggErrorMessage = aggError && (
+    const aggErrorInfo = aggError?.get("message")?.get("errorMessage");
+    const aggErrorMessage = aggError && aggErrorInfo !== SUPPORT_ERROR && (
       <Message
         messageType="error"
         inFlow={false}

@@ -48,7 +48,7 @@ public class TestForemenWorkManager {
     doReturn(false).when(config).getBoolean(any());
     Provider<CommandPool> commandPoolProvider = ()-> CommandPoolFactory.INSTANCE.newPool(config, null);
     ForemenWorkManager foremenWorkManager = new ForemenWorkManager(null, null, commandPoolProvider,
-      null, null, null, null, null, null);
+      null, null, null, null, null, null,null);
 
     foremenWorkManager = spy(foremenWorkManager);
     UserException userException = UserException.resourceError().message(UserException.QUERY_REJECTED_MSG).buildSilently();
@@ -56,7 +56,9 @@ public class TestForemenWorkManager {
     final UserResult[] userResult = new UserResult[1];
 
     UserResponseHandler userResponseHandler = new UserResponseHandler() {
+      @Override
       public void sendData(RpcOutcomeListener<GeneralRPCProtos.Ack> outcomeListener, QueryWritableBatch result) {}
+      @Override
       public void completed(UserResult result) { userResult[0] = result; }
     };
 

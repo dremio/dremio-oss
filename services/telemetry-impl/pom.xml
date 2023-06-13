@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>24.0.0-202302100528110223-3a169b7c</version>
+    <version>24.1.0-202306130653310132-d30779f6</version>
   </parent>
   <artifactId>dremio-services-telemetry-impl</artifactId>
   <name>Services - Telemetry - Impl</name>
@@ -87,7 +87,6 @@
     <dependency>
       <groupId>io.opentelemetry</groupId>
       <artifactId>opentelemetry-opentracing-shim</artifactId>
-      <version>1.0.1-alpha</version>
     </dependency>
     <dependency>
       <groupId>io.opentelemetry</groupId>
@@ -97,7 +96,6 @@
     <dependency>
       <groupId>io.opentelemetry</groupId>
       <artifactId>opentelemetry-semconv</artifactId>
-      <version>1.0.1-alpha</version>
     </dependency>
     <dependency>
       <groupId>io.jaegertracing</groupId>

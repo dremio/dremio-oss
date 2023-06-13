@@ -17,6 +17,7 @@ package com.dremio.exec.planner.acceleration;
 
 import java.util.List;
 
+import com.dremio.exec.catalog.TableVersionContext;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -42,17 +43,28 @@ public class JoinDependencyProperties {
   public static class Dependency {
     public List<String> foreignKeyTable;
     public List<String> uniqueKeyTable;
+    public TableVersionContext foreignKeyTableVersionContext = null;
+    public TableVersionContext uniqueKeyTableVersionContext = null;
 
-    public Dependency(List<String> foreignKeyTable, List<String> uniqueKeyTable) {
+    public Dependency(List<String> foreignKeyTable, String foreignKeyTableVersionContextValue,
+                      List<String> uniqueKeyTable, String uniqueKeyTableVersionContextValue) {
       this.foreignKeyTable = foreignKeyTable;
+      if (foreignKeyTableVersionContextValue != null) {
+        foreignKeyTableVersionContext = TableVersionContext.deserialize(foreignKeyTableVersionContextValue);
+      }
       this.uniqueKeyTable = uniqueKeyTable;
+      if (uniqueKeyTableVersionContextValue != null) {
+        uniqueKeyTableVersionContext = TableVersionContext.deserialize(uniqueKeyTableVersionContextValue);
+      }
     }
 
     @Override
     public String toString() {
       return "Dependency{" +
         "foreignKeyTable=" + foreignKeyTable +
+        (foreignKeyTableVersionContext != null ? ", foreignKeyTableVersionContext=" + foreignKeyTableVersionContext.serialize() : "") +
         ", uniqueKeyTable=" + uniqueKeyTable +
+        (uniqueKeyTableVersionContext != null ? ", uniqueKeyTableVersionContext=" + uniqueKeyTableVersionContext.serialize() : "") +
         '}';
     }
   }

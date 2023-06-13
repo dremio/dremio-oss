@@ -18,17 +18,14 @@ package com.dremio.plugins.sysflight;
 import javax.inject.Provider;
 
 import com.dremio.exec.catalog.conf.ConnectionConf;
-import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.service.Service;
 
 /**
  * Connection config provider for Sys-flight
  */
 public class SysFlightPluginConfigProvider implements Service, Provider<ConnectionConf<?, ?>> {
-  private final Provider<NodeEndpoint> endPoint;
 
-  public SysFlightPluginConfigProvider(Provider<NodeEndpoint> endPoint) {
-    this.endPoint = endPoint;
+  public SysFlightPluginConfigProvider() {
   }
 
   @Override
@@ -42,7 +39,6 @@ public class SysFlightPluginConfigProvider implements Service, Provider<Connecti
   @Override
   public ConnectionConf<?, ?> get() {
     SysFlightPluginConf conf = new SysFlightPluginConf();
-    conf.endpoint = endPoint.get();
     return conf;
   }
 }

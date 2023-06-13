@@ -16,11 +16,13 @@
 
 package com.dremio.exec.hive;
 
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 import static org.junit.Assert.assertEquals;
 
 import java.util.ArrayList;
 
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.assertj.core.api.Assertions;
 import org.junit.Test;
 
 import com.dremio.exec.catalog.conf.Property;
@@ -47,6 +49,17 @@ public class TestHiveConfFactory {
         HiveConf confWithOverrides = hiveConfFactory.createHiveConf(configWithOverrides);
         assertEquals("com.dremio.test.CustomS3Impl", confWithOverrides.get("fs.s3.impl"));
         assertEquals("com.dremio.test.CustomS3NImpl", confWithOverrides.get("fs.s3n.impl"));
+    }
+
+    @Test
+    public void testUnsupportedHiveConfigs() {
+      HiveConfFactory hiveConfFactory = new HiveConfFactory();
+      HiveStoragePluginConfig conf = getTestConfig();
+      conf.propertyList = new ArrayList<>();
+      conf.propertyList.add(new Property("parquet.column.index.access", "true"));
+      assertThatIllegalArgumentException()
+        .isThrownBy(() -> hiveConfFactory.createHiveConf(conf))
+        .withMessageContaining("parquet.column.index.access");
     }
 
     private HiveStoragePluginConfig getTestConfig() {

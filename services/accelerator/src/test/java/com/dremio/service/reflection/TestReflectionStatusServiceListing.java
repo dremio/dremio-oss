@@ -114,7 +114,6 @@ public class TestReflectionStatusServiceListing {
 
     statusService = new ReflectionStatusServiceImpl(
       sabotContext::getExecutors,
-      DirectProvider.wrap(namespaceService),
       DirectProvider.<MaterializationCache.CacheViewer>wrap(new TestReflectionStatusService.ConstantCacheViewer(true)),
       goalsStore,
       entriesStore,

@@ -29,10 +29,12 @@ public interface RuntimeFilteredRel extends RelNode {
 
   enum ColumnType {
     PARTITION {
+      @Override
       protected String alias() {
         return "p";
       }
     }, RANDOM{
+      @Override
       protected String alias() {
         return "r";
       }

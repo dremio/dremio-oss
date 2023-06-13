@@ -21,6 +21,9 @@ import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.ServerProperties;
 import org.glassfish.jersey.server.mvc.freemarker.FreemarkerMvcFeature;
+import org.projectnessie.services.restjavax.ContentKeyParamConverterProvider;
+import org.projectnessie.services.restjavax.NamespaceParamConverterProvider;
+import org.projectnessie.services.restjavax.ReferenceTypeParamConverterProvider;
 
 import com.dremio.common.perf.Timer;
 import com.dremio.common.perf.Timer.TimedBlock;
@@ -53,6 +56,12 @@ public class RestServerV2 extends ResourceConfig {
   }
 
   protected void init(ScanResult result) {
+    // PROVIDERS //
+    // We manually registered provider needed for nessie-as-a-source
+    register(ContentKeyParamConverterProvider.class);
+    register(NamespaceParamConverterProvider.class);
+    register(ReferenceTypeParamConverterProvider.class);
+
     // FILTERS //
     register(JSONPrettyPrintFilter.class);
     register(MediaTypeFilter.class);
@@ -61,6 +70,9 @@ public class RestServerV2 extends ResourceConfig {
     for (Class<?> resource : result.getAnnotatedClasses(RestResource.class)) {
       register(resource);
     }
+
+    // Enable request contextualization.
+    register(new AuthenticationBinder());
 
     // FEATURES
     property(FreemarkerMvcFeature.TEMPLATE_OBJECT_FACTORY, getFreemarkerConfiguration());

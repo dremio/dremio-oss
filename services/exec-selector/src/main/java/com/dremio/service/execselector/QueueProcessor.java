@@ -113,6 +113,7 @@ public class QueueProcessor<T> implements AutoCloseable {
   /**
    * Reaps the event processing thread. The event processing thread might not finish processing the events on the queue
    */
+  @Override
   public void close() throws Exception {
     if (!isClosed) {
       isClosed = true;

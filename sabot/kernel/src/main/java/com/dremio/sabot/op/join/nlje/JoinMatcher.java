@@ -45,6 +45,7 @@ interface JoinMatcher extends AutoCloseable {
    */
   boolean needNextInput();
 
+  @Override
   void close() throws Exception;
 
   /**

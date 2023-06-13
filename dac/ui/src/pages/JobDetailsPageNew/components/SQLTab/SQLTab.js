@@ -18,6 +18,8 @@ import PropTypes from "prop-types";
 import SQL from "../SQL/SQL";
 import DatasetGraph from "./DatasetGraph";
 import Dataset from "./Dataset";
+import { CATALOG_ARS_ENABLED } from "@app/exports/flags/CATALOG_ARS_ENABLED";
+import { FeatureSwitch } from "@app/exports/components/FeatureSwitch/FeatureSwitch";
 import "./SQLTab.less";
 
 const SQLTab = ({
@@ -39,19 +41,27 @@ const SQLTab = ({
         sqlClass="sqlTab__SQLBody"
         title={formatMessage({ id: "SubmittedSQL" })}
       />
-      <span className="sqlTab__SQLGraphHeader">
-        {formatMessage({ id: "DataSetGraph" })}
-      </span>
-      <div className="sqlTab__SQLQueryVisualizer">
-        {exceptionCheck.length && exceptionCheck[0].description ? (
-          <Dataset description={exceptionCheck[0].description} />
-        ) : (
-          <DatasetGraph
-            datasetGraph={datasetGraph}
-            algebricMatch={algebricMatch}
-          />
+      <FeatureSwitch
+        flag={CATALOG_ARS_ENABLED}
+        renderEnabled={() => null}
+        renderDisabled={() => (
+          <>
+            <span className="sqlTab__SQLGraphHeader">
+              {formatMessage({ id: "DataSetGraph" })}
+            </span>
+            <div className="sqlTab__SQLQueryVisualizer">
+              {exceptionCheck.length && exceptionCheck[0].description ? (
+                <Dataset description={exceptionCheck[0].description} />
+              ) : (
+                <DatasetGraph
+                  datasetGraph={datasetGraph}
+                  algebricMatch={algebricMatch}
+                />
+              )}
+            </div>
+          </>
         )}
-      </div>
+      />
     </div>
   );
 };

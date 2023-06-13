@@ -17,6 +17,7 @@ import { abilities } from "utils/datasetUtils";
 import datasetSettingsConfig from "@inject/pages/HomePage/components/modals/DatasetSettings/datasetSettingsConfig";
 import { isVersionedSource } from "@app/utils/sourceUtils";
 import { NESSIE } from "@app/constants/sourceTypes";
+import { REFLECTION_ARCTIC_ENABLED } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
 
 export default function (input) {
   Object.assign(input.prototype, {
@@ -24,14 +25,10 @@ export default function (input) {
     extendContentRenderers(contentRenderers) {
       return contentRenderers;
     },
-    isReflectionsFullPage() {
-      const {
-        location: { pathname },
-      } = this.props;
-      return pathname && pathname.endsWith("/reflections");
-    },
+
     getTabs() {
-      const { entity, intl, source, isAdmin, enableCompaction } = this.props;
+      const { entity, intl, source, isAdmin, enableCompaction, supportFlags } =
+        this.props;
 
       if (!entity) {
         return new Immutable.OrderedMap();
@@ -44,28 +41,30 @@ export default function (input) {
         entity.get("entityType")
       );
 
+      const arcticReflectionsEnabled =
+        supportFlags?.[REFLECTION_ARCTIC_ENABLED];
       const { showFormatTab } = datasetSettingsConfig;
       const format = showFormatTab &&
         canEditFormat && ["format", intl.formatMessage({ id: "File.Format" })];
 
       // If a file or folder has not been converted to a dataset, hide all other tabs
-      // https://dremio.atlassian.net/browse/DX-3178
+      // DX-3178
       if (canEditFormat && !entity.get("queryable")) {
         map.push(format);
         return new Immutable.OrderedMap(map);
       }
 
-      const isReflectionsPage = this.isReflectionsFullPage();
       const isVersioned = isVersionedSource(source?.type);
+      const showAccelerationTabs =
+        !isVersioned || (isVersioned && arcticReflectionsEnabled);
       map.push(
         ["overview", intl.formatMessage({ id: "Common.Overview" })],
         format,
-        !isVersioned &&
-          !isReflectionsPage && [
-            "acceleration",
-            intl.formatMessage({ id: "Reflection.Reflections" }),
-          ],
-        !isVersioned &&
+        showAccelerationTabs && [
+          "acceleration",
+          intl.formatMessage({ id: "Reflection.Reflections" }),
+        ],
+        showAccelerationTabs &&
           canSetAccelerationUpdates && [
             "accelerationUpdates",
             intl.formatMessage({ id: "Acceleration.RefreshPolicy" }),

@@ -29,11 +29,13 @@ public class Alternator {
     @Workspace int val;
     @Output NullableBigIntHolder out;
 
+    @Override
     public void setup() {
       val = 0;
     }
 
 
+    @Override
     public void eval() {
       out.isSet = 1;
       out.value = val;
@@ -50,11 +52,13 @@ public class Alternator {
     @Workspace int val;
     @Output NullableBigIntHolder out;
 
+    @Override
     public void setup() {
       val = 0;
     }
 
 
+    @Override
     public void eval() {
       out.isSet = 1;
       out.value = val;

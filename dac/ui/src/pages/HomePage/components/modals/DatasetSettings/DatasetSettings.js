@@ -34,6 +34,7 @@ import AccelerationController from "components/Acceleration/AccelerationControll
 import DatasetSettingsMixin from "dyn-load/pages/HomePage/components/modals/DatasetSettings/DatasetSettingsMixin";
 
 import { showUnsavedChangesConfirmDialog } from "actions/confirmation";
+import { fetchSupportFlags } from "@app/actions/supportFlags";
 import NavPanel from "components/Nav/NavPanel";
 import FileFormatController from "./FileFormatController";
 import AccelerationUpdatesController from "./AccelerationUpdates/AccelerationUpdatesController";
@@ -52,6 +53,9 @@ import {
 } from "@inject/pages/HomePage/components/modals/DatasetSettings/compactionUtils";
 import { NESSIE } from "@app/constants/sourceTypes";
 import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
+import { isCommunity } from "dyn-load/utils/versionUtils";
+import config from "@inject/utils/config";
+import { REFLECTION_ARCTIC_ENABLED } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
 
 const COMPACTION = "COMPACTION";
 const DATASET_SETTINGS_VIEW_ID = "DATASET_SETTINGS_VIEW_ID";
@@ -86,6 +90,7 @@ export class DatasetSettings extends PureComponent {
     compactionTasks: PropTypes.array,
     enableCompaction: PropTypes.bool,
     isAdmin: PropTypes.bool,
+    fetchSupportFlags: PropTypes.func,
   };
 
   state = {
@@ -132,7 +137,12 @@ export class DatasetSettings extends PureComponent {
       source,
       isAdmin,
       enableCompaction,
+      fetchSupportFlags,
     } = this.props;
+
+    if (!isCommunity?.()) {
+      fetchSupportFlags?.(REFLECTION_ARCTIC_ENABLED);
+    }
 
     if (enableCompaction && isAdmin && source?.type === NESSIE && entity) {
       const activeBranch = getActiveBranch(source?.name);
@@ -355,6 +365,14 @@ const mapStateToProps = (state, { isHomePage }) => {
   // We need support both options. At this moment an only place where entity is stored in resources
   // is explore page ExploreSettingsButton
   const finalEntitySelector = isHomePage ? getHomeEntityOrChild : getEntity;
+
+  let supportFlags = state.supportFlags;
+  if (isCommunity?.()) {
+    supportFlags = {
+      [REFLECTION_ARCTIC_ENABLED]: config.arcticReflectionsEnabled,
+    };
+  }
+
   return {
     source,
     compactionTasks,
@@ -363,12 +381,14 @@ const mapStateToProps = (state, { isHomePage }) => {
     enableCompaction,
     entity: entityId && finalEntitySelector(state, entityId, entityType),
     viewState: getViewState(state, DATASET_SETTINGS_VIEW_ID),
+    supportFlags,
   };
 };
 
 export default connect(mapStateToProps, {
   loadDatasetForDatasetType,
   showUnsavedChangesConfirmDialog,
+  fetchSupportFlags,
   startCompaction,
   postCompactionData,
   getAllCompactionData,

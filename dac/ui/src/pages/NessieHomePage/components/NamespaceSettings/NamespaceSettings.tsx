@@ -15,7 +15,8 @@
  */
 import { ChangeEvent } from "react";
 import { withRouter, InjectedRouter, WithRouterProps } from "react-router";
-import { Entry } from "@app/services/nessie/client";
+import { EntryV1 as Entry } from "@app/services/nessie/client";
+import { Type } from "@app/types/nessie";
 
 import * as classes from "./NamespaceSettings.module.less";
 
@@ -49,7 +50,7 @@ const NamespaceSettings = ({
 }: {
   entry: Entry;
 } & WithRouterProps) => {
-  const validTypes = ["ICEBERG_TABLE"];
+  const validTypes = [Type.IcebergTable];
   const entryType = entry.type;
   if (entryType && !validTypes.includes(entryType)) return null;
   return (

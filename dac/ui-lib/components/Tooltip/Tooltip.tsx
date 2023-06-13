@@ -50,6 +50,10 @@ type TooltipProps = {
   portal?: boolean;
 
   /**
+   * Use when a disabled element does not show the tooltip
+   */
+  shouldWrapChildren?: boolean;
+  /**
    * Called when the tooltip is closed
    */
   onClose?: () => void;
@@ -70,6 +74,7 @@ export const Tooltip = (props: TooltipProps): JSX.Element => {
     interactive = false,
     placement = "bottom",
     portal = false,
+    shouldWrapChildren = false,
     onClose,
     onOpen,
   } = props;
@@ -89,7 +94,7 @@ export const Tooltip = (props: TooltipProps): JSX.Element => {
   const { x, y, context, floating, reference, strategy, middlewareData } =
     useFloating({
       middleware: [
-        offset(16),
+        offset(8),
         flip(),
         shift({ padding: 8 }),
         arrow({ element: arrowElRef }),
@@ -177,9 +182,18 @@ export const Tooltip = (props: TooltipProps): JSX.Element => {
 
   return (
     <>
-      {React.cloneElement(
-        children,
-        getReferenceProps({ ref, ...children.props })
+      {shouldWrapChildren ? (
+        <span
+          {...getReferenceProps({ ref })}
+          style={{ display: "inline-block" }}
+        >
+          {React.cloneElement(children, { ...children.props })}
+        </span>
+      ) : (
+        React.cloneElement(
+          children,
+          getReferenceProps({ ref, ...children.props })
+        )
       )}
       {portal ? createPortal(tooltipContent, document.body!) : tooltipContent}
     </>

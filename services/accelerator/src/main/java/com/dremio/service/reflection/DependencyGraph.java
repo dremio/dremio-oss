@@ -56,9 +56,14 @@ public class DependencyGraph {
   }
 
   public synchronized void loadFromStore() {
+    int total = 0;
+    int noDependencies = 0;
+    int errors = 0;
     for (Map.Entry<ReflectionId, ReflectionDependencies> entry : dependenciesStore.getAll()) {
+      total++;
       final List<ReflectionDependencyEntry> dependencies = entry.getValue().getEntryList();
       if (dependencies == null || dependencies.isEmpty()) {
+        noDependencies++;
         continue;
       }
 
@@ -73,8 +78,10 @@ public class DependencyGraph {
       } catch (DependencyException e) {
         // this should never happen as we don't allow saving cyclic dependencies in the in-memory graph
         logger.warn("Found a cyclic dependency while loading dependencies for {}, skipping", entry.getKey().getId(), e);
+        errors++;
       }
     }
+    logger.info("Loaded reflection dependency graph: totalReflections={},noDependencyReflections={},dependencyExceptions={}", total, noDependencies, errors);
   }
 
   synchronized List<DependencyEntry> getPredecessors(final ReflectionId reflectionId) {

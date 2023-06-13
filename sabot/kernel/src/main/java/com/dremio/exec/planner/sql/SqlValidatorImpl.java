@@ -93,6 +93,7 @@ import com.dremio.exec.planner.sql.parser.SqlMergeIntoTable;
 import com.dremio.exec.planner.sql.parser.SqlOptimize;
 import com.dremio.exec.planner.sql.parser.SqlPartitionTransform;
 import com.dremio.exec.planner.sql.parser.SqlUpdateTable;
+import com.dremio.exec.planner.sql.parser.SqlVacuumTable;
 import com.dremio.exec.planner.sql.parser.SqlVersionedTableMacroCall;
 import com.dremio.options.OptionResolver;
 import com.dremio.options.TypeValidators;
@@ -145,7 +146,7 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
       SqlMergeIntoTable merge = (SqlMergeIntoTable) node;
       rewriteMerge(merge);
       return node;
-    }  else if (node instanceof SqlOptimize) {
+    } else if (node instanceof SqlOptimize) {
       SqlOptimize sqlOptimize = (SqlOptimize) node;
       SqlSelect select = createSourceSelectForOptimize(sqlOptimize);
       sqlOptimize.setSourceSelect(select);
@@ -155,7 +156,13 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
       SqlSelect select = createSourceSelectForCopyIntoTable(sqlCopyIntoTable);
       sqlCopyIntoTable.setSourceSelect(select);
       return node;
+    } else if (node instanceof SqlVacuumTable) {
+      SqlVacuumTable sqlVacuumTable = (SqlVacuumTable) node;
+      SqlSelect select = createSourceSelectForVacuum(sqlVacuumTable);
+      sqlVacuumTable.setSourceSelect(select);
+      return node;
     }
+
     return super.performUnconditionalRewrites(node, underFrom);
   }
 
@@ -172,6 +179,14 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
     selectList.add(SqlIdentifier.star(SqlParserPos.ZERO));
     SqlNode table = call.getTargetTable();
     return new SqlSelect(SqlParserPos.ZERO, null, selectList, table,
+      null, null, null, null, null, null, null, null, null);
+  }
+
+  private SqlSelect createSourceSelectForVacuum(SqlVacuumTable call) {
+    final SqlNodeList selectList = new SqlNodeList(SqlParserPos.ZERO);
+    selectList.add(SqlIdentifier.star(SqlParserPos.ZERO));
+    SqlNode sourceTable = call.getTable();
+    return new SqlSelect(SqlParserPos.ZERO, null, selectList, sourceTable,
       null, null, null, null, null, null, null, null, null);
   }
 
@@ -818,6 +833,7 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
       this.validator = validator;
     }
 
+    @Override
     public SqlNode visit(SqlIdentifier id) {
       SqlValidator validator = getScope().getValidator();
       final SqlCall call = validator.makeNullaryCall(id);
@@ -943,7 +959,8 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
       this.allowMoreThanOneAlias = allowMoreThanOneAlias;
     }
 
-    @Override public SqlNode visit(SqlIdentifier id) {
+    @Override
+    public SqlNode visit(SqlIdentifier id) {
       if (!id.isSimple()) {
         return super.visit(id);
       }
@@ -1034,6 +1051,7 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
       return node.accept(new DeepCopier());
     }
 
+    @Override
     public SqlNode visit(SqlNodeList list) {
       SqlNodeList copy = new SqlNodeList(list.getParserPosition());
       for (SqlNode node : list) {
@@ -1044,28 +1062,34 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
 
     // Override to copy all arguments regardless of whether visitor changes
     // them.
+    @Override
     public SqlNode visit(SqlCall call) {
       ArgHandler<SqlNode> argHandler = new CallCopyingArgHandler(call, true);
       call.getOperator().acceptCall(this, call, false, argHandler);
       return argHandler.result();
     }
 
+    @Override
     public SqlNode visit(SqlLiteral literal) {
       return SqlNode.clone(literal);
     }
 
+    @Override
     public SqlNode visit(SqlIdentifier id) {
       return SqlNode.clone(id);
     }
 
+    @Override
     public SqlNode visit(SqlDataTypeSpec type) {
       return SqlNode.clone(type);
     }
 
+    @Override
     public SqlNode visit(SqlDynamicParam param) {
       return SqlNode.clone(param);
     }
 
+    @Override
     public SqlNode visit(SqlIntervalQualifier intervalQualifier) {
       return SqlNode.clone(intervalQualifier);
     }

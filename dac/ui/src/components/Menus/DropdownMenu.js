@@ -22,7 +22,8 @@ import { SelectView } from "@app/components/Fields/SelectView";
 import { triangleTop } from "uiTheme/radium/overlay";
 import Spinner from "@app/components/Spinner";
 import { Divider } from "@mui/material";
-import { Button, Tooltip } from "dremio-ui-lib";
+import { Tooltip } from "dremio-ui-lib";
+import { Button } from "dremio-ui-lib/components";
 
 import "./DropdownMenu.less";
 
@@ -104,12 +105,10 @@ const DropdownMenu = (props) => {
       {groupDropdownProps && (
         <>
           <Button
-            disableMargin
+            variant="secondary"
             onClick={groupDropdownProps.onClick}
-            className={classNames(
-              "dropdownMenu__groupButton",
-              disabled ? "--disabled" : ""
-            )}
+            disabled={disabled}
+            className="dropdownMenu__groupButton"
           >
             {groupDropdownProps.text}
           </Button>

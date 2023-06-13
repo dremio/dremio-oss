@@ -33,7 +33,6 @@ import {
   DataLoadError,
   explorePageChanged,
   jobUpdateWatchers,
-  loadDatasetMetadata,
 } from "sagas/runDataset";
 import { EXPLORE_TABLE_ID } from "reducers/explore/view";
 import { focusSqlEditor } from "@app/actions/explore/view";
@@ -41,8 +40,8 @@ import { getViewStateFromAction } from "@app/reducers/resources/view";
 import {
   getFullDataset,
   getDatasetVersionFromLocation,
-  getExploreJobId,
   getTableDataRaw,
+  oldGetExploreJobId,
 } from "@app/selectors/explore";
 import { getLocation } from "selectors/routing";
 import { TRANSFORM_PEEK_START } from "@app/actions/explore/dataset/peek";
@@ -175,7 +174,7 @@ export function* loadTableData(
   const dataset = yield select(getFullDataset, datasetVersion);
   if (!dataset) return; // do not load a data if metadata is not loaded
 
-  const jobId = yield select(getExploreJobId);
+  const jobId = yield select(oldGetExploreJobId);
   const paginationUrl = dataset.get("paginationUrl");
   if (!paginationUrl || !jobId) return;
 
@@ -223,72 +222,6 @@ export function* loadTableData(
       yield call(hideTableSpinner);
     }
   }
-}
-
-export function* listenToJobProgress(
-  datasetVersion,
-  jobId,
-  paginationUrl,
-  isRun,
-  datasetPath,
-  callback,
-  curIndex,
-  sessionId,
-  viewId
-) {
-  let resetViewState = true;
-  let raceResult;
-
-  // cancels any other data loads before beginning
-  yield call(cancelDataLoad);
-
-  // track all preview queries
-  if (!isRun && datasetVersion) {
-    sonarEvents.jobPreview();
-  }
-
-  try {
-    yield put(setExploreJobIdInProgress(jobId, datasetVersion));
-    yield spawn(jobUpdateWatchers, jobId);
-    yield put(
-      updateViewState(EXPLORE_TABLE_ID, {
-        isInProgress: true,
-        isFailed: false,
-        error: null,
-      })
-    );
-
-    raceResult = yield race({
-      dataLoaded: call(
-        loadDatasetMetadata,
-        datasetVersion,
-        jobId,
-        isRun,
-        paginationUrl,
-        datasetPath,
-        callback,
-        curIndex,
-        sessionId,
-        viewId
-      ),
-      isLoadCanceled: take([CANCEL_TABLE_DATA_LOAD, TRANSFORM_PEEK_START]),
-      locationChange: call(resetTableViewStateOnPageLeave),
-    });
-  } catch (e) {
-    if (!(e instanceof DataLoadError)) {
-      throw e;
-    }
-
-    resetViewState = false;
-    const viewState = yield call(getViewStateFromAction, e.response);
-    yield put(updateViewState(EXPLORE_TABLE_ID, viewState));
-  } finally {
-    if (resetViewState) {
-      yield call(hideTableSpinner);
-    }
-  }
-
-  return raceResult.dataLoaded ?? false;
 }
 
 const defaultViewState = {
@@ -369,7 +302,7 @@ export function* loadDataset(
   willLoadTable
 ) {
   const location = yield select(getLocation);
-  const { mode, tipVersion } = location.query || {};
+  const { mode, tipVersion, refType, refValue } = location.query || {};
   let apiAction;
   if (mode === "edit" || dataset.get("datasetVersion")) {
     //Set references after this actions is completed
@@ -380,7 +313,9 @@ export function* loadDataset(
       tipVersion,
       forceDataLoad,
       sessionId,
-      willLoadTable
+      willLoadTable,
+      refType,
+      refValue
     );
   } else {
     const loc = rmProjectBase(location.pathname);
@@ -388,7 +323,13 @@ export function* loadDataset(
     const parentFullPath = decodeURIComponent(
       constructFullPath([pathnameParts[2]]) + "." + pathnameParts[3]
     );
-    apiAction = yield call(newUntitled, dataset, parentFullPath, viewId);
+    apiAction = yield call(
+      newUntitled,
+      dataset,
+      parentFullPath,
+      viewId,
+      willLoadTable
+    );
   }
 
   return apiAction;

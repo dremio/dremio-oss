@@ -365,7 +365,6 @@ export class ProvisioningPage extends Component {
         <div
           id="admin-provisioning"
           style={page}
-          className="gutter-left--double"
         >
           <ViewStateWrapper
             viewState={viewState}

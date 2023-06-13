@@ -65,6 +65,7 @@ public abstract class Setting {
       this.value = value;
     }
 
+    @Override
     public Long getValue(){
       return value;
     }
@@ -87,6 +88,7 @@ public abstract class Setting {
       this.value = value;
     }
 
+    @Override
     public Double getValue(){
       return value;
     }
@@ -109,6 +111,7 @@ public abstract class Setting {
       this.value = value;
     }
 
+    @Override
     public Boolean getValue(){
       return value;
     }
@@ -131,6 +134,7 @@ public abstract class Setting {
       this.value = value;
     }
 
+    @Override
     public String getValue(){
       return value;
     }

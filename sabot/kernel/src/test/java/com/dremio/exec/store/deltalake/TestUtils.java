@@ -47,8 +47,7 @@ public class TestUtils {
     try {
       x.getGroup(s, 0);
       return true;
-    }
-    catch (Exception e) {
+    } catch (Exception e) {
       return false;
     }
   };
@@ -84,14 +83,12 @@ public class TestUtils {
       if(groupPresent(g, "metaData")) {
         Group r = g.getGroup("metaData", 0);
         schemaString = r.getString("schemaString", 0);
-      }
-      else if(groupPresent(g, "add")) {
+      } else if (groupPresent(g, "add")) {
         Group r = g.getGroup("add", 0);
         addedFiles.add(Path.of(r.getString("path", 0)));
         numFilesAdded ++;
         numOutputBytes += r.getLong("size", 0);
-      }
-      else if(groupPresent(g, "commitInfo")) {
+      } else if (groupPresent(g, "commitInfo")) {
         Group r = g.getGroup("commitInfo", 0).getGroup("operationMetrics", 0);
         numFilesAdded += r.getInteger("numFiles", 0);
         numOutputBytes += r.getInteger("numOutputBytes", 0);

@@ -23,7 +23,6 @@ import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
-import javax.ws.rs.NotFoundException;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
@@ -57,12 +56,7 @@ public class CollaborationResource {
   @Path("/tag")
   public Tags getTagsForEntity(@PathParam("id") String id) throws NamespaceException {
     Optional<Tags> tags = collaborationHelper.getTags(id);
-
-    if (!tags.isPresent()) {
-      throw new NotFoundException(String.format("Entity [%s] does not have any tags set.", id));
-    }
-
-    return tags.get();
+    return tags.orElseGet(() -> new Tags(null, null));
   }
 
   @POST
@@ -77,12 +71,7 @@ public class CollaborationResource {
   @Path("/wiki")
   public Wiki getWikiForEntity(@PathParam("id") String id) throws NamespaceException {
     Optional<Wiki> wiki = collaborationHelper.getWiki(id);
-
-    if (!wiki.isPresent()) {
-      throw new NotFoundException(String.format("Entity [%s] does not have a wiki set.", id));
-    }
-
-    return wiki.get();
+    return wiki.orElseGet(() -> new Wiki("", null));
   }
 
   @POST

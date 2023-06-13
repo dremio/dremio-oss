@@ -20,6 +20,7 @@ import static java.lang.String.format;
 import java.io.File;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
 import org.apache.calcite.plan.RelOptPlanner;
@@ -102,7 +103,8 @@ public class TestStoreQueryResults extends BaseTestQuery {
         }
 
         @Override
-        public void planRelTransform(PlannerPhase phase, RelOptPlanner planner, RelNode before, RelNode after, long millisTaken) {
+        public void planRelTransform(PlannerPhase phase, RelOptPlanner planner, RelNode before, RelNode after,
+                                     long millisTaken, Map<String, Long> timeBreakdownPerRule) {
           if (phase == PlannerPhase.PHYSICAL) {
             if (checkPlanWriterDistribution) {
               // Visit the tree and check that all the WriterCommitter is a singleton and its input is also singleton

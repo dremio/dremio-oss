@@ -83,8 +83,7 @@ public abstract class NullableVarLengthValuesColumn<V extends ValueVector> exten
       currDictValToWrite = currLengthDeterminingDictVal;
       // re-purposing  this field here for length in BYTES to prevent repetitive multiplication/division
       dataTypeLengthInBits = currLengthDeterminingDictVal.length();
-    }
-    else {
+    } else {
       // re-purposing  this field here for length in BYTES to prevent repetitive multiplication/division
       dataTypeLengthInBits = pageReader.pageData.getInt((int) pageReader.readyToReadPosInBytes);
     }

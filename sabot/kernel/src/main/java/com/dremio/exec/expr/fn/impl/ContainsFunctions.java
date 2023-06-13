@@ -41,9 +41,11 @@ public class ContainsFunctions {
     @Inject
     FunctionErrorContext errCtx;
 
+    @Override
     public void setup() {
     }
 
+    @Override
     public void eval() {
       if (true) {
         throw errCtx.error()

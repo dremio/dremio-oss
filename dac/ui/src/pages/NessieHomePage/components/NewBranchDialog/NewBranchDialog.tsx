@@ -17,11 +17,16 @@
 import { useState } from "react";
 import { useDispatch } from "react-redux";
 import { FormattedMessage, useIntl } from "react-intl";
-import { Button, ModalContainer, DialogContent } from "dremio-ui-lib/dist-esm";
+import {
+  Button,
+  ModalContainer,
+  DialogContent,
+} from "dremio-ui-lib/components";
 import { setReference } from "@app/actions/nessie/nessie";
 import { TextField } from "@mui/material";
 import { Reference } from "@app/types/nessie";
 import { useNessieContext } from "../../utils/context";
+import { ReferenceType } from "@app/services/nessie/client/index";
 
 import "./NewBranchDialog.less";
 
@@ -45,7 +50,7 @@ function NewBranchDialog({
   fromType,
 }: NewBranchDialogProps): JSX.Element {
   const intl = useIntl();
-  const { api, stateKey } = useNessieContext();
+  const { apiV2, stateKey } = useNessieContext();
   const [newBranchName, setNewBranchName] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [errorText, setErrorText] = useState<JSX.Element | null>(null);
@@ -68,13 +73,11 @@ function NewBranchDialog({
   const onAdd = async () => {
     setIsSending(true);
     try {
-      const reference = (await api.createReference({
-        sourceRefName: forkFrom ? forkFrom.name : undefined,
-        reference: {
-          type: "BRANCH",
-          hash: forkFrom ? forkFrom.hash : null,
-          name: newBranchName,
-        } as Reference,
+      // https://github.com/projectnessie/nessie/issues/6210
+      const { reference } = (await apiV2.createReferenceV2({
+        name: newBranchName,
+        type: ReferenceType.Branch,
+        reference: forkFrom,
       })) as Reference;
 
       if (allRefs && setAllRefs) {
@@ -143,7 +146,7 @@ function NewBranchDialog({
                 <>
                   <dremio-icon name="vcs/commit" />
                   <span className="new-tag-dialog-body-commit-hash">
-                    {forkFrom?.hash?.substring(0, 30)}
+                    {forkFrom?.hash?.substring(0, 8)}
                   </span>
                 </>
               ) : (

@@ -1,0 +1,72 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+.arctic-catalog-jobs {
+  display: flex;
+  flex-direction: column;
+  margin-inline: 0 !important;
+  height: 100%;
+
+  &__none {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    font-size: 24px;
+  }
+
+  &__filters {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    align-items: center;
+    padding: 16px 0px 16px 10px;
+    gap: 16px;
+  }
+
+  :global {
+    .arctic-catalog-job__targets {
+      gap: 4px;
+      display: flex;
+      align-items: center;
+      max-width: 200px;
+
+      &__name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    }
+
+    .arctic-catalog-job__status {
+      display: flex;
+      align-items: center;
+    }
+
+    .leantable__body-row {
+      .copy-button {
+        opacity: 0;
+        cursor: auto;
+      }
+      &:hover {
+        .copy-button {
+          opacity: 1;
+          cursor: pointer;
+        }
+      }
+    }
+  }
+}

@@ -17,7 +17,6 @@ package com.dremio.exec.store.iceberg.nessie;
 
 import org.apache.hadoop.conf.Configuration;
 
-import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.store.iceberg.model.IcebergBaseCommand;
 import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
 import com.dremio.io.file.FileSystem;
@@ -29,11 +28,12 @@ public class IcebergNessieVersionedCommand extends IcebergBaseCommand {
   public IcebergNessieVersionedCommand(IcebergTableIdentifier tableIdentifier,
                                        Configuration configuration,
                                        FileSystem fs,
-                                       IcebergNessieVersionedTableOperations tableOperations, MutablePlugin plugin) {
-    super(configuration, ((IcebergNessieVersionedTableIdentifier) tableIdentifier).getTableFolder(), fs, tableOperations, plugin);
+                                       IcebergNessieVersionedTableOperations tableOperations) {
+    super(configuration, ((IcebergNessieVersionedTableIdentifier) tableIdentifier).getTableFolder(), fs, tableOperations);
     this.versionedTableOperations = tableOperations;
   }
 
+  @Override
   public void deleteTable() {
     //super.deleteTable(); // TODO Okay to only delete in Nessie?
     versionedTableOperations.deleteKey();

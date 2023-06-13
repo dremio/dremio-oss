@@ -48,6 +48,7 @@ class Message extends PureComponent {
     message: Immutable.Map(),
     inFlow: true,
     useModalShowMore: false,
+    disableCustomRightButtonStyle: false,
   };
 
   static propTypes = {
@@ -68,6 +69,7 @@ class Message extends PureComponent {
     useModalShowMore: PropTypes.bool,
     multilineMessage: PropTypes.bool,
     customRightButton: PropTypes.any,
+    messageAction: PropTypes.any,
   };
 
   constructor(props) {
@@ -259,9 +261,24 @@ class Message extends PureComponent {
         const countSuccess =
           totalCount - message.getIn(["details", "reflectionSaveErrors"]).size;
         const countFail = totalCount - countSuccess;
+
+        const messageObj = message.toJS();
+        const reflectionSaveErrors = messageObj?.details?.reflectionSaveErrors;
+        const shouldShowPermissionsMessage = Object.values(
+          reflectionSaveErrors
+        ).every(
+          (saveError) =>
+            saveError?.message?.errorMessage ===
+            "Permission denied. A support user cannot create a reflection"
+        );
+
         return (
           <FormattedMessage
-            id="Message.SomeReflectionsFailed"
+            id={
+              shouldShowPermissionsMessage
+                ? "Message.NoPermissionToModifyReflection"
+                : "Message.SomeReflectionsFailed"
+            }
             values={{ countSuccess, countFail }}
           />
         );
@@ -366,6 +383,7 @@ class Message extends PureComponent {
       inFlow,
       isDismissable,
       customRightButton,
+      messageAction,
     } = this.props;
 
     if (
@@ -408,6 +426,7 @@ class Message extends PureComponent {
             </Linkify>
             {details && this.renderShowMoreToggle()}
           </span>
+          {messageAction}
           {isDismissable && (
             <div style={styles.rightButton}>
               <dremio-icon

@@ -37,7 +37,7 @@ import com.google.common.collect.ImmutableList;
 public final class ColumnResolverTests {
   @Test
   public void tests() {
-    new GoldenFileTestBuilder<>(ColumnResolverTests::executeTestWithFolderContext)
+    GoldenFileTestBuilder.create(ColumnResolverTests::executeTestWithFolderContext)
       .add(
         "SIMPLE FROM CLAUSE",
         "SELECT ^ FROM EMP")
@@ -52,7 +52,7 @@ public final class ColumnResolverTests {
 
   @Test
   public void aliasing() {
-    new GoldenFileTestBuilder<>(ColumnResolverTests::executeTestWithFolderContext)
+    GoldenFileTestBuilder.create(ColumnResolverTests::executeTestWithFolderContext)
       .add(
         "NO ALIAS",
         "SELECT ^ FROM EMP")
@@ -88,7 +88,7 @@ public final class ColumnResolverTests {
 
   @Test
   public void aliasingWithHomeContext() {
-    new GoldenFileTestBuilder<>(ColumnResolverTests::executeTestWithHomeContext)
+    GoldenFileTestBuilder.create(ColumnResolverTests::executeTestWithHomeContext)
       .add(
         "NO ALIAS",
         "SELECT ^ FROM \"space\".\"folder\".EMP")
@@ -109,7 +109,7 @@ public final class ColumnResolverTests {
 
   @Test
   public void subquery() {
-    new GoldenFileTestBuilder<>(ColumnResolverTests::executeTestWithFolderContext)
+    GoldenFileTestBuilder.create(ColumnResolverTests::executeTestWithFolderContext)
       .add(
         "CURSOR IN MIDDLE QUERY",
         "SELECT DEPTNO, (SELECT ^ , (SELECT * FROM SALGRADE) FROM EMP) FROM DEPT")
@@ -130,7 +130,7 @@ public final class ColumnResolverTests {
 
   @Test
   public void nessie() {
-    new GoldenFileTestBuilder<>(ColumnResolverTests::executeTestWithFolderContext)
+    GoldenFileTestBuilder.create(ColumnResolverTests::executeTestWithFolderContext)
       .add(
         "BRANCH",
         "SELECT ^ FROM EMP AT BRANCH \"Branch A\"")
@@ -154,7 +154,7 @@ public final class ColumnResolverTests {
 
   @Test
   public void nessieWithHomeContext() {
-    new GoldenFileTestBuilder<>(ColumnResolverTests::executeTestWithHomeContext)
+    GoldenFileTestBuilder.create(ColumnResolverTests::executeTestWithHomeContext)
       .add(
         "BRANCH",
         "SELECT ^ FROM \"space\".\"folder\".EMP AT BRANCH \"Branch A\"")

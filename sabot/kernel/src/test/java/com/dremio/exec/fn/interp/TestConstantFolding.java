@@ -58,9 +58,9 @@ public class TestConstantFolding extends PlanTestBase {
 
     public void createFiles(int smallFileLines, int bigFileLines, String extension, String delimiter) throws Exception{
       if (record == null) {
-        if (extension.equals("csv") || extension.equals("tsv")) {
+        if ("csv".equals(extension) || "tsv".equals(extension)) {
           record = Joiner.on(delimiter).join(values);
-        } else if (extension.equals("json") ){
+        } else if ("json".equals(extension)) {
           record = jsonRecord;
         } else {
           throw new UnsupportedOperationException(
@@ -92,11 +92,11 @@ public class TestConstantFolding extends PlanTestBase {
 
     public void createFiles(int smallFileLines, int bigFileLines, String extension) throws Exception{
       String delimiter;
-      if (extension.equals("json")) {
+      if ("json".equals(extension)) {
         delimiter = null;
-      } else if (extension.equals("csv")) {
+      } else if ("csv".equals(extension)) {
         delimiter = ",";
-      } else if (extension.equals("tsv")) {
+      } else if ("tsv".equals(extension)) {
         delimiter = "\t";
       } else {
         throw new UnsupportedOperationException("Extension not recognized, please explicitly provide a delimiter.");

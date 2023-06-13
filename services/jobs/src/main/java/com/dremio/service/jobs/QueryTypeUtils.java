@@ -54,6 +54,7 @@ final class QueryTypeUtils {
     case UI_RUN:
     case UI_PREVIEW:
     case ODBC:
+    case D2D:
     case JDBC:
     case REST:
     case UI_INITIAL_PREVIEW:
@@ -98,6 +99,7 @@ final class QueryTypeUtils {
       return WorkloadClass.NRT;
 
     case UNKNOWN:
+    case D2D:
     case JDBC:
     case ODBC:
     case REST:
@@ -144,6 +146,10 @@ final class QueryTypeUtils {
     }
 
     final String name = clientInfos.getName().toLowerCase(Locale.ROOT);
+    if (name.contains("dremio-to-dremio")) {
+      return QueryType.D2D;
+    }
+
     if (name.contains("jdbc") || name.contains("java")) {
       return QueryType.JDBC;
     }
@@ -172,6 +178,8 @@ final class QueryTypeUtils {
         return WorkloadType.UI_DOWNLOAD;
       case UI_INTERNAL_RUN:
         return WorkloadType.INTERNAL_RUN;
+      case D2D:
+        return WorkloadType.D2D;
       case JDBC:
         return WorkloadType.JDBC;
       case ODBC:

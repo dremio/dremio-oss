@@ -3,7 +3,7 @@
   "tags": [
   ],
   "metadataRefresh": {
-    "datasetDiscovery": true,
+    "datasetDiscovery": false,
     "isFileSystemSource": true
   },
   "form": {

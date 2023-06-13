@@ -40,10 +40,10 @@ public abstract class VarLengthValuesColumn<V extends ValueVector> extends VarLe
                         SchemaElement schemaElement) throws ExecutionSetupException {
     super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
     variableWidthVector = (VariableWidthVector) valueVec;
-    if (columnChunkMetaData.getEncodings().contains(Encoding.PLAIN_DICTIONARY)) {
+    if (columnChunkMetaData.getEncodings().contains(Encoding.PLAIN_DICTIONARY)
+      || columnChunkMetaData.getEncodings().contains(Encoding.RLE_DICTIONARY)) {
       usingDictionary = true;
-    }
-    else {
+    } else {
       usingDictionary = false;
     }
   }

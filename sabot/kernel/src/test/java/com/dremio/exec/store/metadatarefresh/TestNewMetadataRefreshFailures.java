@@ -16,7 +16,6 @@
 package com.dremio.exec.store.metadatarefresh;
 
 import static com.dremio.exec.store.metadatarefresh.RefreshDatasetTestUtils.fsDelete;
-import static com.dremio.exec.store.metadatarefresh.RefreshDatasetTestUtils.setupLocalFS;
 import static com.dremio.exec.store.metadatarefresh.RefreshDatasetTestUtils.verifyIcebergMetadata;
 import static com.dremio.exec.store.metadatarefresh.TestNewMetadataRefresh.toMap;
 import static org.junit.Assert.assertEquals;

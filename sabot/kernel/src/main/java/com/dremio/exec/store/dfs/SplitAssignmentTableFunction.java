@@ -111,8 +111,7 @@ public class SplitAssignmentTableFunction extends AbstractTableFunction {
     if (functionConfig.getFunctionContext().isIcebergMetadata() && functionConfig.getFunctionContext().getInternalTablePluginId() != null) {
       this.pluginId = functionConfig.getFunctionContext().getInternalTablePluginId();
       this.plugin = fec.getStoragePlugin(pluginId);
-    }
-    else {
+    } else {
       this.pluginId = functionConfig.getFunctionContext().getPluginId();
       this.plugin = IcebergUtils.getSupportsInternalIcebergTablePlugin(fec, pluginId);
     }
@@ -280,15 +279,14 @@ public class SplitAssignmentTableFunction extends AbstractTableFunction {
   }
 
   private FileSystem getFs(String filePath) {
-    if (fs != null) {
-      return fs;
+    if (fs == null) {
+      try {
+        fs = plugin.createFS(filePath, props.getUserName(), context);
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
+      }
     }
-
-    try {
-      return fs = plugin.createFS(filePath, props.getUserName(), context);
-    } catch (IOException e) {
-      throw new UncheckedIOException(e);
-    }
+    return fs;
   }
 
   private class SplitWork implements CompleteWork {

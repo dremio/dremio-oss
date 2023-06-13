@@ -31,9 +31,7 @@ import org.junit.Test;
 
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.DatasetUI;
-import com.dremio.dac.explore.model.DatasetVersionResourcePath;
 import com.dremio.dac.explore.model.ExtractPreviewReq;
-import com.dremio.dac.explore.model.History;
 import com.dremio.dac.explore.model.HistoryItem;
 import com.dremio.dac.explore.model.InitialPreviewResponse;
 import com.dremio.dac.explore.model.TransformBase;
@@ -43,7 +41,6 @@ import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.model.sources.UIMetadataPolicy;
 import com.dremio.dac.model.spaces.Space;
-import com.dremio.dac.model.spaces.Spaces;
 import com.dremio.dac.proto.model.dataset.ConvertCase;
 import com.dremio.dac.proto.model.dataset.ExtractCard;
 import com.dremio.dac.proto.model.dataset.IndexType;
@@ -64,7 +61,6 @@ import com.dremio.dac.util.JSONUtil;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.service.job.proto.JobState;
-import com.google.common.collect.Lists;
 
 /**
  * Server test with initial data
@@ -96,14 +92,6 @@ public class TestServerWithInitialData extends BaseTestServer {
     initData();
     doc("get spaces");
     expectSuccess(getBuilder(getAPIv2().path("space/Sales-Sample")).buildGet(), Space.class);
-    final Spaces spaces = expectSuccess(getBuilder(getAPIv2().path("spaces")).buildGet(), Spaces.class);
-    boolean found = false;
-    for (Space space : spaces.getSpaces()) {
-      if (space.getName().equals("Sales-Sample")) {
-        found = true;
-      }
-    }
-    assertTrue("Sales-Sample found in " + spaces, found);
 
     final DatasetUI dsGet = getDataset(new DatasetPath("Sales-Sample.ds4"));
 
@@ -309,134 +297,6 @@ public class TestServerWithInitialData extends BaseTestServer {
     // Job is always in completed state.
     assertEquals(JSONUtil.toString(lastHistoryItem), JobState.COMPLETED, lastItemState);
     assertEquals("SQL Edited to: select * from \"Sales-Sample\".ds3", lastHistoryItem.getTransformDescription());
-
-    doc("get history");
-    History history = expectSuccess(
-        getBuilder(getAPIv2().path(historyItems.get(0).getVersionedResourcePath() + "/history")
-            .queryParam("tipVersion", historyItems.get(1).getDatasetVersion()))
-            .buildGet(), History.class);
-
-    assertEquals(history.toString(), 2, history.getItems().size());
-    assertEquals("Expected current version is not correct", history.getCurrentDatasetVersion(), historyItems.get(0).getDatasetVersion());
-    HistoryItem actual = history.getItems().get(history.getItems().size() - 1);
-    assertEquals(lastHistoryItem.getVersionedResourcePath(), actual.getVersionedResourcePath());
-    assertEquals("SQL Edited to: select * from \"Sales-Sample\".ds3", actual.getTransformDescription());
-    HistoryItem previous = history.getItems().get(history.getItems().size() - 2);
-    assertEquals(getDatasetVersionPath(dsGet), previous.getVersionedResourcePath());
-  }
-
-
-  @Test
-  public void testHistoryRewrittenForUntitled() throws Exception {
-
-    initData();
-    DatasetUI dataset =
-        createDatasetFromSQL("Select * from \"Prod-Sample\".ds1 limit 1", asList("Prod-Sample")).getDataset();
-
-    doc("update SQL");
-    InitialPreviewResponse transformResponse = transformAndValidate(
-        dataset,
-        new TransformUpdateSQL("select * from \"Sales-Sample\".ds3").setSqlContextList(asList("Prod-Sample")));
-
-    List<HistoryItem> historyItems = transformResponse.getHistory().getItems();
-    assertEquals(historyItems.toString(), 2, historyItems.size());
-    HistoryItem lastHistoryItem = historyItems.get(1);
-    assertEquals(getDatasetVersionPath(transformResponse.getDataset()), lastHistoryItem.getVersionedResourcePath());
-    JobState lastItemState = lastHistoryItem.getState();
-
-    // Job is always in completed state.
-    assertEquals(JSONUtil.toString(lastHistoryItem), JobState.COMPLETED, lastItemState);
-    assertEquals("SQL Edited to: select * from \"Sales-Sample\".ds3", lastHistoryItem.getTransformDescription());
-
-    doc("get history");
-    History history = expectSuccess(
-        getBuilder(getAPIv2().path(historyItems.get(0).getVersionedResourcePath() +
-            "/history").queryParam("tipVersion", historyItems.get(1).getDatasetVersion()))
-            .buildGet(), History.class);
-
-    assertEquals(history.toString(), 2, history.getItems().size());
-    assertEquals("Expected current version is not correct", history.getCurrentDatasetVersion(), historyItems.get(0).getDatasetVersion());
-    HistoryItem actual = history.getItems().get(history.getItems().size() - 1);
-    assertEquals(lastHistoryItem.getVersionedResourcePath(), actual.getVersionedResourcePath());
-    assertEquals("SQL Edited to: select * from \"Sales-Sample\".ds3", actual.getTransformDescription());
-    HistoryItem previous = history.getItems().get(history.getItems().size() - 2);
-    assertEquals(getDatasetVersionPath(dataset), previous.getVersionedResourcePath());
-    DatasetUI saved = saveAs(
-        transformResponse.getDataset(), new DatasetPath(Lists.newArrayList("Prod-Sample", "testHistoryRewrittenForUntitled"))
-    ).getDataset();
-
-    doc("get history after save");
-    History historyAfterSave = expectSuccess(
-        getBuilder(getAPIv2().path(new DatasetVersionResourcePath(new DatasetPath(saved.getFullPath()), saved.getDatasetVersion()) +
-            "/history").queryParam("tipVersion", saved.getDatasetVersion()))
-            .buildGet(), History.class);
-    assertEquals(history.toString(), 2, history.getItems().size());
-    assertEquals("Expected current version is not correct", historyItems.get(1).getDatasetVersion(), historyAfterSave.getItems().get(1).getDatasetVersion());
-    assertEquals(new DatasetPath(saved.getFullPath()), historyAfterSave.getItems().get(1).getDataset());
-    assertEquals("Expected current version is not correct", historyItems.get(0).getDatasetVersion(), historyAfterSave.getItems().get(0).getDatasetVersion());
-    assertEquals(new DatasetPath(saved.getFullPath()), historyAfterSave.getItems().get(0).getDataset());
-
-    InitialPreviewResponse transformResponse2 = transformAndValidate(
-        saved,
-        new TransformUpdateSQL("select * from \"Sales-Sample\".ds3 limit 1").setSqlContextList(asList("Prod-Sample")));
-
-    doc("get history after save and further transform");
-    History historyAfterSaveAndLaterTransform = expectSuccess(
-        getBuilder(getAPIv2().path(new DatasetVersionResourcePath(new DatasetPath(saved.getFullPath()), transformResponse2.getDataset().getDatasetVersion()) +
-            "/history").queryParam("tipVersion", transformResponse2.getDataset().getDatasetVersion()))
-            .buildGet(), History.class);
-    assertEquals(history.toString(), 3, historyAfterSaveAndLaterTransform.getItems().size());
-    assertEquals(new DatasetPath(saved.getFullPath()), historyAfterSaveAndLaterTransform.getItems().get(2).getDataset());
-
-
-    DatasetUI saved2 = saveAs(
-        transformResponse2.getDataset(), new DatasetPath(Lists.newArrayList("Prod-Sample", "testHistoryRewrittenForUntitled_2"))
-    ).getDataset();
-
-    History historyAfterSecondSave = expectSuccess(
-        getBuilder(getAPIv2().path(new DatasetVersionResourcePath(new DatasetPath(saved2.getFullPath()), saved2.getDatasetVersion()) +
-            "/history").queryParam("tipVersion", saved2.getDatasetVersion()))
-            .buildGet(), History.class);
-    assertEquals(history.toString(), 3, historyAfterSecondSave.getItems().size());
-    assertEquals(
-        "Expected current version is not correct",
-        historyAfterSecondSave.getItems().get(2).getDatasetVersion(),
-        historyAfterSaveAndLaterTransform.getItems().get(2).getDatasetVersion());
-    // TODO - to make this history item easily searchable, we need to remove dataset path from the key
-    // for now save-as is just duplicating the history item with two different dataset paths after
-    // using save-as on top of a transform sequence on top of a named dataset
-    assertEquals(
-        new DatasetPath(saved2.getFullPath()),
-        historyAfterSecondSave.getItems().get(2).getDataset());
-    assertEquals(
-        new DatasetPath(saved2.getFullPath()),
-        historyAfterSecondSave.getItems().get(1).getDataset());
-    assertEquals(
-        new DatasetPath(saved2.getFullPath()),
-        historyAfterSecondSave.getItems().get(0).getDataset());
-
-    // test the "review" API, used by the UI when refreshing the page or navigating to a UI link saved
-    // by a user
-    InitialPreviewResponse responseForReview = expectSuccess(
-      getBuilder(getAPIv2().path(new DatasetVersionResourcePath(new DatasetPath(saved.getFullPath()), saved.getDatasetVersion()) +
-        "/review").queryParam("jobId", transformResponse.getJobId().getId()).queryParam("tipVersion", saved2.getDatasetVersion()))
-        .buildGet(), InitialPreviewResponse.class);
-    History historyInPreviewRequest = responseForReview.getHistory();
-    assertEquals(history.toString(), 3, historyInPreviewRequest.getItems().size());
-    assertEquals(
-      "Expected current version is not correct",
-      historyInPreviewRequest.getItems().get(2).getDatasetVersion(),
-      historyAfterSaveAndLaterTransform.getItems().get(2).getDatasetVersion());
-    assertEquals(saved.getDatasetVersion(), historyInPreviewRequest.getCurrentDatasetVersion());
-    assertEquals(
-      new DatasetPath(saved.getFullPath()),
-      historyInPreviewRequest.getItems().get(2).getDataset());
-    assertEquals(
-      new DatasetPath(saved.getFullPath()),
-      historyInPreviewRequest.getItems().get(1).getDataset());
-    assertEquals(
-      new DatasetPath(saved.getFullPath()),
-      historyInPreviewRequest.getItems().get(0).getDataset());
   }
 
   /**

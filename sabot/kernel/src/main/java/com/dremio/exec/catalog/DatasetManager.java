@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.catalog;
 
+import static com.dremio.exec.catalog.VersionedDatasetId.isVersionedDatasetId;
 import static com.dremio.exec.planner.physical.PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT;
 
 import java.security.AccessControlException;
@@ -49,6 +50,7 @@ import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.NamespaceTable;
+import com.dremio.exec.store.ReferenceNotFoundException;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.TableMetadata;
@@ -77,7 +79,8 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 
-import io.opentelemetry.extension.annotations.WithSpan;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 
 /**
  * The workhorse of Catalog, responsible for retrieving datasets and interacting with sources as
@@ -201,6 +204,7 @@ class DatasetManager {
     return new NamespaceKey(entries);
   }
 
+  @WithSpan
   public DremioTable getTable(
       NamespaceKey key,
       MetadataRequestOptions options,
@@ -224,7 +228,7 @@ class DatasetManager {
     if (config == null) {
       logger.debug("Got a null config");
     } else {
-      logger.debug("Got config {}", config);
+      logger.debug("Got config id {}", config.getId());
     }
 
     if(plugin != null) {
@@ -255,16 +259,23 @@ class DatasetManager {
     final DatasetConfig config = getConfig(datasetId);
 
     if (config == null) {
-      //try lookup in external catalog
-      return getTableFromExternalCatalog(datasetId, options);
+      if (isVersionedDatasetId(datasetId)) {
+        Span.current().setAttribute("dremio.catalog.getTable.isVersionedDatasetId", true);
+        //try lookup in external catalog
+        return getTableFromNessieCatalog(datasetId, options);
+      } else {
+        return null;
+      }
     }
+    Span.current().setAttribute("dremio.catalog.getTable.isVersionedDatasetId", false);
 
     NamespaceKey key = new NamespaceKey(config.getFullPathList());
 
     return getTable(key, options, false);
   }
- //TODO (DX-58588) Needs to be revisited ot support snapshot id and timestamp
-  private DremioTable getTableFromExternalCatalog(String datasetId, MetadataRequestOptions options) {
+
+  @WithSpan
+  private DremioTable getTableFromNessieCatalog(String datasetId, MetadataRequestOptions options) {
     VersionedDatasetId versionedDatasetId = null;
     try {
       versionedDatasetId = VersionedDatasetId.fromString(datasetId);
@@ -297,8 +308,10 @@ class DatasetManager {
     return table;
   }
 
+  @WithSpan
   private NamespaceTable getTableFromNamespace(NamespaceKey key, DatasetConfig datasetConfig, ManagedStoragePlugin plugin,
                                                String accessUserName, MetadataRequestOptions options) {
+    Span.current().setAttribute("dremio.namespace.key.schemapath", key.getSchemaPath());
     plugin.checkAccess(key, datasetConfig, accessUserName, options);
 
     final TableMetadata tableMetadata = new TableMetadataImpl(plugin.getId(),
@@ -329,6 +342,7 @@ class DatasetManager {
   /**
    * Retrieves a source table, checking that things are up to date.
    */
+  @WithSpan
   private DremioTable getTableFromPlugin(
       NamespaceKey key,
       DatasetConfig datasetConfig,
@@ -338,21 +352,7 @@ class DatasetManager {
   ) {
     final StoragePlugin underlyingPlugin = plugin.getPlugin();
     if (underlyingPlugin instanceof VersionedPlugin) {
-      final String accessUserName = options.getSchemaConfig().getUserName();
-
-      final VersionedDatasetAdapter versionedDatasetAdapter = VersionedDatasetAdapter.newBuilder()
-          .setVersionedTableKey(key.getPathComponents())
-          .setVersionContext(versionContextResolver.resolveVersionContext(
-              plugin.getName().getRoot(), options.getVersionForSource(plugin.getName().getRoot())))
-        .setStoragePlugin(underlyingPlugin)
-        .setStoragePluginId(plugin.getId())
-        .setOptionManager(optionManager)
-        .build();
-      if (versionedDatasetAdapter == null) {
-        return null;
-      }
-
-      return versionedDatasetAdapter.getTable(accessUserName);
+     return getTableFromNessieCatalog(key, plugin, options);
     }
 
     // Figure out the user we want to access the source with.  If the source supports impersonation we allow it to
@@ -385,6 +385,10 @@ class DatasetManager {
       return null;
     }
 
+    // If only the cached version is needed, check and return when no entry is found
+    if (options.neverPromote()) {
+      return null;
+    }
 
     if (datasetConfig != null) {
       // canonicalize key if we can.
@@ -439,7 +443,7 @@ class DatasetManager {
     if (opportunisticSave) {
       datasetConfig = MetadataObjectsUtils.newShallowConfig(handle.get());
     }
-
+    logger.debug("Attempting inline refresh for  key : {} , canonicalKey : {} ", key, canonicalKey);
     try {
       plugin.getSaver()
           .save(datasetConfig, handle.get(), plugin.unwrap(StoragePlugin.class), opportunisticSave, retrievalOptions,
@@ -532,9 +536,35 @@ class DatasetManager {
         identityProvider.getOwner(datasetConfig.getFullPathList()),
         datasetConfig, schema);
     } catch (Exception e) {
-      logger.warn("Failure parsing virtual dataset, not including in available schema.", e);
+      throw new RuntimeException(String.format("Failure while constructing the ViewTable from datasetConfig for key %s with datasetId %s",
+        String.join(".", datasetConfig.getFullPathList()),
+        datasetConfig.getId().getId()),
+        e);
+    }
+  }
+
+  @WithSpan
+  public DremioTable getTableFromNessieCatalog(NamespaceKey key, ManagedStoragePlugin plugin, MetadataRequestOptions options) {
+    final String accessUserName = options.getSchemaConfig().getUserName();
+    final StoragePlugin underlyingPlugin = plugin.getPlugin();
+    VersionedDatasetAdapter versionedDatasetAdapter;
+    try {
+      versionedDatasetAdapter = VersionedDatasetAdapter.newBuilder()
+        .setVersionedTableKey(key.getPathComponents())
+        .setVersionContext(versionContextResolver.resolveVersionContext(
+          plugin.getName().getRoot(), options.getVersionForSource(plugin.getName().getRoot(), key)))
+        .setStoragePlugin(underlyingPlugin)
+        .setStoragePluginId(plugin.getId())
+        .setOptionManager(optionManager)
+        .build();
+    } catch (ReferenceNotFoundException e) {
       return null;
     }
+
+    if (versionedDatasetAdapter == null) {
+      return null;
+    }
+    return versionedDatasetAdapter.getTable(accessUserName);
   }
 
   private static boolean isFSBasedDataset(DatasetConfig datasetConfig) {

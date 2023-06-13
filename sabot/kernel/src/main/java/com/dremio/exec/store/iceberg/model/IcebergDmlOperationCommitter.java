@@ -30,12 +30,12 @@ import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.exceptions.ValidationException;
+import org.apache.iceberg.io.FileIO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.store.iceberg.DremioFileIO;
 import com.dremio.exec.store.iceberg.manifestwriter.IcebergCommitOpHelper;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorStats;
@@ -74,18 +74,20 @@ public class IcebergDmlOperationCommitter implements IcebergOpCommitter {
   public Snapshot commit() {
     Stopwatch stopwatch = Stopwatch.createStarted();
     SnapshotCommitStatus commitStatus = NONE;
+    Snapshot snapshot = null;
     try {
       beginDmlOperationTransaction();
       Snapshot currentSnapshot = icebergCommand.getCurrentSnapshot();
       performUpdates();
-      Snapshot snapshot = endDmlOperationTransaction().currentSnapshot();
+      snapshot = endDmlOperationTransaction().currentSnapshot();
       commitStatus = (currentSnapshot != null) &&
         (snapshot.snapshotId() == currentSnapshot.snapshotId()) ? NONE : COMMITTED;
       return snapshot;
     } finally {
       long totalCommitTime = stopwatch.elapsed(TimeUnit.MILLISECONDS);
       operatorStats.addLongStat(WriterCommitterOperator.Metric.ICEBERG_COMMIT_TIME, totalCommitTime);
-      operatorStats.addLongStat(WriterCommitterOperator.Metric.SNAPSHOT_COMMIT_STATUS, commitStatus.value());
+
+      IcebergOpCommitter.writeSnapshotStats(operatorStats, commitStatus, snapshot);
     }
   }
 
@@ -144,8 +146,8 @@ public class IcebergDmlOperationCommitter implements IcebergOpCommitter {
   }
 
   @Override
-  public void cleanup(DremioFileIO dremioFileIO) {
-    IcebergCommitOpHelper.deleteManifestFiles(dremioFileIO, manifestFileList, true);
+  public void cleanup(FileIO fileIO) {
+    IcebergCommitOpHelper.deleteManifestFiles(fileIO, manifestFileList, true);
   }
 
   @Override

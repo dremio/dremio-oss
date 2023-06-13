@@ -57,7 +57,7 @@ const sessionContext = {
   getSessionIdentifier,
   sessionIsValid,
   handleInvalidSession: () => {
-    handleLogout();
+    // handleLogout(); // Disabled until we stop making feature flag calls in OSS
   },
   handleLogout,
 };

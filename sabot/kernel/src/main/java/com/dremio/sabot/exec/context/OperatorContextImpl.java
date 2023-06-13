@@ -203,6 +203,7 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
     return executor;
   }
 
+  @Override
   public ExpressionSplitCache getExpressionSplitCache() {
     return expressionSplitCache;
   }
@@ -215,6 +216,7 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
     return fragmentExecutorBuilder.getFragmentExecutors().getQueryIdForLocalQuery();
   }
 
+  @Override
   public LogicalPlanPersistence getLpPersistence() {
     Preconditions.checkNotNull(fragmentExecutorBuilder, "Cannot get LogicalPlanPersistence without initializing FragmentExecutorBuilder");
     return fragmentExecutorBuilder.getPlanReader().getLpPersistance();
@@ -242,14 +244,17 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
     return allocator;
   }
 
+  @Override
   public TunnelProvider getTunnelProvider() {
     return tunnelProvider;
   }
 
+  @Override
   public List<FragmentAssignment> getAssignments() {
     return assignments;
   }
 
+  @Override
   public EndpointsIndex getEndpointsIndex() {
     return endpointsIndex;
   }

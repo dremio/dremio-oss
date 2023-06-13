@@ -249,6 +249,7 @@ public abstract class ContainerFileSystem extends FileSystem {
 
     public abstract FileSystem create() throws IOException;
 
+    @Override
     public void close() throws IOException {
       if (fs != null) {
         fs.close();

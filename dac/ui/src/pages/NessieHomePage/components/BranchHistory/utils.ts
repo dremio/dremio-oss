@@ -20,7 +20,7 @@ import { usePromise } from "react-smart-promise";
 import {
   DefaultApi,
   FetchOption,
-  LogResponse,
+  LogResponseV1 as LogResponse,
 } from "@app/services/nessie/client";
 import { Reference } from "@app/types/nessie";
 

@@ -265,13 +265,13 @@ public class JobResultsStore implements Service {
       return false;
     }
 
-    Set<NodeEndpoint> nodeEndpoints = getNodeEndpoints(jobId);
-    if (nodeEndpoints == null || nodeEndpoints.isEmpty()) {
-      logger.debug("There are no nodeEndpoints where query results dir existence need to be checked." +
-                   "For eg: for jdbc queries, results are not stored on executors.");
-      return false;
-    }
     if (dfs.isPdfs()) {
+      Set<NodeEndpoint> nodeEndpoints = getNodeEndpoints(jobId);
+      if (nodeEndpoints == null || nodeEndpoints.isEmpty()) {
+        logger.debug("There are no nodeEndpoints where query results dir existence need to be checked." +
+          "For eg: for jdbc queries, results are not stored on executors.");
+        return false;
+      }
 
       /**
        * This function borrows the implementation from PseduoDistributedFileSystem().createRemotePath().

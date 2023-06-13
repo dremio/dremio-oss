@@ -387,7 +387,7 @@ public class TestTableVersionParsing {
       new TableVersionContext(TableVersionType.SNAPSHOT_ID, "snapshotid1"));
 
     String expectedUnparsedString  = "SELECT *\n" +
-      "FROM my.table1 AT SNAPSHOT_ID snapshotid1";
+      "FROM my.table1 AT SNAPSHOT snapshotid1";
     SqlNode rootNode = parseAndValidate("SELECT * FROM TABLE(table_files('my.table1')) AT SNAPSHOT 'snapshotid1'",
       ImmutableList.of(expected),
       true);
@@ -469,7 +469,7 @@ public class TestTableVersionParsing {
       new TableVersionContext(TableVersionType.SNAPSHOT_ID, "1"));
 
     String expectedUnparsedString  = "SELECT *\n" +
-      "FROM \"my\".\"table1\" AT SNAPSHOT_ID 1";
+      "FROM \"my\".\"table1\" AT SNAPSHOT 1";
     SqlNode rootNode = parseAndValidate("SELECT * FROM my.table1 AT SNAPSHOT '1'", ImmutableList.of(expected), true);
     rootNode.unparse(writer, 0, 0);
     String sqlString = writer.toString();

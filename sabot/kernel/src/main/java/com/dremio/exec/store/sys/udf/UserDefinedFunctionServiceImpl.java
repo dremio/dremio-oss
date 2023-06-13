@@ -58,8 +58,7 @@ public class UserDefinedFunctionServiceImpl implements UserDefinedFunctionServic
     Provider<BufferAllocator> allocatorProvider,
     Provider<DremioConfig> dremioConfigProvider,
     boolean isMaster,
-    boolean isCoordinator
-  ) {
+    boolean isCoordinator) {
     this.namespaceServiceProvider = Preconditions.checkNotNull(namespaceServiceProvider, "NamespaceService service required");
     this.allocatorProvider = Preconditions.checkNotNull(allocatorProvider, "buffer allocator required");
     this.fabric = Preconditions.checkNotNull(fabric, "fabric service required");

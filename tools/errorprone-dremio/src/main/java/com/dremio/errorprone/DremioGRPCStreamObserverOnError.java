@@ -84,6 +84,6 @@ public class DremioGRPCStreamObserverOnError extends BugChecker
         String.format(
             "StreamObserver.onError must be called with io.grpc.Status(Runtime)Exception, but it was: %s",
             ASTHelpers.getType(throwable));
-    return Description.builder(tree, this.canonicalName(), null, ERROR, message).build();
+    return buildDescription(tree).setMessage(message).build();
   }
 }

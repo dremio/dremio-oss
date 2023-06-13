@@ -21,6 +21,7 @@ import static com.dremio.sabot.exec.fragment.FragmentExecutorBuilder.WORK_QUEUE_
 import java.security.PrivilegedExceptionAction;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -108,6 +109,7 @@ public class FragmentExecutor implements MemoryArbiterTask {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FragmentExecutor.class);
   private static final ControlsInjector injector = ControlsInjectorFactory.getInjector(FragmentExecutor.class);
   public static final long MB = 1024 * 1024;
+  private static final long STARTING_GRANT = 16 * MB;
 
   @VisibleForTesting
   public static final String INJECTOR_DO_WORK = "injectOOMOnRun";
@@ -179,7 +181,11 @@ public class FragmentExecutor implements MemoryArbiterTask {
   // This is used to keep track of fragments that use the memory arbiter
   private final MemoryArbiter memoryArbiter;
   private long memoryGrantInBytes = 0;
-  private long maxMemoryUsedPerPump = 16 * MB;
+  // the memory used per pump. We start with 16MB and reserve the max used so far upto an upper bound
+  private long memoryRequiredForNextPump = STARTING_GRANT;
+  private final long maxMemoryUsedPerPump;
+  private final boolean dynamicallyTrackAllocations;
+  private final Deque<Long> lastNAllocations = new ArrayDeque<>();
   private final List<MemoryTaskAndShrinkableOperator> shrinkableOperators = new ArrayList<>();
   // This is the list of operators that have been asked to spill
   private final Map<Integer, Long> spillingOperators = new HashMap<>();
@@ -255,6 +261,8 @@ public class FragmentExecutor implements MemoryArbiterTask {
     this.executionControls = executionControls;
     this.allocatorLock = sharedResources.getGroup(PIPELINE_RES_GRP).createResource("frag-allocator", SharedResourceType.UNKNOWN);
     this.memoryResource = sharedResources.getGroup(PIPELINE_RES_GRP).createResource("blocked-on-memory", SharedResourceType.WAIT_FOR_MEMORY);
+    this.maxMemoryUsedPerPump = fragmentOptions.getOption(ExecConstants.MAX_MEMORY_GRANT_SIZE);
+    this.dynamicallyTrackAllocations = fragmentOptions.getOption(ExecConstants.DYNAMICALLY_TRACK_ALLOCATIONS);
   }
 
   @Override
@@ -272,10 +280,8 @@ public class FragmentExecutor implements MemoryArbiterTask {
 
   @Override
   public void unblockOnMemory() {
-    if (this.taskState == State.BLOCKED_ON_MEMORY) {
-      logger.debug("Fragment {}:{} was blocked on memory, unblocked now", fragment.getHandle().getMajorFragmentId(), fragment.getHandle().getMinorFragmentId());
-      this.memoryResource.markAvailable();
-    }
+    logger.debug("Fragment {}:{} was blocked on memory, unblocked now", fragment.getHandle().getMajorFragmentId(), fragment.getHandle().getMinorFragmentId());
+    this.memoryResource.markAvailable();
   }
 
   @Override
@@ -298,9 +304,8 @@ public class FragmentExecutor implements MemoryArbiterTask {
     return shrinkableOperators;
   }
 
-  // TODO: Improve this based on actual usage
   private long getMemoryToAcquire() {
-    return maxMemoryUsedPerPump;
+    return memoryRequiredForNextPump;
   }
 
   private String preRunUpdate(int load) {
@@ -470,12 +475,22 @@ public class FragmentExecutor implements MemoryArbiterTask {
 
       // pump the pipeline
       taskState = pumper.run();
-      long memoryUsedAfterPump = getUsedMemory();
-      if (memoryUsedAfterPump > memoryUsedBeforePump) {
-        long diff = memoryUsedAfterPump - memoryUsedBeforePump;
-        if (diff > maxMemoryUsedPerPump) {
-          logger.debug("Used {} more memory than granted {}", diff, maxMemoryUsedPerPump);
-          maxMemoryUsedPerPump = diff;
+      if (memoryArbiter != null) {
+        long memoryUsedAfterPump = getUsedMemory();
+        long extraMem = Math.max(memoryUsedAfterPump - memoryUsedBeforePump, 0);
+        if (extraMem > maxMemoryUsedPerPump) {
+          logger.debug("Used {} more memory than max configured memory {}", extraMem, maxMemoryUsedPerPump);
+          extraMem = maxMemoryUsedPerPump;
+        }
+        if (dynamicallyTrackAllocations) {
+          lastNAllocations.addLast(extraMem);
+          if (lastNAllocations.size() > 2 * pipeline.numOperators()) {
+            lastNAllocations.removeFirst();
+          }
+          memoryRequiredForNextPump = lastNAllocations.stream().max(Long::compareTo).get();
+          memoryRequiredForNextPump = memoryRequiredForNextPump == 0 ? STARTING_GRANT : memoryRequiredForNextPump;
+        } else {
+          memoryRequiredForNextPump = Math.max(memoryRequiredForNextPump, extraMem);
         }
       }
 
@@ -625,9 +640,11 @@ public class FragmentExecutor implements MemoryArbiterTask {
       case FINISHED:
       case CANCELLED:
         retire();
+        break;
 
       default:
         // noop
+        break;
       }
 
     } finally {
@@ -849,6 +866,7 @@ public class FragmentExecutor implements MemoryArbiterTask {
   // This fragment got a shrink memory request. Add this to the list of spilling operators
   private void handleShrinkMemoryRequest(OutOfBandMessage message) {
     unblockOnMemory();
+    memoryArbiter.removeFromBlocked(this);
     ExecProtos.ShrinkMemoryUsage shrinkMemoryUsage = message.getPayload(ExecProtos.ShrinkMemoryUsage.parser());
     Long prevValue = spillingOperators.put(message.getOperatorId(), shrinkMemoryUsage.getMemoryInBytes());
     if (prevValue != null) {
@@ -922,6 +940,9 @@ public class FragmentExecutor implements MemoryArbiterTask {
             try {
               handleOOBMessage(finalMessage);
             } catch (IllegalStateException e) {
+              logger.warn("Failure while handling OOB message. {}", finalMessage, e);
+              throw e;
+            } catch (OutOfMemoryException e) {
               logger.warn("Failure while handling OOB message. {}", finalMessage, e);
               throw e;
             } catch (Exception e) {
@@ -1016,7 +1037,6 @@ public class FragmentExecutor implements MemoryArbiterTask {
     @Override
     public void updateBlockedOnMemoryDuration(long duration) {
       stats.setBlockedOnMemoryDuration(duration);
-      memoryArbiter.removeFromBlocked(FragmentExecutor.this);
     }
 
     @Override

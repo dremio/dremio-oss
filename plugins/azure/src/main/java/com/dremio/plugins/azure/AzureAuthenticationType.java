@@ -27,7 +27,7 @@ import io.protostuff.Tag;
  */
 
 public enum AzureAuthenticationType {
-  @Tag(1) @DisplayMetadata(label = "Shared Access Key")
+  @Tag(1) @DisplayMetadata(label = "Shared access key")
   ACCESS_KEY {
     @Override
     public List<String> getUniqueProperties() {

@@ -42,6 +42,7 @@ public class ModifiableThreadPoolExecutor implements OptionChangeListener {
     this.optionManager = optionManager;
   }
 
+  @Override
   public synchronized void onChange() {
     int newPoolSize = (int) optionManager.get().getOption(option);
     if (currentPoolSize == newPoolSize) {

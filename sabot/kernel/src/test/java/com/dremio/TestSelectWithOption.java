@@ -154,7 +154,17 @@ public class TestSelectWithOption extends BaseTestQuery {
     testWithResult(format("select columns from table(%s(type=>'TeXT', lineDelimiter => 'abc'))", tableName),
         listOf("1"),
         listOf("2"),
-        listOf("3"));
+        listOf("3"),
+        null);
+  }
+
+  @Test
+  public void testExtendedCharDelimiters() throws Exception {
+    String tableName = genCSVTable("testExtendedCharDelimiters",
+      "1¦22¦333∆x¦yy¦zzz");
+    testWithResult(format("select columns from table(%s(type=>'TeXT', fieldDelimiter => '¦', lineDelimiter => '∆'))", tableName),
+      listOf("1", "22", "333"),
+      listOf("x", "yy", "zzz"));
   }
 
   @Test
@@ -164,7 +174,8 @@ public class TestSelectWithOption extends BaseTestQuery {
     testWithResult(format("select columns from table(%s(type=>'TeXT', lineDelimiter => 'abc'))", tableName),
         listOf("ab1"),
         listOf("2"),
-        listOf("3"));
+        listOf("3"),
+        null);
   }
 
   @Test

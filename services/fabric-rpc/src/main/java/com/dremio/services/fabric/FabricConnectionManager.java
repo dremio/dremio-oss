@@ -75,4 +75,8 @@ final class FabricConnectionManager extends ReconnectingConnection<FabricConnect
         new CloseHandlerCreator(), engineFactory);
   }
 
+  @Override
+  protected String getLocalAddress() {
+    return this.localIdentity.getAddress();
+  }
 }

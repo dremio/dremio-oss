@@ -29,7 +29,7 @@ import com.dremio.test.GoldenFileTestBuilder;
 public final class SqlQueryTokenizerTests {
   @Test
   public void tests() {
-    new GoldenFileTestBuilder<>(SqlQueryTokenizerTests::executeTest)
+    GoldenFileTestBuilder.create(SqlQueryTokenizerTests::executeTest)
       .add(
         "BASIC QUERY",
         GoldenFileTestBuilder.MultiLineString.create("SELECT * FROM EMP WHERE age < 10 ORDER by age LIMIT 10 OFFSET 10 FETCH FIRST 10 ONLY"))
@@ -59,7 +59,7 @@ public final class SqlQueryTokenizerTests {
 
   @Test
   public void testSingleQuoteIsTreatedAsStringLiteral() {
-    new GoldenFileTestBuilder<>(SqlQueryTokenizerTests::executeTest)
+    GoldenFileTestBuilder.create(SqlQueryTokenizerTests::executeTest)
       .add(
         "CLOSED SINGLE QUOTE",
         GoldenFileTestBuilder.MultiLineString.create("SELECT '123' FROM EMP"))
@@ -77,7 +77,7 @@ public final class SqlQueryTokenizerTests {
 
   @Test
   public void testDoubleQuoteIsTreatedAsIdentifier() {
-    new GoldenFileTestBuilder<>(SqlQueryTokenizerTests::executeTest)
+    GoldenFileTestBuilder.create(SqlQueryTokenizerTests::executeTest)
       .add(
         "CLOSED DOUBLE QUOTE",
         GoldenFileTestBuilder.MultiLineString.create("SELECT * FROM \"EMP\""))

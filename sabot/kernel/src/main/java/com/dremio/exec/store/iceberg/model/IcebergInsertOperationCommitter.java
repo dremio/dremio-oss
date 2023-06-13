@@ -30,11 +30,11 @@ import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.io.FileIO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.store.iceberg.DremioFileIO;
 import com.dremio.exec.store.iceberg.manifestwriter.IcebergCommitOpHelper;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.writer.WriterCommitterOperator;
@@ -75,7 +75,7 @@ public class IcebergInsertOperationCommitter implements IcebergOpCommitter {
     Snapshot snapshot = icebergCommand.endTransaction().currentSnapshot();
     SnapshotCommitStatus commitStatus = (currentSnapshot != null) &&
       (snapshot.snapshotId() == currentSnapshot.snapshotId()) ? NONE : COMMITTED;
-    operatorStats.addLongStat(WriterCommitterOperator.Metric.SNAPSHOT_COMMIT_STATUS, commitStatus.value());
+    IcebergOpCommitter.writeSnapshotStats(operatorStats, commitStatus, snapshot);
     long totalCommitTime = stopwatch.elapsed(TimeUnit.MILLISECONDS);
     operatorStats.addLongStat(WriterCommitterOperator.Metric.ICEBERG_COMMIT_TIME, totalCommitTime);
     return snapshot;
@@ -117,8 +117,8 @@ public class IcebergInsertOperationCommitter implements IcebergOpCommitter {
   }
 
   @Override
-  public void cleanup(DremioFileIO dremioFileIO) {
-    IcebergCommitOpHelper.deleteManifestFiles(dremioFileIO, manifestFileList, true);
+  public void cleanup(FileIO fileIO) {
+    IcebergCommitOpHelper.deleteManifestFiles(fileIO, manifestFileList, true);
   }
 
   @Override

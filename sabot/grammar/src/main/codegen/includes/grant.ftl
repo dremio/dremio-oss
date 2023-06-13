@@ -272,16 +272,10 @@ void Privilege(List<SqlNode> list) :
     { list.add(SqlLiteral.createSymbol(SqlGrantOnProjectEntities.Privilege.CREATE_PROJECT, getPos())); }
     |
     <CREATE> <CATALOG>
-    { list.add(SqlLiteral.createSymbol(SqlGrantOnProjectEntities.Privilege.CREATE_ARCTIC_CATALOG, getPos())); }
+    { list.add(SqlLiteral.createSymbol(SqlGrantOnProjectEntities.Privilege.CREATE_CATALOG, getPos())); }
     |
     <CONFIGURE> <SECURITY>
     { list.add(SqlLiteral.createSymbol(SqlGrantOnProjectEntities.Privilege.CONFIGURE_SECURITY, getPos())); }
-    |
-    <CREATE> <OAUTH> <APPLICATION>
-    { list.add(SqlLiteral.createSymbol(SqlGrantOnProjectEntities.Privilege.CREATE_OAUTH_APPLICATION, getPos())); }
-    |
-    <CREATE> <EXTERNAL> <TOKENS> <PROVIDER>
-    { list.add(SqlLiteral.createSymbol(SqlGrantOnProjectEntities.Privilege.CREATE_EXTERNAL_TOKENS_PROVIDER, getPos())); }
     |
     <INSERT>
     { list.add(SqlLiteral.createSymbol(SqlGrant.Privilege.INSERT, getPos())); }

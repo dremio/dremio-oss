@@ -100,6 +100,7 @@ public class HeapMonitorManager implements Service {
     }
   }
 
+  @Override
   public void start() {
     OptionManager optionManager = optionManagerProvider.get();
     startHeapMonitorThread(optionManager.getOption(enableHeapMonitoringOption),

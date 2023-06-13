@@ -230,7 +230,8 @@ public class InformationSchemaServiceImpl extends InformationSchemaServiceGrpc.I
             }
           } else {
             responseObserver.onCompleted();
-          }}
+          }
+        }
         return null;
       });
   }

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-type SortDirection = "ascending" | "descending" | "none";
+export type SortDirection = "ascending" | "descending" | "none";
 export const ColumnSortIcon = (props: { sortDirection: SortDirection }) => {
   switch (props.sortDirection) {
     case "ascending":

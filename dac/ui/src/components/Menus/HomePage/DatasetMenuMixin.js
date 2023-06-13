@@ -21,6 +21,10 @@ import MenuItemLink from "components/Menus/MenuItemLink";
 import AnalyzeMenuItem from "components/Menus/HomePage/AnalyzeMenuItem";
 import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
 import { abilities } from "utils/datasetUtils";
+import { shouldUseNewDatasetNavigation } from "@app/utils/datasetNavigationUtils";
+import { constructFullPath } from "@app/utils/pathUtils";
+import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
+import * as sqlPaths from "dremio-ui-common/paths/sqlEditor.js";
 
 export default function (input) {
   Object.assign(input.prototype, {
@@ -29,7 +33,108 @@ export default function (input) {
       return null;
     },
 
-    render() {
+    newMenuDropdown() {
+      const { entity, closeMenu, entityType, summaryDataset, openWikiDrawer } =
+        this.props;
+
+      const versionContext = getVersionContextFromId(entity.get("id"));
+      const { type: refType, value: refValue } = versionContext ?? {};
+
+      const { canRemoveFormat, canEdit, canMove, canDelete, isPhysical } =
+        abilities(entity, entityType);
+
+      const resourceId = entity.getIn(["fullPathList", 0]);
+      const newFullPath = constructFullPath(entity.get("fullPathList"));
+
+      return (
+        <Menu>
+          <MenuItemLink
+            href={{
+              pathname: sqlPaths.sqlEditor.link(),
+              search: `?context="${encodeURIComponent(
+                resourceId
+              )}"&queryPath=${newFullPath}`,
+            }}
+            text={la("Query")}
+            closeMenu={closeMenu}
+          />
+          {canEdit && (
+            <MenuItemLink
+              href={wrapBackendLink(
+                `${entity.getIn(["links", "edit"])}${
+                  refType && refValue
+                    ? `&refType=${refType}&refValue=${refValue}`
+                    : ""
+                }`
+              )}
+              text={la("Edit")}
+            />
+          )}
+          {isPhysical && (
+            <MenuItemLink
+              href={wrapBackendLink(entity.getIn(["links", "query"]))}
+              text={la("Go to Table")}
+              closeMenu={closeMenu}
+            />
+          )}
+          {summaryDataset && (
+            <MenuItem
+              onClick={() => {
+                closeMenu();
+                openWikiDrawer(summaryDataset);
+              }}
+            >
+              {la("Open Details Panel")}
+            </MenuItem>
+          )}
+          <AnalyzeMenuItem entity={entity} closeMenu={closeMenu} />
+          <DividerHr />
+          {canDelete &&
+            ((entityType !== "file" && (
+              <MenuItemLink
+                closeMenu={closeMenu}
+                href={this.getRemoveLocation()}
+                text={la("Remove")}
+              />
+            )) ||
+              (entityType === "file" && (
+                <MenuItem onClick={this.handleRemoveFile}>
+                  {la("Remove")}
+                </MenuItem>
+              )))}
+          {canMove && (
+            <MenuItemLink
+              closeMenu={closeMenu}
+              href={this.getRenameLocation()}
+              text={la("Rename")}
+            />
+          )}
+          {canMove && (
+            <MenuItemLink
+              closeMenu={closeMenu}
+              href={this.getMoveLocation()}
+              text={la("Move")}
+            />
+          )}
+          <MenuItem onClick={this.copyPath}>{la("Copy Path")}</MenuItem>
+          <DividerHr />
+          <MenuItemLink
+            closeMenu={closeMenu}
+            href={this.getSettingsLocation()}
+            text={la("Settings")}
+          />
+          {canRemoveFormat && (
+            <MenuItemLink
+              closeMenu={closeMenu}
+              href={this.getRemoveFormatLocation()}
+              text={la("Remove Format")}
+            />
+          )}
+        </Menu>
+      );
+    },
+
+    oldMenuDropdown() {
       const { entity, closeMenu, entityType } = this.props;
 
       const { canRemoveFormat, canEdit, canMove, canDelete } = abilities(
@@ -67,7 +172,7 @@ export default function (input) {
           {
             <MenuItemLink
               href={this.getMenuItemUrl("wiki")}
-              text={la("Catalog")}
+              text={la("Details")}
             />
           }
 
@@ -128,6 +233,12 @@ export default function (input) {
           )}
         </Menu>
       );
+    },
+
+    render() {
+      return shouldUseNewDatasetNavigation()
+        ? this.newMenuDropdown()
+        : this.oldMenuDropdown();
     },
   });
 }

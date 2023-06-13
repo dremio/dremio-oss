@@ -25,6 +25,7 @@ public class DecimalMixedEndianGT8BytesComparator extends DecimalMixedEndianComp
 
   private byte[] bytesLow = new byte[8], bytesHigh = new byte[8];
 
+  @Override
   protected int compareInner(ArrowBuf left, int startIndexLeft, int valueLength,
                              ArrowBuf right, int startIndexRight) {
     int highBytesLength = valueLength - 8;

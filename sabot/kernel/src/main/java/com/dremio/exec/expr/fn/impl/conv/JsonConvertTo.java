@@ -73,8 +73,8 @@ public class JsonConvertTo {
         }
 
         byte[] bytea = stream.toByteArray();
-
-        out.buffer = buffer = buffer.reallocIfNeeded(bytea.length);
+        buffer = buffer.reallocIfNeeded(bytea.length);
+        out.buffer = buffer;
         out.buffer.setBytes(0, bytea);
         out.end = bytea.length;
       }
@@ -109,8 +109,8 @@ public class JsonConvertTo {
       }
 
       byte [] bytea = stream.toByteArray();
-
-      out.buffer = buffer = buffer.reallocIfNeeded(bytea.length);
+      buffer = buffer.reallocIfNeeded(bytea.length);
+      out.buffer = buffer;
       out.buffer.setBytes(0, bytea);
       out.end = bytea.length;
     }

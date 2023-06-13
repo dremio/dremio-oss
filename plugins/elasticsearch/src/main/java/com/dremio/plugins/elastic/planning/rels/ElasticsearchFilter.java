@@ -66,6 +66,7 @@ public class ElasticsearchFilter extends FilterRelBase implements ElasticsearchP
     return new ElasticsearchFilter(getCluster(), relTraitSet, relNode, rexNode, pluginId);
   }
 
+  @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
     return super.computeSelfCost(planner, mq).multiplyBy(0.1D);
   }

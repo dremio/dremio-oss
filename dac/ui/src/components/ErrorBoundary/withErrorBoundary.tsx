@@ -18,8 +18,7 @@ import * as React from "react";
 import { ErrorBoundary } from "./ErrorBoundary";
 
 type WithErrorBoundaryConfig = {
-  title: string;
-  wrapperClass?: string;
+  title: string | (() => string);
 };
 
 export const withErrorBoundary =
@@ -27,10 +26,12 @@ export const withErrorBoundary =
   <T extends React.ComponentType>(Component: T) =>
   (props: any) => {
     return (
-      <div className={config.wrapperClass}>
-        <ErrorBoundary title={config.title}>
-          <Component {...props} />
-        </ErrorBoundary>
-      </div>
+      <ErrorBoundary
+        title={
+          typeof config.title === "function" ? config.title() : config.title
+        }
+      >
+        <Component {...props} />
+      </ErrorBoundary>
     );
   };

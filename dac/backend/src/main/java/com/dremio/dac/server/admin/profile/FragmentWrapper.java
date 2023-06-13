@@ -102,7 +102,7 @@ public class FragmentWrapper {
     "First End", "Last End", "Min First-run", "Avg First-run", "Max First-run", "Min Wall-clock", "Avg Wall-clock", "Max Wall-clock",
     "Min Sleep", "Avg Sleep", "Max Sleep", "Min Blocked", "Avg Blocked", "Max Blocked", "Last Update", "Last Progress", "Max Peak Memory"};
 
-  // Not including Major Fragment ID and Minor Fragments Reporting
+  // Not including Major Fragment ID, Phase Weight and Minor Fragments Reporting
   public static final int NUM_NULLABLE_OVERVIEW_COLUMNS = FRAGMENT_OVERVIEW_COLUMNS.length - 3;
 
   public void addSummary(TableBuilder tb) {

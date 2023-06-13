@@ -21,10 +21,14 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.security.Principal;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.ws.rs.core.SecurityContext;
 
@@ -34,6 +38,8 @@ import org.junit.Test;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.History;
 import com.dremio.dac.explore.model.VersionContextReq;
+import com.dremio.dac.proto.model.dataset.From;
+import com.dremio.dac.proto.model.dataset.FromTable;
 import com.dremio.dac.proto.model.dataset.NameDatasetRef;
 import com.dremio.dac.proto.model.dataset.Transform;
 import com.dremio.dac.proto.model.dataset.TransformType;
@@ -42,6 +48,11 @@ import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.TableVersionContext;
+import com.dremio.exec.catalog.TableVersionType;
+import com.dremio.exec.catalog.VersionContext;
+import com.dremio.exec.catalog.VersionedDatasetId;
+import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.JobsVersionContext;
@@ -88,8 +99,7 @@ public class TestDatasetTool {
     VirtualDatasetUI newTipDataset = buildDataset(newDatasetPath, tip, null);
     // Set previous version to null
     newTipDataset.setPreviousVersion(tipDataset.getPreviousVersion());
-    VirtualDatasetUI newHistory1Dataset = buildDataset(newDatasetPath, history1, history2.getVersion());
-    VirtualDatasetUI newHistory2Dataset = buildDataset(newDatasetPath, history2, null);
+    VirtualDatasetUI newHistory1Dataset = buildDataset(newDatasetPath, history1, history2.getVersion()); VirtualDatasetUI newHistory2Dataset = buildDataset(newDatasetPath, history2, null);
 
     DatasetVersionMutator datasetVersionMutator = mock(DatasetVersionMutator.class);
     when(datasetVersionMutator.getVersion(datasetPath, tip)).thenReturn(tipDataset);
@@ -127,6 +137,40 @@ public class TestDatasetTool {
       "d0628f078890fec234b98b873f9e1f3cd140988a"));
 
     assertThat(datasetTool.createSourceVersionMapping(references)).usingRecursiveComparison().isEqualTo(expectedSourceVersionMapping);
+  }
+
+  @Test
+  public void testUpdateVirtualDatasetId() {
+    final Catalog catalog = mock(Catalog.class);
+    final StoragePlugin plugin = mock(FakeVersionedPlugin.class);
+    final String sourceName = "source1";
+    final List<String> tableKey =
+        Stream.of(sourceName, "table").collect(Collectors.toCollection(ArrayList::new));
+    final DatasetPath datasetPath = DatasetTool.TMP_DATASET_PATH;
+    final String contentId = "8d43f534-b97e-48e8-9b39-35e6309ed110";
+    final From from = new FromTable(String.join(".", tableKey)).wrap();
+    final Map<String, VersionContextReq> references =
+        Collections.singletonMap(
+            sourceName,
+            new VersionContextReq(VersionContextReq.VersionContextType.BRANCH, "branch"));
+    final Map<String, VersionContext> versionContextMapping =
+        DatasetResourceUtils.createSourceVersionMapping(references);
+    final VersionedDatasetId versionedDatasetId =
+        VersionedDatasetId.newBuilder()
+            .setTableKey(tableKey)
+            .setContentId(contentId)
+            .setTableVersionContext(new TableVersionContext(TableVersionType.BRANCH, "branch"))
+            .build();
+
+    when(catalog.getSource(sourceName)).thenReturn(plugin);
+    when(catalog.resolveCatalog(versionContextMapping)).thenReturn(catalog);
+    when(catalog.getDatasetId(any())).thenReturn(versionedDatasetId.asString());
+
+    final VirtualDatasetUI vds =
+        DatasetTool.newDatasetBeforeQueryMetadata(
+            datasetPath, null, from, null, null, catalog, references);
+
+    assertThat(vds.getId()).isEqualTo(versionedDatasetId.asString());
   }
 
   private DatasetTool buildDatasetTool(DatasetVersionMutator datasetVersionMutator) {
@@ -185,5 +229,11 @@ public class TestDatasetTool {
     dataset.setLastTransform(transform);
 
     return dataset;
+  }
+
+  /**
+   * Fake Versioned Plugin interface for test
+   */
+  private interface FakeVersionedPlugin extends VersionedPlugin, StoragePlugin {
   }
 }

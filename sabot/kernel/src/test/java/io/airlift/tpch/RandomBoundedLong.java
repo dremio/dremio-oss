@@ -46,8 +46,7 @@ public class RandomBoundedLong
         if (use64Bits) {
             this.randomLong = new RandomLong(seed, expectedRowCount);
             this.randomInt = null;
-        }
-        else {
+        } else {
             this.randomLong = null;
             this.randomInt = new RandomInt(seed, expectedRowCount);
         }
@@ -60,8 +59,7 @@ public class RandomBoundedLong
     {
         if (randomLong != null) {
             return randomLong.nextLong(lowValue, highValue);
-        }
-        else {
+        } else {
             return randomInt.nextInt((int) lowValue, (int) highValue);
         }
     }
@@ -70,8 +68,7 @@ public class RandomBoundedLong
     {
         if (randomLong != null) {
             randomLong.rowFinished();
-        }
-        else {
+        } else {
             randomInt.rowFinished();
         }
     }
@@ -80,8 +77,7 @@ public class RandomBoundedLong
     {
         if (randomLong != null) {
             randomLong.advanceRows(rowCount);
-        }
-        else {
+        } else {
             randomInt.advanceRows(rowCount);
         }
     }

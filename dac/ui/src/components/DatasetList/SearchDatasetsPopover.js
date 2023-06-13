@@ -89,7 +89,6 @@ class SearchDatasetsPopover extends PureComponent {
 
   handleSearchHide = () => {
     this.setState({ searchVisible: false, closeVisible: false });
-    this.input.focus();
   };
 
   startSearch(text) {
@@ -124,15 +123,15 @@ class SearchDatasetsPopover extends PureComponent {
 
   onFocus = () => {
     this.searchDatasetsPopover.className = "searchDatasetsPopover --focused";
-  }
+  };
 
   onBlur = () => {
     this.searchDatasetsPopover.className = "searchDatasetsPopover";
-  }
+  };
 
   onFocusRef = (div) => {
-    this.searchDatasetsPopover = div
-  }
+    this.searchDatasetsPopover = div;
+  };
 
   render() {
     const value = this.state.filter;

@@ -15,13 +15,16 @@
  */
 package com.dremio.exec.catalog;
 
+import java.util.stream.Stream;
+
 public enum TableVersionType {
   LATEST_VERSION("LATEST_VERSION"),
+  NOT_SPECIFIED("NOT_SPECIFIED"),
   BRANCH("BRANCH"),
   TAG("TAG"),
   COMMIT_HASH_ONLY("COMMIT"),
   REFERENCE("REFERENCE"),
-  SNAPSHOT_ID("SNAPSHOT_ID"),
+  SNAPSHOT_ID("SNAPSHOT"),
   TIMESTAMP("TIMESTAMP"),
   ;
 
@@ -33,5 +36,12 @@ public enum TableVersionType {
 
   public String toSqlRepresentation() {
     return sqlRepresentation;
+  }
+
+  public static TableVersionType getType(String type) {
+    return Stream.of(values())
+        .filter(tableVersionType -> tableVersionType.sqlRepresentation.equals(type))
+        .findFirst()
+        .orElse(null);
   }
 }

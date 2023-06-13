@@ -123,6 +123,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.protobuf.InvalidProtocolBufferException;
 
+import io.opentelemetry.instrumentation.annotations.WithSpan;
+
 /**
  * Base plan builder class. Should be extended by all other plan builders.
  */
@@ -207,6 +209,7 @@ public abstract class AbstractRefreshPlanBuilder implements MetadataRefreshPlanB
    */
   public abstract boolean updateDatasetConfigWithIcebergMetadataIfNecessary();
 
+  @WithSpan
   protected boolean repairAndSaveDatasetConfigIfNecessary() {
     RepairKvstoreFromIcebergMetadata repairOperation = new RepairKvstoreFromIcebergMetadata(datasetConfig, metaStoragePlugin,
       config.getContext().getNamespaceService(SystemUser.SYSTEM_USERNAME),
@@ -220,6 +223,7 @@ public abstract class AbstractRefreshPlanBuilder implements MetadataRefreshPlanB
    *
    * @return
    */
+  @Override
   public Prel buildPlan() {
     final Prel dirListingPrel = getDataFileListingPrel();
     final Prel roundRobinExchange = getDirListToFooterReadExchange(dirListingPrel);
@@ -229,8 +233,10 @@ public abstract class AbstractRefreshPlanBuilder implements MetadataRefreshPlanB
     return new ScreenPrel(cluster, traitSet, writerCommitterPrel);
   }
 
+  @Override
   public abstract PartitionChunkListing listPartitionChunks(DatasetRetrievalOptions datasetRetrievalOptions) throws ConnectorException;
 
+  @Override
   public abstract void setupMetadataForPlanning(PartitionChunkListing partitionChunkListing, DatasetRetrievalOptions retrievalOptions) throws ConnectorException, InvalidProtocolBufferException;
 
   // Extended to calculate diff for incremental use-cases
@@ -494,8 +500,7 @@ public abstract class AbstractRefreshPlanBuilder implements MetadataRefreshPlanB
           if (!partitionValues.isEmpty()) {
             partitionPaths.add(dirListInputSplit.getOperatingPath());
           }
-        }
-        catch (InvalidProtocolBufferException e) {
+        } catch (InvalidProtocolBufferException e) {
           throw new RuntimeException(e);
         }
       }

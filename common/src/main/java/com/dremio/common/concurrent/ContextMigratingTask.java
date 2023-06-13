@@ -24,4 +24,5 @@ public interface ContextMigratingTask {
    * @return the name of the child span created while running the task
    */
   String getSpanName();
+
 }

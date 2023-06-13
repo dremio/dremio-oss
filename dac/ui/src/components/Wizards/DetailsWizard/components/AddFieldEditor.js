@@ -19,7 +19,7 @@ import PropTypes from "prop-types";
 import { getExploreState } from "@app/selectors/explore";
 
 import SqlAutoComplete from "pages/ExplorePage/components/SqlEditor/SqlAutoComplete";
-import FunctionsHelpPanel from "@app/pages/ExplorePage/components/SqlEditor/FunctionsHelpPanel";
+import SQLFunctionsPanel from "@app/pages/ExplorePage/components/SqlEditor/SQLFunctionsPanel";
 
 import "./AddFieldEditor.less";
 
@@ -62,12 +62,13 @@ export class AddFieldEditor extends PureComponent {
 
   getFunctionsPanel() {
     return (
-      <FunctionsHelpPanel
-        height={this.props.functionPaneHeight}
-        isVisible={this.state.funcHelpPanel}
-        dragType={this.props.dragType}
-        addFuncToSqlEditor={this.addFuncToSqlEditor}
-      />
+      this.state.funcHelpPanel && (
+        <SQLFunctionsPanel
+          height={this.props.functionPaneHeight ?? this.props.blockHeight + 4} // 4px padding added
+          dragType={this.props.dragType}
+          addFuncToSqlEditor={this.addFuncToSqlEditor}
+        />
+      )
     );
   }
 

@@ -31,7 +31,6 @@ import com.dremio.service.autocomplete.completions.CompletionItem;
 import com.dremio.service.autocomplete.completions.Completions;
 import com.dremio.service.autocomplete.functions.FunctionContext;
 import com.dremio.service.autocomplete.functions.ParameterResolverTests;
-import com.dremio.test.GoldenFileTestBuilder.MultiLineString;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 
@@ -39,16 +38,16 @@ import com.google.common.collect.ImmutableList;
  * Tests for the autocomplete engine.
  */
 public abstract class AutocompleteEngineTests {
-  protected CompletionsForBaselines executeTestWithRootContext(MultiLineString query) {
+  protected CompletionsForBaselines executeTestWithRootContext(String query) {
     return executeTest(query, ImmutableList.of());
   }
 
-  protected CompletionsForBaselines executeTestWithFolderContext(MultiLineString query) {
+  protected CompletionsForBaselines executeTestWithFolderContext(String query) {
     return executeTest(query, ImmutableList.of("space", "folder"));
   }
 
-  protected CompletionsForBaselines executeTest(MultiLineString query, ImmutableList<String> context) {
-    StringAndPos stringAndPos = SqlParserUtil.findPos(query.toString());
+  protected CompletionsForBaselines executeTest(String query, ImmutableList<String> context) {
+    StringAndPos stringAndPos = SqlParserUtil.findPos(query);
     Completions completions = generateCompletions(
       context,
       stringAndPos.sql,

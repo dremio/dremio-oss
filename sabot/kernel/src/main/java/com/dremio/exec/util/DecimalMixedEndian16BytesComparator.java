@@ -21,6 +21,7 @@ import io.netty.util.internal.PlatformDependent;
 
 public class DecimalMixedEndian16BytesComparator extends DecimalMixedEndianComparatorImpl {
 
+  @Override
   protected int compareInner(ArrowBuf left, int startIndexLeft, int valueLength,
                              ArrowBuf right, int startIndexRight) {
 

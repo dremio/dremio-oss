@@ -102,8 +102,6 @@ public interface DatasetCatalog extends PrivilegeCatalog {
 
   void rollbackTable(NamespaceKey path, DatasetConfig datasetConfig, RollbackOption rollbackOption, TableMutationOptions tableMutationOptions);
 
-  void vacuumTable(NamespaceKey path, DatasetConfig datasetConfig, VacuumOption vacuumOption, TableMutationOptions tableMutationOptions);
-
   void addColumns(NamespaceKey datasetKey, DatasetConfig datasetConfig, List<Field> colsToAdd, TableMutationOptions tableMutationOptions);
 
   void dropColumn(NamespaceKey datasetKey, DatasetConfig datasetConfig, String columnToDrop, TableMutationOptions tableMutationOptions);
@@ -142,6 +140,8 @@ public interface DatasetCatalog extends PrivilegeCatalog {
    * @return
    */
   DremioTable getTable(NamespaceKey key);
+
+  String getDatasetId(NamespaceKey key);
 
   enum UpdateStatus {
     /**

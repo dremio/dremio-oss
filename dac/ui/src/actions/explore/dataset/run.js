@@ -130,15 +130,19 @@ export const performTransformAndRun = (payload) => ({
 export const RUN_DATASET_SQL = "RUN_DATASET_SQL";
 
 const getRunAction = (dispatch, isPreview, selectedSql) => {
-  const action = { type: RUN_DATASET_SQL };
+  const action = { type: RUN_DATASET_SQL, useOptimizedJobFlow: true };
+
   if (selectedSql) {
     action.selectedSql = selectedSql;
   }
+
   if (isPreview) {
     action.isPreview = true;
   }
+
   dispatch(action);
 };
+
 const runDebounced = debounce(getRunAction, 500, {
   leading: true,
   trailing: false,

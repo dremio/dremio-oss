@@ -15,16 +15,12 @@
  */
 @import "~@app/uiTheme/less/color-schema.less";
 
-html {
-  font-size: 62.5%;
-}
-
 :global {
   .sideNav {
     background-color: @sideBar-background-color;
     display: flex;
     flex-direction: column;
-    width: 6.4rem;
+    width: 64px;
 
     a:hover,
     .link:hover,
@@ -35,14 +31,14 @@ html {
   }
 
   .sideNav-item {
-    width: 6.4rem;
-    height: 6.4rem;
+    width: 64px;
+    height: 64px;
     position: relative;
 
     .sideNav-item__link,
     .sideNav-item__hoverMenu {
       width: 100%;
-      height: 6.4rem;
+      height: 64px;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -53,12 +49,12 @@ html {
       }
 
       &.--active {
-        background-color: var(--dremio--color--primary--600);
+        background-color: var(--color--brand--400);
       }
     }
 
     .sideNav-item__icon {
-      color: var(--dremio--color--neutral--000);
+      color: white;
 
       dremio-icon {
         width: 24px;
@@ -69,7 +65,7 @@ html {
     .sideNav-item__caret-icon {
       height: 12px;
       width: 12px;
-      color: var(--dremio--color--neutral--000);
+      color: white;
       right: 7px;
       bottom: 7px;
       position: absolute;
@@ -84,15 +80,15 @@ html {
 
     .sideNav-item__customHoverMenu {
       &.--wide {
-        width: 22.4rem;
+        width: 224px;
       }
 
       &.--active {
-        background-color: var(--dremio--color--primary--600);
+        background-color: var(--color--brand--400);
         color: @sideBar-icon-image-color-active !important;
 
         &:hover {
-          background-color: var(--dremio--color--primary--600);
+          background-color: var(--color--brand--400);
         }
       }
 
@@ -102,13 +98,13 @@ html {
         justify-content: center;
 
         .sideNav__project {
-          font-size: 1.3rem;
-          line-height: 2.4rem;
+          font-size: 13px;
+          line-height: 24px;
           background-color: @sideBar-account-background;
           color: @sideBar-account-icon-text-color;
           border-radius: 2px;
-          width: 2.4rem;
-          height: 2.4rem;
+          width: 24px;
+          height: 24px;
           text-align: center;
           display: flex;
           justify-content: center;
@@ -126,13 +122,13 @@ html {
 
   .sideNav__bottomSection {
     align-self: flex-end;
-    margin-bottom: 1rem;
+    margin-bottom: 10px;
     width: inherit;
 
     &__divider {
       width: 48px;
       height: 1px;
-      background-color: var(--dremio--color--neutral--300);
+      background-color: var(--color--neutral--200);
       margin: auto;
     }
   }
@@ -148,13 +144,13 @@ html {
   }
 
   .sideNav__user {
-    font-size: 1.3rem;
-    line-height: 2.4rem;
+    font-size: 13px;
+    line-height: 24px;
     background-color: @sideBar-account-background;
     color: @sideBar-account-icon-text-color;
     border-radius: 50%;
-    width: 2.4rem;
-    height: 2.4rem;
+    width: 24px;
+    height: 24px;
     text-align: center;
     display: flex;
     justify-content: center;
@@ -167,20 +163,20 @@ html {
   .sideNav {
     // organization theme
     &--organization {
-      background-color: var(--dremio--color--primary--100);
+      background-color: var(--color--brand--25);
 
       .sideNav-item__icon {
-        color: var(--dremio--color--neutral--600);
+        color: var(--color--neutral--600);
       }
 
       .sideNav-item__caret-icon {
-        color: var(--dremio--color--neutral--600);
+        color: var(--color--neutral--600);
       }
 
       .sideNav-item__link,
       .sideNav-item__hoverMenu {
         &.--menuDisplayed {
-          background-color: var(--dremio--color--primary--200);
+          background-color: var(--color--brand--100);
         }
 
         &.--active {
@@ -190,29 +186,33 @@ html {
 
       .item__hover {
         &:hover {
-          background-color: var(--dremio--color--primary--200);
+          background-color: var(--color--brand--100);
         }
+      }
+
+      .--active-light {
+        background-color: var(--color--brand--75);
       }
     }
 
     // arctic theme
     &--arctic {
-      background-color: var(--dremio--color--arctic--400);
+      background-color: var(--color--indigo--700);
 
       .sideNav-item__link,
       .sideNav-item__hoverMenu {
         &.--menuDisplayed {
-          background-color: var(--dremio--color--arctic--300);
+          background-color: var(--color--indigo--500);
         }
 
         &.--active {
-          background-color: var(--dremio--color--arctic--100);
+          background-color: var(--color--indigo-vivid--500);
         }
       }
 
       .item__hover {
         &:hover {
-          background-color: var(--dremio--color--arctic--300);
+          background-color: var(--color--indigo--500);
         }
       }
     }

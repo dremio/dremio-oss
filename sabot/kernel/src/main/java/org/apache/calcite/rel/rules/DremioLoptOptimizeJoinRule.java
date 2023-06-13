@@ -93,6 +93,7 @@ public class DremioLoptOptimizeJoinRule extends RelRule {
 
   //~ Methods ----------------------------------------------------------------
 
+  @Override
   public void onMatch(RelOptRuleCall call) {
     final MultiJoin multiJoinRel = call.rel(0);
     final LoptMultiJoin multiJoin = new LoptMultiJoin(multiJoinRel);

@@ -22,6 +22,8 @@ export type SonarContext = {
 
   //TODO Type needs to be made generic
   getProjectBaseRoute: () => any;
+
+  getProjectVendorType: () => "AWS" | "AZURE";
 };
 
 let sonarContext: SonarContext;

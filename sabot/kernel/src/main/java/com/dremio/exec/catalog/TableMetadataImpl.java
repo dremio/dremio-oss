@@ -106,7 +106,7 @@ public class TableMetadataImpl implements TableMetadata {
 
   @Override
   public String computeDigest(){
-    return String.format("%s|%s|%s", splits.computeDigest(), pluginId.getName(), config.getId().getId());
+    return String.format("%s|%s|%s|%s", splits.computeDigest(), pluginId.getName(), config.getId().getId(), getVersionContext());
   }
 
   @Override

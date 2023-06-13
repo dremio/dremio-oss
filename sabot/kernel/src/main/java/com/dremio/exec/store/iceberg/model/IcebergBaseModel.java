@@ -16,6 +16,7 @@
 package com.dremio.exec.store.iceberg.model;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.vector.types.pojo.Field;
@@ -26,19 +27,19 @@ import org.apache.iceberg.types.Types;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.AlterTableOption;
-import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.catalog.PartitionSpecAlterOption;
 import com.dremio.exec.catalog.RollbackOption;
-import com.dremio.exec.catalog.VacuumOption;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.dfs.ColumnOperations;
 import com.dremio.exec.store.dfs.IcebergTableProps;
+import com.dremio.exec.store.iceberg.SupportsIcebergMutablePlugin;
 import com.dremio.exec.store.metadatarefresh.committer.DatasetCatalogGrpcClient;
 import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.writer.WriterCommitterOperator;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 
 /**
@@ -49,18 +50,18 @@ public abstract class IcebergBaseModel implements IcebergModel {
   protected static final String EMPTY_NAMESPACE = "";
   protected final String namespace;
   protected final Configuration configuration;
-  protected final FileSystem fs; /* if fs is null it will use iceberg HadoopFileIO class instead of DremioFileIO class */
+  protected final FileSystem fs;
   protected final OperatorContext context;
   private final DatasetCatalogGrpcClient client;
-  private final MutablePlugin plugin;
+  protected final SupportsIcebergMutablePlugin plugin;
 
   protected IcebergBaseModel(String namespace,
                              Configuration configuration,
                              FileSystem fs, OperatorContext context,
-                             DatasetCatalogGrpcClient datasetCatalogGrpcClient, MutablePlugin plugin) {
+                             DatasetCatalogGrpcClient datasetCatalogGrpcClient, SupportsIcebergMutablePlugin plugin) {
     this.namespace = namespace;
     this.configuration = configuration;
-    this.fs = fs;
+    this.fs = Preconditions.checkNotNull(fs);
     this.context = context;
     this.client = datasetCatalogGrpcClient;
     this.plugin = plugin;
@@ -68,7 +69,7 @@ public abstract class IcebergBaseModel implements IcebergModel {
 
   protected abstract IcebergCommand getIcebergCommand(IcebergTableIdentifier tableIdentifier);
 
-  private  IcebergCommand getIcebergCommandWithMetricStat(IcebergTableIdentifier tableIdentifier) {
+  private IcebergCommand getIcebergCommandWithMetricStat(IcebergTableIdentifier tableIdentifier) {
     Stopwatch stopwatch = Stopwatch.createStarted();
     try {
       return getIcebergCommand(tableIdentifier);
@@ -139,10 +140,12 @@ public abstract class IcebergBaseModel implements IcebergModel {
                                                  IcebergTableIdentifier tableIdentifier,
                                                  DatasetConfig datasetConfig,
                                                  Long minInputFilesBeforeOptimize,
+                                                 Long snapshotId,
                                                  IcebergTableProps icebergTableProps,
                                                  FileSystem fs) {
     IcebergCommand icebergCommand = getIcebergCommandWithMetricStat(tableIdentifier);
-    return new IcebergOptimizeOperationCommitter(icebergCommand, operatorStats, datasetConfig, minInputFilesBeforeOptimize, icebergTableProps, fs);
+    return new IcebergOptimizeOperationCommitter(icebergCommand, operatorStats, datasetConfig,
+      minInputFilesBeforeOptimize,snapshotId, icebergTableProps, fs);
   }
 
   @Override
@@ -152,11 +155,11 @@ public abstract class IcebergBaseModel implements IcebergModel {
   }
 
   @Override
-  public void vacuumTable(IcebergTableIdentifier tableIdentifier, VacuumOption vacuumOption) {
+  public Map<Long, String> expireSnapshots(IcebergTableIdentifier tableIdentifier, long olderThanInMillis, int retainLast) {
     IcebergCommand icebergCommand = getIcebergCommandWithMetricStat(tableIdentifier);
-    icebergCommand.expireSnapshots(
-      vacuumOption.getOlderThanInMillis(),
-      vacuumOption.getRetainLast());
+    return icebergCommand.expireSnapshots(
+      olderThanInMillis,
+      retainLast);
   }
 
   @Override
@@ -234,5 +237,11 @@ public abstract class IcebergBaseModel implements IcebergModel {
   public IcebergTableLoader getIcebergTableLoader(IcebergTableIdentifier tableIdentifier) {
     IcebergCommand icebergCommand = getIcebergCommandWithMetricStat(tableIdentifier);
     return new IcebergTableLoader(icebergCommand);
+  }
+
+  @Override
+  public long propertyAsLong(IcebergTableIdentifier tableIdentifier, String propertyName, long defaultValue) {
+    IcebergCommand icebergCommand = getIcebergCommandWithMetricStat(tableIdentifier);
+    return icebergCommand.propertyAsLong(propertyName, defaultValue);
   }
 }

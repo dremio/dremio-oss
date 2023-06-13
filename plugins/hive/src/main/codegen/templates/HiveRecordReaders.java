@@ -190,8 +190,7 @@ public class Hive${entry.hiveReader}Reader extends HiveAbstractReader {
     }
     try (OperatorStats.WaitRecorder recorder = OperatorStats.getWaitRecorder(this.context.getStats())) {
       reader = ((OrcInputFormat)jobConf.getInputFormat()).getRecordReader(inputSplit, jobConf, Reporter.NULL, options);
-    }
-    catch(FSError e) {
+    } catch (FSError e) {
       throw HadoopFileSystemWrapper.propagateFSError(e);
     }
 <#else>
@@ -236,8 +235,7 @@ public class Hive${entry.hiveReader}Reader extends HiveAbstractReader {
         if (!hasNext) {
           break;
         }
-      }
-      catch(FSError e) {
+      } catch (FSError e) {
         throw HadoopFileSystemWrapper.propagateFSError(e);
       }
       Object deSerializedValue = partitionSerDe.deserialize((Writable) value);
@@ -264,8 +262,7 @@ public class Hive${entry.hiveReader}Reader extends HiveAbstractReader {
     if (reader != null) {
       try (OperatorStats.WaitRecorder recorder = OperatorStats.getWaitRecorder(this.context.getStats())){
         reader.close();
-      }
-      catch(FSError e) {
+      } catch (FSError e) {
         throw HadoopFileSystemWrapper.propagateFSError(e);
       }
       reader = null;

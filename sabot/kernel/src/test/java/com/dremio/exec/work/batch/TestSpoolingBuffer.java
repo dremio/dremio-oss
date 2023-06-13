@@ -176,8 +176,7 @@ public class TestSpoolingBuffer extends ExecTest {
             // have been able to finish spooling and sendOk().
             Thread.sleep(100);
           }
-        }
-        catch (Exception e)
+        } catch (Exception e)
         {
           Map<Thread, StackTraceElement[]> threads = Thread.getAllStackTraces();
           System.out.println("Number of threads: " + threads.size());
@@ -258,8 +257,7 @@ public class TestSpoolingBuffer extends ExecTest {
           // Throw an exception for the case when this test has not timed out, but awaitTermination has timed out
           throw new Exception();
         }
-      }
-      catch(Exception e) {
+      } catch (Exception e) {
         // Exception is caught for:
         // 1. test timed out but awaitTermination has not timed out
         // 2. test not timed out, but awaitTermination has timed out
