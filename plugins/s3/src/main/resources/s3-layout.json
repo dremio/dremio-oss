@@ -91,6 +91,15 @@
                         "text": "Only the buckets provided in Public Buckets will be available."
                       }
                     }
+                  },
+                  {
+                    "value": "WEB_IDENTITY_TOKEN",
+                    "container": {
+                      "help": {
+                        "position": "top",
+                        "text": "Use this in EKS service Account"
+                      }
+                    }
                   }
                 ]
               },

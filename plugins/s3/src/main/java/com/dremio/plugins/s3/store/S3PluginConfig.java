@@ -15,9 +15,7 @@
  */
 package com.dremio.plugins.s3.store;
 
-import static com.dremio.plugins.s3.store.S3StoragePlugin.AWS_PROFILE_PROVIDER;
-import static com.dremio.plugins.s3.store.S3StoragePlugin.EC2_METADATA_PROVIDER;
-import static com.dremio.plugins.s3.store.S3StoragePlugin.NONE_PROVIDER;
+import static com.dremio.plugins.s3.store.S3StoragePlugin.*;
 
 import javax.inject.Provider;
 
@@ -71,6 +69,8 @@ public class S3PluginConfig extends AbstractS3PluginConfig {
         };
       case EC2_METADATA:
         return properties -> EC2_METADATA_PROVIDER;
+      case WEB_IDENTITY_TOKEN:
+        return properties -> WEB_IDENTITY_TOKEN_PROVIDER;
       case NONE:
         return properties -> NONE_PROVIDER;
       default:

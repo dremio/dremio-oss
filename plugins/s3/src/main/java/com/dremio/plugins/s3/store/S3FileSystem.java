@@ -17,12 +17,7 @@ package com.dremio.plugins.s3.store;
 
 import static com.dremio.exec.ExecConstants.ENABLE_STORE_PARQUET_ASYNC_TIMESTAMP_CHECK;
 import static com.dremio.exec.ExecConstants.S3_NATIVE_ASYNC_CLIENT;
-import static com.dremio.plugins.s3.store.S3StoragePlugin.ACCESS_KEY_PROVIDER;
-import static com.dremio.plugins.s3.store.S3StoragePlugin.ASSUME_ROLE_PROVIDER;
-import static com.dremio.plugins.s3.store.S3StoragePlugin.AWS_PROFILE_PROVIDER;
-import static com.dremio.plugins.s3.store.S3StoragePlugin.DREMIO_ASSUME_ROLE_PROVIDER;
-import static com.dremio.plugins.s3.store.S3StoragePlugin.EC2_METADATA_PROVIDER;
-import static com.dremio.plugins.s3.store.S3StoragePlugin.NONE_PROVIDER;
+import static com.dremio.plugins.s3.store.S3StoragePlugin.*;
 import static org.apache.hadoop.fs.s3a.Constants.ALLOW_REQUESTER_PAYS;
 import static org.apache.hadoop.fs.s3a.Constants.AWS_REGION;
 import static org.apache.hadoop.fs.s3a.Constants.CENTRAL_ENDPOINT;
@@ -128,7 +123,8 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
     .setWaitStrategy(Retryer.WaitStrategy.EXPONENTIAL, 250, 2500)
     .setMaxRetries(10).build();
 
-  private final LoadingCache<String, CloseableRef<S3Client>> syncClientCache = CacheBuilder
+  private final LoadingCache<String, CloseableRef<S3Client>>
+    syncClientCache = CacheBuilder
           .newBuilder()
           .expireAfterAccess(1, TimeUnit.HOURS)
           .removalListener(notification ->
@@ -240,7 +236,8 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
     final StsClientBuilder stsClientBuilder = StsClient.builder()
         // Note that AWS SDKv2 client will close the credentials provider if needed when the client is closed
         .credentialsProvider(awsCredentialsProvider)
-        .region(getAWSRegionFromConfigurationOrDefault(conf));
+        .region(getAWSRegionFromConfigurationOrDefault(conf))
+        .endpointOverride(URI.create(conf.get(Constants.ASSUMED_ROLE_STS_ENDPOINT,"https://sts.amazonaws.com")));
       try (StsClient stsClient = stsClientBuilder.build()) {
         retryer.call(() -> {
           GetCallerIdentityRequest request = GetCallerIdentityRequest.builder().build();
@@ -419,6 +416,8 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
         return new DremioAssumeRoleCredentialsProviderV2();
       case AWS_PROFILE_PROVIDER:
         return new AWSProfileCredentialsProviderV2(config);
+      case WEB_IDENTITY_TOKEN_PROVIDER:
+        return new WebIdentityCredentialsProviderV2(config);
       default:
         throw new IllegalStateException("Invalid AWSCredentialsProvider provided: " + config.get(Constants.AWS_CREDENTIALS_PROVIDER));
     }
