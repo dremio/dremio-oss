@@ -90,7 +90,7 @@
     "sass": "^1.49.9",
     "sass-loader": "^10",
     "style-loader": "^2",
-    "stylelint": "^14",
+    "stylelint": "^15",
     "stylelint-config-prettier": "^9",
     "stylelint-config-standard": "^25",
     "stylelint-config-standard-scss": "^3",
