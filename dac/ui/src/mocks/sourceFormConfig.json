@@ -181,6 +181,22 @@
       ]
     },
     {
+      "label": "Vast-Data",
+      "sourceType": "Vast-Data",
+      "elements": [
+        {
+          "type": "number",
+          "propertyName": "port",
+          "label": "Port",
+          "value": 2181
+        },
+        {
+          "type": "property_list",
+          "propertyName": "propertyList"
+        }
+      ]
+    },
+    {
       "label": "HDFS",
       "sourceType": "HDFS",
       "elements": [

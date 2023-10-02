@@ -1,5 +1,6 @@
 [
   { "sourceType": "HBASE", "tags": ["community"] },
+  { "sourceType": "VAST-Data", "tags": ["community"] },
   { "sourceType": "TERADATA" },
   { "sourceType": "CASSANDRA", "disabled": true },
   { "sourceType": "SALESFORCE", "disabled": true },
