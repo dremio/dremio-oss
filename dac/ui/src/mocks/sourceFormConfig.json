@@ -181,8 +181,8 @@
       ]
     },
     {
-      "label": "Vast-Data",
-      "sourceType": "Vast-Data",
+      "label": "VASTDATA",
+      "sourceType": "VASTDATA",
       "elements": [
         {
           "type": "number",
