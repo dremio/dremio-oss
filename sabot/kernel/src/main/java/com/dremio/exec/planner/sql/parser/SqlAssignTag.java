@@ -39,6 +39,7 @@ import com.google.common.collect.Lists;
  *
  * ALTER TAG tagName ASSIGN
  * ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue
+ * [ AS OF timestamp ]
  * [ IN sourceName ]
  */
 public final class SqlAssignTag extends SqlVersionSourceRefBase {
@@ -48,13 +49,14 @@ public final class SqlAssignTag extends SqlVersionSourceRefBase {
         public SqlCall createCall(
             SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
           Preconditions.checkArgument(
-              operands.length == 4, "SqlAssignTag.createCall() has to get 4 operands!");
+              operands.length == 5, "SqlAssignTag.createCall() has to get 5 operands!");
           return new SqlAssignTag(
               pos,
               (SqlIdentifier) operands[0],
               ((SqlLiteral) operands[1]).symbolValue(ReferenceType.class),
               (SqlIdentifier) operands[2],
-              (SqlIdentifier) operands[3]);
+              operands[3],
+              (SqlIdentifier) operands[4]);
         }
       };
 
@@ -65,8 +67,9 @@ public final class SqlAssignTag extends SqlVersionSourceRefBase {
       SqlIdentifier tagName,
       ReferenceType refType,
       SqlIdentifier refValue,
+      SqlNode timestamp,
       SqlIdentifier sourceName) {
-    super(pos, sourceName, refType, refValue);
+    super(pos, sourceName, refType, refValue, timestamp);
     this.tagName = tagName;
   }
 
@@ -81,6 +84,7 @@ public final class SqlAssignTag extends SqlVersionSourceRefBase {
     ops.add(tagName);
     ops.add(SqlLiteral.createSymbol(getRefType(), SqlParserPos.ZERO));
     ops.add(getRefValue());
+    ops.add(getTimestampAsSqlNode());
     ops.add(getSourceName());
     return ops;
   }

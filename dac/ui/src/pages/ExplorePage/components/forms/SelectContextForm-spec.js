@@ -44,11 +44,11 @@ describe("SelectContextForm", () => {
     expect(wrapper.type()).to.equal("div");
 
     expect(wrapper.find("ModalForm")).to.have.length(1);
-    expect(wrapper.find("FormBody")).to.have.length(1);
     expect(wrapper.find(ResourceTreeContainer)).to.have.length(1);
   });
 
-  it("should render FieldWithError wrapping a TextField with props from this.props.fields.context", () => {
+  // Text field removed
+  it.skip("should render FieldWithError wrapping a TextField with props from this.props.fields.context", () => {
     const wrapper = shallow(<SelectContextForm {...commonProps} />);
     expect(wrapper.find("FieldWithError").prop("value")).to.equal(
       commonProps.fields.context.value

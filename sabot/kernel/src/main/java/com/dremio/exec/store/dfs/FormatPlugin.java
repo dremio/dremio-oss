@@ -39,7 +39,6 @@ import com.dremio.service.namespace.dataset.proto.DatasetType;
  * Similar to a storage engine but built specifically to work within a FileSystem context.
  */
 public interface FormatPlugin {
-
   public boolean supportsRead();
 
   public boolean supportsWrite();
@@ -82,7 +81,7 @@ public interface FormatPlugin {
   public RecordReader getRecordReader(final OperatorContext context, final FileSystem dfs, final FileAttributes attributes) throws ExecutionSetupException;
 
   default FileSelectionProcessor getFileSelectionProcessor(FileSystem fs, FileSelection fileSelection) {
-    return new DefaultFileSelectionProcessor(fs, fileSelection);
+    return new DefaultFileSelectionProcessor(fs, fileSelection, getMaxFilesLimit());
   }
 
   /**
@@ -93,4 +92,11 @@ public interface FormatPlugin {
     FileSystemPlugin<?> fsPlugin,
     Path path
   ) throws IOException, FileCountTooLargeException;
+
+  /**
+   * @return Returns the max number of files supported by this format plugin
+   */
+  default int getMaxFilesLimit() {
+    return Math.toIntExact(getContext().getOptionManager().getOption(FileDatasetHandle.DFS_MAX_FILES));
+  }
 }

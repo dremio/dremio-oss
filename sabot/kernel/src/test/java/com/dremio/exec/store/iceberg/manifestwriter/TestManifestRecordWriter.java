@@ -16,6 +16,7 @@
 package com.dremio.exec.store.iceberg.manifestwriter;
 
 import static org.apache.iceberg.types.Types.NestedField.required;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -50,10 +51,13 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.util.Text;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.DataFile;
@@ -82,23 +86,76 @@ import com.dremio.exec.physical.base.ImmutableIcebergWriterOptions;
 import com.dremio.exec.physical.base.ImmutableTableFormatWriterOptions;
 import com.dremio.exec.physical.base.TableFormatWriterOptions;
 import com.dremio.exec.physical.base.WriterOptions;
+import com.dremio.exec.physical.config.ExtendedFormatOptions;
+import com.dremio.exec.physical.config.copyinto.CopyIntoErrorInfo;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.store.OperationType;
 import com.dremio.exec.store.RecordWriter;
+import com.dremio.exec.store.dfs.ErrorInfo;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.exec.store.iceberg.IcebergManifestWriterPOP;
 import com.dremio.exec.store.iceberg.IcebergMetadataInformation;
 import com.dremio.exec.store.iceberg.IcebergSerDe;
 import com.dremio.exec.store.iceberg.IcebergUtils;
+import com.dremio.exec.store.iceberg.model.IcebergCommandType;
 import com.dremio.exec.util.TestUtilities;
+import com.dremio.exec.util.VectorUtil;
 import com.dremio.io.file.FileSystem;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.service.namespace.file.proto.FileType;
+import com.google.common.collect.ImmutableList;
 
 public class TestManifestRecordWriter extends BaseTestQuery {
   private static final long MANIFEST_TARGET_SIZE = 16384;
+
+  @Test
+  public void testErrorRecordPassThrough() throws Exception {
+    VectorContainer incomingVector = null;
+    String tempFolderLoc = null;
+    try {
+      tempFolderLoc = TestUtilities.createTempDir();
+      ManifestFileRecordWriter manifestFileRecordWriter = getNewManifestWriter(tempFolderLoc, true);
+      RecordWriter.OutputEntryListener outputEntryListener = mock(RecordWriter.OutputEntryListener.class);
+      RecordWriter.WriteStatsListener writeStatsListener = mock(RecordWriter.WriteStatsListener.class);
+      incomingVector = getIncomingVectorWithError(allocator, getTestPartitionSpec());
+
+      ArgumentCaptor<Long> recordWrittenCaptor = ArgumentCaptor.forClass(long.class);
+      ArgumentCaptor<Long> fileSizeCaptor = ArgumentCaptor.forClass(long.class);
+      ArgumentCaptor<String> pathCaptor = ArgumentCaptor.forClass(String.class);
+      ArgumentCaptor<byte[]> metadataCaptor = ArgumentCaptor.forClass(byte[].class);
+      ArgumentCaptor<Integer> partitionCaptor = ArgumentCaptor.forClass(Integer.class);
+      ArgumentCaptor<byte[]> icebergMetadataCaptor = ArgumentCaptor.forClass(byte[].class);
+      ArgumentCaptor<Integer> operationType = ArgumentCaptor.forClass(Integer.class);
+      ArgumentCaptor<Long> rejectedRecordsCaptor = ArgumentCaptor.forClass(long.class);
+
+      manifestFileRecordWriter.setup(incomingVector, outputEntryListener, writeStatsListener);
+      manifestFileRecordWriter.writeBatch(0, 2);
+
+      verify(outputEntryListener, times(2)).recordsWritten(recordWrittenCaptor.capture(),
+        fileSizeCaptor.capture(), pathCaptor.capture(), metadataCaptor.capture(),
+        partitionCaptor.capture(), icebergMetadataCaptor.capture(), any(), any(), operationType.capture(), any(),
+        rejectedRecordsCaptor.capture());
+
+      assertThat(operationType.getAllValues().stream().allMatch(OperationType.COPY_INTO_ERROR.value::equals)).isTrue();
+      VarBinaryVector errorVector = (VarBinaryVector) VectorUtil.getVectorFromSchemaPath(incomingVector, RecordWriter.METADATA_COLUMN);
+      assertThat(metadataCaptor.getAllValues().get(0)).isEqualTo(errorVector.get(0));
+      assertThat(metadataCaptor.getAllValues().get(1)).isEqualTo(errorVector.get(1));
+      assertThat(recordWrittenCaptor.getAllValues()).isEqualTo(ImmutableList.of(0L, 0L));
+      assertThat(pathCaptor.getAllValues()).isEqualTo(ImmutableList.of("file_1", "file_2"));
+      assertThat(fileSizeCaptor.getAllValues()).isEqualTo(ImmutableList.of(1L, 2L));
+      assertThat(rejectedRecordsCaptor.getAllValues()).isEqualTo(ImmutableList.of(3L, 4L));
+
+      manifestFileRecordWriter.close();
+    } finally {
+      FileUtils.deleteQuietly(new File(tempFolderLoc));
+      if(incomingVector != null) {
+        incomingVector.close();
+      }
+    }
+  }
 
   @Test
   public void testWriterWithOneBatch() throws Exception {
@@ -106,7 +163,7 @@ public class TestManifestRecordWriter extends BaseTestQuery {
     String tempFolderLoc = null;
     try {
       tempFolderLoc = TestUtilities.createTempDir();
-      ManifestFileRecordWriter manifestFileRecordWriter = getNewManifestWriter(tempFolderLoc);
+      ManifestFileRecordWriter manifestFileRecordWriter = getNewManifestWriter(tempFolderLoc, false);
       RecordWriter.OutputEntryListener outputEntryListener = mock(RecordWriter.OutputEntryListener.class);
       RecordWriter.WriteStatsListener writeStatsListener = mock(RecordWriter.WriteStatsListener.class);
       incomingVector = getIncomingVector(allocator, getTestPartitionSpec());
@@ -137,7 +194,7 @@ public class TestManifestRecordWriter extends BaseTestQuery {
     String tempFolderLoc = null;
     try {
       tempFolderLoc = TestUtilities.createTempDir();
-      ManifestFileRecordWriter manifestFileRecordWriter = getNewManifestWriter(tempFolderLoc);
+      ManifestFileRecordWriter manifestFileRecordWriter = getNewManifestWriter(tempFolderLoc, false);
       RecordWriter.OutputEntryListener outputEntryListener = mock(RecordWriter.OutputEntryListener.class);
       RecordWriter.WriteStatsListener writeStatsListener = mock(RecordWriter.WriteStatsListener.class);
       incomingVector = getIncomingVector(allocator, getTestPartitionSpec());
@@ -170,7 +227,7 @@ public class TestManifestRecordWriter extends BaseTestQuery {
     String tempFolderLoc = null;
     try {
       tempFolderLoc = TestUtilities.createTempDir();
-      ManifestFileRecordWriter manifestFileRecordWriter = getNewManifestWriter(tempFolderLoc);
+      ManifestFileRecordWriter manifestFileRecordWriter = getNewManifestWriter(tempFolderLoc, false);
       RecordWriter.OutputEntryListener outputEntryListener = mock(RecordWriter.OutputEntryListener.class);
       RecordWriter.WriteStatsListener writeStatsListener = mock(RecordWriter.WriteStatsListener.class);
       incomingVector = getIncomingVector(allocator, getTestPartitionSpec());
@@ -182,12 +239,14 @@ public class TestManifestRecordWriter extends BaseTestQuery {
       ArgumentCaptor<Integer> partitionCaptor = ArgumentCaptor.forClass(Integer.class);
       ArgumentCaptor<byte[]> icebergMetadataCaptor = ArgumentCaptor.forClass(byte[].class);
       ArgumentCaptor<Integer> operationType = ArgumentCaptor.forClass(Integer.class);
+      ArgumentCaptor<Long> rejectedRecordsCaptor = ArgumentCaptor.forClass(long.class);
 
       manifestFileRecordWriter.setup(incomingVector, outputEntryListener, writeStatsListener);
       manifestFileRecordWriter.writeBatch(0, incomingVector.getRecordCount());
       verify(outputEntryListener, times(0)).recordsWritten(recordWrittenCaptor.capture(),
         fileSizeCaptor.capture(), pathCaptor.capture(), metadataCaptor.capture(),
-        partitionCaptor.capture(), icebergMetadataCaptor.capture(), any(), any(), operationType.capture());
+        partitionCaptor.capture(), icebergMetadataCaptor.capture(), any(), any(), operationType.capture(), any(),
+        rejectedRecordsCaptor.capture());
 
       refillIncomingVector(incomingVector, 1500, getTestPartitionSpec(), 0);
       for (int i = 0; i < 3; i++) {
@@ -197,7 +256,8 @@ public class TestManifestRecordWriter extends BaseTestQuery {
 
       verify(outputEntryListener, times(2)).recordsWritten(recordWrittenCaptor.capture(),
         fileSizeCaptor.capture(), pathCaptor.capture(), metadataCaptor.capture(),
-        partitionCaptor.capture(), icebergMetadataCaptor.capture(), any(), any(), operationType.capture());
+        partitionCaptor.capture(), icebergMetadataCaptor.capture(), any(), any(), operationType.capture(), any(),
+        rejectedRecordsCaptor.capture());
 
       ManifestFile manifestFile2 = getManifestFile(icebergMetadataCaptor.getValue(), operationType.getValue());
       assertTrue(manifestFile2.addedFilesCount() > 0);
@@ -233,7 +293,7 @@ public class TestManifestRecordWriter extends BaseTestQuery {
     String tempFolderLoc = null;
     try {
       tempFolderLoc = TestUtilities.createTempDir();
-      ManifestFileRecordWriter manifestFileRecordWriter = getNewManifestWriter(tempFolderLoc);
+      ManifestFileRecordWriter manifestFileRecordWriter = getNewManifestWriter(tempFolderLoc, false);
       RecordWriter.OutputEntryListener outputEntryListener = mock(RecordWriter.OutputEntryListener.class);
       RecordWriter.WriteStatsListener writeStatsListener = mock(RecordWriter.WriteStatsListener.class);
       incomingVector = getIncomingVector(allocator, getTestPartitionSpec());
@@ -244,12 +304,14 @@ public class TestManifestRecordWriter extends BaseTestQuery {
       ArgumentCaptor<byte[]> metadataCaptor = ArgumentCaptor.forClass(byte[].class);
       ArgumentCaptor<Integer> partitionCaptor = ArgumentCaptor.forClass(Integer.class);
       ArgumentCaptor<byte[]> icebergMetadataCaptor = ArgumentCaptor.forClass(byte[].class);
+      ArgumentCaptor<Long> rejectedRecordsCaptor = ArgumentCaptor.forClass(long.class);
 
       manifestFileRecordWriter.setup(incomingVector, outputEntryListener, writeStatsListener);
       manifestFileRecordWriter.writeBatch(0, incomingVector.getRecordCount());
       verify(outputEntryListener, times(0)).recordsWritten(recordWrittenCaptor.capture(),
         fileSizeCaptor.capture(), pathCaptor.capture(), metadataCaptor.capture(),
-        partitionCaptor.capture(), icebergMetadataCaptor.capture(), any(), any(), any());
+        partitionCaptor.capture(), icebergMetadataCaptor.capture(), any(), any(), any(), any(),
+        rejectedRecordsCaptor.capture());
 
       refillIncomingVector(incomingVector, 1500, getTestPartitionSpec(), 0);
       for (int i = 0; i < 3; i++) {
@@ -279,7 +341,7 @@ public class TestManifestRecordWriter extends BaseTestQuery {
     String tempFolderLoc = null;
     try {
       tempFolderLoc = TestUtilities.createTempDir();
-      ManifestFileRecordWriter manifestFileRecordWriter = getNewManifestWriter(tempFolderLoc);
+      ManifestFileRecordWriter manifestFileRecordWriter = getNewManifestWriter(tempFolderLoc, false);
       RecordWriter.OutputEntryListener outputEntryListener = mock(RecordWriter.OutputEntryListener.class);
       RecordWriter.WriteStatsListener writeStatsListener = mock(RecordWriter.WriteStatsListener.class);
       incomingVector = getIncomingVector(allocator, getTestPartitionSpec());
@@ -291,6 +353,7 @@ public class TestManifestRecordWriter extends BaseTestQuery {
       ArgumentCaptor<Integer> partitionCaptor = ArgumentCaptor.forClass(Integer.class);
       ArgumentCaptor<byte[]> icebergMetadataCaptor = ArgumentCaptor.forClass(byte[].class);
       ArgumentCaptor<Integer> operationType = ArgumentCaptor.forClass(Integer.class);
+      ArgumentCaptor<Long> rejectedRecordsCaptor = ArgumentCaptor.forClass(long.class);
 
       manifestFileRecordWriter.setup(incomingVector, outputEntryListener, writeStatsListener);
       manifestFileRecordWriter.writeBatch(0, 2);
@@ -298,7 +361,8 @@ public class TestManifestRecordWriter extends BaseTestQuery {
 
       verify(outputEntryListener, times(1)).recordsWritten(recordWrittenCaptor.capture(),
         fileSizeCaptor.capture(), pathCaptor.capture(), metadataCaptor.capture(),
-        partitionCaptor.capture(), icebergMetadataCaptor.capture(), any(), any(), operationType.capture());
+        partitionCaptor.capture(), icebergMetadataCaptor.capture(), any(), any(), operationType.capture(), any(),
+        rejectedRecordsCaptor.capture());
 
       ManifestFile manifestFile = getManifestFile(icebergMetadataCaptor.getValue(), operationType.getValue());
 
@@ -338,7 +402,7 @@ public class TestManifestRecordWriter extends BaseTestQuery {
     String tempFolderLoc = null;
     try {
       tempFolderLoc = TestUtilities.createTempDir();
-      ManifestFileRecordWriter manifestFileRecordWriter = getNewManifestWriter(tempFolderLoc);
+      ManifestFileRecordWriter manifestFileRecordWriter = getNewManifestWriter(tempFolderLoc, false);
       RecordWriter.OutputEntryListener outputEntryListener = mock(RecordWriter.OutputEntryListener.class);
       RecordWriter.WriteStatsListener writeStatsListener = mock(RecordWriter.WriteStatsListener.class);
       incomingVector = getIncomingVectorWithDeleteDataFile(allocator, getTestPartitionSpec());
@@ -348,6 +412,7 @@ public class TestManifestRecordWriter extends BaseTestQuery {
       ArgumentCaptor<byte[]> metadataCaptor = ArgumentCaptor.forClass(byte[].class);
       ArgumentCaptor<Integer> partitionCaptor = ArgumentCaptor.forClass(Integer.class);
       ArgumentCaptor<byte[]> icebergMetadataCaptor = ArgumentCaptor.forClass(byte[].class);
+      ArgumentCaptor<Long> rejectedRecordsCaptor = ArgumentCaptor.forClass(long.class);
 
       manifestFileRecordWriter.setup(incomingVector, outputEntryListener, writeStatsListener);
       manifestFileRecordWriter.writeBatch(0, 3);
@@ -355,7 +420,8 @@ public class TestManifestRecordWriter extends BaseTestQuery {
 
       verify(outputEntryListener, times(2)).recordsWritten(recordWrittenCaptor.capture(),
         fileSizeCaptor.capture(), pathCaptor.capture(), metadataCaptor.capture(),
-        partitionCaptor.capture(), icebergMetadataCaptor.capture(), any(), any(), any());
+        partitionCaptor.capture(), icebergMetadataCaptor.capture(), any(), any(), any(), any(),
+        rejectedRecordsCaptor.capture());
 
       File metadataFolder = new File(tempFolderLoc, "metadata");
       assertTrue(metadataFolder.exists()); // metadata folder
@@ -375,17 +441,17 @@ public class TestManifestRecordWriter extends BaseTestQuery {
     }
   }
 
-  private ManifestFileRecordWriter getNewManifestWriter(String metadataLocation) throws IOException {
+  private ManifestFileRecordWriter getNewManifestWriter(String metadataLocation, boolean isInsertOp) throws IOException {
     OperatorContext operatorContext = mock(OperatorContext.class);
     when(operatorContext.getStats()).thenReturn(null);
     OptionManager options = mock(OptionManager.class);
     when(options.getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX)).thenReturn(CatalogOptions.METADATA_LEAF_COLUMN_MAX.getDefault().getNumVal());
     when(operatorContext.getOptions()).thenReturn(options);
-    IcebergManifestWriterPOP manifestWriterPOP = getManifestWriter(metadataLocation, false);
+    IcebergManifestWriterPOP manifestWriterPOP = getManifestWriter(metadataLocation, false, isInsertOp);
 
     ManifestFileRecordWriter manifestFileRecordWriter = new ManifestFileRecordWriter(operatorContext, manifestWriterPOP) {
       @Override
-      ManifestWritesHelper getManifestWritesHelper(IcebergManifestWriterPOP writer, int columnLimit) {
+      ManifestWritesHelper getManifestWritesHelper(IcebergManifestWriterPOP writer, OperatorContext context) {
         return new ManifestWritesHelper(writer) {
           @Override
           public PartitionSpec getPartitionSpec(WriterOptions writerOptions) {
@@ -416,6 +482,70 @@ public class TestManifestRecordWriter extends BaseTestQuery {
       .bucket("id", 16)
       .build();
     return spec;
+  }
+
+  private VectorContainer getIncomingVectorWithError(BufferAllocator allocator, PartitionSpec spec) throws IOException {
+    VarBinaryVector icebergMeta = new VarBinaryVector(RecordWriter.ICEBERG_METADATA_COLUMN, allocator);
+    icebergMeta.allocateNew(2);
+    DataFile dataFile1 = getDatafile("/path/to/datafile-1-pre.parquet", spec, "id_bucket=1");
+    icebergMeta.set(0, getAddDataFileIcebergMetadata(dataFile1));
+    DataFile dataFile2 = getDatafile("/path/to/datafile-2-pre.parquet", spec, "id_bucket=2");
+    icebergMeta.set(1, getAddDataFileIcebergMetadata(dataFile2));
+    icebergMeta.setValueCount(2);
+
+    IntVector operationType = new IntVector(RecordWriter.OPERATION_TYPE_COLUMN, allocator);
+    operationType.allocateNew(2);
+    operationType.set(0, OperationType.COPY_INTO_ERROR.value);
+    operationType.set(1, OperationType.COPY_INTO_ERROR.value);
+    operationType.setValueCount(2);
+
+    VarBinaryVector metadataVec = new VarBinaryVector(RecordWriter.METADATA_COLUMN, allocator);
+    metadataVec.allocateNew(2);
+    CopyIntoErrorInfo info1 = new CopyIntoErrorInfo.Builder("a161ab64-cbcc-42e8-ace4-7e30530fcc00",
+      "testUser", "testTable", "@S3", "file_0", new ExtendedFormatOptions(), FileType.CSV.name(), CopyIntoErrorInfo.CopyIntoFileState.PARTIALLY_LOADED)
+      .setRecordsLoadedCount(1).setRecordsRejectedCount(3).build();
+    metadataVec.set(0, ErrorInfo.Util.getJson(info1).getBytes());
+    CopyIntoErrorInfo info2 = new CopyIntoErrorInfo.Builder("a161ab64-cbcc-42e8-ace4-7e30530fcc00",
+      "testUser", "testTable", "@S3", "file_1", new ExtendedFormatOptions(), FileType.JSON.name(), CopyIntoErrorInfo.CopyIntoFileState.PARTIALLY_LOADED)
+      .setRecordsLoadedCount(2).setRecordsRejectedCount(4).build();
+    metadataVec.set(1, ErrorInfo.Util.getJson(info2).getBytes());
+    metadataVec.setValueCount(2);
+
+    BigIntVector recordCountVec = new BigIntVector(RecordWriter.RECORDS_COLUMN, allocator);
+    recordCountVec.allocateNew(2);
+    recordCountVec.set(0, 0L);
+    recordCountVec.set(1, 0L);
+    recordCountVec.setValueCount(2);
+
+    VarCharVector pathVec = new VarCharVector(RecordWriter.PATH_COLUMN, allocator);
+    pathVec.allocateNew(2);
+    pathVec.set(0, new Text("file_1"));
+    pathVec.set(1, new Text("file_2"));
+    pathVec.setValueCount(2);
+
+    BigIntVector fileSizeVec = new BigIntVector(RecordWriter.FILESIZE_COLUMN, allocator);
+    fileSizeVec.allocateNew(2);
+    fileSizeVec.set(0, 1L);
+    fileSizeVec.set(1, 2L);
+    fileSizeVec.setValueCount(2);
+
+    BigIntVector rejectedRecordsVector = new BigIntVector(RecordWriter.REJECTED_RECORDS_COLUMN, allocator);
+    rejectedRecordsVector.allocateNew(2);
+    rejectedRecordsVector.set(0, 3L);
+    rejectedRecordsVector.set(1, 4L);
+    rejectedRecordsVector.setValueCount(2);
+
+    VectorContainer container = new VectorContainer();
+    container.add(icebergMeta);
+    container.add(operationType);
+    container.add(metadataVec);
+    container.add(recordCountVec);
+    container.add(pathVec);
+    container.add(fileSizeVec);
+    container.add(rejectedRecordsVector);
+    container.setRecordCount(2);
+    container.buildSchema(BatchSchema.SelectionVectorMode.NONE);
+    return container;
   }
 
   private VectorContainer getIncomingVector(BufferAllocator allocator, PartitionSpec spec) throws IOException {
@@ -527,9 +657,9 @@ public class TestManifestRecordWriter extends BaseTestQuery {
     String tempFolderLoc = null;
     try {
       tempFolderLoc = TestUtilities.createTempDir();
-      ManifestFileRecordWriter manifestFileRecordWriter = getNewManifestWriterWithSchemaDiscovery(tempFolderLoc);
+      ManifestFileRecordWriter manifestFileRecordWriter = getNewManifestWriterWithSchemaDiscovery(tempFolderLoc, false);
 
-      RecordWriter.OutputEntryListener outputEntryListener = (recordCount, fileSize, path, metadata, partitionNumber, icebergMetadataBytes, schemaBytes, partition, operationTypeValue) -> {
+      RecordWriter.OutputEntryListener outputEntryListener = (recordCount, fileSize, path, metadata, partitionNumber, icebergMetadataBytes, schemaBytes, partition, operationTypeValue, partitionValue, rejectedRecordCount) -> {
         try {
           IcebergMetadataInformation icebergMetadata = IcebergSerDe.deserializeFromByteArray(icebergMetadataBytes);
           assertEquals(OperationType.ADD_MANIFESTFILE, OperationType.valueOf(operationTypeValue));
@@ -571,10 +701,10 @@ public class TestManifestRecordWriter extends BaseTestQuery {
     String tempFolderLoc = null;
     try {
       tempFolderLoc = TestUtilities.createTempDir();
-      ManifestFileRecordWriter manifestFileRecordWriter = getNewManifestWriterWithSchemaDiscovery(tempFolderLoc);
+      ManifestFileRecordWriter manifestFileRecordWriter = getNewManifestWriterWithSchemaDiscovery(tempFolderLoc, false);
       AtomicInteger matchedIdx = new AtomicInteger(0);
       List<String> expectedDataFiles = Arrays.asList("/path/to/datafile-1-pre.parquet", "/path/to/datafile-2-pre.parquet");
-      RecordWriter.OutputEntryListener outputEntryListener = (recordCount, fileSize, path, metadata, partitionNumber, icebergMetadataBytes, schemaBytes, partition, operationTypeValue) -> {
+      RecordWriter.OutputEntryListener outputEntryListener = (recordCount, fileSize, path, metadata, partitionNumber, icebergMetadataBytes, schemaBytes, partition, operationTypeValue, partitionValue, rejectedRecordCount) -> {
         try {
           assertNull(schemaBytes);
           IcebergMetadataInformation icebergMetadata = IcebergSerDe.deserializeFromByteArray(icebergMetadataBytes);
@@ -609,11 +739,11 @@ public class TestManifestRecordWriter extends BaseTestQuery {
     String tempFolderLoc = null;
     try {
       tempFolderLoc = TestUtilities.createTempDir();
-      ManifestFileRecordWriter manifestFileRecordWriter = getNewManifestWriterWithSchemaDiscovery(tempFolderLoc);
+      ManifestFileRecordWriter manifestFileRecordWriter = getNewManifestWriterWithSchemaDiscovery(tempFolderLoc, false);
       AtomicInteger deleteDataFileMatchIdx = new AtomicInteger(0);
       List<String> expectedDeleteDataFiles = Arrays.asList("/path/to/datafile-1-pre.parquet", "/path/to/datafile-2-pre.parquet");
       AtomicBoolean foundManifest = new AtomicBoolean(false);
-      RecordWriter.OutputEntryListener outputEntryListener = (recordCount, fileSize, path, metadata, partitionNumber, icebergMetadataBytes, schemaBytes, partition, operationTypeValue) -> {
+      RecordWriter.OutputEntryListener outputEntryListener = (recordCount, fileSize, path, metadata, partitionNumber, icebergMetadataBytes, schemaBytes, partition, operationTypeValue, partitionValue, rejectedRecordCount) -> {
         try {
           IcebergMetadataInformation icebergMetadata = IcebergSerDe.deserializeFromByteArray(icebergMetadataBytes);
           OperationType operationType = OperationType.valueOf(operationTypeValue);
@@ -668,11 +798,11 @@ public class TestManifestRecordWriter extends BaseTestQuery {
     String tempFolderLoc = null;
     try {
       tempFolderLoc = TestUtilities.createTempDir();
-      ManifestFileRecordWriter manifestFileRecordWriter = getNewManifestWriterWithSchemaDiscovery(tempFolderLoc);
+      ManifestFileRecordWriter manifestFileRecordWriter = getNewManifestWriterWithSchemaDiscovery(tempFolderLoc, false);
       AtomicInteger deleteDataFileMatchIdx = new AtomicInteger(0);
       List<String> expectedDeleteDataFiles = Arrays.asList("/path/to/datafile-1-pre.parquet", "/path/to/datafile-2-pre.parquet");
       AtomicBoolean foundManifest = new AtomicBoolean(false);
-      RecordWriter.OutputEntryListener outputEntryListener = (recordCount, fileSize, path, metadata, partitionNumber, icebergMetadataBytes, schemaBytes, partition, operationTypeValue) -> {
+      RecordWriter.OutputEntryListener outputEntryListener = (recordCount, fileSize, path, metadata, partitionNumber, icebergMetadataBytes, schemaBytes, partition, operationTypeValue, partitionValue, rejectedRecordCount) -> {
         try {
           IcebergMetadataInformation icebergMetadata = IcebergSerDe.deserializeFromByteArray(icebergMetadataBytes);
           OperationType operationType = OperationType.valueOf(operationTypeValue);
@@ -866,13 +996,13 @@ public class TestManifestRecordWriter extends BaseTestQuery {
   }
 
 
-  private ManifestFileRecordWriter getNewManifestWriterWithSchemaDiscovery(String metadataLocation) throws IOException {
+  private ManifestFileRecordWriter getNewManifestWriterWithSchemaDiscovery(String metadataLocation, boolean isInsertOp) throws IOException {
     OperatorContext operatorContext = mock(OperatorContext.class);
     when(operatorContext.getStats()).thenReturn(null);
     OptionManager options = mock(OptionManager.class);
     when(options.getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX)).thenReturn(CatalogOptions.METADATA_LEAF_COLUMN_MAX.getDefault().getNumVal());
     when(operatorContext.getOptions()).thenReturn(options);
-    IcebergManifestWriterPOP manifestWriterPOP = getManifestWriter(metadataLocation, true);
+    IcebergManifestWriterPOP manifestWriterPOP = getManifestWriter(metadataLocation, true, isInsertOp);
 
     ManifestFileRecordWriter manifestFileRecordWriter = new ManifestFileRecordWriter(operatorContext, manifestWriterPOP);
     manifestFileRecordWriter = spy(manifestFileRecordWriter);
@@ -882,7 +1012,7 @@ public class TestManifestRecordWriter extends BaseTestQuery {
     return manifestFileRecordWriter;
   }
 
-  private IcebergManifestWriterPOP getManifestWriter(String metadataLocation, boolean detectSchema) throws IOException {
+  private IcebergManifestWriterPOP getManifestWriter(String metadataLocation, boolean detectSchema, boolean isInsertOp) throws IOException {
     IcebergManifestWriterPOP manifestWriterPOP = mock(IcebergManifestWriterPOP.class);
     FileSystemPlugin fileSystemPlugin = BaseTestQuery.getMockedFileSystemPlugin();
     Configuration configuration = new Configuration();
@@ -901,6 +1031,9 @@ public class TestManifestRecordWriter extends BaseTestQuery {
     when(icebergTableProps.isMetadataRefresh()).thenReturn(true);
     when(icebergTableProps.getPartitionColumnNames()).thenReturn(Collections.singletonList("id"));
     when(icebergTableProps.getFullSchema()).thenReturn(BatchSchema.of(Field.nullable("id", new ArrowType.Int(32, false))));
+    if (isInsertOp) {
+      when(icebergTableProps.getIcebergOpType()).thenReturn(IcebergCommandType.INSERT);
+    }
     IcebergWriterOptions icebergOptions = new ImmutableIcebergWriterOptions.Builder().setIcebergTableProps(icebergTableProps).build();
     TableFormatWriterOptions tableFormatOptions = new ImmutableTableFormatWriterOptions.Builder()
       .setIcebergSpecificOptions(icebergOptions).build();

@@ -31,6 +31,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.connector.metadata.DatasetSplit;
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.server.SabotContext;
@@ -136,7 +137,7 @@ public class TestDeltaLogCheckpointParquetReader extends BaseTestQuery {
   }
 
   @Test
-  public void testCheckpointParquetNoStats() throws IOException {
+  public void testCheckpointParquetNoStatsFullRowCount() throws IOException {
     String path = "src/test/resources/deltalake/noStats/00000000000000000010.checkpoint.parquet";
     File f = new File(path);
     Path checkpointFilePath = Path.of(f.toURI());
@@ -145,8 +146,24 @@ public class TestDeltaLogCheckpointParquetReader extends BaseTestQuery {
     DeltaLogSnapshot snapshot = reader.parseMetadata(rootDir, sabotContext, fs, new ArrayList<>(Arrays.asList(fs.getFileAttributes(checkpointFilePath))), 10);
     assertTrue(snapshot.containsCheckpoint());
     assertEquals(10, snapshot.getNetFilesAdded());
-    assertEquals(10, snapshot.getNetOutputRows());
+    assertEquals(185, snapshot.getNetOutputRows());
     assertEquals(6311, snapshot.getNetBytesAdded());
+  }
+
+  @Test
+  public void testCheckpointParquetNoStatsEstimatedRowCount() throws Exception {
+    String path = "src/test/resources/deltalake/noStats/00000000000000000010.checkpoint.parquet";
+    File f = new File(path);
+    Path checkpointFilePath = Path.of(f.toURI());
+    Path rootDir = checkpointFilePath.getParent();
+    try (AutoCloseable c = disableDeltaTableFullRowCount()) {
+      DeltaLogCheckpointParquetReader reader = new DeltaLogCheckpointParquetReader();
+      DeltaLogSnapshot snapshot = reader.parseMetadata(rootDir, sabotContext, fs, new ArrayList<>(Arrays.asList(fs.getFileAttributes(checkpointFilePath))), 10);
+      assertTrue(snapshot.containsCheckpoint());
+      assertEquals(10, snapshot.getNetFilesAdded());
+      assertEquals(10, snapshot.getNetOutputRows());
+      assertEquals(6311, snapshot.getNetBytesAdded());
+    }
   }
 
   @Test
@@ -192,5 +209,21 @@ public class TestDeltaLogCheckpointParquetReader extends BaseTestQuery {
     assertEquals(0, updateKey1.getLastModificationTime()); // split is immutable
     assertEquals(checkpointFilePath2.toString(), updateKey1.getPath());
     assertEquals(fs.getFileAttributes(checkpointFilePath2).size(), updateKey1.getLength());
+  }
+
+  @Test
+  public void testMalformedMetadata() {
+    String path = "src/test/resources/deltalake/malformedMetadata/_delta_log/00000000000000000010.checkpoint.parquet";
+    File f = new File(path);
+    DeltaLogCheckpointParquetReader reader = new DeltaLogCheckpointParquetReader();
+
+    try {
+      reader.parseMetadata(null, sabotContext, fs, new ArrayList<>(Arrays.asList(fs.getFileAttributes(Path.of(f.toURI())))), 10);
+    } catch (Exception exception) {
+      assertEquals(exception.getCause().getClass(), UserException.class);
+      String expectedMessage = "UserException: Metadata read Failed. Malformed checkpoint parquet files(s)";
+      String actualMessage = exception.getMessage();
+      assertTrue(actualMessage.contains(expectedMessage));
+    }
   }
 }

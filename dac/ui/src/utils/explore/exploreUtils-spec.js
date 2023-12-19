@@ -372,66 +372,6 @@ describe("exploreUtils", () => {
     });
   });
 
-  describe("method getVersionedResoursePath", () => {
-    it("should return link for transform", () => {
-      const resourceId = "123";
-      const tableId = "123";
-      const version = "123";
-      const mode = "123";
-      expect(
-        exploreUtils.getVersionedResoursePath({
-          resourceId,
-          tableId,
-          version,
-          mode,
-        })
-      ).to.eql("/dataset/tmp.UNTITLED/version/123");
-    });
-
-    it("should return link for transform", () => {
-      const resourceId = "123";
-      const tableId = "123";
-      const version = "123";
-      const mode = "edit";
-      expect(
-        exploreUtils.getVersionedResoursePath({
-          resourceId,
-          tableId,
-          version,
-          mode,
-        })
-      ).to.eql("/dataset/123.123/version/123");
-    });
-  });
-
-  describe("method getFullPath", () => {
-    it("should return tmp path", () => {
-      const resourceId = "123";
-      const tableId = "123";
-      const mode = "123";
-      expect(
-        exploreUtils.getFullPath({
-          resourceId,
-          tableId,
-          mode,
-        })
-      ).to.eql("tmp.UNTITLED");
-    });
-
-    it("should return full path based on dataset data", () => {
-      const resourceId = "123";
-      const tableId = "123";
-      const mode = "edit";
-      expect(
-        exploreUtils.getFullPath({
-          resourceId,
-          tableId,
-          mode,
-        })
-      ).to.eql("123.123");
-    });
-  });
-
   describe("method getNewDatasetVersion", () => {
     it("should return unique versions in special format 000 + timastamp", () => {
       expect(exploreUtils.getNewDatasetVersion().length).to.eql(16);

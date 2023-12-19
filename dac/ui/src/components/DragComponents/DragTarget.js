@@ -34,6 +34,10 @@ const target = {
     const dragIndex = monitor.getItem().index;
     const hoverIndex = props.index;
 
+    if (props.onHover) {
+      props.onHover(monitor.getItem());
+    }
+
     if (dragIndex === hoverIndex) {
       return;
     }

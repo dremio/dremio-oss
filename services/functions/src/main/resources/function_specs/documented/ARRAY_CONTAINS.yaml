@@ -22,7 +22,7 @@ signatures:
     parameters:
       -
         kind: "REGULAR"
-        type: "LIST"
+        type: "ARRAY"
         name: "List"
         description: "List to search"
       -
@@ -32,7 +32,7 @@ signatures:
         description: "An expression with type comparable to List"
     sampleCodes:
       -
-        call: SELECT ARRAY_CONTAINS(CONVERT_FROM('[1, 2, 3]', 'json'), 5)
+        call: SELECT ARRAY_CONTAINS(ARRAY[1, 2, 3], 5)
         result: false
-functionCategories: []
+functionCategories: [ARRAY]
 description: "Returns whether a given value is present in the list.\n"

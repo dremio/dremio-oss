@@ -16,6 +16,8 @@
 package com.dremio.exec.ops;
 
 import static com.dremio.exec.ExecConstants.ENABLE_PARTITION_STATS_USAGE;
+import static com.dremio.proto.model.PartitionStats.PartitionStatsValue;
+import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static java.util.Arrays.asList;
 
 import java.util.Collection;
@@ -32,10 +34,9 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.vector.holders.ValueHolder;
 import org.apache.arrow.vector.types.Types.MinorType;
+import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.tools.RuleSet;
 import org.apache.calcite.tools.RuleSets;
-import org.apache.commons.lang3.tuple.Pair;
-import org.projectnessie.client.api.NessieApiV1;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.LogicalPlanPersistence;
@@ -59,10 +60,11 @@ import com.dremio.exec.planner.acceleration.substitution.DefaultSubstitutionProv
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionProviderFactory;
 import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.cost.RelMetadataQuerySupplier;
-import com.dremio.exec.planner.logical.partition.PartitionStatsBasedPruner;
+import com.dremio.exec.planner.logical.partition.PartitionStatsBasedPrunerCache;
 import com.dremio.exec.planner.logical.partition.PruneFilterCondition;
 import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.planner.sql.OperatorTable;
+import com.dremio.exec.planner.sql.DremioCompositeSqlOperatorTable;
+import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.proto.CoordExecRPC.QueryContextInformation;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.UserBitShared.QueryId;
@@ -70,9 +72,7 @@ import com.dremio.exec.proto.UserBitShared.WorkloadType;
 import com.dremio.exec.proto.UserProtos.QueryPriority;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.server.options.DefaultOptionManager;
 import com.dremio.exec.server.options.EagerCachingOptionManager;
-import com.dremio.exec.server.options.OptionManagerWrapper;
 import com.dremio.exec.server.options.QueryOptionManager;
 import com.dremio.exec.server.options.SessionOptionManager;
 import com.dremio.exec.server.options.SystemOptionManager;
@@ -89,6 +89,9 @@ import com.dremio.exec.util.Utilities;
 import com.dremio.exec.work.WorkStats;
 import com.dremio.options.OptionList;
 import com.dremio.options.OptionManager;
+import com.dremio.options.impl.DefaultOptionManager;
+import com.dremio.options.impl.OptionManagerWrapper;
+import com.dremio.partitionstats.cache.PartitionStatsCache;
 import com.dremio.resource.GroupResourceInformation;
 import com.dremio.resource.common.ReflectionRoutingManager;
 import com.dremio.resource.common.ResourceSchedulingContext;
@@ -105,10 +108,13 @@ import com.google.common.base.Predicates;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
+import io.opentelemetry.instrumentation.annotations.WithSpan;
+
 // TODO - consider re-name to PlanningContext, as the query execution context actually appears
 // in fragment contexts
+// **NOTE** Ensure that an instantiated QueryContext is closed properly using a try-with-resources statement
+// Or else dangling child allocators could cause issues when closing resources finally in the daemon
 public class QueryContext implements AutoCloseable, ResourceSchedulingContext, OptimizerRulesContext {
-
   private final SabotContext sabotContext;
   private final UserSession session;
   private final QueryId queryId;
@@ -117,7 +123,7 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
   private final QueryOptionManager queryOptionManager;
   private final ExecutionControls executionControls;
   private final PlannerSettings plannerSettings;
-  private final OperatorTable table;
+  private final SqlOperatorTable table;
 
   private final QueryContextInformation queryContextInfo;
   protected ContextInformation contextInformation;
@@ -143,12 +149,14 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
   protected final WorkloadType workloadType;
   private final RelMetadataQuerySupplier relMetadataQuerySupplier;
 
+  private final PlanCache planCache;
+  private final PartitionStatsCache partitionStatsPredicateCache;
+
   /*
    * Flag to indicate if close has been called, after calling close the first
    * time this is set to true and the close method becomes a no-op.
    */
   private boolean closed = false;
-  private PlanCache planCache;
 
   /*
    * Flag to indicate query requires groups info
@@ -162,30 +170,9 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
     final SabotContext sabotContext,
     QueryId queryId
   ) {
-    this(session, sabotContext, queryId, Optional.empty(), Optional.empty());
+    this(session, sabotContext, queryId, null, Long.MAX_VALUE, Predicates.alwaysTrue());
   }
 
-  public QueryContext(
-      final UserSession session,
-      final SabotContext sabotContext,
-      QueryId queryId,
-      Optional<Boolean> checkMetadataValidity,
-      Optional<Boolean> neverPromote
-  ) {
-    this(session, sabotContext, queryId, null, Long.MAX_VALUE, Predicates.alwaysTrue(),
-        checkMetadataValidity, neverPromote);
-  }
-
-  public QueryContext(
-      final UserSession session,
-      final SabotContext sabotContext,
-      QueryId queryId,
-      QueryPriority priority,
-      long maxAllocation,
-      Predicate<DatasetConfig> datasetValidityChecker
-  ) {
-    this(session, sabotContext, queryId, priority, maxAllocation, datasetValidityChecker, Optional.empty(), Optional.empty());
-  }
 
   public QueryContext(
     final UserSession session,
@@ -193,27 +180,26 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
     QueryId queryId,
     QueryPriority priority,
     long maxAllocation,
-    Predicate<DatasetConfig> datasetValidityChecker,
-    PlanCache planCache
+    Predicate<DatasetConfig> datasetValidityChecker
   ) {
-    this(session, sabotContext, queryId, priority, maxAllocation, datasetValidityChecker, Optional.empty(), Optional.empty());
-    this.planCache = planCache;
+    this(session, sabotContext, queryId, priority, maxAllocation, datasetValidityChecker, null, null);
   }
 
-  private QueryContext(
+  public QueryContext(
       final UserSession session,
       final SabotContext sabotContext,
       QueryId queryId,
       QueryPriority priority,
       long maxAllocation,
       Predicate<DatasetConfig> datasetValidityChecker,
-      Optional<Boolean> checkMetadataValidity,
-      Optional<Boolean> neverPromote
-
+      PlanCache planCache,
+      PartitionStatsCache partitionStatsCache
   ) {
     this.sabotContext = sabotContext;
     this.session = session;
     this.queryId = queryId;
+    this.planCache = planCache;
+    this.partitionStatsPredicateCache = partitionStatsCache;
 
     this.queryOptionManager = new QueryOptionManager(sabotContext.getOptionValidatorListing());
     this.optionManager = OptionManagerWrapper.Builder.newBuilder()
@@ -228,7 +214,7 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
     functionImplementationRegistry = this.optionManager.getOption(PlannerSettings
       .ENABLE_DECIMAL_V2)? sabotContext.getDecimalFunctionImplementationRegistry() : sabotContext
       .getFunctionImplementationRegistry();
-    this.table = new OperatorTable(functionImplementationRegistry);
+    this.table = DremioCompositeSqlOperatorTable.create(functionImplementationRegistry);
 
     this.queryPriority = priority;
     this.workloadType = Utilities.getWorkloadType(queryPriority, session.getClientInfos());
@@ -257,14 +243,12 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
     final ImmutableMetadataRequestOptions.Builder requestOptions = MetadataRequestOptions.newBuilder()
         .setSchemaConfig(schemaConfig)
         .setSourceVersionMapping(CaseInsensitiveMap.newImmutableMap(session.getSourceVersionMapping()))
-        .setUseCachingNamespace(true);
-    checkMetadataValidity.ifPresent(requestOptions::setCheckValidity);
-    neverPromote.ifPresent(requestOptions::setNeverPromote);
-    if (priority != null && priority.getWorkloadType() == WorkloadType.ACCELERATOR) {
-      requestOptions.setErrorOnUnspecifiedSourceVersion(true);
-    }
-    this.catalog = sabotContext.getCatalogService()
-        .getCatalog(requestOptions.build());
+        .setUseCachingNamespace(true)
+      .setCheckValidity(session.checkMetadataValidity())
+      .setNeverPromote(session.neverPromote())
+      .setErrorOnUnspecifiedSourceVersion(((priority != null) && (priority.getWorkloadType() == WorkloadType.ACCELERATOR)) ||session.errorOnUnspecifiedVersion());
+
+    this.catalog = sabotContext.getCatalogService().getCatalog(requestOptions.build());
     this.substitutionProviderFactory = sabotContext.getConfig()
         .getInstance("dremio.exec.substitution.factory",
             SubstitutionProviderFactory.class,
@@ -275,6 +259,10 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
     this.survivingFileCountsWithPruneFilter = Maps.newHashMap();
     this.errorContexts = Lists.newArrayList();
     this.relMetadataQuerySupplier = sabotContext.getRelMetadataQuerySupplier().get();
+  }
+
+  public PlannerCatalog createPlannerCatalog(SqlConverter converter) {
+    return new PlannerCatalogImpl(converter, this);
   }
 
   @Override
@@ -407,6 +395,8 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
     return sabotContext.getDremioConfig();
   }
 
+  public SabotContext getSabotContext() { return sabotContext; }
+
   /**
    * Return the list of all non-default options including QUERY, SESSION and SYSTEM level
    * @return
@@ -429,7 +419,7 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
     return sabotContext.getClasspathScan();
   }
 
-  public OperatorTable getOperatorTable() {
+  public SqlOperatorTable getOperatorTable() {
     return table;
   }
 
@@ -530,6 +520,8 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
       if (!closed) {
         AutoCloseables.close(asList(bufferManager, allocator));
         session.setLastQueryId(queryId);
+        // In case this QueryContext is going to live in the plan cache or materialization cache, reduce the bloat
+        catalog.getAllRequestedTables().forEach(t -> catalog.clearDatasetCache(t.getPath(), t.getVersionContext()));
       }
     } finally {
       closed = true;
@@ -547,21 +539,23 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
     return sabotContext.getExecutorService();
   }
 
-  public NamespaceService getNamespaceService(String userName) {
-    return sabotContext.getNamespaceService(userName);
+  public NamespaceService getNamespaceService() {
+    return sabotContext
+      .getNamespaceService(getSession().getCredentials().getUserName());
+  }
+
+  public NamespaceService getSystemNamespaceService() {
+    return sabotContext
+      .getNamespaceService(SYSTEM_USERNAME);
   }
 
   public boolean isCloud() {
     return !sabotContext.getCoordinatorModeInfoProvider().get().isInSoftwareMode();
   }
 
-  // TODO (DX-40379) : remove this method and use plugin to retrieve the Nessie client.
-  public Provider<NessieApiV1> getNessieClientProvider() {
-    return sabotContext.getNessieClientProvider();
-  }
-
+  @WithSpan("QueryContext.getSurvivingRowCountWithPruneFilter")
   @Override
-  public Pair<Long, Long> getSurvivingRowCountWithPruneFilter(ScanRelBase scan, PruneFilterCondition pruneCondition) throws Exception {
+  public PartitionStatsValue getSurvivingRowCountWithPruneFilter(ScanRelBase scan, PruneFilterCondition pruneCondition) throws Exception {
     if (pruneCondition != null && getPlannerSettings().getOptions().getOption(ENABLE_PARTITION_STATS_USAGE)) {
       List<String> table = scan.getTableMetadata().getName().getPathComponents();
       if (!survivingRowCountsWithPruneFilter.containsKey(table)) {
@@ -580,17 +574,26 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
       Long fileCount = fileCounts.get(filterKey);
 
       if (rowCount == null) {
-        Optional<Pair<Long, Long>> stats = PartitionStatsBasedPruner.prune(this, scan, pruneCondition);
+        Optional<PartitionStatsValue> stats = new PartitionStatsBasedPrunerCache(
+          this,
+          scan,
+          pruneCondition,
+          partitionStatsPredicateCache)
+          .lookupCache();
 
-        if(stats.isPresent()) {
-          rowCount = stats.get().getLeft();
-          fileCount = stats.get().getRight();
+        if (stats.isPresent()) {
+          rowCount = stats.get().getRowcount();
+          fileCount = stats.get().getFilecount();
+          rowCounts.put(filterKey, rowCount);
+          fileCounts.put(filterKey, fileCount);
+        } else {
+          return null;
         }
-
-        rowCounts.put(filterKey, rowCount);
-        fileCounts.put(filterKey, fileCount);
       }
-      return Pair.of(rowCount, fileCount);
+      return PartitionStatsValue.newBuilder()
+        .setRowcount(rowCount)
+        .setFilecount(fileCount)
+        .build();
     }
     return null;
   }

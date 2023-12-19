@@ -49,13 +49,13 @@ public class HashToRandomExchangePrel extends ExchangePrel {
   public static final LongValidator RECEIVER_RESERVE = new PositiveLongValidator("planner.op.hashrandom.receiver.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
   public static final LongValidator RECEIVER_LIMIT = new PositiveLongValidator("planner.op.hashrandom.receiver.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
-  private final List<DistributionField> fields;
-  private final String hashFunctionName;
+  protected final List<DistributionField> fields;
+  protected final String hashFunctionName;
 
   // function to create a tableFunction op before a sender to get the corresponding receiver fragment
   // if null a project op will be used to hash the expr
-  private final Function<Prel, TableFunctionPrel> tableFunctionCreator;
-  private final boolean windowPushedDown;
+  protected final Function<Prel, TableFunctionPrel> tableFunctionCreator;
+  protected final boolean windowPushedDown;
 
 
   public HashToRandomExchangePrel(RelOptCluster cluster, RelTraitSet traitSet, RelNode input, List<DistributionField> fields,

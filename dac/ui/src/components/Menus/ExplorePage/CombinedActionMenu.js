@@ -19,9 +19,7 @@ import { withRouter } from "react-router";
 import { connect } from "react-redux";
 import Immutable from "immutable";
 import { injectIntl } from "react-intl";
-
 import { CombinedActionMenuMixin } from "dyn-load/components/Menus/ExplorePage/CombinedActionMenuMixin.js";
-import MenuItem from "@app/components/Menus/MenuItem";
 import { getJobProgress } from "@app/selectors/explore";
 import { HoverHelp } from "dremio-ui-lib";
 
@@ -47,30 +45,12 @@ export class CombinedActionMenu extends PureComponent {
     location: PropTypes.object,
   };
 
-  handleSettingsClick = () => {
-    const { isSettingsDisabled, dataset, closeMenu } = this.props;
-    const { router, location } = this.context;
-    closeMenu();
-    if (isSettingsDisabled) return;
-
-    router.push({
-      ...location,
-      state: {
-        modal: "DatasetSettingsModal",
-        datasetUrl: dataset.getIn(["apiLinks", "namespaceEntity"]),
-        datasetType: dataset.get("datasetType"),
-        query: { then: "query" },
-        isHomePage: false,
-      },
-    });
-  };
-
   renderDownloadSectionHeader = () => {
     const { intl, jobProgress } = this.props;
     const isRun = jobProgress && jobProgress.isRun;
     const headerText = isRun
-      ? la("Download (limited)")
-      : la("Download (sample)");
+      ? intl.formatMessage({ id: "Explore.Download.Limited" })
+      : intl.formatMessage({ id: "Explore.Download.Sample" });
     const helpContent = isRun
       ? intl.formatMessage({ id: "Explore.Run.Warning" })
       : intl.formatMessage({ id: "Explore.Preview.Warning" });
@@ -83,21 +63,7 @@ export class CombinedActionMenu extends PureComponent {
   };
 
   render() {
-    const { isSettingsDisabled } = this.props;
-    return (
-      <Menu>
-        <MenuLabel>{la("Dataset")}</MenuLabel>
-        <MenuItem
-          key="settings"
-          className={"ellipsis-settings-item"}
-          onClick={this.handleSettingsClick}
-          disabled={isSettingsDisabled}
-        >
-          {la("Settings")}
-        </MenuItem>
-        {this.checkToRenderDownloadSection()}
-      </Menu>
-    );
+    return <Menu>{this.checkToRenderDownloadSection()}</Menu>;
   }
 }
 

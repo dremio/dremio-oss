@@ -22,12 +22,10 @@ import org.apache.calcite.rel.RelNode;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
-import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.sql.DremioSqlToRelConverter;
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.service.users.SystemUser;
 
 public class ExternalMaterializationDescriptor extends MaterializationDescriptor {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExternalMaterializationDescriptor.class);
@@ -49,10 +47,8 @@ public class ExternalMaterializationDescriptor extends MaterializationDescriptor
     String queryPath = PathUtils.constructFullPath(virtualDatasetPath);
     String targetPath = PathUtils.constructFullPath(getPath());
 
-    final RelNode queryRel = DremioSqlToRelConverter.expandView(null, new CatalogUser(SystemUser.SYSTEM_USERNAME),
-        String.format("select * from %s", queryPath), null, converter, null, null).rel;
-    RelNode tableRel = DremioSqlToRelConverter.expandView(null, new CatalogUser(SystemUser.SYSTEM_USERNAME),
-        String.format("select * from %s", targetPath), null, converter, null, null).rel;
+    final RelNode queryRel = DremioSqlToRelConverter.expandView(null, String.format("select * from %s", queryPath), converter).rel;
+    RelNode tableRel = DremioSqlToRelConverter.expandView(null, String.format("select * from %s", targetPath), converter).rel;
 
     if (!MoreRelOptUtil.areRowTypesEqual(queryRel.getRowType(), tableRel.getRowType(), true, false)) {
       throw UserException.validationError()

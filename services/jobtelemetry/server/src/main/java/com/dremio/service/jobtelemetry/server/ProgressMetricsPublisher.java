@@ -30,8 +30,6 @@ import com.dremio.exec.proto.UserBitShared;
 import com.dremio.service.jobtelemetry.server.store.MetricsStore;
 import com.google.common.annotations.VisibleForTesting;
 
-import io.opentracing.noop.NoopTracerFactory;
-
 /**
  * Publishes metrics to registered subscribers periodically.
  */
@@ -50,7 +48,7 @@ public class ProgressMetricsPublisher implements AutoCloseable {
     this.publishFrequencyMillis = publishFrequencyMillis;
     this.scheduler = new CloseableSchedulerThreadPool("metrics-publisher", 1);
     this.scheduler.setRemoveOnCancelPolicy(true);
-    scheduledContextMigratingExecutorService = new ScheduledContextMigratingExecutorService(scheduler, NoopTracerFactory.create());
+    scheduledContextMigratingExecutorService = new ScheduledContextMigratingExecutorService(scheduler);
   }
 
   @VisibleForTesting

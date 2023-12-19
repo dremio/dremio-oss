@@ -348,7 +348,7 @@ public final class ParquetReaderUtility {
     int i = 0;
     for (final BlockMetaData block : blocks) {
       if (block != null) {
-        final long firstDataPage = block.getColumns().get(0).getFirstDataPageOffset();
+        final long firstDataPage = getFirstPageOffset(block.getColumns().get(0));
         if (firstDataPage >= splitStart && firstDataPage < splitStart + splitLength) {
           rowGroupNums.add(i);
         }
@@ -357,6 +357,28 @@ public final class ParquetReaderUtility {
     }
 
     return rowGroupNums;
+  }
+
+  /**
+   * Returns the offset of the first page in the column chunk disregarding the page type. (In case of dictionary
+   * encoding it will be the offset of the dictionary page otherwise the offset of the first data page.)
+   */
+  public static long getFirstPageOffset(ColumnChunkMetaData columnChunk) {
+    // It seems ColumnChunkMetaData.getStartingPos() in parquet-mr does not handle all the special cases
+    long dictPageOffset = columnChunk.getDictionaryPageOffset();
+    long firstDataPageOffset = columnChunk.getFirstDataPageOffset();
+
+    // 0 offset is invalid because of the first MAGIC bytes at the beginning of a Parquet file. 0 usually means unset.
+    if (dictPageOffset > 0) {
+      // Normal case: dictionary page is before the first data page
+      // Special case: only dictionary page exist; no values are encoded but dictionary page got written somehow
+      if (dictPageOffset < firstDataPageOffset || firstDataPageOffset <= 0) {
+        return dictPageOffset;
+      }
+    }
+    // In any other case we return the first data page.
+    // (Since dictPageOffset is either unset or invalid we cannot do anything smarter anyway.)
+    return firstDataPageOffset;
   }
 
   private ParquetReaderUtility() {

@@ -23,10 +23,10 @@ import java.util.List;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.ResolvedVersionContext;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult;
 import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
@@ -60,7 +60,7 @@ public class UseVersionHandler extends BaseVersionHandler<SimpleCommandResult> {
       userSession.getDefaultSchemaPath());
 
     VersionContext requestedVersion =
-      ReferenceTypeUtils.map(useVersion.getRefType(), useVersion.getRefValue());
+      ReferenceTypeUtils.map(useVersion.getRefType(), useVersion.getRefValue(), useVersion.getTimestamp());
     if (!requestedVersion.isSpecified()) {
       // Defensive, this shouldn't be possible
       throw new IllegalStateException("Must request a real version.");
@@ -87,7 +87,7 @@ public class UseVersionHandler extends BaseVersionHandler<SimpleCommandResult> {
 
     // Resolving a bare commit does not validate existence for performance reasons. Check explicitly
     // so that we can fail early and inform the user.
-    if (resolvedVersionContext.isBareCommit() && !versionedPlugin.commitExists(resolvedVersionContext.getCommitHash())) {
+    if (resolvedVersionContext.isCommit() && !versionedPlugin.commitExists(resolvedVersionContext.getCommitHash())) {
       throw UserException.validationError()
         .message("Commit %s not found in source %s.", resolvedVersionContext.getCommitHash(), sourceName)
         .buildSilently();

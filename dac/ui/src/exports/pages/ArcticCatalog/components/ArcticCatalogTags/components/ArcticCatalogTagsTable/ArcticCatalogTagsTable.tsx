@@ -23,7 +23,6 @@ import { Tag } from "@app/services/nessie/client";
 import { Reference } from "@app/types/nessie";
 import { generateTableRows, getTagsTableColumns } from "./utils";
 import DeleteTagDialog from "@app/pages/NessieHomePage/components/DeleteTagDialog/DeleteTagDialog";
-
 import "./ArcticCatalogTagsTable.less";
 
 const INITIAL_BRANCH_STATE_VALUE = {

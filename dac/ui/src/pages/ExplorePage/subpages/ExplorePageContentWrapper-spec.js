@@ -38,6 +38,7 @@ describe("ExplorePageContentWrapper", () => {
       errorData: new Immutable.Map(),
       isError: false,
       queryStatuses: [],
+      availablePageTypes: [],
     };
     contextTypes = {
       router: {},

@@ -42,6 +42,7 @@ import com.google.common.cache.LoadingCache;
 public final class HiveImpersonationUtil {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HiveImpersonationUtil.class);
 
+  @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
   private static final LoadingCache<Key, UserGroupInformation> CACHE = CacheBuilder.newBuilder()
     .maximumSize(100)
     .expireAfterAccess(60, TimeUnit.MINUTES)

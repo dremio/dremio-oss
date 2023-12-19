@@ -67,7 +67,7 @@ public class ProtobufStoreGenerator extends ProtoGeneratorMixin implements DataG
   /**
    * Comparator class that compares protobuf DummyId objects.
    */
-  private class DummyIdProtobufComparator implements Comparator<DummyId> {
+  private static final class DummyIdProtobufComparator implements Comparator<DummyId> {
     @Override
     public int compare(DummyId o1, DummyId o2) {
       return o1.getId().compareTo(o2.getId());

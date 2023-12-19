@@ -15,64 +15,73 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import static com.dremio.exec.store.SystemSchemas.FILE_PATH;
+import static com.dremio.exec.store.SystemSchemas.FILE_TYPE;
+import static com.dremio.exec.store.SystemSchemas.METADATA_FILE_PATH;
+
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 
+import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.physical.config.CarryForwardAwareTableFunctionContext;
 import com.dremio.exec.physical.config.TableFunctionConfig;
+import com.dremio.exec.physical.config.TableFunctionContext;
 import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.physical.TableFunctionPrel;
-import com.dremio.exec.planner.physical.TableFunctionUtil;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.store.TableMetadata;
+import com.google.common.collect.ImmutableMap;
 
 /**
  * A prel for PartitionStatsScanTableFunction
  */
 public class PartitionStatsScanPrel extends TableFunctionPrel {
+  private StoragePluginId storagePluginId;
+
   public PartitionStatsScanPrel(
+    StoragePluginId storagePluginId,
     RelOptCluster cluster,
     RelTraitSet traitSet,
-    RelOptTable table,
     RelNode child,
     BatchSchema schema,
-    TableMetadata tableMetadata,
-    Long survivingRecords) {
-    this(
-      cluster,
-      traitSet,
-      table,
-      child,
-      tableMetadata,
-      TableFunctionUtil.getIcebergPartitionStatsFunctionConfig(schema, tableMetadata),
-      CalciteArrowHelper.wrap(schema)
-        .toCalciteRecordType(cluster.getTypeFactory(),
-          PrelUtil.getPlannerSettings(cluster).isFullNestedSchemaSupport()),
-      survivingRecords);
+    Long survivingRecords,
+    String user,
+    boolean isCarryForwardEnabled) {
+    this(storagePluginId, cluster, traitSet, child,
+      getTableFunctionConfig(schema, storagePluginId, isCarryForwardEnabled),
+      CalciteArrowHelper.wrap(schema).toCalciteRecordType(cluster.getTypeFactory(),
+        PrelUtil.getPlannerSettings(cluster).isFullNestedSchemaSupport()),
+      survivingRecords, user);
+    this.storagePluginId = storagePluginId;
   }
 
-  private PartitionStatsScanPrel(
-    RelOptCluster cluster,
-    RelTraitSet traitSet,
-    RelOptTable table,
-    RelNode child,
-    TableMetadata tableMetadata,
-    TableFunctionConfig functionConfig,
-    RelDataType rowType,
-    Long survivingRecords) {
-    super(cluster, traitSet, table, child, tableMetadata, functionConfig, rowType, survivingRecords);
+  private PartitionStatsScanPrel(StoragePluginId storagePluginId, RelOptCluster cluster, RelTraitSet traits,
+                                 RelNode child, TableFunctionConfig functionConfig, RelDataType rowType,
+                                 long survivingRecords, String user) {
+    super(cluster, traits, null, child, null, functionConfig, rowType, null,
+      survivingRecords, Collections.emptyList(), user);
+    this.storagePluginId = storagePluginId;
+  }
+
+  private static TableFunctionConfig getTableFunctionConfig(BatchSchema schema, StoragePluginId storagePluginId, boolean isCarryForwardEnabled) {
+    TableFunctionContext tableFunctionContext = new CarryForwardAwareTableFunctionContext(schema, storagePluginId,
+      isCarryForwardEnabled, ImmutableMap.of(SchemaPath.getSimplePath(METADATA_FILE_PATH),
+        SchemaPath.getSimplePath(FILE_PATH)), FILE_TYPE, IcebergFileType.METADATA_JSON.name());
+    return new TableFunctionConfig(TableFunctionConfig.FunctionType.ICEBERG_PARTITION_STATS_SCAN, true,
+      tableFunctionContext);
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new PartitionStatsScanPrel(getCluster(), getTraitSet(), getTable(), sole(inputs),
-      getTableMetadata(), getTableFunctionConfig(), getRowType(), getSurvivingRecords());
+    return new PartitionStatsScanPrel(storagePluginId, getCluster(), getTraitSet(), sole(inputs),
+      getTableFunctionConfig(), getRowType(), getSurvivingRecords(), user);
   }
 
   @Override

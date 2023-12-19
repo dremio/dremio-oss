@@ -23,7 +23,7 @@ type FilterParams = {
   sort?: string;
 };
 type ReflectionParams = {
-  reflectionId: string;
+  reflectionId?: string;
 };
 
 /** Jobs  */

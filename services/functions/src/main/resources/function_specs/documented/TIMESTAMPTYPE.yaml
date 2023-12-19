@@ -1,0 +1,59 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+name: "TIMESTAMPTYPE"
+signatures:
+  -
+    description: "Constructs TIMESTAMP using the values provided for year, month, day, hour, minute, second, and millisecond parameters."
+    parameters:
+      - description: "Year value."
+        kind: "REGULAR"
+        name: "year"
+        type: "NUMERIC"
+      - description: "Month value."
+        kind: "REGULAR"
+        name: "month"
+        type: "NUMERIC"
+      - description: "Day value."
+        kind: "REGULAR"
+        name: "day"
+        type: "NUMERIC"
+      - description: "Hour value."
+        kind: "REGULAR"
+        name: "hour"
+        type: "NUMERIC"
+      - description: "Minute value."
+        kind: "REGULAR"
+        name: "minute"
+        type: "NUMERIC"
+      - description: "Second value."
+        kind: "REGULAR"
+        name: "second"
+        type: "NUMERIC"
+      - description: "Millisecond value."
+        kind: "REGULAR"
+        name: "millisecond"
+        type: "NUMERIC"
+    returnType: "DATE"
+    sampleCodes:
+      -
+        call: "SELECT TIMESTAMPTYPE(2020,1,2)"
+        result: "2020-01-02"
+dremioVersion: "24.3.0+"
+functionCategories:
+  - "DATETIME"
+description: "Constructs TIMESTAMP using the values provided for year, month, day, hour, minute, second, and millisecond parameters."

@@ -71,7 +71,9 @@ public class FixedListSizer implements Sizer{
    * @return
    */
   private int getDataSizeInBitsStartingFromOrdinal(final int ordinal, final int numberOfRecords){
-
+    if(incoming.getValueCount() == 0){
+      return 0;
+    }
     final int start = ordinal * incoming.getListSize();
     final int length =  numberOfRecords * incoming.getListSize();
 

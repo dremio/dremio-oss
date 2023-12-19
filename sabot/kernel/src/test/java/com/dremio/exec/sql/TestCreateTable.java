@@ -135,10 +135,10 @@ public class TestCreateTable extends PlanTestBase {
       testBuilder()
         .sqlQuery(describeCreatedTable)
         .unOrdered()
-        .baselineColumns("COLUMN_NAME", "DATA_TYPE", "IS_NULLABLE", "NUMERIC_PRECISION", "NUMERIC_SCALE", "EXTENDED_PROPERTIES", "MASKING_POLICY")
-        .baselineValues("id", "INTEGER", "YES", 32, 0, "[]", null)
-        .baselineValues("name", "CHARACTER VARYING", "YES", null, null, "[]", null)
-        .baselineValues("distance", "DECIMAL", "YES", 38, 3, "[]", null)
+        .baselineColumns("COLUMN_NAME", "DATA_TYPE", "IS_NULLABLE", "NUMERIC_PRECISION", "NUMERIC_SCALE", "EXTENDED_PROPERTIES", "MASKING_POLICY", "SORT_ORDER_PRIORITY")
+        .baselineValues("id", "INTEGER", "YES", 32, 0, "[]", null, null)
+        .baselineValues("name", "CHARACTER VARYING", "YES", null, null, "[]", null, null)
+        .baselineValues("distance", "DECIMAL", "YES", 38, 3, "[]", null, null)
         .build()
         .run();
 

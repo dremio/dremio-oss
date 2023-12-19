@@ -65,7 +65,7 @@ class MaskedInput extends PureComponent {
     this.inputRefs[`si.${idx}`].current = ref;
   };
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     const { value: nextValue } = nextProps;
     const { value: currentValue, mask } = this.props;
     const { inputsList } = this.state;

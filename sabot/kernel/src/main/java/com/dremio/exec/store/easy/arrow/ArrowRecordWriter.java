@@ -199,7 +199,7 @@ public class ArrowRecordWriter implements RecordWriter {
 
       ArrowFileMetadata lastFileMetadata = builder.build();
 
-      outputEntryListener.recordsWritten(recordCount, fileSize, currentFile.toString(), lastFileMetadata.toByteArray(), null, null, null, null, null);
+      outputEntryListener.recordsWritten(recordCount, fileSize, currentFile.toString(), lastFileMetadata.toByteArray(), null, null, null, null, null, null, 0L);
     }
   }
 

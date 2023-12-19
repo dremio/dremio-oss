@@ -85,16 +85,6 @@ public class ReflectionEntriesStore {
 
   private static final class ReflectionVersionExtractor implements VersionExtractor<ReflectionEntry> {
     @Override
-    public Long getVersion(ReflectionEntry value) {
-      return value.getVersion();
-    }
-
-    @Override
-    public void setVersion(ReflectionEntry value, Long version) {
-      value.setVersion(version);
-    }
-
-    @Override
     public String getTag(ReflectionEntry value) {
       return value.getTag();
     }

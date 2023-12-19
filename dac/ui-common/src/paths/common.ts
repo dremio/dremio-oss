@@ -16,7 +16,12 @@
 import { defineRoute } from "define-route";
 import { getSonarContext } from "../contexts/SonarContext";
 
-type SourceType = "objectStorage" | "metastore" | "external" | "dataplane";
+type SourceType =
+  | "objectStorage"
+  | "metastore"
+  | "external"
+  | "nessie"
+  | "arctic";
 type SourceTypeParam = { sourceType: SourceType };
 type ResourceIdParam = { resourceId: string };
 type SourceNameParam = { sourceName: string };
@@ -43,10 +48,8 @@ export const sources = projectBase.extend(() => "sources");
 export const objectStorage = sources.extend(() => "objectStorage/list");
 export const metastore = sources.extend(() => "metastore/list");
 export const external = sources.extend(() => "external/list");
-export const dataplaneSource = sources.extend(
-  (params: SourceNameParam) => `dataplane/${params.sourceName}`
-);
-export const dataplane = sources.extend(() => "dataplane/list");
+export const nessie = sources.extend(() => "nessie/list");
+export const arctic = sources.extend(() => "arctic/list");
 export const arcticSource = sources.extend(
   (params: SourceNameParam) => `arctic/${params.sourceName}`
 );

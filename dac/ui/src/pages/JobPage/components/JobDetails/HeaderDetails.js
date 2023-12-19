@@ -62,6 +62,8 @@ class HeaderDetails extends PureComponent {
     // if the query is running or pending, expose the cancel button.
     if (
       JobsUtils.getRunning(currentJobState) ||
+      currentJobState === JobState.ENGINE_START ||
+      currentJobState === JobState.QUEUED ||
       currentJobState === JobState.ENQUEUED ||
       currentJobState === JobState.PLANNING
     ) {

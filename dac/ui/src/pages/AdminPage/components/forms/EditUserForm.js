@@ -29,7 +29,7 @@ import usersDetails, {
   moduleKey,
 } from "@app/reducers/modules/usersDetails";
 import { editUser } from "@app/actions/modals/editUserModal";
-import { getModuleState } from "@app/reducers";
+import { getModuleState } from "@app/selectors/moduleState";
 import { formBody } from "uiTheme/less/forms.less";
 import { moduleStateHOC } from "@app/containers/ModuleStateContainer";
 import { compose } from "redux";
@@ -157,7 +157,6 @@ export class EditUserForm extends Component {
             isModal={isModal}
             leftAlignFooter={leftAlignFooter}
             hideCancel={hideCancel}
-            wrapperStyle={{ overflowY: "hidden" }}
           >
             {wrappedForm}
           </ModalForm>

@@ -34,30 +34,26 @@ import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.SqlOrderBy;
 import org.apache.calcite.sql.SqlSelect;
+import org.apache.calcite.sql.SqlWith;
+import org.apache.calcite.sql.SqlWithItem;
+import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.util.SqlVisitor;
 
 import com.dremio.exec.calcite.SqlNodes;
 import com.dremio.exec.planner.sql.BaseSqlVisitor;
+import com.dremio.exec.tablefunctions.TableMacroNames;
+import com.dremio.exec.tablefunctions.VersionedTableMacro;
 
 /**
- * Visits a query AST to find its ancestors
- * if multiLevel is false, any views referred in the query won't be expanded
+ * Visits a query AST to find its ancestors including temporary relations.
  */
 public final class AncestorsVisitor implements SqlVisitor<List<SqlIdentifier>> {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AncestorsVisitor.class);
-  private boolean multiLevel;
-
-  private AncestorsVisitor(boolean multiLevel) {
-    this.multiLevel = multiLevel;
-  }
 
   public static List<SqlIdentifier> extractAncestors(final SqlNode sqlNode) {
-    return extractAncestors(sqlNode, false);
-  }
-
-  public static List<SqlIdentifier> extractAncestors(final SqlNode sqlNode, boolean multiLevel) {
-    return sqlNode.accept(new AncestorsVisitor(multiLevel));
+    return sqlNode.accept(new AncestorsVisitor());
   }
 
   @Override
@@ -93,6 +89,7 @@ public final class AncestorsVisitor implements SqlVisitor<List<SqlIdentifier>> {
       @Override
       public List<SqlIdentifier> visit(SqlCall call) {
         SqlOperator operator = call.getOperator();
+        List<SqlIdentifier> result = new ArrayList<>();
         switch (operator.getKind()) {
         case AS:
           SqlNode sqlNode = call.getOperandList().get(0);
@@ -105,32 +102,56 @@ public final class AncestorsVisitor implements SqlVisitor<List<SqlIdentifier>> {
             SqlNode operand = ((SqlCall)sqlNode).operand(0);
             if (operand.getKind() == SqlKind.OTHER_FUNCTION) {
               SqlFunction tableFunction = (SqlFunction)((SqlCall)operand).getOperator();
+              if (tableFunction.getNameAsId().names.equals(TableMacroNames.TIME_TRAVEL)) {
+                SqlLiteral qualifiedName = (SqlLiteral) ((SqlCall) operand).getOperandList().get(0);
+                List<String> nameParts = VersionedTableMacro.splitTableIdentifier(qualifiedName.getValueAs(String.class));
+                return asList(new SqlIdentifier(nameParts, SqlParserPos.ZERO));
+              }
               return asList(tableFunction.getSqlIdentifier());
             }
             return Collections.emptyList();
           case VALUES:
             return Collections.emptyList();
+          case ORDER_BY:
+            return ((SqlOrderBy)sqlNode).query.accept(this);
+          case UNION:
+          case EXCEPT:
+          case INTERSECT:
+            SqlCall sqlCall = (SqlCall)sqlNode;
+            result.addAll(sqlCall.operand(0).accept(this));
+            result.addAll(sqlCall.operand(1).accept(this));
+            return result;
           default:
             logger.warn("Failure while extracting parents from sql. Unexpected 1st operand in AS: {}. SQL: \n {}", sqlNode.getKind() ,SqlNodes.toTreeString(sqlNode));
             return Collections.emptyList();
           }
         case JOIN:
           SqlJoin join = (SqlJoin)call;
-          List<SqlIdentifier> result = new ArrayList<>();
           result.addAll(join.getLeft().accept(this));
           result.addAll(join.getRight().accept(this));
           return result;
+        case UNION:
+        case EXCEPT:
+        case INTERSECT:
+          result.addAll(call.getOperandList().get(0).accept(this));
+          result.addAll(call.getOperandList().get(1).accept(this));
+          return result;
+        case WITH:
+          ((SqlWith)call).withList.forEach(x -> {
+            result.addAll(((SqlWithItem)x).query.accept(this));
+          });
+          return result;
+        case ORDER_BY:
+          return ((SqlOrderBy)call).query.accept(this);
         case SELECT:
-          if (multiLevel) {
-            if (((SqlSelect) call).getFrom() != null) {
-              return extractAncestorsFromFrom(((SqlSelect) call).getFrom());
-            } else {
-              return Collections.emptyList();
-            }
+          if (((SqlSelect) call).getFrom() != null) {
+            return extractAncestorsFromFrom(((SqlSelect) call).getFrom());
+          } else {
+            return Collections.emptyList();
           }
-          // fall through
         default:
-          throw new UnsupportedOperationException("Unexpected operator in call: " + operator.getKind() + "\n" + SqlNodes.toTreeString(call));
+          logger.warn("Unexpected operator in call {}\n{}", operator.getKind(), SqlNodes.toTreeString(call));
+          return Collections.emptyList();
         }
       }
     });

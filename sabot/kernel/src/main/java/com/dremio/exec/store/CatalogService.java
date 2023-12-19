@@ -34,6 +34,7 @@ import com.dremio.exec.proto.CatalogRPC;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.service.Service;
 import com.dremio.service.namespace.SourceState;
+import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEvents;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.source.proto.UpdateMode;
@@ -43,7 +44,7 @@ import com.google.common.annotations.VisibleForTesting;
  * Manages metadata for sources and datasets under these sources.
  */
 @ThreadSafe
-public interface CatalogService extends AutoCloseable, Service, StoragePluginResolver {
+public interface CatalogService extends AutoCloseable, Service, StoragePluginResolver, CatalogStatusEvents {
   long DEFAULT_REFRESH_MILLIS = TimeUnit.MILLISECONDS.convert(
     Integer.getInteger("dremio.metadata.default_refresh_time_in_hours", 1), TimeUnit.HOURS);
   long DEFAULT_EXPIRE_MILLIS = TimeUnit.MILLISECONDS.convert(
@@ -98,6 +99,7 @@ public interface CatalogService extends AutoCloseable, Service, StoragePluginRes
       .setDatasetDefinitionRefreshAfterMs(CENTURY_MILLIS)
       .setDatasetDefinitionExpireAfterMs(CENTURY_MILLIS);
 
+  @VisibleForTesting
   MetadataPolicy NEVER_REFRESH_POLICY_WITH_PREFETCH_QUERIED = new MetadataPolicy()
     .setAuthTtlMs(CENTURY_MILLIS)
     .setDeleteUnavailableDatasets(true)

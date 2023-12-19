@@ -28,6 +28,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUtil;
+import com.dremio.exec.ops.PlannerCatalog;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.logical.CreateTableEntry;
@@ -36,12 +37,16 @@ import com.dremio.exec.planner.logical.ScreenRel;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
 import com.dremio.exec.planner.sql.handlers.ConvertedRelNode;
+import com.dremio.exec.planner.sql.handlers.DrelTransformer;
 import com.dremio.exec.planner.sql.handlers.PrelTransformer;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
+import com.dremio.exec.planner.sql.handlers.SqlToRelTransformer;
 import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
+import com.dremio.exec.planner.sql.parser.DremioHint;
 import com.dremio.exec.planner.sql.parser.SqlVacuumTable;
 import com.dremio.exec.store.iceberg.IcebergUtils;
+import com.dremio.options.OptionValue;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.annotations.VisibleForTesting;
 
@@ -53,6 +58,7 @@ public class VacuumTableHandler extends TableManagementHandler {
 
   private String textPlan;
   private Rel drel;
+  private Prel prel;
 
   @Override
   public NamespaceKey getTargetTablePath(SqlNode sqlNode) throws Exception {
@@ -70,37 +76,45 @@ public class VacuumTableHandler extends TableManagementHandler {
     catalog.validateOwnership(path);
   }
 
-  private void validateFeatureEnabled(SqlHandlerConfig config) {
-    if (!config.getContext().getOptions().getOption(ExecConstants.ENABLE_ICEBERG_VACUUM)) {
+  private void validateFeatureEnabled(SqlHandlerConfig config, SqlVacuumTable sqlVacuumTable) {
+    if (!config.getContext().getOptions().getOption(ExecConstants.ENABLE_ICEBERG_VACUUM) ) {
       throw UserException.unsupportedError().message("VACUUM TABLE command is not supported.").buildSilently();
+    }
+
+    if (sqlVacuumTable.getVacuumOptions().isRemoveOrphans() &&
+      !config.getContext().getOptions().getOption(ExecConstants.ENABLE_ICEBERG_VACUUM_REMOVE_ORPHAN_FILES) ) {
+      throw UserException.unsupportedError().message("VACUUM TABLE REMOVE ORPHAN FILES command is not supported.").buildSilently();
     }
   }
 
   @VisibleForTesting
   @Override
   public void checkValidations(Catalog catalog, SqlHandlerConfig config, NamespaceKey path, SqlNode sqlNode) throws Exception {
-    validateFeatureEnabled(config);
-    validatePrivileges(catalog, path, sqlNode);
+    SqlVacuumTable sqlVacuumTable = SqlNodeUtil.unwrap(sqlNode, SqlVacuumTable.class);
+    validateFeatureEnabled(config, sqlVacuumTable);
+    validatePrivileges(catalog, path, sqlVacuumTable);
     validateTableExistenceAndMutability(catalog, config, path);
   }
 
   @Override
-  protected Rel convertToDrel(SqlHandlerConfig config, SqlNode sqlNode, NamespaceKey path, Catalog catalog, RelNode relNode) throws Exception {
-    CreateTableEntry createTableEntry = IcebergUtils.getIcebergCreateTableEntry(config, catalog,
-      catalog.getTable(path), getSqlOperator(), null);
-    Rel convertedRelNode = PrelTransformer.convertToDrel(config, rewriteCrel(relNode, createTableEntry));
+  protected Rel convertToDrel(SqlHandlerConfig config, SqlNode sqlNode, NamespaceKey path, PlannerCatalog catalog, RelNode relNode) throws Exception {
+    CreateTableEntry createTableEntry = IcebergUtils.getIcebergCreateTableEntry(config, config.getContext().getCatalog(),
+      catalog.getTableWithSchema(path), getSqlOperator(), null);
+    Rel convertedRelNode = DrelTransformer.convertToDrel(config, rewriteCrel(relNode, createTableEntry));
     convertedRelNode = SqlHandlerUtil.storeQueryResultsIfNeeded(config.getConverter().getParserConfig(),
       config.getContext(), convertedRelNode);
 
     return new ScreenRel(convertedRelNode.getCluster(), convertedRelNode.getTraitSet(), convertedRelNode);
   }
 
+  @VisibleForTesting
   @Override
-  protected PhysicalPlan getPlan(Catalog catalog, SqlHandlerConfig config, String sql, SqlNode sqlNode, NamespaceKey path) throws Exception {
+  public PhysicalPlan getPlan(SqlHandlerConfig config, String sql, SqlNode sqlNode, NamespaceKey path) throws Exception {
     try {
       Runnable refresh = null;
-      if (!CatalogUtil.requestedPluginSupportsVersionedTables(path, catalog)) {
-        refresh = () -> refreshDataset(catalog, path, false);
+      final PlannerCatalog catalog = config.getConverter().getPlannerCatalog();
+      if (!CatalogUtil.requestedPluginSupportsVersionedTables(path, config.getContext().getCatalog())) {
+        refresh = () -> refreshDataset(config.getContext().getCatalog(), path, false);
         //Always use the latest snapshot before vacuum.
         refresh.run();
       } else {
@@ -109,7 +123,7 @@ public class VacuumTableHandler extends TableManagementHandler {
           .buildSilently();
       }
 
-      final Prel prel = getNonPhysicalPlan(catalog, config, sqlNode, path);
+      prel = getNonPhysicalPlan(catalog, config, sqlNode, path);
       final PhysicalOperator pop = PrelTransformer.convertToPop(config, prel);
 
       return PrelTransformer.convertToPlan(config, pop, refresh, refresh);
@@ -118,10 +132,12 @@ public class VacuumTableHandler extends TableManagementHandler {
     }
   }
 
-  public Prel getNonPhysicalPlan(Catalog catalog, SqlHandlerConfig config, SqlNode sqlNode, NamespaceKey path) throws Exception {
-    final ConvertedRelNode convertedRelNode = PrelTransformer.validateAndConvert(config, sqlNode);
+  public Prel getNonPhysicalPlan(PlannerCatalog catalog, SqlHandlerConfig config, SqlNode sqlNode, NamespaceKey path) throws Exception {
+    final ConvertedRelNode convertedRelNode = SqlToRelTransformer.validateAndConvert(config, sqlNode);
     final RelNode relNode = convertedRelNode.getConvertedNode();
 
+    config.getContext().getOptions().setOption(OptionValue.createBoolean(OptionValue.OptionType.QUERY,
+      DremioHint.NO_REFLECTIONS.getOption().getOptionName(), true));
     drel = convertToDrel(config, sqlNode, path, catalog, relNode);
     final Pair<Prel, String> prelAndTextPlan = PrelTransformer.convertToPrel(config, drel);
     textPlan = prelAndTextPlan.getValue();
@@ -136,5 +152,11 @@ public class VacuumTableHandler extends TableManagementHandler {
   @Override
   public Rel getLogicalPlan() {
     return drel;
+  }
+
+  @VisibleForTesting
+  public Prel getPrel()
+  {
+    return prel;
   }
 }

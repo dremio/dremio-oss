@@ -127,6 +127,10 @@ public interface Operator extends AutoCloseable {
      * @return true if the operator is done spilling memory
      */
     boolean shrinkMemory(long size) throws Exception;
+
+    default String getOperatorStateToPrint() {
+      return "";
+    }
   }
 
   /**

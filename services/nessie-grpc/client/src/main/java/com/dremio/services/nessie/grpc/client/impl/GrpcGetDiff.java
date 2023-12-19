@@ -15,9 +15,9 @@
  */
 package com.dremio.services.nessie.grpc.client.impl;
 
+import static com.dremio.services.nessie.grpc.GrpcExceptionMapper.handleNessieNotFoundEx;
 import static com.dremio.services.nessie.grpc.ProtoUtil.fromProto;
 import static com.dremio.services.nessie.grpc.ProtoUtil.toProtoDiffRequest;
-import static com.dremio.services.nessie.grpc.client.GrpcExceptionMapper.handleNessieNotFoundEx;
 
 import org.projectnessie.client.builder.BaseGetDiffBuilder;
 import org.projectnessie.error.NessieNotFoundException;

@@ -52,7 +52,7 @@ export class BiApplications extends PureComponent {
     getSetting: PropTypes.func,
   };
 
-  componentWillMount() {
+  UNSAFE_componentWillMount() {
     this.props.getDefinedSettings(
       [...RESERVED, ...Object.keys(LABELS_IN_SECTIONS)],
       true,
@@ -85,7 +85,7 @@ export class BiApplications extends PureComponent {
     return (
       <div className="biApplication-settings">
         <SettingHeader icon="settings/bi-applications">
-          {la("BI Applications")}
+          {laDeprecated("BI Applications")}
         </SettingHeader>
         <div className="gutter-left--double">
           <ViewStateWrapper

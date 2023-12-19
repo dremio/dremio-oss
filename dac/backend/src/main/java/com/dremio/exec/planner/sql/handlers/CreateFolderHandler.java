@@ -22,9 +22,9 @@ import java.util.List;
 
 import org.apache.calcite.sql.SqlNode;
 
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult;
 import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
@@ -61,14 +61,14 @@ public class CreateFolderHandler extends BaseVersionHandler<SimpleCommandResult>
 
     final boolean ifNotExists = createFolder.getIfNotExists().booleanValue();
     VersionContext statementSourceVersion =
-      ReferenceTypeUtils.map(createFolder.getRefType(), createFolder.getRefValue());
+      ReferenceTypeUtils.map(createFolder.getRefType(), createFolder.getRefValue(), null);
     VersionContext sessionVersion = userSession.getSessionVersionForSource(sourceName);
     VersionContext sourceVersion = statementSourceVersion.orElse(sessionVersion);
 
     final VersionedPlugin versionedPlugin = getVersionedPlugin(sourceName);
 
     try{
-      versionedPlugin.createNamespace(path, statementSourceVersion);
+      versionedPlugin.createNamespace(path, sourceVersion);
     } catch (NessieNamespaceAlreadyExistsException e) {
       if (ifNotExists) {
         return Collections.singletonList(

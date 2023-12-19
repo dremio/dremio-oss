@@ -16,6 +16,8 @@
 
 syntax = "proto3";
 
+import "SourceVersionReference.proto";
+
 package com.dremio.service.script.proto;
 
 option java_package = "com.dremio.service.script.proto";
@@ -38,6 +40,7 @@ message Script {
   repeated string context = 8; // context of script
   string content = 9; // content of script
 
+  repeated com.dremio.dac.proto.model.dataset.SourceVersionReference references = 10; // source version preferences
 }
 
 message ScriptRequest {
@@ -45,6 +48,8 @@ message ScriptRequest {
   string description = 2;
   repeated string context = 3;
   string content = 4;
+  repeated com.dremio.dac.proto.model.dataset.SourceVersionReference references = 5;
+  string sessionId = 6;
 }
 
 message ScriptWithPrivileges {

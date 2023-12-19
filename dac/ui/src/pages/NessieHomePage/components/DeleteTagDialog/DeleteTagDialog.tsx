@@ -69,12 +69,8 @@ function DeleteTagDialog({
       refetch?.();
       closeDialog();
     } catch (error: any) {
-      dispatch(
-        addNotification(
-          intl.formatMessage({ id: "ArcticCatalog.Tags.DeleteFailure" }),
-          "error"
-        )
-      );
+      const errorMessage = await error.json();
+      dispatch(addNotification(errorMessage.message, "error"));
       closeDialog();
     }
   };

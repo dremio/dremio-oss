@@ -27,7 +27,11 @@
     }
 
     &__item {
-      color: @FIGMA_TEXT_MAIN;
+      color: var(--color--neutral--900);
+
+      &.danger {
+        color: var(--dremio--color--status--delete--background);
+      }
     }
   }
 }

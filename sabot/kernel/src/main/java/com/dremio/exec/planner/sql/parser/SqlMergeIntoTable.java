@@ -43,11 +43,21 @@ public class SqlMergeIntoTable extends SqlMerge implements SqlDmlOperator {
   // no way to set SqlUpdate::targetTable without an assertion being thrown.
   private SqlNode extendedTargetTable;
 
+  private final SqlTableVersionSpec sqlTableVersionSpec;
+
   public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("MERGE", SqlKind.MERGE) {
     @Override
     public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 6, "SqlMergeIntoTable.createCall() has to get 6 operands!");
-      return new SqlMergeIntoTable(pos, operands[0], operands[1], operands[2], (SqlUpdate)operands[3], (SqlInsert)operands[4], (SqlIdentifier)operands[5]);
+      Preconditions.checkArgument(operands.length == 7, "SqlMergeIntoTable.createCall() has to get 7 operands!");
+      return new SqlMergeIntoTable(
+        pos,
+        operands[0],
+        operands[1],
+        operands[2],
+        (SqlUpdate)operands[3],
+        (SqlInsert)operands[4],
+        (SqlIdentifier)operands[5],
+        (SqlTableVersionSpec) operands[6]);
     }
   };
 
@@ -57,8 +67,10 @@ public class SqlMergeIntoTable extends SqlMerge implements SqlDmlOperator {
                            SqlNode source,
                            SqlUpdate updateCall,
                            SqlInsert insertCall,
-                           SqlIdentifier alias)  {
+                           SqlIdentifier alias,
+                           SqlTableVersionSpec sqlTableVersionSpec)  {
     super(pos, targetTable, condition, source, updateCall, insertCall, null, alias);
+    this.sqlTableVersionSpec = sqlTableVersionSpec;
   }
 
   @Override
@@ -80,6 +92,26 @@ public class SqlMergeIntoTable extends SqlMerge implements SqlDmlOperator {
 
   @Override
   public List<SqlNode> getOperandList() {
-    return Lists.newArrayList(getTargetTable(),  getCondition(), getSourceTableRef(), getUpdateCall(), getInsertCall(), getAlias());
+    return Lists.newArrayList(
+      getTargetTable(),
+      getCondition(),
+      getSourceTableRef(),
+      getUpdateCall(),
+      getInsertCall(),
+      getAlias(),
+      getSqlTableVersionSpec());
+  }
+
+  @Override
+  public SqlTableVersionSpec getSqlTableVersionSpec() {
+    return sqlTableVersionSpec;
+  }
+
+  @Override
+  public TableVersionSpec getTableVersionSpec() {
+    if (sqlTableVersionSpec != null) {
+      return sqlTableVersionSpec.getTableVersionSpec();
+    }
+    return null;
   }
 }

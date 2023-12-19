@@ -42,7 +42,7 @@ class RowsDropdown extends PureComponent {
     };
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     if (nextProps.tableLength !== this.props.tableLength) {
       let maxValue = (nextProps.tableLength + STEP) / STEP;
       maxValue = Math.round(maxValue) * STEP;

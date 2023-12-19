@@ -18,9 +18,10 @@ package com.dremio.plugins.azure;
 import static com.dremio.common.utils.PathUtils.removeLeadingSlash;
 import static com.dremio.common.utils.PathUtils.removeTrailingSlash;
 import static com.dremio.plugins.azure.AzureAuthenticationType.ACCESS_KEY;
-import static com.dremio.plugins.azure.AzureAuthenticationType.AZURE_ACTIVE_DIRECTORY;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
@@ -32,7 +33,6 @@ import org.apache.hadoop.fs.Path;
 import org.asynchttpclient.AsyncHttpClient;
 
 import com.dremio.common.AutoCloseables;
-import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.Retryer;
 import com.dremio.exec.hadoop.MayProvideAsyncStream;
 import com.dremio.exec.store.dfs.DremioFileSystemCache;
@@ -41,10 +41,8 @@ import com.dremio.http.AsyncHttpClientProvider;
 import com.dremio.io.AsyncByteReader;
 import com.dremio.plugins.azure.AbstractAzureStorageConf.AccountKind;
 import com.dremio.plugins.util.ContainerFileSystem;
-import com.dremio.services.credentials.CredentialsException;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
-import com.google.common.base.Throwables;
 
 /**
  * A container file system implementation for Azure Storage.
@@ -53,41 +51,38 @@ import com.google.common.base.Throwables;
  */
 public class AzureStorageFileSystem extends ContainerFileSystem implements MayProvideAsyncStream {
   private static final String CONTAINER_HUMAN_NAME = "Container";
-  static final String ACCOUNT = "dremio.azure.account";
+  public static final String ACCOUNT = "dremio.azure.account";
   public static final String KEY = "dremio.azure.key";
-  static final String MODE = "dremio.azure.mode";
-  static final String SECURE = "dremio.azure.secure";
+  public static final String MODE = "dremio.azure.mode";
+  public static final String SECURE = "dremio.azure.secure";
   static final String CONTAINER_LIST = "dremio.azure.container_list";
-  static final String ROOT_PATH = "dremio.azure.rootPath";
+  public static final String ROOT_PATH = "dremio.azure.rootPath";
 
-  static final String CREDENTIALS_TYPE = "dremio.azure.credentialsType";
+  public static final String CREDENTIALS_TYPE = "dremio.azure.credentialsType";
 
-  static final String CLIENT_ID = "dremio.azure.clientId";
-  static final String TOKEN_ENDPOINT = "dremio.azure.tokenEndpoint";
+  public static final String CLIENT_ID = "dremio.azure.clientId";
+  public static final String TOKEN_ENDPOINT = "dremio.azure.tokenEndpoint";
   public static final String CLIENT_SECRET = "dremio.azure.clientSecret";
   static final String AZURE_ENDPOINT = "fs.azure.endpoint";
 
-  private String azureEndpoint;
-  private String account;
-  private String key = null;
+  public static final String AZURE_SHAREDKEY_SIGNER_TYPE = "fs.azure.sharedkey.signer.type";
 
-  private AzureAuthenticationType credentialsType;
-
-  private String clientID;
-  private String tokenEndpoint;
-  private String clientSecret;
-
-  private boolean secure;
-  private AccountKind accountKind;
-  private Prototype proto;
-  private Configuration parentConf;
-  private ContainerProvider containerProvider;
-  private AzureAuthTokenProvider authProvider;
-  private boolean enableMD5Checksum;
   private final DremioFileSystemCache fsCache = new DremioFileSystemCache();
 
+  private Configuration parentConf;
+  private AccountKind accountKind;
+  private boolean secure;
+  private Prototype proto;
+
+  private String azureEndpoint;
+  private String account;
 
   private AsyncHttpClient asyncHttpClient;
+  private ContainerProvider containerProvider;
+
+  private AzureAuthTokenProvider tokenProvider;
+
+  private boolean enableMD5Checksum;
 
   @Override
   public void close() throws IOException {
@@ -104,7 +99,7 @@ public class AzureStorageFileSystem extends ContainerFileSystem implements MayPr
   protected void setup(Configuration conf) throws IOException {
     parentConf = conf;
     conf.setIfUnset(CREDENTIALS_TYPE, ACCESS_KEY.name());
-    credentialsType = AzureAuthenticationType.valueOf(conf.get(CREDENTIALS_TYPE));
+    AzureAuthenticationType credentialsType = AzureAuthenticationType.valueOf(conf.get(CREDENTIALS_TYPE));
 
     // TODO: check if following are needed
     accountKind = AccountKind.valueOf(conf.get(MODE));
@@ -118,15 +113,25 @@ public class AzureStorageFileSystem extends ContainerFileSystem implements MayPr
     asyncHttpClient = AsyncHttpClientProvider.getInstance();
     enableMD5Checksum = conf.getBoolean(AzureStorageOptions.ENABLE_CHECKSUM.getOptionName(), true);
 
-    if (credentialsType == AZURE_ACTIVE_DIRECTORY) {
-      clientID = Objects.requireNonNull(conf.get(CLIENT_ID));
-      tokenEndpoint = Objects.requireNonNull(conf.get(TOKEN_ENDPOINT));
-      clientSecret = new String(Objects.requireNonNull(conf.getPassword(CLIENT_SECRET)));
-      this.authProvider = new AzureOAuthTokenProvider(tokenEndpoint, clientID, clientSecret);
-    } else if (credentialsType == ACCESS_KEY) {
-      key = getSharedAccessKey(conf);
-      this.authProvider = new AzureSharedKeyAuthTokenProvider(account, key);
-    } else {
+    switch (credentialsType) {
+    case AZURE_ACTIVE_DIRECTORY: {
+      final ClientCredentialsBasedTokenProvider tokenProvider = new ClientCredentialsBasedTokenProviderImpl();
+      tokenProvider.initialize(conf, account);
+
+      this.tokenProvider = tokenProvider;
+      break;
+    }
+
+    case ACCESS_KEY: {
+      conf.setIfUnset(AZURE_SHAREDKEY_SIGNER_TYPE, AzureSharedKeyCredentials.class.getName());
+      final AzureSharedKeyCredentials sharedKeyCredentials = new AzureSharedKeyCredentials();
+      sharedKeyCredentials.setConf(conf);
+
+      this.tokenProvider = sharedKeyCredentials;
+      break;
+    }
+
+    default:
       throw new IOException("Unrecognized credential type");
     }
 
@@ -144,51 +149,41 @@ public class AzureStorageFileSystem extends ContainerFileSystem implements MayPr
       rootPath = null;
     }
 
-    if (accountKind == AccountKind.STORAGE_V2) {
-      containerProvider = new AzureAsyncContainerProvider(asyncHttpClient, azureEndpoint, account, authProvider, this, secure, containerList, rootPath);
-    } else {
-      final String connection = String.format("%s://%s.%s", proto.getEndpointScheme(), account, azureEndpoint);
-      switch (credentialsType) {
-        case ACCESS_KEY:
-          containerProvider = new BlobContainerProvider(this, connection, account, key, containerList);
-          break;
-        case AZURE_ACTIVE_DIRECTORY:
-          try {
-            containerProvider = new BlobContainerProviderOAuth(this, connection, account, (AzureOAuthTokenProvider) authProvider, containerList);
-          } catch (Exception e) {
-            throw new IOException("Unable to establish connection to Storage V1 account with Azure Active Directory");
-          }
-          break;
-        default:
-          break;
+    switch (accountKind) {
+    case STORAGE_V2:
+      containerProvider = new AzureAsyncContainerProvider(asyncHttpClient, azureEndpoint, account, tokenProvider, this,
+        secure, containerList, rootPath);
+      break;
+
+    case STORAGE_V1:
+      final URI connection;
+      try {
+        connection = new URI(proto.getConnection(account, azureEndpoint));
+      } catch (URISyntaxException e) {
+        throw new IllegalArgumentException("Invalid URI", e);
       }
+
+      switch (credentialsType) {
+      case ACCESS_KEY:
+        containerProvider = new BlobContainerProviderUsingKey(this, connection, account, containerList,
+          ((AzureStorageCredentials) tokenProvider));
+        break;
+
+      case AZURE_ACTIVE_DIRECTORY:
+        containerProvider = new BlobContainerProviderUsingOAuth(this, connection, account, containerList,
+          (ClientCredentialsBasedTokenProvider) tokenProvider);
+        break;
+
+      default:
+        throw new IllegalStateException("Unrecognized credential type: " + credentialsType);
+      }
+      break;
+
+      default:
+        throw new IllegalStateException("Unrecognized account kind: " + accountKind);
     }
 
     containerProvider.verfiyContainersExist();
-  }
-
-  /**
-   * Get the shared access key from configuration. Unpacks exceptions
-   * such that cause of CredentialsException is surfaced.
-   */
-  private String getSharedAccessKey(Configuration conf) throws IOException {
-    try {
-      return new String(Objects.requireNonNull(conf.getPassword(KEY)));
-    } catch (IOException e) {
-      // Hadoop does a lot of exception wrapping, so dig to find actual error.
-      // Throw UserException to surface problems with credentials config to the user
-      for (Throwable throwable : Throwables.getCausalChain(e)) {
-        if (throwable instanceof CredentialsException) {
-          final String message = throwable.getCause() == null ? throwable.getMessage() : throwable.getCause().getMessage();
-          throw UserException.permissionError(throwable)
-            .message("Failed to resolve credentials: " + message)
-            .buildSilently();
-        }
-      }
-      throw UserException.permissionError(e)
-        .message("Failed to resolve credentials.")
-        .buildSilently();
-    }
   }
 
   private String[] getContainerNames(String value) {
@@ -258,16 +253,26 @@ public class AzureStorageFileSystem extends ContainerFileSystem implements MayPr
       public FileSystem create() throws IOException {
         final Configuration conf = new Configuration(parent.parentConf);
 
-        AzureAuthenticationType credentialsType = AzureAuthenticationType.valueOf(conf.get(CREDENTIALS_TYPE));
         final String location = parent.proto.getLocation(parent.account, containerName, parent.azureEndpoint);
 
-        if (credentialsType == AZURE_ACTIVE_DIRECTORY) {
-          parent.proto.setImpl(conf, parent.account, parent.clientID, parent.tokenEndpoint, parent.clientSecret, parent.azureEndpoint);
+        final AzureAuthenticationType credentialsType = AzureAuthenticationType.valueOf(conf.get(CREDENTIALS_TYPE));
+        switch (credentialsType) {
+        case AZURE_ACTIVE_DIRECTORY:
+          // TODO(DX-68107): STORAGE_V1
+          final String tokenEndpoint = Objects.requireNonNull(conf.get(TOKEN_ENDPOINT));
+          final String clientID = Objects.requireNonNull(conf.get(CLIENT_ID));
+          final String clientSecret = new String(Objects.requireNonNull(conf.getPassword(CLIENT_SECRET)));
+          parent.proto.setImpl(conf, parent.account, clientID, tokenEndpoint, clientSecret, parent.azureEndpoint);
           return parent.fsCache.get(new Path(location).toUri(), conf, AbstractAzureStorageConf.AZURE_AD_PROPS);
-        }
 
-        parent.proto.setImpl(conf, parent.account, parent.key, parent.azureEndpoint);
-        return parent.fsCache.get(new Path(location).toUri(), conf, AbstractAzureStorageConf.KEY_AUTH_PROPS);
+        case ACCESS_KEY:
+          final String key = new String(Objects.requireNonNull(conf.getPassword(KEY)));
+          parent.proto.setImpl(conf, parent.account, key, parent.azureEndpoint);
+          return parent.fsCache.get(new Path(location).toUri(), conf, AbstractAzureStorageConf.KEY_AUTH_PROPS);
+
+        default:
+          throw new IllegalStateException("Unrecognized credential type: " + credentialsType);
+        }
       }
     }
   }
@@ -289,6 +294,6 @@ public class AzureStorageFileSystem extends ContainerFileSystem implements MayPr
 
   @Override
   public AsyncByteReader getAsyncByteReader(Path path, String version, Map<String, String> options) {
-    return new AzureAsyncReader(azureEndpoint, account, path, authProvider, version, secure, asyncHttpClient, enableMD5Checksum);
+    return new AzureAsyncReader(azureEndpoint, account, path, tokenProvider, version, secure, asyncHttpClient, enableMD5Checksum);
   }
 }

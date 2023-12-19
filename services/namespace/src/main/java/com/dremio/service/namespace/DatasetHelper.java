@@ -133,7 +133,7 @@ public final class DatasetHelper {
    * @return true if dataset is an delta lake dataset
    */
   public static boolean isDeltaLakeDataset(DatasetConfig dataset) {
-    if (dataset.getPhysicalDataset() == null) {
+    if (dataset == null || dataset.getPhysicalDataset() == null) {
       return false;
     }
 
@@ -185,10 +185,4 @@ public final class DatasetHelper {
     return fileConfig.getType() == FileType.DELTA;
   }
 
-  public static boolean hasParquetAsDataFiles(FileConfig fileConfig) {
-    return fileConfig != null &&
-      (hasParquetDataFiles(fileConfig)
-        || hasIcebergParquetDataFiles(fileConfig)
-        || hasDeltaLakeParquetDataFiles(fileConfig));
-  }
 }

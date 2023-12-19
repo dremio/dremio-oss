@@ -280,7 +280,7 @@ public class CustomGeneratorWithSV2 implements Generator {
   private static List<Long> randomListOfLongs(int size) {
     Long[] ids = new Long[size];
     for (int i = 0; i < size; i++) {
-      ids[i] = new Long(i);
+      ids[i] = (long) i;
     }
 
     List<Long> rndList = Arrays.asList(ids);

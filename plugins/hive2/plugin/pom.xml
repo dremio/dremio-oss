@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-hive2-plugin-parent</artifactId>
-    <version>24.1.0-202306130653310132-d30779f6</version>
+    <version>24.3.0-202312190021150029-52db2faf</version>
   </parent>
 
   <artifactId>dremio-hive2-plugin</artifactId>
@@ -801,13 +801,17 @@
       <!-- Needed by Hadoop for processing Configurations -->
       <groupId>xalan</groupId>
       <artifactId>xalan</artifactId>
-      <version>2.7.2</version>
       <exclusions>
         <exclusion>
           <groupId>xml-apis</groupId>
           <artifactId>xml-apis</artifactId>
         </exclusion>
       </exclusions>
+    </dependency>
+    <dependency>
+      <!-- Remove this dependency when xalan is upgraded (serializer will become a transitive dependency) -->
+      <groupId>xalan</groupId>
+      <artifactId>serializer</artifactId>
     </dependency>
     <!-- Most dependencies should only be provided or for tests-only -->
     <dependency>
@@ -1073,10 +1077,30 @@
       <type>pom</type>
       <scope>test</scope>
     </dependency>
+    <!-- https://mvnrepository.com/artifact/io.delta/delta-hive -->
+    <dependency>
+      <groupId>io.delta</groupId>
+      <artifactId>delta-hive_2.12</artifactId>
+      <version>3.0.0</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
     <plugins>
+      <plugin>
+        <groupId>com.mycila</groupId>
+        <artifactId>license-maven-plugin</artifactId>
+        <configuration>
+          <licenseSets>
+            <licenseSet>
+              <excludes combine.children="append">
+                <excludes>**/src/test/resources/parquet/**</excludes>
+              </excludes>
+            </licenseSet>
+          </licenseSets>
+        </configuration>
+      </plugin>
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
         <executions>
@@ -1257,9 +1281,6 @@
       <plugin>
         <groupId>org.xolstice.maven.plugins</groupId>
         <artifactId>protobuf-maven-plugin</artifactId>
-        <configuration>
-          <protoSourceRoot>${project.build.directory}/generated-sources/src/main/proto</protoSourceRoot>
-        </configuration>
         <executions>
           <execution>
             <phase>process-sources</phase>
@@ -1267,7 +1288,7 @@
               <goal>compile</goal>
             </goals>
             <configuration>
-              <outputDirectory>${project.build.directory}/generated-sources/protobuf</outputDirectory>
+              <protoSourceRoot>${project.build.directory}/generated-sources/src/main/proto</protoSourceRoot>
             </configuration>
           </execution>
         </executions>
@@ -1367,15 +1388,6 @@
       </plugin>
       <plugin>
         <artifactId>maven-failsafe-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>default-integration-test</id>
-            <goals>
-              <goal>integration-test</goal>
-              <goal>verify</goal>
-            </goals>
-          </execution>
-        </executions>
         <configuration>
           <reportNameSuffix>hive2</reportNameSuffix>
           <forkCount>1</forkCount>
@@ -1482,7 +1494,45 @@
           <artifactId>hadoop-azure-datalake</artifactId>
           <version>${hadoop-azure-datalake.version}</version>
         </dependency>
+        <!-- Enforce hive3 plugin is built before we try to copy it here for test purposes with hive-universal. -->
+        <dependency>
+          <groupId>com.dremio.plugins</groupId>
+          <artifactId>dremio-hive3-plugin</artifactId>
+          <version>${project.version}</version>
+          <scope>test</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>*</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+          </exclusions>
+          <type>pom</type>
+        </dependency>
       </dependencies>
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-resources-plugin</artifactId>
+            <executions>
+              <execution>
+                <!-- hive3-plugin is required for integration tests in hive-universal mode -->
+                <id>copy-pf4j-test-resources</id>
+                <phase>generate-resources</phase>
+                <goals><goal>copy-resources</goal></goals>
+                <configuration>
+                  <resources>
+                    <resource>
+                      <directory>${project.basedir}/../../hive3/plugin/target/pf4j-bundles</directory>
+                      <filtering>false</filtering>
+                    </resource>
+                  </resources>
+                  <outputDirectory>${dremio.plugins.path}</outputDirectory>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
     </profile>
     <profile>
       <id>mapr</id>

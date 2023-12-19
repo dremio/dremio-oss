@@ -168,6 +168,10 @@ public class FlattenPrel extends SinglePrel implements Prel {
     public Field visit(ArrowType.List type) {
       if(field.getName().equals(column.getAsUnescapedPath())){
         Field child = field.getChildren().get(0);
+        //list<null> or empty list is not supported for flatten
+        if(child.getFieldType().getType().equals(ArrowType.Null.INSTANCE)){
+          throw UserException.validationError().message("Flatten does not support empty list.").build(logger);
+        }
         return new Field(field.getName(), new FieldType(child.isNullable(), child.getType(), child.getDictionary()), child.getChildren());
       }
       return field;

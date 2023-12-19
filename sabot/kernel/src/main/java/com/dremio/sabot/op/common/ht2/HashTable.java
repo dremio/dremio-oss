@@ -25,22 +25,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.config.SabotConfig;
-import com.google.common.base.Preconditions;
+import com.dremio.options.OptionManager;
 import com.koloboke.collect.hash.HashConfig;
 
 public interface HashTable {
-  final Logger logger = LoggerFactory.getLogger(HashTable.class);
+  Logger logger = LoggerFactory.getLogger(HashTable.class);
 
-  String NATIVE_HASHTABLE_CLASS = "dremio.joust.NativeHashTable.class";
-  String LBLOCK_HASHTABLE_CLASS = "dremio.ht2.LBlockHashTable.class";
+  String FACTORY_KEY = "dremio.ht2.implementation.factory"; // Replacing class with factory to keep with our current pattern...
 
-  static HashTable getInstance(SabotConfig sabotConfig, boolean useNative, HashTableCreateArgs createArgs) {
-    if (useNative && sabotConfig.hasPath(NATIVE_HASHTABLE_CLASS)) {
-      return sabotConfig.getInstance(NATIVE_HASHTABLE_CLASS, HashTable.class, createArgs);
-    } else {
-      Preconditions.checkArgument(sabotConfig.hasPath(LBLOCK_HASHTABLE_CLASS));
-      return sabotConfig.getInstance(LBLOCK_HASHTABLE_CLASS, HashTable.class, createArgs);
-    }
+  static HashTable getInstance(SabotConfig sabotConfig, OptionManager optionsManager, HashTableCreateArgs createArgs) {
+    HashTableFactory factory = sabotConfig.getInstance(FACTORY_KEY, HashTableFactory.class, LBlockHashTableFactory.class);
+    return factory.getInstance(optionsManager, createArgs);
   }
 
   void computeHash(int numRecords, ArrowBuf keyFixed, ArrowBuf keyVar, long seed, ArrowBuf hashOut8B);

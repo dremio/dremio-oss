@@ -35,10 +35,10 @@ public class CacheManagerDatasetIterator implements Iterator<Object> {
   private RocksIterator dsIterator;
 
   CacheManagerDatasetIterator(SabotContext sabotContext) {
-    isCachedFileSystem = (sabotContext.getFileSystemWrapper() instanceof CacheManagerStatsProvider);
+    isCachedFileSystem = sabotContext.getFileSystemWrapper().isWrapperFor(CacheManagerStatsProvider.class);
 
     if (isCachedFileSystem) {
-      cacheManagerStatsProvider = (CacheManagerStatsProvider) sabotContext.getFileSystemWrapper();
+      cacheManagerStatsProvider = sabotContext.getFileSystemWrapper().unwrap(CacheManagerStatsProvider.class);
       dsIterator = cacheManagerStatsProvider.getDatasetIterator();
       if (dsIterator != null) {
         datasetInfoList = cacheManagerStatsProvider.getDatasetStats(dsIterator);

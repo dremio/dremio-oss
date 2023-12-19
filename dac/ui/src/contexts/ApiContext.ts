@@ -18,7 +18,7 @@ import { setApiContext } from "dremio-ui-common/contexts/ApiContext.js";
 import { getSessionContext } from "dremio-ui-common/contexts/SessionContext.js";
 import { appFetch } from "dremio-ui-common/utilities/appFetch.js";
 
-setApiContext({
+const ctx = {
   fetch: (input: RequestInfo | URL, init: RequestInit = {}) => {
     const sessionIdentifier = getSessionContext().getSessionIdentifier();
     if (!sessionIdentifier) {
@@ -34,5 +34,25 @@ setApiContext({
       },
     });
   },
+  createApiV2Url:
+    (config: {} = {}) =>
+    (path: string): URL => {
+      const basePath = "/apiv2";
+      return new URL(`${basePath}/${path}`, window.location.origin);
+    },
+  createApiV3Url:
+    (config: {} = {}) =>
+    (path: string): URL => {
+      const basePath = "/api/v3";
+      return new URL(`${basePath}/${path}`, window.location.origin);
+    },
+  createSonarUrl: (path: string): URL => {
+    const basePath = "/apiv2";
+    return new URL(`${basePath}/${path}`, window.location.origin);
+  },
   doubleEncodeJsonParam: false,
-});
+};
+
+setApiContext(ctx as any);
+
+export const getApiContext = () => ctx;

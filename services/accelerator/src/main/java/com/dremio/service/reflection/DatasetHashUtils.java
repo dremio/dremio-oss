@@ -19,33 +19,20 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.Queue;
 
-import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.util.Pair;
 
-import com.dremio.common.utils.protos.AttemptId;
-import com.dremio.exec.catalog.CatalogEntityKey;
-import com.dremio.exec.catalog.CatalogUser;
+import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.EntityExplorer;
-import com.dremio.exec.catalog.VersionContext;
-import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.RoutingShuttle;
 import com.dremio.exec.planner.acceleration.ExpansionNode;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionUtils;
-import com.dremio.exec.planner.observer.AbstractAttemptObserver;
-import com.dremio.exec.planner.sql.DremioSqlToRelConverter;
-import com.dremio.exec.planner.sql.SqlConverter;
-import com.dremio.exec.server.MaterializationDescriptorProvider;
-import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
@@ -53,7 +40,6 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.ParentDataset;
 import com.dremio.service.namespace.dataset.proto.ViewFieldType;
-import com.dremio.service.users.SystemUser;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
@@ -223,9 +209,9 @@ public class DatasetHashUtils {
       if (other instanceof ExpansionNode) {
         ExpansionNode expansionNode = (ExpansionNode) other;
         SubstitutionUtils.VersionedPath scan = SubstitutionUtils.VersionedPath.of(expansionNode.getPath().getPathComponents(), expansionNode.getVersionContext());
-        DremioTable view = CatalogUtil.getTable(CatalogEntityKey.newBuilder().
+        DremioTable view = catalog.getTable(CatalogEntityKey.newBuilder().
           keyComponents(scan.left).
-          tableVersionContext(scan.right).build(), catalog);
+          tableVersionContext(scan.right).build());
         parents.put(expansions.peekLast(), Pair.of(scan, view.getDatasetConfig()));
         expansions.addLast(scan);
         RelNode child = visitChild(other, 0, other.getInput(0));
@@ -242,51 +228,5 @@ public class DatasetHashUtils {
         table.getDataset().getVersionContext()), table.getDatasetConfig()));
       return tableScan;
     }
-  }
-
-  /**
-   * TODO: REMOVE ME
-   * Sample code to show how to construct a QueryContext and SqlConverter so that one can turn a DatasetConfig
-   * into a RelNode query tree.
-   *
-   * @param sabotContext
-   * @param dataset
-   * @return
-   */
-  public static RelNode expandView(SabotContext sabotContext, DatasetConfig dataset)
-  {
-    NamespaceKey anchorView = new NamespaceKey(dataset.getFullPathList());
-    Map<String, VersionContext> versionContextMap = ReflectionUtils.buildVersionContext(dataset.getId().getId());
-    final UserSession session = ReflectionServiceImpl.systemSession(sabotContext.getOptionManager());
-    for (Map.Entry<String, VersionContext> versionContext : versionContextMap.entrySet()) {
-      session.setSessionVersionForSource(versionContext.getKey(), versionContext.getValue());
-    }
-    RelRoot root = null;
-    try (QueryContext context = new QueryContext(session, sabotContext, new AttemptId().toQueryId(),
-      java.util.Optional.of(false), java.util.Optional.of(false))) {
-      SqlConverter converter = new SqlConverter(
-        context.getPlannerSettings(),
-        context.getOperatorTable(),
-        context,
-        MaterializationDescriptorProvider.EMPTY,
-        context.getFunctionRegistry(),
-        context.getSession(),
-        AbstractAttemptObserver.NOOP,
-        context.getCatalog(),
-        context.getSubstitutionProviderFactory(),
-        context.getConfig(),
-        context.getScanResult(),
-        context.getRelMetadataQuerySupplier());
-
-      root = DremioSqlToRelConverter.expandView(null, new CatalogUser(SystemUser.SYSTEM_USERNAME),
-        "select * from " + anchorView.getSchemaPath(), null, converter,
-        null, null);
-
-      System.out.println(RelOptUtil.toString(root.rel));
-
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
-    return root.rel;
   }
 }

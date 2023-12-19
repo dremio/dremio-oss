@@ -158,7 +158,7 @@ public class TableauMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
    */
   public enum TableauExportType {
     ODBC("", "", EXTRA_CONNECTION_PROPERTIES),
-    FLIGHT("usetls=true","dremio-flight-sql", EXTRA_FLIGHT_CONNECTION_PROPERTIES),
+    FLIGHT("useencryption=true","dremio", EXTRA_FLIGHT_CONNECTION_PROPERTIES),
     NATIVE("ssl=true","dremio", EXTRA_NATIVE_CONNECTION_PROPERTIES);
 
     private final String sslProps;
@@ -183,6 +183,7 @@ public class TableauMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
     public StringValidator getExtraConnectionProps() {
       return extraConnectionProps;
     }
+
   }
 
   /**
@@ -300,15 +301,18 @@ public class TableauMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
     }
   }
 
-  protected String getSdkProduct() {
-    return TableauSDKConstants.SOFTWARE;
+  protected String getSdkProduct(TableauExportType tableauExportType) {
+    return tableauExportType.equals(TableauExportType.FLIGHT)
+      ? TableauSDKConstants.SOFTWARE
+      : TableauSDKConstants.LEGACY_SOFTWARE;
   }
 
   protected Map<String, String> getSdkCustomProperties() {
     return ImmutableMap.of(
             TableauSDKConstants.QUEUE, "",
             TableauSDKConstants.TAG, "",
-            TableauSDKConstants.ENGINE, "");
+            TableauSDKConstants.ENGINE, "",
+            TableauSDKConstants.DISABLE_CERT_VERIFICATION, "");
   }
 
   protected Map<String, String> getSdkAuthenticationMethod(String hostname) {
@@ -349,7 +353,7 @@ public class TableauMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
             .put(TableauSDKConstants.PORT, port)
             .put(TableauSDKConstants.SERVER, hostname)
             .put(TableauSDKConstants.USERNAME, "")
-            .put(TableauSDKConstants.PRODUCT, getSdkProduct())
+            .put(TableauSDKConstants.PRODUCT, getSdkProduct(tableauExportType))
             .put(TableauSDKConstants.SSL, getSdkSSL(tableauExportType))
             .build();
 

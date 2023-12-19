@@ -240,7 +240,6 @@ public class CompleteType {
   public boolean isComparable() {
     switch(type.getTypeID()) {
       case Struct:
-      case List:
       case Map:
         return false;
       default:
@@ -1018,6 +1017,7 @@ public class CompleteType {
       return false;
     }
     CompleteType other = (CompleteType) obj;
+
     return Objects.equal(children, other.children) && Objects.equal(type, other.type);
   }
 

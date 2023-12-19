@@ -115,4 +115,39 @@ public class JsonConvertTo {
       out.end = bytea.length;
     }
   }
+
+  @FunctionTemplate(name = "convert_toCOMPACTJSON", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  public static class ConvertToCompactJson implements SimpleFunction{
+
+    @Param FieldReader input;
+    @Output VarBinaryHolder out;
+    @Inject ArrowBuf buffer;
+    @Inject FunctionErrorContext errCtx;
+
+    @Override
+    public void setup(){
+    }
+
+    @Override
+    public void eval(){
+      out.start = 0;
+
+      java.io.ByteArrayOutputStream stream = new java.io.ByteArrayOutputStream();
+      try {
+        com.dremio.exec.vector.complex.fn.JsonWriter jsonWriter = new com.dremio.exec.vector.complex.fn.JsonWriter(stream, false, false);
+
+        jsonWriter.write(input);
+      } catch (Exception e) {
+        throw errCtx.error()
+          .message("%s", e)
+          .build();
+      }
+
+      byte [] bytea = stream.toByteArray();
+      buffer = buffer.reallocIfNeeded(bytea.length);
+      out.buffer = buffer;
+      out.buffer.setBytes(0, bytea);
+      out.end = bytea.length;
+    }
+  }
 }

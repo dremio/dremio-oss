@@ -361,18 +361,14 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
       splitFilters.add(MetadataUtils.toSplitsSearchQuery(Collections.singletonList(entry.getValue()), fieldMap.get(entry.getKey())));
     }
 
-    try {
-      final TableMetadata prunedDatasetPointer = scanRel.getTableMetadata().prune(SearchQueryUtils.and(splitFilters));
-      if (prunedDatasetPointer == datasetPointer) {
-        datasetOutput.value = datasetPointer;
-        outputCondition.value = pruneCondition;
-        return false;
-      }
-
-      datasetOutput.value = prunedDatasetPointer;
-    } catch (NamespaceException ne) {
-      logger.error("Failed to prune partitions using partition values from namespace", ne);
+    final TableMetadata prunedDatasetPointer = scanRel.getTableMetadata().prune(SearchQueryUtils.and(splitFilters));
+    if (prunedDatasetPointer == datasetPointer) {
+      datasetOutput.value = datasetPointer;
+      outputCondition.value = pruneCondition;
+      return false;
     }
+
+    datasetOutput.value = prunedDatasetPointer;
 
     RelOptCluster cluster = filterRel.getCluster();
     outputCondition.value = holder.hasRemainingExpression() ? holder.getNode() : cluster.getRexBuilder().makeLiteral(true);

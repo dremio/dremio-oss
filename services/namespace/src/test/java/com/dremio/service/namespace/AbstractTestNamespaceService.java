@@ -43,6 +43,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.datastore.api.LegacyIndexedStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionChunk;
 import com.dremio.service.namespace.function.proto.FunctionConfig;
@@ -68,7 +69,7 @@ public abstract class AbstractTestNamespaceService {
   public void before() throws Exception {
     provider = createKVStoreProvider();
     provider.start();
-    namespaceService = new NamespaceServiceImpl(provider);
+    namespaceService = new NamespaceServiceImpl(provider, new CatalogStatusEventsImpl());
   }
 
   @After
@@ -443,83 +444,6 @@ public abstract class AbstractTestNamespaceService {
     assertTrue(boundedDatasetCount.isTimeBound());
   }
 
-  // rewrite this as a reflection test
-/*
-  @Test
-  public void testPhysicalDataset() throws Exception {
-    try(
-        final KVStoreProvider kvstore = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false);
-        ) {
-      kvstore.start();
-      final NamespaceService ns = new NamespaceServiceImpl(kvstore);
-      // physical dataset tests
-      NamespaceKey p1 = new NamespaceKey(asList("src1", "foo", "bar"));
-      Assert.assertEquals("src1.foo.bar", p1.toString());
-      Assert.assertEquals("src1.foo", p1.getParent().toString());
-
-      NamespaceKey p2 = new NamespaceKey(asList("src2", "foo", "bar", "tee.json"));
-      Assert.assertEquals("src2.foo.bar.\"tee.json\"", p2.toString());
-      Assert.assertEquals("src2.foo.bar", p2.getParent().toString());
-
-      final long sourceOneRefresh = TimeUnit.HOURS.toMillis(100);
-      final long sourceOneGrace = TimeUnit.HOURS.toMillis(200);
-      final long sourceTwoRefresh = TimeUnit.HOURS.toMillis(10);
-      final long sourceTwoGrace = TimeUnit.HOURS.toMillis(20);
-      addSourceWithRefreshAndGracePeriod(ns, "src1", sourceOneRefresh, sourceOneGrace);
-      addSourceWithRefreshAndGracePeriod(ns, "src2", sourceTwoRefresh, sourceTwoGrace);
-      addPhysicalDS(ns, "src1.foo.bar", PHYSICAL_DATASET_SOURCE_FOLDER, null);
-      addPhysicalDS(ns, "src1.foo.bar.\"a.json\"");
-      addPhysicalDS(ns, "src1.\"b.json\"");
-      addPhysicalDS(ns, "src1.\"c.json");
-      assertEquals(1, ns.getAllDatasets(new NamespaceKey(PathUtils.parseFullPath("src1.foo"))).size());
-      addPhysicalDS(ns, "src1.foo", PHYSICAL_DATASET_SOURCE_FOLDER, null); // convert "src1.foo" to a dataset. All datasets under "src1.foo" are not invisible
-      assertEquals(0, ns.getAllDatasets(new NamespaceKey(PathUtils.parseFullPath("src1.foo"))).size());
-
-      addPhysicalDS(ns, "src2.\"a.json\"");
-      addPhysicalDS(ns, "src2.\"c.json\"");
-      addPhysicalDS(ns, "src2.bar.foo.foo.bar");
-      addPhysicalDS(ns, "src2.foo.bar");
-
-      assertEquals("bar", ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("src1.foo.bar"))).getName());
-      assertEquals("a.json", ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("src1.foo.bar.\"a.json\""))).getName());
-      assertEquals("b.json", ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("src1.\"b.json\""))).getName());
-      assertEquals("c.json", ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("src1.\"c.json\""))).getName());
-
-      assertEquals("a.json", ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("src2.\"a.json\""))).getName());
-      assertEquals("c.json", ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("src2.\"c.json\""))).getName());
-      assertEquals("bar", ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("src2.bar.foo.foo.bar"))).getName());
-      assertEquals("bar", ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("src2.foo.bar"))).getName());
-
-      assertEquals(3, ns.getAllDatasets(new NamespaceKey("src1")).size());
-      // delete folder datasets so that the dataset underneath them are now visible
-      ns.deleteDataset(new NamespaceKey(asList("src1", "foo")), ns.getDataset(new NamespaceKey(asList("src1", "foo"))).getLegacyTag());
-      assertEquals(3, ns.getAllDatasets(new NamespaceKey("src1")).size());
-      //Make sure datasets under "src1.foo" are uncovered
-      assertEquals(1, ns.getAllDatasets(new NamespaceKey(PathUtils.parseFullPath("src1.foo"))).size());
-
-      ns.deleteDataset(new NamespaceKey(asList("src1", "foo", "bar")), ns.getDataset(new NamespaceKey(asList("src1", "foo", "bar"))).getLegacyTag());
-      assertEquals(3, ns.getAllDatasets(new NamespaceKey("src1")).size());
-
-      final List<NamespaceKey> sourceTwoDatasets = ns.getAllDatasets(new NamespaceKey("src2"));
-      assertEquals(4, sourceTwoDatasets.size());
-
-      for (final NamespaceKey key : ns.getAllDatasets(new NamespaceKey("src1"))) {
-        final DatasetConfig config = ns.getDataset(key);
-        assertEquals((Long) sourceOneRefresh, config.getPhysicalDataset().getAccelerationSettings().getRefreshPeriod());
-        assertEquals((Long) sourceOneGrace, config.getPhysicalDataset().getAccelerationSettings().getGracePeriod());
-      }
-
-      for (final NamespaceKey key : sourceTwoDatasets) {
-        final DatasetConfig config = ns.getDataset(key);
-        assertEquals((Long) sourceTwoRefresh, config.getPhysicalDataset().getAccelerationSettings().getRefreshPeriod());
-        assertEquals((Long) sourceTwoGrace, config.getPhysicalDataset().getAccelerationSettings().getGracePeriod());
-      }
-
-//      assertEquals(0, ns.listPhysicalDatasets(new NamespaceKey(PathUtils.parseFullPath("src2.\"a.json\""))).size());
-    }
-  }
-*/
-
   @Test
   public void testDataSetSchema() throws Exception {
     Field field1 = new Field("a", new FieldType(true, new Int(32, true), null), null);
@@ -635,6 +559,21 @@ public abstract class AbstractTestNamespaceService {
     }
   }
 
+  @Test
+  public void testInvalidName() throws Exception {
+    try {
+      NamespaceTestUtils.addSpace(namespaceService, "TMP");
+      fail("Expected the above call to fail");
+    } catch (InvalidNamespaceNameException ignored) {
+    }
+
+    try {
+      NamespaceTestUtils.addSource(namespaceService, "TMP");
+      fail("Expected the above call to fail");
+    } catch (InvalidNamespaceNameException ignored) {
+    }
+  }
+
   private void expectSplits(List<PartitionChunk> expectedSplits, NamespaceService ns, DatasetConfig datasetConfig) {
     Iterable<PartitionChunkMetadata> nsSplits = ns.findSplits(new LegacyIndexedStore.LegacyFindByCondition().setCondition(PartitionChunkId.getSplitsQuery(datasetConfig)));
 
@@ -666,7 +605,7 @@ public abstract class AbstractTestNamespaceService {
   @Test
   public void testDeleteEntityNotFound() throws Exception {
     try {
-      namespaceService.deleteEntityWithCallback(new NamespaceKey(Arrays.asList("does", "not", "exist")), NameSpaceContainer.Type.FOLDER, "123", true, null);
+      namespaceService.deleteEntityWithCallback(new NamespaceKey(Arrays.asList("does", "not", "exist")), "123", true, null);
       fail("deleteEntity should have failed.");
     } catch(NamespaceNotFoundException e) {
       // Expected

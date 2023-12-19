@@ -41,7 +41,7 @@ import com.dremio.common.utils.SqlUtils;
  *
  */
 public class SqlNodes {
-  private static SqlDialect DREMIO_DIALECT =
+  public static SqlDialect DREMIO_DIALECT =
       new SqlDialect(DatabaseProduct.UNKNOWN, "Dremio", Character.toString(SqlUtils.QUOTE), NullCollation.FIRST);
   /**
    * @param sqlNode

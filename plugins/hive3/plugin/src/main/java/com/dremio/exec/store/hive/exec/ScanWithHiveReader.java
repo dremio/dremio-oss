@@ -61,6 +61,7 @@ import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
+import com.dremio.exec.store.hive.HiveConfFactory;
 import com.dremio.exec.store.hive.HivePf4jPlugin;
 import com.dremio.exec.store.hive.HiveSettings;
 import com.dremio.exec.store.hive.HiveUtilities;
@@ -136,7 +137,8 @@ class ScanWithHiveReader {
         }
       }
 
-      if (new HiveSettings(options).vectorizeOrcReaders() && !isTransactional) {
+      if (new HiveSettings(options, HiveConfFactory.isHive2SourceType(configuration)).vectorizeOrcReaders() &&
+        !isTransactional) {
         // We don't use vectorized ORC reader if there is a schema change between table and partitions or the table is
         // a transactional Hive table
         return HiveORCVectorizedReader.class;

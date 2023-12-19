@@ -34,11 +34,14 @@ const Collapsible = ({
   body,
   toolbar,
   bodyClass,
-  bodyStyle,
+  bodyStyle = {},
 }: CollapsibleProps) => {
   const [open, setOpen] = useState(true);
   return (
-    <div className={classes["collapsibleContainer"]} style={bodyStyle}>
+    <div
+      className={classes["collapsibleContainer"]}
+      style={{ flex: open ? "1" : "0", ...bodyStyle }}
+    >
       <div className={classes["collapsibleTitleRow"]}>
         <div
           className={classes["collapsibleTitleName"]}

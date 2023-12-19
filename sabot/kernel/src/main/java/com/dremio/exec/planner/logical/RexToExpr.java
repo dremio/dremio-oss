@@ -17,6 +17,11 @@ package com.dremio.exec.planner.logical;
 
 import static com.dremio.exec.expr.fn.impl.ConcatFunctions.CONCAT_MAX_ARGS;
 import static com.dremio.exec.planner.physical.AggregatePrel.findDelimiterInListAgg;
+import static org.apache.calcite.sql.type.SqlTypeName.BIGINT;
+import static org.apache.calcite.sql.type.SqlTypeName.DECIMAL;
+import static org.apache.calcite.sql.type.SqlTypeName.DOUBLE;
+import static org.apache.calcite.sql.type.SqlTypeName.FLOAT;
+import static org.apache.calcite.sql.type.SqlTypeName.INTEGER;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -28,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.IntFunction;
+import java.util.stream.Collectors;
 
 import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.RelOptCluster;
@@ -62,6 +68,7 @@ import org.apache.calcite.util.TimeString;
 import org.apache.calcite.util.TimestampString;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.expression.ArrayLiteralExpression;
 import com.dremio.common.expression.CaseExpression;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FieldReference;
@@ -102,6 +109,8 @@ public final class RexToExpr {
   public static final String UNSUPPORTED_REX_NODE_ERROR = "Cannot convert RexNode to equivalent Dremio expression. ";
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RexToExpr.class);
   private static boolean warnDecimal = true;
+
+  private static final List<SqlTypeName> SUPPORTED_ARRAY_SUM_MAX_TYPES = ImmutableList.of(INTEGER, BIGINT, FLOAT, DOUBLE, DECIMAL);
 
   /**
    * Converts a tree of {@link RexNode} operators into a scalar expression in Dremio syntax.
@@ -299,6 +308,8 @@ public final class RexToExpr {
         }
       case SPECIAL:
         switch(call.getKind()){
+        case ARRAY_VALUE_CONSTRUCTOR:
+          return new ArrayLiteralExpression(ImmutableList.copyOf(this.visitList(call.getOperands())));
         case CAST:
           return getCastFunction(call);
         case LIKE:
@@ -343,49 +354,53 @@ public final class RexToExpr {
         }
 
         if (call.getOperator() == SqlStdOperatorTable.ITEM) {
-          LogicalExpression logExpr = call.getOperands().get(0).accept(this);
-
-          if (!(logExpr instanceof SchemaPath)) {
-            return logExpr;
-          }
-
-          SchemaPath left = (SchemaPath) logExpr;
+          final RexNode rexNode = call.getOperands().get(0);
+          final SchemaPath path = getSchemaPath(this, rexNode);
 
           // Convert expr of item[*, 'abc'] into column expression 'abc'
-          String rootSegName = left.getRootSegment().getPath();
+          String rootSegName = path.getRootSegment().getPath();
           if (StarColumnHelper.isStarColumn(rootSegName)) {
             rootSegName = rootSegName.substring(0, rootSegName.indexOf("*"));
             final RexLiteral literal = (RexLiteral) call.getOperands().get(1);
             return SchemaPath.getSimplePath(rootSegName + literal.getValue2().toString());
           }
 
+          RexNode indexer = call.getOperands().get(1);
+          if (!(indexer instanceof RexLiteral)) {
+            throw UserException
+              .validationError()
+              .message("Indexing Into an Array, Map, Struct must be a literal value")
+              .buildSilently();
+          }
+
           final RexLiteral literal = (RexLiteral) call.getOperands().get(1);
           switch(literal.getType().getSqlTypeName()){
           case DECIMAL:
           case INTEGER:
-            return left.getChild(((BigDecimal)literal.getValue()).intValue());
+            return path.getChild(((BigDecimal)literal.getValue()).intValue());
           case CHAR:
           case VARCHAR:
-            return left.getChild(literal.getValue2().toString());
+            return path.getChild(literal.getValue2().toString());
           default:
-            break;
+            throw UserException
+              .validationError()
+              .message("Unknown index kind: " + literal.getType().getSqlTypeName())
+              .buildSilently();
           }
         }
 
         if (call.getOperator() == SqlStdOperatorTable.DOT) {
-          LogicalExpression logExpr = call.getOperands().get(0).accept(this);
-          if (logExpr instanceof SchemaPath) {
-            SchemaPath left = (SchemaPath) logExpr;
-            final RexLiteral literal = (RexLiteral) call.getOperands().get(1);
-            switch(literal.getType().getSqlTypeName()) {
-              case CHAR:
-              case VARCHAR:
-                return left.getChild(literal.getValue2().toString());
-              case DECIMAL:
-              case INTEGER:
-              default:
-                break;
-            }
+          final RexNode rexNode = call.getOperands().get(0);
+          final SchemaPath path = getSchemaPath(this, rexNode);
+          final RexLiteral literal = (RexLiteral) call.getOperands().get(1);
+          switch (literal.getType().getSqlTypeName()) {
+            case CHAR:
+            case VARCHAR:
+              return path.getChild(literal.getValue2().toString());
+            case DECIMAL:
+            case INTEGER:
+            default:
+              break;
           }
         }
 
@@ -416,7 +431,16 @@ public final class RexToExpr {
         }
         // fall through
       default:
-        throw new AssertionError("todo: implement syntax " + syntax + "(" + call + ")");
+        throw new UnsupportedOperationException("Unimplemented syntax: " + syntax + " for (" + call + ")");
+      }
+    }
+
+    private SchemaPath getSchemaPath(Visitor visitor, RexNode rexNode) {
+      LogicalExpression expression = rexNode.accept(visitor);
+      if (expression instanceof SchemaPath) {
+        return (SchemaPath) expression;
+      } else {
+        throw new UnsupportedOperationException("Unimplemented support for (" + rexNode + ")");
       }
     }
 
@@ -549,7 +573,7 @@ public final class RexToExpr {
         break;
 
         case INTERVAL_YEAR:
-          if (argType == SqlTypeName.BIGINT || argType == SqlTypeName.INTEGER) {
+          if (argType == BIGINT || argType == INTEGER) {
             // Casting from numeric to interval, convert to months for storage in INTERVALYEAR
             arg = FunctionCallFactory.createExpression("multiply", arg,
               ValueExpressions.getBigInt(org.apache.arrow.vector.util.DateUtility.yearsToMonths));
@@ -564,7 +588,7 @@ public final class RexToExpr {
         case INTERVAL_HOUR:
         case INTERVAL_MINUTE:
         case INTERVAL_SECOND:
-          if (argType == SqlTypeName.BIGINT || argType == SqlTypeName.INTEGER) {
+          if (argType == BIGINT || argType == INTEGER) {
             // Casting from numeric to interval, convert to miliseconds for storage in INTERVALDAY
             long multiplier = 1;
             switch(call.getType().getSqlTypeName()) {
@@ -622,7 +646,7 @@ public final class RexToExpr {
             final LogicalExpression divider = ValueExpressions.getInt(
               sourceExpression.getType().getSqlTypeName().getEndUnit().multiplier.intValue());
 
-            if (call.getType().getSqlTypeName() == SqlTypeName.INTEGER) {
+            if (call.getType().getSqlTypeName() == INTEGER) {
               // To avoid overflow errors when casting larger intervals to their smallest field,
               // then scaling:
               // 1. Promote the CAST to BIGINT
@@ -743,6 +767,8 @@ public final class RexToExpr {
         return handleDateTruncFunction(args);
       } else if (functionName.equals("timestampdiff") || functionName.equals("timestampadd")) {
         return handleTimestampArithmanticFunction(functionName, args);
+      }else if(functionName.equals("array_sum") || functionName.equals("array_max") || functionName.equals("array_min")){
+        return handleArrayFunction(functionName, args, call.getType().getSqlTypeName());
       }
 
       return FunctionCallFactory.createExpression(functionName, args);
@@ -837,6 +863,16 @@ public final class RexToExpr {
               .build(logger);
       }
     }
+
+    private LogicalExpression handleArrayFunction(String functionName, final List<LogicalExpression> args, SqlTypeName  elementType) {
+      if(SUPPORTED_ARRAY_SUM_MAX_TYPES.contains(elementType)){
+          final String functionPostfix = elementType.getName();
+          return FunctionCallFactory.createExpression(functionName + "_" + functionPostfix, args);
+      }
+      throw new UnsupportedOperationException(String.format("%s function supports the following types: %s", functionName
+        , SUPPORTED_ARRAY_SUM_MAX_TYPES.stream().map(SqlTypeName::getName).collect(Collectors.joining(", "))));
+    }
+
 
     @Override
     public LogicalExpression visitLiteral(RexLiteral literal) {

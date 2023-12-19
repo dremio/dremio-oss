@@ -75,22 +75,14 @@ describe("AddProvisionModal", () => {
         clusterType: "YARN",
         provisionId: "provision_id",
       });
-      expect(instance.getModalTitle()).to.be.eql("Edit YARN");
+      expect(instance.getModalTitle()).to.be.eql("Edit Engine");
     });
 
     it("should return appropriate title when create new configuration", () => {
       wrapper.setProps({
         clusterType: "YARN",
       });
-      expect(instance.getModalTitle()).to.be.eql("Set Up YARN");
-    });
-
-    it("should return appropriate title if clusterType is absent", () => {
-      wrapper.setProps({
-        clusterType: null,
-      });
-
-      expect(instance.getModalTitle()).to.be.eql("Set Up");
+      expect(instance.getModalTitle()).to.be.eql("Add Engine");
     });
   });
 

@@ -31,7 +31,7 @@ public class ITRollbackOnHive extends DmlQueryOnHiveTestBase {
   private static final String SOURCE = HIVE_TEST_PLUGIN_NAME;
 
   @Test
-  public void testSimpleExpireOlderThan() throws Exception {
+  public void testSimpleRollbackToTimestamp() throws Exception {
     RollbackTests.testSimpleRollbackToTimestamp(allocator, SOURCE);
   }
 }

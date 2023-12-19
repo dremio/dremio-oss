@@ -28,6 +28,7 @@ import java.io.FilenameFilter;
 import java.io.PrintStream;
 import java.nio.file.Path;
 import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 
 import org.apache.arrow.vector.types.Types;
@@ -36,6 +37,7 @@ import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.JsonStringHashMap;
 import org.apache.arrow.vector.util.Text;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.Table;
 import org.apache.parquet.format.converter.ParquetMetadataConverter;
@@ -49,6 +51,7 @@ import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -56,13 +59,18 @@ import org.junit.Test;
 import com.dremio.BaseTestQuery;
 import com.dremio.PlanTestBase;
 import com.dremio.common.expression.CompleteType;
+import com.dremio.common.expression.SchemaPath;
+import com.dremio.common.types.TypeProtos;
 import com.dremio.common.util.TestTools;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.config.DremioConfig;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.hadoop.HadoopFileSystem;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.SchemaBuilder;
+import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.iceberg.IcebergFormatMatcher;
 import com.dremio.exec.store.iceberg.SchemaConverter;
@@ -72,11 +80,24 @@ import com.dremio.exec.store.parquet.SingletonParquetFooterCache;
 import com.dremio.io.file.FileSystem;
 import com.dremio.test.TemporarySystemProperties;
 import com.dremio.test.UserExceptionAssert;
+import com.google.common.collect.Lists;
 
 public class TestCTAS extends PlanTestBase {
+  private static boolean combineSmallFile;
+  private static String expectedDataFile = "0_0_0.parquet";
 
   @Rule
   public TemporarySystemProperties properties = new TemporarySystemProperties();
+
+  @BeforeClass
+  public static void setUp() throws Exception {
+    SabotContext context = getSabotContext();
+    combineSmallFile = context.getOptionManager().getOption(ExecConstants.ENABLE_ICEBERG_COMBINE_SMALL_FILES_FOR_DML);
+
+    // the writer plan fragment id is 0 before the plan change of combining small files
+    // after the plan change, the plan fragment id for the first-round writer is 4
+    expectedDataFile = combineSmallFile ? "3_0_0.parquet" : "0_0_0.parquet";
+  }
 
   @Before
   public void before() {
@@ -429,7 +450,7 @@ public class TestCTAS extends PlanTestBase {
       final File dataFolder = getQueryIDFolderAfterFirstWrite(tableFolder);
 
       assertTrue(dataFolder.exists()); // query ID folder, which contains data
-      File parquetDataFile = new File(dataFolder, "0_0_0.parquet");
+      File parquetDataFile = new File(dataFolder, expectedDataFile);
       assertTrue(parquetDataFile.exists()); // parquet data file
       verifyParquetFileHasColumnIds(parquetDataFile);
 
@@ -477,9 +498,8 @@ public class TestCTAS extends PlanTestBase {
       assertTrue(tableFolder.exists()); // table folder
 
       final File dataFolder = getQueryIDFolderAfterFirstWrite(tableFolder);
-
       assertTrue(dataFolder.exists()); // query ID folder, which contains data
-      File parquetDataFile = new File(dataFolder, "0_0_0.parquet");
+      File parquetDataFile = new File(dataFolder, expectedDataFile);
       assertTrue(parquetDataFile.exists()); // parquet data file
       verifyParquetFileHasColumnIds(parquetDataFile);
     } finally {
@@ -504,7 +524,11 @@ public class TestCTAS extends PlanTestBase {
       assertTrue(dataFolder.exists()); // query ID folder, which contains data
       //writers are in different phase
 
-      assertEquals(2, dataFolder.listFiles(new FilenameFilter() {
+      // without combineSmallFile, there are two 8mb data files generated
+      // with combineSmallFile, above two 8mb data files are combined into one 16mb data file.
+      // After orphan files removal, there are 1 data file in the folder.
+      int expectedDataFiles = combineSmallFile ? 1 : 2;
+      assertEquals(expectedDataFiles, dataFolder.listFiles(new FilenameFilter() {
         @Override
         public boolean accept(File dir, String name) {
           return name.endsWith(".parquet");
@@ -550,9 +574,8 @@ public class TestCTAS extends PlanTestBase {
       assertTrue(tableFolder.exists()); // table folder
 
       final File dataFolder = getQueryIDFolderAfterFirstWrite(tableFolder);
-
       assertTrue(dataFolder.exists()); // query ID folder, which contains data
-      assertTrue(new File(dataFolder, "0_0_0.parquet").exists()); // parquet data file
+      assertTrue(new File(dataFolder, expectedDataFile).exists()); // parquet data file
 
       File metadataFolder = new File(tableFolder, "metadata");
       assertTrue(metadataFolder.exists()); // metadata folder
@@ -641,7 +664,7 @@ public class TestCTAS extends PlanTestBase {
       final File dataFolder = getQueryIDFolderAfterFirstWrite(tableFolder);
 
       assertTrue(dataFolder.exists()); // query ID folder, which contains data
-      assertTrue(new File(dataFolder, "0_0_0.parquet").exists()); // parquet data file
+      assertTrue(new File(dataFolder, expectedDataFile).exists()); // parquet data file
 
       File metadataFolder = new File(tableFolder, "metadata");
       assertTrue(metadataFolder.exists()); // metadata folder
@@ -1129,4 +1152,76 @@ public class TestCTAS extends PlanTestBase {
     }
   }
 
+  // DX-65794
+  // Derived column names from CTAS should be maintained when the table
+  // is created, even when there is an implicit cast on one of the columns.
+  // We do this by using the validated row type field names when the CTAS
+  // does not specify explicit column names.
+  @Test
+  public void testColumnNamesMaintained() throws Exception {
+    final String col = "col";
+    final String tablePrefix = "TestColumnNamesMaintained";
+    final String tableA = String.format("%s.%sA", TEMP_SCHEMA, tablePrefix);
+    final String tableB = String.format("%s.%sB", TEMP_SCHEMA, tablePrefix);
+    final String tableC = String.format("%s.%sC", TEMP_SCHEMA, tablePrefix);
+
+    try {
+      // Create Table A.
+      final String createA = String.format(
+        "create table %s (%s int) as " +
+          "select * from (values (1), (2))", tableA, col);
+      runSQL(createA);
+
+      // Create table B.
+      final String createB = String.format(
+        "create table %s (%s varchar) as " +
+          "select * from (values ('3'), ('4'))", tableB, col);
+      runSQL(createB);
+
+      // Create table C from union of tables A and B.
+      // Column type is inconsistent between tables,
+      // so an implicit cast will be applied to one side
+      // of the union. The column name of new table
+      // should be maintained.
+      final String createC = String.format(
+        "create table %s as " +
+          "(select %s from %s " +
+          "union all " +
+          "select %s from %s)", tableC, col, tableA, col, tableB);
+      runSQL(createC);
+
+      final SchemaPath schemaPath = SchemaPath.getSimplePath(col);
+      final TypeProtos.MajorType type =
+        com.dremio.common.types.Types.optional(TypeProtos.MinorType.VARCHAR);
+      final List<Pair<SchemaPath, TypeProtos.MajorType>> expectedSchema =
+        Lists.newArrayList(Pair.of(schemaPath, type));
+
+      // Query table C and verify column name.
+      final String query = String.format("select * from %s", tableC);
+      testBuilder()
+        .sqlQuery(query)
+        .schemaBaseLine(expectedSchema)
+        .go();
+    } finally {
+      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableA));
+      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableB));
+      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableC));
+    }
+  }
+
+  @Test
+  public void testCTASRoundRobin() throws Exception {
+    String table = "round_robin";
+    String sql = String.format("create table dfs_test.%s as select * from cp.csv.\"nationsWithCapitals.csv\"", table);
+    try (AutoCloseable ac = withOption(ExecConstants.SLICE_TARGET_OPTION, 1);
+         AutoCloseable ac0 = withOption(PlannerSettings.CTAS_ROUND_ROBIN, true);
+    AutoCloseable ac1 = withOption(ExecConstants.TARGET_BATCH_RECORDS_MIN, 1);
+    AutoCloseable ac2 = withOption(ExecConstants.TARGET_BATCH_RECORDS_MAX, 2)) {
+      test(sql);
+    }
+
+    File tableFolder = new File(getDfsTestTmpSchemaLocation(), table);
+    // Check that more than one file was created (ignoring the .crc files)
+    Assert.assertTrue(Objects.requireNonNull(tableFolder.listFiles((dir, name) -> !name.contains("crc"))).length > 1);
+  }
 }

@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.planner.acceleration;
 
+import java.time.Duration;
+
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttle;
 import org.apache.calcite.rel.logical.LogicalAggregate;
@@ -31,7 +33,10 @@ import com.google.common.base.Preconditions;
 
 /**
  * This extension of RelOptMaterialization is used in Dremio acceleration. It stores and makes
- * accessible information about incremental updates
+ * accessible information about incremental updates.
+ *
+ * A DremioMaterialization is immutable so as we transform and normalize target materializations
+ * we will clone the DremioMaterialization accordingly.
  */
 public class DremioMaterialization {
   private final RelNode tableRel;
@@ -48,6 +53,8 @@ public class DremioMaterialization {
   private final RelTransformer postStripTransformer;
   private boolean hasJoin;
   private boolean hasAgg;
+  private String info;
+  private Duration normalizationDuration;
 
   private int stripVersion;
 
@@ -64,7 +71,7 @@ public class DremioMaterialization {
       int stripVersion,
       RelTransformer postStripTransformer) {
     this(tableRel, queryRel, incrementalUpdateSettings, joinDependencyProperties, layoutInfo, materializationId, schema,
-        expirationTimestamp, false, null, alreadyStripped, stripVersion, postStripTransformer);
+        expirationTimestamp, false, null, alreadyStripped, stripVersion, postStripTransformer, "", Duration.ZERO);
   }
 
   private DremioMaterialization(
@@ -80,7 +87,9 @@ public class DremioMaterialization {
       DremioMaterialization original,
       boolean alreadyStripped,
       int stripVersion,
-      RelTransformer postStripTransformer) {
+      RelTransformer postStripTransformer,
+      String info,
+      Duration duration) {
     this.tableRel = tableRel;
     this.queryRel = queryRel;
     this.incrementalUpdateSettings = Preconditions.checkNotNull(incrementalUpdateSettings);
@@ -114,6 +123,8 @@ public class DremioMaterialization {
         return super.visit(other);
       }
     });
+    this.info = info;
+    this.normalizationDuration = duration;
   }
 
   public ReflectionType getReflectionType() {
@@ -125,14 +136,6 @@ public class DremioMaterialization {
 
   public boolean isAlreadyStripped() {
     return alreadyStripped;
-  }
-
-  public DremioMaterialization transformQuery(RelTransformer transformer) {
-    return new DremioMaterialization(tableRel, transformer.transform(queryRel), incrementalUpdateSettings, joinDependencyProperties, layoutInfo, materializationId, schema, expirationTimestamp, snowflake, original, alreadyStripped, stripVersion, postStripTransformer);
-  }
-
-  public DremioMaterialization transformMaterialization(RelTransformer transformer) {
-    return new DremioMaterialization(transformer.transform(tableRel), queryRel, incrementalUpdateSettings, joinDependencyProperties, layoutInfo, materializationId, schema, expirationTimestamp, snowflake, original, alreadyStripped, stripVersion, postStripTransformer);
   }
 
   public RelNode getQueryRel() {
@@ -172,7 +175,9 @@ public class DremioMaterialization {
         original,
         alreadyStripped,
         stripVersion,
-        postStripTransformer);
+        postStripTransformer,
+        info,
+      normalizationDuration);
   }
 
   public String getMaterializationId() {
@@ -185,10 +190,6 @@ public class DremioMaterialization {
 
   public String getReflectionId() {
     return layoutInfo.getReflectionId();
-  }
-
-  public boolean hasJoin() {
-    return hasJoin;
   }
 
   public boolean hasAgg() {
@@ -209,41 +210,47 @@ public class DremioMaterialization {
         original,
         alreadyStripped,
         stripVersion,
-        postStripTransformer);
+        postStripTransformer,
+        info,
+      normalizationDuration);
   }
 
-  public DremioMaterialization cloneWithNewTable(RelNode tableRel) {
+  public DremioMaterialization cloneWith(RelNode query, String info, Duration duration) {
     return new DremioMaterialization(
-        tableRel,
-        queryRel,
-        incrementalUpdateSettings,
-        joinDependencyProperties,
-        layoutInfo,
-        materializationId,
-        schema,
-        expirationTimestamp,
-        snowflake,
-        original,
-        alreadyStripped,
-        stripVersion,
-        postStripTransformer);
+      tableRel,
+      query,
+      incrementalUpdateSettings,
+      joinDependencyProperties,
+      layoutInfo,
+      materializationId,
+      schema,
+      expirationTimestamp,
+      snowflake,
+      original,
+      alreadyStripped,
+      stripVersion,
+      postStripTransformer,
+      info,
+      duration);
   }
 
-  public DremioMaterialization cloneWithNewTableAndQuery(RelNode tableRel, RelNode queryRel) {
+  public DremioMaterialization cloneWith(RelNode tableRel, RelNode queryRel, Duration duration) {
     return new DremioMaterialization(
-        tableRel,
-        queryRel,
-        incrementalUpdateSettings,
-        joinDependencyProperties,
-        layoutInfo,
-        materializationId,
-        schema,
-        expirationTimestamp,
-        snowflake,
-        original,
-        alreadyStripped,
-        stripVersion,
-        postStripTransformer);
+      tableRel,
+      queryRel,
+      incrementalUpdateSettings,
+      joinDependencyProperties,
+      layoutInfo,
+      materializationId,
+      schema,
+      expirationTimestamp,
+      snowflake,
+      original,
+      alreadyStripped,
+      stripVersion,
+      postStripTransformer,
+      info,
+      duration);
   }
 
 
@@ -260,7 +267,9 @@ public class DremioMaterialization {
         null, // consider the new materialization as original for reporting purposes
         alreadyStripped,
         stripVersion,
-        postStripTransformer);
+        postStripTransformer,
+        info,
+      normalizationDuration);
   }
 
   public BatchSchema getSchema() {
@@ -277,19 +286,21 @@ public class DremioMaterialization {
 
   public DremioMaterialization accept(RelShuttle shuttle) {
     return new DremioMaterialization(
-        tableRel.accept(shuttle),
-        queryRel.accept(shuttle),
-        incrementalUpdateSettings,
-        joinDependencyProperties,
-        layoutInfo,
-        materializationId,
-        schema,
-        expirationTimestamp,
-        snowflake,
-        original,
-        alreadyStripped,
-        stripVersion,
-        postStripTransformer);
+      tableRel.accept(shuttle),
+      queryRel.accept(shuttle),
+      incrementalUpdateSettings,
+      joinDependencyProperties,
+      layoutInfo,
+      materializationId,
+      schema,
+      expirationTimestamp,
+      snowflake,
+      original,
+      alreadyStripped,
+      stripVersion,
+      postStripTransformer,
+      info,
+      normalizationDuration);
   }
 
   public int getStripVersion() {
@@ -298,5 +309,17 @@ public class DremioMaterialization {
 
   public RelTransformer getPostStripTransformer() {
     return postStripTransformer;
+  }
+
+  public String getInfo() {
+    return info;
+  }
+
+  public Duration getNormalizationDuration() {
+    return normalizationDuration;
+  }
+
+  public RelWithInfo getQueryRelWithInfo() {
+    return RelWithInfo.create(queryRel, info, normalizationDuration);
   }
 }

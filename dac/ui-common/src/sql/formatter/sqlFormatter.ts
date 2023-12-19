@@ -23,11 +23,11 @@ import {
 import { PredictionMode } from "antlr4ts/atn/PredictionMode";
 import type { ParseTree } from "antlr4ts/tree/ParseTree";
 import { ParseTreeWalker } from "antlr4ts/tree/ParseTreeWalker";
-import { AbstractSQLLexer } from "../../../dist-antlr/AbstractSQLLexer";
-import { AbstractSQLParser } from "../../../dist-antlr/AbstractSQLParser";
+import { AbstractSQLLexer } from "../../../target/generated-sources/antlr/AbstractSQLLexer";
+import { AbstractSQLParser } from "../../../target/generated-sources/antlr/AbstractSQLParser";
 import { getLoggingContext, Logger } from "../../contexts/LoggingContext";
 import { createParserErrorListeners } from "../parser/errorListener";
-import { parseQuery } from "../parser/queryParser";
+import { FullQueryParser } from "../parser/fullQueryParser";
 import {
   AbstractSqlToken,
   AbstractSqlGenerator,
@@ -47,17 +47,20 @@ const getLogger = () => {
  * Converts a sql query to a formatted sql query.
  */
 export function formatQuery(query: string): string {
-  const { error, lexerErrorListener, parserErrorListener } =
+  const { getErrors, lexerErrorListener, parserErrorListener } =
     createParserErrorListeners(getLogger());
-  const [queryParseTree, queryTokenStream] = parseQuery(
-    query,
-    lexerErrorListener,
-    parserErrorListener
-  );
-  if (error.lexer) {
-    throw error.lexer.e || new Error(error.lexer.msg);
-  } else if (error.parser) {
-    throw error.parser.e || new Error(error.parser.msg);
+  const { parseTree: queryParseTree, tokenStream: queryTokenStream } =
+    new FullQueryParser(query, lexerErrorListener, parserErrorListener).parse();
+  const errors = getErrors();
+
+  const firstLexerError = errors.find((error) => error.type == "lexer");
+  if (firstLexerError) {
+    throw firstLexerError.e || new Error(firstLexerError.msg);
+  }
+
+  const firstParserError = errors.find((error) => error.type == "parser");
+  if (firstParserError) {
+    throw firstParserError.e || new Error(firstParserError.msg);
   }
 
   const [astTokens, originalTokensInfo] = createAbstractSqlTokens(

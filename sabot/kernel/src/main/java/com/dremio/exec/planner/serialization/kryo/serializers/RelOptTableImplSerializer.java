@@ -19,8 +19,8 @@ package com.dremio.exec.planner.serialization.kryo.serializers;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.dremio.exec.catalog.DremioCatalogReader;
 import com.dremio.exec.catalog.DremioPrepareTable;
+import com.dremio.exec.ops.DremioCatalogReader;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;

@@ -85,7 +85,7 @@ class SplitFooter extends PureComponent {
       return (
         <FieldWithError {...index} errorPlacement="top">
           <div style={styles.wrap}>
-            <span style={formLabel}>{la("[Index] =")}</span>
+            <span style={formLabel}>{laDeprecated("[Index] =")}</span>
             <TextField type="number" style={styles.textField} {...index} />
           </div>
         </FieldWithError>
@@ -94,7 +94,7 @@ class SplitFooter extends PureComponent {
       return (
         <FieldWithError {...maxFields} errorPlacement="top">
           <div style={styles.wrap}>
-            <span style={formLabel}>{la("Max Fields")}</span>
+            <span style={formLabel}>{laDeprecated("Max Fields")}</span>
             <TextField type="number" style={styles.textField} {...maxFields} />
           </div>
         </FieldWithError>
@@ -112,7 +112,7 @@ class SplitFooter extends PureComponent {
         className={classNames("extract-footer", sectionMargin)}
       >
         <div className={fieldsHorizontalSpacing}>
-          <div style={formLabel}>{la("Position")}</div>
+          <div style={formLabel}>{laDeprecated("Position")}</div>
           <Select
             items={this.options}
             className={rowMargin}

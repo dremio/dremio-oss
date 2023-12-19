@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.planner.common;
 
+
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -42,11 +44,13 @@ import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.ops.OptimizerRulesContext;
+import com.dremio.exec.ops.SnapshotDiffContext;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.TableMetadata;
+import com.dremio.exec.store.dfs.FilterableScan;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
@@ -69,6 +73,7 @@ public abstract class ScanRelBase extends TableScan {
   protected final TableMetadata tableMetadata;
   protected final StoragePluginId pluginId;
   protected final double observedRowcountAdjustment;
+  protected SnapshotDiffContext snapshotDiffContext = SnapshotDiffContext.NO_SNAPSHOT_DIFF;
 
   public ScanRelBase(
     RelOptCluster cluster,
@@ -86,6 +91,20 @@ public abstract class ScanRelBase extends TableScan {
     this.observedRowcountAdjustment = observedRowcountAdjustment;
     this.projectedColumns = projectedColumns != null ? ImmutableList.copyOf(projectedColumns) : getAllColumns(table);
     setProjectedRowType(projectedColumns);
+  }
+
+  public ScanRelBase(
+    RelOptCluster cluster,
+    RelTraitSet traitSet,
+    RelOptTable table,
+    StoragePluginId pluginId,
+    TableMetadata tableMetadata,
+    List<SchemaPath> projectedColumns,
+    double observedRowcountAdjustment,
+    List<RelHint> hints,
+    SnapshotDiffContext snapshotDiffContext) {
+    this(cluster, traitSet, table, pluginId, tableMetadata, projectedColumns, observedRowcountAdjustment, hints);
+    this.snapshotDiffContext = Preconditions.checkNotNull(snapshotDiffContext);
   }
 
   private static ImmutableList<SchemaPath> getAllColumns(RelOptTable table){
@@ -125,13 +144,28 @@ public abstract class ScanRelBase extends TableScan {
 
   @Override
   public RelWriter explainTerms(RelWriter pw) {
-    return explainScanRel(pw, tableMetadata, projectedColumns, observedRowcountAdjustment);
+    return explainScanRel(pw, tableMetadata, projectedColumns, observedRowcountAdjustment, snapshotDiffContext);
   }
 
+  /**
+   * Given a TableMetadata, extract its Snapshot ID as a string
+   * @param tableMetadata input table metadata
+   * @return SnapshotID as a string
+   */
+  public static String extractSnapshotID(TableMetadata tableMetadata){
+    return Optional.ofNullable(tableMetadata)
+      .map(TableMetadata::getDatasetConfig)
+      .map(DatasetConfig::getPhysicalDataset)
+      .map(PhysicalDataset::getIcebergMetadata)
+      .map(IcebergMetadata::getSnapshotId)
+      .map(Object::toString)
+      .orElse("");
+  }
   public static RelWriter explainScanRel(RelWriter pw,
                                          TableMetadata tableMetadata,
                                          List<SchemaPath> projectedColumns,
-                                         double observedRowcountAdjustment) {
+                                         double observedRowcountAdjustment,
+                                         SnapshotDiffContext snapshotDiffContext) {
     pw.item("table", tableMetadata.getName());
 
     Optional.ofNullable(tableMetadata)
@@ -145,6 +179,24 @@ public abstract class ScanRelBase extends TableScan {
       .map(TableMetadata::getVersionContext)
       .filter(x -> x != null)
       .ifPresent(versionContext -> pw.item("version", versionContext));
+
+    Optional.ofNullable(snapshotDiffContext)
+      .filter(SnapshotDiffContext::isEnabled)
+      .ifPresent(x -> {
+        final List<String> intervalsAsString = new ArrayList<>();
+        for(final SnapshotDiffContext.SnapshotDiffSingleInterval interval: x.getIntervals()) {
+          final String beginSnapshotId = extractSnapshotID(interval.getBeginningTableMetadata());
+          final String endSnapshotId = extractSnapshotID(interval.getEndingTableMetadata());
+          intervalsAsString.add("from " + beginSnapshotId + " to " + endSnapshotId);
+        }
+        final String filterApplyOptions  =
+          Optional.ofNullable(x.getFilterApplyOptions())
+            .map(Object::toString)
+            .orElse("");
+        pw.item("snapshotDiffContext",
+          String.format("%s, %s", filterApplyOptions, String.join(", ", intervalsAsString))
+        );
+      });
 
     if(projectedColumns != null){
       pw.item("columns", FluentIterable.from(projectedColumns).transform(new Function<SchemaPath, String>(){
@@ -226,7 +278,10 @@ public abstract class ScanRelBase extends TableScan {
 
     final int fieldCount = getLeafColumnCount(tableMetadata.getSchema(), projectedColumns);
 
-    double workCost = getCostAdjustmentFactor() * (rowCount * fieldCount * getTableMetadata().getReadDefinition().getScanStats().getScanFactor()) * DremioCost.SCAN_CPU_COST_MULTIPLIER;
+    double workCost = getCostAdjustmentFactor()
+      * (rowCount * fieldCount * getTableMetadata().getReadDefinition().getScanStats().getScanFactor())
+      * DremioCost.SCAN_CPU_COST_MULTIPLIER
+      * getRowGroupFilterReduction();
 
     if (PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
       return planner.getCostFactory().makeCost(estimatedRowCount, workCost, workCost);
@@ -241,6 +296,21 @@ public abstract class ScanRelBase extends TableScan {
     DremioCost cost = costFactory.makeCost(estimatedRowCount, workCost, workCost, workCost);
     Preconditions.checkArgument(!cost.isInfinite(), "infinite cost...");
     return cost;
+  }
+
+  /**
+   * Just reduce this by a small fraction, so we pick this scan
+   * over any other scan which does not have a row group filter
+   * @return the row group reduction factor.
+   */
+  private double getRowGroupFilterReduction() {
+    if (this instanceof FilterableScan
+      && ((FilterableScan)this).getRowGroupFilter() != null) {
+      return PrelUtil
+        .getPlannerSettings(getCluster())
+        .getRowGroupFilterReductionFactor();
+    }
+    return 1.0d;
   }
 
   public static int getLeafColumnCount(BatchSchema schema){
@@ -307,5 +377,9 @@ public abstract class ScanRelBase extends TableScan {
       builder.add(path, fields.get(path));
     }
     return builder.build();
+  }
+
+  public SnapshotDiffContext getSnapshotDiffContext() {
+    return snapshotDiffContext;
   }
 }

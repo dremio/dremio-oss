@@ -21,6 +21,7 @@ export const setupLang = () => {
   return Promise.all([
     import("dremio-ui-common/lang/common/en-US.json"),
     import("dremio-ui-common/lang/sonar/en-US.json"),
+    import("dremio-ui-common/lang/error-codes/en-US.json"),
   ]).then((messageBundles) => {
     messageBundles.forEach((messageBundle) =>
       intlContext.addMessages(messageBundle.default)

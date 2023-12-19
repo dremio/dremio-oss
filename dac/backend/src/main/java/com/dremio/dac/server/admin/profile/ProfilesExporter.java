@@ -50,7 +50,7 @@ import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobResult;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.jobs.JobIndexKeys;
-import com.dremio.service.jobs.LocalJobsService;
+import com.dremio.service.jobs.JobsStoreCreator;
 import com.dremio.service.jobtelemetry.server.store.LocalProfileStore;
 import com.dremio.services.configuration.ConfigurationStore;
 import com.dremio.services.configuration.proto.ConfigurationEntry;
@@ -164,7 +164,7 @@ public final class ProfilesExporter {
     throws IOException {
     final LegacyKVStore<AttemptId, UserBitShared.QueryProfile> profilesStore =
       provider.getStore(LocalProfileStore.KVProfileStoreCreator.class);
-    final LegacyIndexedStore<JobId, JobResult> jobsStore = provider.getStore(LocalJobsService.JobsStoreCreator.class);
+    final LegacyIndexedStore<JobId, JobResult> jobsStore = provider.getStore(JobsStoreCreator.class);
 
     LegacyIndexedStore.LegacyFindByCondition jobsFilter = getJobsFilter(fromDate, toDate);
 
@@ -216,7 +216,7 @@ public final class ProfilesExporter {
     throws IOException {
     final LegacyKVStore<AttemptId, UserBitShared.QueryProfile> profilesStore =
       provider.getStore(LocalProfileStore.KVProfileStoreCreator.class);
-    final LegacyIndexedStore<JobId, JobResult> jobsStore = provider.getStore(LocalJobsService.JobsStoreCreator.class);
+    final LegacyIndexedStore<JobId, JobResult> jobsStore = provider.getStore(JobsStoreCreator.class);
 
     LegacyIndexedStore.LegacyFindByCondition jobsFilter = getJobsFilter(fromDate, toDate);
 

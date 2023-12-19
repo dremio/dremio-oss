@@ -57,6 +57,7 @@ import com.dremio.exec.rpc.Response;
 import com.dremio.exec.rpc.RpcConnectionHandler;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.RpcFuture;
+import com.dremio.exec.rpc.proxy.ProxyConfig;
 import com.dremio.ssl.SSLConfig;
 import com.dremio.ssl.SSLEngineFactory;
 import com.google.common.collect.Sets;
@@ -76,7 +77,7 @@ public class UserClient extends BasicClientWithConnection<RpcType, UserToBitHand
   private volatile Set<RpcType> supportedMethods = null;
 
   public UserClient(String clientName, SabotConfig config, boolean supportComplexTypes, BufferAllocator alloc,
-      EventLoopGroup eventLoopGroup, Executor eventExecutor, Optional<SSLConfig> sslConfig) throws RpcException {
+      EventLoopGroup eventLoopGroup, Executor eventExecutor, Optional<SSLConfig> sslConfig, Optional<ProxyConfig> proxyConfig) throws RpcException {
     super(
         UserRpcConfig.getMapping(config, eventExecutor, sslConfig),
         alloc,
@@ -85,7 +86,8 @@ public class UserClient extends BasicClientWithConnection<RpcType, UserToBitHand
         BitToUserHandshake.class,
         BitToUserHandshake.PARSER,
         "user client",
-        newSSLEngineFactory(sslConfig)
+        newSSLEngineFactory(sslConfig),
+        proxyConfig
     );
 
     this.clientName = checkNotNull(clientName);

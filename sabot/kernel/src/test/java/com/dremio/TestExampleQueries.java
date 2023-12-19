@@ -24,6 +24,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -34,6 +35,7 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.common.types.TypeProtos.MinorType;
@@ -43,6 +45,7 @@ import com.dremio.config.DremioConfig;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.sabot.op.join.hash.HashJoinOperator;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
@@ -113,6 +116,100 @@ public class TestExampleQueries extends PlanTestBase {
       .baselineColumns("c1")
       .baselineValues(14L)
       .go();
+  }
+
+  @Test
+  public void testLeastFunction() throws Exception {
+    final String sql = "select least('2023-05','2023-03')";
+    testBuilder()
+      .sqlQuery(sql)
+      .unOrdered()
+      .baselineColumns("EXPR$0")
+      .baselineValues("2023-03")
+      .go();
+  }
+
+  /* Create a temporary folder which has sub-folders/files as below
+  2011/Jan/1.csv
+  2012/Jan/1.csv
+  2013/Jan/1.csv
+  */
+  private TemporaryFolder CreateFolderStructure() throws Exception {
+    final TemporaryFolder folder = new TemporaryFolder();
+    folder.create();
+    for(String folderName : new String[]{"2011", "2012", "2013"}) {
+      File f = folder.newFolder(folderName, "Jan");
+      File handle = new File(f, "1.csv");
+      PrintWriter out = new PrintWriter(handle);
+      out.println("Hello world");
+      out.close();
+    }
+    return folder;
+  }
+
+  @Test
+  public void testFolderExplorer() throws Exception {
+    final TemporaryFolder folder = CreateFolderStructure();
+    final String path = folder.getRoot().toPath().toString();
+    final String sql =
+        "select dir0, dir1 from dfs.\"" + path + "\" " +
+        "where dir0 = MAXDIR('dfs','" + path + "')";
+
+    testBuilder()
+      .sqlQuery(sql)
+      .unOrdered()
+      .baselineColumns("dir0", "dir1")
+      .baselineValues("2013", "Jan")
+      .go();
+
+    folder.delete();
+  }
+
+  @Test
+  public void testMaxDirEvaluationInPlanner() throws Exception {
+    final TemporaryFolder folder = CreateFolderStructure();
+    final String path = folder.getRoot().toPath().toString();
+    final String sql =
+      "SELECT dir0 FROM" +
+        "(SELECT '2013' AS dir0 from (values ((0), (1))))" +
+        "WHERE dir0 = MAXDIR('dfs','" + path + "')";
+
+    testBuilder()
+      .sqlQuery(sql)
+      .unOrdered()
+      .baselineColumns("dir0")
+      .baselineValues("2013")
+      .go();
+
+    folder.delete();
+  }
+
+  @Test
+  public void testMaxDirEvaluationAtRuntime() throws Exception {
+    final TemporaryFolder folder = CreateFolderStructure();
+    final String path = folder.getRoot().toPath().toString();
+    final String sql =
+        "SELECT dir0 FROM" +
+        "(SELECT '2013' AS dir0 from (values ((0), (1))))" +
+        "WHERE dir0 = MAXDIR('com.dremio.plugins.azure', '" + path + "')";
+
+    errorMsgWithTypeTestHelper(sql,
+      ErrorType.UNSUPPORTED_OPERATION,
+      "The partition explorer interface can only be used in functions that can be evaluated at planning time");
+
+    folder.delete();
+  }
+
+  @Test
+  public void testMaxDirWithNullArgument() throws Exception {
+    final String sql =
+      "SELECT dir0 FROM" +
+        "(SELECT '2013' AS dir0 from (values ((0), (1))))" +
+        "WHERE dir0 = MAXDIR(NULL, NULL)";
+
+    errorMsgWithTypeTestHelper(sql,
+      ErrorType.UNSUPPORTED_OPERATION,
+      "The partition explorer interface can only be used in functions that can be evaluated at planning time");
   }
 
   @Test
@@ -838,7 +935,7 @@ public class TestExampleQueries extends PlanTestBase {
         .sqlQuery("SELECT typeof(CURRENT_TIMESTAMP) c1, typeof(CURRENT_TIMESTAMP(3)) c2 FROM (VALUES(1))")
         .unOrdered()
         .baselineColumns("c1", "c2")
-        .baselineValues("TIMESTAMPMILLI", "TIMESTAMPMILLI")
+        .baselineValues("TIMESTAMP", "TIMESTAMP")
         .go();
   }
 
@@ -861,12 +958,17 @@ public class TestExampleQueries extends PlanTestBase {
 
   @Test
   public void testQ14Regression() throws Exception {
-    String query = "select x, y, z from ( select customer_region_id, fname, avg(total_children) "
-        + "from cp.\"customer.json\" group by customer_region_id, fname) as sq(x, y, z) where coalesce(x, 100) = 10";
+    String query = ""
+        + "select x, y, z\n"
+        + "from (\n"
+        + "  select customer_region_id, fname, avg(total_children)\n"
+        + "  from cp.\"customer.json\"\n"
+        + "  group by customer_region_id, fname) as sq(x, y, z)\n"
+        + "where coalesce(x, 100) = 10";
     testPlanMatchingPatterns(query, new String[] {
-        "Filter\\(condition=\\[CASE\\(IS NOT NULL\\(\\$1\\), =\\(\\$1, 10\\), false\\)\\]\\)",
-        "Agg\\(group=\\[\\{0, 1\\}\\], agg\\#0=\\[.?SUM.?\\(\\$2\\)\\], agg\\#1=\\[COUNT\\(\\$2\\)\\]\\)",
-        "Project\\(customer_region_id=\\[\\$0\\], fname=\\[\\$1\\], EXPR\\$2=(?:\\[\\/\\(CAST\\(\\$2\\):DOUBLE, \\$3\\)\\]|\\[\\/\\(CAST\\(CASE\\(\\=\\(\\$3, 0\\), null:BIGINT, \\$2\\)\\)\\:DOUBLE, \\$3\\)\\])\\)" },
+        "Project\\(x=\\[CAST\\(10:BIGINT\\):BIGINT\\], y=\\[\\$0\\], z=\\[",
+        "HashAgg\\(group=\\[\\{0\\}\\], agg\\#0=\\[.?SUM.?\\(\\$2\\)\\], agg\\#1=\\[COUNT\\(\\$2\\)\\]\\)",
+        "Filter\\(condition=\\[=\\(\\$1, 10\\)\\]\\)"},
         null);
   }
 
@@ -924,7 +1026,7 @@ public class TestExampleQueries extends PlanTestBase {
       testBuilder()
           .sqlQuery("select (mi || mi) as CONCATOperator, mi, mi, concat(mi, mi) as CONCAT from concatNull")
           .ordered()
-          .baselineColumns("CONCATOperator", "mi", "mi2", "CONCAT")
+          .baselineColumns("CONCATOperator", "mi", "mi0", "CONCAT")
           .baselineValues("A.A.", "A.", "A.", "A.A.")
           .baselineValues("I.I.", "I.", "I.", "I.I.")
           .baselineValues(null, null, null, "")
@@ -1601,7 +1703,7 @@ public class TestExampleQueries extends PlanTestBase {
     testBuilder()
         .sqlQuery("select r_regionkey a, r_regionkey A FROM cp.\"tpch/region.parquet\"")
         .unOrdered()
-        .baselineColumns("a", "A1")
+        .baselineColumns("a", "A0")
         .baselineValues(0, 0)
         .baselineValues(1, 1)
         .baselineValues(2, 2)
@@ -1612,7 +1714,7 @@ public class TestExampleQueries extends PlanTestBase {
     testBuilder()
         .sqlQuery("select employee_id, Employee_id from cp.\"employee.json\" limit 2")
         .unOrdered()
-        .baselineColumns("employee_id", "Employee_id1")
+        .baselineColumns("employee_id", "Employee_id0")
         .baselineValues((long) 1, (long) 1)
         .baselineValues((long) 2, (long) 2)
         .build().run();

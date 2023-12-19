@@ -1,0 +1,36 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.dremio.service.scheduler;
+
+/**
+ * Common Information about a task used by the per task recovery monitor and per task done handler
+ * <p>
+ * Used internally only
+ * </p>
+ */
+interface PerTaskInfo extends PerTaskSchedule {
+  // fully qualified booking path for the task
+  String getBookFqPathLocal();
+
+  // fully qualified task path for the task
+  String getTaskFqPath();
+
+  // is this instance the current booking owner?
+  boolean isBookingOwner();
+
+  // is this task done already?
+  boolean isDone();
+}

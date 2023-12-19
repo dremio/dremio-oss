@@ -24,6 +24,7 @@ export const LOAD_ENTITIES_STARTED = "LOAD_ENTITIES_STARTED";
 export const LOAD_ENTITIES_SUCCESS = "LOAD_ENTITIES_SUCCESS";
 export const LOAD_ENTITIES_FAILURE = "LOAD_ENTITIES_FAILURE";
 export const LOADING_ITEMS = "LoadingItems";
+export const LOADING_ITEMS_MODAL = "LoadingItemsModal";
 
 function fetchEntities(urlPath, schema, viewId) {
   const resourcePath = urlPath;
@@ -107,19 +108,19 @@ export function renameHomeEntity(
 
 export const RESET_VIEW_STATE = "RESET_VIEW_STATE";
 
-export function resetViewState(viewId) {
+export function resetViewState(viewId, meta = {}) {
   return {
     type: RESET_VIEW_STATE,
-    meta: { viewId },
+    meta: { viewId, ...meta },
   };
 }
 
 export const UPDATE_VIEW_STATE = "UPDATE_VIEW_STATE";
 
-export function updateViewState(viewId, viewState) {
+export function updateViewState(viewId, viewState, extraMeta = {}) {
   return {
     type: UPDATE_VIEW_STATE,
-    meta: { viewId, viewState },
+    meta: { viewId, viewState, ...extraMeta },
   };
 }
 

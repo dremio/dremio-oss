@@ -85,7 +85,7 @@ public class TestStarQueries extends BaseTestQuery{
       .csvBaselineFile("testframework/testStarQueries/testSelStarMultipleStarsRegularColumnAsAlias/q1.tsv")
       .baselineTypes(MinorType.INT, MinorType.VARCHAR, MinorType.INT, MinorType.VARCHAR, MinorType.VARCHAR,
               MinorType.INT, MinorType.VARCHAR, MinorType.INT, MinorType.VARCHAR, MinorType.VARCHAR)
-      .baselineColumns("n_nationkey", "n_name", "n_regionkey", "n_comment", "extra", "n_nationkey0", "n_name0", "n_regionkey0", "n_comment0", "extra9")
+      .baselineColumns("n_nationkey", "n_name", "n_regionkey", "n_comment", "extra", "n_nationkey0", "n_name0", "n_regionkey0", "n_comment0", "extra0")
       .build().run();
 
       testBuilder()
@@ -94,7 +94,7 @@ public class TestStarQueries extends BaseTestQuery{
       .csvBaselineFile("testframework/testStarQueries/testSelStarMultipleStarsRegularColumnAsAlias/q2.tsv")
       .baselineTypes(MinorType.INT, MinorType.VARCHAR, MinorType.INT, MinorType.VARCHAR, MinorType.VARCHAR,
               MinorType.INT, MinorType.VARCHAR, MinorType.INT, MinorType.VARCHAR, MinorType.VARCHAR)
-      .baselineColumns("n_nationkey", "n_name", "n_regionkey", "n_comment", "extra", "n_nationkey0", "n_name0", "n_regionkey0", "n_comment0", "extra9")
+      .baselineColumns("n_nationkey", "n_name", "n_regionkey", "n_comment", "extra", "n_nationkey0", "n_name0", "n_regionkey0", "n_comment0", "extra0")
       .build().run();
   }
 
@@ -105,7 +105,7 @@ public class TestStarQueries extends BaseTestQuery{
     .ordered()
     .csvBaselineFile("testframework/testStarQueries/testSelStarMultipleStars/q1.tsv")
     .baselineTypes(MinorType.INT, MinorType.VARCHAR, MinorType.INT, MinorType.VARCHAR, MinorType.INT, MinorType.VARCHAR, MinorType.INT, MinorType.VARCHAR, MinorType.VARCHAR)
-    .baselineColumns("n_nationkey", "n_name", "n_regionkey", "n_comment", "n_nationkey0", "n_name0", "n_regionkey0", "n_comment0", "n_name8")
+    .baselineColumns("n_nationkey", "n_name", "n_regionkey", "n_comment", "n_nationkey0", "n_name0", "n_regionkey0", "n_comment0", "n_name1")
     .build().run();
 
     testBuilder()
@@ -113,7 +113,7 @@ public class TestStarQueries extends BaseTestQuery{
     .ordered()
     .csvBaselineFile("testframework/testStarQueries/testSelStarMultipleStars/q2.tsv")
     .baselineTypes(MinorType.INT, MinorType.VARCHAR, MinorType.INT, MinorType.VARCHAR, MinorType.INT, MinorType.VARCHAR, MinorType.INT, MinorType.VARCHAR, MinorType.VARCHAR)
-    .baselineColumns("n_nationkey", "n_name", "n_regionkey", "n_comment", "n_nationkey0", "n_name0", "n_regionkey0", "n_comment0", "n_name8")
+    .baselineColumns("n_nationkey", "n_name", "n_regionkey", "n_comment", "n_nationkey0", "n_name0", "n_regionkey0", "n_comment0", "n_name1")
     .build().run();
   }
 

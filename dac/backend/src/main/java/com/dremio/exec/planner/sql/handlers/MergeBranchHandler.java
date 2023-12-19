@@ -23,8 +23,8 @@ import java.util.List;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult;

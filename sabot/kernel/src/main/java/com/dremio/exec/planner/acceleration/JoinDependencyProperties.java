@@ -17,7 +17,7 @@ package com.dremio.exec.planner.acceleration;
 
 import java.util.List;
 
-import com.dremio.exec.catalog.TableVersionContext;
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -45,9 +45,11 @@ public class JoinDependencyProperties {
     public List<String> uniqueKeyTable;
     public TableVersionContext foreignKeyTableVersionContext = null;
     public TableVersionContext uniqueKeyTableVersionContext = null;
+    public boolean runtimeFilterPruned;
 
     public Dependency(List<String> foreignKeyTable, String foreignKeyTableVersionContextValue,
-                      List<String> uniqueKeyTable, String uniqueKeyTableVersionContextValue) {
+                      List<String> uniqueKeyTable, String uniqueKeyTableVersionContextValue,
+                      boolean runtimeFilterPruned) {
       this.foreignKeyTable = foreignKeyTable;
       if (foreignKeyTableVersionContextValue != null) {
         foreignKeyTableVersionContext = TableVersionContext.deserialize(foreignKeyTableVersionContextValue);
@@ -56,6 +58,7 @@ public class JoinDependencyProperties {
       if (uniqueKeyTableVersionContextValue != null) {
         uniqueKeyTableVersionContext = TableVersionContext.deserialize(uniqueKeyTableVersionContextValue);
       }
+      this.runtimeFilterPruned = runtimeFilterPruned;
     }
 
     @Override
@@ -65,6 +68,7 @@ public class JoinDependencyProperties {
         (foreignKeyTableVersionContext != null ? ", foreignKeyTableVersionContext=" + foreignKeyTableVersionContext.serialize() : "") +
         ", uniqueKeyTable=" + uniqueKeyTable +
         (uniqueKeyTableVersionContext != null ? ", uniqueKeyTableVersionContext=" + uniqueKeyTableVersionContext.serialize() : "") +
+        ", runtimeFilterPruned=" + runtimeFilterPruned +
         '}';
     }
   }

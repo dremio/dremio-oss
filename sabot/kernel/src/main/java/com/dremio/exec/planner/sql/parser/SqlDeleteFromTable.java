@@ -40,19 +40,33 @@ public class SqlDeleteFromTable extends SqlDelete implements SqlDmlOperator {
 
     @Override
     public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 4, "SqlDelete.createCall() has to get 4 operands!");
+      Preconditions.checkArgument(operands.length == 5, "SqlDelete.createCall() has to get 5 operands!");
 
-      return new SqlDeleteFromTable(pos, operands[0], operands[1], (SqlIdentifier)operands[2], operands[3]);
+      return new SqlDeleteFromTable(
+        pos,
+        operands[0],
+        operands[1],
+        (SqlIdentifier)operands[2],
+        operands[3],
+        (SqlTableVersionSpec) operands[4]);
     }
   };
 
   private final SqlNode source;
   private SqlNode sourceOperand;
 
-  public SqlDeleteFromTable(SqlParserPos pos, SqlNode targetTable, SqlNode condition, SqlIdentifier alias, SqlNode source) {
+  private final SqlTableVersionSpec sqlTableVersionSpec;
+
+  public SqlDeleteFromTable(SqlParserPos pos,
+                            SqlNode targetTable,
+                            SqlNode condition,
+                            SqlIdentifier alias,
+                            SqlNode source,
+                            SqlTableVersionSpec sqlTableVersionSpec) {
     super(pos, targetTable, condition, null, alias);
     this.source = source;
     this.sourceOperand = source;
+    this.sqlTableVersionSpec = sqlTableVersionSpec;
   }
 
   @Override
@@ -73,7 +87,8 @@ public class SqlDeleteFromTable extends SqlDelete implements SqlDmlOperator {
       getTargetTable(),
       getCondition(),
       getAlias(),
-      sourceOperand);
+      sourceOperand,
+      sqlTableVersionSpec);
   }
 
   @Override
@@ -89,5 +104,18 @@ public class SqlDeleteFromTable extends SqlDelete implements SqlDmlOperator {
   @Override
   public SqlNode getSourceTableRef() {
     return source;
+  }
+
+  @Override
+  public SqlTableVersionSpec getSqlTableVersionSpec() {
+    return sqlTableVersionSpec;
+  }
+
+  @Override
+  public TableVersionSpec getTableVersionSpec() {
+    if (sqlTableVersionSpec != null) {
+      return sqlTableVersionSpec.getTableVersionSpec();
+    }
+    return null;
   }
 }

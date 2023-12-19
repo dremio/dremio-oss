@@ -33,17 +33,18 @@ import com.dremio.connector.metadata.SourceMetadata;
 import com.dremio.connector.metadata.extensions.SupportsListingDatasets;
 import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
-import com.dremio.exec.server.options.DefaultOptionManager;
 import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
+import com.dremio.options.impl.DefaultOptionManager;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.namespace.NamespaceTestUtils;
+import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.SourceConfig;
@@ -69,7 +70,7 @@ public class TestMetadataSynchronizer {
   public static void setup() throws Exception {
     LegacyKVStoreProvider kvStoreProvider = LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
     kvStoreProvider.start();
-    namespaceService = new NamespaceServiceImpl(kvStoreProvider);
+    namespaceService = new NamespaceServiceImpl(kvStoreProvider, new CatalogStatusEventsImpl());
     sourceKey = new NamespaceKey(SOURCE);
     sourceConfig = NamespaceTestUtils.addSource(namespaceService, SOURCE);
     metadataPolicy = new MetadataPolicy().setDatasetUpdateMode(UpdateMode.PREFETCH_QUERIED).setDeleteUnavailableDatasets(true);

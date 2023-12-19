@@ -14,30 +14,64 @@
  * limitations under the License.
  */
 import { Component } from "react";
-
 import PropTypes from "prop-types";
-
 import HomePage from "pages/HomePage/HomePage";
 import HomeContents from "./HomeContents";
+import { connect } from "react-redux";
+import {
+  getNormalizedEntityPathByUrl,
+  getSortedSources,
+} from "@app/selectors/home";
+import { getEntityType, getSourceNameFromUrl } from "@app/utils/pathUtils";
+import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
+import { getUserName } from "@app/selectors/account";
 
-export default class Home extends Component {
+import { getRefQueryParams } from "@app/utils/nessieUtils";
+
+class Home extends Component {
   static propTypes = {
     location: PropTypes.object,
     style: PropTypes.object,
     router: PropTypes.object,
+
+    homeContentsProps: PropTypes.object,
   };
 
-  constructor(props) {
-    super(props);
-  }
   render() {
+    const { style, location, homeContentsProps: props = {} } = this.props;
     return (
-      <HomePage style={this.props.style} location={this.props.location}>
-        <HomeContents
-          location={this.props.location}
-          projectId={this.props.router.params?.projectId}
-        />
+      <HomePage style={style} location={location}>
+        <HomeContents location={location} {...props} />
       </HomePage>
     );
   }
 }
+
+const mapStateToProps = (state, props) => {
+  const pathname =
+    rmProjectBase(location.pathname, {
+      projectId: props.router.params?.projectId,
+    }) || "/";
+  const entityType = getEntityType(pathname);
+  // do not use getNormalizedEntityPath from selectors/home here until DX-16200 would be resolved
+  // we must use router location value, as redux location could be out of sync
+  const getContentUrl = getNormalizedEntityPathByUrl(
+    pathname,
+    getUserName(state)
+  );
+
+  const sourceName = getSourceNameFromUrl(getContentUrl);
+  const sources = getSortedSources(state);
+  const source =
+    sources && sourceName
+      ? sources.find((cur) => cur.get("name") === sourceName)
+      : null;
+  const params =
+    entityType && ["source", "folder"].includes(entityType)
+      ? getRefQueryParams(state.nessie, sourceName)
+      : null;
+
+  return { homeContentsProps: { source, params, entityType, getContentUrl } };
+};
+
+export default connect(mapStateToProps)(Home);

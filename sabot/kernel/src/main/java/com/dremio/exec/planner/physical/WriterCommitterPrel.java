@@ -119,8 +119,6 @@ public class WriterCommitterPrel extends SingleRel implements Prel {
 
   @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
-    Prel child = (Prel) this.getInput();
-    PhysicalOperator childPop = child.getPhysicalOperator(creator);
     return new WriterCommitterPOP(
         creator.props(this, userName, RecordWriter.SCHEMA, RESERVE, LIMIT),
         tempLocation,
@@ -128,7 +126,7 @@ public class WriterCommitterPrel extends SingleRel implements Prel {
         createTableEntry.getIcebergTableProps(),
         createTableEntry.getDatasetPath(),
         datasetConfig,
-        childPop,
+        getChildPhysicalOperator(creator),
         plugin,
         null,
         isPartialRefresh,
@@ -172,5 +170,34 @@ public class WriterCommitterPrel extends SingleRel implements Prel {
 
   public boolean isReadSignatureEnabled() {
     return readSignatureEnabled;
+  }
+
+  protected String getTempLocation() {
+    return tempLocation;
+  }
+
+  protected String getFinalLocation() {
+    return finalLocation;
+  }
+
+  protected CreateTableEntry getCreateTableEntry() {
+    return createTableEntry;
+  }
+
+  protected Optional<DatasetConfig> getDatasetConfig() {
+    return datasetConfig;
+  }
+
+  protected StoragePluginId getSourceTablePluginId() {
+    return sourceTablePluginId;
+  }
+
+  protected MutablePlugin getPlugin() {
+    return plugin;
+  }
+
+  protected PhysicalOperator getChildPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
+    Prel child = (Prel) this.getInput();
+    return child.getPhysicalOperator(creator);
   }
 }

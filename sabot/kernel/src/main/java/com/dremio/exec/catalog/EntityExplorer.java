@@ -15,6 +15,15 @@
  */
 package com.dremio.exec.catalog;
 
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import javax.annotation.Nonnull;
+
+import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.catalog.model.dataset.TableVersionContext;
+import com.dremio.exec.store.ColumnExtendedProperty;
 import com.dremio.service.catalog.Table;
 import com.dremio.service.namespace.NamespaceKey;
 
@@ -30,6 +39,14 @@ public interface EntityExplorer {
    * @return A DremioTable if found, otherwise null.
    */
   DremioTable getTableNoResolve(NamespaceKey key);
+
+  /**
+   * Retrieve a table snapshot ignoring the default schema.
+   *
+   * @param key
+   * @return A DremioTable if found, otherwise null.
+   */
+  DremioTable getTableSnapshotNoResolve(NamespaceKey key, TableVersionContext context);
 
   /**
    * Retrieve a table ignoring column count.
@@ -84,29 +101,51 @@ public interface EntityExplorer {
    */
   DremioTable getTable(NamespaceKey key);
 
+  //TODO(DX-83444) Consolidate with getTable
   /**
-   * Retrieve a table when querying the table's data, first checking the default schema.
+   * Retrieve a table when querying the table's data, first checking the default schema
    *
    * @param key
    * @return
    */
   DremioTable getTableForQuery(NamespaceKey key);
 
+  //TODO(DX-83444) Consolidate with getTableSnapshot
   /**
-   * Retrieve a table snapshot when querying the table's data, first checking the default schema.
+   * Retrieve a table snapshot when querying the table's data, first checking the default schema
    *
    * @param key     path to table
    * @param context version context
-   * @return translatable table
+   * @return DremioTable
    */
   DremioTable getTableSnapshotForQuery(NamespaceKey key, TableVersionContext context);
 
   /**
-   * Retrieve a table snapshot when querying the table's data, without checking for privileges.
+   * Retrieve a table snapshot when querying the table's data
    *
    * @param key     path to table
    * @param context version context
-   * @return translatable table
+   * @return DremioTable
    */
   DremioTable getTableSnapshot(NamespaceKey key, TableVersionContext context);
+
+  /**
+   * Retrieve the column extended properties for a table.
+   * @param table the table to get the column extended properties for
+   * @return the column extended properties grouped by column name
+   */
+  Map<String, List<ColumnExtendedProperty>> getColumnExtendedProperties(DremioTable table);
+
+  /**
+   * Process an ad-hoc metadata verify request of {@link TableMetadataVerifyRequest} on a table and return the result of
+   * {@link TableMetadataVerifyResult}.
+   *
+   * @param key path to table
+   * @param metadataVerifyRequest metadata verify request
+   * @return metadata verify result
+   */
+  @Nonnull
+  Optional<TableMetadataVerifyResult> verifyTableMetadata(NamespaceKey key, TableMetadataVerifyRequest metadataVerifyRequest);
+
+  DremioTable getTable(CatalogEntityKey catalogEntityKey);
 }

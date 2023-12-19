@@ -15,7 +15,6 @@
  */
 package com.dremio.dac.explore;
 
-import static java.lang.String.format;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
 import java.io.IOException;
@@ -38,6 +37,10 @@ import javax.ws.rs.core.SecurityContext;
 
 import org.apache.arrow.vector.types.pojo.Field;
 
+import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.VersionContext;
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
@@ -47,7 +50,6 @@ import com.dremio.dac.explore.model.DatasetUI;
 import com.dremio.dac.explore.model.InitialDataPreviewResponse;
 import com.dremio.dac.explore.model.VersionContextReq;
 import com.dremio.dac.explore.model.VersionContextReq.VersionContextType;
-import com.dremio.dac.explore.model.VersionContextUtils;
 import com.dremio.dac.model.job.JobData;
 import com.dremio.dac.model.job.JobDataWrapper;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
@@ -61,13 +63,11 @@ import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
 import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.dac.util.JobRequestUtil;
 import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.CatalogEntityKey;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.catalog.ResolvedVersionContext;
-import com.dremio.exec.catalog.TableVersionContext;
-import com.dremio.exec.catalog.VersionContext;
+import com.dremio.exec.catalog.TableMutationOptions;
 import com.dremio.exec.physical.base.ViewOptions;
+import com.dremio.exec.planner.sql.parser.ReferenceTypeUtils;
 import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.job.QueryType;
@@ -81,9 +81,7 @@ import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
-import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
@@ -155,19 +153,15 @@ public class DatasetResource extends BaseResourceWithAllocator {
       @QueryParam("versionType") String versionType,
       @QueryParam("versionValue") String versionValue)
       throws DatasetNotFoundException, NamespaceException {
-    final CatalogEntityKey.Builder builder =
-        CatalogEntityKey.newBuilder().keyComponents(datasetPath.toPathList());
-
-    if (isDatasetVersioned()) {
-      final VersionContext versionContext = generateVersionContext(versionType, versionValue);
-      final TableVersionContext tableVersionContext = TableVersionContext.of(versionContext);
-
-      builder.tableVersionContext(tableVersionContext);
-    }
-
     final Catalog catalog = datasetService.getCatalog();
-    final CatalogEntityKey catalogEntityKey = builder.build();
-    final DremioTable table = CatalogUtil.getTable(catalogEntityKey, catalog);
+    final NamespaceKey namespaceKey = datasetPath.toNamespaceKey();
+    final VersionContext versionContext = ReferenceTypeUtils.map(versionType, versionValue);
+    final ResolvedVersionContext resolvedVersionContext = CatalogUtil.resolveVersionContext(catalog, namespaceKey.getRoot(), versionContext);
+    final CatalogEntityKey catalogEntityKey = CatalogUtil.getCatalogEntityKey(
+      namespaceKey,
+      resolvedVersionContext,
+      catalog);
+    final DremioTable table = catalog.getTable(catalogEntityKey);
 
     if (table == null) {
       throw new DatasetNotFoundException(datasetPath);
@@ -189,10 +183,21 @@ public class DatasetResource extends BaseResourceWithAllocator {
         new AccelerationSettingsDescriptor()
             .setAccelerationRefreshPeriod(settings.getRefreshPeriod())
             .setAccelerationGracePeriod(settings.getGracePeriod())
-            .setMethod(settings.getMethod())
-            .setRefreshField(settings.getRefreshField())
             .setAccelerationNeverExpire(settings.getNeverExpire())
             .setAccelerationNeverRefresh(settings.getNeverRefresh());
+
+    if (reflectionServiceHelper.isIncrementalRefreshBySnapshotEnabled(config)) {
+      descriptor.setMethod(RefreshMethod.AUTO);
+    } else {
+      // If RefreshMethod.AUTO has been saved and then support option is switched off, convert 'AUTO' to 'FULL'.
+      if (settings.getMethod() == RefreshMethod.AUTO) {
+        descriptor.setMethod(RefreshMethod.FULL);
+      } else {
+        descriptor.setMethod(settings.getMethod());
+        descriptor.setRefreshField(settings.getRefreshField());
+      }
+    }
+
     final ByteString schemaBytes = DatasetHelper.getSchemaBytes(config);
 
     if (schemaBytes != null) {
@@ -213,15 +218,6 @@ public class DatasetResource extends BaseResourceWithAllocator {
     return descriptor;
   }
 
-  private VersionContext generateVersionContext(String versionType, String versionValue) {
-    final VersionContext versionContext = VersionContextUtils.parse(versionType, versionValue);
-    if (versionContext.getType() == VersionContext.Type.UNSPECIFIED) {
-      throw new ClientErrorException(
-          "Missing a versionType/versionValue pair for versioned dataset");
-    }
-    return versionContext;
-  }
-
   @PUT
   @Path("acceleration/settings")
   @Produces(APPLICATION_JSON)
@@ -238,19 +234,16 @@ public class DatasetResource extends BaseResourceWithAllocator {
       || descriptor.getAccelerationNeverRefresh() //user never want to refresh, assume they just want to let it expire anyway
       || descriptor.getAccelerationRefreshPeriod() <= descriptor.getAccelerationGracePeriod() , "refreshPeriod must be less than gracePeriod");
 
-    final CatalogEntityKey.Builder builder =
-        CatalogEntityKey.newBuilder().keyComponents(datasetPath.toPathList());
-
-    if (isDatasetVersioned()) {
-      final VersionContext versionContext = generateVersionContext(versionType, versionValue);
-      final TableVersionContext tableVersionContext = TableVersionContext.of(versionContext);
-
-      builder.tableVersionContext(tableVersionContext);
-    }
 
     final Catalog catalog = datasetService.getCatalog();
-    final CatalogEntityKey catalogEntityKey = builder.build();
-    final DremioTable table = CatalogUtil.getTable(catalogEntityKey, catalog);
+    final NamespaceKey namespaceKey = datasetPath.toNamespaceKey();
+    final VersionContext versionContext = ReferenceTypeUtils.map(versionType, versionValue);
+    final ResolvedVersionContext resolvedVersionContext = CatalogUtil.resolveVersionContext(catalog, namespaceKey.getRoot(), versionContext);
+    final CatalogEntityKey catalogEntityKey = CatalogUtil.getCatalogEntityKey(
+      namespaceKey,
+      resolvedVersionContext,
+      catalog);
+    final DremioTable table = catalog.getTable(catalogEntityKey);
 
     if (table == null) {
       throw new DatasetNotFoundException(datasetPath);
@@ -281,6 +274,12 @@ public class DatasetResource extends BaseResourceWithAllocator {
 
     if (descriptor.getMethod() == RefreshMethod.FULL) {
       Preconditions.checkArgument(Strings.isNullOrEmpty(descriptor.getRefreshField()), "leave refresh field empty for full updates");
+    }
+
+    // Currently, setting of 'AUTO' method is effectively the same as 'FULL' (default) method.
+    // For datasets that applicable, snapshot-based incremental refresh method is applied automatically, not rely on this setting.
+    if (descriptor.getMethod() == RefreshMethod.AUTO) {
+      Preconditions.checkArgument(Strings.isNullOrEmpty(descriptor.getRefreshField()), "Leave refresh field empty for 'AUTO' refresh method.");
     }
 
     final ReflectionSettings reflectionSettings = reflectionServiceHelper.getReflectionSettings();
@@ -350,16 +349,32 @@ public class DatasetResource extends BaseResourceWithAllocator {
 
     DatasetUI datasetUI = null;
     if (versioned) {
+      NamespaceKey namespaceKey = new NamespaceKey(datasetPath.toPathList());
       final Catalog catalog = datasetService.getCatalog();
-      //TODO: Once DX-65418 is fixed, injected catalog will validate the right entity accordingly
-      catalog.validatePrivilege(new NamespaceKey(datasetPath.toPathList()), SqlGrant.Privilege.ALTER);
       final ResolvedVersionContext resolvedVersionContext =
-          CatalogUtil.resolveVersionContext(
-              catalog, datasetPath.getRoot().getName(), VersionContext.ofBranch(refValue));
-      final ViewOptions viewOptions =
-          new ViewOptions.ViewOptionsBuilder().version(resolvedVersionContext).build();
+        CatalogUtil.resolveVersionContext(
+          catalog, datasetPath.getRoot().getName(), VersionContext.ofBranch(refValue));
+      DatasetType datasetType = catalog.getDatasetType(CatalogEntityKey.newBuilder()
+        .keyComponents(datasetPath.toPathList())
+        .tableVersionContext(TableVersionContext.of(resolvedVersionContext))
+        .build());
+      if (datasetType == DatasetType.VIRTUAL_DATASET) {
+        catalog.validatePrivilege(namespaceKey, SqlGrant.Privilege.ALTER);
+        final ViewOptions viewOptions =
+            new ViewOptions.ViewOptionsBuilder().version(resolvedVersionContext).build();
 
-      catalog.dropView(new NamespaceKey(datasetPath.toPathList()), viewOptions);
+        catalog.dropView(namespaceKey, viewOptions);
+      } else if (datasetType == DatasetType.PHYSICAL_DATASET) {
+        catalog.validatePrivilege(namespaceKey, SqlGrant.Privilege.DROP);
+        final TableMutationOptions tableMutationOptions =
+          TableMutationOptions.newBuilder()
+            .setResolvedVersionContext(resolvedVersionContext)
+            .build();
+
+        catalog.dropTable(namespaceKey, tableMutationOptions);
+      } else {
+        throw new ClientErrorException("Dataset not found");
+      }
     } else {
       try {
         final VirtualDatasetUI virtualDataset = datasetService.get(datasetPath);
@@ -396,22 +411,7 @@ public class DatasetResource extends BaseResourceWithAllocator {
   @Produces(APPLICATION_JSON)
   public DatasetUI createDatasetFrom(@PathParam("cpathFrom") DatasetPath existingDatasetPath)
     throws NamespaceException, DatasetNotFoundException, UserNotFoundException {
-    final VirtualDatasetUI ds = datasetService.get(existingDatasetPath);
-    // Set a new version, name.
-    ds.setFullPathList(datasetPath.toPathList());
-    ds.setVersion(DatasetVersion.newVersion());
-    ds.setName(datasetPath.getLeaf().getName());
-    ds.setSavedTag(null);
-    ds.setId(null);
-    ds.setPreviousVersion(null);
-    ds.setOwner(securityContext.getUserPrincipal().getName());
-    datasetService.putVersion(ds);
-
-    try {
-      datasetService.put(ds);
-    } catch(NamespaceNotFoundException nfe) {
-      throw new ClientErrorException(format("Parent folder %s doesn't exist", existingDatasetPath.toParentPath()), nfe);
-    }
+    final VirtualDatasetUI ds = datasetService.createDatasetFrom(existingDatasetPath, datasetPath, securityContext.getUserPrincipal().getName());
 
     String fromEntityId = namespaceService.getEntityIdByPath(existingDatasetPath.toNamespaceKey());
     String toEntityId = namespaceService.getEntityIdByPath(datasetPath.toNamespaceKey());

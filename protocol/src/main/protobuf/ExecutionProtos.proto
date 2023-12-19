@@ -90,3 +90,17 @@ message RuntimeFilter {
 message ShrinkMemoryUsage {
   optional int64 memory_in_bytes = 1;
 }
+
+message HashDistributionValueCount {
+  optional int64 hash_distribution_key = 1;
+  optional int64 count = 2;
+}
+
+/**
+ * Hash distribution value counts. Used for data skew detection
+ */
+message HashDistributionValueCounts {
+  repeated HashDistributionValueCount hash_distribution_value_counts = 1;
+  optional int64 total_seen_records = 2;
+  optional int64 unique_value_count = 3;
+}

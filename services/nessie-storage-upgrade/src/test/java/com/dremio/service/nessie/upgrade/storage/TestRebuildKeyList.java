@@ -15,6 +15,7 @@
  */
 package com.dremio.service.nessie.upgrade.storage;
 
+import static com.dremio.test.DremioTest.CLASSPATH_SCAN_RESULT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.projectnessie.versioned.CommitMetaSerializer.METADATA_SERIALIZER;
 
@@ -54,7 +55,7 @@ import com.dremio.service.nessie.DatastoreDatabaseAdapterFactory;
 import com.dremio.service.nessie.ImmutableDatastoreDbConfig;
 import com.dremio.service.nessie.NessieDatastoreInstance;
 
-class TestRebuildKeyList extends AbstractNessieUpgradeTest {
+class TestRebuildKeyList {
 
   private final RebuildKeyList task = new RebuildKeyList();
   private LocalKVStoreProvider storeProvider;
@@ -62,7 +63,7 @@ class TestRebuildKeyList extends AbstractNessieUpgradeTest {
 
   @BeforeEach
   void createKVStore() throws Exception {
-    storeProvider = new LocalKVStoreProvider(scanResult, null, true, false); // in-memory
+    storeProvider = new LocalKVStoreProvider(CLASSPATH_SCAN_RESULT, null, true, false); // in-memory
     storeProvider.start();
 
     NessieDatastoreInstance nessieDatastore = new NessieDatastoreInstance();

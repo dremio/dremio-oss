@@ -26,6 +26,7 @@ import { BadGatewayError } from "./BadGatewayError";
 import { GatewayTimeoutError } from "./GatewayTimeoutError";
 import { ConflictError } from "./ConflictError";
 import { NotFoundError } from "./NotFoundError";
+import { ForbiddenError } from "./ForbiddenError";
 
 const extractResponseBody = (res: Response) => {
   if (res.headers.get("content-type")?.includes("application/json")) {
@@ -45,6 +46,8 @@ export const narrowHttpError = async (error: HttpError) => {
       );
     case 401:
       return new UnauthorizedError(error.res, responseBody);
+    case 403:
+      return new ForbiddenError(error.res, responseBody);
     case 404:
       return new NotFoundError(error.res, responseBody);
     case 409:

@@ -24,6 +24,7 @@ import com.dremio.dac.model.common.AddressableResource;
 import com.dremio.service.users.User;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
@@ -69,6 +70,7 @@ public class UserUI implements AddressableResource, Principal {
   }
 
   @JsonProperty("userConfig")
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public User getUser() {
     return user;
   }

@@ -705,4 +705,73 @@ public class TestStringFunctions extends BaseTestQuery {
       .expectsEmptyResultSet()
       .go();
   }
+
+  @Test
+  public void testSpace() throws Exception {
+    String query = "select space(5) as space_result";
+    testBuilder()
+      .sqlQuery(query)
+      .ordered()
+      .baselineColumns("space_result")
+      .baselineValues("     ")
+      .go();
+
+    query = "select space(0) as space_result";
+    testBuilder()
+      .sqlQuery(query)
+      .ordered()
+      .baselineColumns("space_result")
+      .baselineValues("")
+      .go();
+  }
+
+  @Test
+  public void testNormalize() throws Exception {
+    String query = "select normalize_string('schön', 'NFC') as nfc1,"
+      + "normalize_string('schön', 'NFD') as nfd1,"
+      + "normalize_string('schön', 'NFKC') as nfkc1,"
+      + "normalize_string('schön', 'NFKD') as nfkd1,"
+      + "normalize_string('teẛ̣t', 'NFC') as nfc2,"
+      + "normalize_string('teẛ̣t', 'NFD') as nfd2,"
+      + "normalize_string('teẛ̣t', 'NFKC') as nfkc2,"
+      + "normalize_string('teẛ̣t', 'NFKD') as nfkd2,"
+      + "normalize_string('teẛ̣t', 'nFkD') as nfkdcase2;";
+    testBuilder()
+      .sqlQuery(query)
+      .ordered()
+      .baselineColumns("nfc1", "nfd1", "nfkc1", "nfkd1", "nfc2", "nfd2", "nfkc2", "nfkd2", "nfkdcase2")
+      .baselineValues("schön", "sch\u006f\u0308n", "schön", "sch\u006f\u0308n",
+        "te\u1e9b\u0323t","te\u017f\u0323\u0307t","te\u1e69t","te\u0073\u0323\u0307t","te\u0073\u0323\u0307t")
+      .go();
+
+    query= "select normalize_string(null, 'NFC') as res1,  normalize_string('', 'NFC') as res2, normalize_string('schön', 'nFd') as res3";
+    testBuilder()
+      .sqlQuery(query)
+      .ordered()
+      .baselineColumns("res1", "res2", "res3")
+      .baselineValues(null, "","sch\u006f\u0308n")
+      .go();
+    try{
+      query= "select normalize_string('schön', 'WRONG') as res1";
+      testBuilder()
+        .sqlQuery(query)
+        .ordered()
+        .baselineColumns("res1")
+        .baselineValues(null)
+        .go();
+    } catch(Exception ex){
+      assertTrue(ex.getMessage().contains("Unknown normalization form specified, valid values are: NFD, NFC, NFKD, NFKC"));
+    }
+    try{
+      query= "select normalize_string('schön', null) as res1";
+      testBuilder()
+        .sqlQuery(query)
+        .ordered()
+        .baselineColumns("res1")
+        .baselineValues(null)
+        .go();
+    } catch(Exception ex){
+      assertTrue(ex.getMessage().contains("Unknown normalization form specified, valid values are: NFD, NFC, NFKD, NFKC"));
+    }
+  }
 }

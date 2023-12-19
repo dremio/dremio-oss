@@ -25,6 +25,7 @@ import com.google.common.collect.ImmutableSet;
  * Class to determine if a function should be excluded from the docs.
  */
 public final class ExcludedFunctions {
+
   private ExcludedFunctions() {}
 
   public static boolean shouldExcludeFunction(String name) {
@@ -49,6 +50,10 @@ public final class ExcludedFunctions {
       return "'" + name + "'" + " is an internal function and should not appear as a function.";
     }
 
+    if (isJsonFunction(name)) {
+      return "'" + name + "'" + " is an unimplemented JSON function and should not appear as a function.";
+    }
+
     return null;
   }
 
@@ -65,10 +70,6 @@ public final class ExcludedFunctions {
     ImmutableSet<String> names = ImmutableSet.of(
       "ADD",
       "AND",
-      "BITWISE_AND",
-      "BITWISE_NOT",
-      "BITWISE_OR",
-      "BITWISE_XOR",
       "BOOLEANAND",
       "BOOLEANOR",
       "DIV",
@@ -87,7 +88,6 @@ public final class ExcludedFunctions {
       "NOT_EQUAL",
       "OR",
       "ORNOSHORTCIRCUIT",
-      "PMOD",
       "POSITIVE",
       "SUBTRACT"
     );
@@ -122,7 +122,9 @@ public final class ExcludedFunctions {
     detectors.put("_", name -> sharesPrefix(name, "_"));
     detectors.put("ADD", name -> sharesPrefix(name, "ADD"));
     detectors.put("ALTERNATE", name -> name.equals("ALTERNATE3"));
-    detectors.put("ATAN", name -> name.equals("ATAN2"));
+    detectors.put("ARRAY_MAX", name -> sharesPrefix(name, "ARRAY_MAX"));
+    detectors.put("ARRAY_MIN", name -> sharesPrefix(name, "ARRAY_MIN"));
+    detectors.put("ARRAY_SUM", name -> sharesPrefix(name, "ARRAY_SUM"));
     detectors.put("ASSERT", name -> sharesPrefix(name, "ASSERT"));
     detectors.put("CAST", name -> sharesPrefix(name, "CAST"));
     detectors.put("CEILING", name -> name.equals("CEIL"));
@@ -136,7 +138,7 @@ public final class ExcludedFunctions {
     detectors.put("CURRENT_TIME", name -> name.equals("CURRENT_TIME_UTC"));
     detectors.put("DATE_TRUNC", name -> sharesPrefix(name, "DATE_TRUNC"));
     detectors.put("EXTRACT", name -> sharesPrefix(name, "EXTRACT"));
-    detectors.put("HASH", name -> sharesPrefix(name, "HASH"));
+    detectors.put("HASH", name -> !"HASH64".equals(name) && sharesPrefix(name, "HASH"));
     detectors.put("HLL", name -> sharesPrefix(name, "HLL"));
     detectors.put("INTERVAL", name -> sharesPrefix(name, "INTERVAL_"));
     detectors.put("ITEMS_SKETCH", name -> sharesPrefix(name, "ITEMS_SKETCH_"));
@@ -160,11 +162,23 @@ public final class ExcludedFunctions {
 
   private static boolean isInternalFunction(String name) {
     return ImmutableSet.of(
-      "COMPARETYPE", "DATETYPE", "DREMIOSPLITDISTRIBUTE", "EVERY",
+      "COMPARETYPE", "DREMIOSPLITDISTRIBUTE", "EVERY",
       "ICEBERGDISTRIBUTEBYPARTITION", "INCREASINGBIGINT", "ITEMS_SKETCH",
       "KVGEN", "LEAKRESOURCE", "NEWPARTITIONNUMBER", "NEWPARTITIONVALUE", "NONNULLSTATCOUNT",
       "PARTITIONBITCOUNTER", "PIVOT", "SINGLE_VALUE", "STATCOUNT", "STATEMENT_TIMESTAMP",
-      "STRING_BINARY", "TDIGEST", "TDIGEST_MERGE", "TIMEOFDAY", "U-", "UNPIVOT", "LAST_MATCHING_MAP_ENTRY_FOR_KEY")
+      "TDIGEST", "TDIGEST_MERGE", "TDIGEST_QUANTILE", "TIMEOFDAY", "U-", "UNPIVOT", "LAST_MATCHING_MAP_ENTRY_FOR_KEY",
+      "LOCAL_LISTAGG", "LISTAGG_MERGE", "PHASE1_ARRAY_AGG", "PHASE2_ARRAY_AGG", "ARRAY_SORT", "LIST_TO_DELIMITED_STRING",
+      "IDENTITY", "NULLABLE")
+      .contains(name);
+  }
+
+  private static boolean isJsonFunction(String name) {
+    return ImmutableSet.of(
+        "JSON_ARRAY", "JSON_ARRAYAGG", "JSON_ARRAYAGG_ABSENT_ON_NULL",
+        "JSON_ARRAYAGG_NULL_ON_NULL", "JSON_EXISTS", "JSON_OBJECT",
+        "JSON_OBJECTAGG", "JSON_OBJECTAGG_ABSENT_ON_NULL",
+        "JSON_OBJECTAGG_NULL_ON_NULL", "JSON_QUERY",
+        "JSON_VALUE", "JSON_VALUE_ANY")
       .contains(name);
   }
 }

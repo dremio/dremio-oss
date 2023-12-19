@@ -15,27 +15,30 @@
 #
 
 ---
-name: "CONTAINS"
+
+name: CONTAINS
 signatures:
- -
-  returnType: "BOOLEAN"
-  parameters:
-   -
-    kind: "REGULAR"
-    type: "STRING"
-    name: "haystack"
-    description: "The expression to search in."
-   -
-    kind: "REGULAR"
-    type: "STRING"
-    name: "needle"
-    description: "The expression to search for."
-  description: "Returns TRUE if we can find 'needle' in the 'haystack'."
-  sampleCodes:
-   -
-    call: "SELECT CONTAINS('dremio sql lakehouse', 'lake')"
-    result: "TRUE"
-dremioVersion: "1.0+"
+  - returnType: BOOLEAN
+    parameters:
+      - kind: REGULAR
+        type: STRING
+        name: luceneExpression
+        description: The Lucene expression to use as a search term.
+    sampleCodes:
+      - call: >
+          SELECT column1 from ElasticSearchSource.index1."_doc" WHERE
+          CONTAINS('dremio')"
+
+          -- All documents that contain the word "dremio".
+        result: ''
+      - call: >
+          SELECT column1 from ElasticSearchSource.index1."_doc" WHERE
+          CONTAINS(column1:dremio AND column2:lakehouse)
+
+          -- All documents that contain the word "dremio" in column1 and
+          "lakehouse" in column2.
+        result: ''
+dremioVersion: 1.0+
 functionCategories:
- - "CHARACTER"
-description: "Returns TRUE if the first expression contains the second expression."
+  - CHARACTER
+description: Returns documents matching the provided Lucene expression. (This function can only be used with Elasticsearch sources)

@@ -49,7 +49,7 @@ export function initializeDatasetRefs(
   state: NessieRootState,
   references: NessieActions.DatasetReference
 ) {
-  if (!references) return {};
+  if (!references) return state;
 
   return Object.keys(references).reduce(
     (acc: NessieRootState, cur: string) => {

@@ -39,6 +39,7 @@ class StepWizard extends PureComponent {
           onClick={this.props.onNextClick}
           variant="primary"
           key="details-wizard-next"
+          data-qa="details-wizard-next"
         >
           {intl.formatMessage({ id: "Common.Next" })}
         </Button>

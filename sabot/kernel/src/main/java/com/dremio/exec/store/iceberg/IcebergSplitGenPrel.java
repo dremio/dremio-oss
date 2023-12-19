@@ -24,6 +24,7 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 
+import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.PrelUtil;
@@ -33,10 +34,32 @@ import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.TableMetadata;
 
+import io.protostuff.ByteString;
+
 /**
  * Prel for the Iceberg split gen table function.
  */
 public class IcebergSplitGenPrel extends TableFunctionPrel {
+
+  public IcebergSplitGenPrel(
+    RelOptCluster cluster,
+    RelTraitSet traitSet,
+    RelOptTable table,
+    RelNode child,
+    BatchSchema outputSchema,
+    List<List<String>> tablePath,
+    StoragePluginId pluginId,
+    ByteString extendedProperty) {
+    this(
+      cluster,
+      traitSet,
+      table,
+      child,
+      null,
+      TableFunctionUtil.getIcebergSplitGenTableFunctionConfig(outputSchema, tablePath, pluginId, extendedProperty),
+      CalciteArrowHelper.wrap(outputSchema).toCalciteRecordType(cluster.getTypeFactory(),
+        PrelUtil.getPlannerSettings(cluster).isFullNestedSchemaSupport()));
+  }
 
   public IcebergSplitGenPrel(
       RelOptCluster cluster,

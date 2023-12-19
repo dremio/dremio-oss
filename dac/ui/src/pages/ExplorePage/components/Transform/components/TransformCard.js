@@ -43,7 +43,7 @@ export default class TransformCard extends Component {
     };
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     if (!nextProps.active) {
       this.setState({ editing: false });
     }

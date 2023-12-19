@@ -36,17 +36,19 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.mockito.quality.Strictness;
 
+import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.VersionContext;
+import com.dremio.catalog.model.dataset.TableVersionContext;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.server.BufferAllocatorFactory;
 import com.dremio.dac.service.collaboration.CollaborationHelper;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
-import com.dremio.dac.service.errors.ClientErrorException;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.CatalogEntityKey;
 import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.catalog.TableVersionContext;
 import com.dremio.plugins.dataplane.store.DataplanePlugin;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceKey;
@@ -108,14 +110,24 @@ public class TestAccelerationSettingsFromAPI extends DremioTest {
   }
 
   @Test
-  public void getAccelerationSettingsWithNullReference() throws Exception {
-    assertThatThrownBy(() -> datasetResource.getAccelerationSettings(null, null))
-        .isInstanceOf(ClientErrorException.class)
-        .hasMessageContaining("Missing a versionType/versionValue");
+  public void getAccelerationSettingsWithoutVersionType() throws Exception {
+    assertThatThrownBy(() -> datasetResource.getAccelerationSettings(null, "main"))
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("Missing a valid versionType/versionValue");
+  }
+
+  @Test
+  public void getAccelerationSettingsWithoutVersionValue() throws Exception {
+    assertThatThrownBy(() -> datasetResource.getAccelerationSettings("BRANCH", null))
+      .isInstanceOf(UserException.class)
+      .hasMessageContaining("Missing a valid versionType/versionValue");
   }
 
   @Test
   public void getAccelerationSettingsNotFoundTable() throws Exception {
+    final ResolvedVersionContext resolvedVersionContext = ResolvedVersionContext.ofBranch("main", "xyz");
+
+    when(catalog.resolveVersionContext(anyString(), any(VersionContext.class))).thenReturn(resolvedVersionContext);
     when(catalog.getTableSnapshot(any(NamespaceKey.class), any(TableVersionContext.class)))
         .thenReturn(null);
 
@@ -127,8 +139,12 @@ public class TestAccelerationSettingsFromAPI extends DremioTest {
   @Test
   public void getAccelerationSettingsForView() throws Exception {
     final DatasetConfig datasetConfig = new DatasetConfig().setType(DatasetType.VIRTUAL_DATASET);
+    final ResolvedVersionContext resolvedVersionContext = ResolvedVersionContext.ofBranch("main", "xyz");
 
+    when(catalog.resolveVersionContext(anyString(), any(VersionContext.class))).thenReturn(resolvedVersionContext);
     when(catalog.getTableSnapshot(any(NamespaceKey.class), any(TableVersionContext.class)))
+      .thenReturn(dremioTable);
+    when(catalog.getTable(any(CatalogEntityKey.class)))
       .thenReturn(dremioTable);
     when(dremioTable.getDatasetConfig()).thenReturn(datasetConfig);
 
@@ -140,12 +156,16 @@ public class TestAccelerationSettingsFromAPI extends DremioTest {
   @Test
   public void getAccelerationSettings() throws Exception {
     final DatasetConfig datasetConfig = new DatasetConfig().setType(DatasetType.PHYSICAL_DATASET);
+    final ResolvedVersionContext resolvedVersionContext = ResolvedVersionContext.ofBranch("main", "xyz");
 
+    when(catalog.resolveVersionContext(anyString(), any(VersionContext.class))).thenReturn(resolvedVersionContext);
     when(reflectionServiceHelper.getReflectionSettings()).thenReturn(reflectionSettings);
     when(reflectionSettings.getReflectionSettings(any(CatalogEntityKey.class)))
         .thenReturn(accelerationSettings);
     when(catalog.getTableSnapshot(any(NamespaceKey.class), any(TableVersionContext.class)))
         .thenReturn(dremioTable);
+    when(catalog.getTable(any(CatalogEntityKey.class)))
+      .thenReturn(dremioTable);
     when(dremioTable.getDatasetConfig()).thenReturn(datasetConfig);
 
     final AccelerationSettingsDescriptor descriptor =
@@ -204,17 +224,30 @@ public class TestAccelerationSettingsFromAPI extends DremioTest {
   }
 
   @Test
-  public void updateAccelerationSettingsNullReference() throws Exception {
+  public void updateAccelerationSettingsWithoutVersionValue() throws Exception {
     assertThatThrownBy(
             () ->
                 datasetResource.updateAccelerationSettings(
-                    accelerationSettingsDescriptor, null, null))
-        .isInstanceOf(ClientErrorException.class)
-        .hasMessageContaining("Missing a versionType/versionValue");
+                    accelerationSettingsDescriptor, "BRANCH", null))
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("Missing a valid versionType/versionValue");
+  }
+
+  @Test
+  public void updateAccelerationSettingsWithoutVersionType() throws Exception {
+    assertThatThrownBy(
+      () ->
+        datasetResource.updateAccelerationSettings(
+          accelerationSettingsDescriptor, null, "main"))
+      .isInstanceOf(UserException.class)
+      .hasMessageContaining("Missing a valid versionType/versionValue");
   }
 
   @Test
   public void updateAccelerationSettingsNotFoundTable() throws Exception {
+    final ResolvedVersionContext resolvedVersionContext = ResolvedVersionContext.ofBranch("main", "xyz");
+
+    when(catalog.resolveVersionContext(anyString(), any(VersionContext.class))).thenReturn(resolvedVersionContext);
     when(catalog.getTableSnapshot(any(NamespaceKey.class), any(TableVersionContext.class)))
       .thenReturn(null);
 
@@ -229,8 +262,12 @@ public class TestAccelerationSettingsFromAPI extends DremioTest {
   @Test
   public void updateAccelerationSettingsForView() throws Exception {
     final DatasetConfig datasetConfig = new DatasetConfig().setType(DatasetType.VIRTUAL_DATASET);
+    final ResolvedVersionContext resolvedVersionContext = ResolvedVersionContext.ofBranch("main", "xyz");
 
+    when(catalog.resolveVersionContext(anyString(), any(VersionContext.class))).thenReturn(resolvedVersionContext);
     when(catalog.getTableSnapshot(any(NamespaceKey.class), any(TableVersionContext.class)))
+      .thenReturn(dremioTable);
+    when(catalog.getTable(any(CatalogEntityKey.class)))
       .thenReturn(dremioTable);
     when(dremioTable.getDatasetConfig()).thenReturn(datasetConfig);
 
@@ -245,14 +282,157 @@ public class TestAccelerationSettingsFromAPI extends DremioTest {
   @Test
   public void updateAccelerationSettings() throws Exception {
     final DatasetConfig datasetConfig = new DatasetConfig().setType(DatasetType.PHYSICAL_DATASET);
+    final ResolvedVersionContext resolvedVersionContext = ResolvedVersionContext.ofBranch("main", "xyz");
 
+    when(catalog.resolveVersionContext(anyString(), any(VersionContext.class))).thenReturn(resolvedVersionContext);
     when(reflectionServiceHelper.getReflectionSettings()).thenReturn(reflectionSettings);
     when(reflectionSettings.getReflectionSettings(any(CatalogEntityKey.class)))
         .thenReturn(accelerationSettings);
     when(catalog.getTableSnapshot(any(NamespaceKey.class), any(TableVersionContext.class)))
         .thenReturn(dremioTable);
+    when(catalog.getTable(any(CatalogEntityKey.class)))
+      .thenReturn(dremioTable);
     when(dremioTable.getDatasetConfig()).thenReturn(datasetConfig);
 
     datasetResource.updateAccelerationSettings(accelerationSettingsDescriptor, "BRANCH", "main");
+  }
+
+  @Test
+  public void getAccelerationSettingsRefreshMethodAutoNotApplicable() throws Exception {
+    final DatasetConfig datasetConfig = new DatasetConfig().setType(DatasetType.PHYSICAL_DATASET);
+    final ResolvedVersionContext resolvedVersionContext = ResolvedVersionContext.ofBranch("main", "xyz");
+
+    accelerationSettings.setMethod(RefreshMethod.AUTO);
+
+    when(catalog.resolveVersionContext(anyString(), any(VersionContext.class))).thenReturn(resolvedVersionContext);
+    when(reflectionServiceHelper.getReflectionSettings()).thenReturn(reflectionSettings);
+    when(reflectionServiceHelper.isIncrementalRefreshBySnapshotEnabled(any(DatasetConfig.class))).thenReturn(false);
+    when(reflectionSettings.getReflectionSettings(any(CatalogEntityKey.class)))
+      .thenReturn(accelerationSettings);
+    when(catalog.getTableSnapshot(any(NamespaceKey.class), any(TableVersionContext.class)))
+      .thenReturn(dremioTable);
+    when(catalog.getTable(any(CatalogEntityKey.class)))
+      .thenReturn(dremioTable);
+    when(dremioTable.getDatasetConfig()).thenReturn(datasetConfig);
+
+    final AccelerationSettingsDescriptor descriptor =
+      datasetResource.getAccelerationSettings("BRANCH", "main");
+
+    assertThat(descriptor).isNotNull();
+    assertThat(descriptor.getMethod()).isEqualTo(RefreshMethod.FULL);
+    assertThat(descriptor.getRefreshField()).isNull();
+    assertThat(descriptor.getAccelerationNeverRefresh()).isFalse();
+    assertThat(descriptor.getAccelerationRefreshPeriod()).isEqualTo(TimeUnit.HOURS.toMillis(1));
+    assertThat(descriptor.getAccelerationNeverExpire()).isFalse();
+    assertThat(descriptor.getAccelerationGracePeriod()).isEqualTo(TimeUnit.HOURS.toMillis(2));
+  }
+
+  @Test
+  public void getAccelerationSettingsRefreshMethodAuto() throws Exception {
+    final DatasetConfig datasetConfig = new DatasetConfig().setType(DatasetType.PHYSICAL_DATASET);
+    final ResolvedVersionContext resolvedVersionContext = ResolvedVersionContext.ofBranch("main", "xyz");
+
+    accelerationSettings.setMethod(RefreshMethod.INCREMENTAL);
+    accelerationSettings.setRefreshField("abc");
+
+    when(catalog.resolveVersionContext(anyString(), any(VersionContext.class))).thenReturn(resolvedVersionContext);
+    when(reflectionServiceHelper.getReflectionSettings()).thenReturn(reflectionSettings);
+    when(reflectionServiceHelper.isIncrementalRefreshBySnapshotEnabled(any(DatasetConfig.class))).thenReturn(true);
+    when(reflectionSettings.getReflectionSettings(any(CatalogEntityKey.class)))
+      .thenReturn(accelerationSettings);
+    when(catalog.getTableSnapshot(any(NamespaceKey.class), any(TableVersionContext.class)))
+      .thenReturn(dremioTable);
+    when(catalog.getTable(any(CatalogEntityKey.class)))
+      .thenReturn(dremioTable);
+    when(dremioTable.getDatasetConfig()).thenReturn(datasetConfig);
+
+    final AccelerationSettingsDescriptor descriptor =
+      datasetResource.getAccelerationSettings("BRANCH", "main");
+
+    assertThat(descriptor).isNotNull();
+    assertThat(descriptor.getMethod()).isEqualTo(RefreshMethod.AUTO);
+    assertThat(descriptor.getRefreshField()).isNull();
+    assertThat(descriptor.getAccelerationNeverRefresh()).isFalse();
+    assertThat(descriptor.getAccelerationRefreshPeriod()).isEqualTo(TimeUnit.HOURS.toMillis(1));
+    assertThat(descriptor.getAccelerationNeverExpire()).isFalse();
+    assertThat(descriptor.getAccelerationGracePeriod()).isEqualTo(TimeUnit.HOURS.toMillis(2));
+  }
+
+  @Test
+  public void updateAccelerationSettingsRefreshMethodAuto() throws Exception {
+    final DatasetConfig datasetConfig = new DatasetConfig().setType(DatasetType.PHYSICAL_DATASET);
+    final ResolvedVersionContext resolvedVersionContext = ResolvedVersionContext.ofBranch("main", "xyz");
+
+    accelerationSettings.setMethod(RefreshMethod.INCREMENTAL);
+    accelerationSettings.setRefreshField("abc");
+
+    when(catalog.resolveVersionContext(anyString(), any(VersionContext.class))).thenReturn(resolvedVersionContext);
+    when(reflectionServiceHelper.getReflectionSettings()).thenReturn(reflectionSettings);
+    when(reflectionServiceHelper.isIncrementalRefreshBySnapshotEnabled(any(DatasetConfig.class))).thenReturn(true);
+    when(reflectionSettings.getReflectionSettings(any(CatalogEntityKey.class)))
+      .thenReturn(accelerationSettings);
+    when(catalog.getTableSnapshot(any(NamespaceKey.class), any(TableVersionContext.class)))
+      .thenReturn(dremioTable);
+    when(catalog.getTable(any(CatalogEntityKey.class)))
+      .thenReturn(dremioTable);
+    when(dremioTable.getDatasetConfig()).thenReturn(datasetConfig);
+
+    accelerationSettingsDescriptor.setMethod(RefreshMethod.AUTO);
+
+    datasetResource.updateAccelerationSettings(accelerationSettingsDescriptor, "BRANCH", "main");
+    assertThat(accelerationSettings.getMethod()).isEqualByComparingTo(RefreshMethod.AUTO);
+    assertThat(accelerationSettings.getRefreshField()).isNull();
+  }
+
+  @Test
+  public void updateAccelerationSettingsRefreshMethodAutoNotApplicable() throws Exception {
+    final DatasetConfig datasetConfig = new DatasetConfig().setType(DatasetType.PHYSICAL_DATASET);
+    final ResolvedVersionContext resolvedVersionContext = ResolvedVersionContext.ofBranch("main", "xyz");
+
+    accelerationSettings.setMethod(RefreshMethod.INCREMENTAL);
+
+    when(catalog.resolveVersionContext(anyString(), any(VersionContext.class))).thenReturn(resolvedVersionContext);
+    when(reflectionServiceHelper.getReflectionSettings()).thenReturn(reflectionSettings);
+    when(reflectionServiceHelper.isIncrementalRefreshBySnapshotEnabled(any(DatasetConfig.class))).thenReturn(false);
+    when(reflectionSettings.getReflectionSettings(any(CatalogEntityKey.class)))
+      .thenReturn(accelerationSettings);
+    when(catalog.getTableSnapshot(any(NamespaceKey.class), any(TableVersionContext.class)))
+      .thenReturn(dremioTable);
+    when(catalog.getTable(any(CatalogEntityKey.class)))
+      .thenReturn(dremioTable);
+    when(dremioTable.getDatasetConfig()).thenReturn(datasetConfig);
+
+    accelerationSettingsDescriptor.setMethod(RefreshMethod.AUTO);
+
+    datasetResource.updateAccelerationSettings(accelerationSettingsDescriptor, "BRANCH", "main");
+    assertThat(accelerationSettings.getMethod()).isEqualByComparingTo(RefreshMethod.AUTO);
+    assertThat(accelerationSettings.getRefreshField()).isNull();
+  }
+
+  @Test
+  public void updateAccelerationSettingsRefreshMethodAutoInvalidRefreshField() {
+    final DatasetConfig datasetConfig = new DatasetConfig().setType(DatasetType.PHYSICAL_DATASET);
+    final ResolvedVersionContext resolvedVersionContext = ResolvedVersionContext.ofBranch("main", "xyz");
+
+    when(catalog.resolveVersionContext(anyString(), any(VersionContext.class))).thenReturn(resolvedVersionContext);
+    when(reflectionServiceHelper.getReflectionSettings()).thenReturn(reflectionSettings);
+    when(reflectionServiceHelper.isIncrementalRefreshBySnapshotEnabled(any(DatasetConfig.class))).thenReturn(true);
+    when(reflectionSettings.getReflectionSettings(any(CatalogEntityKey.class)))
+      .thenReturn(accelerationSettings);
+    when(catalog.getTableSnapshot(any(NamespaceKey.class), any(TableVersionContext.class)))
+      .thenReturn(dremioTable);
+    when(catalog.getTable(any(CatalogEntityKey.class)))
+      .thenReturn(dremioTable);
+    when(dremioTable.getDatasetConfig()).thenReturn(datasetConfig);
+
+    accelerationSettingsDescriptor.setMethod(RefreshMethod.AUTO);
+    accelerationSettingsDescriptor.setRefreshField("abc");
+
+    assertThatThrownBy(
+      () ->
+        datasetResource.updateAccelerationSettings(
+          accelerationSettingsDescriptor, "BRANCH", "main"))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessageContaining("Leave refresh field empty for 'AUTO' refresh method.");
   }
 }

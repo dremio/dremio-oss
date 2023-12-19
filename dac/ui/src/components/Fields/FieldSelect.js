@@ -33,7 +33,7 @@ export default class FieldSelect extends Component {
         <div style={styles.wrap}>
           <dremio-icon
             name={`data-types/${typeToIconType[item.type]}`}
-            alt={this.props.intl.formatMessage({ id: "Common.FieldType" })}
+            alt={this.props.intl.formatMessage({ id: "Common.ColumnType" })}
             style={styles.icon}
           />
           <span style={styles.name}>{item.name}</span>

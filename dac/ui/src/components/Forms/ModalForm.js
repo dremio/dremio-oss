@@ -63,6 +63,8 @@ class ModalForm extends Component {
     leftAlignFooter: PropTypes.bool,
     hideCancel: PropTypes.bool,
     showSpinnerAndText: PropTypes.bool,
+
+    renderFooter: PropTypes.func,
   };
 
   static defaultProps = {
@@ -81,7 +83,7 @@ class ModalForm extends Component {
     messageDismissed: false,
   };
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     if (nextProps.error !== this.props.error && !this.props.hideError) {
       this.setState({ messageDismissed: false });
     }
@@ -127,6 +129,7 @@ class ModalForm extends Component {
       hideCancel,
       showSpinnerAndText,
       confirmButtonStyle,
+      renderFooter,
     } = this.props;
 
     const formBodyStyle = this.props.formBodyStyle || {};
@@ -152,23 +155,27 @@ class ModalForm extends Component {
           </div>
         </FormProgressWrapper>
       </div>,
-      <ConfirmCancelFooter
-        key="cancel-footer"
-        modalFooter={isModal}
-        style={this.props.confirmStyle}
-        footerChildren={footerChildren}
-        confirmText={confirmText}
-        cancelText={cancelText}
-        cancel={onCancel}
-        submitting={submitting}
-        canSubmit={canSubmit}
-        canCancel={canCancel}
-        confirm={this.handleSubmissionEvent}
-        leftAlign={leftAlignFooter}
-        hideCancel={hideCancel}
-        showSpinnerAndText={showSpinnerAndText}
-        confirmButtonStyle={confirmButtonStyle}
-      />,
+      renderFooter ? (
+        renderFooter()
+      ) : (
+        <ConfirmCancelFooter
+          key="cancel-footer"
+          modalFooter={isModal}
+          style={this.props.confirmStyle}
+          footerChildren={footerChildren}
+          confirmText={confirmText}
+          cancelText={cancelText}
+          cancel={onCancel}
+          submitting={submitting}
+          canSubmit={canSubmit}
+          canCancel={canCancel}
+          confirm={this.handleSubmissionEvent}
+          leftAlign={leftAlignFooter}
+          hideCancel={hideCancel}
+          showSpinnerAndText={showSpinnerAndText}
+          confirmButtonStyle={confirmButtonStyle}
+        />
+      ),
     ];
 
     const formStyle = isModal ? modalForm : styles.nonModalForm;

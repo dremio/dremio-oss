@@ -15,7 +15,8 @@
  */
 package com.dremio.exec.planner.acceleration.substitution;
 
-import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
@@ -23,12 +24,14 @@ import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 
-import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.TableVersionContext;
-import com.dremio.exec.planner.acceleration.ExpansionNode;
+import com.dremio.catalog.model.dataset.TableVersionContext;
+import com.dremio.exec.planner.acceleration.DremioMaterialization;
+import com.dremio.exec.planner.logical.ViewTable;
+import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.planner.sql.handlers.RelTransformer;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableSet;
 
 /**
  * An interface that suggests substitutions to {@link RelOptPlanner planner}.
@@ -37,6 +40,10 @@ import com.google.common.base.Preconditions;
  * charge of finding R, a subset of Vs such that Q is satisfiable when rewritten in terms of R.
  */
 public interface SubstitutionProvider {
+
+  SubstitutionProvider NOOP = transformers -> {
+    throw new UnsupportedOperationException();
+  };
 
   /**
    * Computes and returns a set of possible substitutions for the given query.
@@ -84,15 +91,19 @@ public interface SubstitutionProvider {
    *
    * @param path             Path of the view
    * @param query            RelNode to wrap
-   * @param vdsFields        List of all the fields in the VDS
+   * @param materialization  Default raw materialization
    * @param rowType          Row data type
    * @param contextSensitive If the expansion node is context sensitive
-   * @param catalog          caching catalog to use for table lookups
+   * @param converter        SqlConverter
    * @return Wrapped RelNode
    */
-  default RelNode wrapExpansionNode(NamespaceKey path, final RelNode query, List<String> vdsFields, RelDataType rowType,
-                                    boolean contextSensitive, TableVersionContext versionContext, Catalog catalog) {
-    return ExpansionNode.wrap(path, query, rowType, contextSensitive, false, versionContext);
+  default RelNode wrapDefaultExpansionNode(NamespaceKey path, final RelNode query, DremioMaterialization materialization, RelDataType rowType,
+                                    boolean contextSensitive, TableVersionContext versionContext, SqlConverter converter) {
+    throw new UnsupportedOperationException();
+  }
+
+  default Optional<DremioMaterialization> getDefaultRawMaterialization(ViewTable table) {
+    return Optional.empty();
   }
 
   default boolean isDefaultRawReflectionEnabled() {
@@ -105,7 +116,9 @@ public interface SubstitutionProvider {
 
   default void setCurrentPlan(RelNode relNode) {}
 
-  void setPostSubstitutionTransformers(List<RelTransformer> transformers);
+  default Set<String> getMatchedReflections() { return ImmutableSet.of(); }
+
+  void setPostSubstitutionTransformer(RelTransformer transformer);
 
   /**
    * A class that represents a substitution. This indicates that the {@link RelNode} replacement is equivalent to equivalent

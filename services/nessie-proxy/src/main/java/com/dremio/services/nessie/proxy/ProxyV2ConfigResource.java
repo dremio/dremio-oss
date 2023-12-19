@@ -15,18 +15,30 @@
  */
 package com.dremio.services.nessie.proxy;
 
+import java.util.List;
+import java.util.Set;
+
 import javax.inject.Inject;
 
 import org.projectnessie.api.v2.http.HttpConfigApi;
+import org.projectnessie.client.api.GetRepositoryConfigBuilder;
 import org.projectnessie.client.api.NessieApiV2;
+import org.projectnessie.error.NessieConflictException;
 import org.projectnessie.model.ImmutableNessieConfiguration;
 import org.projectnessie.model.NessieConfiguration;
+import org.projectnessie.model.RepositoryConfig;
+import org.projectnessie.model.RepositoryConfigResponse;
+import org.projectnessie.model.UpdateRepositoryConfigRequest;
+import org.projectnessie.model.UpdateRepositoryConfigResponse;
 import org.projectnessie.model.ser.Views;
 
 import com.fasterxml.jackson.annotation.JsonView;
+import com.google.common.collect.ImmutableSet;
 
 public class ProxyV2ConfigResource implements HttpConfigApi {
   private final NessieApiV2 api;
+
+  private static final Set<String> SUPPORTED_TYPES = ImmutableSet.of(RepositoryConfig.Type.GARBAGE_COLLECTOR.name());
 
   @Inject
   public ProxyV2ConfigResource(NessieApiV2 api) {
@@ -37,5 +49,43 @@ public class ProxyV2ConfigResource implements HttpConfigApi {
   @JsonView(Views.V2.class)
   public NessieConfiguration getConfig() {
     return ImmutableNessieConfiguration.builder().from(api.getConfig()).actualApiVersion(2).build();
+  }
+
+  @Override
+  public RepositoryConfigResponse getRepositoryConfig(List<String> repositoryConfigTypes) {
+    GetRepositoryConfigBuilder request = api.getRepositoryConfig();
+    for (String typeName : repositoryConfigTypes) {
+      request.type(RepositoryConfigTypeProxy.forName(typeName));
+    }
+    return request.get();
+  }
+
+  @Override
+  public UpdateRepositoryConfigResponse updateRepositoryConfig(UpdateRepositoryConfigRequest request)
+    throws NessieConflictException {
+
+    return api.updateRepositoryConfig().repositoryConfig(request.getConfig()).update();
+  }
+
+  private static final class RepositoryConfigTypeProxy implements RepositoryConfig.Type {
+    private final String typeName;
+
+    private RepositoryConfigTypeProxy(String typeName) {
+      this.typeName = typeName;
+    }
+
+    static RepositoryConfig.Type forName(String name) {
+      return new RepositoryConfigTypeProxy(name);
+    }
+
+    @Override
+    public String name() {
+      return typeName;
+    }
+
+    @Override
+    public Class<? extends RepositoryConfig> type() {
+      throw new UnsupportedOperationException("Java implementation class is not available in proxy types");
+    }
   }
 }

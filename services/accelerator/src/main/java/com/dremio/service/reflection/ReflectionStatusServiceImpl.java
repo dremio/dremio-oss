@@ -16,6 +16,8 @@
 package com.dremio.service.reflection;
 
 import static com.dremio.common.utils.SqlUtils.quotedCompound;
+import static com.dremio.service.reflection.ReflectionOptions.MATERIALIZATION_CACHE_ENABLED;
+import static com.dremio.service.reflection.ReflectionOptions.MATERIALIZATION_CACHE_REFRESH_DELAY_MILLIS;
 import static com.dremio.service.reflection.ReflectionUtils.getId;
 import static com.dremio.service.reflection.ReflectionUtils.hasMissingPartitions;
 
@@ -39,11 +41,13 @@ import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.EntityExplorer;
 import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.planner.acceleration.UpdateIdWrapper;
+import com.dremio.exec.planner.sql.PartitionTransform;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
+import com.dremio.options.OptionManager;
 import com.dremio.service.acceleration.ReflectionDescriptionServiceRPC;
 import com.dremio.service.accelerator.AccelerationUtils;
 import com.dremio.service.namespace.NamespaceException;
@@ -64,6 +68,7 @@ import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionGoalState;
 import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.ReflectionMeasureField;
+import com.dremio.service.reflection.proto.ReflectionPartitionField;
 import com.dremio.service.reflection.proto.Refresh;
 import com.dremio.service.reflection.store.ExternalReflectionStore;
 import com.dremio.service.reflection.store.MaterializationStore;
@@ -85,7 +90,7 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
   private final Provider<Collection<NodeEndpoint>> nodeEndpointsProvider;
   private final Provider<CatalogService> catalogService;
   private final Provider<CacheViewer> cacheViewer;
-
+  private final Provider<OptionManager> optionManager;
 
   private final ReflectionGoalsStore goalsStore;
   private final ReflectionEntriesStore entriesStore;
@@ -105,7 +110,8 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
       MaterializationStore materializationStore,
       ExternalReflectionStore externalReflectionStore,
       ReflectionValidator validator,
-      Provider<CatalogService> catalogService) {
+      Provider<CatalogService> catalogService,
+      Provider<OptionManager> optionManager) {
     this.nodeEndpointsProvider = nodeEndpointsProvider;
     this.cacheViewer = Preconditions.checkNotNull(cacheViewer, "cache viewer required");
     this.goalsStore = Preconditions.checkNotNull(goalsStore, "goals store required");
@@ -114,13 +120,15 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
     this.externalReflectionStore = Preconditions.checkNotNull(externalReflectionStore, "external reflection store required");
     this.validator = Preconditions.checkNotNull(validator, "validator required");
     this.catalogService = Preconditions.checkNotNull(catalogService, "catalog service required");
+    this.optionManager = optionManager;
   }
 
   public ReflectionStatusServiceImpl(
     Provider<Collection<NodeEndpoint>> nodeEndpointsProvider,
     Provider<CatalogService> catalogService,
     Provider<LegacyKVStoreProvider> storeProvider,
-    Provider<CacheViewer> cacheViewer) {
+    Provider<CacheViewer> cacheViewer,
+    Provider<OptionManager> optionManager) {
     Preconditions.checkNotNull(storeProvider, "kv store provider required");
     Preconditions.checkNotNull(catalogService, "catalog service required");
     this.nodeEndpointsProvider = nodeEndpointsProvider;
@@ -132,7 +140,8 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
     materializationStore = new MaterializationStore(storeProvider);
     externalReflectionStore = new ExternalReflectionStore(storeProvider);
 
-    validator = new ReflectionValidator(catalogService);
+    validator = new ReflectionValidator(catalogService, optionManager);
+    this.optionManager = optionManager;
   }
 
   /**
@@ -200,7 +209,6 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
     }
 
     final ReflectionEntry entry = entryOptional.get();
-
     final CONFIG_STATUS configStatus = validator.isValid(goal, dremioTable) ? CONFIG_STATUS.OK : CONFIG_STATUS.INVALID;
 
     REFRESH_STATUS refreshStatus;
@@ -220,6 +228,7 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
         refreshStatus = REFRESH_STATUS.MANUAL;
         break;
       case ACTIVE:
+      case REFRESH_PENDING:
         refreshStatus = entry.getDontGiveUp() ? REFRESH_STATUS.MANUAL : REFRESH_STATUS.SCHEDULED;
         break;
       default:
@@ -247,15 +256,10 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
         availabilityStatus = AVAILABILITY_STATUS.EXPIRED;
       } else if (cacheViewer.get().isCached(materialization.getId())) {
         availabilityStatus = AVAILABILITY_STATUS.AVAILABLE;
-      } else {
-        // if the reflection has any valid materialization, then it can accelerate
-        if (StreamSupport.stream(materializationStore.getAllDone(id, now).spliterator(), false)
-          .anyMatch(
-            m -> !hasMissingPartitions(m.getPartitionList(), activeHosts) && cacheViewer.get().isCached(m.getId())
-            )
-          ) {
-          availabilityStatus = AVAILABILITY_STATUS.AVAILABLE;
-        }
+      } else if (optionManager.get().getOption(MATERIALIZATION_CACHE_ENABLED) &&
+        Optional.ofNullable(materialization.getLastRefreshFinished()).orElse(0L) + optionManager.get().getOption(MATERIALIZATION_CACHE_REFRESH_DELAY_MILLIS) > System.currentTimeMillis()) {
+        // Continue to show RUNNING between the time the materialization is DONE but not yet in the materialization cache
+        refreshStatus = REFRESH_STATUS.RUNNING;
       }
     }
 
@@ -365,7 +369,7 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
           quotedCompound(datasetConfig.getFullPathList()),
           datasetConfig.getType().toString(),
           JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getSortFieldList()).stream().map(ReflectionField::getName).collect(Collectors.toList())),
-          JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getPartitionFieldList()).stream().map(ReflectionField::getName).collect(Collectors.toList())),
+          JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getPartitionFieldList()).stream().map(f->getPartitionInfo(f)).collect(Collectors.toList())),
           JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getDistributionFieldList()).stream().map(ReflectionField::getName).collect(Collectors.toList())),
           JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getDimensionFieldList()).stream().map(ReflectionDimensionField::getName).collect(Collectors.toList())),
           JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getMeasureFieldList()).stream().map(ReflectionMeasureField::getName).collect(Collectors.toList())),
@@ -418,6 +422,14 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
         return null;
       }).filter(Objects::nonNull);
     return Stream.concat(reflections, externalReflectionsInfo).iterator();
+  }
+
+  public String getPartitionInfo(ReflectionPartitionField reflectionField){
+    PartitionTransform partitionTransform = ReflectionUtils.getPartitionTransform(reflectionField);
+    if(partitionTransform.isIdentity()){
+      return reflectionField.getName();
+    }
+    return partitionTransform.toString();
   }
 
   @Override

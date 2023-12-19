@@ -24,10 +24,19 @@ type Props = {
   className?: string;
   size?: "S" | "L";
   placement?: Placement;
+  copyTooltipLabel?: string;
+  portal?: boolean;
 };
 
 export const CopyButton = (props: Props) => {
-  const { size = "S", contents, className, placement } = props;
+  const {
+    size = "S",
+    contents,
+    className,
+    placement,
+    portal = true,
+    copyTooltipLabel,
+  } = props;
   let copyButtonStyle;
   switch (size) {
     case "S":
@@ -45,7 +54,12 @@ export const CopyButton = (props: Props) => {
   }
 
   return (
-    <CopyContainer contents={contents} placement={placement}>
+    <CopyContainer
+      contents={contents}
+      placement={placement}
+      copyTooltipLabel={copyTooltipLabel}
+      portal={portal}
+    >
       <IconButton aria-label="Copy" className={className}>
         {/*@ts-ignore*/}
         <dremio-icon name="interface/copy" alt="" style={copyButtonStyle}>

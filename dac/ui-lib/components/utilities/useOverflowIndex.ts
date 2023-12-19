@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-import { useEffect, useState, type MutableRefObject } from "react";
+import { useEffect, useState, type MutableRefObject, useCallback } from "react";
 import { findOverflowIndex } from "./findOverflowIndex";
 import { useElementRect } from "./useElementRect";
+import { useMutationObserver } from "./useMutationObserver";
 
 /**
  * Returns the index of the first child element that overflows its parent
@@ -32,7 +33,14 @@ export const useOverflowIndex = (
     null
   );
 
+  // Track how many times the children have been modified
+  const [childrenVersion, setChildrenVersion] = useState(0);
+
   const parentRect = useElementRect(ref);
+
+  useMutationObserver(ref, useCallback(() => {
+    setChildrenVersion(x => x + 1)
+  }, []))
 
   // Every time the parentRect changes, recalculate which (if any) children have overflowed
   useEffect(() => {
@@ -44,7 +52,7 @@ export const useOverflowIndex = (
     } else {
       setOverflowedElement(null);
     }
-  }, [parentRect, ref]);
+  }, [childrenVersion, parentRect, ref]);
 
   if (!overflowIndex) {
     return [undefined, null];

@@ -17,9 +17,8 @@
 @use "../../base/components/tag";
 @use "../../utilities";
 .dremio-tag {
-  @extend .bg-gray-50;
   @extend .gap-05;
-  @extend .p-05;
+  padding: 2px;
   @extend .rounded;
   @extend .text-medium;
   font-size: 13px;

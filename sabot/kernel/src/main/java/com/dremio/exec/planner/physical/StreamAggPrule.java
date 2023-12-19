@@ -66,7 +66,7 @@ public class StreamAggPrule extends AggPruleBase {
     }
 
     // ListAgg is not supported
-    if (aggregate.containsListAggCall()) {
+    if (aggregate.containsListAggregation()) {
       return;
     }
 

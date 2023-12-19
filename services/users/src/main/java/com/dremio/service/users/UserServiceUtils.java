@@ -29,6 +29,7 @@ public class UserServiceUtils {
 
   public static final Pattern PASSWORD_MATCHER = Pattern.compile("(?=.*[0-9])(?=.*[a-zA-Z]).{8,}");
   public static final SearchTypes.SearchFieldSorting DEFAULT_SORTER = UserIndexKeys.NAME.toSortField(SearchTypes.SortOrder.ASCENDING);
+  public static final String USER_AUTHENTICATION_ERROR_MESSAGE = "Login failed: Invalid username or password";
 
   public static SecretKeyFactory buildSecretKey() {
     try {

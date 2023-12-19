@@ -247,7 +247,6 @@ public class AllRowGroupsParquetReader implements RecordReader {
       if (fileAttributes == null) {
         fileAttributes = fs.getFileAttributes(path);
       }
-
       // footer and currentInputStreamProvider will be null if we're creating the provider for the first row group
       return inputStreamProviderFactory.create(
         fs,
@@ -263,7 +262,8 @@ public class AllRowGroupsParquetReader implements RecordReader {
         dataset,
         fileAttributes.lastModifiedTime().toMillis(),
         false,
-        true, filters, parquetReaderFactory.newFilterCreator(context, ParquetReaderFactory.ManagedSchemaType.ICEBERG, null, context.getAllocator()));
+        true, filters, parquetReaderFactory.newFilterCreator(context, ParquetReaderFactory.ManagedSchemaType.ICEBERG, null, context.getAllocator()),
+        InputStreamProviderFactory.DEFAULT_NON_PARTITION_COLUMN_RF);
     } catch (IOException ex) {
       throw new UncheckedIOException(ex);
     }

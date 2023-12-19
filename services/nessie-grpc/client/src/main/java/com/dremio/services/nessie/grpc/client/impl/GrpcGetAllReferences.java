@@ -15,7 +15,7 @@
  */
 package com.dremio.services.nessie.grpc.client.impl;
 
-import static com.dremio.services.nessie.grpc.client.GrpcExceptionMapper.handleNessieRuntimeEx;
+import static com.dremio.services.nessie.grpc.GrpcExceptionMapper.handleNessieRuntimeEx;
 
 import org.projectnessie.api.v1.params.ReferencesParams;
 import org.projectnessie.client.builder.BaseGetAllReferencesBuilder;

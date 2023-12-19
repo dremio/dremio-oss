@@ -148,7 +148,8 @@ public class DremioServlet implements Servlet {
       .setAllowAutoComplete(options.getOption(UIOptions.ALLOW_AUTOCOMPLETE))
       .setAllowDownload(options.getOption(UIOptions.ALLOW_DOWNLOAD))
       .setAllowFormatting(options.getOption(UIOptions.ALLOW_FORMATTING))
-      .setUseNewDatasetNavigation(options.getOption(UIOptions.DATASET_NAVIGATION_CHECK));
+      .setUseNewDatasetNavigation(options.getOption(UIOptions.DATASET_NAVIGATION_CHECK))
+      .setShowNewJobsTables(options.getOption(UIOptions.JOBS_TABLES_UI_CHECK));
   }
 
   protected Provider<SupportService> getSupportService() {

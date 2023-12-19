@@ -136,7 +136,7 @@ describe("ExploreTableController", () => {
 
     it("should reset transformPreconfirmed when table version changes", () => {
       instance.transformPreconfirmed = true;
-      instance.componentWillReceiveProps(commonProps);
+      instance.UNSAFE_componentWillReceiveProps(commonProps);
       expect(instance.transformPreconfirmed).to.be.true;
       wrapper.setProps({
         tableData: commonProps.tableData.set("version", "newVersion"),
@@ -245,28 +245,28 @@ describe("ExploreTableController", () => {
     });
     it("should unset isGrayed when isSqlChanged = false", () => {
       instance.setState({ isGrayed: true });
-      instance.componentWillReceiveProps(commonProps);
+      instance.UNSAFE_componentWillReceiveProps(commonProps);
       expect(wrapper.state("isGrayed")).to.be.false;
     });
     it("should set isGrayed when isSqlChanged = true", () => {
       sinon.stub(instance, "isSqlChanged").returns(true);
 
       instance.setState({ isGrayed: true });
-      instance.componentWillReceiveProps(commonProps);
+      instance.UNSAFE_componentWillReceiveProps(commonProps);
       expect(wrapper.state("isGrayed")).to.be.true;
     });
     it("should call props.accessEntity only when tableData version changed and is not undefined", () => {
-      instance.componentWillReceiveProps(commonProps);
+      instance.UNSAFE_componentWillReceiveProps(commonProps);
       expect(commonProps.accessEntity).to.not.be.called;
 
-      instance.componentWillReceiveProps({
+      instance.UNSAFE_componentWillReceiveProps({
         ...commonProps,
         tableData: commonProps.tableData.delete("version"),
       });
       expect(commonProps.accessEntity).to.not.be.called;
 
       const newVersion = "newVersion";
-      instance.componentWillReceiveProps({
+      instance.UNSAFE_componentWillReceiveProps({
         ...commonProps,
         tableData: commonProps.tableData.set("version", newVersion),
       });

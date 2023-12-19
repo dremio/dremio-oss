@@ -21,7 +21,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.File;
+import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -40,6 +42,7 @@ import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.writer.WriterOperator;
+import com.google.common.collect.ImmutableList;
 
 public class TestInsertCleanupOnFailure extends BaseTestQuery {
 
@@ -112,11 +115,13 @@ public class TestInsertCleanupOnFailure extends BaseTestQuery {
 
   @Test
   public void  testCleanupWhenParquetRecordWriterFailsDuringCopyInto() throws Exception {
-    String schema = "c1 int, c2 int, c3 int";
+    ImmutableList<Pair<String, String>> colNameTypePairs = ImmutableList.of(Pair.of("c1", "int"),
+      Pair.of("c2", "int"), Pair.of("c3", "int"));
     String tableName = "test_table";
     String fileName = "file1.csv";
     File location = CopyIntoTests.createTempLocation();
-    File newSourceFile = CopyIntoTests.createTableAndGenerateSourceFiles(tableName, schema, fileName , location, true);
+    File newSourceFile = CopyIntoTests.createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName ,
+      location, ITCopyIntoBase.FileFormat.CSV);
     String  storageLocation = "\'@" + TEMP_SCHEMA_HADOOP + "/" + location.getName() + "\'";
     String sql = String.format("COPY INTO %s.%s FROM %s files(\'%s\') (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation, fileName);
 
@@ -129,14 +134,19 @@ public class TestInsertCleanupOnFailure extends BaseTestQuery {
 
   @Test
   public void  testCleanupWhenParquetRecordWriterFailsDuringCopyIntoWithPartitions() throws Exception {
-    String schema = "c1 int, c2 int, c3 int";
+    ImmutableList<Pair<String, String>> colNameTypePairs = ImmutableList.of(Pair.of("c1", "int"),
+      Pair.of("c2", "int"), Pair.of("c3", "int"));
     String tableName = "test_table_partition";
     String partitionClause = "(c1, c2)";
-    String createQuery = String.format("CREATE TABLE IF NOT EXISTS %s.%s (%s) PARTITION BY %s", TEMP_SCHEMA, tableName, schema, partitionClause);
+    String createQuery = String.format("CREATE TABLE IF NOT EXISTS %s.%s (%s) PARTITION BY %s", TEMP_SCHEMA, tableName,
+      colNameTypePairs.stream()
+        .map(p -> String.format("%s %s", p.getLeft(), p.getRight())).collect(Collectors.joining(",")),
+      partitionClause);
     runSQL(createQuery);
     String fileName = "file1.csv";
     File location = CopyIntoTests.createTempLocation();
-    File newSourceFile = CopyIntoTests.createTableAndGenerateSourceFiles(tableName, schema, fileName , location, true);
+    File newSourceFile = CopyIntoTests.createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName,
+      location, ITCopyIntoBase.FileFormat.CSV);
     String  storageLocation = "\'@" + TEMP_SCHEMA_HADOOP + "/" + location.getName() + "\'";
     String sql = String.format("COPY INTO %s.%s FROM %s files(\'%s\') (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation, fileName);
 

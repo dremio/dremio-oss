@@ -16,7 +16,6 @@
 
 import Immutable from "immutable";
 import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
-import { constructFullPath } from "@app/utils/pathUtils";
 import * as sqlPaths from "dremio-ui-common/paths/sqlEditor.js";
 
 export function newGetHref(
@@ -24,18 +23,18 @@ export function newGetHref(
   context: Record<string, any>
 ) {
   const fileType = entity.get("fileType");
+  const newFullPath = JSON.stringify(entity.get("fullPathList").toJS());
 
   if (entity.get("fileType") === "file") {
     if (entity.get("queryable")) {
       const resourceId = entity.getIn(["fullPathList", 0]);
-      const newFullPath = constructFullPath(entity.get("fullPathList"));
 
       return {
         href: {
           pathname: sqlPaths.sqlEditor.link(),
           search: `?context="${encodeURIComponent(
             resourceId
-          )}"&queryPath=${newFullPath}`,
+          )}"&queryPath=${encodeURIComponent(newFullPath)}`,
         },
       };
     }
@@ -45,6 +44,8 @@ export function newGetHref(
       state: {
         modal: "DatasetSettingsModal",
         tab: "format",
+        type: entity.get("entityType"),
+        entityName: entity.get("fullPathList").last(),
         entityType: entity.get("entityType"),
         entityId: entity.get("id"),
         fullPath: entity.get("filePath"),
@@ -57,14 +58,13 @@ export function newGetHref(
   if (fileType === "folder") {
     if (entity.get("queryable")) {
       const resourceId = entity.getIn(["fullPathList", 0]);
-      const newFullPath = constructFullPath(entity.get("fullPathList"));
 
       return {
         href: {
           pathname: sqlPaths.sqlEditor.link(),
           search: `?context="${encodeURIComponent(
             resourceId
-          )}"&queryPath=${newFullPath}`,
+          )}"&queryPath=${encodeURIComponent(newFullPath)}`,
         },
       };
     }
@@ -72,14 +72,13 @@ export function newGetHref(
   }
 
   const resourceId = entity.getIn(["fullPathList", 0]);
-  const newFullPath = constructFullPath(entity.get("fullPathList"));
 
   return {
     href: {
       pathname: sqlPaths.sqlEditor.link(),
       search: `?context="${encodeURIComponent(
         resourceId
-      )}"&queryPath=${newFullPath}`,
+      )}"&queryPath=${encodeURIComponent(newFullPath)}`,
     },
   };
 }

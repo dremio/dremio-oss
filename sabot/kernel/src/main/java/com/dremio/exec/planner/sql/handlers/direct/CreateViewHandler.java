@@ -25,6 +25,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
@@ -41,29 +43,33 @@ import org.apache.calcite.sql.util.SqlVisitor;
 import org.apache.calcite.tools.RelConversionException;
 import org.apache.calcite.tools.ValidationException;
 
+import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.dialect.DremioSqlDialect;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.map.CaseInsensitiveMap;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.catalog.ResolvedVersionContext;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.base.ViewOptions;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.planner.sql.handlers.ConvertedRelNode;
-import com.dremio.exec.planner.sql.handlers.PrelTransformer;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.planner.sql.parser.ParserUtil;
+import com.dremio.exec.planner.sql.parser.ReferenceTypeUtils;
 import com.dremio.exec.planner.sql.parser.SqlCreateView;
 import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.SchemaBuilder;
+import com.dremio.exec.util.QueryVersionUtils;
 import com.dremio.exec.work.foreman.ForemanSetupException;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 
 public class CreateViewHandler extends SimpleDirectHandler {
@@ -83,40 +89,45 @@ public class CreateViewHandler extends SimpleDirectHandler {
   @Override
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
     SqlCreateView createView = SqlNodeUtil.unwrap(sqlNode, SqlCreateView.class);
-    if(config.getContext().getOptions().getOption(VERSIONED_VIEW_ENABLED)) {
-      ParserUtil.validateParsedViewQuery(createView.getQuery());
-    }
-
-    final NamespaceKey path = catalog.resolveSingle(createView.getPath());
-
-    catalog.validatePrivilege(path, SqlGrant.Privilege.ALTER);
-    if (isVersioned(path)) {
-      return createVersionedView(createView, sql);
+    ParserUtil.validateParsedViewQuery(createView.getQuery());
+    final NamespaceKey resolvedViewPath = catalog.resolveSingle(createView.getPath());
+    Preconditions.checkState(resolvedViewPath.size() > 1, "View path "+ resolvedViewPath + " is not valid ");
+    String formattedViewSql = getViewSql(createView, sql);
+    VersionContext statementSourceVersion =
+      ReferenceTypeUtils.map(createView.getRefType(), createView.getRefValue(), null);
+    final VersionContext sessionVersion = config.getContext().getSession().getSessionVersionForSource(resolvedViewPath.getRoot());
+    ConvertedRelNode convertedRelNode = validateTablesAndVersionContext(createView.getQuery(), resolvedViewPath, statementSourceVersion.orElse(sessionVersion));
+    catalog.validatePrivilege(resolvedViewPath, SqlGrant.Privilege.ALTER);
+    if (isVersioned(resolvedViewPath)) {
+      return createVersionedView(createView, formattedViewSql, convertedRelNode, resolvedViewPath);
     } else {
-      return createView(createView, sql);
+      return createView(createView, formattedViewSql, convertedRelNode, resolvedViewPath);
     }
   }
 
-  private List<SimpleCommandResult> createVersionedView(SqlCreateView createView, String sql) throws IOException, ValidationException {
+  private List<SimpleCommandResult> createVersionedView(SqlCreateView createView, String sql, ConvertedRelNode convertedRelNode, NamespaceKey viewPath) throws IOException, ValidationException {
     if(!config.getContext().getOptions().getOption(VERSIONED_VIEW_ENABLED)){
       throw UserException.unsupportedError().message("Currently do not support create versioned view").buildSilently();
     }
 
-    if (isTimeTravelQuery(createView)) {
-      throw UserException.unsupportedError()
-        .message("Versioned views not supported for time travel queries. Please use AT TAG or AT COMMIT instead")
-        .buildSilently();
-    }
-
     final String newViewName = createView.getFullName();
-    View view = getView(createView, sql);
+    View view = getView(createView, sql, convertedRelNode);
 
     boolean isUpdate = createView.getReplace();
-    NamespaceKey viewPath = catalog.resolveSingle(createView.getPath());
 
-    boolean exists = checkViewExistence(viewPath, newViewName, isUpdate);
+    final String sourceName = viewPath.getRoot();
+    VersionContext statementSourceVersion =
+      ReferenceTypeUtils.map(createView.getRefType(), createView.getRefValue(), null);
+    final VersionContext sessionVersion = config.getContext().getSession().getSessionVersionForSource(sourceName);
+    VersionContext sourceVersion = statementSourceVersion.orElse(sessionVersion);
+    final ResolvedVersionContext resolvedVersionContext = getResolvedVersionContext(sourceName, sourceVersion);
+    CatalogEntityKey catalogEntityKey = CatalogUtil.getCatalogEntityKey(
+      viewPath,
+      resolvedVersionContext,
+      catalog);
+    boolean exists = checkViewExistence(newViewName, isUpdate, catalogEntityKey);
     isUpdate &= exists;
-    final ViewOptions viewOptions = getViewOptions(viewPath, isUpdate);
+    final ViewOptions viewOptions = getViewOptions(isUpdate, resolvedVersionContext);
     CatalogUtil.validateResolvedVersionIsBranch(viewOptions.getVersion());
     if (isUpdate) {
       catalog.updateView(viewPath, view, viewOptions);
@@ -127,13 +138,12 @@ public class CreateViewHandler extends SimpleDirectHandler {
       viewPath, isUpdate ? "replaced" : "created"));
   }
 
-  private List<SimpleCommandResult> createView(SqlCreateView createView, String sql) throws ValidationException, RelConversionException, ForemanSetupException, IOException, NamespaceException {
+  private List<SimpleCommandResult> createView(SqlCreateView createView, String sql, ConvertedRelNode convertedRelNode, NamespaceKey viewPath) throws ValidationException, RelConversionException, ForemanSetupException, IOException, NamespaceException {
     final String newViewName = createView.getName();
     boolean isUpdate = createView.getReplace();
-    NamespaceKey viewPath = catalog.resolveSingle(createView.getPath());
-    boolean exists = checkViewExistence(viewPath, newViewName, isUpdate);
+    boolean exists = checkViewExistence(newViewName, isUpdate, CatalogEntityKey.fromNamespaceKey(viewPath));
     isUpdate &= exists;
-    final View view = getView(createView, sql, exists);
+    final View view = getView(createView, sql, exists, convertedRelNode);
 
     if (isUpdate) {
       catalog.updateView(viewPath, view, null);
@@ -156,14 +166,17 @@ public class CreateViewHandler extends SimpleDirectHandler {
     return CatalogUtil.requestedPluginSupportsVersionedTables(path, catalog);
   }
 
-  protected View getView(SqlCreateView createView, String sql) throws ValidationException {
-    return getView(createView, sql, false);
+  protected ResolvedVersionContext getResolvedVersionContext(String sourceName, VersionContext version){
+    return CatalogUtil.resolveVersionContext(catalog, sourceName, version);
   }
 
-  protected View getView(SqlCreateView createView, String sql, boolean allowRenaming) throws ValidationException {
+  protected View getView(SqlCreateView createView, String sql, ConvertedRelNode relNode) throws ValidationException {
+    return getView(createView, sql, false, relNode);
+  }
+
+  protected View getView(SqlCreateView createView, String viewSql, boolean allowRenaming, ConvertedRelNode convertedRelNode) throws ValidationException {
     final String newViewName = createView.getName();
-    final String viewSql = getViewSql(createView, sql);
-    final RelNode newViewRelNode = getViewRelNode(createView, allowRenaming);
+    final RelNode newViewRelNode = getViewRelNode(convertedRelNode, createView, allowRenaming);
 
     NamespaceKey defaultSchema = catalog.getDefaultSchema();
 
@@ -314,31 +327,13 @@ public class CreateViewHandler extends SimpleDirectHandler {
     return getViewSql(sql, asTokenPos, identifiers);
   }
 
-  protected RelNode getViewRelNode(SqlCreateView createView, boolean allowRenaming) throws UserException, ValidationException {
-    ConvertedRelNode convertedRelNode;
-    try {
-      convertedRelNode = PrelTransformer.validateAndConvert(config, createView.getQuery());
-    } catch (ValidationException | RelConversionException e) {
-      // Calcite exception could wrap exceptions in layers.  Find the root cause to get the original error message.
-      Throwable rootCause = e;
-      while (rootCause.getCause() != null) {
-        rootCause = rootCause.getCause();
-      }
-      throw UserException.validationError().message(rootCause.getMessage()).buildSilently();
-    } catch (Exception e) {
-      throw UserException.validationError().message("Cannot find table to create view from").buildSilently();
-    }
+  protected RelNode getViewRelNode(ConvertedRelNode convertedRelNode, SqlCreateView createView, boolean allowRenaming) throws UserException, ValidationException {
     final RelDataType validatedRowType = convertedRelNode.getValidatedRowType();
     final RelNode queryRelNode = convertedRelNode.getConvertedNode();
     return SqlHandlerUtil.resolveNewTableRel(true, allowRenaming ? createView.getFieldNames() : createView.getFieldNamesWithoutColumnMasking(), validatedRowType, queryRelNode);
   }
 
-  protected ViewOptions getViewOptions(NamespaceKey viewPath, boolean isUpdate){
-    final String sourceName = viewPath.getRoot();
-
-    final VersionContext sessionVersion = config.getContext().getSession().getSessionVersionForSource(sourceName);
-    ResolvedVersionContext version = CatalogUtil.resolveVersionContext(catalog, viewPath.getRoot(), sessionVersion);
-
+  protected ViewOptions getViewOptions(boolean isUpdate, ResolvedVersionContext version){
     ViewOptions viewOptions =
         new ViewOptions.ViewOptionsBuilder()
             .version(version)
@@ -362,8 +357,9 @@ public class CreateViewHandler extends SimpleDirectHandler {
     }
   }
 
-  public boolean  checkViewExistence(NamespaceKey viewPath, String newViewName, boolean isUpdate) {
-    final DremioTable existingTable = catalog.getTableNoResolve(viewPath);
+  public boolean checkViewExistence(String newViewName, boolean isUpdate, CatalogEntityKey catalogEntityKey) {
+    DremioTable existingTable =  CatalogUtil.getTableNoResolve(catalogEntityKey, catalog);
+    NamespaceKey viewPath = catalogEntityKey.toNamespaceKey();
     if (existingTable != null) {
       if (existingTable.getJdbcTableType() != Schema.TableType.VIEW) {
         // existing table is not a view
@@ -386,4 +382,33 @@ public class CreateViewHandler extends SimpleDirectHandler {
     return (existingTable != null) ;
   }
 
+  protected ConvertedRelNode validateTablesAndVersionContext(SqlNode sqlNode, NamespaceKey targetPath, VersionContext targetVersion) {
+    Map<String, VersionContext> targetSourceVersionMapping = CaseInsensitiveMap.newHashMap();
+    if (targetPath != null) {
+      String targetSource = targetPath.getRoot();
+      targetSourceVersionMapping.put(targetSource, ((targetVersion != null) && targetVersion.isSpecified() ? targetVersion : VersionContext.NOT_SPECIFIED));
+      if (isVersioned(targetPath) && isTimeTravelQuery(sqlNode)) {
+        throw UserException.unsupportedError()
+          .message("Versioned views do not support AT SNAPSHOT or AT TIMESTAMP")
+          .buildSilently();
+      }
+      try {
+        List<String> pathContext = catalog.getDefaultSchema() == null ? null : catalog.getDefaultSchema().getPathComponents();
+        return QueryVersionUtils.checkForUnspecifiedVersionsAndReturnRelNode(
+          sqlNode,
+          pathContext,
+          config.getContext().getSabotContext(),
+          targetSourceVersionMapping,
+          Optional.ofNullable(config.getContext().getSession())
+        );
+      } catch (Exception e) {
+        throw UserException.validationError().message("Validation of view sql failed. %s ", e.getMessage()).buildSilently();
+      }
+    }
+    return null;
+  }
+
+  protected Catalog getCatalog() {
+    return catalog;
+  }
 }

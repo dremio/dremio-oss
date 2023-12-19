@@ -25,10 +25,12 @@ import static org.mockito.Mockito.when;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.SortOrder;
 import org.junit.Test;
 
 import com.dremio.common.exceptions.UserException;
@@ -68,7 +70,7 @@ public class TestCreateTableQueryCleanup {
     when(command.endTransaction()).thenThrow(new UncheckedIOException(new IOException("endTransaction_error")));
 
     IcebergTableCreationCommitter committer = new IcebergTableCreationCommitter("table1", BatchSchema.EMPTY,
-        ImmutableList.of(), command, null, PartitionSpec.unpartitioned());
+        ImmutableList.of(), command, Collections.emptyMap(),null, PartitionSpec.unpartitioned(), SortOrder.unsorted());
 
     assertThatThrownBy(committer::commit)
         .isInstanceOf(RuntimeException.class)
@@ -103,7 +105,7 @@ public class TestCreateTableQueryCleanup {
     ByteString partitionSpecByteString = ByteString.copyFrom(IcebergSerDe.serializePartitionSpec(partitionSpec));
     String schemaAsJson = IcebergSerDe.serializedSchemaAsJson(
         SchemaConverter.getBuilder().build().toIcebergSchema(batchSchema));
-    IcebergTableProps icebergTableProps = new IcebergTableProps(partitionSpecByteString, schemaAsJson);
+    IcebergTableProps icebergTableProps = new IcebergTableProps(partitionSpecByteString, schemaAsJson, Collections.emptyMap());
     IcebergWriterOptions icebergWriterOptions = new ImmutableIcebergWriterOptions.Builder()
         .setIcebergTableProps(icebergTableProps).build();
     TableFormatWriterOptions tableFormatOptions = new ImmutableTableFormatWriterOptions.Builder()

@@ -48,7 +48,7 @@ public class TestDeltaLakeFormatMatcher {
     DeltaLakeFormatMatcher matcher = new DeltaLakeFormatMatcher(plugin);
     FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
     File root = tempDir.newFolder();
-    FileSelection fileSelection = FileSelection.create(fs, Path.of(root.toURI()));
+    FileSelection fileSelection = FileSelection.createNotExpanded(fs, Path.of(root.toURI()));
 
     // test with empty folder
     assertFalse(matcher.matches(fs, fileSelection, null));
@@ -82,7 +82,7 @@ public class TestDeltaLakeFormatMatcher {
     DeltaLakeFormatMatcher matcher = new DeltaLakeFormatMatcher(plugin);
     FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
     File root = tempDir.newFolder();
-    FileSelection fileSelection = FileSelection.create(fs, Path.of(root.toURI()));
+    FileSelection fileSelection = FileSelection.createNotExpanded(fs, Path.of(root.toURI()));
 
     // empty "_delta_log" folder
     File deltaLog = new File(root, "_delta_log");
@@ -112,7 +112,7 @@ public class TestDeltaLakeFormatMatcher {
     DeltaLakeFormatMatcher matcher = new DeltaLakeFormatMatcher(plugin);
     FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
     File root = tempDir.newFolder();
-    FileSelection fileSelection = FileSelection.create(fs, Path.of(root.toURI()));
+    FileSelection fileSelection = FileSelection.createNotExpanded(fs, Path.of(root.toURI()));
 
     // empty "_delta_log" folder
     File deltaLog = new File(root, "_delta_log");
@@ -141,7 +141,7 @@ public class TestDeltaLakeFormatMatcher {
     File parquet = new File(root, "a.parquet");
     parquet.createNewFile();
 
-    FileSelection fileSelection = FileSelection.create(fs, Path.of(parquet.toURI()));
+    FileSelection fileSelection = FileSelection.createNotExpanded(fs, Path.of(parquet.toURI()));
 
     assertFalse(matcher.matches(fs, fileSelection, null));
   }

@@ -71,6 +71,7 @@ import com.dremio.exec.store.file.proto.FileProtobuf.FileUpdateKey;
 import com.dremio.exec.util.MetadataSupportsInternalSchema;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
+import com.dremio.options.OptionResolver;
 import com.dremio.sabot.exec.context.OperatorContextImpl;
 import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf.EasyDatasetSplitXAttr;
 import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf.EasyDatasetXAttr;
@@ -96,8 +97,9 @@ public class EasyFormatDatasetAccessor implements FileDatasetHandle, MetadataSup
   private final FormatPlugin formatPlugin;
   private final PreviousDatasetInfo oldConfig;
   private final int maxLeafColumns;
+  private final boolean enableOptimalPartitionChunks;
+  private final PartitionChunkListingImpl partitionChunkListing;
 
-  private PartitionChunkListingImpl partitionChunkListing;
   private long recordCount;
   private EasyDatasetXAttr extended;
   private List<String> partitionColumns;
@@ -116,7 +118,13 @@ public class EasyFormatDatasetAccessor implements FileDatasetHandle, MetadataSup
     this.formatPlugin = formatPlugin;
     this.oldConfig = oldConfig;
     this.maxLeafColumns = maxLeafColumns;
-    this.partitionChunkListing = new PartitionChunkListingImpl();
+    OptionResolver optionResolver = formatPlugin.getContext().getOptionManager();
+    this.enableOptimalPartitionChunks =
+        optionResolver.getOption(ExecConstants.ENABLE_OPTIMAL_FILE_PARTITION_CHUNKS);
+    int maxSplitsPerChunk = this.enableOptimalPartitionChunks ?
+        (int) optionResolver.getOption(ExecConstants.FILE_SPLITS_PER_PARTITION_CHUNK) :
+        Integer.MAX_VALUE;
+    this.partitionChunkListing = new PartitionChunkListingImpl(maxSplitsPerChunk);
   }
 
   @Override
@@ -196,7 +204,8 @@ public class EasyFormatDatasetAccessor implements FileDatasetHandle, MetadataSup
         OperatorContextImpl operatorContext = new OperatorContextImpl(context.getConfig(), context.getDremioConfig(), sampleAllocator, context.getOptionManager(), 1000, context.getExpressionSplitCache());
         SampleMutator mutator = new SampleMutator(sampleAllocator)
     ) {
-      final ImplicitFilesystemColumnFinder explorer = new ImplicitFilesystemColumnFinder(context.getOptionManager(), dfs, GroupScan.ALL_COLUMNS);
+      final ImplicitFilesystemColumnFinder explorer = new ImplicitFilesystemColumnFinder(context.getOptionManager(),
+          dfs, GroupScan.ALL_COLUMNS, ImplicitFilesystemColumnFinder.Mode.ALL_IMPLICIT_COLUMNS);
 
       Optional<FileAttributes> fileName = selection.getFileAttributesList().stream().filter(input -> input.size() > 0).findFirst();
       final FileAttributes file = fileName.orElse(selection.getFileAttributesList().get(0));
@@ -236,11 +245,18 @@ public class EasyFormatDatasetAccessor implements FileDatasetHandle, MetadataSup
     if (partitionChunkListing.computed()) {
       return;
     }
-    final EasyGroupScanUtils easyGroupScanUtils = ((EasyFormatPlugin) formatPlugin).getGroupScan(SYSTEM_USERNAME, fsPlugin, fileSelection, GroupScan.ALL_COLUMNS);
+    final EasyGroupScanUtils easyGroupScanUtils = ((EasyFormatPlugin<?>) formatPlugin).getGroupScan(SYSTEM_USERNAME, fsPlugin, fileSelection, GroupScan.ALL_COLUMNS);
     extended = EasyDatasetXAttr.newBuilder().setSelectionRoot(fileSelection.getSelectionRoot()).build();
     recordCount = easyGroupScanUtils.getScanStats().getRecordCount();
 
-    final ImplicitFilesystemColumnFinder finder = new ImplicitFilesystemColumnFinder(fsPlugin.getContext().getOptionManager(), fs, GroupScan.ALL_COLUMNS);
+    // If we want to generate optimal partition chunks, only retrieve the partition implicit columns to store as
+    // partition values for partition chunks.  The legacy behavior retrieves all implicit columns - such as file path
+    // and mtime - as partition values, which results in single-split partition chunks in most cases.
+    ImplicitFilesystemColumnFinder.Mode mode = enableOptimalPartitionChunks ?
+        ImplicitFilesystemColumnFinder.Mode.PARTITION_COLUMNS :
+        ImplicitFilesystemColumnFinder.Mode.ALL_IMPLICIT_COLUMNS;
+    final ImplicitFilesystemColumnFinder finder = new ImplicitFilesystemColumnFinder(
+        fsPlugin.getContext().getOptionManager(), fs, GroupScan.ALL_COLUMNS, mode);
     final List<CompleteFileWork> work = easyGroupScanUtils.getChunks();
     final List<List<NameValuePair<?>>> pairs = finder.getImplicitFields(easyGroupScanUtils.getSelectionRoot(), work);
     final Set<String> allImplicitColumns = Sets.newLinkedHashSet();

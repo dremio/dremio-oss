@@ -47,9 +47,7 @@ import com.dremio.exec.proto.CoordExecRPC.SchedulingInfo;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.server.NodeDebugContextProvider;
-import com.dremio.exec.server.options.DefaultOptionManager;
 import com.dremio.exec.server.options.FragmentOptionManager;
-import com.dremio.exec.server.options.OptionManagerWrapper;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.testing.ControlsInjector;
 import com.dremio.exec.testing.ControlsInjectorFactory;
@@ -57,6 +55,8 @@ import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.options.OptionList;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValue;
+import com.dremio.options.impl.DefaultOptionManager;
+import com.dremio.options.impl.OptionManagerWrapper;
 import com.dremio.sabot.driver.OperatorCreatorRegistry;
 import com.dremio.sabot.exec.EventProvider;
 import com.dremio.sabot.exec.FragmentExecutors;
@@ -225,7 +225,7 @@ public class FragmentExecutorBuilder {
       try {
         long reservation = fragment.getMemInitial();
         long limit = fragment.getMemMax();
-        if (optionManager.getOption(ExecConstants.MEMORY_ARBITER_ENABLED)) {
+        if (optionManager.getOption(ExecConstants.ENABLE_SPILLABLE_OPERATORS)) {
           reservation = 0;
           limit = Long.MAX_VALUE;
         }

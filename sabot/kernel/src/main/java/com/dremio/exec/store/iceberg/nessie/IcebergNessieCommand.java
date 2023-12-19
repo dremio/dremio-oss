@@ -17,9 +17,9 @@ package com.dremio.exec.store.iceberg.nessie;
 
 import org.apache.hadoop.conf.Configuration;
 
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.iceberg.model.IcebergBaseCommand;
 import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
-import com.dremio.io.file.FileSystem;
 
 /**
  * Iceberg Nessie catalog
@@ -30,9 +30,10 @@ class IcebergNessieCommand extends IcebergBaseCommand {
 
   public IcebergNessieCommand(IcebergTableIdentifier tableIdentifier,
                               Configuration configuration,
-                              FileSystem fs,
-                              IcebergNessieTableOperations tableOperations) {
-    super(configuration, ((IcebergNessieTableIdentifier) tableIdentifier).getTableFolder(), fs, tableOperations);
+                              IcebergNessieTableOperations tableOperations,
+                              UserBitShared.QueryId queryId) {
+    super(configuration, ((IcebergNessieTableIdentifier) tableIdentifier).getTableFolder(), tableOperations,
+        queryId);
     this.nessieTableOperations = tableOperations;
   }
 

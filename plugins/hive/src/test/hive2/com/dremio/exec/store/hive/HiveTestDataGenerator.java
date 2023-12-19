@@ -162,6 +162,7 @@ public final class HiveTestDataGenerator {
     Hive2StoragePluginConfig conf = (Hive2StoragePluginConfig) msp.getId().<Hive2StoragePluginConfig>getConnectionConf().clone();
 
     List<Property> updated = new ArrayList<>();
+    List<Property> updatedSecretProperties = new ArrayList<>();
     for (Entry<String, String> prop : configOverride.entrySet()) {
       updated.add(new Property(prop.getKey(), prop.getValue()));
     }
@@ -172,7 +173,14 @@ public final class HiveTestDataGenerator {
       }
     }
 
+    for (Property p : conf.secretPropertyList) {
+      if (!configOverride.containsKey(p.name)) {
+        updatedSecretProperties.add(p);
+      }
+    }
+
     conf.propertyList = updated;
+    conf.secretPropertyList = updatedSecretProperties;
     newSC.setConfig(conf.toBytesString());
     ((CatalogServiceImpl) pluginRegistry).getSystemUserCatalog().updateSource(newSC);
   }

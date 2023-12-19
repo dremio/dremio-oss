@@ -44,6 +44,8 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.protostuff.ByteString;
 
 /**
@@ -75,7 +77,6 @@ class MaterializationCache {
 
     /**
      * tries to expand the external materialization's plan.
-     * if we fail to deserialize the plan, the reflection will be scheduled for update
      * @return expanded descriptor, or null if failed to deserialize the plan
      */
     CachedMaterializationDescriptor expand(Materialization materialization) throws CacheException;
@@ -101,7 +102,8 @@ class MaterializationCache {
     }
   }
 
-  void refresh() {
+  @WithSpan
+  void refreshMaterializationCache() {
     compareAndSetCache();
   }
 
@@ -109,7 +111,7 @@ class MaterializationCache {
     boolean exchanged;
     do {
       Map<String, CachedMaterializationDescriptor> old = cached.get();
-      Map<String, CachedMaterializationDescriptor> updated = updateCache(old);
+      Map<String, CachedMaterializationDescriptor> updated = updateMaterializationCache(old);
       exchanged = cached.compareAndSet(old, updated);
     } while(!exchanged);
   }
@@ -130,7 +132,8 @@ class MaterializationCache {
    * @param old existing cache
    * @return updated cache
    */
-  private Map<String, CachedMaterializationDescriptor> updateCache(Map<String, CachedMaterializationDescriptor> old) {
+  @WithSpan
+  private Map<String, CachedMaterializationDescriptor> updateMaterializationCache(Map<String, CachedMaterializationDescriptor> old) {
     // new list of descriptors
     final Iterable<Materialization> provided = provider.getValidMaterializations();
     // this will hold the updated cache
@@ -138,6 +141,9 @@ class MaterializationCache {
     EntityExplorer catalog = CatalogUtil.getSystemCatalogForReflections(catalogService);
 
 
+    int materializationExpandCount = 0;
+    int materializationReuseCount = 0;
+    int materializationErrorCount = 0;
     // cache is enabled so we want to reuse as much of the existing cache as possible. Make sure to:
     // remove all cached descriptors that no longer exist
     // reuse all descriptors that are already in the cache
@@ -147,24 +153,49 @@ class MaterializationCache {
       if (cachedDescriptor == null ||
           !materialization.getTag().equals(cachedDescriptor.getVersion()) ||
           schemaChanged(cachedDescriptor, materialization, catalog)) {
-        safeUpdateEntry(updated, materialization);
+        if (safeUpdateMaterializationEntry(updated, materialization)) {
+          materializationExpandCount++;
+        } else {
+          materializationErrorCount++;
+        }
       } else {
         // descriptor already in the cache, we can just reuse it
         updated.put(materialization.getId().getId(), cachedDescriptor);
+        materializationReuseCount++;
       }
     }
 
+    int externalExpandCount = 0;
+    int externalReuseCount = 0;
+    int externalErrorCount = 0;
     for (ExternalReflection externalReflection : provider.getExternalReflections()) {
       final CachedMaterializationDescriptor cachedDescriptor = old.get(externalReflection.getId());
       if (cachedDescriptor == null
           || isExternalReflectionOutOfSync(externalReflection.getId())
           || isExternalReflectionMetadataUpdated(cachedDescriptor, catalog)) {
-        updateEntry(updated, externalReflection);
+        if (updateExternalReflectionEntry(updated, externalReflection)) {
+          externalExpandCount++;
+        } else {
+          externalErrorCount++;
+        }
       } else {
         // descriptor already in the cache, we can just reuse it
         updated.put(externalReflection.getId(), cachedDescriptor);
+        externalReuseCount++;
       }
     }
+    logger.info("Materialization cache updated.  Count stats: " +
+        "materializationReuse={} materializationExpand={} materializationError={} " +
+        "externalReuse={} externalExpand={} externalError={}",
+      materializationReuseCount, materializationExpandCount, materializationErrorCount,
+      externalReuseCount, externalExpandCount, externalErrorCount);
+    Span.current().setAttribute("dremio.materialization_cache.materializationReuseCount", materializationReuseCount);
+    Span.current().setAttribute("dremio.materialization_cache.materializationExpandCount", materializationExpandCount);
+    Span.current().setAttribute("dremio.materialization_cache.materializationErrorCount", materializationErrorCount);
+    Span.current().setAttribute("dremio.materialization_cache.externalReuseCount", externalReuseCount);
+    Span.current().setAttribute("dremio.materialization_cache.externalExpandCount", externalExpandCount);
+    Span.current().setAttribute("dremio.materialization_cache.externalErrorCount", externalErrorCount);
+
     return updated;
   }
 
@@ -198,36 +229,49 @@ class MaterializationCache {
     return reflectionStatusService.getExternalReflectionStatus(new ReflectionId(id)).getConfigStatus() == OUT_OF_SYNC;
   }
 
-  private void updateEntry(Map<String, CachedMaterializationDescriptor> cache, ExternalReflection entry) {
+  @WithSpan
+  private boolean updateExternalReflectionEntry(Map<String, CachedMaterializationDescriptor> cache, ExternalReflection entry) {
+    Span.current().setAttribute("dremio.materialization_cache.reflection_id", entry.getId());
+    Span.current().setAttribute("dremio.materialization_cache.name", entry.getName());
+    Span.current().setAttribute("dremio.materialization_cache.query_dataset_id", entry.getQueryDatasetId());
+    Span.current().setAttribute("dremio.materialization_cache.target_dataset_id", entry.getTargetDatasetId());
     try {
       final MaterializationDescriptor descriptor = provider.getDescriptor(entry);
       if (descriptor != null) {
         final DremioMaterialization expanded = provider.expand(descriptor);
         if (expanded != null) {
           cache.put(entry.getId(), new CachedMaterializationDescriptor(descriptor, expanded, catalogService));
+          return true;
         }
       }
     } catch (Exception e) {
       logger.debug("couldn't expand materialization {}", entry.getId(), e);
     }
+    return false;
   }
 
-  private void safeUpdateEntry(Map<String, CachedMaterializationDescriptor> cache, Materialization entry) {
+  private boolean safeUpdateMaterializationEntry(Map<String, CachedMaterializationDescriptor> cache, Materialization entry) {
     try {
-      updateEntry(cache, entry);
+      return updateMaterializationEntry(cache, entry);
     } catch (AssertionError e) {
       // Calcite can throw assertion errors even when assertions are disabled :( that's why we need to make sure we catch them here
       logger.debug("couldn't expand materialization {}", entry.getId(), e);
     } catch (Exception ignored) {
       // Other exceptions are already logged through updateEntry function.
     }
+    return false;
   }
 
-  private void updateEntry(Map<String, CachedMaterializationDescriptor> cache, Materialization entry) throws CacheException {
+  @WithSpan
+  private boolean updateMaterializationEntry(Map<String, CachedMaterializationDescriptor> cache, Materialization entry) throws CacheException {
+    Span.current().setAttribute("dremio.materialization_cache.reflection_id", entry.getReflectionId().getId());
+    Span.current().setAttribute("dremio.materialization_cache.materialization_id", entry.getId().getId());
     final CachedMaterializationDescriptor descriptor = provider.expand(entry);
     if (descriptor != null) {
       cache.put(entry.getId().getId(), descriptor);
+      return true;
     }
+    return false;
   }
 
   private boolean schemaChanged(MaterializationDescriptor old, Materialization materialization, EntityExplorer catalog) {

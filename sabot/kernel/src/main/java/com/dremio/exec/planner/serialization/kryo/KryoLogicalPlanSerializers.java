@@ -22,7 +22,7 @@ import org.apache.calcite.sql.SqlExplainLevel;
 import org.objenesis.strategy.StdInstantiatorStrategy;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.catalog.DremioCatalogReader;
+import com.dremio.exec.ops.DremioCatalogReader;
 import com.dremio.exec.planner.serialization.DeserializationException;
 import com.dremio.exec.planner.serialization.LogicalPlanDeserializer;
 import com.dremio.exec.planner.serialization.LogicalPlanSerializer;

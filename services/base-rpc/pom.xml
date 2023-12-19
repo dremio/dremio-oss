@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>24.1.0-202306130653310132-d30779f6</version>
+    <version>24.3.0-202312190021150029-52db2faf</version>
   </parent>
   <artifactId>dremio-services-base-rpc</artifactId>
   <name>Services - Base RPC</name>
@@ -82,15 +82,15 @@
     </dependency>
     <dependency>
       <groupId>io.netty</groupId>
-      <artifactId>netty-codec</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.netty</groupId>
       <artifactId>netty-common</artifactId>
     </dependency>
     <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-handler</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-handler-proxy</artifactId>
     </dependency>
     <dependency>
       <groupId>io.netty</groupId>
@@ -119,6 +119,19 @@
         <artifactId>maven-checkstyle-plugin</artifactId>
         <configuration>
           <configLocation>dremio-checkstyle/legacy-config.xml</configLocation>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>com.mycila</groupId>
+        <artifactId>license-maven-plugin</artifactId>
+        <configuration>
+          <licenseSets>
+            <licenseSet>
+              <validHeaders>
+                <validHeader>src/main/licenses/io.netty.handler.proxy.license.txt</validHeader>
+              </validHeaders>
+            </licenseSet>
+          </licenseSets>
         </configuration>
       </plugin>
     </plugins>

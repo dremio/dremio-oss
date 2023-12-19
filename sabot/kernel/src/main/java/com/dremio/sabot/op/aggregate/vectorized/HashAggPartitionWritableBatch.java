@@ -113,7 +113,8 @@ public class HashAggPartitionWritableBatch {
                                        final List<ArrowBuf> variableBlockBuffers,
                                        final int blockWidth,
                                        final AccumulatorSet accumulator,
-                                       final int maxValuesPerBatch) {
+                                       final int maxValuesPerBatch,
+                                       final int currentBatchIndex) {
     this.hashTable = hashTable;
     this.accumulators = accumulator.getChildren();
     checkAccumulatorsBatchSize(fixedBlockBuffers.size());
@@ -122,7 +123,7 @@ public class HashAggPartitionWritableBatch {
     this.numWritableBuffers = GetNumWritableBuffers();
     this.buffers = new ArrowBuf[numWritableBuffers];
     this.blockWidth = blockWidth;
-    this.currentBatchIndex = 0;
+    this.currentBatchIndex = currentBatchIndex;
     this.maxValuesPerBatch = maxValuesPerBatch;
   }
 

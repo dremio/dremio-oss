@@ -64,7 +64,7 @@ export class TopSplitterContent extends Component {
 
   topSplitterContentRef = null;
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     if (nextProps.sqlSize !== this.props.sqlSize) {
       this.setState({
         resizeLineTop: nextProps.sqlSize,

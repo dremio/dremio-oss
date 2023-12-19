@@ -15,10 +15,13 @@
  */
 package com.dremio.service.scheduler;
 
+import static com.dremio.service.coordinator.ClusterCoordinator.Role.MASTER;
+
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Delayed;
@@ -57,8 +60,9 @@ public class LocalSchedulerService implements SchedulerService {
 
   /**
    * Creates a new scheduler service.
-   *
+   *<p>
    * The underlying executor uses a {@link ThreadPoolExecutor}, with a given pool size.
+   *</p>
    *
    * @param corePoolSize -- the <b>maximum</b> number of threads used by the underlying {@link ThreadPoolExecutor}
    */
@@ -115,6 +119,7 @@ public class LocalSchedulerService implements SchedulerService {
   public void close() throws Exception {
     LOGGER.info("Stopping SchedulerService");
     AutoCloseables.close(AutoCloseables.iter(executorService), taskLeaderElectionServiceMap.values());
+    taskLeaderElectionServiceMap.clear();
     LOGGER.info("Stopped SchedulerService");
   }
 
@@ -363,6 +368,12 @@ public class LocalSchedulerService implements SchedulerService {
     public void cancel(boolean mayInterruptIfRunning) {
       if (taskName != null && taskLeaderElectionServiceMap.get(taskName) != null) {
         taskLeaderElectionServiceMap.get(taskName).removeListener(taskLeaderChangeListener);
+        try {
+          taskLeaderElectionServiceMap.get(taskName).close();
+        } catch (Exception e) {
+          LOGGER.error("Exception while trying to close task leader election for task {}", taskName, e);
+        }
+        taskLeaderElectionServiceMap.remove(taskName);
       }
       basicCancel(mayInterruptIfRunning);
     }
@@ -374,7 +385,15 @@ public class LocalSchedulerService implements SchedulerService {
 
     @Override
     public boolean isDone() {
+      // Note: This is actually a bug in the current local scheduler service to wrongly denote that a task
+      // is done, while it may still be running (or scheduled to run) on another node. Since this
+      // implementation is going to be decommissioned soon, this bug is not being fixed.
       return taskState;
+    }
+
+    @Override
+    public boolean isScheduled() {
+      return !taskState;
     }
 
     private void basicCancel(boolean mayInterruptIfRunning) {
@@ -422,6 +441,19 @@ public class LocalSchedulerService implements SchedulerService {
       cancellableTask.taskState = true;
     }
     return cancellableTask;
+  }
+
+  @Override
+  public Optional<CoordinationProtos.NodeEndpoint> getCurrentTaskOwner(String taskName) {
+    if (assumeTaskLeadership) {
+      return Optional
+        .ofNullable(clusterServiceSetManagerProvider.get().getOrCreateServiceSet(taskName).getAvailableEndpoints())
+        .flatMap(nodeEndpoints -> nodeEndpoints.stream().findFirst());
+    } else {
+      return Optional
+        .ofNullable(clusterServiceSetManagerProvider.get().getServiceSet(MASTER).getAvailableEndpoints())
+        .flatMap(nodeEndpoints -> nodeEndpoints.stream().findFirst());
+    }
   }
 
   private Cancellable plainSchedule(Schedule schedule, Runnable task) {

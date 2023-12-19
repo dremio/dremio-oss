@@ -19,7 +19,7 @@ import classNames from "clsx";
 import { FormattedMessage, injectIntl } from "react-intl";
 import Immutable from "immutable";
 
-import { Button } from "dremio-ui-lib";
+import { Button } from "dremio-ui-lib/components";
 import * as ButtonTypes from "components/Buttons/ButtonTypes";
 import ModalFooter from "components/Modals/components/ModalFooter";
 import ResourceTreeContainer from "components/Tree/ResourceTreeContainer";
@@ -31,6 +31,7 @@ import DependantDatasetsWarning from "components/Modals/components/DependantData
 import { applyValidators, isRequired } from "utils/validation";
 import { connectComplexForm } from "components/Forms/connectComplexForm";
 import { ModalSize } from "components/Modals/Modal";
+import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";
 
 import "./UpdateDataset.less";
 
@@ -155,20 +156,23 @@ export class UpdateDatasetView extends Component {
   }
 
   renderFormBody() {
-    const { mode, item, fields, intl } = this.props;
+    const { t } = getIntlContext();
+    const { mode, item, fields } = this.props;
     if (mode === UpdateMode.remove) {
       return (
         <div className="remove-question">
-          {la(`Are you sure you want to remove "${item.get("name")}"?`)}
+          {t("Delete.Confirmation", {
+            name: item.get("name"),
+          })}
         </div>
       );
     }
     if (mode === UpdateMode.removeFormat) {
       return (
         <div className="remove-question">
-          {la(
-            `Are you sure you want to remove format for "${item.get("name")}"?`
-          )}
+          {t("RemoveFormat.Confirmation", {
+            name: item.get("name"),
+          })}
         </div>
       );
     }
@@ -185,7 +189,7 @@ export class UpdateDatasetView extends Component {
             name="name"
             touched
             initialFocus
-            placeholder={intl.formatMessage({ id: "Dataset.Name" })}
+            placeholder={t("Dataset.Name")}
           />
         </FieldWithError>
       </div>
@@ -229,18 +233,20 @@ export class UpdateDatasetView extends Component {
 
       return (
         <Button
-          style={{ marginLeft: 5, marginBottom: 0 }}
           className={button.className}
           onClick={onClick}
-          text={button.name}
-          disableMargin
-          color={
+          variant={
             button.type === ButtonTypes.NEXT
-              ? ButtonTypes.UI_LIB_PRIMARY
-              : ButtonTypes.UI_LIB_SECONDARY
+              ? "primary"
+              : button.type === ButtonTypes.PRIMARY_DANGER
+              ? "primary-danger"
+              : "secondary"
           }
           key={`${index}_button`}
-        />
+          data-qa={button.name}
+        >
+          {button.name}
+        </Button>
       );
     });
   }
@@ -262,7 +268,9 @@ export class UpdateDatasetView extends Component {
           {this.renderFormBody()}
           {this.renderLocationBlock()}
         </div>
-        <ModalFooter>{this.renderButtons()}</ModalFooter>
+        <ModalFooter>
+          <div className="dremio-button-group">{this.renderButtons()}</div>
+        </ModalFooter>
       </div>
     );
   }

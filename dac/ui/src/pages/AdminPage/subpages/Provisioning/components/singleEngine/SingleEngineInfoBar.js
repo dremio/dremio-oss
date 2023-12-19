@@ -39,21 +39,27 @@ export class SingleEngineInfoBar extends PureComponent {
   getEntries(engine) {
     const yarnMode = isYarn(engine);
     return [
-      { label: la("SIZE"), value: this.getSize(engine) },
+      { label: laDeprecated("SIZE"), value: this.getSize(engine) },
       yarnMode && {
-        label: la("CORES PER WORKER"),
+        label: laDeprecated("CORES PER WORKER"),
         value: this.getCores(engine),
       },
       yarnMode && {
-        label: la("MEMORY PER WORKER"),
+        label: laDeprecated("MEMORY PER WORKER"),
         value: this.getMemory(engine),
       },
-      yarnMode && { label: la("IP ADDRESS"), value: this.getIp(engine) },
+      yarnMode && {
+        label: laDeprecated("IP ADDRESS"),
+        value: this.getIp(engine),
+      },
       !yarnMode && {
-        label: la("ENGINE TYPE"),
+        label: laDeprecated("ENGINE TYPE"),
         value: this.getEngineType(engine),
       },
-      { label: la("LAST STATUS CHANGE"), value: this.getLastChange(engine) },
+      {
+        label: laDeprecated("LAST STATUS CHANGE"),
+        value: this.getLastChange(engine),
+      },
     ].filter(Boolean);
   }
 
@@ -90,7 +96,7 @@ export class SingleEngineInfoBar extends PureComponent {
     const dateTime = engine.get("stateChangeTime");
     if (!status || !dateTime) return "-";
     const statusIcon = CLUSTER_STATE_ICON[status];
-    const statusLabel = statusIcon ? statusIcon.text : la("N/A");
+    const statusLabel = statusIcon ? statusIcon.text : laDeprecated("N/A");
     const dateLabel = timeUtils.formatTime(dateTime);
     return `${statusLabel} ${"since"} ${dateLabel}`;
   };

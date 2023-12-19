@@ -25,8 +25,8 @@ import { fetchStatusOfAnalyzeTools } from "@app/utils/analyzeToolsUtils";
 import { getIconPath } from "@app/utils/getIconPath";
 import { openTableau, openPowerBI } from "actions/explore/download";
 import RenderStat from "./RenderStat";
-import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
-import { useIsBIToolsEnabled } from "@app/utils/arsUtils";
+import { VersionContextType } from "dremio-ui-common/components/VersionContext.js";
+import { hideForNonDefaultBranch } from "dremio-ui-common/utilities/versionContext.js";
 
 type SummaryStatsProps = {
   dataset: Immutable.Map<string, any>;
@@ -39,6 +39,7 @@ type SummaryStatsProps = {
   lastModifyUserEmail?: string;
   lastModified?: Date;
   detailsView?: boolean;
+  versionContext?: VersionContextType;
 };
 
 const SummaryStats = ({
@@ -52,6 +53,7 @@ const SummaryStats = ({
   lastModified,
   location,
   detailsView,
+  versionContext,
 }: SummaryStatsProps) => {
   const dispatch = useDispatch();
   const currentRoute = location.pathname + location?.search;
@@ -62,8 +64,7 @@ const SummaryStats = ({
     }
   };
 
-  const versionContext = getVersionContextFromId(dataset.get("entityId"));
-  const isBIToolsEnabled = useIsBIToolsEnabled(versionContext);
+  const isBIToolsEnabled = hideForNonDefaultBranch(versionContext);
 
   const canAnalyzeWithBITools = dataset.getIn([
     "permissions",
@@ -72,33 +73,37 @@ const SummaryStats = ({
 
   const analyzeButtonsConfig = fetchStatusOfAnalyzeTools();
 
-  // The analyze buttons have three requirements to render
-  // 1) Must not be in details view
-  // 2) The user must have the "canAnalyzeWithBITools" permission for the dataset
-  // 3) At least one of the analyze support keys must be enabled
+  // The analyze buttons have two requirements to render
+  // 1) The user must have the "canAnalyzeWithBITools" permission for the dataset
+  // 2) At least one of the analyze support keys must be enabled
   const shouldShowAnalyzeButtons =
-    !detailsView &&
     canAnalyzeWithBITools &&
     (analyzeButtonsConfig["client.tools.tableau"] ||
       analyzeButtonsConfig["client.tools.powerbi"]);
 
   return (
     <div className={classes["summary-stats-container"]}>
-      <RenderStat
-        title="Jobs.Jobs.LastMonth"
-        data={
-          (jobCount || jobCount === 0) && (
-            // @ts-ignore
-            <LinkWithHref onClick={onJobClick} to={jobsLink}>
-              {jobCount}
-            </LinkWithHref>
-          )
-        }
-      />
-      <RenderStat
-        title="Dataset.Descendants"
-        data={(descendantsCount || descendantsCount === 0) && descendantsCount}
-      />
+      {!versionContext && (
+        <RenderStat
+          title="Jobs.Jobs.LastMonth"
+          data={
+            (jobCount || jobCount === 0) && (
+              // @ts-ignore
+              <LinkWithHref onClick={onJobClick} to={jobsLink}>
+                {jobCount}
+              </LinkWithHref>
+            )
+          }
+        />
+      )}
+      {!versionContext && (
+        <RenderStat
+          title="Dataset.Descendants"
+          data={
+            (descendantsCount || descendantsCount === 0) && descendantsCount
+          }
+        />
+      )}
       <RenderStat
         title="Common.Created"
         data={createdAt && formatDateTimestampShortNoTZ(new Date(createdAt))}

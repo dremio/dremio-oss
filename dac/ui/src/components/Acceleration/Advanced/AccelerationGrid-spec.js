@@ -136,14 +136,14 @@ describe("AccelerationGrid", () => {
   describe("#componentWillReceiveProps()", () => {
     it("resets focusedColumn if activeTab changes", () => {
       instance.focusedColumn = 1;
-      instance.componentWillReceiveProps({
+      instance.UNSAFE_componentWillReceiveProps({
         activeTab: "raw",
         layoutFields: [{ id: { value: "c" } }],
       });
       expect(instance.focusedColumn).to.equal(undefined);
     });
     it("sets focusedColumn for newly added columns", () => {
-      instance.componentWillReceiveProps({
+      instance.UNSAFE_componentWillReceiveProps({
         activeTab: "aggregation",
         layoutFields: [{ id: { value: "b" } }, { id: { value: "c" } }],
       });
@@ -151,7 +151,7 @@ describe("AccelerationGrid", () => {
     });
     it("does nothing with focusedColumn for newly removed columns (so no jump)", () => {
       instance.focusedColumn = 1;
-      instance.componentWillReceiveProps({
+      instance.UNSAFE_componentWillReceiveProps({
         activeTab: "aggregation",
         layoutFields: [],
       });

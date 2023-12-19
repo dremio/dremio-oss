@@ -52,7 +52,7 @@ message ReflectionGoal {
 }
 
 message ReflectionDetails {
-  repeated ReflectionField partitionField = 1;
+  repeated ReflectionPartitionField partitionField = 1;
   repeated ReflectionField sortField = 2;
   repeated ReflectionDimensionField dimensionField = 3;
   repeated ReflectionMeasureField measureField = 4;
@@ -64,7 +64,6 @@ message ReflectionDetails {
 message ReflectionMeasureField {
   // field name
   required string name = 1;
-
   repeated MeasureType measure_type = 2;
 }
 
@@ -78,4 +77,29 @@ message ReflectionDimensionField {
   required string name = 1;
   // granularity
   optional DimensionGranularity granularity = 2 [default = DATE];
+}
+
+message BucketTransform{
+  optional int32 bucketCount = 1;
+}
+message TruncateTransform{
+  optional int32 truncateLength = 1;
+}
+message Transform{
+  enum Type {
+    IDENTITY = 0;
+    YEAR = 1;
+    MONTH = 2;
+    DAY = 3;
+    HOUR = 4;
+    BUCKET = 5;
+    TRUNCATE = 6;
+  }
+  optional Type type = 1;
+  optional BucketTransform bucketTransform = 2;
+  optional TruncateTransform truncateTransform = 3;
+}
+message ReflectionPartitionField {
+  required string name = 1;
+  optional Transform transform = 2;
 }

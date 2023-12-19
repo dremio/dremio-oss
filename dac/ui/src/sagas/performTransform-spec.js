@@ -145,6 +145,7 @@ describe("performTransform saga", () => {
         isRun: true,
         runningSql: "",
         useOptimizedJobFlow: undefined,
+        activeScriptId: undefined,
       };
       gen = handleRunDatasetSql({});
       next = gen.next(); // yield dataset
@@ -168,6 +169,7 @@ describe("performTransform saga", () => {
         forceDataLoad: true,
         runningSql: "",
         useOptimizedJobFlow: undefined,
+        activeScriptId: undefined,
       };
       gen = handleRunDatasetSql({ isPreview: true });
       next = gen.next(); // yield dataset

@@ -29,6 +29,7 @@ import com.google.common.cache.CacheBuilder;
 public class CachingOptionResolver implements OptionResolver {
 
   private final OptionResolver delegate;
+  @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
   private final Cache<String, Object> options = CacheBuilder.newBuilder()
       .maximumSize(10000)
       .build();

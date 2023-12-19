@@ -22,14 +22,18 @@ import SummarySubHeader from "./components/SummarySubHeader/SummarySubHeader";
 import SummaryStats from "./components/SummaryStats/SummaryStats";
 import SummaryColumns from "./components/SummaryColumns/SummaryColumns";
 import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
-import * as classes from "./DatasetSummary.module.less";
 import clsx from "clsx";
-import { ReactNode } from "react";
+import { ReactNode, useMemo } from "react";
 // @ts-ignore
 import { TagList } from "dremio-ui-lib";
 import CopyButton from "@app/components/Buttons/CopyButton";
 import { VersionContextType } from "dremio-ui-common/components/VersionContext.js";
+import { hideForNonDefaultBranch } from "dremio-ui-common/utilities/versionContext.js";
 import { getEdition } from "@inject/utils/versionUtils";
+import { ARSFeatureSwitch } from "@inject/utils/arsUtils";
+import SummaryActions from "./components/SummaryActions/SummaryActions";
+
+import * as classes from "./DatasetSummary.module.less";
 
 type DatasetSummaryProps = {
   title: string;
@@ -43,6 +47,9 @@ type DatasetSummaryProps = {
   showColumns?: boolean;
   hideSqlEditorIcon?: boolean;
   versionContext?: VersionContextType;
+  isPanel?: boolean;
+  hideGoToButton?: boolean;
+  hideMainActionButtons?: boolean;
 };
 
 const DatasetSummary = ({
@@ -57,6 +64,9 @@ const DatasetSummary = ({
   showColumns,
   hideSqlEditorIcon,
   versionContext,
+  isPanel,
+  hideGoToButton,
+  hideMainActionButtons,
 }: DatasetSummaryProps) => {
   const { formatMessage } = useIntl();
   const datasetType = dataset.get("datasetType");
@@ -65,13 +75,14 @@ const DatasetSummary = ({
   const ownerEmail = dataset.get("ownerName");
   const lastModifyUserEmail = dataset.get("lastModifyingUserEmail");
   const lastModified = dataset.get("lastModified");
-  const selfLink = dataset.getIn(["links", "query"]);
+  const queryLink = dataset.getIn(["links", "query"]);
   const editLink = dataset.getIn(["links", "edit"]);
   const jobsLink = wrapBackendLink(dataset.getIn(["links", "jobs"]));
   const jobCount = dataset.get("jobCount");
   const descendantsCount = dataset.get("descendants");
   const fields = dataset.get("fields");
   const canAlter = dataset.getIn(["permissions", "canAlter"]);
+  const canSelect = dataset.getIn(["permissions", "canSelect"]);
   const fieldsCount = fields && fields.size;
   const resourceId = dataset.getIn(["fullPath", 0]);
   const tags = dataset.get("tags");
@@ -80,17 +91,28 @@ const DatasetSummary = ({
     "canExploreDatasetGraph",
   ]);
 
+  const areTagsVisible = hideForNonDefaultBranch(versionContext);
+
   const shouldRenderLineageButton =
     canSeeDatasetGraph && getEdition() !== "Community Edition";
+
+  const graphLink = useMemo(() => {
+    if (shouldRenderLineageButton) {
+      const toLink = (canAlter || canSelect) && editLink ? editLink : queryLink;
+      const urldetails = new URL(window.location.origin + toLink);
+      return urldetails.pathname + "/graph" + urldetails.search;
+    }
+  }, [canAlter, canSelect, editLink, queryLink, shouldRenderLineageButton]);
 
   return (
     <div
       onClick={(e) => e.stopPropagation()}
-      className={
+      className={clsx(
         detailsView
           ? classes["dataset-summary-wiki-container"]
-          : classes["dataset-summary-container"]
-      }
+          : classes["dataset-summary-container"],
+        isPanel && classes["dataset-summary-wiki-container-panel"]
+      )}
     >
       <div
         className={clsx(
@@ -100,16 +122,18 @@ const DatasetSummary = ({
       >
         {!detailsView && (
           <SummaryItemLabel
-            fullPath={fullPath}
+            fullPath={dataset.get("fullPath")}
             resourceId={resourceId}
             datasetType={datasetType}
             canAlter={canAlter}
+            canSelect={canSelect}
             title={title}
             hasReflection={hasReflection}
-            selfLink={selfLink}
+            queryLink={queryLink}
             editLink={editLink}
             disableActionButtons={disableActionButtons}
             hideSqlEditorIcon={hideSqlEditorIcon}
+            versionContext={versionContext}
           />
         )}
         {!detailsView ? (
@@ -133,20 +157,21 @@ const DatasetSummary = ({
             />
           </div>
         )}
-        {detailsView ? (
-          <div className={classes["dataset-summary-tags-stats"]}>
-            {tagsComponent}
-          </div>
-        ) : tags?.size > 0 ? (
-          <div className={classes["dataset-summary-tags-stats"]}>
-            <TagList
-              tags={tags}
-              className={classes["dataset-summary-tagsWrapper"]}
-            />
-          </div>
-        ) : (
-          <></>
-        )}
+        {areTagsVisible &&
+          (detailsView ? (
+            <div className={classes["dataset-summary-tags-stats"]}>
+              {tagsComponent}
+            </div>
+          ) : tags?.size > 0 ? (
+            <div className={classes["dataset-summary-tags-stats"]}>
+              <TagList
+                tags={tags}
+                className={classes["dataset-summary-tagsWrapper"]}
+              />
+            </div>
+          ) : (
+            <></>
+          ))}
         <SummaryStats
           location={location}
           jobsLink={jobsLink}
@@ -158,8 +183,9 @@ const DatasetSummary = ({
           descendantsCount={descendantsCount}
           dataset={dataset}
           detailsView={detailsView}
+          versionContext={versionContext}
         />
-        {!detailsView && (
+        {!detailsView && datasetType && !hideMainActionButtons && (
           <div className={classes["dataset-summary-button-wrapper"]}>
             <div
               className={clsx(
@@ -177,22 +203,37 @@ const DatasetSummary = ({
               {formatMessage({ id: "Wiki.OpenDetails" })}
             </div>
             {shouldRenderLineageButton && (
-              <Link
-                to={wrapBackendLink(`${selfLink}/graph`)}
-                target="_blank"
-                alt="Open graph button"
-                className={clsx(
-                  classes["dataset-summary-open-details-button"],
-                  showColumns ? "margin-bottom--double" : ""
+              <ARSFeatureSwitch
+                renderEnabled={() => null}
+                renderDisabled={() => (
+                  <Link
+                    to={wrapBackendLink(graphLink)}
+                    target="_blank"
+                    alt="Open graph button"
+                    className={clsx(
+                      classes["dataset-summary-open-details-button"],
+                      showColumns ? "margin-bottom--double" : ""
+                    )}
+                  >
+                    <dremio-icon
+                      name="sql-editor/graph"
+                      class={classes["dataset-summary-open-details-icon"]}
+                    />
+                    {formatMessage({ id: "Dataset.Summary.Lineage" })}
+                  </Link>
                 )}
-              >
-                <dremio-icon
-                  name="sql-editor/graph"
-                  class={classes["dataset-summary-open-details-icon"]}
-                />
-                {formatMessage({ id: "Dataset.Summary.Lineage" })}
-              </Link>
+              />
             )}
+          </div>
+        )}
+        {isPanel && queryLink && (
+          <div className={classes["dataset-summary-button-wrapper"]}>
+            <SummaryActions
+              dataset={dataset}
+              shouldRenderLineageButton={shouldRenderLineageButton}
+              hideSqlEditorIcon={hideSqlEditorIcon}
+              hideGoToButton={hideGoToButton}
+            />
           </div>
         )}
       </div>

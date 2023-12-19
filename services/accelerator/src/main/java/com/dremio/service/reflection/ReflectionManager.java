@@ -20,11 +20,14 @@ import static com.dremio.exec.ExecConstants.LAYOUT_REFRESH_MAX_ATTEMPTS;
 import static com.dremio.service.reflection.ReflectionOptions.COMPACTION_TRIGGER_FILE_SIZE;
 import static com.dremio.service.reflection.ReflectionOptions.COMPACTION_TRIGGER_NUMBER_FILES;
 import static com.dremio.service.reflection.ReflectionOptions.ENABLE_COMPACTION;
+import static com.dremio.service.reflection.ReflectionOptions.ENABLE_OPTIMIZE_TABLE_FOR_INCREMENTAL_REFLECTIONS;
 import static com.dremio.service.reflection.ReflectionOptions.MATERIALIZATION_CACHE_ENABLED;
 import static com.dremio.service.reflection.ReflectionOptions.MATERIALIZATION_CACHE_REFRESH_DELAY_MILLIS;
 import static com.dremio.service.reflection.ReflectionOptions.MATERIALIZATION_ORPHAN_REFRESH;
 import static com.dremio.service.reflection.ReflectionOptions.REFLECTION_DELETION_GRACE_PERIOD;
 import static com.dremio.service.reflection.ReflectionOptions.REFLECTION_DELETION_NUM_ENTRIES;
+import static com.dremio.service.reflection.ReflectionOptions.REFLECTION_MANAGER_REFRESH_PENDING_ENABLED;
+import static com.dremio.service.reflection.ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME;
 import static com.dremio.service.reflection.ReflectionUtils.computeDataPartitions;
 import static com.dremio.service.reflection.ReflectionUtils.getId;
 import static com.dremio.service.reflection.ReflectionUtils.getMaterializationPath;
@@ -36,29 +39,37 @@ import static com.dremio.service.reflection.proto.ReflectionState.FAILED;
 import static com.dremio.service.reflection.proto.ReflectionState.METADATA_REFRESH;
 import static com.dremio.service.reflection.proto.ReflectionState.REFRESH;
 import static com.dremio.service.reflection.proto.ReflectionState.REFRESHING;
+import static com.dremio.service.reflection.proto.ReflectionState.REFRESH_PENDING;
 import static com.dremio.service.reflection.proto.ReflectionState.UPDATE;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
+import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.ConcurrentModificationException;
-import java.util.Iterator;
+import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 
 import com.dremio.common.util.DremioEdition;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.datastore.WarningTimer;
 import com.dremio.exec.catalog.CatalogUtil;
+import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.EntityExplorer;
+import com.dremio.exec.planner.acceleration.StrippingFactory;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
@@ -67,22 +78,28 @@ import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.options.OptionManager;
 import com.dremio.proto.model.UpdateId;
 import com.dremio.service.job.CancelJobRequest;
+import com.dremio.service.job.DeleteJobCountsRequest;
 import com.dremio.service.job.JobDetailsRequest;
 import com.dremio.service.job.MaterializationSettings;
 import com.dremio.service.job.QueryType;
 import com.dremio.service.job.SqlQuery;
 import com.dremio.service.job.SubmitJobRequest;
 import com.dremio.service.job.SubstitutionSettings;
+import com.dremio.service.job.UsedReflections;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.JobProtobuf;
+import com.dremio.service.job.proto.JobState;
 import com.dremio.service.jobs.JobException;
 import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobStatusListener;
 import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.RefreshMethod;
+import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.dremio.service.reflection.ReflectionServiceImpl.DescriptorCache;
 import com.dremio.service.reflection.ReflectionServiceImpl.ExpansionHelper;
 import com.dremio.service.reflection.ReflectionServiceImpl.PlanCacheInvalidationHelper;
@@ -100,6 +117,7 @@ import com.dremio.service.reflection.proto.ReflectionField;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionGoalState;
 import com.dremio.service.reflection.proto.ReflectionId;
+import com.dremio.service.reflection.proto.ReflectionPartitionField;
 import com.dremio.service.reflection.proto.ReflectionState;
 import com.dremio.service.reflection.proto.Refresh;
 import com.dremio.service.reflection.proto.RefreshDecision;
@@ -115,7 +133,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
@@ -127,6 +145,8 @@ import io.opentelemetry.instrumentation.annotations.WithSpan;
 public class ReflectionManager implements Runnable {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ReflectionManager.class);
   private static final long START_WAIT_MILLIS = 5 * 60 * 1000;
+  @VisibleForTesting
+  static final long GOAL_DELETION_WAIT_MILLIS = 60_000 * 60 * 4; // 4 hours
 
   /**
    * Callback that allows async handlers to wake up the manager once they are done.
@@ -151,7 +171,6 @@ public class ReflectionManager implements Runnable {
   private final MaterializationStore materializationStore;
   private final DependencyManager dependencyManager;
   private final DescriptorCache descriptorCache;
-  private final Set<ReflectionId> reflectionsToUpdate;
   private final WakeUpCallback wakeUpCallback;
   private final Supplier<ExpansionHelper> expansionHelper;
   private final Supplier<PlanCacheInvalidationHelper> planCacheInvalidationHelper;
@@ -159,16 +178,17 @@ public class ReflectionManager implements Runnable {
   private final ReflectionGoalChecker reflectionGoalChecker;
   private final RefreshStartHandler refreshStartHandler;
   private final CatalogService catalogService;
+  private final NamespaceService namespaceService;
   private volatile EntryCounts lastStats = new EntryCounts();
   private long lastWakeupTime;
   private long lastOrphanCheckTime;
   private DependencyResolutionContextFactory dependencyResolutionContextFactory;
 
-  ReflectionManager(SabotContext sabotContext, JobsService jobsService, CatalogService catalogService,
+  ReflectionManager(SabotContext sabotContext, JobsService jobsService, CatalogService catalogService, NamespaceService namespaceService,
                     OptionManager optionManager, ReflectionGoalsStore userStore, ReflectionEntriesStore reflectionStore,
                     ExternalReflectionStore externalReflectionStore, MaterializationStore materializationStore,
                     DependencyManager dependencyManager, DescriptorCache descriptorCache,
-                    Set<ReflectionId> reflectionsToUpdate, WakeUpCallback wakeUpCallback,
+                    WakeUpCallback wakeUpCallback,
                     Supplier<ExpansionHelper> expansionHelper, Supplier<PlanCacheInvalidationHelper> planCacheInvalidationHelper,
                     BufferAllocator allocator, ReflectionGoalChecker reflectionGoalChecker, RefreshStartHandler refreshStartHandler,
                     DependencyResolutionContextFactory dependencyResolutionContextFactory) {
@@ -181,12 +201,12 @@ public class ReflectionManager implements Runnable {
     this.materializationStore = Preconditions.checkNotNull(materializationStore, "materialization store required");
     this.dependencyManager = Preconditions.checkNotNull(dependencyManager, "dependency manager required");
     this.descriptorCache = Preconditions.checkNotNull(descriptorCache, "descriptor cache required");
-    this.reflectionsToUpdate = Preconditions.checkNotNull(reflectionsToUpdate, "reflections to update required");
     this.wakeUpCallback = Preconditions.checkNotNull(wakeUpCallback, "wakeup callback required");
     this.expansionHelper = Preconditions.checkNotNull(expansionHelper, "sqlConvertSupplier required");
     this.planCacheInvalidationHelper = Preconditions.checkNotNull(planCacheInvalidationHelper, "planCacheInvalidatorHelper required");
     this.allocator = Preconditions.checkNotNull(allocator, "allocator required");
     this.catalogService = Preconditions.checkNotNull(catalogService, "catalogService required");
+    this.namespaceService = Preconditions.checkNotNull(namespaceService, "namespaceService required");
     this.reflectionGoalChecker = Preconditions.checkNotNull(reflectionGoalChecker);
     this.refreshStartHandler = Preconditions.checkNotNull(refreshStartHandler);
     this.dependencyResolutionContextFactory =  Preconditions.checkNotNull(dependencyResolutionContextFactory);
@@ -217,31 +237,32 @@ public class ReflectionManager implements Runnable {
   @VisibleForTesting
   void sync() {
     long currentTime = System.currentTimeMillis();
-    final long lookbackTime = currentTime - WAKEUP_OVERLAP_MS;
     // updating the store's lastWakeupTime here. This ensures that if we're failing we don't do a denial of service attack
     // this assumes we properly handle exceptions for each goal/entry independently and we don't exit the loop before we
     // go through all entities otherwise we may "skip" handling some entities in case of failures
-
     final long deletionGracePeriod = getDeletionGracePeriod();
-    final long orphanThreshold = System.currentTimeMillis() - optionManager.getOption(MATERIALIZATION_ORPHAN_REFRESH) * 1000;
-    final long deletionThreshold = System.currentTimeMillis() - deletionGracePeriod;
+    final long orphanThreshold = currentTime - optionManager.getOption(MATERIALIZATION_ORPHAN_REFRESH) * 1000;
+    final long deletionThreshold = currentTime - deletionGracePeriod;
     final int numEntriesToDelete = (int) optionManager.getOption(REFLECTION_DELETION_NUM_ENTRIES);
     Span.current().setAttribute("dremio.reflectionmanager.deletion_grace_period", deletionGracePeriod);
     Span.current().setAttribute("dremio.reflectionmanager.num_entries_to_delete", numEntriesToDelete);
     Span.current().setAttribute("dremio.reflectionmanager.current_time", currentTime);
     Span.current().setAttribute("dremio.reflectionmanager.last_wakeup_time", lastWakeupTime);
 
-    handleReflectionsToUpdate();
     handleDeletedDatasets();
-    handleGoals(lookbackTime);
+    handleGoals(lastWakeupTime - WAKEUP_OVERLAP_MS);
     try (DependencyResolutionContext context = dependencyResolutionContextFactory.create()) {
       Span.current().setAttribute("dremio.reflectionmanager.has_acceleration_settings_changed", context.hasAccelerationSettingsChanged());
       handleEntries(context);
+      final DeleteCounts dc = new DeleteCounts(numEntriesToDelete);
+      deleteDeprecatedMaterializations(deletionThreshold, dc);
+      deleteMaterializationOrphans(context, orphanThreshold, deletionThreshold, dc);
+      if (dc.deleted > 0) {
+        logger.info("Submitted {} DROP TABLE statements.", dc.deleted);
+      }
     }
-    deleteDeprecatedMaterializations(deletionThreshold, numEntriesToDelete);
     deprecateMaterializations();
     deleteDeprecatedGoals(deletionThreshold);
-    deleteMaterializationOrphans(orphanThreshold, deletionThreshold);
     this.lastWakeupTime = currentTime;
   }
 
@@ -254,7 +275,7 @@ public class ReflectionManager implements Runnable {
    */
   private long getDeletionGracePeriod() {
     if (!optionManager.getOption(MATERIALIZATION_CACHE_ENABLED) &&
-        !optionManager.getOption(PlannerSettings.QUERY_PLAN_CACHE_ENABLED)) {
+      !optionManager.getOption(PlannerSettings.QUERY_PLAN_CACHE_ENABLED)) {
       return optionManager.getOption(REFLECTION_DELETION_GRACE_PERIOD) * 1000;
     } else {
       return Math.max(optionManager.getOption(REFLECTION_DELETION_GRACE_PERIOD) * 1000,
@@ -262,17 +283,31 @@ public class ReflectionManager implements Runnable {
     }
   }
 
-  private void deleteOrphanMaterialization(Materialization materialization) {
+  private void deleteOrphanMaterialization(Materialization materialization, DeleteCounts dc) {
+    dc.orphans++;
+    if (dc.deleted >= dc.maxDeletes) {
+      return;
+    }
     logger.debug("Deleting orphan {}", getId(materialization));
     try {
       deleteMaterialization(materialization);
-    } catch (Exception e) {
+    } catch (RuntimeException e) {
       logger.warn("Couldn't delete orphan {}", getId(materialization), e);
     }
+    dc.deleted++;
   }
 
+  /**
+   * A materialization can get orphaned when
+   * 1.  reflection_entry for materialization is not found.
+   * 2.  DROP TABLE job on the materialization fails.
+   *
+   * In these situations, the materialization may still be taking up diskspace so re-submit DROP TABLE job.
+   * See {@link AccelerationStoragePlugin#dropTable}
+   */
   @WithSpan
-  private void deleteMaterializationOrphans(long orphanThreshold, long depreciateDeletionThreshold) {
+  private void deleteMaterializationOrphans(DependencyResolutionContext context, long orphanThreshold,
+                                            long depreciateDeletionThreshold, DeleteCounts dc) {
 
     if (orphanThreshold <= this.lastOrphanCheckTime) {
       return;
@@ -281,55 +316,51 @@ public class ReflectionManager implements Runnable {
     Iterable<Materialization> materializations = materializationStore.getAllMaterializations();
     for (Materialization materialization : materializations) {
       final ReflectionId rId = materialization.getReflectionId();
-      if (rId == null || !reflectionStore.contains(rId) || reflectionStore.get(rId) == null) {
-        // remove this orphan materialization
+      // Use the DependencyManager's MaterializationInfo cache to check if the reflection still exists
+      if (rId == null || dependencyManager.getMaterializationInfoUnchecked(rId) == null) {
         if (materialization.getState() == MaterializationState.DEPRECATED) {
           if (materialization.getModifiedAt() <= depreciateDeletionThreshold) {
-            deleteOrphanMaterialization(materialization);
+            deleteOrphanMaterialization(materialization, dc);
           }
         } else {
-          deleteOrphanMaterialization(materialization);
+          deleteOrphanMaterialization(materialization, dc);
         }
+      } else if (materialization.getState() == MaterializationState.DELETED && materialization.getModifiedAt() < orphanThreshold) {
+        // Reflection entry still exists and previous DROP TABLE on the materialization failed.  Try to drop again.
+        deleteOrphanMaterialization(materialization, dc);
       }
     }
-
     this.lastOrphanCheckTime = System.currentTimeMillis();
-  }
-
-  /**
-   * handle all reflections marked by the reflection service as need to update.<br>
-   * those are reflections with plans that couldn't be expended and thus need to be set in UPDATE state
-   */
-  @WithSpan
-  private void handleReflectionsToUpdate() {
-    final Iterator<ReflectionId> iterator = reflectionsToUpdate.iterator();
-    while (iterator.hasNext()) {
-      final ReflectionId rId = iterator.next();
-      try {
-        final ReflectionEntry entry = reflectionStore.get(rId);
-        if (entry != null) {
-          cancelRefreshJobIfAny(entry);
-          entry.setState(UPDATE);
-          reflectionStore.save(entry);
-        }
-      } finally {
-        // block should never throw, but in case it does we don't want be stuck trying to update the same entry
-        iterator.remove();
-      }
+    if (dc.orphans > 0) {
+      logger.info("Found {} orphan materializations.", dc.orphans);
     }
   }
 
   /**
-   * 4th pass: remove any deleted goal that's due
+   * Remove any deleted goals that are due.  Goal deletion will also clean up the KV store by removing the
+   * reflection folder and possibly any child materialization datasets.  Normally, the child datasets
+   * should be removed as part of the deprecated materialization DROP TABLE job.  Since we would like the materialization
+   * dataset to be deleted properly through the DROP TABLE job, we'll wait an additional GOAL_DELETION_WAIT_MILLIS before
+   * deleting the folder and any child contents.
    *
    * @param deletionThreshold threshold after which deprecated reflection goals are deleted
    */
+  @VisibleForTesting
   @WithSpan
-  private void deleteDeprecatedGoals(long deletionThreshold) {
-    Iterable<ReflectionGoal> goalsDueForDeletion = userStore.getDeletedBefore(deletionThreshold);
+  void deleteDeprecatedGoals(long deletionThreshold) {
+    Iterable<ReflectionGoal> goalsDueForDeletion = userStore.getDeletedBefore(deletionThreshold - GOAL_DELETION_WAIT_MILLIS);
     for (ReflectionGoal goal : goalsDueForDeletion) {
       logger.debug("Goal due for deletion {}", getId(goal));
       userStore.delete(goal.getId());
+      NamespaceKey reflectionFolderKey = new NamespaceKey(Lists.newArrayList(ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME, goal.getId().getId()));
+      try {
+        FolderConfig config = namespaceService.getFolder(reflectionFolderKey);
+        if (config != null) {
+          namespaceService.deleteFolder(reflectionFolderKey, config.getTag());
+        }
+      } catch (Exception e) {
+        logger.warn("Unable to delete reflection folder {} for reflection {}", reflectionFolderKey, getId(goal), e);
+      }
     }
   }
 
@@ -340,7 +371,7 @@ public class ReflectionManager implements Runnable {
     for (Materialization materialization : materializations) {
       try {
         deprecateMaterialization(materialization);
-      } catch (Exception e) {
+      } catch (RuntimeException e) {
         logger.warn("Couldn't deprecate {}", getId(materialization));
       }
     }
@@ -350,16 +381,17 @@ public class ReflectionManager implements Runnable {
    * 3rd pass: go through the materialization store
    *
    * @param deletionThreshold threshold time after which deprecated materialization are deleted
-   * @param numEntries        number of entries that should be deleted now
+   * @param dc
    */
   @WithSpan
-  private void deleteDeprecatedMaterializations(long deletionThreshold, int numEntries) {
-    Iterable<Materialization> materializations = materializationStore.getDeletableEntriesModifiedBefore(deletionThreshold, numEntries);
+  private void deleteDeprecatedMaterializations(long deletionThreshold, DeleteCounts dc) {
+    Iterable<Materialization> materializations = materializationStore.getDeletableEntriesModifiedBefore(deletionThreshold, dc.maxDeletes);
     for (Materialization materialization : materializations) {
       logger.debug("Deleting deprecated {}", getId(materialization));
       try {
+        dc.deleted++;
         deleteMaterialization(materialization);
-      } catch (Exception e) {
+      } catch (RuntimeException e) {
         logger.warn("Couldn't delete deprecated {}", getId(materialization));
       }
     }
@@ -377,7 +409,7 @@ public class ReflectionManager implements Runnable {
     for (ReflectionEntry entry : entries) {
       try {
         handleEntry(entry, noDependencyRefreshPeriodMs, ec, dependencyResolutionContext);
-      } catch (Exception e) {
+      } catch (RuntimeException e) {
         ec.unknown++;
         logger.error("Couldn't handle entry {}", getId(entry), e);
         reportFailure(entry, entry.getState());
@@ -396,27 +428,44 @@ public class ReflectionManager implements Runnable {
     EntityExplorer catalog = CatalogUtil.getSystemCatalogForReflections(catalogService);
     int total = 0;
     int errors = 0;
+    List<String> deleteReflectionIds = new ArrayList<>();
     for (ReflectionGoal goal : goals) {
       try {
-        handleDatasetDeletion(goal.getDatasetId(), goal, catalog);
-      } catch (Exception exception) {
+        if (handleDatasetDeletion(goal.getDatasetId(), goal, catalog)) {
+          deleteReflectionIds.add(goal.getId().getId());
+        }
+      } catch (RuntimeException exception) {
         // Usually source is down but need to catch all exceptions
         logger.debug("Unable the handleDatasetDeletion for {}", getId(goal), exception);
         errors++;
       }
       total++;
     }
-
     Iterable<ExternalReflection> externalReflections = externalReflectionStore.getExternalReflections();
     for (ExternalReflection externalReflection : externalReflections) {
       try {
-        handleDatasetDeletionForExternalReflection(externalReflection, catalog);
-      } catch (Exception exception) {
+        if (handleDatasetDeletionForExternalReflection(externalReflection, catalog)) {
+          deleteReflectionIds.add(externalReflection.getId());
+        }
+      } catch (RuntimeException exception) {
         // Usually source is down but need to catch all exceptions
         logger.debug("Unable the handleDatasetDeletion for {}", getId(externalReflection), exception);
         errors++;
       }
       total++;
+    }
+    try {
+      if (deleteReflectionIds.size() > 0) {
+        jobsService.deleteJobCounts(
+          DeleteJobCountsRequest.newBuilder()
+            .setReflections(
+              UsedReflections.newBuilder()
+                .addAllReflectionIds(deleteReflectionIds)
+                .build())
+            .build());
+      }
+    } catch (Exception e) {
+      logger.error("Unable to delete job counts for reflection : {}, for deleted Datasets.", deleteReflectionIds, e);
     }
     Span.current().setAttribute("dremio.reflectionmanager.handle_deleted_datasets.total", total);
     Span.current().setAttribute("dremio.reflectionmanager.handle_deleted_datasets.errors", errors);
@@ -431,6 +480,18 @@ public class ReflectionManager implements Runnable {
     private long refreshing;
     private long active;
     private long unknown;
+  }
+
+  /**
+   * Small class that stores delete materialization counts
+   */
+  static final class DeleteCounts {
+    DeleteCounts(int maxDeletes) {
+      this.maxDeletes = maxDeletes;
+    }
+    private int deleted;
+    private int orphans;
+    private final int maxDeletes;
   }
 
   @VisibleForTesting
@@ -466,9 +527,19 @@ public class ReflectionManager implements Runnable {
         if (!dependencyManager.shouldRefresh(entry, noDependencyRefreshPeriodMs, dependencyResolutionContext)) {
           counts.active++;
           // only refresh ACTIVE reflections when they are due for refresh
+          if (optionManager.getOption(ReflectionOptions.ENABLE_VACUUM_FOR_INCREMENTAL_REFLECTIONS) && dependencyManager.shouldVacuum(entry)) {
+            vacuumReflection(entry);
+          }
           break;
         }
         // fall through to refresh ACTIVE reflections that are due for refresh
+      case REFRESH_PENDING:
+        if (!refreshPendingHelper(entry, noDependencyRefreshPeriodMs, dependencyResolutionContext)) {
+          counts.active++;
+          // refresh pending until all dependencies finish refreshing or this reflection's REFRESH_PENDING state timed out.
+          break;
+        }
+        // fall through to refresh reflections that are due for refresh
       case REFRESH:
         counts.refreshing++;
         logger.info("Refresh due for {}", getId(entry));
@@ -484,25 +555,88 @@ public class ReflectionManager implements Runnable {
   }
 
   /**
+   * Handles entry in REFRESH_PENDING state.
+   * A reflection is in REFRESH_PENDING state when it's due for refresh, but it has direct or indirect dependencies also due for refresh or refreshing.
+   * REFRESH_PENDING state could timeout (default 30 min by support flag "reflection.manager.refresh_pending.timeout") to force the refresh to begin.
+   *
+   * @return
+   * true indicates refresh should begin.
+   * false indicates REFRESH_PENDING state should continue.
+   */
+  boolean refreshPendingHelper(final ReflectionEntry entry,
+                               final long noDependencyRefreshPeriodMs,
+                               final DependencyResolutionContext dependencyResolutionContext) {
+    return refreshPendingHelper(System::currentTimeMillis, entry, noDependencyRefreshPeriodMs, dependencyResolutionContext);
+  }
+
+  boolean refreshPendingHelper(final java.util.function.Supplier<Long> currentTimeSupplier,
+                               final ReflectionEntry entry,
+                               final long noDependencyRefreshPeriodMs,
+                               final DependencyResolutionContext dependencyResolutionContext) {
+    if (optionManager.getOption(REFLECTION_MANAGER_REFRESH_PENDING_ENABLED)) {
+      final long refreshPendingTimeoutMillis = TimeUnit.MINUTES.toMillis(optionManager.getOption(ReflectionOptions.REFLECTION_MANAGER_REFRESH_PENDING_TIMEOUT_MINUTES));
+      if (dependencyManager.hasDependencyRefreshing(currentTimeSupplier, entry.getId(), noDependencyRefreshPeriodMs, dependencyResolutionContext)) {
+        if (entry.getState() != REFRESH_PENDING) {
+          logger.debug("Refresh pending for {}", getId(entry));
+          entry.setState(REFRESH_PENDING);
+          entry.setRefreshPendingBegin(currentTimeSupplier.get());
+          updateReflectionEntry(entry);
+          return false;
+        }
+        if (currentTimeSupplier.get() - entry.getRefreshPendingBegin() < refreshPendingTimeoutMillis) {
+          return false;
+        }
+        logger.debug("Refresh pending timeout for {}", getId(entry));
+      } else {
+        logger.trace("{} has no dependency refreshing", getId(entry));
+      }
+    }
+    if (logger.isTraceEnabled()) {
+      logger.trace("Refresh dependency paths for {}:\n{}", getId(entry), dependencyManager.describeRefreshPaths(entry.getId()));
+    }
+    return true;
+  }
+
+  public static void setSpanAttributes(final ReflectionEntry entry, final Materialization materialization) {
+    if (entry != null) {
+      Span.current().setAttribute("dremio.reflectionmanager.handle_entry.reflection_id", entry.getId().getId());
+      Span.current().setAttribute("dremio.reflectionmanager.handle_entry.name", entry.getName());
+      Span.current().setAttribute("dremio.reflectionmanager.handle_entry.type", entry.getType().name());
+      Span.current().setAttribute("dremio.reflectionmanager.handle_entry.dataset_id", entry.getDatasetId());
+      Span.current().setAttribute("dremio.reflectionmanager.handle_entry.state", entry.getState().name());
+    }
+    if (materialization != null) {
+      if (entry == null) {
+        Span.current().setAttribute("dremio.reflectionmanager.handle_entry.reflection_id", materialization.getReflectionId().getId());
+      }
+      Span.current().setAttribute("dremio.reflectionmanager.handle_entry.materialization_id", materialization.getId().getId());
+      Span.current().setAttribute("dremio.reflectionmanager.handle_entry.materialization_state", materialization.getState().name());
+      Span.current().setAttribute("dremio.reflectionmanager.handle_entry.job_id", materialization.getInitRefreshJobId());
+    }
+  }
+
+  /**
    * handles entry in REFRESHING/METADATA_REFRESH state
    */
-
+  @WithSpan
   private void handleRefreshingEntry(final ReflectionEntry entry, DependencyResolutionContext dependencyResolutionContext) {
     // handle job completion
     final Materialization m = Preconditions.checkNotNull(materializationStore.getLastMaterialization(entry.getId()),
       "Reflection %s in refreshing state has no materialization entries", entry.getId());
-    if (m.getState() != MaterializationState.RUNNING) {
+    if (m.getState() != MaterializationState.RUNNING && entry.getState() != COMPACTING) {
       // Reflection in refreshing state should have a materialization in RUNNING state but if somehow we end up
       // in this weird state where the materialization store has an entry not in RUNNING state, we need to cleanup that entry.
+      // The exception to this is if we are running a OPTIMIZE job; the materialization is usable while OPTIMIZE is running.
       try {
         deleteMaterialization(m);
         deleteReflection(entry);
         descriptorCache.invalidate(m);
-      } catch (Exception e) {
+      } catch (RuntimeException e) {
         logger.warn("Couldn't clean up {} {} during refresh", m.getState(), getId(m));
       }
       return;
     }
+    setSpanAttributes(entry, m);
 
     com.dremio.service.job.JobDetails job;
     try {
@@ -548,7 +682,10 @@ public class ReflectionManager implements Runnable {
         break;
       case CANCELED:
         logger.debug("Job {} was cancelled for {}", job.getJobId().getId(), getId(m));
-        if (entry.getState() == REFRESHING) {
+        if (entry.getState() == COMPACTING) {
+          optimizeJobCanceledOrFailed(entry, m, lastAttempt);
+          break;
+        } else if (entry.getState() == REFRESHING) {
           // try to update the dependencies even when a refreshing job fails
           updateDependenciesIfPossible(entry, lastAttempt, handler);
         }
@@ -556,11 +693,14 @@ public class ReflectionManager implements Runnable {
         m.setState(MaterializationState.CANCELED);
         materializationStore.save(m);
         entry.setState(ACTIVE);
-        reflectionStore.save(entry);
+        updateReflectionEntry(entry);
         break;
       case FAILED:
         logger.debug("Job {} failed for {}", job.getJobId().getId(), getId(m));
-        if (entry.getState() == REFRESHING) {
+        if (entry.getState() == COMPACTING) {
+          optimizeJobCanceledOrFailed(entry, m, lastAttempt);
+          break;
+        } else if (entry.getState() == REFRESHING) {
           // try to update the dependencies even when a refreshing job fails
           updateDependenciesIfPossible(entry, lastAttempt, handler);
         }
@@ -662,8 +802,9 @@ public class ReflectionManager implements Runnable {
    * @param datasetId
    * @param goal
    * @param catalog
+   * @return true if ReflectionGoal is marked DELETED, else return false
    */
-  private void handleDatasetDeletion(String datasetId, ReflectionGoal goal, EntityExplorer catalog) {
+  private boolean handleDatasetDeletion(String datasetId, ReflectionGoal goal, EntityExplorer catalog) {
     // make sure the corresponding dataset was not deleted
     if (catalog.getTable(datasetId) == null) {
       // dataset not found, mark goal as deleted
@@ -673,7 +814,7 @@ public class ReflectionManager implements Runnable {
       if (goal2 != null) {
         try {
           userStore.save(goal2.setState(ReflectionGoalState.DELETED));
-          return;
+          return true;
         } catch (ConcurrentModificationException cme) {
           // someone's changed the reflection goal, we'll delete it next time the manager wakes up
           logger.debug("concurrent modification when updating goal state to deleted for {} on dataset with id {}",
@@ -681,26 +822,28 @@ public class ReflectionManager implements Runnable {
             datasetId);
         }
       }
-
       // something wrong here
       throw new IllegalStateException("no reflection found for " + getId(goal) + "on dataset with id" + datasetId);
     }
+    return false;
   }
 
-  private void handleDatasetDeletionForExternalReflection(ExternalReflection externalReflection, EntityExplorer catalog) {
+  private boolean handleDatasetDeletionForExternalReflection(ExternalReflection externalReflection, EntityExplorer catalog) {
     if (catalog.getTable(externalReflection.getQueryDatasetId()) == null
       || catalog.getTable(externalReflection.getTargetDatasetId()) == null) {
       externalReflectionStore.deleteExternalReflection(externalReflection.getId());
+      return true;
     }
+    return false;
   }
 
   @VisibleForTesting
   void handleGoal(ReflectionGoal goal) {
     final ReflectionEntry entry = reflectionStore.get(goal.getId());
     if (entry == null) {
-      // no corresponding reflection, goal has  been created or enabled
+      // no corresponding reflection, goal has been created or enabled
       if (goal.getState() == ReflectionGoalState.ENABLED) { // we still need to make sure user didn't create a disabled goal
-        reflectionStore.save(create(goal));
+        createReflectionEntry(create(goal));
       }
     } else if (reflectionGoalChecker.isEqual(goal, entry)) {
       return; //no changes, do nothing
@@ -727,7 +870,7 @@ public class ReflectionManager implements Runnable {
         .setGoalVersion(goal.getTag())
         .setName(goal.getName())
         .setReflectionGoalHash(reflectionGoalChecker.calculateReflectionGoalVersion(goal));
-      reflectionStore.save(entry);
+      updateReflectionEntry(entry);
     }
   }
 
@@ -735,28 +878,25 @@ public class ReflectionManager implements Runnable {
     boolean shouldBeUnstuck =
       reflectionGoal.getState() == ReflectionGoalState.ENABLED && reflectionEntry.getState() == FAILED;
 
-    reflectionStore.save(
+    updateReflectionEntry(
       reflectionEntry
         .setArrowCachingEnabled(reflectionGoal.getArrowCachingEnabled())
         .setGoalVersion(reflectionGoal.getTag())
         .setName(reflectionGoal.getName())
         .setState(shouldBeUnstuck ? UPDATE : reflectionEntry.getState())
-        .setNumFailures(shouldBeUnstuck ? 0 : reflectionEntry.getNumFailures())
-    );
+        .setNumFailures(shouldBeUnstuck ? 0 : reflectionEntry.getNumFailures()));
   }
 
+  @WithSpan
   private void deleteReflection(ReflectionEntry entry) {
+    setSpanAttributes(entry, null);
     logger.debug("Deleting reflection entry for {}", getId(entry));
-    reflectionStore.delete(entry.getId());
+    deleteReflectionEntry(entry.getId());
     dependencyManager.delete(entry.getId());
   }
 
+  @WithSpan
   private void deleteMaterialization(Materialization materialization) {
-    if (Iterables.isEmpty(materializationStore.getRefreshesExclusivelyOwnedBy(materialization))) {
-      logger.debug("DROP TABLE skipped.  No refreshes for {}", getId(materialization));
-      materializationStore.delete(materialization.getId());
-      return;
-    }
 
     // set the materialization to DELETED so we don't try to delete it again
     materialization.setState(MaterializationState.DELETED);
@@ -803,7 +943,9 @@ public class ReflectionManager implements Runnable {
     }
   }
 
+  @WithSpan
   private void deprecateMaterialization(Materialization materialization) {
+    setSpanAttributes(null, materialization);
     logger.debug("Deprecating {}", ReflectionUtils.getId(materialization));
     materialization.setState(MaterializationState.DEPRECATED);
     materializationStore.save(materialization);
@@ -830,6 +972,27 @@ public class ReflectionManager implements Runnable {
       entry.setState(ACTIVE)
         .setLastSuccessfulRefresh(System.currentTimeMillis())
         .setNumFailures(0);
+
+      // Only update the vacuum info for incremental refreshes
+      if (entry.getRefreshMethod() == RefreshMethod.INCREMENTAL && materialization.getIsIcebergDataset() && materialization.getSeriesOrdinal() > 0) {
+        // Update current MaterializationId and SnapshotId cache, so we can determine when to vacuum the reflection
+        EntityExplorer catalog = CatalogUtil.getSystemCatalogForReflections(catalogService);
+        NamespaceKey namespaceKey = new NamespaceKey(
+          Lists.newArrayList(ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME,
+            entry.getId().getId(),
+            materialization.getId().getId()));
+        DremioTable table = catalog.getTable(namespaceKey);
+        if (table == null) {
+          logger.error("Reflection {} not found", entry.getId().getId());
+          return;
+        }
+        if (!materialization.getIsIcebergDataset()) {
+          logger.debug("Iceberg is disabled, cannot update materialization cache for reflection {}", entry.getId().getId());
+          return;
+        }
+        long snapshotId = table.getDatasetConfig().getPhysicalDataset().getIcebergMetadata().getSnapshotId();
+        dependencyManager.updateMaterializationInfo(entry.getId(), materialization.getId(), snapshotId, false);
+      }
     }
   }
 
@@ -870,7 +1033,14 @@ public class ReflectionManager implements Runnable {
         refreshingJobSucceded(entry, materialization, job, handler);
         break;
       case COMPACTING:
-        compactionJobSucceeded(entry, materialization, job);
+        // There are two types of compaction - COMPACT and OPTIMIZE.
+        // Once DX-60382 is resolved, we can remove the old COMPACT code.
+        com.dremio.service.job.proto.QueryType queryType = JobsProtoUtil.getLastAttempt(job).getInfo().getQueryType();
+        if (queryType == com.dremio.service.job.proto.QueryType.ACCELERATOR_CREATE) {
+          compactionJobSucceeded(entry, materialization, job);
+        } else if (queryType == com.dremio.service.job.proto.QueryType.ACCELERATOR_OPTIMIZE){
+          optimizeJobSucceeded(entry, materialization, job);
+        }
         break;
       case METADATA_REFRESH:
         metadataRefreshJobSucceeded(entry, materialization);
@@ -889,7 +1059,8 @@ public class ReflectionManager implements Runnable {
 
       // no need to set the following attributes if we fail to handle the refresh
       entry.setRefreshMethod(decision.getAccelerationSettings().getMethod())
-        .setRefreshField(decision.getAccelerationSettings().getRefreshField());
+        .setRefreshField(decision.getAccelerationSettings().getRefreshField())
+        .setSnapshotBased(decision.getAccelerationSettings().getSnapshotBased());
       if (!optionManager.getOption(ReflectionOptions.STRICT_INCREMENTAL_REFRESH)) {
         entry.setShallowDatasetHash(decision.getDatasetHash());
       } else {
@@ -937,7 +1108,7 @@ public class ReflectionManager implements Runnable {
     }
 
     materializationStore.save(materialization);
-    reflectionStore.save(entry);
+    updateReflectionEntry(entry);
     try (PlanCacheInvalidationHelper helper = planCacheInvalidationHelper.get()) {
       helper.invalidateReflectionAssociatedPlanCache(entry.getDatasetId());
     }
@@ -962,7 +1133,7 @@ public class ReflectionManager implements Runnable {
 
     final ReflectionGoal goal = Preconditions.checkNotNull(userStore.get(entry.getId()),
       "Couldn't find associated reflection goal to reflection %s", getId(entry));
-    final List<ReflectionField> partitionFields = goal.getDetails().getPartitionFieldList();
+    final List<ReflectionPartitionField> partitionFields = goal.getDetails().getPartitionFieldList();
     if (partitionFields != null && !partitionFields.isEmpty()) {
       //TODO warn user through UI
       logger.warn("Compaction with partition fields not supported for {}", getId(materialization));
@@ -996,7 +1167,7 @@ public class ReflectionManager implements Runnable {
     // start compaction job
     final String sql = String.format("COMPACT MATERIALIZATION \"%s\".\"%s\" AS '%s'", entry.getId().getId(), materialization.getId().getId(), newMaterialization.getId().getId());
 
-    final JobId compactionJobId = submitRefreshJob(jobsService, catalogService, entry, materialization, sql,
+    final JobId compactionJobId = submitRefreshJob(jobsService, catalogService, entry, materialization.getId(), sql, com.dremio.service.job.proto.QueryType.ACCELERATOR_CREATE,
       new WakeUpManagerWhenJobDone(wakeUpCallback, "compaction job done"));
 
     newMaterialization
@@ -1005,10 +1176,123 @@ public class ReflectionManager implements Runnable {
 
     entry.setState(COMPACTING)
       .setRefreshJobId(compactionJobId);
-    reflectionStore.save(entry);
+    updateReflectionEntry(entry);
 
     logger.debug("Submitted COMPACT MATERIALIZATION job {} for {} as {}", compactionJobId.getId(), getId(materialization), newMaterialization.getId().getId());
     return true;
+  }
+
+  protected void maybeOptimizeIncrementalReflectionFiles(ReflectionEntry entry, Materialization materialization) {
+    final boolean isIcebergRefresh = materialization.getIsIcebergDataset() != null && materialization.getIsIcebergDataset();
+    Optional<List<ReflectionField>> sortedFields = Optional.ofNullable(userStore.get(entry.getId()).getDetails().getSortFieldList());
+    String entryId = getId(entry);
+    ImmutableList<Refresh> refreshes = materializationStore.getRefreshes(materialization).toSortedList(Comparator.comparingInt(Refresh::getSeriesOrdinal)).reverse();
+    int refreshesSinceOptimization = 0;
+    if (!optionManager.getOption(ENABLE_OPTIMIZE_TABLE_FOR_INCREMENTAL_REFLECTIONS) || !isIcebergRefresh) {
+      // OPTIMIZE TABLE only works for Iceberg tables and the feature flag must be enabled
+      return;
+    }
+    if (entry.getRefreshMethod() != RefreshMethod.INCREMENTAL) {
+      // only applies to incremental refreshes
+      logger.debug("Skipping OPTIMIZE TABLE for full refresh on reflection {}", entryId);
+      return;
+    }
+    // TODO: remove this logic when sorted tables are supported following completion of DX-55508.
+    if (sortedFields.isPresent() && sortedFields.get().size() > 0) {
+      logger.debug("Skipping OPTIMIZE TABLE for reflection {} because sorted reflections are not supported", entryId);
+      return;
+    }
+    if (refreshes.size() < optionManager.getOption(ReflectionOptions.OPTIMIZE_REFLECTION_REQUIRED_REFRESHES_BETWEEN_RUNS)) {
+      // Don't bother going through the refreshes unless there are enough to OPTIMIZE
+      logger.debug("Skipping OPTIMIZE TABLE for reflection {} because it has not been refreshed enough times.", entryId);
+      return;
+    }
+    // Go through the refreshes and see if enough have happened since the last OPTIMIZE job.
+    for (Refresh r : refreshes) {
+      if (r.getCompacted()) {
+        logger.debug("Refreshes until next OPTIMIZE job for reflection {}: {}", entryId,
+          optionManager.getOption(ReflectionOptions.OPTIMIZE_REFLECTION_REQUIRED_REFRESHES_BETWEEN_RUNS) - refreshesSinceOptimization);
+        return;
+      } else {
+        refreshesSinceOptimization += 1;
+      }
+      if (refreshesSinceOptimization == optionManager.getOption(ReflectionOptions.OPTIMIZE_REFLECTION_REQUIRED_REFRESHES_BETWEEN_RUNS)) {
+        break;
+      }
+    }
+
+    logger.debug("Starting OPTIMIZE TABLE job for reflection {}", entryId);
+
+    int newSeriesOrdinal = materialization.getSeriesOrdinal() + 1;
+    final Materialization newMaterialization = new Materialization()
+      .setId(new MaterializationId(UUID.randomUUID().toString()))
+      .setReflectionId(entry.getId())
+      .setState(MaterializationState.RUNNING)
+      .setExpiration(materialization.getExpiration())
+      .setLastRefreshFromPds(materialization.getLastRefreshFromPds())
+      .setLastRefreshFinished(materialization.getLastRefreshFinished())
+      .setLastRefreshDurationMillis(materialization.getLastRefreshDurationMillis())
+      .setLogicalPlan(materialization.getLogicalPlan())
+      .setReflectionGoalVersion(materialization.getReflectionGoalVersion())
+      .setJoinAnalysis(materialization.getJoinAnalysis())
+      .setInitRefreshSubmit(System.currentTimeMillis()) // needed to properly return this materialization as last one
+      .setInitRefreshExecution(materialization.getInitRefreshExecution())
+      .setInitRefreshJobId(materialization.getInitRefreshJobId())
+      .setSeriesId(materialization.getSeriesId())
+      .setSeriesOrdinal(newSeriesOrdinal)
+      .setIsIcebergDataset(true)
+      .setPreviousIcebergSnapshot(materialization.getPreviousIcebergSnapshot())
+      .setBasePath(materialization.getBasePath())
+      .setLogicalPlanStrippedHash(materialization.getLogicalPlanStrippedHash())
+      .setStripVersion(StrippingFactory.LATEST_STRIP_VERSION);
+
+    materializationStore.save(newMaterialization);
+
+    // start OPTIMIZE TABLE job
+    final String sql = String.format("OPTIMIZE TABLE \"%s\".\"%s\".\"%s\"",
+      ACCELERATOR_STORAGEPLUGIN_NAME,
+      entry.getId().getId(),
+      materialization.getId().getId());
+    final JobId jobId = submitRefreshJob(jobsService, catalogService, entry, materialization.getId(), sql, com.dremio.service.job.proto.QueryType.ACCELERATOR_OPTIMIZE,
+      new WakeUpManagerWhenJobDone(wakeUpCallback, "OPTIMIZE TABLE for reflection job done"));
+
+    newMaterialization
+      .setInitRefreshJobId(jobId.getId());
+    materializationStore.save(newMaterialization);
+
+    entry.setState(COMPACTING).setRefreshJobId(jobId);
+    updateReflectionEntry(entry);
+
+    logger.debug("Submitted OPTIMIZE TABLE job {} for {}", jobId.getId(), getId(materialization));
+  }
+
+  @WithSpan
+  private void vacuumReflection(ReflectionEntry entry) {
+    MaterializationInfo materializationInfo = dependencyManager.getMaterializationInfo(entry.getId());
+    Span.current().setAttribute("dremio.reflectionmanager.vacuum.reflection_id", entry.getId().getId());
+    Span.current().setAttribute("dremio.reflectionmanager.vacuum.materialization_id", materializationInfo.getMaterializationId().getId());
+    Span.current().setAttribute("dremio.reflectionmanager.vacuum.snapshot_id", materializationInfo.getSnapshotId());
+
+    String vacuumBaseString = "VACUUM TABLE \"%s\".\"%s\".\"%s\" EXPIRE SNAPSHOTS OLDER_THAN = \'%s\'";
+    String entryIdString = entry.getId().getId();
+    String materializationIdString = materializationInfo.getMaterializationId().getId();
+    SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSS");
+    Date olderThanDate = new Date(System.currentTimeMillis() - getDeletionGracePeriod());
+    String formattedOlderThanTime = formatter.format(olderThanDate);
+    final String vacuumQuery = String.format(vacuumBaseString,
+      ACCELERATOR_STORAGEPLUGIN_NAME,
+      entryIdString,
+      materializationIdString,
+      formattedOlderThanTime);
+    logger.debug("Submitting VACUUM TABLE job for reflection {}.{}", entryIdString, materializationIdString);
+    submitRefreshJob(jobsService,
+      catalogService,
+      entry,
+      materializationInfo.getMaterializationId(),
+      vacuumQuery,
+      com.dremio.service.job.proto.QueryType.ACCELERATOR_OPTIMIZE,
+      JobStatusListener.NO_OP);
+    dependencyManager.updateMaterializationInfo(entry.getId(), materializationInfo.getMaterializationId(), materializationInfo.getSnapshotId(), true);
   }
 
   private void compactionJobSucceeded(ReflectionEntry entry, Materialization materialization, com.dremio.service.job.JobDetails job) {
@@ -1039,6 +1323,78 @@ public class ReflectionManager implements Runnable {
     // start a metadata refresh and delete compacted materialization, in parallel
     deleteCompactedMaterialization(entry);
     refreshMetadata(entry, materialization);
+  }
+
+  private void optimizeJobSucceeded(ReflectionEntry entry, Materialization materialization, com.dremio.service.job.JobDetails job) {
+    // Submit a LOAD MATERIALIZATION job so the new snapshots can be used.
+    final Materialization newMaterialization = materializationStore.getRunningMaterialization(entry.getId());
+
+    UpdateId updateId = materializationStore.getMostRecentRefresh(entry.getId()).getUpdateId();
+    final JobAttempt lastAttempt = JobsProtoUtil.getLastAttempt(job);
+    final JobInfo jobInfo = lastAttempt.getInfo();
+    final JobDetails jobDetails = ReflectionUtils.computeJobDetails(lastAttempt);
+    List<Snapshot> snapshots = Lists.newArrayList(getIcebergTable(entry.getId(), materialization.getBasePath()).snapshots());
+    List<Snapshot> optimizeSnapshots = snapshots.stream().filter(s -> s.timestampMillis() >= jobInfo.getStartTime()).collect(Collectors.toList());
+    MaterializationMetrics metrics;
+    MaterializationMetrics oldMetrics = materializationStore.getMetrics(materialization).left;
+
+    // OPTIMIZE creates up to two snapshots. The first does data compaction, and the second rewrites manifest files.
+    // It's possible that OPTIMIZE only creates one snapshot. Check the snapshots to get the metrics from REWRITE DATA if it happened.
+    if (!optimizeSnapshots.isEmpty() && optimizeSnapshots.get(0).operation().equals("replace") && optimizeSnapshots.get(0).summary().containsKey("added-data-files")) {
+      // Get the metrics from the REWRITE DATA snapshot to calculate metrics.
+      Map<String,String> optimizedMetrics = optimizeSnapshots.get(0).summary();
+      Long footprint = oldMetrics.getFootprint() - Long.parseLong(optimizedMetrics.get("removed-files-size")) + Long.parseLong(optimizedMetrics.get("added-files-size"));
+      int numFiles = oldMetrics.getNumFiles() - Integer.parseInt(optimizedMetrics.get("deleted-data-files")) + Integer.parseInt(optimizedMetrics.get("added-data-files"));
+      // The below code finds the mean, instead of the median. the job doesn't give us individual file sizes, so this is the closest thing we have.
+      // TODO DX64438: medianFileSize is used by the old COMPACT MATERIALIZATION code, and will no longer be needed after it is removed.
+      Long medianFileSize = footprint / numFiles;
+      metrics = new MaterializationMetrics()
+        .setFootprint(footprint)
+        .setOriginalCost(JobsProtoUtil.getLastAttempt(job).getInfo().getOriginalCost())
+        .setMedianFileSize(medianFileSize)
+        .setNumFiles(numFiles);
+    } else {
+      // Use the old metrics instead since OPTIMIZE didn't REWRITE DATA.
+      metrics = oldMetrics;
+    }
+
+    final List<String> refreshPath = ImmutableList.of(ACCELERATOR_STORAGEPLUGIN_NAME, newMaterialization.getReflectionId().getId(), newMaterialization.getBasePath());
+    final List<DataPartition> dataPartitions = computeDataPartitions(jobInfo);
+    final Refresh refresh = ReflectionUtils.createRefresh(newMaterialization.getReflectionId(), refreshPath, newMaterialization.getSeriesId(),
+      newMaterialization.getSeriesOrdinal(), updateId, jobDetails, metrics, dataPartitions, true, newMaterialization.getBasePath());
+    refresh.setCompacted(true);
+    materializationStore.save(refresh);
+
+    refreshMetadata(entry, newMaterialization);
+  }
+
+  void optimizeJobCanceledOrFailed(ReflectionEntry entry, Materialization m, JobAttempt lastAttempt){
+    final Table table = getIcebergTable(m.getReflectionId(), m.getBasePath());
+
+    // OPTIMIZE will create two commits if successful - one for REWRITE DATA, and one for REWRITE MANIFESTS.
+    // If either of these fail the job fails. If the job fails or is cancelled due to a concurrent DML operation or other reason,
+    // we should just rollback to the iceberg table to the snapshot of the materialization we called OPTIMIZE on.
+    // Delete the materialization that OPTIMIZE created.
+    if (table.currentSnapshot().snapshotId() != m.getPreviousIcebergSnapshot()) {
+      table.manageSnapshots().rollbackTo(m.getPreviousIcebergSnapshot()).commit();
+    }
+
+    entry.setState(ACTIVE);
+    updateReflectionEntry(entry);
+
+    // Mark the materialization created by OPTIMIZE as CANCELED or FAILED.
+    final Materialization optimizedMaterialization = materializationStore.getRunningMaterialization(entry.getId());
+    if (optimizedMaterialization != null) {
+      if (lastAttempt.getState().equals(JobState.CANCELED)) {
+        optimizedMaterialization.setState(MaterializationState.CANCELED);
+      } else if (lastAttempt.getState().equals(JobState.FAILED)) {
+        final String message  = Optional.ofNullable(lastAttempt.getInfo().getFailureInfo())
+          .orElse("OPTIMIZE TABLE job failed without reporting an error message");
+        optimizedMaterialization.setState(MaterializationState.FAILED)
+          .setFailure(new Failure().setMessage(message));
+      }
+      materializationStore.save(optimizedMaterialization);
+    }
   }
 
   private void deleteCompactedMaterialization(ReflectionEntry entry) {
@@ -1082,19 +1438,22 @@ public class ReflectionManager implements Runnable {
     }
 
     materializationStore.save(materialization);
-    reflectionStore.save(entry);
+    updateReflectionEntry(entry);
+    if (entry.getState().equals(ACTIVE) && materialization.getState().equals(MaterializationState.DONE)) {
+      maybeOptimizeIncrementalReflectionFiles(entry, materialization);
+    }
   }
 
   private void refreshMetadata(ReflectionEntry entry, Materialization materialization) {
     final String sql = String.format("LOAD MATERIALIZATION METADATA \"%s\".\"%s\"",
       materialization.getReflectionId().getId(), materialization.getId().getId());
 
-    final JobId jobId = submitRefreshJob(jobsService, catalogService, entry, materialization, sql,
+    final JobId jobId = submitRefreshJob(jobsService, catalogService, entry, materialization.getId(), sql, com.dremio.service.job.proto.QueryType.ACCELERATOR_CREATE,
       new WakeUpManagerWhenJobDone(wakeUpCallback, "metadata refresh job done"));
 
     entry.setState(METADATA_REFRESH)
       .setRefreshJobId(jobId);
-    reflectionStore.save(entry);
+    updateReflectionEntry(entry);
 
     logger.debug("Submitted LOAD MATERIALIZATION job {} for {}", jobId.getId(), getId(materialization));
   }
@@ -1118,7 +1477,7 @@ public class ReflectionManager implements Runnable {
 
       entry.setState(REFRESHING)
         .setRefreshJobId(refreshJobId);
-      reflectionStore.save(entry);
+      updateReflectionEntry(entry);
 
     } catch (Exception | AssertionError e) {
       // we failed to start the refresh
@@ -1136,7 +1495,7 @@ public class ReflectionManager implements Runnable {
   }
 
   /**
-   * Get currrent iceberg snapshot corresponding to the reflection entry
+   * Get current iceberg snapshot corresponding to the reflection entry
    * Return null if it is not an iceberg reflection
    */
   private Long getIcebergSnapshot(ReflectionEntry entry) {
@@ -1144,10 +1503,21 @@ public class ReflectionManager implements Runnable {
     final FluentIterable<Refresh> refreshes = materializationStore.getRefreshesByReflectionId(entry.getId());
     if (refreshes != null && !refreshes.isEmpty()) {
       final Refresh latestRefresh = refreshes.get(refreshes.size() - 1);
-      if (latestRefresh.getIsIcebergRefresh() != null && latestRefresh.getIsIcebergRefresh()) {
-        final Table table = getIcebergTable(entry.getId(), latestRefresh.getBasePath());
-        icebergSnapshot = table.currentSnapshot().snapshotId();
-      }
+      icebergSnapshot = getIcebergSnapshot(latestRefresh, entry.getId());
+    }
+    return icebergSnapshot;
+  }
+
+  /**
+   * Get current iceberg snapshot corresponding to the reflection entry
+   * Return null if it is not an iceberg reflection
+   */
+  public Long getIcebergSnapshot(Refresh refresh, ReflectionId reflectionId)
+  {
+    Long icebergSnapshot = null;
+    if (refresh != null && refresh.getIsIcebergRefresh() != null && refresh.getIsIcebergRefresh()) {
+      final Table table = getIcebergTable(reflectionId, refresh.getBasePath());
+      icebergSnapshot = table.currentSnapshot().snapshotId();
     }
     return icebergSnapshot;
   }
@@ -1157,7 +1527,7 @@ public class ReflectionManager implements Runnable {
       logger.debug("Due to dontGiveUp, ignoring failure on {}", getId(entry));
       entry.setState(newState)
         .setNumFailures(entry.getNumFailures() + 1);
-      reflectionStore.save(entry);
+      updateReflectionEntry(entry);
       return;
     }
 
@@ -1166,7 +1536,7 @@ public class ReflectionManager implements Runnable {
     final boolean markAsFailed = numFailures >= failuresThreshold;
     entry.setNumFailures(numFailures)
       .setState(markAsFailed ? FAILED : newState);
-    reflectionStore.save(entry);
+    updateReflectionEntry(entry);
 
     if (markAsFailed) {
       logger.debug("Max consecutive failures {} reached on {}", numFailures, getId(entry));
@@ -1193,7 +1563,7 @@ public class ReflectionManager implements Runnable {
     return lastWakeupTime;
   }
 
-  private Table getIcebergTable(ReflectionId reflectionId, String basePath) {
+  public Table getIcebergTable(ReflectionId reflectionId, String basePath) {
     final String path = PathUtils.getPathJoiner().join(ImmutableList.of(
       reflectionId.getId(),
       basePath));
@@ -1213,6 +1583,33 @@ public class ReflectionManager implements Runnable {
    * @return
    */
   private AccelerationStoragePlugin getAccelerationPlugin() {
-    return catalogService.getSource(ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME);
+    return catalogService.getSource(ACCELERATOR_STORAGEPLUGIN_NAME);
+  }
+
+  /**
+   * Helper method that creates new entry in ReflectionEntriesStore and
+   * in MaterializationInfo cache of DependencyManager.
+   */
+  void createReflectionEntry(ReflectionEntry entry) {
+    reflectionStore.save(entry);
+    dependencyManager.createMaterializationInfo(entry);
+  }
+
+  /**
+   * Helper method that updates ReflectionEntry info in ReflectionEntriesStore and
+   * in MaterializationInfo cache of DependencyManager.
+   */
+  void updateReflectionEntry(ReflectionEntry entry) {
+    reflectionStore.save(entry);
+    dependencyManager.updateMaterializationInfo(entry);
+  }
+
+  /**
+   * Helper method that deletes entry from ReflectionEntriesStore and
+   * from MaterializationInfo cache of DependencyManager.
+   */
+  void deleteReflectionEntry(ReflectionId id) {
+    reflectionStore.delete(id);
+    dependencyManager.deleteMaterializationInfo(id);
   }
 }

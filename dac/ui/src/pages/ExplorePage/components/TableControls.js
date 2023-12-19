@@ -235,7 +235,7 @@ function mapStateToProps(state, props) {
       : datasetVersion;
 
   const columns = getTableColumns(state, version, location);
-  const columnFilter = getColumnFilter(state);
+  const columnFilter = getColumnFilter(state, version);
 
   return {
     currentSql: explorePageState.view.currentSql,

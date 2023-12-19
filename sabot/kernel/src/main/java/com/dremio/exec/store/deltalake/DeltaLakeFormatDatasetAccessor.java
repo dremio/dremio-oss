@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,11 +37,13 @@ import com.dremio.connector.metadata.GetMetadataOption;
 import com.dremio.connector.metadata.ListPartitionChunkOption;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.PartitionValue;
+import com.dremio.connector.metadata.options.TimeTravelOption;
 import com.dremio.datastore.LegacyProtobufSerializer;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.FileConfigMetadata;
 import com.dremio.exec.catalog.MetadataObjectsUtils;
 import com.dremio.exec.planner.cost.ScanCostFactor;
+import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.PartitionChunkListingImpl;
 import com.dremio.exec.store.dfs.FileDatasetHandle;
 import com.dremio.exec.store.dfs.FileSelection;
@@ -48,6 +51,7 @@ import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.PhysicalDatasetUtils;
 import com.dremio.io.file.FileSystem;
 import com.dremio.options.Options;
+import com.dremio.sabot.exec.context.OperatorContextImpl;
 import com.dremio.sabot.exec.store.deltalake.proto.DeltaLakeProtobuf;
 import com.dremio.service.namespace.MetadataProtoUtils;
 import com.dremio.service.namespace.NamespaceKey;
@@ -69,6 +73,7 @@ public class DeltaLakeFormatDatasetAccessor implements FileDatasetHandle {
   private final FileSystemPlugin fsPlugin;
   private final FileSelection fileSelection;
   private final DeltaLakeFormatPlugin formatPlugin;
+  private final TimeTravelOption.TimeTravelRequest travelRequest;
   private volatile DeltaLakeTable deltaTable;
 
   public DeltaLakeFormatDatasetAccessor(DatasetType type,
@@ -76,7 +81,8 @@ public class DeltaLakeFormatDatasetAccessor implements FileDatasetHandle {
                                         FileSystemPlugin fsPlugin,
                                         FileSelection fileSelection,
                                         NamespaceKey tableSchemaPath,
-                                        DeltaLakeFormatPlugin formatPlugin) {
+                                        DeltaLakeFormatPlugin formatPlugin,
+                                        TimeTravelOption.TimeTravelRequest travelRequest) {
 
     this.type = type;
     this.fsPlugin = fsPlugin;
@@ -84,14 +90,21 @@ public class DeltaLakeFormatDatasetAccessor implements FileDatasetHandle {
     this.fileSelection = fileSelection;
     this.tableSchemaPath = tableSchemaPath;
     this.formatPlugin = formatPlugin;
+    this.travelRequest = travelRequest;
   }
 
-  private void initializeDeltaTableWrapper() throws IOException {
+  private void initializeDeltaTableWrapper() throws Exception {
     if (deltaTable == null) {
       synchronized (this) {
         if (deltaTable == null) {
-          final FileSystem tableFileSystem = fsPlugin.createFS(SYSTEM_USERNAME, null, true);
-          this.deltaTable = new DeltaLakeTable(formatPlugin.getContext(), tableFileSystem, fileSelection);
+          final SabotContext context = formatPlugin.getContext();
+          try (
+            BufferAllocator sampleAllocator = context.getAllocator().newChildAllocator("delta-lake-metadata-alloc", 0, Long.MAX_VALUE);
+            OperatorContextImpl operatorContext = new OperatorContextImpl(context.getConfig(), context.getDremioConfig(), sampleAllocator, context.getOptionManager(), 1000, context.getExpressionSplitCache());
+          ) {
+            final FileSystem tableFileSystem = fsPlugin.createFS(SYSTEM_USERNAME, operatorContext, true);
+            this.deltaTable = new DeltaLakeTable(context, tableFileSystem, fileSelection, travelRequest);
+          }
         }
       }
     }
@@ -158,7 +171,7 @@ public class DeltaLakeFormatDatasetAccessor implements FileDatasetHandle {
           return PhysicalDatasetUtils.toFileFormat(formatPlugin).asFileConfig().setLocation(fileSelection.getSelectionRoot());
         }
       };
-    } catch (IOException e) {
+    } catch (Exception e) {
       logger.error("Error while scanning DeltaLake table", e);
       throw new ConnectorException(e);
     }
@@ -172,7 +185,7 @@ public class DeltaLakeFormatDatasetAccessor implements FileDatasetHandle {
       final PartitionChunkListingImpl partitionChunkListing = new PartitionChunkListingImpl();
       deltaTable.getAllSplits().forEach(datasetSplit -> partitionChunkListing.put(partitions, datasetSplit));
       return partitionChunkListing;
-    } catch (IOException e) {
+    } catch (Exception e) {
       Throwables.propagateIfPossible(e, ConnectorException.class);
       throw new ConnectorException(e);
     }
@@ -197,7 +210,7 @@ public class DeltaLakeFormatDatasetAccessor implements FileDatasetHandle {
       final DeltaLakeProtobuf.DeltaLakeReadSignature deltaLakeReadSignature = LegacyProtobufSerializer.parseFrom(DeltaLakeProtobuf.DeltaLakeReadSignature.PARSER, MetadataProtoUtils.toProtobuf(readSignature));
       initializeDeltaTableWrapper();
       return !deltaTable.checkMetadataStale(deltaLakeReadSignature);
-    } catch (IOException e) {
+    } catch (Exception e) {
       //Do a refresh in case of exception
       logger.error("Exception occurred while trying to determine delta dataset metadata validity. Dataset path {}. ", fileSelection.toString(), e);
       return false;

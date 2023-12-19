@@ -22,6 +22,7 @@ import static org.junit.Assert.fail;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.stream.IntStream;
@@ -29,28 +30,37 @@ import java.util.stream.IntStream;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.junit.After;
-import org.junit.Before;
+import org.joda.time.DateTimeZone;
+import org.joda.time.LocalDateTime;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
 
-import com.dremio.BaseTestQuery;
+import com.dremio.PlanTestBase;
+import com.dremio.TestBuilder;
 import com.dremio.common.util.TestTools;
+import com.dremio.exec.ExecConstants;
+import com.dremio.exec.hadoop.HadoopFileSystem;
+import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.server.SabotContext;
 import com.google.common.io.Resources;
 
-public class TestDeltaScan extends BaseTestQuery {
+public class TestDeltaScan extends PlanTestBase {
 
   @Rule
   public final TestRule timeoutRule = TestTools.getTimeoutRule(80, TimeUnit.SECONDS);
 
-  FileSystem fs;
+  static FileSystem fs;
   static String testRootPath = "/tmp/deltalake/";
   static Configuration conf;
+  static SabotContext sabotContext;
 
-  @Before
-  public void initFs() throws Exception {
+  @BeforeClass
+  public static void initFs() throws Exception {
+    sabotContext = getSabotContext();
     conf = new Configuration();
     conf.set("fs.default.name", "local");
     fs = FileSystem.get(conf);
@@ -67,18 +77,22 @@ public class TestDeltaScan extends BaseTestQuery {
     copyFromJar("deltalake/emptyDataFilesNoStatsParsed", java.nio.file.Paths.get(testRootPath + "/emptyDataFilesNoStatsParsed"));
     copyFromJar("deltalake/extraAttrsRemovePath", java.nio.file.Paths.get(testRootPath + "/extraAttrsRemovePath"));
     copyFromJar("deltalake/multibatchCheckpointWithRemove", java.nio.file.Paths.get(testRootPath + "/multibatchCheckpointWithRemove"));
-    copyFromJar("deltalake/multiPartCheckpoint", java.nio.file.Paths.get((testRootPath + "/multiPartCheckpoint")));
+    copyFromJar("deltalake/multiPartCheckpoint", java.nio.file.Paths.get(testRootPath + "/multiPartCheckpoint"));
     copyFromJar("deltalake/multi_partitioned_remove_only_checkpoint", java.nio.file.Paths.get(testRootPath + "/multi_partitioned_remove_only_checkpoint"));
     copyFromJar("deltalake/repartitioned", java.nio.file.Paths.get(testRootPath + "/repartitioned"));
     copyFromJar("deltalake/schema_change_partition", java.nio.file.Paths.get(testRootPath + "/schema_change_partition"));
-    copyFromJar("deltalake/newPlanDataset", java.nio.file.Paths.get((testRootPath + "/newDataset")));
-    copyFromJar("deltalake/paritionenedNewPlan", java.nio.file.Paths.get((testRootPath + "/paritionenedNewPlan")));
-    copyFromJar("deltalake/commitInfoAtOnlyJson", java.nio.file.Paths.get((testRootPath + "/commitInfoAtOnlyJson")));
-    copyFromJar("deltalake/deltaMixCharsName",  java.nio.file.Paths.get((testRootPath + "/deltaMixCharsName")));
+    copyFromJar("deltalake/newPlanDataset", java.nio.file.Paths.get(testRootPath + "/newDataset"));
+    copyFromJar("deltalake/paritionenedNewPlan", java.nio.file.Paths.get(testRootPath + "/paritionenedNewPlan"));
+    copyFromJar("deltalake/commitInfoAtOnlyJson", java.nio.file.Paths.get(testRootPath + "/commitInfoAtOnlyJson"));
+    copyFromJar("deltalake/deltaMixCharsName",  java.nio.file.Paths.get(testRootPath + "/deltaMixCharsName"));
+    copyFromJar("deltalake/test_2k_cols_checkpoint",  java.nio.file.Paths.get(testRootPath + "/test_2k_cols_checkpoint"));
+    copyFromJar("deltalake/test_2k_cols_json",  java.nio.file.Paths.get(testRootPath + "/test_2k_cols_json"));
+    copyFromJar("deltalake/test_long_cols_checkpoint",  java.nio.file.Paths.get(testRootPath + "/test_long_cols_checkpoint"));
+    copyFromJar("deltalake/test_long_cols_json",  java.nio.file.Paths.get(testRootPath + "/test_long_cols_json"));
   }
 
-  @After
-  public void cleanup() throws Exception {
+  @AfterClass
+  public static void cleanup() throws Exception {
     Path p = new Path(testRootPath);
     fs.delete(p, true);
   }
@@ -125,6 +139,103 @@ public class TestDeltaScan extends BaseTestQuery {
               .baselineValues(new BigDecimal(25674))
               .unOrdered().go();
     }
+  }
+
+  @Test
+  public void testDeltaLakeSnapshot() throws Exception {
+    try (AutoCloseable c = enableDeltaLake();
+         AutoCloseable c2 = withSystemOption(ExecConstants.ENABLE_DELTALAKE_TIME_TRAVEL, true)) {
+      testDeltaLakeSnapshot("testDataset");
+      testDeltaLakeSnapshot("JsonDataset");
+    }
+  }
+
+  private void testDeltaLakeSnapshot(String tableName) throws Exception {
+    String testTablePath = testRootPath + "/" + tableName;
+    DeltaTableIntegrationTestUtils testUtils = new DeltaTableIntegrationTestUtils(conf, testTablePath);
+
+    promoteTable(tableName);
+
+    final String sql = createTableFunctionQuery(tableName, "table_snapshot");
+    TestBuilder testBuilder = testBuilder()
+      .sqlQuery(sql)
+      .unOrdered()
+      .baselineColumns("committed_at", "snapshot_id", "parent_id", "operation", "manifest_list", "summary");
+    testUtils.getHistory().forEach(commit ->
+      testBuilder.baselineValues(
+        new LocalDateTime(commit.getTimestamp().getTime(), DateTimeZone.UTC),
+        commit.getVersion().orElse(0L),
+        null,
+        commit.getOperation(),
+        null,
+        null)
+    );
+    testBuilder.go();
+  }
+
+  private void promoteTable(String tableName) throws Exception {
+    test("SELECT count(*) from dfs.tmp.deltalake." + tableName);
+  }
+
+  private String createTableFunctionQuery(String tableName, String tableFunction) {
+    return "SELECT * FROM TABLE(" + tableFunction + "('dfs.tmp.deltalake." + tableName + "'));";
+  }
+
+  @Test
+  public void testDeltaLakeHistory() throws Exception {
+    try (AutoCloseable c = enableDeltaLake();
+         AutoCloseable c2 = withSystemOption(ExecConstants.ENABLE_DELTALAKE_TIME_TRAVEL, true)) {
+      testDeltaLakeHistory("testDataset");
+      testDeltaLakeHistory("JsonDataset");
+    }
+  }
+
+  private void testDeltaLakeHistory(String tableName) throws Exception {
+    String testTablePath = testRootPath + "/" + tableName;
+    DeltaTableIntegrationTestUtils testUtils = new DeltaTableIntegrationTestUtils(conf, testTablePath);
+
+    promoteTable(tableName);
+
+    final String sql = createTableFunctionQuery(tableName, "table_history");
+    TestBuilder testBuilder = testBuilder()
+      .sqlQuery(sql)
+      .unOrdered()
+      .baselineColumns("made_current_at", "snapshot_id", "parent_id", "is_current_ancestor");
+    testUtils.getHistory().forEach(commit ->
+      testBuilder.baselineValues(
+        new LocalDateTime(commit.getTimestamp().getTime(), DateTimeZone.UTC),
+        commit.getVersion().orElse(0L),
+        null,
+        null)
+    );
+    testBuilder.go();
+  }
+
+  @Test
+  public void testDeltalakeFunctionsDistributionPlan() throws Exception {
+    try (AutoCloseable c = enableDeltaLake();
+         AutoCloseable c2 = withSystemOption(ExecConstants.ENABLE_DELTALAKE_TIME_TRAVEL, true);
+         AutoCloseable c3 = withSystemOption(PlannerSettings.DELTALAKE_HISTORY_SCAN_FILES_PER_THREAD, 5L)) {
+      testDeltalakeFunctionsDistributionPlan("testDataset", "table_snapshot");
+      testDeltalakeFunctionsDistributionPlan("testDataset", "table_history");
+      testDeltalakeFunctionsDistributionPlan("JsonDataset", "table_snapshot");
+      testDeltalakeFunctionsDistributionPlan("JsonDataset", "table_history");
+    }
+  }
+
+  private void testDeltalakeFunctionsDistributionPlan(String tableName, String tableFunction) throws Exception {
+    promoteTable(tableName);
+
+    final String query = createTableFunctionQuery(tableName, tableFunction);
+    testPlanMatchingPatterns(query, new String[]{
+      "(?s)" +
+        "UnionExchange.*" +
+        "Project.*" +
+        "Project.*" +
+        "TableFunction.*" +
+        "RoundRobinExchange.*" +
+        "DirListingScan.*"
+    });
   }
 
   @Test
@@ -269,8 +380,7 @@ public class TestDeltaScan extends BaseTestQuery {
     final BiConsumer<String, String> cp = (src, dest) -> {
       try {
         final String srcBase = "deltalake/checkpoint_multi_rowgroups_with_remove/";
-        final java.nio.file.Path srcPath = Paths.get(Resources.getResource(srcBase + src).toURI());
-        Files.copy(srcPath, Paths.get(dest));
+        Files.copy(Paths.get(Resources.getResource(srcBase + src).toURI()), Paths.get(dest));
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
@@ -475,4 +585,55 @@ public class TestDeltaScan extends BaseTestQuery {
     }
   }
 
+  @Test
+  public void testDeltaWithLongSchemaCheckpoint() throws Exception {
+    try (AutoCloseable c = enableDeltaLake()) {
+      testDeltaWithLongSchemaCheckpoint("test_2k_cols_checkpoint");
+      testDeltaWithLongSchemaCheckpoint("test_long_cols_checkpoint");
+    }
+  }
+
+  private void testDeltaWithLongSchemaCheckpoint(String tableName) throws Exception {
+    com.dremio.io.file.Path checkpointPath = com.dremio.io.file.Path.of(testRootPath).resolve(tableName)
+      .resolve(DeltaConstants.DELTA_LOG_DIR).resolve("00000000000000000010.checkpoint.parquet");
+    com.dremio.io.file.FileSystem dremioFs = HadoopFileSystem.get(fs);
+    DeltaLogCheckpointParquetReader reader = new DeltaLogCheckpointParquetReader();
+    DeltaLogSnapshot snapshot = reader.parseMetadata(null, sabotContext, dremioFs,
+      Collections.singletonList(dremioFs.getFileAttributes(checkpointPath)), 10);
+    assertTrue(snapshot.getSchema().length() > sabotContext.getOptionManager().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES));
+
+    final String sql = "select count(*) cnt from dfs.tmp.deltalake." + tableName;
+    testBuilder()
+      .sqlQuery(sql)
+      .unOrdered()
+      .baselineColumns("cnt")
+      .baselineValues(23L)
+      .go();
+  }
+
+  @Test
+  public void testDeltaWithLongSchemaJsonCommit() throws Exception {
+    try (AutoCloseable c = enableDeltaLake()) {
+      testDeltaWithLongSchemaJsonCommit("test_2k_cols_json");
+      testDeltaWithLongSchemaJsonCommit("test_long_cols_json");
+    }
+  }
+
+  private void testDeltaWithLongSchemaJsonCommit(String tableName) throws Exception {
+    com.dremio.io.file.Path commitPath = com.dremio.io.file.Path.of(testRootPath).resolve(tableName)
+      .resolve(DeltaConstants.DELTA_LOG_DIR).resolve("00000000000000000000.json");
+    com.dremio.io.file.FileSystem dremioFs = HadoopFileSystem.get(fs);
+    DeltaLogCommitJsonReader jsonReader = new DeltaLogCommitJsonReader();
+    DeltaLogSnapshot snapshot = jsonReader.parseMetadata(null, sabotContext, dremioFs,
+      Collections.singletonList(dremioFs.getFileAttributes(commitPath)), 0);
+    assertTrue(snapshot.getSchema().length() > sabotContext.getOptionManager().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES));
+
+    final String sql = "select count(*) cnt from dfs.tmp.deltalake." + tableName;
+    testBuilder()
+      .sqlQuery(sql)
+      .unOrdered()
+      .baselineColumns("cnt")
+      .baselineValues(5L)
+      .go();
+  }
 }

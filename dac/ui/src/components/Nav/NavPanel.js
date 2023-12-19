@@ -16,7 +16,7 @@
 import { PureComponent } from "react";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
-
+import clsx from "clsx";
 import { tabLabel } from "@app/uiTheme/less/layout.less";
 import { nav, navBtn, navBtnActive, icon } from "./NavPanel.less";
 
@@ -26,6 +26,7 @@ export default class NavPanel extends PureComponent {
     activeTab: PropTypes.string,
     tabs: PropTypes.instanceOf(Immutable.OrderedMap),
     showSingleTab: PropTypes.bool,
+    className: PropTypes.string,
   };
 
   static defaultProps = {
@@ -33,7 +34,7 @@ export default class NavPanel extends PureComponent {
   };
 
   render() {
-    const { showSingleTab, tabs } = this.props;
+    const { showSingleTab, tabs, className } = this.props;
 
     const invalidTabCount = showSingleTab
       ? tabs.count() < 1
@@ -65,7 +66,7 @@ export default class NavPanel extends PureComponent {
       .toArray();
 
     return (
-      <div data-qa="nav-panel" className={nav}>
+      <div data-qa="nav-panel" className={clsx(nav, className)}>
         {children}
       </div>
     );

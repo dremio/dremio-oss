@@ -49,7 +49,7 @@ public class UUIDStoreGenerator implements DataGenerator<UUID, String> {
     return new UUIDComparator();
   }
 
-  private class UUIDComparator implements Comparator<UUID> {
+  private static final class UUIDComparator implements Comparator<UUID> {
     @Override
     public int compare(UUID o1, UUID o2) {
       return o1.toString().compareTo(o2.toString());

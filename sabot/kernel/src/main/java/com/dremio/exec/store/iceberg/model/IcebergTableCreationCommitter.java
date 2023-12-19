@@ -31,6 +31,7 @@ import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.io.FileIO;
 
 import com.dremio.exec.record.BatchSchema;
@@ -50,17 +51,17 @@ public class IcebergTableCreationCommitter implements IcebergOpCommitter {
   private final OperatorStats operatorStats;
 
   public IcebergTableCreationCommitter(String tableName, BatchSchema batchSchema, List<String> partitionColumnNames,
-                                       IcebergCommand icebergCommand, Map<String, String> tableParameters, OperatorStats operatorStats, PartitionSpec partitionSpec) {
+                                       IcebergCommand icebergCommand, Map<String, String> tableProperties, OperatorStats operatorStats, PartitionSpec partitionSpec, SortOrder sortOrder) {
     Preconditions.checkState(icebergCommand != null, "Unexpected state");
     Preconditions.checkState(batchSchema != null, "Schema must be present");
     Preconditions.checkState(tableName != null, "Table name must be present");
     this.icebergCommand = icebergCommand;
-    this.icebergCommand.beginCreateTableTransaction(tableName, batchSchema, partitionColumnNames, tableParameters, partitionSpec);
+    this.icebergCommand.beginCreateTableTransaction(tableName, batchSchema, partitionColumnNames, tableProperties, partitionSpec, sortOrder);
     this.operatorStats = operatorStats;
   }
 
-  public IcebergTableCreationCommitter(String tableName, BatchSchema batchSchema, List<String> partitionColumnNames, IcebergCommand icebergCommand, OperatorStats operatorStats, PartitionSpec partitionSpec) {
-    this(tableName, batchSchema, partitionColumnNames, icebergCommand, Collections.emptyMap(), operatorStats, partitionSpec);
+  public IcebergTableCreationCommitter(String tableName, BatchSchema batchSchema, List<String> partitionColumnNames, IcebergCommand icebergCommand, OperatorStats operatorStats, PartitionSpec partitionSpec, SortOrder sortOrder) {
+    this(tableName, batchSchema, partitionColumnNames, icebergCommand, Collections.emptyMap(), operatorStats, partitionSpec, sortOrder);
   }
 
   @Override

@@ -84,8 +84,6 @@ import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.server.options.DefaultOptionManager;
-import com.dremio.exec.server.options.OptionManagerWrapper;
 import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.CatalogService;
@@ -96,6 +94,8 @@ import com.dremio.exec.store.StoragePluginRulesFactory;
 import com.dremio.exec.store.sys.SystemTablePluginConfigProvider;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
+import com.dremio.options.impl.DefaultOptionManager;
+import com.dremio.options.impl.OptionManagerWrapper;
 import com.dremio.service.DirectProvider;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
@@ -105,10 +105,10 @@ import com.dremio.service.namespace.NamespaceIdentity;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
-import com.dremio.service.namespace.NamespaceService.Factory;
 import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
+import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEvents;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
@@ -184,7 +184,7 @@ public class TestCatalogServiceImpl {
     storeProvider =
       LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
     storeProvider.start();
-    namespaceService = new NamespaceServiceImpl(storeProvider);
+    namespaceService = new NamespaceServiceImpl(storeProvider, mock(CatalogStatusEvents.class));
 
     kvStoreProvider = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false);
     kvStoreProvider.start();
@@ -197,7 +197,7 @@ public class TestCatalogServiceImpl {
       }
     };
 
-    final NamespaceService.Factory namespaceServiceFactory = new Factory() {
+    final NamespaceService.Factory namespaceServiceFactory = new NamespaceService.Factory() {
       @Override
       public NamespaceService get(String userName) {
         return namespaceService;
@@ -304,8 +304,8 @@ public class TestCatalogServiceImpl {
         dremioConfig,
         EnumSet.allOf(ClusterCoordinator.Role.class),
         () -> new ModifiableLocalSchedulerService(2, "modifiable-scheduler-",
-          ExecConstants.MAX_CONCURRENT_METADATA_REFRESHES, () -> optionManager)
-    );
+          ExecConstants.MAX_CONCURRENT_METADATA_REFRESHES, () -> optionManager),
+        () -> new VersionedDatasetAdapterFactory());
     catalogService.start();
 
     mockUpPlugin = new MockUpPlugin();

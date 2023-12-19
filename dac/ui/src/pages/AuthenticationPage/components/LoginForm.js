@@ -85,7 +85,7 @@ export class LoginForm extends PureComponent {
             <FieldWithError
               {...userName}
               errorPlacement="top"
-              label={la("Username")}
+              label={laDeprecated("Username")}
               labelStyle={styles.label}
               style={{ ...formLabel, ...styles.field }}
             >
@@ -99,7 +99,7 @@ export class LoginForm extends PureComponent {
             <FieldWithError
               {...password}
               errorPlacement="top"
-              label={la("Password")}
+              label={laDeprecated("Password")}
               labelStyle={styles.label}
               style={{ ...formLabel, ...styles.field }}
             >
@@ -134,7 +134,7 @@ export class LoginForm extends PureComponent {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                {la("Privacy")}
+                {laDeprecated("Privacy")}
               </a>
             </div>
           </div>

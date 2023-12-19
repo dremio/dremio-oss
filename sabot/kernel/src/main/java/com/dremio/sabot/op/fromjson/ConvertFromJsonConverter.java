@@ -100,12 +100,10 @@ public class ConvertFromJsonConverter extends BasePrelVisitor<Prel, Void, Runtim
       final RexNode n = expressions.get(fieldId);
       if(n instanceof RexCall){
         RexCall call = (RexCall) n;
-
         if(call.getOperator().getName().equalsIgnoreCase("convert_fromjson")){
           List<RexNode> args = call.getOperands();
           Preconditions.checkArgument(args.size() == 1);
           final RexNode input = args.get(0);
-
           if(input instanceof RexLiteral){
             RexLiteral literal = (RexLiteral) input;
             SqlTypeFamily family = literal.getTypeName().getFamily();
@@ -123,23 +121,19 @@ public class ConvertFromJsonConverter extends BasePrelVisitor<Prel, Void, Runtim
             continue;
           } else if (input instanceof RexInputRef) {
             RexInputRef inputRef = (RexInputRef) input;
-
             Set<RelColumnOrigin> origins = query.getColumnOrigins(inputRel, inputRef.getIndex());
             if (origins == null || origins.size() != 1 || origins.iterator().next().isDerived()) {
               throw failed();
             }
-
             final RelColumnOrigin origin = origins.iterator().next();
             final RelOptTable originTable = origin.getOriginTable();
-
             final List<String> tableSchemaPath = originTable.getQualifiedName();
             final String tableFieldname = originTable.getRowType().getFieldNames().get(origin.getOriginColumnOrdinal());
             // we are using topRel to construct the newBottomProject rowType, make sure ConvertFromJson refers to that
             final String inputFieldname = topRel.getRowType().getFieldNames().get(fieldId);
-              conversions.add(new ConversionColumn(
-                OriginType.RAW, tableSchemaPath, tableFieldname, inputFieldname,
-                getRawSchema(tableSchemaPath, tableFieldname)));
-
+            conversions.add(new ConversionColumn(
+              OriginType.RAW, tableSchemaPath, tableFieldname, inputFieldname,
+              getRawSchema(context, tableSchemaPath, tableFieldname)));
             bottomExprs.add(inputRef);
             continue;
           } else {
@@ -177,13 +171,11 @@ public class ConvertFromJsonConverter extends BasePrelVisitor<Prel, Void, Runtim
     return (Prel) prel.copy(prel.getTraitSet(), children);
   }
 
-
-
   private static UserException failed(){
     return UserException.validationError().message(FAILURE_MSG).build(logger);
   }
 
-  private CompleteType getRawSchema(final List<String> tableSchemaPath, final String fieldname) {
+  private static CompleteType getRawSchema(QueryContext context, final List<String> tableSchemaPath, final String fieldname) {
     // originTable may come from materialization cache and may not contain up-to-date datasetFieldsList info.
     // Get datasetFieldsList from query context catalog instead.
     return Optional.ofNullable(context)

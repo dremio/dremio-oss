@@ -31,7 +31,32 @@ Sonar.Job.Status.Planning: Planning
 Sonar.Job.Status.EngineStart: Engine Starting
 Sonar.Job.Status.Queued: Queued
 Sonar.Job.Status.ExecutionPlanning: Execution Planning
+Sonar.Job.QueryType.UIRun: "UI (run)"
+Sonar.Job.QueryType.UIPreview: "UI (preview)"
+Sonar.Job.QueryType.UIDownload: "UI (download)"
+Sonar.Job.QueryType.Internal: "Internal"
+Sonar.Job.QueryType.MetadataRefresh: "Metadata Refresh"
+Sonar.Job.QueryType.ODBCCreate: "ODBC Client (create prepared statement)"
+Sonar.Job.QueryType.ODBCExecute: "ODBC Client (execute prepared statement)"
+Sonar.Job.QueryType.ODBCMetadataRequest: "ODBC Client (metadata request)"
+Sonar.Job.QueryType.ODBCClient: "ODBC Client"
+Sonar.Job.QueryType.JDBCCreate: "JDBC Client (create prepared statement)"
+Sonar.Job.QueryType.JDBCExecute: "JDBC Client (execute prepared statement)"
+Sonar.Job.QueryType.JDBCMetadataRequest: "JDBC Client (metadata request)"
+Sonar.Job.QueryType.D2DClient: "Dremio-to-Dremio"
+Sonar.Job.QueryType.JDBCClient: "JDBC Client"
+Sonar.Job.QueryType.RESTApp: "REST Application"
+Sonar.Job.QueryType.FlightCreate: "Arrow Flight Client (create prepared statement)"
+Sonar.Job.QueryType.FlightExecute: "Arrow Flight Client (execute prepared statement)"
+Sonar.Job.QueryType.FlightClient: "Arrow Flight Client"
+Sonar.Job.QueryType.AcceleratorCreation: "Accelerator (creation)"
+Sonar.Job.QueryType.AcceleratorRefresh: "Accelerator (calculate refresh)"
+Sonar.Job.QueryType.AcceleratorRemoval: "Accelerator (removal)"
+Sonar.Job.QueryType.AcceleratorOptimize: "Accelerator (optimize)"
+Sonar.Job.QueryType.InternalIcebergMetadataRemoval: "Internal Iceberg Metadata (removal)"
+Sonar.File.Unknown: Unknown
 Sonar.Scripts.Label: Scripts
+Sonar.Scripts.LimitReached: You have reached the limit of 1000 scripts. Open and edit an existing script or delete one or more scripts before you create new scripts.
 Sonar.Search: Search Spaces and Datasets
 Sonar.Source.Add: Add Source
 Sonar.Sql.Label: SQL Runner
@@ -96,3 +121,34 @@ Sonar.Reflection.Column.AcceleratedCount.Hint: "Number of user jobs that were ac
 Sonar.Reflection.Column.RefreshHistory.Label: "Refresh Job History"
 Sonar.Reflection.Column.RefreshHistory.Link: "History"
 Sonar.Reflection.TableError: Something went wrong when we tried to display the list of Reflections.
+Sonar.Job.Column.JobId.Label: "Job ID"
+Sonar.Job.Column.User.Label: "User"
+Sonar.Job.Column.Dataset.Label: "Dataset"
+Sonar.Job.Column.QueryType.Label: "Query Type"
+Sonar.Job.Column.Engine.Label: "Engine"
+Sonar.Job.Column.Queue.Label: "Queue"
+Sonar.Job.Column.StartTime.Label: "Start Time"
+Sonar.Job.Column.Duration.Label: "Duration"
+Sonar.Job.Column.Duration.SpilledLabel: "This query was spilled"
+Sonar.Job.Column.SQL.Label: "SQL"
+Sonar.Job.Column.CostEstimate.Label: Planner Cost Estimate
+Sonar.Job.Column.PlanningTime.Label: Planning Time
+Sonar.Job.Column.RowsScanned.Label: Rows Scanned
+Sonar.Job.Column.RowsReturned.Label: Rows Returned
+Sonar.Job.Column.Accelerated.Label: "Accelerated"
+Sonar.Job.Column.Accelerated.Hint: "Query was accelerated"
+Sonar.Job.Status.NOT_SUBMITTED: "Not Submitted"
+Sonar.Job.Status.STARTING: "Starting"
+Sonar.Job.Status.RUNNING: "Running"
+Sonar.Job.Status.COMPLETED: "Completed"
+Sonar.Job.Status.CANCELED: "Canceled"
+Sonar.Job.Status.FAILED: "Failed"
+Sonar.Job.Status.CANCELLATION_REQUESTED: "Cancellation Requested"
+Sonar.Job.Status.ENQUEUED: "Enqueued"
+Sonar.Job.Status.PLANNING: "Planning"
+Sonar.Job.Status.PENDING: "Pending"
+Sonar.Job.Status.METADATA_RETRIEVAL: "Metadata Retrieval"
+Sonar.Job.Status.QUEUED: "Queued"
+Sonar.Job.Status.ENGINE_START: "Engine Start"
+Sonar.Job.Status.EXECUTION_PLANNING: "Execution Planning"
+Sonar.Source.Settings.Arctic.Info.Message: "For optimization configuration, table cleanup settings and catalog privileges, please visit Arctic > Arctic catalog > "

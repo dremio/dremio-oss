@@ -72,7 +72,7 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
   private final Provider<FabricService> fabricService;
   private final BufferAllocator allocator;
   private final String hostName;
-  private final ScanResult scan;
+  private final StoreCreatorSupplier storeCreatorSupplier;
   // To provide compatibility with older code
   private final LegacyKVStoreProvider legacyProvider;
   private long remoteRpcTimeout;
@@ -114,21 +114,36 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
     boolean noDBOpenRetry,
     boolean noDBLogMessages,
     boolean readOnly) {
+    this(() -> scan.getImplementations(StoreCreationFunction.class),
+      fabricService, allocator, hostName, baseDirectory, inMemory, timed, noDBOpenRetry, noDBLogMessages, readOnly);
+  }
+
+  public LocalKVStoreProvider(
+    StoreCreatorSupplier storeCreatorSupplier,
+    Provider<FabricService> fabricService,
+    BufferAllocator allocator,
+    String hostName,
+    String baseDirectory,
+    boolean inMemory,
+    boolean timed,
+    boolean noDBOpenRetry,
+    boolean noDBLogMessages,
+    boolean readOnly) {
 
     coreStoreProvider = new CoreStoreProviderImpl(baseDirectory, inMemory, timed, noDBOpenRetry, false,
       noDBLogMessages, readOnly);
     this.fabricService = fabricService;
     this.allocator = allocator;
     this.hostName = hostName;
-    Preconditions.checkNotNull(scan, ERR_EMPTY_SCANRESULT);
-    this.scan = scan;
+    Preconditions.checkNotNull(storeCreatorSupplier, ERR_EMPTY_SCANRESULT);
+    this.storeCreatorSupplier = storeCreatorSupplier;
     this.legacyProvider = new LegacyKVStoreProviderAdapter(this);
     this.storeBuildingFactory = this::newStore;
     this.storesProvider = getStoreProvider();
   }
 
   protected Supplier<ImmutableMap<Class<? extends StoreCreationFunction<?, ?, ?>>, KVStore<?, ?>>> getStoreProvider(){
-    return () -> StoreLoader.buildStores(scan, storeBuildingFactory);
+    return () -> StoreLoader.buildStores(storeCreatorSupplier.get(), storeBuildingFactory);
   }
 
   public LocalKVStoreProvider(
@@ -273,7 +288,7 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
   }
 
   /**
-   * Store builder for master/Raas store provider.
+   * Store builder for master store provider.
    *
    * @param <K>
    * @param <V>

@@ -17,7 +17,6 @@ package com.dremio.exec.store.dfs;
 
 import java.io.IOException;
 
-import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.file.proto.FileProtobuf;
 
 /**
@@ -34,15 +33,6 @@ public interface FileSelectionProcessor {
   FileProtobuf.FileUpdateKey generateUpdateKey() throws IOException;
 
   /**
-   * To ensure the number of files in the directory are within compatible range. This is tracked via FileDatasetHandle.DFS_MAX_FILES
-   *
-   * @param config
-   * @param isInternal
-   * @throws IOException
-   */
-  void assertCompatibleFileCount(SabotContext config, boolean isInternal) throws IOException;
-
-  /**
    * Return a new normalised version of FileSelection, apt for plugin's usage. Eg. regular format plugins require file
    * entries after removing the directories.
    * @param fileSelection
@@ -50,12 +40,4 @@ public interface FileSelectionProcessor {
    * @throws IOException
    */
   FileSelection normalizeForPlugin(FileSelection fileSelection) throws IOException;
-
-  /**
-   * Default FileSelection is in non-expanded mode. This function is to provide desirability handle to the accessor.
-   * This way, the FileSelection will be lazily expanded.
-   *
-   * @throws IOException
-   */
-  void expandIfNecessary() throws IOException;
 }

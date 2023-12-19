@@ -21,20 +21,30 @@ import config from "@app/utils/config";
 
 import Menu from "components/Menus/Menu";
 import MenuItemLink from "components/Menus/MenuItemLink";
+import MenuItem from "components/Menus/MenuItem";
 import SideNavHelpExtra from "@inject/components/SideNav/SideNavHelpExtra";
 import SideNavHelpCopyright from "@inject/components/SideNav/SideNavHelpCopyright";
 import { menuListStyle } from "@app/components/SideNav/SideNavConstants";
+import { FeatureSwitch } from "@app/exports/components/FeatureSwitch/FeatureSwitch";
+import { PRODUCT_TUTORIALS } from "@inject/featureFlags/flags/PRODUCT_TUTORIALS";
+import { useTutorialController } from "dremio-ui-common/walkthrough/TutorialController";
 
 type HelpMenuProps = {
-  closeMenu: Function;
-  location: object;
+  closeMenu: () => void;
+  location: any;
+  organizationLanding: boolean;
 };
 
-const HelpMenu = ({ closeMenu, location }: HelpMenuProps) => {
+const HelpMenu = ({
+  closeMenu,
+  location,
+  organizationLanding,
+}: HelpMenuProps) => {
   const intl = useIntl();
   const externalLink = (
     <span className={"externalLinkIcon dremioIcon-External-link"}></span>
   );
+  const { isTutorialHidden, hideTutorial } = useTutorialController();
 
   return (
     <Menu style={menuListStyle}>
@@ -66,6 +76,21 @@ const HelpMenu = ({ closeMenu, location }: HelpMenuProps) => {
       />
       {/* @ts-ignore */}
       {SideNavHelpExtra && <SideNavHelpExtra closeMenu={closeMenu} />}
+      {organizationLanding && isTutorialHidden && (
+        <FeatureSwitch
+          flag={PRODUCT_TUTORIALS}
+          renderEnabled={() => (
+            <MenuItem
+              onClick={() => {
+                hideTutorial(false);
+                closeMenu();
+              }}
+            >
+              {intl.formatMessage({ id: "SideNav.GetStartedSonarTutorial" })}
+            </MenuItem>
+          )}
+        />
+      )}
       {/* This will render the support dialogue in OSS/ENT and Copyright for DCS*/}
       {SideNavHelpCopyright() ? (
         <SideNavHelpCopyright />

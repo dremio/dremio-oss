@@ -32,7 +32,7 @@ class SortGroup extends PureComponent {
         key="ASC"
         actionType="ASC"
         columnType={columnType}
-        title={la("Sort Ascending")}
+        title={laDeprecated("Sort Ascending")}
         availableTypes={SORTABLE_TYPES}
         onClick={onClick}
       />,
@@ -40,7 +40,7 @@ class SortGroup extends PureComponent {
         key="DESC"
         actionType="DESC"
         columnType={columnType}
-        title={la("Sort Descending")}
+        title={laDeprecated("Sort Descending")}
         availableTypes={SORTABLE_TYPES}
         onClick={onClick}
       />,
@@ -48,7 +48,7 @@ class SortGroup extends PureComponent {
         key="MULTIPLE"
         actionType="MULTIPLE"
         columnType={columnType}
-        title={la("Sort Multiple…")}
+        title={laDeprecated("Sort Multiple…")}
         availableTypes={SORTABLE_TYPES}
         onClick={onClick}
       />,

@@ -52,6 +52,8 @@ import com.dremio.sabot.op.writer.WriterOperator;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 
+import io.protostuff.ByteString;
+
 public abstract class EasyFormatPlugin<T extends FormatPluginConfig> extends BaseFormatPlugin {
 
   private final BasicFormatMatcher matcher;
@@ -113,11 +115,12 @@ public abstract class EasyFormatPlugin<T extends FormatPluginConfig> extends Bas
       List<SchemaPath> columns) throws ExecutionSetupException;
 
   public RecordReader getRecordReader(
-          OperatorContext context,
-          FileSystem dfs,
-          EasyDatasetSplitXAttr splitAttributes,
-          List<SchemaPath> columns,
-          ExtendedEasyReaderProperties properties) throws ExecutionSetupException {
+    OperatorContext context,
+    FileSystem dfs,
+    EasyDatasetSplitXAttr splitAttributes,
+    List<SchemaPath> columns,
+    ExtendedEasyReaderProperties properties,
+    ByteString extendedProperties) throws ExecutionSetupException {
     return getRecordReader(context, dfs, splitAttributes, columns);
   }
 
@@ -228,7 +231,7 @@ public abstract class EasyFormatPlugin<T extends FormatPluginConfig> extends Bas
         this, previousInfo, maxLeafColumns);
   }
 
-  protected ScanStats getScanStats(final EasyGroupScanUtils scan) {
+  public ScanStats getScanStats(final EasyGroupScanUtils scan) {
     long data = 0;
     for (final CompleteFileWork work : scan.getWorkIterable()) {
       data += work.getTotalBytes();

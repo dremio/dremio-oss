@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.dremio.dac.util.Filters;
 import com.dremio.exec.proto.UserBitShared.BlockedResourceDuration;
 import com.dremio.exec.proto.UserBitShared.MajorFragmentProfile;
 import com.dremio.exec.proto.UserBitShared.MinorFragmentProfile;

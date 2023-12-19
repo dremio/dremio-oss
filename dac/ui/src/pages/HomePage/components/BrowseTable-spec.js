@@ -17,7 +17,7 @@ import { shallow } from "enzyme";
 import Immutable from "immutable";
 import Mousetrap from "mousetrap";
 
-import BrowseTable from "./BrowseTable";
+import { BrowseTable } from "./BrowseTable";
 
 describe("BrowseTable", () => {
   let minimalProps;

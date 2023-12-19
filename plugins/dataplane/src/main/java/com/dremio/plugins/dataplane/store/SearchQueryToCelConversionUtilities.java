@@ -15,10 +15,11 @@
  */
 package com.dremio.plugins.dataplane.store;
 
+import static com.dremio.exec.util.InformationSchemaCatalogUtil.getEscapeCharacter;
+
 import java.util.Set;
 
 import com.dremio.service.catalog.SearchQuery;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
@@ -29,9 +30,10 @@ final class SearchQueryToCelConversionUtilities {
 
   private SearchQueryToCelConversionUtilities() {}
 
-  private static final ImmutableMap<Object, Object> SEARCH_QUERY_SPECIAL_CHARACTERS_MAP =
-    ImmutableMap.builder()
+  private static final ImmutableMap<Character, String> SEARCH_QUERY_SPECIAL_CHARACTERS_MAP =
+    ImmutableMap.<Character, String>builder()
       .put('%', ".*")
+      .put('_', ".")
       .build();
   // CEL uses RE2 syntax: https://github.com/google/re2/wiki/Syntax
   private static final Set<Character> RE2_SPECIAL_CHARACTERS =
@@ -66,12 +68,8 @@ final class SearchQueryToCelConversionUtilities {
   public static String likeQueryToRe2Regex(SearchQuery.Like likeQuery) {
     String pattern = likeQuery.getPattern();
     String escape = likeQuery.getEscape();
-    Preconditions.checkArgument(escape.length() <= 1, "An escape must be a single character.");
 
-    final boolean doEscaping = !escape.isEmpty();
-    final char e = doEscaping
-      ? escape.charAt(0)
-      : '\0'; // Unused, but must have some value since primitive
+    final char e = getEscapeCharacter(escape);
 
     StringBuilder sb = new StringBuilder();
     boolean lastCharacterWasEscape = false;
@@ -84,7 +82,7 @@ final class SearchQueryToCelConversionUtilities {
         continue;
       }
 
-      if (doEscaping && c == e) {
+      if (c == e) {
         lastCharacterWasEscape = true;
         continue;
       }

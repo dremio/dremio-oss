@@ -21,7 +21,7 @@ import { connect } from "react-redux";
 import { withRouter } from "react-router";
 import domHelpers from "dom-helpers";
 
-import { getExploreViewState } from "selectors/resources";
+import { getExploreViewState } from "@app/selectors/resources";
 import { getActiveScript } from "@app/selectors/scripts";
 import { moduleStateHOC } from "@app/containers/ModuleStateContainer";
 import explore from "@app/reducers/explore";
@@ -53,7 +53,20 @@ import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
 import { isNotSoftware } from "dyn-load/utils/versionUtils";
 import { fetchFeatureFlag } from "@inject/actions/featureFlag";
-import { SQL_JOB_STATUS } from "@app/exports/flags/SQL_JOB_STATUS";
+import { SQL_JOB_STATUS } from "@inject/featureFlags/flags/SQL_JOB_STATUS";
+import { excludePageType } from "./pageTypeUtils";
+import {
+  isTabbableUrl,
+  isTmpDatasetUrl,
+} from "@app/utils/explorePageTypeUtils";
+import { scriptReplaceSideEffect } from "@app/sagas/currentSql";
+import { store } from "@app/store/store";
+import {
+  selectActiveScript,
+  selectCurrentSql,
+} from "@app/components/SQLScripts/sqlScriptsUtils";
+import { withIsMultiTabEnabled } from "@app/components/SQLScripts/useMultiTabIsEnabled";
+import { refreshScriptsResource } from "@app/actions/resources/scripts";
 
 const HEIGHT_AROUND_SQL_EDITOR = 175;
 const defaultPageType = PageTypes.default;
@@ -83,6 +96,7 @@ export class ExplorePageControllerComponent extends Component {
     activeScript: PropTypes.object,
     currentSql: PropTypes.string,
     fetchFeatureFlag: PropTypes.func,
+    isMultiTabEnabled: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -113,7 +127,7 @@ export class ExplorePageControllerComponent extends Component {
     isNotSoftware() && this.props.fetchFeatureFlag(SQL_JOB_STATUS);
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     this.receiveProps(nextProps, this.props);
   }
 
@@ -182,24 +196,25 @@ export class ExplorePageControllerComponent extends Component {
     // eg /space/myspace/path.to.dataset
     // Compare fullPath in pathname. Ignore prefix/suffix like /details
     // urlability
-    const newloc = rmProjectBase(newLocation.pathname);
-    const oldLoc = rmProjectBase(oldLocation.pathname);
+    const newLoc = excludePageType(rmProjectBase(newLocation.pathname));
+    const oldLoc = excludePageType(rmProjectBase(oldLocation.pathname));
 
-    const oldParts = oldLoc.split("/");
-    const newParts = newloc.split("/");
-    const hasMoreParts = newParts.length > 2 || oldParts.length > 2;
-    if (hasMoreParts) {
-      if (newParts[2] === oldParts[2] && newParts[3] === oldParts[3])
-        return true;
-
-      if (newParts[2] === "tmp" && newParts[3] === "UNTITLED") return true;
-      const { version: newVersion } = newLocation.query || {};
-      // special case to allow going back to previous version to handle back from New Query => physical dataset
-      if (newVersion && history && newVersion === history.getIn(["items", 1])) {
-        return true;
-      }
+    if (
+      // Navigating to untitled dataset "Open Results" link from jobs page or running a query from a table
+      newLoc.endsWith("/tmp/UNTITLED") ||
+      // Navigating from a table to new tmp dataset (Running a multi-sql statement from a table)
+      isTmpDatasetUrl(newLocation)
+    ) {
+      return true;
     }
-    return false;
+
+    const { version: newVersion } = newLocation.query || {};
+    // special case to allow going back to previous version to handle back from New Query => physical dataset
+    if (newVersion && history && newVersion === history.getIn(["items", 1])) {
+      return true;
+    }
+
+    return newLoc === oldLoc;
   }
 
   shouldShowUnsavedChangesPopup = (nextLocation) => {
@@ -209,7 +224,21 @@ export class ExplorePageControllerComponent extends Component {
       history,
       getDatasetChangeDetails,
       activeScript,
+      isMultiTabEnabled,
     } = this.props;
+    if (isTabbableUrl(location) && isMultiTabEnabled && activeScript.id) {
+      const activeScript = selectActiveScript(store.getState());
+      const currentSql = selectCurrentSql(store.getState());
+      const updatedScript = {
+        ...activeScript,
+        content: currentSql,
+      };
+      scriptReplaceSideEffect(updatedScript);
+
+      // ensures $Scripts is up to date before SQL Runner mounts again
+      store.dispatch(refreshScriptsResource());
+      return false;
+    }
 
     if (this.discardUnsavedChangesConfirmed) {
       this.discardUnsavedChangesConfirmed = false;
@@ -341,7 +370,8 @@ const Connected = compose(
     initRefs: initRefsAction,
     fetchFeatureFlag,
   }),
-  withDatasetChanges
+  withDatasetChanges,
+  withIsMultiTabEnabled
 )(ExplorePageController);
 
 export default moduleStateHOC(exploreStateKey, explore)(Connected);

@@ -404,7 +404,7 @@ public class ReflectionMonitor {
     }
   }
 
-  private class Wait {
+  private final class Wait {
     private final long expire = System.currentTimeMillis() + maxWait;
     private int loop = 0;
     private long start = System.currentTimeMillis();

@@ -158,7 +158,8 @@ public class TestSubPathFileSystemPlugin extends BaseTestQuery {
   @Test
   public void testTooManyFiles() throws Exception {
     // Not an error for internal file stores.
-    test("SELECT * FROM subPathDfs.\"largeDir\"");
+    errorMsgTestHelper("SELECT * FROM subPathDfs.\"largeDir\"",
+      "VALIDATION ERROR: Number of files in dataset 'largeDir' contained 2 files which exceeds the maximum number of files of 1");
   }
 
   @AfterClass

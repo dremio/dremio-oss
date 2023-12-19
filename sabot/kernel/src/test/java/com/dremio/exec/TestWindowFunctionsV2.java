@@ -531,7 +531,7 @@ public class TestWindowFunctionsV2 extends BaseTestQuery {
 
     // Validate the plan
     final String[] expectedPlan = {"Window.*partition \\{1\\} order by \\[0 DESC\\].*COUNT\\(\\)",
-      "Scan.*columns=\\[`columns`\\[0\\], `columns`\\[1\\]\\]"};
+      "Scan.*columns=\\[`columns`\\]"};
     final String[] excludedPatterns = {"Scan.*columns=\\[`\\*`\\]"};
     PlanTestBase.testPlanMatchingPatterns(query, expectedPlan, excludedPatterns);
 

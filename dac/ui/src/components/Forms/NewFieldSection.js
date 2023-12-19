@@ -47,11 +47,11 @@ export default class NewFieldSection extends Component {
 
   static validate(values) {
     return applyValidators(values, [
-      isRequired("newFieldName", la("New Field Name")),
+      isRequired("newFieldName", laDeprecated("New Field Name")),
     ]);
   }
 
-  componentWillMount() {
+  UNSAFE_componentWillMount() {
     const { dropSourceField } = this.props.fields;
     this.managePostfix(dropSourceField.value);
   }
@@ -98,12 +98,12 @@ export default class NewFieldSection extends Component {
         <FieldWithError
           {...newFieldName}
           errorPlacement="bottom"
-          label={la("New Field Name")}
+          label={laDeprecated("New Field Name")}
         >
           <PrevalidatedTextField {...newFieldName} className={text} />
         </FieldWithError>
         {showDropSource && (
-          <FieldWithError label={la("Options")} {...dropSourceField}>
+          <FieldWithError label={laDeprecated("Options")} {...dropSourceField}>
             <Checkbox
               {...dropSourceField}
               onChange={this.handleCheckboxChange}

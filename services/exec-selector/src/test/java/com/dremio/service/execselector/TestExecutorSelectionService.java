@@ -128,7 +128,7 @@ public class TestExecutorSelectionService {
     }
   }
 
-  private static class TestExecutorSelectorFactory implements ExecutorSelectorFactory {
+  private static final class TestExecutorSelectorFactory implements ExecutorSelectorFactory {
     @Override
     public ExecutorSelector createExecutorSelector(String selectorType, ReentrantReadWriteLock rwLock) {
       return new TestExecutorSelector(selectorType);

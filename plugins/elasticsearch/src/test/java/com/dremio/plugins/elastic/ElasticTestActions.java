@@ -15,6 +15,9 @@
  */
 package com.dremio.plugins.elastic;
 
+import static com.dremio.plugins.elastic.ElasticActions.APPLICATION_ES_JSON;
+import static com.dremio.plugins.elastic.ElasticActions.addHeader;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -46,9 +49,11 @@ public class ElasticTestActions {
     }
 
     @Override
-    Result getResult(WebTarget target) {
+    Result getResult(WebTarget target, int version) {
       String settingsString = toString();
-      return new JsonResult(target.path(index).request().buildPut(Entity.json(settingsString)).invoke(byte[].class));
+      return new JsonResult(target.path(index).request().buildPut(
+        version == 8 ? Entity.entity(settingsString, APPLICATION_ES_JSON) : Entity.json(settingsString)
+    ).invoke(byte[].class));
     }
 
     @Override
@@ -134,8 +139,10 @@ public class ElasticTestActions {
     }
 
     @Override
-    public Result getResult(WebTarget target) {
-      return new JsonResult(target.path("_aliases").request().buildPost(Entity.json(toString())).invoke(byte[].class));
+    public Result getResult(WebTarget target, int version) {
+      return new JsonResult(target.path("_aliases").request().buildPost(
+        version == 8 ? Entity.entity(toString(), APPLICATION_ES_JSON) : Entity.json(toString())
+      ).invoke(byte[].class));
     }
 
     @Override
@@ -165,15 +172,17 @@ public class ElasticTestActions {
     }
 
     @Override
-    Invocation buildRequest(WebTarget initial, ContextListener context, boolean enable7vFeatures) {
+    Invocation buildRequest(WebTarget initial, ContextListener context, int version) {
       final WebTarget target;
-      if(enable7vFeatures) {
+      if (version >= 7) { // Extra parameter needed for ES V7 onwards
         target = initial.path(index).path("_mapping").path(type).queryParam("include_type_name", true);
       } else {
         target = initial.path(index).path("_mapping").path(type);
       }
       context.addContext(target);
-      return target.request().buildPut(Entity.json(mapping));
+
+      Invocation.Builder builder = addHeader(target.request(), version, false);
+      return builder.buildPut(version == 8 ? Entity.entity(mapping, APPLICATION_ES_JSON) : Entity.json(mapping));
     }
   }
 
@@ -186,9 +195,14 @@ public class ElasticTestActions {
     }
 
     @Override
-    public Result getResult(WebTarget target) {
+    public Result getResult(WebTarget target, int version) {
       String bulkRequest = toString();
-      return new JsonResult(target.path("_bulk").queryParam("refresh", true).request().buildPost(Entity.json(bulkRequest)).invoke(byte[].class));
+
+      Invocation.Builder builder = addHeader(target.path("_bulk").queryParam("refresh", true).request(),
+        version,false);
+      return new JsonResult(builder.buildPost(
+          version == 8 ? Entity.entity(bulkRequest, APPLICATION_ES_JSON) : Entity.json(bulkRequest))
+        .invoke(byte[].class));
     }
 
     @Override
@@ -205,8 +219,9 @@ public class ElasticTestActions {
     }
 
     @Override
-    public Result getResult(WebTarget target) {
-      return new JsonResult(target.path(index).request().buildDelete().invoke(byte[].class));
+    public Result getResult(WebTarget target, int version) {
+      Invocation.Builder builder = addHeader(target.path(index).request(), version, false);
+      return new JsonResult(builder.buildDelete().invoke(byte[].class));
     }
   }
 
@@ -230,7 +245,7 @@ public class ElasticTestActions {
     }
 
     @Override
-    public Result getResult(WebTarget target) {
+    public Result getResult(WebTarget target, int version) {
       WebTarget t = target;
       target.path(Joiner.on(",").join(indexes)).path("_mapping");
       if (indexes.size() > 0) {
@@ -241,7 +256,8 @@ public class ElasticTestActions {
         t = t.path(Joiner.on(",").join(types));
       }
       try {
-        return new JsonResult(t.request().buildGet().invoke(byte[].class));
+        Invocation.Builder builder = addHeader(t.request(), version, false);
+        return new JsonResult(builder.buildGet().invoke(byte[].class));
       } catch (WebApplicationException e) {
         return new FailureResult(e.getResponse().getStatus(), e.getMessage());
       }

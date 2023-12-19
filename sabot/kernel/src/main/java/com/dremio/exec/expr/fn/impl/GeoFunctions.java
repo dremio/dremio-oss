@@ -190,7 +190,7 @@ public class GeoFunctions {
 
     }
   }
-  @FunctionTemplate(name = "st_fromgeohash", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, isDeterministic = false, derivation = ListOfGeo.class)
+  @FunctionTemplate(name = "st_fromgeohash", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, derivation = ListOfGeo.class)
   public static class GeoHashDecode implements SimpleFunction {
     @Param
     NullableVarCharHolder encoded;

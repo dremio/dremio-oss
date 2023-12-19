@@ -29,8 +29,8 @@ public class CacheManagerStoragePluginIterator implements Iterator<Object> {
   private final Iterator<CacheManagerStoragePluginInfo> iter;
 
   CacheManagerStoragePluginIterator(SabotContext sabotContext, OperatorContext operatorContext) {
-    iter = (sabotContext.getFileSystemWrapper() instanceof CacheManagerStatsProvider) ?
-        ((CacheManagerStatsProvider) sabotContext.getFileSystemWrapper()).getStoragePluginStats().iterator() :
+    iter = sabotContext.getFileSystemWrapper().isWrapperFor(CacheManagerStatsProvider.class) ?
+        sabotContext.getFileSystemWrapper().unwrap(CacheManagerStatsProvider.class).getStoragePluginStats().iterator() :
         Collections.EMPTY_LIST.iterator();
   }
 

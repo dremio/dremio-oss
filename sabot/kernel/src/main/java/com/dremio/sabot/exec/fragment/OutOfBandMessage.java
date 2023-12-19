@@ -18,7 +18,6 @@ package com.dremio.sabot.exec.fragment;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 
 import org.apache.arrow.memory.ArrowBuf;
 
@@ -27,6 +26,7 @@ import com.dremio.exec.proto.ExecRPC.OOBMessage;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.rpc.Acks;
 import com.dremio.exec.rpc.Response;
+import com.google.common.base.Preconditions;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageLite;
@@ -46,6 +46,11 @@ public class OutOfBandMessage {
   private final boolean isOptional;
   private final boolean isShrinkMemoryRequest;
   private volatile ArrowBuf[] buffers;
+  //OutOfBandMessage may have data buffers, those buffers can be merged into one
+  //bigger buffer when transmitting with RPC-based OOB. Buffers are unmerged if
+  //transmitting with in-process-tunnel based OOB.
+  //To restore original buffers, record each buffer length at construction time.
+  private final List<Integer> originalBufferLengths;
 
   public QueryId getQueryId() {
     return queryId;
@@ -79,14 +84,31 @@ public class OutOfBandMessage {
     return buffers;
   }
 
-  public Optional<ArrowBuf> getIfSingleBuffer() {
-    if (buffers == null || buffers.length != 1) {
-      return Optional.empty();
+  public List<ArrowBuf> getOriginalBuffers(){
+    List<ArrowBuf> result = new ArrayList<ArrowBuf>();
+    if(buffers == null || buffers.length == 0){
+      return result;
     }
 
-    return Optional.ofNullable(buffers[0]);
-  }
+    Preconditions.checkState(originalBufferLengths != null && originalBufferLengths.size() != 0);
 
+    // multi buffer case
+    if(buffers.length > 1){
+      Preconditions.checkState(buffers.length == originalBufferLengths.size());
+      result.addAll(Arrays.asList(buffers));
+      return result;
+    }
+
+    // single buffer case
+    long offset = 0L;
+    ArrowBuf buffer = buffers[0];
+    for (Integer length : originalBufferLengths) {
+      Preconditions.checkState(buffer.capacity() >= offset + length);
+      result.add(buffer.slice(offset, length));
+      offset += length;
+    }
+    return result;
+  }
   public <T> T getPayload(Parser<T> parser) {
     try {
       T obj = parser.parseFrom(payload.bytes);
@@ -105,11 +127,7 @@ public class OutOfBandMessage {
 
   public boolean getIsOptional() { return isOptional; }
 
-  public OutOfBandMessage(final OOBMessage message, final ArrowBuf body) {
-    this(message, body == null ? new ArrowBuf[0] : new ArrowBuf[] {body});
-  }
-
-  private OutOfBandMessage(final OOBMessage message, final ArrowBuf[] bodyBufs) {
+  public OutOfBandMessage(final OOBMessage message, final ArrowBuf[] bodyBufs) {
     queryId = message.getQueryId();
     operatorId = message.getReceivingOperatorId();
     majorFragmentId = message.getReceivingMajorFragmentId();
@@ -122,6 +140,7 @@ public class OutOfBandMessage {
     payload = new Payload(message.getType(), message.getData().toByteArray());
     isOptional = message.hasIsOptional() ? message.getIsOptional() : true;
     buffers = bodyBufs;
+    originalBufferLengths = message.getOriginalBufferLengthList();
   }
 
   public OOBMessage toProtoMessage() {
@@ -143,13 +162,14 @@ public class OutOfBandMessage {
     builder.setType(payload.type);
     builder.setIsOptional(isOptional);
     builder.setShrinkMemoryRequest(isShrinkMemoryRequest);
+    builder.addAllOriginalBufferLength(originalBufferLengths);
     return builder.build();
   }
 
   public OutOfBandMessage(QueryId queryId, int majorFragmentId, List<Integer> targetMinorFragmentIds, int operatorId,
                           int sendingMinorFragmentId, Payload payload, boolean isOptional) {
     this(queryId, majorFragmentId, targetMinorFragmentIds, operatorId,
-      -1, sendingMinorFragmentId, -1, payload, null, isOptional, false);
+      -1, sendingMinorFragmentId, -1, payload, null, null, isOptional, false);
   }
 
   static List<Integer> createMinorFragmentList(int sendingMinorFragmentId) {
@@ -163,20 +183,21 @@ public class OutOfBandMessage {
    */
   public OutOfBandMessage(QueryId queryId, int sendingMajorFragmentId, int sendingMinorFragmentId, int operatorId, Payload payload) {
     this(queryId, sendingMajorFragmentId, createMinorFragmentList(sendingMinorFragmentId), operatorId,
-      sendingMajorFragmentId, sendingMinorFragmentId, -1, payload, null, false, true);
+      sendingMajorFragmentId, sendingMinorFragmentId, -1, payload, null, null, false, true);
   }
 
   public OutOfBandMessage(QueryId queryId, int majorFragmentId, List<Integer> targetMinorFragmentIds, int operatorId,
-      int sendingMajorFragmentId, int sendingMinorFragmentId, int sendingOperatorId, Payload payload, ArrowBuf[] buffers,
-      boolean isOptional) {
+                          int sendingMajorFragmentId, int sendingMinorFragmentId, int sendingOperatorId, Payload payload,
+                          ArrowBuf[] buffers, List<Integer> originalBufferLengths, boolean isOptional) {
     this(queryId, majorFragmentId, targetMinorFragmentIds, operatorId,
       sendingMajorFragmentId, sendingMinorFragmentId, sendingOperatorId,
-      payload, buffers,
+      payload, buffers, originalBufferLengths,
       isOptional, false);
   }
 
   public OutOfBandMessage(QueryId queryId, int majorFragmentId, List<Integer> targetMinorFragmentIds, int operatorId,
-                          int sendingMajorFragmentId, int sendingMinorFragmentId, int sendingOperatorId, Payload payload, ArrowBuf[] buffers,
+                          int sendingMajorFragmentId, int sendingMinorFragmentId, int sendingOperatorId, Payload payload,
+                          ArrowBuf[] buffers, List<Integer> originalBufferLengths,
                           boolean isOptional, boolean isShrinkMemoryRequest) {
     super();
     this.queryId = queryId;
@@ -190,6 +211,7 @@ public class OutOfBandMessage {
     this.isOptional = isOptional;
     this.isShrinkMemoryRequest = isShrinkMemoryRequest;
     this.buffers = buffers;
+    this.originalBufferLengths = originalBufferLengths == null ? new ArrayList<>() : originalBufferLengths;
 
     // Caller is expected to release its own copy
     if (this.buffers != null && this.buffers.length > 0) {

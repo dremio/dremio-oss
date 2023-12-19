@@ -32,6 +32,7 @@ import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.dataset.proto.VirtualDataset;
@@ -60,7 +61,7 @@ public class TestCleanDatasetOrphans extends CleanBaseTest {
     Optional<LocalKVStoreProvider> providerOptional = CmdUtils.getKVStoreProvider(getDACConfig().getConfig());
     try (LocalKVStoreProvider provider = providerOptional.get()) {
       provider.start();
-      NamespaceService namespaceService = new NamespaceServiceImpl(provider.asLegacy());
+      NamespaceService namespaceService = new NamespaceServiceImpl(provider.asLegacy(), new CatalogStatusEventsImpl());
 
       // Add a dataset to home space
       final NamespaceKey homeKey = new HomePath(HomeName.getUserHomePath("user1")).toNamespaceKey();

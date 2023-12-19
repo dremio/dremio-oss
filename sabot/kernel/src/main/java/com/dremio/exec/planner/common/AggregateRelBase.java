@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.planner.common;
 
+import static com.dremio.exec.planner.sql.DremioSqlOperatorTable.ARRAY_AGG;
+
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -76,15 +78,19 @@ public abstract class AggregateRelBase extends Aggregate {
     return super.computeSelfCost(planner, mq);
   }
 
-  public boolean containsSupportedListAggCall() {
-    return containsListAggCall() && aggCalls.stream().anyMatch(this::isSupportedListAgg);
+  public boolean containsSupportedListAggregation() {
+    return containsListAggregation() && aggCalls.stream().anyMatch(this::isSupportedListAggregation);
   }
 
-  public boolean containsListAggCall() {
-    return aggCalls.stream().anyMatch(aggregateCall -> SqlKind.LISTAGG == aggregateCall.getAggregation().getKind());
+  public boolean containsListAggregation() {
+    return aggCalls.stream().anyMatch(aggregateCall -> SqlKind.LISTAGG.equals(aggregateCall.getAggregation().getKind()));
   }
 
-  public boolean isSupportedListAgg(AggregateCall call) {
+  public boolean containsArrayAgg() {
+    return aggCalls.stream().anyMatch(aggregateCall -> aggregateCall.getAggregation().equals(ARRAY_AGG));
+  }
+
+  public boolean isSupportedListAggregation(AggregateCall call) {
     // Currently, we only support order by for the column used as list_agg argument.
     final Set<Integer> args = new HashSet<>(call.getArgList());
     return call.getCollation().getFieldCollations().stream().allMatch(collation -> args.contains(collation.getFieldIndex()));

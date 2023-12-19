@@ -27,6 +27,7 @@ import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.ManagedStoragePlugin;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.service.namespace.source.proto.SourceConfig;
+import com.google.common.io.Files;
 
 /**
  * Test when the file limit is hit for directories when using external file systems.
@@ -38,9 +39,28 @@ public class TestMaxFileLimit extends TestSubPathFileSystemPlugin {
 
   @BeforeClass
   public static void setup() throws Exception {
-    testNoResult("alter system set \"%s\" = 1", FileDatasetHandle.DFS_MAX_FILES.getOptionName());
+    setDfsMaxFiles(1);
     TestSubPathFileSystemPlugin.generateTestData();
+    generateManyExcelFiles();
     addSubPathDfsExternalPlugin();
+  }
+
+  private static void setDfsMaxFiles(int maxFiles) throws Exception {
+    testNoResult("alter system set \"%s\" = " + maxFiles, FileDatasetHandle.DFS_MAX_FILES.getOptionName());
+  }
+
+  private static void generateManyExcelFiles() throws Exception {
+    File dstFolder = new File(storageBase, "largeExcel");
+    Files.createParentDirs(dstFolder);
+
+    String excelFilePath = System.getProperty("user.dir") + "/src/test/resources/test_folder_xlsx/simple.xlsx";
+    File srcFile = new File(excelFilePath);
+    int numFilesToCreate = 3;
+    for(int i = 0; i < numFilesToCreate; i++) {
+      File dstFile = new File(storageBase, "largeExcel/file" + i + ".xlsx");
+      Files.createParentDirs(dstFile);
+      Files.copy(srcFile, dstFile);
+    }
   }
 
   private static void addSubPathDfsExternalPlugin() throws Exception {
@@ -89,6 +109,28 @@ public class TestMaxFileLimit extends TestSubPathFileSystemPlugin {
     // Verify re-queryable after the delete.
     test("ALTER PDS subPathDfs.\"largeDir2\" REFRESH METADATA");
     test("SELECT * FROM subPathDfs.\"largeDir2\"");
+  }
+
+  @Test
+  public void testTooManyExcelFiles() throws Exception {
+    try (AutoCloseable changeMaxExcelFiles = withSystemOption(FileDatasetHandle.DFS_MAX_EXCEL_FILES, 2)) {
+      // Limit for CSV/JSON is 1
+      errorMsgTestHelper("SELECT * FROM subPathDfs.\"largeExcel\"",
+        "VALIDATION ERROR: Number of files in dataset 'largeExcel' contained 3 files which exceeds the maximum number of files of 2");
+
+      // Limit for CSV/JSON is 2
+      setDfsMaxFiles(2);
+      errorMsgTestHelper("SELECT * FROM subPathDfs.\"largeExcel\"",
+        "VALIDATION ERROR: Number of files in dataset 'largeExcel' contained 3 files which exceeds the maximum number of files of 2");
+
+      // Limit for CSV/JSON is 3
+      setDfsMaxFiles(3);
+      errorMsgTestHelper("SELECT * FROM subPathDfs.\"largeExcel\"",
+        "VALIDATION ERROR: Number of files in dataset 'largeExcel' contained 3 files which exceeds the maximum number of files of 2");
+      setDfsMaxFiles(1);
+    }
+
+    test("SELECT * FROM subPathDfs.\"largeExcel\"");
   }
 
   @AfterClass

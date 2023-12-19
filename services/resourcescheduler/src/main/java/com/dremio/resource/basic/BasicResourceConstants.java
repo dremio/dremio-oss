@@ -39,4 +39,5 @@ public interface BasicResourceConstants {
   TypeValidators.LongValidator REFLECTION_LARGE_QUEUE_SIZE = new TypeValidators.RangeLongValidator("reflection.queue.large", 0, 100, 1);
   TypeValidators.LongValidator REFLECTION_SMALL_QUEUE_SIZE = new TypeValidators.RangeLongValidator("reflection.queue.small", 0, 10000, 10);
   TypeValidators.LongValidator QUEUE_THRESHOLD_SIZE = new TypeValidators.PositiveLongValidator("exec.queue.threshold", Long.MAX_VALUE, 30000000);
+  TypeValidators.BooleanValidator QUEUE_WAIT_SLICING = new TypeValidators.BooleanValidator("exec.queue.sliced_wait", true);
 }

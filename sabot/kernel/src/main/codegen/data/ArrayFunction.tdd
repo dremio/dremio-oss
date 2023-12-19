@@ -1,0 +1,24 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+{
+  types: [
+    {typeName: "INTEGER", holder: "NullableIntHolder", holderForSum: "NullableBigIntHolder", arrowType: "INT", readValue: "readInteger", javaType: "int", initialMaxValue: "Integer.MIN_VALUE", initialMinValue: "Integer.MAX_VALUE"},
+    {typeName: "BIGINT", holder: "NullableBigIntHolder", holderForSum: "NullableBigIntHolder", arrowType: "BIGINT", readValue: "readLong", javaType: "long", initialMaxValue: "Long.MIN_VALUE", initialMinValue: "Long.MAX_VALUE"},
+    {typeName: "FLOAT", holder: "NullableFloat4Holder", holderForSum: "NullableFloat8Holder", arrowType: "FLOAT4", readValue: "readFloat", javaType: "float", initialMaxValue: "Float.MIN_VALUE", initialMinValue: "Float.MAX_VALUE"},
+    {typeName: "DOUBLE", holder: "NullableFloat8Holder", holderForSum: "NullableFloat8Holder", arrowType: "FLOAT8", readValue: "readDouble", javaType: "double", initialMaxValue: "Double.MIN_VALUE", initialMinValue: "Double.MAX_VALUE"},
+  ]
+}

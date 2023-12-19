@@ -58,25 +58,22 @@ public class SpillServiceImpl implements SpillService {
   private static final String DREMIO_LOCAL_IMPL_STRING = "fs.dremio-local.impl";
   private static final String DREMIO_LOCAL_SCHEME = "dremio-local";
   private static final String LOCAL_SCHEME = "file";
-  public static final Configuration SPILLING_CONFIG;
+
+  private static volatile Configuration SPILLING_CONFIG = null;
+  private static final Object SPILLING_SYNC_OBJECT = new Object();
 
   private static final String TEMP_FOLDER_PURPOSE = "spilling";
 
-  static {
-    SPILLING_CONFIG = new Configuration();
-    SPILLING_CONFIG.set(DREMIO_LOCAL_IMPL_STRING, LocalSyncableFileSystem.class.getName());
-    SPILLING_CONFIG.set("fs.file.impl", LocalSyncableFileSystem.class.getName());
-    SPILLING_CONFIG.set("fs.file.impl.disable.cache", "true");
-    // If the location URI doesn't contain any schema, fall back to local.
-    SPILLING_CONFIG.set(FileSystem.FS_DEFAULT_NAME_KEY, FileSystem.DEFAULT_FS);
-  }
   private static final FsPermission PERMISSIONS = new FsPermission(FsAction.ALL, FsAction.NONE, FsAction.NONE);
 
   private final ArrayList<String> spillDirs;
   private final SpillServiceOptions options;
   private final Provider<SchedulerService> schedulerService;
-  private final TemporaryFolderManager folderManager;
-  private final Map<String, Path> monitoredSpillDirectoryMap;
+  private final Provider<NodeEndpoint> identityProvider;
+  private final Provider<Iterable<NodeEndpoint>> nodesProvider;
+
+  private TemporaryFolderManager folderManager;
+  private Map<String, Path> monitoredSpillDirectoryMap;
 
   private long minDiskSpace;
   private double minDiskSpacePercentage;
@@ -106,6 +103,8 @@ public class SpillServiceImpl implements SpillService {
     this.spillDirs = new ArrayList<>(config.getStringList(DremioConfig.SPILLING_PATH_STRING));
     this.options = options;
     this.schedulerService = schedulerService;
+    this.identityProvider = identityProvider;
+    this.nodesProvider = nodesProvider;
     // Option values set at start
     minDiskSpace = 0;
     minDiskSpacePercentage = 0;
@@ -113,10 +112,37 @@ public class SpillServiceImpl implements SpillService {
     spillSweepInterval = 0;
     spillSweepThreshold = 0;
     healthCheckEnabled = false;
+  }
+
+  public static Configuration getSpillingConfig() {
+    if (SPILLING_CONFIG != null) {
+      return SPILLING_CONFIG;
+    }
+    synchronized (SPILLING_SYNC_OBJECT) {
+      if (SPILLING_CONFIG == null) {
+        SPILLING_CONFIG = new Configuration();
+        SPILLING_CONFIG.set(DREMIO_LOCAL_IMPL_STRING, LocalSyncableFileSystem.class.getName());
+        SPILLING_CONFIG.set("fs.file.impl", LocalSyncableFileSystem.class.getName());
+        SPILLING_CONFIG.set("fs.file.impl.disable.cache", "true");
+        // If the location URI doesn't contain any schema, fall back to local.
+        SPILLING_CONFIG.set(FileSystem.FS_DEFAULT_NAME_KEY, FileSystem.DEFAULT_FS);
+        logger.info("initialized spilling config {}", SPILLING_CONFIG);
+      }
+      return SPILLING_CONFIG;
+    }
+  }
+
+  @Override
+  public void start() throws Exception {
+    // TODO: Implement the following:
+    // TODO: 1. global pool of compression buffers
+    // TODO: 2. pool of I/O completion threads (Note: for local FS only)
+    // TODO: 3. create the spill filesystem adapter
+
     for (String spillDir : this.spillDirs) {
       try {
         final Path spillDirPath = new Path(spillDir);
-        final FileSystem fileSystem = spillDirPath.getFileSystem(SPILLING_CONFIG);
+        final FileSystem fileSystem = spillDirPath.getFileSystem(getSpillingConfig());
         healthCheckEnabled = healthCheckEnabled || isHealthCheckEnabled(fileSystem.getUri().getScheme());
       } catch (Exception ignored) {}
     }
@@ -128,16 +154,9 @@ public class SpillServiceImpl implements SpillService {
       (nodesProvider == null) ? null : () -> convertEndpointsToId(nodesProvider);
     final Supplier<ExecutorId> identityConverter =
       (identityProvider == null) ? null : () -> convertEndpointToId(identityProvider);
-    this.folderManager = new DefaultTemporaryFolderManager(identityConverter, SPILLING_CONFIG, nodesConverter,
+    this.folderManager = new DefaultTemporaryFolderManager(identityConverter, getSpillingConfig(), nodesConverter,
       TEMP_FOLDER_PURPOSE);
-  }
 
-  @Override
-  public void start() throws Exception {
-    // TODO: Implement the following:
-    // TODO: 1. global pool of compression buffers
-    // TODO: 2. pool of I/O completion threads (Note: for local FS only)
-    // TODO: 3. create the spill filesystem adapter
     minDiskSpace = options.minDiskSpace();
     minDiskSpacePercentage = options.minDiskSpacePercentage();
     healthCheckInterval = options.healthCheckInterval();
@@ -152,7 +171,7 @@ public class SpillServiceImpl implements SpillService {
     for (String spillDir : this.spillDirs) {
       try {
         final Path spillDirPath = new Path(spillDir);
-        final FileSystem fileSystem = spillDirPath.getFileSystem(SPILLING_CONFIG);
+        final FileSystem fileSystem = spillDirPath.getFileSystem(getSpillingConfig());
         if (fileSystem.exists(spillDirPath) || fileSystem.mkdirs(spillDirPath, PERMISSIONS)) {
           monitoredSpillDirectoryMap.put(spillDir, folderManager.createTmpDirectory(spillDirPath));
           if (healthCheckEnabled) {
@@ -163,7 +182,7 @@ public class SpillServiceImpl implements SpillService {
         }
       } catch (Exception e) {
         logger.info("Sub directory creation in spill directory {} hit a temporary error `{}` " +
-            "and is not added to healthy list. Will monitor periodically", spillDir, e.getMessage());
+          "and is not added to healthy list. Will monitor periodically", spillDir, e.getMessage());
       }
     }
 
@@ -194,7 +213,7 @@ public class SpillServiceImpl implements SpillService {
         // this will not be null
         final Path tmpPath = monitoredSpillDirectoryMap.get(directory);
         final Path spillDirPath = new Path(tmpPath, id);
-        FileSystem fileSystem = spillDirPath.getFileSystem(SPILLING_CONFIG);
+        FileSystem fileSystem = spillDirPath.getFileSystem(getSpillingConfig());
         if (!fileSystem.mkdirs(spillDirPath, PERMISSIONS)) {
           //TODO: withContextParameters()
           throw UserException.dataWriteError()
@@ -224,7 +243,7 @@ public class SpillServiceImpl implements SpillService {
           continue;
         }
         final Path spillDirPath = new Path(monitoredPath, id);
-        FileSystem fileSystem = spillDirPath.getFileSystem(SPILLING_CONFIG);
+        FileSystem fileSystem = spillDirPath.getFileSystem(getSpillingConfig());
         fileSystem.delete(spillDirPath, true);
       } catch (Exception e) {
         // Failed to delete the spill directory. Ignored -- this might be a directory that became healthy only
@@ -238,7 +257,7 @@ public class SpillServiceImpl implements SpillService {
   public boolean isEmpty() throws IOException {
     for (String directory : spillDirs) {
       final Path monitoredPath = monitoredSpillDirectoryMap.get(directory);
-      FileSystem fileSystem = monitoredPath.getFileSystem(SPILLING_CONFIG);
+      FileSystem fileSystem = monitoredPath.getFileSystem(getSpillingConfig());
       if (fileSystem.listFiles(monitoredPath, true).hasNext()) {
         return false;
       }
@@ -259,7 +278,7 @@ public class SpillServiceImpl implements SpillService {
       if (isHealthy(spillDirPath) && monitoredPath != null) {
         try {
           //TODO: track number of spills created in 'spillDir'
-          FileSystem fileSystem = spillDirPath.getFileSystem(SPILLING_CONFIG);
+          FileSystem fileSystem = spillDirPath.getFileSystem(getSpillingConfig());
           final Path spillSubdir = new Path(monitoredPath, id);
           return new SpillDirectory(spillSubdir, fileSystem);
         } catch (IOException e) {
@@ -367,7 +386,7 @@ public class SpillServiceImpl implements SpillService {
           // nothing to sweep
           return;
         }
-        FileSystem fileSystem = spillDirPath.getFileSystem(SPILLING_CONFIG);
+        FileSystem fileSystem = spillDirPath.getFileSystem(getSpillingConfig());
         RemoteIterator<LocatedFileStatus> files = fileSystem.listLocatedStatus(spillDirPath);
         while (files.hasNext()) {
           LocatedFileStatus st = files.next();

@@ -29,6 +29,9 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.mockito.quality.Strictness;
 
+import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.server.BufferAllocatorFactory;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
@@ -36,6 +39,7 @@ import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.plugins.dataplane.store.DataplanePlugin;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.dataset.proto.DatasetType;
 
 /**
  * Unit Tests for {@link DatasetResource}
@@ -71,11 +75,29 @@ public class TestDatasetResource {
   public void testValidatePrivilegeWithinDroppingViewForVersionedSource() {
     when(datasetService.getCatalog()).thenReturn(catalog);
     when(catalog.getSource(Mockito.anyString())).thenReturn(dataplanePlugin);
+    when(catalog.resolveVersionContext(Mockito.anyString(), Mockito.any(VersionContext.class)))
+      .thenReturn(ResolvedVersionContext.ofBranch("main", "abc123"));
+    when(catalog.getDatasetType(Mockito.any(CatalogEntityKey.class))).thenReturn(DatasetType.VIRTUAL_DATASET);
     try {
       datasetResource.deleteDataset(null, "BRANCH", "main");
     } catch (Exception ex) {
       //ignoring this exception as the test is to verify the catalog.validatePrivilege call
     }
     verify(catalog).validatePrivilege(new NamespaceKey(datasetPath.toPathList()), SqlGrant.Privilege.ALTER);
+  }
+
+  @Test
+  public void testValidatePrivilegeWithinDroppingTableForVersionedSource() {
+    when(datasetService.getCatalog()).thenReturn(catalog);
+    when(catalog.getSource(Mockito.anyString())).thenReturn(dataplanePlugin);
+    when(catalog.resolveVersionContext(Mockito.anyString(), Mockito.any(VersionContext.class)))
+      .thenReturn(ResolvedVersionContext.ofBranch("main", "abc123"));
+    when(catalog.getDatasetType(Mockito.any(CatalogEntityKey.class))).thenReturn(DatasetType.PHYSICAL_DATASET);
+    try {
+      datasetResource.deleteDataset(null, "BRANCH", "main");
+    } catch (Exception ex) {
+      //ignoring this exception as the test is to verify the catalog.validatePrivilege call
+    }
+    verify(catalog).validatePrivilege(new NamespaceKey(datasetPath.toPathList()), SqlGrant.Privilege.DROP);
   }
 }

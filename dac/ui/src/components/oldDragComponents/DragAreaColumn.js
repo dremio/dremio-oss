@@ -76,7 +76,7 @@ class DragAreaColumn extends PureComponent {
     };
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     if (nextProps.item.get("action") === COUNT_ACTION) {
       this.setState({
         fieldDisabled: true,
@@ -234,7 +234,7 @@ class DragAreaColumn extends PureComponent {
             <input
               style={{ ...styles.search, ...formPlaceholder, fontSize: 11 }}
               onChange={this.handlePatternChange.bind(this)}
-              placeholder={la("Choose field…")}
+              placeholder={laDeprecated("Choose field…")}
             />
             <FontIcon type="Search" theme={styles.icon} />
           </div>

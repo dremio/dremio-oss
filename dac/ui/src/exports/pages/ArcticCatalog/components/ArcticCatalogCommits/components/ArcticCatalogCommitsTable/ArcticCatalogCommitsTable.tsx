@@ -23,8 +23,11 @@ import { Reference } from "@app/types/nessie";
 import NewBranchDialog from "@app/pages/NessieHomePage/components/NewBranchDialog/NewBranchDialog";
 import NewTagDialog from "@app/pages/NessieHomePage/components/NewTagDialog/NewTagDialog";
 import { ArcticCatalogTabsType } from "@app/exports/pages/ArcticCatalog/ArcticCatalog";
+import { useResourceSnapshot } from "smart-resource/react";
+import { ArcticCatalogPrivilegesResource } from "@inject/arctic/resources/ArcticCatalogPrivilegesResource";
 
 import "./ArcticCatalogCommitsTable.less";
+import { SmartResource } from "smart-resource1";
 
 const INITIAL_BRANCH_STATE_VALUE = {
   openDialog: false,
@@ -58,6 +61,9 @@ function ArcticCatalogCommitsTable({
   );
   const [tagDialogState, setTagDialogState] = useState(INITIAL_TAG_STATE_VALUE);
 
+  const [catalogPrivileges] = useResourceSnapshot(
+    ArcticCatalogPrivilegesResource || new SmartResource(() => null)
+  );
   const closeDialog = () => {
     setBranchDialogState(INITIAL_BRANCH_STATE_VALUE);
     setTagDialogState(INITIAL_TAG_STATE_VALUE);
@@ -70,10 +76,16 @@ function ArcticCatalogCommitsTable({
   };
 
   const tableData = useMemo(() => {
-    return generateTableRows(commits, goToDataTab, handleOpenDialog, {
-      name: reference?.name,
-    });
-  }, [commits, reference, goToDataTab]);
+    return generateTableRows(
+      commits,
+      goToDataTab,
+      handleOpenDialog,
+      {
+        name: reference?.name,
+      },
+      catalogPrivileges
+    );
+  }, [commits, reference, goToDataTab, catalogPrivileges]);
 
   return (
     <>

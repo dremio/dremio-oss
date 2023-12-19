@@ -41,7 +41,7 @@ public class TestDeltaMetadataFetchJobProducer {
 
     FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
 
-    DeltaMetadataFetchJobProducer producer = new DeltaMetadataFetchJobProducer(null, null, metaDir, 0L, 1L, true);
+    DeltaMetadataFetchJobProducer producer = new DeltaMetadataFetchJobProducer(null, null, metaDir, DeltaVersion.ofCheckpoint(0L, 1));
 
     assertTrue(producer.hasNext());
     DeltaMetadataFetchJob job = producer.next();
@@ -65,7 +65,7 @@ public class TestDeltaMetadataFetchJobProducer {
 
     FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
 
-    DeltaMetadataFetchJobProducer producer = new DeltaMetadataFetchJobProducer(null, null, metaDir, 4L, 1L, false);
+    DeltaMetadataFetchJobProducer producer = new DeltaMetadataFetchJobProducer(null, null, metaDir, DeltaVersion.of(4L));
 
     assertTrue(producer.hasNext());
     DeltaMetadataFetchJob job = producer.next();
@@ -87,34 +87,34 @@ public class TestDeltaMetadataFetchJobProducer {
     // Any dummy path will do for this test
     FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
 
-    DeltaMetadataFetchJobProducer producer1 = new DeltaMetadataFetchJobProducer(null, null, metaDir, 4L, 1L, true);
+    DeltaMetadataFetchJobProducer producer1 = new DeltaMetadataFetchJobProducer(null, null, metaDir, DeltaVersion.ofCheckpoint(4L, 1));
 
     DeltaMetadataFetchJob job = producer1.next();
     //Moving forward then first job should be a checkpoint read
-    assertEquals(job.tryCheckpointRead, true);
+    assertEquals(job.isTryCheckpointRead(), true);
 
     //Now other jobs should be commit reads
     job = producer1.next();
-    assertEquals(job.tryCheckpointRead, false);
+    assertEquals(job.isTryCheckpointRead(), false);
 
     job = producer1.next();
-    assertEquals(job.tryCheckpointRead, false);
+    assertEquals(job.isTryCheckpointRead(), false);
 
 
-    DeltaMetadataFetchJobProducer producer2 = new DeltaMetadataFetchJobProducer(null, null, metaDir, 0L, 1L, true);
+    DeltaMetadataFetchJobProducer producer2 = new DeltaMetadataFetchJobProducer(null, null, metaDir, DeltaVersion.ofCheckpoint(0L, 1));
 
     job = producer2.next();
     //starting from 0 then even the first job should be commit read
-    assertEquals(job.tryCheckpointRead, true);
+    assertEquals(job.isTryCheckpointRead(), true);
 
     job = producer2.next();
-    assertEquals(job.tryCheckpointRead, false);
+    assertEquals(job.isTryCheckpointRead(), false);
 
-    DeltaMetadataFetchJobProducer producer3 = new DeltaMetadataFetchJobProducer(null, null, metaDir, 9L, 1L, false);
+    DeltaMetadataFetchJobProducer producer3 = new DeltaMetadataFetchJobProducer(null, null, metaDir, DeltaVersion.of(9L));
     //Moving backwards then we will try and read both
     while(producer3.hasNext()) {
       job = producer3.next();
-      assertEquals(job.tryCheckpointRead, true);
+      assertEquals(job.isTryCheckpointRead(), true);
     }
   }
 }

@@ -23,6 +23,7 @@ export const LOAD_RESOURCE_TREE_SUCCESS = "LOAD_RESOURCE_TREE_SUCCESS";
 export const LOAD_RESOURCE_TREE_FAILURE = "LOAD_RESOURCE_TREE_FAILURE";
 
 export const CLEAR_RESOURCE_TREE_BY_NAME = "CLEAR_RESOURCE_TREE_BY_NAME";
+export const CLEAR_RESOURCE_TREE = "CLEAR_RESOURCE_TREE";
 
 export const clearResourceTreeByName = (rootNodeName, fromModal) => {
   return {
@@ -31,11 +32,25 @@ export const clearResourceTreeByName = (rootNodeName, fromModal) => {
   };
 };
 
+export const clearResourceTree = (fromModal) => {
+  return {
+    type: CLEAR_RESOURCE_TREE,
+    payload: { fromModal },
+  };
+};
+
 const fetchResourceTree = (
   storageName,
   viewId,
   fullPath,
-  { showDatasets, showSpaces, showSources, showHomes, isExpand },
+  {
+    showDatasets,
+    showSpaces,
+    showSources,
+    showHomes,
+    isExpand,
+    refQueryParams,
+  },
   nodeExpanded,
   currNode,
   fromModal
@@ -56,7 +71,8 @@ const fetchResourceTree = (
   }
 
   apiCall.params({
-    ...getRefQueryParamsFromPath(fullPath, store.getState().nessie),
+    ...(refQueryParams ||
+      getRefQueryParamsFromPath(fullPath, store.getState().nessie)),
     showDatasets,
     showSources,
     showSpaces,

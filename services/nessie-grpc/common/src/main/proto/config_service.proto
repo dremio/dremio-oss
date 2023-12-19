@@ -26,6 +26,8 @@ import "google/protobuf/timestamp.proto";
 
 service ConfigService {
   rpc getConfig (Empty) returns (NessieConfiguration) {}
+  rpc getRepositoryConfig (RepositoryConfigRequest) returns (RepositoryConfigResponse) {}
+  rpc updateRepositoryConfig (UpdateRepositoryConfigRequest) returns (UpdateRepositoryConfigResponse) {}
 }
 
 message NessieConfiguration {
@@ -39,3 +41,21 @@ message NessieConfiguration {
   map<string, string> additionalProperties = 8;
   optional int32 actualApiVersion = 9;
 }
+
+message RepositoryConfigRequest {
+  repeated string typeName = 1;
+}
+
+message RepositoryConfigResponse {
+  // Note: Repository Config JSON representation is controlled by deployable type bundles.
+  repeated string configJson = 1;
+}
+
+message UpdateRepositoryConfigRequest {
+  string configJson = 1;
+}
+
+message UpdateRepositoryConfigResponse {
+  optional string previousConfigJson = 1;
+}
+

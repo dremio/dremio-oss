@@ -22,11 +22,15 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.ClassUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -238,15 +242,22 @@ public class SourceTypeTemplate {
   }
 
   private static Iterable<Field> getAllFields(Class<?> clazz) {
-    List<Field> fields = new ArrayList<>();
-
-    fields.addAll(Arrays.asList(clazz.getDeclaredFields()));
-
+    Map<Pair<String, Class<?>>, Field> superClassFieldsMap = new LinkedHashMap<>();
     Class<?> superClass = clazz.getSuperclass();
-    if (superClass == null || superClass == Object.class) {
-      return fields;
+    if (superClass != null && superClass != Object.class) {
+      // get the fields from the superclass first
+      getAllFields(superClass).forEach(f -> superClassFieldsMap.put(Pair.of(f.getName(), f.getType()), f));
     }
-
-    return Iterables.concat(fields, getAllFields(superClass));
+    List<Field> fields = new LinkedList<>(Arrays.asList(clazz.getDeclaredFields()));
+    List<Field> subClassFields = new LinkedList<>();
+    for (Field field : fields) {
+      // check if a class field hides a field from the superclass
+      if (superClassFieldsMap.containsKey(Pair.of(field.getName(), field.getType()))) {
+          superClassFieldsMap.put(Pair.of(field.getName(), field.getType()), field);
+      } else {
+        subClassFields.add(field);
+      }
+    }
+    return Iterables.concat(superClassFieldsMap.values(), subClassFields);
   }
 }

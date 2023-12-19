@@ -55,6 +55,12 @@ public interface ProjectConfig {
   DistPathConfig getGandivaPersistentCacheConfig();
 
   /**
+   * Get copyintoerrors config
+   * @return config
+   */
+  DistPathConfig getSystemIcebergTablesConfig();
+
+  /**
    *
    * @return
    */

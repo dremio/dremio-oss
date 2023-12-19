@@ -88,7 +88,7 @@ export default function FormDirtyStateWatcher(Form) {
       });
     }
 
-    componentWillReceiveProps(nextProps) {
+    UNSAFE_componentWillReceiveProps(nextProps) {
       const dirty = nextProps.dirty || this.areArrayFieldsDirty(nextProps);
       let callBack = noop;
       if (this.state.dirty !== dirty) {

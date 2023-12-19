@@ -365,6 +365,6 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
       TimeTravelOption.TimeTravelRequest timeTravelRequest
   ) {
     return new ParquetFormatDatasetAccessor(type, fs, fileSelection, fsPlugin, tableSchemaPath, updateKey,
-        this, previousInfo, maxLeafColumns);
+        this, previousInfo, maxLeafColumns, context);
   }
 }

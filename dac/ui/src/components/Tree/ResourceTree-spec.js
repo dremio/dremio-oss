@@ -15,7 +15,7 @@
  */
 import { shallow } from "enzyme";
 import Immutable from "immutable";
-import ResourceTree from "./ResourceTree";
+import { ResourceTree } from "./ResourceTree";
 
 describe("ResourceTree", () => {
   let minimalProps;

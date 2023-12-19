@@ -97,7 +97,7 @@ const JobContextMenu = ({
         text={intl.formatMessage({ id: "Job.ContextMenu.NewTab" })}
       />
       <CopyToClipboard text={jobId} onCopy={handleCopy}>
-        <MenuItem classname={classes["keyboard-shortcut"]}>
+        <MenuItem className={classes["keyboard-shortcut"]}>
           <>
             {intl.formatMessage({ id: "Job.ContextMenu.CopyId" })}
             <span className={classes["keyboard-shortcut__cmd"]}>

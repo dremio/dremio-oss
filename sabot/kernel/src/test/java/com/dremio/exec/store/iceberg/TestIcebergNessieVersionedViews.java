@@ -31,17 +31,19 @@ import java.util.stream.Collectors;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.types.Types;
-import org.apache.iceberg.view.View;
-import org.apache.iceberg.view.ViewDefinition;
-import org.apache.iceberg.view.ViewUtils;
+import org.apache.iceberg.viewdepoc.View;
+import org.apache.iceberg.viewdepoc.ViewDefinition;
+import org.apache.iceberg.viewdepoc.ViewUtils;
 import org.junit.jupiter.api.Test;
 import org.projectnessie.model.ContentKey;
 import org.projectnessie.model.Namespace;
 import org.projectnessie.model.TableReference;
 
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.catalog.ResolvedVersionContext;
-import com.dremio.exec.catalog.VersionContext;
+import com.dremio.exec.store.iceberg.nessie.IcebergNessieVersionedViews;
+import com.dremio.plugins.NessieContent;
 import com.google.common.base.Joiner;
 
 public class TestIcebergNessieVersionedViews extends BaseIcebergViewTest {
@@ -78,6 +80,13 @@ public class TestIcebergNessieVersionedViews extends BaseIcebergViewTest {
   private static final List<String> existViewKey = Arrays.asList("exist", "foo", "bar");
   private static final List<String> nonGlobalMetadataViewKey =
       Arrays.asList("non_global_metadata", "foo", "bar");
+
+  private NessieContent fetchContent(List<String> key, String branch) {
+    ResolvedVersionContext versionContext = getVersion(branch);
+    Optional<NessieContent> nessieContent = nessieClient.getContent(key, versionContext, null);
+    assertThat(nessieContent).isPresent();
+    return nessieContent.get();
+  }
 
   @Test
   public void testCreateView() {
@@ -289,17 +298,17 @@ public class TestIcebergNessieVersionedViews extends BaseIcebergViewTest {
         ViewUtils.toCatalogTableIdentifier(VIEW_IDENTIFIER + "@" + GLOBAL_NEW_METADATA_BRANCH);
     nessieExtCatalog.replace(newViewIdentifier.toString(), newViewDefinition, Collections.emptyMap());
 
-    final ResolvedVersionContext versionContext = getVersion(GLOBAL_METADATA_BRANCH);
-    final ResolvedVersionContext newVersionContext = getVersion(GLOBAL_NEW_METADATA_BRANCH);
-
     final TableReference tr = TableReference.parse(viewIdentifier.name());
     List<String> viewPath = new ArrayList<>(Arrays.asList(viewIdentifier.namespace().levels()));
     viewPath.add(tr.getName());
 
-    final String metadataLocation = nessieClient.getMetadataLocation(viewPath, versionContext, null);
-    final String newMetadataLocation = nessieClient.getMetadataLocation(viewPath, newVersionContext, null);
+    NessieContent nessieContent = fetchContent(viewPath, GLOBAL_METADATA_BRANCH);
+    NessieContent newNessieContent = fetchContent(viewPath, GLOBAL_NEW_METADATA_BRANCH);
 
-    assertThat(metadataLocation).isNotEqualTo(newMetadataLocation);
+    assertThat(nessieContent.getMetadataLocation()).isPresent();
+    assertThat(newNessieContent.getMetadataLocation()).isPresent();
+
+    assertThat(nessieContent.getMetadataLocation()).isNotEqualTo(newNessieContent.getMetadataLocation());
 
     ViewDefinition firstDef = nessieExtCatalog.getViewCatalog().loadDefinition(viewIdentifier.toString());
     ViewDefinition secondDef = nessieExtCatalog.getViewCatalog().loadDefinition(newViewIdentifier.toString());
@@ -343,13 +352,13 @@ public class TestIcebergNessieVersionedViews extends BaseIcebergViewTest {
         Collections.emptyMap(),
         getVersion(NEW_NON_GLOBAL_METADATA_BRANCH));
 
-    final ResolvedVersionContext versionContext = getVersion(NON_GLOBAL_METADATA_BRANCH);
-    final ResolvedVersionContext newVersionContext = getVersion(NEW_NON_GLOBAL_METADATA_BRANCH);
+    NessieContent nessieContent = fetchContent(nonGlobalMetadataViewKey, NON_GLOBAL_METADATA_BRANCH);
+    NessieContent newNessieContent = fetchContent(nonGlobalMetadataViewKey, NEW_NON_GLOBAL_METADATA_BRANCH);
 
-    final String metadataLocation = nessieClient.getMetadataLocation(nonGlobalMetadataViewKey, versionContext, null);
-    final String newMetadataLocation = nessieClient.getMetadataLocation(nonGlobalMetadataViewKey, newVersionContext, null);
+    assertThat(nessieContent.getMetadataLocation()).isPresent();
+    assertThat(newNessieContent.getMetadataLocation()).isPresent();
 
-    assertThat(metadataLocation).isNotEqualTo(newMetadataLocation);
+    assertThat(nessieContent.getMetadataLocation()).isNotEqualTo(newNessieContent.getMetadataLocation());
   }
 
   @Test
@@ -366,10 +375,9 @@ public class TestIcebergNessieVersionedViews extends BaseIcebergViewTest {
         Collections.emptyMap(),
         getVersion(DIALECT_BRANCH));
 
-    final Optional<String> dialect = nessieClient.getViewDialect(createViewKey, getVersion(DIALECT_BRANCH));
-
-    assertThat(dialect.isPresent()).isTrue();
-    assertThat(dialect.get()).isEqualTo(icebergNessieVersionedViews.DIALECT);
+    NessieContent nessieContent = fetchContent(createViewKey, DIALECT_BRANCH);
+    assertThat(nessieContent.getViewDialect())
+      .contains(IcebergNessieVersionedViews.DIALECT);
   }
 
   @Test
@@ -381,7 +389,7 @@ public class TestIcebergNessieVersionedViews extends BaseIcebergViewTest {
             () ->
                 icebergNessieVersionedViews.replace(
                     nonExistViewKey, viewDefinition, Collections.emptyMap(), getVersion(MAIN_BRANCH)))
-        .isInstanceOf(UserException.class)
+        .isInstanceOf(RuntimeException.class)
         .hasMessageContaining("not found");
   }
 

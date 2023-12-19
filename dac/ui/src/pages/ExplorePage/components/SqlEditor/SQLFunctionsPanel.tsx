@@ -22,8 +22,8 @@ import Immutable from "immutable";
 import FilterSelectMenu from "@app/components/Fields/FilterSelectMenu";
 import SearchField from "@app/components/Fields/SearchField";
 import {
+  FunctionCategoryLabels,
   sortAndFilterSQLFunctions,
-  SQLFunctionCategories,
 } from "@app/utils/sqlFunctionUtils";
 import { ModelFunctionFunctionCategoriesEnum as Categories } from "@app/types/sqlFunctions";
 import LoadingOverlay from "@app/components/LoadingOverlay";
@@ -45,21 +45,42 @@ const SQLFunctionsPanel = ({
   dragType,
 }: SQLFunctionsPanelProps) => {
   const [sqlFunctions, sqlFunctionsErr] = useSqlFunctions();
+  const documentedFunctions = useMemo(() => {
+    return (sqlFunctions || []).filter((func) => func.description != null);
+  }, [sqlFunctions]);
   const [searchKey, setSearchKey] = useState<string>("");
   const [selectedCategories, setCategories] = useState<Categories[]>([]);
   const [activeItem, setActiveItem] = useState<string | null>(null);
-  const panelDisabled = sqlFunctions == null;
+  const panelDisabled = documentedFunctions == null;
   const resetDisabled = selectedCategories?.length === 0;
 
+  const sqlFunctionCategories = useMemo(() => {
+    const categories: Categories[] = [];
+    documentedFunctions.forEach((func) => {
+      if (func.functionCategories) {
+        func.functionCategories.forEach((cat) => {
+          if (!categories.includes(cat)) categories.push(cat);
+        });
+      }
+    });
+    return categories.sort().map((cat) => ({
+      label:
+        FunctionCategoryLabels[cat] ||
+        (cat as any).charAt(0).toUpperCase() +
+          (cat as any).toLowerCase().slice(1),
+      id: cat,
+    }));
+  }, [documentedFunctions]);
+
   const memoizedSQLFunctions = useMemo(() => {
-    if (!sqlFunctions) return [];
+    if (!documentedFunctions) return [];
 
     return sortAndFilterSQLFunctions(
-      sqlFunctions,
+      documentedFunctions,
       selectedCategories,
       searchKey
     );
-  }, [sqlFunctions, searchKey, selectedCategories]);
+  }, [documentedFunctions, searchKey, selectedCategories]);
 
   const debounceSearch = debounce((val: string) => {
     setSearchKey(val);
@@ -131,7 +152,7 @@ const SQLFunctionsPanel = ({
             onItemSelect={onSelectCategory}
             onItemUnselect={onUnselectCategory}
             selectedValues={Immutable.fromJS(selectedCategories)}
-            items={SQLFunctionCategories}
+            items={sqlFunctionCategories}
             label=""
             menuHeader={MenuHeader}
             name="categories"

@@ -15,14 +15,12 @@
  */
 package com.dremio.dac.daemon;
 
-import java.lang.reflect.Constructor;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
 import javax.inject.Provider;
 
-import org.apache.arrow.memory.BufferAllocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -127,23 +125,6 @@ public class KVStoreProviderHelper {
       throw new RuntimeException("Unable to find appropriate KVStoreProvider for " + datastoreType);
     }
 
-    try {
-      final Constructor<? extends KVStoreProvider> con = cls.getDeclaredConstructor(
-        ScanResult.class,
-        Provider.class,
-        Provider.class,
-        BufferAllocator.class,
-        Map.class
-      );
-
-      return con.newInstance(bootstrap.getClasspathScan(),
-                             fabricService,
-                             endPoint,
-                             bootstrap.getAllocator(),
-                             config
-      );
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+    return KVStoreProvider.newInstance(cls, bootstrap.getClasspathScan(), fabricService, endPoint, bootstrap.getAllocator(), config);
   }
 }

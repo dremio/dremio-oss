@@ -21,8 +21,12 @@ import java.lang.reflect.InvocationTargetException;
 import java.security.AccessControlException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import javax.annotation.Nullable;
 
@@ -32,16 +36,26 @@ import org.apache.calcite.sql.SqlDescribeTable;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.tools.RelConversionException;
+import org.apache.iceberg.Schema;
+import org.apache.iceberg.SortOrder;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.catalog.DremioCatalogReader;
-import com.dremio.exec.catalog.DremioPrepareTable;
+import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.catalog.EntityExplorer;
 import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.store.ColumnExtendedProperty;
+import com.dremio.exec.store.TableMetadata;
+import com.dremio.exec.store.iceberg.IcebergSerDe;
+import com.dremio.exec.store.iceberg.IcebergUtils;
+import com.dremio.exec.store.iceberg.SchemaConverter;
 import com.dremio.exec.store.ischema.Column;
 import com.dremio.exec.work.foreman.ForemanSetupException;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
+import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Joiner;
@@ -51,10 +65,10 @@ public class DescribeTableHandler implements SqlDirectHandler<DescribeTableHandl
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DescribeTableHandler.class);
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-  private final DremioCatalogReader catalog;
+  private final EntityExplorer catalog;
   protected final QueryContext context;
 
-  public DescribeTableHandler(DremioCatalogReader catalog, QueryContext context) {
+  public DescribeTableHandler(EntityExplorer catalog, QueryContext context) {
     super();
     this.catalog = catalog;
     this.context = context;
@@ -67,15 +81,18 @@ public class DescribeTableHandler implements SqlDirectHandler<DescribeTableHandl
     try {
       final SqlIdentifier tableId = node.getTable();
       final NamespaceKey path = new NamespaceKey(tableId.names);
-      final DremioPrepareTable table = catalog.getTableUnchecked(tableId.names);
+      final DremioTable table = catalog.getTable(path);
       final RelDataType type;
-      if (table == null || table.getTable() == null) {
+      if (table == null) {
         throw UserException.validationError()
           .message("Unknown table [%s]", path)
           .build(logger);
       } else {
-        type = table.getRowType();
+        type = table.getRowType(JavaTypeFactoryImpl.INSTANCE);
       }
+
+      Optional<Map<String, Integer>> sortOrderPriorityMapOpt = buildSortOrderPriorityMap(table);
+      final Map<String, Integer> sortOrderPriorityMap = sortOrderPriorityMapOpt.get();
 
       List<DescribeResult> columns = new ArrayList<>();
       String columnName = null;
@@ -88,7 +105,7 @@ public class DescribeTableHandler implements SqlDirectHandler<DescribeTableHandl
         columnName = sqlColumn.getSimple();
       }
 
-      final Map<String, List<ColumnExtendedProperty>> extendedPropertyColumns = catalog.getColumnExtendedProperties(table.getTable());
+      final Map<String, List<ColumnExtendedProperty>> extendedPropertyColumns = catalog.getColumnExtendedProperties(table);
 
       for (RelDataTypeField field : type.getFieldList()) {
         Column column = new Column("dremio", path.getParent().toUnescapedString(), path.getLeaf(), field);
@@ -97,8 +114,15 @@ public class DescribeTableHandler implements SqlDirectHandler<DescribeTableHandl
           final Integer scale = column.NUMERIC_SCALE;
           final List<ColumnExtendedProperty> columnExtendedProperties = getColumnExtendedProperties(column.COLUMN_NAME, extendedPropertyColumns);
           final String extendedPropertiesString = columnExtendedPropertiesToString(columnExtendedProperties);
-          String columnPolicies = getColumnPoliciesForColumn(path, column.COLUMN_NAME);
-          DescribeResult describeResult = new DescribeResult(field.getName(), column.DATA_TYPE, precision, scale, extendedPropertiesString, columnPolicies);
+          String columnPolicies = getColumnPoliciesForColumn(table.getPath(), column.COLUMN_NAME);
+          Integer localSortPriority = sortOrderPriorityMap.getOrDefault(field.getName(), null);
+          DescribeResult describeResult = new DescribeResult(field.getName(),
+            column.DATA_TYPE,
+            precision,
+            scale,
+            extendedPropertiesString,
+            columnPolicies,
+            localSortPriority);
           columns.add(describeResult);
         }
       }
@@ -109,6 +133,53 @@ public class DescribeTableHandler implements SqlDirectHandler<DescribeTableHandl
       throw UserException.planError(ex)
           .message("Error while rewriting DESCRIBE query: %s", ex.getMessage())
           .build(logger);
+    }
+  }
+
+  private Map<String, Integer> fillSortOrderPriorityMap(DremioTable table, IcebergMetadata icebergMetadata) {
+    if (icebergMetadata == null || icebergMetadata.getSortOrder() == null) {
+      return Collections.EMPTY_MAP;
+    }
+
+    String sortOrder = icebergMetadata.getSortOrder();
+
+    Schema icebergSchema = SchemaConverter
+      .getBuilder()
+      .build()
+      .toIcebergSchema(table.getSchema());
+
+    SortOrder deserializedSortOrder = IcebergSerDe.deserializeSortOrderFromJson(icebergSchema, sortOrder);
+    final List<String> sortColumns = IcebergUtils.getColumnsFromSortOrder(deserializedSortOrder, context.getOptions());
+
+    return IntStream.rangeClosed(1, sortColumns.size())
+      .boxed()
+      .collect(Collectors.toMap(i -> sortColumns.get(i - 1), i -> i));
+  }
+
+  private Optional<Map<String, Integer>> buildSortOrderPriorityMap(DremioTable table) {
+    if (!IcebergUtils.isIcebergSortOrderFeatureEnabled(context.getOptions())) {
+      return Optional.of(new HashMap<>());
+    }
+    try {
+      TableMetadata dataset = table.getDataset();
+      if (dataset == null) {
+        return Optional.of(new HashMap<>());
+      }
+
+      DatasetConfig datasetConfig = dataset.getDatasetConfig();
+      if (datasetConfig == null) {
+        return Optional.of(new HashMap<>());
+      }
+
+      PhysicalDataset physicalDataset = datasetConfig.getPhysicalDataset();
+      if (physicalDataset == null) {
+        return Optional.of(new HashMap<>());
+      }
+
+      IcebergMetadata icebergMetadata = physicalDataset.getIcebergMetadata();
+      return Optional.of(fillSortOrderPriorityMap(table, icebergMetadata));
+    } catch (UnsupportedOperationException uoe) {
+      return Optional.of(new HashMap<>());
     }
   }
 
@@ -138,13 +209,13 @@ public class DescribeTableHandler implements SqlDirectHandler<DescribeTableHandl
     return null;
   }
 
-  public static DescribeTableHandler create(DremioCatalogReader dremioCatalogReader, QueryContext context) {
+  public static DescribeTableHandler create(EntityExplorer catalog, QueryContext context) {
     try {
       final Class<?> cl = Class.forName("com.dremio.exec.planner.sql.handlers.EnterpriseDescribeTableHandler");
-      final Constructor<?> ctor = cl.getConstructor(DremioCatalogReader.class, QueryContext.class);
-      return (DescribeTableHandler) ctor.newInstance(dremioCatalogReader, context);
+      final Constructor<?> ctor = cl.getConstructor(EntityExplorer.class, QueryContext.class);
+      return (DescribeTableHandler) ctor.newInstance(catalog, context);
     } catch (ClassNotFoundException e) {
-      return new DescribeTableHandler(dremioCatalogReader, context);
+      return new DescribeTableHandler(catalog, context);
     } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e2) {
       throw Throwables.propagate(e2);
     }
@@ -158,13 +229,15 @@ public class DescribeTableHandler implements SqlDirectHandler<DescribeTableHandl
     public final Integer NUMERIC_SCALE;
     public final String EXTENDED_PROPERTIES;
     public final String MASKING_POLICY;
+    public final Integer SORT_ORDER_PRIORITY;
 
     public DescribeResult(String columnName,
       String dataType,
       Integer numericPrecision,
       Integer numericScale,
       String extendedProperties,
-      String columnPolicies) {
+      String columnPolicies,
+      Integer sortPriority) {
       super();
       COLUMN_NAME = columnName;
       DATA_TYPE = dataType;
@@ -172,6 +245,7 @@ public class DescribeTableHandler implements SqlDirectHandler<DescribeTableHandl
       NUMERIC_SCALE = numericScale;
       EXTENDED_PROPERTIES = extendedProperties;
       MASKING_POLICY = columnPolicies;
+      SORT_ORDER_PRIORITY = sortPriority;
     }
   }
 

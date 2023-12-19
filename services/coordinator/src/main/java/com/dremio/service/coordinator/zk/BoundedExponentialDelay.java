@@ -40,7 +40,7 @@ public class BoundedExponentialDelay implements RetryPolicy {
   private final int maxSleepMs;
   private final long maxRetry;
 
-  BoundedExponentialDelay(int baseSleepTimeMs, int maxSleepMs, boolean unlimited, long maxRetry) {
+  public BoundedExponentialDelay(int baseSleepTimeMs, int maxSleepMs, boolean unlimited, long maxRetry) {
     Preconditions.checkArgument(baseSleepTimeMs > 0, "baseSleepTimeMs must be positive");
     Preconditions.checkArgument(maxSleepMs > baseSleepTimeMs, "maxSleepMs > baseSleepTimeMs");
     Preconditions.checkArgument(unlimited || maxRetry > 0, "maxRetry must be positive");

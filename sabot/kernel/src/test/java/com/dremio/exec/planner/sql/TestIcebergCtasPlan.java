@@ -26,7 +26,6 @@ import com.dremio.exec.PassthroughQueryObserver;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.planner.observer.AttemptObserver;
-import com.dremio.exec.planner.physical.HashPrelUtil;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.query.CreateTableHandler;
 import com.dremio.exec.proto.UserBitShared;
@@ -58,6 +57,7 @@ public class TestIcebergCtasPlan extends PlanTestBase {
         .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName(UserServiceTestImpl.TEST_USER_1).build())
         .build();
       final QueryContext queryContext = new QueryContext(session, context, UserBitShared.QueryId.getDefaultInstance());
+      queryContext.setGroupResourceInformation(getSabotContext().getClusterResourceInformation());
       final AttemptObserver observer = new PassthroughQueryObserver(ExecTest.mockUserClientConnection(null));
       final SqlConverter converter = new SqlConverter(
         queryContext.getPlannerSettings(),
@@ -67,7 +67,6 @@ public class TestIcebergCtasPlan extends PlanTestBase {
         queryContext.getFunctionRegistry(),
         queryContext.getSession(),
         observer,
-        queryContext.getCatalog(),
         queryContext.getSubstitutionProviderFactory(),
         queryContext.getConfig(),
         queryContext.getScanResult(),
@@ -85,8 +84,8 @@ public class TestIcebergCtasPlan extends PlanTestBase {
         "WriterCommitter",
         "UnionExchange",
         "Writer",
-        "HashToRandomExchange",
         "Project",
+        "UnionExchange",
         "Writer",
         "IcebergManifestList",
 
@@ -95,8 +94,8 @@ public class TestIcebergCtasPlan extends PlanTestBase {
           "WriterCommitter.*" +
           "UnionExchange.*" +
           "Writer.*" +
-          "HashToRandomExchange.*" +
-          "Project.*" + HashPrelUtil.HASH_EXPR_NAME + ".*" + // HashProject
+          "Project.*" +
+          "UnionExchange.*" +
           "Writer.*" +
           "IcebergManifestList.*"});
     }

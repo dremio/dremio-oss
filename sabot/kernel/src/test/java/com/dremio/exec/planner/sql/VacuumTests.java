@@ -15,9 +15,8 @@
  */
 package com.dremio.exec.planner.sql;
 
-import static com.dremio.BaseTestQuery.getDfsTestTmpSchemaLocation;
-import static com.dremio.BaseTestQuery.getIcebergTable;
-import static com.dremio.BaseTestQuery.test;
+import static com.dremio.exec.planner.VacuumOutputSchema.DELETED_FILES_COUNT;
+import static com.dremio.exec.planner.VacuumOutputSchema.DELETED_FILES_SIZE_MB;
 import static com.dremio.exec.planner.VacuumOutputSchema.DELETE_DATA_FILE_COUNT;
 import static com.dremio.exec.planner.VacuumOutputSchema.DELETE_EQUALITY_DELETE_FILES_COUNT;
 import static com.dremio.exec.planner.VacuumOutputSchema.DELETE_MANIFEST_FILES_COUNT;
@@ -39,15 +38,26 @@ import static com.dremio.exec.planner.sql.DmlQueryTestUtils.verifyCountSnapshotQ
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.verifyData;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.waitUntilAfter;
 import static com.dremio.exec.planner.sql.handlers.SqlHandlerUtil.getTimestampFromMillis;
+import static com.dremio.exec.store.iceberg.IcebergUtils.getPartitionStatsFiles;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.iceberg.AppendFiles;
 import org.apache.iceberg.DataFile;
+import org.apache.iceberg.ManifestFile;
+import org.apache.iceberg.PartitionStatsFileLocations;
+import org.apache.iceberg.PartitionStatsMetadata;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.io.FileIO;
 import org.junit.Assert;
 
@@ -310,7 +320,7 @@ public class VacuumTests extends ITDmlQueryBase {
       final Snapshot thirdSnapshot = getIcebergTable(tableFolder, IcebergCatalogType.HADOOP).currentSnapshot();
       addRows(table, 1);
       final Snapshot fourthSnapshot = getIcebergTable(tableFolder, IcebergCatalogType.HADOOP).currentSnapshot();
-      final long timestampMillisToExpire = waitUntilAfter(secondSnapshot.timestampMillis());
+      final long timestampMillisToExpire = waitUntilAfter(fourthSnapshot.timestampMillis());
 
       testQueryValidateStatusSummary(allocator,
         "ROLLBACK TABLE %s TO SNAPSHOT '%s'", new Object[]{table.fqn, rollbackToSnapshotId},
@@ -344,10 +354,7 @@ public class VacuumTests extends ITDmlQueryBase {
       Assert.assertEquals("Should have two tables", 2, tables.tables.length);
       // Second table has partitions
       DmlQueryTestUtils.Table table = tables.tables[1];
-
-      String tableName = table.name.startsWith("\"") ? table.name.substring(1, table.name.length() - 1) : table.name;
-      File tableFolder = new File(getDfsTestTmpSchemaLocation(), tableName);
-      Table icebergTable = getIcebergTable(tableFolder, IcebergCatalogType.HADOOP);
+      Table icebergTable = loadIcebergTable(table);
       Assert.assertEquals("Should have two snapshots", 2, Iterables.size(icebergTable.snapshots()));
       Assert.assertEquals("Should have two history entries", 2, icebergTable.history().size());
       final Snapshot firstSnapshot = Iterables.getFirst(icebergTable.snapshots(), null);
@@ -359,7 +366,7 @@ public class VacuumTests extends ITDmlQueryBase {
       addRows(table, 2);
       addRows(table, 2);
 
-      final long timestampMillisToExpire = waitUntilAfter(secondSnapshot.timestampMillis());
+      final long timestampMillisToExpire = System.currentTimeMillis();
 
       testQueryValidateStatusSummary(allocator,
         "ROLLBACK TABLE %s TO SNAPSHOT '%s'", new Object[]{table.fqn, rollbackToSnapshotId},
@@ -374,6 +381,9 @@ public class VacuumTests extends ITDmlQueryBase {
         new Object[]{table.fqn, getTimestampFromMillis(timestampMillisToExpire)},
         table,
         new Long[] {4L, 0L, 0L, 2L, 2L, 4L});
+
+      Table icebergTable2 = loadIcebergTable(table);
+      Assert.assertEquals("Should have two snapshots", 2, Iterables.size(icebergTable2.snapshots()));
     }
   }
 
@@ -381,12 +391,12 @@ public class VacuumTests extends ITDmlQueryBase {
     try (DmlQueryTestUtils.Table table = createStockIcebergTable(source, 0, 2, "modes_isolation")) {
       Table icebergTable = loadTable(table);
       Assert.assertNull(icebergTable.currentSnapshot());
-      final String timestampToExpire = getTimestampFromMillis(System.currentTimeMillis());
-
-      UserExceptionAssert.assertThatThrownBy(() ->
-          test("VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN '%s'", table.fqn, timestampToExpire))
-        .hasErrorType(ErrorType.UNSUPPORTED_OPERATION)
-        .hasMessageContaining("Vacuum table succeeded, and the operation did not change the number of snapshots");
+      validateOutputResult(
+        allocator,
+        "VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN '%s' RETAIN_LAST 1",
+        new Object[]{table.fqn, getTimestampFromMillis(System.currentTimeMillis())},
+        table,
+        new Long[] {0L, 0L, 0L, 0L, 0L, 0L});
 
       icebergTable.refresh();
       Assert.assertNull(icebergTable.currentSnapshot());
@@ -433,8 +443,7 @@ public class VacuumTests extends ITDmlQueryBase {
       final long timestampMillisToExpire = waitUntilAfter(icebergTable.currentSnapshot().timestampMillis());
       verifyCountSnapshotQuery(allocator, table.fqn, 2L);
       // Insert more rows to increase snapshots
-      addRows(table, 1);
-      addRows(table, 1);
+      newSnapshots(table, 2);
       verifyCountSnapshotQuery(allocator, table.fqn, 4L);
 
       validateOutputResult(
@@ -466,24 +475,29 @@ public class VacuumTests extends ITDmlQueryBase {
     }
   }
 
-  public static void testExpireOnTableOneSnapshot(String source) throws Exception {
+  public static void testExpireOnTableOneSnapshot(BufferAllocator allocator, String source) throws Exception {
     // Table has only one snapshot. Don't need to run expire snapshots query.
     try (DmlQueryTestUtils.Table table = createEmptyTable(source,EMPTY_PATHS, "tableName", 1)) {
       final long timestampMillisToExpire = System.currentTimeMillis();
-      UserExceptionAssert.assertThatThrownBy(() ->
-          test("VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN '%s'", table.fqn, getTimestampFromMillis(timestampMillisToExpire)))
-        .hasErrorType(ErrorType.UNSUPPORTED_OPERATION)
-        .hasMessageContaining("Vacuum table succeeded, and the operation did not change the number of snapshots");
+
+      validateOutputResult(
+        allocator,
+        "VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN '%s'",
+        new Object[]{table.fqn, getTimestampFromMillis(timestampMillisToExpire)},
+        table,
+        new Long[] {0L, 0L, 0L, 0L, 0L, 0L});
     }
   }
 
-  public static void testRetainMoreSnapshots(String source) throws Exception {
+  public static void testRetainMoreSnapshots(BufferAllocator allocator, String source) throws Exception {
     // Table has less snapshot than the retained number. Don't need to run expire snapshots query.
     try (DmlQueryTestUtils.Table table = createBasicTable(source,2, 1)) {
-      UserExceptionAssert.assertThatThrownBy(() ->
-          test("VACUUM TABLE %s EXPIRE SNAPSHOTS RETAIN_LAST 5", table.fqn))
-        .hasErrorType(ErrorType.UNSUPPORTED_OPERATION)
-        .hasMessageContaining("Vacuum table succeeded, and the operation did not change the number of snapshots");
+      validateOutputResult(
+        allocator,
+        "VACUUM TABLE %s EXPIRE SNAPSHOTS RETAIN_LAST 5",
+        new Object[]{table.fqn},
+        table,
+        new Long[] {0L, 0L, 0L, 0L, 0L, 0L});
     }
   }
 
@@ -491,11 +505,8 @@ public class VacuumTests extends ITDmlQueryBase {
     try (DmlQueryTestUtils.Table table = createBasicTable(source,2, 1)) {
       verifyCountSnapshotQuery(allocator, table.fqn, 2L);
       // Insert more rows to increase snapshots
-      DmlQueryTestUtils.Table table2 = addRows(table, 1);
-      table2 = addRows(table2, 1);
-      table2 = addRows(table2, 1);
-      table2 = addRows(table2, 1);
-      addRows(table2, 1);
+      newSnapshots(table, 5);
+
       verifyCountSnapshotQuery(allocator, table.fqn, 7L);
 
       // No snapshots are dated back to default 5 days ago, and no snapshots are expired, even claim to retain last 2.
@@ -508,6 +519,468 @@ public class VacuumTests extends ITDmlQueryBase {
     }
   }
 
+  public static void testGCDisabled(BufferAllocator allocator, String source) throws Exception {
+    try (DmlQueryTestUtils.Table table = createBasicTable(source,2, 1)) {
+      newSnapshots(table, 5);
+      verifyCountSnapshotQuery(allocator, table.fqn, 7L);
+
+      Table icebergTable = loadIcebergTable(table);
+      icebergTable.updateProperties().set(TableProperties.GC_ENABLED, Boolean.FALSE.toString()).commit();
+      runSQL(String.format("ALTER TABLE %s REFRESH METADATA FORCE UPDATE", table.fqn));
+
+      final long timestampMillisToExpire = System.currentTimeMillis();
+
+      validateOutputResult(
+        allocator,
+        "VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN '%s'",
+        new Object[]{table.fqn, getTimestampFromMillis(timestampMillisToExpire)},
+        table,
+        new Long[] {0L, 0L, 0L, 0L, 0L, 0L});
+
+      verifyCountSnapshotQuery(allocator, table.fqn, 7L);
+      assertDoesNotThrow(() -> runSQL(String.format("SELECT * FROM %s LIMIT 1", table.fqn))); // ensure select query goes through
+    }
+  }
+
+  public static void testMinSnapshotsTablePropOverride(BufferAllocator allocator, String source) throws Exception {
+    try (DmlQueryTestUtils.Table table = createBasicTable(source,2, 1)) {
+      newSnapshots(table, 5);
+      verifyCountSnapshotQuery(allocator, table.fqn, 7L);
+
+      Table icebergTable = loadIcebergTable(table);
+      icebergTable.updateProperties().set(TableProperties.MIN_SNAPSHOTS_TO_KEEP, "4").commit();
+      runSQL(String.format("ALTER TABLE %s REFRESH METADATA FORCE UPDATE", table.fqn));
+
+      final long timestampMillisToExpire = System.currentTimeMillis();
+
+      validateOutputResult(
+        allocator,
+        "VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN '%s'",
+        new Object[]{table.fqn, getTimestampFromMillis(timestampMillisToExpire)},
+        table,
+        new Long[] {0L, 0L, 0L, 0L, 3L, 0L});
+
+      verifyCountSnapshotQuery(allocator, table.fqn, 4L); // Only 4 retained
+      assertDoesNotThrow(() -> runSQL(String.format("SELECT * FROM %s LIMIT 1", table.fqn))); // ensure select query goes through
+    }
+  }
+
+  public static void testMinSnapshotsAggressiveTablePropOverride(BufferAllocator allocator, String source) throws Exception {
+    try (DmlQueryTestUtils.Table table = createBasicTable(source,2, 1)) {
+      newSnapshots(table, 5);
+      verifyCountSnapshotQuery(allocator, table.fqn, 7L);
+
+      Table icebergTable = loadIcebergTable(table);
+      icebergTable.updateProperties().set(TableProperties.MIN_SNAPSHOTS_TO_KEEP, "2").commit();
+      runSQL(String.format("ALTER TABLE %s REFRESH METADATA FORCE UPDATE", table.fqn));
+
+      final long timestampMillisToExpire = System.currentTimeMillis();
+
+      validateOutputResult(
+        allocator,
+        "VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN '%s' RETAIN_LAST 4",
+        new Object[]{table.fqn, getTimestampFromMillis(timestampMillisToExpire)},
+        table,
+        new Long[] {0L, 0L, 0L, 0L, 3L, 0L});
+
+      verifyCountSnapshotQuery(allocator, table.fqn, 4L); // Only 4 retained
+      assertDoesNotThrow(() -> runSQL(String.format("SELECT * FROM %s LIMIT 1", table.fqn))); // ensure select query goes through
+    }
+  }
+
+  public static void testSnapshotAgeTablePropOverride(BufferAllocator allocator, String source) throws Exception {
+    try (DmlQueryTestUtils.Table table = createBasicTable(source,2, 1)) {
+      newSnapshots(table, 5);
+      verifyCountSnapshotQuery(allocator, table.fqn, 7L);
+
+      Table icebergTable = loadIcebergTable(table);
+      icebergTable.updateProperties()
+        .set(TableProperties.MAX_SNAPSHOT_AGE_MS, "3600000") // an hour
+        .commit();
+      runSQL(String.format("ALTER TABLE %s REFRESH METADATA FORCE UPDATE", table.fqn));
+
+      final long timestampMillisToExpire = System.currentTimeMillis();
+
+      validateOutputResult(
+        allocator,
+        "VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN '%s'",
+        new Object[]{table.fqn, getTimestampFromMillis(timestampMillisToExpire)},
+        table,
+        new Long[] {0L, 0L, 0L, 0L, 0L, 0L});
+
+      verifyCountSnapshotQuery(allocator, table.fqn, 7L); // All are retained because table level property expects 1hour
+    }
+  }
+
+  public static void testSnapshotAgeAggressiveTablePropOverride(BufferAllocator allocator, String source) throws Exception {
+    try (DmlQueryTestUtils.Table table = createBasicTable(source,2, 1)) {
+      newSnapshots(table, 3);
+      final long timestampMillisToExpire = System.currentTimeMillis();
+      newSnapshots(table, 3);
+
+      verifyCountSnapshotQuery(allocator, table.fqn, 8L);
+
+      waitUntilAfter(System.currentTimeMillis() + 1);
+      Table icebergTable = loadIcebergTable(table);
+      icebergTable.updateProperties().set(TableProperties.MAX_SNAPSHOT_AGE_MS, "1").commit();
+      runSQL(String.format("ALTER TABLE %s REFRESH METADATA FORCE UPDATE", table.fqn));
+
+      validateOutputResult(
+        allocator,
+        "VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN '%s'",
+        new Object[]{table.fqn, getTimestampFromMillis(timestampMillisToExpire)},
+        table,
+        new Long[] {0L, 0L, 0L, 0L, 5L, 0L});
+
+      verifyCountSnapshotQuery(allocator, table.fqn, 3L); // All are retained because table level property expects 1hour
+    }
+  }
+
+  public static void testExpireSnapshotsWithTensOfSnapshots(BufferAllocator allocator, String source) throws Exception {
+    try (DmlQueryTestUtils.Table table = createBasicTable(source,2, 1)) {
+      // Verify number of snapshots
+      verifyCountSnapshotQuery(allocator, table.fqn, 2L);
+
+      // Insert no less than 50 snapshots.
+      DmlQueryTestUtils.Table table2;
+      long timestampMillisToExpire = System.currentTimeMillis();
+      for (int i = 0; i < 60; i++) {
+        table2 = addRows(table, 1);
+        if (49 == i) {
+          timestampMillisToExpire = System.currentTimeMillis();
+        }
+      }
+      verifyCountSnapshotQuery(allocator, table.fqn, 62L);
+      runSQL(String.format("VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN '%s'", table.fqn, getTimestampFromMillis(timestampMillisToExpire)));
+      verifyCountSnapshotQuery(allocator, table.fqn, 10L);
+    }
+  }
+
+  public static void testExpireSnapshotsOnNonMainBranch(String source, BufferAllocator allocator) throws Exception {
+    try (DmlQueryTestUtils.Table table = createStockIcebergTable(source, 0, 2, "nonMainBranch")) {
+      Table icebergTable = loadTable(table);
+      Assert.assertEquals(0, Iterables.size(icebergTable.snapshots()));
+
+      appendManifestFiles(icebergTable, "dev");
+      appendManifestFiles(icebergTable, "dev");
+      appendManifestFiles(icebergTable, "dev");
+      Assert.assertEquals("Two snapshots in dev branch", 3, Iterables.size(icebergTable.snapshots()));
+      // Committing to 'dev' branch does not make the table have valid current snapshot.
+      Assert.assertNull(icebergTable.currentSnapshot());
+
+      long timestampMillisToExpire = waitUntilAfter(System.currentTimeMillis());
+      validateOutputResult(
+        allocator,
+        "VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN '%s'",
+        new Object[]{table.fqn, getTimestampFromMillis(timestampMillisToExpire)},
+        table,
+        new Long[] {0L, 0L, 0L, 0L, 2L, 0L});
+    }
+  }
+
+  public static void testExpireSnapshotsOnDifferentBranches(String source, BufferAllocator allocator) throws Exception {
+    try (DmlQueryTestUtils.Table table = createStockIcebergTable(source, 0, 2, "twoBranches")) {
+      Table icebergTable = loadTable(table);
+      Assert.assertEquals(0, Iterables.size(icebergTable.snapshots()));
+
+      appendManifestFiles(icebergTable, "dev");
+      appendManifestFiles(icebergTable, "dev");
+      Assert.assertEquals("One snapshot in dev branch", 2, Iterables.size(icebergTable.snapshots()));
+      // Committing to 'dev' branch does not make the table have valid current snapshot.
+      Assert.assertNull(icebergTable.currentSnapshot());
+      appendManifestFiles(icebergTable, "main");
+      long timestampMillisToExpire = waitUntilAfter(System.currentTimeMillis());
+      appendManifestFiles(icebergTable, "main");
+      Assert.assertEquals(4, Iterables.size(icebergTable.snapshots()));
+
+      validateOutputResult(
+        allocator,
+        "VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN '%s'",
+        new Object[]{table.fqn, getTimestampFromMillis(timestampMillisToExpire)},
+        table,
+        new Long[] {0L, 0L, 0L, 0L, 2L, 0L});
+
+      icebergTable.refresh();
+      Assert.assertEquals(2, Iterables.size(icebergTable.snapshots()));
+    }
+  }
+
+  /**  Test cases for Remove orphan files  */
+
+  public static void testMalformedVacuumRemoveOrphanFileQueries(String source) throws Exception {
+    try (DmlQueryTestUtils.Table table = createBasicTable(source,2, 1)) {
+      testMalformedDmlQueries(new Object[]{table.fqn, "'2022-10-22 18:24:30'", "'file:///path'"},
+        "VACUUM TABLE %s REMOVE",
+        "VACUUM TABLE %s REMOVE ORPHAN",
+        "VACUUM TABLE %s REMOVE ORPHAN FILE",
+        "VACUUM TABLE %s REMOVE ORPHAN FILES %s",
+        "VACUUM TABLE %s REMOVE ORPHAN FILES %s =",
+        "VACUUM TABLE %s REMOVE ORPHAN FILES OLDER_THAN",
+        "VACUUM TABLE %s REMOVE ORPHAN FILES OLDER_THAN =",
+        "VACUUM TABLE %s REMOVE ORPHAN FILES OLDER_THAN = %s LOCATION",
+        "VACUUM TABLE %s REMOVE ORPHAN FILES OLDER_THAN LOCATION",
+        "VACUUM TABLE %s REMOVE ORPHAN FILES OLDER_THAN %s LOCATION",
+        "VACUUM TABLE %s REMOVE ORPHAN FILES OLDER_THAN = %s LOCATION =",
+        "VACUUM TABLE %s REMOVE ORPHAN FILES LOCATION",
+        "VACUUM TABLE %s REMOVE ORPHAN FILES LOCATION =",
+        "VACUUM TABLE %s REMOVE ORPHAN FILES LOCATION 3",
+        "VACUUM TABLE %s REMOVE ORPHAN FILES LOCATION = 3"
+      );
+    }
+  }
+
+  public static void testSimpleRemoveOrphanFiles(BufferAllocator allocator, String source) throws Exception {
+    // Don't add any orphan files into table location. Thus, no files should be removed.
+    try (DmlQueryTestUtils.Table table = createBasicTable(source,2, 1)) {
+      Thread.sleep(100);
+      verifyCountSnapshotQuery(allocator, table.fqn, 2L);
+
+      // Add more row and increase snapshot
+      DmlQueryTestUtils.Table table2 = addRows(table, 1);
+      final long timestampMillisToExpire = System.currentTimeMillis();
+      validateRemoveOrphanFilesOutputResult(
+        allocator,
+        "VACUUM TABLE %s REMOVE ORPHAN FILES OLDER_THAN '%s'",
+        new Object[]{table.fqn, getTimestampFromMillis(timestampMillisToExpire)},
+        new Long[] {0L, 0L});
+
+      // Don't modify table
+      verifyCountSnapshotQuery(allocator, table.fqn, 3L);
+      // Data not changed.
+      verifyData(allocator, table2, table2.originalData);
+    }
+  }
+
+  public static void testSimpleRemoveOrphanFilesUsingEqual(BufferAllocator allocator, String source) throws Exception {
+    // Don't add any orphan files into table location. Thus, no files should be removed.
+    try (DmlQueryTestUtils.Table table = createBasicTable(source,2, 1)) {
+      Thread.sleep(100);
+      verifyCountSnapshotQuery(allocator, table.fqn, 2L);
+
+      Table icebergTable = loadIcebergTable(table);
+      String tableLocation = Path.getContainerSpecificRelativePath(Path.of(icebergTable.location()));
+
+      final long timestampMillisToExpire = System.currentTimeMillis();
+      validateRemoveOrphanFilesOutputResult(
+        allocator,
+        "VACUUM TABLE %s REMOVE ORPHAN FILES OLDER_THAN = '%s' LOCATION '%s'",
+        new Object[]{table.fqn, getTimestampFromMillis(timestampMillisToExpire), tableLocation},
+        new Long[] {0L, 0L});
+    }
+  }
+
+  public static void testRemoveOrphanFilesNotDeleteValidFiles(BufferAllocator allocator, String source) throws Exception {
+    try (DmlQueryTestUtils.Tables tables = createBasicNonPartitionedAndPartitionedTables(source, 2, 3, PARTITION_COLUMN_ONE_INDEX_SET)) {
+      Assert.assertEquals("Should have two tables", 2, tables.tables.length);
+
+      // First table doesn't have partitions
+      DmlQueryTestUtils.Table table = tables.tables[0];
+      // Add more row and increase snapshot
+      addRows(table, 1);
+      Table icebergTable = loadIcebergTable(table);
+      Assert.assertEquals("Should have three snapshots", 3, Iterables.size(icebergTable.snapshots()));
+
+      // Collect files before running remove orphan files
+      final Set<String> tableFiles = collectAllFilesFromTable(icebergTable);
+      Assert.assertEquals("Should have 11 files", 11, tableFiles.size());
+
+      final long timestampMillisToExpire = System.currentTimeMillis();
+      validateRemoveOrphanFilesOutputResult(
+        allocator,
+        "VACUUM TABLE %s REMOVE ORPHAN FILES OLDER_THAN '%s'",
+        new Object[]{table.fqn, getTimestampFromMillis(timestampMillisToExpire)},
+        new Long[] {0L, 0L});
+
+      // Remove orphan files should NOT delete valid files
+      for (String file : tableFiles) {
+        File filePath = new File(Path.getContainerSpecificRelativePath(Path.of(file)));
+        Assert.assertTrue("File should not be removed", filePath.exists());
+      }
+    }
+  }
+
+  public static void testRemoveOrphanFilesDeleteOrphanFiles(BufferAllocator allocator, String source) throws Exception {
+    try (DmlQueryTestUtils.Table table = createBasicTable(source,2, 1)) {
+
+      // Add row
+      DmlQueryTestUtils.Table table2 = addRows(table, 1);
+
+      Table icebergTable = loadIcebergTable(table);
+      String tableLocation = Path.getContainerSpecificRelativePath(Path.of(icebergTable.location()));
+
+      // Copy file: "iceberg/orphan_files/orphan.json" into to table folder as orphan files
+      copyFromJar("iceberg/orphan_files",
+        java.nio.file.Paths.get(tableLocation + "/orphanfiles"));
+
+      File orphanFilePath = new File(tableLocation + "/orphanfiles/orphan.json");
+
+      Assert.assertTrue("File should exist", orphanFilePath.exists());
+      Thread.sleep(10);
+      final long timestampMillisToExpire = System.currentTimeMillis();
+      validateRemoveOrphanFilesOutputResult(
+        allocator,
+        "VACUUM TABLE %s REMOVE ORPHAN FILES OLDER_THAN '%s'",
+        new Object[]{table.fqn, getTimestampFromMillis(timestampMillisToExpire)},
+        new Long[] {1L, 39L});
+
+      // Copied orphan files should be deleted
+      Assert.assertFalse("File should be removed", orphanFilePath.exists());
+
+      // Don't modify table
+      verifyCountSnapshotQuery(allocator, table.fqn, 3L);
+      // Data not changed.
+      verifyData(allocator, table2, table2.originalData);
+    }
+  }
+
+  public static void testRemoveOrphanFilesWithLocationClause(BufferAllocator allocator, String source) throws Exception {
+    try (DmlQueryTestUtils.Table table = createBasicTable(source,2, 1)) {
+
+      // Add row
+      DmlQueryTestUtils.Table table2 = addRows(table, 1);
+
+      Table icebergTable = loadIcebergTable(table);
+      String tableLocation = Path.getContainerSpecificRelativePath(Path.of(icebergTable.location()));
+
+      // Create two sub folders inside table location and put each folder with one orphan file.
+      // Then, use one sub folder location as location clause to remove orphan files in that folder.
+
+      // Copy file: "iceberg/orphan_files/orphan.json" into to table folder as orphan files
+      copyFromJar("iceberg/orphan_files",
+        java.nio.file.Paths.get(tableLocation + "/folder1"));
+      File orphanFilePath1 = new File(tableLocation + "/folder1/orphan.json");
+      Assert.assertTrue("File should exist", orphanFilePath1.exists());
+
+      copyFromJar("iceberg/orphan_files",
+        java.nio.file.Paths.get(tableLocation + "/folder2"));
+      File orphanFilePath2 = new File(tableLocation + "/folder2/orphan.json");
+      Assert.assertTrue("File should exist", orphanFilePath2.exists());
+
+      Thread.sleep(10);
+      final long timestampMillisToExpire = System.currentTimeMillis();
+
+      runSQL(String.format("VACUUM TABLE %s REMOVE ORPHAN FILES OLDER_THAN '%s' LOCATION '%s'",
+        table.fqn, getTimestampFromMillis(timestampMillisToExpire), tableLocation + "/folder1"));
+
+      // Copied orphan file in 'folder1' should be deleted
+      Assert.assertFalse("File should be removed", orphanFilePath1.exists());
+
+      // Copied orphan file in 'folder2' should not be deleted
+      Assert.assertTrue("File should not be removed", orphanFilePath2.exists());
+
+      // Don't modify table
+      verifyCountSnapshotQuery(allocator, table.fqn, 3L);
+      // Data not changed.
+      verifyData(allocator, table2, table2.originalData);
+    }
+  }
+
+  public static void testRemoveOrphanFilesInvalidTimestampLiteral(String source) throws Exception {
+    try (DmlQueryTestUtils.Table table = createBasicTable(source,2, 1)) {
+      UserExceptionAssert.assertThatThrownBy(() ->
+          test("VACUUM TABLE %s REMOVE ORPHAN FILES OLDER_THAN '2022-09-01 abc'", table.fqn))
+        .hasErrorType(ErrorType.PARSE)
+        .hasMessageContaining("Literal '2022-09-01 abc' cannot be casted to TIMESTAMP");
+    }
+  }
+
+  public static void testUnparseRemoveOrphanFilesQuery(String source) throws Exception {
+    try (DmlQueryTestUtils.Table table = createBasicTable(source, 2, 1)) {
+      String tableName = table.name.startsWith("\"") ? table.name.substring(1, table.name.length() - 1) : table.name;
+      File tableFolder = new File(getDfsTestTmpSchemaLocation(), tableName);
+      Table icebergTable = getIcebergTable(tableFolder, IcebergCatalogType.HADOOP);
+      final long timestampMillisToExpire = waitUntilAfter(icebergTable.currentSnapshot().timestampMillis());
+
+      final String vacuumQuery = String.format("VACUUM TABLE %s REMOVE ORPHAN FILES OLDER_THAN '%s' LOCATION 'file:///fakepath'",
+        table.fqn, getTimestampFromMillis(timestampMillisToExpire));
+
+
+      final String expected = String.format("VACUUM TABLE %s REMOVE ORPHAN FILES \"OLDER_THAN\" '%s' \"LOCATION\" 'file:///fakepath'",
+        "\"" + source + "\"." + addQuotes(tableName), getTimestampFromMillis(timestampMillisToExpire));
+      parseAndValidateSqlNode(vacuumQuery, expected);
+    }
+  }
+
+  public static void testVacuumOnExternallyCreatedTable(BufferAllocator allocator, String source) throws Exception {
+    // Table is not created using DREMIO SQL. This table is basically empty and only has a version-hint file and
+    // a metadata entry file. No manifest list files, manifest files and data files.
+    try (DmlQueryTestUtils.Table table = createStockIcebergTable(source, 1, 1, "t1")) {
+      final long timestampMillisToExpire = waitUntilAfter(System.currentTimeMillis() + 1);
+      validateOutputResult(
+        allocator,
+        "VACUUM TABLE %s EXPIRE SNAPSHOTS OLDER_THAN = '%s' RETAIN_LAST = 1",
+        new Object[]{table.fqn, getTimestampFromMillis(timestampMillisToExpire)},
+        table,
+        new Long[] {0L, 0L, 0L, 0L, 0L, 0L});
+
+      validateRemoveOrphanFilesOutputResult(
+        allocator,
+        "VACUUM TABLE %s REMOVE ORPHAN FILES OLDER_THAN '%s'",
+        new Object[]{table.fqn, getTimestampFromMillis(timestampMillisToExpire)},
+        new Long[] {0L, 0L});
+
+      assertDoesNotThrow(() -> runSQL(String.format("SELECT * FROM %s", table.fqn)));
+    }
+  }
+
+  public static void testRemoveOrphanFilesHybridlyGeneratedTable(BufferAllocator allocator, String source) throws Exception {
+    // Table is not created using DREMIO SQL. But, we use DREMIO SQL to insert rows. Thus, the table includes hybrid
+    // style paths, e.g., 'file:///path' and '/path'.
+    try (DmlQueryTestUtils.Table table = createStockIcebergTable(source, 1, 1, "t1")) {
+      final long timestampMillisToExpire = waitUntilAfter(System.currentTimeMillis() + 1);
+      DmlQueryTestUtils.Table table2 = addRows(table, 1);
+      table2 = addRows(table2, 1);
+
+      validateRemoveOrphanFilesOutputResult(
+        allocator,
+        "VACUUM TABLE %s REMOVE ORPHAN FILES OLDER_THAN '%s'",
+        new Object[]{table.fqn, getTimestampFromMillis(timestampMillisToExpire)},
+        new Long[] {0L, 0L});
+
+      // Don't modify table snapshots
+      verifyCountSnapshotQuery(allocator, table.fqn, 2L);
+      // Data not changed.
+      verifyData(allocator, table2, table2.originalData);
+    }
+  }
+
+  private static DmlQueryTestUtils.Table newSnapshots(DmlQueryTestUtils.Table table, int noOfSnapshots) throws Exception {
+    for (int i = 0; i < noOfSnapshots; i++) {
+      table = addRows(table, 1);
+    }
+    return table;
+  }
+
+  private static Table loadIcebergTable(DmlQueryTestUtils.Table table) {
+    String tableName = table.name.startsWith("\"") ? table.name.substring(1, table.name.length() - 1) : table.name;
+    File tableFolder = new File(getDfsTestTmpSchemaLocation(), tableName);
+    return getIcebergTable(tableFolder, IcebergCatalogType.HADOOP);
+  }
+
+  private static Set<String> collectAllFilesFromTable(Table icebergTable) {
+    Set<String> files = Sets.newHashSet();
+    if (icebergTable == null) {
+      return files;
+    }
+
+    // Snapshots files
+    Iterator<Snapshot> iterator = icebergTable.snapshots().iterator();
+    while (iterator.hasNext()) {
+      Snapshot snapshot = iterator.next();
+      files.addAll(collectAllFilesFromSnapshot(snapshot, icebergTable.io()));
+    }
+
+    File metadataFolder = new File(icebergTable.location(), "metadata");
+    // Metadata files
+    int numSnapshots = Iterables.size(icebergTable.snapshots());
+    for (int i = 1; i <= numSnapshots; i++) {
+      String metadataFile = metadataFolder.getPath() + Path.SEPARATOR + String.format("v%d.metadata.json", i);
+      files.add(metadataFile);
+    }
+    files.add(metadataFolder.getPath() + Path.SEPARATOR + "version-hint.text");
+
+    return files;
+  }
   private static Set<String> collectDataFilesFromTable(Table icebergTable) {
     Set<String> files = Sets.newHashSet();
     if (icebergTable == null) {
@@ -523,12 +996,39 @@ public class VacuumTests extends ITDmlQueryBase {
     return files;
   }
 
+  private static Set<String> collectAllFilesFromSnapshot(Snapshot snapshot, FileIO io) {
+    Set<String> files = Sets.newHashSet();
+    files.addAll(pathSet(snapshot.addedDataFiles(io)));
+    files.add(snapshot.manifestListLocation());
+    files.addAll(manifestPaths(snapshot.allManifests(io)));
+    files.addAll(partitionStatsPaths(snapshot.partitionStatsMetadata(), io));
+    return files;
+  }
   private static Set<String> collectDataFilesFromSnapshot(Snapshot snapshot, FileIO io) {
     return pathSet(snapshot.addedDataFiles(io));
   }
 
   private static Set<String> pathSet(Iterable<DataFile> files) {
     return Sets.newHashSet(Iterables.transform(files, file -> file.path().toString()));
+  }
+
+  private static Set<String> manifestPaths(Iterable<ManifestFile> files) {
+    return Sets.newHashSet(Iterables.transform(files, file -> file.path().toString()));
+  }
+
+  private static Set<String> partitionStatsPaths(PartitionStatsMetadata partitionStatsMetadata, FileIO io) {
+    Set<String> partitionStatsFiles = Sets.newHashSet();
+    if (partitionStatsMetadata != null) {
+      String partitionStatsMetadataLocation = partitionStatsMetadata.metadataFileLocation();
+      PartitionStatsFileLocations partitionStatsLocations = getPartitionStatsFiles(io, partitionStatsMetadataLocation);
+      if (partitionStatsLocations != null) {
+        // Partition stats have metadata file and partition files.
+        partitionStatsFiles.add(partitionStatsMetadataLocation);
+        partitionStatsFiles.addAll(partitionStatsLocations.all().values().stream().collect(Collectors.toList()));
+      }
+    }
+
+    return partitionStatsFiles;
   }
 
   private static void validateOutputResult(BufferAllocator allocator, String query, Object[] args, DmlQueryTestUtils.Table table, Long[] results) throws Exception {
@@ -540,5 +1040,28 @@ public class VacuumTests extends ITDmlQueryBase {
         DELETE_MANIFEST_FILES_COUNT, DELETE_MANIFEST_LISTS_COUNT, DELETE_PARTITION_STATS_FILES_COUNT)
       .baselineValues(results[0], results[1], results[2], results[3], results[4], results[5])
       .go();
+  }
+
+  private static void validateRemoveOrphanFilesOutputResult(BufferAllocator allocator, String query, Object[] args, Long[] results) throws Exception {
+    Assert.assertEquals(2, results.length);
+    new TestBuilder(allocator)
+      .sqlQuery(query, args)
+      .unOrdered()
+      .baselineColumns(DELETED_FILES_COUNT, DELETED_FILES_SIZE_MB)
+      .baselineValues(results[0], results[1])
+      .go();
+  }
+
+  private static Table appendManifestFiles(Table icebergTable, String branch) throws IOException {
+    List<ManifestFile> manifestFiles = new ArrayList<>(5);
+    for (int i = 0; i < 5; i++) {
+      ManifestFile manifestFile = writeManifestFile(icebergTable, 10);
+      manifestFiles.add(manifestFile);
+    }
+    AppendFiles append = icebergTable.newFastAppend().toBranch(branch);
+    manifestFiles.forEach(append::appendManifest);
+    append.commit();
+    icebergTable.refresh();
+    return icebergTable;
   }
 }

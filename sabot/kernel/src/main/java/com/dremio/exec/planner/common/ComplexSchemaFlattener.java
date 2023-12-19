@@ -25,7 +25,6 @@ import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rel.type.StructKind;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 
 /**
  * Visitor to flatten the nested schema. If a joiner is given, it will join the the nested names
@@ -78,9 +77,9 @@ public class ComplexSchemaFlattener {
   public void flatten(RelDataTypeField parent, int i) {
     if (parent.getType().getStructKind() == StructKind.FULLY_QUALIFIED) {
       for (RelDataTypeField child : parent.getType().getFieldList()) {
-        RexNode rexNode = rexBuilder.makeCall(SqlStdOperatorTable.DOT,
+        RexNode rexNode = rexBuilder.makeFieldAccess(
           rexBuilder.makeInputRef(parent.getType(), i),
-          rexBuilder.makeLiteral(child.getName()));
+          child.getName(), false);
         if (child.getType().getStructKind() == StructKind.FULLY_QUALIFIED) {
           flattenRecursive(child, rexNode);
         } else {
@@ -101,9 +100,9 @@ public class ComplexSchemaFlattener {
   private void flattenRecursive(RelDataTypeField parent, RexNode rexNode) {
     if (parent.getType().getStructKind() == StructKind.FULLY_QUALIFIED) {
       for (RelDataTypeField child : parent.getType().getFieldList()) {
-        RexNode nestedNode = rexBuilder.makeCall(SqlStdOperatorTable.DOT,
+        RexNode nestedNode = rexBuilder.makeFieldAccess(
           rexNode,
-          rexBuilder.makeLiteral(child.getName()));
+          child.getName(), false);
         flattenRecursive(child, nestedNode);
       }
     } else {

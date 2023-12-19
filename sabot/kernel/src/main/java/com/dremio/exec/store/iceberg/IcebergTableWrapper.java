@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import static com.dremio.exec.store.iceberg.IcebergUtils.getPartitionColumns;
+
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
@@ -23,7 +25,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileScanTask;
@@ -147,13 +148,7 @@ public class IcebergTableWrapper {
 
   // build the names of all the partition columns.
   private void buildPartitionColumns() {
-    partitionColumns = table
-      .spec()
-      .fields()
-      .stream()
-      .map(PartitionField::sourceId)
-      .map(schema::findColumnName) // column name from schema
-      .collect(Collectors.toList());
+    partitionColumns = getPartitionColumns(table);
   }
 
   // build the list of "distinct partition values" and the corresponding dataset splits.
@@ -449,7 +444,7 @@ public class IcebergTableWrapper {
   // Use the mtime on the metadata directory as the read signature.
   private void buildReadSignature() throws IOException {
     Path metaDir = Path.of(rootDir).resolve(IcebergFormatMatcher.METADATA_DIR_NAME);
-    if (!fs.exists(metaDir) || !fs.isDirectory(metaDir)) {
+    if (!fs.isDirectory(metaDir)) {
       throw new IllegalStateException("missing metadata dir for iceberg table");
     }
 

@@ -19,8 +19,8 @@ package com.dremio.exec.planner.serialization.kryo.serializers;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.dremio.exec.catalog.DremioCatalogReader;
 import com.dremio.exec.catalog.DremioPrepareTable;
+import com.dremio.exec.ops.DremioCatalogReader;
 import com.dremio.exec.store.NamespaceTable;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.service.namespace.NamespaceException;

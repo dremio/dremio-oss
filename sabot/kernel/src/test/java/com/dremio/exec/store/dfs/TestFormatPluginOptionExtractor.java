@@ -41,7 +41,7 @@ public class TestFormatPluginOptionExtractor extends ExecTest {
           assertEquals(
               "(type: String, lineDelimiter: String, fieldDelimiter: String, quote: String, escape: String, " +
                   "comment: String, skipFirstLine: boolean, extractHeader: boolean, " +
-                  "autoGenerateColumnNames: boolean, trimHeader: boolean, outputExtension: String)",
+                  "autoGenerateColumnNames: boolean, trimHeader: boolean, skipLines: int, outputExtension: String)",
               d.presentParams()
           );
           break;

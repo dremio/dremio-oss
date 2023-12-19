@@ -20,7 +20,7 @@ import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rex.RexLiteral;
 
-import com.dremio.exec.calcite.logical.SampleCrel;
+import com.dremio.exec.planner.common.SampleRelBase;
 import com.dremio.exec.planner.logical.RelOptHelper;
 import com.dremio.exec.planner.physical.LimitPrel;
 import com.dremio.exec.planner.physical.PlannerSettings;
@@ -55,7 +55,7 @@ public class ElasticLimitRule extends RelOptRule {
     final PlannerSettings plannerSettings = PrelUtil.getPlannerSettings(limit.getCluster().getPlanner());
     if (intermediatePrel.contains(ElasticsearchSample.class)
         && limit.getFetch() != null
-        && RexLiteral.intValue(limit.getFetch()) >= SampleCrel.getSampleSizeAndSetMinSampleSize(plannerSettings, ElasticSampleRule.SAMPLE_SIZE_DENOMINATOR)) {
+        && RexLiteral.intValue(limit.getFetch()) >= SampleRelBase.getSampleSizeAndSetMinSampleSize(plannerSettings, ElasticSampleRule.SAMPLE_SIZE_DENOMINATOR)) {
       return false;
     }
 

@@ -42,20 +42,29 @@ public class SqlUpdateTable extends SqlUpdate implements SqlDmlOperator {
   public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("UPDATE", SqlKind.UPDATE) {
     @Override
     public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 6, "SqlUpdateTable.createCall() has to get 6 operands!");
+      Preconditions.checkArgument(operands.length == 7, "SqlUpdateTable.createCall() has to get 7 operands!");
 
       // We ignore operands[4] which contains the ALIAS since we don't allow that for now.
-      return new SqlUpdateTable(pos, operands[0], (SqlNodeList) operands[1], (SqlNodeList) operands[2],
-        operands[3], (SqlIdentifier)operands[4], operands[5]);
+      return new SqlUpdateTable(
+        pos,
+        operands[0],
+        (SqlNodeList) operands[1],
+        (SqlNodeList) operands[2],
+        operands[3],
+        (SqlIdentifier)operands[4],
+        operands[5],
+        (SqlTableVersionSpec) operands[6]
+      );
     }
   };
-
+  private static final SqlLiteral sqlLiteralNull = SqlLiteral.createNull(SqlParserPos.ZERO);
   // Create a separate `extendedTargetTable` to handle extended columns, as there's
   // no way to set SqlUpdate::targetTable without an assertion being thrown.
   private SqlNode extendedTargetTable;
 
   private final SqlNode source;
   private SqlNode sourceOperand;
+  private final SqlTableVersionSpec sqlTableVersionSpec;
 
   public SqlUpdateTable(SqlParserPos pos,
                         SqlNode targetTable,
@@ -63,10 +72,12 @@ public class SqlUpdateTable extends SqlUpdate implements SqlDmlOperator {
                         SqlNodeList sourceExpressionList,
                         SqlNode condition,
                         SqlIdentifier alias,
-                        SqlNode source) {
+                        SqlNode source,
+                        SqlTableVersionSpec sqlTableVersionSpec) {
     super(pos, targetTable, targetColumnList, sourceExpressionList, condition, null, alias);
     this.source = source;
     this.sourceOperand = source;
+    this.sqlTableVersionSpec = sqlTableVersionSpec;
   }
 
   @Override
@@ -94,7 +105,8 @@ public class SqlUpdateTable extends SqlUpdate implements SqlDmlOperator {
       getSourceExpressionList(),
       getCondition(),
       getAlias(),
-      sourceOperand);
+      sourceOperand,
+      sqlTableVersionSpec);
   }
 
   @Override
@@ -110,5 +122,18 @@ public class SqlUpdateTable extends SqlUpdate implements SqlDmlOperator {
   @Override
   public SqlNode getSourceTableRef() {
     return source;
+  }
+
+  @Override
+  public SqlTableVersionSpec getSqlTableVersionSpec() {
+    return sqlTableVersionSpec;
+  }
+
+  @Override
+  public TableVersionSpec getTableVersionSpec() {
+    if (sqlTableVersionSpec != null) {
+      return sqlTableVersionSpec.getTableVersionSpec();
+    }
+    return null;
   }
 }

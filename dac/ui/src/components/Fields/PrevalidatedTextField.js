@@ -33,7 +33,7 @@ export default class PrevalidatedTextField extends Component {
     };
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     if (
       this.state.internalValue === "" ||
       this.props.value !== nextProps.value

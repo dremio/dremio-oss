@@ -14,11 +14,15 @@
  * limitations under the License.
  */
 import { Component } from "react";
+import { FormattedMessage } from "react-intl";
 import PropTypes from "prop-types";
-import { ModalForm, FormBody, modalFormProps } from "components/Forms";
+import { ModalForm, modalFormProps } from "components/Forms";
 import { connectComplexForm } from "components/Forms/connectComplexForm";
 import ResourceTreeContainer from "components/Tree/ResourceTreeContainer";
-import { TextField, FieldWithError } from "components/Fields";
+
+import { NESSIE_REF_PREFIX } from "@app/constants/nessie";
+import { Button, IconButton, DialogContent } from "dremio-ui-lib/components";
+import { TreeConfigContext } from "@app/components/Tree/treeConfigContext";
 
 import * as classes from "./SelectContextForm.module.less";
 
@@ -30,6 +34,9 @@ export class SelectContextForm extends Component {
     onFormSubmit: PropTypes.func,
     onCancel: PropTypes.func,
     fields: PropTypes.object,
+
+    getPreselectedNode: PropTypes.func,
+    filterTree: PropTypes.func,
   };
 
   constructor(props) {
@@ -43,45 +50,70 @@ export class SelectContextForm extends Component {
   }
 
   render() {
-    const { fields, handleSubmit } = this.props;
+    const {
+      fields,
+      handleSubmit,
+      onFormSubmit,
+      onCancel,
+      getPreselectedNode,
+      filterTree,
+    } = this.props;
     const nodeId = fields.context.value || fields.context.initialValue || "";
 
     return (
       <div className="select-context" style={{ height: "100%" }}>
         <ModalForm
           {...modalFormProps(this.props)}
-          onSubmit={handleSubmit(this.props.onFormSubmit)}
-          confirmText={la("Select")}
+          onSubmit={handleSubmit(onFormSubmit)}
+          renderFooter={() => null}
         >
-          <FormBody>
-            <label>{la("Select New Context")}</label>
-            <div
-              style={style.resourceTree}
-              className={classes["resourceTreeContainer"]}
-            >
-              <ResourceTreeContainer
-                hideDatasets
-                onChange={this.handleChangeSelectedNode}
-                preselectedNodeId={nodeId}
-              />
+          <DialogContent
+            title={<FormattedMessage id="ContextPicker.Title" />}
+            toolbar={
+              <IconButton aria-label="Close" onClick={onCancel}>
+                <dremio-icon name="interface/close-small" />
+              </IconButton>
+            }
+            actions={
+              <>
+                <Button variant="secondary" onClick={onCancel}>
+                  <FormattedMessage id="Common.Cancel" />
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    onFormSubmit("");
+                  }}
+                >
+                  <FormattedMessage id="ContextPicker.Action.ClearContext" />
+                </Button>
+                <Button variant="primary" type="submit" data-qa="confirm">
+                  <FormattedMessage id="Common.Select" />
+                </Button>
+              </>
+            }
+          >
+            <div className={classes["resourceTreeContainer"]}>
+              <TreeConfigContext.Provider
+                value={{
+                  nessiePrefix: NESSIE_REF_PREFIX,
+                  filterTree,
+                }}
+              >
+                <ResourceTreeContainer
+                  fromModal
+                  hideDatasets
+                  onChange={this.handleChangeSelectedNode}
+                  preselectedNodeId={getPreselectedNode?.(nodeId) || nodeId}
+                />
+              </TreeConfigContext.Provider>
             </div>
-            <FieldWithError
-              errorPlacement="right"
-              {...fields.context}
-              style={style.resourceInput}
-            >
-              <TextField {...fields.context} initialFocus />
-            </FieldWithError>
-          </FormBody>
+          </DialogContent>
         </ModalForm>
       </div>
     );
   }
 }
-
-const mapStateToProps = (state, props) => ({
-  initialValues: props.initialValues,
-});
 
 export default connectComplexForm(
   {
@@ -89,15 +121,6 @@ export default connectComplexForm(
     fields: FIELDS,
   },
   [],
-  mapStateToProps,
+  null,
   null
 )(SelectContextForm);
-
-const style = {
-  resourceTree: {
-    height: "382px",
-  },
-  resourceInput: {
-    marginTop: "20px",
-  },
-};

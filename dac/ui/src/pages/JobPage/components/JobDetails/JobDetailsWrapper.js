@@ -17,7 +17,7 @@ import { PureComponent } from "react";
 import { connect } from "react-redux";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
-import uuid from "uuid";
+import { v4 as uuidv4 } from "uuid";
 
 import JobDetails from "@app/pages/JobPage/components/JobDetails/JobDetails";
 
@@ -62,7 +62,7 @@ export class JobDetailsWrapper extends PureComponent {
     this.receiveProps(props, {});
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     this.receiveProps(nextProps, this.props);
   }
 
@@ -93,10 +93,10 @@ export class JobDetailsWrapper extends PureComponent {
           isFailed: false,
           isWarning: true,
           error: {
-            message: la(
+            message: laDeprecated(
               "Could not find the specified job's details, they may have been cleaned up."
             ),
-            id: uuid.v4(),
+            id: uuidv4(),
           },
         });
       }

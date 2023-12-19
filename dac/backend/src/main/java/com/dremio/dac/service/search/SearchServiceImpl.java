@@ -19,7 +19,6 @@ import static com.dremio.dac.service.search.SearchIndexManager.*;
 import static com.dremio.datastore.SearchQueryUtils.*;
 import static com.dremio.exec.ExecConstants.SEARCH_SERVICE_RELEASE_LEADERSHIP_MS;
 import static com.dremio.service.namespace.NamespaceServiceImpl.DAC_NAMESPACE;
-import static com.dremio.service.scheduler.ScheduleUtils.scheduleForRunningOnceAt;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -53,6 +52,7 @@ import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceUtils;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
+import com.dremio.service.scheduler.Schedule;
 import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.services.configuration.ConfigurationStore;
 
@@ -110,16 +110,22 @@ public class SearchServiceImpl implements SearchService {
 
     // important to schedule once and schedule it back
     // since option value can change dynamically
-    schedulerService.get().schedule(scheduleForRunningOnceAt(
-      getNextRefreshTimeInMillis(),
-      LOCAL_TASK_LEADER_NAME, getNextReleaseLeadership(), TimeUnit.MILLISECONDS),
+    schedulerService.get().schedule(Schedule.Builder
+        .singleShotChain()
+        .startingAt(getNextRefreshTimeInMillis())
+        .asClusteredSingleton(LOCAL_TASK_LEADER_NAME)
+        .releaseOwnershipAfter(getNextReleaseLeadership(), TimeUnit.MILLISECONDS)
+        .build(),
       new Runnable() {
         @Override
         public void run() {
           wakeupManager("periodic refresh");
-          schedulerService.get().schedule(scheduleForRunningOnceAt(
-            getNextRefreshTimeInMillis(),
-            LOCAL_TASK_LEADER_NAME, getNextReleaseLeadership(), TimeUnit.MILLISECONDS),this);
+          schedulerService.get().schedule(Schedule.Builder
+              .singleShotChain()
+              .startingAt(getNextRefreshTimeInMillis())
+              .asClusteredSingleton(LOCAL_TASK_LEADER_NAME)
+              .releaseOwnershipAfter(getNextReleaseLeadership(), TimeUnit.MILLISECONDS)
+              .build(), this);
         }
       });
   }

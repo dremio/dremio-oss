@@ -25,6 +25,17 @@
       &:hover {
         background-color: var(--dremio--color--pale--navy);
       }
+
+      &__right {
+        display: flex;
+        justify-content: flex-end;
+        flex: 1;
+      }
+      .TextHighlight {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
     }
     .dataset-wrapper {
       margin: 4px 0;
@@ -47,7 +58,11 @@
     box-shadow: none !important;
   }
   .tagSearch {
-    width: 100%;
+    max-width: 160px;
+    flex: 1;
+    display: flex;
     white-space: nowrap;
+    min-width: 50px;
+    justify-content: flex-end;
   }
 }

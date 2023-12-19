@@ -227,6 +227,7 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
   }
 
   // Keeping a cache of remote filesystem instances
+  @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
   private Cache<NodeEndpoint, FileSystem> remoteFileSystems = CacheBuilder.newBuilder().softValues().build();
 
   /**

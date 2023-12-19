@@ -69,7 +69,9 @@ function HistoryPage({
               sourceName: source?.name,
               projectId: getSonarContext().getSelectedProjectId?.(),
             })
-          : undefined
+          : commonPaths.nessieSource.link({
+              sourceName: source?.name,
+            })
       ),
     [endpoint, nessie, source?.name, source?.id, isArcticConfig]
   );
@@ -94,7 +96,7 @@ const mapStateToProps = (state: any, { location }: WithRouterProps) => {
   const namespace = (namespaceString || "").split(".");
   const tableName = namespace.pop();
   const sources = getSortedSources(state);
-  const source = getSourceByName(sourceName, sources.toJS());
+  const source = getSourceByName(sourceName, sources)?.toJS();
   return {
     nessie: state.nessie,
     namespace,

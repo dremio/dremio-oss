@@ -22,7 +22,7 @@ import Modal from "components/Modals/Modal";
 import ConfirmCancelFooter from "components/Modals/ConfirmCancelFooter";
 import { Checkbox, TextField } from "components/Fields";
 import { Label } from "dremio-ui-lib";
-import uuid from "uuid";
+import { v4 as uuidv4 } from "uuid";
 
 import { confirmBodyText, modalContent } from "uiTheme/radium/modal";
 import localStorageUtils from "utils/storageUtils/localStorageUtils";
@@ -71,7 +71,7 @@ export default class ConfirmModal extends Component {
     doNotAskAgain: false,
   };
 
-  componentWillMount() {
+  UNSAFE_componentWillMount() {
     const { promptFieldProps, showPrompt, doNotAskAgainKey } = this.props;
 
     invariant(
@@ -154,7 +154,7 @@ export default class ConfirmModal extends Component {
       textRenderer = text.map((textVal, index) => {
         return (
           <p
-            key={uuid()}
+            key={uuidv4()}
             className={index < text.length - 1 ? "margin-bottom--double" : ""}
           >
             {textVal}
@@ -236,7 +236,7 @@ export default class ConfirmModal extends Component {
         classQa="confirm-modal"
         dataQa={dataQa}
         size={size}
-        title={title || la("Confirm")}
+        title={title || laDeprecated("Confirm")}
         style={modalStyle}
         className={className}
         closeButtonType={closeButtonType}
@@ -248,10 +248,10 @@ export default class ConfirmModal extends Component {
         <ConfirmCancelFooter
           hideCancel={hideCancel}
           confirm={this.onConfirm}
-          confirmText={confirmText || la("OK")}
+          confirmText={confirmText || laDeprecated("OK")}
           confirmButtonStyle={confirmButtonStyle}
           className={clsx(classes[`${confirmButtonStyle}ButtonPsuedoClasses`])}
-          cancelText={cancelText || la("Cancel")}
+          cancelText={cancelText || laDeprecated("Cancel")}
           cancel={onCancel}
           canSubmit={canSubmit}
           submitting={asyncSubmitting}

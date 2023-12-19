@@ -38,19 +38,16 @@ import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.physical.ProjectPrel;
-import com.dremio.exec.planner.sql.OperatorTable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 public class SplitUpComplexExpressions {
 
   public static class SplitUpComplexExpressionsVisitor extends BasePrelVisitor<Prel, Object, RelConversionException> {
-    OperatorTable table;
-    FunctionImplementationRegistry funcReg;
+    private final FunctionImplementationRegistry funcReg;
 
-    public SplitUpComplexExpressionsVisitor(OperatorTable table, FunctionImplementationRegistry funcReg) {
+    public SplitUpComplexExpressionsVisitor(FunctionImplementationRegistry funcReg) {
       super();
-      this.table = table;
       this.funcReg = funcReg;
     }
 
@@ -113,7 +110,7 @@ public class SplitUpComplexExpressions {
     List<RexNode> complexExprs = exprSplitter.getComplexExprs();
 
     if (complexExprs.size() == 1 && findTopComplexFunc(funcReg, project.getProjects()).size() == 1) {
-      return null;
+      return project;
     }
 
     final RexBuilder builder = project.getCluster().getRexBuilder();
@@ -192,10 +189,14 @@ public class SplitUpComplexExpressions {
 
     // Create new Project+ Filter + Project and visit underlying project since we only split top level complex expressions
     RelNode underlyingProject = visitProject(
-      ProjectPrel.
-      create(input.getCluster(), input.getTraitSet(), input,
-      underlyingProjectExprs , new RelRecordType(underlyingProjectDataTypes)),
-      input, funcReg);
+      ProjectPrel.create(
+        input.getCluster(),
+        input.getTraitSet(),
+        input,
+        underlyingProjectExprs,
+        new RelRecordType(underlyingProjectDataTypes)),
+      input,
+      funcReg);
    return ProjectPrel.create(
      filter.getCluster(), filter.getTraitSet(),
      filter.copy(filter.getTraitSet(), underlyingProject, updatedFilterCondition),

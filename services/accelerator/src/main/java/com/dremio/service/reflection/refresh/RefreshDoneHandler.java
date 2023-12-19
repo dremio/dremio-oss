@@ -141,8 +141,8 @@ public class RefreshDoneHandler {
     failIfNotEnoughRefreshesAvailable(decision);
 
     final JobDetails details = ReflectionUtils.computeJobDetails(lastAttempt);
-    boolean dataWritten = Optional.ofNullable(details.getOutputRecords()).orElse(0L) > 0;
-
+    final boolean dataWritten = Optional.ofNullable(details.getOutputRecords()).orElse(0L) > 0
+      || lastAttempt.getStats().getRemovedFiles() > 0;
     boolean isEmptyReflection = getIsEmptyReflection(decision.getInitialRefresh().booleanValue(), dataWritten, materialization);
     if (dataWritten || isEmptyReflection) {
       createAndSaveRefresh(details, decision, lastAttempt);
@@ -268,7 +268,21 @@ public class RefreshDoneHandler {
   private void createAndSaveRefresh(final JobDetails details, final RefreshDecision decision,final JobAttempt lastAttempt) {
     final JobId jobId = JobsProtoUtil.toStuff(job.getJobId());
     final boolean isFull = decision.getAccelerationSettings().getMethod() == RefreshMethod.FULL;
-    final UpdateId updateId = isFull ? new UpdateId() : getUpdateId(jobId, jobsService, allocator);
+    final UpdateId updateId;
+    if (isFull) {
+      updateId = new UpdateId();
+    } else {
+      if (decision.getOutputUpdateId() != null) {
+        updateId = decision.getOutputUpdateId();
+      } else {
+        updateId = getUpdateId(jobId, jobsService, allocator);
+        if (decision.getAccelerationSettings().getRefreshField() != null) {
+          updateId.setUpdateIdType(UpdateId.IdType.FIELD);
+        } else {
+          updateId.setUpdateIdType(UpdateId.IdType.MTIME);
+        }
+      }
+    }
     final MaterializationMetrics metrics = ReflectionUtils.computeMetrics(job, jobsService, allocator, jobId);
     final List<DataPartition> dataPartitions = ReflectionUtils.computeDataPartitions(JobsProtoUtil.getLastAttempt(job).getInfo());
     final AttemptId attemptId = AttemptIdUtils.fromString(lastAttempt.getAttemptId());

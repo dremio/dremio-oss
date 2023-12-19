@@ -1,0 +1,40 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+name: "ARRAY_AGG"
+signatures:
+ -
+  returnType: "ARRAY"
+  parameters:
+   -
+    kind: "REGULAR"
+    type: "ANY"
+    name: "expression"
+    description: "The expression to aggregate into an array."
+  snippetOverride: "ARRAY_AGG(${1|ALL,DISTINCT|} ${2:value})"
+  sampleCodes:
+   -
+    call: "SELECT ARRAY_AGG(NAME) FROM PEOPLE"
+    result: "['Bob', 'Charlie', 'Alice']"
+   -
+    call: "SELECT ARRAY_AGG(NAME) WITHIN GROUP (ORDER BY NAME) FROM PEOPLE"
+    result: "['Alice', 'Bob', 'Charlie']"
+dremioVersion: "25.0+"
+functionCategories:
+ - "AGGREGATE"
+ - ARRAY
+description: "Aggregates the provided expression into an ARRAY. If the input is empty, then an empty ARRAY is returned. You can think about this as a PIVOT but for a single column."

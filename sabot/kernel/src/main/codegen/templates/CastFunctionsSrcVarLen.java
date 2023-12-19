@@ -18,7 +18,7 @@
 <#list cast.types as type>
 <#if type.major == "SrcVarlen">
 
-<@pp.changeOutputFile name="/com/dremio/exec/expr/fn/impl/gcast/Cast${type.from}${type.to}.java" />
+<@pp.changeOutputFile name="/com/dremio/exec/expr/fn/impl/gcast/Cast${type.from}${type.to}Function.java" />
 
 <#include "/@includes/license.ftl" />
 
@@ -37,37 +37,69 @@ import org.apache.arrow.memory.ArrowBuf;
 /**
  * generated from ${.template_name} ${type.from} ${type.to} ${type.major}
  */
-@SuppressWarnings("unused")
-@FunctionTemplate(name = "cast${type.to?upper_case}", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls=NullHandling.NULL_IF_NULL)
-public class Cast${type.from}${type.to} implements SimpleFunction{
+public class Cast${type.from}${type.to}Function {
+  @SuppressWarnings("unused")
+  @FunctionTemplate(name = "cast${type.to?upper_case}", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls=NullHandling.NULL_IF_NULL)
+  public static class Cast${type.from}${type.to} implements SimpleFunction{
 
-  @Param ${type.from}Holder in;
-  @Output ${type.to}Holder out;
-  @Inject FunctionErrorContext errCtx;
+    @Param ${type.from}Holder in;
+    @Output ${type.to}Holder out;
+    @Inject FunctionErrorContext errCtx;
 
-  public void setup() {}
+    public void setup() {}
 
-  public void eval() {
-    <#if type.to == "Float4" || type.to == "Float8">
+    public void eval() {
+      <#if type.to == "Float4" || type.to == "Float8">
+        byte[] buf = new byte[in.end - in.start];
+        in.buffer.getBytes(in.start, buf, 0, in.end - in.start);
+        try{
+          String inputValue = new String(buf, java.nio.charset.StandardCharsets.UTF_8);
+          out.value = com.dremio.exec.expr.fn.impl.gcast.Cast${type.from}${type.to}Function.parse${type.javaType}(inputValue, false, 0);
+        } catch (RuntimeException e) {
+          throw errCtx.error(e)
+            .build();
+        }
+      <#elseif type.to=="Int" >
+        out.value = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.varTypesToInt(in.start, in.end, in.buffer, errCtx);
 
-      byte[] buf = new byte[in.end - in.start];
-      in.buffer.getBytes(in.start, buf, 0, in.end - in.start);
-
-      try{
-        out.value = ${type.javaType}.parse${type.parse}(new String(buf, java.nio.charset.StandardCharsets.UTF_8));
-      } catch (RuntimeException e) {
-        throw errCtx.error(e)
-          .build();
-      }
-    <#elseif type.to=="Int" >
-      out.value = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.varTypesToInt(in.start, in.end, in.buffer, errCtx);
-
-    <#elseif type.to == "BigInt">
-      out.value = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.varTypesToLong(in.start, in.end, in.buffer, errCtx);
-    </#if>
+      <#elseif type.to == "BigInt">
+        out.value = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.varTypesToLong(in.start, in.end, in.buffer, errCtx);
+      </#if>
+    }
   }
-}
 
+  <#if type.to == "Float4" || type.to == "Float8">
+    public static ${type.javaType} parse${type.javaType}(String input, boolean minusSign, int firstCharIndex) {
+      if (input.charAt(firstCharIndex) == '-'){
+        minusSign = true;
+        firstCharIndex++;
+      } else if (input.charAt(firstCharIndex) == '+') {
+        firstCharIndex++;
+      }
+      switch (input.charAt(firstCharIndex)) {
+        case 'i':
+        case 'I':
+        case 'n':
+        case 'N':
+          switch (input.substring(firstCharIndex + 1).toLowerCase().trim()) {
+            case "nfinity":
+            case "nf":
+              if (minusSign) {
+                return ${type.javaType}.NEGATIVE_INFINITY;
+              } else {
+                return ${type.javaType}.POSITIVE_INFINITY;
+              }
+            case "an":
+              return ${type.javaType}.NaN;
+            default:
+              throw new NumberFormatException("wrong input format");
+          }
+        default:
+          return ${type.javaType}.parse${type.javaType}(input);
+      }
+    }
+  </#if>
+}
 </#if> <#-- type.major -->
 </#list>
 

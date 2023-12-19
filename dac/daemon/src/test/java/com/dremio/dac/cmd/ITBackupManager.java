@@ -20,15 +20,21 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.URI;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -48,6 +54,7 @@ import org.junit.runners.Parameterized.Parameters;
 
 import com.dremio.common.VM;
 import com.dremio.common.perf.Timer;
+import com.dremio.common.utils.ProtostuffUtil;
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.daemon.DACDaemon;
 import com.dremio.dac.explore.model.DatasetPath;
@@ -85,7 +92,10 @@ import com.dremio.service.namespace.space.proto.HomeConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.dremio.service.users.User;
 import com.dremio.service.users.UserService;
+import com.dremio.services.configuration.proto.ConfigurationEntry;
 import com.dremio.test.DremioTest;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -157,6 +167,84 @@ public class ITBackupManager extends BaseTestServer {
       return Arrays.asList("json", "binary");
   }
 
+  @Test
+  public void testBackupTableKey() throws Exception {
+    testBackup1table1key("configuration", "clusterId");
+  }
+
+  @Test
+  public void testBackupTable() throws Exception {
+    testBackup1table1key("configuration", "");
+  }
+
+  @Test
+  public void testBackupTableJobs() throws Exception {
+    testBackup1table1key("jobs", "");
+  }
+
+  @Test
+  public void testBackupTableDataset() throws Exception {
+    testBackup1table1key("datasetVersions", "");
+  }
+
+  @Test
+  public void testBackupWrongKey() throws Exception {
+    testBackup1table1key("configuration", "test");
+  }
+
+  private void testBackup1table1key(String table, String key) throws Exception {
+    if ( "binary".equals(mode) ) {
+      return; // only test/run on 'json' mode
+    }
+
+    int httpPort = getCurrentDremioDaemon().getWebServer().getPort();
+    DACConfig dacConfig = ITBackupManager.dacConfig.httpPort(httpPort);
+    Path dbDir = Path.of(dacConfig.getConfig().getString(DremioConfig.DB_PATH_STRING));
+
+    LocalKVStoreProvider localKVStoreProvider = l(LegacyKVStoreProvider.class).unwrap(LocalKVStoreProvider.class);
+    HomeFileConf homeFileStore = ((CatalogServiceImpl) l(CatalogService.class))
+      .getManagedSource(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME).getId().getConnectionConf();
+
+    // take backup 1
+    BackupOptions backupOptions = new BackupOptions(BaseTestServer.folder1.newFolder().getAbsolutePath(),
+        false /* not binury == json */, false, "", table, key);
+    Path backupDir = Path.of(BackupRestoreUtil.createBackup( fs, backupOptions, localKVStoreProvider, homeFileStore,
+          null).getBackupPath());
+
+    // Verify the table "configuration" and the key are in the backup
+    Path path = backupDir.resolve(table + "_backup.json");
+
+    File file = new File(path.toString());
+    Map<String, ConfigurationEntry> map = new HashMap<>();
+    String keyInDataset = null;
+    try(final BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(file)))) {
+      final ObjectMapper objectMapper = new ObjectMapper();
+      String line;
+      while ((line = reader.readLine()) != null) {
+        JsonNode jsonNode = objectMapper.readTree(line);
+        String key1 = jsonNode.get("key").asText();
+        ConfigurationEntry entry =
+          ProtostuffUtil.fromJSON(jsonNode.get("value").asText(), ConfigurationEntry.getSchema(), false);
+        map.put(key1, entry);
+        keyInDataset = key1;
+      }
+    }
+
+    if ("jobs".equals(table) || "test".equals(key)) { // empty data/table
+      assertThat(map).hasSize(0);
+    } else if (!key.isEmpty()) {
+      assertThat(map).hasSize(1);
+      assertThat(map).containsKey(key);
+    } else {
+      assertTrue(map.size() > 1);
+      if ("datasetVersions".equals(table)) { // for 'datasetVersions', keep testing with 1 key
+         testBackup1table1key(table, keyInDataset);
+      }
+    }
+
+  }
+
+
   private void testBackup(String compression) throws Exception {
     boolean binary = "binary".equals(mode);
     int httpPort = getCurrentDremioDaemon().getWebServer().getPort();
@@ -169,7 +257,7 @@ public class ITBackupManager extends BaseTestServer {
     // take backup 1
     CheckPoint cp1 = checkPoint();
     Path backupDir1 = Path.of(BackupRestoreUtil.createBackup(
-      fs, new BackupOptions(BaseTestServer.folder1.newFolder().getAbsolutePath(), binary, false, compression),
+      fs, new BackupOptions(BaseTestServer.folder1.newFolder().getAbsolutePath(), binary, false, compression, "", ""),
       localKVStoreProvider, homeFileStore, null).getBackupPath());
 
     // add dataset, delete dataset, upload file
@@ -190,7 +278,7 @@ public class ITBackupManager extends BaseTestServer {
     // take backup 2 using rest api
     final URI backupPath = BaseTestServer.folder1.newFolder().getAbsoluteFile().toURI();
     Path backupDir2 = Path.of(
-      Backup.createBackup(dacConfig, () -> null, DEFAULT_USERNAME, DEFAULT_PASSWORD, false, backupPath, binary, false, compression)
+      Backup.createBackup(dacConfig, () -> null, DEFAULT_USERNAME, DEFAULT_PASSWORD, false, backupPath, binary, false, compression, "", "")
       .getBackupPath());
 
     // destroy everything
@@ -355,6 +443,83 @@ public class ITBackupManager extends BaseTestServer {
     cpAfterRestore.checkEquals(cpBeforeBackup);
   }
 
+  @Test
+  public void testBackupTableKeyOnCli() throws Exception {
+    int httpPort = getCurrentDremioDaemon().getWebServer().getPort();
+    DACConfig dacConfig = ITBackupManager.dacConfig.httpPort(httpPort);
+    final Path dbDir = Path.of(dacConfig.getConfig().getString(DremioConfig.DB_PATH_STRING));
+
+    String username = DEFAULT_USERNAME;
+    String password = DEFAULT_PASSWORD;
+    File backupDir = TEMP_FOLDER.newFolder();
+    String table = "configuration";
+    String key = "clusterId";
+    String[] args;
+    args = new String[] { "-u", username, "-p", password, "-d", backupDir.getAbsolutePath(), "-s", "-j", "-t", table, "-k", key };
+
+    Backup.BackupResult backupResult = Backup.doMain(args, dacConfig);
+    assertEquals("backup must finish with exit code 0", 0, backupResult.getExitStatus());
+
+    // Verify the table "configuration" and the key are in the backup
+    String[] names = backupDir.list();
+    String  path = backupDir.getPath() + "/" +names[0] + "/" + table + "_backup.json";
+
+    File file = new File(path);
+    Map<String, ConfigurationEntry> map = new HashMap<>();
+    try(final BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(file)))) {
+      final ObjectMapper objectMapper = new ObjectMapper();
+      String line;
+      while ((line = reader.readLine()) != null) {
+        JsonNode jsonNode = objectMapper.readTree(line);
+        String key1 = jsonNode.get("key").asText();
+        ConfigurationEntry entry =
+          ProtostuffUtil.fromJSON(jsonNode.get("value").asText(), ConfigurationEntry.getSchema(), false);
+        map.put(key1, entry);
+      }
+    }
+
+    assertThat(map).hasSize(1);
+    assertThat(map).containsKey(key);
+  }
+
+  @Test
+  public void testBackupBinaryTableKeyOnCli() throws Exception {
+    int httpPort = getCurrentDremioDaemon().getWebServer().getPort();
+    DACConfig dacConfig = ITBackupManager.dacConfig.httpPort(httpPort);
+    final Path dbDir = Path.of(dacConfig.getConfig().getString(DremioConfig.DB_PATH_STRING));
+
+    String username = DEFAULT_USERNAME;
+    String password = DEFAULT_PASSWORD;
+    File backupDir = TEMP_FOLDER.newFolder();
+    String table = "configuration";
+    String key = "clusterId";
+    String[] args;
+    args = new String[] { "-u", username, "-p", password, "-d", backupDir.getAbsolutePath(), "-s",  "-t", table, "-k", key };
+
+    Backup.BackupResult backupResult = Backup.doMain(args, dacConfig);
+    assertEquals("backup must finish with exit code 1", 1, backupResult.getExitStatus());
+
+  }
+
+  @Test
+  public void testBackupEmptyTableKeyOnCli() throws Exception {
+    int httpPort = getCurrentDremioDaemon().getWebServer().getPort();
+    DACConfig dacConfig = ITBackupManager.dacConfig.httpPort(httpPort);
+    final Path dbDir = Path.of(dacConfig.getConfig().getString(DremioConfig.DB_PATH_STRING));
+
+    String username = DEFAULT_USERNAME;
+    String password = DEFAULT_PASSWORD;
+    File backupDir = TEMP_FOLDER.newFolder();
+    String table = "";
+    String key = "clusterId";
+    String[] args;
+    args = new String[] { "-u", username, "-p", password, "-d", backupDir.getAbsolutePath(), "-s",  "-t", table, "-k", key };
+
+    Backup.BackupResult backupResult = Backup.doMain(args, dacConfig);
+    assertEquals("backup must finish with exit code 1", 1, backupResult.getExitStatus());
+
+  }
+
   private void backupRestoreTestHelper(String dsName1, String dsName2, String sql) throws Exception {
     boolean binary = "binary".equals(mode);
     Path dbDir = Path.of(dacConfig.getConfig().getString(DremioConfig.DB_PATH_STRING));
@@ -365,7 +530,7 @@ public class ITBackupManager extends BaseTestServer {
     final String tempPath = TEMP_FOLDER.getRoot().getAbsolutePath();
 
     Path backupDir1 = Path.of(BackupRestoreUtil.createBackup(
-      fs, new BackupOptions(BaseTestServer.folder1.newFolder().getAbsolutePath(), binary, false, ""),
+      fs, new BackupOptions(BaseTestServer.folder1.newFolder().getAbsolutePath(), binary, false, "", "", ""),
       localKVStoreProvider, homeFileStore, null).getBackupPath());
 
     // Do some things

@@ -24,6 +24,11 @@ import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.acceleration.MaterializationList;
+import com.dremio.exec.planner.normalizer.PlannerBaseComponentImpl;
+import com.dremio.exec.planner.normalizer.PlannerBaseModule;
+import com.dremio.exec.planner.normalizer.PlannerNormalizerComponent;
+import com.dremio.exec.planner.normalizer.PlannerNormalizerModule;
+import com.dremio.exec.planner.normalizer.RelNormalizerTransformer;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.observer.AttemptObservers;
 import com.dremio.exec.planner.sql.SqlConverter;
@@ -35,6 +40,7 @@ public class SqlHandlerConfig {
   private final SqlConverter converter;
   private final AttemptObservers observer;
   private final MaterializationList materializations;
+  private final RelNormalizerTransformer relNormalizerTransformer;
 
   public SqlHandlerConfig(QueryContext context, SqlConverter converter, AttemptObserver observer,
       MaterializationList materializations) {
@@ -43,6 +49,19 @@ public class SqlHandlerConfig {
     this.converter = converter;
     this.observer = AttemptObservers.of(observer);
     this.materializations = materializations;
+    PlannerNormalizerComponent plannerNormalizerComponent = PlannerNormalizerComponent.build(
+      PlannerBaseComponentImpl.build(
+        new PlannerBaseModule(),
+        converter.getSettings(),
+        converter.getFunctionImplementationRegistry(),
+        converter.getFunctionContext(),
+        converter.getOpTab(),
+        converter,
+        observer
+      ),
+      new PlannerNormalizerModule()
+    );
+    this.relNormalizerTransformer = plannerNormalizerComponent.getRelNormalizerTransformer();
   }
 
   public QueryContext getContext() {
@@ -78,5 +97,9 @@ public class SqlHandlerConfig {
 
   public void addObserver(AttemptObserver observer) {
     this.observer.add(observer);
+  }
+
+  public RelNormalizerTransformer getRelNormalizerTransformer() {
+    return relNormalizerTransformer;
   }
 }

@@ -22,6 +22,18 @@ import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
 import * as sqlPaths from "dremio-ui-common/paths/sqlEditor.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 import { nameToInitials } from "@app/exports/utilities/nameToInitials";
+import { useSqlRunnerSession } from "dremio-ui-common/sonar/SqlRunnerSession/providers/useSqlRunnerSession.js";
+import { pollScriptJobs, setTabView } from "@app/actions/resources/scripts";
+import { store } from "@app/store/store";
+import { getExploreState, selectTabDataset } from "@app/selectors/explore";
+import { ScriptsResource } from "dremio-ui-common/sonar/scripts/resources/ScriptsResource.js";
+import {
+  closeTab,
+  selectTab,
+} from "dremio-ui-common/sonar/SqlRunnerSession/resources/SqlRunnerSessionResource.js";
+import { getReferencesListForScript } from "@app/utils/nessieUtils";
+import { getLocation } from "@app/selectors/routing";
+import { isTabbableUrl } from "@app/utils/explorePageTypeUtils";
 
 export const ALL_MINE_SCRIPTS_TABS = {
   all: "All",
@@ -29,7 +41,7 @@ export const ALL_MINE_SCRIPTS_TABS = {
 };
 
 export const MAX_MINE_SCRIPTS_ALLOWANCE = 100;
-export const INITIAL_CALL_VALUE = 100;
+export const INITIAL_CALL_VALUE = 1000;
 export const SEARCH_CALL_VALUE = 500;
 
 export const fetchAllAndMineScripts = (
@@ -174,26 +186,42 @@ export const openPrivilegesModalForScript = ({
   });
 };
 
-export const confirmDelete = (
+export const handleDeleteScript = (
   renderedProps: SQLScriptsProps,
   script: any,
-  searchTerm: string
+  userId: string,
+  searchTerm: string,
+  openNextScript: any,
+  isMultiTabsEnabled: boolean
 ): void => {
-  const { intl } = renderedProps;
   const projectId = getSonarContext()?.getSelectedProjectId?.();
+  const { intl, activeScript } = renderedProps;
   const deleteScript = () => {
     renderedProps
       .deleteScript(script.id)
       .then(() => {
         fetchAllAndMineScripts(renderedProps.fetchSQLScripts, searchTerm);
-        if (script.id === renderedProps.activeScript.id) {
-          renderedProps.resetQueryState();
-          renderedProps.router.push({
-            pathname: sqlPaths.sqlEditor.link({ projectId }),
-            state: { discard: true },
-          });
+        ScriptsResource.fetch();
+        closeTab(script.id);
+        if (isMultiTabsEnabled) {
+          if (
+            !renderedProps.activeScript.id ||
+            renderedProps.activeScript.id === script.id
+          ) {
+            renderedProps.setActiveScript({ script: {} });
+            openNextScript?.();
+          }
+          return;
+        } else {
+          if (script.id === renderedProps.activeScript.id) {
+            renderedProps.resetQueryState();
+            renderedProps.router.push({
+              pathname: sqlPaths.sqlEditor.link({ projectId }),
+              state: { discard: true },
+            });
+          }
+          return;
         }
-        return;
       })
       .catch((error: any) => {
         const failedErrorLog = sentryUtil.logException(error);
@@ -207,41 +235,13 @@ export const confirmDelete = (
       });
   };
 
-  renderedProps.showConfirmationDialog({
-    title: intl.formatMessage({ id: "Script.DeleteConfirm" }),
-    confirmText: intl.formatMessage({ id: "Script.DeleteConfirmBtn" }),
-    text: intl.formatMessage(
-      { id: "Script.DeleteConfirmMessage" },
-      { name: script.name }
-    ),
-    confirm: () => deleteScript(),
-    closeButtonType: "XBig",
-    className: "--newModalStyles",
-    headerIcon: (
-      <dremio-icon
-        name="interface/warning"
-        alt="Warning"
-        class="warning-icon"
-      />
-    ),
-  });
-};
-
-export const handleDeleteScript = (
-  renderedProps: SQLScriptsProps,
-  script: any,
-  userId: string,
-  searchTerm: string
-): void => {
-  const { intl, activeScript } = renderedProps;
   const deleteId =
     activeScript.id === script.id ? "DeleteThisMessage" : "DeleteOtherMessage";
-
   renderedProps.showConfirmationDialog({
     title: intl.formatMessage({ id: "Script.Delete" }),
     confirmText: intl.formatMessage({ id: "Common.Delete" }),
     text: intl.formatMessage({ id: `Script.${deleteId}` }),
-    confirm: () => confirmDelete(renderedProps, script, searchTerm),
+    confirm: () => deleteScript(),
     closeButtonType: "CloseBig",
     className: "--newModalStyles",
     headerIcon: (
@@ -254,51 +254,125 @@ export const handleDeleteScript = (
   });
 };
 
-export const handleOpenScript = (
-  renderedProps: SQLScriptsProps,
-  script: any
-): void => {
-  const {
-    activeScript,
-    currentSql,
-    setActiveScript,
-    showConfirmationDialog,
-    resetQueryState,
-    router,
-    intl,
-  } = renderedProps;
-  const unsavedScriptChanges = !activeScript.id && !!currentSql;
-  const editedScript = activeScript.id && currentSql !== activeScript.content;
-  const projectId = getSonarContext()?.getSelectedProjectId?.();
+function getScriptQueryParams(dataset: any, queryStatuses: any) {
+  if (dataset) {
+    return {
+      tipVersion: dataset.get("tipVersion"),
+      version: dataset.get("datasetVersion"),
+      jobId: dataset.get("jobId"),
+    };
+  } else if (queryStatuses?.length) {
+    const qStatus = queryStatuses[0];
+    return {
+      tipVersion: qStatus.version,
+      version: qStatus.version,
+      jobId: qStatus.jobId,
+    };
+  } else {
+    return {};
+  }
+}
 
-  const openScript = () => {
-    router.push({
-      query: { scriptId: script.id },
-      pathname: sqlPaths.sqlEditor.link({ projectId }),
-      state: { discard: true },
+function doScriptSelect(
+  router: any,
+  script: any,
+  selectTabFunction: any,
+  newQueryStatuses?: any
+) {
+  const dataset = selectTabDataset(store.getState(), script.id);
+  const prevScript = selectActiveScript(store.getState());
+  const location = getLocation(store.getState());
+
+  // If a script is already open and a different one is selected, immediately update the script
+  // in the store and sync the changes
+  if (prevScript.id) {
+    store.dispatch({
+      type: "REPLACE_SCRIPT_CONTENTS",
+      scriptId: prevScript.id,
+      script: {
+        ...prevScript,
+        content: getExploreState(store.getState()).view.currentSql,
+        referencesList: getReferencesListForScript(store.getState().nessie),
+      },
     });
-    resetQueryState({ exclude: ["currentSql"] });
-    setActiveScript({ script });
+  }
+
+  // Switch tabs and run side-effects prior to changing URL
+  store.dispatch(setTabView(script, prevScript));
+  selectTabFunction(script.id);
+  //Begin polling after a delay since EXPLORE_PAGE_LOCATION_CHANGED cancels job polling, polling will wait for the page change below
+  store.dispatch(pollScriptJobs(script, newQueryStatuses));
+
+  const action = isTabbableUrl(location) ? router.replace : router.push;
+  action({
+    query: {
+      scriptId: script.id,
+      ...getScriptQueryParams(dataset, newQueryStatuses),
+    },
+    pathname: sqlPaths.sqlEditor.link({
+      projectId: getSonarContext()?.getSelectedProjectId?.(),
+    }),
+    state: { discard: true },
+  });
+}
+
+export const handleOpenTabScript =
+  (router: any) => (script: any, newQueryStatuses: any) => {
+    doScriptSelect(router, script, selectTab, newQueryStatuses);
   };
 
-  if (script.id !== activeScript.id && (unsavedScriptChanges || editedScript)) {
-    showConfirmationDialog({
-      title: intl.formatMessage({ id: "Common.UnsavedWarning" }),
-      confirmText: intl.formatMessage({ id: "Common.Leave" }),
-      text: intl.formatMessage({ id: "Common.LeaveMessage" }),
-      cancelText: intl.formatMessage({ id: "Common.Stay" }),
-      confirm: () => openScript(),
-      closeButtonType: "XBig",
-      className: "--newModalStyles",
-      headerIcon: (
-        <dremio-icon
-          name="interface/warning"
-          alt="Warning"
-          class="warning-icon"
-        />
-      ),
-    });
-  } else if (script.id !== activeScript.id) {
-    openScript();
-  }
-};
+export const handleOpenScript =
+  (context: {
+    sqlRunnerSession: ReturnType<typeof useSqlRunnerSession>;
+    multiTabEnabled: boolean;
+  }) =>
+  (renderedProps: SQLScriptsProps, script: any): void => {
+    const { activeScript, currentSql, showConfirmationDialog, router, intl } =
+      renderedProps;
+    const unsavedScriptChanges = !activeScript.id && !!currentSql;
+    const editedScript = activeScript.id && currentSql !== activeScript.content;
+
+    const openScript = () => {
+      doScriptSelect(router, script, context.sqlRunnerSession.selectTab);
+    };
+
+    if (activeScript.id === script.id) return;
+
+    if (context.multiTabEnabled) {
+      openScript();
+      return;
+    }
+
+    if (
+      script.id !== activeScript.id &&
+      (unsavedScriptChanges || editedScript)
+    ) {
+      showConfirmationDialog({
+        title: intl.formatMessage({ id: "Common.UnsavedWarning" }),
+        confirmText: intl.formatMessage({ id: "Common.Leave" }),
+        text: intl.formatMessage({ id: "Common.LeaveMessage" }),
+        cancelText: intl.formatMessage({ id: "Common.Stay" }),
+        confirm: () => openScript(),
+        closeButtonType: "XBig",
+        className: "--newModalStyles",
+        headerIcon: (
+          <dremio-icon
+            name="interface/warning"
+            alt="Warning"
+            class="warning-icon"
+          />
+        ),
+      });
+    } else if (script.id !== activeScript.id) {
+      openScript();
+    }
+  };
+
+export const selectActiveScript = (state: any) =>
+  state.modulesState["explorePage"]?.data?.view?.activeScript;
+
+export const selectCurrentSql = (state: any) =>
+  state.modulesState["explorePage"]?.data?.view?.currentSql;
+
+export const selectCurrentContext = (state: any) =>
+  state.modulesState["explorePage"]?.data?.view?.queryContext;

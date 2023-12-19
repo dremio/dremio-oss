@@ -30,7 +30,7 @@ class OtherGroup extends PureComponent {
         key="KEEP_ONLY"
         columnType={columnType}
         actionType="KEEP_ONLY"
-        title={la("Keep Only…")}
+        title={laDeprecated("Keep Only…")}
         availableTypes={KEEP_ONLY_TYPES}
         onClick={onClick}
       />,
@@ -38,7 +38,7 @@ class OtherGroup extends PureComponent {
         key="EXCLUDE"
         columnType={columnType}
         actionType="EXCLUDE"
-        title={la("Exclude…")}
+        title={laDeprecated("Exclude…")}
         availableTypes={KEEP_ONLY_TYPES}
         onClick={onClick}
       />,

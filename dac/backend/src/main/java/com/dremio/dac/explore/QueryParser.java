@@ -18,21 +18,23 @@ package com.dremio.dac.explore;
 import static com.dremio.common.perf.Timer.time;
 
 import java.security.AccessControlException;
-import java.util.List;
+import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.tools.RelConversionException;
 import org.apache.calcite.tools.ValidationException;
 
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.perf.Timer.TimedBlock;
-import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.planner.PlannerPhase;
@@ -48,13 +50,13 @@ import com.dremio.exec.proto.UserBitShared.UserCredentials;
 import com.dremio.exec.proto.UserProtos.UserProperties;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.SessionOptionManagerImpl;
+import com.dremio.exec.util.QueryVersionUtils;
 import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.exec.work.foreman.SqlUnsupportedException;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.jobs.metadata.QueryMetadata;
 import com.dremio.service.jobs.metadata.QueryMetadata.Builder;
-import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Throwables;
 
 /**
@@ -92,26 +94,13 @@ public final class QueryParser {
           .setUserName(query.getUsername())
           .build())
           .withUserProperties(UserProperties.getDefaultInstance())
+          .withDefaultSchema(query.getContext())
           .build();
       return new QueryContext(session, sabotContext, queryId);
     }
   }
 
-  private SqlConverter getNewConverter(QueryContext context, SqlQuery query, AttemptObserver observerForSubstitution) {
-
-    Catalog catalog = context.getCatalog();
-    final List<String> sqlContext = query.getContext();
-    if(sqlContext != null){
-      NamespaceKey path = new NamespaceKey(sqlContext);
-      try {
-        catalog = catalog.resolveCatalog(path);
-      } catch (Exception e) {
-        throw UserException.validationError(e)
-          .message("Unable to resolve schema path [%s]. Failure resolving [%s] portion of path.", sqlContext, path)
-          .build(logger);
-      }
-    }
-
+  private SqlConverter getNewConverter(QueryContext context, AttemptObserver observerForSubstitution) {
     return new SqlConverter(
         context.getPlannerSettings(),
         context.getOperatorTable(),
@@ -120,7 +109,6 @@ public final class QueryParser {
         context.getFunctionRegistry(),
         context.getSession(),
         observerForSubstitution,
-        catalog,
         context.getSubstitutionProviderFactory(),
         context.getConfig(),
         context.getScanResult(),
@@ -138,12 +126,15 @@ public final class QueryParser {
       try(QueryContext context = newQueryContext(query)) {
         context.setGroupResourceInformation(sabotContext.getClusterResourceInformation());
 
-        QueryMetadata.Builder builder = QueryMetadata.builder(sabotContext.getNamespaceService(query.getUsername()))
-          .addQuerySql(query.getSql())
-          .addQueryContext(query.getContext());
+        QueryMetadata.Builder builder =
+            QueryMetadata.builder(
+                    sabotContext.getNamespaceService(query.getUsername()),
+                    sabotContext.getCatalogService())
+                .addQuerySql(query.getSql())
+                .addQueryContext(query.getContext());
         AttemptObserver observer = new MetadataCollectingObserver(builder);
 
-        final SqlConverter converter = getNewConverter(context, query, observer);
+        final SqlConverter converter = getNewConverter(context, observer);
         final SqlNode sqlNode = parseQueryInternal(converter, query.getSql());
         final SqlHandlerConfig config = new SqlHandlerConfig(context, converter, observer, null);
         NormalHandler handler = new NormalHandler();
@@ -173,6 +164,34 @@ public final class QueryParser {
   private SqlNode parseQueryInternal(SqlConverter converter, String sql) {
     try (TimedBlock b = time("parse")) {
       return converter.parse(sql);
+    }
+  }
+
+  public static void validateVersions(SqlQuery query, SabotContext sabotContext, Map<String, VersionContext> sourceVersionMapping) throws Exception {
+    QueryParser parser = new QueryParser(sabotContext);
+    parser.checkForUnspecifiedVersions(query, sabotContext, sourceVersionMapping);
+  }
+
+  private void checkForUnspecifiedVersions(SqlQuery query, SabotContext sabotContext, Map<String, VersionContext> sourceVersionMapping) throws Exception {
+    try (final QueryContext queryContext = QueryVersionUtils.queryContextForVersionValidation(
+      sabotContext,
+      query.getContext(),
+      sourceVersionMapping,
+      Optional.empty())) {
+      SqlConverter sqlConverter = QueryVersionUtils.getNewConverter(queryContext);
+      final SqlNode sqlNode = parseQueryInternal(sqlConverter, query.getSql());
+      if (!sqlNode.getKind().belongsTo(Collections.singleton(SqlKind.SELECT))) {
+        // Don't need the version context verification for non-select queries like "show schemas". Note that this
+        // code path is possible only through the UI or REST - not through the CREATE VIEW handler.
+        return;
+      }
+      QueryVersionUtils.checkForUnspecifiedVersionsAndReturnRelNode(
+        sqlNode,
+        query.getContext(),
+        sabotContext,
+        sourceVersionMapping,
+        Optional.empty()
+      );
     }
   }
 

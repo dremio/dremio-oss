@@ -21,6 +21,7 @@ import static javax.ws.rs.core.Response.Status.CONFLICT;
 import static javax.ws.rs.core.Response.Status.FORBIDDEN;
 import static javax.ws.rs.core.Response.Status.INTERNAL_SERVER_ERROR;
 import static javax.ws.rs.core.Response.Status.NOT_FOUND;
+import static javax.ws.rs.core.Response.Status.NOT_IMPLEMENTED;
 import static javax.ws.rs.core.Response.Status.UNAUTHORIZED;
 
 import java.security.AccessControlException;
@@ -170,12 +171,21 @@ class GenericExceptionMapper implements ExceptionMapper<Throwable> {
 
     if (throwable instanceof StatusRuntimeException) {
       switch (((StatusRuntimeException) throwable).getStatus().getCode()) {
+        case INVALID_ARGUMENT:
+          logger.debug("Invalid Argument for {} {} : {}", request.getMethod(), uriInfo.getRequestUri(), throwable.toString(), throwable);
+          return newGenericErrorMessage(BAD_REQUEST, throwable, stackTrace);
         case NOT_FOUND:
           logger.debug("Not Found for {} {} : {}", request.getMethod(), uriInfo.getRequestUri(), throwable.toString(), throwable);
           return newGenericErrorMessage(NOT_FOUND, throwable, stackTrace);
         case PERMISSION_DENIED:
           logger.debug("Permission denied for {} {} : {}", request.getMethod(), uriInfo.getRequestUri(), throwable.toString(), throwable);
           return newGenericErrorMessage(FORBIDDEN, throwable, stackTrace);
+        case INTERNAL:
+          logger.debug("Internal server error for {} {} : {}", request.getMethod(), uriInfo.getRequestUri(), throwable.toString(), throwable);
+          return newGenericErrorMessage(INTERNAL_SERVER_ERROR, throwable, stackTrace);
+        case UNIMPLEMENTED:
+          logger.debug("Server does not implement or support for {} {} : {}", request.getMethod(), uriInfo.getRequestUri(), throwable.toString(), throwable);
+          return newGenericErrorMessage(NOT_IMPLEMENTED, throwable, stackTrace);
         default:
       }
     }

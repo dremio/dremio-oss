@@ -22,6 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.concurrent.ContextMigratingExecutorService;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.service.Service;
@@ -44,6 +45,7 @@ public class LocalJobTelemetryServer implements Service {
   private final GrpcServerBuilderFactory grpcFactory;
   private final Provider<LegacyKVStoreProvider> kvStoreProvider;
   private final Provider<CoordinationProtos.NodeEndpoint> selfEndpoint;
+  private final ContextMigratingExecutorService executorService;
   private GrpcTracerFacade tracer;
   private ProfileStore profileStore;
   private MetricsStore metricsStore;
@@ -52,11 +54,12 @@ public class LocalJobTelemetryServer implements Service {
   public LocalJobTelemetryServer(GrpcServerBuilderFactory grpcServerBuilderFactory,
                                  Provider<LegacyKVStoreProvider> kvStoreProvider,
                                  Provider<CoordinationProtos.NodeEndpoint> selfEndpoint,
-                                 GrpcTracerFacade tracer) {
+                                 GrpcTracerFacade tracer, ContextMigratingExecutorService executorService) {
     this.grpcFactory = grpcServerBuilderFactory;
     this.kvStoreProvider = kvStoreProvider;
     this.selfEndpoint = selfEndpoint;
     this.tracer = tracer;
+    this.executorService = executorService;
   }
 
   @Override
@@ -71,7 +74,7 @@ public class LocalJobTelemetryServer implements Service {
       selfEndpoint.get().getFabricPort())
       .maxInboundMetadataSize(81920) // GrpcUtil.DEFAULT_MAX_HEADER_LIST_SIZE * 10
       .intercept(TransmitStatusRuntimeExceptionInterceptor.instance())
-      .addService(new JobTelemetryServiceImpl(metricsStore, profileStore, tracer, true))
+      .addService(new JobTelemetryServiceImpl(metricsStore, profileStore, tracer, true, executorService))
       .build();
 
     server.start();

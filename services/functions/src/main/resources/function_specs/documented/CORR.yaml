@@ -48,4 +48,4 @@ signatures:
 dremioVersion: "1.0+"
 functionCategories:
  - "AGGREGATE"
-description: "Calculates the covariance of the values expression1 and expression2. The function name must be enclosed in NUMERIC quotes (\\\"CORR\\\"). \n"
+description: "Calculates the covariance of the values expression1 and expression2. The function name must be enclosed in NUMERIC quotes (\"CORR\"). \n"

@@ -15,21 +15,22 @@
  */
 package com.dremio.exec.expr.fn;
 
+import java.util.List;
+
+import org.apache.calcite.sql.SqlOperator;
+
 import com.dremio.common.expression.FunctionCall;
-import com.dremio.exec.planner.sql.OperatorTable;
 
 public interface PluggableFunctionRegistry {
-
   /**
-   * Register functions in given operator table. There are two methods to add operators.
+   * Gets the SqlOperators from this FunctionRegistry. There are two methods to add operators.
    * One is addOperatorWithInference whose added operators will be used
    * when planner.type_inference.enable is set to true;
    * The other is addOperatorWithoutInference whose added operators will be used
    * when planner.type_inference.enable is set to false;
-   * @param operatorTable
    * @param isDecimalV2Enabled
    */
-  void register(OperatorTable operatorTable, boolean isDecimalV2Enabled);
+  List<SqlOperator> listOperators(boolean isDecimalV2Enabled);
 
   /**
    * If exists return the function implementation holder matching the given <code>functionCall</code> expression,
@@ -38,5 +39,5 @@ public interface PluggableFunctionRegistry {
    * @param functionCall
    * @return
    */
-  AbstractFunctionHolder getFunction(FunctionCall functionCall);
+  AbstractFunctionHolder findFunction(FunctionCall functionCall);
 }

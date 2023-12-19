@@ -24,6 +24,10 @@ import { flexElementAuto } from "@app/uiTheme/less/layout.less";
 
 import "./ExplorePage.less";
 import ExplorePageContentWrapper from "./subpages/ExplorePageContentWrapper";
+import {
+  isNewQueryUrl,
+  isTmpDatasetUrl,
+} from "@app/utils/explorePageTypeUtils";
 
 export const EXPLORE_PAGE_MIN_HEIGHT = 600;
 
@@ -51,10 +55,10 @@ export class ExplorePageView extends PureComponent<
     isError: false,
     errorData: Immutable.Map<any, any>(),
   };
-  componentWillMount() {
+  UNSAFE_componentWillMount() {
     this.initSqlEditor(this.props);
   }
-  componentWillReceiveProps(nextProps: ExplorePageViewProps) {
+  UNSAFE_componentWillReceiveProps(nextProps: ExplorePageViewProps) {
     // init editor if changing page type or clicked on new query from non-newQuery view
     if (
       nextProps.pageType !== this.props.pageType ||
@@ -106,6 +110,15 @@ export class ExplorePageView extends PureComponent<
       WebkitUserSelect: selectState,
       msUserSelect: selectState,
     };
+    // Need this as a key for ExplorePageContentWrapper so it remounts when going from
+    // the dataset editor to the SQL Runner. "isNewQuery" and "isTmpDatasetUrl" are used
+    // since they return true before and after running a new query, and when applying
+    // a transformation on a tmp dataset.
+    // /tmp/UNTITLED when navigating from job details (view job results)
+    const isSqlRunner =
+      isNewQueryUrl(location) ||
+      isTmpDatasetUrl(location) ||
+      location.pathname.includes("/tmp/UNTITLED");
     // Note the DocumentTitle for this page lives in ExploreInfoHeader
     return (
       <main
@@ -120,6 +133,7 @@ export class ExplorePageView extends PureComponent<
         style={{ ...dragStyle, cursor }}
       >
         <ExplorePageContentWrapper
+          key={`tabbable-${isSqlRunner}`}
           pageType={this.props.pageType}
           dataset={dataset}
           location={this.props.location}

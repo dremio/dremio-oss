@@ -1,0 +1,5 @@
+decimalCol,intCol,floatCol,doubleCol,varcharCol,booleanCol
+123.456,42,3.14,2.71828,"Hello, World!",true
+789.123,17,2.718,3.14159265,"FooBar",false
+456.789,73,1.234,2.718281828459045,"JSON Example",true
+987.654,99,0.001,1.23456789,"Random Data",false

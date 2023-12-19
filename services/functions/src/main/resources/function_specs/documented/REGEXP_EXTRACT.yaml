@@ -1,0 +1,45 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+name: "REGEXP_EXTRACT"
+signatures:
+ -
+  returnType: "CHARACTERS"
+  parameters:
+   -
+    kind: "REGULAR"
+    type: "CHARACTERS"
+    name: "input"
+    description: "The expression to search for a matching string."
+   -
+    kind: "REGULAR"
+    type: "CHARACTERS"
+    name: "regex"
+    description: "The Perl-compatible regular expression (PCRE) to match against."
+   -
+    kind: "OPTIONAL"
+    type: "INT"
+    name: "expr_group_index"
+    description: "A regular expression group number, defining which portion of the matching string will be returned."
+  description: "Extracts the first string in expression that matches the REGEXP expression and corresponds to the REGEX group index."
+  sampleCodes:
+   -
+    call: "SELECT REGEXP_EXTRACT('100-500', '(\\d+)-(\\d+)', 1)"
+    result: "100"
+functionCategories:
+  - "CHARACTER"
+description: "Extracts the first string in expression that matches the REGEXP"

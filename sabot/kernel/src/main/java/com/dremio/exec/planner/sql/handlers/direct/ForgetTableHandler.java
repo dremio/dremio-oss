@@ -22,13 +22,14 @@ import java.util.List;
 
 import org.apache.calcite.sql.SqlNode;
 
+import com.dremio.catalog.exception.UnsupportedForgetTableException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.planner.sql.parser.SqlForgetTable;
 import com.dremio.service.namespace.NamespaceKey;
 
 /**
- * Handler for <code>FORGET TABLE tblname</code> command.
+ * Handler for <code>ALTER (TABLE | VDS | VIEW | PDS | DATASET) tblName FORGET METADATA</code> command.
  */
 public class ForgetTableHandler extends SimpleDirectHandler {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ForgetTableHandler.class);
@@ -43,13 +44,11 @@ public class ForgetTableHandler extends SimpleDirectHandler {
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
     final SqlForgetTable sqlForgetTable = SqlNodeUtil.unwrap(sqlNode, SqlForgetTable.class);
     final NamespaceKey path = catalog.resolveSingle(sqlForgetTable.getPath());
-
-    String root = path.getRoot();
-    if (root.startsWith("@") || "sys".equalsIgnoreCase(root) || "INFORMATION_SCHEMA".equalsIgnoreCase(root)) {
-      throw UserException.parseError().message("FORGET METADATA is not supported on tables in homespace, sys, or INFORMATION_SCHEMA.").build(logger);
+    try {
+      catalog.forgetTable(path);
+    } catch (UnsupportedForgetTableException u) {
+      throw UserException.unsupportedError(u).build(logger);
     }
-
-    catalog.forgetTable(path);
     return singletonList(successful(String.format("Successfully removed table '%s' from namespace.", path)));
   }
 }

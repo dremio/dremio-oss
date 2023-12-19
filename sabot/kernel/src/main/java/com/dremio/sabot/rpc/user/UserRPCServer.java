@@ -20,6 +20,7 @@ import static com.dremio.exec.proto.UserProtos.CreatePreparedStatementArrowReq;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -31,6 +32,10 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.calcite.avatica.util.Quoting;
 
 import com.carrotsearch.hppc.IntHashSet;
+import com.dremio.authenticator.AuthException;
+import com.dremio.authenticator.AuthRequest;
+import com.dremio.authenticator.AuthResult;
+import com.dremio.authenticator.Authenticator;
 import com.dremio.common.utils.protos.ExternalIdHelper;
 import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.context.RequestContext;
@@ -83,8 +88,6 @@ import com.dremio.exec.work.protector.UserWorker;
 import com.dremio.options.OptionValidatorListing;
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValue.OptionType;
-import com.dremio.service.users.AuthResult;
-import com.dremio.service.users.UserLoginException;
 import com.dremio.service.users.UserNotFoundException;
 import com.dremio.service.users.UserService;
 import com.google.common.annotations.VisibleForTesting;
@@ -117,7 +120,9 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
   private static final String RPC_COMPATIBILITY_ENCODER = "rpc-compatibility-encoder";
   private static final String DRILL_COMPATIBILITY_ENCODER = "backward-compatibility-encoder";
   private static final String DREMIO14_COMPATIBILITY_ENCODER = "dremio14-backward";
+  private static final String TOKEN_TYPE = "TOKEN_TYPE".toLowerCase(Locale.ROOT);
 
+  private final Provider<? extends Authenticator> authenticatorProvider;
   private final Provider<UserService> userServiceProvider;
   private final Provider<NodeEndpoint> nodeEndpointProvider;
 
@@ -131,6 +136,7 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
   @VisibleForTesting
   UserRPCServer(
       RpcConfig rpcConfig,
+      Provider<? extends Authenticator> authenticatorProvider,
       Provider<UserService> userServiceProvider,
       Provider<NodeEndpoint> nodeEndpointProvider,
       WorkIngestor workIngestor,
@@ -142,6 +148,7 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
       OptionValidatorListing optionValidatorListing
       ) {
     super(rpcConfig, new ArrowByteBufAllocator(allocator), eventLoopGroup);
+    this.authenticatorProvider = authenticatorProvider;
     this.userServiceProvider = userServiceProvider;
     this.nodeEndpointProvider = nodeEndpointProvider;
     this.workIngestor = workIngestor;
@@ -154,6 +161,7 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
 
   UserRPCServer(
     RpcConfig rpcConfig,
+    Provider<? extends Authenticator> authenticatorProvider,
     Provider<UserService> userServiceProvider,
     Provider<NodeEndpoint> nodeEndpointProvider,
     Provider<UserWorker> worker,
@@ -163,7 +171,7 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
     Tracer tracer,
     OptionValidatorListing optionValidatorListing
   ) {
-    this(rpcConfig, userServiceProvider, nodeEndpointProvider, new WorkIngestorImpl(worker), worker, allocator, eventLoopGroup, impersonationManager, tracer, optionValidatorListing);
+    this(rpcConfig, authenticatorProvider, userServiceProvider, nodeEndpointProvider, new WorkIngestorImpl(worker), worker, allocator, eventLoopGroup, impersonationManager, tracer, optionValidatorListing);
   }
 
   @Override
@@ -239,7 +247,7 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
     final String userName = connection.getSession().getCredentials().getUserName();
     try {
       //Connection will always have the user session; Without user credentials, we must throw error if user not found
-      userUUID = getUserServiceProvider().get().getUser(userName).getUID().getId();
+      userUUID = getUserService().getUser(userName).getUID().getId();
     } catch (UserNotFoundException e) {
       throw new RpcException("Could not find user UUID for userName: " + userName, e);
     }
@@ -725,33 +733,32 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
             return handleFailure(respBuilder, HandshakeStatus.RPC_VERSION_MISMATCH, errMsg, null);
           }
 
-          UserService userService = userServiceProvider.get();
-          if (userService != null) {
-            try {
-              String password = "";
-              final UserProperties props = inbound.getProperties();
-              for (int i = 0; i < props.getPropertiesCount(); i++) {
-                Property prop = props.getProperties(i);
-                if (UserSession.PASSWORD.equalsIgnoreCase(prop.getKey())) {
-                  password = prop.getValue();
-                  break;
-                }
+          try {
+            String password = "";
+            String tokenType = "";
+            final UserProperties props = inbound.getProperties();
+            for (int i = 0; i < props.getPropertiesCount(); i++) {
+              Property prop = props.getProperties(i);
+              if (UserSession.PASSWORD.equalsIgnoreCase(prop.getKey())) {
+                password = prop.getValue();
+              } else if (TOKEN_TYPE.equalsIgnoreCase(prop.getKey())) {
+                tokenType = prop.getValue();
               }
-
-              final AuthResult authResult =
-                userService.authenticate(inbound.getCredentials().getUserName(), password);
-              inbound = inbound.toBuilder()
-                .setCredentials(UserCredentials.newBuilder()
-                  .setUserName(authResult.getUserName()))
-                .build();
-
-              if (authResult.getExpiresAt() != null) {
-                final long delay = authResult.getExpiresAt().getTime() - System.currentTimeMillis();
-                connection.scheduleExpiryHandler(delay, TimeUnit.MILLISECONDS);
-              }
-            } catch (UserLoginException ex) {
-              return handleFailure(respBuilder, HandshakeStatus.AUTH_FAILED, ex.getMessage(), ex);
             }
+
+            final AuthResult authResult =
+              authenticate(inbound.getCredentials().getUserName(), password, tokenType);
+            inbound = inbound.toBuilder()
+              .setCredentials(UserCredentials.newBuilder()
+                .setUserName(authResult.getUserName()))
+              .build();
+
+            if (authResult.getExpiresAt() != null) {
+              final long delay = authResult.getExpiresAt().getTime() - System.currentTimeMillis();
+              connection.scheduleExpiryHandler(delay, TimeUnit.MILLISECONDS);
+            }
+          } catch (AuthException | UnsupportedOperationException ex) {
+            return handleFailure(respBuilder, HandshakeStatus.AUTH_FAILED, ex.getMessage(), ex);
           }
 
           connection.setUser(inbound);
@@ -858,7 +865,34 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
     void close();
   }
 
-  protected Provider<UserService> getUserServiceProvider() {
-    return userServiceProvider;
+  protected Authenticator getAuthenticator() {
+    return authenticatorProvider.get();
+  }
+
+  protected UserService getUserService() {
+    return userServiceProvider.get();
+  }
+
+  /**
+   * Authenticates request from tool connection.
+   *
+   * @param username  Raw input from the user_name field on the tool.
+   * @param password  Raw input from the password field on the tool.
+   * @param tokenType Ignore. Always perform username/password validation.
+   * @return AuthResult - contains authentication result.
+   * @throws AuthException
+   * @throws UnsupportedOperationException
+   */
+  protected AuthResult authenticate(
+    String username,
+    String password,
+    String tokenType
+  ) throws AuthException, UnsupportedOperationException {
+    return getAuthenticator().authenticate(
+      AuthRequest.builder()
+        .setUsername(username)
+        .setToken(password)
+        .setResource(AuthRequest.Resource.USER_RPC)
+        .build());
   }
 }

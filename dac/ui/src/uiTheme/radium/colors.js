@@ -63,7 +63,7 @@ export const NETURAL_150 = "#EEEFF1";
 export const NETURAL_200 = "#D2D6DA";
 export const NETURAL_300 = "#B0B7BF";
 
-export const TEXT_MAIN = "#202124";
+export const TEXT_MAIN = "var(--color--default)";
 export const TEXT_DISABLED = "#B0B7BF";
 export const LESS_IMPORTANT_TEXT = "#505862";
 

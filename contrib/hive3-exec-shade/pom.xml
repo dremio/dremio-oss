@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.contrib</groupId>
     <artifactId>dremio-contrib-parent</artifactId>
-    <version>24.1.0-202306130653310132-d30779f6</version>
+    <version>24.3.0-202312190021150029-52db2faf</version>
   </parent>
 
   <artifactId>dremio-hive3-exec-shaded</artifactId>
@@ -34,6 +34,79 @@
     <forbiddenapis.skip>true</forbiddenapis.skip>
     <hive.version>${plugin.hive3.hive.version}</hive.version>
   </properties>
+
+  <profiles>
+    <profile>
+      <id>notmapr</id>
+      <activation>
+        <property>
+          <name>!mapr</name>
+        </property>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <!-- Enable compilation -->
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+              <skipMain>false</skipMain>
+            </configuration>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-shade-plugin</artifactId>
+            <executions>
+              <execution>
+                <phase>package</phase>
+                <goals>
+                  <goal>shade</goal>
+                </goals>
+                <configuration>
+                  <artifactSet>
+                    <includes combine.children="append">
+                      <include>com.amazonaws.glue:aws-glue-datacatalog-hive3-client</include>
+                    </includes>
+                  </artifactSet>
+                  <filters>
+                    <filter>
+                      <artifact>org.apache.hive:hive-exec</artifact>
+                      <excludes>
+                        <exclude>org/apache/hadoop/hive/ql/udf/generic/GenericUDTFGetSplits.class</exclude>
+                      </excludes>
+                    </filter>
+                  </filters>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+      <dependencies>
+        <dependency>
+          <groupId>com.amazonaws.glue</groupId>
+          <artifactId>aws-glue-datacatalog-hive3-client</artifactId>
+          <version>${plugin.hive3.aws.glue.version}</version>
+          <exclusions>
+            <exclusion>
+              <!-- The JAR is shading all glue dependencies but pom doesn't reflect it -->
+              <groupId>com.amazonaws.glue</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+            <exclusion>
+              <artifactId>commons-logging-api</artifactId>
+              <groupId>commons-logging</groupId>
+            </exclusion>
+            <exclusion>
+              <artifactId>commons-logging</artifactId>
+              <groupId>commons-logging</groupId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+      </dependencies>
+    </profile>
+  </profiles>
+
 
   <dependencies>
     <dependency>
@@ -95,6 +168,11 @@
         </exclusion>
       </exclusions>
     </dependency>
+    <dependency>
+      <groupId>org.apache.hive</groupId>
+      <artifactId>hive-classification</artifactId>
+      <version>${hive.version}</version>
+    </dependency>
     <!-- Overwrite thrift version packaged with hive-exec -->
     <dependency>
       <groupId>org.apache.thrift</groupId>
@@ -155,14 +233,12 @@
                     <!-- Exclude Protobuf version packaged inside hive-exec -->
                     <exclude>com/google/protobuf/**</exclude>
                     <exclude>META-INF/maven/com.google.protobuf/**</exclude>
+                    <exclude>org/apache/hadoop/hive/ql/udf/generic/GenericUDTFGetSplits.class</exclude>
                   </excludes>
                 </filter>
               </filters>
               <relocations>
-                <relocation>
-                  <pattern>com.fasterxml.jackson.</pattern>
-                  <shadedPattern>hive.com.fasterxml.jackson.</shadedPattern>
-                </relocation>
+                <!-- no need to shade com.fasterxml as it is not found in hive-exec jar -->
                 <relocation>
                   <pattern>com.facebook.</pattern>
                   <shadedPattern>hive.com.facebook.</shadedPattern>

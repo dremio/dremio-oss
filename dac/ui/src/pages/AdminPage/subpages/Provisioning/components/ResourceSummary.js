@@ -40,11 +40,11 @@ export default class ResourceSummary extends Component {
     return (
       <div>
         <div style={styles.infoRow}>
-          <div style={styles.infoRowKey}>{la("Total Cores")}</div>
+          <div style={styles.infoRowKey}>{laDeprecated("Total Cores")}</div>
           <div style={{ fontSize: formDescription.fontSize }}>{totalCores}</div>
         </div>
         <div style={{ ...styles.infoRow, marginBottom: 12 }}>
-          <div style={styles.infoRowKey}>{la("Total Memory")}</div>
+          <div style={styles.infoRowKey}>{laDeprecated("Total Memory")}</div>
           <div style={{ fontSize: formDescription.fontSize }}>
             {totalRam}
             {"GB"}

@@ -16,6 +16,7 @@
 package com.dremio.service.nessie.upgrade.storage;
 
 import static com.dremio.service.nessie.upgrade.storage.MigrateToNessieAdapter.MAX_ENTRIES_PER_COMMIT;
+import static com.dremio.test.DremioTest.CLASSPATH_SCAN_RESULT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.projectnessie.versioned.CommitMetaSerializer.METADATA_SERIALIZER;
 
@@ -34,11 +35,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.projectnessie.model.CommitMeta;
-import org.projectnessie.model.Content;
 import org.projectnessie.model.ContentKey;
 import org.projectnessie.model.IcebergTable;
 import org.projectnessie.nessie.relocated.protobuf.ByteString;
 import org.projectnessie.versioned.BranchName;
+import org.projectnessie.versioned.ContentResult;
 import org.projectnessie.versioned.GetNamedRefsParams;
 import org.projectnessie.versioned.Hash;
 import org.projectnessie.versioned.ImmutablePut;
@@ -64,7 +65,7 @@ import com.dremio.service.nessie.NessieDatastoreInstance;
 /**
  * Unit tests for {@link MigrateIcebergMetadataPointer}.
  */
-class TestMigrateIcebergMetadataPointer extends AbstractNessieUpgradeTest {
+class TestMigrateIcebergMetadataPointer {
 
   // This legacy data was produced using Nessie 0.14 code.
   // The data encodes IcebergTable.of("test-metadata-location", "test-id-data", "test-content-id")
@@ -78,7 +79,7 @@ class TestMigrateIcebergMetadataPointer extends AbstractNessieUpgradeTest {
 
   @BeforeEach
   void createKVStore() throws Exception {
-    storeProvider = new LocalKVStoreProvider(scanResult, null, true, false); // in-memory
+    storeProvider = new LocalKVStoreProvider(CLASSPATH_SCAN_RESULT, null, true, false); // in-memory
     storeProvider.start();
 
     NessieDatastoreInstance nessieDatastore = new NessieDatastoreInstance();
@@ -155,11 +156,11 @@ class TestMigrateIcebergMetadataPointer extends AbstractNessieUpgradeTest {
       assertThat(refs).noneMatch(r -> r.getNamedRef().getName().equals(UPGRADE_BRANCH_NAME));
     }
 
-    Map<ContentKey, Content> tables = versionStore.getValues(BranchName.of("main"), keys);
+    Map<ContentKey, ContentResult> tables = versionStore.getValues(BranchName.of("main"), keys);
 
     assertThat(tables.keySet()).containsExactlyInAnyOrder(keys.toArray(new ContentKey[0]));
     assertThat(tables).allSatisfy((k, v) -> {
-      assertThat(v).isInstanceOf(IcebergTable.class)
+      assertThat(v.content()).isInstanceOf(IcebergTable.class)
         .extracting("metadataLocation")
         .isEqualTo("test-metadata-location"); // encoded in LEGACY_REF_STATE_BASE64
     });

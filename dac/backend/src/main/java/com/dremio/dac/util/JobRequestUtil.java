@@ -17,7 +17,10 @@ package com.dremio.dac.util;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
+import com.dremio.dac.explore.model.VersionContextReq;
 import com.dremio.service.job.SqlQuery;
 import com.google.common.base.Strings;
 
@@ -35,9 +38,13 @@ public final class JobRequestUtil {
   /**
    * Creates SqlQuery (Proto) - used to populate SubmitJobRequest
    */
-  public static SqlQuery createSqlQuery(String sql, List<String> context,
-                                        String username, String engineName,
-                                        String sessionId) {
+  public static SqlQuery createSqlQuery(
+      String sql,
+      List<String> context,
+      String username,
+      String engineName,
+      String sessionId,
+      Map<String, VersionContextReq> sourceVersionMapping) {
     final SqlQuery.Builder sqlQueryBuilder = SqlQuery.newBuilder();
     if (!Strings.isNullOrEmpty(sql)) {
       sqlQueryBuilder.setSql(sql);
@@ -54,10 +61,37 @@ public final class JobRequestUtil {
     if (!Strings.isNullOrEmpty(sessionId)) {
       sqlQueryBuilder.setSessionId(sessionId);
     }
+    if (sourceVersionMapping != null && !sourceVersionMapping.isEmpty()) {
+      Map<String, SqlQuery.VersionContext> sourceVersionMappingAsProto = sourceVersionMapping.entrySet()
+        .stream()
+        .collect(Collectors.toMap(Map.Entry::getKey, e -> toVersionContextProto(e.getValue())));
+
+      sqlQueryBuilder.putAllSourceVersionMapping(sourceVersionMappingAsProto);
+    }
     return sqlQueryBuilder.build();
   }
 
+  public static SqlQuery.VersionContext toVersionContextProto(VersionContextReq versionContextReq) {
+    return SqlQuery.VersionContext.newBuilder()
+      .setType(toVersionContextTypeProto(versionContextReq.getType()))
+      .setValue(versionContextReq.getValue())
+      .build();
+  }
+
+  public static SqlQuery.VersionContextType toVersionContextTypeProto(VersionContextReq.VersionContextType type) {
+    switch (type) {
+      case BRANCH:
+        return SqlQuery.VersionContextType.BRANCH;
+      case TAG:
+        return SqlQuery.VersionContextType.TAG;
+      case COMMIT:
+        return SqlQuery.VersionContextType.BARE_COMMIT;
+      default:
+        throw new IllegalStateException("Unexpected value: " + type);
+    }
+  }
+
   public static SqlQuery createSqlQuery(String sql, List<String> context, String username) {
-    return createSqlQuery(sql, context, username, null, null);
+    return createSqlQuery(sql, context, username, null, null, null);
   }
 }

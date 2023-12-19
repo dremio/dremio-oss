@@ -36,6 +36,8 @@ import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.dremio.service.users.User;
 import com.dremio.service.users.UserService;
 
+import io.opentelemetry.instrumentation.annotations.WithSpan;
+
 
 /**
  * Resource for getting lists of spaces and user for job filtering
@@ -55,6 +57,7 @@ public class JobsFiltersResource {
     this.userService = userService;
   }
 
+  @WithSpan
   @GET
   @Path("/spaces")
   @Produces(APPLICATION_JSON)
@@ -71,6 +74,7 @@ public class JobsFiltersResource {
     return spaces;
   }
 
+  @WithSpan
   @GET
   @Path("/users")
   @Produces(APPLICATION_JSON)

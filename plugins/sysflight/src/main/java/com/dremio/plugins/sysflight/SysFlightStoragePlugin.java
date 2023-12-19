@@ -26,8 +26,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import javax.inject.Provider;
 
 import org.apache.arrow.flight.Criteria;
 import org.apache.arrow.flight.FlightClient;
@@ -46,7 +49,9 @@ import com.dremio.connector.metadata.GetMetadataOption;
 import com.dremio.connector.metadata.ListPartitionChunkOption;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.extensions.SupportsListingDatasets;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogUser;
+import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.server.JobResultInfoProvider;
@@ -55,6 +60,8 @@ import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePluginRulesFactory;
 import com.dremio.exec.store.Views;
+import com.dremio.exec.store.dfs.system.SystemIcebergTablesStoragePlugin;
+import com.dremio.exec.store.dfs.system.SystemIcebergTablesStoragePluginConfig;
 import com.dremio.exec.store.sys.SystemTable;
 import com.dremio.exec.util.ViewFieldsHelper;
 import com.dremio.service.namespace.NamespaceKey;
@@ -63,6 +70,7 @@ import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.users.SystemUser;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 
@@ -86,9 +94,10 @@ public class SysFlightStoragePlugin implements StoragePlugin, SupportsListingDat
 
   private volatile FlightClient flightClient;
   private volatile ManagedChannel prevChannel;
+  private Supplier<SystemIcebergTablesStoragePlugin> systemIcebergTablesStoragePlugin;
 
   public SysFlightStoragePlugin(SabotContext context,
-                                String name,
+                                String name, Provider<StoragePluginId> pluginIdProvider,
                                 boolean useConduit,
                                 List<SystemTable> excludeLegacyTablesList) {
     excludeLegacyTables(legacyTableMap, excludeLegacyTablesList);
@@ -97,6 +106,10 @@ public class SysFlightStoragePlugin implements StoragePlugin, SupportsListingDat
     this.name = name;
     this.useConduit = useConduit;
     allocator = context.getAllocator().newChildAllocator(SysFlightStoragePlugin.class.getName(), 0, Long.MAX_VALUE);
+
+    if (context.getOptionManager().getOption(ExecConstants.ENABLE_SYSTEM_ICEBERG_TABLES_STORAGE)) {
+      systemIcebergTablesStoragePlugin = Suppliers.memoize(() -> context.getCatalogService().getSource(SystemIcebergTablesStoragePluginConfig.SYSTEM_ICEBERG_TABLES_PLUGIN_NAME));
+    }
   }
 
   Map<EntityPath, SystemTable> getLegacyTableMap() {
@@ -145,6 +158,9 @@ public class SysFlightStoragePlugin implements StoragePlugin, SupportsListingDat
 
   @Override
   public ViewTable getView(List<String> tableSchemaPath, SchemaConfig schemaConfig) {
+    if (systemIcebergTablesStoragePlugin != null && systemIcebergTablesStoragePlugin.get().isSupportedTablePath(tableSchemaPath)) {
+      return systemIcebergTablesStoragePlugin.get().getViewTable(tableSchemaPath, schemaConfig.getUserName());
+    }
     if (!JobResultInfoProvider.isJobResultsTable(tableSchemaPath)) {
       return null;
     }
@@ -176,7 +192,8 @@ public class SysFlightStoragePlugin implements StoragePlugin, SupportsListingDat
   }
 
   @Override
-  public void start() throws IOException { }
+  public void start() throws IOException {
+  }
 
   @Override
   public void close() throws Exception {

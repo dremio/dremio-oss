@@ -212,7 +212,7 @@ class ORCSearchArgumentGenerator extends RexVisitorImpl<Object> {
               case HiveReaderProto.HivePrimitiveType.DOUBLE_VALUE:
               case HiveReaderProto.HivePrimitiveType.FLOAT_VALUE:
                 literalType = Type.FLOAT;
-                literalValue = new Double((Long) literalValue);
+                literalValue = Double.valueOf((Long) literalValue);
                 break;
               default:
                 break;

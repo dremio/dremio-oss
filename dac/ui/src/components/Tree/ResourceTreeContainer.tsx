@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { connect } from "react-redux";
 
 import { loadResourceTree } from "@app/actions/resources/tree";
@@ -23,7 +23,9 @@ import {
   unstarItem,
   starItem,
 } from "@app/actions/resources/stars";
-import { LOADING_ITEMS, loadSummaryDataset } from "actions/resources/dataset";
+import { loadSummaryDataset } from "actions/resources/dataset";
+import { LOADING_ITEMS, LOADING_ITEMS_MODAL } from "actions/resources";
+
 import {
   getResourceTree,
   getStarredItemIds,
@@ -34,7 +36,6 @@ import { fetchScripts, setActiveScript } from "@app/actions/resources/scripts";
 
 import ResourceTreeController from "@app/components/Tree/ResourceTreeController.js";
 
-import { getSortedSources } from "@app/selectors/home";
 import { getRefQueryParams } from "@app/utils/nessieUtils";
 
 import {
@@ -49,17 +50,12 @@ import {
 } from "@app/components/Tree/resourceTreeUtils";
 import { getViewState } from "@app/selectors/resources";
 import clsx from "clsx";
-import {
-  FeaturesFlagsResource,
-  loadFeatureFlags,
-} from "@app/exports/resources/FeaturesFlagsResource";
-import { CATALOG_ARS_ENABLED } from "@app/exports/flags/CATALOG_ARS_ENABLED";
-import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
+import { useIsArsEnabled, fetchArsFlag } from "@inject/utils/arsUtils";
+import { TreeConfigContext } from "./treeConfigContext";
 
 export type ResourceTreeContainerProps = {
   className?: string;
   resourceTree: any;
-  sources: any; //Loaded from parent
   starredResourceTree: any;
   starredItems: any;
   preselectedNodeId: string;
@@ -100,7 +96,6 @@ export type ResourceTreeContainerProps = {
 export const ResourceTreeContainer = ({
   className,
   resourceTree,
-  sources,
   starredResourceTree,
   starredItems,
   preselectedNodeId,
@@ -110,7 +105,7 @@ export const ResourceTreeContainer = ({
   hideDatasets,
   hideSpaces,
   hideSources,
-  hideHomes,
+  hideHomes: hideHomesProp,
   sidebarCollapsed,
   isCollapsable,
   fromModal,
@@ -140,9 +135,15 @@ export const ResourceTreeContainer = ({
   const [tabRendered, handleTabChange] = useState(starTabNames.all);
   const [hasError, setHasError] = useState(false);
   const [currentNode, setCurrentNode] = useState({});
-
+  const [isArsLoading, isArsEnabled] = useIsArsEnabled();
+  const hideHomes = hideHomesProp || (!isArsLoading && isArsEnabled);
+  const {
+    filterTree = (tree: any) => tree,
+    nessiePrefix,
+    resourceTreeControllerRef,
+  } = useContext(TreeConfigContext);
   const showDatasets = !hideDatasets;
-  const showSpaces = !hideSpaces;
+  const showSpaces = !hideSpaces && !isArsEnabled;
   const showSources = !hideSources;
   const showHomes = !hideHomes;
 
@@ -256,11 +257,7 @@ export const ResourceTreeContainer = ({
     isNodeExpanded: boolean | undefined,
     currNode: any
   ) => {
-    const skipFetch = !getSonarContext()?.getSelectedProjectId;
-    if (!skipFetch) await loadFeatureFlags(CATALOG_ARS_ENABLED as string); //Fetch feature flag
-    const skipStarredLoading = !!FeaturesFlagsResource.value?.get(
-      CATALOG_ARS_ENABLED as string
-    );
+    const skipStarredLoading = await fetchArsFlag(); //Fetch feature flag
     if (skipStarredLoading) return;
 
     if (isNodeExpanded === undefined) {
@@ -302,7 +299,7 @@ export const ResourceTreeContainer = ({
     const [sourceName] = path.split(".");
     const refQueryParams = getRefQueryParams(
       nessie,
-      sourceName.replace(/"/g, "")
+      nessiePrefix + sourceName.replace(/"/g, "")
     );
 
     const params = {
@@ -330,6 +327,7 @@ export const ResourceTreeContainer = ({
       className={clsx("resourceTreeContainer", className)}
     >
       <ResourceTreeController
+        ref={resourceTreeControllerRef}
         sidebarCollapsed={sidebarCollapsed}
         isCollapsable={isCollapsable}
         fromModal={fromModal}
@@ -342,14 +340,13 @@ export const ResourceTreeContainer = ({
         isSqlEditorTab={isSqlEditorTab}
         datasetsPanel={datasetsPanel}
         style={style}
-        resourceTree={
+        resourceTree={filterTree(
           fromModal
             ? resourceTreeModal
             : tabRendered === starTabNames.all
             ? resourceTree
             : starredResourceTree
-        }
-        sources={sources}
+        )}
         starredItems={starredItems}
         preselectedNodeId={preselectedNodeId}
         dragType={dragType}
@@ -377,16 +374,24 @@ export const ResourceTreeContainer = ({
   );
 };
 
-const mapStateToProps = (state: { nessie: any; account: any }) => {
+const mapStateToProps = (
+  state: {
+    nessie: any;
+    account: any;
+  },
+  { fromModal }: ResourceTreeContainerProps
+) => {
   return {
     resourceTree: getResourceTree(state),
     starredResourceTree: getStarredResources(state),
     resourceTreeModal: getResourceTreeModal(state),
     starredItems: getStarredItemIds(state),
-    sources: getSortedSources(state),
     user: state.account.get("user"),
     nessie: state.nessie,
-    loadingItems: getViewState(state, LOADING_ITEMS),
+    loadingItems: getViewState(
+      state,
+      fromModal ? LOADING_ITEMS_MODAL : LOADING_ITEMS
+    ),
   };
 };
 

@@ -16,14 +16,12 @@
 
 import { useRef, useState } from "react";
 // @ts-ignore
-import { Tooltip, IconButton } from "dremio-ui-lib";
-import LinkWithHref from "@app/components/LinkWithRef/LinkWithRef";
+import { Tooltip } from "dremio-ui-lib";
 import { getIconType, addTooltip } from "../../datasetSummaryUtils";
-import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
-// @ts-ignore
-import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
 import { getIconPath } from "@app/utils/getIconPath";
+import { VersionContextType } from "dremio-ui-common/components/VersionContext.js";
 import QueryDataset from "@app/components/QueryDataset/QueryDataset";
+import SummaryAction from "@app/components/DatasetSummary/components/SummaryAction/SummaryAction";
 
 import * as classes from "./SummaryItemLabel.module.less";
 
@@ -32,12 +30,14 @@ type DatasetSummaryItemLabelProps = {
   datasetType: string;
   title: string;
   canAlter: boolean;
+  canSelect: boolean;
   resourceId: string;
   fullPath: string;
   hasReflection: boolean;
   editLink?: string;
-  selfLink?: string;
+  queryLink?: string;
   hideSqlEditorIcon?: boolean;
+  versionContext?: VersionContextType;
 };
 
 const SummaryItemLabel = (props: DatasetSummaryItemLabelProps) => {
@@ -45,24 +45,26 @@ const SummaryItemLabel = (props: DatasetSummaryItemLabelProps) => {
   const {
     title,
     canAlter,
+    canSelect,
     editLink,
-    selfLink,
+    queryLink,
     resourceId,
     datasetType,
     fullPath,
     disableActionButtons,
     hideSqlEditorIcon,
     hasReflection,
+    versionContext,
   } = props;
 
   const titleRef = useRef(null);
-  const iconName = getIconType(datasetType);
+  const iconName = getIconType(datasetType, !!versionContext) ?? "";
   const disable = disableActionButtons
     ? classes["dataset-item-header-disable-action-buttons"]
     : "";
 
-  const toLink = canAlter && editLink ? editLink : selfLink;
-  const isView = iconName && iconName === "dataset-view";
+  const isView = ["dataset-view", "iceberg-view"].includes(iconName);
+
   return (
     <div className={classes["dataset-item-header-container"]}>
       <div className={classes["dataset-item-header"]}>
@@ -70,6 +72,7 @@ const SummaryItemLabel = (props: DatasetSummaryItemLabelProps) => {
           <dremio-icon
             class={classes["dataset-item-header-icon"]}
             name={`entities/${iconName}`}
+            style={{ width: 26, height: 26 }}
           />
         ) : (
           <div className={classes["dataset-item-header-empty-icon"]}></div>
@@ -100,37 +103,27 @@ const SummaryItemLabel = (props: DatasetSummaryItemLabelProps) => {
         className={`${classes["dataset-item-header-action-container"]} ${disable}`}
       >
         {!hideSqlEditorIcon && (
-          <QueryDataset
+          <span className="mx-1">
+            <QueryDataset
+              resourceId={resourceId}
+              fullPath={fullPath}
+              tooltipPortal
+              className={classes["dataset-item-header-action-icon"]}
+              versionContext={versionContext}
+            />
+          </span>
+        )}
+        {iconName && (
+          <SummaryAction
+            canAlter={canAlter}
+            canSelect={canSelect}
+            isView={isView}
+            editLink={editLink}
+            queryLink={queryLink}
             resourceId={resourceId}
-            fullPath={fullPath}
-            className={classes["dataset-item-header-action-icon"]}
+            versionContext={versionContext ?? ({} as VersionContextType)}
           />
         )}
-
-        {iconName &&
-          (isView ? (
-            <IconButton
-              as={LinkWithRef}
-              to={toLink ? wrapBackendLink(toLink) : ""}
-              tooltip="Common.Edit"
-            >
-              <dremio-icon
-                class={classes["dataset-item-header-action-icon"]}
-                name="interface/edit"
-              />
-            </IconButton>
-          ) : (
-            <IconButton
-              as={LinkWithHref}
-              to={selfLink ? wrapBackendLink(selfLink) : ""}
-              tooltip="Go.To.Table"
-            >
-              <dremio-icon
-                class={classes["dataset-item-header-action-icon"]}
-                name="navigation-bar/go-to-dataset"
-              />
-            </IconButton>
-          ))}
       </div>
     </div>
   );

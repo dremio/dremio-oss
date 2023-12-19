@@ -23,9 +23,9 @@ import PropTypes from "prop-types";
 import classNames from "clsx";
 import Mousetrap from "mousetrap";
 import { cloneDeep, debounce } from "lodash";
-
 import { withRouter } from "react-router";
 import { injectIntl } from "react-intl";
+import { compose } from "redux";
 
 import { getQueryStatuses, getJobList } from "selectors/jobs";
 
@@ -42,6 +42,7 @@ import {
   getExploreState,
   getJobProgress,
 } from "@app/selectors/explore";
+import { removeTabView } from "@app/actions/resources/scripts";
 import { runDatasetSql, previewDatasetSql } from "actions/explore/dataset/run";
 import { loadSourceListData } from "actions/resources/sources";
 import {
@@ -50,7 +51,7 @@ import {
 } from "utils/pathUtils";
 import { getExploreViewState } from "@app/selectors/resources";
 import Reflections from "@app/pages/ExplorePage/subpages/reflections/Reflections";
-
+import SQLScriptLeaveTabDialog from "@app/components/SQLScripts/components/SQLScriptLeaveTabDialog/SQLScriptLeaveTabDialog";
 import {
   updateColumnFilter,
   setCustomDefaultSql,
@@ -66,7 +67,6 @@ import {
 import NavCrumbs, {
   showNavCrumbs,
 } from "@inject/components/NavCrumbs/NavCrumbs";
-import { addNotification } from "@app/actions/notification";
 import { handleOnTabRouting } from "@app/pages/ExplorePage/components/SqlEditor/SqlQueryTabs/utils.tsx";
 import {
   setQueryStatuses as setQueryStatusesFunc,
@@ -91,6 +91,7 @@ import TableControls from "./../components/TableControls";
 import ExplorePageMainContent from "./ExplorePageMainContent";
 import {
   assemblePendingOrRunningTabContent,
+  EXPLORE_HEADER_HEIGHT,
   getExploreContentHeight,
 } from "./utils";
 import ResizeObserver from "resize-observer-polyfill";
@@ -108,22 +109,74 @@ import {
 import { newQuery } from "@app/exports/paths";
 import { ErrorBoundary } from "@app/components/ErrorBoundary/ErrorBoundary";
 import { intl } from "@app/utils/intl";
-import { getSortedSources } from "@app/selectors/home";
+import { getSourceMap } from "@app/selectors/home";
 import { isVersionedSource } from "@app/utils/sourceUtils";
 import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
 import { DATASET_PATH_FROM_ONBOARDING } from "@inject/components/SonarOnboardingModal/constants";
 import { selectState } from "@app/selectors/nessie/nessie";
 import { REFLECTION_ARCTIC_ENABLED } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
+import { withAvailablePageTypes } from "dyn-load/utils/explorePageTypes";
+import {
+  CodeView,
+  CopyButton,
+  Spinner,
+  SyntaxHighlighter,
+  TabPanel,
+  getControlledTabPanelProps,
+} from "dremio-ui-lib/components";
+import QueryDataset from "@app/components/QueryDataset/QueryDataset";
+import { SqlRunnerTabs } from "dremio-ui-common/sonar/SqlRunnerSession/components/SqlRunnerTabs.js";
+import { EXPLORE_DRAG_TYPE } from "../constants";
+import {
+  addDatasetATSyntax,
+  getReferencesListForScript,
+} from "@app/utils/nessieUtils";
+import { withCatalogARSFlag } from "@inject/utils/arsUtils";
+import { PHYSICAL_DATASET } from "@app/constants/datasetTypes";
+import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
+import { formatQuery } from "dremio-ui-common/sql/formatter/sqlFormatter.js";
+import socket from "@inject/utils/socket";
+import {
+  MultiTabIsEnabledProvider,
+  withIsMultiTabEnabled,
+} from "@app/components/SQLScripts/useMultiTabIsEnabled";
+import clsx from "clsx";
+import { DatasetDetailsPanel } from "../components/DatasetDetailsPanel/DatasetDetailsPanel";
+import { getEntitySummary } from "@app/endpoints/EntitySummary/getEntitySummary";
+import sentryUtil from "@app/utils/sentryUtil";
+import { getEntityTypeFromObject } from "@app/utils/entity-utils";
+import { ENTITY_TYPES_LIST } from "@app/constants/Constants";
+import { EntityDetailsPanel } from "../components/EntityDetailsPanel/EntityDetailsPanel";
+import { EmptyDetailsPanel } from "../components/EmptyDetailsPanel/EmptyDetailsPanel";
+import {
+  handleOpenTabScript,
+  fetchAllAndMineScripts,
+} from "@app/components/SQLScripts/sqlScriptsUtils";
+import { $SqlRunnerSession } from "dremio-ui-common/sonar/SqlRunnerSession/resources/SqlRunnerSessionResource.js";
+import { $Scripts } from "dremio-ui-common/sonar/scripts/resources/ScriptsResource.js";
+import { ScriptsResource } from "dremio-ui-common/sonar/scripts/resources/ScriptsResource.js";
+import { filter, firstValueFrom } from "rxjs";
+import { isTabbableUrl } from "@app/utils/explorePageTypeUtils";
+import {
+  closeTab,
+  newPopulatedTab,
+} from "dremio-ui-common/sonar/SqlRunnerSession/resources/SqlRunnerSessionResource.js";
+import { getSupportFlag } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
+import { SQLRUNNER_TABS_UI } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
+import { fetchScripts } from "@app/actions/resources/scripts";
+import { addNotification } from "@app/actions/notification";
+import { BadRequestError } from "dremio-ui-common/errors/BadRequestError";
+import SQLScriptRenameDialog from "@app/components/SQLScripts/components/SQLScriptRenameDialog/SQLScriptRenameDialog";
+import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";
+import { store } from "@app/store/store";
 
 const newQueryLink = newQuery();
-const EXPLORE_DRAG_TYPE = "explorePage";
 const HISTORY_BAR_WIDTH = 34;
 const SIDEBAR_MIN_WIDTH = 300;
 const COLLAPSED_SIDEBAR_WIDTH = 36;
 const SQL_EDITOR_PADDING = 20;
-const EXTRA_PAGE_WIDTH = HISTORY_BAR_WIDTH + SQL_EDITOR_PADDING;
 
-const CREATE_NEW_QUERY = "SELECT * FROM /* Insert dataset here */";
+const { t } = getIntlContext();
 
 const resizeColumn = new ResizeObserver(
   debounce((item) => {
@@ -168,6 +221,7 @@ export class ExplorePageContentWrapper extends PureComponent {
     updateColumnFilter: PropTypes.func,
 
     // connected
+    addNotification: PropTypes.func,
     entityId: PropTypes.string,
     runDatasetSql: PropTypes.func,
     previewDatasetSql: PropTypes.func,
@@ -175,7 +229,6 @@ export class ExplorePageContentWrapper extends PureComponent {
     version: PropTypes.string,
     datasetVersion: PropTypes.string,
     lastDataset: PropTypes.any,
-    addNotification: PropTypes.func,
     currentSql: PropTypes.string,
     queryContext: PropTypes.instanceOf(Immutable.List),
     datasetSql: PropTypes.string,
@@ -198,13 +251,18 @@ export class ExplorePageContentWrapper extends PureComponent {
     setQueryTabNumber: PropTypes.func,
     supportFlagsObj: PropTypes.object,
     fetchSupportFlags: PropTypes.func,
-    jobDetails: PropTypes.any,
-    isNessieOrArcticSource: PropTypes.bool,
+    scripts: PropTypes.any,
     fetchFilteredJobsList: PropTypes.func,
     resetFilteredJobsList: PropTypes.func,
     setResizeProgressState: PropTypes.func,
     toggleExploreSql: PropTypes.func,
     nessieState: PropTypes.object,
+
+    //HOC
+    availablePageTypes: PropTypes.arrayOf(PropTypes.string).isRequired,
+    isArsLoading: PropTypes.bool,
+    isArsEnabled: PropTypes.bool,
+    isMultiTabEnabled: PropTypes.bool,
   };
 
   static contextTypes = {
@@ -246,6 +304,18 @@ export class ExplorePageContentWrapper extends PureComponent {
       showJobsTable: false,
       numberOfTabs: 0,
       editorWidth: null,
+      datasetDetailsCollapsed: true,
+      datasetDetails: null,
+      SQLScriptsLeaveTabDialog: {
+        isOpen: false,
+        onConfirm: null,
+        onCancel: null,
+      },
+      SQLScriptsRenameDialog: {
+        isOpen: false,
+        onCancel: () => null,
+        script: null,
+      },
     };
 
     this.editorRef = createRef();
@@ -253,10 +323,168 @@ export class ExplorePageContentWrapper extends PureComponent {
     this.dremioSideBarRef = createRef();
     this.dremioSideBarDrag = createRef();
     this.explorePageRef = createRef();
+    this.observeRef = createRef();
   }
   timeoutRef = undefined;
 
+  redirectToLastUsedTab = async (router) => {
+    if (!(await getSupportFlag(SQLRUNNER_TABS_UI)).value) {
+      return;
+    }
+
+    const [session, scripts] = await Promise.all([
+      firstValueFrom(
+        $SqlRunnerSession.$source.pipe(filter((session) => session !== null))
+      ),
+      firstValueFrom(
+        $Scripts.pipe(filter((scripts) => scripts !== null && !!scripts.length))
+      ),
+    ]);
+
+    const script = scripts.find(
+      (script) => script.id === session.currentScriptId
+    );
+
+    if (!script) {
+      return;
+    }
+
+    handleOpenTabScript(router)(script);
+  };
+
+  createNewScriptFromQueryPath = async (content, context = []) => {
+    if (!(await getSupportFlag(SQLRUNNER_TABS_UI)).value) {
+      return;
+    }
+
+    if (!content) return;
+
+    // Throws the error, don't catch here
+    const result = await newPopulatedTab({
+      content,
+      context,
+      description: "",
+    });
+
+    await ScriptsResource.fetch();
+    await fetchAllAndMineScripts(this.props.fetchScripts, null);
+
+    return result;
+  };
+
+  handleQueryPathWithoutTabs = (sql) => {
+    const { router, setPreviousAndCurrentSql, setCustomDefaultSql } =
+      this.props;
+
+    setPreviousAndCurrentSql({ sql });
+    setCustomDefaultSql({ sql });
+
+    router.replace({
+      ...location,
+      query: {
+        ...location.query,
+        queryPath: undefined,
+        versionContext: undefined,
+      },
+      // setting a state prevents the editor from resetting when querying a dataset
+      // see: getExplorePageLocationChangePredicate
+      state: { ignoreReset: true },
+    });
+
+    this.scriptCreating = false;
+  };
+
+  handleQueryPath = async (queryPathParam) => {
+    let queryPath;
+    try {
+      queryPath = constructFullPath(JSON.parse(queryPathParam));
+    } catch (e) {
+      //
+    }
+    const sql = exploreUtils.createNewQueryFromDatasetOverlay(queryPath);
+    this.loadDatasetSummaryFromUrl();
+
+    if (!(await getSupportFlag(SQLRUNNER_TABS_UI)).value) {
+      return this.handleQueryPathWithoutTabs(sql);
+    }
+
+    return this.createNewTabWithSql(sql);
+  };
+
+  handlePureSql = async (sql, queryStatuses, context) => {
+    if ((await getSupportFlag(SQLRUNNER_TABS_UI)).value) {
+      return this.createNewTabWithSql(sql, queryStatuses, context);
+    }
+  };
+
+  handleOpenJobResultsWithoutTabs(statuses) {
+    const { setQueryStatuses, jobProgress } = this.props;
+    setQueryStatuses({ statuses });
+    this.props.fetchFilteredJobsList(jobProgress.jobId, JOB_PAGE_NEW_VIEW_ID);
+  }
+
+  handleOpenJobResults = async (sql, newQueryStatuses) => {
+    if (
+      !isTabbableUrl(this.props.location) ||
+      !(await getSupportFlag(SQLRUNNER_TABS_UI)).value
+    ) {
+      return this.handleOpenJobResultsWithoutTabs(newQueryStatuses);
+    }
+
+    // Not sure if we need to pass queryContext for queryPath flow too
+    return this.createNewTabWithSql(
+      sql,
+      newQueryStatuses,
+      this.props.queryContext
+    );
+  };
+
+  createNewTabWithSql = async (sql, newQueryStatuses, context) => {
+    if (this.scriptCreating) return;
+
+    this.scriptCreating = true;
+
+    this.createNewScriptFromQueryPath(sql, context)
+      .then((createdScript) => {
+        //Important: queryPath is removed here so that the lifecycle won't run this side-effect again
+        const success = handleOpenTabScript(this.props.router)(
+          createdScript,
+          newQueryStatuses
+        );
+        this.scriptCreating = false;
+        return success;
+      })
+      .catch((e) => {
+        if (e instanceof BadRequestError) {
+          const code = e.responseBody.errors?.[0]?.code;
+          this.props.addNotification(
+            code ? t(code + ":from_dataset") : e.responseBody.errorMessage,
+            "error"
+          );
+        }
+        const failure = this.redirectToLastUsedTab(this.props.router);
+        //Remove queryPath so that this side-effect does not run again
+        this.props.router.replace({
+          ...location,
+          query: {
+            ...location.query,
+            queryPath: undefined,
+            versionContext: undefined,
+          },
+        });
+        this.scriptCreating = false;
+        return failure;
+      });
+  };
+
   componentDidMount() {
+    const {
+      location,
+      setPreviousAndCurrentSql,
+      dataset,
+      queryStatuses,
+      isMultiTabEnabled,
+    } = this.props;
     // fetch support flags here for powerbi and tableau only if its not enterprise
     if (!(isEnterprise?.() || isCommunity?.())) {
       this.props.fetchSupportFlags("client.tools.tableau");
@@ -264,6 +492,18 @@ export class ExplorePageContentWrapper extends PureComponent {
     }
     if (!isCommunity?.()) {
       this.props.fetchSupportFlags(REFLECTION_ARCTIC_ENABLED);
+    }
+
+    // If the new_query page is loaded without a scriptId, redirect the user to the most
+    // recently used tab in the sql runner session
+    if (
+      isTabbableUrl(location) &&
+      !location.query?.scriptId &&
+      // Handled below
+      !location.query?.queryPath &&
+      !dataset.get("sql")
+    ) {
+      this.redirectToLastUsedTab(this.props.router);
     }
 
     Mousetrap.bind(["mod+enter", "mod+shift+enter"], this.kbdShorthand);
@@ -274,35 +514,39 @@ export class ExplorePageContentWrapper extends PureComponent {
     this.handleResize();
     this.props.resetFilteredJobsList();
 
+    // Jobs list is reset whenever moving between the SQL Runner and dataset editor.
+    // This fetches the jobs when multi tabs are disabled, otherwise they're fetched
+    // by the "doJobFetch" saga.
+    if (
+      !isMultiTabEnabled &&
+      queryStatuses &&
+      (!isTabbableUrl(location) ||
+        (isTabbableUrl(location) && dataset.get("sql")))
+    ) {
+      queryStatuses.forEach((status) =>
+        this.props.fetchFilteredJobsList(status.jobId, JOB_PAGE_NEW_VIEW_ID)
+      );
+    }
+
     this.headerRef = document.querySelector(".c-homePageTop");
 
     document.addEventListener("mouseup", this.sidebarMouseUp);
     document.addEventListener("mousemove", this.sidebarMouseMove);
     window.addEventListener("resize", this.handleResize);
 
-    // Observing content column
-    resizeColumn.observe(document.querySelector(".dremioContent__content"));
+    this.doObserve();
 
-    const { location, router, setCustomDefaultSql, setPreviousAndCurrentSql } =
-      this.props;
-    if (location.query?.create) {
-      setPreviousAndCurrentSql({ sql: CREATE_NEW_QUERY });
-    } else if (location.query?.queryPath) {
-      // executes when navigating to the editor to query a dataset
-      const sql = exploreUtils.createNewQueryFromDatasetOverlay(
-        location.query.queryPath
+    if (isTabbableUrl(location) && location.query?.queryPath) {
+      this.handleQueryPath(location.query?.queryPath);
+    }
+
+    // executes when opening a table and editing the query
+    if (isTabbableUrl(location) && dataset.get("sql")) {
+      this.handlePureSql(
+        dataset.get("sql"),
+        queryStatuses,
+        dataset.get("context")
       );
-
-      setPreviousAndCurrentSql({ sql });
-      setCustomDefaultSql({ sql });
-
-      router.replace({
-        ...location,
-        query: {
-          ...location.query,
-          queryPath: undefined,
-        },
-      });
     }
 
     if (sessionStorage.getItem(DATASET_PATH_FROM_ONBOARDING)) {
@@ -315,6 +559,8 @@ export class ExplorePageContentWrapper extends PureComponent {
       });
       sessionStorage.removeItem(DATASET_PATH_FROM_ONBOARDING);
     }
+
+    socket.setServerHeartbeat(true);
   }
 
   componentWillUnmount() {
@@ -322,7 +568,9 @@ export class ExplorePageContentWrapper extends PureComponent {
     document.removeEventListener("mouseup", this.sidebarMouseUp);
     document.removeEventListener("mousemove", this.sidebarMouseMove);
     window.removeEventListener("resize", this.handleResize);
-    resizeColumn.unobserve(document.querySelector(".dremioContent__content"));
+    if (this.observeRef.current) {
+      resizeColumn.unobserve(this.observeRef.current);
+    }
     clearTimeout(this.timeoutRef);
 
     // Sidebar resizing
@@ -332,14 +580,32 @@ export class ExplorePageContentWrapper extends PureComponent {
         this.sidebarMouseDown
       );
     }
+
+    socket.setServerHeartbeat(false);
   }
+
+  doObserve = () => {
+    const { pageType } = this.props;
+    if (pageType === "default") {
+      if (this.observeRef.current) {
+        resizeColumn.observe(this.observeRef.current);
+      } else {
+        this.observeRef = createRef();
+      }
+    } else {
+      //Chrome auto unobserves when removing from dom but do this just in case
+      if (this.observeRef.current) {
+        resizeColumn.unobserve(this.observeRef.current);
+        this.observeRef.current = null;
+      }
+    }
+  };
+
+  scriptCreating = false;
 
   componentDidUpdate(prevProps) {
     const {
-      addNotification: addSuccessNotification,
-      intl: { formatMessage },
       jobProgress,
-      setQueryStatuses: newQueryStatuses,
       setPreviousAndCurrentSql: newPreviousAndCurrentSql,
       datasetSql,
       currentSql,
@@ -351,28 +617,19 @@ export class ExplorePageContentWrapper extends PureComponent {
       setSelectedSql: newSelectedSql,
       setQuerySelections: newQuerySelections,
       isMultiQueryRunning,
-      jobDetails,
       location,
-      router,
     } = this.props;
+
+    this.doObserve();
+
+    // Clicking the query button from the ExplorePage search
     const loc = rmProjectBase(location.pathname);
-    // This is specific to using the overlay query button from the dataset page.
     if (
       loc === newQueryLink &&
       location.query?.queryPath &&
-      this.getMonacoEditorInstance()
+      location.query?.queryPath !== prevProps.location.query?.queryPath
     ) {
-      this.insertFullPathAtCursor(
-        exploreUtils.createNewQueryFromDatasetOverlay(location.query.queryPath)
-      );
-
-      router.replace({
-        ...location,
-        query: {
-          ...location.query,
-          queryPath: undefined,
-        },
-      });
+      this.handleQueryPath(location.query?.queryPath);
     }
 
     // if a single job, force the explore table to be in view
@@ -393,23 +650,6 @@ export class ExplorePageContentWrapper extends PureComponent {
       prevProps.jobProgress && prevProps.jobProgress.jobId !== this.state.jobId;
     if (isDifferentJob || isDifferentTab) {
       if (jobProgress && jobProgress.jobId) {
-        // Retrieve the Job's details to see if the results were truncated from the backend
-        if (isDifferentTab && jobDetails) {
-          if (jobDetails.getIn(["stats", "isOutputLimited"])) {
-            addSuccessNotification(
-              formatMessage(
-                { id: "Explore.Run.Warning" },
-                {
-                  rows: jobDetails
-                    .getIn(["stats", "outputRecords"])
-                    .toLocaleString(),
-                }
-              ),
-              "success"
-            );
-          }
-        }
-
         // Reset the currentSql to the statement that was executed
         if (datasetSql !== currentSql && !isDifferentTab) {
           if (queryStatuses && queryStatuses.length < 2) {
@@ -422,20 +662,14 @@ export class ExplorePageContentWrapper extends PureComponent {
             ) {
               // upon initialization (from job listing page), add a query status
               if (!queryStatuses.length && !!location?.query?.openResults) {
-                newQueryStatuses({
-                  statuses: [
-                    {
-                      sqlStatement: datasetSql,
-                      cancelled: false,
-                      jobId: jobProgress.jobId,
-                      version: datasetVersion,
-                    },
-                  ],
-                });
-                this.props.fetchFilteredJobsList(
-                  jobProgress.jobId,
-                  JOB_PAGE_NEW_VIEW_ID
-                );
+                this.handleOpenJobResults(datasetSql, [
+                  {
+                    sqlStatement: datasetSql,
+                    cancelled: false,
+                    jobId: jobProgress.jobId,
+                    version: datasetVersion,
+                  },
+                ]);
               }
             }
 
@@ -459,6 +693,14 @@ export class ExplorePageContentWrapper extends PureComponent {
       this.onJobIdChange();
     }
 
+    // Show / hide jobs table when switching between scripts
+    if (
+      (queryTabNumber === 0 && !this.state.showJobsTable) ||
+      (queryTabNumber && this.state.showJobsTable)
+    ) {
+      this.setState({ showJobsTable: !this.state.showJobsTable });
+    }
+
     // Update when switching between Dataset and SQL Runner
     if (prevProps.isSqlQuery !== this.props.isSqlQuery) {
       this.setPanelCollapse();
@@ -474,6 +716,32 @@ export class ExplorePageContentWrapper extends PureComponent {
       );
     }
   }
+
+  loadDatasetSummaryFromUrl = async () => {
+    const { location } = this.props;
+    let versionContext;
+    try {
+      versionContext = JSON.parse(location.query?.versionContext);
+    } catch (e) {
+      //
+    }
+    try {
+      const res = await getEntitySummary({
+        fullPath: JSON.parse(location.query?.queryPath),
+        versionContext: versionContext,
+      });
+
+      this.setState(
+        {
+          datasetDetails: Immutable.fromJS(res),
+          datasetDetailsCollapsed: false,
+        },
+        () => this.handleResize()
+      );
+    } catch (e) {
+      sentryUtil.logException(e);
+    }
+  };
 
   onJobIdChange() {
     if (this.props.jobProgress) {
@@ -528,6 +796,41 @@ export class ExplorePageContentWrapper extends PureComponent {
         isMultiQueryRunning
       );
     }
+  }
+
+  onLeaveTabWhileQueriesRunning(onConfirm) {
+    this.setState({
+      SQLScriptsLeaveTabDialog: {
+        isOpen: true,
+        onCancel: () =>
+          this.setState({
+            SQLScriptsLeaveTabDialog: {
+              isOpen: false,
+              onCancel: null,
+              onConfirm: null,
+            },
+          }),
+        onConfirm,
+      },
+    });
+  }
+
+  onRenameTab(script) {
+    this.setState({
+      SQLScriptsRenameDialog: {
+        isOpen: true,
+        onCancel: () => {
+          this.setState({
+            SQLScriptsRenameDialog: {
+              isOpen: false,
+              onCancel: () => null,
+              script: null,
+            },
+          });
+        },
+        script,
+      },
+    });
   }
 
   handleSqlSelection(tabIndex) {
@@ -615,12 +918,18 @@ export class ExplorePageContentWrapper extends PureComponent {
     this.insertFullPath(id);
   }
 
+  insertFieldName(name, ranges) {
+    const text = exploreUtils.escapeFieldNameForSQL(name);
+    this.insertAtRanges(text, ranges);
+  }
+
   insertFullPath(pathList, ranges) {
+    // String is sent for column nodes, pathlist for others
     if (typeof pathList === "string") {
-      this.insertAtRanges(pathList, ranges);
+      this.insertFieldName(pathList, ranges);
     } else {
       const text = constructFullPath(pathList);
-      this.insertAtRanges(text, ranges);
+      this.insertAtRanges(text + addDatasetATSyntax(pathList.toJS()), ranges);
     }
   }
 
@@ -679,11 +988,19 @@ export class ExplorePageContentWrapper extends PureComponent {
   };
 
   getNewEditorWidth = (sideBarWidth) => {
+    const { isArsEnabled, isArsLoading } = this.props;
+    const { datasetDetailsCollapsed } = this.state;
+    const datasetDetailsWidth = datasetDetailsCollapsed ? 36 : 320;
     if (this.explorePageRef?.current) {
+      const padding =
+        isArsEnabled || isArsLoading
+          ? SQL_EDITOR_PADDING
+          : HISTORY_BAR_WIDTH + SQL_EDITOR_PADDING;
       return (
         this.explorePageRef.current.offsetWidth -
         sideBarWidth -
-        EXTRA_PAGE_WIDTH
+        padding -
+        datasetDetailsWidth
       );
     }
   };
@@ -698,6 +1015,37 @@ export class ExplorePageContentWrapper extends PureComponent {
     ); // ref for calculating height isn't auto updated
   };
 
+  handleDatasetDetailsCollapse = () => {
+    this.setState(
+      {
+        datasetDetailsCollapsed: !this.state.datasetDetailsCollapsed,
+      },
+      () => this.handleResize()
+    );
+  };
+
+  handleDatasetDetails = (datasetDetails) => {
+    const stateDetails = this.state.datasetDetails;
+    const argDetails = datasetDetails;
+    const dataset = argDetails?.get("error")
+      ? stateDetails?.merge(argDetails)
+      : argDetails;
+    if (
+      stateDetails?.get("entityId") !== argDetails?.get("entityId") ||
+      stateDetails?.size !== argDetails?.size ||
+      (datasetDetails?.get("fromTreeNode") &&
+        stateDetails?.get("entityId") !== argDetails?.get("entityId"))
+    ) {
+      this.setState(
+        {
+          datasetDetails: dataset,
+          datasetDetailsCollapsed: false,
+        },
+        () => this.handleResize()
+      );
+    }
+  };
+
   getBottomContent() {
     const {
       dataset,
@@ -710,7 +1058,6 @@ export class ExplorePageContentWrapper extends PureComponent {
       statusesArray,
       cancelJob,
       setQueryStatuses: newQueryStatuses,
-      isNessieOrArcticSource,
     } = this.props;
 
     const { showJobsTable } = this.state;
@@ -764,8 +1111,6 @@ export class ExplorePageContentWrapper extends PureComponent {
             entityId={entityId}
             isEditAllowed={isWikiEditAllowed}
             className="bottomContent"
-            showTags={!isNessieOrArcticSource}
-            showWikiContent={!isNessieOrArcticSource}
             dataset={dataset}
           />
         );
@@ -927,7 +1272,7 @@ export class ExplorePageContentWrapper extends PureComponent {
   }
 
   sidebarMouseDown() {
-    this.setState({ sidebarResize: true });
+    this.setState({ sidebarResize: true, datasetDetailsCollapsed: true });
   }
 
   sidebarMouseMove(e) {
@@ -1002,6 +1347,7 @@ export class ExplorePageContentWrapper extends PureComponent {
                   location={location}
                   sidebarCollapsed={this.state.sidebarCollapsed}
                   handleSidebarCollapse={this.handleSidebarCollapse}
+                  handleDatasetDetails={this.handleDatasetDetails}
                 />
               </div>
             </div>
@@ -1058,6 +1404,53 @@ export class ExplorePageContentWrapper extends PureComponent {
             handleSidebarCollapse={this.handleSidebarCollapse}
             ref={this.editorRef}
             editorWidth={this.state.editorWidth}
+          />
+        );
+      default:
+        throw new Error(`not supported page type; '${pageType}'`);
+    }
+  }
+
+  getDatasetDetailsPanel() {
+    const { pageType, isSqlQuery, dataset } = this.props;
+    const { datasetDetails } = this.state;
+    const curDataset = datasetDetails || (!isSqlQuery ? dataset : null);
+    const isEmpty = !curDataset;
+    const type = getEntityTypeFromObject(curDataset);
+    const isEntity =
+      ENTITY_TYPES_LIST.includes(type?.toLowerCase()) &&
+      !curDataset?.get("queryable");
+    switch (pageType) {
+      case PageTypes.graph:
+      case PageTypes.details:
+      case PageTypes.reflections:
+      case PageTypes.wiki:
+      case PageTypes.history:
+        return;
+      case PageTypes.default:
+        return isEmpty ? (
+          <EmptyDetailsPanel
+            datasetDetailsCollapsed={this.state.datasetDetailsCollapsed}
+            handleDatasetDetailsCollapse={this.handleDatasetDetailsCollapse}
+          />
+        ) : isEntity ? (
+          <EntityDetailsPanel
+            entityDetailsCollapsed={this.state.datasetDetailsCollapsed}
+            handleEntityDetailsCollapse={this.handleDatasetDetailsCollapse}
+            entityDetails={curDataset}
+            handleEntityDetails={this.handleDatasetDetails}
+          />
+        ) : (
+          <DatasetDetailsPanel
+            datasetDetailsCollapsed={this.state.datasetDetailsCollapsed}
+            handleDatasetDetailsCollapse={this.handleDatasetDetailsCollapse}
+            datasetDetails={curDataset}
+            handleDatasetDetails={this.handleDatasetDetails}
+            hideGoToButton={
+              !isSqlQuery &&
+              (!curDataset ||
+                curDataset?.get("entityId") === curDataset?.get("entityId"))
+            }
           />
         );
       default:
@@ -1127,6 +1520,54 @@ export class ExplorePageContentWrapper extends PureComponent {
   };
 
   render() {
+    const {
+      dataset,
+      exploreViewState,
+      isArsEnabled,
+      isArsLoading,
+      isMultiTabEnabled,
+      isMultiQueryRunning,
+      pageType,
+      removeTabView,
+    } = this.props;
+
+    const isDatasetPage = exploreUtils.isExploreDatasetPage(location);
+    const versionContext = getVersionContextFromId(dataset.get("entityId"));
+
+    const isDatasetLoading =
+      isDatasetPage && !dataset.get("sql") && !exploreViewState.get("isFailed");
+
+    const shouldShowCodeView =
+      isDatasetPage &&
+      pageType === PageTypes.default &&
+      dataset.get("datasetType") === PHYSICAL_DATASET &&
+      !!versionContext;
+
+    const formattedTableDefinition = shouldShowCodeView
+      ? formatQuery(dataset.get("sql"))
+      : "";
+
+    const isTabbable = isTabbableUrl(this.props.location);
+
+    const handleTabClosed = (tabId) => {
+      closeTab(tabId);
+      removeTabView(tabId); // Removes tab state from redux (jobs and view state)
+      const nextScriptId = $SqlRunnerSession.$merged.value.currentScriptId;
+      const currentScriptId = $SqlRunnerSession.$source.value.currentScriptId;
+      if (nextScriptId && currentScriptId !== nextScriptId) {
+        const script = ScriptsResource.getResource().value?.find(
+          (script) => script.id === nextScriptId
+        );
+        if (!script) {
+          return;
+        }
+        handleOpenTabScript(this.props.router)(script);
+      }
+    };
+
+    const generateReferencesList = () =>
+      getReferencesListForScript(store.getState().nessie);
+
     return (
       <>
         {/* <ExplorePage /> always assumes there are two HTML elements (grid-template-rows: auto 1fr)
@@ -1140,71 +1581,220 @@ export class ExplorePageContentWrapper extends PureComponent {
           )}
           ref={this.explorePageRef}
         >
-          <div className="dremioContent">
-            <div className="dremioContent__header">
-              <ExploreInfoHeader
-                dataset={this.props.dataset}
-                pageType={this.props.pageType}
-                toggleRightTree={this.props.toggleRightTree}
-                rightTreeVisible={this.props.rightTreeVisible}
-                exploreViewState={this.props.exploreViewState}
-                nessieState={this.props.nessieState}
-              />
-            </div>
-
-            <div className="dremioContent__main">
-              {this.getSidebar()}
-
-              <HistoryLineController
-                dataset={this.props.dataset}
-                location={this.props.location}
-                pageType={this.props.pageType}
-              />
-
-              <div
-                className="dremioContent__content"
-                style={{
-                  maxHeight: getExploreContentHeight(
-                    this.headerRef?.offsetHeight,
-                    window.innerHeight
-                  ),
-                }}
-              >
-                {this.getContentHeader()}
-
-                <ErrorBoundary
-                  title={intl.formatMessage(
-                    { id: "Support.error.section" },
-                    {
-                      section: intl.formatMessage({
-                        id: "SectionLabel.sql.editor",
-                      }),
-                    }
-                  )}
-                >
-                  {this.getUpperContent()}
-                </ErrorBoundary>
-
-                {this.getTabsBlock()}
-
-                <div
-                  className={`dremioContent__table ${
-                    this.props.pageType === PageTypes.wiki ? "fullHeight" : ""
-                  }`}
-                >
-                  {this.getControlsBlock()}
-
-                  <SqlErrorSection
-                    visible={this.props.isError}
-                    errorData={this.props.errorData}
-                  />
-
-                  {this.getBottomContent()}
-                </div>
+          <div
+            className={clsx("dremioContent", {
+              "--withTabs": isTabbable && isMultiTabEnabled,
+            })}
+          >
+            {!(isTabbable && isMultiTabEnabled) && (
+              <div className="dremioContent__header">
+                <ExploreInfoHeader
+                  dataset={dataset}
+                  pageType={pageType}
+                  toggleRightTree={this.props.toggleRightTree}
+                  rightTreeVisible={this.props.rightTreeVisible}
+                  exploreViewState={exploreViewState}
+                  nessieState={this.props.nessieState}
+                />
               </div>
-            </div>
+            )}
+            {isDatasetLoading ? (
+              <Spinner className="dremioContent__spinner" />
+            ) : shouldShowCodeView ? (
+              <CodeView>
+                <SyntaxHighlighter language="sql">
+                  {formattedTableDefinition}
+                </SyntaxHighlighter>
+                <span className="inner-actions">
+                  <QueryDataset
+                    fullPath={dataset.get("displayFullPath")}
+                    resourceId={dataset.getIn(["displayFullPath", 0])}
+                    tooltipPlacement="top"
+                    tooltipPortal
+                  />
+                  <CopyButton contents={formattedTableDefinition} />
+                </span>
+              </CodeView>
+            ) : (
+              <div className="dremioContent__main">
+                {this.props.availablePageTypes.map((page) => (
+                  <TabPanel
+                    key={`${page}Panel`}
+                    {...getControlledTabPanelProps({
+                      id: `${page}Panel`,
+                      labelledBy: page,
+                      currentTab:
+                        // Details does not currently have a corresponding tab, this should be fixed in the UX for accessibility
+                        this.props.pageType === "details"
+                          ? PageTypes.default
+                          : this.props.pageType,
+                    })}
+                    className="dremioContent__content-tabpanel"
+                  >
+                    {this.getSidebar()}
+
+                    {!isArsLoading && !isArsEnabled ? (
+                      <HistoryLineController
+                        dataset={dataset}
+                        location={this.props.location}
+                        pageType={pageType}
+                      />
+                    ) : (
+                      <div />
+                    )}
+
+                    <div
+                      ref={this.observeRef}
+                      className={clsx("dremioContent__content", {
+                        "dremioContent__content--withTabs":
+                          isMultiTabEnabled && isTabbable,
+                      })}
+                      style={{
+                        maxHeight: getExploreContentHeight(
+                          this.headerRef?.offsetHeight,
+                          window.innerHeight,
+                          isMultiTabEnabled && isTabbable
+                            ? 0
+                            : EXPLORE_HEADER_HEIGHT
+                        ),
+                      }}
+                    >
+                      <MultiTabIsEnabledProvider>
+                        {isTabbable && (
+                          <SqlRunnerTabs
+                            canClose={() =>
+                              $SqlRunnerSession.$merged.value?.scriptIds
+                                .length > 1
+                            }
+                            onTabSelected={(tabId) => {
+                              const script =
+                                ScriptsResource.getResource().value?.find(
+                                  (script) => script.id === tabId
+                                );
+                              if (!script) {
+                                return;
+                              }
+                              if (
+                                isMultiQueryRunning &&
+                                exploreUtils.hasUnsubmittedQueries(
+                                  this.props.queryStatuses
+                                )
+                              ) {
+                                this.onLeaveTabWhileQueriesRunning(() =>
+                                  handleOpenTabScript(this.props.router)(script)
+                                );
+                              } else {
+                                handleOpenTabScript(this.props.router)(script);
+                              }
+                            }}
+                            onTabClosed={handleTabClosed}
+                            tabActions={(tabId) => [
+                              {
+                                id: "rename",
+                                label: intl.formatMessage({
+                                  id: "Common.Rename",
+                                }),
+                                handler: () => {
+                                  const script =
+                                    ScriptsResource.getResource().value?.find(
+                                      (script) => script.id === tabId
+                                    );
+                                  this.onRenameTab(script);
+                                },
+                              },
+                              {
+                                id: "saveScript",
+                                label: intl.formatMessage({
+                                  id: "NewQuery.SaveScriptAs",
+                                }),
+                                handler: () => {
+                                  window.sqlUtils.handleSaveScriptAs();
+                                },
+                              },
+                              {
+                                id: "saveView",
+                                label: intl.formatMessage({
+                                  id: "NewQuery.SaveAsViewBtn",
+                                }),
+                                handler: () => {
+                                  window.sqlUtils.handleSaveViewAs();
+                                },
+                              },
+                              {
+                                id: "close",
+                                label: intl.formatMessage({
+                                  id: "Common.Close",
+                                }),
+                                handler: () => {
+                                  handleTabClosed(tabId);
+                                },
+                                disabled:
+                                  $SqlRunnerSession.$merged.value?.scriptIds
+                                    .length <= 1,
+                              },
+                            ]}
+                            onNewTabCreated={async () => {
+                              await ScriptsResource.fetch();
+                              await fetchAllAndMineScripts(
+                                this.props.fetchScripts,
+                                null
+                              );
+                              handleOpenTabScript(this.props.router)(
+                                ScriptsResource.getResource().value.find(
+                                  (script) =>
+                                    script.id ===
+                                    $SqlRunnerSession.$source.value
+                                      .currentScriptId
+                                )
+                              );
+                            }}
+                            generateReferencesList={generateReferencesList}
+                          />
+                        )}
+                      </MultiTabIsEnabledProvider>
+                      {this.getContentHeader()}
+
+                      <ErrorBoundary
+                        title={intl.formatMessage(
+                          { id: "Support.error.section" },
+                          {
+                            section: intl.formatMessage({
+                              id: "SectionLabel.sql.editor",
+                            }),
+                          }
+                        )}
+                      >
+                        {this.getUpperContent()}
+                      </ErrorBoundary>
+
+                      {this.getTabsBlock()}
+
+                      <div
+                        className={`dremioContent__table ${
+                          pageType === PageTypes.wiki ? "fullHeight" : ""
+                        }`}
+                      >
+                        {this.getControlsBlock()}
+
+                        <SqlErrorSection
+                          visible={this.props.isError}
+                          errorData={this.props.errorData}
+                        />
+
+                        {this.getBottomContent()}
+                      </div>
+                    </div>
+                    {this.getDatasetDetailsPanel()}
+                  </TabPanel>
+                ))}
+              </div>
+            )}
           </div>
         </div>
+        {this.state.SQLScriptsRenameDialog.isOpen && (
+          <SQLScriptRenameDialog {...this.state.SQLScriptsRenameDialog} />
+        )}
+        <SQLScriptLeaveTabDialog {...this.state.SQLScriptsLeaveTabDialog} />
       </>
     );
   }
@@ -1215,16 +1805,12 @@ function mapStateToProps(state, ownProps) {
   const version = location.query && location.query.version;
   const loc = rmProjectBase(location.pathname);
   const isSource = loc.startsWith("/source/");
-  const sources = getSortedSources(state);
-  let isNessieOrArcticSource = false;
+  const sources = getSourceMap(state);
   let nessieState;
   if (isSource && sources?.size > 0) {
     const sourceId = loc.split("/")[2];
-    const source = (sources || []).find(
-      (item) => item.get("name") === sourceId
-    );
+    const source = sources.get(sourceId);
     if (source && isVersionedSource(source.get("type"))) {
-      isNessieOrArcticSource = true;
       nessieState = selectState(state.nessie, `ref/${source.get("name")}`);
     }
   }
@@ -1234,10 +1820,7 @@ function mapStateToProps(state, ownProps) {
   const datasetVersion = dataset.get("datasetVersion");
   const jobProgress = getJobProgress(state, version);
   const isSqlQuery = exploreUtils.isSqlEditorTab(location);
-  const jobDetails = state?.resources?.entities?.getIn([
-    "jobDetails",
-    jobProgress?.jobId,
-  ]);
+  const scripts = state?.resources?.scripts;
 
   const queryStatuses = getQueryStatuses(state);
 
@@ -1304,20 +1887,22 @@ function mapStateToProps(state, ownProps) {
     isMultiQueryRunning: explorePageState.view.isMultiQueryRunning,
     queryTabNumber: explorePageState.view.queryTabNumber,
     supportFlagsObj,
-    jobDetails,
-    isNessieOrArcticSource,
     nessieState,
+    scripts,
   };
 }
 
-export default withRouter(
+export default compose(
+  withRouter,
+  withIsMultiTabEnabled,
   connect(
     mapStateToProps,
     {
+      removeTabView,
+      addNotification,
       runDatasetSql,
       previewDatasetSql,
       updateColumnFilter,
-      addNotification,
       loadSourceListData,
       setQueryStatuses: setQueryStatusesFunc,
       cancelJob: cancelJobAndShowNotification,
@@ -1326,6 +1911,7 @@ export default withRouter(
       setSelectedSql,
       setCustomDefaultSql,
       setQueryTabNumber,
+      fetchScripts,
       fetchSupportFlags,
       fetchFilteredJobsList,
       resetFilteredJobsList,
@@ -1334,5 +1920,9 @@ export default withRouter(
     },
     null,
     { forwardRef: true }
-  )(withDatasetChanges(injectIntl(ExplorePageContentWrapper)))
-);
+  ),
+  injectIntl,
+  withDatasetChanges,
+  withAvailablePageTypes,
+  withCatalogARSFlag
+)(ExplorePageContentWrapper);

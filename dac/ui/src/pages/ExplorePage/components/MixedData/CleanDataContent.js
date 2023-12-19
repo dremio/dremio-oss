@@ -54,7 +54,7 @@ class CleanDataContent extends Component {
     super(props);
   }
 
-  componentWillMount() {
+  UNSAFE_componentWillMount() {
     const { columnName, dataset } = this.props;
     this.props.loadCleanData(columnName, dataset);
   }
@@ -92,7 +92,7 @@ class CleanDataContent extends Component {
     ];
     return (
       <div style={LINE_START_CENTER}>
-        <span style={methodTitle}>{la("Method:")}</span>
+        <span style={methodTitle}>{laDeprecated("Method:")}</span>
         {cleanTypes.map((cleanType) => this.renderCleanTypeItem(cleanType))}
       </div>
     );

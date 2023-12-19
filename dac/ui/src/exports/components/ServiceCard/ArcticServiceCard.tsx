@@ -50,7 +50,7 @@ export const ArcticServiceCard = (props: Props): JSX.Element => {
                 }}
               >
                 <p>
-                  <strong>Arctic (Preview)</strong>
+                  <strong>Arctic</strong>
                 </p>
                 <p>
                   Arctic is an intelligent metastore for Apache Iceberg that

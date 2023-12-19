@@ -34,7 +34,7 @@ public class TestSimpleCredentialsService extends DremioTest {
 
   @Before
   public void setUp() {
-    credentialsService = CredentialsService.newInstance(DEFAULT_DREMIO_CONFIG, CLASSPATH_SCAN_RESULT);
+    credentialsService = SimpleCredentialsService.newInstance(DEFAULT_DREMIO_CONFIG, CLASSPATH_SCAN_RESULT);
   }
 
   @Test

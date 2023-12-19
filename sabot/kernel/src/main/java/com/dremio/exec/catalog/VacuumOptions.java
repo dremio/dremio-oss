@@ -15,30 +15,80 @@
  */
 package com.dremio.exec.catalog;
 
+
+
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public class VacuumOptions {
-  public enum Type {
-    TABLE    // Vacuum table
-  }
-
-  private final VacuumOptions.Type type;
+  public static final String GC_RETENTION_MILLIS_PROP_NAME = "GC_RETENTION_MILLIS";
+  public static final String GC_LAST_RUN_TIMESTAMP_MILLIS_PROP_NAME = "GC_LAST_RUN_TIMESTAMP_MILLIS";
+  public static final String GC_LAST_RUN_TIMESTAMP_DEFAULT = "0";
   private final Long olderThanInMillis;
-  private final int retainLast;
+  private final Integer retainLast;
+  private final boolean expireSnapshots;
+  private final boolean removeOrphans;
+  private final String location;
+  private final Long gracePeriodInMillis;
 
-  public VacuumOptions(VacuumOptions.Type type, long olderThanInMillis, int retainLast) {
-    this.type = type;
+  @JsonCreator
+  public VacuumOptions(@JsonProperty("expireSnapshots") boolean expireSnapshots,
+                       @JsonProperty("removeOrphans") boolean removeOrphans,
+                       @JsonProperty("olderThanInMillis") Long olderThanInMillis,
+                       @JsonProperty("retainLast") Integer retainLast,
+                       @JsonProperty("location") String location,
+                       @JsonProperty("gracePeriodInMillis") Long gracePeriodInMillis) {
+    this.expireSnapshots = expireSnapshots;
+    this.removeOrphans = removeOrphans;
     this.olderThanInMillis = olderThanInMillis;
     this.retainLast = retainLast;
+    this.location = location;
+    this.gracePeriodInMillis = gracePeriodInMillis;
   }
 
-  public VacuumOptions.Type getType() {
-    return type;
+  public VacuumOptions(NessieGCPolicy nessieGCPolicy) {
+
+    this.expireSnapshots = true;
+    this.removeOrphans = true;
+    this.location = null;
+    this.olderThanInMillis = nessieGCPolicy.getOlderThanInMillis();
+    this.retainLast = nessieGCPolicy.getRetainLast();
+    this.gracePeriodInMillis = nessieGCPolicy.getGracePeriodInMillis();
   }
 
-  public long getOlderThanInMillis() {
+  public Long getOlderThanInMillis() {
     return olderThanInMillis;
   }
 
-  public int getRetainLast() {
+  public Integer getRetainLast() {
     return retainLast;
+  }
+
+  public boolean isExpireSnapshots() {
+    return expireSnapshots;
+  }
+
+  public boolean isRemoveOrphans() {
+    return removeOrphans;
+  }
+
+  public String getLocation() {
+    return location;
+  }
+
+  public Long getGracePeriodInMillis() {
+    return gracePeriodInMillis;
+  }
+
+  @Override
+  public String toString() {
+    return "VacuumOptions{" +
+      "olderThanInMillis=" + olderThanInMillis +
+      ", retainLast=" + retainLast +
+      ", expireSnapshots=" + expireSnapshots +
+      ", removeOrphans=" + removeOrphans +
+      ", location=" + location +
+      ", gracePeriodInMillis=" + gracePeriodInMillis +
+      '}';
   }
 }

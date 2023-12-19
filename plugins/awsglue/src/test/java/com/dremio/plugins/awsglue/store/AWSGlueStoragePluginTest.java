@@ -25,6 +25,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.hadoop.hive.conf.HiveConf;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -83,7 +84,7 @@ public class AWSGlueStoragePluginTest extends BaseTestQuery {
       .unOrdered()
       .sqlQuery("SELECT min(n_nationkey) FROM \"testglue\".\"default\".nation_table LIMIT 1")
       .baselineColumns("EXPR$0")
-      .baselineValues(new Long(0))
+      .baselineValues(0L)
       .go();
   }
 
@@ -201,7 +202,7 @@ public class AWSGlueStoragePluginTest extends BaseTestQuery {
     sc.setName(pluginName);
     AWSGluePluginConfig conf = new AWSGluePluginConfig();
     final List<Property> finalProperties = new ArrayList<>();
-    finalProperties.add(new Property("hive.imetastoreclient.factory.class",
+    finalProperties.add(new Property(HiveConf.ConfVars.METASTORE_CLIENT_FACTORY_CLASS.varname,
       "com.amazonaws.glue.catalog.metastore.MockAWSGlueDataCatalogHiveClientFactory"));
 
     finalProperties.add(new Property("fs.s3a.bucket.qa1.dremio.com." +
@@ -212,6 +213,7 @@ public class AWSGlueStoragePluginTest extends BaseTestQuery {
     finalProperties.add(new Property("fs.s3a.bucket.qa1.dremio.com.endpoint", "localhost:"+port));
     finalProperties.add(new Property("fs.s3a.bucket.qa1.dremio.com.path.style.access", "true"));
     finalProperties.add(new Property("fs.s3a.bucket.qa1.dremio.com.connection.ssl.enabled", "false"));
+    finalProperties.add(new Property("fs.s3a.change.detection.version.required", "false"));
 
     File file = new File(
       AWSGlueStoragePluginTest.class.getClassLoader().getResource("catalog_store.json").getFile()

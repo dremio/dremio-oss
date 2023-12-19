@@ -45,6 +45,7 @@ export default function (input) {
     getShortcutButtonsData(item, entityType, btnTypes) {
       const versionContext = getVersionContextFromId(item.get("id"));
       const { type, value } = versionContext ?? {};
+      const resourceId = item.getIn(["fullPathList", 0]);
 
       const allBtns = [
         // Per DX-13304 we leave only Edit and Cog (Settings.svg) buttons
@@ -62,7 +63,13 @@ export default function (input) {
         {
           label: this.getInlineIcon("navigation-bar/go-to-dataset"),
           tooltip: "Go.To.Table",
-          link: wrapBackendLink(item.getIn(["links", "query"])),
+          link: wrapBackendLink(
+            `${item.getIn(["links", "query"])}${
+              type && value && resourceId
+                ? `?refType=${type}&refValue=${value}&sourceName=${resourceId}`
+                : ""
+            }`
+          ),
           type: btnTypes.goToTable,
           isShown: shouldUseNewDatasetNavigation() && entityType !== "dataset",
         },
@@ -83,6 +90,12 @@ export default function (input) {
 
     checkToRenderConvertFileButton() {
       return true;
+    },
+
+    shouldShowDetailsPanelIcon(item) {
+      const { entity: entityProp } = this.props;
+      const entity = item || entityProp;
+      return !!entity;
     },
   });
 }

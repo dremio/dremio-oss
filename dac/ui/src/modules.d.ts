@@ -13,13 +13,46 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-declare module "*.less";
-declare function la(textToLocalize: string): string;
 
-// adding dremio-icon to JSX.IntrinsicElements, prevents lint error in TS files
-// https://goulet.dev/posts/consuming-web-component-react-typescript/
+declare module "*.module.less" {
+  const classes: { readonly [key: string]: string };
+  export = classes;
+}
+
+declare module "*.module.scss" {
+  const classes: { readonly [key: string]: string };
+  export = classes;
+}
+
+declare module "*.png" {
+  const src: string;
+  export default src;
+}
+
+declare module "*.svg" {
+  import * as React from "react";
+  const content: React.FunctionComponent<React.SVGAttributes<SVGElement>>;
+  export default content;
+}
+
+declare module "*.yaml" {
+  const content: { [key: string]: any };
+  export default content;
+}
+
 declare namespace JSX {
   interface IntrinsicElements {
-    "dremio-icon": any;
+    "dremio-icon": {
+      alt: string;
+      className?: string;
+      name: string;
+    };
+  }
+}
+
+declare namespace NodeJS {
+  interface ProcessEnv {
+    readonly NODE_ENV: "development" | "production" | "test";
+    readonly PUBLIC_URL: string;
   }
 }

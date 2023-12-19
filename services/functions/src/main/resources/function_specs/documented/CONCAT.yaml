@@ -42,7 +42,7 @@ signatures:
     result: "CONCAT"
    -
     call: "SELECT CONCAT('con', 'cat', NULL)"
-    result: ""
+    result: "concat"
 dremioVersion: "1.0+"
 functionCategories:
  - "CHARACTER"

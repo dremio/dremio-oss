@@ -122,6 +122,7 @@ export interface ModelFunction {
  */
 export enum ModelFunctionFunctionCategoriesEnum {
   AGGREGATE = <any>"AGGREGATE",
+  ARRAY = <any>"ARRAY",
   BINARY = <any>"BINARY",
   BOOLEAN = <any>"BOOLEAN",
   BITWISE = <any>"BITWISE",

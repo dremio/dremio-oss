@@ -1,15 +1,20 @@
-.font-sans {
-  font-family: var(--font-family--sans);
+.font-default {
+  font-family: var(--font-family--default);
+  font-feature-settings: "calt" on, "cv08" on;
 }
 .font-mono {
   font-family: var(--font-family--mono);
+  font-feature-settings: "zero" on;
+  font-variant-ligatures: none;
+  font-weight: 400;
 }
 
 .text-sm {
   font-size: calc(12rem / 14);
 }
 
-.text-base {
+.text-base,
+.text-md {
   font-size: 1rem;
   line-height: 1.5;
 }
@@ -51,4 +56,16 @@
 
 .whitespace-nowrap {
   white-space: nowrap;
+}
+
+.text-left {
+  text-align: start;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-right {
+  text-align: end;
 }

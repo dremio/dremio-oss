@@ -33,22 +33,22 @@ export const button = {
   fontSize: 14,
   cursor: "pointer",
   display: "flex",
-  fontWeight: 500
+  fontWeight: 500,
 };
 
 export const primary = {
   ...button,
   color: "#fff",
   backgroundColor: BLUE,
-  borderColor: BLUE,
+  border: "1px solid var(--color--brand--300)",
 };
 
 export const danger = {
   ...button,
-  color: '#fff',
-  backgroundColor: 'var(--dremio--color--status--error--foreground)',
-  border: "none"
-}
+  color: "#fff",
+  backgroundColor: "var(--dremio--color--status--error--foreground)",
+  border: "none",
+};
 
 export const warn = {
   ...button,
@@ -83,9 +83,9 @@ export const submitting = {
     cursor: "default",
   },
   danger: {
-    backgroundColor: 'var(--dremio--color--status--delete--background)',
-    cursor: "default"
-  }
+    backgroundColor: "var(--dremio--color--status--delete--background)",
+    cursor: "default",
+  },
 };
 
 export const disabledLink = {

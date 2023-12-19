@@ -66,6 +66,7 @@ const OverView = (props) => {
     ? "Job.TotalDuration"
     : "Job.Duration";
   const jobDuration = jobDetails.get("duration");
+  const reflectionId = location?.hash?.replace("#", "");
 
   const renderLastAttemptDuration = () => {
     const lastAttempt = attemptDetails && attemptDetails.last();
@@ -74,8 +75,9 @@ const OverView = (props) => {
   };
 
   const downloadJobProfile = (viewId, jobId) => {
+    const path = `${jobId}${reflectionId ? `/reflection/${reflectionId}` : ""}`;
     downloadJobFile({
-      url: `/support/${jobId}/download`,
+      url: `/support/${path}/download`,
       method: "POST",
       viewId,
     });
@@ -115,7 +117,10 @@ const OverView = (props) => {
     },
     {
       label: "Job.Summary.WaitOnClient",
-      content: `${jobsUtils.formatJobDuration(jobDetails.get("waitInClient"))}`,
+      content:
+        jobDetails.get("waitInClient") !== undefined
+          ? `${jobsUtils.formatJobDuration(jobDetails.get("waitInClient"))}`
+          : "",
     },
     { label: "Common.User", content: jobDetails.get("queryUser") },
     getQueueInfo(jobDetails),
@@ -141,7 +146,7 @@ const OverView = (props) => {
             {formatMessage({ id: "Job.Summary.OutputTruncation" })}
             <Tooltip
               title={formatMessage(
-                { id: "Explore.Run.Warning" },
+                { id: "Explore.Run.NewWarning" },
                 { rows: jobDetails.get("outputRecords").toLocaleString() }
               )}
             >
@@ -202,23 +207,32 @@ const OverView = (props) => {
         />
         {queryType !== "ACCELERATOR_DROP" && (
           <>
-            <ReflectionsCreated
-              reflections={jobDetails.get("reflections")}
-              location={location}
-            />
-            <QueriedDataset
-              queriedDataSet={jobDetails.get("queriedDatasets")}
-            />
-            <Scans
-              scansForFilter={ScansForFilter}
-              scans={jobDetails.get("scannedDatasets")}
-            />
-            <Acceleration
-              reflectionsUsed={jobDetails.get("reflectionsUsed")}
-              reflectionsNotUsed={jobDetails.get("reflectionsMatched")}
-              isAcceleration={jobDetails.get("accelerated")}
-              location={location}
-            />
+            {jobDetails.get("reflections") && (
+              <ReflectionsCreated
+                reflections={jobDetails.get("reflections")}
+                location={location}
+              />
+            )}
+            {jobDetails.get("queriedDatasets") && (
+              <QueriedDataset
+                queriedDataSet={jobDetails.get("queriedDatasets")}
+              />
+            )}
+            {jobDetails.get("scannedDatasets") && (
+              <Scans
+                scansForFilter={ScansForFilter}
+                scans={jobDetails.get("scannedDatasets")}
+              />
+            )}
+            {jobDetails.get("reflectionsUsed") &&
+              jobDetails.get("reflectionsMatched") && (
+                <Acceleration
+                  reflectionsUsed={jobDetails.get("reflectionsUsed")}
+                  reflectionsNotUsed={jobDetails.get("reflectionsMatched")}
+                  isAcceleration={jobDetails.get("accelerated")}
+                  location={location}
+                />
+              )}
           </>
         )}
       </div>

@@ -22,17 +22,24 @@ import static com.dremio.service.reflection.ReflectionOptions.MATERIALIZATION_CA
 import static com.dremio.service.reflection.ReflectionOptions.REFLECTION_DELETION_GRACE_PERIOD;
 import static com.dremio.service.reflection.ReflectionOptions.REFLECTION_MANAGER_REFRESH_DELAY_MILLIS;
 import static com.dremio.service.reflection.ReflectionOptions.REFLECTION_PERIODIC_WAKEUP_ONLY;
+import static com.dremio.service.reflection.ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static com.google.common.collect.Iterables.isEmpty;
 import static java.util.concurrent.TimeUnit.HOURS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.io.File;
+import java.io.PrintStream;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -41,6 +48,7 @@ import javax.ws.rs.core.GenericType;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.rules.TemporaryFolder;
@@ -49,23 +57,28 @@ import com.dremio.dac.api.Space;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.DatasetUI;
 import com.dremio.dac.model.job.JobDataFragment;
+import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.model.spaces.SpacePath;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.server.JobsServiceTestUtils;
+import com.dremio.dac.server.test.SampleDataPopulator;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.server.ContextService;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
+import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.options.OptionValue;
 import com.dremio.service.accelerator.proto.AccelerationDetails;
 import com.dremio.service.accelerator.proto.ReflectionRelationship;
 import com.dremio.service.job.JobDetailsRequest;
+import com.dremio.service.job.QueryProfileRequest;
 import com.dremio.service.job.proto.JobDetails;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobProtobuf;
@@ -83,6 +96,7 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
+import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.dataset.proto.RefreshMethod;
 import com.dremio.service.namespace.file.proto.FileConfig;
@@ -106,11 +120,15 @@ import com.dremio.service.reflection.proto.ReflectionField;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.ReflectionMeasureField;
+import com.dremio.service.reflection.proto.ReflectionPartitionField;
 import com.dremio.service.reflection.proto.ReflectionType;
+import com.dremio.service.reflection.proto.Refresh;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.dremio.service.reflection.store.ReflectionEntriesStore;
 import com.dremio.service.users.SystemUser;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 
@@ -122,6 +140,8 @@ public class BaseTestReflection extends BaseTestServer {
   private static AtomicInteger queryNumber = new AtomicInteger(0);
 
   protected static final String TEST_SPACE = "refl_test";
+  protected static final String TEMP_SCHEMA = "dfs_test";
+
 
   private static MaterializationStore materializationStore;
   private static ReflectionEntriesStore entriesStore;
@@ -256,6 +276,14 @@ public class BaseTestReflection extends BaseTestServer {
     return builder.build();
   }
 
+  protected static List<ReflectionPartitionField> reflectionPartitionFields(String ... fields) {
+    ImmutableList.Builder<ReflectionPartitionField> builder = new ImmutableList.Builder<>();
+    for (String field : fields) {
+      builder.add(new ReflectionPartitionField(field));
+    }
+    return builder.build();
+  }
+
   protected static List<ReflectionDimensionField> reflectionDimensionFields(String ... fields) {
     ImmutableList.Builder<ReflectionDimensionField> builder = new ImmutableList.Builder<>();
     for (String field : fields) {
@@ -381,12 +409,24 @@ public class BaseTestReflection extends BaseTestServer {
     );
   }
 
-  protected DatasetDependency dependency(final String datasetId, final NamespaceKey datasetKey) {
-    return DependencyEntry.of(datasetId, datasetKey.getPathComponents());
+  protected DatasetDependency dependency(final String datasetId, final NamespaceKey datasetKey, long snapshotId) {
+    return DependencyEntry.of(datasetId, datasetKey.getPathComponents(), snapshotId);
   }
 
-  protected ReflectionDependency dependency(final ReflectionId reflectionId) {
-    return DependencyEntry.of(reflectionId);
+  protected ReflectionDependency dependency(final ReflectionId reflectionId, long snapshotId) {
+    return DependencyEntry.of(reflectionId, snapshotId);
+  }
+
+  protected DatasetDependency dependency(final String datasetId, final NamespaceKey datasetKey) throws NamespaceException {
+    long snapshotId = Long.parseLong(getCurrentSnapshotId(datasetKey));
+    return DependencyEntry.of(datasetId, datasetKey.getPathComponents(), snapshotId);
+  }
+
+  protected ReflectionDependency dependency(final ReflectionId reflectionId) throws NamespaceException {
+    Materialization m = materializationStore.getLastMaterializationDone(reflectionId);
+    NamespaceKey key = new NamespaceKey(ImmutableList.of(ACCELERATOR_STORAGEPLUGIN_NAME, reflectionId.getId(), m.getId().getId()));
+    long snapshotId = Long.parseLong(getCurrentSnapshotId(key));
+    return DependencyEntry.of(reflectionId, snapshotId);
   }
 
   protected boolean dependsOn(ReflectionId rId, final DependencyEntry... entries) {
@@ -421,6 +461,11 @@ public class BaseTestReflection extends BaseTestServer {
   protected void createSpace(String name) {
     Space newSpace = new Space(null, name, null, null, null);
     expectSuccess(getBuilder(getPublicAPI(3).path("/catalog/")).buildPost(Entity.json(newSpace)), new GenericType<Space>() {});
+  }
+
+  protected void deleteSpace(String name) throws NamespaceException {
+    NamespaceKey key = new SpacePath(name).toNamespaceKey();
+    getNamespaceService().deleteSpace(key, getNamespaceService().getSpace(key).getTag());
   }
 
   /**
@@ -527,5 +572,142 @@ public class BaseTestReflection extends BaseTestServer {
       JobRequest.newBuilder()
         .setSqlQuery(getQueryFromSQL(query))
         .build(), 0, maxRows, allocator);
+  }
+
+  /**
+   * Add an external reflection
+   * @param spaceName   space name
+   * @return    external reflection id
+   * @throws Exception
+   */
+  protected ReflectionId addExternalReflection(String spaceName) throws Exception {
+    final String sourceName = "src_external_reflection";
+
+    // add a NAS source
+    SourceUI source = new SourceUI();
+    source.setName(sourceName);
+    source.setCtime(1000L);
+
+    TemporaryFolder folder = new TemporaryFolder();
+    folder.create();
+
+    final NASConf config1 = new NASConf();
+    config1.path = folder.getRoot().getAbsolutePath();
+    source.setConfig(config1);
+
+    // create json file for PDS
+    File srcFolder = folder.getRoot();
+
+    try (PrintStream f1 = new PrintStream(new File(srcFolder.getAbsolutePath(), "file1.json"))) {
+      for (int i = 0; i < 10; i++) {
+        f1.println(String.format("{id:%d, colour:\"red\", price:20.0}", i));
+      }
+      for (int i = 10; i < 15; i++) {
+        f1.println(String.format("{id:%d, colour:\"green\", price:10.0}", i));
+      }
+    }
+
+    // create json file for external reflection
+    try (PrintStream f2 = new PrintStream(new File(srcFolder.getAbsolutePath(), "file2.json"))) {
+      f2.println("{colour:\"red\", sum_price:200.0, count_price:10}");
+      f2.println("{colour:\"green\", sum_price:50.0, count_price:5}");
+    }
+
+    newSourceService().registerSourceWithRuntime(source);
+
+    // create PDS for json file
+    final DatasetPath path1 = new DatasetPath(ImmutableList.of(sourceName, "file1.json"));
+    final DatasetConfig dataset1 = new DatasetConfig()
+      .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER)
+      .setFullPathList(path1.toPathList())
+      .setName(path1.getLeaf().getName())
+      .setCreatedAt(System.currentTimeMillis())
+      .setTag(null)
+      .setOwner(DEFAULT_USERNAME)
+      .setPhysicalDataset(new PhysicalDataset()
+                            .setFormatSettings(new FileConfig().setType(FileType.JSON)));
+    getNamespaceService().addOrUpdateDataset(path1.toNamespaceKey(), dataset1);
+
+    final DatasetPath path2 = new DatasetPath(ImmutableList.of(sourceName, "file2.json"));
+    final DatasetConfig dataset2 = new DatasetConfig()
+      .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER)
+      .setFullPathList(path2.toPathList())
+      .setName(path2.getLeaf().getName())
+      .setCreatedAt(System.currentTimeMillis())
+      .setTag(null)
+      .setOwner(DEFAULT_USERNAME)
+      .setPhysicalDataset(new PhysicalDataset()
+                            .setFormatSettings(new FileConfig().setType(FileType.JSON)));
+    getNamespaceService().addOrUpdateDataset(path2.toNamespaceKey(), dataset2);
+    getPreview(path2); // Promote PDS so that PDS can be found through reflection service's catalog.
+
+    DatasetPath vdsPath = new DatasetPath(ImmutableList.of(spaceName, "vds"));
+    createDatasetFromSQLAndSave(vdsPath, "SELECT colour, sum(price) as sum_price, count(price) as count_price FROM " +
+                                         sourceName + ".\"file1.json\" group by colour", Collections.<String>emptyList());
+
+    return getReflectionService().createExternalReflection("external_reflection",
+                                                           ImmutableList.of(spaceName, "vds"), ImmutableList.of(sourceName, "file2.json"));
+  }
+
+  protected JobId runQuery(final String query) {
+    final CompletableFuture<JobId> future = new CompletableFuture<>();
+    final Thread thread = new Thread(() -> {
+      final JobId jobId = submitJobAndWaitUntilCompletion(
+        JobRequest.newBuilder()
+          .setSqlQuery(new SqlQuery(query, SampleDataPopulator.DEFAULT_USER_NAME))
+          .setQueryType(QueryType.UI_INTERNAL_RUN)
+          .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+          .build());
+      future.complete(jobId);
+    });
+    thread.start();
+
+    try {
+      return future.get(10, SECONDS);
+    } catch (final InterruptedException | ExecutionException | TimeoutException e) {
+      Assert.fail(query);
+      return null;
+    }
+  }
+  protected List<Refresh> getRefreshes(final ReflectionId id) {
+    final Materialization m = Preconditions.checkNotNull(getMaterializationStore().getLastMaterializationDone(id),
+      "No materialization found for reflection %s", id.getId());
+    final FluentIterable<Refresh> refreshes = getMaterializationStore().getRefreshes(m);
+    assertFalse(String.format("no refreshes found for reflection %s", id.getId()), Iterables.isEmpty(refreshes));
+    return refreshes.toList();
+  }
+
+
+  /**
+   * Get the plan for a reflection
+   * @param materialization materialization for the reflection
+   * @return the query plan as a string
+   * @throws JobNotFoundException possible exception thrown
+   */
+  protected static String getReflectionPlan(final Materialization materialization) throws JobNotFoundException {
+    final QueryProfileRequest request = QueryProfileRequest.newBuilder()
+      .setJobId(JobProtobuf.JobId.newBuilder()
+        .setId(materialization.getInitRefreshJobId())
+        .build())
+      .setAttempt(0)
+      .setUserName(SYSTEM_USERNAME)
+      .build();
+    final UserBitShared.QueryProfile profile = getJobsService().getProfile(request);
+    return profile.getPlan();
+  }
+
+  /**
+   * Get the current latest snapshot of tableNamespaceKey
+   * @param tableNamespaceKey Name space key to find the table by
+   * @return the latest snapshot
+   * @throws NamespaceException
+   */
+  protected String getCurrentSnapshotId(NamespaceKey tableNamespaceKey) throws NamespaceException {
+    DatasetConfig dataset = getNamespaceService().getDataset(tableNamespaceKey);
+    IcebergMetadata icebergMetadata = dataset.getPhysicalDataset().getIcebergMetadata();
+    if (icebergMetadata != null) {
+      return icebergMetadata.getSnapshotId().toString();
+    }
+    return "0";
   }
 }

@@ -38,7 +38,7 @@ import com.dremio.exec.record.VectorWrapper;
 public class EventBasedRecordWriter {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(EventBasedRecordWriter.class);
 
-  private VectorAccessible batch;
+  protected VectorAccessible batch;
   private RowBasedRecordWriter recordWriter;
   private List<FieldConverter> fieldConverters;
 

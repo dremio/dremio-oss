@@ -22,6 +22,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
@@ -71,11 +73,11 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.junit.MockitoJUnitRunner;
 
+import com.dremio.catalog.model.dataset.TableVersionContext;
+import com.dremio.catalog.model.dataset.TableVersionType;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.SqlUtils;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.catalog.TableVersionContext;
-import com.dremio.exec.catalog.TableVersionType;
 import com.dremio.exec.planner.DremioRexBuilder;
 import com.dremio.exec.planner.sql.parser.SqlVersionedTableMacro;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
@@ -119,7 +121,6 @@ public class TestTableVersionParsing {
 
     parseAndValidate("SELECT * FROM my.table1 AT BRANCH branch1", ImmutableList.of(expected));
   }
-
   @Test
   public void testTableWithTagVersion() throws Exception {
     TableMacroInvocation expected = new TableMacroInvocation(
@@ -146,7 +147,7 @@ public class TestTableVersionParsing {
     TableMacroInvocation expected = new TableMacroInvocation(
       TIME_TRAVEL_MACRO_NAME,
       ImmutableList.of("\"my\".\"table1\""),
-      new TableVersionContext(TableVersionType.COMMIT_HASH_ONLY, "hash1"));
+      new TableVersionContext(TableVersionType.COMMIT, "hash1"));
 
     parseAndValidate("SELECT * FROM my.table1 AT COMMIT hash1", ImmutableList.of(expected));
   }
@@ -182,12 +183,72 @@ public class TestTableVersionParsing {
     parseAndValidate("SELECT * FROM my.table1 AT " +
       "TIMESTAMPADD(day, 10, TIMESTAMP '2022-01-01 01:01:01.111')", ImmutableList.of(expected));
   }
+  @Test
+  public void testTableWithBranchVersionAndASOFTimestamp() throws Exception {
+    Instant time = Instant.now();
+    Timestamp timestamp = Timestamp.from(time);
+    TableMacroInvocation expected = new TableMacroInvocation(
+      TIME_TRAVEL_MACRO_NAME,
+      ImmutableList.of("\"my\".\"table1\""),
+      new TableVersionContext(TableVersionType.BRANCH, "branch1", time));
 
+    parseAndValidate(
+      String.format(("SELECT * FROM my.table1 AT BRANCH branch1 AS OF '%s'"), timestamp),
+      ImmutableList.of(expected));
+  }
+  @Test
+  public void testTableWithTagVersionAndASOFTimestamp() throws Exception {
+    Instant time = Instant.now();
+    Timestamp timestamp = Timestamp.from(time);
+    TableMacroInvocation expected = new TableMacroInvocation(
+      TIME_TRAVEL_MACRO_NAME,
+      ImmutableList.of("\"my\".\"table1\""),
+      new TableVersionContext(TableVersionType.TAG, "tag1", time));
+
+    parseAndValidate(
+      String.format(("SELECT * FROM my.table1 AT TAG tag1 AS OF '%s'"), timestamp),
+      ImmutableList.of(expected));
+  }
+  @Test
+  public void testTableWithReferenceVersionAndASOFTimestamp() throws Exception {
+    Instant time = Instant.now();
+    Timestamp timestamp = Timestamp.from(time);
+    TableMacroInvocation expected = new TableMacroInvocation(
+      TIME_TRAVEL_MACRO_NAME,
+      ImmutableList.of("\"my\".\"table1\""),
+      new TableVersionContext(TableVersionType.REFERENCE, "branch1", time));
+
+    parseAndValidate(
+      String.format(("SELECT * FROM my.table1 AT REF branch1 AS OF '%s'"), timestamp),
+      ImmutableList.of(expected));
+  }
+  @Test
+  public void testTableWithCommitVersionAndASOFTimestamp() throws Exception {
+    Instant time = Instant.now();
+    Timestamp timestamp = Timestamp.from(time);
+    TableMacroInvocation expected = new TableMacroInvocation(
+      TIME_TRAVEL_MACRO_NAME,
+      ImmutableList.of("\"my\".\"table1\""),
+      new TableVersionContext(TableVersionType.COMMIT, "xyz", time));
+
+
+    assertThatThrownBy(() -> parseAndValidate(
+      String.format(("SELECT * FROM my.table1 AT COMMIT 'xyz' AS OF '%s'"), timestamp),
+      ImmutableList.of(expected)))
+      .isInstanceOf(SqlParseException.class);
+  }
   @Test
   public void testTableWithInvalidTimestampExpressionVersionFails() {
     assertThatThrownBy(() -> parseAndValidate(
       "SELECT * FROM dfs_hadoop.tmp.iceberg AT 1.254 * 87.9", ImmutableList.of()))
       .isInstanceOf(CalciteContextException.class);
+  }
+
+  @Test
+  public void testSelectWithInvalidTimestampWithASOFSyntax() {
+    assertThatThrownBy(() -> parseAndValidate(
+      "SELECT * FROM dfs_hadoop.tmp.iceberg AT BRANCH main AS OF 1.254 * 87.9", ImmutableList.of()))
+      .isInstanceOf(SqlParseException.class);
   }
 
   @Test
@@ -284,7 +345,7 @@ public class TestTableVersionParsing {
     TableMacroInvocation expected = new TableMacroInvocation(
       TABLE_HISTORY_MACRO_NAME,
       ImmutableList.of("my.table1"),
-      new TableVersionContext(TableVersionType.COMMIT_HASH_ONLY, "hash1"));
+      new TableVersionContext(TableVersionType.COMMIT, "hash1"));
 
     parseAndValidate("SELECT * FROM TABLE(table_history('my.table1')) AT COMMIT hash1",
       ImmutableList.of(expected));
@@ -339,8 +400,14 @@ public class TestTableVersionParsing {
     parseAndValidate("SELECT * FROM my.\"quoted/path.with.dots/to/table1\" AT SNAPSHOT '1'", ImmutableList.of(expected));
   }
 
-  public void parseAndValidate(String sql, List<TableMacroInvocation> expectedTableMacroInvocations) throws Exception {
-    parseAndValidate(sql, expectedTableMacroInvocations, true);
+  @Test
+  public void testDeepCopy() throws Exception {
+    TableMacroInvocation expected = new TableMacroInvocation(
+        TIME_TRAVEL_MACRO_NAME,
+        ImmutableList.of("\"my\".\"table1\""),
+        new TableVersionContext(TableVersionType.SNAPSHOT_ID, "1"));
+
+    parseAndValidate("SELECT table1.id FROM my.table1 AT SNAPSHOT '1'", ImmutableList.of(expected), true, true);
   }
 
   @Test
@@ -366,7 +433,7 @@ public class TestTableVersionParsing {
         new TableMacroInvocation(
             TABLE_FILES_MACRO_NAME,
             ImmutableList.of("my.table1"),
-            new TableVersionContext(TableVersionType.COMMIT_HASH_ONLY, "hash1"));
+            new TableVersionContext(TableVersionType.COMMIT, "hash1"));
     final String expectedUnparsedString = "SELECT *\nFROM my.table1 AT COMMIT \"hash1\"";
     final SqlNode rootNode =
         parseAndValidate(
@@ -494,8 +561,17 @@ public class TestTableVersionParsing {
     Assert.assertEquals(sqlString, expectedUnparsedString);
   }
 
+  public void parseAndValidate(String sql, List<TableMacroInvocation> expectedTableMacroInvocations) throws Exception {
+    parseAndValidate(sql, expectedTableMacroInvocations, true, false);
+  }
+
   public SqlNode parseAndValidate(String sql, List<TableMacroInvocation> expectedTableMacroInvocations,
-                               boolean enableTimeTravel) throws Exception {
+      boolean enableTimeTravel) throws Exception {
+    return parseAndValidate(sql, expectedTableMacroInvocations, enableTimeTravel, false);
+  }
+
+  public SqlNode parseAndValidate(String sql, List<TableMacroInvocation> expectedTableMacroInvocations,
+                               boolean enableTimeTravel, boolean validateWithDeepCopy) throws Exception {
     // Mocks required for validator and expression resolver
     final Prepare.CatalogReader catalogReader = mock(Prepare.CatalogReader.class);
     when(catalogReader.nameMatcher()).thenReturn(SqlNameMatchers.withCaseSensitive(true));
@@ -523,7 +599,7 @@ public class TestTableVersionParsing {
 
     SqlValidatorImpl validator = new SqlValidatorImpl(
       new SqlValidatorImpl.FlattenOpCounter(),
-      SqlOperatorTables.chain(new DremioCompositeSqlOperatorTable(), operatorTable),
+      SqlOperatorTables.chain(DremioCompositeSqlOperatorTable.create(), operatorTable),
       catalogReader,
       JavaTypeFactoryImpl.INSTANCE,
       DremioSqlConformance.INSTANCE,
@@ -537,6 +613,11 @@ public class TestTableVersionParsing {
     SqlParser parser = SqlParser.create(sql, parserConfig);
     SqlNode rootNode = parser.parseStmt();
 
+    if (validateWithDeepCopy) {
+      // test with deep copy prior to validation
+      rootNode = SqlValidatorImpl.DeepCopier.copy(rootNode);
+    }
+
     // Resolve version context expressions to literals
     resolver.resolve(sqlToRelConverter, rootNode);
 
@@ -544,6 +625,11 @@ public class TestTableVersionParsing {
     SqlNode validatedRootNode = validator.validate(rootNode);
 
     Assert.assertNotNull(validatedRootNode);
+
+    if (validateWithDeepCopy) {
+      // test that validations are preserved after deep copy
+      validatedRootNode = SqlValidatorImpl.DeepCopier.copy(validatedRootNode);
+    }
 
     for (TableMacroInvocation expected : expectedTableMacroInvocations) {
       VersionedTableMacro macro = tableMacroMocks.get(expected.name);

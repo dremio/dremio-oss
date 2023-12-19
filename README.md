@@ -2,6 +2,14 @@
 
 Dremio enables organizations to unlock the value of their data.
 
+## Table of Contents
+
+1. [Documentation](#documentation)
+2. [Quickstart](#quickstart-how-to-build-and-run-dremio)
+3. [Codebase Structure](#codebase-structure)
+4. [Contributing](#contributing)
+5. [Questions](#questions)
+
 ## Documentation
 
 Documentation is available at https://docs.dremio.com.
@@ -10,9 +18,9 @@ Documentation is available at https://docs.dremio.com.
 
 ### (a) Prerequisites
 
-* JDK 8 or 11 (OpenJDK or Oracle) as the default JDK (`JAVA_HOME` set to it)
-* JDK 8 (OpenJDK or Oracle) in Maven toolchain, required to run certain integration tests
-* (Optional) Maven 3.9.1 or later (using Homebrew: `brew install maven`)
+* JDK 11 ([OpenJDK](https://adoptium.net/temurin/releases/) or Oracle) as the default JDK (`JAVA_HOME` set to it)
+* JDK 8 ([OpenJDK](https://adoptium.net/temurin/releases/) or Oracle) in Maven toolchain, required to run certain integration tests
+* (Optional) Maven 3.9.3 or later (using Homebrew: `brew install maven`)
 
 Run the following commands to verify that you have the correct versions of Maven and JDK installed:
 
@@ -94,6 +102,19 @@ connecting to databases that rely on these drivers).
 To build dremio with only OSS dependencies, you can add the following option to your Maven commandline: `-Ddremio.oss-only=true`
 
 The distribution directory will be `distribution/server/target/dremio-oss-{DREMIO_VERSION}/dremio-oss-{DREMIO_VERSION}`
+
+## Codebase Structure
+
+| Directory                              | Details                                                  |
+|----------------------------------------|----------------------------------------------------------|
+| [dac](dac/README.md)                   | Dremio Analyst Center - The Dremio management component. |
+| [common](common/README.md)             | Dremio Common                                            |
+| [distribution](distribution/README.md) | Dremio Distribution                                      |
+| [plugins](plugins/README.md)           | Dremio Plugins                                           |
+
+## Contributing
+
+If you want to contribute to Dremio, please see [Contributing to Dremio](CONTRIBUTING.md).
 
 ## Questions?
 

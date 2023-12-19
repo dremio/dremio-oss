@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.parquet;
 
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -24,8 +25,13 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.Random;
+import java.util.stream.IntStream;
+
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.VarCharVector;
+import org.apache.arrow.vector.util.Text;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -39,16 +45,23 @@ import com.dremio.BaseTestQuery;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.physical.base.OpProps;
+import com.dremio.exec.physical.config.ExtendedFormatOptions;
+import com.dremio.exec.physical.config.copyinto.CopyIntoErrorInfo;
 import com.dremio.exec.proto.ExecProtos;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorContainer;
+import com.dremio.exec.store.OperationType;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.WritePartition;
+import com.dremio.exec.store.dfs.ErrorInfo;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.exec.util.ColumnUtils;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
+import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.test.AllocatorRule;
+import com.google.common.collect.ImmutableList;
 
 public class TestParquetRecordWriter extends BaseTestQuery {
 
@@ -90,10 +103,9 @@ public class TestParquetRecordWriter extends BaseTestQuery {
   public void testFileSize() throws Exception {
     final Path tmpSchemaPath = new Path(getDfsTestTmpSchemaLocation());
     final Path targetPath = new Path(tmpSchemaPath, "testFileSize");
-
     final Configuration hadoopConf = new Configuration();
     final FileSystem newFs = targetPath.getFileSystem(hadoopConf);
-    assertTrue(newFs.mkdirs(targetPath));
+    assertThat(newFs.mkdirs(targetPath)).isTrue();
 
     @SuppressWarnings("checkstyle:LocalFinalVariableName")
     final BufferAllocator ALLOCATOR = allocatorRule.newAllocator("test-parquet-writer", 0, Long.MAX_VALUE);
@@ -108,6 +120,7 @@ public class TestParquetRecordWriter extends BaseTestQuery {
     ArgumentCaptor<byte[]> metadataCaptor = ArgumentCaptor.forClass(byte[].class);
     ArgumentCaptor<Integer> partitionCaptor = ArgumentCaptor.forClass(Integer.class);
     ArgumentCaptor<byte[]> icebergMetadataCaptor = ArgumentCaptor.forClass(byte[].class);
+    ArgumentCaptor<Long> recordRejectedCaptor = ArgumentCaptor.forClass(long.class);
 
     BigIntVector bigIntVector = new BigIntVector("key", ALLOCATOR);
     bigIntVector.allocateNew(2);
@@ -128,11 +141,12 @@ public class TestParquetRecordWriter extends BaseTestQuery {
 
     verify(outputEntryListener, times(1)).recordsWritten(recordWrittenCaptor.capture(),
       fileSizeCaptor.capture(), pathCaptor.capture(), metadataCaptor.capture(),
-      partitionCaptor.capture(), icebergMetadataCaptor.capture(), any(), any(), any());
+      partitionCaptor.capture(), icebergMetadataCaptor.capture(), any(), any(), any(), any(),
+      recordRejectedCaptor.capture());
 
     for (FileStatus file : newFs.listStatus(targetPath)) {
       if (file.getPath().toString().endsWith(".parquet")) { //complex243_json is in here for some reason?
-        assertEquals(Long.valueOf(fileSizeCaptor.getValue()), Long.valueOf(file.getLen()));
+        assertEquals(Long.valueOf(file.getLen()), fileSizeCaptor.getValue());
         break;
       }
     }
@@ -143,17 +157,10 @@ public class TestParquetRecordWriter extends BaseTestQuery {
 
   @Test
   public void testBlockSizeWithTarget() throws Exception {
-    final Path tmpSchemaPath = new Path(getDfsTestTmpSchemaLocation());
-    final Path targetPath = new Path(tmpSchemaPath, "testFileSizeWithTarget");
-
-    final Configuration hadoopConf = new Configuration();
-    final FileSystem newFs = targetPath.getFileSystem(hadoopConf);
-    assertTrue(newFs.mkdirs(targetPath));
-
     @SuppressWarnings("checkstyle:LocalFinalVariableName")
     final BufferAllocator ALLOCATOR = allocatorRule.newAllocator("test-parquet-writer", 0, Long.MAX_VALUE);
 
-    ParquetRecordWriter writer = mockParquetRecordWriter(hadoopConf, targetPath, 234236, ALLOCATOR, 100 * 1024 * 1024L);
+    ParquetRecordWriter writer = prepareRecordWriter("testFileSizeWithTarget", 234236, ALLOCATOR, 100 * 1024 * 1024L);
 
     assertTrue(writer.getBlockSize() == 100 * 1024 * 1024L);
 
@@ -163,17 +170,10 @@ public class TestParquetRecordWriter extends BaseTestQuery {
 
   @Test
   public void testBlockSizeWithNullTarget() throws Exception {
-    final Path tmpSchemaPath = new Path(getDfsTestTmpSchemaLocation());
-    final Path targetPath = new Path(tmpSchemaPath, "testFileSizeWithTarget");
-
-    final Configuration hadoopConf = new Configuration();
-    final FileSystem newFs = targetPath.getFileSystem(hadoopConf);
-    assertTrue(newFs.mkdirs(targetPath));
-
     @SuppressWarnings("checkstyle:LocalFinalVariableName")
     final BufferAllocator ALLOCATOR = allocatorRule.newAllocator("test-parquet-writer", 0, Long.MAX_VALUE);
 
-    ParquetRecordWriter writer = mockParquetRecordWriter(hadoopConf, targetPath, 234236, ALLOCATOR, null);
+    ParquetRecordWriter writer = prepareRecordWriter("testFileSizeWithTarget", 234236, ALLOCATOR, null);
 
     assertTrue(writer.getBlockSize() == 256 * 1024 * 1024L);
 
@@ -183,17 +183,10 @@ public class TestParquetRecordWriter extends BaseTestQuery {
 
   @Test
   public void testBlockSizeWithInvalidTarget() throws Exception {
-    final Path tmpSchemaPath = new Path(getDfsTestTmpSchemaLocation());
-    final Path targetPath = new Path(tmpSchemaPath, "testFileSizeWithInvalidTarget");
-
-    final Configuration hadoopConf = new Configuration();
-    final FileSystem newFs = targetPath.getFileSystem(hadoopConf);
-    assertTrue(newFs.mkdirs(targetPath));
-
     @SuppressWarnings("checkstyle:LocalFinalVariableName")
     final BufferAllocator ALLOCATOR = allocatorRule.newAllocator("test-parquet-writer", 0, Long.MAX_VALUE);
 
-    ParquetRecordWriter writer = mockParquetRecordWriter(hadoopConf, targetPath, 234236, ALLOCATOR, 0L);
+    ParquetRecordWriter writer = prepareRecordWriter("testFileSizeWithInvalidTarget", 234236, ALLOCATOR, 0L);
 
     assertTrue(writer.getBlockSize() == 256 * 1024 * 1024L);
 
@@ -203,18 +196,10 @@ public class TestParquetRecordWriter extends BaseTestQuery {
 
   @Test
   public void testOutOfMemory() throws Exception {
-    final Path tmpSchemaPath = new Path(getDfsTestTmpSchemaLocation());
-    final Path targetPath = new Path(tmpSchemaPath, "testOutOfMemory");
-
-    final Configuration hadoopConf = new Configuration();
-    final FileSystem newFs = targetPath.getFileSystem(hadoopConf);
-    assertTrue(newFs.mkdirs(targetPath));
-
     @SuppressWarnings("checkstyle:LocalFinalVariableName")
     final BufferAllocator ALLOCATOR = allocatorRule.newAllocator("test-parquet-writer", 0, 128);
 
-
-    ParquetRecordWriter writer = mockParquetRecordWriter(hadoopConf, targetPath, 234235, ALLOCATOR, null);
+    ParquetRecordWriter writer = prepareRecordWriter("testOutOfMemory", 234235, ALLOCATOR, null);
 
     RecordWriter.OutputEntryListener outputEntryListener = mock(RecordWriter.OutputEntryListener.class);
     RecordWriter.WriteStatsListener writeStatsListener = mock(RecordWriter.WriteStatsListener.class);
@@ -242,5 +227,124 @@ public class TestParquetRecordWriter extends BaseTestQuery {
 
     container.close();
     ALLOCATOR.close();
+  }
+
+  @Test
+  public void testFilterCopyIntoErrorColumn() throws Exception {
+    BufferAllocator allocator = allocatorRule.newAllocator("test-parquet-writer", 0, Long.MAX_VALUE);
+
+    ParquetRecordWriter writer = prepareRecordWriter("filterCopyIntoErrorColumn", 234236, allocator, null);
+
+    VarCharVector errorVector = getErrorVector(10, 2, 1, allocator);
+    VectorContainer container = getContainerWithErrorColumn(3, errorVector, allocator);
+
+    RecordWriter.OutputEntryListener mockOutputEntryListener = mock(RecordWriter.OutputEntryListener.class);
+    RecordWriter.WriteStatsListener mockWriteStatsListener = mock(RecordWriter.WriteStatsListener.class);
+    writer.setup(container, mockOutputEntryListener, mockWriteStatsListener);
+    writer.startPartition(WritePartition.NONE);
+    int recordWritten = writer.writeBatch(0, container.getRecordCount());
+    assertThat(5).isEqualTo(recordWritten);
+
+    container.clear();
+    writer.close();
+    container.close();
+    allocator.close();
+  }
+
+  @Test
+  public void testErrorRecordPassThrough() throws Exception{
+    BufferAllocator allocator = allocatorRule.newAllocator("test-parquet-writer", 0, Long.MAX_VALUE);
+
+    ParquetRecordWriter writer = prepareRecordWriter("errorRecordPassThrough", 234236, allocator, null);
+
+    VarCharVector errorVector = getErrorVector(10, 1, 2, allocator);
+    String errorInfoExpectedJson = new String(errorVector.get(0));
+    VectorContainer container = getContainerWithErrorColumn(2, errorVector, allocator);
+
+    RecordWriter.OutputEntryListener mockOutputEntryListener = mock(RecordWriter.OutputEntryListener.class);
+    RecordWriter.WriteStatsListener mockWriteStatsListener = mock(RecordWriter.WriteStatsListener.class);
+    ArgumentCaptor<Long> recordWrittenCaptor = ArgumentCaptor.forClass(long.class);
+    ArgumentCaptor<Long> fileSizeCaptor = ArgumentCaptor.forClass(long.class);
+    ArgumentCaptor<String> pathCaptor = ArgumentCaptor.forClass(String.class);
+    ArgumentCaptor<byte[]> metadataCaptor = ArgumentCaptor.forClass(byte[].class);
+    ArgumentCaptor<Integer> partitionCaptor = ArgumentCaptor.forClass(Integer.class);
+    ArgumentCaptor<byte[]> icebergMetadataCaptor = ArgumentCaptor.forClass(byte[].class);
+    ArgumentCaptor<Integer> operationTypeCaptor = ArgumentCaptor.forClass(Integer.class);
+    ArgumentCaptor<Long> recordRejectedCaptor = ArgumentCaptor.forClass(long.class);
+
+    writer.setup(container, mockOutputEntryListener, mockWriteStatsListener);
+    writer.startPartition(WritePartition.NONE);
+    writer.writeBatch(0, container.getRecordCount());
+    writer.close();
+
+    verify(mockOutputEntryListener, times(2))
+      .recordsWritten(
+        recordWrittenCaptor.capture(),
+        fileSizeCaptor.capture(),
+        pathCaptor.capture(),
+        metadataCaptor.capture(),
+        partitionCaptor.capture(),
+        icebergMetadataCaptor.capture(),
+        any(),
+        any(),
+        operationTypeCaptor.capture(),
+        any(),
+        recordRejectedCaptor.capture()
+      );
+
+    assertThat(recordWrittenCaptor.getAllValues()).isEqualTo(ImmutableList.of(0L, 0L));
+    assertThat(pathCaptor.getAllValues()).isEqualTo(ImmutableList.of("file_0", "file_1"));
+    assertThat(operationTypeCaptor.getAllValues().stream().allMatch(OperationType.COPY_INTO_ERROR.value::equals)).isTrue();
+    assertThat(new String(metadataCaptor.getAllValues().get(0))).isEqualTo(errorInfoExpectedJson);
+    assertThat(recordRejectedCaptor.getAllValues()).isEqualTo(ImmutableList.of(5L, 5L));
+
+    container.clear();
+    container.close();
+    allocator.close();
+  }
+
+  private ParquetRecordWriter prepareRecordWriter(String directoryName, int minorFragmentId, BufferAllocator allocator,
+                                                  Long targetBolockSize) throws Exception {
+    final Path tmpSchemaPath = new Path(getDfsTestTmpSchemaLocation());
+    final Path targetPath = new Path(tmpSchemaPath, directoryName);
+    final Configuration hadoopConf = new Configuration();
+    final FileSystem newFs = targetPath.getFileSystem(hadoopConf);
+    assertThat(newFs.mkdirs(targetPath)).isTrue();
+    return mockParquetRecordWriter(hadoopConf, targetPath, minorFragmentId, allocator, targetBolockSize);
+  }
+
+  private VectorContainer getContainerWithErrorColumn(int numCols, VarCharVector errorVector,
+                                                      BufferAllocator allocator) {
+    int numRecords = errorVector.getValueCount();
+    VectorContainer container = new VectorContainer();
+    for (int i = 0; i < numCols - 1; i++) {
+        BigIntVector colVector = new BigIntVector("col_" + (i + 1), allocator);
+        colVector.allocateNew(numRecords);
+        colVector.setValueCount(numRecords);
+        IntStream.range(0, numRecords).forEach(j -> colVector.set(j, new Random().nextLong()));
+          container.add(colVector);
+    }
+    container.add(errorVector);
+    container.setRecordCount(numRecords);
+    container.buildSchema();
+    return container;
+  }
+
+  private VarCharVector getErrorVector(int numRecords, int errorRecordFreq, int numFiles, BufferAllocator allocator) {
+    VarCharVector errorVector = new VarCharVector(ColumnUtils.COPY_INTO_ERROR_COLUMN_NAME,allocator);
+    errorVector.allocateNew(numRecords);
+    errorVector.setValueCount(numRecords);
+    int fileCounter = 0;
+    for (int i = 0; i < numRecords; i++) {
+      if (i % errorRecordFreq != 0) {
+        continue;
+      }
+      CopyIntoErrorInfo copyIntoErrorInfo = new CopyIntoErrorInfo.Builder("a161ab64-cbcc-42e8-ace4-7e30530fcc00", "testUser",
+        "testTable", "@S3", "file_" + (fileCounter % numFiles), new ExtendedFormatOptions(), FileType.CSV.name(), CopyIntoErrorInfo.CopyIntoFileState.PARTIALLY_LOADED)
+        .setRecordsLoadedCount(1).setRecordsRejectedCount(1).build();
+      fileCounter++;
+      errorVector.set(i, new Text(ErrorInfo.Util.getJson(copyIntoErrorInfo)));
+    }
+    return errorVector;
   }
 }

@@ -236,7 +236,8 @@ public class BaseTestUnifiedParquetReader extends BaseTestOperator {
         fileAttributes.lastModifiedTime().toMillis(),
         false,
         true, ParquetFilters.NONE,
-        getParquetReaderFactory().newFilterCreator(context, ParquetReaderFactory.ManagedSchemaType.ICEBERG, null, context.getAllocator()));
+        getParquetReaderFactory().newFilterCreator(context, ParquetReaderFactory.ManagedSchemaType.ICEBERG, null, context.getAllocator()),
+        InputStreamProviderFactory.DEFAULT_NON_PARTITION_COLUMN_RF);
 
     testCloseables.add(inputStreamProvider);
     return inputStreamProvider;

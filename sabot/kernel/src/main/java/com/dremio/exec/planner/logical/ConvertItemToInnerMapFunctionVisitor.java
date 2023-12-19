@@ -30,11 +30,8 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.MapSqlType;
 
-import com.dremio.exec.expr.fn.impl.MapFunctions;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
-import com.dremio.exec.planner.sql.Checker;
-import com.dremio.exec.planner.sql.DynamicReturnType;
-import com.dremio.exec.planner.sql.SqlFunctionImpl;
+import com.dremio.exec.planner.sql.DremioSqlOperatorTable;
 import com.google.common.collect.Lists;
 
 /**
@@ -101,20 +98,21 @@ public  class ConvertItemToInnerMapFunctionVisitor extends StatelessRelShuttleIm
     public RexNode visitCall(final RexCall call) {
       final List<RexNode> clonedOperands = visitList(call.operands, new boolean[]{true});
       final SqlOperator sqlOperator = call.getOperator();
-      if ("item".equals(sqlOperator.getName().toLowerCase())) {
-        if (call.getOperands().get(0).getType() instanceof MapSqlType) {
+      if ("item".equalsIgnoreCase(sqlOperator.getName())
+        && call.getOperands().get(0).getType() instanceof MapSqlType) {
           MapSqlType mapSqlType = (MapSqlType) call.getOperands().get(0).getType();
           return  rexBuilder.makeCall(
             mapSqlType.getValueType(),
             SqlStdOperatorTable.ITEM,
             Arrays.asList(
-              rexBuilder.makeCall(SqlFunctionImpl.create(
-                  MapFunctions.LAST_MATCHING_ENTRY_FUNC, DynamicReturnType.INSTANCE, Checker.of(2)),
-                call.getOperands().get(0), call.getOperands().get(1))
-              ,rexBuilder.makeLiteral("value")
+              rexBuilder.makeCall(
+                DremioSqlOperatorTable.LAST_MATCHING_MAP_ENTRY_FOR_KEY,
+                call.getOperands().get(0),
+                call.getOperands().get(1)),
+              rexBuilder.makeLiteral("value")
             )
           );
-        }
+
       }
       return rexBuilder.makeCall(call.getType(), sqlOperator, clonedOperands);
     }

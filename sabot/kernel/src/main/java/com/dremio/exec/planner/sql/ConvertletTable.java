@@ -41,9 +41,6 @@ import org.apache.calcite.sql2rel.SqlRexConvertlet;
 import org.apache.calcite.sql2rel.StandardConvertletTable;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.planner.sql.ChronoConvertlets.CurrentDateConvertlet;
-import com.dremio.exec.planner.sql.ChronoConvertlets.CurrentTimeConvertlet;
-import com.dremio.exec.planner.sql.ChronoConvertlets.CurrentTimeStampConvertlet;
 import com.dremio.exec.planner.sql.HiveMaskConvertlets.HiveMaskConvertlet;
 import com.dremio.exec.planner.sql.HiveMaskConvertlets.HiveMaskFirstLastConvertlet;
 import com.dremio.exec.planner.sql.HiveMaskConvertlets.HiveMaskHashConvertlet;
@@ -75,6 +72,10 @@ public class ConvertletTable extends ReflectiveConvertletTable {
 
   public ConvertletTable(ContextInformation contextInformation, boolean ieee756DivideBehavior) {
     super();
+    addAlias(SqlStdOperatorTable.LOCALTIME, SqlStdOperatorTable.CURRENT_TIME);
+    addAlias(SqlStdOperatorTable.LOCALTIMESTAMP, SqlStdOperatorTable.CURRENT_TIMESTAMP);
+    addAlias(DremioSqlOperatorTable.NOW, SqlStdOperatorTable.CURRENT_TIMESTAMP);
+
     if (ieee756DivideBehavior) {
       registerOp(SqlStdOperatorTable.DIVIDE, IEEE754DivideConvertlet.INSTANCE);
     }
@@ -151,19 +152,35 @@ public class ConvertletTable extends ReflectiveConvertletTable {
         }
     });
 
-    // these convertlets replace "current_date", "current_time" (or "localtime") and "current_timestamp"
-    // (or "localtimestamp") functions in the query to literals
-    registerOp(SqlStdOperatorTable.CURRENT_DATE, new CurrentDateConvertlet(contextInformation));
-    registerOp(SqlStdOperatorTable.CURRENT_TIME, new CurrentTimeConvertlet(contextInformation));
-    registerOp(SqlStdOperatorTable.LOCALTIME, new CurrentTimeConvertlet(contextInformation));
-    registerOp(SqlStdOperatorTable.CURRENT_TIMESTAMP, new CurrentTimeStampConvertlet(contextInformation));
-    registerOp(SqlStdOperatorTable.LOCALTIMESTAMP, new CurrentTimeStampConvertlet(contextInformation));
+    // DX-82919: these convertlets need to be here until catalog code updates the AT syntax to evaluate all functions:
+    registerOp(SqlStdOperatorTable.CURRENT_DATE, new ChronoConvertlets.CurrentDateConvertlet(contextInformation));
+    registerOp(SqlStdOperatorTable.CURRENT_TIME, new ChronoConvertlets.CurrentTimeConvertlet(contextInformation));
+    registerOp(SqlStdOperatorTable.CURRENT_TIMESTAMP, new ChronoConvertlets.CurrentTimeStampConvertlet(contextInformation));
+
     registerOp(DremioSqlOperatorTable.HIVE_MASK_HASH, HiveMaskHashConvertlet.INSTANCE);
     registerOp(DremioSqlOperatorTable.HIVE_MASK, HiveMaskConvertlet.INSTANCE);
     registerOp(DremioSqlOperatorTable.HIVE_MASK_FIRST_N, HiveMaskFirstLastConvertlet.INSTANCE);
     registerOp(DremioSqlOperatorTable.HIVE_MASK_LAST_N, HiveMaskFirstLastConvertlet.INSTANCE);
     registerOp(DremioSqlOperatorTable.HIVE_MASK_SHOW_FIRST_N, HiveMaskFirstLastConvertlet.INSTANCE);
     registerOp(DremioSqlOperatorTable.HIVE_MASK_SHOW_LAST_N, HiveMaskFirstLastConvertlet.INSTANCE);
+    registerOp(DremioSqlOperatorTable.LOG2, Log2Convertlet.INSTANCE);
+    registerOp(DremioSqlOperatorTable.SPACE, SpaceConvertlet.INSTANCE);
+    registerOp(DremioSqlOperatorTable.SECOND, DatePartFunctionsConvertlet.SECOND_INSTANCE);
+    registerOp(DremioSqlOperatorTable.MINUTE, DatePartFunctionsConvertlet.MINUTE_INSTANCE);
+    registerOp(DremioSqlOperatorTable.HOUR, DatePartFunctionsConvertlet.HOUR_INSTANCE);
+    registerOp(DremioSqlOperatorTable.DAY, DatePartFunctionsConvertlet.DAY_INSTANCE);
+    registerOp(DremioSqlOperatorTable.MONTH, DatePartFunctionsConvertlet.MONTH_INSTANCE);
+    registerOp(DremioSqlOperatorTable.YEAR, DatePartFunctionsConvertlet.YEAR_INSTANCE);
+
+    // These convertlets support ARRAY Function coercion:
+    // This can't be made into a function convertlet, since the type changes.
+    registerOp(DremioSqlOperatorTable.ARRAY_APPEND, ArrayFunctionCoercionConvertlets.ArrayAndElement.INSTANCE);
+    registerOp(DremioSqlOperatorTable.ARRAY_PREPEND, ArrayFunctionCoercionConvertlets.ElementAndArray.INSTANCE);
+    registerOp(DremioSqlOperatorTable.ARRAY_CONTAINS, ArrayFunctionCoercionConvertlets.ArrayAndElement.INSTANCE);
+    registerOp(DremioSqlOperatorTable.ARRAY_REMOVE, ArrayFunctionCoercionConvertlets.ArrayAndElement.INSTANCE);
+    registerOp(DremioSqlOperatorTable.ARRAY_CONCAT, ArrayFunctionCoercionConvertlets.ArrayAndArray.INSTANCE);
+    registerOp(DremioSqlOperatorTable.SET_UNION, ArrayFunctionCoercionConvertlets.ArrayAndArray.INSTANCE);
+    registerOp(DremioSqlOperatorTable.ARRAY_INTERSECTION, ArrayFunctionCoercionConvertlets.ArrayAndArray.INSTANCE);
   }
 
   /*

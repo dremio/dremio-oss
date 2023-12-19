@@ -20,6 +20,7 @@ import java.util.Map;
 
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.types.Types;
 
@@ -28,10 +29,12 @@ import com.dremio.exec.catalog.RollbackOption;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.dfs.ColumnOperations;
 import com.dremio.exec.store.dfs.IcebergTableProps;
+import com.dremio.exec.store.iceberg.SnapshotEntry;
 import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.file.proto.FileType;
 
 /**
  * This interface is the entry point to Iceberg tables
@@ -40,7 +43,7 @@ public interface IcebergModel {
 
   IcebergOpCommitter getCreateTableCommitter(String tableName, IcebergTableIdentifier tableIdentifier,
                                              BatchSchema batchSchema,
-                                             List<String> partitionColumnNames, OperatorStats operatorStats, PartitionSpec partitionSpec);
+                                             List<String> partitionColumnNames, OperatorStats operatorStats, PartitionSpec partitionSpec, SortOrder sortOrder, Map<String, String> tableProperties);
 
   /**
    * Get Iceberg Op committer for Insert command
@@ -61,12 +64,15 @@ public interface IcebergModel {
    * @param batchSchema
    * @param partitionColumnNames
    * @param operatorStats
+   * @param partitionSpec
+   * @param fileType
    * @return
    */
   IcebergOpCommitter getFullMetadataRefreshCommitter(String tableName, List<String> datasetPath, String tableLocation,
                                                      String tableUuid, IcebergTableIdentifier tableIdentifier,
                                                      BatchSchema batchSchema, List<String> partitionColumnNames,
-                                                     DatasetConfig datasetConfig, OperatorStats operatorStats, PartitionSpec partitionSpec);
+                                                     DatasetConfig datasetConfig, OperatorStats operatorStats,
+                                                     PartitionSpec partitionSpec, FileType fileType);
 
   /**
    * Get Iceberg Op committer for Metadata Incremental Refresh command
@@ -86,12 +92,19 @@ public interface IcebergModel {
   IcebergOpCommitter getIncrementalMetadataRefreshCommitter(OperatorContext opContext, String tableName, List<String> datasetPath, String tableLocation,
                                                             String tableUuid, IcebergTableIdentifier tableIdentifier,
                                                             BatchSchema batchSchema, List<String> partitionColumnNames,
-                                                            boolean forFileSystem, DatasetConfig datasetConfig);
+                                                            boolean forFileSystem, DatasetConfig datasetConfig,
+                                                            FileSystem fs, Long metadataExpireAfterMs,
+                                                            IcebergCommandType icebergOpType, FileType fileType);
 
   /**
    * Get Iceberg Op committer for Alter command
    *
    * @param tableIdentifier Table identifier
+   * @param alterOperationType alter OperationType
+   * @param droppedColumns dropped Columns
+   * @param updatedColumns updated Columns
+   * @param columnName column Name
+   * @param columnTypes Column Types
    * @return Alter committer
    */
   IcebergOpCommitter getAlterTableCommitter(IcebergTableIdentifier tableIdentifier, ColumnOperations.AlterOperationType alterOperationType, BatchSchema droppedColumns, BatchSchema updatedColumns,
@@ -99,13 +112,13 @@ public interface IcebergModel {
 
   /**
    * Iceberg Op committer for DML (Delete, Merge, Update) commands
-   *
-   * @param operatorStats
-   * @param tableIdentifier
-   * @param datasetConfig
-   * @return
    */
-  IcebergOpCommitter getDmlCommitter(OperatorStats operatorStats, IcebergTableIdentifier tableIdentifier, DatasetConfig datasetConfig);
+  IcebergOpCommitter getDmlCommitter(
+    OperatorStats operatorStats,
+    IcebergTableIdentifier tableIdentifier,
+    DatasetConfig datasetConfig,
+    IcebergCommandType commandType
+  );
 
   /**
    * Get Iceberg Op committer for primary key command
@@ -134,7 +147,12 @@ public interface IcebergModel {
   /**
    * Expire table's snapshots, and return live snapshots after expiry and their manifest list file paths
    */
-  Map<Long, String> expireSnapshots(IcebergTableIdentifier tableIdentifier, long olderThanInMillis, int retainLast);
+  List<SnapshotEntry> expireSnapshots(IcebergTableIdentifier tableIdentifier, long olderThanInMillis, int retainLast);
+
+  /**
+   * Collect the expired snapshot ids, but not actually make table snapshots expired.
+   */
+  List<SnapshotEntry> collectExpiredSnapshots(IcebergTableIdentifier tableIdentifier, long olderThanInMillis, int retainLast);
 
   /**
    * Truncate a table
@@ -178,6 +196,31 @@ public interface IcebergModel {
    * @return New root pointer for iceberg table
    */
   String changeColumn(IcebergTableIdentifier tableIdentifier, String columnToChange, Field newDef);
+
+  /**
+   * replace the table sort order with a newly created order.
+   *
+   * @param tableIdentifier table identifier
+   * @param sortOrder the names of columns in the new sort order.
+   *                  Columns names are sorted from high priority to low priority
+   */
+  void replaceSortOrder(IcebergTableIdentifier tableIdentifier, List<String> sortOrder);
+
+  /**
+   * update table properties with a new value.
+   *
+   * @param tableIdentifier table identifier
+   * @param properties table property name/value map
+   */
+  void updateTableProperties(IcebergTableIdentifier tableIdentifier, Map<String, String> properties);
+
+  /**
+   * remove table properties.
+   *
+   * @param tableIdentifier table identifier
+   * @param propertyNames List of table property names to be removed
+   */
+  void removeTableProperties(IcebergTableIdentifier tableIdentifier, List<String> propertyNames);
 
   /**
    * Rename an existing column of a table

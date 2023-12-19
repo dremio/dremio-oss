@@ -26,7 +26,7 @@ signatures:
     kind: REGULAR
     name: input
     type: MAP
-  returnType: LIST
+  returnType: ARRAY
   sampleCodes:
   - call: SELECT MAP_VALUES(properties)
     result: "['Hardcover', 2002, 'Blue']"

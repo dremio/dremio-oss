@@ -13,41 +13,48 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { ANTLRErrorListener, RecognitionException, Recognizer } from "antlr4ts";
+import {
+  ANTLRErrorListener,
+  CommonToken,
+  RecognitionException,
+  Recognizer,
+} from "antlr4ts";
 import { Logger } from "../../contexts/LoggingContext";
 
 export type QueryParseError = {
-  lexer?: {
-    e: RecognitionException | undefined;
-    msg: string;
-  };
-  parser?: {
-    e: RecognitionException | undefined;
-    msg: string;
-  };
+  type: "lexer" | "parser";
+  e: RecognitionException | undefined;
+  msg: string;
+  offendingSymbol: CommonToken | undefined;
+  line: number;
+  charPositionInLine: number;
 };
 
-export type ErrorListener = ANTLRErrorListener<number>;
+export type ErrorListener = ANTLRErrorListener<CommonToken>;
 
 export function createParserErrorListeners(logger: ReturnType<Logger>): {
-  error: QueryParseError;
+  getErrors: () => QueryParseError[];
   lexerErrorListener: ErrorListener;
   parserErrorListener: ErrorListener;
 } {
-  const error: QueryParseError = {};
+  const errors: QueryParseError[] = [];
   const lexerErrorListener = {
     syntaxError: (
-      _recognizer: Recognizer<number, any>,
-      offendingSymbol: number | undefined,
+      _recognizer: Recognizer<CommonToken, any>,
+      offendingSymbol: CommonToken | undefined,
       line: number,
       charPositionInLine: number,
       msg: string,
       e: RecognitionException | undefined
     ) => {
-      // Only keep track of the first one
-      if (!error.lexer) {
-        error.lexer = { e, msg };
-      }
+      errors.push({
+        type: "lexer",
+        e,
+        msg,
+        offendingSymbol,
+        line,
+        charPositionInLine,
+      });
       logger.error(`Error lexing query.
 Offending symbol: ${offendingSymbol}
 Line: ${line}
@@ -57,17 +64,21 @@ Msg: ${msg}`);
   };
   const parserErrorListener = {
     syntaxError: (
-      _recognizer: Recognizer<number, any>,
-      offendingSymbol: number | undefined,
+      _recognizer: Recognizer<CommonToken, any>,
+      offendingSymbol: CommonToken | undefined,
       line: number,
       charPositionInLine: number,
       msg: string,
       e: RecognitionException | undefined
     ) => {
-      // Only keep track of the first one
-      if (!error.parser) {
-        error.parser = { e, msg };
-      }
+      errors.push({
+        type: "parser",
+        e,
+        msg,
+        offendingSymbol,
+        line,
+        charPositionInLine,
+      });
       logger.error(`Error parsing query.
 Offending symbol: ${offendingSymbol}
 Line: ${line}
@@ -75,5 +86,12 @@ Char position in line: ${charPositionInLine}
 Msg: ${msg}`);
     },
   };
-  return { error, lexerErrorListener, parserErrorListener };
+  return { getErrors: () => errors, lexerErrorListener, parserErrorListener };
 }
+
+export const noOpLogger = {
+  debug: () => {},
+  info: () => {},
+  warn: () => {},
+  error: () => {},
+} as const;

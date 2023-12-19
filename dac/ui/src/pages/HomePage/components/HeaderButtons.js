@@ -17,12 +17,11 @@ import { Component } from "react";
 import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
-import { injectIntl } from "react-intl";
+import { browserHistory } from "react-router";
 import { IconButton } from "dremio-ui-lib/components";
-
 import DropdownMenu from "@app/components/Menus/DropdownMenu";
 import { ENTITY_TYPES } from "@app/constants/Constants";
-
+import { intl } from "@app/utils/intl";
 import HeaderButtonsMixin from "dyn-load/pages/HomePage/components/HeaderButtonsMixin";
 import { RestrictedArea } from "@app/components/Auth/RestrictedArea";
 import localStorageUtils from "utils/storageUtils/localStorageUtils";
@@ -42,7 +41,6 @@ export class HeaderButtons extends Component {
     rootEntityType: PropTypes.oneOf(Object.values(ENTITY_TYPES)),
     user: PropTypes.string,
     rightTreeVisible: PropTypes.bool,
-    intl: PropTypes.object.isRequired,
     canUploadFile: PropTypes.bool,
     isVersionedSource: PropTypes.bool,
   };
@@ -86,6 +84,8 @@ export class HeaderButtons extends Component {
           state: {
             modal: "DatasetSettingsModal",
             tab: "format",
+            entityName: entity.get("fullPathList").last(),
+            type: entity.get("entityType"),
             entityType: entity.get("entityType"),
             entityId: entity.get("id"),
             query: { then: "query" },
@@ -104,9 +104,7 @@ export class HeaderButtons extends Component {
       "interface/settings": "Common.Settings",
     };
     const iconMessageId = messages[iconType];
-    return iconMessageId
-      ? this.props.intl.formatMessage({ id: iconMessageId })
-      : "Type";
+    return iconMessageId ? intl.formatMessage({ id: iconMessageId }) : "Type";
   }
 
   renderButton = (item, index) => {
@@ -122,6 +120,8 @@ export class HeaderButtons extends Component {
         key={`${iconType}-${index}`}
         style={style}
         tooltip={iconAlt}
+        tooltipPortal
+        tooltipPlacement="top"
       >
         <dremio-icon name={iconType} alt={iconAlt} style={iconStyle} />
       </IconButton>
@@ -168,7 +168,7 @@ export class HeaderButtons extends Component {
   }
 
   render() {
-    const { rootEntityType, entity, isVersionedSource, intl } = this.props;
+    const { rootEntityType, entity } = this.props;
 
     const buttonsForCurrentPage = this.getButtonsForEntityType(rootEntityType);
 
@@ -184,32 +184,44 @@ export class HeaderButtons extends Component {
     return (
       <>
         {hasAddMenu && (
-          <DropdownMenu
-            customItemRenderer={
+          <>
+            {rootEntityType === ENTITY_TYPES.home ? (
+              <DropdownMenu
+                customItemRenderer={
+                  <IconButton
+                    tooltip={intl.formatMessage({ id: "Common.Add" })}
+                    tooltipPortal
+                    tooltipPlacement="top"
+                    className={classes["headerButtons__plusIcon"]}
+                  >
+                    <dremio-icon name="interface/circle-plus"></dremio-icon>
+                  </IconButton>
+                }
+                hideArrow
+                closeOnSelect
+                menu={
+                  <HeaderButtonAddActions canUploadFile={canAddInHomeSpace} />
+                }
+              />
+            ) : (
               <IconButton
-                tooltip={intl.formatMessage({ id: "Common.Add" })}
+                tooltip={intl.formatMessage({ id: "Common.NewFolder" })}
                 tooltipPortal
                 tooltipPlacement="top"
-                className={classes["headerButtons__plusIcon"]}
+                onClick={() =>
+                  browserHistory.push({
+                    ...this.context.location,
+                    state: { modal: "AddFolderModal" },
+                  })
+                }
               >
-                <dremio-icon name="interface/circle-plus"></dremio-icon>
+                <dremio-icon name="interface/add-folder" alt="add folder" />
               </IconButton>
-            }
-            hideArrow
-            closeOnSelect
-            menu={
-              <HeaderButtonAddActions
-                context={this.context}
-                allowFileUpload={rootEntityType === ENTITY_TYPES.home}
-                allowTable={isVersionedSource}
-                canUploadFile={canAddInHomeSpace}
-              />
-            }
-          />
+            )}
+          </>
         )}
         {buttonsForCurrentPage.map(this.renderButton)}
       </>
     );
   }
 }
-HeaderButtons = injectIntl(HeaderButtons);

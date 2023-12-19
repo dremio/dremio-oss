@@ -20,7 +20,6 @@ import classNames from "clsx";
 
 import FormElement from "components/Forms/FormElement";
 import SourceIcon from "components/Icon/SourceIcon";
-import config from "dyn-load/utils/config";
 import { HoverHelp } from "dremio-ui-lib";
 import { inlineHelp, sectionBody, sectionLabel } from "uiTheme/less/forms.less";
 import { flexColumnContainer } from "uiTheme/less/layout.less";
@@ -35,6 +34,7 @@ import {
   sectionWithIcon,
   titleElementWithIcon,
 } from "./FormSection.less";
+import { VisibilityControl } from "@inject/components/Forms/VisibilityControl";
 
 export default class FormSection extends Component {
   static propTypes = {
@@ -85,14 +85,6 @@ export default class FormSection extends Component {
           {sectionConfig.getDirectElements().map((elementConfig, index) => {
             const { size, visibilityControl } = elementConfig.getConfig();
 
-            if (
-              visibilityControl &&
-              config[visibilityControl.config] !==
-                visibilityControl.showCondition
-            ) {
-              return;
-            }
-
             const isFixedSize = typeof size === "number" && size > 0;
             const isHalfWidth = size === "half";
             let style = null;
@@ -106,15 +98,21 @@ export default class FormSection extends Component {
               [elementLayoutHalf]: !isFixedSize && isHalfWidth,
               [elementLayoutFull]: !isFixedSize && !isHalfWidth, // full width by default
             });
+
             return (
-              <div key={index} className={fieldClass} style={style}>
-                <FormElement
-                  key={index}
-                  fields={fields}
-                  disabled={this.props.disabled}
-                  elementConfig={elementConfig}
-                />
-              </div>
+              <VisibilityControl
+                key={index}
+                visibilityControl={visibilityControl}
+              >
+                <div className={fieldClass} style={style}>
+                  <FormElement
+                    key={index}
+                    fields={fields}
+                    disabled={this.props.disabled}
+                    elementConfig={elementConfig}
+                  />
+                </div>
+              </VisibilityControl>
             );
           })}
         </div>

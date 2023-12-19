@@ -63,6 +63,7 @@ public class LocalProfileStore implements ProfileStore {
   // To be on the safe side and prevent memory leaks, retaining deleted Query ID's
   // for 10 minutes after last access.
 
+  @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
   private Cache<UserBitShared.QueryId, Boolean> deletedQueryIds = CacheBuilder.newBuilder()
     .expireAfterAccess(10, TimeUnit.MINUTES)
     .build();

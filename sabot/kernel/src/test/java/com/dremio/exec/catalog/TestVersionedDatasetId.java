@@ -26,6 +26,9 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import com.dremio.catalog.model.VersionContext;
+import com.dremio.catalog.model.dataset.TableVersionContext;
+import com.dremio.catalog.model.dataset.TableVersionType;
 import com.fasterxml.jackson.core.JsonProcessingException;
 
 public class TestVersionedDatasetId {

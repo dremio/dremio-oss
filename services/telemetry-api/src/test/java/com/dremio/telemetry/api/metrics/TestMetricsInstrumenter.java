@@ -159,7 +159,7 @@ public class TestMetricsInstrumenter {
     verify(errorCounter, times(1)).increment();
   }
 
-  private static class DummyRunnable implements Runnable {
+  private static final class DummyRunnable implements Runnable {
     private boolean successfulRun = false;
 
     @Override
@@ -176,11 +176,11 @@ public class TestMetricsInstrumenter {
     }
   }
 
-  private static class DummyRuntimeException extends RuntimeException {
+  private static final class DummyRuntimeException extends RuntimeException {
 
   }
 
-  private static class DummyCheckedException extends Exception {
+  private static final class DummyCheckedException extends Exception {
 
   }
 }

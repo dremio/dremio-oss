@@ -53,7 +53,8 @@ public class ValuesRewriteShuttle extends StatelessRelShuttleImpl {
   @Override
   public RelNode visit(LogicalValues values) {
     boolean foundDecimal =
-      values.getTuples().stream()
+      !values.getTuples().isEmpty()
+      && values.getTuples().stream()
         .allMatch(tuple -> tuple.stream() // All the tuples must have decimal type.
           .anyMatch(rexNode -> rexNode.getType().getSqlTypeName() == SqlTypeName.DECIMAL));
 

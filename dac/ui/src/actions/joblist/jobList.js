@@ -13,8 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import { transformFromReflectionDetails } from "@app/exports/endpoints/JobsListing/utils";
 import apiUtils from "@app/utils/apiUtils/apiUtils";
 import { renderQueryStateForServer } from "utils/jobsQueryState";
+import Immutable from "immutable";
+import { store } from "@app/store/store";
+import { getExploreState } from "@app/selectors/explore";
 
 export const FETCH_JOBS_LIST_REQUEST = "FETCH_JOBS_LIST_REQUEST";
 export const FETCH_JOBS_LIST_SUCCESS = "FETCH_JOBS_LIST_SUCCESS";
@@ -47,6 +51,7 @@ export const FETCH_JOB_EXECUTION_OPERATOR_DETAILS_BY_ID_SUCCESS =
   "FETCH_JOB_EXECUTION_OPERATOR_DETAILS_BY_ID_SUCCESS";
 export const FETCH_JOB_EXECUTION_OPERATOR_DETAILS_BY_ID_FAILURE =
   "FETCH_JOB_EXECUTION_OPERATOR_DETAILS_BY_ID_FAILURE";
+export const CLEAR_JOB_PROFILE_DATA = "CLEAR_JOB_PROFILE_DATA";
 
 function fetchJobsListAction(queryState, viewId) {
   const meta = { viewId };
@@ -88,23 +93,31 @@ function fetchJobsListAction(queryState, viewId) {
   };
 }
 
-export const resetFilteredJobsList = () => ({
+export const resetFilteredJobsList = (tabId) => ({
   type: JOBS_LIST_RESET,
   payload: Immutable.List(),
+  meta: { tabId },
 });
 
-export const resetUniqueSavingJob = () => ({
+export const resetUniqueSavingJob = (tabId) => ({
   type: SAVE_JOB_RESET,
   payload: undefined,
+  meta: { tabId },
 });
 
 function fetchFilteredJobsListForExplorePageAction(
   jobId = "",
   viewId,
   replaceIndex,
-  isSaveJob
+  isSaveJob,
+  activeScriptId
 ) {
-  const meta = { viewId, isExplorePage: true, replaceIndex, isSaveJob };
+  const meta = {
+    viewId,
+    isExplorePage: true,
+    replaceIndex,
+    isSaveJob,
+  };
   return (dispatch) => {
     return apiUtils
       .fetch(
@@ -125,7 +138,14 @@ function fetchFilteredJobsListForExplorePageAction(
         }
       })
       .then((payload) => {
-        dispatch(fetchJobsListActionSuccess(payload, meta));
+        const curScriptId = getExploreState(store.getState())?.view
+          ?.activeScript?.id;
+        dispatch(
+          fetchJobsListActionSuccess(payload, {
+            ...meta,
+            ...(activeScriptId !== curScriptId && { tabId: activeScriptId }),
+          })
+        );
         // eslint-disable-next-line promise/no-return-wrap
         return Promise.resolve(payload);
       })
@@ -134,7 +154,18 @@ function fetchFilteredJobsListForExplorePageAction(
           return response
             .json()
             .then((error) => {
-              return dispatch(fetchJobsListActionFailure({ response: error }));
+              const curScriptId = getExploreState(store.getState())?.view
+                ?.activeScript?.id;
+              return dispatch(
+                fetchJobsListActionFailure({
+                  response: error,
+                  meta: {
+                    ...(activeScriptId !== curScriptId && {
+                      tabId: activeScriptId,
+                    }),
+                  },
+                })
+              );
             })
             .catch(
               () => response && dispatch(fetchJobsListActionFailure(response))
@@ -166,14 +197,21 @@ export function fetchJobsList(queryState, viewId) {
   };
 }
 
-export function fetchFilteredJobsList(jobId, viewId, replaceIndex, isSaveJob) {
+export function fetchFilteredJobsList(
+  jobId,
+  viewId,
+  replaceIndex,
+  isSaveJob,
+  activeScriptId
+) {
   return (dispatch) => {
     return dispatch(
       fetchFilteredJobsListForExplorePageAction(
         jobId,
         viewId,
         replaceIndex,
-        isSaveJob
+        isSaveJob,
+        activeScriptId
       )
     );
   };
@@ -190,6 +228,8 @@ function loadJobDetailsAction(
     if (!skipStartAction) {
       dispatch({ type: FETCH_JOB_DETAILS_BY_ID_REQUEST, meta });
     }
+    const hash = window.location?.hash;
+    const reflectionId = hash ? hash.replace("#", "") : undefined;
     const params = new URLSearchParams();
     params.append("detailLevel", 1);
     if (attempts !== undefined) {
@@ -197,7 +237,9 @@ function loadJobDetailsAction(
     }
     return apiUtils
       .fetch(
-        `jobs-listing/v1.0/${jobId}/jobDetails?${params.toString()}`,
+        reflectionId
+          ? `/job/${jobId}/reflection/${reflectionId}/details`
+          : `jobs-listing/v1.0/${jobId}/jobDetails?${params.toString()}`,
         {},
         2
       )
@@ -210,9 +252,13 @@ function loadJobDetailsAction(
         }
       })
       .then((payload) => {
-        dispatch(loadJobDetailsActionSuccess(payload, meta));
+        let transformedPayload = payload;
+        if (reflectionId) {
+          transformedPayload = transformFromReflectionDetails(payload);
+        }
+        dispatch(loadJobDetailsActionSuccess(transformedPayload, meta));
         // eslint-disable-next-line promise/no-return-wrap
-        return Promise.resolve(payload);
+        return Promise.resolve(transformedPayload);
       })
       .catch((response) => {
         const errorPayload = {
@@ -377,19 +423,21 @@ export const fetchJobExecutionDetails =
       dispatch({ type: FETCH_JOB_EXECUTION_DETAILS_BY_ID_REQUEST, meta });
     }
     try {
-      let response = await apiUtils.fetch(
+      const res = await apiUtils.fetch(
         `queryProfile/${jobId}/JobProfile?attempt=${totalAttempts}`,
         {},
         2
       );
-      response = await response.json();
-      dispatch(fetchJobExecutionDetailsSuccess(response, meta));
+      const json = await res.json();
+      dispatch(fetchJobExecutionDetailsSuccess(json, meta));
+      return json;
     } catch (response) {
       const error = await response.json();
       const failureMeta = { ...meta, ...error };
-      return dispatch(
+      dispatch(
         fetchJobExecutionDetailsFailure({ response: error }, failureMeta)
       );
+      return error;
     }
   };
 
@@ -468,3 +516,5 @@ const fetchJobExecutionOperatorDetailsFailure = (payload, meta) => ({
   },
   error: true,
 });
+
+export const clearJobProfileData = () => ({ type: CLEAR_JOB_PROFILE_DATA });

@@ -39,13 +39,20 @@ class RelSerializer implements RelToProto {
 
   private final RexSerializer rex;
   private final TypeSerde type;
-  private final SqlOperatorConverter sqlOperatorConverter;
+  private final SqlOperatorSerde sqlOperatorSerde;
 
-  public RelSerializer(RelSerdeRegistry registry, RelOptCluster cluster, SqlOperatorConverter sqlOperatorConverter) {
+  public RelSerializer(
+    RelSerdeRegistry registry,
+    RelOptCluster cluster,
+    SqlOperatorSerde sqlOperatorSerde) {
     this.registry = registry;
-    this.rex = new RexSerializer(cluster.getRexBuilder(), new TypeSerde(cluster.getTypeFactory()), registry, sqlOperatorConverter);
+    this.rex = new RexSerializer(
+      cluster.getRexBuilder(),
+      new TypeSerde(cluster.getTypeFactory()),
+      registry,
+      sqlOperatorSerde);
     this.type = new TypeSerde(cluster.getTypeFactory());
-    this.sqlOperatorConverter = sqlOperatorConverter;
+    this.sqlOperatorSerde = sqlOperatorSerde;
   }
 
   @Override
@@ -57,8 +64,8 @@ class RelSerializer implements RelToProto {
   }
 
   @Override
-  public SqlOperatorConverter getSqlOperatorConverter() {
-    return sqlOperatorConverter;
+  public SqlOperatorSerde getSqlOperatorSerde() {
+    return sqlOperatorSerde;
   }
 
   @Override
@@ -73,11 +80,11 @@ class RelSerializer implements RelToProto {
 
   @Override
   public PSqlOperator toProto(SqlOperator op) {
-    return sqlOperatorConverter.toProto(op);
+    return sqlOperatorSerde.toProto(op);
   }
 
-  public static PRelList serializeList(RelSerdeRegistry registry, RelNode node, SqlOperatorConverter sqlOperatorConverter) {
-    RelSerializer ser = new RelSerializer(registry, node.getCluster(), sqlOperatorConverter);
+  public static PRelList serializeList(RelSerdeRegistry registry, RelNode node, SqlOperatorSerde sqlOperatorSerde) {
+    RelSerializer ser = new RelSerializer(registry, node.getCluster(), sqlOperatorSerde);
     ser.toProto(node);
     return PRelList.newBuilder().addAllNode(ser.nodes).build();
   }

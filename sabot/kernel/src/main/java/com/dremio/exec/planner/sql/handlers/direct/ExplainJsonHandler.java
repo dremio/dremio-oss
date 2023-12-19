@@ -33,11 +33,13 @@ import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.serialization.LogicalPlanSerializer;
 import com.dremio.exec.planner.serialization.RelSerializerFactory;
+import com.dremio.exec.planner.sql.DremioCompositeSqlOperatorTable;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
 import com.dremio.exec.planner.sql.handlers.ConvertedRelNode;
+import com.dremio.exec.planner.sql.handlers.DrelTransformer;
 import com.dremio.exec.planner.sql.handlers.PrelTransformer;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
-import com.dremio.exec.planner.sql.handlers.ViewAccessEvaluator;
+import com.dremio.exec.planner.sql.handlers.SqlToRelTransformer;
 import com.dremio.exec.planner.sql.parser.SqlExplainJson;
 import com.dremio.options.OptionManager;
 
@@ -65,13 +67,11 @@ public class ExplainJsonHandler implements SqlDirectHandler<ExplainJsonHandler.E
       final SqlNode innerNode = node.getQuery();
 
       Rel drel;
-      final ConvertedRelNode convertedRelNode = PrelTransformer.validateAndConvert(config, innerNode);
-      try (ViewAccessEvaluator ignored = ViewAccessEvaluator.createAsyncEvaluator(config, convertedRelNode)) {
-        final RelDataType validatedRowType = convertedRelNode.getValidatedRowType();
-        final RelNode queryRelNode = convertedRelNode.getConvertedNode();
-        drel = PrelTransformer.convertToDrel(config, queryRelNode, validatedRowType);
-        PrelTransformer.convertToPrel(config, drel);
-      }
+      final ConvertedRelNode convertedRelNode = SqlToRelTransformer.validateAndConvert(config, innerNode);
+      final RelDataType validatedRowType = convertedRelNode.getValidatedRowType();
+      final RelNode queryRelNode = convertedRelNode.getConvertedNode();
+      drel = DrelTransformer.convertToDrel(config, queryRelNode, validatedRowType);
+      PrelTransformer.convertToPrel(config, drel);
       return toResultInner(node.getPhase(), observer.nodes);
     } catch (Exception ex){
       throw SqlExceptionHelper.coerceException(logger, sql, ex, true);
@@ -85,7 +85,10 @@ public class ExplainJsonHandler implements SqlDirectHandler<ExplainJsonHandler.E
       isLegacy ?
         RelSerializerFactory.getLegacyPlanningFactory(config.getContext().getConfig(), config.getContext().getScanResult()) :
         RelSerializerFactory.getPlanningFactory(config.getContext().getConfig(), config.getContext().getScanResult());
-    final LogicalPlanSerializer serializer = factory.getSerializer(config.getConverter().getCluster(), config.getContext().getFunctionRegistry());
+    final LogicalPlanSerializer serializer = factory
+      .getSerializer(
+        config.getConverter().getCluster(),
+        DremioCompositeSqlOperatorTable.create(config.getContext().getFunctionRegistry()));
 
     for (TransformedNode n : nodes) {
       if(n.getPhase().equalsIgnoreCase(phase)) {

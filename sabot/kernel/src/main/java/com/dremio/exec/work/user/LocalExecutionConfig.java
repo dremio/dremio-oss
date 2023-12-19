@@ -24,8 +24,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.PlannerSettings.StoreQueryResultsPolicy;
 import com.dremio.options.OptionManager;

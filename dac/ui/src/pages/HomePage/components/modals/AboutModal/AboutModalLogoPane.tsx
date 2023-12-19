@@ -1,0 +1,43 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import config from "dyn-load/utils/config";
+
+import clsx from "clsx";
+import * as classes from "./AboutModal.module.less";
+
+const isBeta = process.env.DREMIO_BETA === "true";
+
+function AboutModalLogoPane() {
+  const shouldUseBetaStyles = isBeta && config.whiteLabelUrl === "dremio";
+
+  return (
+    <div
+      className={clsx(
+        classes["logo-pane"],
+        shouldUseBetaStyles && classes["beta-logo-pane"]
+      )}
+    >
+      <dremio-icon
+        name={isBeta ? "corporate/dremio-beta-light" : "corporate/dremio"}
+        alt="Dremio Narwhal"
+        class={classes["dremio-logo"]}
+      />
+    </div>
+  );
+}
+
+export default AboutModalLogoPane;

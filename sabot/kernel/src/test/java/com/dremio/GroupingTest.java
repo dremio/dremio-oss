@@ -178,4 +178,24 @@ public class GroupingTest extends BaseTestQuery {
       .baselineValues(0L, 25L)
       .go();
   }
+
+  @Test
+  public void testDistinctGroupingAgg() throws Exception {
+    String query = "SELECT l_returnflag, l_linestatus, count(distinct l_shipdate) cnt from cp.\"tpch/lineitem.parquet\"\n" +
+      "group by rollup(l_returnflag, l_linestatus) order by 1 nulls first,2 nulls first";
+
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("l_returnflag", "l_linestatus", "cnt")
+      .baselineValues(null, null, 2518L)
+      .baselineValues("A", null, 1253L)
+      .baselineValues("A", "F", 1253L)
+      .baselineValues("N", null, 1288L)
+      .baselineValues("N", "F", 28L)
+      .baselineValues("N", "O", 1260L)
+      .baselineValues("R", null, 1249L)
+      .baselineValues("R", "F", 1249L)
+      .go();
+  }
 }

@@ -15,24 +15,33 @@
  */
 import { intl } from "@app/utils/intl";
 import EmptyStateContainer from "@app/pages/HomePage/components/EmptyStateContainer";
+import additionalWikiControls from "@inject/shared/AdditionalWikiControls";
 import * as classes from "./WikiEmptyState.module.less";
 
 type WikiEmptyStateProps = {
   onAddWiki?: () => void;
+  onAddSummary?: () => void;
 };
 const WikiEmptyState = (props: WikiEmptyStateProps) => {
-  const { onAddWiki } = props;
+  const { onAddWiki, onAddSummary } = props;
   const { formatMessage } = intl;
+
   return (
     <EmptyStateContainer icon="interface/edit-wiki" title="No.Wiki.Content">
       {onAddWiki && (
-        <span
-          className={classes["edit-wiki-content"]}
-          onClick={onAddWiki}
-          data-qa="edit-wiki-content"
-        >
-          {formatMessage({ id: "Edit.Wiki.Content" })}
-        </span>
+        <div className="flex">
+          <span
+            className={classes["edit-wiki-content"]}
+            onClick={onAddWiki}
+            data-qa="edit-wiki-content"
+          >
+            {formatMessage({ id: "Edit.Wiki.Content" })}
+          </span>
+          {additionalWikiControls?.()?.wikiEmptyStateExtra({
+            onAddSummary,
+            className: classes["edit-wiki-content"],
+          })}
+        </div>
       )}
     </EmptyStateContainer>
   );

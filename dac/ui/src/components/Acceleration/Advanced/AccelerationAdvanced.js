@@ -18,9 +18,16 @@ import { connect } from "react-redux";
 import Immutable from "immutable";
 import PropTypes from "prop-types";
 
-import "@app/uiTheme/less/Acceleration/Acceleration.less";
+import { getSupportFlags } from "@app/selectors/supportFlags";
+import { ALLOW_REFLECTION_PARTITION_TRANFORMS } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
+import {
+  getAggregationRecommendation,
+  getRawRecommendation,
+} from "@app/selectors/reflectionRecommendations";
+
 import AccelerationAggregation from "./AccelerationAggregation";
 import AccelerationRaw from "./AccelerationRaw";
+import "@app/uiTheme/less/Acceleration/Acceleration.less";
 
 export class AccelerationAdvanced extends Component {
   static propTypes = {
@@ -33,6 +40,10 @@ export class AccelerationAdvanced extends Component {
     values: PropTypes.object.isRequired,
     initialValues: PropTypes.any,
     canAlter: PropTypes.any,
+    allowPartitionTransform: PropTypes.bool,
+    rawRecommendation: PropTypes.object,
+    aggregationRecommendation: PropTypes.object,
+    loadingRecommendations: PropTypes.bool,
   };
 
   static getFields() {
@@ -168,13 +179,26 @@ export class AccelerationAdvanced extends Component {
   }
 
   renderTableQueries() {
-    const { fields, reflections, dataset, canAlter } = this.props;
+    const {
+      fields,
+      reflections,
+      dataset,
+      canAlter,
+      allowPartitionTransform,
+      rawRecommendation,
+      aggregationRecommendation,
+      loadingRecommendations,
+    } = this.props;
+
     return this.getActiveTab() === "AGGREGATION" ? (
       <AccelerationAggregation
         canAlter={canAlter}
         reflections={reflections}
         dataset={dataset}
         fields={fields}
+        allowPartitionTransform={allowPartitionTransform}
+        aggregationRecommendation={aggregationRecommendation}
+        loadingRecommendations={loadingRecommendations}
       />
     ) : (
       <AccelerationRaw
@@ -182,6 +206,9 @@ export class AccelerationAdvanced extends Component {
         reflections={reflections}
         dataset={dataset}
         fields={fields}
+        allowPartitionTransform={allowPartitionTransform}
+        rawRecommendation={rawRecommendation}
+        loadingRecommendations={loadingRecommendations}
       />
     );
   }
@@ -199,7 +226,7 @@ export class AccelerationAdvanced extends Component {
             key="raw"
             onClick={() => this.setState({ activeTab: "RAW" })}
           >
-            {la("Raw Reflections")}
+            {laDeprecated("Raw Reflections")}
           </div>
           <div
             className={`AccelerationAdvanced__tab ${
@@ -211,7 +238,7 @@ export class AccelerationAdvanced extends Component {
             key="aggregation"
             onClick={() => this.setState({ activeTab: "AGGREGATION" })}
           >
-            {la("Aggregation Reflections")}
+            {laDeprecated("Aggregation Reflections")}
           </div>
         </div>
         {this.renderTableQueries()}
@@ -224,6 +251,10 @@ const mapStateToProps = (state) => {
   const location = state.routing.locationBeforeTransitions;
   return {
     location,
+    allowPartitionTransform:
+      getSupportFlags(state)[ALLOW_REFLECTION_PARTITION_TRANFORMS],
+    rawRecommendation: getRawRecommendation(state),
+    aggregationRecommendation: getAggregationRecommendation(state),
   };
 };
 

@@ -64,7 +64,8 @@ const AddToPrivilegesComponent = ({
   }: { searchedOptions: UserOrRole[]; orgPrivileges: any } = useSelector(
     (state: any) => ({
       searchedOptions: getFilteredRolesAndUsers(
-        state
+        state,
+        true
       ) as unknown as UserOrRole[],
       orgPrivileges: state.privileges.organization,
     })
@@ -108,9 +109,12 @@ const AddToPrivilegesComponent = ({
   );
 
   const handleAddSelectedMembers = () => {
+    const { roles, users } = orgPrivileges;
     handleAddTableItems(displayValues);
     setSelectedValues([]);
     setDisplayValues([]);
+    if (roles?.canView) dispatch(searchRoles("") as any);
+    if (users?.canView) dispatch(searchUsers("") as any);
   };
 
   const handleSearchKeyChange = debounce((value) => {

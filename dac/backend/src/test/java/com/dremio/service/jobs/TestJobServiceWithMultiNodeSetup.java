@@ -16,6 +16,8 @@
 package com.dremio.service.jobs;
 
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
@@ -71,6 +73,7 @@ import com.google.common.io.Files;
 import com.google.common.io.Resources;
 
 import io.grpc.ManagedChannel;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 
 
@@ -211,6 +214,8 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
 
     // wait for it to be submitted
     submittedListener.await();
+    // wait for profiles to be stored in profileStore
+    Thread.sleep(1000);
     final JobId id = adapter.getJobSubmission().getJobId();
 
     final QueryProfileRequest req = QueryProfileRequest.newBuilder().setAttempt(0).setJobId(JobsProtoUtil.toBuf(id)).build();
@@ -229,6 +234,45 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
       }
       Thread.sleep(100);
     }
+  }
+
+  //submit the job on slave & pull profile from master
+  @Test
+  public void testGetProfileNotFoundOnSameCoordinator() throws InterruptedException {
+    JobsServiceGrpc.JobsServiceStub stubToSubmit = getMasterJobsServiceStub();
+    ChronicleGrpc.ChronicleBlockingStub jobDetailsStub = getMasterChronicleStub();
+    testGetProfileNotFound(stubToSubmit, jobDetailsStub);
+  }
+
+  //submit the job on master & pull profile from slave
+  @Test
+  public void testGetProfileNotFoundOnDifferentCoordinator() throws InterruptedException {
+    JobsServiceGrpc.JobsServiceStub stubToSubmit = getMasterJobsServiceStub();
+    ChronicleGrpc.ChronicleBlockingStub jobDetailsStub = getSlaveChronicleStub();
+    testGetProfileNotFound(stubToSubmit, jobDetailsStub);
+  }
+
+  private void testGetProfileNotFound(JobsServiceGrpc.JobsServiceStub stubToSubmit, ChronicleGrpc.ChronicleBlockingStub jobDetailsStub) throws InterruptedException {
+    // issue job submit
+    final JobSubmittedListener submittedListener = new JobSubmittedListener();
+    final CompletionListener listener = new CompletionListener();
+    final JobStatusListenerAdapter adapter = new JobStatusListenerAdapter(new MultiJobStatusListener(listener, submittedListener));
+    stubToSubmit.submitJob(
+      SubmitJobRequest.newBuilder()
+        .setSqlQuery(JobsProtoUtil.toBuf(getQueryFromSQL("select * from LocalFS1.\"dac-sample1.json\" ")))
+        .setQueryType(QueryType.UI_RUN)
+        .setVersionedDataset(VersionedDatasetPath.newBuilder()
+          .addAllPath(ds1.toNamespaceKey().getPathComponents())
+          .build())
+        .build(),
+      adapter);
+    //Don't wait for it to be submitted
+    final JobId id = adapter.getJobSubmission().getJobId();
+
+    final QueryProfileRequest req = QueryProfileRequest.newBuilder().setAttempt(0).setJobId(JobsProtoUtil.toBuf(id)).build();
+    Exception ex = assertThrows(StatusRuntimeException.class,
+      () -> jobDetailsStub.getProfile(req));
+    assertEquals(String.format("INVALID_ARGUMENT: Unable to get query profile. Profile not found for the given queryId."), ex.getMessage());
   }
 
   /**

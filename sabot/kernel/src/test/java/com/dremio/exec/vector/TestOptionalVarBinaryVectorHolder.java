@@ -18,7 +18,6 @@ package com.dremio.exec.vector;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.BufferAllocator;
@@ -29,7 +28,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.jupiter.api.Assertions;
 import org.junit.rules.TestRule;
 
 import com.dremio.common.util.TestTools;
@@ -73,9 +71,9 @@ public class TestOptionalVarBinaryVectorHolder {
       vc.setAllCount(2);
 
       OptionalVarBinaryVectorHolder expectedEmpty = new OptionalVarBinaryVectorHolder(vc, "invalidCol");
+      expectedEmpty.setSafe(0, () -> "VALUE".getBytes(StandardCharsets.UTF_8));
 
-      Assertions.assertDoesNotThrow(() -> expectedEmpty.setSafe(0, () -> "VALUE".getBytes(StandardCharsets.UTF_8)));
-      assertThat(expectedEmpty.get(0).isPresent()).isFalse();
+      assertThat(expectedEmpty.get(0)).isEmpty();
     }
   }
 
@@ -90,10 +88,9 @@ public class TestOptionalVarBinaryVectorHolder {
       byte[] value = "VALUE".getBytes(StandardCharsets.UTF_8);
 
       OptionalVarBinaryVectorHolder expected = new OptionalVarBinaryVectorHolder(vc, TEST_COL_NAME);
+      expected.setSafe(0, () -> value);
 
-      Assertions.assertDoesNotThrow(() -> expected.setSafe(0, () -> value));
-      assertThat(expected.get(0).isPresent()).isTrue();
-      assertThat(Arrays.equals(expected.get(0).get(), value)).isTrue();
+      assertThat(expected.get(0)).hasValue(value);
     }
   }
 }

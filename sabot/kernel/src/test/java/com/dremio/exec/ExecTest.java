@@ -19,6 +19,7 @@ import static org.mockito.Mockito.when;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocatorFactory;
+import org.apache.calcite.sql.SqlOperatorTable;
 import org.junit.After;
 import org.junit.Before;
 import org.mockito.Mockito;
@@ -31,7 +32,7 @@ import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.cost.DremioRelMetadataQuery;
 import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.planner.sql.OperatorTable;
+import com.dremio.exec.planner.sql.DremioCompositeSqlOperatorTable;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.proto.UserBitShared.QueryResult;
@@ -40,7 +41,7 @@ import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.server.options.OptionManagerWrapper;
+import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.QueryOptionManager;
 import com.dremio.exec.server.options.SessionOptionManager;
 import com.dremio.exec.server.options.SessionOptionManagerImpl;
@@ -49,6 +50,9 @@ import com.dremio.exec.store.sys.statistics.StatisticsAdministrationService;
 import com.dremio.exec.store.sys.statistics.StatisticsService;
 import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValidatorListing;
+import com.dremio.options.impl.DefaultOptionManager;
+import com.dremio.options.impl.OptionManagerWrapper;
 import com.dremio.sabot.rpc.user.UserRPCServer.UserClientConnection;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.telemetry.api.metrics.Metrics;
@@ -123,14 +127,17 @@ public class ExecTest extends DremioTest {
     final UserSession userSession = UserSession.Builder.newBuilder()
       .withSessionOptionManager(sessionOptionManager, dbContext.getOptionManager())
       .build();
+
+    final OptionValidatorListing optionValidatorListing = new OptionValidatorListingImpl(DremioTest.CLASSPATH_SCAN_RESULT);
     final OptionManager queryOptions = OptionManagerWrapper.Builder.newBuilder()
+      .withOptionManager(new DefaultOptionManager(optionValidatorListing))
       .withOptionManager(userSession.getOptions())
       .withOptionManager(new QueryOptionManager(userSession.getOptions().getOptionValidatorListing()))
       .build();
     final ExecutionControls executionControls = new ExecutionControls(queryOptions, NodeEndpoint.getDefaultInstance());
     FunctionImplementationRegistry functions = queryOptions.getOption(PlannerSettings
       .ENABLE_DECIMAL_V2) ? DECIMAL_FUNCTIONS() : FUNCTIONS();
-    final OperatorTable table = new OperatorTable(functions);
+    final SqlOperatorTable table = DremioCompositeSqlOperatorTable.create(functions);
     final LogicalPlanPersistence lp = dbContext.getLpPersistence();
     final CatalogService registry = dbContext.getCatalogService();
 

@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 import { Component } from "react";
+import Immutable from "immutable";
+
 import PropTypes from "prop-types";
 import { Popover } from "@app/components/Popover";
 import MenuItem from "@mui/material/MenuItem";
@@ -160,11 +162,11 @@ export default class CellPopover extends Component {
     measureTypeList: [],
   };
 
-  componentWillMount() {
+  UNSAFE_componentWillMount() {
     this.receiveProps(this.props);
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     this.receiveProps(nextProps, this.props);
   }
 
@@ -279,7 +281,7 @@ export default class CellPopover extends Component {
         {sortFields.length > 0 && (
           <div>
             <span className={"CellPopover__menuHeader"}>
-              {la(
+              {laDeprecated(
                 hasPermission
                   ? "Drag to change sort order:"
                   : "View only access:"
@@ -298,7 +300,7 @@ export default class CellPopover extends Component {
     return (
       <div>
         <span classsName={"CellPopover__menuHeader"}>
-          {la("Date Granularity:")}
+          {laDeprecated("Date Granularity:")}
         </span>
         <div style={{ marginTop: 5 }}>
           <MenuItem
@@ -315,7 +317,7 @@ export default class CellPopover extends Component {
             selected={currentCell.value === granularityValue.normal}
             style={styles.menuItem}
           >
-            {la("Original")}
+            {laDeprecated("Original")}
           </MenuItem>
           <MenuItem
             classes={menuItemClasses}
@@ -331,7 +333,7 @@ export default class CellPopover extends Component {
             selected={currentCell.value === granularityValue.date}
             style={styles.menuItem}
           >
-            {la("Date")}
+            {laDeprecated("Date")}
           </MenuItem>
         </div>
       </div>
@@ -359,7 +361,7 @@ export default class CellPopover extends Component {
     return (
       <div>
         <span className={"CellPopover__menuHeader"}>
-          {la("Selected Measures:")}
+          {laDeprecated("Selected Measures:")}
         </span>
         <div>
           {typesToDisplay.map((measure, index) => {

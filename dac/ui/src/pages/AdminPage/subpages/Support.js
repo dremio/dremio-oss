@@ -71,7 +71,7 @@ export class Support extends PureComponent {
     getSetting: PropTypes.func,
   };
 
-  componentWillMount() {
+  UNSAFE_componentWillMount() {
     this.props.getDefinedSettings(
       [...RESERVED, ...Object.keys(LABELS_IN_SECTIONS)],
       true,
@@ -130,7 +130,7 @@ export class Support extends PureComponent {
     // todo: replace with generic `prompt` modal
     evt.preventDefault();
 
-    const value = evt.target.children[0].value;
+    const value = evt.target.children[0].value?.trim();
     if (!value) {
       return;
     }
@@ -250,7 +250,7 @@ export class Support extends PureComponent {
     const advancedForm = (
       <form className="flex" onSubmit={this.addAdvanced}>
         <TextField
-          placeholder={la("Support Key")}
+          placeholder={laDeprecated("Support Key")}
           data-qa="support-key-search"
         />
         <SimpleButton
@@ -261,7 +261,7 @@ export class Support extends PureComponent {
           style={{ display: "inline-block", marginLeft: "6px" }}
           showSpinnerAndText={false}
         >
-          {la("Show")}
+          {laDeprecated("Show")}
         </SimpleButton>
       </form>
     );
@@ -269,7 +269,7 @@ export class Support extends PureComponent {
     return (
       <div className="support-settings">
         <SettingHeader icon="settings/support">
-          {la("Support Settings")}
+          {laDeprecated("Support Settings")}
         </SettingHeader>
         <div
           className="gutter-left--double"
@@ -295,11 +295,13 @@ export class Support extends PureComponent {
             )}
             <div style={{ padding: "10px 0" }}>
               <div style={{ display: "flex", alignItems: "center" }}>
-                <h3 style={{ flex: "1 1 auto" }}>{la("Support Keys")}</h3>
+                <h3 style={{ flex: "1 1 auto" }}>
+                  {laDeprecated("Support Keys")}
+                </h3>
                 {advancedForm}
               </div>
               <div style={{ ...formContext }}>
-                {la("Advanced settings provided by Dremio Support.")}
+                {laDeprecated("Advanced settings provided by Dremio Support.")}
               </div>
               {this.renderOtherSettings()}
             </div>

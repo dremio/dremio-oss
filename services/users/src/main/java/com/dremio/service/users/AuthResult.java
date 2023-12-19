@@ -21,7 +21,9 @@ import org.immutables.value.Value;
 
 /**
  * Result of Authentication.
+ * @deprecated TODO DX-82990: Remove this AuthResult. Uses {@link com.dremio.authenticator.AuthResult}
  */
+@Deprecated
 @Value.Immutable
 public interface AuthResult {
   String getUserName();

@@ -75,18 +75,18 @@ export const showDownloadModal = (jobId, confirm) => (dispatch) => {
   };
   const currentJobLink = (
     <a href={jobsHref} onClick={onClick}>
-      {la("Go to Job")}
+      {laDeprecated("Go to Job")}
     </a>
   );
   return dispatch(
     showConfirmationDialog({
-      title: la("Preparing Download…"),
+      title: laDeprecated("Preparing Download…"),
       confirm: () => confirm(true),
       showOnlyConfirm: true,
-      confirmText: la("Dismiss"),
+      confirmText: laDeprecated("Dismiss"),
       text: [
         <span key="download-text">
-          {la("Your download will start when ready.")}
+          {laDeprecated("Your download will start when ready.")}
         </span>,
         currentJobLink,
       ],
@@ -138,7 +138,9 @@ const fetchDownloadTableau = ({ href }) => {
           type: LOAD_TABLEAU_FAILURE,
           meta: {
             notification: {
-              message: la("There was an error preparing for Tableau."),
+              message: laDeprecated(
+                "There was an error preparing for Tableau."
+              ),
               level: "error",
             },
           },
@@ -187,7 +189,9 @@ const fetchDownloadPowerBI = ({ href }) => {
           type: LOAD_POWER_BI_FAILURE,
           meta: {
             notification: {
-              message: la("There was an error preparing for Power BI."),
+              message: laDeprecated(
+                "There was an error preparing for Power BI."
+              ),
               level: "error",
             },
           },

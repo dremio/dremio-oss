@@ -15,23 +15,24 @@
  */
 package com.dremio.services.nessie.grpc.server;
 
+import static com.dremio.services.nessie.grpc.GrpcExceptionMapper.handle;
 import static com.dremio.services.nessie.grpc.ProtoUtil.fromProto;
+import static com.dremio.services.nessie.grpc.ProtoUtil.fromProtoMergeKeyBehavior;
 import static com.dremio.services.nessie.grpc.ProtoUtil.fromProtoMessage;
 import static com.dremio.services.nessie.grpc.ProtoUtil.refFromProto;
 import static com.dremio.services.nessie.grpc.ProtoUtil.refToProto;
 import static com.dremio.services.nessie.grpc.ProtoUtil.toProto;
-import static com.dremio.services.nessie.grpc.client.GrpcExceptionMapper.handle;
+import static com.google.common.base.Preconditions.checkArgument;
+import static org.projectnessie.api.v2.params.ReferenceResolver.resolveReferencePathElement;
 import static org.projectnessie.services.impl.RefUtil.toReference;
-import static org.projectnessie.services.spi.TreeService.MAX_COMMIT_LOG_ENTRIES;
 
 import java.util.function.Supplier;
 
 import org.projectnessie.api.v1.params.CommitLogParams;
 import org.projectnessie.api.v1.params.EntriesParams;
 import org.projectnessie.api.v1.params.GetReferenceParams;
-import org.projectnessie.api.v1.params.Merge;
 import org.projectnessie.api.v1.params.ReferencesParams;
-import org.projectnessie.api.v1.params.Transplant;
+import org.projectnessie.api.v2.params.ParsedReference;
 import org.projectnessie.model.Branch;
 import org.projectnessie.model.CommitMeta;
 import org.projectnessie.model.Detached;
@@ -55,6 +56,8 @@ import com.dremio.services.nessie.grpc.api.GetReferenceByNameRequest;
 import com.dremio.services.nessie.grpc.api.MergeRequest;
 import com.dremio.services.nessie.grpc.api.MergeResponse;
 import com.dremio.services.nessie.grpc.api.Reference;
+import com.dremio.services.nessie.grpc.api.ReferenceHistoryRequest;
+import com.dremio.services.nessie.grpc.api.ReferenceHistoryResponse;
 import com.dremio.services.nessie.grpc.api.ReferenceResponse;
 import com.dremio.services.nessie.grpc.api.TransplantRequest;
 import com.dremio.services.nessie.grpc.api.TreeServiceGrpc;
@@ -68,9 +71,14 @@ import io.grpc.stub.StreamObserver;
 public class TreeService extends TreeServiceGrpc.TreeServiceImplBase {
 
   private final Supplier<? extends org.projectnessie.services.spi.TreeService> bridge;
+  private final int maxEntriesPerPage;
+  private final int maxCommitLogEntriesPerPage;
 
-  public TreeService(Supplier<? extends org.projectnessie.services.spi.TreeService> bridge) {
+  public TreeService(Supplier<? extends org.projectnessie.services.spi.TreeService> bridge,
+                     int maxEntriesPerPage, int maxCommitLogEntriesPerPage) {
     this.bridge = bridge;
+    this.maxEntriesPerPage = maxEntriesPerPage;
+    this.maxCommitLogEntriesPerPage = maxCommitLogEntriesPerPage;
   }
 
   @Override
@@ -85,7 +93,7 @@ public class TreeService extends TreeServiceGrpc.TreeServiceImplBase {
             params.filter(),
             params.pageToken(),
             new PagedCountingResponseHandler<GetAllReferencesResponse, org.projectnessie.model.Reference>(
-              params.maxRecords()) {
+              params.maxRecords(), maxEntriesPerPage) {
 
               private final GetAllReferencesResponse.Builder response = GetAllReferencesResponse.newBuilder();
 
@@ -115,7 +123,11 @@ public class TreeService extends TreeServiceGrpc.TreeServiceImplBase {
     GetReferenceByNameRequest request, StreamObserver<Reference> observer) {
     handle(() -> {
       GetReferenceParams params = fromProto(request);
-      return refToProto(bridge.get().getReferenceByName(params.getRefName(), params.fetchOption()));
+      ParsedReference reference = resolveReferencePathElement(params.getRefName(), null, params::getRefName);
+      checkArgument(
+        reference.hashWithRelativeSpec() == null,
+        "Hashes are not allowed when fetching a reference by name");
+      return refToProto(bridge.get().getReferenceByName(reference.name(), params.fetchOption()));
     }, observer);
   }
 
@@ -155,7 +167,7 @@ public class TreeService extends TreeServiceGrpc.TreeServiceImplBase {
           throw new IllegalArgumentException("assignTo must be either a Branch or Tag or Detached");
         }
         org.projectnessie.model.Reference assigned = bridge.get().assignReference(
-          fromProto(request.getReferenceType()),
+          fromProto(request::hasReferenceType, () -> fromProto(request.getReferenceType())),
           request.getNamedRef(),
           request.getOldHash(),
           ref);
@@ -168,15 +180,11 @@ public class TreeService extends TreeServiceGrpc.TreeServiceImplBase {
   public void deleteReference(DeleteReferenceRequest request, StreamObserver<ReferenceResponse> observer) {
     handle(
       () -> {
-        String refName = request.getNamedRef();
-        String refHash = request.getHash();
-        bridge.get().deleteReference(fromProto(request.getReferenceType()), refName, refHash);
-        // The backend service allows deleting a reference only when the expected hash is equal
-        // to the current HEAD of the reference. Therefore, we can construct the response object
-        // using input parameters in the successful case.
-        return ReferenceResponse.newBuilder()
-          .setReference(refToProto(request.getReferenceType(), refName, refHash))
-          .build();
+        org.projectnessie.model.Reference deleted = bridge.get().deleteReference(
+          fromProto(request::hasReferenceType, () -> fromProto(request.getReferenceType())),
+          request.getNamedRef(),
+          request.getHash());
+        return ReferenceResponse.newBuilder().setReference(refToProto(deleted)).build();
       },
       observer);
   }
@@ -194,7 +202,7 @@ public class TreeService extends TreeServiceGrpc.TreeServiceImplBase {
           params.filter(),
           params.pageToken(),
           new PagedCountingResponseHandler<CommitLogResponse, LogResponse.LogEntry>(
-            params.maxRecords(), MAX_COMMIT_LOG_ENTRIES) {
+            params.maxRecords(), maxCommitLogEntriesPerPage) {
 
             private final CommitLogResponse.Builder response = CommitLogResponse.newBuilder();
 
@@ -233,7 +241,7 @@ public class TreeService extends TreeServiceGrpc.TreeServiceImplBase {
           params.pageToken(),
           request.getWithContent(),
           new PagedCountingResponseHandler<EntriesResponse, org.projectnessie.model.EntriesResponse.Entry>(
-            params.maxRecords()) {
+            params.maxRecords(), maxEntriesPerPage) {
 
             @Override
             protected boolean doAddEntry(org.projectnessie.model.EntriesResponse.Entry entry) {
@@ -267,20 +275,18 @@ public class TreeService extends TreeServiceGrpc.TreeServiceImplBase {
       () -> {
         String msg = fromProtoMessage(request);
         CommitMeta meta = CommitMeta.fromMessage(msg == null ? "" : msg);
-        Transplant transplant = fromProto(request);
         return toProto(
           bridge.get().transplantCommitsIntoBranch(
             request.getBranchName(),
-            request.getHash(),
+            fromProto(request::hasHash, request::getHash),
             meta,
-            transplant.getHashesToTransplant(),
-            transplant.getFromRefName(),
-            transplant.keepIndividualCommits(),
-            transplant.getKeyMergeModes(),
-            transplant.getDefaultKeyMergeMode(),
-            transplant.isDryRun(),
-            transplant.isFetchAdditionalInfo(),
-            transplant.isReturnConflictAsResult()));
+            request.getHashesToTransplantList(),
+            request.getFromRefName(),
+            fromProtoMergeKeyBehavior(request.getMergeModesList()),
+            fromProto(request::hasDefaultKeyMergeMode, () -> fromProto(request.getDefaultKeyMergeMode())),
+            fromProto(request::hasDryRun, request::getDryRun),
+            fromProto(request::hasFetchAdditionalInfo, request::getFetchAdditionalInfo),
+            fromProto(request::hasReturnConflictAsResult, request::getReturnConflictAsResult)));
       },
       observer);
   }
@@ -288,22 +294,18 @@ public class TreeService extends TreeServiceGrpc.TreeServiceImplBase {
   @Override
   public void mergeRefIntoBranch(MergeRequest request, StreamObserver<MergeResponse> observer) {
     handle(
-      () -> {
-        Merge merge = fromProto(request);
-        return toProto(
-          bridge.get().mergeRefIntoBranch(
-            request.getToBranch(),
-            request.getExpectedHash(),
-            merge.getFromRefName(),
-            merge.getFromHash(),
-            merge.keepIndividualCommits(),
-            fromProto(request::getMessage, request::hasCommitMeta, request::getCommitMeta),
-            merge.getKeyMergeModes(),
-            merge.getDefaultKeyMergeMode(),
-            merge.isDryRun(),
-            merge.isFetchAdditionalInfo(),
-            merge.isReturnConflictAsResult()));
-      },
+      () -> toProto(
+        bridge.get().mergeRefIntoBranch(
+          request.getToBranch(),
+          fromProto(request::hasExpectedHash, request::getExpectedHash),
+          request.getFromRefName(),
+          request.getFromHash(),
+          fromProto(request::getMessage, request::hasCommitMeta, request::getCommitMeta),
+          fromProtoMergeKeyBehavior(request.getMergeModesList()),
+          fromProto(request::hasDefaultKeyMergeMode, () -> fromProto(request.getDefaultKeyMergeMode())),
+          fromProto(request::hasDryRun, request::getDryRun),
+          fromProto(request::hasFetchAdditionalInfo, request::getFetchAdditionalInfo),
+          fromProto(request::hasReturnConflictAsResult, request::getReturnConflictAsResult))),
       observer);
   }
 
@@ -317,5 +319,13 @@ public class TreeService extends TreeServiceGrpc.TreeServiceImplBase {
             Strings.emptyToNull(request.getHash()),
             fromProto(request.getCommitOperations()))),
       observer);
+  }
+
+  @Override
+  public void referenceHistory(ReferenceHistoryRequest request, StreamObserver<ReferenceHistoryResponse> observer) {
+    handle(() -> {
+      Integer scanCommits = fromProto(request::hasHeadCommitsToScan, request::getHeadCommitsToScan);
+      return toProto(bridge.get().getReferenceHistory(request.getNamedRef(), scanCommits));
+    }, observer);
   }
 }

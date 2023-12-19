@@ -125,10 +125,10 @@ describe("Message", () => {
       const instance = shallow(<Message {...commonProps} />).instance();
       const spy = sinon.spy(instance, "setState");
 
-      instance.componentWillReceiveProps({ messageId: "id1" });
+      instance.UNSAFE_componentWillReceiveProps({ messageId: "id1" });
       expect(spy).to.have.not.been.called;
 
-      instance.componentWillReceiveProps({ messageId: "id2" });
+      instance.UNSAFE_componentWillReceiveProps({ messageId: "id2" });
       expect(spy).to.have.been.calledWith({
         dismissed: false,
         showMore: false,
@@ -174,7 +174,9 @@ describe("Message", () => {
         />
       ).instance();
       expect(instance.renderErrorMessageText()).to.eql(
-        <span>{la("There was an error in the Reflection pipeline.")}</span>
+        <span>
+          {laDeprecated("There was an error in the Reflection pipeline.")}
+        </span>
       );
     });
   });

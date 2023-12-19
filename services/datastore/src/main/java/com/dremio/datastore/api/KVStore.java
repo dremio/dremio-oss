@@ -16,6 +16,7 @@
 package com.dremio.datastore.api;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -86,6 +87,22 @@ public interface KVStore<K, V> {
    * Options for FIND operations.
    */
   interface FindOption extends KVStoreOption {}
+
+  /**
+   * Options for INCREMENT operations.
+   */
+  interface IncrementOption extends KVStoreOption {
+    /**
+     * Specialized IncrementOption instance for indicating that a bulkIncrement operation has to be unordered.
+     */
+    IncrementOption USE_UNORDERED_WRITES = new IncrementOption() {};
+
+    // indicates if the bulkIncrement ops has to be order or not.
+    default boolean orderedWrites() {
+      return false;
+    };
+  }
+
 
   /**
    * Return the document associated with the key, or {@code null} if no such entry exists.
@@ -179,6 +196,10 @@ public interface KVStore<K, V> {
     throw new UnsupportedOperationException("Only applicable for MultiTenantKVstore");
   }
 
+   void bulkIncrement(Map<K, List<IncrementCounter>> keysToIncrement, IncrementOption option);
+
+  void bulkDelete(List<K> keysToDelete);
+
   /**
    * Get the name of the KV Store.
    *
@@ -188,7 +209,7 @@ public interface KVStore<K, V> {
 
   /**
    * Deprecated method from the previous KVStore API.
-   * This is added to maintain compatibility with RocksDB and RaaS.
+   * This is added to maintain compatibility with RocksDB.
    *
    * @return KVAdmin of this KVStore.
    */

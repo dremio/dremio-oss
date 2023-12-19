@@ -209,7 +209,7 @@ function fetchDeleteAcceleration(accelerationId, viewId) {
           type: DELETE_ACCELERATION_FAILURE,
           meta: {
             notification: {
-              message: la(
+              message: laDeprecated(
                 "There was an error clearing the Reflections for this dataset."
               ),
               level: "error",

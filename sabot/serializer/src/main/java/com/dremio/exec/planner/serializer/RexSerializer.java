@@ -82,18 +82,18 @@ public final class RexSerializer implements RexVisitor<PRexNode>{
   private final TypeSerde typeSerializer;
   private final RelSerdeRegistry registry;
   private final List<Any> nodes = new ArrayList<>();
-  private final SqlOperatorConverter sqlOperatorConverter;
+  private final SqlOperatorSerde sqlOperatorSerde;
 
   public RexSerializer(
     RexBuilder rexBuilder,
     TypeSerde typeSerializer,
     RelSerdeRegistry registry,
-    SqlOperatorConverter sqlOperatorConverter) {
+    SqlOperatorSerde sqlOperatorSerde) {
     super();
     this.rexBuilder = rexBuilder;
     this.typeSerializer = typeSerializer;
     this.registry = registry;
-    this.sqlOperatorConverter = sqlOperatorConverter;
+    this.sqlOperatorSerde = sqlOperatorSerde;
   }
 
   @Override
@@ -203,7 +203,7 @@ public final class RexSerializer implements RexVisitor<PRexNode>{
         .collect(Collectors.toList()))
       .setDataType(typeSerializer.toProto(call.getType()));
     SqlOperator op = call.getOperator();
-    builder.setSqlOperator(sqlOperatorConverter.toProto(op));
+    builder.setSqlOperator(sqlOperatorSerde.toProto(op));
     if (op instanceof SqlFlattenOperator) {
       builder.setIndex(((SqlFlattenOperator) op).getIndex());
     }
@@ -249,7 +249,7 @@ public final class RexSerializer implements RexVisitor<PRexNode>{
               .map(p -> p.accept(this))
               .collect(Collectors.toList()))
             .setDataType(typeSerializer.toProto(over.getType()))
-            .setSqlOperator(sqlOperatorConverter.toProto(over.getOperator()))
+            .setSqlOperator(sqlOperatorSerde.toProto(over.getOperator()))
             .setRexWindow(builder))
         .build();
   }
@@ -337,7 +337,7 @@ public final class RexSerializer implements RexVisitor<PRexNode>{
 
   @Override
   public PRexNode visitSubQuery(RexSubQuery subQuery) {
-    PRelList pRelList = RelSerializer.serializeList(registry, subQuery.rel, sqlOperatorConverter);
+    PRelList pRelList = RelSerializer.serializeList(registry, subQuery.rel, sqlOperatorSerde);
 
     PRexSubQuery pRexSubQuery = PRexSubQuery.newBuilder()
       .setDataType(typeSerializer.toProto(subQuery.getType()))
@@ -347,7 +347,7 @@ public final class RexSerializer implements RexVisitor<PRexNode>{
         .map(o -> o.accept(this))
         .collect(Collectors.toList()))
       .setSqlOperator(
-        sqlOperatorConverter.toProto(subQuery.getOperator()))
+        sqlOperatorSerde.toProto(subQuery.getOperator()))
       .addAllDetails(pRelList.getNodeList())
       .build();
     return PRexNode.newBuilder().setRexSubquery(pRexSubQuery).build();

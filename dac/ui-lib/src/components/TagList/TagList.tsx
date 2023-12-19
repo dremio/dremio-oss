@@ -82,6 +82,7 @@ type TagListTypes = {
   onTagClick?: any;
   className: string;
   style?: any;
+  maxWidth?: number;
 };
 const TagList = (props: TagListTypes) => {
   const [el, setEl] = useState({ clientWidth: null });
@@ -91,7 +92,7 @@ const TagList = (props: TagListTypes) => {
   };
 
   const countVisibleTags = () => {
-    const { tags } = props;
+    const { tags, maxWidth } = props;
     //These constants are used only in this method and are mostly based on tagClass css
     const MAX_TAG_WIDTH = 100,
       DEFAULT_TAGS_WIDTH_PX = 800,
@@ -99,7 +100,7 @@ const TagList = (props: TagListTypes) => {
       TAG_PADDING_PX = 22,
       MIN_TAG_WIDTH_PX = 35; // width for '...' button
 
-    let remainingWidth = el.clientWidth || DEFAULT_TAGS_WIDTH_PX;
+    let remainingWidth = maxWidth || el.clientWidth || DEFAULT_TAGS_WIDTH_PX;
 
     const totalCount = tags.size;
     let i;

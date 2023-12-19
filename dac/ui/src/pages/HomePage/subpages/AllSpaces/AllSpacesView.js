@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import $ from "jquery";
 import { PureComponent, Fragment } from "react";
 import { connect } from "react-redux";
 import moment from "@app/utils/dayjs";
@@ -25,7 +26,7 @@ import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.modul
 import EntityLink from "@app/pages/HomePage/components/EntityLink";
 import { RestrictedArea } from "@app/components/Auth/RestrictedArea";
 import { manageSpaceRule } from "@app/utils/authUtils";
-import { EntityIcon } from "@app/pages/HomePage/components/EntityIcon";
+import { PureEntityIcon } from "@app/pages/HomePage/components/EntityIcon";
 import { EntityName } from "@app/pages/HomePage/components/EntityName";
 
 import * as allSpacesAndAllSources from "uiTheme/radium/allSpacesAndAllSources";
@@ -43,8 +44,8 @@ import BrowseTable from "../../components/BrowseTable";
 import { tableStyles } from "../../tableStyles";
 import { getSettingsLocation } from "components/Menus/HomePage/AllSpacesMenu";
 import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
-import { FeatureSwitch } from "@app/exports/components/FeatureSwitch/FeatureSwitch";
-import { CATALOG_ARS_ENABLED } from "@app/exports/flags/CATALOG_ARS_ENABLED";
+import { ARSFeatureSwitch } from "@inject/utils/arsUtils";
+import { ENTITY_TYPES } from "@app/constants/Constants";
 
 const mapStateToProps = (state) => ({
   spaces: getSpaces(state),
@@ -73,17 +74,16 @@ export class AllSpacesView extends PureComponent {
         const entityId = item.get("id");
         const itemName = getNameFromRootEntity(item);
         return {
-          rowClassName: itemName,
+          rowClassName: "",
           data: {
             [name.key]: {
               node: () => (
                 <div style={allSpacesAndAllSources.listItem}>
-                  <EntityIcon entityId={entityId} />
+                  <PureEntityIcon entityType={ENTITY_TYPES.space} />
                   <EntityLink entityId={entityId}>
                     <EntityName entityId={entityId} />
                   </EntityLink>
-                  <FeatureSwitch
-                    flag={CATALOG_ARS_ENABLED}
+                  <ARSFeatureSwitch
                     renderEnabled={() => null}
                     renderDisabled={() => <ResourcePin entityId={entityId} />}
                   />
@@ -153,19 +153,9 @@ export class AllSpacesView extends PureComponent {
     ];
   }
 
-  handleSettingsClose(settingsWrap) {
-    $(settingsWrap).parents("tr").removeClass("hovered");
-  }
-
-  handleSettingsOpen(settingsWrap) {
-    $(settingsWrap).parents("tr").addClass("hovered");
-  }
-
   getSettingsBtnByType(menu, item) {
     return (
       <SettingsBtn
-        handleSettingsClose={this.handleSettingsClose.bind(this)}
-        handleSettingsOpen={this.handleSettingsOpen.bind(this)}
         dataQa={item.get("name")}
         menu={menu}
         classStr="main-settings-btn min-btn catalog-btn"

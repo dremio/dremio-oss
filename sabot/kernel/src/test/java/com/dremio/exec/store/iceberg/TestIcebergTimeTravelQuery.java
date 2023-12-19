@@ -32,12 +32,12 @@ import org.junit.Test;
 
 import com.dremio.ArrowDsUtil;
 import com.dremio.TestBuilder;
+import com.dremio.catalog.model.dataset.TableVersionContext;
+import com.dremio.catalog.model.dataset.TableVersionType;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.catalog.TableVersionContext;
-import com.dremio.exec.catalog.TableVersionType;
 import com.dremio.exec.catalog.VersionedDatasetId;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.service.namespace.NamespaceKey;
@@ -93,6 +93,27 @@ public class TestIcebergTimeTravelQuery extends BaseIcebergTable {
     UserExceptionAssert.assertThatThrownBy(() -> test("SELECT * FROM dfs_hadoop.\"%s\" AT SNAPSHOT '%d'",
         tableFolder.toPath(), 345))
       .hasMessageContaining("the provided snapshot ID '%d' is invalid", 345)
+      .hasErrorType(UserBitShared.DremioPBError.ErrorType.VALIDATION);
+  }
+
+  @Test
+  public void atBranch() {
+    UserExceptionAssert.assertThatThrownBy(() -> test("SELECT * FROM dfs_hadoop.\"%s\" AT BRANCH foo", tableFolder.toPath(), 345))
+      .hasMessageContaining("does not support AT BRANCH/TAG/COMMIT specification")
+      .hasErrorType(UserBitShared.DremioPBError.ErrorType.VALIDATION);
+  }
+
+  @Test
+  public void atTag() {
+    UserExceptionAssert.assertThatThrownBy(() -> test("SELECT * FROM dfs_hadoop.\"%s\" AT TAG foo", tableFolder.toPath(), 345))
+      .hasMessageContaining("does not support AT BRANCH/TAG/COMMIT specification")
+      .hasErrorType(UserBitShared.DremioPBError.ErrorType.VALIDATION);
+  }
+
+  @Test
+  public void atCommit() {
+    UserExceptionAssert.assertThatThrownBy(() -> test("SELECT * FROM dfs_hadoop.\"%s\" AT COMMIT foo", tableFolder.toPath(), 345))
+      .hasMessageContaining("does not support AT BRANCH/TAG/COMMIT specification")
       .hasErrorType(UserBitShared.DremioPBError.ErrorType.VALIDATION);
   }
 

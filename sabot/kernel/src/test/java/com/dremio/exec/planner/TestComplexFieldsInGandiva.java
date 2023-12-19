@@ -101,7 +101,7 @@ public class TestComplexFieldsInGandiva extends PlanTestBase {
     testBuilder()
       .sqlQuery(query)
       .unOrdered()
-      .baselineColumns("d", "d1", "c")
+      .baselineColumns("d", "d0", "c")
       .baselineValues(1000L, 100L, 10L)
       .go();
   }
@@ -124,7 +124,7 @@ public class TestComplexFieldsInGandiva extends PlanTestBase {
     testBuilder()
       .sqlQuery(query)
       .unOrdered()
-      .baselineColumns("d", "d1", "c")
+      .baselineColumns("d", "d0", "c")
       .baselineValues(1000L, 100L, 10L)
       .go();
   }

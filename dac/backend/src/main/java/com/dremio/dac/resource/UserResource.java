@@ -39,9 +39,9 @@ import javax.ws.rs.core.SecurityContext;
 
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
-import com.dremio.dac.homefiles.HomeFileTool;
 import com.dremio.dac.model.common.DACUnauthorizedException;
 import com.dremio.dac.model.usergroup.UserForm;
+import com.dremio.dac.model.usergroup.UserLite;
 import com.dremio.dac.model.usergroup.UserName;
 import com.dremio.dac.model.usergroup.UserResourcePath;
 import com.dremio.dac.model.usergroup.UserUI;
@@ -49,6 +49,7 @@ import com.dremio.dac.server.GenericErrorMessage;
 import com.dremio.dac.service.errors.ClientErrorException;
 import com.dremio.dac.service.users.UserServiceHelper;
 import com.dremio.dac.util.ResourceUtil;
+import com.dremio.dac.util.UserUtil;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.users.SimpleUser;
@@ -69,14 +70,12 @@ public class UserResource {
   private final NamespaceService namespaceService;
   private final UserServiceHelper userServiceHelper;
   private final SecurityContext securityContext;
-  private final HomeFileTool fileStore;
 
   @Inject
-  public UserResource(UserService userService, NamespaceService namespaceService, HomeFileTool fileStore,
+  public UserResource(UserService userService, NamespaceService namespaceService,
                       UserServiceHelper userServiceHelper, @Context SecurityContext securityContext) {
     this.userService = userService;
     this.namespaceService = namespaceService;
-    this.fileStore = fileStore;
     this.userServiceHelper = userServiceHelper;
     this.securityContext = securityContext;
   }
@@ -91,8 +90,12 @@ public class UserResource {
   @RolesAllowed({"admin", "user"})
   @GET
   @Produces(MediaType.APPLICATION_JSON)
+  // This API is open for PUBLIC role as it's used by UI to search a user.Default behavior is to return minimum data about the user.
+  // Use v3/user/{id} for a detailed response.
   public UserUI getUser(@PathParam("userName") UserName userName) throws UserNotFoundException, DACUnauthorizedException {
-    return new UserUI(new UserResourcePath(userName), userName, userService.getUser(userName.getName()));
+    final User user = userService.getUser(userName.getName());
+    UserLite userLite = UserUtil.toUserLite(user);
+    return new UserUI(new UserResourcePath(userName), userName, userLite);
   }
 
   @RolesAllowed({"admin", "user"})

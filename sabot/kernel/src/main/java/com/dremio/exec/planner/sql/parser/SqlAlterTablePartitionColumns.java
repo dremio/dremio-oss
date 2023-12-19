@@ -46,24 +46,30 @@ public class SqlAlterTablePartitionColumns extends SqlAlterTable {
 
     @Override
     public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 3);
+      Preconditions.checkArgument(operands.length == 4);
 
       return new SqlAlterTablePartitionColumns(
         pos,
         (SqlIdentifier) operands[0],
         (SqlLiteral) operands[1],
-        (SqlPartitionTransform) operands[2]);
+        (SqlPartitionTransform) operands[2],
+        (SqlTableVersionSpec) operands[3]);
     }
   };
 
   private final SqlLiteral mode;
   private final SqlPartitionTransform partitionTransform;
+  private final SqlTableVersionSpec tableVersionSpec;
 
-  public SqlAlterTablePartitionColumns(SqlParserPos pos, SqlIdentifier tableName, SqlLiteral mode,
-                                       SqlPartitionTransform partitionTransform) {
+  public SqlAlterTablePartitionColumns(SqlParserPos pos,
+                                       SqlIdentifier tableName,
+                                       SqlLiteral mode,
+                                       SqlPartitionTransform partitionTransform,
+                                       SqlTableVersionSpec tableVersionSpec) {
     super(pos, tableName);
     this.mode = Preconditions.checkNotNull(mode);
     this.partitionTransform = Preconditions.checkNotNull(partitionTransform);
+    this.tableVersionSpec = Preconditions.checkNotNull(tableVersionSpec);
   }
 
   @Override
@@ -82,7 +88,7 @@ public class SqlAlterTablePartitionColumns extends SqlAlterTable {
 
   @Override
   public List<SqlNode> getOperandList() {
-    return Lists.newArrayList(tblName, mode, partitionTransform);
+    return Lists.newArrayList(tblName, mode, partitionTransform, tableVersionSpec);
   }
 
   public Mode getMode() {
@@ -91,5 +97,8 @@ public class SqlAlterTablePartitionColumns extends SqlAlterTable {
 
   public PartitionTransform getPartitionTransform() {
     return PartitionTransform.from(partitionTransform);
+  }
+  public SqlTableVersionSpec getSqlTableVersionSpec() {
+    return tableVersionSpec;
   }
 }

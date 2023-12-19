@@ -15,7 +15,7 @@
  */
 import { shallow } from "enzyme";
 import Immutable from "immutable";
-import AccelerationGridController from "./AccelerationGridController";
+import { AccelerationGridController } from "./AccelerationGridController";
 
 function setReduxFormHandlers(list) {
   list.forEach((layout) => {

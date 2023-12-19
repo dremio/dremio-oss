@@ -16,18 +16,24 @@
 package com.dremio.services.nessie.grpc;
 
 import static com.dremio.services.nessie.grpc.ProtoUtil.fromProto;
+import static com.dremio.services.nessie.grpc.ProtoUtil.fromProtoMergeKeyBehavior;
 import static com.dremio.services.nessie.grpc.ProtoUtil.refFromProto;
 import static com.dremio.services.nessie.grpc.ProtoUtil.refFromProtoResponse;
 import static com.dremio.services.nessie.grpc.ProtoUtil.refToProto;
 import static com.dremio.services.nessie.grpc.ProtoUtil.toProto;
 import static com.dremio.services.nessie.grpc.ProtoUtil.toProtoDiffRequest;
 import static com.dremio.services.nessie.grpc.ProtoUtil.toProtoEntriesRequest;
+import static com.dremio.services.nessie.grpc.ProtoUtil.toProtoReferenceHistoryRequest;
+import static com.dremio.services.nessie.grpc.ProtoUtil.toProtoRepoConfigRequest;
+import static com.dremio.services.nessie.grpc.ProtoUtil.toProtoRepoConfigResponse;
+import static com.dremio.services.nessie.grpc.ProtoUtil.toProtoRepoConfigUpdate;
+import static com.dremio.services.nessie.grpc.ProtoUtil.toProtoUpdateRepositoryConfigResponse;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.groups.Tuple.tuple;
+import static org.projectnessie.model.ReferenceHistoryState.referenceHistoryElement;
+import static org.projectnessie.model.RepositoryConfig.Type.GARBAGE_COLLECTOR;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -35,6 +41,8 @@ import java.util.Collections;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.projectnessie.api.v1.params.CommitLogParams;
 import org.projectnessie.api.v1.params.EntriesParams;
 import org.projectnessie.api.v1.params.GetReferenceParams;
@@ -57,6 +65,7 @@ import org.projectnessie.model.Detached;
 import org.projectnessie.model.DiffResponse.DiffEntry;
 import org.projectnessie.model.EntriesResponse.Entry;
 import org.projectnessie.model.FetchOption;
+import org.projectnessie.model.GarbageCollectorConfig;
 import org.projectnessie.model.GetMultipleContentsRequest;
 import org.projectnessie.model.GetMultipleContentsResponse;
 import org.projectnessie.model.GetMultipleContentsResponse.ContentWithKey;
@@ -69,6 +78,7 @@ import org.projectnessie.model.ImmutableDeltaLakeTable;
 import org.projectnessie.model.ImmutableDiffEntry;
 import org.projectnessie.model.ImmutableDiffResponse;
 import org.projectnessie.model.ImmutableEntry;
+import org.projectnessie.model.ImmutableGarbageCollectorConfig;
 import org.projectnessie.model.ImmutableGetNamespacesResponse;
 import org.projectnessie.model.ImmutableLogEntry;
 import org.projectnessie.model.ImmutableLogResponse;
@@ -78,6 +88,8 @@ import org.projectnessie.model.ImmutableNamespace;
 import org.projectnessie.model.ImmutableNessieConfiguration;
 import org.projectnessie.model.ImmutableOperations;
 import org.projectnessie.model.ImmutableRefLogResponseEntry;
+import org.projectnessie.model.ImmutableReferenceHistoryResponse;
+import org.projectnessie.model.ImmutableReferenceHistoryState;
 import org.projectnessie.model.ImmutableReferenceMetadata;
 import org.projectnessie.model.ImmutableTag;
 import org.projectnessie.model.LogResponse;
@@ -95,6 +107,7 @@ import org.projectnessie.model.Reference;
 import org.projectnessie.model.ReferenceMetadata;
 import org.projectnessie.model.Tag;
 
+import com.dremio.services.nessie.grpc.api.CommitConsistency;
 import com.dremio.services.nessie.grpc.api.CommitLogEntry;
 import com.dremio.services.nessie.grpc.api.CommitLogRequest;
 import com.dremio.services.nessie.grpc.api.CommitLogResponse;
@@ -112,8 +125,14 @@ import com.dremio.services.nessie.grpc.api.MultipleContentsRequest;
 import com.dremio.services.nessie.grpc.api.MultipleContentsResponse;
 import com.dremio.services.nessie.grpc.api.RefLogParams;
 import com.dremio.services.nessie.grpc.api.RefLogResponse;
+import com.dremio.services.nessie.grpc.api.ReferenceHistoryRequest;
 import com.dremio.services.nessie.grpc.api.ReferenceResponse;
 import com.dremio.services.nessie.grpc.api.ReferenceType;
+import com.dremio.services.nessie.grpc.api.RepositoryConfigRequest;
+import com.dremio.services.nessie.grpc.api.RepositoryConfigResponse;
+import com.dremio.services.nessie.grpc.api.TransplantRequest;
+import com.dremio.services.nessie.grpc.api.UpdateRepositoryConfigRequest;
+import com.dremio.services.nessie.grpc.api.UpdateRepositoryConfigResponse;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -1121,27 +1140,33 @@ public class ProtoUtilTest {
     return ProtoUtil.fromProto(request::getMessage, request::hasCommitMeta, request::getCommitMeta);
   }
 
+  private MergeRequest mergeToProto(String branchName, String hash, Merge merge, String message, CommitMeta commitMeta) {
+    //noinspection deprecation
+    return toProto(branchName, hash, message, commitMeta, merge.getFromRefName(), merge.getFromHash(),
+      merge.keepIndividualCommits(), merge.isDryRun(), merge.isReturnConflictAsResult(), merge.isFetchAdditionalInfo(),
+      merge.getDefaultKeyMergeMode(), merge.getKeyMergeModes());
+  }
+
   @Test
   public void mergeConversion() {
-    assertThatThrownBy(() -> fromProto((com.dremio.services.nessie.grpc.api.MergeRequest) null))
+    assertThatThrownBy(() -> fromProtoMergeKeyBehavior(null))
       .isInstanceOf(IllegalArgumentException.class)
-      .hasMessage("MergeRequest must be non-null");
-
-    assertThatThrownBy(() -> toProto("main", "x", (Merge) null, null, null))
-      .isInstanceOf(IllegalArgumentException.class)
-      .hasMessage("Merge must be non-null");
+      .hasMessage("MergeModesList must be non-null");
 
     String hash = "1234567890123456";
 
     Merge merge = ImmutableMerge.builder().fromRefName("main").fromHash(hash).build();
-    assertThat(fromProto(toProto("y", "z", merge, null, null))).isEqualTo(merge);
-    assertThat(fromProto(toProto("y", "z", merge, "msg", null))).isEqualTo(merge);
-    assertThat(toCommitMeta(toProto("y", "z", merge, null, null)).getMessage()).isEmpty();
-    assertThat(toCommitMeta(toProto("y", "z", merge, "m1", null)).getMessage()).isEqualTo("m1");
-    assertThat(toCommitMeta(toProto("y", "z", merge, "m1", CommitMeta.fromMessage(""))).getMessage()).isEqualTo("m1");
-    assertThat(toCommitMeta(toProto("y", "z", merge, "m1", CommitMeta.fromMessage("m2"))).getMessage()).isEqualTo("m2");
-    assertThat(toCommitMeta(toProto("y", "z", merge, "", CommitMeta.fromMessage("m2"))).getMessage()).isEqualTo("m2");
-    assertThat(toCommitMeta(toProto("y", "z", merge, "", CommitMeta.builder().author("a2").message("").build()))
+    MergeRequest request = mergeToProto("y", "z", merge, null, null);
+    assertThat(request.getFromRefName()).isEqualTo("main");
+    assertThat(request.getFromHash()).isEqualTo(hash);
+    assertThat(request.hasFetchAdditionalInfo()).isFalse();
+    assertThat(fromProtoMergeKeyBehavior(request.getMergeModesList())).isEmpty();
+    assertThat(toCommitMeta(request).getMessage()).isEmpty();
+    assertThat(toCommitMeta(mergeToProto("y", "z", merge, "m1", null)).getMessage()).isEqualTo("m1");
+    assertThat(toCommitMeta(mergeToProto("y", "z", merge, "m1", CommitMeta.fromMessage(""))).getMessage()).isEqualTo("m1");
+    assertThat(toCommitMeta(mergeToProto("y", "z", merge, "m1", CommitMeta.fromMessage("m2"))).getMessage()).isEqualTo("m2");
+    assertThat(toCommitMeta(mergeToProto("y", "z", merge, "", CommitMeta.fromMessage("m2"))).getMessage()).isEqualTo("m2");
+    assertThat(toCommitMeta(mergeToProto("y", "z", merge, "", CommitMeta.builder().author("a2").message("").build()))
       .getAuthor()).isEqualTo("a2");
 
     Merge mergeWithKeepingCommits = ImmutableMerge.builder()
@@ -1149,7 +1174,7 @@ public class ProtoUtilTest {
       .fromRefName("main")
       .fromHash(hash)
       .build();
-    assertThat(fromProto(toProto("y", "z", mergeWithKeepingCommits, null, null))).isEqualTo(mergeWithKeepingCommits);
+    assertThat(mergeToProto("y", "z", mergeWithKeepingCommits, null, null).getKeepIndividualCommits()).isTrue();
 
     Merge mergeWithExtraInfo = ImmutableMerge.builder()
       .from(mergeWithKeepingCommits)
@@ -1163,35 +1188,42 @@ public class ProtoUtilTest {
       .isDryRun(true)
       .isReturnConflictAsResult(true)
       .build();
-    assertThat(fromProto(toProto("y", "z", mergeWithExtraInfo, null, null))).isEqualTo(mergeWithExtraInfo);
+    MergeRequest requestWithExtraInfo = mergeToProto("y", "z", mergeWithExtraInfo, null, null);
+    assertThat(fromProto(requestWithExtraInfo.getDefaultKeyMergeMode()))
+      .isEqualTo(org.projectnessie.model.MergeBehavior.FORCE);
+    assertThat(fromProtoMergeKeyBehavior(requestWithExtraInfo.getMergeModesList()))
+      .isEqualTo(mergeWithExtraInfo.getKeyMergeModes());
+    assertThat(requestWithExtraInfo.getFetchAdditionalInfo()).isTrue();
+    assertThat(requestWithExtraInfo.getDryRun()).isTrue();
+    assertThat(requestWithExtraInfo.getReturnConflictAsResult()).isTrue();
+  }
+
+  private static TransplantRequest transplantToProto(String branchName, String hash, String message,
+                                                     Transplant transplant) {
+    return toProto(branchName, hash, message, transplant.getFromRefName(), transplant.getHashesToTransplant(),
+      transplant.keepIndividualCommits(), transplant.isDryRun(), transplant.isReturnConflictAsResult(),
+      transplant.isFetchAdditionalInfo(), transplant.getDefaultKeyMergeMode(), transplant.getKeyMergeModes());
   }
 
   @Test
   public void transplant() {
-    assertThatThrownBy(() -> fromProto((com.dremio.services.nessie.grpc.api.TransplantRequest) null))
-      .isInstanceOf(IllegalArgumentException.class)
-      .hasMessage("TransplantRequest must be non-null");
-
-    assertThatThrownBy(() -> toProto("main", "x", "msg", null))
-      .isInstanceOf(IllegalArgumentException.class)
-      .hasMessage("Transplant must be non-null");
-
     String hash = "1234567890123456";
 
-    Transplant transplant = ImmutableTransplant.builder().fromRefName("main")
+    TransplantRequest request = transplantToProto("y", "z", "msg", ImmutableTransplant.builder()
+      .fromRefName("main")
       .hashesToTransplant(Collections.singletonList(hash))
-      .build();
-
-    assertThat(fromProto(toProto("y", "z", "msg", transplant))).isEqualTo(transplant);
+      .build());
+    assertThat(request.getFromRefName()).isEqualTo("main");
+    assertThat(request.getHashesToTransplantList()).isEqualTo(Collections.singletonList(hash));
 
     Transplant transplantWithKeepingCommits = ImmutableTransplant.builder().fromRefName("main")
       .hashesToTransplant(Collections.singletonList(hash))
       .keepIndividualCommits(true)
       .build();
 
-    assertThat(fromProto(toProto("y", "z", "msg", transplantWithKeepingCommits))).isEqualTo(transplantWithKeepingCommits);
+    assertThat(transplantToProto("y", "z", "msg", transplantWithKeepingCommits).getKeepIndividualCommits()).isTrue();
 
-    Transplant transplantWithExtraInfo = ImmutableTransplant.builder()
+    TransplantRequest requestWithExtraProps = transplantToProto("y", "z", "msg", ImmutableTransplant.builder()
       .from(transplantWithKeepingCommits)
       .isReturnConflictAsResult(true)
       .isFetchAdditionalInfo(true)
@@ -1202,8 +1234,12 @@ public class ProtoUtilTest {
         .build())
       .isDryRun(true)
       .isReturnConflictAsResult(true)
-      .build();
-    assertThat(fromProto(toProto("y", "z", "msg", transplantWithExtraInfo))).isEqualTo(transplantWithExtraInfo);
+      .build());
+    assertThat(fromProto(requestWithExtraProps.getDefaultKeyMergeMode()))
+      .isEqualTo(org.projectnessie.model.MergeBehavior.FORCE);
+    assertThat(requestWithExtraProps.getReturnConflictAsResult()).isTrue();
+    assertThat(requestWithExtraProps.getFetchAdditionalInfo()).isTrue();
+    assertThat(requestWithExtraProps.getDryRun()).isTrue();
   }
 
   @Test
@@ -1283,39 +1319,6 @@ public class ProtoUtilTest {
   }
 
   @Test
-  public void legacyCommitResponse() throws IOException {
-    ReferenceMetadata meta = ImmutableReferenceMetadata.builder().numCommitsAhead(1).numCommitsBehind(2).build();
-    Branch branch = Branch.builder().name("name").hash("1122334455667788").metadata(meta).build();
-
-    // Legacy servers return a Branch from commitMultipleOperations()
-    com.dremio.services.nessie.grpc.api.Branch protoBranch = toProto(branch);
-    ByteArrayOutputStream responsePayload = new ByteArrayOutputStream();
-    protoBranch.writeTo(responsePayload);
-
-    CommitResponse commitResponse = fromProto(
-            com.dremio.services.nessie.grpc.api.CommitResponse.parseFrom(responsePayload.toByteArray()));
-    assertThat(commitResponse.getTargetBranch()).isEqualTo(branch);
-    assertThat(commitResponse.getAddedContents()).isNull();
-  }
-
-  @Test
-  public void legacyCommitResponseReader() throws IOException {
-    ReferenceMetadata meta = ImmutableReferenceMetadata.builder().numCommitsAhead(1).numCommitsBehind(2).build();
-    Branch branch = Branch.builder().name("name").hash("1122334455667788").metadata(meta).build();
-
-    // Legacy clients should be able to read responses from new commitMultipleOperations() implementations as `Branch`
-    CommitResponse commitResponse = CommitResponse.builder()
-      .targetBranch(branch)
-      .build();
-    ByteArrayOutputStream responsePayload = new ByteArrayOutputStream();
-    toProto(commitResponse).writeTo(responsePayload);
-
-    Branch branchResponse = fromProto(
-      com.dremio.services.nessie.grpc.api.Branch.parseFrom(responsePayload.toByteArray()));
-    assertThat(branchResponse).isEqualTo(branch);
-  }
-
-  @Test
   public void commitResponse() {
     assertThatThrownBy(() -> toProto((CommitResponse) null))
             .isInstanceOf(IllegalArgumentException.class)
@@ -1345,5 +1348,96 @@ public class ProtoUtilTest {
     assertThat(fromProto(toProto(commitResponse)).getAddedContents())
             .extracting(AddedContent::getKey, AddedContent::contentId)
             .containsExactly(tuple(key1, "abc"), tuple(key2, "def"));
+  }
+
+  @Test
+  public void repoConfigRequest() {
+    assertThatThrownBy(() -> toProtoRepoConfigRequest(null))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("RepositoryConfig.Type must be non-null");
+
+    assertThatThrownBy(() -> toProtoRepoConfigResponse(null))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessage("Configs must be non-null");
+
+    assertThatThrownBy(() -> fromProto((RepositoryConfigResponse) null))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("RepositoryConfigResponse must be non-null");
+
+    RepositoryConfigRequest request = toProtoRepoConfigRequest(Collections.singletonList(GARBAGE_COLLECTOR));
+    assertThat(request.getTypeNameList()).containsExactly(GARBAGE_COLLECTOR.name());
+
+    org.projectnessie.model.RepositoryConfigResponse response = fromProto(toProtoRepoConfigResponse(
+      Collections.singletonList(ImmutableGarbageCollectorConfig.builder().build())));
+
+    assertThat(response.getConfigs()).hasSize(1);
+    assertThat(response.getConfigs().get(0).getType().name()).isEqualTo("GARBAGE_COLLECTOR");
+  }
+
+  @Test
+  public void repoConfigUpdate() {
+    assertThatThrownBy(() -> toProtoRepoConfigUpdate(null))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("RepositoryConfig must be non-null");
+
+    assertThatThrownBy(() -> fromProto((UpdateRepositoryConfigRequest) null))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("UpdateRepositoryConfigRequest must be non-null");
+
+    assertThatThrownBy(() -> fromProto((UpdateRepositoryConfigResponse) null))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("UpdateRepositoryConfigResponse must be non-null");
+
+    GarbageCollectorConfig config = ImmutableGarbageCollectorConfig.builder().build();
+
+    assertThat(fromProto(toProtoRepoConfigUpdate(config))).isEqualTo(config);
+    assertThat(fromProto(toProtoUpdateRepositoryConfigResponse(config)).getPrevious()).isEqualTo(config);
+    assertThat(fromProto(toProtoUpdateRepositoryConfigResponse(null)).getPrevious()).isNull();
+  }
+
+  @Test
+  public void referenceHistoryRequest() {
+    assertThat(toProtoReferenceHistoryRequest("a@112233445566^2", null))
+      .extracting(ReferenceHistoryRequest::getNamedRef, ReferenceHistoryRequest::hasHeadCommitsToScan)
+      .contains("a@112233445566^2", false);
+
+    assertThat(toProtoReferenceHistoryRequest("ref1", 123))
+      .extracting(ReferenceHistoryRequest::getNamedRef, ReferenceHistoryRequest::getHeadCommitsToScan)
+      .contains("ref1", 123);
+  }
+
+  @Test
+  public void referenceHistoryResponse() {
+    ImmutableReferenceHistoryResponse response = ImmutableReferenceHistoryResponse.builder()
+      .reference(Branch.of("ref1", null))
+      .commitLogConsistency(org.projectnessie.model.CommitConsistency.COMMIT_CONSISTENT)
+      .current(referenceHistoryElement("1122334455667788",
+        org.projectnessie.model.CommitConsistency.COMMIT_INCONSISTENT,
+        CommitMeta.fromMessage("test-commit-meta-1")))
+      .addPrevious(ImmutableReferenceHistoryState.builder()
+        .commitHash("2211334455667788")
+        .commitConsistency(org.projectnessie.model.CommitConsistency.COMMIT_CONTENT_INCONSISTENT)
+        .build())
+      .addPrevious(referenceHistoryElement("2233114455667788",
+        org.projectnessie.model.CommitConsistency.NOT_CHECKED,
+        CommitMeta.fromMessage("test-commit-meta-2")))
+      .commitLogConsistency(org.projectnessie.model.CommitConsistency.NOT_CHECKED)
+      .build();
+    assertThat(fromProto(toProto(response))).isEqualTo(response);
+  }
+
+  @ParameterizedTest
+  @EnumSource(org.projectnessie.model.CommitConsistency.class)
+  public void commitConsistency(org.projectnessie.model.CommitConsistency c) {
+    assertThat(fromProto(toProto(c))).isEqualTo(c);
+  }
+
+  @Test
+  public void commitConsistencyDefaults() {
+    assertThat(fromProto(CommitConsistency.getDefaultInstance()))
+      .isEqualTo(org.projectnessie.model.CommitConsistency.NOT_CHECKED);
+
+    assertThat(fromProto(CommitConsistency.newBuilder().setValue("_unknown_").build()))
+      .isEqualTo(org.projectnessie.model.CommitConsistency.NOT_CHECKED);
   }
 }

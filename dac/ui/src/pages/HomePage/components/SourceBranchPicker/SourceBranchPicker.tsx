@@ -18,7 +18,10 @@ import {
   NessieContext,
 } from "@app/pages/NessieHomePage/utils/context";
 import { NessieRootState } from "@app/types/nessie";
-import { fetchDefaultReferenceIfNeeded as fetchDefaultReferenceIfNeededAction } from "@app/actions/nessie/nessie";
+import {
+  fetchDefaultReferenceIfNeeded as fetchDefaultReferenceIfNeededAction,
+  SetReferenceAction,
+} from "@app/actions/nessie/nessie";
 import { connect } from "react-redux";
 import { useEffect, useMemo, useRef } from "react";
 import { isDefaultReferenceLoading } from "@app/selectors/nessie/nessie";
@@ -42,7 +45,7 @@ type SourceBranchPickerProps = {
   position?: any;
   prefix?: string;
   redirect?: boolean;
-  onApply?: () => void;
+  onApply?: (stateKey: string, state: SetReferenceAction["payload"]) => void;
 };
 
 function SourceBranchPicker({

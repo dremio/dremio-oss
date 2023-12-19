@@ -47,6 +47,7 @@ message PRelNode {
     PLogicalMatch logical_match = 14;
     PLogicalIntersect logical_intersect = 15;
     PLogicalMinus logical_minus = 16;
+    PLogicalTableFunctionScan logical_table_function_scan = 17;
   }
 }
 
@@ -211,6 +212,7 @@ message PCollect {
 message PUncollect {
   PSingleRel single_rel = 1;
   bool with_ordinality = 2;
+  repeated string item_aliases = 3;
 }
 
 message PSample {
@@ -253,4 +255,18 @@ message PLogicalIntersect {
 message PLogicalMinus {
   repeated int32 inputs = 1;
   bool all = 2;
+}
+
+message PRelColumnMapping {
+  int32 iOutputColumn = 1;
+  int32 iInputRel = 2;
+  int32 iInputColumn = 3;
+  bool derived = 4;
+}
+
+message PLogicalTableFunctionScan {
+  repeated int32 inputs = 1;
+  PRexNode rexCall = 2;
+  PRelDataType rowType = 3;
+  repeated PRelColumnMapping columnMappings = 4;
 }

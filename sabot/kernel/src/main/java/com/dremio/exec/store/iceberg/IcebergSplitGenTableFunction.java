@@ -33,7 +33,6 @@ import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.complex.impl.NullableStructWriter;
 import org.apache.arrow.vector.util.TransferPair;
-import org.apache.iceberg.FileFormat;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.BasePath;
@@ -49,6 +48,8 @@ import com.dremio.exec.store.dfs.AbstractTableFunction;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
+import com.dremio.service.namespace.file.proto.FileType;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Streams;
@@ -77,18 +78,40 @@ public class IcebergSplitGenTableFunction extends AbstractTableFunction {
   private PartitionProtobuf.NormalizedPartitionInfo partitionInfo;
   private ArrowBuf buf;
   private long currentDataFileOffset;
+  private final FileType fileType;
 
   public IcebergSplitGenTableFunction(FragmentExecutionContext fragmentExecutionContext, OperatorContext context,
       TableFunctionConfig functionConfig) {
     super(context, functionConfig);
-
     TableFunctionContext functionContext = functionConfig.getFunctionContext();
+    fileType = getFileType(functionContext);
     byte[] extendedProperty = functionContext.getExtendedProperty() != null ?
         functionContext.getExtendedProperty().toByteArray() : null;
     SupportsInternalIcebergTable plugin = IcebergUtils.getSupportsInternalIcebergTablePlugin(fragmentExecutionContext,
         functionContext.getPluginId());
     splitGenerator = new BlockBasedSplitGenerator(context, plugin, extendedProperty,
         functionContext.isConvertedIcebergDataset());
+  }
+
+  /**
+   * Extract file format from TableFunctionContext
+   * Special handle cases where it is missing or
+   * cases where it is FileType such as ICEBERG
+   */
+  @VisibleForTesting
+  static FileType getFileType(TableFunctionContext functionContext) {
+    FileType result = null;
+    if(functionContext.getFormatSettings() != null &&
+      functionContext.getFormatSettings().getType() != null) {
+      result = functionContext.getFormatSettings().getType();
+    }
+    //If missing we return the default which is PARQUET
+    //ICEBERG is not a file format that splitGenerator.getSplitAndPartitionInfo accepts
+    //We only support Parquet with ICEBERG, so we return Parquet here
+    if(result == null || FileType.ICEBERG.equals(result)){
+      result = FileType.PARQUET;
+    }
+    return result;
   }
 
   @Override
@@ -124,6 +147,10 @@ public class IcebergSplitGenTableFunction extends AbstractTableFunction {
     dataFilePath = new String(inputDataFilePath.get(row), StandardCharsets.UTF_8);
     fileSize = inputFileSize.get(row);
     partitionInfo = IcebergSerDe.deserializeFromByteArray(inputPartitionInfo.get(row));
+    if (partitionInfo == null) {
+      // create an empty partitionInfo
+      partitionInfo = PartitionProtobuf.NormalizedPartitionInfo.newBuilder().setId(String.valueOf(1)).build();
+    }
   }
 
   @Override
@@ -134,7 +161,7 @@ public class IcebergSplitGenTableFunction extends AbstractTableFunction {
     final String path = PathUtils.withoutQueryParams(dataFilePath);
 
     List<SplitAndPartitionInfo> splits = splitGenerator.getSplitAndPartitionInfo(maxRecords, partitionInfo, path,
-        currentDataFileOffset, fileSize, version, FileFormat.PARQUET.toString(), splitsIdentity);
+        currentDataFileOffset, fileSize, version, fileType.toString(), splitsIdentity);
     currentDataFileOffset = splitGenerator.getCurrentOffset();
     Preconditions.checkState(splits.size() == splitsIdentity.size(),
         "Splits count is not same as splits identity count");

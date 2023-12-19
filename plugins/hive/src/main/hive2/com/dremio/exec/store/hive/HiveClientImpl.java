@@ -249,7 +249,13 @@ class HiveClientImpl implements HiveClient {
       return null;
     }
 
-    TableType type = TableType.valueOf(table.getTableType());
+    String tableType = table.getTableType();
+    if (tableType == null) {
+      throw UserException.sourceInBadState()
+        .message("Table %s.%s is missing table type", dbName, tableName)
+        .buildSilently();
+    }
+    TableType type = TableType.valueOf(tableType);
     switch (type) {
       case EXTERNAL_TABLE:
       case MANAGED_TABLE:

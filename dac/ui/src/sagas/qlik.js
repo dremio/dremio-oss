@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import Immutable from "immutable";
 import { call, put, race, select, take, takeEvery } from "redux-saga/effects";
 import qsocks from "qsocks";
 
@@ -181,10 +182,12 @@ export function* requestPassword() {
   let action;
   const passwordPromise = new Promise((resolve, reject) => {
     action = showConfirmationDialog({
-      title: la("Qlik Sense"),
-      confirmText: la("Continue"),
-      text: la("Qlik Sense requires your Dremio password to continue:"),
-      promptLabel: la("Password"),
+      title: laDeprecated("Qlik Sense"),
+      confirmText: laDeprecated("Continue"),
+      text: laDeprecated(
+        "Qlik Sense requires your Dremio password to continue:"
+      ),
+      promptLabel: laDeprecated("Password"),
       showPrompt: true,
       promptFieldProps: {
         type: "password",
@@ -236,15 +239,15 @@ function createQlikSheet(qlikDoc) {
     columns: 24,
     rows: 12,
     cells: [],
-    title: la("Default"),
-    description: la("Default sheet created by Dremio"),
+    title: laDeprecated("Default"),
+    description: laDeprecated("Default sheet created by Dremio"),
     qInfo: {
       qId: "sheet01",
       qType: "sheet",
     },
     qMetaDef: {
-      title: la("Default"),
-      description: la("Default sheet created by Dremio"),
+      title: laDeprecated("Default"),
+      description: laDeprecated("Default sheet created by Dremio"),
     },
   });
 }

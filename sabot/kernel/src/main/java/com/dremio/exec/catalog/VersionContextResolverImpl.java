@@ -19,10 +19,14 @@ import javax.validation.constraints.NotNull;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
 
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.store.NessieReferenceException;
 import com.dremio.exec.store.NoDefaultBranchException;
 import com.dremio.exec.store.ReferenceConflictException;
 import com.dremio.exec.store.ReferenceNotFoundException;
+import com.dremio.exec.store.ReferenceTypeConflictException;
 import com.dremio.exec.store.StoragePlugin;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -34,6 +38,8 @@ public class VersionContextResolverImpl implements VersionContextResolver {
 
   private final PluginRetriever pluginRetriever;
 
+
+  @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
   private final LoadingCache<ImmutablePair<String, VersionContext>, ResolvedVersionContext> sourceVersionMappingCache =
       CacheBuilder.newBuilder()
           .build(new Loader());
@@ -44,9 +50,9 @@ public class VersionContextResolverImpl implements VersionContextResolver {
 
   @Override
   public ResolvedVersionContext resolveVersionContext(
-      String sourceName,
-      VersionContext versionContext
-  ) throws ReferenceNotFoundException, NoDefaultBranchException, ReferenceConflictException {
+    String sourceName,
+    VersionContext versionContext
+  ) throws ReferenceNotFoundException, NoDefaultBranchException, ReferenceConflictException, ReferenceTypeConflictException {
     try {
       ResolvedVersionContext resolvedVersionContext = sourceVersionMappingCache.get(new ImmutablePair<>(sourceName, versionContext));
       logger.debug("Resolved version {} to resolved {} for source {}",
@@ -55,17 +61,7 @@ public class VersionContextResolverImpl implements VersionContextResolver {
         sourceName);
       return resolvedVersionContext;
     } catch (UncheckedExecutionException e) {
-      Throwable cause = e.getCause();
-      if (cause instanceof ReferenceNotFoundException) {
-        throw (ReferenceNotFoundException) cause;
-      }
-      if (cause instanceof NoDefaultBranchException) {
-        throw (NoDefaultBranchException) cause;
-      }
-      if (cause instanceof ReferenceConflictException) {
-        throw (ReferenceConflictException) cause;
-      }
-      throw new IllegalStateException(e);
+      throw new NessieReferenceException("Error while resolving version context ", e);
     } catch (Exception e) {
       throw new IllegalStateException(e);
     }

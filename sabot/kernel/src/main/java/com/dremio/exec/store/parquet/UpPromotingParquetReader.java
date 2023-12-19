@@ -140,6 +140,7 @@ public class UpPromotingParquetReader implements RecordReader {
       inputStreamProvider,
       new ArrayList<>());
     runtimeFilters.forEach(currentReader::addRuntimeFilter);
+    currentReader.setIgnoreSchemaLearning(this.isSchemaLearningDisabledByUser);
     currentReader.setup(output);
   }
 

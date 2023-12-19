@@ -37,18 +37,23 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.tools.ValidationException;
 
+import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.common.utils.PathUtils;
-import com.dremio.exec.catalog.TableVersionContext;
+import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.exec.planner.acceleration.ExpansionNode;
 import com.dremio.exec.planner.common.ContainerRel;
 import com.dremio.exec.planner.common.ScanRelBase;
+import com.dremio.exec.planner.common.VacuumCatalogRelBase;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.logical.TableModifyRel;
 import com.dremio.exec.planner.logical.TableOptimizeRel;
 import com.dremio.exec.planner.logical.WriterRel;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.tablefunctions.ExternalQueryRelBase;
 import com.dremio.exec.tablefunctions.ExternalQueryScanDrel;
 import com.dremio.service.job.proto.JoinInfo;
@@ -60,6 +65,7 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.FieldOrigin;
+import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
 import com.dremio.service.namespace.dataset.proto.Origin;
 import com.dremio.service.namespace.dataset.proto.ParentDataset;
 import com.dremio.service.namespace.dataset.proto.VirtualDataset;
@@ -217,12 +223,13 @@ public class QueryMetadata {
    * @param namespace A namespace service. If provided, ParentDatasetInfo will be extracted, otherwise it won't.
    * @return The builder.
    */
-  public static Builder builder(NamespaceService namespace) {
-    return new Builder(namespace, null);
+  public static Builder builder(NamespaceService namespace, CatalogService catalogService) {
+    return new Builder(namespace, catalogService, null);
   }
 
-  public static Builder builder(NamespaceService namespace, String jobResultsSourceName) {
-    return new Builder(namespace, jobResultsSourceName);
+  public static Builder builder(
+      NamespaceService namespace, CatalogService catalogService, String jobResultsSourceName) {
+    return new Builder(namespace, catalogService, jobResultsSourceName);
   }
 
   /**
@@ -233,6 +240,7 @@ public class QueryMetadata {
     private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Builder.class);
 
     private final NamespaceService namespace;
+    private final CatalogService catalogService;
     private final String jobResultsSourceName;
 
     private RelDataType rowType;
@@ -249,8 +257,10 @@ public class QueryMetadata {
     private List<String> queryContext;
     private List<String> externalQuerySourceInfo;
 
-    Builder(NamespaceService namespace, String jobResultsSourceName) {
+    Builder(
+        NamespaceService namespace, CatalogService catalogService, String jobResultsSourceName) {
       this.namespace = namespace;
+      this.catalogService = catalogService;
       this.jobResultsSourceName = jobResultsSourceName;
     }
 
@@ -353,7 +363,10 @@ public class QueryMetadata {
               public RelNode visit(TableScan scan) {
                 ancestors.add(
                     new SqlIdentifier(scan.getTable().getQualifiedName(), SqlParserPos.ZERO));
-                versionContexts.add(((ScanRelBase) scan).getTableMetadata().getVersionContext());
+                versionContexts.add(
+                    (scan instanceof ScanRelBase)
+                        ? ((ScanRelBase) scan).getTableMetadata().getVersionContext()
+                        : null);
 
                 return scan;
               }
@@ -480,6 +493,7 @@ public class QueryMetadata {
       if (ancestors == null) {
         return null;
       }
+
       try {
         final List<ParentDatasetInfo> result = new ArrayList<>();
         for (SqlIdentifier sqlIdentifier : ancestors) {
@@ -487,13 +501,33 @@ public class QueryMetadata {
           result.add(getDataset(datasetPath));
         }
 
+        if (ancestors.size() != versionContexts.size()) {
+          logger.warn(
+              "The ancestors size {} doesn't equal to versionContexts size {}",
+              ancestors.size(),
+              versionContexts.size());
+
+          return result;
+        }
+
         final int versionContextsSize = versionContexts.size();
+        final Catalog catalog = CatalogUtil.getSystemCatalogForJobs(catalogService);
+
         for (int index = 0; index < versionContextsSize; ++index) {
           final TableVersionContext versionContext = versionContexts.get(index);
           if (versionContext == null) {
             continue;
           }
 
+          final List<String> datasetPath = result.get(index).getDatasetPathList();
+          final CatalogEntityKey catalogEntityKey =
+              CatalogEntityKey.newBuilder()
+                  .keyComponents(datasetPath)
+                  .tableVersionContext(versionContext)
+                  .build();
+          final DatasetType datasetType = catalog.getDatasetType(catalogEntityKey);
+
+          result.get(index).setType(datasetType);
           result.get(index).setVersionContext(versionContext.serialize());
         }
 
@@ -640,6 +674,11 @@ public class QueryMetadata {
         if (versionContext != null) {
           path.setVersionContext(versionContext.serialize());
         }
+        // If scanning an iceberg table, save the snapshot ID to the scanpath, so it can be used in the DependencyGraph for reflections
+        IcebergMetadata icebergMetadata = ((ScanRelBase) scan).getTableMetadata().getDatasetConfig().getPhysicalDataset().getIcebergMetadata();
+        if (icebergMetadata != null) {
+          path.setSnapshotId(icebergMetadata.getSnapshotId());
+        }
         builder.add(path);
         return super.visit(scan);
       }
@@ -674,6 +713,10 @@ public class QueryMetadata {
         if (other instanceof TableOptimizeRel) {
           final NamespaceKey namespaceKey = ((TableOptimizeRel) other).getCreateTableEntry().getDatasetPath();
           setSinkPath(namespaceKey);
+        }
+        if (other instanceof VacuumCatalogRelBase) {
+          final NamespaceKey sourceName = new NamespaceKey(((VacuumCatalogRelBase) other).getSourceName());
+          setSinkPath(sourceName);
         }
         return super.visit(other);
       }

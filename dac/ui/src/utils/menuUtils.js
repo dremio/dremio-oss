@@ -18,6 +18,7 @@ import { ENTITY_TYPES } from "@app/constants/Constants";
 import * as commonPaths from "dremio-ui-common/paths/common.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
+import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";
 
 class MenuUtils {
   getShowState({ disabled, columnType, availableTypes }) {
@@ -37,6 +38,7 @@ class MenuUtils {
     location,
     router,
   }) {
+    const { t } = getIntlContext();
     const itemName = item.get("name");
 
     const decodedPathname = decodeURIComponent(location?.pathname);
@@ -49,10 +51,12 @@ class MenuUtils {
     showConfirmationDialog({
       title:
         item.get("entityType") === ENTITY_TYPES.space
-          ? la("Remove Space")
-          : la("Remove Source"),
-      text: la(`Are you sure you want to remove "${itemName}"?`),
-      confirmText: la("Remove"),
+          ? t("Space.Delete")
+          : t("Source.Delete"),
+      text: t("Delete.Confirmation", {
+        name: itemName,
+      }),
+      confirmText: t("Common.Actions.Delete"),
       confirm: () => {
         removeItem(item);
 
@@ -61,6 +65,7 @@ class MenuUtils {
           router.push(commonPaths.projectBase.link({ projectId }));
         }
       },
+      confirmButtonStyle: "danger",
     });
     closeMenu();
   }

@@ -14,12 +14,18 @@
  * limitations under the License.
  */
 
+@use "./helpers";
+
 .h-full {
   block-size: 100%;
 }
 
-@for $i from 1 through 11 {
-  .h-#{$i} {
-    block-size: var(--scale-#{$i});
+.h-auto {
+  block-size: auto;
+}
+
+@each $size in helpers.$sizes {
+  .h-#{$size} {
+    block-size: var(--scale-#{$size});
   }
 }

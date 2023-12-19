@@ -33,32 +33,35 @@ public class MatchCountListener implements RelOptListener {
   private static final Logger logger = LoggerFactory.getLogger(MatchCountListener.class);
 
   // Breakdown of how many times each rule has attempted and transformed a rel node and
-  // how much total time is taken by each rule. This will only include total time if
-  // the rule completes transformation (attempted and matched). Rule name is used as
-  // key to all the maps below.
-  private final Map<String, Integer> ruleToAttemptCount = new HashMap<>();
-  private final Map<String, Integer> ruleToMatchCount = new HashMap<>();
-  private final Map<String, Long> ruleToTotalTime = new HashMap<>();
+  // how much total time is taken by each rule. This will include total time when
+  // the rule completes transformation (attempted and matched calculated separately).
+  // Rule name is used as key to all the maps below. We also keep track of the thread ID
+  // which will distinguish different queries dumping logs at the same time.
+  private final Map<String, Integer> ruleNameToMatchCount = new HashMap<>();
+  private final Map<String, Integer> ruleNameToTransformCount = new HashMap<>();
+  private final Map<String, Long> ruleMatchTime = new HashMap<>(); // Time spent in the onMatch function
+  private final Map<String, Long> ruleMatchToTransformTime = new HashMap<>(); // Time spent from after onMatch (if the rule was successful in transforming)
   private final long relNodeCount;
   private final long rulesCount;
   private final int matchLimit;
   private final boolean verbose;
+  private final String threadName;
 
-  private long attemptCount = 0; // How many times we tried to fire the rules
-  private int matchCount = 0; // How many times the rules were successfully matched and transformed the rel node
+  private long matchCount = 0; // How many times a rule is matched
+  private int transformCount = 0; // How many times a rule successfully transformed the rel node
 
-  private String currentRule;
   private Stopwatch currentRuleStopwatch = Stopwatch.createUnstarted();
 
-  public MatchCountListener(int matchLimit, boolean verbose) {
-    this(0, 0, matchLimit, verbose);
+  public MatchCountListener(int matchLimit, boolean verbose, String threadName) {
+    this(0, 0, matchLimit, verbose, threadName);
   }
 
-  public MatchCountListener(long relNodeCount, long rulesCount, int matchLimit, boolean verbose) {
+  public MatchCountListener(long relNodeCount, long rulesCount, int matchLimit, boolean verbose, String threadName) {
     this.relNodeCount = relNodeCount;
     this.rulesCount = rulesCount;
     this.matchLimit = matchLimit;
     this.verbose = verbose;
+    this.threadName = threadName;
   }
 
   @Override
@@ -68,13 +71,21 @@ public class MatchCountListener implements RelOptListener {
   @Override
   public void ruleAttempted(RuleAttemptedEvent event) {
     try {
-      if (verbose) {
-        currentRule = event.getRuleCall().getRule().toString();
-        ruleToAttemptCount.put(currentRule, ruleToAttemptCount.getOrDefault(currentRule, 0) + 1);
+      final String currentRule = event.getRuleCall().getRule().toString();
+      if (event.isBefore()) {
+        if (verbose) {
+          ruleNameToMatchCount.put(currentRule, ruleNameToMatchCount.getOrDefault(currentRule, 0) + 1);
+        }
         currentRuleStopwatch = Stopwatch.createStarted(); // Start the stopwatch
-      }
+        matchCount++;
+      } else {
+        ruleMatchTime.put(currentRule, ruleMatchTime.getOrDefault(currentRule, 0L) + currentRuleStopwatch.elapsed(TimeUnit.MILLISECONDS));
+        currentRuleStopwatch.reset(); // Stop the stopwatch
 
-      attemptCount++;
+        // Start the stopwatch again to measure how much time is spent from the time this rule finished onMatch
+        // to the time when we register the transformed results.
+        currentRuleStopwatch = Stopwatch.createStarted();
+      }
     } catch (Exception ex) {
       // This listener is for dumping useful stats purpose. It should not hinder planning. In case of
       // any exception, just log it.
@@ -85,13 +96,14 @@ public class MatchCountListener implements RelOptListener {
   @Override
   public void ruleProductionSucceeded(RuleProductionEvent event) {
     try {
+      final String currentRule = event.getRuleCall().getRule().toString();
       if (!event.isBefore()) {
         if (verbose) {
-          ruleToMatchCount.put(currentRule, ruleToMatchCount.getOrDefault(currentRule, 0) + 1);
-          ruleToTotalTime.put(currentRule, ruleToTotalTime.getOrDefault(currentRule, 0L) + currentRuleStopwatch.elapsed(TimeUnit.MILLISECONDS));
-          currentRuleStopwatch.reset(); // Stop the stopwatch for next rule
+          ruleNameToTransformCount.put(currentRule, ruleNameToTransformCount.getOrDefault(currentRule, 0) + 1);
         }
-        matchCount++;
+        ruleMatchToTransformTime.put(currentRule, ruleMatchToTransformTime.getOrDefault(currentRule, 0L) + currentRuleStopwatch.elapsed(TimeUnit.MILLISECONDS));
+        currentRuleStopwatch.reset(); // Stop the stopwatch for next rule
+        transformCount++;
       }
     } catch (Exception ex) {
       // This listener is for dumping useful stats purpose. It should not hinder planning. In case of
@@ -108,8 +120,8 @@ public class MatchCountListener implements RelOptListener {
   public void relChosen(RelChosenEvent event) {
   }
 
-  public int getMatchCount() {
-    return matchCount;
+  public int getTransformCount() {
+    return transformCount;
   }
 
   public long getRelNodeCount() {
@@ -120,8 +132,8 @@ public class MatchCountListener implements RelOptListener {
     return rulesCount;
   }
 
-  public long getAttemptCount() {
-    return attemptCount;
+  public long getMatchCount() {
+    return matchCount;
   }
 
   public int getMatchLimit() {
@@ -129,39 +141,60 @@ public class MatchCountListener implements RelOptListener {
   }
 
   public Map<String, Long> getRuleToTotalTime() {
+    final Map<String, Long> ruleToTotalTime = new HashMap<>();
+    try {
+      for (String key : ruleNameToMatchCount.keySet()) {
+        long time = ruleMatchTime.getOrDefault(key, 0L) +
+          ruleMatchToTransformTime.getOrDefault(key, 0L);
+        ruleToTotalTime.put(key, time);
+      }
+    } catch (Exception ex) {
+      // This listener is for dumping useful stats purpose. It should not hinder planning. In case of
+      // any exception, just log it.
+      logger.debug("Exception in getRuleToTotalTime method: ", ex);
+    }
+
     return ruleToTotalTime;
   }
 
   public void reset() {
-    attemptCount = 0;
     matchCount = 0;
-
+    transformCount = 0;
+    currentRuleStopwatch.reset();
+    ruleMatchTime.clear();
+    ruleMatchToTransformTime.clear();
     if (verbose) {
-      currentRule = null;
-      currentRuleStopwatch.reset();
-      ruleToAttemptCount.clear();
-      ruleToTotalTime.clear();
+      ruleNameToMatchCount.clear();
+      ruleNameToTransformCount.clear();
     }
   }
 
   @Override
   public String toString() {
-    StringBuilder sb = new StringBuilder();
-    sb.append("RelNodes count: ").append(getRelNodeCount())
-      .append("\nRules count: ").append(getRulesCount())
-      .append("\nMatch limit: ").append(getMatchLimit())
-      .append("\nAttempt count: ").append(getAttemptCount())
-      .append("\nMatch count: ").append(getMatchCount()).append("\n\n");
-
-    if (verbose) {
-      for (String key : ruleToAttemptCount.keySet()) {
+    try {
+      final Map<String, Long> ruleToTotalTime = getRuleToTotalTime();
+      final StringBuilder sb = new StringBuilder();
+      sb.append("Thread name: ").append(threadName)
+        .append("\nRelNodes count: ").append(getRelNodeCount())
+        .append("\nRules count: ").append(getRulesCount())
+        .append("\nMatch limit: ").append(getMatchLimit())
+        .append("\nMatch count: ").append(getMatchCount())
+        .append("\nTransform count: ").append(getTransformCount()).append("\n");
+      for (String key : ruleNameToMatchCount.keySet()) {
         sb.append("Rule: ").append(key)
-          .append("\t\tAttempted times: ").append(ruleToAttemptCount.getOrDefault(key, 0))
-          .append("\t\tMatched times: ").append(ruleToMatchCount.getOrDefault(key, 0))
-          .append("\t\tTotal time spent: ").append(ruleToTotalTime.getOrDefault(key, 0L)).append("ms\n");
+          .append("\t\tTotal time spent: ").append(ruleToTotalTime.getOrDefault(key, 0L)).append(" ms");
+        if (verbose) {
+          sb.append("\t\tMatched times: ").append(ruleNameToMatchCount.getOrDefault(key, 0))
+            .append("\t\tTransformed times: ").append(ruleNameToTransformCount.getOrDefault(key, 0));
+        }
+        sb.append("\n");
       }
+      return sb.toString();
+    } catch (Exception ex) {
+      // This listener is for dumping useful stats purpose. It should not hinder planning. In case of
+      // any exception, just log it.
+      logger.debug("Exception in toString method: ", ex);
+      return "";
     }
-    sb.append("\n");
-    return sb.toString();
   }
 }

@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.sql.handlers.query;
 
+import static com.dremio.exec.planner.sql.parser.TestParserUtil.parse;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -38,7 +39,6 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.ParserConfig;
 import com.dremio.exec.planner.sql.parser.SqlOptimize;
-import com.dremio.exec.planner.sql.parser.TestSqlOptimize;
 import com.dremio.options.OptionManager;
 
 /**
@@ -50,7 +50,7 @@ public class TestOptimizeOptions {
 
   @Test
   public void testCreateInstanceFromNodeAllOptions() throws SqlParseException {
-    SqlOptimize sqlNode = (SqlOptimize) TestSqlOptimize.parse(
+    SqlOptimize sqlNode = (SqlOptimize) parse(
       "OPTIMIZE TABLE a.b.c REWRITE DATA (TARGET_FILE_SIZE_MB=257, MIN_INPUT_FILES=10, MAX_FILE_SIZE_MB=300, MIN_FILE_SIZE_MB=100)");
 
     OptimizeOptions optimizeOptions = OptimizeOptions.createInstance(sqlNode);
@@ -68,7 +68,7 @@ public class TestOptimizeOptions {
 
   @Test
   public void testCreateInstanceFromNodeAllDefaults() throws SqlParseException {
-    SqlOptimize sqlNode = (SqlOptimize) TestSqlOptimize.parse("OPTIMIZE TABLE a.b.c");
+    SqlOptimize sqlNode = (SqlOptimize) parse("OPTIMIZE TABLE a.b.c");
 
     OptimizeOptions optimizeOptions = OptimizeOptions.createInstance(sqlNode);
 
@@ -89,7 +89,7 @@ public class TestOptimizeOptions {
 
   @Test
   public void testCreateInstanceUsingSupportOptions() throws SqlParseException {
-    SqlOptimize sqlNode = (SqlOptimize) TestSqlOptimize.parse("OPTIMIZE TABLE a.b.c");
+    SqlOptimize sqlNode = (SqlOptimize) parse("OPTIMIZE TABLE a.b.c");
 
     OptionManager optionManager = mock(OptionManager.class);
     when(optionManager.getOption(ExecConstants.OPTIMIZE_TARGET_FILE_SIZE_MB)).thenReturn(1000L);

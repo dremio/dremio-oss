@@ -17,10 +17,12 @@
 package com.dremio.exec.planner.sql.handlers.direct;
 
 import java.io.IOException;
+import java.util.Comparator;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import org.apache.calcite.sql.SqlNode;
@@ -28,6 +30,7 @@ import org.apache.calcite.sql.SqlNode;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.sql.parser.SqlShowFunctions;
+import com.dremio.exec.store.sys.udf.UserDefinedFunction;
 import com.dremio.exec.work.foreman.ForemanSetupException;
 
 /**
@@ -50,31 +53,27 @@ public class ShowFunctionsHandler implements SqlDirectHandler<ShowFunctionsHandl
     return showFunctions(sqlNode);
   }
 
-
   private List<ShowFunctionResult> showFunctions(SqlNode sqlNode) throws IOException, ForemanSetupException {
     final SqlShowFunctions sqlShowFunctions = SqlNodeUtil.unwrap(sqlNode, SqlShowFunctions.class);
-    if(sqlShowFunctions.getLikePattern() == null){
-      return StreamSupport.stream(catalog.getAllFunctions().spliterator(), false)
-        .map(function -> new ShowFunctionResult(
-          function.getName()))
-        .collect(Collectors.toList());
-    }
-    final Pattern likePattern = SqlNodeUtil.getPattern(sqlShowFunctions.getLikePattern());
-    final Matcher m = likePattern.matcher("");
 
-    return StreamSupport.stream(catalog.getAllFunctions().spliterator(), false)
-      .filter(function -> m.reset(function.getName()).matches())
-      .map(function -> new ShowFunctionResult(
-        function.getName()))
+    Stream<UserDefinedFunction> functions = StreamSupport.stream(catalog.getAllFunctions().spliterator(), false);
+    if (sqlShowFunctions.getLikePattern() != null) {
+      final Pattern likePattern = SqlNodeUtil.getPattern(sqlShowFunctions.getLikePattern());
+      final Matcher m = likePattern.matcher("");
+      functions = functions.filter(function -> m.reset(function.getName()).matches());
+    }
+
+    functions = functions.sorted(Comparator.comparing(UserDefinedFunction::getName));
+
+    return functions
+      .map(function -> new ShowFunctionResult(function.getName()))
       .collect(Collectors.toList());
   }
-
 
   @Override
   public Class<ShowFunctionResult> getResultType() {
     return ShowFunctionResult.class;
   }
-
 
   public static class ShowFunctionResult {
     public final String FUNCTION_NAME;

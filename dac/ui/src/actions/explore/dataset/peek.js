@@ -15,7 +15,7 @@
  */
 import { RSAA } from "redux-api-middleware";
 import { replace } from "react-router-redux";
-import uuid from "uuid";
+import { v4 as uuidv4 } from "uuid";
 
 import schemaUtils from "utils/apiUtils/schemaUtils";
 import exploreUtils from "utils/explore/exploreUtils";
@@ -37,7 +37,7 @@ export const transformPeek =
 function transformPeekFetch(dataset, values, detailType, viewId, submitType) {
   const href = exploreUtils.getTransformPeekHref(dataset);
   const body = exploreUtils.getMappedDataForTransform(values, detailType);
-  const peekId = uuid.v4();
+  const peekId = uuidv4();
   const uiPropsForEntity = [{ key: "id", value: peekId }];
   const meta = { viewId, peekId, submitType };
 

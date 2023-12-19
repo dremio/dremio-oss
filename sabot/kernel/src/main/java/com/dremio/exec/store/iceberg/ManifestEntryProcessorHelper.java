@@ -16,10 +16,15 @@
 package com.dremio.exec.store.iceberg;
 
 import static com.dremio.exec.store.iceberg.IcebergPartitionData.getPartitionColumnClass;
+import static com.dremio.exec.store.iceberg.IncrementalReflectionByPartitionUtils.safeGetTransformType;
+import static com.dremio.service.namespace.dataset.proto.PartitionProtobuf.IcebergTransformType;
+import static com.dremio.service.namespace.dataset.proto.PartitionProtobuf.NormalizedPartitionInfo;
+import static com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionValue;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -33,7 +38,6 @@ import org.apache.iceberg.StructLike;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.store.SystemSchemas;
-import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.ByteString;
 
@@ -43,15 +47,16 @@ import com.google.protobuf.ByteString;
 public class ManifestEntryProcessorHelper {
 
   @VisibleForTesting
-  public static PartitionProtobuf.NormalizedPartitionInfo getDataFilePartitionInfo(
+  public static NormalizedPartitionInfo getDataFilePartitionInfo(
     PartitionSpec icebergPartitionSpec,
     Set<String> invalidColumnsForPruning,
     Schema fileSchema,
     Map<String, Field> nameToFieldMap,
     ContentFile<? extends ContentFile<?>> currentFile,
     long version,
-    long sequenceNo) {
-    PartitionProtobuf.NormalizedPartitionInfo.Builder partitionInfoBuilder = PartitionProtobuf.NormalizedPartitionInfo.newBuilder().setId(String.valueOf(1));
+    long sequenceNo,
+    final boolean addIcebergTransformationInfo) {
+    NormalizedPartitionInfo.Builder partitionInfoBuilder = NormalizedPartitionInfo.newBuilder().setId(String.valueOf(1));
 
     // get table partition spec
     StructLike partitionStruct = currentFile.partition();
@@ -62,53 +67,115 @@ public class ManifestEntryProcessorHelper {
        * because in case 1. information will be partial and scan will get incorrect values
        * in case2. initially when column was not partition we don't have value.
        */
-      if(invalidColumnsForPruning != null && invalidColumnsForPruning.contains(fileSchema.findField(field.sourceId()).name())) {
-        continue;
+      final boolean isFieldInvalidForPruning = (invalidColumnsForPruning != null)
+          && invalidColumnsForPruning.contains(fileSchema.findField(field.sourceId()).name());
+      if(!isFieldInvalidForPruning && field.transform().isIdentity()){
+        final PartitionValue partitionValue = buildPartitionValue(fileSchema,
+          field,
+          partitionStruct,
+          partColPos,
+          icebergPartitionSpec,
+          nameToFieldMap,
+          true,
+          field.transform().isIdentity());
+        partitionInfoBuilder.addValues(partitionValue);
       }
-
-      if(!field.transform().isIdentity()) {
-        continue;
+      //The main idea is that if addIcebergTransformationInfo we will attach some Iceberg specific information
+      //to the PartitionProtobuf.NormalizedPartitionInfo that this function returns.
+      //This includes the iceberg transform for each value, any arguments, and the raw iceberg value.
+      //The raw value is needed as writePartitionValue sometimes writes the value with reduced precision,
+      //and when we need it, it can be hard to determine if writePartitionValue modified the original value or not
+      if(addIcebergTransformationInfo){
+        addIcebergPartitionInfoToBuilder(partitionInfoBuilder, field, fileSchema, partitionStruct, partColPos, icebergPartitionSpec, nameToFieldMap);
       }
-
-      PartitionProtobuf.PartitionValue.Builder partitionValueBuilder = PartitionProtobuf.PartitionValue.newBuilder();
-      String partColName = fileSchema.findColumnName(field.sourceId());
-      partitionValueBuilder.setColumn(partColName);
-      Object value = partitionStruct.get(partColPos, getPartitionColumnClass(icebergPartitionSpec, partColPos));
-      writePartitionValue(partitionValueBuilder, value, nameToFieldMap.get(partColName.toLowerCase()));
-      partitionInfoBuilder.addValues(partitionValueBuilder.build());
     }
     addImplicitCols(partitionInfoBuilder, version, sequenceNo);
     return partitionInfoBuilder.build();
   }
 
-  private static void addImplicitCols(PartitionProtobuf.NormalizedPartitionInfo.Builder partitionInfoBuilder, long version, long sequenceNo) {
-    PartitionProtobuf.PartitionValue.Builder partitionValueBuilder = PartitionProtobuf.PartitionValue.newBuilder();
+  /**
+   * Attaches an IcebergPartitionInfo to partitionInfoBuilder
+   * It contains more detailed information about the partition such as
+   * iceberg transform for each value, any arguments, and the raw iceberg value.
+   * @param partitionInfoBuilder builder to attach the IcebergPartitionInfo to
+   * @param field current field
+   * @param fileSchema the schema for this file
+   * @param partitionStruct partition information
+   * @param partColPos column position
+   * @param icebergPartitionSpec iceberg spec
+   * @param nameToFieldMap mapping between name and field
+   */
+  private static void addIcebergPartitionInfoToBuilder(final NormalizedPartitionInfo.Builder partitionInfoBuilder,
+                                                       final PartitionField field,
+                                                       final Schema fileSchema,
+                                                       final StructLike partitionStruct,
+                                                       final int partColPos,
+                                                       final PartitionSpec icebergPartitionSpec,
+                                                       final Map<String, Field> nameToFieldMap){
+    final String transformName = field.transform().toString();
+    Optional<IcebergTransformType> transformType = safeGetTransformType(transformName);
+    if(transformType.isPresent()) {
+      final PartitionValue partitionValueIceberg = buildPartitionValue(fileSchema,
+        field,
+        partitionStruct,
+        partColPos,
+        icebergPartitionSpec,
+        nameToFieldMap,
+        false, //Iceberg uses microseconds, so passing false here
+        IcebergTransformType.IDENTITY.equals(transformType.get()));
+      partitionInfoBuilder.addIcebergValues(partitionValueIceberg);
+    }
+  }
+  private static PartitionValue buildPartitionValue(final Schema fileSchema,
+                                                                      final PartitionField field,
+                                                                      final StructLike partitionStruct,
+                                                                      final int partColPos,
+                                                                      final PartitionSpec icebergPartitionSpec,
+                                                                      final Map<String, Field> nameToFieldMap,
+                                                                      final boolean useMilliSeconds,
+                                                                      boolean isIdentityTransform){
+    final PartitionValue.Builder partitionValueBuilder = PartitionValue.newBuilder();
+    final String partColName = fileSchema.findColumnName(field.sourceId());
+    partitionValueBuilder.setColumn(partColName);
+    final Object value = partitionStruct.get(partColPos, getPartitionColumnClass(icebergPartitionSpec, partColPos));
+    writePartitionValue(partitionValueBuilder, value, nameToFieldMap.get(partColName.toLowerCase()), useMilliSeconds,isIdentityTransform);
+    return partitionValueBuilder.build();
+  }
+
+  private static void addImplicitCols(NormalizedPartitionInfo.Builder partitionInfoBuilder, long version, long sequenceNo) {
+    PartitionValue.Builder partitionValueBuilder = PartitionValue.newBuilder();
     partitionValueBuilder.setColumn(IncrementalUpdateUtils.UPDATE_COLUMN);
     partitionValueBuilder.setLongValue(version);
     partitionInfoBuilder.addValues(partitionValueBuilder.build());
 
     // Sequence number as an implicit partition col value, so it can be projected if needed along with the data.
     partitionInfoBuilder.addValues(
-      PartitionProtobuf.PartitionValue.newBuilder()
+      PartitionValue.newBuilder()
         .setColumn(SystemSchemas.IMPLICIT_SEQUENCE_NUMBER).setLongValue(sequenceNo).build());
   }
 
-  private static void writePartitionValue(PartitionProtobuf.PartitionValue.Builder partitionValueBuilder, Object value, Field field) {
+  public static void writePartitionValue(final PartitionValue.Builder partitionValueBuilder,
+                                          final Object value,
+                                          final Field field,
+                                          final boolean useMilliSeconds,
+                                          final boolean isIdentityTransform) {
     if (value == null) {
       return;
     }
     if (value instanceof Long) {
-      if (field.getType().equals(CompleteType.TIMESTAMP.getType())) {
+      if (useMilliSeconds && field.getType().equals(CompleteType.TIMESTAMP.getType())) {
         partitionValueBuilder.setLongValue((Long) value / 1_000);
-      } else if (field.getType().equals(CompleteType.TIME.getType())) {
+      } else if (useMilliSeconds && field.getType().equals(CompleteType.TIME.getType())) {
         partitionValueBuilder.setIntValue((int) ((Long) value / 1_000));
       } else {
         partitionValueBuilder.setLongValue((Long) value);
       }
     } else if (value instanceof Integer) {
-      if (field.getType().equals(CompleteType.DATE.getType())) {
+      if (useMilliSeconds && field.getType().equals(CompleteType.DATE.getType())) {
         partitionValueBuilder.setLongValue(TimeUnit.DAYS.toMillis((Integer) value));
-      } else {
+      } else if(isIdentityTransform && field.getType().equals(CompleteType.DATE.getType())) {
+        partitionValueBuilder.setLongValue(TimeUnit.DAYS.toMicros((Integer) value));
+      }else {
         partitionValueBuilder.setIntValue((Integer) value);
       }
     } else if (value instanceof String) {

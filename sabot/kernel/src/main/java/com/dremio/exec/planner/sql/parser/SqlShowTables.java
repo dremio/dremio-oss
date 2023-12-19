@@ -41,7 +41,7 @@ import com.google.common.collect.Lists;
 /**
  * Sql parse tree node to represent statement:
  * SHOW TABLES
- * [ AT ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue ]
+ * [ AT ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue [AS OF timestamp] ]
  * [ ( FROM | IN ) source]
  * [ LIKE 'pattern']
  */
@@ -57,17 +57,19 @@ public class SqlShowTables extends SqlVersionSourceRefBase {
       return new SqlShowTables(pos,
         operands[0] != null ? ((SqlLiteral) operands[0]).symbolValue(ReferenceType.class) : null,
         (SqlIdentifier) operands[1],
-        (SqlIdentifier) operands[2],
-        operands[3]);
+        operands[2],
+        (SqlIdentifier) operands[3],
+        operands[4]);
     }
   };
 
   public SqlShowTables(SqlParserPos pos,
                        ReferenceType refType,
                        SqlIdentifier refValue,
+                       SqlNode timestamp,
                        SqlIdentifier source,
                        SqlNode likePattern) {
-    super(pos, source, refType, refValue);
+    super(pos, source, refType, refValue, timestamp);
     this.likePattern = likePattern;
   }
 
@@ -85,6 +87,7 @@ public class SqlShowTables extends SqlVersionSourceRefBase {
     }
     opList.add(refTypeSqlLiteral);
     opList.add(getRefValue());
+    opList.add(getTimestampAsSqlNode());
     opList.add(getSourceName());
     opList.add(likePattern);
     return opList;

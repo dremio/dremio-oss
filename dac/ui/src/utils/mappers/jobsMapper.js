@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import Immutable from "immutable";
 class JobsMapper {
   constructor() {
     this.mapJobDetails = this.mapJobDetails.bind(this);

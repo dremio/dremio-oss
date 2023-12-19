@@ -99,6 +99,9 @@ public class ListSizer implements Sizer {
    * @return
    */
   private int getDataSizeStartingFromOrdinal(final int ordinal, final int numberOfRecords){
+    if(incoming.getValueCount() == 0){
+      return 0;
+    }
     final int start = incoming.getOffsetBuffer().getInt((long) ordinal * OFFSET_SIZE_BYTES);
     final int end = incoming.getOffsetBuffer().getInt((long) (ordinal + numberOfRecords) * OFFSET_SIZE_BYTES);
 
@@ -108,13 +111,9 @@ public class ListSizer implements Sizer {
 
   @Override
   public int getSizeInBitsStartingFromOrdinal(final int ordinal, final int numberOfRecords) {
-
     final int validityBufferSize = Sizer.getValidityBufferSizeInBits(numberOfRecords);
-
     final int offsetBufferSize = Sizer.getOffsetBufferSizeInBits(numberOfRecords);
-
     final int dataBufferSize = getDataSizeStartingFromOrdinal(ordinal, numberOfRecords);
-
     return  validityBufferSize + dataBufferSize + offsetBufferSize;
   }
 

@@ -33,15 +33,12 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.space.proto.FolderConfig;
-import com.dremio.service.users.SystemUser;
 
 /**
  * Given a table's logical name should interact with the KV-store to get schema, partition columns and other metadata
  */
 public class UnlimitedSplitsMetadataProvider {
   private static final Logger logger = LoggerFactory.getLogger(UnlimitedSplitsMetadataProvider.class);
-
-  private SqlHandlerConfig sqlHandlerConfig;
   private final NamespaceKey tableNSKey;
   private boolean metadataExists = false;
 
@@ -53,9 +50,8 @@ public class UnlimitedSplitsMetadataProvider {
   private final NamespaceService nsService;
 
   public UnlimitedSplitsMetadataProvider(SqlHandlerConfig config, NamespaceKey tableNSKey) {
-    sqlHandlerConfig = config;
     this.tableNSKey = tableNSKey;
-    nsService = config.getContext().getNamespaceService(SystemUser.SYSTEM_USERNAME);
+    nsService = config.getContext().getSystemNamespaceService();
     evaluateExistingMetadata();
   }
 

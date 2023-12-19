@@ -22,6 +22,7 @@ import java.util.Map;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.hadoop.conf.Configuration;
 
+import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
@@ -123,6 +124,10 @@ public interface MutablePlugin extends StoragePlugin {
                    OpProps props) throws IOException;
 
   boolean toggleSchemaLearning(NamespaceKey table, SchemaConfig schemaConfig, boolean enableSchemaLearning);
+
+  void alterSortOrder(NamespaceKey table, DatasetConfig datasetConfig, BatchSchema batchSchema, SchemaConfig schemaConfig, List<String> sortOrderColumns, TableMutationOptions tableMutationOptions);
+
+  void updateTableProperties(NamespaceKey table, DatasetConfig datasetConfig, BatchSchema schema, SchemaConfig schemaConfig, Map<String, String> tableProperties, TableMutationOptions tableMutationOptions, boolean isRemove);
 
   default boolean isSupportUserDefinedSchema(DatasetConfig dataset) {
     return false;

@@ -41,7 +41,7 @@ function ArcticCatalogTags(props: ArcticCatalogTagsProps) {
   const { router } = props;
   const [searchFilter, setSearchFilter] = useState("");
   const { baseUrl, stateKey } = useNessieContext();
-  const { isCatalog } = useArcticCatalogContext() ?? {};
+  const { isCatalog } = useArcticCatalogContext();
   const dispatch = useDispatch();
 
   const getPath = (tab: ArcticCatalogTabsType, tag: { type: "TAG" } & Tag) =>
@@ -49,7 +49,7 @@ function ArcticCatalogTags(props: ArcticCatalogTagsProps) {
       type: isCatalog ? "catalog" : "source",
       baseUrl,
       tab,
-      namespace: tag.name,
+      namespace: encodeURIComponent(tag.name),
     });
 
   const handleTabNavigation = (

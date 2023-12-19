@@ -64,6 +64,16 @@ public class TestSlicer extends ExecTest {
     assertTrue(check(TpchTable.TEMPERATURE, 0.1, 64_000, 4095) > 5);
   }
 
+  @Test
+  public void testManyPagesPerBatchForListStructVectors() throws Exception {
+    assertTrue(check(TpchTable.LIST_STRUCT, 0.1, 64_000, 4095) > 5);
+  }
+
+  @Test
+  public void testManyBatchesPerPageForListStructVectors() throws Exception {
+    assertTrue(check(TpchTable.LIST_STRUCT, 0.1, 512_000, 200) < .5);
+  }
+
   /**
    * Test allocation of one page for multiple batches of list vector
    * @throws Exception

@@ -24,6 +24,7 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.ArraySqlType;
 import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
+import org.apache.calcite.sql.type.SqlTypeName;
 
 import com.google.common.base.Objects;
 
@@ -40,10 +41,19 @@ public class SqlFlattenOperator extends SqlFunction {
           if (operandType instanceof ArraySqlType) {
             return ((ArraySqlType) operandType).getComponentType();
           } else {
-            return DynamicReturnType.INSTANCE.inferReturnType(opBinding);
+            // Since we don't have any way of knowing if the output of the flatten is nullable, we should always assume it is.
+            // This is especially important when accelerating a count(column) query, because the normalizer will convert it to
+            // a count(1) if it thinks this column is non-nullable, and then remove the flatten altogether. This is actually a
+            // problem with the fact that flatten is not really a project operator (because it can output more than one row per input).
+            return opBinding.getTypeFactory()
+              .createTypeWithNullability(opBinding.getTypeFactory().createSqlType(SqlTypeName.ANY),true);
           }
         }
-      }, null, OperandTypes.ANY, null, SqlFunctionCategory.USER_DEFINED_FUNCTION);
+      },
+      null,
+      OperandTypes.ARRAY,
+      null,
+      SqlFunctionCategory.USER_DEFINED_FUNCTION);
     this.index = index;
   }
 
@@ -67,6 +77,13 @@ public class SqlFlattenOperator extends SqlFunction {
 
   public int getIndex(){
     return index;
+  }
+
+  // Making flatten non-deterministic as reduce expression rule was replacing it as a constant
+  // expression and producing the wrong results
+  @Override
+  public boolean isDeterministic() {
+    return false;
   }
 
 }

@@ -149,15 +149,14 @@ describe("AccelerationForm", () => {
       values.aggregationReflections[0].enabled = false;
       values.aggregationReflections[0].measureFields.length = 0;
       values.aggregationReflections[0].dimensionFields.length = 0;
+      values.aggregationReflections[0].shouldDelete = true;
       const instance = shallow(<AccelerationForm {...props} />).instance();
       let result = instance.prepare(cloneDeep(values));
       expect(result).to.be.eql({ errors: {}, reflections: expectedValues });
-
       instance.setState({
         mode: "BASIC",
       });
       result = instance.prepare(cloneDeep(values));
-      values.aggregationReflections[0].shouldDelete = true;
       expect(result).to.be.eql({ errors: {}, reflections: expectedValues });
     });
 
@@ -176,7 +175,7 @@ describe("AccelerationForm", () => {
       const instance = shallow(<AccelerationForm {...props} />).instance();
       expect(instance.prepare(cloneDeep(values))).to.be.eql({
         errors: {
-          b: "At least one display field per raw Reflection is required.",
+          b: "At least one display column per raw Reflection is required.",
         },
         reflections: expectedValues,
       });
@@ -188,7 +187,7 @@ describe("AccelerationForm", () => {
       const instance = shallow(<AccelerationForm {...props} />).instance();
       expect(instance.prepare(cloneDeep(values))).to.be.eql({
         errors: {
-          a: "At least one dimension or measure field per aggregation Reflection is required.",
+          a: "At least one dimension or measure column per aggregation Reflection is required.",
         },
         reflections: expectedValues,
       });
@@ -341,7 +340,7 @@ describe("AccelerationForm", () => {
       const instance = shallow(
         <AccelerationForm {...commonProps} />
       ).instance();
-      instance.componentWillReceiveProps({
+      instance.componentDidUpdate({
         ...commonProps,
         values: { ...values, rawReflections: [] },
       });
@@ -351,7 +350,7 @@ describe("AccelerationForm", () => {
       const instance = shallow(
         <AccelerationForm {...commonProps} />
       ).instance();
-      instance.componentWillReceiveProps({
+      instance.componentDidUpdate({
         ...commonProps,
         values: { ...values, rawReflections: [] },
       });

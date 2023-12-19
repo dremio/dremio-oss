@@ -104,6 +104,7 @@ export default class SelectSourceType extends Component {
           isCommunity={isCommunity}
           disabled={item.disabled}
           dremioIcon={`sources/${item.sourceType}`}
+          isSampleDB={item.sourceType === "SAMPLEDB"}
           key={item.sourceType}
           onClick={
             !item.disabled

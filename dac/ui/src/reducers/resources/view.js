@@ -16,13 +16,14 @@
 import Immutable from "immutable";
 import { get } from "lodash";
 import { intl } from "@app/utils/intl";
-import uuid from "uuid";
+import { v4 as uuidv4 } from "uuid";
 
 import {
   RESET_VIEW_STATE,
   UPDATE_VIEW_STATE,
   DISMISS_VIEW_STATE_ERROR,
   LOADING_ITEMS,
+  LOADING_ITEMS_MODAL,
 } from "actions/resources";
 import { CANCEL_TRANSFORM } from "actions/explore/dataset/transform";
 import { RESET_NEW_QUERY } from "actions/explore/view";
@@ -33,6 +34,11 @@ import { getNodeBranchId } from "@app/components/Tree/resourceTreeUtils";
 export const NO_INTERNET_MESSAGE = intl.formatMessage({
   id: "Message.Code.WS_CLOSED.Message",
 });
+
+function isCanceledAction(action) {
+  return action.payload?.statusText === "CANCELED";
+}
+
 function isSuccessAction(action) {
   return !action.error && (action.payload !== undefined || action.meta.success);
 }
@@ -73,6 +79,12 @@ export function getErrorMessage(action) {
     }
   }
   return { errorMessage: "Unknown error: " + payload };
+}
+
+export function getErrorStatus(action) {
+  if (get(action, "payload.name") === ApiMiddlewareErrors.ApiError) {
+    return get(action, "payload.status");
+  }
 }
 
 export function getErrorDetails(action) {
@@ -153,9 +165,10 @@ export const getViewStateFromAction = (action) => {
       isWarning: false,
       isAutoPeekFailed: false,
       error: {
+        status: getErrorStatus(action),
         message: getErrorMessage(action),
         details: getErrorDetails(action),
-        id: uuid.v4(),
+        id: uuidv4(),
         dismissed: hideError != null ? true : false,
       },
     };
@@ -168,10 +181,14 @@ function updateLoadingViewId(state, action) {
     entityId,
     invalidateViewIds: viewIds,
     currNode,
+    fromModal,
   } = action.meta;
-  if (!viewId) {
+  if (!viewId || isCanceledAction(action)) {
     return state;
   }
+
+  // Folling the same fromModal pattern from other places but that stuff should be refactored at some point
+  const VIEW_ID = fromModal ? LOADING_ITEMS_MODAL : LOADING_ITEMS;
 
   let newViewState = getViewStateFromAction(action);
   if (isSuccessAction(action)) {
@@ -192,7 +209,7 @@ function updateLoadingViewId(state, action) {
       nodeId = getNodeBranchId(currNode);
     }
 
-    const currentLoadingNode = state.getIn([LOADING_ITEMS, nodeId]);
+    const currentLoadingNode = state.getIn([VIEW_ID, nodeId]);
 
     // Remove entitiy from list if loading complete and there are no errors
     if (
@@ -200,7 +217,7 @@ function updateLoadingViewId(state, action) {
       !newViewState.isFailed &&
       !newViewState.isInProgress
     ) {
-      return state.deleteIn([LOADING_ITEMS, nodeId]);
+      return state.deleteIn([VIEW_ID, nodeId]);
     }
 
     const newCurrentNode = new Immutable.fromJS({
@@ -211,7 +228,7 @@ function updateLoadingViewId(state, action) {
       },
     });
 
-    return state.mergeIn([LOADING_ITEMS], newCurrentNode);
+    return state.mergeIn([VIEW_ID], newCurrentNode);
   }
 
   return state.mergeIn([viewId], {
@@ -223,6 +240,11 @@ function updateLoadingViewId(state, action) {
 
 export default function view(state = Immutable.Map(), action) {
   const { meta } = action;
+  // Tabs: May need to create a namespaced reducer for EXPLORE_VIEW_ID if dropping these actions results in undesireable behavior
+  if (meta && meta.viewId === "EXPLORE_VIEW_ID" && !!meta.tabId) {
+    return state;
+  }
+
   if (action.type === RESET_VIEW_STATE) {
     return state.set(meta.viewId, getInitialViewState(meta.viewId));
   }

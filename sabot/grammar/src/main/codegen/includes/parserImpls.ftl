@@ -35,7 +35,7 @@
 -->
 /**
  *   SHOW TABLES
- *   [ AT ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue ]
+ *   [ AT ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue [AS OF timestamp] ]
  *   [ ( FROM | IN ) source ]
  *   [ LIKE 'pattern' ]
  */
@@ -44,6 +44,7 @@ SqlNode SqlShowTables() :
     SqlParserPos pos;
     ReferenceType refType = null;
     SqlIdentifier refValue = null;
+    SqlNode timestamp = null;
     SqlIdentifier source = null;
     SqlNode likePattern = null;
 }
@@ -64,6 +65,7 @@ SqlNode SqlShowTables() :
             <COMMIT> { refType = ReferenceType.COMMIT; }
         )
         { refValue = SimpleIdentifier(); }
+        [ <AS> <OF> timestamp = StringLiteral() ]
     ]
     [
         (<FROM> | <IN>) { source = CompoundIdentifier(); }
@@ -72,13 +74,13 @@ SqlNode SqlShowTables() :
         <LIKE> { likePattern = StringLiteral(); }
     ]
     {
-        return new SqlShowTables(pos, refType, refValue, source, likePattern);
+        return new SqlShowTables(pos, refType, refValue, timestamp, source, likePattern);
     }
 }
 
 /**
  *   SHOW VIEWS
- *   [ AT ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue ]
+ *   [ AT ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue [AS OF timestamp] ]
  *   [ ( FROM | IN ) source ]
  *   [ LIKE 'pattern' ]
  */
@@ -87,6 +89,7 @@ SqlNode SqlShowViews() :
     SqlParserPos pos;
     ReferenceType refType = null;
     SqlIdentifier refValue = null;
+    SqlNode timestamp = null;
     SqlIdentifier source = null;
     SqlNode likePattern = null;
 }
@@ -107,6 +110,7 @@ SqlNode SqlShowViews() :
             <COMMIT> { refType = ReferenceType.COMMIT; }
         )
         { refValue = SimpleIdentifier(); }
+        [ <AS> <OF> timestamp = StringLiteral() ]
     ]
     [
         (<FROM> | <IN>) { source = CompoundIdentifier(); }
@@ -115,7 +119,7 @@ SqlNode SqlShowViews() :
         <LIKE> { likePattern = StringLiteral(); }
     ]
     {
-        return new SqlShowViews(pos, refType, refValue, source, likePattern);
+        return new SqlShowViews(pos, refType, refValue, timestamp, source, likePattern);
     }
 }
 
@@ -139,6 +143,23 @@ SqlNode SqlShowFiles() :
     }
 }
 
+/**
+ * Parses a show tblproperties statement
+ * SHOW TBLPROPERTIES tblName
+ */
+SqlNode SqlShowTableProperties() :
+{
+    SqlParserPos pos;
+    SqlIdentifier tblName = null;
+}
+{
+    <SHOW> { pos = getPos(); }
+    <TBLPROPERTIES>
+    tblName = CompoundIdentifier()
+    {
+        return new SqlShowTableProperties(pos, tblName);
+    }
+}
 
 /**
  * Parses statement SHOW {DATABASES | SCHEMAS} [LIKE 'pattern']
@@ -304,6 +325,8 @@ SqlNode SqlCreateOrReplace() :
     boolean nullable = true;
     SqlComplexDataTypeSpec scalarReturnTypeSpec = null;
     SqlFunctionReturnType returnType;
+    ReferenceType refType = null;
+    SqlIdentifier refValue = null;
 }
 {
     <CREATE> { pos = getPos(); }
@@ -346,6 +369,17 @@ SqlNode SqlCreateOrReplace() :
       viewName = CompoundIdentifier()
       fieldList = ParseOptionalFieldListWithMasking("View")
       [
+        <AT>
+        (
+          <REF> { refType = ReferenceType.REFERENCE; }
+          |
+          <REFERENCE> { refType = ReferenceType.REFERENCE; }
+          |
+          <BRANCH> { refType = ReferenceType.BRANCH; }
+        )
+        { refValue = SimpleIdentifier(); }
+      ]
+      [
           <ROW><ACCESS><POLICY>
           {
               policy = Policy();
@@ -354,7 +388,7 @@ SqlNode SqlCreateOrReplace() :
       <AS> { pos = pos.plus(getPos()); }
       query = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
       {
-          return new SqlCreateView(pos, viewName, fieldList, query, replace, policy);
+          return new SqlCreateView(pos, viewName, fieldList, query, replace, policy, refType, refValue);
       }
     )
 }
@@ -512,14 +546,29 @@ void FieldFunctionTypeCommaList(List<SqlNode> list) :
 SqlNode SqlDropView() :
 {
     SqlParserPos pos;
-    boolean viewExistenceCheck = false;
+    boolean shouldErrorIfViewDoesNotExist = true;
+    SqlIdentifier viewName = null;
+    ReferenceType refType = null;
+    SqlIdentifier refValue = null;
 }
 {
     <DROP> { pos = getPos(); }
     ( <VIEW> | <VDS> )
-    [ <IF> <EXISTS> { viewExistenceCheck = true; } ]
+    [ <IF> <EXISTS> { shouldErrorIfViewDoesNotExist = false; } ]
+    viewName = CompoundIdentifier()
+    [
+      <AT>
+      (
+        <REF> { refType = ReferenceType.REFERENCE; }
+        |
+        <REFERENCE> { refType = ReferenceType.REFERENCE; }
+        |
+        <BRANCH> { refType = ReferenceType.BRANCH; }
+      )
+      { refValue = SimpleIdentifier(); }
+    ]
     {
-        return new SqlDropView(pos, CompoundIdentifier(), viewExistenceCheck);
+        return new SqlDropView(pos, viewName, shouldErrorIfViewDoesNotExist, refType, refValue);
     }
 }
 
@@ -732,6 +781,7 @@ void ParseTableProperty(SqlNodeList tablePropertyNameList, SqlNodeList tableProp
 
 /**
  * COPY INTO <source>.<path>.<table_name>
+ * [AT BRANCH | REF | REFERENCE <reference_name>]
  * [( <col_name> [, <col_name>... ])]
  *      FROM location_clause
  *       { FILES ( '<file_name>' [ , ... ] ) |
@@ -744,7 +794,7 @@ void ParseTableProperty(SqlNodeList tablePropertyNameList, SqlNodeList tableProp
 SqlNode SqlCopyInto() :
 {
     SqlParserPos pos;
-    SqlIdentifier tblName;
+    SqlNode tableWithVersionContext = null;
     SqlNode location;
     List<SqlNode> fileList = new ArrayList<SqlNode>();
     SqlNodeList files = SqlNodeList.EMPTY;
@@ -757,7 +807,8 @@ SqlNode SqlCopyInto() :
 {
     <COPY> { pos = getPos(); }
     <INTO>
-    tblName = CompoundIdentifier()
+    tableWithVersionContext = CompoundIdentifier()
+    [ tableWithVersionContext = TableWithVersionContext(tableWithVersionContext) ]
     <FROM>
     location = StringLiteral()
     (
@@ -800,7 +851,7 @@ SqlNode SqlCopyInto() :
     )?
 
     {
-      return new SqlCopyIntoTable(pos, tblName, location, files, regexPattern, fileFormat, optionsList, optionsValueList);
+      return new SqlCopyIntoTable(pos, tableWithVersionContext, location, files, regexPattern, fileFormat, optionsList, optionsValueList);
     }
 }
 
@@ -836,14 +887,19 @@ SqlNode SqlCopyInto() :
           <EMPTY_AS_NULL> { optionsList.add(SqlLiteral.createCharString("EMPTY_AS_NULL", getPos())); }
           |
           <ON_ERROR> { optionsList.add(SqlLiteral.createCharString("ON_ERROR", getPos())); }
+          |
+          <EXTRACT_HEADER> { optionsList.add(SqlLiteral.createCharString("EXTRACT_HEADER", getPos())); }
+          |
+          <SKIP_LINES> { optionsList.add(SqlLiteral.createCharString("SKIP_LINES", getPos())); }
         )
         exp = Literal() {
             optionsValueList.add(exp);
         }
     )
     |
-    <NULL_IF> { optionsList.add(SqlLiteral.createCharString("NULL_IF", getPos())); }
-    <LPAREN>
+    (
+        <NULL_IF> { optionsList.add(SqlLiteral.createCharString("NULL_IF", getPos())); }
+        <LPAREN>
         {
             expList = new SqlNodeList(getPos());
         }
@@ -852,8 +908,9 @@ SqlNode SqlCopyInto() :
             <COMMA>
             exp = Literal() { expList.add(exp); }
         )*
-    <RPAREN>
-    { optionsValueList.add(expList); }
+        <RPAREN>
+        { optionsValueList.add(expList); }
+    )
  }
 
 /**
@@ -886,6 +943,8 @@ SqlNode SqlCreateTable() :
     SqlPolicy policy = null;
     SqlNodeList tablePropertyNameList;
     SqlNodeList tablePropertyValueList;
+    ReferenceType refType = null;
+    SqlIdentifier refValue = null;
 }
 {
     {
@@ -906,6 +965,17 @@ SqlNode SqlCreateTable() :
     [ <IF> <NOT> <EXISTS> { ifNotExists = true; } ]
     tblName = CompoundIdentifier()
     [ fieldList = TableElementListWithMasking() ]
+    [
+      <AT>
+      (
+        <REF> { refType = ReferenceType.REFERENCE; }
+        |
+        <REFERENCE> { refType = ReferenceType.REFERENCE; }
+        |
+        <BRANCH> { refType = ReferenceType.BRANCH; }
+      )
+      { refValue = SimpleIdentifier(); }
+    ]
     (
         (
             <STRIPED> {
@@ -977,7 +1047,7 @@ SqlNode SqlCreateTable() :
                 {
                     return new SqlCreateTable(pos, tblName, fieldList, ifNotExists, partitionDistributionStrategy,
                         partitionTransformList, formatOptions, location, singleWriter, sortFieldList,
-                        distributeFieldList, policy, query, tablePropertyNameList, tablePropertyValueList);
+                        distributeFieldList, policy, query, tablePropertyNameList, tablePropertyValueList, refType, refValue);
                 }
             )
             |
@@ -985,7 +1055,7 @@ SqlNode SqlCreateTable() :
                 {
                     return new SqlCreateEmptyTable(pos, tblName, fieldList, ifNotExists, partitionDistributionStrategy,
                         partitionTransformList, formatOptions, location, singleWriter, sortFieldList,
-                        distributeFieldList, policy, tablePropertyNameList, tablePropertyValueList);
+                        distributeFieldList, policy, tablePropertyNameList, tablePropertyValueList, refType, refValue);
                 }
             )
         )
@@ -993,7 +1063,8 @@ SqlNode SqlCreateTable() :
 
 /**
 * Parses a insert table or drop table if exists statement.
-* INSERT INTO table_name select_statement;
+* INSERT INTO table_name
+* [AT BRANCH | REF | REFERENCE <reference_name>] select_statement;
 */
 SqlNode SqlInsertTable() :
 {
@@ -1001,6 +1072,7 @@ SqlNode SqlInsertTable() :
   SqlIdentifier tblName;
   SqlNode query;
   SqlNodeList fieldList;
+  SqlTableVersionSpec sqlTableVersionSpec = SqlTableVersionSpec.NOT_SPECIFIED ;
 }
 {
   {
@@ -1010,16 +1082,19 @@ SqlNode SqlInsertTable() :
   <INSERT> { pos = getPos(); }
   <INTO>
     tblName = CompoundIdentifier()
+    [ sqlTableVersionSpec = ATBranchVersionOrReferenceSpec() ]
     [ fieldList = TableElementList() ]
     query = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
     {
-      return new SqlInsertTable(pos, tblName, query, fieldList);
+      return new SqlInsertTable(pos, tblName, query, fieldList, sqlTableVersionSpec);
     }
 }
 
 /**
 * Parses a delete from table
-* DELETE FROM targetTable [ WHERE condition ];
+* DELETE FROM targetTable
+* [ AT BRANCH refValue ]
+* [ WHERE condition ];
 */
 SqlNode SqlDeleteFromTable() :
 {
@@ -1028,22 +1103,25 @@ SqlNode SqlDeleteFromTable() :
   SqlIdentifier alias = null;
   SqlNode sourceTableRef = null;
   SqlNode condition;
+  SqlTableVersionSpec sqlTableVersionSpec = SqlTableVersionSpec.NOT_SPECIFIED ;
 }
 {
   <DELETE> { pos = getPos(); }
   <FROM>
     targetTable = CompoundIdentifier()
+    [ sqlTableVersionSpec = ATBranchVersionOrReferenceSpec() ]
     [ [ <AS> ] alias = SimpleIdentifier() ]
     [ <USING> sourceTableRef = FromClause() ]
     condition = WhereOpt()
     {
-      return new SqlDeleteFromTable(pos, targetTable, condition, alias, sourceTableRef);
+      return new SqlDeleteFromTable(pos, targetTable, condition, alias, sourceTableRef, sqlTableVersionSpec);
     }
 }
 
 /**
 * Parses a update table statement
 * UPDATE targetTable
+* [ AT BRANCH refValue ]
 * SET <id> = <exp> [, <id> = <exp> ... ]
 * [ WHERE condition ];
 */
@@ -1058,6 +1136,7 @@ SqlNode SqlUpdateTable() :
   SqlIdentifier id;
   SqlNode exp;
   final Span s;
+  SqlTableVersionSpec sqlTableVersionSpec = SqlTableVersionSpec.NOT_SPECIFIED ;
 }
 {
   <UPDATE> { s = span(); }
@@ -1065,6 +1144,7 @@ SqlNode SqlUpdateTable() :
       targetColumnList = new SqlNodeList(s.pos());
       sourceExpressionList = new SqlNodeList(s.pos());
   }
+  [ sqlTableVersionSpec = ATBranchVersionOrReferenceSpec() ]
   [ [ <AS> ] alias = SimpleIdentifier() ]
   <SET> id = SimpleIdentifier() {
       targetColumnList.add(id);
@@ -1086,9 +1166,15 @@ SqlNode SqlUpdateTable() :
   [ <FROM> sourceTableRef = FromClause() ]
   condition = WhereOpt()
   {
-      return new SqlUpdateTable(s.addAll(targetColumnList)
-          .addAll(sourceExpressionList).addIf(condition).pos(), targetTable,
-          targetColumnList, sourceExpressionList, condition, alias, sourceTableRef);
+      return new SqlUpdateTable(
+          s.addAll(targetColumnList).addAll(sourceExpressionList).addIf(condition).pos(),
+          targetTable,
+          targetColumnList,
+          sourceExpressionList,
+          condition,
+          alias,
+          sourceTableRef,
+          sqlTableVersionSpec);
   }
 }
 
@@ -1104,9 +1190,11 @@ SqlNode SqlMergeIntoTable() :
     SqlUpdate updateCall = null;
     SqlInsert insertCall = null;
     final Span s;
+    SqlTableVersionSpec targetSqlTableVersionSpec = SqlTableVersionSpec.NOT_SPECIFIED ;
 }
 {
     <MERGE> { s = span(); } <INTO> table = CompoundIdentifier()
+    [ targetSqlTableVersionSpec = ATBranchVersionOrReferenceSpec() ]
     [ [ <AS> ] alias = SimpleIdentifier() ]
     <USING> sourceTableRef = TableRef()
     <ON> condition = Expression(ExprContext.ACCEPT_SUB_QUERY)
@@ -1119,7 +1207,7 @@ SqlNode SqlMergeIntoTable() :
     )
     {
         return new SqlMergeIntoTable(s.addIf(updateCall).addIf(insertCall).pos(), table,
-            condition, sourceTableRef, updateCall, insertCall, alias);
+            condition, sourceTableRef, updateCall, insertCall, alias, targetSqlTableVersionSpec);
     }
 }
 
@@ -1160,7 +1248,7 @@ SqlUpdate DremioWhenMatchedClause(SqlNode table, SqlIdentifier alias) :
      )
     {
         return new SqlUpdateTable(s.addAll(updateExprList).pos(), table,
-            updateColumnList, updateExprList, null, alias, updateSource);
+            updateColumnList, updateExprList, null, alias, updateSource, null);
     }
 }
 
@@ -1204,25 +1292,41 @@ SqlInsert DremioWhenNotMatchedClause(SqlIdentifier table) :
         }
     )
     {
-        return new SqlInsertTable(insertSpan.end(this),  table, insertSource, insertColumnList);
+        return new SqlInsertTable(insertSpan.end(this),  table, insertSource, insertColumnList, null);
     }
 }
 
 /**
  * Parses a drop table or drop table if exists statement.
  * DROP TABLE [IF EXISTS] table_name;
+ * [ AT ( REF[ERENCE) | BRANCH ) refValue ]
  */
 SqlNode SqlDropTable() :
 {
     SqlParserPos pos;
-    boolean tableExistenceCheck = false;
+    SqlIdentifier tblName;
+    boolean shouldErrorIfTableDoesNotExist = true;
+    ReferenceType refType = null;
+    SqlIdentifier refValue = null;
 }
 {
     <DROP> { pos = getPos(); }
     <TABLE>
-    [ <IF> <EXISTS> { tableExistenceCheck = true; } ]
+    [ <IF> <EXISTS> { shouldErrorIfTableDoesNotExist = false; } ]
+    tblName = CompoundIdentifier()
+    [
+      <AT>
+      (
+        <REF> { refType = ReferenceType.REFERENCE; }
+        |
+        <REFERENCE> { refType = ReferenceType.REFERENCE; }
+        |
+        <BRANCH> { refType = ReferenceType.BRANCH; }
+      )
+      { refValue = SimpleIdentifier(); }
+    ]
     {
-        return new SqlDropTable(pos, CompoundIdentifier(), tableExistenceCheck);
+        return new SqlDropTable(pos, tblName, shouldErrorIfTableDoesNotExist, refType, refValue);
     }
 }
 
@@ -1257,28 +1361,6 @@ SqlNode SqlRollbackTable() :
     }
 }
 
-void VacuumExpireSnapshotOptions(SqlNodeList optionsList, SqlNodeList optionsValueList) :
-{
-    SqlNode exp;
-}
-{
-    <EXPIRE> <SNAPSHOTS>
-    [
-        <OLDER_THAN> [<EQ>] exp = StringLiteral()
-        {
-            optionsList.add(new SqlIdentifier("older_than", getPos()));
-            optionsValueList.add(exp);
-        }
-    ]
-    [
-        <RETAIN_LAST> [<EQ>] exp = UnsignedNumericLiteral()
-        {
-            optionsList.add(new SqlIdentifier("retain_last", getPos()));
-            optionsValueList.add(exp);
-        }
-    ]
-}
-
  /**
  * Parses a VACUUM statement.
  * VACUUM TABLE <name>
@@ -1303,48 +1385,124 @@ SqlNode SqlVacuum() :
     )
 }
 
+void VacuumTableExpireSnapshotOptions(SqlNodeList optionsList, SqlNodeList optionsValueList) :
+{
+    SqlNode exp;
+}
+{
+    [
+        <OLDER_THAN> [<EQ>] exp = StringLiteral()
+        {
+            optionsList.add(new SqlIdentifier("older_than", getPos()));
+            optionsValueList.add(exp);
+        }
+    ]
+    [
+        <RETAIN_LAST> [<EQ>] exp = UnsignedNumericLiteral()
+        {
+            optionsList.add(new SqlIdentifier("retain_last", getPos()));
+            optionsValueList.add(exp);
+        }
+    ]
+}
+
+void VacuumTableRemoveOrphanFilesOptions(SqlNodeList optionsList, SqlNodeList optionsValueList) :
+{
+    SqlNode exp;
+}
+{
+    [
+        <OLDER_THAN> [<EQ>] exp = StringLiteral()
+        {
+            optionsList.add(new SqlIdentifier("older_than", getPos()));
+            optionsValueList.add(exp);
+        }
+    ]
+    [
+        <LOCATION> [<EQ>] exp = StringLiteral()
+        {
+            optionsList.add(new SqlIdentifier("location", getPos()));
+            optionsValueList.add(exp);
+        }
+    ]
+}
+
 SqlNode SqlVacuumTable(SqlParserPos pos) :
 {
     SqlIdentifier tableName;
     SqlNodeList optionsList = new SqlNodeList(getPos());
     SqlNodeList optionsValueList = new SqlNodeList(getPos());
+    SqlLiteral expireSnapshots = SqlLiteral.createBoolean(true, SqlParserPos.ZERO);
+    SqlLiteral removeOrphans = SqlLiteral.createBoolean(false, SqlParserPos.ZERO);
     SqlNode exp;
 }
 {
-    tableName = CompoundIdentifier()
-    VacuumExpireSnapshotOptions(optionsList, optionsValueList)
+{
+tableName = CompoundIdentifier();
+}
+    (
+       (
+            <EXPIRE> <SNAPSHOTS>
+            {
+                expireSnapshots = SqlLiteral.createBoolean(true, SqlParserPos.ZERO);
+                removeOrphans = SqlLiteral.createBoolean(false, SqlParserPos.ZERO);
+            }
+            VacuumTableExpireSnapshotOptions(optionsList, optionsValueList)
+       )
+       |
+       (
+           <REMOVE> <ORPHAN> <FILES>
+           {
+                expireSnapshots = SqlLiteral.createBoolean(false, SqlParserPos.ZERO);
+                removeOrphans = SqlLiteral.createBoolean(true, SqlParserPos.ZERO);
+            }
+           VacuumTableRemoveOrphanFilesOptions(optionsList, optionsValueList)
+       )
+    )
     {
-        return new SqlVacuumTable(pos, tableName, optionsList, optionsValueList);
+        return new SqlVacuumTable(pos, tableName, expireSnapshots, removeOrphans, optionsList, optionsValueList);
     }
 }
 
 SqlNode SqlVacuumCatalog(SqlParserPos pos) :
 {
     SqlIdentifier catalogSource;
+    SqlNode exp;
 }
 {
-    catalogSource = CompoundIdentifier()
+    catalogSource = SimpleIdentifier()
     {
-        return new SqlVacuumCatalog(pos, catalogSource, new SqlNodeList(pos), new SqlNodeList(pos));
+        return new SqlVacuumCatalog(pos, catalogSource);
     }
 }
 
 /**
  * Parses a truncate table statement.
  * TRUNCATE [TABLE] [IF EXISTS] table_name;
+ * [AT BRANCH <reference_name>]
  */
 SqlNode SqlTruncateTable() :
 {
     SqlParserPos pos;
-    boolean tableExistenceCheck = false;
+    boolean shouldErrorIfTableDoesNotExist = true;
     boolean tableKeywordPresent = false;
+    SqlIdentifier tableName;
+    ReferenceType refType = null;
+    SqlIdentifier refValue = null;
 }
 {
     <TRUNCATE> { pos = getPos(); }
     [ <TABLE> { tableKeywordPresent = true; } ]
-    [ <IF> <EXISTS> { tableExistenceCheck = true; } ]
+    [ <IF> <EXISTS> { shouldErrorIfTableDoesNotExist = false; } ]
+    tableName = CompoundIdentifier()
+    [
+      <AT>
+      <BRANCH>
+      { refType = ReferenceType.BRANCH; }
+      { refValue = SimpleIdentifier(); }
+    ]
     {
-        return new SqlTruncateTable(pos, CompoundIdentifier(), tableExistenceCheck, tableKeywordPresent);
+        return new SqlTruncateTable(pos, shouldErrorIfTableDoesNotExist, tableKeywordPresent, tableName, refType, refValue);
     }
 }
 
@@ -1728,13 +1886,126 @@ SqlNode SqlCreateFolder() :
       <REFERENCE> { refType = ReferenceType.REFERENCE; }
       |
       <BRANCH> { refType = ReferenceType.BRANCH; }
-      |
-      <TAG> { refType = ReferenceType.TAG; }
-      |
-      <COMMIT> { refType = ReferenceType.COMMIT; }
     )
     { refValue = SimpleIdentifier(); }
   ]
   { return new SqlCreateFolder(pos, ifNotExists, folderName, refType, refValue); }
 }
+
+/**
+ * DROP FOLDER [ IF NOT EXISTS ] [source.]parentFolderName[.childFolder]
+ * [ AT BRANCH refValue ]
+ */
+SqlNode SqlDropFolder() :
+{
+  SqlParserPos pos;
+  SqlLiteral ifNotExists = SqlLiteral.createBoolean(false, SqlParserPos.ZERO);
+  SqlIdentifier folderName;
+  ReferenceType refType = null;
+  SqlIdentifier refValue = null;
+}
+{
+  <DROP> { pos = getPos(); }
+  <FOLDER>
+  [ <IF> <NOT> <EXISTS> { ifNotExists = SqlLiteral.createBoolean(true, SqlParserPos.ZERO); } ]
+  folderName = CompoundIdentifier()
+  [
+    <AT>
+    <BRANCH> { refType = ReferenceType.BRANCH; }
+    { refValue = SimpleIdentifier(); }
+  ]
+  { return new SqlDropFolder(pos, ifNotExists, folderName, refType, refValue); }
+}
+
+SqlNode SqlCreatePipe():
+{
+    SqlParserPos pos;
+    SqlIdentifier pipeName = null;
+    SqlIdentifier notificationProvider = null;
+    SqlIdentifier notificationQueueRef = null;
+    SqlNode copyIntoNode;
+}
+{
+    <CREATE> { pos = getPos(); }
+    <PIPE>
+    pipeName = SimpleIdentifier()
+    [
+        <NOTIFICATION_PROVIDER> notificationProvider = SimpleIdentifier()
+        <NOTIFICATION_QUEUE_REFERENCE> notificationQueueRef = SimpleIdentifier()
+    ]
+
+    <AS>
+    (
+        copyIntoNode = SqlCopyInto()
+    )
+
+    { return new SqlCreatePipe(pos, pipeName, copyIntoNode, notificationProvider, notificationQueueRef); }
+}
+
+SqlNode SqlDescribePipe():
+{
+    SqlParserPos pos;
+    SqlIdentifier pipeName = null;
+}
+{
+    (<DESCRIBE> | <DESC>) { pos = getPos(); }
+    <PIPE>
+    {
+        pipeName = SimpleIdentifier();
+        return new SqlDescribePipe(pos, pipeName);
+    }
+}
+
+SqlNode SqlShowPipes():
+{
+    SqlParserPos pos;
+}
+{
+    <SHOW> { pos = getPos(); }
+    <PIPES>
+    { return new SqlShowPipes(pos); }
+}
+
+/**
+ *   SHOW CREATE (VIEW | TABLE) datasetName
+ *   [ AT ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue ]
+ */
+SqlNode SqlShowCreate() :
+{
+    SqlParserPos pos;
+    SqlIdentifier datasetName = null;
+    ReferenceType refType = null;
+    SqlIdentifier refValue = null;
+    boolean isView;
+}
+{
+    <SHOW> { pos = getPos(); }
+    <CREATE>
+    (
+      <VIEW> { isView = true; }
+      |
+      <TABLE> { isView = false; }
+    )
+
+    datasetName = CompoundIdentifier()
+    [
+        <AT>
+        (
+            <REF> { refType = ReferenceType.REFERENCE; }
+            |
+            <REFERENCE> { refType = ReferenceType.REFERENCE; }
+            |
+            <BRANCH> { refType = ReferenceType.BRANCH; }
+            |
+            <TAG> { refType = ReferenceType.TAG; }
+            |
+            <COMMIT> { refType = ReferenceType.COMMIT; }
+        )
+        { refValue = SimpleIdentifier(); }
+    ]
+    {
+        return new SqlShowCreate(pos, isView, datasetName, refType, refValue);
+    }
+}
+
 

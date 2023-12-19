@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>24.1.0-202306130653310132-d30779f6</version>
+    <version>24.3.0-202312190021150029-52db2faf</version>
   </parent>
 
   <groupId>com.dremio.services</groupId>
@@ -93,11 +93,6 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>de.huxhorn.lilith</groupId>
-      <artifactId>de.huxhorn.lilith.logback.appender.multiplex-classic</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
       <groupId>ch.qos.logback</groupId>
       <artifactId>logback-classic</artifactId>
       <scope>test</scope>
@@ -151,40 +146,23 @@
       <plugin>
         <groupId>org.xolstice.maven.plugins</groupId>
         <artifactId>protobuf-maven-plugin</artifactId>
-        <configuration>
-          <protoSourceRoot>${basedir}/src/main/proto</protoSourceRoot>
-          <includes>
-            <include>ticket.proto</include>
-          </includes>
-        </configuration>
         <executions>
           <execution>
             <goals>
               <goal>compile</goal>
             </goals>
-            <configuration>
-              <outputDirectory>${project.build.directory}/generated-sources/protobuf</outputDirectory>
-            </configuration>
           </execution>
         </executions>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-failsafe-plugin</artifactId>
-        <executions>
-          <execution>
-            <goals>
-              <goal>integration-test</goal>
-              <goal>verify</goal>
-            </goals>
-            <configuration>
-              <systemPropertyVariables>
-                <independent.streams.flight.endpoint.port>${independent.streams.flight.reserved.port}</independent.streams.flight.endpoint.port>
-                <backpressure.flight.endpoint.port>${backpressure.flight.reserved.port}</backpressure.flight.endpoint.port>
-              </systemPropertyVariables>
-            </configuration>
-          </execution>
-        </executions>
+        <configuration>
+          <systemPropertyVariables>
+            <independent.streams.flight.endpoint.port>${independent.streams.flight.reserved.port}</independent.streams.flight.endpoint.port>
+            <backpressure.flight.endpoint.port>${backpressure.flight.reserved.port}</backpressure.flight.endpoint.port>
+          </systemPropertyVariables>
+        </configuration>
       </plugin>
       <plugin>
         <groupId>com.github.spotbugs</groupId>

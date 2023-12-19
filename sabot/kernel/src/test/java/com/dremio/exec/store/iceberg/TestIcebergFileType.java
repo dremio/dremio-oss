@@ -40,6 +40,7 @@ public class TestIcebergFileType {
     assertEquals(IcebergFileType.MANIFEST, IcebergFileType.valueByName("MANIFEST"));
     assertEquals(IcebergFileType.MANIFEST_LIST, IcebergFileType.valueByName("MANIFEST_LIST"));
     assertEquals(IcebergFileType.PARTITION_STATS, IcebergFileType.valueByName("PARTITION_STATS"));
+    assertEquals(IcebergFileType.METADATA_JSON, IcebergFileType.valueByName("METADATA_JSON"));
     assertEquals(IcebergFileType.OTHER, IcebergFileType.valueByName("OTHER"));
   }
 }

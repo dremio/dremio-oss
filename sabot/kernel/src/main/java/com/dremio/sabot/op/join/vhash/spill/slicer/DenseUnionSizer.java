@@ -69,7 +69,9 @@ public class DenseUnionSizer implements Sizer{
    * @return
    */
   private int getDataSizeInBitsStartingFromOrdinal(final int ordinal, final int numberOfRecords){
-
+    if(incoming.getValueCount() == 0){
+      return 0;
+    }
     int dataSize = 0;
     for(int index = ordinal; index < ordinal + numberOfRecords; index++){
 

@@ -75,7 +75,6 @@ public class TestOptimizeHandler extends BaseTestQuery {
       queryContext.getFunctionRegistry(),
       queryContext.getSession(),
       observer,
-      queryContext.getCatalog(),
       queryContext.getSubstitutionProviderFactory(),
       queryContext.getConfig(),
       queryContext.getScanResult(),

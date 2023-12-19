@@ -20,6 +20,7 @@ import java.util.AbstractList;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelRecordType;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.sql.type.SqlTypeUtil;
 
 import com.google.common.base.Preconditions;
 
@@ -47,6 +48,27 @@ public class JavaTypeFactoryImpl extends org.apache.calcite.jdbc.JavaTypeFactory
       return super.createSqlType(typeName, precision);
     }
   }
+
+  @Override
+  public RelDataType toSql(RelDataType type) {
+    // TODO: Remove once we cherry pick CALCITE-3424 and CALCITE-3429.
+    RelDataType relDataType = type;
+    if (type instanceof JavaType) {
+      SqlTypeName sqlTypeName = type.getSqlTypeName();
+
+      if (SqlTypeUtil.isArray(type)) {
+        final RelDataType elementType = type.getComponentType() == null
+                                        // type.getJavaClass() is collection with erased generic type
+                                        ? this.createSqlType(SqlTypeName.ANY)
+                                        // elementType returned by JavaType is also of JavaType,
+                                        // and needs conversion using typeFactory
+                                        : toSql(this, type.getComponentType());
+        relDataType = this.createArrayType(elementType, -1);
+      }
+    }
+    return toSql(this, relDataType);
+  }
+
 
   public RelDataType createTypeWithMaxVarcharPrecision(RelDataType rowType) {
     Preconditions.checkState(rowType instanceof RelRecordType);

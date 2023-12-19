@@ -51,7 +51,9 @@ class CustomCondition extends Component {
           {...booleanExpression}
           onChange={this.onChange}
           style={styles.addFieldEditor}
-          tooltip={la("Write an expression that evaluates to TRUE or FALSE.")}
+          tooltip={laDeprecated(
+            "Write an expression that evaluates to TRUE or FALSE."
+          )}
           //todo DX-12762
           blockHeight={140}
           sqlHeight={142}

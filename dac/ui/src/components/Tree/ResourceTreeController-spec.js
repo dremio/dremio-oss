@@ -15,7 +15,7 @@
  */
 import { shallow } from "enzyme";
 import Immutable from "immutable";
-import ResourceTreeController from "./ResourceTreeController";
+import { ResourceTreeController } from "./ResourceTreeController";
 
 describe("ResourceTreeController", () => {
   let minimalProps, commonProps, wrapper, instance;
@@ -228,7 +228,7 @@ describe("ResourceTreeController", () => {
     });
     it("should delete node from expandedNodes if it exists, with children", () => {
       wrapper.setState({ expandedNodes: Immutable.fromJS(["DG", "DG.fold"]) });
-      instance.handleNodeClick(node);
+      instance.handleNodeClick(node, true);
       expect(commonProps.updateTreeNodeData.called).to.be.true;
       expect(commonProps.updateTreeNodeData.calledWith(false, node.get("name")))
         .to.be.true;

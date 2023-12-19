@@ -97,8 +97,11 @@
   output:
     name: "$SUM0"
     signatures:
+     - "(BOOLEAN) -> BOOLEAN"
+     - "(STRING) -> BOOLEAN"
      - "(FLOAT) -> DOUBLE"
      - "(DECIMAL) -> DECIMAL"
+     - "(DECIMAL) -> DOUBLE"
      - "(DOUBLE) -> DOUBLE"
      - "(INT) -> BIGINT"
      - "(BIGINT) -> BIGINT"
@@ -438,6 +441,8 @@
     name: "ANY_VALUE"
     signatures:
      - "(BOOLEAN) -> BOOLEAN"
+     - "(ARRAY) -> ARRAY"
+     - "(MAP) -> MAP"
      - "(BYTES) -> BYTES"
      - "(CHARACTERS) -> CHARACTERS"
      - "(FLOAT) -> FLOAT"
@@ -454,14 +459,282 @@
   output:
     name: "APPROX_COUNT_DISTINCT"
     signatures:
-     - "(ANY...) -> BIGINT"
+     - "(ANY, ANY...) -> BIGINT"
+ -
+  description: "APPROX_PERCENTILE"
+  input: "APPROX_PERCENTILE"
+  output:
+    name: "APPROX_PERCENTILE"
+    signatures:
+     - "(NUMERIC, NUMERIC) -> DOUBLE"
+ -
+  description: "ARRAYS_OVERLAP"
+  input: "ARRAYS_OVERLAP"
+  output:
+    name: "ARRAYS_OVERLAP"
+    signatures:
+     - "(ARRAY, ARRAY) -> BOOLEAN"
+ -
+  description: "ARRAY_AGG"
+  input: "ARRAY_AGG"
+  output:
+    name: "ARRAY_AGG"
+    signatures:
+     - "(ANY) -> ARRAY"
+ -
+  description: "ARRAY_APPEND"
+  input: "ARRAY_APPEND"
+  output:
+    name: "ARRAY_APPEND"
+    signatures:
+     - "(ARRAY, ANY) -> ARRAY"
+ -
+  description: "ARRAY_AVG"
+  input: "ARRAY_AVG"
+  output:
+    name: "ARRAY_AVG"
+    signatures: []
+ -
+  description: "ARRAY_CAT"
+  input: "ARRAY_CAT"
+  output:
+    name: "ARRAY_CAT"
+    signatures:
+     - "(ARRAY, ARRAY, ARRAY...) -> ARRAY"
+ -
+  description: "ARRAY_COMPACT"
+  input: "ARRAY_COMPACT"
+  output:
+    name: "ARRAY_COMPACT"
+    signatures:
+     - "(ARRAY) -> ARRAY"
+ -
+  description: "ARRAY_CONCAT"
+  input: "ARRAY_CONCAT"
+  output:
+    name: "ARRAY_CONCAT"
+    signatures:
+     - "(ARRAY, ARRAY, ARRAY...) -> ARRAY"
  -
   description: "ARRAY_CONTAINS"
   input: "ARRAY_CONTAINS"
   output:
     name: "ARRAY_CONTAINS"
     signatures:
-     - "(ANY, ANY) -> BOOLEAN"
+     - "(ARRAY, ANY) -> BOOLEAN"
+ -
+  description: "ARRAY_DISTINCT"
+  input: "ARRAY_DISTINCT"
+  output:
+    name: "ARRAY_DISTINCT"
+    signatures:
+     - "(ARRAY) -> ARRAY"
+ -
+  description: "ARRAY_GENERATE_RANGE"
+  input: "ARRAY_GENERATE_RANGE"
+  output:
+    name: "ARRAY_GENERATE_RANGE"
+    signatures:
+     - "(INT, INT, INT?) -> ARRAY"
+ -
+  description: "ARRAY_INSERT"
+  input: "ARRAY_INSERT"
+  output:
+    name: "ARRAY_INSERT"
+    signatures: []
+ -
+  description: "ARRAY_INTERSECTION"
+  input: "ARRAY_INTERSECTION"
+  output:
+    name: "ARRAY_INTERSECTION"
+    signatures:
+     - "(ARRAY, ARRAY) -> ARRAY"
+ -
+  description: "ARRAY_LENGTH"
+  input: "ARRAY_LENGTH"
+  output:
+    name: "ARRAY_LENGTH"
+    signatures:
+     - "(ARRAY) -> INT"
+ -
+  description: "ARRAY_MAX"
+  input: "ARRAY_MAX"
+  output:
+    name: "ARRAY_MAX"
+    signatures: []
+ -
+  description: "ARRAY_MAX_BIGINT"
+  input: "ARRAY_MAX_BIGINT"
+  output:
+    name: "ARRAY_MAX_BIGINT"
+    signatures:
+     - "(ANY) -> BIGINT"
+ -
+  description: "ARRAY_MAX_DECIMAL"
+  input: "ARRAY_MAX_DECIMAL"
+  output:
+    name: "ARRAY_MAX_DECIMAL"
+    signatures:
+     - "(ANY) -> ANY"
+ -
+  description: "ARRAY_MAX_DOUBLE"
+  input: "ARRAY_MAX_DOUBLE"
+  output:
+    name: "ARRAY_MAX_DOUBLE"
+    signatures:
+     - "(ANY) -> DOUBLE"
+ -
+  description: "ARRAY_MAX_FLOAT"
+  input: "ARRAY_MAX_FLOAT"
+  output:
+    name: "ARRAY_MAX_FLOAT"
+    signatures:
+     - "(ANY) -> FLOAT"
+ -
+  description: "ARRAY_MAX_INTEGER"
+  input: "ARRAY_MAX_INTEGER"
+  output:
+    name: "ARRAY_MAX_INTEGER"
+    signatures:
+     - "(ANY) -> INT"
+ -
+  description: "ARRAY_MIN"
+  input: "ARRAY_MIN"
+  output:
+    name: "ARRAY_MIN"
+    signatures: []
+ -
+  description: "ARRAY_MIN_BIGINT"
+  input: "ARRAY_MIN_BIGINT"
+  output:
+    name: "ARRAY_MIN_BIGINT"
+    signatures:
+     - "(ANY) -> BIGINT"
+ -
+  description: "ARRAY_MIN_DECIMAL"
+  input: "ARRAY_MIN_DECIMAL"
+  output:
+    name: "ARRAY_MIN_DECIMAL"
+    signatures:
+     - "(ANY) -> ANY"
+ -
+  description: "ARRAY_MIN_DOUBLE"
+  input: "ARRAY_MIN_DOUBLE"
+  output:
+    name: "ARRAY_MIN_DOUBLE"
+    signatures:
+     - "(ANY) -> DOUBLE"
+ -
+  description: "ARRAY_MIN_FLOAT"
+  input: "ARRAY_MIN_FLOAT"
+  output:
+    name: "ARRAY_MIN_FLOAT"
+    signatures:
+     - "(ANY) -> FLOAT"
+ -
+  description: "ARRAY_MIN_INTEGER"
+  input: "ARRAY_MIN_INTEGER"
+  output:
+    name: "ARRAY_MIN_INTEGER"
+    signatures:
+     - "(ANY) -> INT"
+ -
+  description: "ARRAY_POSITION"
+  input: "ARRAY_POSITION"
+  output:
+    name: "ARRAY_POSITION"
+    signatures:
+     - "(ANY, ARRAY) -> INT"
+ -
+  description: "ARRAY_PREPEND"
+  input: "ARRAY_PREPEND"
+  output:
+    name: "ARRAY_PREPEND"
+    signatures:
+     - "(ANY, ARRAY) -> ARRAY"
+ -
+  description: "ARRAY_REMOVE"
+  input: "ARRAY_REMOVE"
+  output:
+    name: "ARRAY_REMOVE"
+    signatures:
+     - "(ARRAY, ANY) -> ARRAY"
+ -
+  description: "ARRAY_REMOVE_AT"
+  input: "ARRAY_REMOVE_AT"
+  output:
+    name: "ARRAY_REMOVE_AT"
+    signatures:
+     - "(ARRAY, INT) -> ARRAY"
+ -
+  description: "ARRAY_SIZE"
+  input: "ARRAY_SIZE"
+  output:
+    name: "ARRAY_SIZE"
+    signatures:
+     - "(ARRAY) -> INT"
+ -
+  description: "ARRAY_SLICE"
+  input: "ARRAY_SLICE"
+  output:
+    name: "ARRAY_SLICE"
+    signatures:
+     - "(ARRAY, INT, INT?) -> ARRAY"
+ -
+  description: "ARRAY_SORT"
+  input: "ARRAY_SORT"
+  output:
+    name: "ARRAY_SORT"
+    signatures:
+     - "(ARRAY) -> ARRAY"
+ -
+  description: "ARRAY_SUM"
+  input: "ARRAY_SUM"
+  output:
+    name: "ARRAY_SUM"
+    signatures: []
+ -
+  description: "ARRAY_SUM_BIGINT"
+  input: "ARRAY_SUM_BIGINT"
+  output:
+    name: "ARRAY_SUM_BIGINT"
+    signatures:
+     - "(ANY) -> BIGINT"
+ -
+  description: "ARRAY_SUM_DECIMAL"
+  input: "ARRAY_SUM_DECIMAL"
+  output:
+    name: "ARRAY_SUM_DECIMAL"
+    signatures:
+     - "(ANY) -> ANY"
+ -
+  description: "ARRAY_SUM_DOUBLE"
+  input: "ARRAY_SUM_DOUBLE"
+  output:
+    name: "ARRAY_SUM_DOUBLE"
+    signatures:
+     - "(ANY) -> DOUBLE"
+ -
+  description: "ARRAY_SUM_FLOAT"
+  input: "ARRAY_SUM_FLOAT"
+  output:
+    name: "ARRAY_SUM_FLOAT"
+    signatures:
+     - "(ANY) -> DOUBLE"
+ -
+  description: "ARRAY_SUM_INTEGER"
+  input: "ARRAY_SUM_INTEGER"
+  output:
+    name: "ARRAY_SUM_INTEGER"
+    signatures:
+     - "(ANY) -> BIGINT"
+ -
+  description: "ARRAY_TO_STRING"
+  input: "ARRAY_TO_STRING"
+  output:
+    name: "ARRAY_TO_STRING"
+    signatures:
+     - "(ARRAY, CHARACTERS) -> CHARACTERS"
  -
   description: "ASCII"
   input: "ASCII"
@@ -608,7 +881,9 @@
   output:
     name: "AVG"
     signatures:
+     - "(BOOLEAN) -> DOUBLE"
      - "(NUMERIC) -> DOUBLE"
+     - "(STRING) -> DOUBLE"
  -
   description: "BASE64"
   input: "BASE64"
@@ -740,7 +1015,7 @@
   output:
     name: "BTRIM"
     signatures:
-     - "(CHARACTERS, CHARACTERS?) -> CHARACTERS"
+     - "(ANY, ANY?) -> CHARACTERS"
  -
   description: "BYTESUBSTRING"
   input: "BYTESUBSTRING"
@@ -762,15 +1037,16 @@
   input: "CARDINALITY"
   output:
     name: "CARDINALITY"
-    signatures: []
+    signatures:
+     - "(SEMISTRUCTURED) -> INT"
  -
   description: "CAST"
   input: "CAST"
   output:
     name: "CAST"
     signatures:
-     - "(ANY, CHARACTERS) -> CHARACTERS"
-     - "(ANY, TIMESTAMP) -> TIMESTAMP"
+     - "(PRIMITIVE, CHARACTERS) -> CHARACTERS"
+     - "(PRIMITIVE, TIMESTAMP) -> TIMESTAMP"
      - "(BOOLEAN, BOOLEAN) -> BOOLEAN"
      - "(BOOLEAN, FLOAT) -> FLOAT"
      - "(BOOLEAN, DECIMAL) -> DECIMAL"
@@ -786,6 +1062,8 @@
      - "(STRING, BYTES) -> BYTES"
      - "(STRING, DATE) -> DATE"
      - "(STRING, TIME) -> TIME"
+     - "(ARRAY, ARRAY) -> ARRAY"
+     - "(MAP, MAP) -> MAP"
      - "(CHARACTERS, BOOLEAN) -> BOOLEAN"
      - "(CHARACTERS, FLOAT) -> FLOAT"
      - "(CHARACTERS, DECIMAL) -> DECIMAL"
@@ -897,6 +1175,7 @@
     name: "CASTINTERVALYEAR"
     signatures:
      - "(ANY, BYTES) -> ANY"
+     - "(BYTES, SEMISTRUCTURED?) -> ANY"
      - "(BYTES, BOOLEAN?) -> ANY"
      - "(BYTES, NUMERIC?) -> ANY"
      - "(BYTES, DATEANDTIME?) -> ANY"
@@ -983,7 +1262,7 @@
   output:
     name: "CASTVARCHAR"
     signatures:
-     - "(ANY, BIGINT) -> CHARACTERS"
+     - "(PRIMITIVE, BIGINT) -> CHARACTERS"
  -
   description: "CBRT"
   input: "CBRT"
@@ -1059,6 +1338,8 @@
     name: "COALESCE"
     signatures:
      - "(BOOLEAN...) -> BOOLEAN"
+     - "(ARRAY...) -> ARRAY"
+     - "(MAP...) -> MAP"
      - "(BYTES...) -> BYTES"
      - "(CHARACTERS...) -> CHARACTERS"
      - "(FLOAT...) -> FLOAT"
@@ -1081,7 +1362,7 @@
   output:
     name: "COL_LIKE"
     signatures:
-     - "(CHARACTERS, CHARACTERS) -> BOOLEAN"
+     - "(STRING, STRING) -> BOOLEAN"
  -
   description: "COMPARETYPE"
   input: "COMPARETYPE"
@@ -1127,14 +1408,7 @@
   output:
     name: "CONCAT"
     signatures:
-     - "(CHARACTERS, CHARACTERS, CHARACTERS?) -> CHARACTERS"
-     - "(CHARACTERS, CHARACTERS, CHARACTERS, CHARACTERS?) -> CHARACTERS"
-     - "(CHARACTERS, CHARACTERS, CHARACTERS, CHARACTERS, CHARACTERS?) -> CHARACTERS"
-     - "(CHARACTERS, CHARACTERS, CHARACTERS, CHARACTERS, CHARACTERS, CHARACTERS?) -> CHARACTERS"
-     - "(CHARACTERS, CHARACTERS, CHARACTERS, CHARACTERS, CHARACTERS, CHARACTERS, CHARACTERS?) -> CHARACTERS"
-     - "(CHARACTERS, CHARACTERS, CHARACTERS, CHARACTERS, CHARACTERS, CHARACTERS, CHARACTERS, CHARACTERS?) -> CHARACTERS"
-     - "(CHARACTERS, CHARACTERS, CHARACTERS, CHARACTERS, CHARACTERS, CHARACTERS, CHARACTERS, CHARACTERS, CHARACTERS?) -> CHARACTERS"
-     - "(CHARACTERS, CHARACTERS, CHARACTERS, CHARACTERS, CHARACTERS, CHARACTERS, CHARACTERS, CHARACTERS, CHARACTERS, CHARACTERS?) -> CHARACTERS"
+     - "(ANY, ANY...) -> CHARACTERS"
  -
   description: "CONCATOPERATOR"
   input: "CONCATOPERATOR"
@@ -1177,8 +1451,7 @@
   input: "CONVERT_FROM"
   output:
     name: "CONVERT_FROM"
-    signatures:
-     - "() -> BYTES"
+    signatures: []
  -
   description: "CONVERT_FROMBIGINT"
   input: "CONVERT_FROMBIGINT"
@@ -1276,7 +1549,7 @@
   output:
     name: "CONVERT_FROMJSON"
     signatures:
-     - "(ANY) -> ANY"
+     - "(STRING) -> ANY"
  -
   description: "CONVERT_FROMTIMESTAMP_EPOCH"
   input: "CONVERT_FROMTIMESTAMP_EPOCH"
@@ -1325,14 +1598,14 @@
   output:
     name: "CONVERT_FROMUTF8"
     signatures:
-     - "(BYTES) -> CHARACTERS"
+     - "(ANY) -> CHARACTERS"
  -
   description: "CONVERT_REPLACEUTF8"
   input: "CONVERT_REPLACEUTF8"
   output:
     name: "CONVERT_REPLACEUTF8"
     signatures:
-     - "(BYTES, CHARACTERS) -> CHARACTERS"
+     - "(ANY, CHARACTERS) -> CHARACTERS"
  -
   description: "CONVERT_TIMEZONE"
   input: "CONVERT_TIMEZONE"
@@ -1346,8 +1619,7 @@
   input: "CONVERT_TO"
   output:
     name: "CONVERT_TO"
-    signatures:
-     - "() -> BYTES"
+    signatures: []
  -
   description: "CONVERT_TOBASE64"
   input: "CONVERT_TOBASE64"
@@ -1361,6 +1633,7 @@
   output:
     name: "CONVERT_TOBIGINT"
     signatures:
+     - "(INT) -> BYTES"
      - "(BIGINT) -> BYTES"
  -
   description: "CONVERT_TOBIGINT_BE"
@@ -1368,6 +1641,7 @@
   output:
     name: "CONVERT_TOBIGINT_BE"
     signatures:
+     - "(INT) -> BYTES"
      - "(BIGINT) -> BYTES"
  -
   description: "CONVERT_TOBIGINT_HADOOPV"
@@ -1375,6 +1649,7 @@
   output:
     name: "CONVERT_TOBIGINT_HADOOPV"
     signatures:
+     - "(INT) -> BYTES"
      - "(BIGINT) -> BYTES"
  -
   description: "CONVERT_TOBOOLEAN_BYTE"
@@ -1384,40 +1659,47 @@
     signatures:
      - "(BOOLEAN) -> BYTES"
  -
+  description: "CONVERT_TOCOMPACTJSON"
+  input: "CONVERT_TOCOMPACTJSON"
+  output:
+    name: "CONVERT_TOCOMPACTJSON"
+    signatures:
+     - "(ANY) -> ANY"
+ -
   description: "CONVERT_TODATE_EPOCH"
   input: "CONVERT_TODATE_EPOCH"
   output:
     name: "CONVERT_TODATE_EPOCH"
     signatures:
-     - "(DATE) -> BYTES"
+     - "(ANY) -> BYTES"
  -
   description: "CONVERT_TODATE_EPOCH_BE"
   input: "CONVERT_TODATE_EPOCH_BE"
   output:
     name: "CONVERT_TODATE_EPOCH_BE"
     signatures:
-     - "(DATE) -> BYTES"
+     - "(ANY) -> BYTES"
  -
   description: "CONVERT_TODOUBLE"
   input: "CONVERT_TODOUBLE"
   output:
     name: "CONVERT_TODOUBLE"
     signatures:
-     - "(DOUBLE) -> BYTES"
+     - "(NUMERIC) -> BYTES"
  -
   description: "CONVERT_TODOUBLE_BE"
   input: "CONVERT_TODOUBLE_BE"
   output:
     name: "CONVERT_TODOUBLE_BE"
     signatures:
-     - "(DOUBLE) -> BYTES"
+     - "(NUMERIC) -> BYTES"
  -
   description: "CONVERT_TOEXTENDEDJSON"
   input: "CONVERT_TOEXTENDEDJSON"
   output:
     name: "CONVERT_TOEXTENDEDJSON"
     signatures:
-     - "(ANY) -> ANY"
+     - "(ANY) -> BYTES"
  -
   description: "CONVERT_TOFLOAT"
   input: "CONVERT_TOFLOAT"
@@ -1459,20 +1741,21 @@
   output:
     name: "CONVERT_TOJSON"
     signatures:
-     - "(ANY) -> ANY"
+     - "(ANY) -> BYTES"
  -
   description: "CONVERT_TOSIMPLEJSON"
   input: "CONVERT_TOSIMPLEJSON"
   output:
     name: "CONVERT_TOSIMPLEJSON"
     signatures:
-     - "(ANY) -> ANY"
+     - "(ANY) -> BYTES"
  -
   description: "CONVERT_TOTIMESTAMP_EPOCH"
   input: "CONVERT_TOTIMESTAMP_EPOCH"
   output:
     name: "CONVERT_TOTIMESTAMP_EPOCH"
     signatures:
+     - "(CHARACTERS) -> BYTES"
      - "(TIMESTAMP) -> BYTES"
  -
   description: "CONVERT_TOTIMESTAMP_EPOCH_BE"
@@ -1480,6 +1763,7 @@
   output:
     name: "CONVERT_TOTIMESTAMP_EPOCH_BE"
     signatures:
+     - "(CHARACTERS) -> BYTES"
      - "(TIMESTAMP) -> BYTES"
  -
   description: "CONVERT_TOTIME_EPOCH"
@@ -1487,6 +1771,7 @@
   output:
     name: "CONVERT_TOTIME_EPOCH"
     signatures:
+     - "(CHARACTERS) -> BYTES"
      - "(TIME) -> BYTES"
  -
   description: "CONVERT_TOTIME_EPOCH_BE"
@@ -1494,6 +1779,7 @@
   output:
     name: "CONVERT_TOTIME_EPOCH_BE"
     signatures:
+     - "(CHARACTERS) -> BYTES"
      - "(TIME) -> BYTES"
  -
   description: "CONVERT_TOUTF8"
@@ -1501,7 +1787,7 @@
   output:
     name: "CONVERT_TOUTF8"
     signatures:
-     - "(CHARACTERS) -> BYTES"
+     - "(ANY) -> BYTES"
  -
   description: "CORR"
   input: "CORR"
@@ -1519,6 +1805,7 @@
      - "(STRING, STRING) -> DOUBLE"
      - "(STRING, INT) -> DOUBLE"
      - "(STRING, BIGINT) -> DOUBLE"
+     - "(BYTES, SEMISTRUCTURED) -> ANY"
      - "(BYTES, NUMERIC) -> ANY"
      - "(BYTES, DATEANDTIME) -> ANY"
      - "(CHARACTERS, FLOAT) -> DOUBLE"
@@ -1543,6 +1830,7 @@
      - "(STRING, STRING) -> DOUBLE"
      - "(STRING, INT) -> DOUBLE"
      - "(STRING, BIGINT) -> DOUBLE"
+     - "(BYTES, SEMISTRUCTURED) -> ANY"
      - "(BYTES, NUMERIC) -> ANY"
      - "(BYTES, DATEANDTIME) -> ANY"
      - "(CHARACTERS, FLOAT) -> DOUBLE"
@@ -1580,7 +1868,7 @@
   output:
     name: "COUNT"
     signatures:
-     - "(ANY...) -> BIGINT"
+     - "(ANY, ANY...) -> BIGINT"
  -
   description: "COVARIANCE"
   input: "COVARIANCE"
@@ -1598,6 +1886,7 @@
      - "(STRING, STRING) -> DOUBLE"
      - "(STRING, INT) -> DOUBLE"
      - "(STRING, BIGINT) -> DOUBLE"
+     - "(BYTES, SEMISTRUCTURED) -> ANY"
      - "(BYTES, NUMERIC) -> ANY"
      - "(BYTES, DATEANDTIME) -> ANY"
      - "(CHARACTERS, FLOAT) -> DOUBLE"
@@ -1611,14 +1900,50 @@
   output:
     name: "COVAR_POP"
     signatures:
+     - "(ANY, BYTES) -> ANY"
+     - "(BOOLEAN, BOOLEAN) -> DOUBLE"
+     - "(BOOLEAN, NUMERIC) -> DOUBLE"
+     - "(BOOLEAN, STRING) -> DOUBLE"
+     - "(NUMERIC, BOOLEAN) -> DOUBLE"
      - "(NUMERIC, NUMERIC) -> DOUBLE"
+     - "(NUMERIC, CHARACTERS) -> DOUBLE"
+     - "(STRING, BOOLEAN) -> DOUBLE"
+     - "(STRING, STRING) -> DOUBLE"
+     - "(STRING, INT) -> DOUBLE"
+     - "(STRING, BIGINT) -> DOUBLE"
+     - "(BYTES, SEMISTRUCTURED) -> ANY"
+     - "(BYTES, NUMERIC) -> ANY"
+     - "(BYTES, DATEANDTIME) -> ANY"
+     - "(CHARACTERS, FLOAT) -> DOUBLE"
+     - "(CHARACTERS, DECIMAL) -> DOUBLE"
+     - "(CHARACTERS, DOUBLE) -> DOUBLE"
+     - "(INT, BYTES) -> DOUBLE"
+     - "(BIGINT, BYTES) -> DOUBLE"
  -
   description: "COVAR_SAMP"
   input: "COVAR_SAMP"
   output:
     name: "COVAR_SAMP"
     signatures:
+     - "(ANY, BYTES) -> ANY"
+     - "(BOOLEAN, BOOLEAN) -> DOUBLE"
+     - "(BOOLEAN, NUMERIC) -> DOUBLE"
+     - "(BOOLEAN, STRING) -> DOUBLE"
+     - "(NUMERIC, BOOLEAN) -> DOUBLE"
      - "(NUMERIC, NUMERIC) -> DOUBLE"
+     - "(NUMERIC, CHARACTERS) -> DOUBLE"
+     - "(STRING, BOOLEAN) -> DOUBLE"
+     - "(STRING, STRING) -> DOUBLE"
+     - "(STRING, INT) -> DOUBLE"
+     - "(STRING, BIGINT) -> DOUBLE"
+     - "(BYTES, SEMISTRUCTURED) -> ANY"
+     - "(BYTES, NUMERIC) -> ANY"
+     - "(BYTES, DATEANDTIME) -> ANY"
+     - "(CHARACTERS, FLOAT) -> DOUBLE"
+     - "(CHARACTERS, DECIMAL) -> DOUBLE"
+     - "(CHARACTERS, DOUBLE) -> DOUBLE"
+     - "(INT, BYTES) -> DOUBLE"
+     - "(BIGINT, BYTES) -> DOUBLE"
  -
   description: "CRC32"
   input: "CRC32"
@@ -1781,6 +2106,7 @@
   output:
     name: "DATE_TRUNC"
     signatures:
+     - "(CHARACTERS, CHARACTERS) -> DATE"
      - "(CHARACTERS, DATE) -> DATE"
      - "(CHARACTERS, TIME) -> TIME"
      - "(CHARACTERS, TIMESTAMP) -> TIMESTAMP"
@@ -1888,10 +2214,7 @@
   output:
     name: "DAY"
     signatures:
-     - "(DATE) -> BIGINT"
-     - "(DATE) -> DATE"
-     - "(TIMESTAMP) -> BIGINT"
-     - "(TIMESTAMP) -> TIMESTAMP"
+     - "(DATEANDTIME) -> BIGINT"
  -
   description: "DAYOFMONTH"
   input: "DAYOFMONTH"
@@ -1962,7 +2285,8 @@
   input: "ELEMENT"
   output:
     name: "ELEMENT"
-    signatures: []
+    signatures:
+     - "(ARRAY) -> ANY"
  -
   description: "ELT"
   input: "ELT"
@@ -2150,12 +2474,21 @@
      - "(INT) -> BIGINT"
      - "(BIGINT) -> BIGINT"
  -
+  description: "FIND_IN_SET"
+  input: "FIND_IN_SET"
+  output:
+    name: "FIND_IN_SET"
+    signatures:
+     - "(CHARACTERS, CHARACTERS) -> INT"
+ -
   description: "FIRST"
   input: "FIRST"
   output:
     name: "FIRST"
     signatures:
      - "(BOOLEAN, NUMERIC) -> BOOLEAN"
+     - "(ARRAY, NUMERIC) -> ARRAY"
+     - "(MAP, NUMERIC) -> MAP"
      - "(BYTES, NUMERIC) -> BYTES"
      - "(CHARACTERS, NUMERIC) -> CHARACTERS"
      - "(FLOAT, NUMERIC) -> FLOAT"
@@ -2173,6 +2506,8 @@
     name: "FIRST_VALUE"
     signatures:
      - "(BOOLEAN) -> BOOLEAN"
+     - "(ARRAY) -> ARRAY"
+     - "(MAP) -> MAP"
      - "(BYTES) -> BYTES"
      - "(CHARACTERS) -> CHARACTERS"
      - "(FLOAT) -> FLOAT"
@@ -2189,7 +2524,7 @@
   output:
     name: "FLATTEN"
     signatures:
-     - "(ANY) -> ANY"
+     - "(ARRAY) -> ANY"
  -
   description: "FLOOR"
   input: "FLOOR"
@@ -2204,6 +2539,13 @@
      - "(DATE, ANY) -> DATE"
      - "(TIME, ANY) -> TIME"
      - "(TIMESTAMP, ANY) -> TIMESTAMP"
+ -
+  description: "FORMAT_NUMBER"
+  input: "FORMAT_NUMBER"
+  output:
+    name: "FORMAT_NUMBER"
+    signatures:
+     - "(DOUBLE, INT) -> CHARACTERS"
  -
   description: "FROM_HEX"
   input: "FROM_HEX"
@@ -2277,6 +2619,8 @@
     name: "GREATEST"
     signatures:
      - "(BOOLEAN...) -> BOOLEAN"
+     - "(ARRAY...) -> ARRAY"
+     - "(MAP...) -> MAP"
      - "(BYTES...) -> BYTES"
      - "(CHARACTERS...) -> CHARACTERS"
      - "(FLOAT...) -> FLOAT"
@@ -2293,14 +2637,14 @@
   output:
     name: "GROUPING"
     signatures:
-     - "(ANY...) -> BIGINT"
+     - "(ANY, ANY...) -> BIGINT"
  -
   description: "GROUPING_ID"
   input: "GROUPING_ID"
   output:
     name: "GROUPING_ID"
     signatures:
-     - "(ANY...) -> BIGINT"
+     - "(ANY, ANY...) -> BIGINT"
  -
   description: "GROUP_ID"
   input: "GROUP_ID"
@@ -2321,28 +2665,28 @@
   output:
     name: "HASH32"
     signatures:
-     - "(ANY, INT?) -> INT"
+     - "(PRIMITIVE, INT?) -> INT"
  -
   description: "HASH32ASDOUBLE"
   input: "HASH32ASDOUBLE"
   output:
     name: "HASH32ASDOUBLE"
     signatures:
-     - "(ANY, INT?) -> INT"
+     - "(PRIMITIVE, INT?) -> INT"
  -
   description: "HASH64"
   input: "HASH64"
   output:
     name: "HASH64"
     signatures:
-     - "(ANY, BIGINT?) -> BIGINT"
+     - "(PRIMITIVE, BIGINT?) -> BIGINT"
  -
   description: "HASH64ASDOUBLE"
   input: "HASH64ASDOUBLE"
   output:
     name: "HASH64ASDOUBLE"
     signatures:
-     - "(ANY, BIGINT?) -> BIGINT"
+     - "(PRIMITIVE, BIGINT?) -> BIGINT"
  -
   description: "HASHMD5"
   input: "HASHMD5"
@@ -2375,7 +2719,15 @@
   output:
     name: "HASHSHA256"
     signatures:
-     - "(ANY) -> CHARACTERS"
+     - "() -> CHARACTERS"
+     - "(ANY...) -> CHARACTERS"
+     - "(BOOLEAN) -> CHARACTERS"
+     - "(STRING) -> CHARACTERS"
+     - "(DATEANDTIME) -> CHARACTERS"
+     - "(FLOAT) -> CHARACTERS"
+     - "(DOUBLE) -> CHARACTERS"
+     - "(INT) -> CHARACTERS"
+     - "(BIGINT) -> CHARACTERS"
  -
   description: "HASHSHA512"
   input: "HASHSHA512"
@@ -2425,11 +2777,11 @@
   output:
     name: "HLL_V2"
     signatures:
-     - "(BOOLEAN) -> ANY"
-     - "(STRING) -> ANY"
-     - "(DECIMAL) -> ANY"
-     - "(INT) -> ANY"
-     - "(BIGINT) -> ANY"
+     - "(BOOLEAN) -> BYTES"
+     - "(STRING) -> BYTES"
+     - "(DECIMAL) -> BYTES"
+     - "(INT) -> BYTES"
+     - "(BIGINT) -> BYTES"
  -
   description: "HOP"
   input: "HOP"
@@ -2464,6 +2816,25 @@
     name: "ICEBERGDISTRIBUTEBYPARTITION"
     signatures:
      - "(BYTES) -> INT"
+ -
+  description: "IDENTITY"
+  input: "IDENTITY"
+  output:
+    name: "IDENTITY"
+    signatures:
+     - "(BOOLEAN) -> BOOLEAN"
+     - "(ARRAY) -> ARRAY"
+     - "(MAP) -> MAP"
+     - "(BYTES) -> BYTES"
+     - "(CHARACTERS) -> CHARACTERS"
+     - "(FLOAT) -> FLOAT"
+     - "(DECIMAL) -> DECIMAL"
+     - "(DOUBLE) -> DOUBLE"
+     - "(INT) -> INT"
+     - "(BIGINT) -> BIGINT"
+     - "(DATE) -> DATE"
+     - "(TIME) -> TIME"
+     - "(TIMESTAMP) -> TIMESTAMP"
  -
   description: "ILIKE"
   input: "ILIKE"
@@ -2512,6 +2883,7 @@
     name: "INTERVAL_YEAR"
     signatures:
      - "(ANY, BYTES) -> ANY"
+     - "(BYTES, SEMISTRUCTURED) -> ANY"
      - "(BYTES, BOOLEAN) -> ANY"
      - "(BYTES, NUMERIC) -> ANY"
      - "(BYTES, DATEANDTIME) -> ANY"
@@ -2523,6 +2895,8 @@
     name: "IN_FENNEL"
     signatures:
      - "(BOOLEAN) -> BOOLEAN"
+     - "(ARRAY) -> ARRAY"
+     - "(MAP) -> MAP"
      - "(BYTES) -> BYTES"
      - "(CHARACTERS) -> CHARACTERS"
      - "(FLOAT) -> FLOAT"
@@ -2591,7 +2965,7 @@
   output:
     name: "IS NOT NULL"
     signatures:
-     - "(ANY) -> BOOLEAN"
+     - "(PRIMITIVE) -> BOOLEAN"
  -
   description: "IS NOT TRUE"
   input: "IS NOT TRUE"
@@ -2609,7 +2983,7 @@
   output:
     name: "IS NULL"
     signatures:
-     - "(ANY) -> BOOLEAN"
+     - "(PRIMITIVE) -> BOOLEAN"
  -
   description: "IS TRUE"
   input: "IS TRUE"
@@ -2656,7 +3030,7 @@
   output:
     name: "ISNOTNULL"
     signatures:
-     - "(ANY) -> BOOLEAN"
+     - "(PRIMITIVE) -> BOOLEAN"
  -
   description: "ISNOTTRUE"
   input: "ISNOTTRUE"
@@ -2674,7 +3048,7 @@
   output:
     name: "ISNULL"
     signatures:
-     - "(ANY) -> BOOLEAN"
+     - "(PRIMITIVE) -> BOOLEAN"
  -
   description: "ISNUMERIC"
   input: "ISNUMERIC"
@@ -2788,7 +3162,14 @@
   output:
     name: "IS_LIST"
     signatures:
-     - "(BYTES) -> BOOLEAN"
+     - "(ANY) -> BOOLEAN"
+ -
+  description: "IS_MEMBER"
+  input: "IS_MEMBER"
+  output:
+    name: "IS_MEMBER"
+    signatures:
+     - "(STRING, BOOLEAN?) -> BOOLEAN"
  -
   description: "IS_NOT_DISTINCT_FROM"
   input: "IS_NOT_DISTINCT_FROM"
@@ -2859,62 +3240,115 @@
   output:
     name: "ITEMS_SKETCH"
     signatures:
-     - "(ANY) -> ANY"
+     - "(PRIMITIVE) -> BYTES"
  -
   description: "ITEMS_SKETCH_MERGE_BOOLEAN"
   input: "ITEMS_SKETCH_MERGE_BOOLEAN"
   output:
     name: "ITEMS_SKETCH_MERGE_BOOLEAN"
     signatures:
-     - "(STRING) -> ANY"
-     - "(FLOAT) -> ANY"
-     - "(DOUBLE) -> ANY"
-     - "(INT) -> ANY"
-     - "(BIGINT) -> ANY"
+     - "(STRING) -> BYTES"
+     - "(FLOAT) -> BYTES"
+     - "(DOUBLE) -> BYTES"
+     - "(INT) -> BYTES"
+     - "(BIGINT) -> BYTES"
  -
   description: "ITEMS_SKETCH_MERGE_DOUBLE"
   input: "ITEMS_SKETCH_MERGE_DOUBLE"
   output:
     name: "ITEMS_SKETCH_MERGE_DOUBLE"
     signatures:
-     - "(STRING) -> ANY"
-     - "(FLOAT) -> ANY"
-     - "(DOUBLE) -> ANY"
-     - "(INT) -> ANY"
-     - "(BIGINT) -> ANY"
+     - "(STRING) -> BYTES"
+     - "(FLOAT) -> BYTES"
+     - "(DOUBLE) -> BYTES"
+     - "(INT) -> BYTES"
+     - "(BIGINT) -> BYTES"
  -
   description: "ITEMS_SKETCH_MERGE_LONG"
   input: "ITEMS_SKETCH_MERGE_LONG"
   output:
     name: "ITEMS_SKETCH_MERGE_LONG"
     signatures:
-     - "(STRING) -> ANY"
-     - "(FLOAT) -> ANY"
-     - "(DOUBLE) -> ANY"
-     - "(INT) -> ANY"
-     - "(BIGINT) -> ANY"
+     - "(STRING) -> BYTES"
+     - "(FLOAT) -> BYTES"
+     - "(DOUBLE) -> BYTES"
+     - "(INT) -> BYTES"
+     - "(BIGINT) -> BYTES"
  -
   description: "ITEMS_SKETCH_MERGE_NUMBER"
   input: "ITEMS_SKETCH_MERGE_NUMBER"
   output:
     name: "ITEMS_SKETCH_MERGE_NUMBER"
     signatures:
-     - "(STRING) -> ANY"
-     - "(FLOAT) -> ANY"
-     - "(DOUBLE) -> ANY"
-     - "(INT) -> ANY"
-     - "(BIGINT) -> ANY"
+     - "(STRING) -> BYTES"
+     - "(FLOAT) -> BYTES"
+     - "(DOUBLE) -> BYTES"
+     - "(INT) -> BYTES"
+     - "(BIGINT) -> BYTES"
  -
   description: "ITEMS_SKETCH_MERGE_VARCHAR"
   input: "ITEMS_SKETCH_MERGE_VARCHAR"
   output:
     name: "ITEMS_SKETCH_MERGE_VARCHAR"
     signatures:
-     - "(STRING) -> ANY"
-     - "(FLOAT) -> ANY"
-     - "(DOUBLE) -> ANY"
-     - "(INT) -> ANY"
-     - "(BIGINT) -> ANY"
+     - "(STRING) -> BYTES"
+     - "(FLOAT) -> BYTES"
+     - "(DOUBLE) -> BYTES"
+     - "(INT) -> BYTES"
+     - "(BIGINT) -> BYTES"
+ -
+  description: "JSON_ARRAY"
+  input: "JSON_ARRAY"
+  output:
+    name: "JSON_ARRAY"
+    signatures:
+     - "(ANY, ANY...) -> CHARACTERS"
+ -
+  description: "JSON_ARRAYAGG"
+  input: "JSON_ARRAYAGG"
+  output:
+    name: "JSON_ARRAYAGG"
+    signatures:
+     - "(ANY) -> CHARACTERS"
+ -
+  description: "JSON_EXISTS"
+  input: "JSON_EXISTS"
+  output:
+    name: "JSON_EXISTS"
+    signatures:
+     - "(ANY, ANY?) -> BOOLEAN"
+ -
+  description: "JSON_OBJECT"
+  input: "JSON_OBJECT"
+  output:
+    name: "JSON_OBJECT"
+    signatures:
+     - "(ANY) -> CHARACTERS"
+ -
+  description: "JSON_OBJECTAGG"
+  input: "JSON_OBJECTAGG"
+  output:
+    name: "JSON_OBJECTAGG"
+    signatures:
+     - "(CHARACTERS, ANY) -> CHARACTERS"
+ -
+  description: "JSON_QUERY"
+  input: "JSON_QUERY"
+  output:
+    name: "JSON_QUERY"
+    signatures: []
+ -
+  description: "JSON_VALUE"
+  input: "JSON_VALUE"
+  output:
+    name: "JSON_VALUE"
+    signatures: []
+ -
+  description: "JSON_VALUE_ANY"
+  input: "JSON_VALUE_ANY"
+  output:
+    name: "JSON_VALUE_ANY"
+    signatures: []
  -
   description: "KVGEN"
   input: "KVGEN"
@@ -2929,6 +3363,8 @@
     name: "LAG"
     signatures:
      - "(BOOLEAN, NUMERIC?) -> BOOLEAN"
+     - "(ARRAY, NUMERIC?) -> ARRAY"
+     - "(MAP, NUMERIC?) -> MAP"
      - "(BYTES, NUMERIC?) -> BYTES"
      - "(CHARACTERS, NUMERIC?) -> CHARACTERS"
      - "(FLOAT, NUMERIC?) -> FLOAT"
@@ -2941,6 +3377,8 @@
      - "(TIMESTAMP, NUMERIC?) -> TIMESTAMP"
      - "(BOOLEAN, NUMERIC, BOOLEAN?) -> BOOLEAN"
      - "(BOOLEAN, NUMERIC, CHARACTERS?) -> BOOLEAN"
+     - "(ARRAY, NUMERIC, ARRAY?) -> ARRAY"
+     - "(MAP, NUMERIC, MAP?) -> MAP"
      - "(BYTES, NUMERIC, BYTES?) -> BYTES"
      - "(CHARACTERS, NUMERIC, BOOLEAN?) -> CHARACTERS"
      - "(CHARACTERS, NUMERIC, NUMERIC?) -> CHARACTERS"
@@ -2971,6 +3409,8 @@
     name: "LAST"
     signatures:
      - "(BOOLEAN, NUMERIC) -> BOOLEAN"
+     - "(ARRAY, NUMERIC) -> ARRAY"
+     - "(MAP, NUMERIC) -> MAP"
      - "(BYTES, NUMERIC) -> BYTES"
      - "(CHARACTERS, NUMERIC) -> CHARACTERS"
      - "(FLOAT, NUMERIC) -> FLOAT"
@@ -3010,6 +3450,8 @@
     name: "LAST_VALUE"
     signatures:
      - "(BOOLEAN) -> BOOLEAN"
+     - "(ARRAY) -> ARRAY"
+     - "(MAP) -> MAP"
      - "(BYTES) -> BYTES"
      - "(CHARACTERS) -> CHARACTERS"
      - "(FLOAT) -> FLOAT"
@@ -3034,6 +3476,8 @@
     name: "LEAD"
     signatures:
      - "(BOOLEAN, NUMERIC?) -> BOOLEAN"
+     - "(ARRAY, NUMERIC?) -> ARRAY"
+     - "(MAP, NUMERIC?) -> MAP"
      - "(BYTES, NUMERIC?) -> BYTES"
      - "(CHARACTERS, NUMERIC?) -> CHARACTERS"
      - "(FLOAT, NUMERIC?) -> FLOAT"
@@ -3046,6 +3490,8 @@
      - "(TIMESTAMP, NUMERIC?) -> TIMESTAMP"
      - "(BOOLEAN, NUMERIC, BOOLEAN?) -> BOOLEAN"
      - "(BOOLEAN, NUMERIC, CHARACTERS?) -> BOOLEAN"
+     - "(ARRAY, NUMERIC, ARRAY?) -> ARRAY"
+     - "(MAP, NUMERIC, MAP?) -> MAP"
      - "(BYTES, NUMERIC, BYTES?) -> BYTES"
      - "(CHARACTERS, NUMERIC, BOOLEAN?) -> CHARACTERS"
      - "(CHARACTERS, NUMERIC, NUMERIC?) -> CHARACTERS"
@@ -3076,6 +3522,8 @@
     name: "LEAST"
     signatures:
      - "(BOOLEAN...) -> BOOLEAN"
+     - "(ARRAY...) -> ARRAY"
+     - "(MAP...) -> MAP"
      - "(BYTES...) -> BYTES"
      - "(CHARACTERS...) -> CHARACTERS"
      - "(FLOAT...) -> FLOAT"
@@ -3101,6 +3549,7 @@
     name: "LENGTH"
     signatures:
      - "(CHARACTERS) -> INT"
+     - "(ANY, ANY) -> INT"
  -
   description: "LENGTHUTF8"
   input: "LENGTHUTF8"
@@ -3168,7 +3617,15 @@
   output:
     name: "LISTAGG_MERGE"
     signatures:
+     - "(ARRAY) -> CHARACTERS"
      - "(STRING, STRING) -> CHARACTERS"
+ -
+  description: "LIST_TO_DELIMITED_STRING"
+  input: "LIST_TO_DELIMITED_STRING"
+  output:
+    name: "LIST_TO_DELIMITED_STRING"
+    signatures:
+     - "(ANY, CHARACTERS) -> CHARACTERS"
  -
   description: "LN"
   input: "LN"
@@ -3196,7 +3653,7 @@
   output:
     name: "LOCAL_LISTAGG"
     signatures:
-     - "(STRING, STRING?) -> LIST"
+     - "(STRING, STRING?) -> ARRAY"
  -
   description: "LOCATE"
   input: "LOCATE"
@@ -3210,15 +3667,23 @@
   output:
     name: "LOG"
     signatures:
-     - "(FLOAT, FLOAT?) -> DOUBLE"
-     - "(DOUBLE, DOUBLE?) -> DOUBLE"
-     - "(INT, INT?) -> DOUBLE"
-     - "(BIGINT, BIGINT?) -> DOUBLE"
+     - "(FLOAT) -> DOUBLE"
+     - "(DOUBLE) -> DOUBLE"
+     - "(INT) -> DOUBLE"
+     - "(BIGINT) -> DOUBLE"
+     - "(NUMERIC, NUMERIC) -> DOUBLE"
  -
   description: "LOG10"
   input: "LOG10"
   output:
     name: "LOG10"
+    signatures:
+     - "(NUMERIC) -> DOUBLE"
+ -
+  description: "LOG2"
+  input: "LOG2"
+  output:
+    name: "LOG2"
     signatures:
      - "(NUMERIC) -> DOUBLE"
  -
@@ -3234,8 +3699,8 @@
   output:
     name: "LPAD"
     signatures:
-     - "(CHARACTERS, INT, CHARACTERS?) -> CHARACTERS"
-     - "(CHARACTERS, BIGINT, CHARACTERS?) -> CHARACTERS"
+     - "(CHARACTERS, INT) -> CHARACTERS"
+     - "(ANY, ANY, ANY) -> CHARACTERS"
  -
   description: "LSHIFT"
   input: "LSHIFT"
@@ -3250,7 +3715,7 @@
   output:
     name: "LTRIM"
     signatures:
-     - "(CHARACTERS, CHARACTERS?) -> CHARACTERS"
+     - "(ANY, ANY?) -> CHARACTERS"
  -
   description: "MAPPIFY"
   input: "MAPPIFY"
@@ -3264,34 +3729,26 @@
   output:
     name: "MAP_KEYS"
     signatures:
-     - "(ANY) -> ANY"
+     - "(MAP) -> ARRAY"
  -
   description: "MAP_VALUES"
   input: "MAP_VALUES"
   output:
     name: "MAP_VALUES"
     signatures:
-     - "(ANY) -> ANY"
+     - "(MAP) -> ARRAY"
  -
   description: "MASK"
   input: "MASK"
   output:
     name: "MASK"
     signatures:
-     - "(BOOLEAN...) -> BOOLEAN"
-     - "(BYTES...) -> BYTES"
-     - "(CHARACTERS...) -> CHARACTERS"
-     - "(FLOAT...) -> FLOAT"
-     - "(DECIMAL...) -> DECIMAL"
-     - "(DOUBLE...) -> DOUBLE"
-     - "(INT...) -> INT"
-     - "(BIGINT...) -> BIGINT"
-     - "(DATE...) -> DATE"
-     - "(TIME...) -> TIME"
-     - "(TIMESTAMP...) -> TIMESTAMP"
      - "(BOOLEAN, ANY...) -> BOOLEAN"
+     - "(ARRAY, ANY...) -> ARRAY"
+     - "(MAP, ANY...) -> MAP"
      - "(BYTES, ANY...) -> BYTES"
      - "(CHARACTERS, ANY...) -> CHARACTERS"
+     - "(CHARACTERS, CHARACTERS?) -> CHARACTERS"
      - "(FLOAT, ANY...) -> FLOAT"
      - "(DECIMAL, ANY...) -> DECIMAL"
      - "(DOUBLE, ANY...) -> DOUBLE"
@@ -3300,27 +3757,20 @@
      - "(DATE, ANY...) -> DATE"
      - "(TIME, ANY...) -> TIME"
      - "(TIMESTAMP, ANY...) -> TIMESTAMP"
+     - "(CHARACTERS, CHARACTERS, CHARACTERS?) -> CHARACTERS"
+     - "(CHARACTERS, CHARACTERS, CHARACTERS, CHARACTERS?) -> CHARACTERS"
  -
   description: "MASK_FIRST_N"
   input: "MASK_FIRST_N"
   output:
     name: "MASK_FIRST_N"
     signatures:
-     - "(BOOLEAN...) -> BOOLEAN"
-     - "(BYTES...) -> BYTES"
-     - "(CHARACTERS...) -> CHARACTERS"
-     - "(FLOAT...) -> FLOAT"
-     - "(DECIMAL...) -> DECIMAL"
-     - "(DOUBLE...) -> DOUBLE"
-     - "(INT...) -> INT"
-     - "(BIGINT...) -> BIGINT"
-     - "(DATE...) -> DATE"
-     - "(TIME...) -> TIME"
-     - "(TIMESTAMP...) -> TIMESTAMP"
      - "(BOOLEAN, ANY...) -> BOOLEAN"
+     - "(ARRAY, ANY...) -> ARRAY"
+     - "(MAP, ANY...) -> MAP"
      - "(BYTES, ANY...) -> BYTES"
      - "(CHARACTERS, ANY...) -> CHARACTERS"
-     - "(CHARACTERS, INT) -> CHARACTERS"
+     - "(CHARACTERS, INT?) -> CHARACTERS"
      - "(FLOAT, ANY...) -> FLOAT"
      - "(DECIMAL, ANY...) -> DECIMAL"
      - "(DOUBLE, ANY...) -> DOUBLE"
@@ -3335,18 +3785,9 @@
   output:
     name: "MASK_HASH"
     signatures:
-     - "(BOOLEAN...) -> BOOLEAN"
-     - "(BYTES...) -> BYTES"
-     - "(CHARACTERS...) -> CHARACTERS"
-     - "(FLOAT...) -> FLOAT"
-     - "(DECIMAL...) -> DECIMAL"
-     - "(DOUBLE...) -> DOUBLE"
-     - "(INT...) -> INT"
-     - "(BIGINT...) -> BIGINT"
-     - "(DATE...) -> DATE"
-     - "(TIME...) -> TIME"
-     - "(TIMESTAMP...) -> TIMESTAMP"
      - "(BOOLEAN, ANY...) -> BOOLEAN"
+     - "(ARRAY, ANY...) -> ARRAY"
+     - "(MAP, ANY...) -> MAP"
      - "(BYTES, ANY...) -> BYTES"
      - "(CHARACTERS, ANY...) -> CHARACTERS"
      - "(FLOAT, ANY...) -> FLOAT"
@@ -3363,18 +3804,9 @@
   output:
     name: "MASK_INTERNAL"
     signatures:
-     - "(BOOLEAN...) -> BOOLEAN"
-     - "(BYTES...) -> BYTES"
-     - "(CHARACTERS...) -> CHARACTERS"
-     - "(FLOAT...) -> FLOAT"
-     - "(DECIMAL...) -> DECIMAL"
-     - "(DOUBLE...) -> DOUBLE"
-     - "(INT...) -> INT"
-     - "(BIGINT...) -> BIGINT"
-     - "(DATE...) -> DATE"
-     - "(TIME...) -> TIME"
-     - "(TIMESTAMP...) -> TIMESTAMP"
      - "(BOOLEAN, ANY...) -> BOOLEAN"
+     - "(ARRAY, ANY...) -> ARRAY"
+     - "(MAP, ANY...) -> MAP"
      - "(BYTES, ANY...) -> BYTES"
      - "(CHARACTERS, ANY...) -> CHARACTERS"
      - "(FLOAT, ANY...) -> FLOAT"
@@ -3395,21 +3827,12 @@
   output:
     name: "MASK_LAST_N"
     signatures:
-     - "(BOOLEAN...) -> BOOLEAN"
-     - "(BYTES...) -> BYTES"
-     - "(CHARACTERS...) -> CHARACTERS"
-     - "(FLOAT...) -> FLOAT"
-     - "(DECIMAL...) -> DECIMAL"
-     - "(DOUBLE...) -> DOUBLE"
-     - "(INT...) -> INT"
-     - "(BIGINT...) -> BIGINT"
-     - "(DATE...) -> DATE"
-     - "(TIME...) -> TIME"
-     - "(TIMESTAMP...) -> TIMESTAMP"
      - "(BOOLEAN, ANY...) -> BOOLEAN"
+     - "(ARRAY, ANY...) -> ARRAY"
+     - "(MAP, ANY...) -> MAP"
      - "(BYTES, ANY...) -> BYTES"
      - "(CHARACTERS, ANY...) -> CHARACTERS"
-     - "(CHARACTERS, INT) -> CHARACTERS"
+     - "(CHARACTERS, INT?) -> CHARACTERS"
      - "(FLOAT, ANY...) -> FLOAT"
      - "(DECIMAL, ANY...) -> DECIMAL"
      - "(DOUBLE, ANY...) -> DOUBLE"
@@ -3424,21 +3847,12 @@
   output:
     name: "MASK_SHOW_FIRST_N"
     signatures:
-     - "(BOOLEAN...) -> BOOLEAN"
-     - "(BYTES...) -> BYTES"
-     - "(CHARACTERS...) -> CHARACTERS"
-     - "(FLOAT...) -> FLOAT"
-     - "(DECIMAL...) -> DECIMAL"
-     - "(DOUBLE...) -> DOUBLE"
-     - "(INT...) -> INT"
-     - "(BIGINT...) -> BIGINT"
-     - "(DATE...) -> DATE"
-     - "(TIME...) -> TIME"
-     - "(TIMESTAMP...) -> TIMESTAMP"
      - "(BOOLEAN, ANY...) -> BOOLEAN"
+     - "(ARRAY, ANY...) -> ARRAY"
+     - "(MAP, ANY...) -> MAP"
      - "(BYTES, ANY...) -> BYTES"
      - "(CHARACTERS, ANY...) -> CHARACTERS"
-     - "(CHARACTERS, INT) -> CHARACTERS"
+     - "(CHARACTERS, INT?) -> CHARACTERS"
      - "(FLOAT, ANY...) -> FLOAT"
      - "(DECIMAL, ANY...) -> DECIMAL"
      - "(DOUBLE, ANY...) -> DOUBLE"
@@ -3453,21 +3867,12 @@
   output:
     name: "MASK_SHOW_LAST_N"
     signatures:
-     - "(BOOLEAN...) -> BOOLEAN"
-     - "(BYTES...) -> BYTES"
-     - "(CHARACTERS...) -> CHARACTERS"
-     - "(FLOAT...) -> FLOAT"
-     - "(DECIMAL...) -> DECIMAL"
-     - "(DOUBLE...) -> DOUBLE"
-     - "(INT...) -> INT"
-     - "(BIGINT...) -> BIGINT"
-     - "(DATE...) -> DATE"
-     - "(TIME...) -> TIME"
-     - "(TIMESTAMP...) -> TIMESTAMP"
      - "(BOOLEAN, ANY...) -> BOOLEAN"
+     - "(ARRAY, ANY...) -> ARRAY"
+     - "(MAP, ANY...) -> MAP"
      - "(BYTES, ANY...) -> BYTES"
      - "(CHARACTERS, ANY...) -> CHARACTERS"
-     - "(CHARACTERS, INT) -> CHARACTERS"
+     - "(CHARACTERS, INT?) -> CHARACTERS"
      - "(FLOAT, ANY...) -> FLOAT"
      - "(DECIMAL, ANY...) -> DECIMAL"
      - "(DOUBLE, ANY...) -> DOUBLE"
@@ -3490,10 +3895,13 @@
     name: "MAX"
     signatures:
      - "(BOOLEAN) -> BOOLEAN"
+     - "(ARRAY) -> ARRAY"
+     - "(MAP) -> MAP"
      - "(BYTES) -> BYTES"
      - "(CHARACTERS) -> CHARACTERS"
      - "(FLOAT) -> FLOAT"
      - "(DECIMAL) -> DECIMAL"
+     - "(DECIMAL) -> DOUBLE"
      - "(DOUBLE) -> DOUBLE"
      - "(INT) -> INT"
      - "(BIGINT) -> BIGINT"
@@ -3545,10 +3953,13 @@
     name: "MIN"
     signatures:
      - "(BOOLEAN) -> BOOLEAN"
+     - "(ARRAY) -> ARRAY"
+     - "(MAP) -> MAP"
      - "(BYTES) -> BYTES"
      - "(CHARACTERS) -> CHARACTERS"
      - "(FLOAT) -> FLOAT"
      - "(DECIMAL) -> DECIMAL"
+     - "(DECIMAL) -> DOUBLE"
      - "(DOUBLE) -> DOUBLE"
      - "(INT) -> INT"
      - "(BIGINT) -> BIGINT"
@@ -3686,6 +4097,8 @@
     name: "NEXT"
     signatures:
      - "(BOOLEAN, NUMERIC) -> BOOLEAN"
+     - "(ARRAY, NUMERIC) -> ARRAY"
+     - "(MAP, NUMERIC) -> MAP"
      - "(BYTES, NUMERIC) -> BYTES"
      - "(CHARACTERS, NUMERIC) -> CHARACTERS"
      - "(FLOAT, NUMERIC) -> FLOAT"
@@ -3702,6 +4115,7 @@
   output:
     name: "NEXT_DAY"
     signatures:
+     - "(CHARACTERS, CHARACTERS) -> DATE"
      - "(DATE, CHARACTERS) -> DATE"
      - "(TIMESTAMP, CHARACTERS) -> DATE"
  -
@@ -3711,6 +4125,13 @@
     name: "NONNULLSTATCOUNT"
     signatures:
      - "(ANY) -> BIGINT"
+ -
+  description: "NORMALIZE_STRING"
+  input: "NORMALIZE_STRING"
+  output:
+    name: "NORMALIZE_STRING"
+    signatures:
+     - "(CHARACTERS, CHARACTERS) -> CHARACTERS"
  -
   description: "NOT"
   input: "NOT"
@@ -3748,6 +4169,8 @@
     name: "NTH_VALUE"
     signatures:
      - "(BOOLEAN, NUMERIC) -> BOOLEAN"
+     - "(ARRAY, NUMERIC) -> ARRAY"
+     - "(MAP, NUMERIC) -> MAP"
      - "(BYTES, NUMERIC) -> BYTES"
      - "(CHARACTERS, NUMERIC) -> CHARACTERS"
      - "(FLOAT, NUMERIC) -> FLOAT"
@@ -3772,6 +4195,8 @@
     signatures:
      - "(BOOLEAN, BOOLEAN) -> BOOLEAN"
      - "(BOOLEAN, CHARACTERS) -> BOOLEAN"
+     - "(ARRAY, ARRAY) -> ARRAY"
+     - "(MAP, MAP) -> MAP"
      - "(BYTES, BYTES) -> BYTES"
      - "(CHARACTERS, BOOLEAN) -> CHARACTERS"
      - "(CHARACTERS, NUMERIC) -> CHARACTERS"
@@ -3803,6 +4228,8 @@
     signatures:
      - "(BOOLEAN, BOOLEAN) -> BOOLEAN"
      - "(NUMERIC, DOUBLE) -> DOUBLE"
+     - "(ARRAY, ARRAY) -> ARRAY"
+     - "(MAP, MAP) -> MAP"
      - "(BYTES, BYTES) -> BYTES"
      - "(CHARACTERS, CHARACTERS) -> CHARACTERS"
      - "(FLOAT, FLOAT) -> FLOAT"
@@ -3858,6 +4285,13 @@
     name: "OVERLAY"
     signatures: []
  -
+  description: "PARSE_URL"
+  input: "PARSE_URL"
+  output:
+    name: "PARSE_URL"
+    signatures:
+     - "(CHARACTERS, CHARACTERS, CHARACTERS?) -> CHARACTERS"
+ -
   description: "PARTITIONBITCOUNTER"
   input: "PARTITIONBITCOUNTER"
   output:
@@ -3883,6 +4317,20 @@
     name: "PERCENT_RANK"
     signatures:
      - "() -> DOUBLE"
+ -
+  description: "PHASE1_ARRAY_AGG"
+  input: "PHASE1_ARRAY_AGG"
+  output:
+    name: "PHASE1_ARRAY_AGG"
+    signatures:
+     - "(ANY) -> ARRAY"
+ -
+  description: "PHASE2_ARRAY_AGG"
+  input: "PHASE2_ARRAY_AGG"
+  output:
+    name: "PHASE2_ARRAY_AGG"
+    signatures:
+     - "(ARRAY) -> ARRAY"
  -
   description: "PI"
   input: "PI"
@@ -3941,6 +4389,8 @@
     name: "PREV"
     signatures:
      - "(BOOLEAN, NUMERIC) -> BOOLEAN"
+     - "(ARRAY, NUMERIC) -> ARRAY"
+     - "(MAP, NUMERIC) -> MAP"
      - "(BYTES, NUMERIC) -> BYTES"
      - "(CHARACTERS, NUMERIC) -> CHARACTERS"
      - "(FLOAT, NUMERIC) -> FLOAT"
@@ -4017,7 +4467,7 @@
   output:
     name: "REGEXP_COL_LIKE"
     signatures:
-     - "(CHARACTERS, CHARACTERS) -> BOOLEAN"
+     - "(STRING, STRING) -> BOOLEAN"
  -
   description: "REGEXP_COL_MATCHES"
   input: "REGEXP_COL_MATCHES"
@@ -4038,7 +4488,7 @@
   output:
     name: "REGEXP_LIKE"
     signatures:
-     - "(CHARACTERS, CHARACTERS) -> BOOLEAN"
+     - "(STRING, STRING) -> BOOLEAN"
  -
   description: "REGEXP_MATCHES"
   input: "REGEXP_MATCHES"
@@ -4053,6 +4503,12 @@
     name: "REGEXP_REPLACE"
     signatures:
      - "(CHARACTERS, CHARACTERS, CHARACTERS) -> CHARACTERS"
+ -
+  description: "REGEXP_SPLIT"
+  input: "REGEXP_SPLIT"
+  output:
+    name: "REGEXP_SPLIT"
+    signatures: []
  -
   description: "REGR_SXX"
   input: "REGR_SXX"
@@ -4087,7 +4543,7 @@
   output:
     name: "REPLACE"
     signatures:
-     - "(CHARACTERS, CHARACTERS, CHARACTERS) -> CHARACTERS"
+     - "(ANY, ANY, ANY) -> CHARACTERS"
  -
   description: "REVERSE"
   input: "REVERSE"
@@ -4132,8 +4588,8 @@
   output:
     name: "RPAD"
     signatures:
-     - "(CHARACTERS, INT, CHARACTERS?) -> CHARACTERS"
-     - "(CHARACTERS, BIGINT, CHARACTERS?) -> CHARACTERS"
+     - "(CHARACTERS, INT) -> CHARACTERS"
+     - "(ANY, ANY, ANY) -> CHARACTERS"
  -
   description: "RSHIFT"
   input: "RSHIFT"
@@ -4143,12 +4599,20 @@
      - "(INT, INT) -> INT"
      - "(BIGINT, BIGINT) -> BIGINT"
  -
+  description: "RSHIFTUNSIGNED"
+  input: "RSHIFTUNSIGNED"
+  output:
+    name: "RSHIFTUNSIGNED"
+    signatures:
+     - "(INT, INT) -> INT"
+     - "(BIGINT, BIGINT) -> BIGINT"
+ -
   description: "RTRIM"
   input: "RTRIM"
   output:
     name: "RTRIM"
     signatures:
-     - "(CHARACTERS, CHARACTERS?) -> CHARACTERS"
+     - "(ANY, ANY?) -> CHARACTERS"
  -
   description: "SAME"
   input: "SAME"
@@ -4205,6 +4669,13 @@
     signatures:
      - "() -> CHARACTERS"
  -
+  description: "SET_UNION"
+  input: "SET_UNION"
+  output:
+    name: "SET_UNION"
+    signatures:
+     - "(ARRAY, ARRAY) -> ARRAY"
+ -
   description: "SHA"
   input: "SHA"
   output:
@@ -4257,6 +4728,30 @@
      - "(INT) -> CHARACTERS"
      - "(BIGINT) -> CHARACTERS"
  -
+  description: "SHIFTLEFT"
+  input: "SHIFTLEFT"
+  output:
+    name: "SHIFTLEFT"
+    signatures:
+     - "(INT, INT) -> INT"
+     - "(BIGINT, BIGINT) -> BIGINT"
+ -
+  description: "SHIFTRIGHT"
+  input: "SHIFTRIGHT"
+  output:
+    name: "SHIFTRIGHT"
+    signatures:
+     - "(INT, INT) -> INT"
+     - "(BIGINT, BIGINT) -> BIGINT"
+ -
+  description: "SHIFTRIGHTUNSIGNED"
+  input: "SHIFTRIGHTUNSIGNED"
+  output:
+    name: "SHIFTRIGHTUNSIGNED"
+    signatures:
+     - "(INT, INT) -> INT"
+     - "(BIGINT, BIGINT) -> BIGINT"
+ -
   description: "SIGN"
   input: "SIGN"
   output:
@@ -4295,6 +4790,9 @@
     name: "SINGLE_VALUE"
     signatures:
      - "(BOOLEAN) -> BOOLEAN"
+     - "(BOOLEAN) -> INT"
+     - "(ARRAY) -> ARRAY"
+     - "(MAP) -> MAP"
      - "(BYTES) -> BYTES"
      - "(CHARACTERS) -> CHARACTERS"
      - "(FLOAT) -> FLOAT"
@@ -4381,21 +4879,27 @@
   output:
     name: "STDDEV"
     signatures:
+     - "(BOOLEAN) -> DOUBLE"
      - "(NUMERIC) -> DOUBLE"
+     - "(STRING) -> DOUBLE"
  -
   description: "STDDEV_POP"
   input: "STDDEV_POP"
   output:
     name: "STDDEV_POP"
     signatures:
+     - "(BOOLEAN) -> DOUBLE"
      - "(NUMERIC) -> DOUBLE"
+     - "(STRING) -> DOUBLE"
  -
   description: "STDDEV_SAMP"
   input: "STDDEV_SAMP"
   output:
     name: "STDDEV_SAMP"
     signatures:
+     - "(BOOLEAN) -> DOUBLE"
      - "(NUMERIC) -> DOUBLE"
+     - "(STRING) -> DOUBLE"
  -
   description: "STRING_BINARY"
   input: "STRING_BINARY"
@@ -4416,7 +4920,7 @@
   output:
     name: "ST_FROMGEOHASH"
     signatures:
-     - "(ANY) -> ANY"
+     - "(PRIMITIVE) -> ANY"
  -
   description: "ST_GEOHASH"
   input: "ST_GEOHASH"
@@ -4424,6 +4928,13 @@
     name: "ST_GEOHASH"
     signatures:
      - "(DOUBLE, DOUBLE, BIGINT?) -> CHARACTERS"
+ -
+  description: "SUBLIST"
+  input: "SUBLIST"
+  output:
+    name: "SUBLIST"
+    signatures:
+     - "(ARRAY, INT, INT) -> ARRAY"
  -
   description: "SUBSTR"
   input: "SUBSTR"
@@ -4486,8 +4997,11 @@
   output:
     name: "SUM"
     signatures:
+     - "(BOOLEAN) -> BIGINT"
+     - "(STRING) -> BIGINT"
      - "(FLOAT) -> DOUBLE"
      - "(DECIMAL) -> DECIMAL"
+     - "(DECIMAL) -> DOUBLE"
      - "(DOUBLE) -> DOUBLE"
      - "(INT) -> BIGINT"
      - "(BIGINT) -> BIGINT"
@@ -4532,21 +5046,30 @@
   output:
     name: "TDIGEST"
     signatures:
-     - "(ANY, BOOLEAN) -> ANY"
-     - "(ANY, STRING) -> ANY"
-     - "(BYTES, NUMERIC) -> ANY"
-     - "(BYTES, DATEANDTIME) -> ANY"
+     - "(ANY, BYTES) -> ANY"
+     - "(PRIMITIVE, BOOLEAN?) -> BYTES"
+     - "(PRIMITIVE, STRING?) -> BYTES"
+     - "(BYTES, SEMISTRUCTURED?) -> ANY"
+     - "(BYTES, NUMERIC?) -> ANY"
+     - "(BYTES, DATEANDTIME?) -> ANY"
  -
   description: "TDIGEST_MERGE"
   input: "TDIGEST_MERGE"
   output:
     name: "TDIGEST_MERGE"
     signatures:
-     - "(STRING) -> ANY"
-     - "(FLOAT) -> ANY"
-     - "(DOUBLE) -> ANY"
-     - "(INT) -> ANY"
-     - "(BIGINT) -> ANY"
+     - "(STRING) -> BYTES"
+     - "(FLOAT) -> BYTES"
+     - "(DOUBLE) -> BYTES"
+     - "(INT) -> BYTES"
+     - "(BIGINT) -> BYTES"
+ -
+  description: "TDIGEST_QUANTILE"
+  input: "TDIGEST_QUANTILE"
+  output:
+    name: "TDIGEST_QUANTILE"
+    signatures:
+     - "(NUMERIC, BYTES) -> DOUBLE"
  -
   description: "TIMEOFDAY"
   input: "TIMEOFDAY"
@@ -4837,6 +5360,13 @@
      - "(BIGINT) -> TIMESTAMP"
      - "(CHARACTERS, CHARACTERS, INT?) -> TIMESTAMP"
  -
+  description: "TO_UTF8"
+  input: "TO_UTF8"
+  output:
+    name: "TO_UTF8"
+    signatures:
+     - "(CHARACTERS, CHARACTERS) -> CHARACTERS"
+ -
   description: "TRANSACTION_TIMESTAMP"
   input: "TRANSACTION_TIMESTAMP"
   output:
@@ -4863,7 +5393,8 @@
   input: "TRIM"
   output:
     name: "TRIM"
-    signatures: []
+    signatures:
+     - "(ANY, ANY?) -> CHARACTERS"
  -
   description: "TRUNC"
   input: "TRUNC"
@@ -4871,10 +5402,15 @@
     name: "TRUNC"
     signatures:
      - "(FLOAT, INT?) -> FLOAT"
+     - "(FLOAT, BIGINT?) -> FLOAT"
      - "(DECIMAL, INT?) -> DECIMAL"
+     - "(DECIMAL, BIGINT?) -> DECIMAL"
      - "(DOUBLE, INT?) -> DOUBLE"
+     - "(DOUBLE, BIGINT?) -> DOUBLE"
      - "(INT, INT?) -> INT"
+     - "(INT, BIGINT?) -> INT"
      - "(BIGINT, INT?) -> BIGINT"
+     - "(BIGINT, BIGINT?) -> BIGINT"
  -
   description: "TRUNCATE"
   input: "TRUNCATE"
@@ -4999,21 +5535,27 @@
   output:
     name: "VARIANCE"
     signatures:
+     - "(BOOLEAN) -> DOUBLE"
      - "(NUMERIC) -> DOUBLE"
+     - "(STRING) -> DOUBLE"
  -
   description: "VAR_POP"
   input: "VAR_POP"
   output:
     name: "VAR_POP"
     signatures:
+     - "(BOOLEAN) -> DOUBLE"
      - "(NUMERIC) -> DOUBLE"
+     - "(STRING) -> DOUBLE"
  -
   description: "VAR_SAMP"
   input: "VAR_SAMP"
   output:
     name: "VAR_SAMP"
     signatures:
+     - "(BOOLEAN) -> DOUBLE"
      - "(NUMERIC) -> DOUBLE"
+     - "(STRING) -> DOUBLE"
  -
   description: "WEEK"
   input: "WEEK"
@@ -5028,9 +5570,7 @@
     name: "WEEKOFYEAR"
     signatures:
      - "(DATE) -> BIGINT"
-     - "(DATE) -> DATE"
      - "(TIMESTAMP) -> BIGINT"
-     - "(TIMESTAMP) -> TIMESTAMP"
  -
   description: "XOR"
   input: "XOR"
@@ -5055,9 +5595,7 @@
     name: "YEARWEEK"
     signatures:
      - "(DATE) -> BIGINT"
-     - "(DATE) -> DATE"
      - "(TIMESTAMP) -> BIGINT"
-     - "(TIMESTAMP) -> TIMESTAMP"
  -
   description: "^"
   input: "^"
@@ -5079,3 +5617,4 @@
     name: "||"
     signatures:
      - "(BOOLEAN, BOOLEAN) -> BOOLEAN"
+

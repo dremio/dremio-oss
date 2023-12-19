@@ -26,7 +26,7 @@ import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.services.credentials.CredentialsException;
-import com.dremio.services.credentials.SecretCredentialsProvider;
+import com.dremio.services.credentials.LocalSecretCredentialsProvider;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 
@@ -100,7 +100,7 @@ public final class Encrypt {
 
   @VisibleForTesting
   static String encrypt(DremioConfig config, ScanResult scanResult, String secret) throws CredentialsException {
-    SecretCredentialsProvider provider = SecretCredentialsProvider.of(config, scanResult);
+    LocalSecretCredentialsProvider provider = LocalSecretCredentialsProvider.of(config, scanResult);
     return provider.encrypt(secret).toString();
   }
 }

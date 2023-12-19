@@ -29,7 +29,7 @@ export default class ReloadPage extends PureComponent {
     router: PropTypes.object.isRequired,
   };
 
-  componentWillMount() {
+  UNSAFE_componentWillMount() {
     try {
       this.context.router.replace(this.props.location.state.to);
     } catch (e) {

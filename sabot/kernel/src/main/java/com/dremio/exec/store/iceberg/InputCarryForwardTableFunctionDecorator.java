@@ -66,12 +66,10 @@ public class InputCarryForwardTableFunctionDecorator implements TableFunction {
   private boolean rowCompleted = false;
   private int row;
   private VectorContainer outgoing;
-  private VectorContainer incoming;
 
   public InputCarryForwardTableFunctionDecorator(TableFunction baseTableFunction, List<String> carryForwardCols,
                                                  Map<SchemaPath, SchemaPath> mappingRule, String inputTypeCol, String inputType) {
     Preconditions.checkState(!carryForwardCols.isEmpty());
-    Preconditions.checkState(!mappingRule.isEmpty());
     this.baseTableFunction = baseTableFunction;
     this.carryForwardCols = carryForwardCols;
     this.mappingRule = mappingRule;
@@ -79,11 +77,11 @@ public class InputCarryForwardTableFunctionDecorator implements TableFunction {
     // Feed constant value "inputType" to the "inputTypeCol"
     this.inputTypeCol = inputTypeCol;
     this.inputType = inputType;
+    this.mappingRuleProcessed = mappingRule.isEmpty(); // No need to process the mapping rule
   }
 
   @Override
   public VectorAccessible setup(VectorAccessible incoming) throws Exception {
-    this.incoming = (VectorContainer) incoming;
     this.outgoing = (VectorContainer) baseTableFunction.setup(incoming);
 
     // create transfer pairs for any additional input columns
@@ -179,7 +177,7 @@ public class InputCarryForwardTableFunctionDecorator implements TableFunction {
     }
     rowCompleted = false;
     isCarryForwardRow = false;
-    mappingRuleProcessed = false;
+    mappingRuleProcessed = mappingRule.isEmpty();
   }
 
   @Override

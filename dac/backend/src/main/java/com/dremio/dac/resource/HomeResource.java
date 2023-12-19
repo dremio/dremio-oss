@@ -72,7 +72,6 @@ import com.dremio.dac.model.namespace.NamespaceTree;
 import com.dremio.dac.model.spaces.Home;
 import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.model.spaces.HomePath;
-import com.dremio.dac.model.spaces.HomeResourcePath;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.server.BufferAllocatorFactory;
 import com.dremio.dac.server.GenericErrorMessage;
@@ -86,11 +85,9 @@ import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.errors.FileNotFoundException;
 import com.dremio.dac.service.errors.FolderNotFoundException;
 import com.dremio.dac.service.errors.HomeNotFoundException;
-import com.dremio.dac.service.errors.NotSupportedException;
 import com.dremio.dac.service.errors.SourceNotFoundException;
 import com.dremio.dac.util.JobRequestUtil;
 import com.dremio.dac.util.ResourceUtil;
-import com.dremio.exec.catalog.CatalogFeatures;
 import com.dremio.exec.catalog.DatasetCatalog;
 import com.dremio.exec.server.options.ProjectOptionManager;
 import com.dremio.file.File;
@@ -188,8 +185,6 @@ public class HomeResource extends BaseResourceWithAllocator {
   @GET
   @Produces(MediaType.APPLICATION_JSON)
   public Home getHome(@QueryParam("includeContents") @DefaultValue("true") boolean includeContents) throws NamespaceException, HomeNotFoundException, DatasetNotFoundException {
-    throwIfNotSupported();
-
     try {
       checkHomeSpaceExists(homePath);
       long dsCount = namespaceService.getDatasetCount(homePath.toNamespaceKey(), BoundedDatasetCount.SEARCH_TIME_LIMIT_MS, BoundedDatasetCount.COUNT_LIMIT_TO_STOP_SEARCH).getCount();
@@ -213,8 +208,6 @@ public class HomeResource extends BaseResourceWithAllocator {
                          @FormDataParam("file") FormDataContentDisposition contentDispositionHeader,
                          @FormDataParam("fileName") FileName fileName,
                          @QueryParam("extension") String extension) throws Exception {
-    throwIfNotSupported();
-
     checkFileUploadPermissions();
 
     // add some validation
@@ -253,8 +246,6 @@ public class HomeResource extends BaseResourceWithAllocator {
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
   public void cancelUploadFile(FileFormat fileFormat, @PathParam("path") String path) throws IOException {
-    throwIfNotSupported();
-
     homeFileTool.deleteFile(fileFormat.getLocation());
   }
 
@@ -263,8 +254,6 @@ public class HomeResource extends BaseResourceWithAllocator {
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
   public File finishUploadFile(FileFormat fileFormat, @PathParam("path") String path) throws Exception {
-    throwIfNotSupported();
-
     checkFileUploadPermissions();
 
     final FilePath filePath = FilePath.fromURLPath(homeName, path);
@@ -308,8 +297,6 @@ public class HomeResource extends BaseResourceWithAllocator {
   @Consumes(MediaType.APPLICATION_JSON)
   public JobDataFragment previewFormatSettingsStaging(FileFormat fileFormat, @PathParam("path") String path)
     throws FileNotFoundException, SourceNotFoundException {
-    throwIfNotSupported();
-
     if (!homeFileTool.validStagingLocation(com.dremio.io.file.Path.of(fileFormat.getLocation()))) {
       throw new IllegalArgumentException("Invalid staging location provided");
     }
@@ -337,8 +324,6 @@ public class HomeResource extends BaseResourceWithAllocator {
   @Consumes(MediaType.APPLICATION_JSON)
   public JobDataFragment previewFormatSettings(FileFormat fileFormat, @PathParam("path") String path)
       throws FileNotFoundException, SourceNotFoundException {
-    throwIfNotSupported();
-
     FilePath filePath = FilePath.fromURLPath(homeName, path);
     logger.debug("filePath: " + filePath.toPathString());
     // TODO, this should be moved to dataset resource and be paginated.
@@ -359,8 +344,6 @@ public class HomeResource extends BaseResourceWithAllocator {
   @Produces(MediaType.APPLICATION_JSON)
   public File getFile(@PathParam("path") String path)
     throws Exception {
-    throwIfNotSupported();
-
     FilePath filePath = FilePath.fromURLPath(homeName, path);
     try {
       final DatasetConfig datasetConfig = namespaceService.getDataset(filePath.toNamespaceKey());
@@ -383,8 +366,6 @@ public class HomeResource extends BaseResourceWithAllocator {
   @Path("file/{path: .*}")
   @Produces(MediaType.APPLICATION_JSON)
   public void deleteFile(@PathParam("path") String path, @QueryParam("version") String version) throws NamespaceException, DACException {
-    throwIfNotSupported();
-
     if (version == null) {
       throw new ClientErrorException(GenericErrorMessage.MISSING_VERSION_PARAM_MSG);
     }
@@ -404,8 +385,6 @@ public class HomeResource extends BaseResourceWithAllocator {
   @Produces(MediaType.APPLICATION_JSON)
   public FileFormatUI getFormatSettings(@PathParam("path") String path)
     throws FileNotFoundException, HomeNotFoundException, NamespaceException {
-    throwIfNotSupported();
-
     FilePath filePath = FilePath.fromURLPath(homeName, path);
     final FileConfig fileConfig = toFileConfig(namespaceService.getDataset(filePath.toNamespaceKey()));
     return new FileFormatUI(FileFormat.getForFile(fileConfig), filePath);
@@ -417,8 +396,6 @@ public class HomeResource extends BaseResourceWithAllocator {
   @Consumes(MediaType.APPLICATION_JSON)
   public FileFormatUI saveFormatSettings(FileFormat fileFormat, @PathParam("path") String path)
       throws FileNotFoundException, HomeNotFoundException, NamespaceException {
-    throwIfNotSupported();
-
     FilePath filePath = FilePath.fromURLPath(homeName, path);
     // merge file configs
     final DatasetConfig existingDSConfig = namespaceService.getDataset(filePath.toNamespaceKey());
@@ -439,8 +416,6 @@ public class HomeResource extends BaseResourceWithAllocator {
   @Path("/folder/{path: .*}")
   @Produces(MediaType.APPLICATION_JSON)
   public Folder getFolder(@PathParam("path") String path, @QueryParam("includeContents") @DefaultValue("true") boolean includeContents) throws Exception {
-    throwIfNotSupported();
-
     FolderPath folderPath = FolderPath.fromURLPath(homeName, path);
     try {
       final FolderConfig folderConfig = namespaceService.getFolder(folderPath.toNamespaceKey());
@@ -457,8 +432,6 @@ public class HomeResource extends BaseResourceWithAllocator {
   @Path("/folder/{path: .*}")
   @Produces(MediaType.APPLICATION_JSON)
   public void deleteFolder(@PathParam("path") String path, @QueryParam("version") String version) throws NamespaceException, FolderNotFoundException {
-    throwIfNotSupported();
-
     FolderPath folderPath = FolderPath.fromURLPath(homeName, path);
     if (version == null) {
       throw new ClientErrorException(GenericErrorMessage.MISSING_VERSION_PARAM_MSG);
@@ -478,8 +451,6 @@ public class HomeResource extends BaseResourceWithAllocator {
   @Produces(MediaType.APPLICATION_JSON)
   @Consumes(MediaType.APPLICATION_JSON)
   public Folder createFolder(FolderName name, @PathParam("path") String path) throws Exception  {
-    throwIfNotSupported();
-
     String fullPath = PathUtils.toFSPathString(Arrays.asList(path, name.toString()));
     FolderPath folderPath = FolderPath.fromURLPath(homeName, fullPath);
 
@@ -524,12 +495,5 @@ public class HomeResource extends BaseResourceWithAllocator {
 
 
   protected void checkHomeSpaceExists(HomePath homePath) {
-  }
-
-  private void throwIfNotSupported() throws NotSupportedException {
-    CatalogFeatures features = CatalogFeatures.get(projectOptionManager);
-    if (!features.isFeatureEnabled(CatalogFeatures.Feature.HOME)) {
-      throw new NotSupportedException(new HomeResourcePath(homePath.getHomeName()));
-    }
   }
 }

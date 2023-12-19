@@ -25,17 +25,23 @@ import java.util.UUID;
 
 import javax.inject.Inject;
 import javax.inject.Provider;
+import javax.ws.rs.NotFoundException;
 
+import com.dremio.catalog.model.VersionContext;
+import com.dremio.common.map.CaseInsensitiveMap;
 import com.dremio.context.RequestContext;
 import com.dremio.context.UserContext;
+import com.dremio.dac.proto.model.dataset.DatasetProtobuf;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes;
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.FindByCondition;
 import com.dremio.datastore.api.ImmutableFindByCondition;
 import com.dremio.datastore.indexed.IndexKey;
+import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.script.proto.ScriptProto.Script;
 import com.dremio.service.script.proto.ScriptProto.ScriptRequest;
+import com.dremio.service.usersessions.UserSessionService;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -51,7 +57,7 @@ public class ScriptServiceImpl implements ScriptService {
 
   private static final Long CONTENT_MAX_LENGTH = 250_000L;
   private static final Long DESCRIPTION_MAX_LENGTH = 1024L;
-  private static final Long MAX_SCRIPTS_PER_USER = 100L;
+  private static final Long MAX_SCRIPTS_PER_USER = 1000L;
   private static final Long NAME_MAX_LENGTH = 128L;
   private static final Map<String, IndexKey> sortParamToIndex = new HashMap<String, IndexKey>() {{
     put("name", ScriptStoreIndexedKeys.NAME);
@@ -62,10 +68,14 @@ public class ScriptServiceImpl implements ScriptService {
   private final Provider<ScriptStore> scriptStoreProvider;
 
   private ScriptStore scriptStore;
+  private final Provider<UserSessionService> userSessionServiceProvider;
+
 
   @Inject
-  public ScriptServiceImpl(Provider<ScriptStore> scriptStoreProvider) {
+  public ScriptServiceImpl(Provider<ScriptStore> scriptStoreProvider,
+                           Provider<UserSessionService> userSessionServiceProvider) {
     this.scriptStoreProvider = scriptStoreProvider;
+    this.userSessionServiceProvider = userSessionServiceProvider;
   }
 
   @Override
@@ -164,6 +174,38 @@ public class ScriptServiceImpl implements ScriptService {
     return validateAndUpdateScript(existingScript, scriptRequest);
   }
 
+  @Override
+  @WithSpan
+  public Script updateScriptContext(String scriptId, String sessionId)
+    throws ScriptNotFoundException, ScriptNotAccessible {
+    validateScriptId(scriptId);
+    validateSessionId(sessionId);
+
+    Script existingScript = getScriptById(scriptId);
+
+    return updateScriptContext(existingScript, sessionId);
+  }
+
+  protected Script updateScriptContext(Script existingScript, String sessionId) throws ScriptNotFoundException {
+    UserSessionService.UserSessionAndVersion sessionAndVersion = userSessionServiceProvider.get().getSession(sessionId);
+    if (sessionAndVersion == null) {
+      throw new NotFoundException(String.format("Session id %s expired/not found.", sessionId));
+    }
+    final UserSession session = sessionAndVersion.getSession();
+    final List<String> context = session.getDefaultSchemaPath() == null ? Lists.newArrayList() : session.getDefaultSchemaPath().getPathComponents();
+    final CaseInsensitiveMap<VersionContext> versionContextMap = session.getSourceVersionMapping();
+    final List<DatasetProtobuf.SourceVersionReference> referenceList = SourceVersionReferenceUtils.createSourceVersionReferenceListFromContextMap(versionContextMap);
+
+    Script script = existingScript.toBuilder()
+      .setModifiedAt(System.currentTimeMillis())
+      .setModifiedBy(getCurrentUserId())
+      .clearContext().addAllContext(context)
+      .clearReferences().addAllReferences(referenceList)
+      .build();
+
+    return scriptStore.update(script.getScriptId(), script);
+  }
+
   protected Script validateAndUpdateScript(Script existingScript, ScriptRequest scriptRequest)
     throws ScriptNotFoundException, DuplicateScriptNameException {
 
@@ -180,7 +222,10 @@ public class ScriptServiceImpl implements ScriptService {
       .clearContext()
       .addAllContext(scriptRequest.getContextList())
       .setContent(scriptRequest.getContent())
+      .clearReferences()
+      .addAllReferences(scriptRequest.getReferencesList())
       .build();
+
     return scriptStore.update(script.getScriptId(), script);
   }
 
@@ -241,6 +286,7 @@ public class ScriptServiceImpl implements ScriptService {
                           currentTime,
                           getCurrentUserId(),
                           scriptRequest.getContextList(),
+                          scriptRequest.getReferencesList(),
                           scriptRequest.getContent());
   }
 
@@ -252,6 +298,7 @@ public class ScriptServiceImpl implements ScriptService {
                                 long modifiedAt,
                                 String modifiedBy,
                                 List<String> context,
+                                List<com.dremio.dac.proto.model.dataset.DatasetProtobuf.SourceVersionReference> references,
                                 String content) {
     return Script.newBuilder()
       .setScriptId(scriptId)
@@ -262,6 +309,7 @@ public class ScriptServiceImpl implements ScriptService {
       .setModifiedAt(modifiedAt)
       .setModifiedBy(modifiedBy)
       .addAllContext(context)
+      .addAllReferences(references)
       .setContent(content)
       .build();
   }
@@ -284,15 +332,24 @@ public class ScriptServiceImpl implements ScriptService {
   }
 
   public void validateScriptId(String scriptId) {
-    Preconditions.checkNotNull(scriptId, "scriptId must be provided.");
+    validateUUID("scriptId", scriptId);
+  }
+
+  public void validateSessionId(String sessionId) {
+    validateUUID("sessionId", sessionId);
+  }
+
+  private void validateUUID(String fieldName, String uuid) {
+    Preconditions.checkNotNull(uuid, fieldName + " must be provided.");
     try {
-      UUID.fromString(scriptId);
+      UUID.fromString(uuid);
     } catch (IllegalArgumentException exception) {
-      logger.error("scriptId : {} is not a valid UUID.", scriptId);
-      throw new IllegalArgumentException(String.format("scriptId %s must be valid UUID.",
-                                                       scriptId));
+      logger.error("{} : {} is not a valid UUID.", fieldName, uuid);
+      throw new IllegalArgumentException(String.format("%s '%s' must be valid UUID.",
+        fieldName, uuid));
     }
   }
+
 
   @Override
   public void start() throws Exception {

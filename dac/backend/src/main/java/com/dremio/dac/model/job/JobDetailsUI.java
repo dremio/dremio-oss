@@ -52,6 +52,8 @@ import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import io.opentelemetry.instrumentation.annotations.WithSpan;
+
 /**
  * Job details sent to UI. Derived from {@link JobDetails} except <code>paginationUrl</code>
  */
@@ -172,6 +174,7 @@ public class JobDetailsUI {
     this.spillDetails = spillDetails;
   }
 
+  @WithSpan
   public static JobDetailsUI of(com.dremio.service.job.JobDetails jobDetails, String currentUser) {
     final List<JobAttempt> attempts = jobDetails.getAttemptsList().stream()
       .map(ja -> ObfuscationUtils.obfuscate(ja)) // to be future-proof, obfuscating all attempts, but only when needed.

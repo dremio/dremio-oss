@@ -35,6 +35,7 @@ import {
   addProjectBase,
   rmProjectBase,
 } from "dremio-ui-common/utilities/projectBase.js";
+import Immutable from "immutable";
 
 const homeSelector = (state) => state.home;
 
@@ -209,6 +210,8 @@ export const getSources = addPinStateToList((state) =>
   state.resources.entities.get("source")
 );
 
+export const getSourceMap = (state) => state.resources.entities.get("source");
+
 /**
  * Returns all source names from redux state
  * @returns {string[]}
@@ -220,6 +223,23 @@ export const getSourceNames = (state) =>
     .toJS();
 
 export const getSortedSources = getSortedResourceSelector(getSources);
+
+export const isHomeSource = (cur) => !!cur.get("isPrimaryCatalog");
+
+export const getHomeSource = (sources) =>
+  sources.size > 0 ? sources.find(isHomeSource) : null;
+
+export const getHomeSourceUrl = (sources, isArsEnabled) => {
+  if (!isArsEnabled) return null;
+
+  const homeSource = getHomeSource(sources);
+  if (!homeSource) return null;
+
+  return commonPaths.source.link({
+    projectId: getSonarContext()?.getSelectedProjectId?.(),
+    resourceId: homeSource.get("name"),
+  });
+};
 
 export const selectSourceByName = (name) => {
   return createSelector([getSortedSources], (sources) => {

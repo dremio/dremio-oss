@@ -38,7 +38,12 @@ import {
 import { setReference } from "@app/actions/nessie/nessie";
 import { stopPropagation } from "@app/utils/reactEventUtils";
 import EmptyStateContainer from "@app/pages/HomePage/components/EmptyStateContainer";
+import { useResourceSnapshot } from "smart-resource/react";
+import { ArcticCatalogPrivilegesResource } from "@inject/arctic/resources/ArcticCatalogPrivilegesResource";
+import { CatalogPrivilegeSwitch } from "@app/exports/components/CatalogPrivilegeSwitch/CatalogPrivilegeSwitch";
+
 import "./RepoViewBranchList.less";
+import { SmartResource } from "smart-resource";
 
 type RepoViewBranchTableProps = {
   rows: Reference[];
@@ -67,6 +72,9 @@ function RepoViewBranchList({
   setReference: dispatchSetReference,
   noSearchResults,
 }: RepoViewBranchTableProps & WithRouterProps) {
+  const [catalogPrivileges] = useResourceSnapshot(
+    ArcticCatalogPrivilegesResource || new SmartResource(() => null)
+  );
   const showEmptyState = rows.length < 1;
   const { allRefsStatus: status, allRefsErr: err } =
     useContext(RepoViewContext);
@@ -76,7 +84,7 @@ function RepoViewBranchList({
 
   const { baseUrl, stateKey } = useNessieContext();
 
-  const { isCatalog } = useArcticCatalogContext() ?? {};
+  const { isCatalog } = useArcticCatalogContext();
 
   useEffect(() => {
     setRowHover(new Array(rows.length).fill(false));
@@ -93,7 +101,7 @@ function RepoViewBranchList({
           type: isCatalog ? "catalog" : "source",
           baseUrl,
           tab: "data",
-          namespace: cur.name,
+          namespace: encodeURIComponent(cur.name),
         })
       );
     };
@@ -195,7 +203,8 @@ function RepoViewBranchList({
               openDeleteDialog,
               openMergeDialog,
               isDefault,
-              openTagDialog
+              openTagDialog,
+              catalogPrivileges
             )}
           </div>
         </MenuItem>
@@ -214,14 +223,19 @@ function RepoViewBranchList({
         title="ArcticCatalog.Branches.NoneYet"
         icon="vcs/create-branch"
       >
-        {defaultReference && (
-          <span
-            className="branch-list-empty-state-trigger"
-            onClick={() => openCreateDialog(defaultReference)}
-          >
-            <FormattedMessage id="ArcticCatalog.Branches.CreateBranch.EmptyState" />
-          </span>
-        )}
+        <CatalogPrivilegeSwitch
+          privilege={["branch", "canCreate"]}
+          renderEnabled={() =>
+            defaultReference && (
+              <span
+                className="branch-list-empty-state-trigger"
+                onClick={() => openCreateDialog(defaultReference)}
+              >
+                <FormattedMessage id="ArcticCatalog.Branches.CreateBranch.EmptyState" />
+              </span>
+            )
+          }
+        />
       </EmptyStateContainer>
     );
 

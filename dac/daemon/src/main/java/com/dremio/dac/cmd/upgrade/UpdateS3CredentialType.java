@@ -25,6 +25,7 @@ import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.plugins.s3.store.S3PluginConfig;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.google.common.collect.ImmutableList;
 
@@ -52,7 +53,7 @@ public class UpdateS3CredentialType extends UpgradeTask implements LegacyUpgrade
 
   @Override
   public void upgrade(UpgradeContext context) throws Exception {
-    final NamespaceService namespaceService = new NamespaceServiceImpl(context.getLegacyKVStoreProvider());
+    final NamespaceService namespaceService = new NamespaceServiceImpl(context.getLegacyKVStoreProvider(), new CatalogStatusEventsImpl());
 
     List<SourceConfig> sources = namespaceService.getSources();
 

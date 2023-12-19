@@ -77,7 +77,7 @@ export class AccelerationBasic extends Component {
     const toggleLabel = (
       <h3 className={"AccelerationBasic__toggleLabel"}>
         <FontIcon type="RawMode" theme={commonThemes.rawIconTheme} />
-        {la("Raw Reflections")}
+        {laDeprecated("Raw Reflections")}
       </h3>
     );
 
@@ -108,16 +108,28 @@ export class AccelerationBasic extends Component {
     const aggError = this.context.reflectionSaveErrors.get(
       fields.aggregationReflections[0].id.value
     );
-    const aggErrorInfo = aggError?.get("message")?.get("errorMessage");
-    const aggErrorMessage = aggError && aggErrorInfo !== SUPPORT_ERROR && (
-      <Message
-        messageType="error"
-        inFlow={false}
-        message={aggError.get("message")}
-        messageId={aggError.get("id")}
-        className={"AccelerationBasic__message"}
-      />
-    );
+
+    let errorMessageInfo;
+    const aggErrorMessage = aggError?.get("message");
+
+    if (aggErrorMessage) {
+      if (typeof aggErrorMessage === "string") {
+        errorMessageInfo = aggErrorMessage;
+      } else {
+        errorMessageInfo = aggError.get("message").get("errorMessage");
+      }
+    }
+
+    const errorMessageComponent = aggError &&
+      errorMessageInfo !== SUPPORT_ERROR && (
+        <Message
+          messageType="error"
+          inFlow={false}
+          message={aggError.get("message")}
+          messageId={aggError.get("id")}
+          className={"AccelerationBasic__message"}
+        />
+      );
 
     return (
       <div className={"AccelerationBasic"} data-qa="raw-basic">
@@ -146,7 +158,7 @@ export class AccelerationBasic extends Component {
           className={"AccelerationBasic__AccelerationAggregate"}
           location={location}
           shouldHighlight={highlightedSection === "AGGREGATION"}
-          errorMessage={aggErrorMessage}
+          errorMessage={errorMessageComponent}
           loadingRecommendations={loadingRecommendations}
           skipRecommendations={skipRecommendations}
         />

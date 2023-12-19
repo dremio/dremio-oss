@@ -20,10 +20,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.dac.explore.model.VersionContextReq;
 import com.dremio.dac.proto.model.dataset.SourceVersionReference;
 import com.dremio.dac.proto.model.dataset.VersionContextType;
-import com.dremio.exec.catalog.VersionContext;
 import com.google.common.collect.ImmutableMap;
 
 /**
@@ -49,7 +49,7 @@ public final class DatasetResourceUtils {
             sourceVersionMapping.put(entry.getKey(), VersionContext.ofTag(entry.getValue().getValue()));
             break;
           case COMMIT:
-            sourceVersionMapping.put(entry.getKey(), VersionContext.ofBareCommit(entry.getValue().getValue()));
+            sourceVersionMapping.put(entry.getKey(), VersionContext.ofCommit(entry.getValue().getValue()));
             break;
           default:
             throw new IllegalArgumentException("Unrecognized versionContextType: " + versionContextType);

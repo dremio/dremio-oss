@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import deepEqual from "deep-equal";
-import uuid from "uuid";
+import { v4 as uuidv4 } from "uuid";
 import Immutable from "immutable";
 import { formatMessage } from "utils/locale";
 import { getUniqueName } from "utils/pathUtils";
@@ -26,7 +26,7 @@ import { ANY } from "@app/constants/DataTypes";
 
 export const createReflectionFormValues = (opts, siblingNames = []) => {
   const reflection = {
-    id: uuid.v4(), // need to supply a temp uuid so errors can be tracked
+    id: uuidv4(), // need to supply a temp uuid so errors can be tracked
     tag: "",
     type: "",
     name: "",
@@ -51,8 +51,8 @@ export const createReflectionFormValues = (opts, siblingNames = []) => {
       siblingNames &&
       getUniqueName(
         opts.type === "RAW"
-          ? la("Raw Reflection")
-          : la("Aggregation Reflection"),
+          ? laDeprecated("Raw Reflection")
+          : laDeprecated("Aggregation Reflection"),
         (proposedName) => {
           return !siblingNames.includes(proposedName);
         }
@@ -62,6 +62,23 @@ export const createReflectionFormValues = (opts, siblingNames = []) => {
   // only copy values from opts if the key exists in our reduced reflection representation
   for (const key in reflection) {
     if (key in opts) {
+      // partition fields with transformations have a different format than normal partitions
+      if (key === "partitionFields") {
+        reflection[key] = opts[key].map((partitionField) => {
+          if (partitionField.transform) {
+            return {
+              name: {
+                ...partitionField,
+              },
+            };
+          } else {
+            return partitionField;
+          }
+        });
+
+        continue;
+      }
+
       reflection[key] = opts[key];
     }
   }
@@ -83,7 +100,11 @@ export const areReflectionFormValuesUnconfigured = (reflectionFormValues) => {
   return deepEqual(reflectionFormValues, unconfiguredReflection);
 };
 
-export const areReflectionFormValuesBasic = (reflectionFormValues, dataset) => {
+export const areReflectionFormValuesBasic = (
+  reflectionFormValues,
+  dataset,
+  rawRecommendation
+) => {
   reflectionFormValues = { ...reflectionFormValues };
 
   const basicCopy = createReflectionFormValues({
@@ -98,15 +119,24 @@ export const areReflectionFormValuesBasic = (reflectionFormValues, dataset) => {
 
   if (reflectionFormValues.type === "RAW") {
     reflectionFormValues.displayFields.sort(fieldSorter);
-    basicCopy.displayFields = dataset.fields
-      .map(({ name }) => ({ name }))
-      .sort(fieldSorter);
+
+    if (rawRecommendation) {
+      basicCopy.displayFields =
+        rawRecommendation.displayFields.sort(fieldSorter);
+    } else {
+      basicCopy.displayFields = dataset.fields
+        .map(({ name }) => ({ name }))
+        .sort(fieldSorter);
+    }
+
+    reflectionFormValues.partitionFields = basicCopy.partitionFields;
   } else {
     reflectionFormValues = {
       ...reflectionFormValues,
       // these don't matter for basic v advanced mode:
       dimensionFields: basicCopy.dimensionFields, // ignoring granularity right now as even advanced does nothing with it (sync system is careful to preserve)
       measureFields: basicCopy.measureFields,
+      partitionFields: basicCopy.partitionFields,
     };
   }
 

@@ -24,7 +24,11 @@ import { FormattedMessage, injectIntl } from "react-intl";
 import ApiUtils from "utils/apiUtils/apiUtils";
 import FormUtils from "utils/FormUtils/FormUtils";
 import SourceFormJsonPolicy from "utils/FormUtils/SourceFormJsonPolicy";
-import { createSampleSource, createSource } from "actions/resources/sources";
+import {
+  createSampleSource,
+  createSampleDbSource,
+  createSource,
+} from "actions/resources/sources";
 
 import Modal from "components/Modals/Modal";
 import ViewStateWrapper from "components/ViewStateWrapper";
@@ -69,6 +73,7 @@ export class AddSourceModal extends Component {
     createSource: PropTypes.func,
     initialFormValues: PropTypes.object,
     createSampleSource: PropTypes.func.isRequired,
+    createSampleDbSource: PropTypes.func.isRequired,
     intl: PropTypes.object.isRequired,
     dispatchPassDataBetweenTabs: PropTypes.func,
     loadGrant: PropTypes.func,
@@ -155,7 +160,7 @@ export class AddSourceModal extends Component {
     );
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     if (!this.props.isOpen && nextProps.isOpen) {
       this.setState({ isTypeSelected: false, selectedFormType: {} });
       this.props.updateFormDirtyState(false); // mark form not dirty to avoid unsaved prompt
@@ -180,11 +185,23 @@ export class AddSourceModal extends Component {
   }
 
   handleSelectSource = (source) => {
-    if (source.sourceType === "SampleSource") {
-      this.handleAddSampleSource();
-    } else {
-      this.setStateWithSourceTypeConfigFromServer(source.sourceType);
+    switch (source.sourceType) {
+      case "SAMPLEDB":
+        this.handleAddSampleDb();
+        break;
+      case "SampleSource":
+        this.handleAddSampleSource();
+        break;
+      default:
+        this.setStateWithSourceTypeConfigFromServer(source.sourceType);
     }
+  };
+
+  handleAddSampleDb = () => {
+    return this.props.createSampleDbSource().then(() => {
+      this.hide();
+      return;
+    });
   };
 
   handleAddSampleSource = () => {
@@ -356,6 +373,7 @@ export default compose(
   connect(mapStateToProps, {
     createSource,
     createSampleSource,
+    createSampleDbSource,
     dispatchPassDataBetweenTabs: passDataBetweenTabs,
     loadGrant,
     ...additionalMapDispatchToProps,

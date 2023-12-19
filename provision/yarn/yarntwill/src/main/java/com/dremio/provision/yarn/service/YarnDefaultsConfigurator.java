@@ -144,7 +144,7 @@ public class YarnDefaultsConfigurator implements ProvisioningDefaultsConfigurato
       return baseYarnDefaultPropsSecurityOffShow;
     }
 
-    private static class BaseYarnDefaultsSecurityOn extends BaseYarnDefaults {
+    private static final class BaseYarnDefaultsSecurityOn extends BaseYarnDefaults {
       @Override
       public boolean isSecure() {
         return true;
@@ -246,7 +246,7 @@ public class YarnDefaultsConfigurator implements ProvisioningDefaultsConfigurato
       return supportedTypes;
     }
 
-    private static class MapRYarnDefaultsSecurityOn extends MapRYarnDefaults {
+    private static final class MapRYarnDefaultsSecurityOn extends MapRYarnDefaults {
       @Override
       public boolean isSecure() {
         return true;

@@ -32,7 +32,6 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.lang3.StringEscapeUtils;
-import org.apache.commons.lang3.time.DurationFormatUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 
 import com.dremio.common.utils.protos.QueryIdHelper;
@@ -72,6 +71,7 @@ public class ProfileWrapper {
   private final Map<AttemptEvent.State, Long> stateDurations;
   private Long totalDuration; // null if the query hasn't terminated
   private final Table<Integer, Integer, String> majorMinorHostTable = HashBasedTable.create();
+  private List<SourceVersionWrapper> sourceVersionWrapperList ;
 
   public ProfileWrapper(final QueryProfile profile, boolean debug) {
     this.profile = profile;
@@ -89,6 +89,10 @@ public class ProfileWrapper {
       nodeProfiles.add(new NodeWrapper(nodeQueryProfile, debug));
     }
     this.nodeProfiles = nodeProfiles;
+
+    sourceVersionWrapperList = new ArrayList<>();
+    profile.getContextInfo().getSourceVersionSettingList().forEach((sv) ->
+      sourceVersionWrapperList.add(new SourceVersionWrapper(sv.getSource(),sv.getVersionContext(), sv.getUsage())));
 
     final List<OperatorWrapper> ows = new ArrayList<>();
     // temporary map to store (major_id, operator_id) -> [(op_profile, minor_id)]
@@ -452,6 +456,20 @@ public class ProfileWrapper {
     return sb.append("}").toString();
   }
 
+  public String getContext() {
+    return profile.getContextInfo().getSchemaPathContext();
+  }
+
+  public String getSourceVersionMapping() {
+    TableBuilder tb = new TableBuilder(SourceVersionWrapper.SOURCE_VERSION_COLUMNS);
+    for (final SourceVersionWrapper svw : sourceVersionWrapperList) {
+      if (svw.getUsage() == UserBitShared.SourceVersionSetting.Usage.USED_BY_QUERY) {
+        svw.addSummary(tb);
+      }
+    }
+    return tb.build();
+  }
+
   public int getPlanCacheUsed() {
     return profile.getNumPlanCacheUsed();
   }
@@ -516,13 +534,6 @@ public class ProfileWrapper {
 
     jsonGenerator.flush();
     return outputStream.toString();
-  }
-
-  public String getPerdiodFromStart(Long datetime) {
-    if (datetime == null) {
-      return "";
-    }
-    return DurationFormatUtils.formatDurationWords( this.profile.getStart() - datetime, true, true);
   }
 
   public int getConsideredReflectionsCount() {

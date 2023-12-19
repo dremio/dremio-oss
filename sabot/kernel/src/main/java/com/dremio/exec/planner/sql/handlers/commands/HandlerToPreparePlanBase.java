@@ -28,8 +28,10 @@ import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.PhysicalPlan;
+import com.dremio.exec.planner.CachedAccelDetails;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
+import com.dremio.exec.planner.acceleration.RelWithInfo;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.fragment.PlanFragmentsIndex;
 import com.dremio.exec.planner.observer.AbstractAttemptObserver;
@@ -40,6 +42,7 @@ import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
 import com.dremio.exec.proto.ExecProtos.ServerPreparedStatementState;
 import com.dremio.exec.work.foreman.ExecutionPlan;
+import com.dremio.reflection.hints.ReflectionExplanationsAndQueryDistance;
 import com.google.common.cache.Cache;
 import com.google.common.collect.ImmutableList;
 
@@ -164,8 +167,8 @@ public abstract class HandlerToPreparePlanBase<T> implements CommandRunner<T> {
 
     @Override
     public void planSubstituted(final DremioMaterialization materialization,
-                                final List<RelNode> substitutions,
-                                final RelNode target, final long millisTaken, boolean defaultReflection) {
+                                final List<RelWithInfo> substitutions,
+                                final RelWithInfo target, final long millisTaken, boolean defaultReflection) {
       calls.add(observer -> observer.planSubstituted(materialization, substitutions, target, millisTaken, defaultReflection));
     }
 
@@ -190,10 +193,14 @@ public abstract class HandlerToPreparePlanBase<T> implements CommandRunner<T> {
       calls.add(observer -> observer.planFindMaterializations(millisTaken));
     }
 
+    @Override
+    public void planNormalized(final long millisTaken, final List<RelWithInfo> normalizedQueryPlans) {
+      calls.add(observer -> observer.planNormalized(millisTaken, normalizedQueryPlans));
+    }
 
     @Override
-    public void planNormalized(final long millisTaken, final List<RelNode> normalizedQueryPlans) {
-      calls.add(observer -> observer.planNormalized(millisTaken, normalizedQueryPlans));
+    public void planSubstituted(final long millisTaken) {
+      calls.add(observer -> observer.planSubstituted(millisTaken));
     }
 
     @Override
@@ -204,6 +211,24 @@ public abstract class HandlerToPreparePlanBase<T> implements CommandRunner<T> {
     @Override
     public void planJsonPlan(final String text) {
       calls.add(observer -> observer.planJsonPlan(text));
+    }
+
+    @Override
+    public void planRefreshDecision(String text, long millisTaken) { calls.add(observer -> observer.planRefreshDecision(text, millisTaken)); }
+
+    @Override
+    public void applyAccelDetails(CachedAccelDetails accelDetails) {
+      calls.add(observer -> observer.applyAccelDetails(accelDetails));
+    };
+
+    @Override
+    public void planCacheUsed(int count) {
+      calls.add(observer -> observer.planCacheUsed(count));
+    };
+
+    @Override
+    public void updateReflectionsWithHints(ReflectionExplanationsAndQueryDistance reflectionExplanationsAndQueryDistance) {
+      calls.add(observer -> observer.updateReflectionsWithHints(reflectionExplanationsAndQueryDistance));
     }
 
     public void replay(AttemptObserver observer) {

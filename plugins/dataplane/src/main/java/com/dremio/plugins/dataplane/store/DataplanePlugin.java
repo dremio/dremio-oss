@@ -15,12 +15,16 @@
  */
 package com.dremio.plugins.dataplane.store;
 
+import static com.dremio.exec.ExecConstants.VERSIONED_SOURCE_CAPABILITIES_USE_NATIVE_PRIVILEGES_ENABLED;
+import static com.dremio.exec.store.DataplanePluginOptions.DATAPLANE_ICEBERG_METADATA_CACHE_EXPIRE_AFTER_ACCESS_MINUTES;
+import static com.dremio.exec.store.DataplanePluginOptions.DATAPLANE_ICEBERG_METADATA_CACHE_SIZE_ITEMS;
 import static com.dremio.plugins.dataplane.NessiePluginConfigConstants.MINIMUM_NESSIE_SPECIFICATION_VERSION;
 import static com.dremio.plugins.dataplane.store.InformationSchemaCelFilter.getInformationSchemaFilter;
-import static org.apache.hadoop.fs.s3a.Constants.AWS_CREDENTIALS_PROVIDER;
+import static com.dremio.service.namespace.capabilities.SourceCapabilities.USE_NATIVE_PRIVILEGES;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.security.AccessControlException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -29,9 +33,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
@@ -40,21 +44,26 @@ import javax.inject.Provider;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.BaseTable;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.StaticTableOperations;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableOperations;
+import org.apache.iceberg.exceptions.NotFoundException;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.types.Types;
-import org.apache.iceberg.view.ViewDefinition;
-import org.apache.iceberg.view.ViewVersionMetadata;
-import org.apache.iceberg.view.ViewVersionMetadataParser;
-import org.projectnessie.client.api.NessieApi;
+import org.apache.iceberg.viewdepoc.ViewDefinition;
+import org.apache.iceberg.viewdepoc.ViewVersionMetadata;
+import org.apache.iceberg.viewdepoc.ViewVersionMetadataParser;
+import org.jetbrains.annotations.NotNull;
+import org.projectnessie.client.api.NessieApiV2;
+import org.projectnessie.error.NessieForbiddenException;
 
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.VM;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.common.utils.PathUtils;
@@ -71,20 +80,16 @@ import com.dremio.exec.catalog.AlterTableOption;
 import com.dremio.exec.catalog.DataplaneTableInfo;
 import com.dremio.exec.catalog.DataplaneViewInfo;
 import com.dremio.exec.catalog.MutablePlugin;
-import com.dremio.exec.catalog.ResolvedVersionContext;
 import com.dremio.exec.catalog.RollbackOption;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.TableMutationOptions;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.catalog.VersionedPlugin;
-import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.ViewOptions;
 import com.dremio.exec.physical.base.Writer;
 import com.dremio.exec.physical.base.WriterOptions;
-import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
@@ -93,10 +98,10 @@ import com.dremio.exec.planner.sql.handlers.refresh.UnlimitedSplitsMetadataProvi
 import com.dremio.exec.planner.sql.parser.SqlRefreshDataset;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.BlockBasedSplitGenerator;
 import com.dremio.exec.store.ChangeInfo;
 import com.dremio.exec.store.ConnectionRefusedException;
 import com.dremio.exec.store.HttpClientRequestException;
+import com.dremio.exec.store.InvalidNessieApiVersionException;
 import com.dremio.exec.store.InvalidSpecificationVersionException;
 import com.dremio.exec.store.InvalidURLException;
 import com.dremio.exec.store.NessieApiProvider;
@@ -124,34 +129,30 @@ import com.dremio.exec.store.iceberg.TableSchemaProvider;
 import com.dremio.exec.store.iceberg.TableSnapshotProvider;
 import com.dremio.exec.store.iceberg.TimeTravelProcessors;
 import com.dremio.exec.store.iceberg.ViewHandle;
+import com.dremio.exec.store.iceberg.model.IcebergCommitOrigin;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
 import com.dremio.exec.store.iceberg.nessie.IcebergNessieVersionedModel;
 import com.dremio.exec.store.iceberg.nessie.IcebergNessieVersionedViews;
-import com.dremio.exec.store.metadatarefresh.footerread.FooterReadTableFunction;
 import com.dremio.exec.store.parquet.ParquetFormatConfig;
-import com.dremio.exec.store.parquet.ParquetScanTableFunction;
-import com.dremio.exec.store.parquet.ParquetSplitCreator;
-import com.dremio.exec.store.parquet.ScanTableFunction;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
+import com.dremio.options.OptionManager;
 import com.dremio.plugins.ExternalNamespaceEntry;
 import com.dremio.plugins.ExternalNamespaceEntry.Type;
 import com.dremio.plugins.NessieClient;
+import com.dremio.plugins.NessieClient.ContentMode;
 import com.dremio.plugins.NessieClient.NestingMode;
 import com.dremio.plugins.NessieClientTableMetadata;
-import com.dremio.plugins.s3.store.S3FileSystem;
+import com.dremio.plugins.NessieContent;
 import com.dremio.plugins.util.ContainerAccessDeniedException;
-import com.dremio.plugins.util.awsauth.AWSCredentialsConfigurator;
 import com.dremio.sabot.exec.context.OperatorContext;
-import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.service.catalog.SchemaType;
 import com.dremio.service.catalog.SearchQuery;
 import com.dremio.service.catalog.TableType;
-import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.SourceState;
+import com.dremio.service.namespace.capabilities.BooleanCapabilityValue;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.telemetry.api.metrics.MetricsInstrumenter;
@@ -162,7 +163,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Suppliers;
-import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.google.protobuf.ByteString;
 
 import io.opentelemetry.instrumentation.annotations.WithSpan;
@@ -179,10 +179,7 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
   private final AbstractDataplanePluginConfig pluginConfig;
   private final SabotContext context;
   private final String name;
-
   private final NessieClient nessieClient;
-  private final Configuration fileSystemConfig;
-  private final AWSCredentialsConfigurator awsCredentialConfigurator;
 
   /**
    * The cached DremioFileIO instance for the plugin.  This is created on-demand - consumers should access this only
@@ -190,37 +187,37 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
    */
   private FileIO fileIO;
 
+  private boolean pluginClosed = false;
+  private String pluginCloseStacktrace = null;
+
   private static final Joiner DOT_JOINER = Joiner.on('.');
 
-  private final LoadingCache<ImmutablePair<String, EntityPath>, Table> tableLoadingCache = Caffeine
-    .newBuilder()
-    .maximumSize(1000) // items
-    .softValues()
-    .expireAfterAccess(1, TimeUnit.HOURS)
-    .build(new TableCacheLoader());
-
-  private final LoadingCache<String, ViewVersionMetadata> viewLoadingCache = Caffeine
-    .newBuilder()
-    .maximumSize(1000) // items
-    .softValues()
-    .expireAfterAccess(1, TimeUnit.HOURS)
-    .build(new ViewCacheLoader());
+  private final LoadingCache<ImmutablePair<String, EntityPath>, Table> tableLoadingCache;
+  private final LoadingCache<String, ViewVersionMetadata> viewLoadingCache;
 
   public DataplanePlugin(AbstractDataplanePluginConfig pluginConfig,
                          SabotContext context,
                          String name,
                          Provider<StoragePluginId> idProvider,
-                         AWSCredentialsConfigurator awsCredentialsConfigurator,
                          NessieClient nessieClient) {
     super(pluginConfig, context, name, idProvider);
     this.pluginConfig = pluginConfig;
     this.context = context;
     this.name = name;
-    this.awsCredentialConfigurator = awsCredentialsConfigurator;
 
     this.nessieClient = nessieClient;
 
-    this.fileSystemConfig = initializeFileSystemConfig();
+    OptionManager optionManager = context.getOptionManager();
+    this.tableLoadingCache = Caffeine.newBuilder()
+      .maximumSize(optionManager.getOption(DATAPLANE_ICEBERG_METADATA_CACHE_SIZE_ITEMS))
+      .softValues()
+      .expireAfterAccess(optionManager.getOption(DATAPLANE_ICEBERG_METADATA_CACHE_EXPIRE_AFTER_ACCESS_MINUTES), TimeUnit.MINUTES)
+      .build(new TableCacheLoader());
+    this.viewLoadingCache = Caffeine.newBuilder()
+      .maximumSize(optionManager.getOption(DATAPLANE_ICEBERG_METADATA_CACHE_SIZE_ITEMS))
+      .softValues()
+      .expireAfterAccess(optionManager.getOption(DATAPLANE_ICEBERG_METADATA_CACHE_EXPIRE_AFTER_ACCESS_MINUTES), TimeUnit.MINUTES)
+      .build(new ViewCacheLoader());
   }
 
   @Override
@@ -265,8 +262,13 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
   public Stream<ExternalNamespaceEntry> listEntries(List<String> catalogPath, VersionContext version) {
     return metrics.log("listEntries", () -> {
       ResolvedVersionContext resolvedVersion = resolveVersionContext(version);
-      return nessieClient.listEntries(catalogPath, resolvedVersion,
-        NestingMode.SAME_DEPTH_ONLY, null, null);
+      return nessieClient.listEntries(
+        catalogPath,
+        resolvedVersion,
+        NestingMode.IMMEDIATE_CHILDREN_ONLY,
+        ContentMode.ENTRY_METADATA_ONLY,
+        null,
+        null);
     });
   }
 
@@ -274,7 +276,16 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
   @Override
   public Stream<ExternalNamespaceEntry> listEntriesIncludeNested(List<String> catalogPath, VersionContext version) {
     return metrics.log("listEntriesIncludeNested",
-      () -> listEntriesIncludeNestedHelper(catalogPath, version, null));
+      () -> {
+        ResolvedVersionContext resolvedVersion = resolveVersionContext(version);
+        return nessieClient.listEntries(
+          catalogPath,
+          resolvedVersion,
+          NestingMode.INCLUDE_NESTED_CHILDREN,
+          ContentMode.ENTRY_METADATA_ONLY,
+          null,
+          null);
+      });
   }
 
   @Override
@@ -282,7 +293,16 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
   public Stream<ExternalNamespaceEntry> listTablesIncludeNested(List<String> catalogPath, VersionContext version)
   {
     return metrics.log("listTablesIncludeNested",
-      () -> listEntriesIncludeNestedHelper(catalogPath, version, EnumSet.of(Type.ICEBERG_TABLE)));
+      () -> {
+        ResolvedVersionContext resolvedVersion = resolveVersionContext(version);
+        return nessieClient.listEntries(
+          catalogPath,
+          resolvedVersion,
+          NestingMode.INCLUDE_NESTED_CHILDREN,
+          ContentMode.ENTRY_METADATA_ONLY,
+          EnumSet.of(Type.ICEBERG_TABLE),
+          null);
+      });
   }
 
   @Override
@@ -290,23 +310,16 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
   public Stream<ExternalNamespaceEntry> listViewsIncludeNested(List<String> catalogPath, VersionContext version)
   {
     return metrics.log("listViewsIncludeNested",
-      () -> listEntriesIncludeNestedHelper(catalogPath, version, EnumSet.of(Type.ICEBERG_VIEW)));
-  }
-
-  private Stream<ExternalNamespaceEntry> listEntriesIncludeNestedHelper(
-    List<String> catalogPath,
-    VersionContext version,
-    @Nullable Set<ExternalNamespaceEntry.Type> contentFilter
-  ) {
-    ResolvedVersionContext resolvedVersion = resolveVersionContext(version);
-    return nessieClient.listEntries(catalogPath, resolvedVersion,
-      NestingMode.INCLUDE_NESTED, contentFilter, null);
-  }
-
-  @Override
-  @WithSpan
-  public EntityType getType(List<String> tableKey, ResolvedVersionContext version) {
-    return metrics.log("getType()", () -> nessieClient.getVersionedEntityType(tableKey, version));
+      () -> {
+        ResolvedVersionContext resolvedVersion = resolveVersionContext(version);
+        return nessieClient.listEntries(
+          catalogPath,
+          resolvedVersion,
+          NestingMode.INCLUDE_NESTED_CHILDREN,
+          ContentMode.ENTRY_METADATA_ONLY,
+          EnumSet.of(Type.ICEBERG_VIEW),
+          null);
+      });
   }
 
   @Override
@@ -380,14 +393,12 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
     EntityPath datasetPath,
     GetDatasetOption... options
   ) {
-
-    return metrics.log("getDatasetHandle", () -> {
-      try{
-        return getDatasetHandleHelper(datasetPath, options);
-      } catch (UncheckedExecutionException e) {
-        throw failedToLoadIcebergTableException(e);
-      }
-    });
+    try {
+      return metrics.log("getDatasetHandle",
+        () -> getDatasetHandleHelper(datasetPath, options));
+    } catch (NessieForbiddenException e) {
+      throw new AccessControlException(e.getMessage());
+    }
   }
 
   private Optional<DatasetHandle> getDatasetHandleHelper(EntityPath datasetPath, GetDatasetOption[] options) {
@@ -400,22 +411,30 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
       version);
 
     List<String> versionedTableKey = datasetPath.getComponents().subList(1, datasetPath.size());
-    EntityType entityType = getType(versionedTableKey, version);
-    final String metadataLocation = nessieClient.getMetadataLocation(
-      versionedTableKey,
-      version,
-      null);
-    logger.debug("Retrieving Iceberg metadata from location '{}' ", metadataLocation);
+    Optional<NessieContent> maybeNessieContent = nessieClient.getContent(versionedTableKey, version, null);
+    if (!maybeNessieContent.isPresent()) {
+      return Optional.empty();
+    }
+    NessieContent nessieContent = maybeNessieContent.get();
+    final EntityType entityType = nessieContent.getEntityType();
+    switch (entityType) {
+      case ICEBERG_TABLE:
+      case ICEBERG_VIEW:
+        break;
+      default:
+        return Optional.empty();
+    }
+    final String metadataLocation = nessieContent.getMetadataLocation().orElse(null);
     if (metadataLocation == null) {
       return Optional.empty();
     }
 
-    final String contentId = nessieClient.getContentId(versionedTableKey, version, null) ;
+    final String contentId = nessieContent.getContentId();
     final String uniqueId = getUUIDFromMetadataLocation(metadataLocation);
 
     switch(entityType) {
       case ICEBERG_TABLE:
-        final Table table = getIcebergTable(datasetPath, metadataLocation);
+        final Table table = getIcebergTable(datasetPath, metadataLocation, version);
         logger.debug("Retrieved Iceberg table : name {} , location {}, schema {}, current snapshot {}, partition spec {} ",
           table.name(),
           table.location(),
@@ -433,7 +452,7 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
                 TimeTravelProcessors.getTableSchemaProvider(timeTravelRequest);
         return Optional.of(new TransientIcebergMetadataProvider(datasetPath,
           Suppliers.ofInstance(table),
-          fileSystemConfig,
+          getFsConfCopy(),
           tableSnapshotProvider,
           this,
           tableSchemaProvider,
@@ -442,16 +461,15 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
           uniqueId));
 
       case ICEBERG_VIEW:
-        final Optional<String> dialect = nessieClient.getViewDialect(versionedTableKey, version);
-        if (!dialect.isPresent() || !dialect.get().equals(IcebergNessieVersionedViews.DIALECT)) {
+        String viewDialect = nessieContent.getViewDialect().orElse(null);
+        if (!IcebergNessieVersionedViews.DIALECT.equals(viewDialect)) {
           throw UserException.validationError()
-              .message(
-                  "Dialect is %s and %s is expected",
-                  dialect.isPresent() ? dialect.get() : null, IcebergNessieVersionedViews.DIALECT)
-              .build();
+            .message("View Dialect is %s but %s was expected",
+              viewDialect, IcebergNessieVersionedViews.DIALECT)
+            .build(logger);
         }
 
-        final ViewVersionMetadata viewVersionMetadata = readViewMetadata(metadataLocation);
+        final ViewVersionMetadata viewVersionMetadata = getIcebergView(metadataLocation);
 
         return Optional.of(ViewHandle
           .newBuilder()
@@ -460,31 +478,14 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
           .id(contentId)
           .uniqueId(uniqueId)
           .build());
+
       default:
-        return Optional.empty();
+        throw new IllegalStateException("Unsupported entityType: " + entityType);
     }
   }
 
   private String getUUIDFromMetadataLocation(String metadataLocation){
     return metadataLocation.substring(metadataLocation.lastIndexOf("/")+1, metadataLocation.lastIndexOf(".metadata.json"));
-  }
-
-  private UserException failedToLoadIcebergTableException(Exception e) {
-    return UserException.ioExceptionError(e)
-      .message("Failed to load the Iceberg table. The underlying metadata and/or data files may not exist, " +
-        "or you do not have permission to access them.")
-      .buildSilently();
-  }
-
-  private Table getIcebergTable(EntityPath datasetPath, String metadataLocation) {
-    return metrics.log("loadIcebergTable", () -> {
-      LoadingCache<ImmutablePair<String, EntityPath>, Table> cache = getTableLoadingCache();
-      return cache.get(ImmutablePair.of(metadataLocation, datasetPath));
-    });
-  }
-
-  private LoadingCache<ImmutablePair<String, EntityPath>, Table> getTableLoadingCache() {
-    return tableLoadingCache;
   }
 
   @Override
@@ -533,7 +534,14 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
 
   @Override
   public SourceCapabilities getSourceCapabilities() {
-    return SourceCapabilities.NONE; // TODO(DX-43872) Are there any source capabilities we should add?
+    if (this.context.getOptionManager().getOption(VERSIONED_SOURCE_CAPABILITIES_USE_NATIVE_PRIVILEGES_ENABLED)) {
+      return new SourceCapabilities(
+        new BooleanCapabilityValue(
+          USE_NATIVE_PRIVILEGES,
+          this.pluginConfig.useNativePrivileges(this.context.getOptionManager())));
+    }
+
+    return SourceCapabilities.NONE;
   }
 
   @Override
@@ -553,13 +561,16 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
   public void start() throws IOException {
     this.pluginConfig.validatePluginEnabled(context);
     this.pluginConfig.validateNessieAuthSettings(name);
-    this.pluginConfig.validateAWSRootPath(getRootLocation());
+    this.pluginConfig.validateRootPath();
     try {
       this.pluginConfig.validateNessieSpecificationVersion(nessieClient, name);
     } catch (InvalidURLException e) {
       throw UserException.validationError(e).message("Unable to create source [%s], " +
           "Make sure that Nessie endpoint URL is valid.", name).buildSilently();
-    } catch (InvalidSpecificationVersionException e) {
+    } catch (InvalidNessieApiVersionException e) {
+      throw UserException.validationError(e).message("Unable to create source [%s], " +
+        "Invalid API version. Make sure that Nessie endpoint URL has a valid API version.", name).buildSilently();
+    } catch(InvalidSpecificationVersionException e) {
       throw UserException.validationError(e).message("Unable to create source [%s], Nessie Server should comply with Nessie specification version %s or later." +
         " Also make sure that Nessie endpoint URL is valid.", name, MINIMUM_NESSIE_SPECIFICATION_VERSION).buildSilently();
     } catch (SemanticVersionParserException e) {
@@ -603,10 +614,10 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
 
     IcebergModel icebergModel = new IcebergNessieVersionedModel(
       tableSchemaComponentsWithoutPluginName,
-      fileSystemConfig,
-      getSystemUserFS(),
+      getFsConfCopy(),
+      getFileIO(),
       nessieClient,
-      null, // Used to create DremioInputFile (valid only for insert/ctas)
+      null, // Used to create DremioInputFile. (valid only for insert/ctas)
       version,
       this,
       schemaConfig.getUserName());
@@ -614,7 +625,9 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
     logger.debug("Creating empty table: '{}' with version '{}'", tableSchemaComponentsWithoutPluginName, version);
     try {
       PartitionSpec partitionSpec = Optional.ofNullable(writerOptions.getTableFormatOptions().getIcebergSpecificOptions()
-        .getIcebergTableProps()).map(props -> props.getDeserializedPartitionSpec()).orElse(null);
+        .getIcebergTableProps()).map(IcebergTableProps::getDeserializedPartitionSpec).orElse(null);
+      Map<String, String> tableProperties = Optional.ofNullable(writerOptions.getTableFormatOptions().getIcebergSpecificOptions()
+        .getIcebergTableProps()).map(props -> props.getTableProperties()).orElse(Collections.emptyMap());
       icebergModel
         .getCreateTableCommitter(
           String.join(".", tableSchemaComponentsWithoutPluginName),
@@ -622,7 +635,9 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
           batchSchema,
           writerOptions.getPartitionColumns(),
           null,
-          partitionSpec
+          partitionSpec,
+          writerOptions.getDeserializedSortOrder(),
+          tableProperties
           )
         .commit();
     } catch (UncheckedIOException e){
@@ -659,9 +674,6 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
 
     final String tableName = String.join(".", tableSchemaComponentsWithoutPluginName);
 
-    //Iceberg tables have parquet as the underlying file format
-    final FormatPlugin formatPlugin = this.getFormatPlugin("parquet"); //This call uses FSPlugin formatCreator
-
     final String userName = schemaConfig.getUserName();
 
     Path path = resolveTableNameToValidPath(tableSchemaPath.toString(), writerOptions.getVersion());
@@ -693,10 +705,10 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
   private Path resolveTableNameToValidPath(String tablePathWithPlugin, ResolvedVersionContext versionContext) {
     List<String> tablePath = schemaComponentsWithoutPluginName(
       new NamespaceKey(PathUtils.parseFullPath(tablePathWithPlugin)));
-    final String metadataLocation = nessieClient.getMetadataLocation(tablePath, versionContext, null);
+    Optional<String> metadataLocation = getMetadataLocation(tablePath, versionContext);
     logger.info("Retrieving Iceberg metadata from location '{}' ", metadataLocation);
 
-    if (metadataLocation == null) {
+    if (!metadataLocation.isPresent()) {
       // Table does not exist, resolve new path under the aws root folder location
       // location where the iceberg table folder will be created
       // Format : "<plugin.s3RootPath>"/"<folder1>/<folder2>/<tableName>"
@@ -707,20 +719,56 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
       return combined;
     }
 
-    final Table icebergTable = getIcebergTable(new EntityPath(tablePath), metadataLocation);
-    return Path.of(removeUriScheme(icebergTable.location()));
+    final Table icebergTable = getIcebergTable(new EntityPath(tablePath), metadataLocation.get(), versionContext);
+    return Path.of(fixupIcebergTableLocation(icebergTable.location()));
   }
 
-  private String removeUriScheme(String uri) {
-    if (StringUtils.isBlank(uri)) {
-      return uri;
+  private static String fixupIcebergTableLocation(String location) {
+    return removeUriScheme(removeAzureHost(location));
+  }
+
+  /**
+   * Removes URI scheme (e.g. "s3a://bucket/folder" -> "/bucket/folder")
+   */
+  private static String removeUriScheme(String location) {
+    if (StringUtils.isBlank(location)) {
+      return location;
     }
 
-    int urlSchemeIndex = uri.indexOf("://");
+    int urlSchemeIndex = location.indexOf("://");
     if (urlSchemeIndex > 0) {
-      uri = uri.substring(urlSchemeIndex + 2);
+      location = location.substring(urlSchemeIndex + 2);
     }
-    return uri;
+    return location;
+  }
+
+  /**
+   * TODO DX-83378: Better support for other Azure schemes/URLs
+   *
+   * Converts an Azure Storage URI to relative path using just the container name.
+   *
+   * Note that this is lossy, the Storage Account name is omitted entirely.
+   *
+   * Azure Storage URIs using wasb or wasbs schemes have this format:
+   * wasb://<containername>@<accountname>.blob.core.windows.net/<file.path>/
+   *
+   * For example:
+   *   wasb://mycontainer@myaccount.blob.core.windows.net/folderA/folderB
+   * converts to:
+   *   wasb://mycontainer/folderA/folderB
+   */
+  private static String removeAzureHost(String location) {
+    if (!StringUtils.startsWithAny(location, "wasb://", "wasbs://")) {
+      return location;
+    }
+
+    if (!location.contains("@") || !StringUtils.containsIgnoreCase(location, "blob.core.windows.net")) {
+      throw UserException.validationError()
+        .message(String.format("Metadata location [%s] for Azure filesystem is malformed.", location))
+        .buildSilently();
+    }
+
+    return StringUtils.substringBefore(location, "@") + StringUtils.substringAfter(location, "blob.core.windows.net");
   }
 
   @Override
@@ -749,20 +797,23 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
 
     List<String> tableKeyWithoutPluginName = schemaComponentsWithoutPluginName(tableSchemaPath);
     //Check if the entity is a table.
-    VersionedPlugin.EntityType entityType = nessieClient.getVersionedEntityType(tableKeyWithoutPluginName, version);
-    if (entityType == EntityType.UNKNOWN ) {
+    Optional<NessieContent> maybeNessieContent = nessieClient.getContent(tableKeyWithoutPluginName, version, null);
+    if (!maybeNessieContent.isPresent()) {
       throw UserException.validationError()
         .message("%s does not exist ", tableKeyWithoutPluginName)
         .buildSilently();
-    } else if (entityType != EntityType.ICEBERG_TABLE) {
+    }
+    NessieContent nessieContent = maybeNessieContent.get();
+    EntityType entityType = nessieContent.getEntityType();
+    if (entityType != EntityType.ICEBERG_TABLE) {
       throw UserException.validationError()
         .message("%s is not a TABLE ", tableKeyWithoutPluginName)
         .buildSilently();
     }
     IcebergModel icebergModel = new IcebergNessieVersionedModel(
       tableKeyWithoutPluginName,
-      fileSystemConfig,
-      getSystemUserFS(),
+      getFsConfCopy(),
+      getFileIO(),
       nessieClient,
       null,
       version,
@@ -770,7 +821,7 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
       schemaConfig.getUserName());
 
     logger.debug("Dropping table '{}' at version '{}'", tableKeyWithoutPluginName, version);
-    icebergModel.deleteTable(icebergModel.getTableIdentifier(pluginConfig.awsRootPath));
+    icebergModel.deleteTable(icebergModel.getTableIdentifier(pluginConfig.getRootPath()));
   }
 
   @Override
@@ -791,8 +842,8 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
     List<String> tableSchemaComponentsWithoutPluginName = schemaComponentsWithoutPluginName(tableSchemaPath);
     IcebergModel icebergModel = new IcebergNessieVersionedModel(
       tableSchemaComponentsWithoutPluginName,
-      fileSystemConfig,
-            getSystemUserFS(),
+      getFsConfCopy(),
+      getFileIO(),
       nessieClient,
       null,
       version,
@@ -823,8 +874,8 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
     List<String> tableSchemaComponentsWithoutPluginName = schemaComponentsWithoutPluginName(tableSchemaPath);
     IcebergModel icebergModel = new IcebergNessieVersionedModel(
       tableSchemaComponentsWithoutPluginName,
-      fileSystemConfig,
-      getSystemUserFS(),
+      getFsConfCopy(),
+      getFileIO(),
       nessieClient,
       null,
       version,
@@ -857,8 +908,8 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
     List<String> tableSchemaComponentsWithoutPluginName = schemaComponentsWithoutPluginName(tableSchemaPath);
     IcebergModel icebergModel = new IcebergNessieVersionedModel(
       tableSchemaComponentsWithoutPluginName,
-      fileSystemConfig,
-      getSystemUserFS(),
+      getFsConfCopy(),
+      getFileIO(),
       nessieClient,
       null,
       version,
@@ -891,9 +942,14 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
           .message("Cannot update a view on a tag or bareCommit")
           .buildSilently();
     }
+    if (view != null  && view.hasDeclaredFieldNames()) {
+      throw UserException.unsupportedError()
+        .message("Versioned views don't support field aliases.")
+        .buildSilently();
+    }
 
     final ResolvedVersionContext version = Objects.requireNonNull(viewOptions.getVersion());
-    final SchemaConverter converter = SchemaConverter.getBuilder().build();
+    final SchemaConverter converter = newIcebergSchemaConverter();
     final List<String> viewKey = schemaComponentsWithoutPluginName(tableSchemaPath);
     final org.apache.hadoop.fs.Path path = new org.apache.hadoop.fs.Path(getRootLocation());
 
@@ -901,10 +957,15 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
       final String metadata =
           IcebergUtils.getValidIcebergPath(
               path,
-              fileSystemConfig,
+              getFsConfCopy(),
               getSystemUserFS().getScheme());
-      final IcebergNessieVersionedViews versionedViews =
-          new IcebergNessieVersionedViews(metadata, nessieClient, fileSystemConfig, this, schemaConfig.getUserName());
+      final IcebergNessieVersionedViews versionedViews = new IcebergNessieVersionedViews(
+        metadata,
+        nessieClient,
+        getFsConfCopy(),
+        this,
+        schemaConfig.getUserName(),
+        this::getIcebergView);
       final ViewDefinition viewDefinition =
           viewOptions.isViewAlter()
               ? versionedViews.loadDefinition(viewKey, version)
@@ -926,9 +987,10 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
         return true;
       }
 
-      final String metadataLocation =
-          Objects.requireNonNull(nessieClient.getMetadataLocation(viewKey, version, null));
-      final ViewVersionMetadata viewVersionMetadata = readViewMetadata(metadataLocation);
+
+      final String metadataLocation = getMetadataLocation(viewKey, version).orElseThrow(() ->
+        new IllegalStateException("Failed to determine metadataLocation: " + viewKey + " version: " + version));
+      final ViewVersionMetadata viewVersionMetadata = getIcebergView(metadataLocation);
       final Map<String, String> currentProperties = viewVersionMetadata.properties();
 
       if (viewOptions.isViewUpdate()) {
@@ -949,13 +1011,10 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
       versionedViews.replace(viewKey, viewDefinition, properties, version);
 
       return true;
-    } catch (UserException e) {
-      throw e;
     } catch (Exception ex) {
       logger.debug("Exception while operating on the view", ex);
+      throw ex;
     }
-
-    return false;
   }
 
   @Override
@@ -969,10 +1028,15 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
     String location = getRootLocation();
     org.apache.hadoop.fs.Path path = new org.apache.hadoop.fs.Path(location);
     String metadata = IcebergUtils.getValidIcebergPath(path,
-      fileSystemConfig,
+      getFsConfCopy(),
       getSystemUserFS().getScheme());
-    IcebergNessieVersionedViews versionedViews =
-      new IcebergNessieVersionedViews(metadata, nessieClient, fileSystemConfig, this, schemaConfig.getUserName());
+    IcebergNessieVersionedViews versionedViews = new IcebergNessieVersionedViews(
+      metadata,
+      nessieClient,
+      getFsConfCopy(),
+      this,
+      schemaConfig.getUserName(),
+      this::getIcebergView);
     List<String> viewKey = schemaComponentsWithoutPluginName(tableSchemaPath);
     ResolvedVersionContext version = viewOptions.getVersion();
     logger.debug("Dropping view '{}' at version '{}'", viewKey, version);
@@ -998,12 +1062,12 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
     final ResolvedVersionContext version = tableMutationOptions.getResolvedVersionContext();
     Preconditions.checkNotNull(version);
 
-    SchemaConverter schemaConverter = SchemaConverter.getBuilder().build();
+    SchemaConverter schemaConverter = newIcebergSchemaConverter();
     List<String> tableSchemaComponentsWithoutPluginName = schemaComponentsWithoutPluginName(tableSchemaPath);
     IcebergModel icebergModel = new IcebergNessieVersionedModel(
       tableSchemaComponentsWithoutPluginName,
-      fileSystemConfig,
-      getSystemUserFS(),
+      getFsConfCopy(),
+      getFileIO(),
       nessieClient,
       null,
       version,
@@ -1039,8 +1103,8 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
     List<String> tableSchemaComponentsWithoutPluginName = schemaComponentsWithoutPluginName(tableSchemaPath);
     IcebergModel icebergModel = new IcebergNessieVersionedModel(
       tableSchemaComponentsWithoutPluginName,
-      fileSystemConfig,
-      getSystemUserFS(),
+      getFsConfCopy(),
+      getFileIO(),
       nessieClient,
       null,
       version,
@@ -1081,12 +1145,14 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
                                    SchemaConfig schemaConfig,
                                    List<Field> columns,
                                    ResolvedVersionContext versionContext) {
+    List<String> catalogKey = schemaComponentsWithoutPluginName(table);
     AddPrimaryKey op = new AddPrimaryKey(table, context, datasetConfig, schemaConfig,
       getIcebergModelHelper(
-        table.getPathComponents().subList(1, table.size()), // The key to nessie should not contain the source name, stripping source name.
+        catalogKey,
         versionContext,
         null,
-        schemaConfig.getUserName()),
+        schemaConfig.getUserName(),
+        getFileIO()),
       validateAndGetPath(table, schemaConfig.getUserName()),
       this);
     op.performOperation(columns);
@@ -1106,12 +1172,14 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
                                     DatasetConfig datasetConfig,
                                     SchemaConfig schemaConfig,
                                     ResolvedVersionContext versionContext) {
+    List<String> catalogKey = schemaComponentsWithoutPluginName(table);
     DropPrimaryKey op = new DropPrimaryKey(table, context, datasetConfig, schemaConfig,
       getIcebergModelHelper(
-        table.getPathComponents().subList(1, table.size()), // The key to nessie should not contain the source name, stripping source name.
+        catalogKey,
         versionContext,
         null,
-        schemaConfig.getUserName()),
+        schemaConfig.getUserName(),
+        getFileIO()),
       validateAndGetPath(table, schemaConfig.getUserName()),
       this);
     op.performOperation();
@@ -1133,13 +1201,11 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
                                            SchemaConfig schemaConfig,
                                            ResolvedVersionContext versionContext,
                                            boolean saveInKvStore) {
-    if (datasetConfig.getPhysicalDataset() == null || // PK only supported for physical datasets
-      datasetConfig.getPhysicalDataset().getIcebergMetadata() == null || // Physical dataset not Iceberg format
-      !DatasetHelper.isIcebergDataset(datasetConfig)) { // Not native iceberg
+    if (IcebergUtils.isPrimaryKeySupported(datasetConfig)) {
+      return IcebergUtils.validateAndGeneratePrimaryKey(this, context, table, datasetConfig, schemaConfig, versionContext, saveInKvStore);
+    } else {
       return null;
     }
-
-    return IcebergUtils.validateAndGeneratePrimaryKey(this, context, table, datasetConfig, schemaConfig, versionContext, saveInKvStore);
   }
 
   @Override
@@ -1151,14 +1217,14 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
                                                 boolean saveInKvStore) {
     // For versioned tables, we don't cache the PK in the KV store. Grab the iceberg table
     // from the table cache.
-    List<String> versionedTableKey = table.getPathComponents().subList(1, table.getPathComponents().size());
-    final String metadataLocation = nessieClient.getMetadataLocation(versionedTableKey, versionContext, null);
+    List<String> versionedTableKey = schemaComponentsWithoutPluginName(table);
+    Optional<String> metadataLocation = getMetadataLocation(versionedTableKey, versionContext);
     logger.debug("Retrieving Iceberg metadata from location '{}' ", metadataLocation);
-    if (metadataLocation == null) {
+    if (!metadataLocation.isPresent()) {
       return null;
     }
 
-    final Table icebergTable = getIcebergTable(new EntityPath(table.getPathComponents()), metadataLocation);
+    final Table icebergTable = getIcebergTable(new EntityPath(table.getPathComponents()), metadataLocation.get(), versionContext);
     return IcebergUtils.getPrimaryKeyFromTableMetadata(icebergTable);
   }
 
@@ -1174,8 +1240,8 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
     List<String> tableSchemaComponentsWithoutPluginName = schemaComponentsWithoutPluginName(tableSchemaPath);
     IcebergModel icebergModel = new IcebergNessieVersionedModel(
       tableSchemaComponentsWithoutPluginName,
-      fileSystemConfig,
-      getSystemUserFS(),
+      getFsConfCopy(),
+      getFileIO(),
       nessieClient,
       null,
       version,
@@ -1194,52 +1260,92 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
     throw new UnsupportedOperationException();
   }
 
-  private Configuration initializeFileSystemConfig() {
-    final Configuration config = FileSystemPlugin.getNewFsConf();
-    // We maintain a separate Configuration within DataplanePlugin to keep it isolated from the one
-    // in FileSystemPlugin. We may migrate away from extending FileSystemPlugin in the future.
-    updateConfiguration(config);
-    return config;
+  @Override
+  public void alterSortOrder(NamespaceKey table,
+                             DatasetConfig datasetConfig,
+                             BatchSchema batchSchema,
+                             SchemaConfig schemaConfig,
+                             List<String> sortOrderColumns,
+                             TableMutationOptions tableMutationOptions) {
+
+    metrics.log("alterSortOrder",
+      () -> alterSortOrderTableHelper(table, datasetConfig, batchSchema, schemaConfig, sortOrderColumns, tableMutationOptions));
   }
 
-  private List<String> schemaComponentsWithoutPluginName(NamespaceKey tableSchemaPath) {
+  public void alterSortOrderTableHelper(NamespaceKey table,
+                                        DatasetConfig datasetConfig,
+                                        BatchSchema batchSchema,
+                                        SchemaConfig schemaConfig,
+                                        List<String> sortOrderColumns,
+                                        TableMutationOptions tableMutationOptions) {
+
+    Preconditions.checkNotNull(tableMutationOptions);
+    final ResolvedVersionContext version = tableMutationOptions.getResolvedVersionContext();
+    Preconditions.checkNotNull(version);
+
+    List<String> tableSchemaComponentsWithoutPluginName = schemaComponentsWithoutPluginName(table);
+    IcebergModel icebergModel = new IcebergNessieVersionedModel(
+      tableSchemaComponentsWithoutPluginName,
+      getFsConf(),
+      getFileIO(),
+      nessieClient,
+      null,
+      version,
+      this,
+      schemaConfig.getUserName());
+      logger.debug("Alter Sort Order table {} at version {}", tableSchemaComponentsWithoutPluginName, version);
+    icebergModel.replaceSortOrder(icebergModel.getTableIdentifier(getRootLocation()), sortOrderColumns);
+
+  }
+
+  @Override
+  public void updateTableProperties(NamespaceKey table, DatasetConfig datasetConfig, BatchSchema schema, SchemaConfig schemaConfig, Map<String, String> tableProperties, TableMutationOptions tableMutationOptions, boolean isRemove) {
+    metrics.log("updateTableProperties",
+      () -> updateTablePropertiesHelper(table, datasetConfig, schema, schemaConfig, tableProperties, tableMutationOptions, isRemove));
+  }
+
+  private void updateTablePropertiesHelper(NamespaceKey table,
+                                        DatasetConfig datasetConfig,
+                                        BatchSchema batchSchema,
+                                        SchemaConfig schemaConfig,
+                                        Map<String, String> tableProperties,
+                                        TableMutationOptions tableMutationOptions,
+                                        boolean isRemove) {
+
+    Preconditions.checkNotNull(tableMutationOptions);
+    final ResolvedVersionContext version = tableMutationOptions.getResolvedVersionContext();
+    Preconditions.checkNotNull(version);
+
+    List<String> tableSchemaComponentsWithoutPluginName = schemaComponentsWithoutPluginName(table);
+    IcebergModel icebergModel = new IcebergNessieVersionedModel(
+      tableSchemaComponentsWithoutPluginName,
+      getFsConf(),
+      getFileIO(),
+      nessieClient,
+      null,
+      version,
+      this,
+      schemaConfig.getUserName());
+    if (isRemove) {
+      List<String> propertyNameList = new ArrayList<>(tableProperties.keySet());
+      icebergModel.removeTableProperties(icebergModel.getTableIdentifier(getRootLocation()), propertyNameList);
+      logger.debug("Remove Table Properties in {} at version {}", tableSchemaComponentsWithoutPluginName, version);
+    } else {
+      icebergModel.updateTableProperties(icebergModel.getTableIdentifier(getRootLocation()), tableProperties);
+      logger.debug("Update Table Properties in {} at version {}", tableSchemaComponentsWithoutPluginName, version);
+    }
+
+  }
+
+  protected List<String> schemaComponentsWithoutPluginName(NamespaceKey tableSchemaPath) {
     Preconditions.checkArgument(tableSchemaPath.hasParent());
     Preconditions.checkArgument(name.equalsIgnoreCase(tableSchemaPath.getRoot()));
     return tableSchemaPath.getPathWithoutRoot();
   }
 
-  // This method is used to createFS out of the DataplanePluginConfig with appropriate AWS credential providers.
   @Override
   protected FileSystem newFileSystem(String userName, OperatorContext operatorContext) throws IOException {
-    updateConfiguration(getFsConf());
     return super.newFileSystem(userName, operatorContext);
-  }
-
-  private void updateConfiguration(Configuration configuration) {
-    configuration.set("fs.dremioS3.impl", S3FileSystem.class.getName());
-
-    configuration.set(org.apache.hadoop.fs.FileSystem.FS_DEFAULT_NAME_KEY, "dremioS3:///");
-
-    // Enabling the cache will fetch the incorrect S3 file system object from Hadoop File System class.
-    configuration.set("fs.dremioS3.impl.disable.cache", "true");
-
-    for (Property property : pluginConfig.getProperties()) {
-      configuration.set(property.name, property.value);
-    }
-
-    List<Property> awsProviderProperties = new ArrayList<>();
-    String awsProvider = awsCredentialConfigurator.configureCredentials(awsProviderProperties);
-    Optional<Property> property = pluginConfig.encryptConnection();
-    if (property.isPresent()) {
-      awsProviderProperties.add(property.get());
-    }
-    configuration.set(AWS_CREDENTIALS_PROVIDER, awsProvider);
-    awsProviderProperties.forEach(p -> configuration.set(p.name, p.value));
-  }
-
-  @Override
-  public Configuration getFsConfCopy() {
-    return new Configuration(fileSystemConfig);
   }
 
   @Override
@@ -1253,46 +1359,24 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
 
   @Override
   public List<String> resolveTableNameToValidPath(List<String> tableSchemaPath) {
-    List<String> fullPath = new ArrayList<>(PathUtils.toPathComponents(pluginConfig.awsRootPath));
-    for (String pathComponent : tableSchemaPath.subList(1 /* need to skip the source name */, tableSchemaPath.size())) {
-      fullPath.add(PathUtils.removeQuotes(pathComponent));
-    }
-    PathUtils.verifyNoAccessOutsideBase(PathUtils.toFSPath(pluginConfig.awsRootPath), PathUtils.toFSPath(fullPath));
+    final List<String> basePath =
+        new ArrayList<>(PathUtils.toPathComponents(pluginConfig.getRootPath()));
+    final List<String> fullPath =
+        Stream.concat(
+                basePath.stream(),
+                tableSchemaPath.stream()
+                    .skip(1)
+                    .map(PathUtils::removeQuotes))
+            .collect(Collectors.toList());
+
+    PathUtils.verifyNoAccessOutsideBase(PathUtils.toFSPath(basePath), PathUtils.toFSPath(fullPath));
+
     return fullPath;
   }
 
   @Override
-  public boolean isIcebergMetadataValid(DatasetConfig config, NamespaceKey key, NamespaceService userNamespaceService) {
+  public boolean isIcebergMetadataValid(DatasetConfig config, NamespaceKey key) {
     return true;
-  }
-
-  @Override
-  public BlockBasedSplitGenerator.SplitCreator createSplitCreator(
-    OperatorContext context,
-    byte[] extendedBytes,
-    boolean isInternalIcebergTable
-  ) {
-    return new ParquetSplitCreator(context, true);
-  }
-
-  @Override
-  public ScanTableFunction createScanTableFunction(
-    FragmentExecutionContext fec,
-    OperatorContext context,
-    OpProps props,
-    TableFunctionConfig functionConfig
-  ) {
-    return new ParquetScanTableFunction(fec, context, props, functionConfig);
-  }
-
-  @Override
-  public FooterReadTableFunction getFooterReaderTableFunction(
-    FragmentExecutionContext fec,
-    OperatorContext context,
-    OpProps props,
-    TableFunctionConfig functionConfig
-  ) {
-    return new FooterReadTableFunction(fec, context, props, functionConfig);
   }
 
   @Override
@@ -1306,33 +1390,26 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
   }
 
   @Override
-  public IcebergModel getIcebergModel(IcebergTableProps icebergTableProps, String userName, OperatorContext operatorContext, FileSystem fileSystem) {
+  public IcebergModel getIcebergModel(IcebergTableProps icebergTableProps, String userName, OperatorContext operatorContext, FileIO fileIO) {
     List<String> tableKeyAsList = Arrays.asList(icebergTableProps.getTableName().split(Pattern.quote(".")));
     ResolvedVersionContext version = icebergTableProps.getVersion();
-    return getIcebergModelHelper(tableKeyAsList, version, operatorContext, userName);
+    return getIcebergModelHelper(tableKeyAsList, version, operatorContext, userName, fileIO);
   }
 
-  private IcebergModel getIcebergModelHelper(List<String> tableKeyAsList,
-                                             ResolvedVersionContext version,
-                                             OperatorContext operatorContext,
-                                             String userName) {
+  private IcebergModel getIcebergModelHelper(List<String> tableKeyAsList, ResolvedVersionContext version,
+      OperatorContext operatorContext, String userName, FileIO fileIO) {
     Preconditions.checkNotNull(tableKeyAsList);
     Preconditions.checkNotNull(version);
     Preconditions.checkNotNull(nessieClient);
     return new IcebergNessieVersionedModel(
       tableKeyAsList,
       getFsConfCopy(),
-      getSystemUserFS(),
+      fileIO,
       nessieClient,
       operatorContext,
       version,
       this,
       userName);
-  }
-
-  @Override
-  public String getRootLocation() {
-    return pluginConfig.getPath().toString();
   }
 
   @Override
@@ -1345,86 +1422,153 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
                                        NessieClientTableMetadata nessieClientTableMetadata,
                                        ResolvedVersionContext resolvedVersionContext,
                                        String baseContentId,
+                                       @Nullable IcebergCommitOrigin commitOrigin,
                                        String jobId,
                                        String userName) {
-    nessieClient.commitTable(catalogKey, metadataLocation, nessieClientTableMetadata, resolvedVersionContext, baseContentId, jobId, userName);
+    nessieClient.commitTable(
+      catalogKey,
+      metadataLocation,
+      nessieClientTableMetadata,
+      resolvedVersionContext,
+      baseContentId,
+      commitOrigin,
+      jobId,
+      userName
+    );
   }
 
-  public String getMetadataLocationGrpcOperation(List<String> catalogKey,
-                                               ResolvedVersionContext resolvedVersionContext, String jobId) {
-    return nessieClient.getMetadataLocation(catalogKey, resolvedVersionContext, jobId);
+  public Optional<NessieContent> getContentGrpcOperation(List<String> catalogKey,
+    ResolvedVersionContext resolvedVersionContext, String jobId) {
+    return nessieClient.getContent(catalogKey, resolvedVersionContext, jobId);
   }
 
-  public String getContentGrpcOperation(List<String> catalogKey,
-                                                 ResolvedVersionContext resolvedVersionContext, String jobId) {
-    return nessieClient.getContentId(catalogKey, resolvedVersionContext, jobId);
+  private Optional<String> getMetadataLocation(List<String> catalogKey, ResolvedVersionContext resolvedVersionContext) {
+    return nessieClient.getContent(catalogKey, resolvedVersionContext, null)
+      .flatMap(NessieContent::getMetadataLocation);
   }
 
   @Override
   @WithSpan
-  public String getContentId(List<String> key, ResolvedVersionContext resolvedVersionContext) {
-    return nessieClient.getContentId(key, resolvedVersionContext, null);
+  public @Nullable EntityType getType(List<String> catalogKey, ResolvedVersionContext version) {
+    return nessieClient.getContent(catalogKey, version, null)
+      .map(NessieContent::getEntityType)
+      .orElse(null);
   }
 
   @Override
-  public NessieApi getNessieApi() {
+  @WithSpan
+  public @Nullable String getContentId(List<String> catalogKey, ResolvedVersionContext version) {
+    return nessieClient.getContent(catalogKey, version, null)
+      .map(NessieContent::getContentId)
+      .orElse(null);
+  }
+
+  @Override
+  public NessieApiV2 getNessieApi() {
     return nessieClient.getNessieApi();
   }
 
-  private class TableCacheLoader implements CacheLoader<ImmutablePair<String, EntityPath>, Table> {
-    @Override
-    public Table load(ImmutablePair<String, EntityPath> pair) {
-      return metrics.log("tableLoad", () -> loadTable(pair));
-    }
+  public NessieClient getNessieClient() {
+    return this.nessieClient;
+  }
 
-    private Table loadTable(ImmutablePair<String, EntityPath> pair){
-      String metadataLocation = pair.left;
-      EntityPath datasetPath = pair.right;
-      final TableOperations tableOperations = new StaticTableOperations(metadataLocation, getFileIO());
-      if (tableOperations.current() == null) {
-        logger.warn("Iceberg table content  at metadatalocation {} is null", metadataLocation);
-        throw failedToLoadIcebergTableException(null);
-      }
-      final Table table = new BaseTable(tableOperations,
-        String.join(".", datasetPath.getComponents().subList(1, datasetPath.size())));
-      table.refresh();
-      return table;
+  private final class TableCacheLoader implements CacheLoader<ImmutablePair<String, EntityPath>, Table> {
+    @Override
+    public Table load(@NotNull ImmutablePair<String, EntityPath> pair) {
+      return metrics.log("loadIcebergTable", () -> loadIcebergTable(pair));
     }
   }
 
-  private class ViewCacheLoader implements CacheLoader<String, ViewVersionMetadata> {
-    @Override
-    public ViewVersionMetadata load(String metadataLocation) {
-      return metrics.log("viewLoad", () -> loadView(metadataLocation));
-    }
+  @WithSpan
+  private Table loadIcebergTable(ImmutablePair<String, EntityPath> pair) {
+    String metadataLocation = pair.left;
+    EntityPath datasetPath = pair.right;
+    logger.debug("Loading Iceberg table metadata from location {}", metadataLocation);
+    final TableOperations tableOperations = new StaticTableOperations(metadataLocation, getFileIO());
+    Preconditions.checkNotNull(tableOperations.current());
+    final Table table = new BaseTable(tableOperations,
+      String.join(".", datasetPath.getComponents().subList(1, datasetPath.size())));
+    table.refresh();
+    return table;
+  }
 
-    private ViewVersionMetadata loadView(String metadataLocation){
-      return ViewVersionMetadataParser.read(getFileIO().newInputFile(metadataLocation));
+  @WithSpan
+  private Table getIcebergTable(EntityPath datasetPath, String metadataLocation, ResolvedVersionContext ver) {
+    try {
+      return metrics.log("getIcebergTable",
+          () -> tableLoadingCache.get(ImmutablePair.of(metadataLocation, datasetPath)));
+    } catch (NotFoundException nfe) {
+      throw UserException.invalidMetadataError(nfe)
+        .message("Metadata for table [%s] is not available for the commit [%s]. The metadata files may have expired and been garbage collected based on the table history retention policy.",
+          String.join(".", datasetPath.getComponents()), ver.getCommitHash().substring(0, 8))
+        .addContext(String.format("Failed to locate metadata for table at the commit [%s]", ver.getCommitHash()))
+        .build(logger);
+    } catch (Exception e) {
+      throw UserException.ioExceptionError()
+          .message("Failed to load the Iceberg table %s. "
+              + "The underlying metadata and/or data files may not exist, "
+              + "or you do not have permission to access them.", datasetPath)
+          .build(logger);
     }
   }
 
+  private final class ViewCacheLoader implements CacheLoader<String, ViewVersionMetadata> {
+    @Override
+    public ViewVersionMetadata load(@NotNull String metadataLocation) {
+      return metrics.log("loadIcebergView", () -> loadIcebergView(metadataLocation));
+    }
+  }
+
+  @WithSpan
+  private ViewVersionMetadata loadIcebergView(String metadataLocation) {
+    logger.debug("Loading Iceberg view metadata from location {}", metadataLocation);
+    return ViewVersionMetadataParser.read(getFileIO().newInputFile(metadataLocation));
+  }
+
+  @WithSpan
+  private ViewVersionMetadata getIcebergView(String metadataLocation) {
+    return metrics.log("getIcebergView",
+      () -> viewLoadingCache.get(metadataLocation));
+  }
 
   private Optional<String> determineSchemaId(ExternalNamespaceEntry entry, ResolvedVersionContext resolvedVersionContext) {
-    if (entry.getNamespace().isEmpty()) {
+    List<String> parentCatalogKey = entry.getNamespace();
+    if (parentCatalogKey.isEmpty()) {
       return Optional.empty();
     }
-    String schemaId = nessieClient.getContentId(entry.getNamespace(), resolvedVersionContext, null);
-    if (schemaId == null) {
+    Optional<String> schemaId = nessieClient
+      .getContent(parentCatalogKey, resolvedVersionContext, null)
+      .map(NessieContent::getContentId);
+    if (!schemaId.isPresent()) {
       logger.warn("Failed to retrieve schema information for entry: " + entry.getNameElements());
     }
-    return Optional.ofNullable(schemaId);
+    return schemaId;
   }
 
   private Optional<DataplaneViewInfo> dataplaneViewInfoRetriever(ExternalNamespaceEntry entry, ResolvedVersionContext resolvedVersionContext) {
+    //Currently this can still return null, so we must check for null
+    //noinspection OptionalAssignedToNull
+    if (entry.getNessieContent() == null) {
+      throw new IllegalStateException("dataplaneViewInfoRetriever did not request content!");
+    }
+    if (!entry.getNessieContent().isPresent()) {
+      logger.error("dataplaneViewInfoRetriever skipping entry without content: " + entry);
+      return Optional.empty();
+    }
+    NessieContent nessieContent = entry.getNessieContent().get();
+    String metadataLocation = nessieContent.getMetadataLocation().orElse(null);
+    if (metadataLocation == null) {
+      logger.error("dataplaneViewInfoRetriever skipping entry without metadataLocation: " + entry);
+      return Optional.empty();
+    }
+    String contentId = nessieContent.getContentId();
     try {
-      List<String> catalogKey = entry.getNameElements();
-      String metadataLocation = nessieClient.getMetadataLocation(catalogKey, resolvedVersionContext, null);
       EntityPath keyPath = toEntityPath(entry);
       Optional<String> schemaId = determineSchemaId(entry, resolvedVersionContext);
-      ViewVersionMetadata viewVersionMetadata = readViewMetadata(metadataLocation);
+      ViewVersionMetadata viewVersionMetadata = getIcebergView(metadataLocation);
 
       return Optional.of(new DataplaneViewInfo.newBuilder()
-        .viewId(nessieClient.getContentId(catalogKey, resolvedVersionContext, null))
+        .viewId(contentId)
         .spaceId(this.getId().getConfig().getId().getId())
         .viewName(entry.getName())
         .schemaId(schemaId.orElse(""))
@@ -1446,14 +1590,16 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
   @WithSpan
   public Stream<DataplaneViewInfo> getAllViewInfo() {
     ResolvedVersionContext resolvedVersionContext = nessieClient.getDefaultBranch();
-    return listAllEntries(resolvedVersionContext, EnumSet.of(Type.ICEBERG_VIEW))
+    return nessieClient.listEntries(
+        null,
+        resolvedVersionContext,
+        NestingMode.INCLUDE_NESTED_CHILDREN,
+        ContentMode.ENTRY_WITH_CONTENT,
+        EnumSet.of(Type.ICEBERG_VIEW),
+        null)
       .map(entry -> dataplaneViewInfoRetriever(entry, resolvedVersionContext))
       .filter(Optional::isPresent)
       .map(Optional::get);
-  }
-
-  private ViewVersionMetadata readViewMetadata(String metadataLocation) {
-    return viewLoadingCache.get(metadataLocation);
   }
 
   private static long getViewCreatedAt(ViewVersionMetadata viewVersionMetadata) {
@@ -1478,12 +1624,25 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
   }
 
   private Optional<DataplaneTableInfo> dataplaneTableInfoRetriever(ExternalNamespaceEntry entry, ResolvedVersionContext resolvedVersionContext) {
+    //Currently this can still return null, so we must check for null
+    //noinspection OptionalAssignedToNull
+    if (entry.getNessieContent() == null) {
+      throw new IllegalStateException("dataplaneTableInfoRetriever did not request content!");
+    }
+    if (!entry.getNessieContent().isPresent()) {
+      logger.error("dataplaneTableInfoRetriever skipping entry without content: " + entry);
+      return Optional.empty();
+    }
+    NessieContent nessieContent = entry.getNessieContent().get();
+    String metadataLocation = nessieContent.getMetadataLocation().orElse(null);
+    if (metadataLocation == null) {
+      logger.error("dataplaneTableInfoRetriever skipping entry without metadataLocation: " + entry);
+      return Optional.empty();
+    }
+    String tableId = nessieContent.getContentId();
     try {
-      List<String> catalogKey = entry.getNameElements();
-      String metadataLocation = nessieClient.getMetadataLocation(catalogKey, resolvedVersionContext, null);
       EntityPath keyPath = toEntityPath(entry);
-      Table table = getIcebergTable(keyPath, metadataLocation);
-      String tableId = nessieClient.getContentId(catalogKey, resolvedVersionContext, null);
+      Table table = getIcebergTable(keyPath, metadataLocation, resolvedVersionContext);
       Optional<String> schemaId = determineSchemaId(entry, resolvedVersionContext);
 
       return Optional.of(new DataplaneTableInfo.newBuilder()
@@ -1497,7 +1656,7 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
         .createdAt(table.history().get(0).timestampMillis())
         .build());
     } catch (Exception e) {
-      logger.warn("Failed to retrieve information while calling getAllTableInfo", e);
+      logger.warn("Failed to retrieve information while calling dataplaneTableInfoRetriever", e);
       // There is no way to propagate an error in SYS.TABLES queries,
       // so we must squash the error and not return results for the table.
       return Optional.empty();
@@ -1508,7 +1667,13 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
   @WithSpan
   public Stream<DataplaneTableInfo> getAllTableInfo() {
     ResolvedVersionContext resolvedVersionContext = nessieClient.getDefaultBranch();
-    return listAllEntries(resolvedVersionContext, EnumSet.of(Type.ICEBERG_TABLE))
+    return nessieClient.listEntries(
+        null,
+        resolvedVersionContext,
+        NestingMode.INCLUDE_NESTED_CHILDREN,
+        ContentMode.ENTRY_WITH_CONTENT,
+        EnumSet.of(Type.ICEBERG_TABLE),
+        null)
       .map(entry -> dataplaneTableInfoRetriever(entry, resolvedVersionContext))
       .filter(Optional::isPresent)
       .map(Optional::get);
@@ -1537,8 +1702,13 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
     }
     try {
       ResolvedVersionContext resolvedVersionContext = nessieClient.getDefaultBranch();
-      return listAllEntries(resolvedVersionContext,
-        EnumSet.of(Type.ICEBERG_TABLE, Type.ICEBERG_VIEW), celFilter)
+      return nessieClient.listEntries(
+          null,
+          resolvedVersionContext,
+          NestingMode.INCLUDE_NESTED_CHILDREN,
+          ContentMode.ENTRY_METADATA_ONLY,
+          EnumSet.of(Type.ICEBERG_TABLE, Type.ICEBERG_VIEW),
+          celFilter)
         .map(this::informationSchemaTableInfoRetriever)
         .filter(Optional::isPresent)
         .map(Optional::get);
@@ -1586,8 +1756,14 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
 
     try {
       ResolvedVersionContext resolvedVersionContext = nessieClient.getDefaultBranch();
-      return listAllEntries(resolvedVersionContext, EnumSet.of(Type.ICEBERG_VIEW), celFilter)
-        .map(entry -> informationSchemaViewInfoRetriever(entry, resolvedVersionContext))
+      return nessieClient.listEntries(
+          null,
+          resolvedVersionContext,
+          NestingMode.INCLUDE_NESTED_CHILDREN,
+          ContentMode.ENTRY_WITH_CONTENT,
+          EnumSet.of(Type.ICEBERG_VIEW),
+          celFilter)
+        .map(this::informationSchemaViewInfoRetriever)
         .filter(Optional::isPresent)
         .map(Optional::get);
     } catch (Exception e) {
@@ -1597,12 +1773,24 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
     }
   }
 
-  private Optional<com.dremio.service.catalog.View> informationSchemaViewInfoRetriever(ExternalNamespaceEntry entry, ResolvedVersionContext resolvedVersionContext) {
+  private Optional<com.dremio.service.catalog.View> informationSchemaViewInfoRetriever(ExternalNamespaceEntry entry) {
+    //Currently this can still return null, so we must check for null
+    //noinspection OptionalAssignedToNull
+    if (entry.getNessieContent() == null) {
+      throw new IllegalStateException("informationSchemaViewInfoRetriever did not request content!");
+    }
+    if (!entry.getNessieContent().isPresent()) {
+      logger.error("informationSchemaViewInfoRetriever skipping entry without content: " + entry);
+      return Optional.empty();
+    }
+    NessieContent nessieContent = entry.getNessieContent().get();
+    String metadataLocation = nessieContent.getMetadataLocation().orElse(null);
+    if (metadataLocation == null) {
+      logger.error("informationSchemaViewInfoRetriever skipping entry without metadataLocation: " + entry);
+      return Optional.empty();
+    }
     try {
-      String metadataLocation = nessieClient.getMetadataLocation(entry.getNameElements(),
-        resolvedVersionContext, null);
-
-      ViewVersionMetadata viewVersionMetadata = readViewMetadata(metadataLocation);
+      ViewVersionMetadata viewVersionMetadata = getIcebergView(metadataLocation);
 
       return Optional.of(
         com.dremio.service.catalog.View.newBuilder()
@@ -1639,8 +1827,13 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
 
     try {
       ResolvedVersionContext resolvedVersionContext = nessieClient.getDefaultBranch();
-      return listAllEntries(resolvedVersionContext,
-        EnumSet.of(Type.ICEBERG_TABLE, Type.ICEBERG_VIEW), celFilter)
+      return nessieClient.listEntries(
+          null,
+          resolvedVersionContext,
+          NestingMode.INCLUDE_NESTED_CHILDREN,
+          ContentMode.ENTRY_WITH_CONTENT,
+          EnumSet.of(Type.ICEBERG_TABLE, Type.ICEBERG_VIEW),
+          celFilter)
         .map(entry -> informationSchemaColumnInfoRetriever(entry, resolvedVersionContext))
         .filter(Optional::isPresent)
         .map(Optional::get);
@@ -1651,16 +1844,36 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
     }
   }
 
+  @Override
+  @WithSpan
+  public String getDefaultBranch() {
+    return nessieClient.getDefaultBranch().getRefName();
+  }
+
   private Optional<com.dremio.service.catalog.TableSchema> informationSchemaColumnInfoRetriever(ExternalNamespaceEntry entry, ResolvedVersionContext resolvedVersionContext) {
+    //Currently this can still return null, so we must check for null
+    //noinspection OptionalAssignedToNull
+    if (entry.getNessieContent() == null) {
+      throw new IllegalStateException("informationSchemaColumnInfoRetriever did not request content!");
+    }
+    if (!entry.getNessieContent().isPresent()) {
+      logger.error("informationSchemaColumnInfoRetriever skipping entry without content: " + entry);
+      return Optional.empty();
+    }
+    NessieContent nessieContent = entry.getNessieContent().get();
+    String metadataLocation = nessieContent.getMetadataLocation().orElse(null);
+    if (metadataLocation == null) {
+      logger.error("informationSchemaColumnInfoRetriever skipping entry without metadataLocation: " + entry);
+      return Optional.empty();
+    }
     try {
-      String metadataLocation = nessieClient.getMetadataLocation(entry.getNameElements(), resolvedVersionContext, null);
       Schema schema;
       if (entry.getType() == Type.ICEBERG_TABLE) {
         EntityPath keyPath = toEntityPath(entry);
-        Table table = getIcebergTable(keyPath, metadataLocation);
+        Table table = getIcebergTable(keyPath, metadataLocation, resolvedVersionContext);
         schema = table.schema();
       } else if (entry.getType() == Type.ICEBERG_VIEW) {
-        ViewVersionMetadata viewVersionMetadata = readViewMetadata(metadataLocation);
+        ViewVersionMetadata viewVersionMetadata = getIcebergView(metadataLocation);
         schema = viewVersionMetadata.definition().schema();
       } else {
         throw new IllegalArgumentException("Unsupported entry type: " + entry.getType());
@@ -1712,7 +1925,13 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
 
     try {
       ResolvedVersionContext resolvedVersionContext = nessieClient.getDefaultBranch();
-      return listAllEntries(resolvedVersionContext, EnumSet.of(Type.FOLDER), celFilter)
+      return nessieClient.listEntries(
+          null,
+          resolvedVersionContext,
+          NestingMode.INCLUDE_NESTED_CHILDREN,
+          ContentMode.ENTRY_METADATA_ONLY,
+          EnumSet.of(Type.FOLDER),
+          celFilter)
         .map(this::informationSchemaSchemataInfoRetriever)
         .filter(Optional::isPresent)
         .map(Optional::get);
@@ -1725,10 +1944,19 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
 
   @Override
   public void close() {
+    if (VM.areAssertsEnabled() && pluginClosed) {
+      throw new IllegalStateException("DataplanePlugin already closed:\n" + pluginCloseStacktrace);
+    }
+
     AutoCloseables.close(
       new RuntimeException("Error while closing DataplanePlugin."),
       nessieClient,
       super::close);
+
+    pluginClosed = true;
+    if (VM.areAssertsEnabled()) {
+      pluginCloseStacktrace = VM.getCurrentStackTraceAsString();
+    }
   }
 
   private Optional<com.dremio.service.catalog.Schema> informationSchemaSchemataInfoRetriever(ExternalNamespaceEntry entry) {
@@ -1770,23 +1998,6 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
     return new EntityPath(path);
   }
 
-  private Stream<ExternalNamespaceEntry> listAllEntries(
-    ResolvedVersionContext resolvedVersionContext,
-    Set<ExternalNamespaceEntry.Type> contentTypeFilter
-  ) {
-    return listAllEntries(resolvedVersionContext, contentTypeFilter, null);
-  }
-
-  private Stream<ExternalNamespaceEntry> listAllEntries(
-    ResolvedVersionContext resolvedVersionContext,
-    Set<ExternalNamespaceEntry.Type> contentTypeFilter,
-    @Nullable String celFilter
-  ) {
-    return nessieClient
-      .listEntries(null, resolvedVersionContext,
-        NestingMode.INCLUDE_NESTED, contentTypeFilter, celFilter);
-  }
-
   private FileIO getFileIO() {
     if (fileIO == null) {
       FileSystem fs = getSystemUserFS();
@@ -1795,5 +2006,20 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
       fileIO = createIcebergFileIO(fs, null, null, null, null);
     }
     return fileIO;
+  }
+
+  @Override
+  @WithSpan
+  public String getName() {
+    return name;
+  }
+
+  @Override
+  public String getCatalogId() {
+    return this.pluginConfig.getCatalogId();
+  }
+
+  public Optional<String> getProperty(String key) {
+    return getProperties().stream().filter(p -> p.name.equals(key)).map(p -> p.value).findAny();
   }
 }

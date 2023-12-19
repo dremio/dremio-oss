@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { SONAR_URLABILITY_UI } from "../flags/SONAR_URLABILITY_UI";
+import { SONAR_URLABILITY_UI } from "@inject/featureFlags/flags/SONAR_URLABILITY_UI";
 import {
   FeaturesFlagsResource,
   loadFeatureFlags,

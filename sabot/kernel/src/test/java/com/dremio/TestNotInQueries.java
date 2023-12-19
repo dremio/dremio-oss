@@ -81,7 +81,7 @@ public class TestNotInQueries extends PlanTestBase {
       "(67,940,617,10,111) AND full_name not in ('ab','bc','cd','de','ef') AND position_id > -1";
 
     String expectedFilterCondition =
-        "[AND(NOT(OR(=($0, 'ab':VARCHAR(2)), =($0, 'bc':VARCHAR(2)), =($0, 'cd':VARCHAR(2)), =($0, 'de':VARCHAR(2)), =($0, 'ef':VARCHAR(2)))), NOT(OR(=($1, 67), =($1, 940), =($1, 617), =($1, 10), =($1, 111))), IS NOT NULL($1), IS NOT NULL($0), >($1, -1))]";
+        "[AND(NOT(OR(=($0, 'ab':VARCHAR(2)), =($0, 'bc':VARCHAR(2)), =($0, 'cd':VARCHAR(2)), =($0, 'de':VARCHAR(2)), =($0, 'ef':VARCHAR(2)))), NOT(OR(=($1, 67), =($1, 940), =($1, 617), =($1, 10), =($1, 111))), >($1, -1), IS NOT NULL($1), IS NOT NULL($0))]";
 
     testPlanSubstrPatterns(query,
       new String[]{expectedFilterCondition}, new String[]{"<>"});

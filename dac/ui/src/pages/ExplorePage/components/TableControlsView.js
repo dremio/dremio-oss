@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 import { PureComponent } from "react";
+import { compose } from "redux";
+import { connect } from "react-redux";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 import { injectIntl } from "react-intl";
@@ -39,6 +41,11 @@ import { SearchField } from "components/Fields";
 import { formatMessage } from "@app/utils/locale";
 import ExploreTableJobStatus from "../components/ExploreTable/ExploreTableJobStatus";
 import { ALLOW_DOWNLOAD } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
+import { getExploreState } from "@app/selectors/explore";
+import { getCurrentSessionJobList } from "@app/selectors/jobs";
+import Message from "@app/components/Message";
+
+const HIDE_MESSAGE_KEY = "output-limited";
 
 const datasetColumnsMemoize = memoOne((tableColumns) => {
   return (
@@ -86,6 +93,7 @@ export class TableControlsView extends PureComponent {
     columnFilter: PropTypes.any,
     queryFilter: PropTypes.string,
     isQuerySuccess: PropTypes.bool,
+    jobDetails: PropTypes.object,
   };
 
   constructor(props) {
@@ -121,7 +129,15 @@ export class TableControlsView extends PureComponent {
 
     const version = dataset && dataset.get("datasetVersion");
 
-    return version ? <ExploreCopyTableButton version={version} /> : null;
+    const isActionDisabled =
+      dataset.get("isNewQuery") || !dataset.get("datasetType") || !version; // not new query nor loaded
+
+    return (
+      <ExploreCopyTableButton
+        version={version}
+        isActionDisabled={isActionDisabled}
+      />
+    );
   };
 
   isTransformNeeded() {
@@ -212,12 +228,6 @@ export class TableControlsView extends PureComponent {
     );
   }
 
-  // unlike acceleration button, settings button is always shown, but it is disabled when
-  // show acceleration button is hidden or disabled.
-  shouldEnableSettingsButton() {
-    return this.isCreatedAndNamedDataset() && !this.isEditedDataset();
-  }
-
   isNewDataset() {
     const { mode } = this.props.location.query;
     return modelUtils.isNewDataset(this.props.dataset, mode);
@@ -232,7 +242,6 @@ export class TableControlsView extends PureComponent {
   // ellipsis button with settings, download, and analyze options
   renderSavedButton = () => {
     const { dataset, tableColumns } = this.props;
-    const isSettingsDisabled = !this.shouldEnableSettingsButton();
     const isActionDisabled =
       dataset.get("isNewQuery") || !dataset.get("datasetType"); // not new query nor loaded
     const datasetColumns = datasetColumnsMemoize(tableColumns);
@@ -241,9 +250,7 @@ export class TableControlsView extends PureComponent {
       <DropdownMenu
         className="explore-ellipsis-button"
         iconType="Ellipsis"
-        disabled={
-          (isSettingsDisabled && isActionDisabled) || this.state.isDownloading
-        }
+        disabled={isActionDisabled || this.state.isDownloading}
         isDownloading={this.state.isDownloading}
         arrowStyle={{
           fontSize: "12px",
@@ -256,7 +263,6 @@ export class TableControlsView extends PureComponent {
             dataset={dataset}
             datasetColumns={datasetColumns}
             downloadAction={this.downloadDataset}
-            isSettingsDisabled={isSettingsDisabled}
             updateDownloading={this.updateDownloading}
           />
         }
@@ -278,6 +284,31 @@ export class TableControlsView extends PureComponent {
     }
   };
 
+  renderOutputLimitedMessage() {
+    const { intl, jobDetails } = this.props;
+
+    if (!jobDetails?.stats?.isOutputLimited) {
+      return;
+    }
+
+    return (
+      <Message
+        message={intl.formatMessage(
+          {
+            id: "Explore.Run.NewWarning",
+          },
+          {
+            rows: jobDetails.outputRecords?.toLocaleString() ?? "-",
+          }
+        )}
+        messageType="warning"
+        isDismissable
+        allowHideForever
+        localStorageKey={HIDE_MESSAGE_KEY}
+      />
+    );
+  }
+
   render() {
     const {
       dataset,
@@ -296,129 +327,134 @@ export class TableControlsView extends PureComponent {
       jobsCount,
       filterQueries,
       isQuerySuccess,
+      jobDetails,
     } = this.props;
 
     return (
-      <div className="table-controls">
-        <div className="left-controls">
-          <div className="controls" style={styles.controlsInner}>
-            {showJobsTable && (
-              <div className={columnFilterWrapper} data-qa="columnFilter">
-                <SearchField
-                  disabled={disableButtons}
-                  value={queryFilter}
-                  onChange={(value) => filterQueries(value)}
-                  className={searchField}
-                  placeholder={intl.formatMessage({
-                    id: "Explore.SearchFilterJobId",
-                  })}
-                  dataQa="explore-column-filter"
-                />
-              </div>
-            )}
-            {!showJobsTable && (
-              <>
-                <Button
-                  className="controls-addField"
-                  variant="outlined"
-                  color="primary"
-                  size="medium"
-                  onClick={addField}
-                  disableRipple
-                  disabled={disableButtons}
-                >
-                  <Tooltip title="Add Field">
-                    <dremio-icon
-                      name="sql-editor/add-field"
-                      alt="Add Field"
-                      class={
-                        disableButtons
-                          ? "controls-addField-icon--disabled"
-                          : "controls-addField-icon"
-                      }
-                    />
-                  </Tooltip>
-                  <span className="noText">
-                    {intl.formatMessage({ id: "Dataset.AddColumn" })}
-                  </span>
-                </Button>
-                <Button
-                  className="controls-groupBy"
-                  variant="outlined"
-                  color="primary"
-                  size="medium"
-                  onClick={groupBy}
-                  disableRipple
-                  disabled={disableButtons}
-                >
-                  <Tooltip title="Group By">
-                    <dremio-icon
-                      name="sql-editor/group-by"
-                      alt="Group By"
-                      class={
-                        disableButtons
-                          ? "controls-groupBy-icon--disabled"
-                          : "controls-groupBy-icon"
-                      }
-                    />
-                  </Tooltip>
-                  <span className="noText">
-                    {intl.formatMessage({ id: "Dataset.GroupBy" })}
-                  </span>
-                </Button>
-                <Button
-                  className="controls-join"
-                  variant="outlined"
-                  color="primary"
-                  size="small"
-                  onClick={join}
-                  disableRipple
-                  disabled={disableButtons}
-                >
-                  <Tooltip title="Join">
-                    <dremio-icon
-                      name="sql-editor/join"
-                      alt="Join"
-                      class={
-                        disableButtons
-                          ? "controls-join-icon--disabled"
-                          : "controls-join-icon"
-                      }
-                    />
-                  </Tooltip>
-                  <span className="noText">
-                    {intl.formatMessage({ id: "Dataset.Join" })}
-                  </span>
-                </Button>
-                <ExploreTableColumnFilter
-                  dataset={dataset}
-                  disabled={!isQuerySuccess}
-                />
-              </>
-            )}
-            <div className="table-controls__actions">
-              <div data-qa="columnFilterStats">
-                {columnFilter && (
-                  <span data-qa="columnFilterCount">
-                    {isQuerySuccess ? filteredColumnCount : 0} of{" "}
-                  </span>
-                )}
-                {showJobsTable ? jobsCount : isQuerySuccess ? columnCount : 0}{" "}
-                {formatMessage(this.getWording())}
+      <div className="table-controls-wrapper">
+        <div className="table-controls">
+          <div className="left-controls">
+            <div className="controls" style={styles.controlsInner}>
+              {showJobsTable && (
+                <div className={columnFilterWrapper} data-qa="columnFilter">
+                  <SearchField
+                    disabled={disableButtons}
+                    value={queryFilter}
+                    onChange={(value) => filterQueries(value)}
+                    className={searchField}
+                    placeholder={intl.formatMessage({
+                      id: "Explore.SearchFilterJobId",
+                    })}
+                    dataQa="explore-column-filter"
+                  />
+                </div>
+              )}
+              {!showJobsTable && (
+                <>
+                  <Button
+                    className="controls-addField"
+                    variant="outlined"
+                    color="primary"
+                    size="medium"
+                    onClick={addField}
+                    disableRipple
+                    disabled={disableButtons}
+                  >
+                    <Tooltip title="Add Field">
+                      <dremio-icon
+                        name="sql-editor/add-field"
+                        alt="Add Field"
+                        class={
+                          disableButtons
+                            ? "controls-addField-icon--disabled"
+                            : "controls-addField-icon"
+                        }
+                      />
+                    </Tooltip>
+                    <span className="noText">
+                      {intl.formatMessage({ id: "Dataset.AddColumn" })}
+                    </span>
+                  </Button>
+                  <Button
+                    className="controls-groupBy"
+                    variant="outlined"
+                    color="primary"
+                    size="medium"
+                    onClick={groupBy}
+                    disableRipple
+                    disabled={disableButtons}
+                  >
+                    <Tooltip title="Group By">
+                      <dremio-icon
+                        name="sql-editor/group-by"
+                        alt="Group By"
+                        class={
+                          disableButtons
+                            ? "controls-groupBy-icon--disabled"
+                            : "controls-groupBy-icon"
+                        }
+                      />
+                    </Tooltip>
+                    <span className="noText">
+                      {intl.formatMessage({ id: "Dataset.GroupBy" })}
+                    </span>
+                  </Button>
+                  <Button
+                    className="controls-join"
+                    variant="outlined"
+                    color="primary"
+                    size="small"
+                    onClick={join}
+                    disableRipple
+                    disabled={disableButtons}
+                  >
+                    <Tooltip title="Join">
+                      <dremio-icon
+                        name="sql-editor/join"
+                        alt="Join"
+                        class={
+                          disableButtons
+                            ? "controls-join-icon--disabled"
+                            : "controls-join-icon"
+                        }
+                      />
+                    </Tooltip>
+                    <span className="noText">
+                      {intl.formatMessage({ id: "Dataset.Join" })}
+                    </span>
+                  </Button>
+                  <ExploreTableColumnFilter
+                    dataset={dataset}
+                    disabled={!isQuerySuccess}
+                  />
+                </>
+              )}
+              <div className="table-controls__actions">
+                <div data-qa="columnFilterStats">
+                  {columnFilter && (
+                    <span data-qa="columnFilterCount">
+                      {isQuerySuccess ? filteredColumnCount : 0} of{" "}
+                    </span>
+                  )}
+                  {showJobsTable ? jobsCount : isQuerySuccess ? columnCount : 0}{" "}
+                  {formatMessage(this.getWording())}
+                </div>
               </div>
             </div>
+            {!showJobsTable && isQuerySuccess && (
+              <div className="table-controls__right" style={styles.right}>
+                <ExploreTableJobStatus
+                  approximate={approximate}
+                  version={version}
+                  jobDetails={jobDetails}
+                />
+                {this.state.allowDownload ? this.renderSavedButton() : ""}
+                {this.state.allowDownload ? this.renderCopyToClipboard() : ""}
+              </div>
+            )}
           </div>
-          {!showJobsTable && isQuerySuccess && (
-            <div className="table-controls__right" style={styles.right}>
-              <ExploreTableJobStatus
-                approximate={approximate}
-                version={version}
-              />
-              {this.state.allowDownload ? this.renderSavedButton() : ""}
-              {this.state.allowDownload ? this.renderCopyToClipboard() : ""}
-            </div>
-          )}
         </div>
+        {this.renderOutputLimitedMessage()}
       </div>
     );
   }
@@ -437,4 +473,16 @@ const styles = {
   },
 };
 
-export default injectIntl(TableControlsView);
+function mapStateToProps(state) {
+  const explorePageState = getExploreState(state);
+  const queryStatuses = explorePageState.view.queryStatuses;
+  const queryTabNumber = explorePageState.view.queryTabNumber;
+  const jobId = queryStatuses[queryTabNumber - 1]?.jobId;
+  const jobDetails = getCurrentSessionJobList(state)?.toJS();
+
+  return {
+    jobDetails: jobDetails?.[jobId],
+  };
+}
+
+export default compose(connect(mapStateToProps), injectIntl)(TableControlsView);

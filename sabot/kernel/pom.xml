@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio.sabot</groupId>
     <artifactId>dremio-sabot-parent</artifactId>
-    <version>24.1.0-202306130653310132-d30779f6</version>
+    <version>24.3.0-202312190021150029-52db2faf</version>
   </parent>
   <artifactId>dremio-sabot-kernel</artifactId>
   <name>Sabot - Kernel</name>
@@ -183,6 +183,11 @@
     <dependency>
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-nessie-grpc-client</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-nessie-validation</artifactId>
     </dependency>
 
     <dependency>
@@ -364,6 +369,11 @@
       <artifactId>xalan</artifactId>
     </dependency>
     <dependency>
+      <!-- Remove this dependency when xalan is upgraded (serializer will become a transitive dependency) -->
+      <groupId>xalan</groupId>
+      <artifactId>serializer</artifactId>
+    </dependency>
+    <dependency>
       <groupId>com.sun.codemodel</groupId>
       <artifactId>codemodel</artifactId>
       <version>2.6</version>
@@ -446,7 +456,6 @@
     <dependency>
       <groupId>org.freemarker</groupId>
       <artifactId>freemarker</artifactId>
-      <version>${freemarker.version}</version>
     </dependency>
     <dependency>
       <groupId>net.hydromatic</groupId>
@@ -803,6 +812,37 @@
       <artifactId>dremio-credential-provider</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <!-- https://mvnrepository.com/artifact/io.delta/delta-standalone -->
+    <dependency>
+      <groupId>io.delta</groupId>
+      <artifactId>delta-standalone_2.12</artifactId>
+      <version>3.0.0</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-transientstore</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-partition-stats</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-catalog</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.curator</groupId>
+      <artifactId>curator-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+        <groupId>com.dremio.common</groupId>
+        <artifactId>dremio-common-core</artifactId>
+        <version>${project.version}</version>
+    </dependency>
   </dependencies>
 
   <build>
@@ -811,13 +851,16 @@
         <groupId>com.mycila</groupId>
         <artifactId>license-maven-plugin</artifactId>
         <configuration>
-          <validHeaders>
-            <validHeader>src/main/licenses/com.dremio.exec.expr.fn.impl.GuavaUtf8.license.txt</validHeader>
-          </validHeaders>
-          <excludes combine.children="append">
-            <exclude>**/src/main/resources/*.properties</exclude>
-            <exclude>**/src/test/resources/**</exclude>
-          </excludes>
+          <licenseSets>
+            <licenseSet>
+              <validHeaders>
+                <validHeader>src/main/licenses/com.dremio.exec.expr.fn.impl.GuavaUtf8.license.txt</validHeader>
+              </validHeaders>
+              <includes>
+                <include>src/main/java/com/dremio/exec/expr/fn/impl/GuavaUtf8.java</include>
+              </includes>
+            </licenseSet>
+          </licenseSets>
         </configuration>
       </plugin>
       <plugin>
@@ -876,24 +919,7 @@
       <plugin>
         <groupId>org.xolstice.maven.plugins</groupId>
         <artifactId>protobuf-maven-plugin</artifactId>
-        <configuration>
-          <clearOutputDirectory>false</clearOutputDirectory>
-        </configuration>
         <executions>
-          <execution>
-            <id>generate-proto</id>
-            <phase>generate-sources</phase>
-            <goals>
-              <goal>compile</goal>
-            </goals>
-            <configuration>
-              <protoSourceRoot>${project.basedir}/src/main/protobuf</protoSourceRoot>
-              <outputDirectory>${project.build.directory}/generated-sources/protobuf</outputDirectory>
-              <excludes>
-                <exclude>**/updateid.proto</exclude>
-              </excludes>
-            </configuration>
-          </execution>
           <execution>
             <id>generate-protobuf</id>
             <phase>generate-sources</phase>
@@ -905,7 +931,6 @@
               <protoSourceRoot>${project.basedir}/src/main/protobuf</protoSourceRoot>
               <pluginId>grpc-java</pluginId>
               <pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}</pluginArtifact>
-              <outputDirectory>${project.build.directory}/generated-sources/protobuf</outputDirectory>
               <excludes>
                 <exclude>**/updateid.proto</exclude>
               </excludes>
@@ -917,7 +942,6 @@
             </goals>
             <configuration>
               <protoSourceRoot>${basedir}/src/main/protobuf</protoSourceRoot>
-              <outputDirectory>${project.build.directory}/generated-sources/protobuf</outputDirectory>
               <excludes>
                 <exclude>**/updateid.proto</exclude>
               </excludes>
@@ -1183,17 +1207,6 @@
                 <exclude>**/TestLargeFileCompilation.java</exclude>
               </excludes>
             </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <artifactId>maven-failsafe-plugin</artifactId>
-        <executions>
-          <execution>
-            <goals>
-              <goal>integration-test</goal>
-              <goal>verify</goal>
-            </goals>
           </execution>
         </executions>
       </plugin>

@@ -24,6 +24,7 @@ import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.exec.proto.GeneralRPCProtos.RpcMode;
 import com.dremio.exec.rpc.RpcConnectionHandler.FailureType;
+import com.dremio.exec.rpc.proxy.ProxyConfig;
 import com.dremio.ssl.SSLEngineFactory;
 import com.google.common.base.Preconditions;
 import com.google.protobuf.Internal.EnumLite;
@@ -65,6 +66,8 @@ public abstract class BasicClient<T extends EnumLite, R extends RemoteConnection
   protected static final String SSL_CLIENT_HANDLER = "ssl-client-handler";
   protected static final String IDLE_STATE_HANDLER = "idle-state-handler";
 
+  private static final String PROXY_HANDLER = "proxy-handler";
+
   private static final OutboundRpcMessage PING_MESSAGE = new OutboundRpcMessage(RpcMode.PING, 0, 0, Acks.OK);
 
   // The percentage of time that should pass before sending a ping message to ensure server doesn't time us out. For
@@ -77,6 +80,7 @@ public abstract class BasicClient<T extends EnumLite, R extends RemoteConnection
   private final Parser<HR> handshakeParser;
 
   private final Optional<SSLEngineFactory> engineFactory;
+
   private final Bootstrap b;
 
   protected volatile R connection; // null if a channel is uninitialized
@@ -88,7 +92,8 @@ public abstract class BasicClient<T extends EnumLite, R extends RemoteConnection
       final T handshakeType,
       final Class<HR> responseClass,
       final Parser<HR> handshakeParser,
-      Optional<SSLEngineFactory> engineFactory
+      Optional<SSLEngineFactory> engineFactory,
+      Optional<ProxyConfig> proxyConfig
   ) throws RpcException {
     super(rpcMapping);
     this.responseClass = responseClass;
@@ -126,6 +131,10 @@ public abstract class BasicClient<T extends EnumLite, R extends RemoteConnection
             pipe.addLast(PROTOCOL_ENCODER, new RpcEncoder("c-" + rpcConfig.getName()));
             pipe.addLast(PROTOCOL_DECODER, newDecoder(connection.getAllocator()));
             pipe.addLast(HANDSHAKE_HANDLER, new ClientHandshakeHandler());
+
+            proxyConfig
+              .map(ProxyConfig::createProxyHandler)
+              .ifPresent(handler -> pipe.addFirst(PROXY_HANDLER, handler));
 
             if (timeoutInMillis != -1) {
               pipe.addLast(IDLE_STATE_HANDLER, new IdlePingHandler(timeoutInMillis));
@@ -277,7 +286,7 @@ public abstract class BasicClient<T extends EnumLite, R extends RemoteConnection
     /**
      * Listens to connection establishment outcomes, and adds a negotiator accordingly.
      */
-    private class ConnectionEstablishmentListener implements GenericFutureListener<ChannelFuture> {
+    private final class ConnectionEstablishmentListener implements GenericFutureListener<ChannelFuture> {
 
       @Override
       public void operationComplete(ChannelFuture connectionFuture) throws Exception {
@@ -354,7 +363,7 @@ public abstract class BasicClient<T extends EnumLite, R extends RemoteConnection
         logger.trace("Adding SSL negotiator on '{}'", connectionFuture.channel());
         connectionFuture.channel()
             .pipeline()
-            .addFirst(SSL_CLIENT_HANDLER, sslHandler);
+            .addBefore(PROTOCOL_ENCODER, SSL_CLIENT_HANDLER, sslHandler);
       }
 
       void addHandshakeRequester(ChannelFuture connectionFuture) {
@@ -380,7 +389,7 @@ public abstract class BasicClient<T extends EnumLite, R extends RemoteConnection
      * Sends a handshake request to the server when the channel becomes active, or if it is already active. After
      * sending, the handler removes itself from the pipeline.
      */
-    private class HandshakeRequester extends ChannelInboundHandlerAdapter {
+    private final class HandshakeRequester extends ChannelInboundHandlerAdapter {
 
       private void sendHandshakeAndRemoveSelf(ChannelHandlerContext ctx) {
         sendHandshake();
@@ -417,7 +426,7 @@ public abstract class BasicClient<T extends EnumLite, R extends RemoteConnection
     /**
      * Listens to handshake response from the server, and conveys the outcome to the {@link #connectionHandler}.
      */
-    private class HandshakeSendListener implements RpcOutcomeListener<HR> {
+    private final class HandshakeSendListener implements RpcOutcomeListener<HR> {
 
       @Override
       public void failed(RpcException ex) {

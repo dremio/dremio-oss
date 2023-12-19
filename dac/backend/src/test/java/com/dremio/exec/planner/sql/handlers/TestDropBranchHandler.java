@@ -41,9 +41,9 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.mockito.quality.Strictness;
 
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult;
 import com.dremio.exec.planner.sql.parser.SqlDropBranch;
 import com.dremio.exec.store.NoDefaultBranchException;
@@ -270,8 +270,9 @@ public class TestDropBranchHandler extends DremioTest {
   }
 
   @Test
-  public void dropBranchNoCommitHashNoForceThrows()
-    throws ReferenceConflictException, ReferenceNotFoundException {
+  public void dropBranchNoCommitHashNoForce()
+    throws ReferenceConflictException, ReferenceNotFoundException, ForemanSetupException {
+    setUpSupportKeyAndPlugin();
     // Constants
     final SqlDropBranch dropBranchWithoutForceOrCommitHash =
       new SqlDropBranch(
@@ -285,13 +286,17 @@ public class TestDropBranchHandler extends DremioTest {
     // Arrange
     when(optionManager.getOption(ENABLE_USE_VERSION_SYNTAX))
       .thenReturn(true);
+    when(userSession.getSessionVersionForSource(DEFAULT_SOURCE_NAME)).thenReturn(mock(VersionContext.class));
 
     // Act + Assert
-    assertThatThrownBy(() -> handler.toResult("", dropBranchWithoutForceOrCommitHash))
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("Need commit hash")
-      .hasMessageContaining(DEFAULT_BRANCH_NAME)
-      .hasMessageContaining(DEFAULT_SOURCE_NAME);
+    List<SimpleCommandResult> result = handler.toResult("", dropBranchWithoutForceOrCommitHash);
+
+    assertThat(result).isNotEmpty();
+    assertThat(result.get(0).ok).isTrue();
+    assertThat(result.get(0).summary)
+      .contains("dropped")
+      .contains(DEFAULT_BRANCH_NAME)
+      .contains(DEFAULT_SOURCE_NAME);
   }
 
   @Test

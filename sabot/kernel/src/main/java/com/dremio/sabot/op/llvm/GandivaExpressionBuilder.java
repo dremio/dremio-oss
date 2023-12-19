@@ -152,7 +152,11 @@ public class GandivaExpressionBuilder extends AbstractExprVisitor<TreeNode, Void
       children.remove(size - 1);
       children.remove(size - 2);
     }
-
+    CompleteType returnType = definition.getReturnType(holder.args);
+    if (returnType.getChildren().size() > 0) {
+      return TreeBuilder.makeFunction(holder.getName(), children, returnType.getType(),
+        returnType.getChildren().get(0).getType());
+    }
     return TreeBuilder.makeFunction(holder.getName(), children, definition.getReturnType(holder.args).getType());
   }
 

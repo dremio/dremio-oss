@@ -76,7 +76,7 @@ export class JobPage extends PureComponent {
     }
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     this.receiveProps(nextProps, this.props);
   }
 

@@ -55,14 +55,6 @@ public interface OutputDerivation {
 
   CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args);
 
-
-  class Dummy implements OutputDerivation {
-    @Override
-    public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
-      throw new UnsupportedOperationException();
-    }
-  }
-
   class Default implements OutputDerivation{
     @Override
     public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
@@ -118,7 +110,7 @@ public interface OutputDerivation {
     @Override
     public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
       if (args.size() != 3 || !(args.get(1) instanceof LongExpression) || !(args.get(2) instanceof LongExpression) ) {
-        throw UserException.functionError().message("Attempted to cast decimal function with incorrect number of arguments. Expected 3 arguments (value, precision, scale) but received %d arguments.", args.size()).build(logger);
+        throw UserException.functionError().message("Attempted to cast decimal function %s with incorrect number of arguments. Expected 3 arguments (value, precision, scale) but received %d arguments.", baseReturn.toString(), args.size()).build(logger);
       }
 
       int precision = (int) ((LongExpression)(args.get(1))).getLong();

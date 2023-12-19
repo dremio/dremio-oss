@@ -122,7 +122,7 @@ public class MaterializationDescriptor {
     return path;
   }
 
-  IncrementalUpdateSettings getIncrementalUpdateSettings() {
+  public IncrementalUpdateSettings getIncrementalUpdateSettings() {
     return incrementalUpdateSettings;
   }
 

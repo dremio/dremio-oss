@@ -62,7 +62,7 @@ public class ITTestExternalReflections extends ITBaseTestReflection {
   }
 
   /**
-   * Verifies DDL for external reflection on Arctic Dataset errors out
+   * Verifies DDL for external reflection on Versioned Dataset errors out
    */
   @Test
   public void testExternalReflectionFails() {

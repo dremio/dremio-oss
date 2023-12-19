@@ -26,7 +26,6 @@ import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Project;
-import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBiShuttle;
 import org.apache.calcite.rex.RexBuilder;
@@ -64,9 +63,8 @@ import com.google.common.collect.ListMultimap;
  * single flatten operation for each distinct SqlFlattenOperator index.
  */
 public class RewriteProjectToFlattenRule extends RelOptRule {
-  public static final RelOptRule INSTANCE = new RewriteProjectToFlattenRule(LogicalProject.class);
 
-  private RewriteProjectToFlattenRule(Class<? extends Project> projectClass) {
+  public RewriteProjectToFlattenRule(Class<? extends Project> projectClass) {
     super(RelOptHelper.any(projectClass), "RewriteProjectToFlattenRule_" + projectClass.getName());
   }
 
@@ -122,6 +120,7 @@ public class RewriteProjectToFlattenRule extends RelOptRule {
             project.getTraitSet(),
             input,
             flattenExpressions,
+            null,
             0);
       }
     }

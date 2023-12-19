@@ -35,15 +35,15 @@ import org.junit.Test;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
+import com.dremio.catalog.model.CatalogEntityId;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.context.RequestContext;
 import com.dremio.context.UserContext;
 import com.dremio.datastore.LocalKVStoreProvider;
-import com.dremio.service.namespace.NamespaceNotFoundException;
-import com.dremio.service.namespace.NamespaceService;
-import com.dremio.service.namespace.proto.NameSpaceContainer;
+import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.factory.CatalogSupplier;
 import com.dremio.service.userpreferences.proto.UserPreferenceProto;
 import com.dremio.service.users.SimpleUser;
 import com.dremio.service.users.UserNotFoundException;
@@ -63,7 +63,8 @@ public class TestUserPreferencesServiceImpl {
   private UserPreferenceStore userPreferenceStore;
   private LocalKVStoreProvider kvStoreProvider;
   private UserPreferenceService userPreferenceService;
-  private NamespaceService namespaceService;
+  private CatalogSupplier catalogSupplier;
+  private Catalog catalog;
   private UserService userService;
 
 
@@ -76,7 +77,9 @@ public class TestUserPreferencesServiceImpl {
     userPreferenceStore = new UserPreferenceStoreImpl(() -> kvStoreProvider);
     userPreferenceStore.start();
 
-    namespaceService = Mockito.mock(NamespaceService.class);
+    catalog = Mockito.mock(Catalog.class);
+    catalogSupplier = Mockito.mock(CatalogSupplier.class);
+    Mockito.doReturn(catalog).when(catalogSupplier).get();
     userService = Mockito.mock(UserService.class);
 
     SecurityContext securityContext = Mockito.mock(SecurityContext.class);
@@ -84,10 +87,7 @@ public class TestUserPreferencesServiceImpl {
     Mockito.doReturn(USER_NAME_1).when(principal).getName();
     Mockito.doReturn(principal).when(securityContext).getUserPrincipal();
 
-    userPreferenceService = new UserPreferenceServiceImpl(() -> userPreferenceStore,
-                                                          () -> namespaceService,
-                                                          userService,
-                                                          securityContext);
+    userPreferenceService = new UserPreferenceServiceImpl(() -> userPreferenceStore, catalogSupplier, userService, securityContext);
   }
 
   @After
@@ -98,7 +98,7 @@ public class TestUserPreferencesServiceImpl {
   //  try to get starred entity when user hasn't starred any entity yet. and assert empty list is returned.
   @Test
   public void testStarEntity()
-    throws EntityThresholdReachedException, EntityAlreadyInPreferenceException, NamespaceNotFoundException, IllegalAccessException {
+    throws EntityThresholdReachedException, EntityAlreadyInPreferenceException, IllegalAccessException {
     try (MockedStatic<RequestContext> mocked = mockCurrentUser()) {
       mockUserService();
       mockValidEntity();
@@ -135,8 +135,8 @@ public class TestUserPreferencesServiceImpl {
     return mocked;
   }
 
-  private void mockValidEntity() throws NamespaceNotFoundException {
-    Mockito.doReturn(new NameSpaceContainer()).when(namespaceService).getEntityById(any());
+  private void mockValidEntity() {
+    Mockito.doReturn(true).when(catalog).existsById(any());
   }
 
   private void mockUserService() throws UserNotFoundException {
@@ -152,7 +152,7 @@ public class TestUserPreferencesServiceImpl {
 
   @Test
   public void testStarTwoEntities()
-    throws EntityThresholdReachedException, EntityAlreadyInPreferenceException, NamespaceNotFoundException, IllegalAccessException {
+    throws EntityThresholdReachedException, EntityAlreadyInPreferenceException, IllegalAccessException {
     // star two entites and assert both are present and
     // assert correct order i.e second entity comes after first
     try (MockedStatic<RequestContext> mocked = mockCurrentUser()) {
@@ -195,7 +195,7 @@ public class TestUserPreferencesServiceImpl {
 
   @Test
   public void testStarDuplicateEntity()
-    throws EntityThresholdReachedException, EntityAlreadyInPreferenceException, NamespaceNotFoundException, IllegalAccessException {
+    throws EntityThresholdReachedException, EntityAlreadyInPreferenceException, IllegalAccessException {
     try (MockedStatic<RequestContext> mocked = mockCurrentUser()) {
       mockUserService();
       mockValidEntity();
@@ -217,7 +217,7 @@ public class TestUserPreferencesServiceImpl {
 
   @Test
   public void testStarAndUnstarEntity()
-    throws EntityThresholdReachedException, EntityAlreadyInPreferenceException, EntityNotFoundInPreferenceException, NamespaceNotFoundException, IllegalAccessException {
+    throws EntityThresholdReachedException, EntityAlreadyInPreferenceException, EntityNotFoundInPreferenceException, IllegalAccessException {
     try (MockedStatic<RequestContext> mocked = mockCurrentUser()) {
       mockUserService();
       mockValidEntity();
@@ -238,7 +238,7 @@ public class TestUserPreferencesServiceImpl {
   }
 
   @Test
-  public void testUnstarNonexistingEntity() throws NamespaceNotFoundException {
+  public void testUnstarNonexistingEntity() {
     try (MockedStatic<RequestContext> mocked = mockCurrentUser()) {
       mockUserService();
       mockValidEntity();
@@ -257,12 +257,11 @@ public class TestUserPreferencesServiceImpl {
   }
 
   @Test
-  public void testValidateEntity() throws NamespaceNotFoundException {
+  public void testValidateEntity() {
     try (MockedStatic<RequestContext> mocked = mockCurrentUser()) {
       mockUserService();
 
-      // when returned Namespace container is null
-      Mockito.doReturn(null).when(namespaceService).getEntityById(any());
+      Mockito.doReturn(false).when(catalog).existsById(any());
 
       UUID entityId1 = UUID.randomUUID();
       // when non-existing entity is starred
@@ -280,7 +279,7 @@ public class TestUserPreferencesServiceImpl {
   // when a catalog entity is deleted, it should be deleted from preference too.
   @Test
   public void testDeleteEntity()
-    throws NamespaceNotFoundException, EntityAlreadyInPreferenceException, EntityThresholdReachedException, IllegalAccessException {
+    throws EntityAlreadyInPreferenceException, EntityThresholdReachedException, IllegalAccessException {
     try (MockedStatic<RequestContext> mocked = mockCurrentUser()) {
       mockUserService();
       mockValidEntity();
@@ -297,7 +296,7 @@ public class TestUserPreferencesServiceImpl {
       Assert.assertTrue(getIdsFromEntities(preference.getEntitiesList()).contains(entityId2.toString()));
 
       // when the entity is deleted
-      Mockito.doReturn(null).when(namespaceService).getEntityById(entityId1.toString());
+      Mockito.doReturn(false).when(catalog).existsById(CatalogEntityId.fromString(entityId1.toString()));
 
       // assert when get is called the entity is removed from preference list.
       preference =
@@ -313,7 +312,7 @@ public class TestUserPreferencesServiceImpl {
   // when a catalog entity is deleted, validate entity is deleted from KV store
   @Test
   public void testDeleteEntityFromStore()
-    throws NamespaceNotFoundException, EntityAlreadyInPreferenceException, EntityThresholdReachedException, IllegalAccessException {
+    throws EntityAlreadyInPreferenceException, EntityThresholdReachedException, IllegalAccessException {
     try (MockedStatic<RequestContext> mocked = mockCurrentUser()) {
       mockUserService();
       mockValidEntity();
@@ -338,7 +337,7 @@ public class TestUserPreferencesServiceImpl {
       Assert.assertTrue(entityIds.contains(entityId3.toString()));
 
       // when the entity is deleted and get call is made
-      Mockito.doReturn(null).when(namespaceService).getEntityById(entityId2.toString());
+      Mockito.doReturn(false).when(catalog).existsById(CatalogEntityId.fromString(entityId2.toString()));
       userPreferenceService.getPreferenceByType(UserPreferenceProto.PreferenceType.STARRED);
 
       // validate contents from store
@@ -369,7 +368,7 @@ public class TestUserPreferencesServiceImpl {
 
   @Test
   public void testUserNotFoundExceptionThrown()
-    throws NamespaceNotFoundException, EntityAlreadyInPreferenceException, EntityThresholdReachedException, IllegalAccessException {
+    throws EntityAlreadyInPreferenceException, EntityThresholdReachedException, IllegalAccessException {
     try {
       mockNoUser();
       mockValidEntity();

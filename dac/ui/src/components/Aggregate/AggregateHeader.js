@@ -60,7 +60,7 @@ export class AggregateHeader extends Component {
           }
           onClick={clearFunction}
         >
-          {la("Clear All")}
+          {laDeprecated("Clear All")}
         </SimpleButton>
       );
     }
@@ -77,14 +77,14 @@ export class AggregateHeader extends Component {
     return (
       <div className={classNames("aggregate-header", base)}>
         <div className={left}>
-          <EllipsedText text={`“${nameForDisplay}” dataset fields:`} />
+          <EllipsedText text={`“${nameForDisplay}” dataset columns:`} />
         </div>
         <div className={center}>
-          {la("Dimensions")}
+          {laDeprecated("Dimensions")}
           {this.renderClearAll(this.props.onClearAllDimensions)}
         </div>
         <div className={right}>
-          {la("Measures")}
+          {laDeprecated("Measures")}
           {this.renderClearAll(this.props.onClearAllMeasures)}
         </div>
       </div>

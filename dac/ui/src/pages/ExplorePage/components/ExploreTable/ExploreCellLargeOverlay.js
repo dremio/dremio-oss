@@ -300,7 +300,7 @@ export class ExploreCellLargeOverlayView extends Component {
           columnType !== LIST &&
           columnType !== STRUCT ? (
             <span onClick={this.handleSelectAll} style={{ cursor: "pointer" }}>
-              {la("Select all")}
+              {laDeprecated("Select all")}
             </span>
           ) : (
             <EllipsedText text={this.state.currentPath} />

@@ -97,7 +97,9 @@ public class SparseUnionSizer implements Sizer{
    * @return
    */
   private int getDataSizeInBitsStartingFromOrdinal(final int ordinal, final int numberOfRecords){
-
+    if(incoming.getValueCount() == 0){
+      return 0;
+    }
     int dataSize = 0;
 
     for(int index = ordinal; index < ordinal + numberOfRecords; index++){
@@ -119,7 +121,6 @@ public class SparseUnionSizer implements Sizer{
   public int getSizeInBitsStartingFromOrdinal(final int ordinal, final int numberOfRecords) {
 
     final int typeBufferSize = Sizer.getTypeBufferSizeInBits(numberOfRecords);
-
     final int dataSize = getDataSizeInBitsStartingFromOrdinal(ordinal, numberOfRecords);
 
     return typeBufferSize + dataSize;

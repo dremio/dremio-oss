@@ -193,7 +193,7 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
    * @return Field Reader for this vector
    */
   @Override
-  public FieldReader getReader() {
+  protected FieldReader getReaderImpl() {
     throw new UnsupportedOperationException("not supported");
   }
 
@@ -988,6 +988,11 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
   @Override
   public TransferPair getTransferPair(String ref, BufferAllocator allocator) {
     //return new VarCharVector.TransferImpl(ref, allocator);
+    throw new UnsupportedOperationException("not supported");
+  }
+
+  @Override
+  public TransferPair getTransferPair(Field field, BufferAllocator bufferAllocator) {
     throw new UnsupportedOperationException("not supported");
   }
 

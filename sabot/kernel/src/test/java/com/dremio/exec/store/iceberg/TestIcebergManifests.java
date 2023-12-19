@@ -25,6 +25,7 @@ import static org.mockito.Mockito.when;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.commons.lang3.RandomStringUtils;
@@ -146,7 +147,7 @@ public class TestIcebergManifests extends BaseTestQuery {
       SchemaConverter schemaConverter = SchemaConverter.getBuilder().setTableName(tableName).build();
       IcebergOpCommitter committer = icebergHadoopModel.getCreateTableCommitter(tableName,
         icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()),
-        schemaConverter.fromIceberg(schema), Lists.newArrayList(columnName), null, null);
+        schemaConverter.fromIceberg(schema), Lists.newArrayList(columnName), null, null, null, Collections.emptyMap());
       committer.commit();
 
       committer = icebergHadoopModel.getInsertTableCommitter(icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()), operatorStats);

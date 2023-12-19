@@ -28,9 +28,7 @@ import org.apache.arrow.vector.holders.NullableVarCharHolder;
 import org.apache.arrow.vector.holders.TimeMilliHolder;
 import org.apache.arrow.vector.holders.TimeStampMilliHolder;
 import org.apache.arrow.vector.holders.VarCharHolder;
-import org.joda.time.chrono.ISOChronology;
 
-import com.dremio.common.util.DateTimes;
 import com.dremio.common.util.JodaDateUtility;
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
@@ -140,14 +138,14 @@ public class DateTypeFunctions {
         @Override
         public void eval() {
           try {
-            out.value = DateTimes.toMillis(new org.joda.time.LocalDateTime((int) inputYears.value,
+            out.value = com.dremio.common.util.DateTimes.toMillis(new org.joda.time.LocalDateTime((int) inputYears.value,
               (int) inputMonths.value,
               (int) inputDays.value,
               0,
               0,
               0,
               0,
-              ISOChronology.getInstance(org.joda.time.DateTimeZone.UTC)));
+              org.joda.time.chrono.ISOChronology.getInstance(org.joda.time.DateTimeZone.UTC)));
           } catch (IllegalArgumentException e) {
             throw errCtx.error()
               .message(String.format("Unable to convert year=%d month=%d day=%d into a date", inputYears.value, inputMonths.value, inputDays.value))
@@ -176,7 +174,7 @@ public class DateTypeFunctions {
         @Override
         public void eval() {
           try {
-            out.value = DateTimes.toMillis(new org.joda.time.LocalDateTime((int)inputYears.value,
+            out.value = com.dremio.common.util.DateTimes.toMillis(new org.joda.time.LocalDateTime((int)inputYears.value,
                                                             (int)inputMonths.value,
                                                             (int)inputDays.value,
                                                             (int)inputHours.value,
@@ -255,7 +253,7 @@ public class DateTypeFunctions {
         }
     }
 
-    @FunctionTemplate(name = "timeofday", isDeterministic = false)
+    @FunctionTemplate(name = "timeofday", isDynamic = true)
     public static class TimeOfDay implements SimpleFunction {
         @Inject ArrowBuf buffer;
         @Workspace org.joda.time.format.DateTimeFormatter formatter;
@@ -277,7 +275,7 @@ public class DateTypeFunctions {
         }
     }
 
-    @FunctionTemplate(names = {"localtimestamp", "current_timestamp"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, syntax = FunctionSyntax.FUNCTION_ID)
+    @FunctionTemplate(names = {"localtimestamp", "current_timestamp"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, syntax = FunctionSyntax.FUNCTION_ID, isDynamic = true)
     public static class LocalTimeStamp implements SimpleFunction {
         @Workspace long queryStartDate;
         @Output TimeStampMilliHolder out;
@@ -311,7 +309,7 @@ public class DateTypeFunctions {
         }
     }
 
-    @FunctionTemplate(names = {"current_timestamp_utc"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, syntax = FunctionSyntax.FUNCTION_ID)
+    @FunctionTemplate(names = {"current_timestamp_utc"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, syntax = FunctionSyntax.FUNCTION_ID, isDynamic = true)
     public static class CurrentTimeStampUTC implements SimpleFunction {
         @Workspace long queryStartDate;
         @Output TimeStampMilliHolder out;
@@ -328,7 +326,7 @@ public class DateTypeFunctions {
         }
     }
 
-    @FunctionTemplate(names = {"current_time", "localtime"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, syntax = FunctionSyntax.FUNCTION_ID)
+    @FunctionTemplate(names = {"current_time", "localtime"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, syntax = FunctionSyntax.FUNCTION_ID, isDynamic = true)
     public static class CurrentTime implements SimpleFunction {
         @Workspace int queryStartTime;
         @Output TimeMilliHolder out;
@@ -352,7 +350,7 @@ public class DateTypeFunctions {
         }
     }
 
-    @FunctionTemplate(names = {"current_time_utc"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, syntax = FunctionSyntax.FUNCTION_ID)
+    @FunctionTemplate(names = {"current_time_utc"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, syntax = FunctionSyntax.FUNCTION_ID, isDynamic = true)
     public static class CurrentTimeUTC implements SimpleFunction {
         @Workspace int queryStartTime;
         @Output TimeMilliHolder out;
@@ -374,7 +372,40 @@ public class DateTypeFunctions {
         }
     }
 
-    @SuppressWarnings("unused")
+    @FunctionTemplate(names = {"last_day"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls=NullHandling.NULL_IF_NULL)
+    public static class LastDayDate implements SimpleFunction {
+      @Param DateMilliHolder in;
+      @Output DateMilliHolder out;
+      @Workspace org.joda.time.LocalDateTime date;
+
+      @Override
+      public void setup() {
+      }
+
+      @Override
+      public void eval() {
+        date = new org.joda.time.LocalDateTime(in.value, org.joda.time.DateTimeZone.UTC);
+        out.value = com.dremio.common.util.DateTimes.toMillis(date.dayOfMonth().withMaximumValue());
+      }
+    }
+
+    @FunctionTemplate(names = {"last_day"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls=NullHandling.NULL_IF_NULL)
+    public static class LastDayTimestamp implements SimpleFunction {
+      @Param TimeStampMilliHolder in;
+      @Output DateMilliHolder out;
+      @Workspace org.joda.time.LocalDateTime date;
+
+      @Override
+      public void setup() {
+      }
+
+      @Override
+      public void eval() {
+        date = new org.joda.time.LocalDateTime(in.value, org.joda.time.DateTimeZone.UTC);
+        out.value = com.dremio.common.util.DateTimes.toMillis(date.dayOfMonth().withMaximumValue());
+      }
+    }
+
     @FunctionTemplate(names = {"date_add", "add"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls=NullHandling.NULL_IF_NULL)
     public static class DateTimeAddFunction implements SimpleFunction {
     @Param DateMilliHolder left;
@@ -391,7 +422,6 @@ public class DateTypeFunctions {
         }
     }
 
-    @SuppressWarnings("unused")
     @FunctionTemplate(names = {"date_add", "add"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls=NullHandling.NULL_IF_NULL)
     public static class TimeDateAddFunction implements SimpleFunction {
         @Param TimeMilliHolder right;
@@ -423,7 +453,7 @@ public class DateTypeFunctions {
         }
     }
 
-    @FunctionTemplate(name = "unix_timestamp", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+    @FunctionTemplate(name = "unix_timestamp", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, isDynamic = true)
     public static class UnixTimeStamp implements SimpleFunction {
       @Output BigIntHolder out;
       @Workspace long queryStartDate;
@@ -440,6 +470,7 @@ public class DateTypeFunctions {
       }
     }
 
+    // This function is not dynamic, since the input date is fixed.
     @FunctionTemplate(name = "unix_timestamp", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
     public static class UnixTimeStampForDate implements SimpleFunction {
       @Param VarCharHolder inputDateValue;
@@ -460,6 +491,7 @@ public class DateTypeFunctions {
       }
     }
 
+    // This function is not dynamic, since the input date is fixed.
     @FunctionTemplate(name = "unix_timestamp", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
     public static class UnixTimeStampForDateWithPattern implements SimpleFunction {
       @Param VarCharHolder inputDateValue;
@@ -525,4 +557,44 @@ public class DateTypeFunctions {
         }
     }
 
+    @FunctionTemplate(names = {"yearweek", "weekofyear"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.NULL_IF_NULL)
+    public static class WeekDateMilli implements SimpleFunction {
+
+      @Param DateMilliHolder in;
+      @Output BigIntHolder out;
+      @Workspace org.joda.time.MutableDateTime dateTime;
+
+      @Override
+      public void setup() {
+        dateTime = new org.joda.time.MutableDateTime(
+          org.joda.time.chrono.DayOfWeekFromSundayChronology.getISOInstanceInUTC());
+      }
+
+      @Override
+      public void eval() {
+        dateTime.setMillis(in.value);
+
+        out.value = dateTime.getWeekOfWeekyear();
+      }
+    }
+
+    @FunctionTemplate(names = {"yearweek", "weekofyear"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.NULL_IF_NULL)
+    public static class WeekTimeStampMilli implements SimpleFunction {
+
+      @Param TimeStampMilliHolder in;
+      @Output BigIntHolder out;
+      @Workspace org.joda.time.MutableDateTime dateTime;
+
+      @Override
+      public void setup() {
+        dateTime = new org.joda.time.MutableDateTime(
+          org.joda.time.chrono.DayOfWeekFromSundayChronology.getISOInstanceInUTC());
+      }
+
+      @Override
+      public void eval() {
+        dateTime.setMillis(in.value);
+        out.value = dateTime.getWeekOfWeekyear();
+      }
+    }
 }

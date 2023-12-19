@@ -43,7 +43,7 @@ export class ConvertFloatToIntForm extends Component {
     return (
       <TransformForm {...formWrapperProps(this.props)} onFormSubmit={submit}>
         <div clasName={horizontalContentPadding}>
-          <span className={title}>{la("Rounding:")}</span>
+          <span className={title}>{laDeprecated("Rounding:")}</span>
           <Radio
             {...fields.rounding}
             label="Floor"
@@ -51,7 +51,9 @@ export class ConvertFloatToIntForm extends Component {
             className={radioStacked}
           />
           <span className={description}>
-            {la("Returns the largest integer less than or equal to the value.")}
+            {laDeprecated(
+              "Returns the largest integer less than or equal to the value."
+            )}
           </span>
           <Radio
             {...fields.rounding}
@@ -60,7 +62,7 @@ export class ConvertFloatToIntForm extends Component {
             className={radioStacked}
           />
           <span className={description}>
-            {la(
+            {laDeprecated(
               "Returns the smallest integer greater than or equal to the value."
             )}
           </span>
@@ -71,7 +73,7 @@ export class ConvertFloatToIntForm extends Component {
             className={radioStacked}
           />
           <div className={description}>
-            {la("Returns the closest integer to the value.")}
+            {laDeprecated("Returns the closest integer to the value.")}
           </div>
           <NewFieldSection fields={fields} className={newField} />
         </div>

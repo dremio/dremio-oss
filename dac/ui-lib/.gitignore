@@ -27,3 +27,4 @@ iconmanifest.json
 !.config
 !.npmrc
 !.storybook
+!Makefile

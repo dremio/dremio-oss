@@ -18,6 +18,7 @@ package com.dremio.exec;
 import java.util.concurrent.TimeUnit;
 
 import com.dremio.common.expression.SupportedEngines;
+import com.dremio.exec.planner.sql.parser.PartitionDistributionStrategy;
 import com.dremio.exec.proto.CoordExecRPC.FragmentCodec;
 import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.options.OptionValidator;
@@ -166,7 +167,6 @@ public interface ExecConstants {
   BooleanValidator ENABLE_VECTORIZED_HASHJOIN_SPECIFIC = new BooleanValidator("exec.operator.join.vectorize.specific", false);
   BooleanValidator ENABLE_VECTORIZED_COPIER = new BooleanValidator("exec.operator.copier.vectorize", true);
   BooleanValidator ENABLE_VECTORIZED_COMPLEX_COPIER = new BooleanValidator("exec.operator.copier.complex.vectorize", true);
-  BooleanValidator ENABLE_NATIVE_HASHTABLE_FOR_JOIN = new BooleanValidator("exec.join.hashtable.native", true);
   BooleanValidator ENABLE_VECTORIZED_PARTITIONER = new BooleanValidator("exec.operator.partitioner.vectorize", true);
   BooleanValidator DEBUG_HASHJOIN_INSERTION = new BooleanValidator("exec.operator.join.debug-insertion", false);
 
@@ -181,6 +181,11 @@ public interface ExecConstants {
 
   String PARQUET_BLOCK_SIZE = "store.parquet.block-size";
   LongValidator PARQUET_BLOCK_SIZE_VALIDATOR = new LongValidator(PARQUET_BLOCK_SIZE, 256*1024*1024);
+  DoubleValidator SMALL_PARQUET_BLOCK_SIZE_RATIO = new DoubleValidator("store.small.parquet.block-size-ratio", 0.5);
+  String TARGET_COMBINED_SMALL_PARQUET_BLOCK_SIZE = "store.target.combined.small.parquet.block-size";
+  LongValidator TARGET_COMBINED_SMALL_PARQUET_BLOCK_SIZE_VALIDATOR = new LongValidator(TARGET_COMBINED_SMALL_PARQUET_BLOCK_SIZE,
+    PARQUET_BLOCK_SIZE_VALIDATOR.getDefault().getNumVal());
+
   String PARQUET_SPLIT_SIZE = "exec.parquet.split-size";
   LongValidator PARQUET_SPLIT_SIZE_VALIDATOR = new LongValidator(PARQUET_SPLIT_SIZE, 300*1024*1024);
   String ORC_SPLIT_SIZE = "exec.orc.split-size";
@@ -210,7 +215,10 @@ public interface ExecConstants {
 
   String PARQUET_WRITER_ENABLE_DICTIONARY_ENCODING = "store.parquet.enable_dictionary_encoding";
   BooleanValidator PARQUET_WRITER_ENABLE_DICTIONARY_ENCODING_VALIDATOR = new BooleanValidator(
-      PARQUET_WRITER_ENABLE_DICTIONARY_ENCODING, false);
+    PARQUET_WRITER_ENABLE_DICTIONARY_ENCODING, true);
+
+  EnumeratedStringValidator PARQUET_WRITER_VERSION = new EnumeratedStringValidator("store.parquet.writer.version", "v1",
+    "v1", "v2");
 
   String PARQUET_FILES_ESTIMATE_SCALING_FACTOR = "exec.parquet.parquet_files_estimate_scaling_factor";
   LongValidator PARQUET_FILES_ESTIMATE_SCALING_FACTOR_VALIDATOR = new LongValidator(PARQUET_FILES_ESTIMATE_SCALING_FACTOR, 1);
@@ -234,6 +242,8 @@ public interface ExecConstants {
 
   BooleanValidator PARQUET_READER_VECTORIZE = new BooleanValidator("store.parquet.vectorize", true);
   BooleanValidator ENABLED_PARQUET_TRACING = new BooleanValidator("store.parquet.vectorize.tracing.enable", false);
+  BooleanValidator ENABLED_PARQUET_VECTORIZED_DETAILED_STATS = new BooleanValidator(
+      "store.parquet.vectorize.detailed.stats", false);
   BooleanValidator USE_COPIER_IN_PARQUET_READER = new BooleanValidator("store.parquet.use_copier", true);
 
   String PARQUET_READER_INT96_AS_TIMESTAMP = "store.parquet.reader.int96_as_timestamp";
@@ -313,6 +323,8 @@ public interface ExecConstants {
   DoubleValidator LOAD_REDUCTION = new RangeDoubleValidator("load.reduction", 0.01, 1, .1);
 
   BooleanValidator ENABLE_REATTEMPTS = new BooleanValidator("exec.reattempt.enable", true);
+
+  LongValidator REATTEMPT_LIMIT = new PositiveLongValidator("exec.reattempt.limit", 20, 10);
 
   // To re-attempt a query on OOM, this one and ENABLE_REATTEMPTS should both be set to true.
   BooleanValidator ENABLE_REATTEMPTS_ON_OOM = new BooleanValidator("exec.reattempt.on_oom.enable", false);
@@ -414,14 +426,12 @@ public interface ExecConstants {
   /**
    * Enabling this support option enables the memory arbiter
    */
-  BooleanValidator MEMORY_ARBITER_ENABLED = new BooleanValidator("exec.memory.arbiter.enabled", false);
+  BooleanValidator ENABLE_SPILLABLE_OPERATORS = new BooleanValidator("exec.spillable.operators.enabled", false);
   // max memory that can be granted for a run - default: 40MB, max: 100MB
-  LongValidator MAX_MEMORY_GRANT_SIZE = new PositiveLongValidator("exec.memory.arbiter.max_memory_grant_bytes", 100 * (1 << 20), 40 * (1 << 20));
-  // percent memory to be set aside for other allocators like RPC
-  DoubleValidator PCT_MEMORY_SET_ASIDE = new RangeDoubleValidator("exec.memory.arbiter.pct_memory_set_aside", 0.0, 100.0, 10.0);
+  LongValidator MAX_MEMORY_GRANT_SIZE = new PositiveLongValidator("exec.spillable.operators.max_memory_grant_bytes", 100 * (1 << 20), 40 * (1 << 20));
 
   // if true dynamically track and consider prev N number of allocations for next allocation grant, else consider all previous allocations
-  BooleanValidator DYNAMICALLY_TRACK_ALLOCATIONS = new BooleanValidator("exec.memory.arbiter.dynamically_track_allocations", true);
+  BooleanValidator DYNAMICALLY_TRACK_ALLOCATIONS = new BooleanValidator("exec.spillable.operators.dynamically_track_allocations", true);
 
   /**
    * This factor determines how much larger the load for a given slice can be than the expected size in order to maintain locality
@@ -447,6 +457,10 @@ public interface ExecConstants {
   LongValidator RESULTS_MAX_AGE_IN_DAYS = new LongValidator("results.max.age_in_days", 1);
   // At what hour of the day to do job results cleanup - 0-23
   RangeLongValidator JOB_RESULTS_CLEANUP_START_HOUR = new RangeLongValidator("job.results.cleanup.start_at_hour", 0, 23, 0);
+
+  // Time after which the jobs are expired and deleted from the job collection. 0 by default. Used for testing and debugging TTL based expiry.
+  LongValidator DEBUG_TTL_JOB_MAX_AGE_IN_MILLISECONDS = new LongValidator("debug.ttl.jobs.max.age_in_milliseconds", 0);
+
   LongValidator JOB_MAX_AGE_IN_DAYS = new LongValidator("jobs.max.age_in_days", 30);
   // At what hour of the day to do job cleanup - 0-23
   RangeLongValidator JOB_CLEANUP_START_HOUR = new RangeLongValidator("job.cleanup.start_at_hour", 0, 23, 1);
@@ -457,6 +471,8 @@ public interface ExecConstants {
   BooleanValidator SORT_FILE_BLOCKS = new BooleanValidator("store.file.sort_blocks", false);
 
   PositiveLongValidator LIMIT_FIELD_SIZE_BYTES = new PositiveLongValidator("limits.single_field_size_bytes", Integer.MAX_VALUE, 32000);
+
+  PositiveLongValidator DELTALAKE_METADATA_FIELD_SIZE_BYTES = new PositiveLongValidator("store.deltalake.metadata_field_size_bytes", Integer.MAX_VALUE, 16_777_216L);
 
   LongValidator FLATTEN_OPERATOR_OUTPUT_MEMORY_LIMIT = new LongValidator("exec.operator.flatten_output_memory_limit", 512*1024*1024);
 
@@ -522,6 +538,9 @@ public interface ExecConstants {
   AdminBooleanValidator ENABLE_RECONCILE_QUERIES = new AdminBooleanValidator("coordinator.reconcile.queries.enable", true);
   RangeLongValidator RECONCILE_QUERIES_FREQUENCY_SECS = new RangeLongValidator("coordinator.reconcile.queries.frequency.secs", 1, 1800, 300);
 
+  BooleanValidator ENABLE_DEPRECATED_JOBS_USER_STATS_API = new BooleanValidator("dremio.deprecated_jobs_user_stats_api.enabled", true);
+  BooleanValidator ENABLE_JOBS_USER_STATS_API = new BooleanValidator("dremio.jobs_user_stats_api.enabled", true);
+  PositiveLongValidator JOBS_USER_STATS_CACHE_REFRESH_HRS = new PositiveLongValidator("dremio.jobs_user_stats_cache.refresh_hrs", Integer.MAX_VALUE, 12L);
   BooleanValidator ENABLE_ICEBERG = new BooleanValidator("dremio.iceberg.enabled", true);
   BooleanValidator ENABLE_ICEBERG_ADVANCED_DML = new BooleanValidator("dremio.iceberg.advanced_dml.enabled", true);
   BooleanValidator ENABLE_ICEBERG_ADVANCED_DML_JOINED_TABLE = new BooleanValidator("dremio.iceberg.advanced_dml.joined_table.enabled", true);
@@ -539,16 +558,27 @@ public interface ExecConstants {
   BooleanValidator ENABLE_ICEBERG_MERGE_ON_READ_SCAN = new BooleanValidator("dremio.iceberg.merge_on_read_scan.enabled", true);
   BooleanValidator ENABLE_ICEBERG_MERGE_ON_READ_SCAN_WITH_EQUALITY_DELETE =
     new BooleanValidator("dremio.iceberg.merge_on_read_scan_with_equality_delete.enabled", false);
-  BooleanValidator ENABLE_ICEBERG_DML_USE_HASH_DISTRIBUTION_FOR_WRITES = new BooleanValidator("dremio.iceberg.dml.use_hash_distribution_for_writes.enabled", true);
+  BooleanValidator ENABLE_ICEBERG_COMBINE_SMALL_FILES_FOR_DML = new BooleanValidator("dremio.iceberg.combine_small_files_for_dml.enabled", false);
+  BooleanValidator ENABLE_ICEBERG_COMBINE_SMALL_FILES_FOR_OPTIMIZE = new BooleanValidator("dremio.iceberg.combine_small_files_for_optimize.enabled", true);
+  BooleanValidator ENABLE_ICEBERG_COMBINE_SMALL_FILES_FOR_PARTITIONED_TABLE_WRITES = new BooleanValidator("dremio.iceberg.combine_small_files_for_partitioned_table_writes.enabled", false);
   BooleanValidator ENABLE_ICEBERG_DML_WITH_NATIVE_ROW_COLUMN_POLICIES = new BooleanValidator("dremio.iceberg.dml.native_row_column_policies.enabled", false);
-  BooleanValidator ENABLE_ICEBERG_TABLE_PROPERTIES = new BooleanValidator("dremio.iceberg.table.properties.enabled", false);
+  BooleanValidator ENABLE_ICEBERG_TABLE_PROPERTIES = new BooleanValidator("dremio.iceberg.table.properties.enabled", true);
 
   BooleanValidator ENABLE_ICEBERG_ROLLBACK = new BooleanValidator("dremio.iceberg.rollback.enabled", true);
   BooleanValidator ENABLE_ICEBERG_VACUUM = new BooleanValidator("dremio.iceberg.vacuum.enabled", true);
-  BooleanValidator ENABLE_ICEBERG_VACUUM_CATALOG = new BooleanValidator("dremio.iceberg.vacuum.catalog.enabled", false);
+  BooleanValidator ENABLE_ICEBERG_VACUUM_CATALOG = new BooleanValidator("dremio.iceberg.vacuum.catalog.enabled", true);
+  BooleanValidator ENABLE_ICEBERG_VACUUM_CATALOG_ON_AZURE = new BooleanValidator("dremio.iceberg.vacuum.catalog.azure.enabled", false);
+
+  BooleanValidator ENABLE_ICEBERG_SINGLE_MANIFEST_WRITER = new BooleanValidator("dremio.iceberg.single_manifest_writer.enabled", true);
+  BooleanValidator ENABLE_ICEBERG_VACUUM_REMOVE_ORPHAN_FILES = new BooleanValidator("dremio.iceberg.vacuum.remove_orphan_files.enabled", false);
+  BooleanValidator ENABLE_ICEBERG_SORT_ORDER = new BooleanValidator("dremio.iceberg.sort.order.enabled", true);
+  LongValidator ICEBERG_VACUUM_CATALOG_RETENTION_PERIOD_MINUTES = new RangeLongValidator("dremio.iceberg.vacuum.catalog.default_retention.mins", 0, Long.MAX_VALUE, TimeUnit.DAYS.toMinutes(5));
+  BooleanValidator ENABLE_UNLIMITED_SPLITS_METADATA_CLEAN = new BooleanValidator("dremio.unlimited_splits.metadata.clean.enabled", false);
 
   BooleanValidator ENABLE_HIVE_DATABASE_LOCATION = new BooleanValidator("dremio.hive.database.location", true);
   BooleanValidator ENABLE_QUERY_LABEL = new BooleanValidator("dremio.query.label.enabled", true);
+
+  BooleanValidator ENABLE_UNLIMITED_SPLITS_DISTRIBUTED_STORAGE_RELOCATION = new BooleanValidator("dremio.execution.support_unlimited_splits_distributed_storage_relocation", true);
 
   LongValidator OPTIMIZE_TARGET_FILE_SIZE_MB = new PositiveLongValidator("dremio.iceberg.optimize.target_file_size_mb", Long.MAX_VALUE, 256L);
   DoubleValidator OPTIMIZE_MINIMUM_FILE_SIZE_DEFAULT_RATIO = new DoubleValidator("dremio.iceberg.optimize.min_file_size_ratio", 0.75);
@@ -557,6 +587,8 @@ public interface ExecConstants {
 
   BooleanValidator ENABLE_USE_VERSION_SYNTAX = new TypeValidators.BooleanValidator("dremio.sql.use_version.enabled", true);
   BooleanValidator VERSIONED_VIEW_ENABLED = new TypeValidators.BooleanValidator("plugins.dataplane.view", true);
+
+  // Enable info schema query in any versioned sources
   BooleanValidator VERSIONED_INFOSCHEMA_ENABLED = new TypeValidators.BooleanValidator("arctic.infoschema.enabled", true);
   BooleanValidator ENABLE_AZURE_SOURCE = new TypeValidators.BooleanValidator("dremio.enable_azure_source", false);
 
@@ -603,7 +635,6 @@ public interface ExecConstants {
   RangeLongValidator RUNTIME_FILTER_VALUE_FILTER_MAX_SIZE = new RangeLongValidator("exec.non_partitioned_parquet.runtime_filter.max_size", 10, 1_000_000, 10000);
   RangeLongValidator RUNTIME_FILTER_KEY_MAX_SIZE = new RangeLongValidator("exec.runtime_filter.max_key_size", 32, 1_024, 128);
   BooleanValidator ENABLE_ROW_LEVEL_RUNTIME_FILTERING = new BooleanValidator("exec.row_level.runtime_filter.enable", true);
-
   String ENABLE_PARQUET_VECTORIZED_COMPLEX_READERS_KEY = "exec.parquet.enable_vectorized_complex";
   BooleanValidator ENABLE_PARQUET_VECTORIZED_COMPLEX_READERS = new BooleanValidator(ENABLE_PARQUET_VECTORIZED_COMPLEX_READERS_KEY, true);
   BooleanValidator PREFETCH_READER = new BooleanValidator("store.parquet.prefetch_reader", true);
@@ -615,6 +646,8 @@ public interface ExecConstants {
   // Use this as a factor to scale the rowcount estimation of number of rows in a data file
   DoubleValidator DELTALAKE_ROWCOUNT_ESTIMATION_FACTOR = new RangeDoubleValidator("store.delta.rowcount_estimation_factor", 0.8d, 2.0d, 1.25d);
   LongValidator DELTALAKE_MAX_ADDED_FILE_ESTIMATION_LIMIT = new PositiveLongValidator("store.delta.max.added_file_estimation_limit", Integer.MAX_VALUE, 100);
+  BooleanValidator DELTA_LAKE_ENABLE_FULL_ROWCOUNT = new BooleanValidator("store.deltalake.enable_full_rowcount", true);
+
   StringValidator DISABLED_GANDIVA_FUNCTIONS = new StringValidator("exec.disabled.gandiva-functions", "");
   BooleanValidator GANDIVA_TARGET_HOST_CPU = new BooleanValidator("exec.gandiva.target_host_cpu", true);
   BooleanValidator GANDIVA_OPTIMIZE = new BooleanValidator("exec.gandiva.optimize_ir", true);
@@ -625,6 +658,8 @@ public interface ExecConstants {
   BooleanValidator ENABLE_DELTALAKE_HIVE_SUPPORT = new BooleanValidator("store.deltalake.hive_support.enabled", true);
 
   BooleanValidator ENABLE_DELTALAKE_SPARK_SUPPORT = new BooleanValidator("store.deltalake.spark_support.enabled", true);
+
+  BooleanValidator ENABLE_DELTALAKE_TIME_TRAVEL = new BooleanValidator("dremio.deltalake.time_travel.enabled", true);
 
   /**
    * Controls the 'compression' factor for the TDigest algorithm.
@@ -680,6 +715,8 @@ public interface ExecConstants {
   // option used to set the total java heap object in memory based on parquet footer.
   RangeLongValidator TOTAL_HEAP_OBJ_SIZE = new RangeLongValidator("dremio.parquet.num_footer_heap_objects", 0, 100000, 50000);
 
+  BooleanValidator ENABLE_PARQUET_MIXED_TYPES_COERCION = new BooleanValidator("dremio.parquet.enable_mixed_types_coercion", false);
+
   BooleanValidator ENABLE_IN_PROCESS_TUNNEL = new BooleanValidator("dremio.exec.inprocess.tunnel.enabled", true);
 
   PositiveLongValidator ORPHANAGE_ENTRY_CLEAN_PERIOD_MINUTES  = new PositiveLongValidator("dremio.orphanage.entry_cleanup_period_minutes",  Long.MAX_VALUE, 5);
@@ -723,10 +760,30 @@ public interface ExecConstants {
   // Option to specify the size to truncate large SQL queries; setting value to 0 disables truncation
   LongValidator SQL_TEXT_TRUNCATE_LENGTH = new LongValidator("jobs.sql.truncate.length", 32000);
 
+  // Maximal DOP per hash for AdaptiveHashExchangePrel. ratio = dop / maximal parallel width
+  DoubleValidator ADAPTIVE_HASH_DOP_RATIO = new DoubleValidator("adaptive.hash.dop.ratio", 0);
+
+  // Should do adaptive hash distribution
+  BooleanValidator ADAPTIVE_HASH = new TypeValidators.BooleanValidator("adaptive.hash.enabled", true);
+
+  // Minimal row count to start adaptive hashing for AdaptiveHashExchangePrel
+  PositiveLongValidator ADAPTIVE_HASH_START_ROWCOUNT = new PositiveLongValidator("adaptive.hash.start.rowcount", Integer.MAX_VALUE,100 * 1024);
+
   BooleanValidator NESSIE_SOURCE_API = new TypeValidators.BooleanValidator("nessie.source.api", true);
 
-  BooleanValidator PARQUET_READER_VECTORIZE_FOR_V2_ENCODINGS = new BooleanValidator("vectorized.read.parquet.v2.encodings", false);
+  BooleanValidator PARQUET_READER_VECTORIZE_FOR_V2_ENCODINGS = new BooleanValidator("vectorized.read.parquet.v2.encodings", true);
 
+  BooleanValidator ENABLE_COPY_INTO_CONTINUE = new BooleanValidator("dremio.copy.into.continue.enabled", true);
+
+  PositiveLongValidator COPY_ERRORS_TABLE_FUNCTION_MAX_INPUT_FILES = new PositiveLongValidator("dremio.copy.into.errors_max_input_files", 1000, 100);
+
+  PositiveLongValidator SYSTEM_ICEBERG_TABLES_SCHEMA_VERSION = new PositiveLongValidator("dremio.system_iceberg_tables.schema.version", Long.MAX_VALUE, 1);
+
+  PositiveLongValidator SYSTEM_ICEBERG_TABLES_WRITE_BATCH_SIZE = new PositiveLongValidator("dremio.system_iceberg_tables.write.batch.size", Long.MAX_VALUE, 1000);
+
+  PositiveLongValidator SYSTEM_ICEBERG_TABLES_RECORD_LIFESPAN_IN_MILLIS = new PositiveLongValidator("dremio.system_iceberg_tables.record_lifespan_in_millis", Long.MAX_VALUE, TimeUnit.DAYS.toMillis(7));
+
+  PositiveLongValidator SYSTEM_ICEBERG_TABLES_HOUSEKEEPING_THREAD_FREQUENCY_IN_MILLIS = new PositiveLongValidator("dremio.system_iceberg_tables.housekeeping_thread_frequency_in_millis", Long.MAX_VALUE, TimeUnit.DAYS.toMillis(1));
   /**
    * Controls the WARN logging threshold for {@link com.dremio.exec.store.dfs.LoggedFileSystem} calls.
    */
@@ -736,4 +793,61 @@ public interface ExecConstants {
    * Controls the DEBUG logging threshold for {@link com.dremio.exec.store.dfs.LoggedFileSystem} calls.
    */
   RangeLongValidator FS_LOGGER_DEBUG_THRESHOLD_MS = new RangeLongValidator("filesystem.logger.debug.io_threshold_ms", 0, Long.MAX_VALUE, 50);
+
+  /**
+   * Enables the use of SourceCapabilities.USE_NATIVE_PRIVILEGES for Versioned sources.
+   */
+  BooleanValidator VERSIONED_SOURCE_CAPABILITIES_USE_NATIVE_PRIVILEGES_ENABLED = new TypeValidators.BooleanValidator("versioned.source_capabilities.use_native_privileges.enabled", false);
+
+  TypeValidators.EnumValidator<PartitionDistributionStrategy> WRITER_PARTITION_DISTRIBUTION_MODE =
+    new TypeValidators.EnumValidator<>("store.writer.partition_distribution_mode", PartitionDistributionStrategy.class, PartitionDistributionStrategy.HASH);
+
+  /**
+   * Enables the system iceberg table's storage plugin.
+   */
+  BooleanValidator ENABLE_SYSTEM_ICEBERG_TABLES_STORAGE = new BooleanValidator("dremio.system_iceberg_tables.storage.enabled", true);
+
+  BooleanValidator JOBS_COUNT_FAST_ENABLED = new BooleanValidator("jobs.count.fast.enabled", false);
+
+  /**
+   * If set to true, DirListingRecordReader will exclude files with modified times greater than the start of the
+   * query from the listing.
+   */
+  BooleanValidator DIR_LISTING_EXCLUDE_FUTURE_MOD_TIMES = new BooleanValidator("store.dirlisting.exclude_future_mod_times", true);
+
+  /**
+   * Controls whether optimal or legacy partition chunking behavior is used with Easy format plugins.  With this
+   * enabled, Easy format datasets will store multiple splits per partition chunk in the KV store.  The legacy
+   * behavior - with this key set to false - will result in Easy format datasets having a single split per partition
+   * chunk in cases where file modification times are unique.
+   */
+  BooleanValidator ENABLE_OPTIMAL_FILE_PARTITION_CHUNKS = new BooleanValidator("store.file.enable_optimal_partition_chunks", true);
+
+  /**
+   * Sets the max number of splits stored in each partition chunk for Easy format based datasets on filesystem sources.
+   * Splits beyond this limit will create additional partition chunks for the given partition. This is used to limit the
+   * size of individual rows in the metadata-multi-splits KV store collection.
+   */
+  RangeLongValidator FILE_SPLITS_PER_PARTITION_CHUNK = new RangeLongValidator("store.file.splits_per_partition_chunk", 0, Integer.MAX_VALUE, 1000);
+
+  /**
+   * Enables SHOW CREATE VIEW/TABLE syntax
+   */
+  BooleanValidator SHOW_CREATE_ENABLED = new BooleanValidator("dremio.sql.show.create.enabled", true);
+
+  /**
+   * Enables pipe mgmt feature for ingestion.
+   * The feature is not functionally complete. Exercise caution while enabling it.
+   */
+  BooleanValidator INGESTION_PIPES_ENABLED = new BooleanValidator("dremio.ingestion.pipes.enabled", false);
+
+  RangeLongValidator INGESTION_DEDUP_DEFAULT_PERIOD = new RangeLongValidator("dremio.ingestion.pipes.dedup.default", 1, 365, 14);
+
+  /**
+   * Option to customize the amount of time in ms that old Unlimited Split snapshots are kept before they are expired
+   */
+  PositiveLongValidator DEFAULT_PERIOD_TO_KEEP_SNAPSHOTS_MS = new PositiveLongValidator("dremio.unlimited_splits.metadata.snapshots.ttl", Long.MAX_VALUE, 8 * 24 * 3600 * 1000L); //8 days
+
+  PositiveLongValidator HASHAGG_MAX_BATCH_SIZE = new PositiveLongValidator("dremio.hashagg_max_batch_size", Integer.MAX_VALUE, 0);
+
 }

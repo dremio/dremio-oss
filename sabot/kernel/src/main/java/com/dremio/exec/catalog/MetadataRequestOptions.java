@@ -20,6 +20,7 @@ import java.util.Map;
 import org.immutables.value.Value;
 
 import com.dremio.ValidatingGnarlyStyle;
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.map.CaseInsensitiveMap;
 import com.dremio.exec.store.SchemaConfig;
@@ -105,6 +106,15 @@ public abstract class MetadataRequestOptions {
    */
   @Value.Default
   public boolean useCachingNamespace() {
+    return false;
+  }
+
+  /**
+   * If set to true, request Catalog to use internal metadata table of Unlimited Splits dataset for retrieving TableMetadata.
+   * @return
+   */
+  @Value.Default
+  public boolean useInternalMetadataTable() {
     return false;
   }
 

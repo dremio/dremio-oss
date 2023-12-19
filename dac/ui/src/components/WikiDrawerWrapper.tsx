@@ -13,20 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { DialogContent, Drawer } from "dremio-ui-lib/components";
-import WikiLanding from "@app/pages/ExplorePage/components/Wiki/WikiLanding";
 import React, { useEffect } from "react";
+import Immutable from "immutable";
+import { DialogContent, Drawer } from "dremio-ui-lib/components";
+import WikiDrawerTitle from "@app/components/WikiDrawerTitle";
+import WikiLanding from "@app/pages/ExplorePage/components/Wiki/WikiLanding";
 
 interface WikiDrawerWrapperProps {
-  wikiDrawerTitle: JSX.Element;
-  datasetDetails: any;
+  datasetDetails: Immutable.Map<string, any> | undefined;
+  fullPath: Immutable.List<string> | undefined;
   drawerIsOpen: boolean;
+  closeWikiDrawer: (e: any) => void;
 }
 
 const WikiDrawerWrapper = ({
-  wikiDrawerTitle,
   datasetDetails,
+  fullPath,
   drawerIsOpen,
+  closeWikiDrawer,
 }: WikiDrawerWrapperProps) => {
   useEffect(() => {
     // to stop stacking of drawers
@@ -49,7 +53,15 @@ const WikiDrawerWrapper = ({
       }}
       className="wiki-drawer"
     >
-      <DialogContent title={wikiDrawerTitle}>
+      <DialogContent
+        title={
+          <WikiDrawerTitle
+            datasetDetails={datasetDetails}
+            fullPath={fullPath}
+            closeWikiDrawer={closeWikiDrawer}
+          />
+        }
+      >
         <WikiLanding datasetDetails={datasetDetails} />
       </DialogContent>
     </Drawer>

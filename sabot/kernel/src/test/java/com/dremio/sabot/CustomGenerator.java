@@ -64,13 +64,21 @@ public class CustomGenerator implements Generator {
   private final VarCharVector value;
   private final ListVector list;
 
+  // count of unique ids
+  private final Integer uniqueIds;
+
   private int position;
 
   public CustomGenerator(int numRows, BufferAllocator allocator) {
+    this(numRows, allocator, null);
+  }
+
+  public CustomGenerator(int numRows, BufferAllocator allocator, Integer uniqueIds) {
     Preconditions.checkState(numRows > 0);
     values = listOfStrings(numRows);
     rowIds = randomListOfInts(numRows);
     listValues = listOfLists(numRows);
+    this.uniqueIds = uniqueIds;
 
     BatchSchema schema = BatchSchema.newBuilder()
             .addField(ID)
@@ -122,6 +130,9 @@ public class CustomGenerator implements Generator {
     container.allocateNew();
     for (int i = 0; i < returned; i++) {
       int rowId = rowIds.get(position + i);
+      if (uniqueIds != null) {
+        rowId = rowId % uniqueIds;
+      }
       id.setSafe(i, rowId);
       byte[] valueBytes = values.get(rowId).getBytes();
       value.setSafe(i, valueBytes, 0, valueBytes.length);

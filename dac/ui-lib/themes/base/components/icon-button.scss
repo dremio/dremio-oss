@@ -26,7 +26,8 @@
   vertical-align: middle;
 
   &:hover,
-  &:focus-visible {
+  &:focus-visible,
+  &[aria-expanded="true"] {
     color: var(--dremio--color--link);
   }
 

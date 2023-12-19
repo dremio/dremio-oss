@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.store;
 
+import static java.lang.String.format;
+
 import com.dremio.exec.store.iceberg.IcebergPartitionData;
 import com.dremio.io.file.Path;
 
@@ -22,39 +24,41 @@ public class WritePartition {
 
   public static WritePartition NONE = new WritePartition(null);
 
-  private final String[] paths;
+  private final String[] partitionValues;
+  private final Integer offset;
   private final Integer distributionOrdinal;
   private final IcebergPartitionData icebergPartitionData;
 
-  public WritePartition(String[] paths) {
-    this(paths, null, null);
+  public WritePartition(String[] partitionValues) {
+    this(partitionValues, null, null, null);
   }
 
-  public WritePartition(String[] paths, Integer distributionOrdinal) {
-    this(paths, distributionOrdinal, null);
+  public WritePartition(String[] partitionValues, Integer offset, Integer distributionOrdinal) {
+    this(partitionValues, offset, distributionOrdinal, null);
   }
 
-  public WritePartition(String[] paths, Integer distributionOrdinal, IcebergPartitionData icebergPartitionData) {
+  public WritePartition(String[] partitionValues, Integer offset, Integer distributionOrdinal, IcebergPartitionData icebergPartitionData) {
     super();
-    this.paths = paths;
+    this.partitionValues = partitionValues;
+    this.offset = offset;
     this.distributionOrdinal = distributionOrdinal;
     this.icebergPartitionData = icebergPartitionData;
   }
 
   public boolean isSinglePartition(){
-    return paths == null;
+    return partitionValues== null;
   }
 
   public Integer getBucketNumber(){
     return distributionOrdinal;
   }
 
-  public Path qualified(String baseLocation, String name){
-    return qualified(Path.of(baseLocation), name);
+  public Path getQualifiedPath(String baseLocation, String name){
+    return getQualifiedPath(Path.of(baseLocation), name);
   }
 
-  public Path qualified(Path baseLocation, String name){
-    if(paths == null){
+  public Path getQualifiedPath(Path baseLocation, String name){
+    if(partitionValues== null){
       return baseLocation.resolve(name);
     }
 
@@ -64,8 +68,9 @@ public class WritePartition {
       path = path.resolve(Integer.toString(distributionOrdinal));
     }
 
-    for(String partition : paths){
-      path = path.resolve(partition);
+    for(String partition : partitionValues){
+      String partitionValuePath = format("%s_%s", offset, partition);
+      path = path.resolve(partitionValuePath);
     }
 
     return path.resolve(name);
@@ -73,5 +78,12 @@ public class WritePartition {
 
   public IcebergPartitionData getIcebergPartitionData() {
     return icebergPartitionData;
+  }
+
+  public String getPartitionValues() {
+    if(partitionValues== null){
+      return null;
+    }
+    return String.join("_", partitionValues);
   }
 }

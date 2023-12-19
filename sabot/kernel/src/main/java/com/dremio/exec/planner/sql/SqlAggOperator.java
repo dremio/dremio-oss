@@ -26,11 +26,11 @@ public class SqlAggOperator extends SqlAggFunction {
 
   public SqlAggOperator(String name, int argCountMin, int argCountMax, SqlReturnTypeInference sqlReturnTypeInference) {
     super(name,
-        new SqlIdentifier(name, SqlParserPos.ZERO),
-        SqlKind.OTHER_FUNCTION,
-        sqlReturnTypeInference,
-        null,
-        Checker.between(argCountMin, argCountMax),
-        SqlFunctionCategory.USER_DEFINED_FUNCTION);
+      new SqlIdentifier(name, SqlParserPos.ZERO),
+      SqlKind.OTHER_FUNCTION,
+      sqlReturnTypeInference,
+      null,
+      Checker.between(argCountMin, argCountMax),
+      SqlFunctionCategory.USER_DEFINED_FUNCTION);
   }
 }

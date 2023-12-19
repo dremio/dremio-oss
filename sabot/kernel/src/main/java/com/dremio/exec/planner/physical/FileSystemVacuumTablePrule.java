@@ -18,7 +18,6 @@ package com.dremio.exec.planner.physical;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.RelNode;
 
-import com.dremio.exec.catalog.DremioPrepareTable;
 import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.RelOptHelper;
@@ -43,6 +42,6 @@ public class FileSystemVacuumTablePrule extends VacuumTablePruleBase {
   @Override
   public void onMatch(RelOptRuleCall call) {
     final VacuumTableRel vacuumRel = call.rel(0);
-    call.transformTo(getPhysicalPlan(vacuumRel, ((DremioPrepareTable) vacuumRel.getTable()).getTable().getDataset()));
+    call.transformTo(getPhysicalPlan(vacuumRel));
   }
 }

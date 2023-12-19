@@ -71,7 +71,7 @@ export class ConvertListToTextForm extends Component {
     return (
       <div>
         <div>
-          <span className={sectionTitle}>{la("Options:")}</span>
+          <span className={sectionTitle}>{laDeprecated("Options:")}</span>
           <Radio
             {...format}
             label="Delimiter"
@@ -85,9 +85,11 @@ export class ConvertListToTextForm extends Component {
             className={radioStacked}
           />
         </div>
-        <div className={sectionTitle}>{la("Delimiter:")}</div>
+        <div className={sectionTitle}>{laDeprecated("Delimiter:")}</div>
         <div>
-          <div className={rowMargin}>{la("Separate list objects with a")}</div>
+          <div className={rowMargin}>
+            {laDeprecated("Separate list objects with a")}
+          </div>
           <div className={delimiterContainer}>
             <Select
               className={fieldsHorizontalSpacing}

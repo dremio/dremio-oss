@@ -64,7 +64,7 @@ class SortMultiply extends Component {
             />
           </div>
           <div className={classes["name"]} style={{ borderRight: "none" }}>
-            {la("Sort columns:")}
+            {laDeprecated("Sort columns:")}
           </div>
         </div>
         <div className={classNames(["inner-join__body", classes["inner"]])}>
@@ -88,7 +88,9 @@ class SortMultiply extends Component {
         </div>
         <span className={classes["add-join"]} onClick={this.props.addAnother}>
           <dremio-icon name="interface/add" />
-          <span className={classes["add-text"]}>{la("Add a Sort Column")}</span>
+          <span className={classes["add-text"]}>
+            {laDeprecated("Add a Sort Column")}
+          </span>
         </span>
       </div>
     );

@@ -78,17 +78,17 @@ public class DelegatingTableMetadata implements TableMetadata {
   }
 
   @Override
-  public TableMetadata prune(SearchTypes.SearchQuery partitionFilterQuery) throws NamespaceException {
+  public TableMetadata prune(SearchTypes.SearchQuery partitionFilterQuery) {
     return tableMetadata.prune(partitionFilterQuery);
   }
 
   @Override
-  public TableMetadata prune(Predicate<PartitionChunkMetadata> partitionPredicate) throws NamespaceException {
+  public TableMetadata prune(Predicate<PartitionChunkMetadata> partitionPredicate) {
     return tableMetadata.prune(partitionPredicate);
   }
 
   @Override
-  public TableMetadata prune(List<PartitionChunkMetadata> newSplits) throws NamespaceException {
+  public TableMetadata prune(List<PartitionChunkMetadata> newSplits) {
     return tableMetadata.prune(newSplits);
   }
 

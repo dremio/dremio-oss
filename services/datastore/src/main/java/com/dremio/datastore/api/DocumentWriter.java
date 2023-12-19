@@ -55,4 +55,14 @@ public interface DocumentWriter {
    * @param value values to be indexed.
    */
   void write(IndexKey key, Integer value);
+
+  /**
+   * Add the provided Long values to the TTL index.
+   * KVStores that support TTL based expiry should implement this method in their DocumentWriter implementation
+   * @param key index key.
+   * @param value TTL expireAt values to be indexed in long format.
+   */
+  default void writeTTLExpireAt(IndexKey key, Long value){
+    // NO-OP by default
+  }
 }

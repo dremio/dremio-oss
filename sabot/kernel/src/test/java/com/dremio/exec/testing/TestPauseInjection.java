@@ -18,8 +18,10 @@ package com.dremio.exec.testing;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 
+import org.apache.curator.test.TestingServer;
 import org.junit.Test;
 import org.slf4j.Logger;
 
@@ -28,7 +30,7 @@ import com.dremio.common.concurrent.ExtendedLatch;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
-import com.dremio.exec.ZookeeperHelper;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.exception.NodeStartupException;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
@@ -152,71 +154,73 @@ public class TestPauseInjection extends BaseTestQuery {
 
   @Test
   public void pauseOnSpecificBit() throws Exception {
-    final ZookeeperHelper zkHelper = new ZookeeperHelper();
-    zkHelper.startZookeeper(1);
+    try (TestingServer zk = new TestingServer(true)) {
+      Properties overrides = new Properties();
+      overrides.setProperty(ExecConstants.ZK_CONNECTION, zk.getConnectString());
+      final SabotConfig config = SabotConfig.create(overrides);
 
-    final SabotConfig config = zkHelper.getConfig();
-    final ScanResult classpathScanResult = ClassPathScanner.fromPrescan(config);
-    // Creating two nodes
-    try (
-      ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
-      SabotNode node1 = SabotNode.start(config, clusterCoordinator, classpathScanResult);
-      SabotNode node2 = SabotNode.start(config, clusterCoordinator, classpathScanResult)) {
-      final SabotContext nodeContext1 = node1.getContext();
-      final SabotContext nodeContext2 = node2.getContext();
+      final ScanResult classpathScanResult = ClassPathScanner.fromPrescan(config);
+      // Creating two nodes
+      try (
+        ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
+        SabotNode node1 = SabotNode.start(config, clusterCoordinator, classpathScanResult);
+        SabotNode node2 = SabotNode.start(config, clusterCoordinator, classpathScanResult)) {
+        final SabotContext nodeContext1 = node1.getContext();
+        final SabotContext nodeContext2 = node2.getContext();
 
-      final UserSession session = UserSession.Builder.newBuilder()
-        .withSessionOptionManager(
-          new SessionOptionManagerImpl(nodeContext1.getOptionValidatorListing()),
-          nodeContext1.getOptionManager())
-        .withCredentials(UserCredentials.newBuilder()
-          .setUserName(UserServiceTestImpl.TEST_USER_1)
-          .build())
-        .withUserProperties(UserProperties.getDefaultInstance())
-        .build();
+        final UserSession session = UserSession.Builder.newBuilder()
+          .withSessionOptionManager(
+            new SessionOptionManagerImpl(nodeContext1.getOptionValidatorListing()),
+            nodeContext1.getOptionManager())
+          .withCredentials(UserCredentials.newBuilder()
+            .setUserName(UserServiceTestImpl.TEST_USER_1)
+            .build())
+          .withUserProperties(UserProperties.getDefaultInstance())
+          .build();
 
-      final NodeEndpoint nodeEndpoint1 = nodeContext1.getEndpoint();
-      final String controls = Controls.newBuilder()
-        .addPauseOnNode(DummyClass.class, DummyClass.PAUSES, nodeEndpoint1)
-        .build();
+        final NodeEndpoint nodeEndpoint1 = nodeContext1.getEndpoint();
+        final String controls = Controls.newBuilder()
+          .addPauseOnNode(DummyClass.class, DummyClass.PAUSES, nodeEndpoint1)
+          .build();
 
-      ControlsInjectionUtil.setControls(session, controls);
+        ControlsInjectionUtil.setControls(session, controls);
 
-      {
-        final long expectedDuration = 1000L;
-        final ExtendedLatch trigger = new ExtendedLatch(1);
-        final Pointer<Exception> ex = new Pointer<>();
-        final QueryContext queryContext = new QueryContext(session, nodeContext1, QueryId.getDefaultInstance());
-        (new ResumingThread(queryContext, trigger, ex, expectedDuration)).start();
+        {
+          final long expectedDuration = 1000L;
+          final ExtendedLatch trigger = new ExtendedLatch(1);
+          final Pointer<Exception> ex = new Pointer<>();
+          final QueryContext queryContext = new QueryContext(session, nodeContext1, QueryId.getDefaultInstance());
+          (new ResumingThread(queryContext, trigger, ex, expectedDuration)).start();
 
-        // test that the pause happens
-        final DummyClass dummyClass = new DummyClass(queryContext, trigger);
-        final long actualDuration = dummyClass.pauses();
-        assertTrue(String.format("Test should stop for at least %d milliseconds.", expectedDuration),
-          expectedDuration <= actualDuration);
-        assertTrue("No exception should be thrown.", ex.value == null);
-        try {
-          queryContext.close();
-        } catch (final Exception e) {
-          fail("Failed to close query context: " + e);
+          // test that the pause happens
+          final DummyClass dummyClass = new DummyClass(queryContext, trigger);
+          final long actualDuration = dummyClass.pauses();
+          assertTrue(String.format("Test should stop for at least %d milliseconds.", expectedDuration),
+            expectedDuration <= actualDuration);
+          assertTrue("No exception should be thrown.", ex.value == null);
+          try {
+            queryContext.close();
+          } catch (final Exception e) {
+            fail("Failed to close query context: " + e);
+          }
         }
-      }
 
-      {
-        final ExtendedLatch trigger = new ExtendedLatch(1);
-        final QueryContext queryContext = new QueryContext(session, nodeContext2, QueryId.getDefaultInstance());
+        {
+          final ExtendedLatch trigger = new ExtendedLatch(1);
+          final QueryContext queryContext = new QueryContext(session, nodeContext2, QueryId.getDefaultInstance());
 
-        // if the resume did not happen, the test would hang
-        final DummyClass dummyClass = new DummyClass(queryContext, trigger);
-        dummyClass.pauses();
-        try {
-          queryContext.close();
-        } catch (final Exception e) {
-          fail("Failed to close query context: " + e);
+          // if the resume did not happen, the test would hang
+          final DummyClass dummyClass = new DummyClass(queryContext, trigger);
+          dummyClass.pauses();
+          try {
+            queryContext.close();
+          } catch (final Exception e) {
+            fail("Failed to close query context: " + e);
+          }
         }
+      } catch (final NodeStartupException e) {
+        throw new RuntimeException("Failed to start two nodes.", e);
       }
-    } catch (final NodeStartupException e) {
-      throw new RuntimeException("Failed to start two nodes.", e);
     }
   }
 }

@@ -28,6 +28,7 @@ type IconButtonProps = React.HTMLAttributes<HTMLButtonElement> & {
   tooltipPlacement?: TooltipPlacement;
   tooltipPortal?: boolean;
   tooltipDelay?: number;
+  tooltipInteractive?: boolean;
   "aria-label"?: string;
   onTooltipOpen?: () => void;
   onTooltipClose?: () => void;
@@ -55,6 +56,7 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
       tooltipPlacement,
       tooltipPortal,
       tooltipDelay,
+      tooltipInteractive,
       "aria-label": ariaLabel,
       onTooltipOpen,
       onTooltipClose,
@@ -84,6 +86,7 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
           onClose={onTooltipClose}
           portal={tooltipPortal}
           delay={tooltipDelay}
+          interactive={tooltipInteractive}
           shouldWrapChildren
         >
           {ButtonElement}

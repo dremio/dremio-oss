@@ -33,6 +33,7 @@ import javax.ws.rs.Consumes;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.InternalServerErrorException;
+import javax.ws.rs.NotFoundException;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
@@ -44,6 +45,8 @@ import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.dac.annotations.APIResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.edition.EditionProvider;
+import com.dremio.exec.ExecConstants;
+import com.dremio.options.OptionManager;
 import com.dremio.service.job.JobStats;
 import com.dremio.service.job.JobStatsRequest;
 import com.dremio.service.job.JobSummary;
@@ -64,6 +67,7 @@ import com.google.common.annotations.VisibleForTesting;
 @Path("/cluster/jobstats")
 @Consumes(APPLICATION_JSON)
 @Produces(APPLICATION_JSON)
+@Deprecated
 public class DailyJobStatsResource {
   private static final Logger logger = LoggerFactory.getLogger(DailyJobStatsResource.class);
   private static final String FILTER = "(st=gt=%d;st=lt=%d)";
@@ -76,13 +80,17 @@ public class DailyJobStatsResource {
   private final JobsService jobsService;
   private final String edition;
 
+  private final OptionManager optionManager;
+
   @Inject
   public DailyJobStatsResource(
     JobsService jobsService,
-    EditionProvider editionProvider
+    EditionProvider editionProvider,
+    OptionManager optionManager
   ) {
     this.jobsService = jobsService;
     this.edition = editionProvider.getEdition();
+    this.optionManager = optionManager;
   }
 
   @GET
@@ -90,6 +98,9 @@ public class DailyJobStatsResource {
   public DailyJobStats getStats(@QueryParam("start") @DefaultValue("0") long startEpoch ,
                               @QueryParam("end") @DefaultValue("0") long endEpoch,
                               @QueryParam("onlyDateWiseTotals") @DefaultValue("false") String onlyDateWiseTotals) {
+    if (!optionManager.getOption(ExecConstants.ENABLE_DEPRECATED_JOBS_USER_STATS_API)) {
+      throw new NotFoundException("/cluster/jobstats is not supported");
+    }
     if (Boolean.parseBoolean(onlyDateWiseTotals)) {
       return createStatsWithonlyDateWiseTotals(startEpoch, endEpoch);
     }

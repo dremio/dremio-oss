@@ -69,7 +69,7 @@ describe("TransformRange", () => {
         ],
       };
       const prevDomain = instance.domain;
-      instance.componentWillReceiveProps(props);
+      instance.UNSAFE_componentWillReceiveProps(props);
       const curDomain = instance.domain;
       expect(prevDomain !== curDomain).to.be.true;
     });

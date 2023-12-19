@@ -23,7 +23,7 @@ import {
   useArcticCatalogContext,
 } from "../../arctic-catalog-utils";
 import { useResourceSnapshot } from "smart-resource/react";
-import { getCatalogConfigResource } from "@app/exports/resources/CatalogConfigurationResource";
+import { getCatalogConfigResource } from "@inject/arctic/resources/CatalogConfigurationResource";
 import { getViewStateFromReq } from "@app/utils/smartPromise";
 import StatefulTableViewer from "@app/components/StatefulTableViewer";
 import PageBreadcrumbHeader from "@app/pages/NessieHomePage/components/PageBreadcrumbHeader/PageBreadcrumbHeader";
@@ -41,7 +41,7 @@ const ArcticCatalogData = (props: WithRouterProps) => {
   const intl = useIntl();
   const { router, params, location } = props;
   const [searchFilter, setSearchFilter] = useState("");
-  const { reservedNamespace, isCatalog } = useArcticCatalogContext() ?? {};
+  const { reservedNamespace, isCatalog } = useArcticCatalogContext();
   const {
     state: { hash, reference },
     baseUrl,
@@ -68,7 +68,9 @@ const ArcticCatalogData = (props: WithRouterProps) => {
   const path = useMemo(() => {
     return parseArcticCatalogUrl(
       rmProjectBase(location.pathname) || "/",
-      `/arctic/${params?.arcticCatalogId}/data/${params?.branchName}`,
+      `/arctic/${params?.arcticCatalogId}/data/${encodeURIComponent(
+        params?.branchName
+      )}`,
       "data",
       params?.branchName
     );

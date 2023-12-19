@@ -15,10 +15,13 @@
  */
 package com.dremio.exec.server;
 
+import java.util.List;
+
+import com.dremio.exec.record.RecordBatchHolder;
+
 /**
  * Able to run a query as a job on execution hosts. Available from the SabotContext.
  */
-@FunctionalInterface
 public interface SimpleJobRunner {
   /**
    * Run a query as a job. Will process synchronously and return when the job is
@@ -29,4 +32,16 @@ public interface SimpleJobRunner {
    * @throws IllegalStateException when the job is canceled.
    */
   void runQueryAsJob(String query, String userName, String queryType, String queryLabel) throws Exception;
+
+  /**
+   * Runs a query as a job and returns its results. Will process synchronously and return when the job is
+   * complete.
+   * @param query query to run as a job
+   * @param userName username of user to use for running the job
+   * @throws Exception when the job failed. The exception caught is rethrown as is.
+   * @throws IllegalStateException when the job is canceled.
+   * @return query results
+   */
+  List<RecordBatchHolder> runQueryAsJobForResults(
+    String query, String userName, String queryType, String queryLabel, int offset, int limit) throws Exception;
 }

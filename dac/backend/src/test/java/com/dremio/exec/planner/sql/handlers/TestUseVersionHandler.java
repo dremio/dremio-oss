@@ -38,10 +38,10 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.mockito.quality.Strictness;
 
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.ResolvedVersionContext;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult;
 import com.dremio.exec.planner.sql.parser.ReferenceType;
 import com.dremio.exec.planner.sql.parser.SqlUseVersion;
@@ -69,31 +69,35 @@ public class TestUseVersionHandler extends DremioTest {
   private static final VersionContext DEFAULT_VERSION =
     VersionContext.ofBranch(DEFAULT_BRANCH_NAME);
   private static final VersionContext COMMIT_VERSION =
-    VersionContext.ofBareCommit(DEFAULT_COMMIT_HASH);
+    VersionContext.ofCommit(DEFAULT_COMMIT_HASH);
   private static final SqlUseVersion DEFAULT_INPUT = new SqlUseVersion(
     SqlParserPos.ZERO,
     ReferenceType.BRANCH,
     new SqlIdentifier(DEFAULT_BRANCH_NAME, SqlParserPos.ZERO),
+    null,
     new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO));
   private static final SqlUseVersion NO_SOURCE_INPUT = new SqlUseVersion(
     SqlParserPos.ZERO,
     ReferenceType.BRANCH,
     new SqlIdentifier(DEFAULT_BRANCH_NAME, SqlParserPos.ZERO),
+    null,
     null);
   private static final SqlUseVersion NON_EXISTENT_SOURCE_INPUT = new SqlUseVersion(
     SqlParserPos.ZERO,
     ReferenceType.BRANCH,
     new SqlIdentifier(DEFAULT_BRANCH_NAME, SqlParserPos.ZERO),
+    null,
     new SqlIdentifier(NON_EXISTENT_SOURCE_NAME, SqlParserPos.ZERO));
   private static final SqlUseVersion COMMIT_INPUT = new SqlUseVersion(
     SqlParserPos.ZERO,
     ReferenceType.COMMIT,
     new SqlIdentifier(DEFAULT_COMMIT_HASH, SqlParserPos.ZERO),
+    null,
     new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO));
   private static final ResolvedVersionContext DEFAULT_RESOLVED_VERSION =
-    ResolvedVersionContext.ofBranch("expected", "ffedcba9876543210");
+    ResolvedVersionContext.ofBranch("goldenfiles/expected", "ffedcba9876543210");
   private static final ResolvedVersionContext RESOLVED_COMMIT =
-    ResolvedVersionContext.ofBareCommit(DEFAULT_COMMIT_HASH);
+    ResolvedVersionContext.ofCommit(DEFAULT_COMMIT_HASH);
 
   @Rule public MockitoRule rule = MockitoJUnit.rule().strictness(Strictness.STRICT_STUBS);
 
@@ -182,6 +186,7 @@ public class TestUseVersionHandler extends DremioTest {
       SqlParserPos.ZERO,
       ReferenceType.TAG,
       new SqlIdentifier(tagName, SqlParserPos.ZERO),
+      null,
       new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO));
     final VersionContext version = VersionContext.ofTag(tagName);
 
@@ -251,6 +256,7 @@ public class TestUseVersionHandler extends DremioTest {
       SqlParserPos.ZERO,
       ReferenceType.REFERENCE,
       new SqlIdentifier(referenceName, SqlParserPos.ZERO),
+      null,
       new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO));
     final VersionContext version = VersionContext.ofRef(referenceName);
 

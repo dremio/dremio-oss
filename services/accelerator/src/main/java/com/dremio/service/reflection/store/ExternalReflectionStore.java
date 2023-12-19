@@ -129,17 +129,6 @@ public class ExternalReflectionStore {
   }
 
   private static final class ExternalReflectionVersionExtractor implements VersionExtractor<ExternalReflection> {
-
-    @Override
-    public Long getVersion(ExternalReflection value) {
-      return value.getVersion();
-    }
-
-    @Override
-    public void setVersion(ExternalReflection value, Long version) {
-      value.setVersion(version);
-    }
-
     @Override
     public String getTag(ExternalReflection value) {
       return value.getTag();

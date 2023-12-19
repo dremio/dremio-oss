@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 import PropTypes from "prop-types";
-import userUtils from "@app/utils/userUtils";
 import config from "dyn-load/utils/config";
-import { getUser } from "@app/reducers";
+import { getAdminStatus } from "dyn-load/pages/HomePage/components/modals/SpaceModalMixin";
 
 export const Capabilities = {
   manageSpaces: "MANAGE_SPACES",
@@ -30,10 +29,9 @@ export const authInfoPropType = PropTypes.shape({
 
 //state selector
 export const getAuthInfoSelector = (state) => {
-  const user = getUser(state);
   //should corresponds to authInfoPropType
   return {
-    isAdmin: userUtils.isAdmin(user),
+    isAdmin: getAdminStatus(state),
     allowSpaceManagement: config.allowSpaceManagement,
   };
 };

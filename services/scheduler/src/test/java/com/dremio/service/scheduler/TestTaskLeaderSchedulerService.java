@@ -18,6 +18,8 @@ package com.dremio.service.scheduler;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -450,9 +452,15 @@ public class TestTaskLeaderSchedulerService extends DremioTest {
         DirectProvider.wrap(currentEndPoint), true);
 
       CountDownLatch wasRun = new CountDownLatch(1);
-      schedulerService.schedule(
-        ScheduleUtils.scheduleForRunningOnceAt(Instant.ofEpochMilli(System.currentTimeMillis() + 5), SERVICE_NAME,
-          1, TimeUnit.HOURS),
+      // even though this is not a single shot chain treat it as one as this test expects isToRunExactlyOnce to be
+      // false and is part of the confusion of schedule utils.
+      // TODO: DX-68199 remove all this tests as these tests test the old clustered singleton which will soon
+      // be decommissioned.
+      schedulerService.schedule(Schedule.Builder.singleShotChain()
+        .startingAt(Instant.ofEpochMilli(System.currentTimeMillis() + 5))
+        .asClusteredSingleton(SERVICE_NAME)
+        .releaseOwnershipAfter(1, TimeUnit.HOURS)
+        .build(),
         () -> {
           try {
             Thread.sleep(1000);
@@ -505,16 +513,26 @@ public class TestTaskLeaderSchedulerService extends DremioTest {
         DirectProvider.wrap(nodeEndpoint2), false);
 
       CountDownLatch wasRun1 = new CountDownLatch(1);
-      schedulerService1.schedule(ScheduleUtils.scheduleForRunningOnceAt(Instant.now(), "abc"), () -> {
-        wasRun1.countDown();
-        logger.info("Schedule1 run");
-      });
+      // even though this is not a single shot chain treat it as one as this test expects isToRunExactlyOnce to be
+      // false and is part of the confusion of schedule utils.
+      // TODO: DX-68199 remove all this tests as these tests test the old clustered singleton which will soon
+      // be decommissioned.
+      schedulerService1.schedule(Schedule.Builder.singleShotChain().asClusteredSingleton("abc").build(),
+        () -> {
+          wasRun1.countDown();
+          logger.info("Schedule1 run");
+        });
 
       CountDownLatch wasRun2 = new CountDownLatch(1);
-      schedulerService2.schedule(ScheduleUtils.scheduleForRunningOnceAt(Instant.now(), "abc"), () -> {
-        wasRun2.countDown();
-        logger.info("Schedule2 run");
-      });
+      // even though this is not a single shot chain treat it as one as this test expects isToRunExactlyOnce to be
+      // false and is part of the confusion of schedule utils.
+      // TODO: DX-68199 remove all this tests as these tests test the old clustered singleton which will soon
+      // be decommissioned.
+      schedulerService2.schedule(Schedule.Builder.singleShotChain().asClusteredSingleton("abc").build(),
+        () -> {
+          wasRun2.countDown();
+          logger.info("Schedule2 run");
+        });
 
       wasRun1.await();
       wasRun2.await();
@@ -556,7 +574,8 @@ public class TestTaskLeaderSchedulerService extends DremioTest {
 
       CountDownLatch globalRun = new CountDownLatch(1);
       CountDownLatch wasRun1 = new CountDownLatch(1);
-      final Cancellable task1 = schedulerService1.schedule(ScheduleUtils.scheduleToRunOnceNow("abc"), () -> {
+      final Cancellable task1 = schedulerService1.schedule(
+        Schedule.SingleShotBuilder.now().asClusteredSingleton("abc").build(), () -> {
         try {
           Thread.sleep(2000);
         } catch (InterruptedException e) {
@@ -568,7 +587,8 @@ public class TestTaskLeaderSchedulerService extends DremioTest {
       });
 
       CountDownLatch wasRun2 = new CountDownLatch(1);
-      final Cancellable task2 = schedulerService2.schedule(ScheduleUtils.scheduleToRunOnceNow("abc"), () -> {
+      final Cancellable task2 = schedulerService2.schedule(
+        Schedule.SingleShotBuilder.now().asClusteredSingleton("abc").build(), () -> {
         try {
           Thread.sleep(2000);
         } catch (InterruptedException e) {
@@ -595,7 +615,7 @@ public class TestTaskLeaderSchedulerService extends DremioTest {
   }
 
   @Test
-  public void testCancelWithRemoveListener() throws Exception {
+  public void testCancel() throws Exception {
     try(ClusterCoordinator coordinator = LocalClusterCoordinator.newRunningCoordinator()) {
       coordinator.start();
 
@@ -623,15 +643,14 @@ public class TestTaskLeaderSchedulerService extends DremioTest {
         Thread.sleep(50);
       }
 
-      Collection<TaskLeaderChangeListener> listeners = schedulerService.getTaskLeaderElectionServices()
-        .iterator().next().getTaskLeaderChangeListeners();
-      assertEquals(1, listeners.size());
+      TaskLeaderElection taskLeaderElection = schedulerService.getTaskLeaderElection(cancellable);
+      assertNotNull(taskLeaderElection);
+      assertEquals(1, taskLeaderElection.getTaskLeaderChangeListeners().size());
       cancellable.cancel(true);
 
-      while(!schedulerService.getTaskLeaderElectionServices().iterator().next().getTaskLeaderChangeListeners().isEmpty()) {
-        Thread.sleep(50);
-      }
       assertTrue(cancellable.isCancelled());
+      // After cancellation, corresponding taskLeaderElection object should be closed and removed from taskLeaderElectionServiceMap
+      assertNull(schedulerService.getTaskLeaderElection(cancellable));
       schedulerService.close();
     }
   }
@@ -857,11 +876,17 @@ public class TestTaskLeaderSchedulerService extends DremioTest {
       AtomicInteger counter = new AtomicInteger(0);
       CountDownLatch cleanupLatch = new CountDownLatch(1);
       CountDownLatch restartLatch = new CountDownLatch(1);
+      // even though this is not a single shot chain treat it as one as this test expects isToRunExactlyOnce to be
+      // false and is part of the confusion of schedule utils and the old scheduler.
+      // TODO: DX-68199 remove all this tests as these tests test the old clustered singleton which will soon
+      // be decommissioned.
       Cancellable cancellable =
-        schedulerService.schedule(ScheduleUtils.scheduleForRunningOnceAt(Instant.ofEpochMilli(System.currentTimeMillis() + 3000),
-            "TEST", () -> {
-              cleanupLatch.countDown();
-            }),
+        schedulerService.schedule(Schedule.Builder
+            .singleShotChain()
+            .startingAt(Instant.ofEpochMilli(System.currentTimeMillis() + 3000))
+            .asClusteredSingleton("TEST")
+            .withCleanup(cleanupLatch::countDown)
+            .build(),
           () -> {
             counter.incrementAndGet();
             restartLatch.countDown();

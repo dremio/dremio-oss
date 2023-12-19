@@ -15,7 +15,10 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import static com.dremio.exec.ExecConstants.ICEBERG_CATALOG_TYPE_KEY;
+import static com.dremio.exec.store.iceberg.IcebergUtils.getColumnName;
 import static com.dremio.exec.store.iceberg.IcebergUtils.resolvePath;
+import static com.dremio.exec.store.iceberg.IcebergUtils.toIcebergValue;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Arrays;
@@ -32,26 +35,42 @@ import org.apache.hadoop.fs.Path;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.types.TypeProtos;
 import com.dremio.common.types.Types;
 import com.dremio.common.util.MajorTypeHelper;
+import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.planner.sql.PartitionTransform;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
+import com.dremio.io.file.FileSystem;
 import com.google.common.collect.ImmutableList;
 
 /**
 Test class for IcebergUtils.java class
  */
 public class TestIcebergUtils {
+  private static final Configuration CONF = new Configuration();
+  private static FileSystem fs;
+
+  @BeforeClass
+  public static void initStatics() throws Exception {
+    CONF.set(ICEBERG_CATALOG_TYPE_KEY, IcebergCatalogType.HADOOP.name());
+    fs = HadoopFileSystem.get(com.dremio.io.file.Path.of("/"), CONF);
+  }
 
   private static final BatchSchema TEST_SCHEMA = BatchSchema.newBuilder()
     .addField(MajorTypeHelper.getFieldForNameAndMajorType("w", Types.optional(TypeProtos.MinorType.TIME)))
     .addField(MajorTypeHelper.getFieldForNameAndMajorType("x", Types.optional(TypeProtos.MinorType.INT)))
     .addField(MajorTypeHelper.getFieldForNameAndMajorType("y", Types.optional(TypeProtos.MinorType.VARCHAR)))
     .addField(MajorTypeHelper.getFieldForNameAndMajorType("z", Types.optional(TypeProtos.MinorType.TIMESTAMP)))
+    .addField(MajorTypeHelper.getFieldForNameAndMajorType("_", Types.optional(TypeProtos.MinorType.TIMESTAMP)))
+    .addField(MajorTypeHelper.getFieldForNameAndMajorType("test_", Types.optional(TypeProtos.MinorType.TIMESTAMP)))
+    .addField(MajorTypeHelper.getFieldForNameAndMajorType("_identity", Types.optional(TypeProtos.MinorType.TIMESTAMP)))
+    .addField(MajorTypeHelper.getFieldForNameAndMajorType("_hour", Types.optional(TypeProtos.MinorType.TIMESTAMP)))
     .build();
 
   @Test
@@ -381,5 +400,125 @@ public class TestIcebergUtils {
     Assert.assertFalse(op.contains("y"));
     Assert.assertTrue(op.contains("x"));
     Assert.assertTrue(op.contains("w"));
+  }
+  @Test
+  public void testGetColumnNameIdentity() {
+    final List<PartitionTransform> transforms = ImmutableList.of(new PartitionTransform("x"));
+    final PartitionSpec spec = IcebergUtils.getIcebergPartitionSpecFromTransforms(TEST_SCHEMA, transforms, null);
+    Assert.assertEquals("x",getColumnName(spec.fields().get(0), spec.schema()));
+  }
+
+  @Test
+  public void testGetColumnNameYear() {
+    final List<PartitionTransform> transforms = ImmutableList.of(new PartitionTransform("z", PartitionTransform.Type.YEAR));
+    final PartitionSpec spec = IcebergUtils.getIcebergPartitionSpecFromTransforms(TEST_SCHEMA, transforms, null);
+    Assert.assertEquals("z",getColumnName(spec.fields().get(0), spec.schema()));
+  }
+
+  @Test
+  public void testGetColumnNameMonth() {
+    final List<PartitionTransform> transforms = ImmutableList.of(new PartitionTransform("z", PartitionTransform.Type.MONTH));
+    final PartitionSpec spec = IcebergUtils.getIcebergPartitionSpecFromTransforms(TEST_SCHEMA, transforms, null);
+    Assert.assertEquals("z",getColumnName(spec.fields().get(0), spec.schema()));
+  }
+
+  @Test
+  public void testGetColumnNameDay() {
+    final List<PartitionTransform> transforms = ImmutableList.of(new PartitionTransform("z", PartitionTransform.Type.DAY));
+    final PartitionSpec spec = IcebergUtils.getIcebergPartitionSpecFromTransforms(TEST_SCHEMA, transforms, null);
+    Assert.assertEquals("z",getColumnName(spec.fields().get(0), spec.schema()));
+  }
+
+  @Test
+  public void testGetColumnNameHour() {
+    final List<PartitionTransform> transforms = ImmutableList.of(new PartitionTransform("z", PartitionTransform.Type.HOUR));
+    final PartitionSpec spec = IcebergUtils.getIcebergPartitionSpecFromTransforms(TEST_SCHEMA, transforms, null);
+    Assert.assertEquals("z",getColumnName(spec.fields().get(0), spec.schema()));
+  }
+
+  @Test
+  public void testGetColumnNameBucket() {
+    final List<PartitionTransform> transforms = ImmutableList.of(new PartitionTransform("x",
+      PartitionTransform.Type.BUCKET, ImmutableList.of(10)));
+    final PartitionSpec spec = IcebergUtils.getIcebergPartitionSpecFromTransforms(TEST_SCHEMA, transforms, null);
+    Assert.assertEquals("x",getColumnName(spec.fields().get(0), spec.schema()));
+  }
+
+  @Test
+  public void testGetColumnNameTruncate() {
+    final List<PartitionTransform> transforms = ImmutableList.of(new PartitionTransform("x",
+      PartitionTransform.Type.TRUNCATE, ImmutableList.of(10)));
+    final PartitionSpec spec = IcebergUtils.getIcebergPartitionSpecFromTransforms(TEST_SCHEMA, transforms, null);
+    Assert.assertEquals("x",getColumnName(spec.fields().get(0), spec.schema()));
+  }
+
+  @Test
+  public void testGetColumnNameUnderscoreHour() {
+    final List<PartitionTransform> transforms = ImmutableList.of(new PartitionTransform("_", PartitionTransform.Type.HOUR));
+    final PartitionSpec spec = IcebergUtils.getIcebergPartitionSpecFromTransforms(TEST_SCHEMA, transforms, null);
+    Assert.assertEquals("_",getColumnName(spec.fields().get(0), spec.schema()));
+  }
+
+@Test
+  public void testGetColumnNameTestUnderscoreHour() {
+    final List<PartitionTransform> transforms = ImmutableList.of(new PartitionTransform("test_", PartitionTransform.Type.HOUR));
+    final PartitionSpec spec = IcebergUtils.getIcebergPartitionSpecFromTransforms(TEST_SCHEMA, transforms, null);
+    Assert.assertEquals("test_",getColumnName(spec.fields().get(0), spec.schema()));
+  }
+
+  @Test
+  public void testGetColumnNameUnderscoreHourHour() {
+    final List<PartitionTransform> transforms = ImmutableList.of(new PartitionTransform("_hour", PartitionTransform.Type.HOUR));
+    final PartitionSpec spec = IcebergUtils.getIcebergPartitionSpecFromTransforms(TEST_SCHEMA, transforms, null);
+    Assert.assertEquals("_hour",getColumnName(spec.fields().get(0), spec.schema()));
+  }
+
+  @Test
+  public void testGetColumnNameTestUnderscoreIdenitytyHour() {
+    final List<PartitionTransform> transforms = ImmutableList.of(new PartitionTransform("_identity", PartitionTransform.Type.HOUR));
+    final PartitionSpec spec = IcebergUtils.getIcebergPartitionSpecFromTransforms(TEST_SCHEMA, transforms, null);
+    Assert.assertEquals("_identity",getColumnName(spec.fields().get(0), spec.schema()));
+  }
+
+  @Test
+  public void testGetColumnNameUnderscoreIdentity() {
+    final List<PartitionTransform> transforms = ImmutableList.of(new PartitionTransform("_"));
+    final PartitionSpec spec = IcebergUtils.getIcebergPartitionSpecFromTransforms(TEST_SCHEMA, transforms, null);
+    Assert.assertEquals("_",getColumnName(spec.fields().get(0), spec.schema()));
+  }
+
+  @Test
+  public void testGetColumnNameTestUnderscoreIdentity() {
+    final List<PartitionTransform> transforms = ImmutableList.of(new PartitionTransform("test_"));
+    final PartitionSpec spec = IcebergUtils.getIcebergPartitionSpecFromTransforms(TEST_SCHEMA, transforms, null);
+    Assert.assertEquals("test_",getColumnName(spec.fields().get(0), spec.schema()));
+  }
+
+  @Test
+  public void testGetColumnNameUnderscoreHourIdentity() {
+    final List<PartitionTransform> transforms = ImmutableList.of(new PartitionTransform("_hour"));
+    final PartitionSpec spec = IcebergUtils.getIcebergPartitionSpecFromTransforms(TEST_SCHEMA, transforms, null);
+    Assert.assertEquals("_hour",getColumnName(spec.fields().get(0), spec.schema()));
+  }
+
+  @Test
+  public void testGetColumnNameTestUnderscoreIdentityIdentity() {
+    final List<PartitionTransform> transforms = ImmutableList.of(new PartitionTransform("_identity"));
+    final PartitionSpec spec = IcebergUtils.getIcebergPartitionSpecFromTransforms(TEST_SCHEMA, transforms, null);
+    Assert.assertEquals("_identity",getColumnName(spec.fields().get(0), spec.schema()));
+  }
+  @Test
+  public void testToIcebergValueLong(){
+    final Long valueLong = 1_000L;
+    //for timestamp conversion happens
+    Assert.assertEquals(1_000_000L,toIcebergValue(valueLong,
+      TypeProtos.MajorType.newBuilder().setMinorType(TypeProtos.MinorType.TIMESTAMP).build()));
+
+    //no conversion for the rest of the types
+    Assert.assertEquals(1_000L,toIcebergValue(valueLong,
+      TypeProtos.MajorType.newBuilder().setMinorType(TypeProtos.MinorType.BIGINT).build()));
+   final  Integer valueInt = 1_000;
+    Assert.assertEquals(1_000,toIcebergValue(valueInt,
+      TypeProtos.MajorType.newBuilder().setMinorType(TypeProtos.MinorType.INT).build()));
   }
 }

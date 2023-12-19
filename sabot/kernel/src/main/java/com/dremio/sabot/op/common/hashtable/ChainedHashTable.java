@@ -239,7 +239,7 @@ public class ChainedHashTable {
       JConditional jc;
 
       // codegen for nullable columns if nulls are not equal
-      if (comparators.get(i) == Comparator.EQUALS) {
+      if (comparators.get(i) == Comparator.EQUALS && left.getIsNullable() && right.getIsNullable()) {
         jc = cg.getEvalBlock()._if(left.getIsSet().eq(JExpr.lit(0)).
             cand(right.getIsSet().eq(JExpr.lit(0))));
         jc._then()._return(JExpr.FALSE);

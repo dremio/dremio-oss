@@ -16,11 +16,7 @@
 
 import FontIcon from "@app/components/Icon/FontIcon";
 import { useIntl } from "react-intl";
-import { EntryV1 as Entry } from "@app/services/nessie/client";
-import { getUrlByType, getIconByType } from "../../utils/utils";
-import NessieLink from "../NessieLink/NessieLink";
-
-import "./NamespaceItem.less";
+import { getIconByType } from "../../utils/utils";
 
 type NamespaceIconProps = {
   type: string | null;
@@ -32,26 +28,3 @@ export function NamespaceIcon({ type, elements }: NamespaceIconProps) {
   const { type: iconType, id } = getIconByType(type, elements);
   return <FontIcon type={iconType} tooltip={intl.formatMessage({ id })} />;
 }
-
-function NamespaceItem({ entry }: { entry: Entry }) {
-  if (!entry.name || entry.name.elements.length === 0) return null;
-  const { elements } = entry.name;
-  const fullPath = elements.map((c) => encodeURIComponent(c)).join("/");
-
-  return (
-    <NessieLink
-      className="namespaceItem"
-      to={getUrlByType(entry.type, fullPath)}
-    >
-      <NamespaceIcon type={entry.type} elements={elements} />
-      <span
-        className="namespaceItem-name text-ellipsis"
-        title={elements.join(".")}
-      >
-        {elements[elements.length - 1]}
-      </span>
-    </NessieLink>
-  );
-}
-
-export default NamespaceItem;

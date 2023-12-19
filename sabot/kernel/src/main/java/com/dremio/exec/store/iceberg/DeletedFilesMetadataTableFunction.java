@@ -15,12 +15,15 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import static com.dremio.exec.store.OperationType.DELETE_DATAFILE;
+
 import java.util.Optional;
 
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.util.Text;
+import org.apache.iceberg.DataFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,6 +54,7 @@ public class DeletedFilesMetadataTableFunction extends AbstractTableFunction {
   private OptionalVarBinaryVectorHolder inputIcebergMetadataVector;
   private OptionalVarBinaryVectorHolder outputIcebergMetadataVector;
 
+  private BigIntVector outputFileSizeVector; //the file size for the deleted files
   private long currentRowCount;
 
   private Text inputFilePath;
@@ -77,6 +81,8 @@ public class DeletedFilesMetadataTableFunction extends AbstractTableFunction {
 
     inputIcebergMetadataVector = new OptionalVarBinaryVectorHolder(incoming, SystemSchemas.ICEBERG_METADATA);
     outputIcebergMetadataVector = new OptionalVarBinaryVectorHolder(outgoing, RecordWriter.ICEBERG_METADATA_COLUMN);
+
+    outputFileSizeVector = (BigIntVector) VectorUtil.getVectorFromSchemaPath(outgoing, RecordWriter.FILESIZE_COLUMN);
 
     return outgoing;
   }
@@ -108,6 +114,15 @@ public class DeletedFilesMetadataTableFunction extends AbstractTableFunction {
       }
       outputRowCountVector.setSafe(startOutIndex, currentRowCount);
       icebergMetadataBytes.ifPresent(bytes -> outputIcebergMetadataVector.setSafe(startOutIndex, () -> bytes));
+
+      if(icebergMetadataBytes.isPresent() && this.operationType == DELETE_DATAFILE){
+        final IcebergMetadataInformation icebergMetadataInformation = IcebergSerDe.deserializeFromByteArray(icebergMetadataBytes.get());
+
+        final DataFile currentDataFile = IcebergSerDe.deserializeDataFile(icebergMetadataInformation.getIcebergMetadataFileByte());
+        outputFileSizeVector.setSafe(startOutIndex,currentDataFile.fileSizeInBytes());
+      } else {
+        outputFileSizeVector.setSafe(startOutIndex,0);
+      }
 
       outgoing.setAllCount(startOutIndex + 1);
       doneWithRow = true;

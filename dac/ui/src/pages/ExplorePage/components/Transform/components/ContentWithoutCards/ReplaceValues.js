@@ -101,7 +101,7 @@ class ReplaceValues extends PureComponent {
       valueOptions.get("values").size > MIN_VALUES_TO_SHOW_SEARCH ? (
       <SearchField
         showCloseIcon
-        placeholder={la("Search values…")}
+        placeholder={laDeprecated("Search values…")}
         value={this.state.filter}
         onChange={this.handleFilter}
       />
@@ -117,7 +117,7 @@ class ReplaceValues extends PureComponent {
         style={styles.valuesList}
       />
     ) : (
-      <div style={styles.notFound}>{la("Not found")}</div>
+      <div style={styles.notFound}>{laDeprecated("Not found")}</div>
     );
   }
 
@@ -145,15 +145,15 @@ class ReplaceValues extends PureComponent {
     return (
       <div style={styles.base}>
         <div style={styles.header}>
-          {la("Available Values")}
+          {laDeprecated("Available Values")}
           <span style={styles.bulkActions}>
             Select:
             <a style={styles.bulkAction} onClick={this.handleAllClick}>
-              {la("All")}
+              {laDeprecated("All")}
             </a>{" "}
             |{" "}
             <a style={styles.bulkAction} onClick={this.handleNoneClick}>
-              {la("None")}
+              {laDeprecated("None")}
             </a>
           </span>
           {this.renderSelectedValuesCount()}

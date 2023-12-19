@@ -22,13 +22,18 @@ import {
   SET_REFS,
   NESSIE_RESET_STATE,
   REMOVE_ENTRY,
+  RESET_REFS,
+  SET_REFERENCES_LIST,
 } from "@app/actions/nessie/nessie";
 import { ARCTIC_STATE_PREFIX, NESSIE_REF_PREFIX } from "@app/constants/nessie";
 import { NessieRootState, NessieState } from "@app/types/nessie";
 import nessieErrorReducer from "./nessieErrorReducer";
 import nessieLoadingReducer from "./nessieLoadingReducer";
 import { initializeDatasetRefs, initializeRefState } from "./utils";
-//@ts-ignore
+import {
+  convertReferencesListToRootState,
+  getStateRefsOmitted,
+} from "@app/utils/nessieUtils";
 
 export const initialState: NessieState = {
   defaultReference: null,
@@ -89,7 +94,9 @@ function nessieRootReducer(
   if (action.type === INIT_REFS) {
     return { ...state, ...initializeRefState(state) };
   } else if (action.type === SET_REFS) {
-    return { ...state, ...initializeDatasetRefs(state, action.payload) };
+    return initializeDatasetRefs(state, action.payload);
+  } else if (action.type === RESET_REFS) {
+    return initializeDatasetRefs(getStateRefsOmitted(state), action.payload);
   } else if (action.type === NESSIE_RESET_STATE) {
     return {};
   } else if (action.type === REMOVE_ENTRY) {
@@ -105,6 +112,8 @@ function nessieRootReducer(
     } else {
       return state;
     }
+  } else if (action.type === SET_REFERENCES_LIST) {
+    return convertReferencesListToRootState(state, action.payload);
   } else {
     const { source } = action;
     return {

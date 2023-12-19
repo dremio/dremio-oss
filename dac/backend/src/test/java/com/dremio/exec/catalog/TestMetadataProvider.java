@@ -57,7 +57,6 @@ import com.dremio.service.conduit.server.ConduitServiceRegistryImpl;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.sysflight.SysFlightProducer;
 import com.dremio.service.sysflight.SystemTableManagerImpl;
-import com.dremio.telemetry.utils.TracerFacade;
 import com.dremio.test.DremioTest;
 import com.google.inject.AbstractModule;
 
@@ -85,7 +84,7 @@ public class TestMetadataProvider extends BaseTestQuery {
           new SysFlightProducer(() -> new SystemTableManagerImpl(testAllocator, SYS_FLIGHT_RESOURCE::getTablesProvider)), null, null);
         conduitServiceRegistry.registerService(flightService);
         conduitServiceRegistry.registerService(new InformationSchemaServiceImpl(getProvider(CatalogService.class),
-          () -> new ContextMigratingCloseableExecutorService<>(new CloseableThreadPool("TestMetadataProvider-"), TracerFacade.INSTANCE)));
+          () -> new ContextMigratingCloseableExecutorService<>(new CloseableThreadPool("TestMetadataProvider-"))));
         bind(ConduitServiceRegistry.class).toInstance(conduitServiceRegistry);
       }
     });
@@ -238,7 +237,7 @@ public class TestMetadataProvider extends BaseTestQuery {
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<TableMetadata> tables = resp.getTablesList();
-    assertEquals(31, tables.size());
+    assertEquals(32, tables.size());
 
     Iterator<TableMetadata> iterator = tables.iterator();
     verifyTable("INFORMATION_SCHEMA", "CATALOGS", iterator.next());
@@ -249,6 +248,7 @@ public class TestMetadataProvider extends BaseTestQuery {
     verifyTable("sys", "boot", iterator.next());
     verifyTable("sys", "fragments", iterator.next());
     verifyTable("sys", "jobs", iterator.next());
+    verifyTable("sys", "jobs_recent", iterator.next());
     verifyTable("sys", "materializations", iterator.next());
     verifyTable("sys", "membership", iterator.next());
     verifyTable("sys", "memory", iterator.next());
@@ -295,7 +295,7 @@ public class TestMetadataProvider extends BaseTestQuery {
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<TableMetadata> tables = resp.getTablesList();
-    assertEquals(30, tables.size());
+    assertEquals(31, tables.size());
 
     Iterator<TableMetadata> iterator = tables.iterator();
     verifyTable("INFORMATION_SCHEMA", "CATALOGS", iterator.next());
@@ -306,6 +306,7 @@ public class TestMetadataProvider extends BaseTestQuery {
     verifyTable("sys", "boot", iterator.next());
     verifyTable("sys", "fragments", iterator.next());
     verifyTable("sys", "jobs", iterator.next());
+    verifyTable("sys", "jobs_recent", iterator.next());
     verifyTable("sys", "materializations", iterator.next());
     verifyTable("sys", "membership", iterator.next());
     verifyTable("sys", "memory", iterator.next());
@@ -339,7 +340,7 @@ public class TestMetadataProvider extends BaseTestQuery {
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<TableMetadata> tables = resp.getTablesList();
-    assertEquals(19, tables.size());
+    assertEquals(20, tables.size());
 
     Iterator<TableMetadata> iterator = tables.iterator();
     verifyTable("INFORMATION_SCHEMA", "CATALOGS", iterator.next());
@@ -347,6 +348,7 @@ public class TestMetadataProvider extends BaseTestQuery {
 
     verifyTable("sys", "boot", iterator.next());
     verifyTable("sys", "jobs", iterator.next());
+    verifyTable("sys", "jobs_recent", iterator.next());
     verifyTable("sys", "materializations", iterator.next());
     verifyTable("sys", "memory", iterator.next());
     verifyTable("sys", "nodes", iterator.next());
@@ -389,7 +391,7 @@ public class TestMetadataProvider extends BaseTestQuery {
     assertEquals(RequestStatus.OK, resp1.getStatus());
 
     final List<ColumnMetadata> columns1 = resp1.getColumnsList();
-    assertEquals(288, columns1.size());
+    assertEquals(323, columns1.size());
     assertTrue("incremental update column shouldn't be returned",
       columns1.stream().noneMatch(input -> input.getColumnName().equals(IncrementalUpdateUtils.UPDATE_COLUMN)));
   }
@@ -403,7 +405,7 @@ public class TestMetadataProvider extends BaseTestQuery {
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<ColumnMetadata> columns = resp.getColumnsList();
-    assertEquals(23, columns.size());
+    assertEquals(25, columns.size());
 
     Iterator<ColumnMetadata> iterator = columns.iterator();
     verifyColumn("INFORMATION_SCHEMA", "COLUMNS", "ORDINAL_POSITION", iterator.next());
@@ -417,6 +419,8 @@ public class TestMetadataProvider extends BaseTestQuery {
     verifyColumn("sys", "fragments", "rows_processed", iterator.next());
     verifyColumn("sys", "jobs", "execution_planning_ts", iterator.next());
     verifyColumn("sys", "jobs", "execution_planning_epoch_millis", iterator.next());
+    verifyColumn("sys", "jobs_recent", "execution_planning_ts", iterator.next());
+    verifyColumn("sys", "jobs_recent", "execution_planning_epoch_millis", iterator.next());
     verifyColumn("sys", "materializations", "data_partitions", iterator.next());
     verifyColumn("sys", "materializations", "last_refresh_from_pds", iterator.next());
     verifyColumn("sys", "memory", "fabric_port", iterator.next());

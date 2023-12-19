@@ -88,7 +88,8 @@ public class GenerationDefinition {
     CUSTOMER_LIMITED(1, true),
     SUPPLIER(10_000),
     NATION(Distributions.getDefaultDistributions().getNations().size(), true),
-    REGION(Distributions.getDefaultDistributions().getRegions().size(), true)
+    REGION(Distributions.getDefaultDistributions().getRegions().size(), true),
+    LIST_STRUCT(150_000)
     ;
 
     public final int scaleBase;

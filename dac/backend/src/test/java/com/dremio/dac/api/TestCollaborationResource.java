@@ -343,6 +343,6 @@ public class TestCollaborationResource extends BaseTestServer {
     datasetConfig.setType(DatasetType.VIRTUAL_DATASET);
     datasetConfig.setVirtualDataset(virtualDataset);
 
-    getSabotContext().getViewCreator(SystemUser.SYSTEM_USERNAME).createView(vdsPath, "select * from sys.version", null);
+    getSabotContext().getViewCreator(SystemUser.SYSTEM_USERNAME).createView(vdsPath, "select * from sys.version", null, false);
   }
 }

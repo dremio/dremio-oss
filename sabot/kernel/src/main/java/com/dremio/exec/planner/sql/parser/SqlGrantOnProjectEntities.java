@@ -59,7 +59,6 @@ public class SqlGrantOnProjectEntities extends SqlCall implements SimpleDirectHa
     MANAGE_GRANTS,
     CREATE_CLOUD,
     CREATE_PROJECT,
-    CONFIGURE_SECURITY,
     CREATE_CATALOG,
     ALL
   }

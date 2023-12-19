@@ -25,7 +25,8 @@ public enum IcebergFileType {
   MANIFEST(3),
   MANIFEST_LIST(4),
   PARTITION_STATS(5), // Partition Stats file or Partition Stats metadata file
-  OTHER(6);
+  METADATA_JSON(6),
+  OTHER(7);
 
 
   public final Integer id;

@@ -135,7 +135,9 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
   private SplitsPathRowGroupsMap splitsPathRowGroupsMap;
   private Map<String, Set<Integer>> pathToRowGroupsMap = new HashMap<>();
   private final List<RuntimeFilterEvaluator> runtimeFilterEvaluators = new ArrayList<>();
-  private final List<RuntimeFilter> runtimeFilters = new ArrayList<>();
+  private final List<RuntimeFilter> partitionColumnRFs = new ArrayList<>();
+  private final List<RuntimeFilter> nonPartitionColumnRFs = new ArrayList<>();
+
 
   /* this is used for prefetching across record batches in scan table function
    * This is initially set to false, in which case the iterator wont return the final prefetched splitreadercreators
@@ -181,7 +183,8 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
     } else {
       // TODO (AH )Fix implicit columns with mod time and global dictionaries
       this.realFields = new ImplicitFilesystemColumnFinder(
-        context.getOptions(), fs, config.getColumns(), isAccelerator).getRealFields();
+          context.getOptions(), fs, config.getColumns(), isAccelerator,
+          ImplicitFilesystemColumnFinder.Mode.ALL_IMPLICIT_COLUMNS).getRealFields();
     }
 
     // load global dictionaries, globalDictionaries must be closed by the last reader
@@ -254,7 +257,8 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
     } else {
       // TODO (AH )Fix implicit columns with mod time and global dictionaries
       this.realFields = new ImplicitFilesystemColumnFinder(
-              context.getOptions(), fs, config.getFunctionContext().getColumns(), isAccelerator).getRealFields();
+          context.getOptions(), fs, config.getFunctionContext().getColumns(), isAccelerator,
+          ImplicitFilesystemColumnFinder.Mode.ALL_IMPLICIT_COLUMNS).getRealFields();
     }
 
     // load global dictionaries, globalDictionaries must be closed by the last reader
@@ -447,14 +451,17 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
       final RuntimeFilterEvaluator filterEvaluator =
               new RuntimeFilterEvaluator(context.getAllocator(), context.getStats(), context.getOptions(), runtimeFilter);
       this.runtimeFilterEvaluators.add(filterEvaluator);
-      this.runtimeFilters.add(runtimeFilter);
-      logger.debug("Runtime filter added to the iterator [{}]", runtimeFilter);
+      this.partitionColumnRFs.add(runtimeFilter);
+      logger.debug("Partition Column Runtime filter added to the iterator [{}]", runtimeFilter);
+    } else {
+      logger.debug("Non-partition Column Runtime filter added to the iterator [{}]", runtimeFilter);
+      this.nonPartitionColumnRFs.add(runtimeFilter);
     }
   }
 
   @Override
   public List<RuntimeFilter> getRuntimeFilters() {
-    return runtimeFilters;
+    return partitionColumnRFs;
   }
 
   @Override
@@ -612,6 +619,15 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
             splitPath, blockSplit.getSplitAndPartitionInfo(), rowGroupIndexProvider, fileLength, fileLastModificationTime);
 
     MutableParquetMetadata footer = safelyGetFooter();
+    if (userDefinedSchemaSettings != null
+      && userDefinedSchemaSettings.getSchemaImposedOutput()
+      && !verifyColumnOverlap(footer)) {
+      throw UserException.validationError()
+        .message("Parquet file does not contain any of the fields expected in the output")
+        .addContext("filename: '%s'", inputStreamProviderOfFirstRowGroup.getStreamPath())
+        .buildSilently();
+    }
+
     populateRowGroupNums.accept(footer);
     context.getStats().addLongStat(ScanOperator.Metric.NUM_ROW_GROUPS, rowGroupNums.size());
 
@@ -641,6 +657,16 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
     rowGroupSplitIterator = new RemovingIterator<>(rowGroupSplitAttrs.iterator());
     currentSplitInfo = blockSplit.getSplitAndPartitionInfo();
     isFirstRowGroup = true;
+  }
+
+  private boolean verifyColumnOverlap(MutableParquetMetadata footer) {
+    Set<String> columnNames = columns.stream().map(sp -> sp.getNameSegments().get(0).toLowerCase()).collect(Collectors.toSet());
+    for (String[] fieldPath : footer.getFileMetaData().getSchema().getPaths()) {
+      if (columnNames.contains(fieldPath[0].toLowerCase())) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private MutableParquetMetadata safelyGetFooter() throws IOException {
@@ -720,7 +746,8 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
             arrowCachingEnabled,
             readColumnIndices,
             filters,
-            readerFactory.newFilterCreator(context, schemaType, null, context.getAllocator()));
+            readerFactory.newFilterCreator(context, schemaType, null, context.getAllocator()),
+            nonPartitionColumnRFs);
   }
 
   public void setIcebergExtendedProperty(byte[] extendedProperty) {
@@ -781,6 +808,9 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
       curr = curr.getNext();
     }
     com.dremio.common.AutoCloseables.close(remainingCreators);
+    if (rowLevelDeleteFilterFactory != null) {
+      rowLevelDeleteFilterFactory.close();
+    }
   }
 
   private static class RemovingIterator<E> implements Iterator<E> {

@@ -23,7 +23,6 @@ import org.glassfish.jersey.server.ServerProperties;
 import com.dremio.common.perf.Timer;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.dac.annotations.APIResource;
-import com.fasterxml.jackson.jaxrs.base.JsonParseExceptionMapper;
 
 /**
  * Dremio Rest API Server.
@@ -54,7 +53,7 @@ public class APIServer extends ResourceConfig {
     register(DACExceptionMapperFeature.class);
 
     // EXCEPTION MAPPERS
-    register(JsonParseExceptionMapper.class);
+    register(RestApiJsonParseExceptionMapper.class);
     register(RestApiJsonMappingExceptionMapper.class);
 
     // PROPERTIES

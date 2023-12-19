@@ -19,7 +19,7 @@ module.exports = {
     [
       "@babel/preset-env",
       {
-        corejs: "3.22.3",
+        corejs: "3.32.1",
         useBuiltIns: "usage",
       },
     ],
@@ -31,17 +31,5 @@ module.exports = {
     ],
     "@babel/preset-typescript",
   ],
-  plugins: [
-    ["@babel/plugin-proposal-decorators", { legacy: true }],
-    "@babel/plugin-transform-modules-commonjs",
-  ],
-  env: {
-    production: {
-      plugins: [
-        "@babel/plugin-transform-react-constant-elements",
-        "@babel/plugin-transform-react-inline-elements",
-      ],
-    },
-    development: {},
-  },
+  plugins: [["@babel/plugin-proposal-decorators", { legacy: true }]],
 };

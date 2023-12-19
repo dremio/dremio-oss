@@ -28,7 +28,8 @@ public interface JsonProcessor {
 
   enum ReadState {
     END_OF_STREAM,
-    WRITE_SUCCEED
+    WRITE_SUCCEED,
+    VALIDATION_ERROR
   }
 
   ReadState write(BaseWriter.ComplexWriter writer) throws IOException;

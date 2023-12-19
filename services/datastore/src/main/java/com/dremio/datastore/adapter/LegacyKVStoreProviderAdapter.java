@@ -44,6 +44,7 @@ public class LegacyKVStoreProviderAdapter implements LegacyKVStoreProvider {
 
   private LoadingCache<Class<? extends LegacyStoreCreationFunction<?, ?, ?, ?>>, LegacyKVStore<?, ?>> stores;
 
+  @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
   public LegacyKVStoreProviderAdapter(KVStoreProvider underlyingProvider) {
     this.underlyingProvider = underlyingProvider;
     this.stores = CacheBuilder

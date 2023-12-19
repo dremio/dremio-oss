@@ -184,8 +184,8 @@ export const Tooltip = (props: TooltipProps): JSX.Element => {
     <>
       {shouldWrapChildren ? (
         <span
+          className="dremio-tooltip__child-wrap"
           {...getReferenceProps({ ref })}
-          style={{ display: "inline-block" }}
         >
           {React.cloneElement(children, { ...children.props })}
         </span>

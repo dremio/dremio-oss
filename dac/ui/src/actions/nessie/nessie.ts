@@ -13,9 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Branch, V2BetaApi } from "@app/services/nessie/client";
+import { Branch } from "@app/services/nessie/client";
+import { DremioV2Api as V2BetaApi } from "@app/types/nessie";
 import { store } from "@app/store/store";
 import { NessieRootState, Reference } from "@app/types/nessie";
+import type { Script } from "dremio-ui-common/sonar/scripts/Script.type.js";
 
 export const INIT_REFS = "NESSIE_INIT_REFS";
 type InitRefsAction = {
@@ -33,22 +35,47 @@ type SetRefsAction = {
   payload: DatasetReference;
 };
 
+export const RESET_REFS = "NESSIE_RESET_REFS";
+type ResetRefsAction = {
+  type: typeof RESET_REFS;
+  payload: DatasetReference;
+};
+
 export const REMOVE_ENTRY = "NESSIE_REMOVE_ENTRY";
 type RemoveEntryAction = {
   type: typeof REMOVE_ENTRY;
   payload: string;
 };
+
+export const SET_REFERENCES_LIST = "NESSIE_SET_REFERENCES_LIST";
+type SetRefsList = {
+  type: typeof SET_REFERENCES_LIST;
+  payload: Script["referencesList"];
+};
+
 export function removeEntry(payload: RemoveEntryAction["payload"]) {
   return (dispatch: any) => dispatch({ type: REMOVE_ENTRY, payload });
 }
 export function setRefs(payload: NessieRootState) {
   return (dispatch: any) => dispatch({ type: SET_REFS, payload });
 }
+
+export function setRefsFromScript(payload: Script["referencesList"]) {
+  return { type: SET_REFERENCES_LIST, payload };
+}
+
+//Resets all refs, initializes any provided refs
+export function resetRefs(payload: DatasetReference) {
+  return (dispatch: any) => dispatch({ type: RESET_REFS, payload });
+}
+
 export type NessieRootActionTypes =
   | InitRefsAction
   | SetRefsAction
+  | ResetRefsAction
   | RemoveEntryAction
-  | ResetNessieStateAction;
+  | ResetNessieStateAction
+  | SetRefsList;
 
 type SourceType = { source: string; meta?: any };
 
@@ -140,14 +167,12 @@ export function fetchDefaultReferenceIfNeeded(source: string, api: V2BetaApi) {
   };
 }
 
-export function fetchDefaultReference(source: string, api: V2BetaApi) {
+function fetchDefaultReference(source: string, api: V2BetaApi) {
   return async (dispatch: any) => {
     if (!source) return;
     dispatch({ type: DEFAULT_REF_REQUEST, source });
     try {
-      // https://github.com/projectnessie/nessie/issues/6210
-      //@ts-ignore
-      const { reference } = await api.getReferenceByNameV2({ ref: "-" });
+      const { reference } = await api.memoGetDefaultReference();
       dispatch({
         type: DEFAULT_REF_REQUEST_SUCCESS,
         payload: reference,
@@ -196,7 +221,7 @@ export function fetchBranchReference(
         source,
         meta: {
           notification: {
-            message: la(
+            message: laDeprecated(
               `There was an error fetching the reference: ${initialRef?.name}.`
             ),
             level: "error",
@@ -234,7 +259,7 @@ export function fetchCommitBeforeTime(
           source,
           meta: {
             notification: {
-              message: la("No commit found for provided date."),
+              message: laDeprecated("No commit found for provided date."),
               level: "warning",
               autoDismiss: 3,
             },
@@ -247,7 +272,7 @@ export function fetchCommitBeforeTime(
         source,
         meta: {
           notification: {
-            message: la("There was an error fetching the commit."),
+            message: laDeprecated("There was an error fetching the commit."),
             level: "error",
           },
         },

@@ -18,7 +18,6 @@ package com.dremio.exec.store.dfs;
 import java.io.IOException;
 import java.util.List;
 
-import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.file.proto.FileProtobuf;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
@@ -30,11 +29,13 @@ public class DefaultFileSelectionProcessor implements FileSelectionProcessor {
   private FileSelection fileSelection;
   private final Path datasetRoot;
   private FileProtobuf.FileUpdateKey updateKey;
+  private final int maxFiles;
 
-  public DefaultFileSelectionProcessor(FileSystem fs, FileSelection fileSelection) {
+  public DefaultFileSelectionProcessor(FileSystem fs, FileSelection fileSelection, int maxFiles) {
     this.fs = fs;
     this.fileSelection = fileSelection;
     this.datasetRoot = Path.of(fileSelection.getSelectionRoot());
+    this.maxFiles = maxFiles;
   }
 
   @Override
@@ -42,6 +43,7 @@ public class DefaultFileSelectionProcessor implements FileSelectionProcessor {
     if(updateKey != null) {
       return this.updateKey;
     }
+
     // Get subdirectories under file selection before pruning directories
     final FileProtobuf.FileUpdateKey.Builder updateKeyBuilder = FileProtobuf.FileUpdateKey.newBuilder();
     final FileAttributes rootAttributes = fs.getFileAttributes(datasetRoot);
@@ -57,8 +59,7 @@ public class DefaultFileSelectionProcessor implements FileSelectionProcessor {
       throw new IllegalStateException("FileSelection object should be present and should contain subdirectory attributes to generate update key");
     }
 
-    fileSelection.expand(fs); // NOOP if already expanded
-
+    // fileSelection is expanded at this point of time - see normalizeForPlugin()
     final List<FileAttributes> fileAttributes = fileSelection.getFileAttributesList();
     for (FileAttributes attributes : fileAttributes) {
       if(attributes.isDirectory()) {
@@ -70,25 +71,12 @@ public class DefaultFileSelectionProcessor implements FileSelectionProcessor {
   }
 
   @Override
-  public void assertCompatibleFileCount(SabotContext config, boolean isInternal) throws IOException {
-    fileSelection = fileSelection.minusDirectories();
-    FileDatasetHandle.checkMaxFiles(datasetRoot.getName(), fileSelection.getFileAttributesList().size(), config,
-            isInternal);
-  }
-
-  @Override
   public FileSelection normalizeForPlugin(FileSelection selection) throws IOException {
-    selection.expand(fs);
+    selection.expand(datasetRoot.getName(), fs, maxFiles);
     generateUpdateKey();
     fileSelection = selection.minusDirectories();
     return fileSelection;
   }
-
-  @Override
-  public void expandIfNecessary() throws IOException {
-    fileSelection.expand(fs); // NOOP if already expanded
-  }
-
 
   protected FileProtobuf.FileSystemCachedEntity fromFileAttributes(FileAttributes attributes) {
     return FileProtobuf.FileSystemCachedEntity.newBuilder()

@@ -228,7 +228,7 @@ function mapStateToProps(state, ownProps) {
     viewState = Immutable.fromJS({
       isFailed: true,
       error: {
-        message: la("Dataset missing schema information."),
+        message: laDeprecated("Dataset missing schema information."),
       },
     });
   }

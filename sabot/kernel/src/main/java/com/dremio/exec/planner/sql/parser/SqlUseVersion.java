@@ -41,6 +41,7 @@ import com.google.common.collect.Lists;
  * Sets the current default context.
  *
  * USE ( REF[ERENCE] | BRANCH | TAG | COMMIT ) <refValue>
+ * [ AS OF timestamp ]
  * [ IN <sourceName> ]
  */
 public final class SqlUseVersion extends SqlVersionSourceRefBase {
@@ -48,12 +49,13 @@ public final class SqlUseVersion extends SqlVersionSourceRefBase {
   public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("USE_VERSION", SqlKind.OTHER) {
     @Override
     public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 3, "SqlUseBranch.createCall() has to get 3 operands!");
+      Preconditions.checkArgument(operands.length == 4, "SqlUseBranch.createCall() has to get 4 operands!");
       return new SqlUseVersion(
         pos,
         ((SqlLiteral) operands[0]).symbolValue(ReferenceType.class),
         (SqlIdentifier) operands[1],
-        (SqlIdentifier) operands[2]);
+        operands[2],
+        (SqlIdentifier) operands[3]);
     }
   };
 
@@ -61,8 +63,9 @@ public final class SqlUseVersion extends SqlVersionSourceRefBase {
       SqlParserPos pos,
       ReferenceType refType,
       SqlIdentifier refValue,
+      SqlNode timestamp,
       SqlIdentifier sourceName) {
-    super(pos, sourceName, Preconditions.checkNotNull(refType), Preconditions.checkNotNull(refValue));
+    super(pos, sourceName, Preconditions.checkNotNull(refType), Preconditions.checkNotNull(refValue), timestamp);
   }
 
   @Override
@@ -75,6 +78,7 @@ public final class SqlUseVersion extends SqlVersionSourceRefBase {
     List<SqlNode> ops = Lists.newArrayList();
     ops.add(SqlLiteral.createSymbol(getRefType(), SqlParserPos.ZERO));
     ops.add(getRefValue());
+    ops.add(getTimestampAsSqlNode());
     ops.add(getSourceName());
 
     return ops;

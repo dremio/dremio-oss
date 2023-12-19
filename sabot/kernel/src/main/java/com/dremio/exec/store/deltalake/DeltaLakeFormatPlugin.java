@@ -157,7 +157,7 @@ public class DeltaLakeFormatPlugin extends EasyFormatPlugin<DeltaLakeFormatConfi
       int maxLeafColumns,
       TimeTravelOption.TimeTravelRequest timeTravelRequest
   ) {
-    return new DeltaLakeFormatDatasetAccessor(type, fs, fsPlugin, fileSelection, tableSchemaPath, this);
+    return new DeltaLakeFormatDatasetAccessor(type, fs, fsPlugin, fileSelection, tableSchemaPath, this, timeTravelRequest);
   }
 
   @Override

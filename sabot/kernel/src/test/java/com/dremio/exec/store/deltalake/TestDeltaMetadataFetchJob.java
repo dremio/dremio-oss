@@ -16,38 +16,45 @@
 
 package com.dremio.exec.store.deltalake;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
-import java.io.File;
 import java.io.IOException;
-import java.util.concurrent.CompletionException;
 
 import org.apache.hadoop.conf.Configuration;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import com.dremio.BaseTestQuery;
 import com.dremio.exec.hadoop.HadoopFileSystem;
+import com.dremio.exec.server.SabotContext;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 
 /**
  * Tests for {@link DeltaMetadataFetchJob}
  */
-public class TestDeltaMetadataFetchJob {
+public class TestDeltaMetadataFetchJob extends BaseTestQuery {
 
   @Rule
   public TemporaryFolder tempDir = new TemporaryFolder();
 
+  static FileSystem fs;
+  static SabotContext context;
+  static Path metaDir;
+
+  @BeforeClass
+  public static void setup() throws IOException {
+    metaDir = Path.of("src/test/resources/deltalake/_delta_log");
+    fs = HadoopFileSystem.getLocal(new Configuration());
+    context = getSabotContext();
+  }
+
   @Test
-  public void testCommitJsonRead() throws IOException {
-    String path = "src/test/resources/deltalake/_delta_log";
-    Path metaDir = Path.of(path);
-
-    FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
-
-    DeltaMetadataFetchJob job = new DeltaMetadataFetchJob(null, metaDir, fs, System.currentTimeMillis(), false, 0L, 1L);
+  public void testCommitJsonRead() {
+    DeltaMetadataFetchJob job = new DeltaMetadataFetchJob(context, metaDir, fs, DeltaVersion.of(0));
     DeltaLogSnapshot snapshot = job.get();
 
     assertEquals(snapshot.getVersionId(), 0);
@@ -58,7 +65,7 @@ public class TestDeltaMetadataFetchJob {
     assertEquals(11L, snapshot.getNetOutputRows());
 
 
-    job = new DeltaMetadataFetchJob(null, metaDir, fs, System.currentTimeMillis(), true, 0L, 1L);
+    job = new DeltaMetadataFetchJob(context, metaDir, fs, DeltaVersion.ofCheckpoint(0L, 1));
     //Will try checkpoint read first then JSON read
     snapshot = job.get();
 
@@ -69,13 +76,8 @@ public class TestDeltaMetadataFetchJob {
   }
 
   @Test
-  public void testMultiDigitCommitJsonRead() throws IOException {
-    String path = "src/test/resources/deltalake/_delta_log";
-    Path metaDir = Path.of(path);
-
-    FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
-
-    DeltaMetadataFetchJob job = new DeltaMetadataFetchJob(null, metaDir, fs, System.currentTimeMillis(), false, 11L, 1L);
+  public void testMultiDigitCommitJsonRead() {
+    DeltaMetadataFetchJob job = new DeltaMetadataFetchJob(context, metaDir, fs, DeltaVersion.of(11L));
     DeltaLogSnapshot snapshot = job.get();
 
     assertEquals(snapshot.getVersionId(), 11);
@@ -87,59 +89,27 @@ public class TestDeltaMetadataFetchJob {
 
   @Test
   public void testCheckpointParquetRead() {
-    //TODO
-    //Add test for parquet checkpoint parquet read. Reader not ready yet
+    DeltaMetadataFetchJob job = new DeltaMetadataFetchJob(context, metaDir, fs, DeltaVersion.ofCheckpoint(10L, 1));
+    DeltaLogSnapshot snapshot = job.get();
+
+    assertEquals(10L, snapshot.getVersionId());
+    assertEquals("UNKNOWN", snapshot.getOperationType());
+    final String expectedSchemaString  = "{\"type\":\"struct\",\"fields\":[{\"name\":\"iso_code\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"location\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"date\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"id\",\"type\":\"long\",\"nullable\":true,\"metadata\":{}}]}";
+    assertEquals(expectedSchemaString, snapshot.getSchema());
+    assertEquals(11L, snapshot.getNetFilesAdded());
+    assertEquals(276L, snapshot.getNetOutputRows());
   }
 
   @Test
-  public void testFileNotFound() throws IOException {
-    String path = "src/test/resources/deltalake/_delta_log";
-    Path metaDir = Path.of(path);
-
-    FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
-    DeltaMetadataFetchJob job = new DeltaMetadataFetchJob(null, metaDir, fs, System.currentTimeMillis(), true, 1000L, 1L);
-
-    try {
-      DeltaLogSnapshot snapshot = job.get();
-    } catch (CompletionException e) {
-      assertTrue(e.getCause() instanceof DeltaMetadataFetchJob.InvalidFileException);
-    }
+  public void testCommitFileNotFound() {
+    DeltaMetadataFetchJob job = new DeltaMetadataFetchJob(context, metaDir, fs, DeltaVersion.of(1000L));
+    assertThatThrownBy(() -> job.get()).cause().isInstanceOf(DeltaMetadataFetchJob.InvalidFileException.class);
   }
 
-  @Test
-  public void testCommitWrittenAfterReadStart() throws IOException {
-    File root = tempDir.newFolder();
-    Path metaDir = Path.of(root.getAbsolutePath());
-    FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
-
-    File commitJson = new File(root, "00000000000000000001.checkpoint.parquet");
-    commitJson.createNewFile();
-    commitJson.setLastModified(System.currentTimeMillis() + 10 * 1000);
-
-
-    DeltaMetadataFetchJob job = new DeltaMetadataFetchJob(null, metaDir, fs, System.currentTimeMillis(), true, 1L, 1L);
-
-    try {
-      DeltaLogSnapshot snapshot = job.get();
-    } catch (CompletionException e) {
-      assertTrue(e.getCause() instanceof DeltaMetadataFetchJob.InvalidFileException);
-    }
-  }
 
   @Test
-  public void testBadConfig() throws IOException {
-    String path = "src/test/resources/deltalake/_delta_log";
-    Path metaDir = Path.of(path);
-
-    FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
-
-    DeltaMetadataFetchJob job = new DeltaMetadataFetchJob(null, metaDir, fs, System.currentTimeMillis(), true, 0L, 1L);
-    //Should fail as we are trying to read checkpoint but the file is a commit json
-
-    try {
-      DeltaLogSnapshot snapshot = job.get();
-    } catch (CompletionException e) {
-      assertTrue(e.getCause() instanceof DeltaMetadataFetchJob.InvalidFileException);
-    }
+  public void testCheckpointFileNotFound() {
+    DeltaMetadataFetchJob job = new DeltaMetadataFetchJob(context, metaDir, fs, DeltaVersion.ofCheckpoint(1000L, 1));
+    assertThatThrownBy(() -> job.get()).cause().isInstanceOf(DeltaMetadataFetchJob.InvalidFileException.class);
   }
 }

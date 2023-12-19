@@ -32,8 +32,6 @@ import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.explore.bi.PowerBIMessageBodyGenerator;
 import com.dremio.dac.explore.bi.QlikAppMessageBodyGenerator;
 import com.dremio.dac.explore.bi.TableauMessageBodyGenerator;
-import com.fasterxml.jackson.jaxrs.base.JsonMappingExceptionMapper;
-import com.fasterxml.jackson.jaxrs.base.JsonParseExceptionMapper;
 
 import freemarker.core.HTMLOutputFormat;
 import freemarker.template.Configuration;
@@ -89,8 +87,8 @@ public class RestServerV2 extends ResourceConfig {
     register(TimingApplicationEventListener.class);
 
     // EXCEPTION MAPPERS //
-    register(JsonParseExceptionMapper.class);
-    register(JsonMappingExceptionMapper.class);
+    register(RestApiJsonParseExceptionMapper.class);
+    register(RestApiJsonMappingExceptionMapper.class);
 
     // BODY WRITERS //
     registerBIToolMessageBodyGenerators();

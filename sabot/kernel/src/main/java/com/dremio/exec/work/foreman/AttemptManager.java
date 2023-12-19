@@ -275,10 +275,6 @@ public class AttemptManager implements Runnable, MaestroObserver.ExecutionStageC
     return state;
   }
 
-  protected QueryContext getQueryContext() {
-    return queryContext;
-  }
-
   public void dataFromScreenArrived(QueryData header, ResponseSender sender, ByteBuf... data) {
     if(data != null && data.length > 0 &&
       Arrays.stream(data).filter(d -> d != null).count() > 0) {
@@ -323,7 +319,7 @@ public class AttemptManager implements Runnable, MaestroObserver.ExecutionStageC
       // success callback is called when packet is received by
       // the destination.
 
-      if(getQueryContext().getOptions().getOption(ExecConstants.EARLY_ACK_ENABLED)) {
+      if(queryContext.getOptions().getOption(ExecConstants.EARLY_ACK_ENABLED)) {
         ackit();
       } else {
         logger.trace("Early ack is disabled");
@@ -381,13 +377,13 @@ public class AttemptManager implements Runnable, MaestroObserver.ExecutionStageC
                                                      queryContext.getCurrentEndpoint(),
                                                      cancelContext,
                                                      isCancelledByHeapMonitor);
-    // interrupt execution immediately if query is blocked in any of the stages where it can get blocked.
-    // For instance, in ENGINE START stage, query could be blocked for engine to start or in QUEUED stage,
-    // the query could be blocked on a slot to become available when number of concurrent queries exceeds number of
-    // available slots (max concurrency).
-    maestroService.interruptExecutionInWaitStates(queryId, currentExecutionStage);
-    // Do not cancel queries in running state when canceled by coordinator heap monitor
+    // Do not cancel queries in running or queued state when canceled by coordinator heap monitor
     if (!isCancelledByHeapMonitor) {
+      // interrupt execution immediately if query is blocked in any of the stages where it can get blocked.
+      // For instance, in ENGINE START stage, query could be blocked for engine to start or in QUEUED stage,
+      // the query could be blocked on a slot to become available when number of concurrent queries exceeds number of
+      // available slots (max concurrency).
+      maestroService.interruptExecutionInWaitStates(queryId, currentExecutionStage);
       // Put the cancel in the event queue:
       // Note: Since the event processor only processes events after the attempt manager has completed all coordinator
       // stages (including maestro's executeQuery), it is assumed that the interruptions done above will make the
@@ -553,7 +549,7 @@ public class AttemptManager implements Runnable, MaestroObserver.ExecutionStageC
     profileObserver.beginState(AttemptObserver.toEvent(AttemptEvent.State.METADATA_RETRIEVAL));
     moveToNextStage(AttemptEvent.State.METADATA_RETRIEVAL);
 
-    CommandCreator creator = newCommandCreator(queryContext, profileObserver, prepareId);
+    CommandCreator creator = newCommandCreator(profileObserver, prepareId);
     command = creator.toCommand();
     logger.debug("Using command: {}.", command);
 
@@ -580,8 +576,8 @@ public class AttemptManager implements Runnable, MaestroObserver.ExecutionStageC
     profileTracker.setPrepareId(prepareId.value);
   }
 
-  protected CommandCreator newCommandCreator(QueryContext queryContext, AttemptObserver observer, Pointer<QueryId> prepareId) {
-    return new CommandCreator(this.sabotContext, queryContext, queryRequest,
+  protected CommandCreator newCommandCreator(AttemptObserver observer, Pointer<QueryId> prepareId) {
+    return new CommandCreator(this.sabotContext, this.queryContext, queryRequest,
       observer, preparedPlans, prepareId, attemptId.getAttemptNum());
   }
 

@@ -24,6 +24,7 @@ import java.util.Set;
 import javax.inject.Inject;
 
 import org.apache.calcite.sql.SqlFunction;
+import org.apache.calcite.sql.SqlOperator;
 import org.apache.hadoop.hive.ql.exec.Description;
 import org.apache.hadoop.hive.ql.exec.UDF;
 import org.apache.hadoop.hive.ql.udf.UDFType;
@@ -37,7 +38,6 @@ import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.common.types.TypeProtos.DataMode;
 import com.dremio.exec.expr.fn.impl.hive.ObjectInspectorHelper;
 import com.dremio.exec.planner.sql.HiveUDFOperator;
-import com.dremio.exec.planner.sql.OperatorTable;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Sets;
 
@@ -87,13 +87,16 @@ public class HiveFunctionRegistry implements PluggableFunctionRegistry {
   }
 
   @Override
-  public void register(OperatorTable operatorTable, boolean isDecimalV2Enabled) {
+  public List<SqlOperator> listOperators(boolean isDecimalV2Enabled) {
+    List<SqlOperator> operators = new ArrayList<>();
     for (String name : Sets.union(methodsGenericUDF.asMap().keySet(), methodsUDF.asMap().keySet())) {
       SqlFunction hiveFunction = new HiveUDFOperator(
         name.toUpperCase(),
         new PlugginRepositorySqlReturnTypeInference(this, isDecimalV2Enabled));
-      operatorTable.add(name, hiveFunction);
+      operators.add(hiveFunction);
     }
+
+    return operators;
   }
 
   private <C,I> void register(Class<? extends I> clazz, ArrayListMultimap<String,Class<? extends I>> methods) {
@@ -126,7 +129,7 @@ public class HiveFunctionRegistry implements PluggableFunctionRegistry {
    * @return
    */
   @Override
-  public HiveFuncHolder getFunction(FunctionCall call) {
+  public HiveFuncHolder findFunction(FunctionCall call) {
     HiveFuncHolder h;
 
     h = resolveFunction(call, false);

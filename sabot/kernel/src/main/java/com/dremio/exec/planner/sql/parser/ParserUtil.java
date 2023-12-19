@@ -34,8 +34,8 @@ import org.apache.calcite.sql.pretty.SqlPrettyWriter;
 import org.apache.calcite.sql.util.SqlBasicVisitor;
 import org.apache.calcite.sql.util.SqlVisitor;
 
+import com.dremio.catalog.model.dataset.TableVersionType;
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.catalog.TableVersionType;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.ParserConfig;
 import com.dremio.service.Pointer;

@@ -33,9 +33,9 @@ import org.apache.calcite.rel.externalize.RelWriterImpl;
 import org.apache.calcite.sql.SqlExplainLevel;
 import org.apache.calcite.util.Pair;
 
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.catalog.TableVersionContext;
 import com.dremio.exec.planner.RoutingShuttle;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.exec.planner.acceleration.ExpansionNode;
@@ -233,7 +233,7 @@ public final class SubstitutionUtils {
 
   /**
    * VersionedPath is a table/view path with an optional TableVersionContext.
-   * For example, an Arctic table could have a "schema"."table" path with a "BRANCH main" table version context.
+   * For example, a versioned table could have a "schema"."table" path with a "BRANCH main" table version context.
    * Non-versioned tables such as RDBMS or filesystem parquet will have a null TableVersionContext.
    *
    * Since VersionedPath extends {@link Pair}, we can conveniently use VersionedPath as keys with various Java collections.
@@ -254,6 +254,8 @@ public final class SubstitutionUtils {
     public static VersionedPath of(List<String> path) {
       return new VersionedPath(path, null);
     }
+
+    public static VersionedPath of(ExpansionNode e) { return new VersionedPath(e.getPath().getPathComponents(), e.getVersionContext()); }
   }
 
   public static TableVersionContext getVersionContext(RelOptTable table) {

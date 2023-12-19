@@ -18,7 +18,9 @@ package com.dremio.exec.catalog;
 
 import static com.dremio.datastore.indexed.IndexKey.LOWER_CASE_SUFFIX;
 import static com.dremio.exec.ExecConstants.VERSIONED_INFOSCHEMA_ENABLED;
+import static com.dremio.exec.util.InformationSchemaCatalogUtil.getEscapeCharacter;
 
+import java.security.AccessControlException;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -29,6 +31,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes;
 import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
@@ -44,12 +47,12 @@ import com.dremio.service.catalog.TableSchema;
 import com.dremio.service.catalog.TableType;
 import com.dremio.service.catalog.View;
 import com.dremio.service.namespace.DatasetHelper;
+import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceIndexKeys;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterators;
 import com.google.protobuf.ByteString;
@@ -151,9 +154,8 @@ class InformationSchemaCatalogImpl implements InformationSchemaCatalog {
     String escape,
     boolean caseInsensitive
   ) {
-    Preconditions.checkArgument(escape == null || escape.length() == 1, "An escape must be a single character.");
     StringBuilder sb = new StringBuilder();
-    final char e = escape == null ? '\\' : escape.charAt(0);
+    final char e = getEscapeCharacter(escape);
     boolean escaped = false;
 
     for (int i = 0; i < pattern.length(); i++) {
@@ -172,8 +174,14 @@ class InformationSchemaCatalogImpl implements InformationSchemaCatalog {
       }
 
       switch (c) {
+        //Percent is treated as wildchar which matches with (empty or any number) characters
         case '%':
           sb.append("*");
+          break;
+
+        //Underscore is treated as wildchar which matches with (only one) any character
+        case '_':
+          sb.append("?");
           break;
 
         // ESCAPE * if it occurs
@@ -222,8 +230,9 @@ class InformationSchemaCatalogImpl implements InformationSchemaCatalog {
     Stream<VersionedPlugin> versionedPlugins = versionedPluginsRetriever();
 
     if (versionedPlugins != null && options.getOption(VERSIONED_INFOSCHEMA_ENABLED)) {
-        versionedPlugins.forEach(
-          versionedPlugin -> {
+      versionedPlugins
+        .filter(versionedPlugin -> validateUserHasPrivilegeOn(versionedPlugin.getName()))
+        .forEach(versionedPlugin -> {
             Stream<com.dremio.service.catalog.Schema> schemata = versionedPlugin.getAllInformationSchemaSchemataInfo(searchQuery);
             res[0] = Iterators.concat(res[0], schemata.iterator());
           }
@@ -263,8 +272,9 @@ class InformationSchemaCatalogImpl implements InformationSchemaCatalog {
     Stream<VersionedPlugin> versionedPlugins = versionedPluginsRetriever();
 
     if (versionedPlugins != null && options.getOption(VERSIONED_INFOSCHEMA_ENABLED)) {
-      versionedPlugins.forEach(
-        versionedPlugin -> {
+      versionedPlugins
+        .filter(versionedPlugin -> validateUserHasPrivilegeOn(versionedPlugin.getName()))
+        .forEach(versionedPlugin -> {
           Stream<com.dremio.service.catalog.Table> tables = versionedPlugin.getAllInformationSchemaTableInfo(searchQuery);
           res[0] = Iterators.concat(res[0], tables.iterator());
         }
@@ -304,8 +314,9 @@ class InformationSchemaCatalogImpl implements InformationSchemaCatalog {
     Stream<VersionedPlugin> versionedPlugins = versionedPluginsRetriever();
 
     if (versionedPlugins != null && options.getOption(VERSIONED_INFOSCHEMA_ENABLED)) {
-        versionedPlugins.forEach(
-          versionedPlugin -> {
+      versionedPlugins
+        .filter(versionedPlugin -> validateUserHasPrivilegeOn(versionedPlugin.getName()))
+        .forEach(versionedPlugin -> {
             Stream<com.dremio.service.catalog.View> views = versionedPlugin.getAllInformationSchemaViewInfo(searchQuery);
             res[0] = Iterators.concat(res[0], views.iterator());
           }
@@ -333,8 +344,9 @@ class InformationSchemaCatalogImpl implements InformationSchemaCatalog {
     Stream<VersionedPlugin> versionedPlugins = versionedPluginsRetriever();
 
     if (versionedPlugins != null && options.getOption(VERSIONED_INFOSCHEMA_ENABLED)) {
-        versionedPlugins.forEach(
-          versionedPlugin -> {
+      versionedPlugins
+        .filter(versionedPlugin -> validateUserHasPrivilegeOn(versionedPlugin.getName()))
+        .forEach(versionedPlugin -> {
             Stream<com.dremio.service.catalog.TableSchema> columns = versionedPlugin.getAllInformationSchemaColumnInfo(searchQuery);
             res[0] = Iterators.concat(res[0], columns.iterator());
           }
@@ -376,6 +388,20 @@ class InformationSchemaCatalogImpl implements InformationSchemaCatalog {
       return DATASET_FILTER;
     } else {
       return SearchQueryUtils.and(toSearchQuery(searchQuery), DATASET_FILTER);
+    }
+  }
+
+  private boolean validateUserHasPrivilegeOn(String sourceName) {
+    try {
+      userNamespace.getSource(new NamespaceKey(sourceName));
+      return true;
+    } catch (AccessControlException e) {
+      return false;
+    } catch (NamespaceException e) {
+      throw UserException.validationError(e)
+        .message(
+          "sourceName [%s] not found.",sourceName)
+        .buildSilently();
     }
   }
 }

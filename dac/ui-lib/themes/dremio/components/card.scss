@@ -32,7 +32,8 @@
 }
 
 .dremio-card {
-  @extend .bg-foreground;
+  background-color: var(--bg--default);
+  color: var(--color--default);
   @extend .border;
   @extend .border-solid;
   @extend .border-foreground;

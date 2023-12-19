@@ -59,7 +59,7 @@ public class HiveDatasetHandleListing implements DatasetHandleListing {
     return new DatasetHandleIterator();
   }
 
-  private class DatasetHandleIterator extends AbstractIterator<DatasetHandle> {
+  private final class DatasetHandleIterator extends AbstractIterator<DatasetHandle> {
     @Override
     protected DatasetHandle computeNext() {
 

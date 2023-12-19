@@ -154,9 +154,9 @@ public class FilterFlattenTransposeRule extends RelOptRule {
       //lower flatten.
       Set<Integer> aboveFlattenFields = ImmutableSet.of(i);
       Set<Integer> belowFlattenFields = Sets.difference(flattenedFields, aboveFlattenFields);
-      RelNode newInput = belowFlattenFields.isEmpty() ? child : new FlattenRel(filter.getCluster(), flatten.getTraitSet(), child, asNodes(filter.getCluster(), belowFlattenFields), flatten.getNumProjectsPushed());
+      RelNode newInput = belowFlattenFields.isEmpty() ? child : new FlattenRel(filter.getCluster(), flatten.getTraitSet(), child, asNodes(filter.getCluster(), belowFlattenFields), flatten.getAliases(), flatten.getNumProjectsPushed());
       RelNode newFilter = new FilterRel(filter.getCluster(), filter.getTraitSet(), newInput, fullPushCondition);
-      RelNode topFlatten = new FlattenRel(filter.getCluster(), filter.getTraitSet(), newFilter, asNodes(filter.getCluster(), aboveFlattenFields), flatten.getNumProjectsPushed());
+      RelNode topFlatten = new FlattenRel(filter.getCluster(), filter.getTraitSet(), newFilter, asNodes(filter.getCluster(), aboveFlattenFields), flatten.getAliases(), flatten.getNumProjectsPushed());
       RelNode top = neverPushableCondition.isAlwaysTrue() ? topFlatten : new FilterRel(filter.getCluster(), filter.getTraitSet(), topFlatten, neverPushableCondition);
       call.transformTo(top);
     }

@@ -31,7 +31,7 @@ import com.google.inject.util.Providers;
  */
 public class TestFlightWithRequestContext {
 
-  private static class DummyFlightRequestContextDecorator implements FlightRequestContextDecorator {
+  private static final class DummyFlightRequestContextDecorator implements FlightRequestContextDecorator {
 
     private int callCount = 0;
 

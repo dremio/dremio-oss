@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-hive3-plugin-parent</artifactId>
-    <version>24.1.0-202306130653310132-d30779f6</version>
+    <version>24.3.0-202312190021150029-52db2faf</version>
   </parent>
 
   <artifactId>dremio-hive3-plugin</artifactId>
@@ -289,6 +289,10 @@
         <exclusion>
           <groupId>org.codehaus.jackson</groupId>
           <artifactId>jackson-jaxrs</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>io.netty</groupId>
+          <artifactId>netty</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -1248,6 +1252,19 @@
       <version>${project.version}</version>
       <scope>provided</scope>
     </dependency>
+    <!-- Required for Hive 2 options -->
+    <dependency>
+      <groupId>com.dremio.plugins</groupId>
+      <artifactId>dremio-hive2-plugin-launcher</artifactId>
+      <version>${project.version}</version>
+      <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>*</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
     <dependency>
       <groupId>org.pf4j</groupId>
       <artifactId>pf4j</artifactId>
@@ -1335,10 +1352,30 @@
       <type>pom</type>
       <scope>test</scope>
     </dependency>
+  <!-- https://mvnrepository.com/artifact/io.delta/delta-hive -->
+    <dependency>
+      <groupId>io.delta</groupId>
+      <artifactId>delta-hive_2.12</artifactId>
+      <version>3.0.0</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
     <plugins>
+      <plugin>
+        <groupId>com.mycila</groupId>
+        <artifactId>license-maven-plugin</artifactId>
+        <configuration>
+          <licenseSets>
+            <licenseSet>
+              <excludes combine.children="append">
+                <excludes>**/src/test/resources/parquet/**</excludes>
+              </excludes>
+            </licenseSet>
+          </licenseSets>
+        </configuration>
+      </plugin>
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
         <executions>
@@ -1397,7 +1434,7 @@
                   </includes>
                   <excludes>
                     <exclude>**/main/assembly</exclude>
-                    <exclude>**/hive2</exclude>
+                    <exclude>**/hive2/**</exclude>
                   </excludes>
                 </resource>
                 <resource>
@@ -1425,7 +1462,7 @@
                   </includes>
                   <excludes>
                     <exclude>**/Hive2StoragePluginConfig.java</exclude>
-                    <exclude>**/hive2</exclude>
+                    <exclude>**/hive2/**</exclude>
                     <exclude>**/HiveStoragePluginTest.java</exclude>
                     <exclude>**/TestHive2MetadataUtils.java</exclude>
                     <exclude>**/TestHiveOrcFooterReader.java</exclude>
@@ -1566,9 +1603,6 @@
       <plugin>
         <groupId>org.xolstice.maven.plugins</groupId>
         <artifactId>protobuf-maven-plugin</artifactId>
-        <configuration>
-          <protoSourceRoot>${project.build.directory}/generated-sources/src/main/proto</protoSourceRoot>
-        </configuration>
         <executions>
           <execution>
             <phase>process-sources</phase>
@@ -1576,7 +1610,7 @@
               <goal>compile</goal>
             </goals>
             <configuration>
-              <outputDirectory>${project.build.directory}/generated-sources/protobuf</outputDirectory>
+              <protoSourceRoot>${project.build.directory}/generated-sources/src/main/proto</protoSourceRoot>
             </configuration>
           </execution>
         </executions>
@@ -1677,16 +1711,10 @@
       </plugin>
       <plugin>
         <artifactId>maven-failsafe-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>default-integration-test</id>
-            <goals>
-              <goal>integration-test</goal>
-              <goal>verify</goal>
-            </goals>
-          </execution>
-        </executions>
         <configuration>
+          <jdkToolchain>
+            <version>1.8</version>
+          </jdkToolchain>
           <reportNameSuffix>hive3</reportNameSuffix>
           <forkCount>1</forkCount>
           <!-- exclude main artifact since it is loaded in a separate classloader -->
@@ -1701,19 +1729,118 @@
 
   <profiles>
     <profile>
-      <id>jdk9-or-higher</id>
+      <id>notmapr</id>
       <activation>
-        <jdk>[9,)</jdk>
+        <property>
+          <name>!mapr</name>
+        </property>
       </activation>
-
+      <dependencies>
+        <dependency>
+          <groupId>com.amazonaws</groupId>
+          <artifactId>aws-java-sdk-glue</artifactId>
+        </dependency>
+        <dependency>
+          <groupId>com.amazonaws</groupId>
+          <artifactId>aws-java-sdk-sts</artifactId>
+        </dependency>
+        <dependency>
+          <groupId>com.amazonaws</groupId>
+          <artifactId>aws-java-sdk-kms</artifactId>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-aws</artifactId>
+          <version>${hadoop.version}</version>
+          <exclusions>
+            <exclusion>
+              <groupId>commons-logging</groupId>
+              <artifactId>commons-logging</artifactId>
+            </exclusion>
+            <exclusion>
+              <artifactId>commons-codec</artifactId>
+              <groupId>commons-codec</groupId>
+            </exclusion>
+            <exclusion>
+              <groupId>com.fasterxml.jackson.core</groupId>
+              <artifactId>jackson-annotations</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>com.fasterxml.jackson.core</groupId>
+              <artifactId>jackson-core</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>com.fasterxml.jackson.core</groupId>
+              <artifactId>jackson-databind</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>joda-time</groupId>
+              <artifactId>joda-time</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.freemarker</groupId>
+              <artifactId>freemarker</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+        <dependency>
+          <groupId>com.microsoft.azure</groupId>
+          <artifactId>azure-storage</artifactId>
+          <version>${azure-storage.version}</version>
+          <exclusions>
+            <exclusion>
+              <groupId>org.apache.commons</groupId>
+              <artifactId>commons-lang3</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-azure</artifactId>
+          <version>${hadoop-azure.version}</version>
+          <exclusions>
+            <exclusion>
+              <groupId>org.apache.hadoop</groupId>
+              <artifactId>hadoop-common</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.apache.hadoop</groupId>
+              <artifactId>hadoop-client</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>commons-logging</groupId>
+              <artifactId>commons-logging</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+        <dependency>
+          <groupId>com.microsoft.azure</groupId>
+          <artifactId>azure-data-lake-store-sdk</artifactId>
+          <version>${azure-datalake.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-azure-datalake</artifactId>
+          <version>${hadoop-azure-datalake.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>mapr</id>
+      <activation>
+        <property>
+          <name>mapr</name>
+        </property>
+      </activation>
       <build>
         <plugins>
           <plugin>
-            <artifactId>maven-failsafe-plugin</artifactId>
+            <artifactId>maven-compiler-plugin</artifactId>
             <configuration>
-              <jdkToolchain>
-                <version>1.8</version>
-              </jdkToolchain>
+              <excludes>
+                <exclude>com/dremio/exec/store/hive/GlueAWSCredentialsFactory.java</exclude>
+                <exclude>com/dremio/plugins/s3/store/STSCredentialProviderV1.java</exclude>
+              </excludes>
             </configuration>
           </plugin>
         </plugins>

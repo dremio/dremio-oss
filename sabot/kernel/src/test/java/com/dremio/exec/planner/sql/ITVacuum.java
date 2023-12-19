@@ -111,16 +111,107 @@ public class ITVacuum extends ITDmlQueryBase {
 
   @Test
   public void testExpireOnTableOneSnapshot() throws Exception {
-    VacuumTests.testExpireOnTableOneSnapshot(SOURCE);
+    VacuumTests.testExpireOnTableOneSnapshot(allocator, SOURCE);
   }
 
   @Test
   public void testRetainMoreSnapshots() throws Exception {
-    VacuumTests.testRetainMoreSnapshots(SOURCE);
+    VacuumTests.testRetainMoreSnapshots(allocator, SOURCE);
   }
 
   @Test
   public void testRetainAllSnapshots() throws Exception {
     VacuumTests.testRetainAllSnapshots(allocator, SOURCE);
+  }
+
+  @Test
+  public void testGCDisabled() throws Exception {
+    VacuumTests.testGCDisabled(allocator, SOURCE);
+  }
+
+  @Test
+  public void testMinSnapshotsTablePropOverride() throws Exception {
+    VacuumTests.testMinSnapshotsTablePropOverride(allocator, SOURCE);
+  }
+
+  @Test
+  public void testMinSnapshotsAggressiveTablePropOverride() throws Exception {
+    VacuumTests.testMinSnapshotsAggressiveTablePropOverride(allocator, SOURCE);
+  }
+
+  @Test
+  public void testSnapshotAgeTablePropOverride() throws Exception {
+    VacuumTests.testSnapshotAgeTablePropOverride(allocator, SOURCE);
+  }
+
+  @Test
+  public void testSnapshotAgeAggressiveTablePropOverride() throws Exception {
+    VacuumTests.testSnapshotAgeAggressiveTablePropOverride(allocator, SOURCE);
+  }
+
+  @Test
+  public void testExpireSnapshotsWithTensOfSnapshots() throws Exception {
+    VacuumTests.testExpireSnapshotsWithTensOfSnapshots(allocator, SOURCE);
+  }
+
+  @Test
+  public void testExpireSnapshotsOnNonMainBranch() throws Exception {
+    VacuumTests.testExpireSnapshotsOnNonMainBranch(SOURCE, allocator);
+  }
+
+  @Test
+  public void testExpireSnapshotsOnDifferentBranches() throws Exception {
+    VacuumTests.testExpireSnapshotsOnDifferentBranches(SOURCE, allocator);
+  }
+
+  /** Remove orphan files tests */
+  @Test
+  public void testMalformedVacuumRemoveOrphanFileQueries() throws Exception {
+    VacuumTests.testMalformedVacuumRemoveOrphanFileQueries(SOURCE);
+  }
+
+  @Test
+  public void testSimpleRemoveOrphanFiles() throws Exception {
+    VacuumTests.testSimpleRemoveOrphanFiles(allocator, SOURCE);
+  }
+
+  @Test
+  public void testSimpleRemoveOrphanFilesUsingEqual() throws Exception {
+    VacuumTests.testSimpleRemoveOrphanFilesUsingEqual(allocator, SOURCE);
+  }
+
+  @Test
+  public void testRemoveOrphanFilesNotDeleteValidFiles() throws Exception {
+    VacuumTests.testRemoveOrphanFilesNotDeleteValidFiles(allocator, SOURCE);
+  }
+
+  @Test
+  public void testRemoveOrphanFilesDeleteOrphanFiles() throws Exception {
+    VacuumTests.testRemoveOrphanFilesDeleteOrphanFiles(allocator, SOURCE);
+  }
+
+  @Test
+  public void testRemoveOrphanFilesInvalidTimestampLiteral() throws Exception {
+    VacuumTests.testRemoveOrphanFilesInvalidTimestampLiteral(SOURCE);
+  }
+
+  @Test
+  public void testRemoveOrphanFilesWithLocationClause() throws Exception {
+    VacuumTests.testRemoveOrphanFilesWithLocationClause(allocator, SOURCE);
+  }
+
+  @Test
+  public void testUnparseRemoveOrphanFilesQuery() throws Exception {
+    VacuumTests.testUnparseRemoveOrphanFilesQuery(SOURCE);
+  }
+
+  @Test
+  public void testVacuumOnExternallyCreatedTable() throws Exception {
+    VacuumTests.testVacuumOnExternallyCreatedTable(allocator, SOURCE);
+  }
+
+  @Test
+  public void testRemoveOrphanFilesHybridlyGeneratedTable() throws Exception {
+    VacuumTests.testRemoveOrphanFilesHybridlyGeneratedTable(allocator, SOURCE);
   }
 }

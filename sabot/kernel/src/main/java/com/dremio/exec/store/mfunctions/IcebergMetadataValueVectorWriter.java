@@ -116,7 +116,11 @@ final class IcebergMetadataValueVectorWriter {
           }
           outIndex++;
         }
-        //Instantiate a fresh recordsIterator after every file scan.
+        if (outIndex >= targetBatchSize) {
+          // there could be more records, but we need to return what we collected so far now
+          break;
+        }
+        // Instantiate a fresh recordsIterator after every file scan.
         recordsIterator = null;
       }
       final int valueCount = outIndex;

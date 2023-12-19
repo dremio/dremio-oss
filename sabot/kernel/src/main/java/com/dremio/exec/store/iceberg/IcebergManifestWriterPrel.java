@@ -41,14 +41,17 @@ public class IcebergManifestWriterPrel extends WriterPrel {
     public static final TypeValidators.LongValidator LIMIT = new TypeValidators.PositiveLongValidator("planner.op.manifest_writer.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
     private final CreateTableEntry createTableEntry;
+    private final boolean singleWriter;
 
     public IcebergManifestWriterPrel(
             RelOptCluster cluster,
             RelTraitSet traits,
             RelNode child,
-            CreateTableEntry createTableEntry) {
+            CreateTableEntry createTableEntry,
+            boolean singleWriter) {
         super(cluster, traits, child, createTableEntry, child.getRowType());
         this.createTableEntry = createTableEntry;
+        this.singleWriter = singleWriter;
     }
 
     @Override
@@ -58,11 +61,11 @@ public class IcebergManifestWriterPrel extends WriterPrel {
         return new IcebergManifestWriterPOP(
                 props,
                 child, createTableEntry.getLocation(),
-                createTableEntry.getOptions(), createTableEntry.getPlugin());
+                createTableEntry.getOptions(), createTableEntry.getPlugin(), singleWriter);
     }
 
     @Override
     public WriterPrel copy(RelTraitSet traitSet, List<RelNode> inputs) {
-        return new IcebergManifestWriterPrel(getCluster(), traitSet, sole(inputs), getCreateTableEntry());
+        return new IcebergManifestWriterPrel(getCluster(), traitSet, sole(inputs), getCreateTableEntry(), singleWriter);
     }
 }

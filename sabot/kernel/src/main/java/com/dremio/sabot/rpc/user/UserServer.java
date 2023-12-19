@@ -22,6 +22,7 @@ import javax.inject.Provider;
 
 import org.apache.arrow.memory.BufferAllocator;
 
+import com.dremio.authenticator.Authenticator;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.config.DremioConfig;
@@ -48,6 +49,7 @@ public class UserServer implements Service {
   private final DremioConfig config;
   private final Provider<ExecutorService> executorService;
   private final Provider<BufferAllocator> bufferAllocator;
+  private final Provider<? extends Authenticator> authenticatorProvider;
   private final Provider<UserService> userServiceProvider;
   private final Provider<NodeEndpoint> nodeEndpointProvider;
   private final Provider<UserWorker> worker;
@@ -65,6 +67,7 @@ public class UserServer implements Service {
     DremioConfig config,
     Provider<ExecutorService> executorService,
     Provider<BufferAllocator> bufferAllocator,
+    Provider<? extends Authenticator> authenticatorProvider,
     Provider<UserService> userServiceProvider,
     Provider<NodeEndpoint> nodeEndpointProvider,
     Provider<UserWorker> worker,
@@ -75,6 +78,7 @@ public class UserServer implements Service {
     this.config = config;
     this.executorService = executorService;
     this.bufferAllocator = bufferAllocator;
+    this.authenticatorProvider = authenticatorProvider;
     this.userServiceProvider = userServiceProvider;
     this.nodeEndpointProvider = nodeEndpointProvider;
     this.worker = worker;
@@ -123,6 +127,7 @@ public class UserServer implements Service {
 
     return new UserRPCServer(
         UserRpcConfig.getMapping(sabotConfig, executorService.get(), Optional.empty()),
+        authenticatorProvider,
         userServiceProvider,
         nodeEndpointProvider,
         getWorker(),
@@ -131,6 +136,10 @@ public class UserServer implements Service {
         null,
         tracer,
         optionValidatorProvider.get());
+  }
+
+  protected Provider<? extends Authenticator> getAuthenticatorProvider() {
+    return authenticatorProvider;
   }
 
   protected Provider<UserService> getUserServiceProvider() {

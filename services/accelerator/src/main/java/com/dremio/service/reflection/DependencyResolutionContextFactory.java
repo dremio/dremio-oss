@@ -19,13 +19,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-import com.dremio.exec.catalog.CatalogEntityKey;
+import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
-import com.dremio.service.reflection.proto.ReflectionEntry;
-import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.RefreshRequest;
-import com.dremio.service.reflection.store.ReflectionEntriesStore;
 import com.dremio.service.reflection.store.RefreshRequestsStore;
 import com.google.common.base.Preconditions;
 
@@ -41,17 +38,15 @@ public class DependencyResolutionContextFactory {
   private final RefreshRequestsStore requestsStore;
   private final ReflectionSettings reflectionSettings;
   private final OptionManager optionManager;
-  private final ReflectionEntriesStore entriesStore;
 
   // Reflection settings by dataset.  These rarely change and so we can mostly reuse them between syncs.
   private Map<CatalogEntityKey, AccelerationSettings> settingsMap;
   private int lastSettingsHash;
   DependencyResolutionContextFactory(ReflectionSettings reflectionSettings, RefreshRequestsStore requestsStore,
-                                     OptionManager optionManager, ReflectionEntriesStore entriesStore) {
+                                     OptionManager optionManager) {
     this.requestsStore = Preconditions.checkNotNull(requestsStore, "refresh requests store required");
     this.reflectionSettings = Preconditions.checkNotNull(reflectionSettings, "reflection settings required");
     this.optionManager = Preconditions.checkNotNull(optionManager, "optionManager required");
-    this.entriesStore = Preconditions.checkNotNull(entriesStore, "reflection entry store required");
   }
 
   DependencyResolutionContext create() {
@@ -75,17 +70,7 @@ public class DependencyResolutionContextFactory {
     return new DependencyResolutionContextCached(hasAccelerationSettingsChanged);
   }
 
-  private class DependencyResolutionContextNoCache implements DependencyResolutionContext {
-    @Override
-    public Optional<Long> getLastSuccessfulRefresh(ReflectionId id)
-    {
-      ReflectionEntry entry = entriesStore.get(id);
-      if (entry != null) {
-        return Optional.ofNullable(entry.getLastSuccessfulRefresh());
-      } else {
-        return null;
-      }
-    }
+  private final class DependencyResolutionContextNoCache implements DependencyResolutionContext {
     @Override
     public AccelerationSettings getReflectionSettings(CatalogEntityKey key) {
       return reflectionSettings.getReflectionSettings(key);
@@ -109,30 +94,19 @@ public class DependencyResolutionContextFactory {
     private final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DependencyResolutionContextCached.class);
 
     private Map<String, Optional<RefreshRequest>> requestMap;
-    private Map<ReflectionId, Optional<Long>> entriesMap;
     private boolean hasAccelerationSettingsChanged;
 
-    private long entriesCacheRequests;
     private long settingsCacheRequests;
     private long settingsCacheMisses;
     private long requestCacheRequests;
     private long requestCacheMisses;
     public DependencyResolutionContextCached(final boolean hasAccelerationSettingsChanged) {
-      entriesMap = new HashMap<>();
-      entriesStore.find().forEach(reflectionEntry -> entriesMap.put(reflectionEntry.getId(),
-        Optional.ofNullable(reflectionEntry.getLastSuccessfulRefresh())));
       requestMap = new HashMap<>();
       this.hasAccelerationSettingsChanged = hasAccelerationSettingsChanged;
-      entriesCacheRequests = 0;
       settingsCacheRequests = 0;
       settingsCacheMisses = 0;
       requestCacheRequests = 0;
       requestCacheMisses = 0;
-    }
-    @Override
-    public Optional<Long> getLastSuccessfulRefresh(ReflectionId id) {
-      entriesCacheRequests++;
-      return entriesMap.get(id);
     }
     @Override
     public AccelerationSettings getReflectionSettings(CatalogEntityKey key) {
@@ -161,13 +135,12 @@ public class DependencyResolutionContextFactory {
 
     @Override
     public void close() {
-      logger.debug("Completed sync on handleEntries. Cache stats: accelerationSettingsHash={} reflectionEntries:size={},requests={}" +
+      logger.debug("Completed sync on handleEntries. Cache stats: accelerationSettingsHash={}" +
           " datasetReflectionSettings:size={},requests={},misses={} datasetRefreshRequests:size={},requests={},misses={}",
-        lastSettingsHash, entriesMap.size(), entriesCacheRequests,
+        lastSettingsHash,
         settingsMap.size(), settingsCacheRequests, settingsCacheMisses,
         requestMap.size(), requestCacheRequests, requestCacheMisses);
       requestMap = null;
-      entriesMap = null;
     }
   }
 }

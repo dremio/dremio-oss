@@ -18,23 +18,18 @@ package com.dremio.exec.catalog.dataplane;
 import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_TIME_TRAVEL;
 import static com.dremio.exec.ExecConstants.ENABLE_USE_VERSION_SYNTAX;
 import static com.dremio.exec.ExecConstants.VERSIONED_VIEW_ENABLED;
-import static com.dremio.exec.catalog.CatalogOptions.REFLECTION_ARCTIC_ENABLED;
+import static com.dremio.exec.catalog.CatalogOptions.REFLECTION_VERSIONED_SOURCE_ENABLED;
 import static com.dremio.exec.catalog.dataplane.DataplaneTestDefines.ALTERNATIVE_BUCKET_NAME;
 import static com.dremio.exec.catalog.dataplane.DataplaneTestDefines.BUCKET_NAME;
 import static com.dremio.exec.catalog.dataplane.DataplaneTestDefines.DATAPLANE_PLUGIN_NAME;
 import static com.dremio.exec.catalog.dataplane.DataplaneTestDefines.DATAPLANE_PLUGIN_NAME_FOR_REFLECTION_TEST;
 import static com.dremio.exec.catalog.dataplane.DataplaneTestDefines.createFolderAtQueryWithIfNotExists;
 import static com.dremio.exec.catalog.dataplane.DataplaneTestDefines.fullyQualifiedTableName;
-import static com.dremio.exec.store.DataplanePluginOptions.DATAPLANE_PLUGIN_ENABLED;
 import static com.dremio.exec.store.DataplanePluginOptions.NESSIE_PLUGIN_ENABLED;
 import static com.dremio.options.OptionValue.OptionType.SYSTEM;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -43,23 +38,25 @@ import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.api.io.TempDir;
 import org.projectnessie.client.api.NessieApiV1;
 import org.projectnessie.client.api.NessieApiV2;
 import org.projectnessie.client.http.HttpClientBuilder;
 import org.projectnessie.tools.compatibility.api.NessieBaseUri;
 import org.projectnessie.tools.compatibility.api.NessieServerProperty;
 import org.projectnessie.tools.compatibility.internal.OlderNessieServersExtension;
-import org.projectnessie.versioned.persist.adapter.DatabaseAdapter;
-import org.projectnessie.versioned.persist.tests.extension.NessieDbAdapter;
 
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.AnonymousAWSCredentials;
+import com.amazonaws.client.builder.AwsClientBuilder;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.dremio.catalog.model.VersionContext;
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.server.BaseTestServerJunit5;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogServiceImpl;
-import com.dremio.exec.catalog.TableVersionContext;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.catalog.VersionedDatasetId;
 import com.dremio.exec.catalog.conf.NessieAuthType;
 import com.dremio.exec.catalog.conf.Property;
@@ -78,17 +75,14 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 
 import io.findify.s3mock.S3Mock;
+import software.amazon.awssdk.regions.Region;
 
 @ExtendWith(OlderNessieServersExtension.class)
 @NessieServerProperty(name = "nessie.test.storage.kind", value = "PERSIST")  //PERSIST is the new model in Nessie Server
-public class ITBaseTestVersioned extends BaseTestServerJunit5 {
+public abstract class ITBaseTestVersioned extends BaseTestServerJunit5 {
+  private static AmazonS3 s3Client;
   private static S3Mock s3Mock;
-  private static int S3_PORT;
-
-  @TempDir static File temporaryDirectory;
-  private static Path bucketPath;
-
-  @NessieDbAdapter static DatabaseAdapter databaseAdapter;
+  private static int s3Port;
 
   @NessieBaseUri private static URI nessieUri;
 
@@ -99,17 +93,15 @@ public class ITBaseTestVersioned extends BaseTestServerJunit5 {
   private static NamespaceService namespaceService;
 
   @BeforeAll
-  public static void arcticSetup() throws Exception {
+  public static void nessieSourceSetup() throws Exception {
     setUpS3Mock();
     setUpNessie();
     setUpDataplanePlugin();
   }
 
   @AfterAll
-  public static void arcticCleanUp() throws Exception {
-    AutoCloseables.close(
-        dataplanePlugin,
-        nessieClient);
+  public static void nessieSourceCleanUp() throws Exception {
+    AutoCloseables.close(nessieClient);
     if (s3Mock != null) {
       s3Mock.shutdown();
       s3Mock = null;
@@ -117,17 +109,31 @@ public class ITBaseTestVersioned extends BaseTestServerJunit5 {
   }
 
   protected static void setUpS3Mock() throws IOException {
-    bucketPath = Paths.get(temporaryDirectory.getAbsolutePath(), BUCKET_NAME);
-    Files.createDirectory(bucketPath);
-    Files.createDirectory(Paths.get(temporaryDirectory.getAbsolutePath(), ALTERNATIVE_BUCKET_NAME));
-
     Preconditions.checkState(s3Mock == null);
-    s3Mock =
-        new S3Mock.Builder()
-            .withPort(0)
-            .withFileBackend(temporaryDirectory.getAbsolutePath())
-            .build();
-    S3_PORT = s3Mock.start().localAddress().getPort();
+
+    // We use S3Mock's in-memory backend implementation to avoid incompatibility issues between Hadoop's S3's implementation
+    // and S3Mock's filesystem backend. When doing file deletions, Hadoop executes a "maybeCreateFakeParentDirectory"
+    // operation that tries to write a 0 byte object to S3. S3Mock's filesystem backend throws an AmazonS3Exception
+    // with a "Is a directory" message. The in-memory backend does not have the same issue.
+    // We encountered this problem (in tests only, not AWS S3) when cleaning up Iceberg metadata files after a failed Nessie commit.
+    s3Mock = new S3Mock.Builder()
+        .withPort(0)
+        .withInMemoryBackend()
+        .build();
+
+    s3Port = s3Mock.start().localAddress().getPort();
+
+    AwsClientBuilder.EndpointConfiguration endpoint = new AwsClientBuilder.EndpointConfiguration(String.format("http://localhost:%d", s3Port), Region.US_EAST_1.toString());
+
+    s3Client = AmazonS3ClientBuilder
+      .standard()
+      .withPathStyleAccessEnabled(true)
+      .withEndpointConfiguration(endpoint)
+      .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
+      .build();
+
+    s3Client.createBucket(BUCKET_NAME);
+    s3Client.createBucket(ALTERNATIVE_BUCKET_NAME);
   }
 
   protected static void setUpNessie() {
@@ -147,7 +153,7 @@ public class ITBaseTestVersioned extends BaseTestServerJunit5 {
     // S3Mock settings
     nessiePluginConfig.propertyList =
         Arrays.asList(
-            new Property("fs.s3a.endpoint", "localhost:" + S3_PORT),
+            new Property("fs.s3a.endpoint", "localhost:" + s3Port),
             new Property("fs.s3a.path.style.access", "true"),
             new Property("fs.s3a.connection.ssl.enabled", "false"),
             new Property(S3FileSystem.COMPATIBILITY_MODE, "true"));
@@ -156,10 +162,6 @@ public class ITBaseTestVersioned extends BaseTestServerJunit5 {
   }
 
   protected static void setUpDataplanePlugin() {
-    getSabotContext()
-        .getOptionManager()
-        .setOption(
-            OptionValue.createBoolean(SYSTEM, DATAPLANE_PLUGIN_ENABLED.getOptionName(), true));
     getSabotContext()
         .getOptionManager()
         .setOption(OptionValue.createBoolean(SYSTEM, VERSIONED_VIEW_ENABLED.getOptionName(), true));
@@ -174,7 +176,7 @@ public class ITBaseTestVersioned extends BaseTestServerJunit5 {
     getSabotContext()
         .getOptionManager()
         .setOption(
-            OptionValue.createBoolean(SYSTEM, REFLECTION_ARCTIC_ENABLED.getOptionName(), true));
+            OptionValue.createBoolean(SYSTEM, REFLECTION_VERSIONED_SOURCE_ENABLED.getOptionName(), true));
     getSabotContext()
       .getOptionManager()
       .setOption(
@@ -186,7 +188,7 @@ public class ITBaseTestVersioned extends BaseTestServerJunit5 {
         new SourceConfig()
             .setConnectionConf(prepareConnectionConf(BUCKET_NAME))
             .setName(DATAPLANE_PLUGIN_NAME)
-            .setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
+            .setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
     catalogImpl.getSystemUserCatalog().createSource(sourceConfig);
     dataplanePlugin = catalogImpl.getSystemUserCatalog().getSource(DATAPLANE_PLUGIN_NAME);
     catalog = catalogImpl.getSystemUserCatalog();
@@ -195,7 +197,7 @@ public class ITBaseTestVersioned extends BaseTestServerJunit5 {
       new SourceConfig()
         .setConnectionConf(prepareConnectionConf(BUCKET_NAME))
         .setName(DATAPLANE_PLUGIN_NAME_FOR_REFLECTION_TEST)
-        .setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
+        .setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
     catalogImpl.getSystemUserCatalog().createSource(sourceConfigForReflectionTest);
 
     namespaceService = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME);
@@ -213,15 +215,6 @@ public class ITBaseTestVersioned extends BaseTestServerJunit5 {
     return catalog;
   }
 
-  public static Path getBucketPath() {
-    return bucketPath;
-  }
-
-  public static void reinit() {
-    databaseAdapter.eraseRepo();
-    s3Mock.stop();
-    s3Mock.start();
-  }
 
   public static Catalog getContextualizedCatalog(String pluginName, VersionContext versionContext) {
     final Catalog resetCatalog =
@@ -268,8 +261,8 @@ public class ITBaseTestVersioned extends BaseTestServerJunit5 {
 
   /* Helper function to create a set of folders in a DATAPLANE_PLUGIN  given a table path of format:
    folder1/folder2/.../table1
-  */
-  protected void createFolders(List<String> tablePath, VersionContext versionContext, String sessionId) {
+   */
+  protected static void createFolders(List<String> tablePath, VersionContext versionContext, String sessionId) {
     //Iterate to get the parent folders where the table should be created (till tableName). Last element is tableName
     StringBuilder folderName = new StringBuilder();
     folderName.append(DATAPLANE_PLUGIN_NAME);
@@ -283,4 +276,22 @@ public class ITBaseTestVersioned extends BaseTestServerJunit5 {
       }
     }
   }
+
+  /* Helper function to create a set of folders in a given a fully qualified folder path of format:
+   <plugin name>/folder1/folder2/.../table1
+  */
+  protected void createFolder(List<String> folderPath, VersionContext versionContext, String sessionId) {
+    //Iterate to get the parent folders where the table should be created (till tableName). Last element is tableName
+    StringBuilder folderName = new StringBuilder().append(folderPath.get(0));
+    for (int i = 1; i < folderPath.size(); i++) {
+      folderName.append(".").append(folderPath.get(i));
+    }
+    String query = createFolderAtQueryWithIfNotExists(Collections.singletonList(folderName.toString()), versionContext);
+    if (StringUtils.isEmpty(sessionId)) {
+      runQuery(query);
+    } else {
+      runQueryInSession(query, sessionId);
+    }
+  }
+
 }

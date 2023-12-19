@@ -70,4 +70,8 @@ public class SqlVersionedTableCollectionCall extends SqlCall {
     Preconditions.checkState(getOperator().getName() == OPERATOR.getName());
     this.versionedTableMacroCall.unparse(writer, leftPrec, rightPrec);
   }
+
+  public SqlVersionedTableMacroCall getVersionedTableMacroCall() {
+    return versionedTableMacroCall;
+  }
 }

@@ -23,9 +23,9 @@ import java.util.stream.Collectors;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
 import com.dremio.exec.planner.sql.parser.ReferenceTypeUtils;
@@ -42,7 +42,7 @@ import com.dremio.sabot.rpc.user.UserSession;
  * Handler to show logs for specific ref.
  *
  * SHOW LOGS
- * [ AT ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue ]
+ * [ AT ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue [AS OF timestamp] ]
  * [ IN sourceName ]
  */
 public class ShowLogsHandler extends BaseVersionHandler<ChangeInfo> {
@@ -65,7 +65,7 @@ public class ShowLogsHandler extends BaseVersionHandler<ChangeInfo> {
       userSession.getDefaultSchemaPath());
 
     final VersionContext statementVersion =
-      ReferenceTypeUtils.map(showLogs.getRefType(), showLogs.getRefValue());
+      ReferenceTypeUtils.map(showLogs.getRefType(), showLogs.getRefValue(), showLogs.getTimestamp());
     final VersionContext sessionVersion = userSession.getSessionVersionForSource(sourceName);
     final VersionContext version = statementVersion.orElse(sessionVersion);
 

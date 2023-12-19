@@ -32,6 +32,7 @@ import com.dremio.exec.calcite.logical.TableOptimizeCrel;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.ops.PlannerCatalog;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.logical.CreateTableEntry;
@@ -40,13 +41,17 @@ import com.dremio.exec.planner.logical.ScreenRel;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
 import com.dremio.exec.planner.sql.handlers.ConvertedRelNode;
+import com.dremio.exec.planner.sql.handlers.DrelTransformer;
 import com.dremio.exec.planner.sql.handlers.PrelTransformer;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
+import com.dremio.exec.planner.sql.handlers.SqlToRelTransformer;
 import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
+import com.dremio.exec.planner.sql.parser.DremioHint;
 import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.exec.planner.sql.parser.SqlOptimize;
 import com.dremio.exec.store.iceberg.IcebergUtils;
+import com.dremio.options.OptionValue;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
 import com.google.common.annotations.VisibleForTesting;
@@ -85,29 +90,29 @@ public class OptimizeHandler extends TableManagementHandler {
   }
 
   @Override
-  protected Rel convertToDrel(SqlHandlerConfig config, SqlNode sqlNode, NamespaceKey path, Catalog catalog, RelNode relNode) throws Exception {
+  protected Rel convertToDrel(SqlHandlerConfig config, SqlNode sqlNode, NamespaceKey path, PlannerCatalog catalog, RelNode relNode) throws Exception {
 
-    DremioTable table = catalog.getTable(path);
+    DremioTable table = catalog.getTableWithSchema(path);
     List<String> partitionColumnsList = table.getDatasetConfig().getReadDefinition().getPartitionColumnsList();
     OptimizeOptions optimizeOptions = OptimizeOptions.createInstance(config.getContext().getOptions(),
       (SqlOptimize) sqlNode, CollectionUtils.isEmpty(partitionColumnsList));
 
-    CreateTableEntry createTableEntry = IcebergUtils.getIcebergCreateTableEntry(config, catalog,
+    CreateTableEntry createTableEntry = IcebergUtils.getIcebergCreateTableEntry(config, config.getContext().getCatalog(),
       table, getSqlOperator(), optimizeOptions);
 
-    Rel convertedRelNode = PrelTransformer.convertToDrel(config, rewriteCrel(relNode, createTableEntry));
+    Rel convertedRelNode = DrelTransformer.convertToDrel(config, rewriteCrel(relNode, createTableEntry));
     convertedRelNode = SqlHandlerUtil.storeQueryResultsIfNeeded(config.getConverter().getParserConfig(),
       config.getContext(), convertedRelNode);
     return new ScreenRel(convertedRelNode.getCluster(), convertedRelNode.getTraitSet(), convertedRelNode);
   }
 
   @Override
-  protected PhysicalPlan getPlan(Catalog catalog, SqlHandlerConfig config, String sql, SqlNode sqlNode, NamespaceKey path) throws Exception {
+  protected PhysicalPlan getPlan(SqlHandlerConfig config, String sql, SqlNode sqlNode, NamespaceKey path) throws Exception {
     try {
-
+      final PlannerCatalog catalog = config.getConverter().getPlannerCatalog();
       Runnable refresh = null;
-      if (!CatalogUtil.requestedPluginSupportsVersionedTables(path, catalog)) {
-        refresh = () -> refreshDataset(catalog, path, false);
+      if (!CatalogUtil.requestedPluginSupportsVersionedTables(path, config.getContext().getCatalog())) {
+        refresh = () -> refreshDataset(config.getContext().getCatalog(), path, false);
         //Always use the latest snapshot before optimize.
         refresh.run();
       }
@@ -121,14 +126,16 @@ public class OptimizeHandler extends TableManagementHandler {
     }
   }
 
-  public Prel getNonPhysicalPlan(Catalog catalog, SqlHandlerConfig config, SqlNode sqlNode, NamespaceKey path) throws Exception {
-    final ConvertedRelNode convertedRelNode = PrelTransformer.validateAndConvert(config, sqlNode);
+  public Prel getNonPhysicalPlan(PlannerCatalog catalog, SqlHandlerConfig config, SqlNode sqlNode, NamespaceKey path) throws Exception {
+    final ConvertedRelNode convertedRelNode = SqlToRelTransformer.validateAndConvert(config, sqlNode);
     final RelNode relNode = convertedRelNode.getConvertedNode();
-    DremioTable table = catalog.getTable(path);
+    DremioTable table = catalog.getTableWithSchema(path);
     List<String> partitionColumnsList = table.getDatasetConfig().getReadDefinition().getPartitionColumnsList();
 
     final RelNode optimizeRelNode = ((TableOptimizeCrel) relNode).createWith(
       OptimizeOptions.createInstance(config.getContext().getOptions(), (SqlOptimize) sqlNode, CollectionUtils.isEmpty(partitionColumnsList)));
+    config.getContext().getOptions().setOption(OptionValue.createBoolean(OptionValue.OptionType.QUERY,
+      DremioHint.NO_REFLECTIONS.getOption().getOptionName(), true));
     drel = convertToDrel(config, sqlNode, path, catalog, optimizeRelNode);
     final Pair<Prel, String> prelAndTextPlan = PrelTransformer.convertToPrel(config, drel);
     textPlan = prelAndTextPlan.getValue();
@@ -137,7 +144,7 @@ public class OptimizeHandler extends TableManagementHandler {
 
   private void validateCompatibleTableFormat(Catalog catalog, SqlHandlerConfig config, NamespaceKey namespaceKey, SqlOperator sqlOperator) {
     // Validate table exists and is Iceberg table
-    IcebergUtils.checkTableExistenceAndMutability(catalog, config, namespaceKey, sqlOperator, false);
+    IcebergUtils.checkTableExistenceAndMutability(catalog, config, namespaceKey, sqlOperator, true);
     // Validate V2 tables are supported (if yes - verify table has no equality delete files)
     IcebergMetadata icebergMetadata = catalog.getTableNoResolve(namespaceKey).getDatasetConfig().getPhysicalDataset().getIcebergMetadata();
     Long deleteStat = icebergMetadata.getEqualityDeleteStats().getRecordCount();

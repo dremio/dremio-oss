@@ -15,10 +15,12 @@
  */
 package com.dremio;
 
+import org.junit.Assert;
 import org.junit.Test;
 
+import com.dremio.exec.planner.physical.PlannerSettings;
+
 public class TestCorrelation extends PlanTestBase {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestCorrelation.class);
 
   @Test  // DRILL-2962
   public void testScalarAggCorrelatedSubquery() throws Exception {
@@ -103,4 +105,88 @@ public class TestCorrelation extends PlanTestBase {
         .build()
         .run();
   }
+
+  @Test
+  public void testNotIn() throws Exception {
+    String query = ""
+      + "SELECT full_name\n"
+      + "FROM cp.\"employee.json\" e1\n"
+      + "WHERE e1.employee_id NOT IN (\n"
+      + "  SELECT e2.employee_id\n"
+      + "  FROM cp.\"employee.json\" e2\n"
+      + "  WHERE e1.employee_id=e2.employee_id\n"
+      + ")\n"
+      + "ORDER BY employee_id\n"
+      + "LIMIT 1";
+    DremioTestWrapper testWrapper = testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("full_name")
+      .expectsEmptyResultSet()
+      .build();
+    try(AutoCloseable c= withOption(PlannerSettings.USE_SQL_TO_REL_SUB_QUERY_EXPANSION, true)) {
+      testWrapper.run();
+      Assert.fail();
+    } catch (Exception ex) {
+      Assert.assertTrue(ex.getMessage().contains("(java.lang.AssertionError) contains $cor0"));
+    }
+    testWrapper.run();
+  }
+
+  @Test
+  public void testAny() throws Exception {
+    String query = ""
+      + "SELECT c\n"
+      + "FROM (VALUES (1), (2), (3), (4)) AS t(c)\n"
+      + "WHERE c = ANY(1, 2)";
+    DremioTestWrapper testWrapper = testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("c")
+      .baselineValues(1L)
+      .baselineValues(2L)
+      .build();
+    try(AutoCloseable c= withOption(PlannerSettings.USE_SQL_TO_REL_SUB_QUERY_EXPANSION, true)) {
+      testWrapper.run();
+      Assert.fail();
+    } catch (Exception ex) {
+      Assert.assertTrue(ex.getMessage().contains("SOME is only supported if expand = false"));
+    }
+    testWrapper.run();
+  }
+
+  @Test
+  public void testWinMagicFail() throws Exception{
+    String query = ""
+      + "WITH \n"
+      + "  t1 AS (\n"
+      + "      SELECT *\n"
+      + "      FROM (VALUES ('a', 2), ('b', 4), ('c', 6)) AS t1(t1_id, m1)),\n"
+      + "  t2 AS (\n"
+      + "      SELECT *\n"
+      + "      FROM (VALUES (1), (2), (3)) AS t2(m2)),\n"
+      + "  t3 AS (\n"
+      + "      SELECT *\n"
+      + "      FROM (VALUES (2, 1, 'a'), (2, 3, 'a'), (1, 3, 'b')) AS t3(m1, m2, t1_id))\n"
+      + "SELECT t1.*, t2.*\n"
+      + "FROM t1\n"
+      + "LEFT JOIN t2 ON t1.m1 = (\n"
+      + "    SELECT MAX(t3.m1)\n"
+      + "    FROM t3\n"
+      + "    WHERE t1.t1_id = t3.t1_id AND t2.m2 < t3.m2)";
+
+
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("t1_id", "m1", "m2")
+      .baselineValues("a", 2L, 1L)
+      .baselineValues("a", 2L, 2L)
+      .baselineValues("b", 4L, null)
+      .baselineValues("c", 6L, null)
+      .build()
+      .run();
+  }
+
+
 }

@@ -63,7 +63,7 @@ export const formRow = {
 
 export const label = {
   ...typography.formLabel,
-  color: "#202124",
+  color: "var(--color--default)",
   fontWeight: 400,
 };
 

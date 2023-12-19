@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 import { Type } from "@app/types/nessie";
-//@ts-ignore
-import { useProjectContext } from "@inject/utils/storageUtils/localStorageUtils";
 
 export function getIconByType(type?: string | null, elements?: string[]) {
   switch (type) {
@@ -30,24 +28,4 @@ export function getIconByType(type?: string | null, elements?: string[]) {
         id: "Nessie.Namespace",
       };
   }
-}
-
-export function getUrlByType(type: string | null, fullPath: string) {
-  switch (type) {
-    case Type.IcebergTable:
-    case Type.DeltaLakeTable:
-      return `/table/${fullPath}`;
-    case "ICEBERG_VIEW": // TODO, need to update generated types
-      return `/view/${fullPath}`;
-    default:
-      return `/namespace/${fullPath}`;
-  }
-}
-
-export function useProjectInfo(): { id: string; name: string } {
-  const ctx = useProjectContext();
-  return {
-    id: ctx?.id,
-    name: ctx?.name,
-  };
 }

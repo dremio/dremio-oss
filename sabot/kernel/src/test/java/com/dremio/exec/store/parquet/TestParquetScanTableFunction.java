@@ -63,6 +63,7 @@ import com.dremio.exec.util.RuntimeFilterTestUtils;
 import com.dremio.exec.util.ValueListFilter;
 import com.dremio.io.file.Path;
 import com.dremio.options.OptionManager;
+import com.dremio.sabot.RecordBatchValidatorDefaultImpl;
 import com.dremio.sabot.RecordSet;
 import com.dremio.sabot.RecordSet.Record;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -278,7 +279,7 @@ public class TestParquetScanTableFunction extends BaseTestParquetScanTableFuncti
       throws Exception {
     TableFunctionPOP pop = getPopForParquet(fileSchema, columns, ImmutableList.of());
     try (AutoCloseable closeable = with(ExecConstants.PARQUET_READER_VECTORIZE, false)) {
-      validateSingle(pop, TableFunctionOperator.class, input, output, BATCH_SIZE);
+      validateSingle(pop, TableFunctionOperator.class, input, new RecordBatchValidatorDefaultImpl(output), BATCH_SIZE);
     }
   }
 
@@ -299,6 +300,9 @@ public class TestParquetScanTableFunction extends BaseTestParquetScanTableFuncti
     int probeOpId = 131074;
     int buildOpId = 65541;
     ArrowBuf[] bufs = new ArrowBuf[]{oobMessageBuf};
+    List<Integer> bufferLengths = new ArrayList<>();
+    bufferLengths.add((int)filter.getPartitionColumnFilter().getSizeBytes());
+    filter.getNonPartitionColumnFilterList().forEach(v -> bufferLengths.add((int)v.getSizeBytes()));
     return new OutOfBandMessage(
         UserBitShared.QueryId.newBuilder().build(),
         probeScanId,
@@ -309,6 +313,7 @@ public class TestParquetScanTableFunction extends BaseTestParquetScanTableFuncti
         buildOpId,
         new OutOfBandMessage.Payload(filter),
         bufs,
+        bufferLengths,
         false);
   }
 

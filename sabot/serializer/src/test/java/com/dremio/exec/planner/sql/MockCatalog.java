@@ -22,14 +22,18 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import javax.annotation.Nonnull;
+
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.schema.Function;
 
-import com.dremio.exec.catalog.CatalogIdentity;
+import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.catalog.model.VersionContext;
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.SimpleCatalog;
-import com.dremio.exec.catalog.TableVersionContext;
-import com.dremio.exec.catalog.VersionContext;
+import com.dremio.exec.catalog.TableMetadataVerifyRequest;
+import com.dremio.exec.catalog.TableMetadataVerifyResult;
 import com.dremio.exec.store.ColumnExtendedProperty;
 import com.dremio.service.catalog.Table;
 import com.dremio.service.namespace.NamespaceKey;
@@ -89,8 +93,14 @@ public class MockCatalog implements SimpleCatalog<MockCatalog> {
     throw new UnsupportedOperationException();
   }
 
+  @Nonnull
   @Override
-  public void validateSelection() {
+  public Optional<TableMetadataVerifyResult> verifyTableMetadata(NamespaceKey key, TableMetadataVerifyRequest metadataVerifyRequest) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public DremioTable getTable(CatalogEntityKey catalogEntityKey) {
     throw new UnsupportedOperationException();
   }
 
@@ -121,21 +131,6 @@ public class MockCatalog implements SimpleCatalog<MockCatalog> {
   }
 
   @Override
-  public MockCatalog resolveCatalog(CatalogIdentity subject, NamespaceKey newDefaultSchema) {
-    return null;
-  }
-
-  @Override
-  public MockCatalog resolveCatalog(CatalogIdentity subject, NamespaceKey newDefaultSchema, boolean checkValidity) {
-    return null;
-  }
-
-  @Override
-  public MockCatalog resolveCatalog(boolean checkValidity) {
-    return this;
-  }
-
-  @Override
   public MockCatalog resolveCatalog(NamespaceKey newDefaultSchema) {
     return null;
   }
@@ -156,6 +151,11 @@ public class MockCatalog implements SimpleCatalog<MockCatalog> {
   }
 
   @Override
+  public DremioTable getTableSnapshotNoResolve(NamespaceKey key, TableVersionContext context) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
   public DremioTable getTableNoColumnCount(NamespaceKey key) {
     throw new UnsupportedOperationException();
   }
@@ -167,11 +167,6 @@ public class MockCatalog implements SimpleCatalog<MockCatalog> {
 
   @Override
   public Map<String, List<ColumnExtendedProperty>> getColumnExtendedProperties(DremioTable table) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public boolean supportsVersioning(NamespaceKey namespaceKey) {
     throw new UnsupportedOperationException();
   }
 

@@ -144,7 +144,6 @@ export const generateTableRows = (
                       canDeleteTag
                     />
                   }
-                  tooltip="Common.More"
                   hideArrowIcon
                   stopPropagation
                 >

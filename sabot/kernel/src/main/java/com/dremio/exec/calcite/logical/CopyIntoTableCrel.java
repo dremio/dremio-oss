@@ -22,6 +22,7 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.type.RelDataType;
 
 import com.dremio.exec.planner.common.CopyIntoTableRelBase;
 import com.dremio.exec.planner.sql.handlers.query.CopyIntoTableContext;
@@ -34,12 +35,13 @@ public class CopyIntoTableCrel extends CopyIntoTableRelBase {
   public CopyIntoTableCrel(RelOptCluster cluster,
                            RelTraitSet traitSet,
                            RelOptTable table,
+                           RelDataType rowType,
                            CopyIntoTableContext copyIntoTableContext) {
-    super(Convention.NONE, cluster, traitSet, table, copyIntoTableContext);
+    super(Convention.NONE, cluster, traitSet, table, rowType, copyIntoTableContext);
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new CopyIntoTableCrel(getCluster(), traitSet, getTable(),  getContext());
+    return new CopyIntoTableCrel(getCluster(), traitSet, getTable(), getRowType(), getContext());
   }
 }

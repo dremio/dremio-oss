@@ -38,4 +38,6 @@ message IcebergDatasetXAttr {
 message IcebergDatasetSplitXAttr {
   optional string path = 1;
   optional bytes extended_property = 2; // source specific information about this split
+  optional string tableName = 3;
+  optional string dbName = 4;
 }

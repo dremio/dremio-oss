@@ -37,7 +37,7 @@ export default class AccelerationSection extends Component {
     const { fields } = this.props;
     return (
       <div>
-        <h3 style={sectionTitle}>{la("Acceleration")}</h3>
+        <h3 style={sectionTitle}>{laDeprecated("Acceleration")}</h3>
         <DataFreshnessSection fields={fields} entityType="source" />
       </div>
     );

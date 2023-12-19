@@ -56,6 +56,8 @@ import com.dremio.service.jobs.ReflectionJobValidationException;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 
 /**
  * Jobs API resource
@@ -77,6 +79,7 @@ public class JobResource extends BaseResourceWithAllocator {
     this.securityContext = securityContext;
   }
 
+  @WithSpan
   @GET
   @Path("/{id}")
   public JobStatus getJobStatus(@PathParam("id") String id) {
@@ -90,6 +93,7 @@ public class JobResource extends BaseResourceWithAllocator {
           .setUserName(securityContext.getUserPrincipal().getName())
           .build();
         JobDetails jobDetails = jobs.getJobDetails(request);
+        Span.current().setAttribute("retries", (i-1));
         return JobStatus.fromJob(jobDetails);
       } catch (JobNotFoundException e) {
         throw new NotFoundException(String.format("Could not find a job with id [%s]", id));
@@ -112,6 +116,7 @@ public class JobResource extends BaseResourceWithAllocator {
     return null;
   }
 
+  @WithSpan
   @GET
   @Path("/{id}/results")
   public JobResourceData getQueryResults(@PathParam("id") String id, @QueryParam("offset") @DefaultValue("0") Integer offset, @Valid @QueryParam("limit") @DefaultValue("100") Integer limit) {
@@ -134,6 +139,7 @@ public class JobResource extends BaseResourceWithAllocator {
     }
   }
 
+  @WithSpan
   @POST
   @Path("/{id}/cancel")
   public void cancelJob(@PathParam("id") String id) throws JobException {
@@ -150,6 +156,7 @@ public class JobResource extends BaseResourceWithAllocator {
     }
   }
 
+  @WithSpan
   @GET
   @Path("/{id}/reflection/{reflectionId}")
   public JobStatus getReflectionJobStatus(@PathParam("id") String id,
@@ -180,6 +187,7 @@ public class JobResource extends BaseResourceWithAllocator {
     }
   }
 
+  @WithSpan
   @POST
   @Path("/{id}/reflection/{reflectionId}/cancel")
   public void cancelReflectionJob(@PathParam("id") String id,

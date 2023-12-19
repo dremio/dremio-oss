@@ -22,8 +22,9 @@ import { getSummaryDataset } from "selectors/datasets";
 import { getViewState } from "selectors/resources";
 import { constructFullPath } from "@app/utils/pathUtils";
 import DatasetSummary from "../DatasetSummary/DatasetSummary";
-import DatasetSummaryNotFound from "../DatasetSummaryNotFound/DatasetSummaryNotFound";
+import DatasetSummaryError from "../DatasetSummary/DatasetSummaryError/DatasetSummaryError";
 import { VersionContextType } from "dremio-ui-common/components/VersionContext.js";
+import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
 
 const VIEW_ID = "SummaryDataset";
 
@@ -40,6 +41,10 @@ type DatasetSummaryOverlayProps = {
   showColumns?: boolean;
   hideSqlEditorIcon?: boolean;
   versionContext?: VersionContextType;
+  isPanel?: boolean;
+  hideGoToButton?: boolean;
+  handlePanelDetails?: (dataset: any) => void;
+  hideMainActionButtons?: boolean;
 };
 
 const DatasetSummaryOverlay = (
@@ -59,13 +64,17 @@ const DatasetSummaryOverlay = (
     showColumns,
     hideSqlEditorIcon,
     versionContext,
+    isPanel,
+    hideGoToButton,
+    handlePanelDetails,
+    hideMainActionButtons,
   } = props;
 
   const { type: contextType, value: contextValue } = versionContext ?? {};
 
   useEffect(() => {
     dispatchLoadSummaryDataset(
-      fullPath?.join("/"),
+      fullPath,
       VIEW_ID,
       undefined,
       undefined,
@@ -76,16 +85,32 @@ const DatasetSummaryOverlay = (
     );
   }, [dispatchLoadSummaryDataset, fullPath, contextType, contextValue]);
 
+  useEffect(() => {
+    if (
+      summaryDataset.size &&
+      contextValue ===
+        getVersionContextFromId(summaryDataset.get("entityId"))?.value
+    ) {
+      handlePanelDetails?.(summaryDataset);
+    }
+    if (viewState.get("isFailed"))
+      handlePanelDetails?.(Immutable.fromJS({ error: true }));
+  }, [summaryDataset, handlePanelDetails, viewState, contextValue]);
+
   const title = fullPath?.get(fullPath.size - 1);
   const constructedFullPath = constructFullPath(fullPath);
-  const showDeletedDatasetSummary = viewState.get("isFailed");
+  const is403 =
+    viewState.get("error") && viewState.getIn(["error", "status"]) === 403;
+  const showError = viewState.get("isFailed");
   const disableActionButtons = viewState.get("isInProgress");
-
-  return showDeletedDatasetSummary ? (
-    <DatasetSummaryNotFound
+  return showError ? (
+    <DatasetSummaryError
+      is403={is403}
+      fullPath={fullPath}
       title={inheritedTitle}
       datasetType={datasetType}
-      fullPath={constructedFullPath}
+      versionContext={versionContext}
+      isOverlay={!detailsView}
     />
   ) : (
     <DatasetSummary
@@ -100,6 +125,9 @@ const DatasetSummaryOverlay = (
       showColumns={showColumns}
       hideSqlEditorIcon={hideSqlEditorIcon}
       versionContext={versionContext}
+      isPanel={isPanel}
+      hideGoToButton={hideGoToButton}
+      hideMainActionButtons={hideMainActionButtons}
     />
   );
 };
@@ -116,6 +144,5 @@ const mapStateToProps = (
 };
 
 export default withRouter(
-  // @ts-ignore
   connect(mapStateToProps, { loadSummaryDataset })(DatasetSummaryOverlay)
 );

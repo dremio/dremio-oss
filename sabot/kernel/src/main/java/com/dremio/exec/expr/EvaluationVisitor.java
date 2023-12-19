@@ -30,6 +30,8 @@ import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
 import org.apache.arrow.vector.ValueHolderHelper;
+import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.complex.impl.UnionListReader;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.complex.writer.FieldWriter;
 
@@ -746,6 +748,12 @@ public class EvaluationVisitor {
         JLabel label = generator.getEvalBlock().label("complex");
         JBlock eval = generator.getEvalBlock().block();
 
+        if(ListVector.class.equals(e.getFieldId().getIntermediateClass()) && generator.hasVVDeclaration(generator.getMappingSet().getIncoming(), e.getFieldId())) {
+          JClass ref = generator.getModel().ref(UnionListReader.class);
+          JVar reader = eval.decl(ref, generator.getNextVar("tReader"));
+          eval.assign(reader, JExpr._new(ref).arg(vector));
+          expr = reader;
+        }
         // position to the correct value.
         eval.add(expr.invoke("reset"));
         eval.add(expr.invoke("setPosition").arg(indexVariable));
@@ -765,7 +773,7 @@ public class EvaluationVisitor {
             // if this is an array, set a single position for the expression to
             // allow us to read the right data lower down.
             JVar desiredIndex = eval.decl(generator.getModel().INT, "desiredIndex" + listNum,
-              JExpr.lit(seg.getArraySegment().getIndex()));
+              JExpr.lit(seg.getArraySegment().getOptionalIndex()));
             // start with negative one so that we are at zero after first call
             // to next.
             JVar currentIndex = eval.decl(generator.getModel().INT, "currentIndex" + listNum, JExpr.lit(-1));
@@ -808,7 +816,7 @@ public class EvaluationVisitor {
           return hc;
         } else {
           if (seg != null) {
-            eval.add(expr.invoke("read").arg(JExpr.lit(seg.getArraySegment().getIndex())).arg(out.getHolder()));
+            eval.add(expr.invoke("read").arg(JExpr.lit(seg.getArraySegment().getOptionalIndex())).arg(out.getHolder()));
           } else {
             eval.add(expr.invoke("read").arg(out.getHolder()));
           }
@@ -1163,9 +1171,12 @@ public class EvaluationVisitor {
     @Override
     public HoldingContainer visitUnknown(LogicalExpression e, ClassGenerator<?> generator) throws RuntimeException {
       if (e instanceof ValueVectorReadExpression) {
-        HoldingContainer hc = getPrevious(e, generator.getMappingSet());
-        if (hc == null) {
+        HoldingContainer previous = getPrevious(e, generator.getMappingSet());
+        HoldingContainer hc = previous;
+        if(hc == null || ListVector.class.equals(((ValueVectorReadExpression)e).getFieldId().getIntermediateClass())) {
           hc = super.visitUnknown(e, generator);
+        }
+        if (previous == null) {
           put(e, hc, generator.getMappingSet());
         }
         return hc;

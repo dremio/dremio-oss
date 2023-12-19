@@ -76,12 +76,12 @@ export function makeDefaultNodePropertyRow(columns, emptySymbol = "-") {
   }, {});
 }
 
-export function getContainerListItemId(listItem) {
+export function getContainerListItemProperty(listItem, property) {
   if (!listItem) return "-";
   const containerPropertyList = listItem.get("containerPropertyList");
   if (containerPropertyList && containerPropertyList.size) {
     const propertyItem = containerPropertyList.find(
-      (item) => item.get("key") === "instanceId"
+      (item) => item.get("key") === property
     );
     return (propertyItem && propertyItem.get("value")) || "";
   } else {
@@ -124,4 +124,8 @@ export function getNodeCount(engine) {
   const workersSummary = engine.get("workersSummary");
   const { total } = (workersSummary && workersSummary.toJS()) || {};
   return total || 0;
+}
+
+export function isPreviewEngine(engine) {
+  return engine.get("name") === "preview";
 }

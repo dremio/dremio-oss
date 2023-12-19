@@ -44,6 +44,7 @@ import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
+import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf;
 import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf.EasyDatasetSplitXAttr;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.spi.ProducerOperator;
@@ -149,8 +150,18 @@ public class EasyScanOperatorCreator implements ProducerOperator.Creator<EasySub
                                     RecordReader inner =
                                             formatPlugin.getRecordReader(
                                                     context, fs, input.getSplit(), input.getExtended(), innerFields, fragmentExecContext, config);
+
+                                    String basePath = "";
+                                    try {
+                                      EasyProtobuf.EasyDatasetXAttr myXAttr = LegacyProtobufSerializer.parseFrom(EasyProtobuf.EasyDatasetXAttr.PARSER, config.getExtendedProperty().toByteArray());
+                                      basePath = myXAttr.getSelectionRoot();
+                                    } catch (InvalidProtocolBufferException e) {
+                                      // catch but ignore
+                                    }
+
                                     return readerConfig.wrapIfNecessary(
-                                            context.getAllocator(), inner, input.getSplit());
+                                        context.getAllocator(), inner, input.getSplit(),
+                                        new EasyImplicitColumnValuesProvider(basePath));
                                   } catch (ExecutionSetupException e) {
                                     if (e.getCause() instanceof FileNotFoundException) {
                                       throw UserException.invalidMetadataError(e.getCause())

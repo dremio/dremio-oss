@@ -22,10 +22,11 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import java.util.Arrays;
 import java.util.List;
 
-import org.junit.After;
-import org.junit.Before;
 import org.junit.jupiter.api.Test;
 
+import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.catalog.model.dataset.TableVersionContext;
+import com.dremio.catalog.model.dataset.TableVersionType;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.service.namespace.NamespaceKey;
@@ -34,14 +35,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 
 public class TestCatalogEntityKey {
-
-  @Before
-  public void setUp() throws Exception {
-  }
-
-  @After
-  public void tearDown() throws Exception {
-  }
 
   @Test
   public void serdeTestWithNullTableVersionContext() throws JsonProcessingException {
@@ -65,7 +58,7 @@ public class TestCatalogEntityKey {
   public void serdeTestWithTableVersionContext() throws JsonProcessingException {
 
     List<String> key1 = ImmutableList.of("x","y","z");
-    TableVersionContext tableVersionContext = TableVersionContext.LATEST_VERSION;
+    TableVersionContext tableVersionContext = TableVersionContext.NOT_SPECIFIED;
     final CatalogEntityKey catalogEntityKey = CatalogEntityKey.newBuilder()
       .keyComponents(key1)
       .tableVersionContext(tableVersionContext)
@@ -91,7 +84,7 @@ public class TestCatalogEntityKey {
   @Test
   public void nullKeyComponents() {
     // Test constructing key with invalid table version context
-    TableVersionContext tableVersionContext = TableVersionContext.LATEST_VERSION;
+    TableVersionContext tableVersionContext = TableVersionContext.NOT_SPECIFIED;
     assertThatThrownBy(() ->
       CatalogEntityKey.newBuilder()
         .keyComponents(null)
@@ -186,7 +179,7 @@ public class TestCatalogEntityKey {
       .tableVersionContext(tableVersionContextImmutable2)
       .build();
     assertThat(catalogEntityKeyImmutable2.isKeyForImmutableEntity()).isTrue();
-    TableVersionContext tableVersionContextImmutable3 = new TableVersionContext(TableVersionType.COMMIT_HASH_ONLY, "1234564");
+    TableVersionContext tableVersionContextImmutable3 = new TableVersionContext(TableVersionType.COMMIT, "1234564");
     final CatalogEntityKey catalogEntityKeyImmutable3 = CatalogEntityKey.newBuilder()
       .keyComponents(key1)
       .tableVersionContext(tableVersionContextImmutable3)

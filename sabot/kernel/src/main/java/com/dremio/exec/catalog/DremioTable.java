@@ -24,6 +24,7 @@ import org.apache.calcite.schema.Table;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlNode;
 
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -91,5 +92,13 @@ public interface DremioTable extends DremioTranslatableTable, ExtensibleTable {
    */
   default String getExtendTableSql() {
     throw new UnsupportedExtendTableException();
+  }
+
+  default TableVersionContext getVersionContext() {
+    return getDataset().getVersionContext();
+  }
+
+  default boolean hasAtSpecifier() {
+    return false;
   }
 }

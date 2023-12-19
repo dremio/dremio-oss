@@ -47,7 +47,7 @@ import com.dremio.test.specs.OptionResolverSpecBuilder;
  * Tests to check common features of Dremio planners
  */
 public class TestDremioPlanners {
-  private static class NoneRel extends AbstractRelNode {
+  public static class NoneRel extends AbstractRelNode {
     public NoneRel(RelOptCluster cluster) {
       super(cluster, cluster.traitSetOf(Convention.NONE));
     }
@@ -89,7 +89,7 @@ public class TestDremioPlanners {
     }
   }
 
-  public PlannerSettings getSettings(long timeoutMillis, int maxNodes) {
+  public static PlannerSettings getSettings(long timeoutMillis, int maxNodes) {
     OptionResolver optionResolver = OptionResolverSpecBuilder.build(
         new OptionResolverSpec()
             .addOption(PlannerSettings.MAX_NODES_PER_PLAN, maxNodes)
@@ -103,7 +103,7 @@ public class TestDremioPlanners {
 
     HepProgramBuilder builder = new HepProgramBuilder();
     builder.addRuleInstance(new LoopRule());
-    DremioHepPlanner planner = new DremioHepPlanner(builder.build(), getSettings(100, 25_000), new DremioCost.Factory(), PlannerPhase.LOGICAL, new MatchCountListener(0, 0, 0, false));
+    DremioHepPlanner planner = new DremioHepPlanner(builder.build(), getSettings(100, 25_000), new DremioCost.Factory(), PlannerPhase.LOGICAL, new MatchCountListener(0, 0, 0, false, null));
 
     checkCancelFlag(planner);
   }

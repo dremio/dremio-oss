@@ -194,6 +194,7 @@ class TextField extends Component {
     const getTextField = () => (
       <input
         ref={this.inputRef}
+        id={props.name}
         {...props}
         type={type}
         onChange={onChange}
@@ -225,6 +226,7 @@ class TextField extends Component {
         <input
           ref={this.inputRef}
           {...props}
+          id={props.name}
           type="text"
           disabled={disabled}
           defaultValue={props.default}

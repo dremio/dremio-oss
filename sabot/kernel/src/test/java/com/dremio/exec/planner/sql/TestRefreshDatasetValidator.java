@@ -93,7 +93,7 @@ public class TestRefreshDatasetValidator {
 
   @Test
   public void testPartitionValuesConverter() {
-    List<PartitionValue> partitionValues = RefreshDatasetValidator.convertToPartitionValue(partitionKVMap, batchSchema);
+    List<PartitionValue> partitionValues = RefreshDatasetValidator.convertToPartitionValue(partitionKVMap, batchSchema, false);
 
     assertEquals(20, getPartitionValue(partitionValues.get(0)));
     assertEquals(20.22f, getPartitionValue(partitionValues.get(1)));
@@ -121,7 +121,7 @@ public class TestRefreshDatasetValidator {
     partitionKVMap = new HashMap<>();
     partitionKVMap.put(DATE_COL, "2020-20-10");
     try {
-      RefreshDatasetValidator.convertToPartitionValue(partitionKVMap, batchSchema);
+      RefreshDatasetValidator.convertToPartitionValue(partitionKVMap, batchSchema, false);
       fail("Any date format other than yyyy-mm-dd should have failed");
     } catch (DateTimeParseException ex) {
       assertTrue(ex.getMessage().contains("Text '2020-20-10' could not be parsed"));
@@ -133,7 +133,7 @@ public class TestRefreshDatasetValidator {
     partitionKVMap = new HashMap<>();
     partitionKVMap.put(TIMESTAMP_COL, "2020-20-10 12:34:56");
     try {
-      RefreshDatasetValidator.convertToPartitionValue(partitionKVMap, batchSchema);
+      RefreshDatasetValidator.convertToPartitionValue(partitionKVMap, batchSchema, false);
       fail("Any timestamp format other than yyyy-mm-dd hh:mm:ss should have failed");
     } catch (DateTimeParseException ex) {
       assertTrue(ex.getMessage().contains("Text '2020-20-10 12:34:56' could not be parsed"));
@@ -142,7 +142,7 @@ public class TestRefreshDatasetValidator {
 
   @Test
   public void testPartitionValuesSerde() {
-    List<PartitionValue> partitionValues = RefreshDatasetValidator.convertToPartitionValue(partitionKVMap, batchSchema);
+    List<PartitionValue> partitionValues = RefreshDatasetValidator.convertToPartitionValue(partitionKVMap, batchSchema, false);
 
     // Convert to partitionProtos
     List<PartitionProtobuf.PartitionValue> partitionValueProtos = partitionValues.stream()

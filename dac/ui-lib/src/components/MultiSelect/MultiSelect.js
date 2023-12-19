@@ -19,7 +19,7 @@ import PropTypes from "prop-types";
 import clsx from "clsx";
 import { get } from "lodash";
 
-import Checkbox from "@mui/material/Checkbox";
+import { Checkbox } from "../Checkbox/index";
 import Chip from "@mui/material/Chip";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
@@ -139,7 +139,7 @@ const MultiSelectComponent = (props) => {
     } else {
       removeValue(selectedValue);
     }
-    setFilterText("");
+    handleTypeAhead({ currentTarget: { value: "" } });
     inputRef.current.focus();
   };
 
@@ -169,7 +169,6 @@ const MultiSelectComponent = (props) => {
       ) === -1
     ) {
       addValue(filteredValues[0].value);
-      setFilterText("");
     }
 
     if (!showMenu) {
@@ -252,7 +251,7 @@ const MultiSelectComponent = (props) => {
                 }
                 onClick={handleChipClick}
                 onDelete={
-                  selectedVal !== nonClearableValue
+                  selectedVal !== nonClearableValue && !showMenu
                     ? (ev) => handleDelete(ev, selectedVal)
                     : null
                 }
@@ -279,7 +278,7 @@ const MultiSelectComponent = (props) => {
           )}
         </div>
         <div className="multiSelect__iconContainer">
-          {hasValue && (
+          {hasValue && !showMenu && (
             <span className="multiSelect__clearIcon" onClick={handleClear}>
               <XIcon />
             </span>
@@ -290,12 +289,17 @@ const MultiSelectComponent = (props) => {
   };
 
   const renderMenuItemChipIcon = (item) => {
-    const { icon: IconComponent } = item;
+    const { icon: IconComponent, description } = item;
     if (getCustomChipIcon?.(item)) {
       return getCustomChipIcon?.(item);
     } else
       return IconComponent ? (
-        <span className="multiSelect__optionIcon margin-right--half margin-left--half">
+        <span
+          className={clsx(
+            "multiSelect__optionIcon margin-right--half margin-left--half flex",
+            description && "self-start"
+          )}
+        >
           <IconComponent />
         </span>
       ) : null;
@@ -341,18 +345,31 @@ const MultiSelectComponent = (props) => {
           }}
           disabled={item.disabled}
         >
-          {/* Todo: Use font icons for checkboxes */}
-          <Checkbox
-            checked={isSelected}
-            color="primary"
-            classes={{
-              root: "gutter--none gutter-right--half multiSelect__checkbox",
-            }}
-            disabled={item.disabled}
-          />
+          <span
+            className={clsx(
+              "gutter-right--half",
+              !item.description
+                ? "gutter-top--half"
+                : ["self-start", "gutter-top--quarter"]
+            )}
+          >
+            <Checkbox checked={isSelected} />
+          </span>
           <div className="multiSelect__label__container flex --alignCenter">
             {chip}
-            <EllipisedMenuItem label={item.label} />
+            {item.description ? (
+              <div className="flex flex-col">
+                <EllipisedMenuItem label={item.label} />
+                <div
+                  className="color-faded"
+                  style={{ textWrap: "wrap", fontSize: "13px" }}
+                >
+                  {item.description}
+                </div>
+              </div>
+            ) : (
+              <EllipisedMenuItem label={item.label} />
+            )}
           </div>
         </MenuItem>
       );

@@ -90,7 +90,7 @@ public class BoostOperatorCreator implements ProducerOperator.Creator<BoostPOP> 
       EasyProtobuf.EasyDatasetSplitXAttr extended = LegacyProtobufSerializer.parseFrom(EasyProtobuf.EasyDatasetSplitXAttr.PARSER,
         config.getSplits().get(0).getDatasetSplitInfo().getExtendedProperty());
       arrowFilePath = new Path(extended.getPath());
-      localFileSystem = HadoopFileSystem.get(arrowFilePath.getFileSystem(SpillServiceImpl.SPILLING_CONFIG));
+      localFileSystem = HadoopFileSystem.get(arrowFilePath.getFileSystem(SpillServiceImpl.getSpillingConfig()));
       distFileSystem = plugin.createFS(config.getProps().getUserName(), context);
     } catch (IOException e) {
       throw new ExecutionSetupException("Cannot access plugin filesystem", e);

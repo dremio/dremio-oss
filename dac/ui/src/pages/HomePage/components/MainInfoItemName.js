@@ -32,8 +32,10 @@ import {
   getHref,
 } from "@inject/utils/mainInfoUtils/mainInfoNameUtil";
 import { newGetHref } from "@inject/utils/mainInfoUtils/newMainInfoNameUtil";
-import { getRefQueryParams } from "@app/utils/nessieUtils";
+import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
 import { shouldUseNewDatasetNavigation } from "@app/utils/datasetNavigationUtils";
+import { Popover } from "dremio-ui-lib/components";
+import EntitySummaryOverlay from "@app/components/EntitySummaryOverlay/EntitySummaryOverlay";
 
 export class MainInfoItemName extends Component {
   static propTypes = {
@@ -41,10 +43,8 @@ export class MainInfoItemName extends Component {
     intl: PropTypes.object.isRequired,
     entity: PropTypes.object,
     onMount: PropTypes.func, // takes width parameter
-    isIceberg: PropTypes.bool,
-    showMetadataCard: PropTypes.bool,
-    refType: PropTypes.string,
-    refValue: PropTypes.string,
+    versionContext: PropTypes.object,
+    openDetailsPanel: PropTypes.func,
   };
 
   static contextTypes = {
@@ -72,11 +72,21 @@ export class MainInfoItemName extends Component {
   }
 
   renderDatasetItemLabel(shouldGetADeadLink) {
-    const { item, isIceberg, showMetadataCard } = this.props;
+    const { item, versionContext, openDetailsPanel } = this.props;
     const type = item.get("entityType");
-    const typeIcon = isIceberg
+    const typeIcon = versionContext
       ? getIcebergIconTypeFromEntity(item)
       : getIconDataTypeFromEntity(item);
+    const defaultItem = (
+      <div style={styles.flexAlign}>
+        <FontIcon type={typeIcon} />
+        <EllipsedText
+          className="last-File"
+          style={styles.fullPath}
+          text={item.get("name")}
+        />
+      </div>
+    );
     if (shouldGetADeadLink) {
       return (
         <div style={styles.flexAlign}>
@@ -98,31 +108,46 @@ export class MainInfoItemName extends Component {
         <DatasetItemLabel
           name={item.get("name")}
           item={item}
-          showSummaryOverlay={showMetadataCard}
           fullPath={
             item.get("fullPathList") ||
             item.getIn(["fileFormat", "fullPath"]) ||
             splitFullPath(item.get("filePath"))
           }
           typeIcon={typeIcon}
+          versionContext={versionContext}
           tooltipPlacement="right"
+          openDetailsPanel={openDetailsPanel}
         />
       );
+    } else if (type === "folder") {
+      return (
+        <Popover
+          role="tooltip"
+          showArrow
+          delay={750}
+          placement="right"
+          mode="hover"
+          portal
+          content={
+            <EntitySummaryOverlay
+              name={item.get("name")}
+              type={"FOLDER"}
+              fullPath={item.get("fullPathList")}
+              entityUrl={item.getIn(["links", "self"])}
+              versionContext={versionContext}
+              openDetailsPanel={openDetailsPanel}
+            />
+          }
+        >
+          {defaultItem}
+        </Popover>
+      );
     }
-    return (
-      <div style={styles.flexAlign}>
-        <FontIcon type={typeIcon} />
-        <EllipsedText
-          className="last-File"
-          style={styles.fullPath}
-          text={item.get("name")}
-        />
-      </div>
-    );
+    return defaultItem;
   }
 
   render() {
-    const { item, refType, refValue } = this.props;
+    const { item, versionContext } = this.props;
     const fileType = item.get("fileType");
 
     let tempHref;
@@ -135,9 +160,10 @@ export class MainInfoItemName extends Component {
     let href;
 
     if (typeof tempHref === "string") {
+      const { type, value } = versionContext ?? {};
       href =
-        tempHref?.includes?.("mode=edit") && refType && refValue
-          ? tempHref + `&refType=${refType}&refValue=${refValue}`
+        tempHref?.includes?.("mode=edit") && type && value
+          ? tempHref + `&refType=${type}&refValue=${value}`
           : tempHref;
     } else {
       href = tempHref?.href ? tempHref.href : tempHref;
@@ -186,13 +212,13 @@ const styles = {
 };
 
 const mapStateToProps = (state, ownProps) => {
-  const { isIceberg, item } = ownProps;
+  const { item } = ownProps;
 
-  if (!isIceberg) return {};
+  const versionContext = getVersionContextFromId(item.get("id"));
 
-  const pathList = item?.toJS()?.fullPathList ?? [];
-  const sourceName = pathList[0];
-  return getRefQueryParams(state.nessie, sourceName);
+  return {
+    versionContext,
+  };
 };
 
 export default injectIntl(connect(mapStateToProps)(MainInfoItemName));

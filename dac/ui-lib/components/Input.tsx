@@ -1,3 +1,4 @@
+/* eslint-disable react/prop-types */
 //@ts-nocheck
 import { forwardRef, HTMLProps, useRef, useState } from "react";
 import mergeRefs from "react-merge-refs";

@@ -74,12 +74,7 @@ import io.protostuff.ByteString;
  * To deal with protostuff
  */
 public class DatasetsUtil {
-
-  private static final String DATASET_VERSION_DELIMITER = "/";
-  private static final String DATASET_PATH_DELIMITER = ".";
-
   private static final List<String> TEMPORARY_DATASET_PATH = Arrays.asList("tmp", "UNTITLED");
-  private static final String EMPTY_STRING = "";
 
   /**
    * Helper method which gets the completed preview data job for given query on given dataset path and version.
@@ -176,7 +171,6 @@ public class DatasetsUtil {
     virtualDataset.setVersion(virtualDatasetUI.getVersion());
     virtualDataset.setFieldOriginsList(virtualDatasetUI.getFieldOriginsList());
     virtualDataset.setSqlFieldsList(virtualDatasetUI.getSqlFieldsList());
-    virtualDataset.setCalciteFieldsList(virtualDatasetUI.getCalciteFieldsList());
 
     return virtualDataset;
   }
@@ -200,7 +194,6 @@ public class DatasetsUtil {
     }
     virtualDatasetUI.setIsNamed(vvds.getNamed());
     virtualDatasetUI.setSqlFieldsList(ViewFieldsHelper.getViewFields(datasetConfig));
-    virtualDatasetUI.setCalciteFieldsList(ViewFieldsHelper.getCalciteViewFields(datasetConfig));
     virtualDatasetUI.setParentsList(virtualDataset.getParentsList());
     virtualDatasetUI.setGrandParentsList(virtualDataset.getGrandParentsList());
     virtualDatasetUI.setFieldOriginsList(virtualDataset.getFieldOriginsList());
@@ -334,7 +327,7 @@ public class DatasetsUtil {
         break;
 
       default:
-        throw new UnsupportedOperationException(String.format("The dataset type %s is not supported", datasetType.toString()));
+        throw new UnsupportedOperationException(String.format("The dataset type %s is not supported", datasetType));
     }
 
     return fields;

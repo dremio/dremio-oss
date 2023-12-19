@@ -15,9 +15,9 @@
  */
 package com.dremio.services.nessie.grpc.client.impl;
 
+import static com.dremio.services.nessie.grpc.GrpcExceptionMapper.handle;
 import static com.dremio.services.nessie.grpc.ProtoUtil.fromProto;
 import static com.dremio.services.nessie.grpc.ProtoUtil.toProto;
-import static com.dremio.services.nessie.grpc.client.GrpcExceptionMapper.handle;
 
 import java.util.List;
 

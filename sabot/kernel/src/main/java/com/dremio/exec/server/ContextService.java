@@ -26,7 +26,7 @@ import java.util.Set;
 import javax.inject.Provider;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.projectnessie.client.api.NessieApiV1;
+import org.projectnessie.client.api.NessieApiV2;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.VM;
@@ -56,7 +56,6 @@ import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
 import com.dremio.resource.GroupResourceInformation;
 import com.dremio.sabot.rpc.user.UserServer;
-import com.dremio.security.CredentialsService;
 import com.dremio.service.Service;
 import com.dremio.service.catalog.DatasetCatalogServiceGrpc.DatasetCatalogServiceBlockingStub;
 import com.dremio.service.catalog.InformationSchemaServiceGrpc.InformationSchemaServiceBlockingStub;
@@ -70,6 +69,7 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.orphanage.Orphanage;
 import com.dremio.service.spill.SpillService;
 import com.dremio.service.users.UserService;
+import com.dremio.services.credentials.CredentialsService;
 import com.dremio.services.fabric.api.FabricService;
 import com.google.common.collect.Sets;
 
@@ -112,7 +112,7 @@ public class ContextService implements Service, Provider<SabotContext> {
   private final Provider<SubEngineId> subEngineIdProvider;
   private final Provider<OptionValidatorListing> optionValidatorProvider;
   private final Provider<CoordinatorModeInfo> coordinatorModeInfoProvider;
-  private final Provider<NessieApiV1> nessieClientProvider;
+  private final Provider<NessieApiV2> nessieApiProvider;
   private final Provider<StatisticsAdministrationService.Factory> statisticsAdministrationServiceFactory;
   private final Provider<StatisticsListManager> statisticsListManagerProvider;
   private final Provider<UserDefinedFunctionService> userDefinedFunctionListManagerProvider;
@@ -160,7 +160,7 @@ public class ContextService implements Service, Provider<SabotContext> {
     Provider<OptionValidatorListing> optionValidatorProvider,
     boolean allRoles,
     Provider<CoordinatorModeInfo> coordinatorModeInfoProvider,
-    Provider<NessieApiV1> nessieClientProvider,
+    Provider<NessieApiV2> nessieApiProvider,
     Provider<StatisticsService> statisticsService,
     Provider<StatisticsAdministrationService.Factory> statisticsAdministrationServiceFactory,
     Provider<StatisticsListManager> statisticsListManagerProvider,
@@ -181,7 +181,7 @@ public class ContextService implements Service, Provider<SabotContext> {
       conduitProvider, informationSchemaStub, viewCreatorFactory, spillService, connectionReaderProvider, credentialsService,
       jobResultInfoProvider, optionManagerProvider, systemOptionManagerProvider, engineIdProvider, subEngineIdProvider, optionValidatorProvider,
       allRoles ? EnumSet.allOf(ClusterCoordinator.Role.class) : Sets.newHashSet(ClusterCoordinator.Role.EXECUTOR), coordinatorModeInfoProvider,
-      nessieClientProvider,
+      nessieApiProvider,
       statisticsService, statisticsAdministrationServiceFactory, statisticsListManagerProvider, userDefinedFunctionListManagerProvider,
       relMetadataQuerySupplier, jobsRunnerProvider, datasetCatalogStub,
       globalCredentailsServiceProvider, credentialsServiceProvider, conduitInProcessChannelProviderProvider,
@@ -220,7 +220,7 @@ public class ContextService implements Service, Provider<SabotContext> {
     Provider<OptionValidatorListing> optionValidatorProvider,
     Set<ClusterCoordinator.Role> roles,
     Provider<CoordinatorModeInfo> coordinatorModeInfoProvider,
-    Provider<NessieApiV1> nessieClientProvider,
+    Provider<NessieApiV2> nessieApiProvider,
     Provider<StatisticsService> statisticsService,
     Provider<StatisticsAdministrationService.Factory> statisticsAdministrationServiceFactory,
     Provider<StatisticsListManager> statisticsListManagerProvider,
@@ -265,7 +265,7 @@ public class ContextService implements Service, Provider<SabotContext> {
     this.subEngineIdProvider = subEngineIdProvider;
     this.optionValidatorProvider = optionValidatorProvider;
     this.coordinatorModeInfoProvider = coordinatorModeInfoProvider;
-    this.nessieClientProvider = nessieClientProvider;
+    this.nessieApiProvider = nessieApiProvider;
     this.statisticsService = statisticsService;
     this.statisticsAdministrationServiceFactory = statisticsAdministrationServiceFactory;
     this.statisticsListManagerProvider = statisticsListManagerProvider;
@@ -372,7 +372,7 @@ public class ContextService implements Service, Provider<SabotContext> {
       optionValidatorProvider.get(),
       bootstrapContext.getExecutor(),
       coordinatorModeInfoProvider,
-      nessieClientProvider,
+      nessieApiProvider,
       statisticsService,
       statisticsAdministrationServiceFactory,
       statisticsListManagerProvider,

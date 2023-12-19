@@ -32,7 +32,7 @@ import com.google.common.collect.Maps;
  * Captures parallelization parameters for a given operator/fragments. It consists of min and max width of
  * parallelization and affinity to node endpoints.
  */
-public final class ParallelizationInfo {
+public class ParallelizationInfo {
   /**
    * Constraints on the width of parallelization.
    * Constraints listed in strictly decreasing order -- the further the constraint is, the more restrictive it is
@@ -101,7 +101,7 @@ public final class ParallelizationInfo {
    * - the width constraints are instantiated (may be based on the affinity map, above), then applied to the
    *   numeric width limits
    */
-  public static final class ParallelizationInfoCollector {
+  public static class ParallelizationInfoCollector {
     private int minWidth = 1;
     private int maxWidth = Integer.MAX_VALUE;
     private WidthConstraint widthConstraint = WidthConstraint.UNLIMITED;

@@ -15,21 +15,34 @@
  */
 package com.dremio.datastore.api;
 
+import static java.lang.reflect.Modifier.isPublic;
+
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.util.Map;
 import java.util.Set;
 
+import javax.inject.Provider;
+
+import org.apache.arrow.memory.BufferAllocator;
+
+import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.datastore.format.Format;
+import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.service.Service;
+import com.dremio.services.fabric.api.FabricService;
 
 /**
  * Key-value store abstraction
  */
 public interface KVStoreProvider extends Service {
 
-   /* Get stores created.
+  /**
+   * Get stores created.
    *
    * @return a set of all the KVStores
    */
-  Set<KVStore<?,?>> stores();
+  Set<KVStore<?, ?>> stores();
 
   /**
    * Get the store associated with the provided creator class.
@@ -82,7 +95,7 @@ public interface KVStoreProvider extends Service {
      * Indicates that this StoreBuilder permits CompoundKeys. By default CompoundKeys are not
      * permitted. This gets evaluated at build time.
      *
-     * @param allowCompund  Set to true to allow CompoundKeys to be used as keys.
+     * @param allowCompund Set to true to allow CompoundKeys to be used as keys.
      * @return a StoreBuilder implementation with the CompoundKey permission configured.
      */
     StoreBuilder<K, V> permitCompoundKeys(boolean permitCompoundKeys);
@@ -112,5 +125,47 @@ public interface KVStoreProvider extends Service {
       return (T) this;
     }
     return null;
+  }
+
+  /**
+   * This method retrieves the expected constructor from {@link KVStoreProvider} implementations. It can be used to
+   * write tests to ensure the correct constructor is maintained.
+   */
+  static Constructor<? extends KVStoreProvider> getConstructor(Class<? extends KVStoreProvider> cls) {
+    Constructor<? extends KVStoreProvider> constructor;
+    try {
+      constructor =  cls.getDeclaredConstructor(
+        ScanResult.class,
+        Provider.class,
+        Provider.class,
+        BufferAllocator.class,
+        Map.class
+      );
+    } catch (NoSuchMethodException e) {
+      throw new RuntimeException(cls + " must have the expected constructor", e);
+    }
+    if (!isPublic(constructor.getModifiers())) {
+      throw new RuntimeException("constructor " + constructor + " must be public");
+    }
+    return constructor;
+  }
+
+  /**
+   * This provides a visible method which makes clear what constructor is expected to be present on
+   * implementations of {@link KVStoreProvider}.
+   */
+  static KVStoreProvider newInstance(
+      Class<? extends KVStoreProvider> cls,
+      ScanResult scan,
+      Provider<FabricService> fabricService,
+      Provider<CoordinationProtos.NodeEndpoint> endpoint,
+      BufferAllocator allocator,
+      Map<String, Object> config) {
+    Constructor<? extends KVStoreProvider> constructor = getConstructor(cls);
+    try {
+      return constructor.newInstance(scan, fabricService, endpoint, allocator, config);
+    } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
+      throw new RuntimeException("cannot create new instance of " + cls, e);
+    }
   }
 }

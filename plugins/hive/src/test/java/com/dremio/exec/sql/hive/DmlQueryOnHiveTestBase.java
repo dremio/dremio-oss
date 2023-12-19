@@ -33,6 +33,8 @@ public class DmlQueryOnHiveTestBase extends LazyDataGeneratingHiveTestBase {
   public static void beforeClass() throws Exception {
     setSystemOption(ExecConstants.ENABLE_ICEBERG_ADVANCED_DML, "true");
     setSystemOption(ExecConstants.ENABLE_ICEBERG_VACUUM, "true");
+    setSystemOption(ExecConstants.ENABLE_ICEBERG_VACUUM_REMOVE_ORPHAN_FILES, "true");
+    setSystemOption(ExecConstants.ENABLE_ICEBERG_SORT_ORDER, "true");
 
     dataGenerator.updatePluginConfig((getSabotContext().getCatalogService()),
       ImmutableMap.of(HiveConf.ConfVars.METASTOREWAREHOUSE.varname, "file:///" + dataGenerator.getWhDir() + "/",
@@ -45,5 +47,8 @@ public class DmlQueryOnHiveTestBase extends LazyDataGeneratingHiveTestBase {
       ExecConstants.ENABLE_ICEBERG_ADVANCED_DML.getDefault().getBoolVal().toString());
     setSystemOption(ExecConstants.ENABLE_ICEBERG_VACUUM,
       ExecConstants.ENABLE_ICEBERG_VACUUM.getDefault().getBoolVal().toString());
+    setSystemOption(ExecConstants.ENABLE_ICEBERG_VACUUM_REMOVE_ORPHAN_FILES,
+      ExecConstants.ENABLE_ICEBERG_VACUUM_REMOVE_ORPHAN_FILES.getDefault().getBoolVal().toString());
+    resetSystemOption(ExecConstants.ENABLE_ICEBERG_SORT_ORDER.getOptionName());
   }
 }

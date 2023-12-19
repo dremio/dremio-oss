@@ -32,19 +32,34 @@ import com.google.common.collect.ImmutableList;
  * Rel that represents flatten operator in Calcite's Convention.NONE
  */
 public class FlattenCrel extends FlattenRelBase implements CopyToCluster {
-  public FlattenCrel(RelOptCluster cluster, RelTraitSet traits, RelNode child, List<RexInputRef> toFlatten, int numProjectsPushed) {
-    super(cluster, traits, child, toFlatten, numProjectsPushed);
+  public FlattenCrel(
+    RelOptCluster cluster,
+    RelTraitSet traits,
+    RelNode child,
+    List<RexInputRef> toFlatten,
+    int numProjectsPushed) {
+    this(cluster, traits, child, toFlatten, null, numProjectsPushed);
+  }
+
+  public FlattenCrel(
+    RelOptCluster cluster,
+    RelTraitSet traits,
+    RelNode child,
+    List<RexInputRef> toFlatten,
+    List<String> aliases,
+    int numProjectsPushed) {
+    super(cluster, traits, child, toFlatten, aliases, numProjectsPushed);
     assert this.getConvention() == Convention.NONE;
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new FlattenCrel(getCluster(), traitSet, sole(inputs), toFlatten, numProjectsPushed);
+    return new FlattenCrel(getCluster(), traitSet, sole(inputs), toFlatten, aliases, numProjectsPushed);
   }
 
   @Override
   public FlattenRelBase copy(List<RelNode> inputs, List<RexInputRef> toFlatten) {
-    return new FlattenCrel(getCluster(), getTraitSet(), sole(inputs), toFlatten, numProjectsPushed);
+    return new FlattenCrel(getCluster(), getTraitSet(), sole(inputs), toFlatten, aliases, numProjectsPushed);
   }
 
   @Override
@@ -54,8 +69,19 @@ public class FlattenCrel extends FlattenRelBase implements CopyToCluster {
       copier.getCluster(),
       getTraitSet(),
       input,
-      ImmutableList.of(),
+      toFlatten,
+      aliases,
       getNumProjectsPushed()
     );
+  }
+
+  public static FlattenCrel create(RelNode input, int fieldToFlatten, String alias) {
+    return new FlattenCrel(
+      input.getCluster(),
+      input.getTraitSet(),
+      input,
+      ImmutableList.of(input.getCluster().getRexBuilder().makeInputRef(input, fieldToFlatten)),
+      ImmutableList.of(alias),
+      0);
   }
 }

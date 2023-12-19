@@ -46,7 +46,9 @@ import com.dremio.common.arrow.DremioArrowSchema;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.common.types.SchemaUpPromotionRules;
 import com.dremio.common.types.SupportsTypeCoercionsAndUpPromotions;
+import com.dremio.common.types.TypeCoercionRules;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.connector.ConnectorException;
@@ -136,6 +138,7 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle, Supports
   private ParquetDatasetXAttr extended;
   private List<String> partitionColumns;
   private BatchSchema schema;
+  private SabotContext context;
 
   public ParquetFormatDatasetAccessor(
       DatasetType type,
@@ -146,7 +149,8 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle, Supports
       FileUpdateKey updateKey,
       FormatPlugin formatPlugin,
       PreviousDatasetInfo oldConfig,
-      int maxLeafColumns) {
+      int maxLeafColumns,
+      SabotContext context) {
     this.type = type;
     this.fs = fs;
     this.fileSelection = fileSelection;
@@ -157,12 +161,13 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle, Supports
     this.oldConfig = oldConfig;
     this.maxLeafColumns = maxLeafColumns;
     this.partitionChunkListing = new PartitionChunkListingImpl();
+    this.context = context;
   }
 
 
   private BatchSchema getBatchSchema(final BatchSchema oldSchema, final FileSelection selection, final FileSystem fs) throws Exception {
     final SabotContext context = ((ParquetFormatPlugin) formatPlugin).getContext();
-    final Optional<FileAttributes> firstFileO = selection.getFirstFile();
+    final Optional<FileAttributes> firstFileO = selection.getFirstFileIteratively(fs);
     if (!firstFileO.isPresent()) {
       throw UserException.dataReadError().message("Unable to find any files for datasets.").build(logger);
     }
@@ -216,7 +221,8 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle, Supports
 
     final boolean isAccelerator = fsPlugin.getId().getName().equals(ACCELERATOR_STORAGEPLUGIN_NAME);
 
-    final ImplicitFilesystemColumnFinder finder = new ImplicitFilesystemColumnFinder(context.getOptionManager(), fs, GroupScan.ALL_COLUMNS, isAccelerator);
+    final ImplicitFilesystemColumnFinder finder = new ImplicitFilesystemColumnFinder(context.getOptionManager(), fs,
+        GroupScan.ALL_COLUMNS, isAccelerator, ImplicitFilesystemColumnFinder.Mode.ALL_IMPLICIT_COLUMNS);
 
     final List<NameValuePair<?>> pairs = finder.getImplicitFieldsForSample(selection);
     final Map<String, Field> fieldHashMap = new HashMap<>();
@@ -288,7 +294,8 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle, Supports
 
         boolean isAccelerator = fsPlugin.getId().getName().equals(ACCELERATOR_STORAGEPLUGIN_NAME);
 
-        final ImplicitFilesystemColumnFinder finder = new ImplicitFilesystemColumnFinder(context.getOptionManager(), fs, GroupScan.ALL_COLUMNS, isAccelerator);
+        final ImplicitFilesystemColumnFinder finder = new ImplicitFilesystemColumnFinder(context.getOptionManager(),
+            fs, GroupScan.ALL_COLUMNS, isAccelerator, ImplicitFilesystemColumnFinder.Mode.ALL_IMPLICIT_COLUMNS);
 
         final long maxFooterLen = context.getOptionManager().getOption(ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR);
         try (InputStreamProvider streamProvider = new SingleStreamProvider(fs, firstFile.getPath(), firstFile.size(), maxFooterLen, false, null, null, false, ParquetFilters.NONE, ParquetFilterCreator.DEFAULT);
@@ -329,7 +336,9 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle, Supports
 
     final ParquetDatasetXAttr.Builder datasetXAttr = ParquetDatasetXAttr.newBuilder().setSelectionRoot(fileSelection.getSelectionRoot());
 
-    final ImplicitFilesystemColumnFinder finder = new ImplicitFilesystemColumnFinder(fsPlugin.getContext().getOptionManager(), fs, GroupScan.ALL_COLUMNS);
+    final ImplicitFilesystemColumnFinder finder = new ImplicitFilesystemColumnFinder(
+        fsPlugin.getContext().getOptionManager(), fs, GroupScan.ALL_COLUMNS,
+        ImplicitFilesystemColumnFinder.Mode.ALL_IMPLICIT_COLUMNS);
     List<RowGroupInfo> rowGroups = parquetGroupScanUtils.getRowGroupInfos();
 
     final List<List<NameValuePair<?>>> pairs = finder.getImplicitFields(parquetGroupScanUtils.getSelectionRoot(), rowGroups);
@@ -535,4 +544,24 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle, Supports
     return updateKey::writeTo;
   }
 
+  @Override
+  public TypeCoercionRules getTypeCoercionRules() {
+    if (context.getOptionManager().getOption(ExecConstants.ENABLE_PARQUET_MIXED_TYPES_COERCION)) {
+      return COMPLEX_INCOMPATIBLE_TO_VARCHAR_COERCION;
+    }
+    return STANDARD_TYPE_COERCION_RULES;
+  }
+
+  @Override
+  public SchemaUpPromotionRules getUpPromotionRules() {
+    if (context.getOptionManager().getOption(ExecConstants.ENABLE_PARQUET_MIXED_TYPES_COERCION)) {
+      return COMPLEX_INCOMPATIBLE_TO_VARCHAR_PROMOTION;
+    }
+    return STANDARD_TYPE_UP_PROMOTION_RULES;
+  }
+
+  @Override
+  public boolean isComplexToVarcharCoercionSupported() {
+    return context.getOptionManager().getOption(ExecConstants.ENABLE_PARQUET_MIXED_TYPES_COERCION);
+  }
 }

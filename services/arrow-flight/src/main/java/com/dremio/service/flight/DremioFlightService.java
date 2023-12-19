@@ -160,9 +160,9 @@ public class DremioFlightService implements Service {
       .automaticFlowControl(Boolean.getBoolean("dremio.services.arrow-flight.automatic-flow-control"))
       .maxInboundMessageSize(Integer.getInteger("dremio.services.arrow-flight.max-message-size", Integer.MAX_VALUE))
       .maxInboundMetadataSize(Integer.getInteger("dremio.services.arrow-flight.max-metadata-size", 0))
-      .keepAliveTime(Integer.getInteger("dremio.services.arrow-flight.keep-alive-time", 120))
-      .clientKeepAliveInterval(Integer.getInteger("dremio.services.arrow-flight.client-keep-alive-interval", 60))
-      .idleTimeout(Integer.getInteger("dremio.services.arrow-flight.idle-timeout", 15))
+      .keepAliveTime(Integer.getInteger("dremio.services.arrow-flight.keep-alive-time", 240))
+      .clientKeepAliveInterval(Integer.getInteger("dremio.services.arrow-flight.client-keep-alive-interval", 120))
+      .idleTimeout(Integer.getInteger("dremio.services.arrow-flight.idle-timeout", 30))
       .maxConnectionAgeGrace(Integer.getInteger("dremio.services.arrow-flight.max-connection-age-grace", 0))
       .maxConnectionAge(Integer.getInteger("dremio.services.arrow-flight.max-connection-age", 0))
       .producer(new DremioFlightProducer(location, dremioFlightSessionsManager, userWorkerProvider,

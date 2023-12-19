@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import static com.dremio.exec.store.RecordWriter.FILESIZE_COLUMN;
 import static com.dremio.exec.store.RecordWriter.FRAGMENT_COLUMN;
 import static com.dremio.exec.store.RecordWriter.OPERATION_TYPE_COLUMN;
 import static com.dremio.exec.store.RecordWriter.PATH_COLUMN;
@@ -45,7 +46,7 @@ public class TestDeletedFilesMetadataTableFunction extends BaseTestTableFunction
   // using a subset of fields here as any other fields are exposed as null columns, Fragment is included as
   // a test of the null column handling
   private static final BatchSchema TEST_SCHEMA = RecordWriter.SCHEMA.subset(
-      ImmutableList.of(FRAGMENT_COLUMN, RECORDS_COLUMN, PATH_COLUMN, OPERATION_TYPE_COLUMN)).get();
+      ImmutableList.of(FRAGMENT_COLUMN, RECORDS_COLUMN, PATH_COLUMN, OPERATION_TYPE_COLUMN, FILESIZE_COLUMN)).get();
 
   private static final TableFunctionPOP TABLE_FUNCTION_POP = new TableFunctionPOP(
       PROPS,
@@ -109,20 +110,20 @@ public class TestDeletedFilesMetadataTableFunction extends BaseTestTableFunction
         tr("path5", 9L));
 
     Table output = t(
-        th(FRAGMENT_COLUMN, RECORDS_COLUMN, PATH_COLUMN, OPERATION_TYPE_COLUMN),
-        tr(NULL_VARCHAR, 20L, "path1", OperationType.DELETE_DATAFILE.value),
-        tr(NULL_VARCHAR, 5L, "path2", OperationType.DELETE_DATAFILE.value),
-        tr(NULL_VARCHAR, 10L, "path3", OperationType.DELETE_DATAFILE.value),
-        tr(NULL_VARCHAR, 3L, "path4", OperationType.DELETE_DATAFILE.value),
-        tr(NULL_VARCHAR, 9L, "path5", OperationType.DELETE_DATAFILE.value));
+        th(FRAGMENT_COLUMN, RECORDS_COLUMN, PATH_COLUMN, OPERATION_TYPE_COLUMN, FILESIZE_COLUMN),
+        tr(NULL_VARCHAR, 20L, "path1", OperationType.DELETE_DATAFILE.value, 0L),
+        tr(NULL_VARCHAR, 5L, "path2", OperationType.DELETE_DATAFILE.value, 0L),
+        tr(NULL_VARCHAR, 10L, "path3", OperationType.DELETE_DATAFILE.value, 0L),
+        tr(NULL_VARCHAR, 3L, "path4", OperationType.DELETE_DATAFILE.value, 0L),
+        tr(NULL_VARCHAR, 9L, "path5", OperationType.DELETE_DATAFILE.value, 0L));
 
     Table deleteOutput = t(
-      th(FRAGMENT_COLUMN, RECORDS_COLUMN, PATH_COLUMN, OPERATION_TYPE_COLUMN),
-      tr(NULL_VARCHAR, 20L, "path1", OperationType.DELETE_DELETEFILE.value),
-      tr(NULL_VARCHAR, 5L, "path2", OperationType.DELETE_DELETEFILE.value),
-      tr(NULL_VARCHAR, 10L, "path3", OperationType.DELETE_DELETEFILE.value),
-      tr(NULL_VARCHAR, 3L, "path4", OperationType.DELETE_DELETEFILE.value),
-      tr(NULL_VARCHAR, 9L, "path5", OperationType.DELETE_DELETEFILE.value));
+      th(FRAGMENT_COLUMN, RECORDS_COLUMN, PATH_COLUMN, OPERATION_TYPE_COLUMN, FILESIZE_COLUMN),
+      tr(NULL_VARCHAR, 20L, "path1", OperationType.DELETE_DELETEFILE.value, 0L),
+      tr(NULL_VARCHAR, 5L, "path2", OperationType.DELETE_DELETEFILE.value, 0L),
+      tr(NULL_VARCHAR, 10L, "path3", OperationType.DELETE_DELETEFILE.value, 0L),
+      tr(NULL_VARCHAR, 3L, "path4", OperationType.DELETE_DELETEFILE.value, 0L),
+      tr(NULL_VARCHAR, 9L, "path5", OperationType.DELETE_DELETEFILE.value, 0L));
 
     validateSingle(TABLE_FUNCTION_POP, TableFunctionOperator.class, input, output, 3);
     validateSingle(DELETE_TABLE_FUNCTION_POP, TableFunctionOperator.class, input, deleteOutput, 3);

@@ -35,7 +35,8 @@ public class ServicesIterator implements Iterator<ServiceSetInfo> {
     ClusterCoordinator.Role.COORDINATOR.toString(),
     ClusterCoordinator.Role.EXECUTOR.toString(),
     "leader-latch",
-    "semaphore");
+    "semaphore",
+    "clustered_singleton");
 
   private final Iterator<ServiceSetInfo> serviceNames;
 

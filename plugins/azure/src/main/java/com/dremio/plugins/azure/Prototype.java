@@ -71,20 +71,12 @@ class Prototype {
     this.legacyMode = legacyMode;
   }
 
-  public String getScheme() {
-    return scheme;
-  }
-
-  public Class<? extends FileSystem> getFsImpl() {
-    return fsImpl;
-  }
-
-  public String getEndpointScheme() {
-    return endpointScheme;
-  }
-
   public String getEndpointSuffix() {
     return endpointSuffix;
+  }
+
+  public String getConnection(String account, String azureEndpoint) {
+    return String.format("%s://%s.%s", endpointScheme, account, azureEndpoint);
   }
 
   public String getLocation(String account, String container, String azureEndpoint) {
@@ -94,6 +86,7 @@ class Prototype {
   public void setImpl(Configuration conf, String account, String key, String azureEndpoint) {
     conf.set(String.format("fs.%s.impl", scheme), fsImpl.getName());
     if (legacyMode) {
+      // TODO(DX-68107): fix STORAGE_V1
       conf.set(String.format("fs.azure.account.key.%s.%s", account, azureEndpoint), key);
     } else {
       conf.set(ConfigurationKeys.FS_AZURE_ACCOUNT_KEY_PROPERTY_NAME, key);
@@ -104,17 +97,15 @@ class Prototype {
                       String clientSecret, String azureEndpoint) {
     conf.set(String.format("fs.%s.impl", scheme), fsImpl.getName());
     if (legacyMode) {
+      // TODO(DX-68107): fix STORAGE_V1
       conf.set(ConfigurationKeys.FS_AZURE_ACCOUNT_AUTH_TYPE_PROPERTY_NAME, "OAUTH");
       conf.set(String.format("fs.azure.account.oauth2.client.id.%s.%s", account, azureEndpoint), clientId);
       conf.set(String.format("fs.azure.account.oauth2.client.endpoint.%s.%s", account, azureEndpoint), endpoint);
       conf.set(String.format("fs.azure.account.oauth2.client.secret.%s.%s", account, azureEndpoint), clientSecret);
     } else {
-      conf.set(ConfigurationKeys.FS_AZURE_ACCOUNT_AUTH_TYPE_PROPERTY_NAME, "OAuth");
+      conf.set(ConfigurationKeys.FS_AZURE_ACCOUNT_AUTH_TYPE_PROPERTY_NAME, "Custom");
       conf.set(ConfigurationKeys.FS_AZURE_ACCOUNT_TOKEN_PROVIDER_TYPE_PROPERTY_NAME,
-        "org.apache.hadoop.fs.azurebfs.oauth2.ClientCredsTokenProvider");
-      conf.set(ConfigurationKeys.FS_AZURE_ACCOUNT_OAUTH_CLIENT_ID, clientId);
-      conf.set(ConfigurationKeys.FS_AZURE_ACCOUNT_OAUTH_CLIENT_ENDPOINT, endpoint);
-      conf.set(ConfigurationKeys.FS_AZURE_ACCOUNT_OAUTH_CLIENT_SECRET, clientSecret);
+        ClientCredentialsBasedTokenProviderImpl.class.getName());
     }
   }
 }

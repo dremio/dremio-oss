@@ -15,9 +15,10 @@
  */
 package com.dremio.exec.store.iceberg.model;
 
-import org.apache.iceberg.ManifestContent;
 import org.immutables.value.Value;
 
+import com.dremio.exec.store.TableMetadata;
+import com.dremio.exec.store.iceberg.ManifestContentType;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 @JsonDeserialize(builder = ImmutableManifestScanOptions.Builder.class)
@@ -30,10 +31,9 @@ public interface ManifestScanOptions {
    * @return
    */
   @Value.Default
-  default ManifestContent getManifestContent() {
-    return ManifestContent.DATA;
+  default ManifestContentType getManifestContentType() {
+    return ManifestContentType.DATA;
   }
-
   /**
    * SplitGen generates splits for data scan. If turned OFF, the scan will generate abstract output such as path, size etc
    * for the entries in the manifest.
@@ -54,6 +54,27 @@ public interface ManifestScanOptions {
   @Value.Default
   default boolean includesIcebergMetadata() {
     return false;
+  }
+  /**
+   * Includes the Iceberg Partition Info as part of the PartitionProtobuf.PartitionValue Column
+   * It provides more fine-grained partition information such as what transformation function is used
+   * Applicable only when splitgen is turned OFF.
+   *
+   * @return true if we should include the IcebergPartitionInfo
+   */
+  @Value.Default
+  default boolean includesIcebergPartitionInfo() {
+    return false;
+  }
+
+  /**
+   * Returns the Table Metadata to use
+   * TableMetadata can be used to modify a scan to use a different snapshot
+   * @return TableMetadata to use instead of the original table metadata in the scan
+   */
+  @Value.Default
+  default TableMetadata getTableMetadata() {
+    return null;
   }
 
   /**

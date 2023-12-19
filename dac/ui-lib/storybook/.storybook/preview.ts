@@ -10,6 +10,7 @@ configureDremioIcon("/static/icons/dremio");
 export const parameters = {
   darkMode: {
     classTarget: "html",
+    lightClass: "dremio-light",
     darkClass: "dremio-dark",
     stylePreview: true,
   },

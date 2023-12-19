@@ -138,6 +138,17 @@ public final class ExpressionConverter {
               .addAllClauses(subs))
             .build();
 
+        case GREATER_THAN:
+          if(bifunc == null) {
+            return null;
+          }
+
+          return SearchQuery.newBuilder()
+            .setGreaterThan(SearchQuery.GreaterThan.newBuilder()
+              .setField(bifunc.field)
+              .setValue(Long.parseLong(bifunc.literal)))
+            .build();
+
 // Lucene doesn't handle NOT expressions well in some cases.
 //      case NOT:
 //        if(subs == null || subs.size() != 1) {

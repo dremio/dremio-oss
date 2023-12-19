@@ -32,17 +32,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.projectnessie.versioned.persist.adapter.DatabaseAdapter;
 import org.projectnessie.versioned.persist.adapter.RepoMaintenanceParams;
 
-import com.dremio.common.config.SabotConfig;
-import com.dremio.common.scanner.ClassPathScanner;
-import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.options.OptionManager;
 import com.dremio.service.scheduler.Schedule;
 import com.dremio.service.scheduler.SchedulerService;
 
 @ExtendWith(MockitoExtension.class)
 class TestNessieRepoMaintenanceTask {
-
-  private static final ScanResult scanResult = ClassPathScanner.fromPrescan(SabotConfig.create());
 
   @Mock
   private DatabaseAdapter adapter;

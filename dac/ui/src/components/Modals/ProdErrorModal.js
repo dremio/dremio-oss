@@ -27,7 +27,7 @@ import config from "dyn-load/utils/config";
 import { modalFooter } from "uiTheme/radium/modal";
 import { formDescription } from "uiTheme/radium/typography";
 import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
-import { FormattedMessage } from 'react-intl';
+import { FormattedMessage } from "react-intl";
 
 export default class ProdErrorModal extends Component {
   static propTypes = {
@@ -52,7 +52,8 @@ export default class ProdErrorModal extends Component {
   render() {
     const { eventId, showGoHome } = this.props;
 
-    const sessionUUID = la("Session ID:") + " " + sentryUtil.sessionUUID;
+    const sessionUUID =
+      laDeprecated("Session ID:") + " " + sentryUtil.sessionUUID;
 
     return (
       <Modal
@@ -63,14 +64,16 @@ export default class ProdErrorModal extends Component {
         }
         classQa="prod-error-modal"
         size="smallest"
-        title={la("An Unexpected Error Occurred")}
+        title={laDeprecated("An Unexpected Error Occurred")}
       >
         <div style={{ ...modalContent, ...styles.wrapper }}>
           <div style={styles.leftSide}>
             <FontIcon type="Error" iconStyle={{ width: 60, height: 60 }} />
           </div>
           <div style={styles.content}>
-            <div>{la("If the problem persists, please contact support.")}</div>
+            <div>
+              {laDeprecated("If the problem persists, please contact support.")}
+            </div>
             <div style={{ ...formDescription, fontSize: 12, marginTop: "1em" }}>
               <div>
                 {sessionUUID}
@@ -102,7 +105,7 @@ export default class ProdErrorModal extends Component {
               className={clsx(classes["secondaryButtonPsuedoClasses"])}
               onClick={() => (window.location = "/")}
             >
-              {la("Go Home")}
+              {laDeprecated("Go Home")}
             </SimpleButton>
           )}
           <SimpleButton
@@ -112,7 +115,7 @@ export default class ProdErrorModal extends Component {
             className={clsx(classes["primaryButtonPsuedoClasses"])}
             onClick={() => window.location.reload()}
           >
-            {la("Reload")}
+            {laDeprecated("Reload")}
           </SimpleButton>
         </div>
       </Modal>

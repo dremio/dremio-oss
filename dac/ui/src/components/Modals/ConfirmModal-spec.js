@@ -116,11 +116,11 @@ describe("ConfirmModal", () => {
         doNotAskAgainKey: "warningDisabled",
       });
       localStorageUtils.getCustomValue.returns(true);
-      instance.componentWillMount();
+      instance.UNSAFE_componentWillMount();
       expect(commonProps.onConfirm).to.have.been.called;
     });
     it("should not call onConfirm if doNotAskAgainKey is undefined or stored value from localStorage is false", () => {
-      instance.componentWillMount();
+      instance.UNSAFE_componentWillMount();
       expect(commonProps.onConfirm).to.have.not.been.called;
     });
   });

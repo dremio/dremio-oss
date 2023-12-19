@@ -18,11 +18,15 @@ package com.dremio.service.functions.model;
 public enum ParameterType {
   ANY,
   // Children of ANY
+  PRIMITIVE,
+  SEMISTRUCTURED,
+  // Children of Primative
   BOOLEAN,
   NUMERIC,
   STRING,
   DATEANDTIME,
-  LIST,
+  // Children of Semi Structured
+  ARRAY,
   STRUCT,
   MAP,
   // Children of String

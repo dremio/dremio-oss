@@ -20,21 +20,20 @@ import java.util.List;
 
 import org.apache.calcite.sql.SqlNode;
 
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.PartitionSpecAlterOption;
-import com.dremio.exec.catalog.ResolvedVersionContext;
 import com.dremio.exec.catalog.TableMutationOptions;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.sql.PartitionTransform;
 import com.dremio.exec.planner.sql.SqlValidatorImpl;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.planner.sql.handlers.query.DataAdditionCmdHandler;
-import com.dremio.exec.planner.sql.parser.DmlUtils;
 import com.dremio.exec.planner.sql.parser.SqlAlterTablePartitionColumns;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceKey;
@@ -55,8 +54,9 @@ public class AlterTablePartitionSpecHandler extends SimpleDirectHandler {
         QueryContext context = Preconditions.checkNotNull(config.getContext());
         OptionManager optionManager = Preconditions.checkNotNull(context.getOptions());
         SqlValidatorImpl.checkForFeatureSpecificSyntax(sqlNode, optionManager);
+        VersionContext statementSourceVersion = sqlPartitionSpecChanges.getSqlTableVersionSpec().getTableVersionSpec().getTableVersionContext().asVersionContext();
 
-        NamespaceKey path = DmlUtils.getTablePath(catalog, sqlPartitionSpecChanges.getTable());
+        NamespaceKey path = CatalogUtil.getResolvePathForTableManagement(catalog, sqlPartitionSpecChanges.getTable());
 
         DremioTable table = catalog.getTableNoResolve(path);
         SimpleCommandResult result = SqlHandlerUtil.validateSupportForDDLOperations(catalog, config, path, table);
@@ -77,7 +77,8 @@ public class AlterTablePartitionSpecHandler extends SimpleDirectHandler {
         PartitionSpecAlterOption partitionSpecAlterOption = new PartitionSpecAlterOption(partitionTransform, mode);
         final String sourceName = path.getRoot();
         final VersionContext sessionVersion = config.getContext().getSession().getSessionVersionForSource(sourceName);
-        ResolvedVersionContext resolvedVersionContext = CatalogUtil.resolveVersionContext(catalog, sourceName, sessionVersion);
+        VersionContext sourceVersion = statementSourceVersion.orElse(sessionVersion);
+        ResolvedVersionContext resolvedVersionContext = CatalogUtil.resolveVersionContext(catalog, sourceName, sourceVersion);
         CatalogUtil.validateResolvedVersionIsBranch(resolvedVersionContext);
         TableMutationOptions tableMutationOptions = TableMutationOptions.newBuilder()
                 .setResolvedVersionContext(resolvedVersionContext)

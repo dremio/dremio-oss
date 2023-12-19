@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 import { PureComponent } from "react";
+import Immutable from "immutable";
 import PropTypes from "prop-types";
+import { injectIntl } from "react-intl";
 import { createSelector } from "reselect";
 import { OrderedMap, fromJS } from "immutable";
-import Immutable from "immutable";
 import { connect } from "react-redux";
 import { withRouter } from "react-router";
 import { isNotSoftware } from "dyn-load/utils/versionUtils";
@@ -30,11 +31,11 @@ import { showConfirmationDialog } from "@app/actions/confirmation";
 import { addNotification } from "@app/actions/notification";
 import WikiEmptyState from "@app/components/WikiEmptyState";
 import { IconButton } from "dremio-ui-lib";
-import { injectIntl } from "react-intl";
-
-import { editor, collapsibleToolbarIcon, collapseButton } from "./Wiki.less";
 import WikiWrapper from "./WikiModal/WikiWrapper";
 import ShrinkableSearch from "./ShrinkableSearch/ShrinkableSearch";
+import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
+import { hideForNonDefaultBranch } from "dremio-ui-common/utilities/versionContext.js";
+import { collapsibleToolbarIcon, collapseButton } from "./Wiki.less";
 
 const toolbarHeight = parseInt(toolbarHeightCssValue, 10);
 
@@ -70,22 +71,21 @@ export class WikiView extends PureComponent {
     isEditAllowed: PropTypes.bool, // indicates weather or not a user has manage tags/wiki permissions
     showConfirmationDialog: PropTypes.func,
     showLoadMask: PropTypes.bool,
-    showWikiContent: PropTypes.bool,
-    showTags: PropTypes.bool,
     addNotification: PropTypes.func,
     dataset: PropTypes.instanceOf(Immutable.Map),
     intl: PropTypes.object.isRequired,
     overlay: PropTypes.bool,
-  };
-
-  static defaultProps = {
-    showWikiContent: true,
-    showTags: true,
+    isPanel: PropTypes.bool,
+    hideSqlEditorIcon: PropTypes.bool,
+    hideGoToButton: PropTypes.bool,
+    handlePanelDetails: PropTypes.func,
+    isLoadingDetails: PropTypes.bool,
   };
 
   // state and related properties ----------------------------
   state = {
     isWikiInEditMode: false,
+    wikiSummary: false,
     wikiViewState: fromJS({}),
     wiki: "",
     wikiVersion: null,
@@ -98,6 +98,7 @@ export class WikiView extends PureComponent {
     // Fields
     fields: fromJS([]),
     searchTerm: "",
+    apiError: null,
   };
 
   wikiChanged = false;
@@ -120,42 +121,71 @@ export class WikiView extends PureComponent {
       tagsViewState: fromJS({
         isInProgress: true,
       }),
+      apiError: null,
     });
-    const { intl } = this.props;
-    //load tags and wiki
-    ApiUtils.fetchJson(
-      `catalog/${entityId}/collaboration/tag`,
-      this.setOriginalTags,
-      (error) => {
-        if (this.isError(error)) {
-          this.setState({
-            tagsViewState: this.getErrorViewState(
-              intl.formatMessage({ id: "Wiki.FailedTags" })
-            ),
-          });
-        } else {
-          // init state with default value
-          this.setOriginalTags();
-        }
-      }
-    );
 
-    ApiUtils.fetchJson(
-      `catalog/${entityId}/collaboration/wiki`,
-      this.setWiki,
-      (error) => {
-        if (this.isError(error)) {
-          this.setState({
-            wikiViewState: this.getErrorViewState(
-              intl.formatMessage({ id: "Wiki.FailedWiki" })
-            ),
-          });
-        } else {
-          // init state with default value
-          this.setWiki();
+    const { intl } = this.props;
+    const versionContext = getVersionContextFromId(entityId);
+    const shouldFetchTagsAndWiki = hideForNonDefaultBranch(versionContext);
+
+    // load tags and wiki for entities that are either not versioned,
+    // or belong to the default branch
+    if (shouldFetchTagsAndWiki) {
+      ApiUtils.fetchJson(
+        `catalog/${entityId}/collaboration/tag`,
+        this.setOriginalTags,
+        (error) => {
+          this.setState({ apiError: true });
+          if (this.isError(error)) {
+            error.json().then((e) => {
+              if (e.errorMessage) {
+                this.setState({
+                  tagsViewState: this.getErrorViewState(e.errorMessage),
+                });
+              } else {
+                this.setState({
+                  tagsViewState: this.getErrorViewState(
+                    intl.formatMessage({ id: "Wiki.FailedLabels" })
+                  ),
+                });
+              }
+            });
+          } else {
+            // init state with default value
+            this.setOriginalTags();
+          }
         }
-      }
-    );
+      );
+
+      ApiUtils.fetchJson(
+        `catalog/${entityId}/collaboration/wiki`,
+        this.setWiki,
+        (error) => {
+          this.setState({ apiError: true });
+          if (this.isError(error)) {
+            error.json().then((e) => {
+              if (e.errorMessage) {
+                this.setState({
+                  wikiViewState: this.getErrorViewState(e.errorMessage),
+                });
+              } else {
+                this.setState({
+                  wikiViewState: this.getErrorViewState(
+                    intl.formatMessage({ id: "Wiki.FailedWiki" })
+                  ),
+                });
+              }
+            });
+          } else {
+            // init state with default value
+            this.setWiki();
+          }
+        }
+      );
+    } else {
+      this.setOriginalTags();
+      this.setWiki();
+    }
   };
 
   initFields = (dataset) => {
@@ -169,7 +199,7 @@ export class WikiView extends PureComponent {
   };
 
   initFieldsOverlay = (dataset) => {
-    if (this.props.overlay) {
+    if ((this.props.overlay || this.props.isPanel) && dataset.get("fields")) {
       this.setState({
         fields: dataset.get("fields"),
         origFields: dataset.get("fields"),
@@ -213,19 +243,24 @@ export class WikiView extends PureComponent {
     this.setState({ fields: fromJS(fields), origFields: fromJS(fields) });
   };
 
-  componentWillMount() {
+  UNSAFE_componentWillMount() {
     this.handlePropsChange(undefined, this.props);
     this.props.addHasChangesHook(this.hasChanges);
     this.initFieldsOverlay(this.props.dataset);
   }
 
-  componentWillUpdate(newProps) {
+  UNSAFE_componentWillUpdate(newProps) {
     this.handlePropsChange(this.props, newProps);
+    this.initFieldsOverlay(newProps.dataset);
   }
 
   handlePropsChange = (
-    /* prevProps */ { entityId: prevEntityId, dataset: prevDataset } = {},
-    /* newProps */ { entityId, dataset } = {}
+    /* prevProps */ {
+      entityId: prevEntityId,
+      dataset: prevDataset,
+      isLoadingDetails: prevIsLoadingDetails,
+    } = {},
+    /* newProps */ { entityId, dataset, isLoadingDetails } = {}
   ) => {
     if (prevEntityId !== entityId && entityId) {
       this.initEntity(entityId);
@@ -235,6 +270,14 @@ export class WikiView extends PureComponent {
       dataset?.getIn(["apiLinks", "datagraph"]) != null
     ) {
       this.initFields(dataset);
+    }
+
+    if (isLoadingDetails !== prevIsLoadingDetails) {
+      this.setState({
+        wikiViewState: fromJS({
+          isInProgress: isLoadingDetails,
+        }),
+      });
     }
   };
 
@@ -267,7 +310,7 @@ export class WikiView extends PureComponent {
           } else {
             this.setState({
               tagsViewState: this.getErrorViewState(
-                intl.formatMessage({ id: "Wiki.TagsNotSaved" })
+                intl.formatMessage({ id: "Wiki.LabelsNotSaved" })
               ),
             });
           }
@@ -295,11 +338,11 @@ export class WikiView extends PureComponent {
     const { intl } = this.props;
     return new Promise((resolve, reject) => {
       dialog({
-        title: intl.formatMessage({ id: "Wiki.RemoveTag" }),
+        title: intl.formatMessage({ id: "Wiki.RemoveLabel" }),
         cancelText: intl.formatMessage({ id: "Common.Cancel" }),
         confirmText: intl.formatMessage({ id: "Common.Remove" }),
         text: intl.formatMessage(
-          { id: "Wiki.RemoveTagConfirmation" },
+          { id: "Wiki.RemoveLabelConfirmation" },
           { tag: tag }
         ),
         confirm: () => {
@@ -311,7 +354,6 @@ export class WikiView extends PureComponent {
           );
           resolve();
         },
-        cancel: reject,
       });
     });
   };
@@ -321,6 +363,16 @@ export class WikiView extends PureComponent {
     e.preventDefault();
     this.setState({
       isWikiInEditMode: true,
+      wikiSummary: false,
+    });
+  };
+
+  addSummary = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    this.setState({
+      isWikiInEditMode: true,
+      wikiSummary: true,
     });
   };
 
@@ -361,7 +413,7 @@ export class WikiView extends PureComponent {
   };
 
   renderWikiContent = () => {
-    const { isEditAllowed } = this.props;
+    const { isEditAllowed, entityId, dataset } = this.props;
     const { wiki, wikiViewState } = this.state;
     const isInProgress = wikiViewState.get("isInProgress");
 
@@ -370,15 +422,20 @@ export class WikiView extends PureComponent {
     } else if (wiki) {
       return (
         <MarkdownEditor
+          entityId={entityId}
           value={wiki}
+          entityType={dataset?.get("datasetType")}
+          fullPath={dataset?.get("fullPath")}
           readMode
           onChange={this.onChange}
-          className={editor} // todo
         />
       );
     } else {
       return (
-        <WikiEmptyState onAddWiki={isEditAllowed ? this.editWiki : null} />
+        <WikiEmptyState
+          onAddWiki={isEditAllowed ? this.editWiki : null}
+          onAddSummary={this.addSummary}
+        />
       );
     }
   };
@@ -412,7 +469,7 @@ export class WikiView extends PureComponent {
   };
 
   searchColumns = (searchVal) => {
-    const { overlay, dataset } = this.props;
+    const { overlay, dataset, isPanel } = this.props;
     const { origFields } = this.state;
     if (searchVal === "") {
       this.setState({
@@ -422,7 +479,7 @@ export class WikiView extends PureComponent {
       return;
     }
     let columnDetails = origFields;
-    if (overlay) {
+    if ((overlay || isPanel) && dataset?.get("fields")) {
       columnDetails = dataset?.get("fields");
     }
     const filteredColumns = columnDetails?.filter((column) =>
@@ -440,11 +497,13 @@ export class WikiView extends PureComponent {
       startSearch,
       entityId,
       isEditAllowed,
-      showTags = true,
-      showWikiContent = true,
       dataset,
       intl,
       overlay,
+      isPanel,
+      hideSqlEditorIcon,
+      hideGoToButton,
+      handlePanelDetails,
     } = this.props;
     const {
       isWikiInEditMode,
@@ -454,6 +513,7 @@ export class WikiView extends PureComponent {
       fields,
       sidebarCollapsed,
       searchTerm,
+      tagsVersion,
     } = this.state;
     const columnDetails = fields;
     const wrapperStylesFix = {
@@ -497,6 +557,7 @@ export class WikiView extends PureComponent {
         tooltip: intl.formatMessage({ id: "Common.Edit" }),
         component: (
           <IconButton
+            data-actionid="edit-wiki"
             tooltip="Common.Edit"
             onClick={this.editWiki}
             className={collapsibleToolbarIcon}
@@ -512,8 +573,8 @@ export class WikiView extends PureComponent {
       <WikiWrapper
         getLoadViewState={getLoadViewState}
         showLoadMask={false}
-        showWikiContent={showWikiContent}
         extClassName={className}
+        wikiSummary={this.state.wikiSummary}
         wikiViewState={this.state.wikiViewState}
         wrapperStylesFix={wrapperStylesFix}
         messageStyle={messageStyle}
@@ -534,13 +595,19 @@ export class WikiView extends PureComponent {
         tags={tags}
         isEditAllowed={isEditAllowed}
         addTag={this.addTag}
+        tagsVersion={tagsVersion}
+        setOriginalTags={this.setOriginalTags}
         removeTag={this.removeTag}
         startSearch={startSearch}
-        showTags={showTags}
         renderCollapseIcon={this.renderCollapseIcon}
         dataset={dataset}
         overlay={overlay}
         searchTerm={searchTerm}
+        isPanel={isPanel}
+        hideSqlEditorIcon={hideSqlEditorIcon}
+        hideGoToButton={hideGoToButton}
+        isPanelError={dataset?.get("error") || this.state.apiError}
+        handlePanelDetails={handlePanelDetails}
       />
     );
   }

@@ -33,6 +33,7 @@
       -->
       <groupId>io.opentelemetry.contrib</groupId>
       <artifactId>opentelemetry-maven-extension</artifactId>
-      <version>1.24.0-alpha</version>
+      <!-- https://github.com/open-telemetry/opentelemetry-java-contrib/releases -->
+      <version>1.31.0-alpha</version>
     </extension>
 </extensions>

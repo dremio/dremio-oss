@@ -21,6 +21,9 @@ import com.dremio.service.job.ActiveJobSummary;
 import com.dremio.service.job.ActiveJobsRequest;
 import com.dremio.service.job.CancelJobRequest;
 import com.dremio.service.job.CancelReflectionJobRequest;
+import com.dremio.service.job.DeleteJobCountsRequest;
+import com.dremio.service.job.JobAndUserStats;
+import com.dremio.service.job.JobAndUserStatsRequest;
 import com.dremio.service.job.JobCounts;
 import com.dremio.service.job.JobCountsRequest;
 import com.dremio.service.job.JobDetails;
@@ -82,6 +85,13 @@ public interface JobsService extends Service {
   JobCounts getJobCounts(JobCountsRequest request);
 
   /**
+   * Delete the number of jobs run for the given request.
+   *
+   * @param request job counts request
+   */
+  void deleteJobCounts(DeleteJobCountsRequest request);
+
+  /**
    * Get the number of jobs run sorted by job type given a date range.
    *
    * @param request job stats request
@@ -96,6 +106,8 @@ public interface JobsService extends Service {
    * @return user stats
    */
   UniqueUserStats getUniqueUserStats(UniqueUserStatsRequest request);
+
+  JobAndUserStats getJobAndUserStats(JobAndUserStatsRequest request);
 
   /**
    * Search jobs.

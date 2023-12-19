@@ -127,7 +127,8 @@ public class TestUserRpcServer {
     when(userSession.isTracingEnabled()).thenReturn(enabled);
     when(connection.newRequestHandle(anyInt())).thenReturn(() -> { closed[0] = true; });
 
-    server = new UserRPCServer(rpcConfig, userServiceProvider, nodeEndpointProvider, ingestor, worker, allocator, loopGroup, impersonationManager, tracer, optionValidatorListing);
+    // #getAuthenticator() is never called in this test, hence using null.
+    server = new UserRPCServer(rpcConfig, null, userServiceProvider, nodeEndpointProvider, ingestor, worker, allocator, loopGroup, impersonationManager, tracer, optionValidatorListing);
   }
 
   @After

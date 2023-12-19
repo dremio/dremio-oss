@@ -169,7 +169,7 @@ public class ReIndexer implements ReplayHandler {
   /**
    * Metrics about re-indexing.
    */
-  private static class ReIndexMetrics {
+  private static final class ReIndexMetrics {
     private int puts = 0;
     private int deletes = 0;
   }

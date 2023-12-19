@@ -803,7 +803,7 @@ abstract class TransformActor implements TransformBase.TransformVisitor<Transfor
   }
 
   // Filters are not allowed to operate directly over measure columns (SUM, etc.); as well as unnested columns
-  private static class FindCannotFilterVisitor extends IsFlattenedVisitor {
+  private static final class FindCannotFilterVisitor extends IsFlattenedVisitor {
     @Override
     public Boolean visit(ExpMeasure measure) throws Exception {
       return true;
@@ -814,7 +814,7 @@ abstract class TransformActor implements TransformBase.TransformVisitor<Transfor
     return new FindCannotFilterVisitor().visit(p);
   }
 
-  private static class FindUnsupportedInGroupByVisitor extends ExpressionBase.ExpressionVisitorBase<Boolean> {
+  private static final class FindUnsupportedInGroupByVisitor extends ExpressionBase.ExpressionVisitorBase<Boolean> {
 
     @Override
     public Boolean visit(ExpColumnReference col) throws Exception {

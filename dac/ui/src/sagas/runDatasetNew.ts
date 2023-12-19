@@ -34,7 +34,7 @@ import {
 import { loadNewDataset } from "@app/actions/explore/datasetNew/edit";
 import { setQueryStatuses } from "@app/actions/explore/view";
 import { updateHistoryWithJobState } from "@app/actions/explore/history";
-import { getExploreState, getTableDataRaw } from "@app/selectors/explore";
+import { getExploreState } from "@app/selectors/explore";
 import socket, {
   // @ts-ignore
   WS_MESSAGE_JOB_PROGRESS,
@@ -46,6 +46,7 @@ import socket, {
 import { cloneDeep } from "lodash";
 import Immutable from "immutable";
 import apiUtils from "@app/utils/apiUtils/apiUtils";
+import { updateScriptContext } from "@app/sagas/scriptContext";
 
 class JobFailedError {
   name: string;
@@ -57,11 +58,12 @@ class JobFailedError {
   }
 }
 
-const getJobDoneActionFilter = (jobId: string) => (action: Record<any, any>) =>
-  (action.type === WS_MESSAGE_JOB_PROGRESS ||
-    action.type === WS_MESSAGE_QV_JOB_PROGRESS) &&
-  action.payload.id.id === jobId &&
-  action.payload.update.isComplete;
+export const getJobDoneActionFilter =
+  (jobId: string) => (action: Record<any, any>) =>
+    (action.type === WS_MESSAGE_JOB_PROGRESS ||
+      action.type === WS_MESSAGE_QV_JOB_PROGRESS) &&
+    action.payload.id.id === jobId &&
+    action.payload.update.isComplete;
 
 export function* loadDatasetMetadata(
   dataset: Immutable.Map<string, any>,
@@ -69,38 +71,40 @@ export function* loadDatasetMetadata(
   jobId: string,
   paginationUrl: string,
   navigateOptions: Record<string, any>,
-  isRun: boolean,
   datasetPath: string,
   callback: any,
   curIndex: number,
   sessionId: string,
-  viewId: string
+  viewId: string,
+  tabId: string
 ): any {
-  const tableData = yield select(getTableDataRaw, datasetVersion);
-  const rows = tableData?.get("rows");
+  const { jobDone } = yield race({
+    jobDone: call(
+      handlePendingMetadataFetch,
+      dataset,
+      datasetVersion,
+      jobId,
+      paginationUrl,
+      datasetPath,
+      callback,
+      curIndex,
+      sessionId,
+      viewId,
+      tabId
+    ),
+    locationChange: call(explorePageChanged),
+  });
 
-  if (isRun || !rows) {
-    const { jobDone } = yield race({
-      jobDone: call(
-        handlePendingMetadataFetch,
-        dataset,
-        datasetVersion,
-        jobId,
-        paginationUrl,
-        datasetPath,
-        callback,
-        curIndex,
-        sessionId,
-        viewId
-      ),
-      locationChange: call(explorePageChanged),
-    });
+  const willProceed = jobDone?.willProceed ?? false;
+  const newResponse = jobDone?.newResponse;
 
-    const willProceed = jobDone?.willProceed ?? false;
-    const newResponse = jobDone?.newResponse;
+  if (newResponse) {
+    yield put(stopExplorePageListener());
 
-    if (newResponse) {
-      yield put(stopExplorePageListener());
+    // Tabs: Skip navigation if activeScriptId has changed since original side-effect was started (user has changed tabs)
+    if (!tabId) {
+      yield call(updateScriptContext, sessionId);
+
       yield put(
         // @ts-ignore
         navigateToNextDataset(newResponse, {
@@ -108,20 +112,20 @@ export function* loadDatasetMetadata(
           newJobId: jobId,
         })
       );
-      yield put(startExplorePageListener(false));
     }
-
-    if (callback && newResponse !== undefined) {
-      const resultDataset = apiUtils.getEntityFromResponse(
-        "datasetUI",
-        newResponse
-      );
-
-      yield call(callback, true, resultDataset);
-    }
-
-    return willProceed;
+    yield put(startExplorePageListener(false));
   }
+
+  if (callback && newResponse !== undefined) {
+    const resultDataset = apiUtils.getEntityFromResponse(
+      "datasetUI",
+      newResponse
+    );
+
+    yield call(callback, true, resultDataset);
+  }
+
+  return willProceed;
 }
 
 export function* handlePendingMetadataFetch(
@@ -133,7 +137,8 @@ export function* handlePendingMetadataFetch(
   callback: any,
   curIndex: number,
   sessionId: string,
-  viewId: string
+  viewId: string,
+  tabId: string
 ): any {
   let willProceed = true;
   let newResponse;
@@ -162,7 +167,13 @@ export function* handlePendingMetadataFetch(
 
     if (jobDone) {
       // if a job fails, throw an error to avoid calling the /preview endpoint
-      if (jobDone.payload?.update?.state === "FAILED") {
+      const updatedJob = jobDone.payload?.update;
+      const attempts = updatedJob?.attemptDetails || [];
+      if (
+        updatedJob.state === "FAILED" &&
+        attempts.length &&
+        attempts[attempts.length - 1].result === "FAILED"
+      ) {
         const failureInfo = jobDone.payload.update.failureInfo;
         throw new JobFailedError(
           failureInfo?.errors?.[0]?.message || failureInfo?.message
@@ -177,7 +188,8 @@ export function* handlePendingMetadataFetch(
         datasetVersion,
         jobId,
         paginationUrl,
-        viewId
+        viewId,
+        tabId
       );
 
       if (apiAction === undefined) {
@@ -222,7 +234,7 @@ export function* handlePendingMetadataFetch(
           )
         );
         yield put(updateExploreJobProgress(jobDone.payload.update));
-        yield call(genLoadJobDetails, jobId, queryStatuses);
+        yield call(genLoadJobDetails, jobId);
       }
     }
   } catch (e) {

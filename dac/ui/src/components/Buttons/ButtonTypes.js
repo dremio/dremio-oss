@@ -15,6 +15,7 @@
  */
 export const CUSTOM = "CUSTOM";
 export const NEXT = "NEXT";
+export const PRIMARY_DANGER = "PRIMARY_DANGER";
 export const BACK = "BACK";
 export const CANCEL = "CANCEL";
 export const PRIMARY = "PRIMARY";

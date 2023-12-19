@@ -30,6 +30,8 @@ export function getHref(entity, context) {
       state: {
         modal: "DatasetSettingsModal",
         tab: "format",
+        type: entity.get("entityType"),
+        entityName: entity.get("fullPathList").last(),
         entityType: entity.get("entityType"),
         entityId: entity.get("id"),
         fullPath: entity.get("filePath"),

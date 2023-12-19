@@ -22,8 +22,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class SnapshotsScanOptions {
   public enum Mode {
-    EXPIRED_SNAPSHOTS,  // Expired snapshots
-    LIVE_SNAPSHOTS      // Live snapshots after expiration
+    EXPIRED_SNAPSHOTS,  // Expired snapshots. Does not commit expiry
+    LIVE_SNAPSHOTS,     // Live snapshots after committing expiry
+    ALL_SNAPSHOTS       // Return all snapshots. Does not commit expiry
   }
 
   private final Mode mode;

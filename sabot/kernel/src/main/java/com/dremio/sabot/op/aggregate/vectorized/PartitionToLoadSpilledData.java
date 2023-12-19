@@ -158,6 +158,8 @@ public class PartitionToLoadSpilledData implements AutoCloseable {
                    accumulatorTypes[count] == AccumulatorBuilder.AccumulatorType.LOCAL_LISTAGG.ordinal() ||
                    accumulatorTypes[count] == AccumulatorBuilder.AccumulatorType.LISTAGG_MERGE.ordinal()) {
           vector = FixedListVarcharVector.allocListVector(allocator, batchSize);
+        } else if (accumulatorTypes[count] == AccumulatorBuilder.AccumulatorType.ARRAY_AGG.ordinal()) {
+          vector.allocateNew();
         } else {
           Preconditions.checkArgument(accumulatorTypes[count] == AccumulatorBuilder.AccumulatorType.HLL.ordinal() ||
             accumulatorTypes[count] == AccumulatorBuilder.AccumulatorType.HLL_MERGE.ordinal());
@@ -165,7 +167,7 @@ public class PartitionToLoadSpilledData implements AutoCloseable {
         }
       } else {
         Preconditions.checkArgument(vector instanceof BaseFixedWidthVector, "Error: detected invalid accumulator vector type");
-        ((BaseFixedWidthVector) vector).allocateNew(batchSize);
+        ((BaseFixedWidthVector)vector).allocateNew(batchSize);
       }
 
       Preconditions.checkArgument(vector.getValueCapacity() >= batchSize, "Error: failed to correctly pre-allocate accumulator vector in extra partition");

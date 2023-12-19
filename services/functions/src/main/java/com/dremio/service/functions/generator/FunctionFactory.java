@@ -46,11 +46,12 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
-import com.dremio.exec.catalog.DremioCatalogReader;
 import com.dremio.exec.expr.fn.AbstractFunctionHolder;
 import com.dremio.exec.expr.fn.BaseFunctionHolder;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.expr.fn.PrimaryFunctionRegistry;
+import com.dremio.exec.ops.DelegatingPlannerCatalog;
+import com.dremio.exec.ops.DremioCatalogReader;
 import com.dremio.exec.planner.sql.DremioSqlConformance;
 import com.dremio.exec.planner.sql.SqlFunctionImpl;
 import com.dremio.exec.planner.sql.TypeInferenceUtils;
@@ -253,7 +254,7 @@ public final class FunctionFactory {
       return Optional.empty();
     }
 
-    List<AbstractFunctionHolder> abstractFunctionHolders = primaryFunctionRegistry.getMethods(sqlFunction.getName());
+    List<AbstractFunctionHolder> abstractFunctionHolders = primaryFunctionRegistry.lookupMethods(sqlFunction.getName());
     if (abstractFunctionHolders == null) {
       return Optional.empty();
     }
@@ -283,6 +284,7 @@ public final class FunctionFactory {
             .build())
           .collect(ImmutableList.toImmutableList());
 
+        // Sometimes a developer just set the input parameter for a function as ANY without thinking about it
         if (parameters.stream().anyMatch(parameter -> parameter.getType() == ParameterType.ANY)) {
           continue;
         }
@@ -296,6 +298,10 @@ public final class FunctionFactory {
       } catch (Exception ex) {
         continue;
       }
+    }
+
+    if (signatures.isEmpty()) {
+      return Optional.empty();
     }
 
     return Optional.of(ImmutableSet.copyOf(signatures));
@@ -371,7 +377,7 @@ public final class FunctionFactory {
           List<Parameter> parameters = new ArrayList<>();
           for (int i = 0; i < parameterTypes.size(); i++) {
             SqlTypeName sqlTypeName = parameterTypes.get(i);
-            ParameterKind kind = hasVarArg && i == (parameterTypes.size() - 1) ? ParameterKind.VARARG : ParameterKind.REGULAR;
+            ParameterKind kind = hasVarArg && i == (maxOperands - 1) ? ParameterKind.VARARG : ParameterKind.REGULAR;
             ParameterType type = SqlTypeNameToParameterType.convert(sqlTypeName);
             Parameter parameter = Parameter
               .builder()
@@ -410,7 +416,9 @@ public final class FunctionFactory {
     for (int index = 0; index < ColumnAndNode.ALL_VALUES.size(); index++) {
       ColumnAndNode columnAndNode = ColumnAndNode.ALL_VALUES.get(index);
       SqlTypeName sqlTypeName = columnAndNode.getColumn().getType();
-      RelDataType relDataType = JavaTypeFactoryImpl.INSTANCE.createSqlType(sqlTypeName);
+      RelDataType relDataType = sqlTypeName == SqlTypeName.ARRAY
+        ? JavaTypeFactoryImpl.INSTANCE.createArrayType(JavaTypeFactoryImpl.INSTANCE.createSqlType(SqlTypeName.ANY), -1)
+        : JavaTypeFactoryImpl.INSTANCE.createSqlType(sqlTypeName);
       relDataType = JavaTypeFactoryImpl.INSTANCE.createTypeWithNullability(relDataType, true);
       RelDataTypeField field = new RelDataTypeFieldImpl(
         columnAndNode.getColumn().getName(),
@@ -429,10 +437,7 @@ public final class FunctionFactory {
     MockCatalog mockCatalog = new MockCatalog(
       JavaTypeFactoryImpl.INSTANCE,
       ImmutableList.of(dremioTable));
-    DremioCatalogReader mockCatalogReader = new DremioCatalogReader(
-      mockCatalog,
-      JavaTypeFactoryImpl.INSTANCE);
-
+    DremioCatalogReader mockCatalogReader = new DremioCatalogReader(DelegatingPlannerCatalog.newInstance(mockCatalog));
     return mockCatalogReader;
   }
 
@@ -457,7 +462,7 @@ public final class FunctionFactory {
     public static final ColumnAndNode TIMESTAMP = create(SqlTypeName.TIMESTAMP);
     public static final ColumnAndNode INTERVAL_DAY_SECOND = create(SqlTypeName.INTERVAL_DAY_SECOND);
     public static final ColumnAndNode INTERVAL_YEAR_MONTH = create(SqlTypeName.INTERVAL_YEAR_MONTH);
-    // LIST
+    // ARRAY
     public static final ColumnAndNode ARRAY = create(SqlTypeName.ARRAY);
     // STRUCT
     public static final ColumnAndNode MAP = create(SqlTypeName.MAP);
@@ -467,9 +472,8 @@ public final class FunctionFactory {
       BINARY, VARBINARY,
       FLOAT, DECIMAL, DOUBLE, INTEGER, BIGINT,
       CHAR, VARCHAR,
-      DATE, TIME, TIMESTAMP/*, INTERVAL_DAY_SECOND, INTERVAL_YEAR_MONTH,
-      ARRAY,
-      MAP*/);
+      DATE, TIME, TIMESTAMP, /*, INTERVAL_DAY_SECOND, INTERVAL_YEAR_MONTH, */
+      ARRAY, MAP);
     public static final ImmutableMap<SqlTypeName, SqlNode> TYPE_TO_NODE = createTypeToNode();
 
     private final Column column;

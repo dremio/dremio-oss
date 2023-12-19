@@ -40,9 +40,16 @@
 }
 
 .active-wiki-button {
-  width: 100%;
   display: flex;
   justify-content: flex-end;
+}
+
+.panel-icon {
+  color: var(--color--neutral--600) !important;
+
+  &:hover {
+    color: var(--dremio--color--link) !important;
+  }
 }
 
 .slider {
@@ -93,7 +100,7 @@
     &--noZebraStripesRows {
       cursor: pointer !important;
       border-bottom: 1px solid @DARK_200 !important;
-      background: @white !important;
+      background: var(--bg--default) !important;
     }
     .ReactVirtualized__Table__row {
       .fontBody();
@@ -356,6 +363,16 @@
         display: inline-flex;
         opacity: 50%;
       }
+    }
+  }
+
+  .table-wrap .table-wrap__empty dremio-icon {
+    width: 40vh;
+    height: 40vh;
+
+    & + span {
+      font-weight: bold;
+      font-size: 16px;
     }
   }
 }

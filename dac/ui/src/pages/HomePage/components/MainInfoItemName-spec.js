@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { shallow } from "enzyme";
-
+import Immutable from "immutable";
 import { MainInfoItemName } from "./MainInfoItemName";
 
 describe("MainInfoItemName", () => {
@@ -52,6 +52,7 @@ describe("MainInfoItemName", () => {
       entityType: "file",
       query: { then: "query" },
       filePath: "Prod-sample/prod",
+      fullPathList: ["Prod-sample"],
       datasetConfig: { fullPathList: [] },
     }),
   };
@@ -87,7 +88,9 @@ describe("MainInfoItemName", () => {
       state: {
         modal: "DatasetSettingsModal",
         tab: "format",
+        entityName: "Prod-sample",
         entityType: "file",
+        type: "file",
         entityId: 2,
         fullPath: "Prod-sample/prod",
         query: { then: "query" },

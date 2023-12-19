@@ -16,6 +16,13 @@
 package com.dremio.exec.util;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Random;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
@@ -206,6 +213,96 @@ public class DecimalUtilsTest extends DremioTest {
       }
     }
     return false;
+  }
+
+  @Test
+  public void testCompareDecimalsAsTwoLongs() {
+    List<BigDecimal> values = new ArrayList<>();
+    Random random = new Random(220013062023L);
+    byte[] bytes = new byte[16];
+    for (int i = 0; i < 100; ++i) {
+      random.nextBytes(bytes);
+      values.add(new BigDecimal(new BigInteger(bytes), 20));
+    }
+    Collections.sort(values);
+
+    for (int left = 0, n = values.size(); left < n; ++left) {
+      for (int right = 0; right < n; ++right) {
+        BigInteger leftUnscaled = values.get(left).unscaledValue();
+        long leftLow = leftUnscaled.longValue();
+        long leftHigh = leftUnscaled.shiftRight(64).longValue();
+        BigInteger rightUnscaled = values.get(right).unscaledValue();
+        long rightLow = rightUnscaled.longValue();
+        long rightHigh = rightUnscaled.shiftRight(64).longValue();
+
+        int expected = left < right ? -1 : left > right ? 1 : 0;
+        Assert.assertEquals(expected, DecimalUtils.compareDecimalsAsTwoLongs(leftHigh, leftLow, rightHigh, rightLow));
+      }
+    }
+  }
+
+  @Test
+  public void testReadBigEndianIntoLong() {
+    byte[] sourceArray = new byte[24];
+    try (ArrowBuf sourceBuf = testAllocator.buffer(24)) {
+      Random random = new Random(13062023);
+
+      // Set garbage bits before and after
+      random.nextBytes(sourceArray);
+      sourceBuf.setLong(0, random.nextLong());
+      sourceBuf.setLong(16, random.nextLong());
+
+      for (int byteWidth = 1; byteWidth <= 8; ++byteWidth) {
+        for (int i = 0; i < 100; ++i) {
+
+          // Generate a random value in the boundaries related to byteWidth
+          long expected = random.nextLong();
+          int bitsToShift = (8 - byteWidth) * 8;
+          expected <<= bitsToShift;
+          expected >>= bitsToShift;
+
+          // Write the long value in big endian byte order
+          ByteBuffer.wrap(sourceArray, 8, 8).order(ByteOrder.BIG_ENDIAN).putLong(expected);
+          sourceBuf.setLong(8, Long.reverseBytes(expected));
+
+          // Read back only the meaningful byteWidth bytes
+          long actual = DecimalUtils.readBigEndianIntoLong(sourceArray, 8 + (8 - byteWidth), byteWidth);
+          Assert.assertEquals("<byte[]> byteWidth: " + byteWidth, expected, actual);
+          actual = DecimalUtils.readBigEndianIntoLong(sourceBuf, 8 + (8 - byteWidth), byteWidth);
+          Assert.assertEquals("<ArrowBuf> byteWidth: " + byteWidth, expected, actual);
+        }
+      }
+    }
+  }
+
+  @Test
+  public void testWriteDecimalAsTwoLongs() {
+    BigDecimal[] values = {
+      new BigDecimal("13160083730631869.05855370338472282155"),
+      new BigDecimal("-10428434929042162.44916940774327827690"),
+      new BigDecimal("2136278553926987.60878794309678511470"),
+      new BigDecimal("919296940823423.82512659912324987068"),
+      new BigDecimal("10336812515247389.51875852457569286957"),
+      new BigDecimal("-1724073861930332.04787771806680092159"),
+      new BigDecimal("-3861174555363047.50649673014895939355"),
+      new BigDecimal("4801348183236962.42916427845552356154"),
+      new BigDecimal("-2154924983101774.27403489486734608769"),
+      BigDecimal.ZERO.setScale(20)
+    };
+    try (DecimalVector target = new DecimalVector("decimal-test", testAllocator, DecimalVector.MAX_PRECISION, 20)) {
+      target.allocateNew(values.length);
+      for (int i = 0; i < values.length; ++i) {
+        BigInteger unscaled = values[i].unscaledValue();
+        long lowValue = unscaled.longValue();
+        long highValue = unscaled.shiftRight(64).longValue();
+        DecimalUtils.writeDecimalAsTwoLongs(highValue, lowValue, target, i);
+      }
+      for (int i = 0; i < values.length; ++i) {
+        BigDecimal expected = values[i];
+        BigDecimal actual = target.getObject(i);
+        Assert.assertEquals(expected, actual);
+      }
+    }
   }
 
 }

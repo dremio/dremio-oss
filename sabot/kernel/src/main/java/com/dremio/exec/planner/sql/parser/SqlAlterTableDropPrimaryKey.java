@@ -42,17 +42,20 @@ public class SqlAlterTableDropPrimaryKey extends SqlAlterTable implements Simple
 
     @Override
     public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 1, "SqlAlterTableDropPrimaryKey.createCall() " +
+      Preconditions.checkArgument(operands.length == 2, "SqlAlterTableDropPrimaryKey.createCall() " +
           "has to get 2 operands!");
 
       return new SqlAlterTableDropPrimaryKey(
           pos,
-          (SqlIdentifier) operands[0]);
+          (SqlIdentifier) operands[0],
+          (SqlTableVersionSpec) operands[1]);
     }
   };
+  protected final SqlTableVersionSpec sqlTableVersionSpec;
 
-  public SqlAlterTableDropPrimaryKey(SqlParserPos pos, SqlIdentifier tblName) {
+  public SqlAlterTableDropPrimaryKey(SqlParserPos pos, SqlIdentifier tblName, SqlTableVersionSpec sqlTableVersionSpec) {
     super(pos, tblName);
+    this.sqlTableVersionSpec = sqlTableVersionSpec;
   }
 
   @Override
@@ -67,11 +70,15 @@ public class SqlAlterTableDropPrimaryKey extends SqlAlterTable implements Simple
 
   @Override
   public List<SqlNode> getOperandList() {
-    return Lists.newArrayList(tblName);
+    return Lists.newArrayList(tblName, sqlTableVersionSpec);
   }
 
   @Override
   public SimpleDirectHandler toDirectHandler(QueryContext context) {
     return new DropPrimaryKeyHandler(context.getCatalog());
+  }
+
+  public SqlTableVersionSpec getSqlTableVersionSpec() {
+    return sqlTableVersionSpec;
   }
 }

@@ -137,7 +137,7 @@ public abstract class RemoteConnection implements ConnectionThrottle, AutoClosea
     }
   }
 
-  private class BackPressureHandler extends ChannelInboundHandlerAdapter {
+  private final class BackPressureHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {

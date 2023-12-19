@@ -79,8 +79,8 @@ function saveSpace(values, isCreate) {
     mergeEntities: true,
     notification: {
       message: isCreate
-        ? la("Successfully created.")
-        : la("Successfully updated."),
+        ? laDeprecated("Successfully created.")
+        : laDeprecated("Successfully updated."),
       level: "success",
     },
   };
@@ -134,7 +134,7 @@ export function removeSpace(spaceId, spaceVersion) {
     id: spaceId,
     invalidateViewIds: [ALL_SPACES_VIEW_ID], // cause data reload. See SpacesLoader
   };
-  const errorMessage = la("There was an error removing the space.");
+  const errorMessage = laDeprecated("There was an error removing the space.");
 
   const apiCall = new APICall()
     .path("catalog")

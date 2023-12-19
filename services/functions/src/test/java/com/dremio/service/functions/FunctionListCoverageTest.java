@@ -34,7 +34,7 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
-import com.dremio.exec.planner.sql.OperatorTable;
+import com.dremio.exec.planner.sql.DremioCompositeSqlOperatorTable;
 import com.dremio.service.functions.generator.FunctionFactory;
 import com.dremio.service.functions.generator.FunctionMerger;
 import com.dremio.service.functions.model.Function;
@@ -67,7 +67,7 @@ public final class FunctionListCoverageTest {
   private static final FunctionImplementationRegistry FUNCTION_IMPLEMENTATION_REGISTRY = FunctionImplementationRegistry.create(
     SABOT_CONFIG,
     SCAN_RESULT);
-  private static final SqlOperatorTable OPERATOR_TABLE = new OperatorTable(FUNCTION_IMPLEMENTATION_REGISTRY);
+  private static final SqlOperatorTable OPERATOR_TABLE = DremioCompositeSqlOperatorTable.create(FUNCTION_IMPLEMENTATION_REGISTRY);
 
   private static final FunctionFactory FUNCTION_FACTORY = FunctionFactory.makeFunctionFactory(OPERATOR_TABLE);
 

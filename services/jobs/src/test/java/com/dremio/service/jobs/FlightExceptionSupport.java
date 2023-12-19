@@ -92,7 +92,7 @@ public class FlightExceptionSupport {
     allocator.close();
   }
 
-  private static class SimpleErrorProducer extends NoOpFlightProducer {
+  private static final class SimpleErrorProducer extends NoOpFlightProducer {
     @Override
     public void getStream(CallContext context, Ticket ticket, ServerStreamListener listener) {
       UserException e = UserException.unsupportedError().message(expectedMessage).buildSilently();

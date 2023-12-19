@@ -272,7 +272,13 @@ public class CalciteArrowHelper {
 
       if (completeType.isMap()) {
         if (withComplexTypeSupport) {
-          Preconditions.checkArgument(completeType.getOnlyChild().getChildren().size() == 2);
+          if (completeType.getOnlyChild().getChildren().size() != 2) {
+            throw UserException
+              .parseError()
+              .message("MAP type must be supplied with key type and value type.")
+              .buildSilently();
+          }
+
           return convertFieldsToMap(completeType.getOnlyChild().getChildren().get(0),
             completeType.getOnlyChild().getChildren().get(1), typeFactory, true);
         } else {

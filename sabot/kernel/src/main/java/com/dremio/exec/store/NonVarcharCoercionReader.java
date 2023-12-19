@@ -30,12 +30,14 @@ import com.carrotsearch.hppc.IntHashSet;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.CastExpressionWithOverflow;
 import com.dremio.common.expression.CompleteType;
+import com.dremio.common.expression.ConvertExpression;
 import com.dremio.common.expression.FieldReference;
 import com.dremio.common.expression.FunctionCallFactory;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.logical.data.NamedExpression;
 import com.dremio.common.types.TypeProtos;
 import com.dremio.common.util.MajorTypeHelper;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.ClassGenerator;
 import com.dremio.exec.expr.ExpressionEvaluationOptions;
 import com.dremio.exec.expr.ExpressionSplitter;
@@ -80,6 +82,11 @@ public class NonVarcharCoercionReader implements AutoCloseable {
     this.typeCoercion = typeCoercion;
   }
 
+  private boolean canConvertComplexTypeToJson(Field field) {
+    return context.getOptions().getOption(ExecConstants.ENABLE_PARQUET_MIXED_TYPES_COERCION) &&
+           incoming.getSchema().findFieldIgnoreCase(field.getName()).map(f -> f.getType().isComplex()).orElse(false);
+  }
+
   protected void addExpression(Field field, FieldReference inputRef) {
     TypeProtos.MajorType majorType = typeCoercion.getType(field);
     LogicalExpression cast;
@@ -87,6 +94,9 @@ public class NonVarcharCoercionReader implements AutoCloseable {
       cast = inputRef;
     } else if (majorType.getMinorType().equals(TypeProtos.MinorType.DECIMAL)) {
       cast = new CastExpressionWithOverflow(inputRef, majorType);
+    } else if (majorType.getMinorType().equals(VARCHAR) && canConvertComplexTypeToJson(field)) {
+      cast = FunctionCallFactory.createConvert(ConvertExpression.CONVERT_TO, "CompactJSON", inputRef);
+      cast = FunctionCallFactory.createCast(majorType, cast);
     } else {
       cast = FunctionCallFactory.createCast(majorType, inputRef);
     }

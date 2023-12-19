@@ -18,6 +18,7 @@ package com.dremio.service.jobs;
 import static com.dremio.service.job.proto.QueryType.ACCELERATOR_CREATE;
 import static com.dremio.service.job.proto.QueryType.ACCELERATOR_DROP;
 import static com.dremio.service.job.proto.QueryType.ACCELERATOR_EXPLAIN;
+import static com.dremio.service.job.proto.QueryType.ACCELERATOR_OPTIMIZE;
 import static com.dremio.service.job.proto.QueryType.D2D;
 import static com.dremio.service.job.proto.QueryType.FLIGHT;
 import static com.dremio.service.job.proto.QueryType.INTERNAL_ICEBERG_METADATA_DROP;
@@ -34,6 +35,7 @@ import static com.dremio.service.job.proto.QueryType.UI_PREVIEW;
 import static com.dremio.service.job.proto.QueryType.UI_RUN;
 import static com.dremio.service.job.proto.QueryType.UNKNOWN;
 
+import java.util.Date;
 import java.util.Map;
 
 import com.dremio.datastore.SearchQueryUtils;
@@ -80,7 +82,8 @@ public final class JobIndexKeys {
   public static final SearchQuery ACCELERATION_JOBS_FILTER = SearchQueryUtils.or(
       SearchQueryUtils.newTermQuery("QUERY_TYPE", ACCELERATOR_CREATE.toString()),
       SearchQueryUtils.newTermQuery("QUERY_TYPE", ACCELERATOR_EXPLAIN.toString()),
-      SearchQueryUtils.newTermQuery("QUERY_TYPE", ACCELERATOR_DROP.toString()));
+      SearchQueryUtils.newTermQuery("QUERY_TYPE", ACCELERATOR_DROP.toString()),
+      SearchQueryUtils.newTermQuery("QUERY_TYPE", ACCELERATOR_OPTIMIZE.toString()));
 
   public static final SearchQuery INTERNAL_JOBS_FILTER = SearchQueryUtils.or(
       SearchQueryUtils.newTermQuery("QUERY_TYPE", UI_INTERNAL_PREVIEW.toString()),
@@ -151,6 +154,9 @@ public final class JobIndexKeys {
   public static final IndexKey JOB_STATE = IndexKey.newBuilder("jst", "JOB_STATE", String.class)
     .setIncludeInSearchAllFields(true)
     .build();
+
+  public static final IndexKey JOB_TTL_EXPIRY = IndexKey.newBuilder("ttl", "expireAt", Date.class).build();
+
   public static final IndexKey SQL = IndexKey.newBuilder("sql", "SQL", String.class)
     .setIncludeInSearchAllFields(true)
     .build();

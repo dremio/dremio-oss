@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>24.1.0-202306130653310132-d30779f6</version>
+    <version>24.3.0-202312190021150029-52db2faf</version>
   </parent>
   <artifactId>dremio-services-telemetry-api</artifactId>
   <name>Services - Telemetry - API</name>
@@ -97,8 +97,18 @@
       <artifactId>opentelemetry-api</artifactId>
     </dependency>
     <dependency>
+      <groupId>io.opentelemetry.semconv</groupId>
+      <artifactId>opentelemetry-semconv</artifactId>
+    </dependency>
+    <dependency>
+      <!--
+      old artifact name is discontinued but atm still needed by nessie-client 0.72.0
+      (this workaround can be removed when newer nessie versions properly declare the dependency
+      or also switch to use the new artifact name)
+      -->
       <groupId>io.opentelemetry</groupId>
       <artifactId>opentelemetry-semconv</artifactId>
+      <version>1.30.0-alpha</version>
     </dependency>
     <dependency>
       <groupId>io.opentracing</groupId>
@@ -166,9 +176,6 @@
       <plugin>
         <groupId>org.xolstice.maven.plugins</groupId>
         <artifactId>protobuf-maven-plugin</artifactId>
-        <configuration>
-          <clearOutputDirectory>false</clearOutputDirectory>
-        </configuration>
         <executions>
           <execution>
             <id>generate-proto</id>
@@ -176,27 +183,6 @@
             <goals>
               <goal>compile</goal>
             </goals>
-            <configuration>
-              <protoSourceRoot>${project.basedir}/src/main/proto</protoSourceRoot>
-              <outputDirectory>${project.build.directory}/generated-sources/protobuf</outputDirectory>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>proto-jar-resources</id>
-            <phase>package</phase>
-            <goals>
-              <goal>jar</goal>
-            </goals>
-            <configuration>
-              <classesDirectory>${project.basedir}/src/main/proto</classesDirectory>
-              <classifier>proto</classifier>
-            </configuration>
           </execution>
         </executions>
       </plugin>

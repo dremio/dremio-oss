@@ -41,6 +41,7 @@
     SqlTableVersionSpec sqlTableVersionSpec = SqlTableVersionSpec.NOT_SPECIFIED ;
     SqlNodeList tablePropertyNameList;
     SqlNodeList tablePropertyValueList;
+    SqlNodeList sortList;
 
 }
 {
@@ -88,9 +89,9 @@
           <DROP> <ROW> <ACCESS> <POLICY> sqlPolicy = Policy()
           { return new SqlAlterTableDropRowAccessPolicy(pos, tblName, sqlPolicy); }
           |
-          <ADD> <PRIMARY> <KEY> { return new SqlAlterTableAddPrimaryKey(pos, tblName, ParseRequiredFieldList("Primary Key")); }
+          <ADD> <PRIMARY> <KEY> { return new SqlAlterTableAddPrimaryKey(pos, tblName, ParseRequiredFieldList("Primary Key"), sqlTableVersionSpec); }
           |
-          <DROP> <PRIMARY> <KEY> { return new SqlAlterTableDropPrimaryKey(pos, tblName); }
+          <DROP> <PRIMARY> <KEY> { return new SqlAlterTableDropPrimaryKey(pos, tblName, sqlTableVersionSpec); }
           |
           <ROUTE> (
             (<ALL> <REFLECTIONS> | <REFLECTIONS>)  { return SqlAlterDatasetReflectionRouting(pos, tblName, SqlLiteral.createSymbol(SqlAlterDatasetReflectionRouting.RoutingType.TABLE, pos)); }
@@ -130,12 +131,12 @@
           )
           |
           <ADD> (
-            <COLUMNS> { return new SqlAlterTableAddColumns(pos, tblName, TableElementList()); }
+            <COLUMNS> { return new SqlAlterTableAddColumns(pos, tblName, TableElementList(), sqlTableVersionSpec); }
             |
             <PARTITION> <FIELD> partitionTransform = ParsePartitionTransform()
             {
               return new SqlAlterTablePartitionColumns(pos, tblName,
-                SqlLiteral.createSymbol(SqlAlterTablePartitionColumns.Mode.ADD, pos), partitionTransform);
+                SqlLiteral.createSymbol(SqlAlterTablePartitionColumns.Mode.ADD, pos), partitionTransform, sqlTableVersionSpec);
             }
           )
           |
@@ -146,7 +147,7 @@
               DremioSqlColumnDeclaration typedElement;
             }
             (
-              typedElement = TypedElement() { return new SqlAlterTableChangeColumn(pos, tblName, columnName, typedElement); }
+              typedElement = TypedElement() { return new SqlAlterTableChangeColumn(pos, tblName, columnName, typedElement, sqlTableVersionSpec); }
             |
               (
                 <SET> <MASKING> <POLICY> sqlPolicy = Policy()
@@ -167,14 +168,14 @@
             <PARTITION> <FIELD> partitionTransform = ParsePartitionTransform()
             {
               return new SqlAlterTablePartitionColumns(pos, tblName,
-                SqlLiteral.createSymbol(SqlAlterTablePartitionColumns.Mode.DROP, pos), partitionTransform);
+                SqlLiteral.createSymbol(SqlAlterTablePartitionColumns.Mode.DROP, pos), partitionTransform, sqlTableVersionSpec);
             }
             |
             (
               <COLUMN>
               { dropColumnKeywordPresent = SqlLiteral.createBoolean(true, pos); }
             )?
-            { return new SqlAlterTableDropColumn(pos, tblName, dropColumnKeywordPresent, SimpleIdentifier()); }
+            { return new SqlAlterTableDropColumn(pos, tblName, dropColumnKeywordPresent, SimpleIdentifier(), sqlTableVersionSpec); }
           )
           |
           <CREATE> (
@@ -260,7 +261,12 @@
             )
            )
           |
-          { return new SqlAlterTableSetOption(pos, tblName, SqlSetOption(Span.of(), "TABLE")); }
+          <LOCALSORT> <BY> { sortList = ParseRequiredFieldList("Sort"); }
+          {
+              return new SqlAlterTableSortOrder(pos, tblName, sortList);
+          }
+          |
+          { return new SqlAlterTableSetOption(pos, tblName, SqlSetOption(Span.of(), "TABLE"), sqlTableVersionSpec); }
         )
     )
 }
@@ -355,7 +361,7 @@ SqlNode SqlCreateAggReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdent
 {
     SqlNodeList dimensionList;
     SqlNodeList measureList;
-    SqlNodeList partitionList;
+    SqlNodeList partitionTransformList;
     SqlNodeList distributionList;
     SqlNodeList sortList;
     SqlLiteral arrowCachingEnabled;
@@ -366,16 +372,24 @@ SqlNode SqlCreateAggReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdent
         dimensionList = SqlNodeList.EMPTY;
         measureList = SqlNodeList.EMPTY;
         distributionList = SqlNodeList.EMPTY;
-        partitionList =  SqlNodeList.EMPTY;
+        partitionTransformList =  SqlNodeList.EMPTY;
         sortList = SqlNodeList.EMPTY;
         arrowCachingEnabled = SqlLiteral.createBoolean(false, SqlParserPos.ZERO);
         partitionDistributionStrategy = PartitionDistributionStrategy.UNSPECIFIED;
     }
     <USING>
-    <DIMENSIONS>
-    dimensionList = ParseRequiredFieldListWithGranularity("Dimensions")
-    <MEASURES>
-    measureList = ParseRequiredFieldListWithMeasures("Measures")
+    (   <DIMENSIONS>
+        dimensionList = ParseFieldListWithGranularity("Dimensions")
+    )?
+    (   <MEASURES>
+        measureList = ParseFieldListWithMeasures("Measures")
+    )?
+
+    {
+      if (dimensionList.size() == 0 && measureList.size() == 0) {
+        throw new ParseException("Both Dimensions and Measures cannot be empty.");
+      }
+    }
 
     (   <DISTRIBUTE> <BY>
         distributionList = ParseRequiredFieldList("Distribution")
@@ -392,7 +406,7 @@ SqlNode SqlCreateAggReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdent
             }
         )?
         <PARTITION> <BY>
-        partitionList = ParseRequiredFieldList("Partition")
+        partitionTransformList = ParsePartitionTransformList()
     )?
     (   <LOCALSORT> <BY>
         sortList = ParseRequiredFieldList("Sort")
@@ -402,20 +416,21 @@ SqlNode SqlCreateAggReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdent
     )?
     {
         return SqlCreateReflection.createAggregation(pos, tblName, dimensionList, measureList, distributionList,
-           partitionList, sortList, arrowCachingEnabled, partitionDistributionStrategy, name, sqlTableVersionSpec);
+          partitionTransformList, sortList, arrowCachingEnabled, partitionDistributionStrategy, name, sqlTableVersionSpec);
     }
 }
 
 
-/** Parses a required field list and makes sure no field is a "*". */
-SqlNodeList ParseRequiredFieldListWithGranularity(String relType) :
+/** Parses a field list and makes sure no field is a "*". */
+SqlNodeList ParseFieldListWithGranularity(String relType) :
 {
     SqlNodeList fieldList = new SqlNodeList(getPos());
 }
 {
-    <LPAREN>
-    SimpleIdentifierCommaListWithGranularity(fieldList.getList())
+    (<LPAREN>
+    (SimpleIdentifierCommaListWithGranularity(fieldList.getList()))?
     <RPAREN>
+    )?
     {
         for(SqlNode node : fieldList)
         {
@@ -443,8 +458,8 @@ void SimpleIdentifierCommaListWithGranularity(List<SqlNode> list) :
     (<COMMA> SimpleIdentifierCommaListWithGranularity(list)) *
 }
 
-/** Parses a required field list and makes sure no field is a "*". */
-SqlNodeList ParseRequiredFieldListWithMeasures(String relType) :
+/** Parses a field list and makes sure no field is a "*". */
+SqlNodeList ParseFieldListWithMeasures(String relType) :
 {
     SqlNodeList fieldList = new SqlNodeList(getPos());
 }
@@ -515,7 +530,7 @@ SqlNode SqlCreateRawReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdent
 {
     SqlNodeList displayList;
     SqlNodeList distributionList;
-    SqlNodeList partitionList;
+    SqlNodeList partitionTransformList;
     SqlNodeList sortList;
     SqlLiteral arrowCachingEnabled;
     PartitionDistributionStrategy partitionDistributionStrategy;
@@ -524,7 +539,7 @@ SqlNode SqlCreateRawReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdent
     {
         displayList = SqlNodeList.EMPTY;
         distributionList = SqlNodeList.EMPTY;
-        partitionList =  SqlNodeList.EMPTY;
+        partitionTransformList =  SqlNodeList.EMPTY;
         sortList = SqlNodeList.EMPTY;
         arrowCachingEnabled = SqlLiteral.createBoolean(false, SqlParserPos.ZERO);
         partitionDistributionStrategy = PartitionDistributionStrategy.UNSPECIFIED;
@@ -548,7 +563,7 @@ SqlNode SqlCreateRawReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdent
             }
         )?
         <PARTITION> <BY>
-        partitionList = ParseRequiredFieldList("Partition")
+        partitionTransformList = ParsePartitionTransformList()
     )?
     (   <LOCALSORT> <BY>
         sortList = ParseRequiredFieldList("Sort")
@@ -557,7 +572,7 @@ SqlNode SqlCreateRawReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdent
         { arrowCachingEnabled = SqlLiteral.createBoolean(true, pos); }
     )?
     {
-        return SqlCreateReflection.createRaw(pos, tblName, displayList, distributionList, partitionList, sortList,
+        return SqlCreateReflection.createRaw(pos, tblName, displayList, distributionList, partitionTransformList, sortList,
           arrowCachingEnabled, partitionDistributionStrategy, name, sqlTableVersionSpec);
     }
 }

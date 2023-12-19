@@ -228,6 +228,8 @@ public abstract class TpchGenerator implements Generator {
         return new RegionGenerator(allocator, def, includedColumns);
       case NATION:
         return new NationGenerator(allocator, def, includedColumns);
+      case LIST_STRUCT:
+        return new ListStructGenerator(allocator, def, 1, TpchTable.LIST_STRUCT, includedColumns);
       default:
         throw new UnsupportedOperationException();
     }

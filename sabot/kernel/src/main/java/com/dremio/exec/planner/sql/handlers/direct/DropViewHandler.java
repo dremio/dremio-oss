@@ -17,21 +17,24 @@ package com.dremio.exec.planner.sql.handlers.direct;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.calcite.schema.Schema.TableType;
 import org.apache.calcite.sql.SqlNode;
 
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.catalog.ResolvedVersionContext;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.physical.base.ViewOptions;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
+import com.dremio.exec.planner.sql.parser.ReferenceTypeUtils;
 import com.dremio.exec.planner.sql.parser.SqlDropView;
 import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.service.namespace.NamespaceKey;
+import com.google.common.collect.ImmutableMap;
 
 /** Handler for Drop View [If Exists] DDL command. */
 public class DropViewHandler implements SqlDirectHandler<SimpleCommandResult> {
@@ -51,9 +54,24 @@ public class DropViewHandler implements SqlDirectHandler<SimpleCommandResult> {
     final SqlDropView dropView = SqlNodeUtil.unwrap(sqlNode, SqlDropView.class);
     NamespaceKey path = catalog.resolveSingle(dropView.getPath());
     catalog.validatePrivilege(path, SqlGrant.Privilege.ALTER);
-    DremioTable table = catalog.getTableNoColumnCount(path);
 
-    if (!dropView.checkViewExistence()) {
+    final DremioTable table;
+    final String sourceName = path.getRoot();
+    VersionContext statementSourceVersion =
+      ReferenceTypeUtils.map(dropView.getRefType(), dropView.getRefValue(), null);
+    final VersionContext sessionVersion = config.getContext().getSession().getSessionVersionForSource(sourceName);
+    VersionContext sourceVersion = statementSourceVersion.orElse(sessionVersion);
+    final ResolvedVersionContext version = CatalogUtil.resolveVersionContext(catalog, sourceName, sourceVersion);
+
+    if(isVersioned(path)) {
+      final Catalog catalog = getCatalog().resolveCatalogResetContext(path.getRoot(), sourceVersion);
+      final Map<String, VersionContext> contextMap = ImmutableMap.of(sourceName, sourceVersion);
+      table = catalog.resolveCatalog(contextMap).getTableNoColumnCount(path);
+    } else {
+      table = catalog.getTableNoColumnCount(path);
+    }
+
+    if (dropView.shouldErrorIfViewDoesNotExist()) {
       if(table == null) {
         throw UserException.validationError()
           .message("Unknown view [%s].", path)
@@ -69,21 +87,16 @@ public class DropViewHandler implements SqlDirectHandler<SimpleCommandResult> {
       return Collections.singletonList(new SimpleCommandResult(true, String.format("View [%s] not found.", path)));
     }
     if(isVersioned(path)){
-      catalog.dropView(path, getViewOptions(path));
+      catalog.dropView(path, getViewOptions(version));
     } else {
       catalog.dropView(path, null);
     }
     return Collections.singletonList(SimpleCommandResult.successful("View [%s] deleted successfully.", path));
   }
 
-  protected ViewOptions getViewOptions(NamespaceKey viewPath){
-    final String sourceName = viewPath.getRoot();
-
-    final VersionContext sessionVersion = config.getContext().getSession().getSessionVersionForSource(sourceName);
-    ResolvedVersionContext version = CatalogUtil.resolveVersionContext(catalog, viewPath.getRoot(), sessionVersion);
-
+  protected ViewOptions getViewOptions(ResolvedVersionContext resolvedVersionContext){
     ViewOptions viewOptions = new ViewOptions.ViewOptionsBuilder()
-      .version(version)
+      .version(resolvedVersionContext)
       .build();
 
     return viewOptions;
@@ -96,6 +109,10 @@ public class DropViewHandler implements SqlDirectHandler<SimpleCommandResult> {
   @Override
   public Class<SimpleCommandResult> getResultType() {
     return SimpleCommandResult.class;
+  }
+
+  protected Catalog getCatalog() {
+    return catalog;
   }
 
 }

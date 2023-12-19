@@ -115,11 +115,6 @@ public class SchemaPath extends BasePath implements LogicalExpression, Comparabl
     return new SchemaPath(rootSegment.cloneWithoutChild());
   }
 
-  public SchemaPath getUnindexedArrayChild() {
-    NameSegment newRoot = rootSegment.cloneWithNewChild(new ArraySegment(null));
-    return new SchemaPath(newRoot);
-  }
-
   public SchemaPath getChild(int index) {
     NameSegment newRoot = rootSegment.cloneWithNewChild(new ArraySegment(index));
     return new SchemaPath(newRoot);

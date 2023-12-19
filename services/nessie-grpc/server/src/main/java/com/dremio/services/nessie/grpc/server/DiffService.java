@@ -15,10 +15,10 @@
  */
 package com.dremio.services.nessie.grpc.server;
 
+import static com.dremio.services.nessie.grpc.GrpcExceptionMapper.handle;
 import static com.dremio.services.nessie.grpc.ProtoUtil.fromProto;
 import static com.dremio.services.nessie.grpc.ProtoUtil.refToProto;
 import static com.dremio.services.nessie.grpc.ProtoUtil.toProto;
-import static com.dremio.services.nessie.grpc.client.GrpcExceptionMapper.handle;
 import static org.projectnessie.services.impl.RefUtil.toReference;
 
 import java.util.function.Supplier;
@@ -38,9 +38,12 @@ import io.grpc.stub.StreamObserver;
 public class DiffService extends DiffServiceImplBase {
 
   private final Supplier<? extends org.projectnessie.services.spi.DiffService> bridge;
+  private final int maxEntriesPerPage;
 
-  public DiffService(Supplier<? extends org.projectnessie.services.spi.DiffService> bridge) {
+  public DiffService(Supplier<? extends org.projectnessie.services.spi.DiffService> bridge,
+                     int maxEntriesPerPage) {
     this.bridge = bridge;
+    this.maxEntriesPerPage = maxEntriesPerPage;
   }
 
   @Override
@@ -55,7 +58,7 @@ public class DiffService extends DiffServiceImplBase {
           fromProto(request::hasToHashOnRef, request::getToHashOnRef),
           fromProto(request::hasPageToken, request::getPageToken),
           new PagedCountingResponseHandler<DiffResponse, DiffEntry>(
-            fromProto(request::hasMaxRecords, request::getMaxRecords)) {
+            fromProto(request::hasMaxRecords, request::getMaxRecords), maxEntriesPerPage) {
 
             @Override
             protected boolean doAddEntry(DiffEntry entry) {

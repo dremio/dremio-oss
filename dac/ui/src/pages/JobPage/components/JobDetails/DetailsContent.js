@@ -66,7 +66,7 @@ class DetailsContent extends PureComponent {
 
   getCodeMirrorItem(code) {
     return (
-      <ListItem label={la("Push-Down Query")}>
+      <ListItem label={laDeprecated("Push-Down Query")}>
         <CodeMirror
           defaultValue={code}
           options={DetailsContent.codeMirrorOptions}
@@ -79,11 +79,11 @@ class DetailsContent extends PureComponent {
     return (
       <ul>
         {item.get("prunedPathsList") ? (
-          <ListItem label={la("Paths Pruned")}>
+          <ListItem label={laDeprecated("Paths Pruned")}>
             <span>{item.get("prunedPathsList")}</span>
           </ListItem>
         ) : null}
-        <ListItem label={la("Data Volume")}>
+        <ListItem label={laDeprecated("Data Volume")}>
           <span>{item.get("dataVolumeInBytes")}</span>
         </ListItem>
       </ul>
@@ -138,22 +138,22 @@ class DetailsContent extends PureComponent {
               }}
             >
               <ul>
-                <ListItem label={la("Parallelism")}>
+                <ListItem label={laDeprecated("Parallelism")}>
                   <span>{datasetProfile.get("parallelism")}</span>
                 </ListItem>
-                <ListItem label={la("Average Wait on Source")}>
+                <ListItem label={laDeprecated("Average Wait on Source")}>
                   <span>
                     {jobsUtils.msToHHMMSS(datasetProfile.get("waitOnSource"))}
                   </span>
                 </ListItem>
-                <ListItem label={la("Read")}>
+                <ListItem label={laDeprecated("Read")}>
                   <span>
                     {FileUtils.getFormattedBytes(
                       datasetProfile.get("bytesRead")
                     )}
                   </span>
                 </ListItem>
-                <ListItem label={la("Rows Read")}>
+                <ListItem label={laDeprecated("Rows Read")}>
                   <span>{datasetProfile.get("recordsRead")}</span>
                 </ListItem>
                 {datasetProfile.get("pushdownQuery")
@@ -208,11 +208,11 @@ class DetailsContent extends PureComponent {
     const haveAgg = spillDetails.get("hashAggSpilled");
     const haveSort = spillDetails.get("sortSpilled");
     const operations =
-      (haveAgg && haveSort && la("Aggregate")) ||
-      (haveAgg && la("Aggregate")) ||
-      (haveSort && la("Sort"));
+      (haveAgg && haveSort && laDeprecated("Aggregate")) ||
+      (haveAgg && laDeprecated("Aggregate")) ||
+      (haveSort && laDeprecated("Sort"));
     return (
-      <ListItem label={la("Spilled Operations:")}>
+      <ListItem label={laDeprecated("Spilled Operations:")}>
         <span>{operations}</span>
       </ListItem>
     );
@@ -224,7 +224,7 @@ class DetailsContent extends PureComponent {
     const memoryValue = spillDetails.get("totalBytesSpilled", 0);
     const memoryString = NumberFormatUtils.makeMemoryValueString(memoryValue);
     return (
-      <ListItem label={la("Total Spilled:")}>
+      <ListItem label={laDeprecated("Total Spilled:")}>
         <span>{memoryString}</span>
       </ListItem>
     );
@@ -241,58 +241,58 @@ class DetailsContent extends PureComponent {
     return (
       <div>
         <div className="detail-row">
-          <h4>{la("State Durations")}</h4>
+          <h4>{laDeprecated("State Durations")}</h4>
           <ul>
-            <ListItem label={la("Pending")}>
+            <ListItem label={laDeprecated("Pending")}>
               <span>
                 {jobsUtils.msToHHMMSS(
                   lastAttempt && lastAttempt.get("pendingTime")
                 )}
               </span>
             </ListItem>
-            <ListItem label={la("Metadata Retrieval")}>
+            <ListItem label={laDeprecated("Metadata Retrieval")}>
               <span>
                 {jobsUtils.msToHHMMSS(
                   lastAttempt && lastAttempt.get("metadataRetrievalTime")
                 )}
               </span>
             </ListItem>
-            <ListItem label={la("Planning")}>
+            <ListItem label={laDeprecated("Planning")}>
               <span>
                 {jobsUtils.msToHHMMSS(
                   lastAttempt && lastAttempt.get("planningTime")
                 )}
               </span>
             </ListItem>
-            <ListItem label={la("Engine Start")}>
+            <ListItem label={laDeprecated("Engine Start")}>
               <span>
                 {jobsUtils.msToHHMMSS(
                   lastAttempt && lastAttempt.get("engineStartTime")
                 )}
               </span>
             </ListItem>
-            <ListItem label={la("Queued")}>
+            <ListItem label={laDeprecated("Queued")}>
               <span>
                 {jobsUtils.msToHHMMSS(
                   lastAttempt && lastAttempt.get("queuedTime")
                 )}
               </span>
             </ListItem>
-            <ListItem label={la("Execution Planning")}>
+            <ListItem label={laDeprecated("Execution Planning")}>
               <span>
                 {jobsUtils.msToHHMMSS(
                   lastAttempt && lastAttempt.get("executionPlanningTime")
                 )}
               </span>
             </ListItem>
-            <ListItem label={la("Starting")}>
+            <ListItem label={laDeprecated("Starting")}>
               <span>
                 {jobsUtils.msToHHMMSS(
                   lastAttempt && lastAttempt.get("startingTime")
                 )}
               </span>
             </ListItem>
-            <ListItem label={la("Running")}>
+            <ListItem label={laDeprecated("Running")}>
               <span>
                 {jobsUtils.msToHHMMSS(
                   lastAttempt && lastAttempt.get("runningTime")
@@ -302,20 +302,20 @@ class DetailsContent extends PureComponent {
           </ul>
         </div>
         <div className="detail-row">
-          <h4>{la("Read")}</h4>
+          <h4>{laDeprecated("Read")}</h4>
           {this.getJointDatasetList(datasetsList)}
         </div>
         <div className="detail-row">
-          <h4>{la("Process")}</h4>
+          <h4>{laDeprecated("Process")}</h4>
           <ul>
-            <ListItem label={la("Execution Time")}>
+            <ListItem label={laDeprecated("Execution Time")}>
               <span>
                 {jobsUtils.formatJobDuration(
                   lastAttempt && lastAttempt.get("runningTime")
                 )}
               </span>
             </ListItem>
-            <ListItem label={la("Top Operations")}>
+            <ListItem label={laDeprecated("Top Operations")}>
               {this.getTopOperations(jobDetails.get("topOperations"))}
             </ListItem>
             {this.getSpilledOperations(spilledDetails)}
@@ -323,17 +323,17 @@ class DetailsContent extends PureComponent {
           </ul>
         </div>
         <div className="detail-row">
-          <h4>{la("Return")}</h4>
+          <h4>{laDeprecated("Return")}</h4>
           <ul>
-            <ListItem label={la("Wait on Client")}>
+            <ListItem label={laDeprecated("Wait on Client")}>
               <span>
                 {jobsUtils.msToHHMMSS(jobDetails.get("waitInClient"))}
               </span>
             </ListItem>
-            <ListItem label={la("Number of Records")}>
+            <ListItem label={laDeprecated("Number of Records")}>
               <span>{jobDetails.get("outputRecords")}</span>
             </ListItem>
-            <ListItem label={la("Data Volume")}>
+            <ListItem label={laDeprecated("Data Volume")}>
               <span>{jobDetails.get("dataVolume")}</span>
             </ListItem>
           </ul>

@@ -15,21 +15,15 @@
  */
 package com.dremio.exec.store.dfs;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.arrow.vector.BigIntVector;
-import org.apache.arrow.vector.VarCharVector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.exec.physical.config.TableFunctionConfig;
-import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.SplitIdentity;
-import com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants;
-import com.dremio.exec.util.VectorUtil;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf;
@@ -39,29 +33,11 @@ import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
  * Table function converts input data file path and file size, and generates a VarBinary, which
  * contains serialised SplitAndPartitionInfo
  */
-public class EasySplitGenTableFunction extends SplitGenTableFunction {
+public class EasySplitGenTableFunction extends DirListingSplitGenTableFunction {
   private static final Logger logger = LoggerFactory.getLogger(EasySplitGenTableFunction.class);
 
   public EasySplitGenTableFunction(FragmentExecutionContext fec, OperatorContext context, TableFunctionConfig functionConfig) {
     super(fec, context, functionConfig);
-  }
-
-  @Override
-  public VectorAccessible setup(VectorAccessible accessible) throws Exception {
-    super.setup(accessible);
-    return outgoing;
-  }
-
-  @Override
-  protected void initializeIncomingVectors() {
-    pathVector = (VarCharVector) VectorUtil.getVectorFromSchemaPath(incoming, MetadataRefreshExecConstants.DirList.OUTPUT_SCHEMA.FILE_PATH);
-    sizeVector = (BigIntVector) VectorUtil.getVectorFromSchemaPath(incoming, MetadataRefreshExecConstants.DirList.OUTPUT_SCHEMA.FILE_SIZE);
-    modTimeVector = (BigIntVector) VectorUtil.getVectorFromSchemaPath(incoming, MetadataRefreshExecConstants.DirList.OUTPUT_SCHEMA.MODIFICATION_TIME);
-  }
-
-  @Override
-  protected void setCurrentPath(int row) {
-    currentPath = new String(pathVector.get(row), StandardCharsets.UTF_8);
   }
 
   @Override

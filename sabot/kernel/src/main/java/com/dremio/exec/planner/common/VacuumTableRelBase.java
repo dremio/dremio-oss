@@ -15,7 +15,7 @@
  */
 package com.dremio.exec.planner.common;
 
-import static com.dremio.exec.planner.VacuumOutputSchema.getRelDataType;
+import static com.dremio.exec.planner.VacuumOutputSchema.getTableOutputRelDataType;
 import static com.dremio.exec.planner.sql.handlers.SqlHandlerUtil.getTimestampFromMillis;
 
 import org.apache.calcite.plan.Convention;
@@ -59,14 +59,21 @@ public class VacuumTableRelBase extends SingleRel {
     if (table != null) {
       pw.item("table", table.getQualifiedName());
     }
-    pw.item("older_than", getTimestampFromMillis(vacuumOptions.getOlderThanInMillis()));
-    pw.item("retain_last", vacuumOptions.getRetainLast());
+
+    if (vacuumOptions.isExpireSnapshots()) {
+      pw.item("older_than", getTimestampFromMillis(vacuumOptions.getOlderThanInMillis()));
+      pw.item("retain_last", vacuumOptions.getRetainLast());
+    } else if (vacuumOptions.isRemoveOrphans()) {
+      pw.item("older_than", getTimestampFromMillis(vacuumOptions.getOlderThanInMillis()));
+      pw.item("location", vacuumOptions.getLocation());
+    }
+
     return pw;
   }
 
   @Override
   protected RelDataType deriveRowType() {
-    return getRelDataType(getCluster().getTypeFactory());
+    return getTableOutputRelDataType(getCluster().getTypeFactory(), vacuumOptions);
   }
 
   @Override

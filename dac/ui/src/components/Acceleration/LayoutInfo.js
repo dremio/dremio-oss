@@ -20,6 +20,7 @@ import { Link } from "react-router";
 
 import EllipsedText from "components/EllipsedText";
 import jobsUtils from "utils/jobsUtils";
+import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";
 
 import "@app/uiTheme/less/Acceleration/Acceleration.less";
 import "@app/uiTheme/less/commonModifiers.less";
@@ -44,10 +45,13 @@ export default class LayoutInfo extends Component {
       );
     }
 
+    const { t } = getIntlContext();
+
     const reflection = this.props.layout.toJS();
     const marginRight = 10;
 
     const jobsURL = jobsUtils.navigationURLForLayoutId(reflection.id);
+
     return (
       <div className={`LayoutInfo__main ${this.props.className}`}>
         {this.props.showValidity && (
@@ -63,15 +67,16 @@ export default class LayoutInfo extends Component {
           </Link>
         </div>
         <EllipsedText style={{ flex: "1 1", marginRight }}>
-          {/* todo: figure out how to @text for this */}
-          <b>{la("Footprint: ")}</b>
+          <b>{t("Acceleration.Footprint")}: </b>
           <Footprint
             currentByteSize={reflection.currentSizeBytes}
             totalByteSize={reflection.totalSizeBytes}
           />
         </EllipsedText>
         <div>
-          <Link to={jobsURL}>{la("history")} »</Link>
+          <Link to={jobsURL} target="_blank">
+            {t("Common.History")} »
+          </Link>
         </div>
       </div>
     );

@@ -27,7 +27,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarBinaryVector;
 
@@ -47,10 +46,12 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.exec.fragment.OutOfBandMessage;
+import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
 import com.dremio.sabot.op.scan.MutatorSchemaChangeCallBack;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.service.namespace.DatasetHelper;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 
@@ -77,6 +78,7 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
   private List<SchemaPath> selectedColumns;
   private List<RuntimeFilter> runtimeFilters = new ArrayList<>();
   private boolean isColIdMapSet = true;
+  private Map<String, Integer> colIdMap;
   // This is set to true after we are done consuming from upstream and we want to produce the
   // remianing buffered splits if present.
   private boolean produceFromBufferedSplits = false;
@@ -92,6 +94,7 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
     this.selectedColumns = functionConfig.getFunctionContext().getColumns() == null ? null : ImmutableList.copyOf(functionConfig.getFunctionContext().getColumns());
     this.maxRecordCount = 0;
     this.currentReaderRecordCount = 0;
+    this.colIdMap = functionConfig.getFunctionContext().getColIdMap();
   }
 
   @Override
@@ -112,6 +115,17 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
     return outgoing;
   }
 
+  private byte[] getExtendedProperties() {
+    Preconditions.checkNotNull(colIdMap, "colIdMap should not be null");
+
+    IcebergProtobuf.IcebergDatasetXAttr.Builder builder = IcebergProtobuf.IcebergDatasetXAttr.newBuilder();
+    colIdMap.entrySet().stream().forEach(entry -> builder.addColumnIds(IcebergProtobuf.IcebergSchemaField.newBuilder()
+      .setSchemaPath(entry.getKey())
+      .setId(entry.getValue())));
+
+    return builder.build().toByteArray();
+  }
+
   @Override
   public void startRow(int row) throws Exception {
     currentRow = row;
@@ -120,7 +134,11 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
     }
 
     if (!isColIdMapSet) {
-      setIcebergColumnIds(inputColIds.get(0));
+      byte[] colIds = inputColIds.get(0);
+      if (colIds == null && colIdMap != null) {
+        colIds = getExtendedProperties();
+      }
+      setIcebergColumnIds(colIds);
       isColIdMapSet = true;
     }
 
@@ -241,7 +259,7 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
   @Override
   public void workOnOOB(OutOfBandMessage message) {
     final String senderInfo = String.format("Frag %d, OpId %d", message.getSendingMajorFragmentId(), message.getSendingOperatorId());
-    if (message.getBuffers()==null || message.getBuffers().length!=1) {
+    if (message.getBuffers() == null || message.getBuffers().length == 0) {
       logger.warn("Empty runtime filter received from {}", senderInfo);
       return;
     }
@@ -252,9 +270,9 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
               props.getOperatorId());
       // scan operator handles the OOB message that it gets from the join operator
       final ExecProtos.RuntimeFilter protoFilter = message.getPayload(ExecProtos.RuntimeFilter.parser());
-      final ArrowBuf msgBuf = message.getIfSingleBuffer().get();
       String sourceJoinId = String.format("%02d-%02d", message.getSendingMajorFragmentId(), message.getSendingOperatorId() & 0xFF);
-      final RuntimeFilter filter = RuntimeFilter.getInstance(protoFilter, msgBuf, senderInfo, sourceJoinId, context.getFragmentHandle(), context.getStats(), context.getBufferManager(), context.getOptions());
+      final RuntimeFilter filter = RuntimeFilter.getInstance(protoFilter, message.getOriginalBuffers(), senderInfo,
+        sourceJoinId, context.getFragmentHandle(), context.getStats(), context.getBufferManager(), context.getOptions());
       rollbackCloseable.add(filter);
 
       boolean isAlreadyPresent = this.runtimeFilters.stream()
@@ -291,6 +309,7 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
     currentRecordReader = null;
     this.context.getStats().setReadIOStats();
     this.context.getStats().setScanRuntimeFilterDetailsInProfile();
+    this.context.getStats().setParquetDecodingDetailsInfosInProfile();
     this.context.getStats().setLongStat(ScanOperator.Metric.MAX_RECORD_READ_PER_READER, maxRecordCount);
   }
 }

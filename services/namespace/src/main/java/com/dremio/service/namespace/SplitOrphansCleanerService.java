@@ -36,7 +36,7 @@ public class SplitOrphansCleanerService implements Service {
    */
   public static final String SPLIT_ORPHANS_CLEAN_PERIOD_HOUR_PROPERTY = "dremio.datasets.split-orphans-clean-period-in-hour";
 
-  private static final String  SPLIT_ORPHANS_RELEASE_LEADERSHIP_MS_PROPERTY = "orphanscleaner.release.leadership.ms";
+  private static final String SPLIT_ORPHANS_RELEASE_LEADERSHIP_MS_PROPERTY = "orphanscleaner.release.leadership.ms";
 
   private static final String LOCAL_TASK_LEADER_NAME = "orphanscleaner";
 
@@ -65,22 +65,27 @@ public class SplitOrphansCleanerService implements Service {
   @Override
   public void start() throws Exception {
     final int splitOrphansCleanPeriodHour = Integer.getInteger(SPLIT_ORPHANS_CLEAN_PERIOD_HOUR_PROPERTY,
-        DEFAULT_SPLIT_ORPHANS_CLEAN_PERIOD_HOUR);
+      DEFAULT_SPLIT_ORPHANS_CLEAN_PERIOD_HOUR);
 
     final int splitOrphansReleaseLeadershipHour = Integer.getInteger(SPLIT_ORPHANS_RELEASE_LEADERSHIP_MS_PROPERTY,
       DEFAULT_SPLIT_ORPHANS_RELEASE_LEADERSHIP_HOUR_IN_MS);
 
     final NamespaceService namespaceService = namespaceServiceFactory.get().get(SystemUser.SYSTEM_USERNAME);
 
+    boolean metadataAutoExpiration = optionManager.getOption(NamespaceOptions.DATASET_METADATA_USE_SMART_EXPIRY);
+    PartitionChunkId.SplitOrphansRetentionPolicy policy = metadataAutoExpiration ?
+      new PartitionChunkId.SplitOrphansRetentionPolicy.SmartExpirationPolicyForSplits(optionManager.getOption(NamespaceOptions.DATASET_METADATA_AUTO_EXPIRE_AFTER_HOURS)) :
+      PartitionChunkId.SplitOrphansRetentionPolicy.KEEP_VALID_SPLITS;
+
     cleanerTask = scheduler.get().schedule(Schedule.Builder.everyHours(splitOrphansCleanPeriodHour)
       .asClusteredSingleton(LOCAL_TASK_LEADER_NAME)
       .releaseOwnershipAfter(splitOrphansReleaseLeadershipHour, TimeUnit.MILLISECONDS)
       .build(), () -> {
-          logger.info("Search for expired dataset splits");
-          final int expired = namespaceService.deleteSplitOrphans(PartitionChunkId.SplitOrphansRetentionPolicy.KEEP_VALID_SPLITS,
-            optionManager.getOption(NamespaceService.DATASET_METADATA_CONSISTENCY_VALIDATE));
-          logger.info("Deleted {} expired/orphan dataset splits", expired);
-        });
+      logger.info("Search for expired dataset splits");
+      final int expired = namespaceService.deleteSplitOrphans(policy,
+        optionManager.getOption(NamespaceOptions.DATASET_METADATA_CONSISTENCY_VALIDATE));
+      logger.info("Deleted {} expired/orphan dataset splits", expired);
+    });
   }
 
   @Override

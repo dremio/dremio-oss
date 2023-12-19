@@ -24,19 +24,18 @@ import org.apache.calcite.schema.Schema.TableType;
 import org.apache.calcite.schema.Statistic;
 import org.apache.calcite.schema.Statistics;
 
+import com.dremio.catalog.model.VersionContext;
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.exec.catalog.CatalogIdentity;
 import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
-import com.dremio.exec.planner.sql.DremioToRelContext;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 
 public class ViewTable implements DremioTable {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ViewTable.class);
 
   private final View view;
   private final CatalogIdentity viewOwner;
@@ -44,6 +43,7 @@ public class ViewTable implements DremioTable {
   private final DatasetConfig config;
   private BatchSchema schema;
   private final VersionContext versionContext;
+  private final boolean hasAtSpecifier;
 
   public ViewTable(
     NamespaceKey path,
@@ -51,7 +51,7 @@ public class ViewTable implements DremioTable {
     CatalogIdentity viewOwner,
     BatchSchema schema
   ) {
-    this(path, view, viewOwner, null, schema, null);
+    this(path, view, viewOwner, null, schema, null, false);
   }
 
   public ViewTable(
@@ -61,7 +61,7 @@ public class ViewTable implements DremioTable {
     DatasetConfig config,
     BatchSchema schema
   ) {
-    this(path, view, viewOwner, config, schema, null);
+    this(path, view, viewOwner, config, schema, null, false);
   }
 
   public ViewTable(
@@ -70,7 +70,8 @@ public class ViewTable implements DremioTable {
     CatalogIdentity viewOwner,
     DatasetConfig config,
     BatchSchema schema,
-    VersionContext versionContext
+    VersionContext versionContext,
+    boolean hasAtSpecifier
   ) {
     this.view = view;
     this.path = path;
@@ -78,6 +79,7 @@ public class ViewTable implements DremioTable {
     this.config = config;
     this.schema = schema;
     this.versionContext = versionContext;
+    this.hasAtSpecifier = hasAtSpecifier;
   }
 
   @Override
@@ -118,7 +120,8 @@ public class ViewTable implements DremioTable {
 
   @Override
   public RelNode toRel(ToRelContext context, RelOptTable relOptTable) {
-    return ((DremioToRelContext.DremioQueryToRelContext) context).expandView(this).rel;
+    // toRel must be done with ConvertedViewTable
+    throw new UnsupportedOperationException();
   }
 
   @Override
@@ -131,12 +134,20 @@ public class ViewTable implements DremioTable {
     throw new UnsupportedOperationException("getVersion() is not supported");
   }
 
-  public VersionContext getVersionContext() {
-    return versionContext;
+  @Override
+  public TableVersionContext getVersionContext() {
+    if (versionContext == null) {
+      return null;
+    }
+    return TableVersionContext.of(versionContext);
   }
 
   public ViewTable withVersionContext(VersionContext versionContext) {
-    return new ViewTable(path, view, viewOwner, config, schema, versionContext);
+    return new ViewTable(path, view, viewOwner, config, schema, versionContext, true);
   }
 
+  @Override
+  public boolean hasAtSpecifier() {
+    return hasAtSpecifier;
+  }
 }

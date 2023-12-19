@@ -26,7 +26,7 @@ import org.apache.calcite.avatica.util.Quoting;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.dremio.exec.catalog.VersionContext;
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserProtos;
 import com.dremio.exec.proto.UserSessionProtobuf.UserSessionRPC;
@@ -133,7 +133,7 @@ public class TestUserSessionServiceImpl {
 
     final Map<String, VersionContext> sourceVersionMapping = ImmutableMap.of(
         "test1", VersionContext.ofBranch("branch1"),
-        "test2", VersionContext.ofBareCommit("0123456789ABCDEFabcdef"),
+        "test2", VersionContext.ofCommit("0123456789ABCDEFabcdef"),
         "test3", VersionContext.ofRef("ref1"),
         "test4", VersionContext.ofTag("tag")
       );

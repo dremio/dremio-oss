@@ -35,6 +35,8 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
+import io.opentelemetry.instrumentation.annotations.WithSpan;
+
 /**
  * Job summary sent to UI.
  */
@@ -101,6 +103,7 @@ public class JobSummaryUI {
     this.isComplete = isComplete(this.state);
   }
 
+  @WithSpan
   public static JobSummaryUI of(com.dremio.service.job.JobSummary input, NamespaceService service) {
     String desc = JobsServiceUtil.getJobDescription(input.getRequestType(), input.getSql(), input.getDescription());
     final ParentDatasetInfo datasetInfo = JobsUI.getDatasetToDisplay(input, service);

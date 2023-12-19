@@ -45,11 +45,12 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.dremio.catalog.model.dataset.TableVersionContext;
+import com.dremio.catalog.model.dataset.TableVersionType;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.catalog.TableVersionContext;
-import com.dremio.exec.catalog.TableVersionType;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.planner.DremioRexBuilder;
+import com.dremio.exec.planner.sql.parser.SqlUnresolvedVersionedTableMacro;
 import com.dremio.exec.planner.sql.parser.SqlVersionedTableMacroCall;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.options.OptionResolver;
@@ -82,7 +83,7 @@ public class TestVersionedTableExpressionResolver {
 
     SqlValidatorImpl validator = new SqlValidatorImpl(
       new SqlValidatorImpl.FlattenOpCounter(),
-      new OperatorTable(functionImplementationRegistry),
+      DremioCompositeSqlOperatorTable.create(functionImplementationRegistry),
       catalogReader,
       JavaTypeFactoryImpl.INSTANCE,
       DremioSqlConformance.INSTANCE,
@@ -102,7 +103,7 @@ public class TestVersionedTableExpressionResolver {
 
     resolver.resolve(sqlToRelConverter, call);
 
-    Assert.assertEquals(expected, call.getResolvedTableVersionContext());
+    Assert.assertEquals(expected, call.getTableVersionSpec().getResolvedTableVersionContext());
   }
 
   @Test
@@ -126,8 +127,8 @@ public class TestVersionedTableExpressionResolver {
 
     resolver.resolve(sqlToRelConverter, nodeList);
 
-    Assert.assertEquals(expected1, call1.getResolvedTableVersionContext());
-    Assert.assertEquals(expected2, call2.getResolvedTableVersionContext());
+    Assert.assertEquals(expected1, call1.getTableVersionSpec().getResolvedTableVersionContext());
+    Assert.assertEquals(expected2, call2.getTableVersionSpec().getResolvedTableVersionContext());
   }
 
   @Test
@@ -152,8 +153,8 @@ public class TestVersionedTableExpressionResolver {
 
     resolver.resolve(sqlToRelConverter, rootCall);
 
-    Assert.assertEquals(expected1, call1.getResolvedTableVersionContext());
-    Assert.assertEquals(expected2, call2.getResolvedTableVersionContext());
+    Assert.assertEquals(expected1, call1.getTableVersionSpec().getResolvedTableVersionContext());
+    Assert.assertEquals(expected2, call2.getTableVersionSpec().getResolvedTableVersionContext());
   }
 
   @Test
@@ -166,7 +167,7 @@ public class TestVersionedTableExpressionResolver {
     resolver.resolve(sqlToRelConverter, call);
     resolver.resolve(sqlToRelConverter, call);
 
-    Assert.assertEquals(expected, call.getResolvedTableVersionContext());
+    Assert.assertEquals(expected, call.getTableVersionSpec().getResolvedTableVersionContext());
   }
 
   private SqlCall createCall(SqlOperator operator, SqlNode... operands) {
@@ -178,8 +179,9 @@ public class TestVersionedTableExpressionResolver {
   }
 
   private SqlVersionedTableMacroCall createVersionedTableMacroCall(SqlNode expr) {
-    return new SqlVersionedTableMacroCall(mock(SqlOperator.class), new SqlNode[] {},
-      TableVersionType.TIMESTAMP, expr, new SqlIdentifier("alias", SqlParserPos.ZERO), SqlParserPos.ZERO);
+    SqlUnresolvedVersionedTableMacro func = new SqlUnresolvedVersionedTableMacro(
+        new SqlIdentifier("name", SqlParserPos.ZERO), TableVersionType.TIMESTAMP, expr, null);
+    return new SqlVersionedTableMacroCall(func, new SqlNode[] {}, SqlParserPos.ZERO);
   }
 
   private SqlTimestampLiteral createTimestampLiteral(int year, int month, int day, int hour, int minute, int second) {

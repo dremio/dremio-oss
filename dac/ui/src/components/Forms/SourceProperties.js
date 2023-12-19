@@ -15,7 +15,7 @@
  */
 import { Component } from "react";
 import PropTypes from "prop-types";
-import uuid from "uuid";
+import { v4 as uuidv4 } from "uuid";
 import { get, set } from "lodash/object";
 
 import FieldList, { AddButton } from "components/Fields/FieldList";
@@ -28,12 +28,16 @@ PropertyItem.propTypes = {
   item: PropTypes.object,
   onRemove: PropTypes.func,
   singleValue: PropTypes.bool,
+  prefix: PropTypes.string,
+  secure: PropTypes.bool,
 };
 
-function PropertyItem({ item, onRemove, singleValue, prefix = "" }) {
+function PropertyItem({ item, onRemove, singleValue, prefix = "", secure }) {
   return (
     <div className="property-item" style={styles.item}>
-      {!singleValue && <Property fields={item} onRemove={onRemove} />}
+      {!singleValue && (
+        <Property fields={item} onRemove={onRemove} secure={secure} />
+      )}
       {singleValue && (
         <ValueListItem field={item} onRemove={onRemove} prefix={prefix} />
       )}
@@ -141,12 +145,14 @@ export default class SourceProperties extends Component {
         )
       : propertyListFields;
     e.preventDefault();
-    properties.addField({ id: uuid.v4() });
+    properties.addField({ id: uuidv4() });
   };
 
   renderTitle() {
     const { elementConfig, singleValue } = this.props;
-    const defaultTitle = singleValue ? la("Value List") : la("Properties");
+    const defaultTitle = singleValue
+      ? laDeprecated("Value List")
+      : laDeprecated("Properties");
     const itemListTitle =
       (elementConfig && elementConfig.label) || defaultTitle;
     return <div style={styles.listTitle}>{itemListTitle}</div>;
@@ -186,6 +192,7 @@ export default class SourceProperties extends Component {
           <PropertyItem
             singleValue={singleValue}
             prefix={elementConfig.prefix}
+            secure={elementConfig.secure}
           />
         </FieldList>
 

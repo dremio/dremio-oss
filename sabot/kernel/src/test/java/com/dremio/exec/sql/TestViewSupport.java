@@ -650,4 +650,67 @@ public class TestViewSupport extends TestBaseViewSupport {
       test(String.format("DROP TABLE IF EXISTS %s.%s ", TEMP_SCHEMA, tableName));
     }
   }
+
+  @Test
+  public void testDuplicateViewWithCorrelatedSubQueryFilter() throws Exception {
+    final String duplicateView = generateViewName();
+
+    try {
+      createViewHelper(TEMP_SCHEMA, duplicateView, TEMP_SCHEMA, null,
+        "SELECT * FROM cp.\"tpch/nation.parquet\" n1\n" +
+          "WHERE n_nationkey = (select max(n_nationkey) FROM cp.\"tpch/nation.parquet\" n2 WHERE n1.n_regionkey = n2.n_regionkey)");
+
+      queryViewHelper(
+        String.format("select count(*) AS cnt FROM (SELECT n_nationkey FROM %s.\"%s\" WHERE n_regionkey IN (0,1,2) UNION ALL " +
+          "SELECT n_nationkey FROM %s.\"%s\" WHERE n_regionkey in (3, 4))", TEMP_SCHEMA, duplicateView, TEMP_SCHEMA, duplicateView),
+        new String[] { "cnt" },
+        ImmutableList.of(new Object[] { 5L }));
+    } finally {
+      dropViewHelper(TEMP_SCHEMA, duplicateView, TEMP_SCHEMA);
+    }
+  }
+
+  @Test
+  public void testDuplicateViewWithCorrelatedSubQueryAggregate() throws Exception {
+    final String duplicateView = generateViewName();
+
+    try {
+      createViewHelper(TEMP_SCHEMA, duplicateView, TEMP_SCHEMA, null,
+        "SELECT n_name, (select count(*) FROM cp.\"tpch/customer.parquet\" WHERE \"c_nationkey\" = n1.n_nationkey) m " +
+          "FROM cp.\"tpch/nation.parquet\" n1");
+
+      queryViewHelper(
+        String.format("SELECT sum(m) total FROM (\n" +
+          "SELECT * FROM %s.\"%s\" WHERE n_name = 'IRAN'\n" +
+          "UNION ALL\n" +
+          "SELECT * FROM %s.\"%s\" WHERE n_name = 'IRAQ'\n" +
+          ")", TEMP_SCHEMA, duplicateView, TEMP_SCHEMA, duplicateView),
+        new String[] { "total" },
+        ImmutableList.of(new Object[] { 130L }));
+    } finally {
+      dropViewHelper(TEMP_SCHEMA, duplicateView, TEMP_SCHEMA);
+    }
+  }
+
+  @Test
+  public void testDuplicateViewWithCorrelatedSubQueryNested() throws Exception {
+    final String duplicateView = generateViewName();
+
+    try {
+      createViewHelper(TEMP_SCHEMA, duplicateView, TEMP_SCHEMA, null,
+        "SELECT * FROM cp.\"tpch/nation.parquet\" n1 WHERE EXISTS (\n" +
+          "    SELECT * FROM cp.\"tpch/nation.parquet\" n2 WHERE EXISTS (\n" +
+          "        SELECT * FROM cp.\"tpch/customer.parquet\" WHERE \"c_nationkey\" = n2.\"n_nationkey\" AND \"c_nationkey\" = n1.\"n_nationkey\"\n" +
+          "    )\n" +
+          ")");
+
+      queryViewHelper(
+        String.format("SELECT count(*) AS cnt FROM (SELECT n_nationkey FROM %s.\"%s\" WHERE n_nationkey IN (0,1,2) UNION ALL " +
+          "SELECT n_nationkey FROM %s.\"%s\" WHERE n_nationkey IN (3, 4))", TEMP_SCHEMA, duplicateView, TEMP_SCHEMA, duplicateView),
+        new String[] { "cnt" },
+        ImmutableList.of(new Object[] { 5L }));
+    } finally {
+      dropViewHelper(TEMP_SCHEMA, duplicateView, TEMP_SCHEMA);
+    }
+  }
 }

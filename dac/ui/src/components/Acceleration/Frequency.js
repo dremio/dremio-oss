@@ -64,7 +64,7 @@ class Frequency extends PureComponent {
     const { period } = this.props.fields;
     return (
       <span>
-        <span>{la("Every")}</span>
+        <span>{laDeprecated("Every")}</span>
         <TextField
           default={period.value || period.initialValue}
           type="number"

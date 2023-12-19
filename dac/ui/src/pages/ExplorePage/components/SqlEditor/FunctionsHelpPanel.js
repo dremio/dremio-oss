@@ -42,7 +42,7 @@ class FunctionsHelpPanel extends PureComponent {
     this.setPanelHeight();
   }
 
-  componentWillReceiveProps() {
+  UNSAFE_componentWillReceiveProps() {
     const { current: { offsetHeight } = {} } = this.sqlHelpPanelRef;
     if (offsetHeight && this.state.heightPanel !== offsetHeight) {
       this.setPanelHeight();

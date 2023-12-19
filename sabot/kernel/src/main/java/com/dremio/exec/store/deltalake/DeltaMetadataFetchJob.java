@@ -18,10 +18,7 @@ package com.dremio.exec.store.deltalake;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletionException;
 import java.util.function.Supplier;
@@ -34,10 +31,12 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
+import com.dremio.io.file.PathFilters;
 import com.dremio.service.namespace.file.proto.FileType;
+import com.google.common.collect.Lists;
 
 /**
- * Provided with a metaDir(_delta_log path), version and tryCheckpointRead flag will:
+ * Provided with a metadataDir (_delta_log path), version and tryCheckpointRead flag will:
  *
  * a) If (tryCheckpointRead)
  *    i) Check weather the version.checkpoint.parquet exits and was written before startTime.
@@ -49,127 +48,139 @@ import com.dremio.service.namespace.file.proto.FileType;
  * Each job is intended to run in a separate thread. Submitted to a pool in {@link DeltaMetadataFetchJobManager}.
  */
 
-public class DeltaMetadataFetchJob implements Supplier {
+public class DeltaMetadataFetchJob implements Supplier<DeltaLogSnapshot> {
   private static final Logger logger = LoggerFactory.getLogger(DeltaMetadataFetchJob.class);
 
-  public Path metaDir;
+  private final Path metadataDir;
   private final Path rootFolder;
-  public FileSystem fs;
-  public SabotContext context;
-  public long startTime;
-  public boolean tryCheckpointRead;
-  public long version;
-  public long subparts;
+  private final FileSystem fs;
+  private final SabotContext context;
+  private final DeltaVersion version;
 
   private static Retryer retryer = Retryer.newBuilder()
     .retryIfExceptionOfType(RuntimeException.class)
     .setWaitStrategy(Retryer.WaitStrategy.EXPONENTIAL, 250, 1500)
     .setMaxRetries(5).retryIfExceptionOfType(IOException.class).build();
 
-  private DeltaFilePathResolver resolver = new DeltaFilePathResolver();
-
-
-  public DeltaMetadataFetchJob(SabotContext context, Path metaDir, FileSystem fs, long startTime, boolean tryCheckpointRead, long version, long subparts) {
-    this.metaDir = metaDir;
-    this.rootFolder = metaDir.getParent();
+  public DeltaMetadataFetchJob(SabotContext context, Path metadataDir, FileSystem fs, DeltaVersion version) {
+    this.metadataDir = metadataDir;
+    this.rootFolder = metadataDir.getParent();
     this.fs = fs;
     this.context = context;
-    this.startTime = startTime;
-    this.tryCheckpointRead = tryCheckpointRead;
     this.version = version;
-    this.subparts = subparts;
+  }
+
+  public boolean isTryCheckpointRead() {
+    return version.isCheckpoint();
   }
 
   @Override
   public DeltaLogSnapshot get() {
     try {
-      List<Path> checkPointParquetPaths = resolver.resolve(metaDir, version, subparts, FileType.PARQUET);
-
-      if(tryCheckpointRead ) {
-        List<FileAttributes> fileAttrsList = new ArrayList<>();
-        boolean allFilesPassCheck = true;
-        for(Path checkPointParquetPath: checkPointParquetPaths) {
-          final Optional<FileAttributes> fileAttrs = getFileAttrs(checkPointParquetPath);
-          if (checkFileExistsAndValid(fileAttrs)) {
-            logger.debug("Reading checkpoint file for Delta table at {}. Checkpoint version {}. Subparts Number {}", metaDir.toString(), version, subparts);
-            fileAttrsList.add(fileAttrs.get());
-          } else {
-            allFilesPassCheck = false;
-            break;
-          }
-        }
-        if (allFilesPassCheck) {
-          return readAndSetVersion(fileAttrsList, FileType.PARQUET);
+      if (isTryCheckpointRead()) {
+        DeltaLogSnapshot checkpoint = tryGetCheckpoint();
+        if (checkpoint != null) {
+          return checkpoint;
         }
       }
 
-      List<Path> commitJsonPath = resolver.resolve(metaDir, version, subparts, FileType.JSON);
-      final Optional<FileAttributes> fileAttrs = getFileAttrs(commitJsonPath.get(0));
-      if(checkFileExistsAndValid(fileAttrs)) {
-        logger.debug("Reading commit file for Delta table at {}. Commit version {}.", metaDir.toString(), version);
-        return readAndSetVersion(new ArrayList<>(Arrays.asList(fileAttrs.get())), FileType.JSON);
+      DeltaLogSnapshot commit = tryGetCommit();
+      if (commit != null) {
+        return commit;
       }
 
-      throw new CompletionException(new
-        InvalidFileException("File for version " + version
-        + " either doesn't exist or is not suitable for reading"));
-
+      throw new CompletionException(new InvalidFileException(
+        "File for version " + version + " either doesn't exist or is not suitable for reading"));
     } catch (IOException e) {
       logger.error("Unknown error occurred in DeltaMetadataFetchJob. Error {}, Job Parameters {}. Stacktrace {}", e.getMessage(), this.toString(), e.getStackTrace());
       throw new CompletionException(e);
     }
   }
 
-  public DeltaLogSnapshot readAndSetVersion(List<FileAttributes> fileAttrsList, FileType type) throws IOException {
+  private DeltaLogSnapshot tryGetCommit() throws IOException {
+    List<Path> pathList = DeltaFilePathResolver.resolve(metadataDir, version.getVersion(), 1, FileType.JSON);
+    List<FileAttributes> fileAttrList = convertPathList(pathList);
+    if (fileAttrList.isEmpty()) {
+      return null;
+    }
+
+    return readAndSetVersion(fileAttrList, FileType.JSON);
+  }
+
+  private DeltaLogSnapshot tryGetCheckpoint() throws IOException {
+    List<Path> pathList = DeltaFilePathResolver.resolve(metadataDir, version.getVersion(), version.getSubparts(), FileType.PARQUET);
+    List<FileAttributes> fileAttrList = convertPathList(pathList);
+    if (!checkCheckpointFiles(fileAttrList)) {
+      Path pattern = DeltaFilePathResolver.resolveCheckpointPattern(metadataDir, version.getVersion());
+      fileAttrList = listPathPattern(pattern);
+      if (!checkCheckpointFiles(fileAttrList)) {
+        return null;
+      }
+    }
+
+    return readAndSetVersion(fileAttrList, FileType.PARQUET);
+  }
+
+  private boolean checkCheckpointFiles(List<FileAttributes> fileAttrs) {
+    if (fileAttrs.isEmpty()) {
+      return false;
+    }
+    int partCount = DeltaFilePathResolver.getPartCountFromPath(fileAttrs.get(0).getPath(), FileType.PARQUET);
+    if (partCount > 1 && partCount != fileAttrs.size()) {
+      logger.warn("Multipart checkpoint {} is missing parts, expected {}, got {} files.",
+        fileAttrs.get(0).getPath(), partCount, fileAttrs.size());
+    }
+    return partCount == fileAttrs.size();
+  }
+
+  private DeltaLogSnapshot readAndSetVersion(List<FileAttributes> fileAttrsList, FileType type) throws IOException {
     DeltaLogReader reader = DeltaLogReader.getInstance(type);
-    DeltaLogSnapshot snapshot =  reader.parseMetadata(rootFolder, context, fs, fileAttrsList, version);
-    snapshot.setVersionId(version);
+    DeltaLogSnapshot snapshot = reader.parseMetadata(rootFolder, context, fs, fileAttrsList, version.getVersion());
+    snapshot.setVersionId(version.getVersion());
     return snapshot;
   }
 
   @Override
   public String toString() {
     return "DeltaMetadataFetchJob{" +
-      "metaDir=" + metaDir +
+      "metadataDir=" + metadataDir +
       ", fs=" + fs +
-      ", startTime=" + startTime +
-      ", tryCheckpointRead=" + tryCheckpointRead +
-      ", version=" + version +
+      ", tryCheckpointRead=" + isTryCheckpointRead() +
+      ", version=" + version.getVersion() +
+      ", subparts=" + version.getSubparts() +
       '}';
   }
 
-  private boolean checkFileExistsAndValid(Optional<FileAttributes> attrs) {
-    if (!attrs.isPresent()) {
-      return false;
-    } else if (attrs.get().lastModifiedTime().toMillis() > startTime) {
-      logger.warn("File {} is modified after startTime {}. Hence is not eligible for reading. Job Parameters {}",
-              attrs.get().getPath().toString(), startTime, this.toString());
-      return false;
-    } else {
-      return true;
-    }
-  }
-
-  private Optional<FileAttributes> getFileAttrs(Path p) throws IOException {
-    FileAttributes attr;
-
-    Callable<FileAttributes> retryBlock = () -> {
+  private List<FileAttributes> convertPathList(List<Path> pathList) throws IOException {
+    List<FileAttributes> resolvedFileAttributes = Lists.newArrayList();
+    for (Path path : pathList) {
       try {
-        return fs.getFileAttributes(p);
+        resolvedFileAttributes.add(fs.getFileAttributes(path));
       } catch (FileNotFoundException f) {
         //Avoid retrying for fileNotFound. Will always happen with the last job.
-        logger.debug("{} file not found in directory {}. Job Parameters {}", p.getName(), metaDir.toString(), this.toString());
-        return null;
+        logger.debug("{} file not found in directory {}. Job Parameters {}", path, metadataDir.toString(), this.toString());
+        return Lists.newArrayList();
+      }
+    }
+    return resolvedFileAttributes;
+  }
+
+  private List<FileAttributes> listPathPattern(Path pattern) throws IOException {
+    Callable<List<FileAttributes>> retryBlock = () -> {
+      try {
+        return Lists.newArrayList(fs.glob(pattern, PathFilters.ALL_FILES));
+      } catch (FileNotFoundException f) {
+        //Avoid retrying for fileNotFound. Will always happen with the last job.
+        logger.debug("{} file not found in directory {}. Job Parameters {}", pattern.getName(), metadataDir.toString(), this.toString());
+        return Lists.newArrayList();
       }
     };
 
     try {
-      attr = retryer.call(retryBlock);
+      return retryer.call(retryBlock);
     } catch (Retryer.OperationFailedAfterRetriesException e) {
       throw e.getWrappedCause(IOException.class, ex -> new IOException(ex));
     }
-
-    return Optional.ofNullable(attr);
   }
 
   static class InvalidFileException extends Exception {

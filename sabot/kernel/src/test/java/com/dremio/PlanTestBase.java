@@ -177,8 +177,27 @@ public class PlanTestBase extends BaseTestQuery {
       String[] excludedPatterns)
       throws Exception {
     final String plan = getPlanInString("EXPLAIN PLAN INCLUDING ALL ATTRIBUTES for " +
-        QueryTestUtil.normalizeQuery(query), OPTIQ_FORMAT);
+      QueryTestUtil.normalizeQuery(query), OPTIQ_FORMAT);
+    testPlanWithAttributesMatchingPatternsPlanInput(plan, expectedPatterns, excludedPatterns);
+  }
 
+  /**
+   * Check the input plan for expected regex patterns
+   * also ensure excluded patterns are not found. Either list can
+   * be empty or null to skip that part of the check.
+   *
+   * See the convenience methods for passing a single string in either the
+   * excluded list, included list or both.
+   *
+   * @param plan - a query plan
+   * @param expectedPatterns - list of patterns that should appear in the plan
+   * @param excludedPatterns - list of patterns that should not appear in the plan
+   * @throws Exception - if an inclusion or exclusion check fails, or the
+   *                     planning process throws an exception
+   */
+    public static void testPlanWithAttributesMatchingPatternsPlanInput(String plan, String[] expectedPatterns,
+      String[] excludedPatterns)
+      throws Exception {
     // Check and make sure all expected patterns are in the plan
     if (expectedPatterns != null) {
       for (final String s : expectedPatterns) {
@@ -209,7 +228,18 @@ public class PlanTestBase extends BaseTestQuery {
   public static void testPlanSubstrPatternsInOrder(String query, String[] expectedPatterns, String[] excludedPatterns)
     throws Exception {
     final String plan = getPlanInString("EXPLAIN PLAN for " + QueryTestUtil.normalizeQuery(query), OPTIQ_FORMAT);
+    testPlanSubstrPatternsInOrderPlanInput(plan, expectedPatterns, excludedPatterns);
+  }
 
+  /**
+   * From left to right make sure we match expected in order.
+   * @param plan a plan for a query that is already executed
+   * @param expectedPatterns list of patterns that should appear in the plan from left to right
+   * @param excludedPatterns list of patterns that should not appear in the plan
+   * @throws Exception if an inclusion or exclusion check fails, or the
+   *                     planning process throws an exception
+   */
+  public static void testPlanSubstrPatternsInOrderPlanInput(String plan, String[] expectedPatterns, String[] excludedPatterns){
     // Check and make sure all expected patterns are in the plan
     if (expectedPatterns != null) {
       int fromIndex = 0;

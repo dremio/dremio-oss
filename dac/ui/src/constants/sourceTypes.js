@@ -40,7 +40,10 @@ export const MSACCESS = "MSAccess";
 export const SPARK = "SPARK";
 export const SNOWFLAKE = "SNOWFLAKE";
 export const DREMIOTODREMIO = "DREMIOTODREMIO";
+export const DRUID = "DRUID";
 export const AZURE_SAMPLE_SOURCE = "SAMPLE_SOURCE";
+export const HOME = "HOME";
+export const INTERNAL = "INTERNAL";
 
 // These are not implemented in the backend yet.
 export const CASSANDRA = "CASSANDRA";
@@ -76,6 +79,7 @@ export const sourceProperties = [
   { label: "Microsoft Azure Data Explorer", sourceType: ADX },
   { label: "Snowflake", sourceType: SNOWFLAKE },
   { label: "Dremio to Dremio", sourceType: DREMIOTODREMIO },
+  { label: "Druid", sourceType: DRUID },
 ];
 
 export const metastoresSourceType = {

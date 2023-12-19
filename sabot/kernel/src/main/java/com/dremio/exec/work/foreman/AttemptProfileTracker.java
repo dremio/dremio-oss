@@ -18,12 +18,17 @@ package com.dremio.exec.work.foreman;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import org.slf4j.Logger;
 
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.DremioVersionInfo;
+import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.ops.OperatorMetricRegistry;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.PlanCaptureAttemptObserver;
@@ -212,7 +217,7 @@ class AttemptProfileTracker {
   }
 
   // Get the latest planning profile.
-  synchronized UserBitShared.QueryProfile getPlanningProfile()  throws UserException, com.dremio.common.exceptions.UserCancellationException {
+  synchronized UserBitShared.QueryProfile getPlanningProfile() throws UserException, com.dremio.common.exceptions.UserCancellationException {
     return getPlanningProfileFunction(false);
   }
 
@@ -252,6 +257,7 @@ class AttemptProfileTracker {
     builder.setDremioVersion(DremioVersionInfo.getVersion());
     builder.setCommandPoolWaitMillis(commandPoolWait);
     builder.setPlanningStart(startPlanningTime);
+
     if (endPlanningTime > 0) {
       builder.setPlanningEnd(endPlanningTime);
     }
@@ -321,7 +327,23 @@ class AttemptProfileTracker {
     // Adds final planning stats for catalog access
     if (endPlanningTime > 0) {
       queryContext.getCatalog().addCatalogStats();
+
     }
+    // Populates source version mapping and marks the ones relevant to the current datasets in the query
+    if (endPlanningTime > 0){
+      List<UserBitShared.SourceVersionSetting> sourceVersionSettingList = new ArrayList<>();
+      Set<String> currentDatasetSources = StreamSupport.stream(capturer.getDatasets().spliterator(), false)
+        .map(x -> PathUtils.parseFullPath(x.getDatasetPath()).get(0).toLowerCase())
+        .collect(Collectors.toSet());
+      queryContext.getSession().getSourceVersionMapping().entrySet().stream().forEach(x -> populateGlobalVersionContextMapping(x, sourceVersionSettingList, currentDatasetSources));
+      UserBitShared.ContextInfo contextInfo = UserBitShared.ContextInfo
+        .newBuilder()
+        .setSchemaPathContext(queryContext.getQueryContextInfo().getDefaultSchemaName())
+        .addAllSourceVersionSetting(sourceVersionSettingList)
+        .build();
+      builder.setContextInfo(contextInfo);
+    }
+
     // Adds stats for individual table access (does not include versioned sources)
     builder.addAllPlanPhases(queryContext.getCatalog().getMetadataStatsCollector().getPlanPhaseProfiles());
 
@@ -335,6 +357,17 @@ class AttemptProfileTracker {
     if (resourceSchedulingDecisionInfo != null) {
       builder.setResourceSchedulingProfile(getResourceSchedulingProfile());
     }
+  }
+
+  private void populateGlobalVersionContextMapping(Map.Entry<String, VersionContext> svMapEntryFromContext, List<UserBitShared.SourceVersionSetting> svSettingList, Set<String> currentDatasetSources) {
+    UserBitShared.SourceVersionSetting svSetting = UserBitShared.SourceVersionSetting.getDefaultInstance();
+    svSettingList.add(svSetting.toBuilder()
+      .setSource(svMapEntryFromContext.getKey())
+      .setVersionContext(svMapEntryFromContext.getValue().toString())
+      .setUsage(currentDatasetSources.contains(svMapEntryFromContext.getKey()) ?
+        UserBitShared.SourceVersionSetting.Usage.USED_BY_QUERY
+        : UserBitShared.SourceVersionSetting.Usage.NOT_USED_BY_QUERY)
+      .build());
   }
 
   private UserBitShared.ResourceSchedulingProfile getResourceSchedulingProfile() {

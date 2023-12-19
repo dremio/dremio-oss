@@ -80,6 +80,9 @@ import com.dremio.service.namespace.NamespaceService;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
+
 /**
  * Resource for getting single job summary/overview/details
  */
@@ -116,19 +119,29 @@ public class JobResource extends BaseResourceWithAllocator {
     this.sessionId = sessionId;
   }
 
+  private void setBasicSpanAttributes() {
+    if (sessionId != null) {
+      Span.current().setAttribute("sessionId", sessionId.getId());
+    }
+  }
+
   /**
    * Get job overview.
    */
+  @WithSpan
   @GET
   @Produces(APPLICATION_JSON)
   public JobUI getJob() throws JobResourceNotFoundException {
+    setBasicSpanAttributes();
     return new JobUI(jobsService, new JobId(jobId.getId()), sessionId, securityContext.getUserPrincipal().getName());
   }
 
+  @WithSpan
   @POST
   @Path("cancel")
   @Produces(APPLICATION_JSON)
   public NotificationResponse cancel() throws JobResourceNotFoundException {
+    setBasicSpanAttributes();
     try {
       final String username = securityContext.getUserPrincipal().getName();
       jobsService.cancel(CancelJobRequest.newBuilder()
@@ -151,10 +164,12 @@ public class JobResource extends BaseResourceWithAllocator {
   }
 
   // Get details of job
+  @WithSpan
   @GET
   @Path("/details")
   @Produces(APPLICATION_JSON)
   public JobDetailsUI getJobDetail() throws JobResourceNotFoundException {
+    setBasicSpanAttributes();
     final JobDetails jobDetails;
     try {
       JobDetailsRequest request = JobDetailsRequest.newBuilder()
@@ -171,10 +186,12 @@ public class JobResource extends BaseResourceWithAllocator {
   }
 
   // Get summary of job
+  @WithSpan
   @GET
   @Path("/summary")
   @Produces(APPLICATION_JSON)
   public JobSummaryUI getJobSummary() throws JobResourceNotFoundException {
+    setBasicSpanAttributes();
     final JobSummary summary;
     try {
       JobSummaryRequest request = JobSummaryRequest.newBuilder()
@@ -193,15 +210,17 @@ public class JobResource extends BaseResourceWithAllocator {
     return String.format("/job/%s/data", jobId.getId());
   }
 
+  @WithSpan
   @GET
   @Path("/data")
   @Produces(APPLICATION_JSON)
   public JobDataFragment getDataForVersion(
     @QueryParam("limit") int limit,
     @QueryParam("offset") int offset) throws JobResourceNotFoundException {
+    setBasicSpanAttributes();
 
     Preconditions.checkArgument(limit > 0, "Limit should be greater than 0");
-    Preconditions.checkArgument(offset >= 0, "Limit should be greater than or equal to 0");
+    Preconditions.checkArgument(offset >= 0, "Offset should be greater than or equal to 0");
 
     try {
       final JobSummary jobSummary = jobsService.getJobSummary(JobSummaryRequest.newBuilder()
@@ -218,21 +237,26 @@ public class JobResource extends BaseResourceWithAllocator {
     }
 
     JobDataClientUtils.waitForFinalState(jobsService, jobId);
+    Span.current().addEvent("Wait completed");
+
     // job results in pagination requests.
     return new JobDataWrapper(jobsService, jobId, sessionId, securityContext.getUserPrincipal().getName())
       .range(getOrCreateAllocator("getDataForVersion"), offset, limit);
   }
 
+  @WithSpan
   @GET
   @Path("/r/{rowNum}/c/{columnName}")
   @Produces(APPLICATION_JSON)
   public Object getCellFullValue(
     @PathParam("rowNum") int rowNum,
     @PathParam("columnName") String columnName) throws JobResourceNotFoundException {
+    setBasicSpanAttributes();
     Preconditions.checkArgument(rowNum >= 0, "Row number shouldn't be negative");
     Preconditions.checkNotNull(columnName, "Expected a non-null column name");
 
     JobDataClientUtils.waitForFinalState(jobsService, jobId);
+    Span.current().addEvent("Wait completed");
     try (final JobDataFragment dataFragment = new JobDataWrapper(jobsService, jobId, sessionId, securityContext.getUserPrincipal().getName())
       .range(getOrCreateAllocator("getCellFullValue"), rowNum, 1)) {
 
@@ -256,6 +280,7 @@ public class JobResource extends BaseResourceWithAllocator {
    * @throws JobResourceNotFoundException
    * @throws JobNotFoundException
    */
+  @WithSpan
   @GET
   @Path("download")
   @Consumes(MediaType.APPLICATION_JSON)
@@ -263,14 +288,17 @@ public class JobResource extends BaseResourceWithAllocator {
   public Response download(
     @QueryParam("downloadFormat") DownloadFormat downloadFormat
   ) throws JobResourceNotFoundException, JobNotFoundException {
+    setBasicSpanAttributes();
     return doDownload(jobId, downloadFormat);
   }
 
   // Get details of reflection job
+  @WithSpan
   @GET
   @Path("/reflection/{reflectionId}/details")
   @Produces(APPLICATION_JSON)
   public JobDetailsUI getReflectionJobDetail(@PathParam("reflectionId") String reflectionId) throws JobResourceNotFoundException {
+    setBasicSpanAttributes();
     final JobDetails jobDetails;
 
     if (Strings.isNullOrEmpty(reflectionId)) {
@@ -300,10 +328,12 @@ public class JobResource extends BaseResourceWithAllocator {
     return JobDetailsUI.of(jobDetails, securityContext.getUserPrincipal().getName());
   }
 
+  @WithSpan
   @POST
   @Path("/reflection/{reflectionId}/cancel")
   @Produces(APPLICATION_JSON)
   public NotificationResponse cancelReflectionJob(@PathParam("reflectionId") String reflectionId) throws JobResourceNotFoundException {
+    setBasicSpanAttributes();
     if (Strings.isNullOrEmpty(reflectionId)) {
       throw UserException.validationError()
         .message("reflectionId cannot be null or empty")

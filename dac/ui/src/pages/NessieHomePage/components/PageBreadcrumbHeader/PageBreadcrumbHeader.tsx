@@ -14,10 +14,8 @@
  * limitations under the License.
  */
 import { useIntl } from "react-intl";
-//@ts-ignore
 import { CopyToClipboard } from "dremio-ui-lib";
 import BranchPicker from "@app/pages/HomePage/components/BranchPicker/BranchPicker";
-import NessieBreadcrumb from "../NessieBreadcrumb/NessieBreadcrumb";
 import { useNessieContext } from "../../utils/context";
 import { isDefaultReferenceLoading } from "@app/selectors/nessie/nessie";
 import {
@@ -42,20 +40,17 @@ function PageBreadcrumbHeader({
   const intl = useIntl();
   const { source, state, baseUrl } = useNessieContext();
   const arcticCtx = useArcticCatalogContext();
-  const Breadcrumb = arcticCtx ? ArcticBreadcrumb : (NessieBreadcrumb as any);
-  const redirectUrl = arcticCtx
-    ? constructArcticUrl({
-        type: arcticCtx.isCatalog ? "catalog" : "source",
-        baseUrl: baseUrl,
-        tab: arcticCtx?.activeTab,
-        namespace: "",
-      })
-    : "/";
+  const redirectUrl = constructArcticUrl({
+    type: arcticCtx.isCatalog ? "catalog" : "source",
+    baseUrl: baseUrl,
+    tab: arcticCtx?.activeTab,
+    namespace: "",
+  });
 
   return (
     <div className={`pageBreadcrumbHeader ${className}`}>
       <span className="pageBreadcrumbHeader-crumbContainer">
-        <Breadcrumb path={path} />
+        <ArcticBreadcrumb path={path} />
         {hasBranchPicker && !isDefaultReferenceLoading(state) && (
           <BranchPicker redirectUrl={redirectUrl} />
         )}

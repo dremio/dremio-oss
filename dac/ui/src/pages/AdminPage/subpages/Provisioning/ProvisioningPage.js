@@ -125,7 +125,7 @@ export class ProvisioningPage extends Component {
         const message = e && e._error && e._error.message;
         const errorMessage =
           (message && message.get("errorMessage")) ||
-          la("Failed to remove provision");
+          laDeprecated("Failed to remove provision");
         this.props.addNotification(
           <span>{errorMessage}</span>,
           "error",
@@ -155,13 +155,13 @@ export class ProvisioningPage extends Component {
 
   handleStopProvision = (confirmCallback) => {
     this.props.showConfirmationDialog({
-      title: la("Stop Engine"),
+      title: laDeprecated("Stop Engine"),
       text: [
-        la("Existing jobs will be halted."),
-        la("Are you sure you want to stop the engine?"),
+        laDeprecated("Existing jobs will be halted."),
+        laDeprecated("Are you sure you want to stop the engine?"),
       ],
-      cancelText: la("Don't Stop Engine"),
-      confirmText: la("Stop Engine"),
+      cancelText: laDeprecated("Don't Stop Engine"),
+      confirmText: laDeprecated("Stop Engine"),
       confirm: confirmCallback,
     });
   };
@@ -181,7 +181,7 @@ export class ProvisioningPage extends Component {
 
     const commitChange = () => {
       const actionName = data.desiredState === "STOPPED" ? "stop" : "start";
-      const msg = la(
+      const msg = laDeprecated(
         `Request to ${actionName} the engine has been sent to the server.`
       );
       this.props.addNotification(<span>{msg}</span>, "info");
@@ -316,7 +316,7 @@ export class ProvisioningPage extends Component {
       <SettingHeader
         icon="settings/engines"
         titleStyle={{ fontSize: 20 }}
-        title={la("Engines")}
+        title={laDeprecated("Engines")}
         endChildren={canCreate ? this.renderAddEngineButton() : null}
       />
     );
@@ -325,8 +325,12 @@ export class ProvisioningPage extends Component {
   renderProvisions(selectedEngineId, provisions, viewState) {
     const selectedEngine = this.getSelectedEngine(selectedEngineId);
     const queues = this.getQueues();
+    const height =
+      selectedEngineId && selectedEngine
+        ? styles.singleEnginesHeight
+        : styles.enginesHeight;
     return (
-      <div style={styles.baseContent}>
+      <div style={{ ...styles.baseContent, ...height }}>
         {selectedEngineId && selectedEngine && (
           <SingleEngineView
             engine={selectedEngine}
@@ -362,10 +366,7 @@ export class ProvisioningPage extends Component {
     return (
       <>
         {this.renderHeader()}
-        <div
-          id="admin-provisioning"
-          style={page}
-        >
+        <div id="admin-provisioning" style={page}>
           <ViewStateWrapper
             viewState={viewState}
             style={pageContent}
@@ -408,6 +409,11 @@ const styles = {
   baseContent: {
     display: "flex",
     flexDirection: "column",
+  },
+  enginesHeight: {
+    maxHeight: "calc(100vh - 104px)",
+  },
+  singleEnginesHeight: {
     height: "100%",
   },
 };

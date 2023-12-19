@@ -15,14 +15,19 @@
  */
 package com.dremio.service.reflection;
 
+import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG;
+import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_PARTITION_TRANSFORMS;
 import static com.dremio.exec.planner.acceleration.IncrementalUpdateUtils.UPDATE_COLUMN;
+import static com.dremio.exec.planner.physical.PlannerSettings.ENABLE_REFLECTION_ICEBERG_TRANSFORMS;
 import static com.dremio.service.accelerator.AccelerationUtils.selfOrEmpty;
 import static com.dremio.service.reflection.ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -41,22 +46,25 @@ import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.commons.collections4.CollectionUtils;
 
+import com.dremio.catalog.model.VersionContext;
+import com.dremio.catalog.model.dataset.TableVersionType;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.EntityExplorer;
-import com.dremio.exec.catalog.TableVersionType;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.catalog.VersionedDatasetId;
 import com.dremio.exec.planner.acceleration.ExternalMaterializationDescriptor;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateSettings;
 import com.dremio.exec.planner.acceleration.JoinDependencyProperties;
 import com.dremio.exec.planner.acceleration.MaterializationDescriptor;
 import com.dremio.exec.planner.acceleration.MaterializationDescriptor.ReflectionInfo;
+import com.dremio.exec.planner.sql.PartitionTransform;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.ReflectionType;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.OperationType;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.io.file.Path;
+import com.dremio.options.OptionManager;
 import com.dremio.proto.model.UpdateId;
 import com.dremio.service.accelerator.AccelerationUtils;
 import com.dremio.service.job.MaterializationSettings;
@@ -87,6 +95,7 @@ import com.dremio.service.reflection.proto.DataPartition;
 import com.dremio.service.reflection.proto.ExternalReflection;
 import com.dremio.service.reflection.proto.JobDetails;
 import com.dremio.service.reflection.proto.Materialization;
+import com.dremio.service.reflection.proto.MaterializationId;
 import com.dremio.service.reflection.proto.MaterializationMetrics;
 import com.dremio.service.reflection.proto.MaterializationState;
 import com.dremio.service.reflection.proto.MeasureType;
@@ -98,8 +107,10 @@ import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionGoalState;
 import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.ReflectionMeasureField;
+import com.dremio.service.reflection.proto.ReflectionPartitionField;
 import com.dremio.service.reflection.proto.Refresh;
 import com.dremio.service.reflection.proto.RefreshId;
+import com.dremio.service.reflection.proto.Transform;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.dremio.service.reflection.store.ReflectionGoalsStore;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -127,7 +138,7 @@ public class ReflectionUtils {
 
   @WithSpan
   public static JobId submitRefreshJob(JobsService jobsService, CatalogService catalogService, ReflectionEntry entry,
-                                       Materialization materialization, String sql, JobStatusListener jobStatusListener) {
+                                       MaterializationId materializationId, String sql, QueryType queryType, JobStatusListener jobStatusListener) {
 
     final SqlQuery query = SqlQuery.newBuilder()
       .setSql(sql)
@@ -142,7 +153,7 @@ public class ReflectionUtils {
       .setDatasetId(entry.getDatasetId())
       .setReflectionId(entry.getId().getId())
       .setLayoutVersion(entry.getTag())
-      .setMaterializationId(materialization.getId().getId())
+      .setMaterializationId(materializationId.getId())
       .setReflectionName(entry.getName())
       .setReflectionType(entry.getType().toString())
       .build();
@@ -155,7 +166,7 @@ public class ReflectionUtils {
           .setSubstitutionSettings(SubstitutionSettings.newBuilder().addAllExclusions(ImmutableList.of()).build())
           .build())
         .setSqlQuery(query)
-        .setQueryType(JobsProtoUtil.toBuf(QueryType.ACCELERATOR_CREATE))
+        .setQueryType(JobsProtoUtil.toBuf(queryType))
         .setVersionedDataset(VersionedDatasetPath.newBuilder().addAllPath(datasetPathList.getPathComponents()).build())
         .build(),
       new MultiJobStatusListener(submittedListener, jobStatusListener))
@@ -163,7 +174,7 @@ public class ReflectionUtils {
     submittedListener.await();
     Span.current().setAttribute("dremio.reflectionmanager.jobId", jobId.getId());
     Span.current().setAttribute("dremio.reflectionmanager.reflection", getId(entry));
-    Span.current().setAttribute("dremio.reflectionmanager.materialization", getId(materialization));
+    Span.current().setAttribute("dremio.reflectionmanager.materialization", getId(entry.getId(), materializationId));
     Span.current().setAttribute("dremio.reflectionmanager.datasetId", entry.getDatasetId());
     Span.current().setAttribute("dremio.reflectionmanager.sql", sql);
     return jobId;
@@ -217,10 +228,24 @@ public class ReflectionUtils {
   }
 
   /**
+   * computes a log-friendly materialization id
+   */
+  public static String getId(ReflectionId reflectionId, MaterializationId materializationId) {
+    return String.format("materialization %s/%s", reflectionId.getId(), materializationId.getId());
+  }
+
+  /**
    * computes a log-friendly reflection and materialization id
    */
   public static String getId(ReflectionEntry entry, Materialization m) {
     return String.format("materialization %s/%s[%s]", entry.getId().getId(), m.getId().getId(), entry.getName());
+  }
+
+  /**
+   * computes a log-friendly materialization id
+   */
+  public static String getId(MaterializationDescriptor desc) {
+    return String.format("materialization %s/%s", desc.getLayoutId(), desc.getMaterializationId());
   }
 
   /**
@@ -234,7 +259,8 @@ public class ReflectionUtils {
       final CatalogService catalogService) {
     final IncrementalUpdateSettings updateSettings = new IncrementalUpdateSettings(
       reflectionEntry.getRefreshMethod() == RefreshMethod.INCREMENTAL,
-      reflectionEntry.getRefreshField());
+      reflectionEntry.getRefreshField(),
+      reflectionEntry.getSnapshotBased());
     return new MaterializationDescriptor(
       toReflectionInfo(reflectionGoal),
       materialization.getId().getId(),
@@ -368,7 +394,7 @@ public class ReflectionUtils {
   }
 
 
-  public static void validateReflectionGoalWithoutSchema(ReflectionGoal goal) {
+  public static void validateReflectionGoalWithoutSchema(ReflectionGoal goal, OptionManager optionManager) {
     Preconditions.checkArgument(goal.getDatasetId() != null, "datasetId required");
 
     // Reflections must have a non-empty name
@@ -387,6 +413,14 @@ public class ReflectionUtils {
     ReflectionDetails details = goal.getDetails();
     Preconditions.checkArgument(details != null, "reflection details are required");
 
+    List<ReflectionField> partitionFieldListWithoutPartitionTransforms = null;
+    if(details.getPartitionFieldList() != null) {
+      partitionFieldListWithoutPartitionTransforms = details.getPartitionFieldList()
+        .stream()
+        .map(partitionField -> new ReflectionField(partitionField.getName()))
+        .collect(Collectors.toList());
+    }
+
     if (goal.getType() == com.dremio.service.reflection.proto.ReflectionType.RAW) {
       // For a raw reflection, at least one display field must be defined.
       Preconditions.checkArgument(CollectionUtils.isNotEmpty(details.getDisplayFieldList()), "raw reflection must have at least one display field configured");
@@ -398,7 +432,7 @@ public class ReflectionUtils {
       // For a raw reflection, a column must be in the display list to be used as a partition, sort or distribution field.
       List<ReflectionField> displayFieldList = details.getDisplayFieldList();
 
-      List<ReflectionField> fieldList = details.getPartitionFieldList();
+      List<ReflectionField> fieldList = partitionFieldListWithoutPartitionTransforms;
       if (fieldList != null) {
         for (ReflectionField field : fieldList) {
           Preconditions.checkArgument(displayFieldList != null && displayFieldList.contains(field), String.format("partition field [%s] must also be a display field", field.getName()));
@@ -411,8 +445,8 @@ public class ReflectionUtils {
           Preconditions.checkArgument(displayFieldList != null && displayFieldList.contains(field), String.format("sort field [%s] must also be a display field", field.getName()));
 
           // A field cannot be both a sort and partition field.
-          if (CollectionUtils.isNotEmpty(details.getPartitionFieldList())) {
-            Preconditions.checkArgument(!details.getPartitionFieldList().contains(field), String.format("field [%s] cannot be both a sort and a partition", field.getName()));
+          if (CollectionUtils.isNotEmpty(partitionFieldListWithoutPartitionTransforms)) {
+            Preconditions.checkArgument(!partitionFieldListWithoutPartitionTransforms.contains(field), String.format("field [%s] cannot be both a sort and a partition", field.getName()));
           }
         }
       }
@@ -430,7 +464,7 @@ public class ReflectionUtils {
       // For a agg reflection, only dimension fields can be selected for sort, partition or distribution fields.
       List<ReflectionDimensionField> dimensionFieldList = details.getDimensionFieldList();
 
-      List<ReflectionField> fieldList = details.getPartitionFieldList();
+      List<ReflectionField> fieldList = partitionFieldListWithoutPartitionTransforms;
       if (CollectionUtils.isNotEmpty(fieldList)) {
         for (ReflectionField field : fieldList) {
           Preconditions.checkArgument(dimensionFieldList != null && doesPartitionFieldListContainField(dimensionFieldList, field), String.format("partition field [%s] must also be a dimension field", field.getName()));
@@ -443,8 +477,8 @@ public class ReflectionUtils {
           Preconditions.checkArgument(dimensionFieldList != null && doesPartitionFieldListContainField(dimensionFieldList, field), String.format("sort field [%s] must also be a dimension field", field.getName()));
 
           // A field cannot be both a sort and partition field.
-          if (details.getPartitionFieldList() != null) {
-            Preconditions.checkArgument(!details.getPartitionFieldList().contains(field), String.format("field [%s] cannot be both a sort and a partition", field.getName()));
+          if (partitionFieldListWithoutPartitionTransforms != null) {
+            Preconditions.checkArgument(!partitionFieldListWithoutPartitionTransforms.contains(field), String.format("field [%s] cannot be both a sort and a partition", field.getName()));
           }
         }
       }
@@ -460,12 +494,104 @@ public class ReflectionUtils {
       Preconditions.checkArgument(
         CollectionUtils.isNotEmpty(details.getDimensionFieldList()) ||
           CollectionUtils.isNotEmpty(details.getMeasureFieldList()) ||
-          CollectionUtils.isNotEmpty(details.getPartitionFieldList()) ||
+          CollectionUtils.isNotEmpty(partitionFieldListWithoutPartitionTransforms) ||
           CollectionUtils.isNotEmpty(details.getSortFieldList()) ||
           CollectionUtils.isNotEmpty(details.getDistributionFieldList()),
         "must have at least one non-empty field list"
       );
     }
+
+    validateTransform(details.getPartitionFieldList(), optionManager);
+  }
+
+  /**
+   * Check if a reflection has an issue with partition transforms
+   * Throws exception if any issues are found
+   * @param reflectionPartitionFields list of ReflectionPartitionField in the reflection
+   * @param optionManager used for checking if needed support keys are enabled
+   */
+  public static void validateTransform(final List<ReflectionPartitionField> reflectionPartitionFields, OptionManager optionManager) {
+    if(reflectionPartitionFields == null) {
+      return;
+    }
+    final Set<String> transformFieldNames = new HashSet<>();
+    for (final ReflectionPartitionField reflectionPartitionField : reflectionPartitionFields) {
+      final boolean hasValidFieldName = reflectionPartitionField.getName() != null && !reflectionPartitionField.getName().isEmpty();
+
+      //validate the same partition field is not used multiple times
+      if(hasValidFieldName){
+        Preconditions.checkArgument(!transformFieldNames.contains(reflectionPartitionField.getName().toLowerCase()),
+          String.format("[%s] field is used multiple times in partition transforms.", reflectionPartitionField.getName()));
+        transformFieldNames.add(reflectionPartitionField.getName().toLowerCase());
+      }
+
+      //we need to do the remaining checks even if field name is missing
+      //this is because it is possible to just send TransformName/TransformArgs in the rest API without a field name
+      PartitionTransform.Type typeFromReflectionDetails = null;
+      if(reflectionPartitionField.getTransform() != null) {
+        Preconditions.checkArgument(hasValidFieldName, String.format("Partition transform is present, but the field name is missing."));
+        if(reflectionPartitionField.getTransform().getType() == null){
+          Preconditions.checkArgument(false, String.format("Partition transform is present, but it is missing a transform type."));
+        }
+
+        typeFromReflectionDetails = PartitionTransform.Type.lookup(reflectionPartitionField.getTransform().getType().toString());
+        //if allowPartitionTransformInReflections is disabled, the transform should be identity or empty
+        if(!PartitionTransform.Type.IDENTITY.equals(typeFromReflectionDetails)) {
+          ReflectionUtils.validateNonIdentityTransformAllowed(optionManager, reflectionPartitionField.getTransform().getType().toString());
+        }
+        if(reflectionPartitionField.getTransform().getType().equals(Transform.Type.TRUNCATE)){
+          Preconditions.checkArgument(reflectionPartitionField.getTransform().getTruncateTransform() != null,
+            String.format("Truncate transform type for field [%s] is present, but no truncateTransform containing length is provided.",
+              reflectionPartitionField.getName()));
+          Preconditions.checkArgument(reflectionPartitionField.getTransform().getBucketTransform() == null,
+            String.format("Truncate transform type for field [%s] is present, but bucketTransform for this field is present too. A field can have only one transform.",
+              reflectionPartitionField.getName()));
+        } else if(reflectionPartitionField.getTransform().getType().equals(Transform.Type.BUCKET)){
+          Preconditions.checkArgument(reflectionPartitionField.getTransform().getTruncateTransform() == null,
+            String.format("Bucket transform type for field [%s] is present, but truncateTransform for this field is present too. A field can have only one transform.",
+              reflectionPartitionField.getName()));
+          Preconditions.checkArgument(reflectionPartitionField.getTransform().getBucketTransform() != null,
+            String.format("Bucket transform type for field [%s] is present, but no bucketTransform containing bucket count is provided.",
+              reflectionPartitionField.getName()));
+        } else {
+          Preconditions.checkArgument(reflectionPartitionField.getTransform().getTruncateTransform() == null,
+            String.format("Truncate transform type for field [%s] is present, but it does not match the transform type used.",
+              reflectionPartitionField.getName()));
+          Preconditions.checkArgument(reflectionPartitionField.getTransform().getBucketTransform() == null,
+            String.format("Bucket transform type for field [%s] is present, but it does not match the transform type used.",
+              reflectionPartitionField.getName()));
+        }
+      }
+    }
+  }
+
+  public static void validateNonIdentityTransformAllowed(OptionManager optionManager, String transformName) {
+    if(!optionManager.getOption(ENABLE_ICEBERG)){
+      throw new RuntimeException(String.format("[%s] partition transform is present, but Iceberg support is disabled.",transformName));
+    }
+    if(!optionManager.getOption(ENABLE_ICEBERG_PARTITION_TRANSFORMS)){
+      throw new RuntimeException(String.format("[%s] partition transform is present, but Iceberg partition support is disabled.",transformName));
+    }
+    if(!optionManager.getOption(ENABLE_REFLECTION_ICEBERG_TRANSFORMS)){
+      throw new RuntimeException(String.format("[%s] partition transform is present, but Iceberg partition support for reflections is disabled.",transformName));
+    }
+  }
+
+  /**
+   * Given a list of ReflectionPartitionField build the corresponding list of PartitionTransform
+   * @param reflectionPartitionFields input ReflectionPartitionFields to build PartitionTransform for
+   * @return List of PartitionTransform corresponding to the input
+   */
+  public static List<PartitionTransform> buildPartitionTransforms(final List<ReflectionPartitionField> reflectionPartitionFields) {
+    final List<PartitionTransform> transforms = new ArrayList<>();
+    if(reflectionPartitionFields == null){
+      return transforms;
+    }
+    transforms.addAll(reflectionPartitionFields.stream()
+      .map(x->ReflectionUtils.getPartitionTransform(x))
+      .collect(Collectors.toList()));
+
+    return transforms;
   }
 
   private static boolean doesPartitionFieldListContainField(List<ReflectionDimensionField> dimensionFieldList, ReflectionField field) {
@@ -619,7 +745,7 @@ public class ReflectionUtils {
     final List<Long> fileSizes = Lists.newArrayList();
     int offset = 0;
     long footprint = 0;
-
+    int fileDelta = 0;
     while (true) {
       try (final JobDataFragment data = JobDataClientUtils.getJobData(jobsService, allocator, jobId, offset, fetchSize)) {
         if (data.getReturnedRowCount() <= 0) {
@@ -627,27 +753,32 @@ public class ReflectionUtils {
         }
         for (int i = 0; i < data.getReturnedRowCount(); i++) {
           final long fileSize = (Long) data.extractValue(RecordWriter.FILESIZE_COLUMN, i);
-          footprint += fileSize;
+          final OperationType operationType = OperationType.valueOf((Integer) data.extractValue(RecordWriter.OPERATION_TYPE_COLUMN, i));
+          //When we have incremental refresh by partition it is possible that we delete some files and add some new files
+          //We use the flip sign here to adjust the reflection size accordingly
+          //We will add up the size of any added files, and subtract the size of any deleted files
+          final int flipSign = operationType != OperationType.DELETE_DATAFILE ? 1: -1;
+          footprint += fileSize * flipSign;
           fileSizes.add(fileSize);
+          fileDelta += flipSign;
         }
         offset += data.getReturnedRowCount();
       }
     }
 
-    final int numFiles = fileSizes.size();
     long medianFileSize = 0;
-    //prevent an IndexOutOfBoundsException if numFiles is 0 and we are trying to get the 0th file
-    if(numFiles > 0){
+    //prevent an IndexOutOfBoundsException if numFiles is 0, and we are trying to get the 0th file
+    if(fileSizes.size() > 0){
       // alternative is to implement QuickSelect to compute the median in linear time
       Collections.sort(fileSizes);
-      medianFileSize = fileSizes.get(numFiles / 2);
+      medianFileSize = fileSizes.get(fileSizes.size() / 2);
     }
 
     return new MaterializationMetrics()
       .setFootprint(footprint)
       .setOriginalCost(JobsProtoUtil.getLastAttempt(jobDetails).getInfo().getOriginalCost())
       .setMedianFileSize(medianFileSize)
-      .setNumFiles(numFiles);
+      .setNumFiles(fileDelta);
   }
 
   public static String getIcebergReflectionBasePath(List<String> refreshPath, boolean isIcebergRefresh) {
@@ -717,10 +848,36 @@ public class ReflectionUtils {
       sourceMappings.put(source, VersionContext.ofBranch(versionedDatasetId.getVersionContext().getValue().toString()));
     } else if (versionedDatasetId.getVersionContext().getType() == TableVersionType.TAG) {
       sourceMappings.put(source, VersionContext.ofTag(versionedDatasetId.getVersionContext().getValue().toString()));
-    } else if (versionedDatasetId.getVersionContext().getType() == TableVersionType.COMMIT_HASH_ONLY) {
-      sourceMappings.put(source, VersionContext.ofBareCommit(versionedDatasetId.getVersionContext().getValue().toString()));
+    } else if (versionedDatasetId.getVersionContext().getType() == TableVersionType.COMMIT) {
+      sourceMappings.put(source, VersionContext.ofCommit(versionedDatasetId.getVersionContext().getValue().toString()));
     }
     return sourceMappings;
   }
 
+  /**
+   * Given a reflectionPartitionField build a corresponding PartitionTransform
+   * @param reflectionPartitionField the input reflectionPartitionField
+   * @return the corresponding PartitionTransform
+   */
+  public static PartitionTransform getPartitionTransform(ReflectionPartitionField reflectionPartitionField){
+    final String fieldName = reflectionPartitionField.getName();
+    //if there are no transforms provided (e.g. old reflection before we added transforms)
+    //we will use PartitionTransform.Type.IDENTITY
+    PartitionTransform.Type type = PartitionTransform.Type.IDENTITY;
+    final List<Object> arguments = new ArrayList<>();
+    if(reflectionPartitionField.getTransform() != null){
+      final PartitionTransform.Type typeFromReflectionDetails = PartitionTransform.Type.lookup(reflectionPartitionField.getTransform().getType().name());
+      if(typeFromReflectionDetails != null){
+        type = typeFromReflectionDetails;
+        if(reflectionPartitionField.getTransform().getType() == Transform.Type.BUCKET
+            && reflectionPartitionField.getTransform().getBucketTransform().getBucketCount() != null) {
+          arguments.addAll(ImmutableList.of(reflectionPartitionField.getTransform().getBucketTransform().getBucketCount()));
+        } else if(reflectionPartitionField.getTransform().getType() == Transform.Type.TRUNCATE
+            && reflectionPartitionField.getTransform().getTruncateTransform().getTruncateLength() != null) {
+          arguments.addAll(ImmutableList.of(reflectionPartitionField.getTransform().getTruncateTransform().getTruncateLength()));
+        }
+      }
+    }
+    return new PartitionTransform(fieldName, type, arguments);
+  }
 }

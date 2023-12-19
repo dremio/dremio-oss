@@ -35,10 +35,19 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 public class SqlCreateView extends SqlCall {
+  private static final SqlLiteral sqlLiteralNull = SqlLiteral.createNull(SqlParserPos.ZERO);
   public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("CREATE_VIEW", SqlKind.CREATE_VIEW) {
     @Override
     public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      return new SqlCreateView(pos, (SqlIdentifier) operands[0], (SqlNodeList) operands[1], operands[2], (SqlLiteral) operands[3], (SqlPolicy) operands[4]);
+      return new SqlCreateView(
+        pos,
+        (SqlIdentifier) operands[0],
+        (SqlNodeList) operands[1],
+        operands[2],
+        (SqlLiteral) operands[3],
+        (SqlPolicy) operands[4],
+        ((SqlLiteral) operands[5]).symbolValue(ReferenceType.class),
+        (SqlIdentifier) operands[6]);
     }
   };
 
@@ -47,14 +56,31 @@ public class SqlCreateView extends SqlCall {
   private SqlNode query;
   private boolean replaceView;
   private SqlPolicy policy;
+  private ReferenceType refType;
+  private SqlIdentifier refValue;
 
-  public SqlCreateView(SqlParserPos pos, SqlIdentifier viewName, SqlNodeList fieldList,
-      SqlNode query, SqlLiteral replaceView, SqlPolicy policy) {
-    this(pos, viewName, fieldList, query, replaceView.booleanValue(), policy);
+
+  public SqlCreateView(
+    SqlParserPos pos,
+    SqlIdentifier viewName,
+    SqlNodeList fieldList,
+    SqlNode query,
+    SqlLiteral replaceView,
+    SqlPolicy policy,
+    ReferenceType refType,
+    SqlIdentifier refValue) {
+    this(pos, viewName, fieldList, query, replaceView.booleanValue(), policy, refType, refValue);
   }
 
-  public SqlCreateView(SqlParserPos pos, SqlIdentifier viewName, SqlNodeList fieldList,
-                       SqlNode query, boolean replaceView, SqlPolicy policy) {
+  public SqlCreateView(
+    SqlParserPos pos,
+    SqlIdentifier viewName,
+    SqlNodeList fieldList,
+    SqlNode query,
+    boolean replaceView,
+    SqlPolicy policy,
+    ReferenceType refType,
+    SqlIdentifier refValue) {
     // For "CREATE VIEW ... AS ..." statement, pos is set to be the position of the `AS` token in the parser.
     // This would help us to get the row or query expression, i.e. the definition of the view.
     // Note for other SQL statements, pos is usually set to be the beginning of the statement.
@@ -64,6 +90,8 @@ public class SqlCreateView extends SqlCall {
     this.replaceView = replaceView;
     this.fieldList = fieldList;
     this.policy = policy;
+    this.refType = refType;
+    this.refValue = refValue;
   }
 
   @Override
@@ -79,6 +107,8 @@ public class SqlCreateView extends SqlCall {
     ops.add(query);
     ops.add(SqlLiteral.createBoolean(replaceView, SqlParserPos.ZERO));
     ops.add(policy);
+    ops.add(getRefType() == null ? sqlLiteralNull: SqlLiteral.createSymbol(getRefType(), SqlParserPos.ZERO));
+    ops.add(refValue);
     return ops;
   }
 
@@ -100,6 +130,11 @@ public class SqlCreateView extends SqlCall {
       writer.keyword("ACCESS");
       writer.keyword("POLICY");
       policy.unparse(writer, leftPrec, rightPrec);
+    }
+    if (refType != null && refValue != null) {
+      writer.keyword("AT");
+      writer.keyword(refType.toString());
+      refValue.unparse(writer, leftPrec, rightPrec);
     }
     writer.keyword("AS");
     query.unparse(writer, leftPrec, rightPrec);
@@ -159,6 +194,14 @@ public class SqlCreateView extends SqlCall {
   }
 
   public SqlNode getQuery() { return query; }
+
   public boolean getReplace() { return replaceView; }
 
+  public ReferenceType getRefType() {
+    return refType;
+  }
+
+  public SqlIdentifier getRefValue() {
+    return refValue;
+  }
 }

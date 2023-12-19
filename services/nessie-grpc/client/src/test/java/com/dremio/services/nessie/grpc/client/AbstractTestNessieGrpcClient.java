@@ -19,7 +19,10 @@ import static com.dremio.services.nessie.grpc.ProtoUtil.refToProto;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -28,6 +31,7 @@ import org.projectnessie.model.Reference;
 
 import com.dremio.services.nessie.grpc.api.ConfigServiceGrpc.ConfigServiceImplBase;
 import com.dremio.services.nessie.grpc.api.Content;
+import com.dremio.services.nessie.grpc.api.ContentKey;
 import com.dremio.services.nessie.grpc.api.ContentRequest;
 import com.dremio.services.nessie.grpc.api.ContentServiceGrpc.ContentServiceImplBase;
 import com.dremio.services.nessie.grpc.api.ContentWithKey;
@@ -48,8 +52,10 @@ import io.grpc.Server;
 import io.grpc.ServerCall;
 import io.grpc.ServerCallHandler;
 import io.grpc.ServerInterceptor;
+import io.grpc.Status.Code;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
+import io.grpc.protobuf.StatusProto;
 import io.grpc.stub.StreamObserver;
 import io.grpc.testing.GrpcCleanupRule;
 
@@ -62,6 +68,7 @@ public abstract class AbstractTestNessieGrpcClient {
       Content.newBuilder().setIceberg(IcebergTable.newBuilder().build()).build();
   public static final String REF_NAME = "test-main";
   public static final Reference REF = Branch.of(REF_NAME, null);
+  public static final ContentKey INVALID_KEY = ContentKey.newBuilder().addElements("INVALID").build();
   public static final Metadata.Key<String> TEST_HEADER_KEY = Metadata.Key.of("test_header", Metadata.ASCII_STRING_MARSHALLER);
 
   /**
@@ -101,8 +108,13 @@ public abstract class AbstractTestNessieGrpcClient {
   private final ContentServiceImplBase contentService =
       new ContentServiceImplBase() {
         @Override
-        public void getContent(
-            ContentRequest request, StreamObserver<Content> responseObserver) {
+        public void getContent(ContentRequest request, StreamObserver<Content> responseObserver) {
+          if (request.getContentKey().equals(INVALID_KEY)) {
+            responseObserver.onError(StatusProto.toStatusRuntimeException(
+                com.google.rpc.Status.newBuilder().setCode(Code.NOT_FOUND.value()).setMessage("Table not found").build(),
+                new Metadata()));
+            return;
+          }
           responseObserver.onNext(ICEBERG_TABLE);
           responseObserver.onCompleted();
         }
@@ -148,7 +160,7 @@ public abstract class AbstractTestNessieGrpcClient {
     grpcCleanup.register(server.start());
     ManagedChannel channel = InProcessChannelBuilder.forName(serverName).build();
     grpcCleanup.register(channel);
-    return new ServiceWithChannel(server, channel);
+    return new ServiceWithChannel(serverName, server, channel);
   }
 
   /**
@@ -171,8 +183,10 @@ public abstract class AbstractTestNessieGrpcClient {
   public static class ServiceWithChannel {
     private final Server server;
     private final ManagedChannel channel;
+    private final String serverName;
 
-    public ServiceWithChannel(Server server, ManagedChannel channel) {
+    public ServiceWithChannel(String serverName, Server server, ManagedChannel channel) {
+      this.serverName = serverName;
       this.server = server;
       this.channel = channel;
     }
@@ -184,16 +198,24 @@ public abstract class AbstractTestNessieGrpcClient {
     public ManagedChannel getChannel() {
       return channel;
     }
+
+    public String getServerName() {
+      return this.serverName;
+    }
   }
 
   /**
    * Simple dummy header intercepter to verify client side headers.
    */
   public static class TestHeaderServerInterceptor implements ServerInterceptor {
-    private final List<String> headerValues = new ArrayList<>();
+    private final Map<String, List<String>> headerValues = new HashMap<>();
 
     public List<String> getHeaderValues() {
-      return ImmutableList.copyOf(headerValues);
+      return getHeaderValues(TEST_HEADER_KEY.name());
+    }
+
+    public List<String> getHeaderValues(String headerName) {
+      return ImmutableList.copyOf(headerValues.getOrDefault(headerName, Collections.emptyList()));
     }
 
     public void clear() {
@@ -204,9 +226,12 @@ public abstract class AbstractTestNessieGrpcClient {
     public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(ServerCall<ReqT, RespT> serverCall,
                                                                  Metadata metadata,
                                                                  ServerCallHandler<ReqT, RespT> serverCallHandler) {
-      if (metadata.containsKey(TEST_HEADER_KEY)) {
-        headerValues.add(metadata.get(TEST_HEADER_KEY));
+      for (String key : metadata.keys()) {
+        List<String> values = headerValues.getOrDefault(key, new ArrayList<>());
+        metadata.getAll(Metadata.Key.of(key, Metadata.ASCII_STRING_MARSHALLER)).forEach(values::add);
+        headerValues.put(key, values);
       }
+
       return serverCallHandler.startCall(new SimpleForwardingServerCall<ReqT, RespT>(serverCall) {
       }, metadata);
     }

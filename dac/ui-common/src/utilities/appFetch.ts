@@ -17,11 +17,11 @@
 import { UnauthorizedError } from "../errors/UnauthorizedError";
 import { HttpError } from "../errors/HttpError";
 import { narrowHttpError } from "../errors/narrowHttpError";
-import { getSessionContext } from "../contexts/SessionContext.js";
+import { getSessionContext } from "../contexts/SessionContext";
 import { BadGatewayError } from "../errors/BadGatewayError";
 import { ServiceUnavailableError } from "../errors/ServiceUnavailableError";
 import { GatewayTimeoutError } from "../errors/GatewayTimeoutError";
-import { waitForServerReachable } from "../utilities/waitForServerReachable.js";
+import { waitForServerReachable } from "../utilities/waitForServerReachable";
 
 const MAX_RETRIES = 4;
 

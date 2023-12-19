@@ -31,6 +31,7 @@ import com.dremio.exec.planner.CachedAccelDetails;
 import com.dremio.exec.planner.CachedPlan;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
+import com.dremio.exec.planner.acceleration.RelWithInfo;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.physical.Prel;
@@ -149,6 +150,18 @@ public class AttemptObservers implements AttemptObserver {
     }
   }
 
+  /**
+   * Gets the refresh decision for a reflection and how long it took to make it
+   * @param text A string describing if we decided to do full or incremental refresh
+   * @param millisTaken Time taken in planning the refresh decision
+   */
+  @Override
+  public void planRefreshDecision(String text, long millisTaken){
+    for (final AttemptObserver observer : observers) {
+      observer.planRefreshDecision(text, millisTaken);
+    }
+  }
+
   @Override
   public void planExpandView(RelRoot expanded, List<String> schemaPath, int nestingLevel, String sql) {
     for (final AttemptObserver observer : observers) {
@@ -207,15 +220,22 @@ public class AttemptObservers implements AttemptObserver {
   }
 
   @Override
-  public void planNormalized(long millisTaken, List<RelNode> normalizedQueryPlans) {
+  public void planNormalized(long millisTaken, List<RelWithInfo> normalizedQueryPlans) {
     for (final AttemptObserver observer : observers) {
       observer.planNormalized(millisTaken, normalizedQueryPlans);
     }
   }
 
   @Override
-  public void planSubstituted(DremioMaterialization materialization, List<RelNode> substitutions,
-                              RelNode target, long millisTaken, boolean defaultReflection) {
+  public void planSubstituted(long millisTaken) {
+    for (final AttemptObserver observer : observers) {
+      observer.planSubstituted(millisTaken);
+    }
+  }
+
+  @Override
+  public void planSubstituted(DremioMaterialization materialization, List<RelWithInfo> substitutions,
+                              RelWithInfo target, long millisTaken, boolean defaultReflection) {
     for (final AttemptObserver observer : observers) {
       observer.planSubstituted(materialization, substitutions, target, millisTaken, defaultReflection);
     }

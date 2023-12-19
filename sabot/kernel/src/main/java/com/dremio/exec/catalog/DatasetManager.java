@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.catalog;
 
+import static com.dremio.exec.catalog.CatalogUtil.permittedNessieKey;
 import static com.dremio.exec.catalog.VersionedDatasetId.isVersionedDatasetId;
 import static com.dremio.exec.planner.physical.PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT;
 
@@ -31,6 +32,7 @@ import java.util.stream.StreamSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.connector.ConnectorException;
@@ -50,7 +52,7 @@ import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.NamespaceTable;
-import com.dremio.exec.store.ReferenceNotFoundException;
+import com.dremio.exec.store.NessieReferenceException;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.TableMetadata;
@@ -65,8 +67,8 @@ import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceIndexKeys;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
+import com.dremio.service.namespace.NamespaceOptions;
 import com.dremio.service.namespace.NamespaceService;
-import com.dremio.service.namespace.NamespaceService.SplitCompression;
 import com.dremio.service.namespace.NamespaceUtils;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
@@ -100,6 +102,7 @@ class DatasetManager {
   private final String userName;
   private final IdentityResolver identityProvider;
   private final VersionContextResolver versionContextResolver;
+  private final VersionedDatasetAdapterFactory versionedDatasetAdapterFactory;
 
   public DatasetManager(
       PluginRetriever plugins,
@@ -107,14 +110,15 @@ class DatasetManager {
       OptionManager optionManager,
       String userName,
       IdentityResolver identityProvider,
-      VersionContextResolver versionContextResolver
-  ) {
+      VersionContextResolver versionContextResolver,
+      VersionedDatasetAdapterFactory versionedDatasetAdapterFactory) {
     this.userNamespaceService = userNamespaceService;
     this.plugins = plugins;
     this.optionManager = optionManager;
     this.userName = userName;
     this.identityProvider = identityProvider;
     this.versionContextResolver = versionContextResolver;
+    this.versionedDatasetAdapterFactory = versionedDatasetAdapterFactory;
   }
 
   /**
@@ -286,9 +290,13 @@ class DatasetManager {
 
     List<String> tableKey = versionedDatasetId.getTableKey();
     TableVersionContext versionContext = versionedDatasetId.getVersionContext();
-
+    String pluginName = tableKey.get(0);
+    final ManagedStoragePlugin plugin = plugins.getPlugin(pluginName, false);
+    if (plugin == null) {
+      return null;
+    }
     MetadataRequestOptions optionsWithVersion = options.cloneWith(tableKey.get(0), versionContext.asVersionContext());
-    DremioTable table = getTable(new NamespaceKey(tableKey), optionsWithVersion, false);
+    DremioTable table = getTableFromNessieCatalog(new NamespaceKey(tableKey), plugin, optionsWithVersion );
     if (table != null) {
       //check for ContentId . If someone has dropped and recreated the table with the same key
       // in the same VersionContext , the ContentId will be different
@@ -361,7 +369,7 @@ class DatasetManager {
     final String accessUserName = getAccessUserName(plugin, schemaConfig);
 
     final Stopwatch stopwatch = Stopwatch.createStarted();
-    if (plugin.isCompleteAndValid(datasetConfig, options, userNamespaceService)) {
+    if (plugin.isCompleteAndValid(datasetConfig, options)) {
       final NamespaceKey canonicalKey = new NamespaceKey(datasetConfig.getFullPathList());
       final NamespaceTable namespaceTable = getTableFromNamespace(key, datasetConfig, plugin, accessUserName, options);
       options.getStatsCollector()
@@ -425,7 +433,7 @@ class DatasetManager {
 
       try {
         datasetConfig = userNamespaceService.getDataset(canonicalKey);
-        if (datasetConfig != null && plugin.isCompleteAndValid(datasetConfig, options, userNamespaceService)) {
+        if (datasetConfig != null && plugin.isCompleteAndValid(datasetConfig, options)) {
           // if the dataset config is complete and unexpired, we'll recurse because we don't need the just retrieved
           // SourceTableDefinition. Since they're lazy, little harm done.
           // Otherwise, we'll fall through and use the found accessor.
@@ -527,7 +535,7 @@ class DatasetManager {
       View view = Views.fieldTypesToView(
         Iterables.getLast(datasetConfig.getFullPathList()),
         datasetConfig.getVirtualDataset().getSql(),
-        ViewFieldsHelper.getCalciteViewFields(datasetConfig),
+        ViewFieldsHelper.getViewFields(datasetConfig),
         datasetConfig.getVirtualDataset().getContextList(),
         options.getSchemaConfig().getOptions() != null && options.getSchemaConfig().getOptions().getOption(FULL_NESTED_SCHEMA_SUPPORT) ? schema : null
       );
@@ -544,20 +552,26 @@ class DatasetManager {
   }
 
   @WithSpan
-  public DremioTable getTableFromNessieCatalog(NamespaceKey key, ManagedStoragePlugin plugin, MetadataRequestOptions options) {
+  private DremioTable getTableFromNessieCatalog(NamespaceKey key, ManagedStoragePlugin plugin, MetadataRequestOptions options) {
     final String accessUserName = options.getSchemaConfig().getUserName();
     final StoragePlugin underlyingPlugin = plugin.getPlugin();
     VersionedDatasetAdapter versionedDatasetAdapter;
+    if (!permittedNessieKey(key)) {
+      return null;
+    }
     try {
-      versionedDatasetAdapter = VersionedDatasetAdapter.newBuilder()
-        .setVersionedTableKey(key.getPathComponents())
-        .setVersionContext(versionContextResolver.resolveVersionContext(
-          plugin.getName().getRoot(), options.getVersionForSource(plugin.getName().getRoot(), key)))
-        .setStoragePlugin(underlyingPlugin)
-        .setStoragePluginId(plugin.getId())
-        .setOptionManager(optionManager)
-        .build();
-    } catch (ReferenceNotFoundException e) {
+      versionedDatasetAdapter = versionedDatasetAdapterFactory
+        .newInstance(
+          key.getPathComponents(),
+          versionContextResolver.resolveVersionContext(
+            plugin.getName().getRoot(), options.getVersionForSource(plugin.getName().getRoot(), key)),
+          underlyingPlugin,
+          plugin.getId(),
+          optionManager);
+    } catch (NessieReferenceException e ) {
+      logger.debug( "Unable to retrieve table metadata for {} ", key, e);
+      // Any error in resolving the version context returns a NessieReferenceException with a detailed error.
+      // We log that and return null to indicate that the table cannot be found.
       return null;
     }
 
@@ -699,9 +713,9 @@ class DatasetManager {
       nsConfig.setId(new EntityId(UUID.randomUUID().toString()));
     }
 
-    SplitCompression splitCompression = SplitCompression.valueOf(optionManager.getOption(CatalogOptions.SPLIT_COMPRESSION_TYPE).toUpperCase());
+    NamespaceService.SplitCompression splitCompression = NamespaceService.SplitCompression.valueOf(optionManager.getOption(CatalogOptions.SPLIT_COMPRESSION_TYPE).toUpperCase());
     try (DatasetMetadataSaver saver = userNamespace.newDatasetMetadataSaver(key, nsConfig.getId(), splitCompression,
-      optionManager.getOption(CatalogOptions.SINGLE_SPLIT_PARTITION_MAX), optionManager.getOption(NamespaceService.DATASET_METADATA_CONSISTENCY_VALIDATE))) {
+      optionManager.getOption(CatalogOptions.SINGLE_SPLIT_PARTITION_MAX), optionManager.getOption(NamespaceOptions.DATASET_METADATA_CONSISTENCY_VALIDATE))) {
       final PartitionChunkListing chunkListing = sourceMetadata.listPartitionChunks(handle,
           options.asListPartitionChunkOptions(nsConfig));
 

@@ -15,7 +15,9 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import static com.dremio.exec.catalog.CatalogUtil.resolveVersionContext;
 import static com.dremio.exec.store.parquet.ParquetFormatDatasetAccessor.ACCELERATOR_STORAGEPLUGIN_NAME;
+import static com.dremio.exec.util.ColumnUtils.COPY_INTO_ERROR_COLUMN_NAME;
 import static com.dremio.exec.util.ColumnUtils.FILE_PATH_COLUMN_NAME;
 import static com.dremio.exec.util.ColumnUtils.ROW_INDEX_COLUMN_NAME;
 
@@ -23,8 +25,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.TableModify;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.SqlBasicTypeNameSpec;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlDataTypeSpec;
@@ -35,20 +39,24 @@ import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.projectnessie.model.ContentKey;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.DremioTable;
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.VersionContext;
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.CreateTableEntry;
-import com.dremio.exec.planner.logical.ViewTable;
+import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
 import com.dremio.exec.store.dfs.CreateParquetTableEntry;
 import com.dremio.exec.store.iceberg.model.IcebergCommandType;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.annotations.VisibleForTesting;
 
-public class DmlUtils {
+public final class DmlUtils {
+
+  private DmlUtils() {
+  }
 
   @VisibleForTesting
   public static final Map<TableModify.Operation, String> DML_OUTPUT_COLUMN_NAMES =
@@ -69,8 +77,26 @@ public class DmlUtils {
     return SqlStdOperatorTable.EXTEND.createCall(pos, table, nodes);
   }
 
+  /**
+   * Add an extra error column to the table
+   * @param table original table
+   * @return decorated table
+   */
+  public static SqlNode extendTableWithErrorColumn(SqlNode table) {
+    SqlParserPos pos = table.getParserPosition();
+    SqlNodeList nodes = new SqlNodeList(pos);
+
+    addColumn(nodes, pos, COPY_INTO_ERROR_COLUMN_NAME, SqlTypeName.VARCHAR);
+
+    return SqlStdOperatorTable.EXTEND.createCall(pos, table, nodes);
+  }
+
   public static NamespaceKey getPath(SqlNode table) {
-    if (table.getKind() == SqlKind.EXTEND) {
+    if (table.getKind() == SqlKind.COLLECTION_TABLE) {
+      String path = ((SqlCall) ((SqlVersionedTableCollectionCall) table).getOperandList().get(0)).getOperandList().get(0).toString().replace("'", "").replace("\"", "");
+      ContentKey contentKey = ContentKey.fromPathString(path);
+      return new NamespaceKey(contentKey.getElements());
+    } else if (table.getKind() == SqlKind.EXTEND) {
       table = ((SqlCall) table).getOperandList().get(0);
     }
     SqlIdentifier tableIdentifier = (SqlIdentifier) table;
@@ -93,45 +119,44 @@ public class DmlUtils {
       .getIcebergTableProps().getIcebergOpType() == IcebergCommandType.INSERT; //TODO: Add CREATE for CTAS with DX-48616
   }
 
-  public static RelDataType evaluateOutputRowType(final RelOptCluster cluster, final TableModify.Operation operation) {
-    return cluster.getTypeFactory().builder()
+  public static RelDataType evaluateOutputRowType(final RelNode input, final RelOptCluster cluster, final TableModify.Operation operation) {
+    RelDataTypeFactory.FieldInfoBuilder builder = cluster.getTypeFactory().builder()
       .add(DML_OUTPUT_COLUMN_NAMES.get(operation),
         SqlTypeFactoryImpl.INSTANCE.createTypeWithNullability(
           SqlTypeFactoryImpl.INSTANCE.createSqlType(SqlTypeName.BIGINT),
-          true))
-      .build();
+          true));
+    if (input.getRowType().getField(COPY_INTO_ERROR_COLUMN_NAME, false, false) != null) {
+      builder.add("Rows Rejected", SqlTypeFactoryImpl.INSTANCE.createTypeWithNullability(
+        SqlTypeFactoryImpl.INSTANCE.createSqlType(SqlTypeName.BIGINT), true));
+    }
+
+    return builder.build();
+  }
+
+  public static TableVersionContext getVersionContext(SqlDmlOperator sqlDmlOperator) {
+    TableVersionSpec tableVersionSpec = sqlDmlOperator.getTableVersionSpec();
+    if (tableVersionSpec != null) {
+      return tableVersionSpec.getTableVersionContext();
+    }
+    return TableVersionContext.NOT_SPECIFIED;
+  }
+
+  public static TableVersionContext getVersionContext(SqlNode sqlNode) {
+    if (sqlNode instanceof SqlDmlOperator) {
+      SqlDmlOperator sqlDmlOperator = (SqlDmlOperator) sqlNode;
+      return getVersionContext(sqlDmlOperator);
+    }
+    return TableVersionContext.NOT_SPECIFIED;
   }
 
   /**
-   * Returns the validated table path, if one exists.
-   *
-   * Note: Due to the way the tables get cached, we have to use Catalog.getTableNoResolve, rather than
-   * using Catalog.getTable.
+   * Tries to use version specification from the SQL.
+   * Otherwise use session's version spec.
    */
-  public static NamespaceKey getTablePath(Catalog catalog, NamespaceKey path) {
-    NamespaceKey resolvedPath = catalog.resolveToDefault(path);
-    DremioTable table = resolvedPath != null ? catalog.getTableNoResolve(resolvedPath) : null;
-    if (table != null) {
-      // If the returned table type is a `ViewTable`, there's a chance that we got back a view that actually
-      // doesn't exist due to bug DX-52808. We should check if the view also gets returned when the path is
-      // not resolved. If we find it, that's the correct view.
-      if (table instanceof ViewTable) {
-        DremioTable maybeViewTable = catalog.getTableNoResolve(path);
-        if (maybeViewTable != null) {
-          return maybeViewTable.getPath();
-        }
-      }
-
-      // Since we didn't find a View using just `path`, return the table discovered with the resolved path.
-      return table.getPath();
-    }
-
-    // Since the table was undiscovered with the resolved path, use `path` and try again.
-    table = catalog.getTableNoResolve(path);
-    if (table != null) {
-      return table.getPath();
-    }
-
-    throw UserException.validationError().message("Table [%s] does not exist.", path).buildSilently();
+  public static ResolvedVersionContext resolveVersionContextForDml(SqlHandlerConfig config, SqlDmlOperator sqlDmlOperator, String sourceName) {
+    final VersionContext sessionVersion = config.getContext().getSession().getSessionVersionForSource(sourceName);
+    final VersionContext statementVersion = DmlUtils.getVersionContext(sqlDmlOperator).asVersionContext();
+    final VersionContext context = statementVersion != VersionContext.NOT_SPECIFIED ? statementVersion : sessionVersion;
+    return resolveVersionContext(config.getContext().getCatalog(), sourceName, context);
   }
 }

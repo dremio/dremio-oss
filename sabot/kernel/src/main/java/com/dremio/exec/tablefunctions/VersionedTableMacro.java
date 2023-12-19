@@ -23,7 +23,7 @@ import java.util.regex.Pattern;
 import org.apache.calcite.schema.TableMacro;
 import org.apache.calcite.schema.TranslatableTable;
 
-import com.dremio.exec.catalog.TableVersionContext;
+import com.dremio.catalog.model.dataset.TableVersionContext;
 
 public abstract class VersionedTableMacro implements TableMacro {
 
@@ -32,7 +32,7 @@ public abstract class VersionedTableMacro implements TableMacro {
   // two double quotes in sequence - "".  This matches Calcite's identifier parsing.
   private static final Pattern SPLIT_PATTERN = Pattern.compile("\\G(\\\"(?:[^\\r\\n\"]|\\\"\\\")+\\\"|[^.\"]+)(?:\\.|$)");
 
-  static List<String> splitTableIdentifier(String tableIdentifier) {
+  public static List<String> splitTableIdentifier(String tableIdentifier) {
     List<String> result = new ArrayList<>();
     Matcher matcher = SPLIT_PATTERN.matcher(tableIdentifier);
     int endOfLastMatch = 0;

@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.util;
 
+import static com.dremio.common.exceptions.UserException.MEMORY_ERROR_MSG;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -164,7 +166,7 @@ public final class MemoryAllocationUtilities {
       if(memoryForHeavyOperations < 1) {
         logger.info(getOpMemoryDetailsString(ep, consideredOps.get(ep), nonConsideredOps.get(ep)));
         throw UserException.memoryError()
-          .message("Query was cancelled because it exceeded the memory limits set by the administrator. " +
+          .message(MEMORY_ERROR_MSG +
               "Expected at least %s bytes, but only had %s available.%s" +
               "Size requirement for memory intensive ops is %s bytes.%s" +
               "Missing memory = %s bytes, Number of Memory intensive ops = %d, Other ops = %d, Endpoint = %s",

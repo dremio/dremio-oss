@@ -43,7 +43,7 @@ final class ZKServiceSet extends AbstractServiceSet implements Service {
 
   private volatile Collection<NodeEndpoint> endpoints = Collections.emptyList();
 
-  private class EndpointListener implements ServiceCacheListener {
+  private final class EndpointListener implements ServiceCacheListener {
     @Override
     public void stateChanged(CuratorFramework client, ConnectionState newState) { }
 

@@ -21,17 +21,16 @@ import java.util.Map;
 
 import org.apache.calcite.avatica.util.Quoting;
 
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.map.CaseInsensitiveMap;
 import com.dremio.common.utils.SqlUtils;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserBitShared.RpcEndpointInfos;
 import com.dremio.exec.proto.UserBitShared.UserCredentials;
 import com.dremio.exec.proto.UserProtos.Property;
 import com.dremio.exec.proto.UserProtos.RecordBatchFormat;
 import com.dremio.exec.proto.UserProtos.UserProperties;
-import com.dremio.exec.server.options.OptionManagerWrapper;
 import com.dremio.exec.server.options.SessionOptionManager;
 import com.dremio.exec.store.ischema.InfoSchemaConstants;
 import com.dremio.exec.work.user.SubstitutionSettings;
@@ -39,6 +38,7 @@ import com.dremio.options.OptionManager;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.BooleanValidator;
 import com.dremio.options.TypeValidators.RangeLongValidator;
+import com.dremio.options.impl.OptionManagerWrapper;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -50,6 +50,9 @@ public class UserSession {
   public static final String SCHEMA = PropertySetter.SCHEMA.toPropertyName();
   public static final String USER = PropertySetter.USER.toPropertyName();
   public static final String PASSWORD = PropertySetter.PASSWORD.toPropertyName();
+  public static final String CHECK_METADATA_VALIDITY = PropertySetter.CHECK_METADATA_VALIDITY.toPropertyName();
+  public static final String NEVER_PROMOTE = PropertySetter.NEVER_PROMOTE.toPropertyName();
+  public static final String ERROR_ON_UNSPECIFIED_VERSION = PropertySetter.ERROR_ON_UNSPECIFIED_VERSION.toPropertyName();
   public static final String IMPERSONATION_TARGET = PropertySetter.IMPERSONATION_TARGET.toPropertyName();
   public static final String QUOTING = PropertySetter.QUOTING.toPropertyName();
   public static final String SUPPORTFULLYQUALIFIEDPROJECTS = PropertySetter.SUPPORTFULLYQUALIFIEDPROJECTS.toPropertyName();
@@ -108,6 +111,27 @@ public class UserSession {
       @Override
       public void setValue(UserSession session, String value) {
         session.defaultSchemaPath = Strings.isNullOrEmpty(value) ? null : new NamespaceKey(SqlUtils.parseSchemaPath(value));
+      }
+    },
+
+    CHECK_METADATA_VALIDITY {
+      @Override
+      public void setValue(UserSession session, String value) {
+        session.checkMetadataValidity = "true".equalsIgnoreCase(value);
+      }
+    },
+
+    NEVER_PROMOTE {
+      @Override
+      public void setValue(UserSession session, String value) {
+        session.neverPromote = "true".equalsIgnoreCase(value);
+      }
+    },
+
+    ERROR_ON_UNSPECIFIED_VERSION {
+      @Override
+      public void setValue(UserSession session, String value) {
+        session.errorOnUnspecifiedVersion = "true".equalsIgnoreCase(value);
       }
     },
 
@@ -182,7 +206,7 @@ public class UserSession {
   }
 
   private volatile QueryId lastQueryId = null;
-  private boolean supportComplexTypes = false;
+  private boolean supportComplexTypes = true;
   private UserCredentials credentials;
   private NamespaceKey defaultSchemaPath;
   private SessionOptionManager sessionOptionManager;
@@ -202,6 +226,9 @@ public class UserSession {
   private boolean tracingEnabled = false;
   private SubstitutionSettings substitutionSettings = SubstitutionSettings.of();
   private int maxMetadataCount = 0;
+  private boolean checkMetadataValidity = true;
+  private boolean neverPromote = false;
+  private boolean errorOnUnspecifiedVersion = false;
   private final CaseInsensitiveMap<VersionContext> sourceVersionMapping = CaseInsensitiveMap.newConcurrentMap();
 
   public static class Builder {
@@ -211,8 +238,20 @@ public class UserSession {
       return new Builder();
     }
 
+    /**
+     * This newBuilder will assign the caller's session without making a copy
+     * !!Note!! that  this newBuilder could make modifications to the caller's session settings.
+     */
     public static Builder newBuilder(UserSession session) {
-      return new Builder(session);
+      return new Builder(session, false);
+    }
+
+    /**
+     * This newBuilderWithCopy will make a fresh copy using the copy constructor so the caller's session
+     * remains unmodified
+     */
+    public static Builder newBuilderWithCopy(UserSession session) {
+      return new Builder(session, true);
     }
 
     public Builder withSessionOptionManager(SessionOptionManager sessionOptionManager, OptionManager fallback) {
@@ -238,13 +277,28 @@ public class UserSession {
       return this;
     }
 
-    public Builder withDefaultSchema(List<String> defaultSchemaPath){
-      if(defaultSchemaPath == null) {
+    public Builder withDefaultSchema(List<String> defaultSchemaPath) {
+      if (defaultSchemaPath == null) {
         userSession.defaultSchemaPath = null;
         return this;
       }
 
       userSession.defaultSchemaPath = new NamespaceKey(defaultSchemaPath);
+      return this;
+    }
+
+    public Builder withCheckMetadataValidity(boolean value) {
+      userSession.checkMetadataValidity = value;
+      return this;
+    }
+
+    public Builder withNeverPromote(boolean value) {
+      userSession.neverPromote = value;
+      return this;
+    }
+
+    public Builder withErrorOnUnspecifiedVersion(boolean value) {
+      userSession.errorOnUnspecifiedVersion = value;
       return this;
     }
 
@@ -290,7 +344,7 @@ public class UserSession {
         try {
           final PropertySetter sessionProperty = PropertySetter.valueOf(propertyName);
           sessionProperty.setValue(userSession, propertyValue);
-        } catch(IllegalArgumentException e) {
+        } catch (IllegalArgumentException e) {
           logger.warn("Ignoring unknown property: {}", propertyName);
         }
       }
@@ -326,12 +380,44 @@ public class UserSession {
       userSession = new UserSession();
     }
 
-    Builder(UserSession session) {
-      userSession = session;
+    Builder(UserSession session, boolean newInstance) {
+      if (newInstance) {
+        userSession = new UserSession(session);
+      } else {
+        //Note : This could potentially modify the passed in session since it does not make a new copy.
+        userSession = session;
+      }
     }
   }
 
   protected UserSession() {
+  }
+
+  protected UserSession(UserSession userSession) {
+    this.lastQueryId = userSession.lastQueryId;
+    this.supportComplexTypes = userSession.supportComplexTypes;
+    this.credentials = userSession.credentials;
+    this.defaultSchemaPath = userSession.defaultSchemaPath;
+    this.sessionOptionManager = userSession.sessionOptionManager;
+    this.optionManager = userSession.optionManager;
+    this.clientInfos = userSession.clientInfos;
+    this.useLegacyCatalogName = userSession.useLegacyCatalogName;
+    this.impersonationTarget = userSession.impersonationTarget;
+    this.initialQuoting = userSession.initialQuoting;
+    this.supportFullyQualifiedProjections = userSession.supportFullyQualifiedProjections;
+    this.routingTag = userSession.routingTag;
+    this.queryLabel = userSession.queryLabel;
+    this.routingQueue =  userSession.routingQueue;
+    this.routingEngine = userSession.routingEngine;
+    this.recordBatchFormat = userSession.recordBatchFormat;
+    this.exposeInternalSources = userSession.exposeInternalSources;
+    this.tracingEnabled = userSession.tracingEnabled;
+    this.substitutionSettings = new SubstitutionSettings(userSession.substitutionSettings);
+    this.maxMetadataCount = userSession.maxMetadataCount;
+    this.checkMetadataValidity= userSession.checkMetadataValidity;
+    this.neverPromote = userSession.neverPromote;
+    this.errorOnUnspecifiedVersion = userSession.errorOnUnspecifiedVersion;
+    this.sourceVersionMapping.putAll(userSession.sourceVersionMapping);
   }
 
   public boolean isSupportComplexTypes() {
@@ -511,5 +597,17 @@ public class UserSession {
 
   public void setSessionVersionForSource(String sourceName, VersionContext versionContext) {
     sourceVersionMapping.put(sourceName, versionContext);
+  }
+
+  public boolean checkMetadataValidity() {
+    return checkMetadataValidity;
+  }
+
+  public boolean neverPromote() {
+    return neverPromote;
+  }
+
+  public boolean errorOnUnspecifiedVersion() {
+    return errorOnUnspecifiedVersion;
   }
 }

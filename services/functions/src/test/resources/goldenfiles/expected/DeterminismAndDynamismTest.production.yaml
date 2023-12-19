@@ -1,0 +1,249 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+ -
+  description: "ALTERNATE"
+  input: "ALTERNATE"
+  output:
+    dynamic: false
+    name: "ALTERNATE"
+    nonDeterministic: true
+ -
+  description: "ALTERNATE3"
+  input: "ALTERNATE3"
+  output:
+    dynamic: false
+    name: "ALTERNATE3"
+    nonDeterministic: true
+ -
+  description: "CURRENT_CATALOG"
+  input: "CURRENT_CATALOG"
+  output:
+    dynamic: true
+    name: "CURRENT_CATALOG"
+    nonDeterministic: false
+ -
+  description: "CURRENT_DATE"
+  input: "CURRENT_DATE"
+  output:
+    dynamic: true
+    name: "CURRENT_DATE"
+    nonDeterministic: false
+ -
+  description: "CURRENT_DATE_UTC"
+  input: "CURRENT_DATE_UTC"
+  output:
+    dynamic: true
+    name: "CURRENT_DATE_UTC"
+    nonDeterministic: false
+ -
+  description: "CURRENT_PATH"
+  input: "CURRENT_PATH"
+  output:
+    dynamic: true
+    name: "CURRENT_PATH"
+    nonDeterministic: false
+ -
+  description: "CURRENT_ROLE"
+  input: "CURRENT_ROLE"
+  output:
+    dynamic: true
+    name: "CURRENT_ROLE"
+    nonDeterministic: false
+ -
+  description: "CURRENT_SCHEMA"
+  input: "CURRENT_SCHEMA"
+  output:
+    dynamic: true
+    name: "CURRENT_SCHEMA"
+    nonDeterministic: false
+ -
+  description: "CURRENT_TIME"
+  input: "CURRENT_TIME"
+  output:
+    dynamic: true
+    name: "CURRENT_TIME"
+    nonDeterministic: false
+ -
+  description: "CURRENT_TIMESTAMP"
+  input: "CURRENT_TIMESTAMP"
+  output:
+    dynamic: true
+    name: "CURRENT_TIMESTAMP"
+    nonDeterministic: false
+ -
+  description: "CURRENT_TIMESTAMP_UTC"
+  input: "CURRENT_TIMESTAMP_UTC"
+  output:
+    dynamic: true
+    name: "CURRENT_TIMESTAMP_UTC"
+    nonDeterministic: false
+ -
+  description: "CURRENT_TIME_UTC"
+  input: "CURRENT_TIME_UTC"
+  output:
+    dynamic: true
+    name: "CURRENT_TIME_UTC"
+    nonDeterministic: false
+ -
+  description: "CURRENT_USER"
+  input: "CURRENT_USER"
+  output:
+    dynamic: true
+    name: "CURRENT_USER"
+    nonDeterministic: false
+ -
+  description: "FLATTEN"
+  input: "FLATTEN"
+  output:
+    dynamic: false
+    name: "FLATTEN"
+    nonDeterministic: true
+ -
+  description: "IS_MEMBER"
+  input: "IS_MEMBER"
+  output:
+    dynamic: true
+    name: "IS_MEMBER"
+    nonDeterministic: false
+ -
+  description: "LAST_QUERY_ID"
+  input: "LAST_QUERY_ID"
+  output:
+    dynamic: true
+    name: "LAST_QUERY_ID"
+    nonDeterministic: false
+ -
+  description: "LOCALTIME"
+  input: "LOCALTIME"
+  output:
+    dynamic: true
+    name: "LOCALTIME"
+    nonDeterministic: false
+ -
+  description: "LOCALTIMESTAMP"
+  input: "LOCALTIMESTAMP"
+  output:
+    dynamic: true
+    name: "LOCALTIMESTAMP"
+    nonDeterministic: false
+ -
+  description: "NOW"
+  input: "NOW"
+  output:
+    dynamic: true
+    name: "NOW"
+    nonDeterministic: false
+ -
+  description: "PI"
+  input: "PI"
+  output:
+    dynamic: true
+    name: "PI"
+    nonDeterministic: false
+ -
+  description: "QUERY_USER"
+  input: "QUERY_USER"
+  output:
+    dynamic: true
+    name: "QUERY_USER"
+    nonDeterministic: false
+ -
+  description: "RAND"
+  input: "RAND"
+  output:
+    dynamic: true
+    name: "RAND"
+    nonDeterministic: true
+ -
+  description: "RANDOM"
+  input: "RANDOM"
+  output:
+    dynamic: false
+    name: "RANDOM"
+    nonDeterministic: true
+ -
+  description: "RAND_INTEGER"
+  input: "RAND_INTEGER"
+  output:
+    dynamic: true
+    name: "RAND_INTEGER"
+    nonDeterministic: false
+ -
+  description: "SAMPLE"
+  input: "SAMPLE"
+  output:
+    dynamic: false
+    name: "SAMPLE"
+    nonDeterministic: true
+ -
+  description: "SESSION_USER"
+  input: "SESSION_USER"
+  output:
+    dynamic: true
+    name: "SESSION_USER"
+    nonDeterministic: false
+ -
+  description: "STATEMENT_TIMESTAMP"
+  input: "STATEMENT_TIMESTAMP"
+  output:
+    dynamic: true
+    name: "STATEMENT_TIMESTAMP"
+    nonDeterministic: false
+ -
+  description: "SYSTEM_USER"
+  input: "SYSTEM_USER"
+  output:
+    dynamic: true
+    name: "SYSTEM_USER"
+    nonDeterministic: false
+ -
+  description: "TIMEOFDAY"
+  input: "TIMEOFDAY"
+  output:
+    dynamic: true
+    name: "TIMEOFDAY"
+    nonDeterministic: false
+ -
+  description: "TRANSACTION_TIMESTAMP"
+  input: "TRANSACTION_TIMESTAMP"
+  output:
+    dynamic: true
+    name: "TRANSACTION_TIMESTAMP"
+    nonDeterministic: false
+ -
+  description: "UNIX_TIMESTAMP"
+  input: "UNIX_TIMESTAMP"
+  output:
+    dynamic: true
+    name: "UNIX_TIMESTAMP"
+    nonDeterministic: false
+ -
+  description: "USER"
+  input: "USER"
+  output:
+    dynamic: true
+    name: "USER"
+    nonDeterministic: false
+ -
+  description: "__THROWEXCEPTION"
+  input: "__THROWEXCEPTION"
+  output:
+    dynamic: false
+    name: "__THROWEXCEPTION"
+    nonDeterministic: true
+

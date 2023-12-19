@@ -50,7 +50,7 @@ public class TestClassCompilationTypes extends ExecTest{
 
     // Evaluate it with varying parameter values; very fast.
     return (Integer) ee.evaluate(new Object[] { // parameterValues
-        new Integer(10), new Integer(11), });
+        10, 11, });
   }
 
   private int jdk() throws Exception{
@@ -63,6 +63,6 @@ public class TestClassCompilationTypes extends ExecTest{
 
     // Evaluate it with varying parameter values; very fast.
     return  (Integer) ee.evaluate(new Object[] { // parameterValues
-        new Integer(10), new Integer(11), });
+        10, 11, });
   }
 }

@@ -43,34 +43,43 @@ import com.google.common.collect.Lists;
  * REVOKE priv1 [,...] ON entityType entity FROM revokeeType revokee
  */
 public class SqlRevokeOnCatalog extends SqlCall implements SimpleDirectHandler.Creator {
+  private static final SqlLiteral sqlLiteralNull = SqlLiteral.createNull(SqlParserPos.ZERO);
   private final SqlNodeList privilegeList;
   private final SqlLiteral entityType;
   private final SqlIdentifier entity;
   private final SqlLiteral revokeeType;
   private final SqlIdentifier revokee;
+  private final ReferenceType refType;
+  private final SqlIdentifier refValue;
 
-  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("REVOKE", SqlKind.OTHER) {
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 5, "SqlRevokeOnEntity.createCall() has to get 5 operands!");
+  public static final SqlSpecialOperator OPERATOR =
+      new SqlSpecialOperator("REVOKE", SqlKind.OTHER) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(
+              operands.length == 7, "SqlRevokeOnEntity.createCall() has to get 7 operands!");
 
-      return new SqlRevokeOnCatalog(
-        pos,
-        (SqlNodeList) operands[0],
-        (SqlLiteral) operands[1],
-        (SqlIdentifier) operands[2],
-        (SqlLiteral) operands[3],
-        (SqlIdentifier) operands[4]
-      );
-    }
-  };
+          return new SqlRevokeOnCatalog(
+              pos,
+              (SqlNodeList) operands[0],
+              (SqlLiteral) operands[1],
+              (SqlIdentifier) operands[2],
+              (SqlLiteral) operands[3],
+              (SqlIdentifier) operands[4],
+              ((SqlLiteral) operands[5]).symbolValue(ReferenceType.class),
+              (SqlIdentifier) operands[6]);
+        }
+      };
 
   public SqlRevokeOnCatalog(SqlParserPos pos,
                            SqlNodeList privilegeList,
                            SqlLiteral entityType,
                            SqlIdentifier entity,
                            SqlLiteral granteeType,
-                           SqlIdentifier grantee) {
+                           SqlIdentifier grantee,
+                           ReferenceType refType,
+                           SqlIdentifier refValue) {
     super(pos);
 
     this.privilegeList = privilegeList;
@@ -78,6 +87,8 @@ public class SqlRevokeOnCatalog extends SqlCall implements SimpleDirectHandler.C
     this.entity = entity;
     this.revokeeType = granteeType;
     this.revokee = grantee;
+    this.refType = refType;
+    this.refValue = refValue;
   }
 
   @Override
@@ -93,6 +104,9 @@ public class SqlRevokeOnCatalog extends SqlCall implements SimpleDirectHandler.C
     ops.add(entity);
     ops.add(revokeeType);
     ops.add(revokee);
+    ops.add(
+        (refType == null) ? sqlLiteralNull : SqlLiteral.createSymbol(refType, SqlParserPos.ZERO));
+    ops.add(refValue);
 
     return ops;
   }
@@ -103,6 +117,13 @@ public class SqlRevokeOnCatalog extends SqlCall implements SimpleDirectHandler.C
     privilegeList.unparse(writer, leftPrec, rightPrec);
     writer.keyword("ON");
     entityType.unparse(writer, 0, 0);
+
+    if (refType != null && refValue != null) {
+      writer.keyword("AT");
+      writer.keyword(refType.toString());
+      refValue.unparse(writer, leftPrec, rightPrec);
+    }
+
     writer.keyword("FROM");
     revokee.unparse(writer, leftPrec, rightPrec);
   }
@@ -136,5 +157,13 @@ public class SqlRevokeOnCatalog extends SqlCall implements SimpleDirectHandler.C
 
   public SqlIdentifier getRevokee() {
     return revokee;
+  }
+
+  public ReferenceType getRefType() {
+    return refType;
+  }
+
+  public SqlIdentifier getRefValue() {
+    return refValue;
   }
 }

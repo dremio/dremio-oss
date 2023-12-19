@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { findIndex } from "lodash/array";
-import uuid from "uuid";
+import { v4 as uuidv4 } from "uuid";
 import { HIGHLIGHTED_TABLE, PALE_ORANGE } from "uiTheme/radium/colors";
 
 const DISTANCE_BETWEEN_NEW_COLUMNS = 5;
@@ -208,7 +208,7 @@ class Transforms {
 
   setDesiredTypes(types) {
     return types.map((type) => {
-      return { ...type, id: uuid.v4() };
+      return { ...type, id: uuidv4() };
     });
   }
 }

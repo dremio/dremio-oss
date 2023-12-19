@@ -14,7 +14,10 @@
  * limitations under the License.
  */
 
-import { REFLECTION_ARCTIC_ENABLED } from "../supportFlagConstants";
+import {
+  REFLECTION_ARCTIC_ENABLED,
+  SQLRUNNER_TABS_UI,
+} from "../supportFlagConstants";
 import { SupportFlagResponse } from "../SupportFlagResponse.type";
 
 export const booleanSupportFlags: Record<
@@ -23,6 +26,11 @@ export const booleanSupportFlags: Record<
 > = {
   [REFLECTION_ARCTIC_ENABLED]: {
     id: REFLECTION_ARCTIC_ENABLED,
+    type: "BOOLEAN",
+    value: true,
+  },
+  [SQLRUNNER_TABS_UI]: {
+    id: SQLRUNNER_TABS_UI,
     type: "BOOLEAN",
     value: true,
   },

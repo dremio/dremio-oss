@@ -129,6 +129,9 @@ public class DiskRunManager implements AutoCloseable {
   private final CopierFactory copierFactory;
   private final OperatorStats operatorStats;
   private final ExecutionControls executionControls;
+  // holds sorted records. It's a reference to sorter's copier member instance.
+  private MovingCopier movingCopier = null;
+  private VectorContainer movingCopierOutput = null;
 
   private enum MergeState {
     TRY, // Try to reserve memory to copy all runs
@@ -536,11 +539,66 @@ public class DiskRunManager implements AutoCloseable {
     }
   }
 
-  public void startMicroSpilling(final VectorContainer container) throws IOException {
+  public void startMicroSpillingFromCopier(MovingCopier copier, VectorContainer output) throws IOException{
+    Preconditions.checkState(movingCopier == null && movingCopierOutput == null);
+    this.movingCopier = copier;
+    movingCopierOutput = output;
+    // delay creating spill file on disk, until spillNextBatchFromCopier being invoked.
+  }
+
+  public boolean spillNextBatchFromCopier(MovingCopier copier, int targetBatchSize) throws Exception {
+    boolean done = false;
+    spillWatch.start();
+
+    int copied = copier.copy(targetBatchSize);
+    logger.debug("spilled a batch of records {} from copier.", copied);
+
+    if (copied > 0)
+    {
+      movingCopierOutput.setAllCount(copied);
+      // create spill file until records being copied from copier.
+      if (this.microSpillState == null) {
+        createNewMicrosSpillState(movingCopierOutput);
+      }
+
+      final int batchSize = spillBatch(movingCopierOutput, copied, this.microSpillState.outputStream);
+
+      totalDataSpilled += batchSize;
+      this.microSpillState.maxBatchSize = Math.max(this.microSpillState.maxBatchSize, batchSize);
+      this.microSpillState.recordsSpilled += copied;
+      ++(this.microSpillState.batchesSpilled);
+      ++(this.batchesSpilled);
+
+      movingCopierOutput.zeroVectors();
+    } else {
+      // copier is done, time to wrap up disk run.
+      done = true;
+      // we do have non-empty spill file
+      if (this.microSpillState != null && this.microSpillState.recordsSpilled > 0) {
+        logger.info("spill from copier done. spill file path : {}", this.microSpillState.spillFile.getPath());
+
+        final DiskRun run = new DiskRun(this.microSpillState.spillFile,
+          this.microSpillState.recordsSpilled, this.microSpillState.maxBatchSize, this.microSpillState.batchesSpilled);
+        diskRuns.add(run);
+        this.microSpillState.outputStream.close();
+        // no need close microSpillState.containerToBeSpilled, it's sorter's instance variable output
+        this.microSpillState = null;
+      }
+    }
+
+    spillWatch.stop();
+    return done;
+  }
+
+  private void createNewMicrosSpillState(VectorContainer containerToBeSpilled) throws IOException {
     Preconditions.checkState(this.microSpillState == null);
     final SpillFile spillFile = spillManager.getSpillFile(String.format("run%05d", run++));
     final SpillOutputStream out = spillFile.create(useArrowEncoding && compressSpilledBatch);
-    this.microSpillState = new MicroSpillState(spillFile, container, out);
+    this.microSpillState = new MicroSpillState(spillFile, containerToBeSpilled, containerToBeSpilled.getRecordCount(), out);
+  }
+
+  public void startMicroSpilling(final VectorContainer container) throws IOException {
+    createNewMicrosSpillState(container);
   }
 
   /**
@@ -567,7 +625,6 @@ public class DiskRunManager implements AutoCloseable {
         // 1. create copier
         final Copier copier = getCopier(this.microSpillState.containerToBeSpilled, outgoing);
         outgoingSchema = outgoing.getSchema().clone();
-
 
         logger.debug("DiskRunManager:SpillNextBatch Copy {} records", recordsToSpill);
 
@@ -620,7 +677,7 @@ public class DiskRunManager implements AutoCloseable {
       if (this.microSpillState.recordsSpilled == this.microSpillState.totalRecords) {
         done = true;
         final DiskRun run = new DiskRun(this.microSpillState.spillFile,
-          this.microSpillState.totalRecords, this.microSpillState.maxBatchSize, this.microSpillState.batchesSpilled);
+          this.microSpillState.recordsSpilled, this.microSpillState.maxBatchSize, this.microSpillState.batchesSpilled);
         diskRuns.add(run);
         this.microSpillState.close();
         this.microSpillState = null;
@@ -784,11 +841,12 @@ public class DiskRunManager implements AutoCloseable {
     private int maxBatchSize;
 
     public MicroSpillState(final SpillFile spillFile, final VectorContainer containerToBeSpilled,
+                           final int totalRecords,
                            final SpillOutputStream outputStream) {
       this.spillFile = spillFile;
       this.containerToBeSpilled = containerToBeSpilled;
       this.outputStream = outputStream;
-      this.totalRecords = containerToBeSpilled.getRecordCount();
+      this.totalRecords = totalRecords;
       this.recordsSpilled = 0;
       this.batchesSpilled = 0;
       this.maxBatchSize = 0;

@@ -19,6 +19,7 @@ import org.apache.calcite.avatica.util.Quoting;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParser;
+import org.junit.Assert;
 import org.junit.Test;
 
 import com.dremio.exec.planner.physical.PlannerSettings;
@@ -41,6 +42,34 @@ public class TestAccelParser {
   public void addAggReflectionMeasures() throws SqlParseException {
     parse("ALTER TABLE a.b.c CREATE AGGREGATE REFLECTION reflection USING DIMENSIONS (x by day,y) MEASURES (b (COUNT, SUM),c (COUNT, MIN, MAX)) DISTRIBUTE BY (r,z) PARTITION BY (s,l) LOCALSORT BY (n,x)");
   }
+
+  @Test
+  public void addAggReflectionEmptyDimensions() throws SqlParseException {
+    parse("ALTER TABLE a.b.c CREATE AGGREGATE REFLECTION reflection USING DIMENSIONS () MEASURES (b (COUNT, SUM),c (COUNT, MIN, MAX)) DISTRIBUTE BY (r,z) PARTITION BY (s,l) LOCALSORT BY (n,x)");
+    // ignore DIMENSIONS
+    parse("ALTER TABLE a.b.c CREATE AGGREGATE REFLECTION reflection USING MEASURES (b (COUNT, SUM),c (COUNT, MIN, MAX)) DISTRIBUTE BY (r,z) PARTITION BY (s,l) LOCALSORT BY (n,x)");
+  }
+
+  @Test
+  public void addAggReflectionEmptyMeasures() throws SqlParseException {
+    parse("ALTER TABLE a.b.c CREATE AGGREGATE REFLECTION reflection USING DIMENSIONS (x by day,y) MEASURES () DISTRIBUTE BY (r,z) PARTITION BY (s,l) LOCALSORT BY (n,x)");
+    // ignore MEASURES
+    parse("ALTER TABLE a.b.c CREATE AGGREGATE REFLECTION reflection USING DIMENSIONS (x by day,y) DISTRIBUTE BY (r,z) PARTITION BY (s,l) LOCALSORT BY (n,x)");
+  }
+
+  @Test
+  public void addAggReflectionEmptyMeasuresEmptyDimensions() {
+    Exception exception1 = Assert.assertThrows(SqlParseException.class, () -> {
+      parse("ALTER TABLE a.b.c CREATE AGGREGATE REFLECTION reflection USING DIMENSIONS () MEASURES ()");
+    });
+    Assert.assertTrue(exception1.getMessage().contains("Both Dimensions and Measures cannot be empty."));
+
+    // ignore DIMENSIONS and MEASURES
+    Exception exception2 = Assert.assertThrows(SqlParseException.class, () ->
+      parse("ALTER TABLE a.b.c CREATE AGGREGATE REFLECTION reflection USING"));
+    Assert.assertTrue(exception2.getMessage().contains("Both Dimensions and Measures cannot be empty."));
+  }
+
 
   @Test
   public void addRawReflection() throws SqlParseException {

@@ -50,7 +50,7 @@ export class EditUserModal extends Component {
     const { userId, isOpen, updateFormDirtyState } = this.props;
     return (
       <Modal
-        title={userId ? la("Edit User") : la("Add User")}
+        title={userId ? laDeprecated("Edit User") : laDeprecated("Add User")}
         size="small"
         isOpen={isOpen}
         classQa="add-user-modal"

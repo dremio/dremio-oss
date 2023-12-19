@@ -1980,10 +1980,11 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
    * Splits a batch, by creating a new batch and copying some records from old to new.
    * The copied records are then marked as 'free' in the original batch.
    * @param batchIndex the batch at which the entry trying to be inserted
-   * @seed seed to use when rehashing the keys
-   * @return
+   * @param seed seed to use when rehashing the keys
+   * @return index of newly added batch
    */
-  public void splice(final int batchIndex, final long seed) {
+  public int splice(final int batchIndex, final long seed) {
+    final int dstBatchIndex;
     try {
       ++spliceCount;
       spliceTimer.start();
@@ -2017,7 +2018,7 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
         sourceStartIndex, numRecords, newCurrentOrdinal, seed);
 
       //4 move accumulated records and free space
-      final int dstBatchIndex = newCurrentOrdinal >>> BITS_IN_CHUNK;
+      dstBatchIndex = newCurrentOrdinal >>> BITS_IN_CHUNK;
       moveAccumulatedRecords(batchIndex, dstBatchIndex, sourceStartIndex, 0, recordsToCopy);
 
       //5 fix the usage of fixed & varlen key buffers post copying
@@ -2044,6 +2045,7 @@ public final class LBlockHashTable implements HashTable, AutoCloseable {
     } finally {
       spliceTimer.stop();
     }
+    return dstBatchIndex;
   }
 
   public final int getBatchIndexForOrdinal(final int ordinal) {

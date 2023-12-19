@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>24.1.0-202306130653310132-d30779f6</version>
+    <version>24.3.0-202312190021150029-52db2faf</version>
   </parent>
 
   <groupId>com.dremio.services</groupId>
@@ -74,12 +74,6 @@
       <scope>compile</scope>
     </dependency>
     <dependency>
-      <groupId>org.hamcrest</groupId>
-      <artifactId>hamcrest</artifactId>
-      <version>2.1</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
       <groupId>org.projectnessie.nessie</groupId>
       <artifactId>nessie-jaxrs-tests</artifactId>
       <scope>test</scope>
@@ -96,71 +90,58 @@
     </dependency>
   </dependencies>
 
-  <profiles>
-    <profile>
-      <id>jdk11-or-higher</id>
-      <activation>
-        <jdk>[11,)</jdk>
-      </activation>
+  <build>
+    <plugins>
+      <plugin>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <configuration>
+          <systemPropertyVariables>
+            <nessie.server.url>${nessie.server.url}</nessie.server.url>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.projectnessie.nessie-runner</groupId>
+        <artifactId>nessie-runner-maven-plugin</artifactId>
+        <configuration>
+          <skip>${skipTests}</skip>
+          <!-- Preferred way, specify the GAV of the Nessie Quarkus server runnable (uber-jar) -->
+          <appArtifactId>org.projectnessie.nessie:nessie-quarkus:jar:runner:${nessie.version}</appArtifactId>
+          <!-- The system properties passed to the Nessie server -->
+          <systemProperties>
+            <!-- The IN_MEMORY store type implies the "new" storage model (full pagination support). -->
+            <nessie.version.store.type>IN_MEMORY</nessie.version.store.type>
+            <nessie.version.store.persist.cache-capacity-mb>1</nessie.version.store.persist.cache-capacity-mb>
+          </systemProperties>
+          <environment>
+            <!-- Jenkins sets OTEL_TRACES_EXPORTER and other OTEL config variables to monitor builds. However,
+            those settins break recent Nessie servers, which must be configured in a Quarkus-specific way.
+            Therefore, we override this main config variable here to un-enable tracing in Nessie during tests. -->
+            <OTEL_TRACES_EXPORTER>none</OTEL_TRACES_EXPORTER>
+          </environment>
+          <!-- These system properties will be available in your integration tests and will contain the
+               port and full URL of the Nessie Quarkus server's HTTP server. -->
+          <!-- quarkus.http.port is the default -->
+          <httpListenPortProperty>nessie.server.http.port</httpListenPortProperty>
+          <!-- quarkus.http.test-url is the default -->
+          <httpListenUrlProperty>nessie.server.url</httpListenUrlProperty>
+        </configuration>
+        <executions>
+          <execution>
+            <!-- Start the Nessie Server before the integration tests start -->
+            <id>start</id>
+            <phase>pre-integration-test</phase>
+            <goals><goal>start</goal></goals>
+          </execution>
+          <execution>
+            <!-- Stop the Nessie Server after the integration tests finished -->
+            <id>stop</id>
+            <phase>post-integration-test</phase>
+            <goals><goal>stop</goal></goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
 
-      <build>
-        <plugins>
-          <plugin>
-            <artifactId>maven-failsafe-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>default-integration-test</id>
-                <goals>
-                  <goal>integration-test</goal>
-                  <goal>verify</goal>
-                </goals>
-                <configuration>
-                  <systemPropertyVariables>
-                    <nessie.server.url>
-                      ${nessie.server.url}
-                    </nessie.server.url>
-                  </systemPropertyVariables>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-          <plugin>
-            <groupId>org.projectnessie</groupId>
-            <artifactId>nessie-apprunner-maven-plugin</artifactId>
-            <version>0.29.0</version>
-            <configuration>
-              <skip>${skipTests}</skip>
-              <!-- Preferred way, specify the GAV of the Nessie Quarkus server runnable (uber-jar) -->
-              <appArtifactId>org.projectnessie.nessie:nessie-quarkus:jar:runner:${nessie.version}</appArtifactId>
-              <!-- The system properties passed to the Nessie server -->
-              <systemProperties>
-                <!-- The IN_MEMORY store type implies the "new" storage model (full pagination support). -->
-                <nessie.version.store.type>IN_MEMORY</nessie.version.store.type>
-              </systemProperties>
-              <!-- These system properties will be available in your integration tests and will contain the
-                   port and full URL of the Nessie Quarkus server's HTTP server. -->
-              <!-- quarkus.http.port is the default -->
-              <httpListenPortProperty>nessie.server.http.port</httpListenPortProperty>
-              <!-- quarkus.http.test-url is the default -->
-              <httpListenUrlProperty>nessie.server.url</httpListenUrlProperty>
-            </configuration>
-            <executions>
-              <execution>
-                <!-- Start the Nessie Server before the integration tests start -->
-                <id>start</id>
-                <phase>pre-integration-test</phase>
-                <goals><goal>start</goal></goals>
-              </execution>
-              <execution>
-                <!-- Stop the Nessie Server after the integration tests finished -->
-                <id>stop</id>
-                <phase>post-integration-test</phase>
-                <goals><goal>stop</goal></goals>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-  </profiles>
 </project>

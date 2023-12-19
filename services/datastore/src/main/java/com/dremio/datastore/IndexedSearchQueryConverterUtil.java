@@ -114,6 +114,17 @@ public class IndexedSearchQueryConverterUtil {
           searchQuery.getLike().getEscape();
         return getLikeQuery(key.getIndexFieldName(),
           searchQuery.getLike().getPattern(), escape, searchQuery.getLike().getCaseInsensitive());
+
+      case GREATER_THAN:
+        key = indexMap.get(searchQuery.getGreaterThan().getField());
+        if (key == null) {
+          LOGGER.debug("The filter on field {} is not pushed down as it is not indexed",
+            searchQuery.getGreaterThan().getField());
+          return null;
+        }
+        return SearchQueryUtils.newRangeLong(key.getIndexFieldName(),
+          searchQuery.getGreaterThan().getValue(), null, false, false);
+
       default:
       case QUERY_NOT_SET:
         throw new UnsupportedOperationException(String.format("%s is not supported",

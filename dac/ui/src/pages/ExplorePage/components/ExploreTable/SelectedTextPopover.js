@@ -96,13 +96,13 @@ export class SelectedTextPopoverView extends Component {
     }
   }
 
-  componentWillMount() {
+  UNSAFE_componentWillMount() {
     if (this.props.anchor) {
       this.setState({ open: true });
     }
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     if (this.props.anchor !== nextProps.anchor && nextProps.anchor) {
       this.setState({ open: true });
     }
@@ -167,7 +167,7 @@ export class SelectedTextPopoverView extends Component {
   renderCopySelectionItem = () => {
     return (
       <MenuItem onClick={this.props.copySelection}>
-        {la("Copy Selection")}
+        {laDeprecated("Copy Selection")}
       </MenuItem>
     );
   };

@@ -43,6 +43,8 @@ service JobsService {
   rpc SubscribeToReflectionJobEvents(ReflectionJobEventsRequest) returns (stream JobEvent) {}
 
   rpc CancelReflectionJob (CancelReflectionJobRequest) returns (google.protobuf.Empty) {}
+
+  rpc DeleteJobCounts (DeleteJobCountsRequest) returns (google.protobuf.Empty) {}
 }
 
 service Chronicle {
@@ -54,6 +56,8 @@ service Chronicle {
   rpc GetJobCounts (JobCountsRequest) returns (JobCounts) {}
 
   rpc GetJobStats (JobStatsRequest) returns (JobStats) {}
+
+  rpc GetJobAndUserStats (JobAndUserStatsRequest) returns (JobAndUserStats) {}
 
   // Get count of unique users who triggered job during the duration mentioned in request.
   rpc GetUniqueUserStats (UniqueUserStatsRequest) returns (UniqueUserStats) {}
@@ -76,6 +80,10 @@ service Chronicle {
   rpc SearchReflectionJobs (SearchReflectionJobsRequest) returns (stream JobSummary) {}
 
   rpc GetReflectionJobProfile (ReflectionJobProfileRequest) returns (exec.shared.QueryProfile) {}
+
+  rpc GetRecentJobs(RecentJobsRequest) returns (stream RecentJobSummary) {}
+
+  rpc GetNodeStatus(NodeStatusRequest) returns (NodeStatusResponse) {}
 }
 
 message JobEvent {
@@ -196,7 +204,7 @@ message ActiveJobSummary {
   string query = 35;
 }
 
-message DCSActiveJobSummary {
+message RecentJobSummary {
   string job_id = 1;
   string status = 2;
   string query_type = 3;
@@ -228,6 +236,7 @@ message DCSActiveJobSummary {
   int64 rows_returned = 29;
   int64 bytes_returned = 30;
   bool accelerated = 31;
+  string queue_name = 32;
   string engine = 33;
   string error_msg = 34;
   string query = 35;
@@ -257,6 +266,8 @@ message JobDetailsRequest {
   string user_name = 2;
   bool from_store = 3;
   bool provide_result_info = 4; // if the response should contain information about job result data
+  bool provide_profile_info = 5; // if the response should contain information about job profile
+  int32 attempt_index = 6; // to be provided only if job profile information is required
 }
 
 message JobDetails {
@@ -266,6 +277,7 @@ message JobDetails {
   bool completed = 4;
   bool has_results = 5;
   com.dremio.service.job.proto.SessionId session_id = 6;
+  exec.shared.QueryProfile profile = 7;
 }
 
 message QueryProfileRequest {
@@ -306,6 +318,7 @@ enum QueryType {
   ACCELERATOR_CREATE = 200; //accelerated dataset creation
   ACCELERATOR_DROP = 201; //accelerated  dataset drop
   ACCELERATOR_EXPLAIN = 202; //dependency graph construction
+  ACCELERATOR_OPTIMIZE = 203; // accelerated dataset optimization
   ODBC = 300; //query submitted by odbc client
   JDBC = 400; //query submitted by jdbc client
   REST = 500; //query submitted by public rest interfaces
@@ -313,6 +326,9 @@ enum QueryType {
   METADATA_REFRESH = 700; // Queries related to metadata refresh
   INTERNAL_ICEBERG_METADATA_DROP = 800; // Queries related to internal iceberg metadata drop
   D2D = 900;
+  VACUUM_EXPIRE_SNAPSHOTS = 1000; // Queries related to internal vacuum expiry snapshots command
+  COPY_ERRORS_PLAN = 1100; // Queries related to COPY_ERRORS table function query planning
+  SYSTEM_ICEBERG_TABLES_CLEANER = 1200; //query submitted by the system iceberg tables cleaner service
 }
 
 enum QueryLabel {
@@ -356,6 +372,15 @@ message JobCountsRequest {
   // If more than one conditions provided, only the first non-empty one will be used.
   repeated VersionedDatasetPath datasets = 1;
   UsedReflections reflections = 2;
+  int32 job_counts_age_in_days = 3;
+}
+
+message DeleteJobCountsRequest {
+  // Conditions are mutually exclusive.
+  // Only one condition should be specified at a time.
+  // If more than one conditions provided, only the first non-empty one will be used.
+  repeated VersionedDatasetPath datasets = 1;
+  UsedReflections reflections = 2;
 }
 
 message JobCounts {
@@ -366,6 +391,35 @@ message JobStatsRequest {
   google.protobuf.Timestamp start_date = 1;
   google.protobuf.Timestamp end_date = 2;
   repeated JobStats.Type job_stats_type = 3;
+}
+
+message JobAndUserStatsRequest {
+  int32 numDaysBack = 1;
+  bool detailedStats = 2;
+}
+
+message JobCountByQueryType {
+  QueryType queryType = 1;
+  int64 jobCount = 2;
+}
+
+message UniqueUsersCountByQueryType {
+  QueryType queryType = 1;
+  repeated string uniqueUsers = 2;
+}
+
+message JobAndUserStat {
+  string date = 1;
+  optional int64 totalJobs = 2;
+  optional int64 totalUniqueUsers = 3;
+  repeated JobCountByQueryType jobCountByQueryType = 4;
+  repeated UniqueUsersCountByQueryType uniqueUsersCountByQueryType = 5;
+  bool isWeeklyStat = 6;
+  bool isMonthlyStat = 7;
+}
+
+message JobAndUserStats {
+  repeated JobAndUserStat stats = 1;
 }
 
 message JobStats {
@@ -424,6 +478,11 @@ message SearchJobsRequest {
 }
 
 message ActiveJobsRequest {
+  string user_name = 1;
+  exec.search.SearchQuery query = 2;
+}
+
+message RecentJobsRequest {
   string user_name = 1;
   exec.search.SearchQuery query = 2;
 }
@@ -517,4 +576,10 @@ message ReflectionJobProfileRequest {
 message CancelReflectionJobRequest {
   CancelJobRequest cancel_job_request = 1;
   string reflection_id = 4;
+}
+
+message NodeStatusRequest {}
+
+message NodeStatusResponse {
+ int64 start_time = 1;
 }

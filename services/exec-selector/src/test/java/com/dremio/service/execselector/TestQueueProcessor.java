@@ -44,7 +44,7 @@ public class TestQueueProcessor {
     final long numBatches = 10;
     final long batchCount = totalCount / numBatches;
     for (long i = 0; i < totalCount; i++) {
-      qp.enqueue(new Long(i));
+      qp.enqueue(i);
       if (i % batchCount == (batchCount - 1)) {
         Thread.sleep(1);
       }

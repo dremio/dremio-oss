@@ -18,7 +18,6 @@ package com.dremio.exec.planner.sql;
 import static com.dremio.exec.planner.sql.TestSerializerRoundtrip.CATALOG;
 import static com.dremio.exec.planner.sql.TestSerializerRoundtrip.CATALOG_READER;
 import static com.dremio.exec.planner.sql.TestSerializerRoundtrip.FACTORY;
-import static com.dremio.exec.planner.sql.TestSerializerRoundtrip.FUNCTIONS;
 import static com.dremio.exec.planner.sql.TestSerializerRoundtrip.OPERATOR_TABLE;
 
 import java.io.File;
@@ -57,11 +56,19 @@ public final class TestSerializerMigration {
   // Migration Paths
   private static final Path MIGRATIONS_DIRECTORY = Paths.get(Resources.getResource("migrations").getPath());
   private static final Path VERSION_1_19 = MIGRATIONS_DIRECTORY.resolve("1.19");
+  private static final Path VERSION_24_2 = MIGRATIONS_DIRECTORY.resolve("24.2");
+
   private static final Path[] MIGRATION_BASELINE_PATHS = {
     VERSION_1_19.resolve("TestSerializerRoundtrip.testQueries.yaml"),
     VERSION_1_19.resolve("TestSerializerRoundtrip.testSqlFunction.yaml"),
     VERSION_1_19.resolve("TestSerializerRoundtrip.testSqlToRelConvertTests.yaml"),
     VERSION_1_19.resolve("TestSerializerRoundtrip.testTpchQueries.yaml"),
+    VERSION_24_2.resolve("TestSerializerRoundtrip.testColumnAliases.yaml"),
+    VERSION_24_2.resolve("TestSerializerRoundtrip.testQualify.yaml"),
+    VERSION_24_2.resolve("TestSerializerRoundtrip.testQueries.yaml"),
+    VERSION_24_2.resolve("TestSerializerRoundtrip.testSqlFunction.yaml"),
+    VERSION_24_2.resolve("TestSerializerRoundtrip.testSqlToRelConvertTests.yaml"),
+    VERSION_24_2.resolve("TestSerializerRoundtrip.testTpchQueries.yaml"),
   };
 
   // Deserializer
@@ -83,7 +90,7 @@ public final class TestSerializerMigration {
             .getDeserializer(
               parseTool.getCluster(),
               CATALOG_READER,
-              FUNCTIONS,
+              OPERATOR_TABLE,
               null)
             .deserialize(record.output.getQueryPlanBinary().getBytes());
 

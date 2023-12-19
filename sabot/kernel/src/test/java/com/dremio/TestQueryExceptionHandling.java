@@ -71,7 +71,6 @@ public class TestQueryExceptionHandling extends PlanTestBase {
       queryContext.getFunctionRegistry(),
       queryContext.getSession(),
       observer,
-      queryContext.getCatalog(),
       queryContext.getSubstitutionProviderFactory(),
       queryContext.getConfig(),
       queryContext.getScanResult(),

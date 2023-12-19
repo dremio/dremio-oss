@@ -49,27 +49,54 @@ public final class SystemSchemas {
   public static final String PARTITION_INFO = "partitionInfo";
   public static final String EQUALITY_IDS = "equalityIds";
   public static final String ICEBERG_METADATA = "icebergMetadata";
+  public static final String INCREMENTAL_REFRESH_JOIN_KEY = "incrementalRefreshJoinKey";
   public static final String DELETE_FILE_PATH = MetadataColumns.DELETE_FILE_PATH.name();
   public static final String POS = MetadataColumns.DELETE_FILE_POS.name();
   public static final String METADATA_FILE_PATH = "metadataFilePath";
+  public static final String TABLE_LOCATION = "tableLocation";
+  public static final String TABLE_NAME = "tableName";
+  public static final String TABLE_NAMESPACE = "tableNamespace";
   public static final String MANIFEST_LIST_PATH = "manifestListPath";
   public static final String SNAPSHOT_ID = "snapshotId";
   public static final String FILE_PATH = "filePath";
   public static final String FILE_TYPE = "fileType";
 
+  public static final String TIMESTAMP = "timestamp";
+  public static final String VERSION = "version";
+  public static final String OPERATION = "operation";
   public static final Field ICEBERG_METADATA_FIELD = Field.nullable(ICEBERG_METADATA, Types.MinorType.VARBINARY.getType());
+  public static final Field RECORD_COUNT_FIELD = Field.nullable(RECORD_COUNT, Types.MinorType.BIGINT.getType());
   public static final List<String> CARRY_FORWARD_FILE_PATH_TYPE_COLS = Lists.newArrayList(FILE_PATH, FILE_TYPE);
 
+  public static final BatchSchema ALL_FIELDS_BATCH_SCHEMA = BatchSchema.newBuilder()
+    .addField(Field.nullable(DATAFILE_PATH, Types.MinorType.VARCHAR.getType()))
+    .addField(Field.nullable(FILE_SIZE, Types.MinorType.BIGINT.getType()))
+    .addField(Field.nullable(SEQUENCE_NUMBER, Types.MinorType.BIGINT.getType()))
+    .addField(Field.nullable(PARTITION_SPEC_ID, Types.MinorType.INT.getType()))
+    .addField(Field.nullable(PARTITION_KEY, Types.MinorType.VARBINARY.getType()))
+    .addField(Field.nullable(PARTITION_INFO, Types.MinorType.VARBINARY.getType()))
+    .addField(Field.nullable(COL_IDS, Types.MinorType.VARBINARY.getType()))
+    .addField(Field.nullable(FILE_CONTENT, Types.MinorType.VARCHAR.getType()))
+    .addField(Field.nullable(DELETE_FILE_PATH, Types.MinorType.VARCHAR.getType()))
+    .addField(Field.nullable(IMPLICIT_SEQUENCE_NUMBER, Types.MinorType.BIGINT.getType()))
+    .addField(Field.nullable(POS, Types.MinorType.BIGINT.getType()))
+    .addField(buildDeleteFileStruct(DELETE_FILE))
+    .addField(new Field(DELETE_FILES, FieldType.nullable(Types.MinorType.LIST.getType()),
+      ImmutableList.of(buildDeleteFileStruct(ListVector.DATA_VECTOR_NAME))))
+    .addField(ICEBERG_METADATA_FIELD)
+    .setSelectionVectorMode(BatchSchema.SelectionVectorMode.NONE)
+    .build();
+
   public static final BatchSchema ICEBERG_MANIFEST_SCAN_SCHEMA = BatchSchema.newBuilder()
-      .addField(Field.nullable(DATAFILE_PATH, Types.MinorType.VARCHAR.getType()))
-      .addField(Field.nullable(FILE_SIZE, Types.MinorType.BIGINT.getType()))
-      .addField(Field.nullable(SEQUENCE_NUMBER, Types.MinorType.BIGINT.getType()))
-      .addField(Field.nullable(PARTITION_SPEC_ID, Types.MinorType.INT.getType()))
-      .addField(Field.nullable(PARTITION_KEY, Types.MinorType.VARBINARY.getType()))
-      .addField(Field.nullable(PARTITION_INFO, Types.MinorType.VARBINARY.getType()))
-      .addField(Field.nullable(COL_IDS, Types.MinorType.VARBINARY.getType()))
-      .addField(Field.nullable(FILE_CONTENT, Types.MinorType.VARCHAR.getType()))
-      .setSelectionVectorMode(BatchSchema.SelectionVectorMode.NONE)
+    .addField(Field.nullable(DATAFILE_PATH, Types.MinorType.VARCHAR.getType()))
+    .addField(Field.nullable(FILE_SIZE, Types.MinorType.BIGINT.getType()))
+    .addField(Field.nullable(SEQUENCE_NUMBER, Types.MinorType.BIGINT.getType()))
+    .addField(Field.nullable(PARTITION_SPEC_ID, Types.MinorType.INT.getType()))
+    .addField(Field.nullable(PARTITION_KEY, Types.MinorType.VARBINARY.getType()))
+    .addField(Field.nullable(PARTITION_INFO, Types.MinorType.VARBINARY.getType()))
+    .addField(Field.nullable(COL_IDS, Types.MinorType.VARBINARY.getType()))
+    .addField(Field.nullable(FILE_CONTENT, Types.MinorType.VARCHAR.getType()))
+    .setSelectionVectorMode(BatchSchema.SelectionVectorMode.NONE)
       .build();
 
   /*
@@ -103,6 +130,7 @@ public final class SystemSchemas {
       .addField(Field.nullable(COL_IDS, Types.MinorType.VARBINARY.getType()))
       .addField(new Field(DELETE_FILES, FieldType.nullable(Types.MinorType.LIST.getType()),
           ImmutableList.of(buildDeleteFileStruct(ListVector.DATA_VECTOR_NAME))))
+      .addField(Field.nullable(PARTITION_SPEC_ID, Types.MinorType.INT.getType()))
       .setSelectionVectorMode(BatchSchema.SelectionVectorMode.NONE)
       .build();
 
@@ -113,22 +141,35 @@ public final class SystemSchemas {
     .setSelectionVectorMode(BatchSchema.SelectionVectorMode.NONE)
     .build();
 
+  public static final BatchSchema METADATA_PATH_SCAN_SCHEMA = BatchSchema.newBuilder()
+    .addField(Field.nullable(METADATA_FILE_PATH, Types.MinorType.VARCHAR.getType()))
+    .build();
+
+  public static final BatchSchema TABLE_LOCATION_SCHEMA = BatchSchema.newBuilder()
+    .addField(Field.nullable(TABLE_LOCATION, Types.MinorType.VARCHAR.getType()))
+    .build();
+
   public static final BatchSchema CARRY_FORWARD_FILE_PATH_TYPE_SCHEMA = BatchSchema.newBuilder()
     .addField(Field.nullable(FILE_PATH, Types.MinorType.VARCHAR.getType()))
     .addField(Field.nullable(FILE_TYPE, Types.MinorType.VARCHAR.getType()))
     .setSelectionVectorMode(BatchSchema.SelectionVectorMode.NONE)
     .build();
 
-  public static final BatchSchema ICEBERG_ORPHAN_FILE_DELETE_SCHEMA = BatchSchema.newBuilder()
-    .addField(Field.nullable(FILE_PATH, Types.MinorType.VARCHAR.getType()))
-    .addField(Field.nullable(FILE_TYPE, Types.MinorType.VARCHAR.getType()))
-    .addField(Field.nullable(RECORDS, Types.MinorType.BIGINT.getType()))
+  public static final BatchSchema PATH_SCHEMA = BatchSchema.newBuilder()
+    .addField(Field.nullable(PATH, Types.MinorType.VARCHAR.getType()))
     .setSelectionVectorMode(BatchSchema.SelectionVectorMode.NONE)
     .build();
 
   public static final BatchSchema ICEBERG_SPLIT_GEN_WITH_DELETES_SCHEMA = SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA
       .addColumn(new Field(DELETE_FILES, FieldType.nullable(Types.MinorType.LIST.getType()),
           ImmutableList.of(buildDeleteFileStruct(ListVector.DATA_VECTOR_NAME))));
+
+  public static final BatchSchema DELTALAKE_HISTORY_SCAN_SCHEMA = BatchSchema.newBuilder()
+    .addField(Field.nullable(TIMESTAMP, Types.MinorType.TIMESTAMPMILLI.getType()))
+    .addField(Field.nullable(VERSION, Types.MinorType.BIGINT.getType()))
+    .addField(Field.nullable(OPERATION, Types.MinorType.VARCHAR.getType()))
+    .setSelectionVectorMode(BatchSchema.SelectionVectorMode.NONE)
+    .build();
 
   public static Field buildDeleteFileStruct(String fieldName) {
     return new Field(fieldName, FieldType.nullable(Types.MinorType.STRUCT.getType()),

@@ -17,6 +17,10 @@ import moize from "moize";
 import localStorageUtils from "@inject/utils/storageUtils/localStorageUtils";
 import { type SupportFlagResponse } from "./SupportFlagResponse.type";
 import { APIV2Call } from "@app/core/APICall";
+import { useEffect, useState } from "react";
+import sentryUtil from "@app/utils/sentryUtil";
+import { store } from "@app/store/store";
+import { fetchSupportFlagsSuccess } from "@app/actions/supportFlags";
 
 export const getSupportFlagUrl = (supportKey: string) =>
   new APIV2Call().paths(`settings/${supportKey}`).toString();
@@ -27,7 +31,12 @@ export const getSupportFlag = moize(
       headers: {
         Authorization: localStorageUtils!.getAuthToken(),
       },
-    }).then((res) => res.json() as unknown as SupportFlagResponse<T>);
+    })
+      .then((res) => res.json() as unknown as SupportFlagResponse<T>)
+      .then((payload) => {
+        store.dispatch(fetchSupportFlagsSuccess(payload));
+        return payload;
+      });
   },
   { isPromise: true, maxSize: Infinity }
 );
@@ -38,4 +47,24 @@ export const clearCachedSupportFlag = (id: string) => {
 
 export const clearCachedSupportFlags = () => {
   getSupportFlag.clear();
+};
+
+export const useSupportFlag = <T = boolean>(flag: string) => {
+  const [value, setValue] = useState<T | null>(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    (async () => {
+      try {
+        setLoading(true);
+        const res = await getSupportFlag<T>(flag);
+        setValue(res.value);
+      } catch (e) {
+        sentryUtil.logException(e);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [flag]);
+
+  return [value, loading];
 };

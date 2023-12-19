@@ -177,7 +177,7 @@ public class TestRemoteNodeFileSystemDual extends BaseTestFabric {
     }
   }
 
-  private static class EndpointProvider implements Provider<Iterable<NodeEndpoint>> {
+  private static final class EndpointProvider implements Provider<Iterable<NodeEndpoint>> {
     private List<ServiceHolder> holders = new ArrayList<>();
 
     @Override

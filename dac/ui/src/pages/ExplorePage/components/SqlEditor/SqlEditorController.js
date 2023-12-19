@@ -23,6 +23,7 @@ import { getExploreState } from "@app/selectors/explore";
 
 import {
   setCurrentSql,
+  modifyCurrentSql,
   setQueryContext,
   setUpdateSqlFromHistory,
 } from "actions/explore/view";
@@ -42,6 +43,15 @@ import { memoOne } from "@app/utils/memoUtils";
 import { extractSqlErrorFromResponse } from "./utils/errorUtils";
 import { getLocation } from "@app/selectors/routing";
 import { intl } from "@app/utils/intl";
+import { getTracingContext } from "dremio-ui-common/contexts/TracingContext.js";
+import {
+  withExtraSQLEditorContent,
+  renderExtraSQLPanelComponent,
+  EXTRA_SQL_TRACKING_EVENT,
+} from "@inject/utils/sql-editor-extra";
+import { selectTab } from "dremio-ui-common/sonar/SqlRunnerSession/resources/SqlRunnerSessionResource.js";
+import { isScriptUrl } from "@app/utils/explorePageTypeUtils";
+import { setRefsFromScript } from "@app/actions/nessie/nessie";
 
 const toolbarHeight = 42;
 
@@ -71,6 +81,8 @@ export class SqlEditorController extends PureComponent {
     isOpenResults: PropTypes.bool,
     scriptId: PropTypes.string,
     isFromDataGraph: PropTypes.bool,
+    isMultiTabEnabled: PropTypes.bool,
+    location: PropTypes.object,
     //---------------------------
 
     // actions
@@ -82,9 +94,11 @@ export class SqlEditorController extends PureComponent {
     setUpdateSqlFromHistory: PropTypes.func,
     replaceUrlAction: PropTypes.func,
     showUnsavedChangesConfirmDialog: PropTypes.func,
+    hasExtraSQLPanelContent: PropTypes.bool,
   };
 
   sqlEditorControllerRef = null;
+  NO_SQL_ERRORS = [];
 
   constructor(props) {
     super(props);
@@ -92,6 +106,7 @@ export class SqlEditorController extends PureComponent {
     this.insertFullPathAtCursor = this.insertFullPathAtCursor.bind(this);
     this.toggleFunctionsHelpPanel = this.toggleFunctionsHelpPanel.bind(this);
     this.state = {
+      extraSqlPanel: false,
       funcHelpPanel: false,
       datasetsPanel: !!(props.dataset && props.dataset.get("isNewQuery")),
       script: {},
@@ -99,7 +114,7 @@ export class SqlEditorController extends PureComponent {
     this.receiveProps(this.props, {});
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     this.receiveProps(nextProps, this.props);
   }
 
@@ -125,17 +140,18 @@ export class SqlEditorController extends PureComponent {
     }
 
     const controller = this.getMonacoEditor();
-    if (
-      activeScript.id &&
-      prevProps.activeScript.id !== activeScript.id &&
-      controller
-    ) {
+    if (activeScript.id && prevProps.activeScript.id !== activeScript.id) {
       this.props.setCurrentSql({ sql: activeScript.content });
-      controller.setValue(activeScript.content);
+
+      if (controller) {
+        controller.setValue(activeScript.content);
+      }
 
       this.props.setQueryContext({
         context: Immutable.fromJS(activeScript.context),
       });
+
+      this.props.setRefsFromScript(activeScript.referencesList || []);
     }
 
     if (
@@ -168,6 +184,8 @@ export class SqlEditorController extends PureComponent {
       updateSqlFromHistory: nextUpdateSqlFromHistory,
       isOpenResults,
       isFromDataGraph,
+      isMultiTabEnabled,
+      location,
     } = nextProps;
 
     // Sql editor needs to update sql on dataset load, or new query.
@@ -182,9 +200,11 @@ export class SqlEditorController extends PureComponent {
       this.sqlEditorControllerRef.resetValue();
     }
 
+    const isOnScriptTab = isMultiTabEnabled && isScriptUrl(location);
     if (
+      !isOnScriptTab &&
       (dataset && constructFullPath(dataset.get("context"))) !==
-      constructFullPath(nextDataset.get("context"))
+        constructFullPath(nextDataset.get("context"))
     ) {
       nextProps.setQueryContext({ context: nextDataset.get("context") });
       //if context was changed, put cursor back to an editor.
@@ -225,7 +245,6 @@ export class SqlEditorController extends PureComponent {
     return Boolean(
       isMultiQueryRunning ||
         exploreViewState.get("isInProgress") ||
-        // disable when initial load failed
         (exploreViewState.get("isFailed") &&
           !dataset.get("datasetVersion") &&
           !dataset.get("isNewQuery"))
@@ -249,33 +268,40 @@ export class SqlEditorController extends PureComponent {
     this.sqlEditorControllerRef.insertFunction(functionName, args);
   }
 
-  toggleDatasetPanel = () =>
-    this.setState({
-      datasetsPanel: !this.state.datasetsPanel,
-      funcHelpPanel: false,
-    });
-
   toggleFunctionsHelpPanel() {
     this.setState({
       funcHelpPanel: !this.state.funcHelpPanel,
       datasetsPanel: false,
+      extraSqlPanel: false,
     });
   }
 
+  toggleExtraSQLPanel = () => {
+    if (!this.state.extraSqlPanel) {
+      getTracingContext().appEvent(EXTRA_SQL_TRACKING_EVENT);
+    }
+
+    this.setState({
+      extraSqlPanel: !this.state.extraSqlPanel,
+      funcHelpPanel: false,
+      datasetsPanel: false,
+    });
+  };
+
   handleSqlChange = (sql) => {
-    this.props.setCurrentSql({ sql });
+    this.props.modifyCurrentSql({ sql });
   };
 
   handleContextChange = (context) => {
     this.props.setQueryContext({ context });
   };
 
-  renderSqlBlocks() {
+  renderFunctionsSQLPanel() {
     return (
       <div className="sql-btn" style={styles.btn}>
         {this.state.funcHelpPanel && this.props.sqlState && (
           <SQLFunctionsPanel
-            height={this.props.sqlSize + 8} // 8px padding added
+            height={this.props.sqlSize + 13}
             isVisible={this.state.funcHelpPanel}
             dragType={this.props.dragType}
             handleSidebarCollapse={this.props.handleSidebarCollapse}
@@ -286,7 +312,23 @@ export class SqlEditorController extends PureComponent {
     );
   }
 
-  getCustomDecorations() {
+  renderExtraSQLPanel() {
+    return (
+      <div className="sql-btn" style={styles.btn}>
+        {this.state.extraSqlPanel &&
+          this.props.sqlState &&
+          renderExtraSQLPanelComponent({
+            height: this.props.sqlSize + 13,
+            isVisible: this.state.extraSqlPanel,
+            handleSidebarCollapse: this.props.handleSidebarCollapse,
+            disableInsertion: this.shouldSqlBoxBeGrayedOut(),
+            editorRef: this.getMonacoEditor(),
+          })}
+      </div>
+    );
+  }
+
+  getServerSqlErrors() {
     const {
       currentSql,
       isMultiQueryRunning,
@@ -294,70 +336,68 @@ export class SqlEditorController extends PureComponent {
       querySelections,
       queryStatuses,
     } = this.props;
-
-    const isNotEdited = !!previousMultiSql && currentSql === previousMultiSql;
-
-    const multiQueryDecorations = [];
-
-    if (isNotEdited && !isMultiQueryRunning && queryStatuses.length) {
-      const errorMessages = [];
-
-      queryStatuses.forEach((status, index) => {
-        const error = status.error;
-
-        if (error) {
-          let errorResponse;
-
-          if (error.get?.("response")) {
-            errorResponse = error.get("response")?.payload?.response;
-
-            // as part of the new query flow, errors come in a different property
-          } else if (error.get?.("message")) {
-            errorResponse = { errorMessage: error.get("message") };
-
-            // when a job is canceled, an error is returned in an object instead of an Immutable Map
-          } else if (error?.payload) {
-            errorResponse = error.payload?.response;
-
-            const errorMessage = errorResponse?.errorMessage;
-
-            // do not show canceled jobs as errors
-            if (errorMessage?.includes("Query cancelled by user")) {
-              return;
-            }
-          }
-
-          errorMessages.push(
-            extractSqlErrorFromResponse(errorResponse, querySelections[index])
-          );
-        }
-      });
-
-      // since there is no monaco instance we can't use monaco's enumeration members
-      // refer to the below two links for the values used in 'stickiness' and 'position'
-      // https://github.com/microsoft/monaco-editor/blob/d987b87/website/typedoc/monaco.d.ts#L1712
-      // https://github.com/microsoft/monaco-editor/blob/d987b87/website/typedoc/monaco.d.ts#L1406
-      errorMessages.forEach((error) => {
-        multiQueryDecorations.push({
-          range: error.range,
-          options: {
-            hoverMessage: error.message,
-            linesDecorationsClassName: "dremio-error-line",
-            stickiness: 1,
-            className: "redsquiggly",
-            overviewRuler: {
-              color: "rgba(255, 18, 18, 0.7",
-              darkColor: "rgba(255, 18, 18, 0.7)",
-              hcColor: "rgba(255, 50, 50, 1)",
-              position: 4,
-            },
-          },
-        });
-      });
-    }
-
-    return multiQueryDecorations;
+    return this.getServerSqlErrorsMemoize(
+      currentSql,
+      isMultiQueryRunning,
+      previousMultiSql,
+      querySelections,
+      queryStatuses
+    );
   }
+
+  getServerSqlErrorsMemoize = memoOne(
+    (
+      currentSql,
+      isMultiQueryRunning,
+      previousMultiSql,
+      querySelections,
+      queryStatuses
+    ) => {
+      const isNotEdited = !!previousMultiSql && currentSql === previousMultiSql;
+
+      if (isNotEdited && !isMultiQueryRunning && queryStatuses.length) {
+        const sqlErrors = [];
+
+        queryStatuses.forEach((status, index) => {
+          const error = status.error;
+
+          if (error) {
+            let errorResponse;
+
+            if (error.get?.("response")) {
+              errorResponse = error.get("response")?.payload?.response;
+
+              // as part of the new query flow, errors come in a different property
+            } else if (error.get?.("message")) {
+              errorResponse = { errorMessage: error.get("message") };
+              if (error.get("range")) {
+                errorResponse.range = error.get("range")?.toJS?.();
+              }
+
+              // when a job is canceled, an error is returned in an object instead of an Immutable Map
+            } else if (error?.payload) {
+              errorResponse = error.payload?.response;
+
+              const errorMessage = errorResponse?.errorMessage;
+
+              // do not show canceled jobs as errors
+              if (errorMessage?.includes("Query cancelled by user")) {
+                return;
+              }
+            }
+
+            sqlErrors.push(
+              extractSqlErrorFromResponse(errorResponse, querySelections[index])
+            );
+          }
+        });
+
+        return sqlErrors;
+      } else {
+        return this.NO_SQL_ERRORS; // Use a static array to prevent downstream re-rending from new prop reference
+      }
+    }
+  );
 
   getScriptValue = memoOne(async () => {
     const {
@@ -368,6 +408,7 @@ export class SqlEditorController extends PureComponent {
       setActiveScript,
       setCurrentSql,
       setQueryContext,
+      setRefsFromScript,
     } = this.props;
 
     let script = {};
@@ -383,6 +424,7 @@ export class SqlEditorController extends PureComponent {
       setActiveScript({ script });
       setCurrentSql({ sql: script.content });
       setQueryContext({ context: Immutable.fromJS(script.context) });
+      setRefsFromScript(script.referencesList || []);
 
       // if script does not exist, show error banner
       if (!Object.keys(script).length) {
@@ -391,24 +433,29 @@ export class SqlEditorController extends PureComponent {
           "error",
           10
         );
+      } else {
+        // Open the script in the sql tab bar
+        selectTab(script.id);
       }
     }
   });
 
+  getDefaultValue = () => {
+    const { previousMultiSql, dataset, isViewingHistory } = this.props;
+
+    if (previousMultiSql) {
+      return previousMultiSql;
+    } else if (isViewingHistory) {
+      // Don't overwrite editor content with the script if viewing history
+      return dataset.get("sql");
+    } else {
+      // Default to script content if available
+      return this.state.script.content || dataset.get("sql");
+    }
+  };
+
   render() {
     this.getScriptValue();
-    let errors;
-    if (
-      this.props.exploreViewState.getIn(["error", "message", "code"]) ===
-      "INVALID_QUERY"
-    ) {
-      errors = this.props.exploreViewState.getIn([
-        "error",
-        "message",
-        "details",
-        "errors",
-      ]);
-    }
 
     const sqlStyle = this.props.sqlState
       ? {}
@@ -424,19 +471,16 @@ export class SqlEditorController extends PureComponent {
         ref={(ref) => (this.sqlEditorControllerRef = ref)}
         onChange={this.handleSqlChange}
         onFunctionChange={this.toggleFunctionsHelpPanel.bind(this)}
-        defaultValue={
-          this.props.previousMultiSql
-            ? this.props.previousMultiSql
-            : this.props.dataset.get("sql") || this.state.script.content
-        }
+        toggleExtraSQLPanel={this.toggleExtraSQLPanel}
+        defaultValue={this.getDefaultValue()}
         sqlSize={this.props.sqlSize - toolbarHeight}
         sidebarCollapsed={this.props.sidebarCollapsed}
         datasetsPanel={this.state.datasetsPanel}
-        funcHelpPanel={this.state.funcHelpPanel}
+        sidePanelEnabled={this.state.funcHelpPanel || this.state.extraSqlPanel}
         dragType={this.props.dragType}
-        errors={errors}
-        customDecorations={this.getCustomDecorations()}
+        serverSqlErrors={this.getServerSqlErrors()}
         editorWidth={this.props.editorWidth}
+        hasExtraSQLPanelContent={this.props.hasExtraSQLPanelContent}
       />
     );
 
@@ -447,7 +491,8 @@ export class SqlEditorController extends PureComponent {
           onClick={this.hideDropDown}
           style={styles.base}
         >
-          <div className="sql-functions">{this.renderSqlBlocks()}</div>
+          <div className="sql-functions">{this.renderFunctionsSQLPanel()}</div>
+          <div className="sql-extra-panel">{this.renderExtraSQLPanel()}</div>
           <div style={sqlStyle}>{sqlBlock}</div>
         </div>
       </div>
@@ -458,6 +503,9 @@ export class SqlEditorController extends PureComponent {
 function mapStateToProps(state) {
   const explorePageState = getExploreState(state);
   const location = getLocation(state);
+  const isMultiTabEnabled = state.supportFlags["sqlrunner.tabs_ui"];
+  const query = location?.query;
+
   return {
     currentSql: explorePageState.view.currentSql,
     queryContext: explorePageState.view.queryContext,
@@ -469,13 +517,18 @@ function mapStateToProps(state) {
     updateSqlFromHistory: explorePageState.view.updateSqlFromHistory,
     isMultiQueryRunning: explorePageState.view.isMultiQueryRunning,
     previousMultiSql: explorePageState.view.previousMultiSql,
-    isOpenResults: location?.query?.openResults,
-    scriptId: location?.query?.scriptId,
+    isOpenResults: query?.openResults,
+    scriptId: query?.scriptId,
+    isViewingHistory:
+      query && query.scriptId && query.version !== query.tipVersion,
     isFromDataGraph: location?.state?.isFromDataGraph,
+    isMultiTabEnabled,
+    location,
   };
 }
 
 export default compose(
+  withExtraSQLEditorContent,
   connect(
     mapStateToProps,
     {
@@ -483,8 +536,10 @@ export default compose(
       fetchSQLScripts: fetchScripts,
       setActiveScript,
       setCurrentSql,
+      modifyCurrentSql,
       setQueryContext,
       setUpdateSqlFromHistory,
+      setRefsFromScript,
       replaceUrlAction: replace,
       showUnsavedChangesConfirmDialog,
     },

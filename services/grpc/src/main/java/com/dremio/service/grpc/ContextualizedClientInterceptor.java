@@ -17,6 +17,7 @@ package com.dremio.service.grpc;
 
 import javax.inject.Provider;
 
+import com.dremio.context.CatalogContext;
 import com.dremio.context.RequestContext;
 import com.dremio.context.SerializableContext;
 import com.dremio.context.SupportContext;
@@ -76,7 +77,8 @@ public class ContextualizedClientInterceptor implements ClientInterceptor {
   {
     return new ContextualizedClientInterceptor(ImmutableList.of(
       new ContextTransferBehavior(TenantContext.CTX_KEY, false, null),
-      new ContextTransferBehavior(UserContext.CTX_KEY, false, null)
+      new ContextTransferBehavior(UserContext.CTX_KEY, false, null),
+      new ContextTransferBehavior(CatalogContext.CTX_KEY, false, null)
       // TODO: Copy SupportContext too?
     ));
   }
@@ -86,14 +88,15 @@ public class ContextualizedClientInterceptor implements ClientInterceptor {
   {
     return new ContextualizedClientInterceptor(ImmutableList.of(
       new ContextTransferBehavior(TenantContext.CTX_KEY, false, () -> defaultRequestContext.get().get(TenantContext.CTX_KEY)),
-      new ContextTransferBehavior(UserContext.CTX_KEY, false, () -> defaultRequestContext.get().get(UserContext.CTX_KEY))
-      // TODO: Copy SupportContext too?
+      new ContextTransferBehavior(UserContext.CTX_KEY, false, () -> defaultRequestContext.get().get(UserContext.CTX_KEY)),
+      new ContextTransferBehavior(CatalogContext.CTX_KEY, false, null)
     ));
   }
 
   public static ContextualizedClientInterceptor buildMultiTenantClientInterceptor() {
     return new ContextualizedClientInterceptor(ImmutableList.of(
       new ContextTransferBehavior(TenantContext.CTX_KEY, true, null),
+      new ContextTransferBehavior(CatalogContext.CTX_KEY, false, null),
       new ContextTransferBehavior(UserContext.CTX_KEY, true, null),
       new ContextTransferBehavior(SupportContext.CTX_KEY, false, null)
     ));

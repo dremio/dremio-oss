@@ -16,12 +16,14 @@
 package com.dremio.datastore;
 
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 
 import com.dremio.common.tracing.TracingUtils;
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.FindByCondition;
 import com.dremio.datastore.api.FindByRange;
+import com.dremio.datastore.api.IncrementCounter;
 import com.dremio.datastore.api.IndexedStore;
 import com.dremio.datastore.api.KVStore;
 
@@ -95,6 +97,17 @@ class TracingKVStore<K, V> implements KVStore<K, V> {
   public Iterable<Document<K, V>> find(FindByRange<K> find, FindOption... options) {
     return trace("findByRange", () -> delegate.find(find, options));
   }
+
+  @Override
+  public void bulkIncrement(Map<K, List<IncrementCounter>> keysToIncrement, IncrementOption option) {
+    trace("bulkIncrement", () -> delegate.bulkIncrement(keysToIncrement, option));
+  }
+
+  @Override
+  public void bulkDelete(List<K> keysToDelete) {
+    trace("bulkDelete", () -> delegate.bulkDelete(keysToDelete));
+  }
+
 
   @Override
   public void delete(K key, DeleteOption... options) {

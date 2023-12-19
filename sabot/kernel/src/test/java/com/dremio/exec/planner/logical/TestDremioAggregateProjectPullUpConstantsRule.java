@@ -15,13 +15,14 @@
  */
 package com.dremio.exec.planner.logical;
 
-import static org.apache.calcite.sql.fun.SqlStdOperatorTable.AND;
-import static org.apache.calcite.sql.fun.SqlStdOperatorTable.EQUALS;
-import static org.apache.calcite.sql.fun.SqlStdOperatorTable.IS_NOT_NULL;
-import static org.apache.calcite.sql.fun.SqlStdOperatorTable.IS_NULL;
-import static org.apache.calcite.sql.fun.SqlStdOperatorTable.OR;
-import static org.apache.calcite.sql.fun.SqlStdOperatorTable.PLUS;
-import static org.apache.calcite.sql.type.SqlTypeName.INTEGER;
+import static com.dremio.test.dsl.RexDsl.and;
+import static com.dremio.test.dsl.RexDsl.eq;
+import static com.dremio.test.dsl.RexDsl.intInput;
+import static com.dremio.test.dsl.RexDsl.isNotNull;
+import static com.dremio.test.dsl.RexDsl.isNull;
+import static com.dremio.test.dsl.RexDsl.literal;
+import static com.dremio.test.dsl.RexDsl.or;
+import static com.dremio.test.dsl.RexDsl.plus;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -39,10 +40,8 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.Filter;
-import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexBuilder;
-import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.tools.RelBuilder;
@@ -61,40 +60,28 @@ import com.dremio.test.specs.OptionResolverSpecBuilder;
 
 public class TestDremioAggregateProjectPullUpConstantsRule{
   private static final RelDataTypeFactory typeFactory = SqlTypeFactoryImpl.INSTANCE;
-  private static final RelDataType intColumnType = typeFactory.createTypeWithNullability(
-    typeFactory.createSqlType(INTEGER), true);
   private static final RexBuilder rexBuilder = new DremioRexBuilder(typeFactory);
   private static final RelBuilder relBuilder = makeRelBuilder();
-
-  private static final RexNode col_R_c = rexBuilder.makeInputRef(intColumnType,2);
-  private static final RexNode col_R_d = rexBuilder.makeInputRef(intColumnType,3);
-
-  private static final RexNode intLit1 = rexBuilder.makeLiteral(1,
-    typeFactory.createSqlType(INTEGER), false);
-  private static final RexNode intLit20 = rexBuilder.makeLiteral(20,
-    typeFactory.createSqlType(INTEGER), false);
-
   private static RelOptCluster cluster;
 
   private static final DremioAggregateProjectPullUpConstantsRule rule = DremioAggregateProjectPullUpConstantsRule.INSTANCE2_REMOVE_ALL;
 
-
-
   @Test
   public void testDremioAggregateProjectPullUpConstant() {
 
-    RexNode equalCondFilter = rexBuilder.makeCall(EQUALS, col_R_c, intLit20);
-    RexNode notNullCondFilter = rexBuilder.makeCall(IS_NOT_NULL, col_R_d);
-    RexNode plusOneExprCondFilter = rexBuilder.makeCall(PLUS, col_R_d, intLit1);
-    RexNode isNullCondFilter = rexBuilder.makeCall(IS_NULL, plusOneExprCondFilter);
-    RexNode orCondFilter = rexBuilder.makeCall(OR, notNullCondFilter, isNullCondFilter);
-    RexNode inputFilterCondition = rexBuilder.makeCall(AND, equalCondFilter, orCondFilter);
-
     Filter filter = (Filter) relBuilder
       .values(new String[]{"a", "b", "c", "d"},
-                            1,  4,   20,  3,
-                            2,  6,   20,  3)
-      .filter(inputFilterCondition)
+        1, 4, 20, 3, 2, 6, 20, 3)
+      .filter(and(
+        eq(
+          intInput(2),
+          literal(20)),
+        or(
+          isNotNull(intInput(3)),
+          isNull(
+            plus(
+              intInput(3),
+              literal(1))))))
       .build();
 
     List<AggregateCall> aggCalls = new ArrayList<>();
@@ -123,6 +110,7 @@ public class TestDremioAggregateProjectPullUpConstantsRule{
     Assert.assertEquals("{3}", resultAgg.getGroupSet().toString());
 
   }
+
   private static RelBuilder makeRelBuilder() {
     OptionResolver optionResolver = OptionResolverSpecBuilder.build(new OptionResolverSpec());
     PlannerSettings context = new PlannerSettings(null, optionResolver, null);
@@ -131,6 +119,7 @@ public class TestDremioAggregateProjectPullUpConstantsRule{
     cluster = RelOptCluster.create(planner, rexBuilder);
     return RelBuilder.proto(context).create(cluster, null);
   }
+
   static class TestRelOptRuleCall extends RelOptRuleCall {
 
     @SuppressWarnings("checkstyle:VisibilityModifier")

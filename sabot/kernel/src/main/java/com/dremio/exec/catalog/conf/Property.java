@@ -17,6 +17,8 @@ package com.dremio.exec.catalog.conf;
 
 import javax.validation.constraints.NotBlank;
 
+import com.google.common.base.Objects;
+
 import io.protostuff.Tag;
 
 /**
@@ -45,5 +47,22 @@ public class Property {
       "name='" + name + '\'' +
       ", value='" + value + '\'' +
       '}';
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    Property property = (Property) o;
+    return Objects.equal(name, property.name) && Objects.equal(value, property.value);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(name, value);
   }
 }

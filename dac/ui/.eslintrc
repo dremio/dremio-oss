@@ -1,67 +1,27 @@
 {
+  "env": {
+    "browser": true,
+    "node": true
+  },
   "extends": [
     "eslint:recommended",
     "plugin:@typescript-eslint/recommended",
     "plugin:react/recommended",
+    "plugin:react/jsx-runtime",
     "plugin:react-hooks/recommended",
+    "plugin:jsx-a11y/recommended",
     "plugin:promise/recommended",
     "prettier"
   ],
-  "parser": "@typescript-eslint/parser",
-
-  "env": {
-    "browser": true,
-    "node": true,
-    "es6": true,
-    "mocha": true
+  "globals": {
+    "laDeprecated": false
   },
-
-  "parserOptions": {
-    "sourceType": "module",
-    "ecmaFeatures": {
-      "jsx": true,
-      "legacyDecorators": true
-    }
-  },
-
-  "rules": {
-    "no-class-assign": "off", // Needed for Radium HOC
-    "no-prototype-builtins": "error",
-    "no-console": ["warn", { "allow": ["warn", "error", "info"] }],
-    "@typescript-eslint/explicit-function-return-type": "off",
-    "@typescript-eslint/no-explicit-any": "off",
-    "@typescript-eslint/no-var-requires": "off",
-    "@typescript-eslint/no-use-before-define": "off",
-    "@typescript-eslint/no-empty-function": "off",
-    "@typescript-eslint/ban-ts-ignore": "off",
-    "@typescript-eslint/ban-ts-comment": "off",
-    "react/react-in-jsx-scope": "off",
-    "react/display-name": "off",
-    "react/no-children-prop": "error",
-    "no-case-declarations": "warn",
-    "react/jsx-key": "error",
-    "react/no-deprecated": "warn",
-    "no-constant-condition": "warn",
-    "react/jsx-no-target-blank": "error",
-    "prefer-const": "error",
-    "no-extra-boolean-cast": "warn",
-    "react/no-string-refs": "error",
-    "react/no-find-dom-node": "error",
-    "react/jsx-no-duplicate-props": "error",
-    "react/no-unescaped-entities": "error",
-    "@typescript-eslint/ban-types": "warn",
-    "@typescript-eslint/explicit-module-boundary-types": "off",
-    "react/no-unknown-property": "warn",
-    "react-hooks/exhaustive-deps": "error",
-
-    // Promise errors switched to warning until DX-48988 is completed
-    "promise/always-return": "error",
-    "promise/catch-or-return": "error",
-    "promise/no-return-wrap": "error",
-    "promise/valid-params": "error",
-    "promise/no-callback-in-promise": "error",
-    "@typescript-eslint/no-unused-vars": "error"
-  },
+  "ignorePatterns": [
+    "**/*-spec.js",
+    "**/*.spec.js",
+    "src/setup.js",
+    "test/testUtil.js"
+  ],
   "overrides": [
     {
       "files": "**/*.tsx",
@@ -70,19 +30,50 @@
       }
     }
   ],
-  "settings": {
-    "import/core-modules": ["redux-saga/effects"],
-    "react": {
-      "version": "16.7"
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "ecmaFeatures": {
+      "legacyDecorators": true
     }
   },
-  "globals": {
-    "$": false,
-    "jsPlumb": false,
-    "ga": false,
-    "la": false, // todo: remove
-    "expect": false,
-    "sinon": false,
-    "Immutable": false
+  "rules": {
+    "react/display-name": "off",
+    "react/prop-types": "off",
+
+    // TODO: fix code issues and remove these overrides
+    "@typescript-eslint/ban-ts-comment": "warn",
+    "@typescript-eslint/ban-types": "warn",
+    "@typescript-eslint/no-explicit-any": "warn",
+    "@typescript-eslint/no-var-requires": "warn",
+    "@typescript-eslint/no-unnecessary-type-constraint": "warn",
+    "@typescript-eslint/no-unused-vars": "warn",
+    "jsx-a11y/alt-text": "warn",
+    "jsx-a11y/anchor-is-valid": "warn",
+    "jsx-a11y/aria-role": "warn",
+    "jsx-a11y/click-events-have-key-events": "warn",
+    "jsx-a11y/iframe-has-title": "warn",
+    "jsx-a11y/label-has-associated-control": "warn",
+    "jsx-a11y/mouse-events-have-key-events": "warn",
+    "jsx-a11y/no-autofocus": "warn",
+    "jsx-a11y/no-noninteractive-element-interactions": "warn",
+    "jsx-a11y/no-noninteractive-tabindex": "warn",
+    "jsx-a11y/no-static-element-interactions": "warn",
+    "no-async-promise-executor": "warn",
+    "no-class-assign": "warn",
+    "no-unsafe-optional-chaining": "warn",
+    "no-useless-catch": "warn",
+    "no-useless-escape": "warn",
+    "promise/always-return": "warn",
+    "promise/catch-or-return": "warn",
+    "promise/no-return-wrap": "warn",
+    "react/jsx-filename-extension": [1, { "extensions": [".jsx", ".tsx"] }],
+    "react/jsx-key": "warn",
+    "react/no-deprecated": "warn",
+    "react/no-unknown-property": "warn"
+  },
+  "settings": {
+    "react": {
+      "version": "detect"
+    }
   }
 }

@@ -99,7 +99,9 @@ public class OptimizeManifestsTableFunction extends AbstractTableFunction {
     SupportsIcebergMutablePlugin icebergMutablePlugin = fec.getStoragePlugin(ctx.getPluginId());
     IcebergTableProps tableProps = ctx.getIcebergTableProps();
     try (FileSystem fs = icebergMutablePlugin.createFS(tableProps.getTableLocation(), opProps.getUserName(), context)) {
-      IcebergModel icebergModel = icebergMutablePlugin.getIcebergModel(tableProps, opProps.getUserName(), context, fs);
+      FileIO fileIO = icebergMutablePlugin.createIcebergFileIO(fs, null, null, null, null);
+      IcebergModel icebergModel = icebergMutablePlugin.getIcebergModel(tableProps, opProps.getUserName(), context,
+          fileIO);
       icebergModel.refreshVersionContext();
       IcebergTableIdentifier icebergTableIdentifier = icebergModel.getTableIdentifier(tableProps.getTableLocation());
 
@@ -127,7 +129,11 @@ public class OptimizeManifestsTableFunction extends AbstractTableFunction {
       try {
         rewriteManifests.commit();
       } catch (RuntimeException e) {
-        cleanOrphans(table.io(), newSnapshot);
+        try {
+          cleanOrphans(table.io(), newSnapshot);
+        } catch (Exception inner) {
+          e.addSuppressed(inner);
+        }
         throw e;
       }
       LOGGER.info("Optimization of manifest files is successful with snapshot id {}", newSnapshot.snapshotId());

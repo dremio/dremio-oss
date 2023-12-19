@@ -76,9 +76,11 @@ import com.dremio.dac.util.JSONUtil;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.ops.ReflectionContext;
+import com.dremio.exec.server.ContextService;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.util.TestUtilities;
+import com.dremio.options.OptionManager;
 import com.dremio.service.BindingProvider;
 import com.dremio.service.InitializerRegistry;
 import com.dremio.service.SingletonRegistry;
@@ -416,7 +418,8 @@ public class TestMultiMaster extends BaseClientUtils {
         ns,
         mp.lookup(JobsService.class),
         mp.lookup(CatalogService.class),
-        sabotContext.getOptionManager());
+        sabotContext.getOptionManager(),
+        mp.lookup(ContextService.class));
 
 
       TestUtilities.addClasspathSourceIf(sabotContext.getCatalogService());
@@ -427,7 +430,14 @@ public class TestMultiMaster extends BaseClientUtils {
       });
 
       DACSecurityContext dacSecurityContext = new DACSecurityContext(new UserName(SystemUser.SYSTEM_USERNAME), SystemUser.SYSTEM_USER, null);
-      CollaborationHelper collaborationService = new CollaborationHelper(mp.lookup(LegacyKVStoreProvider.class), mp.lookup(NamespaceService.class), dacSecurityContext, mp.lookup(SearchService.class), sabotContext.getUserService());
+      CollaborationHelper collaborationService = new CollaborationHelper(mp.lookup(LegacyKVStoreProvider.class),
+        mp.lookup(NamespaceService.class),
+        dacSecurityContext,
+        mp.lookup(SearchService.class),
+        sabotContext.getUserService(),
+        mp.lookup(CatalogService.class),
+        mp.lookup(OptionManager.class));
+
       SampleDataPopulator populator = new SampleDataPopulator(
         sabotContext,
         new SourceService(
@@ -550,7 +560,7 @@ public class TestMultiMaster extends BaseClientUtils {
         ns,
         mp.lookup(JobsService.class),
         mp.lookup(CatalogService.class),
-        sabotContext.getOptionManager());
+        sabotContext.getOptionManager(), mp.lookup(ContextService.class));
 
       TestUtilities.addClasspathSourceIf(mp.lookup(CatalogService.class));
       DACSecurityContext dacSecurityContext = new DACSecurityContext(new UserName(SystemUser.SYSTEM_USERNAME), SystemUser.SYSTEM_USER, null);
@@ -560,7 +570,13 @@ public class TestMultiMaster extends BaseClientUtils {
         return factory.get(new ReflectionContext(DEFAULT_USER_NAME, true));
       });
 
-      CollaborationHelper collaborationService = new CollaborationHelper(mp.lookup(LegacyKVStoreProvider.class), mp.lookup(NamespaceService.class), dacSecurityContext, mp.lookup(SearchService.class), sabotContext.getUserService());
+      CollaborationHelper collaborationService = new CollaborationHelper(mp.lookup(LegacyKVStoreProvider.class),
+        mp.lookup(NamespaceService.class),
+        dacSecurityContext,
+        mp.lookup(SearchService.class),
+        sabotContext.getUserService(),
+        mp.lookup(CatalogService.class),
+        mp.lookup(OptionManager.class) );
       SampleDataPopulator populator = new SampleDataPopulator(
         sabotContext,
         new SourceService(

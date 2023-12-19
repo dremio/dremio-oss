@@ -15,15 +15,16 @@
  */
 package com.dremio.exec.planner.logical;
 
-import static org.apache.calcite.sql.fun.SqlStdOperatorTable.AND;
-import static org.apache.calcite.sql.fun.SqlStdOperatorTable.CASE;
-import static org.apache.calcite.sql.fun.SqlStdOperatorTable.EQUALS;
-import static org.apache.calcite.sql.fun.SqlStdOperatorTable.IS_NOT_DISTINCT_FROM;
-import static org.apache.calcite.sql.fun.SqlStdOperatorTable.IS_NULL;
-import static org.apache.calcite.sql.fun.SqlStdOperatorTable.NOT;
-import static org.apache.calcite.sql.fun.SqlStdOperatorTable.OR;
-import static org.apache.calcite.sql.type.SqlTypeName.DOUBLE;
-import static org.apache.calcite.sql.type.SqlTypeName.INTEGER;
+import static com.dremio.test.dsl.RexDsl.and;
+import static com.dremio.test.dsl.RexDsl.caseExpr;
+import static com.dremio.test.dsl.RexDsl.eq;
+import static com.dremio.test.dsl.RexDsl.intInput;
+import static com.dremio.test.dsl.RexDsl.intNullInput;
+import static com.dremio.test.dsl.RexDsl.isNotDistinctFrom;
+import static com.dremio.test.dsl.RexDsl.isNull;
+import static com.dremio.test.dsl.RexDsl.literal;
+import static com.dremio.test.dsl.RexDsl.not;
+import static com.dremio.test.dsl.RexDsl.or;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptPlanner;
@@ -32,10 +33,6 @@ import org.apache.calcite.plan.hep.HepProgramBuilder;
 import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.JoinRelType;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.rex.RexBuilder;
-import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.tools.RelBuilder;
 import org.junit.Assert;
@@ -53,60 +50,13 @@ import com.dremio.test.specs.OptionResolverSpecBuilder;
  * Test for {@link EnhancedFilterJoinExtractor}.
  */
 public class TestEnhancedFilterJoinExtractor {
-  private static final RelDataTypeFactory typeFactory = SqlTypeFactoryImpl.INSTANCE;
-  private static final RelDataType intColumnType = typeFactory.createTypeWithNullability(
-    typeFactory.createSqlType(INTEGER), true);
-
-  private static final RelDataType intColumn =  typeFactory.createSqlType(INTEGER);
-  private static final RexBuilder rexBuilder = new DremioRexBuilder(typeFactory);
   private static final RelBuilder relBuilder = makeRelBuilder();
-
-  private static final RexNode col_R_a = rexBuilder.makeInputRef(intColumnType,0);
-  private static final RexNode col_R_b = rexBuilder.makeInputRef(intColumnType,1);
-  private static final RexNode col_S_x = rexBuilder.makeInputRef(intColumnType,2);
-  private static final RexNode col_S_y = rexBuilder.makeInputRef(intColumnType,3);
-
-  private static final RexNode intLit10 = rexBuilder.makeLiteral(10,
-    typeFactory.createSqlType(INTEGER), false);
-  private static final RexNode intLit20 = rexBuilder.makeLiteral(20,
-    typeFactory.createSqlType(INTEGER), false);
-  private static final RexNode intLit30 = rexBuilder.makeLiteral(30,
-    typeFactory.createSqlType(INTEGER), false);
-  private static final RexNode intLit40 = rexBuilder.makeLiteral(40,
-    typeFactory.createSqlType(INTEGER), false);
-
-
-  @Test
-  public void testEnhancedFilterJoinExtractorTypeMisMatch(){
-    RexCall filter = (RexCall) rexBuilder.makeCall(EQUALS,
-      rexBuilder.makeCast(intColumn,rexBuilder.makeInputRef(typeFactory.createSqlType(DOUBLE),0)),
-      col_R_b
-    );
-    Join joinRel = (Join) relBuilder
-      .values(new String[] {"a"}, 1.2)
-      .values(new String[] {"b"}, 2, 1)
-      .join(JoinRelType.INNER, rexBuilder.makeLiteral(true))
-      .build();
-    Filter filterRel = (Filter) relBuilder
-      .push(joinRel)
-      .filter(filter)
-      .build();
-
-    EnhancedFilterJoinExtraction enhancedFilterJoinExtraction = new EnhancedFilterJoinExtractor(filterRel, joinRel,
-      FilterJoinRulesUtil.EQUAL_IS_NOT_DISTINCT_FROM).extract();
-
-    RexCall joinCond = (RexCall) enhancedFilterJoinExtraction.getJoinCondition();
-    Assert.assertFalse(filter.operands.get(0).getType()==filter.operands.get(1).getType());
-    Assert.assertTrue(joinCond.operands.get(0).getType()==joinCond.operands.get(1).getType());
-    Assert.assertTrue(joinCond.operands.get(1).getType()==intColumn);
-
-  }
 
   @Test
   public void testExtractJoinCondition() {
     testExtract(
-      rEq(col_R_a, col_S_x),
-      rexBuilder.makeLiteral(true),
+      eq(intInput(0), intInput(2)),
+      literal(true),
       JoinRelType.INNER,
       JoinRelType.INNER,
       "=($0, $2)",
@@ -117,8 +67,8 @@ public class TestEnhancedFilterJoinExtractor {
   @Test
   public void testExtractPushdownPredicates() {
     testExtract(
-      rAnd(rEq(col_R_a, intLit10), rEq(col_S_x, intLit20)),
-      rexBuilder.makeLiteral(true),
+      and(eq(intInput(0), literal(10)), eq(intInput(2), literal(20))),
+      literal(true),
       JoinRelType.INNER,
       JoinRelType.INNER,
       "true",
@@ -129,10 +79,10 @@ public class TestEnhancedFilterJoinExtractor {
   @Test
   public void testCnfCanExtract() {
     testExtract(
-      rAnd(
-        rOr(rEq(col_R_a, intLit10), rEq(col_R_b, intLit20)),
-        rOr(rEq(col_S_x, intLit30), rEq(col_S_y, intLit40))),
-      rexBuilder.makeLiteral(true),
+      and(
+        or(eq(intInput(0), literal(10)), eq(intInput(1), literal(20))),
+        or(eq(intInput(2), literal(30)), eq(intInput(3), literal(40)))),
+      literal(true),
       JoinRelType.INNER,
       JoinRelType.INNER,
       "true",
@@ -143,10 +93,10 @@ public class TestEnhancedFilterJoinExtractor {
   @Test
   public void testCnfCannotExtract() {
     testExtract(
-      rAnd(
-        rOr(rEq(col_R_a, intLit10), rEq(col_S_x, intLit30)),
-        rOr(rEq(col_R_b, intLit20), rEq(col_S_y, intLit40))),
-      rexBuilder.makeLiteral(true),
+      and(
+        or(eq(intInput(0), literal(10)), eq(intInput(2), literal(30))),
+        or(eq(intInput(1), literal(20)), eq(intInput(3), literal(40)))),
+      literal(true),
       JoinRelType.INNER,
       JoinRelType.INNER,
       "true",
@@ -157,10 +107,10 @@ public class TestEnhancedFilterJoinExtractor {
   @Test
   public void testDnfCanExtract() {
     testExtract(
-      rOr(
-        rAnd(rEq(col_R_a, intLit10), rEq(col_S_x, intLit30)),
-        rAnd(rEq(col_R_b, intLit20), rEq(col_S_y, intLit40))),
-      rexBuilder.makeLiteral(true),
+      or(
+        and(eq(intInput(0), literal(10)), eq(intInput(2), literal(30))),
+        and(eq(intInput(1), literal(20)), eq(intInput(3), literal(40)))),
+      literal(true),
       JoinRelType.INNER,
       JoinRelType.INNER,
       "true",
@@ -171,10 +121,10 @@ public class TestEnhancedFilterJoinExtractor {
   @Test
   public void testDnfCannotExtract() {
     testExtract(
-      rOr(
-        rAnd(rEq(col_R_a, intLit10), rEq(col_R_b, intLit20)),
-        rAnd(rEq(col_S_x, intLit30), rEq(col_S_y, intLit40))),
-      rexBuilder.makeLiteral(true),
+      or(
+        and(eq(intInput(0), literal(10)), eq(intInput(1), literal(20))),
+        and(eq(intInput(2), literal(30)), eq(intInput(3), literal(40)))),
+      literal(true),
       JoinRelType.INNER,
       JoinRelType.INNER,
       "true",
@@ -185,10 +135,10 @@ public class TestEnhancedFilterJoinExtractor {
   @Test
   public void testNotCanExtract() {
     testExtract(
-      rOr(
-        rNot(rOr(rEq(col_R_a, intLit10), rEq(col_S_x, intLit30))),
-        rNot(rOr(rEq(col_R_b, intLit20), rEq(col_S_y, intLit40)))),
-      rexBuilder.makeLiteral(true),
+      or(
+        not(or(eq(intInput(0), literal(10)), eq(intInput(2), literal(30)))),
+        not(or(eq(intInput(1), literal(20)), eq(intInput(3), literal(40))))),
+      literal(true),
       JoinRelType.INNER,
       JoinRelType.INNER,
       "true",
@@ -199,10 +149,10 @@ public class TestEnhancedFilterJoinExtractor {
   @Test
   public void testNotCannotExtract() {
     testExtract(
-      rOr(
-        rNot(rAnd(rEq(col_R_a, intLit10), rEq(col_S_x, intLit30))),
-        rNot(rAnd(rEq(col_R_b, intLit20), rEq(col_S_y, intLit40)))),
-      rexBuilder.makeLiteral(true),
+      or(
+        not(and(eq(intInput(0), literal(10)), eq(intInput(2), literal(30)))),
+        not(and(eq(intInput(1), literal(20)), eq(intInput(3), literal(40))))),
+      literal(true),
       JoinRelType.INNER,
       JoinRelType.INNER,
       "true",
@@ -213,10 +163,10 @@ public class TestEnhancedFilterJoinExtractor {
   @Test
   public void testSupersetAnd() {
     testExtract(
-      rAnd(
-        rOr(rEq(col_R_a, intLit10), rEq(col_R_b, intLit20)),
-        rEq(col_R_a, intLit10)),
-      rexBuilder.makeLiteral(true),
+      and(
+        or(eq(intInput(0), literal(10)), eq(intInput(1), literal(20))),
+        eq(intInput(0), literal(10))),
+      literal(true),
       JoinRelType.INNER,
       JoinRelType.INNER,
       "true",
@@ -227,10 +177,10 @@ public class TestEnhancedFilterJoinExtractor {
   @Test
   public void testSupersetOr() {
     testExtract(
-      rOr(
-        rAnd(rEq(col_R_a, intLit10), rEq(col_R_b, intLit20)),
-        rEq(col_R_a, intLit10)),
-      rexBuilder.makeLiteral(true),
+      or(
+        and(eq(intInput(0), literal(10)), eq(intInput(1), literal(20))),
+        eq(intInput(0), literal(10))),
+      literal(true),
       JoinRelType.INNER,
       JoinRelType.INNER,
       "true",
@@ -241,8 +191,8 @@ public class TestEnhancedFilterJoinExtractor {
   @Test
   public void testLeftOuterJoinCanSimplifyToInner() {
     testExtract(
-      rEq(col_R_a, col_S_x),
-      rexBuilder.makeLiteral(true),
+      eq(intInput(0), intNullInput(2)),
+      literal(true),
       JoinRelType.LEFT,
       JoinRelType.INNER,
       "=($0, $2)",
@@ -253,8 +203,8 @@ public class TestEnhancedFilterJoinExtractor {
   @Test
   public void testLeftOuterJoinNotDistinctFrom() {
     testExtract(
-      rIsNotDistinctFrom(col_R_a, col_S_x),
-      rexBuilder.makeLiteral(true),
+      isNotDistinctFrom(intInput(0), intNullInput(2)),
+      literal(true),
       JoinRelType.LEFT,
       JoinRelType.LEFT,
       "true",
@@ -265,8 +215,8 @@ public class TestEnhancedFilterJoinExtractor {
   @Test
   public void testLeftOuterJoinCannotSimplifyToInner() {
     testExtract(
-      rEq(col_R_a, intLit10),
-      rexBuilder.makeLiteral(true),
+      eq(intInput(0), literal(10)),
+      literal(true),
       JoinRelType.LEFT,
       JoinRelType.LEFT,
       "true",
@@ -277,8 +227,8 @@ public class TestEnhancedFilterJoinExtractor {
   @Test
   public void testLeftOuterJoinCanPushJoinConditionToRightButNotLeft() {
     testExtract(
-      rEq(col_R_b, intLit10),
-      rAnd(rEq(col_R_a, intLit10), rEq(col_S_x, intLit20)),
+      eq(intInput(1), literal(10)),
+      and(eq(intInput(0), literal(10)), eq(intInput(2), literal(20))),
       JoinRelType.LEFT,
       JoinRelType.LEFT,
       "=($0, 10)",
@@ -289,8 +239,8 @@ public class TestEnhancedFilterJoinExtractor {
   @Test
   public void testLeftOuterJoinCanPushTopLevelFilterToLeftButNotRight() {
     testExtract(
-      rAnd(rEq(col_R_a, intLit10), rOr(rEq(col_S_x, intLit20), rIsNull(col_S_x))),
-      rexBuilder.makeLiteral(true),
+      and(eq(intInput(0), literal(10)), or(eq(intNullInput(2), literal(20)), isNull(intNullInput(2)))),
+      literal(true),
       JoinRelType.LEFT,
       JoinRelType.LEFT,
       "true",
@@ -301,8 +251,8 @@ public class TestEnhancedFilterJoinExtractor {
   @Test
   public void testLeftOuterJoinCannotPushTopLevelFilterToJoin() {
     testExtract(
-      rEq(rCase(rIsNull(col_R_a), col_R_b, col_S_x), intLit20),
-      rexBuilder.makeLiteral(true),
+      eq(caseExpr(isNull(intNullInput(2)), intInput(1), intNullInput(2)), literal(20)),
+      literal(true),
       JoinRelType.LEFT,
       JoinRelType.LEFT,
       "true",
@@ -334,40 +284,12 @@ public class TestEnhancedFilterJoinExtractor {
       extraction.getRightPushdownPredicate().toString());
   }
 
-  private static RexNode rEq(RexNode rexNode1, RexNode rexNode2) {
-    return rexBuilder.makeCall(EQUALS, rexNode1, rexNode2);
-  }
-
-  private static RexNode rAnd(RexNode... rexNodes) {
-    return rexBuilder.makeCall(AND, rexNodes);
-  }
-
-  private static RexNode rOr(RexNode... rexNodes) {
-    return rexBuilder.makeCall(OR, rexNodes);
-  }
-
-  private static RexNode rNot(RexNode rexNode) {
-    return rexBuilder.makeCall(NOT, rexNode);
-  }
-
-  private static RexNode rIsNotDistinctFrom(RexNode rexNode1, RexNode rexNode2) {
-    return rexBuilder.makeCall(IS_NOT_DISTINCT_FROM, rexNode1, rexNode2);
-  }
-
-  private static RexNode rIsNull(RexNode rexNode) {
-    return rexBuilder.makeCall(IS_NULL, rexNode);
-  }
-
-  private static RexNode rCase(RexNode... rexNodes) {
-    return rexBuilder.makeCall(CASE, rexNodes);
-  }
-
   private static RelBuilder makeRelBuilder() {
     OptionResolver optionResolver = OptionResolverSpecBuilder.build(new OptionResolverSpec());
     PlannerSettings context = new PlannerSettings(null, optionResolver, null);
     RelOptPlanner planner = new HepPlanner(new HepProgramBuilder().build(), context, false,
       null, new DremioCost.Factory());
-    RelOptCluster cluster = RelOptCluster.create(planner, rexBuilder);
+    RelOptCluster cluster = RelOptCluster.create(planner, new DremioRexBuilder(SqlTypeFactoryImpl.INSTANCE));
     return org.apache.calcite.tools.RelBuilder.proto(context).create(cluster, null);
   }
 }

@@ -42,12 +42,12 @@ public class ITVacuumOnHive extends DmlQueryOnHiveTestBase {
 
   @Test
   public void testExpireOnTableOneSnapshot() throws Exception {
-    VacuumTests.testExpireOnTableOneSnapshot(SOURCE);
+    VacuumTests.testExpireOnTableOneSnapshot(allocator, SOURCE);
   }
 
   @Test
   public void testRetainMoreSnapshots() throws Exception {
-    VacuumTests.testRetainMoreSnapshots(SOURCE);
+    VacuumTests.testRetainMoreSnapshots(allocator, SOURCE);
   }
 
   @Test

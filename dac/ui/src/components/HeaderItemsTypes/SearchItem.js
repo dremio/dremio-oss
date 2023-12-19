@@ -51,7 +51,7 @@ export class SearchItem extends Component {
     clearTimeout(this.updateSearch);
   }
 
-  componentWillUpdate(newProps) {
+  UNSAFE_componentWillUpdate(newProps) {
     this.propsChange(this.props, newProps);
   }
 
@@ -176,6 +176,6 @@ const styles = {
   searchStyle: {
     margin: "9px 0 0 -18px",
     width: 650,
-    zIndex: 1001,
+    zIndex: 999,
   },
 };

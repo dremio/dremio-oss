@@ -39,6 +39,7 @@ import com.google.common.collect.Lists;
  *
  * ALTER BRANCH branchName ASSIGN
  * ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue
+ * [ AS OF timestamp ]
  * [ IN sourceName ]
  */
 public final class SqlAssignBranch extends SqlVersionSourceRefBase {
@@ -48,13 +49,14 @@ public final class SqlAssignBranch extends SqlVersionSourceRefBase {
         public SqlCall createCall(
             SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
           Preconditions.checkArgument(
-              operands.length == 4, "SqlAssignBranch.createCall() has to get 4 operands!");
+              operands.length == 5, "SqlAssignBranch.createCall() has to get 5 operands!");
           return new SqlAssignBranch(
-              pos,
-              (SqlIdentifier) operands[0],
-              ((SqlLiteral) operands[1]).symbolValue(ReferenceType.class),
-              (SqlIdentifier) operands[2],
-              (SqlIdentifier) operands[3]);
+            pos,
+            (SqlIdentifier) operands[0],
+            ((SqlLiteral) operands[1]).symbolValue(ReferenceType.class),
+            (SqlIdentifier) operands[2],
+            operands[3],
+            (SqlIdentifier) operands[4]);
         }
       };
 
@@ -65,8 +67,9 @@ public final class SqlAssignBranch extends SqlVersionSourceRefBase {
       SqlIdentifier branchName,
       ReferenceType refType,
       SqlIdentifier refValue,
+      SqlNode timestamp,
       SqlIdentifier sourceName) {
-    super(pos, sourceName, refType, refValue);
+    super(pos, sourceName, refType, refValue, timestamp);
     this.branchName = branchName;
   }
 
@@ -81,8 +84,8 @@ public final class SqlAssignBranch extends SqlVersionSourceRefBase {
     ops.add(branchName);
     ops.add(SqlLiteral.createSymbol(getRefType(), SqlParserPos.ZERO));
     ops.add(getRefValue());
+    ops.add(getTimestampAsSqlNode());
     ops.add(getSourceName());
-
     return ops;
   }
 

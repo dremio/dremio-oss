@@ -31,6 +31,7 @@ import com.dremio.exec.compile.sig.GeneratorMapping;
 import com.dremio.exec.compile.sig.MappingSet;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.expr.ClassGenerator;
+import com.dremio.exec.expr.ClassGenerator.BlockCreateMode;
 import com.dremio.exec.expr.ClassProducer;
 import com.dremio.exec.expr.ExpressionTreeMaterializer;
 import com.dremio.exec.expr.ValueVectorReadExpression;
@@ -40,6 +41,8 @@ import com.dremio.exec.physical.config.WindowPOP;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.TypedFieldId;
 import com.dremio.exec.record.VectorContainer;
+import com.sun.codemodel.JBlock;
+import com.sun.codemodel.JConditional;
 import com.sun.codemodel.JExpr;
 import com.sun.codemodel.JExpression;
 import com.sun.codemodel.JInvocation;
@@ -311,22 +314,56 @@ public abstract class WindowFunction {
         .arg(JExpr.direct("partition.ntile(" + numTiles + ")"));
       cg.getEvalBlock().add(setMethod);
     }
+
   }
 
   static class Lead extends WindowFunction {
     private LogicalExpression writeInputToLead;
+    private int offset;
 
     public Lead() {
       super(Type.LEAD);
     }
 
+    private int offsetExpression(FunctionCall call) {
+      if((call.args.size() < 2)) {
+        return 1;
+      }
+      LogicalExpression offsetExpr = call.args.get(1);
+      return ((ValueExpressions.IntExpression) offsetExpr).getInt();
+    }
+
     @Override
     void generateCode(ClassGenerator<WindowFramer> cg) {
-      final GeneratorMapping mapping = GeneratorMapping.create("setupCopyNext", "copyNext", null, null);
-      final MappingSet eval = new MappingSet("inIndex", "outIndex", mapping, mapping);
+      {
+        final GeneratorMapping mapping = GeneratorMapping.create("setupCopyNext", "copyNext", null,
+            null);
+        final MappingSet eval = new MappingSet("inIndex", "outIndex", mapping, mapping);
 
-      cg.setMappingSet(eval);
-      cg.addExpr(writeInputToLead);
+        cg.setMappingSet(eval);
+        final JExpression currentIndex = JExpr.direct("partition.getCurrentRowInPartition()");
+        final JExpression partitionLength = JExpr.direct("partition.getLength()");
+        final JExpression partitionStart = JExpr.direct("partition.getFirstRowInPartition()");
+         /*
+        Next row position must be in the current batch. (currentIndex - partitionStart) is the index of the row in the current batch.
+        (partitionLength - offset) - 1 is the last row position of the partition that should be copied.
+       */
+        JConditional ifCondition = cg.getEvalBlock()._if(partitionLength.minus(JExpr.lit(offset)).gt(currentIndex.minus(partitionStart)));
+        ifCondition._then().block().directStatement("inIndex = partition.getCurrentRowInPartition() + " + offset + ";");
+        cg.nestEvalBlock(ifCondition._then());
+        cg.addExpr(writeInputToLead, BlockCreateMode.MERGE);
+        cg.unNestEvalBlock();
+      }
+
+      {
+        final GeneratorMapping mapping = GeneratorMapping.create("setupCopyFromFirst", "copyFromFirst", null,
+            null);
+        final MappingSet copyFromFirstMapping = new MappingSet("inIndex", "outIndex", mapping, mapping);
+
+        cg.setMappingSet(copyFromFirstMapping);
+        cg.getEvalBlock().directStatement("outIndex = partition.getCurrentRowInPartition() - " + offset + ";");
+        cg.addExpr(writeInputToLead);
+      }
     }
 
     @Override
@@ -337,12 +374,12 @@ public abstract class WindowFunction {
       if (input == null) {
         return false;
       }
+      offset = offsetExpression(call);
 
       // add corresponding ValueVector to container
       final Field output = input.getCompleteType().toField(ne.getRef());
       batch.addOrGet(output).allocateNew();
       final TypedFieldId outputId =  batch.getValueVectorId(ne.getRef());
-
       writeInputToLead = new ValueVectorWriteExpression(outputId, input, true);
       return true;
     }
@@ -378,9 +415,19 @@ public abstract class WindowFunction {
   static class Lag extends WindowFunction {
     private LogicalExpression writeLagToLag;
     private LogicalExpression writeInputToLag;
+    private int offset;
+
 
     Lag() {
       super(Type.LAG);
+    }
+
+    private int offsetExpression(FunctionCall call) {
+      if((call.args.size() < 2)) {
+        return 1;
+      }
+      LogicalExpression offsetExpr = call.args.get(1);
+      return ((ValueExpressions.IntExpression) offsetExpr).getInt();
     }
 
     @Override
@@ -398,6 +445,7 @@ public abstract class WindowFunction {
 
       writeInputToLag = new ValueVectorWriteExpression(outputId, input, true);
       writeLagToLag = new ValueVectorWriteExpression(outputId, new ValueVectorReadExpression(outputId), true);
+      offset = offsetExpression(call);
       return true;
     }
 
@@ -429,6 +477,24 @@ public abstract class WindowFunction {
         final MappingSet eval = new MappingSet("inIndex", "outIndex", mapping, mapping);
 
         cg.setMappingSet(eval);
+        final JExpression currentIndex = JExpr.direct("partition.getCurrentRowInPartition()");
+        final JExpression partitionStart = JExpr.direct("partition.getFirstRowInPartition()");
+        //previous row position (currentIndex - offset) must be in the current partition
+        JConditional ifCondition  = cg.getEvalBlock()._if(currentIndex.minus(JExpr.lit(offset)).gte(partitionStart));
+        JBlock jbThen = ifCondition._then().block();
+        jbThen.directStatement("inIndex = partition.getCurrentRowInPartition() - " + offset + ";");
+        cg.nestEvalBlock(ifCondition._then());
+        cg.addExpr(writeInputToLag, BlockCreateMode.MERGE);
+        cg.unNestEvalBlock();
+      }
+
+      {
+        final GeneratorMapping mapping = GeneratorMapping.create("setupCopyToFirst", "copyToFirst", null,
+            null);
+        final MappingSet copyFirstMapping = new MappingSet("inIndex", "outIndex", mapping, mapping);
+        cg.setMappingSet(copyFirstMapping);
+        cg.getEvalBlock().directStatement("inIndex = partition.getCurrentRowInPartition() - " + offset + ";");
+
         cg.addExpr(writeInputToLag);
       }
     }

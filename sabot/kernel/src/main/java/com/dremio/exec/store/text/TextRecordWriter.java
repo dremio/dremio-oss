@@ -123,7 +123,7 @@ public class TextRecordWriter extends StringOutputRecordWriter {
     this.partition = partition;
     // open a new file for writing data with new schema
     try {
-      this.path = fs.canonicalizePath(partition.qualified(location, prefix + "_" + index + "." + extension));
+      this.path = fs.canonicalizePath(partition.getQualifiedPath(location, prefix + "_" + index + "." + extension));
       dos = new DataOutputStream(fs.create(path));
       stream = new PrintStream(dos);
       stream.write(ByteOrderMark.UTF_8.getBytes(), 0, ByteOrderMark.UTF_8.length());
@@ -221,7 +221,7 @@ public class TextRecordWriter extends StringOutputRecordWriter {
 
     if (stream != null) {
       stream.flush();
-      listener.recordsWritten(count, getFileSize(), path.toString(), null, partition.getBucketNumber(), null, null, null, null);
+      listener.recordsWritten(count, getFileSize(), path.toString(), null, partition.getBucketNumber(), null, null, null, null, null, 0L);
       stream.close();
       stream = null;
       dos = null;

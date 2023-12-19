@@ -220,6 +220,7 @@ public class SortRecordBatchBuilder implements AutoCloseable {
   @Override
   public void close() {
     reservation.close();
+    batches.clear();
   }
 
   public List<VectorContainer> getHeldRecordBatches() {

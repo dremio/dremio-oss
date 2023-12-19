@@ -22,7 +22,7 @@ export const MARGIN_PANEL = 42;
 export const CURVINESS = 80;
 export const HISTORY_WIDTH = 55;
 export const DEFAULT_GRAPH_WIDTH = 1200;
-export const DEFAULT_GRAPH_OFFSET = 130;
+export const DEFAULT_GRAPH_OFFSET = 330;
 
 export const DEFAULT_ROW_HEIGHT = 25;
 export const DEFAULT_HEIGHT_TABLE = 1000;

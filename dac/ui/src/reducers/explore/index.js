@@ -24,6 +24,11 @@ import recommended from "./recommended";
 import join from "./join";
 import ui from "./ui";
 import view from "./view";
+import { tabViewReducer } from "./tabViewReducer";
+import { SET_TAB_VIEW } from "@app/actions/resources/scripts";
+import { cloneDeep, result } from "lodash";
+import { RESET_QUERY_STATE, resetQueryState } from "@app/actions/explore/view";
+import exploreUtils from "@app/utils/explore/exploreUtils";
 
 // export for testing
 export const currentRouteState = extractValue(
@@ -31,12 +36,63 @@ export const currentRouteState = extractValue(
   "newRouteState"
 );
 
-export default combineReducers({
-  view,
-  sqlActions,
-  ui,
-  graph,
-  recommended,
-  join,
-  currentRouteState,
-});
+export default function exploreReducer(curState, action) {
+  const state = combineReducers({
+    view,
+    tabViews: (...args) => {
+      return tabViewReducer({ view: view(curState?.view, action) })(...args);
+    },
+    sqlActions,
+    ui,
+    graph,
+    recommended,
+    join,
+    currentRouteState,
+  })(curState, action);
+
+  if (action.type === SET_TAB_VIEW) {
+    const {
+      script: { id: scriptId },
+    } = action;
+    if (!scriptId) {
+      return state;
+    }
+
+    const hasState = state.tabViews[scriptId];
+    if (hasState) {
+      const queryStatuses = state.tabViews[scriptId].queryStatuses || [];
+
+      const result = {
+        ...state,
+        view: {
+          ...cloneDeep(state.tabViews[scriptId]),
+          queryStatuses: queryStatuses.map((status) => {
+            const isCancellable = exploreUtils.getCancellable(status);
+            return { ...status, cancelled: isCancellable };
+          }),
+          isMultiQueryRunning: false,
+          queryFilter: "",
+        },
+      };
+      return result;
+    } else {
+      //Initialize a new view state with the correct script
+      const result = {
+        ...state,
+        view: {
+          ...view(view, { type: RESET_QUERY_STATE }),
+          queryFilter: "", // Reset query state should prob do this
+          activeScript: action.script,
+          currentSql: action.script.content,
+          previousMultiSql: action.script.content,
+          queryTabNumber: 1,
+          queryContext: state.view.queryContext,
+        },
+      };
+
+      return result;
+    }
+  }
+
+  return state;
+}

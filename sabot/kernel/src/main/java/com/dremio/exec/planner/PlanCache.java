@@ -26,10 +26,10 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.dialect.CalciteSqlDialect;
 
-import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.ManagedStoragePlugin;
+import com.dremio.exec.ops.PlannerCatalog;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
@@ -61,7 +61,7 @@ public class PlanCache {
     return cachePlans;
   }
 
-  public void createNewCachedPlan(Catalog catalog, String cachedKey, String sql,
+  public void createNewCachedPlan(PlannerCatalog catalog, String cachedKey, String sql,
                                   Prel prel, String textPlan, SqlHandlerConfig config) {
     Preconditions.checkNotNull(catalog);
     boolean addedCacheToDatasetMap = false;
@@ -79,7 +79,6 @@ public class PlanCache {
         continue;
       }
       if (datasetConfig.getPhysicalDataset() == null) {
-        logger.debug(String.format("Dataset %s is ignored (no physical dataset available).", dataset.getPath()));
         continue;
       }
       synchronized (datasetMap) {
@@ -91,22 +90,36 @@ public class PlanCache {
       CachedPlan newCachedPlan = CachedPlan.createCachedPlan(sql, prel, textPlan, prel.getEstimatedSize());
       config.getObserver().setCachedAccelDetails(newCachedPlan);
       cachePlans.put(cachedKey, newCachedPlan);
+      config.getConverter().dispose();
+      logger.debug("Physical plan cache created with cacheKey {}", cachedKey);
+    } else {
+      logger.debug("Physical plan not cached: Query contains no physical datasets.");
     }
   }
 
-  public static boolean supportPlanCache(PlanCache planCache, SqlHandlerConfig config, SqlNode sqlNode, Catalog catalog) {
+  public static boolean supportPlanCache(PlanCache planCache, SqlHandlerConfig config, SqlNode sqlNode, PlannerCatalog catalog) {
+    if (planCache == null || !config.getContext().getPlannerSettings().isPlanCacheEnabled()) {
+      logger.debug("Physical plan not cached: Plan cache not enabled.");
+      return false;
+    }
+
     for (DremioTable table : catalog.getAllRequestedTables()) {
-      if (CatalogUtil.requestedPluginSupportsVersionedTables(table.getPath(), catalog)) {
+      if (CatalogUtil.requestedPluginSupportsVersionedTables(table.getPath(), config.getContext().getCatalog())) {
         // Versioned tables don't have a mtime - they have snapshot ids.  Since we don't have a way to invalidate
         // cache entries containing versioned datasets, don't allow these plans to enter the cache.
+        logger.debug("Physical plan not cached: Query contains a versioned table.");
         return false;
       }
     }
     if (org.apache.commons.lang3.StringUtils.containsIgnoreCase(sqlNode.toString(), "external_query")) {
+      logger.debug("Physical plan not cached: Query contains an external_query.");
       return false;
     }
-    return config.getConverter().getFunctionContext().getContextInformation().isPlanCacheable()
-      && planCache != null && config.getContext().getPlannerSettings().isPlanCacheEnabled();
+    if (!config.getConverter().getFunctionContext().getContextInformation().isPlanCacheable()) {
+      logger.debug("Physical plan not cached: Query contains dynamic or non-deterministic function.");
+      return false;
+    }
+    return true;
   }
 
   public static String generateCacheKey(SqlNode sqlNode, RelNode relNode, QueryContext context) {
@@ -155,11 +168,11 @@ public class PlanCache {
     return hasher.hash().toString();
   }
 
-  public CachedPlan getIfPresentAndValid(Catalog catalog, CatalogService catalogService, String cacheId) {
+  public CachedPlan getIfPresentAndValid(PlannerCatalog catalog, CatalogService catalogService, String cacheId) {
     if (cachePlans == null) {
       return null;
     }
-    CachedPlan cachedPlan = cachePlans.getIfPresent(cacheId);
+    final CachedPlan cachedPlan = cachePlans.getIfPresent(cacheId);
     if (cachedPlan != null) {
       Iterable<DremioTable> datasets = catalog.getAllRequestedTables();
       for (DremioTable dataset : datasets) {
@@ -167,9 +180,11 @@ public class PlanCache {
           DatasetConfig config = dataset.getDatasetConfig();
           if (config != null) {
             // DatasetConfig modified
-            if (config.getLastModified() > cachedPlan.getCreationTime()) {
+            if (config.getLastModified() != null && config.getLastModified() > cachedPlan.getCreationTime()) {
               // for this case, we can only invalidate this cache entry, other cache entries may still be valid
               cachePlans.invalidate(cacheId);
+              logger.debug("Physical plan cache hit with cacheKey {}: Cache invalidated due to updated dataset {}. datasetTime={} planTime={}",
+                cacheId, config.getFullPathList(), config.getLastModified(), cachedPlan.getCreationTime());
               return null;
             } else {
               // Check if source config is modified and invalidate the cache.
@@ -178,13 +193,13 @@ public class PlanCache {
                 if (plugin != null) {
                   SourceConfig sourceConfig = plugin.getConfig();
                   if ((sourceConfig != null) && sourceConfig.getCtime() > cachedPlan.getCreationTime()) {
-                    logger.debug("Invalidating cached plan for the source {} cached ctime {} source ctime {}",
-                      sourceConfig.getName(), cachedPlan.getCreationTime(), sourceConfig.getCtime());
                     cachePlans.invalidate(cacheId);
+                    logger.debug("Physical plan cache hit with cacheKey {}: Cache invalidated due to updated source {}. sourceTime={} planTime={}",
+                      cacheId, sourceConfig.getName(), sourceConfig.getCtime(), cachedPlan.getCreationTime());
                     return null;
                   }
                 }
-              } catch (Exception e) {
+              } catch (RuntimeException e) {
                 logger.error("Exception while checking for Source config modification for dataset {}", dataset.getPath().getRoot(), e);
               }
             }
@@ -193,14 +208,21 @@ public class PlanCache {
           logger.debug(String.format("Dataset %s is ignored (no dataset config available).", dataset.getPath()), ignore);
         }
       }
+      logger.debug("Physical plan cache hit with cacheKey {}", cacheId);
+      return cachedPlan;
     }
-    return cachePlans.getIfPresent(cacheId);
+
+    logger.debug("Physical plan cache miss with cacheKey {}", cacheId);
+    return null;
   }
 
   public void invalidateCacheOnDataset(String datasetId) {
     List<String> affectedCaches = datasetMap.get(datasetId).stream().collect(Collectors.toList());
     for(String cacheId: affectedCaches) {
       cachePlans.invalidate(cacheId);
+    }
+    if (!affectedCaches.isEmpty()) {
+      logger.debug("Physical plan cache invalidated by datasetId {} for cacheKeys {}", datasetId, affectedCaches);
     }
   }
 

@@ -16,6 +16,7 @@
 package com.dremio.exec.planner.physical;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -54,9 +55,12 @@ import com.dremio.common.expression.PathSegment.NameSegment;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.logical.data.Order.Ordering;
 import com.dremio.exec.planner.physical.visitor.BasePrelVisitor;
+import com.dremio.exec.planner.physical.visitor.ExcessiveExchangeIdentifier;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 
 public class PrelUtil {
 
@@ -92,6 +96,46 @@ public class PrelUtil {
 
   public static PlannerSettings getPlannerSettings(RelOptPlanner planner) {
     return planner.getContext().unwrap(PlannerSettings.class);
+  }
+
+  /**
+   * Add RR exchanges to all the inputs of a UnionAll. If any of the input
+   * qualifies for RR, we will add RR to all the inputs.
+   *
+   * @param plannerSettings PlannerSettings for getting options
+   * @param inputs          UnionAll inputs
+   * @return List of inputs after adding RR exchanges, if qualified
+   */
+  @WithSpan("convert-unionAll-inputs")
+  public static List<RelNode> convertUnionAllInputs(PlannerSettings plannerSettings, Prel... inputs) {
+    List<RelNode> inputList = new ArrayList<>();
+    boolean unionAllRR = plannerSettings.getOptions().getOption(PlannerSettings.ENABLE_UNIONALL_ROUND_ROBIN);
+    boolean canAddRoundRobinExchange = unionAllRR && canAddRoundRobinExchange(plannerSettings, inputs);
+    for (Prel input : inputs) {
+      if (canAddRoundRobinExchange) {
+        inputList.add(new RoundRobinExchangePrel(input.getCluster(), input.getTraitSet(), input));
+      } else {
+        inputList.add(input);
+      }
+    }
+    return inputList;
+  }
+
+  /**
+   * Check if RR can be added to all the inputs.
+   * For trivial singleton plan we don't need to add a RR.
+   */
+  public static boolean canAddRoundRobinExchange(PlannerSettings plannerSettings, Prel... inputs) {
+    for (RelNode relNode : inputs) {
+      RelNode prelCopy = relNode.copy(relNode.getTraitSet(), relNode.getInputs());
+      Prel rr = new RoundRobinExchangePrel(prelCopy.getCluster(), prelCopy.getTraitSet(), prelCopy);
+      Prel tryToRemoveRR = ExcessiveExchangeIdentifier.removeExcessiveEchanges(rr, plannerSettings.getSliceTarget());
+      if (tryToRemoveRR instanceof RoundRobinExchangePrel) {
+        // If we can add RR to any input, we add it to all the inputs.
+        return true;
+      }
+    }
+    return false;
   }
 
   public static Prel addLimitPrel(Prel input, long fetchSize) {
@@ -130,8 +174,12 @@ public class PrelUtil {
 
     RefFieldsVisitor v = new RefFieldsVisitor(rowType);
     for (RexNode exp : projects) {
-      PathSegment segment = exp.accept(v);
-      v.addColumn(segment);
+      exp.accept(v);
+    }
+
+    if (v.hasNonLiteralIndex) {
+      // This logic is not very robust and doesn't know how to handle non literal indexes in item call.
+      return null;
     }
 
     return v.getInfo();
@@ -280,6 +328,7 @@ public class PrelUtil {
     private final List<RelDataTypeField> fields;
     private final Set<DesiredField> desiredFields;
     private final Map<String,Integer> fieldNameMap = new HashMap<>();
+    private boolean hasNonLiteralIndex = false;
 
     public RefFieldsVisitor(RelDataType rowType) {
       super(true);
@@ -311,7 +360,9 @@ public class PrelUtil {
       DesiredField f = new DesiredField(index, name, field);
       desiredFields.add(f);
       inputRefs.add(inputRef);
-      return new NameSegment(name);
+      PathSegment segment = new NameSegment(name);
+      addColumn(segment);
+      return segment;
     }
 
     @Override
@@ -327,20 +378,25 @@ public class PrelUtil {
 
     @Override
     public PathSegment visitCall(RexCall call) {
-      if ("ITEM".equals(call.getOperator().getName()) || "DOT".equals(call.getOperator().getName())) {
-        PathSegment mapOrArray = call.operands.get(0).accept(this);
-        if (mapOrArray != null) {
-          if (call.operands.get(1) instanceof RexLiteral) {
-            return mapOrArray.cloneWithNewChild(convertLiteral((RexLiteral) call.operands.get(1)));
-          }
-          return mapOrArray;
-        }
-      } else {
-        for (RexNode operand : call.operands) {
-          addColumn(operand.accept(this));
-        }
+      String operatorName = call.getOperator().getName();
+      boolean indexingFunction = "ITEM".equals(operatorName) || "DOT".equals(operatorName);
+      if (!indexingFunction) {
+        return super.visitCall(call);
       }
-      return null;
+
+      if (!(call.getOperands().get(1) instanceof RexLiteral)) {
+        hasNonLiteralIndex = true;
+        return null;
+      }
+
+      RexNode source = call.getOperands().get(0);
+      PathSegment visitedSource = source.accept(this);
+      if (visitedSource == null) {
+        return null;
+      }
+
+      PathSegment childSegement = convertLiteral((RexLiteral) call.operands.get(1));
+      return visitedSource.cloneWithNewChild(childSegement);
     }
 
     private PathSegment convertLiteral(RexLiteral literal) {
@@ -350,7 +406,7 @@ public class PrelUtil {
       case NUMERIC:
         return new ArraySegment(RexLiteral.intValue(literal));
       default:
-        return null;
+        throw new UnsupportedOperationException("Unknown literal type: " + literal.getType().getSqlTypeName().getFamily());
       }
     }
 

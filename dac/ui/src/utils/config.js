@@ -64,6 +64,7 @@ export default {
   showNewJobsPage: true,
   useNewDatasetNavigation: true,
   showOldReflectionsListing: false,
+  showNewJobsTables: true,
   showMetadataValidityCheckbox: false,
   arcticReflectionsEnabled: false,
   ...((window && window.dremioConfig) || {}),

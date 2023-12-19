@@ -34,7 +34,7 @@ public class ValuesPrule extends RelOptRule {
 
   @Override
   public void onMatch(final RelOptRuleCall call) {
-    final ValuesRel rel = (ValuesRel) call.rel(0);
+    final ValuesRel rel = call.rel(0);
     try{
       call.transformTo(new ValuesPrel(rel.getCluster(), rel.getTraitSet().plus(Prel.PHYSICAL).plus(DistributionTrait.SINGLETON), rel.getRowType(), rel.getTuplesAsJsonOptions(), rel.estimateRowCount(rel.getCluster().getMetadataQuery())));
     }catch(IOException e){

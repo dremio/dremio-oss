@@ -34,6 +34,7 @@ import org.apache.calcite.util.Pair;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.ops.SnapshotDiffContext;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.logical.Rel;
@@ -43,10 +44,13 @@ import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
 import com.dremio.exec.planner.sql.handlers.ConvertedRelNode;
+import com.dremio.exec.planner.sql.handlers.DrelTransformer;
+import com.dremio.exec.planner.sql.handlers.PlanLogUtil;
 import com.dremio.exec.planner.sql.handlers.PrelTransformer;
 import com.dremio.exec.planner.sql.handlers.RelTransformer;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
+import com.dremio.exec.planner.sql.handlers.SqlToRelTransformer;
 import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
 import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
 import com.dremio.exec.planner.sql.parser.SqlCompactMaterialization;
@@ -159,7 +163,7 @@ public class CompactRefreshHandler implements SqlToPlanHandler {
       final PlanNormalizer planNormalizer = new PlanNormalizer(config);
       final RelNode initial = getPlan(config, tableSchemaPath, planNormalizer);
 
-      drel = PrelTransformer.convertToDrelMaintainingNames(config, initial);
+      drel = DrelTransformer.convertToDrelMaintainingNames(config, initial);
       final List<String> fields = drel.getRowType().getFieldNames();
       final long ringCount = config.getContext().getOptions().getOption(PlannerSettings.RING_COUNT);
       final Rel writerDrel = new WriterRel(
@@ -169,7 +173,7 @@ public class CompactRefreshHandler implements SqlToPlanHandler {
         config.getContext().getCatalog().createNewTable(
           new NamespaceKey(ReflectionUtils.getMaterializationPath(newMaterialization)),
           null,
-          writerOptionManager.buildWriterOptionForReflectionGoal((int) ringCount, goal, fields),
+          writerOptionManager.buildWriterOptionForReflectionGoal((int) ringCount, goal, fields, SnapshotDiffContext.NO_SNAPSHOT_DIFF),
           ImmutableMap.of()
         ),
         initial.getRowType()
@@ -186,7 +190,7 @@ public class CompactRefreshHandler implements SqlToPlanHandler {
       PhysicalPlan plan = PrelTransformer.convertToPlan(config, pop);
 
       if (logger.isTraceEnabled()) {
-        PrelTransformer.log(config, "Dremio Plan", plan, logger);
+        PlanLogUtil.log(config, "Dremio Plan", plan, logger);
       }
 
       return plan;
@@ -223,7 +227,7 @@ public class CompactRefreshHandler implements SqlToPlanHandler {
     );
 
     try {
-      ConvertedRelNode converted = PrelTransformer.validateAndConvert(sqlHandlerConfig, select, planNormalizer);
+      ConvertedRelNode converted = SqlToRelTransformer.validateAndConvert(sqlHandlerConfig, select, planNormalizer);
 
       return converted.getConvertedNode();
     } catch (ForemanSetupException | RelConversionException | ValidationException e) {

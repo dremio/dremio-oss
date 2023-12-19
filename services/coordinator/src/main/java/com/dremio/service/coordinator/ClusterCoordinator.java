@@ -159,4 +159,6 @@ public abstract class ClusterCoordinator implements ClusterServiceSetManager, Cl
    */
   @Override
   public abstract ElectionRegistrationHandle joinElection(String name, ElectionListener listener);
+
+  public abstract LinearizableHierarchicalStore getHierarchicalStore();
 }

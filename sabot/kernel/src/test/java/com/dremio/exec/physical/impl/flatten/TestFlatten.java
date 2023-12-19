@@ -76,10 +76,10 @@ public class TestFlatten extends PlanTestBase {
   public void testConvertFromWithFlatten() throws Exception {
     final String queryConvert = String.format("select convert_from(columns[1], 'JSON') from dfs.\"%s/store/text/convertFrom.tbl\"", TEST_RES_PATH);
     errorMsgWithTypeTestHelper(queryConvert, ErrorType.VALIDATION, "Using CONVERT_FROM(*, 'JSON') is only supported against string literals and direct table references of types VARCHAR and VARBINARY.");
-    //testPlanSubstrPatterns(queryConvert, new String[] { "CONVERT_FROMJSON(ITEM($0, 1))" }, null);
     final String queryFlattenConvert = String.format("select flatten(convert_from(columns[1], 'JSON')) from dfs.\"%s/store/text/convertFrom.tbl\"", TEST_RES_PATH);
-    errorMsgWithTypeTestHelper(queryConvert, ErrorType.VALIDATION, "Using CONVERT_FROM(*, 'JSON') is only supported against string literals and direct table references of types VARCHAR and VARBINARY.");
-    //testPlanSubstrPatterns(queryFlattenConvert, new String[] { "CONVERT_FROMJSON(ITEM($0, 1))" }, null);
+    errorMsgWithTypeTestHelper(queryFlattenConvert, ErrorType.VALIDATION, "Using CONVERT_FROM(*, 'JSON') is only supported against string literals and direct table references of types VARCHAR and VARBINARY.");
+    final String queryFlattenConvertWithEmptyArray = "select flatten(convert_from('[]', 'JSON'))";
+    errorMsgWithTypeTestHelper(queryFlattenConvertWithEmptyArray, ErrorType.VALIDATION, "Flatten does not support empty list.");
   }
 
   @Test
@@ -129,7 +129,7 @@ public class TestFlatten extends PlanTestBase {
     List<JsonStringHashMap<String, Object>> result = flatten(flatten(flatten(data, "lst_lst_1"), "lst_lst_0"), "lst_lst");
 
     String query = "select uid, flatten(d.lst_lst[1]) lst1, flatten(d.lst_lst[0]) lst0, flatten(d.lst_lst) lst from dfs.\"" + path + "/bigfile/bigfile.json\" d";
-    testPlanSubstrPatterns(query, new String[] {"columns=[`uid`, `lst_lst`, `lst_lst`[0], `lst_lst`[1]]"}, null);
+    testPlanSubstrPatterns(query, new String[] {"columns=[`uid`, `lst_lst`]"}, null);
     TestBuilder builder = testBuilder()
         .sqlQuery(query)
         .unOrdered()
@@ -592,7 +592,7 @@ public class TestFlatten extends PlanTestBase {
   public void testFlattenAfterSort() throws Exception {
     String query = "select flatten(s1.rms.rptd) rptds from " +
         "(select d.uid uid, flatten(d.map.rm) rms from cp.\"jsoninput/flatten_post_sort.json\" d order by d.uid) s1";
-    testPlanSubstrPatterns(query, new String[] {"columns=[`uid`, `map`.`rm`]"}, null);
+    testPlanSubstrPatterns(query, new String[] {"columns=[`uid`, `map`]"}, null);
     testBuilder()
         .sqlQuery(query)
         .unOrdered()
@@ -659,7 +659,7 @@ public class TestFlatten extends PlanTestBase {
   @Test
   public void testFlattenWithProjIntoScan_0() throws Exception {
     String query = "select sub.myinteger, sub.zflat.orange from (select flatten(t.z) as zflat, t.\"integer\" as myinteger from cp.\"/jsoninput/input2.json\" t) sub where sub.zflat.orange is not null";
-    testPlanSubstrPatterns(query, new String[] {"columns=[`integer`, `z`.`orange`]"}, null);
+    testPlanSubstrPatterns(query, new String[] {"columns=[`integer`, `z`]"}, null);
     String col = isComplexTypeSupport() ? "orange" : "EXPR$1";
     testBuilder().sqlQuery(query).unOrdered().baselineColumns("myinteger", col)
             .baselineValues(2010L, "yellow")
@@ -670,7 +670,7 @@ public class TestFlatten extends PlanTestBase {
   @Test
   public void testFlattenWithProjIntoScan_1() throws Exception {
     String query = "select sub.myinteger, sub.zflat.orange, sub.zflat.pink, sub.lflat from (select flatten(t.z) as zflat, flatten(t.l) as lflat, t.\"integer\" as myinteger from cp.\"/jsoninput/input6.json\" t) sub where sub.zflat.orange is not null";
-    testPlanSubstrPatterns(query, new String[] {"columns=[`integer`, `z`.`orange`, `z`.`pink`, `l`]"}, null);
+    testPlanSubstrPatterns(query, new String[] {"columns=[`integer`, `z`, `l`]"}, null);
     String col2 = isComplexTypeSupport() ? "orange" : "EXPR$1";
     String col3 = isComplexTypeSupport() ? "pink" : "EXPR$2";
     testBuilder().sqlQuery(query).unOrdered().baselineColumns("myinteger", col2, col3, "lflat")
@@ -700,7 +700,7 @@ public class TestFlatten extends PlanTestBase {
   @Test
   public void testFlattenWithProjIntoScan_3() throws Exception {
     String query = "select sub.myinteger, sub.zflat.orange, sub.zflat.pink, sub.lflat from (select flatten(t.z) as zflat, flatten(t.l) as lflat, t.\"integer\" as myinteger from cp.\"/jsoninput/input6.json\" t) sub";
-    testPlanSubstrPatterns(query, new String[] {"columns=[`integer`, `z`.`orange`, `z`.`pink`, `l`]"}, null);
+    testPlanSubstrPatterns(query, new String[] {"columns=[`integer`, `z`, `l`]"}, null);
     String col2 = isComplexTypeSupport() ? "orange" : "EXPR$1";
     String col3 = isComplexTypeSupport() ? "pink" : "EXPR$2";
     testBuilder().sqlQuery(query).unOrdered().baselineColumns("myinteger", col2, col3, "lflat")
@@ -790,7 +790,7 @@ public class TestFlatten extends PlanTestBase {
   @Test
   public void testFlattenWithParquet_1() throws Exception {
     String query = "select sub.myinteger, sub.zflat.orange, sub.zflat.pink, sub.lflat from (select flatten(t.z) as zflat, flatten(t.l) as lflat, t.\"integer\" as myinteger from dfs_test.parquetTable t) sub";
-    testPlanSubstrPatterns(query, new String[] {"columns=[`integer`, `z`.`orange`, `z`.`pink`, `l`]"}, null);
+    testPlanSubstrPatterns(query, new String[] {"columns=[`integer`, `z`, `l`]"}, null);
     String col2 = isComplexTypeSupport() ? "orange" : "EXPR$1";
     String col3 = isComplexTypeSupport() ? "pink" : "EXPR$2";
     testBuilder().sqlQuery(query).unOrdered().baselineColumns("myinteger", col2, col3, "lflat")

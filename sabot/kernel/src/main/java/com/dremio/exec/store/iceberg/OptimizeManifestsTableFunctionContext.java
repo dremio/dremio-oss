@@ -75,6 +75,7 @@ public class OptimizeManifestsTableFunctionContext extends TableFunctionContext 
       outputSchema,
       tablePath,
       null,
+      null,
       pluginId,
       null,
       columns,

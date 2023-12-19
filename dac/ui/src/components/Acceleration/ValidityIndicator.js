@@ -24,8 +24,8 @@ export default function ValidityIndicator({ isValid }) {
       className={"ValidityIndicator"}
       title={
         isValid
-          ? la("This Reflection is ready to accelerate queries.")
-          : la("This Reflection is not ready to accelerate queries.")
+          ? laDeprecated("This Reflection is ready to accelerate queries.")
+          : laDeprecated("This Reflection is not ready to accelerate queries.")
       }
     >
       <FontIcon

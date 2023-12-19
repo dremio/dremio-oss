@@ -48,16 +48,16 @@ describe("DragColumnMenu", () => {
   describe("#componentWillUpdate()", () => {
     it("should update this.filteredSortedColumns if filter, columns or disabledColumnNames has changed", () => {
       sinon.stub(instance, "updateColumns");
-      instance.componentWillUpdate(instance.props, instance.state);
+      instance.UNSAFE_componentWillUpdate(instance.props, instance.state);
       expect(instance.updateColumns).to.not.be.called;
-      instance.componentWillUpdate(instance.props, { filter: "someFilter" });
+      instance.UNSAFE_componentWillUpdate(instance.props, { filter: "someFilter" });
       expect(instance.updateColumns).to.have.callCount(1);
-      instance.componentWillUpdate(
+      instance.UNSAFE_componentWillUpdate(
         { ...instance.props, items: Immutable.List([{}]) },
         instance.state
       );
       expect(instance.updateColumns).to.have.callCount(2);
-      instance.componentWillUpdate(
+      instance.UNSAFE_componentWillUpdate(
         { ...instance.props, disabledColumnNames: Immutable.List(["foo"]) },
         instance.state
       );

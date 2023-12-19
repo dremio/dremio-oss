@@ -28,6 +28,7 @@ type PageResult<T> =
     }
   | {
       status: "PENDING";
+      data: T;
     }
   | {
       status: "ERROR";
@@ -66,8 +67,10 @@ export const usePaginated = <T>(fetcher: (...args: any[]) => Promise<T>) => {
       // Create a new page state object with the state set to pending
       setPageResults((prev) => {
         const next = shouldReset ? new Map() : new Map(prev);
+        const prevData = (prev.get(pageToken) as any)?.data;
         next.set(pageToken, {
           status: "PENDING",
+          data: prevData ? prevData : { data: [] },
         });
         return next;
       });
@@ -95,7 +98,7 @@ export const usePaginated = <T>(fetcher: (...args: any[]) => Promise<T>) => {
       }
     },
     pages: pageTokens.map((pageToken) => {
-      return pageResults.get(pageToken)!;
+      return { ...pageResults.get(pageToken), pageToken }!;
     }),
   };
 };

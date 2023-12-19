@@ -14,18 +14,6 @@
  * limitations under the License.
  */
 
-%dremio-typography-main {
-  color: var(--dremio--color--text--main);
-  font-family: var(--dremio--font-family);
-  font-feature-settings: "calt" on, "cv08" on;
-
-  font-size: calc(14rem / 16);
-  font-weight: 400;
-
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
 .dremio-typography-monospace {
   font-family: var(--dremio--font-family--monospace);
   font-feature-settings: "zero" on;

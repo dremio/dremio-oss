@@ -47,7 +47,7 @@ const SortDropDownMenu = (props: SortDropDownMenuProps) => {
           ) : (
             <MenuItem
               key={`${sortOptions.category}-${sortOptions.dir}`}
-              classname={`${sortOptions === sortValue ? "--selected" : ""}`}
+              className={`${sortOptions === sortValue ? "--selected" : ""}`}
               onClick={(): void => handleClick(sortOptions)}
             >
               {sortOptions.category}

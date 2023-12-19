@@ -23,15 +23,21 @@ import { FormattedMessage, useIntl } from "react-intl";
 //@ts-ignore
 import ImmutablePropTypes from "react-immutable-proptypes";
 import * as classes from "./WikiModal.module.less";
+import { TutorialOutlet } from "@inject/tutorials/components/TutorialOutlet";
+import { tutorialContext } from "dremio-ui-common/walkthrough/TutorialController";
 
 interface WikiModalProps {
   isOpen: boolean;
   onChange: (val: string) => void;
   cancel: () => void;
   wikiValue: string;
+  entityId: string;
+  entityType: string;
+  fullPath: any;
   isReadMode: boolean;
   save: (wikiValue: string) => void;
   wikiViewState: ImmutablePropTypes.map;
+  wikiSummary: boolean;
   stay: () => void;
   leave: () => void;
   openChildModal: boolean;
@@ -43,8 +49,12 @@ const WikiModalView = ({
   cancel,
   wikiValue,
   isReadMode,
+  entityId,
+  fullPath,
+  entityType,
   save,
   wikiViewState,
+  wikiSummary,
   stay,
   leave,
   openChildModal,
@@ -57,7 +67,7 @@ const WikiModalView = ({
 
   const wrapperStylesFix = {
     flex: 1,
-    height: "40vh",
+    height: "70vh",
     display: "flex",
     alignItems: "stretch",
   };
@@ -67,7 +77,6 @@ const WikiModalView = ({
       {...modal}
       isOpen={isOpen}
       close={cancel}
-      expandable
       title={intl.formatMessage({ id: "Common.Wiki" })}
       actions={
         !isReadMode && (
@@ -87,15 +96,24 @@ const WikiModalView = ({
             hideChildrenWhenFailed={false}
             style={wrapperStylesFix}
           >
-            <MarkdownEditor
-              //@ts-ignore
-              value={wikiValue}
-              readMode={isReadMode}
-              onChange={onChange}
-              className={classes["editor"]}
-              isModal
-              fitToContainer
-            />
+            <tutorialContext.Consumer>
+              {({ setWikiEditor }) => (
+                <MarkdownEditor
+                  //@ts-ignore
+                  showSummary={wikiSummary}
+                  fullPath={fullPath}
+                  value={wikiValue}
+                  readMode={isReadMode}
+                  entityId={entityId}
+                  entityType={entityType}
+                  onChange={onChange}
+                  className={classes["editor"]}
+                  isModal
+                  fitToContainer
+                  setTutorialWikiEditor={setWikiEditor}
+                />
+              )}
+            </tutorialContext.Consumer>
           </ViewStateWrapper>
         </div>
         <MessageDialog
@@ -118,6 +136,7 @@ const WikiModalView = ({
           </div>
         </MessageDialog>
       </div>
+      {TutorialOutlet && <TutorialOutlet id="edit-wiki" />}
     </MessageDialog>
   );
 };

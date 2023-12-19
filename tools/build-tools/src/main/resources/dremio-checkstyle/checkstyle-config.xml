@@ -113,7 +113,7 @@
     <module name="ConstantName">
       <!-- TODO: move to error -->
       <property name="severity" value="warning"/>
-      <property name="format" value="^logger|[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$"/>
+      <property name="format" value="^(logger|metrics)|[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$"/>
     </module>
     <module name="LocalFinalVariableName"/>
     <module name="LocalVariableName">
@@ -243,6 +243,12 @@
   <!-- see https://checkstyle.org/config_filefilters.html#BeforeExecutionExclusionFileFilter -->
   <module name="BeforeExecutionExclusionFileFilter">
     <property name="fileNamePattern" value="[\\/]src[\\/](test|main)[\\/]resources[\\/].+\.(?!properties$|conf$|json$|xml$).+$"/>
+  </module>
+
+  <!-- Disables file length check for LocalJobsService.java. Can be removed when DX-59341 is addressed. -->
+  <module name="SuppressionSingleFilter">
+    <property name="checks" value="FileLength"/>
+    <property name="files" value="LocalJobsService.java"/>
   </module>
 
 </module>

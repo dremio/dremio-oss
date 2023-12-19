@@ -47,6 +47,7 @@ org.apache.commons.math3.exception.NullArgumentException @ Use com.google.common
 com.mongodb.internal.** @ Use Standard-Library or Guava (com.google.common) instead
 org.apache.arrow.util.AutoCloseables @ Use com.dremio.common.AutoCloseables instead
 de.flapdoodle.embed.mongo.util.** @ Use Guava (com.google.common) or org.apache.commons.io instead
+autovalue.shaded.** @ Use original library instead (i.e. use com.google.common instead)
 
 # Deprecated
 org.apache.commons.collections.map.HashedMap @ Use java.util.HashMap instead

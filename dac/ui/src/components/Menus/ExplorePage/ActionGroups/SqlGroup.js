@@ -33,7 +33,7 @@ class SqlGroup extends PureComponent {
         key="UNNEST"
         columnType={columnType}
         actionType="UNNEST"
-        title={la("Unnest")}
+        title={laDeprecated("Unnest")}
         availableTypes={[LIST]}
         onClick={onClick}
       />,
@@ -41,7 +41,7 @@ class SqlGroup extends PureComponent {
         key="EXTRACT_ELEMENTS"
         columnType={columnType}
         actionType="EXTRACT_ELEMENTS"
-        title={la("Extract Element(s)…")}
+        title={laDeprecated("Extract Element(s)…")}
         availableTypes={[LIST]}
         onClick={onClick}
       />,
@@ -49,7 +49,7 @@ class SqlGroup extends PureComponent {
         key="EXTRACT_ELEMENT"
         columnType={columnType}
         actionType="EXTRACT_ELEMENT"
-        title={la("Extract Element…")}
+        title={laDeprecated("Extract Element…")}
         availableTypes={[STRUCT]}
         onClick={onClick}
       />,
@@ -57,7 +57,7 @@ class SqlGroup extends PureComponent {
         key="CONVERT_CASE"
         columnType={columnType}
         actionType="CONVERT_CASE"
-        title={la("Convert Case…")}
+        title={laDeprecated("Convert Case…")}
         availableTypes={[TEXT]}
         onClick={onClick}
       />,
@@ -65,7 +65,7 @@ class SqlGroup extends PureComponent {
         key="TRIM_WHITE_SPACES"
         columnType={columnType}
         actionType="TRIM_WHITE_SPACES"
-        title={la("Trim Whitespace…")}
+        title={laDeprecated("Trim Whitespace…")}
         availableTypes={[TEXT]}
         onClick={onClick}
       />,
@@ -73,7 +73,7 @@ class SqlGroup extends PureComponent {
         key="CALCULATED_FIELD"
         columnType={columnType}
         actionType="CALCULATED_FIELD"
-        title={la("Calculated Field…")}
+        title={laDeprecated("Calculated Field…")}
         availableTypes={ALL_TYPES}
         onClick={onClick}
       />,

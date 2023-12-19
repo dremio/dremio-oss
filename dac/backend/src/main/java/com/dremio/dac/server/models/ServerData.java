@@ -49,6 +49,7 @@ public class ServerData {
   private final boolean allowDownload;
   private final boolean allowFormatting;
   private final boolean useNewDatasetNavigation;
+  private final boolean showNewJobsTables;
 
   protected ServerData(Builder builder) {
     this.serverEnvironment = builder.serverEnvironment;
@@ -78,6 +79,7 @@ public class ServerData {
     this.allowDownload = builder.allowDownload;
     this.allowFormatting = builder.allowFormatting;
     this.useNewDatasetNavigation = builder.useNewDatasetNavigation;
+    this.showNewJobsTables = builder.showNewJobsTables;
   }
 
   public String getServerEnvironment() {
@@ -195,6 +197,10 @@ public class ServerData {
     return useNewDatasetNavigation;
   }
 
+  public boolean isShowNewJobsTables() {
+    return showNewJobsTables;
+  }
+
   /**
    * A builder for server data
    */
@@ -226,6 +232,7 @@ public class ServerData {
     private boolean allowDownload;
     private boolean allowFormatting;
     private boolean useNewDatasetNavigation;
+    private boolean showNewJobsTables;
 
     protected Builder() {
     }
@@ -258,6 +265,7 @@ public class ServerData {
       this.allowDownload = builder.allowDownload;
       this.allowFormatting = builder.allowFormatting;
       this.useNewDatasetNavigation = builder.useNewDatasetNavigation;
+      this.showNewJobsTables = builder.showNewJobsTables;
     }
 
     public Builder setServerEnvironment(String serverEnvironment) {
@@ -392,6 +400,11 @@ public class ServerData {
 
     public Builder setUseNewDatasetNavigation(boolean useNewDatasetNavigation) {
       this.useNewDatasetNavigation = useNewDatasetNavigation;
+      return this;
+    }
+
+    public Builder setShowNewJobsTables(boolean showNewJobsTables) {
+      this.showNewJobsTables = showNewJobsTables;
       return this;
     }
 

@@ -401,7 +401,7 @@ public class SchemaMerger {
 
   }
 
-  private static class ResultBuilder {
+  private static final class ResultBuilder {
     private final Map<SchemaPath, ElasticAnnotation> annotations = new HashMap<>();
 
     public void isDate(SchemaPath path, List<String> dateFormats){

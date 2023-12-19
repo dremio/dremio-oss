@@ -91,7 +91,7 @@ class SingleEngineHeader extends PureComponent {
       >
         <div style={styles.lefChildren}>
           <div className="link" onClick={this.props.unselectEngine}>
-            {la("Engines")}
+            {laDeprecated("Engines")}
           </div>
           {doubleCaretIcon} {statusIcon} {engineName}
           {region && <div style={styles.region}>({region})</div>}

@@ -23,7 +23,7 @@
   <parent>
     <artifactId>dremio-plugin-parent</artifactId>
     <groupId>com.dremio.plugins</groupId>
-    <version>24.1.0-202306130653310132-d30779f6</version>
+    <version>24.3.0-202312190021150029-52db2faf</version>
   </parent>
 
   <artifactId>dremio-awsglue-plugin</artifactId>
@@ -32,12 +32,12 @@
 
   <properties>
     <dremio.plugins.path>${project.build.directory}</dremio.plugins.path>
-    <hadoop.version>${plugin.hive2.hadoop.version}</hadoop.version>
+    <hadoop.version>${plugin.hive3.hadoop.version}</hadoop.version>
   </properties>
   <dependencies>
     <dependency>
       <groupId>com.dremio.contrib</groupId>
-      <artifactId>dremio-hive2-exec-shaded</artifactId>
+      <artifactId>dremio-hive3-exec-shaded</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
@@ -93,7 +93,7 @@
     </dependency>
     <dependency>
       <groupId>com.dremio.plugins</groupId>
-      <artifactId>dremio-hive2-plugin-launcher</artifactId>
+      <artifactId>dremio-hive3-plugin-launcher</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
@@ -126,7 +126,19 @@
     </dependency>
     <dependency>
       <groupId>com.dremio.plugins</groupId>
-      <artifactId>dremio-hive2-plugin</artifactId>
+      <artifactId>dremio-hive3-plugin</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>*</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.plugins</groupId>
+      <artifactId>dremio-hive2-plugin-launcher</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
       <exclusions>
@@ -155,7 +167,7 @@
           <artifactItems>
             <artifactItem>
               <groupId>com.dremio.plugins</groupId>
-              <artifactId>dremio-hive2-plugin</artifactId>
+              <artifactId>dremio-hive3-plugin</artifactId>
               <version>${project.version}</version>
               <type>jar</type>
               <overWrite>true</overWrite>
@@ -167,53 +179,31 @@
         </configuration>
       </plugin>
       <plugin>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <!-- Need to run with Java 8, because `GuavaPatcher` runs too late, and
+           `com.google.common.base.Stopwatch` has already been loaded. GuavaPatcher
+            tries to re-define the Stopwatch class in the same classloader, but Java
+            Java 11 no longer allows this. The existing workaround with that
+            `GuavaPatcherRunner` runs into the same issue. A proper solution would be
+            to implement a Java agent, which _is_ allowed to re-define classes.
+            -->
+          <jdkToolchain>
+            <version>1.8</version>
+          </jdkToolchain>
+        </configuration>
+      </plugin>
+      <plugin>
         <artifactId>maven-failsafe-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>default-integration-test</id>
-            <goals>
-              <goal>integration-test</goal>
-              <goal>verify</goal>
-            </goals>
-          </execution>
-        </executions>
         <configuration>
           <reportNameSuffix>awsglue</reportNameSuffix>
           <forkCount>1</forkCount>
           <classpathDependencyExcludes>
-            <classpathDependencyExclude>com.dremio.contrib:dremio-hive2-exec-shaded*</classpathDependencyExclude>
+            <classpathDependencyExclude>com.dremio.contrib:dremio-hive3-exec-shaded*</classpathDependencyExclude>
           </classpathDependencyExcludes>
         </configuration>
       </plugin>
     </plugins>
   </build>
 
-  <profiles>
-    <profile>
-      <id>jdk9-or-higher</id>
-      <activation>
-        <jdk>[9,)</jdk>
-      </activation>
-
-      <build>
-        <plugins>
-          <plugin>
-            <artifactId>maven-surefire-plugin</artifactId>
-            <configuration>
-              <!-- Need to run with Java 8, because `GuavaPatcher` runs too late, and
-               `com.google.common.base.Stopwatch` has already been loaded. GuavaPatcher
-                tries to re-define the Stopwatch class in the same classloader, but Java
-                Java 11 no longer allows this. The existing workaround with that
-                `GuavaPatcherRunner` runs into the same issue. A proper solution would be
-                to implement a Java agent, which _is_ allowed to re-define classes.
-                -->
-              <jdkToolchain>
-                <version>1.8</version>
-              </jdkToolchain>
-            </configuration>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-  </profiles>
 </project>

@@ -235,7 +235,7 @@ public class HomeFileSystemStoragePlugin extends MayBeDistFileSystemPlugin<HomeF
     final FileUpdateKey.Builder updateKey = FileUpdateKey.newBuilder();
     final FileAttributes rootAttributes = fs.getFileAttributes(Path.of(fileConfig.getLocation()));
     final Path combined = Path.of("/").resolve(PathUtils.removeLeadingSlash(fileConfig.getLocation()));
-    final FileSelection fileSelection = FileSelection.create(fs, combined);
+    final FileSelection fileSelection = FileSelection.create(datasetPath.getName(), fs, combined, formatPlugin.getMaxFilesLimit());
 
     if (fileSelection == null) {
       return null;
@@ -246,25 +246,26 @@ public class HomeFileSystemStoragePlugin extends MayBeDistFileSystemPlugin<HomeF
       updateKey.addCachedEntities(fromFileAttributes(rootAttributes));
     }
 
-    for (FileAttributes dirAttributes: fileSelection.getAllDirectories()) {
-      updateKey.addCachedEntities(fromFileAttributes(dirAttributes));
+    boolean hasDirectories = false;
+    for (FileAttributes dirAttributes: fileSelection.getFileAttributesList()) {
+      if (dirAttributes.isDirectory()) {
+        hasDirectories = true;
+        updateKey.addCachedEntities(fromFileAttributes(dirAttributes));
+      }
     }
 
     if(updateKey.getCachedEntitiesCount() == 0){
       // this is a single file.
       updateKey.addCachedEntities(fromFileAttributes(rootAttributes));
     }
-    final boolean hasDirectories = fileSelection.containsDirectories();
     // Expand selection by copying it first used to check extensions of files in directory.
     final FileSelection fileSelectionWithoutDir =  hasDirectories? fileSelection.minusDirectories(): fileSelection;
 
-    if(fileSelectionWithoutDir == null){
+    if(fileSelectionWithoutDir.isEmpty()) {
       // no files in the found directory, not a table.
       return null;
     }
 
-    FileDatasetHandle.checkMaxFiles(datasetPath.getName(), fileSelectionWithoutDir.getFileAttributesList().size(), getContext(),
-      getConfig().isInternal());
     return formatPlugin.getDatasetAccessor(DatasetType.PHYSICAL_DATASET_HOME_FILE, oldConfig, fs,
         fileSelectionWithoutDir, this, datasetPath, updateKey.build(), maxLeafColumns, travelRequest);
   }

@@ -80,8 +80,8 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.ExpressionInputRewriter;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.dfs.RowCountEstimator;
-import com.dremio.exec.store.parquet.ParquetFilterCondition;
 import com.dremio.exec.store.parquet.ParquetScanFilter;
+import com.dremio.exec.store.parquet.ParquetScanRowGroupFilter;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -89,44 +89,50 @@ import com.google.common.collect.ImmutableList;
  */
 public class DeltaLakeScanPrel extends ScanRelBase implements Prel, PrelFinalizable, RowCountEstimator {
   private final ParquetScanFilter filter;
+  private final ParquetScanRowGroupFilter rowGroupFilter;
   private final boolean arrowCachingEnabled;
   private final PruneFilterCondition pruneCondition;
 
   public DeltaLakeScanPrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table,
                            StoragePluginId pluginId, TableMetadata tableMetadata, List<SchemaPath> projectedColumns,
                            double observedRowcountAdjustment, List<RelHint> hints, ParquetScanFilter filter,
-                           boolean arrowCachingEnabled, PruneFilterCondition pruneCondition) {
+                           ParquetScanRowGroupFilter rowGroupFilter, boolean arrowCachingEnabled, PruneFilterCondition pruneCondition) {
     super(cluster, traitSet, table, pluginId, tableMetadata, projectedColumns, observedRowcountAdjustment, hints);
     this.filter = filter;
+    this.rowGroupFilter = rowGroupFilter;
     this.arrowCachingEnabled = arrowCachingEnabled;
     this.pruneCondition = pruneCondition;
-  }
-
-  private List<ParquetFilterCondition> getConditions() {
-    return filter == null ? null : filter.getConditions();
   }
 
   public ParquetScanFilter getFilter() {
     return filter;
   }
 
+  public ParquetScanRowGroupFilter getRowGroupFilter() {
+    return rowGroupFilter;
+  }
+
   public boolean isArrowCachingEnabled() {
     return arrowCachingEnabled;
+  }
+
+  public PruneFilterCondition getPruneCondition() {
+    return pruneCondition;
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
     return new DeltaLakeScanPrel(getCluster(), getTraitSet(), getTable(), getPluginId(), getTableMetadata(),
-      getProjectedColumns(), getObservedRowcountAdjustment(), hints, filter, arrowCachingEnabled, pruneCondition);
+      getProjectedColumns(), getObservedRowcountAdjustment(), hints, filter, rowGroupFilter, arrowCachingEnabled,
+      pruneCondition);
   }
 
   @Override
   public ScanRelBase cloneWithProject(List<SchemaPath> projection) {
     return new DeltaLakeScanPrel(getCluster(), getTraitSet(), getTable(), getPluginId(), getTableMetadata(),
-      projection, getObservedRowcountAdjustment(), hints, filter == null ? filter : filter.applyProjection(projection, rowType, getCluster(), getBatchSchema()), arrowCachingEnabled,
-      pruneCondition == null ? pruneCondition : pruneCondition.applyProjection(projection, rowType, getCluster(), getBatchSchema()))
-      ;
-
+      projection, getObservedRowcountAdjustment(), hints, filter == null ? null : filter.applyProjection(projection, rowType, getCluster(), getBatchSchema()),
+      rowGroupFilter == null ? null : rowGroupFilter.applyProjection(projection, rowType, getCluster(), getBatchSchema()),
+      arrowCachingEnabled, pruneCondition == null ? null : pruneCondition.applyProjection(projection, rowType, getCluster(), getBatchSchema()));
   }
 
   @Override
@@ -260,7 +266,7 @@ public class DeltaLakeScanPrel extends ScanRelBase implements Prel, PrelFinaliza
 
     // Parquet scan phase
     TableFunctionConfig parquetScanTableFunctionConfig = TableFunctionUtil.getDataFileScanTableFunctionConfig(
-      tableMetadata, filter, getProjectedColumns(), arrowCachingEnabled, false,
+      tableMetadata, filter, rowGroupFilter, getProjectedColumns(), arrowCachingEnabled, false,
       false, tableMetadata.getApproximateRecordCount(), Collections.EMPTY_LIST);
 
     return new TableFunctionPrel(getCluster(), getTraitSet().plus(DistributionTrait.ANY), table, parquetSplitsExchange, tableMetadata,
@@ -277,7 +283,8 @@ public class DeltaLakeScanPrel extends ScanRelBase implements Prel, PrelFinaliza
     return super.explainTerms(pw)
       .itemIf("filters", filter, filter != null)
       .itemIf("arrowCachingEnabled", true, arrowCachingEnabled)
-      .itemIf("partitionFilters", pruneCondition, pruneCondition != null);
+      .itemIf("partitionFilters", pruneCondition, pruneCondition != null)
+      .itemIf("rowGroupFilters", rowGroupFilter, rowGroupFilter != null);
   }
 
   public RelNode expandDeltaLakeScan() {
@@ -285,8 +292,8 @@ public class DeltaLakeScanPrel extends ScanRelBase implements Prel, PrelFinaliza
     JoinRelType joinRelType = JoinRelType.LEFT;
 
     // Create DeltaLakeScans for added and removed paths
-    RelNode addPathScan = createDeltaLakeCommitLogScan(rexBuilder, true);
-    RelNode removePathScan = createDeltaLakeCommitLogScan(rexBuilder, false);
+    RelNode addPathScan = createDeltaLakeCommitLogScanWithSideScan(rexBuilder, true);
+    RelNode removePathScan = createDeltaLakeCommitLogScanWithSideScan(rexBuilder, false);
 
     if (checkBroadcastConditions(joinRelType, addPathScan, removePathScan)) {
       removePathScan = new BroadcastExchangePrel(removePathScan.getCluster(), removePathScan.getTraitSet(), removePathScan);
@@ -367,9 +374,8 @@ public class DeltaLakeScanPrel extends ScanRelBase implements Prel, PrelFinaliza
     throw new RuntimeException(String.format("Unable to find DeltaLakeCommitLogScanPrel in:\n%s", RelOptUtil.toString(relNode)));
   }
 
-  private RelNode createDeltaLakeCommitLogScan(RexBuilder rexBuilder, boolean scanForAddedPaths) {
-    // Create DeltaLake commit log scans
-    DeltaLakeCommitLogScanPrel deltaLakeCommitLogScanPrel = new DeltaLakeCommitLogScanPrel(
+  protected RelNode createDeltaLakeCommitLogScan(boolean scanForAddedPaths) {
+    return new DeltaLakeCommitLogScanPrel(
       getCluster(),
       getTraitSet().plus(DistributionTrait.ANY), /*
                                                   * The broadcast condition depends on the probe side being non-SINGLETON. Since
@@ -380,7 +386,10 @@ public class DeltaLakeScanPrel extends ScanRelBase implements Prel, PrelFinaliza
       getTableMetadata(),
       isArrowCachingEnabled(),
       scanForAddedPaths);
+  }
 
+  private RelNode createDeltaLakeCommitLogScanWithSideScan(RexBuilder rexBuilder, boolean scanForAddedPaths) {
+    RelNode deltaLakeCommitLogScanPrel = createDeltaLakeCommitLogScan(scanForAddedPaths);
     if(scanForAddedPaths) {
       return creteAddSideScan(deltaLakeCommitLogScanPrel, rexBuilder);
     } else {

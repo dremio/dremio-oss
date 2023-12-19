@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import Immutable from "immutable";
 import { PureComponent, createRef } from "react";
 
 import PropTypes from "prop-types";
@@ -115,7 +116,9 @@ export default class DependantDatasetsWarning extends PureComponent {
               style={styles.linkWrapper}
             >
               <a style={styles.link}>
-                {la(`and ${dependantDatasets.length - MAX_DATASETS} more...`)}
+                {laDeprecated(
+                  `and ${dependantDatasets.length - MAX_DATASETS} more...`
+                )}
               </a>
             </div>
           </div>

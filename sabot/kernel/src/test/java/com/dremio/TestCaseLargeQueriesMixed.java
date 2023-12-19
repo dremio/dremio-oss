@@ -15,14 +15,22 @@
  */
 package com.dremio;
 
+import java.util.concurrent.TimeUnit;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestRule;
 
+import com.dremio.common.util.TestTools;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.PlannerSettings;
 
 public class TestCaseLargeQueriesMixed extends TestAbstractCaseLargeQueries {
+
+  @Rule
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(80, TimeUnit.SECONDS);
 
   @BeforeClass
   public static void setup() throws Exception {

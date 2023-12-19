@@ -18,7 +18,7 @@ import PropTypes from "prop-types";
 import Immutable from "immutable";
 import { withRouter } from "react-router";
 import classNames from "clsx";
-import { IconButton } from "dremio-ui-lib";
+import { IconButton } from "dremio-ui-lib/components";
 import FinderNavSection from "./FinderNavSection";
 import LinkWithRef from "./LinkWithRef/LinkWithRef";
 import { stopPropagation } from "@app/utils/reactEventUtils";
@@ -44,6 +44,7 @@ export class FinderNav extends Component {
     renderExtra: PropTypes.func,
     noMarginTop: PropTypes.bool,
     router: PropTypes.any,
+    renderLink: PropTypes.func,
   };
 
   state = {
@@ -70,6 +71,7 @@ export class FinderNav extends Component {
       isCollapsed,
       noMarginTop,
       router,
+      renderLink,
     } = this.props;
 
     const wrapClass = classNames(
@@ -79,6 +81,51 @@ export class FinderNav extends Component {
       { "finder-nav--collapsed": isCollapsible && isCollapsed }
     ); // todo: don't use ui-string for code keys
 
+    const LinkContent = listHref ? (
+      <LinkWithRef className="pointer" activeClassName="active" to={listHref}>
+        {isCollapsible ? (
+          <>
+            <span
+              className="icon-container"
+              onClick={(e) => stopPropagation(e)}
+            >
+              <dremio-icon
+                name={
+                  isCollapsed
+                    ? "interface/right-chevron"
+                    : "interface/down-chevron"
+                }
+                class="finder-nav__collapse-control"
+                onClick={this.onToggleClick}
+              />
+            </span>
+            <span>
+              {title} ({navItems.size})
+            </span>
+          </>
+        ) : (
+          <span>
+            {title} ({navItems.size})
+          </span>
+        )}
+        {addHref && (
+          <IconButton
+            tooltip={addTooltip}
+            onClick={(e) => {
+              stopPropagation(e);
+              router.push(addHref);
+            }}
+            className="pull-right"
+            data-qa={`add-${title.toLowerCase()}`}
+          >
+            <dremio-icon name="interface/add-small" class="add-space-icon" />
+          </IconButton>
+        )}
+      </LinkWithRef>
+    ) : (
+      `${title} (${navItems.size})`
+    );
+
     return (
       <div className={wrapClass}>
         <h4
@@ -87,57 +134,7 @@ export class FinderNav extends Component {
           }`}
           data-qa={title}
         >
-          {listHref ? (
-            <LinkWithRef
-              className="pointer"
-              activeClassName="active"
-              to={listHref}
-            >
-              {isCollapsible ? (
-                <>
-                  <span
-                    className="icon-container"
-                    onClick={(e) => stopPropagation(e)}
-                  >
-                    <dremio-icon
-                      name={
-                        isCollapsed
-                          ? "interface/right-chevron"
-                          : "interface/down-chevron"
-                      }
-                      class="finder-nav__collapse-control"
-                      onClick={this.onToggleClick}
-                    />
-                  </span>
-                  <span>
-                    {title} ({navItems.size})
-                  </span>
-                </>
-              ) : (
-                <span>
-                  {title} ({navItems.size})
-                </span>
-              )}
-              {addHref && (
-                <IconButton
-                  tooltip={addTooltip}
-                  onClick={(e) => {
-                    stopPropagation(e);
-                    router.push(addHref);
-                  }}
-                  className="pull-right"
-                  data-qa={`add-${title.toLowerCase()}`}
-                >
-                  <dremio-icon
-                    name="interface/add-small"
-                    class="add-space-icon"
-                  />
-                </IconButton>
-              )}
-            </LinkWithRef>
-          ) : (
-            `${title} (${navItems.size})`
-          )}
+          {renderLink ? renderLink() : LinkContent}
         </h4>
         <div className="nav-list">
           {!isInProgress && (

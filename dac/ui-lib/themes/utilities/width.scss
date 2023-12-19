@@ -14,13 +14,15 @@
  * limitations under the License.
  */
 
+@use "./helpers";
+
 .w-0 {
   inline-size: 0;
 }
 
-@for $i from 1 through 11 {
-  .w-#{$i} {
-    inline-size: var(--scale-#{$i});
+@each $size in helpers.$sizes {
+  .w-#{$size} {
+    inline-size: var(--scale-#{$size});
   }
 }
 

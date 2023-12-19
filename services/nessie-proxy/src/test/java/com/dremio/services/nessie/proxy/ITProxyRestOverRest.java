@@ -19,11 +19,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.projectnessie.client.ext.NessieApiVersion;
 import org.projectnessie.client.ext.NessieApiVersions;
 import org.projectnessie.client.ext.NessieClientFactory;
+import org.projectnessie.jaxrs.tests.AbstractRelativeReferences;
 import org.projectnessie.jaxrs.tests.BaseTestNessieRest;
 
 /**
@@ -34,6 +36,11 @@ public class ITProxyRestOverRest extends BaseTestNessieRest {
 
   @RegisterExtension
   private static NessieProxyJaxRsExtension proxy = new NessieProxyJaxRsExtension(RestClientProducer.class);
+
+  @Override
+  protected boolean isNewModel() {
+    return true; // nessie-runner-maven-plugin (in pom.xml) uses the IN_MEMORY store type
+  }
 
   @Override
   protected boolean fullPagingSupport() {
@@ -51,5 +58,16 @@ public class ITProxyRestOverRest extends BaseTestNessieRest {
   @NessieApiVersions(versions = NessieApiVersion.V2)
   void testActualApiVersion() {
     assertThat(api().getConfig().getActualApiVersion()).isEqualTo(2);
+  }
+
+  /**
+   * Workaround to obtain proper test display names in surefire reports.
+   */
+  @Nested
+  @NessieApiVersions(versions = NessieApiVersion.V2)
+  public class RelativeReferences extends AbstractRelativeReferences {
+    protected RelativeReferences() {
+      super(ITProxyRestOverRest.this);
+    }
   }
 }

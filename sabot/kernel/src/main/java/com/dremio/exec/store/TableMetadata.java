@@ -21,12 +21,13 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.iceberg.PartitionSpec;
 
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.datastore.SearchTypes;
 import com.dremio.exec.catalog.StoragePluginId;
-import com.dremio.exec.catalog.TableVersionContext;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.iceberg.IcebergSerDe;
 import com.dremio.exec.store.iceberg.IcebergUtils;
@@ -68,11 +69,11 @@ public interface TableMetadata {
 
   String getUser();
 
-  TableMetadata prune(SearchTypes.SearchQuery partitionFilterQuery) throws NamespaceException;
+  TableMetadata prune(SearchTypes.SearchQuery partitionFilterQuery);
 
-  TableMetadata prune(Predicate<PartitionChunkMetadata> partitionPredicate) throws NamespaceException;
+  TableMetadata prune(Predicate<PartitionChunkMetadata> partitionPredicate);
 
-  TableMetadata prune(List<PartitionChunkMetadata> newSplits) throws NamespaceException;
+  TableMetadata prune(List<PartitionChunkMetadata> newSplits);
 
   /**
    * Get an opaque key to perform comparison on splits
@@ -122,6 +123,21 @@ public interface TableMetadata {
     } else {
       return ImmutableSet.of();
     }
+  }
+
+  /**
+   * Computes partition columns that are not invalid.
+   */
+  default List<String> validPartitionColumns(){
+    Set<String> invalidPartitionColumns = getInvalidPartitionColumns();
+
+    if(null == invalidPartitionColumns || invalidPartitionColumns.isEmpty()){
+      return getReadDefinition().getPartitionColumnsList();
+    }
+
+    return getReadDefinition().getPartitionColumnsList().stream()
+      .filter(partitionColumn -> !invalidPartitionColumns.contains(partitionColumn))
+      .collect(Collectors.toList());
   }
 
   default PartitionFilterGranularity getPartitionFilterGranularity() {

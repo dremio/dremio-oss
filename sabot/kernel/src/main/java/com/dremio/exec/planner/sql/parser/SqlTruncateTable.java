@@ -29,33 +29,51 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 
 public class SqlTruncateTable extends SqlCall {
   public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("TRUNCATE TABLE", SqlKind.OTHER_DDL) {
     @Override
     public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 3, "SqlTruncateTable.createCall() " +
-          "has to get 3 operands!");
-      return new SqlTruncateTable(pos, (SqlIdentifier) operands[0], (SqlLiteral) operands[1], (SqlLiteral) operands[2]);
+      Preconditions.checkArgument(operands.length == 5, "SqlTruncateTable.createCall() " +
+          "has to get 5 operands!");
+      return new SqlTruncateTable(pos,
+        (SqlLiteral) operands[0],
+        (SqlLiteral) operands[1],
+        (SqlIdentifier) operands[2],
+        ((SqlLiteral) operands[3]).symbolValue(ReferenceType.class),
+        (SqlIdentifier) operands[4]);
     }
   };
-
+  private static final SqlLiteral sqlLiteralNull = SqlLiteral.createNull(SqlParserPos.ZERO);
   private SqlIdentifier tableName;
-  private boolean tableExistenceCheck;
+  private boolean shouldErrorIfTableDoesNotExist;
   private boolean tableKeywordPresent;
 
-  public SqlTruncateTable(SqlParserPos pos, SqlIdentifier tableName, SqlLiteral tableExistenceCheck,
-                          SqlLiteral tableKeywordPresent) {
-    this(pos, tableName, tableExistenceCheck.booleanValue(), tableKeywordPresent.booleanValue());
+  private final ReferenceType refType;
+  private final SqlIdentifier refValue;
+
+  public SqlTruncateTable(SqlParserPos pos,
+                          SqlLiteral shouldErrorIfTableDoesNotExist,
+                          SqlLiteral tableKeywordPresent,
+                          SqlIdentifier tableName,
+                          ReferenceType refType,
+                          SqlIdentifier refValue) {
+    this(pos, shouldErrorIfTableDoesNotExist.booleanValue(), tableKeywordPresent.booleanValue(), tableName, refType, refValue);
   }
 
-  public SqlTruncateTable(SqlParserPos pos, SqlIdentifier tableName, boolean tableExistenceCheck,
-                          boolean tableKeywordPresent) {
+  public SqlTruncateTable(SqlParserPos pos,
+                          boolean shouldErrorIfTableDoesNotExist,
+                          boolean tableKeywordPresent,
+                          SqlIdentifier tableName,
+                          ReferenceType refType,
+                          SqlIdentifier refValue) {
     super(pos);
     this.tableName = tableName;
-    this.tableExistenceCheck = tableExistenceCheck;
+    this.shouldErrorIfTableDoesNotExist = shouldErrorIfTableDoesNotExist;
     this.tableKeywordPresent = tableKeywordPresent;
+    this.refType = refType;
+    this.refValue = refValue;
   }
 
   @Override
@@ -65,11 +83,17 @@ public class SqlTruncateTable extends SqlCall {
 
   @Override
   public List<SqlNode> getOperandList() {
-    return ImmutableList.of(
-        tableName,
-        SqlLiteral.createBoolean(tableExistenceCheck, SqlParserPos.ZERO),
-        SqlLiteral.createBoolean(tableKeywordPresent, SqlParserPos.ZERO)
-    );
+    List<SqlNode> ops = Lists.newArrayList();
+    ops.add(SqlLiteral.createBoolean(shouldErrorIfTableDoesNotExist, SqlParserPos.ZERO));
+    ops.add(SqlLiteral.createBoolean(tableKeywordPresent, SqlParserPos.ZERO));
+    ops.add(tableName);
+    if (refType == null) {
+      ops.add(sqlLiteralNull);
+    } else {
+      ops.add(SqlLiteral.createSymbol(getRefType(), SqlParserPos.ZERO));
+    }
+    ops.add(refValue);
+    return ops;
   }
 
   @Override
@@ -78,19 +102,32 @@ public class SqlTruncateTable extends SqlCall {
     if (tableKeywordPresent) {
       writer.keyword("TABLE");
     }
-    if (tableExistenceCheck) {
+    if (!shouldErrorIfTableDoesNotExist) {
       writer.keyword("IF");
       writer.keyword("EXISTS");
     }
     tableName.unparse(writer, leftPrec, rightPrec);
+
+    if (refType != null && refValue != null) {
+      writer.keyword("AT");
+      writer.keyword(refType.toString());
+      refValue.unparse(writer, leftPrec, rightPrec);
+    }
   }
 
   public NamespaceKey getPath() {
     return new NamespaceKey(tableName.names);
   }
 
-  public boolean checkTableExistence() {
-    return tableExistenceCheck;
+  public boolean shouldErrorIfTableDoesNotExist() {
+    return shouldErrorIfTableDoesNotExist;
   }
 
+  public ReferenceType getRefType() {
+    return refType;
+  }
+
+  public SqlIdentifier getRefValue() {
+    return refValue;
+  }
 }

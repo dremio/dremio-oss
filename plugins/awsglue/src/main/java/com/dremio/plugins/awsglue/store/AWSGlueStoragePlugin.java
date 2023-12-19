@@ -20,12 +20,14 @@ import static com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Predicate;
 
+import javax.annotation.Nonnull;
 import javax.inject.Provider;
 
 import org.apache.arrow.vector.types.pojo.Field;
@@ -45,6 +47,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.amazonaws.glue.catalog.util.AWSGlueConfig;
+import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.common.FSConstants;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.logical.FormatPluginConfig;
@@ -54,19 +57,21 @@ import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetHandleListing;
 import com.dremio.connector.metadata.DatasetMetadata;
+import com.dremio.connector.metadata.DatasetMetadataVerifyResult;
 import com.dremio.connector.metadata.EntityPath;
 import com.dremio.connector.metadata.GetDatasetOption;
 import com.dremio.connector.metadata.GetMetadataOption;
 import com.dremio.connector.metadata.ListPartitionChunkOption;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.extensions.SupportsListingDatasets;
+import com.dremio.connector.metadata.extensions.SupportsMetadataVerify;
 import com.dremio.connector.metadata.extensions.SupportsReadSignature;
 import com.dremio.connector.metadata.extensions.ValidateMetadataOption;
+import com.dremio.connector.metadata.options.MetadataVerifyRequest;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.AlterTableOption;
 import com.dremio.exec.catalog.DatasetSplitsPointer;
 import com.dremio.exec.catalog.MutablePlugin;
-import com.dremio.exec.catalog.ResolvedVersionContext;
 import com.dremio.exec.catalog.RollbackOption;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.TableMutationOptions;
@@ -99,7 +104,7 @@ import com.dremio.exec.store.dfs.DropPrimaryKey;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FormatPlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
-import com.dremio.exec.store.hive.Hive2StoragePluginConfig;
+import com.dremio.exec.store.hive.Hive3StoragePluginConfig;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.iceberg.SupportsIcebergMutablePlugin;
 import com.dremio.exec.store.iceberg.SupportsIcebergRootPointer;
@@ -114,13 +119,13 @@ import com.dremio.exec.store.metadatarefresh.dirlisting.DirListingRecordReader;
 import com.dremio.exec.store.metadatarefresh.footerread.FooterReadTableFunction;
 import com.dremio.exec.store.parquet.ScanTableFunction;
 import com.dremio.io.file.FileSystem;
+import com.dremio.options.OptionManager;
 import com.dremio.plugins.util.awsauth.DremioAWSCredentialsProviderFactoryV2;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -139,18 +144,17 @@ import software.amazon.awssdk.services.glue.model.GetDatabaseResponse;
 import software.amazon.awssdk.services.glue.model.GlueException;
 
 /**
- * This plugin is a wrapper over Hive2 Storage plugin
- * During instantiation it creates a hive 2 plugin and delegates all calls to it
+ * This plugin is a wrapper over Hive3 Storage plugin
+ * During instantiation it creates a hive 3 plugin and delegates all calls to it
  */
 public class AWSGlueStoragePlugin implements StoragePlugin, MutablePlugin, SupportsReadSignature,
-  SupportsListingDatasets, SupportsPF4JStoragePlugin, SupportsInternalIcebergTable, SupportsIcebergRootPointer, SupportsIcebergMutablePlugin {
+  SupportsListingDatasets, SupportsPF4JStoragePlugin, SupportsInternalIcebergTable, SupportsIcebergRootPointer,
+  SupportsIcebergMutablePlugin, SupportsMetadataVerify {
 
   private static final Logger logger = LoggerFactory.getLogger(AWSGlueStoragePlugin.class);
   private static final String AWS_GLUE_HIVE_METASTORE_PLACEHOLDER = "DremioGlueHive";
   private static final String AWS_GLUE_HIVE_CLIENT_FACTORY =
     "com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory";
-  private static final String IMETASTORE_CLIENT_FACTORY_CLASS =
-    "hive.imetastoreclient.factory.class";
   private static final String GLUE_AWS_CREDENTIALS_FACTORY = "com.dremio.exec.store.hive.GlueAWSCredentialsFactory";
   public static final String ASSUMED_ROLE_ARN = "fs.s3a.assumed.role.arn";
   public static final String ASSUMED_ROLE_CREDENTIALS_PROVIDER = "fs.s3a.assumed.role.credentials.provider";
@@ -182,7 +186,7 @@ public class AWSGlueStoragePlugin implements StoragePlugin, MutablePlugin, Suppo
   }
 
   protected void setup() {
-    Hive2StoragePluginConfig hiveConf = new Hive2StoragePluginConfig();
+    Hive3StoragePluginConfig hiveConf = new Hive3StoragePluginConfig();
 
     // set hive configuration properties
     final List<Property> finalProperties = new ArrayList<>();
@@ -190,11 +194,11 @@ public class AWSGlueStoragePlugin implements StoragePlugin, MutablePlugin, Suppo
 
     // Unit tests pass a mock factory to use.
     boolean imetastoreClientDefined = propertyList != null && config.propertyList.stream().
-      anyMatch(property -> property.name.equalsIgnoreCase(IMETASTORE_CLIENT_FACTORY_CLASS));
+      anyMatch(property -> property.name.equalsIgnoreCase(HiveConf.ConfVars.METASTORE_CLIENT_FACTORY_CLASS.varname));
 
     // If client factory is not overridden then use aws-glue-data-catalog-client-for-apache-hive-metastore
     if (!imetastoreClientDefined) {
-      finalProperties.add(new Property(IMETASTORE_CLIENT_FACTORY_CLASS,
+      finalProperties.add(new Property(HiveConf.ConfVars.METASTORE_CLIENT_FACTORY_CLASS.varname,
         AWS_GLUE_HIVE_CLIENT_FACTORY));
     }
 
@@ -220,6 +224,8 @@ public class AWSGlueStoragePlugin implements StoragePlugin, MutablePlugin, Suppo
     }
 
     finalProperties.add(new Property(Constants.SECURE_CONNECTIONS, String.valueOf(config.secure)));
+
+    hiveConf.hiveMajorVersion = 2;
 
     // copy config options from glue config to hive config
     hiveConf.propertyList = finalProperties;
@@ -304,6 +310,11 @@ public class AWSGlueStoragePlugin implements StoragePlugin, MutablePlugin, Suppo
   }
 
   @Override
+  public boolean isMetadataValidityCheckRecentEnough(Long lastMetadataValidityCheckTime, Long currentTime, OptionManager optionManager) {
+    return ((SupportsIcebergRootPointer) hiveStoragePlugin).isMetadataValidityCheckRecentEnough(lastMetadataValidityCheckTime, currentTime, optionManager);
+  }
+
+  @Override
   public FormatPlugin getFormatPlugin(FormatPluginConfig formatConfig) {
     return ((SupportsIcebergRootPointer) hiveStoragePlugin).getFormatPlugin(formatConfig);
   }
@@ -324,19 +335,18 @@ public class AWSGlueStoragePlugin implements StoragePlugin, MutablePlugin, Suppo
   }
 
   @Override
-  public boolean isIcebergMetadataValid(DatasetConfig config, NamespaceKey key, NamespaceService userNamespaceService) {
-    return ((SupportsIcebergRootPointer) hiveStoragePlugin).isIcebergMetadataValid(config, key, userNamespaceService);
+  public boolean isIcebergMetadataValid(DatasetConfig config, NamespaceKey key) {
+    return ((SupportsIcebergRootPointer) hiveStoragePlugin).isIcebergMetadataValid(config, key);
   }
 
   @Override
-  public TableOperations createIcebergTableOperations(FileSystem fs, String queryUserName, IcebergTableIdentifier tableIdentifier) {
+  public TableOperations createIcebergTableOperations(FileIO fileIO, String queryUserName, IcebergTableIdentifier tableIdentifier) {
     Map<String, String> properties = new HashMap<>();
     for (Map.Entry<String, String> property : glueConfTableOperations) {
       properties.put(property.getKey(), property.getValue());
     }
 
     IcebergGlueTableIdentifier glueTableIdentifier = (IcebergGlueTableIdentifier) tableIdentifier;
-    FileIO fileIO = createIcebergFileIO(fs, null, null, null, null);
 
     return new DremioGlueTableOperations(getGlueClient(), LockManagers.from(properties),
       IcebergGlueModel.GLUE, properties, fileIO,
@@ -424,28 +434,30 @@ public class AWSGlueStoragePlugin implements StoragePlugin, MutablePlugin, Suppo
   }
 
   public IcebergModel getIcebergModel(String location, NamespaceKey key, String userName) {
-    FileSystem fs = null;
+    FileIO fileIO = null;
     try {
-      fs = createFS(location, SystemUser.SYSTEM_USERNAME, null);
+      FileSystem fs = createFS(location, SystemUser.SYSTEM_USERNAME, null);
+      fileIO = createIcebergFileIO(fs, null, null, null, null);
     } catch (IOException e) {
       throw UserException.validationError(e).message("Failure creating File System instance for path %s", location).buildSilently();
     }
     List<String> dbAndTableName = resolveTableNameToValidPath(key.getPathComponents());
     String dbName = dbAndTableName.get(0);
     String tableName = dbAndTableName.get(1);
-    return new IcebergGlueModel(dbName, tableName, fs, userName, null, this);
+    return new IcebergGlueModel(dbName, tableName, fileIO, userName, null, this);
   }
 
   @Override
-  public IcebergModel getIcebergModel(IcebergTableProps tableProps, String userName, OperatorContext context, FileSystem fs) {
-    if (fs == null) {
+  public IcebergModel getIcebergModel(IcebergTableProps tableProps, String userName, OperatorContext context, FileIO fileIO) {
+    if (fileIO == null) {
       try {
-        fs = createFS(tableProps.getTableLocation(), SystemUser.SYSTEM_USERNAME, null);
+        FileSystem fs = createFS(tableProps.getTableLocation(), SystemUser.SYSTEM_USERNAME, null);
+        fileIO = createIcebergFileIO(fs, null, null, null, null);
       } catch (IOException e) {
         throw UserException.validationError(e).message("Failure creating File System instance for path %s", tableProps.getTableLocation()).buildSilently();
       }
     }
-    return new IcebergGlueModel(tableProps.getDatabaseName(), tableProps.getTableName(), fs, userName, null, this);
+    return new IcebergGlueModel(tableProps.getDatabaseName(), tableProps.getTableName(), fileIO, userName, null, this);
   }
 
   private String resolveTableLocation(String dbName, String tableName, WriterOptions writerOptions) {
@@ -497,8 +509,10 @@ public class AWSGlueStoragePlugin implements StoragePlugin, MutablePlugin, Suppo
     IcebergModel icebergModel = getIcebergModel(tableLocation, tableSchemaPath, schemaConfig.getUserName());
     PartitionSpec partitionSpec = Optional.ofNullable(writerOptions.getTableFormatOptions().getIcebergSpecificOptions()
       .getIcebergTableProps()).map(props -> props.getDeserializedPartitionSpec()).orElse(null);
+    Map<String, String> tableProperties = Optional.of(writerOptions.getTableFormatOptions().getIcebergSpecificOptions()
+      .getIcebergTableProps()).map(props -> props.getTableProperties()).orElse(Collections.emptyMap());
     IcebergOpCommitter icebergOpCommitter = icebergModel.getCreateTableCommitter(tableName, icebergModel.getTableIdentifier(tableLocation), batchSchema,
-      writerOptions.getPartitionColumns(), null, partitionSpec);
+      writerOptions.getPartitionColumns(), null, partitionSpec, writerOptions.getDeserializedSortOrder(), tableProperties);
     icebergOpCommitter.commit();
   }
 
@@ -519,6 +533,19 @@ public class AWSGlueStoragePlugin implements StoragePlugin, MutablePlugin, Suppo
     String metadataLocation = IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
     IcebergModel icebergModel = getIcebergModel(metadataLocation, tableSchemaPath, schemaConfig.getUserName());
     icebergModel.alterTable(icebergModel.getTableIdentifier(metadataLocation), alterTableOption);
+  }
+
+  @Override
+  public void updateTableProperties(NamespaceKey table, DatasetConfig datasetConfig, BatchSchema schema, SchemaConfig schemaConfig, Map<String, String> tableProperties, TableMutationOptions tableMutationOptions, boolean isRemove) {
+    SplitsPointer splits = DatasetSplitsPointer.of(context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
+    String metadataLocation = IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
+    IcebergModel icebergModel = getIcebergModel(metadataLocation, table, schemaConfig.getUserName());
+    if (isRemove) {
+      List<String> propertyNameList = new ArrayList<>(tableProperties.keySet());
+      icebergModel.removeTableProperties(icebergModel.getTableIdentifier(metadataLocation), propertyNameList);
+    } else {
+      icebergModel.updateTableProperties(icebergModel.getTableIdentifier(metadataLocation), tableProperties);
+    }
   }
 
   @Override
@@ -620,12 +647,11 @@ public class AWSGlueStoragePlugin implements StoragePlugin, MutablePlugin, Suppo
                                     SchemaConfig schemaConfig,
                                     ResolvedVersionContext versionContext,
                                     boolean saveInKvStore) {
-    if (datasetConfig.getPhysicalDataset() == null || // PK only supported for physical datasets
-      datasetConfig.getPhysicalDataset().getIcebergMetadata() == null) { // Physical dataset not Iceberg format
+    if (IcebergUtils.isPrimaryKeySupported(datasetConfig)) {
+      return IcebergUtils.validateAndGeneratePrimaryKey(this, context, table, datasetConfig, schemaConfig, versionContext, saveInKvStore);
+    } else {
       return null;
     }
-
-    return IcebergUtils.validateAndGeneratePrimaryKey(this, context, table, datasetConfig, schemaConfig, versionContext, saveInKvStore);
   }
 
   @Override
@@ -662,6 +688,14 @@ public class AWSGlueStoragePlugin implements StoragePlugin, MutablePlugin, Suppo
   @Override
   public boolean toggleSchemaLearning(NamespaceKey table, SchemaConfig schemaConfig, boolean enableSchemaLearning) {
     throw new UnsupportedOperationException("AWS Glue plugin doesn't support schema update.");
+  }
+
+  @Override
+  public void alterSortOrder(NamespaceKey table, DatasetConfig datasetConfig, BatchSchema batchSchema, SchemaConfig schemaConfig, List<String> sortOrderColumns, TableMutationOptions tableMutationOptions) {
+    SplitsPointer splits = DatasetSplitsPointer.of(context.getNamespaceService(schemaConfig.getUserName()), datasetConfig);
+    String metadataLocation = IcebergUtils.getMetadataLocation(datasetConfig, splits.getPartitionChunks().iterator());
+    IcebergModel icebergModel = getIcebergModel(metadataLocation, table, schemaConfig.getUserName());
+    icebergModel.replaceSortOrder(icebergModel.getTableIdentifier(metadataLocation), sortOrderColumns);
   }
 
   @Override
@@ -782,5 +816,11 @@ public class AWSGlueStoragePlugin implements StoragePlugin, MutablePlugin, Suppo
   @Override
   public String getDefaultCtasFormat() {
     return ((MutablePlugin) hiveStoragePlugin).getDefaultCtasFormat();
+  }
+
+  @Nonnull
+  @Override
+  public Optional<DatasetMetadataVerifyResult> verifyMetadata(DatasetHandle datasetHandle, MetadataVerifyRequest metadataVerifyRequest) {
+    return ((SupportsMetadataVerify) hiveStoragePlugin).verifyMetadata(datasetHandle, metadataVerifyRequest);
   }
 }

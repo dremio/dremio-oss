@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>24.1.0-202306130653310132-d30779f6</version>
+    <version>24.3.0-202312190021150029-52db2faf</version>
   </parent>
   <artifactId>dremio-services-jobs</artifactId>
   <name>Services - Jobs</name>
@@ -181,6 +181,11 @@
       <artifactId>dremio-services-arrow-flight-common</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-jobcounts-common</artifactId>
+      <version>${project.version}</version>
+    </dependency>
   </dependencies>
 
   <build>
@@ -206,9 +211,6 @@
       <plugin>
         <groupId>org.xolstice.maven.plugins</groupId>
         <artifactId>protobuf-maven-plugin</artifactId>
-        <configuration>
-          <clearOutputDirectory>false</clearOutputDirectory>
-        </configuration>
         <executions>
           <execution>
             <id>generate-proto</id>
@@ -217,8 +219,6 @@
               <goal>compile</goal>
             </goals>
             <configuration>
-              <protoSourceRoot>${project.basedir}/src/main/proto</protoSourceRoot>
-              <outputDirectory>${project.build.directory}/generated-sources/protobuf</outputDirectory>
               <excludes>
                 <exclude>**/logged-query.proto</exclude>
               </excludes>
@@ -235,7 +235,6 @@
               <protoSourceRoot>${project.basedir}/src/main/protobuf</protoSourceRoot>
               <pluginId>grpc-java</pluginId>
               <pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}</pluginArtifact>
-              <outputDirectory>${project.build.directory}/generated-sources/protobuf</outputDirectory>
               <additionalProtoPathElements>
                 <additionalProtoPathElement>${project.basedir}/src/main/proto</additionalProtoPathElement>
               </additionalProtoPathElements>

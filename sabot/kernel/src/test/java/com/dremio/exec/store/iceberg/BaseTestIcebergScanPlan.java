@@ -20,7 +20,7 @@ import com.dremio.PlanTestBase;
 public class BaseTestIcebergScanPlan extends PlanTestBase {
 
   protected static String dataFileScanWithRowCount(int rowCount) {
-    return String.format("TableFunction.*DATA_FILE_SCAN.*rowcount = %d\\.0", rowCount);
+    return String.format("TableFunction.*DATA_FILE_SCAN.*rowcount = %d", rowCount);
   }
 
   protected static String dataFileScanWithFilter(String filterCol, String filterVal) {
@@ -28,17 +28,17 @@ public class BaseTestIcebergScanPlan extends PlanTestBase {
   }
 
   protected static String deleteFileAggWithRowCount(int rowCount) {
-    return String.format("IcebergDeleteFileAgg.*rowcount = %d\\.0", rowCount);
+    return String.format("IcebergDeleteFileAgg.*rowcount = %d", rowCount);
   }
 
   protected static String dataManifestScanWithRowCount(int rowCount) {
-    return String.format("IcebergManifestScan.*manifestContent=\\[DATA\\].*rowcount = %d\\.0", rowCount);
+    return String.format("IcebergManifestScan.*manifestContent=\\[DATA\\].*rowcount = %d", rowCount);
   }
 
   protected static String dataManifestScanWithRowCountAndFilter(int rowCount, String filterCol, String filterVal) {
     return String.format("IcebergManifestScan.*" +
         "ManifestFile Filter.*ref\\(name=\"%s\"\\) == %s\\).*" +
-        "manifestContent=\\[DATA\\].*rowcount = %d\\.0", filterCol, filterVal, rowCount);
+        "manifestContent=\\[DATA\\].*rowcount = %d", filterCol, filterVal, rowCount);
   }
 
   protected static String dataManifestList() {
@@ -52,13 +52,13 @@ public class BaseTestIcebergScanPlan extends PlanTestBase {
   }
 
   protected static String deleteManifestScanWithRowCount(int rowCount) {
-    return String.format("IcebergManifestScan.*manifestContent=\\[DELETES\\].*rowcount = %d\\.0", rowCount);
+    return String.format("IcebergManifestScan.*manifestContent=\\[DELETES\\].*rowcount = %d", rowCount);
   }
 
   protected static String deleteManifestScanWithRowCountAndFilter(int rowCount, String filterCol, String filterVal) {
     return String.format("IcebergManifestScan.*" +
         "ManifestFile Filter.*ref\\(name=\"%s\"\\) == %s\\).*" +
-        "manifestContent=\\[DELETES\\].*rowcount = %d\\.0", filterCol, filterVal, rowCount);
+        "manifestContent=\\[DELETES\\].*rowcount = %d", filterCol, filterVal, rowCount);
   }
 
   protected static String deleteManifestList() {
@@ -72,7 +72,7 @@ public class BaseTestIcebergScanPlan extends PlanTestBase {
   }
 
   protected static String splitGenManifestScanWithRowCount(int rowCount) {
-    return String.format("TableFunction.*SPLIT_GEN_MANIFEST_SCAN.*rowcount = %d\\.0", rowCount);
+    return String.format("TableFunction.*SPLIT_GEN_MANIFEST_SCAN.*rowcount = %d", rowCount);
   }
 
   protected static String deleteManifestContent() {

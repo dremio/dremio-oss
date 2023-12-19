@@ -74,10 +74,19 @@ export const getExplorePageLocationChangePredicate = (
     (prevRouteState.params.pageType === PageTypes.details) ^ // eslint-disable-line no-bitwise
     (newRouteState.params.pageType === PageTypes.details);
 
+  const hasScriptId = !!(
+    oldLocation.query?.scriptId || newLocation.query?.scriptId
+  );
+
+  const queryChanged = hasScriptId
+    ? //Tabs: Don't consider it a page change when staying on the same tab/scriptId
+      oldLocation.query?.scriptId !== newLocation.query?.scriptId
+    : !deepEqual(oldLocation.query, newLocation.query);
+
   const result = Boolean(
     excludePageType(oldPathname) !== excludePageType(newPathname) ||
       pageTypeChanged ||
-      !deepEqual(oldLocation.query, newLocation.query)
+      queryChanged
   );
   // do not check state here as in getLocationChangePredicate above. For case of 'save as' state is changed to show a modal,
   // but we should not cancel data loading

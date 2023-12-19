@@ -23,6 +23,7 @@ import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValue.OptionType;
+import com.dremio.options.impl.BaseOptionManager;
 
 /**
  * {@link OptionManager} that hold options in memory rather than in a persistent store. Option stored in

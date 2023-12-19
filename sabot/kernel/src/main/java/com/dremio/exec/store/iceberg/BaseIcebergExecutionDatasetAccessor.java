@@ -22,19 +22,24 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Supplier;
+
+import javax.annotation.Nonnull;
 
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.HasTableOperations;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.Table;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetMetadata;
+import com.dremio.connector.metadata.DatasetMetadataVerifyResult;
 import com.dremio.connector.metadata.DatasetSplit;
 import com.dremio.connector.metadata.DatasetSplitAffinity;
 import com.dremio.connector.metadata.DatasetStats;
@@ -44,6 +49,7 @@ import com.dremio.connector.metadata.ListPartitionChunkOption;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.PartitionValue;
 import com.dremio.connector.metadata.extensions.SupportsIcebergMetadata;
+import com.dremio.connector.metadata.options.MetadataVerifyRequest;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.FileConfigMetadata;
 import com.dremio.exec.catalog.MutablePlugin;
@@ -52,6 +58,7 @@ import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.PartitionChunkListingImpl;
 import com.dremio.exec.store.dfs.FileDatasetHandle;
+import com.dremio.exec.store.dfs.MetadataVerifyHandle;
 import com.dremio.options.OptionResolver;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf.IcebergDatasetXAttr;
@@ -63,7 +70,7 @@ import com.google.common.base.Preconditions;
 /**
  * Base iceberg metadata accessor.
  */
-public abstract class BaseIcebergExecutionDatasetAccessor implements FileDatasetHandle {
+public abstract class BaseIcebergExecutionDatasetAccessor implements FileDatasetHandle, MetadataVerifyHandle {
 
   private final EntityPath entityPath;
   private final Supplier<Table> tableSupplier;
@@ -178,14 +185,17 @@ public abstract class BaseIcebergExecutionDatasetAccessor implements FileDataset
     Map<Integer, PartitionSpec> specsMap = table.specs();
     specsMap = IcebergUtils.getPartitionSpecMapBySchema(specsMap, schema);
     final byte[] specs = IcebergSerDe.serializePartitionSpecAsJsonMap(specsMap);
+    SortOrder sortOrder = table.sortOrder();
+    final String sortOrderJson = IcebergSerDe.serializeSortOrderAsJson(sortOrder);
     final String icebergSchema = serializedSchemaAsJson(schema);
     final BytesOutput partitionSpecs = os -> os.write(specs);
+    final Map<String, String> tableProperties = table.properties();
 
     final String metadataFileLocation = getMetadataLocation();
     final long snapshotId = snapshot != null ? snapshot.snapshotId() : -1;
 
     return new DatasetMetadataImpl(fileConfig, datasetStats, manifestStats, deleteStats, equalityDeleteStats, deleteManifestStats,
-        batchSchema, partitionColumns, extraInfo, metadataFileLocation, snapshotId, partitionSpecs, icebergSchema, lastModTime);
+        batchSchema, partitionColumns, extraInfo, metadataFileLocation, snapshotId, partitionSpecs, sortOrderJson, icebergSchema, lastModTime, tableProperties);
   }
 
   @Override
@@ -201,6 +211,12 @@ public abstract class BaseIcebergExecutionDatasetAccessor implements FileDataset
     PartitionChunkListingImpl partitionChunkListing = new PartitionChunkListingImpl();
     partitionChunkListing.put(partition, datasetSplit);
     return partitionChunkListing;
+  }
+
+  @Nonnull
+  @Override
+  public Optional<DatasetMetadataVerifyResult> verifyMetadata(MetadataVerifyRequest metadataVerifyRequest) {
+    return IcebergMetadataVerifyProcessors.verify(metadataVerifyRequest, tableSupplier.get());
   }
 
   @Override
@@ -222,8 +238,10 @@ public abstract class BaseIcebergExecutionDatasetAccessor implements FileDataset
     private final String metadataFileLocation;
     private final long snapshotId;
     private final BytesOutput partitionSpecs;
+    private final String sortOrder;
     private final String icebergSchema;
     private final long modificationTime;
+    private final Map<String, String> tableProperties;
 
     private DatasetMetadataImpl(
       FileConfig fileConfig,
@@ -238,8 +256,10 @@ public abstract class BaseIcebergExecutionDatasetAccessor implements FileDataset
       String metadataFileLocation,
       long snapshotId,
       BytesOutput partitionSpecs,
+      String sortOrder,
       String icebergSchema,
-      long modificationTime) {
+      long modificationTime,
+      Map<String, String> tableProperties) {
       this.fileConfig = fileConfig;
       this.datasetStats = datasetStats;
       this.manifestStats = manifestStats;
@@ -252,8 +272,10 @@ public abstract class BaseIcebergExecutionDatasetAccessor implements FileDataset
       this.metadataFileLocation = metadataFileLocation;
       this.snapshotId = snapshotId;
       this.partitionSpecs = partitionSpecs;
+      this.sortOrder = sortOrder;
       this.icebergSchema = icebergSchema;
       this.modificationTime = modificationTime;
+      this.tableProperties = tableProperties;
     }
 
     @Override
@@ -320,8 +342,18 @@ public abstract class BaseIcebergExecutionDatasetAccessor implements FileDataset
     }
 
     @Override
+    public String getSortOrder() {
+      return sortOrder;
+    }
+
+    @Override
     public String getIcebergSchema() {
       return icebergSchema;
+    }
+
+    @Override
+    public Map<String, String> getTableProperties() {
+      return tableProperties;
     }
   }
 }

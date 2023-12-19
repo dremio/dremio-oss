@@ -86,7 +86,7 @@ public class TableMetadataImpl implements TableMetadata {
   }
 
   @Override
-  public TableMetadata prune(SearchQuery partitionFilterQuery) throws NamespaceException {
+  public TableMetadata prune(SearchQuery partitionFilterQuery) {
     SplitsPointer splits2 = splits.prune(partitionFilterQuery);
     if(splits2 != splits){
       return new TableMetadataImpl(pluginId, config, user, splits2, primaryKey);
@@ -95,12 +95,12 @@ public class TableMetadataImpl implements TableMetadata {
   }
 
   @Override
-  public TableMetadata prune(Predicate<PartitionChunkMetadata> partitionPredicate) throws NamespaceException {
+  public TableMetadata prune(Predicate<PartitionChunkMetadata> partitionPredicate) {
     return new TableMetadataImpl(pluginId, config, user, splits.prune(partitionPredicate), primaryKey);
   }
 
   @Override
-  public TableMetadata prune(List<PartitionChunkMetadata> newPartitionChunks) throws NamespaceException {
+  public TableMetadata prune(List<PartitionChunkMetadata> newPartitionChunks) {
     return new TableMetadataImpl(pluginId, config, user, MaterializedSplitsPointer.prune(splits, newPartitionChunks), primaryKey);
   }
 

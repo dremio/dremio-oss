@@ -301,7 +301,7 @@ function fetchAskGnarly(jobId) {
           type: ASK_GNARLY_STARTED,
           meta: {
             notification: {
-              message: la("Uploading data. Chat will open shortly."),
+              message: laDeprecated("Uploading data. Chat will open shortly."),
               level: "success",
             },
           },
@@ -314,7 +314,9 @@ function fetchAskGnarly(jobId) {
                 return {
                   message:
                     payload.url ||
-                    la("Upload failed. Please check logs for details."),
+                    laDeprecated(
+                      "Upload failed. Please check logs for details."
+                    ),
                   level: "error",
                 };
               }
@@ -328,7 +330,7 @@ function fetchAskGnarly(jobId) {
           type: ASK_GNARLY_FAILURE,
           meta: {
             notification: {
-              message: la(
+              message: laDeprecated(
                 "There was an error uploading. Please check logs for details."
               ),
               level: "error",

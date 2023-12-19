@@ -48,6 +48,8 @@ public interface RecordWriter extends AutoCloseable {
   String FILE_SCHEMA_COLUMN = "fileschema";
   String PARTITION_DATA_COLUMN = "PartitionData";
   String OPERATION_TYPE_COLUMN = "OperationType";
+  String PARTITION_VALUE_COLUMN= "PartitionValue";
+  String REJECTED_RECORDS_COLUMN = "RejectedRecords";
 
   BatchSchema SCHEMA = BatchSchema.newBuilder()
       .addField(MajorTypeHelper.getFieldForNameAndMajorType(FRAGMENT_COLUMN, Types.optional(MinorType.VARCHAR)))
@@ -61,6 +63,8 @@ public interface RecordWriter extends AutoCloseable {
       .addField(new Field(PARTITION_DATA_COLUMN, FieldType.nullable(CompleteType.LIST.getType()), Collections.singletonList(
         Field.nullable("$data$", CompleteType.VARBINARY.getType()))))
       .addField(MajorTypeHelper.getFieldForNameAndMajorType(OPERATION_TYPE_COLUMN, Types.optional(MinorType.INT)))
+      .addField(MajorTypeHelper.getFieldForNameAndMajorType(PARTITION_VALUE_COLUMN, Types.optional(MinorType.VARCHAR)))
+      .addField(MajorTypeHelper.getFieldForNameAndMajorType(REJECTED_RECORDS_COLUMN, Types.optional(MinorType.BIGINT)))
       .setSelectionVectorMode(SelectionVectorMode.NONE)
       .build();
 
@@ -74,6 +78,8 @@ public interface RecordWriter extends AutoCloseable {
   Field FILE_SCHEMA = SCHEMA.getColumn(7);
   Field PARTITION_DATA = SCHEMA.getColumn(8);
   Field OPERATION_TYPE = SCHEMA.getColumn(9);
+  Field PARTITION_VALUE = SCHEMA.getColumn(10);
+  Field REJECTED_RECORDS = SCHEMA.getColumn(11);
 
   /**
    *
@@ -123,7 +129,8 @@ public interface RecordWriter extends AutoCloseable {
    */
   interface OutputEntryListener {
     void recordsWritten(long recordCount, long fileSize, String path, byte[] metadata, Integer partitionNumber,
-                        byte[] icebergMetadata, byte[] schema, Collection<IcebergPartitionData> partition, Integer operationType);
+                        byte[] icebergMetadata, byte[] schema, Collection<IcebergPartitionData> partition,
+                        Integer operationType, String partitionValue, long rejectedRecordCount);
   }
 
   /**

@@ -1,7 +1,6 @@
 {
   "sourceType": "NESSIE",
-  "tags": [
-  ],
+  "tags": [],
   "metadataRefresh": {
     "isFileSystemSource": true
   },
@@ -19,7 +18,6 @@
               },
               {
                 "propName": "config.nessieAuthType",
-                "label": "Nessie Authentication Type",
                 "uiType": "container_selection",
                 "defaultValue": "BEARER",
                 "options": [
@@ -54,83 +52,174 @@
         "name": "Storage",
         "sections": [
           {
-            "name": "Authentication",
             "elements": [
               {
-                "propName": "config.credentialType",
-                "label": "Authentication Type",
+                "propName": "config.storageProvider",
                 "uiType": "container_selection",
                 "options": [
                   {
-                    "value": "ACCESS_KEY",
+                    "value": "AWS",
                     "container": {
-                      "elements": [
+                      "sections": [
                         {
-                          "propName": "config.awsAccessKey",
-                          "size": "full",
-                          "errMsg": "Both access secret and key are required for Access Key type authentication."
+                          "name": "S3 Storage",
+                          "elements": [
+                            {
+                              "propName": "config.awsRootPath",
+                              "placeholder": "bucket-name/optional/path/to/folder",
+                              "prefix": "s3://",
+                              "tooltip": "The default write location for iceberg metadata and data."
+                            }
+                          ]
                         },
                         {
-                          "propName": "config.awsAccessSecret",
-                          "size": "full",
-                          "errMsg": "Both access secret and key are required for Access Key type authentication.",
-                          "secure": true
+                          "name": "S3 Authentication",
+                          "elements": [
+                            {
+                              "propName": "config.credentialType",
+                              "uiType": "container_selection",
+                              "options": [
+                                {
+                                  "value": "ACCESS_KEY",
+                                  "container": {
+                                    "elements": [
+                                      {
+                                        "propName": "config.awsAccessKey",
+                                        "size": "full",
+                                        "errMsg": "Both access secret and key are required for Access Key type authentication."
+                                      },
+                                      {
+                                        "propName": "config.awsAccessSecret",
+                                        "size": "full",
+                                        "errMsg": "Both access secret and key are required for Access Key type authentication.",
+                                        "secure": true
+                                      },
+                                      {
+                                        "propName": "config.assumedRoleARN",
+                                        "size": "full",
+                                        "validate": {
+                                          "isRequired": false
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                {
+                                  "value": "EC2_METADATA",
+                                  "container": {
+                                    "elements": [
+                                      {
+                                        "propName": "config.assumedRoleARN",
+                                        "size": "full",
+                                        "validate": {
+                                          "isRequired": false
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                {
+                                  "value": "AWS_PROFILE",
+                                  "container": {
+                                    "elements": [
+                                      {
+                                        "propName": "config.awsProfile",
+                                        "label": "AWS Profile (optional)",
+                                        "placeholder": "default",
+                                        "size": "full",
+                                        "validate": {
+                                          "isRequired": false
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                {
+                                  "value": "NONE",
+                                  "container": {
+                                  }
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "value": "AZURE",
+                    "container": {
+                      "sections": [
+                        {
+                          "name": "Azure Storage",
+                          "elements": [
+                            {
+                              "propName": "config.azureStorageAccount"
+                            },
+                            {
+                              "propName": "config.azureRootPath",
+                              "placeholder": "containername/optional/path/to/folder",
+                              "tooltip": "The default write location for iceberg metadata and data."
+                            }
+                          ]
                         },
                         {
-                          "propName": "config.assumedRoleARN",
-                          "size": "full",
-                          "validate": {
-                            "isRequired": false
-                          }
+                          "name": "Azure Authentication",
+                          "elements": [
+                            {
+                              "propName": "config.azureAuthenticationType",
+                              "uiType": "container_selection",
+                              "options": [
+                                {
+                                  "value": "ACCESS_KEY",
+                                  "container": {
+                                    "elements": [
+                                      {
+                                        "propName": "config.azureAccessKey",
+                                        "secure": true,
+                                        "size": "full"
+                                      }
+                                    ]
+                                  }
+                                },
+                                {
+                                  "value": "AZURE_ACTIVE_DIRECTORY",
+                                  "container": {
+                                    "elements": [
+                                      {
+                                        "propName": "config.azureApplicationId",
+                                        "size": "full"
+                                      },
+                                      {
+                                        "propName": "config.azureClientSecret",
+                                        "secure": true,
+                                        "size": "full"
+                                      },
+                                      {
+                                        "propName": "config.azureOAuthTokenEndpoint",
+                                        "size": "full"
+                                      }
+                                    ]
+                                  }
+                                }
+                              ]
+                            }
+                          ]
                         }
                       ]
-                    }
-                  },
-                  {
-                    "value": "EC2_METADATA",
-                    "container": {
-                      "elements": [
-                        {
-                          "propName": "config.assumedRoleARN",
-                          "size": "full",
-                          "validate": {
-                            "isRequired": false
-                          }
-                        }
-                      ]
-                    }
-                  },
-                  {
-                    "value": "AWS_PROFILE",
-                    "container": {
-                      "elements": [
-                        {
-                          "propName": "config.awsProfile",
-                          "label": "AWS Profile (optional)",
-                          "placeholder": "default",
-                          "size": "full",
-                          "validate": {
-                            "isRequired": false
-                          }
-                        }
-                      ]
-                    }
-                  },
-                  {
-                    "value": "NONE",
-                    "container": {
                     }
                   }
                 ]
-              },
+              }
+            ]
+          },
+          {
+            "name": "Other",
+            "elements": [
               {
-                "propName": "config.awsRootPath",
-                "placeholder": "/bucket-name/optional/folder/path"
-              },
-              {
+                "propName": "config.propertyList",
                 "emptyLabel": "No properties added",
-                "addLabel": "Add property",
-                "propName": "config.propertyList"
+                "addLabel": "Add property"
               },
               {
                 "propName": "config.secure"
@@ -143,6 +232,7 @@
         "name": "Advanced Options",
         "sections": [
           {
+            "name": "General",
             "elements": [
               {
                 "propName": "config.asyncEnabled"

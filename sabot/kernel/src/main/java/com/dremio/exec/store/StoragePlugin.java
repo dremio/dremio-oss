@@ -22,6 +22,7 @@ import java.util.Map;
 
 import org.apache.calcite.schema.Function;
 
+import com.dremio.common.Wrapper;
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.SourceMetadata;
 import com.dremio.datastore.Serializer;
@@ -41,7 +42,7 @@ import io.protostuff.ByteString;
 /**
  * Registry that's used to register a source with catalog service.
  */
-public interface StoragePlugin extends Service, SourceMetadata {
+public interface StoragePlugin extends Service, SourceMetadata, Wrapper {
   Serializer<DatasetConfig, byte[]> DATASET_CONFIG_SERIALIZER = Serializer.of(DatasetConfig.getSchema());
 
   /**

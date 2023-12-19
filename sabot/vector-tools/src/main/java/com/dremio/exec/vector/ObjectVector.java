@@ -68,7 +68,7 @@ public class ObjectVector extends BaseValueVector implements FieldVector {
   }
 
   @Override
-  public FieldReader getReader() {
+  protected FieldReader getReaderImpl() {
     throw new UnsupportedOperationException("ObjectVector does not support this");
   }
 
@@ -88,6 +88,11 @@ public class ObjectVector extends BaseValueVector implements FieldVector {
 
   protected void set(int index, ObjectHolder holder) {
     set(index, holder.obj);
+  }
+
+  @Override
+  public void setNull(int index) {
+    set(index, null);
   }
 
   public boolean setSafe(int index, ObjectHolder holder){
@@ -205,7 +210,18 @@ public class ObjectVector extends BaseValueVector implements FieldVector {
   }
 
   @Override
+  public TransferPair getTransferPair(Field field, BufferAllocator bufferAllocator) {
+    throw new UnsupportedOperationException("ObjectVector does not support this");
+  }
+
+  @Override
   public TransferPair getTransferPair(String s, BufferAllocator bufferAllocator, CallBack callBack) {
+    throw new UnsupportedOperationException("ObjectVector does not support this");
+  }
+
+  @Override
+  public TransferPair getTransferPair(Field field, BufferAllocator bufferAllocator,
+    CallBack callBack) {
     throw new UnsupportedOperationException("ObjectVector does not support this");
   }
 

@@ -40,6 +40,7 @@ import com.dremio.exec.proto.UserBitShared.MetricValue;
 import com.dremio.exec.proto.UserBitShared.OperatorProfile;
 import com.dremio.exec.proto.UserBitShared.OperatorProfile.Builder;
 import com.dremio.exec.proto.UserBitShared.OperatorProfileDetails;
+import com.dremio.exec.proto.UserBitShared.ParquetDecodingDetailsInfo;
 import com.dremio.exec.proto.UserBitShared.RunTimeFilterDetailsInfoInScan;
 import com.dremio.exec.proto.UserBitShared.SlowIOInfo;
 import com.dremio.exec.proto.UserBitShared.StreamProfile;
@@ -100,6 +101,7 @@ public class OperatorStats {
   private List<RunTimeFilterDetailsInfoInScan> runtimeFilterDetailsInScan = new ArrayList<>();
   private List<SlowIOInfo> slowIoInfos = new ArrayList<>();
   private List<SlowIOInfo> slowMetadataIoInfos = new ArrayList<>();
+  private final List<ParquetDecodingDetailsInfo> parquetDecodingDetailsInfos = new ArrayList<>();
 
 
   // Need this wrapper so that the caller don't have to handle exception from close().
@@ -532,6 +534,10 @@ public class OperatorStats {
     this.slowMetadataIoInfos.addAll(slowMetadataIoInfos);
   }
 
+  public void addParquetDecodingDetailsInfos(List<ParquetDecodingDetailsInfo> parquetDecodingDetailsInfos) {
+    this.parquetDecodingDetailsInfos.addAll(parquetDecodingDetailsInfos);
+  }
+
   @Override
   public String toString(){
     String[] names = OperatorMetricRegistry.getMetricNames(operatorType);
@@ -679,6 +685,14 @@ public class OperatorStats {
     profileDetailsBuilder.clearSlowMetadataIoInfos();
     profileDetailsBuilder.addAllSlowMetadataIoInfos(slowMetadataIoInfos);
     setProfileDetails(profileDetailsBuilder.build());
+  }
+
+  public void setParquetDecodingDetailsInfosInProfile() {
+    setProfileDetails(
+      getProfileDetails().toBuilder()
+        .clearParquetDecodingDetailsInfo()
+        .addAllParquetDecodingDetailsInfo(parquetDecodingDetailsInfos)
+        .build());
   }
 
   public void setRecordOutput(boolean recordOutput) {

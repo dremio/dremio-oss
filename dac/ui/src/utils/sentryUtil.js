@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import * as Sentry from "@sentry/browser";
-import uuid from "uuid";
+import { v4 as uuidv4 } from "uuid";
 import { getVersion } from "@root/scripts/versionUtils";
 import config from "./config";
 
@@ -28,12 +28,12 @@ class SentryUtil {
   // we'd really like to have a uuid for the error, but cross-referencing sentry with the UI
   // will be prone to timing issues. So just creating a session UUID that we can use - it should be
   // good enough to find records given a report.
-  sessionUUID = uuid.v4();
+  sessionUUID = uuidv4();
 
   install() {
     if (config.logErrorsToSentry && !config.outsideCommunicationDisabled) {
       Sentry.init({
-        dsn: "https://2592b22bfefa49b3b5b1e72393f84194@sentry.io/66750",
+        dsn: "https://2592b22bfefa49b3b5b1e72393f84194@o31066.ingest.sentry.io/66750",
         release: getVersion(),
         serverName: config.clusterId,
       });

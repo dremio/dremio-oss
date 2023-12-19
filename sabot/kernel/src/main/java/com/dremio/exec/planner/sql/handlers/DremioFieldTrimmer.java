@@ -36,12 +36,12 @@ import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.Join;
-import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.SetOp;
 import org.apache.calcite.rel.core.Window;
 import org.apache.calcite.rel.core.Window.RexWinAggCall;
 import org.apache.calcite.rel.logical.LogicalWindow;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.rules.MultiJoin;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
@@ -71,12 +71,12 @@ import org.apache.calcite.util.mapping.Mappings;
 
 import com.dremio.common.collections.Tuple;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.exec.calcite.logical.SampleCrel;
 import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.calcite.logical.TableModifyCrel;
 import com.dremio.exec.planner.common.FlattenRelBase;
 import com.dremio.exec.planner.logical.FlattenVisitors;
 import com.dremio.exec.planner.logical.LimitRel;
+import com.dremio.exec.planner.logical.SampleRel;
 import com.dremio.exec.planner.logical.WindowRel;
 import com.dremio.exec.planner.logical.partition.PruneFilterCondition;
 import com.dremio.exec.store.dfs.FilesystemScanDrel;
@@ -90,7 +90,7 @@ import com.google.common.collect.Maps;
 public final class DremioFieldTrimmer extends RelFieldTrimmer {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioFieldTrimmer.class);
 
-  private static final Double ONE = new Double(1);
+  private static final Double ONE = 1.0D;
 
   private final RelBuilder builder;
   private final DremioFieldTrimmerParameters parameters;
@@ -166,14 +166,14 @@ public final class DremioFieldTrimmer extends RelFieldTrimmer {
   }
 
   /**
-   * Variant of {@link #trimFields(RelNode, ImmutableBitSet, Set)} for {@link SampleCrel}.
+   * Variant of {@link #trimFields(RelNode, ImmutableBitSet, Set)} for {@link SampleRel}.
    */
   public TrimResult trimFields(
-    SampleCrel sampleCrel,
+    SampleRel sampleRel,
     ImmutableBitSet fieldsUsed,
     Set<RelDataTypeField> extraFields) {
-    TrimResult result = dispatchTrimFields(sampleCrel.getInput(), fieldsUsed, extraFields);
-    return result(SampleCrel.create(result.left), result.right);
+    TrimResult result = dispatchTrimFields(sampleRel.getInput(), fieldsUsed, extraFields);
+    return result(SampleRel.create(result.left), result.right);
   }
 
   /**
@@ -504,13 +504,18 @@ public final class DremioFieldTrimmer extends RelFieldTrimmer {
       return Optional.empty();
     }
 
-    Optional<JoinRelType> optionalProjectType = tryGetProjectType(join, fieldsUsed);
-    if (!optionalProjectType.isPresent()) {
+    ProjectJoinType projectJoinType = getProjectJoinType(join, fieldsUsed);
+    if (projectJoinType == ProjectJoinType.BOTH) {
       return Optional.empty();
     }
 
-    JoinRelType projectType = optionalProjectType.get();
-    if (!joinTypeCompatibleWithProjectType(join, projectType)) {
+    if (projectJoinType == ProjectJoinType.NEITHER) {
+      // The rest of this code assumes either a LEFT or RIGHT project
+      // We get to pick, so let's just pretend we are reading from the side that has more than one element:
+      projectJoinType = hasCardinalityOne(join.getLeft()) ? ProjectJoinType.RIGHT : ProjectJoinType.LEFT;
+    }
+
+    if (!joinTypeCompatibleWithProjectType(join, projectJoinType)) {
       return Optional.empty();
     }
 
@@ -518,16 +523,16 @@ public final class DremioFieldTrimmer extends RelFieldTrimmer {
     // We need to also check that the JOIN will not INCREASE the cardinality
     // This is done by making sure the JOIN condition matches the elements from the left table
     // with at most one element in the right table.
-    if (!isJoinConditionOneToOne(join, projectType)) {
+    if (!isJoinConditionOneToOne(join, projectJoinType)) {
       return Optional.empty();
     }
 
-    final RelNode mainBranch = projectType == JoinRelType.LEFT ? join.getLeft() : join.getRight();
+    final RelNode mainBranch = projectJoinType == ProjectJoinType.LEFT ? join.getLeft() : join.getRight();
     Mapping mapping = Mappings.create(
       MappingType.SURJECTION,
       join.getRowType().getFieldCount(),
       mainBranch.getRowType().getFieldCount());
-    if (projectType == JoinRelType.LEFT) {
+    if (projectJoinType == ProjectJoinType.LEFT) {
       for (int i = 0; i < mainBranch.getRowType().getFieldCount(); i++) {
         mapping.set(i, i);
       }
@@ -547,7 +552,11 @@ public final class DremioFieldTrimmer extends RelFieldTrimmer {
    * @param fieldsUsed
    * @return The side we are projecting from (LEFT, RIGHT, or EMPTY if both).
    */
-  private static Optional<JoinRelType> tryGetProjectType(Join join, ImmutableBitSet fieldsUsed) {
+  private static ProjectJoinType getProjectJoinType(Join join, ImmutableBitSet fieldsUsed) {
+    if (fieldsUsed.isEmpty()) {
+      return ProjectJoinType.NEITHER;
+    }
+
     int minFieldIndex = Integer.MAX_VALUE;
     int maxFiledIndex = -1;
     for (int index : fieldsUsed) {
@@ -558,15 +567,14 @@ public final class DremioFieldTrimmer extends RelFieldTrimmer {
     int numLeftColumns = join.getLeft().getRowType().getFieldCount();
     boolean projectsFromBothSides = (minFieldIndex < numLeftColumns) && (maxFiledIndex >= numLeftColumns);
     if (projectsFromBothSides) {
-      return Optional.empty();
+      return ProjectJoinType.BOTH;
     }
 
     boolean isLeftOnlyJoin = (minFieldIndex < numLeftColumns) && (maxFiledIndex < numLeftColumns);
-    JoinRelType projectType = isLeftOnlyJoin ? JoinRelType.LEFT : JoinRelType.RIGHT;
-    return Optional.of(projectType);
+    return isLeftOnlyJoin ? ProjectJoinType.LEFT : ProjectJoinType.RIGHT;
   }
 
-  private static boolean joinTypeCompatibleWithProjectType(Join join,  JoinRelType projectType) {
+  private static boolean joinTypeCompatibleWithProjectType(Join join,  ProjectJoinType projectJoinType) {
     switch (join.getJoinType()) {
     case FULL:
       // A full join will have all the rows from both the LEFT and RIGHT table
@@ -577,10 +585,10 @@ public final class DremioFieldTrimmer extends RelFieldTrimmer {
       return join.getCondition().isAlwaysTrue();
 
     case LEFT:
-      return projectType == JoinRelType.LEFT;
+      return projectJoinType == ProjectJoinType.LEFT;
 
     case RIGHT:
-      return projectType == JoinRelType.RIGHT;
+      return projectJoinType == ProjectJoinType.RIGHT;
 
     default:
       // We don't know how to support these other join types yet.
@@ -588,19 +596,14 @@ public final class DremioFieldTrimmer extends RelFieldTrimmer {
     }
   }
 
-  private static boolean isJoinConditionOneToOne(Join join, JoinRelType projectType) {
-    final RelNode sideBranch = projectType == JoinRelType.LEFT ? join.getRight() : join.getLeft();
-    // We need metadata query to do any row count operations,
-    // so if it's not available, then just give up.
-    if (sideBranch.getCluster() == null || sideBranch.getCluster().getMetadataQuery() == null) {
-      return false;
-    }
-
+  private static boolean isJoinConditionOneToOne(Join join, ProjectJoinType projectJoinType) {
+    RelNode sideBranch = projectJoinType == ProjectJoinType.LEFT ? join.getRight() : join.getLeft();
     RexNode condition = join.getCondition();
     boolean isOneToOne;
     if (condition.isAlwaysTrue()) {
-      isOneToOne = ONE.equals(sideBranch.getCluster().getMetadataQuery().getMaxRowCount(sideBranch))
-        && ONE.equals(sideBranch.getCluster().getMetadataQuery().getMinRowCount(sideBranch));
+      // We need to know that the join is "cardinality preserving"
+      // This means the side branch should have cardinality 1
+      isOneToOne = hasCardinalityOne(sideBranch);
     } else if (condition instanceof RexCall) {
       RexCall rexCall = (RexCall) condition;
       isOneToOne = isJoinConditionOneToOneRexCall(join, rexCall, sideBranch);
@@ -609,6 +612,18 @@ public final class DremioFieldTrimmer extends RelFieldTrimmer {
     }
 
     return isOneToOne;
+  }
+
+  private static boolean hasCardinalityOne(RelNode relNode) {
+    // We need metadata query to do any row count operations,
+    // so if it's not available, then just give up.
+    if (relNode.getCluster() == null || relNode.getCluster().getMetadataQuery() == null) {
+      return false;
+    }
+
+    RelMetadataQuery relMetadataQuery = relNode.getCluster().getMetadataQuery();
+    return ONE.equals(relMetadataQuery.getMaxRowCount(relNode))
+      && ONE.equals(relMetadataQuery.getMinRowCount(relNode));
   }
 
   private static boolean isJoinConditionOneToOneRexCall(Join join, RexCall condition, RelNode sideBranch) {
@@ -1176,5 +1191,42 @@ public final class DremioFieldTrimmer extends RelFieldTrimmer {
       refCounts[inputRef.getIndex()]++;
       return null;
     }
+  }
+
+  /**
+   * Enum to represent which side of the join we are projecting from.
+   */
+  private enum ProjectJoinType {
+    /**
+     * Exclusively projecting from the LEFT hand side of the JOIN.
+     *
+     * SELECT a.*
+     * FROM a JOIN b
+     */
+    LEFT,
+
+    /**
+     * Exclusively projecting from the RIGHT hand side of the JOIN.
+     *
+     * SELECT b.*
+     * FROM a JOIN b
+     */
+    RIGHT,
+
+    /**
+     * Projecting from both sides of the JOIN
+     *
+     * SELECT *
+     * FROM a JOIN b
+     */
+    BOTH,
+
+    /**
+     * Projecting from neither side of the JOIN (no ref indexes in the projection)
+     *
+     * SELECT COUNT(*), 'asdf', UPPER('foo')
+     * FROM a JOIN b
+     */
+    NEITHER
   }
 }

@@ -126,7 +126,7 @@ class LogicalListL2Converter extends ParquetGroupConverter {
     childConverter.startElement();
     childCount++;
     if (childCount > maxChildrenAllowed) {
-      throw createListChildrenLimitException(fieldName, maxChildrenAllowed);
+      throw createListChildrenLimitException(fieldName, maxChildrenAllowed, childCount);
     }
   }
 

@@ -22,6 +22,10 @@ import java.lang.annotation.Target;
 
 /**
  * Describes a property that doesn't impact metadata if changed.
+ * <p>
+ * Fields bearing this annotation must be public: {@link ConnectionConf#clearNotMetadataImpacting()}.
+ *
+ * @see ConnectionConf
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.FIELD})

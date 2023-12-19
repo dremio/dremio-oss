@@ -26,7 +26,7 @@ import DragMeasureColumn from "./DragMeasureColumn";
 
 // todo: loc (needs build fix)
 export const MEASURE_DRAG_AREA_TEXT =
-  "Drag and drop a field here or click “Add a Measure”.";
+  "Drag and drop a column here or click “Add a Measure”.";
 
 const DRAG_AREA_TYPE = "measures";
 

@@ -18,6 +18,7 @@ package com.dremio.exec.store.iceberg;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.file.AccessDeniedException;
 import java.util.List;
 
 import org.apache.iceberg.io.FileIO;
@@ -49,6 +50,8 @@ public class DremioFileIO implements FileIO {
   private final Long fileLength;
   private final FileSystemConfigurationAdapter conf;
   private final String datasourcePluginUID; // this can be null if data files, metadata file can be accessed with same plugin
+
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioFileIO.class);
 
   public DremioFileIO(FileSystem fs, OperatorContext context, List<String> dataset, String datasourcePluginUID,
       Long fileLength, FileSystemConfigurationAdapter conf) {
@@ -86,8 +89,10 @@ public class DremioFileIO implements FileIO {
       }
 
       return new DremioInputFile(this, pluginRelativePath, fileSize, mtime, conf);
+    } catch (AccessDeniedException e) {
+      throw UserException.permissionError(e).message("Access denied on %s", path).buildSilently();
     } catch (IOException e) {
-      throw UserException.ioExceptionError(e).buildSilently();
+      throw UserException.ioExceptionError(e).message("Unable to read %s", path).buildSilently();
     }
   }
 
@@ -112,7 +117,7 @@ public class DremioFileIO implements FileIO {
     }
   }
 
-  FileSystem getFs() {
+  public FileSystem getFs() {
     return fs;
   }
 

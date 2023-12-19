@@ -28,6 +28,7 @@ import java.util.List;
 import org.junit.Assert;
 import org.junit.Test;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.proto.model.dataset.Column;
 import com.dremio.dac.proto.model.dataset.ExpCalculatedField;
 import com.dremio.dac.proto.model.dataset.ExpColumnReference;
@@ -242,7 +243,7 @@ public class TestQuerySemantics extends BaseTestServer {
         ds);
   }
 
-  @Test
+  @Test(expected = UserException.class)
   public void testMultipleOrder() {
     VirtualDatasetState ds =
         extract(getQueryFromSQL("select a, b from cp.\"json/nested.json\" order by b desc, a asc"));

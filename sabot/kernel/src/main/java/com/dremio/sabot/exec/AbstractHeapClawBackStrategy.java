@@ -69,11 +69,9 @@ public abstract class AbstractHeapClawBackStrategy implements HeapClawBackStrate
    * Fail the queries in the input list.
    * @param queries list of queries to be cancelled.
    */
-  protected void failQueries(List<QueryId> queries) {
+  protected void failQueries(List<QueryId> queries, Throwable throwable, String failContext) {
     for (QueryId queryId : queries) {
-      fragmentExecutors.failFragments(queryId, queriesClerk,
-        new OutOfHeapMemoryException("heap monitor detected that the heap is almost full"),
-        FAIL_CONTEXT);
+      fragmentExecutors.failFragments(queryId, queriesClerk, throwable, failContext);
     }
   }
 }

@@ -17,12 +17,10 @@ package com.dremio.exec.catalog;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
 
+import com.dremio.exec.catalog.namespace.NamespacePassthrough;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.physical.base.ViewOptions;
-import com.dremio.exec.store.ColumnExtendedProperty;
 import com.dremio.exec.store.PartitionNotFoundException;
 import com.dremio.exec.store.sys.udf.UserDefinedFunction;
 import com.dremio.service.namespace.NamespaceAttribute;
@@ -32,12 +30,8 @@ import com.dremio.service.namespace.NamespaceKey;
  * Interface used to retrieve virtual and physical datasets. This is always contextualized to a single user and
  * default schema. Implementations must be thread-safe
  */
-public interface Catalog extends SimpleCatalog<Catalog>, EntityExplorer, DatasetCatalog, SourceCatalog, InformationSchemaCatalog, VersionContextResolver {
-  /**
-   * @return all tables that have been requested from this catalog.
-   */
-  Iterable<DremioTable> getAllRequestedTables();
-
+public interface Catalog extends SimpleCatalog<Catalog>, EntityExplorer, DatasetCatalog, SourceCatalog,
+  InformationSchemaCatalog, VersionContextResolver, NamespacePassthrough {
   /**
    * Resolve an ambiguous reference using the following rules: if the reference is a single value
    * and a default schema is defined, resolve using the default schema. Otherwise, resolve using the
@@ -88,25 +82,10 @@ public interface Catalog extends SimpleCatalog<Catalog>, EntityExplorer, Dataset
   Iterable<UserDefinedFunction> getAllFunctions() throws IOException;
 
   Iterable<String> getSubPartitions(NamespaceKey key, List<String> partitionColumns, List<String> partitionValues) throws PartitionNotFoundException;
-
-  /**
-   * Retrieve the column extended properties for a table.
-   * @param table the table to get the column extended properties for
-   * @return the column extended properties grouped by column name
-   */
-  @Override
-  Map<String, List<ColumnExtendedProperty>> getColumnExtendedProperties(DremioTable table);
-
-  /**
-   * Visits each catalog in a depth first order.
-   * @param catalogRewrite function for transforming the catalog
-   * @return resulting transformed catalog
-   */
-  Catalog visit(Function<Catalog, Catalog> catalogRewrite);
-
   default void addCatalogStats() {}
 
   default void invalidateNamespaceCache(final NamespaceKey key) {}
 
   MetadataRequestOptions getMetadataRequestOptions();
+
 }

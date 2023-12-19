@@ -24,7 +24,7 @@ import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.sql.handlers.direct.SqlDirectHandler;
 
 /**
- * Base class that contains the versioned source name.
+ * Base class that contains an optional versioned source name.
  */
 public abstract class SqlVersionBase extends SqlCall {
 

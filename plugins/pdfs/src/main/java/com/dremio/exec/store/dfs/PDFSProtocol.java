@@ -75,6 +75,7 @@ final class PDFSProtocol extends AbstractProtocol {
 
   private final Cache<ListStatusContinuationHandle, RemoteIterator<FileStatus>> openIterators;
 
+  @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
   PDFSProtocol(NodeEndpoint endpoint, SabotConfig config, BufferAllocator allocator, FileSystem localFS,
       boolean allowLocalAccess, Ticker ticker) {
     this.endpoint = endpoint;

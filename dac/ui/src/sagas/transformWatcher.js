@@ -123,12 +123,12 @@ export function* cancelTransformWithModal(viewId) {
   let action;
   const confirmPromise = new Promise((resolve) => {
     action = showConfirmationDialog({
-      title: la("Job Executing…"),
+      title: laDeprecated("Job Executing…"),
       showOnlyConfirm: true,
-      confirmText: la("Cancel"),
+      confirmText: laDeprecated("Cancel"),
       text: [
         <span key="elapsed-time">
-          {la("Elapsed time")}:{" "}
+          {laDeprecated("Elapsed time")}:{" "}
           <RealTimeTimer
             startTime={Date.now() - MAX_TIME_PER_OPERATION}
             formatter={(diff) => timeUtils.formatTimeDiff(diff)}

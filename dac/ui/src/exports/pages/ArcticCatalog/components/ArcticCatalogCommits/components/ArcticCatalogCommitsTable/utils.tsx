@@ -25,6 +25,7 @@ import ArcticGitActionsMenu from "../../../ArcticGitActionsMenu/ArcticGitActions
 import { ArcticCatalogTabsType } from "@app/exports/pages/ArcticCatalog/ArcticCatalog";
 import { convertISOStringWithTooltip } from "@app/pages/NessieHomePage/components/RepoView/components/RepoViewBody/components/RepoViewBranchList/utils";
 import { getShortHash } from "@app/utils/nessieUtils";
+import { isNotSoftware } from "dyn-load/utils/versionUtils";
 import CopyButton from "components/Buttons/CopyButton";
 
 export const getCommitsTableColumns = () => {
@@ -56,10 +57,10 @@ export const generateTableRows = (
   data: LogEntry[],
   goToDataTab: (tab: ArcticCatalogTabsType, item: LogEntry) => void,
   handleOpenDialog: (type: "TAG" | "BRANCH", dialogState: any) => void,
-  reference: any
+  reference: any,
+  privileges: Record<string, any> | null
 ) => {
   const tableData: any[] = [];
-
   data.forEach((entry) => {
     const commitData = entry?.commitMeta;
     if (!commitData) return;
@@ -120,26 +121,29 @@ export const generateTableRows = (
                   }}
                   className="commit-time__buttons--data"
                 >
-                  <dremio-icon name="interface/goto-dataset" />
+                  <dremio-icon name="interface/goto-dataset" alt="" />
                 </IconButton>
-                <SettingsBtn
-                  classStr="commit-time__buttons--more"
-                  menu={
-                    <ArcticGitActionsMenu
-                      fromItem={{
-                        type: "BRANCH",
-                        name: reference?.name,
-                        hash: commitData?.hash,
-                      }}
-                      handleOpenDialog={handleOpenDialog}
-                    />
-                  }
-                  tooltip="Common.More"
-                  hideArrowIcon
-                  stopPropagation
-                >
-                  <dremio-icon name="interface/more" class="more-icon" />
-                </SettingsBtn>
+                {(!isNotSoftware?.() ||
+                  privileges?.branch.canCreate ||
+                  privileges?.tag.canCreate) && (
+                  <SettingsBtn
+                    classStr="commit-time__buttons--more"
+                    menu={
+                      <ArcticGitActionsMenu
+                        fromItem={{
+                          type: "BRANCH",
+                          name: reference?.name,
+                          hash: commitData?.hash,
+                        }}
+                        handleOpenDialog={handleOpenDialog}
+                      />
+                    }
+                    hideArrowIcon
+                    stopPropagation
+                  >
+                    <dremio-icon name="interface/more" class="more-icon" />
+                  </SettingsBtn>
+                )}
               </span>
             </div>
           ),

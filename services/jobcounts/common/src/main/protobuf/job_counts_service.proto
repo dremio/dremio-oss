@@ -1,0 +1,56 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+syntax = "proto3";
+
+option java_package = "com.dremio.service.jobcounts";
+option optimize_for = SPEED;
+option java_generate_equals_and_hash = true;
+option java_multiple_files = true;
+option java_outer_classname = "JobCountsServiceRPC";
+
+package dremio.jobcounts;
+
+import "job_counts_common.proto";
+import "google/protobuf/empty.proto";
+
+/**
+ * gRPCs exposed for updating, deleting and retrieving job counts.
+ */
+service JobCountsService {
+  rpc UpdateJobCounts (UpdateJobCountsRequest) returns (google.protobuf.Empty) {}
+
+  rpc GetJobCounts (GetJobCountsRequest) returns (JobCounts) {}
+
+  rpc DeleteJobCounts (DeleteJobCountsRequest) returns (google.protobuf.Empty) {}
+}
+
+message GetJobCountsRequest {
+  JobCountType type = 1;
+  repeated string ids = 2;
+  int32 job_counts_age_in_days = 3;
+}
+
+message JobCounts {
+  repeated int32 count = 1;
+}
+
+message UpdateJobCountsRequest {
+  repeated JobCountUpdate count_updates = 1;
+}
+
+message DeleteJobCountsRequest {
+  repeated string ids = 1;
+}

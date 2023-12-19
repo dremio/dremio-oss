@@ -52,7 +52,7 @@ public final class UserDefinedFunctionSerde {
       CompleteType.deserialize(functionConfig.getReturnType().getRawDataType().toByteArray()),
       functionArgList,
       functionConfig.getFullPathList(),
-      functionDefinition.getFunctionBody().getSerializedPlan().toByteArray(),
+      functionDefinition.getFunctionBody().getSerializedPlan() == null ? null : functionDefinition.getFunctionBody().getSerializedPlan().toByteArray(),
       (functionConfig.getCreatedAt() != null) ? new Timestamp(functionConfig.getCreatedAt()) : null,
       (functionConfig.getLastModified() != null) ? new Timestamp(functionConfig.getLastModified()):null);
   }
@@ -64,7 +64,7 @@ public final class UserDefinedFunctionSerde {
           new FunctionDefinition().setFunctionBody(
             new FunctionBody()
               .setRawBody(userDefinedFunction.getFunctionSql())
-              .setSerializedPlan(ByteString.copyFrom(userDefinedFunction.getSerializedFunctionPlan())))
+              .setSerializedPlan(userDefinedFunction.getSerializedFunctionPlan() == null ? null : ByteString.copyFrom(userDefinedFunction.getSerializedFunctionPlan())))
         .setFunctionArgList(userDefinedFunction.getFunctionArgsList().stream()
           .map(functionArg ->
             new FunctionArg()

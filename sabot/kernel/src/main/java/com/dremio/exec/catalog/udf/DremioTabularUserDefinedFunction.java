@@ -18,31 +18,25 @@ package com.dremio.exec.catalog.udf;
 import java.lang.reflect.Type;
 import java.util.List;
 
-import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.schema.FunctionParameter;
 import org.apache.calcite.schema.TableFunction;
-import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.exec.catalog.CatalogIdentity;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
-import com.dremio.exec.planner.sql.SqlConverter;
-import com.dremio.exec.planner.sql.SqlValidatorAndToRelContext;
-import com.dremio.exec.store.sys.udf.FunctionOperatorTable;
 import com.dremio.exec.store.sys.udf.UserDefinedFunction;
-import com.google.common.collect.ImmutableList;
 
 /**
  * Wraps a UserDefinedFunction to meet the TableFunction API
  */
-public final class DremioTabularUserDefinedFunction implements TableFunction {
+public final class DremioTabularUserDefinedFunction implements DremioUserDefinedFunction, TableFunction {
   private final CatalogIdentity owner;
   private final UserDefinedFunction userDefinedFunction;
 
   public DremioTabularUserDefinedFunction(
-    CatalogIdentity owner,
-    UserDefinedFunction userDefinedFunction) {
+      CatalogIdentity owner,
+      UserDefinedFunction userDefinedFunction) {
     this.owner = owner;
     this.userDefinedFunction = userDefinedFunction;
   }
@@ -64,18 +58,19 @@ public final class DremioTabularUserDefinedFunction implements TableFunction {
     return FunctionParameterImpl.createParameters(userDefinedFunction.getFunctionArgsList());
   }
 
-  public RelNode extractFunctionPlan(SqlConverter sqlConverter) {
-    // TODO: Use the cached function plan to avoid this reparsing logic
-    String functionSql = userDefinedFunction.getFunctionSql();
-    SqlNode functionExpression = sqlConverter.parse(functionSql);
-    return SqlValidatorAndToRelContext
-      .builder(sqlConverter)
-      .withSchemaPath(ImmutableList.of())
-      .withUser(owner)
-      .withContextualSqlOperatorTable(new FunctionOperatorTable(
-        userDefinedFunction.getName(),
-        getParameters()))
-      .build()
-      .getPlanForFunctionExpression(functionExpression);
+
+  @Override
+  public String getFunctionSql() {
+    return userDefinedFunction.getFunctionSql();
+  }
+
+  @Override
+  public CatalogIdentity getOwner() {
+    return owner;
+  }
+
+  @Override
+  public String getName() {
+    return userDefinedFunction.getName();
   }
 }

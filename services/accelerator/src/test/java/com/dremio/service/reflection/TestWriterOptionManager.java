@@ -42,7 +42,7 @@ public class TestWriterOptionManager {
 
     WriterOptionManager subject = WriterOptionManager.Instance;
 
-    List<String> actual = subject.validateAndPluckNames(fields, knownFields);
+    List<String> actual = subject.validateAndPluckNames(WriterOptionManager.toStringListReflectionField(fields), knownFields);
 
     Assert.assertEquals(
       Arrays.asList(
@@ -63,7 +63,7 @@ public class TestWriterOptionManager {
 
 
     try {
-      subject.validateAndPluckNames(fields, knownFields);
+      subject.validateAndPluckNames(WriterOptionManager.toStringListReflectionField(fields), knownFields);
       Assert.fail("Expected exception for unknown field");
     } catch (UserException userException) {
       Assert.assertEquals(

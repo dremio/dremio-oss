@@ -132,7 +132,7 @@ public class TableModifyRelBase extends TableModify {
   }
 
   private RelDataType evaluateOutputRowType() {
-    return DmlUtils.evaluateOutputRowType(getCluster(), getOperation());
+    return DmlUtils.evaluateOutputRowType(getInput(), getCluster(), getOperation());
   }
 
   public CreateTableEntry getCreateTableEntry() {

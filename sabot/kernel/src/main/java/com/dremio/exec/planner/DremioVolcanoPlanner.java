@@ -17,13 +17,25 @@ package com.dremio.exec.planner;
 
 import static com.dremio.exec.work.foreman.AttemptManager.INJECTOR_DURING_PLANNING_PAUSE;
 
+import java.util.Set;
+
 import org.apache.calcite.plan.Context;
+import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.ConventionTraitDef;
 import org.apache.calcite.plan.MulticastRelOptListener;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptCostFactory;
+import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.plan.RelOptSchema;
 import org.apache.calcite.plan.volcano.VolcanoPlanner;
+import org.apache.calcite.rel.AbstractRelNode;
 import org.apache.calcite.rel.RelCollationTraitDef;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelWriter;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexExecutor;
 import org.apache.calcite.runtime.CalciteException;
 
@@ -45,16 +57,16 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioVolcanoPlanner.class);
   private static final ControlsInjector INJECTOR = ControlsInjectorFactory.getInjector(DremioVolcanoPlanner.class);
 
-  private final SubstitutionProvider substitutionProvider;
+  private SubstitutionProvider substitutionProvider;
 
   private final CancelFlag cancelFlag;
 
   private RelNode originalRoot;
   private PlannerPhase phase;
-  private final MaxNodesListener maxNodesListener;
-  private final MatchCountListener matchCountListener;
-  private final ExecutionControls executionControls;
-  private final PlannerSettings plannerSettings;
+  private MaxNodesListener maxNodesListener;
+  private MatchCountListener matchCountListener;
+  private ExecutionControls executionControls;
+  private PlannerSettings plannerSettings;
 
   private DremioVolcanoPlanner(RelOptCostFactory costFactory, Context context, SubstitutionProvider substitutionProvider) {
     super(costFactory, context);
@@ -65,7 +77,7 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
     this.phase = null;
     this.maxNodesListener = new MaxNodesListener(plannerSettings.getMaxNodesPerPlan());
     this.matchCountListener = new MatchCountListener((int) plannerSettings.getOptions().getOption(PlannerSettings.HEP_PLANNER_MATCH_LIMIT),
-      plannerSettings.getOptions().getOption(PlannerSettings.VERBOSE_PROFILE));
+      plannerSettings.getOptions().getOption(PlannerSettings.VERBOSE_PROFILE), Thread.currentThread().getName());
     // A hacky way to add listeners to first multicast listener and register that listener to the Volcano planner.
     // The Volcano planner currently only supports a single listener. Need to update that to use the multi class
     // listener from its super class AbstractRelOptPlanner.
@@ -186,5 +198,62 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
 
   public MatchCountListener getMatchCountListener() {
     return matchCountListener;
+  }
+
+  public Set<String> getMatchedReflections() {
+    return substitutionProvider.getMatchedReflections();
+  }
+
+  /**
+   * Overridden to prevent VolcanoPlanner from holding on to references to DremioCatalogReader.
+   * @param schema
+   */
+  @Override
+  public void registerSchema(RelOptSchema schema) {}
+
+  /**
+   * Disposing planner state is critical to reduce memory usage anytime the plan lives beyond the
+   * lifetime of a single query.  This occurs with both plan cache and materialization cache.
+   */
+  public void dispose() {
+    clear();
+    setExecutor(null);
+    if (this.root != null) {
+      setRoot(new DisposeRel(this.root.getCluster()));
+    }
+    super.setOriginalRoot(null);
+    clear(); // Again for the root we just added
+    substitutionProvider = SubstitutionProvider.NOOP;
+    originalRoot = null;
+    phase = null;
+    maxNodesListener = null;
+    matchCountListener = null;
+    executionControls = null;
+    plannerSettings = null;
+  }
+
+  private static class DisposeRel extends AbstractRelNode {
+    public DisposeRel(RelOptCluster cluster) {
+      super(cluster, cluster.traitSetOf(Convention.NONE));
+    }
+
+    @Override
+    public RelOptCost computeSelfCost(RelOptPlanner planner,
+                                      RelMetadataQuery mq) {
+      return planner.getCostFactory().makeInfiniteCost();
+    }
+
+    @Override
+    protected RelDataType deriveRowType() {
+      final RelDataTypeFactory typeFactory = getCluster().getTypeFactory();
+      return new RelDataTypeFactory.Builder(getCluster().getTypeFactory())
+        .add("none", typeFactory.createJavaType(Void.TYPE))
+        .build();
+    }
+
+    @Override
+    public RelWriter explainTerms(RelWriter pw) {
+      return super.explainTerms(pw).item("id", id);
+    }
   }
 }

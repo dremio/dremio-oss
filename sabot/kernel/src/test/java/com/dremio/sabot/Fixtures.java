@@ -53,6 +53,7 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.DateUtility;
+import org.apache.arrow.vector.util.JsonStringHashMap;
 import org.apache.arrow.vector.util.Text;
 import org.jetbrains.annotations.NotNull;
 import org.joda.time.DateTimeZone;
@@ -726,6 +727,11 @@ public final class Fixtures {
       final VarCharList varcharList = new VarCharList();
       varcharList.addAll(list);
       return new ListCell(varcharList);
+    }
+    if("struct".equalsIgnoreCase(dataType)){
+      final StructList structList = new StructList();
+      structList.addAll(list);
+      return new ListCell(structList);
     }
     final IntList intList = new IntList();
     intList.addAll(list);
@@ -1641,6 +1647,35 @@ public final class Fixtures {
       byte[] bytes = val.toString().getBytes();
       workBuffer.setBytes(0, bytes);
       writer.varChar().writeVarChar(0, bytes.length, workBuffer);
+    }
+  }
+
+  public static class StructList extends ValueList<JsonStringHashMap<String, Object>> {
+
+    @Override
+    public CompleteType getValueType() {
+      List<Field> children = Arrays.asList(CompleteType.VARCHAR.toField("varchar", true), CompleteType.INT.toField("int", true));
+      return CompleteType.struct(children);
+    }
+
+    @Override
+    public void write(BaseWriter.ListWriter writer, JsonStringHashMap<String, Object> val,
+      ArrowBuf workBuffer) {
+      BaseWriter.StructWriter structWriter = writer.struct();
+      structWriter.start();
+      // for each val entry, write to struct
+      for (String key : val.keySet()) {
+        if ("varchar".equals(key)) {
+          Text value = (Text) val.get(key);
+          byte[] bytes = value.getBytes();
+          workBuffer.setBytes(0, bytes);
+          structWriter.varChar(key).writeVarChar(0, bytes.length, workBuffer);
+        } else if ("int".equals(key)) {
+          Integer value = (Integer) val.get(key);
+          structWriter.integer(key).writeInt(value);
+        }
+      }
+      structWriter.end();
     }
   }
 

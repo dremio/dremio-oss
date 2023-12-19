@@ -15,8 +15,13 @@
  */
 package com.dremio.dac.model.job;
 
+import static com.dremio.service.job.proto.QueryType.ACCELERATOR_OPTIMIZE;
+import static com.dremio.service.jobs.JobsConstant.EMPTY_DATASET_FIELD;
+
 import java.util.ArrayList;
 import java.util.List;
+
+import org.apache.commons.lang3.StringUtils;
 
 import com.dremio.dac.util.JobUtil;
 import com.dremio.service.job.JobSummary;
@@ -150,7 +155,7 @@ public class PartialJobListingItem {
     this.plannerEstimatedCost = input.getOriginalCost();
     this.engine = input.getEngine();
     this.subEngine = input.getSubEngine();
-    this.queriedDatasets = JobUtil.buildQueriedDatasets(JobsProtoUtil.toStuffParentDatasetInfoList(input.getParentsList()), input.getRequestType(), input.getDatasetPathList());
+    this.queriedDatasets = resolveQueriedDatasets(input);
     this.durationDetails.stream().filter(d -> d.getPhaseName().equalsIgnoreCase("QUEUED")).forEach(mp -> enqueuedTime = mp.getPhaseDuration());
     this.waitInClient = input.getWaitInclient();
     this.input = JobUtil.getConvertedBytes(input.getInputBytes()) + " / " +
@@ -284,5 +289,20 @@ public class PartialJobListingItem {
 
   public void setWlmQueue(String wlmQueue) {
     this.wlmQueue = wlmQueue;
+  }
+
+  private List<DataSet> resolveQueriedDatasets(JobSummary input) {
+    List<String> pathList = input.getDatasetPathList();
+    // If the job is OPTIMIZE on a reflection, then the job listing UI should just show the parent PDS or VDS as the DataSet.
+    if (this.queryType == ACCELERATOR_OPTIMIZE) {
+      List<DataSet> queriedDatasets = new ArrayList<>();
+      final String datasetName = pathList.get(pathList.size() - 1);
+      final String datasetPath = StringUtils.join(pathList, ".");
+      final String datasetType = EMPTY_DATASET_FIELD;
+      JobUtil.populateQueriedDataset(queriedDatasets, datasetName, datasetType, datasetPath, pathList, "");
+      return queriedDatasets;
+    } else {
+      return JobUtil.buildQueriedDatasets(JobsProtoUtil.toStuffParentDatasetInfoList(input.getParentsList()), input.getRequestType(), input.getDatasetPathList());
+    }
   }
 }

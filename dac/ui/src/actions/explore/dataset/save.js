@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { push } from "react-router-redux";
+import { replace } from "react-router-redux";
 import flatten from "lodash/flatten";
 import invariant from "invariant";
 
@@ -51,7 +51,7 @@ export function saveAsDataset(nextAction, message) {
   return (dispatch, getStore) => {
     const location = getStore().routing.locationBeforeTransitions;
     return dispatch(
-      push({
+      replace({
         ...location,
         state: { modal: "SaveAsDatasetModal", nextAction, message },
       })
@@ -70,7 +70,7 @@ export function submitSaveDataset(dataset, viewId) {
         viewId,
         schema: datasetWithoutData,
         metas: [{}, { mergeEntities: true }], // Save returns dataset and history only, so need to merge fullDataset
-        notificationMessage: la("Successfully saved."),
+        notificationMessage: laDeprecated("Successfully saved."),
       })
     );
   };
@@ -104,7 +104,7 @@ export function submitSaveAsDataset(name, fullPath, location, reapply) {
       postDatasetOperation({
         href,
         schema: datasetWithoutData,
-        notificationMessage: la("Successfully saved."),
+        notificationMessage: laDeprecated("Successfully saved."),
         metas: [{}, { mergeEntities: true }],
       })
     );
@@ -124,7 +124,7 @@ export function submitReapplyAndSaveAsDataset(name, fullPath, location) {
       postDatasetOperation({
         href,
         schema: datasetWithoutData,
-        notificationMessage: la("Successfully saved."),
+        notificationMessage: laDeprecated("Successfully saved."),
         metas: [{}, { mergeEntities: true }],
       })
     ).then((response) => {
@@ -136,6 +136,17 @@ export function submitReapplyAndSaveAsDataset(name, fullPath, location) {
   };
 }
 
+export function afterSaveDatasetWithMultiTab(response) {
+  invariant(!response.error, "response cannot be an error");
+  return (dispatch) => {
+    dispatch(replace(window.location.href));
+    const nextDataset = apiUtils.getEntityFromResponse("datasetUI", response);
+    window.open(
+      window.location.origin + nextDataset.getIn(["links", "edit"]),
+      "_blank"
+    );
+  };
+}
 // response must be successful save
 export function afterSaveDataset(response, nextAction) {
   invariant(!response.error, "response cannot be an error");

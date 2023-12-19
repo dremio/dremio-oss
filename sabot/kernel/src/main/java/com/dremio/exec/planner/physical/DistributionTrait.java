@@ -22,7 +22,7 @@ import org.apache.calcite.plan.RelTraitDef;
 import com.google.common.collect.ImmutableList;
 
 public class DistributionTrait implements RelTrait {
-  public static enum DistributionType {SINGLETON, HASH_DISTRIBUTED, RANGE_DISTRIBUTED, ROUND_ROBIN_DISTRIBUTED, BROADCAST_DISTRIBUTED, ANY};
+  public static enum DistributionType {SINGLETON, HASH_DISTRIBUTED, ADAPTIVE_HASH_DISTRIBUTED, RANGE_DISTRIBUTED, ROUND_ROBIN_DISTRIBUTED, BROADCAST_DISTRIBUTED, ANY};
 
   // ANY = can be anything (i.e. it is either unknown or unrestricted)
   public static final DistributionTrait ANY = new DistributionTrait(DistributionType.ANY);
@@ -48,7 +48,7 @@ public class DistributionTrait implements RelTrait {
   }
 
   public DistributionTrait(DistributionType type, ImmutableList<DistributionField> fields) {
-    assert (type == DistributionType.HASH_DISTRIBUTED || type == DistributionType.RANGE_DISTRIBUTED);
+    assert (type == DistributionType.HASH_DISTRIBUTED || type == DistributionType.ADAPTIVE_HASH_DISTRIBUTED || type == DistributionType.RANGE_DISTRIBUTED);
     this.type = type;
     this.fields = fields;
   }

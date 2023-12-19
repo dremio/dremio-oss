@@ -43,6 +43,9 @@ import com.dremio.service.job.proto.Reflection;
 import com.dremio.service.namespace.dataset.proto.DatasetCommonProtobuf;
 import com.google.common.annotations.VisibleForTesting;
 
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
+
 /**
  * Utils functions related to obfuscation.
  * Each public util function should first check whether to obfuscate
@@ -75,15 +78,19 @@ public class ObfuscationUtils {
     return shouldObfuscatePartial() && fullObfuscation;
   }
 
+  @WithSpan
   public static UserBitShared.QueryProfile obfuscate(UserBitShared.QueryProfile queryProfile) {
     if (!shouldObfuscatePartial()) {
+      Span.current().setAttribute("shouldObfuscatePartial", false);
       return queryProfile;
     }
+    Span.current().setAttribute("shouldObfuscatePartial", true);
     QueryProfile queryProfileStuff = toStuff(queryProfile);
     ProfileCleanser.cleanseQueryProfileInPlace(queryProfileStuff);
     return toBuf(queryProfileStuff);
   }
 
+  @WithSpan
   public static JobProtobuf.ParentDatasetInfo obfuscate(JobProtobuf.ParentDatasetInfo parent) {
     if (!shouldObfuscateFull()) {
       return parent;
@@ -103,10 +110,13 @@ public class ObfuscationUtils {
     return toStuff(obfuscate(toBuf(ja)));
   }
 
+  @WithSpan
   public static JobProtobuf.JobAttempt obfuscate(JobProtobuf.JobAttempt ja) {
     if (!shouldObfuscatePartial()) {
+      Span.current().setAttribute("shouldObfuscatePartial", false);
       return ja;
     }
+    Span.current().setAttribute("shouldObfuscatePartial", true);
 
     JobProtobuf.JobAttempt.Builder jobAttemptBuilder = JobProtobuf.JobAttempt.newBuilder().mergeFrom(ja);
     if (ja.hasInfo()) {
@@ -119,6 +129,7 @@ public class ObfuscationUtils {
     return jobAttemptBuilder.build();
   }
 
+  @WithSpan
   public static JobProtobuf.JobInfo obfuscate(JobProtobuf.JobInfo jobInfo) {
     if (!shouldObfuscatePartial()) {
       return jobInfo;
@@ -344,10 +355,13 @@ public class ObfuscationUtils {
       .build();
   }
 
+  @WithSpan
   public static com.dremio.service.job.JobDetails obfuscate(com.dremio.service.job.JobDetails jobDetails) {
     if (!shouldObfuscatePartial()) {
+      Span.current().setAttribute("shouldObfuscatePartial", false);
       return jobDetails;
     }
+    Span.current().setAttribute("shouldObfuscatePartial", true);
 
     return com.dremio.service.job.JobDetails.newBuilder()
       .mergeFrom(jobDetails)
@@ -363,6 +377,7 @@ public class ObfuscationUtils {
     return toStuff(obfuscate(toBuf(jobDetails)));
   }
 
+  @WithSpan
   public static JobProtobuf.JobDetails obfuscate(JobProtobuf.JobDetails jobDetailsBuf) {
     if (!shouldObfuscateFull()) {
       return jobDetailsBuf;
@@ -379,10 +394,13 @@ public class ObfuscationUtils {
     return jobDetailsBuf;
   }
 
+  @WithSpan
   public static JobSummary obfuscate(JobSummary jobSummary) {
     if (!shouldObfuscatePartial()) {
+      Span.current().setAttribute("shouldObfuscatePartial", false);
       return jobSummary;
     }
+    Span.current().setAttribute("shouldObfuscatePartial", true);
 
     String description = obfuscateSql(jobSummary.getDescription());
     String sql = obfuscateSql(jobSummary.getSql());

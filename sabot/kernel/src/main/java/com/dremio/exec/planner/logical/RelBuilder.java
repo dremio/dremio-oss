@@ -17,16 +17,24 @@ package com.dremio.exec.planner.logical;
 
 import java.math.BigDecimal;
 import java.util.Objects;
+import java.util.Set;
 
 import org.apache.calcite.plan.Context;
 import org.apache.calcite.plan.Contexts;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptSchema;
+import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.CorrelationId;
 import org.apache.calcite.rel.core.Filter;
+import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.core.RelFactories;
+import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.tools.RelBuilderFactory;
+import org.apache.calcite.util.Litmus;
+
+import com.google.common.collect.ImmutableSet;
 
 public class RelBuilder extends org.apache.calcite.tools.RelBuilder {
 
@@ -75,4 +83,21 @@ public class RelBuilder extends org.apache.calcite.tools.RelBuilder {
     push(sort);
     return this;
   }
+
+  @Override
+  public RelBuilder join(
+      JoinRelType joinType,
+      RexNode condition,
+      Set<CorrelationId> variablesSet) {
+    RelNode right = this.peek();
+    ImmutableSet.Builder<CorrelationId> variablesSetBuilder = ImmutableSet.builder();
+    for(CorrelationId correlationId : variablesSet) {
+      if (!RelOptUtil.notContainsCorrelation(right, correlationId, Litmus.IGNORE)) {
+        variablesSetBuilder.add(correlationId);
+      }
+    }
+    super.join(joinType, condition, variablesSetBuilder.build());
+    return this;
+  }
+
 }

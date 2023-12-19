@@ -72,7 +72,7 @@ export default class DragColumnMenu extends PureComponent {
     });
   };
 
-  componentWillUpdate(nextProps, nextState) {
+  UNSAFE_componentWillUpdate(nextProps, nextState) {
     if (
       nextProps.items !== this.props.items ||
       nextProps.disabledColumnNames !== this.props.disabledColumnNames ||
@@ -134,7 +134,7 @@ export default class DragColumnMenu extends PureComponent {
           dataQa={"search-field-" + this.props.fieldType}
           showIcon={this.props.showSearchIcon}
           showCloseIcon
-          placeholder={la("Search fields…")}
+          placeholder={laDeprecated("Search columns…")}
           value={this.state.filter}
           onChange={this.onFilterChange}
           className={search}

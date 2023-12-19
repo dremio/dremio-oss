@@ -17,7 +17,7 @@ package com.dremio.exec.expr.fn;
 
 import java.util.List;
 
-import com.dremio.exec.planner.sql.OperatorTable;
+import org.apache.calcite.sql.SqlOperator;
 
 /**
  * Marker interface for primary dremio function registries -
@@ -25,7 +25,7 @@ import com.dremio.exec.planner.sql.OperatorTable;
  * registry
  */
 public interface PrimaryFunctionRegistry {
-  void register(OperatorTable operatorTable, boolean isDecimalV2Enabled);
+  List<SqlOperator> listOperators(boolean isDecimalV2Enabled);
 
-  List<AbstractFunctionHolder> getMethods(String name);
+  List<AbstractFunctionHolder> lookupMethods(String name);
 }

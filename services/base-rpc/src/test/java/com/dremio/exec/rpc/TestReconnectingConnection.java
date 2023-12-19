@@ -291,8 +291,7 @@ public class TestReconnectingConnection {
     }
 
     @Override
-    protected void connectAsClient(RpcConnectionHandler<RemoteConnection> connectionHandler, MessageLite handshakeValue,
-        String host, int port) {
+    protected void connectAsClient(RpcConnectionHandler<RemoteConnection> connectionHandler, MessageLite handshakeValue, String host, int port) {
       consumer.accept(connectionHandler);
     }
 

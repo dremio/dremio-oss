@@ -20,8 +20,8 @@ import java.util.Objects;
 
 import org.apache.calcite.avatica.util.Quoting;
 
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.map.CaseInsensitiveMap;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserProtos;
 import com.dremio.exec.server.options.SessionOptionManager;
@@ -122,6 +122,21 @@ public class ChangeTrackingUserSession extends UserSession {
   @Override
   public boolean exposeInternalSources() {
     return delegate.exposeInternalSources();
+  }
+
+  @Override
+  public boolean checkMetadataValidity() {
+    return delegate.checkMetadataValidity();
+  }
+
+  @Override
+  public boolean neverPromote() {
+    return delegate.neverPromote();
+  }
+
+  @Override
+  public boolean errorOnUnspecifiedVersion() {
+    return delegate.errorOnUnspecifiedVersion();
   }
 
   @Override

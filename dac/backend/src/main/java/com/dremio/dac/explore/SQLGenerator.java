@@ -46,7 +46,6 @@ import com.dremio.dac.explore.model.FieldTransformationBase;
 import com.dremio.dac.explore.model.FilterBase;
 import com.dremio.dac.explore.model.FromBase;
 import com.dremio.dac.explore.model.FromBase.FromVisitor;
-import com.dremio.dac.explore.udfs.FormatList;
 import com.dremio.dac.proto.model.dataset.Column;
 import com.dremio.dac.proto.model.dataset.ConvertCase;
 import com.dremio.dac.proto.model.dataset.DataType;
@@ -290,7 +289,7 @@ class SQLGenerator {
     return extractRecommender.wrapRule(rule).getFunctionExpr(value);
   }
 
-  private static class ColumnConflictResolver {
+  private static final class ColumnConflictResolver {
 
     // Maps alias to the next possibly available suffix.
     // It may be taken if the user has an unfriendly naming scheme.
@@ -980,7 +979,7 @@ class SQLGenerator {
     public String visit(FieldConvertListToText listToText) throws Exception {
       return format(
           "%s(%s, %s)",
-          FormatList.NAME,
+          "list_to_delimited_string",
           eval(fieldTransformation.getOperand()),
           stringLiteral(listToText.getDelimiter()));
     }

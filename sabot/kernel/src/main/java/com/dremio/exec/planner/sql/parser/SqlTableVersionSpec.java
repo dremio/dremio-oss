@@ -27,8 +27,8 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.dremio.exec.catalog.TableVersionContext;
-import com.dremio.exec.catalog.TableVersionType;
+import com.dremio.catalog.model.dataset.TableVersionContext;
+import com.dremio.catalog.model.dataset.TableVersionType;
 import com.google.common.collect.Lists;
 
 /**
@@ -43,7 +43,7 @@ public class SqlTableVersionSpec extends SqlCall {
   public SqlTableVersionSpec(SqlParserPos pos, TableVersionType tableVersionType,
                              SqlNode versionSpecifier ) {
     super( pos);
-    this.tableVersionSpec = new TableVersionSpec(tableVersionType, versionSpecifier);
+    this.tableVersionSpec = new TableVersionSpec(tableVersionType, versionSpecifier, null);
   }
 
   public TableVersionSpec getTableVersionSpec() {
@@ -65,6 +65,7 @@ public class SqlTableVersionSpec extends SqlCall {
     List<SqlNode> operandList = Lists.newArrayList();
     operandList.add(new SqlIdentifier(getTableVersionSpec().getTableVersionType().toSqlRepresentation(), SqlParserPos.ZERO));
     operandList.add(getTableVersionSpec().getVersionSpecifier());
+    operandList.add(getTableVersionSpec().getTimestamp());
     return operandList;
   }
 

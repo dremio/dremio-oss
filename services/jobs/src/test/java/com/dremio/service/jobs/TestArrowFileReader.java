@@ -537,6 +537,7 @@ public class TestArrowFileReader extends DremioTest {
     ArgumentCaptor<Integer> partitionCaptor = ArgumentCaptor.forClass(Integer.class);
     ArgumentCaptor<Long> bytesWrittenCaptor = ArgumentCaptor.forClass(long.class);
     ArgumentCaptor<byte[]> icebergMetadataCaptor = ArgumentCaptor.forClass(byte[].class);
+    ArgumentCaptor<Long> rejectedRecordCaptor = ArgumentCaptor.forClass(long.class);
 
     final VectorContainer incoming = batches[0];
     writer.setup(incoming, outputEntryListener, writeStatsListener);
@@ -555,13 +556,14 @@ public class TestArrowFileReader extends DremioTest {
 
     verify(outputEntryListener, times(1)).recordsWritten(recordWrittenCaptor.capture(),
       fileSizeCaptor.capture(), pathCaptor.capture(), metadataCaptor.capture(),
-      partitionCaptor.capture(), icebergMetadataCaptor.capture(), any(), any(), any());
+      partitionCaptor.capture(), icebergMetadataCaptor.capture(), any(), any(), any(), any(),
+      rejectedRecordCaptor.capture());
     verify(writeStatsListener, times(batches.length)).bytesWritten(bytesWrittenCaptor.capture());
 
     Path path = new Path(dateGenFolder.getRoot().getPath());
     FileSystem fs = path.getFileSystem(FS_CONF);
     for (FileStatus file : fs.listStatus(path)) {
-      assertEquals(Long.valueOf(fileSizeCaptor.getValue()), Long.valueOf(file.getLen()));
+      assertEquals(Long.valueOf(file.getLen()), fileSizeCaptor.getValue());
     }
 
     ArrowFileMetadata arrowFileMetadata =

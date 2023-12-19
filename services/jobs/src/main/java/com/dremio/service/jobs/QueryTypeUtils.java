@@ -45,10 +45,12 @@ final class QueryTypeUtils {
     case UI_EXPORT:
     case ACCELERATOR_CREATE:
     case ACCELERATOR_DROP:
+    case ACCELERATOR_OPTIMIZE:
     case PREPARE_INTERNAL:
     case ACCELERATOR_EXPLAIN:
     case METADATA_REFRESH:
     case INTERNAL_ICEBERG_METADATA_DROP:
+    case COPY_ERRORS_PLAN:
         return true;
 
     case UI_RUN:
@@ -89,6 +91,7 @@ final class QueryTypeUtils {
     case ACCELERATOR_CREATE:
     case ACCELERATOR_DROP:
     case ACCELERATOR_EXPLAIN:
+    case ACCELERATOR_OPTIMIZE:
     case INTERNAL_ICEBERG_METADATA_DROP:
         return WorkloadClass.BACKGROUND;
 
@@ -108,6 +111,7 @@ final class QueryTypeUtils {
     case UI_RUN:
     case FLIGHT:
     case METADATA_REFRESH:
+    case COPY_ERRORS_PLAN:
     default:
       return WorkloadClass.GENERAL;
     }
@@ -173,6 +177,7 @@ final class QueryTypeUtils {
       case UI_INITIAL_PREVIEW:
         return WorkloadType.INTERNAL_PREVIEW;
       case UI_RUN:
+      case COPY_ERRORS_PLAN:
         return WorkloadType.UI_RUN;
       case UI_EXPORT:
         return WorkloadType.UI_DOWNLOAD;
@@ -191,6 +196,7 @@ final class QueryTypeUtils {
         return WorkloadType.DDL;
       case ACCELERATOR_CREATE:
       case ACCELERATOR_EXPLAIN:
+      case ACCELERATOR_OPTIMIZE:
         return WorkloadType.ACCELERATOR;
       case FLIGHT:
         return WorkloadType.FLIGHT;
@@ -211,6 +217,7 @@ final class QueryTypeUtils {
       case ACCELERATOR_CREATE:
       case ACCELERATOR_DROP:
       case ACCELERATOR_EXPLAIN:
+      case ACCELERATOR_OPTIMIZE:
         return true;
       default:
         return false;

@@ -27,6 +27,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.FindByRange;
 import com.dremio.datastore.api.ImmutableDocument;
+import com.dremio.datastore.api.IncrementCounter;
 import com.dremio.datastore.api.options.KVStoreOptionUtility;
 import com.dremio.datastore.api.options.VersionOption;
 import com.google.common.base.Function;
@@ -148,6 +149,16 @@ class MapStore implements ByteStore {
     return toIterableDocs(map.subMap(find.getStart(), find.isStartInclusive(), find.getEnd(), find.isEndInclusive()));
   }
 
+  @Override
+  public void bulkIncrement(Map<byte[], List<IncrementCounter>> keysToIncrement, IncrementOption option) {
+    throw new UnsupportedOperationException("Bulk increment operation is not supported.");
+  }
+
+  @Override
+  public void bulkDelete(List<byte[]> keysToDelete) {
+    throw new UnsupportedOperationException("Bulk delete operation is not supported.");
+  }
+
   private static Function<Entry<byte[], VersionedEntry>, Document<byte[], byte[]>> TRANSFORMER = new Function<Entry<byte[], VersionedEntry>, Document<byte[], byte[]>>(){
 
     @Override
@@ -252,7 +263,7 @@ class MapStore implements ByteStore {
     return name;
   }
 
-  private class MapKVAdmin extends KVAdmin {
+  private final class MapKVAdmin extends KVAdmin {
 
     @Override
     public String getStats() {

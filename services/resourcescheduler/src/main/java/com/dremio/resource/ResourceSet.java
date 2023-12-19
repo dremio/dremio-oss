@@ -34,6 +34,9 @@ public interface ResourceSet extends Closeable {
    */
   void close() throws IOException;
 
+  default void setCloseAction(Runnable action) {
+  }
+
   /**
    * NoOp Implementation if needed to operations that don't deal with resource allocations
    */

@@ -19,8 +19,11 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.MathContext;
 import java.math.RoundingMode;
+import java.nio.ByteOrder;
 
 import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.vector.BitVectorHelper;
+import org.apache.arrow.vector.DecimalVector;
 
 import com.google.common.base.Preconditions;
 
@@ -48,6 +51,8 @@ public final class DecimalUtils {
 
   public static final String ROUND = "ROUND";
   public static final String TRUNCATE = "TRUNCATE";
+
+  private static final boolean LITTLE_ENDIAN = ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN;
 
   private DecimalUtils() {}
 
@@ -131,6 +136,11 @@ public final class DecimalUtils {
     long curValHigh = PlatformDependent.getLong(startingAddressRight + 8);
 
     return compareDecimalsAsTwoLongs(newValHigh, newValLow, curValHigh, curValLow);
+  }
+
+  public static int compareDecimalsAsOneAndTwoLongs(long leftLow, long rightHigh, long rightLow) {
+    return compareDecimalsAsTwoLongs(leftLow < 0 ? -1L : 0L, leftLow, rightHigh,
+      rightLow);
   }
 
   public static int compareDecimalsAsTwoLongs(long leftHigh, long leftLow, long rightHigh, long
@@ -234,6 +244,88 @@ public final class DecimalUtils {
     } else {
       return 19;
     }
+  }
+
+  /**
+   * Reads {@code byteWidth} (<= 8) bytes from {@code source} as a big endian value into a {@code long}.
+   */
+  public static long readBigEndianIntoLong(ArrowBuf source, long sourceOffset, int byteWidth) {
+    switch (byteWidth) {
+      case 8:
+        return Long.reverseBytes(source.getLong(sourceOffset));
+      case 7: {
+        long p0b32 = Integer.reverseBytes(source.getInt(sourceOffset));
+        long p1b16 = 0xFFFF & Short.reverseBytes(source.getShort(sourceOffset + 4));
+        long p2b8 = 0xFF & source.getByte(sourceOffset + 6);
+        return p0b32 << 24 | p1b16 << 8 | p2b8;
+      }
+      case 6: {
+        long p0b32 = Integer.reverseBytes(source.getInt(sourceOffset));
+        long p1b16 = 0xFFFF & Short.reverseBytes(source.getShort(sourceOffset + 4));
+        return p0b32 << 16 | p1b16;
+      }
+      case 5: {
+        long p0b32 = Integer.reverseBytes(source.getInt(sourceOffset));
+        long p1b8 = 0xFF & source.getByte(sourceOffset + 4);
+        return p0b32 << 8 | p1b8;
+      }
+      case 4:
+        return Integer.reverseBytes(source.getInt(sourceOffset));
+      case 3: {
+        long p0b16 = Short.reverseBytes(source.getShort(sourceOffset));
+        long p1b8 = 0xFF & source.getByte(sourceOffset + 2);
+        return p0b16 << 8 | p1b8;
+      }
+      case 2:
+        return Short.reverseBytes(source.getShort(sourceOffset));
+      case 1:
+        return source.getByte(sourceOffset);
+      default:
+        throw new IllegalArgumentException("Unsupported byte width to read into a long: " + byteWidth);
+    }
+  }
+
+  /**
+   * Reads {@code byteWidth} (<= 8) bytes from {@code source} as a big endian value into a {@code long}.
+   */
+  public static long readBigEndianIntoLong(byte[] source, int sourceOffset, int byteWidth) {
+    int offset = sourceOffset;
+
+    // Set the most significant byte with signum prefix (see 2 complement)
+    long res = ((long) source[offset++]) << ((byteWidth - 1) * 8);
+
+    for (int bitShift = (byteWidth - 2) * 8; bitShift >= 0; bitShift -= 8) {
+      res |= (source[offset++] & 0xFFL) << bitShift;
+    }
+    return res;
+  }
+
+  /**
+   * Writes a 128bit decimal value represented as two longs into {@code target}.
+   */
+  public static void writeDecimalAsTwoLongs(long highValue, long lowValue, DecimalVector target, int targetIndex) {
+    // Implemented based on org.apache.arrow.vector.util.DecimalUtility#writeLongToArrowBuf(long, ArrowBuf, int, int)
+    BitVectorHelper.setBit(target.getValidityBuffer(), targetIndex);
+    long addressOfValue = target.getDataBufferAddress() + targetIndex * DecimalVector.TYPE_WIDTH;
+    if (LITTLE_ENDIAN) {
+      PlatformDependent.putLong(addressOfValue, lowValue);
+      PlatformDependent.putLong(addressOfValue + 8, highValue);
+    } else {
+      PlatformDependent.putLong(addressOfValue, highValue);
+      PlatformDependent.putLong(addressOfValue + 8, lowValue);
+    }
+  }
+
+  public static double pmod(double a, double b) {
+    if (b == 0.0) {
+      throw new IllegalArgumentException("Divide by zero error");
+    }
+    double mod = a % b;
+
+    if (mod < 0 || b < 0) {
+      mod += b;
+    }
+    return mod;
   }
 
 }

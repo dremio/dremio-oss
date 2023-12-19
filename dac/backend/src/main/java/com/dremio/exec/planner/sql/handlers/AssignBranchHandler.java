@@ -23,8 +23,8 @@ import java.util.List;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult;
@@ -40,7 +40,7 @@ import com.dremio.sabot.rpc.user.UserSession;
  * Handler for updating the reference to the given branch.
  *
  * ALTER BRANCH branchName ASSIGN
- * ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue
+ * ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue [AS OF timestamp]
  * [ IN sourceName ]
  */
 public class AssignBranchHandler extends BaseVersionHandler<SimpleCommandResult> {
@@ -63,7 +63,7 @@ public class AssignBranchHandler extends BaseVersionHandler<SimpleCommandResult>
       userSession.getDefaultSchemaPath());
 
     final VersionContext statementVersion =
-      ReferenceTypeUtils.map(assignBranch.getRefType(), assignBranch.getRefValue());
+      ReferenceTypeUtils.map(assignBranch.getRefType(), assignBranch.getRefValue(), assignBranch.getTimestamp());
     final String branchName = requireNonNull(assignBranch.getBranchName()).toString();
 
     final VersionedPlugin versionedPlugin = getVersionedPlugin(sourceName);

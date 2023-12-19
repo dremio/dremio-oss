@@ -26,7 +26,7 @@ import com.dremio.exec.expr.annotations.Param;
 
 public final class Cardinality {
 
-  @FunctionTemplate(name = "cardinality", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL)
+  @FunctionTemplate(names = {"cardinality", "array_length", "array_size"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL)
   public static class ListCardinality implements SimpleFunction {
     @Param
     private FieldReader input;
@@ -39,21 +39,11 @@ public final class Cardinality {
 
     @Override
     public void eval() {
-      //Runtime type-checking in order to disallow STRUCT
-      if (input.getMinorType() == org.apache.arrow.vector.types.Types.MinorType.LIST ||
-        input.getMinorType() == org.apache.arrow.vector.types.Types.MinorType.MAP) {
-        if (input.isSet()) {
-          out.isSet = 1;
-          out.value = input.size();
-        } else {
-          out.isSet = 0;
-        }
+      if (input.isSet()) {
+        out.isSet = 1;
+        out.value = input.size();
       } else {
-        throw new UnsupportedOperationException(
-          String.format("Cannot apply 'CARDINALITY' to arguments of type 'CARDINALITY(<%s>)'. " +
-              "Supported form(s): 'CARDINALITY(<LIST>|<MAP>)'", input.getMinorType().toString()
-          )
-        );
+        out.isSet = 0;
       }
     }
   }

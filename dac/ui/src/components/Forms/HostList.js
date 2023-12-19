@@ -15,7 +15,7 @@
  */
 import { Component } from "react";
 import PropTypes from "prop-types";
-import uuid from "uuid";
+import { v4 as uuidv4 } from "uuid";
 import { get, set } from "lodash/object";
 
 import FieldList, {
@@ -85,7 +85,7 @@ export default class HostList extends Component {
   }
 
   static getNewHost(port) {
-    return { id: uuid.v4(), port };
+    return { id: uuidv4(), port };
   }
 
   static propTypes = {
@@ -145,12 +145,14 @@ export default class HostList extends Component {
     ) : null;
     const addHost = !single ? (
       <AddButton style={styles.addButton} addItem={this.addItem}>
-        {la("Add host")}
+        {laDeprecated("Add host")}
       </AddButton>
     ) : null;
     return (
       <div className="hosts">
-        {!elementConfig && <h2 style={sectionTitle}>{title || la("Hosts")}</h2>}
+        {!elementConfig && (
+          <h2 style={sectionTitle}>{title || laDeprecated("Hosts")}</h2>
+        )}
         {description}
         <FieldList
           items={fieldItems}

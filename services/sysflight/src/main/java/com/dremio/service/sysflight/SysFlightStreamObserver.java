@@ -15,11 +15,16 @@
  */
 package com.dremio.service.sysflight;
 
+import static com.dremio.service.sysflight.ProtobufRecordReader.allocateNewUtil;
+
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.arrow.flight.FlightProducer.ServerStreamListener;
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 
@@ -43,9 +48,9 @@ public class SysFlightStreamObserver<E extends Message> implements StreamObserve
 
   private final Map<String, ValueVector> vectorMap;
   private final VectorSchemaRoot root;
-  private final AtomicInteger count = new AtomicInteger(0);
 
   private final AtomicInteger totalMsgCount = new AtomicInteger(0);
+  private final List<E> batch = new ArrayList<>();
 
   public SysFlightStreamObserver(BufferAllocator allocator,
                                  ServerStreamListener listener,
@@ -58,6 +63,9 @@ public class SysFlightStreamObserver<E extends Message> implements StreamObserve
     this.recordBatchSize = recordBatchSize;
 
     vectorMap = ProtobufRecordReader.setup(descriptor, allocator);
+    for (Map.Entry<String, ValueVector>  vectorEntry : vectorMap.entrySet()) {
+      AllocationHelper.allocateNew(vectorEntry.getValue(), recordBatchSize);
+    }
     root = VectorSchemaRoot.create(ProtobufRecordReader.getSchema(descriptor), allocator);
     listener.start(root);
   }
@@ -66,7 +74,12 @@ public class SysFlightStreamObserver<E extends Message> implements StreamObserve
   public void onNext(E e) {
     totalMsgCount.getAndAdd(1);
     LOGGER.debug("Received data {}:{} for {}", totalMsgCount, e, descriptor.getFullName());
-    ProtobufRecordReader.handleMessage(e, root, vectorMap, allocator, listener, count, recordBatchSize);
+    batch.add(e);
+    if (batch.size() == recordBatchSize) {
+      ProtobufRecordReader.handleBatch(root, vectorMap, allocator, listener, batch);
+      batch.clear();
+      allocateNewUtil(vectorMap, recordBatchSize);
+    }
   }
 
   @Override
@@ -93,9 +106,9 @@ public class SysFlightStreamObserver<E extends Message> implements StreamObserve
   private void close(Throwable ex) throws Exception {
     try {
       if (ex == null) {
-        if(count.get() > 0) {
-          ProtobufRecordReader.stream(vectorMap, count.get(), root, allocator, listener, true);
-          count.set(0);
+        if(batch.size() > 0) {
+          ProtobufRecordReader.handleBatch(root, vectorMap, allocator, listener, batch);
+          batch.clear();
         }
         listener.completed();
       } else {

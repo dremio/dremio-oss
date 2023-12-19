@@ -118,6 +118,15 @@ public class TestTextReaderResults extends TestTextReaderHelper {
           "custom_quote_escape.csv"
         },
         {
+          new TextFileConfig().setLineDelimiter("\n"),
+          new String[][] {
+            {"c1","c2","c3"},
+            {"r1c1","r1c2","r1c3"},
+            {"r2c1","r2c2","r2c3"}
+          },
+          "comment_after_spaces.csv"
+        },
+        {
           // Failure to load
           new TextFileConfig().setEscape("\\").setLineDelimiter("\n"),
           new String[][]{
@@ -136,6 +145,24 @@ public class TestTextReaderResults extends TestTextReaderHelper {
           },
           "custom_ld_inside_quoted.csv"
         },
+        {
+          new TextFileConfig().setLineDelimiter("\n"),
+          new String[][] {
+            {"c1","c2","c3"},
+            {"r1c1","r1c2","r1c3"},
+            {"r2c1","r2c2","r2c3"}
+          },
+          "empty_line_before_header.csv",
+        },
+        {
+          new TextFileConfig().setLineDelimiter("\n"),
+          new String[][] {
+            {"c1","c2","c3"},
+            {"r1c1","r1c2","r1c3"},
+            {"r2c1","r2c2","r2c3"}
+          },
+          "space_padded_quoted_field.csv"
+        }
       }
     );
   }

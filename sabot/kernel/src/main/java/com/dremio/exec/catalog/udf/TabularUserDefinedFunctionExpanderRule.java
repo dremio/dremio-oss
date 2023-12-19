@@ -25,18 +25,18 @@ import org.apache.calcite.schema.Function;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.validate.SqlUserDefinedFunction;
 
+import com.dremio.exec.ops.UserDefinedFunctionExpander;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
-import com.dremio.exec.planner.sql.SqlConverter;
 
 public final class TabularUserDefinedFunctionExpanderRule extends RelRule<RelRule.Config> {
-  private final SqlConverter sqlConverter;
+  private final UserDefinedFunctionExpander userDefinedFunctionExpander;
 
-  public TabularUserDefinedFunctionExpanderRule(SqlConverter sqlConverter) {
+  public TabularUserDefinedFunctionExpanderRule(UserDefinedFunctionExpander userDefinedFunctionExpander) {
     super(Config.EMPTY
       .withDescription("TabularUserDefinedFunctionExpanderRule")
       .withOperandSupplier(op1 ->
         op1.operand(TableFunctionScan.class).anyInputs()));
-    this.sqlConverter = sqlConverter;
+    this.userDefinedFunctionExpander = userDefinedFunctionExpander;
   }
 
   @Override
@@ -55,7 +55,7 @@ public final class TabularUserDefinedFunctionExpanderRule extends RelRule<RelRul
     }
 
     DremioTabularUserDefinedFunction tabularFunction = (DremioTabularUserDefinedFunction) function;
-    RelNode tabularFunctionPlan = tabularFunction.extractFunctionPlan(sqlConverter);
+    RelNode tabularFunctionPlan = userDefinedFunctionExpander.expandTabularFunction(tabularFunction);
     tabularFunctionPlan = ParameterizedQueryParameterReplacer.replaceParameters(
       tabularFunctionPlan,
       tabularFunction.getParameters(),

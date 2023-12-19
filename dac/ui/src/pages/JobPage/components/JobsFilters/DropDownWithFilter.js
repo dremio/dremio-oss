@@ -100,7 +100,7 @@ class DropDownWithFilter extends PureComponent {
           className="all-label"
           style={styles.allLabels}
         >
-          {la("All")}
+          {laDeprecated("All")}
         </div>
       ) : null;
     const filter =

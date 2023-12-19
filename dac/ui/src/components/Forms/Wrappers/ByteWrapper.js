@@ -40,6 +40,8 @@ export default class ByteWrapper extends Component {
     const valueMultiplier = elementConfig.getConfig().multiplier; // for example (1024 ** 2) if API uses MBs instead of bytes
     const { value, ...fieldProps } = field;
     const adjustedValue = value === "" ? 0 : value;
+    const isFullSpacedEvenly =
+      elementConfig.getConfig().size === "full-spaced-evenly";
     return (
       <div>
         <div className={durationLabel}>{elementConfig.getConfig().label}</div>
@@ -56,6 +58,7 @@ export default class ByteWrapper extends Component {
             disabled={disabled}
             valueMultiplier={valueMultiplier}
             className={durationBody}
+            isFullSpacedEvenly={isFullSpacedEvenly}
           />
         </FieldWithError>
       </div>

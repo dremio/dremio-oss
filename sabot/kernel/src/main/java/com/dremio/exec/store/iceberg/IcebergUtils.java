@@ -16,6 +16,8 @@
 package com.dremio.exec.store.iceberg;
 
 import static com.dremio.common.utils.PathUtils.removeLeadingSlash;
+import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_SPEC_EVOL_TRANFORMATION;
+import static com.dremio.exec.catalog.CatalogUtil.getAndValidateSourceForTableManagement;
 import static com.dremio.exec.hadoop.DremioHadoopUtils.getContainerName;
 import static com.dremio.exec.hadoop.DremioHadoopUtils.pathWithoutContainer;
 import static com.dremio.exec.store.iceberg.IcebergSerDe.deserializedJsonAsSchema;
@@ -32,6 +34,7 @@ import static com.dremio.io.file.UriSchemes.MAPRFS_SCHEME;
 import static com.dremio.io.file.UriSchemes.S3_SCHEME;
 import static com.dremio.io.file.UriSchemes.SCHEME_SEPARATOR;
 
+import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -48,12 +51,15 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UnknownFormatConversionException;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.apache.arrow.memory.ArrowBuf;
@@ -84,26 +90,37 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.iceberg.DremioIndexByName;
 import org.apache.iceberg.MetadataColumns;
+import org.apache.iceberg.NullOrder;
 import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.PartitionStatsFileLocations;
 import org.apache.iceberg.PartitionStatsMetadataUtil;
 import org.apache.iceberg.Schema;
+import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.TableMetadataParser;
 import org.apache.iceberg.exceptions.NotFoundException;
 import org.apache.iceberg.expressions.Expressions;
 import org.apache.iceberg.expressions.Term;
 import org.apache.iceberg.io.FileIO;
+import org.apache.iceberg.transforms.Transforms;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.TypeUtil;
 import org.apache.iceberg.types.Types;
+import org.apache.iceberg.util.Tasks;
 import org.eclipse.jetty.util.URIUtil;
 import org.joda.time.DateTimeConstants;
+import org.slf4j.Logger;
 
+import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.VersionContext;
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.Describer;
 import com.dremio.common.map.CaseInsensitiveMap;
+import com.dremio.common.types.TypeProtos;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.connector.metadata.DatasetSplit;
 import com.dremio.connector.metadata.DatasetSplitAffinity;
@@ -114,14 +131,15 @@ import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.catalog.MutablePlugin;
-import com.dremio.exec.catalog.ResolvedVersionContext;
 import com.dremio.exec.catalog.SourceCatalog;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.hadoop.HadoopFileSystemConfigurationAdapter;
+import com.dremio.exec.physical.base.CombineSmallFileOptions;
 import com.dremio.exec.physical.base.IcebergWriterOptions;
 import com.dremio.exec.physical.base.ImmutableIcebergWriterOptions;
 import com.dremio.exec.physical.base.ImmutableTableFormatWriterOptions;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.TableFormatWriterOptions.TableFormatOperation;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
@@ -157,7 +175,9 @@ import com.dremio.exec.store.dfs.PrimaryKeyOperations;
 import com.dremio.exec.store.iceberg.model.IcebergCommandType;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
+import com.dremio.io.file.FileSystem;
 import com.dremio.options.OptionManager;
+import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
@@ -170,10 +190,13 @@ import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
+import com.dremio.service.namespace.dataset.proto.TableProperties;
+import com.dremio.service.namespace.file.proto.FileType;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import io.protostuff.ByteString;
@@ -183,6 +206,9 @@ import io.protostuff.ByteString;
  */
 public class IcebergUtils {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(IcebergUtils.class);
+
+  private static final int ICEBERG_TIMESTAMP_PRECISION = 6;
+  public static final Pattern LOCALSORT_BY_PATTERN = Pattern.compile("LOCALSORT\\s*BY", Pattern.CASE_INSENSITIVE);
 
   public static final Function<RexNode, List<Integer>> getUsedIndices = cond -> {
     Set<Integer> usedIndices = new HashSet<>();
@@ -347,7 +373,16 @@ public class IcebergUtils {
      */
     public static Optional<SimpleCommandResult> checkTableExistenceAndMutability(Catalog catalog, SqlHandlerConfig config,
                                                                                  NamespaceKey path, SqlOperator sqlOperator,
-                                                                                 boolean ifExistsCheck) {
+                                                                                 boolean shouldErrorIfTableDoesNotExist) {
+      CatalogEntityKey catalogEntityKey = CatalogEntityKey.newBuilder()
+        .keyComponents(path.getPathComponents())
+        .tableVersionContext(TableVersionContext.of(VersionContext.NOT_SPECIFIED))
+        .build();
+      return checkTableExistenceAndMutability(catalog, config, catalogEntityKey, sqlOperator, shouldErrorIfTableDoesNotExist);
+    }
+    public static Optional<SimpleCommandResult> checkTableExistenceAndMutability(Catalog catalog, SqlHandlerConfig config,
+                                                                                 CatalogEntityKey catalogEntityKey, SqlOperator sqlOperator,
+                                                                                 boolean shouldErrorIfTableDoesNotExist) {
       boolean icebergFeatureEnabled = isIcebergFeatureEnabled(config.getContext().getOptions(),
           null);
       if (!icebergFeatureEnabled) {
@@ -356,15 +391,20 @@ public class IcebergUtils {
                 "the iceberg tables feature.")
             .buildSilently();
       }
-
-      DremioTable table = catalog.getTableNoResolve(path);
+      NamespaceKey path = catalogEntityKey.toNamespaceKey();
+      StoragePlugin maybeSource = getAndValidateSourceForTableManagement(catalog, catalogEntityKey.getTableVersionContext(), path);
+      CatalogEntityKey.Builder keyBuilder = CatalogEntityKey.newBuilder().keyComponents(path.getPathComponents());
+      if (maybeSource != null && maybeSource.isWrapperFor(VersionedPlugin.class)) {
+        keyBuilder.tableVersionContext(catalogEntityKey.getTableVersionContext());
+      }
+      DremioTable table = CatalogUtil.getTableNoResolve(keyBuilder.build(), catalog);
       if (table == null) {
-        if (ifExistsCheck) {
-          return Optional.of(SimpleCommandResult.successful("Table [%s] does not exist.", path));
-        } else {
+        if (shouldErrorIfTableDoesNotExist) {
           throw UserException.validationError()
-              .message("Table [%s] does not exist.", path)
-              .buildSilently();
+            .message("Table [%s] does not exist.", path)
+            .buildSilently();
+        } else {
+          return Optional.of(SimpleCommandResult.successful("Table [%s] does not exist.", path));
         }
       }
 
@@ -391,12 +431,12 @@ public class IcebergUtils {
               .buildSilently();
         }
       } catch (NullPointerException ex) {
-        if (ifExistsCheck) {
-          return Optional.of(SimpleCommandResult.successful("Table [%s] does not exist.", path));
-        } else {
+        if (shouldErrorIfTableDoesNotExist) {
           throw UserException.validationError()
-              .message("Table [%s] does not exist.", path)
-              .buildSilently();
+            .message("Table [%s] does not exist.", path)
+            .buildSilently();
+        } else {
+          return Optional.of(SimpleCommandResult.successful("Table [%s] does not exist.", path));
         }
       }
       return Optional.empty();
@@ -600,6 +640,48 @@ public class IcebergUtils {
     }
   }
 
+  public static SortOrder getIcebergSortOrder(BatchSchema batchSchema, List<String> sortColumns,
+                                              Schema existingIcebergSchema, OptionManager options) {
+    if (!isIcebergSortOrderFeatureEnabled(options)) {
+      return SortOrder.unsorted();
+    }
+    try {
+      Schema schema;
+      if (existingIcebergSchema != null) {
+        schema = existingIcebergSchema;
+      } else {
+        SchemaConverter schemaConverter = SchemaConverter.getBuilder().build();
+        schema = schemaConverter.toIcebergSchema(batchSchema);
+      }
+
+      SortOrder.Builder sortOrderBuilder = SortOrder.builderFor(schema);
+      for (String sortColumn : sortColumns) {
+        sortOrderBuilder.asc(sortColumn, NullOrder.NULLS_FIRST); //ASC and NULLS_FIRST are default sort parameters for a column.
+      }
+      return sortOrderBuilder.build();
+    } catch (Exception ex) {
+      logger.warn("Unable to get IcebergSortOrder based on schema");
+      throw UserException.validationError(ex).buildSilently();
+
+    }
+  }
+
+  public static List<String> getColumnsFromSortOrder(SortOrder sortOrder, OptionManager options) {
+    if (sortOrder == null || !isIcebergSortOrderFeatureEnabled(options)) {
+      return Collections.emptyList();
+    }
+    Preconditions.checkNotNull(sortOrder.schema());
+    try {
+      Schema schema = sortOrder.schema();
+      return sortOrder.fields().stream()
+        .map(currentField -> schema.findField(currentField.sourceId()).name())
+        .collect(Collectors.toList());
+    } catch (Exception ex) {
+      logger.warn("Unable to generate iceberg sort order columns");
+      throw UserException.validationError(ex).buildSilently();
+    }
+  }
+
   public static String getValidIcebergPath(Path path, Configuration conf, String fsScheme) {
     return getValidIcebergPath(path, new HadoopFileSystemConfigurationAdapter(conf), fsScheme);
   }
@@ -783,7 +865,7 @@ public class IcebergUtils {
   }
 
 
-  private static PartitionSpec getPartitionSpecFromMap(Map<Integer, PartitionSpec> partitionSpecMap) {
+  public static PartitionSpec getPartitionSpecFromMap(Map<Integer, PartitionSpec> partitionSpecMap) {
     int current_id = Collections.max(partitionSpecMap.keySet());
     return partitionSpecMap != null ? partitionSpecMap.get(current_id) : null;
   }
@@ -807,6 +889,26 @@ public class IcebergUtils {
     return partitionSpec;
   }
 
+  public static Map<Integer, PartitionSpec> getPartitionSpecMap(final IcebergMetadata metadata) {
+    final Optional<byte[]> specsOpt = Optional.of(metadata)
+      .map(IcebergMetadata::getPartitionSpecsJsonMap)
+      .map(ByteString::toByteArray);
+    final Optional<Schema> schemaOpt = Optional.of(metadata)
+      .map(IcebergMetadata::getJsonSchema)
+      .map(IcebergSerDe::deserializedJsonAsSchema);
+    return specsOpt.flatMap(specs ->
+        schemaOpt.map(schema -> IcebergSerDe.deserializeJsonPartitionSpecMap(schema, specs)))
+      .orElseGet(ImmutableMap::of);
+  }
+
+  public static String getCurrentSortOrder(PhysicalDataset physicalDataset, OptionManager options) {
+    IcebergMetadata icebergMetadata = physicalDataset.getIcebergMetadata();
+    if (isIcebergSortOrderFeatureEnabled(options) && icebergMetadata != null && icebergMetadata.getSortOrder() != null) {
+      return icebergMetadata.getSortOrder();
+    }
+    return IcebergSerDe.serializeSortOrderAsJson(SortOrder.unsorted());
+  }
+
   public static String getCurrentIcebergSchema(PhysicalDataset physicalDataset, BatchSchema batchSchema) {
       if (physicalDataset.getIcebergMetadata() != null) {
         return physicalDataset.getIcebergMetadata().getJsonSchema();
@@ -816,13 +918,44 @@ public class IcebergUtils {
   }
 
   public static String getPartitionFieldName(PartitionField partitionField) {
-      if(partitionField.transform().isIdentity()) {
-        return partitionField.name() + "_identity";
-      } else if(partitionField.transform().toString().equals("void")) {
+      if(partitionField.transform().toString().equals("void")) {
         return partitionField.name() + "_void";
       } else {
         return partitionField.name();
       }
+  }
+
+  public static List<String> getPartitionColumns(Table table) {
+      return getPartitionColumns(table.spec(), table.schema());
+  }
+
+  public static List<String> getPartitionColumns(PartitionSpec spec, Schema schema) {
+    return spec
+      .fields()
+      .stream()
+      .filter(partitionField -> !partitionField.transform().equals(Transforms.alwaysNull()))
+      .map(PartitionField::sourceId)
+      .map(schema::findColumnName) // column name from schema
+      .distinct()
+      .collect(Collectors.toList());
+  }
+
+  public static boolean hasNonIdentityPartitionColumns(PartitionSpec partitionSpec) {
+    if (partitionSpec == null) {
+      return false;
+    }
+
+    for (PartitionField partitionField : partitionSpec.fields()) {
+      if(!isIdentityPartitionColumn(partitionField)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  public static boolean isIdentityPartitionColumn(PartitionField partitionField) {
+      return partitionField != null && partitionField.transform().isIdentity();
   }
 
   public static BatchSchema getWriterSchema(BatchSchema writerSchema, WriterOptions writerOptions) {
@@ -835,9 +968,10 @@ public class IcebergUtils {
 
     if (partitionSpec != null) {
       extraFields = partitionSpec.fields().stream()
-              .map(IcebergUtils::getPartitionFieldName)
-              .map(String::toLowerCase)
-              .collect(Collectors.toSet());
+        .filter(partitionField -> !isIdentityPartitionColumn(partitionField))
+        .map(IcebergUtils::getPartitionFieldName)
+        .map(String::toLowerCase)
+        .collect(Collectors.toSet());
     }
 
     for (Field field : writerSchema) {
@@ -894,6 +1028,16 @@ public class IcebergUtils {
     }
 
     return true;
+  }
+
+  public static void validateIcebergLocalSortIfDeclared(String sql, OptionManager options) throws UserException {
+    if (LOCALSORT_BY_PATTERN.matcher(sql).find() && !isIcebergSortOrderFeatureEnabled(options)) {
+      throw UserException.unsupportedError().message("Iceberg Sort Order Operations are disabled").buildSilently();
+    }
+  }
+
+  public static boolean isIcebergSortOrderFeatureEnabled(OptionManager options) {
+    return options.getOption(ExecConstants.ENABLE_ICEBERG_SORT_ORDER);
   }
 
   public static boolean isIcebergDMLFeatureEnabled(SourceCatalog sourceCatalog,
@@ -967,7 +1111,6 @@ public class IcebergUtils {
     }
   }
 
-  // TODO: TableProperties should not be part of iceberg, so this function should be moved out of icebergUtils. will do as part of DX-61190
   public static Map<String, String> convertTableProperties(List<String> tablePropertyNameList, List<String> tablePropertyValueList, boolean expectEmptyValues) {
     if (expectEmptyValues) {
       if (!(tablePropertyValueList == null || tablePropertyValueList.isEmpty())) {
@@ -991,19 +1134,46 @@ public class IcebergUtils {
     return tableProperties;
   }
 
+  private static Map<String, String> convertListTablePropertiesToMap(List<TableProperties> tablePropertiesList) {
+    Map<String, String> tableProperties = new HashMap<>();
+    if (tablePropertiesList == null || tablePropertiesList.size() == 0) {
+      return Collections.emptyMap();
+    }
+    for (int index = 0; index < tablePropertiesList.size(); index++) {
+      TableProperties property = tablePropertiesList.get(index);
+      tableProperties.put(property.getTablePropertyName(), property.getTablePropertyValue());
+    }
+    return tableProperties;
+  }
+
+  /**
+   * We are now getting IcebergCreateTableEntry with versionContext.
+   * Previously, we have always used session version as the version context, but now
+   * we can also specify version with the sql.
+   * if we do not have explicit versionContext, we will be using original code path
+   * Else we will be using new code path containing explicit version context.
+   */
   public static CreateTableEntry getIcebergCreateTableEntry(SqlHandlerConfig config, Catalog catalog, DremioTable table,
                                                             SqlOperator sqlOperator, OptimizeOptions optimizeOptions) {
+    final NamespaceKey key = table.getPath();
+    return getIcebergCreateTableEntry(config, catalog, table, sqlOperator, optimizeOptions,
+      CatalogUtil.resolveVersionContext(catalog, key.getRoot(),
+      config.getContext().getSession().getSessionVersionForSource(key.getRoot())));
+  }
+
+  public static CreateTableEntry getIcebergCreateTableEntry(SqlHandlerConfig config, Catalog catalog, DremioTable table,
+                                                            SqlOperator sqlOperator, OptimizeOptions optimizeOptions, ResolvedVersionContext resolvedVersionContext) {
     final NamespaceKey key = table.getPath();
     final DatasetConfig datasetConfig = table.getDatasetConfig();
     final ReadDefinition readDefinition = datasetConfig.getReadDefinition();
 
-    ResolvedVersionContext version = CatalogUtil.resolveVersionContext(catalog, key.getRoot(),
-      config.getContext().getSession().getSessionVersionForSource(key.getRoot()));
+    ResolvedVersionContext version = resolvedVersionContext;
     List<String> partitionColumnsList = readDefinition.getPartitionColumnsList();
 
     String queryId = QueryIdHelper.getQueryId(config.getContext().getQueryId());
     PhysicalDataset physicalDataset = datasetConfig.getPhysicalDataset();
     BatchSchema batchSchema = table.getSchema();
+    Map<String, String> properties = convertListTablePropertiesToMap(datasetConfig.getPhysicalDataset().getIcebergMetadata().getTablePropertiesList());
     IcebergTableProps icebergTableProps = new IcebergTableProps(null,
       queryId,
       null,
@@ -1014,7 +1184,20 @@ public class IcebergUtils {
       null,
       version,
       getCurrentPartitionSpec(physicalDataset, batchSchema, partitionColumnsList),
-      getCurrentIcebergSchema(physicalDataset, batchSchema));
+      getCurrentIcebergSchema(physicalDataset, batchSchema),
+      null,
+      getCurrentSortOrder(physicalDataset, config.getContext().getOptions()),
+      properties,
+      FileType.PARQUET);
+
+    CombineSmallFileOptions combineSmallFileOptions = null;
+    if ((optimizeOptions != null && config.getContext().getOptions().getOption(ExecConstants.ENABLE_ICEBERG_COMBINE_SMALL_FILES_FOR_OPTIMIZE)) ||
+      config.getContext().getOptions().getOption(ExecConstants.ENABLE_ICEBERG_COMBINE_SMALL_FILES_FOR_DML)) {
+      combineSmallFileOptions = CombineSmallFileOptions.builder()
+        .setSmallFileSize(Double.valueOf(config.getContext().getOptions().getOption(ExecConstants.PARQUET_BLOCK_SIZE_VALIDATOR) *
+          config.getContext().getOptions().getOption(ExecConstants.SMALL_PARQUET_BLOCK_SIZE_RATIO)).longValue())
+        .build();
+    }
 
     boolean isSingleWriter = false;
 
@@ -1036,15 +1219,22 @@ public class IcebergUtils {
       partitionColumnsList,
       readDefinition.getSortColumnsList(),
       Collections.emptyList(),
-      config.getContext().getOptions().getOption(ExecConstants.ENABLE_ICEBERG_DML_USE_HASH_DISTRIBUTION_FOR_WRITES)
-        ? PartitionDistributionStrategy.HASH : PartitionDistributionStrategy.UNSPECIFIED,
+      PartitionDistributionStrategy.getPartitionDistributionStrategy(
+        config.getContext().getOptions().getOption(ExecConstants.WRITER_PARTITION_DISTRIBUTION_MODE)),
       null,
       isSingleWriter,
       Long.MAX_VALUE,
       tableFormatOptionsBuilder.build(),
       readDefinition.getExtendedProperty(),
-      version);
+      version,
+      properties)
+      .withCombineSmallFileOptions(combineSmallFileOptions);
 
+    Schema schema = SchemaConverter.getBuilder().build().toIcebergSchema(batchSchema);
+    String sortOrder = getCurrentSortOrder(physicalDataset, config.getContext().getOptions());
+    List<String> sortColumns = getColumnsFromSortOrder(
+      IcebergSerDe.deserializeSortOrderFromJson(schema, sortOrder), config.getContext().getOptions());
+    options.setSortColumns(sortColumns);
     BatchSchema writerSchema = getWriterSchema(batchSchema, options);
     icebergTableProps.setFullSchema(writerSchema);
     icebergTableProps.setPersistedFullSchema(batchSchema);
@@ -1074,6 +1264,11 @@ public class IcebergUtils {
         default:
           throw new UnsupportedOperationException(String.format("Unrecoverable Error: Invalid type: %s", sqlOperator.getKind()));
       }
+  }
+
+  public static boolean isIncrementalRefresh(IcebergCommandType icebergCommandType) {
+    return icebergCommandType == IcebergCommandType.INCREMENTAL_METADATA_REFRESH
+      || icebergCommandType == IcebergCommandType.PARTIAL_METADATA_REFRESH;
   }
 
   private static TableFormatOperation getTableFormatOperation(SqlOperator sqlOperator) {
@@ -1113,6 +1308,12 @@ public class IcebergUtils {
 
   private static boolean isValidSpecForSchema(PartitionSpec partitionSpec, Set<Integer> sourceIds) {
     return partitionSpec.fields().stream().map(partitionField -> partitionField.sourceId()).allMatch(sourceId -> sourceIds.contains(sourceId));
+  }
+
+  public static boolean isPrimaryKeySupported(DatasetConfig datasetConfig) {
+    return datasetConfig.getPhysicalDataset() != null && // PK only supported for physical datasets
+      // PK only supported for physical dataset for unlimited splits or native Iceberg format
+      (DatasetHelper.isInternalIcebergTable(datasetConfig) || DatasetHelper.isIcebergDataset(datasetConfig));
   }
 
   public static List<String> validateAndGeneratePrimaryKey(MutablePlugin plugin, SabotContext context, NamespaceKey table,
@@ -1178,6 +1379,46 @@ public class IcebergUtils {
       .collect(Collectors.toList());
   }
 
+  /**
+   * Given an object representing a constant with a type, convert that constant to Iceberg equivalent
+   * The only case we do something about is if we get a Long that represents time or timestamp
+   * In that case Dremio has the constant in miliseconds, but Iceberg expects microseconds so we multiply  by 1_000
+   * @param value Value to convert
+   * @param type The datatype of the value
+   * @return the converted value
+   */
+  public static Object toIcebergValue(final Object value, final TypeProtos.MajorType type) {
+    if (value == null) {
+      return value;
+    }
+    if (value instanceof Long) {
+      //for iceberg timestamps we need to convert from milliseconds to microseconds
+      if (type.getMinorType().equals(TypeProtos.MinorType.TIMESTAMP)
+          || type.getMinorType().equals(TypeProtos.MinorType.TIMESTAMPTZ)
+          || type.getMinorType().equals(TypeProtos.MinorType.TIME)
+          || type.getMinorType().equals(TypeProtos.MinorType.TIMETZ)){
+        final int precision = CompleteType.fromMajorType(type).getPrecision();
+        final int precisionDifference = ICEBERG_TIMESTAMP_PRECISION - precision;
+        final int factor = (int) Math.pow(10, Math.abs(precisionDifference));
+        return  precisionDifference >= 0 ? (Long)value * factor : (Long)value / factor ;
+      }
+    }
+    return value;
+  }
+
+  /**
+   * Given a partition field extract the name of the column it is based on
+   * We cannot get the name of the partitionField directly as Iceberg will attach _transfrom at the end of the column
+   * We will instead use the sourceID to find the column name in the schema
+   *
+   * @param partitionField partition field to extract column name from
+   * @param schema Iceberg Schema the current PartitionField is from
+   * @return the extracted column name
+   */
+  public static String getColumnName(final PartitionField partitionField, Schema schema){
+    return schema.findColumnName(partitionField.sourceId());
+  }
+
   public static String getMetadataLocation(TableMetadata dataset, List<SplitWork> works) {
     if (dataset.getDatasetConfig().getPhysicalDataset().getIcebergMetadata() != null &&
       dataset.getDatasetConfig().getPhysicalDataset().getIcebergMetadata().getMetadataFileLocation() != null &&
@@ -1218,4 +1459,95 @@ public class IcebergUtils {
     splits.add(new SplitAndPartitionInfo(partitionInfo, splitInfo.build()));
     return splits;
   }
+
+  /**
+   * Remove orphan files
+   */
+  public static void removeOrphanFiles(FileSystem fs, Logger logger, ExecutorService executorService, Set<String> filesToDelete) {
+    logger.debug("Files to delete: {}", filesToDelete);
+    Tasks.foreach(filesToDelete)
+      .retry(3)
+      .stopRetryOn(NotFoundException.class)
+      .suppressFailureWhenFinished()
+      .executeWith(executorService)
+      .onFailure(
+        (filePath, exc) -> {
+          logger.warn("Fail to remove file: {}", filePath, exc);
+        })
+      .run(
+        filePath -> {
+          try{
+            fs.delete(com.dremio.io.file.Path.of(filePath), true);
+          } catch (IOException e) {
+            logger.warn("Unable to remove newly added file: {}", filePath);
+            // Not an error condition if cleanup fails.
+          }
+        });
+  }
+
+  /**
+   * Loads and returns the Iceberg Table Metadata for a table
+   */
+  public static org.apache.iceberg.TableMetadata loadTableMetadata(FileIO io, OperatorContext context, String metadataLocation) {
+    org.apache.iceberg.TableMetadata tableMetadata = TableMetadataParser.read(io, metadataLocation);
+    if (!context.getOptions().getOption(ENABLE_ICEBERG_SPEC_EVOL_TRANFORMATION)) {
+      checkForPartitionSpecEvolution(tableMetadata);
+    }
+    return tableMetadata;
+  }
+
+  /**
+   * Creates a FileIO for an Iceberg Metadata
+   */
+  public static FileIO createFileIOForIcebergMetadata(SupportsIcebergRootPointer pluginForIceberg, OperatorContext context, String datasourcePluginUID, OpProps props, List<String> dataset, String metadataLocation) {
+    FileSystem fs;
+    try {
+      fs = pluginForIceberg.createFSWithAsyncOptions(metadataLocation, props.getUserName(), context);
+    } catch (IOException e) {
+      throw new RuntimeException("Failed creating filesystem", e);
+    }
+    FileIO io = pluginForIceberg.createIcebergFileIO(fs, context, dataset, datasourcePluginUID, null);
+    return io;
+  }
+
+  private static void checkForPartitionSpecEvolution(org.apache.iceberg.TableMetadata tableMetadata) {
+    if (tableMetadata.specs().size() > 1) {
+      throw UserException
+        .unsupportedError()
+        .message("Iceberg tables with partition spec evolution are not supported")
+        .buildSilently();
+    }
+
+    if (IcebergUtils.checkNonIdentityTransform(tableMetadata.spec())) {
+      throw UserException
+        .unsupportedError()
+        .message("Iceberg tables with Non-identity partition transforms are not supported")
+        .buildSilently();
+    }
+  }
+
+  public static Table getIcebergTable(CreateTableEntry createTableEntry) {
+    IcebergTableProps icebergTableProps = createTableEntry.getIcebergTableProps();
+    Preconditions.checkState(createTableEntry.getPlugin() instanceof SupportsIcebergMutablePlugin, "Plugin not instance of SupportsIcebergMutablePlugin");
+    SupportsIcebergMutablePlugin plugin = (SupportsIcebergMutablePlugin) createTableEntry.getPlugin();
+
+    try (FileSystem fs = plugin.createFS(icebergTableProps.getTableLocation(), createTableEntry.getUserName(), null)) {
+      FileIO fileIO = plugin.createIcebergFileIO(fs, null, null, null, null);
+      IcebergModel icebergModel = plugin.getIcebergModel(icebergTableProps, createTableEntry.getUserName(), null, fileIO);
+      return icebergModel.getIcebergTable(icebergModel.getTableIdentifier(icebergTableProps.getTableLocation()));
+    } catch (IOException ex) {
+      throw new UncheckedIOException(ex);
+    }
+  }
+
+     /** locates the current (soon-to-be previous) metadata root
+      * @param icebergMetadata the iceberg table metadata instance
+      * @return the correct path for the iceberg metadata
+      */
+    public static com.dremio.io.file.Path getPreviousTableMetadataRoot(IcebergMetadata icebergMetadata) {
+      com.dremio.io.file.Path metadataFilePath = com.dremio.io.file.Path.of(icebergMetadata.getMetadataFileLocation());
+      com.dremio.io.file.Path containerSpecificMetadataFilePath = com.dremio.io.file.Path.of(com.dremio.io.file.Path.getContainerSpecificRelativePath(metadataFilePath));
+      com.dremio.io.file.Path finalPath = com.dremio.io.file.Path.of(containerSpecificMetadataFilePath.toURI().getPath());
+      return Objects.requireNonNull(Objects.requireNonNull(finalPath).getParent()).getParent();
+    }
 }

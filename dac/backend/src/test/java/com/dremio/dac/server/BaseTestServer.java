@@ -57,6 +57,7 @@ import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.SecurityContext;
 
 import org.apache.arrow.memory.BufferAllocator;
+import org.assertj.core.api.SoftAssertions;
 import org.eclipse.jetty.http.HttpHeader;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import org.junit.AfterClass;
@@ -65,6 +66,7 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
+import org.junit.rules.TestRule;
 import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
 
@@ -74,6 +76,7 @@ import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.perf.Timer;
 import com.dremio.common.perf.Timer.TimedBlock;
 import com.dremio.common.util.TestTools;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.daemon.DACDaemon;
 import com.dremio.dac.daemon.DACDaemon.ClusterMode;
@@ -102,12 +105,16 @@ import com.dremio.dac.model.usergroup.UserLogin;
 import com.dremio.dac.model.usergroup.UserLoginSession;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.server.test.SampleDataPopulator;
+import com.dremio.dac.service.admin.Setting;
 import com.dremio.dac.service.collaboration.CollaborationHelper;
+import com.dremio.dac.service.datasets.DatasetDownloadManager;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
 import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.dac.service.source.SourceService;
+import com.dremio.dac.support.ImmutableSupportRequest;
+import com.dremio.dac.support.SupportService;
 import com.dremio.dac.util.JSONUtil;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.ExecConstants;
@@ -117,9 +124,11 @@ import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.rpc.RpcException;
+import com.dremio.exec.server.NodeRegistration;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.util.TestUtilities;
+import com.dremio.exec.work.protector.ForemenWorkManager;
 import com.dremio.file.FilePath;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidator;
@@ -143,6 +152,8 @@ import com.dremio.service.namespace.dataset.proto.ViewFieldType;
 import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.dremio.service.users.SimpleUserService;
+import com.dremio.service.users.SystemUser;
+import com.dremio.service.users.UserNotFoundException;
 import com.dremio.service.users.UserService;
 import com.dremio.services.fabric.api.FabricService;
 import com.dremio.test.DremioTest;
@@ -161,6 +172,9 @@ import com.google.common.collect.Lists;
  */
 public abstract class BaseTestServer extends BaseClientUtils {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BaseTestServer.class);
+
+  @Rule
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(Duration.ofMinutes(2));
 
   private static final String API_LOCATION = "apiv2";
   private static final String PUBLIC_API_LOCATION = "api";
@@ -249,6 +263,8 @@ public abstract class BaseTestServer extends BaseClientUtils {
       AccessLogFilter accessLogFilter = currentDremioDaemon.getWebServer().getAccessLogFilter();
       if (accessLogFilter != null) {
         accessLogFilter.stopLoggingToFile();
+      }
+      if (docLog != null) {
         docLog.close();
       }
     }
@@ -364,10 +380,10 @@ public abstract class BaseTestServer extends BaseClientUtils {
   }
 
   @ClassRule
-  public static final TemporaryFolder folder0 = new TemporaryFolder();
+  public static TemporaryFolder folder0 = new TemporaryFolder();
 
   @ClassRule
-  public static final TemporaryFolder folder1 = new TemporaryFolder();
+  public static TemporaryFolder folder1 = new TemporaryFolder();
 
   @ClassRule
   public static final TemporaryFolder folder2 = new TemporaryFolder();
@@ -447,11 +463,16 @@ public abstract class BaseTestServer extends BaseClientUtils {
   @BeforeClass
   public static void init() throws Exception {
     try (TimedBlock b = Timer.time("BaseTestServer.@BeforeClass")) {
-      initializeCluster(new DACDaemonModule());
+      initializeCluster(new DACDaemonModule(), null, null, true);
     }
   }
 
-  protected static void initializeCluster(DACModule dacModule) throws Exception {
+  protected static void initializeCluster(DACModule dacModule, TemporaryFolder distPathsFolder, TemporaryFolder localPathsFolder, boolean memory) throws Exception {
+    if (distPathsFolder != null) {
+      folder0 = distPathsFolder;
+      folder1 = localPathsFolder;
+      inMemoryStorage = memory;
+    }
     initializeCluster(dacModule, o -> o);
   }
 
@@ -474,6 +495,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
       Files.createDirectories(new File(folder0.getRoot().getAbsolutePath() + "/scratch").toPath());
       Files.createDirectories(new File(folder0.getRoot().getAbsolutePath() + "/metadata").toPath());
       Files.createDirectories(new File(folder0.getRoot().getAbsolutePath() + "/gandiva").toPath());
+      Files.createDirectories(new File(folder0.getRoot().getAbsolutePath() + "/system_iceberg_tables").toPath());
 
       // Get a random port
       int port;
@@ -562,6 +584,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
               .with(DremioConfig.METADATA_PATH_STRING, distpath + "/metadata")
               .with(DremioConfig.ACCELERATOR_PATH_STRING, distpath + "/accelerator")
               .with(DremioConfig.GANDIVA_CACHE_PATH_STRING, distpath + "/gandiva")
+              .with(DremioConfig.SYSTEM_ICEBERG_TABLES_PATH_STRING, distpath + "/system_iceberg_tables")
               .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
               .with(DremioConfig.NESSIE_SERVICE_ENABLED_BOOLEAN, true)
               .with(DremioConfig.NESSIE_SERVICE_IN_MEMORY_BOOLEAN, true)
@@ -685,10 +708,28 @@ public abstract class BaseTestServer extends BaseClientUtils {
       return;
     }
     try (TimedBlock b = Timer.time("BaseTestServer.@AfterClass")) {
+      // Prevent new incoming job requests
+      final NodeRegistration nodeRegistration = l(NodeRegistration.class);
+      final ForemenWorkManager foremenWorkManager = l(ForemenWorkManager.class);
+      nodeRegistration.close();
+      foremenWorkManager.close();
 
-      await().atMost(Duration.ofSeconds(50))
-        .untilAsserted(() -> assertEquals("Not all the resource/query planning allocators were closed.",
-          0, getResourceAllocatorCount() + getQueryPlanningAllocatorCount()));
+      // Drain actively running jobs
+      await().atMost(Duration.ofSeconds(100))
+        .until(() -> foremenWorkManager.getActiveQueryCount() == 0);
+
+      // Fail if any jobs are still running and record query information
+      final StringBuilder msg = new StringBuilder();
+      msg.append("There are actively running queries that have not finished:\n");
+      foremenWorkManager.getActiveProfiles()
+        .forEach(profile -> msg.append("Query ")
+          .append(QueryIdHelper.getQueryId(profile.getId()))
+          .append(": ")
+          .append(profile.getQuery())
+          .append("\n\n"));
+      assertEquals(msg.toString(), 0, foremenWorkManager.getActiveQueryCount());
+
+      assertAllocatorsAreClosed();
 
       defaultUser = true; // in case another test disables the default user and forgets to enable it back again at the end
       AutoCloseables.close(
@@ -715,6 +756,21 @@ public abstract class BaseTestServer extends BaseClientUtils {
       executorDaemonClosed = true;
       dremioClient = null;
     }
+  }
+
+  private static void assertAllocatorsAreClosed() {
+    int resourceAllocatorCount = getResourceAllocatorCount();
+    int queryPlanningAllocatorCount = getQueryPlanningAllocatorCount();
+    SoftAssertions.assertSoftly(softly -> {
+      softly.assertThat(resourceAllocatorCount)
+        .withFailMessage("Not all resource allocators were closed.")
+        .isEqualTo(0);
+      softly.assertThat(queryPlanningAllocatorCount)
+        .withFailMessage(
+          "Not all query-planning allocators were closed. " +
+            "There are queries that are still running and have not been cancelled.")
+        .isEqualTo(0);
+    });
   }
 
   protected void login() {
@@ -1164,6 +1220,19 @@ public abstract class BaseTestServer extends BaseClientUtils {
     return () -> resetSystemOption(optionName);
   }
 
+  /**
+   * Update the system option to the given value with an AutoCloseable that will set it back to
+   * the value we started with. Note that this does not reset it to the default.
+   * @param option The name of the system option
+   * @param value The value we want to set the option to.
+   * @return An AutoCloseable that will set the option back to what it was before we called this function.
+   */
+  protected AutoCloseable withSystemOptionAutoResetToInitial(final String option, final String value) {
+    Setting setting = expectSuccess(getBuilder(getAPIv2().path("settings").path(option)).buildGet(), Setting.class);
+    setSystemOption(option, value);
+    return () -> setSystemOption(option, setting.getValue().toString());
+  }
+
   protected static UserBitShared.QueryProfile getTestProfile() throws Exception {
     String query = "select sin(val_int_64) + 10 from cp" +
       ".\"parquet/decimals/mixedDecimalsInt32Int64FixedLengthWithStats.parquet\"";
@@ -1226,5 +1295,23 @@ public abstract class BaseTestServer extends BaseClientUtils {
 
   protected static String readResourceAsString(String fileName) {
     return TestTools.readTestResourceAsString(fileName);
+  }
+
+  protected WebTarget getUserApiV2(final String username) {
+    return getAPIv2().path("user/" + username);
+  }
+
+  protected void downloadSupportRequest(String jobId) {
+    SupportService supportService = l(SupportService.class);
+    final ImmutableSupportRequest profileRequest = new ImmutableSupportRequest.Builder()
+      .setUserId(SystemUser.SYSTEM_USERNAME)
+      .setJobId(new JobId(jobId))
+      .build();
+    try {
+      DatasetDownloadManager.DownloadDataResponse response = supportService.downloadSupportRequest(profileRequest);
+      logger.info("Query profile for job {} saved to: {}", jobId, response.getFileName());
+    } catch (UserNotFoundException | IOException | JobNotFoundException e) {
+      throw new RuntimeException(e);
+    }
   }
 }

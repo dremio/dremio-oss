@@ -74,7 +74,7 @@ describe("TransformCard", () => {
   describe("#componentWillReceiveProps", () => {
     it("should set state.editing=false only if !active", () => {
       wrapper.setState({ editing: true });
-      instance.componentWillReceiveProps(commonProps);
+      instance.UNSAFE_componentWillReceiveProps(commonProps);
       expect(wrapper.state().editing).to.be.true;
 
       wrapper.setProps({ active: false });

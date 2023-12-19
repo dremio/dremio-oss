@@ -42,17 +42,13 @@ public abstract class CopyIntoTableRelBase extends AbstractRelNode implements Re
                                  RelOptCluster cluster,
                                  RelTraitSet traitSet,
                                  RelOptTable table,
+                                 RelDataType rowType,
                                  CopyIntoTableContext config) {
     super(cluster, traitSet);
     assert getConvention() == convention;
     this.table = table;
     this.context = Preconditions.checkNotNull(config, "CopyInto context can't be null!");
-    rowType = deriveRowType();
-  }
-
-  @Override
-  public RelDataType deriveRowType() {
-    return table.getRowType();
+    this.rowType = rowType;
   }
 
   @Override
@@ -71,7 +67,7 @@ public abstract class CopyIntoTableRelBase extends AbstractRelNode implements Re
       pw.item("table", table.getQualifiedName());
     }
     pw.item("operation", "COPY INTO");
-    pw.item("columns", deriveRowType().getFieldNames());
+    pw.item("columns", getRowType().getFieldNames());
     pw.item("storage location", context.getStorageLocation());
     if (context.getFilePattern().isPresent()) {
       pw.item("file pattern", context.getFilePattern().get());

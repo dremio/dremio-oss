@@ -65,6 +65,9 @@ import com.dremio.service.jobs.ReflectionJobValidationException;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
+
 /**
  * Resource for getting profiles from Dremio.
  */
@@ -88,6 +91,7 @@ public class ProfileResource {
     this.securityContext = securityContext;
   }
 
+  @WithSpan
   @GET
   @Path("/cancel/{queryid}")
   @Produces(MediaType.TEXT_PLAIN)
@@ -107,6 +111,7 @@ public class ProfileResource {
     }
   }
 
+  @WithSpan
   @GET
   @Path("/{queryid}.json")
   @Produces(APPLICATION_JSON)
@@ -130,6 +135,7 @@ public class ProfileResource {
     return new String(SERIALIZER.serialize(profile));
   }
 
+  @WithSpan
   @GET
   @Path("/{queryid}")
   @Produces(TEXT_HTML)
@@ -152,9 +158,11 @@ public class ProfileResource {
       throw new NotFoundException(format("Profile for JobId [%s] and Attempt [%d] not found.", queryId, attempt));
     }
     final boolean debug = projectOptionManager.getOption(ExecConstants.DEBUG_QUERY_PROFILE);
+    Span.current().setAttribute("debug", debug);
     return renderProfile(profile, debug);
   }
 
+  @WithSpan
   @GET
   @Path("/cancel/{queryid}/reflection/{reflectionId}")
   @Produces(MediaType.TEXT_PLAIN)
@@ -186,6 +194,7 @@ public class ProfileResource {
     }
   }
 
+  @WithSpan
   @GET
   @Path("/{queryid}/reflection/{reflectionId}")
   @Produces(TEXT_HTML)
@@ -221,9 +230,11 @@ public class ProfileResource {
       throw new InvalidReflectionJobException(e.getJobId().getId(), e.getReflectionId());
     }
     final boolean debug = projectOptionManager.getOption(ExecConstants.DEBUG_QUERY_PROFILE);
+    Span.current().setAttribute("debug", debug);
     return renderProfile(profile, debug);
   }
 
+  @WithSpan
   @GET
   @Path("/reflection/{reflectionId}/{queryid}.json")
   @Produces(APPLICATION_JSON)

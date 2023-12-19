@@ -87,46 +87,4 @@ final class NameSpaceContainerVersionExtractor implements VersionExtractor<NameS
       value.getSource().setConfigOrdinal(configOrdinal);
     };
   }
-
-  @Override
-  public Long getVersion(NameSpaceContainer value) {
-    switch (value.getType()) {
-      case DATASET:
-        return value.getDataset().getVersion();
-      case FOLDER:
-        return value.getFolder().getVersion();
-      case HOME:
-        return value.getHome().getVersion();
-      case SOURCE:
-        return value.getSource().getVersion();
-      case SPACE:
-        return value.getSpace().getVersion();
-      default:
-        throw new UnsupportedOperationException("Unknown type: " + value.getType());
-    }
-  }
-
-  @Override
-  public void setVersion(NameSpaceContainer value, Long version) {
-    switch (value.getType()) {
-      case DATASET:
-        value.getDataset().setVersion(version);
-        break;
-      case FOLDER:
-        value.getFolder().setVersion(version);
-        break;
-      case HOME:
-        value.getHome().setVersion(version);
-        break;
-      case SOURCE:
-        value.getSource().setVersion(version);
-        break;
-      case SPACE:
-        value.getSpace().setVersion(version);
-        break;
-      default:
-        throw new UnsupportedOperationException("Unknown type: " + value.getType());
-    }
-  }
-
 }

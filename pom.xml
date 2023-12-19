@@ -22,42 +22,46 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-parent</artifactId>
-  <version>24.1.0-202306130653310132-d30779f6</version>
+  <version>24.3.0-202312190021150029-52db2faf</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Parent</name>
   <description>Dremio will enable organizations to unlock the value of their data</description>
   <url>https://github.com/dremio/dremio-oss</url>
+  <inceptionYear>2017-2019</inceptionYear>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    <maven.compiler.release>8</maven.compiler.release>
 
     <!--
         Dependencies version for this module
         Submodules should rely on dependenciesManagement as much as possible
     -->
-    <arrow.version>9.0.0-20221123064031-c39b8a6253-dremio</arrow.version>
+    <arrow.version>12.0.3-20231120223228-a225426e14-dremio</arrow.version>
+    <!--
+        Dremio Arrow version(based on Apache Arrow 12.0.1) was updated from 12.0.0-20230622114908-fc792790e8-dremio because of the following stories:
+        DX-61115 - Infinity Casting Breaks >=v21;
+        DX-66740 - Verify if it possible to use Map like @Output type;
+    -->
     <avatica.version>1.23.0</avatica.version>
-    <calcite.version>1.17.0-202305081555330806-ba52e3e7</calcite.version>
+    <calcite.version>1.18.0-202309301303210605-b1457375</calcite.version>
     <derby.version>10.14.2.0</derby.version>
     <jcommander.version>1.82</jcommander.version>
     <javax.servlet.version>3.1.0</javax.servlet.version>
     <foodmart-data-hsqldb.version>0.3</foodmart-data-hsqldb.version>
-    <fmpp.version>0.9.16</fmpp.version>
-    <freemarker.version>2.3.31</freemarker.version>
-    <commons-io.version>2.11.0</commons-io.version>
     <commons-text.version>1.10.0</commons-text.version>
 
     <hibernate-validator.version>6.2.0.Final</hibernate-validator.version>
 
-    <hadoop.version>3.3.2-dremio-202305122016210436-942ab1c</hadoop.version>
-    <avro.version>1.10.2</avro.version>
-    <iceberg.version>1.2.0-e340ad5-20230511162417-de84403</iceberg.version>
+    <hadoop.version>3.3.2-dremio-202310112100510489-6e65eff</hadoop.version>
+    <avro.version>1.11.3</avro.version>
+    <iceberg.version>1.3.0-7dbdfd3-20231115044546-e7b55e3</iceberg.version>
 
     <plugin.hive2.azure-storage.version>8.3.0</plugin.hive2.azure-storage.version>
     <plugin.hive2.azure-datalake.version>2.3.10-202208021035330109-f5bda9e</plugin.hive2.azure-datalake.version>
-    <plugin.hive2.hadoop-azure.version>2.8.5-dremio-r2-202305092225000902-c107c46</plugin.hive2.hadoop-azure.version>
+    <plugin.hive2.hadoop-azure.version>2.8.5-dremio-r2-202307051740280715-b762c27</plugin.hive2.hadoop-azure.version>
     <plugin.hive2.hadoop-azure-datalake.version>2.8.5</plugin.hive2.hadoop-azure-datalake.version>
     <plugin.hive2.hadoop.version>2.8.5</plugin.hive2.hadoop.version>
     <plugin.hive2.hive.version>2.3.9-dremio-202305101625150255-0beca91</plugin.hive2.hive.version>
@@ -77,13 +81,13 @@
     -->
     <plugin.hive2.hbase.version>1.1.13</plugin.hive2.hbase.version>
 
-    <plugin.hive3.hadoop.version>3.3.2-dremio-202305122016210436-942ab1c</plugin.hive3.hadoop.version>
+    <plugin.hive3.hadoop.version>3.3.2-dremio-202310112100510489-6e65eff</plugin.hive3.hadoop.version>
     <plugin.hive3.azure-storage.version>8.3.0</plugin.hive3.azure-storage.version>
     <plugin.hive3.azure-datalake.version>2.3.10-202208021035330109-f5bda9e</plugin.hive3.azure-datalake.version>
     <plugin.hive3.hadoop-azure.version>${plugin.hive3.hadoop.version}</plugin.hive3.hadoop-azure.version>
     <plugin.hive3.hadoop-azure-datalake.version>${plugin.hive3.hadoop.version}</plugin.hive3.hadoop-azure-datalake.version>
     <plugin.hive3.aws-hadoop.version>${plugin.hive3.hadoop.version}</plugin.hive3.aws-hadoop.version>
-    <plugin.hive3.hive.version>3.1.1-dremio-202305102143550145-5934df5</plugin.hive3.hive.version>
+    <plugin.hive3.hive.version>3.1.1-dremio-202311151739330032-eb4321d</plugin.hive3.hive.version>
     <plugin.hive3.hbase.version>2.5.3</plugin.hive3.hbase.version>
     <plugin.hive3.orc.version>1.5.1-dremio-202305092131550668-2f32481</plugin.hive3.orc.version>
     <plugin.hive3.datanucleus-api-jdo.version>4.2.4</plugin.hive3.datanucleus-api-jdo.version>
@@ -92,16 +96,46 @@
     <plugin.hive3.datanucleus-jdo.version>3.2.0-m3</plugin.hive3.datanucleus-jdo.version>
     <plugin.hive3.jdo-api.version>3.0.1</plugin.hive3.jdo-api.version>
     <plugin.hive3.hikaricp.version>2.6.1</plugin.hive3.hikaricp.version>
-    <gcs-connector-version>2.2.2-dremio-202302142306550801-5be8d7e</gcs-connector-version>
+    <plugin.hive3.aws.glue.version>3.4.0-202306020954140861-76b8742</plugin.hive3.aws.glue.version>
+    <gcs-connector-version>2.2.2-dremio-202308081957350593-ab2a596</gcs-connector-version>
 
-    <errorprone.version>2.10.0</errorprone.version>
+    <errorprone.version>2.23.0</errorprone.version>
     <errorprone.type>jar</errorprone.type>
-    <errorprone.javac.version>9+181-r4173-1</errorprone.javac.version>
-    <errorprone-slf4j.version>0.1.18</errorprone-slf4j.version>
+    <errorprone-slf4j.version>0.1.20</errorprone-slf4j.version>
     <!-- modules can override this to upgrade/downgrade the severity of certain checks -->
     <errorprone.module.args></errorprone.module.args>
-    <errorprone.args.jdk11></errorprone.args.jdk11>
-    <errorprone.args>-Xplugin:ErrorProne -Xep:MissingOverride:ERROR -Xep:LockNotBeforeTry:ERROR -Xep:OrphanedFormatString:ERROR -Xep:NonAtomicVolatileUpdate:ERROR -Xep:ComplexBooleanConstant:ERROR -Xep:AssertionFailureIgnored:ERROR -Xep:UnnecessaryAssignment:ERROR -Xep:UseCorrectAssertInTests:ERROR -Xep:StreamResourceLeak:ERROR -Xep:DoubleCheckedLocking:ERROR -Xep:InconsistentHashCode:ERROR -Xep:ArgumentSelectionDefectChecker:ERROR -Xep:ModifyCollectionInEnhancedForLoop:ERROR -Xep:EqualsIncompatibleType:ERROR -Xep:OptionalNotPresent:ERROR -Xep:JUnitAmbiguousTestClass:ERROR -Xep:ShortCircuitBoolean:ERROR -Xep:PreconditionsCheckNotNullRepeated:ERROR -Xep:PreconditionsInvalidPlaceholder:ERROR ${errorprone.args.jdk11} -XepExcludedPaths:${project.build.directory}/.*generated-(test-)?sources/.*</errorprone.args>
+    <errorprone.args>-Xplugin:ErrorProne
+-Xep:AlreadyChecked:ERROR
+-Xep:ArgumentSelectionDefectChecker:ERROR
+-Xep:AssertionFailureIgnored:ERROR
+-Xep:ComplexBooleanConstant:ERROR
+-Xep:DoubleBraceInitialization:WARN
+-Xep:DoubleCheckedLocking:ERROR
+-Xep:DuplicateDateFormatField:ERROR
+-Xep:EqualsIncompatibleType:ERROR
+-Xep:FallThrough:ERROR
+-Xep:InconsistentHashCode:ERROR
+-Xep:JUnitAmbiguousTestClass:ERROR
+-Xep:LockNotBeforeTry:ERROR
+-Xep:MissingOverride:ERROR
+-Xep:ModifyCollectionInEnhancedForLoop:ERROR
+-Xep:NonAtomicVolatileUpdate:ERROR
+-Xep:OptionalNotPresent:ERROR
+-Xep:OrphanedFormatString:ERROR
+-Xep:PreconditionsCheckNotNullRepeated:ERROR
+-Xep:PreconditionsInvalidPlaceholder:ERROR
+-Xep:ShortCircuitBoolean:ERROR
+-Xep:Slf4jDoNotLogMessageOfExceptionExplicitly:WARN
+-Xep:Slf4jFormatShouldBeConst:WARN
+-Xep:Slf4jIllegalPassedClass:ERROR
+-Xep:Slf4jLoggerShouldBeFinal:ERROR
+-Xep:Slf4jLoggerShouldBeNonStatic:OFF
+-Xep:Slf4jSignOnlyFormat:WARN
+-Xep:StreamResourceLeak:ERROR
+-Xep:UnnecessaryAssignment:ERROR
+-Xep:UseCorrectAssertInTests:ERROR
+${errorprone.module.args}
+-XepExcludedPaths:${project.build.directory}/.*generated-(test-)?sources/.*</errorprone.args>
 
     <mysql.dist.version>5.6.14</mysql.dist.version>
     <!--
@@ -120,60 +154,62 @@
       -Djdk.attach.allowAttachSelf=true
       -XX:+HeapDumpOnOutOfMemoryError
     </surefire.argLine>
+    <failsafe.argLine>${surefire.argLine}</failsafe.argLine>
 
     <hsqldb.version>2.3.1</hsqldb.version>
-    <immutables.version>2.9.3</immutables.version>
-    <snakeyaml.version>1.33</snakeyaml.version>
+    <google-java-format.version>1.18.1</google-java-format.version>
+    <immutables.version>2.10.0</immutables.version>
+    <snakeyaml.version>2.2</snakeyaml.version>
     <!-- make sure the snakeyaml version is equal or newer than the one in jackson -->
-    <jackson.version>2.14.2</jackson.version>
-    <jersey.version>2.39.1</jersey.version>
-    <jetty.version>9.4.51.v20230217</jetty.version>
+    <jackson.version>2.15.3</jackson.version>
+    <jersey.version>2.41</jersey.version>
+    <jetty.version>9.4.53.v20231009</jetty.version>
     <javax.ws.rs-api.version>2.1.1</javax.ws.rs-api.version>
     <junit4.version>4.13.2</junit4.version>
-    <junit5.version>5.9.2</junit5.version>
+    <junit5.version>5.10.0</junit5.version>
     <mockito.version>4.11.0</mockito.version>
-    <assertj.version>3.24.1</assertj.version>
-    <lilith.version>8.3.0</lilith.version>
-    <logback.version>1.2.11</logback.version>
+    <logback.version>1.2.13</logback.version>
     <metrics.version>4.1.19</metrics.version>
     <mariadb.connector.version>3.0.8</mariadb.connector.version>
-    <nessie-cel.version>0.3.12</nessie-cel.version>
-    <nessie-apprunner.version>0.28.1</nessie-apprunner.version>
+    <nessie-cel.version>0.3.21</nessie-cel.version>
+    <nessie-runner.version>0.30.6</nessie-runner.version>
     <!-- try to keep above nessie versions in sync -->
-    <nessie.version>0.59.0</nessie.version>
+    <nessie.version>0.72.4</nessie.version>
     <!-- netty-tcnative version must be the same as in the netty-bom -->
-    <netty.version>4.1.89.Final</netty.version>
-    <netty-tcnative.version>2.0.56.Final</netty-tcnative.version>
+    <netty.version>4.1.100.Final</netty.version>
+    <netty-tcnative.version>2.0.61.Final</netty-tcnative.version>
     <!-- custom-built legacy artifact of https://mvnrepository.com/artifact/io.netty/netty -->
     <netty3.version>3.10.6.Final-nohttp</netty3.version>
-    <parquet.version>1.12.0-202302141732150599-28d943b</parquet.version>
-    <pf4j.version>3.6.0</pf4j.version>
+    <parquet.version>1.12.0-202309080020000384-9c11bcb</parquet.version>
+    <pf4j.version>3.10.0</pf4j.version>
     <postgresql.version>42.4.1</postgresql.version>
-    <protobuf.version>3.21.9</protobuf.version>
+    <protobuf.version>3.24.4</protobuf.version>
     <protostuff.version>1.4.4</protostuff.version>
     <scott-data-hsqldb.version>0.1</scott-data-hsqldb.version>
     <slf4j.version>1.7.36</slf4j.version>
-    <snowflake-jdbc.version>3.13.30</snowflake-jdbc.version>
+    <snowflake-jdbc.version>3.13.33</snowflake-jdbc.version>
     <twill.version>0.14.0-202111020547020344-41637331</twill.version>
     <zkclient.version>0.10</zkclient.version>
     <zookeeper.version>3.4.14</zookeeper.version>
     <curator.version>4.2.0</curator.version>
     <curator-test.version>2.12.0</curator-test.version>
-    <aws-sdk.version>1.12.400</aws-sdk.version>
+    <aws-sdk.version>1.12.535</aws-sdk.version>
     <aws-sdk-2.version>2.17.295</aws-sdk-2.version>
     <openhft-affinity.version>3.1.7</openhft-affinity.version>
     <fbs.version>1.12.0</fbs.version>
-    <rocksdb.version>5.14.2</rocksdb.version>
+    <rocksdb.version>7.10.2</rocksdb.version>
     <opencensus.version>0.31.1</opencensus.version>
-    <grpc.version>1.54.1</grpc.version>
-    <guava.version>31.1-jre</guava.version>
-    <guice.version>5.1.0</guice.version>
+    <grpc.version>1.58.0</grpc.version>
     <redis.clients.jedis.version>4.2.3</redis.clients.jedis.version>
-    <opentelemetry.version>1.25.0</opentelemetry.version>
+    <!-- see https://github.com/open-telemetry/opentelemetry-java/releases -->
+    <opentelemetry.version>1.31.0</opentelemetry.version>
+    <!-- see https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases -->
+    <opentelemetry.instrumentation.version>${opentelemetry.version}</opentelemetry.instrumentation.version>
+    <!-- see https://github.com/open-telemetry/semantic-conventions-java/releases -->
+    <opentelemetry.semconv.version>1.21.0-alpha</opentelemetry.semconv.version>
     <scim2-sdk.version>2.3.5</scim2-sdk.version>
     <openapitools.plugin.version>6.3.0</openapitools.plugin.version>
     <swagger-annotations-version>1.6.4</swagger-annotations-version>
-    <threeten-version>1.7.0</threeten-version>
     <bouncycastle.version>1.64</bouncycastle.version>
 
     <!-- Use ES 5.5 instead of 5.6. The 5.6 client sends "source" instead of "inline" which isn't supported with older ES5 servers. -->
@@ -196,8 +232,7 @@
     <npm.registry.url>https://registry.npmjs.org</npm.registry.url>
     <npm.buildscript>build</npm.buildscript>
     <pnpm.installscript>install --frozen-lockfile --prefer-offline --reporter=silent</pnpm.installscript>
-    <pnpm.execinstallscript>pnpm@${pnpm.version} ${pnpm.installscript}</pnpm.execinstallscript>
-    <pnpm.version>8.1.0</pnpm.version> <!-- This property is used by external script too -->
+    <pnpm.version>8.7.0</pnpm.version> <!-- This property is used by external script too -->
     <dremio.mapr.distribution>nonmapr</dremio.mapr.distribution>
     <dremio.release>false</dremio.release>
     <dremio.beta>false</dremio.beta>
@@ -221,6 +256,10 @@
         </property>
       </activation>
       <properties>
+        <!-- dremio build properties -->
+        <skip.uiclean>true</skip.uiclean>
+        <skip.uibundle>true</skip.uibundle>
+        <!-- frontend-maven-plugin properties -->
         <skip.installnodenpm>true</skip.installnodenpm>
         <skip.npm>true</skip.npm>
         <skip.installnodepnpm>true</skip.installnodepnpm>
@@ -229,6 +268,37 @@
         <skip.npx>true</skip.npx>
         <skip.installyarn>true</skip.installyarn>
         <skip.yarn>true</skip.yarn>
+      </properties>
+    </profile>
+    <profile>
+      <!-- Profile to disable source code checks when CI runs tests or devs build master locally -->
+      <id>dremio.no-lint</id>
+      <activation>
+        <property>
+          <name>dremio.no-lint</name>
+        </property>
+      </activation>
+      <properties>
+        <enforcer.skip>true</enforcer.skip>
+        <spotless.check.skip>true</spotless.check.skip>
+        <checkstyle.skip>true</checkstyle.skip>
+        <license.skip>true</license.skip>
+        <forbiddenapis.skip>true</forbiddenapis.skip>
+        <spotbugs.skip>true</spotbugs.skip>
+      </properties>
+    </profile>
+    <profile>
+      <!-- Profile to avoid recompilation when CI runs tests in separate mvn invocations -->
+      <id>dremio.no-codegen</id>
+      <activation>
+        <property>
+          <name>dremio.no-codegen</name>
+        </property>
+      </activation>
+      <properties>
+        <protoc.skip>true</protoc.skip>
+        <protostuff.compiler.skip>true</protostuff.compiler.skip>
+        <jsonschema2pojo.skip>true</jsonschema2pojo.skip>
       </properties>
     </profile>
     <profile>
@@ -375,57 +445,6 @@
       </properties>
     </profile>
     <profile>
-      <id>jdk8</id>
-      <activation>
-        <jdk>1.8</jdk>
-      </activation>
-      <properties>
-        <maven.compiler.source>1.8</maven.compiler.source>
-        <maven.compiler.target>1.8</maven.compiler.target>
-      </properties>
-    </profile>
-    <profile>
-      <id>jdk9-or-higher</id>
-      <activation>
-        <jdk>[9,)</jdk>
-      </activation>
-      <properties>
-        <maven.compiler.release>8</maven.compiler.release>
-      </properties>
-      <dependencyManagement>
-        <dependencies>
-          <!-- required because of https://github.com/joelittlejohn/jsonschema2pojo/issues/1473 -->
-          <dependency>
-            <groupId>org.jsonschema2pojo</groupId>
-            <artifactId>jsonschema2pojo-jdk-annotation</artifactId>
-            <version>0.0.1</version>
-          </dependency>
-        </dependencies>
-      </dependencyManagement>
-      <build>
-        <plugins>
-          <plugin>
-            <artifactId>maven-surefire-plugin</artifactId>
-            <configuration>
-              <useModulePath>false</useModulePath>
-              <systemPropertyVariables>
-                <io.netty.tryReflectionSetAccessible>true</io.netty.tryReflectionSetAccessible>
-              </systemPropertyVariables>
-            </configuration>
-          </plugin>
-          <plugin>
-            <artifactId>maven-failsafe-plugin</artifactId>
-            <configuration>
-              <useModulePath>false</useModulePath>
-              <systemPropertyVariables>
-                <io.netty.tryReflectionSetAccessible>true</io.netty.tryReflectionSetAccessible>
-              </systemPropertyVariables>
-            </configuration>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-    <profile>
       <id>errorprone</id>
       <!-- Run Error Prone (see https://errorprone.info)
            UNLESS we're running Maven inside the Eclipse IDE under M2E (i.e. only on the "mvn" CLI)
@@ -458,46 +477,6 @@
                   <version>${errorprone.version}</version>
                   <type>${errorprone.type}</type>
                 </path>
-              </annotationProcessorPaths>
-            </configuration>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-    <profile>
-      <id>errorprone-jdk8</id>
-      <activation>
-        <jdk>1.8</jdk>
-      </activation>
-      <build>
-        <plugins>
-          <plugin>
-            <artifactId>maven-compiler-plugin</artifactId>
-            <configuration>
-              <fork>true</fork>
-              <compilerArgs combine.children="append">
-                <arg>-J-Xbootclasspath/p:${settings.localRepository}/com/google/errorprone/javac/${errorprone.javac.version}/javac-${errorprone.javac.version}.jar</arg>
-              </compilerArgs>
-            </configuration>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-    <profile>
-      <id>errorprone-jdk11</id>
-      <activation>
-        <jdk>[11,)</jdk>
-      </activation>
-      <properties>
-        <errorprone.version>2.18.0</errorprone.version>
-        <errorprone.args.jdk11>-Xep:FallThrough:ERROR -Xep:AlreadyChecked:ERROR -Xep:DoubleBraceInitialization:WARN -Xep:Slf4jLoggerShouldBeFinal:ERROR -Xep:Slf4jIllegalPassedClass:ERROR -Xep:Slf4jSignOnlyFormat:WARN -Xep:Slf4jFormatShouldBeConst:WARN -Xep:Slf4jDoNotLogMessageOfExceptionExplicitly:WARN -Xep:Slf4jLoggerShouldBeNonStatic:OFF ${errorprone.module.args}</errorprone.args.jdk11>
-      </properties>
-      <build>
-        <plugins>
-          <plugin>
-            <artifactId>maven-compiler-plugin</artifactId>
-            <configuration>
-              <annotationProcessorPaths combine.children='append'>
                 <path>
                   <groupId>jp.skypencil.errorprone.slf4j</groupId>
                   <artifactId>errorprone-slf4j</artifactId>
@@ -570,14 +549,14 @@
         <plugin.hive2.datanucleus-jdo.version>3.2.0-m13</plugin.hive2.datanucleus-jdo.version>
 
         <argLine>
-              -Djava.security.auth.login.config=${WORKSPACE}/oss/common/src/test/resources/maprtest/conf/login.conf
+              -Djava.security.auth.login.config=${WORKSPACE}/oss/common/legacy/src/test/resources/maprtest/conf/login.conf
               -Dzookeeper.sasl.clientconfig=Client_simple
               -Dzookeeper.saslprovider=com.mapr.security.simplesasl.SimpleSaslProvider
               -Dzookeeper.sasl.serverconfig=Server_simple
               -Dzookeeper.authProvider.1=org.apache.zookeeper.server.auth.SASLAuthenticationProvider
               -Dzookeeper.authMech=SIMPLE-SECURITY
               -Dzookeeper.4lw.commands.whitelist=stat
-              -Dmapr.home.dir=${WORKSPACE}/oss/common/src/test/resources/maprtest/
+              -Dmapr.home.dir=${WORKSPACE}/oss/common/legacy/src/test/resources/maprtest/
               -Ddremio.mapr.profile=true
         </argLine>
         <dremio.mapr.distribution>mapr</dremio.mapr.distribution>
@@ -748,6 +727,8 @@
           <suppressAnnotations>
             <!-- Dremio specific -->
             <suppressAnnotation>com.dremio.common.SuppressForbidden</suppressAnnotation>
+            <!-- Quarkus -->
+            <suppressAnnotation>io.quarkus.deployment.SuppressForbidden</suppressAnnotation>
             <!-- Java <= 8 -->
             <suppressAnnotation>javax.processing.Generated</suppressAnnotation>
             <!-- Java 9+ via javax.annotation-pi -->
@@ -821,7 +802,7 @@
           <dependency>
             <groupId>com.puppycrawl.tools</groupId>
             <artifactId>checkstyle</artifactId>
-            <version>9.3</version>
+            <version>10.12.3</version>
           </dependency>
           <dependency>
             <groupId>com.dremio.tools</groupId>
@@ -895,7 +876,7 @@
                   <version>[3.3.9,4)</version>
                 </requireMavenVersion>
                 <requireJavaVersion>
-                  <version>[1.8,)</version>
+                  <version>[11,)</version>
                 </requireJavaVersion>
               </rules>
             </configuration>
@@ -916,6 +897,7 @@
                     <exclude>org.mortbay.jetty:servlet-api</exclude>
                     <exclude>org.mortbay.jetty:servlet-api-2.5</exclude>
                     <exclude>org.apache.logging.log4j:log4j-slf4j-impl</exclude>
+                    <exclude>org.apache.logging.log4j:log4j-slf4j18-impl</exclude>
                     <exclude>log4j:*</exclude>
                     <exclude>org.slf4j:slf4j-log4j12</exclude>
                     <exclude>io.netty:*:*</exclude> <!-- exclude all netty versions. The versions needed are explicitly included below. -->
@@ -941,7 +923,7 @@
                   </plugins>
                 </requireSameVersions>
                 <requirePluginVersions>
-                  <unCheckedPluginList>com.dremio.tools:dremio-protostuff-maven-plugin,com.dremio.tools:dremio-fmpp-maven-plugin,org.projectnessie:nessie-apprunner-maven-plugin</unCheckedPluginList>
+                  <unCheckedPluginList>com.dremio.tools:dremio-protostuff-maven-plugin,com.dremio.tools:dremio-fmpp-maven-plugin,org.projectnessie.nessie-runner:nessie-runner-maven-plugin,com.dremio.daas:dc-comics-maven-plugin</unCheckedPluginList>
                 </requirePluginVersions>
               </rules>
             </configuration>
@@ -1037,9 +1019,15 @@
       <plugin>
         <groupId>com.mycila</groupId>
         <artifactId>license-maven-plugin</artifactId>
-        <version>4.1</version>
+        <version>4.3</version>
         <configuration>
-          <inlineHeader>
+          <prohibitLegacyUse>true</prohibitLegacyUse>
+          <licenseSets>
+            <licenseSet>
+              <properties>
+                <owner>Dremio Corporation</owner>
+              </properties>
+              <inlineHeader>
 Copyright (C) ${project.inceptionYear} ${owner}
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -1053,179 +1041,176 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-          </inlineHeader>
-          <properties>
-            <owner>Dremio Corporation</owner>
-          </properties>
-          <project>
-            <inceptionYear>2017-2019</inceptionYear>
-          </project>
-          <failIfUnknown>true</failIfUnknown>
-          <useDefaultExcludes>false</useDefaultExcludes>
+              </inlineHeader>
+              <includes>
+                <include>src/**</include>
+                <include>*</include>
+              </includes>
+              <excludes>
+                <!-- default excludes (minus some items) from https://github.com/mycila/license-maven-plugin/blob/61f65ac65bfc38246a15fb84083796c5e3afb053/license-maven-plugin/src/main/java/com/mycila/maven/plugin/license/Default.java -->
+                <exclude>**/*~</exclude>
+                <exclude>**/#*#</exclude>
+                <exclude>**/.#*</exclude>
+                <exclude>**/%*%</exclude>
+                <exclude>**/._*</exclude>
+                <exclude>**/.repository/**</exclude>
+                <exclude>**/CVS</exclude>
+                <exclude>**/CVS/**</exclude>
+                <exclude>**/.cvsignore</exclude>
+                <exclude>**/RCS</exclude>
+                <exclude>**/RCS/**</exclude>
+                <exclude>**/SCCS</exclude>
+                <exclude>**/SCCS/**</exclude>
+                <exclude>**/vssver.scc</exclude>
+                <exclude>**/.svn</exclude>
+                <exclude>**/.svn/**</exclude>
+                <exclude>**/.arch-ids</exclude>
+                <exclude>**/.arch-ids/**</exclude>
+                <exclude>**/.bzr</exclude>
+                <exclude>**/.bzr/**</exclude>
+                <exclude>**/.MySCMServerInfo</exclude>
+                <exclude>**/.dotfile</exclude>
+                <exclude>**/.DS_Store</exclude>
+                <exclude>**/.empty</exclude>
+                <exclude>**/.metadata</exclude>
+                <exclude>**/.metadata/**</exclude>
+                <exclude>**/.helmignore</exclude>
+                <exclude>**/.hg</exclude>
+                <exclude>**/.hg/**</exclude>
+                <exclude>**/.hgignore</exclude>
+                <exclude>**/.git</exclude>
+                <exclude>**/.git/**</exclude>
+                <exclude>**/.gitignore</exclude>
+                <exclude>**/.gitmodules</exclude>
+                <exclude>**/.indexing</exclude>
+                <exclude>**/.openapi-generator-ignore</exclude>
+                <exclude>**/BitKeeper</exclude>
+                <exclude>**/BitKeeper/**</exclude>
+                <exclude>**/ChangeSet</exclude>
+                <exclude>**/ChangeSet/**</exclude>
+                <exclude>**/_darcs</exclude>
+                <exclude>**/_darcs/**</exclude>
+                <exclude>**/.darcsrepo</exclude>
+                <exclude>**/.darcsrepo/**</exclude>
+                <exclude>**/-darcs-backup*</exclude>
+                <exclude>**/.darcs-temp-mail</exclude>
+                <exclude>**/mockito-extensions/**</exclude>
+                <!-- <exclude>**/target/**</exclude> want this for add-license-for-java-generated-from-proto -->
+                <exclude>**/test-output/**</exclude>
+                <exclude>**/release.properties</exclude>
+                <exclude>**/dependency-reduced-pom.xml</exclude>
+                <exclude>**/release-pom.xml</exclude>
+                <exclude>**/pom.xml.releaseBackup</exclude>
+                <exclude>**/cobertura.ser</exclude>
+                <exclude>**/.clover/**</exclude>
+                <exclude>**/.classpath</exclude>
+                <exclude>**/.project</exclude>
+                <exclude>**/.settings/**</exclude>
+                <exclude>**/*.iml</exclude>
+                <exclude>**/*.ipr</exclude>
+                <exclude>**/*.iws</exclude>
+                <exclude>.idea/**</exclude>
+                <exclude>**/nb-configuration.xml</exclude>
+                <exclude>**/MANIFEST.MF</exclude>
+                <exclude>**/*.jpg</exclude>
+                <exclude>**/*.png</exclude>
+                <exclude>**/*.gif</exclude>
+                <exclude>**/*.ico</exclude>
+                <exclude>**/*.bmp</exclude>
+                <exclude>**/*.tiff</exclude>
+                <exclude>**/*.tif</exclude>
+                <exclude>**/*.cr2</exclude>
+                <exclude>**/*.xcf</exclude>
+                <exclude>**/*.class</exclude>
+                <exclude>**/*.exe</exclude>
+                <exclude>**/*.dll</exclude>
+                <exclude>**/*.so</exclude>
+                <exclude>**/*.md5</exclude>
+                <exclude>**/*.sha1</exclude>
+                <exclude>**/*.jar</exclude>
+                <exclude>**/*.zip</exclude>
+                <exclude>**/*.rar</exclude>
+                <exclude>**/*.tar</exclude>
+                <exclude>**/*.tar.gz</exclude>
+                <exclude>**/*.tar.bz2</exclude>
+                <exclude>**/*.gz</exclude>
+                <exclude>**/*.xls</exclude>
+                <exclude>**/META-INF/services/**</exclude>
+                <exclude>**/*.md</exclude>
+                <exclude>**/*.xls</exclude>
+                <exclude>**/*.doc</exclude>
+                <exclude>**/*.odt</exclude>
+                <exclude>**/*.ods</exclude>
+                <exclude>**/*.pdf</exclude>
+                <exclude>**/.travis.yml</exclude>
+                <exclude>**/*.swf</exclude>
+                <exclude>**/*.json</exclude>
+                <!-- <exclude>**/*.svg</exclude> -->
+                <exclude>**/*.eot</exclude>
+                <exclude>**/*.ttf</exclude>
+                <exclude>**/*.woff</exclude>
+                <exclude>**/*.woff2</exclude>
+                <exclude>**/*.xlsx</exclude>
+                <exclude>**/*.docx</exclude>
+                <exclude>**/*.ppt</exclude>
+                <exclude>**/*.pptx</exclude>
+                <!-- end default excludes -->
 
-          <includes>
-            <include>src/**</include>
-            <include>*</include>
-          </includes>
-          <excludes>
-            <!-- default excludes (minus some items) from https://github.com/mycila/license-maven-plugin/blob/61f65ac65bfc38246a15fb84083796c5e3afb053/license-maven-plugin/src/main/java/com/mycila/maven/plugin/license/Default.java -->
-            <exclude>**/*~</exclude>
-            <exclude>**/#*#</exclude>
-            <exclude>**/.#*</exclude>
-            <exclude>**/%*%</exclude>
-            <exclude>**/._*</exclude>
-            <exclude>**/.repository/**</exclude>
-            <exclude>**/CVS</exclude>
-            <exclude>**/CVS/**</exclude>
-            <exclude>**/.cvsignore</exclude>
-            <exclude>**/RCS</exclude>
-            <exclude>**/RCS/**</exclude>
-            <exclude>**/SCCS</exclude>
-            <exclude>**/SCCS/**</exclude>
-            <exclude>**/vssver.scc</exclude>
-            <exclude>**/.svn</exclude>
-            <exclude>**/.svn/**</exclude>
-            <exclude>**/.arch-ids</exclude>
-            <exclude>**/.arch-ids/**</exclude>
-            <exclude>**/.bzr</exclude>
-            <exclude>**/.bzr/**</exclude>
-            <exclude>**/.MySCMServerInfo</exclude>
-            <exclude>**/.dotfile</exclude>
-            <exclude>**/.DS_Store</exclude>
-            <exclude>**/.empty</exclude>
-            <exclude>**/.metadata</exclude>
-            <exclude>**/.metadata/**</exclude>
-            <exclude>**/.helmignore</exclude>
-            <exclude>**/.hg</exclude>
-            <exclude>**/.hg/**</exclude>
-            <exclude>**/.hgignore</exclude>
-            <exclude>**/.git</exclude>
-            <exclude>**/.git/**</exclude>
-            <exclude>**/.gitignore</exclude>
-            <exclude>**/.gitmodules</exclude>
-            <exclude>**/.indexing</exclude>
-            <exclude>**/.openapi-generator-ignore</exclude>
-            <exclude>**/BitKeeper</exclude>
-            <exclude>**/BitKeeper/**</exclude>
-            <exclude>**/ChangeSet</exclude>
-            <exclude>**/ChangeSet/**</exclude>
-            <exclude>**/_darcs</exclude>
-            <exclude>**/_darcs/**</exclude>
-            <exclude>**/.darcsrepo</exclude>
-            <exclude>**/.darcsrepo/**</exclude>
-            <exclude>**/-darcs-backup*</exclude>
-            <exclude>**/.darcs-temp-mail</exclude>
-            <exclude>**/mockito-extensions/**</exclude>
-            <!-- <exclude>**/target/**</exclude> want this for add-license-for-java-generated-from-proto -->
-            <exclude>**/test-output/**</exclude>
-            <exclude>**/release.properties</exclude>
-            <exclude>**/dependency-reduced-pom.xml</exclude>
-            <exclude>**/release-pom.xml</exclude>
-            <exclude>**/pom.xml.releaseBackup</exclude>
-            <exclude>**/cobertura.ser</exclude>
-            <exclude>**/.clover/**</exclude>
-            <exclude>**/.classpath</exclude>
-            <exclude>**/.project</exclude>
-            <exclude>**/.settings/**</exclude>
-            <exclude>**/*.iml</exclude>
-            <exclude>**/*.ipr</exclude>
-            <exclude>**/*.iws</exclude>
-            <exclude>.idea/**</exclude>
-            <exclude>**/nb-configuration.xml</exclude>
-            <exclude>**/MANIFEST.MF</exclude>
-            <exclude>**/*.jpg</exclude>
-            <exclude>**/*.png</exclude>
-            <exclude>**/*.gif</exclude>
-            <exclude>**/*.ico</exclude>
-            <exclude>**/*.bmp</exclude>
-            <exclude>**/*.tiff</exclude>
-            <exclude>**/*.tif</exclude>
-            <exclude>**/*.cr2</exclude>
-            <exclude>**/*.xcf</exclude>
-            <exclude>**/*.class</exclude>
-            <exclude>**/*.exe</exclude>
-            <exclude>**/*.dll</exclude>
-            <exclude>**/*.so</exclude>
-            <exclude>**/*.md5</exclude>
-            <exclude>**/*.sha1</exclude>
-            <exclude>**/*.jar</exclude>
-            <exclude>**/*.zip</exclude>
-            <exclude>**/*.rar</exclude>
-            <exclude>**/*.tar</exclude>
-            <exclude>**/*.tar.gz</exclude>
-            <exclude>**/*.tar.bz2</exclude>
-            <exclude>**/*.gz</exclude>
-            <exclude>**/*.xls</exclude>
-            <exclude>**/META-INF/services/**</exclude>
-            <exclude>**/*.md</exclude>
-            <exclude>**/*.xls</exclude>
-            <exclude>**/*.doc</exclude>
-            <exclude>**/*.odt</exclude>
-            <exclude>**/*.ods</exclude>
-            <exclude>**/*.pdf</exclude>
-            <exclude>**/.travis.yml</exclude>
-            <exclude>**/*.swf</exclude>
-            <exclude>**/*.json</exclude>
-            <!-- <exclude>**/*.svg</exclude> -->
-            <exclude>**/*.eot</exclude>
-            <exclude>**/*.ttf</exclude>
-            <exclude>**/*.woff</exclude>
-            <exclude>**/*.woff2</exclude>
-            <exclude>**/*.xlsx</exclude>
-            <exclude>**/*.docx</exclude>
-            <exclude>**/*.ppt</exclude>
-            <exclude>**/*.pptx</exclude>
-            <!-- end default excludes -->
+                <!-- by file extension -->
+                <exclude>**/*.adoc</exclude>
+                <exclude>**/*.banner</exclude>
+                <exclude>**/*.log</exclude>
+                <exclude>**/*.txt</exclude>
+                <exclude>**/*.csv</exclude>
+                <exclude>**/*.tsv</exclude>
+                <exclude>**/*.parquet</exclude>
+                <exclude>**/*.orc</exclude>
+                <exclude>**/*.jks</exclude>
+                <exclude>**/*.nonformat</exclude>
+                <exclude>**/*.gzip</exclude>
+                <exclude>**/*.fbs</exclude>
+                <exclude>**/*.idx</exclude>
+                <exclude>**/*.tpl</exclude>
+                <exclude>**/*.spec.js.snap</exclude>
+                <exclude>**/*.yarnrc</exclude>
 
-            <!-- by file extension -->
-            <exclude>**/*.log</exclude>
-            <exclude>**/*.txt</exclude>
-            <exclude>**/*.csv</exclude>
-            <exclude>**/*.tsv</exclude>
-            <exclude>**/*.parquet</exclude>
-            <exclude>**/*.orc</exclude>
-            <exclude>**/*.jks</exclude>
-            <exclude>**/*.nonformat</exclude>
-            <exclude>**/*.gzip</exclude>
-            <exclude>**/*.fbs</exclude>
-            <exclude>**/*.idx</exclude>
-            <exclude>**/*.tpl</exclude>
-            <exclude>**/*.spec.js.snap</exclude>
-            <exclude>**/*.yarnrc</exclude>
+                <!-- by file name -->
+                <exclude>**/Jenkinsfile</exclude>
+                <exclude>**/.cproject</exclude>
+                <exclude>**/LICENSE</exclude>
+                <exclude>**/NOTICE</exclude>
+                <exclude>**/postinstall</exclude>
+                <exclude>**/.factorypath</exclude>
+                <exclude>**/.babelrc</exclude>
+                <exclude>**/.checkstyle</exclude>
+                <exclude>**/.eslintcache</exclude>
+                <exclude>**/.eslintignore</exclude>
+                <exclude>**/.eslintrc</exclude>
+                <exclude>**/.sentryclirc</exclude>
+                <exclude>**/git.properties</exclude>
+                <exclude>**/pom.xml.versionsBackup</exclude>
+                <exclude>**/scheduler-core-default.xml</exclude>
+                <exclude>**/scheduler-yarn-default.xml</exclude>
+                <exclude>mvnw</exclude>
+                <exclude>mvnw.cmd</exclude>
+                <exclude>**/*.no_license</exclude>
+                <exclude>**/rpm/conf/dremio-env</exclude>
+                <exclude>**/rpm/conf/dremio.conf</exclude>
+                <exclude>**/pnpm-lock.yaml</exclude>
+                <exclude>**/yarn.lock</exclude>
+                <exclude>**/.env</exclude>
+                <exclude>**/microsoft-logo.svg</exclude>
+                <exclude>**/.npmrc</exclude>
+                <exclude>**/ddc.yaml</exclude>
 
-            <!-- by file name -->
-            <exclude>**/Jenkinsfile</exclude>
-            <exclude>**/.cproject</exclude>
-            <exclude>**/LICENSE</exclude>
-            <exclude>**/NOTICE</exclude>
-            <exclude>**/postinstall</exclude>
-            <exclude>**/.factorypath</exclude>
-            <exclude>**/.babelrc</exclude>
-            <exclude>**/.checkstyle</exclude>
-            <exclude>**/.eslintcache</exclude>
-            <exclude>**/.eslintignore</exclude>
-            <exclude>**/.eslintrc</exclude>
-            <exclude>**/.sentryclirc</exclude>
-            <exclude>**/git.properties</exclude>
-            <exclude>**/pom.xml.versionsBackup</exclude>
-            <exclude>**/scheduler-core-default.xml</exclude>
-            <exclude>**/scheduler-yarn-default.xml</exclude>
-            <exclude>mvnw</exclude>
-            <exclude>mvnw.cmd</exclude>
-            <exclude>**/*.no_license</exclude>
-            <exclude>**/rpm/conf/dremio-env</exclude>
-            <exclude>**/rpm/conf/dremio.conf</exclude>
-            <exclude>**/pnpm-lock.yaml</exclude>
-            <exclude>**/yarn.lock</exclude>
-            <exclude>**/.env</exclude>
-            <exclude>**/microsoft-logo.svg</exclude>
-            <exclude>**/.npmrc</exclude>
-
-            <!-- by directory name -->
-            <exclude>**/node_modules/**</exclude>
-            <exclude>**/.idea/**</exclude>
-            <exclude>src/test/**/*.pem</exclude>
-          </excludes>
+                <!-- by directory name -->
+                <exclude>**/node_modules/**</exclude>
+                <exclude>**/.idea/**</exclude>
+                <exclude>src/test/**/*.pem</exclude>
+              </excludes>
+              <useDefaultExcludes>false</useDefaultExcludes>
+            </licenseSet>
+          </licenseSets>
           <mapping>
             <java>SLASHSTAR_STYLE</java>
             <cc>SLASHSTAR_STYLE</cc>
@@ -1253,9 +1238,11 @@ limitations under the License.
             <mvnw>SCRIPT_STYLE</mvnw>
             <ts>SLASHSTAR_STYLE</ts>
             <tsx>SLASHSTAR_STYLE</tsx>
+            <jsx>SLASHSTAR_STYLE</jsx>
             <helmignore>SCRIPT_STYLE</helmignore>
             <repo>SCRIPT_STYLE</repo>
           </mapping>
+          <failIfUnknown>true</failIfUnknown>
         </configuration>
         <executions>
           <execution>
@@ -1271,10 +1258,15 @@ limitations under the License.
               <goal>format</goal>
             </goals>
             <configuration>
-              <includes combine.self="override">
-                <skipExistingHeaders>true</skipExistingHeaders>
-                <include>${project.build.directory}/**/*.java</include>
-              </includes>
+              <prohibitLegacyUse>true</prohibitLegacyUse>
+              <licenseSets>
+                <licenseSet>
+                  <includes combine.self="override">
+                    <skipExistingHeaders>true</skipExistingHeaders>
+                    <include>${project.build.directory}/**/*.java</include>
+                  </includes>
+                </licenseSet>
+              </licenseSets>
             </configuration>
           </execution>
           <execution>
@@ -1297,11 +1289,11 @@ limitations under the License.
         </plugin>
         <plugin>
           <artifactId>maven-clean-plugin</artifactId>
-          <version>3.2.0</version>
+          <version>3.3.1</version>
         </plugin>
         <plugin>
           <artifactId>maven-dependency-plugin</artifactId>
-          <version>3.5.0</version>
+          <version>3.6.1</version>
         </plugin>
         <plugin>
           <artifactId>maven-resources-plugin</artifactId>
@@ -1313,7 +1305,7 @@ limitations under the License.
         </plugin>
         <plugin>
           <artifactId>maven-enforcer-plugin</artifactId>
-          <version>3.2.1</version>
+          <version>3.4.1</version>
         </plugin>
         <plugin>
           <artifactId>maven-jar-plugin</artifactId>
@@ -1321,7 +1313,7 @@ limitations under the License.
         </plugin>
         <plugin>
           <artifactId>maven-surefire-plugin</artifactId>
-          <version>3.0.0</version>
+          <version>3.2.1</version>
           <configuration>
             <argLine>
               ${surefire.argLine}
@@ -1330,6 +1322,7 @@ limitations under the License.
             <forkCount>${forkCount}</forkCount>
             <reuseForks>true</reuseForks>
             <trimStackTrace>false</trimStackTrace>
+            <useModulePath>false</useModulePath>
             <systemPropertyVariables>
               <dremio.exec.compile.cache_max_size>50</dremio.exec.compile.cache_max_size>
               <dremio.exec.http.enabled>false</dremio.exec.http.enabled>
@@ -1345,7 +1338,18 @@ limitations under the License.
               <user.variant/>
               <user.timezone>GMT</user.timezone>
               <hive.log.dir>${project.build.directory}</hive.log.dir>
+              <!-- zk admin server is not needed in tests but can cause port collisions during parallel execution -->
+              <zookeeper.admin.enableServer>false</zookeeper.admin.enableServer>
             </systemPropertyVariables>
+            <!-- https://junit.org/junit5/docs/current/user-guide/#running-tests-build-maven-config-params -->
+            <properties>
+              <!-- https://junit.org/junit5/docs/current/user-guide/#writing-tests-declarative-timeouts-default-timeouts -->
+              <configurationParameters>
+                junit.jupiter.execution.timeout.testable.method.default=2m
+                junit.jupiter.execution.timeout.lifecycle.method.default=2m
+                junit.jupiter.execution.timeout.mode=disabled_on_debug
+              </configurationParameters>
+            </properties>
             <additionalClasspathElements>
               <additionalClasspathElement>${maven.multiModuleProjectDirectory}/src/test/log-config</additionalClasspathElement>
             </additionalClasspathElements>
@@ -1354,9 +1358,25 @@ limitations under the License.
         </plugin>
         <plugin>
           <artifactId>maven-failsafe-plugin</artifactId>
-          <version>3.0.0</version>
+          <version>3.2.1</version>
+          <executions>
+            <execution>
+              <id>default-integration-test</id>
+              <goals>
+                <goal>integration-test</goal>
+                <goal>verify</goal>
+              </goals>
+            </execution>
+          </executions>
           <configuration>
+            <argLine>
+              ${failsafe.argLine}
+              @{argLine}
+            </argLine>
+            <!-- not all modules have integration tests -->
+            <failIfNoTests>false</failIfNoTests>
             <trimStackTrace>false</trimStackTrace>
+            <useModulePath>false</useModulePath>
             <additionalClasspathElements>
               <additionalClasspathElement>${maven.multiModuleProjectDirectory}/src/test/log-config</additionalClasspathElement>
             </additionalClasspathElements>
@@ -1370,7 +1390,18 @@ limitations under the License.
               <user.variant/>
               <user.timezone>GMT</user.timezone>
               <hive.log.dir>${project.build.directory}</hive.log.dir>
+              <!-- zk admin server is not needed in tests but can cause port collisions during parallel execution -->
+              <zookeeper.admin.enableServer>false</zookeeper.admin.enableServer>
             </systemPropertyVariables>
+            <!-- https://junit.org/junit5/docs/current/user-guide/#running-tests-build-maven-config-params -->
+            <properties>
+              <!-- https://junit.org/junit5/docs/current/user-guide/#writing-tests-declarative-timeouts-default-timeouts -->
+              <configurationParameters>
+                junit.jupiter.execution.timeout.testable.method.default=5m
+                junit.jupiter.execution.timeout.lifecycle.method.default=5m
+                junit.jupiter.execution.timeout.mode=disabled_on_debug
+              </configurationParameters>
+            </properties>
             <rerunFailingTestsCount>${rerunFailingTestsCount}</rerunFailingTestsCount>
           </configuration>
         </plugin>
@@ -1380,15 +1411,15 @@ limitations under the License.
         </plugin>
         <plugin>
           <artifactId>maven-assembly-plugin</artifactId>
-          <version>3.5.0</version>
+          <version>3.6.0</version>
         </plugin>
         <plugin>
           <artifactId>maven-checkstyle-plugin</artifactId>
-          <version>3.2.1</version>
+          <version>3.3.1</version>
         </plugin>
         <plugin>
           <artifactId>maven-shade-plugin</artifactId>
-          <version>3.4.1</version>
+          <version>3.5.1</version>
         </plugin>
         <plugin>
           <artifactId>maven-plugin-plugin</artifactId>
@@ -1473,12 +1504,11 @@ limitations under the License.
         <plugin>
           <groupId>com.github.eirslett</groupId>
           <artifactId>frontend-maven-plugin</artifactId>
-          <version>1.12.1</version>
-
+          <version>1.14.0</version>
           <configuration>
-            <nodeVersion>v16.15.0</nodeVersion>
+            <nodeVersion>v20.8.0</nodeVersion>
             <npmVersion>7.7.5</npmVersion>
-            <pnpmVersion>8.1.0</pnpmVersion>
+            <pnpmVersion>8.9.0</pnpmVersion>
             <installDirectory>${project.build.directory}/frontend</installDirectory>
             <workingDirectory>${project.build.directory}</workingDirectory>
             <environmentVariables>
@@ -1495,7 +1525,7 @@ limitations under the License.
         <plugin>
           <groupId>org.jacoco</groupId>
           <artifactId>jacoco-maven-plugin</artifactId>
-          <version>0.8.8</version>
+          <version>0.8.11</version>
         </plugin>
         <plugin>
           <groupId>com.dremio.tools</groupId>
@@ -1551,7 +1581,7 @@ limitations under the License.
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>rpm-maven-plugin</artifactId>
-          <version>2.2.0</version>
+          <version>2.3.0</version>
         </plugin>
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
@@ -1582,6 +1612,7 @@ limitations under the License.
           <artifactId>protobuf-maven-plugin</artifactId>
           <version>0.6.1</version>
           <configuration>
+            <clearOutputDirectory>false</clearOutputDirectory>
             <protocArtifact>com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}</protocArtifact>
             <!--
             this avoids copying the protoc artifacts multiple times:
@@ -1591,14 +1622,14 @@ limitations under the License.
           </configuration>
         </plugin>
         <plugin>
-          <groupId>org.projectnessie</groupId>
-          <artifactId>nessie-apprunner-maven-plugin</artifactId>
-          <version>${nessie-apprunner.version}</version>
+          <groupId>org.projectnessie.nessie-runner</groupId>
+          <artifactId>nessie-runner-maven-plugin</artifactId>
+          <version>${nessie-runner.version}</version>
         </plugin>
         <plugin>
           <groupId>com.github.spotbugs</groupId>
           <artifactId>spotbugs-maven-plugin</artifactId>
-          <version>4.7.1.1</version>
+          <version>4.7.3.5</version>
           <configuration>
             <fork>false</fork>
           </configuration>
@@ -1611,7 +1642,7 @@ limitations under the License.
         <plugin>
           <groupId>com.diffplug.spotless</groupId>
           <artifactId>spotless-maven-plugin</artifactId>
-          <version>2.29.0</version>
+          <version>2.40.0</version>
         </plugin>
         <plugin>
           <groupId>org.jboss.jandex</groupId>
@@ -1643,6 +1674,11 @@ limitations under the License.
     <dependency>
       <groupId>javax.annotation</groupId>
       <artifactId>javax.annotation-api</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.jetbrains</groupId>
+      <artifactId>annotations</artifactId>
       <scope>provided</scope>
     </dependency>
 
@@ -1717,11 +1753,6 @@ limitations under the License.
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>de.huxhorn.lilith</groupId>
-      <artifactId>de.huxhorn.lilith.logback.appender.multiplex-classic</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
       <groupId>org.awaitility</groupId>
       <artifactId>awaitility</artifactId>
       <version>4.2.0</version>
@@ -1747,23 +1778,8 @@ limitations under the License.
         <artifactId>dremio-hive2-exec-shaded</artifactId>
         <version>${project.version}</version>
         <exclusions>
-          <!-- Bug in maven assembly plugin forces us to be declarative
-               for the exclusions. See MASSEMBLY-675
           <exclusion>
             <groupId>*</groupId>
-            <artifactId>*</artifactId>
-          </exclusion>
-          -->
-          <exclusion>
-            <groupId>org.apache.avro</groupId>
-            <artifactId>avro</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.apache.hive</groupId>
-            <artifactId>hive-exec</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.apache.thrift</groupId>
             <artifactId>*</artifactId>
           </exclusion>
         </exclusions>
@@ -1774,7 +1790,7 @@ limitations under the License.
         <version>${project.version}</version>
         <exclusions>
           <exclusion>
-            <groupId>org.apache.thrift</groupId>
+            <groupId>*</groupId>
             <artifactId>*</artifactId>
           </exclusion>
         </exclusions>
@@ -1912,6 +1928,11 @@ limitations under the License.
       </dependency>
       <dependency>
         <groupId>com.dremio.services</groupId>
+        <artifactId>dremio-services-nessie-validation</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.dremio.services</groupId>
         <artifactId>dremio-services-resourcescheduler</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -2005,12 +2026,22 @@ limitations under the License.
       <dependency>
         <groupId>de.flapdoodle.embed</groupId>
         <artifactId>de.flapdoodle.embed.mongo</artifactId>
-        <version>3.1.4</version>
+        <version>3.5.4</version>
       </dependency>
       <dependency>
         <groupId>javax.annotation</groupId>
         <artifactId>javax.annotation-api</artifactId>
         <version>1.3.2</version>
+      </dependency>
+      <dependency>
+        <groupId>org.jetbrains</groupId>
+        <artifactId>annotations</artifactId>
+        <version>24.0.1</version>
+      </dependency>
+      <dependency>
+        <groupId>org.checkerframework</groupId>
+        <artifactId>checker-qual</artifactId>
+        <version>3.39.0</version>
       </dependency>
       <dependency>
         <groupId>org.mariadb.jdbc</groupId>
@@ -2020,7 +2051,7 @@ limitations under the License.
       <dependency>
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-compress</artifactId>
-        <version>1.22</version>
+        <version>1.24.0</version>
       </dependency>
       <dependency>
         <groupId>org.apache.commons</groupId>
@@ -2145,7 +2176,7 @@ limitations under the License.
       <dependency>
         <groupId>com.google.guava</groupId>
         <artifactId>guava</artifactId>
-        <version>${guava.version}</version>
+        <version>32.1.3-jre</version>
       </dependency>
       <dependency>
         <groupId>com.github.ben-manes.caffeine</groupId>
@@ -2208,17 +2239,12 @@ limitations under the License.
       <dependency>
         <groupId>commons-codec</groupId>
         <artifactId>commons-codec</artifactId>
-        <version>1.15</version>
+        <version>1.16.0</version>
       </dependency>
       <dependency>
        <groupId>org.objenesis</groupId>
        <artifactId>objenesis</artifactId>
        <version>2.4</version>
-      </dependency>
-      <dependency>
-        <groupId>de.huxhorn.lilith</groupId>
-        <artifactId>de.huxhorn.lilith.logback.appender.multiplex-classic</artifactId>
-        <version>${lilith.version}</version>
       </dependency>
       <dependency>
         <groupId>io.opentelemetry</groupId>
@@ -2237,16 +2263,21 @@ limitations under the License.
       <dependency>
         <groupId>io.opentelemetry.instrumentation</groupId>
         <artifactId>opentelemetry-instrumentation-bom</artifactId>
-        <version>${opentelemetry.version}</version>
+        <version>${opentelemetry.instrumentation.version}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
       <dependency>
         <groupId>io.opentelemetry.instrumentation</groupId>
         <artifactId>opentelemetry-instrumentation-bom-alpha</artifactId>
-        <version>${opentelemetry.version}-alpha</version>
+        <version>${opentelemetry.instrumentation.version}-alpha</version>
         <type>pom</type>
         <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>io.opentelemetry.semconv</groupId>
+        <artifactId>opentelemetry-semconv</artifactId>
+        <version>${opentelemetry.semconv.version}</version>
       </dependency>
       <dependency>
         <groupId>io.opentracing</groupId>
@@ -2372,6 +2403,11 @@ limitations under the License.
         <version>${protostuff.version}</version>
       </dependency>
       <dependency>
+        <groupId>org.freemarker</groupId>
+        <artifactId>freemarker</artifactId>
+        <version>2.3.32</version>
+      </dependency>
+      <dependency>
         <groupId>javax.validation</groupId>
         <artifactId>validation-api</artifactId>
         <version>2.0.1.Final</version>
@@ -2398,14 +2434,14 @@ limitations under the License.
       <dependency>
         <groupId>org.assertj</groupId>
         <artifactId>assertj-bom</artifactId>
-        <version>${assertj.version}</version>
+        <version>3.24.2</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
       <dependency>
         <groupId>joda-time</groupId>
         <artifactId>joda-time</artifactId>
-        <version>2.12.1</version>
+        <version>2.12.5</version>
       </dependency>
       <dependency>
         <groupId>net.hydromatic</groupId>
@@ -2593,12 +2629,12 @@ limitations under the License.
       <dependency>
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-lang3</artifactId>
-        <version>3.12.0</version>
+        <version>3.13.0</version>
       </dependency>
       <dependency>
         <groupId>commons-io</groupId>
         <artifactId>commons-io</artifactId>
-        <version>${commons-io.version}</version>
+        <version>2.14.0</version>
       </dependency>
       <dependency>
         <groupId>org.apache.commons</groupId>
@@ -3044,6 +3080,11 @@ limitations under the License.
         <version>1.6.7</version>
       </dependency>
       <dependency>
+        <groupId>com.microsoft.azure</groupId>
+        <artifactId>msal4j</artifactId>
+        <version>1.13.10</version>
+      </dependency>
+      <dependency>
         <groupId>net.minidev</groupId>
         <artifactId>json-smart</artifactId>
         <version>${json-smart.version}</version>
@@ -3485,7 +3526,7 @@ limitations under the License.
       <dependency>
         <groupId>org.apache.logging.log4j</groupId>
         <artifactId>log4j-bom</artifactId>
-        <version>2.19.0</version>
+        <version>2.20.0</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -3526,6 +3567,10 @@ limitations under the License.
           <exclusion>
             <groupId>log4j</groupId>
             <artifactId>log4j</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>jline</groupId>
+            <artifactId>jline</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -3654,7 +3699,13 @@ limitations under the License.
       <dependency>
         <groupId>xalan</groupId>
         <artifactId>xalan</artifactId>
-        <version>2.7.2</version>
+        <version>2.7.3</version>
+      </dependency>
+      <dependency>
+        <!-- Remove this dependency management when xalan is upgraded (serializer will become a transitive dependency) -->
+        <groupId>xalan</groupId>
+        <artifactId>serializer</artifactId>
+        <version>2.7.3</version>
       </dependency>
       <dependency>
         <groupId>net.openhft</groupId>
@@ -3693,7 +3744,7 @@ limitations under the License.
       <dependency>
         <groupId>org.apache.hadoop</groupId>
         <artifactId>hadoop-azure</artifactId>
-        <version>2.8.5-dremio-r2-202305092225000902-c107c46</version>
+        <version>2.8.5-dremio-r2-202307051740280715-b762c27</version>
         <exclusions>
           <exclusion>
             <groupId>org.apache.hadoop</groupId>
@@ -3770,7 +3821,7 @@ limitations under the License.
       <dependency>
         <groupId>com.hubspot.jackson</groupId>
         <artifactId>jackson-datatype-protobuf</artifactId>
-        <version>0.9.13</version>
+        <version>0.9.14</version>
       </dependency>
       <dependency>
         <groupId>org.eclipse.jetty</groupId>
@@ -3803,13 +3854,18 @@ limitations under the License.
       </dependency>
       <dependency>
         <groupId>org.mongodb</groupId>
-        <artifactId>mongodb-driver-legacy</artifactId>
-        <version>4.3.4</version>
+        <artifactId>mongodb-driver-sync</artifactId>
+        <version>4.11.0</version>
+      </dependency>
+      <dependency>
+        <groupId>org.mongodb</groupId>
+        <artifactId>mongodb-driver-core</artifactId>
+        <version>4.11.0</version>
       </dependency>
       <dependency>
         <groupId>org.xerial.snappy</groupId>
         <artifactId>snappy-java</artifactId>
-        <version>1.1.4</version>
+        <version>1.1.10.5</version>
       </dependency>
       <dependency>
         <groupId>org.immutables</groupId>
@@ -3819,7 +3875,7 @@ limitations under the License.
       <dependency>
         <groupId>com.google.inject</groupId>
         <artifactId>guice-bom</artifactId>
-        <version>${guice.version}</version>
+        <version>6.0.0</version>
         <scope>import</scope>
         <type>pom</type>
       </dependency>
@@ -3887,7 +3943,7 @@ limitations under the License.
       <dependency>
         <groupId>org.threeten</groupId>
         <artifactId>threeten-extra</artifactId>
-        <version>${threeten-version}</version>
+        <version>1.7.2</version>
       </dependency>
       <!-- Note: iceberg-bundled-guava should be in sync with core Iceberg jars. -->
       <dependency>

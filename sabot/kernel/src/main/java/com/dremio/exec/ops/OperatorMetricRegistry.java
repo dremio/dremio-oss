@@ -27,6 +27,7 @@ import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorTypeMetricsMap;
 import com.dremio.exec.proto.UserBitShared.MetricsDef;
+import com.dremio.exec.store.IcebergExpiryMetric;
 import com.dremio.exec.store.parquet.ParquetRecordWriter;
 import com.dremio.sabot.exec.context.MetricDef;
 import com.dremio.sabot.op.aggregate.vectorized.HashAggStats;
@@ -45,7 +46,7 @@ import com.dremio.sabot.op.sender.broadcast.BroadcastOperator;
 import com.dremio.sabot.op.sender.partition.PartitionSenderOperator;
 import com.dremio.sabot.op.sender.roundrobin.RoundRobinOperator;
 import com.dremio.sabot.op.sender.single.SingleSenderOperator;
-import com.dremio.sabot.op.sort.external.ExternalSortOperator;
+import com.dremio.sabot.op.sort.external.ExternalSortStats;
 import com.dremio.sabot.op.tablefunction.TableFunctionOperator;
 import com.dremio.sabot.op.writer.WriterCommitterOperator;
 import com.dremio.sabot.op.writer.WriterOperator;
@@ -70,11 +71,12 @@ public class OperatorMetricRegistry {
     register(builder, CoreOperatorType.UNORDERED_RECEIVER_VALUE, UnorderedReceiverOperator.Metric.class);
     register(builder, CoreOperatorType.HASH_AGGREGATE_VALUE, HashAggStats.Metric.class);
     register(builder, CoreOperatorType.HASH_JOIN_VALUE, HashJoinStats.Metric.class);
-    register(builder, CoreOperatorType.EXTERNAL_SORT_VALUE, ExternalSortOperator.Metric.class);
+    register(builder, CoreOperatorType.EXTERNAL_SORT_VALUE, ExternalSortStats.Metric.class);
     register(builder, CoreOperatorType.HIVE_SUB_SCAN_VALUE, ScanOperator.Metric.class);
     register(builder, CoreOperatorType.MONGO_SUB_SCAN_VALUE, MongoStats.Metric.class);
     register(builder, CoreOperatorType.PARQUET_ROW_GROUP_SCAN_VALUE, ScanOperator.Metric.class);
     register(builder, CoreOperatorType.PARQUET_WRITER_VALUE, ParquetRecordWriter.Metric.class);
+    register(builder, CoreOperatorType.SMALL_FILE_COMBINATION_WRITER_VALUE, ParquetRecordWriter.Metric.class);
     register(builder, CoreOperatorType.ARROW_WRITER_VALUE, WriterOperator.Metric.class);
     register(builder, CoreOperatorType.PROJECT_VALUE, ProjectorStats.Metric.class);
     register(builder, CoreOperatorType.FILTER_VALUE, FilterStats.Metric.class);
@@ -90,6 +92,8 @@ public class OperatorMetricRegistry {
     register(builder, CoreOperatorType.BRIDGE_FILE_READER_RECEIVER_VALUE, BridgeFileReaderReceiverOperator.Metric.class);
     register(builder, CoreOperatorType.ICEBERG_METADATA_FUNCTIONS_READER_VALUE, ScanOperator.Metric.class);
     register(builder, CoreOperatorType.TEXT_SUB_SCAN_VALUE, ScanOperator.Metric.class);
+    register(builder, CoreOperatorType.ICEBERG_SNAPSHOTS_SUB_SCAN_VALUE, IcebergExpiryMetric.class);
+    register(builder, CoreOperatorType.NESSIE_COMMITS_SUB_SCAN_VALUE, IcebergExpiryMetric.class);
     CORE_OPERATOR_TYPE_METRICS_MAP = builder.build();
   }
 

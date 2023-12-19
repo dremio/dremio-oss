@@ -46,7 +46,7 @@ export function wrapConflictDetectionForm(Form) {
       values: PropTypes.object,
     };
 
-    componentWillReceiveProps(nextProps) {
+    UNSAFE_componentWillReceiveProps(nextProps) {
       if (!nextProps.getConflictedValues || nextProps.submitting) {
         return;
       }

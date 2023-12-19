@@ -37,7 +37,7 @@ const canReachOrigin = moize.promise(
  * better to retry the request rather than continuing to wait.
  */
 const failAfterTimeout = (timeout: number) =>
-  new Promise((_, reject) => setTimeout(() => reject(), timeout))
+  new Promise((resolve, reject) => setTimeout(() => reject(), timeout))
     .then(() => true)
     .catch(() => false);
 

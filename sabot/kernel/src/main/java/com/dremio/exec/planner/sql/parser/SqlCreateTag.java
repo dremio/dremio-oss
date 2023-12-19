@@ -41,7 +41,7 @@ import com.google.common.collect.Lists;
  * Creates a tag under a source.
  *
  * CREATE TAG [ IF NOT EXISTS ] tagName
- * [ AT ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue ]
+ * [ AT ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue [AS OF timestamp] ]
  * [ IN sourceName ]
  */
 public final class SqlCreateTag extends SqlCreateVersionBase {
@@ -51,29 +51,35 @@ public final class SqlCreateTag extends SqlCreateVersionBase {
         public SqlCall createCall(
             SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
           Preconditions.checkArgument(
-              operands.length == 5,
-              "SqlCreateTag.createCall() has to get 5 operands!");
+              operands.length == 7,
+              "SqlCreateTag.createCall() has to get 7 operands!");
           return new SqlCreateTag(
               pos,
               (SqlLiteral) operands[0],
               (SqlIdentifier) operands[1],
-              ((SqlLiteral) operands[0]).symbolValue(ReferenceType.class),
+              ((SqlLiteral) operands[2]).symbolValue(ReferenceType.class),
               (SqlIdentifier) operands[3],
-              (SqlIdentifier) operands[4]);
+              operands[4],
+              (SqlIdentifier) operands[5],
+              ((SqlLiteral) operands[6]).symbolValue(PrepositionType.class));
         }
       };
 
   private final SqlIdentifier tagName;
+  private final PrepositionType prepositionType;
 
   public SqlCreateTag(
       SqlParserPos pos,
-      SqlLiteral existenceCheck,
+      SqlLiteral shouldErrorIfTagExists,
       SqlIdentifier tagName,
       ReferenceType refType,
       SqlIdentifier refValue,
-      SqlIdentifier sourceName) {
-    super(pos, existenceCheck, refType, refValue, sourceName);
+      SqlNode timestamp,
+      SqlIdentifier sourceName,
+      PrepositionType prepositionType) {
+    super(pos, shouldErrorIfTagExists, refType, refValue, timestamp, sourceName);
     this.tagName = Preconditions.checkNotNull(tagName);
+    this.prepositionType = prepositionType;
   }
 
   @Override
@@ -84,11 +90,13 @@ public final class SqlCreateTag extends SqlCreateVersionBase {
   @Override
   public List<SqlNode> getOperandList() {
     List<SqlNode> ops = Lists.newArrayList();
-    ops.add(getExistenceCheck());
+    ops.add(shouldErrorIfVersionExists());
     ops.add(tagName);
     ops.add(SqlLiteral.createSymbol(getRefType(), SqlParserPos.ZERO));
     ops.add(getRefValue());
+    ops.add(getTimestampAsSqlNode());
     ops.add(getSourceName());
+    ops.add(SqlLiteral.createSymbol(prepositionType, SqlParserPos.ZERO));
 
     return ops;
   }
@@ -102,7 +110,7 @@ public final class SqlCreateTag extends SqlCreateVersionBase {
 
     tagName.unparse(writer, leftPrec, rightPrec);
 
-    unparseRef(writer, leftPrec, rightPrec, "AT");
+    unparseRef(writer, leftPrec, rightPrec, prepositionType.toString());
     unparseSourceName(writer, leftPrec, rightPrec);
   }
 

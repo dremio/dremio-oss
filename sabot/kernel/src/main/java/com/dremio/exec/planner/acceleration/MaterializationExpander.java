@@ -38,11 +38,12 @@ import org.apache.calcite.util.Pair;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.datastore.WarningTimer;
 import com.dremio.exec.calcite.logical.ScanCrel;
-import com.dremio.exec.catalog.DremioCatalogReader;
+import com.dremio.exec.ops.DremioCatalogReader;
 import com.dremio.exec.planner.acceleration.StrippingFactory.StripResult;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.serialization.LogicalPlanDeserializer;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
+import com.dremio.exec.planner.sql.DremioCompositeSqlOperatorTable;
 import com.dremio.exec.planner.sql.DremioToRelContext;
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.planner.sql.handlers.RelTransformer;
@@ -85,7 +86,8 @@ public class MaterializationExpander {
       if (!preStripped) {
         long strippedHash = PlanHasher.hash(stripResult.getNormalized());
         if (strippedHash != descriptor.getStrippedPlanHash()) {
-          throw new ExpansionException(String.format("Stripped hash doesn't match expect stripped hash. Stripped logic likely changed. Non-matching plan: %s.", RelOptUtil.toString(stripResult.getNormalized())));
+          throw new ExpansionException(String.format("Stripped hash doesn't match expect stripped hash. Stripped logic likely changed.\n"
+            + "Non-matching plan: %s.\nqueryRel is: %s.", RelOptUtil.toString(stripResult.getNormalized()), RelOptUtil.toString(queryRel)));
         }
       }
 
@@ -97,13 +99,12 @@ public class MaterializationExpander {
 
       RelNode tableRel = expandSchemaPath(descriptor.getPath());
 
-
       BatchSchema schema = ((ScanCrel) tableRel).getBatchSchema();
       final RelDataType strippedQueryRowType = stripResult.getNormalized().getRowType();
       tableRel = tableRel.accept(new IncrementalUpdateUtils.RemoveDirColumn(strippedQueryRowType));
       // Namespace table removes UPDATE_COLUMN from scans, but for incremental materializations, we need to add it back
       // to the table scan
-      if (descriptor.getIncrementalUpdateSettings().isIncremental()) {
+      if (descriptor.getIncrementalUpdateSettings().isIncremental() && !descriptor.getIncrementalUpdateSettings().isSnapshotBasedUpdate()) {
         tableRel = tableRel.accept(IncrementalUpdateUtils.ADD_MOD_TIME_SHUTTLE);
       }
 
@@ -148,10 +149,17 @@ public class MaterializationExpander {
     if (!descriptor.getIncrementalUpdateSettings().isIncremental()) {
       return com.dremio.exec.planner.sql.handlers.RelTransformer.NO_OP_TRANSFORMER;
     }
-
-    final RelShuttle shuttle = Optional.ofNullable(descriptor.getIncrementalUpdateSettings().getUpdateField())
+    final RelShuttle shuttle;
+    if (descriptor.getIncrementalUpdateSettings().isSnapshotBasedUpdate()) {
+      // For snapshot based incremental update, there is no UPDATE_COLUMN in plan. A DUMMY_COLUMN ($_dremio_$_dummy_$)
+      // needs to be added as a grouping key in aggregates.
+      // This is to ensure built-in substitution rules to add proper roll up aggregates.
+      shuttle = new IncrementalUpdateUtils.AddDummyGroupingFieldShuttle();
+    } else {
+      shuttle = Optional.ofNullable(descriptor.getIncrementalUpdateSettings().getUpdateField())
         .map(IncrementalUpdateUtils.SubstitutionShuttle::new)
         .orElse(IncrementalUpdateUtils.FILE_BASED_SUBSTITUTION_SHUTTLE);
+    }
     return (rel) -> rel.accept(shuttle);
   }
 
@@ -223,11 +231,12 @@ public class MaterializationExpander {
 
   @VisibleForTesting
   RelNode expandSchemaPath(final List<String> path) {
-    final DremioCatalogReader catalog = new DremioCatalogReader(parent.getCatalog(), parent.getTypeFactory());
+    // TODO:  This can be simplified to not use DremioCatalogReader
+    final DremioCatalogReader catalog = new DremioCatalogReader(parent.getPlannerCatalog());
     final RelOptTable table;
     try {
       table = catalog.getTable(path);
-    } catch (Exception e) {
+    } catch (RuntimeException e) {
       // Can occur if Iceberg table no longer exists or accelerator path changed
       throw new ExpansionException("Unable to get accelerator table: " + path, e);
     }
@@ -249,14 +258,26 @@ public class MaterializationExpander {
 
 
   public static RelNode deserializePlan(final byte[] planBytes, SqlConverter parent, CatalogService catalogService) {
-    final DremioCatalogReader dremioCatalogReader = new DremioCatalogReader(parent.getCatalog(), parent.getTypeFactory());
+    final DremioCatalogReader dremioCatalogReader = new DremioCatalogReader(parent.getPlannerCatalog());
     try {
-      final LogicalPlanDeserializer deserializer = parent.getSerializerFactory().getDeserializer(parent.getCluster(), dremioCatalogReader, parent.getFunctionImplementationRegistry(), catalogService);
+      final LogicalPlanDeserializer deserializer = parent
+        .getSerializerFactory()
+        .getDeserializer(
+          parent.getCluster(),
+          dremioCatalogReader,
+          DremioCompositeSqlOperatorTable.create(parent.getFunctionImplementationRegistry()),
+          catalogService);
       return deserializer.deserialize(planBytes);
     } catch (Exception ex) {
       try {
         // Try using legacy serializer. If this one also fails, throw the original exception.
-        final LogicalPlanDeserializer deserializer = parent.getLegacySerializerFactory().getDeserializer(parent.getCluster(), dremioCatalogReader, parent.getFunctionImplementationRegistry(), catalogService);
+        final LogicalPlanDeserializer deserializer = parent
+          .getLegacySerializerFactory()
+          .getDeserializer(
+            parent.getCluster(),
+            dremioCatalogReader,
+            DremioCompositeSqlOperatorTable.create(parent.getFunctionImplementationRegistry()),
+            catalogService);
         return deserializer.deserialize(planBytes);
       } catch (Exception ignored) {
         throw ex;

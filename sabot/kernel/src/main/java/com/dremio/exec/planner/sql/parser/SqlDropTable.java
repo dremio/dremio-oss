@@ -28,27 +28,48 @@ import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
 import com.dremio.service.namespace.NamespaceKey;
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 
 public class SqlDropTable extends SqlCall {
+
+  private static final SqlLiteral sqlLiteralNull = SqlLiteral.createNull(SqlParserPos.ZERO);
   public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("DROP_TABLE", SqlKind.DROP_TABLE) {
     @Override
     public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      return new SqlDropTable(pos, (SqlIdentifier) operands[0], (SqlLiteral) operands[1]);
+      return new SqlDropTable(
+        pos,
+        (SqlIdentifier) operands[0],
+        (SqlLiteral) operands[1],
+        ((SqlLiteral) operands[2]).symbolValue(ReferenceType.class),
+        (SqlIdentifier) operands[3]);
     }
   };
 
   private SqlIdentifier tableName;
-  private boolean tableExistenceCheck;
+  private boolean shouldErrorIfTableDoesNotExist;
+  private final ReferenceType refType;
+  private final SqlIdentifier refValue;
 
-  public SqlDropTable(SqlParserPos pos, SqlIdentifier tableName, SqlLiteral tableExistenceCheck) {
-    this(pos, tableName, tableExistenceCheck.booleanValue());
+  public SqlDropTable(
+    SqlParserPos pos,
+    SqlIdentifier tableName,
+    SqlLiteral shouldErrorIfTableDoesNotExist,
+    ReferenceType refType,
+    SqlIdentifier refValue) {
+    this(pos, tableName, shouldErrorIfTableDoesNotExist.booleanValue(), refType, refValue);
   }
 
-  public SqlDropTable(SqlParserPos pos, SqlIdentifier tableName, boolean tableExistenceCheck) {
+  public SqlDropTable(
+    SqlParserPos pos,
+    SqlIdentifier tableName,
+    boolean shouldErrorIfTableDoesNotExist,
+    ReferenceType refType,
+    SqlIdentifier refValue) {
     super(pos);
     this.tableName = tableName;
-    this.tableExistenceCheck = tableExistenceCheck;
+    this.shouldErrorIfTableDoesNotExist = shouldErrorIfTableDoesNotExist;
+    this.refType = refType;
+    this.refValue = refValue;
   }
 
   @Override
@@ -58,11 +79,15 @@ public class SqlDropTable extends SqlCall {
 
   @Override
   public List<SqlNode> getOperandList() {
-    final List<SqlNode> ops =
-        ImmutableList.of(
-            tableName,
-            SqlLiteral.createBoolean(tableExistenceCheck, SqlParserPos.ZERO)
-        );
+    List<SqlNode> ops = Lists.newArrayList();
+    ops.add(tableName);
+    ops.add(SqlLiteral.createBoolean(shouldErrorIfTableDoesNotExist, SqlParserPos.ZERO));
+    if (refType == null) {
+      ops.add(sqlLiteralNull);
+    } else {
+      ops.add(SqlLiteral.createSymbol(getRefType(), SqlParserPos.ZERO));
+    }
+    ops.add(refValue);
     return ops;
   }
 
@@ -70,19 +95,32 @@ public class SqlDropTable extends SqlCall {
   public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
     writer.keyword("DROP");
     writer.keyword("TABLE");
-    if (tableExistenceCheck) {
+    if (!shouldErrorIfTableDoesNotExist) {
       writer.keyword("IF");
       writer.keyword("EXISTS");
     }
     tableName.unparse(writer, leftPrec, rightPrec);
+    if (refType != null && refValue != null) {
+      writer.keyword("AT");
+      writer.keyword(refType.toString());
+      refValue.unparse(writer, leftPrec, rightPrec);
+    }
+
   }
 
   public NamespaceKey getPath() {
     return new NamespaceKey(tableName.names);
   }
 
-  public boolean checkTableExistence() {
-    return tableExistenceCheck;
+  public boolean shouldErrorIfTableDoesNotExist() {
+    return shouldErrorIfTableDoesNotExist;
   }
 
+  public ReferenceType getRefType() {
+    return refType;
+  }
+
+  public SqlIdentifier getRefValue() {
+    return refValue;
+  }
 }

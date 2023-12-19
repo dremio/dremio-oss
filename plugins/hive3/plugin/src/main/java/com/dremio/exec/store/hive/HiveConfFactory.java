@@ -15,11 +15,16 @@
  */
 package com.dremio.exec.store.hive;
 
+import static com.dremio.exec.store.hive.BaseHiveStoragePlugin.HIVE_DEFAULT_CTAS_FORMAT;
+
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.metastore.utils.MetaStoreUtils;
 import org.apache.orc.OrcConf;
 
 import com.dremio.common.VM;
@@ -55,9 +60,6 @@ public class HiveConfFactory {
   private static final String FS_S3_MAX_THREADS = "fs.s3a.threads.max";
   private static final String FS_S3_MULTIPART_SIZE = "fs.s3a.multipart.size";
   private static final String FS_S3_MAX_TOTAL_TASKS = "fs.s3a.max.total.tasks";
-
-  //Advanced option to set default ctas format
-  public static final String HIVE_DEFAULT_CTAS_FORMAT = "hive.default.ctas.format";
 
   // ADL Hadoop file system implementation
   private static final ImmutableMap<String, String> ADL_PROPS = ImmutableMap.of(
@@ -139,6 +141,9 @@ public class HiveConfFactory {
     setConf(hiveConf, HIVE_MAX_HIVE_CACHE_SPACE, config.maxCacheSpacePct);
     setConf(hiveConf, HIVE_DEFAULT_CTAS_FORMAT, config.getDefaultCtasFormat());
     setConf(hiveConf, HiveFsUtils.USE_HIVE_PLUGIN_FS_CACHE, "True");
+    if (config.hiveMajorVersion == 2) {
+      setHive2SourceType(hiveConf);
+    }
 
     addS3Properties(hiveConf);
     addUserProperties(hiveConf, config);
@@ -164,16 +169,12 @@ public class HiveConfFactory {
    */
   protected static void addUserProperties(HiveConf hiveConf, BaseHiveStoragePluginConfig<?,?> config) {
     // Used to capture properties set by user
+
+
     final Set<String> userPropertyNames = new HashSet<>();
-    if(config.propertyList != null) {
-      for(Property prop : config.propertyList) {
-        userPropertyNames.add(prop.name);
-        setConf(hiveConf, prop.name, prop.value);
-        if(logger.isTraceEnabled()){
-          logger.trace("HiveConfig Override {}={}", prop.name, prop.value);
-        }
-      }
-    }
+
+    addUserPropertyList(config.propertyList,       userPropertyNames, hiveConf);
+    addUserPropertyList(config.secretPropertyList, userPropertyNames, hiveConf);
 
     // Check if zero-copy has been set by user
     boolean zeroCopySetByUser = userPropertyNames.contains(OrcConf.USE_ZEROCOPY.getAttribute());
@@ -242,5 +243,29 @@ public class HiveConfFactory {
 
   private void setConf(HiveConf hiveConf, String propertyName, boolean booleanValue) {
     hiveConf.setBoolean(propertyName, booleanValue);
+  }
+
+  public static boolean isHive2SourceType(Configuration configuration) {
+    return MetaStoreUtils.isHive2CompatibilityModeForDremio(configuration);
+  }
+
+  public static void setHive2SourceType(Configuration configuration) {
+    configuration.set(MetaStoreUtils.DREMIO_HIVE2_COMPATIBILITY_MODE_ENABLED, "true", DREMIO_SOURCE_CONFIGURATION_SOURCE);
+  }
+
+  /**
+   * adds the user based Properties to the Hive Config
+   * @param properties, either the publicly-viewed propertyList or the masked-UI user credentials
+   */
+  private static void addUserPropertyList(List<Property> properties, Set<String> userPropertyNames, HiveConf hiveConf) {
+    if(properties != null) {
+      for(Property prop : properties) {
+        userPropertyNames.add(prop.name);
+        setConf(hiveConf, prop.name, prop.value);
+        if(logger.isTraceEnabled()){
+          logger.trace("HiveConfig Override {}={}", prop.name, prop.value);
+        }
+      }
+    }
   }
 }

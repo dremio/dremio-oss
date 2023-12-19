@@ -18,8 +18,7 @@ import PropTypes from "prop-types";
 import SQL from "../SQL/SQL";
 import DatasetGraph from "./DatasetGraph";
 import Dataset from "./Dataset";
-import { CATALOG_ARS_ENABLED } from "@app/exports/flags/CATALOG_ARS_ENABLED";
-import { FeatureSwitch } from "@app/exports/components/FeatureSwitch/FeatureSwitch";
+import { ARSFeatureSwitch } from "@inject/utils/arsUtils";
 import "./SQLTab.less";
 
 const SQLTab = ({
@@ -41,8 +40,7 @@ const SQLTab = ({
         sqlClass="sqlTab__SQLBody"
         title={formatMessage({ id: "SubmittedSQL" })}
       />
-      <FeatureSwitch
-        flag={CATALOG_ARS_ENABLED}
+      <ARSFeatureSwitch
         renderEnabled={() => null}
         renderDisabled={() => (
           <>

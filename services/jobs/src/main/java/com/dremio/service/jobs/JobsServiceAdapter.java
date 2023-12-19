@@ -19,6 +19,7 @@ import javax.inject.Provider;
 
 import com.dremio.service.job.CancelJobRequest;
 import com.dremio.service.job.CancelReflectionJobRequest;
+import com.dremio.service.job.DeleteJobCountsRequest;
 import com.dremio.service.job.JobEvent;
 import com.dremio.service.job.JobsServiceGrpc;
 import com.dremio.service.job.ReflectionJobEventsRequest;
@@ -80,6 +81,18 @@ public class JobsServiceAdapter extends JobsServiceGrpc.JobsServiceImplBase {
     } catch (Exception e) {
       JobsRpcUtils.handleException(responseObserver, e);
     }
+    responseObserver.onNext(Empty.newBuilder().build());
+    responseObserver.onCompleted();
   }
 
+  @Override
+  public void deleteJobCounts(DeleteJobCountsRequest request, StreamObserver<Empty> responseObserver) {
+    try {
+      getJobsService().deleteJobCounts(request);
+    } catch (Exception e) {
+      JobsRpcUtils.handleException(responseObserver, e);
+    }
+    responseObserver.onNext(Empty.newBuilder().build());
+    responseObserver.onCompleted();
+  }
 }

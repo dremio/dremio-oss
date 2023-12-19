@@ -34,8 +34,18 @@ export const useHasClipboardPermissions = (): boolean | null => {
             setHasPermission(false);
           }
         })
-        .catch((e) => {
-          setHasPermission(true);
+        .catch(() => {
+          // "clipboard-write" is currently only available on Blink
+          // Firefox and Safari requires manually checking if the page is secure
+          // see: https://developer.mozilla.org/en-US/docs/Web/API/Permissions_API#browser_compatibility
+          if (
+            location.protocol === "https:" ||
+            location.hostname === "localhost"
+          ) {
+            setHasPermission(true);
+          } else {
+            setHasPermission(false);
+          }
         });
     }
   }, []);

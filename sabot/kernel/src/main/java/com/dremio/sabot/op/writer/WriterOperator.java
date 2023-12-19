@@ -16,6 +16,7 @@
 
 package com.dremio.sabot.op.writer;
 
+import static com.dremio.exec.store.iceberg.IcebergUtils.isIncrementalRefresh;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.util.ArrayList;
@@ -77,6 +78,8 @@ public class WriterOperator implements SingleInputOperator {
   private VarBinaryVector schemaVector;
   private ListVector partitionDataVector;
   private IntVector operationTypeVector;
+  private VarCharVector partitionValueVector;
+  private BigIntVector rejectedRecordVector;
 
   private PartitionWriteManager partitionManager;
 
@@ -130,6 +133,8 @@ public class WriterOperator implements SingleInputOperator {
     schemaVector = output.addOrGet(RecordWriter.FILE_SCHEMA);
     partitionDataVector  = output.addOrGet(RecordWriter.PARTITION_DATA);
     operationTypeVector = output.addOrGet(RecordWriter.OPERATION_TYPE);
+    partitionValueVector = output.addOrGet(RecordWriter.PARTITION_VALUE);
+    rejectedRecordVector = output.addOrGet(RecordWriter.REJECTED_RECORDS);
     output.buildSchema();
     output.setInitialCapacity(context.getTargetBatchSize());
     state = State.CAN_CONSUME;
@@ -146,8 +151,7 @@ public class WriterOperator implements SingleInputOperator {
         partition = WritePartition.NONE;
         recordWriter.startPartition(partition);
       }
-      recordWriter.writeBatch(0, records);
-      writtenRecords += records;
+      writtenRecords += recordWriter.writeBatch(0, records);
       if (writtenRecords > writtenRecordLimit) {
         recordWriter.close();
         reachedOutputLimit = true;
@@ -244,6 +248,13 @@ public class WriterOperator implements SingleInputOperator {
         operationTypeVector.setSafe(i, e.operationType);
       }
 
+      if(e.partitionValue != null) {
+        byte[] bytePath = e.partitionValue.getBytes(UTF_8);
+        partitionValueVector.setSafe(i, bytePath, 0, bytePath.length);
+      }
+
+      rejectedRecordVector.setSafe(i, e.rejectedRecordCount);
+
       i++;
     }
 
@@ -297,9 +308,7 @@ public class WriterOperator implements SingleInputOperator {
     if (state != State.DONE && recordWriter != null &&
       options != null && options.getTableFormatOptions().getIcebergSpecificOptions().getIcebergTableProps() != null) {
       IcebergCommandType command = options.getTableFormatOptions().getIcebergSpecificOptions().getIcebergTableProps().getIcebergOpType();
-      if (command == IcebergCommandType.INCREMENTAL_METADATA_REFRESH
-        || command == IcebergCommandType.CREATE
-        || command == IcebergCommandType.INSERT) {
+      if (isIncrementalRefresh(command) || command == IcebergCommandType.CREATE || command == IcebergCommandType.INSERT) {
         return true;
       }
     }
@@ -325,8 +334,10 @@ public class WriterOperator implements SingleInputOperator {
                                byte[] icebergMetadata,
                                byte[] schema,
                                Collection<IcebergPartitionData> partitions,
-                               Integer operationType) {
-      entries.add(new OutputEntry(recordCount, fileSize, path, metadata, icebergMetadata, partitionNumber, schema, partitions, operationType));
+                               Integer operationType,
+                               String partitionValue,
+                               long rejectedRecordCount) {
+      entries.add(new OutputEntry(recordCount, fileSize, path, metadata, icebergMetadata, partitionNumber, schema, partitions, operationType, partitionValue, rejectedRecordCount));
     }
 
   }
@@ -348,6 +359,8 @@ public class WriterOperator implements SingleInputOperator {
     private final Integer partitionNumber;
     private final Collection<IcebergPartitionData> partitions;
     private final Integer operationType;
+    private final String partitionValue;
+    private final long rejectedRecordCount;
 
     OutputEntry(long recordCount,
                 long fileSize,
@@ -357,7 +370,9 @@ public class WriterOperator implements SingleInputOperator {
                 Integer partitionNumber,
                 byte[] schema,
                 Collection<IcebergPartitionData> partitions,
-                Integer operationType) {
+                Integer operationType,
+                String partitionValue,
+                long rejectedRecordCount) {
       this.recordCount = recordCount;
       this.fileSize = fileSize;
       this.path = path;
@@ -367,6 +382,8 @@ public class WriterOperator implements SingleInputOperator {
       this.schema = schema;
       this.partitions = partitions;
       this.operationType = operationType;
+      this.partitionValue = partitionValue;
+      this.rejectedRecordCount = rejectedRecordCount;
     }
 
   }

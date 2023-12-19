@@ -20,11 +20,6 @@
 @import "./MarkdownEditor.mixins.less";
 
 @_toolbar-content-height: 40px;
-@_toolbar-height: @_toolbar-content-height + @wiki-title-margin; // a default toobar height
-
-.wikiModalHeight {
-  max-height: 743px;
-}
 
 .editor {
   background: white;
@@ -93,11 +88,12 @@
   // -------------------------------------------
   :global {
     .editor-toolbar {
+      display: flex;
+      align-items: center;
       background: white;
-      margin-bottom: @wiki-title-margin;
       padding: 0;
-      border: none;
-      border-bottom: @collaboration-border;
+      border: 1px solid var(--color--neutral--100);
+      border-bottom: none;
       height: @_toolbar-content-height;
       &:before {
         display: none;
@@ -108,9 +104,7 @@
       a {
         width: @size;
         height: @size;
-        background: @icon-button-hover-bg;
-        border-radius: 0;
-
+        border: none;
         font-size: @icon-size;
         &:before {
           line-height: @size;
@@ -170,7 +164,6 @@
 
     .editor-preview,
     .editor-preview-side {
-      overflow-x: hidden; // to avoid horizontal scroll in IE.
       padding: @vert-padding @horiz-padding;
 
       // need apply max width to all children, not to a preview, as preview is a single div, which is absolutely
@@ -253,7 +246,7 @@
 
   :global(.CodeMirror) {
     // make code mirror fill the res of available space
-    height: ~"calc(100% - @{_toolbar-height})";
+    height: ~"calc(100% - @{_toolbar-content-height})";
     min-height: 0;
   }
 }
@@ -304,7 +297,14 @@
   .button-text("Cancel");
 }
 
+.loader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
 // export for js
 :export {
-  toolbar-height: @_toolbar-height;
+  toolbar-height: @_toolbar-content-height;
 }

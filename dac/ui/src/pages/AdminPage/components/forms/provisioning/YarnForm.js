@@ -50,6 +50,7 @@ import {
 import YarnFormMixin, {
   cacheValidators,
 } from "dyn-load/pages/AdminPage/components/forms/provisioning/YarnFormMixin";
+import { textFieldBody } from "@app/components/Forms/Wrappers/FormWrappers.less";
 
 const DEFAULT_MEMORY = 16;
 const DEFAULT_CORES = 4;
@@ -76,23 +77,26 @@ function validate(values) {
   return {
     ...getMinErrors(values),
     ...applyValidators(values, [
-      isRequired(MAPPED_FIELDS.nodeTag, la("Engine Name")),
-      isRequired(MAPPED_FIELDS.resourceManagerHost, la("Resource Manager")),
+      isRequired(MAPPED_FIELDS.nodeTag, laDeprecated("Engine Name")),
+      isRequired(
+        MAPPED_FIELDS.resourceManagerHost,
+        laDeprecated("Resource Manager")
+      ),
       isRequired(MAPPED_FIELDS.namenodeHost, YarnForm.hostNameLabel(values)),
-      isRequired("virtualCoreCount", la("Cores per Worker")),
-      isRequired("memoryMB", la("Memory per Worker")),
-      isRequired("dynamicConfig.containerCount", la("Workers")),
-      isNumber("virtualCoreCount", la("Cores per Worker")),
-      isNumber("memoryMB", la("Memory per Worker")),
-      isNumber("dynamicConfig.containerCount", la("Workers")),
-      noSpaces(MAPPED_FIELDS.nodeTag, la("Engine Name")),
+      isRequired("virtualCoreCount", laDeprecated("Cores per Worker")),
+      isRequired("memoryMB", laDeprecated("Memory per Worker")),
+      isRequired("dynamicConfig.containerCount", laDeprecated("Workers")),
+      isNumber("virtualCoreCount", laDeprecated("Cores per Worker")),
+      isNumber("memoryMB", laDeprecated("Memory per Worker")),
+      isNumber("dynamicConfig.containerCount", laDeprecated("Workers")),
+      noSpaces(MAPPED_FIELDS.nodeTag, laDeprecated("Engine Name")),
     ]),
     ...applyValidators(
       values,
       values.spillDirectories.map((item, index) => {
         return isRequired(
           `${MAPPED_FIELDS.spillDirectories}.${index}`,
-          la("Spill Directory")
+          laDeprecated("Spill Directory")
         );
       })
     ),
@@ -225,11 +229,11 @@ export class YarnForm extends Component {
   }
 
   static hostNameLabel(values) {
-    const defaultLabel = la("NameNode");
+    const defaultLabel = laDeprecated("NameNode");
     const { MAPR } = PROVISION_DISTRIBUTIONS;
     const { distroType } = values;
     const hostNameLabels = {
-      [MAPR]: la("CLDB"),
+      [MAPR]: laDeprecated("CLDB"),
     };
     return hostNameLabels[distroType] || defaultLabel;
   }
@@ -325,11 +329,11 @@ export class YarnForm extends Component {
   getDistributionOptions() {
     const { MAPR, APACHE, HDP, CDH, OTHER } = PROVISION_DISTRIBUTIONS;
     return [
-      { option: APACHE, label: la("Apache") },
-      { option: CDH, label: la("Cloudera") },
-      { option: HDP, label: la("Hortonworks") },
-      { option: MAPR, label: la("MapR") },
-      { option: OTHER, label: la("Other") },
+      { option: APACHE, label: laDeprecated("Apache") },
+      { option: CDH, label: laDeprecated("Cloudera") },
+      { option: HDP, label: laDeprecated("Hortonworks") },
+      { option: MAPR, label: laDeprecated("MapR") },
+      { option: OTHER, label: laDeprecated("Other") },
     ];
   }
 
@@ -344,8 +348,8 @@ export class YarnForm extends Component {
   render() {
     const { fields, handleSubmit, style, provision, dirty } = this.props;
     const confirmText = isRestartRequired(provision, dirty)
-      ? la("Restart")
-      : la("Save & Launch");
+      ? laDeprecated("Restart")
+      : laDeprecated("Add");
     const hostNameLabel = YarnForm.hostNameLabel(this.props.values);
 
     return (
@@ -353,10 +357,11 @@ export class YarnForm extends Component {
         {...modalFormProps(this.props)}
         onSubmit={handleSubmit(this.submitForm)}
         confirmText={confirmText}
+        wrapperStyle={{ overflowX: "hidden" }}
       >
         <FormBody style={style}>
           <h2 style={sectionTitle} className="margin-top--double">
-            {la("General")}
+            {laDeprecated("General")}
           </h2>
           <div style={styles.formRow}>
             <div
@@ -366,7 +371,7 @@ export class YarnForm extends Component {
               }}
             >
               <div style={styles.inlineBlock}>
-                <div style={label}>{la("Hadoop Engine")}</div>
+                <div style={label}>{laDeprecated("Hadoop Engine")}</div>
                 <Select
                   name="distroType"
                   items={this.getDistributionOptions()}
@@ -377,7 +382,7 @@ export class YarnForm extends Component {
             </div>
             <Checkbox
               style={{ paddingTop: 26 }}
-              label={la("This is a secure engine")}
+              label={laDeprecated("This is a secure engine")}
               disabled={isEditMode(provision)}
               {...fields.isSecure}
             />
@@ -386,11 +391,11 @@ export class YarnForm extends Component {
             <FieldWithError
               labelStyle={formLabel}
               style={styles.inlineBlock}
-              label={la("Engine Name")}
+              label={laDeprecated("Engine Name")}
               errorPlacement="top"
               {...fields.nodeTag}
             >
-              <TextField {...fields.nodeTag} />
+              <TextField {...fields.nodeTag} className={textFieldBody} />
             </FieldWithError>
           </div>
           <div style={styles.formRow}>
@@ -400,11 +405,15 @@ export class YarnForm extends Component {
                 marginRight: inputSpacingCssValue,
               }}
               labelStyle={formLabel}
-              label={la("Resource Manager")}
+              label={laDeprecated("Resource Manager")}
               errorPlacement="top"
               {...fields.resourceManagerHost}
             >
-              <TextField initialFocus {...fields.resourceManagerHost} />
+              <TextField
+                initialFocus
+                {...fields.resourceManagerHost}
+                className={textFieldBody}
+              />
             </FieldWithError>
             <FieldWithError
               labelStyle={formLabel}
@@ -413,14 +422,14 @@ export class YarnForm extends Component {
               errorPlacement="top"
               {...fields.namenodeHost}
             >
-              <TextField {...fields.namenodeHost} />
+              <TextField {...fields.namenodeHost} className={textFieldBody} />
             </FieldWithError>
           </div>
           <div style={styles.formRow}>
             <TextFieldList
-              label={la("Spill Directories")}
+              label={laDeprecated("Spill Directories")}
               arrayField={fields.spillDirectories}
-              addButtonText={la("Add Directory")}
+              addButtonText={laDeprecated("Add Directory")}
               minItems={1}
             />
           </div>
@@ -428,46 +437,59 @@ export class YarnForm extends Component {
             <FieldWithError
               labelStyle={formLabel}
               style={styles.inlineBlock}
-              label={la("Queue")}
+              label={laDeprecated("Queue")}
               errorPlacement="top"
               {...fields.queue}
             >
-              <TextField {...fields.queue} />
+              <TextField {...fields.queue} className={textFieldBody} />
             </FieldWithError>
           </div>
-          <div style={styles.formRow}>
+          <div style={{ ...styles.formRow, gap: 16 }}>
             <FieldWithError
               labelStyle={formLabel}
-              style={styles.inlineBlock}
-              label={la("Workers")}
+              style={{
+                ...styles.inlineBlock,
+                paddingRight: 0,
+              }}
+              label={laDeprecated("Workers")}
               errorPlacement="bottom"
               {...fields.dynamicConfig.containerCount}
             >
               <TextField
                 {...fields.dynamicConfig.containerCount}
-                style={{ width: 75 }}
+                className={textFieldBody}
               />
             </FieldWithError>
             <FieldWithError
               labelStyle={formLabel}
-              style={styles.inlineBlock}
-              label={la("Cores per Worker")}
+              style={{
+                ...styles.inlineBlock,
+                paddingRight: 0,
+              }}
+              label={laDeprecated("Cores per Worker")}
               errorPlacement="top"
               {...fields.virtualCoreCount}
             >
-              <TextField {...fields.virtualCoreCount} style={{ width: 100 }} />
+              <TextField
+                {...fields.virtualCoreCount}
+                className={textFieldBody}
+              />
             </FieldWithError>
             <FieldWithError
               labelStyle={formLabel}
-              style={styles.inlineBlock}
-              label={la("Memory per Worker")}
+              style={{
+                ...styles.inlineBlock,
+                paddingRight: 0,
+              }}
+              label={laDeprecated("Memory per Worker")}
               errorPlacement="bottom"
               {...fields.memoryMB}
             >
               <span>
                 <TextField
                   {...fields.memoryMB}
-                  style={{ width: 75, marginRight: 5 }}
+                  style={{ width: 130, marginRight: 5 }}
+                  className={textFieldBody}
                 />
                 <span style={formDefault}>{"GB"}</span>
               </span>
@@ -476,9 +498,9 @@ export class YarnForm extends Component {
           <div style={styles.formRow}>
             <FieldWithError {...fields.propertyList}>
               <YarnProperties
-                title={la("Additional Properties")}
-                emptyLabel={la("(No Options Added)")}
-                addLabel={la("Add Option")}
+                title={laDeprecated("Additional Properties")}
+                emptyLabel={laDeprecated("(No Options Added)")}
+                addLabel={laDeprecated("Add Option")}
                 fields={fields}
               />
             </FieldWithError>
@@ -537,7 +559,9 @@ const styles = {
     display: "flex",
   },
   inlineBlock: {
-    display: "inline-block",
+    display: "flex",
     paddingRight: 5,
+    flexDirection: "column",
+    flex: 1,
   },
 };

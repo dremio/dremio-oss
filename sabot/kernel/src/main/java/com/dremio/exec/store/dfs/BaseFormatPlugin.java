@@ -44,7 +44,7 @@ public abstract class BaseFormatPlugin implements FormatPlugin {
   @Override
   public DirectoryStream<FileAttributes> getFilesForSamples(
     FileSystem fs, FileSystemPlugin<?> fsPlugin, Path path) throws IOException, FileCountTooLargeException {
-    int maxFilesLimit = FileDatasetHandle.getMaxFilesLimit(context);
+    int maxFilesLimit = getMaxFilesLimit();
     return FileSystemUtils.listFilterDirectoryRecursive(fs, path, maxFilesLimit, NO_HIDDEN_FILES);
   }
 }

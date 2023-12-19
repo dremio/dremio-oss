@@ -49,13 +49,13 @@ import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.server.options.DefaultOptionManager;
-import com.dremio.exec.server.options.OptionManagerWrapper;
 import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
 import com.dremio.options.TypeValidators;
+import com.dremio.options.impl.DefaultOptionManager;
+import com.dremio.options.impl.OptionManagerWrapper;
 import com.dremio.test.DremioTest;
 import com.google.common.collect.ImmutableMap;
 

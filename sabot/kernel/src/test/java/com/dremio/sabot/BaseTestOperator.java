@@ -95,8 +95,6 @@ import com.dremio.exec.record.RecordBatchData;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.server.NodeDebugContextProvider;
-import com.dremio.exec.server.options.DefaultOptionManager;
-import com.dremio.exec.server.options.OptionManagerWrapper;
 import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.testing.ExecutionControls;
@@ -108,6 +106,8 @@ import com.dremio.options.TypeValidators.BooleanValidator;
 import com.dremio.options.TypeValidators.DoubleValidator;
 import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.StringValidator;
+import com.dremio.options.impl.DefaultOptionManager;
+import com.dremio.options.impl.OptionManagerWrapper;
 import com.dremio.sabot.Fixtures.Table;
 import com.dremio.sabot.driver.OperatorCreatorRegistry;
 import com.dremio.sabot.exec.context.CompilationOptions;
@@ -130,6 +130,7 @@ import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.dremio.sabot.op.spi.SingleInputOperator.State;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.service.spill.SpillService;
 import com.dremio.service.spill.SpillServiceImpl;
@@ -401,7 +402,7 @@ public class BaseTestOperator extends ExecTest {
       EndpointsIndex endpointsIndex) throws Exception {
 
       OperatorStats stats = new OperatorStats(new OpProfileDef(1, 1, 1), child);
-      final NamespaceService namespaceService = new NamespaceServiceImpl(testContext.storeProvider);
+      final NamespaceService namespaceService = new NamespaceServiceImpl(testContext.storeProvider, new CatalogStatusEventsImpl());
       final DremioConfig dremioConfig = DremioConfig.create(null, config);
       final SchedulerService schedulerService = Mockito.mock(SchedulerService.class);
       final SpillService spillService = new SpillServiceImpl(dremioConfig, new SpillServiceOptionsImpl(() -> options),

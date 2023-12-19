@@ -15,7 +15,10 @@
  */
 package com.dremio.exec.store.hive;
 
+import static com.dremio.exec.store.hive.BaseHiveStoragePlugin.HIVE_DEFAULT_CTAS_FORMAT;
+
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import org.apache.hadoop.fs.FileSystem;
@@ -55,9 +58,6 @@ public class HiveConfFactory {
   private static final String FS_S3_MAX_THREADS = "fs.s3a.threads.max";
   private static final String FS_S3_MULTIPART_SIZE = "fs.s3a.multipart.size";
   private static final String FS_S3_MAX_TOTAL_TASKS = "fs.s3a.max.total.tasks";
-
-  //Advanced option to set default ctas format
-  public static final String HIVE_DEFAULT_CTAS_FORMAT = "hive.default.ctas.format";
 
   public static final String HIVE_ORC_CACHE_STRIPE_DETAILS_SIZE = "hive.orc.cache.stripe.details.size";
 //  10000, "Max cache size for keeping meta info about orc splits cached in the client.")
@@ -169,16 +169,9 @@ public class HiveConfFactory {
   protected static void addUserProperties(HiveConf hiveConf, BaseHiveStoragePluginConfig<?,?> config) {
     // Used to capture properties set by user
     final Set<String> userPropertyNames = new HashSet<>();
-    if(config.propertyList != null) {
-      for(Property prop : config.propertyList) {
-        checkUnsupportedProps(prop.name, prop.value);
-        userPropertyNames.add(prop.name);
-        setConf(hiveConf, prop.name, prop.value);
-        if(logger.isTraceEnabled()){
-          logger.trace("HiveConfig Override {}={}", prop.name, prop.value);
-        }
-      }
-    }
+
+    addUserPropertyList(config.propertyList,       userPropertyNames, hiveConf);
+    addUserPropertyList(config.secretPropertyList, userPropertyNames, hiveConf);
 
     // Check if zero-copy has been set by user
     boolean zeroCopySetByUser = userPropertyNames.contains(OrcConf.USE_ZEROCOPY.getAttribute())
@@ -262,6 +255,23 @@ public class HiveConfFactory {
   private static void checkUnsupportedProps(String name, String value) {
     if ("parquet.column.index.access".equals(name) && Boolean.parseBoolean(value)) {
       throw new IllegalArgumentException("Unsupported Hive config: " + name + '=' + value);
+    }
+  }
+
+  /**
+   * adds the user based Properties to the Hive Config
+   * @param properties, either the publicly-viewed propertyList or the masked-UI secretPropertyList
+   */
+  private static void addUserPropertyList(List<Property> properties, Set<String> userPropertyNames, HiveConf hiveConf) {
+    if(properties != null) {
+      for(Property prop : properties) {
+        checkUnsupportedProps(prop.name, prop.value);
+        userPropertyNames.add(prop.name);
+        setConf(hiveConf, prop.name, prop.value);
+        if(logger.isTraceEnabled()){
+          logger.trace("HiveConfig Override {}={}", prop.name, prop.value);
+        }
+      }
     }
   }
 }

@@ -18,6 +18,7 @@ package com.dremio.dac.server;
 import org.glassfish.jersey.message.GZipEncoder;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.filter.EncodingFilter;
+import org.projectnessie.services.restjavax.ConstraintViolationExceptionMapper;
 import org.projectnessie.services.restjavax.ContentKeyParamConverterProvider;
 import org.projectnessie.services.restjavax.NamespaceParamConverterProvider;
 import org.projectnessie.services.restjavax.NessieExceptionMapper;
@@ -62,7 +63,8 @@ public class NessieProxyRestServer extends ResourceConfig {
     register(ContentKeyParamConverterProvider.class);
     register(NamespaceParamConverterProvider.class);
     register(ReferenceTypeParamConverterProvider.class);
-    register(new NessieExceptionMapper(new ProxyNessieConfig()), 10);
+    register(new ConstraintViolationExceptionMapper(ProxyNessieConfig.INSTANCE), 10);
+    register(new NessieExceptionMapper(ProxyNessieConfig.INSTANCE), 10);
     register(NotFoundExceptionMapper.class);
     register(ProxyExceptionMapper.class, 10);
     register(ProxyRuntimeExceptionMapper.class, 10);

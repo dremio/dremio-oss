@@ -58,7 +58,7 @@ const ColorChip = ({
   grade?: number | string;
 }) => {
   const chipRef = useRef<HTMLElement | null>(null);
-  const [chipProperties, setChipProperties] = useState({});
+  const [, setChipProperties] = useState({});
   useEffect(() => {
     setChipProperties(getColorProperties(chipRef.current!));
   }, []);

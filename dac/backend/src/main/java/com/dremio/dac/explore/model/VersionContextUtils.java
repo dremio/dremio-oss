@@ -15,12 +15,16 @@
  */
 package com.dremio.dac.explore.model;
 
-import com.dremio.exec.catalog.VersionContext;
+import com.dremio.catalog.model.VersionContext;
 
+/**
+ * Utility class for parsing version context.
+ */
 public final class VersionContextUtils {
   private VersionContextUtils() {
   }
 
+  // TODO (DX-82787): Move this method to Version Context class.
   public static VersionContext parse(String refType, String refValue) {
     VersionContextReq from = VersionContextReq.tryParse(refType, refValue);
     if (from == null) {
@@ -32,7 +36,7 @@ public final class VersionContextUtils {
     case TAG:
       return VersionContext.ofTag(from.getValue());
     case COMMIT:
-      return VersionContext.ofBareCommit(from.getValue());
+      return VersionContext.ofCommit(from.getValue());
     default:
       throw new IllegalStateException("Unexpected value: " + from.getType());
     }

@@ -44,6 +44,10 @@
   border-color: var(--color--neutral--50);
 }
 
+.border-danger-bold {
+  border-color: var(--color--red--500);
+}
+
 .dremio-dark {
   .border-foreground {
     border-color: var(--color--neutral--600);

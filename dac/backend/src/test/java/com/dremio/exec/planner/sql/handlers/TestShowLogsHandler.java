@@ -35,9 +35,9 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.mockito.quality.Strictness;
 
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.planner.sql.parser.ReferenceType;
 import com.dremio.exec.planner.sql.parser.SqlShowLogs;
 import com.dremio.exec.store.ChangeInfo;
@@ -70,17 +70,23 @@ public class TestShowLogsHandler extends DremioTest {
     SqlParserPos.ZERO,
     ReferenceType.BRANCH,
     new SqlIdentifier(DEFAULT_BRANCH_NAME, SqlParserPos.ZERO),
-    new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO));
+    null,
+    new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO),
+    null);
   private static final SqlShowLogs NO_SOURCE_INPUT = new SqlShowLogs(
     SqlParserPos.ZERO,
     ReferenceType.BRANCH,
     new SqlIdentifier(DEFAULT_BRANCH_NAME, SqlParserPos.ZERO),
+    null,
+    null,
     null);
   private static final SqlShowLogs NON_EXISTENT_SOURCE_INPUT = new SqlShowLogs(
     SqlParserPos.ZERO,
     ReferenceType.BRANCH,
     new SqlIdentifier(DEFAULT_BRANCH_NAME, SqlParserPos.ZERO),
-    new SqlIdentifier(NON_EXISTENT_SOURCE_NAME, SqlParserPos.ZERO));
+    null,
+    new SqlIdentifier(NON_EXISTENT_SOURCE_NAME, SqlParserPos.ZERO),
+    null);
   private static final List<ChangeInfo> EXPECTED_LOG_RESULT = Arrays.asList(
     new ChangeInfo(null, null, null, "message_1"),
       new ChangeInfo(null, null, null, "message_2"));
@@ -131,7 +137,9 @@ public class TestShowLogsHandler extends DremioTest {
       SqlParserPos.ZERO,
       null,
       null,
-      new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO));
+      null,
+      new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO),
+      null);
 
     // Arrange
     setUpSupportKeyAndSessionVersionAndPlugin();
@@ -182,7 +190,9 @@ public class TestShowLogsHandler extends DremioTest {
       SqlParserPos.ZERO,
       ReferenceType.TAG,
       new SqlIdentifier(tagName, SqlParserPos.ZERO),
-      new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO));
+      null,
+      new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO),
+      null);
 
     // Arrange
     setUpSupportKeyAndSessionVersionAndPlugin();
@@ -200,12 +210,14 @@ public class TestShowLogsHandler extends DremioTest {
   public void showLogsCommitSucceeds() throws ForemanSetupException {
     // Constants
     final String commitHash = "0123456789abcdeff";
-    final VersionContext version = VersionContext.ofBareCommit(commitHash);
+    final VersionContext version = VersionContext.ofCommit(commitHash);
     final SqlShowLogs input = new SqlShowLogs(
       SqlParserPos.ZERO,
       ReferenceType.COMMIT,
       new SqlIdentifier(commitHash, SqlParserPos.ZERO),
-      new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO));
+      null,
+      new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO),
+      null);
 
     // Arrange
     setUpSupportKeyAndSessionVersionAndPlugin();
@@ -228,7 +240,9 @@ public class TestShowLogsHandler extends DremioTest {
       SqlParserPos.ZERO,
       ReferenceType.REFERENCE,
       new SqlIdentifier(referenceName, SqlParserPos.ZERO),
-      new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO));
+      null,
+      new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO),
+      null);
 
     // Arrange
     setUpSupportKeyAndSessionVersionAndPlugin();

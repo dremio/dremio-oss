@@ -17,9 +17,10 @@ package com.dremio.exec.store.iceberg;
 
 import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_MERGE_ON_READ_SCAN;
 import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_MERGE_ON_READ_SCAN_WITH_EQUALITY_DELETE;
-import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_SPEC_EVOL_TRANFORMATION;
+import static com.dremio.exec.store.iceberg.IcebergUtils.createFileIOForIcebergMetadata;
 import static com.dremio.exec.store.iceberg.IcebergUtils.getValueFromByteBuffer;
 import static com.dremio.exec.store.iceberg.IcebergUtils.isNonAddOnField;
+import static com.dremio.exec.store.iceberg.IcebergUtils.loadTableMetadata;
 import static com.dremio.exec.store.iceberg.IcebergUtils.writeSplitIdentity;
 import static com.dremio.exec.store.iceberg.IcebergUtils.writeToVector;
 
@@ -28,6 +29,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -43,7 +45,7 @@ import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.TableMetadata;
-import org.apache.iceberg.TableMetadataParser;
+import org.apache.iceberg.exceptions.NotFoundException;
 import org.apache.iceberg.exceptions.RuntimeIOException;
 import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.expressions.ManifestEvaluator;
@@ -53,12 +55,13 @@ import org.apache.iceberg.types.Type;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.physical.base.OpProps;
+import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.SplitIdentity;
-import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
 import com.dremio.sabot.op.scan.OutputMutator;
@@ -72,14 +75,11 @@ public class IcebergManifestListRecordReader implements RecordReader {
 
   private final BatchSchema schema;
   private final List<String> dataset;
-  private OutputMutator output;
-  private Iterator<ManifestFile> manifestFileIterator;
   private final OperatorContext context;
   private final List<String> partitionCols;
   private final Map<String, Integer> partColToKeyMap;
   private final IcebergExtendedProp icebergExtendedProp;
 
-  private Schema icebergTableSchema;
   private byte[] icebergDatasetXAttr;
   protected final SupportsIcebergRootPointer pluginForIceberg;
   private final OpProps props;
@@ -94,6 +94,11 @@ public class IcebergManifestListRecordReader implements RecordReader {
   private StructVector splitIdentityVector;
   private VarBinaryVector splitInfoVector;
   private VarBinaryVector colIdsVector;
+
+  protected Iterator<ManifestFile> manifestFileIterator;
+  protected Schema icebergTableSchema;
+  protected OutputMutator output;
+  protected Consumer<Integer> setColIds;
 
   public IcebergManifestListRecordReader(OperatorContext context,
                                          String metadataLocation,
@@ -130,17 +135,9 @@ public class IcebergManifestListRecordReader implements RecordReader {
   @Override
   public void setup(OutputMutator output) throws ExecutionSetupException {
     this.output = output;
-    FileSystem fs;
-    try {
-      fs = pluginForIceberg.createFSWithAsyncOptions(this.metadataLocation, props.getUserName(), context);
-    } catch (IOException e) {
-      throw new RuntimeException("Failed creating filesystem", e);
-    }
-    FileIO io = pluginForIceberg.createIcebergFileIO(fs, context, dataset, datasourcePluginUID, null);
-    TableMetadata tableMetadata = TableMetadataParser.read(io, this.metadataLocation);
-    if (!context.getOptions().getOption(ENABLE_ICEBERG_SPEC_EVOL_TRANFORMATION)) {
-      checkForPartitionSpecEvolution(tableMetadata);
-    }
+    FileIO io = createIO(metadataLocation);
+    TableMetadata tableMetadata = loadTableMetadata(io, context, this.metadataLocation);
+
     partitionSpecMap = tableMetadata.specsById();
     final long snapshotId = icebergExtendedProp.getSnapshotId();
     final Snapshot snapshot = snapshotId == -1 ? tableMetadata.currentSnapshot() : tableMetadata.snapshot(snapshotId);
@@ -169,23 +166,15 @@ public class IcebergManifestListRecordReader implements RecordReader {
         .message("Iceberg V2 tables with equality deletes are not supported.")
         .buildSilently();
     }
-    List<ManifestFile> manifestFileList;
-    switch (manifestContent) {
-      case DATA:
-        manifestFileList = snapshot.dataManifests(io);
-        break;
-      case DELETES:
-        manifestFileList = snapshot.deleteManifests(io);
-        break;
-      case ALL:
-        manifestFileList = snapshot.allManifests(io);
-        break;
-      default:
-        throw new IllegalStateException("Invalid ManifestContentType " + manifestContent);
-    }
 
-    manifestFileList = filterManifestFiles(manifestFileList);
+    List<ManifestFile> manifestFileList = filterManifestFiles(getManifests(snapshot, io));
     manifestFileIterator = manifestFileList.iterator();
+
+    initializeDatasetXAttr();
+    initializeOutVectors();
+  }
+
+  protected void initializeDatasetXAttr() {
     Map<String, Integer> colIdMap = manifestContent == ManifestContentType.DELETES ?
       IcebergUtils.getColIDMapWithReservedDeleteFields(icebergTableSchema) :
       IcebergUtils.getIcebergColumnNameToIDMap(icebergTableSchema);
@@ -199,11 +188,42 @@ public class IcebergManifestListRecordReader implements RecordReader {
         .collect(Collectors.toList()))
       .build()
       .toByteArray();
+     setColIds = outIndex -> colIdsVector.setSafe(outIndex, icebergDatasetXAttr);
+  }
+
+  protected FileIO createIO(String path) {
+    return createFileIOForIcebergMetadata(pluginForIceberg, context, datasourcePluginUID, props, dataset, path);
+  }
+
+  protected void initializeOutVectors() {
+
     tmpBuf = context.getAllocator().buffer(4096);
 
     splitIdentityVector = (StructVector) output.getVector(RecordReader.SPLIT_IDENTITY);
     splitInfoVector = (VarBinaryVector)output.getVector(RecordReader.SPLIT_INFORMATION);
     colIdsVector = (VarBinaryVector)output.getVector(RecordReader.COL_IDS);
+  }
+
+  private List<ManifestFile> getManifests(Snapshot snapshot, FileIO io) {
+    try {
+      switch (manifestContent) {
+        case DATA:
+          return snapshot.dataManifests(io);
+        case DELETES:
+          return snapshot.deleteManifests(io);
+        case ALL:
+          return snapshot.allManifests(io);
+        default:
+          throw new IllegalStateException("Invalid ManifestContentType " + manifestContent);
+      }
+    } catch (NotFoundException nfe) {
+      logger.error(String.format("Unable to read manifest list [%s]", snapshot.manifestListLocation()), nfe);
+      throw UserRemoteException.dataReadError() // Job is not re-attempted on this error code
+          .message("This version of the table [%s] is not available - [snapshot with id %d created at %s].",
+              String.join(".", dataset), snapshot.snapshotId(),
+              SqlHandlerUtil.getTimestampFromMillis(snapshot.timestampMillis()))
+          .build(logger);
+    }
   }
 
   @Override
@@ -232,7 +252,7 @@ public class IcebergManifestListRecordReader implements RecordReader {
 
         writeSplitIdentity(splitIdentityWriter, outIndex, splitIdentity, tmpBuf);
         splitInfoVector.setSafe(outIndex, IcebergSerDe.serializeToByteArray(manifestFile));
-        colIdsVector.setSafe(outIndex, icebergDatasetXAttr);
+        setColIds.accept(outIndex);
 
         for (Field field : schema) {
           if (isNonAddOnField(field.getName())) {
@@ -276,22 +296,6 @@ public class IcebergManifestListRecordReader implements RecordReader {
     }
 
     return value;
-  }
-
-  private void checkForPartitionSpecEvolution(TableMetadata tableMetadata) {
-    if (tableMetadata.specs().size() > 1) {
-      throw UserException
-              .unsupportedError()
-              .message("Iceberg tables with partition spec evolution are not supported")
-              .buildSilently();
-    }
-
-    if (IcebergUtils.checkNonIdentityTransform(tableMetadata.spec())) {
-      throw UserException
-              .unsupportedError()
-              .message("Iceberg tables with Non-identity partition transforms are not supported")
-              .buildSilently();
-    }
   }
 
   @Override

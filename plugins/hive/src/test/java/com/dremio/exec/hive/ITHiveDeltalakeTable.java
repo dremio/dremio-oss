@@ -15,67 +15,66 @@
  */
 package com.dremio.exec.hive;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
-import java.io.File;
-
-import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.joda.time.DateTimeZone;
+import org.joda.time.LocalDateTime;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
-
-import com.dremio.common.exceptions.UserRemoteException;
-import com.dremio.exec.ExecConstants;
 
 /**
  * Test connection to external Deltalake Table
  */
-@Ignore("DX-60788")
 public class ITHiveDeltalakeTable extends LazyDataGeneratingHiveTestBase {
 
+  static FileSystem fs;
+  static String testRootPath = "/tmp/deltalake_hive/";
+  static Configuration conf;
+
   @BeforeClass
-  public static void setup() {
-    setSystemOption(ExecConstants.ENABLE_DELTALAKE_HIVE_SUPPORT, "true");
+  public static void initFs() throws Exception {
+    conf = new Configuration();
+    conf.set("fs.default.name", "local");
+    fs = FileSystem.get(conf);
+    Path p = new Path(testRootPath);
+
+    if (fs.exists(p)) {
+      fs.delete(p, true);
+    }
+
+    fs.mkdirs(p);
+    copyFromJar("deltalake/delta_extra", java.nio.file.Paths.get(testRootPath + "/delta_extra"));
+    copyFromJar("deltalake/delta_parts", java.nio.file.Paths.get(testRootPath + "/delta_parts"));
   }
 
   @AfterClass
-  public static void cleanup() {
-    setSystemOption(ExecConstants.ENABLE_DELTALAKE_HIVE_SUPPORT,
-      ExecConstants.ENABLE_DELTALAKE_HIVE_SUPPORT.getDefault().getBoolVal().toString());
+  public static void cleanup() throws Exception {
+    Path p = new Path(testRootPath);
+    fs.delete(p, true);
   }
 
-  private static String resolveResource(String path) throws Exception {
-    File f = new File("src/test/resources/" + path);
-    return f.getAbsolutePath();
-  }
-
-  private static void executeDDL(String query) throws Exception {
-    final HiveConf conf = dataGenerator.newHiveConf();
-    String jarPath =  resolveResource("deltalake/delta-hive-assembly_2.13-0.5.0.jar");
-    conf.setAuxJars(jarPath);
-    try (HiveTestUtilities.DriverState driverState = new HiveTestUtilities.DriverState(conf)) {
-      driverState.sessionState.loadAuxJars();
-      HiveTestUtilities.executeQuery(driverState.driver, query);
-    }
+  private static String resolveResource(String path) {
+    return java.nio.file.Paths.get(testRootPath).resolve(path).toAbsolutePath().toString();
   }
 
   private static AutoCloseable withDeltaTable(String name, String schema, String path) throws Exception {
     String tablePath = resolveResource(path);
     String createQuery = String.format(
-      "CREATE EXTERNAL TABLE %s %s STORED BY 'io.delta.hive.DeltaStorageHandler' LOCATION '%s'",
+      "CREATE EXTERNAL TABLE %s %s STORED BY 'io.delta.hive.DeltaStorageHandler' LOCATION 'file://%s'",
       name, schema, tablePath);
-    executeDDL(createQuery);
+    dataGenerator.executeDDL(createQuery);
 
     return () -> {
       String dropQuery = String.format("DROP TABLE IF EXISTS %s", name);
-      executeDDL(dropQuery);
+      dataGenerator.executeDDL(dropQuery);
     };
   }
 
   @Test
   public void testSelectQuery() throws Exception {
-    try (AutoCloseable ac = withDeltaTable("delta_extra", "(col1 INT, col2 STRING, extraCol INT)", "deltalake/delta_extra")) {
+    try (AutoCloseable ac = withDeltaTable("delta_extra", "(col1 INT, col2 STRING, extraCol INT)", "delta_extra")) {
       String query = "SELECT * FROM hive.delta_extra";
       testBuilder().sqlQuery(query)
         .unOrdered()
@@ -88,19 +87,34 @@ public class ITHiveDeltalakeTable extends LazyDataGeneratingHiveTestBase {
   }
 
   @Test
-  public void testSelectQueryFailure() throws Exception {
-    try (AutoCloseable ac = withSystemOption(ExecConstants.ENABLE_DELTALAKE_HIVE_SUPPORT, false);
-         AutoCloseable ac2 = withDeltaTable("delta_extra", "(col1 INT, col2 STRING, extraCol INT)", "deltalake/delta_extra")) {
-      String query = "SELECT * FROM hive.delta_extra";
-      assertThatThrownBy(() -> test(query))
-        .isInstanceOf(UserRemoteException.class)
-        .hasMessageContaining("DATA_READ ERROR: Error in loading storage handler.io.delta.hive.DeltaStorageHandler");
+  public void testSelectSnapshotQuery() throws Exception {
+    try (AutoCloseable ac = withDeltaTable("delta_extra", "(col1 INT, col2 STRING, extraCol INT)", "delta_extra")) {
+      test("SELECT * FROM hive.delta_extra");
+      testBuilder()
+        .sqlQuery("SELECT * FROM table(table_snapshot('hive.delta_extra'))")
+        .unOrdered()
+        .baselineColumns("committed_at", "snapshot_id", "parent_id", "operation", "manifest_list", "summary")
+        .baselineValues(new LocalDateTime(1669702109914L, DateTimeZone.UTC), 0L, null, "CREATE OR REPLACE TABLE", null, null)
+        .baselineValues(new LocalDateTime(1669702183904L, DateTimeZone.UTC), 1L, null, "WRITE", null, null)
+        .go();
+    }
+  }
+
+  @Test
+  public void testSelectQueryWithFilter() throws Exception {
+    try (AutoCloseable ac = withDeltaTable("delta_extra", "(col1 INT, col2 STRING, extraCol INT)", "delta_extra")) {
+      String query = "SELECT * FROM hive.delta_extra WHERE col1 = 1";
+      testBuilder().sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("col1", "col2", "extraCol")
+        .baselineValues(1, "abc", 2)
+        .go();
     }
   }
 
   @Test
   public void testSelectPartitionsQuery() throws Exception {
-    try (AutoCloseable ac = withDeltaTable("delta_parts", "(number INT, partitionKey INT)", "deltalake/delta_parts")) {
+    try (AutoCloseable ac = withDeltaTable("delta_parts", "(number INT, partitionKey INT)", "delta_parts")) {
       String query = "SELECT * FROM hive.delta_parts";
       testBuilder().sqlQuery(query)
         .unOrdered()

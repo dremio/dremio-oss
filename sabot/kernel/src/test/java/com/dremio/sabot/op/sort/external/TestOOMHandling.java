@@ -63,13 +63,17 @@ public class TestOOMHandling extends BaseTestQuery {
    */
   @Test
   public void testExternalSortWithOOMDuringSpill() throws Exception {
+    final long simulatedMemoryLimit = 10 * 1024 * 1024;
+    final long simulatedMemoryReservation = simulatedMemoryLimit - 1024;
+
     final String controlsString = Controls.newBuilder()
       .addException(DiskRunManager.class, DiskRunManager.INJECTOR_OOM_SPILL, OutOfMemoryException.class)
       .build();
 
     try(AutoCloseable ac = withOption(ExecConstants.EXTERNAL_SORT_ENABLE_MICRO_SPILL, true);
-        AutoCloseable with = withOption(SortPrel.LIMIT, 10486784);
-        AutoCloseable withres = withOption(SortPrel.RESERVE,10485760)){
+        AutoCloseable with = withOption(SortPrel.LIMIT, simulatedMemoryLimit);
+        AutoCloseable withres = withOption(SortPrel.RESERVE, simulatedMemoryReservation);
+        AutoCloseable noMemoryArbiter = withOption(ExecConstants.ENABLE_SPILLABLE_OPERATORS, false)){
 
       // run metadata refresh first so that controls injection happens during below SELECT query
       // instead of internal REFRESH DATASET query

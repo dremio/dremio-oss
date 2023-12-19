@@ -15,10 +15,7 @@
  */
 package com.dremio.exec.planner.sql.handlers.refresh;
 
-import java.util.concurrent.atomic.AtomicInteger;
-
 import com.dremio.exec.planner.sql.parser.SqlRefreshDataset;
-import com.google.common.base.Preconditions;
 
 public class FileSystemPartitionValidator extends RefreshDatasetValidator {
 
@@ -29,11 +26,7 @@ public class FileSystemPartitionValidator extends RefreshDatasetValidator {
   @Override
   public void validate(SqlRefreshDataset sqlNode) {
     super.validate(sqlNode);
-    AtomicInteger i = new AtomicInteger();
 
-    partitionValues.stream().forEach(x -> {
-      Preconditions.checkArgument(x.getColumn().matches("dir" + i), "Input error. Expected partition dir" + i);
-      i.getAndIncrement();
-    });
+    // Partition names validated in parent class
   }
 }

@@ -38,6 +38,15 @@ public class ListAggExpression extends FunctionCall {
       type = CompleteType.VARCHAR;
     } else if ("local_listagg".equals(name)) {
       type = new CompleteType(ArrowType.List.INSTANCE, Collections.singletonList(Field.nullable("$data$", CompleteType.VARCHAR.getType())));
+    } else if ("ARRAY_AGG".equals(name) || "PHASE1_ARRAY_AGG".equals(name)) {
+      // Hack: Ideally the return type should be the List of type args[0]. However, if arg[0] is ArrowLateType,
+      // its size cannot be determined by HashAggMemoryEstimator. Given that HashAggMemoryEstimator just estimates
+      // the size (e.g. by assuming the size of list as 5), VARBINARY estimate is not too shabby.
+      ArrowType elementType = args.get(0).getCompleteType().getType() instanceof ArrowLateType ?
+        CompleteType.VARBINARY.getType() : args.get(0).getCompleteType().getType();
+      type = new CompleteType(ArrowType.List.INSTANCE, Collections.singletonList(Field.nullable("$data$", elementType)));
+    } else if ("PHASE2_ARRAY_AGG".equals(name)) {
+      type = args.get(0).getCompleteType();
     } else {
       throw new UnsupportedOperationException("Invalid listagg operator \"" + name + "\"");
     }

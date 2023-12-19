@@ -18,22 +18,18 @@ import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import Immutable from "immutable";
 
-import { getUserName } from "@app/selectors/account";
-import {
-  getHomeContents,
-  getNormalizedEntityPathByUrl,
-  getSortedSources,
-} from "@app/selectors/home";
-import { loadHomeContent as loadHomeContentAction } from "@app/actions/home";
+import { getHomeContents } from "@app/selectors/home";
+import { loadHomeContentWithAbort } from "@app/actions/home";
 import { getViewState } from "selectors/resources";
-import { getEntityType, getSourceNameFromUrl } from "utils/pathUtils";
 import { ENTITY_TYPES } from "@app/constants/Constants";
-import { getRefQueryParams } from "@app/utils/nessieUtils";
 
 import { updateRightTreeVisibility } from "actions/ui/ui";
 
 import MainInfo from "../components/MainInfo";
-import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
+import { CatalogPrivilegeSwitch } from "@app/exports/components/CatalogPrivilegeSwitch/CatalogPrivilegeSwitch";
+import Message from "@app/components/Message";
+import { fetchArsFlag } from "@inject/utils/arsUtils";
+import { store } from "@app/store/store";
 
 export const VIEW_ID = "HomeContents";
 
@@ -43,7 +39,6 @@ class HomeContents extends Component {
 
     //connected
     getContentUrl: PropTypes.string.isRequired,
-    loadHomeContent: PropTypes.func.isRequired,
     updateRightTreeVisibility: PropTypes.func.isRequired,
     rightTreeVisible: PropTypes.bool,
     entity: PropTypes.instanceOf(Immutable.Map),
@@ -62,19 +57,39 @@ class HomeContents extends Component {
   }
 
   componentDidUpdate(prevProps) {
+    const invalidated = this.props.viewState.get("invalidated");
+    const prevInvalidated = prevProps.viewState.get("invalidated");
     if (
       prevProps.location.pathname !== this.props.location.pathname ||
-      this.props.viewState.get("invalidated")
+      (invalidated && invalidated !== prevInvalidated)
     ) {
       this.load();
     }
   }
 
-  load() {
-    const { getContentUrl, entityType, loadHomeContent, params } = this.props;
+  prevLoad = null;
 
-    loadHomeContent(getContentUrl, entityType, VIEW_ID, params);
-  }
+  load = async () => {
+    const { getContentUrl, entityType, params } = this.props;
+
+    const isArsEnabled = await fetchArsFlag();
+    if (isArsEnabled && entityType === ENTITY_TYPES.home) return; // Skip home
+
+    this.prevLoad?.abort();
+    const [abortController, loadHomeContent] = loadHomeContentWithAbort(
+      getContentUrl,
+      entityType,
+      VIEW_ID,
+      params
+    );
+    this.prevLoad = abortController;
+
+    return store.dispatch(loadHomeContent);
+  };
+
+  componentWillUnmount = () => {
+    this.prevLoad?.abort();
+  };
 
   shouldComponentUpdate(nextProps) {
     for (const [key, value] of Object.entries(nextProps)) {
@@ -107,6 +122,32 @@ class HomeContents extends Component {
   render() {
     const { entity, entityType, source, viewState, rightTreeVisible } =
       this.props;
+
+    const isArcticSource = source?.get("type") === "ARCTIC";
+    if (isArcticSource) {
+      return (
+        <CatalogPrivilegeSwitch
+          privilege="canView"
+          renderEnabled={() => (
+            <MainInfo
+              entityType={entityType}
+              entity={entity}
+              source={source}
+              viewState={viewState}
+              updateRightTreeVisibility={this.props.updateRightTreeVisibility}
+              rightTreeVisible={rightTreeVisible}
+            />
+          )}
+          renderDisabled={() => (
+            <Message
+              isDismissable={false}
+              messageType="error"
+              message={viewState.getIn(["error", "message", "errorMessage"])}
+            />
+          )}
+        />
+      );
+    }
     return (
       <MainInfo
         entityType={entityType}
@@ -120,40 +161,14 @@ class HomeContents extends Component {
   }
 }
 
-function mapStateToProps(state, props) {
-  const { location, projectId } = props;
-  const pathname = rmProjectBase(location.pathname, { projectId }) || "/";
-  const entityType = getEntityType(pathname);
-  const getContentUrl = getNormalizedEntityPathByUrl(
-    pathname,
-    getUserName(state)
-  );
-
-  const sourceName = getSourceNameFromUrl(getContentUrl);
-  const sources = getSortedSources(state);
-  const source =
-    sources && sourceName
-      ? sources.find((cur) => cur.get("name") === sourceName)
-      : null;
-  const params =
-    entityType && ["source", "folder"].includes(entityType)
-      ? getRefQueryParams(state.nessie, sourceName)
-      : null;
-
+function mapStateToProps(state) {
   return {
     rightTreeVisible: state.ui.get("rightTreeVisible"),
     entity: getHomeContents(state),
-    entityType,
-    // do not use getNormalizedEntityPath from selectors/home here until DX-16200 would be resolved
-    // we must use router location value, as redux location could be out of sync
-    getContentUrl,
     viewState: getViewState(state, VIEW_ID),
-    params,
-    source,
   };
 }
 
 export default connect(mapStateToProps, {
-  loadHomeContent: loadHomeContentAction,
   updateRightTreeVisibility,
 })(HomeContents);

@@ -224,8 +224,8 @@ public class TestNestedLoopJoin extends PlanTestBase {
 
     // We have a false filter causing empty left batch
     String query = "select count(*) col from (select a.last_name " +
-        "from cp.\"employee.json\" a " +
-        "where exists (select n_name from cp.\"tpch/nation.parquet\" b) AND 1 = 0)";
+      "from cp.\"employee.json\" a " +
+      "where exists (select n_name from cp.\"tpch/nation.parquet\" b) AND 1 = 0)";
 
     testBuilder()
         .sqlQuery(query)

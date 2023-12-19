@@ -105,6 +105,7 @@ import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.source.proto.SourceConfig;
+import com.dremio.service.users.SystemUser;
 import com.dremio.service.users.User;
 import com.dremio.service.users.UserNotFoundException;
 import com.dremio.service.users.UserService;
@@ -341,16 +342,6 @@ public class BasicSupportService implements SupportService {
    * Version extractor used for dealing with cluster identity.
    */
   public static class ClusterIdentityVersionExtractor implements VersionExtractor<ClusterIdentity> {
-    @Override
-    public Long getVersion(ClusterIdentity value) {
-      return value.getSerial();
-    }
-
-    @Override
-    public void setVersion(ClusterIdentity value, Long version) {
-      value.setSerial(version);
-    }
-
     @Override
     public String getTag(ClusterIdentity value) {
       return value.getTag();
@@ -650,7 +641,7 @@ public class BasicSupportService implements SupportService {
 
       final SqlQuery query = JobRequestUtil.createSqlQuery(
         String.format(LOG_QUERY, SqlUtils.quoteIdentifier(submissionId), startTime, endTime, "%" + id.getId() + "%"),
-        Collections.singletonList(LOGS_STORAGE_PLUGIN), userId);
+        Collections.singletonList(LOGS_STORAGE_PLUGIN), SystemUser.SYSTEM_USERNAME);
 
       final CompletionListener completionListener = new CompletionListener();
 

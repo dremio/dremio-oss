@@ -35,6 +35,7 @@ public class ProjectConfigImpl implements ProjectConfig {
   private static final String SCRATCH_PLUGIN_SUB_PATH = "/scratch";
   private static final String METADATA_PLUGIN_SUB_PATH = "/metadata";
   private static final String GANDIVA_PERSISTENT_CACHE_PLUGIN_SUB_PATH = "/gandiva";
+  private static final String SYSTEM_ICEBERG_TABLES_PLUGIN_SUB_PATH = "/system_iceberg_tables";
 
   private final Provider<DremioConfig> fileProvider;
   private final Provider<ProjectConfigStore> storeProvider;
@@ -67,6 +68,11 @@ public class ProjectConfigImpl implements ProjectConfig {
   @Override
   public DistPathConfig getGandivaPersistentCacheConfig() {
     return getDistPathConfig(DremioConfig.GANDIVA_CACHE_PATH_STRING, GANDIVA_PERSISTENT_CACHE_PLUGIN_SUB_PATH);
+  }
+
+  @Override
+  public DistPathConfig getSystemIcebergTablesConfig() {
+    return getDistPathConfig(DremioConfig.SYSTEM_ICEBERG_TABLES_PATH_STRING, SYSTEM_ICEBERG_TABLES_PLUGIN_SUB_PATH);
   }
 
   private DistPathConfig getDistPathConfig(String pathString, String subPath) {

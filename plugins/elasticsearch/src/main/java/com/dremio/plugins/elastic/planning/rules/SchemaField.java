@@ -267,7 +267,7 @@ public final class SchemaField extends RexInputRef {
           sb.append(CLOSE_BQ);
           sb.append(".values");
           sb.append('[');
-          sb.append(segment.getIndex());
+          sb.append(segment.getOptionalIndex());
           sb.append(']');
           possibleNulls.add(new Pair(sb.toString(), fullPath.toString()));
         } else {

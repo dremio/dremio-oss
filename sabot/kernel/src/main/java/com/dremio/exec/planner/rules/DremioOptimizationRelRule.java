@@ -51,5 +51,27 @@ public abstract class DremioOptimizationRelRule<C extends RelRule.Config> extend
     }
   }
 
+  @Override
+  public boolean matches(RelOptRuleCall relOptRuleCall) {
+    try {
+      return this.doesMatch(relOptRuleCall);
+    } catch (Exception exception) {
+      String relOptRuleInfo = relOptRuleCall.toString();
+      String exceptionInfo = exception.toString();
+      String derivedRuleName = this.getClass().getSimpleName();
+
+      logger.warn(
+        "RelOptRule: '{}' ran into the following exception: '{}' when trying to match: '{}'.",
+        relOptRuleInfo,
+        exceptionInfo,
+        derivedRuleName);
+    }
+    return false;
+  }
+
+  public boolean doesMatch(RelOptRuleCall relOptRuleCall) throws Exception {
+    return true;
+  }
+
   public abstract void doOnMatch(RelOptRuleCall relOptRuleCall) throws Exception;
 }

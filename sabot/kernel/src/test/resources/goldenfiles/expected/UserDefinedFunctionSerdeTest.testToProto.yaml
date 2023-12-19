@@ -19,10 +19,10 @@
  -
   description: "No args"
   input:
-    fullPath:
-      - "dir"
-      - "space"
     createdAt: null
+    fullPath:
+     - "dir"
+     - "space"
     functionArgsList: []
     functionSql: "SELECT 1"
     modifiedAt: null
@@ -31,16 +31,18 @@
       EAAAAAAACgAMAAAACAAEAAoAAAAIAAAACAAAAAAAAAABAAAAGAAAAAAAEgAYABQAEwASAAwAAAAI
       AAQAEgAAABQAAAAUAAAAHAAAAAAAAgEgAAAAAAAAAAAAAAAIAAwACAAHAAgAAAAAAAABIAAAAAEA
       AABmAAAA
+    serializedFunctionPlan: null
   output:
     createdAt: null
     fullPathList:
-      - "dir"
-      - "space"
+     - "dir"
+     - "space"
     functionDefinitionsList:
-      -
-        functionArgList: []
-        functionBody:
-          rawBody: "SELECT 1"
+     -
+      functionArgList: []
+      functionBody:
+        rawBody: "SELECT 1"
+        serializedPlan: null
     id: null
     lastModified: null
     name: "foo"
@@ -58,6 +60,7 @@
       dataType: !!binary |-
         EAAAAAAACgAMAAAACAAEAAoAAAAIAAAACAAAAAAAAAABAAAAGAAAAAAAEgAYABQAEwASAAwAAAAI
         AAQAEgAAABQAAAAUAAAAGAAAAAAABQEUAAAAAAAAAAAAAAAEAAQABAAAAAEAAABmAAAA
+      defaultExpression: null
       name: "bar"
     functionSql: "SELECT 1"
     modifiedAt: null
@@ -66,17 +69,22 @@
       EAAAAAAACgAMAAAACAAEAAoAAAAIAAAACAAAAAAAAAABAAAAGAAAAAAAEgAYABQAEwASAAwAAAAI
       AAQAEgAAABQAAAAUAAAAHAAAAAAAAgEgAAAAAAAAAAAAAAAIAAwACAAHAAgAAAAAAAABIAAAAAEA
       AABmAAAA
+    serializedFunctionPlan: null
   output:
     createdAt: null
     fullPathList: null
-    id: null
     functionDefinitionsList:
-      - functionArgList:
-          - name: "bar"
-            rawDataType:
-              empty: false
-        functionBody:
-          rawBody: "SELECT 1"
+     -
+      functionArgList:
+       -
+        defaultExpression: null
+        name: "bar"
+        rawDataType:
+          empty: false
+      functionBody:
+        rawBody: "SELECT 1"
+        serializedPlan: null
+    id: null
     lastModified: null
     name: "foo"
     returnType:

@@ -34,7 +34,6 @@ import com.dremio.common.map.CaseInsensitiveMap;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.store.CoercionReader;
 import com.dremio.exec.store.FileTypeCoercion;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.SplitAndPartitionInfo;
@@ -263,53 +262,9 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
         if (!isConvertedIcebergDataset && DatasetHelper.isIcebergFile(formatSettings)) {
           inner = createIcebergRecordReader(footer, projectedColumns, schemaHelper);
         } else if (DatasetHelper.isDeltaLake(formatSettings)) {
-          DeltaLakeParquetReader innerDeltaParquetReader = new DeltaLakeParquetReader(
-                  context,
-                  readerFactory,
-                  fullSchema,
-                  projectedColumns,
-                  globalDictionaryEncodedColumns,
-                  new DeltaLakeParquetFilters(filters),
-                  splitXAttr,
-                  fs,
-                  footer,
-                  globalDictionaries,
-                  schemaHelper,
-                  vectorize,
-                  enableDetailedTracing,
-                  supportsColocatedReads,
-                  inputStreamProvider
-          );
-          RecordReader wrappedRecordReader = new CoercionReader(context, projectedColumns.getBatchSchemaProjectedColumns(), innerDeltaParquetReader, fullSchema);
-          inner = readerConfig.wrapIfNecessary(context.getAllocator(), wrappedRecordReader, datasetSplit);
+          inner = createDeltaLakeRecordReader(footer, projectedColumns, schemaHelper);
         } else {
-            SchemaDerivationHelper schemaDerivationHelper = schemaHelperBuilder.noSchemaLearning(fullSchema).build();
-            final UpPromotingParquetReader innerParquetReader = new UpPromotingParquetReader(
-                    context,
-                    readerFactory,
-                    fullSchema,
-                    projectedColumns,
-                    globalDictionaryEncodedColumns,
-                    filters,
-                    splitXAttr,
-                    fs,
-                    footer,
-                    path.toString(),
-                    Iterables.getFirst(tablePath, null),
-                    globalDictionaries,
-                    schemaDerivationHelper,
-                    vectorize,
-                    enableDetailedTracing,
-                    supportsColocatedReads,
-                    inputStreamProvider,
-                    userDefinedSchemaSettings);
-
-            Map<String, Field> fieldsByName = CaseInsensitiveMap.newHashMap();
-            fullSchema.getFields().forEach(field -> fieldsByName.put(field.getName(), field));
-            RecordReader wrappedRecordReader = ParquetCoercionReader.newInstance(context,
-                    projectedColumns.getBatchSchemaProjectedColumns(), innerParquetReader, fullSchema,
-                    new FileTypeCoercion(fieldsByName), filters);
-            return readerConfig.wrapIfNecessary(context.getAllocator(), wrappedRecordReader, datasetSplit);
+          inner = createParquetRecordReader(footer, projectedColumns, schemaHelperBuilder.noSchemaLearning(fullSchema).build());
         }
         return inner;
       }finally {
@@ -356,11 +311,61 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
         inputStreamProvider,
         isConvertedIcebergDataset
     );
+    return createRecordReader(projectedColumns, innerIcebergParquetReader);
+  }
+
+  private RecordReader createDeltaLakeRecordReader(MutableParquetMetadata footer,
+                                                 ParquetScanProjectedColumns projectedColumns, SchemaDerivationHelper schemaHelper) {
+    DeltaLakeParquetReader innerDeltaParquetReader = new DeltaLakeParquetReader(
+      context,
+      readerFactory,
+      fullSchema,
+      projectedColumns,
+      globalDictionaryEncodedColumns,
+      new DeltaLakeParquetFilters(filters),
+      splitXAttr,
+      fs,
+      footer,
+      globalDictionaries,
+      schemaHelper,
+      vectorize,
+      enableDetailedTracing,
+      supportsColocatedReads,
+      inputStreamProvider
+    );
+    return createRecordReader(projectedColumns, innerDeltaParquetReader);
+  }
+
+  private RecordReader createParquetRecordReader(MutableParquetMetadata footer,
+                                                   ParquetScanProjectedColumns projectedColumns, SchemaDerivationHelper schemaHelper) {
+    final UpPromotingParquetReader innerParquetReader = new UpPromotingParquetReader(
+      context,
+      readerFactory,
+      fullSchema,
+      projectedColumns,
+      globalDictionaryEncodedColumns,
+      filters,
+      splitXAttr,
+      fs,
+      footer,
+      path.toString(),
+      Iterables.getFirst(tablePath, null),
+      globalDictionaries,
+      schemaHelper,
+      vectorize,
+      enableDetailedTracing,
+      supportsColocatedReads,
+      inputStreamProvider,
+      userDefinedSchemaSettings);
+    return createRecordReader(projectedColumns, innerParquetReader);
+  }
+
+  private RecordReader createRecordReader(ParquetScanProjectedColumns projectedColumns, RecordReader innerReader) {
     Map<String, Field> fieldsByName = CaseInsensitiveMap.newHashMap();
     fullSchema.getFields().forEach(field -> fieldsByName.put(field.getName(), field));
     RecordReader wrappedRecordReader = ParquetCoercionReader.newInstance(context,
-        projectedColumns.getBatchSchemaProjectedColumns(), innerIcebergParquetReader, fullSchema,
-        new FileTypeCoercion(fieldsByName), filters);
+      projectedColumns.getBatchSchemaProjectedColumns(), innerReader, fullSchema,
+      new FileTypeCoercion(fieldsByName), filters);
     return readerConfig.wrapIfNecessary(context.getAllocator(), wrappedRecordReader, datasetSplit);
   }
 

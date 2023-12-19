@@ -153,6 +153,11 @@ public class HiveTextReader extends HiveAbstractReader {
     return skipRecordsInspector.getActualCount();
   }
 
+  @Override
+  protected HiveFileFormat getHiveFileFormat() {
+    return HiveFileFormat.Text;
+  }
+
   /**
    * SkipRecordsInspector encapsulates logic to skip header and footer from
    * file. Logic is applicable only for predefined in constructor file formats.

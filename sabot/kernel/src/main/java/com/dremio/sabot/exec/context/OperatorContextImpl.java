@@ -160,7 +160,18 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
     OptionManager optionManager,
     int targetBatchSize, ExpressionSplitCache expressionSplitCache) {
 
-    this(config, dremioConfig, null, null, allocator, allocator, null, null, null, null, null, null, null,
+    this(config, dremioConfig, allocator, optionManager, null, targetBatchSize, expressionSplitCache);
+  }
+
+  public OperatorContextImpl(
+    SabotConfig config,
+    DremioConfig dremioConfig,
+    BufferAllocator allocator,
+    OptionManager optionManager,
+    OperatorStats stats,
+    int targetBatchSize, ExpressionSplitCache expressionSplitCache) {
+
+    this(config, dremioConfig, null, null, allocator, allocator, null, stats, null, null, null, null, null,
       optionManager, null, NodeDebugContextProvider.NOOP, targetBatchSize, null, ImmutableList.of(), ImmutableList.of(), null, null, null,
       expressionSplitCache, null);
   }

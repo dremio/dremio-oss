@@ -20,7 +20,9 @@ import java.util.List;
 
 import org.apache.calcite.rel.RelNode;
 
+import com.dremio.exec.planner.CachedAccelDetails;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
+import com.dremio.exec.planner.acceleration.RelWithInfo;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.reflection.hints.ReflectionExplanationsAndQueryDistance;
@@ -37,7 +39,7 @@ public interface AccelerationDetailsPopulator {
    * @param target
    * @param millisTaken
    */
-  void planSubstituted(DremioMaterialization materialization, List<RelNode> substitutions, RelNode target, long millisTaken, boolean defaultReflection);
+  void planSubstituted(DremioMaterialization materialization, List<RelWithInfo> substitutions, RelNode target, long millisTaken, boolean defaultReflection);
 
   /**
    * report failures during substitution
@@ -58,13 +60,17 @@ public interface AccelerationDetailsPopulator {
 
   byte[] computeAcceleration();
 
+  void applyAccelDetails(final CachedAccelDetails accelDetails);
+
   List<String> getConsideredReflectionIds();
   List<String> getMatchedReflectionIds();
   List<String> getChosenReflectionIds();
 
+  void planConvertedToRel(RelNode converted);
+
   AccelerationDetailsPopulator NO_OP = new AccelerationDetailsPopulator() {
     @Override
-    public void planSubstituted(DremioMaterialization materialization, List<RelNode> substitutions, RelNode target, long millisTaken, boolean defaultReflection) {
+    public void planSubstituted(DremioMaterialization materialization, List<RelWithInfo> substitutions, RelNode target, long millisTaken, boolean defaultReflection) {
     }
 
     @Override
@@ -89,6 +95,10 @@ public interface AccelerationDetailsPopulator {
     }
 
     @Override
+    public void applyAccelDetails(CachedAccelDetails accelDetails) {
+    }
+
+    @Override
     public List<String> getConsideredReflectionIds() {
       return Collections.emptyList();
     }
@@ -102,5 +112,11 @@ public interface AccelerationDetailsPopulator {
     public List<String> getChosenReflectionIds() {
       return Collections.emptyList();
     }
+
+    @Override
+    public void planConvertedToRel(RelNode converted) {
+
+    }
+
   };
 }

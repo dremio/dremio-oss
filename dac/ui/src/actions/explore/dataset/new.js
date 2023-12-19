@@ -69,7 +69,13 @@ function newUntitledFetch(
   };
 }
 
-export const newUntitled = (dataset, parentFullPath, viewId, willLoadTable) => {
+export const newUntitled = (
+  dataset,
+  parentFullPath,
+  viewId,
+  willLoadTable,
+  customReference
+) => {
   return (dispatch) => {
     const { nessie } = store.getState(); //getState from Thunk API was not working from transformWatcher.performWatchedTransform Saga
     const references = getNessieReferencePayload(nessie);
@@ -78,7 +84,7 @@ export const newUntitled = (dataset, parentFullPath, viewId, willLoadTable) => {
         dataset,
         parentFullPath,
         viewId,
-        references,
+        Object.keys(references).length ? references : customReference,
         willLoadTable
       )
     );

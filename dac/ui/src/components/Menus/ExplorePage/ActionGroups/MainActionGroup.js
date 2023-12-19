@@ -38,14 +38,14 @@ class MainActionGroup extends PureComponent {
         <ColumnMenuItem
           actionType="RENAME"
           columnType={columnType}
-          title={la("Rename…")}
+          title={laDeprecated("Rename…")}
           availableTypes={ALL_TYPES}
           onClick={this.props.makeTransform}
         />
         <ColumnMenuItem
           actionType="DROP"
           columnType={columnType}
-          title={la("Drop")}
+          title={laDeprecated("Drop")}
           disabled={columnsCount === 1}
           availableTypes={ALL_TYPES}
           onClick={this.props.makeTransform}
@@ -53,28 +53,28 @@ class MainActionGroup extends PureComponent {
         <ColumnMenuItem
           actionType="CONVERT_DATA_TYPE"
           columnType={columnType}
-          title={la("Convert Data Type…")}
+          title={laDeprecated("Convert Data Type…")}
           availableTypes={CONVERTIBLE_TYPES}
           onClick={this.props.makeTransform}
         />
         <ColumnMenuItem
           actionType="GROUP_BY"
           columnType={columnType}
-          title={la("Group By…")}
+          title={laDeprecated("Group By…")}
           availableTypes={NOT_LIST_AND_MAP_TYPES}
           onClick={this.props.makeTransform}
         />
         <ColumnMenuItem
           actionType="SINGLE_DATA_TYPE"
           columnType={columnType}
-          title={la("Single Data Type…")}
+          title={laDeprecated("Single Data Type…")}
           availableTypes={[MIXED]}
           onClick={this.props.makeTransform}
         />
         <ColumnMenuItem
           actionType="SPLIT_BY_DATA_TYPE"
           columnType={columnType}
-          title={la("Split by Data Type…")}
+          title={laDeprecated("Split by Data Type…")}
           availableTypes={[MIXED]}
           onClick={this.props.makeTransform}
         />

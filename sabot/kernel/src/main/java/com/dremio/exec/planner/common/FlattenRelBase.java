@@ -16,7 +16,9 @@
 package com.dremio.exec.planner.common;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.apache.calcite.plan.RelOptCluster;
@@ -46,12 +48,20 @@ import com.google.common.collect.FluentIterable;
 public abstract class FlattenRelBase extends SingleRel {
 
   protected final List<RexInputRef> toFlatten;
+  protected final List<String> aliases;
   protected final int numProjectsPushed;
 
-  public FlattenRelBase(RelOptCluster cluster, RelTraitSet traits, RelNode child, List<RexInputRef> toFlatten, int numProjectsPushed) {
+  public FlattenRelBase(
+    RelOptCluster cluster,
+    RelTraitSet traits,
+    RelNode child,
+    List<RexInputRef> toFlatten,
+    List<String> aliases,
+    int numProjectsPushed) {
     super(cluster, traits, child);
     Preconditions.checkArgument(!toFlatten.isEmpty(), "Must have at least one flatten input.");
     this.toFlatten = toFlatten;
+    this.aliases = aliases;
     this.numProjectsPushed = numProjectsPushed;
   }
 
@@ -63,35 +73,47 @@ public abstract class FlattenRelBase extends SingleRel {
     return toFlatten;
   }
 
+  public List<String> getAliases() {
+    return aliases;
+  }
+
   public abstract FlattenRelBase copy(List<RelNode> inputs, List<RexInputRef> toFlatten);
 
   @Override
   protected RelDataType deriveRowType() {
-    if (PrelUtil.getPlannerSettings(getCluster()).isFullNestedSchemaSupport()) {
-      RelDataType rowType = input.getRowType();
-      List<RelDataTypeField> inputFields = rowType.getFieldList();
-      List<RelDataTypeField> outputFields = new ArrayList<>();
-      Set<Integer> flattenedIndices = getFlattenedIndices();
-      for (int i = 0; i < inputFields.size(); i++) {
-        RelDataTypeField field = inputFields.get(i);
-        if (flattenedIndices.contains(i)) {
-          RelDataType newType = field.getType().getComponentType();
-          if (newType == null){
-            outputFields.add(field);
-          } else {
-            outputFields.add(new RelDataTypeFieldImpl(field.getName(), i, newType));
-          }
-        } else {
+    if (!PrelUtil.getPlannerSettings(getCluster()).isFullNestedSchemaSupport()) {
+      return super.deriveRowType();
+    }
+
+    RelDataType rowType = input.getRowType();
+    List<RelDataTypeField> inputFields = rowType.getFieldList();
+    List<RelDataTypeField> outputFields = new ArrayList<>();
+    Map<Integer, String> indexToAlias = getFlattenIndicesToAlias();
+    for (int i = 0; i < inputFields.size(); i++) {
+      RelDataTypeField field = inputFields.get(i);
+      if (!indexToAlias.containsKey(i)) {
+        outputFields.add(field);
+      } else {
+        RelDataType newType = field.getType().getComponentType();
+        if (newType == null){
           outputFields.add(field);
+        } else {
+          String alias = indexToAlias.get(i);
+          if (alias == null) {
+            alias = field.getName();
+          }
+
+          outputFields.add(new RelDataTypeFieldImpl(alias, i, newType));
         }
       }
-      final RelDataTypeFactory.Builder builder = getCluster().getTypeFactory().builder();
-      for (RelDataTypeField field : outputFields) {
-        builder.add(field);
-      }
-      return builder.build();
     }
-    return super.deriveRowType();
+
+    final RelDataTypeFactory.Builder builder = getCluster().getTypeFactory().builder();
+    for (RelDataTypeField field : outputFields) {
+      builder.add(field);
+    }
+
+    return builder.build();
   }
 
   @Override
@@ -106,6 +128,22 @@ public abstract class FlattenRelBase extends SingleRel {
       public Integer apply(RexInputRef input) {
         return input.getIndex();
       }}).toSet();
+  }
+
+  public Map<Integer, String> getFlattenIndicesToAlias() {
+    Map<Integer, String> indicesToAlias = new HashMap<>();
+    for (int i = 0; i < toFlatten.size(); i++) {
+      RexInputRef rexInputRef = toFlatten.get(i);
+      Integer index = rexInputRef.getIndex();
+      String alias = null;
+      if (aliases != null) {
+        alias = aliases.get(i);
+      }
+
+      indicesToAlias.put(index, alias);
+    }
+
+    return indicesToAlias;
   }
 
   @Override

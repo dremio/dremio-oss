@@ -21,6 +21,7 @@ import org.apache.arrow.memory.ArrowByteBufAllocator;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.exec.rpc.BasicClientWithConnection.ServerConnection;
+import com.dremio.exec.rpc.proxy.ProxyConfig;
 import com.dremio.ssl.SSLEngineFactory;
 import com.google.protobuf.Internal.EnumLite;
 import com.google.protobuf.MessageLite;
@@ -44,9 +45,10 @@ public abstract class BasicClientWithConnection<T extends EnumLite, HANDSHAKE_SE
       Class<HANDSHAKE_RESPONSE> responseClass,
       Parser<HANDSHAKE_RESPONSE> handshakeParser,
       String connectionName,
-      Optional<SSLEngineFactory> engineFactory
+      Optional<SSLEngineFactory> engineFactory,
+      Optional<ProxyConfig> proxyConfig
   ) throws RpcException {
-    super(rpcMapping, new ArrowByteBufAllocator(alloc), eventLoopGroup, handshakeType, responseClass, handshakeParser, engineFactory);
+    super(rpcMapping, new ArrowByteBufAllocator(alloc), eventLoopGroup, handshakeType, responseClass, handshakeParser, engineFactory, proxyConfig);
     this.alloc = alloc;
     this.connectionName = connectionName;
   }

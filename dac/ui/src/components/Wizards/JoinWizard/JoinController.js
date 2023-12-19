@@ -17,7 +17,7 @@ import { Component } from "react";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 import { result } from "lodash/object";
-import uuid from "uuid";
+import { v4 as uuidv4 } from "uuid";
 
 import ChooseDataset from "pages/ExplorePage/components/ChooseDataset";
 import CustomJoin from "pages/ExplorePage/components/CustomJoin";
@@ -117,7 +117,7 @@ export class JoinController extends Component {
     this.tryToLoadRecommendations(this.props);
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     this.tryToLoadJoinDataset(nextProps);
     this.resetPreviewInfo(nextProps);
     this.tryToPreviewRecommendedJoin(nextProps);
@@ -187,8 +187,8 @@ export class JoinController extends Component {
     if (!isValidJoin(values)) {
       return Promise.reject({
         _error: {
-          message: la("Matching pairs of join fields are required."),
-          id: uuid.v4(),
+          message: laDeprecated("Matching pairs of join fields are required."),
+          id: uuidv4(),
         },
       });
     }

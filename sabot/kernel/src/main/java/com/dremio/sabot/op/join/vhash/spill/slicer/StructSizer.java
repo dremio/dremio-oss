@@ -71,7 +71,9 @@ public class StructSizer implements Sizer {
    * @return
    */
   private int getDataSizeInBitsStartingFromOrdinal(final int ordinal, final int numberOfRecords){
-
+    if(incoming.getValueCount() == 0){
+      return 0;
+    }
     int dataBufferSize = 0;
 
     final int nFields = this.incoming.getField().getChildren().size();

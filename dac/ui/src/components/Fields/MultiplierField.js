@@ -37,6 +37,7 @@ export default class MultiplierField extends Component {
     min: PropTypes.number.isRequired, // this UI only enforces the units displayed, your form should have its own validation (BE and/or FE)
     from: PropTypes.string,
     classes: PropTypes.object,
+    isFullSpacedEvenly: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -125,11 +126,14 @@ export default class MultiplierField extends Component {
   }
 
   render() {
-    const { className, style, from, classes } = this.props;
+    const { className, style, from, classes, isFullSpacedEvenly } = this.props;
     return (
       <span
         className={classNames(["field", rowOfInputsSpacing, className])}
-        style={{ ...styles.base, ...style }}
+        style={{
+          ...(isFullSpacedEvenly ? fullEvenStyles.base : styles.base),
+          ...style,
+        }}
       >
         <PrevalidatedTextField
           type="number"
@@ -145,23 +149,23 @@ export default class MultiplierField extends Component {
               ? { ...styles.textField, width: "222px" }
               : styles.textField
           }
+          numberInputWrapperStyles={
+            isFullSpacedEvenly ? fullEvenStyles.number : styles.number
+          }
         />
-        <span style={{ display: "inline-block" }}>
-          <Select
-            items={Array.from(this.getFilteredUnitMultipliers().keys()).map(
-              (size) => ({ label: size })
-            )}
-            value={this.getUnit()}
-            disabled={this.props.disabled}
-            onChange={this.handleSelectChange}
-            className={classes.select}
-            style={
-              from === "queueControl"
-                ? { ...styles.select, width: "225px" }
-                : styles.select
-            }
-          />
-        </span>
+        <Select
+          items={Array.from(this.getFilteredUnitMultipliers().keys()).map(
+            (size) => ({ label: size })
+          )}
+          value={this.getUnit()}
+          disabled={this.props.disabled}
+          onChange={this.handleSelectChange}
+          className={classes.select}
+          style={{
+            ...(isFullSpacedEvenly ? fullEvenStyles.select : styles.select),
+            ...(from === "queueControl" && { width: "225px" }),
+          }}
+        />
       </span>
     );
   }
@@ -182,7 +186,24 @@ const styles = {
     width: 0, // override any preset width
   },
   select: {
-    width: 164,
+    width: "70%",
     textAlign: "left",
+  },
+  number: {
+    width: "30%",
+  },
+};
+
+const fullEvenStyles = {
+  base: {
+    display: "inline-flex",
+    width: "100%",
+  },
+  select: {
+    width: "50%",
+    textAlign: "left",
+  },
+  number: {
+    width: "50%",
   },
 };

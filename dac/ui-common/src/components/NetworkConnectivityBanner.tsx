@@ -18,8 +18,8 @@ import { useNetworkAvailable } from "../utilities/useNetworkAvailable";
 import { SectionMessage } from "dremio-ui-lib/components";
 import { getIntlContext } from "../contexts/IntlContext";
 
-export const NetworkConnectivityBanner = () => {
-  const networkAvailable = useNetworkAvailable();
+export const NetworkConnectivityBanner = ({ socket }: { socket: any }) => {
+  const networkAvailable = useNetworkAvailable(socket);
 
   if (!networkAvailable) {
     return (

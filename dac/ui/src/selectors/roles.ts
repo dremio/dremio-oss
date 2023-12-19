@@ -14,4 +14,7 @@
  * limitations under the License.
  */
 
-export const getFilteredRolesAndUsers = (value: any) => {};
+export const getFilteredRolesAndUsers = (
+  state: any,
+  allowPublicRole?: boolean
+) => {};

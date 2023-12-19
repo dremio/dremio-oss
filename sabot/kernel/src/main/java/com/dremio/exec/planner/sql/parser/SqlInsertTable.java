@@ -48,28 +48,36 @@ public class SqlInsertTable extends SqlInsert implements DataAdditionCmdCall, Sq
   public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("INSERT", SqlKind.INSERT) {
     @Override
     public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 3, "SqlInsertTable.createCall() has to get 3 operands!");
+      Preconditions.checkArgument(operands.length == 4, "SqlInsertTable.createCall() has to get 4 operands!");
       return new SqlInsertTable(
         pos,
         (SqlIdentifier) operands[0],
         operands[1],
-        (SqlNodeList) operands[2]);
+        (SqlNodeList) operands[2],
+        (SqlTableVersionSpec) operands[3]
+      );
     }
   };
+
+  private static final SqlLiteral sqlLiteralNull = SqlLiteral.createNull(SqlParserPos.ZERO);
 
   private final SqlIdentifier tblName;
   private final SqlNode query;
   private final SqlNodeList insertFields;
+  private final SqlTableVersionSpec sqlTableVersionSpec;
+
 
   public SqlInsertTable(
     SqlParserPos pos,
     SqlIdentifier tblName,
     SqlNode query,
-    SqlNodeList insertFields) {
+    SqlNodeList insertFields,
+    SqlTableVersionSpec sqlTableVersionSpec) {
     super(pos, SqlNodeList.EMPTY, tblName, query, insertFields);
     this.tblName = tblName;
     this.query = query;
     this.insertFields = insertFields;
+    this.sqlTableVersionSpec = sqlTableVersionSpec;
   }
 
   @Override
@@ -91,7 +99,12 @@ public class SqlInsertTable extends SqlInsert implements DataAdditionCmdCall, Sq
 
   @Override
   public List<SqlNode> getOperandList() {
-    return Lists.newArrayList(tblName, query, insertFields);
+    List<SqlNode> ops = Lists.newArrayList();
+    ops.add(tblName);
+    ops.add(query);
+    ops.add(insertFields);
+    ops.add(sqlTableVersionSpec);
+    return ops;
   }
 
   @Override
@@ -99,6 +112,9 @@ public class SqlInsertTable extends SqlInsert implements DataAdditionCmdCall, Sq
     writer.keyword("INSERT");
     writer.keyword("INTO");
     tblName.unparse(writer, leftPrec, rightPrec);
+
+    sqlTableVersionSpec.unparse(writer, leftPrec, rightPrec);
+
     if (insertFields.size() > 0) {
       SqlHandlerUtil.unparseSqlNodeList(writer, leftPrec, rightPrec, insertFields);
     }
@@ -163,5 +179,18 @@ public class SqlInsertTable extends SqlInsert implements DataAdditionCmdCall, Sq
   @Override
   public SqlNode getCondition() {
     throw new UnsupportedOperationException("Condition is not supported for INSERT");
+  }
+
+  @Override
+  public SqlTableVersionSpec getSqlTableVersionSpec() {
+    return sqlTableVersionSpec;
+  }
+
+  @Override
+  public TableVersionSpec getTableVersionSpec() {
+    if (sqlTableVersionSpec != null) {
+      return sqlTableVersionSpec.getTableVersionSpec();
+    }
+    return null;
   }
 }

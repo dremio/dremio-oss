@@ -482,6 +482,6 @@ public class GandivaPushdownSieve extends AbstractExprVisitor<CodeGenContext, Co
   }
 
   private boolean isSupportedReturnType(CompleteType type) throws GandivaException {
-    return isSupportedType(type) && type.isScalar();
+    return isSupportedType(type);
   }
 }

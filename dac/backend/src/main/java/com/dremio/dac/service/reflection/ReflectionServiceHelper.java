@@ -15,7 +15,7 @@
  */
 package com.dremio.dac.service.reflection;
 
-import static com.dremio.exec.catalog.CatalogOptions.REFLECTION_ARCTIC_ENABLED;
+import static com.dremio.exec.catalog.CatalogOptions.REFLECTION_VERSIONED_SOURCE_ENABLED;
 
 import java.util.List;
 import java.util.Optional;
@@ -29,6 +29,8 @@ import com.dremio.dac.service.errors.ReflectionNotFound;
 import com.dremio.exec.catalog.VersionedDatasetId;
 import com.dremio.exec.ops.ReflectionContext;
 import com.dremio.options.OptionManager;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.reflection.IncrementalUpdateServiceUtils;
 import com.dremio.service.reflection.ReflectionAdministrationService;
 import com.dremio.service.reflection.ReflectionSettings;
 import com.dremio.service.reflection.ReflectionStatus;
@@ -188,8 +190,12 @@ public class ReflectionServiceHelper {
   }
 
   public void isVersionedSourceEnabled(String datasetId) {
-    if (!optionManager.getOption(REFLECTION_ARCTIC_ENABLED) && VersionedDatasetId.isVersionedDatasetId(datasetId)) {
+    if (!optionManager.getOption(REFLECTION_VERSIONED_SOURCE_ENABLED) && VersionedDatasetId.isVersionedDatasetId(datasetId)) {
       throw new UnsupportedOperationException("Versioned source does not support reflection.");
     }
+  }
+
+  public boolean isIncrementalRefreshBySnapshotEnabled(DatasetConfig datasetConfig) {
+    return IncrementalUpdateServiceUtils.isIncrementalRefreshBySnapshotEnabled(datasetConfig, optionManager);
   }
 }

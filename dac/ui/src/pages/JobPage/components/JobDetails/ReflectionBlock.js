@@ -32,11 +32,8 @@ class ReflectionBlock extends PureComponent {
     datasetFullPath: PropTypes.instanceOf(Immutable.List),
   };
 
-  componentWillMount() {
-    this.props.loadSummaryDataset(
-      this.props.datasetFullPath.join("/"),
-      VIEW_ID
-    );
+  UNSAFE_componentWillMount() {
+    this.props.loadSummaryDataset(this.props.datasetFullPath, VIEW_ID);
   }
 
   render() {
@@ -61,7 +58,7 @@ class ReflectionBlock extends PureComponent {
         },
         datasetLink: {
           pathname: datasetLink,
-          title: la("Parent dataset"),
+          title: laDeprecated("Parent dataset"),
         },
       },
     ];

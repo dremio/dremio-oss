@@ -27,7 +27,7 @@ export const SAVE_SUPPORT_FLAG_START = "SAVE_SUPPORT_FLAG_START";
 export const SAVE_SUPPORT_FLAG_SUCCESS = "SAVE_SUPPORT_FLAG_SUCCESS";
 export const SAVE_SUPPORT_FLAG_FAILURE = "SAVE_SUPPORT_FLAG_FAILURE";
 
-const fetchSupportFlagsSuccess = (payload, meta) => ({
+export const fetchSupportFlagsSuccess = (payload, meta) => ({
   type: SUPPORT_FLAG_SUCCESS,
   payload,
   meta,

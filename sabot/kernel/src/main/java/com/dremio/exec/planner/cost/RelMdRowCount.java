@@ -59,6 +59,7 @@ import com.dremio.exec.planner.physical.TableFunctionPrel;
 import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.deltalake.DeltaLakeCommitLogScanPrel;
+import com.dremio.exec.store.deltalake.DeltaLakeHistoryScanTableMetadata;
 import com.dremio.exec.store.dfs.FilterableScan;
 import com.dremio.exec.store.dfs.RowCountEstimator;
 import com.dremio.exec.store.iceberg.IcebergManifestListPrel;
@@ -522,8 +523,10 @@ public class RelMdRowCount extends org.apache.calcite.rel.metadata.RelMdRowCount
   }
 
   public Double getRowCount(TableFunctionPrel rel, RelMetadataQuery mq) {
-    //table_files function have this information with tableMetadata , Does it require any other factors for consideration?
-    if (rel.getTableMetadata() instanceof TableFilesFunctionTableMetadata) {
+    // Metadata functions have this information with tableMetadata.
+    // Does it require any other factors for consideration?
+    if (rel.getTableMetadata() instanceof TableFilesFunctionTableMetadata ||
+        rel.getTableMetadata() instanceof DeltaLakeHistoryScanTableMetadata) {
       return (double) rel.getTableMetadata().getApproximateRecordCount();
     }
     return rel.getEstimateRowCountFn().apply(mq);

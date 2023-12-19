@@ -50,29 +50,27 @@ function* handleJobProgressChanged(action) {
   if (action.error) return;
   const { payload } = action;
   const id = payload.id.id;
-  const jobsList = yield select((state) => getJobList(state));
-  const jobExists = (jobsList.toJS() ?? []).find((job) => job.id === id);
-
-  if (!jobExists) {
-    return;
-  } else {
-    yield put(updateJobState(id, { ...payload.update, id }));
-  }
+  yield put(updateJobState(id, { ...payload.update, id }));
 }
 
 function* handleQVJobProgressChange(action) {
   if (action.error) return;
   const { payload } = action;
+  const updatedJob = payload.update;
   const id = payload.id.id;
-  const jobsList = yield select((state) => getJobList(state));
-  const jobExists = (jobsList.toJS() ?? []).find((job) => job.id === id);
 
-  // DX-48124 - should only update if the job exists in the list
-  if (!jobExists) {
-    return;
-  } else {
-    yield put(updateQVJobState(id, { ...payload.update, id }));
-  }
+  const attempts = updatedJob?.attemptDetails || [];
+  const hadMultipleAttempts = updatedJob.isComplete && attempts.length > 1;
+  yield put(
+    updateQVJobState(id, {
+      ...payload.update,
+      ...(hadMultipleAttempts && {
+        jobStatus: attempts[attempts.length - 1].result,
+        state: attempts[attempts.length - 1].result,
+      }),
+      id,
+    })
+  );
 }
 
 export function* entitie() {

@@ -51,7 +51,7 @@ function ArcticCatalogCommits(props: ArcticCatalogCommitsProps) {
     baseUrl,
     stateKey,
   } = useNessieContext();
-  const { isCatalog, reservedNamespace } = useArcticCatalogContext() ?? {};
+  const { isCatalog, reservedNamespace } = useArcticCatalogContext();
   const dispatch = useDispatch();
 
   const getPath = (tab: ArcticCatalogTabsType, item?: LogEntry) => {
@@ -91,7 +91,9 @@ function ArcticCatalogCommits(props: ArcticCatalogCommitsProps) {
   const path = useMemo(() => {
     return parseArcticCatalogUrl(
       rmProjectBase(location.pathname) || "/",
-      rmProjectBase(`${baseUrl}/commits/${params?.branchName}`),
+      rmProjectBase(
+        `${baseUrl}/commits/${encodeURIComponent(params?.branchName)}`
+      ),
       "commits",
       params?.branchName
     );
@@ -103,7 +105,7 @@ function ArcticCatalogCommits(props: ArcticCatalogCommitsProps) {
         type: isCatalog ? "catalog" : "source",
         baseUrl,
         tab: "commit",
-        namespace: params?.branchName,
+        namespace: encodeURIComponent(params?.branchName),
         commitId: rowId.rowData.id as string,
       })
     );

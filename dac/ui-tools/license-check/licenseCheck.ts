@@ -27,23 +27,23 @@ type Package = {
 
 type LicenseJson = Record<License, Package[]>;
 
-const compatibleLicenses = new Set<string>([
-  "Apache-2.0",
-  "MIT",
-  "ISC",
-  "BSD-3-Clause",
-  "BSD-2-Clause",
-  "CC-BY-4.0",
-  "Unlicense",
-  "Unknown",
-  "CC0-1.0",
-  "(MIT OR GPL-2.0)",
+const compatibleLicenses = new Set([
   "0BSD",
+  "Apache-2.0",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "CC0-1.0",
+  "ISC",
+  "MIT",
+  "Unlicense",
   "(GPL-2.0 OR MIT)",
+  "(MIT OR GPL-2.0)",
 ]);
 
-function readLicenseJson(): Promise<string> {
-  return new Promise((resolve, reject) => {
+const ignoredDependencies = new Set(["caniuse-lite", "options"]);
+
+const readLicenseJson = (): Promise<string> =>
+  new Promise((resolve, reject) => {
     let data = "";
     process.stdin.setEncoding("utf8");
     process.stdin.on("data", (chunk) => {
@@ -54,32 +54,47 @@ function readLicenseJson(): Promise<string> {
     });
     process.stdin.on("error", reject);
   });
-}
 
 const getPackageName = (pkg: Package): string => pkg.name;
 
-function hasIncompatibleLicense(licenseJson: LicenseJson) {
-  return Object.keys(licenseJson).some((license) => {
-    const isCompatible = compatibleLicenses.has(license);
-
-    if (!isCompatible) {
-      console.log(`OSS license check: license "${license}" is not approved.`);
-      console.log(
-        `OSS license check: "${license}" license is used by: \n ${licenseJson[
-          license
-        ]
-          .map(getPackageName)
-          .join("\n")}`
-      );
+const onlyIncompatibleLicenses = (licenseJson: LicenseJson): LicenseJson =>
+  Object.keys(licenseJson).reduce((acc, license) => {
+    if (!compatibleLicenses.has(license) && licenseJson[license].length) {
+      acc[license] = licenseJson[license];
     }
+    return acc;
+  }, {} as LicenseJson);
 
-    return !isCompatible;
+const filterIgnoredPackages = (licenseJson: LicenseJson): LicenseJson => {
+  const next = { ...licenseJson };
+  Object.keys(next).forEach((license) => {
+    next[license] = next[license].filter(
+      (pkg) => !ignoredDependencies.has(pkg.name)
+    );
   });
-}
+  return next;
+};
+
+const printIncompatibleLicenses = (incompatibleLicenses: LicenseJson): void => {
+  Object.keys(incompatibleLicenses).forEach((license) => {
+    console.log(
+      `Error: OSS license check: license "${license}" is not approved. ${license} is used by:`
+    );
+    incompatibleLicenses[license].forEach((pkg) => {
+      console.log("  ", pkg.name);
+    });
+  });
+};
 
 async function run() {
   const licenseJson: LicenseJson = JSON.parse(await readLicenseJson());
-  if (hasIncompatibleLicense(licenseJson)) {
+
+  const incompatibleLicenses = onlyIncompatibleLicenses(
+    filterIgnoredPackages(licenseJson)
+  );
+
+  if (Object.keys(incompatibleLicenses).length) {
+    printIncompatibleLicenses(incompatibleLicenses);
     process.exit(1);
   }
 }

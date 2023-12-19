@@ -25,7 +25,6 @@ import {
   explorePageLocationChanged,
   startExplorePageListener,
 } from "@app/actions/explore/dataset/data";
-import localStorageUtils from "@inject/utils/storageUtils/localStorageUtils";
 // import Votes from '@inject/pages/AdminPage/subpages/Votes'; // To Be Removed
 import SSOLandingPage from "@inject/pages/AuthenticationPage/components/SSOLandingPage";
 import { resetModuleState } from "@app/actions/modulesState";
@@ -45,9 +44,12 @@ import additionalRootRoutes from "@inject/additionalRootRoutes.tsx";
 
 import ReflectionJobsPage from "@inject/pages/JobPage/ReflectionJobsPage";
 import JobPage from "@inject/pages/QVJobPage/QVJobPage";
+import JobsPage from "./pages/JobsPage/JobsPage";
+import { ReflectionJobsPage as NewReflectionJobsPage } from "./pages/ReflectionJobsPage/ReflectionJobsPage";
 import SingleJobPage from "@app/pages/JobDetailsPageNew/JobDetailsPage";
-import config from "@inject/routesConfig";
+import routeConfig from "@inject/routesConfig";
 import notFoundRoute from "@inject/NotFoundRoute";
+import config from "dyn-load/utils/config";
 
 import jobsUtils from "./utils/jobsUtils.js";
 import App from "./containers/App";
@@ -69,12 +71,14 @@ import * as jobPaths from "dremio-ui-common/paths/jobs.js";
 import * as sqlPaths from "dremio-ui-common/paths/sqlEditor.js";
 
 import Page, { MainMasterPage } from "./components/Page";
-import NessieRoutes, {
+import {
   arcticSourceRoutes,
   nessieSourceRoutes,
 } from "./pages/NessieHomePage/NessieRoutes";
 import SonarRouteComponent from "@inject/sonar/components/SonarRouteComponent";
 import { RouteLeaveComponent } from "./containers/RouteLeaveComponent";
+import { JobsPageProvider } from "./exports/providers/JobsPageProvider";
+import { ReflectionJobsProvider } from "./exports/providers/ReflectionJobsProvider";
 
 const ExplorePage = lazy(() =>
   import(
@@ -108,20 +112,49 @@ const getExploreRoute = (routeProps, dispatch) => {
 };
 
 const JobsRouting = () => {
-  if (jobsUtils.isNewJobsPage()) {
+  if (config.showNewJobsTables) {
     return (
-      <Route component={Page}>
-        <Route
-          path={jobPaths.reflection.fullRoute()}
-          component={ReflectionJobsPage}
-        />
-        <Route path={jobPaths.jobs.fullRoute()} component={JobPage}>
+      <>
+        <Route component={Page}>
+          <Route
+            path={jobPaths.jobs.fullRoute()}
+            component={() => (
+              <JobsPageProvider>
+                {(props) => <JobsPage {...props} />}
+              </JobsPageProvider>
+            )}
+          />
+          <Route
+            path={jobPaths.reflection.fullRoute()}
+            component={() => (
+              <ReflectionJobsProvider>
+                {(props) => <NewReflectionJobsPage {...props} />}
+              </ReflectionJobsProvider>
+            )}
+          />
           <Route
             path={jobPaths.job.fullRoute()}
             component={SingleJobPage}
           ></Route>
         </Route>
-      </Route>
+      </>
+    );
+  } else if (jobsUtils.isNewJobsPage()) {
+    return (
+      <>
+        <Route component={Page}>
+          <Route
+            path={jobPaths.reflection.fullRoute()}
+            component={ReflectionJobsPage}
+          />
+          <Route path={jobPaths.jobs.fullRoute()} component={JobPage}>
+            <Route
+              path={jobPaths.job.fullRoute()}
+              component={SingleJobPage}
+            ></Route>
+          </Route>
+        </Route>
+      </>
     );
   } else {
     return (
@@ -142,11 +175,7 @@ const JobsRouting = () => {
   }
 };
 
-export default (dispatch, projectContext) => {
-  const isDDPOnly = localStorageUtils
-    ? localStorageUtils.isDataPlaneOnly(projectContext)
-    : false;
-
+export default (dispatch) => {
   const isUrlabilityDisabled = commonPaths.projectBase.fullRoute() === "/";
 
   return (
@@ -165,7 +194,7 @@ export default (dispatch, projectContext) => {
           {EulaRoute()}
           <Route component={CheckUserAuthentication}>
             <Route path={LOGIN_PATH} component={AuthenticationPage} />
-            {config.enableSignUp ? (
+            {routeConfig.enableSignUp ? (
               <Route path={SIGNUP_PATH} component={SignupPage} />
             ) : (
               <Redirect from={SIGNUP_PATH} to="/" />
@@ -189,75 +218,73 @@ export default (dispatch, projectContext) => {
             </Route>
             {AdminPageRouting()}
             <Route component={UserIsAuthenticated(HomeModals)}>
-              {isDDPOnly ? (
-                NessieRoutes()
-              ) : (
-                <Route component={Page}>
-                  <IndexRoute component={Home} />
-                  <Redirect
-                    from={commonPaths.home.fullRoute()}
-                    to={commonPaths.projectBase.fullRoute()}
-                  />
-                  <Route path={commonPaths.source.fullRoute()} component={Home}>
-                    <Route path={commonPaths.sourceFolder.fullRoute()} />
-                  </Route>
-                  <Route path={commonPaths.space.fullRoute()} component={Home}>
-                    <Route path={commonPaths.spaceFolder.fullRoute()} />
-                  </Route>
-                  <Route path={commonPaths.home.fullRoute()} component={Home}>
-                    <Route path={commonPaths.resource.fullRoute()} />
-                  </Route>
-                  <Route
-                    path={commonPaths.spacesList.fullRoute()}
-                    component={AllSpaces}
-                  />
-                  <Route
-                    path={commonPaths.allSourcesList.fullRoute()}
-                    component={AllSources}
-                  />
-                  <Route
-                    path={commonPaths.objectStorage.fullRoute()}
-                    component={AllSources}
-                  />
-                  <Route
-                    path={commonPaths.metastore.fullRoute()}
-                    component={AllSources}
-                  />
-                  <Route
-                    path={commonPaths.external.fullRoute()}
-                    component={AllSources}
-                  />
-                  <Route
-                    path={commonPaths.dataplane.fullRoute()}
-                    component={AllSources}
-                  />
-                  {nessieSourceRoutes()}
-                  {arcticSourceRoutes()}
+              <Route component={Page}>
+                <IndexRoute component={Home} />
+                <Redirect
+                  from={commonPaths.home.fullRoute()}
+                  to={commonPaths.projectBase.fullRoute()}
+                />
+                <Route path={commonPaths.source.fullRoute()} component={Home}>
+                  <Route path={commonPaths.sourceFolder.fullRoute()} />
                 </Route>
+                <Route path={commonPaths.space.fullRoute()} component={Home}>
+                  <Route path={commonPaths.spaceFolder.fullRoute()} />
+                </Route>
+                <Route path={commonPaths.home.fullRoute()} component={Home}>
+                  <Route path={commonPaths.resource.fullRoute()} />
+                </Route>
+                <Route
+                  path={commonPaths.spacesList.fullRoute()}
+                  component={AllSpaces}
+                />
+                <Route
+                  path={commonPaths.allSourcesList.fullRoute()}
+                  component={AllSources}
+                />
+                <Route
+                  path={commonPaths.objectStorage.fullRoute()}
+                  component={AllSources}
+                />
+                <Route
+                  path={commonPaths.metastore.fullRoute()}
+                  component={AllSources}
+                />
+                <Route
+                  path={commonPaths.external.fullRoute()}
+                  component={AllSources}
+                />
+                <Route
+                  path={commonPaths.nessie.fullRoute()}
+                  component={AllSources}
+                />
+                <Route
+                  path={commonPaths.arctic.fullRoute()}
+                  component={AllSources}
+                />
+                {nessieSourceRoutes()}
+                {arcticSourceRoutes()}
+              </Route>
+            </Route>
+            <Route component={MainMasterPage}>
+              {getExploreRoute(
+                {
+                  component: UserIsAuthenticated(ExploreModals),
+                  children: [
+                    <Route
+                      key="new_query"
+                      path={sqlPaths.sqlEditor.fullRoute()}
+                      component={ExplorePage}
+                    />,
+                    <Route
+                      key="existing_dataset"
+                      path={sqlPaths.existingDataset.fullRoute()}
+                      component={ExplorePage}
+                    />,
+                  ],
+                },
+                dispatch
               )}
             </Route>
-            {!isDDPOnly && (
-              <Route component={MainMasterPage}>
-                {getExploreRoute(
-                  {
-                    component: UserIsAuthenticated(ExploreModals),
-                    children: [
-                      <Route
-                        key="new_query"
-                        path={sqlPaths.sqlEditor.fullRoute()}
-                        component={ExplorePage}
-                      />,
-                      <Route
-                        key="existing_dataset"
-                        path={sqlPaths.existingDataset.fullRoute()}
-                        component={ExplorePage}
-                      />,
-                    ],
-                  },
-                  dispatch
-                )}
-              </Route>
-            )}
           </Route>
         </Route>
         {notFoundRoute}

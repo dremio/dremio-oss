@@ -23,7 +23,6 @@ import org.apache.arrow.memory.OutOfMemoryException;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
-import com.dremio.exec.ExecConstants;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.op.common.ht2.FixedBlockVector;
 import com.dremio.sabot.op.common.ht2.HashTable;
@@ -58,8 +57,7 @@ public class BlockJoinTable implements JoinTable {
     Preconditions.checkState(buildPivot.getBlockWidth() != 0);
     this.allocator = allocator.newChildAllocator("block-join", 0, allocator.getLimit());
     this.table = HashTable.getInstance(sabotConfig,
-      optionManager.getOption(ExecConstants.ENABLE_NATIVE_HASHTABLE_FOR_JOIN),
-      new HashTable.HashTableCreateArgs(HashConfig.getDefault(), buildPivot, allocator,
+      optionManager, new HashTable.HashTableCreateArgs(HashConfig.getDefault(), buildPivot, allocator,
         minSize, varFieldAverageSize, false, MAX_VALUES_PER_BATCH,
         nullMask, runtimeFilterEnabled));
     this.buildPivot = buildPivot;

@@ -153,7 +153,7 @@ public class TestNamespaceInternalKeySortOrder {
   /**
    * Comparator for sorting expected results.
    */
-  private class KeyMapComparator implements Comparator<Map.Entry<String, NamespaceInternalKey>> {
+  private static final class KeyMapComparator implements Comparator<Map.Entry<String, NamespaceInternalKey>> {
     @Override
     public int compare(Map.Entry<String, NamespaceInternalKey> o1, Map.Entry<String, NamespaceInternalKey> o2) {
       return Comparator.<String>naturalOrder().compare(o1.getKey(), o2.getKey());
@@ -163,7 +163,7 @@ public class TestNamespaceInternalKeySortOrder {
   /**
    * Comparator for sorting actual results.
    */
-  private class NamespaceInternalKeyComparator implements Comparator<NamespaceInternalKey> {
+  private static final class NamespaceInternalKeyComparator implements Comparator<NamespaceInternalKey> {
     @Override
     public int compare(NamespaceInternalKey o1, NamespaceInternalKey o2) {
       return o1.getKey().compareTo(o2.getKey());

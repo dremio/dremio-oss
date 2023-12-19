@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import clsx from "clsx";
 import { Component, createRef, PureComponent } from "react";
 import { connect } from "react-redux";
 import classNames from "clsx";
@@ -23,12 +24,16 @@ import { withRouter } from "react-router";
 import PropTypes from "prop-types";
 
 import EntityLink from "@app/pages/HomePage/components/EntityLink";
-import { EntityIcon } from "@app/pages/HomePage/components/EntityIcon";
+import {
+  EntityIcon,
+  PureEntityIcon,
+} from "@app/pages/HomePage/components/EntityIcon";
 import { EntityName } from "@app/pages/HomePage/components/EntityName";
 import { Popover, MouseEvents } from "@app/components/Popover";
 
 import AllSpacesMenu from "components/Menus/HomePage/AllSpacesMenu";
 import AllSourcesMenu from "components/Menus/HomePage/AllSourcesMenu";
+import FolderMenu from "./Menus/HomePage/FolderMenu";
 import { ENTITY_TYPES } from "@app/constants/Constants";
 import { getRootEntityTypeByIdV3 } from "@app/selectors/home";
 import ContainerDatasetCountV3, {
@@ -37,10 +42,12 @@ import ContainerDatasetCountV3, {
 
 import ResourcePin from "./ResourcePin";
 import EllipsedText from "./EllipsedText";
+import { shouldUseNewDatasetNavigation } from "@app/utils/datasetNavigationUtils";
+import { getHref } from "@inject/utils/mainInfoUtils/mainInfoNameUtil";
+import { newGetHref } from "@inject/utils/mainInfoUtils/newMainInfoNameUtil";
+import { ARSFeatureSwitch } from "@inject/utils/arsUtils";
 
 import "./FinderNavItem.less";
-import { FeatureSwitch } from "@app/exports/components/FeatureSwitch/FeatureSwitch";
-import { CATALOG_ARS_ENABLED } from "@app/exports/flags/CATALOG_ARS_ENABLED";
 
 const mapStateToPropsV3 = (state, { entityId }) => {
   const type = getRootEntityTypeByIdV3(state, entityId);
@@ -62,6 +69,7 @@ export class FinderNavItemV3 extends PureComponent {
       ENTITY_TYPES.home,
       ENTITY_TYPES.source,
       ENTITY_TYPES.space,
+      ENTITY_TYPES.folder,
     ]).isRequired,
   };
 
@@ -80,8 +88,7 @@ export class FinderNavItemV3 extends PureComponent {
           style={{ marginRight: 5, width: "191px" }}
         />
         <ContainerDatasetCountV3 entityId={entityId} />
-        <FeatureSwitch
-          flag={CATALOG_ARS_ENABLED}
+        <ARSFeatureSwitch
           renderEnabled={() => null}
           renderDisabled={() => entityId && <ResourcePin entityId={entityId} />}
         />
@@ -90,10 +97,6 @@ export class FinderNavItemV3 extends PureComponent {
   }
 }
 
-const mapStateToProps = (state, { item }) => ({
-  entityType: getRootEntityTypeByIdV3(state, item.id),
-});
-
 class FinderNavItem extends Component {
   static propTypes = {
     item: PropTypes.object.isRequired,
@@ -101,14 +104,10 @@ class FinderNavItem extends Component {
     noHover: PropTypes.bool,
     isHomeActive: PropTypes.bool,
 
-    //connected
-    entityType: PropTypes.oneOf([
-      ENTITY_TYPES.home,
-      ENTITY_TYPES.source,
-      ENTITY_TYPES.space,
-    ]).isRequired,
     renderExtra: PropTypes.any,
     params: PropTypes.object,
+    onlyActiveOnIndex: PropTypes.bool,
+    linkClass: PropTypes.string,
   };
 
   constructor(props) {
@@ -121,7 +120,7 @@ class FinderNavItem extends Component {
 
   handleRightClick = (e) => {
     // home space does not have context menu
-    if (!this.hasMenu(this.props.entityType)) return;
+    if (!this.hasMenu(this.props.item.entityType)) return;
 
     e.preventDefault();
     this.lastMouseEventPosition = this.rightClickPosition(e);
@@ -155,6 +154,14 @@ class FinderNavItem extends Component {
             closeMenu={this.handleMenuClose}
           />
         );
+      case ENTITY_TYPES.folder:
+        return (
+          <FolderMenu
+            folder={Immutable.fromJS(item)}
+            isVersionedSource={true} //True for now since ARS is the only folder in left nav
+            closeMenu={this.handleMenuClose}
+          />
+        );
       default:
         return null;
     }
@@ -162,7 +169,15 @@ class FinderNavItem extends Component {
 
   itemRef = createRef(null);
   render() {
-    const { style, entityType, renderExtra, isHomeActive, params } = this.props;
+    const {
+      style,
+      renderExtra,
+      isHomeActive,
+      params,
+      item,
+      onlyActiveOnIndex,
+      linkClass,
+    } = this.props;
 
     const { id, name, numberOfDatasets, disabled, datasetCountBounded } =
       this.props.item;
@@ -172,13 +187,15 @@ class FinderNavItem extends Component {
     });
     const isActiceArcticSource = name === params?.sourceId; // sourceId is param for when in Arctic Source history URL
 
+    const entityType = item.entityType || ENTITY_TYPES.home; //Defaults to home
+
     return (
       <li
         className={itemClass}
         style={{ ...(disabled && styles.disabled), ...(style || {}) }}
         ref={this.itemRef}
       >
-        {entityType === ENTITY_TYPES.space ? (
+        {item.entityType === ENTITY_TYPES.space ? (
           <div
             className="full-width full-height"
             onContextMenu={this.handleRightClick}
@@ -193,11 +210,26 @@ class FinderNavItem extends Component {
             <EntityLink
               entityId={id}
               activeClassName="active"
-              className={`finder-nav-item-link ${
-                isHomeActive || isActiceArcticSource ? "active" : ""
-              } `}
+              className={clsx(
+                `finder-nav-item-link ${
+                  isHomeActive || isActiceArcticSource ? "active" : ""
+                }`,
+                linkClass
+              )}
+              {...(item.entityType === ENTITY_TYPES.folder && {
+                linkTo: shouldUseNewDatasetNavigation()
+                  ? newGetHref(Immutable.fromJS(item), null)
+                  : getHref(Immutable.fromJS(item), null),
+              })}
+              onlyActiveOnIndex={onlyActiveOnIndex}
             >
-              <EntityIcon entityId={id} />
+              <PureEntityIcon
+                entityType={entityType}
+                {...(item.entityType === ENTITY_TYPES.source && {
+                  sourceStatus: item.state?.status,
+                  sourceType: item.type,
+                })}
+              />
               <Tooltip title={name}>
                 <EllipsedText className="nav-item-ellipsed-text">
                   <span>{name}</span>
@@ -214,8 +246,7 @@ class FinderNavItem extends Component {
                     count={numberOfDatasets}
                     isBounded={datasetCountBounded}
                   />
-                  <FeatureSwitch
-                    flag={CATALOG_ARS_ENABLED}
+                  <ARSFeatureSwitch
                     renderEnabled={() => null}
                     renderDisabled={() => id && <ResourcePin entityId={id} />}
                   />
@@ -224,7 +255,7 @@ class FinderNavItem extends Component {
             </EntityLink>
           </div>
         )}
-        {this.hasMenu(this.props.entityType) && this.state.menuOpen && (
+        {this.hasMenu(item.entityType) && this.state.menuOpen && (
           <Popover
             useLayerForClickAway={false}
             anchorEl={this.state.menuOpen ? this.state.anchorEl : null}
@@ -240,7 +271,7 @@ class FinderNavItem extends Component {
   }
 }
 
-export default withRouter(connect(mapStateToProps)(FinderNavItem));
+export default withRouter(FinderNavItem);
 
 const styles = {
   disabled: {

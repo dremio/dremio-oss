@@ -122,7 +122,7 @@ class TransformRange extends Component {
     }
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     if (this.props.data && this.props.data.length !== nextProps.data.length) {
       this.domain = TransformRange.getDomainWithRange(nextProps.data);
     }
@@ -180,7 +180,7 @@ class TransformRange extends Component {
         <div style={styles.footer} className="keep-null-wrapper">
           <Checkbox
             {...keepNull}
-            label={<span>{la("Keep null values")}</span>}
+            label={<span>{laDeprecated("Keep null values")}</span>}
             labelStyle={styles.labelChecked}
             dummyInputStyle={styles.dummyStyle}
             style={styles.checkbox}
@@ -229,13 +229,13 @@ class TransformRange extends Component {
         <div style={styles.content}>
           <div style={styles.header}>
             <div style={{ ...styles.bound, ...styles.pad, ...widthForColumns }}>
-              {la("Lower limit")}
+              {laDeprecated("Lower limit")}
             </div>
             <div style={{ ...styles.distr, ...styles.pad }}>
-              {la("Distribution of Values")}
+              {laDeprecated("Distribution of Values")}
             </div>
             <div style={{ ...styles.bound, ...styles.pad, ...widthForColumns }}>
-              {la("Upper limit")}
+              {laDeprecated("Upper limit")}
             </div>
           </div>
           <div style={styles.body} data-qa="graph-body" className="graph-body">
@@ -243,7 +243,7 @@ class TransformRange extends Component {
               className="lower-limit-bound"
               defaultValue={`${this.getValue(0)}`}
               columnType={columnType}
-              noneLabel={la("None (-∞)")}
+              noneLabel={laDeprecated("None (-∞)")}
               fieldName="lower"
               field={lowerBound}
               validate={this.validateBound(false)}
@@ -264,7 +264,7 @@ class TransformRange extends Component {
               className="upper-limit-bound"
               defaultValue={`${this.getValue(this.domain.length - 1)}`}
               columnType={columnType}
-              noneLabel={la("None (∞)")}
+              noneLabel={laDeprecated("None (∞)")}
               fieldName="upper"
               field={upperBound}
               validate={this.validateBound(true)}

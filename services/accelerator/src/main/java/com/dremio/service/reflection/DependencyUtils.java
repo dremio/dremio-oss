@@ -16,19 +16,19 @@
 package com.dremio.service.reflection;
 
 import static com.dremio.service.reflection.ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME;
+import static com.dremio.service.reflection.materialization.AccelerationStoragePlugin.TABLE_SCHEMA_PATH_REFLECTION_ID_COMPONENT;
 
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
+import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.common.utils.PathUtils;
-import com.dremio.exec.catalog.CatalogEntityKey;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.EntityExplorer;
-import com.dremio.exec.catalog.TableVersionContext;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.service.job.proto.Acceleration;
 import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.ScanPath;
 import com.dremio.service.namespace.NamespaceException;
@@ -132,32 +132,28 @@ public class DependencyUtils {
                                                           final RefreshDecision decision, CatalogService catalogService) throws NamespaceException {
     final Set<DependencyEntry> plandDependencies = Sets.newHashSet();
     EntityExplorer catalog = CatalogUtil.getSystemCatalogForReflections(catalogService);
-    // add all substitutions
-    if (jobInfo.getAcceleration() != null) {
-      final List<Acceleration.Substitution> substitutions = jobInfo.getAcceleration().getSubstitutionsList();
-      if (substitutions != null) {
-        for (Acceleration.Substitution substitution : substitutions) {
-          plandDependencies.add(DependencyEntry.of(new ReflectionId(substitution.getId().getLayoutId())));
-        }
-      }
-    }
 
-    // add all physical datasets retrieved from the scan
+    // add all physical datasets and substitutions
     final List<ScanPath> jobScanPaths = jobInfo.getScanPathsList();
     if (jobScanPaths != null) {
       for (ScanPath scanPath : jobScanPaths) {
-        // make sure to exclude scans from materializations
-        if (!scanPath.getPathList().get(0).equals(ACCELERATOR_STORAGEPLUGIN_NAME)) {
-          TableVersionContext versionContext = null;
-          if (scanPath.getVersionContext() != null) {
-            versionContext = TableVersionContext.deserialize(scanPath.getVersionContext());
-          }
-          DremioTable table = CatalogUtil.getTable(CatalogEntityKey.newBuilder().
-            keyComponents(scanPath.getPathList()).tableVersionContext(versionContext).build(), catalog);
-          if (table == null) {
-            throw new NamespaceNotFoundException(new NamespaceKey(scanPath.getPathList()), "Dataset not found in catalog " + scanPath.getVersionContext());
-          }
-          plandDependencies.add(DependencyEntry.of(table.getDatasetConfig().getId().getId(), scanPath.getPathList()));
+        TableVersionContext versionContext = null;
+        if (scanPath.getVersionContext() != null) {
+          versionContext = TableVersionContext.deserialize(scanPath.getVersionContext());
+        }
+        DremioTable table = catalog.getTable(CatalogEntityKey.newBuilder().
+          keyComponents(scanPath.getPathList()).tableVersionContext(versionContext).build());
+        if (table == null) {
+          throw new NamespaceNotFoundException(new NamespaceKey(scanPath.getPathList()), "Dataset not found in catalog " + scanPath.getVersionContext());
+        }
+        long snapshotId = 0L;
+        if (scanPath.getSnapshotId() != null) {
+          snapshotId = scanPath.getSnapshotId();
+        }
+        if (scanPath.getPathList().get(0).equals(ACCELERATOR_STORAGEPLUGIN_NAME)) {
+          plandDependencies.add(DependencyEntry.of(new ReflectionId(scanPath.getPathList().get(TABLE_SCHEMA_PATH_REFLECTION_ID_COMPONENT)), snapshotId));
+        } else {
+          plandDependencies.add(DependencyEntry.of(table.getDatasetConfig().getId().getId(), scanPath.getPathList(), snapshotId));
         }
       }
     }
@@ -178,12 +174,16 @@ public class DependencyUtils {
         if (scanPath.getVersionContext() != null) {
           versionContext = TableVersionContext.deserialize(scanPath.getVersionContext());
         }
-        DremioTable table = CatalogUtil.getTable(CatalogEntityKey.newBuilder().
-          keyComponents(scanPath.getPathList()).tableVersionContext(versionContext).build(), catalog);
+        DremioTable table = catalog.getTable(CatalogEntityKey.newBuilder().
+          keyComponents(scanPath.getPathList()).tableVersionContext(versionContext).build());
         if (table == null) {
           throw new NamespaceNotFoundException(new NamespaceKey(scanPath.getPathList()), "Dataset not found in catalog " + scanPath.getVersionContext());
         }
-        decisionDependencies.add(DependencyEntry.of(table.getDatasetConfig().getId().getId(), scanPath.getPathList()));
+        long snapshotId = 0L;
+        if (scanPath.getSnapshotId() != null) {
+          snapshotId = scanPath.getSnapshotId();
+        }
+        decisionDependencies.add(DependencyEntry.of(table.getDatasetConfig().getId().getId(), scanPath.getPathList(), snapshotId));
       }
     }
 

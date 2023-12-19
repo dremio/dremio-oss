@@ -18,6 +18,10 @@ package com.dremio.exec.catalog;
 import java.util.List;
 import java.util.stream.Stream;
 
+import javax.annotation.Nullable;
+
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.store.ChangeInfo;
 import com.dremio.exec.store.NessieNamespaceAlreadyExistsException;
@@ -25,8 +29,10 @@ import com.dremio.exec.store.NoDefaultBranchException;
 import com.dremio.exec.store.ReferenceAlreadyExistsException;
 import com.dremio.exec.store.ReferenceConflictException;
 import com.dremio.exec.store.ReferenceInfo;
+import com.dremio.exec.store.ReferenceNotFoundByTimestampException;
 import com.dremio.exec.store.ReferenceNotFoundException;
 import com.dremio.exec.store.ReferenceTypeConflictException;
+import com.dremio.exec.store.UnAuthenticatedException;
 import com.dremio.plugins.ExternalNamespaceEntry;
 import com.dremio.service.catalog.Schema;
 import com.dremio.service.catalog.SearchQuery;
@@ -55,8 +61,9 @@ public interface VersionedPlugin {
    * @throws ReferenceNotFoundException If the given reference cannot be found
    * @throws NoDefaultBranchException If the versioned catalog server does not have a default branch set
    * @throws ReferenceTypeConflictException If the requested version type does not match the server
+   * @throws ReferenceNotFoundByTimestampException If the given reference cannot be found via timestamp
    */
-  ResolvedVersionContext resolveVersionContext(VersionContext versionContext);
+  ResolvedVersionContext resolveVersionContext(VersionContext versionContext) throws ReferenceNotFoundException, NoDefaultBranchException, ReferenceConflictException;
 
   /**
    * List all table entries under the given path and subpaths for the given version.
@@ -81,11 +88,6 @@ public interface VersionedPlugin {
    * @throws ReferenceTypeConflictException If the requested version does not match the server.
    */
   Stream<ExternalNamespaceEntry> listViewsIncludeNested(List<String> catalogPath, VersionContext version);
-
-  /**
-   * Gets the type of object - eg type of Table, type of View etc
-   */
-  EntityType getType(List<String> key, ResolvedVersionContext version);
 
   /**
    * Gets DataplaneTableInfo object that is being used in sys."tables"
@@ -117,10 +119,15 @@ public interface VersionedPlugin {
    */
   Stream<TableSchema> getAllInformationSchemaColumnInfo(SearchQuery searchQuery);
 
+  /*
+   * Gets the type of object - eg type of Table, type of View etc
+   */
+  @Nullable EntityType getType(List<String> catalogKey, ResolvedVersionContext version);
+
   /**
    * Gets contentId for the given key and version
    */
-  String getContentId(List<String> key, ResolvedVersionContext version);
+  @Nullable String getContentId(List<String> catalogKey, ResolvedVersionContext version);
 
   /**
    * Checks that a commit hash exists in the server.
@@ -280,4 +287,23 @@ public interface VersionedPlugin {
 
   void deleteFolder(NamespaceKey namespaceKey, VersionContext sourceVersion)
     throws ReferenceNotFoundException, UserException;
+
+  /**
+   * Gets the default branch for this plugin
+   * @throws NoDefaultBranchException If the default branch cannot be found .
+   * @throws UnAuthenticatedException If Nessie configured with the plugin is unreachable due to authentication error.
+   */
+  String getDefaultBranch() throws NoDefaultBranchException, UnAuthenticatedException;
+
+  /**
+   * Gets the name of this plugin
+   */
+  String getName();
+
+  /**
+   * Returns the catalog Id.
+   */
+  default String getCatalogId() {
+    return null;
+  }
 }

@@ -23,6 +23,11 @@ import actionUtils from "@app/utils/actionUtils/actionUtils";
 import { sidebarMinWidth } from "@app/pages/HomePage/components/Columns.less";
 import * as schemas from "@app/schemas";
 import { APIV2Call } from "@app/core/APICall";
+import { getSonarContentsResponse } from "@app/exports/endpoints/SonarContents/getSonarContents";
+import { getLoggingContext } from "dremio-ui-common/contexts/LoggingContext.js";
+import { ApiError } from "redux-api-middleware";
+
+export const logger = getLoggingContext().createLogger("actions/home");
 
 export const CONVERT_FOLDER_TO_DATASET_START =
   "CONVERT_FOLDER_TO_DATASET_START";
@@ -78,7 +83,7 @@ function fetchConvertDataset(entity, viewId) {
     invalidateViewIds: ["HomeContents"],
   };
   const successMeta = { ...meta, success: true }; // doesn't invalidateViewIds without `success: true`
-  const errorMessage = la(
+  const errorMessage = laDeprecated(
     "There was an error removing the format for the folder."
   );
 
@@ -160,7 +165,7 @@ export const loadWiki = (dispatch) => (entityId) => {
           }
           const errorInfo = {
             errorMessage: await ApiUtils.getErrorMessage(
-              la("Wiki API returned an error"),
+              laDeprecated("Wiki API returned an error"),
               response
             ),
             errorId: "" + Math.random(),
@@ -193,25 +198,110 @@ export const setSidebarSize = (size) => ({
 
 export const contentLoadActions =
   actionUtils.generateRequestActions("HOME_CONTENT_LOAD");
+export const RESET_HOME_CONTENTS = "RESET_HOME_CONTENTS";
 
-export const loadHomeContent = (getDataUrl, entityType, viewId, params) => {
+export function resetHomeContents() {
+  return {
+    type: RESET_HOME_CONTENTS,
+    meta: {
+      viewId: "HomeContents",
+      invalidateViewIds: ["HomeContents"],
+    },
+  };
+}
+const isAborted = (json) => json === "The user aborted a request.";
+
+export const loadHomeContent = (
+  getDataUrl,
+  entityType,
+  viewId,
+  params,
+  abortController
+) => {
   const entitySchema = schemas[entityType];
   const meta = { viewId };
-
-  const apiCall = new APIV2Call()
-    .paths(getDataUrl)
-    .params(params || {})
-    .uncachable();
-
   return {
     [RSAA]: {
       types: [
         { type: contentLoadActions.start, meta },
-        { type: contentLoadActions.success, meta: { entitySchema, ...meta } },
+        {
+          type: contentLoadActions.success,
+          meta: async (action, state, res) => {
+            try {
+              const json = await res.clone().json();
+              if (isAborted(json)) {
+                return { ...meta }; //Skip setting content
+              } else {
+                return {
+                  entitySchema,
+                  ...meta,
+                };
+              }
+            } catch (e) {
+              //
+            }
+          },
+          payload: (action, state, res) => {
+            return res
+              .clone()
+              .json()
+              .then((json) => {
+                if (isAborted(json)) throw json;
+                else return json;
+              })
+              .catch(() => new ApiError(res.status, "CANCELED", res));
+          },
+        },
         { type: contentLoadActions.failure, meta },
       ],
       method: "GET",
-      endpoint: apiCall,
+      endpoint: "", // Overridden by fetch
+      fetch: () => {
+        const reqInit = abortController
+          ? { signal: abortController.signal }
+          : undefined;
+        return getSonarContentsResponse(
+          {
+            path: getDataUrl,
+            params,
+            entityType,
+          },
+          reqInit
+        )
+          .then((res) => res.clone())
+          .catch((e) => {
+            if (e instanceof DOMException) {
+              logger.debug("Aborting previous request");
+              return new Response(JSON.stringify(e.message), {
+                ...e,
+              });
+            }
+            return new Response(JSON.stringify(e.responseBody), {
+              status: 400,
+              headers: {
+                "Content-Type": "application/json",
+              },
+            });
+          });
+      },
     },
   };
+};
+
+export const loadHomeContentWithAbort = (
+  getDataUrl,
+  entityType,
+  viewId,
+  params
+) => {
+  const controller = new AbortController();
+  const rsaa = loadHomeContent(
+    getDataUrl,
+    entityType,
+    viewId,
+    params,
+    controller
+  );
+
+  return [controller, rsaa];
 };

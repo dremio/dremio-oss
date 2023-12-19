@@ -69,6 +69,9 @@ public class SqlGrant extends SqlCall implements SimpleDirectHandler.Creator {
     EXECUTE,
     CREATE_SOURCE,
     UPLOAD_FILE,
+    USAGE,
+    WRITE,
+    CONFIGURE_SECURITY,
     ALL
   }
 
@@ -84,7 +87,8 @@ public class SqlGrant extends SqlCall implements SimpleDirectHandler.Creator {
     FOLDER,
     SOURCE,
     SPACE,
-    FUNCTION
+    FUNCTION,
+    CATALOG
   }
 
   public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("GRANT", SqlKind.OTHER) {

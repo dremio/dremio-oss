@@ -88,7 +88,7 @@ class TimeUtils {
 
   formatTime(
     time,
-    invalidDateString = la(INVALID_DATE_MSG),
+    invalidDateString = laDeprecated(INVALID_DATE_MSG),
     locale = window.navigator.language,
     format = "x"
   ) {
@@ -106,7 +106,7 @@ class TimeUtils {
     return moment(time).isAfter(last);
   }
 
-  getUnixTime(stringTime, invalidDateString = la(INVALID_DATE_MSG)) {
+  getUnixTime(stringTime, invalidDateString = laDeprecated(INVALID_DATE_MSG)) {
     const t = moment(stringTime);
     return t.isValid() ? t.valueOf() : invalidDateString;
   }

@@ -51,6 +51,7 @@ class PermissionCheckCache {
   protected final Provider<StoragePlugin> plugin;
   private final Provider<Long> authTtlMs;
 
+  @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
   public PermissionCheckCache(
       Provider<StoragePlugin> plugin,
       Provider<Long> authTtlMs,

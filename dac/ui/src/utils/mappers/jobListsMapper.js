@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import Immutable from "immutable";
 export const mapJobs = (payload) => {
   return ((payload && payload.jobListItem) || []).map((item) => {
     return Immutable.fromJS(item);

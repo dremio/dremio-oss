@@ -26,7 +26,6 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.tools.RelBuilderFactory;
 
-import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.planner.serializer.RelNodeSerde.PluginRetriever;
 import com.dremio.exec.planner.serializer.RelNodeSerde.RelFromProto;
 import com.dremio.exec.planner.serializer.RelNodeSerde.TableRetriever;
@@ -44,33 +43,30 @@ class RelDeserializer implements RelFromProto {
   private final RelBuilderFactory factory;
   private final TableRetriever tables;
   private final PluginRetriever plugins;
-  private final FunctionImplementationRegistry funcs;
   private final RelOptCluster cluster;
   private final List<Any> nodes;
   private final RexDeserializer rexDeserializer;
   private final TypeSerde types;
 
-  private final SqlOperatorConverter sqlOperatorConverter;
+  private final SqlOperatorSerde sqlOperatorSerde;
 
   public RelDeserializer(
       RelSerdeRegistry registry,
       RelBuilderFactory factory,
       TableRetriever tables,
       PluginRetriever plugins,
-      FunctionImplementationRegistry funcs,
       RelOptCluster cluster,
       List<Any> nodes,
-      SqlOperatorConverter sqlOperatorConverter) {
+      SqlOperatorSerde sqlOperatorSerde) {
     this.registry = registry;
     this.factory = factory;
     this.tables = tables;
     this.plugins = plugins;
-    this.funcs = funcs;
     this.cluster = cluster;
     this.nodes = nodes;
     this.types = new TypeSerde(cluster.getTypeFactory());
-    this.sqlOperatorConverter = sqlOperatorConverter;
-    this.rexDeserializer = new RexDeserializer(cluster.getRexBuilder(), types, registry, funcs, tables, plugins, cluster, sqlOperatorConverter);
+    this.sqlOperatorSerde = sqlOperatorSerde;
+    this.rexDeserializer = new RexDeserializer(cluster.getRexBuilder(), types, registry, tables, plugins, cluster, sqlOperatorSerde);
   }
 
   @Override
@@ -94,7 +90,7 @@ class RelDeserializer implements RelFromProto {
 
   @Override
   public SqlOperator toOp(PSqlOperator op) {
-    return sqlOperatorConverter.fromProto(op);
+    return sqlOperatorSerde.fromProto(op);
   }
 
   @Override
@@ -114,11 +110,6 @@ class RelDeserializer implements RelFromProto {
   }
 
   @Override
-  public FunctionImplementationRegistry funcs() {
-    return funcs;
-  }
-
-  @Override
   public TableRetriever tables() {
     return tables;
   }
@@ -133,10 +124,15 @@ class RelDeserializer implements RelFromProto {
     return cluster;
   }
 
-  public static RelNode deserialize(RelSerdeRegistry registry, RelBuilderFactory factory, TableRetriever tables,
-                                    PluginRetriever plugins, FunctionImplementationRegistry funcs, PRelList list,
-                                    RelOptCluster cluster, SqlOperatorConverter sqlOperatorConverter) {
-    RelDeserializer de = new RelDeserializer(registry, factory, tables, plugins, funcs, cluster, list.getNodeList(), sqlOperatorConverter);
+  public static RelNode deserialize(
+    RelSerdeRegistry registry,
+    RelBuilderFactory factory,
+    TableRetriever tables,
+    PluginRetriever plugins,
+    PRelList list,
+    RelOptCluster cluster,
+    SqlOperatorSerde sqlOperatorSerde) {
+    RelDeserializer de = new RelDeserializer(registry, factory, tables, plugins, cluster, list.getNodeList(), sqlOperatorSerde);
     return de.toRel(list.getNodeCount() - 1);
   }
 }

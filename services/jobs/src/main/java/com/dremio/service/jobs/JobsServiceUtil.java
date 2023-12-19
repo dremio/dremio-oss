@@ -62,6 +62,7 @@ import com.dremio.service.job.ActiveJobSummary;
 import com.dremio.service.job.JobDetails;
 import com.dremio.service.job.JobStats;
 import com.dremio.service.job.JobSummary;
+import com.dremio.service.job.RecentJobSummary;
 import com.dremio.service.job.RequestType;
 import com.dremio.service.job.StoreJobResultRequest;
 import com.dremio.service.job.SubmitJobRequest;
@@ -76,6 +77,7 @@ import com.dremio.service.job.proto.JobProtobuf;
 import com.dremio.service.job.proto.JobResult;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.ParentDatasetInfo;
+import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.job.proto.TableDatasetProfile;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.DatasetVersion;
@@ -405,7 +407,7 @@ public final class JobsServiceUtil {
     return new JobFailureInfo().setMessage("Invalid Query Exception").setType(type).setErrorsList(errors);
   }
 
-  private static JobInfo getJobInfo(StoreJobResultRequest request) {
+  private static JobInfo getJobInfo(StoreJobResultRequest request, long ttlExpireAtInMillis) {
     return new JobInfo()
       .setJobId(JobsProtoUtil.toStuff(request.getJobId()))
       .setSql(request.getSql())
@@ -418,14 +420,15 @@ public final class JobsServiceUtil {
       .setQueryType(JobsProtoUtil.toStuff(request.getQueryType()))
       .setDescription(request.getDescription())
       .setOriginalCost(request.getOriginalCost())
-      .setOutputTableList(request.getOutputTableList());
+      .setOutputTableList(request.getOutputTableList())
+      .setTtlExpireAt(ttlExpireAtInMillis);
   }
 
-  private static List<JobAttempt> getAttempts(StoreJobResultRequest request) {
+  private static List<JobAttempt> getAttempts(StoreJobResultRequest request, long ttlExpireAtInMillis) {
     final ArrayList<JobAttempt> jobAttempts = new ArrayList<>();
     jobAttempts.add(new JobAttempt()
       .setState(JobsProtoUtil.toStuff(request.getJobState()))
-      .setInfo(getJobInfo(request))
+      .setInfo(getJobInfo(request, ttlExpireAtInMillis))
       .setAttemptId(request.getAttemptId())
       .setEndpoint(JobsProtoUtil.toStuff(request.getEndpoint()))
       .setStateListList(JobsProtoUtil.toBuf2(request.getStateListList())));
@@ -433,9 +436,9 @@ public final class JobsServiceUtil {
     return jobAttempts;
   }
 
-  static JobResult toJobResult(StoreJobResultRequest request) {
+  static JobResult toJobResult(StoreJobResultRequest request, long ttlExpireAtInMillis) {
     return new JobResult()
-      .setAttemptsList(getAttempts(request))
+      .setAttemptsList(getAttempts(request, ttlExpireAtInMillis))
       .setCompleted(request.getJobState() == com.dremio.service.job.JobState.COMPLETED);
   }
 
@@ -579,6 +582,96 @@ public final class JobsServiceUtil {
       .setAccelerated(lastJobAttemptInfo.getAcceleration() != null)
       .setQuery(lastJobAttemptInfo.getSql())
       .setAttemptCount(job.getAttempts().size());
+
+    if (firstJobAttemptInfo.getStartTime() != null) {
+      builder.setSubmittedEpochMillis(firstJobAttemptInfo.getStartTime());
+      builder.setSubmittedTs(Timestamp.newBuilder().setSeconds(firstJobAttemptInfo.getStartTime()).build());
+    }
+
+    AttemptsHelper helper = new AttemptsHelper(lastJobAttempt);
+    if (helper.getStateTimeStamp(State.PENDING) != null) {
+      builder.setAttemptStartedEpochMillis(helper.getStateTimeStamp(State.PENDING));
+      builder.setAttemptStartedTs(Timestamp.newBuilder().setSeconds(helper.getStateTimeStamp(State.PENDING)).build());
+    }
+    if (helper.getStateTimeStamp(State.METADATA_RETRIEVAL) != null) {
+      builder.setMetadataRetrievalEpochMillis(helper.getStateTimeStamp(State.METADATA_RETRIEVAL));
+      builder.setMetadataRetrievalTs(Timestamp.newBuilder().setSeconds(helper.getStateTimeStamp(State.METADATA_RETRIEVAL)).build());
+    }
+    if (helper.getStateTimeStamp(State.PLANNING) != null) {
+      builder.setPlanningStartEpochMillis(helper.getStateTimeStamp(State.PLANNING));
+      builder.setPlanningStartTs(Timestamp.newBuilder().setSeconds(helper.getStateTimeStamp(State.PLANNING)).build());
+    }
+    if (helper.getStateTimeStamp(State.QUEUED) != null) {
+      builder.setQueryEnqueuedEpochMillis(helper.getStateTimeStamp(State.QUEUED));
+      builder.setQueryEnqueuedTs(Timestamp.newBuilder().setSeconds(helper.getStateTimeStamp(State.QUEUED)).build());
+    }
+    if (helper.getStateTimeStamp(State.ENGINE_START) != null) {
+      builder.setEngineStartEpochMillis(helper.getStateTimeStamp(State.ENGINE_START));
+      builder.setEngineStartTs(Timestamp.newBuilder().setSeconds(helper.getStateTimeStamp(State.ENGINE_START)).build());
+    }
+    if (helper.getStateTimeStamp(State.EXECUTION_PLANNING) != null) {
+      builder.setExecutionPlanningEpochMillis(helper.getStateTimeStamp(State.EXECUTION_PLANNING));
+      builder.setExecutionPlanningTs(Timestamp.newBuilder().setSeconds(helper.getStateTimeStamp(State.EXECUTION_PLANNING)).build());
+    }
+    if (helper.getStateTimeStamp(State.RUNNING) != null) {
+      builder.setExecutionStartEpochMillis(helper.getStateTimeStamp(State.RUNNING));
+      builder.setExecutionStartTs(Timestamp.newBuilder().setSeconds(helper.getStateTimeStamp(State.RUNNING)).build());
+    }
+
+    if (lastJobAttempt.getStats() != null) {
+      if (lastJobAttempt.getStats().getInputRecords() != null) {
+        builder.setRowsScanned(lastJobAttempt.getStats().getInputRecords());
+      }
+      if (lastJobAttempt.getStats().getInputBytes() != null) {
+        builder.setBytesScanned(lastJobAttempt.getStats().getInputBytes());
+      }
+
+      if (lastJobAttempt.getStats().getOutputRecords() != null) {
+        builder.setRowsReturned(lastJobAttempt.getStats().getOutputRecords());
+      }
+      if (lastJobAttempt.getStats().getOutputBytes() != null) {
+        builder.setBytesReturned(lastJobAttempt.getStats().getOutputBytes());
+      }
+    }
+
+    builder.setPlannerEstimatedCost(lastJobAttemptInfo.getOriginalCost());
+
+    if (lastJobAttemptInfo.getParentsList() != null && lastJobAttemptInfo.getDatasetPathList() != null) {
+      builder.setQueriedDatasets(getQueriedDatasets(lastJobAttemptInfo.getParentsList(), lastJobAttemptInfo.getDatasetPathList()));
+    }
+
+    if (lastJobAttempt.getDetails() != null && lastJobAttempt.getDetails().getTableDatasetProfilesList() != null) {
+      builder.setScannedDatasets(getScannedDatasets(lastJobAttempt));
+    }
+
+    if (lastJobAttemptInfo.getResourceSchedulingInfo() != null) {
+      if (lastJobAttemptInfo.getResourceSchedulingInfo().getQueueName() != null) {
+        builder.setQueueName(lastJobAttemptInfo.getResourceSchedulingInfo().getQueueName());
+      }
+      if (lastJobAttemptInfo.getResourceSchedulingInfo().getEngineName() != null) {
+        builder.setEngine(lastJobAttemptInfo.getResourceSchedulingInfo().getEngineName());
+      }
+    }
+
+    return builder.build();
+  }
+
+  static RecentJobSummary toRecentJobSummary(JobId jobId, JobResult job) {
+
+    int attemptsSize = job.getAttemptsList().size();
+    final JobAttempt firstJobAttempt = job.getAttemptsList().get(0);
+    final JobInfo firstJobAttemptInfo = firstJobAttempt.getInfo();
+    final JobAttempt lastJobAttempt = job.getAttemptsList().get(attemptsSize-1);
+    final JobInfo lastJobAttemptInfo = lastJobAttempt.getInfo();
+
+    RecentJobSummary.Builder builder = RecentJobSummary.newBuilder()
+      .setJobId(JobsProtoUtil.toBuf(jobId).getId())
+      .setStatus(JobsProtoUtil.toBuf(lastJobAttempt.getState()).toString())
+      .setUserName(firstJobAttemptInfo.getUser())
+      .setQueryType(JobsProtoUtil.toBuf(lastJobAttemptInfo.getQueryType()).toString())
+      .setAccelerated(lastJobAttemptInfo.getAcceleration() != null)
+      .setQuery(lastJobAttemptInfo.getSql())
+      .setAttemptCount(attemptsSize);
 
     if (firstJobAttemptInfo.getStartTime() != null) {
       builder.setSubmittedEpochMillis(firstJobAttemptInfo.getStartTime());
@@ -802,7 +895,7 @@ public final class JobsServiceUtil {
   /**
    * Creates JobInfo from SubmitJobRequest
    */
-  public static JobInfo createJobInfo(SubmitJobRequest jobRequest, JobId jobId, String inSpace, int sqlTruncateLen) {
+  public static JobInfo createJobInfo(SubmitJobRequest jobRequest, JobId jobId, String inSpace, int sqlTruncateLen, long ttlExpireAtInMillis) {
     boolean isSqlTruncated = jobRequest.getSqlQuery().getSql().length() > sqlTruncateLen;
     String sqlText = isSqlTruncated ? jobRequest.getSqlQuery().getSql().substring(0, sqlTruncateLen) : jobRequest.getSqlQuery().getSql();
 
@@ -815,7 +908,8 @@ public final class JobsServiceUtil {
       .setResultMetadataList(new ArrayList<ArrowFileMetadata>())
       .setContextList(jobRequest.getSqlQuery().getContextList())
       .setQueryLabel(JobsProtoUtil.toStuff(jobRequest.getQueryLabel()))
-      .setIsTruncatedSql(isSqlTruncated);
+      .setIsTruncatedSql(isSqlTruncated)
+      .setTtlExpireAt(ttlExpireAtInMillis);
 
     if (jobRequest.hasDownloadSettings()) {
       jobInfo.setDownloadInfo(new DownloadInfo()
@@ -901,6 +995,27 @@ public final class JobsServiceUtil {
     return SearchQueryUtils.and(builder.build());
   }
 
+  // derived from JobIndexKeys.UI_EXTERNAL_JOBS_FILTER & JobIndexKeys.ACCELERATION_JOBS_FILTER
+  public static boolean countReflectionUsage(QueryType type) {
+    switch (type) {
+      case UI_PREVIEW:
+      case UI_EXPORT:
+      case UI_RUN:
+      case ODBC:
+      case JDBC:
+      case REST:
+      case FLIGHT:
+      case D2D:
+      case ACCELERATOR_CREATE:
+      case ACCELERATOR_DROP:
+      case ACCELERATOR_EXPLAIN:
+      case ACCELERATOR_OPTIMIZE:
+        return true;
+      default:
+        return false;
+    }
+  }
+
   public static String getJobDescription(com.dremio.proto.model.attempts.RequestType requestType, String sql, String desc) {
     return getJobDescription(RequestType.valueOf(requestType.toString()), sql, desc);
   }
@@ -908,5 +1023,21 @@ public final class JobsServiceUtil {
   public static String getJobDescription(RequestType requestType, String sql, String desc) {
     // description of a job is same as the sql text for RUN_SQL request types (Ref. UserRequest.java)
     return requestType == RequestType.RUN_SQL ? sql : desc;
+  }
+
+  public static boolean isUserQuery(QueryType type) {
+    switch (type) {
+      case UI_PREVIEW:
+      case UI_EXPORT:
+      case UI_RUN:
+      case ODBC:
+      case JDBC:
+      case REST:
+      case FLIGHT:
+      case D2D:
+        return true;
+      default:
+        return false;
+    }
   }
 }

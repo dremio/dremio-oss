@@ -24,7 +24,7 @@
   <parent>
     <artifactId>dremio-parent</artifactId>
     <groupId>com.dremio</groupId>
-    <version>24.1.0-202306130653310132-d30779f6</version>
+    <version>24.3.0-202312190021150029-52db2faf</version>
   </parent>
 
   <groupId>com.dremio.tools</groupId>
@@ -35,20 +35,10 @@
   <modules>
     <module>attach-tool</module>
     <module>build-tools</module>
+    <module>errorprone-dremio</module>
     <module>fmpp-maven-plugin</module>
     <module>protostuff-maven-plugin</module>
+    <module>zookeeper-test-runner</module>
   </modules>
-
-  <profiles>
-    <profile>
-      <id>jdk11-or-higher</id>
-      <activation>
-        <jdk>[11,)</jdk>
-      </activation>
-      <modules>
-        <module>errorprone-dremio</module>
-      </modules>
-    </profile>
-  </profiles>
 
 </project>

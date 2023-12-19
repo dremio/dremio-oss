@@ -47,7 +47,7 @@ export class NotificationContainer extends Component {
     this.notificationSystem = this.notificationSystemRef.current;
   }
 
-  componentWillReceiveProps(newProps) {
+  UNSAFE_componentWillReceiveProps(newProps) {
     const {
       uid,
       level,

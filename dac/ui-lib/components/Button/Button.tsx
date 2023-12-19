@@ -19,7 +19,7 @@ import * as React from "react";
 import clsx from "clsx";
 import { forwardRef, type ReactNode } from "react";
 import { Spinner } from "../Spinner/Spinner";
-import { Tooltip } from "../Tooltip/Tooltip";
+import { Tooltip, type TooltipPlacement } from "../Tooltip/Tooltip";
 
 type ButtonProps = {
   as?: string | React.FunctionComponent<any> | React.ComponentClass<any, any>;
@@ -53,6 +53,11 @@ type ButtonProps = {
    * If defined, a tooltip will be added to the button
    */
   tooltip?: string;
+
+  /**
+   * If tooltip is defined, this will define where the tooltip is placed
+   */
+  tooltipPlacement?: TooltipPlacement;
 
   /**
    * The visual style of the button
@@ -91,6 +96,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       pending,
       type = "button",
       tooltip,
+      tooltipPlacement,
       ...rest
     } = props;
     const buttonProps =
@@ -117,7 +123,11 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       <>
         {prefix && <div className="dremio-button__prefix">{prefix}</div>}
         {tooltip ? (
-          <Tooltip content={tooltip} shouldWrapChildren>
+          <Tooltip
+            content={tooltip}
+            shouldWrapChildren
+            placement={tooltipPlacement}
+          >
             <div className="dremio-button__content">{getContent(props)}</div>
           </Tooltip>
         ) : (

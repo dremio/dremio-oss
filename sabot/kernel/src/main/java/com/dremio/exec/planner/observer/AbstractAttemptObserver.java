@@ -28,6 +28,7 @@ import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
+import com.dremio.exec.planner.acceleration.RelWithInfo;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.physical.Prel;
@@ -82,7 +83,11 @@ public abstract class AbstractAttemptObserver implements AttemptObserver {
   }
 
   @Override
-  public void planNormalized(long millisTaken, List<RelNode> normalizedQueryPlans) {
+  public void planNormalized(long millisTaken, List<RelWithInfo> normalizedQueryPlans) {
+  }
+
+  @Override
+  public void planSubstituted(long millisTaken) {
   }
 
   @Override
@@ -97,9 +102,18 @@ public abstract class AbstractAttemptObserver implements AttemptObserver {
   public void planConvertedScan(RelNode converted, long millisTaken) {
   }
 
+  /**
+   * Gets the refresh decision and how long it took to make the refresh decision
+   * @param text A string describing if we decided to do full or incremental refresh
+   * @param millisTaken time taken in planning the refresh decision
+   */
   @Override
-  public void planSubstituted(DremioMaterialization materialization, List<RelNode> substitutions,
-    RelNode target, long millisTaken, boolean defaultReflection) {
+  public void planRefreshDecision(String text, long millisTaken) {
+  }
+
+  @Override
+  public void planSubstituted(DremioMaterialization materialization, List<RelWithInfo> substitutions,
+                              RelWithInfo target, long millisTaken, boolean defaultReflection) {
   }
 
   @Override

@@ -15,7 +15,6 @@
  */
 package com.dremio.service.orphanagecleaner;
 
-import static com.dremio.service.scheduler.ScheduleUtils.scheduleForRunningOnceAt;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
 import java.time.Instant;
@@ -33,6 +32,7 @@ import com.dremio.service.Service;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.orphanage.Orphanage;
 import com.dremio.service.orphanage.proto.OrphanEntry;
+import com.dremio.service.scheduler.Schedule;
 import com.dremio.service.scheduler.SchedulerService;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
@@ -42,7 +42,7 @@ import com.google.common.collect.Lists;
  */
 public class OrphanageCleanerService implements Service {
 
-    public static final String LOCAL_TASK_LEADER_NAME = "orphanagecleanup";
+    private static final String LOCAL_TASK_LEADER_NAME = "orphanagecleanup";
     private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(OrphanageCleanerService.class);
     private final Provider<SchedulerService> schedulerService;
     private final Provider<OptionManager> optionManager;
@@ -76,17 +76,20 @@ public class OrphanageCleanerService implements Service {
         SabotContext sabotContext = sabotContextProvider.get();
         orphanEntryManager = new OrphanageManager(orphanage, namespaceService, sabotContext,
                 optionManager.get());
-        schedulerService.get().schedule(scheduleForRunningOnceAt(
-                        Instant.ofEpochMilli(System.currentTimeMillis() + getCleanUpPeriodInMillis()),
-                        LOCAL_TASK_LEADER_NAME),
+        schedulerService.get().schedule(Schedule.Builder
+            .singleShotChain()
+            .startingAt(Instant.ofEpochMilli(System.currentTimeMillis() + getCleanUpPeriodInMillis()))
+            .asClusteredSingleton(LOCAL_TASK_LEADER_NAME)
+            .build(),
                 new Runnable() {
                     @Override
                     public void run() {
-                        cleanup();
-                        Instant scheduleTime = Instant.ofEpochMilli(System.currentTimeMillis() + getCleanUpPeriodInMillis());
-                        schedulerService.get().schedule(scheduleForRunningOnceAt(
-                                scheduleTime,
-                                LOCAL_TASK_LEADER_NAME), this);
+                      cleanup();
+                      schedulerService.get().schedule(Schedule.Builder
+                          .singleShotChain()
+                          .startingAt(Instant.ofEpochMilli(System.currentTimeMillis() + getCleanUpPeriodInMillis()))
+                          .asClusteredSingleton(LOCAL_TASK_LEADER_NAME)
+                          .build(), this);
                     }
                 }
         );
@@ -121,6 +124,8 @@ public class OrphanageCleanerService implements Service {
 
     @Override
     public void close() throws Exception {
+      if (orphanEntryManager != null) {
         orphanEntryManager.close();
+      }
     }
 }

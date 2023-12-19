@@ -26,6 +26,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -312,7 +313,11 @@ public class TestIcebergCommitOpHelper extends BaseTestOperator {
         SOURCE_TABLE_ROOT,
         null,
         io.protostuff.ByteString.copyFrom(IcebergSerDe.serializePartitionSpec(spec)),
-        IcebergSerDe.serializedSchemaAsJson(schema));
+        IcebergSerDe.serializedSchemaAsJson(schema),
+        null,
+      null,
+      Collections.emptyMap(),
+        null);
     props.setPartitionPaths(partitionPaths);
 
     return props;

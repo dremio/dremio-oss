@@ -15,6 +15,8 @@
  */
 package com.dremio.common.expression;
 
+import java.util.Optional;
+
 import com.dremio.common.expression.BasePath.SchemaPathVisitor;
 
 public abstract class PathSegment {
@@ -23,6 +25,10 @@ public abstract class PathSegment {
   protected PathSegment child;
 
   private int hash;
+
+  protected PathSegment(PathSegment child) {
+    this.child = child;
+  }
 
   public abstract PathSegment cloneWithNewChild(PathSegment segment);
 
@@ -35,36 +41,40 @@ public abstract class PathSegment {
 
 
   public static final class ArraySegment extends PathSegment {
-    private final int index;
+    private final Optional<Integer> optionalIndex;
+
+    public ArraySegment(Optional<Integer> optionalIndex, PathSegment child) {
+      super(child);
+
+      if (optionalIndex.isPresent() && optionalIndex.get() < 0) {
+        throw new IllegalArgumentException("Expected a non negative index for array indexing. Got: " + optionalIndex.get());
+      }
+
+      this.optionalIndex = optionalIndex;
+    }
 
     public ArraySegment(String numberAsText, PathSegment child) {
       this(Integer.parseInt(numberAsText), child);
     }
 
     public ArraySegment(int index, PathSegment child) {
-      this.child = child;
-      this.index = index;
-      assert index >=0;
+      this(Optional.of(index), child);
     }
 
     public ArraySegment(PathSegment child) {
-      this.child = child;
-      this.index = -1;
-    }
-
-    public boolean hasIndex() {
-      return index != -1;
+      this(Optional.empty(), child);
     }
 
     public ArraySegment(int index) {
-      if (index < 0 ) {
-        throw new IllegalArgumentException();
-      }
-      this.index = index;
+      this(Optional.of(index), null);
     }
 
-    public int getIndex() {
-      return index;
+    public boolean hasIndex() {
+      return optionalIndex.isPresent();
+    }
+
+    public int getOptionalIndex() {
+      return optionalIndex.orElse(-1);
     }
 
     @Override
@@ -89,12 +99,12 @@ public abstract class PathSegment {
 
     @Override
     public String toString() {
-      return "ArraySegment [index=" + index + ", getChild()=" + getChild() + "]";
+      return "ArraySegment [index=" + getOptionalIndex() + ", getChild()=" + getChild() + "]";
     }
 
     @Override
     public int segmentHashCode() {
-      return index;
+      return getOptionalIndex();
     }
 
     @Override
@@ -104,14 +114,14 @@ public abstract class PathSegment {
       } else if (obj == null) {
         return false;
       } else if (obj instanceof ArraySegment) {
-        return index == ((ArraySegment)obj).getIndex();
+        return optionalIndex.equals(((ArraySegment)obj).optionalIndex);
       }
       return false;
     }
 
     @Override
     public PathSegment clone() {
-      PathSegment seg = index < 0 ? new ArraySegment(null) : new ArraySegment(index);
+      PathSegment seg = !optionalIndex.isPresent() ? new ArraySegment(null) : new ArraySegment(optionalIndex.get());
       if (child != null) {
         seg.setChild(child.clone());
       }
@@ -120,7 +130,7 @@ public abstract class PathSegment {
 
     @Override
     public ArraySegment cloneWithNewChild(PathSegment newChild) {
-      ArraySegment seg = index < 0 ? new ArraySegment(null) : new ArraySegment(index);
+      ArraySegment seg = !optionalIndex.isPresent() ? new ArraySegment(null) : new ArraySegment(optionalIndex.get());
       if (child != null) {
         seg.setChild(child.cloneWithNewChild(newChild));
       } else {
@@ -135,7 +145,7 @@ public abstract class PathSegment {
         return null;
       }
 
-      return new ArraySegment(index, child.cloneWithoutChild());
+      return new ArraySegment(optionalIndex, child.cloneWithoutChild());
     }
   }
 
@@ -144,12 +154,12 @@ public abstract class PathSegment {
     private final String path;
 
     public NameSegment(CharSequence n, PathSegment child) {
-      this.child = child;
+      super(child);
       this.path = n.toString();
     }
 
     public NameSegment(CharSequence n) {
-      this.path = n.toString();
+      this(n, null);
     }
 
     public String getPath() {

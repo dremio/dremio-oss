@@ -36,9 +36,10 @@ import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorCatalogReader;
 import org.apache.calcite.sql2rel.SqlToRelConverter;
 
-import com.dremio.exec.catalog.DremioCatalogReader;
 import com.dremio.exec.catalog.SimpleCatalog;
 import com.dremio.exec.context.AdditionalContext;
+import com.dremio.exec.ops.DelegatingPlannerCatalog;
+import com.dremio.exec.ops.DremioCatalogReader;
 import com.dremio.exec.planner.DremioRexBuilder;
 import com.dremio.exec.planner.cost.DremioRelMetadataQuery;
 import com.dremio.exec.planner.physical.PlannerSettings;
@@ -105,7 +106,7 @@ public final class MockDremioQueryParser extends DremioQueryParser {
   public MockDremioQueryParser(SqlOperatorTable operatorTable, SimpleCatalog<?> catalog, String user) {
     this(
       operatorTable,
-      new DremioCatalogReader(catalog, JavaTypeFactoryImpl.INSTANCE),
+      new DremioCatalogReader(DelegatingPlannerCatalog.newInstance(catalog)),
       new MockDremioQueryParser.ContextInfoImpl(user));
   }
 

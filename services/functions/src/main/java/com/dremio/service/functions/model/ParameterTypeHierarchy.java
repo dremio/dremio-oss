@@ -26,13 +26,15 @@ public class ParameterTypeHierarchy {
     .put(
       ParameterType.ANY,
       ImmutableSet.of(
+        ParameterType.PRIMITIVE,
+        ParameterType.SEMISTRUCTURED))
+    .put(
+      ParameterType.PRIMITIVE,
+      ImmutableSet.of(
         ParameterType.BOOLEAN,
         ParameterType.NUMERIC,
         ParameterType.STRING,
-        ParameterType.DATEANDTIME/*,
-        ParameterType.LIST,
-        ParameterType.STRUCT,
-        ParameterType.MAP*/))
+        ParameterType.DATEANDTIME))
     .put(
       ParameterType.STRING,
       ImmutableSet.of(
@@ -53,6 +55,11 @@ public class ParameterTypeHierarchy {
         ParameterType.TIME,
         ParameterType.TIMESTAMP/*,
         ParameterType.INTERVAL*/))
+    .put(
+      ParameterType.SEMISTRUCTURED,
+      ImmutableSet.of(
+        ParameterType.ARRAY,
+        ParameterType.MAP))
     .build();
 
   public static Optional<ImmutableSet<ParameterType>> getChildren(ParameterType parameterType) {

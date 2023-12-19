@@ -74,6 +74,13 @@
                 "emptyLabel": "No properties added",
                 "addLabel": "Add property",
                 "propName": "config.propertyList"
+              },
+              {
+                "label": "Credentials",
+                "emptyLabel": "No credentials added",
+                "addLabel": "Add credential",
+                "propName": "config.secretPropertyList",
+                "secure": true
               }
             ]
           },

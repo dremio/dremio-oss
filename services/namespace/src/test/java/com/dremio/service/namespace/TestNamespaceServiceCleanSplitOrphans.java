@@ -40,6 +40,7 @@ import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.service.namespace.PartitionChunkId.SplitOrphansRetentionPolicy;
+import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
@@ -78,7 +79,7 @@ public class TestNamespaceServiceCleanSplitOrphans {
         LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
     kvstore.start();
 
-    namespaceService = new NamespaceServiceImpl(kvstore);
+    namespaceService = new NamespaceServiceImpl(kvstore, new CatalogStatusEventsImpl());
     namespaceStore = kvstore.getStore(NamespaceServiceImpl.NamespaceStoreCreator.class);
     partitionChunksStore = kvstore.getStore(NamespaceServiceImpl.PartitionChunkCreator.class);
     multiSplitStore = kvstore.getStore(NamespaceServiceImpl.MultiSplitStoreCreator.class);

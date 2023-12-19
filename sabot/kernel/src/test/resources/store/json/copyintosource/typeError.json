@@ -1,0 +1,28 @@
+{
+  "name" : "Ben",
+  "age" : 28
+}
+{
+  "name" : "Bob",
+  "age" : 25
+}
+{
+  "name" : "George",
+  "age" : 30
+}
+{
+  "name" : "Jane",
+  "age" : "NaN"
+}
+{
+  "name" : "Sam",
+  "age" : "40"
+}
+{
+  "name" : "Barbie",
+  "age" : "Barbie"
+}
+{
+  "name" : "Bruno",
+  "age" : "young"
+}

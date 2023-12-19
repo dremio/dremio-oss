@@ -255,7 +255,7 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
       SearchScroll searchScroll = new SearchScroll()
         .setScrollId(scrollId)
         .setScrollTimeout(config.getScrollTimeoutFormatted());
-      return connection.execute(searchScroll, false);
+      return connection.execute(searchScroll, elasticVersionBehaviorProvider.geMajorVersion());
     } finally {
       if (stats != null) {
         stats.stopWait();
@@ -398,7 +398,7 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
           logger.warn("Exception while deleting scroll", throwable);
           countDownLatch.countDown();
         }
-      });
+      }, connection.getESVersionInCluster().getMajor());
       try {
         countDownLatch.await(100, TimeUnit.MILLISECONDS);
       } catch (InterruptedException e) {

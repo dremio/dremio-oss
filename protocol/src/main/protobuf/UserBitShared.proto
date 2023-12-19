@@ -369,6 +369,22 @@ message QueryProfile {
   map<string, RelNodeInfo> rel_info_map = 40;
   optional int32 num_joins_in_user_query = 41;
   optional int32 num_joins_in_final_prel = 42;
+  optional ContextInfo context_info = 43;
+}
+
+message SourceVersionSetting {
+  enum Usage {
+   USED_BY_QUERY = 0;
+   NOT_USED_BY_QUERY =1;
+  }
+  optional string source = 1;
+  optional string versionContext = 2;
+  optional Usage usage = 3;
+}
+
+message ContextInfo {
+ optional string schema_path_context = 1;
+ repeated SourceVersionSetting sourceVersionSetting = 2;
 }
 
 message RelNodeInfo{
@@ -609,6 +625,15 @@ message RunTimeFilterDetailsInfoInScan {
   optional bool is_dropped = 8;
 }
 
+message ParquetDecodingDetailsInfo {
+  optional string encoding = 1;
+  optional string parquet_type = 2;
+  optional string arrow_type = 3;
+  optional string decoding_function = 4;
+  optional int64 decoded_number_of_values = 5;
+  optional int64 decoding_time_nanos = 6;
+}
+
 // Non-metric Operator level details that show up in the profile
 message OperatorProfileDetails {
   repeated ExpressionSplitInfo split_infos = 1;
@@ -616,6 +641,7 @@ message OperatorProfileDetails {
   repeated SlowIOInfo slow_metadata_io_infos = 3;
   repeated RunTimeFilterDetailsInfo runtimefilter_details_infos = 4;
   repeated RunTimeFilterDetailsInfoInScan runtimefilter_details_infos_in_scan = 5;
+  repeated ParquetDecodingDetailsInfo parquet_decoding_details_info = 6;
 }
 
 message OperatorProfile {
@@ -738,6 +764,8 @@ enum CoreOperatorType {
   ICEBERG_MANIFEST_WRITER = 63;
   ICEBERG_METADATA_FUNCTIONS_READER = 64;
   ICEBERG_SNAPSHOTS_SUB_SCAN = 65;
+  NESSIE_COMMITS_SUB_SCAN = 66;
+  SMALL_FILE_COMBINATION_WRITER = 67;
 }
 
 message MetricDef {

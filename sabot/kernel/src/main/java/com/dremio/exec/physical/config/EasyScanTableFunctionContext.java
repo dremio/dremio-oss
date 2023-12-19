@@ -32,7 +32,7 @@ import io.protostuff.ByteString;
 //@JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeName("easy-scan-table-function")
 public class EasyScanTableFunctionContext  extends TableFunctionContext {
-  private ExtendedFormatOptions extendedFormatOptions;
+  private final ExtendedFormatOptions extendedFormatOptions;
 
   public EasyScanTableFunctionContext(@JsonProperty("formatSettings") FileConfig formatSettings,
                                       @JsonProperty("schema") BatchSchema fullSchema,
@@ -50,11 +50,12 @@ public class EasyScanTableFunctionContext  extends TableFunctionContext {
                                       @JsonProperty("icebergMetadata") boolean isIcebergMetadata,
                                       @JsonProperty("userDefinedSchemaSettings") UserDefinedSchemaSettings userDefinedSchemaSettings,
                                       @JsonProperty("extendedFormatOptions") ExtendedFormatOptions extendedFormatOptions) {
-    super(formatSettings, fullSchema, tableSchema, tablePath, scanFilter, pluginId, internalTablePluginId, columns, partitionColumns, globalDictionaryEncodedColumns, extendedProperty, arrowCachingEnabled, isConvertedIcebergDataset, isIcebergMetadata, userDefinedSchemaSettings);
+    super(formatSettings, fullSchema, tableSchema, tablePath, scanFilter, null, pluginId, internalTablePluginId, columns, partitionColumns, globalDictionaryEncodedColumns, extendedProperty, arrowCachingEnabled, isConvertedIcebergDataset, isIcebergMetadata, userDefinedSchemaSettings);
     this.extendedFormatOptions = extendedFormatOptions;
   }
 
   public ExtendedFormatOptions getExtendedFormatOptions() {
     return extendedFormatOptions;
   }
+
 }

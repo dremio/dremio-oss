@@ -16,10 +16,9 @@
 import NessieHomePage from "@app/pages/NessieHomePage/NessieHomePage";
 import { getArcticProjectUrl } from "@app/utils/nessieUtils";
 import * as PATHS from "@app/exports/paths";
-import { ArcticSideNav } from "@app/exports/components/SideNav/ArcticSideNav";
 
 function ArcticCatalogHomePage(props: any) {
-  return props.catalog?.id === props.arcticCatalogId ? (
+  return (
     <NessieHomePage
       {...props}
       source={{
@@ -28,15 +27,10 @@ function ArcticCatalogHomePage(props: any) {
         endpoint: getArcticProjectUrl(props.arcticCatalogId),
         endpointV1: getArcticProjectUrl(props.arcticCatalogId, "v1"),
       }}
-      isBareMinimumNessie
       baseUrl={PATHS.arcticCatalogBase({
         arcticCatalogId: props.arcticCatalogId,
       })}
     />
-  ) : (
-    <div className="page-content">
-      <ArcticSideNav />
-    </div>
   );
 }
 export default ArcticCatalogHomePage;

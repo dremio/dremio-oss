@@ -35,6 +35,9 @@ import { NetworkConnectivityBanner } from "dremio-ui-common/components/NetworkCo
 import { ErrorBoundary } from "@app/components/ErrorBoundary/ErrorBoundary";
 
 import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";
+import { TutorialController } from "dremio-ui-common/walkthrough/TutorialController";
+import { TutorialOutlet } from "@inject/tutorials/components/TutorialOutlet";
+import socket from "@inject/utils/socket";
 
 function Root({ store }) {
   const history = syncHistoryWithStore(browserHistory, store);
@@ -62,14 +65,17 @@ function Root({ store }) {
       title={getIntlContext().t("Common.Errors.UnexpectedError.Root")}
     >
       <MantineProvider theme={mantineTheme}>
-        <RawIntlProvider value={intl}>
-          <Provider store={store}>
-            <NetworkConnectivityBanner />
-            <Router key={renderKey} history={history}>
-              {routes(store.dispatch, projectContext)}
-            </Router>
-          </Provider>
-        </RawIntlProvider>
+        <TutorialController>
+          {TutorialOutlet && <TutorialOutlet id={null} />}
+          <RawIntlProvider value={intl}>
+            <Provider store={store}>
+              <NetworkConnectivityBanner socket={socket} />
+              <Router key={renderKey} history={history}>
+                {routes(store.dispatch, projectContext)}
+              </Router>
+            </Provider>
+          </RawIntlProvider>
+        </TutorialController>
       </MantineProvider>
     </ErrorBoundary>
   );

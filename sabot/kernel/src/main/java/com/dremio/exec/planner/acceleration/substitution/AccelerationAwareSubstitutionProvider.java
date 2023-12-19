@@ -15,16 +15,19 @@
  */
 package com.dremio.exec.planner.acceleration.substitution;
 
-import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.TableVersionContext;
+import com.dremio.catalog.model.dataset.TableVersionContext;
+import com.dremio.exec.planner.acceleration.DremioMaterialization;
+import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.planner.observer.AttemptObserver;
+import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.planner.sql.handlers.RelTransformer;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Preconditions;
@@ -75,14 +78,19 @@ public class AccelerationAwareSubstitutionProvider implements SubstitutionProvid
   }
 
   @Override
-  public void setPostSubstitutionTransformers(List<RelTransformer> transformers) {
-    delegate.setPostSubstitutionTransformers(transformers);
+  public void setPostSubstitutionTransformer(RelTransformer transformer) {
+    delegate.setPostSubstitutionTransformer(transformer);
   }
 
   @Override
-  public RelNode wrapExpansionNode(NamespaceKey path, final RelNode query, List<String> vdsFields, RelDataType rowType,
-                                   boolean contextSensitive, TableVersionContext versionContext, Catalog catalog) {
-    return delegate.wrapExpansionNode(path, query, vdsFields, rowType, contextSensitive, versionContext, catalog);
+  public RelNode wrapDefaultExpansionNode(NamespaceKey path, final RelNode query, DremioMaterialization materialization, RelDataType rowType,
+                                   boolean contextSensitive, TableVersionContext versionContext, SqlConverter converter) {
+    return delegate.wrapDefaultExpansionNode(path, query, materialization, rowType, contextSensitive, versionContext, converter);
+  }
+
+  @Override
+  public Optional<DremioMaterialization> getDefaultRawMaterialization(ViewTable table) {
+    return delegate.getDefaultRawMaterialization(table);
   }
 
   @Override
@@ -98,6 +106,11 @@ public class AccelerationAwareSubstitutionProvider implements SubstitutionProvid
   @Override
   public void resetDefaultRawReflection() {
     delegate.resetDefaultRawReflection();
+  }
+
+  @Override
+  public Set<String> getMatchedReflections() {
+    return delegate.getMatchedReflections();
   }
 
   public static AccelerationAwareSubstitutionProvider of(final SubstitutionProvider delegate) {

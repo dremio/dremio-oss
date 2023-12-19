@@ -36,6 +36,8 @@ import {
 import { getSupportFlag } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
 
 import "./Preferences.less";
+import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";
+import { renderExtraPreferences } from "@inject/utils/preferences";
 
 export const VIEW_ID = "SUPPORT_SETTINGS_VIEW_ID";
 
@@ -46,7 +48,7 @@ const Preferences = (props) => {
     dispatchSaveSupportFlag,
     supportFlags,
   } = props;
-
+  const { t } = getIntlContext();
   const viewStateWithoutError = viewState.set("isFailed", false);
 
   const [isAutocompleteEnabled, setAutocompleteIsEnabled] = useState(
@@ -158,6 +160,7 @@ const Preferences = (props) => {
               <Toggle
                 value={isAutocompleteEnabled}
                 onChange={handleAutocompleteChange}
+                data-qa="autocomplete-toggle"
               />
             </div>
           </div>
@@ -204,6 +207,7 @@ const Preferences = (props) => {
               <FormattedMessage id="Admin.Preferences.QueryDatasetDescription" />
             </span>
           </div>
+          {renderExtraPreferences()}
         </ViewStateWrapper>
       </div>
     </div>

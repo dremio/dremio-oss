@@ -55,3 +55,9 @@ a.dremio-button {
 button.dremio-button {
   padding: 0;
 }
+
+.dremio-button {
+  .dremio-tooltip__child-wrap {
+    flex: 1;
+  }
+}

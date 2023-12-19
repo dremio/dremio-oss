@@ -82,7 +82,7 @@ describe("ReplaceExactForm", () => {
           replaceValues: [{ value: "address2" }],
         },
       };
-      instance.componentWillReceiveProps(nextProps);
+      instance.UNSAFE_componentWillReceiveProps(nextProps);
       expect(commonProps.loadTransformValuesPreview).to.be.calledOnce;
     });
     it("should update if replaceNull changed", () => {
@@ -93,7 +93,7 @@ describe("ReplaceExactForm", () => {
           replaceNull: { value: true },
         },
       };
-      instance.componentWillReceiveProps(nextProps);
+      instance.UNSAFE_componentWillReceiveProps(nextProps);
       expect(commonProps.loadTransformValuesPreview).to.be.calledOnce;
     });
   });

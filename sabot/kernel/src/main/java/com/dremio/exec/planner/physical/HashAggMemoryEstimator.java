@@ -287,6 +287,14 @@ public class HashAggMemoryEstimator {
         dataSize += FixedListVarcharVector.FIXED_LISTVECTOR_SIZE_TOTAL / numPartitions;
         validitySize += 2 * BitVectorHelper.getValidityBufferSize(hashTableBatchSize);
         continue;
+      } else if (accumType == AccumulatorBuilder.AccumulatorType.ARRAY_AGG.ordinal() ||
+        accumType == AccumulatorBuilder.AccumulatorType.PHASE1_ARRAY_AGG.ordinal() ||
+        accumType == AccumulatorBuilder.AccumulatorType.PHASE2_ARRAY_AGG.ordinal()) {
+        dataSize += (int)optionManager.getOption(VectorizedHashAggOperator.VECTORIZED_HASHAGG_MAX_BATCHSIZE_BYTES);
+        /* Add space for temporary buffer as well */
+        dataSize += (int)optionManager.getOption(VectorizedHashAggOperator.VECTORIZED_HASHAGG_MAX_BATCHSIZE_BYTES) / numPartitions;
+        validitySize += 2 * BitVectorHelper.getValidityBufferSize(hashTableBatchSize);
+        continue;
       }
 
       TypeProtos.MinorType minorType = CompleteType.fromField(field).toMinorType();

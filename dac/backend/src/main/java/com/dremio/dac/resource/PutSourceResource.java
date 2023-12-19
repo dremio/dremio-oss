@@ -86,6 +86,7 @@ public class PutSourceResource {
       source.setState(sourceState);
       source.setTag(sourceConfig.getTag());
       source.setId(sourceConfig.getId().getId());
+      source.clearSecrets();
       return source;
     } catch (ExecutionSetupException e) {
       // if we are getting an ExecutionSetupException it will most likely contain a "useful" error message

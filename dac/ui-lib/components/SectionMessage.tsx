@@ -32,11 +32,11 @@ type Props = {
 } & React.HTMLAttributes<HTMLDivElement>;
 
 const appearanceIcons: Record<SectionMessageAppearance, string> = {
-  information: "interface/warning",
+  information: "interface/information",
   success: "engine-state/running-engine",
   warning: "interface/warning",
   danger: "engine-state/stopped",
-  discovery: "",
+  discovery: "engine-state/automatic-engine",
 };
 
 export const SectionMessage = forwardRef<HTMLDivElement, Props>(

@@ -31,15 +31,17 @@ const fetchEntities = (
   datasetVersion: string,
   jobId: string,
   paginationUrl: string,
-  viewId: string
+  viewId: string,
+  tabId: string
 ) => {
-  const meta = { viewId, href };
+  const meta = { viewId, href, tabId };
 
   const apiCall = new APIV2Call().fullpath(href);
 
   return {
     [RSAA]: {
       types: [
+        // Tabs: Ideally activeScriptId would be checked after the fetch to send tabId
         { type: LOAD_EXPLORE_ENTITIES_STARTED, meta },
         schemaUtils.newGetSuccessActionTypeWithSchema(
           LOAD_EXPLORE_ENTITIES_SUCCESS,
@@ -84,11 +86,12 @@ export const loadExploreEntities = (
   datasetVersion: string,
   jobId: string,
   paginationUrl: string,
-  viewId: string
+  viewId: string,
+  tabId: string
 ) => {
   return (dispatch: any) => {
     return dispatch(
-      fetchEntities(href, datasetVersion, jobId, paginationUrl, viewId)
+      fetchEntities(href, datasetVersion, jobId, paginationUrl, viewId, tabId)
     );
   };
 };

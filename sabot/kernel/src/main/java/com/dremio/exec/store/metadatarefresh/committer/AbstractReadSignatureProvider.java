@@ -25,6 +25,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import com.dremio.exec.store.iceberg.IcebergPartitionData;
+import com.dremio.exec.util.PartitionUtils;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 
@@ -47,7 +48,13 @@ public abstract class AbstractReadSignatureProvider implements ReadSignatureProv
         if (partVal == null) {
           partitionValues[i] = "";
         } else {
-          partitionValues[i] = partVal.toString();
+          String partName = ipd.getPartitionType().fields().get(i).name();
+          // Only use partition columns that match the standard "dirN" format when constructing paths.
+          if(PartitionUtils.isPartitionName(partName, true )){
+            partitionValues[i] = partVal.toString();
+          } else {
+            partitionValues[i] = "";
+          }
         }
       }
       Path currentPath = Paths.get(tableRoot);

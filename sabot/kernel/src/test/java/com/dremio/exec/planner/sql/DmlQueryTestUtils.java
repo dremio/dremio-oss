@@ -399,11 +399,11 @@ public class DmlQueryTestUtils {
     String insertIntoSql = "INSERT INTO %s (%s) VALUES %s";
     String columnSql = String.join(", ", table.columns);
 
-    int existRowCount = table.originalData.length;
-    int columnCount = table.originalData[0].length;
-    Object[][] newData = new Object[rowCount][table.originalData[0].length];
+    int existRowCount = table.originalData != null ? table.originalData.length : 0;
+    int columnCount = table.originalData != null ? table.originalData[0].length : table.columns.length;
+    Object[][] newData = new Object[rowCount][columnCount];
     for (int r = 0; r < rowCount; r++) {
-      newData[r][0] = r + table.originalData.length;
+      newData[r][0] = r + columnCount;
       for (int c = 0; c < columnCount - 1; c++) {
         newData[r][c + 1] = String.format("%s_%s", r + existRowCount, c);
       }
@@ -418,14 +418,14 @@ public class DmlQueryTestUtils {
       test(insertIntoSql, table.fqn, columnSql, dataSql);
     }
 
-    int totalRowCount = table.originalData.length + rowCount;
+    int totalRowCount = existRowCount + rowCount;
     Object[][] allData = new Object[totalRowCount][columnCount];
     for (int r = 0; r < totalRowCount; r++) {
       for (int c = 0; c < columnCount; c++) {
-        if (r < table.originalData.length) {
+        if (table.originalData != null && r < table.originalData.length) {
           allData[r][c] = table.originalData[r][c];
         } else {
-          allData[r][c] = newData[r - table.originalData.length][c];
+          allData[r][c] = newData[r - existRowCount][c];
         }
       }
     }
@@ -702,21 +702,25 @@ public class DmlQueryTestUtils {
 
     // Run the SELECT query to verify some data.
     if (expectedData != null) {
-      TestBuilder selectQuery = new TestBuilder(allocator)
-        .sqlQuery("SELECT * FROM %s", table.fqn)
-        .unOrdered()
-        .baselineColumns(table.columns);
-      if (expectedData.length == 0) {
-        selectQuery.expectsEmptyResultSet();
-      } else {
-        for (Object[] expectedDatum : expectedData) {
-          selectQuery.baselineValues(expectedDatum);
-        }
-      }
-
-      // Actually verifies the number of rows returned.
-      selectQuery.go();
+      testSelectQuery(allocator, table, expectedData);
     }
+  }
+
+  public static void testSelectQuery(BufferAllocator allocator, Table table, Object[]... expectedData) throws Exception {
+    TestBuilder selectQuery = new TestBuilder(allocator)
+      .sqlQuery("SELECT * FROM %s", table.fqn)
+      .unOrdered()
+      .baselineColumns(table.columns);
+    if (expectedData.length == 0) {
+      selectQuery.expectsEmptyResultSet();
+    } else {
+      for (Object[] expectedDatum : expectedData) {
+        selectQuery.baselineValues(expectedDatum);
+      }
+    }
+
+    // Actually verifies the number of rows returned.
+    selectQuery.go();
   }
 
   /**

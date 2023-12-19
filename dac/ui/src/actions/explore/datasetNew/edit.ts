@@ -41,7 +41,8 @@ export const loadNewDataset = (
   datasetVersion: string,
   jobId: string,
   paginationUrl: string,
-  viewId: string
+  viewId: string,
+  tabId: string
 ) => {
   return (dispatch: any) => {
     const href = exploreUtils.getDatasetMetadataLink(
@@ -56,7 +57,14 @@ export const loadNewDataset = (
     }
 
     return dispatch(
-      loadExploreEntities(href, datasetVersion, jobId, paginationUrl, viewId)
+      loadExploreEntities(
+        href,
+        datasetVersion,
+        jobId,
+        paginationUrl,
+        viewId,
+        tabId
+      )
     );
   };
 };

@@ -22,6 +22,7 @@ import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlJoin;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNumericLiteral;
 import org.apache.calcite.sql.SqlOperator;
@@ -354,26 +355,16 @@ public class UnsupportedOperatorsVisitor extends SqlShuttle {
           supported = false;
         } else if (function.operandCount() == 2) {
           SqlNode operand = function.operand(1);
-          if (operand instanceof SqlNumericLiteral) {
-            SqlNumericLiteral offsetLiteral = (SqlNumericLiteral) operand;
-            try {
-              if (offsetLiteral.intValue(true) != 1) {
-                // we don't support offset != 1
-                supported = false;
-              }
-            } catch (AssertionError e) {
-              // we only support offset as an integer
-              supported = false;
-            }
-          } else {
+          if (!(operand instanceof SqlNumericLiteral)) {
             // we only support offset as a numeric literal
+            supported = false;
+          }else if(SqlLiteral.unchain(operand).getValueAs(Integer.class) <= 0){
             supported = false;
           }
         }
-
         if (!supported) {
           unsupportedOperatorCollector.setException(SqlUnsupportedException.ExceptionType.FUNCTION,
-            "Function " + functionName + " only supports (<value expression>) or (<value expression>, 1)");
+            "Function " + functionName + " only supports (<value expression>) or (<value expression>, offset) where 'offset' > 0");
           throw new UnsupportedOperationException();
         }
       }

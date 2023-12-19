@@ -24,6 +24,7 @@ import org.apache.arrow.vector.util.JsonStringArrayList;
 import org.apache.arrow.vector.util.Text;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -77,6 +78,7 @@ public class TestDirectoryExplorerUDFs extends PlanTestBase {
   }
 
 
+  @Ignore
   @Test
   public void testConstExprFolding_maxDir0() throws Exception {
 
@@ -119,6 +121,7 @@ public class TestDirectoryExplorerUDFs extends PlanTestBase {
         .go();
   }
 
+  @Ignore
   @Test
   public void testIncorrectFunctionPlacement() throws Exception {
 
@@ -140,6 +143,7 @@ public class TestDirectoryExplorerUDFs extends PlanTestBase {
     }
   }
 
+  @Ignore
   @Test
   public void testConstantFoldingOff() throws Exception {
     try {

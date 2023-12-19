@@ -37,9 +37,9 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.mockito.quality.Strictness;
 
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult;
 import com.dremio.exec.planner.sql.parser.ReferenceType;
 import com.dremio.exec.planner.sql.parser.SqlCreateTag;
@@ -77,13 +77,17 @@ public class TestCreateTagHandler extends DremioTest {
     new SqlIdentifier(DEFAULT_NEW_TAG_NAME, SqlParserPos.ZERO),
     ReferenceType.BRANCH,
     new SqlIdentifier(DEFAULT_BRANCH_NAME, SqlParserPos.ZERO),
-    new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO));
+    null,
+    new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO),
+    null);
   private static final SqlCreateTag NO_SOURCE_INPUT = new SqlCreateTag(
     SqlParserPos.ZERO,
     SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
     new SqlIdentifier(DEFAULT_NEW_TAG_NAME, SqlParserPos.ZERO),
     ReferenceType.BRANCH,
     new SqlIdentifier(DEFAULT_BRANCH_NAME, SqlParserPos.ZERO),
+    null,
+    null,
     null);
   private static final SqlCreateTag NON_EXISTENT_SOURCE_INPUT = new SqlCreateTag(
     SqlParserPos.ZERO,
@@ -91,21 +95,27 @@ public class TestCreateTagHandler extends DremioTest {
     new SqlIdentifier(DEFAULT_NEW_TAG_NAME, SqlParserPos.ZERO),
     ReferenceType.BRANCH,
     new SqlIdentifier(DEFAULT_BRANCH_NAME, SqlParserPos.ZERO),
-    new SqlIdentifier(NON_EXISTENT_SOURCE_NAME, SqlParserPos.ZERO));
+    null,
+    new SqlIdentifier(NON_EXISTENT_SOURCE_NAME, SqlParserPos.ZERO),
+    null);
   private static final SqlCreateTag NO_VERSION_INPUT = new SqlCreateTag(
     SqlParserPos.ZERO,
     SqlLiteral.createBoolean(true, SqlParserPos.ZERO),
     new SqlIdentifier(DEFAULT_NEW_TAG_NAME, SqlParserPos.ZERO),
     null,
     null,
-    new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO));
+    null,
+    new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO),
+    null);
   private static final SqlCreateTag IF_NOT_EXISTS_INPUT = new SqlCreateTag(
     SqlParserPos.ZERO,
     SqlLiteral.createBoolean(false, SqlParserPos.ZERO),
     new SqlIdentifier(DEFAULT_NEW_TAG_NAME, SqlParserPos.ZERO),
     ReferenceType.BRANCH,
     new SqlIdentifier(DEFAULT_BRANCH_NAME, SqlParserPos.ZERO),
-    new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO));
+    null,
+    new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO),
+    null);
 
   @Rule public MockitoRule rule = MockitoJUnit.rule().strictness(Strictness.STRICT_STUBS);
 
@@ -136,7 +146,7 @@ public class TestCreateTagHandler extends DremioTest {
       .thenReturn(true);
     NamespaceNotFoundException notFoundException = new NamespaceNotFoundException("Cannot access");
     UserException nonExistException = UserException.validationError(notFoundException)
-      .message("Tried to access non-existent source [%s].", NON_EXISTENT_SOURCE_NAME).build();
+      .message("Tried to access non-existent source [%s].", NON_EXISTENT_SOURCE_NAME).buildSilently();
     when(userSession.getSessionVersionForSource(NON_EXISTENT_SOURCE_NAME)).thenReturn(VersionContext.NOT_SPECIFIED);
     when(catalog.getSource(NON_EXISTENT_SOURCE_NAME)).thenThrow(nonExistException);
 
@@ -247,7 +257,9 @@ public class TestCreateTagHandler extends DremioTest {
       new SqlIdentifier(DEFAULT_NEW_TAG_NAME, SqlParserPos.ZERO),
       ReferenceType.TAG,
       new SqlIdentifier(tagName, SqlParserPos.ZERO),
-      new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO));
+      null,
+      new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO),
+      null);
 
     // Arrange
     setUpSupportKeyAndSessionVersionAndPlugin();
@@ -278,13 +290,15 @@ public class TestCreateTagHandler extends DremioTest {
       new SqlIdentifier(DEFAULT_NEW_TAG_NAME, SqlParserPos.ZERO),
       ReferenceType.COMMIT,
       new SqlIdentifier(commitHash, SqlParserPos.ZERO),
-      new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO));
+      null,
+      new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO),
+      null);
 
     // Arrange
     setUpSupportKeyAndSessionVersionAndPlugin();
     doNothing()
       .when(dataplanePlugin)
-      .createTag(DEFAULT_NEW_TAG_NAME, VersionContext.ofBareCommit(commitHash));
+      .createTag(DEFAULT_NEW_TAG_NAME, VersionContext.ofCommit(commitHash));
 
     // Act
     List<SimpleCommandResult> result = handler.toResult("", input);
@@ -309,7 +323,9 @@ public class TestCreateTagHandler extends DremioTest {
       new SqlIdentifier(DEFAULT_NEW_TAG_NAME, SqlParserPos.ZERO),
       ReferenceType.REFERENCE,
       new SqlIdentifier(referenceName, SqlParserPos.ZERO),
-      new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO));
+      null,
+      new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO),
+      null);
 
     // Arrange
     setUpSupportKeyAndSessionVersionAndPlugin();

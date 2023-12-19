@@ -30,6 +30,8 @@ import { Button, IconButton } from "dremio-ui-lib";
 import EllipsedText from "components/EllipsedText";
 
 import "./TimeDot.less";
+import { getSupportFlags } from "@app/selectors/supportFlags";
+import { SQLRUNNER_TABS_UI } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
 
 export class TimeDot extends Component {
   static propTypes = {
@@ -42,6 +44,7 @@ export class TimeDot extends Component {
     intl: PropTypes.object.isRequired,
     removeHistoryHover: PropTypes.func,
     setUpdateSqlFromHistory: PropTypes.func,
+    sqlTabsEnabled: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -58,7 +61,7 @@ export class TimeDot extends Component {
   getTooltipTarget = () => (this.state.open ? this.targetRef.current : null);
 
   getLinkLocation() {
-    const { tipVersion, historyItem, location } = this.props;
+    const { tipVersion, historyItem, location, sqlTabsEnabled } = this.props;
     const query = (location && location.query) || {};
     let activeLink = null;
 
@@ -69,6 +72,9 @@ export class TimeDot extends Component {
       pathname: location.pathname,
       query: {
         ...(query.mode ? { mode: query.mode } : {}),
+        ...(sqlTabsEnabled && query.scriptId
+          ? { scriptId: query.scriptId }
+          : {}),
         tipVersion,
         version: historyItem.get("datasetVersion"),
       },
@@ -104,14 +110,16 @@ export class TimeDot extends Component {
 
     setUpdateSqlFromHistory({ updateSql: true });
 
-    router.push(this.getLinkLocation());
+    router.replace(this.getLinkLocation());
   };
 
   getHistoryPath = () => {
     const { location, tipVersion, historyItem } = this.props;
 
     const mode = location.query && location.query.mode;
-    const basePath = `${location.pathname}?${mode ? "mode=edit&" : ""}`;
+    const scriptId = location.query?.scriptId;
+    let basePath = `${location.pathname}?${mode ? "mode=edit&" : ""}`;
+    basePath = basePath + (scriptId ? `&scriptId=${scriptId}&` : "");
     const historyPath = `${basePath}tipVersion=${tipVersion}&version=${historyItem.get(
       "datasetVersion"
     )}`;
@@ -205,8 +213,14 @@ export class TimeDot extends Component {
   }
 }
 
+const mapStateToProps = (state) => {
+  return {
+    sqlTabsEnabled: getSupportFlags(state)[SQLRUNNER_TABS_UI],
+  };
+};
+
 export default withRouter(
-  connect(null, { setUpdateSqlFromHistory })(injectIntl(TimeDot))
+  connect(mapStateToProps, { setUpdateSqlFromHistory })(injectIntl(TimeDot))
 );
 
 const styles = {

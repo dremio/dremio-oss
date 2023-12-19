@@ -17,6 +17,9 @@ package com.dremio.exec.store.dfs;
 
 import static com.dremio.exec.store.iceberg.IcebergSerDe.serializedSchemaAsJson;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.nio.file.DirectoryStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.ConcurrentModificationException;
@@ -28,13 +31,17 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import javax.inject.Provider;
+
 import org.apache.iceberg.BaseTable;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.PartitionStatsReader;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.io.InputFile;
+import org.projectnessie.client.api.NessieApiV2;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.Retryer;
@@ -47,6 +54,7 @@ import com.dremio.connector.metadata.PartitionChunk;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.SourceMetadata;
 import com.dremio.datastore.LegacyProtobufSerializer;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.MetadataObjectsUtils;
 import com.dremio.exec.planner.common.ImmutableDremioFileAttrs;
 import com.dremio.exec.proto.UserBitShared;
@@ -59,9 +67,18 @@ import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.iceberg.SchemaConverter;
 import com.dremio.exec.store.iceberg.SupportsInternalIcebergTable;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
+import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
 import com.dremio.exec.store.iceberg.model.IcebergTableLoader;
+import com.dremio.exec.store.iceberg.nessie.IcebergNessieModel;
+import com.dremio.exec.store.iceberg.nessie.IcebergNessieTableIdentifier;
+import com.dremio.exec.store.iceberg.nessie.IcebergNessieTableOperations;
 import com.dremio.exec.store.metadatarefresh.committer.ReadSignatureProvider;
+import com.dremio.io.file.DistStorageMetadataPathRewritingFileSystem;
+import com.dremio.io.file.FileAttributes;
+import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
+import com.dremio.io.file.PathFilters;
+import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.MetadataProtoUtils;
 import com.dremio.service.namespace.NamespaceException;
@@ -89,11 +106,13 @@ import io.protostuff.ByteStringUtil;
 public class RepairKvstoreFromIcebergMetadata {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RepairKvstoreFromIcebergMetadata.class);
 
-  private final int MAX_REPAIR_ATTEMPTS = 3;
+  private static final int MAX_REPAIR_ATTEMPTS = 3;
+
   private final boolean isMapDataTypeEnabled;
   private DatasetConfig datasetConfig;
   private final FileSystemPlugin<?> metaStoragePlugin;
   private final StoragePlugin storagePlugin;
+  private final OptionManager optionManager;
   private final NamespaceService namespaceService;
 
   private IcebergMetadata oldIcebergMetadata;
@@ -102,16 +121,19 @@ public class RepairKvstoreFromIcebergMetadata {
   private String currentRootPointerFileLocation;
   private Snapshot currentIcebergSnapshot;
 
-  public RepairKvstoreFromIcebergMetadata(DatasetConfig datasetConfig,
-                                          FileSystemPlugin<?> metaStoragePlugin,
-                                          NamespaceService namespaceService,
-                                          StoragePlugin storagePlugin,
-                                          boolean isMapDataTypeEnabled) {
+  public RepairKvstoreFromIcebergMetadata(
+    DatasetConfig datasetConfig,
+    FileSystemPlugin<?> metaStoragePlugin,
+    NamespaceService namespaceService,
+    StoragePlugin storagePlugin,
+    OptionManager optionManager
+  ) {
     this.datasetConfig = datasetConfig;
     this.metaStoragePlugin = metaStoragePlugin;
     this.namespaceService = namespaceService;
     this.storagePlugin = storagePlugin;
-    this.isMapDataTypeEnabled = isMapDataTypeEnabled;
+    this.optionManager = optionManager;
+    this.isMapDataTypeEnabled = optionManager.getOption(ExecConstants.ENABLE_MAP_DATA_TYPE);
   }
 
   @WithSpan
@@ -146,15 +168,19 @@ public class RepairKvstoreFromIcebergMetadata {
   }
 
   @WithSpan
-  private boolean isRepairNeeded() {
+  private boolean isRepairNeeded() throws IOException {
     if(!DatasetHelper.isInternalIcebergTable(datasetConfig)) {
       return false;
     }
 
     oldIcebergMetadata = datasetConfig.getPhysicalDataset().getIcebergMetadata();
     icebergModel = metaStoragePlugin.getIcebergModel();
-    Path icebergTableRootFolder = Path.of(metaStoragePlugin.getConfig().getPath().toString()).resolve(oldIcebergMetadata.getTableUuid());
-    final IcebergTableLoader icebergTableLoader = icebergModel.getIcebergTableLoader(icebergModel.getTableIdentifier(icebergTableRootFolder.toString()));
+    Path icebergTableRootFolder =  IcebergUtils.getPreviousTableMetadataRoot(oldIcebergMetadata);
+    IcebergTableIdentifier icebergTableIdentifier = icebergModel.getTableIdentifier(icebergTableRootFolder.toString());
+
+    repairMetadataDesyncIfNecessary(icebergTableIdentifier);
+
+    final IcebergTableLoader icebergTableLoader = icebergModel.getIcebergTableLoader(icebergTableIdentifier);
     currentIcebergTable = icebergTableLoader.getIcebergTable();
     currentIcebergSnapshot = currentIcebergTable.currentSnapshot();
     currentRootPointerFileLocation = ((BaseTable) currentIcebergTable).operations().current().metadataFileLocation();
@@ -166,7 +192,6 @@ public class RepairKvstoreFromIcebergMetadata {
 
     return true;
   }
-
   @WithSpan
   private void performRepair(boolean retryQuery) throws NamespaceException, ConnectorException, InvalidProtocolBufferException {
     logger.info("DatasetConfig of table {} in catalog is not up to date with Iceberg metadata." +
@@ -183,7 +208,8 @@ public class RepairKvstoreFromIcebergMetadata {
     repairSchema();
     repairStats();
     repairDroppedAndModifiedColumns();
-    repairReadSignature(newPartitionStatsFileAttrs.fileName());
+    String newPartitionStatsFileName = newPartitionStatsFileAttrs == null ? null : newPartitionStatsFileAttrs.fileName();
+    repairReadSignature(newPartitionStatsFileName);
     repairPrimaryKeys();
 
     // update iceberg metadata
@@ -196,7 +222,7 @@ public class RepairKvstoreFromIcebergMetadata {
     newIcebergMetadata.setPartitionSpecsJsonMap(ByteStringUtil.wrap(specs));
     newIcebergMetadata.setJsonSchema(serializedSchemaAsJson(currentIcebergTable.schema()));
 
-    if (newPartitionStatsFileAttrs.fileName() != null) {
+    if (newPartitionStatsFileName != null) {
       newIcebergMetadata.setPartitionStatsFile(newPartitionStatsFileAttrs.fileName());
       newIcebergMetadata.setPartitionStatsFileSize(newPartitionStatsFileAttrs.fileLength());
     }
@@ -352,5 +378,84 @@ public class RepairKvstoreFromIcebergMetadata {
     }
 
     return partitionPaths;
+  }
+
+  /**
+   * re-syncs the unlimited splits metadata by frontloading the last-seen metadata.json file within fs dir, to the HEAD of the commit.
+   * this commit will be used at reference point to conduct the repair method.
+   * @param icebergTableIdentifier: the icebergTableIdentifier used to locate the internal iceberg table
+   */
+  private void repairMetadataDesyncIfNecessary(IcebergTableIdentifier icebergTableIdentifier) throws IOException {
+    FileSystem fs = this.metaStoragePlugin.getSystemUserFS();
+    String icebergMetadataFileLocation = this.datasetConfig.getPhysicalDataset().getIcebergMetadata().getMetadataFileLocation();
+    // If feature flag ON, and the file does not exist in the fs, perform metadata re-sync
+    if (metaStoragePlugin.getContext().getOptionManager().getOption(ExecConstants.ENABLE_UNLIMITED_SPLITS_DISTRIBUTED_STORAGE_RELOCATION) &&
+      !fs.exists(Path.of(icebergMetadataFileLocation))) {
+
+      logger.warn(String.format("metadata file: %s was not found within storage %s. Attempting self-heal to re-sync metadata",
+          icebergMetadataFileLocation,
+        ((DistStorageMetadataPathRewritingFileSystem) fs).getDistStoragePath()));
+      Provider<NessieApiV2> api = ((IcebergNessieModel) icebergModel).getNessieApi();
+
+      //Construct the internal iceberg's TableOperations
+      IcebergNessieTableOperations icebergNessieTableOperations = new IcebergNessieTableOperations(
+        null,
+        api,
+        metaStoragePlugin.createIcebergFileIO(fs, null, null, null, null),
+        (IcebergNessieTableIdentifier) icebergTableIdentifier,
+        null,
+        optionManager);
+
+      Path metadataPathLocation = getLatestMetastoreVersionIfPathExists(Path.of(icebergMetadataFileLocation), fs);
+
+      //Refresh the object to populate the rest of the table operations.
+      //fs.open and fs.getFileAttributes will be called during refresh. Calls to the "current metadata location" will
+      //be redirected to point to the latest-existing metastore version found within the fs directory.
+      //The table metadata returned represents the contents found by the re-written path.
+      icebergNessieTableOperations.doRefreshFromPreviousCommit(metadataPathLocation.toString());
+      TableMetadata LatestExistingtableMetadata = icebergNessieTableOperations.current();
+
+      //Commit the outdated metadata to Nessie. Committing the latest-existing metadata pushes it to HEAD.
+      //The new commit generates a new (temporary) metadata.json file.
+      //The new (temporary) commit serves as the "old metadata" reference point during the repair.
+      icebergNessieTableOperations.doCommit(null, LatestExistingtableMetadata);
+    }
+  }
+
+  /**
+   * rewrites the iceberg metastore file path to point to the latest existing metastore file
+   * within the current distributed storage's metadata directory.
+   * ... Table Metastore files are managed by Nessie catalog. This method is designed to recover & frontload a previous metastore
+   * table version.
+   * @param p: the original metadata.json file's absolute path
+   * @param fs: the filesystem of the path
+   * @return the absolute path of the metadata.json file with the newest version-ID within the directory
+   */
+  private Path getLatestMetastoreVersionIfPathExists(Path p, FileSystem fs) throws IOException {
+    logger.info("requested metadata.json file not found. attempting to re-sync metadata");
+    Path newDistStore = this.metaStoragePlugin.getConfig().getPath();
+    String metadataGuid = p.getParent().getParent().getName();
+    Path metadataRootFolder = newDistStore.resolve(metadataGuid);
+
+    //tracker for the latest existing metastore version
+    int maxVersionID = -1;
+    Path maxVersionInDir = null;
+
+    //parses through all files in  directory. Keeps track of the newest metadata version.
+    DirectoryStream<FileAttributes> stream = fs.glob(metadataRootFolder.resolve("metadata/*metadata.json"), PathFilters.ALL_FILES);
+    for (FileAttributes file : stream) {
+      String metadataFile = file.getPath().getName();
+
+      //gets the metadata file's versionID. version ID first sequence of characters in the filename.
+      int currVersionID = Integer.parseInt(metadataFile.substring(0, metadataFile.indexOf('-')));
+      if (currVersionID > maxVersionID) {
+        maxVersionID = currVersionID;
+        maxVersionInDir = file.getPath();
+      }
+    }
+    if (maxVersionInDir == null) {
+      throw new FileNotFoundException(String.format("metadata file %s does not exist in the following directory: %s", p.getName(), metadataRootFolder));
+    }
+    return maxVersionInDir;
   }
 }

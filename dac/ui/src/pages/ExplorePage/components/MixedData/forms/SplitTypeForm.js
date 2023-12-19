@@ -82,9 +82,9 @@ export class SplitTypeForm extends Component {
       <div style={styles.typeList}>
         <div style={LINE_START_CENTER}>
           <div className={title}>
-            {la("Available Data Types")}
+            {laDeprecated("Available Data Types")}
             <span className={description}>
-              {la("Types based on sample dataset")}
+              {laDeprecated("Types based on sample dataset")}
             </span>
           </div>
         </div>

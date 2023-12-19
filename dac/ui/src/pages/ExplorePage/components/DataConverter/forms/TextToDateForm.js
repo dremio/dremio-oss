@@ -15,7 +15,7 @@
  */
 import { Component } from "react";
 import PropTypes from "prop-types";
-import uuid from "uuid";
+import { v4 as uuidv4 } from "uuid";
 
 import Radio from "components/Fields/Radio";
 import { FieldWithError, TextField } from "components/Fields";
@@ -91,7 +91,7 @@ export class TextToDateForm extends Component {
             <div style={formLabel}>{formatMessage({ id: "File.Format" })}</div>
             {formats.values.map((format) => (
               <Radio
-                key={uuid()}
+                key={uuidv4()}
                 {...fields.format}
                 label={format}
                 radioValue={format}

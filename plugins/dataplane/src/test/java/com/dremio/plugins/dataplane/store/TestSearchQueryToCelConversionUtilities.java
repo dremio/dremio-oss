@@ -33,14 +33,15 @@ import com.google.common.collect.ImmutableSet;
 
 class TestSearchQueryToCelConversionUtilities {
 
-  private static final Set<Character> SOME_REGULAR_CHARACTERS = ImmutableSet.of('a', 'A', 'z', 'Z', '-', '_');
-  private static final ImmutableMap<Object, Object> SEARCH_QUERY_SPECIAL_CHARACTERS_MAP =
-    ImmutableMap.builder()
+  private static final Set<Character> SOME_REGULAR_CHARACTERS = ImmutableSet.of('a', 'A', 'z', 'Z', '-');
+  private static final ImmutableMap<Character, String> SEARCH_QUERY_SPECIAL_CHARACTERS_MAP =
+    ImmutableMap.<Character, String>builder()
       .put('%', ".*")
+      .put('_', ".")
       .build();
   // CEL uses RE2 syntax: https://github.com/google/re2/wiki/Syntax
   private static final Set<Character> RE2_SPECIAL_CHARACTERS =
-    ImmutableSet.of('*', '+', '?', '(', ')', '|', '[', ']', ':', '^', '\\', '.', '{', '}');
+    ImmutableSet.of('*', '+', '?', '(', ')', '|', '[', ']', ':', '^', '.', '{', '}');
 
   private static Stream<Arguments> convertToRawCelStringLiteralArguments() {
     return Stream.of(
@@ -119,7 +120,7 @@ class TestSearchQueryToCelConversionUtilities {
       .map(c ->
         Arguments.of(
           String.format("\\%c", c),       // e.g. \a
-          String.format("^\\\\%c$", c))); // e.g. ^\\a$ (escape backslash, keep the regular character)
+          String.format("^%c$", c))); // e.g. ^a$ (escape backslash, keep the regular character)
   }
 
   @ParameterizedTest(name = "[{index}] pattern: [{0}], expected: [{1}]")
@@ -192,8 +193,8 @@ class TestSearchQueryToCelConversionUtilities {
     return SEARCH_QUERY_SPECIAL_CHARACTERS_MAP.entrySet().stream()
       .map(entry ->
         Arguments.of(
-          String.format("\\%s", entry.getKey().toString()), // e.g. \%
-          String.format("^\\\\%s$", entry.getValue())));    // e.g. ^\\.*$ (escape backslash, convert the SearchQuery special character)
+          String.format("%s", entry.getKey().toString()), // e.g. %
+          String.format("^%s$", entry.getValue())));    // e.g. ^.*$
   }
 
   @ParameterizedTest(name = "[{index}] pattern: [{0}], expected: [{1}]")
@@ -235,14 +236,15 @@ class TestSearchQueryToCelConversionUtilities {
   }
 
   private static Stream<Arguments> re2SpecialCharacters() {
+    // by default, the escape character is always a backslash
     return RE2_SPECIAL_CHARACTERS.stream()
       .map(c ->
         Arguments.of(
-          String.format("%c", c),       // e.g. *
+          String.format("%c", c),       // e.g. \\
           String.format("^\\%c$", c))); // e.g. ^\*$ (escape the re2 special character)
   }
 
-  private static Stream<Arguments> escapedRe2SpecialCharacters(char escape) {
+  private static Stream<Arguments> customEscapedRe2SpecialCharacters(char escape) {
     return RE2_SPECIAL_CHARACTERS.stream()
       .map(c ->
         Arguments.of(
@@ -251,19 +253,11 @@ class TestSearchQueryToCelConversionUtilities {
   }
 
   private static Stream<Arguments> escapedRe2SpecialCharactersBackslash() {
-    return escapedRe2SpecialCharacters('\\');
+    return customEscapedRe2SpecialCharacters('\\');
   }
 
   private static Stream<Arguments> escapedRe2SpecialCharactersBacktick() {
-    return escapedRe2SpecialCharacters('`');
-  }
-
-  private static Stream<Arguments> escapedRe2SpecialCharactersNoEscape() {
-    return RE2_SPECIAL_CHARACTERS.stream()
-      .map(c ->
-        Arguments.of(
-          String.format("\\%c", c),         // e.g. \*
-          String.format("^\\\\\\%c$", c))); // e.g. ^\\\*$ (escape backslash, escape the re2 special character)
+    return customEscapedRe2SpecialCharacters('`');
   }
 
   @ParameterizedTest(name = "[{index}] pattern: [{0}], expected: [{1}]")
@@ -295,15 +289,6 @@ class TestSearchQueryToCelConversionUtilities {
     assertThat(likeQueryToRe2Regex(likeQuery)).isEqualTo(expectedRegex);
   }
 
-  @ParameterizedTest(name = "[{index}] pattern: [{0}], expected: [{1}]")
-  @MethodSource("escapedRe2SpecialCharactersNoEscape")
-  public void likeQueryToRe2RegexEscapedRe2SpecialCharactersNoEscape(String pattern, String expectedRegex) {
-    final SearchQuery.Like likeQuery = SearchQuery.Like.newBuilder()
-      .setPattern(pattern)
-      .build();
-    assertThat(likeQueryToRe2Regex(likeQuery)).isEqualTo(expectedRegex);
-  }
-
   @Test
   public void likeQueryToRe2RegexInvalidEscape() {
     final SearchQuery.Like likeQuery = SearchQuery.Like.newBuilder()
@@ -312,5 +297,13 @@ class TestSearchQueryToCelConversionUtilities {
       .build();
     assertThatThrownBy(() -> likeQueryToRe2Regex(likeQuery))
       .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  public void likeQueryToRe2RegexRe2Escape() {
+    final SearchQuery.Like likeQuery = SearchQuery.Like.newBuilder()
+      .setPattern("\\\\")
+      .build();
+    assertThat(likeQueryToRe2Regex(likeQuery)).isEqualTo("^\\\\$"); // matches to (\\, and this means r'(\))
   }
 }

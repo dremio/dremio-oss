@@ -193,7 +193,7 @@ export class ExploreTableView extends PureComponent {
     this.updateSize();
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     const needUpdateColumns = this.needUpdateColumns(nextProps);
     if (needUpdateColumns) {
       this.updateColumns(nextProps);

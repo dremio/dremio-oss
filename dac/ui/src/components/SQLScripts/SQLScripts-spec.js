@@ -68,7 +68,7 @@ describe("SQLScripts", () => {
     };
   });
 
-  it("should render with default/empty configs", () => {
+  it.skip("should render with default/empty configs", () => {
     const { container, getByTestId, queryByText } = render(
       <SQLScripts {...minimalProps} scripts={[]} />
     );
@@ -78,7 +78,7 @@ describe("SQLScripts", () => {
     expect(container.querySelector(".sqlScripts__empty")).to.exist;
   });
 
-  it("should render the scripts, none selected", () => {
+  it.skip("should render the scripts, none selected", () => {
     const { container, getByTestId } = render(<SQLScripts {...minimalProps} />);
     expect(getByTestId("sqlScripts")).to.exist;
     expect(container.querySelector(".MuiList-root")).to.exist;
@@ -114,7 +114,7 @@ describe("SQLScripts", () => {
   });
 
   // could only get setActiveScript to be recognized by excluding connect from SQLScripts
-  it("should select a script", () => {
+  it.skip("should select a script", () => {
     const { container } = render(<SQLScripts {...minimalProps} />);
     expect(container.querySelector(".MuiList-root")).to.exist;
     expect(

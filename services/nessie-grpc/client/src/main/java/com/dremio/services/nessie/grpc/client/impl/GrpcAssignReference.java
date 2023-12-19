@@ -15,62 +15,15 @@
  */
 package com.dremio.services.nessie.grpc.client.impl;
 
-import static com.dremio.services.nessie.grpc.ProtoUtil.refFromProtoResponse;
-import static com.dremio.services.nessie.grpc.client.GrpcExceptionMapper.handle;
-
-import org.projectnessie.error.NessieConflictException;
-import org.projectnessie.error.NessieNotFoundException;
-import org.projectnessie.model.Branch;
-import org.projectnessie.model.Detached;
+import org.projectnessie.client.api.AssignReferenceBuilder;
 import org.projectnessie.model.Reference;
-import org.projectnessie.model.Tag;
 
-import com.dremio.services.nessie.grpc.ProtoUtil;
-import com.dremio.services.nessie.grpc.api.AssignReferenceRequest;
-import com.dremio.services.nessie.grpc.api.ReferenceResponse;
-import com.dremio.services.nessie.grpc.api.ReferenceType;
 import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingStub;
 
-abstract class GrpcAssignReference {
-
-  private final TreeServiceBlockingStub stub;
-  private Reference assignTo;
-  private String refName;
-  private String hash;
+final class GrpcAssignReference extends BaseGrpcAssignReference<Reference, AssignReferenceBuilder<Reference>>
+  implements AssignReferenceBuilder<Reference> {
 
   GrpcAssignReference(TreeServiceBlockingStub stub) {
-    this.stub = stub;
-  }
-
-  void setAssignTo(Reference assignTo) {
-    this.assignTo = assignTo;
-  }
-
-  void setRefName(String refName) {
-    this.refName = refName;
-  }
-
-  void setHash(String hash) {
-    this.hash = hash;
-  }
-
-  Reference assign(ReferenceType refType) throws NessieNotFoundException, NessieConflictException {
-    return handle(
-      () -> {
-        AssignReferenceRequest.Builder builder = AssignReferenceRequest.newBuilder()
-            .setReferenceType(refType)
-            .setNamedRef(refName)
-            .setOldHash(hash);
-        if (assignTo instanceof Branch) {
-          builder.setBranch(ProtoUtil.toProto((Branch) assignTo));
-        } else if (assignTo instanceof Tag) {
-          builder.setTag(ProtoUtil.toProto((Tag) assignTo));
-        } else if (assignTo instanceof Detached) {
-          builder.setDetached(ProtoUtil.toProto((Detached) assignTo));
-        }
-
-        ReferenceResponse response = stub.assignReference(builder.build());
-        return refFromProtoResponse(response);
-      });
+    super(stub);
   }
 }

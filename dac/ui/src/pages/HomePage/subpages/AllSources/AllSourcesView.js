@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import $ from "jquery";
 import { PureComponent } from "react";
 import moment from "@app/utils/dayjs";
 import PropTypes from "prop-types";
@@ -38,9 +39,8 @@ import { tableStyles } from "../../tableStyles";
 import { getSettingsLocation } from "components/Menus/HomePage/AllSourcesMenu";
 import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
 import { IconButton } from "dremio-ui-lib";
-import { CATALOG_ARS_ENABLED } from "@app/exports/flags/CATALOG_ARS_ENABLED";
-import { FeatureSwitch } from "@app/exports/components/FeatureSwitch/FeatureSwitch";
 import { isNotSoftware } from "dyn-load/utils/versionUtils";
+import { ARSFeatureSwitch } from "@inject/utils/arsUtils";
 
 const btnTypes = {
   settings: "settings",
@@ -86,8 +86,7 @@ class AllSourcesView extends PureComponent {
                   <EntityLink entityId={item.get("id")}>
                     <EllipsedText text={item.get("name")} />
                   </EntityLink>
-                  <FeatureSwitch
-                    flag={CATALOG_ARS_ENABLED}
+                  <ARSFeatureSwitch
                     renderEnabled={() => null}
                     renderDisabled={() => (
                       <ResourcePin entityId={item.get("id")} />
@@ -155,24 +154,13 @@ class AllSourcesView extends PureComponent {
     ];
   }
 
-  handleSettingsClose(settingsWrap) {
-    $(settingsWrap).parents("tr").removeClass("hovered");
-  }
-
-  handleSettingsOpen(settingsWrap) {
-    $(settingsWrap).parents("tr").addClass("hovered");
-  }
-
   getSettingsBtnByType(menu, item) {
     return (
       <SettingsBtn
-        handleSettingsClose={this.handleSettingsClose.bind(this)}
-        handleSettingsOpen={this.handleSettingsOpen.bind(this)}
         dataQa={item.get("name")}
         menu={menu}
         classStr="main-settings-btn min-btn catalog-btn"
         key={`${item.get("name")}-${item.get("id")}`}
-        tooltip="Common.More"
         hideArrowIcon
       >
         {this.getInlineIcon("interface/more")}

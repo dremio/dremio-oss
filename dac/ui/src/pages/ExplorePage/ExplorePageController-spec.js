@@ -127,7 +127,7 @@ describe("ExplorePageController", () => {
     });
 
     it("should not load anything if !nextProps.dataset.needsLoad && !isFailed && !haveNewDatasetVersion", () => {
-      instance.componentWillReceiveProps(props);
+      instance.UNSAFE_componentWillReceiveProps(props);
       expect(commonProps.performLoadDataset).to.not.be.called;
     });
 
@@ -191,17 +191,17 @@ describe("ExplorePageController", () => {
     });
 
     it("should call resetViewState and setCurrentSql(undefined) only if datasetVersion has changed", () => {
-      instance.componentWillReceiveProps(props);
+      instance.UNSAFE_componentWillReceiveProps(props);
       expect(commonProps.resetViewState).to.not.be.called;
       expect(commonProps.setCurrentSql).to.not.be.called;
 
       props = { ...props, dataset: props.dataset.set("datasetVersion", "22") };
-      instance.componentWillReceiveProps(props);
+      instance.UNSAFE_componentWillReceiveProps(props);
       expect(commonProps.resetViewState).to.be.called;
     });
 
     it("should redirect to / if props/.pageType is invalid", () => {
-      instance.componentWillReceiveProps({ ...props, pageType: "foo" });
+      instance.UNSAFE_componentWillReceiveProps({ ...props, pageType: "foo" });
       expect(props.router.push).to.be.calledWith("/");
     });
   });

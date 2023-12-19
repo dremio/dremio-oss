@@ -17,6 +17,7 @@ package com.dremio.exec.planner.sql.parser;
 
 import static org.apache.calcite.util.Static.RESOURCE;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
@@ -40,8 +41,10 @@ import org.apache.calcite.sql.validate.SqlValidatorException;
 import org.apache.calcite.sql2rel.SqlToRelConverter;
 import org.apache.calcite.util.TimestampString;
 
-import com.dremio.exec.catalog.TableVersionContext;
-import com.dremio.exec.catalog.TableVersionType;
+import com.dremio.catalog.model.dataset.TableVersionContext;
+import com.dremio.catalog.model.dataset.TableVersionType;
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
@@ -53,11 +56,13 @@ public class TableVersionSpec {
 
   private final TableVersionType tableVersionType;
   private final SqlNode versionSpecifier;
+  private final SqlNode timestamp;
   private SqlLiteral resolvedVersionSpecifier;
 
-  public TableVersionSpec(TableVersionType tableVersionType, SqlNode versionSpecifier) {
+  public TableVersionSpec(TableVersionType tableVersionType, SqlNode versionSpecifier, SqlNode timestamp) {
     this.tableVersionType = tableVersionType;
     this.versionSpecifier = versionSpecifier;
+    this.timestamp = timestamp;
   }
 
   public TableVersionContext getResolvedTableVersionContext() {
@@ -65,9 +70,15 @@ public class TableVersionSpec {
 
     Object value = null;
     switch (tableVersionType) {
+      case COMMIT:
+        Preconditions.checkState(resolvedVersionSpecifier instanceof SqlCharStringLiteral);
+        value = resolvedVersionSpecifier.getValueAs(String.class);
+        if (timestamp != null) {
+          throw UserException.validationError().message("Reference type 'Commit' cannot be used with AS OF syntax.").buildSilently();
+        }
+        break;
       case BRANCH:
       case TAG:
-      case COMMIT_HASH_ONLY:
       case REFERENCE:
       case SNAPSHOT_ID:
         Preconditions.checkState(resolvedVersionSpecifier instanceof SqlCharStringLiteral);
@@ -77,10 +88,13 @@ public class TableVersionSpec {
         Preconditions.checkState(resolvedVersionSpecifier instanceof SqlTimestampLiteral);
         value = resolvedVersionSpecifier.getValueAs(Calendar.class).getTimeInMillis();
         break;
+      case NOT_SPECIFIED:
+      default:
+        break;
     }
 
     Preconditions.checkNotNull(value);
-    return new TableVersionContext(tableVersionType, value);
+    return new TableVersionContext(tableVersionType, value, getTimestampAsInstant());
   }
 
 
@@ -90,8 +104,9 @@ public class TableVersionSpec {
     switch (tableVersionType) {
       case BRANCH:
       case TAG:
-      case COMMIT_HASH_ONLY:
+      case COMMIT:
       case REFERENCE:
+      case NOT_SPECIFIED:
       case SNAPSHOT_ID:
         Preconditions.checkState(versionSpecifier instanceof SqlCharStringLiteral);
         value = ((SqlCharStringLiteral)versionSpecifier).getValueAs(String.class);
@@ -163,11 +178,22 @@ public class TableVersionSpec {
     return versionSpecifier;
   }
 
+  public SqlNode getTimestamp() {
+    return timestamp;
+  }
+
+  public Instant getTimestampAsInstant() {
+    if (timestamp == null) {
+      return null;
+    }
+    return Instant.ofEpochMilli(SqlHandlerUtil.convertToTimeInMillis(((SqlLiteral) timestamp).getValueAs(String.class), timestamp.getParserPosition()));
+  }
+
   public void unparseVersionSpec(SqlWriter writer, int leftPrec, int rightPrec) {
     switch (tableVersionType) {
       case BRANCH:
       case TAG:
-      case COMMIT_HASH_ONLY:
+      case COMMIT:
       case REFERENCE:
       case SNAPSHOT_ID:
         Preconditions.checkState(getVersionSpecifier() instanceof SqlCharStringLiteral);
@@ -177,7 +203,7 @@ public class TableVersionSpec {
             (SqlCharStringLiteral) getVersionSpecifier();
         final String value = versionCharSpecLiteral.getNlsString().getValue();
         writer.print(
-            (tableVersionType == TableVersionType.COMMIT_HASH_ONLY) ? '"' + value + '"' : value);
+            (tableVersionType == TableVersionType.COMMIT) ? '"' + value + '"' : value);
 
         break;
       case TIMESTAMP:
@@ -192,6 +218,11 @@ public class TableVersionSpec {
           call.getOperator().unparse(writer, call, leftPrec, rightPrec);
         }
         break;
+    }
+    if (timestamp != null) {
+      writer.keyword("AS");
+      writer.keyword("OF");
+      writer.keyword(timestamp.toString());
     }
   }
 }

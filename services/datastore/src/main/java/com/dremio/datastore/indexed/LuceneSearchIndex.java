@@ -46,6 +46,7 @@ import org.apache.lucene.store.BaseDirectory;
 import org.apache.lucene.store.MMapDirectory;
 import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.util.BytesRef;
+import org.apache.lucene.util.InfoStream;
 
 import com.dremio.datastore.CoreIndexedStore;
 import com.dremio.datastore.WarningTimer;
@@ -231,16 +232,18 @@ public class LuceneSearchIndex implements AutoCloseable {
     final boolean inMemory,
     final CommitWrapper commitWrapper
   ) {
-    this(localStorageDir, name, inMemory, commitWrapper, SEARCHER_CACHE_TTL_MILLIS);
+    this(localStorageDir, name, inMemory, commitWrapper, SEARCHER_CACHE_TTL_MILLIS, new MergeSchedulerInfoStream(name));
   }
 
+  @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
   @VisibleForTesting
   LuceneSearchIndex(
       final File localStorageDir,
       final String name,
       final boolean inMemory,
       final CommitWrapper commitWrapper,
-      final int searcherCacheTTLMillis
+      final int searcherCacheTTLMillis,
+      final InfoStream infoStream
   ) {
     this.name = name;
     this.commitWrapper = commitWrapper;
@@ -253,6 +256,7 @@ public class LuceneSearchIndex implements AutoCloseable {
     final IndexWriterConfig writerConfig = new IndexWriterConfig(new KeywordAnalyzer())
         .setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND)
         .setRAMBufferSizeMB(RAM_BUFFER_SIZE_MB)
+        .setInfoStream(infoStream)
         .setMergeScheduler(cms);
 
     try {
@@ -597,6 +601,54 @@ public class LuceneSearchIndex implements AutoCloseable {
       return version;
     }
 
+  }
+
+  /**
+   * InfoStream which will print status on merge indexes during Dremio shutdown.
+   * The merging step can take a lot of time, so the goal is to show display
+   * to avoid CTRL+C by the customer. See DX-66277.
+   */
+  static class MergeSchedulerInfoStream extends InfoStream {
+
+    static final long MAX_THRESHOLD = 20_000L;
+    private final String name;
+    private long threshold = 30L;
+    private long nbMessages = 0L;
+
+    MergeSchedulerInfoStream(String name) {
+      this.name = name;
+    }
+
+    @Override
+    public synchronized void message(String component, String message) {
+      // We just want to see that 'something' happens if the merge takes too much time.
+      if (++nbMessages >= threshold) {
+        logger.info("Running Lucene MergeScheduler - We are currently reindexing '{}'. This operation could take a moment...", name);
+        generateNextPrintThreshold();
+      }
+    }
+
+    @Override
+    public boolean isEnabled(String component) {
+      // MS stands for MergeScheduler, meaning that we only allow it to print,
+      // and we discard IndexWriter and other components
+      return logger.isInfoEnabled() && "MS".equals(component);
+    }
+
+    @VisibleForTesting
+    long generateNextPrintThreshold() {
+      threshold = Math.min(threshold * 2, MAX_THRESHOLD);
+      return threshold;
+    }
+
+    @VisibleForTesting
+    long getNbMessages() {
+      return nbMessages;
+    }
+
+    @Override
+    public void close() {
+    }
   }
 
   /**

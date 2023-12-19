@@ -42,7 +42,7 @@ public class SysFlightPluginConf extends ConnectionConf<SysFlightPluginConf, Sys
 
   @Override
   public SysFlightStoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
-    return new SysFlightStoragePlugin(context, name, true, Collections.singletonList(SystemTable.DEPENDENCIES));
+    return new SysFlightStoragePlugin(context, name, pluginIdProvider, true, Collections.singletonList(SystemTable.DEPENDENCIES));
   }
 
   @Override

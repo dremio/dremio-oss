@@ -57,7 +57,7 @@ export default class DateInput extends PureComponent {
     };
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     const { value } = nextProps;
     if (value !== "") {
       this.setState({ value });

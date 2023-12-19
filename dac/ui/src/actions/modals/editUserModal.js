@@ -46,7 +46,7 @@ export function editUser(values) {
   const meta = {
     invalidateViewIds: [USERS_VIEW_ID],
     notification: {
-      message: la("Successfully updated."),
+      message: laDeprecated("Successfully updated."),
       level: "success",
     },
   };

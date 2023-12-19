@@ -33,6 +33,11 @@ import { getViewStateFromAction } from "@app/reducers/resources/view";
 // @ts-ignore
 import { sonarEvents } from "dremio-ui-common/sonar/sonarEvents.js";
 import Immutable from "immutable";
+import { getLoggingContext } from "dremio-ui-common/contexts/LoggingContext.js";
+
+const logger = getLoggingContext().createLogger(
+  "sagas/performLoadDatasetNew.ts"
+);
 
 export function* listenToJobProgress(
   dataset: Immutable.Map<string, any>,
@@ -45,7 +50,8 @@ export function* listenToJobProgress(
   callback: any,
   curIndex: number,
   sessionId: string,
-  viewId: string
+  viewId: string,
+  tabId: string
 ): any {
   let resetViewState = true;
   let raceResult;
@@ -59,14 +65,20 @@ export function* listenToJobProgress(
   }
 
   try {
+    // Tabs: Need to namespace this state as well, send tabId in
     yield put(setExploreJobIdInProgress(jobId, datasetVersion));
-    yield spawn(jobUpdateWatchers, jobId);
+    yield spawn(jobUpdateWatchers, jobId, datasetVersion);
+
     yield put(
-      updateViewState(EXPLORE_TABLE_ID, {
-        isInProgress: true,
-        isFailed: false,
-        error: null,
-      })
+      updateViewState(
+        EXPLORE_TABLE_ID,
+        {
+          isInProgress: true,
+          isFailed: false,
+          error: null,
+        },
+        { tabId }
+      )
     );
 
     raceResult = yield race({
@@ -77,16 +89,17 @@ export function* listenToJobProgress(
         jobId,
         paginationUrl,
         navigateOptions,
-        isRun,
         datasetPath,
         callback,
         curIndex,
         sessionId,
-        viewId
+        viewId,
+        tabId
       ),
       isLoadCanceled: take([CANCEL_TABLE_DATA_LOAD, TRANSFORM_PEEK_START]),
       locationChange: call(resetTableViewStateOnPageLeave),
     });
+    logger.debug("loadDatasetMetadata raceResult: ", raceResult);
   } catch (e) {
     if (!(e instanceof DataLoadError)) {
       throw e;
@@ -94,10 +107,10 @@ export function* listenToJobProgress(
 
     resetViewState = false;
     const viewState = yield call(getViewStateFromAction, e.response);
-    yield put(updateViewState(EXPLORE_TABLE_ID, viewState));
+    yield put(updateViewState(EXPLORE_TABLE_ID, viewState, { tabId }));
   } finally {
     if (resetViewState) {
-      yield call(hideTableSpinner);
+      yield call(hideTableSpinner, tabId);
     }
   }
 
@@ -118,5 +131,6 @@ export function* newLoadDataset(
     viewId,
     tipVersion,
     sessionId
+    // Tabs: may need to send originalScriptId for meta
   );
 }

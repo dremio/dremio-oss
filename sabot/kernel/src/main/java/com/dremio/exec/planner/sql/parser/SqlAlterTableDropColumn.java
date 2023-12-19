@@ -39,24 +39,27 @@ public class SqlAlterTableDropColumn extends SqlAlterTable {
 
     @Override
     public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 3, "SqlAlterTableDropColumn.createCall() " +
-          "has to get 3 operands!");
+      Preconditions.checkArgument(operands.length == 4, "SqlAlterTableDropColumn.createCall() " +
+          "has to get 4 operands!");
 
       return new SqlAlterTableDropColumn(
           pos,
           (SqlIdentifier) operands[0],
           (SqlLiteral) operands[1],
-          (SqlIdentifier) operands[2]);
+          (SqlIdentifier) operands[2],
+          (SqlTableVersionSpec) operands[3]);
     }
   };
 
   protected final SqlIdentifier columnToDrop;
   protected final SqlLiteral dropColumnKeywordPresent;
+  protected final SqlTableVersionSpec sqlTableVersionSpec;
 
-  public SqlAlterTableDropColumn(SqlParserPos pos, SqlIdentifier tblName, SqlLiteral dropColumnKeywordPresent, SqlIdentifier columnToDrop) {
+  public SqlAlterTableDropColumn(SqlParserPos pos, SqlIdentifier tblName, SqlLiteral dropColumnKeywordPresent, SqlIdentifier columnToDrop, SqlTableVersionSpec sqlTableVersionSpec) {
     super(pos, tblName);
     this.dropColumnKeywordPresent = dropColumnKeywordPresent;
     this.columnToDrop = columnToDrop;
+    this.sqlTableVersionSpec = sqlTableVersionSpec;
   }
 
   @Override
@@ -76,10 +79,14 @@ public class SqlAlterTableDropColumn extends SqlAlterTable {
 
   @Override
   public List<SqlNode> getOperandList() {
-    return Lists.newArrayList(tblName, dropColumnKeywordPresent, columnToDrop);
+    return Lists.newArrayList(tblName, dropColumnKeywordPresent, columnToDrop, sqlTableVersionSpec);
   }
 
   public String getColumnToDrop() {
     return columnToDrop.getSimple();
+  }
+
+  public SqlTableVersionSpec getSqlTableVersionSpec() {
+    return sqlTableVersionSpec;
   }
 }

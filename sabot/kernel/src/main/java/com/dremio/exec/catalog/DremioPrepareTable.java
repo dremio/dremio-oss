@@ -42,6 +42,7 @@ import org.apache.calcite.sql.validate.SqlValidatorTable;
 import org.apache.calcite.sql2rel.InitializerContext;
 import org.apache.calcite.util.ImmutableBitSet;
 
+import com.dremio.exec.ops.DremioCatalogReader;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 

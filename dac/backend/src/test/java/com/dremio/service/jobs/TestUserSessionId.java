@@ -134,7 +134,7 @@ public class TestUserSessionId extends BaseTestServer {
   }
 
   private static Pair runQuery(JobRequest jobRequest) {
-    final LogicalPlanCaptureListener planCaptureListener = new LogicalPlanCaptureListener();
+    final JoinPlanningMultiJoinPlanCaptureListener planCaptureListener = new JoinPlanningMultiJoinPlanCaptureListener();
     final JobSubmission jobSubmission = JobsServiceTestUtils.getJobSubmissionAfterJobCompletion(
       l(LocalJobsService.class), jobRequest, planCaptureListener);
     return Pair.of(jobSubmission, planCaptureListener.getPlan());

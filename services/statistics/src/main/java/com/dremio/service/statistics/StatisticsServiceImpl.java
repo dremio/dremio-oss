@@ -484,7 +484,7 @@ public class StatisticsServiceImpl implements StatisticsService {
   /**
    * StatisticsUpdater
    */
-  private class StatisticsUpdater implements Runnable {
+  private final class StatisticsUpdater implements Runnable {
     @Override
     public void run() {
       try {

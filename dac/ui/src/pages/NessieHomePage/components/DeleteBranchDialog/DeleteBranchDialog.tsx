@@ -89,9 +89,8 @@ function DeleteBranchDialog({
       closeDialog();
       setIsSending(false);
     } catch (error: any) {
-      setErrorText(
-        <FormattedMessage id="RepoView.Dialog.DeleteBranch.Error" />
-      );
+      const errorMessage = await error.json();
+      setErrorText(errorMessage.message);
       setIsSending(false);
     }
   };
@@ -108,7 +107,10 @@ function DeleteBranchDialog({
           <>
             <Button
               variant="secondary"
-              onClick={closeDialog}
+              onClick={() => {
+                closeDialog();
+                setErrorText(null);
+              }}
               disabled={isSending}
             >
               <FormattedMessage id="Common.Cancel" />

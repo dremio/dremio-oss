@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import $ from "jquery";
 import { Component } from "react";
 import PropTypes from "prop-types";
 import { Cell } from "fixed-data-table-2";
@@ -26,7 +27,6 @@ import dataFormatUtils from "utils/dataFormatUtils";
 import exploreUtils from "utils/explore/exploreUtils";
 import { RED } from "uiTheme/radium/colors";
 
-import { withLocation } from "containers/dremioLocation";
 import EllipsisIcon from "../EllipsisIcon";
 
 import "./ExploreTableCell.less";
@@ -55,9 +55,6 @@ export class ExploreTableCellView extends Component {
     width: PropTypes.number,
     height: PropTypes.number,
     style: PropTypes.object,
-
-    // context properties
-    location: PropTypes.object,
   };
 
   static contextTypes = {
@@ -82,7 +79,7 @@ export class ExploreTableCellView extends Component {
     };
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     this.tryToLoadNextRows(nextProps.rowIndex, nextProps.data);
   }
 
@@ -134,7 +131,8 @@ export class ExploreTableCellView extends Component {
     if (this.props.isDumbTable || curTarget?.className?.includes("Ellipsis")) {
       return null;
     }
-    const state = this.props.location.state || {};
+    const routerLocation = this.context.router.location;
+    const state = routerLocation.state || {};
     this.setState({ startSelect: false });
     const selection = window.getSelection();
     const selectionData = exploreUtils.getSelectionData(
@@ -164,7 +162,7 @@ export class ExploreTableCellView extends Component {
         selectionData
       );
       this.context.router.push({
-        ...this.props.location,
+        ...routerLocation,
         state: {
           ...state,
           columnName,
@@ -217,7 +215,7 @@ export class ExploreTableCellView extends Component {
   }
 
   prohibitSelection(selectionData) {
-    const { query } = this.props.location;
+    const { query } = this.context.router.location;
     if (
       this.props.isDumbTable ||
       !selectionData ||
@@ -344,7 +342,7 @@ export class ExploreTableCellView extends Component {
   }
 }
 
-export default withLocation(ExploreTableCellView);
+export default ExploreTableCellView;
 
 const styles = {
   removedCell: {

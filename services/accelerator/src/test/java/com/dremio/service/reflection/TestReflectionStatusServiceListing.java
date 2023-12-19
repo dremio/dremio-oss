@@ -38,6 +38,7 @@ import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
+import com.dremio.options.OptionManager;
 import com.dremio.service.DirectProvider;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -86,6 +87,9 @@ public class TestReflectionStatusServiceListing {
   @Mock
   private Catalog entityExplorer;
 
+  @Mock
+  private OptionManager optionManager;
+
   private String datasetId;
 
   private ReflectionId reflectionId;
@@ -120,7 +124,8 @@ public class TestReflectionStatusServiceListing {
       materializationStore,
       externalReflectionStore,
       validator,
-      DirectProvider.wrap(catalogService)
+      DirectProvider.wrap(catalogService),
+      DirectProvider.wrap(optionManager)
     );
   }
 

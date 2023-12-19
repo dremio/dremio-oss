@@ -69,4 +69,8 @@ public interface SqlDmlOperator {
    * @return the condition expression for the DMLed data
    */
   SqlNode getCondition();
+
+  SqlTableVersionSpec getSqlTableVersionSpec();
+
+  TableVersionSpec getTableVersionSpec();
 }

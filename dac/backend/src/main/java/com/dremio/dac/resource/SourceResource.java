@@ -66,6 +66,7 @@ import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.catalog.SourceCatalog;
 import com.dremio.exec.ops.ReflectionContext;
 import com.dremio.exec.server.ContextService;
+import com.dremio.exec.store.NessieNamespaceNotEmptyException;
 import com.dremio.file.File;
 import com.dremio.file.SourceFilePath;
 import com.dremio.service.namespace.BoundedDatasetCount;
@@ -225,8 +226,12 @@ public class SourceResource extends BaseResourceWithAllocator {
   public void deleteFolder(@PathParam("path") String path,
                            @QueryParam("refType") String refType,
                            @QueryParam("refValue") String refValue) {
-    SourceFolderPath folderPath = SourceFolderPath.fromURLPath(sourceName, path);
-    sourceService.deleteFolder(folderPath, sourceName, refType, refValue);
+    try {
+      SourceFolderPath folderPath = SourceFolderPath.fromURLPath(sourceName, path);
+      sourceService.deleteFolder(folderPath, refType, refValue);
+    } catch (NessieNamespaceNotEmptyException e) {
+      throw UserException.validationError(e).message(e.getErrorCode()).buildSilently();
+    }
   }
 
   @POST

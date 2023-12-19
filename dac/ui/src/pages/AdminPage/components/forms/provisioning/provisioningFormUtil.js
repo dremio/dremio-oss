@@ -122,12 +122,16 @@ const prepareDynamicConfigForSave = (values) => {
   }
 };
 
-const prepareInstanceTypeForSave = (values) => {
+const prepareInstanceTypeForSave = (values, provision) => {
   const size = values[EC2_UI_FIELDS[0]]; //engineSize
   if (size === -1) {
     return {}; // instanceType property is visible and used explicitly
   } else {
-    return { instanceType: AWS_INSTANCE_TYPE_OPTIONS[0].value }; // using default 'Standard'
+    return {
+      instanceType: isEditMode(provision)
+        ? provision.getIn(["awsProps", "instanceType"])
+        : AWS_INSTANCE_TYPE_OPTIONS[1].value, // using default 'Standard'
+    };
   }
 };
 
@@ -138,7 +142,7 @@ export const preparePropertyListFieldForSave = (values) => {
   return { awsTags };
 };
 
-export function prepareProvisionValuesForSave(values) {
+export function prepareProvisionValuesForSave(values, provision) {
   const payload = {
     clusterType: "EC2",
     ...addPropsForSave({}, EC2_CLUSTER_FIELDS, values),
@@ -148,7 +152,7 @@ export function prepareProvisionValuesForSave(values) {
     yarnProps: null,
     awsProps: {
       ...addPropsForSave({}, EC2_AWS_PROPS, values),
-      ...prepareInstanceTypeForSave(values),
+      ...prepareInstanceTypeForSave(values, provision),
       ...preparePropertyListFieldForSave(values),
       connectionProps: {
         ...addPropsForSave({}, EC2_AWS_CONNECTION_PROPS, values),

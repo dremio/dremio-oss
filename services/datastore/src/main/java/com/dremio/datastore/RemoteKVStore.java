@@ -24,6 +24,7 @@ import java.util.Optional;
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.FindByRange;
 import com.dremio.datastore.api.ImmutableDocument;
+import com.dremio.datastore.api.IncrementCounter;
 import com.dremio.datastore.api.KVStore;
 import com.dremio.datastore.api.options.KVStoreOptionUtility;
 import com.dremio.datastore.api.options.VersionOption;
@@ -214,6 +215,16 @@ public class RemoteKVStore <K, V> implements KVStore<K, V> {
     } catch (RpcException e) {
       throw new DatastoreException(format("Failed to find by range for store id: %s", getStoreId()), e);
     }
+  }
+
+  @Override
+  public void bulkIncrement(Map<K, List<IncrementCounter>> keysToIncrement, IncrementOption option) {
+    throw new UnsupportedOperationException("Bulk increment operation is not supported.");
+  }
+
+  @Override
+  public void bulkDelete(List<K> keysToDelete) {
+    throw new UnsupportedOperationException("Bulk delete operation is not supported.");
   }
 
   @Override

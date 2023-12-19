@@ -13,9 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import * as React from "react";
-import { useContext, useCallback, useMemo, memo } from "react";
-import { RequestStatus } from "smart-resource";
+import { useContext, useCallback, useMemo, memo, forwardRef } from "react";
 import { orderBy } from "lodash";
 import { FieldWithError } from "@app/components/Fields";
 import { ElementConfig } from "@app/types/Sources/SourceFormTypes";
@@ -29,19 +27,17 @@ import {
 } from "dremio-ui-lib/components";
 
 import { fieldWithError } from "../../../FormWrappers.less";
-import { ArcticCatalog } from "@app/exports/endpoints/ArcticCatalogs/ArcticCatalog.type";
-import { NewArcticCatalogDialog } from "@app/exports/components/NewArcticCatalogDialog/NewArcticCatalogDialog";
+import { ArcticCatalog } from "@inject/arctic/endpoints/ArcticCatalogs/ArcticCatalog.type";
+import { NewArcticCatalogDialog } from "@inject/arctic/components/NewArcticCatalogDialog/NewArcticCatalogDialog";
 import { intl } from "@app/utils/intl";
 import { FormContext } from "@app/pages/HomePage/components/modals/formContext";
 import sentryUtil from "@app/utils/sentryUtil";
 import { useFeatureFlag } from "@app/exports/providers/useFeatureFlag";
-import { ARCTIC_CATALOG_CREATION } from "@app/exports/flags/ARCTIC_CATALOG_CREATION";
-import { useArcticCatalogs } from "@app/exports/providers/useArcticCatalogs";
+import { ARCTIC_CATALOG_CREATION } from "@inject/featureFlags/flags/ARCTIC_CATALOG_CREATION";
+import { useArcticCatalogs } from "@inject/arctic/providers/useArcticCatalogs";
 import { useSelector } from "react-redux";
 import { getSortedSources } from "@app/selectors/home";
 import { ARCTIC } from "@app/constants/sourceTypes";
-
-import * as classes from "./ArcticCatalogSelect.less";
 
 type ArcticCatalogSelectWrapperProps = {
   elementConfig: ElementConfig;
@@ -55,6 +51,13 @@ type ArcticCatalogSelectProps = {
   onChange?: (value: string | null, name?: string | null) => void;
   value?: string | null;
   placeholder?: string;
+  error?: string;
+  //Might not need both pending and disabled, keeping both for backwards compat after refactor for now
+  disabled?: boolean;
+  pending?: boolean;
+  catalogs: ArcticCatalog[];
+  isOptionDisabled?: (catalog: ArcticCatalog) => boolean;
+  onCatalogCreateSuccess?: (catalog: ArcticCatalog) => void;
 };
 
 interface ItemProps extends React.ComponentPropsWithoutRef<"div"> {
@@ -70,7 +73,7 @@ const Skeletons = new Array(5)
   .fill(null)
   .map((v, i) => ({ label: LOADING_ITEM, value: `${LOADING_ITEM}-${i}` }));
 
-const ArcticCatalogSelectItem = React.forwardRef<HTMLDivElement, ItemProps>(
+const ArcticCatalogSelectItem = forwardRef<HTMLDivElement, ItemProps>(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   ({ label, value, ...others }: ItemProps, ref) => {
     function getContent() {
@@ -105,19 +108,19 @@ const ArcticCatalogSelectItem = React.forwardRef<HTMLDivElement, ItemProps>(
 
 function getOptions(
   catalogs: ArcticCatalog[] | null,
-  status: RequestStatus,
+  pending: boolean | undefined,
   enableNewCatalogItem: boolean,
-  arcticSourceIds: string[],
+  isOptionDisabled: ((catalog: ArcticCatalog) => boolean) | undefined,
   canAddCatalog: boolean
 ) {
-  if (status === "pending") {
+  if (pending) {
     return Skeletons;
   } else if (catalogs) {
     const options: (string | SelectItem)[] = orderBy(catalogs, "name").map(
       (cur) => ({
         value: cur.id,
         label: cur.name,
-        disabled: arcticSourceIds.includes(cur.id),
+        disabled: isOptionDisabled?.(cur) || false,
       })
     );
     if (enableNewCatalogItem && canAddCatalog) {
@@ -137,31 +140,32 @@ function getOptions(
   }
 }
 
-function ArcticCatalogSelect({
+export function ArcticCatalogSelect({
   onChange,
   value,
   placeholder,
+  error,
+  disabled,
+  pending,
+  catalogs,
+  isOptionDisabled,
+  onCatalogCreateSuccess,
 }: ArcticCatalogSelectProps) {
-  const { editing } = useContext(FormContext);
-  const sources = useSelector(getSortedSources);
   const canAddCatalog = useSelector(
     (state: Record<string, any>) =>
       state.privileges.organization?.arcticCatalogs?.canCreate
   );
 
-  const arcticSourceIds = useMemo(() => {
-    return sources
-      .toJS()
-      .filter((cur: { type: string }) => cur.type === ARCTIC)
-      .map((cur: any) => cur.config.arcticCatalogId);
-  }, [sources]);
-  const [catalogs, , status] = useArcticCatalogs();
+  // Temporary configuration to filter out catalogs for ARS during project creation
+  // const { filterCatalogs } = useContext(ArcticCatalogSelectConfig);
+
   const newArcticCatalog = useModalContainer();
   const [result] = useFeatureFlag(ARCTIC_CATALOG_CREATION);
 
   const handleArcticCatalogCreation = useCallback(
     (createdCatalog: ArcticCatalog) => {
       try {
+        onCatalogCreateSuccess?.(createdCatalog);
         sessionStorage.setItem("newCatalogId", createdCatalog.id);
         onChange?.(createdCatalog.id, createdCatalog.name);
       } catch (e) {
@@ -170,12 +174,12 @@ function ArcticCatalogSelect({
         newArcticCatalog.close();
       }
     },
-    [newArcticCatalog, onChange]
+    [newArcticCatalog, onChange, onCatalogCreateSuccess]
   );
 
   const onSelectChange = useCallback(
     (value: string) => {
-      if (status === "pending" || status === "error") return;
+      if (disabled || pending) return;
       if (value === NEW_CATALOG_ITEM) {
         newArcticCatalog.open();
       } else if (catalogs) {
@@ -185,31 +189,31 @@ function ArcticCatalogSelect({
         onChange?.(value, name);
       }
     },
-    [onChange, newArcticCatalog, catalogs, status]
+    [onChange, newArcticCatalog, catalogs, disabled, pending]
   );
 
   const options = useMemo(
     () =>
-      getOptions(catalogs, status, !!result, arcticSourceIds, canAddCatalog),
-    [catalogs, status, result, arcticSourceIds, canAddCatalog]
+      getOptions(catalogs, pending, !!result, isOptionDisabled, canAddCatalog),
+    [catalogs, pending, result, isOptionDisabled, canAddCatalog]
   );
 
   return (
     <>
       <Select
         // searchable
-        className={classes["arctic-catalog-select"]}
-        disabled={status === "pending" || editing}
-        placeholder={status === "pending" ? "" : placeholder}
+        disabled={pending || disabled}
+        placeholder={pending ? "" : placeholder}
         itemComponent={ArcticCatalogSelectItem}
         data={options}
         // maxDropdownHeight={200}
         value={value}
         onChange={onSelectChange}
         rightSection={<dremio-icon name="interface/caretDown" />}
-        {...(status === "pending" && {
+        {...(pending && {
           icon: <Spinner />,
         })}
+        error={error}
       />
       <ModalContainer {...newArcticCatalog}>
         <NewArcticCatalogDialog
@@ -234,6 +238,17 @@ function ArcticCatalogSelectWrapper({
     },
     [field, fields.name]
   );
+
+  const { editing } = useContext(FormContext);
+  const sources = useSelector(getSortedSources);
+  const arcticSourceIds = useMemo(() => {
+    return sources
+      .toJS()
+      .filter((cur: { type: string }) => cur.type === ARCTIC)
+      .map((cur: any) => cur.config.arcticCatalogId);
+  }, [sources]);
+  const [catalogs, , status] = useArcticCatalogs();
+
   return (
     <FieldWithError
       {...field}
@@ -242,8 +257,15 @@ function ArcticCatalogSelectWrapper({
       })}
       name={elementConfig.getPropName()}
       className={fieldWithError}
+      style={{
+        width: "75%",
+      }}
     >
       <ArcticCatalogSelectMemo
+        catalogs={catalogs || []}
+        isOptionDisabled={(catalog) => arcticSourceIds.includes(catalog.id)}
+        disabled={editing || status === "pending"}
+        pending={status === "pending"}
         value={field.value}
         onChange={handleChange}
         placeholder={intl.formatMessage({

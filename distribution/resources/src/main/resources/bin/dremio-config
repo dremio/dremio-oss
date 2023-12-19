@@ -58,9 +58,6 @@ while [ $# -gt 1 ]; do
     confdir=$1
     shift
     DREMIO_CONF_DIR=$confdir
-  elif [ "--admin-only" = "$1" ]; then
-    DREMIO_ADMIN_ONLY=true
-    shift
   else
     # Presume we are at end of options and break
     break
@@ -413,3 +410,4 @@ export DREMIO_MAX_DIRECT_MEMORY_SIZE_MB
 export DREMIO_ADMIN_LOG_DIR
 export DREMIO_ADMIN_LOG_VERBOSITY
 export DREMIO_GC_OPTS
+export DREMIO_DISABLE_HEAPDUMP

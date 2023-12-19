@@ -18,10 +18,13 @@ import { store } from "@app/store/store";
 // @ts-ignore
 import { resetPrivilegesState } from "@inject/actions/privileges";
 import { isNotSoftware } from "dyn-load/utils/versionUtils";
+import { resetAllSourcesView } from "@app/actions/resources/sources";
+import { SonarContentsResource } from "@app/exports/resources/SonarContentsResource";
+import { resetHomeContents } from "@app/actions/home";
 
 export const handleSonarProjectChange = (
   project: any,
-  pushToProject: () => any
+  pushToProject?: () => any
 ) => {
   (localStorageUtils as any)?.setProjectContext?.(project);
   (localStorageUtils as any)?.clearCurrentEngine?.();
@@ -29,5 +32,11 @@ export const handleSonarProjectChange = (
     // reset redux state related to projects
     store.dispatch(resetPrivilegesState(["engineMapping"]));
   }
-  pushToProject();
+
+  // Reset the views, important when switching projects with ARS enabled to select the correct primary catalog
+  store.dispatch(resetAllSourcesView());
+  store.dispatch(resetHomeContents());
+  SonarContentsResource.reset(); // Reset folder list when switching projects
+
+  if (pushToProject) setImmediate(pushToProject); // Schedule callback/redirect
 };

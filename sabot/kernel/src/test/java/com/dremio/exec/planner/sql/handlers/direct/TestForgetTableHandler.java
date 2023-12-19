@@ -17,6 +17,7 @@ package com.dremio.exec.planner.sql.handlers.direct;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
@@ -31,6 +32,7 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.mockito.stubbing.Answer;
 
+import com.dremio.catalog.exception.UnsupportedForgetTableException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.planner.sql.parser.SqlForgetTable;
@@ -67,7 +69,7 @@ public class TestForgetTableHandler {
       final SqlForgetTable forgetTable = new SqlForgetTable(
         SqlParserPos.ZERO,
         new SqlIdentifier(TABLE_KEY.getPathComponents(), SqlParserPos.ZERO));
-
+      doThrow(new UnsupportedForgetTableException("FORGET METADATA is not supported on tables in homespace, sys, or INFORMATION_SCHEMA.")).when(catalog).forgetTable(TABLE_KEY);
       assertThatThrownBy(() -> forgetTableHandler.toResult("", forgetTable))
         .isInstanceOf(UserException.class)
         .hasMessageContaining("FORGET METADATA is not supported on tables in homespace, sys, or INFORMATION_SCHEMA.");

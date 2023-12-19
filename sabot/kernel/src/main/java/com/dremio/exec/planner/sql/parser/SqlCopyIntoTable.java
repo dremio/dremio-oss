@@ -15,11 +15,20 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
+import org.apache.calcite.plan.Convention;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.prepare.Prepare;
+import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.rel.type.RelDataTypeFieldImpl;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -31,15 +40,27 @@ import org.apache.calcite.sql.SqlSelect;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.sql.type.BasicSqlType;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorScope;
 import org.apache.calcite.sql.validate.SqlValidatorTable;
 import org.apache.calcite.util.ImmutableNullableList;
 
+import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.calcite.logical.CopyIntoTableCrel;
+import com.dremio.exec.catalog.DremioPrepareTable;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.ops.DremioCatalogReader;
 import com.dremio.exec.planner.sql.PartitionTransform;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
+import com.dremio.exec.planner.sql.handlers.query.CopyIntoTableContext;
+import com.dremio.exec.planner.sql.handlers.query.SupportsSqlToRelConversion;
+import com.dremio.exec.planner.sql.handlers.query.SupportsSystemIcebergTables;
+import com.dremio.exec.planner.types.RelDataTypeSystemImpl;
+import com.dremio.exec.store.dfs.system.SystemIcebergTableMetadataFactory;
+import com.dremio.exec.util.ColumnUtils;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
@@ -47,7 +68,9 @@ import com.google.common.collect.Lists;
 /**
  * SQL node tree for the 'COPY INTO' command
  */
-public class SqlCopyIntoTable extends SqlCall implements DataAdditionCmdCall, SqlDmlOperator {
+public class SqlCopyIntoTable extends SqlCall implements DataAdditionCmdCall, SqlDmlOperator, SupportsSqlToRelConversion, SupportsSystemIcebergTables {
+
+  private SqlNode extendedTargetTable;
 
   public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("COPY_INTO", SqlKind.OTHER) {
 
@@ -58,21 +81,24 @@ public class SqlCopyIntoTable extends SqlCall implements DataAdditionCmdCall, Sq
         pos,
         operands[0],
         operands[1],
-        (SqlNodeList)operands[2],
+        (SqlNodeList) operands[2],
         operands[3],
         operands[4],
-        (SqlNodeList)operands[5],
-        (SqlNodeList)operands[6]);
+        (SqlNodeList) operands[5],
+        (SqlNodeList) operands[6]);
     }
 
     @Override
     public RelDataType deriveType(SqlValidator validator, SqlValidatorScope scope, SqlCall call) {
       NamespaceKey path = DmlUtils.getPath(((SqlCopyIntoTable) call).getTargetTable());
-      SqlValidatorTable nsTable = validator.getCatalogReader().getTable(path.getPathComponents());
+      CatalogEntityKey.Builder keyBuilder = CatalogEntityKey.newBuilder().keyComponents(path.getPathComponents()).tableVersionContext(DmlUtils.getVersionContext(call));
+      DremioCatalogReader dremioCatalogReader = validator.getCatalogReader().unwrap(DremioCatalogReader.class);
+      DremioTable dremioTable = dremioCatalogReader.getTable(keyBuilder.build());
+      SqlValidatorTable nsTable = new DremioPrepareTable(dremioCatalogReader, validator.getTypeFactory(), dremioTable);
       if (nsTable == null) {
         throw UserException.invalidMetadataError().message("Table with path %s cannot be found", path).buildSilently();
       }
-      return nsTable.getRowType();
+      return ((SqlCopyIntoTable) call).getRowType(nsTable.getRowType(), validator.getTypeFactory());
     }
   };
 
@@ -93,7 +119,7 @@ public class SqlCopyIntoTable extends SqlCall implements DataAdditionCmdCall, Sq
     SqlNode filePattern,
     SqlNode fileFormat,
     SqlNodeList optionsList,
-    SqlNodeList optionsValueList ) {
+    SqlNodeList optionsValueList) {
     super(pos);
     this.targetTable = targetTable;
     this.storageLocation = storageLocation;
@@ -105,36 +131,36 @@ public class SqlCopyIntoTable extends SqlCall implements DataAdditionCmdCall, Sq
   }
 
   public String getStorageLocation() {
-    return ((SqlLiteral)storageLocation).toValue();
+    return ((SqlLiteral) storageLocation).toValue();
   }
 
   public List<String> getFiles() {
-    return files.getList().stream().map(x -> ((SqlLiteral)x).toValue()).collect(Collectors.toList());
+    return files.getList().stream().map(x -> ((SqlLiteral) x).toValue()).collect(Collectors.toList());
   }
 
   public Optional<String> getFilePattern() {
     if (filePattern == null) {
       return Optional.empty();
     }
-    return Optional.ofNullable(((SqlLiteral)filePattern).toValue());
+    return Optional.ofNullable(((SqlLiteral) filePattern).toValue());
   }
 
   public Optional<String> getFileFormat() {
     if (fileFormat == null) {
       return Optional.empty();
     }
-    return Optional.ofNullable(((SqlLiteral)fileFormat).toValue());
+    return Optional.ofNullable(((SqlLiteral) fileFormat).toValue());
   }
 
   public List<String> getOptionsList() {
-    return optionsList.getList().stream().map(x -> ((SqlLiteral)x).toValue()).collect(Collectors.toList());
+    return optionsList.getList().stream().map(x -> ((SqlLiteral) x).toValue()).collect(Collectors.toList());
   }
 
   public List<Object> getOptionsValueList() {
     return optionsValueList.getList().stream().map(value -> {
       if (value instanceof SqlNodeList) {
-        SqlNodeList listValues = (SqlNodeList)value;
-        return listValues.getList().stream().map(x -> ((SqlLiteral)x).toValue()).collect(Collectors.toList());
+        SqlNodeList listValues = (SqlNodeList) value;
+        return listValues.getList().stream().map(x -> ((SqlLiteral) x).toValue()).collect(Collectors.toList());
       } else if (value instanceof SqlNode) {
         return ((SqlLiteral) value).toValue();
       } else {
@@ -152,11 +178,7 @@ public class SqlCopyIntoTable extends SqlCall implements DataAdditionCmdCall, Sq
 
   @Override
   public SqlNode getTargetTable() {
-    return targetTable;
-  }
-
-  public SqlSelect getSourceSelect() {
-    return sourceSelect;
+    return extendedTargetTable == null ? targetTable : extendedTargetTable;
   }
 
   public void setSourceSelect(SqlSelect select) {
@@ -193,7 +215,7 @@ public class SqlCopyIntoTable extends SqlCall implements DataAdditionCmdCall, Sq
       writer.keyword("FILE_FORMAT");
       fileFormat.unparse(writer, leftPrec, rightPrec);
     }
-    if(optionsList != null) {
+    if (optionsList != null) {
       writer.keyword("(");
       for (int i = 0; i < optionsList.size(); i++) {
         if (i > 0) {
@@ -202,7 +224,7 @@ public class SqlCopyIntoTable extends SqlCall implements DataAdditionCmdCall, Sq
         optionsList.get(i).unparse(writer, leftPrec, rightPrec);
         Object value = optionsValueList.get(i);
         if (value instanceof SqlNodeList) {
-          SqlNodeList listValues = (SqlNodeList)value;
+          SqlNodeList listValues = (SqlNodeList) value;
           writer.keyword("(");
           for (int j = 0; j < listValues.size(); j++) {
             SqlNode listValue = listValues.get(j);
@@ -213,7 +235,7 @@ public class SqlCopyIntoTable extends SqlCall implements DataAdditionCmdCall, Sq
           }
           writer.keyword(")");
         } else {
-          ((SqlNode)value).unparse(writer, leftPrec, rightPrec);
+          ((SqlNode) value).unparse(writer, leftPrec, rightPrec);
         }
       }
       writer.keyword(")");
@@ -222,7 +244,10 @@ public class SqlCopyIntoTable extends SqlCall implements DataAdditionCmdCall, Sq
 
   @Override
   public void extendTableWithDataFileSystemColumns() {
-    throw new UnsupportedOperationException("Extended columns are not supported for CopyInto");
+    // determine if the query was issued with an option ON_ERROR 'continue'
+    if (isOnErrorContinueSpecified(getOptionsList(), getOptionsValueList()) && extendedTargetTable == null) {
+      extendedTargetTable = DmlUtils.extendTableWithErrorColumn(getTargetTable());
+    }
   }
 
   @Override
@@ -273,5 +298,70 @@ public class SqlCopyIntoTable extends SqlCall implements DataAdditionCmdCall, Sq
   @Override
   public void validate(SqlValidator validator, SqlValidatorScope scope) {
     validator.validate(this.sourceSelect);
+  }
+
+  @Override
+  public RelNode convertToRel(RelOptCluster cluster, Prepare.CatalogReader catalogReader, RelNode inputRel,
+                              RelOptTable.ToRelContext relContext) {
+    CatalogEntityKey.Builder keyBuilder = CatalogEntityKey.newBuilder().keyComponents(getPath().getPathComponents()).tableVersionContext(DmlUtils.getVersionContext((SqlNode) this));
+    DremioCatalogReader dremioCatalogReader = catalogReader.unwrap(DremioCatalogReader.class);
+    DremioTable dremioTable = dremioCatalogReader.getTable(keyBuilder.build());
+    Prepare.PreparingTable nsTable = new DremioPrepareTable(dremioCatalogReader, cluster.getTypeFactory(), dremioTable);
+    CopyIntoTableContext copyIntoTableContext = new CopyIntoTableContext(this);
+    RelDataType rowType = getRowType(nsTable.getRowType(), cluster.getTypeFactory());
+    return new CopyIntoTableCrel(cluster, cluster.traitSetOf(Convention.NONE), nsTable, rowType, copyIntoTableContext);
+  }
+
+  /**
+   * Verify the COPY INTO command options to determine if the ON_ERROR 'continue' option is specified.
+   * @param options command option names
+   * @param optionValues command option values
+   * @return true if the list of option name-value pairs contains the pair ON_ERROR 'continue'
+   */
+  private boolean isOnErrorContinueSpecified(List<String> options, List<Object> optionValues) {
+    if (options.size() != optionValues.size()) {
+      return false;
+    }
+    return IntStream.range(0, options.size())
+      .anyMatch(i -> options.get(i).equalsIgnoreCase(CopyIntoTableContext.CopyOption.ON_ERROR.name())
+      && ((String) optionValues.get(i)).equalsIgnoreCase(CopyIntoTableContext.OnErrorAction.CONTINUE.name()));
+  }
+
+  /**
+   * If the command is executed with the ON_ERROR 'continue' option, augment the original table rowType object by
+   * adding an 'error 'column.
+   * @param rowType original table rowType
+   * @param typeFactory type factory for instantiating SQL types
+   * @return decorated rowType
+   */
+  private RelDataType getRowType(RelDataType rowType, RelDataTypeFactory typeFactory) {
+    if (isOnErrorContinueSpecified(getOptionsList(), getOptionsValueList())) {
+      RelDataTypeFactory.Builder builder = new RelDataTypeFactory.Builder(typeFactory);
+      rowType.getFieldList().forEach(builder::add);
+      // extend with error column
+      builder.add(new RelDataTypeFieldImpl(ColumnUtils.COPY_INTO_ERROR_COLUMN_NAME, rowType.getFieldCount() + 1, new BasicSqlType(RelDataTypeSystemImpl.REL_DATA_TYPE_SYSTEM, SqlTypeName.VARCHAR)));
+      return builder.build();
+    }
+    return rowType;
+  }
+
+  @Override
+  public SqlTableVersionSpec getSqlTableVersionSpec() {
+    return null;
+  }
+
+  @Override
+  public TableVersionSpec getTableVersionSpec() {
+    if (targetTable instanceof SqlVersionedTableCollectionCall) {
+      return ((SqlVersionedTableCollectionCall) targetTable).getVersionedTableMacroCall().getTableVersionSpec();
+    }
+    return null;
+  }
+
+  @Override
+  public List<String> systemTableNames() {
+    // Assesses if query has ON_ERROR (CONTINUE) option, if so returns the names of the internal copy error tables.
+    return isOnErrorContinueSpecified(getOptionsList(), getOptionsValueList()) ?
+      SystemIcebergTableMetadataFactory.SUPPORTED_TABLES : Collections.EMPTY_LIST;
   }
 }

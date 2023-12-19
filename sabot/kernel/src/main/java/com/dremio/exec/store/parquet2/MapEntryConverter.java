@@ -88,7 +88,7 @@ public class MapEntryConverter extends ParquetGroupConverter {
   public void start() {
     childCount++;
     if (childCount > maxChildrenAllowed) {
-      throw createListChildrenLimitException(fieldName, maxChildrenAllowed);
+      throw createListChildrenLimitException(fieldName, maxChildrenAllowed, childCount);
     }
     mapWriter.startEntry();
     written = true;

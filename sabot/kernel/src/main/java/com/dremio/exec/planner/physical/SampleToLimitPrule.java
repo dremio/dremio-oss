@@ -23,7 +23,7 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 
-import com.dremio.exec.calcite.logical.SampleCrel;
+import com.dremio.exec.planner.common.SampleRelBase;
 import com.dremio.exec.planner.logical.RelOptHelper;
 
 
@@ -48,7 +48,7 @@ public class SampleToLimitPrule extends Prule {
     final RexBuilder rexBuilder = input.getCluster().getRexBuilder();
     final PlannerSettings plannerSettings = PrelUtil.getPlannerSettings(call.getPlanner());
     final RexNode offset = rexBuilder.makeBigintLiteral(BigDecimal.ZERO);
-    final RexNode limit = rexBuilder.makeBigintLiteral(BigDecimal.valueOf(SampleCrel.getSampleSizeAndSetMinSampleSize(plannerSettings, 1)));
+    final RexNode limit = rexBuilder.makeBigintLiteral(BigDecimal.valueOf(SampleRelBase.getSampleSizeAndSetMinSampleSize(plannerSettings, 1)));
     final LimitPrel sampleAsLimit = new LimitPrel(sample.getCluster(), sample.getTraitSet().plus(Prel.PHYSICAL), convertedInput, offset, limit);
     call.transformTo(sampleAsLimit);
   }

@@ -37,10 +37,6 @@
           color: @white;
         }
       }
-
-      .mtk1 {
-        color: @monaco-grey;
-      }
     }
 
     .sqlEditor__toggleIcon,
@@ -72,18 +68,18 @@
   .sql__lightIcon {
     width: 24px;
     height: 24px;
-    color: var(--color--neutral--600);
+    color: var(--color--neutral--600) !important;
     &:hover {
-      color: var(--dremio--color--link);
+      color: var(--dremio--color--link) !important;
     }
   }
 
   .sql__darkIcon {
     width: 24px;
     height: 24px;
-    color: var(--dremio--default--dark--mode);
+    color: var(--dremio--default--dark--mode) !important;
     &:hover {
-      color: var(--dremio--hover--dark--mode);
+      color: var(--dremio--hover--dark--mode) !important;
     }
   }
 
@@ -105,16 +101,15 @@
 
   .sqlAutocomplete__contextText-light,
   .sqlAutocomplete__contextText-dark {
-    color: @teal;
+    color: var(--dremio--color--link);
     cursor: pointer;
     margin-left: 5px;
-    white-space: nowrap;
-    max-width: 219px;
-    overflow: hidden;
-    text-overflow: ellipsis;
 
     &:hover {
-      text-decoration: underline;
+      &,
+      .branchPickerTag-labelDiv {
+        text-decoration: underline;
+      }
     }
   }
 

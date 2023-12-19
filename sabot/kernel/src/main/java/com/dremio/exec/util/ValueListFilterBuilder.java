@@ -93,6 +93,7 @@ public class ValueListFilterBuilder implements AutoCloseable{
 
         // Buffer with actual keys
         final ArrowBuf fullBuffer = allocator.buffer(getValueListFilterSize());
+        fullBuffer.setZero(0,fullBuffer.capacity());
         this.valueListFilter = buildWithBloomFilter ? new ValueListWithBloomFilter(fullBuffer) : new ValueListFilter(fullBuffer);
         this.valueListFilter.setBoolField(isBoolean);
         closeables.add(valueListFilter);

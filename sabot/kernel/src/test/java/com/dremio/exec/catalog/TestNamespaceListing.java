@@ -41,6 +41,7 @@ import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.test.DremioTest;
@@ -60,7 +61,7 @@ public class TestNamespaceListing {
     kvStoreProvider =
         LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
     kvStoreProvider.start();
-    namespaceService = new NamespaceServiceImpl(kvStoreProvider);
+    namespaceService = new NamespaceServiceImpl(kvStoreProvider, new CatalogStatusEventsImpl());
   }
 
   @After

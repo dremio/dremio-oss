@@ -47,6 +47,8 @@ import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.common.ht2.FieldVectorPair;
 import com.dremio.sabot.op.common.ht2.HashTable;
+import com.dremio.sabot.op.common.ht2.HashTableFactory;
+import com.dremio.sabot.op.common.ht2.LBlockHashTableFactory;
 import com.dremio.sabot.op.common.ht2.NullComparator;
 import com.dremio.sabot.op.common.ht2.PivotBuilder;
 import com.dremio.sabot.op.common.ht2.PivotDef;
@@ -103,13 +105,15 @@ public class BlockJoinTableTest {
 
     // Mocks
     HashTable mockedHashTable = mock(HashTable.class);
+    HashTableFactory mockedHashTableFactory = mock(HashTableFactory.class);
 
     when(mockedHashTable.add(anyInt(), ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any())).
       thenReturn(3);
-
-    doReturn(mockedHashTable).when(sabotConfig).getInstance(
+    doReturn(mockedHashTableFactory).when(sabotConfig).getInstance(
       anyString(),
-      ArgumentMatchers.<Class<HashTable>>any(),
+      ArgumentMatchers.<Class<HashTableFactory>>any(), ArgumentMatchers.<Class<LBlockHashTableFactory>>any());
+    doReturn(mockedHashTable).when(mockedHashTableFactory).getInstance(
+      eq(optionManager),
       ArgumentMatchers.<HashTable.HashTableCreateArgs>any()
     );
 

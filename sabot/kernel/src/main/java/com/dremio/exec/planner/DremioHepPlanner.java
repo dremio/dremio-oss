@@ -71,6 +71,7 @@ public class DremioHepPlanner extends HepPlanner {
     try {
       cancelFlag.reset();
       listener.reset();
+      matchCountListener.reset();
       return super.findBestExp();
     } catch(RuntimeException ex) {
       // if the planner is hiding a UserException, bubble its message to the top.

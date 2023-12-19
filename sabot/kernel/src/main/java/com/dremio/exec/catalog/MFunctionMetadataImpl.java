@@ -17,6 +17,7 @@ package com.dremio.exec.catalog;
 
 import java.util.Optional;
 
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.DatasetHandle;

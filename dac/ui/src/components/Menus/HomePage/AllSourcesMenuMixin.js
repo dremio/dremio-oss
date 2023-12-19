@@ -16,15 +16,18 @@
 import Menu from "components/Menus/Menu";
 import MenuItem from "components/Menus/MenuItem";
 import MenuItemLink from "components/Menus/MenuItemLink";
+import DividerHr from "components/Menus/DividerHr";
 import { EntityLinkProvider } from "@app/pages/HomePage/components/EntityLink";
 import { RestrictedArea } from "@app/components/Auth/RestrictedArea";
 import { manageSourceRule } from "@app/utils/authUtils";
 import { FormattedMessage } from "react-intl";
+import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";
 
 export default function (input) {
   Object.assign(input.prototype, {
     // eslint-disable-line no-restricted-properties
     render() {
+      const { t } = getIntlContext();
       const { item, closeMenu } = this.props;
       const { location } = this.context;
       const name = item.get("name");
@@ -56,8 +59,9 @@ export default function (input) {
               text={<FormattedMessage id="Common.Settings" />}
               closeMenu={closeMenu}
             />
-            <MenuItem onClick={this.handleRemoveSource}>
-              {<FormattedMessage id="Sources.RemoveSource" />}
+            <DividerHr />
+            <MenuItem onClick={this.handleRemoveSource} className="danger">
+              {<span>{t("Common.Actions.Delete")}</span>}
             </MenuItem>
           </RestrictedArea>
         </Menu>

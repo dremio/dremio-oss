@@ -1,0 +1,58 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+.loadingWrapper {
+  display: flex;
+  align-items: center;
+  position: relative;
+  top: -1px;
+}
+
+.contextTag {
+  display: inline-flex;
+  min-width: 0;
+  vertical-align: middle;
+  padding-left: 2px;
+}
+
+.context,
+.branch {
+  display: inline-block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.context {
+  max-width: 219px;
+}
+
+.contextTag {
+  max-width: 140px;
+}
+
+.branch {
+  :global {
+    .branchPickerTag-iconDiv {
+      margin-block: -1px;
+    }
+  }
+}
+
+.offset {
+  position: relative;
+  top: -1px;
+}

@@ -15,9 +15,13 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import static com.dremio.exec.ops.SnapshotDiffContext.FilterApplyOptions.FILTER_DATA_FILES;
+import static com.dremio.exec.ops.SnapshotDiffContext.FilterApplyOptions.FILTER_PARTITIONS;
+import static com.dremio.exec.ops.SnapshotDiffContext.NO_SNAPSHOT_DIFF;
 import static com.dremio.exec.store.SystemSchemas.DATAFILE_PATH;
 import static com.dremio.exec.store.SystemSchemas.DELETE_FILE_PATH;
 import static com.dremio.exec.store.SystemSchemas.ICEBERG_POS_DELETE_FILE_SCHEMA;
+import static com.dremio.exec.store.SystemSchemas.ICEBERG_SPLIT_GEN_WITH_DELETES_SCHEMA;
 import static com.dremio.exec.store.SystemSchemas.IMPLICIT_SEQUENCE_NUMBER;
 import static com.dremio.exec.store.SystemSchemas.SEQUENCE_NUMBER;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.EQUALS;
@@ -37,7 +41,6 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.util.Pair;
-import org.apache.iceberg.ManifestContent;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ops.OptimizerRulesContext;
@@ -61,7 +64,7 @@ import com.dremio.exec.util.ColumnUtils;
 import com.dremio.service.namespace.dataset.proto.ScanStats;
 import com.google.common.collect.ImmutableList;
 
-public class IcebergScanPlanBuilder {
+public class IcebergScanPlanBuilder{
 
   private final IcebergScanPrel icebergScanPrel;
 
@@ -84,6 +87,7 @@ public class IcebergScanPlanBuilder {
       1.0,
       ImmutableList.of(),
       null,
+      null,
       false,
       pruneFilterCondition,
       context,
@@ -91,21 +95,45 @@ public class IcebergScanPlanBuilder {
       null,
       null,
       false,
-      manifestScanFilters);
+      manifestScanFilters,
+      NO_SNAPSHOT_DIFF);
   }
 
-  private IcebergScanPlanBuilder(
+  public IcebergScanPlanBuilder(
       IcebergScanPrel icebergScanPrel) {
     this.icebergScanPrel = icebergScanPrel;
   }
 
-  public static IcebergScanPlanBuilder fromDrel(ScanRelBase drel, OptimizerRulesContext context,
-      boolean isArrowCachingEnabled, boolean canUsePartitionStats) {
-    return fromDrel(drel, context, drel.getTableMetadata(), isArrowCachingEnabled, false, canUsePartitionStats);
+  protected IcebergScanPlanBuilder(IcebergScanPlanBuilder icebergScanPrel) {
+    this.icebergScanPrel = icebergScanPrel.getIcebergScanPrel();
   }
 
-  public static IcebergScanPlanBuilder fromDrel(ScanRelBase drel, OptimizerRulesContext context,
-      TableMetadata tableMetadata, boolean isArrowCachingEnabled, boolean isConvertedIcebergDataset, boolean canUsePartitionStats) {
+  public static IcebergScanPlanBuilder fromDrel(
+    ScanRelBase drel,
+    OptimizerRulesContext context,
+    boolean isArrowCachingEnabled,
+    boolean canUsePartitionStats,
+    boolean partitionValuesEnabled
+  ) {
+    return fromDrel(
+      drel,
+      context,
+      drel.getTableMetadata(),
+      isArrowCachingEnabled,
+      false,
+      canUsePartitionStats,
+      partitionValuesEnabled);
+  }
+
+  public static IcebergScanPlanBuilder fromDrel(
+    ScanRelBase drel,
+    OptimizerRulesContext context,
+    TableMetadata tableMetadata,
+    boolean isArrowCachingEnabled,
+    boolean isConvertedIcebergDataset,
+    boolean canUsePartitionStats,
+    boolean partitionValuesEnabled
+  ) {
     FilterableScan filterableScan = (FilterableScan) drel;
     IcebergScanPrel prel = new IcebergScanPrel(
       drel.getCluster(),
@@ -117,6 +145,7 @@ public class IcebergScanPlanBuilder {
       drel.getObservedRowcountAdjustment(),
       drel.getHints(),
       filterableScan.getFilter(),
+      filterableScan.getRowGroupFilter(),
       isArrowCachingEnabled,
       filterableScan.getPartitionFilter(),
       context,
@@ -124,18 +153,17 @@ public class IcebergScanPlanBuilder {
       filterableScan.getSurvivingRowCount(),
       filterableScan.getSurvivingFileCount(),
       canUsePartitionStats,
-      ManifestScanFilters.empty());
+      ManifestScanFilters.empty(),
+      drel.getSnapshotDiffContext(),
+      partitionValuesEnabled);
     return new IcebergScanPlanBuilder(prel);
   }
 
   /**
    * This builds scan plans both with and without delete files.
-   *
    * Without delete files, it simply returns an IcebergScanPrel.  See IcebergScanPrel.finalizeRel() for details
    * on the expansion.
-   *
    * With delete files, the generated plan is as follows (details for pruning/filtering omitted for brevity):
-   *
    * DataFileScan
    *   |
    *   |
@@ -163,15 +191,10 @@ public class IcebergScanPlanBuilder {
    *   |                                                     |
    * ManifestListScan(DATA)                                ManifestListScan(DELETES)
    */
-  public RelNode build() {
+  public RelNode buildSingleSnapshotPlan() {
     RelNode output;
     if (hasDeleteFiles()) {
-      RelNode data = icebergScanPrel.buildManifestScan(getDataManifestRecordCount(),
-        new ImmutableManifestScanOptions.Builder().setManifestContent(ManifestContent.DATA).build());
-      RelNode deletes = icebergScanPrel.buildManifestScan(getDeleteManifestRecordCount(),
-        new ImmutableManifestScanOptions.Builder().setManifestContent(ManifestContent.DELETES).build());
-
-      output = buildDataAndDeleteFileJoinAndAggregate(data, deletes);
+      output = buildManifestScanPlanWithDeletes(false);
       output = buildDataScanWithSplitGen(output);
     } else {
       // no delete files, just return IcebergScanPrel which will get expanded in FinalizeRel stage
@@ -179,6 +202,65 @@ public class IcebergScanPlanBuilder {
     }
 
     return output;
+  }
+
+  /** Generates the manifestScanPlan with delete files
+   *   |
+   * DeleteFileAgg - ARRAY_AGG(deletefile) GROUP BY datafile
+   *   |
+   *   |
+   * HashJoin -----------------------------------------------|
+   * on specid, partitionkey, sequencenum(<=)                |
+   *   |                                                     |
+   *   |                                                     |
+   *   |                                                   BroadcastExchange
+   *   |                                                     |
+   *   |                                                     |
+   * ManifestScan(DATA) no split gen                       ManifestScan(DELETES) no split gen
+   *   |                                                     |
+   *   |                                                     |
+   * Exchange on split identity                            Exchange on split identity
+   *   |                                                     |
+   *   |                                                     |
+   * ManifestListScan(DATA)                                ManifestListScan(DELETES)
+   */
+  protected RelNode buildManifestScanPlanWithDeletes(boolean includeIcebergPartitionInfo) {
+    RelNode output;
+    RelNode data = icebergScanPrel.buildManifestScan(getDataManifestRecordCount(),
+      new ImmutableManifestScanOptions.Builder()
+        .setManifestContentType(ManifestContentType.DATA)
+        .setIncludesIcebergPartitionInfo(includeIcebergPartitionInfo)
+        .build());
+    RelNode deletes = icebergScanPrel.buildManifestScan(getDeleteManifestRecordCount(),
+      new ImmutableManifestScanOptions.Builder()
+        .setManifestContentType(ManifestContentType.DELETES)
+        .setIncludesIcebergPartitionInfo(includeIcebergPartitionInfo)
+        .build());
+
+    output = buildDataAndDeleteFileJoinAndAggregate(data, deletes);
+    return output;
+  }
+
+  /**
+   * Builds a plan for an Iceberg table scan
+   * We will take the icebergScanPrel.getSnapshotDiffContext().getFilterApplyOptions() into consideration
+   * and if needed we will limit the scan to data added/updated/delete between two or more snapshots
+   * @return a plan for an Iceberg table scan, possibly filtered by the FilterApplyOptions
+   */
+  public RelNode build() {
+    if(icebergScanPrel.getSnapshotDiffContext().getFilterApplyOptions() == FILTER_DATA_FILES){
+      return createIcebergSnapshotBasedRefreshPlanBuilder().buildSnapshotDiffFilterPlanAppendOnlyOptimized();
+    } else if(icebergScanPrel.getSnapshotDiffContext().getFilterApplyOptions() == FILTER_PARTITIONS){
+      return createIcebergSnapshotBasedRefreshPlanBuilder().buildSnapshotDiffPlanFilterPartitions();
+    } else if(icebergScanPrel.isPartitionValuesEnabled()){
+      return new IcebergPartitionAggregationPlanBuilder(icebergScanPrel)
+        .buildManifestScanPlanForPartitionAggregation();
+    }
+    return buildSingleSnapshotPlan();
+  }
+
+  public IcebergSnapshotBasedRefreshPlanBuilder createIcebergSnapshotBasedRefreshPlanBuilder(){
+    return new IcebergSnapshotBasedRefreshPlanBuilder(this);
   }
 
   /**
@@ -199,7 +281,7 @@ public class IcebergScanPlanBuilder {
 
     ManifestScanOptions manifestScanOptions = new ImmutableManifestScanOptions.Builder()
       .setIncludesSplitGen(false)
-      .setManifestContent(ManifestContent.DATA)
+      .setManifestContentType(ManifestContentType.DATA)
       .setIncludesIcebergMetadata(true)
       .build();
 
@@ -213,8 +295,8 @@ public class IcebergScanPlanBuilder {
     int probeFieldCount = manifestScan.getRowType().getFieldCount();
     RexNode joinCondition = rexBuilder.makeCall(
       EQUALS,
-        rexBuilder.makeInputRef(dataFilePathCol.right.getType(), dataFilePathCol.left),
-        rexBuilder.makeInputRef(deleteDataFilePathCol.right.getType(), probeFieldCount + deleteDataFilePathCol.left));
+      rexBuilder.makeInputRef(dataFilePathCol.right.getType(), dataFilePathCol.left),
+      rexBuilder.makeInputRef(deleteDataFilePathCol.right.getType(), probeFieldCount + deleteDataFilePathCol.left));
     RexNode extraJoinCondition = rexBuilder.makeCall(
       SqlStdOperatorTable.LESS_THAN_OR_EQUAL,
       rexBuilder.makeInputRef(dataFileSeqNoCol.right.getType(), dataFileSeqNoCol.left),
@@ -237,11 +319,11 @@ public class IcebergScanPlanBuilder {
   public RelNode buildManifestRel(ManifestScanOptions manifestScanOptions, boolean combineScan) {
     if (combineScan) {
       RelNode output = icebergScanPrel.buildManifestScan(getDataManifestRecordCount(),
-        new ImmutableManifestScanOptions.Builder().from(manifestScanOptions).setManifestContent(ManifestContent.DATA).build());
+        new ImmutableManifestScanOptions.Builder().from(manifestScanOptions).setManifestContentType(ManifestContentType.DATA).build());
 
       if (hasDeleteFiles()) {
         RelNode deletes = icebergScanPrel.buildManifestScan(getDataManifestRecordCount(),
-          new ImmutableManifestScanOptions.Builder().from(manifestScanOptions).setManifestContent(ManifestContent.DELETES).build());
+          new ImmutableManifestScanOptions.Builder().from(manifestScanOptions).setManifestContentType(ManifestContentType.DELETES).build());
         output = buildDataAndDeleteFileJoinAndAggregate(output, deletes);
       }
 
@@ -253,7 +335,7 @@ public class IcebergScanPlanBuilder {
 
   public RelNode buildWithDmlDataFileFiltering(RelNode dataFileFilterList) {
     ManifestScanOptions manifestScanOptions =  new ImmutableManifestScanOptions.Builder()
-      .setManifestContent(ManifestContent.DATA).setIncludesSplitGen(false).build();
+      .setManifestContentType(ManifestContentType.DATA).setIncludesSplitGen(false).build();
     RelNode output = icebergScanPrel.buildManifestScan(getDataManifestRecordCount(), manifestScanOptions);
     // join with the unique data files to filter
     output = buildDataFileFilteringSemiJoin(output, dataFileFilterList);
@@ -262,7 +344,7 @@ public class IcebergScanPlanBuilder {
       // if the table has delete files, add a delete manifest scan and join/aggregate applicable delete files to
       // data files
       manifestScanOptions = new ImmutableManifestScanOptions.Builder().from(manifestScanOptions)
-        .setManifestContent(ManifestContent.DELETES).build();
+        .setManifestContentType(ManifestContentType.DELETES).build();
       RelNode deletes = icebergScanPrel.buildManifestScan(getDeleteManifestRecordCount(), manifestScanOptions);
       output = buildDataAndDeleteFileJoinAndAggregate(output, deletes);
     }
@@ -271,15 +353,15 @@ public class IcebergScanPlanBuilder {
     return buildDataScanWithSplitGen(output);
   }
 
-  private RelNode buildSplitGen(RelNode input) {
+  protected RelNode buildSplitGen(RelNode input) {
     BatchSchema splitGenOutputSchema =
-        input.getRowType().getField(SystemSchemas.DELETE_FILES, false, false) == null ?
-            SystemSchemas.SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA :
-            SystemSchemas.ICEBERG_SPLIT_GEN_WITH_DELETES_SCHEMA;
+      input.getRowType().getField(SystemSchemas.DELETE_FILES, false, false) == null ?
+        SystemSchemas.SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA :
+        ICEBERG_SPLIT_GEN_WITH_DELETES_SCHEMA;
 
     // perform split generation
     return new IcebergSplitGenPrel(input.getCluster(), input.getTraitSet(), icebergScanPrel.getTable(), input,
-        icebergScanPrel.getTableMetadata(), splitGenOutputSchema, icebergScanPrel.isConvertedIcebergDataset());
+      icebergScanPrel.getTableMetadata(), splitGenOutputSchema, icebergScanPrel.isConvertedIcebergDataset());
   }
 
   public RelNode buildDataScanWithSplitGen(RelNode input) {
@@ -308,22 +390,22 @@ public class IcebergScanPlanBuilder {
     int probeFieldCount = data.getRowType().getFieldCount();
     RexBuilder rexBuilder = cluster.getRexBuilder();
     RexNode joinCondition = rexBuilder.makeCall(
-        SqlStdOperatorTable.AND,
-        rexBuilder.makeCall(
-            SqlStdOperatorTable.EQUALS,
-            rexBuilder.makeInputRef(probeSpecIdField.getType(), probeSpecIdField.getIndex()),
-            rexBuilder.makeInputRef(buildSpecIdField.getType(), probeFieldCount + buildSpecIdField.getIndex())),
-        rexBuilder.makeCall(
-            SqlStdOperatorTable.EQUALS,
-            rexBuilder.makeInputRef(probePartKeyField.getType(), probePartKeyField.getIndex()),
-            rexBuilder.makeInputRef(buildPartKeyField.getType(), probeFieldCount + buildPartKeyField.getIndex())));
+      SqlStdOperatorTable.AND,
+      rexBuilder.makeCall(
+        SqlStdOperatorTable.EQUALS,
+        rexBuilder.makeInputRef(probeSpecIdField.getType(), probeSpecIdField.getIndex()),
+        rexBuilder.makeInputRef(buildSpecIdField.getType(), probeFieldCount + buildSpecIdField.getIndex())),
+      rexBuilder.makeCall(
+        SqlStdOperatorTable.EQUALS,
+        rexBuilder.makeInputRef(probePartKeyField.getType(), probePartKeyField.getIndex()),
+        rexBuilder.makeInputRef(buildPartKeyField.getType(), probeFieldCount + buildPartKeyField.getIndex())));
     RexNode extraJoinCondition = rexBuilder.makeCall(
-        SqlStdOperatorTable.LESS_THAN_OR_EQUAL,
-        rexBuilder.makeInputRef(probeSeqNumField.getType(), probeSeqNumField.getIndex()),
-        rexBuilder.makeInputRef(buildSeqNumField.getType(), probeFieldCount + buildSeqNumField.getIndex()));
+      SqlStdOperatorTable.LESS_THAN_OR_EQUAL,
+      rexBuilder.makeInputRef(probeSeqNumField.getType(), probeSeqNumField.getIndex()),
+      rexBuilder.makeInputRef(buildSeqNumField.getType(), probeFieldCount + buildSeqNumField.getIndex()));
 
     RelNode output = HashJoinPrel.create(cluster, data.getTraitSet(), data, build, joinCondition, extraJoinCondition,
-        JoinRelType.LEFT);
+      JoinRelType.LEFT);
 
     // project the following columns going into the aggregate:
     //   data.datafilePath
@@ -331,19 +413,22 @@ public class IcebergScanPlanBuilder {
     //   data.partitionInfo
     //   data.colIds
     //   deletes.deleteFile
+    //   data.partitionSpecId
     List<RexNode> exprs = ImmutableList.of(
-        rexBuilder.makeInputRef(output, getFieldIndex(data, SystemSchemas.DATAFILE_PATH)),
-        rexBuilder.makeInputRef(output, getFieldIndex(data, SystemSchemas.FILE_SIZE)),
-        rexBuilder.makeInputRef(output, getFieldIndex(data, SystemSchemas.PARTITION_INFO)),
-        rexBuilder.makeInputRef(output, getFieldIndex(data, SystemSchemas.COL_IDS)),
-        rexBuilder.makeInputRef(output, data.getRowType().getFieldCount() +
-            getFieldIndex(deletes, SystemSchemas.DELETE_FILE)));
+      rexBuilder.makeInputRef(output, getFieldIndex(data, SystemSchemas.DATAFILE_PATH)),
+      rexBuilder.makeInputRef(output, getFieldIndex(data, SystemSchemas.FILE_SIZE)),
+      rexBuilder.makeInputRef(output, getFieldIndex(data, SystemSchemas.PARTITION_INFO)),
+      rexBuilder.makeInputRef(output, getFieldIndex(data, SystemSchemas.COL_IDS)),
+      rexBuilder.makeInputRef(output, data.getRowType().getFieldCount() +
+        getFieldIndex(deletes, SystemSchemas.DELETE_FILE)),
+      rexBuilder.makeInputRef(output, getFieldIndex(data, SystemSchemas.PARTITION_SPEC_ID)));
     List<String> names = ImmutableList.of(
-        SystemSchemas.DATAFILE_PATH,
-        SystemSchemas.FILE_SIZE,
-        SystemSchemas.PARTITION_INFO,
-        SystemSchemas.COL_IDS,
-        SystemSchemas.DELETE_FILE);
+      SystemSchemas.DATAFILE_PATH,
+      SystemSchemas.FILE_SIZE,
+      SystemSchemas.PARTITION_INFO,
+      SystemSchemas.COL_IDS,
+      SystemSchemas.DELETE_FILE,
+      SystemSchemas.PARTITION_SPEC_ID);
     RelDataType projectType = RexUtil.createStructType(cluster.getTypeFactory(), exprs, names, null);
     output = ProjectPrel.create(cluster, output.getTraitSet(), output, exprs, projectType);
 
@@ -351,7 +436,7 @@ public class IcebergScanPlanBuilder {
     // rowcount estimate based on number of data files going into the join above
     Double dataFileCountEstimate = cluster.getMetadataQuery().getRowCount(data);
     return new IcebergDeleteFileAggPrel(cluster, output.getTraitSet(), icebergScanPrel.getTable(), output,
-        icebergScanPrel.getTableMetadata(), dataFileCountEstimate == null ? null : dataFileCountEstimate.longValue());
+      icebergScanPrel.getTableMetadata(), dataFileCountEstimate == null ? null : dataFileCountEstimate.longValue());
   }
 
   /**
@@ -372,43 +457,43 @@ public class IcebergScanPlanBuilder {
     RelDataTypeField projectField = dataFileFilterList.getRowType().getField(ColumnUtils.FILE_PATH_COLUMN_NAME, false, false);
     List<String> projectNames = ImmutableList.of(filePathForCompare);
     List<RexNode> projectExprs = ImmutableList.of(rexBuilder.makeInputRef(projectField.getType(),
-        projectField.getIndex()));
+      projectField.getIndex()));
     RelDataType projectRowType = RexUtil.createStructType(dataFileFilterList.getCluster().getTypeFactory(), projectExprs,
-        projectNames, null);
+      projectNames, null);
     ProjectPrel rightDataFileListInputProject = ProjectPrel.create(
-        dataFileFilterList.getCluster(),
-        dataFileFilterList.getTraitSet(),
-        dataFileFilterList,
-        projectExprs,
-        projectRowType);
+      dataFileFilterList.getCluster(),
+      dataFileFilterList.getTraitSet(),
+      dataFileFilterList,
+      projectExprs,
+      projectRowType);
 
     // build side of join
     // - use broadcast join
     // - we don't have the row count info of unique DMLed files (i.e., after Agg).
-    // - so we cannt make the choice between BroadcastExchange vs HashToRandomExchange
+    // - so we can't make the choice between BroadcastExchange vs HashToRandomExchange
     BroadcastExchangePrel broadcastExchange = new BroadcastExchangePrel(rightDataFileListInputProject.getCluster(),
-        rightDataFileListInputProject.getTraitSet(), rightDataFileListInputProject);
+      rightDataFileListInputProject.getTraitSet(), rightDataFileListInputProject);
 
     // manifestScanTF INNER JOIN dataFileListInput
     // ON manifestScanTF.datafilePath == dataFileListInput.__FilePath
     RelDataTypeField pathField = inputDataFiles.getRowType().getField(SystemSchemas.DATAFILE_PATH, false, false);
     RexNode joinCondition = rexBuilder.makeCall(
-        SqlStdOperatorTable.EQUALS,
-        rexBuilder.makeInputRef(pathField.getType(), pathField.getIndex()),
-        rexBuilder.makeInputRef(broadcastExchange.getRowType().getFieldList().get(0).getType(),
-            inputDataFiles.getRowType().getFieldCount())
+      SqlStdOperatorTable.EQUALS,
+      rexBuilder.makeInputRef(pathField.getType(), pathField.getIndex()),
+      rexBuilder.makeInputRef(broadcastExchange.getRowType().getFieldList().get(0).getType(),
+        inputDataFiles.getRowType().getFieldCount())
     );
 
     // join to restrict data file scan to data files present in dataFileListInput
     // do we need to remove the extra __FilePath col after this? just ignore for now
     return HashJoinPrel.create(
-        inputDataFiles.getCluster(),
-        inputDataFiles.getTraitSet(),
-        inputDataFiles,
-        broadcastExchange,
-        joinCondition,
-        null,
-        JoinRelType.INNER);
+      inputDataFiles.getCluster(),
+      inputDataFiles.getTraitSet(),
+      inputDataFiles,
+      broadcastExchange,
+      joinCondition,
+      null,
+      JoinRelType.INNER);
   }
 
   /**
@@ -450,6 +535,7 @@ public class IcebergScanPlanBuilder {
       1.0,
       ImmutableList.of(),
       null,
+      null,
       false,
       null,
       context,
@@ -457,12 +543,13 @@ public class IcebergScanPlanBuilder {
       null,
       null,
       false,
-      ImmutableManifestScanFilters.empty()
+      ImmutableManifestScanFilters.empty(),
+      NO_SNAPSHOT_DIFF
     );
 
     ManifestScanOptions deleteManifestScanOptions = new ImmutableManifestScanOptions.Builder()
       .setIncludesSplitGen(false)
-      .setManifestContent(ManifestContent.DELETES)
+      .setManifestContentType(ManifestContentType.DELETES)
       .setIncludesIcebergMetadata(true)
       .build();
     RelNode manifestDeleteScan = icebergScanPrel.buildManifestScan(getDeleteManifestRecordCount(), deleteManifestScanOptions);
@@ -471,7 +558,7 @@ public class IcebergScanPlanBuilder {
     return deleteFileScanPrel.buildDataFileScanWithImplicitPartitionCols(manifestDeleteScan, ImmutableList.of(IMPLICIT_SEQUENCE_NUMBER));
   }
 
-  private static RelDataTypeField getField(RelNode rel, String fieldName) {
+  protected static RelDataTypeField getField(RelNode rel, String fieldName) {
     return rel.getRowType().getField(fieldName, false, false);
   }
 
@@ -479,23 +566,24 @@ public class IcebergScanPlanBuilder {
     return rel.getRowType().getField(fieldName, false, false).getIndex();
   }
 
-  private long getDataManifestRecordCount() {
+  protected long getDataManifestRecordCount() {
     return icebergScanPrel.getSurvivingFileCount();
   }
 
   private long getDeleteRecordCount() {
-    ScanStats deleteStats = icebergScanPrel.getTableMetadata().getDatasetConfig().getPhysicalDataset()
-        .getIcebergMetadata().getDeleteStats();
+    final ScanStats deleteStats = icebergScanPrel.getTableMetadata().getDatasetConfig().getPhysicalDataset()
+      .getIcebergMetadata().getDeleteStats();
     return deleteStats != null ? deleteStats.getRecordCount() : 0;
   }
 
-  private long getDeleteManifestRecordCount() {
-    ScanStats deleteManifestStats = icebergScanPrel.getTableMetadata().getDatasetConfig().getPhysicalDataset()
-        .getIcebergMetadata().getDeleteManifestStats();
+  protected long getDeleteManifestRecordCount() {
+    final ScanStats deleteManifestStats = icebergScanPrel.getTableMetadata().getDatasetConfig().getPhysicalDataset()
+      .getIcebergMetadata().getDeleteManifestStats();
     return deleteManifestStats != null ? deleteManifestStats.getRecordCount() : 0;
   }
 
   public boolean hasDeleteFiles() {
     return getDeleteRecordCount() > 0;
   }
+  protected IcebergScanPrel getIcebergScanPrel() {return icebergScanPrel;}
 }

@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.catalog;
 
+import static com.dremio.exec.catalog.CatalogOptions.VERSIONED_SOURCE_VIEW_DELEGATION_ENABLED;
 import static com.dremio.exec.catalog.VersionedPlugin.EntityType.ICEBERG_TABLE;
 import static com.dremio.exec.catalog.VersionedPlugin.EntityType.ICEBERG_VIEW;
 import static com.dremio.exec.planner.physical.PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT;
@@ -22,12 +23,13 @@ import static com.dremio.exec.planner.physical.PlannerSettings.FULL_NESTED_SCHEM
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import org.apache.iceberg.view.ViewVersionMetadata;
+import org.apache.iceberg.viewdepoc.ViewVersionMetadata;
 
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.BytesOutput;
@@ -67,9 +69,9 @@ import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.dataset.proto.ViewFieldType;
 import com.dremio.service.namespace.dataset.proto.VirtualDataset;
-import com.dremio.service.namespace.file.proto.IcebergFileConfig;
 import com.dremio.service.namespace.proto.EntityId;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterables;
 
@@ -82,7 +84,7 @@ import io.protostuff.ByteString;
  * of the tables, metadata, it passes in VersionedDatasetAccessOptions to be passed to Nessie
  * so the right version can be looked up.
  */
-public final class VersionedDatasetAdapter {
+public class VersionedDatasetAdapter {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(VersionedDatasetAdapter.class);
 
   private final List<String> versionedTableKey;
@@ -94,19 +96,24 @@ public final class VersionedDatasetAdapter {
   private SplitsPointer splitsPointer;
   private DatasetConfig versionedDatasetConfig;
 
-  private VersionedDatasetAdapter(Builder builder) {
-    this.versionedTableKey = builder.versionedTableKey;
-    this.versionContext = builder.versionContext;
-    this.storagePlugin = builder.storagePlugin;
-    this.storagePluginId = builder.storagePluginId;
-    this.optionManager = builder.optionManager;
-    this.splitsPointer = null;
-    this.versionedDatasetConfig = builder.versionedDatasetConfig;
-    this.datasetHandle = builder.datasetHandle;
-  }
+  protected VersionedDatasetAdapter(List<String> versionedTableKey,
+                                    ResolvedVersionContext versionContext,
+                                    StoragePlugin storagePlugin,
+                                    StoragePluginId storagePluginId,
+                                    OptionManager optionManager,
+                                    DatasetHandle datasetHandle,
+                                    DatasetConfig versionedDatasetConfig) {
+    this.versionedTableKey = versionedTableKey;
+    this.versionContext = versionContext;
+    this.storagePlugin = storagePlugin;
+    this.storagePluginId = storagePluginId;
+    this.optionManager = optionManager;
+    this.datasetHandle = datasetHandle;
+    this.versionedDatasetConfig = versionedDatasetConfig;
 
-  public static VersionedDatasetAdapter.Builder newBuilder() {
-    return new VersionedDatasetAdapter.Builder();
+    // This null is fine because until we get the metadata for the entity (which happens later),
+    // we cannot build the splitsPointer.
+    this.splitsPointer = null;
   }
 
   @WithSpan
@@ -147,12 +154,24 @@ public final class VersionedDatasetAdapter {
       viewConfig.getVirtualDataset().getContextList(),
       batchSchema);
 
-    // TODO: DX-48432 View ownership should set the view owner to the view/dataset creator
-    // TODO: Note - Passing null for viewOwner makes the ViewTable expland with just the schemapath and ignores the user during expansion
+    CatalogIdentity catalogIdentity = null;
+    if (optionManager.getOption(VERSIONED_SOURCE_VIEW_DELEGATION_ENABLED)) {
+      try {
+        String owner = getOwner(new EntityPath(versionedTableKey), versionedDatasetId.getVersionContext().asVersionContext().getValue());
+        if (!Strings.isNullOrEmpty(owner)) {
+          catalogIdentity = new CatalogUser(owner);
+          viewConfig.setOwner(owner);
+        }
+      } catch (Exception e) {
+        throw UserException.dataReadError(e).buildSilently();
+      }
+    }
+
     return new ViewTable(new NamespaceKey(viewKeyPath),
       view,
-      null,
-      viewConfig, batchSchema, TableVersionContext.of(versionContext).asVersionContext());
+      catalogIdentity,
+      viewConfig, batchSchema, TableVersionContext.of(versionContext).asVersionContext(),
+      false);
   }
 
   private DatasetConfig createShallowVirtualDatasetConfig(List<String> viewKeyPath,
@@ -163,7 +182,6 @@ public final class VersionedDatasetAdapter {
     virtualDataset.setContextList(workspaceSchemaPath);
     virtualDataset.setSql(viewVersionMetadata.definition().sql());
     virtualDataset.setVersion(DatasetVersion.newVersion());
-    virtualDataset.setCalciteFieldsList(viewFieldTypesList);
     virtualDataset.setSqlFieldsList(viewFieldTypesList);
 
     if (viewVersionMetadata.properties().containsKey("enable_default_reflection")) {
@@ -173,15 +191,13 @@ public final class VersionedDatasetAdapter {
     }
 
     versionedDatasetConfig.setName(Iterables.getLast(viewKeyPath));
-    //TODO: DX-48432 View ownership should set the view owner to the view/dataset creator
-    versionedDatasetConfig.setOwner("dremio");
     versionedDatasetConfig.setType(DatasetType.VIRTUAL_DATASET);
     versionedDatasetConfig.setVirtualDataset(virtualDataset);
     return versionedDatasetConfig;
   }
 
   @WithSpan
-  public  DremioTable translateIcebergTable(final String accessUserName) {
+  public DremioTable translateIcebergTable(final String accessUserName) {
     // Figure out the user we want to access the dataplane with.
     // *TBD*  Use the Filesystem(Iceberg) plugin to tell us the configuration/username
     //Similar to SchemaConfig , we need a config for DataPlane
@@ -205,7 +221,13 @@ public final class VersionedDatasetAdapter {
 
     versionedDatasetConfig.setId(new EntityId(versionedDatasetId.asString()));
     setIcebergTableUUID(versionedDatasetConfig, versionedDatasetHandle.getUniqueInstanceId());
-    // TODO: DX-62735 Table ownership should be set, i.e. versionedDatasetConfig.setOwner()
+    if (optionManager.getOption(VERSIONED_SOURCE_VIEW_DELEGATION_ENABLED)) {
+      try {
+        versionedDatasetConfig.setOwner(getOwner(new EntityPath(versionedTableKey), versionedDatasetId.getVersionContext().asVersionContext().getValue()));
+      } catch (Exception e) {
+        throw UserException.dataReadError(e).buildSilently();
+      }
+    }
 
     // Construct the TableMetadata
 
@@ -222,6 +244,14 @@ public final class VersionedDatasetAdapter {
     };
 
     return new NamespaceTable(tableMetadata, optionManager.getOption(FULL_NESTED_SCHEMA_SUPPORT));
+  }
+
+  public String getOwner(EntityPath entityPath, String refValue) throws Exception {
+    return null;
+  }
+
+  protected StoragePlugin getStoragePlugin() {
+    return this.storagePlugin;
   }
 
   private List<String> getPrimaryKey(StoragePlugin plugin,
@@ -377,109 +407,5 @@ public final class VersionedDatasetAdapter {
     icebergMetadata.setTableUuid(tableUUID);
     pds.setIcebergMetadata(icebergMetadata);
     datasetConfig.setPhysicalDataset(pds);
-  }
-
-  public static class Builder {
-    private List<String> versionedTableKey;
-    private ResolvedVersionContext versionContext;
-    private StoragePlugin storagePlugin;
-    private StoragePluginId storagePluginId;
-    private OptionManager optionManager;
-    private DatasetHandle datasetHandle;
-    private DatasetConfig versionedDatasetConfig;
-
-    public Builder() {
-    }
-
-    public Builder setVersionedTableKey(List<String> key) {
-      versionedTableKey = key;
-      return this;
-    }
-
-    public Builder setVersionContext(ResolvedVersionContext versionContext) {
-      this.versionContext = versionContext;
-      return this;
-    }
-
-    public Builder setStoragePlugin(StoragePlugin plugin) {
-      storagePlugin = plugin;
-      return this;
-    }
-
-    public Builder setStoragePluginId(StoragePluginId pluginId) {
-      storagePluginId = pluginId;
-      return this;
-    }
-
-    public Builder setOptionManager(OptionManager optionManager) {
-      this.optionManager = optionManager;
-      return this;
-    }
-
-    public VersionedDatasetAdapter build() {
-      Preconditions.checkNotNull(versionedTableKey);
-      Preconditions.checkNotNull(versionContext);
-      Preconditions.checkNotNull(storagePlugin);
-      Preconditions.checkNotNull(storagePluginId);
-
-      versionedDatasetConfig = createShallowIcebergDatasetConfig(versionedTableKey);
-
-      if (!tryGetHandleToIcebergFormatPlugin(storagePlugin, versionedDatasetConfig)) {
-        return null;
-      }
-
-      return new VersionedDatasetAdapter(this);
-    }
-
-    /**
-     * Helper method that gets a handle to the Filesystem(Iceberg format) storage plugin
-     */
-    private boolean tryGetHandleToIcebergFormatPlugin(StoragePlugin plugin, DatasetConfig datasetConfig) {
-      final Optional<DatasetHandle> handle;
-      final EntityPath entityPath = new EntityPath(datasetConfig.getFullPathList());
-
-      VersionedDatasetAccessOptions versionedDatasetAccessOptions = new VersionedDatasetAccessOptions.Builder()
-        .setVersionContext(versionContext)
-        .build();
-
-      try {
-        handle = plugin.getDatasetHandle(
-          entityPath,
-          DatasetRetrievalOptions.DEFAULT.toBuilder()
-            .setVersionedDatasetAccessOptions(versionedDatasetAccessOptions)
-            .build()
-            .asGetDatasetOptions(datasetConfig));
-
-      } catch (ConnectorException e) {
-        throw UserException.validationError(e)
-          .message("Failure while retrieving dataset [%s].", entityPath)
-          .build(logger);
-      }
-      if (!handle.isPresent()) {
-        return false;
-        /*throw UserException.validationError()
-          .message("Failure while getting handle to iceberg table from source [%s].", entityPath)
-          .build(logger);*/
-      }
-      datasetHandle = handle.get();
-      return true;
-    }
-
-    /**
-     * This is a helper method that creates a shell datasetConfig that populates the format so the Filessystem plugin knowsn what format we will
-     * be using to access the Iceberg tables.
-     *
-     * @param key Namespace key
-     * @return DatasetConfig populated with the basic info needed by the Filessystem plugin to match and unwrap to Iceberg format plugin
-     */
-    private DatasetConfig createShallowIcebergDatasetConfig(List<String> key) {
-      return new DatasetConfig()
-        .setId(new EntityId().setId(UUID.randomUUID().toString()))
-        .setName(String.join(".", key))
-        .setFullPathList(key)
-        //This format setting allows us to pick the Iceberg format explicitly
-        .setPhysicalDataset(new PhysicalDataset().setFormatSettings(new IcebergFileConfig().asFileConfig()))
-        .setLastModified(System.currentTimeMillis());
-    }
   }
 }

@@ -29,8 +29,8 @@ public class CacheManagerMountPointIterator implements Iterator<Object> {
   private final Iterator<CacheManagerMountPointInfo> iter;
 
   CacheManagerMountPointIterator(SabotContext sabotContext, OperatorContext operatorContext) {
-    iter = (sabotContext.getFileSystemWrapper() instanceof CacheManagerStatsProvider) ?
-        ((CacheManagerStatsProvider) sabotContext.getFileSystemWrapper()).getMountPointStats().iterator() :
+    iter = sabotContext.getFileSystemWrapper().isWrapperFor(CacheManagerStatsProvider.class) ?
+        sabotContext.getFileSystemWrapper().unwrap(CacheManagerStatsProvider.class).getMountPointStats().iterator() :
         Collections.EMPTY_LIST.iterator();
   }
 

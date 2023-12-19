@@ -23,7 +23,7 @@ import { ModalForm, FormBody, modalFormProps } from "components/Forms";
 
 import { FieldWithError, TextField } from "components/Fields";
 import { applyValidators, isRequired } from "utils/validation";
-import { sectionTitle, formRow, description } from "uiTheme/radium/forms";
+import { formRow } from "uiTheme/radium/forms";
 
 const FIELDS = ["name"];
 
@@ -41,46 +41,31 @@ export class AddFolderForm extends Component {
     fields: PropTypes.object,
     handleSubmit: PropTypes.func.isRequired,
     intl: PropTypes.object.isRequired,
-    parentType: PropTypes.string,
+    disabled: PropTypes.bool,
   };
 
-  getParentTypeForDisplay(parentType) {
-    if (!["source", "space"].includes(parentType)) {
-      return "space";
-    } else {
-      return parentType;
-    }
-  }
-
   render() {
-    const { fields, handleSubmit, onFormSubmit, intl, parentType } = this.props;
-    const type = this.getParentTypeForDisplay(parentType);
-    const sectionDescription = intl.formatMessage(
-      {
-        id: "Folder.AddFileModalDescription",
-      },
-      {
-        type,
-      }
-    );
-    const secTitle = intl.formatMessage({ id: "Folder.AddFolderTo" }, { type });
+    const { fields, handleSubmit, onFormSubmit, disabled, intl } = this.props;
     return (
       <ModalForm
         {...modalFormProps(this.props)}
         onSubmit={handleSubmit(onFormSubmit)}
+        confirmText={intl.formatMessage({ id: "Common.Add" })}
+        canSubmit={!disabled}
       >
         <FormBody>
-          <h2 style={sectionTitle} className="margin-top--double">
-            {secTitle}
-          </h2>
-          <div style={description}>{sectionDescription}</div>
           <div style={formRow}>
             <FieldWithError
               label={intl.formatMessage({ id: "Folder.Name" })}
               errorPlacement="right"
               {...fields.name}
             >
-              <TextField initialFocus {...fields.name} />
+              <TextField
+                initialFocus
+                {...fields.name}
+                style={{ width: "100%" }}
+                autoComplete="off"
+              />
             </FieldWithError>
           </div>
         </FormBody>

@@ -111,7 +111,7 @@ export class SignupForm extends PureComponent {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                {la("Privacy")}
+                {laDeprecated("Privacy")}
               </a>
             </div>
           </div>

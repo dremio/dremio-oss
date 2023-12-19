@@ -21,13 +21,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import javax.annotation.concurrent.NotThreadSafe;
 
-import org.apache.calcite.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,6 +33,7 @@ import com.carrotsearch.hppc.cursors.ObjectLongCursor;
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetSplit;
 import com.dremio.connector.metadata.DatasetSplitAffinity;
+import com.dremio.connector.metadata.options.TimeTravelOption;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.common.HostAffinityComputer;
@@ -71,29 +70,23 @@ public class DeltaLakeTable {
   private final SabotContext context;
   private List<DeltaLogSnapshot> snapshots;
 
-  public DeltaLakeTable(SabotContext context, FileSystem fs, FileSelection fileSelection) {
-      this(context, fs, fileSelection.getSelectionRoot());
+  public DeltaLakeTable(SabotContext context, FileSystem fs, FileSelection fileSelection,
+                        TimeTravelOption.TimeTravelRequest travelRequest) {
+    this(context, fs, fileSelection.getSelectionRoot(), travelRequest);
   }
 
-  public DeltaLakeTable(SabotContext context, FileSystem fs, String selectionRoot) {
+  public DeltaLakeTable(SabotContext context, FileSystem fs, String selectionRoot,
+                        TimeTravelOption.TimeTravelRequest travelRequest) {
       this.fs = fs;
       this.context = context;
       this.deltaLogDir = Path.of(selectionRoot).resolve(DeltaConstants.DELTA_LOG_DIR);
-      this.manager = new DeltaMetadataFetchJobManager(context, fs, selectionRoot, true);
+      this.manager = new DeltaMetadataFetchJobManager(context, fs, selectionRoot, travelRequest);
   }
-
-  public DeltaLakeTable(SabotContext context, FileSystem fs, FileSelection fileSelection, long version, long subparts) {
-      this.fs = fs;
-      this.context = context;
-      final String selectionRoot = fileSelection.getSelectionRoot();
-      this.deltaLogDir = Path.of(selectionRoot).resolve(DeltaConstants.DELTA_LOG_DIR);
-      this.manager = new DeltaMetadataFetchJobManager(context, fs, selectionRoot, version, subparts);
-    }
 
     public DeltaLogSnapshot getConsolidatedSnapshot() throws IOException {
-      List<DeltaLogSnapshot> snapshots = getListOfSnapshot();
+      List<DeltaLogSnapshot> snapshotList = getListOfSnapshot();
 
-      deltaLogSnapshot = postProcessing.consolidateSnapshots(snapshots);
+      deltaLogSnapshot = postProcessing.consolidateSnapshots(snapshotList);
       logger.debug("Final consolidated snapshot for delta dataset at {} is {}", deltaLogDir, deltaLogSnapshot);
       return deltaLogSnapshot;
     }
@@ -139,7 +132,7 @@ public class DeltaLakeTable {
 
     // Use the last read version as the read signature
     public BytesOutput readSignature() throws IOException {
-        if (!fs.exists(deltaLogDir) || !fs.isDirectory(deltaLogDir)) {
+      if (!fs.isDirectory(deltaLogDir)) {
             throw new IllegalStateException("missing _delta_log directory for the DeltaLake table");
         }
 
@@ -173,13 +166,10 @@ public class DeltaLakeTable {
       long oldVersion = oldSignature.getCommitReadEndVersion();
 
       if (oldVersion >= 0) {
-        Path lastCheckpointPath = deltaLogDir.resolve(Path.of(DeltaConstants.DELTA_LAST_CHECKPOINT));
-        Pair<Optional<Long>, Optional<Long>> lastCheckPointVersionAndSubparts = DeltaLastCheckPointReader.getLastCheckPoint(fs, lastCheckpointPath);
-        Optional<Long> lastVersion = lastCheckPointVersionAndSubparts.getKey();
-        boolean stale = lastVersion.map(version -> version > oldVersion).orElse(false);
-        DeltaFilePathResolver resolver = new DeltaFilePathResolver();
-        List<Path> newVersionFiles = resolver.resolve(deltaLogDir, oldVersion + 1, 1L, FileType.JSON);
-        return stale || fs.exists(newVersionFiles.get(0));
+        DeltaVersionResolver resolver = new DeltaVersionResolver(context, fs, deltaLogDir);
+        boolean stale = resolver.getLastCheckpoint().getVersion() > oldVersion;
+        Path newVersionFile = DeltaFilePathResolver.resolve(deltaLogDir, oldVersion + 1, 1, FileType.JSON).get(0);
+        return stale || fs.exists(newVersionFile);
       }
 
       return true;
@@ -198,5 +188,4 @@ public class DeltaLakeTable {
 
       return snapshots;
     }
-
 }

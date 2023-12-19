@@ -14,13 +14,7 @@
  * limitations under the License.
  */
 
-import {
-  useCallback,
-  useState,
-  useRef,
-  useLayoutEffect,
-  type UIEventHandler,
-} from "react";
+import { useCallback, useState, useRef, useLayoutEffect } from "react";
 
 type Direction = "left" | "top" | "bottom";
 

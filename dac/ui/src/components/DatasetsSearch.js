@@ -24,12 +24,12 @@ import { getIconDataTypeFromDatasetType } from "utils/iconUtils";
 import { TagList } from "dremio-ui-lib";
 import { shouldUseNewDatasetNavigation } from "@app/utils/datasetNavigationUtils";
 import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
-import { constructFullPath } from "@app/utils/pathUtils";
 import * as sqlPaths from "dremio-ui-common/paths/sqlEditor.js";
 import { bodySmall } from "uiTheme/radium/typography";
 
 import { PALE_NAVY } from "uiTheme/radium/colors";
 import DatasetItemLabel from "./Dataset/DatasetItemLabel";
+import DatasetsSearchViewActions from "dyn-load/components/DatasetsSearchViewActions";
 import QueryDataset from "@app/components/QueryDataset/QueryDataset";
 import "./DatasetsSearch.less";
 import {
@@ -38,6 +38,7 @@ import {
 } from "@app/constants/datasetTypes";
 
 const emptyList = new Immutable.List();
+const TAG_LIST_MAX_WIDTH = 160;
 
 class DatasetsSearch extends PureComponent {
   static propTypes = {
@@ -58,14 +59,15 @@ class DatasetsSearch extends PureComponent {
 
     return searchData.map((value, key) => {
       const resourceId = value.getIn(["fullPath", 0]);
-      const newFullPath = constructFullPath(value.get("fullPath"));
+      const newFullPath = JSON.stringify(value.get("fullPath").toJS());
       const name = value.getIn(["fullPath", -1]);
+      const tags = value.get("tags", emptyList);
 
       const href = {
         pathname: sqlPaths.sqlEditor.link(),
         search: `?context="${encodeURIComponent(
           resourceId
-        )}"&queryPath=${newFullPath}`,
+        )}"&queryPath=${encodeURIComponent(newFullPath)}`,
       };
 
       const toLink = shouldUseNewDatasetNavigation()
@@ -90,13 +92,19 @@ class DatasetsSearch extends PureComponent {
                 value.get("datasetType")
               )}
               placement="right"
+              hideOverlayActionButtons
             />
           </div>
-          {/* DX-11249 <div style={styles.parentDatasetsHolder} data-qa='ds-parent'>
-            {this.getParentItems(value, inputValue)}
-          </div> */}
-          <TagList tags={value.get("tags", emptyList)} className="tagSearch" />
-          {this.getActionButtons(value)}
+          <div className="search-result-row__right">
+            {tags.size > 0 && (
+              <TagList
+                tags={tags}
+                className="tagSearch"
+                maxWidth={TAG_LIST_MAX_WIDTH}
+              />
+            )}
+            {this.getActionButtons(value)}
+          </div>
         </div>
       );
 
@@ -126,17 +134,7 @@ class DatasetsSearch extends PureComponent {
 
     return (
       <span className="main-settings-btn min-btn" style={styles.actionButtons}>
-        {dataset.getIn(["links", "edit"]) && (
-          <IconButton
-            as={Link}
-            tooltip={formatMessage({ id: "Common.Edit" })}
-            to={wrapBackendLink(dataset.getIn(["links", "edit"]))}
-            data-qa="edit"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <dremio-icon name="common/Edit" style={styles.icon}></dremio-icon>
-          </IconButton>
-        )}
+        <DatasetsSearchViewActions dataset={dataset} />
         {datasetIconType !== DATASET_TYPES_TO_ICON_TYPES[VIRTUAL_DATASET] && (
           <IconButton
             as={Link}
@@ -152,7 +150,7 @@ class DatasetsSearch extends PureComponent {
           </IconButton>
         )}
         <QueryDataset
-          fullPath={constructFullPath(dataset.get("fullPath"))}
+          fullPath={dataset.get("fullPath")}
           resourceId={dataset.get("fullPath").get(0)}
         />
       </span>
@@ -165,7 +163,9 @@ class DatasetsSearch extends PureComponent {
       searchData && searchData.size && searchData.size > 0 ? (
         <div>{this.getDatasetsList(searchData, inputValue)}</div>
       ) : (
-        <div style={styles.notFound}>{la("No views or tables found")}</div>
+        <div style={styles.notFound}>
+          {laDeprecated("No views or tables found")}
+        </div>
       );
     return (
       <section className="datasets-search" style={styles.main}>
@@ -197,6 +197,7 @@ const styles = {
   datasetData: {
     margin: "0 0 0 5px",
     minWidth: 300,
+    display: "flex",
   },
   header: {
     height: 38,
@@ -220,7 +221,7 @@ const styles = {
     cursor: "pointer",
   },
   actionButtons: {
-    margin: "0 0 0 auto",
+    margin: "0",
   },
   parentDatasetsHolder: {
     display: "flex",

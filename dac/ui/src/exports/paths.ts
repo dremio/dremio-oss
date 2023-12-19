@@ -83,6 +83,9 @@ export const arcticCatalogSettingsConfiguration = (
 export const arcticCatalogSettingsPrivileges = (params: CatalogIdParam) =>
   `${arcticCatalogSettings(params)}/privileges` as const;
 
+export const arcticCatalogSettingsTableCleanup = (params: CatalogIdParam) =>
+  `${arcticCatalogSettings(params)}/table-cleanup` as const;
+
 export const arcticCatalogSettingsConfigurationSummary = (
   params: CatalogIdParam & ConfigEditParam
 ) => `${arcticCatalogSettingsConfiguration(params)}/summary` as const;

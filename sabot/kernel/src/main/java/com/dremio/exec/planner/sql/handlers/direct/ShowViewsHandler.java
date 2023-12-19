@@ -29,10 +29,10 @@ import java.util.stream.Collectors;
 
 import org.apache.calcite.sql.SqlNode;
 
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUtil;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.planner.sql.handlers.VersionedHandlerUtils;
 import com.dremio.exec.planner.sql.parser.ReferenceTypeUtils;
@@ -88,7 +88,7 @@ public class ShowViewsHandler implements SqlDirectHandler<ShowViewsHandler.ShowV
 
     final String sourceName = sourcePath.getRoot();
     final VersionContext statementSourceVersion =
-      ReferenceTypeUtils.map(showViews.getRefType(), showViews.getRefValue());
+      ReferenceTypeUtils.map(showViews.getRefType(), showViews.getRefValue(), showViews.getTimestamp());
     final VersionContext sessionVersion = userSession.getSessionVersionForSource(sourceName);
     final VersionContext sourceVersion = statementSourceVersion.orElse(sessionVersion);
 

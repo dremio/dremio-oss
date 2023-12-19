@@ -37,6 +37,7 @@ import com.google.common.cache.CacheBuilder;
 public class LocalMetricsStore implements MetricsStore, Service {
   private static final Logger LOGGER = LoggerFactory.getLogger(LocalMetricsStore.class);
   private Map<String, QueryProgressMetricsMap> map = new ConcurrentHashMap<>();
+  @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
   private Cache<UserBitShared.QueryId, Boolean> deletedQueryIds = CacheBuilder.newBuilder()
     .expireAfterWrite(5, TimeUnit.MINUTES)
     .build();

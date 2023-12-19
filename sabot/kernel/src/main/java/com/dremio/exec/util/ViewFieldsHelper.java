@@ -41,7 +41,7 @@ import io.protostuff.ByteString;
 public final class ViewFieldsHelper {
 
   /**
-   * Get view fields from dataset config as it is in the batch schema (if not present, defaults to reltree's row type)
+   * Get view fields from dataset config as it is in the batch schema.
    * @param config dataset config
    * @return List of view fields
    */
@@ -53,26 +53,6 @@ public final class ViewFieldsHelper {
     }
     if (schemaBytes != null) {
       return getBatchSchemaFields(BatchSchema.deserialize(schemaBytes.toByteArray()));
-    }
-    return null;
-  }
-
-  /**
-   * Get view fields from dataset config as it is in planner's reltree's row type.
-   * @param config dataset config
-   * @return List of view fields
-   */
-  public static List<ViewFieldType> getCalciteViewFields(DatasetConfig config) {
-    if (config.getType() == DatasetType.VIRTUAL_DATASET) {
-      final List<ViewFieldType> calciteFields = config.getVirtualDataset().getCalciteFieldsList();
-      if (calciteFields != null && !calciteFields.isEmpty()) {
-        return calciteFields;
-      }
-
-      final List<ViewFieldType> sqlFields = config.getVirtualDataset().getSqlFieldsList();
-      if (sqlFields != null && !sqlFields.isEmpty()) {
-        return sqlFields;
-      }
     }
     return null;
   }

@@ -48,6 +48,7 @@ import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.store.parquet.ColumnDataReader;
 import com.dremio.exec.store.parquet.ParquetFormatPlugin;
 import com.dremio.exec.store.parquet.ParquetReaderStats;
+import com.dremio.exec.store.parquet.ParquetReaderUtility;
 import com.dremio.exec.store.parquet.Streams;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
@@ -113,7 +114,7 @@ public class PageReader {
     allocatedDictionaryBuffers = new ArrayList<>();
     codecFactory = parentColumnReader.parentReader.getCodecFactory();
     this.stats = parentColumnReader.parentReader.parquetReaderStats;
-    long start = columnChunkMetaData.getFirstDataPageOffset();
+    long start = ParquetReaderUtility.getFirstPageOffset(columnChunkMetaData);
     this.inputStream = inputStream;
     try {
       this.dataReader = new ColumnDataReader(inputStream, start, columnChunkMetaData.getTotalSize());
@@ -150,19 +151,20 @@ public class PageReader {
   private void loadDictionaryIfExists(final ColumnReader<?> parentStatus,
       final ColumnChunkMetaData columnChunkMetaData, final SeekableInputStream f) throws IOException {
     Stopwatch timer = Stopwatch.createUnstarted();
-    if (columnChunkMetaData.getDictionaryPageOffset() > 0) {
-      f.seek(columnChunkMetaData.getDictionaryPageOffset());
-      long start=f.getPos();
-      timer.start();
-      final PageHeader pageHeader = Util.readPageHeader(f);
-      long timeToRead = timer.elapsed(TimeUnit.MICROSECONDS);
-      long pageHeaderBytes=f.getPos()-start;
-      this.updateStats(pageHeader, "Page Header", start, timeToRead, pageHeaderBytes, pageHeaderBytes);
-      assert pageHeader.type == PageType.DICTIONARY_PAGE;
-      assert isDictionaryEncoded(columnChunkMetaData.getEncodings()) :
-        format("Missing dictionary encoding for dictionary page %s, in column chunk %s", pageHeader, columnChunkMetaData);
-      readDictionaryPage(pageHeader, parentStatus);
+    long start=f.getPos();
+    timer.start();
+    final PageHeader pageHeader = Util.readPageHeader(f);
+    long timeToRead = timer.elapsed(TimeUnit.MICROSECONDS);
+    if (pageHeader.getType() != PageType.DICTIONARY_PAGE) {
+      // Reset the stream to the starting position of the page header if it is not a dictionary page
+      f.seek(start);
+      return;
     }
+    long pageHeaderBytes=f.getPos()-start;
+    this.updateStats(pageHeader, "Page Header", start, timeToRead, pageHeaderBytes, pageHeaderBytes);
+    assert isDictionaryEncoded(columnChunkMetaData.getEncodings()) :
+      format("Missing dictionary encoding for dictionary page %s, in column chunk %s", pageHeader, columnChunkMetaData);
+    readDictionaryPage(pageHeader, parentStatus);
   }
 
   private void readDictionaryPage(final PageHeader pageHeader,

@@ -39,7 +39,7 @@ import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.proto.UserBitShared.StreamProfile;
 import com.dremio.sabot.op.aggregate.vectorized.HashAggStats;
 import com.dremio.sabot.op.join.vhash.HashJoinStats;
-import com.dremio.sabot.op.sort.external.ExternalSortOperator;
+import com.dremio.sabot.op.sort.external.ExternalSortStats;
 import com.dremio.sabot.op.writer.WriterOperator;
 import com.dremio.service.job.proto.CommonDatasetProfile;
 import com.dremio.service.job.proto.DatasetPathUI;
@@ -293,7 +293,7 @@ class QueryProfileParser {
     final List<UserBitShared.MetricValue> metricValues = operatorProfile.getMetricList();
     for (UserBitShared.MetricValue metricValue : metricValues) {
       final int metricId = metricValue.getMetricId();
-      if (metricId == ExternalSortOperator.Metric.TOTAL_SPILLED_DATA_SIZE.ordinal() && metricValue.hasLongValue()) {
+      if (metricId == ExternalSortStats.Metric.TOTAL_SPILLED_DATA_SIZE.ordinal() && metricValue.hasLongValue()) {
         spillJobDetails.setTotalBytesSpilledBySort(spillJobDetails.getTotalBytesSpilledBySort() + metricValue.getLongValue());
       }
     }

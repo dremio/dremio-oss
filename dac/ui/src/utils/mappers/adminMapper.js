@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import uuid from "uuid";
+import { v4 as uuidv4 } from "uuid";
 
 class AdminMapper {
   mapSourceNodesList(json) {
     return json.map((node) => {
       return {
-        id: uuid.v4(),
+        id: uuidv4(),
         name: node.name,
         ip: node.ip,
         host: node.host,
@@ -41,7 +41,7 @@ class AdminMapper {
   mapGroup(json) {
     return json.groups.map((group) => {
       return {
-        id: uuid.v4(),
+        id: uuidv4(),
         name: group.name,
         users: group.users,
         data: group.data,

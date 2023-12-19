@@ -113,6 +113,7 @@ public class TokenManagerImpl implements TokenManager {
     this.cacheExpiration = cacheExpiration;
   }
 
+  @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
   @Override
   public void start() {
     this.tokenStore = kvProvider.get().getStore(TokenStoreCreator.class);

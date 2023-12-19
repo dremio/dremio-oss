@@ -29,5 +29,7 @@ public enum FunctionCategory {
   DIRECTORY,
   GEOSPATIAL,
   MATH,
-  WINDOW
+  WINDOW,
+
+  ARRAY
 }

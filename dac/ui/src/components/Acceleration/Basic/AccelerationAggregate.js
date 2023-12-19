@@ -123,7 +123,7 @@ class AccelerationAggregate extends PureComponent {
     const toggleLabel = (
       <h3 className={"AccelerationAggregate__toggleLabel"}>
         <FontIcon type="Aggregate" theme={commonThemes.rawIconTheme} />
-        {la("Aggregation Reflections")}
+        {laDeprecated("Aggregation Reflections")}
       </h3>
     );
     return (

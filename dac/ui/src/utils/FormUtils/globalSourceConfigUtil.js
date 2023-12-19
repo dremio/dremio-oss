@@ -14,16 +14,21 @@
  * limitations under the License.
  */
 
+import {
+  DISABLE_CROSS_SOURCE_SELECT,
+  SHOW_METADATA_VALIDITY_CHECKBOX,
+} from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
+
 export const getAlwaysPresentFunctionalConfig = () => [
   {
-    label: la(
+    label: laDeprecated(
       "Enable this source to be used with other sources even though Disable Cross Source is configured"
     ),
     propertyName: "allowCrossSourceSelection",
     type: "boolean",
   },
   {
-    label: la("Disable check for expired metadata while querying"),
+    label: laDeprecated("Disable check for expired metadata while querying"),
     propertyName: "disableMetadataValidityCheck",
     type: "boolean",
   },
@@ -33,6 +38,7 @@ export const crossSourceSelectionUiConfig = {
   propName: "allowCrossSourceSelection",
   visibilityControl: {
     config: "crossSourceDisabled",
+    supportFlag: DISABLE_CROSS_SOURCE_SELECT,
     showCondition: true,
   },
 };
@@ -41,6 +47,7 @@ export const inlineMetadataRefreshConfig = {
   propName: "disableMetadataValidityCheck",
   visibilityControl: {
     config: "showMetadataValidityCheckbox",
+    supportFlag: SHOW_METADATA_VALIDITY_CHECKBOX,
     showCondition: true,
   },
 };
@@ -52,18 +59,22 @@ const addAlwaysPresent = ({ elements }, { form }) => {
     elements.push(...getAlwaysPresentFunctionalConfig());
   }
 
-  if (form.tabs[1] === undefined) {
+  const advIdx = (form.tabs || []).findIndex(
+    ({ name }) => name === "Advanced Options"
+  );
+
+  if (advIdx === -1) {
     return;
   }
 
-  form.tabs[1].sections = form.tabs[1].sections || [];
+  form.tabs[advIdx].sections = form.tabs[advIdx].sections || [];
 
   const {
     sections: [firstSection = {}],
-  } = form.tabs[1];
+  } = form.tabs[advIdx];
 
-  if (form && form.tabs[1]) {
-    form.tabs[1].sections[0] = {
+  if (form && form.tabs[advIdx]) {
+    form.tabs[advIdx].sections[0] = {
       ...firstSection,
       elements: [
         ...(firstSection.elements || []),

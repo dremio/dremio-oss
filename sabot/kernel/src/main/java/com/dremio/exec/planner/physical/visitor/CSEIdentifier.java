@@ -48,6 +48,7 @@ import com.dremio.exec.planner.physical.JoinPrel;
 import com.dremio.exec.planner.physical.PhysicalPlanCreator;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.Prel;
+import com.dremio.exec.planner.physical.TableFunctionPrel;
 import com.dremio.exec.planner.physical.explain.PrelSequencer;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.options.OptionResolver;
@@ -238,12 +239,10 @@ public class CSEIdentifier {
           // - delete the rest of the child sub-tree
 
           // compute schema for the BridgeReader
-          BatchSchema schema = lookupSchema(child);
           Prel readerChild = new BridgeReaderPrel(child.getCluster(),
             child.getTraitSet(),
             child.getRowType(),
             relMetadataQuery.getRowCount(child),
-            schema,
             Long.toHexString(uuidAndIndex.uuid));
           RelNode rewrittenOffNode = ((Prel)prel.getInput()).accept(this, value);
           CostingNode costingNode = new CostingNode(bitSet, uuidAndIndex.index,
@@ -399,6 +398,7 @@ public class CSEIdentifier {
     @Override
     public Boolean visitExchange(ExchangePrel prel, Void notUsed) throws RuntimeException {
       if (prel instanceof BridgeExchangePrel) {
+        visitPrel(prel, notUsed);
         return false;
       }
 
@@ -421,6 +421,11 @@ public class CSEIdentifier {
 
     @Override public Boolean visitFilter(FilterPrel prel, Void notUsed) throws RuntimeException {
       return visitPrel(prel, notUsed)  || requireHeuristicFilter;
+    }
+
+    @Override
+    public Boolean visitTableFunction(TableFunctionPrel prel, Void value) throws RuntimeException {
+      return false;
     }
   }
 

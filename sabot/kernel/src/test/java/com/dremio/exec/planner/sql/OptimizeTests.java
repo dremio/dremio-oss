@@ -36,7 +36,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -47,17 +46,12 @@ import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.util.Text;
 import org.apache.iceberg.AppendFiles;
-import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataFiles;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.ManifestFile;
-import org.apache.iceberg.ManifestFiles;
-import org.apache.iceberg.ManifestWriter;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
-import org.apache.iceberg.io.OutputFile;
 
-import com.dremio.BaseTestQuery;
 import com.dremio.TestBuilder;
 import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.common.expression.SchemaPath;
@@ -70,7 +64,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
-public class OptimizeTests extends BaseTestQuery {
+public class OptimizeTests extends ITDmlQueryBase {
 
   public static void testOnUnPartitioned(String source, BufferAllocator allocator) throws Exception {
     try (DmlQueryTestUtils.Table table = createTestTable(source, 6)) {
@@ -510,24 +504,6 @@ public class OptimizeTests extends BaseTestQuery {
     long maxManifestFileSize = (long) (manifestTargetSizeBytes * 1.8);
 
     return manifestFile.length() < minManifestFileSize || manifestFile.length() > maxManifestFileSize;
-  }
-
-  private static ManifestFile writeManifestFile(Table icebergTable, int noOfDataFiles) throws IOException {
-    final OutputFile manifestLocation = icebergTable.io().newOutputFile(
-      String.format("%s/metadata/%s-mx.avro", icebergTable.location(), UUID.randomUUID()));
-    ManifestWriter<DataFile> writer = ManifestFiles.write(icebergTable.spec(), manifestLocation);
-
-    for (int i = 0; i < noOfDataFiles; i++) {
-      writer.add(DataFiles.builder(icebergTable.spec())
-        .withPath(String.format("/data/fake-%d.parquet", i))
-        .withFormat(FileFormat.PARQUET)
-        .withFileSizeInBytes(20 * 1024 * 1024L)
-        .withRecordCount(1_000_000)
-        .build());
-    }
-
-    writer.close();
-    return writer.toManifestFile();
   }
 
   private static long getAvgFileSize(String tableFqn, BufferAllocator allocator) throws Exception {

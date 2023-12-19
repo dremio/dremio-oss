@@ -41,10 +41,15 @@ export default class EditAvatarModal extends Component {
   render() {
     const { isOpen, hide } = this.props;
     return (
-      <Modal title={la("Edit Avatar")} size="small" isOpen={isOpen} hide={hide}>
+      <Modal
+        title={laDeprecated("Edit Avatar")}
+        size="small"
+        isOpen={isOpen}
+        hide={hide}
+      >
         <ModalForm {...modalFormProps(this.props)}>
           <FormBody style={styles.main}>
-            <div style={formLabel}>{la("Browse")}</div>
+            <div style={formLabel}>{laDeprecated("Browse")}</div>
             <Avatars />
             <div style={styles.uploadField}>
               <div style={formLabel}>Or upload your own image</div>

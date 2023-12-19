@@ -13,18 +13,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+import { ENTITY_TYPES } from "@app/constants/Constants";
+
 const VIRTUAL_DATASET = "VIRTUAL_DATASET";
 const PHYSICAL_DATASET = "PHYSICAL_DATASET";
 const PHYSICAL_DATASET_HOME_FILE = "PHYSICAL_DATASET_HOME_FILE";
 const PHYSICAL_DATASET_HOME_FOLDER = "PHYSICAL_DATASET_HOME_FOLDER";
 const PHYSICAL_DATASET_SOURCE_FOLDER = "PHYSICAL_DATASET_SOURCE_FOLDER";
 const PHYSICAL_DATASET_SOURCE_FILE = "PHYSICAL_DATASET_SOURCE_FILE";
+const ARCTIC_VIEW_INHERITED = "IcebergView";
+const ARCTIC_TABLE_INHERITED = "IcebergTable";
 
-export const getIconType = (datasetType: string) => {
+export const getIconType = (datasetType: string, isVersioned?: boolean) => {
   let iconName;
   switch (datasetType) {
+    case ARCTIC_VIEW_INHERITED:
+      iconName = "iceberg-view";
+      break;
+    case ARCTIC_TABLE_INHERITED:
+      iconName = "iceberg-table";
+      break;
     case PHYSICAL_DATASET:
-      iconName = "dataset-table";
+      if (isVersioned) {
+        iconName = "iceberg-table";
+      } else {
+        iconName = "dataset-table";
+      }
       break;
     case PHYSICAL_DATASET_HOME_FILE:
       iconName = "dataset-table";
@@ -33,13 +48,35 @@ export const getIconType = (datasetType: string) => {
       iconName = "dataset-table";
       break;
     case VIRTUAL_DATASET:
-      iconName = "dataset-view";
+      if (isVersioned) {
+        iconName = "iceberg-view";
+      } else {
+        iconName = "dataset-view";
+      }
       break;
     case PHYSICAL_DATASET_SOURCE_FOLDER:
       iconName = "purple-folder";
       break;
     case PHYSICAL_DATASET_HOME_FOLDER:
       iconName = "purple-folder";
+      break;
+    default:
+      iconName = undefined;
+  }
+  return iconName ? iconName : getIconEntityType(datasetType, iconName);
+};
+
+const getIconEntityType = (datasetType: string, icon: string | undefined) => {
+  let iconName: string | undefined = icon;
+  switch (datasetType?.toLowerCase()) {
+    case ENTITY_TYPES.folder:
+      iconName = "blue-folder";
+      break;
+    case ENTITY_TYPES.space:
+      iconName = "space";
+      break;
+    case ENTITY_TYPES.home:
+      iconName = "home";
       break;
     default:
       iconName = undefined;

@@ -33,12 +33,12 @@ signatures:
   description: "Left-most substring."
   sampleCodes:
    -
-    call: "SELECT \\\"LEFT\\\"('Dremio - SQL Engine', -12)"
+    call: "SELECT \"LEFT\"('Dremio - SQL Engine', -12)"
     result: "Dremio"
    -
-    call: "SELECT \\\"LEFT\\\"('Dremio - SQL Engine', 6)"
+    call: "SELECT \"LEFT\"('Dremio - SQL Engine', 6)"
     result: "Dremio"
 dremioVersion: "1.0+"
 functionCategories:
  - "CHARACTER"
-description: "Returns the left-most substring. The function name must be escaped with quotes (\\\"LEFT\\\")."
+description: "Returns the left-most substring. The function name must be escaped with quotes (\"LEFT\")."

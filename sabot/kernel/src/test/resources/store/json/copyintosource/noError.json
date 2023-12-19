@@ -1,0 +1,32 @@
+{
+  "decimalCol": 123.456,
+  "intCol": 42,
+  "floatCol": 3.14,
+  "doubleCol": 2.71828,
+  "varcharCol": "Hello, World!",
+  "booleanCol": true
+}
+{
+  "decimalCol": 789.123,
+  "intCol": 17,
+  "floatCol": 2.718,
+  "doubleCol": 3.14159265,
+  "varcharCol": "FooBar",
+  "booleanCol": false
+}
+{
+  "decimalCol": 456.789,
+  "intCol": 73,
+  "floatCol": 1.234,
+  "doubleCol": 2.718281828459045,
+  "varcharCol": "JSON Example",
+  "booleanCol": true
+}
+{
+  "decimalCol": 987.654,
+  "intCol": 99,
+  "floatCol": 0.001,
+  "doubleCol": 1.23456789,
+  "varcharCol": "Random Data",
+  "booleanCol": false
+}

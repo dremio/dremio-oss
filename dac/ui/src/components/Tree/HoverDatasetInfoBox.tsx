@@ -15,7 +15,8 @@
  */
 import {
   getIconAltTextByEntityIconType,
-  getIconTypeByEntityTypeAndStatus,
+  getIconByEntityType,
+  getSourceStatusIcon,
 } from "utils/iconUtils";
 import FontIcon from "@app/components/Icon/FontIcon";
 // import { intl } from "@app/utils/intl";
@@ -35,10 +36,10 @@ const HoverDatasetInfoBox = ({
   nodeStatus,
   fullpath,
 }: HoverDatasetInfoBoxProps) => {
-  const iconType = getIconTypeByEntityTypeAndStatus(
-    node.get("type"),
-    nodeStatus
-  );
+  const iconType =
+    node.get("type") === "SOURCE"
+      ? getSourceStatusIcon(nodeStatus)
+      : getIconByEntityType(node.get("type"), !!node.get("versionContext"));
   const iconAltText = getIconAltTextByEntityIconType(iconType) || "";
 
   return (

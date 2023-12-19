@@ -18,6 +18,8 @@ package com.dremio.exec.store.hive.metadata;
 import static com.dremio.exec.store.hive.metadata.HivePartitionChunkListing.SplitType.DIR_LIST_INPUT_SPLIT;
 import static com.dremio.exec.store.hive.metadata.HivePartitionChunkListing.SplitType.INPUT_SPLIT;
 import static com.dremio.exec.store.iceberg.IcebergSerDe.serializedSchemaAsJson;
+import static com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants.METADATA_STORAGE_PLUGIN_NAME;
+import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.hadoop.hive.metastore.api.hive_metastoreConstants.META_TABLE_STORAGE;
 
 import java.io.IOException;
@@ -32,8 +34,11 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.stream.Collectors;
+
+import javax.annotation.Nonnull;
 
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.commons.lang3.StringUtils;
@@ -75,6 +80,7 @@ import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.iceberg.BaseTable;
+import org.apache.iceberg.HasTableOperations;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.io.FileIO;
@@ -83,6 +89,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.Closeable;
 import com.dremio.common.util.DateTimes;
 import com.dremio.connector.ConnectorException;
+import com.dremio.connector.metadata.DatasetMetadataVerifyResult;
 import com.dremio.connector.metadata.DatasetSplit;
 import com.dremio.connector.metadata.DatasetSplitAffinity;
 import com.dremio.connector.metadata.DatasetStats;
@@ -91,18 +98,22 @@ import com.dremio.connector.metadata.MetadataOption;
 import com.dremio.connector.metadata.PartitionValue;
 import com.dremio.connector.metadata.options.DirListInputSplitType;
 import com.dremio.connector.metadata.options.IgnoreAuthzErrors;
+import com.dremio.connector.metadata.options.InternalMetadataTableOption;
 import com.dremio.connector.metadata.options.MaxLeafFieldCount;
 import com.dremio.connector.metadata.options.MaxNestedFieldLevels;
+import com.dremio.connector.metadata.options.MetadataVerifyRequest;
 import com.dremio.connector.metadata.options.RefreshTableFilterOption;
 import com.dremio.connector.metadata.options.TimeTravelOption;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.ColumnCountTooLargeException;
 import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.TimedRunnable;
 import com.dremio.exec.store.deltalake.DeltaLakeSchemaConverter;
 import com.dremio.exec.store.deltalake.DeltaLakeTable;
 import com.dremio.exec.store.deltalake.DeltaLogSnapshot;
+import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.implicit.DecimalTools;
 import com.dremio.exec.store.hive.HiveClient;
 import com.dremio.exec.store.hive.HivePf4jPlugin;
@@ -116,12 +127,14 @@ import com.dremio.exec.store.hive.exec.apache.PathUtils;
 import com.dremio.exec.store.hive.exec.metadata.SchemaConverter;
 import com.dremio.exec.store.hive.iceberg.IcebergHiveTableOperations;
 import com.dremio.exec.store.hive.iceberg.IcebergInputFormat;
-import com.dremio.exec.store.iceberg.DremioFileIO;
+import com.dremio.exec.store.iceberg.IcebergMetadataVerifyProcessors;
 import com.dremio.exec.store.iceberg.IcebergSerDe;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.iceberg.TableSchemaProvider;
 import com.dremio.exec.store.iceberg.TableSnapshotProvider;
 import com.dremio.exec.store.iceberg.TimeTravelProcessors;
+import com.dremio.exec.store.iceberg.model.IcebergModel;
+import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
 import com.dremio.hive.proto.HiveReaderProto;
 import com.dremio.hive.proto.HiveReaderProto.ColumnInfo;
 import com.dremio.hive.proto.HiveReaderProto.HivePrimitiveType;
@@ -131,6 +144,7 @@ import com.dremio.hive.proto.HiveReaderProto.PartitionXattr;
 import com.dremio.hive.proto.HiveReaderProto.Prop;
 import com.dremio.hive.thrift.TException;
 import com.dremio.options.OptionManager;
+import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
 import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
 import com.dremio.service.namespace.dataset.proto.ScanStats;
 import com.dremio.service.namespace.dataset.proto.ScanStatsType;
@@ -498,13 +512,15 @@ public class HiveMetadataUtils {
 
   public static TableMetadata getTableMetadata(final HiveClient client,
                                                final EntityPath datasetPath,
+                                               final InternalMetadataTableOption internalMetadataTableOption,
                                                final boolean ignoreAuthzErrors,
                                                final int maxMetadataLeafColumns,
                                                final int maxNestedLevels,
                                                final TimeTravelOption timeTravelOption,
                                                final HiveSchemaTypeOptions typeOptions,
                                                final HiveConf hiveConf,
-                                               final HiveStoragePlugin plugin) throws ConnectorException {
+                                               final HiveStoragePlugin plugin,
+                                               final SabotContext context) throws ConnectorException {
 
     try {
       final SchemaComponents schemaComponents = resolveSchemaComponents(datasetPath.getComponents());
@@ -518,9 +534,12 @@ public class HiveMetadataUtils {
       final Properties tableProperties = MetaStoreUtils.getSchema(table.getSd(), table.getSd(), table.getParameters(), table.getDbName(), table.getTableName(), table.getPartitionKeys());
       TableMetadata tableMetadata;
       if (isIcebergTable(table)) {
-        tableMetadata = getTableMetadataFromIceberg(hiveConf, datasetPath, table, tableProperties, timeTravelOption, typeOptions, plugin);
+        tableMetadata = getTableMetadataFromIceberg(datasetPath, table, tableProperties, timeTravelOption, typeOptions, plugin);
+      } else if (internalMetadataTableOption != null) {
+        tableMetadata = getTableMetadataFromInternalIceberg(datasetPath, table, internalMetadataTableOption,
+          tableProperties, timeTravelOption, typeOptions, plugin, context);
       } else if (isDeltaTable(table, plugin.getSabotContext().getOptionManager())) {
-        tableMetadata = getTableMetadataFromDelta(table, tableProperties, maxMetadataLeafColumns, typeOptions, plugin);
+        tableMetadata = getTableMetadataFromDelta(table, tableProperties, maxMetadataLeafColumns, timeTravelOption, typeOptions, plugin);
       } else {
         tableMetadata = getTableMetadataFromHMS(table, tableProperties, datasetPath,
           maxMetadataLeafColumns, maxNestedLevels, typeOptions, hiveConf, plugin);
@@ -534,15 +553,34 @@ public class HiveMetadataUtils {
     }
   }
 
-  private static TableMetadata getTableMetadataFromIceberg(final HiveConf hiveConf,
-                                                           final EntityPath datasetPath,
+  private static TableMetadata getTableMetadataFromInternalIceberg(final EntityPath datasetPath,
+                                                                   final Table table,
+                                                                   final InternalMetadataTableOption internalMetadataTableOption,
+                                                                   final Properties tableProperties,
+                                                                   final TimeTravelOption timeTravelOption,
+                                                                   final HiveSchemaTypeOptions typeOptions,
+                                                                   final HiveStoragePlugin plugin,
+                                                                   final SabotContext context) {
+    Preconditions.checkArgument(internalMetadataTableOption != null);
+
+    FileSystemPlugin<?> metaStoragePlugin = context.getCatalogService().getSource(METADATA_STORAGE_PLUGIN_NAME);
+    IcebergModel icebergModel = metaStoragePlugin.getIcebergModel();
+    com.dremio.io.file.Path path = metaStoragePlugin.resolveTablePathToValidPath(internalMetadataTableOption.getInternalMetadataTableName());
+    IcebergTableIdentifier tableIdentifier = icebergModel.getTableIdentifier(path.toString());
+    org.apache.iceberg.Table icebergTable = icebergModel.getIcebergTable(tableIdentifier);
+    String metadataLocation = ((HasTableOperations) icebergTable).operations().current().metadataFileLocation();
+
+    return buildTableMetadataForIceberg(datasetPath, table,
+      icebergTable, metadataLocation, null, internalMetadataTableOption.getInternalMetadataTableName(),
+      tableProperties, timeTravelOption, typeOptions, plugin);
+  }
+
+  private static TableMetadata getTableMetadataFromIceberg(final EntityPath datasetPath,
                                                            final Table table,
                                                            final Properties tableProperties,
                                                            final TimeTravelOption timeTravelOption,
                                                            final HiveSchemaTypeOptions typeOptions,
                                                            final HiveStoragePlugin plugin) throws IOException {
-    JobConf jobConf = new JobConf(hiveConf);
-
     String metadataLocation = tableProperties.getProperty(METADATA_LOCATION, "");
     com.dremio.io.file.FileSystem fs = plugin.createFS(metadataLocation, SystemUser.SYSTEM_USERNAME, null);
     FileIO fileIO = plugin.createIcebergFileIO(fs, null, null, null, null);
@@ -550,6 +588,21 @@ public class HiveMetadataUtils {
     BaseTable icebergTable = new BaseTable(hiveTableOperations, new Path(metadataLocation).getName());
     icebergTable.refresh();
 
+    return buildTableMetadataForIceberg(datasetPath, table,
+      icebergTable, metadataLocation, FileType.ICEBERG, null,
+      tableProperties, timeTravelOption, typeOptions, plugin);
+  }
+
+  private static TableMetadata buildTableMetadataForIceberg(final EntityPath datasetPath,
+                                                             final Table table,
+                                                             final org.apache.iceberg.Table icebergTable,
+                                                             final String metadataLocation,
+                                                             final FileType fileType,
+                                                             final String tableUuid,
+                                                             final Properties tableProperties,
+                                                             final TimeTravelOption timeTravelOption,
+                                                             final HiveSchemaTypeOptions typeOptions,
+                                                             final HiveStoragePlugin plugin) {
     final Snapshot snapshot;
     org.apache.iceberg.Schema schema;
     if (timeTravelOption != null) {
@@ -595,13 +648,15 @@ public class HiveMetadataUtils {
     specsMap = IcebergUtils.getPartitionSpecMapBySchema(specsMap, schema);
     byte[] specs = IcebergSerDe.serializePartitionSpecAsJsonMap(specsMap);
     final long snapshotId = snapshot != null ? snapshot.snapshotId() : -1;
+    String sortOrderJson = IcebergSerDe.serializeSortOrderAsJson(icebergTable.sortOrder());
 
     IcebergMetadata icebergMetadata = new IcebergMetadata()
-            .setFileType(FileType.ICEBERG)
+            .setFileType(fileType)
             .setPartitionSpecsJsonMap(ByteString.copyFrom(specs))
             .setJsonSchema(serializedSchemaAsJson(schema))
             .setMetadataFileLocation(metadataLocation)
             .setSnapshotId(snapshotId)
+            .setSortOrder(sortOrderJson)
             .setDeleteManifestStats(new ScanStats()
                 .setScanFactor(ScanCostFactor.EASY.getFactor())
                 .setType(ScanStatsType.EXACT_ROW_COUNT)
@@ -613,7 +668,8 @@ public class HiveMetadataUtils {
             .setEqualityDeleteStats(new ScanStats()
               .setScanFactor(ScanCostFactor.PARQUET.getFactor())
               .setType(ScanStatsType.EXACT_ROW_COUNT)
-              .setRecordCount(numEqualityDeletes));
+              .setRecordCount(numEqualityDeletes))
+            .setTableUuid(tableUuid);
 
     return TableMetadata.newBuilder()
       .table(table)
@@ -631,11 +687,13 @@ public class HiveMetadataUtils {
   private static TableMetadata getTableMetadataFromDelta(final Table table,
                                                          final Properties tableProperties,
                                                          final int maxMetadataLeafColumns,
+                                                         final TimeTravelOption timeTravelOption,
                                                          final HiveSchemaTypeOptions typeOptions,
                                                          final HiveStoragePlugin plugin) throws IOException {
     final String tableLocation = DeltaHiveInputFormat.getLocation(table, plugin.getSabotContext().getOptionManager());
     final com.dremio.io.file.FileSystem fs = plugin.createFS(tableLocation, SystemUser.SYSTEM_USERNAME, null);
-    final DeltaLakeTable deltaTable = new DeltaLakeTable(plugin.getSabotContext(), fs, tableLocation);
+    final TimeTravelOption.TimeTravelRequest timeTravelRequest = timeTravelOption != null ? timeTravelOption.getTimeTravelRequest() : null;
+    final DeltaLakeTable deltaTable = new DeltaLakeTable(plugin.getSabotContext(), fs, tableLocation, timeTravelRequest);
     final DeltaLogSnapshot snapshot = deltaTable.getConsolidatedSnapshot();
 
     final BatchSchema batchSchema = DeltaLakeSchemaConverter.withMapEnabled(typeOptions.isMapTypeEnabled()).fromSchemaString(snapshot.getSchema());
@@ -876,7 +934,12 @@ public class HiveMetadataUtils {
   }
 
   public static List<DatasetSplit> getDatasetSplitsForIcebergTables(TableMetadata tableMetadata) {
-    return Arrays.asList(DatasetSplit.of(Collections.emptyList(), 0, 0));
+    IcebergProtobuf.IcebergDatasetSplitXAttr splitExtended = IcebergProtobuf.IcebergDatasetSplitXAttr.newBuilder()
+      .setPath(tableMetadata.getIcebergMetadata().getMetadataFileLocation())
+      .setTableName(tableMetadata.getTable().getTableName())
+      .setDbName(tableMetadata.getTable().getDbName())
+      .build();
+    return Arrays.asList(DatasetSplit.of(Collections.EMPTY_LIST, 0, 0, splitExtended::writeTo));
   }
 
   /**
@@ -1489,9 +1552,17 @@ public class HiveMetadataUtils {
             }
             return PartitionValue.of(name, truncatedChar);
           case TIMESTAMP:
-            return PartitionValue.of(name, DateTimes.toMillisFromJdbcTimestamp(value));
+            try {
+              return PartitionValue.of(name, DateTimes.toMillisFromJdbcTimestamp(value));
+            } catch (IllegalArgumentException ex) {
+              return PartitionValue.of(name);
+            }
           case DATE:
-            return PartitionValue.of(name, DateTimes.toMillisFromJdbcDate(value));
+            try {
+              return PartitionValue.of(name, DateTimes.toMillisFromJdbcDate(value));
+            } catch (IllegalArgumentException ex) {
+              return PartitionValue.of(name);
+            }
           case DECIMAL:
             final DecimalTypeInfo decimalTypeInfo = (DecimalTypeInfo) typeInfo;
             if (decimalTypeInfo.getPrecision() > 38) {
@@ -1743,4 +1814,49 @@ public class HiveMetadataUtils {
       return Long.MAX_VALUE;
     }
   }
+
+  @Nonnull
+  public static Optional<DatasetMetadataVerifyResult> verifyMetadata(
+    final HiveClient client,
+    final EntityPath datasetPath,
+    final InternalMetadataTableOption internalMetadataTableOption,
+    final HiveStoragePlugin plugin,
+    final SabotContext context,
+    final MetadataVerifyRequest metadataVerifyRequest) throws ConnectorException {
+
+    try {
+      if (internalMetadataTableOption != null) {
+        FileSystemPlugin<?> metaStoragePlugin = context.getCatalogService().getSource(METADATA_STORAGE_PLUGIN_NAME);
+        IcebergModel icebergModel = metaStoragePlugin.getIcebergModel();
+        com.dremio.io.file.Path path = metaStoragePlugin.resolveTablePathToValidPath(internalMetadataTableOption.getInternalMetadataTableName());
+        IcebergTableIdentifier tableIdentifier = icebergModel.getTableIdentifier(path.toString());
+        org.apache.iceberg.Table icebergTable = icebergModel.getIcebergTable(tableIdentifier);
+        return IcebergMetadataVerifyProcessors.verify(metadataVerifyRequest, icebergTable);
+      } else {
+        final SchemaComponents schemaComponents = resolveSchemaComponents(datasetPath.getComponents());
+        // if the dataset path is not canonized we need to get it from the source
+        final Table table = client.getTable(schemaComponents.getDbName(), schemaComponents.getTableName(), true);
+        if (table == null) {
+          // invalid. Guarded against at both entry points.
+          throw new ConnectorException(String.format("Dataset path '%s', table not found.", datasetPath));
+        }
+        final Properties tableProperties = MetaStoreUtils.getSchema(table.getSd(), table.getSd(), table.getParameters(), table.getDbName(), table.getTableName(), table.getPartitionKeys());
+        if (isIcebergTable(table)) {
+          String metadataLocation = tableProperties.getProperty(METADATA_LOCATION, "");
+          com.dremio.io.file.FileSystem fs = plugin.createFS(metadataLocation, SystemUser.SYSTEM_USERNAME, null);
+          FileIO fileIO = plugin.createIcebergFileIO(fs, null, null, null, null);
+          IcebergHiveTableOperations hiveTableOperations = new IcebergHiveTableOperations(fileIO, metadataLocation);
+          BaseTable icebergTable = new BaseTable(hiveTableOperations, new Path(metadataLocation).getName());
+          icebergTable.refresh();
+          return IcebergMetadataVerifyProcessors.verify(metadataVerifyRequest, icebergTable);
+        }
+      }
+    } catch (ConnectorException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new ConnectorException(e);
+    }
+    return Optional.empty();
+  }
+
 }

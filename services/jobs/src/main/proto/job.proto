@@ -84,6 +84,7 @@ message MaterializationSummary {
 message ScanPath {
   repeated string path = 1;
   optional string versionContext = 2;
+  optional int64 snapshotId = 3;
 }
 
 message JobFailureInfo {
@@ -173,6 +174,7 @@ message JobInfo {
   repeated string chosen_reflection_ids = 48;
   optional QueryLabel queryLabel = 49 [default = NONE];
   optional bool is_truncated_sql = 50 [default = false];
+  optional int64 ttl_expire_at = 51;
 }
 
 message ResourceSchedulingInfo {
@@ -210,6 +212,7 @@ message JoinStats {
   optional int64 unmatchedBuildCount = 5; // number of records on build side with no match
   optional int64 unmatchedProbeCount = 6; // number of records on probe side with no match
   optional int64 outputRecords = 7; // total records output by join
+  optional bool runtimeFilterPruned = 8 [default = false]; // true if pushed down runtime filter pruned any rows
 }
 
 message JoinAnalysis {
@@ -244,6 +247,7 @@ message JoinInfo {
   required int32 degreesOfSeparation = 5;
 }
 
+// NOTE: If a new type is added here, update JobsServiceUtil#isUserQuery accordingly
 enum QueryType {
   UI_RUN = 1; // actual run on the data
   UI_PREVIEW = 2; // run in preview mode
@@ -263,6 +267,8 @@ enum QueryType {
   METADATA_REFRESH = 16; // Queries related to metadata refresh
   INTERNAL_ICEBERG_METADATA_DROP = 17; // Queries related to internal iceberg metadata drop
   D2D = 18;
+  ACCELERATOR_OPTIMIZE = 19; // for internal OPTIMIZE queries on reflections
+  COPY_ERRORS_PLAN = 20; // internal query to access copy_errors table
 }
 
 enum QueryLabel {
@@ -287,10 +293,12 @@ message JobResult {
   repeated JobAttempt attempts = 1;
   optional bool completed = 2 [default = true]; // because only "old" entries don't have this field, they are already completed
   optional SessionId sessionId = 3; // Store session id as value in the KVStore
+  optional bool profileDetailsCapturedPostTermination = 4 [default = false]; // indicates whether job profile details were captured in store after job completed/failed/cancelled
 }
 
 message ExtraJobInfo {
   optional string sql = 1; //full SQL text
+  optional int64 ttl_expire_at = 2;
 }
 
 message JobAttempt {

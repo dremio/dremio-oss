@@ -310,7 +310,10 @@ public class UpdateTests {
   public static void testUpdateByIdWithSubQuery(BufferAllocator allocator, String source) throws Exception {
     try (Tables tables = createBasicNonPartitionedAndPartitionedTables(source, 3, 10, PARTITION_COLUMN_ONE_INDEX_SET)) {
       for (Table table : tables.tables) {
-        testDmlQuery(allocator, "UPDATE %s SET column_0 = (SELECT column_1 FROM %s WHERE id = %s LIMIT 1) WHERE id = %s",
+        testDmlQuery(allocator,
+          "" +
+            "UPDATE %s SET column_0 = (SELECT column_1 FROM %s WHERE id = %s LIMIT 1)\n" +
+            "WHERE id = %s",
                 new Object[]{table.fqn, table.fqn, table.originalData[5][0], table.originalData[5][0]}, table, 1,
                 ArrayUtils.addAll(
                         ArrayUtils.subarray(
@@ -470,8 +473,12 @@ public class UpdateTests {
   public static void testUpdateWithOneSourceTableUseAlias(BufferAllocator allocator, String source) throws Exception {
     try (Table sourceTable = createBasicTable(source, 3, 10);
          Table targetTable = createBasicTable(source, 2, 5)) {
-      testDmlQuery(allocator, "UPDATE %s as t SET id = -s.id,  column_0 = 'ASDF' " +
-                      "FROM %s s where t.id=s.id and s.id < 3",
+      testDmlQuery(allocator,
+        ""
+          + "UPDATE %s AS t\n"
+          + "SET id = -s.id,  column_0 = 'ASDF'\n"
+          + "FROM %s s\n"
+          + "WHERE t.id=s.id AND s.id < 3",
               new Object[]{targetTable.fqn, sourceTable.fqn}, targetTable, 3,
               new Object[]{0, "ASDF"},
               new Object[]{-1, "ASDF"},
@@ -499,15 +506,20 @@ public class UpdateTests {
     try (Table sourceTable1 = createBasicTable(source, 3, 2);
          Table sourceTable2 = createBasicTable(source, 3, 3);
          Table targetTable = createBasicTable(source, 3, 5)) {
-      testDmlQuery(allocator, "Update %s AS t SET id = -s1.id,  column_0 = concat('s2_', s2.column_0) " +
-                      "from %s as s1, %s s2 where t.id = s1.id and t.id = s2.id",
-              new Object[]{targetTable.fqn, sourceTable1.fqn, sourceTable2.fqn}, targetTable, 2,
-              ArrayUtils.addAll(
-                      new Object[][]{
-                              new Object[]{0, "s2_" + sourceTable1.originalData[0][1], targetTable.originalData[0][2]},
-                              new Object[]{-1, "s2_" + sourceTable1.originalData[1][1], targetTable.originalData[1][2]}},
-                      ArrayUtils.subarray(
-                              targetTable.originalData, 2, 5)));
+      testDmlQuery(allocator,
+        "" +
+          "UPDATE %s AS t\n" +
+          "SET id = -s1.id,  column_0 = concat('s2_', s2.column_0)\n" +
+          "FROM %s as s1, %s s2\n" +
+          "WHERE t.id = s1.id and t.id = s2.id",
+        new Object[]{targetTable.fqn, sourceTable1.fqn, sourceTable2.fqn},
+        targetTable,
+        2,
+        ArrayUtils.addAll(
+          new Object[][]{
+            new Object[]{0, "s2_" + sourceTable1.originalData[0][1], targetTable.originalData[0][2]},
+            new Object[]{-1, "s2_" + sourceTable1.originalData[1][1], targetTable.originalData[1][2]}},
+          ArrayUtils.subarray(targetTable.originalData, 2, 5)));
     }
   }
 
@@ -516,8 +528,12 @@ public class UpdateTests {
          Table sourceTable2 = createBasicTable(source, 3, 3);
          Table sourceTable3 = createBasicTable(source, 3, 4);
          Table targetTable = createBasicTable(source, 4, 5)) {
-      testDmlQuery(allocator, "Update %s AS t SET id = -s1.id,  column_0 = concat('s2_', s2.column_0), column_1 =  concat('s3_', s3.column_1)" +
-                      "from %s as s1, (select * from %s) as s2, %s s3 where t.id = s1.id and t.id = s2.id and t.id = s3.id",
+      testDmlQuery(allocator,
+        ""
+          + "UPDATE %s AS t\n"
+          + "SET id = -s1.id,  column_0 = concat('s2_', s2.column_0), column_1 =  concat('s3_', s3.column_1)\n"
+          + "FROM %s as s1, (SELECT * from %s) as s2, %s s3\n"
+          + "WHERE t.id = s1.id AND t.id = s2.id AND t.id = s3.id",
               new Object[]{targetTable.fqn, sourceTable1.fqn, sourceTable2.fqn, sourceTable3.fqn}, targetTable, 2,
               ArrayUtils.addAll(
                       new Object[][]{

@@ -58,21 +58,41 @@ describe("AccelerationUpdatesForm", () => {
     );
   });
 
-  it("should render Incremental option as disabled when #canUseIncremental() is false", () => {
+  it("should render a message for Dremio-handled refresh when refresh method is AUTO", () => {
+    const stub = sinon
+      .stub(AccelerationUpdatesForm.prototype, "whyCannotUseIncremental")
+      .returns("Iceberg");
+
+    const props = {
+      ...minimalProps,
+      accelerationSettings: Immutable.fromJS({ method: "AUTO" }),
+    };
+
+    const wrapper = shallow(<AccelerationUpdatesForm {...props} />);
+    expect(wrapper.find("p").text()).to.be.eql(
+      '{"0":{"id":"Refresh.Method.Auto"}}'
+    );
+
+    stub.restore();
+  });
+
+  it("should render a message for full refresh when #canUseIncremental() is false", () => {
     const stub = sinon
       .stub(AccelerationUpdatesForm.prototype, "canUseIncremental")
       .returns(false);
     const wrapper = shallow(<AccelerationUpdatesForm {...minimalProps} />);
-    expect(wrapper.find("Radio").at(1).props().disabled).to.be.true;
+    expect(wrapper.find("p").text()).to.be.eql(
+      '{"0":{"id":"Refresh.Method.Full"},"1":{}}'
+    );
     stub.restore();
   });
 
-  it("should render Incremental option as enabled when #canUseIncremental() is true", () => {
+  it("should render Full and Incremental options when #canUseIncremental() is true", () => {
     const stub = sinon
       .stub(AccelerationUpdatesForm.prototype, "canUseIncremental")
       .returns(true);
     const wrapper = shallow(<AccelerationUpdatesForm {...minimalProps} />);
-    expect(wrapper.find("Radio").at(1).props().disabled).to.be.false;
+    expect(wrapper.find("Radio")).to.have.length(2);
     stub.restore();
   });
 

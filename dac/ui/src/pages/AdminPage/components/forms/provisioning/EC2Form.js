@@ -57,16 +57,16 @@ function getInitialValues(provision, awsDefaults) {
 function validate(values) {
   let validators = {
     ...applyValidators(values, [
-      isRequired("name", la("Name")),
-      isRequired("sshKeyName", la("SSH Key Name")),
+      isRequired("name", laDeprecated("Name")),
+      isRequired("sshKeyName", laDeprecated("SSH Key Name")),
     ]),
   };
   if (values.authMode === "SECRET") {
     validators = {
       ...validators,
       ...applyValidators(values, [
-        isRequired("accessKey", la("Access Key")),
-        isRequired("secretKey", la("Secret")),
+        isRequired("accessKey", laDeprecated("Access Key")),
+        isRequired("secretKey", laDeprecated("Secret")),
       ]),
     };
   }
@@ -99,9 +99,9 @@ export class EC2Form extends Component {
   }
 
   prepareValuesForSave = (values) => {
-    const payload = prepareProvisionValuesForSave(values);
-    // add props for edit mode
     const { provision } = this.props;
+    const payload = prepareProvisionValuesForSave(values, provision);
+    // add props for edit mode
     if (isEditMode(provision)) {
       payload.id = provision.get("id");
       payload.tag = provision.get("tag");
@@ -120,7 +120,9 @@ export class EC2Form extends Component {
 
   render() {
     const { fields, handleSubmit, onCancel, style, provision } = this.props;
-    const btnText = isEditMode(provision) ? la("Save") : la("Save & Launch");
+    const btnText = isEditMode(provision)
+      ? laDeprecated("Save")
+      : laDeprecated("Add");
     return (
       <ModalForm
         {...(modalFormProps(this.props) || {})}

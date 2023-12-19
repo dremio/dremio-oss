@@ -19,8 +19,9 @@ import com.dremio.exec.planner.sql.parser.SqlGrant.Privilege;
 import com.dremio.service.namespace.NamespaceKey;
 
 /**
- * Interface to perform privilege checking on sources
+ * Deprecated interface to perform privilege checks.
  */
+@Deprecated
 public interface PrivilegeCatalog {
   /**
    * Validate user's privilege.
@@ -28,13 +29,6 @@ public interface PrivilegeCatalog {
    * @param privilege
    */
   void validatePrivilege(NamespaceKey key, Privilege privilege);
-
-  /**
-   * Check whehter user has a privilege.
-   * @param key
-   * @param privilege
-   */
-  boolean hasPrivilege(NamespaceKey key, Privilege privilege);
 
   /**
    * Validate user's ownership.

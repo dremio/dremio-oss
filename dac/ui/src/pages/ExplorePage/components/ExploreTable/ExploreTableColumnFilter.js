@@ -41,7 +41,10 @@ export class ExploreTableColumnFilter extends PureComponent {
   };
 
   updateColumnFilter = (columnFilter) => {
-    this.props.updateColumnFilter(columnFilter);
+    this.props.updateColumnFilter(
+      columnFilter,
+      this.props.dataset.get("datasetVersion")
+    );
   };
 
   render() {
@@ -70,7 +73,7 @@ function mapStateToProps(state, props) {
   const location = state.routing.locationBeforeTransitions || {};
   const datasetVersion = props.dataset.get("datasetVersion");
   const columns = getTableColumns(state, datasetVersion, location);
-  const columnFilter = getColumnFilter(state);
+  const columnFilter = getColumnFilter(state, datasetVersion);
 
   return {
     columnFilter,

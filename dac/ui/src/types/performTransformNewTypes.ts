@@ -49,4 +49,5 @@ export type HandlePostNewQueryJobSuccessProps = {
   queryStatuses: any[];
   curIndex: number;
   callback: any;
+  tabId: string;
 };

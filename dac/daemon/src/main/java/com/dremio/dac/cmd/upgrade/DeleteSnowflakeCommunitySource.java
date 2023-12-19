@@ -19,6 +19,7 @@ import static java.util.Collections.emptyList;
 
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 
 /**
  * The pre-23.1 Dremio users had to use Snowflake Community connector. Dremio 23.1 started to
@@ -54,7 +55,7 @@ public class DeleteSnowflakeCommunitySource extends UpgradeTask {
   @Override
   public void upgrade(UpgradeContext context) throws Exception {
     NamespaceServiceImpl namespaceService =
-      new NamespaceServiceImpl(context.getLegacyKVStoreProvider());
+      new NamespaceServiceImpl(context.getLegacyKVStoreProvider(), new CatalogStatusEventsImpl());
 
     // Will detect incompatible Snowflake sources created with the community connector by catching
     // ProtobufException when attempting to read source configuration. Then we delete such

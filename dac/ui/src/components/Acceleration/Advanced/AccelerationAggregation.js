@@ -35,6 +35,9 @@ export default class AccelerationAggregation extends Component {
     reflections: PropTypes.instanceOf(Immutable.Map).isRequired,
     fields: PropTypes.object,
     canAlter: PropTypes.any,
+    allowPartitionTransform: PropTypes.bool,
+    aggregationRecommendation: PropTypes.object,
+    loadingRecommendations: PropTypes.bool,
   };
 
   static getFields() {
@@ -62,12 +65,15 @@ export default class AccelerationAggregation extends Component {
   }
 
   addNewLayout = () => {
+    const { allowPartitionTransform, aggregationRecommendation } = this.props;
     const { aggregationReflections } = this.props.fields;
 
     const reflection = createReflectionFormValues(
-      {
-        type: "AGGREGATION",
-      },
+      allowPartitionTransform && aggregationRecommendation
+        ? aggregationRecommendation
+        : {
+            type: "AGGREGATION",
+          },
       aggregationReflections.map((e) => e.name.value)
     );
 
@@ -82,7 +88,7 @@ export default class AccelerationAggregation extends Component {
             type="Aggregate"
             theme={commonThemes.aggregationIconTheme}
           />
-          {la("Aggregation Reflections")}
+          {laDeprecated("Aggregation Reflections")}
         </h3>
         <SimpleButton
           onClick={this.addNewLayout}
@@ -96,7 +102,7 @@ export default class AccelerationAggregation extends Component {
           }
           type="button"
         >
-          {la("New Reflection")}
+          {laDeprecated("New Reflection")}
         </SimpleButton>
       </div>
     );
@@ -108,6 +114,7 @@ export default class AccelerationAggregation extends Component {
       reflections,
       fields: { aggregationReflections },
       canAlter,
+      loadingRecommendations,
     } = this.props;
     return (
       <div className={"AccelerationAggregation"}>
@@ -117,6 +124,7 @@ export default class AccelerationAggregation extends Component {
           dataset={dataset}
           reflections={reflections}
           layoutFields={aggregationReflections}
+          loadingRecommendations={loadingRecommendations}
           activeTab="aggregation"
         />
       </div>

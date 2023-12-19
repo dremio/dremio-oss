@@ -37,6 +37,7 @@ public class CopyIntoTableRule extends RelOptRule {
       copyIntoTableCrel.getCluster(),
       copyIntoTableCrel.getTraitSet().plus(Rel.LOGICAL),
       copyIntoTableCrel.getTable(),
+      copyIntoTableCrel.getRowType(),
       copyIntoTableCrel.getContext()));
   }
 }

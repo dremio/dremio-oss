@@ -54,7 +54,7 @@ const CurrentLocCrumb = (props: WithRouterProps & CurrentLocCrumbProps) => {
   const getNewQueryHref = () => {
     const resourceId = parseResourceId(
       location.pathname,
-      user?.get("userName")
+      `@${user?.get("userName")}`
     );
     return sqlPaths.newQuery.link({
       resourceId,
@@ -133,7 +133,7 @@ const CurrentLocCrumb = (props: WithRouterProps & CurrentLocCrumbProps) => {
   if (splitPath[2] === "jobs") {
     text = formatMessage({ id: "SideNav.Jobs" });
     to = PATHS.arcticCatalogJobs({ arcticCatalogId: splitPath[1] });
-    iconName = "brand/arctic-jobs";
+    iconName = "navigation-bar/jobs";
   }
 
   return (

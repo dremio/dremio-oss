@@ -35,7 +35,9 @@ import org.junit.Test;
 import com.dremio.BaseTestQuery;
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetSplit;
+import com.dremio.connector.metadata.options.TimeTravelOption;
 import com.dremio.datastore.LegacyProtobufSerializer;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.dfs.FileSelection;
@@ -58,13 +60,13 @@ public class TestDeltaLakeTable extends BaseTestQuery {
     path = "src/test/resources/deltalake/covid_cases";
     f = new File(path);
     fs = HadoopFileSystem.getLocal(new Configuration());
-    selection = FileSelection.create(fs, Path.of(f.getAbsolutePath()));
+    selection = FileSelection.createNotExpanded(fs, Path.of(f.getAbsolutePath()));
     sabotContext = getSabotContext();
   }
 
   @Test
   public void testWithLargeDatasetLatest() throws IOException {
-    DeltaLakeTable table = new DeltaLakeTable(sabotContext, fs, selection);
+    DeltaLakeTable table = new DeltaLakeTable(sabotContext, fs, selection, null);
     DeltaLogSnapshot snap = table.getConsolidatedSnapshot();
 
     List<String> actual = table.getAllSplits().stream().map(this::getPath).collect(Collectors.toList());
@@ -80,8 +82,15 @@ public class TestDeltaLakeTable extends BaseTestQuery {
   }
 
   @Test
-  public void testWithLargeVersion() throws IOException {
-    DeltaLakeTable table = new DeltaLakeTable(sabotContext, fs, selection, 17, 1L);
+  public void testWithLargeVersion() throws Exception {
+    try (AutoCloseable ac = withSystemOption(ExecConstants.ENABLE_DELTALAKE_TIME_TRAVEL, true)) {
+      testWithLargeVersion(TimeTravelOption.newSnapshotIdRequest("17"));
+      testWithLargeVersion(TimeTravelOption.newTimestampRequest(1610656595704L));
+    }
+  }
+
+  private void testWithLargeVersion(TimeTravelOption.TimeTravelRequest travelRequest) throws Exception {
+    DeltaLakeTable table = new DeltaLakeTable(sabotContext, fs, selection, travelRequest);
     DeltaLogSnapshot snap = table.getConsolidatedSnapshot();
 
     List<String> actual = table.getAllSplits().stream().map(this::getPath).collect(Collectors.toList());
@@ -95,8 +104,15 @@ public class TestDeltaLakeTable extends BaseTestQuery {
   }
 
   @Test
-  public void testWithSmallVersion() throws IOException {
-    DeltaLakeTable table = new DeltaLakeTable(sabotContext, fs, selection, 7, 1L);
+  public void testWithSmallVersion() throws Exception {
+    try (AutoCloseable ac = withSystemOption(ExecConstants.ENABLE_DELTALAKE_TIME_TRAVEL, true)) {
+      testWithSmallVersion(TimeTravelOption.newSnapshotIdRequest("7"));
+      testWithSmallVersion(TimeTravelOption.newTimestampRequest(1610656335387L));
+    }
+  }
+
+  private void testWithSmallVersion(TimeTravelOption.TimeTravelRequest travelRequest) throws Exception {
+    DeltaLakeTable table = new DeltaLakeTable(sabotContext, fs, selection, travelRequest);
     DeltaLogSnapshot snap = table.getConsolidatedSnapshot();
 
     List<String> actual = table.getAllSplits().stream().map(this::getPath).collect(Collectors.toList());
@@ -110,8 +126,15 @@ public class TestDeltaLakeTable extends BaseTestQuery {
   }
 
   @Test
-  public void testVersionZero() throws IOException {
-    DeltaLakeTable table = new DeltaLakeTable(sabotContext, fs, selection, 0, 1L);
+  public void testVersionZero() throws Exception {
+    try (AutoCloseable ac = withSystemOption(ExecConstants.ENABLE_DELTALAKE_TIME_TRAVEL, true)) {
+      testVersionZero(TimeTravelOption.newSnapshotIdRequest("0"));
+      testVersionZero(TimeTravelOption.newTimestampRequest(1610656189269L));
+    }
+  }
+
+  private void testVersionZero(TimeTravelOption.TimeTravelRequest travelRequest) throws IOException {
+    DeltaLakeTable table = new DeltaLakeTable(sabotContext, fs, selection, travelRequest);
     DeltaLogSnapshot snap = table.getConsolidatedSnapshot();
 
     List<String> actual = table.getAllSplits().stream().map(this::getPath).collect(Collectors.toList());
@@ -125,27 +148,19 @@ public class TestDeltaLakeTable extends BaseTestQuery {
   }
 
   @Test
-  public void testEndingWithCheckpointDatasetReadLatest() throws IOException {
-    f = new File("src/test/resources/deltalake/ending_with_checkpoint_dataset");
-    selection = FileSelection.create(fs, Path.of(f.getAbsolutePath()));
-    DeltaLakeTable table = new DeltaLakeTable(sabotContext, fs, selection);
-    DeltaLogSnapshot snap = table.getConsolidatedSnapshot();
+  public void testEndingWithCheckpointDataset() throws Exception {
+    File f = new File("src/test/resources/deltalake/ending_with_checkpoint_dataset");
+    FileSelection selection = FileSelection.createNotExpanded(fs, Path.of(f.getAbsolutePath()));
 
-    List<String> actual = table.getAllSplits().stream().map(this::getPath).collect(Collectors.toList());
-    List<String> expected = Arrays.asList("00000000000000000010.checkpoint.parquet");
-
-    assertEquals(expected, actual);
-    assertEquals(snap.getVersionId(), 10);
-    assertEquals(snap.getSchema(), "{\"type\":\"struct\",\"fields\":[{\"name\":\"iso_code\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"location\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"date\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"id\",\"type\":\"long\",\"nullable\":true,\"metadata\":{}}]}");
-    assertEquals(snap.getNetFilesAdded(), 11);
-    assertEquals(snap.getNetBytesAdded(), 14663);
+    testEndingWithCheckpointDataset(selection, null); // read latest
+    try (AutoCloseable ac = withSystemOption(ExecConstants.ENABLE_DELTALAKE_TIME_TRAVEL, true)) {
+      testEndingWithCheckpointDataset(selection, TimeTravelOption.newSnapshotIdRequest("10"));
+      testEndingWithCheckpointDataset(selection, TimeTravelOption.newTimestampRequest(1608800728932L));
+    }
   }
 
-  @Test
-  public void testEndingWithCheckpointDatasetReadVersion() throws IOException {
-    f = new File("src/test/resources/deltalake/ending_with_checkpoint_dataset");
-    selection = FileSelection.create(fs, Path.of(f.getAbsolutePath()));
-    DeltaLakeTable table = new DeltaLakeTable(sabotContext, fs, selection, 10, 1L);
+  private void testEndingWithCheckpointDataset(FileSelection selection, TimeTravelOption.TimeTravelRequest travelRequest) throws IOException {
+    DeltaLakeTable table = new DeltaLakeTable(sabotContext, fs, selection, travelRequest);
     DeltaLogSnapshot snap = table.getConsolidatedSnapshot();
 
     List<String> actual = table.getAllSplits().stream().map(this::getPath).collect(Collectors.toList());
@@ -160,9 +175,9 @@ public class TestDeltaLakeTable extends BaseTestQuery {
 
   @Test
   public void testEndingWithMultiPartCheckpointDatasetReadLatest() throws IOException {
-    f = new File("src/test/resources/deltalake/multiPartCheckpoint");
-    selection = FileSelection.create(fs, Path.of(f.getAbsolutePath()));
-    DeltaLakeTable table = new DeltaLakeTable(sabotContext, fs, selection);
+    File f = new File("src/test/resources/deltalake/multiPartCheckpoint");
+    FileSelection selection = FileSelection.createNotExpanded(fs, Path.of(f.getAbsolutePath()));
+    DeltaLakeTable table = new DeltaLakeTable(sabotContext, fs, selection, null);
     DeltaLogSnapshot snap = table.getConsolidatedSnapshot();
 
     List<String> actual = table.getAllSplits().stream().map(this::getPath).collect(Collectors.toList());
@@ -188,7 +203,7 @@ public class TestDeltaLakeTable extends BaseTestQuery {
 
   @Test
   public void testMetadataStaleCheck() throws IOException {
-    DeltaLakeTable table = new DeltaLakeTable(sabotContext, fs, selection);
+    DeltaLakeTable table = new DeltaLakeTable(sabotContext, fs, selection, null);
 
     BytesOutput signature = table.readSignature();
     DeltaLakeProtobuf.DeltaLakeReadSignature deltaLakeReadSignature = LegacyProtobufSerializer.parseFrom(DeltaLakeProtobuf.DeltaLakeReadSignature.PARSER, MetadataProtoUtils.toProtobuf(signature));
@@ -202,5 +217,98 @@ public class TestDeltaLakeTable extends BaseTestQuery {
     deltaLakeReadSignature = LegacyProtobufSerializer.parseFrom(DeltaLakeProtobuf.DeltaLakeReadSignature.PARSER, MetadataProtoUtils.toProtobuf(signature));
     //after fetching metadata should not be stale
     assertFalse(table.checkMetadataStale(deltaLakeReadSignature));
+  }
+
+  @Test
+  public void testMultipartCheckpointLastVersion() throws Exception {
+    File f = new File("src/test/resources/deltalake/multipartCheckpointSkips");
+    FileSelection selection = FileSelection.createNotExpanded(fs, Path.of(f.getAbsolutePath()));
+
+    testMultipartCheckpointLastVersion(selection, null);
+    try (AutoCloseable ac = withSystemOption(ExecConstants.ENABLE_DELTALAKE_TIME_TRAVEL, true)) {
+      testMultipartCheckpointLastVersion(selection, TimeTravelOption.newSnapshotIdRequest("13"));
+      testMultipartCheckpointLastVersion(selection, TimeTravelOption.newTimestampRequest(1684117263315L));
+    }
+  }
+
+  private void testMultipartCheckpointLastVersion(FileSelection selection, TimeTravelOption.TimeTravelRequest travelRequest) throws IOException {
+    DeltaLakeTable table = new DeltaLakeTable(sabotContext, fs, selection, travelRequest);
+    DeltaLogSnapshot snap = table.getConsolidatedSnapshot();
+
+    List<String> actual = table.getAllSplits().stream().map(this::getPath).collect(Collectors.toList());
+    List<String> expected = Arrays.asList(
+      "00000000000000000012.checkpoint.0000000001.0000000004.parquet",
+      "00000000000000000012.checkpoint.0000000002.0000000004.parquet",
+      "00000000000000000012.checkpoint.0000000003.0000000004.parquet",
+      "00000000000000000012.checkpoint.0000000004.0000000004.parquet",
+      "00000000000000000013.json");
+
+    assertEquals(expected, actual);
+    assertEquals(13L, snap.getVersionId());
+    assertEquals(4L, snap.getNetFilesAdded());
+    assertEquals(2836L, snap.getNetBytesAdded());
+  }
+
+  @Test
+  public void testMultipartCheckpointSkipToPreviousCheckpoint() throws Exception {
+    File f = new File("src/test/resources/deltalake/multipartCheckpointSkips");
+    FileSelection selection = FileSelection.createNotExpanded(fs, Path.of(f.getAbsolutePath()));
+
+    try (AutoCloseable ac = withSystemOption(ExecConstants.ENABLE_DELTALAKE_TIME_TRAVEL, true)) {
+      testMultipartCheckpointSkipToPreviousCheckpoint(selection, TimeTravelOption.newSnapshotIdRequest("10"));
+      testMultipartCheckpointSkipToPreviousCheckpoint(selection, TimeTravelOption.newTimestampRequest(1684117237899L));
+    }
+  }
+
+  private void testMultipartCheckpointSkipToPreviousCheckpoint(FileSelection selection, TimeTravelOption.TimeTravelRequest travelRequest) throws IOException {
+    // checkpoint for version 9 is missing a part, expect to skip and use previous checkpoint for version 6
+
+    DeltaLakeTable table = new DeltaLakeTable(sabotContext, fs, selection, travelRequest);
+    DeltaLogSnapshot snap = table.getConsolidatedSnapshot();
+
+    List<String> actual = table.getAllSplits().stream().map(this::getPath).collect(Collectors.toList());
+    List<String> expected = Arrays.asList(
+      "00000000000000000006.checkpoint.0000000001.0000000002.parquet",
+      "00000000000000000006.checkpoint.0000000002.0000000002.parquet",
+      "00000000000000000007.json",
+      "00000000000000000008.json",
+      "00000000000000000009.json",
+      "00000000000000000010.json");
+
+    assertEquals(expected, actual);
+    assertEquals(10L, snap.getVersionId());
+    assertEquals(1L, snap.getNetFilesAdded());
+    assertEquals(798L, snap.getNetBytesAdded());
+  }
+
+  @Test
+  public void testMultipartCheckpointSkipToVersion0() throws Exception {
+    File f = new File("src/test/resources/deltalake/multipartCheckpointSkips");
+    FileSelection selection = FileSelection.createNotExpanded(fs, Path.of(f.getAbsolutePath()));
+
+    try (AutoCloseable ac = withSystemOption(ExecConstants.ENABLE_DELTALAKE_TIME_TRAVEL, true)) {
+      testMultipartCheckpointSkipToVersion0(selection, TimeTravelOption.newSnapshotIdRequest("4"));
+      testMultipartCheckpointSkipToVersion0(selection, TimeTravelOption.newTimestampRequest(1684117164770L));
+    }
+  }
+
+  private void testMultipartCheckpointSkipToVersion0(FileSelection selection, TimeTravelOption.TimeTravelRequest travelRequest) throws IOException {
+    // checkpoint for version 3 is missing a part, expect to skip and use only json log files starting version 0
+
+    DeltaLakeTable table = new DeltaLakeTable(sabotContext, fs, selection, travelRequest);
+    DeltaLogSnapshot snap = table.getConsolidatedSnapshot();
+
+    List<String> actual = table.getAllSplits().stream().map(this::getPath).collect(Collectors.toList());
+    List<String> expected = Arrays.asList(
+      "00000000000000000000.json",
+      "00000000000000000001.json",
+      "00000000000000000002.json",
+      "00000000000000000003.json",
+      "00000000000000000004.json");
+
+    assertEquals(expected, actual);
+    assertEquals(4L, snap.getVersionId());
+    assertEquals(8L, snap.getNetFilesAdded());
+    assertEquals(5487L, snap.getNetBytesAdded());
   }
 }

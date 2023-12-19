@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-plugin-parent</artifactId>
-    <version>24.1.0-202306130653310132-d30779f6</version>
+    <version>24.3.0-202312190021150029-52db2faf</version>
   </parent>
 
   <artifactId>dremio-hive-plugin</artifactId>
@@ -62,16 +62,6 @@
       <groupId>com.dremio.contrib</groupId>
       <artifactId>dremio-hive2-exec-shaded</artifactId>
       <version>${project.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>org.apache.calcite</groupId>
-          <artifactId>calcite-avatica</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.apache.hive</groupId>
-          <artifactId>hive-exec</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.apache.hive</groupId>
@@ -429,6 +419,13 @@
       <type>pom</type>
       <scope>test</scope>
     </dependency>
+    <!-- https://mvnrepository.com/artifact/io.delta/delta-hive -->
+    <dependency>
+      <groupId>io.delta</groupId>
+      <artifactId>delta-hive_2.12</artifactId>
+      <version>3.0.0</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -517,17 +514,11 @@
       <plugin>
         <groupId>org.xolstice.maven.plugins</groupId>
         <artifactId>protobuf-maven-plugin</artifactId>
-        <configuration>
-          <protoSourceRoot>${project.basedir}/src/main/proto</protoSourceRoot>
-        </configuration>
         <executions>
           <execution>
             <goals>
               <goal>compile</goal>
             </goals>
-            <configuration>
-              <outputDirectory>${project.build.directory}/generated-sources/protobuf</outputDirectory>
-            </configuration>
           </execution>
         </executions>
       </plugin>
@@ -612,6 +603,19 @@
             </configuration>
           </execution>
         </executions>
+      </plugin>
+      <plugin>
+        <groupId>com.mycila</groupId>
+        <artifactId>license-maven-plugin</artifactId>
+        <configuration>
+          <licenseSets>
+            <licenseSet>
+              <excludes combine.children="append">
+                <excludes>**/src/test/resources/parquet/**</excludes>
+              </excludes>
+            </licenseSet>
+          </licenseSets>
+        </configuration>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>

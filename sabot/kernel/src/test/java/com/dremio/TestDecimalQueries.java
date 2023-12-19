@@ -387,4 +387,23 @@ public class TestDecimalQueries extends DecimalCompleteTest {
       .baselineValues(new BigDecimal("6033004000000000000000000000000000000"))
       .go();
   }
+
+  @Test
+  public void testLog2() throws Exception {
+    String query = "select log2(16) as log_result";
+    testBuilder()
+      .sqlQuery(query)
+      .ordered()
+      .baselineColumns("log_result")
+      .baselineValues(4.0)
+      .go();
+
+    query = "select log2(1) as log_result";
+    testBuilder()
+      .sqlQuery(query)
+      .ordered()
+      .baselineColumns("log_result")
+      .baselineValues(0.0)
+      .go();
+  }
 }

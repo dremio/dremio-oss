@@ -31,7 +31,7 @@ import com.dremio.telemetry.api.Telemetry.ExceptionWatcher;
  */
 public class TestExceptionWatcher {
 
-  private static class TestConsumer implements Consumer<Exception> {
+  private static final class TestConsumer implements Consumer<Exception> {
 
     private List<Exception> calledWith = new ArrayList<>();
 

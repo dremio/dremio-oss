@@ -18,6 +18,7 @@ import { useState, useEffect } from "react";
 import { connect } from "react-redux";
 import { compose } from "redux";
 import { withRouter } from "react-router";
+import DocumentTitle from "react-document-title";
 import Immutable from "immutable";
 import PropTypes from "prop-types";
 import { injectIntl } from "react-intl";
@@ -71,6 +72,7 @@ const JobListingPage = (props) => {
     jobIdList,
     queryFilter,
     children,
+    intl,
   } = props;
   const { state: { isFromJobListing } = {} } = location || {};
   const [lastLoaded, setLastLoaded] = useState("");
@@ -179,9 +181,16 @@ const JobListingPage = (props) => {
     }
   };
 
+  const isOnJobDetails = rmProjectBase(location.pathname).startsWith(
+    "/jobs/job"
+  );
+
   return (
     <div className={"jobPageNew"}>
       <span className={clsx("content-wrapper", { hasChildren: !!children })}>
+        {!isOnJobDetails && !isFromExplorePage && (
+          <DocumentTitle title={intl.formatMessage({ id: "Job.Jobs" })} />
+        )}
         <JobsContent
           className={flexElementAuto} // Page object adds flex in style
           loadNextJobs={tableRowRenderer}

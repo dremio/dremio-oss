@@ -19,18 +19,25 @@ import java.util.Objects;
 
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.EntityPath;
+import com.dremio.connector.metadata.options.InternalMetadataTableOption;
 
 public final class HiveDatasetHandle implements DatasetHandle {
 
   private final EntityPath datasetpath;
+  private final InternalMetadataTableOption internalMetadataTableOption;
 
-  private HiveDatasetHandle(final EntityPath datasetpath) {
+  private HiveDatasetHandle(final EntityPath datasetpath, final InternalMetadataTableOption internalMetadataTableOption) {
     this.datasetpath = datasetpath;
+    this.internalMetadataTableOption = internalMetadataTableOption;
   }
 
   @Override
   public EntityPath getDatasetPath() {
     return datasetpath;
+  }
+
+  public InternalMetadataTableOption getInternalMetadataTableOption() {
+    return internalMetadataTableOption;
   }
 
   public static Builder newBuilder() {
@@ -39,17 +46,21 @@ public final class HiveDatasetHandle implements DatasetHandle {
 
   public static final class Builder {
     private EntityPath datasetpath;
+    private InternalMetadataTableOption internalMetadataTableOption;
 
     public Builder datasetpath(EntityPath datasetpath) {
       this.datasetpath = datasetpath;
       return this;
     }
 
+    public Builder internalMetadataTableOption(InternalMetadataTableOption internalMetadataTableOption) {
+      this.internalMetadataTableOption = internalMetadataTableOption;
+      return this;
+    }
+
     public HiveDatasetHandle build() {
-
       Objects.requireNonNull(datasetpath, "dataset path is required");
-
-      return new HiveDatasetHandle(datasetpath);
+      return new HiveDatasetHandle(datasetpath, internalMetadataTableOption);
     }
   }
 }

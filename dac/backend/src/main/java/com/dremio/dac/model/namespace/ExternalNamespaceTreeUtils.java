@@ -17,15 +17,14 @@ package com.dremio.dac.model.namespace;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.dac.explore.model.Dataset;
 import com.dremio.dac.model.folder.Folder;
 import com.dremio.dac.model.sources.PhysicalDataset;
 import com.dremio.dac.model.sources.SourceName;
-import com.dremio.exec.catalog.TableVersionContext;
 import com.dremio.exec.catalog.VersionedDatasetId;
 import com.dremio.plugins.ExternalNamespaceEntry;
 import com.dremio.service.namespace.space.proto.FolderConfig;
@@ -37,7 +36,7 @@ public final class ExternalNamespaceTreeUtils {
   private ExternalNamespaceTreeUtils() {}
 
   public static NamespaceTree namespaceTreeOf(
-      SourceName sourceName, List<ExternalNamespaceEntry> entries) {
+      SourceName sourceName, Stream<ExternalNamespaceEntry> entries) {
     Objects.requireNonNull(sourceName);
 
     final NamespaceTree namespaceTree = new NamespaceTree();
@@ -47,8 +46,7 @@ public final class ExternalNamespaceTreeUtils {
           final String name = entry.getName();
           final List<String> namespace = entry.getNamespace();
           final List<String> fullPathList =
-              Stream.of(Stream.of(sourceName.getName()), entry.getNameElements().stream())
-                  .flatMap(Function.identity())
+              Stream.concat(Stream.of(sourceName.getName()), entry.getNameElements().stream())
                   .collect(Collectors.toList());
           final TableVersionContext tableVersionContext = entry.getTableVersionContext();
           final String versionedDatasetId =

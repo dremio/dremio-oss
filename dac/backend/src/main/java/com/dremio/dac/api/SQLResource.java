@@ -83,12 +83,22 @@ public class SQLResource {
 
   @POST
   public QueryDetails runQuery(CreateFromSQL sql) {
-    final SqlQuery sqlQuery = JobRequestUtil.createSqlQuery(sql.getSql(), sql.getContext(),securityContext.getUserPrincipal().getName(), sql.getEngineName(), null);
+    final SqlQuery sqlQuery = JobRequestUtil.createSqlQuery(
+        sql.getSql(),
+        sql.getContext(),
+        securityContext.getUserPrincipal().getName(),
+        sql.getEngineName(),
+        null,
+        sql.getReferences());
+
     final JobSubmittedListener listener = new JobSubmittedListener();
-    final JobId jobId = jobs.submitJob(SubmitJobRequest.newBuilder()
-      .setSqlQuery(sqlQuery)
-      .setQueryType(QueryType.REST)
-      .build(), listener)
+
+    final JobId jobId = jobs.submitJob(
+        SubmitJobRequest.newBuilder()
+            .setSqlQuery(sqlQuery)
+            .setQueryType(QueryType.REST)
+            .build(),
+        listener)
       .getJobId();
 
     // if async disabled, wait until job has been submitted then return

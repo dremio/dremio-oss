@@ -32,7 +32,7 @@ public abstract class AbstractPartitionChunkMetadata implements PartitionChunkMe
   private final PartitionChunk partitionChunk;
   private final NormalizedPartitionInfo normalizedPartitionInfo;
 
-  AbstractPartitionChunkMetadata(PartitionChunk partitionChunk) {
+  protected AbstractPartitionChunkMetadata(PartitionChunk partitionChunk) {
     this.partitionChunk = partitionChunk;
 
     // we need a unique key per partition (atleast at the operator level), which is used as a

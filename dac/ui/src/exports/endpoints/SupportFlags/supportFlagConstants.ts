@@ -17,5 +17,17 @@ export const REFLECTION_ARCTIC_ENABLED = "reflection.arctic.enabled";
 export const SUBHOUR_ACCELERATION_POLICY =
   "accelerator.enable.subhour.policies";
 export const ALLOW_DOWNLOAD = "ui.download.allow";
-export const AUTOCOMPLETE_UI_V2 = "ui.autocomplete.v2.enabled";
+export const LIVE_SYNTAX_ERROR_DETECTION =
+  "ui.live_syntax_error_detection.enabled";
 export const NEW_DATASET_NAVIGATION = "ui.dataset.navigation.new";
+export const ALLOW_REFLECTION_PARTITION_TRANFORMS =
+  "reflection.enable_iceberg_transforms";
+export const SHOW_METADATA_VALIDITY_CHECKBOX =
+  "store.plugin.show_metadata_validity_checkbox";
+export const DISABLE_CROSS_SOURCE_SELECT =
+  "planner.cross_source_select.disable";
+export const USE_NEW_STATS_API =
+  "dremio.jobs_user_stats_api.enabled";
+export const DATAPLANE_STORAGE_SELECTION_UI_ENABLED =
+  "plugins.dataplane.storage_selection.ui.enabled";
+export const SQLRUNNER_TABS_UI = "sqlrunner.tabs_ui";

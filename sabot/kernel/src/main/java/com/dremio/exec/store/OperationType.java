@@ -25,7 +25,9 @@ public enum OperationType {
   ADD_DATAFILE(0),
   DELETE_DATAFILE(1),
   ADD_MANIFESTFILE(2),
-  DELETE_DELETEFILE(3);
+  DELETE_DELETEFILE(3),
+  ORPHAN_DATAFILE(4),
+  COPY_INTO_ERROR(5);
 
   public final Integer value;
 

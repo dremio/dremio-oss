@@ -18,7 +18,9 @@ import { WEB_SOCKET_URL } from "@app/constants/Api";
 import localStorageUtils from "utils/storageUtils/localStorageUtils";
 import { addNotification, removeNotification } from "actions/notification";
 import Immutable from "immutable";
-import uuid from "uuid";
+import { v4 as uuidv4 } from "uuid";
+import { isServerReachable } from "dremio-ui-common/utilities/waitForServerReachable.js";
+import { isDev } from "@app/exports/utilities/isDev";
 
 const PING_INTERVAL = 15000;
 const CHECK_INTERVAL = 5000;
@@ -49,32 +51,39 @@ export class Socket {
   _checkId = 0;
   _failureCount = 0;
   _listeners = {};
+  _isListeningToJob = null;
+  _isHeartbeatActive = false;
 
   get isOpen() {
-    return !!this._socket && this._socket.readyState === WebSocket.OPEN;
+    return !!this._socket && this._socket?.readyState === WebSocket.OPEN;
   }
 
   get exists() {
     return !!this._socket;
   }
 
-  open() {
-    invariant(!this._socket, "socket already open");
+  checkIsOpen = () => {
+    return this.isOpen;
+  };
+
+  open = () => {
+    invariant(!this.isOpen, "socket already open");
     invariant(this.dispatch, "socket requires #dispatch to be assigned");
 
     this._createConnection();
     this._pingId = setInterval(this._ping, PING_INTERVAL);
-    this._checkId = setInterval(this._checkConnection, CHECK_INTERVAL);
-  }
+    if (!this._checkId)
+      this._checkId = setInterval(this._checkConnection, CHECK_INTERVAL);
+  };
 
-  close() {
+  close = (isTemporary = false) => {
     if (this._socket) this._socket.close();
     this._socket = null;
     this._listenMessages = {};
     this._failureCount = 0;
     clearInterval(this._pingId);
-    clearInterval(this._checkId);
-  }
+    if (!isTemporary) clearInterval(this._checkId);
+  };
 
   _createConnection() {
     const authToken = localStorageUtils && localStorageUtils.getAuthToken();
@@ -87,11 +96,27 @@ export class Socket {
     this._socket.onmessage = this._handleMessage;
   }
 
-  _checkConnection = () => {
-    // if the connection dies, keep trying to reopen it
-    if (this._socket.readyState === WebSocket.CLOSED) {
-      this._createConnection();
+  _checkConnection = async () => {
+    // De-activate for local dev --> server-reachable passes locally when it shouldn't
+    if (this._isHeartbeatActive && !isDev) {
+      const isServer = await isServerReachable();
+
+      if (!isServer && this.isOpen) {
+        this.close(true);
+      }
+
+      if (isServer && !this.isOpen) {
+        this.open();
+      }
+    } else {
+      if (this._socket?.readyState === WebSocket.CLOSED) {
+        this._createConnection();
+      }
     }
+  };
+
+  setServerHeartbeat = (active) => {
+    this._isHeartbeatActive = active;
   };
 
   _handleConnectionError = (e) => {
@@ -122,6 +147,12 @@ export class Socket {
       this.dispatch({ type: WS_CONNECTION_OPEN });
       this.dispatch(removeNotification(WS_CLOSED));
     });
+
+    if (this._isListeningToJob) {
+      const args = this._isListeningToJob;
+      this.startListenToJobProgress(args.jobId, args.forceSend);
+      this.startListenToQVJobProgress(args.jobId, args.forceSend);
+    }
 
     const keys = Object.keys(this._listenMessages);
     for (let i = 0; i < keys.length; i++) {
@@ -182,6 +213,7 @@ export class Socket {
         id: jobId,
       },
     };
+    this._isListeningToJob = { jobId: jobId, type: type, forceSend: forceSend };
     this.sendListenMessage(message, forceSend);
   };
 
@@ -193,6 +225,7 @@ export class Socket {
         id: jobId,
       },
     };
+    this._isListeningToJob = null;
     this.stopListenMessage(message, forceSend);
   };
 
@@ -293,7 +326,7 @@ export class Socket {
   }
 
   addListener(listener) {
-    const id = uuid.v4();
+    const id = uuidv4();
     this._listeners[id] = listener;
     return id;
   }

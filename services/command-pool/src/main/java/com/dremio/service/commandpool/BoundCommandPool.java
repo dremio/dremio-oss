@@ -44,7 +44,7 @@ class BoundCommandPool implements CommandPool {
       0, TimeUnit.SECONDS, // doesn't matter as number of threads never exceeds core size
       new PriorityBlockingQueue<>(),
       new NamedThreadFactory("bound-command")
-    ), tracer);
+    ));
   }
 
   @Override

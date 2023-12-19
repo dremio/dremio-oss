@@ -76,19 +76,19 @@ class UsersView extends PureComponent {
     // set width for fixed width columns. If width is not provided, then flexGrow will be applied
     return [
       {
-        label: la("Name"),
+        label: laDeprecated("Name"),
         flexGrow: 1,
       },
       {
-        label: la("Username"),
+        label: laDeprecated("Username"),
         flexGrow: 1,
       },
       {
-        label: la("Email"),
+        label: laDeprecated("Email"),
         width: 250,
       },
       {
-        label: la("Action"),
+        label: laDeprecated("Action"),
         width: 120,
       },
     ].map((colConfig, i) => ({
@@ -186,7 +186,7 @@ class UsersView extends PureComponent {
               <FontIcon type="Search" theme={styles.fontIcon} />
               <input
                 type="text"
-                placeholder={la("Search users")}
+                placeholder={laDeprecated("Search users")}
                 style={styles.searchInput}
                 onChange={this.props.search}
                 ref={this.searchInputsRef}

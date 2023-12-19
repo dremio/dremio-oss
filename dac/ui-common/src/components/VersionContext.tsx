@@ -14,32 +14,22 @@
  * limitations under the License.
  */
 
+import { TableVersionType } from "../arctic/datasets/TableVersionType.type";
 import { getShortHash } from "../utilities/versionContext";
 
-export enum VersionContextTypes {
-  BRANCH = "BRANCH",
-  TAG = "TAG",
-  COMMIT_HASH_ONLY = "COMMIT_HASH_ONLY",
-  SNAPSHOT_ID = "SNAPSHOT_ID",
-  TIMESTAMP = "TIMESTAMP",
-  LATEST_VERSION = "LATEST_VERSION",
-  NOT_SPECIFIED = "NOT_SPECIFIED",
-  REFERENCE = "REFERENCE",
-}
-
-const VERSION_CONTEXT = {
-  [VersionContextTypes.BRANCH]: "branch",
-  [VersionContextTypes.TAG]: "tag",
-  [VersionContextTypes.COMMIT_HASH_ONLY]: "commit",
-  [VersionContextTypes.SNAPSHOT_ID]: "snapshot",
-  [VersionContextTypes.TIMESTAMP]: "timestamp",
-  [VersionContextTypes.LATEST_VERSION]: "branch",
-  [VersionContextTypes.NOT_SPECIFIED]: "branch",
-  [VersionContextTypes.REFERENCE]: "branch",
+const VERSION_CONTEXT: {[V in TableVersionType]: string} = {
+  [TableVersionType.BRANCH]: "branch",
+  [TableVersionType.TAG]: "tag",
+  [TableVersionType.COMMIT_HASH_ONLY]: "commit",
+  [TableVersionType.SNAPSHOT_ID]: "snapshot",
+  [TableVersionType.TIMESTAMP]: "timestamp",
+  [TableVersionType.LATEST_VERSION]: "branch",
+  [TableVersionType.NOT_SPECIFIED]: "branch",
+  [TableVersionType.REFERENCE]: "branch",
 };
 
 export type VersionContextType = {
-  type: keyof typeof VersionContextTypes;
+  type: keyof typeof TableVersionType;
   value: string;
 };
 
@@ -54,14 +44,14 @@ const VersionContext = ({
 }) => {
   const { type, value } = versionContext;
   const prefix =
-    type === VersionContextTypes.COMMIT_HASH_ONLY ||
-    type === VersionContextTypes.BRANCH ||
-    type === VersionContextTypes.TAG ||
+    type === TableVersionType.COMMIT_HASH_ONLY ||
+    type === TableVersionType.BRANCH ||
+    type === TableVersionType.TAG ||
     withRefKeyword
       ? "Ref:"
       : "";
   const refValue =
-    type === VersionContextTypes.COMMIT_HASH_ONLY
+    type === TableVersionType.COMMIT_HASH_ONLY
       ? getShortHash(value || "")
       : value;
 

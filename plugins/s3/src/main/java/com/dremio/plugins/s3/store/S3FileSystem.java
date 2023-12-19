@@ -128,6 +128,7 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
     .setWaitStrategy(Retryer.WaitStrategy.EXPONENTIAL, 250, 2500)
     .setMaxRetries(10).build();
 
+  @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
   private final LoadingCache<String, CloseableRef<S3Client>> syncClientCache = CacheBuilder
           .newBuilder()
           .expireAfterAccess(1, TimeUnit.HOURS)
@@ -141,6 +142,7 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
             }
           });
 
+  @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
   private final LoadingCache<String, CloseableRef<S3AsyncClient>> asyncClientCache = CacheBuilder
           .newBuilder()
           .expireAfterAccess(1, TimeUnit.HOURS)
@@ -168,6 +170,7 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
     }
   }
 
+  @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
   private final LoadingCache<S3ClientKey, CloseableResource<AmazonS3>> clientCache = CacheBuilder
           .newBuilder()
           .expireAfterAccess(1,TimeUnit.HOURS)

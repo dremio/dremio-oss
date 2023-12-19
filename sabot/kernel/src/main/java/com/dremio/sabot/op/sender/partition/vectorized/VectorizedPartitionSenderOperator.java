@@ -73,10 +73,10 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
   /** used to ensure outgoing batches creation and */
   private final Object batchCreationLock = new Object();
 
-  private final OperatorContext context;
-  private final HashPartitionSender config;
+  protected final OperatorContext context;
+  protected final HashPartitionSender config;
   private final TunnelProvider tunnelProvider;
-  private final int numReceivers;
+  protected final int numReceivers;
   private final AtomicIntegerArray remainingReceivers;
   private IntArrayList terminations = new IntArrayList();
   private final AtomicInteger remaingReceiverCount;
@@ -351,6 +351,10 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
     stats.stopWait();
   }
 
+  protected OutgoingBatch getBatch(int partition, OutgoingBatch[] modLookup) {
+    return modLookup[partition];
+  }
+
   private void generateCopyIndices(final int start, final int numRowsToCopy) {
     long srcAddr = partitionIndices.getDataBufferAddress() + start*4;
     long dstAddr = copyIndices.getDataBufferAddress();
@@ -363,7 +367,8 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
     final long max = srcAddr + numRowsToCopy*4;
     for (; srcAddr < max; srcAddr+=4, dstAddr+=4) {
       final int partition = (PlatformDependent.getInt(srcAddr) & 0x7FFFFFFF) & mod; // abs(hash) % modSize
-      final OutgoingBatch batch = modLookup[partition];
+      OutgoingBatch batch = getBatch(partition, modLookup);
+
       final int compound = batch.preCopyRow();
       PlatformDependent.putInt(dstAddr, compound);
 

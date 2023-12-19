@@ -33,6 +33,7 @@ import static com.google.common.base.Predicates.and;
 import static com.google.common.base.Predicates.notNull;
 
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -142,13 +143,22 @@ public class MaterializationStore {
     long footprint = 0;
     double originalCost = 0;
     long outputRecords = 0;
-    for(Refresh r : getRefreshes(materialization)) {
+    int numFiles = 0;
+    // Get a list of refreshes in descending order (highest ordinal first).
+    // If one of the refreshes was compacted, then ignore other refreshes before it, because the reflection was optimized.
+    ImmutableList<Refresh> refreshes = getRefreshes(materialization).toSortedList(Comparator.comparingInt(Refresh::getSeriesOrdinal)).reverse();
+    for(Refresh r : refreshes) {
       footprint += r.getMetrics().getFootprint();
       originalCost += r.getMetrics().getOriginalCost();
       outputRecords += r.getJob().getOutputRecords();
+      numFiles += r.getMetrics().getNumFiles();
+      if(r.getCompacted()) {
+        break;
+      }
     }
     metrics.setOriginalCost(originalCost);
     metrics.setFootprint(footprint);
+    metrics.setNumFiles(numFiles);
     return Pair.of(metrics, outputRecords);
   }
 
@@ -320,6 +330,31 @@ public class MaterializationStore {
     return value;
   }
 
+  /**
+   * Gets the previous materialization for a reflection.
+   * So if there is a materialization currently executing, it will return not the currently running one
+   * but the previous run materialization regardless of status
+   * @param id reflection id
+   * @return the previous materialization (not the current one but the one right before it).
+   */
+  public Materialization getPreviousMaterialization(final ReflectionId id) {
+    final LegacyFindByCondition condition = new LegacyFindByCondition()
+      .addSorting(LAST_REFRESH_SUBMIT)
+      .setLimit(2)
+      .setCondition(and(
+        newTermQuery(ReflectionIndexKeys.MATERIALIZATION_REFLECTION_ID, id.getId())
+      ));
+    //the currently running materialization is at position 0, we use position 1 to get the previous run
+    Entry<MaterializationId, Materialization> entry = Iterables.get(materializationStore.get().find(condition), 1);
+    if(entry == null) {
+      return null;
+    }
+
+    Materialization value = entry.getValue();
+    materializationGoalVersionUpdate(value);
+    return value;
+  }
+
   public Materialization getRunningMaterialization(final ReflectionId id) {
     return findLastMaterializationByState(id, MaterializationState.RUNNING);
   }
@@ -457,16 +492,6 @@ public class MaterializationStore {
   }
 
   private static final class MaterializationVersionExtractor implements VersionExtractor<Materialization> {
-    @Override
-    public Long getVersion(Materialization value) {
-      return value.getVersion();
-    }
-
-    @Override
-    public void setVersion(Materialization value, Long version) {
-      value.setVersion(version);
-    }
-
     @Override
     public String getTag(Materialization value) {
       return value.getTag();

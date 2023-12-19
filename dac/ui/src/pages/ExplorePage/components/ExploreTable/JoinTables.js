@@ -52,7 +52,7 @@ export class JoinTables extends PureComponent {
     joinStep: PropTypes.number,
   };
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     // because we have two tables visible, it's possible to evict the left table by looking at enough different
     // right tables. So accesss the left tableData every time the right tableData changes
     if (nextProps.joinVersion !== this.props.joinVersion) {

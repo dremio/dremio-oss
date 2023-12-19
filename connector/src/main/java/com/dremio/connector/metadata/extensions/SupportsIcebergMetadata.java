@@ -15,6 +15,8 @@
  */
 package com.dremio.connector.metadata.extensions;
 
+import java.util.Map;
+
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetStats;
 
@@ -44,6 +46,13 @@ public interface SupportsIcebergMetadata {
    * @return serialized partition specs
    */
   BytesOutput getPartitionSpecs();
+
+  /**
+   * Provides a serialized version of sort orders.
+   *
+   * @return serialized sort orders
+   */
+  String getSortOrder();
 
   /**
    * Provides a String version of Iceberg Schema.
@@ -77,5 +86,12 @@ public interface SupportsIcebergMetadata {
    * modification time for the snapshot
    */
   long getMtime();
+
+  /**
+   * Provides table properties.
+   *
+   * @return a Map with table properties names/values.
+   */
+  Map<String, String> getTableProperties();
 
 }

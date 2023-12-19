@@ -94,6 +94,9 @@ public class TestTableauMessageBodyGenerator {
   public final MockitoRule mockitoRule = MockitoJUnit.rule();
 
   private static final NodeEndpoint ENDPOINT = NodeEndpoint.newBuilder().setAddress("foo").setUserPort(12345).build();
+  public static final String NATIVE = "NATIVE";
+  public static final String FLIGHT = "FLIGHT";
+  public static final String SSL_TRUE = "ssl = true";
 
   private final DatasetPath path;
   private final String tableName;
@@ -120,7 +123,7 @@ public class TestTableauMessageBodyGenerator {
   }
 
   @Test
-  public void verifyOutput()
+  public void verifyODBCOutput()
       throws IOException, SAXException, ParserConfigurationException, ParseException {
     when(optionManager.getOption(EXTRA_CONNECTION_PROPERTIES)).thenReturn(customProperties);
     when(optionManager.getOption(TABLEAU_EXPORT_TYPE))
@@ -192,13 +195,15 @@ public class TestTableauMessageBodyGenerator {
   @Test
   public void verifySdkOutputSslOff()
     throws IOException, SAXException, ParserConfigurationException, ParseException {
-    verifySdkOutput("" ,"");
+    verifyOutput("" ,"", NATIVE);
+
   }
 
   @Test
   public void verifySdkOutputSslOn()
     throws IOException, SAXException, ParserConfigurationException, ParseException {
-    verifySdkOutput("ssl = true", TableauSDKConstants.REQUIRE);
+    verifyOutput(SSL_TRUE, TableauSDKConstants.REQUIRE, NATIVE);
+
   }
 
   @Test
@@ -206,19 +211,22 @@ public class TestTableauMessageBodyGenerator {
     throws IOException, SAXException, ParserConfigurationException, ParseException {
     when(config.hasPath("services.coordinator.client-endpoint.ssl.enabled")).thenReturn(true);
     when(config.getBoolean("services.coordinator.client-endpoint.ssl.enabled")).thenReturn(true);
-    verifySdkOutput("", TableauSDKConstants.REQUIRE);
+    verifyOutput(SSL_TRUE, TableauSDKConstants.REQUIRE, NATIVE);
+
   }
 
   @Test
   public void verifyFlightOutputSslOff()
     throws IOException, SAXException, ParserConfigurationException, ParseException {
-    verifyFlightOutput("" ,"");
+    verifyOutput("" ,"", FLIGHT);
+
   }
 
   @Test
   public void verifyFlightOutputSslOn()
     throws IOException, SAXException, ParserConfigurationException, ParseException {
-    verifyFlightOutput("useTls = true", TableauSDKConstants.REQUIRE);
+    verifyOutput("useEncryption = true", TableauSDKConstants.REQUIRE, FLIGHT);
+
   }
 
   @Test
@@ -226,7 +234,8 @@ public class TestTableauMessageBodyGenerator {
     throws IOException, SAXException, ParserConfigurationException, ParseException {
     when(config.hasPath("services.coordinator.client-endpoint.ssl.enabled")).thenReturn(true);
     when(config.getBoolean("services.coordinator.client-endpoint.ssl.enabled")).thenReturn(true);
-    verifyFlightOutput("", TableauSDKConstants.REQUIRE);
+    verifyOutput("", TableauSDKConstants.REQUIRE, FLIGHT);
+
   }
 
 
@@ -234,6 +243,7 @@ public class TestTableauMessageBodyGenerator {
     assertEquals("", connection.getAttribute(TableauSDKConstants.QUEUE));
     assertEquals("", connection.getAttribute(TableauSDKConstants.ENGINE));
     assertEquals("", connection.getAttribute(TableauSDKConstants.TAG));
+    assertEquals("", connection.getAttribute(TableauSDKConstants.DISABLE_CERT_VERIFICATION));
   }
 
   protected void verifySdkAuthenticationOutput(Element connection) {
@@ -245,14 +255,20 @@ public class TestTableauMessageBodyGenerator {
   }
 
   protected void verifySdkProduct(Element connection) {
+    assertEquals(TableauSDKConstants.LEGACY_SOFTWARE, connection.getAttribute(TableauSDKConstants.PRODUCT));
+  }
+
+  protected void verifyFlightProduct(Element connection) {
     assertEquals(TableauSDKConstants.SOFTWARE, connection.getAttribute(TableauSDKConstants.PRODUCT));
   }
 
-  protected Element verifySdkOutput(String properties, String sslmode)
-      throws IOException, SAXException, ParserConfigurationException, ParseException {
+
+  protected Element verifyOutput(String properties, String sslmode, String tableauExportType)
+    throws IOException, SAXException, ParserConfigurationException, ParseException {
+    when(optionManager.getOption(EXTRA_FLIGHT_CONNECTION_PROPERTIES)).thenReturn(properties);
     when(optionManager.getOption(EXTRA_NATIVE_CONNECTION_PROPERTIES)).thenReturn(properties);
     when(optionManager.getOption(TABLEAU_EXPORT_TYPE))
-      .thenReturn(TableauExportType.NATIVE.toString());
+      .thenReturn(tableauExportType);
     final DatasetConfig datasetConfig = new DatasetConfig();
     datasetConfig.setFullPathList(path.toPathList());
     datasetConfig.setType(DatasetType.PHYSICAL_DATASET);
@@ -284,56 +300,11 @@ public class TestTableauMessageBodyGenerator {
     verifySdkSSLOutput(connection, sslmode);
     verifySdkCustomOutput(connection);
 
-    verifyRelationElement(connection);
-
-    // test column aliases, column element and attributes
-    verifyAliasesElement(document);
-    final NodeList columnAliases = document.getDocumentElement().getElementsByTagName("column");
-    assertEquals(columnAliases.getLength(), schema.getFieldCount());
-    verifyBatchSchema(columnAliases);
-
-    // Also check that Content-Disposition header is set with a filename ending by tds
-    final ContentDisposition contentDisposition = new ContentDisposition((String) httpHeaders.getFirst(HttpHeaders.CONTENT_DISPOSITION));
-    assertTrue("filename should end with .tds", contentDisposition.getFileName().endsWith(".tds"));
-
-    return connection;
-  }
-
-  protected Element verifyFlightOutput(String properties, String sslmode)
-    throws IOException, SAXException, ParserConfigurationException, ParseException {
-    when(optionManager.getOption(EXTRA_FLIGHT_CONNECTION_PROPERTIES)).thenReturn(properties);
-    when(optionManager.getOption(TABLEAU_EXPORT_TYPE))
-      .thenReturn(TableauExportType.FLIGHT.toString());
-    final DatasetConfig datasetConfig = new DatasetConfig();
-    datasetConfig.setFullPathList(path.toPathList());
-    datasetConfig.setType(DatasetType.PHYSICAL_DATASET);
-    final BatchSchema schema = generateBatchSchema();
-    datasetConfig.setRecordSchema(schema.toByteString());
-
-    final MultivaluedMap<String, Object> httpHeaders = new MultivaluedHashMap<>();
-    final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-
-    final TableauMessageBodyGenerator tableauMessageBodyGenerator = buildGenerator();
-    assertTrue(tableauMessageBodyGenerator.isWriteable(datasetConfig.getClass(), null, null, WebServer.MediaType.APPLICATION_TDS_TYPE));
-    tableauMessageBodyGenerator.writeTo(datasetConfig, DatasetConfig.class, null, new Annotation[] {}, WebServer.MediaType.APPLICATION_TDS_TYPE, httpHeaders, baos);
-
-    // Convert the baos into a DOM Tree to verify content
-    final DocumentBuilderFactory factory = SafeXMLFactories.newSafeDocumentBuilderFactory();
-    final Document document = factory.newDocumentBuilder().parse(new ByteArrayInputStream(baos.toByteArray()));
-
-    assertEquals(TABLEAU_VERSION, document.getDocumentElement().getAttribute("version"));
-
-    final NodeList connections = document.getDocumentElement().getElementsByTagName(TableauSDKConstants.CONN_ATTR);
-
-    assertEquals(1, connections.getLength());
-    final Element connection = (Element) connections.item(0);
-    assertEquals("dremio-flight-sql", connection.getAttribute(TableauSDKConstants.CLASS));
-    assertEquals("DREMIO", connection.getAttribute(TableauSDKConstants.DBNAME));
-    assertEquals(path.toParentPath(), connection.getAttribute(TableauSDKConstants.SCHEMA));
-
-    verifySdkAuthenticationOutput(connection);
-    verifySdkSSLOutput(connection, sslmode);
-    verifySdkCustomOutput(connection);
+    if(FLIGHT.equals(tableauExportType)) {
+      verifyFlightProduct(connection);
+    } else {
+      verifySdkProduct(connection);
+    }
 
     verifyRelationElement(connection);
 

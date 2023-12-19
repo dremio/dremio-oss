@@ -21,7 +21,6 @@ import {
 } from "@app/actions/nessie/nessie";
 // @ts-ignore
 import { fetchFeatureFlag } from "@inject/actions/featureFlag";
-import { SonarSideNav } from "@app/exports/components/SideNav/SonarSideNav";
 import { NessieRootState } from "@app/types/nessie";
 import { ViewStateWrapper } from "@app/components/ViewStateWrapper";
 import {
@@ -29,16 +28,11 @@ import {
   NessieContext as NessieContext,
 } from "./utils/context";
 import { Branch } from "@app/services/nessie/client";
-import { ARCTIC_STATE_PREFIX } from "@app/constants/nessie";
-
-import "./NessieHomePage.less";
-const DATA_OPTIMIZATION = "data_optimization";
 
 type NessieHomePageProps = {
   children: any;
   source: { id: string; name: string; endpoint?: string; endpointV1?: string };
   viewState: any;
-  isBareMinimumNessie?: boolean;
   baseUrl?: string;
   initialRef?: Branch;
   statePrefix?: string;
@@ -47,7 +41,6 @@ type NessieHomePageProps = {
 type ConnectedProps = {
   fetchDefaultReference: any;
   fetchBranchReference: any;
-  fetchFeatureFlag: any;
   nessie: NessieRootState;
 };
 
@@ -63,24 +56,10 @@ function NessieHomePageContent(props: NessieHomePageProps) {
   );
 }
 
-function NessieHomePage(props: NessieHomePageProps) {
-  return props.isBareMinimumNessie ? (
-    NessieHomePageContent(props)
-  ) : (
-    <div className="nessieHomePage">
-      <SonarSideNav />
-      <div className="nessieHomePage-content">
-        {NessieHomePageContent(props)}
-      </div>
-    </div>
-  );
-}
-
 function HomePageContentUnconnected({
   children,
   fetchDefaultReference,
   fetchBranchReference,
-  fetchFeatureFlag,
   nessie,
   source: sourceInfo,
   baseUrl,
@@ -106,13 +85,6 @@ function HomePageContentUnconnected({
     } as Branch);
   }, [fetchBranchReference, stateKey, apiV2]);
 
-  useEffect(() => {
-    // DX-53967: fetchFeatureFlag does not exist in enterprise (backend team uses enterprise for local development)
-    if (typeof fetchFeatureFlag === "function") {
-      fetchFeatureFlag(DATA_OPTIMIZATION);
-    }
-  }, [fetchFeatureFlag]);
-
   return (
     <NessieContext.Provider value={contextValue}>
       {children}
@@ -131,4 +103,4 @@ export const HomePageContent = connect(
   mapDispatchToProps
 )(HomePageContentUnconnected);
 
-export default NessieHomePage;
+export default NessieHomePageContent;

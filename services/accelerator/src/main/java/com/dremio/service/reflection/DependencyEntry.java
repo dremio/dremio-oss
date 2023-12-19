@@ -41,21 +41,21 @@ public abstract class DependencyEntry {
 
   public static DependencyEntry of(ReflectionDependencyEntry entry) {
     if (entry.getType() == DependencyType.REFLECTION) {
-      return new ReflectionDependency(new ReflectionId(entry.getId()));
+      return new ReflectionDependency(new ReflectionId(entry.getId()), entry.getSnapshotId());
     } else if (entry.getType() == DependencyType.DATASET) {
-      return new DatasetDependency(entry.getId(), entry.getPathList());
+      return new DatasetDependency(entry.getId(), entry.getPathList(), entry.getSnapshotId());
     } else if (entry.getType() == DependencyType.TABLEFUNCTION) {
       return new TableFunctionDependency(entry.getId(), entry.getSourceName(), entry.getQuery());
     }
     throw new IllegalStateException("Unsupported dependency type " + entry.getType());
   }
 
-  public static ReflectionDependency of(ReflectionId rId) {
-    return new ReflectionDependency(rId);
+  public static ReflectionDependency of(ReflectionId rId, long snapshotId) {
+    return new ReflectionDependency(rId, snapshotId);
   }
 
-  public static DatasetDependency of(String id, List<String> path) {
-    return new DatasetDependency(id, path);
+  public static DatasetDependency of(String id, List<String> path, long snapshotId) {
+    return new DatasetDependency(id, path, snapshotId);
   }
 
   public static DependencyEntry of(String id, String sourceName, String query) {
@@ -67,9 +67,11 @@ public abstract class DependencyEntry {
    */
   public static class ReflectionDependency extends DependencyEntry {
     private final ReflectionId reflectionId;
+    private long snapshotId;
 
-    ReflectionDependency(ReflectionId reflectionId) {
+    ReflectionDependency(ReflectionId reflectionId, long snapshotId) {
       this.reflectionId = reflectionId;
+      this.snapshotId = snapshotId;
     }
 
     public ReflectionId getReflectionId() {
@@ -86,11 +88,14 @@ public abstract class DependencyEntry {
       return reflectionId.getId();
     }
 
+    public long getSnapshotId() { return snapshotId; }
+
     @Override
     public ReflectionDependencyEntry toProtobuf() {
       return new ReflectionDependencyEntry()
         .setType(DependencyType.REFLECTION)
-        .setId(reflectionId.getId());
+        .setId(reflectionId.getId())
+        .setSnapshotId(snapshotId);
     }
 
     @Override
@@ -108,7 +113,7 @@ public abstract class DependencyEntry {
       }
 
       final ReflectionDependency dep = (ReflectionDependency) obj;
-      return Objects.equals(reflectionId, dep.reflectionId);
+      return Objects.equals(reflectionId, dep.reflectionId) && Objects.equals(snapshotId, dep.snapshotId);
     }
 
     @Override
@@ -123,10 +128,12 @@ public abstract class DependencyEntry {
   public static class DatasetDependency extends DependencyEntry {
     private final String id;
     private final List<String> path;
+    private long snapshotId;
 
-    DatasetDependency(String id, List<String> path) {
+    DatasetDependency(String id, List<String> path, long snapshotId) {
       this.id = id;
       this.path = path;
+      this.snapshotId = snapshotId;
     }
 
     @Override
@@ -148,12 +155,15 @@ public abstract class DependencyEntry {
       return id;
     }
 
+    public long getSnapshotId() { return snapshotId; }
+
     @Override
     public ReflectionDependencyEntry toProtobuf() {
       return new ReflectionDependencyEntry()
         .setType(DependencyType.DATASET)
         .setPathList(path)
-        .setId(id);
+        .setId(id)
+        .setSnapshotId(snapshotId);
     }
 
     @Override
@@ -171,7 +181,7 @@ public abstract class DependencyEntry {
       }
 
       final DatasetDependency dep = (DatasetDependency) obj;
-      return Objects.equals(id, dep.id) && Objects.equals(path, dep.path);
+      return Objects.equals(id, dep.id) && Objects.equals(path, dep.path) && Objects.equals(snapshotId, dep.snapshotId);
     }
 
     @Override

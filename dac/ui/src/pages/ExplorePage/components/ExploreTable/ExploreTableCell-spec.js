@@ -68,7 +68,7 @@ describe("ExploreTableCell", () => {
     };
 
     context = {
-      router: { push: sinon.spy() },
+      router: { location: {}, push: sinon.spy() },
     };
   });
 
@@ -244,36 +244,33 @@ describe("ExploreTableCell", () => {
 
     it("should return true when isDumbTable = true", function () {
       commonProps.isDumbTable = true;
-      commonProps.location = { query: {} };
-      const instance = shallow(
-        <ExploreTableCell {...commonProps} />
-      ).instance();
+      const instance = shallow(<ExploreTableCell {...commonProps} />, {
+        context,
+      }).instance();
       expect(instance.prohibitSelection({})).to.be.true;
     });
 
     it("should return true when selectionData = null", function () {
       commonProps.isDumbTable = false;
-      commonProps.location = { query: {} };
-      const instance = shallow(
-        <ExploreTableCell {...commonProps} />
-      ).instance();
+      const instance = shallow(<ExploreTableCell {...commonProps} />, {
+        context,
+      }).instance();
       expect(instance.prohibitSelection(null)).to.be.true;
     });
 
     it("should return true when selectionData.text = null", function () {
       commonProps.isDumbTable = false;
-      commonProps.location = { query: {} };
-      const instance = shallow(
-        <ExploreTableCell {...commonProps} />
-      ).instance();
+      const instance = shallow(<ExploreTableCell {...commonProps} />, {
+        context,
+      }).instance();
       expect(instance.prohibitSelection({ text: null })).to.be.true;
     });
 
     it("should return true when column does not exist", function () {
       commonProps.isDumbTable = false;
-      commonProps.location = { query: {} };
       const instance = shallow(
-        <ExploreTableCell {...commonProps} columns={Immutable.fromJS([])} />
+        <ExploreTableCell {...commonProps} columns={Immutable.fromJS([])} />,
+        { context }
       ).instance();
       expect(instance.prohibitSelection(selectionData)).to.be.true;
     });
@@ -286,19 +283,19 @@ describe("ExploreTableCell", () => {
           status: "ORIGINAL",
         },
       ]);
-      commonProps.location = { query: {} };
-      const instance = shallow(
-        <ExploreTableCell {...commonProps} />
-      ).instance();
+      context.router.location = { query: {} };
+      const instance = shallow(<ExploreTableCell {...commonProps} />, {
+        context,
+      }).instance();
       expect(instance.prohibitSelection(selectionData)).to.be.false;
     });
 
     it('should return false when columnStatus is not "HIGHLIGHTED"', function () {
       commonProps.isDumbTable = false;
-      commonProps.location = { query: { type: "transform" } };
-      const instance = shallow(
-        <ExploreTableCell {...commonProps} />
-      ).instance();
+      context.router.location = { query: { type: "transform" } };
+      const instance = shallow(<ExploreTableCell {...commonProps} />, {
+        context,
+      }).instance();
       expect(instance.prohibitSelection(selectionData)).to.be.false;
     });
 
@@ -308,10 +305,10 @@ describe("ExploreTableCell", () => {
         [0, "status"],
         "HIGHLIGHTED"
       );
-      commonProps.location = { query: { type: "transform" } };
-      const instance = shallow(
-        <ExploreTableCell {...commonProps} />
-      ).instance();
+      context.router.location = { query: { type: "transform" } };
+      const instance = shallow(<ExploreTableCell {...commonProps} />, {
+        context,
+      }).instance();
       expect(instance.prohibitSelection(selectionData)).to.be.true;
     });
   });
@@ -324,7 +321,6 @@ describe("ExploreTableCell", () => {
     beforeEach(() => {
       props = {
         ...commonProps,
-        location: { state: {} },
         columns: Immutable.fromJS([{ name: "col1", type: "LIST" }]),
       };
       wrapper = shallow(<ExploreTableCell {...props} />, { context });
@@ -356,9 +352,6 @@ describe("ExploreTableCell", () => {
 
     it("should return null when prohibitSelection returns true", () => {
       instance.prohibitSelection.returns(true);
-      wrapper.setProps({
-        location: { state: {} },
-      });
       expect(instance.onMouseUp()).to.be.null;
     });
 
@@ -375,7 +368,7 @@ describe("ExploreTableCell", () => {
 
     it("should update location state with appropriate data when columnType is TEXT", () => {
       const expectedLocation = {
-        ...props.location,
+        ...context.router.location,
         state: {
           columnName: "col1",
           columnType: "TEXT",

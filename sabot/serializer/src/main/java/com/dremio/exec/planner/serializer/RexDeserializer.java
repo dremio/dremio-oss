@@ -46,6 +46,7 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlWindow;
+import org.apache.calcite.sql.fun.SqlQuantifyOperator;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.DateString;
@@ -53,7 +54,6 @@ import org.apache.calcite.util.NlsString;
 import org.apache.calcite.util.TimeString;
 import org.apache.calcite.util.TimestampString;
 
-import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.planner.logical.DremioRelFactories;
 import com.dremio.exec.planner.sql.SqlFlattenOperator;
 import com.dremio.plan.serialization.PBoundOption;
@@ -83,32 +83,29 @@ class RexDeserializer {
 
   private final RexBuilder rexBuilder;
   private final TypeSerde types;
-  private final FunctionImplementationRegistry funcs;
   private final RelSerdeRegistry registry;
   private final RelNodeSerde.TableRetriever tables;
   private final RelNodeSerde.PluginRetriever plugins;
   private final RelOptCluster cluster;
 
-  private final SqlOperatorConverter sqlOperatorConverter;
+  private final SqlOperatorSerde sqlOperatorSerde;
 
   public RexDeserializer(
     RexBuilder rexBuilder,
     TypeSerde types,
     RelSerdeRegistry registry,
-    FunctionImplementationRegistry funcs,
     RelNodeSerde.TableRetriever tables,
     RelNodeSerde.PluginRetriever plugins,
     RelOptCluster cluster,
-    SqlOperatorConverter sqlOperatorConverter) {
+    SqlOperatorSerde sqlOperatorSerde) {
     super();
     this.rexBuilder = rexBuilder;
     this.types = types;
-    this.funcs = funcs;
     this.registry = registry;
     this.tables = tables;
     this.plugins = plugins;
     this.cluster = cluster;
-    this.sqlOperatorConverter = sqlOperatorConverter;
+    this.sqlOperatorSerde = sqlOperatorSerde;
   }
 
   public RexNode convert(PRexNode node, RelDataType rowType) {
@@ -158,7 +155,7 @@ class RexDeserializer {
   }
 
   private RexNode convertSubQuery(PRexSubQuery subQuery) {
-    SqlOperator operator = sqlOperatorConverter.fromProto(subQuery.getSqlOperator());
+    SqlOperator operator = sqlOperatorSerde.fromProto(subQuery.getSqlOperator());
     PRelList list = PRelList.newBuilder()
       .addAllNode(subQuery.getDetailsList())
       .build();
@@ -167,10 +164,9 @@ class RexDeserializer {
       DremioRelFactories.CALCITE_LOGICAL_BUILDER,
       tables,
       plugins,
-      funcs,
       list,
       cluster,
-      sqlOperatorConverter);
+      sqlOperatorSerde);
     CorrelationId correlationId = convertCorrelationId(subQuery.getCorrelationId());
     switch (operator.getKind()) {
       case IN:
@@ -188,8 +184,21 @@ class RexDeserializer {
         return RexSubQuery.exists(rel, correlationId);
       case SCALAR_QUERY:
         return RexSubQuery.scalar(rel, correlationId);
+      case SOME:
+        return RexSubQuery.some(
+          rel,
+          ImmutableList.copyOf(
+          subQuery
+            .getOperandsList()
+            .stream()
+            .map(this::convert)
+            .collect(Collectors.toList())),
+          (SqlQuantifyOperator) operator,
+          correlationId);
+      case ARRAY_QUERY_CONSTRUCTOR:
+        return RexSubQuery.array(rel, correlationId);
       default:
-        throw new IllegalStateException("Unsupported type case: " + operator.getKind());
+        throw new IllegalStateException("Unsupported subquery type: " + operator.getKind());
     }
   }
 
@@ -229,7 +238,7 @@ class RexDeserializer {
 
     return rexBuilder.makeOver(
         types.fromProto(over.getDataType()),
-        (SqlAggFunction) sqlOperatorConverter.fromProto(over.getSqlOperator()),
+        (SqlAggFunction) sqlOperatorSerde.fromProto(over.getSqlOperator()),
         over
           .getOperandsList()
           .stream()
@@ -460,7 +469,7 @@ class RexDeserializer {
   }
 
   private RexNode convertCall(PRexCall call) {
-    SqlOperator operator = sqlOperatorConverter.fromProto(call.getSqlOperator());
+    SqlOperator operator = sqlOperatorSerde.fromProto(call.getSqlOperator());
     if(operator instanceof SqlFlattenOperator) {
       operator = ((SqlFlattenOperator) operator).withIndex(call.getIndex());
     }

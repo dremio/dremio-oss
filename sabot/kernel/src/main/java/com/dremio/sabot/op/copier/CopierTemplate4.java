@@ -145,6 +145,7 @@ public abstract class CopierTemplate4 implements Copier {
   @Override
   public void close() throws Exception {
     AutoCloseables.close(sv4);
+    clearVectors();
   }
 
   public abstract void doSetup(@Named("context") FunctionContext context, @Named("incoming") VectorAccessible incoming, @Named("outgoing") VectorAccessible outgoing);

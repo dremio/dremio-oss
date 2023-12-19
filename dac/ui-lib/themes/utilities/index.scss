@@ -15,15 +15,20 @@
  */
 
 @use "./align";
+@use "./animate";
 @use "./bg";
 @use "./border";
+@use "./color";
 @use "./flex";
 @use "./gap";
 @use "./height";
+@use "./leading";
 @use "./margin";
 @use "./overflow";
 @use "./padding";
+@use "./position";
 @use "./rounded";
+@use "./scrollbar";
 @use "./selection";
 @use "./text";
 @use "./transition";

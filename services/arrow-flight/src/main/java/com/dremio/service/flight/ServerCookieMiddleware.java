@@ -31,7 +31,8 @@ import org.apache.arrow.flight.RequestContext;
 /**
  * ServerCookieMiddleware allows a FlightServer to retrieve cookies from the request as well as set outgoing cookies
  */
-public final class ServerCookieMiddleware implements FlightServerMiddleware {
+@SuppressWarnings("checkstyle:FinalClass")
+public class ServerCookieMiddleware implements FlightServerMiddleware {
   private RequestContext requestContext;
   private Map<String, String> cookieValues;
   private final CallHeaders incomingHeaders;

@@ -26,8 +26,8 @@
 
 .mantine-InputWrapper-label {
   font-weight: 400 !important;
-  margin-block-end: 2px !important;
   inline-size: 100%;
+  color: inherit;
 }
 
 .mantine-TextInput-icon--text {
@@ -72,6 +72,8 @@
   block-size: 32px;
   min-block-size: 32px;
   line-height: 32px;
+  background-color: var(--bg--default);
+  color: var(--color--default);
 }
 
 .mantine-Select-rightSection {
@@ -94,4 +96,7 @@
       border-color: var(--color--brand--400);
     }
   }
+}
+
+.dremio-dark {
 }

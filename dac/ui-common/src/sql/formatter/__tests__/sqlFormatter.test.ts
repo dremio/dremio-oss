@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/* eslint-disable */
 import { RuleName } from "../abstractSqlGenerator";
 import { formatQuery } from "../sqlFormatter";
 
@@ -92,7 +93,8 @@ RETURN          (1,
         `
 CREATE VDS        space.v1 (
                     col1 MASKING POLICY protect_ssn(col1, col2),
-                    col2)
+                    col2
+                  ) AT BRANCH branch1
 ROW ACCESS POLICY filterRows(col3)
 AS                (SELECT "abc",
                           "def"
@@ -120,13 +122,13 @@ SHOW FUNCTIONS LIKE '%vendor%'`,
     sqlDropView: [
       [
         `
-DROP VIEW IF EXISTS abc123.def456`,
+DROP VIEW IF EXISTS abc123.def456 AT REFERENCE ref1`,
       ],
     ],
     sqlCreateTable: [
       [
         `
-CREATE TABLE IF NOT EXISTS           "@user".tbl1 (abc MASKING POLICY policy(abc))
+CREATE TABLE IF NOT EXISTS           "@user".tbl1 (abc MASKING POLICY policy(abc)) AT BRANCH branch1
 ROUNDROBIN PARTITION BY              (col1,
                                       col2)
 DISTRIBUTE BY                        (col3)
@@ -146,11 +148,19 @@ INSERT INTO tbl1 (
 VALUES      (1,
              2)`,
       ],
+      [
+        `
+INSERT INTO tbl1 AT BRANCH branch1 (
+              col1,
+              col2)
+VALUES      (1,
+             2)`,
+      ],
     ],
     sqlDeleteFromTable: [
       [
         `
-DELETE FROM  abc123.def456 AS tbl
+DELETE FROM  abc123.def456 AT BRANCH branch1 AS tbl
 USING        tbl
 NATURAL JOIN tbl2
 ON           tbl.col1 = tbl2.col1
@@ -160,7 +170,7 @@ WHERE        tbl.col2 > tbl2.col2`,
     sqlUpdateTable: [
       [
         `
-UPDATE tbl
+UPDATE tbl AT REF ref1
 SET    col1 = (col1 + 1),
        col2 = (col2 - 1)
 FROM   tbl
@@ -170,7 +180,7 @@ WHERE  col3 != 0`,
     sqlMergeIntoTable: [
       [
         `
-MERGE INTO                   tbl AS target
+MERGE INTO                   tbl AT REF ref1 AS target
 USING                        "source"
 ON                           "source".id = target.id
 WHEN MATCHED THEN UPDATE SET "name" = "source"."name",
@@ -186,13 +196,13 @@ VALUES                       ("source".id,
     sqlDropTable: [
       [
         `
-DROP TABLE IF EXISTS abc123.def456`,
+DROP TABLE IF EXISTS abc123.def456 AT BRANCH branch1`,
       ],
     ],
     sqlTruncateTable: [
       [
         `
-TRUNCATE TABLE abc123.def456`,
+TRUNCATE TABLE abc123.def456 AT BRANCH branch1`,
       ],
     ],
     sqlRefreshReflection: [
@@ -247,7 +257,7 @@ ROUTE REFLECTIONS TO QUEUE runner1`,
       ],
       [
         `
-ALTER TABLE     granite
+ALTER TABLE     granite AT BRANCH branch1
 ADD PRIMARY KEY (llave)`,
       ],
       [
@@ -281,7 +291,7 @@ ARROW CACHE                `,
     sqlCreateRawReflection: [
       [
         `
-ALTER VIEW            vv
+ALTER VIEW            vv AT BRANCH branch1
 CREATE RAW REFLECTION rrf
 USING DISPLAY         (dim1,
                        dim2)
@@ -292,7 +302,7 @@ DISTRIBUTE BY         (db1,
     sqlAddExternalReflection: [
       [
         `
-ALTER VIEW                 vv
+ALTER VIEW                 vv AT BRANCH branch1
 CREATE EXTERNAL REFLECTION erf
 USING                      a.b.c`,
       ],
@@ -334,6 +344,12 @@ TO ROLE role1`,
         `
 REVOKE    ALL
 ON SOURCE s3
+FROM USER hacker`,
+      ],
+      [
+        `
+REVOKE    WRITE
+ON TABLE  tbl AT BRANCH branch1
 FROM USER hacker`,
       ],
     ],
@@ -403,26 +419,42 @@ SHOW TAGS IN abc`,
 SHOW LOGS AT TAG tag
 IN               abc`,
       ],
+      [
+        `
+SHOW LOG AT TAG tag
+IN              abc`,
+      ],
     ],
     sqlCreateBranch: [
       [
         `
-CREATE BRANCH branch1
-AT REFERENCE  ref1`,
+CREATE BRANCH branch1 AT REFERENCE ref1`,
+      ],
+      [
+        `
+CREATE BRANCH branch2
+FROM BRANCH   branch1`,
       ],
     ],
     sqlCreateTag: [
       [
         `
-CREATE TAG IF NOT EXISTS tag1
-AT BRANCH                branch1`,
+CREATE TAG IF NOT EXISTS tag1 AT BRANCH branch1`,
+      ],
+      [
+        `
+CREATE TAG tag2
+FROM TAG   tag1`,
       ],
     ],
     sqlDropBranch: [
       [
         `
-DROP BRANCH branch1
-AT COMMIT   abc123`,
+DROP BRANCH branch1 AT COMMIT abc123`,
+      ],
+      [
+        `
+DROP BRANCH branch1`,
       ],
     ],
     sqlDropTag: [
@@ -469,10 +501,11 @@ GROUP BY               (),
 HAVING                 COUNT(col1) > 0
 WINDOW                 col2 AS (
                          abc
-                         ORDER BY col3)`,
+                         ORDER BY col3)
+QUALIFY                col2 = 0`,
       ],
     ],
-    sqlExplain: [
+    sqlExplainQueryDML: [
       [
         `
 EXPLAIN PLAN EXCLUDING ATTRIBUTES WITH TYPE AS JSON FOR (SELECT 1);`,
@@ -493,39 +526,9 @@ DESCRIBE STATEMENT (SELECT col1
     sqlProcedureCall: [
       [
         `
-CALL abc."123" (arg)`,
+CALL abc.funcA(arg)`,
       ],
     ],
-    sqlInsert: [
-      [
-        `
-INSERT INTO table1 (
-              a,
-              b,
-              c)
-VALUES      (1,
-             2,
-             3)`,
-      ],
-    ],
-    sqlDelete: [
-      [
-        `
-DELETE FROM myspace.vds AS vds1
-WHERE       price < (
-              SELECT MAX(price)
-              FROM   discounts)`,
-      ],
-    ],
-    sqlUpdate: [
-      [
-        `
-UPDATE tbl1
-SET    col1 = 0,
-       col2 = 'abc'`,
-      ],
-    ],
-    sqlMerge: null, // covered by other cases
     natural: null, // covered by other cases
     joinType: null, // covered by other cases
     joinTable: [
@@ -548,6 +551,13 @@ USING      (id)`,
 SELECT      *
 FROM        tbl1
 CROSS APPLY tbl2`,
+      ],
+      [
+        `
+SELECT    *
+FROM      tbl1 AT BRANCH branch1
+LEFT JOIN tbl2 AT BRANCH branch1
+ON        tbl1.id = tbl2.id`,
       ],
     ],
     explicitTable: null, // covered by other cases
@@ -661,6 +671,10 @@ TO SNAPSHOT    'abc123'`,
 VACUUM TABLE     tbl
 EXPIRE SNAPSHOTS RETAIN_LAST = 10`,
       ],
+      [
+        `
+VACUUM CATALOG cat1`,
+      ],
     ],
     sqlOptimize: null,
     orderByLimitOpt: [
@@ -714,14 +728,27 @@ FILES     ('file1',
       [
         `
 SELECT *
-FROM   table(specific func(arg0, arg1))`,
+FROM   table (specific func(arg0, arg1))`,
       ],
     ],
     extendedBuiltinFunctionCall: null, // covered by other cases
-    builtinFunctionCall: [[`SELECT trim(leading '...' FROM '...abc')`]],
-    timestampAddFunctionCall: [[`SELECT timestampadd(month, 2, '2009-05-18')`]],
+    builtinFunctionCall: [
+      [
+        `
+SELECT trim(leading '...' FROM '...abc')`,
+      ],
+    ],
+    timestampAddFunctionCall: [
+      [
+        `
+SELECT timestampadd(month, 2, '2009-05-18')`,
+      ],
+    ],
     timestampDiffFunctionCall: [
-      [`SELECT timestampdiff(month, '2009-05-18', '2009-07-29');`],
+      [
+        `
+SELECT timestampdiff(month, '2009-05-18', '2009-07-29');`,
+      ],
     ],
     matchRecognizeFunctionCall: null, // covered by other cases
     namedFunctionCall: [[`SELECT func(arg0, arg1)`]],
@@ -767,9 +794,9 @@ SELECT func(DISTINCT arg0, arg1)`,
     parseRequiredPartitionList: null, // covered by other cases
     keyValueCommaList: null, // covered by other cases
     keyValuePair: null, // covered by other cases
-    parseRequiredFieldListWithGranularity: null, // covered by other cases
+    parseFieldListWithGranularity: null, // covered by other cases
     simpleIdentifierCommaListWithGranularity: null, // covered by other cases
-    parseRequiredFieldListWithMeasures: null, // covered by other cases
+    parseFieldListWithMeasures: null, // covered by other cases
     simpleIdentifierCommaListWithMeasures: null, // covered by other cases
     measureList: null, // covered by other cases
     policy: null, // covered by other cases
@@ -938,7 +965,137 @@ FROM             tbl3`,
     characterTypeName: null, // covered by other cases
     dateTimeTypeName: null, // covered by other cases
     precisionOpt: null, // covered by other cases
-    timeZoneOpt: null,
+    timeZoneOpt: null, // covered by other cases
+    parseTableProperty: null, // covered by other cases
+    vacuumTableExpireSnapshotOptions: null, // covered by other cases
+    vacuumTableRemoveOrphanFilesOptions: null, // covered by other cases
+    sqlVacuumTable: null, // covered by other cases
+    sqlVacuumCatalog: null, // covered by other cases
+    sqlQueryOrTableDml: null, // covered by other cases
+    sqlCreateFolder: [
+      [
+        `
+CREATE FOLDER folder1 AT BRANCH branch1`,
+      ],
+    ],
+    sqlDropFolder: [
+      [
+        `
+DROP FOLDER folder1 AT BRANCH branch1`,
+      ],
+    ],
+    sqlShowCreate: [
+      [
+        `
+SHOW CREATE TABLE abc123.def456 AT BRANCH branch1`,
+      ],
+    ],
+    sqlShowTableProperties: [
+      [
+        `
+SHOW TBLPROPERTIES space1.tbl1`,
+      ],
+    ],
+    sqlCreatePipe: [
+      [
+        `
+CREATE PIPE                  pipe1
+NOTIFICATION_PROVIDER        provider1
+NOTIFICATION_QUEUE_REFERENCE ref1 AS
+COPY INTO                    myspace.tbl
+FROM                         'abc'
+FILES                        ('file1',
+                              'file2'
+                             ) (
+                               DATE_FORMAT 'mmddyyyy',
+                               NULL_IF (
+                                 'abc',
+                                 'abc'))`,
+      ],
+    ],
+    sqlDescribePipe: [
+      [
+        `
+DESCRIBE PIPE pipe1`,
+      ],
+    ],
+    sqlShowPipes: [
+      [
+        `
+SHOW PIPES`,
+      ],
+    ],
+
+    parseReferenceType: null, // covered by other cases
+    aTVersionSpec: null, // covered by other cases
+    aTBranchVersionOrReferenceSpec: null, // covered by other cases
+    parenthesizedKeyValueOptionCommaList: null, // covered by other cases
+    keyValueOption: null, // covered by other cases
+    commaSepatatedSqlHints: null, // covered by other cases
+    tableRefWithHintsOpt: null, // covered by other cases
+    qualifyOpt: null, // covered by other cases
+    jsonRepresentation: null, // covered by other cases
+    jsonInputClause: null, // covered by other cases
+    jsonReturningClause: null, // covered by other cases
+    jsonOutputClause: null, // covered by other cases
+    jsonValueExpression: null, // covered by other cases
+    jsonPathSpec: null, // covered by other cases
+    jsonApiCommonSyntax: null, // covered by other cases
+    jsonExistsErrorBehavior: null, // covered by other cases
+    jsonExistsFunctionCall: [
+      [
+        `
+SELECT tbl.col1
+FROM   tbl
+WHERE  json_exists(tbl.col1, '$.Field1.Field2?(@.Field3 == $v1)' PASSING 'val1' AS "v1");`,
+      ],
+    ],
+    jsonValueEmptyOrErrorBehavior: null, // covered by other cases
+    jsonValueFunctionCall: [
+      [
+        `
+SELECT json_value(col1, '$.Field1' RETURNING NUMBER ERROR ON ERROR)
+FROM   tbl;`,
+      ],
+    ],
+    jsonQueryEmptyOrErrorBehavior: null, // covered by other cases
+    jsonQueryWrapperBehavior: null, // covered by other cases
+    jsonQueryFunctionCall: [
+      [
+        `
+SELECT json_query(col1, col2 WITH ARRAY WRAPPER EMPTY OBJECT ON ERROR)
+FROM   tbl;`,
+      ],
+    ],
+    jsonName: null, // covered by other cases
+    jsonNameAndValue: null, // covered by other cases
+    jsonConstructorNullClause: null, // covered by other cases
+    jsonObjectFunctionCall: [
+      [
+        `
+SELECT json_object(KEY '$.Field1' VALUE 'val1', '$.Field2' VALUE 'val2', '$.Field3' : 'val3' ABSENT ON NULL);`,
+      ],
+    ],
+    jsonObjectAggFunctionCall: [
+      [
+        `
+SELECT json_objectagg('$.Field1' : col1 NULL ON NULL)
+FROM   tbl;`,
+      ],
+    ],
+    jsonArrayFunctionCall: [
+      [
+        `
+SELECT json_array('abc', 'def' NULL ON NULL);`,
+      ],
+    ],
+    jsonArrayAggFunctionCall: [
+      [
+        `
+SELECT json_arrayagg(col1 ABSENT ON NULL)
+FROM   tbl;`,
+      ],
+    ],
   };
 
   test.each(

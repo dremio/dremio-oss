@@ -148,7 +148,7 @@ public class TestUnionDistinct extends BaseTestQuery {
         .unOrdered()
         .csvBaselineFile("testframework/unionDistinct/q6_1.tsv")
         .baselineTypes(MinorType.INT, MinorType.INT)
-        .baselineColumns("n_nationkey", "n_nationkey1")
+        .baselineColumns("n_nationkey", "n_nationkey0")
         .build()
         .run();
   }

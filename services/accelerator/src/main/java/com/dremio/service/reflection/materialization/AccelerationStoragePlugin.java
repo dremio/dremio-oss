@@ -18,11 +18,14 @@ package com.dremio.service.reflection.materialization;
 import static com.dremio.exec.ExecConstants.ICEBERG_CATALOG_TYPE_KEY;
 import static com.dremio.exec.ExecConstants.ICEBERG_NAMESPACE_KEY;
 import static com.dremio.service.reflection.ReflectionOptions.NESSIE_REFLECTIONS_NAMESPACE;
+import static com.dremio.service.reflection.ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
@@ -53,12 +56,15 @@ import com.dremio.exec.catalog.SortColumnsOption;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.TableMutationOptions;
 import com.dremio.exec.catalog.conf.Property;
+import com.dremio.exec.physical.base.WriterOptions;
+import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.dfs.FileDatasetHandle;
 import com.dremio.exec.store.dfs.FileSelection;
+import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.exec.store.dfs.MayBeDistFileSystemPlugin;
 import com.dremio.exec.store.dfs.PreviousDatasetInfo;
 import com.dremio.exec.store.file.proto.FileProtobuf.FileUpdateKey;
@@ -69,6 +75,7 @@ import com.dremio.exec.store.iceberg.TableSchemaProvider;
 import com.dremio.exec.store.iceberg.TableSnapshotProvider;
 import com.dremio.exec.store.iceberg.TimeTravelProcessors;
 import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
+import com.dremio.exec.store.iceberg.model.IcebergCommandType;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.exec.store.iceberg.model.IcebergTableLoader;
 import com.dremio.exec.store.metadatarefresh.MetadataRefreshUtils;
@@ -86,7 +93,6 @@ import com.dremio.service.namespace.capabilities.CapabilityValue;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.file.proto.FileConfig;
-import com.dremio.service.reflection.ReflectionServiceImpl;
 import com.dremio.service.reflection.proto.Materialization;
 import com.dremio.service.reflection.proto.MaterializationId;
 import com.dremio.service.reflection.proto.MaterializationState;
@@ -101,16 +107,31 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 
 /**
- * A custom FileSystemPlugin that only works with Parquet files and generates file selections based on Refreshes as opposed to path.
+ * A custom FileSystemPlugin that generates file selections based on Refreshes as opposed to path.
+ *
+ * A reflection's materialization has both a logical and physical path.  The logical path
+ * is referenced in the query trees and consists of a reflection_id and a materialization_id corresponding to
+ * the most recent refresh or optimize job.
+ *
+ * Every logical path will map to a physical Iceberg table by joining from Materialization to Refreshes
+ * on series_id and series_ordinal and looking up the physical location from Refreshes.basePath.
+ *
+ * The same reflection could have a new series_id when the reflection schema changes (and a full refresh ensues).
+ * The same series_id will have a new series_ordinal when an incremental refresh results in a data change.
+ *
+ * For incremental refreshes, if there is no data or schema change, the series_id and series_ordinal will not change.
+ * However, there will always be a new Materialization (hence new logical path) to track the refresh and updated expiry.
+ *
  */
 public class AccelerationStoragePlugin extends MayBeDistFileSystemPlugin<AccelerationStoragePluginConfig> {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AccelerationStoragePlugin.class);
-
+  public static final int TABLE_SCHEMA_PATH_REFLECTION_ID_COMPONENT = 1;
+  private static final int TABLE_SCHEMA_PATH_MATERIALIZATION_ID_COMPONENT = 2;
   public static final BooleanCapabilityValue CAN_USE_PARTITION_STATS = new BooleanCapabilityValue(SourceCapabilities.getCanUsePartitionStats(), true);
   private static final FileUpdateKey EMPTY = FileUpdateKey.getDefaultInstance();
   private MaterializationStore materializationStore;
-  private ParquetFormatPlugin formatPlugin;
+  private ParquetFormatPlugin parquetFormatPlugin;
   private IcebergFormatPlugin icebergFormatPlugin;
 
   public AccelerationStoragePlugin(AccelerationStoragePluginConfig config, SabotContext context, String name, Provider<StoragePluginId> idProvider) {
@@ -137,7 +158,7 @@ public class AccelerationStoragePlugin extends MayBeDistFileSystemPlugin<Acceler
   public void start() throws IOException {
     super.start();
     materializationStore = new MaterializationStore(DirectProvider.<LegacyKVStoreProvider>wrap(getContext().getKVStoreProvider()));
-    formatPlugin = (ParquetFormatPlugin) formatCreator.getFormatPluginByConfig(new ParquetFormatConfig());
+    parquetFormatPlugin = (ParquetFormatPlugin) formatCreator.getFormatPluginByConfig(new ParquetFormatConfig());
     icebergFormatPlugin = (IcebergFormatPlugin)formatCreator.getFormatPluginByConfig(new IcebergFormatConfig());
   }
 
@@ -246,11 +267,11 @@ public class AccelerationStoragePlugin extends MayBeDistFileSystemPlugin<Acceler
     Integer fieldCount = MaxLeafFieldCount.getCount(options);
 
     boolean icebergDataset = isUsingIcebergDataset(materialization);
-    final FileSelection selection = getFileSelection(refreshes, selectionRoot, icebergDataset);
+    final FileSelection selection = getFileSelection(datasetPath.getName(), refreshes, selectionRoot, icebergDataset);
 
     final PreviousDatasetInfo pdi = new PreviousDatasetInfo(fileConfig, currentSchema, sortColumns, null, null, true);
     if (!icebergDataset) {
-      FileDatasetHandle.checkMaxFiles(datasetPath.getName(), selection.getFileAttributesList().size(), getContext(), getConfig().isInternal());
+      FileDatasetHandle.checkMaxFiles(datasetPath.getName(), selection.getFileAttributesList().size(), parquetFormatPlugin.getMaxFilesLimit());
     }
     return getDatasetHandle(datasetPath, fieldCount, icebergDataset, selection, pdi);
   }
@@ -280,21 +301,21 @@ public class AccelerationStoragePlugin extends MayBeDistFileSystemPlugin<Acceler
           icebergFormatPlugin, getSystemUserFS(), tableSnapshotProvider, this, tableSchemaProvider));
     } else {
       return Optional.of(new ParquetFormatDatasetAccessor(DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER, getSystemUserFS(), selection,
-        this, new NamespaceKey(datasetPath.getComponents()), EMPTY, formatPlugin, pdi, fieldCount));
+        this, new NamespaceKey(datasetPath.getComponents()), EMPTY, parquetFormatPlugin, pdi, fieldCount, getContext()));
     }
   }
 
-  private FileSelection getFileSelection(FluentIterable<Refresh> refreshes, String selectionRoot, boolean icebergDataset) {
-    return icebergDataset ? getIcebergFileSelection(refreshes) : getParquetFileSelection(refreshes, selectionRoot);
+  private FileSelection getFileSelection(String datasetName, FluentIterable<Refresh> refreshes, String selectionRoot, boolean icebergDataset) {
+    return icebergDataset ? getIcebergFileSelection(refreshes) : getParquetFileSelection(datasetName, refreshes, selectionRoot);
   }
 
-  private FileSelection getParquetFileSelection(FluentIterable<Refresh> refreshes, String selectionRoot) {
+  private FileSelection getParquetFileSelection(String datasetName, FluentIterable<Refresh> refreshes, String selectionRoot) {
     FileSelection selection;
     List<Refresh> refreshList = refreshes.toList();
     List<FileSelection> fileSelections = refreshList.stream()
       .map(refresh -> {
         try {
-          FileSelection currentRefreshSelection = FileSelection.create(getSystemUserFS(), resolveTablePathToValidPath(refresh.getPath()));
+          FileSelection currentRefreshSelection = FileSelection.create(datasetName, getSystemUserFS(), resolveTablePathToValidPath(refresh.getPath()), parquetFormatPlugin.getMaxFilesLimit());
           if (currentRefreshSelection != null) {
             return currentRefreshSelection;
           }
@@ -337,6 +358,30 @@ public class AccelerationStoragePlugin extends MayBeDistFileSystemPlugin<Acceler
     super.deleteIcebergTableRootPointer(userName, icebergTablePath);
   }
 
+  /**
+   * Converts a logical materialization path to its physical filesystem path.
+   */
+  @Override
+  protected Path getPath(NamespaceKey table, String userName) {
+    Path path = null;
+    try {
+      final List<String> components = normalizeComponents(table.getPathComponents());
+      final ReflectionId reflectionId = new ReflectionId(components.get(TABLE_SCHEMA_PATH_REFLECTION_ID_COMPONENT));
+      final MaterializationId materializationId = new MaterializationId(components.get(TABLE_SCHEMA_PATH_MATERIALIZATION_ID_COMPONENT));
+      final Materialization materialization = materializationStore.get(materializationId);
+      Refresh refresh = materializationStore.getMostRecentRefresh(reflectionId, materialization.getSeriesId());
+      final NamespaceKey tableSchemaPath = new NamespaceKey(ImmutableList.<String>builder()
+        .add(ACCELERATOR_STORAGEPLUGIN_NAME)
+        .addAll(PathUtils.toPathComponents(refresh.getPath()))
+        .build());
+      final String tableName = getTableName(tableSchemaPath);
+      path = resolveTablePathToValidPath(tableName);
+    } catch (RuntimeException e) {
+      logger.error("Unable to get filesystem path for materialization path: {}", table, e);
+    }
+    return path;
+  }
+
   @Override
   public DatasetMetadata getDatasetMetadata(
      DatasetHandle datasetHandle,
@@ -373,8 +418,21 @@ public class AccelerationStoragePlugin extends MayBeDistFileSystemPlugin<Acceler
     return MetadataValidity.INVALID;
   }
 
+  /**
+   * The behavior of dropTable depends on whether the reflection is full or incremental.  For full, we need to clean up
+   * the KV store, Nessie and Filesystem Iceberg data and metadata files.  For incremental, it gets trickier because
+   * we need to see if the refection's materialization is the last one to determine whether we are dropping the whole
+   * materialization or just cleaning up some prior incremental refresh.  If cleaning up a prior incremental refresh, we
+   * need to only clean up the KV store.  The Iceberg table still belongs to the latest refresh and should not
+   * be removed.
+   *
+   * @param tableSchemaPath Logical path to the reflection's materialization
+   * @param schemaConfig
+   * @param tableMutationOptions
+   */
   @Override
   public void dropTable(NamespaceKey tableSchemaPath, SchemaConfig schemaConfig, TableMutationOptions tableMutationOptions) {
+
     final List<String> components = normalizeComponents(tableSchemaPath.getPathComponents());
     if (components == null) {
       throw UserException.validationError().message("Unable to find any materialization or associated refreshes.").build(logger);
@@ -420,7 +478,7 @@ public class AccelerationStoragePlugin extends MayBeDistFileSystemPlugin<Acceler
       try {
         //TODO once DX-10850 is fixed we should no longer need to split the refresh path into separate components
         final NamespaceKey tableSchemaPath = new NamespaceKey(ImmutableList.<String>builder()
-          .add(ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME)
+          .add(ACCELERATOR_STORAGEPLUGIN_NAME)
           .addAll(PathUtils.toPathComponents(r.getPath()))
           .build());
         if (!deletedPaths.contains(tableSchemaPath)) {
@@ -449,5 +507,25 @@ public class AccelerationStoragePlugin extends MayBeDistFileSystemPlugin<Acceler
   @VisibleForTesting
   void fileSystemPluginDropTable(NamespaceKey tableSchemaPath, SchemaConfig schemaConfig, TableMutationOptions tableMutationOptions) {
     super.dropTable(tableSchemaPath, schemaConfig, tableMutationOptions);
+  }
+
+  /**
+   * Override used for OPTIMIZE TABLE and VACUUM TABLE commands on reflections. Redirects the path from the logical path to the correct physical path.
+   */
+  @Override
+  public CreateTableEntry createNewTable(NamespaceKey tableSchemaPath, SchemaConfig config, IcebergTableProps icebergTableProps,
+                                         WriterOptions writerOptions, Map<String, Object> storageOptions,
+                                         boolean isResultsTable) {
+    // If the source operation is OPTIMIZE or VACUUM, this is an incremental reflection. Thus, the table path needs to be corrected
+    // to point towards the physical location of the materialization (series ordinal 0).
+    if (icebergTableProps != null) {
+      IcebergCommandType commandType = icebergTableProps.getIcebergOpType();
+      if (commandType != null && (commandType.equals(IcebergCommandType.OPTIMIZE) || commandType.equals(IcebergCommandType.VACUUM))) {
+        String materializationPath = materializationStore.get(new MaterializationId(tableSchemaPath.getPathComponents().get(TABLE_SCHEMA_PATH_MATERIALIZATION_ID_COMPONENT))).getBasePath();
+        List<String> correctedPath = Arrays.asList(ACCELERATOR_STORAGEPLUGIN_NAME, tableSchemaPath.getPathComponents().get(TABLE_SCHEMA_PATH_REFLECTION_ID_COMPONENT), materializationPath);
+        tableSchemaPath = new NamespaceKey(correctedPath);
+      }
+    }
+    return super.createNewTable(tableSchemaPath, config, icebergTableProps, writerOptions, storageOptions, isResultsTable);
   }
 }

@@ -38,7 +38,7 @@ export class Advanced extends PureComponent {
     settings: PropTypes.object,
   };
 
-  componentWillMount() {
+  UNSAFE_componentWillMount() {
     this.props.getAllSettings(Object.keys(LABELS), false, VIEW_ID); // all settings asumed to be loaded and used inside SettingsMicroForm
   }
 
@@ -113,7 +113,7 @@ export class Advanced extends PureComponent {
     return (
       <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
         <SettingHeader icon="settings/queue-control">
-          {la("Queue Control")}
+          {laDeprecated("Queue Control")}
         </SettingHeader>
         <ViewStateWrapper
           viewState={viewStateWithoutError}

@@ -262,6 +262,9 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
   /* Total used capacity in the variable width vector */
   public int getUsedByteCapacity() {
     Preconditions.checkState(getLastSet() + 1 == head);
+    if (head == 0) {
+      return 0;
+    }
     return super.getStartOffset(head);
   }
 
@@ -304,7 +307,7 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
    * @return Field Reader for this vector
    */
   @Override
-  public FieldReader getReader() {
+  protected FieldReader getReaderImpl() {
     throw new UnsupportedOperationException("not supported");
   }
 
@@ -959,6 +962,11 @@ public class FixedListVarcharVector extends BaseVariableWidthVector {
   @Override
   public TransferPair getTransferPair(String ref, BufferAllocator allocator) {
     //return new VarCharVector.TransferImpl(ref, allocator);
+    throw new UnsupportedOperationException("not supported");
+  }
+
+  @Override
+  public TransferPair getTransferPair(Field field, BufferAllocator bufferAllocator) {
     throw new UnsupportedOperationException("not supported");
   }
 

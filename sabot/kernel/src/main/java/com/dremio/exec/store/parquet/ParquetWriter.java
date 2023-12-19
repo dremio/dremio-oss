@@ -77,6 +77,12 @@ public class ParquetWriter extends FileSystemWriter {
 
   @Override
   public int getOperatorType() {
+    Long combinedSmallFileTargetFileSize = options.getCombineSmallFileOptions() == null ? null : options.getCombineSmallFileOptions().getTargetFileSize();
+    // small-file-combining phase is set as different type of writer so that the rows during this phase will not
+    // be double counted
+    if (combinedSmallFileTargetFileSize != null) {
+      return CoreOperatorType.SMALL_FILE_COMBINATION_WRITER_VALUE;
+    }
     return CoreOperatorType.PARQUET_WRITER_VALUE;
   }
 

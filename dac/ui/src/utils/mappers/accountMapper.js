@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import uuid from "uuid";
+import { v4 as uuidv4 } from "uuid";
 
 class AccountMapper {
   mapSourceCredentialList(json) {
     return json.map((item) => {
       return {
-        id: uuid.v4(),
+        id: uuidv4(),
         name: item.name,
         type: item.type,
         properties: item.properties,

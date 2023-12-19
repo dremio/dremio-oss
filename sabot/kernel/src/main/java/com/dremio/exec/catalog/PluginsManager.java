@@ -33,6 +33,7 @@ import javax.inject.Provider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.catalog.exception.SourceAlreadyExistsException;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.VM;
 import com.dremio.common.concurrent.CloseableThreadPool;
@@ -176,7 +177,7 @@ public class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
    */
   public ManagedStoragePlugin create(SourceConfig config, String userName, NamespaceAttribute... attributes) throws TimeoutException, Exception {
     if (hasPlugin(config.getName())) {
-      throw new SourceAlreadyExistsException();
+      throw new SourceAlreadyExistsException(String.format("Source [%s] already exists.", config.getName()));
     }
 
     ManagedStoragePlugin plugin = newPlugin(config);
@@ -202,7 +203,7 @@ public class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
     }
 
     // This means it  has been added by a concurrent thread doing create with the same name
-    final SourceAlreadyExistsException e = new SourceAlreadyExistsException();
+    final SourceAlreadyExistsException e = new SourceAlreadyExistsException(String.format("Source [%s] already exists.", config.getName()));
     try {
       // this happened in time with someone else.
       plugin.close();
@@ -426,9 +427,11 @@ public class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
     }
 
     try {
-      return plugin.close(config, s -> plugins.remove(c(name)));
+      final boolean removed = plugin.close(config, s -> plugins.remove(c(name)));
+      plugin.deleteServiceSet();
+      return removed;
     } catch(Exception ex) {
-      logger.info("Exception while shutting down source.", ex);
+      logger.error("Exception while shutting down source {}.", name, ex);
       return true;
     }
 

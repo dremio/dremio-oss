@@ -264,7 +264,7 @@ public class TaskLeaderElection implements AutoCloseable {
    * To abandon leadership after some time
    * and enter elections again
    */
-  private class LeadershipReset implements Runnable {
+  private final class LeadershipReset implements Runnable {
     @Override
     public void run() {
       // do not abandon elections if there is no more participants in the elections

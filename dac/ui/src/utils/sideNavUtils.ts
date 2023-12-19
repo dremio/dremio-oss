@@ -16,3 +16,4 @@
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const usePrivileges = (projectId?: string) => {};
+export const useArcticCatalogPrivileges = () => {};

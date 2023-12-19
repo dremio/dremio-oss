@@ -19,13 +19,13 @@ import java.util.Map;
 
 import javax.inject.Provider;
 
+import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.datastore.VersionExtractor;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStoreCreationFunction;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.datastore.api.LegacyStoreBuildingFactory;
 import com.dremio.datastore.format.Format;
-import com.dremio.exec.catalog.CatalogEntityKey;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
@@ -62,16 +62,6 @@ public class ReflectionSettingsStore {
   }
 
   private static final class AccelerationSettingsVersionExtractor implements VersionExtractor<AccelerationSettings> {
-    @Override
-    public Long getVersion(AccelerationSettings value) {
-      return value.getVersion();
-    }
-
-    @Override
-    public void setVersion(AccelerationSettings value, Long version) {
-      value.setVersion(version == null ? 0 : version);
-    }
-
     @Override
     public String getTag(AccelerationSettings value) {
       return value.getTag();

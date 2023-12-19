@@ -14,5 +14,11 @@
  * limitations under the License.
  */
 import { setTracingContext } from "dremio-ui-common/contexts/TracingContext.js";
+import { intercomEventIds } from "../intercom/intercomEventIds";
 
-setTracingContext({ appEvent: () => undefined });
+setTracingContext({
+  appEvent: (eventId, eventMetadata) => {
+    if ("Intercom" in window)
+      window.Intercom("trackEvent", intercomEventIds[eventId], eventMetadata);
+  },
+});

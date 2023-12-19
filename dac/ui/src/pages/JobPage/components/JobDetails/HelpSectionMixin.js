@@ -15,7 +15,7 @@
  */
 import clsx from "clsx";
 import * as classes from "@app/uiTheme/radium/replacingRadiumPseudoClasses.module.less";
-
+import Immutable from "immutable";
 import SimpleButton from "components/Buttons/SimpleButton";
 
 import config from "dyn-load/utils/config";
@@ -33,7 +33,7 @@ export default function (input) {
             className={clsx(classes["secondaryButtonPsuedoClasses"])}
             onClick={this.handleEmail}
           >
-            {la("Email Help")}
+            {laDeprecated("Email Help")}
           </SimpleButton>,
         ],
         [
@@ -45,7 +45,7 @@ export default function (input) {
             submitting={this.props.downloadViewState.get("isInProgress")}
             onClick={this.handleDownload}
           >
-            {la("Download Profile")}
+            {laDeprecated("Download Profile")}
           </SimpleButton>,
         ],
         this.props.isSupport &&
@@ -58,7 +58,7 @@ export default function (input) {
               style={{ width: "220px" }}
               onClick={this.handleQueryDownload}
             >
-              {la("Download Query Support Bundle")}
+              {laDeprecated("Download Query Support Bundle")}
             </SimpleButton>,
           ],
       ];

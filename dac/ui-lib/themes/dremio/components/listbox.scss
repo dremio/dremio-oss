@@ -15,40 +15,80 @@
  */
 
 @use "../../utilities/bg";
+@use "../../utilities/border";
 @use "../../utilities/flex";
 @use "../../utilities/gap";
+@use "../../utilities/margin";
 @use "../../utilities/padding";
+@use "../../utilities/text";
 
-.listbox > * {
+.listbox,
+.listbox-group {
   @extend .flex;
-  @extend .gap-4;
-  @extend .items-center;
-  @extend .p-1;
+  @extend .flex-col;
+}
 
-  &.listbox-item--active,
-  &[aria-selected="true"] {
-    @extend .bg-brand-50;
-  }
-
-  &.listbox-item--active[aria-selected="true"] {
-    @extend .bg-brand-100;
+.listbox-group + .listbox-group,
+.listbox-group + .listbox-group-label {
+  &:before {
+    display: block;
+    border-top: 1px solid var(--color--neutral--50);
+    content: "";
   }
 }
 
-.dremio-dark .listbox {
-  > * {
-    background: lch(18% 7 242);
+.listbox-group + .listbox-group-label:before {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+}
+
+.listbox-group-label {
+  @extend .px-1;
+  @extend .pt-1;
+  @extend .text-sm;
+  @extend .text-medium;
+  color: var(--color--neutral--500);
+  position: relative;
+}
+
+.listbox-item {
+  @extend .flex;
+  @extend .items-center;
+  @extend .p-1;
+
+  &--active,
+  &[aria-selected="true"],
+  &:hover {
+    @extend .bg-brand-50;
+  }
+
+  &--active[aria-selected="true"] {
+    @extend .bg-brand-100;
+  }
+
+  &[aria-disabled="true"],
+  &:disabled,
+  &[disabled] {
+    background: transparent;
+    color: var(--color--neutral--400);
+    cursor: default;
+  }
+}
+
+.dremio-dark .listbox-item {
+  background: lch(18% 7 242);
+  color: lch(95% 2 252);
+
+  &--active,
+  &[aria-selected="true"] {
+    background: lch(30% 12 242);
     color: lch(95% 2 252);
+  }
 
-    &.listbox-item--active,
-    &[aria-selected="true"] {
-      background: lch(30% 12 242);
-      color: lch(95% 2 252);
-    }
-
-    &.listbox-item--active[aria-selected="true"] {
-      background: lch(38% 15 242);
-      color: lch(95% 2 252);
-    }
+  &--active[aria-selected="true"] {
+    background: lch(38% 15 242);
+    color: lch(95% 2 252);
   }
 }

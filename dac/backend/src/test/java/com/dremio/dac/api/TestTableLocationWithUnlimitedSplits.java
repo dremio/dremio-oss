@@ -55,7 +55,7 @@ public class TestTableLocationWithUnlimitedSplits extends BaseTestServer {
     nasConf.path = SOURCE_PATH;
 
     source = new Source();
-    source.setName("catalog-test");
+    source.setName("catalog-test-unlimited");
     source.setType("NAS");
     source.setConfig(nasConf);
     source.setMetadataPolicy(new MetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY));

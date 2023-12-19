@@ -35,10 +35,10 @@ public class CacheManagerFilesIterator implements Iterator<Object> {
   private RocksIterator fileIterator;
 
   CacheManagerFilesIterator(SabotContext sabotContext) {
-    isCachedFileSystem = (sabotContext.getFileSystemWrapper() instanceof CacheManagerStatsProvider);
+    isCachedFileSystem = sabotContext.getFileSystemWrapper().isWrapperFor(CacheManagerStatsProvider.class);
 
     if (isCachedFileSystem) {
-      cacheManagerStatsProvider = (CacheManagerStatsProvider) sabotContext.getFileSystemWrapper();
+      cacheManagerStatsProvider = sabotContext.getFileSystemWrapper().unwrap(CacheManagerStatsProvider.class);
       fileIterator = cacheManagerStatsProvider.getCachedFilesIterator();
       filesInfoList = cacheManagerStatsProvider.getCachedFilesStats(fileIterator);
     }

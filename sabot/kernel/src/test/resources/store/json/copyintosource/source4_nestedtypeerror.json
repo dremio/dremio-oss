@@ -1,0 +1,16 @@
+{
+  "col1":
+  [
+    [{"c1":1,"c2":2,"c3":"three", "c4": "val", "c4":"dup val" }],
+    [{"c1":4,"c2":5,"c3":"six"}, {"c1":7,"c2":8,"c3":"nine"}],
+    [{"c1":10,"c2":"eleven","c3":"twelve"}, {"c1":13,"c2":null,"c3":"fifteen"}, {"c1":16,"c2":17,"c3":"eighteen"}]
+  ],
+  "col3" : "d1",
+  "col4" : null,
+  "col5" : {
+    "c1" : null,
+    "c2" :100
+  },
+  "col8" : "Not interested column",
+  "col8" : "Not interested Duplicate col"
+}

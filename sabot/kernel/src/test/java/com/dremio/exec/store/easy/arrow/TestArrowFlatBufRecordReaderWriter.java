@@ -93,7 +93,7 @@ public class TestArrowFlatBufRecordReaderWriter extends ExecTest {
         ArrowFlatBufRecordWriter recordWriter = new ArrowFlatBufRecordWriter(context, outputStream);
 
         RecordWriter.WriteStatsListener byteCountListener = (b) -> { };
-        RecordWriter.OutputEntryListener fileWriteListener = (recordCount, fileSize, path, metadata, partitionNumber, icebergMetadata, schema, partition, operationType) -> { };
+        RecordWriter.OutputEntryListener fileWriteListener = (recordCount, fileSize, path, metadata, partitionNumber, icebergMetadata, schema, partition, operationType, partitionValue, rejectedRecordCount) -> { };
         recordWriter.setup(container, fileWriteListener, byteCountListener);
 
         recordWriter.writeBatch(0, container.getRecordCount());
@@ -177,7 +177,7 @@ public class TestArrowFlatBufRecordReaderWriter extends ExecTest {
 
           RecordWriter.WriteStatsListener byteCountListener = (b) -> { };
           RecordWriter.OutputEntryListener fileWriteListener = (
-            recordCount, fileSize, path, metadata, partitionNumber, icebergMetadata, schema, partition, operationType) -> { };
+            recordCount, fileSize, path, metadata, partitionNumber, icebergMetadata, schema, partition, operationType, partitionValue, rejectedRecordCount) -> { };
           recordWriter.setup(container, fileWriteListener, byteCountListener);
 
           recordWriter.writeBatch(0, container.getRecordCount());

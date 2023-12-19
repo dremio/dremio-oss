@@ -36,7 +36,7 @@ message SearchQuery {
   message Like {
     string field = 1;
     string pattern = 2; // according to SQL spec
-    string escape = 3; // empty implies no escaping
+    string escape = 3; // In general, empty implies no escaping. For INFORMATION_SCHEMA queries, we default to backslash (\) as the escape character even if this is empty.
     bool caseInsensitive = 4;
   }
 
@@ -50,12 +50,18 @@ message SearchQuery {
     repeated SearchQuery clauses = 1;
   }
 
+  message GreaterThan {
+    string field = 1;
+    int64 value = 2;
+  }
+
   // a catalog search query has one of the clauses
   oneof query {
     Equals equals = 1;
     And and = 2;
     Or or = 3;
     Like like = 4;
+    GreaterThan greater_than = 5;
     // TODO(DX-9909): add support for NOT and != operators
   }
 }

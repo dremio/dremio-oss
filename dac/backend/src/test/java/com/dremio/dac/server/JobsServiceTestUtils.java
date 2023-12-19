@@ -23,6 +23,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.BufferAllocator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.GrpcExceptionUtil;
 import com.dremio.common.exceptions.UserException;
@@ -64,6 +66,8 @@ import io.grpc.stub.StreamObserver;
  */
 public final class JobsServiceTestUtils {
 
+  private static final Logger logger = LoggerFactory.getLogger(JobsServiceTestUtils.class);
+
   private JobsServiceTestUtils() {
   }
 
@@ -93,7 +97,28 @@ public final class JobsServiceTestUtils {
   public static JobSubmission submitJobAndWaitUntilCompletion(JobsService jobsService, JobRequest request, JobStatusListener listener) {
     final CompletionListener completionListener = new CompletionListener();
     final JobSubmission jobSubmission = jobsService.submitJob(toSubmitJobRequest(request), new MultiJobStatusListener(completionListener, listener));
-    completionListener.awaitUnchecked(); // this will throw if the job fails
+    final JobId jobId = jobSubmission.getJobId();
+    try {
+      completionListener.await();
+    } catch (Exception ex1) {
+      // If job did not finish, most likely we encountered an interrupt.
+      // We need to cancel job in this case so that resources can be cleaned up properly.
+      if (!(completionListener.isCompleted()
+        || completionListener.getCancelledReason() != null
+        || completionListener.getException() != null)) {
+        try {
+          jobsService.cancel(CancelJobRequest.newBuilder()
+            .setUsername(SYSTEM_USERNAME)
+            .setJobId(JobsProtoUtil.toBuf(jobId))
+            .setReason("Query did not finish")
+            .build());
+        } catch (Exception ex2) {
+          logger.error("Failed to cancel query " + jobId, ex2);
+        }
+      }
+      Throwables.throwIfUnchecked(ex1);
+      throw new RuntimeException(ex1);
+    }
     if (!completionListener.isCompleted()) {
       throw new RuntimeException("Job has been cancelled");
     }
@@ -150,7 +175,7 @@ public final class JobsServiceTestUtils {
   /**
    * Observes for completion.
    */
-  private static class CompletionObserver implements StreamObserver<JobEvent> {
+  private static final class CompletionObserver implements StreamObserver<JobEvent> {
     private final CountDownLatch latch = new CountDownLatch(1);
 
     private volatile Throwable ex;

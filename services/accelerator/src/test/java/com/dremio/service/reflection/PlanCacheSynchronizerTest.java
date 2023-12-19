@@ -127,9 +127,13 @@ public class PlanCacheSynchronizerTest {
     PlanCacheSynchronizer synchronizer = new PlanCacheSynchronizer(goals, entries, () -> invalidationHelper);
     synchronizer.sync();
 
+    verify(invalidationHelper, times(1)).invalidatePlanCache();
     verify(invalidationHelper, never()).invalidateReflectionAssociatedPlanCache(anyString());
     verify(entries, never()).find();
     verify(goals, never()).getModifiedOrCreatedSince(anyLong());
+
+    synchronizer.sync();
+    verify(invalidationHelper, times(2)).invalidatePlanCache();
   }
 
   @Test

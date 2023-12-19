@@ -66,6 +66,8 @@ import {
   TransformFailedError,
 } from "./transformWatcher";
 import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
+import { getSupportFlag } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
+import { SQLRUNNER_TABS_UI } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
 
 export default function* watchLoadDataset() {
   yield takeEvery(PERFORM_LOAD_DATASET, handlePerformLoadDataset);
@@ -159,13 +161,16 @@ export function* loadTableData(
 ) {
   log(`prerequisites check; forceReload=${!!forceReload}`);
   let resetViewState = true;
-  // we should cancel a previous data load request in any case
-  yield call(cancelDataLoad); // cancel previous call, when a new load request is sent
 
-  //#region check if metadata is loaded --------------------
-
-  // Tracks all preview queries
   if (isRunOrPreview && !forceReload && datasetVersion) {
+    if (!(yield call(getSupportFlag, SQLRUNNER_TABS_UI))?.value) {
+      // we should cancel a previous data load request in any case
+      yield call(cancelDataLoad); // cancel previous call, when a new load request is sent
+    }
+
+    //#region check if metadata is loaded --------------------
+
+    // Tracks all preview queries
     sonarEvents.jobPreview();
   }
 
@@ -281,8 +286,8 @@ function* loadDataForCurrentPage() {
 }
 
 //export for tests
-export function* hideTableSpinner() {
-  yield put(updateViewState(EXPLORE_TABLE_ID, defaultViewState));
+export function* hideTableSpinner(tabId) {
+  yield put(updateViewState(EXPLORE_TABLE_ID, defaultViewState, { tabId }));
 }
 
 //export for testing
@@ -302,7 +307,8 @@ export function* loadDataset(
   willLoadTable
 ) {
   const location = yield select(getLocation);
-  const { mode, tipVersion, refType, refValue } = location.query || {};
+  const { mode, tipVersion, refType, refValue, sourceName } =
+    location.query || {};
   let apiAction;
   if (mode === "edit" || dataset.get("datasetVersion")) {
     //Set references after this actions is completed
@@ -323,12 +329,25 @@ export function* loadDataset(
     const parentFullPath = decodeURIComponent(
       constructFullPath([pathnameParts[2]]) + "." + pathnameParts[3]
     );
+
+    let customReference = {};
+
+    if (refType && refValue && customReference) {
+      customReference = {
+        [sourceName]: {
+          type: refType,
+          value: refValue,
+        },
+      };
+    }
+
     apiAction = yield call(
       newUntitled,
       dataset,
       parentFullPath,
       viewId,
-      willLoadTable
+      willLoadTable,
+      customReference
     );
   }
 

@@ -16,15 +16,11 @@
 import config from "dyn-load/utils/config";
 
 export function getEdition() {
-  return la("Community Edition");
+  return laDeprecated("Community Edition");
 }
 
 export function getEditionFromConfig() {
   return config && config.edition;
-}
-
-export function getAboutMode() {
-  return "full";
 }
 
 export function isNotSoftware() {

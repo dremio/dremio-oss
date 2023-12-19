@@ -16,45 +16,20 @@
 package com.dremio.services.nessie.grpc.client.impl;
 
 import org.projectnessie.client.api.AssignTagBuilder;
-import org.projectnessie.error.NessieConflictException;
-import org.projectnessie.error.NessieNotFoundException;
 import org.projectnessie.model.Reference;
 import org.projectnessie.model.Tag;
 
-import com.dremio.services.nessie.grpc.api.ReferenceType;
 import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingStub;
 
-final class GrpcAssignTag extends GrpcAssignReference implements AssignTagBuilder {
+final class GrpcAssignTag extends BaseGrpcAssignReference<Tag, AssignTagBuilder> implements AssignTagBuilder {
 
   GrpcAssignTag(TreeServiceBlockingStub stub) {
     super(stub);
-  }
-
-  @Override
-  public AssignTagBuilder assignTo(Reference assignTo) {
-    setAssignTo(assignTo);
-    return this;
+    refType(Reference.ReferenceType.TAG);
   }
 
   @Override
   public AssignTagBuilder tagName(String tagName) {
-    setRefName(tagName);
-    return this;
-  }
-
-  @Override
-  public AssignTagBuilder hash(String hash) {
-    setHash(hash);
-    return this;
-  }
-
-  @Override
-  public void assign() throws NessieNotFoundException, NessieConflictException {
-    assignAndGet();
-  }
-
-  @Override
-  public Tag assignAndGet() throws NessieNotFoundException, NessieConflictException {
-    return (Tag) super.assign(ReferenceType.TAG);
+    return refName(tagName);
   }
 }

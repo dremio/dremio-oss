@@ -84,7 +84,7 @@ public class TestFullMetadataRefreshCommitter {
     fullMetadataRefreshCommitter = Mockito.spy(new FullMetadataRefreshCommitter(
       "test", new ArrayList<>(), null, "test", new BatchSchema(new ArrayList<>()), null,
       new ArrayList<>(), icebergCommand, client, datasetConfig,
-      null, null, null));
+      null, null, null, null));
     Mockito.when(icebergCommand.endTransaction()).thenReturn(table);
     Mockito.when(table.currentSnapshot()).thenReturn(snapshot);
     Mockito.when(snapshot.summary()).thenReturn(new HashMap<>());

@@ -42,6 +42,7 @@ public class HashToRandomExchange extends AbstractExchange {
   private final BucketOptions options;
   private final LogicalExpression expr;
   private final OptionManager optionManager;
+  private final boolean adaptiveHash;
 
   public HashToRandomExchange(
       OpProps props,
@@ -51,11 +52,25 @@ public class HashToRandomExchange extends AbstractExchange {
       BatchSchema schema,
       PhysicalOperator child,
       LogicalExpression expr,
-      OptionManager optionManager) {
+      OptionManager optionManager,
+      boolean adaptiveHash) {
     super(props, senderProps, receiverProps, schema, child, optionManager);
     this.options = options;
     this.expr = expr;
     this.optionManager = optionManager;
+    this.adaptiveHash = adaptiveHash;
+  }
+
+  public HashToRandomExchange(
+    OpProps props,
+    OpProps senderProps,
+    OpProps receiverProps,
+    BucketOptions options,
+    BatchSchema schema,
+    PhysicalOperator child,
+    LogicalExpression expr,
+    OptionManager optionManager) {
+    this(props, senderProps, receiverProps, options, schema, child, expr, optionManager, false);
   }
 
   @Override
@@ -66,7 +81,7 @@ public class HashToRandomExchange extends AbstractExchange {
   @Override
   public Sender getSender(int minorFragmentId, PhysicalOperator child, EndpointsIndex.Builder indexBuilder) {
     final List<MinorFragmentIndexEndpoint> dest = PhysicalOperatorUtil.getIndexOrderedEndpoints(receiverLocations, indexBuilder);
-    return new HashPartitionSender(options.getResult(senderProps, dest.size()), schema, child, receiverMajorFragmentId, dest, expr);
+    return new HashPartitionSender(options.getResult(senderProps, dest.size()), schema, child, receiverMajorFragmentId, dest, expr, adaptiveHash);
   }
 
   @Override
@@ -76,7 +91,7 @@ public class HashToRandomExchange extends AbstractExchange {
 
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new HashToRandomExchange(props, senderProps, receiverProps, options, schema, child, expr, optionManager);
+    return new HashToRandomExchange(props, senderProps, receiverProps, options, schema, child, expr, optionManager, adaptiveHash);
   }
 
   @JsonProperty("expr")

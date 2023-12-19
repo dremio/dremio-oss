@@ -69,7 +69,7 @@ public class TestSpillingHashAgg extends BaseTestOperator {
   @Rule
   public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
 
-  private HashAggregate getHashAggregate(long reserve, long max, int hashTableBatchSize) {
+  protected HashAggregate getHashAggregate(long reserve, long max, int hashTableBatchSize) {
     OpProps props = PROPS.cloneWithNewReserve(reserve).cloneWithMemoryExpensive(true);
     props.setMemLimit(max);
     return new HashAggregate(props, null,
@@ -115,7 +115,7 @@ public class TestSpillingHashAgg extends BaseTestOperator {
       hashTableBatchSize);
   }
 
-  private HashAggregate getHashAggregate(long reserve, long max) {
+  protected HashAggregate getHashAggregate(long reserve, long max) {
     return getHashAggregate(reserve, max, 3968);
   }
 

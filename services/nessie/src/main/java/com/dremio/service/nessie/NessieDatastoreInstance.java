@@ -15,6 +15,7 @@
  */
 package com.dremio.service.nessie;
 
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.StampedLock;
 
@@ -41,6 +42,14 @@ public class NessieDatastoreInstance implements DatabaseConnectionProvider<Datas
   private DatastoreDbConfig config;
 
   private final ReadWriteLock lock = new StampedLock().asReadWriteLock();
+
+  // Embedded Nessie commits generally target the main branch (aside from specialized upgrade use
+  // cases). In case two or more commit attempts run concurrently, only one will win the optimistic
+  // lock (CAS) at the time of writing to storage, and the others will have to refresh the HEAD of
+  // the main branch and re-build the commit data. Therefore, it makes sense to allow at most one
+  // thread to attempt committing at any time to avoid wasting the efforts for preparing commit
+  // objects that would be discarded during re-tries.
+  private final Semaphore commitSemaphore = new Semaphore(1, true);
 
   public NessieDatastoreInstance() {
   }
@@ -96,5 +105,9 @@ public class NessieDatastoreInstance implements DatabaseConnectionProvider<Datas
 
   public ReadWriteLock getLock() {
     return lock;
+  }
+
+  public Semaphore getCommitSemaphore() {
+    return commitSemaphore;
   }
 }

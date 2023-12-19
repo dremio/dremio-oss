@@ -24,9 +24,7 @@ import org.apache.calcite.rel.type.RelDataTypeField;
 
 import com.dremio.common.types.TypeProtos;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
-import com.dremio.exec.planner.physical.BridgeExchangePrel;
 import com.dremio.exec.planner.physical.EmptyPrel;
-import com.dremio.exec.planner.physical.ExchangePrel;
 import com.dremio.exec.planner.physical.FilterPrel;
 import com.dremio.exec.planner.physical.JoinPrel;
 import com.dremio.exec.planner.physical.Prel;
@@ -120,19 +118,6 @@ public class EmptyPrelPropagator extends BasePrelVisitor<Prel, Void, RuntimeExce
       return createEmptyPrelFromNode(project);
     } else {
       return (ProjectPrel) project.copy(project.getTraitSet(), ImmutableList.of(child));
-    }
-  }
-
-  @Override
-  public Prel visitExchange(ExchangePrel exchange, Void value) throws RuntimeException {
-    if (exchange instanceof BridgeExchangePrel) {
-      return visitPrel(exchange, value);
-    }
-    RelNode child = ((Prel) exchange.getInput(0)).accept(this, value);
-    if (child instanceof EmptyPrel) {
-      return createEmptyPrelFromNode(exchange);
-    } else {
-      return (ExchangePrel) exchange.copy(exchange.getTraitSet(), ImmutableList.of(child));
     }
   }
 

@@ -43,6 +43,7 @@ import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.TxnAbortedException;
 import org.apache.hadoop.hive.metastore.api.TxnOpenException;
 import org.apache.hadoop.hive.metastore.utils.SecurityUtils;
+import org.apache.hadoop.hive.ql.metadata.Hive;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.security.authorization.plugin.HivePrivilegeObject;
 import org.apache.hadoop.hive.ql.security.authorization.plugin.HivePrivilegeObject.HivePrivObjectActionType;
@@ -171,7 +172,7 @@ class HiveClientImpl implements HiveClient, AutoCloseable {
       doAsCommand(
         (PrivilegedExceptionAction<Void>) () -> {
           try(Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
-            client = new HiveMetaStoreClient(hiveConf);
+            client = Hive.getWithFastCheck(hiveConf, false).getMSC();
           }
           return null;
         },
@@ -260,7 +261,13 @@ class HiveClientImpl implements HiveClient, AutoCloseable {
       return null;
     }
 
-    TableType type = TableType.valueOf(table.getTableType());
+    String tableType = table.getTableType();
+    if (tableType == null) {
+      throw UserException.sourceInBadState()
+        .message("Table %s.%s is missing table type", dbName, tableName)
+        .buildSilently();
+    }
+    TableType type = TableType.valueOf(tableType);
     switch (type) {
       case EXTERNAL_TABLE:
       case MANAGED_TABLE:

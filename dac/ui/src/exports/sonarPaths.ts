@@ -37,6 +37,11 @@ export const projectBase = (() => {
 export const datasets = (params: ProjectIdParam) =>
   new URL(``, projectBase(params));
 
+/** Sources */
+type SourceNameParam = { sourceName: string };
+export const source = (params: ProjectIdParam & SourceNameParam) =>
+  new URL(`source/${params.sourceName}`, projectBase(params));
+
 /** Jobs  */
 type JobIdParam = { jobId: string };
 export const jobs = (params: ProjectIdParam & FilterParams) =>

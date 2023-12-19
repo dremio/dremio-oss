@@ -94,7 +94,14 @@ export class ConfirmCancelFooter extends Component {
           ...(this.props.style || {}),
         }}
       >
-        <div style={{ alignSelf: "center" }}>{footerChildren}</div>
+        <div
+          style={{
+            alignSelf: "center",
+            marginRight: "var(--dremio--spacing--1)",
+          }}
+        >
+          {footerChildren}
+        </div>
         {cancel && !hideCancel && (
           <SimpleButton
             data-qa="cancel"

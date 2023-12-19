@@ -62,4 +62,22 @@ export default {
       () => {}
     ); //ignore errors
   },
+
+  fetchJobAndUserStats(numDaysBack) {
+    let url = "/stats/jobsandusers";
+    if (numDaysBack) {
+      url += `?numDaysBack=${numDaysBack}`;
+    } else {
+      url += `?numDaysBack=10&detailedStats=true`;
+    }
+    return ApiUtils.fetchJson(
+      url,
+      (json) => {
+        return json;
+      },
+      () => {},
+      {},
+      2
+    ); //ignore errors
+  },
 };

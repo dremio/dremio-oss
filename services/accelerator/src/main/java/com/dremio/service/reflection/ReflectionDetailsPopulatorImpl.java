@@ -18,24 +18,40 @@ package com.dremio.service.reflection;
 import static com.dremio.service.reflection.DatasetHashUtils.isPhysicalDataset;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.logical.LogicalJoin;
+import org.apache.calcite.util.Pair;
 
+import com.dremio.common.utils.PathUtils;
+import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.EntityExplorer;
+import com.dremio.exec.planner.CachedAccelDetails;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
+import com.dremio.exec.planner.acceleration.ExpansionNode;
+import com.dremio.exec.planner.acceleration.RelWithInfo;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
+import com.dremio.exec.planner.acceleration.substitution.SubstitutionUtils;
+import com.dremio.exec.planner.common.MoreRelOptUtil;
+import com.dremio.exec.proto.UserBitShared.LayoutMaterializedViewProfile;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.sys.accel.AccelerationDetailsPopulator;
 import com.dremio.reflection.hints.ReflectionExplanationsAndQueryDistance;
 import com.dremio.sabot.kernel.proto.ReflectionExplanation;
+import com.dremio.service.Pointer;
 import com.dremio.service.accelerator.AccelerationDetailsUtils;
 import com.dremio.service.accelerator.AccelerationUtils;
 import com.dremio.service.accelerator.proto.AccelerationDetails;
@@ -65,6 +81,7 @@ import com.dremio.service.reflection.proto.ReflectionField;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.ReflectionMeasureField;
+import com.dremio.service.reflection.proto.ReflectionPartitionField;
 import com.dremio.service.reflection.proto.ReflectionType;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -82,10 +99,15 @@ class ReflectionDetailsPopulatorImpl implements AccelerationDetailsPopulator {
   private final CatalogService catalogService;
   private final AccelerationDetails details = new AccelerationDetails();
   private final Map<String, ReflectionState> consideredReflections = new HashMap<>();
-  private List<String> substitutionErrors = Collections.emptyList();
+  private List<String> substitutionInfos = new ArrayList<>();
   private final List<String> consideredReflectionIds = new ArrayList<>();
   private final List<String> matchedReflectionIds = new ArrayList<>();
   private final List<String> chosenReflectionIds = new ArrayList<>();
+
+  private int replacementsDRR;
+  private int replacementsExpansion;
+  private int replacementsAlgebraic;
+  private int replacementsChosen;
 
   ReflectionDetailsPopulatorImpl(ReflectionService reflections, CatalogService catalogService) {
     this.reflections = reflections;
@@ -93,14 +115,24 @@ class ReflectionDetailsPopulatorImpl implements AccelerationDetailsPopulator {
   }
 
   @Override
-  public void planSubstituted(DremioMaterialization materialization, List<RelNode> substitutions, RelNode target, long millisTaken, boolean defaultReflection) {
+  public void planSubstituted(DremioMaterialization materialization, List<RelWithInfo> substitutions, RelNode target, long millisTaken, boolean defaultReflection) {
+    if (!defaultReflection) {
+      substitutions.stream().filter(Objects::nonNull).forEach(x -> {
+        if (x.getInfo().contains("expansion")) {
+          replacementsExpansion++;
+        } else {
+          replacementsAlgebraic++;
+        }
+      });
+    }
     try {
       // reflection was considered and matched
       final ReflectionState state = new ReflectionState(
         materialization.getMaterializationId(),
         materialization.getReflectionId(),
         !substitutions.isEmpty(), // non empty substitutions means that the reflected was matched at least once
-        materialization.isSnowflake()
+        materialization.isSnowflake(),
+        defaultReflection
       );
       consideredReflections.put(materialization.getReflectionId(), state);
     } catch (Exception e) {
@@ -131,7 +163,7 @@ class ReflectionDetailsPopulatorImpl implements AccelerationDetailsPopulator {
   @Override
   public void substitutionFailures(Iterable<String> errors) {
     if (errors != null) {
-      substitutionErrors = Lists.newArrayList(errors);
+      errors.forEach(x -> substitutionInfos.add(x));
     }
   }
 
@@ -141,7 +173,13 @@ class ReflectionDetailsPopulatorImpl implements AccelerationDetailsPopulator {
       for (SubstitutionInfo.Substitution sub : info.getSubstitutions()) {
         final String layoutId = sub.getMaterialization().getLayoutId();
         if (consideredReflections.containsKey(layoutId)) {
-          consideredReflections.get(sub.getMaterialization().getLayoutId()).chosen = true;
+          ReflectionState state = consideredReflections.get(sub.getMaterialization().getLayoutId());
+          state.chosen = true;
+          if (state.defaultExpansion) {
+            replacementsDRR++;
+          } else {
+            replacementsChosen++;
+          }
         }
       }
     } catch (Exception e) {
@@ -254,11 +292,14 @@ class ReflectionDetailsPopulatorImpl implements AccelerationDetailsPopulator {
         }
 
         details.setReflectionRelationshipsList(relationships);
+
+        substitutionInfos.add(String.format("Default Reflections Used: %d, Expansion Replacements: %d, Algebraic Replacements: %d, Replacements Chosen: %d",
+          replacementsDRR, replacementsExpansion, replacementsAlgebraic , replacementsChosen));
       }
     } catch (Exception e) {
       logger.error("AccelerationDetails populator failed to compute the acceleration", e);
     } finally {
-      details.setErrorList(substitutionErrors);
+      details.setErrorList(substitutionInfos);
     }
 
     return AccelerationDetailsUtils.serialize(details);
@@ -279,6 +320,67 @@ class ReflectionDetailsPopulatorImpl implements AccelerationDetailsPopulator {
     return chosenReflectionIds;
   }
 
+  /**
+   * Collect information about the query shape.  This is after DRRs.
+   */
+  @Override
+  public void planConvertedToRel(RelNode converted) {
+    Set<NamespaceKey> uniqueTables = new HashSet<>();
+    final int scanNodes = MoreRelOptUtil.countRelNodes(converted, x -> {
+      if (x instanceof ScanCrel) {
+        ScanCrel node = (ScanCrel) x;
+        uniqueTables.add(node.getTableMetadata().getName());
+        return true;
+      }
+      return false;
+    });
+    Map<Integer, List<ExpansionNode>> expansionsByDepth = new HashMap<>();
+    ExpansionNode.collectExpansionsByDepth(converted, expansionsByDepth, new Pointer<>(0));
+    final int queryJoins = MoreRelOptUtil.countRelNodes(converted, LogicalJoin.class::isInstance);
+    final int expansionNodes = MoreRelOptUtil.countRelNodes(converted, ExpansionNode.class::isInstance);
+    final long expansionNodesDistinct = expansionsByDepth.values().stream()
+      .flatMap(Collection::stream)
+      .map(x-> SubstitutionUtils.VersionedPath.of(x))
+      .distinct().count();
+    String convertToRelShape = String.format("Joins: %d, Tables: %d (Distinct: %d), Views: %d (Distinct: %d)\nTop Level Views: %s\nSecond Level Views: %s\nThird Level Views: %s",
+      queryJoins, scanNodes, uniqueTables.size(), expansionNodes, expansionNodesDistinct,
+      createPathList(0, expansionsByDepth), createPathList(1, expansionsByDepth), createPathList(2, expansionsByDepth));
+    substitutionInfos.add(convertToRelShape);
+  }
+
+  /**
+   * Returns a text description of the views present in a query tree at a given level sorted by # of joins in the view.
+   * Ex. [v1 (Joins: 100), v2 (Joins: 50), v3 (Joins: 25)]
+   */
+  private String createPathList(int depth, Map<Integer, List<ExpansionNode>> expansionsByDepth) {
+    return expansionsByDepth.getOrDefault(depth, ImmutableList.of()).stream()
+      .map(x -> Pair.of(x, MoreRelOptUtil.countRelNodes(x, LogicalJoin.class::isInstance)))
+      .sorted(Comparator.comparingInt(x -> - x.right))
+      .map(x -> String.format("%s (Joins: %s)", PathUtils.constructFullPath(x.left.getPath().getPathComponents()), x.left.isDefault() ? "-" : x.right))
+      .collect(Collectors.toList()).toString();
+  }
+
+  @Override
+  public void applyAccelDetails(final CachedAccelDetails accelDetails) {
+    List<RelWithInfo> dummy = new ArrayList<>();
+    dummy.add(null);
+    for (Map.Entry<DremioMaterialization, RelNode> entry : accelDetails.getMaterializationStore().entrySet()) {
+      DremioMaterialization materialization = entry.getKey();
+      String key = materialization.getReflectionId();
+      LayoutMaterializedViewProfile profile = accelDetails.getLmvProfile(key);
+      planSubstituted(
+        materialization,
+        profile.getSubstitutionsList().isEmpty() ? Collections.emptyList() : dummy,
+        entry.getValue(), 0, profile.getDefaultReflection());
+    }
+    if (accelDetails.getSubstitutionInfo() != null) {
+      planAccelerated(accelDetails.getSubstitutionInfo());
+    }
+    if (accelDetails.getReflectionExplanationsAndQueryDistance() != null) {
+      addReflectionHints(accelDetails.getReflectionExplanationsAndQueryDistance());
+    }
+  }
+
   private static LayoutDescriptor toLayoutDescriptor(final ReflectionGoal layout) {
     final ReflectionDetails details = Preconditions.checkNotNull(layout.getDetails(), "layout details is required");
 
@@ -287,7 +389,7 @@ class ReflectionDetailsPopulatorImpl implements AccelerationDetailsPopulator {
         .setName(layout.getName())
         .setDetails(
             new LayoutDetailsDescriptor()
-                .setPartitionFieldList(toLayoutFieldDescriptors(details.getPartitionFieldList()))
+                .setPartitionFieldList(toLayoutFieldDescriptorsFromPartitionField(details.getPartitionFieldList()))
                 .setDimensionFieldList(toLayoutDimensionFieldDescriptors(details.getDimensionFieldList()))
                 .setMeasureFieldList(toLayoutMeasureFieldDescriptors(details.getMeasureFieldList()))
                 .setSortFieldList(toLayoutFieldDescriptors(details.getSortFieldList()))
@@ -296,6 +398,17 @@ class ReflectionDetailsPopulatorImpl implements AccelerationDetailsPopulator {
                 .setPartitionDistributionStrategy(details.getPartitionDistributionStrategy() == PartitionDistributionStrategy.CONSOLIDATED ? com.dremio.service.accelerator.proto.PartitionDistributionStrategy.CONSOLIDATED : com.dremio.service.accelerator.proto.PartitionDistributionStrategy.STRIPED)
         );
 
+  }
+
+  private static List<LayoutFieldDescriptor> toLayoutFieldDescriptorsFromPartitionField(final List<ReflectionPartitionField> fields) {
+    return FluentIterable.from(AccelerationUtils.selfOrEmpty(fields))
+      .transform(new Function<ReflectionPartitionField, LayoutFieldDescriptor>() {
+        @Override
+        public LayoutFieldDescriptor apply(final ReflectionPartitionField field) {
+          return toLayoutFieldDescriptor(field);
+        }
+      })
+      .toList();
   }
 
   private static List<LayoutFieldDescriptor> toLayoutFieldDescriptors(final List<ReflectionField> fields) {
@@ -362,6 +475,10 @@ class ReflectionDetailsPopulatorImpl implements AccelerationDetailsPopulator {
     return new LayoutFieldDescriptor().setName(field.getName());
   }
 
+  private static LayoutFieldDescriptor toLayoutFieldDescriptor(final ReflectionPartitionField field) {
+    return new LayoutFieldDescriptor().setName(field.getName());
+  }
+
 
   /**
    * Internal class used to track reflections used during planning
@@ -373,14 +490,16 @@ class ReflectionDetailsPopulatorImpl implements AccelerationDetailsPopulator {
     private boolean chosen;
     private boolean hideHint = false;
     private boolean snowflake;
+    private boolean defaultExpansion;
     private double queryDistance = Double.NaN;
     private List<ReflectionExplanation> explanations = ImmutableList.of();
 
-    ReflectionState(String materializationId, String reflectionId, boolean matched, boolean snowflake) {
+    ReflectionState(String materializationId, String reflectionId, boolean matched, boolean snowflake, boolean defaultExpansion) {
       this.materializationId = Preconditions.checkNotNull(materializationId, "materializationId cannot be null");
       this.reflectionId = Preconditions.checkNotNull(reflectionId, "layoutId cannot be null");
       this.matched = matched;
       this.snowflake = snowflake;
+      this.defaultExpansion = defaultExpansion;
     }
 
     SubstitutionState getSubstitutionState() {

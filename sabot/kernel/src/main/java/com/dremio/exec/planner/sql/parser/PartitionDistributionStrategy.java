@@ -43,6 +43,21 @@ public enum PartitionDistributionStrategy {
    * <p>
    * There is no data transfer to consolidate each partition. Execution will very likely be faster.
    */
-  STRIPED
+  STRIPED;
 
+  public static PartitionDistributionStrategy getPartitionDistributionStrategy(String optionName) {
+    try {
+      return PartitionDistributionStrategy.valueOf(optionName);
+    } catch (Exception e) {
+      // The optionName may be the lower case string (e.g. java)
+      for(PartitionDistributionStrategy option : PartitionDistributionStrategy.values()) {
+        if (optionName.equalsIgnoreCase(option.toString())) {
+          return option;
+        }
+      }
+    }
+
+    // unreachable code. The validator ensures that the value is one of the available choices
+    return UNSPECIFIED;
+  }
 }

@@ -15,19 +15,14 @@
  */
 import { PageTypes } from "@app/pages/ExplorePage/pageTypes";
 import * as sqlPaths from "dremio-ui-common/paths/sqlEditor.js";
+import {
+  addProjectBase,
+  getProjectBase,
+  rmProjectBase,
+} from "dremio-ui-common/utilities/projectBase.js";
 
 export const getPathPart = (pageType) =>
   pageType && pageType !== PageTypes.default ? `/${pageType}` : "";
-const getPageTypeFromString = (str) => {
-  if (str === "") {
-    // see getPathPart
-    return PageTypes.default;
-  }
-  if (!Object.prototype.hasOwnProperty.call(PageTypes, str)) {
-    throw new Error(`Not supported page type: '${str}'`);
-  }
-  return PageTypes[str];
-};
 
 const countSlashes = (str) => {
   if (!str) return 0;
@@ -37,8 +32,17 @@ const countSlashes = (str) => {
 // explore page has the following url pattern (see routes.js):
 // So page type may or may not be presented.
 const isPageTypeContainedInPath = (pathname) => {
-  const patternSlashCount = countSlashes(sqlPaths.existingDataset.fullRoute());
-  return patternSlashCount === countSlashes(pathname);
+  const patternSlashCount = countSlashes(
+    pathname.startsWith("/new_query")
+      ? sqlPaths.sqlEditor.fullRoute() //Existing (temporary) dataset is also /sql?version=a&tipVersion=b
+      : sqlPaths.existingDataset.fullRoute()
+  );
+  let validSlashCount = patternSlashCount;
+  if (getProjectBase() !== "/") {
+    validSlashCount -= countSlashes(getProjectBase());
+  }
+
+  return validSlashCount === countSlashes(pathname);
 };
 
 export const excludePageType = (pathname) => {
@@ -50,20 +54,13 @@ export const excludePageType = (pathname) => {
   return pathWithoutPageType;
 };
 
-export const getPageType = (pathname) => {
-  if (isPageTypeContainedInPath(pathname)) {
-    return getPageTypeFromString(
-      pathname.substr(pathname.lastIndexOf("/") + 1)
-    );
-  }
-  return PageTypes.default;
-};
-
 /**
  * Changes page type for explore page
  * @param {string} pathname - current path name
  * @param {PageTypes} newPageType - a new page type. {@see PageTypes}
  */
 export const changePageTypeInUrl = (pathname, newPageType) => {
-  return excludePageType(pathname) + getPathPart(newPageType);
+  return addProjectBase(
+    excludePageType(rmProjectBase(pathname)) + getPathPart(newPageType)
+  );
 };

@@ -20,11 +20,13 @@ import static com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType.VALIDA
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.anySet;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
@@ -47,16 +49,18 @@ import org.apache.calcite.util.CancelFlag;
 import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.mockito.quality.Strictness;
 
+import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.catalog.ResolvedVersionContext;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.ops.QueryContext;
@@ -66,14 +70,16 @@ import com.dremio.exec.planner.acceleration.substitution.SubstitutionProvider;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionProviderFactory;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.planner.sql.OperatorTable;
 import com.dremio.exec.planner.sql.SqlConverter;
+import com.dremio.exec.planner.sql.handlers.ConvertedRelNode;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
+import com.dremio.exec.planner.sql.handlers.SqlToRelTransformer;
 import com.dremio.exec.planner.sql.parser.SqlCreateView;
 import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.exec.proto.UserBitShared.UserCredentials;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
+import com.dremio.exec.store.StoragePlugin;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionResolver;
 import com.dremio.sabot.exec.context.ContextInformation;
@@ -88,10 +94,13 @@ import com.dremio.test.UserExceptionAssert;
 public class TestCreateViewHandler extends DremioTest {
 
   private static final String DEFAULT_SOURCE_NAME = "dataplane_source_1";
-  private static final String VIEW_PATH = "dataplane_source_1.view1";
+  private static final String VIEW_PATH = "view1";
   private static final String DEFAULT_BRANCH_NAME = "branchName";
-  private static final NamespaceKey DEFAULT_NAMESPACE_KEY = new NamespaceKey(DEFAULT_SOURCE_NAME);
-  private static final NamespaceKey DEFAULT_SCHEMA = new NamespaceKey(Arrays.asList(DEFAULT_SOURCE_NAME));
+  private static final NamespaceKey DEFAULT_SOURCE_KEY = new NamespaceKey(DEFAULT_SOURCE_NAME);
+
+  private static final NamespaceKey VIEW_PATH_NS = new NamespaceKey(VIEW_PATH);
+  private static final NamespaceKey RESOLVED_VIEW_PATH = new NamespaceKey(Arrays.asList(DEFAULT_SOURCE_NAME, VIEW_PATH));
+  private static final NamespaceKey DEFAULT_SCHEMA = DEFAULT_SOURCE_KEY;
   private static final VersionContext DEFAULT_VERSION =
     VersionContext.ofBranch(DEFAULT_BRANCH_NAME);
   private static final ResolvedVersionContext DEFAULT_RESOLVED_VERSION_CONTEXT =
@@ -105,6 +114,8 @@ public class TestCreateViewHandler extends DremioTest {
     SQL_NODE_LIST,
     sqlNode,
     false,
+    null,
+    null,
     null
   );
 
@@ -114,6 +125,8 @@ public class TestCreateViewHandler extends DremioTest {
     SQL_NODE_LIST,
     sqlNode,
     true,
+    null,
+    null,
     null
   );
 
@@ -123,11 +136,12 @@ public class TestCreateViewHandler extends DremioTest {
     SQL_NODE_LIST,
     sqlNode,
     true,
+    null,
+    null,
     null
   );
-  @Rule
-  public MockitoRule rule = MockitoJUnit.rule().strictness(Strictness.STRICT_STUBS);
 
+  @Rule public MockitoRule rule = MockitoJUnit.rule().strictness(Strictness.LENIENT);
   @Mock private Catalog catalog;
   @Mock private UserSession userSession;
   @Mock private SqlHandlerConfig config;
@@ -147,6 +161,12 @@ public class TestCreateViewHandler extends DremioTest {
   @Mock private OptionResolver options;
   @Mock private UserCredentials userCredentials;
   @Mock private ContextInformation contextInformation;
+  @Mock private SqlHandlerConfig sqlHandlerConfig;
+  @Mock private ConvertedRelNode convertedRelNode;
+  @Mock private VersionContext sessionVersion;
+  @Mock private ResolvedVersionContext resolvedVersionContext;
+  @Mock private StoragePlugin storagePlugin;
+
   // End of mocks for getViewSql tests
 
   private BatchSchema batchSchema = new BatchSchema(new ArrayList<>());
@@ -165,10 +185,19 @@ public class TestCreateViewHandler extends DremioTest {
   @Test
   public void createVersionedViewSuccessful() throws Exception {
     setupResources();
-    doReturn(createViewOptions).when(createViewHandler).getViewOptions(DEFAULT_NAMESPACE_KEY, false);
-    doReturn(view).when(createViewHandler).getView(default_input, "");
-    doNothing().when(catalog).createView(DEFAULT_NAMESPACE_KEY, view, createViewOptions);
-
+    when(config.getContext().getSession().getSessionVersionForSource(DEFAULT_SOURCE_NAME)).thenReturn(sessionVersion);
+    doReturn(resolvedVersionContext).when(createViewHandler).getResolvedVersionContext(DEFAULT_SOURCE_NAME, sessionVersion);
+    doReturn(replaceViewOptions).when(createViewHandler).getViewOptions(
+      false, resolvedVersionContext);
+    doReturn(true).when(createViewHandler).checkViewExistence(VIEW_PATH, false, CatalogEntityKey.fromNamespaceKey(RESOLVED_VIEW_PATH));
+    doReturn(view).when(createViewHandler).getView(default_input, "", convertedRelNode);
+    doNothing().when(catalog).createView(RESOLVED_VIEW_PATH, view, createViewOptions);
+    doReturn("").when(createViewHandler).getViewSql(default_input,"");
+    doReturn(RESOLVED_VIEW_PATH).when(catalog).resolveSingle(VIEW_PATH_NS);
+    doReturn(convertedRelNode).when(createViewHandler).validateTablesAndVersionContext(
+      sqlNode,
+      RESOLVED_VIEW_PATH,
+      sessionVersion);
     List<SimpleCommandResult> result = createViewHandler.toResult("", default_input);
     assertThat(result).isNotEmpty();
     assertThat(result.get(0).ok).isTrue();
@@ -180,11 +209,30 @@ public class TestCreateViewHandler extends DremioTest {
   @Test
   public void testCreateViewTableNotFound() throws Exception {
     setupResources();
+    when(config.getContext().getSession().getSessionVersionForSource(DEFAULT_SOURCE_NAME)).thenReturn(sessionVersion);
     doReturn("").when(createViewHandler).getViewSql(default_input, "");
-
+    doReturn(RESOLVED_VIEW_PATH).when(catalog).resolveSingle(VIEW_PATH_NS);
+    MockedStatic<SqlToRelTransformer> prelTransformerMockedStatic = mockStatic(SqlToRelTransformer.class);
+    prelTransformerMockedStatic.when(() -> SqlToRelTransformer.validateAndConvert(any(SqlHandlerConfig.class), eq(default_input.getQuery())))
+      .thenThrow(UserException.validationError().message("not found").buildSilently());
     // Cannot find relNode (Table) if we don't set up one in test
     assertThatThrownBy(() -> createViewHandler.toResult("", default_input))
-      .hasMessageContaining("Cannot find table to create view from");
+      .hasMessageContaining("Validation of view sql failed");
+  }
+
+  @Test
+  public void testCreateViewTableException() throws Exception {
+    setupResources();
+    MockedStatic<SqlToRelTransformer> prelTransformerMockedStatic = mockStatic(SqlToRelTransformer.class);
+    doReturn("").when(createViewHandler).getViewSql(default_input, "");
+    doReturn(RESOLVED_VIEW_PATH).when(catalog).resolveSingle(VIEW_PATH_NS);
+    when(config.getContext().getSession().getSessionVersionForSource(DEFAULT_SOURCE_NAME)).thenReturn(sessionVersion);
+    prelTransformerMockedStatic.when(() -> SqlToRelTransformer.validateAndConvert(any(SqlHandlerConfig.class), eq(default_input.getQuery())))
+      .thenThrow(UserException.validationError().message("Unable to fix vds %s", VIEW_PATH).buildSilently());
+    // Repair of underlying  view in relNode  fails with "Unable to fix" exception
+    String expectedDetailedMessage = String.format("Unable to fix vds " + VIEW_PATH);
+    assertThatThrownBy(() -> createViewHandler.toResult("", default_input))
+      .hasMessageContaining(String.format("Validation of view sql failed"));
   }
 
   @Test
@@ -234,12 +282,21 @@ public class TestCreateViewHandler extends DremioTest {
   @Test
   public void replaceVersionedViewSuccessful() throws Exception {
     setupResources();
-    doReturn(replaceViewOptions).when(createViewHandler).getViewOptions(DEFAULT_NAMESPACE_KEY, true);
-    doReturn(true).when(createViewHandler).checkViewExistence(DEFAULT_NAMESPACE_KEY,VIEW_PATH, true);
-    doReturn(view).when(createViewHandler).getView(default_replace_input, "");
-    doNothing().when(catalog).updateView(DEFAULT_NAMESPACE_KEY, view, replaceViewOptions);
+    when(config.getContext().getSession().getSessionVersionForSource(DEFAULT_SOURCE_NAME)).thenReturn(sessionVersion);
+    doReturn(resolvedVersionContext).when(createViewHandler).getResolvedVersionContext(DEFAULT_SOURCE_NAME, sessionVersion);
+    doReturn(replaceViewOptions).when(createViewHandler).getViewOptions(
+      true, resolvedVersionContext);
+    doReturn(true).when(createViewHandler).checkViewExistence(VIEW_PATH, true, CatalogEntityKey.fromNamespaceKey(RESOLVED_VIEW_PATH));
+    doReturn(RESOLVED_VIEW_PATH).when(catalog).resolveSingle(VIEW_PATH_NS);
+    doReturn(view).when(createViewHandler).getView(default_replace_input, "", null);
+    doNothing().when(catalog).updateView(RESOLVED_VIEW_PATH, view, replaceViewOptions);
+    doReturn("").when(createViewHandler).getViewSql(default_replace_input,"");
+    doReturn(null).when(createViewHandler).validateTablesAndVersionContext(
+      sqlNode,
+      RESOLVED_VIEW_PATH,
+      sessionVersion);
 
-    List<SimpleCommandResult> result = createViewHandler.toResult("", default_replace_input);
+      List<SimpleCommandResult> result = createViewHandler.toResult("", default_replace_input);
     assertThat(result).isNotEmpty();
     assertThat(result.get(0).ok).isTrue();
     assertThat(result.get(0).summary)
@@ -252,10 +309,22 @@ public class TestCreateViewHandler extends DremioTest {
     setupResources();
     DremioTable dremioTable = mock(DremioTable.class);
     Schema.TableType tableType = Schema.TableType.TABLE;
-    doReturn(view).when(createViewHandler).getView(default_replace_input, "");
-    doReturn(dremioTable).when(catalog).getTableNoResolve(DEFAULT_NAMESPACE_KEY);
+    when(config.getContext().getSession().getSessionVersionForSource(DEFAULT_SOURCE_NAME)).thenReturn(sessionVersion);
+    doReturn(resolvedVersionContext).when(createViewHandler).getResolvedVersionContext(DEFAULT_SOURCE_NAME, sessionVersion);
+    doReturn(replaceViewOptions).when(createViewHandler).getViewOptions(
+      true, resolvedVersionContext);
+    doReturn(view).when(createViewHandler).getView(default_replace_input, "", null);
+    doReturn(true).when(createViewHandler).isVersioned(RESOLVED_VIEW_PATH);
+    when(resolvedVersionContext.getType()).thenReturn(ResolvedVersionContext.Type.BRANCH);
+    when(resolvedVersionContext.getRefName()).thenReturn("main");
+    doReturn(dremioTable).when(catalog).getTableNoResolve(RESOLVED_VIEW_PATH);
+    doReturn(RESOLVED_VIEW_PATH).when(catalog).resolveSingle(VIEW_PATH_NS);
     doReturn(tableType).when(dremioTable).getJdbcTableType();
-
+    doReturn("").when(createViewHandler).getViewSql(default_replace_input,"");
+    doReturn(null).when(createViewHandler).validateTablesAndVersionContext(
+      sqlNode,
+      RESOLVED_VIEW_PATH,
+      sessionVersion);
     UserExceptionAssert.assertThatThrownBy(() -> createViewHandler.toResult("", default_replace_input))
       .hasErrorType(VALIDATION)
       .hasMessageContaining("A non-view table with given name")
@@ -266,15 +335,17 @@ public class TestCreateViewHandler extends DremioTest {
   private void setupResources() throws SqlParseException {
     setupCreateViewHandler();
     // versioned view test only
-    doReturn(true).when(createViewHandler).isVersioned(DEFAULT_NAMESPACE_KEY);
+    doReturn(true).when(createViewHandler).isVersioned(RESOLVED_VIEW_PATH);
   }
 
   private void setupCreateViewHandler() {
-    when(catalog.resolveSingle(default_input.getPath())).thenReturn(DEFAULT_NAMESPACE_KEY);
+    when(catalog.resolveSingle(default_input.getPath())).thenReturn(DEFAULT_SOURCE_KEY);
     when(context.getCatalog()).thenReturn(catalog);
     when(optionManager.getOption(VERSIONED_VIEW_ENABLED)).thenReturn(true);
     when(context.getOptions()).thenReturn(optionManager);
     when(config.getContext()).thenReturn(context);
+    when(context.getSession()).thenReturn(userSession);
+    when(userSession.getDefaultSchemaPath()).thenReturn(DEFAULT_SCHEMA);
     when(sqlNode.toSqlString(CalciteSqlDialect.DEFAULT)).thenReturn(queryString);
     when(sqlNode.toSqlString(CalciteSqlDialect.DEFAULT, true)).thenReturn(queryString);
     when(sqlNode.getKind()).thenReturn(SqlKind.SELECT);
@@ -364,8 +435,11 @@ public class TestCreateViewHandler extends DremioTest {
     setupCreateViewHandler();
     doThrow(UserException.validationError().message("permission denied").buildSilently())
       .when(catalog)
-      .validatePrivilege(new NamespaceKey(DEFAULT_SOURCE_NAME), SqlGrant.Privilege.ALTER);
-
+      .validatePrivilege(RESOLVED_VIEW_PATH, SqlGrant.Privilege.ALTER);
+    when(config.getContext().getSession().getSessionVersionForSource(DEFAULT_SOURCE_NAME)).thenReturn(sessionVersion);
+    doReturn("").when(createViewHandler).getViewSql(default_input,"");
+    doReturn(null).when(createViewHandler).validateTablesAndVersionContext(sqlNode, RESOLVED_VIEW_PATH, sessionVersion);
+    doReturn(RESOLVED_VIEW_PATH).when(catalog).resolveSingle(VIEW_PATH_NS);
     assertThatThrownBy(() -> createViewHandler.toResult("", default_input))
       .isInstanceOf(UserException.class)
       .hasMessage("permission denied");
@@ -388,7 +462,9 @@ public class TestCreateViewHandler extends DremioTest {
     when(context.getSession()).thenReturn(userSession);
     when(context.getSubstitutionProviderFactory()).thenReturn(factory);
     when(factory.getSubstitutionProvider(
-      any(SabotConfig.class), any(MaterializationList.class), any(OptionResolver.class), any(OperatorTable.class)))
+any(SabotConfig.class),
+      any(MaterializationList.class),
+      any(OptionResolver.class)))
       .thenReturn(substitutionProvider);
     when(settings.getIdentifierMaxLength()).thenReturn(1024L);
     when(settings.getOptions()).thenReturn(options);
@@ -407,7 +483,6 @@ public class TestCreateViewHandler extends DremioTest {
       context.getFunctionRegistry(),
       context.getSession(),
       observer,
-      context.getCatalog(),
       context.getSubstitutionProviderFactory(),
       context.getConfig(),
       context.getScanResult(),

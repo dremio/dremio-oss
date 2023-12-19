@@ -29,11 +29,11 @@ import { parseResourceId } from "utils/pathUtils";
 import SideNavAdmin from "dyn-load/components/SideNav/SideNavAdmin";
 import SideNavExtra from "dyn-load/components/SideNav/SideNavExtra";
 
-import localStorageUtils, {
-  useProjectContext,
-} from "@inject/utils/storageUtils/localStorageUtils";
 import ProjectActivationHOC from "@inject/containers/ProjectActivationHOC";
-import { usePrivileges } from "@inject/utils/sideNavUtils";
+import {
+  usePrivileges,
+  useArcticCatalogPrivileges,
+} from "@inject/utils/sideNavUtils";
 import SideNavHoverMenu from "./SideNavHoverMenu";
 import AccountMenu from "./AccountMenu";
 import "@app/components/IconFont/css/DremioIcons-old.css";
@@ -47,7 +47,7 @@ import clsx from "clsx";
 import * as PATHS from "../../exports/paths";
 import CatalogsMenu from "./CatalogsMenu";
 import { useFeatureFlag } from "@app/exports/providers/useFeatureFlag";
-import { ARCTIC_CATALOG } from "@app/exports/flags/ARCTIC_CATALOG";
+import { ARCTIC_CATALOG } from "@inject/featureFlags/flags/ARCTIC_CATALOG";
 import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
 import * as commonPaths from "dremio-ui-common/paths/common.js";
 import * as jobPaths from "dremio-ui-common/paths/jobs.js";
@@ -55,8 +55,14 @@ import * as orgPaths from "dremio-ui-common/paths/organization.js";
 import * as sqlPaths from "dremio-ui-common/paths/sqlEditor.js";
 import * as adminPaths from "dremio-ui-common/paths/admin.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
-import "./SideNav.less";
 import { getSessionContext } from "dremio-ui-common/contexts/SessionContext.js";
+
+import { WalkthroughMenu } from "@inject/tutorials/components/WalkthroughMenu/WalkthroughMenu";
+import { FeatureSwitch } from "@app/exports/components/FeatureSwitch/FeatureSwitch";
+import { PRODUCT_TUTORIALS } from "@inject/featureFlags/flags/PRODUCT_TUTORIALS";
+import { useDefaultContext } from "@inject/utils/queryContextUtils";
+
+import "./SideNav.less";
 
 const SideNav = (props) => {
   const {
@@ -81,20 +87,24 @@ const SideNav = (props) => {
   const projectId =
     router.params?.projectId || getSonarContext()?.getSelectedProjectId?.();
   usePrivileges(projectId);
+  useArcticCatalogPrivileges();
   const intl = useIntl();
-  const ctx = useProjectContext();
-  const isDDPOnly = localStorageUtils
-    ? localStorageUtils.isDataPlaneOnly(ctx)
-    : false;
-  const logoSVG = isDDPOnly ? "corporate/dremio-ddp" : "corporate/dremio";
+  const logoSVG = "corporate/dremio";
   const userName = user.get("userName");
   const userTooltip = intl.formatMessage({ id: "SideNav.User" }) + userName;
+  const defaultContext = useDefaultContext(userName);
 
   const getNewQueryHref = () => {
-    const resourceId = parseResourceId(location.pathname, user.get("userName"));
+    const resourceId = parseResourceId(location.pathname, defaultContext);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { type, ...rest } = location.query;
     return sqlPaths.newQuery.link({
       resourceId,
       projectId,
+      ...(rmProjectBase(location.pathname).startsWith("/new_query") && {
+        ...rest,
+        resourceId: rest.context,
+      }),
     });
   };
 
@@ -129,13 +139,13 @@ const SideNav = (props) => {
         {actions === null && !isProjectInactive && (
           <TopAction
             tooltipProps={{ placement: "right" }}
-            active={isActive({ name: "/", dataset: true, loc, isDDPOnly })}
+            active={isActive({ name: "/", dataset: true, loc })}
             url={commonPaths.projectBase.link({ projectId })}
             icon="navigation-bar/dataset"
             alt="SideNav.Datasets"
           />
         )}
-        {actions === null && !isDDPOnly && !isProjectInactive && (
+        {actions === null && !isProjectInactive && (
           <>
             <TopAction
               tooltipProps={{ placement: "right" }}
@@ -154,14 +164,20 @@ const SideNav = (props) => {
               data-qa="select-jobs"
             />
             {organizationLanding && (
-              <TopAction
-                tooltipProps={{ placement: "right" }}
-                active={isActive({ loc, admin: true })}
-                url={adminPaths.general.link({ projectId })}
-                icon="interface/settings"
-                alt="SideNav.AdminMenuProjectSetting"
-                data-qa="select-admin-settings"
-              />
+              <>
+                <TopAction
+                  tooltipProps={{ placement: "right" }}
+                  active={isActive({ loc, admin: true })}
+                  url={adminPaths.general.link({ projectId })}
+                  icon="interface/settings"
+                  alt="SideNav.AdminMenuProjectSetting"
+                  data-qa="select-admin-settings"
+                />
+                <FeatureSwitch
+                  flag={PRODUCT_TUTORIALS}
+                  renderEnabled={() => <WalkthroughMenu />}
+                />
+              </>
             )}
           </>
         )}
@@ -192,14 +208,16 @@ const SideNav = (props) => {
 
         <SideNavHoverMenu
           tooltipStringId={"SideNav.Help"}
-          menu={<HelpMenu />}
+          menu={<HelpMenu organizationLanding={organizationLanding} />}
           icon={"interface/help"}
+          isDCS={true}
         />
         <SideNavHoverMenu
           aria-label="User options"
           tooltipString={userTooltip}
           menu={<AccountMenu />}
           divBlob={<Avatar initials={nameToInitials(userName)} />}
+          isDCS={true}
         />
       </div>
     </div>

@@ -15,6 +15,7 @@
  */
 
 import { Checkbox } from "@mantine/core";
+import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";
 // @ts-ignore
 import { renderPrivilegesColumns } from "dremio-ui-common/components/PrivilegesTable/privilegesTableColumns.js";
 import { Controller } from "react-hook-form";
@@ -22,7 +23,6 @@ import { Avatar } from "dremio-ui-lib/components";
 // @ts-ignore
 import { Tooltip } from "dremio-ui-lib";
 import { nameToInitials } from "@app/exports/utilities/nameToInitials";
-import { intl } from "@app/utils/intl";
 import SettingsBtn from "@app/components/Buttons/SettingsBtn";
 import Menu from "@app/components/Menus/Menu";
 import MenuItem from "@app/components/Menus/MenuItem";
@@ -43,16 +43,15 @@ export const getPrivilegesColumns = (
   openDialog: (type: any, dialogState: any) => void,
   nameColumnLabel: string,
   privilegeTooltipIds: any,
-  owner?: string,
-  isCurrentUserOrOwner?: boolean
+  owner?: string
 ) => {
+  const { t } = getIntlContext();
   return renderPrivilegesColumns({
     nameColumnLabel: nameColumnLabel,
     availablePrivileges: granteeData?.availablePrivileges,
     renderPrivilegeTooltip: (privilege: string) =>
-      intl.formatMessage({ id: privilegeTooltipIds[privilege] }),
-    renderNameCell: (data: any) =>
-      nameCell(data, openDialog, owner, isCurrentUserOrOwner),
+      t(privilegeTooltipIds[privilege]),
+    renderNameCell: (data: any) => nameCell(data, openDialog, owner),
     renderCheckboxCell: (data: any, privilege: string) => (
       <Controller
         name={`${data.granteeId}-${privilege}`}
@@ -84,37 +83,22 @@ export const getPrivilegesColumns = (
 };
 
 const GranteeActionMenu = (menuProps: any) => {
-  const { item, closeMenu, openDialog, isCurrentUserAnOwner } = menuProps;
+  const { item, closeMenu, openDialog } = menuProps;
+  const { t } = getIntlContext();
   return (
     <Menu>
-      {isCurrentUserAnOwner && (
-        <MenuItem
-          key="grant-ownership"
-          onClick={(): void => {
-            openDialog(GrantActions.GRANT_OWNERSHIP, {
-              openDialog: true,
-              granteeId: item.granteeId,
-            });
-            closeMenu();
-          }}
-        >
-          {intl.formatMessage({
-            id: "Admin.Privileges.GrantOwnership",
-          })}
-        </MenuItem>
-      )}
       <MenuItem
         key="remove-member"
-        classname={classes["privileges__nameCell__moreActions-remove"]}
+        className={classes["privileges__nameCell__moreActions-remove"]}
         onClick={(): void => {
-          openDialog(GrantActions.DELETE, {
+          openDialog({
             openDialog: true,
             granteeId: item.granteeId,
           });
           closeMenu();
         }}
       >
-        {intl.formatMessage({ id: "Common.Remove" })}
+        {t("Common.Remove")}
       </MenuItem>
     </Menu>
   );
@@ -123,10 +107,10 @@ const GranteeActionMenu = (menuProps: any) => {
 const nameCell = (
   item: any,
   openDialog: (type: any, dialogState: any) => void,
-  owner?: string,
-  isCurrentUserAnOwner?: boolean
+  owner?: string
 ) => {
   const isOwner = item.granteeId === owner;
+  const { t } = getIntlContext();
   return (
     <div className={classes["privileges__nameCell"]}>
       <div className={classes["privileges__nameCell__leftSide"]}>
@@ -148,33 +132,16 @@ const nameCell = (
         </Tooltip>
       </div>
       <div className={classes["privileges__nameCell__rightSide"]}>
-        {isOwner && (
-          <Tooltip
-            title={intl.formatMessage({ id: "Common.Owner" })}
-            placement="top"
-          >
-            <dremio-icon
-              name="interface/owner"
-              class={classes["privileges__nameCell__ownerIcon"]}
-            />
-          </Tooltip>
-        )}
         <SettingsBtn
           classStr={`sqlScripts__menu-item__actions ${classes["privileges__nameCell__moreActions"]}`}
-          menu={
-            <GranteeActionMenu
-              item={item}
-              openDialog={openDialog}
-              isCurrentUserAnOwner={isCurrentUserAnOwner}
-            />
-          }
+          menu={<GranteeActionMenu item={item} openDialog={openDialog} />}
           hideArrowIcon
           stopPropagation
           disabled={isOwner}
         >
           <dremio-icon
             name="interface/more"
-            alt={intl.formatMessage({ id: "Common.More" })}
+            alt={t("Common.More")}
             class={
               classes[
                 `privileges__nameCell__moreActions${isOwner ? "-disabled" : ""}`

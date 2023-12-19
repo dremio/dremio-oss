@@ -41,6 +41,7 @@ import com.dremio.exec.store.dfs.GandivaPersistentCachePluginConfig;
 import com.dremio.exec.store.dfs.InternalFileConf;
 import com.dremio.exec.store.dfs.MetadataStoragePluginConfig;
 import com.dremio.exec.store.dfs.SchemaMutability;
+import com.dremio.exec.store.dfs.system.SystemIcebergTablesStoragePluginConfig;
 import com.dremio.options.TypeValidators;
 import com.dremio.service.BindingProvider;
 import com.dremio.service.DirectProvider;
@@ -68,6 +69,9 @@ public class SystemStoragePluginInitializer implements Initializer<Void> {
   @Override
   public Void initialize(BindingProvider provider) throws Exception {
     final SabotContext sabotContext = provider.lookup(SabotContext.class);
+
+    createIcebergTablePlugin(provider, sabotContext);
+
     boolean isDistributedCoordinator = sabotContext.getDremioConfig().isMasterlessEnabled()
       && sabotContext.getRoles().contains(ClusterCoordinator.Role.COORDINATOR);
     boolean isMaster = sabotContext.getRoles().contains(ClusterCoordinator.Role.MASTER);
@@ -108,6 +112,19 @@ public class SystemStoragePluginInitializer implements Initializer<Void> {
     return null;
   }
 
+  private void createIcebergTablePlugin(final BindingProvider provider, final SabotContext sabotContext) {
+    final DremioConfig config = provider.lookup(DremioConfig.class);
+    final CatalogService catalogService = provider.lookup(CatalogService.class);
+    final ProjectConfig projectConfig = provider.lookup(ProjectConfig.class);
+    final ProjectConfig.DistPathConfig systemIcebergTablesPathConfig = projectConfig.getSystemIcebergTablesConfig();
+    final NamespaceService ns = provider.lookup(SabotContext.class).getNamespaceService(SYSTEM_USERNAME);
+    final DeferredException deferred = new DeferredException();
+
+    final boolean enableAsyncForSystemIcebergTablesStorage = enable(config, DremioConfig.DEBUG_SYSTEM_ICEBERG_TABLES_STORAGE_ASYNC_ENABLED);
+    createSafe(catalogService, ns, SystemIcebergTablesStoragePluginConfig.create(systemIcebergTablesPathConfig.getUri(), enableAsyncForSystemIcebergTablesStorage,
+      isEnableS3FileStatusCheck(config, systemIcebergTablesPathConfig), systemIcebergTablesPathConfig.getDataCredentials()), deferred);
+  }
+
   /**
    * To wrap plugins creation
    * @param provider
@@ -132,7 +149,7 @@ public class SystemStoragePluginInitializer implements Initializer<Void> {
     final URI downloadPath = config.getURI(DremioConfig.DOWNLOADS_PATH_STRING);
     final URI resultsPath = config.getURI(DremioConfig.RESULTS_PATH_STRING);
     // Do not construct URI simply by concatenating, as it might not be encoded properly
-    final URI logsPath = new URI("pdfs", "///" + logPath.toUri().getPath(), null);
+    final URI logsPath = new URI("pdfs", "//" + logPath.toUri().getPath(), null);
     final URI supportURI = supportPath.toUri();
 
     final boolean enableAsyncForUploads = enable(config, DremioConfig.DEBUG_UPLOADS_ASYNC_ENABLED);
@@ -189,7 +206,7 @@ public class SystemStoragePluginInitializer implements Initializer<Void> {
     final boolean enableAsyncForLogs = enable(config, DremioConfig.DEBUG_LOGS_ASYNC_ENABLED);
     createSafe(catalogService, ns,
       InternalFileConf.create(LOGS_STORAGE_PLUGIN, logsPath, SchemaMutability.NONE,
-        CatalogService.NEVER_REFRESH_POLICY, enableAsyncForLogs, null), deferred);
+        CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE, enableAsyncForLogs, null), deferred);
 
     final boolean enableAsyncForSupport = enable(config, DremioConfig.DEBUG_SUPPORT_ASYNC_ENABLED);
     createSafe(catalogService, ns,

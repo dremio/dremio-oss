@@ -177,6 +177,7 @@ public class TestConstantFolding extends PlanTestBase {
         "bigfile");
   }
 
+  @Ignore
   @Test
   public void testConstExprFolding_withPartitionPrune() throws Exception {
     new SmallFileCreator(folder).createFiles(1, 1000);

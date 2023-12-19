@@ -16,23 +16,29 @@
 package com.dremio.exec.physical.base;
 
 
+import static com.dremio.exec.store.iceberg.IcebergSerDe.deserializedJsonAsSchema;
+import static com.dremio.exec.store.iceberg.IcebergUtils.hasNonIdentityPartitionColumns;
+
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionSpec;
-import org.apache.iceberg.transforms.Transforms;
+import org.apache.iceberg.SortOrder;
 
-import com.dremio.exec.catalog.ResolvedVersionContext;
+import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.exec.planner.physical.DistributionTrait;
 import com.dremio.exec.planner.physical.DistributionTrait.DistributionField;
 import com.dremio.exec.planner.physical.DistributionTrait.DistributionType;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.visitor.WriterUpdater;
 import com.dremio.exec.planner.sql.parser.PartitionDistributionStrategy;
+import com.dremio.exec.store.iceberg.IcebergSerDe;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
@@ -53,7 +59,7 @@ public class WriterOptions {
 
   private final Integer ringCount;
   private final List<String> partitionColumns;
-  private final List<String> sortColumns;
+  private List<String> sortColumns;
   private final List<String> distributionColumns;
   private final PartitionDistributionStrategy partitionDistributionStrategy;
   private final String tableLocation;
@@ -66,6 +72,8 @@ public class WriterOptions {
   private final boolean readSignatureSupport;
   private final ResolvedVersionContext version;
   private TableFormatWriterOptions tableFormatOptions;
+  private final CombineSmallFileOptions combineSmallFileOptions;
+  private final Map<String, String> tableProperties;
 
   public WriterOptions(
     Integer ringCount,
@@ -93,7 +101,7 @@ public class WriterOptions {
   ) {
     this(ringCount, partitionColumns, sortColumns, distributionColumns, partitionDistributionStrategy, null,
       singleWriter, recordLimit, tableFormatOptions, extendedProperty, false, Long.MAX_VALUE,
-      readSignatureSupport, null);
+      readSignatureSupport, null, null, Collections.emptyMap());
   }
 
   public WriterOptions(
@@ -109,7 +117,43 @@ public class WriterOptions {
     ByteString extendedProperty
   ) {
     this(ringCount, partitionColumns, sortColumns, distributionColumns, partitionDistributionStrategy, tableLocation,
-      singleWriter, recordLimit, tableFormatOptions, extendedProperty, false, Long.MAX_VALUE, true, null);
+      singleWriter, recordLimit, tableFormatOptions, extendedProperty, false, Long.MAX_VALUE, true, null, null, Collections.emptyMap());
+  }
+
+  public WriterOptions(
+    Integer ringCount,
+    List<String> partitionColumns,
+    List<String> sortColumns,
+    List<String> distributionColumns,
+    PartitionDistributionStrategy partitionDistributionStrategy,
+    String tableLocation,
+    boolean singleWriter,
+    long recordLimit,
+    TableFormatWriterOptions tableFormatOptions,
+    ByteString extendedProperty,
+    Map<String, String> tableProperties
+  ) {
+    this(ringCount, partitionColumns, sortColumns, distributionColumns, partitionDistributionStrategy, tableLocation,
+      singleWriter, recordLimit, tableFormatOptions, extendedProperty, false, Long.MAX_VALUE, true, null, null, tableProperties);
+  }
+
+  public WriterOptions(
+    Integer ringCount,
+    List<String> partitionColumns,
+    List<String> sortColumns,
+    List<String> distributionColumns,
+    PartitionDistributionStrategy partitionDistributionStrategy,
+    String tableLocation,
+    boolean singleWriter,
+    long recordLimit,
+    TableFormatWriterOptions tableFormatOptions,
+    ByteString extendedProperty,
+    ResolvedVersionContext version,
+    Map<String, String> tableProperties
+  ) {
+    this(ringCount, partitionColumns, sortColumns, distributionColumns, partitionDistributionStrategy, tableLocation,
+      singleWriter, recordLimit, tableFormatOptions, extendedProperty, false, Long.MAX_VALUE,
+      true, version, null, tableProperties);
   }
 
   public WriterOptions(
@@ -127,7 +171,7 @@ public class WriterOptions {
   ) {
     this(ringCount, partitionColumns, sortColumns, distributionColumns, partitionDistributionStrategy, tableLocation,
       singleWriter, recordLimit, tableFormatOptions, extendedProperty, false, Long.MAX_VALUE,
-      true, version);
+      true, version, null, Collections.emptyMap());
   }
 
   @JsonCreator
@@ -145,7 +189,9 @@ public class WriterOptions {
     @JsonProperty("outputLimitEnabled") boolean outputLimitEnabled,
     @JsonProperty("outputLimitSize") long outputLimitSize,
     @JsonProperty("readSignatureSupport") Boolean readSignatureSupport,
-    @JsonProperty("versionContext") ResolvedVersionContext version
+    @JsonProperty("versionContext") ResolvedVersionContext version,
+    @JsonProperty("combineSmallFileOptions") CombineSmallFileOptions combineSmallFileOptions,
+    @JsonProperty("tableProperties") Map<String, String> tableProperties
     ) {
     this.ringCount = ringCount;
     this.partitionColumns = partitionColumns;
@@ -161,6 +207,12 @@ public class WriterOptions {
     this.readSignatureSupport = readSignatureSupport;
     this.version = version;
     this.tableFormatOptions = tableFormatOptions;
+    this.combineSmallFileOptions = combineSmallFileOptions;
+    this.tableProperties = tableProperties;
+  }
+
+  public CombineSmallFileOptions getCombineSmallFileOptions() {
+    return combineSmallFileOptions;
   }
 
   public Integer getRingCount() {
@@ -177,6 +229,9 @@ public class WriterOptions {
 
   public List<String> getSortColumns() {
     return sortColumns;
+  }
+  public void setSortColumns(List<String> sortColumns) {
+    this.sortColumns = sortColumns;
   }
 
   public List<String> getDistributionColumns() {
@@ -214,20 +269,6 @@ public class WriterOptions {
       .getIcebergTableProps()).map(props -> props.getDeserializedPartitionSpec()).orElse(null);
   }
 
-  public static boolean hasNonIdentityPartitionColumns(PartitionSpec partitionSpec) {
-    if (partitionSpec == null) {
-      return false;
-    }
-
-    for (PartitionField partitionField : partitionSpec.fields()) {
-      if(!partitionField.transform().equals(Transforms.alwaysNull()) && !partitionField.transform().isIdentity()) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
   public boolean hasSort() {
     return sortColumns != null && !sortColumns.isEmpty();
   }
@@ -249,33 +290,40 @@ public class WriterOptions {
     return new WriterOptions(this.ringCount, this.partitionColumns, this.sortColumns, this.distributionColumns,
                              this.partitionDistributionStrategy, this.tableLocation, this.singleWriter, this.recordLimit,
                              this.tableFormatOptions, this.extendedProperty, outputLimitEnabled,
-                             this.outputLimitSize, this.readSignatureSupport, null);
+                             this.outputLimitSize, this.readSignatureSupport, null, null, this.getTableProperties());
   }
 
   public WriterOptions withOutputLimitSize(long outputLimitSize) {
     return new WriterOptions(this.ringCount, this.partitionColumns, this.sortColumns, this.distributionColumns,
                              this.partitionDistributionStrategy, this.tableLocation, this.singleWriter, this.recordLimit,
                              this.tableFormatOptions, this.extendedProperty, this.outputLimitEnabled,
-                             outputLimitSize, this.readSignatureSupport, null);
+                             outputLimitSize, this.readSignatureSupport, null, null, this.getTableProperties());
   }
 
   public WriterOptions withPartitionColumns(List<String> partitionColumns) {
     return new WriterOptions(this.ringCount, partitionColumns, this.sortColumns, this.distributionColumns,
-      this.partitionDistributionStrategy, this.tableLocation, this.singleWriter, this.recordLimit, this.tableFormatOptions, this.extendedProperty);
+      this.partitionDistributionStrategy, this.tableLocation, this.singleWriter, this.recordLimit, this.tableFormatOptions, this.extendedProperty, this.getTableProperties());
   }
 
   public WriterOptions withVersion(ResolvedVersionContext version) {
     return new WriterOptions(this.ringCount, this.partitionColumns, this.sortColumns, this.distributionColumns,
       this.partitionDistributionStrategy, this.tableLocation, this.singleWriter, recordLimit, this.tableFormatOptions,
       this.extendedProperty, false, Long.MAX_VALUE,
-      readSignatureSupport, Preconditions.checkNotNull(version));
+      readSignatureSupport, Preconditions.checkNotNull(version), null, this.getTableProperties());
+  }
+
+  public WriterOptions withCombineSmallFileOptions(CombineSmallFileOptions combineSmallFileOptions) {
+    return new WriterOptions(this.ringCount, this.partitionColumns, this.sortColumns, this.distributionColumns,
+      this.partitionDistributionStrategy, this.tableLocation, this.singleWriter, recordLimit, this.tableFormatOptions,
+      this.extendedProperty, this.outputLimitEnabled, this.outputLimitSize,
+      readSignatureSupport, version, combineSmallFileOptions, this.getTableProperties());
   }
 
   public TableFormatWriterOptions getTableFormatOptions() {
     return this.tableFormatOptions;
   }
 
-  public RelTraitSet inferTraits(final RelTraitSet inputTraitSet, final RelDataType inputRowType) {
+  public RelTraitSet inferTraits(final RelTraitSet inputTraitSet, final RelDataType inputRowType, boolean roundRobinDefault) {
     final RelTraitSet relTraits = inputTraitSet.plus(Prel.PHYSICAL);
 
     if (hasDistributions()) {
@@ -297,6 +345,9 @@ public class WriterOptions {
       }
     }
 
+    if (roundRobinDefault) {
+      return relTraits.plus(DistributionTrait.ROUND_ROBIN);
+    }
     return relTraits;
   }
 
@@ -309,9 +360,23 @@ public class WriterOptions {
   }
 
   public static DistributionTrait hashDistributedOn(final List<String> columns, final RelDataType inputRowType) {
-    return new DistributionTrait(DistributionType.HASH_DISTRIBUTED,
-        FluentIterable.from(WriterUpdater.getFieldIndices(columns, inputRowType))
-            .transform(input -> new DistributionField(input)).toList());
+    return new DistributionTrait(DistributionType.ADAPTIVE_HASH_DISTRIBUTED,
+      FluentIterable.from(WriterUpdater.getFieldIndices(columns, inputRowType))
+        .transform(input -> new DistributionField(input)).toList());
+  }
+
+  @JsonIgnore
+  public SortOrder getDeserializedSortOrder() {
+    String serializedSortOrder = null;
+    String icebergSchema = null;
+
+    if (tableFormatOptions.getIcebergSpecificOptions() != null && tableFormatOptions.getIcebergSpecificOptions().getIcebergTableProps() != null) {
+      serializedSortOrder = tableFormatOptions.getIcebergSpecificOptions().getIcebergTableProps().getSortOrder();
+      icebergSchema = tableFormatOptions.getIcebergSpecificOptions().getIcebergTableProps().getIcebergSchema();
+    }
+
+    return serializedSortOrder == null || icebergSchema == null ? null
+      : IcebergSerDe.deserializeSortOrderFromJson(deserializedJsonAsSchema(icebergSchema), serializedSortOrder);
   }
 
   @Override
@@ -322,5 +387,9 @@ public class WriterOptions {
       ", icebergWriterOptions=" + tableFormatOptions +
       ", version=" + version +
       '}';
+  }
+
+  public Map<String, String> getTableProperties() {
+    return tableProperties;
   }
 }

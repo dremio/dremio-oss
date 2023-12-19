@@ -26,4 +26,8 @@ public class ReferenceTypeConflictException extends RuntimeException {
     super(cause);
   }
 
+  public ReferenceTypeConflictException(String message, Throwable cause) {
+    super(message, cause);
+  }
+
 }

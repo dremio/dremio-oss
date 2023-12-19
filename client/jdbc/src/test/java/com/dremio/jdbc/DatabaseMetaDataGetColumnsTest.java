@@ -345,7 +345,7 @@ public class DatabaseMetaDataGetColumnsTest extends JdbcWithServerTestBase {
 
   private Integer getIntOrNull( ResultSet row, String columnName ) throws SQLException {
     final int value = row.getInt( columnName );
-    return row.wasNull() ? null : new Integer( value );
+    return row.wasNull() ? null : value;
   }
 
 

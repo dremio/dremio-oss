@@ -21,6 +21,7 @@ import static com.dremio.sabot.exec.fragment.FragmentExecutorBuilder.WORK_QUEUE_
 import java.security.PrivilegedExceptionAction;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
@@ -55,6 +56,7 @@ import com.dremio.exec.proto.ExecProtos;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.ExecRPC.FragmentStreamComplete;
 import com.dremio.exec.proto.UserBitShared.FragmentState;
+import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.testing.ControlsInjector;
 import com.dremio.exec.testing.ControlsInjectorFactory;
@@ -365,6 +367,7 @@ public class FragmentExecutor implements MemoryArbiterTask {
       logger.debug("Operator {} done spilling", localOperatorId);
       logger.debug("Memory arbiter state {}", memoryArbiter);
       spillingOperators.remove(operatorId);
+      memoryArbiter.addTaskToQueue(this);
     }
 
     return doneSpilling;
@@ -534,6 +537,9 @@ public class FragmentExecutor implements MemoryArbiterTask {
       taskState == State.BLOCKED_ON_MEMORY ||
       taskState == State.BLOCKED_ON_SHARED_RESOURCE, "Should only called when we were previously blocked.");
     Preconditions.checkArgument(sharedResources.isAvailable(), "Should only be called once at least one shared group is available: " + sharedResources.toString());
+    if (memoryArbiter != null && memoryArbiter.removeFromBlocked(this)) {
+      unblockOnMemory();
+    }
     taskState = State.RUNNABLE;
   }
 
@@ -580,6 +586,11 @@ public class FragmentExecutor implements MemoryArbiterTask {
     }
 
     return statusReporter.getStatus(FragmentState.RUNNING);
+  }
+
+  @Override
+  public QueryId getQueryId() {
+    return getHandle().getQueryId();
   }
 
   @VisibleForTesting
@@ -865,8 +876,6 @@ public class FragmentExecutor implements MemoryArbiterTask {
 
   // This fragment got a shrink memory request. Add this to the list of spilling operators
   private void handleShrinkMemoryRequest(OutOfBandMessage message) {
-    unblockOnMemory();
-    memoryArbiter.removeFromBlocked(this);
     ExecProtos.ShrinkMemoryUsage shrinkMemoryUsage = message.getPayload(ExecProtos.ShrinkMemoryUsage.parser());
     Long prevValue = spillingOperators.put(message.getOperatorId(), shrinkMemoryUsage.getMemoryInBytes());
     if (prevValue != null) {
@@ -895,7 +904,9 @@ public class FragmentExecutor implements MemoryArbiterTask {
     StringBuffer buffer = new StringBuffer();
     buffer.append(name)
       .append(" : ")
-      .append("state=" + taskState);
+      .append("state = " + taskState)
+      .append(" : ")
+      .append("used memory = " + getUsedMemory());
     return buffer.toString();
   }
 
@@ -917,47 +928,53 @@ public class FragmentExecutor implements MemoryArbiterTask {
     public void handle(OutOfBandMessage message) {
       requestActivate("out of band message");
       synchronized (allocatorLock) {
-        Optional<ArrowBuf> msgBuffer = message.getIfSingleBuffer();
-        if (msgBuffer.isPresent()) {
-          try {
+        ArrowBuf[] msgBuffer = message.getBuffers();
+        boolean hasBuffer = msgBuffer != null && msgBuffer.length > 0;
+        if(hasBuffer){
+          try{
             allocator.assertOpen(); // throws exception if allocator is closed
-            final ArrowBuf transferredBuf = msgBuffer.get().getReferenceManager()
-                    .transferOwnership(msgBuffer.get(), allocator).getTransferredBuffer();
-            message = new OutOfBandMessage(message.toProtoMessage(), transferredBuf);
-            msgBuffer = Optional.of(transferredBuf);
+            ArrowBuf[] transferredBuffers = new ArrowBuf[msgBuffer.length];
+            for(int i = 0; i < msgBuffer.length; i++){
+              transferredBuffers[i] = msgBuffer[i].getReferenceManager()
+                .transferOwnership(msgBuffer[i], allocator).getTransferredBuffer();
+            }
+            message = new OutOfBandMessage(message.toProtoMessage(), transferredBuffers);
+            msgBuffer = transferredBuffers;
           } catch (Exception e) {
-            logger.error("Error while transferring OOBMessage buffer to the fragment allocator", e);
-            return; // Fragment will not be able to handle the buffer.
+            logger.error("Error while transferring OOBMessage buffers to the fragment allocator", e);
+            return; // Fragment will not be able to handle the buffers.
           }
         }
-        final AutoCloseable closeable = msgBuffer.map(AutoCloseable.class::cast).orElse(() -> {});
+
+        final AutoCloseable closeable = hasBuffer ?
+          com.dremio.common.AutoCloseables.all(Arrays.asList(msgBuffer)) : () -> {};
 
         final OutOfBandMessage finalMessage = message;
-        if (message.isShrinkMemoryRequest()) {
-          handleShrinkMemoryRequest(message);
-        } else {
-          workQueue.put(() -> {
-            try {
+        workQueue.put(() -> {
+          try {
+            if (finalMessage.isShrinkMemoryRequest()) {
+              handleShrinkMemoryRequest(finalMessage);
+            } else {
               handleOOBMessage(finalMessage);
-            } catch (IllegalStateException e) {
-              logger.warn("Failure while handling OOB message. {}", finalMessage, e);
-              throw e;
-            } catch (OutOfMemoryException e) {
-              logger.warn("Failure while handling OOB message. {}", finalMessage, e);
-              throw e;
-            } catch (Exception e) {
-              //propagate the exception
-              logger.warn("Failure while handling OOB message. {}", finalMessage, e);
-              throw new IllegalStateException(e);
-            } finally {
-              try {
-                closeable.close();
-              } catch (Exception e) {
-                logger.error("Error while closing OOBMessage ref", e);
-              }
             }
-          }, closeable);
-        }
+          } catch (IllegalStateException e) {
+            logger.warn("Failure while handling OOB message. {}", finalMessage, e);
+            throw e;
+          } catch (OutOfMemoryException e) {
+            logger.warn("Failure while handling OOB message. {}", finalMessage, e);
+            throw e;
+          } catch (Exception e) {
+            //propagate the exception
+            logger.warn("Failure while handling OOB message. {}", finalMessage, e);
+            throw new IllegalStateException(e);
+          } finally {
+            try {
+              closeable.close();
+            } catch (Exception e) {
+              logger.error("Error while closing OOBMessage ref", e);
+            }
+          }
+        }, closeable);
       }
     }
 

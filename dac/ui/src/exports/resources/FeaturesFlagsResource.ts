@@ -31,6 +31,12 @@ export const FeaturesFlagsResource = new SmartResource(
   () => new Map(featureFlags)
 );
 
+export const resetFeatureFlagsResource = () => {
+  featureFlags.clear();
+  pendingRequests.clear();
+  getFeatureFlagEnabled.clear();
+};
+
 /**
  * Loads the requested flag into `FeaturesFlagsResource`. You must subscribe
  * to the resource to receive updates once the flag has been loaded.

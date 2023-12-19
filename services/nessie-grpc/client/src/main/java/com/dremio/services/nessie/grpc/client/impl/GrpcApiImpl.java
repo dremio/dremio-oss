@@ -15,16 +15,18 @@
  */
 package com.dremio.services.nessie.grpc.client.impl;
 
+import static com.dremio.services.nessie.grpc.GrpcExceptionMapper.handleNessieNotFoundEx;
 import static com.dremio.services.nessie.grpc.ProtoUtil.fromProto;
-import static com.dremio.services.nessie.grpc.client.GrpcExceptionMapper.handleNessieNotFoundEx;
 
 import org.projectnessie.client.api.AssignBranchBuilder;
+import org.projectnessie.client.api.AssignReferenceBuilder;
 import org.projectnessie.client.api.AssignTagBuilder;
 import org.projectnessie.client.api.CommitMultipleOperationsBuilder;
 import org.projectnessie.client.api.CreateNamespaceBuilder;
 import org.projectnessie.client.api.CreateReferenceBuilder;
 import org.projectnessie.client.api.DeleteBranchBuilder;
 import org.projectnessie.client.api.DeleteNamespaceBuilder;
+import org.projectnessie.client.api.DeleteReferenceBuilder;
 import org.projectnessie.client.api.DeleteTagBuilder;
 import org.projectnessie.client.api.GetAllReferencesBuilder;
 import org.projectnessie.client.api.GetCommitLogBuilder;
@@ -35,16 +37,19 @@ import org.projectnessie.client.api.GetMultipleNamespacesBuilder;
 import org.projectnessie.client.api.GetNamespaceBuilder;
 import org.projectnessie.client.api.GetRefLogBuilder;
 import org.projectnessie.client.api.GetReferenceBuilder;
+import org.projectnessie.client.api.GetRepositoryConfigBuilder;
 import org.projectnessie.client.api.MergeReferenceBuilder;
 import org.projectnessie.client.api.NessieApiV1;
 import org.projectnessie.client.api.NessieApiV2;
+import org.projectnessie.client.api.ReferenceHistoryBuilder;
 import org.projectnessie.client.api.TransplantCommitsBuilder;
 import org.projectnessie.client.api.UpdateNamespaceBuilder;
-import org.projectnessie.client.util.v2api.ClientSideCreateNamespace;
-import org.projectnessie.client.util.v2api.ClientSideDeleteNamespace;
-import org.projectnessie.client.util.v2api.ClientSideGetMultipleNamespaces;
-import org.projectnessie.client.util.v2api.ClientSideGetNamespace;
-import org.projectnessie.client.util.v2api.ClientSideUpdateNamespace;
+import org.projectnessie.client.api.UpdateRepositoryConfigBuilder;
+import org.projectnessie.client.api.ns.ClientSideCreateNamespace;
+import org.projectnessie.client.api.ns.ClientSideDeleteNamespace;
+import org.projectnessie.client.api.ns.ClientSideGetMultipleNamespaces;
+import org.projectnessie.client.api.ns.ClientSideGetNamespace;
+import org.projectnessie.client.api.ns.ClientSideUpdateNamespace;
 import org.projectnessie.error.NessieNotFoundException;
 import org.projectnessie.model.Branch;
 import org.projectnessie.model.NessieConfiguration;
@@ -162,6 +167,16 @@ public class GrpcApiImpl implements NessieApiV1, NessieApiV2 {
   }
 
   @Override
+  public DeleteReferenceBuilder deleteReference() {
+    return new GrpcDeleteReference(treeServiceBlockingStub);
+  }
+
+  @Override
+  public AssignReferenceBuilder assignReference() {
+    return new GrpcAssignReference(treeServiceBlockingStub);
+  }
+
+  @Override
   public TransplantCommitsBuilder transplantCommitsIntoBranch() {
     return new GrpcTransplantCommits(treeServiceBlockingStub);
   }
@@ -210,5 +225,20 @@ public class GrpcApiImpl implements NessieApiV1, NessieApiV2 {
   @Override
   public UpdateNamespaceBuilder updateProperties() {
     return new ClientSideUpdateNamespace(this);
+  }
+
+  @Override
+  public GetRepositoryConfigBuilder getRepositoryConfig() {
+    return new GrpcGetRepositoryConfig(configServiceBlockingStub);
+  }
+
+  @Override
+  public UpdateRepositoryConfigBuilder updateRepositoryConfig() {
+    return new GrpcUpdateRepositoryConfig(configServiceBlockingStub);
+  }
+
+  @Override
+  public ReferenceHistoryBuilder referenceHistory() {
+    return new GrpcReferenceHistoryBuilder(treeServiceBlockingStub);
   }
 }

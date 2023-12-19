@@ -88,7 +88,7 @@ export function getEntityNameFromId(spaceId) {
   return splittedEntityId[splittedEntityId.length - 1];
 }
 
-export function parseResourceId(pathname, username) {
+export function parseResourceId(pathname, defaultValue) {
   const loc = rmProjectBase(pathname);
   const parts = loc.split("/");
   let resourceId = parts[2];
@@ -96,7 +96,7 @@ export function parseResourceId(pathname, username) {
     parts.length === 2 ||
     [ENTITY_TYPES.source, ENTITY_TYPES.space].indexOf(parts[1]) === -1
   ) {
-    resourceId = `@${username}`;
+    resourceId = defaultValue;
   }
   resourceId = `"${resourceId}"`;
   if (parts[3] === "folder") {
@@ -136,6 +136,7 @@ export function getRootEntityType(urlPath) {
   return pathParts[1];
 }
 
+export const NULL_VALUE = "NULL";
 export const RESERVED_WORDS = new Set(
   // copied from sabot/kernel/target/classes/sql-reserved-keywords.txt
   (
@@ -159,7 +160,16 @@ export const RESERVED_WORDS = new Set(
   )
     // todo: reconcile with constants/DataTypes.js, factor into independant list
     .split(" ")
+    .filter((val) => val !== NULL_VALUE)
 );
+
+export const RESERVED_TYPES = new Set(
+  "VARBINARY BIT DATE FLOAT DOUBLE INTERVAL_DAY_SECONDS INTERVAL_YEAR_MONTHS INT BIGINT TIME TIMESTAMP VARCHAR LIST MAP STRUCT BOOL BOOLEAN BIT BLOB DECIMAL DOUBLE FLOAT LONG LONGBLOB LONGTEXT MEDIUM MEDIUMBLOB MEDIUMINT MEDIUMTEXT TIME TIMESTAMP TINYBLOB TINYINT TINYTEXT TEXT CLOB BIGINT INT INT2 INT8 INTEGER FLOAT DOUBLE CHAR VARCHAR DATE DATETIME YEAR UNSIGNED SIGNED NUMERIC REAL SECOND".split(
+    " "
+  )
+);
+
+export const EXCLUDE_FROM_FUNCTIONS = ["LEFT", "CASE", "LIKE"];
 
 export function constructFullPath(pathParts, preventQuoted, shouldEncode) {
   if (!pathParts) {
@@ -255,5 +265,25 @@ export function navigateToExploreDefaultIfNecessary(
 export function getSourceNameFromUrl(sourceUrl) {
   const url = sourceUrl && rmProjectBase(sourceUrl);
   const [, , sourceName] = (url || "").split("/");
-  return sourceName;
+  return decodeURIComponent(sourceName);
+}
+
+export function constructLinkWithRefInfo(baseUrl, versionContext, resourceId) {
+  const { type, value } = versionContext ?? {};
+  const alreadyContainsArgs = baseUrl?.split("/").pop().includes("?");
+  return baseUrl && type && value
+    ? baseUrl +
+        `${alreadyContainsArgs ? "&" : "?"}` +
+        `refType=${type}&refValue=${value}` +
+        `${resourceId ? `&sourceName=${resourceId}` : ""}`
+    : baseUrl;
+}
+
+export function constructSummaryBaseLink(isView, toRoute, selfLink, editLink) {
+  const buttonLink = isView && editLink ? editLink : selfLink;
+  if (isView) {
+    return buttonLink.replace("?", `/${toRoute}?`);
+  } else {
+    return `${selfLink}/${toRoute}`;
+  }
 }

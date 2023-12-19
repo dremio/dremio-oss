@@ -352,4 +352,19 @@ public class TestDateTruncFunctions extends BaseTestQuery {
         .baselineValues(new Object[]{null})
         .go();
   }
+
+  @Test
+  public void testDateTruncOnStrings() throws Exception {
+    String query = "SELECT date_trunc('QUARTER', dateCol) as res FROM (values" +
+      "('2017-06-14')," +
+      "('2017-06-14 12:28:33')) as t(dateCol)";
+
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("res")
+      .baselineValues(formatDate.parseLocalDateTime("2017-04-01"))
+      .baselineValues(formatDate.parseLocalDateTime("2017-04-01"))
+      .go();
+  }
 }

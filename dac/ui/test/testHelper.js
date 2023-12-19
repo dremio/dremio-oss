@@ -142,6 +142,17 @@ global.MutationObserver = class {
   observe(element, initObject) {}
 };
 
+global.MessageChannel = class {
+  port1 = class {
+    close() {}
+    postMessage(_message) {}
+  };
+  port2 = class {
+    close() {}
+    postMessage(_message) {}
+  };
+};
+
 global.SVGPathSeg = function () {};
 global.SVGPathSegClosePath = function () {};
 global.SVGPathSegMovetoAbs = function () {};
@@ -219,11 +230,24 @@ Module.prototype.require = function (module) {
       createIntl() {
         return tmpIntl;
       },
+      useIntl: () => tmpIntl,
     };
   }
   if (module === "react-lottie") {
     return null;
   }
+
+  if (module === "dremio-ui-common/contexts/IntlContext.js") {
+    return {
+      getIntlContext: () => ({
+        addMessages: () => {},
+        t: (messageKey) => {
+          return messageKey;
+        },
+      }),
+    };
+  }
+
   module = applyAliases(module); // use webpack aliases for correct module resolving
 
   // since we are not in webpack, make glob-loader
@@ -244,13 +268,21 @@ Module.prototype.require = function (module) {
     return fileFakes;
   }
 
-  if (module.includes(".worker.js")) {
+  if (module.includes("LayoutWorker.worker")) {
     class LayoutWorker {
       constructor() {
         this.default = () => {};
       }
     }
     return LayoutWorker;
+  } else if (module.includes("SQLParsingWorker.worker")) {
+    class SQLParsingWorker {
+      constructor() {
+        this.default = () => {};
+      }
+      postMessage(_message, _transfer) {}
+    }
+    return SQLParsingWorker;
   }
 
   return originalRequire.call(this, module);

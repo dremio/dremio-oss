@@ -40,6 +40,8 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.explore.join.JoinRecommender;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.DatasetUI;
+import com.dremio.dac.proto.model.dataset.SourceVersionReference;
+import com.dremio.dac.proto.model.dataset.VersionContext;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.exec.catalog.Catalog;
@@ -58,6 +60,9 @@ public class TestCreateVersionedViewFromAPI extends DremioTest {
   private static final String BRANCH_NAME = "main";
   private static final String SQL = "select * from test.table1";
   private static final String OWNER = "dremio";
+
+  private static final SourceVersionReference SOURCE_VERSION_REFERENCE = new SourceVersionReference("source", VersionContext.getDefaultInstance());
+  private static final List<SourceVersionReference> SOURCE_VERSION_REFERENCE_LIST = Arrays.asList(SOURCE_VERSION_REFERENCE);
 
   @Rule
   public MockitoRule rule = MockitoJUnit.rule().strictness(Strictness.STRICT_STUBS);
@@ -125,6 +130,7 @@ public class TestCreateVersionedViewFromAPI extends DremioTest {
     setup();
     doReturn(true).when(datasetVersionResource).isVersionedPlugin(SOURCE_DATASET_PATH, catalog);
     doReturn(true).when(datasetService).checkIfVersionedViewEnabled();
+    doReturn(virtualDatasetUI).when(datasetVersionResource).getDatasetConfig(true);
     assertThatThrownBy(()->datasetVersionResource.saveAsDataSet(SOURCE_DATASET_PATH, null, null))
       .isInstanceOf(UserException.class)
       .hasMessageContaining("Tried to create a versioned view but branch name is null");
@@ -156,7 +162,6 @@ public class TestCreateVersionedViewFromAPI extends DremioTest {
     datasetVersionResource = spy(new DatasetVersionResource(
       executor,
       datasetService,
-      jobsService,
       recommenders,
       transformer,
       joinRecommender,
@@ -165,14 +170,13 @@ public class TestCreateVersionedViewFromAPI extends DremioTest {
       securityContext,
       datasetPath,
       version,
-      allocator,
-      catalogService
-      ));
+      allocator));
     virtualDatasetUI.setFullPathList(SOURCE_PATH);
     virtualDatasetUI.setVersion(DatasetVersion.newVersion());
     virtualDatasetUI.setName(VIEW_NAME);
     virtualDatasetUI.setSql(SQL);
     virtualDatasetUI.setOwner(OWNER);
+    virtualDatasetUI.setReferencesList(SOURCE_VERSION_REFERENCE_LIST);
     doReturn(catalog).when(datasetService).getCatalog();
   }
 

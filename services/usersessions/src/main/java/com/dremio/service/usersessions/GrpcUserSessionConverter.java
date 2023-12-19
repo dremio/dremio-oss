@@ -21,7 +21,7 @@ import org.apache.calcite.avatica.util.Quoting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.exec.catalog.VersionContext;
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserProtos;
 import com.dremio.exec.proto.UserSessionProtobuf;

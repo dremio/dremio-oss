@@ -40,11 +40,4 @@ public interface AzureAuthTokenProvider {
    * @return
    */
   String getAuthzHeaderValue(final Request req);
-
-  /**
-   * Return true if token/session is close to expiry
-   *
-   * @return
-   */
-  boolean isCloseToExpiry();
 }

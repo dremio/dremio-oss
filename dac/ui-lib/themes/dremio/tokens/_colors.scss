@@ -1,0 +1,20 @@
+@mixin colorsLight {
+  --color--sunken: #202124;
+  --color--default: #202124;
+
+  --color--deemphasized: #505862;
+  --color--nav--sonar: white;
+
+  --color--link: #008489;
+}
+
+@mixin colorsDark {
+  --color--sunken: #e4e6e9;
+  --color--default: #e4e6e9;
+
+  --color--deemphasized: #d2d6da;
+  --color--nav--sonar: #e4e6e9;
+
+  --color--link: #26c8d1;
+  --dremio--color--link: var(--color--link);
+}

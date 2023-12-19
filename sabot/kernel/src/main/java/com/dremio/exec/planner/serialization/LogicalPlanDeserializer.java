@@ -27,7 +27,7 @@ public interface LogicalPlanDeserializer {
    * @param data The bytes to deserialize from.
    * @return RelNode tree.
    */
-  RelNode deserialize(byte[] data);
+  RelNode deserialize(byte[] data) throws DeserializationException;
 
 
   /**
@@ -35,5 +35,5 @@ public interface LogicalPlanDeserializer {
    * @param The json to deserialize
    * @return The deserialized RelNode tree.
    */
-  RelNode deserialize(String data);
+  RelNode deserialize(String data) throws DeserializationException;
 }

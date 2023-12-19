@@ -24,6 +24,7 @@ import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValue.OptionType;
+import com.dremio.options.impl.BaseOptionManager;
 import com.google.common.collect.TreeMultimap;
 
 /**

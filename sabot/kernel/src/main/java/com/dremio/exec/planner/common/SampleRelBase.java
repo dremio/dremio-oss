@@ -20,10 +20,15 @@ import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.SingleRel;
 
+import com.dremio.exec.planner.physical.PlannerSettings;
+
 /**
  * Create this to handle all metadata queries in a single clause.  Empty, and should not be used to match rules.  Only for metadata convenience.
  */
 public abstract class SampleRelBase extends SingleRel {
+
+  public static final int MINIMUM_SAMPLE_SIZE = 10;
+
   /**
    * Creates a <code>SampleRelBase</code>.
    *
@@ -34,4 +39,11 @@ public abstract class SampleRelBase extends SingleRel {
   protected SampleRelBase(RelOptCluster cluster, RelTraitSet traits, RelNode input) {
     super(cluster, traits, input);
   }
+
+  public static long getSampleSizeAndSetMinSampleSize(PlannerSettings plannerSettings, long denominator) {
+    long sampleSize = Math.max(SampleRelBase.MINIMUM_SAMPLE_SIZE, plannerSettings.getLeafLimit() / denominator);
+    plannerSettings.setMinimumSampleSize(sampleSize);
+    return sampleSize;
+  }
+
 }

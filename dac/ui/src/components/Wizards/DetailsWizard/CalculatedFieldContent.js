@@ -94,7 +94,7 @@ const mapStateToProps = (state, props) => {
       };
   return {
     initialValues: {
-      newFieldName: props.columnName || la("new_field"),
+      newFieldName: props.columnName || laDeprecated("new_field"),
       expression: props.columnName
         ? exploreUtils.escapeFieldNameForSQL(props.columnName)
         : "",

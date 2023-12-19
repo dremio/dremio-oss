@@ -19,7 +19,6 @@ import static com.dremio.dac.server.JobsServiceTestUtils.submitJobAndGetData;
 import static java.util.Arrays.asList;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import org.apache.arrow.memory.BufferAllocator;
@@ -55,46 +54,10 @@ public class TestUDFs extends BaseTestServer {
   }
 
 
-  @Test
-  public void testFormatList() throws Exception {
-    String sql = String.format("select %s(b, ',') as a, b from cp.\"json/nested.json\"", FormatList.NAME);
-    try (final JobDataFragment result = runQueryAndGetResults(sql)) {
-      List<String> actual = new ArrayList<>();
-      for(int i = 0; i < result.getReturnedRowCount(); i++){
-
-        Object a = result.extractValue("a", i);
-        Object b = result.extractValue("b", i);
-        actual.add(String.format("%s => %s", b, a));
-      }
-      Assert.assertEquals(Arrays.asList(
-        "[\"A\",\"B\",\"C\"] => A,B,C",
-        "[\"D\"] => D",
-        "[\"E\",\"F\"] => E,F",
-        "[] => "
-      ), actual);
-    }
-  }
-
   private JobDataFragment runQueryAndGetResults(String sql) throws JobNotFoundException {
     return submitJobAndGetData(l(JobsService.class),
       JobRequest.newBuilder().setSqlQuery(new SqlQuery(sql, ImmutableList.of("cp"), DEFAULT_USERNAME)).build(),
       0, 500, allocator);
-  }
-
-  @Test
-  public void testFormatListWithWhereWithNull() throws Exception {
-    String sql = String.format("select %s(b, ',') as a, b from cp.\"json/nested.json\" where b is null", FormatList
-      .NAME);
-    try (final JobDataFragment result = runQueryAndGetResults(sql)) {
-      List<String> actual = new ArrayList<>();
-      for(int i = 0; i < result.getReturnedRowCount(); i++){
-
-        Object a = result.extractValue("a", i);
-        Object b = result.extractValue("b", i);
-        actual.add(String.format("%s => %s", b, a));
-      }
-      Assert.assertEquals(0, actual.size());
-    }
   }
 
   @Test

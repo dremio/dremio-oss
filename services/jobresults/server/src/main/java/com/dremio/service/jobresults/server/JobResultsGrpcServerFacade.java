@@ -59,7 +59,7 @@ public class JobResultsGrpcServerFacade extends JobResultsServiceGrpc.JobResults
     ExecutorService threadPoolInternal = new ThreadPoolExecutor(10, Integer.MAX_VALUE,
       60L, TimeUnit.SECONDS,
       new SynchronousQueue<Runnable>());
-    threadPool = new ContextMigratingExecutorService<>(threadPoolInternal, tracer);
+    threadPool = new ContextMigratingExecutorService<>(threadPoolInternal);
     serializedExecutor = new SerializedExecutor("jobResults", threadPool, false) {
       @Override
       protected void runException(Runnable command, Throwable t) {

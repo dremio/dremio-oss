@@ -17,30 +17,33 @@
 package com.dremio.plugins;
 
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
-import org.apache.iceberg.view.ViewVersionMetadata;
-import org.projectnessie.client.api.NessieApi;
+import org.apache.iceberg.viewdepoc.ViewVersionMetadata;
+import org.projectnessie.client.api.NessieApiV2;
 import org.projectnessie.model.IcebergView;
 
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.context.RequestContext;
 import com.dremio.context.UserContext;
 import com.dremio.context.UsernameContext;
-import com.dremio.exec.catalog.ResolvedVersionContext;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.store.ChangeInfo;
 import com.dremio.exec.store.ReferenceInfo;
+import com.dremio.exec.store.iceberg.model.IcebergCommitOrigin;
 import com.dremio.service.users.User;
 import com.dremio.service.users.UserNotFoundException;
 import com.dremio.service.users.UserService;
 import com.dremio.service.users.proto.UID;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.google.common.base.Preconditions;
 
 /**
@@ -58,33 +61,55 @@ public class UsernameAwareNessieClientImpl implements NessieClient {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(UsernameAwareNessieClientImpl.class);
   private final NessieClient nessieClient;
   private final UserService userService;
+  private final LoadingCache<UID, String> userNameByUserIdCache;
 
   public UsernameAwareNessieClientImpl(NessieClient nessieClient, UserService userService) {
-    this.nessieClient = nessieClient;
-    logger.debug("UserService is not null: {}", !Objects.isNull(userService));
-    Preconditions.checkArgument(!Objects.isNull(userService), "User Service is required");
-    this.userService = userService;
+    this.nessieClient = Preconditions.checkNotNull(nessieClient);
+    this.userService = Preconditions.checkNotNull(userService);
+    this.userNameByUserIdCache = Caffeine.newBuilder()
+      .maximumSize(300) // items
+      .expireAfterAccess(20, TimeUnit.MINUTES)
+      .build(this::fetchUserNameForUser);
+  }
+
+  private @Nullable String fetchUserNameForUser(UID userId) {
+    try {
+      User user = userService.getUser(userId);
+      return user.getUserName();
+    } catch (UserNotFoundException e) {
+      logger.warn("User not found: {}", userId, e);
+    }
+    return null;
   }
 
   private RequestContext getRequestContextWithUsernameContext() {
-    RequestContext currentRequestContext = RequestContext.current();
-    UserContext userContext = currentRequestContext.get(UserContext.CTX_KEY);
-    boolean hasUsernameContext = Objects.nonNull(currentRequestContext.get(UsernameContext.CTX_KEY));
+    RequestContext reqContext = RequestContext.current();
+    UserContext userContext = reqContext.get(UserContext.CTX_KEY);
+    boolean hasUsernameContext = reqContext.get(UsernameContext.CTX_KEY) != null;
     if (userContext != null && !hasUsernameContext) {
-      try {
-        User user = userService.getUser(new UID(userContext.getUserId()));
-        UsernameContext usernameContext = new UsernameContext(user.getUserName());
-        currentRequestContext = currentRequestContext.with(UsernameContext.CTX_KEY, usernameContext);
-      } catch (UserNotFoundException e) { // User not found. Skip adding UsernameContext.
-        logger.debug("User not found due to : {}", e.getMessage());
+      // ideally the userName would be available in UserContext directly but since DataplanePlugin
+      // calls NessieClient methods multiple times during a single request we use a cache here
+      String userName = userNameByUserIdCache.get(new UID(userContext.getUserId()));
+      if (userName != null) {
+        reqContext = reqContext.with(UsernameContext.CTX_KEY, new UsernameContext(userName));
       }
     }
-    return currentRequestContext;
+    return reqContext;
   }
 
   private <T> T callWithUsernameContext(Callable<T> callable) {
     try {
       return getRequestContextWithUsernameContext().call(callable);
+    } catch (RuntimeException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private <E> Stream<E> callStreamWithUsernameContext(Callable<Stream<E>> callable) {
+    try {
+      return getRequestContextWithUsernameContext().callStream(callable);
     } catch (RuntimeException e) {
       throw e;
     } catch (Exception e) {
@@ -114,28 +139,22 @@ public class UsernameAwareNessieClientImpl implements NessieClient {
 
   @Override
   public Stream<ReferenceInfo> listBranches() {
-    return callWithUsernameContext(nessieClient::listBranches);
+    return callStreamWithUsernameContext(nessieClient::listBranches);
   }
 
   @Override
   public Stream<ReferenceInfo> listTags() {
-    return callWithUsernameContext(nessieClient::listTags);
+    return callStreamWithUsernameContext(nessieClient::listTags);
   }
 
   @Override
   public Stream<ReferenceInfo> listReferences() {
-    try {
-      return getRequestContextWithUsernameContext().call(nessieClient::listReferences);
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+    return callStreamWithUsernameContext(nessieClient::listReferences);
   }
 
   @Override
   public Stream<ChangeInfo> listChanges(VersionContext version) {
-    return callWithUsernameContext(() -> nessieClient.listChanges(version));
+    return callStreamWithUsernameContext(() -> nessieClient.listChanges(version));
   }
 
   @Override
@@ -143,10 +162,18 @@ public class UsernameAwareNessieClientImpl implements NessieClient {
     @Nullable List<String> catalogPath,
     ResolvedVersionContext resolvedVersion,
     NestingMode nestingMode,
+    ContentMode contentMode,
     @Nullable Set<ExternalNamespaceEntry.Type> contentTypeFilter,
     @Nullable String celFilter) {
-    return callWithUsernameContext(() ->
-      nessieClient.listEntries(catalogPath, resolvedVersion, nestingMode, contentTypeFilter, celFilter));
+    return callStreamWithUsernameContext(() ->
+      nessieClient.listEntries(
+        catalogPath,
+        resolvedVersion,
+        nestingMode,
+        contentMode,
+        contentTypeFilter,
+        celFilter
+      ));
   }
 
   @Override
@@ -195,24 +222,25 @@ public class UsernameAwareNessieClientImpl implements NessieClient {
   }
 
   @Override
-  public String getMetadataLocation(List<String> catalogKey, ResolvedVersionContext version, String jobId) {
-    return callWithUsernameContext(() -> nessieClient.getMetadataLocation(catalogKey, version, jobId));
-  }
-
-  @Override
-  public Optional<String> getViewDialect(List<String> catalogKey, ResolvedVersionContext version) {
-    return callWithUsernameContext(() -> nessieClient.getViewDialect(catalogKey, version));
-  }
-
-  @Override
   public void commitTable(List<String> catalogKey,
                           String newMetadataLocation,
                           NessieClientTableMetadata nessieClientTableMetadata,
                           ResolvedVersionContext version,
-                          String baseContent,
+                          String baseContentId,
+                          @Nullable IcebergCommitOrigin commitOrigin,
                           String jobId,
                           String userName) {
-    getRequestContextWithUsernameContext().run(() -> nessieClient.commitTable(catalogKey, newMetadataLocation, nessieClientTableMetadata, version, baseContent, jobId, userName));
+    getRequestContextWithUsernameContext().run(() ->
+      nessieClient.commitTable(
+        catalogKey,
+        newMetadataLocation,
+        nessieClientTableMetadata,
+        version,
+        baseContentId,
+        commitOrigin,
+        jobId,
+        userName
+      ));
   }
 
   @Override
@@ -223,28 +251,45 @@ public class UsernameAwareNessieClientImpl implements NessieClient {
                          String dialect,
                          ResolvedVersionContext version,
                          String baseContentId,
+                         @Nullable IcebergCommitOrigin commitOrigin,
                          String userName) {
-    getRequestContextWithUsernameContext().run(() -> nessieClient.commitView(catalogKey, newMetadataLocation, icebergView, metadata, dialect, version, baseContentId, userName));
+    getRequestContextWithUsernameContext().run(() ->
+      nessieClient.commitView(
+        catalogKey,
+        newMetadataLocation,
+        icebergView,
+        metadata,
+        dialect,
+        version,
+        baseContentId,
+        commitOrigin,
+        userName
+      ));
   }
 
   @Override
-  public void deleteCatalogEntry(List<String> catalogKey, ResolvedVersionContext version, String userName) {
-    getRequestContextWithUsernameContext().run(() -> nessieClient.deleteCatalogEntry(catalogKey, version, userName));
+  public void deleteCatalogEntry(
+    List<String> catalogKey,
+    VersionedPlugin.EntityType entityType,
+    ResolvedVersionContext version,
+    String userName
+  ) {
+    getRequestContextWithUsernameContext().run(() -> nessieClient.deleteCatalogEntry(catalogKey, entityType, version, userName));
   }
 
   @Override
-  public VersionedPlugin.EntityType getVersionedEntityType(List<String> tableKey, ResolvedVersionContext version) {
-    return callWithUsernameContext(() -> nessieClient.getVersionedEntityType(tableKey, version));
+  public Optional<NessieContent> getContent(List<String> catalogKey, ResolvedVersionContext version, String jobId) {
+    return callWithUsernameContext(() -> nessieClient.getContent(catalogKey, version, jobId));
   }
 
   @Override
-  public String getContentId(List<String> tableKey, ResolvedVersionContext version, String jobId) {
-    return callWithUsernameContext(() -> nessieClient.getContentId(tableKey, version, jobId));
-  }
-
-  @Override
-  public NessieApi getNessieApi() {
+  public NessieApiV2 getNessieApi() {
     return nessieClient.getNessieApi();
+  }
+
+  @Override
+  public <T> T callWithContext(String jobId, Callable<T> callable) throws Exception {
+    return callWithUsernameContext(() -> callable.call());
   }
 
   @Override

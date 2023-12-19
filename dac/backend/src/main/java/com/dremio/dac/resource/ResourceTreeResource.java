@@ -32,6 +32,9 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.SecurityContext;
 
+import org.apache.commons.collections4.CollectionUtils;
+
+import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.model.folder.FolderPath;
@@ -225,23 +228,42 @@ public class ResourceTreeResource {
       String refType,
       String refValue)
       throws NamespaceException, UnsupportedEncodingException {
-    if (!path.getPathComponents().isEmpty()
-        && namespaceService.get().exists(new NamespaceKey(path.getRoot()), SOURCE)) {
+    if (CollectionUtils.isEmpty(path.getPathComponents())) {
+      throw UserException.validationError().message("Invalid path. Can't list a null or empty path.").buildSilently();
+    }
+    NamespaceKey root = new NamespaceKey(path.getRoot());
+    if (namespaceService.get().exists(root, SOURCE)) {
       // For SOURCE type, use source service directly
       return sourceService.listPath(path, showDatasets, refType, refValue);
     }
 
     final List<ResourceTreeEntity> resources = Lists.newArrayList();
 
+    ResourceTreeEntity.ResourceType rootType = getRootType(root);
     for (NameSpaceContainer container : namespaceService.get().list(path)) {
       if (container.getType() == Type.FOLDER) {
-        resources.add(new ResourceTreeEntity(container.getFolder()));
+        resources.add(new ResourceTreeEntity(container.getFolder(), rootType));
       } else if (showDatasets && container.getType() == Type.DATASET) {
-        resources.add(new ResourceTreeEntity(container.getDataset()));
+        resources.add(new ResourceTreeEntity(container.getDataset(), rootType));
       }
     }
 
     return resources;
+  }
+
+  private ResourceTreeEntity.ResourceType getRootType(NamespaceKey root) throws NamespaceException {
+    NameSpaceContainer container = namespaceService.get().getEntityByPath(root);
+    Type rootContainerType = container.getType();
+    switch(rootContainerType) {
+      case SOURCE:
+        return ResourceTreeEntity.ResourceType.SOURCE;
+      case SPACE:
+        return ResourceTreeEntity.ResourceType.SPACE;
+      case HOME:
+        return ResourceTreeEntity.ResourceType.HOME;
+      default:
+        throw UserException.validationError().message(String.format("Invalid root container type %s", rootContainerType)).buildSilently();
+    }
   }
 
   public List<ResourceTreeEntity>  getSpaces() throws NamespaceException, UnsupportedEncodingException  {

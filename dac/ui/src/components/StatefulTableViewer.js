@@ -41,7 +41,8 @@ export default class StatefulTableViewer extends Component {
     disableZebraStripes: PropTypes.any,
     scrollableTable: PropTypes.bool,
     defaultDescending: PropTypes.bool,
-    onClickId: PropTypes.string | undefined
+    onClickId: PropTypes.string | undefined,
+    renderEmpty: PropTypes.func,
     // extra props passed along to underlying Table impl
     // columns: PropTypes.array.isRequired,
     // className: PropTypes.string,
@@ -52,7 +53,7 @@ export default class StatefulTableViewer extends Component {
     virtualized: false,
     className: "",
     noDataText: "No Items",
-    onClickId: undefined
+    onClickId: undefined,
   };
 
   renderTableContent() {
@@ -101,6 +102,11 @@ export default class StatefulTableViewer extends Component {
         browserUtils.getPlatform().name === "IE" && virtualized
           ? null
           : tableViewer;
+
+      if (this.props.renderEmpty) {
+        return this.props.renderEmpty();
+      }
+
       return (
         <EmptyTableMessage
           noDataText={noDataText}

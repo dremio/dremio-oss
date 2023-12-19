@@ -17,6 +17,7 @@ package com.dremio.exec.util;
 
 import static com.dremio.exec.ExecConstants.ICEBERG_NAMESPACE_KEY;
 import static com.dremio.exec.store.dfs.GandivaPersistentCachePluginConfig.GANDIVA_PERSISTENT_CACHE_PLUGIN_NAME;
+import static com.dremio.exec.store.dfs.system.SystemIcebergTablesStoragePluginConfig.SYSTEM_ICEBERG_TABLES_PLUGIN_NAME;
 import static com.dremio.exec.store.iceberg.IcebergModelCreator.DREMIO_NESSIE_DEFAULT_NAMESPACE;
 import static com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants.METADATA_STORAGE_PLUGIN_NAME;
 
@@ -44,10 +45,12 @@ import com.dremio.exec.store.dfs.GandivaPersistentCachePluginConfig;
 import com.dremio.exec.store.dfs.InternalFileConf;
 import com.dremio.exec.store.dfs.MetadataStoragePluginConfig;
 import com.dremio.exec.store.dfs.SchemaMutability;
+import com.dremio.exec.store.dfs.system.SystemIcebergTablesStoragePluginConfig;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.HomeConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
@@ -156,7 +159,7 @@ public class TestUtilities {
       catalogImpl.getSystemUserCatalog().createSource(c);
     }
 
-    if (!isMetadataPluginExists(catalogImpl)) {
+    if (!pluginExists(catalogImpl, METADATA_STORAGE_PLUGIN_NAME)) {
       SourceConfig c = new SourceConfig();
       MetadataStoragePluginConfig conf = new MetadataStoragePluginConfig();
       conf.connection = "file:///";
@@ -168,7 +171,7 @@ public class TestUtilities {
       catalogImpl.getSystemUserCatalog().createSource(c);
     }
 
-    if (!isGandivaCachePluginExists(catalogImpl)) {
+    if (!pluginExists(catalogImpl, GANDIVA_PERSISTENT_CACHE_PLUGIN_NAME)) {
       SourceConfig c = new SourceConfig();
       GandivaPersistentCachePluginConfig conf = new GandivaPersistentCachePluginConfig();
       conf.connection = "file:///";
@@ -176,6 +179,18 @@ public class TestUtilities {
       conf.propertyList = Collections.singletonList(new Property(ICEBERG_NAMESPACE_KEY, DREMIO_NESSIE_DEFAULT_NAMESPACE));
       c.setConnectionConf(conf);
       c.setName(GANDIVA_PERSISTENT_CACHE_PLUGIN_NAME);
+      c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
+      catalogImpl.getSystemUserCatalog().createSource(c);
+    }
+
+    if (!pluginExists(catalogImpl, SYSTEM_ICEBERG_TABLES_PLUGIN_NAME)) {
+      SourceConfig c = new SourceConfig();
+      SystemIcebergTablesStoragePluginConfig conf = new SystemIcebergTablesStoragePluginConfig();
+      conf.connection = "file:///";
+      conf.path = tmpDirPath;
+      conf.propertyList = Collections.singletonList(new Property(ICEBERG_NAMESPACE_KEY, DREMIO_NESSIE_DEFAULT_NAMESPACE));
+      c.setConnectionConf(conf);
+      c.setName(SYSTEM_ICEBERG_TABLES_PLUGIN_NAME);
       c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
       catalogImpl.getSystemUserCatalog().createSource(c);
     }
@@ -240,32 +255,16 @@ public class TestUtilities {
     }
   }
 
-  private static boolean isMetadataPluginExists(CatalogServiceImpl catalogImpl) {
-    boolean metadataPluginExists;
+  private static boolean pluginExists(CatalogServiceImpl catalogImp, String pluginName) {
     try {
-      catalogImpl.getSystemUserCatalog().getSource(METADATA_STORAGE_PLUGIN_NAME);
-      metadataPluginExists = true;
+      catalogImp.getSystemUserCatalog().getSource(pluginName);
+      return true;
     } catch (UserException ex) {
       if (!ex.getMessage().contains("Tried to access non-existent source")) {
         throw ex;
       }
-      metadataPluginExists = false;
+      return false;
     }
-    return metadataPluginExists;
-  }
-
-  private static boolean isGandivaCachePluginExists(CatalogServiceImpl catalogImpl) {
-    boolean gandivaCachePluginExists;
-    try {
-      catalogImpl.getSystemUserCatalog().getSource(GANDIVA_PERSISTENT_CACHE_PLUGIN_NAME);
-      gandivaCachePluginExists = true;
-    } catch (UserException ex) {
-      if (!ex.getMessage().contains("Tried to access non-existent source")) {
-        throw ex;
-      }
-      gandivaCachePluginExists = false;
-    }
-    return gandivaCachePluginExists;
   }
 
   public static void addClasspathSource(CatalogService catalog) {
@@ -331,7 +330,7 @@ public class TestUtilities {
       kvstore.unwrap(LocalKVStoreProvider.class).deleteEverything(list.toArray(new String[0]));
     }
 
-    final NamespaceService namespace = new NamespaceServiceImpl(kvstore);
+    final NamespaceService namespace = new NamespaceServiceImpl(kvstore, new CatalogStatusEventsImpl());
 
     List<String> list = new ArrayList<>();
     list.add("__jobResultsStore");
@@ -341,6 +340,7 @@ public class TestUtilities {
     list.add("__support");
     list.add("__metadata");
     list.add("__gandiva_persistent_cache");
+    list.add(SYSTEM_ICEBERG_TABLES_PLUGIN_NAME);
     list.add("$scratch");
     list.add("sys");
     list.add("INFORMATION_SCHEMA");

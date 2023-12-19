@@ -15,13 +15,14 @@
  */
 package com.dremio.exec.store.hive.exec;
 
+import static com.dremio.exec.store.hive.HiveUtilities.getTrueEpochInMillis;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.BaseVariableWidthVector;
@@ -56,6 +57,7 @@ import org.apache.hadoop.hive.serde2.io.HiveDecimalWritable;
 
 import com.dremio.common.exceptions.FieldSizeLimitExceptionHelper;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.store.hive.HiveUtilities;
 import com.dremio.exec.store.hive.exec.HiveAbstractReader.HiveOperatorContextOptions;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -212,7 +214,7 @@ public class HiveORCCopiers {
       }
     } else if (output instanceof DateMilliVector) {
       if (input instanceof  LongColumnVector) {
-        return new DateMilliCopier((LongColumnVector) input, (DateMilliVector) output);
+        return new DateMilliCopier((LongColumnVector) input, (DateMilliVector) output, operatorContextOptions);
       } else {
         return new NoOpCopier(null, null);
       }
@@ -592,14 +594,19 @@ public class HiveORCCopiers {
   }
 
   private static class DateMilliCopier  extends ORCCopierBase  {
-    private static final long MILLIS_PER_DAY = TimeUnit.DAYS.toMillis(1L);
+
+    private final HiveOperatorContextOptions operatorContextOptions;
+    private final boolean requiresDateConversionForJulian;
 
     private LongColumnVector inputVector;
     private DateMilliVector outputVector;
 
-    DateMilliCopier(LongColumnVector inputVector, DateMilliVector outputVector) {
+    DateMilliCopier(LongColumnVector inputVector, DateMilliVector outputVector,
+                    HiveOperatorContextOptions operatorContextOptions) {
       this.inputVector = inputVector;
       this.outputVector = outputVector;
+      this.operatorContextOptions = operatorContextOptions;
+      this.requiresDateConversionForJulian = HiveUtilities.requiresDateConversionForJulian(operatorContextOptions);
     }
 
     @Override
@@ -616,19 +623,19 @@ public class HiveORCCopiers {
         if (inputVector.isNull[0]) {
           return; // If all repeating values are null, then there is no need to write anything to vector
         }
-        final long value = input[0] * MILLIS_PER_DAY;
+        final long value = getTrueEpochInMillis(requiresDateConversionForJulian, input[0]);
         for (int i = 0; i < count; i++, outputIdx++) {
           outputVector.set(outputIdx, value);
         }
       } else if (inputVector.noNulls) {
         for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
-          outputVector.set(outputIdx, input[inputIdx] * MILLIS_PER_DAY);
+          outputVector.set(outputIdx, getTrueEpochInMillis(requiresDateConversionForJulian, input[inputIdx]));
         }
       } else {
         final boolean[] isNull = inputVector.isNull;
         for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
           if (!isNull[inputIdx]) {
-            outputVector.set(outputIdx, input[inputIdx] * MILLIS_PER_DAY);
+            outputVector.set(outputIdx, getTrueEpochInMillis(requiresDateConversionForJulian, input[inputIdx]));
           }
         }
       }

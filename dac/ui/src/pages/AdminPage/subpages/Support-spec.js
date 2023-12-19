@@ -180,6 +180,19 @@ describe("Support", () => {
       expect(minimalProps.addNotification).to.have.not.been.called;
     });
 
+    it("should add if the value contains whitespace", async () => {
+      input.value = "   support.email.addr   ";
+
+      const instance = shallow(<Support {...commonProps} />).instance();
+      await instance.addAdvanced(evt);
+      expect(Array.from(instance.state.tempShown)).to.eql([
+        "support.email.addr",
+      ]);
+
+      expect(evt.target.reset).to.have.been.called;
+      expect(minimalProps.addNotification).to.have.not.been.called;
+    });
+
     it("non-existing", async () => {
       input.value = "n/a";
       const props = {

@@ -31,7 +31,9 @@ import org.slf4j.LoggerFactory;
 import com.dremio.common.arrow.DremioArrowSchema;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.common.types.SchemaUpPromotionRules;
 import com.dremio.common.types.SupportsTypeCoercionsAndUpPromotions;
+import com.dremio.common.types.TypeCoercionRules;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -138,4 +140,24 @@ public class MutatorSetupManager implements SupportsTypeCoercionsAndUpPromotions
     return schemaFromBatchField.applyUserDefinedSchemaAfterSchemaLearning(schemaFromParquetField, droppedColumns, updatedColumns, isSchemaLearningDisabledByUser, isUserDefinedSchemaEnabled, filePath, tableSchemaPath, this);
   }
 
+  @Override
+  public TypeCoercionRules getTypeCoercionRules() {
+    if (context.getOptions().getOption(ExecConstants.ENABLE_PARQUET_MIXED_TYPES_COERCION)) {
+      return COMPLEX_INCOMPATIBLE_TO_VARCHAR_COERCION;
+    }
+    return STANDARD_TYPE_COERCION_RULES;
+  }
+
+  @Override
+  public SchemaUpPromotionRules getUpPromotionRules() {
+    if (context.getOptions().getOption(ExecConstants.ENABLE_PARQUET_MIXED_TYPES_COERCION)) {
+      return COMPLEX_INCOMPATIBLE_TO_VARCHAR_PROMOTION;
+    }
+    return STANDARD_TYPE_UP_PROMOTION_RULES;
+  }
+
+  @Override
+  public boolean isComplexToVarcharCoercionSupported() {
+    return context.getOptions().getOption(ExecConstants.ENABLE_PARQUET_MIXED_TYPES_COERCION);
+  }
 }

@@ -15,6 +15,7 @@
  */
 import { RSAA } from "redux-api-middleware";
 import { arrayOf } from "normalizr";
+import Immutable from "immutable";
 
 import schemaUtils from "utils/apiUtils/schemaUtils";
 import actionUtils from "utils/actionUtils/actionUtils";
@@ -74,8 +75,14 @@ function postCreateSource(
   };
 }
 
-export function createSource(data, sourceType) {
-  const sourceModel = sourcesMapper.newSource(sourceType, data);
+export function createSource(data, sourceType, source) {
+  const isPrimaryCatalog = source?.get("isPrimaryCatalog");
+  const sourceModel = sourcesMapper.newSource(sourceType, {
+    ...data,
+    ...(isPrimaryCatalog != null && {
+      isPrimaryCatalog,
+    }),
+  });
   const grantLength = data.accessControlList
     ? data.accessControlList.grants.length
     : 0;
@@ -115,6 +122,39 @@ export function updateSourcePrivileges(data, sourceType) {
   return updatePrivileges(data, sourceType);
 }
 
+export function createSampleDbSource(meta) {
+  return (dispatch, getState) => {
+    const state = getState();
+    const sources = getSourceNames(state);
+    const spaces = getSpaceNames(state);
+    const existingNames = new Set([...sources, ...spaces]);
+
+    const name = getUniqueName(laDeprecated("SampleDB"), (nameTry) => {
+      return !existingNames.has(nameTry);
+    });
+
+    const sourceModel = {
+      config: {
+        credentialType: "NONE",
+      },
+      name,
+      accelerationNeverRefresh: false,
+      accelerationNeverExpire: false,
+      metadataPolicy: {
+        updateMode: "PREFETCH",
+        namesRefreshMillis: 60000,
+        authTTLMillis: 60000,
+        datasetDefinitionRefreshAfterMillis: 60000,
+        datasetDefinitionExpireAfterMillis: 60000,
+        deleteUnavailableDatasets: true,
+        autoPromoteDatasets: true,
+      },
+      type: "SAMPLEDB",
+    };
+    return dispatch(postCreateSource(sourceModel, meta, true));
+  };
+}
+
 export function createSampleSource(meta) {
   return (dispatch, getState) => {
     const state = getState();
@@ -122,7 +162,7 @@ export function createSampleSource(meta) {
     const spaces = getSpaceNames(state);
     const existingNames = new Set([...sources, ...spaces]);
 
-    const name = getUniqueName(la("Samples"), (nameTry) => {
+    const name = getUniqueName(laDeprecated("Samples"), (nameTry) => {
       return !existingNames.has(nameTry);
     });
     const isAzureProject = isNotSoftware()
@@ -206,6 +246,17 @@ export const REMOVE_SOURCE_START = "REMOVE_SOURCE_START";
 export const REMOVE_SOURCE_SUCCESS = "REMOVE_SOURCE_SUCCESS";
 export const REMOVE_SOURCE_FAILURE = "REMOVE_SOURCE_FAILURE";
 
+const RESET_ALL_SOURCES_VIEW = "RESET_ALL_SOURCES_VIEW";
+export function resetAllSourcesView() {
+  return {
+    type: RESET_ALL_SOURCES_VIEW,
+    meta: {
+      viewId: "AllSources",
+      invalidateViewIds: ["AllSources"],
+    },
+  };
+}
+
 function fetchRemoveSource(source) {
   const name = source.get("name");
   const meta = {
@@ -216,7 +267,7 @@ function fetchRemoveSource(source) {
 
   const entityRemovePaths = [["source", source.get("id")]];
 
-  const errorMessage = la("There was an error removing the source.");
+  const errorMessage = laDeprecated("There was an error removing the source.");
 
   const apiCall = new APIV2Call()
     .paths(source.getIn(["links", "self"]))

@@ -15,18 +15,23 @@
  */
 package com.dremio.exec.catalog.dataplane;
 
+import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_SORT_ORDER;
+import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_TABLE_PROPERTIES;
 import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_TIME_TRAVEL;
+import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_VACUUM_CATALOG;
+import static com.dremio.exec.ExecConstants.SLICE_TARGET_OPTION;
 import static com.dremio.exec.ExecConstants.VERSIONED_VIEW_ENABLED;
-import static com.dremio.exec.catalog.CatalogOptions.REFLECTION_ARCTIC_ENABLED;
+import static com.dremio.exec.catalog.CatalogOptions.REFLECTION_VERSIONED_SOURCE_ENABLED;
 import static com.dremio.exec.catalog.dataplane.DataplaneTestDefines.ALTERNATIVE_BUCKET_NAME;
 import static com.dremio.exec.catalog.dataplane.DataplaneTestDefines.BUCKET_NAME;
 import static com.dremio.exec.catalog.dataplane.DataplaneTestDefines.DATAPLANE_PLUGIN_NAME;
+import static com.dremio.exec.catalog.dataplane.DataplaneTestDefines.NO_ANCESTOR;
 import static com.dremio.exec.catalog.dataplane.DataplaneTestDefines.S3_PREFIX;
 import static com.dremio.exec.catalog.dataplane.DataplaneTestDefines.createFolderAtQueryWithIfNotExists;
 import static com.dremio.exec.catalog.dataplane.DataplaneTestDefines.selectFileLocationsQuery;
 import static com.dremio.exec.store.DataplanePluginOptions.NESSIE_PLUGIN_ENABLED;
 import static com.dremio.options.OptionValue.OptionType.SYSTEM;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
 import java.io.File;
@@ -36,41 +41,59 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocatorFactory;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.apache.iceberg.CatalogProperties;
+import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Schema;
+import org.apache.iceberg.Table;
+import org.apache.iceberg.aws.s3.S3FileIO;
+import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.nessie.NessieCatalog;
+import org.apache.iceberg.nessie.NessieIcebergClient;
+import org.apache.iceberg.types.Types;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
-import org.projectnessie.client.api.NessieApiV1;
 import org.projectnessie.client.api.NessieApiV2;
 import org.projectnessie.client.http.HttpClientBuilder;
+import org.projectnessie.error.NessieConflictException;
+import org.projectnessie.error.NessieNotFoundException;
+import org.projectnessie.model.Branch;
+import org.projectnessie.model.Detached;
+import org.projectnessie.model.ImmutableGarbageCollectorConfig;
+import org.projectnessie.model.Tag;
 import org.projectnessie.tools.compatibility.api.NessieBaseUri;
+import org.projectnessie.tools.compatibility.api.NessieServerProperty;
 import org.projectnessie.tools.compatibility.internal.OlderNessieServersExtension;
-import org.projectnessie.versioned.persist.adapter.DatabaseAdapter;
-import org.projectnessie.versioned.persist.tests.extension.NessieDbAdapter;
 
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.AnonymousAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.dremio.BaseTestQuery;
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.CloseableThreadPool;
 import com.dremio.common.concurrent.ContextMigratingExecutorService;
 import com.dremio.config.DremioConfig;
 import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.catalog.DatasetCatalogServiceImpl;
 import com.dremio.exec.catalog.InformationSchemaServiceImpl;
 import com.dremio.exec.catalog.MetadataRefreshInfoBroadcaster;
-import com.dremio.exec.catalog.VersionContext;
+import com.dremio.exec.catalog.VersionedDatasetAdapterFactory;
 import com.dremio.exec.catalog.conf.NessieAuthType;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.server.SabotContext;
@@ -86,6 +109,7 @@ import com.dremio.service.conduit.server.ConduitServiceRegistry;
 import com.dremio.service.conduit.server.ConduitServiceRegistryImpl;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.listing.DatasetListingService;
+import com.dremio.service.namespace.AbstractConnectionConf;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
@@ -95,64 +119,93 @@ import com.dremio.service.scheduler.ModifiableSchedulerService;
 import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.service.users.SystemUser;
 import com.dremio.services.fabric.api.FabricService;
-import com.dremio.telemetry.utils.TracerFacade;
-import com.dremio.test.DremioTest;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.AbstractModule;
 
 import io.findify.s3mock.S3Mock;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3Client;
 
 /**
- * Set up for ITDataplane Integration tests
+ * Set up for DataplanePlugin integration tests
  */
 @ExtendWith(OlderNessieServersExtension.class)
-public class ITDataplanePluginTestSetup extends DataplaneTestHelper {
+@NessieServerProperty(name = "nessie.test.storage.kind", value = "PERSIST")  //PERSIST is the new model in Nessie Server
+public abstract class ITDataplanePluginTestSetup extends DataplaneTestHelper {
 
-  private static AmazonS3 s3client;
+  private static AmazonS3 s3Client;
   private static S3Mock s3Mock;
-  @SuppressWarnings("checkstyle:VisibilityModifier")  // read by subclasses
-  protected static int S3_PORT;
+  private static int s3Port;
+
   @TempDir
   static File temporaryDirectory;
   private static Path bucketPath;
 
   // Nessie
 
-  @NessieDbAdapter
-  static DatabaseAdapter databaseAdapter;
-
   @NessieBaseUri
   private static URI nessieUri;
 
-  private static NessieApiV2 nessieClient;
+  private static NessieApiV2 nessieApi;
   private static DataplanePlugin dataplanePlugin;
 
   private static Catalog catalog;
   private static NamespaceService namespaceService;
+  private static NessieCatalog nessieIcebergCatalog;
 
   @BeforeAll
-  protected static void setUp() throws Exception {
+  static void setUp() throws Exception {
     setUpS3Mock();
     setUpNessie();
     setUpSabotNodeRule();
     setUpDataplanePlugin();
+    setUpNessieIcebergCatalog();
     enableUseSyntax();
     setSystemOption(ENABLE_ICEBERG_TIME_TRAVEL, "true");
-    setSystemOption(REFLECTION_ARCTIC_ENABLED, "true");
+    setSystemOption(REFLECTION_VERSIONED_SOURCE_ENABLED, "true");
+    setSystemOption(ENABLE_ICEBERG_SORT_ORDER, "true");
+    setSystemOption(ENABLE_ICEBERG_TABLE_PROPERTIES, "true");
   }
 
   @AfterAll
-  public static void tearDown() throws Exception {
-    AutoCloseables.close(
-      dataplanePlugin,
-      nessieClient);
+  static void tearDown() throws Exception {
+    AutoCloseables.close(nessieApi);
     if (s3Mock != null) {
       s3Mock.shutdown();
       s3Mock = null;
     }
     resetSystemOption(ENABLE_ICEBERG_TIME_TRAVEL.getOptionName());
+    resetSystemOption(REFLECTION_VERSIONED_SOURCE_ENABLED.getOptionName());
+    resetSystemOption(ENABLE_ICEBERG_SORT_ORDER.getOptionName());
+    resetSystemOption(ENABLE_ICEBERG_TABLE_PROPERTIES.getOptionName());
+  }
+
+  @BeforeEach
+  // Since we can't set to an empty context, setting it to some known but *wrong* context on purpose.
+  void before() throws Exception {
+    // Note: dfs_hadoop is immutable.
+    BaseTestQuery.test(String.format("USE %s", DATAPLANE_PLUGIN_NAME));
+    Branch defaultBranch = getNessieClient().getDefaultBranch();
+    getNessieClient().getAllReferences().stream()
+      .forEach(
+        ref -> {
+          try {
+            if (ref instanceof Branch && !ref.getName().equals(defaultBranch.getName())) {
+              getNessieClient().deleteBranch().branch((Branch) ref).delete();
+            } else if (ref instanceof Tag) {
+              getNessieClient().deleteTag().tag((Tag) ref).delete();
+            }
+          } catch (NessieConflictException | NessieNotFoundException e) {
+            throw new RuntimeException(e);
+          }
+        });
+
+    getNessieClient().assignBranch().branch(defaultBranch).assignTo(Detached.of(NO_ANCESTOR)).assign();
   }
 
   protected static void setUpS3Mock() throws IOException {
@@ -168,23 +221,23 @@ public class ITDataplanePluginTestSetup extends DataplaneTestHelper {
       .withInMemoryBackend()
       .build();
 
-    S3_PORT = s3Mock.start().localAddress().getPort();
+    s3Port = s3Mock.start().localAddress().getPort();
 
-    EndpointConfiguration endpoint = new EndpointConfiguration(String.format("http://localhost:%d", S3_PORT), Region.US_EAST_1.toString());
+    EndpointConfiguration endpoint = new EndpointConfiguration(String.format("http://localhost:%d", s3Port), Region.US_EAST_1.toString());
 
-    s3client = AmazonS3ClientBuilder
+    s3Client = AmazonS3ClientBuilder
       .standard()
       .withPathStyleAccessEnabled(true)
       .withEndpointConfiguration(endpoint)
       .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
       .build();
 
-    s3client.createBucket(BUCKET_NAME);
-    s3client.createBucket(ALTERNATIVE_BUCKET_NAME);
+    s3Client.createBucket(BUCKET_NAME);
+    s3Client.createBucket(ALTERNATIVE_BUCKET_NAME);
   }
 
   protected static void setUpNessie() {
-    nessieClient = HttpClientBuilder.builder().withUri(createNessieURIString()).build(NessieApiV2.class);
+    nessieApi = HttpClientBuilder.builder().withUri(createNessieURIString()).build(NessieApiV2.class);
   }
 
   private static void setUpSabotNodeRule() throws Exception {
@@ -195,8 +248,6 @@ public class ITDataplanePluginTestSetup extends DataplaneTestHelper {
 
         // For System Table set
         final ConduitServiceRegistry conduitServiceRegistry = new ConduitServiceRegistryImpl();
-        BufferAllocator rootAllocator = RootAllocatorFactory.newRoot(DremioTest.DEFAULT_SABOT_CONFIG);
-        BufferAllocator testAllocator = rootAllocator.newChildAllocator("test-sysflight-Plugin", 0, Long.MAX_VALUE);
 
         final boolean isMaster = true;
         NessieService nessieService = new NessieService(
@@ -216,7 +267,7 @@ public class ITDataplanePluginTestSetup extends DataplaneTestHelper {
         conduitServiceRegistry.registerService(datasetCatalogServiceImpl);
 
         conduitServiceRegistry.registerService(new InformationSchemaServiceImpl(getProvider(CatalogService.class),
-          () -> new ContextMigratingExecutorService.ContextMigratingCloseableExecutorService<>(new CloseableThreadPool("DataplaneEnterpriseTestSetup-"), TracerFacade.INSTANCE)));
+          () -> new ContextMigratingExecutorService.ContextMigratingCloseableExecutorService<>(new CloseableThreadPool("DataplaneEnterpriseTestSetup-"))));
 
         bind(ConduitServiceRegistry.class).toInstance(conduitServiceRegistry);
         // End System Table set
@@ -237,43 +288,15 @@ public class ITDataplanePluginTestSetup extends DataplaneTestHelper {
             () -> mock(MetadataRefreshInfoBroadcaster.class),
             DremioConfig.create(),
             EnumSet.allOf(ClusterCoordinator.Role.class),
-            getProvider(ModifiableSchedulerService.class)
-          )
+            getProvider(ModifiableSchedulerService.class),
+            getProvider(VersionedDatasetAdapterFactory.class))
         );
       }
     });
     setupDefaultTestCluster();
   }
 
-  public static void setUpDataplanePluginWithWrongUrl(){
-    NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
-    nessiePluginConfig.nessieEndpoint = "wrong";
-    nessiePluginConfig.nessieAuthType = NessieAuthType.NONE;
-    nessiePluginConfig.secure = false;
-    nessiePluginConfig.awsAccessKey = "foo"; // Unused, just needs to be set
-    nessiePluginConfig.awsAccessSecret = "bar"; // Unused, just needs to be set
-    nessiePluginConfig.awsRootPath = BUCKET_NAME;
-
-    // S3Mock settings
-    nessiePluginConfig.propertyList = Arrays.asList(
-      new Property("fs.s3a.endpoint", "localhost:" + S3_PORT),
-      new Property("fs.s3a.path.style.access", "true"),
-      new Property("fs.s3a.connection.ssl.enabled", "false"),
-      new Property(S3FileSystem.COMPATIBILITY_MODE, "true"));
-
-    SourceConfig sourceConfig = new SourceConfig()
-      .setConnectionConf(nessiePluginConfig)
-      .setName(DATAPLANE_PLUGIN_NAME+"_wrongURL")
-      .setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
-
-    getSabotContext().getOptionManager().setOption(OptionValue.createBoolean(SYSTEM, NESSIE_PLUGIN_ENABLED.getOptionName(), true));
-    getSabotContext().getOptionManager().setOption(OptionValue.createBoolean(SYSTEM, VERSIONED_VIEW_ENABLED.getOptionName(), true));
-
-    CatalogServiceImpl catalogImpl = (CatalogServiceImpl) getSabotContext().getCatalogService();
-    catalogImpl.getSystemUserCatalog().createSource(sourceConfig);
-  }
-
-  private static NessiePluginConfig prepareConnectionConf(String bucket) {
+  protected static NessiePluginConfig prepareConnectionConf(String bucket) {
     NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
     nessiePluginConfig.nessieEndpoint = createNessieURIString();
     nessiePluginConfig.nessieAuthType = NessieAuthType.NONE;
@@ -284,9 +307,11 @@ public class ITDataplanePluginTestSetup extends DataplaneTestHelper {
 
     // S3Mock settings
     nessiePluginConfig.propertyList = Arrays.asList(
-      new Property("fs.s3a.endpoint", "localhost:" + S3_PORT),
+      new Property("fs.s3a.endpoint", "localhost:" + s3Port),
       new Property("fs.s3a.path.style.access", "true"),
       new Property("fs.s3a.connection.ssl.enabled", "false"),
+      new Property("fs.s3.impl", TestExtendedS3AFilesystem.class.getName()),
+      new Property("fs.s3a.impl", TestExtendedS3AFilesystem.class.getName()),
       new Property(S3FileSystem.COMPATIBILITY_MODE, "true"));
 
     return nessiePluginConfig;
@@ -301,12 +326,117 @@ public class ITDataplanePluginTestSetup extends DataplaneTestHelper {
     SourceConfig sourceConfig = new SourceConfig()
       .setConnectionConf(prepareConnectionConf(BUCKET_NAME))
       .setName(DATAPLANE_PLUGIN_NAME)
-      .setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
+      .setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
     catalogImpl.getSystemUserCatalog().createSource(sourceConfig);
     dataplanePlugin = catalogImpl.getSystemUserCatalog().getSource(DATAPLANE_PLUGIN_NAME);
     catalog = catalogImpl.getSystemUserCatalog();
 
     namespaceService = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME);
+  }
+
+  public void setupForCreatingSources(List<String> sourceNames) {
+    sourceNames.forEach(sourceName -> {
+      CatalogServiceImpl catalogImpl = (CatalogServiceImpl) getSabotContext().getCatalogService();
+      SourceConfig sourceConfig = new SourceConfig()
+        .setConnectionConf(prepareConnectionConf(BUCKET_NAME))
+        .setName(sourceName)
+        .setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
+      catalogImpl.getSystemUserCatalog().createSource(sourceConfig);
+    });
+  }
+
+  public void cleanupForDeletingSources(List<String> sourceNames) {
+    sourceNames.forEach(sourceName -> {
+      CatalogServiceImpl catalogImpl = (CatalogServiceImpl) getSabotContext().getCatalogService();
+      SourceConfig sourceConfig = new SourceConfig()
+        .setConnectionConf(prepareConnectionConf(BUCKET_NAME))
+        .setName(sourceName)
+        .setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
+      catalogImpl.getSystemUserCatalog().deleteSource(sourceConfig);
+    });
+  }
+
+  /**
+   * Defaulted to use DataplanePlugin Connection configuration if not passed
+   *
+   * @param sourceNamesWithConnectionConf
+   */
+  public static void setupForCreatingSources(Map<String, AbstractConnectionConf> sourceNamesWithConnectionConf) {
+    sourceNamesWithConnectionConf.forEach((sourceName, connectionConf) -> {
+      CatalogServiceImpl catalogImpl = (CatalogServiceImpl) getSabotContext().getCatalogService();
+      if (catalogImpl.getAllVersionedPlugins().noneMatch(s -> s.getName().equals(sourceName))) {
+        SourceConfig sourceConfig;
+        if (connectionConf != null) {
+          sourceConfig = new SourceConfig()
+            .setConnectionConf(connectionConf)
+            .setName(sourceName)
+            .setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
+        } else {
+          sourceConfig = new SourceConfig()
+            .setConnectionConf(prepareConnectionConf(BUCKET_NAME))
+            .setName(sourceName)
+            .setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
+        }
+        catalogImpl.getSystemUserCatalog().createSource(sourceConfig);
+      }
+    });
+  }
+
+  /**
+   * Defaulted to use DataplanePlugin Connection configuration if not passed
+   *
+   * @param sourceNamesWithConnectionConf
+   */
+  public static void cleanupForDeletingSources(Map<String, AbstractConnectionConf> sourceNamesWithConnectionConf) {
+    sourceNamesWithConnectionConf.forEach((sourceName, connectionConf) -> {
+      CatalogServiceImpl catalogImpl = (CatalogServiceImpl) getSabotContext().getCatalogService();
+      if (catalogImpl.getAllVersionedPlugins().anyMatch(s -> s.getName().equals(sourceName))) {
+        SourceConfig sourceConfig;
+        if (connectionConf != null) {
+          sourceConfig = new SourceConfig()
+            .setConnectionConf(connectionConf)
+            .setName(sourceName)
+            .setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
+        } else {
+          sourceConfig = new SourceConfig()
+            .setConnectionConf(prepareConnectionConf(BUCKET_NAME))
+            .setName(sourceName)
+            .setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
+        }
+        catalogImpl.getSystemUserCatalog().deleteSource(sourceConfig);
+      }
+    });
+  }
+
+  protected static void setUpNessieIcebergCatalog() throws NessieNotFoundException {
+    nessieIcebergCatalog = new NessieCatalog();
+    Branch defaultRef = nessieApi.getDefaultBranch();
+
+    NessieIcebergClient nessieIcebergClient = new NessieIcebergClient(nessieApi,
+        defaultRef.getName(), defaultRef.getHash(), new HashMap<>());
+
+    AwsCredentialsProvider credentialsProvider = StaticCredentialsProvider.create(
+        AwsBasicCredentials.create("foo", "bar"));
+
+    URI endpointUri = URI.create("http://localhost:" + s3Port);
+    S3FileIO s3FileIO = new S3FileIO(() -> S3Client.builder().endpointOverride(endpointUri)
+        .region(Region.US_EAST_1).credentialsProvider(credentialsProvider).build());
+    s3FileIO.initialize(Collections.emptyMap());
+
+    nessieIcebergCatalog.initialize("test", nessieIcebergClient, s3FileIO,
+        ImmutableMap.of(CatalogProperties.WAREHOUSE_LOCATION, "s3://" + BUCKET_NAME));
+  }
+
+  public Table loadTable(String table) {
+    return nessieIcebergCatalog.loadTable(TableIdentifier.parse(table));
+  }
+
+  public Table createTable(String table, Map<String, String> properties) {
+    Schema icebergTableSchema = new Schema(ImmutableList.of(Types.NestedField.required(0, "c1", new Types.IntegerType())));
+    TableIdentifier tableId = TableIdentifier.parse(table);
+    String location = String.format("s3://%s/%s", BUCKET_NAME, table);
+    return nessieIcebergCatalog
+      .createTable(tableId, icebergTableSchema, PartitionSpec.unpartitioned(), location, properties);
   }
 
   public void runWithAlternateSourcePath(String sql) throws Exception {
@@ -321,10 +451,13 @@ public class ITDataplanePluginTestSetup extends DataplaneTestHelper {
     sourceConfig.setConnectionConf(prepareConnectionConf(bucket));
     CatalogServiceImpl catalogImpl = (CatalogServiceImpl) getSabotContext().getCatalogService();
     catalogImpl.getSystemUserCatalog().updateSource(sourceConfig);
+
+    // get ref to new DataplanePlugin (old one was closed during ManagedStoragePlugin.replacePlugin)
+    dataplanePlugin = catalogImpl.getSystemUserCatalog().getSource(DATAPLANE_PLUGIN_NAME);
   }
 
-  public NessieApiV1 getNessieClient() {
-    return nessieClient;
+  public static NessieApiV2 getNessieClient() {
+    return nessieApi;
   }
 
   public DataplanePlugin getDataplanePlugin() {
@@ -341,13 +474,8 @@ public class ITDataplanePluginTestSetup extends DataplaneTestHelper {
     return catalog;
   }
 
-  public static AmazonS3 getS3Client() {
-    return s3client;
-  }
-  public static void reinit() {
-    databaseAdapter.eraseRepo();
-    s3Mock.stop();
-    s3Mock.start();
+  protected static AmazonS3 getS3Client() {
+    return s3Client;
   }
 
   public void assertAllFilesAreInBaseBucket(List<String> tablePath) throws Exception {
@@ -378,7 +506,42 @@ public class ITDataplanePluginTestSetup extends DataplaneTestHelper {
   }
 
   /* Helper function used to set up the NessieURI as a string. */
-  private static String createNessieURIString() {
+  protected static String createNessieURIString() {
     return nessieUri.toString()+"v2";
+  }
+
+  public void enableVacuumCatalogFF() {
+    setSystemOption(ENABLE_ICEBERG_VACUUM_CATALOG, "true");
+  }
+
+  public void resetVacuumCatalogFF() {
+    resetSystemOption(ENABLE_ICEBERG_VACUUM_CATALOG.getOptionName());
+  }
+
+  public void setNessieGCDefaultCutOffPolicy(String value) {
+    ImmutableGarbageCollectorConfig gcConfig = ImmutableGarbageCollectorConfig.builder().defaultCutoffPolicy(value).build();
+    try {
+      getNessieClient().updateRepositoryConfig().repositoryConfig(gcConfig).update();
+    } catch (NessieConflictException e) {
+      throw new RuntimeException("Failed to update Nessie configs", e);
+    }
+  }
+
+  public void setSliceTarget(String target) {
+    setSystemOption(ExecConstants.SLICE_TARGET_OPTION, target);
+  }
+
+  public void resetSliceTarget() {
+    resetSystemOption(SLICE_TARGET_OPTION.getOptionName());
+  }
+
+  public void setTargetBatchSize(String batchSize) {
+    setSessionOption(ExecConstants.TARGET_BATCH_RECORDS_MIN, "1");
+    setSessionOption(ExecConstants.TARGET_BATCH_RECORDS_MAX, batchSize);
+  }
+
+  public void resetTargetBatchSize() {
+    resetSessionOption(ExecConstants.TARGET_BATCH_RECORDS_MIN.getOptionName());
+    resetSessionOption(ExecConstants.TARGET_BATCH_RECORDS_MAX.getOptionName());
   }
 }

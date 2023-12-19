@@ -99,6 +99,14 @@ public class Backup {
       "snappy,lz4.", hidden = true)
     private String compression = "";
 
+    @Parameter(names = {"-t", "--table"}, description = "backup only the table provided. Only works for \"json\" "
+      + "backup (this backup cannot be restored)", hidden = true)
+    private String table = "";
+
+    @Parameter(names = {"-k", "--key"}, description = "backup only the specified key. The table parameter is "
+      + "required when using this parameter. (this backup cannot be restored)", hidden = true)
+    private String key = "";
+
   }
 
   public static BackupStats createBackup(
@@ -110,11 +118,13 @@ public class Backup {
     URI uri,
     boolean binary,
     boolean includeProfiles,
-    String compression
+    String compression,
+    String tableToBackup,
+    String key
   ) throws IOException, GeneralSecurityException {
     final WebClient client = new WebClient(dacConfig, credentialsServiceProvider, userName, password,
       checkSSLCertificates);
-    BackupOptions options = new BackupOptions(uri.toString(), binary, includeProfiles, compression);
+    BackupOptions options = new BackupOptions(uri.toString(), binary, includeProfiles, compression, tableToBackup, key);
     return client.buildPost(BackupStats.class, "/backup", options);
   }
 
@@ -130,7 +140,7 @@ public class Backup {
   ) throws IOException, GeneralSecurityException {
     final WebClient client = new WebClient(dacConfig, credentialsServiceProvider, userName, password,
       checkSSLCertificates);
-    BackupOptions options = new BackupOptions(uri.toString(), binary, includeProfiles, "");
+    BackupOptions options = new BackupOptions(uri.toString(), binary, includeProfiles, "", "", "");
     return client.buildPost(CheckpointInfo.class, "/backup/checkpoint", options);
   }
 
@@ -232,6 +242,12 @@ public class Backup {
         if (!validateOnlineOption(options)) {
           throw new ParameterException("User credential is required.");
         }
+        if (!options.table.isEmpty() && !options.json) {
+          throw new ParameterException("One table backup works with json only.");
+        }
+        if (!options.key.isEmpty() && options.table.isEmpty()) {
+          throw new ParameterException("Table parameter required when using the key parameter.");
+        }
 
         final CredentialsService credService = options.acceptAll ? null : credentialsService;
         final boolean checkSSLCertificates = options.acceptAll;
@@ -239,7 +255,8 @@ public class Backup {
         if (!options.sameProcess) {
           LOGGER.info("Running backup using REST API");
           BackupStats backupStats = createBackup(dacConfig, () -> credService, options.userName, options.password,
-            checkSSLCertificates, target, !options.json, options.profiles, options.compression);
+            checkSSLCertificates, target, !options.json, options.profiles, options.compression,
+            options.table, options.key);
           AdminLogger.log("Backup created at {}, dremio tables {}, uploaded files {}",
             backupStats.getBackupPath(), backupStats.getTables(), backupStats.getFiles());
           result.setBackupStats(backupStats);
@@ -272,7 +289,7 @@ public class Backup {
       final FileSystem fs = HadoopFileSystem.get(backupDestinationDirPath,
         new Configuration());
       final BackupOptions backupOptions = new BackupOptions(checkpoint.getBackupDestinationDir(), !options.json,
-        options.profiles, options.compression);
+        options.profiles, options.compression, options.table, options.key);
 
       final Optional<LocalKVStoreProvider> optionalKvStoreProvider =
         CmdUtils.getReadOnlyKVStoreProvider(dacConfig.getConfig().withValue(DremioConfig.DB_PATH_STRING,

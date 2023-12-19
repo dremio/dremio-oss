@@ -49,7 +49,7 @@ export default class ExcelFormatForm extends Component {
               disabled={disabled}
               style={styles.checkbox}
               dataQa="extract-field-names"
-              label={intl.formatMessage({ id: "File.ExtractFieldNames" })}
+              label={intl.formatMessage({ id: "File.ExtractColumnNames" })}
               {...extractHeader}
             />
           </div>

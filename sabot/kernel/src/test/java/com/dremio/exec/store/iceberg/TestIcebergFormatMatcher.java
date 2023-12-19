@@ -39,7 +39,7 @@ public class TestIcebergFormatMatcher {
     IcebergFormatMatcher matcher = new IcebergFormatMatcher(null);
     FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
     File root = tempDir.newFolder();
-    FileSelection fileSelection = FileSelection.create(fs, Path.of(root.toURI()));
+    FileSelection fileSelection = FileSelection.createNotExpanded(fs, Path.of(root.toURI()));
     boolean matched;
 
     // test with empty folder

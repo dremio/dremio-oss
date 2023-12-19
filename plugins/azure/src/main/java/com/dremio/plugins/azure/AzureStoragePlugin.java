@@ -16,6 +16,7 @@
 package com.dremio.plugins.azure;
 
 import static com.dremio.hadoop.security.alias.DremioCredentialProvider.DREMIO_SCHEME_PREFIX;
+import static com.dremio.plugins.azure.AzureStorageFileSystem.AZURE_SHAREDKEY_SIGNER_TYPE;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,6 +25,7 @@ import java.util.stream.Collectors;
 
 import javax.inject.Provider;
 
+import org.apache.hadoop.fs.azurebfs.services.SharedKeyCredentials;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -122,28 +124,54 @@ public class AzureStoragePlugin extends DirectorySupportLackingFileSystemPlugin<
       Boolean.toString(getContext().getOptionManager().getOption(AzureStorageOptions.ENABLE_CHECKSUM))));
 
     AzureAuthenticationType credentialsType = config.credentialsType;
-
-    if (credentialsType == AzureAuthenticationType.AZURE_ACTIVE_DIRECTORY) {
-      properties.add(new Property(AzureStorageFileSystem.CREDENTIALS_TYPE, AzureAuthenticationType.AZURE_ACTIVE_DIRECTORY.name()));
+    switch (credentialsType) {
+    case AZURE_ACTIVE_DIRECTORY:
+      properties.add(new Property(AzureStorageFileSystem.CREDENTIALS_TYPE,
+        AzureAuthenticationType.AZURE_ACTIVE_DIRECTORY.name()));
       properties.add(new Property(AzureStorageFileSystem.CLIENT_ID, config.clientId));
 
+      switch (config.getAzureADSecretType()) {
+      case AZURE_ACTIVE_DIRECTORY_SECRET_KEY:
+        properties.add(new Property(AzureStorageFileSystem.CLIENT_SECRET,
+          addPrefixIfNotExist(DREMIO_SCHEME_PREFIX, config.clientSecret)));
+        break;
 
-      if (config.getAzureADSecretType() == AzureActiveDirectorySecretType.AZURE_ACTIVE_DIRECTORY_SECRET_KEY) {
-        properties.add(new Property(AzureStorageFileSystem.CLIENT_SECRET, addPrefixIfNotExist(DREMIO_SCHEME_PREFIX, config.clientSecret)));
-      } else { // Azure Key Vault
-        properties.add(new Property(AzureStorageFileSystem.CLIENT_SECRET, addPrefixIfNotExist(DREMIO_PLUS_AZURE_VAULT_SCHEME_PREFIX, config.getClientSecretUri())));
+      case AZURE_ACTIVE_DIRECTORY_KEY_VAULT:
+        properties.add(new Property(AzureStorageFileSystem.CLIENT_SECRET,
+          addPrefixIfNotExist(DREMIO_PLUS_AZURE_VAULT_SCHEME_PREFIX, config.getClientSecretUri())));
+        break;
+
+      default:
+        throw new IllegalStateException("Unrecognized secret type: " + config.getAzureADSecretType());
       }
 
       properties.add(new Property(AzureStorageFileSystem.TOKEN_ENDPOINT, config.tokenEndpoint));
-    } else {
+      break;
+
+    case ACCESS_KEY:
       properties.add(new Property(AzureStorageFileSystem.CREDENTIALS_TYPE, AzureAuthenticationType.ACCESS_KEY.name()));
 
-      if (config.getSharedAccessSecretType() == SharedAccessSecretType.SHARED_ACCESS_SECRET_KEY) {
-        properties.add(new Property(AzureStorageFileSystem.KEY, addPrefixIfNotExist(DREMIO_SCHEME_PREFIX, config.accessKey)));
-      } else { // Azure Key Vault
-        properties.add(new Property(AzureStorageFileSystem.KEY, addPrefixIfNotExist(DREMIO_PLUS_AZURE_VAULT_SCHEME_PREFIX, config.getAccessKeyUri())));
-      }
+      switch (config.getSharedAccessSecretType()) {
+      case SHARED_ACCESS_SECRET_KEY:
+        properties.add(new Property(AzureStorageFileSystem.KEY,
+          addPrefixIfNotExist(DREMIO_SCHEME_PREFIX, config.accessKey)));
+        // static credentials (this should be the default used by azure)
+        properties.add(new Property(AZURE_SHAREDKEY_SIGNER_TYPE, SharedKeyCredentials.class.getName()));
+        break;
 
+      case SHARED_ACCESS_AZURE_KEY_VAULT:
+        properties.add(new Property(AzureStorageFileSystem.KEY,
+          addPrefixIfNotExist(DREMIO_PLUS_AZURE_VAULT_SCHEME_PREFIX, config.getAccessKeyUri())));
+        properties.add(new Property(AZURE_SHAREDKEY_SIGNER_TYPE, AzureSharedKeyCredentials.class.getName()));
+        break;
+
+      default:
+        throw new IllegalStateException("Unrecognized secret type: " + config.getSharedAccessSecretType());
+      }
+      break;
+
+    default:
+      throw new IllegalStateException("Unrecognized credential type: " + credentialsType);
     }
 
     if(config.containers != null && config.containers.size() > 0) {
@@ -225,4 +253,5 @@ public class AzureStoragePlugin extends DirectorySupportLackingFileSystemPlugin<
   public boolean supportReadSignature(DatasetMetadata metadata, boolean isFileDataset) {
     return false;
   }
+
 }

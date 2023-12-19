@@ -30,8 +30,8 @@ public class TestRewriteConvertFunctionVisitor extends PlanTestBase {
     testPlanMatchingPatterns(
       convertFromQuery,
       new String[]{"ConvertFromJson\\(account_id=\\[\\$0], setting=\\[\\$1], " +
-        "CONVERT_FROM_JSON_0=\\[CONVERT\\(CONVERT_FROM_JSON_0\\)], " +
-        "conversions=\\[\\[originField='setting', inputField='CONVERT_FROM_JSON_0']]\\)"}
+        "CONVERT_FROM_JSON=\\[CONVERT\\(CONVERT_FROM_JSON\\)], " +
+        "conversions=\\[\\[originField='setting', inputField='CONVERT_FROM_JSON']]\\)"}
     );
   }
 
@@ -42,7 +42,7 @@ public class TestRewriteConvertFunctionVisitor extends PlanTestBase {
     );
     testPlanMatchingPatterns(
       convertToQuery,
-      new String[]{"Project\\(EXPR\\$0\\=\\[CONVERT_TOjson\\('\\{\"name\":\"John\", \"age\":30, \"car\":null\\}'" +
+      new String[]{"Project\\(EXPR\\$0\\=\\[CONVERT_TOJSON\\('\\{\"name\":\"John\", \"age\":30, \"car\":null\\}'" +
         ":VARCHAR\\(37\\)\\)\\]\\)"}
     );
   }

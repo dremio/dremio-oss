@@ -26,12 +26,13 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.tools.RelConversionException;
 import org.apache.calcite.tools.ValidationException;
 
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUtil;
-import com.dremio.exec.catalog.ResolvedVersionContext;
 import com.dremio.exec.catalog.TableMutationOptions;
-import com.dremio.exec.catalog.VersionContext;
+import com.dremio.exec.planner.sql.parser.ReferenceTypeUtils;
 import com.dremio.exec.planner.sql.parser.SqlDropTable;
 import com.dremio.exec.planner.sql.parser.SqlGrant.Privilege;
 import com.dremio.exec.work.foreman.ForemanSetupException;
@@ -67,17 +68,19 @@ public class DropTableHandler extends SimpleDirectHandler {
     final NamespaceKey path = catalog.resolveSingle(dropTableNode.getPath());
     catalog.validatePrivilege(path, Privilege.DROP);
     final String sourceName = path.getRoot();
+    VersionContext statementSourceVersion =
+      ReferenceTypeUtils.map(dropTableNode.getRefType(), dropTableNode.getRefValue(), null);
     final VersionContext sessionVersion = userSession.getSessionVersionForSource(sourceName);
-
+    VersionContext sourceVersion = statementSourceVersion.orElse(sessionVersion);
     try {
-      ResolvedVersionContext resolvedVersionContext = CatalogUtil.resolveVersionContext(catalog, sourceName, sessionVersion);
+      ResolvedVersionContext resolvedVersionContext = CatalogUtil.resolveVersionContext(catalog, sourceName, sourceVersion);
       CatalogUtil.validateResolvedVersionIsBranch(resolvedVersionContext);
       TableMutationOptions tableMutationOptions = TableMutationOptions.newBuilder()
         .setResolvedVersionContext(resolvedVersionContext)
         .build();
       catalog.dropTable(path, tableMutationOptions);
     } catch (UserException e) {
-      if (e.getErrorType() == VALIDATION && dropTableNode.checkTableExistence()) {
+      if (e.getErrorType() == VALIDATION && !dropTableNode.shouldErrorIfTableDoesNotExist()) {
         return Collections.singletonList(new SimpleCommandResult(true, String.format("Table [%s] not found.", path)));
       }
 

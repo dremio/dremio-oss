@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.acceleration;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
@@ -36,8 +37,9 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql2rel.RelStructuredTypeFlattener;
 import org.apache.calcite.sql2rel.RelStructuredTypeFlattener.SelfFlatteningRel;
 
-import com.dremio.exec.catalog.TableVersionContext;
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
+import com.dremio.exec.planner.acceleration.substitution.SubstitutionUtils;
 import com.dremio.service.Pointer;
 import com.dremio.service.namespace.NamespaceKey;
 
@@ -129,13 +131,14 @@ public class ExpansionNode extends SingleRel implements CopyToCluster, SelfFlatt
       }});
   }
 
-  public static RelNode removeParentExpansionNodes(NamespaceKey pathFilter, RelNode node) {
+  public static RelNode removeParentExpansionNodes(SubstitutionUtils.VersionedPath pathFilter, RelNode node) {
     RelNode rel = node.accept(new RelShuttleImpl() {
       @Override
       public RelNode visit(RelNode other) {
         if(other instanceof ExpansionNode) {
           ExpansionNode e = (ExpansionNode) other;
-          if(e.getPath().equals(pathFilter)) {
+          SubstitutionUtils.VersionedPath path = SubstitutionUtils.VersionedPath.of(e);
+          if(path.equals(pathFilter)) {
             return e.copy(e.getTraitSet(), e.getInputs());
           } else {
             RelNode input = e.getInput().accept(this);
@@ -153,58 +156,41 @@ public class ExpansionNode extends SingleRel implements CopyToCluster, SelfFlatt
   }
 
   /**
-   * Count ExpansionNodes at each depth for the given rel node and collect the results in a map.
-   * First count the top level ENs, then the first level nested ENs, and so on. The count is done
-   * on the level of ExpansionNode and not on the RelNode.
+   * Collect ExpansionNodes at each depth for the given rel node and collect the results in a map.
+   * Collection is done on the level of ExpansionNode and not on the RelNode.
    *
    * @param relNode          Input rel node
-   * @param nodeCountAtDepth A map to keep track of node count at each depth.
+   * @param expansionsByDepth A map to keep track of nodes at each depth.
    *                         Key = Depth, Value = Expansion nodes at that depth
    * @param depth            Current depth
    */
-  public static void countExpansionNodes(RelNode relNode, Map<Integer, Integer> nodeCountAtDepth, Pointer<Integer> depth) {
+  public static void collectExpansionsByDepth(RelNode relNode, Map<Integer, List<ExpansionNode>> expansionsByDepth, Pointer<Integer> depth) {
     if (relNode == null) {
       return;
     }
 
     if (relNode instanceof RelSubset) {
       RelSubset subset = (RelSubset) relNode;
-      countExpansionNodes(subset.getBest(), nodeCountAtDepth, depth);
+      collectExpansionsByDepth(subset.getBest(), expansionsByDepth, depth);
       return;
     }
 
     if (relNode instanceof ExpansionNode) {
+      ExpansionNode expansionNode = (ExpansionNode)relNode;
       // There is an ExpansionNode at this depth
-      nodeCountAtDepth.put(depth.value, nodeCountAtDepth.getOrDefault(depth.value, 0) + 1);
+      List<ExpansionNode> expansionNodes = expansionsByDepth.getOrDefault(depth.value, new ArrayList<>());
+      expansionNodes.add(expansionNode);
+      expansionsByDepth.put(depth.value, expansionNodes);
       depth.value++;
     }
 
     for (RelNode node : relNode.getInputs()) {
-      countExpansionNodes(node, nodeCountAtDepth, depth);
+      collectExpansionsByDepth(node, expansionsByDepth, depth);
     }
 
     if (relNode instanceof ExpansionNode) {
       depth.value--;
     }
-  }
-
-  public static RelNode removeAllButRoot(RelNode tree) {
-
-    return tree.accept(new RelShuttleImpl() {
-
-      private boolean alreadyFound = false;
-
-      @Override
-      public RelNode visit(RelNode other) {
-        if(other instanceof ExpansionNode) {
-          if(alreadyFound) {
-            return ((ExpansionNode) other).getInput();
-          } else {
-            alreadyFound = true;
-          }
-        }
-        return super.visit(other);
-      }});
   }
 
   public static List<ExpansionNode> findNodes(RelNode node, Predicate<ExpansionNode> predicate){

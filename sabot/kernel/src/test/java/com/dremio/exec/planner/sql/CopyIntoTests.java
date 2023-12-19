@@ -16,6 +16,7 @@
 
 package com.dremio.exec.planner.sql;
 
+import static com.dremio.common.utils.PathUtils.parseFullPath;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.PARTITION_COLUMN_ONE_INDEX_SET;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.addQuotes;
 import static com.dremio.exec.planner.sql.DmlQueryTestUtils.createBasicNonPartitionedAndPartitionedTables;
@@ -30,6 +31,7 @@ import static com.dremio.exec.planner.sql.DmlQueryTestUtils.testMalformedDmlQuer
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import java.io.File;
@@ -52,9 +54,11 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.JsonStringArrayList;
+import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.commons.lang3.ArrayUtils;
-import org.apache.commons.lang3.RandomStringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.util.Strings;
 import org.junit.Assert;
 import org.junit.Test;
@@ -64,11 +68,23 @@ import com.dremio.TestBuilder;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.util.FileUtils;
+import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.ManagedStoragePlugin;
+import com.dremio.exec.catalog.MetadataRequestOptions;
+import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.config.ExtendedFormatOptions;
-import com.dremio.exec.planner.CopyIntoTablePlanBuilder;
+import com.dremio.exec.planner.CopyIntoPlanBuilder;
 import com.dremio.exec.planner.sql.handlers.query.CopyIntoTableContext;
 import com.dremio.exec.planner.sql.parser.SqlCopyIntoTable;
+import com.dremio.exec.proto.UserBitShared.QueryId;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.TableMetadata;
+import com.dremio.exec.store.dfs.FileSelection;
+import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.easy.EasyFormatUtils;
+import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.test.UserExceptionAssert;
 import com.google.common.collect.ImmutableList;
@@ -76,12 +92,11 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Files;
 
 
-public class CopyIntoTests extends ITDmlQueryBase {
+public class CopyIntoTests extends ITCopyIntoBase {
 
   private static final String DEFAULT_DELIMITER = ",";
   private static final String SOURCE = TEMP_SCHEMA_HADOOP;
-  private static String CSV_SOURCE_FOLDER = "/store/text/data/";
-  private static String JSON_SOURCE_FOLDER = "/store/json/copyintosource/";
+  protected static final String CSV_SOURCE_FOLDER = "/store/text/data/";
 
   public static void testEmptyAsNullDefault(BufferAllocator allocator, String source) throws Exception {
     String targetTable = "target1" + "emptyAsNull";
@@ -92,7 +107,7 @@ public class CopyIntoTests extends ITDmlQueryBase {
     validateEmptyAsNull(allocator, source, targetTable, relativePath, "emptyvalues.csv", "csv");
     test(dropQuery);
     test(ctasQuery);
-    relativePath = JSON_SOURCE_FOLDER + "/" + "jsonWithEmptyValues.json";
+    relativePath = JSON_SOURCE_FOLDER_COPY_INTO + "/" + "jsonWithEmptyValues.json";
     validateEmptyAsNull(allocator, source, targetTable, relativePath, "source1.json", "json");
     test(dropQuery);
   }
@@ -108,7 +123,7 @@ public class CopyIntoTests extends ITDmlQueryBase {
       boolean exceptionThrown = false;
       try {
         testCopyCSVFiles(allocator, source, targetTable, new DmlQueryTestUtils.Table[]{sourceTable1, sourceTable2}, new DmlQueryTestUtils.Table[]{sourceTable2},
-          "COPY INTO %s FROM '%s' FILES( " + fileNames + " '%s') (DATE_FORMAT 'YYYY-MM-DD\"T\"HH24:MI:SS.FFF', RECORD_DELIMITER '\n', FIELD_DELIMITER ',', ON_ERROR 'ABORT_COPY')", true);
+          "COPY INTO %s FROM '%s' FILES( " + fileNames + " '%s') (DATE_FORMAT 'YYYY-MM-DD\"T\"HH24:MI:SS.FFF', RECORD_DELIMITER '\n', FIELD_DELIMITER ',', ON_ERROR 'ABORT')", true);
       } catch(Exception e) {
         exceptionThrown = true;
         Assert.assertTrue(e.getMessage(), e.getMessage().contains(String.format("Maximum number of files allowed in the FILES clause is %s", CopyIntoTableContext.MAX_FILES_ALLOWED)));
@@ -154,7 +169,7 @@ public class CopyIntoTests extends ITDmlQueryBase {
   public static void testCSVSingleBoolCol(BufferAllocator allocator, String source) throws Exception {
     File location = createTempLocation();
     String targetTable = "singleBoolColTable";
-    File newSourceFile = createTableAndGenerateSourceFiles(targetTable, "colbool BOOLEAN", "singleBoolCol.csv", location, true);
+    File newSourceFile = createTableAndGenerateSourceFile(targetTable, ImmutableList.of(Pair.of("colbool", "BOOLEAN")), "singleBoolCol.csv", location, FileFormat.CSV);
     String storageLocation = "'@" + source + "/" + location.getName() + "'";
     String copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex 'singleBoolCol\\.csv' (RECORD_DELIMITER '\n')", TEMP_SCHEMA, targetTable, storageLocation);
     test(copyIntoQuery);
@@ -178,7 +193,9 @@ public class CopyIntoTests extends ITDmlQueryBase {
     String storageLocation = "'@" + source + "/" + location.getName() + "'";
     String targetTable = "escapeCharTestTable";
     String copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex 'escapeCharTest\\.csv' (RECORD_DELIMITER '\n', ESCAPE_CHAR '\\\\')", TEMP_SCHEMA, targetTable, storageLocation);
-    File newSourceFile = createTableAndGenerateSourceFiles(targetTable, "col1 VARCHAR, col2 VARCHAR, col3 VARCHAR", "escapeCharTest.csv", location, true);
+    File newSourceFile = createTableAndGenerateSourceFile(targetTable,
+      ImmutableList.of(Pair.of("col1", "VARCHAR"), Pair.of("col2", "VARCHAR"), Pair.of("col3", "VARCHAR")),
+      "escapeCharTest.csv", location, FileFormat.CSV);
     test(copyIntoQuery);
 
     new TestBuilder(allocator)
@@ -306,7 +323,7 @@ public class CopyIntoTests extends ITDmlQueryBase {
         "EMPTY_AS_NULL 'true'," +
         "RECORD_DELIMITER '\n', " +
         "FIELD_DELIMITER ',', " +
-        "ON_ERROR 'ABORT_COPY'" +
+        "ON_ERROR 'ABORT'" +
         ")", targetTable.fqn);
 
       String expected = String.format("copy INTO %s FROM 'somewhere' REGEX '.*.csv' (" +
@@ -320,15 +337,31 @@ public class CopyIntoTests extends ITDmlQueryBase {
         "'EMPTY_AS_NULL' 'true', " +
         "'RECORD_DELIMITER' '\n', " +
         "'FIELD_DELIMITER' ',', " +
-        "'ON_ERROR' 'ABORT_COPY'" +
+        "'ON_ERROR' 'ABORT'" +
           ")", "\"" + SOURCE + "\"." + addQuotes(targetTable.name));
       parseAndValidateSqlNode(regexQuery, expected);
 
-      final String filesQuery = String.format("copy INTO %s FROM 'somewhere' Files('1', '2') (RECORD_DELIMITER '\n', FIELD_DELIMITER ',', ON_ERROR 'ABORT_COPY')", targetTable.fqn);
-      expected = String.format("copy INTO %s FROM 'somewhere' files ('1', '2') ('RECORD_DELIMITER' '\n', 'FIELD_DELIMITER' ',', 'ON_ERROR' 'ABORT_COPY')",
+      final String filesQuery = String.format("copy INTO %s FROM 'somewhere' Files('1', '2') (RECORD_DELIMITER '\n', FIELD_DELIMITER ',', ON_ERROR 'ABORT')", targetTable.fqn);
+      expected = String.format("copy INTO %s FROM 'somewhere' files ('1', '2') ('RECORD_DELIMITER' '\n', 'FIELD_DELIMITER' ',', 'ON_ERROR' 'ABORT')",
         "\"" + SOURCE + "\"." + addQuotes(targetTable.name));
       parseAndValidateSqlNode(filesQuery, expected);
     }
+  }
+
+  private static SqlCopyIntoTable createMockSqlCopyIntoTable(String storageLocation,
+                                                             List<String> files,
+                                                             Optional<String> filePattern,
+                                                             Optional<String> fileFormat,
+                                                             List<String> optionsList,
+                                                             List<Object> optionValueList) {
+    final SqlCopyIntoTable call = Mockito.mock(SqlCopyIntoTable.class);
+    when(call.getStorageLocation()).thenReturn(storageLocation);
+    when(call.getFiles()).thenReturn(files);
+    when(call.getFilePattern()).thenReturn(filePattern);
+    when(call.getFileFormat()).thenReturn(fileFormat);
+    when(call.getOptionsList()).thenReturn(optionsList);
+    when(call.getOptionsValueList()).thenReturn(optionValueList);
+    return call;
   }
 
   private static void testInvalidCopyIntoInputsInternal(String storageLocation,
@@ -338,13 +371,8 @@ public class CopyIntoTests extends ITDmlQueryBase {
                                                List<String> optionsList,
                                                List<Object> optionValueList,
                                                String expectedErrorMsg) {
-    final SqlCopyIntoTable call = Mockito.mock(SqlCopyIntoTable.class);
-    when(call.getStorageLocation()).thenReturn(storageLocation);
-    when(call.getFiles()).thenReturn(files);
-    when(call.getFilePattern()).thenReturn(filePattern);
-    when(call.getFileFormat()).thenReturn(fileFormat);
-    when(call.getOptionsList()).thenReturn(optionsList);
-    when(call.getOptionsValueList()).thenReturn(optionValueList);
+    final SqlCopyIntoTable call = createMockSqlCopyIntoTable(storageLocation, files, filePattern, fileFormat,
+      optionsList, optionValueList);
 
     UserExceptionAssert.assertThatThrownBy(() -> new CopyIntoTableContext(call))
        .satisfiesAnyOf(
@@ -360,28 +388,8 @@ public class CopyIntoTests extends ITDmlQueryBase {
       Optional.empty(),
       Optional.empty(),
       ImmutableList.of("RECORD_DELIMITER", "ON_ERROR"),
-      ImmutableList.of("\n", "ABORT_COPY"),
+      ImmutableList.of("\n", "ABORT"),
       "Specified location clause not found, Dremio sources should precede with '@'");
-
-    // file is specified by both storage location and FILES
-    testInvalidCopyIntoInputsInternal(
-      "@test/folder1/file1.csv",
-      ImmutableList.of("file1.csv", "file2.csv"),
-      Optional.empty(),
-      Optional.empty(),
-      ImmutableList.of("RECORD_DELIMITER", "ON_ERROR"),
-      ImmutableList.of("\n", "ABORT_COPY"),
-      "When specifying 'FILES' or 'REGEX' location_clause must end with a directory, found a file");
-
-    // file is specified by both storage location and REGEX
-    testInvalidCopyIntoInputsInternal(
-      "@test/folder1/file1.csv",
-      Collections.emptyList(),
-      Optional.of("*.csv"),
-      Optional.empty(),
-      ImmutableList.of("RECORD_DELIMITER", "ON_ERROR"),
-      ImmutableList.of("\n", "ABORT_COPY"),
-      "When specifying 'FILES' or 'REGEX' location_clause must end with a directory, found a file");
 
     // storage location is not a file.  FILES, REGEX and FILE_FORMAT are all empty
     testInvalidCopyIntoInputsInternal(
@@ -390,7 +398,7 @@ public class CopyIntoTests extends ITDmlQueryBase {
       Optional.empty(),
       Optional.empty(),
       ImmutableList.of("RECORD_DELIMITER", "ON_ERROR"),
-      ImmutableList.of("\n", "ABORT_COPY"),
+      ImmutableList.of("\n", "ABORT"),
       "File format could not be inferred from the file extension, please specify FILE_FORMAT option.");
 
     // Mixed file extensions
@@ -400,7 +408,7 @@ public class CopyIntoTests extends ITDmlQueryBase {
       Optional.empty(),
       Optional.empty(),
       ImmutableList.of("RECORD_DELIMITER", "ON_ERROR"),
-      ImmutableList.of("\n", "ABORT_COPY"),
+      ImmutableList.of("\n", "ABORT"),
       "Files with only one type");
 
     // Mixed file extensions
@@ -410,8 +418,105 @@ public class CopyIntoTests extends ITDmlQueryBase {
       Optional.empty(),
       Optional.empty(),
       ImmutableList.of("RECORD_DELIMITER", "ON_ERROR"),
-      ImmutableList.of("\n", "ABORT_COPY"),
+      ImmutableList.of("\n", "ABORT"),
       "Specified File Format \'HELLO\'");
+
+    //Invalid COPY option
+    testInvalidCopyIntoInputsInternal(
+      "@test/folder1",
+      ImmutableList.of("file1.csv", "file2.csv"),
+      Optional.empty(),
+      Optional.empty(),
+      ImmutableList.of("RECORD_DELIMITER", "ON_NOT_ERROR"),
+      ImmutableList.of("\n", "NOT_VALID"),
+      "Specified 'ON_NOT_ERROR' option is not supported");
+
+    // Invalid ON_ERROR value
+    testInvalidCopyIntoInputsInternal(
+      "@test/folder1",
+      ImmutableList.of("file1.csv", "file2.csv"),
+      Optional.empty(),
+      Optional.empty(),
+      ImmutableList.of("RECORD_DELIMITER", "ON_ERROR"),
+      ImmutableList.of("\n", "NOT_VALID"),
+      "Specified value 'NOT_VALID' is not valid for Copy Option ON_ERROR");
+  }
+
+  @Test
+  public void testRegexOrFilesDefinedWithFileAsSourceLocation() {
+
+    String expectedErrorMessage = "When specifying 'FILES' or 'REGEX' location_clause must end with a directory. Found a file:";
+
+    // file is specified by both storage location and FILES
+    SqlCopyIntoTable call = createMockSqlCopyIntoTable(
+      "@test/folder1/file1.csv",
+      ImmutableList.of("file1.csv", "file2.csv"),
+      Optional.empty(),
+      Optional.empty(),
+      ImmutableList.of("RECORD_DELIMITER", "ON_ERROR"),
+      ImmutableList.of("\n", "ABORT"));
+
+    CopyIntoTableContext copyIntoTableContextFiles = new CopyIntoTableContext(call);
+
+    UserExceptionAssert.assertThatThrownBy(() -> attemptToCreateCopyIntoTablePlanBuilder(copyIntoTableContextFiles))
+      .satisfiesAnyOf(ex -> assertThat(ex).hasMessageContaining(expectedErrorMessage));
+
+    // file is specified by both storage location and REGEX
+    call = createMockSqlCopyIntoTable(
+      "@test/folder1/file1.csv",
+      Collections.emptyList(),
+      Optional.of("*.csv"),
+      Optional.empty(),
+      ImmutableList.of("RECORD_DELIMITER", "ON_ERROR"),
+      ImmutableList.of("\n", "ABORT"));
+
+    CopyIntoTableContext copyIntoTableContextRegex = new CopyIntoTableContext(call);
+
+    UserExceptionAssert.assertThatThrownBy(() -> attemptToCreateCopyIntoTablePlanBuilder(copyIntoTableContextRegex))
+      .satisfiesAnyOf(ex -> assertThat(ex).hasMessageContaining(expectedErrorMessage));
+
+  }
+
+  private static void attemptToCreateCopyIntoTablePlanBuilder(CopyIntoTableContext copyIntoTableContext) throws IOException {
+    TableMetadata tableMetadata = Mockito.mock(TableMetadata.class);
+    when(tableMetadata.getUser()).thenReturn("testuser");
+    when(tableMetadata.getSchema()).thenReturn(BatchSchema.EMPTY);
+    when(tableMetadata.getName()).thenReturn(Mockito.mock(NamespaceKey.class));
+    when(tableMetadata.getName().getName()).thenReturn("testTable");
+
+    FileSelection fileSelection = Mockito.mock(FileSelection.class);
+    when(fileSelection.isRootPathDirectory()).thenReturn(false);
+    when(fileSelection.getSelectionRoot()).thenReturn(copyIntoTableContext.getStorageLocation());
+
+    FileSystemPlugin fileSystemPlugin = Mockito.mock(FileSystemPlugin.class);
+    when(fileSystemPlugin.generateFileSelectionForPathComponents(any(NamespaceKey.class), any(String.class)))
+      .thenReturn(Optional.of(fileSelection));
+
+    Catalog catalog = Mockito.mock(Catalog.class);
+    when(catalog.resolveSingle(any(NamespaceKey.class)))
+      .thenReturn(new NamespaceKey(parseFullPath(copyIntoTableContext.getStorageLocation())));
+    when(catalog.getSource(any(String.class))).thenReturn(fileSystemPlugin);
+
+    ManagedStoragePlugin managedStoragePlugin = Mockito.mock(ManagedStoragePlugin.class);
+    when(managedStoragePlugin.getId()).thenReturn(Mockito.mock(StoragePluginId.class));
+
+    CatalogService catalogService = Mockito.mock(CatalogService.class);
+    when(catalogService.getCatalog(any(MetadataRequestOptions.class))).thenReturn(catalog);
+    when(catalogService.getManagedSource(any(String.class))).thenReturn(managedStoragePlugin);
+
+    QueryContext optimizerRulesContext = Mockito.mock(QueryContext.class);
+    when(optimizerRulesContext.getCatalogService()).thenReturn(catalogService);
+    when(optimizerRulesContext.getQueryId()).thenReturn(Mockito.mock(QueryId.class));
+
+    new CopyIntoPlanBuilder(
+      Mockito.mock(RelOptTable.class),
+      Mockito.mock(RelDataType.class),
+      null,
+      null,
+      tableMetadata,
+      optimizerRulesContext,
+      copyIntoTableContext
+    );
   }
 
   private void testCopyIntoTableContextInternal(String storageLocation,
@@ -451,12 +556,12 @@ public class CopyIntoTests extends ITDmlQueryBase {
     Optional.empty(),
     Optional.empty(),
     ImmutableList.of("RECORD_DELIMITER", "ON_ERROR"),
-    ImmutableList.of("\n", "ABORT_COPY"),
+    ImmutableList.of("\n", "ABORT"),
     "test.folder1",
     ImmutableList.of("file1.csv"),
     FileType.TEXT,
     ImmutableMap.of(CopyIntoTableContext.FormatOption.RECORD_DELIMITER, '\n'),
-    ImmutableMap.of(CopyIntoTableContext.CopyOption.ON_ERROR, CopyIntoTableContext.OnErrorAction.ABORT_COPY));
+    ImmutableMap.of(CopyIntoTableContext.CopyOption.ON_ERROR, CopyIntoTableContext.OnErrorAction.ABORT));
 
   // storage location is not a file. Files are specified in FILES
   testCopyIntoTableContextInternal(
@@ -465,12 +570,12 @@ public class CopyIntoTests extends ITDmlQueryBase {
     Optional.empty(),
     Optional.empty(),
     ImmutableList.of("RECORD_DELIMITER", "ON_ERROR"),
-    ImmutableList.of("\n", "ABORT_COPY"),
+    ImmutableList.of("\n", "ABORT"),
     "test.folder1",
     ImmutableList.of("file1.csv", "file2.csv"),
     FileType.TEXT,
     ImmutableMap.of(CopyIntoTableContext.FormatOption.RECORD_DELIMITER, '\n'),
-    ImmutableMap.of(CopyIntoTableContext.CopyOption.ON_ERROR, CopyIntoTableContext.OnErrorAction.ABORT_COPY));
+    ImmutableMap.of(CopyIntoTableContext.CopyOption.ON_ERROR, CopyIntoTableContext.OnErrorAction.ABORT));
 
   // storage location is not a file. Files are specified in FILES
   testCopyIntoTableContextInternal(
@@ -479,12 +584,12 @@ public class CopyIntoTests extends ITDmlQueryBase {
     Optional.of("*.csv"),
     Optional.empty(),
     ImmutableList.of("RECORD_DELIMITER", "ON_ERROR"),
-    ImmutableList.of("\n", "ABORT_COPY"),
+    ImmutableList.of("\n", "ABORT"),
     "test.folder1",
     Collections.emptyList(),
     FileType.TEXT,
     ImmutableMap.of(CopyIntoTableContext.FormatOption.RECORD_DELIMITER, '\n'),
-    ImmutableMap.of(CopyIntoTableContext.CopyOption.ON_ERROR, CopyIntoTableContext.OnErrorAction.ABORT_COPY));
+    ImmutableMap.of(CopyIntoTableContext.CopyOption.ON_ERROR, CopyIntoTableContext.OnErrorAction.ABORT));
 
   // User specified format is different file extension. user specified format has higher priority
   testCopyIntoTableContextInternal(
@@ -493,12 +598,26 @@ public class CopyIntoTests extends ITDmlQueryBase {
     Optional.empty(),
     Optional.of("json"),
     ImmutableList.of("RECORD_DELIMITER", "ON_ERROR"),
-    ImmutableList.of("\n", "ABORT_COPY"),
+    ImmutableList.of("\n", "ABORT"),
     "test.folder1",
     ImmutableList.of("file1.csv", "file2.csv"),
     FileType.JSON,
     ImmutableMap.of(CopyIntoTableContext.FormatOption.RECORD_DELIMITER, '\n'),
-    ImmutableMap.of(CopyIntoTableContext.CopyOption.ON_ERROR, CopyIntoTableContext.OnErrorAction.ABORT_COPY));
+    ImmutableMap.of(CopyIntoTableContext.CopyOption.ON_ERROR, CopyIntoTableContext.OnErrorAction.ABORT));
+
+  // User specified copy option is CONTINUE
+  testCopyIntoTableContextInternal(
+    "@test/folder1",
+    ImmutableList.of("file1.csv", "file2.csv"),
+    Optional.empty(),
+    Optional.of("json"),
+    ImmutableList.of("RECORD_DELIMITER", "ON_ERROR"),
+    ImmutableList.of("\n", "CONTINUE"),
+    "test.folder1",
+    ImmutableList.of("file1.csv", "file2.csv"),
+    FileType.JSON,
+    ImmutableMap.of(CopyIntoTableContext.FormatOption.RECORD_DELIMITER, '\n'),
+    ImmutableMap.of(CopyIntoTableContext.CopyOption.ON_ERROR, CopyIntoTableContext.OnErrorAction.CONTINUE));
   }
 
   private static String convertToCSVRow(Object[] row, String delimiter) {
@@ -570,13 +689,6 @@ public class CopyIntoTests extends ITDmlQueryBase {
         .forEach(pw::println);
     }
     assertTrue(jsonOutputFile.exists());
-  }
-
-  public static File createTempLocation() {
-    String locationName = RandomStringUtils.randomAlphanumeric(8);
-    File location = new File(getDfsTestTmpSchemaLocation(), locationName);
-    location.mkdirs();
-    return location;
   }
 
   private static void testCSVWithFilter(BufferAllocator allocator, String source, DmlQueryTestUtils.Table targetTable, DmlQueryTestUtils.Table[] sourceTables, DmlQueryTestUtils.Table[] validDataTables, String query) throws Exception {
@@ -666,7 +778,7 @@ public class CopyIntoTests extends ITDmlQueryBase {
         DmlQueryTestUtils.Table sourceTable1 = sourceTable1s.tables[i];
         DmlQueryTestUtils.Table sourceTable2 = sourceTable2s.tables[i];
         testCSVWithFilter(allocator, source, targetTable, new DmlQueryTestUtils.Table[]{sourceTable1, sourceTable2}, new DmlQueryTestUtils.Table[]{sourceTable1, sourceTable2},
-          "copy INTO %s FROM '%s' REGEX '.*.csv' (RECORD_DELIMITER '\n', FIELD_DELIMITER ',', ON_ERROR 'ABORT_COPY')");
+          "copy INTO %s FROM '%s' REGEX '.*.csv' (RECORD_DELIMITER '\n', FIELD_DELIMITER ',', ON_ERROR 'ABORT')");
       }
     }
   }
@@ -688,15 +800,15 @@ public class CopyIntoTests extends ITDmlQueryBase {
   }
 
   public static void testJsonWithDuplicateColumnNames(BufferAllocator allocator, String source) throws Exception {
-    validateUserException(allocator, source, "col1 array<struct<c1 int, c2 float, c3 varchar>>, col3 varchar", "dup_columnsAtRoot.json", "col1[1]['c3']", null, JSON_SOURCE_FOLDER, "Duplicate column name col3.");
-    validateUserException(allocator, source, "col1 array<struct<c1 int, c2 float, c3 varchar>>, col3 varchar", "dup_columnsAtNested.json", "col1[1]['c3']", null, JSON_SOURCE_FOLDER, "Duplicate column name c3.");
+    validateUserException(allocator, source, "col1 array<struct<c1 int, c2 float, c3 varchar>>, col3 varchar", "dup_columnsAtRoot.json", "col1[1]['c3']", null, JSON_SOURCE_FOLDER_COPY_INTO, "Duplicate column name col3.");
+    validateUserException(allocator, source, "col1 array<struct<c1 int, c2 float, c3 varchar>>, col3 varchar", "dup_columnsAtNested.json", "col1[1]['c3']", null, JSON_SOURCE_FOLDER_COPY_INTO, "Duplicate column name c3.");
   }
 
   public static void testJsonWithNullValuesAtRootLevel(BufferAllocator allocator, String source) throws Exception {
     String tableName = "target_s6";
     String ctasQuery = String.format("CREATE TABLE %s.%s (col1 struct< col2: array<int>, col3: varchar>)", TEMP_SCHEMA, tableName);
     test(ctasQuery);
-    String relativePath =  JSON_SOURCE_FOLDER + "source6.json";
+    String relativePath =  JSON_SOURCE_FOLDER_COPY_INTO + "source6.json";
     File location = createTempLocation();
     File newSourceFile = new File(location.toString(), "source6.json");
     File oldSourceFile = FileUtils.getResourceAsFile(relativePath);
@@ -719,7 +831,7 @@ public class CopyIntoTests extends ITDmlQueryBase {
          DmlQueryTestUtils.Table sourceTable1 = createBasicTable(5, source, 2, 2, "f1");
          DmlQueryTestUtils.Table sourceTable2 = createBasicTable(7, source, 2, 4, "f2")) {
         testCSVWithFilter(allocator, source, targetTable, new DmlQueryTestUtils.Table[]{sourceTable1, sourceTable2}, new DmlQueryTestUtils.Table[]{sourceTable1},
-                "copy INTO %s FROM '%s' REGEX '.*1.csv' (RECORD_DELIMITER '\n', FIELD_DELIMITER ',', ON_ERROR 'ABORT_COPY')");
+                "copy INTO %s FROM '%s' REGEX '.*1.csv' (RECORD_DELIMITER '\n', FIELD_DELIMITER ',', ON_ERROR 'ABORT')");
     }
   }
 
@@ -786,11 +898,11 @@ public class CopyIntoTests extends ITDmlQueryBase {
             .baselineValues("onespace")
             .baselineValues("this one has significant spaces in between but no quotes")
             .baselineValues("this one has significant spaces in between quotes")
-            .baselineValues("  \"20")
-            .baselineValues("  \"  twospace  \"  ")
+            .baselineValues("20,30")
+            .baselineValues("  twospace  ")
             .baselineValues(" onespace ")
             .baselineValues("   this one has significant spaces in between but no quotes   ")
-            .baselineValues("     \"this one has significant spaces in between quotes\"     ")
+            .baselineValues("this one has significant spaces in between quotes")
             .go();
 
     Assert.assertTrue(newSourceFile.delete());
@@ -830,7 +942,7 @@ public class CopyIntoTests extends ITDmlQueryBase {
     String dropQuery = String.format("DROP TABLE %s.%s", TEMP_SCHEMA, "target1");
     test(dropQuery);
   }
-  public static void testCSVWithEmpyData(BufferAllocator allocator, String source) throws Exception {
+  public static void testCSVWithEmptyData(BufferAllocator allocator, String source) throws Exception {
     String ctasQuery = String.format("CREATE TABLE %s.%s (%s)", TEMP_SCHEMA, "target1", "Index varchar, Height double, Weight double");
     test(ctasQuery);
     String relativePath = String.format("/store/text/copyintosource/%s", "emptyvalues.csv");
@@ -927,7 +1039,7 @@ public class CopyIntoTests extends ITDmlQueryBase {
          DmlQueryTestUtils.Table sourceTable2 = createBasicTableWithDoubles(source, 2, 4, 7)) {
 
       testCSVWithFilter(allocator, source, targetTable, new DmlQueryTestUtils.Table[]{sourceTable1, sourceTable2}, new DmlQueryTestUtils.Table[]{sourceTable1, sourceTable2},
-        "copy INTO %s FROM '%s' REGEX '.*.csv' (RECORD_DELIMITER '\n', FIELD_DELIMITER ',', ON_ERROR 'ABORT_COPY')");
+        "copy INTO %s FROM '%s' REGEX '.*.csv' (RECORD_DELIMITER '\n', FIELD_DELIMITER ',', ON_ERROR 'ABORT')");
     }
   }
 
@@ -937,7 +1049,7 @@ public class CopyIntoTests extends ITDmlQueryBase {
          DmlQueryTestUtils.Table sourceTable2 = createBasicTableWithFloats(source, 2, 4, 7)) {
 
       testCSVWithFilter(allocator, source, targetTable, new DmlQueryTestUtils.Table[]{sourceTable1, sourceTable2}, new DmlQueryTestUtils.Table[]{sourceTable1, sourceTable2},
-        "copy INTO %s FROM '%s' REGEX '.*.csv' (RECORD_DELIMITER '\n', FIELD_DELIMITER ',', ON_ERROR 'ABORT_COPY')");
+        "copy INTO %s FROM '%s' REGEX '.*.csv' (RECORD_DELIMITER '\n', FIELD_DELIMITER ',', ON_ERROR 'ABORT')");
     }
   }
 
@@ -947,7 +1059,7 @@ public class CopyIntoTests extends ITDmlQueryBase {
          DmlQueryTestUtils.Table sourceTable2 = createBasicTableWithDecimals(source, 2, 4, 7)) {
 
       testCSVWithFilter(allocator, source, targetTable, new DmlQueryTestUtils.Table[]{sourceTable1, sourceTable2}, new DmlQueryTestUtils.Table[]{sourceTable1, sourceTable2},
-        "copy INTO %s FROM '%s' REGEX '.*.csv' (RECORD_DELIMITER '\n', FIELD_DELIMITER ',', ON_ERROR 'ABORT_COPY')");
+        "copy INTO %s FROM '%s' REGEX '.*.csv' (RECORD_DELIMITER '\n', FIELD_DELIMITER ',', ON_ERROR 'ABORT')");
     }
   }
 
@@ -956,7 +1068,7 @@ public class CopyIntoTests extends ITDmlQueryBase {
          DmlQueryTestUtils.Table sourceTable1 = createBasicTableWithDates(source, 2, 2, 5, "2000-01-01", "YYYY-MM-DD");
          DmlQueryTestUtils.Table sourceTable2 = createBasicTableWithDates(source, 2, 4, 7, "2000-01-01", "YYYY-MM-DD")) {
       testCSVWithFilter(allocator, source, targetTable, new DmlQueryTestUtils.Table[]{sourceTable1, sourceTable2}, new DmlQueryTestUtils.Table[]{sourceTable1, sourceTable2},
-        "COPY INTO %s FROM '%s' REGEX '.*.csv' (DATE_FORMAT 'YYYY-MM-DD\"T\"HH24:MI:SS.FFF', RECORD_DELIMITER '\n', FIELD_DELIMITER ',', ON_ERROR 'ABORT_COPY')");
+        "COPY INTO %s FROM '%s' REGEX '.*.csv' (DATE_FORMAT 'YYYY-MM-DD\"T\"HH24:MI:SS.FFF', RECORD_DELIMITER '\n', FIELD_DELIMITER ',', ON_ERROR 'ABORT')");
     }
   }
 
@@ -1043,7 +1155,7 @@ public class CopyIntoTests extends ITDmlQueryBase {
          DmlQueryTestUtils.Table sourceTable1 = createBasicTableWithDates(source, 2, 2, 5, "2000-01-01", "YYYY-MM-DD");
          DmlQueryTestUtils.Table sourceTable2 = createBasicTableWithDates(source, 2, 4, 7, "2000-01-01", "YYYY-MM-DD")) {
       testJSON(allocator, source, targetTable, new DmlQueryTestUtils.Table[]{sourceTable1, sourceTable2}, new DmlQueryTestUtils.Table[]{sourceTable1, sourceTable2},
-        "COPY INTO %s FROM '%s' REGEX '.*.json' (DATE_FORMAT 'YYYY-MM-DD\"T\"HH24:MI:SS.FFF', ON_ERROR 'ABORT_COPY')");
+        "COPY INTO %s FROM '%s' REGEX '.*.json' (DATE_FORMAT 'YYYY-MM-DD\"T\"HH24:MI:SS.FFF', ON_ERROR 'ABORT')");
     }
   }
 
@@ -1059,7 +1171,7 @@ public class CopyIntoTests extends ITDmlQueryBase {
       // Initialise sourceTable2 with 3 records.
       DmlQueryTestUtils.Table sourceTable2 = initialiseTableWithListOfDate(sourceTable2Empty, 3, 2, 6, "2010-10-15", "YYYY-MM-DD");
       testJSON(allocator, source, targetTable, new DmlQueryTestUtils.Table[]{sourceTable1, sourceTable2}, new DmlQueryTestUtils.Table[]{sourceTable1, sourceTable2},
-        "COPY INTO %s FROM '%s' REGEX '.*.json' (DATE_FORMAT 'YYYY-MM-DD\"T\"HH24:MI', ON_ERROR 'ABORT_COPY')");
+        "COPY INTO %s FROM '%s' REGEX '.*.json' (DATE_FORMAT 'YYYY-MM-DD\"T\"HH24:MI', ON_ERROR 'ABORT')");
     }
   }
 
@@ -1086,7 +1198,7 @@ public class CopyIntoTests extends ITDmlQueryBase {
          DmlQueryTestUtils.Table sourceTable1 = createBasicTableWithDates(source, 2, 2, 5, "2000-01-01", "YYYY-MM-DD");
          DmlQueryTestUtils.Table sourceTable2 = createBasicTableWithDates(source, 2, 4, 7, "2000-01-01", "YYYY-MM-DD")) {
       testCopyCSVFiles(allocator, source, targetTable, new DmlQueryTestUtils.Table[]{sourceTable1, sourceTable2}, new DmlQueryTestUtils.Table[]{ sourceTable2},
-        "COPY INTO %s FROM '%s' FILES('%s') (DATE_FORMAT 'YYYY-MM-DD\"T\"HH24:MI:SS.FFF', RECORD_DELIMITER '\n', FIELD_DELIMITER ',', ON_ERROR 'ABORT_COPY')", false);
+        "COPY INTO %s FROM '%s' FILES('%s') (DATE_FORMAT 'YYYY-MM-DD\"T\"HH24:MI:SS.FFF', RECORD_DELIMITER '\n', FIELD_DELIMITER ',', ON_ERROR 'ABORT')", false);
     }
   }
 
@@ -1095,7 +1207,7 @@ public class CopyIntoTests extends ITDmlQueryBase {
          DmlQueryTestUtils.Table sourceTable1 = createBasicTableWithDates(source, 2, 2, 5, "2000-01-01", "YYYY-MM-DD");
          DmlQueryTestUtils.Table sourceTable2 = createBasicTableWithDates(source, 2, 4, 7, "2000-01-01", "YYYY-MM-DD")) {
       testCopyCSVFiles(allocator, source, targetTable, new DmlQueryTestUtils.Table[]{sourceTable1, sourceTable2}, new DmlQueryTestUtils.Table[]{ sourceTable2},
-        "COPY INTO %s FROM '%s' FILES('%s') (DATE_FORMAT 'YYYY-MM-DD\"T\"HH24:MI:SS.FFF', RECORD_DELIMITER '\n', FIELD_DELIMITER ',', ON_ERROR 'ABORT_COPY')", true);
+        "COPY INTO %s FROM '%s' FILES('%s') (DATE_FORMAT 'YYYY-MM-DD\"T\"HH24:MI:SS.FFF', RECORD_DELIMITER '\n', FIELD_DELIMITER ',', ON_ERROR 'ABORT')", true);
     }
   }
 
@@ -1104,30 +1216,89 @@ public class CopyIntoTests extends ITDmlQueryBase {
          DmlQueryTestUtils.Table sourceTable1 = createBasicTable(5, source, 2, 2, "f1");
          DmlQueryTestUtils.Table sourceTable2 = createBasicTable(7, source, 2, 4, "f2")) {
       testCSVWithFilter(allocator, source, targetTable, new DmlQueryTestUtils.Table[]{sourceTable1, sourceTable2}, new DmlQueryTestUtils.Table[]{sourceTable1},
-              "copy INTO %s FROM '%s' REGEX '.*1.csv' (RECORD_DELIMITER '\\n', FIELD_DELIMITER ',', ON_ERROR 'ABORT_COPY')");
+              "copy INTO %s FROM '%s' REGEX '.*1.csv' (RECORD_DELIMITER '\\n', FIELD_DELIMITER ',', ON_ERROR 'ABORT')");
     }
   }
 
+  public static void testCSVSkipHeader(BufferAllocator allocator, String source) throws Exception {
+    String tableName = "cars";
+    String fileName = "cars_noheader.csv";
+    File location = createTempLocation();
+    createTableAndGenerateSourceFile(tableName,
+      ImmutableList.of(Pair.of("make_year", "INT"), Pair.of("make", "VARCHAR"),
+        Pair.of("model", "VARCHAR"), Pair.of("description", "VARCHAR"),
+        Pair.of("price", "DOUBLE")),
+      fileName, location, FileFormat.CSV);
+
+    String storageLocation = "\'@" + source + "/" + location.getName() + "\'";
+    final String copyIntoQuery = String.format(
+      "COPY INTO %s.%s FROM %s FILES (\'%s\') (RECORD_DELIMITER '\n', EXTRACT_HEADER 'false')",
+      TEMP_SCHEMA, tableName, storageLocation, fileName);
+    test(copyIntoQuery);
+
+    new TestBuilder(allocator)
+      .sqlQuery("SELECT * FROM %s.%s ", TEMP_SCHEMA, tableName)
+      .unOrdered()
+      .baselineColumns("make_year", "make", "model", "description", "price")
+      .baselineValues(1997, "Ford", "E350", "ac, abs, moon", 3000.00)
+      .baselineValues(1999, "Chevy", "Venture \"Extended Edition\"", null, 4900.00)
+      .baselineValues(1999, "Chevy", "Venture \"Extended Edition, Very Large\"", null, 5000.00)
+      .baselineValues(1996, "Jeep", "Grand Cherokee", "MUST SELL! air, moon roof, loaded", 4799.00)
+      .go();
+
+    String dropQuery = String.format("DROP TABLE %s.%s", TEMP_SCHEMA, tableName);
+    test(dropQuery);
+  }
+
+  public static void testCSVSkipLines(BufferAllocator allocator, String source) throws Exception {
+    String tableName = "cars";
+    String fileName = "cars_noheader.csv";
+    File location = createTempLocation();
+    createTableAndGenerateSourceFile(tableName,
+      ImmutableList.of(Pair.of("make_year", "INT"), Pair.of("make", "VARCHAR"),
+      Pair.of("model", "VARCHAR"), Pair.of("description", "VARCHAR"),
+        Pair.of("price", "DOUBLE")),
+      fileName, location, FileFormat.CSV);
+
+    String storageLocation = "\'@" + source + "/" + location.getName() + "\'";
+    final String copyIntoQuery = String.format(
+      "COPY INTO %s.%s FROM %s FILES (\'%s\') (RECORD_DELIMITER '\n', EXTRACT_HEADER 'false', SKIP_LINES 2)",
+      TEMP_SCHEMA, tableName, storageLocation, fileName);
+    boolean isExceptionThrown = false;
+    test(copyIntoQuery);
+
+    new TestBuilder(allocator)
+      .sqlQuery("SELECT * FROM %s.%s ", TEMP_SCHEMA, tableName)
+      .unOrdered()
+      .baselineColumns("make_year", "make", "model", "description", "price")
+      .baselineValues(1999, "Chevy", "Venture \"Extended Edition, Very Large\"", null, 5000.00)
+      .baselineValues(1996, "Jeep", "Grand Cherokee", "MUST SELL! air, moon roof, loaded", 4799.00)
+      .go();
+
+    String dropQuery = String.format("DROP TABLE %s.%s", TEMP_SCHEMA, tableName);
+    test(dropQuery);
+  }
+
   public static void testJSONComplex(BufferAllocator allocator, String source) throws Exception {
-    testSource(allocator, source, "col1 array<struct<c1 int, c2 float, c3 double>>", "source1.json", "col1[0]['c1']", 1231, JSON_SOURCE_FOLDER);
-    testSource(allocator, source, "col1 array<struct<c1: int, c2: array<int>, c3: double>>, col2 varchar", "source2.json", "col1[2]['c2'][3]", 64, JSON_SOURCE_FOLDER);
-    testSource(allocator, source, "col1 array< array<int>>, col3 varchar", "source3.json", "col1[2][1]", 100, JSON_SOURCE_FOLDER);
-    testSource(allocator, source, "col1 array< array<struct<c1: int, c2: int, c3: varchar>>>, col3 varchar", "source4.json", "col1[1][0]['c2']", 5, JSON_SOURCE_FOLDER);
-    testSource(allocator, source, "col1 array< array<struct<c1: int, c2: int, c3: varchar>>>, col3 varchar, col4 int, col5 struct<c1: int, c2: int>", "source4.json", "col5['c2']", 100, JSON_SOURCE_FOLDER);
-    testSource(allocator, source, "col1 struct< col2: array<int>, col3: varchar>", "source5.json", "col1['col2'][0]", 10, JSON_SOURCE_FOLDER);
+    testSource(allocator, source, "col1 array<struct<c1 int, c2 float, c3 double>>", "source1.json", "col1[0]['c1']", 1231, JSON_SOURCE_FOLDER_COPY_INTO);
+    testSource(allocator, source, "col1 array<struct<c1: int, c2: array<int>, c3: double>>, col2 varchar", "source2.json", "col1[2]['c2'][3]", 64, JSON_SOURCE_FOLDER_COPY_INTO);
+    testSource(allocator, source, "col1 array< array<int>>, col3 varchar", "source3.json", "col1[2][1]", 100, JSON_SOURCE_FOLDER_COPY_INTO);
+    testSource(allocator, source, "col1 array< array<struct<c1: int, c2: int, c3: varchar>>>, col3 varchar", "source4.json", "col1[1][0]['c2']", 5, JSON_SOURCE_FOLDER_COPY_INTO);
+    testSource(allocator, source, "col1 array< array<struct<c1: int, c2: int, c3: varchar>>>, col3 varchar, col4 int, col5 struct<c1: int, c2: int>", "source4.json", "col5['c2']", 100, JSON_SOURCE_FOLDER_COPY_INTO);
+    testSource(allocator, source, "col1 struct< col2: array<int>, col3: varchar>", "source5.json", "col1['col2'][0]", 10, JSON_SOURCE_FOLDER_COPY_INTO);
   }
 
   public static void testJSONComplexNullValues(BufferAllocator allocator, String source) throws Exception {
-    testSource(allocator, source, "col1 array<struct<c1 int, c2 float, c3 double>>", "source1.json", "col1[1]['c3']", null, JSON_SOURCE_FOLDER);
-    testSource(allocator, source, "col1 array<struct<c1: int, c2: array<int>, c3: double>>, col2 varchar", "source2.json", "col1[2]['c2'][2]", null, JSON_SOURCE_FOLDER);
-    testSource(allocator, source, "col1 array<struct<c1: int, c2: array<int>, c3: double>>, col2 varchar", "source2.json", "col1[0]['c2'][2]", null, JSON_SOURCE_FOLDER);
-    testSource(allocator, source, "col1 array<struct<c1: int, c2: array<int>, c3: double>>, col2 varchar", "source2.json", "col1[0]", null, JSON_SOURCE_FOLDER);
-    testSource(allocator, source, "col1 array< array<int>>, col3 varchar", "source3.json", "col1[3][1]", null, JSON_SOURCE_FOLDER);
-    testSource(allocator, source, "col1 array< array<int>>, col3 varchar", "source3.json", "col1[3]", null, JSON_SOURCE_FOLDER);
-    testSource(allocator, source, "col1 array< array<struct<c1: int, c2: int, c3: varchar>>>, col3 varchar, col4 int, col5 struct<c1: int, c2: varchar>", "source4.json", "col1[2][1]['c2']", null, JSON_SOURCE_FOLDER);
-    testSource(allocator, source, "col1 array< array<struct<c1: int, c2: int, c3: varchar>>>, col3 varchar, col4 int, col5 struct<c1: int, c2: varchar>", "source4.json", "col4", null, JSON_SOURCE_FOLDER);
-    testSource(allocator, source, "col1 array< array<struct<c1: int, c2: int, c3: varchar>>>, col3 varchar, col4 int, col5 struct<c1: int, c2: varchar>", "source4.json", "col5['c1']", null, JSON_SOURCE_FOLDER);
-    testSource(allocator, source, "col1 struct< col2: array<int>, col3: varchar>", "source5.json", "col1['col2'][3]", null, JSON_SOURCE_FOLDER);
+    testSource(allocator, source, "col1 array<struct<c1 int, c2 float, c3 double>>", "source1.json", "col1[1]['c3']", null, JSON_SOURCE_FOLDER_COPY_INTO);
+    testSource(allocator, source, "col1 array<struct<c1: int, c2: array<int>, c3: double>>, col2 varchar", "source2.json", "col1[2]['c2'][2]", null, JSON_SOURCE_FOLDER_COPY_INTO);
+    testSource(allocator, source, "col1 array<struct<c1: int, c2: array<int>, c3: double>>, col2 varchar", "source2.json", "col1[0]['c2'][2]", null, JSON_SOURCE_FOLDER_COPY_INTO);
+    testSource(allocator, source, "col1 array<struct<c1: int, c2: array<int>, c3: double>>, col2 varchar", "source2.json", "col1[0]", null, JSON_SOURCE_FOLDER_COPY_INTO);
+    testSource(allocator, source, "col1 array< array<int>>, col3 varchar", "source3.json", "col1[3][1]", null, JSON_SOURCE_FOLDER_COPY_INTO);
+    testSource(allocator, source, "col1 array< array<int>>, col3 varchar", "source3.json", "col1[3]", null, JSON_SOURCE_FOLDER_COPY_INTO);
+    testSource(allocator, source, "col1 array< array<struct<c1: int, c2: int, c3: varchar>>>, col3 varchar, col4 int, col5 struct<c1: int, c2: varchar>", "source4.json", "col1[2][1]['c2']", null, JSON_SOURCE_FOLDER_COPY_INTO);
+    testSource(allocator, source, "col1 array< array<struct<c1: int, c2: int, c3: varchar>>>, col3 varchar, col4 int, col5 struct<c1: int, c2: varchar>", "source4.json", "col4", null, JSON_SOURCE_FOLDER_COPY_INTO);
+    testSource(allocator, source, "col1 array< array<struct<c1: int, c2: int, c3: varchar>>>, col3 varchar, col4 int, col5 struct<c1: int, c2: varchar>", "source4.json", "col5['c1']", null, JSON_SOURCE_FOLDER_COPY_INTO);
+    testSource(allocator, source, "col1 struct< col2: array<int>, col3: varchar>", "source5.json", "col1['col2'][3]", null, JSON_SOURCE_FOLDER_COPY_INTO);
   }
 
   public static void testSource(BufferAllocator allocator, String source, String tableDef, String sourceFile, String columnSelect, Object expectValue, String relativeBaseFolderPath) throws Exception {
@@ -1161,7 +1332,8 @@ public class CopyIntoTests extends ITDmlQueryBase {
     String tableName = "tempty";
     String fileName =  "empty.csv";
     File location = createTempLocation();
-    File newSourceFile = createTableAndGenerateSourceFiles(tableName, "c1 int", fileName , location, true);
+    File newSourceFile = createTableAndGenerateSourceFile(tableName, ImmutableList.of(Pair.of("c1", "int")),
+      fileName , location, FileFormat.CSV);
     String storageLocation = "\'@" + source + "/" + location.getName() + "\'";
     String copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex \'%s\' (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation, fileName);
     test(copyIntoQuery);
@@ -1174,7 +1346,8 @@ public class CopyIntoTests extends ITDmlQueryBase {
     Assert.assertTrue(newSourceFile.delete());
 
     fileName =  "empty.json";
-    newSourceFile = createTableAndGenerateSourceFiles(tableName, "c1 int", fileName , location, false);
+    newSourceFile = createTableAndGenerateSourceFile(tableName, ImmutableList.of(Pair.of("c1", "int")),
+      fileName , location, FileFormat.JSON);
     storageLocation = "\'@" + source + "/" + location.getName() + "\'";
     copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex \'%s\' (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation, fileName);
     test(copyIntoQuery);
@@ -1195,7 +1368,8 @@ public class CopyIntoTests extends ITDmlQueryBase {
     String tableName = "oneColumnOneData";
     String fileName =  "oneColumnOneData.csv";
     File location = createTempLocation();
-    File newSourceFile = createTableAndGenerateSourceFiles(tableName, "oneCol varchar", fileName , location, true);
+    File newSourceFile = createTableAndGenerateSourceFile(tableName,
+      ImmutableList.of(Pair.of("oneCol", "varchar")), fileName , location, FileFormat.CSV);
     String storageLocation = "\'@" + source + "/" + location.getName() + "\'";
     String copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex \'%s\' (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation, fileName);
     test(copyIntoQuery);
@@ -1216,7 +1390,8 @@ public class CopyIntoTests extends ITDmlQueryBase {
     String tableName = "oneColumnNoData";
     String fileName =  "oneColumnNoData.csv";
     File location = createTempLocation();
-    File newSourceFile = createTableAndGenerateSourceFiles(tableName, "oneCol varchar", fileName , location, true);
+    File newSourceFile = createTableAndGenerateSourceFile(tableName,
+      ImmutableList.of(Pair.of("oneCol", "varchar")), fileName , location, FileFormat.CSV);
     String storageLocation = "\'@" + source + "/" + location.getName() + "\'";
     String copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex \'%s\' (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation, fileName);
 
@@ -1239,7 +1414,12 @@ public class CopyIntoTests extends ITDmlQueryBase {
     String tableName = "manyColumnsWhitespaceData";
     String fileName =  "manyColumnsWhitespaceData.csv";
     File location = createTempLocation();
-    File newSourceFile = createTableAndGenerateSourceFiles(tableName, "c1 varchar,c2 varchar,c3 varchar,c4 varchar,c5 varchar,c6 varchar,c7 varchar,c8 varchar,c9 varchar,c10 varchar", fileName , location, true);
+    ImmutableList<Pair<String, String>> colNameTypePairs = ImmutableList.of(Pair.of("c1", "varchar"), Pair.of("c2", "varchar"),
+      Pair.of("c3", "varchar"), Pair.of("c4", "varchar"), Pair.of("c5", "varchar"),
+      Pair.of("c6", "varchar"), Pair.of("c7", "varchar"), Pair.of("c8", "varchar"),
+      Pair.of("c9", "varchar"), Pair.of("c10", "varchar"));
+    File newSourceFile = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName , location,
+      FileFormat.CSV);
     String storageLocation = "\'@" + source + "/" + location.getName() + "\'";
     String copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex \'%s\' (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation, fileName);
     test(copyIntoQuery);
@@ -1258,7 +1438,7 @@ public class CopyIntoTests extends ITDmlQueryBase {
 
     fileName =  "manyColumnsWhtespaceData.json";
     location = createTempLocation();
-    newSourceFile = createTableAndGenerateSourceFiles(tableName, "c1 varchar,c2 varchar,c3 varchar,c4 varchar,c5 varchar,c6 varchar,c7 varchar,c8 varchar,c9 varchar,c10 varchar", fileName , location, false);
+    newSourceFile = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName , location, FileFormat.JSON);
     storageLocation = "\'@" + source + "/" + location.getName() + "\'";
     copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex \'%s\' (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation, fileName);
     test(copyIntoQuery);
@@ -1286,7 +1466,12 @@ public class CopyIntoTests extends ITDmlQueryBase {
     String tableName = "manyColumnsEmptyData";
     String fileName =  "manyColumnsEmptyData.csv";
     File location = createTempLocation();
-    File newSourceFile = createTableAndGenerateSourceFiles(tableName, "c1 varchar,c2 varchar,c3 varchar,c4 varchar,c5 varchar,c6 varchar,c7 varchar,c8 varchar,c9 varchar,c10 varchar", fileName , location, true);
+    ImmutableList<Pair<String, String>> colNameTypePairs = ImmutableList.of(Pair.of("c1", "varchar"), Pair.of("c2", "varchar"),
+      Pair.of("c3", "varchar"), Pair.of("c4", "varchar"), Pair.of("c5", "varchar"),
+      Pair.of("c6", "varchar"), Pair.of("c7", "varchar"), Pair.of("c8", "varchar"),
+      Pair.of("c9", "varchar"), Pair.of("c10", "varchar"));
+    File newSourceFile = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName , location,
+      FileFormat.CSV);
     String storageLocation = "\'@" + source + "/" + location.getName() + "\'";
     String copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex \'%s\' (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation, fileName);
     test(copyIntoQuery);
@@ -1310,7 +1495,12 @@ public class CopyIntoTests extends ITDmlQueryBase {
     String tableName = "manyColumnsWhitespaceTabData";
     String fileName =  "manyColumnsWhitespaceTabData.csv";
     File location = createTempLocation();
-    File newSourceFile = createTableAndGenerateSourceFiles(tableName, "c1 varchar,c2 varchar,c3 varchar,c4 varchar,c5 varchar,c6 varchar,c7 varchar,c8 varchar,c9 varchar,c10 varchar", fileName , location, true);
+    ImmutableList<Pair<String, String>> colNameTypePairs = ImmutableList.of(Pair.of("c1", "varchar"), Pair.of("c2", "varchar"),
+      Pair.of("c3", "varchar"), Pair.of("c4", "varchar"), Pair.of("c5", "varchar"),
+      Pair.of("c6", "varchar"), Pair.of("c7", "varchar"), Pair.of("c8", "varchar"),
+      Pair.of("c9", "varchar"), Pair.of("c10", "varchar"));
+    File newSourceFile = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName , location,
+      FileFormat.CSV);
     String storageLocation = "\'@" + source + "/" + location.getName() + "\'";
     String copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex \'%s\' (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation, fileName);
     test(copyIntoQuery);
@@ -1329,7 +1519,7 @@ public class CopyIntoTests extends ITDmlQueryBase {
 
     fileName = "manyColumnsWhitespaceTabData.json";
     location = createTempLocation();
-    newSourceFile = createTableAndGenerateSourceFiles(tableName, "c1 varchar,c2 varchar,c3 varchar,c4 varchar,c5 varchar,c6 varchar,c7 varchar,c8 varchar,c9 varchar,c10 varchar", fileName , location, false);
+    newSourceFile = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName , location, FileFormat.JSON);
     storageLocation = "\'@" + source + "/" + location.getName() + "\'";
     copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex \'%s\' (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation, fileName);
     test(copyIntoQuery);
@@ -1358,7 +1548,12 @@ public class CopyIntoTests extends ITDmlQueryBase {
     String tableName = "noHeaderOnlyData";
     String fileName =  "noHeaderOnlyData.csv";
     File location = createTempLocation();
-    File newSourceFile = createTableAndGenerateSourceFiles(tableName, "c1 varchar,c2 varchar,c3 varchar,c4 varchar,c5 varchar,c6 varchar,c7 varchar,c8 varchar,c9 varchar,c10 varchar", fileName , location, true);
+    ImmutableList<Pair<String, String>> colNameTypePairs = ImmutableList.of(Pair.of("c1", "varchar"), Pair.of("c2", "varchar"),
+      Pair.of("c3", "varchar"), Pair.of("c4", "varchar"), Pair.of("c5", "varchar"),
+      Pair.of("c6", "varchar"), Pair.of("c7", "varchar"), Pair.of("c8", "varchar"),
+      Pair.of("c9", "varchar"), Pair.of("c10", "varchar"));
+    File newSourceFile = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName , location,
+      FileFormat.CSV);
     String storageLocation = "\'@" + source + "/" + location.getName() + "\'";
     String copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex \'%s\' (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation, fileName);
 
@@ -1381,7 +1576,10 @@ public class CopyIntoTests extends ITDmlQueryBase {
     String tableName = "moreValuesThanHeaders";
     String fileName =  "moreValuesThanHeaders.csv";
     File location = createTempLocation();
-    File newSourceFile = createTableAndGenerateSourceFiles(tableName, "c1 int,c2 int,c3 int,c4 int", fileName , location, true);
+    ImmutableList<Pair<String, String>> colNameTypePairs = ImmutableList.of(Pair.of("c1", "int"),
+      Pair.of("c2", "int"), Pair.of("c3", "int"), Pair.of("c4", "int"));
+    File newSourceFile = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName , location,
+      FileFormat.CSV);
     String storageLocation = "\'@" + source + "/" + location.getName() + "\'";
     String copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex \'%s\' (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation, fileName);
     test(copyIntoQuery);
@@ -1399,7 +1597,9 @@ public class CopyIntoTests extends ITDmlQueryBase {
 
     tableName = "moreValuesThanHeaders2";
     location = createTempLocation();
-    newSourceFile = createTableAndGenerateSourceFiles(tableName, "c1 int,c2 int,c3 int,c4 int, c5 int", fileName , location, true);
+    colNameTypePairs = ImmutableList.of(Pair.of("c1", "int"),
+      Pair.of("c2", "int"), Pair.of("c3", "int"), Pair.of("c4", "int"), Pair.of("c5", "int"));
+    newSourceFile = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName , location, FileFormat.CSV);
     storageLocation = "\'@" + source + "/" + location.getName() + "\'";
     copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex \'%s\' (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation, fileName);
     test(copyIntoQuery);
@@ -1420,7 +1620,11 @@ public class CopyIntoTests extends ITDmlQueryBase {
     String tableName = "moreHeadersThanValues";
     String fileName =  "moreHeadersThanValues.csv";
     File location = createTempLocation();
-    File newSourceFile = createTableAndGenerateSourceFiles(tableName, "c1 int,c2 int,c3 int,c4 int,c5 int", fileName , location, true);
+    ImmutableList<Pair<String, String>> colNameTypePairs = ImmutableList.of(Pair.of("c1", "int"),
+      Pair.of("c2", "int"), Pair.of("c3", "int"), Pair.of("c4", "int"),
+      Pair.of("c5", "int"));
+    File newSourceFile = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName , location,
+      FileFormat.CSV);
     String storageLocation = "\'@" + source + "/" + location.getName() + "\'";
     String copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex \'%s\' (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation, fileName);
     test(copyIntoQuery);
@@ -1441,7 +1645,10 @@ public class CopyIntoTests extends ITDmlQueryBase {
     String tableName = "tableUppercaseFileLowerCase";
     String fileName =  "smallCaseColumns.csv";
     File location = createTempLocation();
-    File newSourceFile = createTableAndGenerateSourceFiles(tableName, "C1 int,C2 int,C3 int", fileName , location, true);
+    ImmutableList<Pair<String, String>> colNameTypePairs = ImmutableList.of(Pair.of("C1", "int"),
+      Pair.of("C2", "int"), Pair.of("C3", "int"));
+    File newSourceFile = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName , location,
+      FileFormat.CSV);
     String storageLocation = "\'@" + source + "/" + location.getName() + "\'";
     String copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex \'%s\' (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation, fileName);
     test(copyIntoQuery);
@@ -1459,7 +1666,7 @@ public class CopyIntoTests extends ITDmlQueryBase {
 
     fileName =  "smallCaseColumns.json";
     location = createTempLocation();
-    newSourceFile = createTableAndGenerateSourceFiles(tableName, "C1 int,C2 int,C3 int", fileName , location, false);
+    newSourceFile = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName , location, FileFormat.JSON);
     storageLocation = "\'@" + source + "/" + location.getName() + "\'";
     copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex \'%s\' (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation, fileName);
     test(copyIntoQuery);
@@ -1485,7 +1692,10 @@ public class CopyIntoTests extends ITDmlQueryBase {
     String tableName = "tableLowercaseFileUppercase";
     String fileName =  "upperCaseColumns.csv";
     File location = createTempLocation();
-    File newSourceFile = createTableAndGenerateSourceFiles(tableName, "c1 int,c2 int,c3 int", fileName , location, true);
+    ImmutableList<Pair<String, String>> colNameTypePairs = ImmutableList.of(Pair.of("c1", "int"),
+      Pair.of("c2", "int"), Pair.of("c3", "int"));
+    File newSourceFile = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName , location,
+      FileFormat.CSV);
     String storageLocation = "\'@" + source + "/" + location.getName() + "\'";
     String copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex \'%s\' (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation, fileName);
     test(copyIntoQuery);
@@ -1503,7 +1713,7 @@ public class CopyIntoTests extends ITDmlQueryBase {
 
     fileName =  "upperCaseColumns.json";
     location = createTempLocation();
-    newSourceFile = createTableAndGenerateSourceFiles(tableName, "c1 int,c2 int,c3 int", fileName , location, false);
+    newSourceFile = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName , location, FileFormat.JSON);
     storageLocation = "\'@" + source + "/" + location.getName() + "\'";
     copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex \'%s\' (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation, fileName);
     test(copyIntoQuery);
@@ -1529,7 +1739,11 @@ public class CopyIntoTests extends ITDmlQueryBase {
     String tableName = "manyColumnsNoValues";
     String fileName =  "manyColumnsNoValues.csv";
     File location = createTempLocation();
-    File newSourceFile = createTableAndGenerateSourceFiles(tableName, "c1 int,c2 int,c3 int,c4 int,c5 int,c6 int", fileName , location, true);
+    ImmutableList<Pair<String, String>> colNameTypePairs = ImmutableList.of(Pair.of("c1", "int"),
+      Pair.of("c2", "int"), Pair.of("c3", "int"), Pair.of("c4", "int"),
+      Pair.of("c5", "int"), Pair.of("c6", "int"));
+    File newSourceFile = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName , location,
+      FileFormat.CSV);
     String storageLocation = "\'@" + source + "/" + location.getName() + "\'";
     String copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex \'%s\' (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation, fileName);
 
@@ -1558,7 +1772,9 @@ public class CopyIntoTests extends ITDmlQueryBase {
     String tableName = "nullValueAtRootLevel";
     String fileName =  "nullValueAtRootLevel.json";
     File location = createTempLocation();
-    File newSourceFile = createTableAndGenerateSourceFiles(tableName, "col1 int, col2 varchar", fileName , location, false);
+    ImmutableList<Pair<String, String>> colNameTypePairs = ImmutableList.of(Pair.of("col1", "int"), Pair.of("col2", "varchar"));
+    File newSourceFile = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName , location,
+      FileFormat.JSON);
     String storageLocation = "\'@" + source + "/" + location.getName() + "\'";
     String copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex \'%s\' (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation, fileName);
     test(copyIntoQuery);
@@ -1581,7 +1797,10 @@ public class CopyIntoTests extends ITDmlQueryBase {
     String tableName = "valuesInSingleQuotesVarchar";
     String fileName =  "valuesInSingleQuotes.csv";
     File location = createTempLocation();
-    File newSourceFile = createTableAndGenerateSourceFiles(tableName, "c1 varchar,c2 varchar,c3 varchar", fileName , location, true);
+    ImmutableList<Pair<String, String>> colNameTypePairs = ImmutableList.of(Pair.of("c1", "varchar"),
+      Pair.of("c2", "varchar"), Pair.of("c3", "varchar"));
+    File newSourceFile = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName , location,
+      FileFormat.CSV);
     String storageLocation = "\'@" + source + "/" + location.getName() + "\'";
     String copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex \'%s\' (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation, fileName);
     test(copyIntoQuery);
@@ -1604,7 +1823,10 @@ public class CopyIntoTests extends ITDmlQueryBase {
     String tableName = "valuesInDoubleQuotesVarchar";
     String fileName =  "valuesInDoubleQuotes.csv";
     File location = createTempLocation();
-    File newSourceFile = createTableAndGenerateSourceFiles(tableName, "c1 varchar,c2 varchar,c3 varchar", fileName , location, true);
+    ImmutableList<Pair<String, String>> colNameTypePairs = ImmutableList.of(Pair.of("c1", "varchar"),
+      Pair.of("c2", "varchar"), Pair.of("c3", "varchar"));
+    File newSourceFile = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName , location,
+      FileFormat.CSV);
     String storageLocation = "\'@" + source + "/" + location.getName() + "\'";
     String copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex \'%s\' (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation, fileName);
     test(copyIntoQuery);
@@ -1624,7 +1846,9 @@ public class CopyIntoTests extends ITDmlQueryBase {
 
     tableName = "valuesInDoubleQuotesInt";
     location = createTempLocation();
-    newSourceFile = createTableAndGenerateSourceFiles(tableName, "c1 int,c2 int,c3 int", fileName , location, true);
+    colNameTypePairs = ImmutableList.of(Pair.of("c1", "int"),
+      Pair.of("c2", "int"), Pair.of("c3", "int"));
+    newSourceFile = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName , location, FileFormat.CSV);
     storageLocation = "\'@" + source + "/" + location.getName() + "\'";
     copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex \'%s\' (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation, fileName);
     test(copyIntoQuery);
@@ -1647,7 +1871,9 @@ public class CopyIntoTests extends ITDmlQueryBase {
     String tableName = "booleanCaseSensitivity";
     String fileName =  "boolColLowercase.csv";
     File location = createTempLocation();
-    File newSourceFile = createTableAndGenerateSourceFiles(tableName, "id int,boolCol boolean", fileName , location, true);
+    ImmutableList<Pair<String, String>> colNameTypePairs = ImmutableList.of(Pair.of("id", "int"), Pair.of("boolCol", "boolean"));
+    File newSourceFile = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName , location,
+      FileFormat.CSV);
     String storageLocation = "\'@" + source + "/" + location.getName() + "\'";
     String copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex \'%s\' (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation, fileName);
     test(copyIntoQuery);
@@ -1665,7 +1891,7 @@ public class CopyIntoTests extends ITDmlQueryBase {
 
     fileName =  "boolColUppercase.csv";
     location = createTempLocation();
-    newSourceFile = createTableAndGenerateSourceFiles(tableName, "id int,boolCol boolean", fileName , location, true);
+    newSourceFile = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName , location, FileFormat.CSV);
     storageLocation = "\'@" + source + "/" + location.getName() + "\'";
     copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex \'%s\' (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation, fileName);
     test(copyIntoQuery);
@@ -1686,7 +1912,7 @@ public class CopyIntoTests extends ITDmlQueryBase {
 
     fileName =  "boolColMixedcase.csv";
     location = createTempLocation();
-    newSourceFile = createTableAndGenerateSourceFiles(tableName, "id int,boolCol boolean", fileName , location, true);
+    newSourceFile = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName , location, FileFormat.CSV);
     storageLocation = "\'@" + source + "/" + location.getName() + "\'";
     copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex \'%s\' (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation, fileName);
     test(copyIntoQuery);
@@ -1715,7 +1941,10 @@ public class CopyIntoTests extends ITDmlQueryBase {
     String tableName = "headerEmptyString";
     String fileName =  "headerEmptyString.csv";
     File location = createTempLocation();
-    File newSourceFile = createTableAndGenerateSourceFiles(tableName, "c1 int,c2 int,c3 int", fileName , location, true);
+    ImmutableList<Pair<String, String>> colNameTypePairs = ImmutableList.of(Pair.of("c1", "int"),
+      Pair.of("c2", "int"), Pair.of("c3", "int"));
+    File newSourceFile = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName , location,
+      FileFormat.CSV);
     String storageLocation = "\'@" + source + "/" + location.getName() + "\'";
     String copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex \'%s\' (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation, fileName);
     test(copyIntoQuery);
@@ -1738,7 +1967,10 @@ public class CopyIntoTests extends ITDmlQueryBase {
     String tableName = "fileExtensionCaseSensitivity";
     String fileName =  "fileExtensionCaseSensitivity.CSV";
     File location = createTempLocation();
-    File newSourceFile = createTableAndGenerateSourceFiles(tableName, "c1 int,c2 int,c3 int", fileName , location, true);
+    ImmutableList<Pair<String, String>> colNameTypePairs = ImmutableList.of(Pair.of("c1", "int"),
+      Pair.of("c2", "int"), Pair.of("c3", "int"));
+    File newSourceFile = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName , location,
+      FileFormat.CSV);
     String storageLocation = "\'@" + source + "/" + location.getName() + "\'";
     String copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex \'%s\' (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation, fileName);
     test(copyIntoQuery);
@@ -1755,7 +1987,7 @@ public class CopyIntoTests extends ITDmlQueryBase {
 
     fileName =  "fileExtensionCaseSensitivity.JSON";
     location = createTempLocation();
-    newSourceFile = createTableAndGenerateSourceFiles(tableName, "c1 int,c2 int,c3 int", fileName , location, false);
+    newSourceFile = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName , location, FileFormat.JSON);
     storageLocation = "\'@" + source + "/" + location.getName() + "\'";
     copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex \'%s\' (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation, fileName);
     test(copyIntoQuery);
@@ -1781,17 +2013,23 @@ public class CopyIntoTests extends ITDmlQueryBase {
     File tempdir = new File(location.toString(), "diffFormats/");
     tempdir.mkdirs();
 
-    String ctasQuery = String.format("CREATE TABLE %s.%s (%s)", TEMP_SCHEMA, tableName, "c1 int, c2 int, c3 int");
+    ImmutableList<Pair<String, String>> colNameTypePairs = ImmutableList.of(Pair.of("c1", "int"),
+      Pair.of("c2", "int"), Pair.of("c3", "int"));
+    String ctasQuery = String.format("CREATE TABLE %s.%s (%s)", TEMP_SCHEMA, tableName,
+      colNameTypePairs.stream().map(p -> String.format("%s %s", p.getLeft(), p.getRight())).collect(Collectors.joining(",")));
     test(ctasQuery);
 
     String fileName = "diffFormats/f1.txt";
-    File newSourceFile1 = createTableAndGenerateSourceFiles(tableName, "c1 int,c2 int,c3 int", fileName , location, true);
+    File newSourceFile1 = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName , location,
+      FileFormat.CSV);
 
     fileName = "diffFormats/f1.dat";
-    File newSourceFile2 = createTableAndGenerateSourceFiles(tableName, "c1 int,c2 int,c3 int", fileName , location, true);
+    File newSourceFile2 = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName , location,
+      FileFormat.CSV);
 
     fileName = "diffFormats/f1.csv";
-    File newSourceFile3 = createTableAndGenerateSourceFiles(tableName, "c1 int,c2 int,c3 int", fileName , location, true);
+    File newSourceFile3 = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName , location,
+      FileFormat.CSV);
 
     String storageLocation = "\'@" + source + "/" + location.getName() + "/" + tempdir.getName() + "\'";
     String copyIntoQuery = String.format("COPY INTO %s.%s FROM %s FILE_FORMAT \'csv\' (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation);
@@ -1821,7 +2059,10 @@ public class CopyIntoTests extends ITDmlQueryBase {
     String tableName = "tStructValues";
     String fileName =  "structValues.csv";
     File location = createTempLocation();
-    File newSourceFile = createTableAndGenerateSourceFiles(tableName, "id int, ooa struct<c1: int, c2 int, c3 varchar>, ooa2 array<int>", fileName , location, true);
+    ImmutableList<Pair<String, String>> colNameTypePairs = ImmutableList.of(Pair.of("id", "int"), Pair.of("ooa", "struct<c1: int, c2 int, c3 varchar>"),
+      Pair.of("ooa2", "array<int>"));
+    File newSourceFile = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName , location,
+      FileFormat.CSV);
     String storageLocation = "\'@" + source + "/" + location.getName() + "\'";
     String copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex \'%s\' (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation, fileName);
     boolean isExceptionThrown = false;
@@ -1848,7 +2089,8 @@ public class CopyIntoTests extends ITDmlQueryBase {
     tableName = "tListValues";
     fileName =  "listValues.csv";
     location = createTempLocation();
-    newSourceFile = createTableAndGenerateSourceFiles(tableName, "id int, ooa array<int>", fileName , location, true);
+    colNameTypePairs = ImmutableList.of(Pair.of("id", "int"), Pair.of("ooa", "array<int>"));
+    newSourceFile = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName , location, FileFormat.CSV);
     storageLocation = "\'@" + source + "/" + location.getName() + "\'";
     copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex \'%s\' (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation, fileName);
     isExceptionThrown = false;
@@ -1876,7 +2118,10 @@ public class CopyIntoTests extends ITDmlQueryBase {
     String tableName = "caseSensitivity";
     String fileName =  "caseSensitivity.csv";
     File location = createTempLocation();
-    File newSourceFile = createTableAndGenerateSourceFiles(tableName, "c1 int,c2 int,c3 int", fileName, location, true);
+    ImmutableList<Pair<String, String>> colNameTypePairs = ImmutableList.of(Pair.of("c1", "int"),
+      Pair.of("c2", "int"), Pair.of("c3", "int"));
+    File newSourceFile = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName, location,
+      FileFormat.CSV);
     String storageLocation = "\'@" + source + "/" + location.getName() + "\'";
     String copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex \'CASESENSITIVITY\' FILE_FORMAT 'csv' (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation);
     test(copyIntoQuery);
@@ -1908,7 +2153,9 @@ public class CopyIntoTests extends ITDmlQueryBase {
     String tableName = "complexToVarchar";
     String fileName =  "list.json";
     File location = createTempLocation();
-    File newSourceFile = createTableAndGenerateSourceFiles(tableName, "ooa varchar", fileName , location, false);
+    ImmutableList<Pair<String, String>> colNameTypePairs = ImmutableList.of(Pair.of("ooa", "varchar"));
+    File newSourceFile = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName , location,
+      FileFormat.JSON);
     String storageLocation = "\'@" + source + "/" + location.getName() + "\'";
     String copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex \'%s\' (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation, fileName);
     boolean isExceptionThrown = false;
@@ -1924,7 +2171,7 @@ public class CopyIntoTests extends ITDmlQueryBase {
     Assert.assertTrue(newSourceFile.delete());
 
     fileName =  "struct.json";
-    newSourceFile = createTableAndGenerateSourceFiles(tableName, "ooa varchar", fileName , location, false);
+    newSourceFile = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName , location, FileFormat.JSON);
     storageLocation = "\'@" + source + "/" + location.getName() + "\'";
     copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex \'%s\' (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation, fileName);
     isExceptionThrown = false;
@@ -1947,7 +2194,10 @@ public class CopyIntoTests extends ITDmlQueryBase {
     String tableName = "tnullIf";
     String fileName =  "nullIf.csv";
     File location = createTempLocation();
-    File newSourceFile = createTableAndGenerateSourceFiles(tableName, "c1 varchar,c2 varchar,c3 varchar", fileName , location, true);
+    ImmutableList<Pair<String, String>> colNameTypePairs = ImmutableList.of(Pair.of("c1", "varchar"),
+      Pair.of("c2", "varchar"), Pair.of("c3", "varchar"));
+    File newSourceFile = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName , location,
+      FileFormat.CSV);
     String storageLocation = "\'@" + source + "/" + location.getName() + "\'";
     String copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex \'%s\' (RECORD_DELIMITER '\n', NULL_IF ('None', 'NA'))", TEMP_SCHEMA, tableName, storageLocation, fileName);
     test(copyIntoQuery);
@@ -1965,7 +2215,7 @@ public class CopyIntoTests extends ITDmlQueryBase {
 
     fileName =  "nullIf.json";
     location = createTempLocation();
-    newSourceFile = createTableAndGenerateSourceFiles(tableName, "c1 varchar,c2 varchar,c3 varchar", fileName , location, false);
+    newSourceFile = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName , location, FileFormat.JSON);
     storageLocation = "\'@" + source + "/" + location.getName() + "\'";
     copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex \'%s\' (RECORD_DELIMITER '\n', NULL_IF ('None', 'NA'))", TEMP_SCHEMA, tableName, storageLocation, fileName);
     test(copyIntoQuery);
@@ -2281,8 +2531,12 @@ public class CopyIntoTests extends ITDmlQueryBase {
     String fileName1 =  "columnCaseSensitivity.csv";
     String fileName2 = "columnCaseSensitivity.json";
     File location = createTempLocation();
-    File newSourceFile1 = createTableAndGenerateSourceFiles(tableName, "col1 int, col2 int, col3 int", fileName1 , location, true);
-    File newSourceFile2 = createTableAndGenerateSourceFiles(tableName, "col1 int, col2 int, col3 int", fileName2 , location, false);
+    ImmutableList<Pair<String, String>> colNameTypePairs = ImmutableList.of(Pair.of("col1", "int"),
+      Pair.of("col2", "int"), Pair.of("col3", "int"));
+    File newSourceFile1 = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName1 , location,
+      FileFormat.CSV);
+    File newSourceFile2 = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName2 , location,
+      FileFormat.JSON);
     String storageLocation = "\'@" + source + "/" + location.getName() + "\'";
     String copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex \'%s\' (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation, fileName1);
     test(copyIntoQuery);
@@ -2323,9 +2577,14 @@ public class CopyIntoTests extends ITDmlQueryBase {
     String fileName2 = "fieldDelimiter2.csv";
     String fileName3 = "fieldDelimiter3.csv";
     File location = createTempLocation();
-    File newSourceFile1 = createTableAndGenerateSourceFiles(tableName, "c1 int, c2 int, c3 int", fileName1, location, true);
-    File newSourceFile2 = createTableAndGenerateSourceFiles(tableName, "c1 int, c2 int, c3 int", fileName2, location, true);
-    File newSourceFile3 = createTableAndGenerateSourceFiles(tableName, "c1 int, c2 int, c3 int", fileName3, location, true);
+    ImmutableList<Pair<String, String>> colNameTypePairs = ImmutableList.of(Pair.of("c1", "int"),
+      Pair.of("c2", "int"), Pair.of("c3", "int"));
+    File newSourceFile1 = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName1, location,
+      FileFormat.CSV);
+    File newSourceFile2 = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName2, location,
+      FileFormat.CSV);
+    File newSourceFile3 = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName3, location,
+      FileFormat.CSV);
     String storageLocation = "\'@" + source + "/" + location.getName() + "\'";
     String copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex \'%s\' (RECORD_DELIMITER '\n', FIELD_DELIMITER ':')", TEMP_SCHEMA, tableName, storageLocation, fileName1);
     test(copyIntoQuery);
@@ -2377,7 +2636,9 @@ public class CopyIntoTests extends ITDmlQueryBase {
     String tableName = "tArray";
     String fileName = "list_of_list.json";
     File location = createTempLocation();
-    File newSourceFile = createTableAndGenerateSourceFiles(tableName, "ooa array<int>", fileName, location, false);
+    ImmutableList<Pair<String, String>> colNameTypePairs = ImmutableList.of(Pair.of("ooa", "array<int>"));
+    File newSourceFile = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName, location,
+      FileFormat.JSON);
     String storageLocation = "\'@" + source + "/" + location.getName() + "\'";
     String copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex \'%s\' (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation, fileName);
     boolean isExceptionThrown = false;
@@ -2396,22 +2657,11 @@ public class CopyIntoTests extends ITDmlQueryBase {
     test(dropQuery);
   }
 
-  public static File createTableAndGenerateSourceFiles(String tableName, String schema, String fileName, File location, boolean isCsv) throws Exception {
-    String ctasQuery = String.format("CREATE TABLE IF NOT EXISTS %s.%s (%s)", TEMP_SCHEMA, tableName, schema);
-    test(ctasQuery);
-    String relativePath = isCsv ? String.format("/store/text/copyintosource/%s", fileName) : String.format("/store/json/copyintosource/%s", fileName);
-    File newSourceFile = new File(location.toString(), fileName);
-    File oldSourceFile = FileUtils.getResourceAsFile(relativePath);
-    Files.copy(oldSourceFile, newSourceFile);
-
-    return newSourceFile;
-  }
-
   private static void testFileCountEstimate(List<String> files) {
-    long actual = CopyIntoTablePlanBuilder.getFileCountEstimate(files);
+    long actual = CopyIntoPlanBuilder.getFileCountEstimate(files);
 
     if (files == null || files.isEmpty()) {
-      Assert.assertEquals(CopyIntoTablePlanBuilder.DEFAULT_FILE_COUNT_ESTIMATE, actual);
+      Assert.assertEquals(CopyIntoPlanBuilder.DEFAULT_FILE_COUNT_ESTIMATE, actual);
     } else {
       Assert.assertEquals(files.size(), actual);
     }
@@ -2435,7 +2685,7 @@ public class CopyIntoTests extends ITDmlQueryBase {
     String ctasQuery = String.format("CREATE TABLE %s.%s %s", TEMP_SCHEMA, tableName, cols);
     test(ctasQuery);
 
-    String relativePath =  JSON_SOURCE_FOLDER + "test900fields.csv";
+    String relativePath =  JSON_SOURCE_FOLDER_COPY_INTO + "test900fields.csv";
     File location = createTempLocation();
     File newSourceFile = new File(location.toString(), "test900fields.csv");
     File oldSourceFile = FileUtils.getResourceAsFile(relativePath);
@@ -2473,5 +2723,25 @@ public class CopyIntoTests extends ITDmlQueryBase {
         .baselineValues(2)
         .go();
     }
+  }
+
+  public static void testNonExistingSource(BufferAllocator allocator, String source) throws Exception {
+    String tableName = "headerEmptyString";
+    String fileName =  "headerEmptyString.csv";
+    File location = createTempLocation();
+    ImmutableList<Pair<String, String>> colNameTypePairs = ImmutableList.of(Pair.of("c1", "int"),
+      Pair.of("c2", "int"), Pair.of("c3", "int"));
+    File newSourceFile = createTableAndGenerateSourceFile(tableName, colNameTypePairs, fileName , location,
+      FileFormat.CSV);
+    String storageLocation = "\'@" + source + "/" + location.getName() + "\'";
+    String copyIntoQuery = String.format("COPY INTO %s.%s FROM %s regex \'%s\' (RECORD_DELIMITER '\n')", TEMP_SCHEMA, tableName, storageLocation, fileName);
+
+    UserExceptionAssert.assertThatThrownBy(() -> test(copyIntoQuery))
+      .satisfies(ex -> assertThat(ex).hasMessageContaining("Source '%s' not found",
+        source));
+
+    Assert.assertTrue(newSourceFile.delete());
+    String dropQuery = String.format("DROP TABLE %s.%s", TEMP_SCHEMA, tableName);
+    test(dropQuery);
   }
 }

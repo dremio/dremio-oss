@@ -385,7 +385,6 @@ public class TestJsonReader extends PlanTestBase {
   }
 
   @Test
-  @Ignore("ignored until DX-3863 is fixed. looks like sampling is not working as expected?")
     public void testJsonDirectoryWithEmptyFile() throws Exception {
     String root = FileUtils.getResourceAsFile("/store/json/jsonDirectoryWithEmpyFile").toURI().toString();
 

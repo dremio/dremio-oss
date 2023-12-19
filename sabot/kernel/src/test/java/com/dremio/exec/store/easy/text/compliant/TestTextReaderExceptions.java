@@ -53,53 +53,6 @@ public class TestTextReaderExceptions extends TestTextReaderHelper {
     return Arrays.asList(new Object[][]
         {
           {
-            /*  <spaces><quote>Quoted Field<quote><spaces>
-                example:  value,  "inside"  ,val2
-                TODO: To fix this behaviour, skip spaces before matching quote, ref:TextReader.java:328 */
-            new TextFileConfig().setLineDelimiter("\n"),
-            new String[][] {
-              {"c1","c2","c3"},
-              {"r1c1","r1c2","r1c3"},
-              {"r2c1","r2c2","r2c3"}
-            },
-            "space_padded_quoted_field.csv",
-            Exception.class,
-            expectedRecordNotFound,
-            Exception.class,
-            expectedRecordNotFound
-          },
-          {
-            //  TODO: To fix this behaviour, skip spaces before matching quote, ref:TextReader.java:372
-            new TextFileConfig().setLineDelimiter("\n"),
-            new String[][] {
-              {"c1","c2","c3"},
-              {"r1c1","r1c2","r1c3"},
-              {"r2c1","r2c2","r2c3"}
-            },
-            "comment_after_spaces.csv",
-            AssertionError.class,
-            numOfRecordsDiffer,
-            AssertionError.class,
-            numOfRecordsDiffer
-          },
-          {
-            /*  Header is mistaken to be data record even though extract header is set to true, when at least
-                one comment or empty line precedes header
-                Essentially, After extracting Header, reader is pointing to second line instead of Second Non-Empty record
-                TODO: To fix this, skip line should be modified to skip non empty line of data, ref: TextInput.java:367 */
-            new TextFileConfig().setLineDelimiter("\n"),
-            new String[][] {
-              {"c1","c2","c3"},
-              {"r1c1","r1c2","r1c3"},
-              {"r2c1","r2c2","r2c3"}
-            },
-            "empty_line_before_header.csv",
-            AssertionError.class,
-            numOfRecordsDiffer,
-            AssertionError.class,
-            numOfRecordsDiffer
-          },
-          {
             // Trim Header false
             new TextFileConfig().setLineDelimiter("\n").setTrimHeader(false),
             new String[][] {

@@ -51,7 +51,7 @@ export class ReplaceExactForm extends Component {
     super(props);
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     const newValues = nextProps.fields;
     const oldValues = this.props.fields;
     if (

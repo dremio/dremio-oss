@@ -1,0 +1,115 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+.jobs-page {
+  // dremio-layout-container, without children rule
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: row;
+  block-size: 100%;
+  overflow: hidden;
+
+  &__content {
+    inline-size: 100%;
+    :global {
+      .nav-crumbs-container {
+        overflow: initial;
+      }
+    }
+  }
+
+  &__table {
+    height: 100%;
+    :global {
+      .leantable__header-cell.job-id-and-status {
+        padding-inline-start: 40px;
+        width: 15vw;
+      }
+
+      .leantable__header-cell.job-accelerated-cell {
+        padding-block: 5px 0px;
+      }
+
+      .show-on-hover__target {
+        display: flex;
+        align-items: center;
+      }
+
+      .job-id-container {
+        width: 13vw;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        overflow: hidden;
+      }
+
+      .job-id-wrapper {
+        direction: rtl;
+        text-align: left;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: var(--dremio--color--link);
+      }
+
+      .leantable__body-cell {
+        .copy-button {
+          opacity: 0;
+          cursor: auto;
+        }
+        &:hover {
+          .copy-button {
+            opacity: 1;
+            cursor: pointer;
+          }
+        }
+      }
+    }
+  }
+}
+
+:global {
+  .job-metrics {
+    width: 392px;
+    padding: 0 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: -4px;
+    z-index: 1;
+
+    &__metricBar {
+      position: absolute;
+      height: 24px;
+      background-color: rgba(67, 184, 201, 0.35);
+      z-index: 1;
+    }
+
+    &__metricLabel,
+    &__metricValues {
+      z-index: 2;
+      padding: 0 4px;
+    }
+
+    &__metric {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-direction: row;
+      height: 24px;
+    }
+  }
+}

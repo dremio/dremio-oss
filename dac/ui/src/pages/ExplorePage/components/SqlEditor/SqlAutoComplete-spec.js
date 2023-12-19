@@ -16,10 +16,10 @@
 import { shallow } from "enzyme";
 import Immutable from "immutable";
 
-import SelectContextForm from "pages/ExplorePage/components/forms/SelectContextForm";
 import DragTarget from "components/DragComponents/DragTarget";
 
 import { SqlAutoComplete } from "./SqlAutoComplete";
+import { setStore } from "@app/store/store";
 
 const fakeRange1 = {
   startLineNumber: 1,
@@ -42,9 +42,20 @@ describe("SqlAutoComplete", () => {
   let editor;
   let sqlAutoCompleteRef;
   beforeEach(() => {
+    setStore({
+      getState: () => ({
+        resources: {
+          entities: Immutable.fromJS({
+            tree: [],
+          }),
+        },
+      }),
+    });
+
     commonProps = {
       onChange: sinon.spy(),
       onFunctionChange: sinon.spy(),
+      toggleExtraSQLPanel: sinon.spy(),
       defaultValue: "select * from foo",
       isGrayed: false,
       onFocus: sinon.spy(),
@@ -92,42 +103,6 @@ describe("SqlAutoComplete", () => {
     // finding SQLEditor after it's been connected to redux
     expect(wrapper.find("Connect(SqlEditorWithHooksProps)")).to.have.length(1);
     expect(wrapper.find("Modal")).to.have.length(0);
-  });
-
-  describe("edit query context", () => {
-    it("should render edit context button", () => {
-      expect(wrapper.find(".sqlAutocomplete__contextText-light").text()).to.eql(
-        "my-space.my.folder"
-      );
-
-      wrapper.setProps({ context: null });
-      expect(wrapper.find(".sqlAutocomplete__contextText-light").text()).to.eql(
-        "<none>"
-      );
-    });
-
-    it("should set showSelectContextModal when edit is clicked", () => {
-      instance.handleClickEditContext();
-      expect(wrapper.state("showSelectContextModal")).to.be.true;
-    });
-
-    it("should unset showSelectContextModal on hide", () => {
-      instance.hideSelectContextModal();
-      expect(wrapper.state("showSelectContextModal")).to.be.false;
-    });
-
-    it("should render modal when showSelectContextModal=true", () => {
-      wrapper.setState({ showSelectContextModal: true });
-      expect(wrapper.find("Modal")).to.have.length(1);
-      expect(wrapper.find(SelectContextForm)).to.have.length(1);
-    });
-
-    it("should render SelectContextForm with context initialValue", () => {
-      wrapper.setState({ showSelectContextModal: true });
-      expect(wrapper.find(SelectContextForm).prop("initialValues")).to.eql({
-        context: '"my-space"."my.folder"',
-      });
-    });
   });
 
   describe("#insertAtRanges()", () => {

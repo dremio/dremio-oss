@@ -17,8 +17,9 @@ package com.dremio.exec.physical.base;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
-import com.dremio.exec.catalog.ResolvedVersionContext;
+import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.exec.record.BatchSchema;
 import com.google.common.base.Preconditions;
 
@@ -59,6 +60,26 @@ public class ViewOptions {
   public boolean isViewAlter() { return actionType == ActionType.ALTER_VIEW; }
 
   public Map<String, String> getProperties() { return properties; }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    ViewOptions that = (ViewOptions) o;
+    return Objects.equals(version, that.version)
+      && Objects.equals(batchSchema, that.batchSchema)
+      && actionType == that.actionType
+      && Objects.equals(properties, that.properties);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(version, batchSchema, actionType, properties);
+  }
 
   public static class ViewOptionsBuilder {
     private ResolvedVersionContext version;

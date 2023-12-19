@@ -17,8 +17,25 @@
 package com.dremio.service.scheduler;
 
 /**
- * An placeholder interface to indicate any implementations of this interface
- * can modify the parameters of underlying threadPoolExecutor.
+ * An extension of the scheduler service that allows addition and deletion of task groups and optionally
+ * allows these task groups to be associated with a task and its schedule.
  */
 public interface ModifiableSchedulerService extends SchedulerService {
+  /**
+   * Adds a task group which can then be used to tie a created task and its schedule.
+   *
+   * @param taskGroup details of the task group
+   */
+  void addTaskGroup(ScheduleTaskGroup taskGroup);
+
+  /**
+   * Modify a task group, given its name.
+   * <p>
+   * <strong>NOTE:</strong> As of now throws a runtime exception if a group is not found.
+   * </p>
+   *
+   * @param groupName name of the group
+   * @param taskGroup The modified group
+   */
+  void modifyTaskGroup(String groupName, ScheduleTaskGroup taskGroup);
 }

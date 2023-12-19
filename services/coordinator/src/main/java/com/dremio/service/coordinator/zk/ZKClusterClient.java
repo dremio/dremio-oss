@@ -62,6 +62,7 @@ import com.dremio.service.coordinator.CoordinatorLostHandle;
 import com.dremio.service.coordinator.DistributedSemaphore;
 import com.dremio.service.coordinator.ElectionListener;
 import com.dremio.service.coordinator.ElectionRegistrationHandle;
+import com.dremio.service.coordinator.LinearizableHierarchicalStore;
 import com.dremio.telemetry.api.metrics.Counter;
 import com.dremio.telemetry.api.metrics.Metrics;
 import com.google.common.annotations.VisibleForTesting;
@@ -308,6 +309,10 @@ class ZKClusterClient implements com.dremio.service.Service {
     }
   }
 
+  public LinearizableHierarchicalStore getHierarchicalStore() {
+    return new ZKLinearizableStore(curator);
+  }
+
   public Iterable<String> getServiceNames() throws Exception {
     return curator.getChildren().forPath(clusterIdPath);
   }
@@ -541,7 +546,7 @@ class ZKClusterClient implements com.dremio.service.Service {
       .build();
   }
 
-  private class InitialConnectionListener implements ConnectionStateListener {
+  private final class InitialConnectionListener implements ConnectionStateListener {
 
     @Override
     public void stateChanged(CuratorFramework client, ConnectionState newState) {
@@ -552,7 +557,7 @@ class ZKClusterClient implements com.dremio.service.Service {
     }
   }
 
-  private class ConnectionListener implements ConnectionStateListener {
+  private final class ConnectionListener implements ConnectionStateListener {
 
     @Override
     public void stateChanged(CuratorFramework client, ConnectionState newState) {

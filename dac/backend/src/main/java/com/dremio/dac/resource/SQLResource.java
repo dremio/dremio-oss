@@ -31,23 +31,19 @@ import com.dremio.dac.explore.model.CreateFromSQL;
 import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.model.job.JobDataWrapper;
 import com.dremio.dac.server.BufferAllocatorFactory;
-import com.dremio.dac.service.autocomplete.AutocompleteEngineProxy;
-import com.dremio.dac.service.autocomplete.AutocompleteV2Proxy;
+import com.dremio.dac.service.autocomplete.AutocompleteProxy;
+import com.dremio.dac.service.autocomplete.model.AutocompleteRequest;
+import com.dremio.dac.service.autocomplete.model.AutocompleteResponse;
 import com.dremio.dac.service.catalog.CatalogServiceHelper;
 import com.dremio.dac.util.JobRequestUtil;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.ProjectOptionManager;
-import com.dremio.service.autocomplete.AutocompleteRequestImplementation;
-import com.dremio.service.autocomplete.AutocompleteV2Request;
-import com.dremio.service.autocomplete.AutocompleteV2Response;
-import com.dremio.service.autocomplete.completions.Completions;
 import com.dremio.service.job.QueryType;
 import com.dremio.service.job.SqlQuery;
 import com.dremio.service.job.SubmitJobRequest;
 import com.dremio.service.job.proto.JobSubmission;
 import com.dremio.service.jobs.CompletionListener;
 import com.dremio.service.jobs.JobsService;
-import com.dremio.service.namespace.NamespaceException;
 import com.google.common.base.Preconditions;
 
 /**
@@ -60,8 +56,6 @@ import com.google.common.base.Preconditions;
 public class SQLResource extends BaseResourceWithAllocator {
   private final JobsService jobs;
   private final SecurityContext securityContext;
-  private final SabotContext sabotContext;
-  private final ProjectOptionManager projectOptionManager;
   private final FunctionsListService functionsListService;
   private final CatalogServiceHelper catalogServiceHelper;
 
@@ -76,8 +70,6 @@ public class SQLResource extends BaseResourceWithAllocator {
     super(allocatorFactory);
     this.jobs = jobs;
     this.securityContext = securityContext;
-    this.sabotContext = sabotContext;
-    this.projectOptionManager = projectOptionManager;
     this.functionsListService = new FunctionsListService(
       sabotContext,
       securityContext,
@@ -90,12 +82,31 @@ public class SQLResource extends BaseResourceWithAllocator {
   @Produces(MediaType.APPLICATION_JSON)
   @Deprecated
   public JobDataFragment query(CreateFromSQL sql) {
-    final SqlQuery query = JobRequestUtil.createSqlQuery(sql.getSql(), sql.getContext(), securityContext.getUserPrincipal().getName());
+    final SqlQuery sqlQuery = JobRequestUtil.createSqlQuery(
+        sql.getSql(),
+        sql.getContext(),
+        securityContext.getUserPrincipal().getName(),
+        sql.getEngineName(),
+        null,
+        sql.getReferences());
+
     // Pagination is not supported in this API, so we need to truncate the results to 500 records
     final CompletionListener listener = new CompletionListener();
-    final JobSubmission jobSubmission = jobs.submitJob(SubmitJobRequest.newBuilder().setSqlQuery(query).setQueryType(QueryType.REST).build(), listener);
+
+    final JobSubmission jobSubmission = jobs.submitJob(
+      SubmitJobRequest.newBuilder()
+          .setSqlQuery(sqlQuery)
+          .setQueryType(QueryType.REST)
+          .build(),
+      listener);
+
     listener.awaitUnchecked();
-    return new JobDataWrapper(jobs, jobSubmission.getJobId(), jobSubmission.getSessionId(), securityContext.getUserPrincipal().getName())
+
+    return new JobDataWrapper(
+          jobs,
+          jobSubmission.getJobId(),
+          jobSubmission.getSessionId(),
+          securityContext.getUserPrincipal().getName())
       .truncate(getOrCreateAllocator("query"), 500);
   }
 
@@ -103,26 +114,10 @@ public class SQLResource extends BaseResourceWithAllocator {
   @Path("/autocomplete")
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
-  public Completions getCompletions(AutocompleteRequestImplementation request) throws NamespaceException {
+  public AutocompleteResponse getSuggestions(AutocompleteRequest request) {
     Preconditions.checkNotNull(request);
 
-    return AutocompleteEngineProxy.getCompletions(
-      securityContext,
-      sabotContext,
-      projectOptionManager,
-      request.getContext(),
-      request.getQuery(),
-      request.getCursor());
-  }
-
-  @POST
-  @Path("/autocomplete/v2")
-  @Consumes(MediaType.APPLICATION_JSON)
-  @Produces(MediaType.APPLICATION_JSON)
-  public AutocompleteV2Response getSuggestions(AutocompleteV2Request request) {
-    Preconditions.checkNotNull(request);
-
-    return AutocompleteV2Proxy.getSuggestions(
+    return AutocompleteProxy.getSuggestions(
       catalogServiceHelper,
       request
     );

@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>24.1.0-202306130653310132-d30779f6</version>
+    <version>24.3.0-202312190021150029-52db2faf</version>
   </parent>
   <artifactId>dremio-services-namespace</artifactId>
   <name>Services - Namespace</name>
@@ -145,10 +145,6 @@
       <plugin>
         <groupId>org.xolstice.maven.plugins</groupId>
         <artifactId>protobuf-maven-plugin</artifactId>
-        <configuration>
-          <!--Required to be false because both executions write to the same directory-->
-          <clearOutputDirectory>false</clearOutputDirectory>
-        </configuration>
         <executions>
           <execution>
             <id>generate-protobuf</id>
@@ -157,7 +153,6 @@
             </goals>
             <configuration>
               <protoSourceRoot>${project.basedir}/src/main/protobuf</protoSourceRoot>
-              <outputDirectory>${project.build.directory}/generated-sources/protobuf</outputDirectory>
             </configuration>
           </execution>
           <execution>
@@ -166,8 +161,6 @@
               <goal>compile</goal>
             </goals>
             <configuration>
-              <protoSourceRoot>${project.basedir}/src/main/proto</protoSourceRoot>
-              <outputDirectory>${project.build.directory}/generated-sources/protobuf</outputDirectory>
               <includes>
                 <include>dataset-common.proto</include>
                 <include>namespace-common.proto</include>

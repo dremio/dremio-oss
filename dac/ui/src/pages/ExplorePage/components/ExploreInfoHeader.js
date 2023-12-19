@@ -19,7 +19,7 @@ import PropTypes from "prop-types";
 import Immutable from "immutable";
 import DocumentTitle from "react-document-title";
 import { injectIntl } from "react-intl";
-
+import { browserHistory } from "react-router";
 import CopyButton from "@app/components/Buttons/CopyButton";
 import { Tooltip } from "dremio-ui-lib";
 
@@ -47,7 +47,7 @@ import {
 } from "actions/explore/dataset/run";
 import { showConfirmationDialog } from "actions/confirmation";
 import { PageTypeButtons } from "@app/pages/ExplorePage/components/PageTypeButtons";
-import { pageTypesProp } from "@app/pages/ExplorePage/pageTypes";
+import { PageTypes, pageTypesProp } from "@app/pages/ExplorePage/pageTypes";
 
 import { startDownloadDataset } from "actions/explore/download";
 import { performNextAction, NEXT_ACTIONS } from "actions/explore/nextAction";
@@ -63,10 +63,10 @@ import BreadCrumbs, { formatFullPath } from "components/BreadCrumbs";
 import FontIcon from "components/Icon/FontIcon";
 import { DatasetItemLabel } from "components/Dataset/DatasetItemLabel"; // {} for testing purposes since store is not needed here
 import { checkTypeToShowOverlay } from "utils/datasetUtils";
-
+import { IconButton } from "dremio-ui-lib/components";
 import {
+  getIconByEntityType,
   getIconDataTypeFromDatasetType,
-  getIcebergIconDataTypeFromDatasetType,
 } from "utils/iconUtils";
 
 import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
@@ -269,6 +269,25 @@ export class ExploreInfoHeader extends PureComponent {
     });
   }
 
+  openDatasetSettings = () => {
+    const { dataset, pageType } = this.props;
+
+    const versionContext = getVersionContextFromId(dataset.get("entityId"));
+
+    browserHistory.push({
+      ...location,
+      state: {
+        modal: "DatasetSettingsModal",
+        datasetUrl:
+          !versionContext && dataset.getIn(["apiLinks", "namespaceEntity"]),
+        datasetType: dataset.get("datasetType"),
+        type: dataset.get("datasetType"),
+        entityName: dataset.get("displayFullPath").last(),
+        isHomePage: false,
+        isDatasetReflectionPage: pageType === PageTypes.reflections,
+      },
+    });
+  };
   isNewDataset() {
     const { mode } = this.props.location.query;
     return modelUtils.isNewDataset(this.props.dataset, mode);
@@ -379,9 +398,7 @@ export class ExploreInfoHeader extends PureComponent {
     const versionContext = getVersionContextFromId(dataset.get("entityId"));
     const typeIcon = isSqlEditorTab
       ? getIconDataTypeFromDatasetType(SCRIPT)
-      : versionContext != null
-      ? getIcebergIconDataTypeFromDatasetType(datasetType)
-      : getIconDataTypeFromDatasetType(datasetType);
+      : getIconByEntityType(datasetType, !!versionContext);
     const showOverlay = checkTypeToShowOverlay(datasetType);
 
     const isUntitledScript = isSqlEditorTab && !this.props.activeScript.name;
@@ -400,8 +417,16 @@ export class ExploreInfoHeader extends PureComponent {
         </span>
       </EllipsedText>
     );
+
+    const refFromVersionContext = versionContext && {
+      type: versionContext.type,
+      name: versionContext.value,
+    };
+
     const nessieStateRef =
-      nessieState?.reference ?? nessieState?.defaultReference;
+      nessieState?.reference ??
+      nessieState?.defaultReference ??
+      refFromVersionContext;
 
     return (
       <DatasetItemLabel
@@ -436,8 +461,8 @@ export class ExploreInfoHeader extends PureComponent {
                 {nessieStateRef && (
                   <div className="referenceTag">
                     <TagContent
-                      reference={nessieState.reference}
-                      hash={nessieState.hash}
+                      reference={nessieStateRef}
+                      hash={nessieStateRef.hash}
                     />
                   </div>
                 )}
@@ -609,11 +634,25 @@ export class ExploreInfoHeader extends PureComponent {
   }
 
   render() {
-    const { dataset } = this.props;
-
+    const {
+      dataset,
+      intl: { formatMessage },
+    } = this.props;
+    const isDataset = exploreUtils.isExploreDatasetPage(location);
     return (
       <div className="explore-info-header">
         {this.renderLeftPartOfHeader(dataset)}
+        {isDataset && (
+          <div style={style.rightPart}>
+            <IconButton
+              tooltip={formatMessage({ id: "Dataset.Settings" })}
+              onClick={() => this.openDatasetSettings()}
+              data-qa="dataset-settings"
+            >
+              <dremio-icon name="interface/settings" />
+            </IconButton>
+          </div>
+        )}
       </div>
     );
   }
@@ -678,7 +717,7 @@ const style = {
   },
   leftWrap: {
     display: "flex",
-    width: 326,
+    width: 408,
     flexWrap: "wrap",
     userSelect: "text",
   },
@@ -686,6 +725,11 @@ const style = {
     display: "flex",
     alignContent: "center",
     alignItems: "center",
+    width: "100%",
+  },
+  rightPart: {
+    margin: "16px 8px 16px auto",
+    color: "var(--dremio--color--icon--main)",
   },
   dbName: {
     maxWidth: 266,

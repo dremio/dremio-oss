@@ -28,7 +28,7 @@ import org.apache.calcite.util.ImmutableBitSet;
 
 import com.dremio.exec.planner.serializer.RelCollationSerde;
 import com.dremio.exec.planner.serializer.RelNodeSerde;
-import com.dremio.exec.planner.serializer.SqlOperatorConverter;
+import com.dremio.exec.planner.serializer.SqlOperatorSerde;
 import com.dremio.plan.serialization.PAggregateCall;
 import com.dremio.plan.serialization.PGroupSet;
 import com.dremio.plan.serialization.PLogicalAggregate;
@@ -45,7 +45,7 @@ public final class LogicalAggregateSerde implements RelNodeSerde<LogicalAggregat
         .addAllAggregateCall(
             aggregate.getAggCallList()
             .stream()
-            .map(c -> toProto(c, s.getSqlOperatorConverter()))
+            .map(c -> toProto(c, s.getSqlOperatorSerde()))
             .collect(Collectors.toList()))
         .setGroupSet(toProto(aggregate.getGroupSet()))
         .addAllGroupSets(aggregate
@@ -76,14 +76,14 @@ public final class LogicalAggregateSerde implements RelNodeSerde<LogicalAggregat
         .build();
   }
 
-  public static PAggregateCall toProto(AggregateCall c, SqlOperatorConverter sqlOperatorConverter) {
+  public static PAggregateCall toProto(AggregateCall c, SqlOperatorSerde sqlOperatorSerde) {
     PAggregateCall.Builder builder = PAggregateCall.newBuilder()
         .setApproximate(c.isApproximate())
         .addAllArg(c.getArgList())
         .setDistinct(c.isDistinct())
         .setFilterArg(c.filterArg)
         .setRelCollation(RelCollationSerde.toProto(c.collation))
-        .setOperator(sqlOperatorConverter.toProto(c.getAggregation()));
+        .setOperator(sqlOperatorSerde.toProto(c.getAggregation()));
     if (c.getName() != null) {
       builder.setName(StringValue.of(c.getName()));
     }
@@ -96,7 +96,6 @@ public final class LogicalAggregateSerde implements RelNodeSerde<LogicalAggregat
     PAggregateCall pAggregateCall,
     RelNode input,
     int cardinality) {
-    new SqlOperatorConverter(s.funcs()).fromProto(pAggregateCall.getOperator());
     String name = null;
     if (pAggregateCall.hasName()) {
       name = pAggregateCall.getName().getValue();

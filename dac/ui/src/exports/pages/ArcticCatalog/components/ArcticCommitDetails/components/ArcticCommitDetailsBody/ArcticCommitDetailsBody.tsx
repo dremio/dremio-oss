@@ -27,6 +27,7 @@ import { getLabeledTags } from "./utils";
 import NewTagDialog from "@app/pages/NessieHomePage/components/NewTagDialog/NewTagDialog";
 import { convertISOStringWithTooltip } from "@app/pages/NessieHomePage/components/RepoView/components/RepoViewBody/components/RepoViewBranchList/utils";
 import DeleteTagDialog from "@app/pages/NessieHomePage/components/DeleteTagDialog/DeleteTagDialog";
+import { CatalogPrivilegeSwitch } from "@app/exports/components/CatalogPrivilegeSwitch/CatalogPrivilegeSwitch";
 
 import * as classes from "./ArcticCommitDetailsBody.module.less";
 
@@ -103,14 +104,19 @@ function ArcticCommitDetailsBody({
                   <FormattedMessage id="ArcticCatalog.Commits.Details.NoTags" />
                 </span>
               )}
-              <IconButton
-                tooltip="ArcticCatalog.Tags.Dialog.AddTag"
-                disabled={reference === null}
-                onClick={() => setAddTagDialogState(true)}
-                className={classes["icon-button"]}
-              >
-                <dremio-icon name="interface/add-small" />
-              </IconButton>
+               <CatalogPrivilegeSwitch
+                privilege={["tag", "canCreate"]}
+                renderEnabled={() => (
+                  <IconButton
+                    tooltip="ArcticCatalog.Tags.Dialog.AddTag"
+                    disabled={reference === null}
+                    onClick={() => setAddTagDialogState(true)}
+                    className={classes["icon-button"]}
+                  >
+                    <dremio-icon name="interface/add-small" />
+                  </IconButton>
+                )}
+              />
             </div>
           </span>
         </div>

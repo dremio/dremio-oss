@@ -42,6 +42,7 @@ import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.ElectionListener;
 import com.dremio.service.coordinator.TaskLeaderChangeListener;
 import com.dremio.service.coordinator.TaskLeaderElection;
+import com.dremio.test.zookeeper.ZkTestServerRule;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -54,7 +55,7 @@ public class TestTaskLeaderElection {
 
   private static final String SERVICE_NAME = "myTestService";
   @Rule
-  public final ZooKeeperServerResource zooKeeperServer = new ZooKeeperServerResource();
+  public final ZkTestServerRule zooKeeperServer = new ZkTestServerRule();
 
   @Rule
   public Timeout globalTimeout = new Timeout(60, TimeUnit.SECONDS);
@@ -63,7 +64,7 @@ public class TestTaskLeaderElection {
   public void testElectionsWithRegistration() throws Exception {
     try (ZKClusterCoordinator coordinator = new ZKClusterCoordinator(
       DEFAULT_SABOT_CONFIG,
-      String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectString()))
+      String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectionString()))
     ) {
       coordinator.start();
 
@@ -195,7 +196,7 @@ public class TestTaskLeaderElection {
   public void testGivingUpLeadership() throws Exception {
     try (ZKClusterCoordinator coordinator = new ZKClusterCoordinator(
       DEFAULT_SABOT_CONFIG,
-      String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectString()))
+      String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectionString()))
     ) {
       coordinator.start();
 
@@ -283,7 +284,7 @@ public class TestTaskLeaderElection {
   public void testTaskLeaderChangeListener () throws Exception {
     try (ZKClusterCoordinator coordinator = new ZKClusterCoordinator(
       DEFAULT_SABOT_CONFIG,
-      String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectString()))
+      String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectionString()))
     ) {
       coordinator.start();
 
@@ -420,7 +421,7 @@ public class TestTaskLeaderElection {
   public void testReEnterElection() throws Exception {
     try (ZKClusterCoordinator coordinator = new ZKClusterCoordinator(
       DEFAULT_SABOT_CONFIG,
-      String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectString()))) {
+      String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectionString()))) {
       coordinator.start();
 
       CoordinationProtos.NodeEndpoint nodeEndpoint1 = CoordinationProtos.NodeEndpoint.newBuilder()
@@ -547,7 +548,7 @@ public class TestTaskLeaderElection {
     throw new RuntimeException("Failed to get current leader.");
   }
 
-  private static class TestElectionListenerProvider implements Function<ElectionListener, ElectionListener> {
+  private static final class TestElectionListenerProvider implements Function<ElectionListener, ElectionListener> {
     private final AtomicBoolean ignoreElection = new AtomicBoolean(false);
 
     @Override

@@ -38,7 +38,7 @@ export class AdjustWorkersModal extends Component {
 
     return (
       <Modal
-        title={la("Add / Remove Executors")}
+        title={laDeprecated("Add / Remove Executors")}
         size="smallest"
         isOpen={isOpen}
         hide={hide}

@@ -19,7 +19,7 @@ import java.util.List;
 
 import org.apache.iceberg.catalog.TableIdentifier;
 
-import com.dremio.exec.catalog.ResolvedVersionContext;
+import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
 
 /**
@@ -94,5 +94,10 @@ public class IcebergNessieVersionedTableIdentifier implements IcebergTableIdenti
    */
   public ResolvedVersionContext getVersion() {
     return version;
+  }
+
+  @Override
+  public String toString() {
+    return String.format("%s AT [%s]", String.join(".", tableKey), version);
   }
 }

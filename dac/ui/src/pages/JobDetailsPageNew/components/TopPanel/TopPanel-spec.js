@@ -35,6 +35,7 @@ describe("TopPanel", () => {
         ],
         queriedDatasets: [{ datasetPathsList: [], datasetType: "" }],
       }),
+      renderTabs: () => null,
     };
   });
 
@@ -131,17 +132,5 @@ describe("TopPanel", () => {
       "topPanel__openResults"
     )[0];
     expect(element.children.length).to.equal(0);
-  });
-
-  it("should render 'Overview' as the default tab", () => {
-    const props = {
-      ...minimalProps,
-      jobId: "293",
-      jobStatus: "RUNNING",
-    };
-    const { container } = render(<TopPanel {...props} />);
-
-    const parent = container.getElementsByClassName("--selected")[0];
-    expect(parent.innerHTML.includes("Overview")).to.equal(true);
   });
 });

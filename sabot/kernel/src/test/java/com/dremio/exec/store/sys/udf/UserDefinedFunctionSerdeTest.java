@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.store.sys.udf;
 
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.common.expression.CompleteType;
@@ -30,7 +29,6 @@ import com.google.common.collect.ImmutableList;
 
 import io.protostuff.ByteString;
 
-@Ignore("DX-50441")
 public class UserDefinedFunctionSerdeTest {
 
   @Test

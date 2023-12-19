@@ -69,6 +69,7 @@ abstract class BaseSingleAccumulator implements Accumulator {
 
   // serialized field for loading vector with buffers during addBatch()
   private final SerializedField serializedField;
+  private boolean isAccumulatorAtMinimum;
 
   /**
    * Accumulator for each partition will transfer the accumulated data from
@@ -238,6 +239,7 @@ abstract class BaseSingleAccumulator implements Accumulator {
       }
       /* add a single batch */
       addBatchHelper(dataBuffer, validityBuffer);
+      this.isAccumulatorAtMinimum = false;
     } catch (Exception e) {
       /* this will be caught by LBlockHashTable and subsequently handled by VectorizedHashAggOperator */
       Throwables.propagate(e);
@@ -349,6 +351,9 @@ abstract class BaseSingleAccumulator implements Accumulator {
    */
   @Override
   public long getSizeInBytes() {
+    if (this.isAccumulatorAtMinimum) {
+      return 0;
+    }
     long size = 0;
     for (int i = 0; i < batches; i++) {
       final FieldVector accumulatorVector = accumulators[i];
@@ -383,6 +388,7 @@ abstract class BaseSingleAccumulator implements Accumulator {
     batches = 1;
 
     AutoCloseables.close(asList(Arrays.copyOfRange(oldAccumulators, 1, oldAccumulators.length)));
+    this.isAccumulatorAtMinimum = true;
   }
 
   private void resetFirstAccumulatorVector() {

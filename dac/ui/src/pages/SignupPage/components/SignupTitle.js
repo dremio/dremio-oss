@@ -27,7 +27,7 @@ class SignupTitle extends PureComponent {
   render() {
     return (
       <div id="signup-title" style={styles.base}>
-        <h1 style={styles.mainTitle}>{la("Welcome to Dremio")}</h1>
+        <h1 style={styles.mainTitle}>{laDeprecated("Welcome to Dremio")}</h1>
         <div style={styles.subtitleWrap}>
           <FontIcon
             type="NarwhalLogo"
@@ -35,9 +35,9 @@ class SignupTitle extends PureComponent {
             iconClass={"dremioLogo"}
           />
           <h3 style={styles.subtitle}>
-            {la("We are excited to have you on board!")}
+            {laDeprecated("We are excited to have you on board!")}
             <br />
-            {la(
+            {laDeprecated(
               "The first thing you need to do is set up an administrator account."
             )}
           </h3>
@@ -45,7 +45,7 @@ class SignupTitle extends PureComponent {
           {/*for flex, to center the text*/}
         </div>
         <h4 className="whiteText" style={styles.overlay}>
-          {la("Create Admin Account")}
+          {laDeprecated("Create Admin Account")}
           <div style={styles.overlayPointer} />
         </h4>
       </div>

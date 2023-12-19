@@ -22,6 +22,7 @@ import MenuItem from "./MenuItem";
 import Menu from "./Menu";
 import {
   getSaveMenuItems,
+  getTabSaveMenuItms,
   SaveScriptAsMenuItem,
   SaveScriptMenuItem,
   SaveViewAsMenuItem,
@@ -30,6 +31,7 @@ import {
 import { MAX_MINE_SCRIPTS_ALLOWANCE } from "@app/components/SQLScripts/sqlScriptsUtils";
 
 import "./SaveMenu.less";
+import { useMultiTabIsEnabled } from "@app/components/SQLScripts/useMultiTabIsEnabled";
 
 export const DOWNLOAD_TYPES = {
   json: "JSON",
@@ -67,11 +69,15 @@ function SaveMenu({
     action(saveType);
   };
 
-  const list = getSaveMenuItems({
-    scriptPermissions,
-    isUntitledScript,
-    isSqlEditorTab,
-  });
+  const tabsEnabled = useMultiTabIsEnabled();
+
+  const list = tabsEnabled
+    ? getTabSaveMenuItms()
+    : getSaveMenuItems({
+        scriptPermissions,
+        isUntitledScript,
+        isSqlEditorTab,
+      });
 
   const isDisabled = (id: string) => {
     switch (id) {

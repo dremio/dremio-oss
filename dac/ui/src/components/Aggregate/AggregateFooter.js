@@ -49,7 +49,7 @@ class AggregateFooter extends PureComponent {
             {" "}
             {/* todo: ax, consistency: button */}
             <FontIcon type="Add" />
-            <span>{la("Add a Dimension")}</span>
+            <span>{laDeprecated("Add a Dimension")}</span>
           </div>
         </div>
         <div className={right}>
@@ -61,7 +61,7 @@ class AggregateFooter extends PureComponent {
             {" "}
             {/* todo: ax, consistency: button */}
             <FontIcon type="Add" />
-            <span>{la("Add a Measure")}</span>
+            <span>{laDeprecated("Add a Measure")}</span>
           </div>
         </div>
       </div>

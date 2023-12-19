@@ -17,9 +17,11 @@
 package com.dremio.exec.planner.sql.handlers.query;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 import org.apache.commons.io.FilenameUtils;
@@ -27,9 +29,17 @@ import org.apache.commons.lang3.EnumUtils;
 import org.apache.commons.text.StringEscapeUtils;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.expression.BasePath;
 import com.dremio.common.utils.PathUtils;
+import com.dremio.exec.ExecConstants;
+import com.dremio.exec.physical.config.copyinto.CopyIntoErrorInfo;
 import com.dremio.exec.planner.sql.parser.SqlCopyIntoTable;
+import com.dremio.exec.record.RecordBatchData;
+import com.dremio.exec.record.VectorContainer;
+import com.dremio.exec.store.dfs.copyinto.CopyJobHistoryTableSchemaProvider;
+import com.dremio.options.OptionResolver;
 import com.dremio.service.namespace.file.proto.FileType;
+import com.google.common.base.Preconditions;
 
 /**
  * Internal structure to hold input parameters/options for 'COPY INTO' command
@@ -39,30 +49,50 @@ public final class CopyIntoTableContext {
   public static final int MAX_FILES_ALLOWED = 1000;
   private static final char SOURCE_NAME_LEADING_CHAR = '@';
 
+  private String storageSource;
   private String storageLocation;
   private String providedStorageLocation;
   private String fileNameFromStorageLocation;
-  private List<String> files = new ArrayList<>();
-  private Optional<String> filePattern;
+  private final List<String> files = new ArrayList<>();
+  private final Optional<String> filePattern;
   private FileType fileFormat;
   private String derivedFileFormat;
   private Map<FormatOption, Object> formatOptions = new HashMap<>();
-  private Map<CopyOption, Object> copyOptions = new HashMap<>();
+  private final Map<CopyOption, Object> copyOptions = new HashMap<>();
+  private String originalQueryId;
+  private final boolean isValidationMode;
 
   public CopyIntoTableContext(SqlCopyIntoTable call) {
 
-    validateAndConvertStorageLocation(call.getStorageLocation());
+    validateAndConvertStorageLocation(call.getStorageLocation(),
+      !call.getFiles().isEmpty() || call.getFilePattern().isPresent());
 
     validateAndConvertFiles(call.getFiles());
 
-    validateFilePattern(call.getFilePattern());
+    this.filePattern = call.getFilePattern();
 
     validateAndConvertToFileType(call.getFileFormat());
 
     validateAndConvertOptions(call.getOptionsList(), call.getOptionsValueList());
+
+    this.isValidationMode = false;
+}
+
+  // CTOR for copy_errors use case
+  private CopyIntoTableContext(String validatedStorageLocation, List<String> files, FileType fileFormat,
+                               String originalQueryId, Map<FormatOption, Object> formatOptions) {
+    this.storageLocation = validatedStorageLocation;
+    this.providedStorageLocation = validatedStorageLocation;
+    validateAndConvertFiles(files);
+    this.fileFormat = fileFormat;
+    this.formatOptions = formatOptions;
+    this.filePattern = Optional.empty();
+    this.originalQueryId = originalQueryId;
+    this.isValidationMode = true;
   }
 
-  private void validateAndConvertStorageLocation(String location) {
+
+  private void validateAndConvertStorageLocation(String location, boolean filesOrRegexSpecified) {
     // validate storage location
     if (stringIsNullOrEmpty(location)) {
       throw UserException.parseError()
@@ -85,14 +115,17 @@ public final class CopyIntoTableContext {
     }
 
     // remove '@'
-    String sourceName = sourceNameWithAtSign.substring(1);
-    pathComponents.set(0, sourceName);
+    storageSource = sourceNameWithAtSign.substring(1);
+    pathComponents.set(0, storageSource);
 
     // a file is specified
     if (pathComponents.size() > 1) {
       String fileCandidate = pathComponents.get(pathComponents.size() - 1);
       String fileExtension = FilenameUtils.getExtension(fileCandidate);
-      if (!fileExtension.isEmpty()) {
+      // not setting fileNameFromStorageLocation if FILES or REGEX is defined
+      // in this case we assume we found a directory with dots in its name rather a file with file extension
+      // otherwise we go with the assumption of this being a file, either way proper error will be thrown later
+      if (!fileExtension.isEmpty() && !filesOrRegexSpecified) {
         fileNameFromStorageLocation = fileCandidate;
         // remove the file name from the path
         pathComponents.remove(pathComponents.size() - 1);
@@ -102,23 +135,13 @@ public final class CopyIntoTableContext {
     storageLocation = PathUtils.constructFullPath(pathComponents);
   }
 
-  private void validateFilePattern(Optional<String> filePattern) {
-    if (filePattern.isPresent() && !stringIsNullOrEmpty(fileNameFromStorageLocation)) {
-      throw UserException.parseError()
-        .message("When specifying 'FILES' or 'REGEX' location_clause must end with a directory, found a file")
-        .buildSilently();
-    }
-    this.filePattern = filePattern;
-  }
-
   private void validateAndConvertFiles(List<String> inputFiles) {
     if (!stringIsNullOrEmpty(fileNameFromStorageLocation)) {
       if (!inputFiles.isEmpty()) {
-        throw UserException.parseError()
-          .message("When specifying 'FILES' or 'REGEX' location_clause must end with a directory, found a file")
-          .buildSilently();
+        files.addAll(inputFiles);
+      } else {
+        files.add(fileNameFromStorageLocation);
       }
-      files.add(fileNameFromStorageLocation);
     } else if (inputFiles.isEmpty()) {
         return;
     } else {
@@ -175,14 +198,19 @@ public final class CopyIntoTableContext {
       fileFormatString = derivedFileFormat;
     }
 
+    fileFormat = fileTypeFromString(fileFormatString);
+  }
+
+  // COPY INTO specific file format mapping
+  private static FileType fileTypeFromString(String fileFormatString) {
     fileFormatString = fileFormatString.toUpperCase();
     switch (fileFormatString) {
       case "CSV":
-        fileFormat = FileType.TEXT;
-        break;
+        return FileType.TEXT;
       case "JSON":
-        fileFormat = FileType.JSON;
-        break;
+        return FileType.JSON;
+      case "PARQUET":
+        return FileType.PARQUET;
       default:
         throw UserException.parseError()
           .message("Specified File Format '%s' is not supported", fileFormatString)
@@ -205,6 +233,7 @@ public final class CopyIntoTableContext {
         return value;
       case TRIM_SPACE:
       case EMPTY_AS_NULL:
+      case EXTRACT_HEADER:
         String upperValue = value.toUpperCase();
         if (!"FALSE".equals(upperValue) && !"TRUE".equals(upperValue) ) {
           break;
@@ -214,31 +243,51 @@ public final class CopyIntoTableContext {
       case TIME_FORMAT:
       case TIMESTAMP_FORMAT:
         return value;
+      case SKIP_LINES:
+        try {
+          int parsed = Integer.parseInt(value);
+          if (parsed >= 0) {
+            return parsed;
+          } else {
+            throw UserException.parseError()
+              .message("Invalid value for SKIP_LINES: must be a non-negative integer, but got '%s'", value)
+              .buildSilently();
+          }
+        } catch (NumberFormatException nfE) {
+          throw UserException.parseError()
+            .message("Invalid value for SKIP_LINES: '%s' can not be parsed into an integer", value)
+            .buildSilently();
+        }
+      default:
+        throw UserException.parseError()
+          .message("Unhandled Format Option '%s' with value '%s' ", option, value)
+          .buildSilently();
     }
-
     throw UserException.parseError()
       .message("Specified value '%s' is not valid for Format Option '%s' ", value, option)
       .buildSilently();
   }
 
   private static Object convertCopyOptionValue(CopyOption option, String value) {
-    switch (option) {
-      case ON_ERROR:
-        if (!EnumUtils.isValidEnumIgnoreCase(OnErrorAction.class, value)) {
-          throw UserException.parseError()
-            .message("Specified value '%s' is not valid for Copy Option ON_ERROR", value)
-            .buildSilently();
-        }
-        return OnErrorAction.valueOf(value.toUpperCase());
-      default:
+    if (Objects.requireNonNull(option) == CopyOption.ON_ERROR) {
+      if (!EnumUtils.isValidEnumIgnoreCase(OnErrorAction.class, value)) {
         throw UserException.parseError()
-          .message("Specified Copy Option '%s' is not supported'", option)
+          .message("Specified value '%s' is not valid for Copy Option ON_ERROR", value)
           .buildSilently();
+      }
+      return OnErrorAction.valueOf(value.toUpperCase());
     }
+    throw UserException.parseError()
+      .message("Specified Copy Option '%s' is not supported'", option)
+      .buildSilently();
   }
 
   public String getStorageLocation() {
     return storageLocation;
+  }
+
+  public String getStorageSource() {
+    return storageSource;
   }
 
   public String getProvidedStorageLocation() {
@@ -265,6 +314,30 @@ public final class CopyIntoTableContext {
     return copyOptions;
   }
 
+  public String getOriginalQueryId() {
+    return originalQueryId;
+  }
+
+  public boolean isValidationMode() {
+    return isValidationMode;
+  }
+
+  public static boolean isSupportedOption(List<String> optionList, List<Object> optionValueList, OptionResolver optionResolver) {
+    for (int i = 0; i < optionList.size(); i++) {
+      String option = optionList.get(i);
+      if (EnumUtils.isValidEnumIgnoreCase(CopyOption.class, option)
+        && CopyOption.ON_ERROR == CopyOption.valueOf(option)) {
+        String value = ((String) optionValueList.get(i)).toUpperCase();
+        if (EnumUtils.isValidEnumIgnoreCase(OnErrorAction.class, value)
+          && OnErrorAction.CONTINUE == OnErrorAction.valueOf(value)
+          && !optionResolver.getOption(ExecConstants.ENABLE_COPY_INTO_CONTINUE)) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
   private void validateAndConvertOptions(List<String> optionsList, List<Object> optionsValueList) {
     if (optionsList.size() != optionsValueList.size()) {
       throw UserException.parseError()
@@ -285,12 +358,52 @@ public final class CopyIntoTableContext {
       } else if (EnumUtils.isValidEnumIgnoreCase(CopyOption.class, optionString)) {
         CopyOption option = CopyOption.valueOf(optionString);
         copyOptions.put(option, convertCopyOptionValue(option, (String)optionValue));
+        if (fileFormat == FileType.PARQUET && copyOptions.containsKey(CopyOption.ON_ERROR)
+          && copyOptions.get(CopyOption.ON_ERROR) == OnErrorAction.CONTINUE) {
+          throw UserException.parseError().message("ON_ERROR 'continue' option is not supported for parquet file format")
+            .buildSilently();
+        }
+      } else {
+        throw UserException.parseError().message("Specified '%s' option is not supported", optionString).buildSilently();
       }
     }
   }
 
   private static boolean stringIsNullOrEmpty(String string) {
     return string ==null || string.trim().isEmpty();
+  }
+
+  /**
+   * Takes a JOIN query result from internal copy_job_history and copy_file_history tables & constructs a
+   * CopyIntoTableContext instance from it by selecting and transforming (if necessary) to appropriate record fields.
+   * @param recordBatchData query result
+   * @param schemaVersion copy_errors table schema version
+   * @return CopyIntoTableContext instance
+   */
+  public static CopyIntoTableContext createFromCopyErrorsQueryResult(
+      RecordBatchData recordBatchData, long schemaVersion) {
+    Preconditions.checkNotNull(recordBatchData, "recordBatchData must not be null");
+
+    VectorContainer container = recordBatchData.getContainer();
+
+    String queryId = valueFromVectorContainerByName(container, CopyJobHistoryTableSchemaProvider.getJobIdColName(schemaVersion)).toString();
+    String storageLocation = valueFromVectorContainerByName(container, CopyJobHistoryTableSchemaProvider.getStorageLocationColName(schemaVersion)).toString();
+
+    String fileFormatString = valueFromVectorContainerByName(container, CopyJobHistoryTableSchemaProvider.getFileFormatColName(schemaVersion)).toString();
+    FileType fileFormat = fileTypeFromString(fileFormatString);
+
+    String formatOptionsJson = valueFromVectorContainerByName(container, CopyJobHistoryTableSchemaProvider.getCopyOptionsColName(schemaVersion)).toString();
+    Map<FormatOption, Object> formatOptionsMap = CopyIntoErrorInfo.Util.getFormatOptions(formatOptionsJson);
+
+    String rejectedFilesFullPath = valueFromVectorContainerByName(container, "file_paths").toString();
+    List<String> filesWithRejection = Arrays.asList(rejectedFilesFullPath.split(","));
+
+    return new CopyIntoTableContext(storageLocation, filesWithRejection, fileFormat, queryId, formatOptionsMap);
+  }
+
+  private static Object valueFromVectorContainerByName(VectorContainer container, String fieldName) {
+    int[] fieldIds = container.getValueVectorId(BasePath.getSimple(fieldName)).getFieldIds();
+    return container.getValueAccessorById(container.getValueVectorId(BasePath.getSimple(fieldName)).getIntermediateClass(), fieldIds).getValueVector().getObject(0);
   }
 
   public enum FormatOption {
@@ -306,7 +419,8 @@ public final class CopyIntoTableContext {
     // CSV specific
     RECORD_DELIMITER,
     FIELD_DELIMITER,
-    SKIP_HEADER,
+    EXTRACT_HEADER,
+    SKIP_LINES,
     QUOTE_CHAR,
     ESCAPE_CHAR,
     EMPTY_AS_NULL
@@ -317,9 +431,9 @@ public final class CopyIntoTableContext {
   }
 
   public enum OnErrorAction {
-    // Todo: support CONTINUE and SKIP_FILE
-    //CONTINUE,
+    // Todo: support SKIP_FILE
+    CONTINUE,
     //SKIP_FILE,
-    ABORT_COPY
+    ABORT
   }
 }

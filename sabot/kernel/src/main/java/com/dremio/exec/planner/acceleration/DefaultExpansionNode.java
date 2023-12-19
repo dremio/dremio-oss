@@ -23,7 +23,7 @@ import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 
-import com.dremio.exec.catalog.TableVersionContext;
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.service.namespace.NamespaceKey;
 
 /**

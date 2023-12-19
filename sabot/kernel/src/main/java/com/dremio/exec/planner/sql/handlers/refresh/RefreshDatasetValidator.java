@@ -20,7 +20,6 @@ import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -41,6 +40,7 @@ import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.planner.sql.parser.SqlRefreshDataset;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.dfs.implicit.DecimalTools;
+import com.dremio.exec.util.PartitionUtils;
 import com.google.common.base.Preconditions;
 
 /**
@@ -67,13 +67,35 @@ public class RefreshDatasetValidator {
     int partitionListSize = sqlNodes == null ? 0 : sqlNodes.size();
 
     List<String> partitionColumns = metadataProvider.getPartitionColumns();
-    if (partitionColumns != null) {
-      partitionColumns = partitionColumns.stream()
-        .filter(col -> !IncrementalUpdateUtils.UPDATE_COLUMN.equals(col)) // Ignore DREMIO_UPDATE_COLUMN
-        .collect(Collectors.toList());
+    if(partitionColumns == null || partitionColumns.size() == 0){
+      return;
     }
 
-    int partitionColumnsSize = partitionColumns == null ? 0 : partitionColumns.size();
+    // columns that follow the 'dirN' naming
+    Set<String> dirPartitionColumnsSet = partitionColumns.stream()
+            .filter(col -> !IncrementalUpdateUtils.UPDATE_COLUMN.equals(col)) // Ignore DREMIO_UPDATE_COLUMN
+            .filter(col -> PartitionUtils.isPartitionName(col, true))
+            .collect(Collectors.toSet());
+
+    // columns that do not follow the 'dirN' naming
+    Set<String> labelPartitionColumnsSet = partitionColumns.stream()
+            .filter(col -> !IncrementalUpdateUtils.UPDATE_COLUMN.equals(col)) // Ignore DREMIO_UPDATE_COLUMN
+            .filter(col -> !PartitionUtils.isPartitionName(col, true))
+            .collect(Collectors.toSet());
+
+    boolean inferredPartionsExist = false;
+    if(dirPartitionColumnsSet.size() > 0 && labelPartitionColumnsSet.size() > 0){
+      inferredPartionsExist = true;
+    }
+
+    int partitionColumnsSize = 0;
+    if(dirPartitionColumnsSet.size() > 0){
+      partitionColumnsSize = dirPartitionColumnsSet.size();
+    } else if(labelPartitionColumnsSet.size() > 0) {
+      // hive (+others) may not use dirN naming for partitions, so partitions appear in labelPartitionColumns
+      partitionColumnsSize = labelPartitionColumnsSet.size();
+    }
+
     Preconditions.checkArgument(
       partitionListSize == partitionColumnsSize,
       "Refresh dataset command must include all partitions.");
@@ -82,17 +104,42 @@ public class RefreshDatasetValidator {
       // Nothing to validate
       return;
     }
+
+    // Verify that partitionNames are either all 'dirN' or all 'label'
+    boolean dirNPartitionNames = false;
+    boolean labelPartitionNames = false;
+
     // Validate each column is a partition column
-    Set<String> partitionColumnsSet = new HashSet<>(partitionColumns);
     Map<String, String> partitionKVMap = sqlNode.getPartition();
     for (String partitionCol : partitionKVMap.keySet()) {
-      Preconditions.checkArgument(
-        partitionColumnsSet.contains(partitionCol),
-        String.format("Field '%s' not found in the list of partition columns: %s", partitionCol, partitionColumns));
+      if(dirPartitionColumnsSet.contains(partitionCol)) {
+        if(labelPartitionNames){
+          throw UserException.validationError()
+                  .message(String.format("Partition columns should be all 'dirN' columns or all inferred partition columns: %s",
+                          metadataProvider.getPartitionColumns()))
+                  .build(logger);
+        }
+        dirNPartitionNames = true;
+
+      } else if(labelPartitionColumnsSet.contains(partitionCol)) {
+        if(dirNPartitionNames){
+          throw UserException.validationError()
+                  .message(String.format("Partition columns should be all 'dirN' columns or all inferred partition columns: %s",
+                          metadataProvider.getPartitionColumns()))
+                  .build(logger);
+        }
+        labelPartitionNames = true;
+
+      } else {
+        throw UserException.validationError()
+                .message(String.format("Column '%s' not found in the list of partition columns: %s", partitionCol,
+                        dirNPartitionNames ? dirPartitionColumnsSet : labelPartitionColumnsSet ))
+                .build(logger);
+      }
     }
 
     BatchSchema batchSchema = metadataProvider.getTableSchema();
-    partitionValues = convertToPartitionValue(partitionKVMap, batchSchema);
+    partitionValues = convertToPartitionValue(partitionKVMap, batchSchema, labelPartitionNames && inferredPartionsExist);
   }
 
   /**
@@ -105,7 +152,8 @@ public class RefreshDatasetValidator {
    * @return Converted list of partition columns as PartitionValue
    */
   public static List<PartitionValue> convertToPartitionValue(Map<String, String> partitionKVMap,
-                                                             BatchSchema batchSchema) {
+                                                             BatchSchema batchSchema,
+                                                             boolean inferredPartitionValues) {
     final List<Field> fields = batchSchema.getFields();
     final List<PartitionValue> partitionValues = new ArrayList<>();
     for (Field field : fields) {
@@ -113,8 +161,15 @@ public class RefreshDatasetValidator {
       String partitionColValue = partitionKVMap.get(fieldName);
       if (partitionColValue != null) {
         // Convert each partition column into PartitionValue
-        PartitionValue partitionValue = getPartitionValue(field, fieldName, partitionColValue);
-        partitionValues.add(partitionValue);
+        if(inferredPartitionValues){
+          // reconstruct the original partition column from the inferred values
+          partitionColValue = String.format("%s=%s", fieldName, partitionColValue);
+          PartitionValue partitionValue = getPartitionValue(field, fieldName, partitionColValue);
+          partitionValues.add(partitionValue);
+        } else {
+          PartitionValue partitionValue = getPartitionValue(field, fieldName, partitionColValue);
+          partitionValues.add(partitionValue);
+        }
       }
     }
 

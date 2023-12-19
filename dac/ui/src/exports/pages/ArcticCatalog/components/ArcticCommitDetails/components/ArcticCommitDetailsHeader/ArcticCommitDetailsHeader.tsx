@@ -21,9 +21,10 @@ import NewBranchDialog from "@app/pages/NessieHomePage/components/NewBranchDialo
 import { Button, IconButton } from "dremio-ui-lib";
 import { ArcticCatalogTabsType } from "@app/exports/pages/ArcticCatalog/ArcticCatalog";
 import { Reference } from "@app/types/nessie";
+import CopyButton from "@app/components/Buttons/CopyButton";
+import { CatalogPrivilegeSwitch } from "@app/exports/components/CatalogPrivilegeSwitch/CatalogPrivilegeSwitch";
 
 import * as classes from "./ArcticCommitDetailsHeader.module.less";
-import CopyButton from "@app/components/Buttons/CopyButton";
 
 type ArcticCommitDetailsHeaderProps = {
   commitId: string;
@@ -75,15 +76,20 @@ function ArcticCommitDetailsHeader({
             <dremio-icon name="interface/goto-dataset" />
             <FormattedMessage id="ArcticCatalog.Commits.GoToData" />
           </Button>
-          <IconButton
-            tooltip="RepoView.CreateBranch"
-            disabled={reference === null}
-            onClick={() => {
-              setDialogState(true);
-            }}
-          >
-            <dremio-icon name="vcs/create-branch" />
-          </IconButton>
+          <CatalogPrivilegeSwitch
+            privilege={["branch", "canCreate"]}
+            renderEnabled={() => (
+              <IconButton
+                tooltip="RepoView.CreateBranch"
+                disabled={reference === null}
+                onClick={() => {
+                  setDialogState(true);
+                }}
+              >
+                <dremio-icon name="vcs/create-branch" />
+              </IconButton>
+            )}
+          />
         </span>
       </div>
       <NewBranchDialog

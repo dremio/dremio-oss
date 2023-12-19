@@ -42,6 +42,7 @@ import com.dremio.service.coordinator.ElectionListener;
 import com.dremio.service.coordinator.ElectionRegistrationHandle;
 import com.dremio.service.coordinator.RegistrationHandle;
 import com.dremio.test.DremioTest;
+import com.dremio.test.zookeeper.ZkTestServerRule;
 import com.typesafe.config.ConfigValueFactory;
 
 /**
@@ -52,7 +53,7 @@ public class TestZKClusterClient extends DremioTest {
   private static final ZKClusterConfig DEFAULT_ZK_CLUSTER_CONFIG = new ZKSabotConfig(DEFAULT_SABOT_CONFIG);
 
   @Rule
-  public final ZooKeeperServerResource zooKeeperServer = new ZooKeeperServerResource();
+  public final ZkTestServerRule zooKeeperServer = new ZkTestServerRule();
 
   @Test
   public void testDefaultConnection() throws Exception {
@@ -88,7 +89,7 @@ public class TestZKClusterClient extends DremioTest {
 
     try(ZKClusterClient client = new ZKClusterClient(
       DEFAULT_ZK_CLUSTER_CONFIG,
-        String.format("%s/dremio1", zooKeeperServer.getConnectString()))
+        String.format("%s/dremio1", zooKeeperServer.getConnectionString()))
     ) {
       client.start();
       ZKServiceSet serviceSet = client.newServiceSet("coordinator");
@@ -107,7 +108,7 @@ public class TestZKClusterClient extends DremioTest {
 
     try(ZKClusterClient client = new ZKClusterClient(
       DEFAULT_ZK_CLUSTER_CONFIG,
-        String.format("%s/dremio2/test-cluster-id", zooKeeperServer.getConnectString()))
+        String.format("%s/dremio2/test-cluster-id", zooKeeperServer.getConnectionString()))
     ) {
       client.start();
       ZKServiceSet serviceSet = client.newServiceSet("coordinator");
@@ -126,7 +127,7 @@ public class TestZKClusterClient extends DremioTest {
 
     try(ZKClusterClient client = new ZKClusterClient(
       DEFAULT_ZK_CLUSTER_CONFIG,
-        String.format("%s/dremio3/test/test-cluster-id", zooKeeperServer.getConnectString()))
+        String.format("%s/dremio3/test/test-cluster-id", zooKeeperServer.getConnectionString()))
     ) {
       client.start();
       ZKServiceSet serviceSet = client.newServiceSet("coordinator");
@@ -145,7 +146,7 @@ public class TestZKClusterClient extends DremioTest {
 
     try(ZKClusterClient client = new ZKClusterClient(
       DEFAULT_ZK_CLUSTER_CONFIG,
-      String.format("%s/dremio4/test/test-cluster-id", zooKeeperServer.getConnectString()))
+      String.format("%s/dremio4/test/test-cluster-id", zooKeeperServer.getConnectionString()))
     ) {
       client.start();
       ZKServiceSet serviceSet = client.newServiceSet("coordinator");
@@ -172,7 +173,7 @@ public class TestZKClusterClient extends DremioTest {
 
     try(ZKClusterClient client = new ZKClusterClient(
       DEFAULT_ZK_CLUSTER_CONFIG,
-        String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectString()))
+        String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectionString()))
     ) {
       client.start();
       ElectionRegistrationHandle node1 = client.joinElection("test-election", new ElectionListener() {
@@ -234,7 +235,7 @@ public class TestZKClusterClient extends DremioTest {
 
     try(ZKClusterClient client = new ZKClusterClient(
       config,
-      String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectString()))
+      String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectionString()))
     ) {
       client.start();
       ElectionRegistrationHandle node1 = client.joinElection("test-election", new ElectionListener() {
@@ -273,7 +274,7 @@ public class TestZKClusterClient extends DremioTest {
 
     try(ZKClusterClient client = new ZKClusterClient(
       config,
-      String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectString()))
+      String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectionString()))
         ) {
       client.start();
       ElectionRegistrationHandle node1 = client.joinElection("test-election", new ZKElectionListener() {
@@ -331,7 +332,7 @@ public class TestZKClusterClient extends DremioTest {
 
     try(ZKClusterClient client = new ZKClusterClient(
       config,
-      String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectString()))
+      String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectionString()))
     ) {
       client.start();
       ElectionRegistrationHandle node1 = client.joinElection("test-election", new ZKElectionListener() {
@@ -403,7 +404,7 @@ public class TestZKClusterClient extends DremioTest {
 
     try(ZKClusterClient client = new ZKClusterClient(
       config,
-      String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectString()))
+      String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectionString()))
     ) {
       client.start();
       ElectionRegistrationHandle node1 = client.joinElection("test-election", new ZKElectionListener() {
@@ -465,7 +466,7 @@ public class TestZKClusterClient extends DremioTest {
     final ZKClusterConfig config = new ZKSabotConfig(sabotConfig);
     ZKClusterClient client = new ZKClusterClient(
       config,
-      String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectString()));
+      String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectionString()));
     assertNotNull(client);
     return client;
   }
@@ -546,7 +547,7 @@ public class TestZKClusterClient extends DremioTest {
     }
   }
 
-  private class TestElectionListener implements ElectionListener {
+  private final class TestElectionListener implements ElectionListener {
     private volatile boolean isLeader = false;
 
     @Override

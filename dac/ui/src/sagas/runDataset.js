@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 import { take, race, put, call, select, takeEvery } from "redux-saga/effects";
+import Immutable from "immutable";
 import invariant from "invariant";
 import { cloneDeep } from "lodash";
+import { getJobStateEvents } from "dremio-ui-common/sonar/JobStateEvents.js";
 
 import {
   loadNextRows,
@@ -37,12 +39,15 @@ import {
   getCurrentRouteParams,
   getExploreState,
 } from "@app/selectors/explore";
+import { getLocation } from "selectors/routing";
 import { log } from "@app/utils/logger";
 import { LOGOUT_USER_SUCCESS } from "@app/actions/account";
-import { resetQueryState, setQueryStatuses } from "@app/actions/explore/view";
+import {
+  resetQueryState,
+  setQueryContext,
+  setQueryStatuses,
+} from "@app/actions/explore/view";
 import { loadJobDetails } from "@app/actions/jobs/jobs";
-import { intl } from "@app/utils/intl";
-import { addNotification } from "@app/actions/notification";
 import { JOB_DETAILS_VIEW_ID } from "@app/actions/joblist/jobList";
 
 const getJobDoneActionFilter = (jobId) => (action) =>
@@ -194,7 +199,7 @@ export function* waitForRunToComplete(
         updateHistoryWithJobState(datasetVersion, jobDone.payload.update.state)
       );
       yield put(updateExploreJobProgress(jobDone.payload.update));
-      yield call(genLoadJobDetails, jobId, queryStatuses);
+      yield call(genLoadJobDetails, jobId);
     }
   } finally {
     yield call([socket, socket.stopListenToJobProgress], jobId);
@@ -206,6 +211,8 @@ export function* waitForRunToComplete(
  * 1) Navigation out of explore page has happen
  * 2) Current dataset or version of a dataset is changed
  * Note: navigation between data/wiki/graph tabs is not treated as page change
+ * This saga has an issue where it will refresh on explore page leave, meaning it will cache
+ * the old location and attempt to use it if the explore page is mounted again
  * @yields {object} an redux action
  */
 export function* explorePageChanged() {
@@ -223,7 +230,23 @@ export function* explorePageChanged() {
   ]);
 
   if (shouldReset) {
+    const location = yield select(getLocation);
+    const nextQueryContext = location.query?.context;
+
     yield put(resetQueryState());
+
+    if (nextQueryContext) {
+      // usually a context parameter in the URL will be surrounded by double-quotes
+      // so we need to remove them before setting the editor context
+      // context with special characters coming from URL need to be decoded
+      yield put(
+        setQueryContext({
+          context: Immutable.fromJS([
+            decodeURIComponent(nextQueryContext.replace(/^"|"$/g, "")),
+          ]),
+        })
+      );
+    }
   }
 
   return promise;
@@ -251,9 +274,9 @@ export function* watchUpdateHistoryOnJobProgress(datasetVersion, jobId) {
 /**
  * handle job status and job running record watches
  */
-export function* jobUpdateWatchers(jobId) {
+export function* jobUpdateWatchers(jobId, datasetVersion) {
   yield race({
-    recordWatcher: call(watchUpdateJobRecords, jobId),
+    recordWatcher: call(watchUpdateJobRecords, jobId, datasetVersion),
     statusWatcher: call(watchUpdateJobStatus, jobId),
     locationChange: call(explorePageChanged),
     jobDone: take(EXPLORE_JOB_STATUS_DONE),
@@ -280,9 +303,10 @@ export function* watchUpdateJobStatus(jobId) {
 /**
  * monitor job records updates with jobId from the socket
  */
-export function* watchUpdateJobRecords(jobId) {
+export function* watchUpdateJobRecords(jobId, datasetVersion) {
   function* updateJobProgressWithRecordCount(action) {
-    yield put(updateJobRecordCount(action.payload.recordCount));
+    // This isn't sending datasetVersion which results in an undefined entry in tableData
+    yield put(updateJobRecordCount(action.payload.recordCount, datasetVersion));
   }
 
   yield takeEvery(
@@ -291,35 +315,14 @@ export function* watchUpdateJobRecords(jobId) {
   );
 }
 
-export function* genLoadJobDetails(jobId, queryStatuses) {
+export function* genLoadJobDetails(jobId) {
   const jobDetails = yield put(loadJobDetails(jobId, JOB_DETAILS_VIEW_ID));
   const jobDetailsResponse = yield jobDetails;
-  const responseStats =
-    jobDetailsResponse &&
-    jobDetailsResponse.payload &&
-    !jobDetailsResponse.error
-      ? jobDetailsResponse.payload.getIn([
-          "entities",
-          "jobDetails",
-          jobDetailsResponse.meta.jobId,
-          "stats",
-        ])
-      : "";
-  // isOutputLimited will be true if the results were truncated
-  if (responseStats && responseStats.get("isOutputLimited")) {
-    const index = (queryStatuses ?? []).findIndex(
-      (query) => query.jobId === jobId
-    );
-    yield put(
-      addNotification(
-        `Query ${index + 1}: ` +
-          intl.formatMessage(
-            { id: "Explore.Run.Warning" },
-            { rows: responseStats.get("outputRecords").toLocaleString() }
-          ),
-        "success",
-        10
-      )
-    );
-  }
+
+  getJobStateEvents().updateJobState(
+    jobDetailsResponse.meta.jobId,
+    jobDetailsResponse.payload
+      .getIn(["entities", "jobDetails", jobDetailsResponse.meta.jobId])
+      .toJS()
+  );
 }

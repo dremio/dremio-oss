@@ -95,7 +95,7 @@ public abstract class AbstractTestLegacyIndexedStore {
     store = supplyStore();
   }
 
-  private class Writer extends Thread implements Runnable {
+  private final class Writer extends Thread implements Runnable {
     @Override
     public void run() {
       for (int i = 0; i < 100000; ++i) {

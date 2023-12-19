@@ -40,14 +40,14 @@ function ArcticCommitDetails({ router, params }: ArcticCommitDetailsProps) {
     stateKey,
     baseUrl,
   } = useNessieContext();
-  const { reservedNamespace, isCatalog } = useArcticCatalogContext() ?? {};
+  const { reservedNamespace, isCatalog } = useArcticCatalogContext();
   const dispatch = useDispatch();
 
   const getPath = (tab: ArcticCatalogTabsType) => {
     const toHash = tab === "data" ? params.commitId : hash;
     let toNamespace = reservedNamespace ?? "";
     if (!toNamespace.includes(params.branchName)) {
-      toNamespace = params.branchName;
+      toNamespace = encodeURIComponent(params.branchName);
     }
 
     return constructArcticUrl({

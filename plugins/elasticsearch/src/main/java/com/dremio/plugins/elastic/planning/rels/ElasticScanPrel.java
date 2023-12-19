@@ -151,7 +151,7 @@ public class ElasticScanPrel extends TableScan implements LeafPrel, CustomPrel {
     }
   }
 
-  private class ScanPrelFinder extends BasePrelVisitor<LeafPrel,Void,RuntimeException> {
+  private final class ScanPrelFinder extends BasePrelVisitor<LeafPrel,Void,RuntimeException> {
     @Override
     public LeafPrel visitPrel(Prel prel, Void v) {
       LeafPrel leafPrel;

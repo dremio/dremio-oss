@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.dfs;
 
+import java.io.InterruptedIOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -92,15 +93,15 @@ public final class WithOptionsTableMacro implements TableMacro {
   public TranslatableTable apply(final List<? extends Object> arguments) {
     try {
       final DatasetRetrievalOptions options = DatasetRetrievalOptions.DEFAULT.toBuilder()
-          .setIgnoreAuthzErrors(schemaConfig.getIgnoreAuthErrors())
-          .setMaxMetadataLeafColumns((int) schemaConfig.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX))
-          .build();
+        .setIgnoreAuthzErrors(schemaConfig.getIgnoreAuthErrors())
+        .setMaxMetadataLeafColumns((int) schemaConfig.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX))
+        .build();
 
       final FileDatasetHandle handle = plugin.getDatasetWithOptions(
-          new NamespaceKey(tableSchemaPath),
-          new TableInstance(sig, arguments),
-          schemaConfig.getIgnoreAuthErrors(),
-          schemaConfig.getUserName(),
+        new NamespaceKey(tableSchemaPath),
+        new TableInstance(sig, arguments),
+        schemaConfig.getIgnoreAuthErrors(),
+        schemaConfig.getUserName(),
         (int) schemaConfig.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX)
       );
 
@@ -113,6 +114,11 @@ public final class WithOptionsTableMacro implements TableMacro {
 
       return new MaterializedDatasetTableProvider(null, handle, plugin, plugin.getId(), schemaConfig, options, schemaConfig.getOptions())
         .get();
+    } catch (InterruptedIOException e) {
+      throw UserException.validationError()
+        .message("Unable to read table %s using provided options.",
+          new NamespaceKey(tableSchemaPath).toString())
+        .build(logger);
     } catch (Exception e) {
       Throwables.throwIfUnchecked(e);
       throw new RuntimeException(e);

@@ -19,6 +19,9 @@ import * as ActionTypes from "actions/jobs/jobs";
 import * as JobListActionTypes from "actions/joblist/jobList";
 import jobsMapper from "utils/mappers/jobsMapper";
 import StateUtils from "utils/stateUtils";
+import { getLoggingContext } from "dremio-ui-common/contexts/LoggingContext.js";
+
+const logger = getLoggingContext().createLogger("reducers/jobs/jobs");
 
 const initialState = Immutable.fromJS({
   jobs: [],
@@ -37,9 +40,27 @@ const initialState = Immutable.fromJS({
   uniqueSavingJob: undefined,
 });
 
+function checkJobExists(state, jobId) {
+  return !!state.get("jobList").find((job) => job.get("id") === jobId);
+}
+
 export default function jobs(state = initialState, action) {
+  // Not sure if window.location is necessary
+  const tabId = action.tabId || action.meta?.tabId; //Consolidate
+  if (tabId && !(window.location.search || "").includes(tabId)) {
+    logger.debug(
+      "tabId has changed, skipping action in parent reducer",
+      action
+    );
+    return state; //Handled in tabJobsReducer;
+  }
+
   switch (action.type) {
+    case "SET_JOB_LIST": {
+      return state.set("jobList", Immutable.fromJS(action.jobList));
+    }
     case ActionTypes.UPDATE_JOB_STATE: {
+      if (!checkJobExists(state, action.jobId)) return state;
       const index = state
         .get("jobs")
         .findIndex((job) => job.get("id") === action.jobId);
@@ -62,6 +83,8 @@ export default function jobs(state = initialState, action) {
       return state;
     }
     case ActionTypes.UPDATE_QV_JOB_STATE: {
+      if (!checkJobExists(state, action.jobId)) return state;
+
       const jobsListInState = state.get("jobList");
 
       const index = state
@@ -158,11 +181,20 @@ export default function jobs(state = initialState, action) {
         .set("isSupport", action.payload.isSupport);
     case JobListActionTypes.FETCH_JOBS_LIST_SUCCESS:
       if (action.meta?.isExplorePage) {
-        if (action.meta?.replaceIndex != null) {
-          const curJobList =
-            state.get("jobList")?.toJS() ?? new Immutable.List();
-          curJobList[action.meta.replaceIndex] = action.payload.jobs[0];
-          return state.set("jobList", Immutable.fromJS(curJobList));
+        const curJobList = state.get("jobList") || new Immutable.List();
+        const jobResult = action.payload.jobs[0];
+        const replaceIndex =
+          action.meta?.replaceIndex ||
+          curJobList.findIndex((job) => jobResult.id === job.get("id"));
+
+        if (replaceIndex != null && replaceIndex > -1) {
+          return state.set(
+            "jobList",
+            curJobList.set(
+              replaceIndex,
+              Immutable.fromJS(jobsMapper.mapJobs(action.payload)[0])
+            )
+          );
         } else if (action.meta?.isSaveJob) {
           return state.set(
             "uniqueSavingJob",
@@ -171,7 +203,7 @@ export default function jobs(state = initialState, action) {
         } else {
           return state.set(
             "jobList",
-            (state.get("jobList") ?? new Immutable.List()).concat(
+            curJobList.concat(
               Immutable.fromJS(jobsMapper.mapJobs(action.payload))
             )
           );
@@ -219,12 +251,16 @@ export default function jobs(state = initialState, action) {
       return state.set("isNextJobsInProgress", false);
 
     case JobListActionTypes.FETCH_JOB_EXECUTION_DETAILS_BY_ID_SUCCESS:
-      return state.set("jobExecutionDetails", action.payload);
+      return state.set("jobExecutionDetails", Immutable.fromJS(action.payload));
     case JobListActionTypes.FETCH_JOB_EXECUTION_OPERATOR_DETAILS_BY_ID_SUCCESS:
       return state.set(
         "jobExecutionOperatorDetails",
         Immutable.fromJS(action.payload)
       );
+    case JobListActionTypes.CLEAR_JOB_PROFILE_DATA:
+      return state
+        .set("jobExecutionDetails", Immutable.fromJS([]))
+        .set("jobExecutionOperatorDetails", Immutable.fromJS({}));
     default:
       return state;
   }

@@ -39,6 +39,7 @@ import org.apache.iceberg.hadoop.HadoopTableOperations;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.util.LockManagers;
 
+import com.dremio.exec.store.iceberg.DremioFileIO;
 import com.dremio.io.FSInputStream;
 import com.dremio.io.FSOutputStream;
 import com.dremio.io.file.FileAttributes;
@@ -50,11 +51,10 @@ public class IcebergHadoopTableOperations extends HadoopTableOperations {
   private final Configuration conf;
   private final com.dremio.io.file.FileSystem fs;
 
-  public IcebergHadoopTableOperations(Path location, Configuration conf, com.dremio.io.file.FileSystem fs,
-      FileIO fileIO) {
+  public IcebergHadoopTableOperations(Path location, Configuration conf, FileIO fileIO) {
     super(location, fileIO, conf, LockManagers.defaultLockManager());
     this.conf = conf;
-    this.fs = fs;
+    this.fs = ((DremioFileIO) fileIO).getFs();
   }
 
   @Override

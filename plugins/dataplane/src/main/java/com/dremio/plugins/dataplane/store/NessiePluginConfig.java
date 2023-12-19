@@ -20,10 +20,12 @@ import static com.dremio.plugins.dataplane.CredentialsProviderConstants.AWS_PROF
 import static com.dremio.plugins.dataplane.CredentialsProviderConstants.EC2_METADATA_PROVIDER;
 import static com.dremio.plugins.dataplane.CredentialsProviderConstants.NONE_PROVIDER;
 import static com.dremio.plugins.dataplane.NessiePluginConfigConstants.MINIMUM_NESSIE_SPECIFICATION_VERSION;
+import static org.apache.hadoop.fs.s3a.Constants.AWS_CREDENTIALS_PROVIDER;
 import static org.apache.hadoop.fs.s3a.Constants.SECURE_CONNECTIONS;
 
 import java.net.URI;
-import java.util.Optional;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.inject.Provider;
 
@@ -31,7 +33,10 @@ import org.apache.parquet.SemanticVersion;
 import org.projectnessie.client.api.NessieApiV2;
 import org.projectnessie.client.auth.BearerAuthenticationProvider;
 import org.projectnessie.client.http.HttpClientBuilder;
+import org.projectnessie.client.http.NessieApiCompatibilityException;
 import org.projectnessie.model.NessieConfiguration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.StoragePluginId;
@@ -44,6 +49,7 @@ import com.dremio.exec.catalog.conf.Secret;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.ConnectionRefusedException;
+import com.dremio.exec.store.InvalidNessieApiVersionException;
 import com.dremio.exec.store.InvalidSpecificationVersionException;
 import com.dremio.exec.store.InvalidURLException;
 import com.dremio.exec.store.NoDefaultBranchException;
@@ -52,6 +58,7 @@ import com.dremio.exec.store.UnAuthenticatedException;
 import com.dremio.plugins.NessieClient;
 import com.dremio.plugins.NessieClientImpl;
 import com.dremio.plugins.UsernameAwareNessieClientImpl;
+import com.dremio.plugins.azure.AzureStorageFileSystem;
 import com.dremio.plugins.util.awsauth.AWSCredentialsConfigurator;
 import com.dremio.service.namespace.SourceState;
 import com.google.common.annotations.VisibleForTesting;
@@ -64,47 +71,87 @@ import io.protostuff.Tag;
  */
 @SourceType(value = "NESSIE", label = "Nessie (Preview)", uiConfig = "nessie-layout.json")
 public class NessiePluginConfig extends AbstractDataplanePluginConfig {
+  private static final Logger logger = LoggerFactory.getLogger(NessiePluginConfig.class);
+
   @Tag(1)
-  @DisplayMetadata(label = "Nessie Endpoint URL")
-  @NotMetadataImpacting
+  @DisplayMetadata(label = "Nessie endpoint URL")
+  @NotMetadataImpacting // Dataplane plugins don't have metadata refresh, so all properties are not metadata impacting
   public String nessieEndpoint;
 
   @Tag(2)
   @Secret
-  @DisplayMetadata(label = "Bearer Token")
-  @NotMetadataImpacting
+  @DisplayMetadata(label = "Bearer token")
+  @NotMetadataImpacting // Dataplane plugins don't have metadata refresh, so all properties are not metadata impacting
   public String nessieAccessToken;
 
+  // Tags 3 through 7 are defined in AbstractDataplanePluginConfig
+
   @Tag(8)
+  @DisplayMetadata(label = "Authentication method")
+  @NotMetadataImpacting // Dataplane plugins don't have metadata refresh, so all properties are not metadata impacting
   public AWSAuthenticationType credentialType = AWSAuthenticationType.ACCESS_KEY;
 
+  // Tags 9 through 12 are defined in AbstractDataplanePluginConfig
+
+  // Tag 13 is reserved
+
   @Tag(14)
-  @NotMetadataImpacting
+  @DisplayMetadata(label = "Nessie authentication type")
+  @NotMetadataImpacting // Dataplane plugins don't have metadata refresh, so all properties are not metadata impacting
   public NessieAuthType nessieAuthType = NessieAuthType.BEARER;
 
   @Tag(15)
-  @DisplayMetadata(label = "AWS Profile")
+  @DisplayMetadata(label = "AWS profile")
+  @NotMetadataImpacting // Dataplane plugins don't have metadata refresh, so all properties are not metadata impacting
   public String awsProfile;
 
   @Tag(16)
-  @NotMetadataImpacting
   @DisplayMetadata(label = "Encrypt connection")
+  @NotMetadataImpacting // Dataplane plugins don't have metadata refresh, so all properties are not metadata impacting
   public boolean secure = true;
+
+  // Tags 17 through 24 are defined in AbstractDataplanePluginConfig
 
   @Override
   public DataplanePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
-    NessieClient nessieClient = getNessieClient(name, context);
+    final NessieClient nessieClient = getNessieClient(name, context);
 
-    return new DataplanePlugin(this, context, name, pluginIdProvider, getAWSCredentialsProvider(),
-      nessieClient);
+    return new DataplanePlugin(this, context, name, pluginIdProvider, nessieClient);
+  }
+
+  @Override
+  public List<Property> getProperties() {
+    final List<Property> properties = new ArrayList<>(super.getProperties());
+
+    switch (getStorageProvider()) {
+      case AWS:
+        properties.add(new Property(SECURE_CONNECTIONS, Boolean.toString(secure)));
+        final AWSCredentialsConfigurator awsCredentialsProvider = getAWSCredentialsProvider();
+        final String awsProvider = awsCredentialsProvider.configureCredentials(properties);
+        properties.add(new Property(AWS_CREDENTIALS_PROVIDER, awsProvider));
+        break;
+      case AZURE:
+        properties.add(new Property(AzureStorageFileSystem.SECURE, Boolean.toString(secure)));
+        // Other setup already done as part of AbstractDataplanePluginConfig
+        break;
+      default:
+        throw new IllegalStateException("Unexpected value: " + getStorageProvider());
+    }
+
+    return properties;
   }
 
   @Override
   public String getConnection() {
-    if (Strings.isNullOrEmpty(awsAccessKey) ||
-      Strings.isNullOrEmpty(awsAccessSecret)) {
+    // Allow local filesystem usage if no authentication provided
+    if ((getStorageProvider() == StorageProviderType.AWS
+        && Strings.isNullOrEmpty(awsAccessKey)
+        && Strings.isNullOrEmpty(awsAccessSecret)) ||
+      (getStorageProvider() == StorageProviderType.AZURE
+        && Strings.isNullOrEmpty(azureAccessKey))) {
       return "file:///";
     }
+
     return super.getConnection();
   }
 
@@ -123,28 +170,24 @@ public class NessiePluginConfig extends AbstractDataplanePluginConfig {
   }
 
   @VisibleForTesting
-  NessieClient getNessieClient(String name, SabotContext context) {
-    NessieClientImpl nessieClient =
-      new NessieClientImpl(getNessieRestClient(name, nessieEndpoint, nessieAccessToken), false);
-    return new UsernameAwareNessieClientImpl(nessieClient, context.getUserService());
-  }
-
-  @Override
-  public Optional<Property> encryptConnection() {
-    return Optional.of(new Property(SECURE_CONNECTIONS, String.valueOf(secure)));
+  NessieClient getNessieClient(String name, SabotContext sabotContext) {
+    NessieClientImpl nessieClient = new NessieClientImpl(
+      getNessieRestClient(name, nessieEndpoint, nessieAccessToken),
+      sabotContext.getOptionManager());
+    return new UsernameAwareNessieClientImpl(nessieClient, sabotContext.getUserService());
   }
 
   @Override
   public void validateNessieAuthSettings(String name) {
     if (nessieAuthType == null) {
       throw UserException.resourceError().message("Unable to create source [%s], " +
-        "Invalid Nessie Auth type", name).build();
+        "Invalid Nessie Auth type", name).build(logger);
     }
     switch (nessieAuthType) {
       case BEARER:
         if (Strings.isNullOrEmpty(nessieAccessToken)) {
           throw UserException.resourceError().message("Unable to create source [%s], " +
-            "bearer token provided is empty", name).build();
+            "bearer token provided is empty", name).build(logger);
         }
         break;
       case NONE:
@@ -157,17 +200,20 @@ public class NessiePluginConfig extends AbstractDataplanePluginConfig {
 
   @Override
   public void validateNessieSpecificationVersion(NessieClient nessieClient, String name) {
-    NessieApiV2 nessieApi = (NessieApiV2) nessieClient.getNessieApi();
-    NessieConfiguration nessieConfiguration = getNessieConfig(nessieApi, name);
+    NessieApiV2 nessieApi = nessieClient.getNessieApi();
+    NessieConfiguration nessieConfiguration = getNessieConfig(nessieApi);
     validateNessieSpecificationVersionHelper(nessieConfiguration.getSpecVersion());
   }
 
   @VisibleForTesting
-  NessieConfiguration getNessieConfig(NessieApiV2 nessieApiV2, String name) {
+  NessieConfiguration getNessieConfig(NessieApiV2 nessieApiV2) {
       try {
         return nessieApiV2.getConfig();
+      } catch (NessieApiCompatibilityException e) {
+        throw new InvalidNessieApiVersionException(e, "Invalid API version. " +
+          "Make sure that Nessie endpoint URL [%s] has a valid API version. Expected version is 2.", nessieEndpoint);
       } catch (Exception e) {
-        //IllegalArgumentException and NessieServerException are seen when we provide wrong urls in the Nessie endpoint
+        //IllegalArgumentException, HttpClientException and NessieServiceException are seen when we provide wrong urls in the Nessie endpoint
         throw new InvalidURLException(e, "Make sure that Nessie endpoint URL [%s] is valid.", nessieEndpoint);
       }
   }
@@ -230,42 +276,51 @@ public class NessiePluginConfig extends AbstractDataplanePluginConfig {
     try {
       return builder
         .withTracing(true)
-        .withEnableApiCompatibilityCheck(false)
+        .withApiCompatibilityCheck(true)
         .build(NessieApiV2.class);
     } catch (IllegalArgumentException e) {
       throw UserException.resourceError().message("Unable to create source [%s], " +
-        "%s must be a valid http or https address", name, nessieEndpoint).build();
+        "%s must be a valid http or https address", name, nessieEndpoint).build(logger);
     }
   }
 
   @Override
   public SourceState getState(NessieClient nessieClient, String name, SabotContext context) {
+    validateAzureStorageProviderEnabled(context.getOptionManager());
     try {
       this.validateConnectionToNessieRepository(nessieClient, name, context);
       this.validateNessieSpecificationVersion(nessieClient, name);
     } catch (NoDefaultBranchException e){
-      return SourceState.badState(String.format("Could not connect to [%s]. No default branch exists in the Nessie server. " +
-        "Check your Nessie server", name), e);
+      return SourceState.badState( "Check your Nessie server",
+        String.format("Could not connect to [%s]. No default branch exists in the Nessie server.", name));
     } catch (UnAuthenticatedException e) {
-      return SourceState.badState(String.format("Could not connect to [%s]. Unable to authenticate to the Nessie server. " +
-        "Make sure that the token is valid and not expired", name), e);
+      return SourceState.badState("Make sure that the token is valid and not expired",
+        String.format("Could not connect to [%s]. Unable to authenticate to the Nessie server.", name));
     } catch (ConnectionRefusedException e) {
-      return SourceState.badState(String.format("Could not connect to [%s]. Connection refused while connecting to the " +
-        "Nessie Server. Make sure that the Nessie server is up and running", name), e);
+      return SourceState.badState("Make sure that the Nessie server is up and running",
+        String.format("Could not connect to [%s]. Connection refused while connecting to the Nessie Server." , name));
     } catch (InvalidURLException e) {
-      return SourceState.badState(String.format("Could not connect to [%s]. Make sure that Nessie endpoint URL [%s] is valid.",
-        name, nessieEndpoint), e);
+      return SourceState.badState(String.format("Make sure that Nessie endpoint URL [%s] is valid.", nessieEndpoint),
+        String.format("Could not connect to [%s].", name));
     } catch (InvalidSpecificationVersionException e) {
-      return SourceState.badState(String.format("Could not connect to [%s]. Nessie Server should comply with Nessie specification version %s or later. " +
-          "Also make sure that Nessie endpoint URL is valid.", name, MINIMUM_NESSIE_SPECIFICATION_VERSION), e);
+      return SourceState.badState(String.format("Nessie Server should comply with Nessie specification version %s or later. Also make sure that Nessie endpoint URL is valid.", MINIMUM_NESSIE_SPECIFICATION_VERSION),
+        String.format("Could not connect to [%s].", name));
     } catch (SemanticVersionParserException e) {
-      return SourceState.badState(String.format("Could not connect to [%s]. Cannot parse Nessie specification version. " +
-          "Nessie Server should comply with Nessie specification version %s or later.", name, MINIMUM_NESSIE_SPECIFICATION_VERSION), e);
+      return SourceState.badState(String.format("Nessie Server should comply with Nessie specification version %s or later.", MINIMUM_NESSIE_SPECIFICATION_VERSION),
+        String.format("Could not connect to [%s]. Cannot parse Nessie specification version.", name));
+    } catch (InvalidNessieApiVersionException e) {
+      return SourceState.badState(String.format("Invalid API version. Make sure that Nessie endpoint URL [%s] has a valid API version.", nessieEndpoint),
+        String.format("Could not connect to [%s].", name));
     } catch (Exception e) {
       //For any unknowns
-      return SourceState.badState(String.format("Could not connect to [%s]. Check your settings, credentials and Nessie server", name), e);
+      return SourceState.badState("Check your settings, credentials and Nessie server",
+        String.format("Could not connect to [%s]." , name));
     }
-
     return SourceState.GOOD;
+  }
+
+  @Override
+  public String getSourceTypeName() {
+    return "Nessie";
   }
 }

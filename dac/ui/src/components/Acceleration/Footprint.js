@@ -25,13 +25,15 @@ export default function Footprint(props) {
   );
   return (
     <span>
-      <span title={la("Storage used for latest Reflection.")}>
+      <span title={laDeprecated("Storage used for latest Reflection.")}>
         {currentSizeText}
       </span>
       {props.totalByteSize !== currentByteSize && (
         <span>
           {" "}
-          <span title={la("Total storage used (including expired data).")}>
+          <span
+            title={laDeprecated("Total storage used (including expired data).")}
+          >
             ({totalSizeText})
           </span>
         </span>

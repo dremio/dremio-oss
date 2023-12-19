@@ -37,14 +37,11 @@ import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.DatasetCatalog;
 import com.dremio.exec.catalog.EntityExplorer;
-import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.catalog.SourceCatalog;
+import com.dremio.exec.catalog.factory.CatalogFactory;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.store.SchemaConfig;
 import com.dremio.options.OptionManager;
 import com.dremio.service.BinderImpl;
 import com.dremio.service.BinderImpl.Binding;
@@ -113,28 +110,6 @@ public class DremioBinder extends AbstractBinder {
 
   private <T> ClassBinding<T> bindToSelf(Class<T> serviceType) {
     return bind(serviceType).to(serviceType);
-  }
-
-  /**
-   * Factory for Catalog creation.
-   */
-  public static class CatalogFactory implements Supplier<Catalog> {
-    private final CatalogService catalogService;
-    private final SecurityContext context;
-
-    @Inject
-    public CatalogFactory(CatalogService catalogService, SecurityContext context) {
-      super();
-      this.catalogService = catalogService;
-      this.context = context;
-    }
-
-    @Override
-    public Catalog get() {
-      return catalogService.getCatalog(MetadataRequestOptions.of(
-          SchemaConfig.newBuilder(CatalogUser.from(context.getUserPrincipal().getName()))
-              .build()));
-    }
   }
 
   /**

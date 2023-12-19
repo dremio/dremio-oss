@@ -55,7 +55,8 @@ public class TableFunctionOperator implements SingleInputOperator {
     NUM_SNAPSHOT_IDS,           // Number of snapshot ids
     DELETE_ORPHAN_FILES_TIME,   // Time taken to delete orphan files
     NUM_ORPHAN_FILES_DELETED,  // Number of orphan files deleted
-    NUM_ORPHAN_FILES_FAIL_TO_DELETE;  // Number of orphan files not deleted successfully
+    NUM_ORPHAN_FILES_FAIL_TO_DELETE // Number of orphan files not deleted successfully
+    ;
 
     @Override
     public int metricId() {

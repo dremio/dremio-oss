@@ -40,6 +40,7 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.SecurityContext;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.model.scripts.PaginatedResponse;
@@ -148,6 +149,30 @@ public class ScriptResource {
       throw new ForbiddenException(exception.getMessage());
     } catch (Exception exception) {
       logger.error("Updating a script failed.", exception);
+      throw new InternalServerErrorException(exception.getMessage());
+    }
+  }
+
+  @PUT
+  @Path("/{id}/update_context")
+  public ScriptData updateScriptContext(@PathParam("id") String scriptId, String sessionId) {
+    try {
+      // update the script context and version references
+      return fromScript(scriptService.updateScriptContext(scriptId, sessionId));
+    } catch (ScriptNotFoundException exception) {
+      logger.error(exception.getMessage(), exception);
+      throw new NotFoundException(exception.getMessage());
+    } catch (ScriptNotAccessible exception) {
+      logger.error(exception.getMessage(), exception);
+      throw new ForbiddenException(exception.getMessage());
+    } catch (NotFoundException exception) {
+      logger.error(exception.getMessage(), exception);
+      throw exception;
+    } catch (IllegalArgumentException exception) {
+      logger.error(exception.getMessage(), exception);
+      throw UserException.validationError(exception).build(null);
+    } catch (Exception exception) {
+      logger.error("Updating a script context failed.", exception);
       throw new InternalServerErrorException(exception.getMessage());
     }
   }

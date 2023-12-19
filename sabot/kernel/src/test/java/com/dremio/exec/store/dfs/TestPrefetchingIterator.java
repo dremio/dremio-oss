@@ -619,7 +619,7 @@ public class TestPrefetchingIterator {
     when(config.getColumns()).thenReturn(Collections.singletonList(SchemaPath.getSimplePath("*")));
     when(config.getFormatSettings()).thenReturn(FileConfig.getDefaultInstance());
     when(optionManager.getOption(ExecConstants.FILESYSTEM_PARTITION_COLUMN_LABEL_VALIDATOR)).thenReturn("dir");
-    when(inputStreamProviderFactory.create(any(),any(),any(),anyLong(),anyLong(),any(),any(),any(),any(),anyBoolean(),any(),anyLong(),anyBoolean(),anyBoolean(), any(), any())).thenReturn(inputStreamProvider);
+    when(inputStreamProviderFactory.create(any(),any(),any(),anyLong(),anyLong(),any(),any(),any(),any(),anyBoolean(),any(),anyLong(),anyBoolean(),anyBoolean(), any(), any(), any())).thenReturn(inputStreamProvider);
 
     BlockMetaData blockMetaData = mock(BlockMetaData.class);
     when(footer.getBlocks()).thenReturn(Collections.singletonList(blockMetaData));

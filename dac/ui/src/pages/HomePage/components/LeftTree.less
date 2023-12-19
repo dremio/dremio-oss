@@ -28,6 +28,7 @@
 
   .left-tree-holder {
     width: 318px;
+    min-width: 318px;
     overflow: hidden;
     border-right: 1px solid var(--color--neutral--50);
     height: 100%;
@@ -73,9 +74,9 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-top: 16px;
-      padding-left: 8px;
-      padding-right: 16px;
+      margin-top: var(--dremio--spacing--2);
+      padding-left: var(--dremio--spacing--1);
+      padding-right: var(--dremio--spacing--1);
       font-size: 14px;
       height: 24px;
       color: var(--dremio--color--text--faded);
@@ -89,7 +90,7 @@
       bottom: 0;
       font-weight: 600;
       z-index: 999;
-      background-color: white;
+      background-color: var(--bg--default);
       display: flex;
       align-items: center;
       border-top: 1px solid var(--color--neutral--50);

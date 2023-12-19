@@ -39,6 +39,8 @@ import com.dremio.options.OptionList;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
 import com.dremio.options.OptionValue;
+import com.dremio.options.impl.DefaultOptionManager;
+import com.dremio.options.impl.OptionManagerWrapper;
 import com.dremio.test.DremioTest;
 
 public class TestOptionManagerWrapper extends DremioTest {

@@ -31,6 +31,11 @@ class SourcesMapper {
         delete property.id;
       }
     }
+    if (info.config.secretPropertyList) {
+      for (const property of info.config.secretPropertyList) {
+        delete property.id;
+      }
+    }
     if (info.config.authenticationTimeoutMillis) {
       info.config.authenticationTimeoutMillis = Number(
         info.config.authenticationTimeoutMillis

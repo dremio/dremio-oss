@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { connect } from "react-redux";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
@@ -25,32 +25,38 @@ import {
   CONTAINER_ENTITY_TYPES,
   DATASET_ENTITY_TYPES,
 } from "@app/constants/Constants";
-import { getIsStarred } from "@app/components/Tree/resourceTreeUtils.ts";
+import {
+  getFullPathFromResourceTree,
+  getIsStarred,
+} from "@app/components/Tree/resourceTreeUtils.ts";
 
 import DragSource from "components/DragComponents/DragSource";
 import EllipsedText from "components/EllipsedText";
 import { typeToIconType } from "@app/constants/DataTypes";
 import { PureEntityIcon } from "@app/pages/HomePage/components/EntityIcon";
 import FontIcon from "@app/components/Icon/FontIcon";
-import TreeNodeBranchPicker from "@app/components/Tree/components/TreeNodeBranchPicker/TreeNodeBranchPicker";
 import { icon as iconCls } from "@app/uiTheme/less/DragComponents/ColumnMenuItem.less";
 import { selectState } from "@app/selectors/nessie/nessie";
 
 import HoverDatasetInfoBox from "./HoverDatasetInfoBox";
 import { IconButton, Tooltip } from "dremio-ui-lib";
+import { Popover } from "dremio-ui-lib/components";
 import Spinner from "../Spinner";
 import Message from "../Message";
 
 import "./ResourceTree.less";
 import "./TreeNode.less";
 import "@app/components/Dataset/DatasetItemLabel.less";
-import { getSourceByName, isBranchSelected } from "@app/utils/nessieUtils";
+import { isBranchSelected, getSourceById } from "@app/utils/nessieUtils";
 import { getNodeBranchId } from "./resourceTreeUtils";
 import DatasetSummaryOverlay from "../Dataset/DatasetSummaryOverlay";
-import WikiDrawerWrapper from "@app/components/WikiDrawerWrapper";
-import { FeatureSwitch } from "@app/exports/components/FeatureSwitch/FeatureSwitch";
-import { CATALOG_ARS_ENABLED } from "@app/exports/flags/CATALOG_ARS_ENABLED";
-import { getCommonWikiDrawerTitle } from "@app/utils/WikiDrawerUtils";
+import { ARSFeatureSwitch } from "@inject/utils/arsUtils";
+import { getExploreState } from "@app/selectors/explore";
+import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
+import SourceBranchPicker from "@app/pages/HomePage/components/SourceBranchPicker/SourceBranchPicker";
+import { TreeConfigContext } from "./treeConfigContext";
+import { getSourceMap } from "@app/selectors/home";
+import EntitySummaryOverlay from "../EntitySummaryOverlay/EntitySummaryOverlay";
 
 export const TreeNode = (props) => {
   const {
@@ -82,7 +88,14 @@ export const TreeNode = (props) => {
     hideSources,
     hideHomes,
     clearResourceTreeByName,
+    isMultiQueryRunning,
   } = props;
+
+  const {
+    nessiePrefix,
+    restrictSelection,
+    handleDatasetDetails: openDatasetDetails,
+  } = useContext(TreeConfigContext);
 
   const [showOverlay, setShowOverlay] = useState(false); // eslint-disable-line @typescript-eslint/no-unused-vars
   const [nodeIsInProgress, setNodeIsInProgress] = useState(false);
@@ -91,27 +104,16 @@ export const TreeNode = (props) => {
     intl.formatMessage({ id: "Message.Code.WS_CLOSED.Message" })
   );
   const [loadingTimer, setLoadingtimer] = useState(null);
-  const [datasetDetails, setDatasetDetails] = useState(Immutable.fromJS({}));
-  const [drawerIsOpen, setDrawerIsOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     handleLoadingState();
   }, [loadingItems, selectedStarredTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const clearSelection = (node) => {
-    const nodeName = node.get("name");
-    clearResourceTreeByName(nodeName, fromModal);
-    // DX-53668 - Tree not refreshing when switching branches
-    if (isNodeExpanded(node)) {
-      handleSelectedNodeChange(node, isNodeExpanded(node));
-    }
-    handleSelectedNodeChange(null, null); // Reset selection when inside of modal
-  };
-
-  const nessieDisabled = fromModal && nessieSource && !branchName;
+  const isBadState = nessieSource && nessieSource.state?.status !== "good";
+  const nessieDisabled = restrictSelection && nessieSource && !branchName;
   const saveAsDisabled =
-    fromModal &&
+    restrictSelection &&
     !["SOURCE", "SPACE", "HOME", "FOLDER"].includes(node.get("type"));
   const isDisabledNode = nessieDisabled || saveAsDisabled;
 
@@ -204,6 +206,10 @@ export const TreeNode = (props) => {
               hideSources={hideSources}
               hideHomes={hideHomes}
               fromModal={fromModal}
+              nessieSource={nessieSource}
+              branchName={branchName}
+              isMultiQueryRunning={isMultiQueryRunning}
+              openDatasetDetails={openDatasetDetails}
             />
           );
         }
@@ -242,10 +248,26 @@ export const TreeNode = (props) => {
         : { id: "Resource.Tree.Add.Star.Alt" }
     );
 
-    const showSummaryOverlay =
-      shouldShowOverlay &&
-      (nodeToRender.get("type").includes("PHYSICAL_DATASET") ||
-        nodeToRender.get("type").includes("VIRTUAL_DATASET"));
+    const showSummaryOverlay = shouldShowOverlay;
+    const isEntity =
+      !nodeToRender.get("type").includes("PHYSICAL_DATASET") &&
+      !nodeToRender.get("type").includes("VIRTUAL_DATASET");
+    const nodeQueryInfo = isEntity
+      ? {
+          entityUrl: getFullPathFromResourceTree(node),
+          fromTreeNode: true,
+          entityId: nodeToRender.get("id"),
+        }
+      : {
+          versionContext: nodeToRender.get("id"),
+          type: nodeToRender.get("type"),
+          id: nodeToRender.get("id"),
+          entityId: nodeToRender.get("id"),
+          fullPath: nodeToRender.get("fullPath"),
+          fromTreeNode: true,
+        };
+
+    const hideDatasetPanelIcon = node.get("isColumnItem");
 
     const iconBlock = shouldAllowAdd ? (
       <>
@@ -276,6 +298,22 @@ export const TreeNode = (props) => {
             !node.get("isPartitioned") && <div className={iconCls}></div>
         }
 
+        {!hideDatasetPanelIcon && (
+          <IconButton
+            tooltip={intl.formatMessage({ id: "Open.Details" })}
+            onClick={() => {
+              openDatasetDetails(
+                Immutable.fromJS({
+                  ...nodeQueryInfo,
+                })
+              );
+            }}
+            className="resourceTreeNode__add"
+          >
+            <dremio-icon name="interface/meta" />
+          </IconButton>
+        )}
+
         <IconButton
           tooltip="Tooltip.SQL.Editor.Add"
           onClick={() => {
@@ -284,12 +322,12 @@ export const TreeNode = (props) => {
               : nodeToRender.get("fullPath");
             addtoEditor(elementToAdd);
           }}
+          disabled={isMultiQueryRunning}
           className="resourceTreeNode__add"
         >
           <dremio-icon name="interface/add-small" />
         </IconButton>
-        <FeatureSwitch
-          flag={CATALOG_ARS_ENABLED}
+        <ARSFeatureSwitch
           renderEnabled={() => null}
           renderDisabled={() =>
             isNodeExpandable(nodeToRender) &&
@@ -337,6 +375,106 @@ export const TreeNode = (props) => {
     const activeClass = selectedNodeId === nodeId ? "active-node" : "";
     const nodeStatus = nodeToRender.getIn(["state", "status"], null);
     const isColumnItem = node.get("isColumnItem");
+    const isSource = node.get("type") === "SOURCE";
+
+    const treeNodeContent = (
+      <div
+        {...(isDisabledNode && {
+          style: {
+            ...style.disabled,
+            pointerEvents: "all",
+            background: "transparent",
+          },
+        })}
+        className="resourceTreeNode-nameWrapper"
+      >
+        {isColumnItem ? (
+          <FontIcon
+            type={typeToIconType[node.get("type")]}
+            style={style.icon}
+          />
+        ) : (
+          <PureEntityIcon
+            disableHoverListener={nessieDisabled || showSummaryOverlay}
+            entityType={node.get("type")}
+            sourceStatus={nodeStatus}
+            sourceType={nessieSource?.type}
+            style={style.icon}
+          />
+        )}
+        <Tooltip
+          placement="top"
+          disableHoverListener={nessieDisabled || showSummaryOverlay}
+          title={node.get("name")}
+        >
+          <EllipsedText
+            className="node-text"
+            style={style.text}
+            text={node.get("name")}
+          />
+        </Tooltip>
+      </div>
+    );
+
+    const hideOverlay = fromModal || hideDatasets;
+
+    const tooltipElement = (
+      <>
+        {!isDragging && !hideOverlay ? (
+          !showSummaryOverlay ? (
+            <Tooltip
+              placement="bottom"
+              title={
+                isBadState
+                  ? intl.formatMessage({
+                      id: "Source.NotAvailable",
+                    })
+                  : intl.formatMessage({
+                      id: "Nessie.SelectionDisabledHint",
+                    })
+              }
+              disableHoverListener={!nessieDisabled}
+            >
+              {treeNodeContent}
+            </Tooltip>
+          ) : (
+            <Popover
+              role="tooltip"
+              showArrow
+              delay={750}
+              placement="right"
+              mode="hover"
+              portal
+              content={
+                isEntity ? (
+                  <EntitySummaryOverlay
+                    name={node.get("name")}
+                    type={node.get("type").toLowerCase()}
+                    fullPath={node.get("fullPath")}
+                    getEntityUrl={() => getFullPathFromResourceTree(node)}
+                    openDetailsPanel={openDatasetDetails}
+                  />
+                ) : (
+                  <DatasetSummaryOverlay
+                    inheritedTitle={nodeToRender.get("fullPath").last()}
+                    fullPath={nodeToRender.get("fullPath")}
+                    openWikiDrawer={openDatasetDetails}
+                    hideSqlEditorIcon
+                    versionContext={getVersionContextFromId(
+                      nodeToRender.get("id")
+                    )}
+                  />
+                )
+              }
+            >
+              {treeNodeContent}
+            </Popover>
+          )
+        ) : (
+          <>{treeNodeContent}</>
+        )}
+      </>
+    );
 
     const nodeElement = (
       <div
@@ -349,75 +487,34 @@ export const TreeNode = (props) => {
           );
         }}
       >
-        <Tooltip
-          disableHoverListener={!nessieDisabled}
-          title={intl.formatMessage({ id: "Nessie.SelectionDisabledHint" })}
-        >
-          <div
-            {...(isDisabledNode && {
-              style: {
-                ...style.disabled,
-                pointerEvents: "all",
-                background: "transparent",
-              },
-            })}
-            className="resourceTreeNode-nameWrapper"
-          >
-            {isColumnItem ? (
-              <FontIcon
-                type={typeToIconType[node.get("type")]}
-                style={style.icon}
-              />
-            ) : (
-              <PureEntityIcon
-                entityType={node.get("type")}
-                sourceStatus={nodeStatus}
-                sourceType={nessieSource?.type}
-                style={style.icon}
-              />
-            )}
-
-            <>
-              {!isDragging ? (
-                <Tooltip
-                  type={showSummaryOverlay && "richTooltip"}
-                  placement={showSummaryOverlay ? "right" : "top"}
-                  title={
-                    showSummaryOverlay ? (
-                      <DatasetSummaryOverlay
-                        inheritedTitle={nodeToRender.get("fullPath").last()}
-                        fullPath={nodeToRender.get("fullPath")}
-                        openWikiDrawer={openWikiDrawer}
-                        hideSqlEditorIcon
-                      />
-                    ) : (
-                      node.get("name")
-                    )
-                  }
-                >
-                  <EllipsedText
-                    className="node-text"
-                    style={style.text}
-                    text={node.get("name")}
-                  />
-                </Tooltip>
-              ) : (
-                <EllipsedText
-                  className="node-text"
-                  style={style.text}
-                  text={node.get("name")}
-                />
-              )}
-            </>
-          </div>
-        </Tooltip>
-        {!!nessieSource && (
-          <TreeNodeBranchPicker
+        {tooltipElement}
+        {isSource && !!nessieSource && (
+          <SourceBranchPicker
+            redirect={false}
             source={nessieSource}
-            anchorRef={containerRef}
-            onApply={() => {
-              clearSelection(node);
+            anchorRef={() => containerRef.current}
+            onApply={(stateKey, { reference, hash }) => {
+              // Do not select node in save as dialog since tags/commits are not supported
+              if (
+                restrictSelection &&
+                (reference?.type.toUpperCase() !== "BRANCH" || !!hash)
+              ) {
+                handleSelectedNodeChange(null, null);
+                return;
+              }
+
+              // Select node after clicking apply on branch picker, clear the children in redux also
+              clearResourceTreeByName(node.get("name"), fromModal);
+              const isExpanded = isNodeExpanded(nodeToRender, nodeError);
+              if (!isExpanded) return;
+
+              handleSelectedNodeChange(nodeToRender, isExpanded);
+
+              setImmediate(() => {
+                handleSelectedNodeChange(nodeToRender, !isExpanded);
+              });
             }}
+            prefix={nessiePrefix}
           />
         )}
       </div>
@@ -434,29 +531,29 @@ export const TreeNode = (props) => {
           isColumnItem && "__columnItem"
         )}
       >
-        {isNodeExpandable(nodeToRender) &&
-          (nodeIsInProgress ? (
-            <Spinner iconStyle={style.iconSpinner} style={style.spinnerBase} />
-          ) : (
-            <IconButton
-              aria-label="Expand Node"
-              onClick={(e) => {
-                e.preventDefault();
-                handleSelectedNodeChange(
-                  nodeToRender,
-                  isNodeExpanded(nodeToRender, nodeError)
-                );
-              }}
-              className={classNames("TreeNode", "TreeNode__arrowIcon", {
-                "TreeNode--disabled": isDisabledNode,
-              })}
-            >
-              <dremio-icon
-                name={arrowIconType}
-                alt={intl.formatMessage({ id: `Common.${arrowAlt}` })}
-              />
-            </IconButton>
-          ))}
+        {nodeIsInProgress && (
+          <Spinner iconStyle={style.iconSpinner} style={style.spinnerBase} />
+        )}
+        {isNodeExpandable(nodeToRender) && !nodeIsInProgress && (
+          <IconButton
+            aria-label="Expand Node"
+            onClick={(e) => {
+              e.preventDefault();
+              handleSelectedNodeChange(
+                nodeToRender,
+                isNodeExpanded(nodeToRender, nodeError)
+              );
+            }}
+            className={classNames("TreeNode", "TreeNode__arrowIcon", {
+              "TreeNode--disabled": isDisabledNode,
+            })}
+          >
+            <dremio-icon
+              name={arrowIconType}
+              alt={intl.formatMessage({ id: `Common.${arrowAlt}` })}
+            />
+          </IconButton>
+        )}
         {nodeElement}
         <div className="resourceTreeNode__iconBlock">{iconBlock}</div>
       </div>
@@ -495,31 +592,12 @@ export const TreeNode = (props) => {
     );
   };
 
-  const openWikiDrawer = (dataset) => {
-    setDatasetDetails(dataset);
-    setDrawerIsOpen(true);
-  };
-
-  const closeWikiDrawer = (e) => {
-    e.stopPropagation();
-    e.preventDefault();
-    setDatasetDetails(Immutable.fromJS({}));
-    setDrawerIsOpen(false);
-  };
-
-  const wikiDrawerTitle = () => {
-    return getCommonWikiDrawerTitle(
-      datasetDetails,
-      datasetDetails?.get("fullPath"),
-      closeWikiDrawer
-    );
-  };
-
   const nodeRef = useRef(null);
   const isDataset = Object.prototype.hasOwnProperty.call(
     DATASET_TYPES_TO_ICON_TYPES,
     node.get("type")
   );
+
   return (
     <div
       className={classNames("treeNode", {
@@ -532,18 +610,12 @@ export const TreeNode = (props) => {
     >
       <span ref={nodeRef}>{renderNode(node, nodeRef)}</span>
       {isNodeExpanded(node) && renderResources()}
-      <WikiDrawerWrapper
-        drawerIsOpen={drawerIsOpen}
-        wikiDrawerTitle={wikiDrawerTitle()}
-        datasetDetails={datasetDetails}
-      />
     </div>
   );
 };
 
 TreeNode.propTypes = {
   node: PropTypes.instanceOf(Immutable.Map),
-  sources: PropTypes.instanceOf(Immutable.List),
   isNodeExpanded: PropTypes.func,
   selectedNodeId: PropTypes.string,
   isDatasetsDisabled: PropTypes.bool,
@@ -573,15 +645,19 @@ TreeNode.propTypes = {
   hideSources: PropTypes.bool,
   hideHomes: PropTypes.bool,
   clearResourceTreeByName: PropTypes.func,
+  isMultiQueryRunning: PropTypes.bool,
+  openDatasetDetails: PropTypes.func,
 };
 
-function mapStateToProps(state, { node, sources }) {
+function mapStateToProps(state, { node }) {
+  const explorePageState = getExploreState(state);
   const nessieState = selectState(state.nessie, node.get("name"));
   return {
     branchName: isBranchSelected(nessieState)
       ? nessieState.reference.name
       : null,
-    nessieSource: getSourceByName(node.get("name"), sources.toJS()),
+    isMultiQueryRunning: explorePageState?.view.isMultiQueryRunning,
+    nessieSource: getSourceById(node.get("id"), getSourceMap(state))?.toJS(),
   };
 }
 

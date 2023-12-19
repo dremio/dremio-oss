@@ -22,20 +22,22 @@
   <parent>
     <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-plugin-parent</artifactId>
-    <version>24.1.0-202306130653310132-d30779f6</version>
+    <version>24.3.0-202312190021150029-52db2faf</version>
   </parent>
 
   <artifactId>dremio-hive-function-registry</artifactId>
   <packaging>jar</packaging>
   <name>Plugins - Hive Functions</name>
   <properties>
-    <hadoop.version>${plugin.hive2.hadoop.version}</hadoop.version>
-    <hive.version>${plugin.hive2.hive.version}</hive.version>
-    <datanucleus-api-jdo.version>${plugin.hive2.datanucleus-api-jdo.version}</datanucleus-api-jdo.version>
-    <datanucleus-core.version>${plugin.hive2.datanucleus-core.version}</datanucleus-core.version>
-    <datanucleus-rdbms.version>${plugin.hive2.datanucleus-rdbms.version}</datanucleus-rdbms.version>
-    <datanucleus-jdo.version>${plugin.hive2.datanucleus-jdo.version}</datanucleus-jdo.version>
-    <jdo-api.version>${plugin.hive2.jdo-api.version}</jdo-api.version>
+    <dremio.plugins.path>${project.build.directory}/pf4j-bundles</dremio.plugins.path>
+    <hadoop.version>${plugin.hive3.hadoop.version}</hadoop.version>
+    <hive.version>${plugin.hive3.hive.version}</hive.version>
+    <datanucleus-api-jdo.version>${plugin.hive3.datanucleus-api-jdo.version}</datanucleus-api-jdo.version>
+    <datanucleus-core.version>${plugin.hive3.datanucleus-core.version}</datanucleus-core.version>
+    <datanucleus-rdbms.version>${plugin.hive3.datanucleus-rdbms.version}</datanucleus-rdbms.version>
+    <datanucleus-jdo.version>${plugin.hive3.datanucleus-jdo.version}</datanucleus-jdo.version>
+    <jdo-api.version>${plugin.hive3.jdo-api.version}</jdo-api.version>
+    <hikaricp.version>${plugin.hive3.hikaricp.version}</hikaricp.version>
   </properties>
 
   <profiles>
@@ -49,12 +51,55 @@
       <properties>
         <hadoop.version>${plugin.hive2.mapr.hadoop.version}</hadoop.version>
         <hive.version>${plugin.hive2.mapr.hive.version}</hive.version>
+        <datanucleus-api-jdo.version>${plugin.hive2.datanucleus-api-jdo.version}</datanucleus-api-jdo.version>
+        <datanucleus-core.version>${plugin.hive2.datanucleus-core.version}</datanucleus-core.version>
+        <datanucleus-rdbms.version>${plugin.hive2.datanucleus-rdbms.version}</datanucleus-rdbms.version>
+        <datanucleus-jdo.version>${plugin.hive2.datanucleus-jdo.version}</datanucleus-jdo.version>
+        <jdo-api.version>${plugin.hive2.jdo-api.version}</jdo-api.version>
       </properties>
       <dependencies>
+        <dependency>
+          <groupId>com.dremio.contrib</groupId>
+          <artifactId>dremio-hive2-exec-shaded</artifactId>
+        </dependency>
         <dependency>
           <groupId>com.jolbox</groupId>
           <artifactId>bonecp</artifactId>
           <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>com.dremio.plugins</groupId>
+          <artifactId>dremio-hive-plugin</artifactId>
+          <version>${project.version}</version>
+          <scope>test</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>org.apache.hive</groupId>
+              <artifactId>hive-hbase-handler</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.apache.hbase</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+        <dependency>
+          <groupId>com.dremio.plugins</groupId>
+          <artifactId>dremio-hive-plugin</artifactId>
+          <classifier>tests</classifier>
+          <type>test-jar</type>
+          <version>${project.version}</version>
+          <scope>test</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>org.apache.hive</groupId>
+              <artifactId>hive-hbase-handler</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.apache.hbase</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+          </exclusions>
         </dependency>
         <dependency>
           <groupId>org.apache.hive</groupId>
@@ -101,6 +146,170 @@
           </exclusions>
         </dependency>
       </dependencies>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>com.dremio.tools</groupId>
+            <artifactId>dremio-fmpp-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>generate-fmpp-sources</id>
+                <phase>generate-sources</phase>
+                <goals>
+                  <goal>generate</goal>
+                </goals>
+                <configuration>
+                  <config>src/main/codegen-common/config.fmpp</config>
+                  <output>${project.build.directory}/generated-sources/fmpp</output>
+                  <templates>src/main/codegen-hive2/templates</templates>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
+      <id>notmapr</id>
+      <activation>
+        <property>
+          <name>!mapr</name>
+        </property>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>com.dremio.contrib</groupId>
+          <artifactId>dremio-hive3-exec-shaded</artifactId>
+        </dependency>
+        <dependency>
+          <groupId>com.dremio.plugins</groupId>
+          <artifactId>dremio-hive-plugin</artifactId>
+          <version>${project.version}</version>
+          <scope>test</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>org.apache.hive</groupId>
+              <artifactId>hive-hbase-handler</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.apache.hbase</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>com.dremio.contrib</groupId>
+              <artifactId>dremio-hive2-exec-shaded</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+        <dependency>
+          <groupId>com.dremio.plugins</groupId>
+          <artifactId>dremio-hive3-plugin</artifactId>
+          <version>${project.version}</version>
+          <scope>test</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>org.apache.hive</groupId>
+              <artifactId>hive-hbase-handler</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.apache.hbase</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+        <dependency>
+          <groupId>com.dremio.plugins</groupId>
+          <artifactId>dremio-hive3-plugin</artifactId>
+          <classifier>tests</classifier>
+          <type>test-jar</type>
+          <version>${project.version}</version>
+          <scope>test</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>org.apache.hive</groupId>
+              <artifactId>hive-hbase-handler</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.apache.hbase</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.apache.hive</groupId>
+              <artifactId>hive-hbase-handler</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.apache.hive</groupId>
+              <artifactId>hive-exec</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+        <dependency>
+          <groupId>com.dremio.plugins</groupId>
+          <artifactId>dremio-hive3-plugin-launcher</artifactId>
+          <version>${project.version}</version>
+          <scope>test</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>*</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+        <dependency>
+          <groupId>com.zaxxer</groupId>
+          <artifactId>HikariCP</artifactId>
+          <version>${hikaricp.version}</version>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.hive</groupId>
+          <artifactId>hive-classification</artifactId>
+          <version>${hive.version}</version>
+          <scope>test</scope>
+        </dependency>
+      </dependencies>
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-resources-plugin</artifactId>
+            <executions>
+              <execution>
+                <!-- hive3-plugin is required for integration tests -->
+                <id>copy-pf4j-test-resources</id>
+                <phase>generate-resources</phase>
+                <goals><goal>copy-resources</goal></goals>
+                <configuration>
+                  <resources>
+                    <resource>
+                      <directory>${project.basedir}/../hive3/plugin/target/pf4j-bundles</directory>
+                      <filtering>false</filtering>
+                    </resource>
+                  </resources>
+                  <outputDirectory>${dremio.plugins.path}</outputDirectory>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>com.dremio.tools</groupId>
+            <artifactId>dremio-fmpp-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>generate-fmpp-sources</id>
+                <phase>generate-sources</phase>
+                <goals>
+                  <goal>generate</goal>
+                </goals>
+                <configuration>
+                  <config>src/main/codegen-common/config.fmpp</config>
+                  <output>${project.build.directory}/generated-sources/fmpp</output>
+                  <templates>src/main/codegen-hive3/templates</templates>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
     </profile>
   </profiles>
 
@@ -111,47 +320,9 @@
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>com.dremio.plugins</groupId>
-      <artifactId>dremio-hive-plugin</artifactId>
-      <version>${project.version}</version>
-      <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>org.apache.hive</groupId>
-          <artifactId>hive-hbase-handler</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.apache.hbase</groupId>
-          <artifactId>*</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>com.dremio.plugins</groupId>
-      <artifactId>dremio-hive-plugin</artifactId>
-      <classifier>tests</classifier>
-      <type>test-jar</type>
-      <version>${project.version}</version>
-      <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>org.apache.hive</groupId>
-          <artifactId>hive-hbase-handler</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.apache.hbase</groupId>
-          <artifactId>*</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
       <groupId>com.dremio.sabot</groupId>
       <artifactId>dremio-sabot-kernel</artifactId>
       <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>com.dremio.contrib</groupId>
-      <artifactId>dremio-hive2-exec-shaded</artifactId>
     </dependency>
     <dependency>
       <groupId>org.apache.derby</groupId>
@@ -278,57 +449,6 @@
   <build>
     <plugins>
       <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>exec-maven-plugin</artifactId>
-        <dependencies>
-          <dependency>
-            <groupId>com.dremio</groupId>
-            <artifactId>dremio-common</artifactId>
-            <version>${project.version}</version>
-            <classifier>tests</classifier>
-            <type>test-jar</type>
-          </dependency>
-        </dependencies>
-        <executions>
-          <execution>
-            <id>classpath-scanning</id>
-            <phase>process-classes</phase>
-            <goals><goal>java</goal></goals>
-            <configuration>
-              <mainClass>com.dremio.common.scanner.BuildTimeScan</mainClass>
-              <includePluginDependencies>true</includePluginDependencies>
-              <arguments>
-                <argument>${project.build.outputDirectory}</argument>
-              </arguments>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <artifactId>maven-checkstyle-plugin</artifactId>
-        <configuration>
-          <configLocation>dremio-checkstyle/legacy-config.xml</configLocation>
-        </configuration>
-      </plugin>
-      <plugin>
-        <groupId>com.dremio.tools</groupId>
-        <artifactId>dremio-fmpp-maven-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>generate-fmpp-sources</id>
-            <phase>generate-sources</phase>
-            <goals>
-              <goal>generate</goal>
-            </goals>
-            <configuration>
-              <config>src/main/codegen/config.fmpp</config>
-              <output>${project.build.directory}/generated-sources/fmpp</output>
-              <templates>src/main/codegen/templates</templates>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
         <artifactId>maven-resources-plugin</artifactId>
         <executions>
           <execution>
@@ -361,7 +481,7 @@
             <configuration>
               <resources>
                 <resource>
-                 <directory>${project.basedir}/../../sample-data/</directory>
+                  <directory>${project.basedir}/../../sample-data/</directory>
                   <includes>
                     <include>region.parquet</include>
                   </includes>
@@ -374,15 +494,37 @@
         </executions>
       </plugin>
       <plugin>
-        <artifactId>maven-failsafe-plugin</artifactId>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <dependencies>
+          <dependency>
+            <groupId>com.dremio</groupId>
+            <artifactId>dremio-common</artifactId>
+            <version>${project.version}</version>
+            <classifier>tests</classifier>
+            <type>test-jar</type>
+          </dependency>
+        </dependencies>
         <executions>
           <execution>
-            <goals>
-              <goal>integration-test</goal>
-              <goal>verify</goal>
-            </goals>
+            <id>classpath-scanning</id>
+            <phase>process-classes</phase>
+            <goals><goal>java</goal></goals>
+            <configuration>
+              <mainClass>com.dremio.common.scanner.BuildTimeScan</mainClass>
+              <includePluginDependencies>true</includePluginDependencies>
+              <arguments>
+                <argument>${project.build.outputDirectory}</argument>
+              </arguments>
+            </configuration>
           </execution>
         </executions>
+      </plugin>
+      <plugin>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+        <configuration>
+          <configLocation>dremio-checkstyle/legacy-config.xml</configLocation>
+        </configuration>
       </plugin>
       <plugin>
         <artifactId>maven-jar-plugin</artifactId>

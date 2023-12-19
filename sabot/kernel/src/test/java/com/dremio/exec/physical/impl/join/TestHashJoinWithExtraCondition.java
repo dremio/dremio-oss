@@ -27,6 +27,8 @@ public class TestHashJoinWithExtraCondition extends PlanTestBase {
   private static final String NATION = "dfs.\"${WORKING_PATH}/src/test/resources/tpchmulti/nation\"";
   private static final String REGION = "dfs.\"${WORKING_PATH}/src/test/resources/tpchmulti/region\"";
 
+  private static final String NATIONS = "dfs_test.\"nations\"";
+  private static final String REGIONS = "dfs_test.\"regions\"";
   @Test
   public void testInnerJoin() throws Exception {
     String sql = String.format("SELECT count(*) as cnt FROM\n"
@@ -67,6 +69,36 @@ public class TestHashJoinWithExtraCondition extends PlanTestBase {
       .baselineValues(null, 11L)
       .go();
     testPlanMatchingPatterns(sql, new String[]{"HashJoin"});
+  }
+
+  @Test
+  public void testLeftJoinWithDuplicate() throws Exception {
+
+    runSQL("CREATE TABLE " + NATIONS + " AS " +
+      "SELECT columns[0] AS N_NATIONKEY, columns[1] AS N_NAME, columns[2] AS N_REGIONKEY, columns[3] AS N_COMMENT " +
+      "FROM cp.\"/store/text/data/nations_with_duplicate_keys.csv\"");
+
+    runSQL("CREATE TABLE " + REGIONS + " AS " +
+      "SELECT columns[0] AS R_REGIONKEY, columns[1] AS R_NAME, columns[2] AS R_COMMENT " +
+      "FROM cp.\"/store/text/data/regions_with_duplicate_keys.csv\"");
+
+    String sql = String.format("SELECT nations.N_REGIONKEY key, count(*) as cnt FROM\n"
+      + NATIONS + "\n"
+      + "LEFT JOIN\n"
+      + REGIONS + "\n"
+      + "  on nations.N_REGIONKEY = regions.R_REGIONKEY \n"
+      + "  AND (length(nations.n_comment) < length(regions.r_comment)) \n"
+      + " group by nations.N_REGIONKEY");
+    testBuilder()
+      .sqlQuery(sql)
+      .unOrdered()
+      .baselineColumns("key", "cnt")
+      .baselineValues("0", 10L)
+      .go();
+    testPlanMatchingPatterns(sql, new String[]{"HashJoin"});
+
+    test(String.format("DROP TABLE %s", NATIONS));
+    test(String.format("DROP TABLE %s", REGIONS));
   }
 
   @Test

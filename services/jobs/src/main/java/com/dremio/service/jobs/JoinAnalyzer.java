@@ -16,7 +16,9 @@
 package com.dremio.service.jobs;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -28,15 +30,18 @@ import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.metadata.RelColumnOrigin;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.commons.collections4.CollectionUtils;
 
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.common.SuppressForbidden;
-import com.dremio.exec.catalog.TableVersionContext;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionUtils;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.MajorFragmentProfile;
 import com.dremio.exec.proto.UserBitShared.MinorFragmentProfile;
 import com.dremio.exec.proto.UserBitShared.OperatorProfile;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.sabot.op.join.vhash.HashJoinStats.Metric;
+import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.service.job.proto.JoinAnalysis;
 import com.dremio.service.job.proto.JoinCondition;
 import com.dremio.service.job.proto.JoinStats;
@@ -53,6 +58,11 @@ import com.google.common.collect.ImmutableList;
  */
 public final class JoinAnalyzer {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JoinAnalyzer.class);
+
+  // Constants for breaking down individual operators into their components from operatorProfile.ProbeTarget.
+  // For example, "XX-YY": XX is the fragment ID, and YY is the operator ID
+  private static final int OPERATOR_COMPONENTS_FRAGMENT_ID = 0;
+  private static final int OPERATOR_COMPONENTS_OPERATOR_ID = 1;
 
   private final QueryProfile profile;
   private final JoinPreAnalyzer preAnalyzer;
@@ -92,12 +102,26 @@ public final class JoinAnalyzer {
         }
       });
 
+    // If any of the stats are null, stop collecting stats since they won't be usable for starflake matching
     boolean swapped = joinInfo.getSwapped();
-    long unmatchedBuildKeyCount = getSumOfMetric(operators, swapped ? Metric.UNMATCHED_PROBE_COUNT.metricId() : Metric.UNMATCHED_BUILD_KEY_COUNT.metricId());
-    long unmatchedProbeCount = getSumOfMetric(operators, swapped ? Metric.UNMATCHED_BUILD_KEY_COUNT.metricId() : Metric.UNMATCHED_PROBE_COUNT.metricId());
+    Long unmatchedBuildKeyCount = getSumOfMetric(operators, swapped ? Metric.UNMATCHED_PROBE_COUNT.metricId() : Metric.UNMATCHED_BUILD_KEY_COUNT.metricId());
+    if (unmatchedBuildKeyCount == null) {
+      joinStatsList.add(JoinStats.getDefaultInstance());
+      return;
+    }
+    Long unmatchedProbeCount = getSumOfMetric(operators, swapped ? Metric.UNMATCHED_BUILD_KEY_COUNT.metricId() : Metric.UNMATCHED_PROBE_COUNT.metricId());
+    if (unmatchedProbeCount == null) {
+      joinStatsList.add(JoinStats.getDefaultInstance());
+      return;
+    }
     long buildInputRecords = getSumOfInputStream(operators, swapped ? 0 : 1);
     long probeInputRecords = getSumOfInputStream(operators, swapped ? 1 : 0);
-    long outputRecords = getSumOfMetric(operators, Metric.OUTPUT_RECORDS.metricId());
+    Long outputRecords = getSumOfMetric(operators, Metric.OUTPUT_RECORDS.metricId());
+    if (outputRecords == null) {
+      joinStatsList.add(JoinStats.getDefaultInstance());
+      return;
+    }
+    boolean prunedRecords = getRuntimeFilterPruned(operators);
 
     JoinStats stats = new JoinStats()
       .setJoinType(toJoinType(joinInfo.getJoinType()))
@@ -106,7 +130,8 @@ public final class JoinAnalyzer {
       .setBuildInputCount(buildInputRecords)
       .setProbeInputCount(probeInputRecords)
       .setOutputRecords(outputRecords)
-      .setJoinConditionsList(joinInfo.getJoinConditions());
+      .setJoinConditionsList(joinInfo.getJoinConditions())
+      .setRuntimeFilterPruned(prunedRecords);
 
     joinStatsList.add(stats);
   }
@@ -120,11 +145,15 @@ public final class JoinAnalyzer {
           try {
             return findMetric(operatorProfile, metricId);
           } catch (Exception ex) {
-            logger.debug("Failed to get metric value from operator id: {} and metric id: {}", operatorProfile.getOperatorId(), metricId);
-            return 0L;
+            logger.debug(String.format("Failed to get metric value from operator id: %d and metric id: %d", operatorProfile.getOperatorId(), metricId), ex);
+            return null;
           }
         }
       })) {
+      // if any of the counts were null, stop since the joinStats are now invalid.
+      if (count == null) {
+        return null;
+      }
       totalCount += count;
     }
     return totalCount;
@@ -157,6 +186,46 @@ public final class JoinAnalyzer {
       totalCount += count;
     }
     return totalCount;
+  }
+
+  private boolean getRuntimeFilterPruned(FluentIterable<OperatorProfile> operators) {
+    Set<String> targets = new HashSet<>();
+    // Collect operators under the join with runtime filters
+    for (OperatorProfile operator : operators) {
+      List<com.dremio.exec.proto.UserBitShared.RunTimeFilterDetailsInfo> runtimeFilterDetails = operator.getDetails().getRuntimefilterDetailsInfosList();
+      if(CollectionUtils.isNotEmpty(runtimeFilterDetails)) {
+        for (UserBitShared.RunTimeFilterDetailsInfo runtimeFilterInfo : runtimeFilterDetails) {
+          targets.add(runtimeFilterInfo.getProbeTarget());
+        }
+      }
+    }
+    // Go through operators with runtime filters, and check if any pruned rows
+    for (String target : targets) {
+      List<String> operatorComponents = Arrays.asList(target.split("-"));
+      int fragmentId = Integer.parseInt(operatorComponents.get(OPERATOR_COMPONENTS_FRAGMENT_ID));
+      int operatorId = Integer.parseInt(operatorComponents.get(OPERATOR_COMPONENTS_OPERATOR_ID));
+      FluentIterable<OperatorProfile> targetOps = FluentIterable.from(findFragmentProfileWithId(profile, fragmentId).getMinorFragmentProfileList())
+        .transform(new Function<MinorFragmentProfile, OperatorProfile>() {
+          @Override
+          public OperatorProfile apply(MinorFragmentProfile minorFragmentProfile) {
+            return findOperatorProfileWithId(minorFragmentProfile, operatorId);
+          }
+        });
+      // If we are unable to get any of the metrics, assume they are non-zero for correctness purposes in starflake matching.
+      Long pagesPruned = getSumOfMetric(targetOps, ScanOperator.Metric.NUM_PAGES_PRUNED.metricId());
+      if (pagesPruned == null || pagesPruned > 0) {
+        return true;
+      }
+      Long partitionsPruned = getSumOfMetric(targetOps, ScanOperator.Metric.NUM_PARTITIONS_PRUNED.metricId());
+      if (partitionsPruned == null || partitionsPruned > 0) {
+        return true;
+      }
+      Long rowGroupsPruned = getSumOfMetric(targetOps, ScanOperator.Metric.NUM_ROW_GROUPS_PRUNED.metricId());
+      if (rowGroupsPruned == null || rowGroupsPruned > 0) {
+        return true;
+      }
+    }
+    return false;
   }
 
   @SuppressForbidden // guava Optional
@@ -323,7 +392,8 @@ public final class JoinAnalyzer {
             .setBuildInputCount(joinStats.getBuildInputCount())
             .setUnmatchedBuildCount(joinStats.getUnmatchedBuildCount())
             .setUnmatchedProbeCount(joinStats.getUnmatchedProbeCount())
-            .setOutputRecords(joinStats.getOutputRecords());
+            .setOutputRecords(joinStats.getOutputRecords())
+            .setRuntimeFilterPruned(joinStats.getRuntimeFilterPruned());
         }
       })
       .toList();

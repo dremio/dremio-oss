@@ -36,6 +36,7 @@ import org.apache.iceberg.RewriteManifests;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.exceptions.CommitFailedException;
+import org.apache.iceberg.io.FileIO;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
@@ -50,7 +51,6 @@ import com.dremio.exec.planner.sql.OptimizeTests;
 import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
-import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.MetricDef;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
@@ -176,8 +176,8 @@ public class TestOptimizeManifestsTableFunction extends BaseTestQuery {
     when(opProps.getUserName()).thenReturn(UserContext.SYSTEM_USER_CONTEXT.getUserId());
 
     IcebergModel icebergModel = mock(IcebergModel.class);
-    when(icebergMutablePlugin.getIcebergModel(any(IcebergTableProps.class), anyString(), any(OperatorContext.class), any(FileSystem.class)))
-      .thenReturn(icebergModel);
+    when(icebergMutablePlugin.getIcebergModel(any(IcebergTableProps.class), anyString(), any(OperatorContext.class),
+        any(FileIO.class))).thenReturn(icebergModel);
     doNothing().when(icebergModel).refreshVersionContext();
     IcebergTableIdentifier icebergTableIdentifier = mock(IcebergTableIdentifier.class);
     when(icebergModel.getTableIdentifier(anyString())).thenReturn(icebergTableIdentifier);

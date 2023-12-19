@@ -85,7 +85,7 @@ public enum ServerMethod {
    */
   GET_SERVER_META(RpcType.GET_SERVER_META, Constants.DREMIO_0_9_3, Constants.DRILL_1_10_0);
 
-  private static class Constants {
+  private static final class Constants {
     private static final Version DREMIO_0_0_0 = new Version("0.0.0", 0, 0, 0, 0, "");
     private static final Version DREMIO_0_9_3 = new Version("0.9.3", 0, 9, 3, 0, "");
 

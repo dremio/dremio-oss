@@ -15,8 +15,8 @@
  */
 package com.dremio.exec.store;
 
-import org.projectnessie.client.api.NessieApi;
+import org.projectnessie.client.api.NessieApiV2;
 
 public interface NessieApiProvider {
-  NessieApi getNessieApi();
+  NessieApiV2 getNessieApi();
 }

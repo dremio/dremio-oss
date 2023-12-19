@@ -129,7 +129,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
   private final ManagedSchema managedSchema;
   private final HiveSplitsPathRowGroupsMap pathRowGroupsMap;
   private Iterator<RecordReader> innerReadersIter;
-  private List<RuntimeFilter> runtimeFilters = new ArrayList<>();
+  private List<RuntimeFilter> runtimeFilters;
 
   private FileSplitParquetRecordReader nextFileSplitReader;
   private OutputMutator outputMutator;
@@ -152,8 +152,8 @@ public class FileSplitParquetRecordReader implements RecordReader {
     final UserGroupInformation readerUgi,
     final ManagedSchema managedSchema,
     final HiveSplitsPathRowGroupsMap pathRowGroupsMap,
-    final CompositeReaderConfig readerConfig
-  ) {
+    final CompositeReaderConfig readerConfig,
+    List<RuntimeFilter> nonPartitionColumnRFs) {
     this.hiveStoragePlugin = hiveStoragePlugin;
     this.oContext = oContext;
     this.tableSchema = tableSchema;
@@ -176,6 +176,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
       .getInstance(InputStreamProviderFactory.KEY, InputStreamProviderFactory.class, InputStreamProviderFactory.DEFAULT);
     rowGroupNums = new ArrayList<>();
     isAsyncEnabled = true;
+    this.runtimeFilters = nonPartitionColumnRFs;
 
     populateRowGroupNums = (f) -> {
       try {
@@ -286,7 +287,9 @@ public class FileSplitParquetRecordReader implements RecordReader {
         fileLastModificationTime,
         false,
         filters.hasPushdownFilters() && readColumnIndices, filters,
-        readerFactory.newFilterCreator(oContext, ParquetReaderFactory.ManagedSchemaType.HIVE, managedSchema, oContext.getAllocator()));
+        readerFactory.newFilterCreator(oContext, ParquetReaderFactory.ManagedSchemaType.HIVE, managedSchema, oContext.getAllocator()),
+        runtimeFilters
+        );
     } catch (Exception e) {
       // Close input stream provider in case of errors
       if (inputStreamProviderOfFirstRowGroup != null) {
@@ -643,7 +646,8 @@ public class FileSplitParquetRecordReader implements RecordReader {
             ParquetScanProjectedColumns.fromSchemaPaths(columnsToRead), footer, lastInputStreamProvider, (f) -> splitXAttr.getRowGroupIndex(),
             readFullFile, dataset, splitXAttr.getLastModificationTime(), false,
             filters.hasPushdownFilters() && readColumnIndices, filters,
-            readerFactory.newFilterCreator(oContext, ParquetReaderFactory.ManagedSchemaType.HIVE, managedSchema, oContext.getAllocator()));
+            readerFactory.newFilterCreator(oContext, ParquetReaderFactory.ManagedSchemaType.HIVE, managedSchema, oContext.getAllocator()),
+            runtimeFilters);
           return null;
         });
       }

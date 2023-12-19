@@ -55,6 +55,7 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.AbstractRecordReader;
 import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.SplitAndPartitionInfo;
+import com.dremio.exec.store.hive.HiveConfFactory;
 import com.dremio.exec.store.hive.HiveFsUtils;
 import com.dremio.exec.store.hive.HivePf4jPlugin;
 import com.dremio.exec.store.hive.HiveUtilities;
@@ -73,6 +74,8 @@ import com.google.protobuf.InvalidProtocolBufferException;
 
 public abstract class HiveAbstractReader extends AbstractRecordReader {
   protected final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(this.getClass());
+
+  public enum HiveFileFormat {Avro, Orc, Parquet, RCFile, Default, Text};
 
   protected StructField[] selectedStructFieldRefs;
   protected ObjectInspector[] selectedColumnObjInspectors;
@@ -169,7 +172,7 @@ public abstract class HiveAbstractReader extends AbstractRecordReader {
         List<StructField> selectedStructFieldRefs = new ArrayList<>();
         List<ObjectInspector> selectedColumnObjInspectors = new ArrayList<>();
         List<HiveFieldConverter> selectedColumnFieldConverters = new ArrayList<>();
-        this.operatorContextOptions = new HiveOperatorContextOptions(context);
+        this.operatorContextOptions = new HiveOperatorContextOptions(context, jobConf, getHiveFileFormat());
 
         for (String columnName : selectedColumnNames) {
           StructField fieldRef = finalOI.getStructFieldRef(columnName);
@@ -242,6 +245,8 @@ public abstract class HiveAbstractReader extends AbstractRecordReader {
   }
 
   protected abstract int populateData() throws IOException, SerDeException;
+
+  protected abstract HiveFileFormat getHiveFileFormat();
 
   @Override
   public void close() throws IOException {
@@ -332,11 +337,25 @@ public abstract class HiveAbstractReader extends AbstractRecordReader {
 
   public static class HiveOperatorContextOptions {
     private int maxCellSize;
-    public HiveOperatorContextOptions(OperatorContext context) {
-      maxCellSize = Math.toIntExact(context.getOptions().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES));
+    private int hiveVersion = 3;
+    private HiveFileFormat hiveFileFormat;
+    public HiveOperatorContextOptions(OperatorContext context, JobConf jobConf, HiveFileFormat hiveFileFormat) {
+      if (HiveConfFactory.isHive2SourceType(jobConf)) {
+        this.hiveVersion = 2;
+      }
+      this.maxCellSize = Math.toIntExact(context.getOptions().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES));
+      this.hiveFileFormat = hiveFileFormat;
     }
     public int getMaxCellSize() {
       return maxCellSize;
+    }
+
+    public int getHiveVersion() {
+      return hiveVersion;
+    }
+
+    public HiveFileFormat getHiveFileFormat() {
+      return hiveFileFormat;
     }
   }
 }

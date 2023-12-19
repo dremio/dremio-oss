@@ -49,7 +49,7 @@ export class ReplaceRangeForm extends Component {
     this.chartData = this.getDataForChart(props.cardValues);
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     if (nextProps.cardValues !== this.props.cardValues) {
       this.updateChartData(nextProps.cardValues);
     }

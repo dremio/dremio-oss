@@ -310,7 +310,8 @@ public class SplitGeneratingDatafileProcessor implements ManifestEntryProcessor 
         nameToFieldMap,
         dataFile,
         version,
-        sequenceNo);
+        sequenceNo,
+        false);
     }
   }
 

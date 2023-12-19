@@ -79,6 +79,58 @@ export const Default = () => {
           </div>
         ))}
       </div>
+      <div>
+        {sizes.map((size) => (
+          <div
+            key={size}
+            className={`bg-neutral-50 m-4 pl-${size} rounded`}
+            style={{ display: "inline-flex" }}
+          >
+            <div className={`bg-brand-300 rounded`}>
+              <code>.pl-{size}</code>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div>
+        {sizes.map((size) => (
+          <div
+            key={size}
+            className={`bg-neutral-50 m-4 pr-${size} rounded`}
+            style={{ display: "inline-flex" }}
+          >
+            <div className={`bg-brand-300 rounded`}>
+              <code>.pr-{size}</code>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div>
+        {sizes.map((size) => (
+          <div
+            key={size}
+            className={`bg-neutral-50 m-4 pt-${size} rounded`}
+            style={{ display: "inline-flex" }}
+          >
+            <div className={`bg-brand-300 rounded`}>
+              <code>.pt-{size}</code>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div>
+        {sizes.map((size) => (
+          <div
+            key={size}
+            className={`bg-neutral-50 m-4 pb-${size} rounded`}
+            style={{ display: "inline-flex" }}
+          >
+            <div className={`bg-brand-300 rounded`}>
+              <code>.pb-{size}</code>
+            </div>
+          </div>
+        ))}
+      </div>
     </>
   );
 };

@@ -28,7 +28,7 @@
   @extend .align-baseline;
   @extend .bg-foreground;
   @extend .border;
-  @extend .border-gray-500;
+  @extend .border-gray-100;
   @extend .border-solid;
   @extend .flex;
   @extend .flex-row;
@@ -56,7 +56,8 @@
     padding-inline: 0.5em;
   }
 
-  &:disabled {
+  &:disabled,
+  &[aria-disabled="true"] {
     @extend .bg-disabled;
     cursor: not-allowed;
   }

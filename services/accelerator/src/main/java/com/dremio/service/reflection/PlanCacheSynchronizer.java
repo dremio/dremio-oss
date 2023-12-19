@@ -30,6 +30,9 @@ import com.dremio.service.reflection.store.ReflectionEntriesStore;
 import com.dremio.service.reflection.store.ReflectionGoalsStore;
 import com.google.common.collect.Sets;
 
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
+
 /**
  * This class is responsible for invalidating entries in the plan cache based on the changes that have been made to reflections.
  * It looks both at reflection goals and reflections entries to find those that have been changed
@@ -60,13 +63,15 @@ class PlanCacheSynchronizer {
    * Sync logic which queries all updated reflections and invalidates datasets in the plan cache based on that.
    * NOTE: the function never throws. In case of failure, it will retry from the last successful run timestamp
    */
+  @WithSpan
   public void sync() {
     logger.debug("Reconciling plan cache with any changes");
     long now = System.currentTimeMillis();
 
     try (PlanCacheInvalidationHelper helper = planCacheInvalidationHelper.get()) {
       if (!helper.isPlanCacheEnabled()) {
-        logger.debug("Plan cache is disabled. Skipping reconciliation");
+        logger.debug("Plan cache is disabled. Invalidating the plan cache and removing {} plan cache entries", helper.getCacheEntryCount());
+        helper.invalidatePlanCache();
         return;
       }
 
@@ -75,14 +80,17 @@ class PlanCacheSynchronizer {
 
       Set<String> datasetIds = Sets.union(datasetsFromEntries, datasetsFromGoals);
 
-      logger.debug(
+      logger.info(
           "Cleaning up {} datasets based on entries, {} datasets based on goals. Total (union) processed datasets: {}",
           datasetsFromEntries.size(),
           datasetsFromGoals.size(),
           datasetIds.size()
       );
+      Span.current().setAttribute("dremio.plan_cache.datasetsFromEntries", datasetsFromEntries.size());
+      Span.current().setAttribute("dremio.plan_cache.datasetsFromGoals", datasetsFromGoals.size());
+      Span.current().setAttribute("dremio.plan_cache.datasetsTotal", datasetIds.size());
 
-
+      long before = helper.getCacheEntryCount();
       for (String datasetId : datasetIds) {
         try {
           helper.invalidateReflectionAssociatedPlanCache(datasetId);
@@ -90,6 +98,10 @@ class PlanCacheSynchronizer {
           logger.warn(String.format("Error while invalidating plan cache for dataset %s", datasetId), ex);
         }
       }
+      long after = helper.getCacheEntryCount();
+      logger.info("Completed plan cache sync.  Cache entries before {}.  Cache entries after {}.", before, after);
+      Span.current().setAttribute("dremio.plan_cache.entryCountBeforeSync", before);
+      Span.current().setAttribute("dremio.plan_cache.entryCountAfterSync", after);
       lastUpdatedOn = now;
     } catch (Exception ex) {
       logger.warn("Error when trying to reconcile plan cache entries. Will retry next time", ex);

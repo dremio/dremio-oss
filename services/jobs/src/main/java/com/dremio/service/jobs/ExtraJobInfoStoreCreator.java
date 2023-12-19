@@ -15,12 +15,15 @@
  */
 package com.dremio.service.jobs;
 
+import java.util.Date;
+
 import com.dremio.datastore.api.DocumentConverter;
 import com.dremio.datastore.api.DocumentWriter;
 import com.dremio.datastore.api.LegacyIndexedStore;
 import com.dremio.datastore.api.LegacyIndexedStoreCreationFunction;
 import com.dremio.datastore.api.LegacyStoreBuildingFactory;
 import com.dremio.datastore.format.Format;
+import com.dremio.datastore.indexed.IndexKey;
 import com.dremio.service.job.proto.ExtraJobInfo;
 import com.dremio.service.job.proto.JobId;
 
@@ -29,6 +32,7 @@ import com.dremio.service.job.proto.JobId;
  */
 public class ExtraJobInfoStoreCreator implements LegacyIndexedStoreCreationFunction<JobId, ExtraJobInfo> {
   public static final String NAME = "extraJobInfo";
+  public static final IndexKey EXTRA_JOB_INFO_TTL_EXPIRY = IndexKey.newBuilder("ttl", "expireAt", Date.class).build();
   @SuppressWarnings("unchecked")
   @Override
   public LegacyIndexedStore<JobId, ExtraJobInfo> build(LegacyStoreBuildingFactory factory) {
@@ -37,11 +41,14 @@ public class ExtraJobInfoStoreCreator implements LegacyIndexedStoreCreationFunct
       .buildIndexed(new ExtraJobInfoConverter());
   }
 
-  private static class ExtraJobInfoConverter implements DocumentConverter<JobId, ExtraJobInfo> {
-    private Integer version = 0;
+  private static final class ExtraJobInfoConverter implements DocumentConverter<JobId, ExtraJobInfo> {
+    private Integer version = 1;
 
     @Override
     public void convert(DocumentWriter writer, JobId key, ExtraJobInfo record) {
+      if (record.getTtlExpireAt() != null) {
+        writer.writeTTLExpireAt(EXTRA_JOB_INFO_TTL_EXPIRY, record.getTtlExpireAt());
+      }
     }
 
     @Override

@@ -29,6 +29,8 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import com.dremio.edition.EditionProvider;
+import com.dremio.exec.ExecConstants;
+import com.dremio.options.OptionManager;
 import com.dremio.service.job.JobState;
 import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.QueryType;
@@ -55,7 +57,10 @@ public class TestDailyJobStats  {
       jobs.add(newJob("dremio", QueryType.ODBC, epoch - (i * dayEpoch )));
     }
 
-    final DailyJobStatsResource dailyJobStatsResource = new DailyJobStatsResource(mock(JobsService.class), mock(EditionProvider.class));
+    OptionManager optionManager = mock(OptionManager.class);
+    when(optionManager.getOption(ExecConstants.ENABLE_DEPRECATED_JOBS_USER_STATS_API)).thenReturn(true);
+
+    final DailyJobStatsResource dailyJobStatsResource = new DailyJobStatsResource(mock(JobsService.class), mock(EditionProvider.class), optionManager);
     final DailyJobStatsResource.DailyJobStats results = dailyJobStatsResource.aggregateJobResults(jobs);
 
     final List<Map<String, Object>> stats = results.getJobStats();
@@ -75,7 +80,10 @@ public class TestDailyJobStats  {
     final JobsService service = mock(JobsService.class);
     when(service.searchJobs(any())).thenReturn(() -> prepareJobSummaryData(jobCount));
 
-    final DailyJobStatsResource dailyJobStatsResource = new DailyJobStatsResource(service, mock(EditionProvider.class));
+    OptionManager optionManager = mock(OptionManager.class);
+    when(optionManager.getOption(ExecConstants.ENABLE_DEPRECATED_JOBS_USER_STATS_API)).thenReturn(true);
+
+    final DailyJobStatsResource dailyJobStatsResource = new DailyJobStatsResource(service, mock(EditionProvider.class), optionManager);
     final DailyJobStatsResource.DailyJobStats results = dailyJobStatsResource.getStats(0,0, "false");
 
     final List<Map<String, Object>> stats = results.getJobStats();

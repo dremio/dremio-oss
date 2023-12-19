@@ -17,6 +17,7 @@ package com.dremio.exec.store.hive;
 
 import java.io.IOException;
 
+import com.dremio.exec.catalog.StoragePluginId;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.BeanDescription;
@@ -46,5 +47,10 @@ public class HiveCommonUtilities {
       parser.nextToken();
     }
     return clazz.cast(deserializer.deserialize(parser, context));
+  }
+
+  public static boolean isHive2WrappingSourceType(StoragePluginId pluginId) {
+    String sourceTypeName = pluginId.getType().value();
+    return "HIVE".equals(sourceTypeName) || "AWSGLUE".equals(sourceTypeName);
   }
 }

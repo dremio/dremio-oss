@@ -36,6 +36,9 @@ import com.dremio.service.job.ActiveJobsRequest;
 import com.dremio.service.job.CancelJobRequest;
 import com.dremio.service.job.CancelReflectionJobRequest;
 import com.dremio.service.job.ChronicleGrpc.ChronicleBlockingStub;
+import com.dremio.service.job.DeleteJobCountsRequest;
+import com.dremio.service.job.JobAndUserStats;
+import com.dremio.service.job.JobAndUserStatsRequest;
 import com.dremio.service.job.JobCounts;
 import com.dremio.service.job.JobCountsRequest;
 import com.dremio.service.job.JobDetails;
@@ -185,9 +188,29 @@ public class HybridJobsService implements JobsService {
   }
 
   @Override
+  public void deleteJobCounts(DeleteJobCountsRequest request) {
+    try {
+      getBlockingStub().deleteJobCounts(request);
+    } catch (StatusRuntimeException e) {
+      GrpcExceptionUtil.throwIfUserException(e);
+      throw e;
+    }
+  }
+
+  @Override
   public JobStats getJobStats(JobStatsRequest request) {
     try {
       return getChronicleBlockingStub().getJobStats(request);
+    } catch (StatusRuntimeException e) {
+      GrpcExceptionUtil.throwIfUserException(e);
+      throw e;
+    }
+  }
+
+  @Override
+  public JobAndUserStats getJobAndUserStats(JobAndUserStatsRequest request) {
+    try {
+      return getChronicleBlockingStub().getJobAndUserStats(request);
     } catch (StatusRuntimeException e) {
       GrpcExceptionUtil.throwIfUserException(e);
       throw e;

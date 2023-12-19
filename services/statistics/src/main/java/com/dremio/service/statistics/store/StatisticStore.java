@@ -45,6 +45,7 @@ public class StatisticStore {
   private final Supplier<LegacyKVStore<StatisticId, StatisticMessage>> store;
   private final Cache<StatisticId, Optional<Statistic>> cache;
 
+  @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
   public StatisticStore(final Provider<LegacyKVStoreProvider> provider, long max, long timeout) {
     Preconditions.checkNotNull(provider, "kvStore provider required");
     this.store = Suppliers.memoize(new Supplier<LegacyKVStore<StatisticId, StatisticMessage>>() {
@@ -94,16 +95,6 @@ public class StatisticStore {
   }
 
   private static final class StatisticStoreExtractor implements VersionExtractor<StatisticMessage> {
-    @Override
-    public Long getVersion(StatisticMessage value) {
-      return value.getVersion();
-    }
-
-    @Override
-    public void setVersion(StatisticMessage value, Long version) {
-      value.setVersion(version);
-    }
-
     @Override
     public String getTag(StatisticMessage value) {
       return value.getTag();

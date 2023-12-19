@@ -200,7 +200,6 @@ const BreadCrumbs = ({
                 : fullPath.join(".")
             }
             size="L"
-            placement="bottom"
           />
         )}
       </>

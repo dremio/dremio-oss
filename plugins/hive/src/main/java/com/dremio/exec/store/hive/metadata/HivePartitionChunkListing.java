@@ -214,7 +214,7 @@ public final class HivePartitionChunkListing implements PartitionChunkListing {
       hiveConf, currentPartitionIndex, maxInputSplitsPerPartition, splitType, optionsManager);
   }
 
-  private class HivePartitionChunkIteratorForInputSplit extends AbstractIterator<PartitionChunk> {
+  private final class HivePartitionChunkIteratorForInputSplit extends AbstractIterator<PartitionChunk> {
     @Override
     public PartitionChunk computeNext() {
       try(Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
@@ -245,7 +245,7 @@ public final class HivePartitionChunkListing implements PartitionChunkListing {
     }
   }
 
-  private class HivePartitionChunkIteratorForDirListInputSplit extends AbstractIterator<PartitionChunk> {
+  private final class HivePartitionChunkIteratorForDirListInputSplit extends AbstractIterator<PartitionChunk> {
     @Override
     public PartitionChunk computeNext() {
       try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {

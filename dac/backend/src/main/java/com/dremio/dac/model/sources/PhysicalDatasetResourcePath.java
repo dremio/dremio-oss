@@ -21,46 +21,37 @@ import java.util.List;
 
 import com.dremio.dac.model.common.NamespacePath;
 import com.dremio.dac.model.common.ResourcePath;
-import com.dremio.dac.model.common.RootEntity;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.fasterxml.jackson.annotation.JsonCreator;
 
 /**
- * "source/{sourceName}/dataset/{source.[folder.]*name}"
+ * "dataset/{source.[folder.]*name}"
  *
  */
 public class PhysicalDatasetResourcePath extends ResourcePath {
 
   private final PhysicalDatasetPath dataset;
-  private final SourceName sourceName;
 
-  public PhysicalDatasetResourcePath(SourceName sourceName, PhysicalDatasetPath dataset) {
-    this.sourceName = sourceName;
+  public PhysicalDatasetResourcePath(PhysicalDatasetPath dataset) {
     this.dataset = dataset;
   }
 
   public PhysicalDatasetResourcePath(NamespacePath path, DatasetType type) {
-    PhysicalDatasetPath pdp = new PhysicalDatasetPath(path, type);
-    this.sourceName = pdp.getRoot();
-    this.dataset = pdp;
+    this.dataset = new PhysicalDatasetPath(path, type);
   }
 
   @JsonCreator
   public PhysicalDatasetResourcePath(String pathString) {
-    List<String> path = parse(pathString, "source", "dataset");
-    if (path.size() != 2) {
-      throw new IllegalArgumentException("path should be of form: /source/{sourceName}/dataset/{datasetPath}, found " + pathString);
+    List<String> path = parse(pathString, "dataset");
+    if (path.size() != 1) {
+      throw new IllegalArgumentException("path should be of form: /dataset/{datasetPath}, found " + pathString);
     }
-    this.sourceName = new SourceName(path.get(0));
-    this.dataset = new PhysicalDatasetPath(path.get(1));
-    if (this.dataset.getRootType() != RootEntity.RootType.SOURCE) {
-      throw new IllegalArgumentException("file path does not belong to a source, " + pathString);
-    }
+    this.dataset = new PhysicalDatasetPath(path.get(0));
   }
 
   @Override
   public List<String> asPath() {
-    return asList("source", sourceName.getName(), "dataset", dataset.toPathString());
+    return asList("dataset", dataset.toPathString());
   }
 
   public PhysicalDatasetPath getDataset() {

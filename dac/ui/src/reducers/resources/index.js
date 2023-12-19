@@ -21,6 +21,7 @@ import view from "./view";
 import sourceList from "./sourceList";
 import scripts from "./scripts";
 import stars from "./stars";
+import reflectionRecommendations from "./reflectionRecommendations";
 
 export default combineReducers({
   entities,
@@ -29,4 +30,5 @@ export default combineReducers({
   scripts,
   stars,
   privilegesList,
+  reflectionRecommendations,
 });

@@ -43,8 +43,8 @@ import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.planner.sql.handlers.ConvertedRelNode;
-import com.dremio.exec.planner.sql.handlers.PrelTransformer;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
+import com.dremio.exec.planner.sql.handlers.SqlToRelTransformer;
 import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
 import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.exec.planner.sql.parser.SqlOptimize;
@@ -96,7 +96,6 @@ public class TestOptimize extends BaseTestQuery {
       queryContext.getFunctionRegistry(),
       queryContext.getSession(),
       observer,
-      queryContext.getCatalog(),
       queryContext.getSubstitutionProviderFactory(),
       queryContext.getConfig(),
       queryContext.getScanResult(),
@@ -127,7 +126,7 @@ public class TestOptimize extends BaseTestQuery {
   public void testLogicalRelNodeConversion() throws Exception {
     String sql = format("OPTIMIZE TABLE %s", table.getTableName());
     final SqlNode node = converter.parse(sql);
-    final ConvertedRelNode convertedRelNode = PrelTransformer.validateAndConvert(config, node);
+    final ConvertedRelNode convertedRelNode = SqlToRelTransformer.validateAndConvert(config, node);
     assertThat(convertedRelNode.getValidatedRowType().getFieldCount()).isEqualTo(3);
 
     // find TableOptimizeRel
@@ -309,7 +308,6 @@ public class TestOptimize extends BaseTestQuery {
         "WriterCommitter.*" +
         "UnionAll.*" +
         "Writer.*" +
-        "TableFunction.*" +
         "TableFunction.*" +
         "HashJoin.*" +
         "IcebergManifestList.*" +

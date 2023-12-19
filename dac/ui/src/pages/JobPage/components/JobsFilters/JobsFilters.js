@@ -104,7 +104,7 @@ export class JobsFilters extends Component {
     this.handleEnterText = this.handleEnterText.bind(this);
   }
 
-  componentWillMount() {
+  UNSAFE_componentWillMount() {
     this.props.loadItemsForFilter("spaces");
     const { admin: isAdmin, permissions: { canViewAllJobs } = {} } =
       this.context.loggedInUser;

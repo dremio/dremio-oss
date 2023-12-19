@@ -43,6 +43,8 @@ public class TestUnionAll extends BaseTestQuery{
   private static final String sliceTargetDefault = "alter session reset \"planner.slice_target\"";
   private static final String enableDistribute = "alter session set \"planner.enable_unionall_distribute\" = true";
   private static final String defaultDistribute = "alter session reset \"planner.enable_unionall_distribute\"";
+  private static final String enableRoundRobinUnionAll = "alter session set \"planner.enable_union_all_round_robin\" = true";
+  private static final String disableRoundRobinUnionAll = "alter session set \"planner.enable_union_all_round_robin\" = false";
 
   @Rule
   public TemporarySystemProperties properties = new TemporarySystemProperties();
@@ -144,7 +146,7 @@ public class TestUnionAll extends BaseTestQuery{
         .unOrdered()
         .csvBaselineFile("testframework/testUnionAllQueries/q6_1.tsv")
         .baselineTypes(MinorType.INT, MinorType.INT)
-        .baselineColumns("n_nationkey", "n_nationkey1")
+        .baselineColumns("n_nationkey", "n_nationkey0")
         .build().run();
   }
 
@@ -1033,6 +1035,8 @@ public class TestUnionAll extends BaseTestQuery{
       test(sliceTargetSmall);
 
       testBuilder()
+        .optionSettingQueriesForTestQuery(enableRoundRobinUnionAll)
+        .optionSettingQueriesForBaseline(disableRoundRobinUnionAll)
         .unOrdered()
         .sqlQuery(query)
         .sqlBaselineQuery(query)
@@ -1041,6 +1045,7 @@ public class TestUnionAll extends BaseTestQuery{
     } finally {
       test(sliceTargetDefault);
       test(defaultDistribute);
+      test(enableRoundRobinUnionAll);
     }
   }
 
@@ -1075,6 +1080,8 @@ public class TestUnionAll extends BaseTestQuery{
       test(sliceTargetSmall);
 
       testBuilder()
+        .optionSettingQueriesForTestQuery(enableRoundRobinUnionAll)
+        .optionSettingQueriesForBaseline(disableRoundRobinUnionAll)
         .unOrdered()
         .sqlQuery(query)
         .sqlBaselineQuery(query)
@@ -1083,6 +1090,7 @@ public class TestUnionAll extends BaseTestQuery{
     } finally {
       test(sliceTargetDefault);
       test(defaultDistribute);
+      test(enableRoundRobinUnionAll);
     }
   }
 

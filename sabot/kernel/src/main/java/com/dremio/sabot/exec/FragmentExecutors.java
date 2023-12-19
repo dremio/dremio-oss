@@ -32,7 +32,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.memory.DremioRootAllocator;
 import com.dremio.common.util.LoadingCacheWithExpiry;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.ExecConstants;
@@ -54,6 +56,7 @@ import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.rpc.Acks;
 import com.dremio.exec.rpc.Response;
 import com.dremio.exec.rpc.UserRpcException;
+import com.dremio.exec.server.BootStrapContext;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.FragmentWorkManager.ExitCallback;
 import com.dremio.sabot.exec.fragment.FragmentExecutor;
@@ -95,18 +98,19 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
   private final MemoryArbiter memoryArbiter;
 
   public FragmentExecutors(
+    final BootStrapContext context,
+    final SabotConfig sabotConfig,
+    final QueriesClerk clerk,
     final MaestroProxy maestroProxy,
     final ExitCallback callback,
     final TaskPool pool,
-    final OptionManager options,
-    final MemoryArbiter memoryArbiter) {
+    final OptionManager options) {
     this.maestroProxy = maestroProxy;
     this.callback = callback;
     this.pool = pool;
     this.evictionDelayMillis = TimeUnit.SECONDS.toMillis(
       options.getOption(ExecConstants.FRAGMENT_CACHE_EVICTION_DELAY_S));
 
-    this.memoryArbiter = memoryArbiter;
     this.handlers = new LoadingCacheWithExpiry<>("fragment-handler",
       new CacheLoader<FragmentHandle, FragmentHandler>() {
         @Override
@@ -127,6 +131,7 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
 
     this.warnMaxTime = (int) options.getOption(ExecConstants.SLICING_WARN_MAX_RUNTIME_MS);
     this.options = options;
+    this.memoryArbiter = MemoryArbiter.newInstance(sabotConfig, (DremioRootAllocator) context.getAllocator(), this, clerk, options);
   }
 
   @VisibleForTesting
@@ -294,7 +299,7 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
       }
     }
 
-    AutoCloseables.close(handlers);
+    AutoCloseables.close(handlers, memoryArbiter);
   }
 
   public void startFragmentOnLocal(PlanFragmentFull planFragmentFull, FragmentExecutorBuilder fragmentExecutorBuilder) {
@@ -383,7 +388,7 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
         });
       this.fullFragments = Collections.unmodifiableList(fragmentFulls);
       this.useWeightBasedScheduling = options.getOption(ExecConstants.SHOULD_ASSIGN_FRAGMENT_PRIORITY);
-      this.useMemoryArbiter = options.getOption(ExecConstants.MEMORY_ARBITER_ENABLED);
+      this.useMemoryArbiter = options.getOption(ExecConstants.ENABLE_SPILLABLE_OPERATORS);
     }
 
     public PlanFragmentFull getFirstFragment() {
@@ -405,7 +410,7 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
     public void buildAndStartQuery(final QueryTicket queryTicket) {
       QueryId queryId = queryTicket.getQueryId();
 
-      /**
+      /*
        * To avoid race conditions between creation and deletion of phase/fragment tickets,
        * build all the fragments first (creates the tickets) and then, start the fragments (can
        * delete tickets).
@@ -425,10 +430,6 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
         }
 
         Map<Integer, Integer> priorityToWeightMap = buildPriorityToWeightMap();
-        double memorySetAsidePct = options.getOption(ExecConstants.PCT_MEMORY_SET_ASIDE);
-        if (useMemoryArbiter) {
-          memoryArbiter.setMemorySetAsidePct(memorySetAsidePct);
-        }
 
         for (PlanFragmentFull fragment : fullFragments) {
           FragmentExecutor fe = buildFragment(queryTicket, fragment, priorityToWeightMap.getOrDefault(fragment.getMajor().getFragmentExecWeight(), 1), schedulingInfo);

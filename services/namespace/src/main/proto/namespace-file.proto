@@ -34,6 +34,7 @@ message TextFileConfig {
   optional string lineDelimiter = 7 [default="\r\n"];
   optional bool autoGenerateColumnNames = 8 [default = true];
   optional bool trimHeader = 9 [default = true];
+  optional uint32 skipLines = 10 [default = 0];
 }
 
 enum HttpLogParser {

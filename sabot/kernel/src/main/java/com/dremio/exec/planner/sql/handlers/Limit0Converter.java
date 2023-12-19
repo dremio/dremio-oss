@@ -88,4 +88,5 @@ public class Limit0Converter extends BasePrelVisitor<Prel, Void, IOException> {
       throw new RelConversionException("Failure while attempting to convert limit 0 to empty rel.");
     }
   }
+
 }

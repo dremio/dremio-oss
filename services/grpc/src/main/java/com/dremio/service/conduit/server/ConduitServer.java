@@ -114,6 +114,7 @@ public class ConduitServer implements Service {
       inProcessServerBuilder.addService(serverServiceDefinition);
     }
 
+    registry.getFallbackHandler().ifPresent(fallbackRegistry -> serverBuilder.fallbackHandlerRegistry(fallbackRegistry));
 
     serverBuilder.maxInboundMetadataSize(Integer.MAX_VALUE).maxInboundMessageSize(Integer.MAX_VALUE)
       .intercept(TransmitStatusRuntimeExceptionInterceptor.instance());

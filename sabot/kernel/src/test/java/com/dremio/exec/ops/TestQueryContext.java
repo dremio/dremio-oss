@@ -26,13 +26,13 @@ import com.dremio.BaseTestQuery;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserProtos;
 import com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl;
-import com.dremio.exec.server.options.DefaultOptionManager;
 import com.dremio.exec.server.options.EagerCachingOptionManager;
-import com.dremio.exec.server.options.OptionManagerWrapper;
 import com.dremio.exec.server.options.QueryOptionManager;
 import com.dremio.exec.server.options.SessionOptionManager;
 import com.dremio.exec.server.options.SessionOptionManagerImpl;
 import com.dremio.options.OptionManager;
+import com.dremio.options.impl.DefaultOptionManager;
+import com.dremio.options.impl.OptionManagerWrapper;
 import com.dremio.sabot.rpc.user.UserSession;
 
 public class TestQueryContext extends BaseTestQuery {

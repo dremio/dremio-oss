@@ -520,7 +520,7 @@ public class ITTestLimit extends ElasticBaseTestQuery {
     assertEquals(1L, scanProfile.get().getInputProfile(0).getRecords());
   }
 
-  private static class ProfileGrabber implements QueryObserver {
+  private static final class ProfileGrabber implements QueryObserver {
     private CountDownLatch latch = new CountDownLatch(1);
     private QueryProfile profile;
     private DeferredException exception = new DeferredException();

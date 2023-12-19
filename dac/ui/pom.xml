@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>24.1.0-202306130653310132-d30779f6</version>
+    <version>24.3.0-202312190021150029-52db2faf</version>
   </parent>
   <artifactId>dremio-dac-ui</artifactId>
   <packaging>jar</packaging>
@@ -47,6 +47,7 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-clean-plugin</artifactId>
         <configuration>
+          <skip>${skip.uiclean}</skip>
           <filesets>
             <fileset>
               <directory>${project.basedir}/node_modules</directory>
@@ -59,25 +60,30 @@
         <groupId>com.mycila</groupId>
         <artifactId>license-maven-plugin</artifactId>
         <configuration>
-          <includes combine.children="append">
-            <include>**</include>
-          </includes>
-          <excludes combine.children="append">
-            <exclude>target/**</exclude> <!-- todo: ${project.build.directory} not working, unsure why -->
-            <exclude>build/**</exclude>
-            <exclude>public/**</exclude>
-            <exclude>coverage/**</exclude>
-            <exclude>.nyc_output/**</exclude>
-            <exclude>**/*.pattern</exclude>
-            <exclude>*.code-workspace</exclude>
-            <exclude>src/services/nessie/client/**</exclude>
-            <exclude>src/mockServiceWorker.js</exclude>
-            <exclude>**/*.json</exclude>
-            <exclude>**/*.md</exclude>
-            <exclude>.npmrc</exclude>
-            <exclude>.pnpmfile.cjs</exclude>
-            <exclude>**/*.gitkeep</exclude>
-          </excludes>
+          <licenseSets>
+            <licenseSet>
+              <includes combine.children="append">
+                <include>**</include>
+              </includes>
+              <excludes combine.children="append">
+                <exclude>target/**</exclude> <!-- todo: ${project.build.directory} not working, unsure why -->
+                <exclude>build/**</exclude>
+                <exclude>public/**</exclude>
+                <exclude>coverage/**</exclude>
+                <exclude>.nyc_output/**</exclude>
+                <exclude>**/*.pattern</exclude>
+                <exclude>*.code-workspace</exclude>
+                <exclude>src/services/nessie/client/**</exclude>
+                <exclude>src/mockServiceWorker.js</exclude>
+                <exclude>**/*.json</exclude>
+                <exclude>**/*.md</exclude>
+                <exclude>.npmrc</exclude>
+                <exclude>.pnpmfile.cjs</exclude>
+                <exclude>**/*.gitkeep</exclude>
+                <exclude>**/*.lottie</exclude>
+              </excludes>
+            </licenseSet>
+          </licenseSets>
           <mapping>
             <!-- full file names -->
             <browserslistrc>SCRIPT_STYLE</browserslistrc>
@@ -98,15 +104,13 @@
             <phase>initialize</phase>
             <goals>
               <goal>install-node-and-npm</goal>
-              <goal>npx</goal>
+              <goal>install-node-and-pnpm</goal>
+              <goal>pnpm</goal>
             </goals>
             <!-- Optional configuration which provides for running any npm
               command -->
             <configuration>
-              <environmentVariables>
-                <SKIP_POST>true</SKIP_POST>
-              </environmentVariables>
-              <arguments>${pnpm.execinstallscript}</arguments>
+              <arguments>${pnpm.installscript}</arguments>
             </configuration>
           </execution>
           <execution>
@@ -140,6 +144,7 @@
             </goals>
             <configuration>
               <arguments>run ${npm.buildscript} -- --output-path=${project.build.outputDirectory}/rest/dremio_static</arguments>
+              <skip>${skip.uibundle}</skip>
             </configuration>
           </execution>
         </executions>

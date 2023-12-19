@@ -15,7 +15,7 @@
  */
 import { Component } from "react";
 import PropTypes from "prop-types";
-import uuid from "uuid";
+import { v4 as uuidv4 } from "uuid";
 
 import FieldList, {
   AddButton,
@@ -83,7 +83,7 @@ export default class YarnProperties extends Component {
     } = this.props;
     e.preventDefault();
     propertyList.addField({
-      id: uuid.v4(),
+      id: uuidv4(),
       name: "",
       value: "",
       type: "JAVA_PROP",

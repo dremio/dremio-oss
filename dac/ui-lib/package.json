@@ -56,8 +56,8 @@
     "@types/react-intl": "^3.0.0",
     "@types/react-syntax-highlighter": "^15.5.2",
     "@types/react-transition-group": "^4.4.5",
-    "@typescript-eslint/eslint-plugin": "^4",
-    "@typescript-eslint/parser": "^4",
+    "@typescript-eslint/eslint-plugin": "^5",
+    "@typescript-eslint/parser": "^5",
     "@wojtekmaj/enzyme-adapter-react-17": "^0.6.7",
     "babel-jest": "^24.9.0",
     "babel-loader": "^8.2.5",
@@ -65,7 +65,7 @@
     "cross-env": "^7.0.2",
     "css-loader": "^4",
     "enzyme": "^3.11.0",
-    "eslint": "^6.8.0",
+    "eslint": "^7",
     "eslint-config-prettier": "^6",
     "eslint-plugin-react": "^7",
     "eslint-plugin-react-hooks": "^4",
@@ -97,7 +97,7 @@
     "stylelint-use-logical-spec": "^3",
     "svg-sprite": "^2.0.0",
     "ts-node": "^10.9.1",
-    "typescript": "4.7.4"
+    "typescript": "5.2.2"
   },
   "files": [
     "dist",
@@ -113,7 +113,6 @@
     "@floating-ui/react-dom-interactions": "^0.9.3",
     "@types/react": "^18",
     "clsx": "^1.1.1",
-    "copy-to-clipboard": "^3.0.8",
     "dialog-polyfill": "^0.5.6",
     "downshift": "^7.2.0",
     "invariant": "^2.2.4",
@@ -124,13 +123,13 @@
     "react-syntax-highlighter": "^15.5.0",
     "react-transition-group": "^4.4.5",
     "smart-icon": "^1.4.3",
-    "uuid": "^8.3.2"
+    "uuid": "9.0.0"
   },
   "pnpm": {
     "peerDependencyRules": {
       "allowedVersions": {
         "@babel/core": "7",
-        "typescript": "4",
+        "typescript": ">=4",
         "react": "18",
         "react-dom": "18"
       },
@@ -139,7 +138,7 @@
       ]
     }
   },
-  "packageManager": "pnpm@8.1.0",
+  "packageManager": "pnpm@8.9.0",
   "jest": {
     "roots": [
       "<rootDir>/src"

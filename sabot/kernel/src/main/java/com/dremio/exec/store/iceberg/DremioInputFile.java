@@ -15,9 +15,11 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 
+import org.apache.iceberg.exceptions.NotFoundException;
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.io.SeekableInputStream;
 
@@ -72,6 +74,8 @@ public class DremioInputFile implements InputFile {
               SeekableInputStreamFactory.DEFAULT);
       return factory.getStream(io.getFs(), io.getContext(),
           path, fileSize, mtime, io.getDataset(), io.getDatasourcePluginUID());
+    } catch (FileNotFoundException e) {
+      throw new NotFoundException(e, "Path %s not found.", path);
     } catch (IOException e) {
       throw new UncheckedIOException(String.format("Failed to create new input stream for file: %s", path), e);
     }

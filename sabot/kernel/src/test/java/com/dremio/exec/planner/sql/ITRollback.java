@@ -102,4 +102,9 @@ public class ITRollback extends ITDmlQueryBase {
   public void testInvalidSnapshotIdLiteral() throws Exception {
     RollbackTests.testInvalidSnapshotIdLiteral(SOURCE);
   }
+
+  @Test
+  public void testRollbackPartialPath() throws Exception {
+    RollbackTests.testRollbackPartialPath(allocator, SOURCE);
+  }
 }

@@ -79,32 +79,32 @@ export default class MetadataRefresh extends Component {
     const errors = { metadataPolicy: {} };
 
     if (values.metadataPolicy.namesRefreshMillis < MIN_TIME) {
-      errors.metadataPolicy.namesRefreshMillis = la(
+      errors.metadataPolicy.namesRefreshMillis = laDeprecated(
         "Dataset discovery fetch must be at least 1 minute."
       );
     }
 
     if (values.metadataPolicy.datasetDefinitionRefreshAfterMillis < MIN_TIME) {
-      errors.metadataPolicy.datasetDefinitionRefreshAfterMillis = la(
+      errors.metadataPolicy.datasetDefinitionRefreshAfterMillis = laDeprecated(
         "Dataset details fetch must be at least 1 minute."
       );
     }
 
     if (values.metadataPolicy.datasetDefinitionExpireAfterMillis < MIN_TIME) {
-      errors.metadataPolicy.datasetDefinitionExpireAfterMillis = la(
+      errors.metadataPolicy.datasetDefinitionExpireAfterMillis = laDeprecated(
         "Dataset details expiry must be at least 1 minute."
       );
     } else if (
       values.metadataPolicy.datasetDefinitionRefreshAfterMillis >
       values.metadataPolicy.datasetDefinitionExpireAfterMillis
     ) {
-      errors.metadataPolicy.datasetDefinitionExpireAfterMillis = la(
+      errors.metadataPolicy.datasetDefinitionExpireAfterMillis = laDeprecated(
         "Dataset details cannot be configured to expire faster than they fetch."
       );
     }
 
     if (values.metadataPolicy.authTTLMillis < MIN_TIME) {
-      errors.metadataPolicy.authTTLMillis = la(
+      errors.metadataPolicy.authTTLMillis = laDeprecated(
         "Authorization expiry must be at least 1 minute."
       );
     }
@@ -122,7 +122,10 @@ export default class MetadataRefresh extends Component {
   }
 
   refreshModeOptions = [
-    { label: la("Only Queried Datasets"), option: "PREFETCH_QUERIED" },
+    {
+      label: laDeprecated("Only Queried Datasets"),
+      option: "PREFETCH_QUERIED",
+    },
   ];
 
   render() {
@@ -137,13 +140,13 @@ export default class MetadataRefresh extends Component {
         {showDatasetDiscovery && (
           <div style={styles.subSection}>
             <span style={styles.label}>
-              {la("Dataset Discovery")}
-              <HoverHelp content={la(DISCOVERY_TOOLTIP)} />
+              {laDeprecated("Dataset Discovery")}
+              <HoverHelp content={laDeprecated(DISCOVERY_TOOLTIP)} />
             </span>
             <div style={styles.formSubRow}>
               <FieldWithError
                 {...metadataPolicy.namesRefreshMillis}
-                label={la("Fetch every")}
+                label={laDeprecated("Fetch every")}
                 labelStyle={styles.inputLabel}
                 errorPlacement="right"
               >
@@ -158,14 +161,14 @@ export default class MetadataRefresh extends Component {
         )}
         <div style={styles.subSection}>
           <span style={styles.label}>
-            {la("Dataset Details")}
-            <HoverHelp content={la(DETAILS_TOOLTIP)} />
+            {laDeprecated("Dataset Details")}
+            <HoverHelp content={laDeprecated(DETAILS_TOOLTIP)} />
           </span>
 
           <div style={styles.formSubRow}>
             <FieldWithError
               {...metadataPolicy.updateMode}
-              label={la("Fetch mode")}
+              label={laDeprecated("Fetch mode")}
               labelStyle={styles.inputLabel}
               errorPlacement="right"
             >
@@ -182,7 +185,7 @@ export default class MetadataRefresh extends Component {
           <div style={styles.formSubRow}>
             <FieldWithError
               {...metadataPolicy.datasetDefinitionRefreshAfterMillis}
-              label={la("Fetch every")}
+              label={laDeprecated("Fetch every")}
               labelStyle={styles.inputLabel}
               errorPlacement="right"
             >
@@ -197,7 +200,7 @@ export default class MetadataRefresh extends Component {
           <div style={styles.formSubRow}>
             <FieldWithError
               {...metadataPolicy.datasetDefinitionExpireAfterMillis}
-              label={la("Expire after")}
+              label={laDeprecated("Expire after")}
               labelStyle={styles.inputLabel}
               errorPlacement="right"
             >
@@ -212,13 +215,13 @@ export default class MetadataRefresh extends Component {
         {showAuthorization && (
           <div style={styles.subSection}>
             <span style={styles.label}>
-              {la("Authorization")}
-              <HoverHelp content={la(AUTHORIZATION_TOOLTIP)} />
+              {laDeprecated("Authorization")}
+              <HoverHelp content={laDeprecated(AUTHORIZATION_TOOLTIP)} />
             </span>
             <div style={styles.formSubRow}>
               <FieldWithError
                 {...metadataPolicy.authTTLMillis}
-                label={la("Expire after")}
+                label={laDeprecated("Expire after")}
                 labelStyle={styles.inputLabel}
                 errorPlacement="right"
               >

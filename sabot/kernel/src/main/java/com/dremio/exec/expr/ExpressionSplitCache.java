@@ -32,6 +32,7 @@ public class ExpressionSplitCache {
   private volatile boolean listenerAdded = false;
   private final OptionManager optionManager;
 
+  @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
   public ExpressionSplitCache(final OptionManager optionManager, SabotConfig config) {
     final long cacheMaxSize = config.getInt(ExecConstants.MAX_SPLIT_CACHE_SIZE_CONFIG);
     this.optionManager = optionManager;

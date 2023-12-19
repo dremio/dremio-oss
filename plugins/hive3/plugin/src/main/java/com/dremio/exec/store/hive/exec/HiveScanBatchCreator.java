@@ -18,6 +18,7 @@ package com.dremio.exec.store.hive.exec;
 import static com.dremio.exec.store.parquet.RecordReaderIterator.EMPTY_RECORD_ITERATOR;
 import static com.dremio.hive.proto.HiveReaderProto.ReaderType.NATIVE_PARQUET;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -26,13 +27,20 @@ import java.util.Objects;
 import java.util.Optional;
 
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.ql.io.orc.OrcSerde;
 import org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat;
+import org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe;
+import org.apache.hadoop.hive.serde2.AbstractSerDe;
+import org.apache.hadoop.hive.serde2.OpenCSVSerde;
+import org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe;
+import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.pf4j.Extension;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.OpProps;
@@ -42,9 +50,11 @@ import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.RuntimeFilter;
 import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.SplitAndPartitionInfo;
+import com.dremio.exec.store.SupportsPF4JStoragePlugin;
 import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
 import com.dremio.exec.store.hive.Hive3StoragePlugin;
 import com.dremio.exec.store.hive.HiveImpersonationUtil;
+import com.dremio.exec.store.hive.HiveUtilities;
 import com.dremio.exec.store.hive.proxy.HiveProxiedScanBatchCreator;
 import com.dremio.exec.store.parquet.RecordReaderIterator;
 import com.dremio.hive.proto.HiveReaderProto;
@@ -72,6 +82,7 @@ public class HiveScanBatchCreator implements HiveProxiedScanBatchCreator {
   private final ScanFilter scanFilter;
   private final Collection<List<String>> referencedTables;
   private final boolean isPartitioned;
+  private final SupportsPF4JStoragePlugin pf4JStoragePlugin;
 
   private HiveProxyingSubScan subScanConfig;
   private RecordReaderIterator recordReaderIterator;
@@ -84,8 +95,8 @@ public class HiveScanBatchCreator implements HiveProxiedScanBatchCreator {
     this.fragmentExecContext = fragmentExecContext;
     this.context = context;
 
-
-    this.storagePlugin = fragmentExecContext.getStoragePlugin(storagePluginId);
+    this.pf4JStoragePlugin = fragmentExecContext.getStoragePlugin(storagePluginId);
+    this.storagePlugin = pf4JStoragePlugin.getPF4JStoragePlugin();
     this.conf = storagePlugin.getHiveConf();
 
     try {
@@ -197,6 +208,16 @@ public class HiveScanBatchCreator implements HiveProxiedScanBatchCreator {
 
   @Override
   public void addSplits(List<SplitAndPartitionInfo> splits) {
+    if (pf4JStoragePlugin.isAWSGlue()) {
+      String tablePath = String.join(".", referencedTables.iterator().next());
+      if (!allSplitsAreOnS3(splits)) {
+        throw UserException.unsupportedError().message("AWS Glue table [%s] uses an unsupported storage system", tablePath).buildSilently();
+      }
+
+      if (!allSplitsAreSupported(tableXattr, splits, isPartitioned)) {
+        throw UserException.unsupportedError().message("AWS Glue table [%s] uses an unsupported file format", tablePath).buildSilently();
+      }
+    }
     List<SplitAndPartitionInfo> parquetSplits = new ArrayList<>();
     List<SplitAndPartitionInfo> nonParquetSplits = new ArrayList<>();
     classifySplitsAsParquetAndNonParquet(splits, tableXattr, isPartitioned, parquetSplits, nonParquetSplits);
@@ -282,6 +303,57 @@ public class HiveScanBatchCreator implements HiveProxiedScanBatchCreator {
         runtimeFilters = null;
       }
     };
+  }
+
+  private boolean allSplitsAreSupported(HiveTableXattr tableXattr, List<SplitAndPartitionInfo> splits, boolean isPartitioned) {
+    for (SplitAndPartitionInfo split : splits) {
+      String serialiazationLib;
+      if (isPartitioned) {
+        final HiveReaderProto.PartitionXattr partitionXattr = HiveReaderProtoUtil.getPartitionXattr(split);
+        serialiazationLib = HiveReaderProtoUtil.getPartitionSerializationLib(tableXattr, partitionXattr);
+      } else {
+        Optional<String> tableSerializationLib = HiveReaderProtoUtil.getTableSerializationLib(tableXattr);
+
+        if (tableSerializationLib.isPresent()) {
+          serialiazationLib = tableSerializationLib.get();
+        } else {
+          logger.error("Serialization lib property not found in table metadata.");
+          return false;
+        }
+      }
+
+      try {
+        Class<? extends AbstractSerDe> aClass = (Class<? extends AbstractSerDe>) Class.forName(serialiazationLib);
+        if (!OrcSerde.class.isAssignableFrom(aClass) &&
+          !ParquetHiveSerDe.class.isAssignableFrom(aClass) &&
+          !LazySimpleSerDe.class.isAssignableFrom(aClass) &&
+          !OpenCSVSerde.class.isAssignableFrom(aClass)) {
+          logger.error("Split [{}] is not of Parquet/Orc/CSV type. SerDe of split: {}", split, serialiazationLib);
+          return false;
+        }
+      } catch (ClassNotFoundException e) {
+        logger.error("SerDe class not found for {}", serialiazationLib);
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  boolean allSplitsAreOnS3(List<SplitAndPartitionInfo> splits) {
+    for (SplitAndPartitionInfo split : splits) {
+      try {
+        final HiveReaderProto.HiveSplitXattr splitAttr = HiveReaderProto.HiveSplitXattr.parseFrom(split.getDatasetSplitInfo().getExtendedProperty());
+        final FileSplit fullFileSplit = (FileSplit) HiveUtilities.deserializeInputSplit(splitAttr.getInputSplit());
+        if (!AsyncReaderUtils.S3_FILE_SYSTEM.contains(fullFileSplit.getPath().toUri().getScheme().toLowerCase())) {
+          logger.error("Data file {} is not on S3.", fullFileSplit.getPath());
+          return false;
+        }
+      } catch (IOException | ReflectiveOperationException e) {
+        throw new RuntimeException("Failed to parse dataset split for " + split.getPartitionInfo().getSplitKey(), e);
+      }
+    }
+    return true;
   }
 
   static RecordReaderIterator closeIfFinished(RecordReaderIterator iter) {

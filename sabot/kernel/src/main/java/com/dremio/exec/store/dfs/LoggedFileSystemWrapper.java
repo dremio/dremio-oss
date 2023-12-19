@@ -49,6 +49,25 @@ public class LoggedFileSystemWrapper implements FileSystemWrapper {
     return wrappedFs;
   }
 
+
+  /**
+   * Note this does not unwrap to a FileSystem instance, it supports unwrapping on the contained FileSystemWrapper.
+   * Naming is a bit confusing given unwrap is not the reverse of wrap.
+   */
+  @Override
+  public <T> T unwrap(Class<T> clazz) {
+    if (clazz.isInstance(this)) {
+      return clazz.cast(this);
+    }
+
+    return defaultWrapper.unwrap(clazz);
+  }
+
+  @Override
+  public boolean isWrapperFor(Class<?> clazz) {
+    return clazz.isInstance(this) || defaultWrapper.isWrapperFor(clazz);
+  }
+
   @Override
   public void close() throws IOException {
     defaultWrapper.close();

@@ -37,6 +37,7 @@ public class SessionPermissions {
   private final boolean canManageQueues;
   private final boolean canManageEngineRouting;
   private final boolean canManageSupportSettings;
+  private final boolean canConfigureSecurity;
 
   @JsonCreator
   public SessionPermissions(
@@ -53,7 +54,8 @@ public class SessionPermissions {
       @JsonProperty("canManageEngines") boolean canManageEngines,
       @JsonProperty("canManageQueues") boolean canManageQueues,
       @JsonProperty("canManageEngineRouting") boolean canManageEngineRouting,
-      @JsonProperty("canManageSupportSettings") boolean canManageSupportSettings) {
+      @JsonProperty("canManageSupportSettings") boolean canManageSupportSettings,
+      @JsonProperty("canConfigureSecurity") boolean canConfigureSecurity) {
     super();
     this.canUploadProfiles = canUploadProfiles;
     this.canDownloadProfiles = canDownloadProfiles;
@@ -69,6 +71,7 @@ public class SessionPermissions {
     this.canManageQueues = canManageQueues;
     this.canManageEngineRouting = canManageEngineRouting;
     this.canManageSupportSettings = canManageSupportSettings;
+    this.canConfigureSecurity = canConfigureSecurity;
   }
 
   public boolean isCanUploadProfiles() {
@@ -113,5 +116,7 @@ public class SessionPermissions {
   public boolean isCanManageSupportSettings() {
     return canManageSupportSettings;
   }
-
+  public boolean isCanConfigureSecurity() {
+    return canConfigureSecurity;
+  }
 }

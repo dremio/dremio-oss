@@ -1,0 +1,16 @@
+@keyframes opacity {
+  from {
+    opacity: 0.25;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.animate-opacity {
+  animation-name: opacity;
+}
+.animate-pulse {
+  animation-direction: alternate;
+  animation-duration: 500ms;
+  animation-iteration-count: infinite;
+}

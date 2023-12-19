@@ -82,7 +82,7 @@ public class PDFSService implements Service {
   public void start() throws Exception {
     FabricService fabricService = this.fabricService.get();
 
-    pool = new ContextMigratingCloseableExecutorService<>(new CloseableThreadPool("pdfs"), tracer);
+    pool = new ContextMigratingCloseableExecutorService<>(new CloseableThreadPool("pdfs"));
 
     FabricRunnerFactory factory = fabricService.registerProtocol(PDFSProtocol.newInstance(identityProvider.get(), this.config, allocator, allowLocalAccess));
 

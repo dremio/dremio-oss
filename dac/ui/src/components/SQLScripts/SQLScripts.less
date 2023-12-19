@@ -52,7 +52,7 @@
     }
 
     .MuiList-root {
-      max-height: calc(100vh - 235px);
+      max-height: calc(100vh - 269px);
       min-height: 490px;
       overflow-y: auto !important;
       width: 100%;
@@ -116,6 +116,13 @@
       }
     }
   }
+
+  .TreeBrowser.--withTabs .sqlScripts {
+    .MuiList-root {
+      max-height: calc(100vh - 205px);
+    }
+  }
+
   .menu-item-inner {
     &.--delete {
       color: @FIGMA_STATUS_ERROR;

@@ -68,6 +68,18 @@ public interface ScriptService extends Service {
     throws ScriptNotFoundException, DuplicateScriptNameException, ScriptNotAccessible;
 
   /**
+   * update script context and version references from job session
+   *
+   * @param scriptId
+   * @param sessionId
+   * @return
+   * @throws ScriptNotFoundException
+   * @throws ScriptNotAccessible
+   */
+  Script updateScriptContext(String scriptId, String sessionId)
+    throws ScriptNotFoundException, ScriptNotAccessible;
+
+  /**
    * get script by id
    *
    * @param scriptId

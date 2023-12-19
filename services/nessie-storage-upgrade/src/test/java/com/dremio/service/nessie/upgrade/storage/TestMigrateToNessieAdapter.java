@@ -16,6 +16,7 @@
 package com.dremio.service.nessie.upgrade.storage;
 
 import static com.dremio.service.nessie.upgrade.storage.MigrateToNessieAdapter.MAX_ENTRIES_PER_COMMIT;
+import static com.dremio.test.DremioTest.CLASSPATH_SCAN_RESULT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -39,11 +40,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.projectnessie.model.CommitMeta;
-import org.projectnessie.model.Content;
 import org.projectnessie.model.ContentKey;
 import org.projectnessie.model.IcebergTable;
 import org.projectnessie.nessie.relocated.protobuf.ByteString;
 import org.projectnessie.versioned.BranchName;
+import org.projectnessie.versioned.ContentResult;
 import org.projectnessie.versioned.GetNamedRefsParams;
 import org.projectnessie.versioned.ImmutablePut;
 import org.projectnessie.versioned.ReferenceInfo;
@@ -67,7 +68,7 @@ import com.google.common.collect.ImmutableList;
 /**
  * Unit tests for {@link MigrateToNessieAdapter}.
  */
-class TestMigrateToNessieAdapter extends AbstractNessieUpgradeTest {
+class TestMigrateToNessieAdapter {
 
   private static final String UPGRADE_BRANCH_NAME = "upgrade-test";
 
@@ -78,7 +79,7 @@ class TestMigrateToNessieAdapter extends AbstractNessieUpgradeTest {
   @BeforeEach
   void createKVStore() throws Exception {
     task = new MigrateToNessieAdapter();
-    storeProvider = new LocalKVStoreProvider(scanResult, null, true, false); // in-memory
+    storeProvider = new LocalKVStoreProvider(CLASSPATH_SCAN_RESULT, null, true, false); // in-memory
     storeProvider.start();
 
     NessieDatastoreInstance nessieDatastore = new NessieDatastoreInstance();
@@ -178,11 +179,11 @@ class TestMigrateToNessieAdapter extends AbstractNessieUpgradeTest {
 
     VersionStore versionStore = new PersistVersionStore(adapter);
 
-    Map<ContentKey, Content> tables = versionStore.getValues(BranchName.of("main"), keys);
+    Map<ContentKey, ContentResult> tables = versionStore.getValues(BranchName.of("main"), keys);
 
     assertThat(tables.entrySet().stream().map(e -> {
       ContentKey key = e.getKey();
-      IcebergTable table = (IcebergTable) e.getValue();
+      IcebergTable table = (IcebergTable) e.getValue().content();
       return table.getMetadataLocation() + "|" + key;
     })).containsExactlyInAnyOrder(testEntries.toArray(new String[0]));
 

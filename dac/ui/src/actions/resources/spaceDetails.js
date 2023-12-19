@@ -31,56 +31,67 @@ import {
   getRefQueryParams,
   getRefQueryParamsFromDataset,
 } from "@app/utils/nessieUtils";
+import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";
+
+const { t } = getIntlContext();
 
 export const ADD_FOLDER_START = "ADD_FOLDER_START";
 export const ADD_FOLDER_SUCCESS = "ADD_FOLDER_SUCCESS";
 export const ADD_FOLDER_FAILURE = "ADD_FOLDER_FAILURE";
 
-export const addNewFolderForSpace = (name) => (dispatch, getState) => {
-  const state = getState();
-  const parentType = getEntityType(state);
-  const parentPath = getNormalizedEntityPath(state);
+export const addNewFolderForSpace =
+  (name, addToRoot) => (dispatch, getState) => {
+    const state = getState();
+    const parentType = getEntityType(state);
+    const parentPath = getNormalizedEntityPath(state);
 
-  const [sourceName] = parentPath.replace("/source/", "").split("/");
-  const params = getRefQueryParams(state.nessie, sourceName);
+    const [sourceName] = parentPath.replace("/source/", "").split("/");
+    const params = getRefQueryParams(state.nessie, sourceName);
 
-  const resourcePath =
-    parentType === ENTITY_TYPES.folder
-      ? `${parentPath}`
-      : `${parentPath}/folder/`;
-  const meta = { resourcePath, invalidateViewIds: [HOME_CONTENTS_VIEW_ID] };
+    let resourcePath =
+      parentType === ENTITY_TYPES.folder
+        ? `${parentPath}`
+        : `${parentPath}/folder/`;
 
-  const apiCall = new APIV2Call()
-    .paths(resourcePath)
-    .params(params)
-    .uncachable();
+    // Add to root path, ignoring folder subpath
+    if (addToRoot && resourcePath.includes("/folder/")) {
+      const [rootPath] = resourcePath.split("/folder/");
+      resourcePath = `${rootPath}/folder/`;
+    }
 
-  return dispatch({
-    [RSAA]: {
-      types: [
-        {
-          type: ADD_FOLDER_START,
-          meta,
-        },
-        schemaUtils.getSuccessActionTypeWithSchema(
-          ADD_FOLDER_SUCCESS,
-          folderSchema,
-          meta
-        ),
-        {
-          type: ADD_FOLDER_FAILURE,
-          meta,
-        },
-      ],
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name,
-      }),
-      endpoint: apiCall,
-    },
-  });
-};
+    const meta = { resourcePath };
+
+    const apiCall = new APIV2Call()
+      .paths(resourcePath)
+      .params(params)
+      .uncachable();
+
+    return dispatch({
+      [RSAA]: {
+        types: [
+          {
+            type: ADD_FOLDER_START,
+            meta,
+          },
+          schemaUtils.getSuccessActionTypeWithSchema(
+            ADD_FOLDER_SUCCESS,
+            folderSchema,
+            { ...meta, invalidateViewIds: [HOME_CONTENTS_VIEW_ID] }
+          ),
+          {
+            type: ADD_FOLDER_FAILURE,
+            meta,
+          },
+        ],
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+        }),
+        endpoint: apiCall,
+      },
+    });
+  };
 
 export const REMOVE_SPACE_FOLDER_START = "REMOVE_SPACE_FOLDER_START";
 export const REMOVE_SPACE_FOLDER_SUCCESS = "REMOVE_SPACE_FOLDER_SUCCESS";
@@ -90,12 +101,29 @@ function fetchRemoveFolder(folder) {
   const resourcePath = folder.getIn(["links", "self"]);
   const meta = {
     resourcePath,
-    invalidateViewIds: [HOME_CONTENTS_VIEW_ID],
   };
 
-  const apiCall = new APIV2Call()
-    .paths(resourcePath)
-    .params({ version: folder.get("version") });
+  const refParams = getRefQueryParamsFromDataset(folder.get("fullPathList"));
+
+  const apiCall = new APIV2Call().paths(resourcePath).params({
+    ...(folder.get("version") && { version: folder.get("version") }),
+    ...refParams,
+  });
+
+  const failureMeta = {
+    ...meta,
+    notification: {
+      message: laDeprecated("There was an error removing the folder."),
+      level: "error",
+    },
+  };
+  const notEmptyMeta = {
+    ...meta,
+    notification: {
+      message: t("nessie_catalog:folder_is_not_empty"),
+      level: "error",
+    },
+  };
 
   return {
     [RSAA]: {
@@ -106,16 +134,29 @@ function fetchRemoveFolder(folder) {
         },
         {
           type: REMOVE_SPACE_FOLDER_SUCCESS,
-          meta: { ...meta, success: true },
+          meta: {
+            ...meta,
+            success: true,
+            invalidateViewIds: [HOME_CONTENTS_VIEW_ID],
+          },
         },
         {
           type: REMOVE_SPACE_FOLDER_FAILURE,
-          meta: {
-            ...meta,
-            notification: {
-              message: la("There was an error removing the folder."),
-              level: "error",
-            },
+          payload: () => {
+            //Disable internal res.json parsing
+            return null;
+          },
+          meta: async (action, state, res) => {
+            try {
+              const json = await res.json();
+              if (json.errorMessage === "nessie_catalog:folder_is_not_empty") {
+                return notEmptyMeta;
+              } else {
+                return failureMeta;
+              }
+            } catch (e) {
+              return failureMeta;
+            }
           },
         },
       ],
@@ -139,9 +180,8 @@ function fetchRemoveFile(file) {
   const resourcePath = file.getIn(["links", "self"]);
   const meta = {
     resourcePath,
-    invalidateViewIds: [HOME_CONTENTS_VIEW_ID],
   };
-  const errorMessage = la("There was an error removing the file.");
+  const errorMessage = laDeprecated("There was an error removing the file.");
 
   const apiCall = new APIV2Call()
     .paths(resourcePath)
@@ -156,7 +196,11 @@ function fetchRemoveFile(file) {
         },
         {
           type: REMOVE_FILE_SUCCESS,
-          meta: { ...meta, success: true },
+          meta: {
+            ...meta,
+            success: true,
+            invalidateViewIds: [HOME_CONTENTS_VIEW_ID],
+          },
         },
         {
           type: REMOVE_FILE_FAILURE,
@@ -183,10 +227,8 @@ export const REMOVE_FILE_FORMAT_SUCCESS = "REMOVE_FILE_FORMAT_SUCCESS";
 export const REMOVE_FILE_FORMAT_FAILURE = "REMOVE_FILE_FORMAT_FAILURE";
 
 function fetchRemoveFileFormat(file) {
-  const meta = {
-    invalidateViewIds: [HOME_CONTENTS_VIEW_ID],
-  };
-  const errorMessage = la(
+  const meta = {};
+  const errorMessage = laDeprecated(
     "There was an error removing the format for the file."
   );
   const entityRemovePaths = [["fileFormat", file.getIn(["fileFormat", "id"])]];
@@ -201,7 +243,12 @@ function fetchRemoveFileFormat(file) {
         { type: REMOVE_FILE_FORMAT_START, meta },
         {
           type: REMOVE_FILE_FORMAT_SUCCESS,
-          meta: { ...meta, success: true, entityRemovePaths },
+          meta: {
+            ...meta,
+            success: true,
+            entityRemovePaths,
+            invalidateViewIds: [HOME_CONTENTS_VIEW_ID],
+          },
         },
         {
           type: REMOVE_FILE_FORMAT_FAILURE,
@@ -229,7 +276,7 @@ export const RENAME_SPACE_DATASET_FAILURE = "RENAME_SPACE_DATASET_FAILURE";
 
 function fetchRenameDataset(dataset, newName) {
   const href = constructFullPathAndEncode(dataset.get("fullPathList"));
-  const meta = { newName, invalidateViewIds: [HOME_CONTENTS_VIEW_ID] };
+  const meta = { newName };
 
   const apiCall = new APIV2Call()
     .paths(`dataset/${href}/rename`)
@@ -245,7 +292,10 @@ function fetchRenameDataset(dataset, newName) {
         schemaUtils.getSuccessActionTypeWithSchema(
           RENAME_SPACE_DATASET_SUCCESS,
           datasetSchema,
-          meta
+          {
+            ...meta,
+            invalidateViewIds: [HOME_CONTENTS_VIEW_ID],
+          }
         ),
         {
           type: RENAME_SPACE_DATASET_FAILURE,
@@ -272,13 +322,12 @@ function fetchRemoveDataset(dataset) {
   const href = dataset.get("resourcePath");
   const meta = {
     name: dataset.get("name"),
-    invalidateViewIds: [ALL_SPACES_VIEW_ID, HOME_CONTENTS_VIEW_ID],
   };
   const notification = {
-    message: la("Successfully removed."),
+    message: laDeprecated("Successfully removed."),
     level: "success",
   };
-  const errorMessage = la("There was an error removing the dataset.");
+  const errorMessage = laDeprecated("There was an error removing the dataset.");
 
   const apiCall = new APIV2Call().fullpath(href);
 
@@ -298,7 +347,12 @@ function fetchRemoveDataset(dataset) {
         },
         {
           type: REMOVE_DATASET_SUCCESS,
-          meta: { ...meta, success: true, notification },
+          meta: {
+            ...meta,
+            success: true,
+            notification,
+            invalidateViewIds: [ALL_SPACES_VIEW_ID, HOME_CONTENTS_VIEW_ID],
+          },
         },
         {
           type: REMOVE_DATASET_FAILURE,

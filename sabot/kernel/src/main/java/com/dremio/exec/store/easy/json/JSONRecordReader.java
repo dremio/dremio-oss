@@ -15,12 +15,15 @@
  */
 package com.dremio.exec.store.easy.json;
 
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 
 import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.complex.impl.VectorContainerWriter;
+import org.apache.arrow.vector.types.pojo.Field;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
@@ -28,11 +31,19 @@ import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.physical.config.ExtendedFormatOptions;
+import com.dremio.exec.physical.config.ExtendedProperties;
+import com.dremio.exec.physical.config.SimpleQueryContext;
+import com.dremio.exec.physical.config.copyinto.CopyErrorsExtendedProperties;
+import com.dremio.exec.physical.config.copyinto.CopyIntoQueryProperties;
 import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.AbstractRecordReader;
+import com.dremio.exec.store.dfs.easy.ExtendedEasyReaderProperties;
 import com.dremio.exec.store.easy.json.JsonProcessor.ReadState;
 import com.dremio.exec.store.easy.json.reader.CountingJsonReader;
+import com.dremio.exec.tablefunctions.copyerrors.ValidationErrorRowWriter;
 import com.dremio.exec.vector.complex.fn.JsonReader;
+import com.dremio.exec.vector.complex.fn.JsonReaderIOException;
 import com.dremio.exec.vector.complex.fn.TransformationException;
 import com.dremio.io.CompressionCodecFactory;
 import com.dremio.io.file.FileSystem;
@@ -46,6 +57,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
+import io.protostuff.ByteString;
+
 public class JSONRecordReader extends AbstractRecordReader {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JSONRecordReader.class);
 
@@ -54,6 +67,8 @@ public class JSONRecordReader extends AbstractRecordReader {
   private boolean readNumbersAsDouble;
   private boolean schemaImposedMode;
   private ExtendedFormatOptions extendedFormatOptions;
+  private CopyIntoQueryProperties copyIntoQueryProperties;
+  private SimpleQueryContext queryContext;
 
   // Data we're consuming
   private final Path fsPath;
@@ -68,6 +83,14 @@ public class JSONRecordReader extends AbstractRecordReader {
   private long runningRecordCount = 0;
 
   private InputStream stream;
+
+  // copy_errors
+  private boolean isValidationMode = false;
+  private BatchSchema validatedTableSchema = null;
+  private String originalJobId = null;
+  private ValueVector[] validationResult;
+  private ValidationErrorRowWriter validationErrorRowWriter = null;
+  private final String filePathForError;
 
   /**
    * Create a JSON Record Reader that uses a file based input stream.
@@ -137,6 +160,9 @@ public class JSONRecordReader extends AbstractRecordReader {
     final OptionManager options = operatorContext.getOptions();
     this.enableAllTextMode = embeddedContent == null && options.getOption(ExecConstants.JSON_READER_ALL_TEXT_MODE_VALIDATOR);
     this.readNumbersAsDouble = embeddedContent == null && options.getOption(ExecConstants.JSON_READ_NUMBERS_AS_DOUBLE_VALIDATOR);
+
+    // We don't care about the URI schema but the actual path only in the errors
+    this.filePathForError = fsPath == null ? "" : fsPath.toURI().getPath();
   }
 
   public JSONRecordReader(final OperatorContext operatorContext,
@@ -144,11 +170,24 @@ public class JSONRecordReader extends AbstractRecordReader {
                           final CompressionCodecFactory codecFactory,
                           final FileSystem fileSystem,
                           final List<SchemaPath> columns,
-                          final Boolean schemaImposedMode,
-                          final ExtendedFormatOptions extendedFormatOptions) {
+                          final ExtendedEasyReaderProperties properties,
+                          final ByteString extendedProperties) {
     this(operatorContext, inputPath, null, codecFactory, fileSystem, columns);
-    this.schemaImposedMode = schemaImposedMode;
-    this.extendedFormatOptions = extendedFormatOptions;
+    if (properties != null) {
+      this.schemaImposedMode = properties.isSchemaImposed();
+      this.extendedFormatOptions = properties.getExtendedFormatOptions();
+      ExtendedProperties exProps = ExtendedProperties.Util.getProperties(extendedProperties);
+      this.copyIntoQueryProperties = exProps.getProperty(ExtendedProperties.PropertyKey.COPY_INTO_QUERY_PROPERTIES, CopyIntoQueryProperties.class);
+      this.queryContext = exProps.getProperty(ExtendedProperties.PropertyKey.QUERY_CONTEXT, SimpleQueryContext.class);
+      CopyErrorsExtendedProperties copyErrorsExtendedProperties =
+          exProps.getProperty(ExtendedProperties.PropertyKey.COPY_ERROR_PROPERTIES, CopyErrorsExtendedProperties.class);
+
+      if (copyErrorsExtendedProperties != null) {
+        this.isValidationMode = true;
+        this.validatedTableSchema = copyErrorsExtendedProperties.getValidatedTableSchema();
+        this.originalJobId = copyErrorsExtendedProperties.getOriginalJobId();
+      }
+    }
   }
 
   public void resetSpecialSchemaOptions() {
@@ -178,10 +217,14 @@ public class JSONRecordReader extends AbstractRecordReader {
       } else {
         final int sizeLimit = Math.toIntExact(this.context.getOptions().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES));
         final int maxLeafLimit = Math.toIntExact(this.context.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX));
+        setupForValidationMode(output);
+        BatchSchema batchSchema = isValidationMode ? validatedTableSchema :
+            (output.getContainer() != null && output.getContainer().hasSchema()? output.getContainer().getSchema() : null);
         this.jsonReader = new JsonReader(
-          context.getManagedBuffer(), ImmutableList.copyOf(getColumns()), sizeLimit, maxLeafLimit, enableAllTextMode, true, readNumbersAsDouble,
-                schemaImposedMode, extendedFormatOptions, context, output.getContainer() != null && output.getContainer().hasSchema()? output.getContainer().getSchema() : null,
-                context.getOptions().getOption(PlannerSettings.ENFORCE_VALID_JSON_DATE_FORMAT_ENABLED));
+          context.getManagedBuffer(), ImmutableList.copyOf(getColumns()), sizeLimit, maxLeafLimit, enableAllTextMode, true,
+          readNumbersAsDouble, schemaImposedMode, extendedFormatOptions, copyIntoQueryProperties, queryContext, context,
+          batchSchema, context.getOptions().getOption(PlannerSettings.ENFORCE_VALID_JSON_DATE_FORMAT_ENABLED),
+          filePathForError, isValidationMode, validationErrorRowWriter);
       }
       setupParser();
     } catch(final Exception e) {
@@ -201,8 +244,23 @@ public class JSONRecordReader extends AbstractRecordReader {
     }
   }
 
-  protected void handleAndRaise(String suffix, Exception e) throws UserException {
+  private void setupForValidationMode(OutputMutator outputMutator) {
+    if (isValidationMode) {
+      BatchSchema validationResultSchema = outputMutator.getContainer().getSchema();
+      this.validationResult = new ValueVector[validationResultSchema.getTotalFieldCount()];
+      int fieldIx = 0;
+      for (Field f : validationResultSchema) {
+        validationResult[fieldIx++] = outputMutator.getVector(f.getName());
+      }
+      this.validationErrorRowWriter = ValidationErrorRowWriter.newVectorWriter(
+        validationResult, filePathForError, originalJobId, () -> 0);
+    }
+  }
 
+  protected void handleAndRaise(String suffix, Throwable e) throws UserException {
+    if (e instanceof JsonReaderIOException) {
+      e = e.getCause();
+    }
     String message = e.getMessage();
     int columnNr = -1;
     int lineNr = -1;
@@ -212,6 +270,7 @@ public class JSONRecordReader extends AbstractRecordReader {
       columnNr = ex.getLocation().getColumnNr();
       lineNr = ex.getLocation().getLineNr();
     }
+
     StringBuilder errorMsgBuilder = new StringBuilder();
     errorMsgBuilder.append(String.format("%s - %s", suffix, message));
     UserException.Builder exceptionBuilder = UserException.dataReadError(e);
@@ -221,11 +280,11 @@ public class JSONRecordReader extends AbstractRecordReader {
 
     if (fsPath != null) {
       exceptionBuilder.pushContext("Record ", currentRecordNumberInFile())
-          .pushContext("File ", fsPath.toURI().getPath());
-      if(e instanceof TransformationException) {
+          .pushContext("File ", filePathForError);
+      if (e instanceof TransformationException) {
         lineNr = ((TransformationException) e).getLineNumber();
       }
-      errorMsgBuilder.append(String.format(" File: %s", fsPath.toURI().getPath()));
+      errorMsgBuilder.append(String.format(" File: %s", filePathForError));
       errorMsgBuilder.append(String.format(" Line: %s,", lineNr));
       errorMsgBuilder.append(String.format(" Record: %s", currentRecordNumberInFile()));
     }
@@ -251,10 +310,17 @@ public class JSONRecordReader extends AbstractRecordReader {
         writer.setPosition(recordCount);
         write = jsonReader.write(writer);
 
-        if(write == ReadState.WRITE_SUCCEED) {
+        if (write == ReadState.WRITE_SUCCEED) {
 //          logger.debug("Wrote record.");
+          if (isValidationMode) {
+            continue;
+          }
           recordCount++;
-        }else{
+        } else if (write == ReadState.VALIDATION_ERROR) {
+          // for JSON we bail out at the first validation error
+          recordCount = 1;
+          break;
+        } else {
 //          logger.debug("Exiting.");
           break outside;
         }

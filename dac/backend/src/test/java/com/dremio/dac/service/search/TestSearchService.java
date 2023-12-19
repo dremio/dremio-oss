@@ -160,7 +160,7 @@ public class TestSearchService extends BaseTestServer {
     NamespaceKey namespaceKey = new NamespaceKey(path);
 
     ViewCreatorFactory vcf = l(ViewCreatorFactory.class);
-    vcf.get(DEFAULT_USERNAME).createView(path, sql, Collections.emptyList());
+    vcf.get(DEFAULT_USERNAME).createView(path, sql, Collections.emptyList(), false);
 
     DatasetConfig dataset = newNamespaceService().getDataset(namespaceKey);
 

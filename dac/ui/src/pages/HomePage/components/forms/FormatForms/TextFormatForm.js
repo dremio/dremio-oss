@@ -171,7 +171,7 @@ export default class TextFormatForm extends Component {
         <div style={styles.row}>
           <FormatField
             {...fieldProps(fieldDelimiter)}
-            label={intl.formatMessage({ id: "File.FieldDelimiter" })}
+            label={intl.formatMessage({ id: "File.ColumnDelimiter" })}
             options={fieldDelimiterOptions}
           />
           <FormatField
@@ -206,7 +206,7 @@ export default class TextFormatForm extends Component {
                 disabled={disabled}
                 style={styles.checkbox}
                 dataQa="extract-field-names"
-                label={intl.formatMessage({ id: "File.ExtractFieldNames" })}
+                label={intl.formatMessage({ id: "File.ExtractColumnNames" })}
                 {...extractHeader}
               />
               <Checkbox
@@ -221,7 +221,7 @@ export default class TextFormatForm extends Component {
               <Checkbox
                 disabled={disabled}
                 style={styles.checkbox}
-                label={intl.formatMessage({ id: "File.TrimFieldNames" })}
+                label={intl.formatMessage({ id: "File.TrimColumnNames" })}
                 {...trimHeader}
               />
             </div>

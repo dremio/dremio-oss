@@ -31,8 +31,8 @@ const FIELDS = ["containerCount"];
 function validate(values) {
   return {
     ...applyValidators(values, [
-      isRequired("containerCount", la("Executors count")),
-      isNumber("containerCount", la("Executors count")),
+      isRequired("containerCount", laDeprecated("Executors count")),
+      isNumber("containerCount", laDeprecated("Executors count")),
     ]),
   };
 }
@@ -66,13 +66,13 @@ export class AdjustWorkersForm extends Component {
       <ModalForm
         {...modalFormProps(this.props)}
         onSubmit={handleSubmit(this.submit)}
-        confirmText={la("Adjust")}
+        confirmText={laDeprecated("Adjust")}
       >
         <FormBody style={style}>
           <ResourceSummary entity={entity} />
           <FieldWithError
             style={styles.formRow}
-            label={la("Executors")}
+            label={laDeprecated("Executors")}
             labelStyle={styles.formLabel}
             {...fields.containerCount}
           >

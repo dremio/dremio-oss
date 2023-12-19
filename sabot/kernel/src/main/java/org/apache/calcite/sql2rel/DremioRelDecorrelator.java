@@ -26,18 +26,18 @@ import org.apache.calcite.tools.RelBuilderFactory;
 
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.exec.planner.logical.DremioRelFactories;
+import com.dremio.exec.planner.logical.FlattenDecorrelator;
 import com.dremio.service.Pointer;
 
 /**
  * Dremio version of RelDecorrelator extended from Calcite
  */
-public class DremioRelDecorrelator extends RelDecorrelator {
-
+public final class DremioRelDecorrelator extends RelDecorrelator {
   private static final String DECORRELATION_ERROR_MESSAGE = "This query cannot be decorrelated.";
 
   private boolean isRelPlanning;
 
-  protected DremioRelDecorrelator(
+  public DremioRelDecorrelator(
       CorelMap cm,
       Context context,
       RelBuilder relBuilder,
@@ -66,12 +66,17 @@ public class DremioRelDecorrelator extends RelDecorrelator {
    * @return Equivalent query with all
    * {@link Correlate} instances removed
    */
-  public static RelNode decorrelateQuery(RelNode rootRel,
-    RelBuilder relBuilder, boolean forceValueGenerator, boolean isRelPlanning) {
+  public static RelNode decorrelateQuery(
+    RelNode rootRel,
+    RelBuilder relBuilder,
+    boolean forceValueGenerator,
+    boolean isRelPlanning) {
+    rootRel = FlattenDecorrelator.decorrelate(rootRel, relBuilder);
     final CorelMap corelMap = new CorelMapBuilder().build(rootRel);
     if (!corelMap.hasCorrelation()) {
       return rootRel;
     }
+
     final RelOptCluster cluster = rootRel.getCluster();
     final DremioRelDecorrelator decorrelator =
       new DremioRelDecorrelator(corelMap, cluster.getPlanner().getContext(), relBuilder, forceValueGenerator, isRelPlanning);
@@ -79,24 +84,33 @@ public class DremioRelDecorrelator extends RelDecorrelator {
     if (!decorrelator.cm.getMapCorToCorRel().isEmpty()) {
       newRootRel = decorrelator.decorrelate(newRootRel);
     }
+
     return newRootRel;
   }
 
-  public static RelNode decorrelateQuery(RelNode rootRel, RelBuilder relBuilder, boolean isRelPlanning) {
-    final RelNode decorrelatedWithValueGenerator = decorrelateQuery(rootRel, relBuilder, true, isRelPlanning);
-    if (correlateCount(decorrelatedWithValueGenerator) != 0) {
-      return decorrelateQuery(rootRel, relBuilder, false, isRelPlanning);
+  public static RelNode decorrelateQuery(
+    RelNode rootRel,
+    RelBuilder relBuilder,
+    boolean isRelPlanning) {
+    // Try with both forceValueGenerator true and false
+    RelNode decorrelateQuery = decorrelateQuery(
+      rootRel,
+      relBuilder,
+      true,
+      isRelPlanning);
+    if (correlateCount(decorrelateQuery) != 0) {
+      decorrelateQuery = decorrelateQuery(
+        rootRel,
+        relBuilder,
+        false,
+        isRelPlanning);
     }
-    return decorrelatedWithValueGenerator;
-  }
 
-  /**
-   * Will throw an exception if decorrelation was not successful.
-   */
-  public static RelNode decorrelateAndValidateQuery(RelNode rootRel, RelBuilder relBuilder, boolean isRelPlanning) {
-    final RelNode decorrelatedQuery = decorrelateQuery(rootRel, relBuilder, isRelPlanning);
-    ensureDecorrelated(decorrelatedQuery);
-    return decorrelatedQuery;
+    if (correlateCount(decorrelateQuery) != 0) {
+      throw new DecorrelationException(DECORRELATION_ERROR_MESSAGE);
+    }
+
+    return decorrelateQuery;
   }
 
   @Override
@@ -104,6 +118,7 @@ public class DremioRelDecorrelator extends RelDecorrelator {
     // There are no inputs, so rel does not need to be changed.
     return decorrelateRel((RelNode)rel, isCorVarDefined);
   }
+
   public static int correlateCount(RelNode rel) {
     final Pointer<Integer> count = new Pointer<>(0);
     rel.accept(new StatelessRelShuttleImpl() {
@@ -122,11 +137,5 @@ public class DremioRelDecorrelator extends RelDecorrelator {
       }
     });
     return count.value;
-  }
-
-  private static void ensureDecorrelated(RelNode rel) {
-    if (correlateCount(rel) > 0) {
-      throw new DecorrelationException(DECORRELATION_ERROR_MESSAGE);
-    }
   }
 }

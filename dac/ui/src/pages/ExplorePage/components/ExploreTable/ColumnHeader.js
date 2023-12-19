@@ -202,7 +202,9 @@ export class ColumnHeader extends PureComponent {
 
     const iconProps = {
       type: typeToIconType[type],
-      tooltip: canClick ? la("Change type") : la("Data type"),
+      tooltip: canClick
+        ? laDeprecated("Change type")
+        : laDeprecated("Data type"),
       theme: styles.typeColumn,
       id: `${label} + type`,
       class: "type",

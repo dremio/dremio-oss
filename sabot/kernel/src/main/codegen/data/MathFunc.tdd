@@ -75,12 +75,17 @@ unaryMathFunctions : [
       {input: "Float8", outputType: "Float8", castType: "double", roundingRequired: "true"},
      ] 
     },
-    {className: "LeftShift", funcName: "lshift", javaFunc: " << ", types: [
+    {className: "LeftShift", funcName: "lshift", funcAlias: "shiftleft", javaFunc: " << ", types: [
       {input: "Int", outputType: "Int", castType: "int"},
       {input: "BigInt", outputType: "BigInt", castType: "long"},
      ]
     },
-    {className: "RightShift", funcName: "rshift", javaFunc: " >> ", types: [
+    {className: "RightShift", funcName: "rshift", funcAlias: "shiftright", javaFunc: " >> ", types: [
+      {input: "Int", outputType: "Int", castType: "int"},
+      {input: "BigInt", outputType: "BigInt", castType: "long"},
+     ]
+    }
+    {className: "ShiftRightUnsigned", funcName: "shiftrightunsigned", funcAlias: "rshiftunsigned", javaFunc: " >>> ", types: [
       {input: "Int", outputType: "Int", castType: "int"},
       {input: "BigInt", outputType: "BigInt", castType: "long"},
      ]
@@ -248,6 +253,15 @@ otherTrigoMathFunctions : [
       {input: "BigInt"},
       {input: "Float4"},
       {input: "Float8"},
+     ]
+ }
+],
+dualOpWithCast: [
+  {className: "PMod", funcName: "pmod", javaFunc : "com.dremio.exec.util.DecimalUtils.pmod", callType: "double", types: [
+      {input: "Int", cast: "int", output: "Int"},
+      {input: "BigInt", cast: "long", output: "BigInt"},
+      {input: "Float4", cast: "float", output: "Float4"},
+      {input: "Float8", cast: "double", output: "Float8"},
      ]
  }
 ]

@@ -37,6 +37,7 @@ enum ReflectionState {
   DEPRECATE = 6;
   UPDATE = 7;
   COMPACTING = 8;
+  REFRESH_PENDING = 9;
 }
 
 // represent an individual, concrete acceleration
@@ -64,7 +65,8 @@ message ReflectionEntry {
   optional int32 shallowDatasetHash = 24;
   optional bool arrowCachingEnabled = 25 [default = false]; // true if boost columns are enabled for caching
   optional ReflectionGoalHash reflection_goal_hash = 26;
-
+  optional bool snapshotBased = 27 [default = false]; // true if the refresh was snapshot based incremental
+  optional int64 refresh_pending_begin = 28; // Start of REFRESH_PENDING
 }
 
 enum DependencyType {
@@ -79,6 +81,7 @@ message ReflectionDependencyEntry {
   optional string id = 3;
   optional string sourceName = 4;
   optional string query = 5;
+  optional int64 snapshotId = 6 [default = 0];
 }
 
 message ReflectionDependencies {

@@ -39,8 +39,9 @@ class MenuItem extends Component {
     selected: PropTypes.bool,
     style: PropTypes.object,
     isInformational: PropTypes.bool, // shouldn't look intereactive,
-    classname: PropTypes.string,
+    className: PropTypes.string,
     isSmallDropdown: PropTypes.bool, // this is to have display flex styling so it doesn't break MenuItem styling in other places
+    setRef: PropTypes.func,
   };
 
   constructor(props) {
@@ -112,8 +113,9 @@ class MenuItem extends Component {
       selected,
       isInformational,
       style,
-      classname,
+      className,
       isSmallDropdown,
+      setRef,
     } = this.props;
     const itemStyle = {
       ...styles.menuItem,
@@ -121,9 +123,13 @@ class MenuItem extends Component {
       ...(selected && styles.selected),
       ...style,
     };
-    const className = classNames({ disabled }, "menu-item-inner", classname);
+    const curClassName = classNames({ disabled }, "menu-item-inner", className);
     return (
-      <div>
+      <div
+        {...(setRef && {
+          ref: (cur) => setRef(cur),
+        })}
+      >
         <MenuItemMaterial
           style={styles.resetStyle}
           onClick={onClick}
@@ -134,7 +140,7 @@ class MenuItem extends Component {
             onMouseOver={this.handleMouseOver}
             onMouseLeave={this.handleMouseLeave}
             ref={this.menuItemRef}
-            className={className}
+            className={curClassName}
             style={itemStyle}
           >
             {isSmallDropdown ? (

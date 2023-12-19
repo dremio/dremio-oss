@@ -54,7 +54,7 @@ public class AsyncHttpClientProvider {
   }
 
   // bill pugh style lazily initialized singleton. Helper inner is only loaded when getInstance() is invoked.
-  private static class SingletonHelper{
+  private static final class SingletonHelper {
     private static final AsyncHttpClient INSTANCE = newClient();
   }
 

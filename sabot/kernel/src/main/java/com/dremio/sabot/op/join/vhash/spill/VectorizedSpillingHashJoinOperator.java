@@ -15,6 +15,7 @@
  */
 package com.dremio.sabot.op.join.vhash.spill;
 
+import static com.dremio.exec.ExecConstants.ENABLE_SPILLABLE_OPERATORS;
 import static com.dremio.sabot.op.join.vhash.PartitionColFilters.BLOOMFILTER_MAX_SIZE;
 
 import java.util.ArrayList;
@@ -157,6 +158,7 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator, Sh
   public static final BooleanValidator OOB_SPILL_TRIGGER_ENABLED = new BooleanValidator("exec.op.join.spill.oob_trigger_enabled", true);
   public static final DoubleValidator OOB_SPILL_TRIGGER_FACTOR = new RangeDoubleValidator("exec.op.join.spill.oob_trigger_factor", 0.0d, 10.0d, .75d);
   public static final DoubleValidator OOB_SPILL_TRIGGER_HEADROOM_FACTOR = new RangeDoubleValidator("exec.op.join.spill.oob_trigger_headroom_factor", 0.0d, 10.0d, .2d);
+  public final boolean oobSpillNotificationsEnabled;
 
   public VectorizedSpillingHashJoinOperator(OperatorContext context, HashJoinPOP popConfig) throws OutOfMemoryException {
     this.context = context;
@@ -171,6 +173,9 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator, Sh
       context.getFragmentHandle().getMinorFragmentId());
     filterManager = new RuntimeFilterManager(context.getAllocator(),
       RuntimeFilterUtil.getRuntimeValFilterCap(context), allMinorFragments);
+    //not sending oob spill notifications to sibling minor fragments when MemoryArbiter is ON
+    oobSpillNotificationsEnabled = !(context.getOptions().getOption(ENABLE_SPILLABLE_OPERATORS)) && context.getOptions().getOption(OOB_SPILL_TRIGGER_ENABLED);
+
   }
 
   @Override
@@ -340,7 +345,7 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator, Sh
 
       final OOBInfo oobInfo = new OOBInfo(context.getAssignments(), context.getFragmentHandle().getQueryId(),
         context.getFragmentHandle().getMajorFragmentId(), config.getProps().getOperatorId(), context.getFragmentHandle().getMinorFragmentId(),
-        context.getEndpointsIndex(), context.getTunnelProvider(), context.getOptions().getOption(OOB_SPILL_TRIGGER_ENABLED),
+        context.getEndpointsIndex(), context.getTunnelProvider(), oobSpillNotificationsEnabled,
         OOM_SPILL);
 
       joinSetupParams = new JoinSetupParams(
@@ -394,9 +399,12 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator, Sh
       rc.commit();
     }
 
-    Preconditions.checkState(allocator.getAllocatedMemory() <= MIN_RESERVE,
-      "MIN_RESERVE(" + MIN_RESERVE + ") lower than actual usage(" + allocator.getAllocatedMemory() + ").");
-    reservedPreallocation = allocator.getAllocatedMemory();
+    if (allocator.getAllocatedMemory() > MIN_RESERVE) {
+      logger.warn("MIN_RESERVE {} lower than actual usage {}; allocator:\n{}", MIN_RESERVE, allocator.getAllocatedMemory(), allocator);
+    }
+
+    reservedPreallocation = Math.max(allocator.getAllocatedMemory(), MIN_RESERVE);
+
     computeExternalState(InternalState.BUILD);
     return outgoing;
   }
@@ -460,18 +468,20 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator, Sh
   public void noMoreToConsumeRight() throws Exception {
     state.is(State.CAN_CONSUME_R);
 
+    /* Drop runtime filters, if op spilled */
+    dropRuntimeFiltersIfSpilled();
+
+    if (runtimeFilterEnabled &&
+      !runtimeFiltersDropped() &&
+      (!config.getRuntimeFilterInfo().isBroadcastJoin() || !partition.isBuildSideEmpty())) {
+      tryPushRuntimeFilters();
+    }
+
     if (partition.isBuildSideEmpty() &&
         joinSetupParams.getJoinType() != JoinRelType.LEFT && joinSetupParams.getJoinType() != JoinRelType.FULL) {
       // nothing needs to be read on the left side as right side is empty
       computeExternalState(InternalState.DONE);
       return;
-    }
-
-    /* Drop runtime filters, if op spilled */
-    dropRuntimeFiltersIfSpilled();
-
-    if (runtimeFilterEnabled && !runtimeFiltersDropped()) {
-      tryPushRuntimeFilters();
     }
 
     computeExternalState(InternalState.PROBE_IN);
@@ -693,8 +703,8 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator, Sh
   }
 
   private boolean isShrinkable() {
-    return state == State.CAN_CONSUME_R || (state == State.CAN_PRODUCE
-      && !joinSetupParams.getMultiMemoryReleaser().isFinished());
+    return (state == State.CAN_CONSUME_R || state == State.CAN_CONSUME_L || (state == State.CAN_PRODUCE
+      && !joinSetupParams.getMultiMemoryReleaser().isFinished()));
   }
 
   @Override
@@ -708,14 +718,26 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator, Sh
 
   @Override
   public boolean shrinkMemory(long size) throws Exception {
-    Preconditions.checkState(isShrinkable());
-    if (state == State.CAN_CONSUME_R) {
+    if (!isShrinkable()) {
+      //Shrinkable memory would have returned as 0 in all non-shrinkable states, hence we can safely ignore them.
+      return true;
+    }
+    if (state == State.CAN_CONSUME_R || state == State.CAN_CONSUME_L) {
       switchToSpilling(false);
     } else {
       joinSetupParams.getMultiMemoryReleaser().run();
     }
     computeExternalState();
     return joinSetupParams.getMultiMemoryReleaser().isFinished();
+  }
+
+  /**
+   * Printing operator state for debug logs
+   * @return
+   */
+  @Override
+  public String getOperatorStateToPrint() {
+    return state.name() + " " + internalState.name();
   }
 
   private void checkAndSwitchToReplayMode() {
@@ -837,6 +859,10 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator, Sh
       stats.setLongStat(Metric.PROBE_COPY_NANOS, partitionStats.getProbeCopyNanos());
       stats.setLongStat(Metric.UNMATCHED_PROBE_COUNT, partitionStats.getProbeUnmatchedKeyCount());
       stats.setLongStat(Metric.OUTPUT_RECORDS, outputRecords);
+
+      stats.setLongStat(Metric.EXTRA_CONDITION_EVALUATION_COUNT, partitionStats.getEvaluationCount());
+      stats.setLongStat(Metric.EXTRA_CONDITION_EVALUATION_MATCHED, partitionStats.getEvaluationMatchedCount());
+      stats.setLongStat(Metric.EXTRA_CONDITION_SETUP_NANOS, partitionStats.getSetupNanos());
     }
     SpillStats spillStats = joinSetupParams.getSpillStats();
     if (spillStats.getSpillCount() != 0) {

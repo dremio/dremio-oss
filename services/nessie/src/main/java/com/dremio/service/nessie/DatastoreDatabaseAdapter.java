@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
@@ -41,6 +42,7 @@ import java.util.stream.Stream;
 
 import org.projectnessie.nessie.relocated.protobuf.ByteString;
 import org.projectnessie.nessie.relocated.protobuf.InvalidProtocolBufferException;
+import org.projectnessie.versioned.CommitResult;
 import org.projectnessie.versioned.GetNamedRefsParams;
 import org.projectnessie.versioned.Hash;
 import org.projectnessie.versioned.NamedRef;
@@ -53,7 +55,6 @@ import org.projectnessie.versioned.persist.adapter.DatabaseAdapter;
 import org.projectnessie.versioned.persist.adapter.ImmutableCommitLogEntry;
 import org.projectnessie.versioned.persist.adapter.KeyListEntity;
 import org.projectnessie.versioned.persist.adapter.KeyListEntry;
-import org.projectnessie.versioned.persist.adapter.RefLog;
 import org.projectnessie.versioned.persist.adapter.RepoDescription;
 import org.projectnessie.versioned.persist.adapter.RepoMaintenanceParams;
 import org.projectnessie.versioned.persist.adapter.events.AdapterEventConsumer;
@@ -65,7 +66,6 @@ import org.projectnessie.versioned.persist.nontx.NonTransactionalOperationContex
 import org.projectnessie.versioned.persist.serialize.AdapterTypes;
 import org.projectnessie.versioned.persist.serialize.AdapterTypes.GlobalStateLogEntry;
 import org.projectnessie.versioned.persist.serialize.AdapterTypes.GlobalStatePointer;
-import org.projectnessie.versioned.persist.serialize.AdapterTypes.RefLogEntry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -94,6 +94,19 @@ public class DatastoreDatabaseAdapter extends NonTransactionalDatabaseAdapter<No
     this.db = dbInstance;
     this.keyPrefix = config.getRepositoryId();
     this.globalPointerKey = keyPrefix;
+  }
+
+  @Override
+  public CommitResult<CommitLogEntry> commit(CommitParams commitParams)
+    throws ReferenceConflictException, ReferenceNotFoundException {
+    // Note: Embedded Nessie servers run only on the master coordinator node (and have exclusive access to storage).
+    Semaphore sem = db.getCommitSemaphore();
+    sem.acquireUninterruptibly(); // Note: R/W locks in other methods are also not interruptible
+    try {
+      return super.commit(commitParams);
+    } finally {
+      sem.release();
+    }
   }
 
   public String dbKey(Hash hash) {
@@ -377,42 +390,6 @@ public class DatastoreDatabaseAdapter extends NonTransactionalDatabaseAdapter<No
     } finally {
       lock.unlock();
     }
-  }
-
-
-  @Override
-  protected AdapterTypes.RefLogParents doFetchRefLogParents(NonTransactionalOperationContext ctx, int stripe) {
-    return null; // Reflog is not supported in Embedded Nessie
-  }
-
-  @Override
-  protected boolean doRefLogParentsCas(NonTransactionalOperationContext ctx, int stripe, AdapterTypes.RefLogParents previousEntry, AdapterTypes.RefLogParents newEntry) {
-    return true; // Reflog is not supported in Embedded Nessie
-  }
-
-  @Override
-  protected void unsafeWriteRefLogStripe(NonTransactionalOperationContext ctx, int stripe, AdapterTypes.RefLogParents refLogParents) {
-    // NOP - Reflog is not supported in Embedded Nessie
-  }
-
-  @Override
-  protected void doCleanUpRefLogWrite(NonTransactionalOperationContext ctx, Hash refLogId) {
-    // NOP - Reflog is not supported in Embedded Nessie
-  }
-
-  @Override
-  protected RefLog doFetchFromRefLog(NonTransactionalOperationContext ctx, Hash refLogId) {
-    throw new UnsupportedOperationException("Reflog is not supported in Embedded Nessie.");
-  }
-
-  @Override
-  protected List<RefLog> doFetchPageFromRefLog(NonTransactionalOperationContext ctx, List<Hash> hashes) {
-    throw new UnsupportedOperationException("Reflog is not supported in Embedded Nessie.");
-  }
-
-  @Override
-  protected void doWriteRefLog(NonTransactionalOperationContext ctx, RefLogEntry entry) {
-    // NOP - Reflog is not supported in Embedded Nessie
   }
 
   @Override

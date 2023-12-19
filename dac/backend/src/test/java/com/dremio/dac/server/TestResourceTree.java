@@ -127,16 +127,6 @@ public class TestResourceTree extends BaseTestServer {
   }
 
   @Test
-  public void testResourceTree() throws Exception {
-    ResourceList resourceList = expectSuccess(getBuilder(getAPIv2().path("resourcetree")).buildGet(), ResourceList.class);
-    assertEquals(0, resourceList.count(ResourceType.SOURCE));
-    assertEquals(0, resourceList.count(ResourceType.SPACE));
-    assertEquals(0, resourceList.count(ResourceType.VIRTUAL_DATASET));
-    assertEquals(0, resourceList.count(ResourceType.FOLDER));
-    assertEquals(0, resourceList.count(ResourceType.HOME));
-  }
-
-  @Test
   public void testResourcesSpace1() throws Exception {
     ResourceList resourceList = expectSuccess(getBuilder(getAPIv2().path("resourcetree/space1")
       .queryParam("showDatasets", true)).buildGet(), ResourceList.class);
@@ -175,6 +165,7 @@ public class TestResourceTree extends BaseTestServer {
     assertEquals(1, resourceList.count(ResourceType.VIRTUAL_DATASET));
     assertEquals(0, resourceList.count(ResourceType.FOLDER));
     assertEquals("ds3", resourceList.getResources().get(0).getName());
+    assertEquals(ResourceType.SPACE, resourceList.getResources().get(0).getRootType());
   }
 
   @Test
@@ -184,6 +175,7 @@ public class TestResourceTree extends BaseTestServer {
     assertEquals(1, resourceList.count(ResourceType.VIRTUAL_DATASET));
     assertEquals(0, resourceList.count(ResourceType.FOLDER));
     assertEquals("ds5", resourceList.getResources().get(0).getName());
+    assertEquals(ResourceType.SPACE, resourceList.getResources().get(0).getRootType());
   }
 
   @Test
@@ -435,7 +427,9 @@ public class TestResourceTree extends BaseTestServer {
       .queryParam("showSpaces", true)
       .queryParam("showDatasets", true)).buildGet(), ResourceList.class);
 
-    assertEquals(2, resourceList.find("src1", ResourceType.SOURCE).getResources().size());
+    ResourceTreeEntity entity = resourceList.find("src1", ResourceType.SOURCE);
+    assertEquals(2, entity.getResources().size());
+    assertEquals(ResourceType.SOURCE, entity.getResources().get(0).getRootType());
   }
 
   @Test

@@ -45,7 +45,6 @@ import com.dremio.exec.proto.UserBitShared;
 import com.dremio.service.job.JobDetails;
 import com.dremio.service.job.JobDetailsRequest;
 import com.dremio.service.job.JobSummary;
-import com.dremio.service.job.QueryProfileRequest;
 import com.dremio.service.job.SearchJobsRequest;
 import com.dremio.service.job.SearchReflectionJobsRequest;
 import com.dremio.service.job.proto.JobProtobuf;
@@ -57,6 +56,8 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.escape.Escaper;
 import com.google.common.net.UrlEscapers;
+
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 
 /**
  * Resource for getting all jobs, jobs for dataset with filtering and sorting.
@@ -93,6 +94,7 @@ public class JobsListingResource {
   }
 
   // Get jobs using filters and set order
+  @WithSpan
   @GET
   @Produces(APPLICATION_JSON)
   public JobsListingUI getJobs(
@@ -126,6 +128,7 @@ public class JobsListingResource {
   }
 
   // Get details of job
+  @WithSpan
   @GET
   @Path("{jobId}/jobDetails")
   @Produces(APPLICATION_JSON)
@@ -141,28 +144,16 @@ public class JobsListingResource {
         .setJobId(JobProtobuf.JobId.newBuilder().setId(jobId).build())
         .setUserName(securityContext.getUserPrincipal().getName())
         .setProvideResultInfo(true)
+        .setProvideProfileInfo(true)
+        .setAttemptIndex(attemptIndex)
         .build();
       jobDetails = jobService.getJobDetails(detailRequest);
     } catch (JobNotFoundException e) {
       throw JobResourceNotFoundException.fromJobNotFoundException(e);
     }
 
-    try {
-      final String username = securityContext.getUserPrincipal().getName();
-      QueryProfileRequest request = QueryProfileRequest.newBuilder()
-        .setJobId(JobProtobuf.JobId.newBuilder()
-          .setId(jobDetails.getJobId().getId())
-          .build())
-        .setAttempt(attemptIndex)
-        .setUserName(username)
-        .build();
-      profile = jobService.getProfile(request);
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
-
     jobDetails = ObfuscationUtils.obfuscate(jobDetails);
-    profile = ObfuscationUtils.obfuscate(profile);
+    profile = ObfuscationUtils.obfuscate(jobDetails.getProfile());
 
     return jobInfoDetailsUI.of(jobDetails, profile, catalogServiceHelper, reflectionServiceHelper, namespaceService, detailLevel, attemptIndex);
   }
@@ -218,6 +209,7 @@ public class JobsListingResource {
 
 
   // Get jobs of a reflection
+  @WithSpan
   @GET
   @Path("/{reflectionId}/reflection")
   @Produces(APPLICATION_JSON)

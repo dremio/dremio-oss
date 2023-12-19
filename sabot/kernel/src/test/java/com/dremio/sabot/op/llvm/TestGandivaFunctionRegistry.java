@@ -17,7 +17,6 @@ package com.dremio.sabot.op.llvm;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import org.apache.arrow.gandiva.evaluator.ExpressionRegistry;
@@ -30,22 +29,17 @@ import org.mockito.Mockito;
 
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FunctionCall;
-import com.dremio.common.expression.FunctionCallFactory;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.ValueExpressions;
 import com.dremio.common.types.TypeProtos;
 import com.dremio.exec.ExecTest;
-import com.dremio.exec.expr.fn.AbstractFunctionHolder;
-import com.dremio.exec.expr.fn.BaseFunctionHolder;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.expr.fn.GandivaFunctionHolder;
 import com.dremio.exec.expr.fn.GandivaFunctionRegistry;
 import com.dremio.exec.resolver.FunctionResolver;
 import com.dremio.exec.resolver.FunctionResolverFactory;
 import com.dremio.options.OptionManager;
-import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 
 public class TestGandivaFunctionRegistry extends ExecTest {
 
@@ -62,7 +56,7 @@ public class TestGandivaFunctionRegistry extends ExecTest {
     FunctionCall fnCall = getGandivaOnlyFn();
     FunctionResolver resolver = FunctionResolverFactory.getResolver(fnCall);
     GandivaFunctionHolder holder = (GandivaFunctionHolder)resolver.getBestMatch(fnRegistry
-      .getMethods(fnCall.getName()), fnCall);
+      .lookupMethods(fnCall.getName()), fnCall);
     Assert.assertNotNull(holder);
     CompleteType expectedReturnType = CompleteType.fromMinorType(TypeProtos.MinorType.BIT);
     Assert.assertEquals(expectedReturnType, holder.getReturnType(fnCall.args));
@@ -105,33 +99,10 @@ public class TestGandivaFunctionRegistry extends ExecTest {
     FunctionCall fnCall = getDecimalAddFn();
     FunctionResolver resolver = FunctionResolverFactory.getExactResolver(fnCall);
     GandivaFunctionHolder holder = (GandivaFunctionHolder)resolver.getBestMatch(fnRegistry
-      .getMethods(fnCall.getName()), fnCall);
+      .lookupMethods(fnCall.getName()), fnCall);
     Assert.assertNull(holder);
   }
 
-  @Test
-  public void getUnSupportedFunctions() throws GandivaException {
-    FunctionImplementationRegistry fnRegistry = FUNCTIONS();
-    ArrayListMultimap<String, AbstractFunctionHolder> functions = fnRegistry.getRegisteredFunctions();
-    Set<String> fns = Sets.newHashSet();
-    Set<FunctionSignature> supportedFunctions = ExpressionRegistry.getInstance()
-      .getSupportedFunctions();
-    for (FunctionSignature signature : supportedFunctions ) {
-      String fnName = (signature.getName().toLowerCase() +"##");
-      for (ArrowType param : signature.getParamTypes()) {
-        fnName = fnName + "##" + param.toString();
-      }
-      fns.add(fnName);
-    }
-    for (Map.Entry<String, AbstractFunctionHolder> holders : functions.entries()) {
-      String name = holders.getKey();
-      AbstractFunctionHolder holder = holders.getValue();
-      totalFuncs++;
-      isFunctionSupported(name, (BaseFunctionHolder)holder, fns);
-
-    }
-    System.out.println("Total : " + totalFuncs + " unSupported : " + unSupportedFn);
-  }
 
   @Test
   public void getAllGandivaFunctions() throws GandivaException {
@@ -139,44 +110,14 @@ public class TestGandivaFunctionRegistry extends ExecTest {
       .getSupportedFunctions();
     for (FunctionSignature signature : supportedFunctions ) {
       StringBuilder fnName = new StringBuilder((signature.getName().toLowerCase()));
-      for (ArrowType param : signature.getParamTypes()) {
-        fnName.append("##").append(param.toString());
+      for (List<ArrowType> param : signature.getParamTypes()) {
+        if (!param.isEmpty()) {
+          fnName.append("##").append(param.get(0).toString());
+        }
       }
       System.out.println(("function signature registered in gandiva : " +  fnName));
     }
     System.out.println("Total functions in Gandiva : " + supportedFunctions.size());
-  }
-
-  @Test
-  public void getAllDremioJavaFunctions() {
-    ArrayListMultimap<String, AbstractFunctionHolder> functionMap = FunctionImplementationRegistry.create(DEFAULT_SABOT_CONFIG, CLASSPATH_SCAN_RESULT)
-      .getFunctionRegistry().getRegisteredFunctions();
-    for (Map.Entry<String, AbstractFunctionHolder> e : functionMap.entries()) {
-      AbstractFunctionHolder functionHolder = e.getValue();
-      StringBuilder fnName = new StringBuilder(e.getKey());
-      for (int i = 0; i < functionHolder.getParamCount(); ++i) {
-        fnName.append("##").append(functionHolder.getParamType(i));
-      }
-      System.out.println(fnName);
-    }
-    System.out.println("Total # of functions: " + functionMap.size());
-  }
-
-  private boolean isFunctionSupported(String name, BaseFunctionHolder holder, Set<String> fns) throws
-    GandivaException {
-    String fnToSearch = FunctionCallFactory.replaceOpWithFuncName(name) + "##";
-    for (CompleteType arg : holder.getParamTypes()) {
-      fnToSearch = fnToSearch + "##" + arg.getType();
-    }
-
-    if (!fns.contains(fnToSearch)) {
-      unSupportedFn++;
-      System.out.println(("function signature not supported in gandiva : " +  fnToSearch));
-      return false;
-    } else {
-      System.out.println(("function signature supported in gandiva : " +  fnToSearch));
-    }
-    return true;
   }
 
   private FunctionCall getGandivaOnlyFn() {

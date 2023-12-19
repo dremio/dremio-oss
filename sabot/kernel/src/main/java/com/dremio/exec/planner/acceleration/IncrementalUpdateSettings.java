@@ -18,19 +18,21 @@ package com.dremio.exec.planner.acceleration;
 import java.util.Objects;
 
 public class IncrementalUpdateSettings {
-  public static final IncrementalUpdateSettings NON_INCREMENTAL = new IncrementalUpdateSettings(false, null);
-  public static final IncrementalUpdateSettings FILE_BASED = new IncrementalUpdateSettings(true, null);
+  public static final IncrementalUpdateSettings NON_INCREMENTAL = new IncrementalUpdateSettings(false, null, false);
+  public static final IncrementalUpdateSettings FILE_BASED = new IncrementalUpdateSettings(true, null, false);
 
   private boolean incremental;
   private String updateField;
+  private boolean snapshotBased;
 
-  public IncrementalUpdateSettings(boolean incremental, String updateField) {
+  public IncrementalUpdateSettings(boolean incremental, String updateField, boolean snapshotBased) {
     this.incremental = incremental;
     this.updateField = updateField;
+    this.snapshotBased = snapshotBased;
   }
 
   public IncrementalUpdateSettings columnBased(String columnName) {
-    return new IncrementalUpdateSettings(true, updateField);
+    return new IncrementalUpdateSettings(true, updateField, false);
   }
 
   public boolean isIncremental() {
@@ -41,8 +43,12 @@ public class IncrementalUpdateSettings {
     return updateField;
   }
 
-  public boolean isFileBasedUpdate() {
-    return incremental && updateField == null;
+  public boolean isFileMtimeBasedUpdate() {
+    return incremental && updateField == null && !snapshotBased;
+  }
+
+  public boolean isSnapshotBasedUpdate() {
+    return incremental && snapshotBased;
   }
 
   @Override
@@ -55,11 +61,12 @@ public class IncrementalUpdateSettings {
     }
     final IncrementalUpdateSettings that = (IncrementalUpdateSettings) o;
     return (incremental == that.incremental) &&
-        Objects.equals(updateField, that.updateField);
+      Objects.equals(updateField, that.updateField) &&
+      (snapshotBased == that.snapshotBased);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(incremental,updateField);
+    return Objects.hash(incremental, updateField, snapshotBased);
   }
 }

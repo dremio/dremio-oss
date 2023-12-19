@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.planner.physical;
 
+import static com.dremio.exec.ExecConstants.ADAPTIVE_HASH;
+
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitDef;
 import org.apache.calcite.rel.RelNode;
@@ -66,6 +68,15 @@ public class DistributionTraitDef extends RelTraitDef<DistributionTrait>{
       case HASH_DISTRIBUTED:
         return new HashToRandomExchangePrel(rel.getCluster(), planner.emptyTraitSet().plus(Prel.PHYSICAL).plus(toDist), rel,
                                              toDist.getFields());
+      case ADAPTIVE_HASH_DISTRIBUTED:
+        boolean supportAdaptiveHash = PrelUtil.getPlannerSettings(rel.getCluster()).getOptions().getOption(ADAPTIVE_HASH);
+        if (supportAdaptiveHash) {
+          return new AdaptiveHashExchangePrel(rel.getCluster(), planner.emptyTraitSet().plus(Prel.PHYSICAL).plus(toDist),
+            rel, toDist.getFields());
+        } else {
+          return new HashToRandomExchangePrel(rel.getCluster(), planner.emptyTraitSet().plus(Prel.PHYSICAL).plus(toDist),
+            rel, toDist.getFields());
+        }
       case RANGE_DISTRIBUTED:
         return new OrderedPartitionExchangePrel(rel.getCluster(), planner.emptyTraitSet().plus(Prel.PHYSICAL).plus(toDist), rel);
       case BROADCAST_DISTRIBUTED:

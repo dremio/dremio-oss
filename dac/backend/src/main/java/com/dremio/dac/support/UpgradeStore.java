@@ -243,17 +243,6 @@ public class UpgradeStore {
    * UpgradeTaskVersion
    */
   private static final class UpgradeTaskVersion implements VersionExtractor<UpgradeTaskStore> {
-
-    @Override
-    public Long getVersion(final UpgradeTaskStore value) {
-      return value.getVersion();
-    }
-
-    @Override
-    public void setVersion(final UpgradeTaskStore value, final Long version) {
-      value.setVersion(version);
-    }
-
     @Override
     public String getTag(UpgradeTaskStore value) {
       return value.getTag();

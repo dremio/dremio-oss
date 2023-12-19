@@ -21,6 +21,7 @@ export type Statement = {
   readonly to: Position;
 };
 
+/** All values 1-indexed */
 export type QueryRange = {
   readonly startLineNumber: number;
   readonly startColumn: number;

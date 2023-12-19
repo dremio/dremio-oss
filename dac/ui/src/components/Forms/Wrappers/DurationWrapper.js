@@ -48,6 +48,8 @@ export default class DurationWrapper extends Component {
     const isDisabled =
       disabled ||
       (!!relatedElement && relatedElement.value === disableIf.value);
+    const isFullSpacedEvenly =
+      elementConfig.getConfig().size === "full-spaced-evenly";
     return (
       <div>
         <div className={durationLabel}>{elementConfig.getConfig().label}</div>
@@ -64,6 +66,7 @@ export default class DurationWrapper extends Component {
             min={FormUtils.getMinDuration(elementConfig.getConfig().minOption)}
             disabled={isDisabled}
             className={durationBody}
+            isFullSpacedEvenly={isFullSpacedEvenly}
           />
         </FieldWithError>
       </div>

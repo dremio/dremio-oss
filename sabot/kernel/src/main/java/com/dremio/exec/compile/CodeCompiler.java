@@ -44,6 +44,7 @@ public class CodeCompiler {
   private final LoadingCache<CodeGenerator<?>, GeneratedClassEntry> generatedCodeToCompiledClazzCache;
   private final LoadingCache<ExpressionsHolder, GeneratedClassEntryWithFunctionErrorContextSizeInfo> expressionsToCompiledClazzCache;
 
+  @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
   public CodeCompiler(final SabotConfig config, final OptionManager optionManager) {
     transformer = new ClassTransformer(optionManager);
     selector = new ClassCompilerSelector(config, optionManager);

@@ -1,13 +1,17 @@
 {
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "./node_modules/monaco-editor/monaco.d.ts"],
   "compilerOptions": {
     "esModuleInterop": true,
     "experimentalDecorators": true,
+    "incremental": true,
     "jsx": "react-jsx",
     "lib": ["DOM", "ES2019"],
-    "moduleResolution": "nodenext",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "resolveJsonModule": true,
     "skipLibCheck": true,
     "strict": true,
-    "target": "ES2019"
+    "target": "ES2019",
+    "tsBuildInfoFile": "./.cache/src.tsbuildinfo"
   }
 }

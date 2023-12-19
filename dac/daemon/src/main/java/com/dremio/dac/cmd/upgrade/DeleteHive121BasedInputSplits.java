@@ -22,6 +22,7 @@ import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.google.common.collect.ImmutableList;
@@ -53,7 +54,7 @@ public class DeleteHive121BasedInputSplits extends UpgradeTask implements Legacy
 
   @Override
   public void upgrade(UpgradeContext context) throws Exception {
-    final NamespaceService namespaceService = new NamespaceServiceImpl(context.getLegacyKVStoreProvider());
+    final NamespaceService namespaceService = new NamespaceServiceImpl(context.getLegacyKVStoreProvider(), new CatalogStatusEventsImpl());
 
     try {
       for (SourceConfig source : namespaceService.getSources()) {

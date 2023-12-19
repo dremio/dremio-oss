@@ -44,6 +44,7 @@ import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.FileProtobuf;
+import com.dremio.service.namespace.file.proto.FileType;
 import com.google.common.base.Preconditions;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.UnsafeByteOperations;
@@ -53,7 +54,7 @@ import io.grpc.Status;
 /**
  * Helper class to create required fields to update metadata in dataset catalog
  */
-public class DatasetCatalogRequestBuilder {
+public final class DatasetCatalogRequestBuilder {
 
   private static final Logger logger = LoggerFactory.getLogger(DatasetCatalogRequestBuilder.class);
 
@@ -226,7 +227,8 @@ public class DatasetCatalogRequestBuilder {
   }
 
   public void setIcebergMetadata(String rootPointer, String tableUuid, long snapshotId,
-      Map<Integer, PartitionSpec> partitionSpecMap, Schema schema, String partitionStatsFile, Long partitionsStatsFileLength) {
+                                 Map<Integer, PartitionSpec> partitionSpecMap, Schema schema, String partitionStatsFile,
+                                 Long partitionsStatsFileLength, FileType fileType) {
     Preconditions.checkState(request != null, "Unexpected state");
     Preconditions.checkState(request.getDatasetConfigBuilder().getIcebergMetadataEnabled(), "Unexpected state");
     byte[] specs = IcebergSerDe.serializePartitionSpecAsJsonMap(partitionSpecMap);
@@ -236,6 +238,9 @@ public class DatasetCatalogRequestBuilder {
             .setSnapshotId(snapshotId)
             .setPartitionSpecsJsonMap(ByteString.copyFrom(specs))
             .setJsonSchema(serializedSchemaAsJson(schema));
+    if(fileType != null){
+      metadataBuilder.setFileType(FileProtobuf.FileType.valueOf(fileType.toString()));
+    }
     if (partitionStatsFile != null) {
       metadataBuilder.setPartitionStatsFile(partitionStatsFile);
     }

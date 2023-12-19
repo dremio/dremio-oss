@@ -61,7 +61,7 @@ export const useArcticCatalogCommits = ({
   hash?: string | null;
 }) => {
   const { apiV2 } = useNessieContext();
-  const { reservedNamespace } = useArcticCatalogContext() ?? {};
+  const { reservedNamespace } = useArcticCatalogContext();
 
   const extractedPath = useMemo(
     () => reservedNamespace?.split("/")?.slice(1) ?? [],
@@ -76,7 +76,9 @@ export const useArcticCatalogCommits = ({
         .map((folder) => decodeURIComponent(folder))
         .join(".");
 
-      clauses.push(`operations.exists(op, op.namespace == '${namespace}')`);
+      clauses.push(
+        `operations.exists(op, op.namespace.startsWith('${namespace}.') || op.namespace == '${namespace}')`
+      );
     }
 
     if (search) {

@@ -45,7 +45,6 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.iceberg.ContentFile;
 import org.apache.iceberg.DremioManifestReaderUtils.ManifestEntryWrapper;
 import org.apache.iceberg.FileContent;
-import org.apache.iceberg.ManifestContent;
 import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
@@ -81,7 +80,7 @@ public class PathGeneratingManifestEntryProcessor implements ManifestEntryProces
           SystemSchemas.ICEBERG_MANIFEST_SCAN_SCHEMA.getFields().stream(),
           SystemSchemas.ICEBERG_DELETE_MANIFEST_SCAN_SCHEMA.getFields().stream()),
           SystemSchemas.CARRY_FORWARD_FILE_PATH_TYPE_SCHEMA.getFields().stream()) ,
-          Stream.of(SystemSchemas.ICEBERG_METADATA_FIELD))
+          Stream.of(SystemSchemas.ICEBERG_METADATA_FIELD, SystemSchemas.RECORD_COUNT_FIELD))
       .map(f -> f.getName().toLowerCase())
       .collect(Collectors.toSet());
 
@@ -89,7 +88,7 @@ public class PathGeneratingManifestEntryProcessor implements ManifestEntryProces
   private final Map<String, Field> nameToFieldMap;
   private final Set<String> invalidColumnsForPruning;
   private final Map<Field, ValueVector> columnStatsVectorMap = new HashMap<>();
-  private final ManifestContent manifestContent;
+  private final ManifestContentType manifestContentType;
 
   private byte[] colIdMapRaw;
   private Map<String, Integer> colToIDMap;
@@ -103,6 +102,7 @@ public class PathGeneratingManifestEntryProcessor implements ManifestEntryProces
   private VarBinaryVector outputColIds;
   private StructVector outputDeleteFile;
   private VarCharVector outputFileContent;
+  private BigIntVector outputRecordCount;
   private PartitionSpec icebergPartitionSpec;
   private Map<String, Integer> partColToKeyMap;
   private ArrowBuf tempBuf;
@@ -111,6 +111,8 @@ public class PathGeneratingManifestEntryProcessor implements ManifestEntryProces
   private OptionalVarBinaryVectorHolder outputIcebergMetadata;
 
   private boolean doneWithCurrentEntry;
+  private boolean publishPartitionInfo;
+  private final boolean includeIcebergPartitionInfo;
 
   public PathGeneratingManifestEntryProcessor(OperatorContext context,
       ManifestScanTableFunctionContext functionContext) {
@@ -123,8 +125,10 @@ public class PathGeneratingManifestEntryProcessor implements ManifestEntryProces
             functionContext.getJsonPartitionSpecMap().toByteArray()) :
         null;
     invalidColumnsForPruning = IcebergUtils.getInvalidColumnsForPruning(partitionSpecMap);
-    manifestContent = functionContext.getManifestContent();
+    manifestContentType = functionContext.getManifestContentType();
     tempBuf = context.getManagedBuffer();
+    this.publishPartitionInfo = functionContext.isPublishPartitionInfo();
+    this.includeIcebergPartitionInfo = functionContext.getIncludeIcebergPartitionInfo();
   }
 
   @Override
@@ -139,7 +143,7 @@ public class PathGeneratingManifestEntryProcessor implements ManifestEntryProces
     outputColIds = (VarBinaryVector) getVectorFromSchemaPath(outgoing, SystemSchemas.COL_IDS);
     outputFileContent = (VarCharVector) getVectorFromSchemaPath(outgoing, SystemSchemas.FILE_CONTENT);
     // output columns vary between data and delete manifest scans
-    if (manifestContent == ManifestContent.DELETES) {
+    if (manifestContentType == ManifestContentType.DELETES) {
       outputDeleteFile = (StructVector) getVectorFromSchemaPath(outgoing, SystemSchemas.DELETE_FILE);
     }
 
@@ -150,6 +154,9 @@ public class PathGeneratingManifestEntryProcessor implements ManifestEntryProces
         ValueVector vector = outgoing.getValueAccessorById(TypeHelper.getValueVectorClass(field),
             outgoing.getSchema().getFieldId(SchemaPath.getSimplePath(field.getName())).getFieldIds()).getValueVector();
         columnStatsVectorMap.put(field, vector);
+      }
+      if (SystemSchemas.RECORD_COUNT_FIELD.equals(field)) {
+        outputRecordCount = (BigIntVector) getVectorFromSchemaPath(outgoing, SystemSchemas.RECORD_COUNT);
       }
     }
   }
@@ -192,20 +199,27 @@ public class PathGeneratingManifestEntryProcessor implements ManifestEntryProces
     outputColIds.setSafe(startOutIndex, colIdMapRaw);
     IcebergFileType fileType = IcebergFileType.valueById(manifestEntry.file().content().id());
     outputFileContent.setSafe(startOutIndex, fileType.name().getBytes(StandardCharsets.UTF_8));
+    if (outputRecordCount != null) {
+      outputRecordCount.setSafe(startOutIndex, manifestEntry.file().recordCount());
+    }
 
     long version = PathUtils.getQueryParam(manifestEntry.file().path().toString(), FILE_VERSION, 0L, Long::parseLong);
-    Schema fileSchema = icebergPartitionSpec.schema();
-    PartitionProtobuf.NormalizedPartitionInfo partitionInfo = ManifestEntryProcessorHelper.getDataFilePartitionInfo(
-      icebergPartitionSpec,
-      invalidColumnsForPruning,
-      fileSchema,
-      nameToFieldMap,
-      manifestEntry.file(),
-      version,
-      manifestEntry.sequenceNumber());
-    outputPartitionInfo.setSafe(startOutIndex, IcebergSerDe.serializeToByteArray(partitionInfo));
 
-    if (manifestContent == ManifestContent.DELETES) {
+    if (publishPartitionInfo) {
+      Schema fileSchema = icebergPartitionSpec.schema();
+      PartitionProtobuf.NormalizedPartitionInfo partitionInfo = ManifestEntryProcessorHelper.getDataFilePartitionInfo(
+        icebergPartitionSpec,
+        invalidColumnsForPruning,
+        fileSchema,
+        nameToFieldMap,
+        manifestEntry.file(),
+        version,
+        manifestEntry.sequenceNumber(),
+        includeIcebergPartitionInfo);
+      outputPartitionInfo.setSafe(startOutIndex, IcebergSerDe.serializeToByteArray(partitionInfo));
+    }
+
+    if (manifestContentType == ManifestContentType.DELETES) {
       NullableStructWriter structWriter = outputDeleteFile.getWriter();
       structWriter.setPosition(startOutIndex);
       structWriter.start();

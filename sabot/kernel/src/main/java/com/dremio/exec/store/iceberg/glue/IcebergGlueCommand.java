@@ -18,8 +18,8 @@ package com.dremio.exec.store.iceberg.glue;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.TableOperations;
 
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.iceberg.model.IcebergBaseCommand;
-import com.dremio.io.file.FileSystem;
 
 
 
@@ -29,8 +29,9 @@ import com.dremio.io.file.FileSystem;
  */
 public class IcebergGlueCommand extends IcebergBaseCommand {
 
-  public IcebergGlueCommand(Configuration configuration, String tableFolder, FileSystem fs, TableOperations tableOperations) {
-    super(configuration, tableFolder, fs, tableOperations);
+  public IcebergGlueCommand(Configuration configuration, String tableFolder, TableOperations tableOperations,
+                            UserBitShared.QueryId queryId) {
+    super(configuration, tableFolder, tableOperations, queryId);
   }
 
   @Override

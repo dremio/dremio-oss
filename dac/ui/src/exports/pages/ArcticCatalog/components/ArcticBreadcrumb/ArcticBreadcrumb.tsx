@@ -23,13 +23,11 @@ import { useNessieContext } from "@app/pages/NessieHomePage/utils/context";
 import NessieLink from "@app/pages/NessieHomePage/components/NessieLink/NessieLink";
 import {
   constructArcticUrl,
-  getArcticTabFromPathname,
   useArcticCatalogContext,
 } from "@app/exports/pages/ArcticCatalog/arctic-catalog-utils";
 import { withRouter, type WithRouterProps } from "react-router";
 import { ArcticCatalogTabsType } from "../../ArcticCatalog";
 
-import "@app/pages/NessieHomePage/components/NessieBreadcrumb/NessieBreadcrumb.less";
 import "./ArcticBreadcrumb.less";
 
 type ArcticBreadcrumbProps = {
@@ -86,7 +84,6 @@ function ArcticBreadcrumb({
   path = [],
   maxItems = 3,
   params,
-  location,
 }: ArcticBreadcrumbProps & WithRouterProps) {
   const {
     source: { name },
@@ -105,9 +102,7 @@ function ArcticBreadcrumb({
     path.length > 0 ? <Item text={path[path.length - 1]} /> : null;
 
   const arcticId = params?.arcticCatalogId;
-  const arcticTab = arcticCtx
-    ? arcticCtx.activeTab
-    : getArcticTabFromPathname(location?.pathname) ?? "data";
+  const arcticTab = arcticCtx.activeTab;
   const branchName = params?.branchName;
   const hashParam = hash ? `?hash=${hash}` : "";
   const type = arcticCtx?.isCatalog ? "catalog" : "source";
@@ -122,7 +117,7 @@ function ArcticBreadcrumb({
                   type: type,
                   baseUrl: "",
                   tab: arcticTab,
-                  namespace: branchName,
+                  namespace: encodeURIComponent(branchName),
                   hash: hashParam,
                 }),
               }
@@ -143,7 +138,7 @@ function ArcticBreadcrumb({
                 path,
                 i,
                 arcticTab,
-                branchName,
+                encodeURIComponent(branchName),
                 hashParam,
                 type
               )}
@@ -170,7 +165,7 @@ function ArcticBreadcrumb({
                           path,
                           i,
                           arcticTab,
-                          branchName,
+                          encodeURIComponent(branchName),
                           hashParam,
                           type
                         )}

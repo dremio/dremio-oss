@@ -16,7 +16,6 @@
 import { PureComponent } from "react";
 import { connect } from "react-redux";
 import Immutable from "immutable";
-import { Link } from "react-router";
 import PropTypes from "prop-types";
 import { loadSummaryDataset } from "actions/resources/dataset";
 import { getViewState } from "selectors/resources";
@@ -25,10 +24,6 @@ import { stopPropagation } from "@app/utils/reactEventUtils";
 
 import ViewStateWrapper from "components/ViewStateWrapper";
 import ColumnMenuItem from "components/DragComponents/ColumnMenuItem";
-import FontIcon from "components/Icon/FontIcon";
-import DatasetItemLabel from "components/Dataset/DatasetItemLabel";
-import DatasetOverlayContentMixin from "dyn-load/components/Dataset/DatasetOverlayContentMixin";
-import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
 
 import { formDescription } from "uiTheme/radium/typography";
 import { CELL_EXPANSION_HEADER, WHITE } from "uiTheme/radium/colors";
@@ -41,7 +36,6 @@ import "./DatasetOverlayContent.less";
 
 const VIEW_ID = "SummaryDataset";
 
-@DatasetOverlayContentMixin
 export class DatasetOverlayContent extends PureComponent {
   static propTypes = {
     fullPath: PropTypes.instanceOf(Immutable.List),
@@ -74,37 +68,7 @@ export class DatasetOverlayContent extends PureComponent {
   };
 
   componentDidMount() {
-    this.props.loadSummaryDataset(this.props.fullPath.join("/"), VIEW_ID);
-  }
-
-  renderHeader() {
-    const { summaryDataset, showFullPath, typeIcon, isStarredLimitReached } =
-      this.props;
-    const name = summaryDataset.getIn(["fullPath", -1]);
-    return (
-      <div style={styles.header}>
-        <div style={styles.breadCrumbs}>
-          <DatasetItemLabel
-            shouldShowOverlay={false}
-            name={name}
-            showFullPath={showFullPath}
-            fullPath={summaryDataset.get("fullPath")}
-            typeIcon={typeIcon}
-            isStarredLimitReached={isStarredLimitReached}
-          />
-        </div>
-        <div style={{ display: "flex", marginRight: 5 }}>
-          {/* disabled pending DX-6596 Edit link from DatasetOverlay is broken */}
-          {false && this.renderPencil(summaryDataset)}
-          <Link
-            to={wrapBackendLink(summaryDataset.getIn(["links", "query"]))}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <FontIcon tooltip={la("Query")} type="Query" />
-          </Link>
-        </div>
-      </div>
-    );
+    this.props.loadSummaryDataset(this.props.fullPath, VIEW_ID);
   }
 
   renderColumn() {

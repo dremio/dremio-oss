@@ -62,13 +62,17 @@ export class EngineActionMenu extends PureComponent {
 
     return (
       <Menu>
-        {canEdit && <MenuItem onClick={this.handleEdit}>{la("Edit")}</MenuItem>}
+        {canEdit && (
+          <MenuItem onClick={this.handleEdit}>{laDeprecated("Edit")}</MenuItem>
+        )}
         {canDelete && (
-          <MenuItem onClick={this.handleDelete}>{la("Delete")}</MenuItem>
+          <MenuItem onClick={this.handleDelete}>
+            {laDeprecated("Delete")}
+          </MenuItem>
         )}
         {canAddRemove && (
           <MenuItem onClick={this.handleAddRemove}>
-            {la("Add/Remove Executors")}
+            {laDeprecated("Add/Remove Executors")}
           </MenuItem>
         )}
       </Menu>

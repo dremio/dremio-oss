@@ -15,45 +15,21 @@
  */
 package com.dremio.services.nessie.grpc.client.impl;
 
-import static com.dremio.services.nessie.grpc.ProtoUtil.refFromProtoResponse;
-import static com.dremio.services.nessie.grpc.client.GrpcExceptionMapper.handle;
-
 import org.projectnessie.client.api.DeleteTagBuilder;
-import org.projectnessie.client.builder.BaseOnTagBuilder;
-import org.projectnessie.error.NessieConflictException;
-import org.projectnessie.error.NessieNotFoundException;
+import org.projectnessie.model.Reference;
 import org.projectnessie.model.Tag;
 
-import com.dremio.services.nessie.grpc.api.DeleteReferenceRequest;
-import com.dremio.services.nessie.grpc.api.ReferenceResponse;
-import com.dremio.services.nessie.grpc.api.ReferenceType;
 import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingStub;
 
-final class GrpcDeleteTag extends BaseOnTagBuilder<DeleteTagBuilder> implements DeleteTagBuilder {
-
-  private final TreeServiceBlockingStub stub;
+final class GrpcDeleteTag extends BaseGrpcDeleteReference<Tag, DeleteTagBuilder> implements DeleteTagBuilder {
 
   public GrpcDeleteTag(TreeServiceBlockingStub stub) {
-    this.stub = stub;
+    super(stub);
+    refType(Reference.ReferenceType.TAG);
   }
 
   @Override
-  public Tag getAndDelete() throws NessieNotFoundException, NessieConflictException {
-    return handle(
-      () ->
-      {
-        ReferenceResponse response = stub.deleteReference(
-          DeleteReferenceRequest.newBuilder()
-            .setReferenceType(ReferenceType.TAG)
-            .setNamedRef(tagName)
-            .setHash(hash)
-            .build());
-        return (Tag) refFromProtoResponse(response);
-      });
-  }
-
-  @Override
-  public void delete() throws NessieConflictException, NessieNotFoundException {
-    getAndDelete();
+  public DeleteTagBuilder tagName(String tagName) {
+    return refName(tagName);
   }
 }

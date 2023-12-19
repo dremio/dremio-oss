@@ -32,7 +32,10 @@ public class DeltaMetadataFetchPool {
   static Integer POOL_SIZE = 40;
 
   private static class LazyThreadPoolHolder {
-    static final ThreadPoolExecutor THREAD_POOL = new ThreadPoolExecutor(0, POOL_SIZE, 1, TimeUnit.SECONDS, new LinkedBlockingQueue<>(), new NamedThreadFactory("delta-metadata-fetch"));
+    static final ThreadPoolExecutor THREAD_POOL = new ThreadPoolExecutor(POOL_SIZE, POOL_SIZE, 1, TimeUnit.SECONDS, new LinkedBlockingQueue<>(), new NamedThreadFactory("delta-metadata-fetch"));
+    static {
+      THREAD_POOL.allowCoreThreadTimeOut(true);
+    }
   }
 
   public static ThreadPoolExecutor getPool() {

@@ -18,13 +18,9 @@ package com.dremio.exec.planner.sql;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.type.ArraySqlType;
-import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql2rel.SqlRexContext;
 import org.apache.calcite.sql2rel.SqlRexConvertlet;
 
@@ -48,25 +44,7 @@ public class FlattenConvertlet implements SqlRexConvertlet {
     }
 
     SqlFlattenOperator indexedOperator = operator.withIndex(((SqlValidatorImpl)cx.getValidator()).nextFlattenIndex());
-    final RexBuilder rexBuilder = cx.getRexBuilder();
-    // Since we don't have any way of knowing if the output of the flatten is nullable, we should always assume it is.
-    // This is especially important when accelerating a count(column) query, because the normalizer will convert it to
-    // a count(1) if it thinks this column is non-nullable, and then remove the flatten altogether. This is actually a
-    // problem with the fact that flatten is not really a project operator (because it can output more than one row per input).
-    RelDataType type;
-    if (exprs.get(0).getType() instanceof ArraySqlType) {
-      type = exprs.get(0).getType().getComponentType();
-    } else {
-      type = rexBuilder
-      .getTypeFactory()
-      .createTypeWithNullability(
-        rexBuilder
-          .getTypeFactory()
-          .createSqlType(SqlTypeName.ANY),
-        true
-      );
-    }
-    return rexBuilder.makeCall(type, indexedOperator, exprs);
+    return cx.getRexBuilder().makeCall(indexedOperator, exprs);
   }
 
 

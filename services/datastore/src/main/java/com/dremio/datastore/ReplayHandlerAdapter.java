@@ -175,6 +175,11 @@ class ReplayHandlerAdapter extends WriteBatch.Handler {
     logger.warn("Ignoring mark commit: {}", xid);
   }
 
+  @Override
+  public void markCommitWithTimestamp(byte[] xid, byte[] timestamp) {
+    logger.warn("Ignoring mark commit: {} {}", xid, timestamp);
+  }
+
   Set<String> getUpdatedStores() {
     return Collections.unmodifiableSet(updatedStores);
   }

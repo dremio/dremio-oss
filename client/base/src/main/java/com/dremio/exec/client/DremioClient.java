@@ -82,6 +82,7 @@ import com.dremio.exec.rpc.RpcConnectionHandler;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.RpcFuture;
 import com.dremio.exec.rpc.TransportCheck;
+import com.dremio.exec.rpc.proxy.ProxyConfig;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.sabot.rpc.user.UserClient;
 import com.dremio.sabot.rpc.user.UserResultsListener;
@@ -90,6 +91,7 @@ import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.DistributedSemaphore;
 import com.dremio.service.coordinator.ElectionListener;
 import com.dremio.service.coordinator.ElectionRegistrationHandle;
+import com.dremio.service.coordinator.LinearizableHierarchicalStore;
 import com.dremio.service.coordinator.ServiceSet;
 import com.dremio.service.coordinator.zk.ZKClusterCoordinator;
 import com.dremio.ssl.SSLConfig;
@@ -124,6 +126,10 @@ public class DremioClient implements Closeable, ConnectionThrottle {
           .add(SSLConfig.DISABLE_HOST_VERIFICATION.toLowerCase(Locale.ROOT))
           .add(SSLConfig.ENABLE_SSL.toLowerCase(Locale.ROOT))
           .add(SSLConfig.USE_SYSTEM_TRUST_STORE.toLowerCase(Locale.ROOT))
+          .add(ProxyConfig.SOCKS_PROXY_HOST.toLowerCase(Locale.ROOT))
+          .add(ProxyConfig.SOCKS_PROXY_PORT.toLowerCase(Locale.ROOT))
+          .add(ProxyConfig.SOCKS_PROXY_USERNAME.toLowerCase(Locale.ROOT))
+          .add(ProxyConfig.SOCKS_PROXY_PASSWORD.toLowerCase(Locale.ROOT))
           .build();
 
   // A wrapper class which ignore calls to close()
@@ -166,6 +172,11 @@ public class DremioClient implements Closeable, ConnectionThrottle {
     @Override
     public ElectionRegistrationHandle joinElection(String name, ElectionListener listener) {
       throw new UnsupportedOperationException("registerService is not supported in client");
+    }
+
+    @Override
+    public LinearizableHierarchicalStore getHierarchicalStore() {
+      throw new UnsupportedOperationException("Hierarchical Store is not supported in client");
     }
 
     @Override
@@ -377,7 +388,7 @@ public class DremioClient implements Closeable, ConnectionThrottle {
       }
     };
     client = new UserClient(clientName, config, supportComplexTypes, connectionAllocator, eventLoopGroup, executor,
-      SSLConfig.of(props));
+      SSLConfig.of(props), ProxyConfig.of(props));
     logger.debug("Connecting to server {}:{}", endpoint.getAddress(), endpoint.getUserPort());
 
     return endpoint;

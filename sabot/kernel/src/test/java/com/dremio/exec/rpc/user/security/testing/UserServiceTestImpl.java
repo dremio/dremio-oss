@@ -26,6 +26,7 @@ import org.apache.hadoop.security.UserGroupInformation;
 import com.dremio.datastore.SearchTypes.SortOrder;
 import com.dremio.service.users.AuthResult;
 import com.dremio.service.users.SimpleUser;
+import com.dremio.service.users.SimpleUserService;
 import com.dremio.service.users.SystemUser;
 import com.dremio.service.users.User;
 import com.dremio.service.users.UserLoginException;
@@ -39,7 +40,7 @@ import com.google.common.base.StandardSystemProperty;
  * + UserAuthenticator and authentication of users from Java client to SabotNode.
  * + {@link TestInboundImpersonation user delegation}.
  */
-public class UserServiceTestImpl implements UserService {
+public class UserServiceTestImpl extends SimpleUserService {
   public static final String ANONYMOUS = "anonymous";
   public static final String TEST_USER_1 = "testUser1";
   public static final String TEST_USER_2 = "testUser2";
@@ -70,6 +71,13 @@ public class UserServiceTestImpl implements UserService {
     UserGroupInformation.createUserForTesting("testUser2", new String[]{ "g1" });
     UserGroupInformation.createUserForTesting("admin", new String[]{ ADMIN_GROUP });
   }
+
+  public UserServiceTestImpl() {
+    super(null);
+  }
+
+  @Override
+  public void start() {} // No KVStore to start. This class hardcode the users/passwords.
 
   @Override
   public User getUser(UID uid) throws UserNotFoundException {

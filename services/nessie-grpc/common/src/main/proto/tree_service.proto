@@ -36,6 +36,7 @@ service TreeService {
   rpc transplantCommitsIntoBranch (TransplantRequest) returns (MergeResponse) {}
   rpc mergeRefIntoBranch (MergeRequest) returns (MergeResponse) {}
   rpc commitMultipleOperations (CommitRequest) returns (CommitResponse) {}
+  rpc referenceHistory (ReferenceHistoryRequest) returns (ReferenceHistoryResponse) {}
 }
 
 enum ReferenceType {
@@ -74,7 +75,7 @@ message AssignReferenceRequest {
     Tag tag = 4;
     Detached detached = 5;
   }
-  ReferenceType reference_type = 6;
+  optional ReferenceType reference_type = 6;
 }
 
 message ReferenceResponse {
@@ -84,7 +85,7 @@ message ReferenceResponse {
 message DeleteReferenceRequest {
   string namedRef = 1;
   string hash = 2;
-  ReferenceType reference_type = 6;
+  optional ReferenceType reference_type = 6;
 }
 
 message CommitLogRequest {
@@ -173,6 +174,28 @@ message EntriesResponse {
   optional Reference effectiveReference = 4;
 }
 
+message ReferenceHistoryRequest {
+  string namedRef = 1;
+  optional int32 headCommitsToScan = 2;
+}
+
+message ReferenceHistoryResponse {
+  Reference reference = 1;
+  ReferenceHistoryState current = 2;
+  repeated ReferenceHistoryState previous = 3;
+  CommitConsistency commitLogConsistency = 4;
+}
+
+message ReferenceHistoryState {
+  string commitHash = 1;
+  CommitConsistency consistency = 2;
+  optional CommitMeta commitMeta = 3;
+}
+
+message CommitConsistency {
+  string value = 1; // Maps to Nessie OSS CommitConsistency enum names
+}
+
 enum ContentType {
   UNKNOWN = 0;
   ICEBERG_TABLE = 1;
@@ -190,7 +213,7 @@ message Entry {
 
 message TransplantRequest {
   string branchName = 1;
-  string hash = 2;
+  optional string hash = 2;
   string message = 3;
   string fromRefName = 4;
   repeated string hashesToTransplant = 5;
@@ -205,7 +228,7 @@ message TransplantRequest {
 message MergeRequest {
   string fromHash = 1;
   string toBranch = 2;
-  string expectedHash = 3;
+  optional string expectedHash = 3;
   string fromRefName = 4;
   optional bool keepIndividualCommits = 5;
   optional bool dryRun = 7;
@@ -229,11 +252,7 @@ message CommitRequest {
 }
 
 message CommitResponse {
-  // Inlined Branch fields for backward compatibility with older servers (Dremio version < 25.0.0)
-  optional string name = 1;
-  optional string hash = 2;
-  optional ReferenceMetadata metadata = 3;
-  // End of backward-compatibility fields - remove them with DX-61406
+  reserved 1, 2, 3; // legacy fields: name, hash, metadata
 
   Branch branch = 4;
   repeated AddedContent addedContent = 5;

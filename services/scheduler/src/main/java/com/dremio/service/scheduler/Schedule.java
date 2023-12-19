@@ -15,6 +15,12 @@
  */
 package com.dremio.service.scheduler;
 
+import static com.dremio.service.scheduler.ScheduleBuilderImpl.NO_ADJUSTMENT;
+import static com.dremio.service.scheduler.ScheduleBuilderImpl.checkInterval;
+import static com.dremio.service.scheduler.ScheduleBuilderImpl.combine;
+import static com.dremio.service.scheduler.ScheduleBuilderImpl.dayOfMonth;
+import static com.dremio.service.scheduler.ScheduleBuilderImpl.sameOrNext;
+
 import java.time.DayOfWeek;
 import java.time.Duration;
 import java.time.Instant;
@@ -23,129 +29,85 @@ import java.time.Period;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoField;
-import java.time.temporal.ChronoUnit;
-import java.time.temporal.Temporal;
 import java.time.temporal.TemporalAdjuster;
 import java.time.temporal.TemporalAdjusters;
 import java.time.temporal.TemporalAmount;
 import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-
 
 /**
  * A recurring task schedule.
- *
- * A schedule is comprised of a starting point and a set of periods
- * and is used to generate a sequence of instants where a task should be
- * run.
+ * <p>
+ * A schedule comprises a starting point and a set of periods and is used to generate a sequence of instants where a
+ * task should be run.
  */
 public interface Schedule extends Iterable<Instant> {
+  enum SingleShotType {
+    // Run task once and only once in the cluster or on an upgrade
+    RUN_ONCE_EVERY_UPGRADE,
+    // Run task once and only once in the cluster, everytime the task gets a new task owner.
+    // Here the assumption is that the task switches over to a new instance if and only if the original task owner
+    // crashes.
+    RUN_ONCE_EVERY_SWITCHOVER,
+    // Run task once and only once in the cluster, everytime there is a membership loss
+    // Membership gains does not trigger the schedule
+    RUN_ONCE_EVERY_MEMBER_DEATH,
+  }
+
   /**
-   * Builder to create {@code Schedule} instances
+   * Builder interface to create {@code Schedule} instances
    */
-  final class Builder {
-    private final Instant start;
-    private final TemporalAmount amount;
-    private final TemporalAdjuster adjuster;
-    private final ZoneId zoneId;
-    private final String taskName;
-    private final Long scheduledOwnershipRelease;
-    private final CleanupListener cleanupListener;
+  interface CommonBuilder<B, C> {
+    B withTimeZone(ZoneId zoneId);
+    C asClusteredSingleton(String taskName);
+    Schedule build();
+  }
 
-    private Builder(TemporalAmount amount) {
-      this(Instant.now(), amount, NO_ADJUSTMENT, ZoneOffset.UTC);
+  /**
+   * Builder interface to create {@code Schedule} instances
+   */
+  interface BaseBuilder<B, C> extends CommonBuilder<B, C> {
+    B startingAt(Instant start);
+  }
+
+  interface SingleShotBuilder extends CommonBuilder<SingleShotBuilder, ClusteredSingletonSingleShotBuilder> {
+    /**
+     * Returns a builder that helps create a single shot schedule that runs once and only once instantaneously.
+     *
+     * @return a schedule builder that creates a run once schedule for the task
+     */
+    static SingleShotBuilder now() {
+      return new SingleShotBuilderImpl();
     }
 
-    private Builder(TemporalAmount amount, TemporalAdjuster adjuster) {
-      this(Instant.now(), amount, adjuster, ZoneOffset.UTC);
+    /**
+     * Returns a builder that helps create a single shot schedule that runs once at a future point in time.
+     *
+     * @param start Time at which the single shot schedule should run
+     * @return a schedule builder that creates a run once future schedule
+     */
+    static SingleShotBuilder at(Instant start) {
+      return new SingleShotBuilderImpl(start);
     }
+  }
 
-    private Builder(Instant start, TemporalAmount amount, TemporalAdjuster adjuster, ZoneId zoneId) {
-      this(start, amount, adjuster, zoneId, null, null);
-    }
-
-    private Builder(Instant start,
-                    TemporalAmount amount,
-                    TemporalAdjuster adjuster,
-                    ZoneId zoneId,
-                    String taskName,
-                    Long scheduledOwnershipRelease) {
-      this(start, amount, adjuster, zoneId, taskName, scheduledOwnershipRelease,
-        () -> { /*do nothing */ });
-    }
-
-    private Builder(Instant start,
-                    TemporalAmount amount,
-                    TemporalAdjuster adjuster,
-                    ZoneId zoneId,
-                    String taskName,
-                    Long scheduledOwnershipRelease,
-                    CleanupListener cleanupListener) {
-      this.start = start;
-      this.amount = amount;
-      this.adjuster = adjuster;
-      this.zoneId = zoneId;
-      this.taskName = taskName;
-      this.scheduledOwnershipRelease = scheduledOwnershipRelease;
-      this.cleanupListener = cleanupListener;
-    }
-
-    private Builder withAdjuster(TemporalAdjuster adjuster) {
-      return new Builder(this.start, this.amount, adjuster, zoneId,
-        this.taskName, this.scheduledOwnershipRelease,
-        this.cleanupListener);
-    }
-
-    public Builder withTimeZone(ZoneId zoneId) {
-      return new Builder(this.start, this.amount, this.adjuster, zoneId,
-        this.taskName, this.scheduledOwnershipRelease,
-        this.cleanupListener);
-    }
-
-
-    public Builder startingAt(Instant start) {
-      return new Builder(start, this.amount, this.adjuster, zoneId, this.taskName, this.scheduledOwnershipRelease,
-        this.cleanupListener);
-    }
-
-    public final Schedule build() {
-      return new BaseSchedule(
-        start, amount, adjuster, zoneId,
-        taskName, scheduledOwnershipRelease, cleanupListener);
-    }
-
-    public Builder asClusteredSingleton(String taskName) {
-      return new Builder(
-        start,
-        amount,
-        adjuster,
-        zoneId,
-        taskName,
-        scheduledOwnershipRelease);
-    }
-
-    public Builder withCleanup(CleanupListener cleanupListener) {
-      return new Builder(
-        start,
-        amount,
-        adjuster,
-        zoneId,
-        taskName,
-        scheduledOwnershipRelease,
-        cleanupListener);
-    }
-
-    public Builder releaseOwnershipAfter(long number, TimeUnit timeUnit) {
-      return new Builder(
-        start,
-        amount,
-        adjuster,
-        zoneId,
-        taskName,
-        timeUnit.toMillis(number));
+  interface Builder extends BaseBuilder<Builder, ClusteredSingletonBuilder> {
+    /**
+     * Create a single shot schedule which is actually a chain of single shots. So in reality it is not a single
+     * shot.
+     * <p>
+     * <strong>NOTE:</strong> This is only temporary as we need to allow the old scheduler to coexist with
+     * the new for some time. The old unfortunately models multiple schedules of a task as a chain of
+     * single shot schedules in order to allow occasional schedule modifications.
+     * TODO: DX-68199 avoid the chain and use schedule modifier
+     * </p>
+     * @return Builder for fluency
+     */
+    static Builder singleShotChain() {
+      return new ScheduleBuilderImpl();
     }
 
     /**
@@ -155,8 +117,8 @@ public interface Schedule extends Iterable<Instant> {
      * @return a schedule builder generating events every {@code seconds}
      * @throws IllegalArgumentException if {@code minutes} is negative
      */
-    public static Builder everyMillis(long millis) {
-      return new Builder(Duration.ofMillis(millis));
+    static Builder everyMillis(long millis) {
+      return new ScheduleBuilderImpl(Duration.ofMillis(millis));
     }
 
     /**
@@ -166,8 +128,8 @@ public interface Schedule extends Iterable<Instant> {
      * @return a schedule builder generating events every {@code seconds}
      * @throws IllegalArgumentException if {@code minutes} is negative
      */
-    public static Builder everySeconds(long seconds) {
-      return new Builder(Duration.ofSeconds(seconds));
+    static Builder everySeconds(long seconds) {
+      return new ScheduleBuilderImpl(Duration.ofSeconds(seconds));
     }
 
     /**
@@ -177,8 +139,8 @@ public interface Schedule extends Iterable<Instant> {
      * @return a schedule builder generating events every {@code minutes}
      * @throws IllegalArgumentException if {@code minutes} is negative
      */
-    public static Builder everyMinutes(long minutes) {
-      return new Builder(Duration.ofMinutes(minutes));
+    static Builder everyMinutes(long minutes) {
+      return new ScheduleBuilderImpl(Duration.ofMinutes(minutes));
     }
 
     /**
@@ -188,8 +150,8 @@ public interface Schedule extends Iterable<Instant> {
      * @return a schedule builder generating events every {@code hours}
      * @throws IllegalArgumentException if {@code hours} is negative
      */
-    public static Builder everyHours(int hours) {
-      return new Builder(Duration.ofHours(checkInterval(hours)));
+    static Builder everyHours(int hours) {
+      return new ScheduleBuilderImpl(Duration.ofHours(checkInterval(hours)));
     }
 
     /**
@@ -199,22 +161,22 @@ public interface Schedule extends Iterable<Instant> {
      * @return a schedule builder generating events every {@code days}
      * @throws IllegalArgumentException if {@code days} is negative
      */
-    public static Builder everyDays(int days) {
-      return new Builder(Period.ofDays(checkInterval(days)));
+    static Builder everyDays(int days) {
+      return new ScheduleBuilderImpl(Period.ofDays(checkInterval(days)));
     }
 
     /**
      * Create a schedule builder where events are triggered every {@code days}, at a specific time
      *
      * @param days the number of days between events
-     * @param at the specific time to generate the events at
+     * @param at   the specific time to generate the events at
      * @return a schedule builder generating events every {@code days}
      * @throws IllegalArgumentException if {@code days} is negative
-     * @throws NullPointerException if {@code at} is null
+     * @throws NullPointerException     if {@code at} is null
      */
-    public static Builder everyDays(int days, LocalTime at) {
+    static Builder everyDays(int days, LocalTime at) {
       Preconditions.checkNotNull(at);
-      return everyDays(days).withAdjuster(sameOrNext(Period.ofDays(1), at));
+      return ((ScheduleBuilderImpl) everyDays(days)).withAdjuster(sameOrNext(Period.ofDays(1), at));
     }
 
     /**
@@ -224,24 +186,25 @@ public interface Schedule extends Iterable<Instant> {
      * @return a schedule builder generating events every {@code weeks}
      * @throws IllegalArgumentException if {@code weeks} is negative
      */
-    public static Builder everyWeeks(int weeks) {
-      return new Builder(Period.ofWeeks(checkInterval(weeks)));
+    static Builder everyWeeks(int weeks) {
+      return new ScheduleBuilderImpl(Period.ofWeeks(checkInterval(weeks)));
     }
 
     /**
      * Create a schedule build where events are triggered every {@code weeks}, at a specific day of week and time
      *
-     * @param weeks the number of weeks between events
+     * @param weeks     the number of weeks between events
      * @param dayOfWeek the day of week when to generate events for
-     * @param at the specific time to generate the events at
+     * @param at        the specific time to generate the events at
      * @return a schedule builder generating events every {@code weeks}
      * @throws IllegalArgumentException if {@code weeks} is negative
-     * @throws NullPointerException if {@code dayOfWeek} or {@code at} is null
+     * @throws NullPointerException     if {@code dayOfWeek} or {@code at} is null
      */
-    public static Builder everyWeeks(int weeks, DayOfWeek dayOfWeek, LocalTime at) {
+    static Builder everyWeeks(int weeks, DayOfWeek dayOfWeek, LocalTime at) {
       Preconditions.checkNotNull(dayOfWeek);
       Preconditions.checkNotNull(at);
-      return everyWeeks(weeks).withAdjuster(sameOrNext(Period.ofWeeks(1), combine(dayOfWeek, at)));
+      return ((ScheduleBuilderImpl) everyWeeks(weeks)).withAdjuster(
+        sameOrNext(Period.ofWeeks(1), combine(dayOfWeek, at)));
     }
 
     /**
@@ -251,148 +214,175 @@ public interface Schedule extends Iterable<Instant> {
      * @return a schedule builder generating events every {@code months}
      * @throws IllegalArgumentException if {@code months} is negative
      */
-    public static Builder everyMonths(int months) {
-      return new Builder(Period.ofMonths(checkInterval(months)));
+    static Builder everyMonths(int months) {
+      return new ScheduleBuilderImpl(Period.ofMonths(checkInterval(months)));
     }
 
     /**
      * Create a schedule builder where events are triggered every {@code months}, on a given day of the month and time
-     *
+     * <p>
      * The specific day of the month is expressed as a day of the week and a week number, which
      * is useful to represent schedule like every 2nd tuesday of the month.
      *
-     * @param months the number of months between events
+     * @param months      the number of months between events
      * @param weekOfMonth the ordinal week of the month (1st week is 1)
-     * @param dayOfWeek the day of week when to generate events for
-     * @param at the specific time to generate the events at
+     * @param dayOfWeek   the day of week when to generate events for
+     * @param at          the specific time to generate the events at
      * @return a schedule builder generating events every {@code months}
      * @throws IllegalArgumentException if {@code months} is negative, or if {@code weekOfMonth} is invalid.
-     * @throws NullPointerException if {@code dayOfWeek} or {@code at} is null
+     * @throws NullPointerException     if {@code dayOfWeek} or {@code at} is null
      */
-    public static Builder everyMonths(int months, int weekOfMonth, DayOfWeek dayOfWeek, LocalTime at) {
+    static Builder everyMonths(int months, int weekOfMonth, DayOfWeek dayOfWeek, LocalTime at) {
       ChronoField.ALIGNED_WEEK_OF_MONTH.checkValidValue(weekOfMonth);
       Preconditions.checkNotNull(dayOfWeek);
       Preconditions.checkNotNull(at);
-      return everyMonths(months).withAdjuster(sameOrNext(Period.ofMonths(1), combine(TemporalAdjusters.dayOfWeekInMonth(weekOfMonth, dayOfWeek), at)));
+      return ((ScheduleBuilderImpl) everyMonths(months)).withAdjuster(sameOrNext(Period.ofMonths(1),
+        combine(TemporalAdjusters.dayOfWeekInMonth(weekOfMonth, dayOfWeek), at)));
     }
 
     /**
      * Create a new schedule where events are triggered every {@code months}, on a given day of the month and time
      *
-     * @param months the number of months between events
+     * @param months     the number of months between events
      * @param dayOfMonth the day of the month when to triggered events for. It
      *                   might be adjusted if too large for a specific month
      *                   (31 would be adjusted to 30 for an event triggered in April).
-     * @param at the specific time to generate the events at
+     * @param at         the specific time to generate the events at
      * @return a schedule builder generating events every {@code months}
      * @throws IllegalArgumentException if {@code months} is negative, or if {@code dayOfMonth} is invalid.
-     * @throws NullPointerException if {@code at} is null
+     * @throws NullPointerException     if {@code at} is null
      */
-    public static Builder everyMonths(int months, int dayOfMonth, LocalTime at) {
+    static Builder everyMonths(int months, int dayOfMonth, LocalTime at) {
       ChronoField.DAY_OF_MONTH.checkValidIntValue(dayOfMonth);
       Preconditions.checkNotNull(at);
 
-      return everyMonths(months).withAdjuster(sameOrNext(Period.ofMonths(1), combine(dayOfMonth(dayOfMonth), at)));
+      return ((ScheduleBuilderImpl) everyMonths(months)).withAdjuster(sameOrNext(Period.ofMonths(1),
+        combine(dayOfMonth(dayOfMonth), at)));
     }
+  }
+
+  interface ClusteredSingletonSingleShotBuilder extends CommonBuilder<ClusteredSingletonSingleShotBuilder,
+    ClusteredSingletonSingleShotBuilder> {
+    /**
+     * Execute in lock step.
+     * <p>
+     * If this is set, schedules will be executed in lock step, where all nodes wait for the single shot task running
+     * on a single instance to complete.
+     * Lock step schedules can be duplicated which means two schedules can coexist with the same task name
+     * as long as they execute in sequence.
+     * </p>
+     * <p>
+     * <strong>NOTE:</strong> This is an optional extension for single shot immediate distributed schedules only.
+     * </p>
+     */
+    ClusteredSingletonSingleShotBuilder inLockStep();
 
     /**
-     * Combine temporal adjusters by executing them sequentially.
-     * Order matters obviously...
+     * For clustered singleton schedules, a single shot schedule can be of a type specified by the
+     * {@code SingleShotType}. By default, {@code SingleShotType.RUN_ONCE_EVERY_UPGRADE} is set.
      *
-     * @param adjusters the adjusters to combine
-     * @return an adjuster
+     * @return builder for fluency
      */
-    private static TemporalAdjuster combine(TemporalAdjuster... adjusters) {
-      final ImmutableList<TemporalAdjuster> copyOf = ImmutableList.copyOf(adjusters);
-      return new TemporalAdjuster() {
+    ClusteredSingletonSingleShotBuilder setSingleShotType(SingleShotType singleShotType);
+  }
 
-        @Override
-        public Temporal adjustInto(Temporal temporal) {
-          Temporal result = temporal;
-          for(TemporalAdjuster adjuster: copyOf) {
-            result = result.with(adjuster);
-          }
-          return result;
-        }
-      };
+  interface ClusteredSingletonBuilder extends BaseBuilder<ClusteredSingletonBuilder, ClusteredSingletonBuilder> {
+    /**
+     * Provides a new ClusteredSingletonBuilder from an existing schedule where the name cannot be modified.
+     */
+    static ClusteredSingletonBuilder fromSchedule(Schedule old) {
+      return new ClusteredSingletonBuilderImpl(old);
     }
 
     /**
-     * A temporal adjuster which leaves the temporal untouched.
-     * In a Java8 world, this helper can probably be removed safely
-     * and replaced by identity
+     * Provides a new ClusteredSingletonBuilder from an existing schedule where the name cannot be modified
+     * and amount needs to be changed
+     * <p>
+     * Assumption: for now modifiable schedules cannot modify schedules with temporal adjustments
+     * </p>
      */
-    private static final TemporalAdjuster NO_ADJUSTMENT = new TemporalAdjuster() {
-      @Override
-      public Temporal adjustInto(Temporal temporal) {
-        return temporal;
-      }
-    };
+    static ClusteredSingletonBuilder fromSchedule(Schedule old, TemporalAmount newAmount) {
+      Preconditions.checkArgument(old.getAdjuster().equals(NO_ADJUSTMENT),
+        "Modifications not allowed for schedules with temporal adjusters such as time of day");
+      return new ClusteredSingletonBuilderImpl(old, newAmount);
+    }
+
     /**
-     * Wraps an adjuster to round the temporal to the next period if the adjusted time is before
-     * the temporal instant.
+     * Allows modification of schedule of the task.
+     * <p>
+     * This is a better pattern for clustered singleton schedules as this allows to model a task with occasionally
+     * varying schedules as opposed to a chain of single shot schedules. For a clustered singleton this will also
+     * bring in internal efficiencies, such as a service instance retaining ownership for task across multiple
+     * schedules.
+     * </p>
+     * @param scheduleModifier The modifier function that returns a new schedule. Return of a null schedule by this
+     *                         function indicates that there is no modification.
+     * @return builder for fluency
+     */
+    ClusteredSingletonBuilder scheduleModifier(Function<Schedule, Schedule> scheduleModifier);
+
+    /**
+     * Ownership release for leader election.
+     * <p>
+     * TODO: DX-68199 these calls will no longer be necessary once the distributed singleton is entirely
+     * migrated and not under a flag.
+     * </p>
      *
-     * @param amount the amount to add to the adjusted time if before the temporal argument of
-     * {@code TemporarlAdjuster#adjustInto()} is after the adjusted time
-     * @param adjuster the adjuster to wrap
-     * @return an adjuster
+     * @param number time
+     * @param timeUnit time unit
+     * @return builder for fluency
      */
-    private static TemporalAdjuster sameOrNext(final TemporalAmount amount, final TemporalAdjuster adjuster) {
-      return new TemporalAdjuster() {
-
-        @Override
-        public Temporal adjustInto(Temporal temporal) {
-          Temporal adjusted = temporal.with(adjuster);
-          return (ChronoUnit.NANOS.between(temporal, adjusted) >= 0)
-              ? adjusted
-              : temporal.plus(amount).with(adjuster);
-          }
-      };
-    }
+    ClusteredSingletonBuilder releaseOwnershipAfter(long number, TimeUnit timeUnit);
 
     /**
-     * Adjust a temporal to the given day of the month
+     * Cleanup listener which is called when a task is cancelled.
+     * <p>
+     * <strong>NOTE:</strong> Currently only used in leader election unit tests.
+     * TODO: DX-68199 these calls will no longer be necessary once the distributed singleton is entirely
+     * migrated and not under a flag.
+     * </p>
+     * @param cleanupListener cleanup listener
+     * @return builder for fluency
+     */
+    ClusteredSingletonBuilder withCleanup(CleanupListener cleanupListener);
+
+    /**
+     * Optional task group to which the task and its schedule belongs to.
+     * <p>
+     * If task group is not specified, default task group will be used for the task and its schedule(s).
+     * </p>
+     * @param taskGroupName Name of the group to which it belongs
      *
-     * @param dayOfMonth the day of the month to adjust the temporal to
-     * @return a temporal adjuster
-     * @throws IllegalArgumentException if {@code dayOfMonth} is invalid
+     * @return builder for fluency
      */
-    private static final TemporalAdjuster dayOfMonth(final int dayOfMonth) {
-      ChronoField.DAY_OF_MONTH.checkValidIntValue(dayOfMonth);
-
-      return new TemporalAdjuster() {
-        @Override
-        public Temporal adjustInto(Temporal temporal) {
-          long adjustedDayOfMonth = Math.min(dayOfMonth, temporal.range(ChronoField.DAY_OF_MONTH).getMaximum());
-          return temporal.with(ChronoField.DAY_OF_MONTH, adjustedDayOfMonth);
-        }
-      };
-    }
+    ClusteredSingletonBuilder taskGroup(String taskGroupName);
 
     /**
-     * Check that interval (as X hours, hours, weeks...) is strictly positive
-     * @param interval the value to check
-     * @return interval
+     * All schedules of this task are sticky to an instance and cannot be scheduled on another instance, unless the
+     * other instance crashes.
+     * <p>
+     * By default schedules of a task are not sticky and can be load balanced. Schedule users must explicitly state
+     * if they wish that a task must stick to an instance as long as that instance is alive
+     * </p>
+     *
+     * @return builder
      */
-    private static int checkInterval(int interval) {
-      Preconditions.checkArgument(interval > 0, "interval should be greater than 0, was %s", interval);
-      return interval;
-    }
+    ClusteredSingletonBuilder sticky();
   }
 
   /**
    * Return the amount of time between two instants created by the schedule.
-   *
+   * <p>
    * The information is approximative and not absolute as the schedule might be adjusted
    * based on schedule constraints (like every week, or every 2nd Tuesday of every other month).
-   *
+   * </p>
    * @return the amount of time between events
    */
   TemporalAmount getPeriod();
 
   /**
    * Return an iterator over next scheduled events
-   *
+   * <p>
    * Each sequence of events created by this method starts at the current
    * time (so the sequence doesn't contain events from the past). More precisely
    * the first event should be the closest instant greater or equals to now which satisfies the
@@ -405,33 +395,57 @@ public interface Schedule extends Iterable<Instant> {
 
   /**
    * To get name of distributed singleton task
-   * @return
+   * <p>
+   * Assumption: Only distributed singleton schedules have task names.
+   * </p>
+   *
+   * @return task name
    */
   String getTaskName();
 
   /**
    * Time period after which to release leadership
    * in milliseconds
-   * @return
+   *
+   * @return Ownership release time (will be deprecated in future)
    */
   Long getScheduledOwnershipReleaseInMillis();
 
   /**
    * To define if it is distributed singleton task
-   * @return
+   *
+   * @return false if normal schedule, true, if distributed singleton
    */
   default boolean isDistributedSingleton() {
     return (getTaskName() != null);
   }
 
   /**
-   * To run exactly once - leader executes once and everyone
-   * else backs off.
-   * @return
+   * To run exactly once.
+   *<p>
+   *<strong>NOTE:</strong> these calls will no longer be necessary once the clustered singleton is entirely
+   *migrated and not under a flag. See DX-68199
+   *<strong>NOTE:</strong> this is extremely confusing and error prone and difficult to wean out from the code
+   * as this is used to distinguish between a chain of single shots vs an actual single shot.
+   *</p>
+   *
+   * @return true if task run exactly once, false otherwise
    */
-  default boolean isToRunExactlyOnce() {
-    return false;
-  }
+  boolean isToRunExactlyOnce();
+
+  /**
+   * Flag specifying whether to run task once on every switch over.
+   *
+   * @return true if the single shot schedule needs to run once every switch over
+   */
+   SingleShotType getSingleShotType();
+
+  /**
+   * Is the schedule sticky to an instance until the instance fails?
+   *
+   * @return true if sticky
+   */
+  boolean isSticky();
 
   /**
    * To get CleanupListener that will be used
@@ -440,10 +454,74 @@ public interface Schedule extends Iterable<Instant> {
    * This can/should be used by tasks that need
    * to clearly differentiate their state while they are leaders
    * or not leaders
+   *<p>
+   *<strong>NOTE:</strong> these calls will no longer be necessary once the distributed singleton is entirely
+   *migrated and not under a flag. See DX-68199
+   *</p>
+   *
    * @return CleanupListener
    */
-  default CleanupListener getCleanupListener() { return () -> {
-    // do nothing by default
+  default CleanupListener getCleanupListener() {
+    return () -> {
+      // do nothing by default
     };
+  }
+
+  /**
+   * Returns a function that can return a modified schedule from existing schedule.
+   * This will allow callers to modify the schedule.
+   * <p>
+   * The scheduler will call this function immediately after the task completes its run on its current schedule.
+   * </p>
+   * <p>
+   * Since a schedule object is immutable, this returns a new schedule object everytime there is a modification,
+   * with the unmodified parts copied to the new object. If there is no modification to the current schedule,
+   * a <i>null</i> should be returned, which indicates to the scheduler that it should continue using the
+   * current schedule.
+   * </p>
+   *
+   * @return a supplier that either returns a modified schedule OR null if no modification allowed
+   */
+  default Function<Schedule, Schedule> getScheduleModifier() {
+    return (s) -> null;
+  }
+
+  /**
+   * In order to control capacity usage and allow the creator of the task schedule to control the capacity usage
+   * of all tasks within a group, the schedule creator has the option to create different groups that is uniquely
+   * identified by the group name. This will allow external control of capacity usage for different kind of tasks.
+   * <p>
+   * If the schedule has not specified a name for the {@code ScheduleTaskGroup} the default group available to the
+   * scheduler service will be used, while scheduling this task.
+   *
+   * @return name of the task group if set for this schedule, null otherwise
+   */
+  default String getTaskGroupName() {
+    return null;
+  }
+
+  /**
+   * Time Zone information
+   *
+   * @return Zone Id
+   */
+  default ZoneId getZoneId() {
+    return ZoneOffset.UTC;
+  }
+
+  /**
+   * Temporal adjuster, to adjust to a specific time (such as time of day)
+   *
+   * @return temporal adjuster, if any
+   */
+  default TemporalAdjuster getAdjuster() {
+    return NO_ADJUSTMENT;
+  }
+
+  /**
+   * Whether this is a lock step schedule
+   */
+  default boolean isInLockStep() {
+    return false;
   }
 }

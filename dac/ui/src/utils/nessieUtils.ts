@@ -23,6 +23,10 @@ import moize from "moize";
 import { isVersionedSource } from "./sourceUtils";
 import { NESSIE } from "@app/constants/sourceTypes";
 import { NESSIE_PROXY_URL_V2 } from "@app/constants/Api";
+import { getDatasetByPath } from "./datasetTreeUtils";
+import { PHYSICAL_DATASET, VIRTUAL_DATASET } from "@app/constants/datasetTypes";
+import Immutable from "immutable";
+import type { Script } from "dremio-ui-common/sonar/scripts/Script.type.js";
 
 export function getShortHash(hash?: string) {
   return hash && hash.length > 6 ? hash.substring(0, 8) : hash;
@@ -122,6 +126,22 @@ export function getNessieReferencePayload(nessie?: NessieRootState | null) {
   }, {} as any);
 }
 
+// Returns reference state for populated entries (has hash or reference name)
+export function getStateRefsOmitted(
+  nessie?: NessieRootState | null
+): NessieRootState {
+  const result = {} as NessieRootState;
+  if (!nessie) return result;
+
+  const stateKeys = Object.keys(nessie).filter(
+    (key) => key && !key.startsWith(NESSIE_REF_PREFIX)
+  );
+  return stateKeys.reduce((acc, cur) => {
+    acc[cur] = nessie[cur];
+    return acc;
+  }, result);
+}
+
 export function getReferenceListForTransform(
   referencePayload = {} as { [key: string]: any } | null
 ) {
@@ -135,11 +155,32 @@ export function getReferenceListForTransform(
   });
 }
 
-export function getProjectUrl(id?: string) {
-  //@ts-ignore
-  return `${window.location.protocol}${apiUtils.getAPIVersion("NESSIE", {
-    projectId: id,
-  })}`;
+export function getReferencesListForScript(nessie?: NessieRootState) {
+  const referencesObject = getNessieReferencePayload(nessie);
+  return getReferenceListForTransform(referencesObject);
+}
+
+export function convertReferencesListToRootState(
+  state: NessieRootState,
+  referencesList: Script["referencesList"]
+) {
+  const newState = { ...state };
+
+  referencesList.forEach((reference: any) => {
+    newState[`${NESSIE_REF_PREFIX}${reference.sourceName}`] = {
+      reference: {
+        type: reference.reference.type,
+        name: reference.reference.value,
+      },
+      defaultReference: null,
+      hash: null,
+      date: null,
+      loading: {},
+      errors: {},
+    };
+  });
+
+  return newState;
 }
 
 export function getArcticProjectUrl(
@@ -163,14 +204,21 @@ export function isBranchSelected(state?: NessieState) {
   return state?.reference?.type === "BRANCH";
 }
 
-export const getSourceByName = moize(function (
-  name: string,
-  sources?: Array<{ name: string; type: string }>
-) {
-  return (sources || []).find(
-    (cur) => cur.name === name && isVersionedSource(cur.type)
-  );
-});
+export const getSourceByName = moize(
+  (name: string, sources?: Immutable.List<any>) => {
+    return (sources || Immutable.List()).find(
+      (cur) => cur.get("name") === name && isVersionedSource(cur.get("type"))
+    );
+  }
+);
+
+export const getSourceById = (
+  id: string,
+  sources?: Immutable.Map<any, any>
+) => {
+  const source = sources?.get(id);
+  return isVersionedSource(source?.get("type")) ? source : null;
+};
 
 export function parseNamespaceUrl(url: string, path: string) {
   if (url === "/") return undefined;
@@ -203,7 +251,7 @@ function getEndpointFromSourceConfig(
 }
 
 function getNessieSourceUrl(sourceName: string) {
-  return `${NESSIE_PROXY_URL_V2}/${`source/${sourceName}`}`;
+  return `${NESSIE_PROXY_URL_V2}/${`source/${encodeURIComponent(sourceName)}`}`;
 }
 
 export function getEndpointFromSource(
@@ -216,4 +264,34 @@ export function getEndpointFromSource(
   }
 
   return getEndpointFromSourceConfig(source.config, nessieVersion);
+}
+
+export function getSqlATSyntax(sourceName?: string) {
+  if (!sourceName) return "";
+
+  const state = store.getState().nessie?.[sourceName];
+
+  if (state?.hash) {
+    return ` AT COMMIT "${state.hash}"`;
+  } else if (state?.reference?.type === "TAG") {
+    return ` AT TAG "${state.reference.name}"`;
+  } else if (state?.reference?.name) {
+    return ` AT BRANCH "${state.reference.name}"`;
+  } else {
+    return "";
+  }
+}
+
+export function addDatasetATSyntax(pathList?: string[]) {
+  if (!pathList?.length) return "";
+
+  const dataset = getDatasetByPath(pathList);
+  if (
+    dataset &&
+    (dataset.type === PHYSICAL_DATASET || dataset.type === VIRTUAL_DATASET)
+  ) {
+    return getSqlATSyntax(pathList[0]);
+  } else {
+    return "";
+  }
 }

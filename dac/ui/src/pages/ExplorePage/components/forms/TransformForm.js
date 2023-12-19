@@ -94,7 +94,7 @@ export class TransformForm extends Component {
     }
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     const nextActiveCard = nextProps.values.activeCard;
     const nextCardValues =
       nextProps.values.cards && nextProps.values.cards[nextActiveCard];

@@ -99,7 +99,7 @@ public final class Describer {
     return field.getType().accept(new FieldDescriber(field, true));
   }
 
-  private static String describe(Field field, boolean includeName){
+  public static String describe(Field field, boolean includeName){
     return field.getType().accept(new FieldDescriber(field, includeName));
   }
 

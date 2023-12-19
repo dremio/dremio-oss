@@ -15,6 +15,7 @@
  */
 package com.dremio.service.reflection;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -23,13 +24,14 @@ import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import javax.inject.Provider;
 
+import com.dremio.catalog.model.dataset.TableVersionType;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.EntityExplorer;
-import com.dremio.exec.catalog.TableVersionType;
 import com.dremio.exec.catalog.VersionedDatasetId;
 import com.dremio.exec.ops.ReflectionContext;
+import com.dremio.exec.planner.sql.PartitionTransform;
 import com.dremio.exec.planner.sql.SchemaUtilities;
 import com.dremio.exec.planner.sql.parser.SqlCreateReflection;
 import com.dremio.exec.planner.sql.parser.SqlCreateReflection.MeasureType;
@@ -42,6 +44,7 @@ import com.dremio.exec.store.sys.accel.LayoutDefinition.Type;
 import com.dremio.service.accelerator.AccelerationUtils;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.reflection.proto.BucketTransform;
 import com.dremio.service.reflection.proto.DimensionGranularity;
 import com.dremio.service.reflection.proto.ExternalReflection;
 import com.dremio.service.reflection.proto.PartitionDistributionStrategy;
@@ -51,7 +54,10 @@ import com.dremio.service.reflection.proto.ReflectionField;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionGoalState;
 import com.dremio.service.reflection.proto.ReflectionMeasureField;
+import com.dremio.service.reflection.proto.ReflectionPartitionField;
 import com.dremio.service.reflection.proto.ReflectionType;
+import com.dremio.service.reflection.proto.Transform;
+import com.dremio.service.reflection.proto.TruncateTransform;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
@@ -102,7 +108,7 @@ public class AccelerationManagerImpl implements AccelerationManager {
     } catch(Exception e) {
       throw UserException.validationError(e).message("Unable to find requested dataset %s.", key).build(logger);
     }
-    validateReflectionSupportForTimeTravelOnArctic(tableWithPath.getPath().get(0), datasetId, (Catalog) catalog);
+    validateReflectionSupportForTimeTravelOnVersionedSource(tableWithPath.getPath().get(0), datasetId, (Catalog) catalog);
 
     ReflectionGoal goal = new ReflectionGoal();
     ReflectionDetails details = new ReflectionDetails();
@@ -111,7 +117,18 @@ public class AccelerationManagerImpl implements AccelerationManager {
     details.setDisplayFieldList(toDescriptor(definition.getDisplay()));
     details.setDistributionFieldList(toDescriptor(definition.getDistribution()));
     details.setMeasureFieldList(toMeasureFields(definition.getMeasure()));
-    details.setPartitionFieldList(toDescriptor(definition.getPartition()));
+    final List<ReflectionPartitionField> reflectionPartitionFields = new ArrayList<>();
+    for(final PartitionTransform partitionTransform:definition.getPartition()){
+      final List<String> fieldName = new ArrayList<>();
+      fieldName.add(partitionTransform.getColumnName());
+      List<ReflectionField> reflectionFields = toDescriptor(fieldName);
+      ReflectionField reflectionField = reflectionFields.get(0);
+      ReflectionPartitionField reflectionPartitionField = new ReflectionPartitionField(reflectionField.getName());
+      Transform transform = buildProtoTransformFromPartitionTransform(partitionTransform);
+      reflectionPartitionField.setTransform(transform);
+      reflectionPartitionFields.add(reflectionPartitionField);
+    }
+    details.setPartitionFieldList(reflectionPartitionFields);
     details.setSortFieldList(toDescriptor(definition.getSort()));
     details.setPartitionDistributionStrategy(definition.getPartitionDistributionStrategy() ==
         com.dremio.exec.planner.sql.parser.PartitionDistributionStrategy.STRIPED ?
@@ -126,6 +143,40 @@ public class AccelerationManagerImpl implements AccelerationManager {
     reflectionAdministrationServiceFactory.get().get(reflectionContext).create(goal);
   }
 
+  /**
+   * Given a PartitionTransform convert it to equivalent proto.Transform
+   * @param partitionTransform partition transform to convert
+   * @return proto.Transform equivalent to the passed in PartitionTransform
+   */
+  public Transform buildProtoTransformFromPartitionTransform(PartitionTransform partitionTransform){
+  Transform transform = new Transform();
+  transform.setType(Transform.Type.valueOf(partitionTransform.getType().toString()));
+  switch (transform.getType()) {
+    case BUCKET:
+      Integer count = partitionTransform.getArgumentValue(0, Integer.class);
+      BucketTransform bucketTransform = new BucketTransform();
+      bucketTransform.setBucketCount(count);
+      transform.setBucketTransform(bucketTransform);
+      break;
+    case TRUNCATE:
+      Integer length = partitionTransform.getArgumentValue(0, Integer.class);
+      TruncateTransform truncateTransform = new TruncateTransform();
+      truncateTransform.setTruncateLength(length);
+      transform.setTruncateTransform(truncateTransform);
+      break;
+    case IDENTITY:
+    case YEAR:
+    case MONTH:
+    case DAY:
+    case HOUR:
+      //do nothing, transform.setType is already called above so type is set correctly
+      //no arguments are needed for the transforms in this list
+      break;
+    default:
+      throw new RuntimeException(String.format("Unsupported partition transform type %s.", transform.getType()));
+  }
+  return transform;
+}
   private List<ReflectionDimensionField> toDimensionFields(List<SqlCreateReflection.NameAndGranularity> fields) {
     return FluentIterable.from(AccelerationUtils.selfOrEmpty(fields))
         .transform(new Function<SqlCreateReflection.NameAndGranularity, ReflectionDimensionField>() {
@@ -269,13 +320,13 @@ public class AccelerationManagerImpl implements AccelerationManager {
     return null;
   }
 
-  // This helper is to determine if there ia TIMESTAMP specified on an Arctic table.
+  // This helper is to determine if there ia TIMESTAMP specified on an Versioned table.
   // We want to disallow AT TIMESTAMP specifiication when creating reflections. This is because the VersionDatasetId
   // will not contain the branch information if we allow this. So when we later go to lookup the table using the saved VersionedDatasetId,
   // we won't have the branch information to lookup the table in Nessie and will always lookup only in the default branch.
   // Eg if the currrent context is dev and we are creating a reflection AT TIMESTAMP T1 , the table is resolved to <dev + T1>.
   // Later when we lookup the table, we  don't save the 'dev' branch context in it, so we will lookup the tableat <default branch + T1>.
-  private void validateReflectionSupportForTimeTravelOnArctic(String source, String datasetId, Catalog catalog) {
+  private void validateReflectionSupportForTimeTravelOnVersionedSource(String source, String datasetId, Catalog catalog) {
     VersionedDatasetId versionedDatasetId = null;
     try {
       // first check to see if it's a VersionedDatasetId

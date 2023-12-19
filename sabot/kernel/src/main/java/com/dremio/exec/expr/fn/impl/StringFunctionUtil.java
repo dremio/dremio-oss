@@ -274,4 +274,28 @@ public class StringFunctionUtil {
     copyNullableVarCharHolder(out, in);
     out.isSet = 1;
   }
+
+  public static boolean like(CharSequenceWrapper str, CharSequenceWrapper pattern) {
+    int s = 0, p = 0, starIdx = -1, match = 0;
+    while (s < str.length()) {
+      if (p < pattern.length() && pattern.charAt(p) == '%') {
+        starIdx = p;
+        match = s;
+        p++;
+      } else if (p < pattern.length() && (pattern.charAt(p) == '_' || pattern.charAt(p) == str.charAt(s))) {
+        s++;
+        p++;
+      } else if (starIdx != -1) {
+        p = starIdx + 1;
+        match++;
+        s = match;
+      } else {
+        return false;
+      }
+    }
+    while (p < pattern.length() && pattern.charAt(p) == '%') {
+      p++;
+    }
+    return p == pattern.length();
+  }
 }

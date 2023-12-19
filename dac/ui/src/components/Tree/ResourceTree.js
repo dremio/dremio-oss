@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 import { Component } from "react";
+import { compose } from "redux";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 import { injectIntl } from "react-intl";
@@ -25,13 +26,13 @@ import {
 
 import Tree from "./Tree";
 import TreeBrowser from "./TreeBrowser";
+import { withTreeConfigContext } from "./treeConfigContext";
 
 import "./ResourceTree.less";
 
-class ResourceTree extends Component {
+export class ResourceTree extends Component {
   static propTypes = {
     resourceTree: PropTypes.instanceOf(Immutable.List),
-    sources: PropTypes.instanceOf(Immutable.List),
     selectedNodeId: PropTypes.string,
     isDatasetsDisabled: PropTypes.bool,
     isSourcesHidden: PropTypes.bool,
@@ -65,6 +66,8 @@ class ResourceTree extends Component {
     hideSources: PropTypes.bool,
     hideHomes: PropTypes.bool,
     stopAtDatasets: PropTypes.bool,
+    treeConfigContext: PropTypes.object,
+    handleDatasetDetails: PropTypes.func,
   };
 
   constructor(props) {
@@ -88,6 +91,7 @@ class ResourceTree extends Component {
       formatIdFromNode,
       stopAtDatasets,
     } = this.props;
+
     if (node && ResourceTree.isNodeExpandable(node, stopAtDatasets)) {
       handleNodeClick(node, isNodeExpanded);
     }
@@ -104,7 +108,6 @@ class ResourceTree extends Component {
       browser,
       resourceTree,
       style,
-      sources,
       selectedNodeId,
       isNodeExpanded,
       dragType,
@@ -139,7 +142,6 @@ class ResourceTree extends Component {
         {browser ? (
           <TreeBrowser
             resourceTree={resourceTree}
-            sources={sources}
             selectedNodeId={selectedNodeId}
             isNodeExpanded={isNodeExpanded}
             dragType={dragType}
@@ -173,8 +175,6 @@ class ResourceTree extends Component {
         ) : (
           <Tree
             resourceTree={resourceTree}
-            sources={sources}
-            isSorted={true}
             selectedNodeId={selectedNodeId}
             fromModal={fromModal}
             hideSourcesforModal={hideSourcesforModal}
@@ -206,4 +206,4 @@ class ResourceTree extends Component {
     );
   }
 }
-export default injectIntl(ResourceTree);
+export default compose(injectIntl, withTreeConfigContext)(ResourceTree);

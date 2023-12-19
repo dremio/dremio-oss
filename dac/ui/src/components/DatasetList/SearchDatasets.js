@@ -44,7 +44,7 @@ class SearchDatasets extends PureComponent {
     filter: "",
   };
 
-  componentWillMount() {
+  UNSAFE_componentWillMount() {
     this.props.loadSearchData("");
   }
 
@@ -64,7 +64,7 @@ class SearchDatasets extends PureComponent {
       <SearchField
         value={this.state.filter}
         onChange={this.handleFilter}
-        placeholder={la("Search datasets…")}
+        placeholder={laDeprecated("Search datasets…")}
         style={{ flexShrink: 0 }}
       />
     );

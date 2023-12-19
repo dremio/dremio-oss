@@ -300,7 +300,7 @@ public class ElasticsearchStoragePlugin implements StoragePlugin, SupportsListin
       final String schema = datasetPath.getComponents().get(1);
       final String type = datasetPath.getComponents().get(2);
       final ClusterMetadata clusterMetadata = connection.execute(new ElasticActions.GetClusterMetadata()
-          .setIndex(schema), false);
+          .setIndex(schema), connectionPool.getMinVersionInCluster().getMajor());
       final List<ElasticIndex> indices = clusterMetadata.getIndices();
       if (indices.isEmpty()) {
         return Optional.empty();
@@ -343,7 +343,8 @@ public class ElasticsearchStoragePlugin implements StoragePlugin, SupportsListin
   @Override
   public DatasetHandleListing listDatasetHandles(GetDatasetOption... options) {
     final ElasticConnection connection = this.connectionPool.getRandomConnection();
-    final ClusterMetadata clusterMetadata = connection.execute(new ElasticActions.GetClusterMetadata(), false);
+    final ClusterMetadata clusterMetadata = connection.execute(new ElasticActions.GetClusterMetadata(),
+      connectionPool.getMinVersionInCluster().getMajor());
     final ImmutableList.Builder<DatasetHandle> builder = ImmutableList.builder();
 
     final ArrayListMultimap<ElasticAliasMappingName, ElasticIndex> aliases = ArrayListMultimap.create();
@@ -433,7 +434,9 @@ public class ElasticsearchStoragePlugin implements StoragePlugin, SupportsListin
     try {
       final String schema = datasetPath.getPathComponents().get(1);
       final String type = datasetPath.getPathComponents().get(2);
-      ClusterMetadata clusterMetadata = connection.execute(new ElasticActions.GetClusterMetadata().setIndex(datasetPath.getPathComponents().get(1)), false);
+      ClusterMetadata clusterMetadata = connection.execute(
+        new ElasticActions.GetClusterMetadata().setIndex(datasetPath.getPathComponents().get(1)),
+        connectionPool.getMinVersionInCluster().getMajor());
       List<ElasticIndex> indices = clusterMetadata.getIndices();
       if(indices.isEmpty()){
         return null;

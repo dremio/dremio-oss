@@ -86,7 +86,7 @@ public class SocketServlet extends WebSocketServlet {
     factory.setCreator(new Creator());
   }
 
-  private class Creator implements WebSocketCreator {
+  private final class Creator implements WebSocketCreator {
 
     @Override
     public Object createWebSocket(ServletUpgradeRequest req, ServletUpgradeResponse resp) {

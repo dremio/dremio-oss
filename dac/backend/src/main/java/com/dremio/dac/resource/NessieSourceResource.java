@@ -24,7 +24,6 @@ import javax.ws.rs.NotFoundException;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 
-import org.projectnessie.client.api.NessieApi;
 import org.projectnessie.client.api.NessieApiV2;
 
 import com.dremio.common.exceptions.UserException;
@@ -37,7 +36,6 @@ import com.dremio.exec.store.NessieApiProvider;
 import com.dremio.options.OptionManager;
 import com.dremio.options.Options;
 import com.dremio.services.nessie.proxy.ProxyV2TreeResource;
-import com.google.common.base.Preconditions;
 
 /**
  * Resource for providing APIs for Nessie As a Source.
@@ -77,16 +75,14 @@ public class NessieSourceResource {
         logger.error("Unexpected Error");
         throw new NessieSourceResourceException(exception, "Unexpected Error", BAD_REQUEST);
       }
-      NessieApi nessieApi = provider.getNessieApi();
-      Preconditions.checkArgument(nessieApi instanceof NessieApiV2, "nessieApi provided by NessieApiProvider is not V2. V2 is required.");
-      return getTreeResource(nessieApi);
+      return getTreeResource(provider.getNessieApi());
     } else {
       logger.error(String.format("Using nessie-as-a-source is disabled. The support key '%s' must be enabled.", NESSIE_SOURCE_API.getOptionName()));
       throw new NotFoundException(String.format("Using nessie-as-a-source is disabled. The support key '%s' must be enabled.", NESSIE_SOURCE_API.getOptionName()));
     }
   }
 
-  protected ProxyV2TreeResource getTreeResource(NessieApi nessieApi) {
-    return new V2TreeResource((NessieApiV2) nessieApi);
+  protected ProxyV2TreeResource getTreeResource(NessieApiV2 nessieApi) {
+    return new V2TreeResource(nessieApi);
   }
 }

@@ -81,7 +81,7 @@ public class ReleasableBoundCommandPool implements ReleasableCommandPool {
       TimeUnit.SECONDS,
       new SynchronousQueue<>(), // queue requests
       new NamedThreadFactory("rbound-command")
-    ), tracer);
+    ));
   }
 
   @Override

@@ -49,7 +49,7 @@ export class HelpFunctions extends PureComponent {
     filter: "",
   };
 
-  componentWillMount() {
+  UNSAFE_componentWillMount() {
     this.loadData(this.state.filter);
   }
 

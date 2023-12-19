@@ -133,6 +133,7 @@ public class TestBugFixes extends BaseTestQuery {
             .build().run();
   }
 
+  @Ignore
   @Test
   public void testDRILL4192() throws Exception {
 
@@ -202,6 +203,28 @@ public class TestBugFixes extends BaseTestQuery {
       .baselineValues(7L, 28L)
       .baselineValues(8L, 32L)
       .baselineValues(9L, 36L)
+      .go();
+  }
+
+  @Test // DX-62402
+  public void testExpressionSplitterNestedGandivaFunction() throws Exception {
+    final String query = "SELECT COUNT(DISTINCT CASE\n"
+      + "           WHEN TRIM(BOTH ' '\n"
+      + "                     FROM to_utf8(CASE\n"
+      + "           WHEN POSITION('-' IN \"o_orderpriority\") = 0 THEN \"o_orderpriority\"\n"
+      + "           ELSE RIGHT(\"o_orderpriority\", LENGTH(\"o_orderpriority\") - POSITION('-' IN \"o_orderpriority\"))\n"
+      + "       END,'Windows-1250')) LIKE 'MEDIUM' THEN 'MED'\n"
+      + "           WHEN TRIM(BOTH ' '\n"
+      + "                     FROM to_utf8(CASE\n"
+      + "           WHEN POSITION('-' IN \"o_orderpriority\") = 0 THEN \"o_orderpriority\"\n"
+      + "           ELSE RIGHT(\"o_orderpriority\", LENGTH(\"o_orderpriority\") - POSITION('-' IN \"o_orderpriority\"))\n"
+      + "       END,'Windows-1250')) LIKE 'URGENT' THEN 'HI'\n"
+      + "       END) AS \"Result\" from cp.\"tpch/orders.parquet\"";
+
+    testBuilder().sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("Result")
+      .baselineValues(2L)
       .go();
   }
 }

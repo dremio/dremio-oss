@@ -73,7 +73,7 @@ class SplitContent extends PureComponent {
           <Checkbox
             data-qa="SplitIgnoreCase"
             style={styles.check}
-            label={la("Ignore Case")}
+            label={laDeprecated("Ignore Case")}
             {...ignoreCase}
           />
         </div>

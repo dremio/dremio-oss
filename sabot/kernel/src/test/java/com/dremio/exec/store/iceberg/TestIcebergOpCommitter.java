@@ -27,6 +27,9 @@ import static com.dremio.common.expression.CompleteType.TIME;
 import static com.dremio.common.expression.CompleteType.TIMESTAMP;
 import static com.dremio.common.expression.CompleteType.VARCHAR;
 import static com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType.CONCURRENT_MODIFICATION;
+import static com.dremio.exec.store.iceberg.model.IcebergCommandType.INCREMENTAL_METADATA_REFRESH;
+import static com.dremio.exec.store.iceberg.model.IcebergCommandType.PARTIAL_METADATA_REFRESH;
+import static com.dremio.exec.store.iceberg.model.IncrementalMetadataRefreshCommitter.MAX_NUM_SNAPSHOTS_TO_EXPIRE;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -41,6 +44,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -57,9 +61,10 @@ import org.apache.iceberg.ManifestFiles;
 import org.apache.iceberg.ManifestWriter;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
+import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableOperations;
-import org.apache.iceberg.exceptions.ValidationException;
+import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.io.OutputFile;
 import org.junit.Assert;
@@ -77,12 +82,14 @@ import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.iceberg.manifestwriter.IcebergCommitOpHelper;
+import com.dremio.exec.store.iceberg.model.IcebergCommandType;
 import com.dremio.exec.store.iceberg.model.IcebergDmlOperationCommitter;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.exec.store.iceberg.model.IcebergOpCommitter;
 import com.dremio.exec.store.iceberg.model.IncrementalMetadataRefreshCommitter;
 import com.dremio.exec.store.metadatarefresh.committer.DatasetCatalogGrpcClient;
 import com.dremio.exec.testing.ExecutionControls;
+import com.dremio.io.file.Path;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
@@ -132,6 +139,8 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
     when(operatorContext.getExecutionControls()).thenReturn(executionControls);
     OptionManager optionManager = mock(OptionManager.class);
     when(optionManager.getOption(ExecConstants.ENABLE_MAP_DATA_TYPE)).thenReturn(true);
+    when(optionManager.getOption(ExecConstants.ENABLE_UNLIMITED_SPLITS_METADATA_CLEAN)).thenReturn(true);
+    when(optionManager.getOption(ExecConstants.DEFAULT_PERIOD_TO_KEEP_SNAPSHOTS_MS)).thenReturn(8 * 24 * 3600 * 1000L);
     when(operatorContext.getOptions()).thenReturn(optionManager);
     icebergModel = getIcebergModel(TEMP_SCHEMA);
   }
@@ -148,7 +157,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       tableName,
       icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
       schema,
-      Collections.emptyList(), config, operatorStats, null);
+      Collections.emptyList(), config, operatorStats, null, null);
     fullRefreshCommitter.commit();
 
     DataFile dataFile1 = getDatafile("books/add1.parquet");
@@ -171,7 +180,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
             tableName,
             icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
             schema,
-            Collections.emptyList(), true, config);
+            Collections.emptyList(), true, config, localFs, null, INCREMENTAL_METADATA_REFRESH, null);
 
     ManifestFile m1 = writeManifest(tableFolder, "manifestFile1", dataFile1, dataFile2, dataFile3, dataFile4, dataFile5);
     incrementalRefreshCommitter.consumeManifestFile(m1);
@@ -201,7 +210,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
               tableFolder.toPath().toString(),
               icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
               schema,
-              Collections.emptyList(), true, datasetConfig);
+              Collections.emptyList(), true, datasetConfig, localFs, null, INCREMENTAL_METADATA_REFRESH, null);
       DataFile dataFile6 = getDatafile("books/add1.parquet");
       DataFile dataFile7 = getDatafile("books/add2.parquet");
       ManifestFile m1 = writeManifest(tableFolder, "manifestFile2", dataFile6, dataFile7);
@@ -241,7 +250,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
         tableName,
         icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
         schema,
-        Collections.emptyList(), true, datasetConfig);
+        Collections.emptyList(), true, datasetConfig, localFs, null, INCREMENTAL_METADATA_REFRESH, null);
 
       DataFile dataFile1 = getDatafile("books/add4.parquet");
       DataFile dataFile2 = getDatafile("books/add5.parquet");
@@ -305,7 +314,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
         tableName,
         icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
         schema,
-        Collections.emptyList(), true, datasetConfig);
+        Collections.emptyList(), true, datasetConfig, localFs, null, INCREMENTAL_METADATA_REFRESH, null);
 
       DataFile dataFile1 = getDatafile("books/add4.parquet");
       DataFile dataFile2 = getDatafile("books/add5.parquet");
@@ -353,7 +362,9 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       IcebergOpCommitter deleteCommitter = icebergModel.getDmlCommitter(
         operatorContext.getStats(),
         icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
-        datasetConfig);
+        datasetConfig,
+        IcebergCommandType.UPDATE
+      );
 
       // Add a new manifest list, and delete several previous datafiles
       String deleteDataFile1 = "books/add1.parquet";
@@ -412,7 +423,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
         tableName,
         icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
         schema,
-        Collections.emptyList(), true, datasetConfig);
+        Collections.emptyList(), true, datasetConfig, localFs, null, INCREMENTAL_METADATA_REFRESH, null);
 
       DataFile dataFile1 = getDatafile("books/add4.parquet");
       DataFile dataFile3 = getDatafile("books/add3.parquet");
@@ -438,13 +449,119 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
         tableName,
         icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
         schema,
-        Collections.emptyList(), true, datasetConfig);
+        Collections.emptyList(), true, datasetConfig, localFs, null, INCREMENTAL_METADATA_REFRESH, null);
       DataFile dataFile2 = getDatafile("books/add2.parquet");
       ManifestFile m2 = writeManifest(tableFolder, "manifestFile3", dataFile2);
       metaDataRefreshCommitter.consumeManifestFile(m2);
       metaDataRefreshCommitter.commit();
       table = getIcebergTable(icebergModel, tableFolder);
       Assert.assertEquals(8, Iterables.size(table.snapshots()));
+    } finally {
+      FileUtils.deleteDirectory(tableFolder);
+    }
+  }
+
+  @Test
+  public void testIncrementalRefreshExpireSnapshots() throws Exception {
+    final String tableName = UUID.randomUUID().toString();
+    final File tableFolder = new File(folder, tableName);
+    final List<String> datasetPath = Lists.newArrayList("dfs", tableName);
+    try {
+      DatasetConfig datasetConfig = getDatasetConfig(datasetPath);
+      String metadataFileLocation = initialiseTableWithLargeSchema(schema, tableName);
+      IcebergMetadata icebergMetadata = new IcebergMetadata();
+      icebergMetadata.setMetadataFileLocation(metadataFileLocation);
+      datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
+      Table oldTable = getIcebergTable(icebergModel, tableFolder);
+      Assert.assertEquals(3, Iterables.size(oldTable.snapshots()));
+
+      // Increase more snapshots
+      for (int i = 0; i < 10;  i++) {
+        IcebergOpCommitter metaDataRefreshCommitter = icebergModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
+          datasetPath,
+          tableFolder.toPath().toString(),
+          tableName,
+          icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
+          schema,
+          Collections.emptyList(), true, datasetConfig, localFs, null, INCREMENTAL_METADATA_REFRESH, null);
+
+        DataFile dataFile1 = getDatafile("books/add4.parquet");
+        DataFile dataFile3 = getDatafile("books/add3.parquet");
+        DataFile dataFile4 = getDatafile("books/add4.parquet");
+        DataFile dataFile5 = getDatafile("books/add5.parquet");
+        ManifestFile m1 = writeManifest(tableFolder, "manifestFile2", dataFile1);
+        metaDataRefreshCommitter.consumeDeleteDataFile(dataFile3);
+        metaDataRefreshCommitter.consumeDeleteDataFile(dataFile4);
+        metaDataRefreshCommitter.consumeDeleteDataFile(dataFile5);
+        metaDataRefreshCommitter.consumeManifestFile(m1);
+        metaDataRefreshCommitter.commit();
+        Table table = getIcebergTable(icebergModel, tableFolder);
+        table.refresh();
+        TableOperations tableOperations = ((BaseTable) table).operations();
+        metadataFileLocation = tableOperations.current().metadataFileLocation();
+        icebergMetadata.setMetadataFileLocation(metadataFileLocation);
+        datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
+      }
+      Table table = getIcebergTable(icebergModel, tableFolder);
+      table.refresh();
+      final int numTotalSnapshots = Iterables.size(table.snapshots());
+      Assert.assertEquals(33, numTotalSnapshots);
+
+      Thread.sleep(100);
+
+      IncrementalMetadataRefreshCommitter refreshCommitter = (IncrementalMetadataRefreshCommitter) icebergModel.getIncrementalMetadataRefreshCommitter(
+        operatorContext, tableName,
+        datasetPath,
+        tableFolder.toPath().toString(),
+        tableName,
+        icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
+        schema,
+        Collections.emptyList(), true, datasetConfig, localFs, null, INCREMENTAL_METADATA_REFRESH, null);
+
+      Set<String> orphanFiles = refreshCommitter.cleanSnapshotsAndMetadataFiles(table, 100);
+      // For one commit, we don't expire all old snapshots. Instead, we expire a limit number of them.
+      table = getIcebergTable(icebergModel, tableFolder);
+      table.refresh();
+      final int numSnapshotsAfterExpiry = Iterables.size(table.snapshots());
+      Assert.assertEquals(18, numSnapshotsAfterExpiry);
+      final int numExpiredSnapshots = numTotalSnapshots - numSnapshotsAfterExpiry;
+      Assert.assertEquals(MAX_NUM_SNAPSHOTS_TO_EXPIRE, numExpiredSnapshots);
+      Assert.assertEquals(19, orphanFiles.size());
+      for (String filePath : orphanFiles) {
+        // Should not collect any data/parquet file as orphan files.
+        String  fileExtension = filePath.substring(filePath.lastIndexOf(".") + 1);
+        Assert.assertFalse("parquet".equalsIgnoreCase(fileExtension));
+
+        // Orphan files should be deleted.
+        Assert.assertFalse(localFs.exists(Path.of(filePath)));
+      }
+
+      TableOperations tableOperations = ((BaseTable) table).operations();
+      metadataFileLocation = tableOperations.current().metadataFileLocation();
+      icebergMetadata.setMetadataFileLocation(metadataFileLocation);
+      datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
+      IncrementalMetadataRefreshCommitter refreshCommitter2 = (IncrementalMetadataRefreshCommitter) icebergModel.getIncrementalMetadataRefreshCommitter(
+        operatorContext, tableName,
+        datasetPath,
+        tableFolder.toPath().toString(),
+        tableName,
+        icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
+        schema,
+        Collections.emptyList(), true, datasetConfig, localFs, 100L, INCREMENTAL_METADATA_REFRESH, null);
+      // Do empty commit. Still clean table's snapshots
+      refreshCommitter2.disableUseDefaultPeriod();
+      refreshCommitter2.commit();
+      table = getIcebergTable(icebergModel, tableFolder);
+      table.refresh();
+      final int numSnapshotsAfterSecondExpiry = Iterables.size(table.snapshots());
+      Assert.assertEquals(3, numSnapshotsAfterSecondExpiry);
+
+      // Table properties should be updated to delete metadata entry file.
+      Map<String, String> tblProperties = table.properties();
+      Assert.assertTrue(tblProperties.containsKey(TableProperties.METADATA_DELETE_AFTER_COMMIT_ENABLED));
+      Assert.assertTrue(tblProperties.get(TableProperties.METADATA_DELETE_AFTER_COMMIT_ENABLED).equalsIgnoreCase("true"));
+      Assert.assertTrue(tblProperties.containsKey(TableProperties.METADATA_PREVIOUS_VERSIONS_MAX));
+      Assert.assertTrue(tblProperties.get(TableProperties.METADATA_PREVIOUS_VERSIONS_MAX).equalsIgnoreCase("100"));
     } finally {
       FileUtils.deleteDirectory(tableFolder);
     }
@@ -486,7 +603,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       datasetPath,
       tableFolder.toPath().toString(), tableName,
       icebergModel.getTableIdentifier(tableFolder.toPath().toString()), schema1,
-      Collections.emptyList(),true, datasetConfig);
+      Collections.emptyList(),true, datasetConfig, localFs, null, INCREMENTAL_METADATA_REFRESH, null);
 
       BatchSchema schema2 = new BatchSchema(Arrays.asList(
         BIGINT.toField("field1"),
@@ -540,13 +657,64 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
         tableFolder.toPath().toString(), tableName,
         icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
         schema,
-        Collections.emptyList(),true, datasetConfig);
+        Collections.emptyList(),true, datasetConfig, localFs, null, INCREMENTAL_METADATA_REFRESH, null);
 
       BatchSchema newSchema = BatchSchema.of(
         Field.nullablePrimitive("id", new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)),
         Field.nullablePrimitive("data", new ArrowType.Utf8()),
         Field.nullablePrimitive("boolean", new ArrowType.Bool()),
         Field.nullablePrimitive("stringCol", new ArrowType.Utf8())
+      );
+
+      BatchSchema consolidatedSchema = schema.mergeWithUpPromotion(newSchema, this);
+      insertTableCommitter.updateSchema(consolidatedSchema);
+
+      DataFile dataFile1 = getDatafile("books/add4.parquet");
+      DataFile dataFile2 = getDatafile("books/add5.parquet");
+      DataFile dataFile3 = getDatafile("books/add3.parquet");
+      DataFile dataFile4 = getDatafile("books/add4.parquet");
+      DataFile dataFile5 = getDatafile("books/add5.parquet");
+
+      ManifestFile m1 = writeManifest(tableFolder, "manifestFile2", dataFile1, dataFile2);
+      insertTableCommitter.consumeDeleteDataFile(dataFile3);
+      insertTableCommitter.consumeManifestFile(m1);
+      insertTableCommitter.consumeDeleteDataFile(dataFile4);
+      insertTableCommitter.consumeDeleteDataFile(dataFile5);
+      insertTableCommitter.commit();
+
+      Table newTable = getIcebergTable(icebergModel, tableFolder);
+      Schema sc = newTable.schema();
+      SchemaConverter schemaConverter = SchemaConverter.getBuilder().setTableName(newTable.name()).build();
+      Assert.assertTrue(consolidatedSchema.equalsTypesWithoutPositions(schemaConverter.fromIceberg(sc)));
+      Assert.assertEquals(6, Iterables.size(newTable.snapshots()));
+    } finally {
+      FileUtils.deleteDirectory(tableFolder);
+    }
+  }
+
+  @Test
+  public void testMetadataRefreshColumnNameIncludeDot() throws IOException {
+    final String tableName = UUID.randomUUID().toString();
+    final File tableFolder = new File(folder, tableName);
+    final List<String> datasetPath = Lists.newArrayList("dfs", tableName);
+    try {
+      DatasetConfig datasetConfig = getDatasetConfig(datasetPath);
+      String metadataFileLocation = initialiseTableWithLargeSchema(schema, tableName);
+      IcebergMetadata icebergMetadata = new IcebergMetadata();
+      icebergMetadata.setMetadataFileLocation(metadataFileLocation);
+      datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
+      IcebergOpCommitter insertTableCommitter = icebergModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
+        datasetPath,
+        tableFolder.toPath().toString(), tableName,
+        icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
+        schema,
+        Collections.emptyList(),true, datasetConfig, localFs, null, INCREMENTAL_METADATA_REFRESH, null);
+
+      BatchSchema newSchema = BatchSchema.of(
+        Field.nullablePrimitive("id.A", new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)),
+        Field.nullablePrimitive("data.A", new ArrowType.Utf8()),
+        Field.nullablePrimitive("boolean.A", new ArrowType.Bool()),
+        Field.nullablePrimitive("stringCol.A", new ArrowType.Utf8())
       );
 
       BatchSchema consolidatedSchema = schema.mergeWithUpPromotion(newSchema, this);
@@ -591,7 +759,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
               tableFolder.toPath().toString(), tableName,
               icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
               schema,
-              Collections.emptyList(), false, datasetConfig);
+              Collections.emptyList(), false, datasetConfig, localFs, null, INCREMENTAL_METADATA_REFRESH, null);
 
       BatchSchema newSchema = BatchSchema.of(
               Field.nullablePrimitive("id", new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)),
@@ -628,8 +796,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
         tableFolder.toPath().toString(), tableName,
         icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
         schema,
-        Collections.emptyList(), true, datasetConfig);
-
+        Collections.emptyList(), true, datasetConfig, localFs, null, INCREMENTAL_METADATA_REFRESH, null);
       DataFile dataFile1 = getDatafileWithPartitionSpec("books/add4.parquet");
       DataFile dataFile2 = getDatafileWithPartitionSpec("books/add5.parquet");
 
@@ -667,43 +834,45 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
 
       // Two concurrent iceberg committeres
-      IcebergOpCommitter insertTableCommitter1 = icebergModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
+      IcebergOpCommitter firstCommitter = icebergModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
         datasetPath,
         tableName,
         tableFolder.toPath().toString(),
         icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
         schema,
-        Collections.emptyList(), true, datasetConfig);
-      IcebergOpCommitter insertTableCommitter2 = icebergModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
+        Collections.emptyList(), true, datasetConfig, localFs, null, INCREMENTAL_METADATA_REFRESH, null);
+      IcebergOpCommitter secondCommitter = icebergModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
         datasetPath,
         tableName,
         tableFolder.toPath().toString(),
         icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
         schema,
-        Collections.emptyList(), true, datasetConfig);
+        Collections.emptyList(), true, datasetConfig, localFs, null, INCREMENTAL_METADATA_REFRESH, null);
 
 
       DataFile dataFile6 = getDatafile("books/add1.parquet");
       DataFile dataFile7 = getDatafile("books/add2.parquet");
       ManifestFile m1 = writeManifest(tableFolder, "manifestFile2", dataFile6, dataFile7);
 
-      insertTableCommitter1.consumeManifestFile(m1);
-      insertTableCommitter2.consumeManifestFile(m1);
+      firstCommitter.consumeManifestFile(m1);
+      secondCommitter.consumeManifestFile(m1);
 
-      UserExceptionAssert.assertThatThrownBy(() -> {
-          insertTableCommitter1.commit();
-          insertTableCommitter2.commit();
-        })
-        .hasErrorType(CONCURRENT_MODIFICATION)
-        .hasMessageContaining("Concurrent DML operation has updated the table, please retry.");
-
-      Table table = getIcebergTable(icebergModel, tableFolder);
-      List<ManifestFile> manifestFileList = table.currentSnapshot().allManifests(table.io());
+      // The first commit succeeds.
+      firstCommitter.commit();
+      Table firstCommitTable = getIcebergTable(icebergModel, tableFolder);
+      List<ManifestFile> manifestFileList = firstCommitTable.currentSnapshot().allManifests(firstCommitTable.io());
       Assert.assertEquals(2, manifestFileList.size());
+
+      // Due to concurrent operation, the second commit should not make any update to table. The commit should be omitted.
+      Snapshot snapshot = secondCommitter.commit();
+      Assert.assertNull(snapshot);
+      Assert.assertTrue(secondCommitter.isIcebergTableUpdated());
+      Table secondCommitTable = getIcebergTable(icebergModel, tableFolder);
+      Assert.assertEquals(firstCommitTable.currentSnapshot().snapshotId(), secondCommitTable.currentSnapshot().snapshotId());
+      Assert.assertEquals(manifestFileList.size(), secondCommitTable.currentSnapshot().allManifests(secondCommitTable.io()).size());
     } finally {
       FileUtils.deleteDirectory(tableFolder);
     }
-
   }
 
   @Test
@@ -762,7 +931,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
         tableFolder.toPath().toString(), tableName,
         icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
         schema,
-        Collections.emptyList(), false, datasetConfig);
+        Collections.emptyList(), false, datasetConfig, localFs, null, INCREMENTAL_METADATA_REFRESH, null);
 
       Field newStructField = new Field("structField", FieldType.nullable(STRUCT.getType()), ImmutableList.of(VARCHAR.toField("doubleCol")));
 
@@ -855,7 +1024,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
   }
 
   @Test
-  public void testConcurrentIncrementalRefresh() throws IOException {
+  public void testConcurrentIncrementalPartialRefresh() throws IOException {
     final String tableName = UUID.randomUUID().toString();
     final File tableFolder = new File(folder, tableName);
     final List<String> datasetPath = Lists.newArrayList("dfs", tableName);
@@ -871,7 +1040,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
               tableName,
               icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
               schema,
-              Collections.emptyList(), true, datasetConfig);
+              Collections.emptyList(), true, datasetConfig, localFs, null, INCREMENTAL_METADATA_REFRESH, null);
       Assert.assertTrue(commiter1 instanceof IncrementalMetadataRefreshCommitter);
 
       IcebergOpCommitter commiter2 = icebergModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
@@ -880,7 +1049,7 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
               tableName,
               icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
               schema,
-              Collections.emptyList(), true, datasetConfig);
+              Collections.emptyList(), true, datasetConfig, localFs, null, PARTIAL_METADATA_REFRESH, null);
       Assert.assertTrue(commiter2 instanceof IncrementalMetadataRefreshCommitter);
 
       DataFile dataFile1 = getDatafile("books/add4.parquet");
@@ -907,14 +1076,14 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       ((IncrementalMetadataRefreshCommitter) commiter1).performUpdates();
       ((IncrementalMetadataRefreshCommitter) commiter1).endMetadataRefreshTransaction();
 
-      // end commit 2 should fail with CommitFailedException
-      try {
-        ((IncrementalMetadataRefreshCommitter) commiter2).performUpdates();
-        ((IncrementalMetadataRefreshCommitter) commiter2).endMetadataRefreshTransaction();
-        Assert.fail();
-      } catch (ValidationException ve) {
-        // ignore
-      }
+      // end commit 2 should fail with CONCURRENT_MODIFICATION error
+      UserExceptionAssert.assertThatThrownBy(() -> {
+            ((IncrementalMetadataRefreshCommitter) commiter2).performUpdates();
+            ((IncrementalMetadataRefreshCommitter) commiter2).endMetadataRefreshTransaction();
+            Assert.fail();
+          }
+        ).hasErrorType(CONCURRENT_MODIFICATION)
+        .hasMessageContaining("Unable to refresh metadata for the dataset (due to concurrent updates). Please retry");
 
       ((IncrementalMetadataRefreshCommitter) commiter1).postCommitTransaction();
       // After this operation manifestList was expected to have two manifest file
@@ -951,6 +1120,341 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
   }
 
   @Test
+  public void testConcurrentTwoIncrementalRefresh() throws IOException {
+    final String tableName = UUID.randomUUID().toString();
+    final File tableFolder = new File(folder, tableName);
+    final List<String> datasetPath = Lists.newArrayList("dfs", tableName);
+    try {
+      DatasetConfig datasetConfig = getDatasetConfig(datasetPath);
+      String metadataFileLocation = initialiseTableWithLargeSchema(schema, tableName);
+      IcebergMetadata icebergMetadata = new IcebergMetadata();
+      icebergMetadata.setMetadataFileLocation(metadataFileLocation);
+      datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
+      IcebergOpCommitter commiter1 = icebergModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
+        datasetPath,
+        tableFolder.toPath().toString(),
+        tableName,
+        icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
+        schema,
+        Collections.emptyList(), true, datasetConfig, localFs, null, INCREMENTAL_METADATA_REFRESH, null);
+      Assert.assertTrue(commiter1 instanceof IncrementalMetadataRefreshCommitter);
+
+      IcebergOpCommitter commiter2 = icebergModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
+        datasetPath,
+        tableFolder.toPath().toString(),
+        tableName,
+        icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
+        schema,
+        Collections.emptyList(), true, datasetConfig, localFs, null, INCREMENTAL_METADATA_REFRESH, null);
+      Assert.assertTrue(commiter2 instanceof IncrementalMetadataRefreshCommitter);
+
+      DataFile dataFile1 = getDatafile("books/add4.parquet");
+      DataFile dataFile2 = getDatafile("books/add5.parquet");
+      DataFile dataFile3 = getDatafile("books/add3.parquet");
+      DataFile dataFile4 = getDatafile("books/add4.parquet");
+      DataFile dataFile5 = getDatafile("books/add5.parquet");
+      ManifestFile m1 = writeManifest(tableFolder, "manifestFile2", dataFile1, dataFile2);
+      commiter1.consumeDeleteDataFile(dataFile3);
+      commiter1.consumeDeleteDataFile(dataFile4);
+      commiter1.consumeDeleteDataFile(dataFile5);
+      commiter1.consumeManifestFile(m1);
+
+      commiter2.consumeDeleteDataFile(dataFile3);
+      commiter2.consumeDeleteDataFile(dataFile4);
+      commiter2.consumeDeleteDataFile(dataFile5);
+      commiter2.consumeManifestFile(m1);
+
+      // Two INCREMENTAL_METADATA_REFRESH commits, skip the second without throwing exception.
+
+      // start both commits
+      ((IncrementalMetadataRefreshCommitter) commiter1).beginMetadataRefreshTransaction();
+      ((IncrementalMetadataRefreshCommitter) commiter2).beginMetadataRefreshTransaction();
+
+      // end commit 1
+      ((IncrementalMetadataRefreshCommitter) commiter1).performUpdates();
+      Snapshot snapshot1 = ((IncrementalMetadataRefreshCommitter) commiter1).endMetadataRefreshTransaction();
+      Assert.assertNotNull(snapshot1);
+
+      // end commit 2 should not fail. Basically, skip second commit.
+      ((IncrementalMetadataRefreshCommitter) commiter2).performUpdates();
+      Snapshot snapshot2 = ((IncrementalMetadataRefreshCommitter) commiter2).endMetadataRefreshTransaction();
+      Assert.assertNull(snapshot2);
+
+      ((IncrementalMetadataRefreshCommitter) commiter1).postCommitTransaction();
+      // After this operation manifestList was expected to have two manifest file
+      // One is manifestFile2 and other one is newly created due to delete data file. as This newly created Manifest is due to rewriting
+      // of manifestFile1 file. it is expected to 2 existing file account and 3 deleted file count.
+      Table table = getIcebergTable(icebergModel, tableFolder);
+      List<ManifestFile> manifestFileList = table.currentSnapshot().allManifests(table.io());
+      for (ManifestFile manifestFile : manifestFileList) {
+        if (manifestFile.path().contains("manifestFile2")) {
+          Assert.assertEquals(2, (int) manifestFile.addedFilesCount());
+        } else {
+          Assert.assertEquals(3, (int) manifestFile.deletedFilesCount());
+          Assert.assertEquals(2, (int) manifestFile.existingFilesCount());
+        }
+      }
+
+      UpdatableDatasetConfigFields dataset = client.getCatalogServiceApi()
+        .getDataset(GetDatasetRequest.newBuilder().addAllDatasetPath(datasetPath).build());
+
+      Assert.assertEquals(DatasetCommonProtobuf.DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER, dataset.getDatasetType());
+
+      BatchSchema newschema = BatchSchema.newBuilder().addFields(schema.getFields())
+        .addField(Field.nullable(IncrementalUpdateUtils.UPDATE_COLUMN, new ArrowType.Int(64, true))).build();
+      Assert.assertEquals(newschema, BatchSchema.deserialize(dataset.getBatchSchema().toByteArray()));
+
+      Assert.assertEquals(tableFolder.toPath().toString(), dataset.getFileFormat().getLocation());
+      Assert.assertEquals(FileProtobuf.FileType.PARQUET, dataset.getFileFormat().getType());
+
+      Assert.assertEquals(4, dataset.getReadDefinition().getManifestScanStats().getRecordCount());
+      Assert.assertEquals(36, dataset.getReadDefinition().getScanStats().getRecordCount());
+    } finally {
+      FileUtils.deleteDirectory(tableFolder);
+    }
+  }
+
+  @Test
+  public void testConcurrentIncrementalPartialRefreshPostCommit() throws IOException {
+    final String tableName = UUID.randomUUID().toString();
+    final File tableFolder = new File(folder, tableName);
+    final List<String> datasetPath = Lists.newArrayList("dfs", tableName);
+    try {
+      DatasetConfig datasetConfig = getDatasetConfig(datasetPath);
+      String metadataFileLocation = initialiseTableWithLargeSchema(schema, tableName);
+      IcebergMetadata icebergMetadata = new IcebergMetadata();
+      icebergMetadata.setMetadataFileLocation(metadataFileLocation);
+      datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
+      IcebergOpCommitter commiter1 = icebergModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
+        datasetPath,
+        tableFolder.toPath().toString(),
+        tableName,
+        icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
+        schema,
+        Collections.emptyList(), true, datasetConfig, localFs, null, INCREMENTAL_METADATA_REFRESH, null);
+      Assert.assertTrue(commiter1 instanceof IncrementalMetadataRefreshCommitter);
+
+      IcebergOpCommitter commiter2 = icebergModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
+        datasetPath,
+        tableFolder.toPath().toString(),
+        tableName,
+        icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
+        schema,
+        Collections.emptyList(), true, datasetConfig, localFs, null, PARTIAL_METADATA_REFRESH, null);
+      Assert.assertTrue(commiter2 instanceof IncrementalMetadataRefreshCommitter);
+
+      Table table = getIcebergTable(icebergModel, tableFolder);
+
+      DataFile dataFile1 = getDatafile("books/add4.parquet");
+      DataFile dataFile2 = getDatafile("books/add5.parquet");
+      DataFile dataFile3 = getDatafile("books/add3.parquet");
+      DataFile dataFile4 = getDatafile("books/add4.parquet");
+      DataFile dataFile5 = getDatafile("books/add5.parquet");
+      ManifestFile m1 = writeManifest(tableFolder, "manifestFile2", dataFile1, dataFile2);
+      commiter1.consumeDeleteDataFile(dataFile3);
+      commiter1.consumeDeleteDataFile(dataFile4);
+      commiter1.consumeDeleteDataFile(dataFile5);
+      commiter1.consumeManifestFile(m1);
+
+      commiter2.consumeDeleteDataFile(dataFile3);
+      commiter2.consumeDeleteDataFile(dataFile4);
+      commiter2.consumeDeleteDataFile(dataFile5);
+      commiter2.consumeManifestFile(m1);
+
+      // One INCREMENTAL_METADATA_REFRESH commit and one PARTIAL_METADATA_REFRESH, skip the second without throwing exception.
+
+      // start both commits
+      ((IncrementalMetadataRefreshCommitter) commiter1).beginMetadataRefreshTransaction();
+      ((IncrementalMetadataRefreshCommitter) commiter2).beginMetadataRefreshTransaction();
+
+      // end commit 1
+      ((IncrementalMetadataRefreshCommitter) commiter1).performUpdates();
+      Snapshot snapshot1 = ((IncrementalMetadataRefreshCommitter) commiter1).endMetadataRefreshTransaction();
+      Snapshot snapshot2 = ((IncrementalMetadataRefreshCommitter) commiter1).postCommitTransaction();
+      Assert.assertNotNull(snapshot1);
+      Assert.assertNotNull(snapshot2);
+
+      // end commit 2 should fail with CONCURRENT_MODIFICATION error
+      UserExceptionAssert.assertThatThrownBy(() -> {
+            ((IncrementalMetadataRefreshCommitter) commiter2).performUpdates();
+            ((IncrementalMetadataRefreshCommitter) commiter2).endMetadataRefreshTransaction();
+            Assert.fail();
+          }
+        ).hasErrorType(CONCURRENT_MODIFICATION)
+        .hasMessageContaining("Unable to refresh metadata for the dataset (due to concurrent updates). Please retry");
+
+      // Set the Iceberg table instance to test postCommitTransaction.
+      // For PARTIAL_METADATA_REFRESH command, we throw CME as the post commit fails due to StatusRuntimeException (ABORTED)
+      ((IncrementalMetadataRefreshCommitter) commiter2).setTable(table);
+      UserExceptionAssert.assertThatThrownBy(() -> {
+            ((IncrementalMetadataRefreshCommitter) commiter2).postCommitTransaction();
+            Assert.fail();
+          }
+        ).hasErrorType(CONCURRENT_MODIFICATION)
+        .hasMessageContaining("Unable to refresh metadata for the dataset (due to concurrent updates). Please retry");
+    } finally {
+      FileUtils.deleteDirectory(tableFolder);
+    }
+  }
+
+  @Test
+  public void testConcurrentTwoIncrementalRefreshPostCommit() throws IOException {
+    final String tableName = UUID.randomUUID().toString();
+    final File tableFolder = new File(folder, tableName);
+    final List<String> datasetPath = Lists.newArrayList("dfs", tableName);
+    try {
+      DatasetConfig datasetConfig = getDatasetConfig(datasetPath);
+      String metadataFileLocation = initialiseTableWithLargeSchema(schema, tableName);
+      IcebergMetadata icebergMetadata = new IcebergMetadata();
+      icebergMetadata.setMetadataFileLocation(metadataFileLocation);
+      datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
+      IcebergOpCommitter commiter1 = icebergModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
+        datasetPath,
+        tableFolder.toPath().toString(),
+        tableName,
+        icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
+        schema,
+        Collections.emptyList(), true, datasetConfig, localFs, null, INCREMENTAL_METADATA_REFRESH, null);
+      Assert.assertTrue(commiter1 instanceof IncrementalMetadataRefreshCommitter);
+
+      IcebergOpCommitter commiter2 = icebergModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
+        datasetPath,
+        tableFolder.toPath().toString(),
+        tableName,
+        icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
+        schema,
+        Collections.emptyList(), true, datasetConfig, localFs, null, INCREMENTAL_METADATA_REFRESH, null);
+      Assert.assertTrue(commiter2 instanceof IncrementalMetadataRefreshCommitter);
+
+      Table table = getIcebergTable(icebergModel, tableFolder);
+
+      DataFile dataFile1 = getDatafile("books/add4.parquet");
+      DataFile dataFile2 = getDatafile("books/add5.parquet");
+      DataFile dataFile3 = getDatafile("books/add3.parquet");
+      DataFile dataFile4 = getDatafile("books/add4.parquet");
+      DataFile dataFile5 = getDatafile("books/add5.parquet");
+      ManifestFile m1 = writeManifest(tableFolder, "manifestFile2", dataFile1, dataFile2);
+      commiter1.consumeDeleteDataFile(dataFile3);
+      commiter1.consumeDeleteDataFile(dataFile4);
+      commiter1.consumeDeleteDataFile(dataFile5);
+      commiter1.consumeManifestFile(m1);
+
+      commiter2.consumeDeleteDataFile(dataFile3);
+      commiter2.consumeDeleteDataFile(dataFile4);
+      commiter2.consumeDeleteDataFile(dataFile5);
+      commiter2.consumeManifestFile(m1);
+
+      // Two INCREMENTAL_METADATA_REFRESH commits, skip the second without throwing exception.
+
+      // start both commits
+      ((IncrementalMetadataRefreshCommitter) commiter1).beginMetadataRefreshTransaction();
+      ((IncrementalMetadataRefreshCommitter) commiter2).beginMetadataRefreshTransaction();
+
+      // end commit 1
+      ((IncrementalMetadataRefreshCommitter) commiter1).performUpdates();
+      Snapshot snapshot1 = ((IncrementalMetadataRefreshCommitter) commiter1).endMetadataRefreshTransaction();
+      Snapshot snapshot2 = ((IncrementalMetadataRefreshCommitter) commiter1).postCommitTransaction();
+      Assert.assertNotNull(snapshot1);
+      Assert.assertNotNull(snapshot2);
+
+      // end commit 2 should not fail. Basically, skip second commit.
+      ((IncrementalMetadataRefreshCommitter) commiter2).performUpdates();
+      Snapshot snapshot3 = ((IncrementalMetadataRefreshCommitter) commiter2).endMetadataRefreshTransaction();
+      Assert.assertNull(snapshot3);
+
+      // Set the Iceberg table instance to test postCommitTransaction.
+      // For INCREMENTAL_METADATA_REFRESH command, we skip to throw CME, even the post commit fails with StatusRuntimeException.
+      ((IncrementalMetadataRefreshCommitter) commiter2).setTable(table);
+      Snapshot snapshot4 = ((IncrementalMetadataRefreshCommitter) commiter2).postCommitTransaction();
+      Assert.assertEquals(table.currentSnapshot().snapshotId(), snapshot4.snapshotId());
+    } finally {
+      FileUtils.deleteDirectory(tableFolder);
+    }
+  }
+
+  @Test
+  public void testConcurrentCommitsFailToUpdateKVStore() throws IOException {
+    final String tableName = UUID.randomUUID().toString();
+    final File tableFolder = new File(folder, tableName);
+    final List<String> datasetPath = Lists.newArrayList("dfs", tableName);
+    try {
+      DatasetConfig datasetConfig = getDatasetConfig(datasetPath);
+      String metadataFileLocation = initialiseTableWithLargeSchema(schema, tableName);
+      IcebergMetadata icebergMetadata = new IcebergMetadata();
+      icebergMetadata.setMetadataFileLocation(metadataFileLocation);
+      datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
+      IncrementalMetadataRefreshCommitter incrementalCommitter =
+        (IncrementalMetadataRefreshCommitter) icebergModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
+        datasetPath,
+        tableFolder.toPath().toString(),
+        tableName,
+        icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
+        schema,
+        Collections.emptyList(), true, datasetConfig, localFs, null, INCREMENTAL_METADATA_REFRESH, null);
+
+      long startingSnapshotId = getIcebergTable(icebergModel, tableFolder).currentSnapshot().snapshotId();
+
+      DataFile dataFile6 = getDatafile("books/add6.parquet");
+      DataFile dataFile7 = getDatafile("books/add7.parquet");
+      ManifestFile manifestFile2 = writeManifest(tableFolder, "manifestFile2", dataFile6);
+      ManifestFile manifestFile3 = writeManifest(tableFolder, "manifestFile3", dataFile7);
+
+      incrementalCommitter.consumeManifestFile(manifestFile2);
+
+      // Start incremental commit into Iceberg and update table's snapshot and metadata file
+      incrementalCommitter.beginMetadataRefreshTransaction();
+      incrementalCommitter.performUpdates();
+      incrementalCommitter.endMetadataRefreshTransaction();
+      long secondSnapshotId = getIcebergTable(icebergModel, tableFolder).currentSnapshot().snapshotId();
+      Assert.assertNotEquals("Iceberg table should be updated", startingSnapshotId, secondSnapshotId);
+
+      // Before incremental commit updates KV store, start the partial commit process. In this case, we can build a new
+      // snapshot upon incremental commit.
+      IncrementalMetadataRefreshCommitter partialCommitter =
+        (IncrementalMetadataRefreshCommitter) icebergModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
+          datasetPath,
+          tableFolder.toPath().toString(),
+          tableName,
+          icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
+          schema,
+          Collections.emptyList(), true, datasetConfig, localFs, null, PARTIAL_METADATA_REFRESH, null);
+
+      String incrementalCommitTag = incrementalCommitter.getDatasetCatalogRequestBuilder().build().getDatasetConfig().getTag();
+      String partialCommitTag = partialCommitter.getDatasetCatalogRequestBuilder().build().getDatasetConfig().getTag();
+      Assert.assertEquals("Tags should not change", incrementalCommitTag, partialCommitTag);
+
+      partialCommitter.consumeManifestFile(manifestFile3);
+      partialCommitter.beginMetadataRefreshTransaction();
+
+      // Update Incremental commit into KV store and update dataset's tag info.
+      incrementalCommitter.postCommitTransaction();
+      String updatedTag = getTag(datasetPath);
+      Assert.assertNotEquals("Tag should be updated", updatedTag, partialCommitTag);
+
+      // Make another Iceberg commit and update KV store. The KV store update should fail due to tag mismatch.
+      partialCommitter.performUpdates();
+      partialCommitter.endMetadataRefreshTransaction();
+      long thirdSnapshotId = getIcebergTable(icebergModel, tableFolder).currentSnapshot().snapshotId();
+      Assert.assertNotEquals("Iceberg table should be updated", secondSnapshotId, thirdSnapshotId);
+
+      // For PARTIAL_METADATA_REFRESH command, it throws CME as the post commit fails due to StatusRuntimeException (ABORTED)
+      // It does not update the KV store successfully. But, it needs the manifest files not deleted.
+      UserExceptionAssert.assertThatThrownBy(() -> {
+            partialCommitter.postCommitTransaction();
+            Assert.fail();
+          }
+        ).hasErrorType(CONCURRENT_MODIFICATION)
+        .hasMessageContaining("Unable to refresh metadata for the dataset (due to concurrent updates). Please retry");
+
+      // Manifest files are not deleted.
+      Assert.assertTrue(localFs.exists(Path.of(manifestFile2.path())));
+      Assert.assertTrue(localFs.exists(Path.of(manifestFile3.path())));
+    } finally {
+      FileUtils.deleteDirectory(tableFolder);
+    }
+  }
+
+  @Test
   public void testConcurrentTwoDmlOperations() throws IOException {
     final String tableName = UUID.randomUUID().toString();
     final File tableFolder = new File(folder, tableName);
@@ -965,13 +1469,17 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       IcebergOpCommitter committer1 = icebergModel.getDmlCommitter(
         operatorContext.getStats(),
         icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
-        datasetConfig);
+        datasetConfig,
+        IcebergCommandType.UPDATE
+      );
       Assert.assertTrue(committer1 instanceof IcebergDmlOperationCommitter);
 
       IcebergOpCommitter committer2 = icebergModel.getDmlCommitter(
         operatorContext.getStats(),
         icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
-        datasetConfig);
+        datasetConfig,
+        IcebergCommandType.UPDATE
+      );
       Assert.assertTrue(committer2 instanceof IcebergDmlOperationCommitter);
 
       // Add a new manifest list, and delete several previous datafiles
@@ -1042,7 +1550,9 @@ public class TestIcebergOpCommitter extends BaseTestQuery implements SupportsTyp
       IcebergOpCommitter committer = icebergModel.getDmlCommitter(
         operatorContext.getStats(),
         icebergModel.getTableIdentifier(tableFolder.toPath().toString()),
-        datasetConfig);
+        datasetConfig,
+        IcebergCommandType.UPDATE
+      );
       Assert.assertTrue(committer instanceof IcebergDmlOperationCommitter);
       IcebergDmlOperationCommitter dmlCommitter = (IcebergDmlOperationCommitter) committer;
 

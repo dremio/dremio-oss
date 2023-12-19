@@ -35,9 +35,9 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.junit.Before;
 import org.junit.Test;
 
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult;
 import com.dremio.exec.planner.sql.parser.SqlMergeBranch;

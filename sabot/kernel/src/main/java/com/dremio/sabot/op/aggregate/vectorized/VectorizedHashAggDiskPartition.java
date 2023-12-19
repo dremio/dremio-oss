@@ -119,8 +119,10 @@ public class VectorizedHashAggDiskPartition implements AutoCloseable {
    * @throws Exception
    */
   public void closeSpillStream() throws Exception {
-    outputStream.close();
-    outputStream = null;
+    if (outputStream != null) {
+      outputStream.close();
+      outputStream = null;
+    }
   }
 
   public VectorizedHashAggPartition getInmemoryPartitionBackPointer() {
@@ -137,9 +139,7 @@ public class VectorizedHashAggDiskPartition implements AutoCloseable {
 
   @Override
   public void close() throws Exception {
-    if (outputStream != null) {
-      closeSpillStream();
-    }
+    closeSpillStream();
     AutoCloseables.close(spillFile);
   }
 }

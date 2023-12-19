@@ -66,7 +66,8 @@ class FabricClient extends BasicClient<RpcType, FabricConnection, FabricHandshak
         RpcType.HANDSHAKE,
         FabricHandshake.class,
         FabricHandshake.PARSER,
-        engineFactory
+        engineFactory,
+        Optional.empty()
     );
     this.localIdentity = localIdentity;
     this.remoteIdentity = remoteIdentity;

@@ -22,26 +22,27 @@ import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.schema.TranslatableTable;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlOperandTypeChecker;
 import org.apache.calcite.sql.type.SqlOperandTypeInference;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.sql.validate.SqlUserDefinedTableMacro;
-import org.apache.calcite.sql.validate.SqlValidator;
-import org.apache.calcite.sql.validate.SqlValidatorScope;
 
-import com.dremio.exec.catalog.TableVersionContext;
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.exec.tablefunctions.VersionedTableMacro;
 
 /**
  * Implementation of {@link SqlUserDefinedTableMacro} which wraps a {@link VersionedTableMacro} instead of a normal
- * TableMacro.  Version information, in the form of a {@link TableVersionContext}, is retrieved from the parent
- * {@link SqlVersionedTableMacroCall} and then passed to {@link VersionedTableMacro#apply(List, TableVersionContext)}.
+ * TableMacro.  Version information, in the form of a {@link TableVersionContext}, is maintained locally and then
+ * passed to {@link VersionedTableMacro#apply(List, TableVersionContext)}.
  */
-public class SqlVersionedTableMacro extends SqlUserDefinedTableMacro {
+public class SqlVersionedTableMacro extends SqlUserDefinedTableMacro implements HasTableVersion {
 
   private final VersionedTableMacro tableMacro;
-  private TableVersionContext tableVersionContext = TableVersionContext.LATEST_VERSION;
+  private TableVersionSpec tableVersionSpec;
+  private TableVersionContext tableVersionContext = TableVersionContext.NOT_SPECIFIED;
 
   public SqlVersionedTableMacro(SqlIdentifier opName, SqlReturnTypeInference returnTypeInference,
                                 SqlOperandTypeInference operandTypeInference, SqlOperandTypeChecker operandTypeChecker,
@@ -51,11 +52,14 @@ public class SqlVersionedTableMacro extends SqlUserDefinedTableMacro {
   }
 
   @Override
-  protected void preValidateCall(SqlValidator validator, SqlValidatorScope scope, SqlCall call) {
-    if (call instanceof SqlVersionedTableMacroCall) {
-      SqlVersionedTableMacroCall versionedTableMacroCall = (SqlVersionedTableMacroCall) call;
-      tableVersionContext = versionedTableMacroCall.getResolvedTableVersionContext();
-    }
+  public TableVersionSpec getTableVersionSpec() {
+    return tableVersionSpec;
+  }
+
+  @Override
+  public void setTableVersionSpec(TableVersionSpec tableVersionSpec) {
+    this.tableVersionSpec = tableVersionSpec;
+    this.tableVersionContext = tableVersionSpec.getResolvedTableVersionContext();
   }
 
   @Override
@@ -63,5 +67,10 @@ public class SqlVersionedTableMacro extends SqlUserDefinedTableMacro {
                                     List<SqlNode> operandList) {
     List<Object> arguments = convertArguments(typeFactory, operandList, tableMacro, getNameAsId(), true);
     return tableMacro.apply(arguments, tableVersionContext);
+  }
+
+  @Override
+  public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+    return new SqlVersionedTableMacroCall(this, operands, pos);
   }
 }

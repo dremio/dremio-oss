@@ -23,6 +23,7 @@ import static com.dremio.plugins.util.awsauth.DremioAWSCredentialsProviderFactor
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.apache.hadoop.conf.Configuration;
@@ -77,11 +78,15 @@ public class STSCredentialProviderV1 implements AWSCredentialsProvider, Closeabl
 
     final AWSSecurityTokenServiceClientBuilder builder = AWSSecurityTokenServiceClientBuilder.standard()
       .withCredentials(awsCredentialsProvider)
-      .withClientConfiguration(clientConfig)
-      .withRegion(region);
-    S3FileSystem.getStsEndpoint(conf).ifPresent(e -> {
-      builder.withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(e, region));
-    });
+      .withClientConfiguration(clientConfig);
+
+    Optional<String> endpoint = S3FileSystem.getStsEndpoint(conf);
+    if (endpoint.isPresent()) {
+      AwsClientBuilder.EndpointConfiguration ec = new AwsClientBuilder.EndpointConfiguration(endpoint.get(), region);
+      builder.withEndpointConfiguration(ec);
+    } else {
+      builder.withRegion(region);
+    }
 
     this.stsAssumeRoleSessionCredentialsProvider = new STSAssumeRoleSessionCredentialsProvider.Builder(
       conf.get(Constants.ASSUMED_ROLE_ARN), UUID.randomUUID().toString())

@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.expr;
 
+import static com.dremio.proto.model.PartitionStats.PartitionStatsValue;
+
 import java.util.List;
 import java.util.Map;
 
@@ -22,7 +24,6 @@ import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.vector.holders.ValueHolder;
 import org.apache.arrow.vector.types.Types.MinorType;
-import org.apache.commons.lang3.tuple.Pair;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
@@ -234,7 +235,7 @@ public class ClassProducerImpl implements ClassProducer {
     }
 
     @Override
-    public Pair<Long, Long> getSurvivingRowCountWithPruneFilter(ScanRelBase scan, PruneFilterCondition pruneCondition) {
+    public PartitionStatsValue getSurvivingRowCountWithPruneFilter(ScanRelBase scan, PruneFilterCondition pruneCondition) {
       return null;
     }
   }

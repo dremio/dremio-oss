@@ -178,6 +178,9 @@ public class SplitAssignmentTableFunction extends AbstractTableFunction {
     String lastPath = null;
     PartitionProtobuf.BlockLocationsList lastBlockLocations = null;
     for(int record=0; record<batchSize; ++record) {
+      if (inputSplitIdentities.isNull(record)) {
+        continue;
+      }
       Map<String, Object> fields = (Map<String, Object>) inputSplitIdentities.getObject(record);
       String path = fields.get(SplitIdentity.PATH).toString();
       long offset = (Long) fields.get(SplitIdentity.OFFSET);
@@ -187,8 +190,8 @@ public class SplitAssignmentTableFunction extends AbstractTableFunction {
       SplitIdentity splitIdentity = new SplitIdentity(path, offset, length, fileLength);
       splitIdentities.add(splitIdentity);
 
-      // Since during producing the splits the splits corresponding to a single file are added together
-      // we can query the cache for blocklocations only the first time we encounter a new file
+      // Since during producing the splits corresponding to a single file are added together
+      // we can query the cache for block locations only the first time we encounter a new file
       if (!path.equals(lastPath)) {
         lastBlockLocations = getFileBlockLocations(path, fileLength);
         lastPath = path;
@@ -196,7 +199,7 @@ public class SplitAssignmentTableFunction extends AbstractTableFunction {
       blockLocationsLists.add(lastBlockLocations);
     }
 
-    splitWorkList = IntStream.range(0, batchSize)
+    splitWorkList = IntStream.range(0, splitIdentities.size())
       .mapToObj(i -> new SplitWork(splitIdentities.get(i), blockLocationsLists.get(i), i))
       .collect(Collectors.toList());
   }

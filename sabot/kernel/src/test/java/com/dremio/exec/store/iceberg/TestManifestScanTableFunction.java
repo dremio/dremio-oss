@@ -45,7 +45,6 @@ import org.apache.iceberg.FileContent;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.FileMetadata;
 import org.apache.iceberg.Files;
-import org.apache.iceberg.ManifestContent;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.ManifestFiles;
 import org.apache.iceberg.ManifestWriter;
@@ -73,12 +72,14 @@ import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.physical.config.TableFunctionPOP;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.SplitIdentity;
 import com.dremio.exec.store.SystemSchemas;
 import com.dremio.exec.util.LongRange;
 import com.dremio.exec.util.TestUtilities;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.BaseTestTableFunction;
+import com.dremio.sabot.RecordBatchValidatorDefaultImpl;
 import com.dremio.sabot.RecordSet;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
@@ -285,7 +286,7 @@ public class TestManifestScanTableFunction extends BaseTestTableFunction {
         r("datafile3.parquet", 300L, 1L, 1, serializedKey2,
             createDatePartitionInfo("date", 20, 0), COL_IDS, FileContent.DATA.name()));
 
-    validateSingle(getPop(outputSchema, ManifestContent.DATA), TableFunctionOperator.class, input, output, 2);
+    validateSingle(getPop(outputSchema, ManifestContentType.DATA), TableFunctionOperator.class, input, new RecordBatchValidatorDefaultImpl(output), 2);
   }
 
   @Test
@@ -304,7 +305,7 @@ public class TestManifestScanTableFunction extends BaseTestTableFunction {
         r("datafile3.parquet", 300L, 1L, 1, serializedKey2,
             createDatePartitionInfo("date", 20, 0), COL_IDS, FileContent.DATA.name(), 0, 9));
 
-     validateSingle(getPop(outputSchema, ManifestContent.DATA), TableFunctionOperator.class, input, output, 2);
+     validateSingle(getPop(outputSchema, ManifestContentType.DATA), TableFunctionOperator.class, input, new RecordBatchValidatorDefaultImpl(output), 2);
   }
 
   @Test
@@ -322,7 +323,7 @@ public class TestManifestScanTableFunction extends BaseTestTableFunction {
         r("datafile3.parquet", 300L, 1L, 1, serializedKey2,
             createDatePartitionInfo("date", 20, 0), COL_IDS, FileContent.DATA.name(), 20));
 
-    validateSingle(getPop(outputSchema, ManifestContent.DATA), TableFunctionOperator.class, input, output, 2);
+    validateSingle(getPop(outputSchema, ManifestContentType.DATA), TableFunctionOperator.class, input, new RecordBatchValidatorDefaultImpl(output), 2);
   }
 
   @Test
@@ -337,8 +338,8 @@ public class TestManifestScanTableFunction extends BaseTestTableFunction {
           300L, 3L, 1, serializedKey2, createEmptyPartitionInfo(0, 3), COL_IDS, FileContent.POSITION_DELETES.name()));
 
     validateSingle(
-        getPop(SystemSchemas.ICEBERG_DELETE_MANIFEST_SCAN_SCHEMA, ManifestContent.DELETES, DELETE_PARTITION_SPEC_MAP),
-        TableFunctionOperator.class, input, output, 3);
+        getPop(SystemSchemas.ICEBERG_DELETE_MANIFEST_SCAN_SCHEMA, ManifestContentType.DELETES, DELETE_PARTITION_SPEC_MAP),
+        TableFunctionOperator.class, input, new RecordBatchValidatorDefaultImpl(output), 3);
   }
 
   @Test
@@ -358,8 +359,8 @@ public class TestManifestScanTableFunction extends BaseTestTableFunction {
           COL_IDS, FileContent.EQUALITY_DELETES.name()));
 
     validateSingle(
-        getPop(SystemSchemas.ICEBERG_DELETE_MANIFEST_SCAN_SCHEMA, ManifestContent.DELETES, DELETE_PARTITION_SPEC_MAP),
-        TableFunctionOperator.class, input, output, 3);
+        getPop(SystemSchemas.ICEBERG_DELETE_MANIFEST_SCAN_SCHEMA, ManifestContentType.DELETES, DELETE_PARTITION_SPEC_MAP),
+        TableFunctionOperator.class, input, new RecordBatchValidatorDefaultImpl(output), 3);
   }
 
   @Test
@@ -374,14 +375,14 @@ public class TestManifestScanTableFunction extends BaseTestTableFunction {
         r(st(deleteFilePath, fileContent.id(), 10L, null), deleteFilePath, 100L, 1L, 1,
           serializedKey1, createDatePartitionInfo("date", 10, 0), COL_IDS, fileContent.name()));
 
-    validateSingle(getPop(outputSchema, ManifestContent.DELETES), TableFunctionOperator.class, input, output, 2);
+    validateSingle(getPop(outputSchema, ManifestContentType.DELETES), TableFunctionOperator.class, input, new RecordBatchValidatorDefaultImpl(output), 2);
   }
 
   @Test
   public void testDataManifestStats() throws Exception {
     RecordSet input = inputRecordSet();
     BatchSchema outputSchema = SystemSchemas.ICEBERG_MANIFEST_SCAN_SCHEMA;
-    OperatorStats stats = validateSingle(getPop(outputSchema, ManifestContent.DATA), TableFunctionOperator.class,
+    OperatorStats stats = validateSingle(getPop(outputSchema, ManifestContentType.DATA), TableFunctionOperator.class,
         input, null, 2);
 
     assertThat(stats.getLongStat(NUM_MANIFEST_FILE)).isEqualTo(2);
@@ -394,7 +395,7 @@ public class TestManifestScanTableFunction extends BaseTestTableFunction {
   public void testDeleteManifestStats() throws Exception {
     RecordSet input = deletesInputRecordSet();
     OperatorStats stats = validateSingle(
-        getPop(SystemSchemas.ICEBERG_DELETE_MANIFEST_SCAN_SCHEMA, ManifestContent.DELETES),
+        getPop(SystemSchemas.ICEBERG_DELETE_MANIFEST_SCAN_SCHEMA, ManifestContentType.DELETES),
         TableFunctionOperator.class, input, null, 3);
 
     assertThat(stats.getLongStat(NUM_MANIFEST_FILE)).isEqualTo(0);
@@ -406,7 +407,7 @@ public class TestManifestScanTableFunction extends BaseTestTableFunction {
   @Test
   public void testOutputBufferNotReused() throws Exception {
     RecordSet input = inputRecordSet();
-    validateOutputBufferNotReused(getPop(SystemSchemas.ICEBERG_MANIFEST_SCAN_SCHEMA, ManifestContent.DATA), input, 2);
+    validateOutputBufferNotReused(getPop(SystemSchemas.ICEBERG_MANIFEST_SCAN_SCHEMA, ManifestContentType.DATA), input, 2);
   }
 
   @Test
@@ -419,7 +420,7 @@ public class TestManifestScanTableFunction extends BaseTestTableFunction {
     LongRange excludeAllRange = new LongRange(0L, Long.MAX_VALUE);
     ManifestScanFilters manifestScanFilters = new ImmutableManifestScanFilters.Builder()
       .setSkipDataFileSizeRange(excludeAllRange).setMinPartitionSpecId(1).build();
-    OperatorStats stats = validateSingle(getPop(outputSchema, ManifestContent.DATA, PARTITION_SPEC_MAP, manifestScanFilters),
+    OperatorStats stats = validateSingle(getPop(outputSchema, ManifestContentType.DATA, PARTITION_SPEC_MAP, manifestScanFilters),
       TableFunctionOperator.class, input, null, 10);
 
     assertThat(stats.getLongStat(NUM_MANIFEST_FILE)).isEqualTo(2);
@@ -443,8 +444,8 @@ public class TestManifestScanTableFunction extends BaseTestTableFunction {
     LongRange excludeDataFile2Range = new LongRange(200L, 250L);
     ManifestScanFilters manifestScanFilters = new ImmutableManifestScanFilters.Builder()
       .setSkipDataFileSizeRange(excludeDataFile2Range).setMinPartitionSpecId(1).build();
-    validateSingle(getPop(outputSchema, ManifestContent.DATA, PARTITION_SPEC_MAP, manifestScanFilters),
-      TableFunctionOperator.class, input, output, 10);
+    validateSingle(getPop(outputSchema, ManifestContentType.DATA, PARTITION_SPEC_MAP, manifestScanFilters),
+      TableFunctionOperator.class, input, new RecordBatchValidatorDefaultImpl(output), 10);
   }
 
   @Test
@@ -468,8 +469,8 @@ public class TestManifestScanTableFunction extends BaseTestTableFunction {
     ManifestScanFilters manifestScanFilters = new ImmutableManifestScanFilters.Builder()
       .setSkipDataFileSizeRange(excludeAllRange).setMinPartitionSpecId(evolvedPartitionSpecId).build();
 
-    validateSingle(getPop(outputSchema, ManifestContent.DATA, PARTITION_SPEC_MAP, manifestScanFilters),
-      TableFunctionOperator.class, input, output, 10);
+    validateSingle(getPop(outputSchema, ManifestContentType.DATA, PARTITION_SPEC_MAP, manifestScanFilters),
+      TableFunctionOperator.class, input, new RecordBatchValidatorDefaultImpl(output), 10);
   }
 
   private RecordSet inputRecordSet() {
@@ -526,16 +527,16 @@ public class TestManifestScanTableFunction extends BaseTestTableFunction {
   }
 
 
-  private TableFunctionPOP getPop(BatchSchema outputSchema, ManifestContent manifestContent) throws Exception {
-    return getPop(outputSchema, manifestContent, PARTITION_SPEC_MAP);
+  private TableFunctionPOP getPop(BatchSchema outputSchema, ManifestContentType manifestContentType) throws Exception {
+    return getPop(outputSchema, manifestContentType, PARTITION_SPEC_MAP);
   }
 
-  private TableFunctionPOP getPop(BatchSchema outputSchema, ManifestContent manifestContent,
+  private TableFunctionPOP getPop(BatchSchema outputSchema, ManifestContentType manifestContentType,
                                   Map<Integer, PartitionSpec> partitionSpecMap) throws Exception {
-    return getPop(outputSchema, manifestContent, partitionSpecMap, ManifestScanFilters.empty());
+    return getPop(outputSchema, manifestContentType, partitionSpecMap, ManifestScanFilters.empty());
   }
 
-  private TableFunctionPOP getPop(BatchSchema outputSchema, ManifestContent manifestContent,
+  private TableFunctionPOP getPop(BatchSchema outputSchema, ManifestContentType manifestContentType,
       Map<Integer, PartitionSpec> partitionSpecMap, ManifestScanFilters manifestScanFilters) throws Exception {
     return new TableFunctionPOP(
         PROPS,
@@ -543,29 +544,33 @@ public class TestManifestScanTableFunction extends BaseTestTableFunction {
         new TableFunctionConfig(
             TableFunctionConfig.FunctionType.ICEBERG_MANIFEST_SCAN,
             true,
-            new ManifestScanTableFunctionContext(
-                null,
-                ByteString.copyFrom(IcebergSerDe.serializePartitionSpecAsJsonMap(partitionSpecMap)),
-                SchemaParser.toJson(SCHEMA),
-                null,
-                outputSchema,
-                SchemaConverter.getBuilder().setTableName(TABLE_NAME).build().fromIceberg(SCHEMA),
-                ImmutableList.of(ImmutableList.of(TABLE_NAME)),
-                null,
-                pluginId,
-                null,
-                outputSchema.getFields().stream()
-                    .map(f -> SchemaPath.getSimplePath(f.getName())).collect(Collectors.toList()),
-                null,
-                null,
-                null,
-                false,
-                false,
+          new ManifestScanTableFunctionContext(
+            null,
+            ByteString.copyFrom(IcebergSerDe.serializePartitionSpecAsJsonMap(partitionSpecMap)),
+            SchemaParser.toJson(SCHEMA),
+            null,
+            outputSchema,
+            SchemaConverter.getBuilder().setTableName(TABLE_NAME).build().fromIceberg(SCHEMA),
+            ImmutableList.of(ImmutableList.of(TABLE_NAME)),
+            null,
+            pluginId,
+            null,
+            outputSchema.getFields().stream()
+              .map(f -> SchemaPath.getSimplePath(f.getName())).collect(Collectors.toList()),
+            null,
+            null,
+            null,
+            false,
+            false,
+            true,
+            null,
+                manifestContentType,
+            manifestScanFilters,
+            false,
+            ImmutableMap.of(SchemaPath.getCompoundPath(SystemSchemas.SPLIT_IDENTITY, SplitIdentity.PATH), SchemaPath.getSimplePath(SystemSchemas.FILE_PATH)),
+            SystemSchemas.FILE_TYPE, IcebergFileType.MANIFEST.name(),
                 true,
-                null,
-                manifestContent,
-                manifestScanFilters,
-               false)));
+              false)));
   }
 
   private static ManifestFile createDataManifest(String path, PartitionSpec spec,  List<DataFile> files)

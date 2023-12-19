@@ -13,24 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 import { Reference } from "@app/types/nessie";
 import { intl } from "@app/utils/intl";
 import SettingsBtn from "@app/components/Buttons/SettingsBtn";
+import { IconButton } from "dremio-ui-lib/components";
 import Menu from "@app/components/Menus/Menu";
 import MenuItem from "@app/components/Menus/MenuItem";
 import moment from "@app/utils/dayjs";
-
 // @ts-ignore
 import { Tooltip } from "dremio-ui-lib";
-
 import {
   DEFAULT_FORMAT_WITH_TIME_SECONDS,
   formatDate,
   formatDateRelative,
   formatDateSince,
 } from "@app/utils/date";
-
+import { isNotSoftware } from "dyn-load/utils/versionUtils";
 export const convertISOStringWithTooltip = (
   commitTime: string,
   options?: {
@@ -40,7 +38,6 @@ export const convertISOStringWithTooltip = (
   if (options?.isRelative) {
     const pastSevenDays = moment().subtract(6, "days").startOf("day");
     const curCommitTime = moment(commitTime);
-
     if (curCommitTime > pastSevenDays) {
       return (
         <Tooltip
@@ -50,7 +47,6 @@ export const convertISOStringWithTooltip = (
         </Tooltip>
       );
     }
-
     return formatDateSince(
       new Date(commitTime).toString(),
       "MMM DD, YYYY, h:mmA"
@@ -61,7 +57,6 @@ export const convertISOStringWithTooltip = (
     return "";
   }
 };
-
 export const renderIcons = (
   branch: Reference,
   renderIcon: boolean,
@@ -71,18 +66,29 @@ export const renderIcons = (
   openDeleteDialog?: (arg: Reference) => void,
   openMergeDialog?: (arg: Reference) => void,
   isDefault?: boolean,
-  openTagDialog?: (arg: Reference, isDefault?: boolean) => void
+  openTagDialog?: (arg: Reference, isDefault?: boolean) => void,
+  catalogPrivileges?: any
 ): JSX.Element => {
   const renderMenu = () => {
     return (
       <Menu>
-        {openTagDialog && (
-          <MenuItem onClick={() => openTagDialog(branch, isDefault)}>
-            <span className="branch-list-menu-item">
-              {intl.formatMessage({ id: "ArcticCatalog.Tags.AddTag" })}
-            </span>
-          </MenuItem>
-        )}
+        {isNotSoftware?.()
+          ? catalogPrivileges &&
+            catalogPrivileges.tag["canCreate"] &&
+            openTagDialog && (
+              <MenuItem onClick={() => openTagDialog(branch, isDefault)}>
+                <span className="branch-list-menu-item">
+                  {intl.formatMessage({ id: "ArcticCatalog.Tags.AddTag" })}
+                </span>
+              </MenuItem>
+            )
+          : openTagDialog && (
+              <MenuItem onClick={() => openTagDialog(branch, isDefault)}>
+                <span className="branch-list-menu-item">
+                  {intl.formatMessage({ id: "ArcticCatalog.Tags.AddTag" })}
+                </span>
+              </MenuItem>
+            )}
         {openDeleteDialog && (
           <MenuItem onClick={() => openDeleteDialog(branch)}>
             <span className="branch-list-menu-item-delete">
@@ -93,60 +99,62 @@ export const renderIcons = (
       </Menu>
     );
   };
-
-  const renderCreateProject = (defaultBranch?: boolean) => {
+  const renderCreateBranch = (defaultBranch?: boolean) => {
     return (
-      <span
+      <IconButton
         onClick={() => openCreateDialog(branch, defaultBranch)}
-        className="branch-list-item-icon"
+        tooltipPortal
+        tooltipPlacement="top"
+        tooltip={intl.formatMessage({ id: "RepoView.CreateBranch" })}
       >
-        <Tooltip
-          title={intl.formatMessage({ id: "RepoView.CreateBranch" })}
-          placement="top"
-        >
-          <dremio-icon name="vcs/create-branch" />
-        </Tooltip>
-      </span>
+        <dremio-icon name="vcs/create-branch" alt="" />
+      </IconButton>
     );
   };
-
   const renderGoToDataset = () => {
     if (!isArcticSource) {
       return (
-        <span onClick={goToDataset} className="branch-list-item-icon">
-          <Tooltip
-            title={intl.formatMessage({ id: "Go.To.Data" })}
-            placement="top"
-          >
-            <dremio-icon name="interface/goto-dataset" />
-          </Tooltip>
-        </span>
+        <IconButton
+          onClick={goToDataset}
+          tooltipPortal
+          tooltipPlacement="top"
+          tooltip={intl.formatMessage({ id: "Go.To.Data" })}
+        >
+          <dremio-icon name="interface/goto-dataset" alt="" />
+        </IconButton>
       );
     }
   };
-
   const renderMerge = () => {
     return (
-      <span
+      <IconButton
         onClick={() => openMergeDialog && openMergeDialog(branch)}
-        className="branch-list-item-icon"
+        tooltipPortal
+        tooltipPlacement="top"
+        tooltip={intl.formatMessage({ id: "Common.Merge" })}
       >
-        <Tooltip
-          title={intl.formatMessage({ id: "Common.Merge" })}
-          placement="top"
-        >
-          <dremio-icon name="vcs/merge" />
-        </Tooltip>
-      </span>
+        <dremio-icon name="vcs/merge" alt="" />
+      </IconButton>
     );
   };
-
   const renderSettings = () => {
-    return (
+    return isNotSoftware?.() ? (
+      catalogPrivileges &&
+        (catalogPrivileges.tag["canCreate"] || openDeleteDialog) && (
+          <SettingsBtn
+            classStr="branch-list-item-settings-icon"
+            menu={renderMenu()}
+            hideArrowIcon
+          >
+            <dremio-icon
+              name="interface/more"
+              alt={intl.formatMessage({ id: "Common.More" })}
+            />
+          </SettingsBtn>
+        )
+    ) : (
       <SettingsBtn
         classStr="branch-list-item-settings-icon"
-        handleSettingsClose={() => {}}
-        handleSettingsOpen={() => {}}
         menu={renderMenu()}
         hideArrowIcon
       >
@@ -162,14 +170,22 @@ export const renderIcons = (
     <>
       {renderGoToDataset()}
       {renderMerge()}
-      {renderCreateProject(isDefault)}
+      {isNotSoftware?.()
+        ? catalogPrivileges &&
+          catalogPrivileges.branch["canCreate"] &&
+          renderCreateBranch(isDefault)
+        : renderCreateBranch(isDefault)}
       {renderSettings()}
     </>
   ) : renderIcon ? (
     <>
       {renderGoToDataset()}
       {renderMerge()}
-      {renderCreateProject()}
+      {isNotSoftware?.()
+        ? catalogPrivileges &&
+          catalogPrivileges.branch["canCreate"] &&
+          renderCreateBranch()
+        : renderCreateBranch()}
       {renderSettings()}
     </>
   ) : (

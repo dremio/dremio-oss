@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { push } from "react-router-redux";
+import { replace } from "react-router-redux";
 import Immutable from "immutable";
 
 import * as Actions from "./common";
@@ -74,7 +74,7 @@ describe("common", () => {
         payload: responsePayload,
       })((obj) => obj, getStateLocal);
       expect(result).to.eql(
-        push({
+        replace({
           pathname: pathWithPageType,
           query: {
             version: datasetVersion,
@@ -97,12 +97,12 @@ describe("common", () => {
       });
     });
 
-    it("should return push action", () => {
+    it("should return replace action", () => {
       const result = Actions.navigateToNextDataset({
         payload: responsePayload,
       })((obj) => obj, getStore);
       expect(result).to.eql(
-        push({
+        replace({
           pathname,
           query: {
             version: datasetVersion,
@@ -113,15 +113,15 @@ describe("common", () => {
       );
     });
 
-    it("should return push action with pathname to graph", () => {
+    it("should return replace action with pathname to graph", () => {
       testActionWithPathnameToSubpage("graph");
     });
 
-    it("should return push action with pathname to wiki", () => {
+    it("should return replace action with pathname to wiki", () => {
       testActionWithPathnameToSubpage("wiki");
     });
 
-    it("should return push action with pathname to reflections", () => {
+    it("should return replace action with pathname to reflections", () => {
       testActionWithPathnameToSubpage("reflections");
     });
 
@@ -137,7 +137,7 @@ describe("common", () => {
         getStore
       );
       expect(result).to.eql(
-        push({
+        replace({
           pathname,
           query: {
             jobId,
@@ -188,7 +188,7 @@ describe("common", () => {
           { isSaveAs: true }
         )((obj) => obj, getStore);
         expect(result).to.eql(
-          push({
+          replace({
             pathname: nextDatasetLink, // for 'save as' we should take a path from response
             query: {
               version: datasetVersion,
@@ -211,7 +211,7 @@ describe("common", () => {
         { changePathname: true }
       )((obj) => obj, getStore);
       expect(result).to.eql(
-        push({
+        replace({
           pathname: nextDatasetLink, // should take a path from response
           query: {
             version: datasetVersion,
@@ -232,7 +232,7 @@ describe("common", () => {
           { preserveTip: true }
         )((obj) => obj, getStore);
         expect(result).to.eql(
-          push({
+          replace({
             pathname,
             query: {
               version: datasetVersion,

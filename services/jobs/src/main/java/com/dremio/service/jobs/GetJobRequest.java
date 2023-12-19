@@ -27,11 +27,13 @@ public final class GetJobRequest {
   private final JobId jobId;
   private final String userName;
   private final boolean fromStore;
+  private final boolean profileInfoRequired;
 
-  private GetJobRequest(JobId jobId, String userName, boolean fromStore) {
+  private GetJobRequest(JobId jobId, String userName, boolean fromStore, boolean profileInfoRequired) {
     this.jobId = jobId;
     this.userName = userName;
     this.fromStore = fromStore;
+    this.profileInfoRequired = profileInfoRequired;
   }
 
   JobId getJobId() {
@@ -46,6 +48,10 @@ public final class GetJobRequest {
     return fromStore;
   }
 
+  boolean isProfileInfoRequired() {
+    return profileInfoRequired;
+  }
+
   /**
    * getJob Request builder.
    */
@@ -53,6 +59,7 @@ public final class GetJobRequest {
     private JobId jobId;
     private String userName = null;
     private boolean fromStore = false;
+    private boolean profileInfoRequired = false;
 
     private Builder() {
     }
@@ -72,8 +79,13 @@ public final class GetJobRequest {
       return this;
     }
 
+    public Builder setProfileInfoRequired(boolean profileInfoRequired) {
+      this.profileInfoRequired = profileInfoRequired;
+      return this;
+    }
+
     public GetJobRequest build() {
-      return new GetJobRequest(jobId, userName, fromStore);
+      return new GetJobRequest(jobId, userName, fromStore, profileInfoRequired);
     }
   }
 
@@ -97,7 +109,8 @@ public final class GetJobRequest {
     GetJobRequest request = (GetJobRequest)obj;
     return Objects.equals(this.getJobId(), request.getJobId())
       && Objects.equals(this.getUserName(), request.getUserName())
-      && Objects.equals(this.isFromStore(), request.isFromStore());
+      && Objects.equals(this.isFromStore(), request.isFromStore())
+      && Objects.equals(this.isProfileInfoRequired(), request.isProfileInfoRequired());
   }
 
   @Override

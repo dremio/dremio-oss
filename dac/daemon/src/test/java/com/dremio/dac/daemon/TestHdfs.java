@@ -64,6 +64,7 @@ import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.users.UserService;
@@ -124,7 +125,11 @@ public class TestHdfs extends BaseTestMiniDFS {
       client = ClientBuilder.newBuilder().register(provider).register(MultiPartFeature.class).build();
     }
 
-    SampleDataPopulator.addDefaultFirstUser(l(UserService.class), new NamespaceServiceImpl(l(LegacyKVStoreProvider.class)));
+    setupDeltaDatabase("testDataset");
+    setupDeltaDatabase("JsonDataset");
+    setupDeltaDatabase("multiPartCheckpoint");
+
+    SampleDataPopulator.addDefaultFirstUser(l(UserService.class), new NamespaceServiceImpl(l(LegacyKVStoreProvider.class), new CatalogStatusEventsImpl()));
     final HDFSConf hdfsConfig = new HDFSConf();
     hdfsConfig.hostname = host;
     hdfsConfig.port = port;
@@ -136,6 +141,13 @@ public class TestHdfs extends BaseTestMiniDFS {
     source.setDescription(SOURCE_DESC);
     allocator = l(BootStrapContext.class).getAllocator().newChildAllocator("child-allocator", 0, Long.MAX_VALUE);
     ((CatalogServiceImpl)l(CatalogService.class)).getSystemUserCatalog().createSource(source);
+  }
+
+  private static void setupDeltaDatabase(String tableName) throws Exception {
+    fs.mkdirs(new Path("/delta/"), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
+    fs.copyFromLocalFile(false, true, new Path(FileUtils.getResourceAsFile("/deltalake/" + tableName).getAbsolutePath()),
+      new Path("/delta/"));
+    fs.setPermission(new Path("/delta/" + tableName), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
   }
 
   @AfterClass
@@ -170,7 +182,7 @@ public class TestHdfs extends BaseTestMiniDFS {
   @Test
   public void listSource() throws Exception {
     NamespaceTree ns = l(SourceService.class).listSource(new SourceName(SOURCE_NAME), null, SampleDataPopulator.DEFAULT_USER_NAME);
-    assertEquals(2, ns.getFolders().size());
+    assertEquals(3, ns.getFolders().size());
     assertEquals(0, ns.getFiles().size());
     assertEquals(0, ns.getPhysicalDatasets().size());
   }
@@ -191,6 +203,42 @@ public class TestHdfs extends BaseTestMiniDFS {
         .build(), 0, 500, allocator)) {
       assertEquals(3, jobData.getReturnedRowCount());
       assertEquals(2, jobData.getColumns().size());
+    }
+  }
+
+  @Test
+  public void testDeltaDatasetScan() throws Exception {
+    try (final JobDataFragment jobData = submitJobAndGetData(l(JobsService.class),
+      JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery(
+          "SELECT * FROM " + SOURCE_NAME + ".delta.testDataset", SampleDataPopulator.DEFAULT_USER_NAME))
+        .build(), 0, 500, allocator)) {
+      assertEquals(499, jobData.getReturnedRowCount());
+      assertEquals(10, jobData.getColumns().size());
+    }
+  }
+
+  @Test
+  public void testDeltaJsonDatasetCase() throws Exception {
+    try (final JobDataFragment jobData = submitJobAndGetData(l(JobsService.class),
+      JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery(
+          "SELECT * FROM " + SOURCE_NAME + ".delta.JsonDataset", SampleDataPopulator.DEFAULT_USER_NAME))
+        .build(), 0, 500, allocator)) {
+      assertEquals(89, jobData.getReturnedRowCount());
+      assertEquals(9, jobData.getColumns().size());
+    }
+  }
+
+  @Test
+  public void testDeltaMultiPartCheckpointCase() throws Exception {
+    try (final JobDataFragment jobData = submitJobAndGetData(l(JobsService.class),
+      JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery(
+          "SELECT * FROM " + SOURCE_NAME + ".delta.multiPartCheckpoint", SampleDataPopulator.DEFAULT_USER_NAME))
+        .build(), 0, 500, allocator)) {
+      assertEquals(5, jobData.getReturnedRowCount());
+      assertEquals(3, jobData.getColumns().size());
     }
   }
 }

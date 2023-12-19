@@ -15,6 +15,7 @@
  */
 package com.dremio.service.nessie;
 
+import static com.dremio.test.DremioTest.CLASSPATH_SCAN_RESULT;
 import static java.nio.file.FileVisitResult.CONTINUE;
 
 import java.io.IOException;
@@ -31,9 +32,6 @@ import org.projectnessie.versioned.persist.adapter.DatabaseAdapterConfig;
 import org.projectnessie.versioned.persist.adapter.DatabaseAdapterFactory;
 import org.projectnessie.versioned.persist.tests.extension.AbstractTestConnectionProviderSource;
 
-import com.dremio.common.config.SabotConfig;
-import com.dremio.common.scanner.ClassPathScanner;
-import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.datastore.LocalKVStoreProvider;
 
 /**
@@ -66,9 +64,7 @@ public class DatastoreTestConnectionProviderSource
   @Override
   public void start() throws Exception {
     rocksDir = Files.createTempDirectory("junit-rocks");
-    SabotConfig sabotConfig = SabotConfig.create();
-    ScanResult scan = ClassPathScanner.fromPrescan(sabotConfig);
-    this.localKVStoreProvider = new LocalKVStoreProvider(scan,
+    this.localKVStoreProvider = new LocalKVStoreProvider(CLASSPATH_SCAN_RESULT,
       rocksDir.toAbsolutePath().toString(), false, false);
     localKVStoreProvider.start();
     configureConnectionProviderConfigFromDefaults(c -> c.withStoreProvider(() -> localKVStoreProvider));

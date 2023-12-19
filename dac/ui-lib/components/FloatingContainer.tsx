@@ -28,7 +28,8 @@ import { CSSTransition } from "react-transition-group";
 import { cloneElement } from "react";
 import mergeRefs from "react-merge-refs";
 
-export const FloatingContainer = (props) => {
+export const FloatingContainer = (props: any) => {
+  const { trigger, children, isOpen, placement } = props;
   const { x, y, strategy, refs } = useFloating({
     middleware: [
       offset(4),
@@ -41,10 +42,11 @@ export const FloatingContainer = (props) => {
         },
       }),
     ],
+    placement,
     strategy: "fixed",
     whileElementsMounted: autoUpdate,
   });
-  const { trigger, children, isOpen } = props;
+
   return (
     <>
       {cloneElement(trigger, {

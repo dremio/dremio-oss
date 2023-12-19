@@ -24,7 +24,6 @@ import { getRefQueryParamsFromPath } from "@app/utils/nessieUtils";
 export const LOAD_SUMMARY_DATASET_START = "LOAD_SUMMARY_DATASET_START";
 export const LOAD_SUMMARY_DATASET_SUCCESS = "LOAD_SUMMARY_DATASET_SUCCESS";
 export const LOAD_SUMMARY_DATASET_FAILURE = "LOAD_SUMMARY_DATASET_FAILURE";
-export const LOADING_ITEMS = "LoadingItems";
 
 // todo: can we nix this DS shape variation? (handle its needs with one of the other "DS" shapes)
 function fetchSummaryDataset(
@@ -38,7 +37,9 @@ function fetchSummaryDataset(
   const meta = {
     viewId,
     fullPath,
-    errorMessage: la("Cannot provide more information about this dataset."),
+    errorMessage: laDeprecated(
+      "Cannot provide more information about this dataset."
+    ),
     isSummaryDatasetResponse: storageName ? true : false,
     nodeExpanded,
     currNode,
@@ -90,10 +91,24 @@ function fetchSummaryDataset(
 
 export const loadSummaryDataset =
   (fullPath, viewId, storageName, nodeExpanded, currNode, versionContext) =>
-  (dispatch) =>
-    dispatch(
+  (dispatch) => {
+    let joinedPath = "";
+
+    if (fullPath) {
+      if (typeof fullPath !== "string") {
+        const newPath = fullPath
+          .toJS()
+          .map((pathPart) => encodeURIComponent(pathPart));
+        newPath[newPath.length - 1] = `"${newPath[newPath.length - 1]}"`;
+        joinedPath = newPath.join("/");
+      } else {
+        joinedPath = fullPath;
+      }
+    }
+
+    return dispatch(
       fetchSummaryDataset(
-        fullPath,
+        joinedPath,
         viewId,
         storageName,
         nodeExpanded,
@@ -101,6 +116,7 @@ export const loadSummaryDataset =
         versionContext
       )
     );
+  };
 
 export const LOAD_DATASET_START = "LOAD_DATASET_START";
 export const LOAD_DATASET_SUCCESS = "LOAD_DATASET_SUCCESS";
@@ -117,7 +133,9 @@ function fetchDataset(id, viewId) {
   const meta = {
     viewId,
     id,
-    errorMessage: la("Cannot provide more information about this dataset."),
+    errorMessage: laDeprecated(
+      "Cannot provide more information about this dataset."
+    ),
   };
 
   const apiCall = new APICall().path("catalog").path(id);

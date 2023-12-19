@@ -17,13 +17,16 @@ package com.dremio.exec.planner.sql;
 
 import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_PARTITION_TRANSFORMS;
 import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_TIME_TRAVEL;
+import static com.dremio.exec.ExecConstants.SHOW_CREATE_ENABLED;
 import static com.dremio.exec.tablefunctions.DremioCalciteResource.DREMIO_CALCITE_RESOURCE;
 import static org.apache.calcite.sql.SqlUtil.stripAs;
 import static org.apache.calcite.util.Static.RESOURCE;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.calcite.plan.RelOptTable;
@@ -86,15 +89,19 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.sql.handlers.query.CopyIntoTableContext;
 import com.dremio.exec.planner.sql.parser.SqlCopyIntoTable;
 import com.dremio.exec.planner.sql.parser.SqlDeleteFromTable;
 import com.dremio.exec.planner.sql.parser.SqlDmlOperator;
 import com.dremio.exec.planner.sql.parser.SqlMergeIntoTable;
 import com.dremio.exec.planner.sql.parser.SqlOptimize;
 import com.dremio.exec.planner.sql.parser.SqlPartitionTransform;
+import com.dremio.exec.planner.sql.parser.SqlShowCreate;
 import com.dremio.exec.planner.sql.parser.SqlUpdateTable;
-import com.dremio.exec.planner.sql.parser.SqlVacuumTable;
+import com.dremio.exec.planner.sql.parser.SqlVersionedTableCollectionCall;
 import com.dremio.exec.planner.sql.parser.SqlVersionedTableMacroCall;
+import com.dremio.exec.tablefunctions.TableMacroNames;
+import com.dremio.exec.tablefunctions.VersionedTableMacro;
 import com.dremio.options.OptionResolver;
 import com.dremio.options.TypeValidators;
 import com.google.common.base.Preconditions;
@@ -153,17 +160,74 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
       return node;
     } else if (node instanceof SqlCopyIntoTable) {
       SqlCopyIntoTable sqlCopyIntoTable = (SqlCopyIntoTable) node;
+      if (!CopyIntoTableContext.isSupportedOption(sqlCopyIntoTable.getOptionsList(),
+        sqlCopyIntoTable.getOptionsValueList(), optionResolver)) {
+        throw UserException.unsupportedError().message("Copy Into with continue option is not supported")
+          .buildSilently();
+      }
       SqlSelect select = createSourceSelectForCopyIntoTable(sqlCopyIntoTable);
       sqlCopyIntoTable.setSourceSelect(select);
       return node;
-    } else if (node instanceof SqlVacuumTable) {
-      SqlVacuumTable sqlVacuumTable = (SqlVacuumTable) node;
-      SqlSelect select = createSourceSelectForVacuum(sqlVacuumTable);
-      sqlVacuumTable.setSourceSelect(select);
-      return node;
+    } else if (node instanceof SqlJoin && ((SqlJoin) node).getCondition() instanceof SqlBasicCall) {
+      node = rewriteJoinWithVersionedTables(node);
     }
 
     return super.performUnconditionalRewrites(node, underFrom);
+  }
+
+  private SqlNode rewriteJoinWithVersionedTables(SqlNode node) {
+    SqlJoin sqlJoin = (SqlJoin) node;
+    SqlBasicCall sqlCallOriginalCondition = (SqlBasicCall) sqlJoin.getCondition();
+    SqlNode[] joinNodes = new SqlNode[]{sqlJoin.getLeft(), sqlJoin.getRight()};
+    SqlNode[] conditionNodes = sqlCallOriginalCondition.getOperands();
+    boolean isVersionedTableInCondition = false;
+
+    //Extract the TableNames of the JoinNodes which is of SqlVersionedTableCollectionCall (means having AT syntax)
+    Set<String> tableNames = new HashSet<>();
+    for (SqlNode joinNode: joinNodes) {
+      if (joinNode instanceof SqlVersionedTableCollectionCall) {
+        SqlVersionedTableCollectionCall versionedTableCollectionCall = (SqlVersionedTableCollectionCall) joinNode;
+        for (SqlNode tableOperand: versionedTableCollectionCall.getOperandList()) {
+          if (tableOperand instanceof SqlVersionedTableMacroCall) {
+            SqlVersionedTableMacroCall versionedTableMacroCall = (SqlVersionedTableMacroCall) tableOperand;
+            String tableName = getTableNameFromVersionedTableCall(null, versionedTableMacroCall);
+            tableNames.add(tableName);
+          }
+        }
+      }
+    }
+
+    //If none of the tables (referred in SqlVersionedTableCollectionCall) are captured then just return the node
+    if (tableNames.isEmpty()) {
+      return node;
+    }
+
+    //Loop over both the conditions of Join node
+    for (int i = 0; i < conditionNodes.length; i++) {
+      //Only modify the SqlNode condition's FQID to only contain the table name if the condition node is of SqlVersionedTableCollectionCall
+      if (conditionNodes[i] instanceof SqlIdentifier) {
+        SqlIdentifier sqlIdentifier = (SqlIdentifier) conditionNodes[i];
+        //Since we already extracted the versioned table names previously, so we can just check if any of the condition node matches with the table names set
+        if (sqlIdentifier.names.size() > 2 && tableNames.contains(sqlIdentifier.names.get(sqlIdentifier.names.size() - 2))) {
+          conditionNodes[i] = sqlIdentifier.getComponent(sqlIdentifier.names.size() - 2, sqlIdentifier.names.size());
+          isVersionedTableInCondition = true;
+        }
+      }
+    }
+
+    if (isVersionedTableInCondition) {
+      SqlNode sqlNodeCondition = new SqlBasicCall(sqlCallOriginalCondition.getOperator(), conditionNodes, sqlCallOriginalCondition.getParserPosition());
+      node = new SqlJoin(
+        sqlJoin.getParserPosition(),
+        sqlJoin.getLeft(),
+        sqlJoin.isNaturalNode(),
+        sqlJoin.getJoinTypeNode(),
+        sqlJoin.getRight(),
+        sqlJoin.getConditionTypeNode(),
+        sqlNodeCondition);
+    }
+
+    return node;
   }
 
   private SqlSelect createSourceSelectForOptimize(SqlOptimize call) {
@@ -178,15 +242,8 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
     final SqlNodeList selectList = new SqlNodeList(SqlParserPos.ZERO);
     selectList.add(SqlIdentifier.star(SqlParserPos.ZERO));
     SqlNode table = call.getTargetTable();
-    return new SqlSelect(SqlParserPos.ZERO, null, selectList, table,
-      null, null, null, null, null, null, null, null, null);
-  }
 
-  private SqlSelect createSourceSelectForVacuum(SqlVacuumTable call) {
-    final SqlNodeList selectList = new SqlNodeList(SqlParserPos.ZERO);
-    selectList.add(SqlIdentifier.star(SqlParserPos.ZERO));
-    SqlNode sourceTable = call.getTable();
-    return new SqlSelect(SqlParserPos.ZERO, null, selectList, sourceTable,
+    return new SqlSelect(SqlParserPos.ZERO, null, selectList, table,
       null, null, null, null, null, null, null, null, null);
   }
 
@@ -194,18 +251,29 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
   protected void registerNamespace(SqlValidatorScope usingScope, String alias, SqlValidatorNamespace ns,
                                    boolean forceNullable) {
 
-    // Update aliases of SqlVersionedTableMacroCalls so that table aliases behave similarly when they have
-    // a version clause.
+    // Update aliases for __system_table_macros.time_travel calls so that table aliases behave similarly when they have
+    // a version clause.  The default should be the table name, not EXPR$N.
     if (ns instanceof ProcedureNamespace) {
       if (ns.getNode() instanceof SqlVersionedTableMacroCall && ns.getEnclosingNode().getKind() != SqlKind.AS) {
         SqlVersionedTableMacroCall call = (SqlVersionedTableMacroCall) ns.getNode();
-        if (call.getAlias() != null) {
-          alias = call.getAlias().getSimple();
-        }
+        alias = getTableNameFromVersionedTableCall(alias, call);
       }
     }
 
     super.registerNamespace(usingScope, alias, ns, forceNullable);
+  }
+
+  private static String getTableNameFromVersionedTableCall(String alias, SqlVersionedTableMacroCall call) {
+    if (call.getOperator().getNameAsId().names.equals(TableMacroNames.TIME_TRAVEL) &&
+        call.getOperands().length == 1 && call.getOperands()[0] instanceof SqlLiteral) {
+      // extract the table name from the full qualified name passed as an arg to the table macro
+      SqlLiteral qualifiedName = (SqlLiteral) call.getOperands()[0];
+      List<String> nameParts = VersionedTableMacro.splitTableIdentifier(qualifiedName.getValueAs(String.class));
+      if (!nameParts.isEmpty()) {
+        alias = nameParts.get(nameParts.size() - 1);
+      }
+    }
+    return alias;
   }
 
   @Override
@@ -836,7 +904,10 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
     @Override
     public SqlNode visit(SqlIdentifier id) {
       SqlValidator validator = getScope().getValidator();
-      final SqlCall call = validator.makeNullaryCall(id);
+      // For UDFs we won't resolve to a function call if the parameter name is quoted,
+      // so here is the workaround
+      SqlIdentifier unquotedIdentifer = new SqlUnquotedIdentifier(id);
+      final SqlCall call = validator.makeNullaryCall(unquotedIdentifer);
       if (call != null) {
         return (SqlNode)call.accept(this);
       } else {
@@ -942,6 +1013,17 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
 
       return false;
     }
+
+    private static final class SqlUnquotedIdentifier extends SqlIdentifier {
+      public SqlUnquotedIdentifier(SqlIdentifier identifier) {
+        super(identifier.names, identifier.getCollation(), identifier.getParserPosition(), null);
+      }
+
+      @Override
+      public boolean isComponentQuoted(int i) {
+        return false;
+      }
+    }
   }
 
 
@@ -1025,11 +1107,16 @@ public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidat
     @Override
     public Void visit(SqlCall call) {
       if (call instanceof SqlVersionedTableMacroCall) {
-        checkFeatureEnabled(ENABLE_ICEBERG_TIME_TRAVEL, "Time travel queries are not supported.");
+          checkFeatureEnabled(ENABLE_ICEBERG_TIME_TRAVEL, "Time travel queries are not supported.");
       } else if (call instanceof SqlPartitionTransform) {
         if (!((SqlPartitionTransform) call).isIdentityTransform()) {
           checkFeatureEnabled(ENABLE_ICEBERG_PARTITION_TRANSFORMS, "Table partition transforms are not supported.");
         }
+      } else if (call instanceof SqlShowCreate) {
+        boolean isView = ((SqlShowCreate) call).getIsView();
+        checkFeatureEnabled(SHOW_CREATE_ENABLED,
+          String.format("\"SHOW CREATE %s <%s_name> [ AT ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue ]\" syntax is disabled",
+            isView ? "VIEW" : "TABLE", isView ? "view" : "table"));
       }
 
       return super.visit(call);

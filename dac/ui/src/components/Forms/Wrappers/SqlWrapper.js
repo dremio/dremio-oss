@@ -30,9 +30,6 @@ export default class SqlWrapper extends Component {
   // interlnal ref to SQLEditor
   sqlEditor = null;
 
-  //TODO get errors structure with range for SQL error highlighting from failed API response
-  errors = null;
-
   getMonacoEditorInstance() {
     return this.sqlEditor.monacoEditorComponent.editor;
   }
@@ -61,7 +58,6 @@ export default class SqlWrapper extends Component {
               defaultValue={initialValue}
               onChange={this.handleChange}
               readOnly={disabled}
-              errors={this.errors}
               autoCompleteEnabled={
                 elementConfig.getConfig().autoCompleteEnabled
               }

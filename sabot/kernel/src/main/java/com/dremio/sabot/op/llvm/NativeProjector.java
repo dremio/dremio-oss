@@ -27,6 +27,8 @@ import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
 
 import com.dremio.common.expression.LogicalExpression;
@@ -55,7 +57,7 @@ public class NativeProjector implements AutoCloseable {
     this.schema = schema;
     this.functionContext = functionContext;
     // preserve order of insertion
-    referencedFields =Sets.newLinkedHashSet();
+    referencedFields = Sets.newLinkedHashSet();
     this.optimize = optimize;
     this.targetHostCPU = targetHostCPU;
     this.secondaryCache = secondaryCache;
@@ -95,6 +97,10 @@ public class NativeProjector implements AutoCloseable {
     List<ArrowBuf> buffers = Lists.newArrayList();
     for (FieldVector v : root.getFieldVectors()) {
       buffers.addAll(v.getFieldBuffers());
+      if (v.getMinorType() == Types.MinorType.LIST) {
+        ListVector lv = (ListVector) v;
+        buffers.addAll(lv.getDataVector().getFieldBuffers());
+      }
     }
 
     projector.evaluate(recordCount, buffers, outVectors);

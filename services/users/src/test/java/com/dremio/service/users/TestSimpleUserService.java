@@ -18,6 +18,7 @@ package com.dremio.service.users;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -38,7 +39,6 @@ import com.dremio.datastore.api.LegacyIndexedStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.service.users.SimpleUserService.UserGroupStoreBuilder;
-import com.dremio.service.users.StatusUserLoginException.Status;
 import com.dremio.service.users.proto.UID;
 import com.dremio.service.users.proto.UserConfig;
 import com.dremio.service.users.proto.UserInfo;
@@ -248,12 +248,11 @@ public class TestSimpleUserService {
       // login as an inactive user should fail
       try {
         userGroupService.authenticate(updatedUser.getUserName(), password);
-        fail("Login as an inactive user should fail with StatusUserLoginException");
-      } catch (StatusUserLoginException e) {
-        assertEquals(Status.INACTIVE, e.getErrorStatus());
-        assertTrue(e.getMessage().contains("Inactive user"));
+        fail("Login as an inactive user should fail with UserLoginException");
+      } catch (UserLoginException e) {
+        assertNotNull(e);
       } catch (Exception e) {
-        fail("Login as an inactive user should fail with StatusUserLoginException");
+        fail("Login as an inactive user should fail with UserLoginException");
       }
 
       // activate the inactive user

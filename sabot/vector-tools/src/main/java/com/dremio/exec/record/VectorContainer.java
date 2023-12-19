@@ -117,7 +117,7 @@ public class VectorContainer implements Iterable<VectorWrapper<?>>, VectorAccess
     }
   }
 
-  private class Resetter implements CallBack {
+  private final class Resetter implements CallBack {
     @Override
     public void doWork() {
       clearSchema();

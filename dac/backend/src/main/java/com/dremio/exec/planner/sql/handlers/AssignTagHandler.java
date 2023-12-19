@@ -23,8 +23,8 @@ import java.util.List;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult;
@@ -40,7 +40,7 @@ import com.dremio.sabot.rpc.user.UserSession;
  * Handler for updating the reference to the given tag.
  *
  * ALTER TAG tagName ASSIGN
- * ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue
+ * ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue [AS OF timestamp]
  * [ IN sourceName ]
  */
 public class AssignTagHandler extends BaseVersionHandler<SimpleCommandResult> {
@@ -64,7 +64,7 @@ public class AssignTagHandler extends BaseVersionHandler<SimpleCommandResult> {
       userSession.getDefaultSchemaPath());
 
     final VersionContext statementVersion =
-      ReferenceTypeUtils.map(assignTag.getRefType(), assignTag.getRefValue());
+      ReferenceTypeUtils.map(assignTag.getRefType(), assignTag.getRefValue(), assignTag.getTimestamp());
     final String tagName = requireNonNull(assignTag.getTagName()).toString();
 
     final VersionedPlugin versionedPlugin = getVersionedPlugin(sourceName);

@@ -21,7 +21,7 @@
   <parent>
     <artifactId>dremio-services-parent</artifactId>
     <groupId>com.dremio.services</groupId>
-    <version>24.1.0-202306130653310132-d30779f6</version>
+    <version>24.3.0-202312190021150029-52db2faf</version>
   </parent>
   <artifactId>dremio-services-coordinator</artifactId>
   <name>Services - Coordinator</name>
@@ -73,6 +73,12 @@
       <artifactId>dremio-services-telemetry-api</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <dependency>
+      <groupId>com.dremio.tools</groupId>
+      <artifactId>dremio-zookeeper-test-runner</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
   <profiles>
     <profile>
@@ -112,10 +118,6 @@
       <plugin>
         <groupId>org.xolstice.maven.plugins</groupId>
         <artifactId>protobuf-maven-plugin</artifactId>
-        <configuration>
-          <!--Required to be false because both executions write to the same directory-->
-          <clearOutputDirectory>false</clearOutputDirectory>
-        </configuration>
         <executions>
           <execution>
             <id>generate-protobuf</id>
@@ -124,17 +126,6 @@
             </goals>
             <configuration>
               <protoSourceRoot>${project.basedir}/src/main/protobuf</protoSourceRoot>
-              <outputDirectory>${project.build.directory}/generated-sources/protobuf</outputDirectory>
-            </configuration>
-          </execution>
-          <execution>
-            <id>generate-proto</id>
-            <goals>
-              <goal>compile</goal>
-            </goals>
-            <configuration>
-              <protoSourceRoot>${project.basedir}/src/main/proto</protoSourceRoot>
-              <outputDirectory>${project.build.directory}/generated-sources/protobuf</outputDirectory>
             </configuration>
           </execution>
         </executions>

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { RequestStatus } from "smart-resource";
+import { ResourceStatus } from "smart-resource1";
 
-export function isSmartFetchLoading(status: RequestStatus) {
+export function isSmartFetchLoading(status: ResourceStatus) {
   return ["initial", "pending"].includes(status);
 }

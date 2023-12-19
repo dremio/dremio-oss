@@ -36,7 +36,7 @@ public class SqlCreateTable extends SqlCreateEmptyTable {
   public static final SqlSpecialOperator CREATE_TABLE_OPERATOR = new SqlSpecialOperator("CREATE_TABLE", SqlKind.CREATE_TABLE) {
     @Override
     public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 14, "SqlCreateTable.createCall() has to get 14 operands!");
+      Preconditions.checkArgument(operands.length == 16, "SqlCreateTable.createCall() has to get 16 operands!");
       return new SqlCreateTable(
         pos,
         (SqlIdentifier) operands[0],
@@ -50,9 +50,11 @@ public class SqlCreateTable extends SqlCreateEmptyTable {
         (SqlNodeList) operands[7],
         (SqlNodeList) operands[8],
         (SqlPolicy) operands[10],
-        operands[13],
+        operands[15],
         (SqlNodeList) operands[11],
-        (SqlNodeList) operands[12]);
+        (SqlNodeList) operands[12],
+        ((SqlLiteral) operands[13]).symbolValue(ReferenceType.class),
+        (SqlIdentifier) operands[14]);
     }
   };
 
@@ -73,9 +75,11 @@ public class SqlCreateTable extends SqlCreateEmptyTable {
       SqlPolicy policy,
       SqlNode query,
       SqlNodeList  tablePropertyNameList,
-      SqlNodeList  tablePropertyValueList) {
+      SqlNodeList  tablePropertyValueList,
+      ReferenceType refType,
+      SqlIdentifier refValue) {
     super(pos, tblName, fieldList, ifNotExists, partitionDistributionStrategy, partitionColumns, formatOptions, location, singleWriter,
-      sortFieldList, distributionColumns, policy, tablePropertyNameList, tablePropertyValueList);
+      sortFieldList, distributionColumns, policy, tablePropertyNameList, tablePropertyValueList, refType, refValue);
     this.query = query;
   }
 

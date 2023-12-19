@@ -22,26 +22,17 @@ import static com.dremio.exec.store.SystemSchemas.FILE_CONTENT;
 import static com.dremio.exec.store.SystemSchemas.FILE_PATH;
 import static com.dremio.exec.store.SystemSchemas.FILE_TYPE;
 import static com.dremio.exec.store.SystemSchemas.ICEBERG_SNAPSHOTS_SCAN_SCHEMA;
-import static com.dremio.exec.store.SystemSchemas.RECORDS;
-import static com.dremio.exec.store.iceberg.model.IcebergConstants.ADDED_DATA_FILES;
-import static com.dremio.exec.store.iceberg.model.IcebergConstants.DELETED_DATA_FILES;
-import static org.apache.calcite.sql.fun.SqlStdOperatorTable.CASE;
-import static org.apache.calcite.sql.fun.SqlStdOperatorTable.EQUALS;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.SUM;
 import static org.apache.calcite.sql.type.SqlTypeName.BIGINT;
-import static org.apache.calcite.sql.type.SqlTypeName.VARCHAR;
 
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.InvalidRelException;
 import org.apache.calcite.rel.RelCollations;
@@ -60,16 +51,14 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Pair;
-import org.apache.iceberg.ManifestContent;
-import org.apache.iceberg.Snapshot;
-import org.apache.iceberg.Table;
 
-import com.dremio.common.exceptions.UserException;
+import com.dremio.common.JSONOptions;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.VacuumOptions;
-import com.dremio.exec.physical.config.ImmutableManifestScanFilters;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
-import com.dremio.exec.planner.logical.CreateTableEntry;
+import com.dremio.exec.planner.common.ScanRelBase;
+import com.dremio.exec.planner.cost.iceberg.IcebergCostEstimates;
 import com.dremio.exec.planner.physical.DistributionTrait;
 import com.dremio.exec.planner.physical.FilterPrel;
 import com.dremio.exec.planner.physical.HashAggPrel;
@@ -77,105 +66,59 @@ import com.dremio.exec.planner.physical.HashJoinPrel;
 import com.dremio.exec.planner.physical.HashToRandomExchangePrel;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.ProjectPrel;
-import com.dremio.exec.planner.physical.StreamAggPrel;
 import com.dremio.exec.planner.physical.TableFunctionUtil;
-import com.dremio.exec.planner.physical.UnionExchangePrel;
+import com.dremio.exec.planner.physical.ValuesPrel;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.store.SystemSchemas;
-import com.dremio.exec.store.TableMetadata;
-import com.dremio.exec.store.dfs.IcebergTableProps;
-import com.dremio.exec.store.iceberg.IcebergFileType;
 import com.dremio.exec.store.iceberg.IcebergManifestListScanPrel;
 import com.dremio.exec.store.iceberg.IcebergManifestScanPrel;
-import com.dremio.exec.store.iceberg.IcebergOrphanFileDeletePrel;
 import com.dremio.exec.store.iceberg.IcebergSnapshotsPrel;
 import com.dremio.exec.store.iceberg.PartitionStatsScanPrel;
 import com.dremio.exec.store.iceberg.SnapshotsScanOptions;
-import com.dremio.exec.store.iceberg.SupportsIcebergMutablePlugin;
-import com.dremio.exec.store.iceberg.model.IcebergModel;
-import com.dremio.io.file.FileSystem;
+import com.dremio.service.namespace.PartitionChunkMetadata;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.IntNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
-/***
+/**
  * Expand plans for VACUUM TABLE.
  */
-public class VacuumPlanGenerator {
-  private static final long ESTIMATED_RECORDS_PER_MANIFEST = 330000;
-  private final RelOptTable table;
-  private final RelOptCluster cluster;
-  private final RelTraitSet traitSet;
-  private final TableMetadata tableMetadata;
-  private final VacuumOptions vacuumOptions;
-  private final CreateTableEntry createTableEntry;
-  private Table icebergTable = null;
-  private long snapshotsCount = 0L;
-  private long dataFileEstimatedCount = 0L;
-  private long manifestFileEstimatedCount = 0L;
+public abstract class VacuumPlanGenerator {
+  protected static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+  protected final RelOptCluster cluster;
+  protected final RelTraitSet traitSet;
+  protected final VacuumOptions vacuumOptions;
+  protected final String user;
+  protected final StoragePluginId internalStoragePlugin;
+  protected final StoragePluginId storagePluginId;
+  protected final List<PartitionChunkMetadata> splits;
+  protected final IcebergCostEstimates icebergCostEstimates;
 
-  public VacuumPlanGenerator(RelOptTable table, RelOptCluster cluster, RelTraitSet traitSet, TableMetadata tableMetadata,
-                             CreateTableEntry createTableEntry, VacuumOptions vacuumOptions) {
-    this.table = Preconditions.checkNotNull(table);
+  protected final BatchSchema MANIFEST_SCAN_SCHEMA = BatchSchema.newBuilder() // Sub-schema with only applicable fields
+    .addField(Field.nullable(DATAFILE_PATH, Types.MinorType.VARCHAR.getType()))
+    .addField(Field.nullable(FILE_CONTENT, Types.MinorType.VARCHAR.getType()))
+    .addField(Field.nullable(FILE_PATH, Types.MinorType.VARCHAR.getType()))
+    .addField(Field.nullable(FILE_TYPE, Types.MinorType.VARCHAR.getType()))
+    .setSelectionVectorMode(BatchSchema.SelectionVectorMode.NONE)
+    .build();
+
+  public VacuumPlanGenerator(RelOptCluster cluster, RelTraitSet traitSet, List<PartitionChunkMetadata> splits,
+                             IcebergCostEstimates icebergCostEstimates, VacuumOptions vacuumOptions,
+                             StoragePluginId internalStoragePlugin, StoragePluginId storagePluginId, String user) {
     this.cluster = cluster;
     this.traitSet = traitSet;
-    this.tableMetadata = Preconditions.checkNotNull(tableMetadata, "TableMetadata cannot be null.");
-    this.createTableEntry = createTableEntry;
+    this.icebergCostEstimates = icebergCostEstimates;
     this.vacuumOptions = Preconditions.checkNotNull(vacuumOptions, "VacuumOption cannot be null.");
-    loadIcebergTable();
+    this.user = user;
+    this.internalStoragePlugin = internalStoragePlugin;
+    this.storagePluginId = storagePluginId;
+    this.splits = splits;
   }
 
-  /*
-   *                            UnionExchangePrel
-   *                                     │
-   *                                     │
-   *                        IcebergOrphanFileDeleteTF
-   *                                     │
-   *                                     │
-   *                       Filter (live.filePath = null)
-   *                                     │
-   *                                     │
-   *              HashJoin (expired.filePath=live.filePath (LEFT))
-   *                                  │    │
-   *            ┌─────────────────────┘    └──────────┐
-   *            │                                     │
-   * Project (filepath, filetype)        Project (filepath, filetype)
-   *            │                                     │
-   *            │                                     │
-   *            │                        HashAgg(filepath [deduplicate])
-   *            │                                     │
-   *            │                                     │
-   * Project                             Project
-   * [ (filepath,    filetype)          [ (filepath,    filetype)
-   *       │             │                    │             │
-   * (datafilepath, filecontent) ]      (datafilepath, filecontent) ]
-   *            │                                     │
-   *            │                                     │
-   * IcebergManifestScanTF               IcebergManifestScanTF
-   *            │                                     │
-   *            │                                     │
-   * IcebergManifestListScanTF           IcebergManifestListScanTF
-   *            │                                     │
-   *            │                                     │
-   * PartitionStatsScanTF                PartitionStatsScanTF
-   *            │                                     │
-   *            │                                     │
-   * ExpireSnapshotScan                  ExpiredSnapshotScan
-   * (Expired snapshot ids)              (Live snapshot ids)
-   */
+  public abstract Prel buildPlan();
 
-  public Prel buildPlan() {
-    try {
-      Prel expiredSnapshotFilesPlan = filePathAndTypeScanPlan(SnapshotsScanOptions.Mode.EXPIRED_SNAPSHOTS);
-      Prel liveSnapshotsFilesPlan = deDupFilePathAndTypeScanPlan(SnapshotsScanOptions.Mode.LIVE_SNAPSHOTS);
-      Prel orphanFilesPlan = orphanFilesPlan(expiredSnapshotFilesPlan, liveSnapshotsFilesPlan);
-      Prel deleteOrphanFilesPlan = deleteOrphanFilesPlan(orphanFilesPlan);
-      return outputSummaryPlan(deleteOrphanFilesPlan);
-    } catch (InvalidRelException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  private Prel orphanFilesPlan(Prel expired, Prel live) {
+  protected Prel orphanFilesPlan(Prel expired, Prel live) {
     Prel joinPlan = joinLiveAndExpiredPlan(expired, live);
     // Need to count left side fields.
     final int leftFieldCount = joinPlan.getInput(0).getRowType().getFieldCount();
@@ -227,35 +170,35 @@ public class VacuumPlanGenerator {
       JoinRelType.LEFT);
   }
 
-  private Prel deDupFilePathAndTypeScanPlan(SnapshotsScanOptions.Mode scanMode) throws InvalidRelException {
-    Prel manifestPlan = filePathAndTypePlanFromManifest(scanMode);
+  protected Prel deDupFilePathAndTypeScanPlan(Prel snapshotsScan) throws InvalidRelException, IOException {
+    Prel manifestPlan = filePathAndTypePlanFromManifest(snapshotsScan);
     Prel filePathAndTypeProject = projectDataFileAndType(manifestPlan);
     Prel deDupFilePathPlan = reduceDuplicateFilePaths(filePathAndTypeProject);
     return projectFilePathAndType(deDupFilePathPlan);
   }
 
-  private Prel filePathAndTypeScanPlan(SnapshotsScanOptions.Mode scanMode) throws InvalidRelException {
-    Prel manifestPlan = filePathAndTypePlanFromManifest(scanMode);
+  protected Prel filePathAndTypeScanPlan(Prel snapshotsScan) throws InvalidRelException {
+    Prel manifestPlan = filePathAndTypePlanFromManifest(snapshotsScan);
     Prel filePathAndTypeProject = projectDataFileAndType(manifestPlan);
     return projectFilePathAndType(filePathAndTypeProject);
   }
 
-  private Prel filePathAndTypePlanFromManifest(SnapshotsScanOptions.Mode scanMode) throws InvalidRelException {
-    Prel snapshotsScanPlan = snapshotsScanPlan(scanMode);
+  private Prel filePathAndTypePlanFromManifest(Prel snapshotsScanPlan) {
     Prel partitionStatsScan = getPartitionStatsScanPrel(snapshotsScanPlan);
     Prel manifestListScan = getManifestListScanPrel(partitionStatsScan);
     return getManifestScanPrel(manifestListScan);
   }
 
-  private Prel snapshotsScanPlan(SnapshotsScanOptions.Mode scanMode) {
+  protected Prel snapshotsScanPlan(SnapshotsScanOptions.Mode scanMode) {
     SnapshotsScanOptions snapshotsOption = new SnapshotsScanOptions(scanMode, vacuumOptions.getOlderThanInMillis(), vacuumOptions.getRetainLast());
     return new IcebergSnapshotsPrel(
       cluster,
       traitSet,
-      tableMetadata,
-      createTableEntry.getIcebergTableProps(),
       snapshotsOption,
-      snapshotsCount,
+      user,
+      storagePluginId,
+      splits.iterator(),
+      icebergCostEstimates.getSnapshotsCount(),
       1);
   }
 
@@ -263,36 +206,43 @@ public class VacuumPlanGenerator {
     BatchSchema manifestListsReaderSchema = SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA.merge(CARRY_FORWARD_FILE_PATH_TYPE_SCHEMA);
     List<SchemaPath> manifestListsReaderColumns = manifestListsReaderSchema.getFields().stream().map(f -> SchemaPath.getSimplePath(f.getName())).collect(Collectors.toList());
     return new IcebergManifestListScanPrel(
+      storagePluginId,
       input.getCluster(),
       input.getTraitSet(),
-      table,
       input,
-      tableMetadata,
       manifestListsReaderSchema,
       manifestListsReaderColumns,
-      input.getEstimatedSize() + manifestFileEstimatedCount);
+      input.getEstimatedSize() + icebergCostEstimates.getManifestFileEstimatedCount(),
+      user);
   }
 
-  private Prel getPartitionStatsScanPrel(Prel input) {
+  protected Prel getPartitionStatsScanPrel(Prel input) {
     BatchSchema partitionStatsScanSchema = ICEBERG_SNAPSHOTS_SCAN_SCHEMA.merge(CARRY_FORWARD_FILE_PATH_TYPE_SCHEMA);
     // TODO: it could be further improved whether it needs to apply PartitionStatsScan, if table is written by other engines,
     // or the partition stats metadata entry is not present.
-    long estimatedRows = 2 * input.getEstimatedSize();
-    return new PartitionStatsScanPrel(input.getCluster(), input.getTraitSet(), table, input, partitionStatsScanSchema, tableMetadata, estimatedRows);
+    long estimatedRows = 2L * input.getEstimatedSize();
+    return new PartitionStatsScanPrel(storagePluginId, input.getCluster(), input.getTraitSet(),
+      input, partitionStatsScanSchema, estimatedRows, user, enableCarryForwardOnPartitionStats());
   }
 
-  private Prel getManifestScanPrel(Prel input) {
+  protected abstract boolean enableCarryForwardOnPartitionStats();
+
+  protected Prel getManifestScanPrel(Prel input) {
     DistributionTrait.DistributionField distributionField = new DistributionTrait.DistributionField(0);
     DistributionTrait distributionTrait = new DistributionTrait(DistributionTrait.DistributionType.HASH_DISTRIBUTED, ImmutableList.of(distributionField));
-    HashToRandomExchangePrel manifestSplitsExchange = new HashToRandomExchangePrel(input.getCluster(), input.getTraitSet(),
-      input, distributionTrait.getFields(), TableFunctionUtil.getHashExchangeTableFunctionCreator(tableMetadata, true));
+    Prel manifestSplitsExchange = new HashToRandomExchangePrel(input.getCluster(), input.getTraitSet(),
+      input, distributionTrait.getFields(),
+        TableFunctionUtil.getTableAgnosticHashExchangeTableFunctionCreator(storagePluginId, user));
 
-    BatchSchema manifestFileReaderSchema = SystemSchemas.ICEBERG_MANIFEST_SCAN_SCHEMA.merge(CARRY_FORWARD_FILE_PATH_TYPE_SCHEMA);
+    BatchSchema manifestFileReaderSchema = MANIFEST_SCAN_SCHEMA;
     List<SchemaPath> manifestFileReaderColumns = manifestFileReaderSchema.getFields().stream().map(f -> SchemaPath.getSimplePath(f.getName())).collect(Collectors.toList());
 
-    return new IcebergManifestScanPrel(manifestSplitsExchange.getCluster(), manifestSplitsExchange.getTraitSet().plus(DistributionTrait.ANY), table,
-      manifestSplitsExchange, tableMetadata, manifestFileReaderSchema, manifestFileReaderColumns,
-      new ImmutableManifestScanFilters.Builder().build(), input.getEstimatedSize() + dataFileEstimatedCount, ManifestContent.DATA, true);
+    RelDataType rowType = ScanRelBase.getRowTypeFromProjectedColumns(manifestFileReaderColumns, manifestFileReaderSchema, cluster);
+
+    return new IcebergManifestScanPrel(manifestSplitsExchange.getCluster(),
+      manifestSplitsExchange.getTraitSet().plus(DistributionTrait.ANY), manifestSplitsExchange,
+      storagePluginId, internalStoragePlugin, manifestFileReaderColumns, manifestFileReaderSchema,
+      rowType, input.getEstimatedSize() + icebergCostEstimates.getDataFileEstimatedCount(), user, false);
   }
 
   private Prel projectDataFileAndType(Prel manifestPrel) {
@@ -303,7 +253,6 @@ public class VacuumPlanGenerator {
     Pair<Integer, RelDataTypeField> dataFilePathCol = MoreRelOptUtil.findFieldWithIndex(manifestPrel.getRowType().getFieldList(), DATAFILE_PATH);
     Pair<Integer, RelDataTypeField> fileContentCol = MoreRelOptUtil.findFieldWithIndex(manifestPrel.getRowType().getFieldList(), FILE_CONTENT);
     Preconditions.checkNotNull(implicitFilePathCol, "ManifestScan should always have implicitFilePath with rowType.");
-    Preconditions.checkNotNull(implicitFileTypeCol, "ManifestScan should always have implicitFileType with rowType.");
     Preconditions.checkNotNull(dataFilePathCol, "ManifestScan should always have dataFileType with rowType.");
     Preconditions.checkNotNull(fileContentCol, "ManifestScan should always have fileContent with rowType.");
 
@@ -325,7 +274,7 @@ public class VacuumPlanGenerator {
     return ProjectPrel.create(manifestPrel.getCluster(), manifestPrel.getTraitSet(), manifestPrel, projectExpressions, newRowType);
   }
 
-  private Prel projectFilePathAndType(Prel input) {
+  protected Prel projectFilePathAndType(Prel input) {
     final List<String> projectFields = ImmutableList.of(FILE_PATH, FILE_TYPE);
     Pair<Integer, RelDataTypeField> filePathCol = MoreRelOptUtil.findFieldWithIndex(input.getRowType().getFieldList(), FILE_PATH);
     Pair<Integer, RelDataTypeField> fileTypeCol = MoreRelOptUtil.findFieldWithIndex(input.getRowType().getFieldList(), FILE_TYPE);
@@ -370,53 +319,25 @@ public class VacuumPlanGenerator {
     }
   }
 
-  private Prel deleteOrphanFilesPlan(Prel input) {
-    // We do overestimate instead of underestimate. 1) Use file counts from ALL snapshot; 2) consider every snapshot has partition stats files.
-    long estimatedRows = dataFileEstimatedCount + manifestFileEstimatedCount + snapshotsCount /*Manifest list file*/ + snapshotsCount * 2 /*Partition stats files*/;
-    return new IcebergOrphanFileDeletePrel(
-      input.getCluster(), input.getTraitSet(), table, input, tableMetadata, estimatedRows);
-  }
+  protected abstract Prel deleteOrphanFilesPlan(Prel input);
 
-  private Prel outputSummaryPlan(Prel input) throws InvalidRelException {
-    RelOptCluster cluster = input.getCluster();
+  protected abstract Prel outputSummaryPlan(Prel input) throws InvalidRelException;
+
+  protected Prel outputZerosPlan() throws InvalidRelException {
+    List<String> summaryCols = VacuumOutputSchema.EXPIRE_SNAPSHOTS_OUTPUT_SCHEMA.getFields().stream().map(Field::getName).collect(Collectors.toList());
     RelDataTypeFactory typeFactory = cluster.getTypeFactory();
-
-    // Use single thread to collect deleted orphan files.
-    input = new UnionExchangePrel(input.getCluster(), input.getTraitSet().plus(DistributionTrait.SINGLETON), input);
-
-    // Projected conditions
-    RexNode dataFileCondition = buildCaseCall(input, IcebergFileType.DATA);
-    RexNode positionDeleteCondition = buildCaseCall(input, IcebergFileType.POSITION_DELETES);
-    RexNode equalityDeleteCondition = buildCaseCall(input, IcebergFileType.EQUALITY_DELETES);
-    RexNode manifestCondition = buildCaseCall(input, IcebergFileType.MANIFEST);
-    RexNode manifestListCondition = buildCaseCall(input, IcebergFileType.MANIFEST_LIST);
-    RexNode partitionStatsCondition = buildCaseCall(input, IcebergFileType.PARTITION_STATS);
-
-    // Projected deleted data files
-    RelDataType nullableBigInt = typeFactory.createTypeWithNullability(typeFactory.createSqlType(BIGINT), true);
-    List<RexNode> projectExpression = ImmutableList.of(dataFileCondition, positionDeleteCondition, equalityDeleteCondition,
-      manifestCondition, manifestListCondition, partitionStatsCondition);
-
-    List<String> summaryCols = VacuumOutputSchema.OUTPUT_SCHEMA.getFields().stream().map(Field::getName).collect(Collectors.toList());
-
     RelDataTypeFactory.FieldInfoBuilder fieldInfoBuilder = typeFactory.builder();
+    RelDataType nullableBigInt = typeFactory.createTypeWithNullability(typeFactory.createSqlType(BIGINT), true);
     summaryCols.forEach(c -> fieldInfoBuilder.add(c, nullableBigInt));
-    RelDataType projectedRowType = fieldInfoBuilder.build();
+    RelDataType rowType = fieldInfoBuilder.build();
 
-    ProjectPrel project = ProjectPrel.create(cluster, traitSet, input, projectExpression, projectedRowType);
+    ObjectNode successMessage = OBJECT_MAPPER.createObjectNode();
+    summaryCols.forEach(c -> successMessage.set(c, new IntNode(0)));
 
-    // Aggregated summary
-    List<AggregateCall> aggs = summaryCols.stream().map(c -> buildAggregateCall(project, projectedRowType, c)).collect(Collectors.toList());
-    Prel agg = StreamAggPrel.create(cluster, project.getTraitSet(), project, ImmutableBitSet.of(), Collections.EMPTY_LIST, aggs, null);
-
-    // Project: return 0 as row count in case there is no Agg record (i.e., no orphan files to delete)
-    List<RexNode> projectExprs = summaryCols.stream().map(c -> notNullProjectExpr(agg, c)).collect(Collectors.toList());
-    RelDataType projectRowType = RexUtil.createStructType(agg.getCluster().getTypeFactory(), projectExprs,
-      summaryCols, null);
-    return ProjectPrel.create(cluster, agg.getTraitSet(), agg, projectExprs, projectRowType);
+    return new ValuesPrel(cluster, traitSet, rowType, new JSONOptions(successMessage), 1d);
   }
 
-  private RexNode notNullProjectExpr(Prel input, String fieldName) {
+  protected RexNode notNullProjectExpr(Prel input, String fieldName) {
     RexBuilder rexBuilder = cluster.getRexBuilder();
     RelDataTypeFactory typeFactory = cluster.getTypeFactory();
 
@@ -430,7 +351,7 @@ public class VacuumPlanGenerator {
       rexBuilder.makeInputRef(field.getType(), field.getIndex()));
   }
 
-  private AggregateCall buildAggregateCall(Prel relNode, RelDataType projectRowType, String fieldName) {
+  protected AggregateCall buildAggregateCall(Prel relNode, RelDataType projectRowType, String fieldName) {
     RelDataTypeField aggField = projectRowType.getField(fieldName, false, false);
     return AggregateCall.create(
       SUM,
@@ -445,22 +366,7 @@ public class VacuumPlanGenerator {
       fieldName);
   }
 
-  private RexNode buildCaseCall(Prel orphanFileDeleteRel, IcebergFileType icebergFileType) {
-    RexBuilder rexBuilder = cluster.getRexBuilder();
-    RelDataTypeFactory typeFactory = cluster.getTypeFactory();
-    Function<String, RexNode> makeLiteral = i -> rexBuilder.makeLiteral(i, typeFactory.createSqlType(VARCHAR), false);
-    RelDataType nullableBigInt = typeFactory.createTypeWithNullability(typeFactory.createSqlType(BIGINT), true);
-
-    RelDataTypeField orphanFileTypeField = orphanFileDeleteRel.getRowType().getField(FILE_TYPE, false, false);
-    RexInputRef orphanFileTypeIn = rexBuilder.makeInputRef(orphanFileTypeField.getType(), orphanFileTypeField.getIndex());
-    RelDataTypeField recordsField = orphanFileDeleteRel.getRowType().getField(RECORDS, false, false);
-    RexNode recordsIn = rexBuilder.makeCast(nullableBigInt, rexBuilder.makeInputRef(recordsField.getType(), recordsField.getIndex()));
-
-    RexNode equalsCall = rexBuilder.makeCall(EQUALS, orphanFileTypeIn, makeLiteral.apply(icebergFileType.name()));
-    return rexBuilder.makeCall(CASE, equalsCall, recordsIn, rexBuilder.makeZeroLiteral(nullableBigInt));
-  }
-
-  private DistributionTrait getHashDistributionTraitForFields(RelDataType rowType, List<String> columnNames) {
+  protected DistributionTrait getHashDistributionTraitForFields(RelDataType rowType, List<String> columnNames) {
     ImmutableList<DistributionTrait.DistributionField> fields = columnNames.stream()
       .map(n -> new DistributionTrait.DistributionField(
         Preconditions.checkNotNull(rowType.getField(n, false, false)).getIndex()))
@@ -471,7 +377,7 @@ public class VacuumPlanGenerator {
   /**
    * Utility function to apply IS_NULL(col) filter for the given input node
    */
-  private Prel addColumnIsNullFilter(RelNode inputNode, RelDataType fieldType, int fieldIndex) {
+  protected Prel addColumnIsNullFilter(RelNode inputNode, RelDataType fieldType, int fieldIndex) {
     RexBuilder rexBuilder = cluster.getRexBuilder();
 
     RexNode filterCondition = rexBuilder.makeCall(
@@ -483,63 +389,5 @@ public class VacuumPlanGenerator {
       inputNode.getTraitSet(),
       inputNode,
       filterCondition);
-  }
-
-  /**
-   * Here is a suboptimal plan to estimate the row accounts for Prels used in ExpireSnapshots plan. The 'suboptimal' mean
-   * to directly load the Iceberg table and read back its all snapshots and stats of each snapshot for row estimates.
-   * Another approach is tracked in DX-63280.
-   */
-  private void loadIcebergTable() {
-    if (icebergTable == null) {
-      IcebergTableProps icebergTableProps = createTableEntry.getIcebergTableProps();
-      Preconditions.checkState(createTableEntry.getPlugin() instanceof SupportsIcebergMutablePlugin, "Plugin not instance of SupportsIcebergMutablePlugin");
-      SupportsIcebergMutablePlugin plugin = (SupportsIcebergMutablePlugin) createTableEntry.getPlugin();
-      try (FileSystem fs = plugin.createFS(icebergTableProps.getTableLocation(), createTableEntry.getUserName(), null)) {
-        IcebergModel icebergModel = plugin.getIcebergModel(icebergTableProps, createTableEntry.getUserName(), null, fs);
-        icebergTable = icebergModel.getIcebergTable(icebergModel.getTableIdentifier(icebergTableProps.getTableLocation()));
-      } catch (IOException ex) {
-        throw new UncheckedIOException(ex);
-      }
-    }
-
-    Iterator<Snapshot> iterator = icebergTable.snapshots().iterator();
-    while (iterator.hasNext()) {
-      Snapshot snapshot = iterator.next();
-      snapshotsCount++;
-      estimateFilesFromSnapshot(snapshot, snapshotsCount);
-    }
-
-    if (snapshotsCount == 1 || vacuumOptions.getRetainLast() >= snapshotsCount) {
-      throw UserException.unsupportedError()
-        .message("Vacuum table succeeded, and the operation did not change the number of snapshots.")
-        .buildSilently();
-    }
-  }
-
-  private void estimateFilesFromSnapshot(Snapshot snapshot, long snapshotsCount) {
-    // First snapshot
-    if (1 == snapshotsCount) {
-      long numDataFiles = snapshot != null ?
-        Long.parseLong(snapshot.summary().getOrDefault("total-data-files", "0")) : 0L;
-      dataFileEstimatedCount += numDataFiles;
-      long numPositionDeletes = snapshot != null ?
-        Long.parseLong(snapshot.summary().getOrDefault("total-position-deletes", "0")) : 0L;
-      dataFileEstimatedCount += numPositionDeletes;
-      long numEqualityDeletes = snapshot != null ?
-        Long.parseLong(snapshot.summary().getOrDefault("total-equality-deletes", "0")) : 0L;
-      dataFileEstimatedCount += numEqualityDeletes;
-
-      manifestFileEstimatedCount += Math.max(dataFileEstimatedCount / ESTIMATED_RECORDS_PER_MANIFEST, 1);
-    } else {
-      long numAddedDataFiles = snapshot != null ?
-        Long.parseLong(snapshot.summary().getOrDefault(ADDED_DATA_FILES, "0")) : 0L;
-      dataFileEstimatedCount += numAddedDataFiles;
-      long numAddedDeleteFiles = snapshot != null ?
-        Long.parseLong(snapshot.summary().getOrDefault(DELETED_DATA_FILES, "0")) : 0L;
-      dataFileEstimatedCount += numAddedDeleteFiles;
-
-      manifestFileEstimatedCount += Math.max((numAddedDataFiles + numAddedDeleteFiles) / ESTIMATED_RECORDS_PER_MANIFEST, 1);
-    }
   }
 }

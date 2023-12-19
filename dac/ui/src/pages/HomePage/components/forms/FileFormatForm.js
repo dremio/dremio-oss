@@ -20,6 +20,7 @@ import PropTypes from "prop-types";
 import deepEqual from "deep-equal";
 import { injectIntl } from "react-intl";
 import { debounce } from "lodash/function";
+import $ from "jquery";
 
 import { ModalForm, FormBody, modalFormProps } from "components/Forms";
 import { Select } from "components/Fields";
@@ -120,7 +121,7 @@ export class FileFormatForm extends Component {
     }
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     if (
       nextProps.values.type &&
       nextProps.values.type !== "Unknown" &&

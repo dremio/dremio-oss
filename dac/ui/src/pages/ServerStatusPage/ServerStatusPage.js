@@ -75,7 +75,7 @@ export class ServerStatusPage extends PureComponent {
     }, COUNTDOWN_UPDATE_INTERVAL);
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     ServerStatusPage.redirectIfStatusOk(nextProps);
   }
 
@@ -90,9 +90,9 @@ export class ServerStatusPage extends PureComponent {
 
   getSubTitle() {
     if (this.props.serverStatus.get("status") === SERVER_STATUS_OK) {
-      return la("Everything is OK. Carry on.");
+      return laDeprecated("Everything is OK. Carry on.");
     }
-    return la("Oops, something is wrong with the server.");
+    return laDeprecated("Oops, something is wrong with the server.");
   }
 
   renderCheckTime() {

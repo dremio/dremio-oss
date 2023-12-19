@@ -112,13 +112,14 @@ export class SpaceModal extends Component {
   }
 
   render() {
-    const { isOpen, entityId, intl } = this.props;
+    const { isOpen, intl, spaceName } = this.props;
+
     return (
       <Modal
         size="large"
         title={
-          entityId
-            ? intl.formatMessage({ id: "Space.EditSpace" })
+          spaceName
+            ? intl.formatMessage({ id: "Space.EditSpace" }, { spaceName })
             : intl.formatMessage({ id: "Space.AddSpace" })
         }
         isOpen={isOpen}

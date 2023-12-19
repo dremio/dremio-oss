@@ -22,6 +22,8 @@ import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
 
 import com.dremio.dac.api.User;
+import com.dremio.dac.proto.model.dataset.SourceVersionReference;
+import com.dremio.service.script.SourceVersionReferenceUtils;
 import com.dremio.service.script.proto.ScriptProto;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -45,13 +47,13 @@ public class ScriptData {
 
   @NotNull
   private final List<@NotEmpty String> context;
-
-  @NotEmpty
+  private final List<SourceVersionReference> referencesList;
   private final String content;
 
   @JsonCreator
   public ScriptData(
     @JsonProperty("scriptId") String scriptId,
+    @JsonProperty("id") String id,
     @JsonProperty("name") String name,
     @JsonProperty("createdAt") Long createdAt,
     @JsonProperty("createdBy") User createdBy,
@@ -59,9 +61,10 @@ public class ScriptData {
     @JsonProperty("modifiedAt") Long modifiedAt,
     @JsonProperty("modifiedBy") User modifiedBy,
     @JsonProperty("context") List<String> context,
+    @JsonProperty("referencesList") List<SourceVersionReference> referencesList,
     @JsonProperty("content") String content) {
 
-    this.scriptId = scriptId;
+    this.scriptId = scriptId != null ? scriptId : id;
     this.name = name;
     this.createdAt = createdAt;
     this.createdBy = createdBy;
@@ -69,6 +72,7 @@ public class ScriptData {
     this.modifiedAt = modifiedAt;
     this.modifiedBy = modifiedBy;
     this.context = context;
+    this.referencesList = referencesList;
     this.content = content;
   }
 
@@ -77,6 +81,7 @@ public class ScriptData {
       .setName(script.getName())
       .setDescription(script.getDescription())
       .addAllContext(script.getContext())
+      .addAllReferences(SourceVersionReferenceUtils.createSourceVersionReferenceProtoList(script.getReferencesList()))
       .setContent(script.getContent())
       .build();
   }
@@ -120,10 +125,15 @@ public class ScriptData {
     return modifiedBy;
   }
 
+  public List<SourceVersionReference> getReferencesList() {
+    return referencesList;
+  }
+
   public static ScriptData fromScriptWithUserInfo(ScriptProto.Script script,
                                                   User createdBy,
                                                   User modifiedBy) {
     return new ScriptData(script.getScriptId(),
+                          script.getScriptId(),
                           script.getName(),
                           script.getCreatedAt(),
                           createdBy,
@@ -131,6 +141,7 @@ public class ScriptData {
                           script.getModifiedAt(),
                           modifiedBy,
                           script.getContextList(),
+                          SourceVersionReferenceUtils.createSourceVersionReferenceList(script.getReferencesList()),
                           script.getContent());
   }
 

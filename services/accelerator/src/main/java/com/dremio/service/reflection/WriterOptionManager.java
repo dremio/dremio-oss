@@ -17,12 +17,14 @@ package com.dremio.service.reflection;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.DremioCollectors;
+import com.dremio.exec.ops.SnapshotDiffContext;
 import com.dremio.exec.physical.base.ImmutableTableFormatWriterOptions;
 import com.dremio.exec.physical.base.TableFormatWriterOptions.TableFormatOperation;
 import com.dremio.exec.physical.base.WriterOptions;
@@ -30,6 +32,7 @@ import com.dremio.exec.planner.sql.parser.PartitionDistributionStrategy;
 import com.dremio.service.reflection.proto.ReflectionDetails;
 import com.dremio.service.reflection.proto.ReflectionField;
 import com.dremio.service.reflection.proto.ReflectionGoal;
+import com.dremio.service.reflection.proto.ReflectionPartitionField;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 
@@ -45,9 +48,10 @@ public class WriterOptionManager {
   public WriterOptions buildWriterOptionForReflectionGoal(
     Integer ringCount,
     ReflectionGoal goal,
-    List<String> availableFields
+    List<String> availableFields,
+    SnapshotDiffContext snapshotDiffContext
   ) {
-    return buildWriterOptionForReflectionGoal(ringCount, goal, availableFields, false, true, null);
+    return buildWriterOptionForReflectionGoal(ringCount, goal, availableFields, false, true, null,snapshotDiffContext);
   }
 
   public WriterOptions buildWriterOptionForReflectionGoal(
@@ -56,7 +60,8 @@ public class WriterOptionManager {
     List<String> availableFields,
     boolean isIcebergDataset,
     boolean isCreate,
-    ByteString extendedByteString
+    ByteString extendedByteString,
+    SnapshotDiffContext snapshotDiffContext
   ) {
     ReflectionDetails details = goal.getDetails();
 
@@ -76,15 +81,14 @@ public class WriterOptionManager {
     // For Iceberg write, set CREATE or INSERT option.
     ImmutableTableFormatWriterOptions.Builder tableFormatOptionsBuilder = new ImmutableTableFormatWriterOptions.Builder();
     if (isIcebergDataset) {
-      tableFormatOptionsBuilder.setOperation(isCreate ?
-        TableFormatOperation.CREATE : TableFormatOperation.INSERT);
+      tableFormatOptionsBuilder.setOperation(determineTableFormatOperation(isCreate, snapshotDiffContext));
     }
 
     return new WriterOptions(
       ringCount,
-      validateAndPluckNames(details.getPartitionFieldList(), availableFieldsToName),
-      validateAndPluckNames(details.getSortFieldList(), availableFieldsToName),
-      validateAndPluckNames(details.getDistributionFieldList(), availableFieldsToName),
+      validateAndPluckNames(toStringListReflectionPartitionField(details.getPartitionFieldList()), availableFieldsToName),
+      validateAndPluckNames(toStringListReflectionField(details.getSortFieldList()), availableFieldsToName),
+      validateAndPluckNames(toStringListReflectionField(details.getDistributionFieldList()), availableFieldsToName),
       dist,
       null,
       false,
@@ -94,18 +98,48 @@ public class WriterOptionManager {
     );
   }
 
-  @VisibleForTesting List<String> validateAndPluckNames(List<ReflectionField> fields, Map<String, String> knownFields){
+  /**
+   * Returns TableFormatOperation based on isCreate, and Incremental refresh type in snapshotDiffContext
+   * @param isCreate is this create operation
+   * @param snapshotDiffContext context, to check if we are using SnapshotDiffContext.FilterApplyOptions.FILTER_PARTITIONS or not
+   * @return the correct TableFormatOperation
+   */
+  private TableFormatOperation determineTableFormatOperation(boolean isCreate, SnapshotDiffContext snapshotDiffContext) {
+    if(isCreate){
+      return TableFormatOperation.CREATE;
+    }
+    if(snapshotDiffContext != null && snapshotDiffContext.getFilterApplyOptions() == SnapshotDiffContext.FilterApplyOptions.FILTER_PARTITIONS){
+      return TableFormatOperation.UPDATE;
+    }
+    return TableFormatOperation.INSERT;
+  }
+
+  public static List<String> toStringListReflectionField(List<ReflectionField> fields){
+    if(fields == null || fields.isEmpty()) {
+      return ImmutableList.of();
+    }
+    return fields.stream().map(x->x.getName()).collect(Collectors.toList());
+  }
+
+  public static  List<String>  toStringListReflectionPartitionField(List<ReflectionPartitionField> fields){
+    if(fields == null || fields.isEmpty()) {
+      return ImmutableList.of();
+    }
+    return fields.stream().map(x->x.getName()).collect(Collectors.toList());
+  }
+
+  @VisibleForTesting List<String> validateAndPluckNames(List<String> fields, Map<String, String> knownFields){
     if(fields == null || fields.isEmpty()) {
       return ImmutableList.of();
     }
 
     ImmutableList.Builder<String> fieldList = ImmutableList.builder();
-    for(ReflectionField f : fields) {
-      String foundField = knownFields.getOrDefault(f.getName().toLowerCase(), null);
+    for(String f : fields) {
+      String foundField = knownFields.getOrDefault(f.toLowerCase(), null);
       if(foundField != null) {
         fieldList.add(foundField);
       } else {
-        throw UserException.validationError().message("Unable to find field %s.", f).build(logger);
+        throw UserException.validationError().message("Unable to find field ReflectionField{name=%s}.", f).build(logger);
       }
     }
     return fieldList.build();

@@ -16,9 +16,11 @@
 package com.dremio.datastore;
 
 import java.util.List;
+import java.util.Map;
 
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.FindByRange;
+import com.dremio.datastore.api.IncrementCounter;
 import com.dremio.datastore.api.KVStore;
 
 /**
@@ -70,6 +72,16 @@ public class NoopKVStore<K, V> implements KVStore<K, V> {
 
   @Override
   public Iterable<Document<K, V>> find(FindByRange<K> find, FindOption ... options) {
+    throw new UnsupportedOperationException("Operation unsupported on this type of node.");
+  }
+
+  @Override
+  public void bulkIncrement(Map<K, List<IncrementCounter>> keysToIncrement, IncrementOption option) {
+    throw new UnsupportedOperationException("Operation unsupported on this type of node.");
+  }
+
+  @Override
+  public void bulkDelete(List<K> keysToDelete) {
     throw new UnsupportedOperationException("Operation unsupported on this type of node.");
   }
 

@@ -1,0 +1,2 @@
+# Ignore test goldens
+**/__tests__/**/resources/*.json

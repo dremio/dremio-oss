@@ -16,6 +16,7 @@
 package com.dremio.service.nessie;
 
 import static org.projectnessie.services.authz.AbstractBatchAccessChecker.NOOP_ACCESS_CHECKER;
+import static org.projectnessie.services.spi.TreeService.MAX_COMMIT_LOG_ENTRIES;
 
 import java.security.Principal;
 import java.util.List;
@@ -80,12 +81,17 @@ public class NessieService implements Service {
 
     Supplier<Principal> principalSupplier = () -> nessieCommitter;
     Authorizer authorizer = context -> NOOP_ACCESS_CHECKER;
+    // Note: This TreeService is backed by "old Nessie data model", which does not support paging over
+    // entries, references and diffs. Therefore, we use Integer.MAX_VALUE for the page size limit in those
+    // API methods. The commit log page size limit is the same as in Nessie OSS (commit log pagination is
+    // supported by the old data model.
     this.treeService = new TreeService(Suppliers.memoize(() ->
-      new TreeApiImpl(serverConfig, versionStoreSupplier.get(), authorizer, principalSupplier)));
+      new TreeApiImpl(serverConfig, versionStoreSupplier.get(), authorizer, principalSupplier)),
+      Integer.MAX_VALUE, MAX_COMMIT_LOG_ENTRIES);
     this.contentService = new ContentService(Suppliers.memoize(() ->
       new ContentApiImpl(serverConfig, versionStoreSupplier.get(), authorizer, principalSupplier)));
     this.configService = new ConfigService(Suppliers.memoize(() ->
-      new ConfigApiImpl(serverConfig, versionStoreSupplier.get(), 2)));
+      new ConfigApiImpl(serverConfig, versionStoreSupplier.get(), authorizer, principalSupplier, 2)));
 
     this.isMaster = isMaster;
   }
@@ -95,7 +101,6 @@ public class NessieService implements Service {
   }
 
   @Override
-  @SuppressWarnings("ReturnValueIgnored")
   public void start() throws Exception {
     logger.info("Starting Nessie gRPC Services.");
 

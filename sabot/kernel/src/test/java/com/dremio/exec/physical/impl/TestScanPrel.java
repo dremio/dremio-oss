@@ -104,7 +104,7 @@ public class TestScanPrel {
     final List<RelHint> hints = ImmutableList.of();
     final double delta = 0.1;
     ParquetScanPrel scanPrel = new ParquetScanPrel(cluster, traitSet, table, pluginId, tableMetadata, projectedColumns,
-                                                   observedRowCountAdjustment, hints, parquetScanFilter,
+                                                   observedRowCountAdjustment, hints, parquetScanFilter, null,
                                                    arrowCachingEnabled, runtimeFilters);
 
     // test copy

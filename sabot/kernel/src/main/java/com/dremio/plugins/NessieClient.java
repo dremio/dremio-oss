@@ -18,17 +18,18 @@ package com.dremio.plugins;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
-import org.apache.iceberg.view.ViewVersionMetadata;
-import org.projectnessie.client.api.NessieApi;
+import org.apache.iceberg.viewdepoc.ViewVersionMetadata;
+import org.projectnessie.client.api.NessieApiV2;
 import org.projectnessie.model.IcebergView;
 
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.catalog.ResolvedVersionContext;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.store.ChangeInfo;
 import com.dremio.exec.store.NessieNamespaceAlreadyExistsException;
@@ -36,8 +37,10 @@ import com.dremio.exec.store.NoDefaultBranchException;
 import com.dremio.exec.store.ReferenceAlreadyExistsException;
 import com.dremio.exec.store.ReferenceConflictException;
 import com.dremio.exec.store.ReferenceInfo;
+import com.dremio.exec.store.ReferenceNotFoundByTimestampException;
 import com.dremio.exec.store.ReferenceNotFoundException;
 import com.dremio.exec.store.ReferenceTypeConflictException;
+import com.dremio.exec.store.iceberg.model.IcebergCommitOrigin;
 
 /**
  * Client interface to communicate with Nessie.
@@ -57,6 +60,7 @@ public interface NessieClient extends AutoCloseable {
    * @throws ReferenceNotFoundException If the given reference cannot be found
    * @throws NoDefaultBranchException If the Nessie server does not have a default branch set
    * @throws ReferenceTypeConflictException If the requested version type does not match the server
+   * @throws ReferenceNotFoundByTimestampException If the given reference cannot be found via timestamp
    */
   ResolvedVersionContext resolveVersionContext(VersionContext versionContext);
 
@@ -97,8 +101,21 @@ public interface NessieClient extends AutoCloseable {
   Stream<ChangeInfo> listChanges(VersionContext version);
 
   enum NestingMode {
-    INCLUDE_NESTED,
-    SAME_DEPTH_ONLY
+    INCLUDE_NESTED_CHILDREN,
+    IMMEDIATE_CHILDREN_ONLY
+  }
+
+  enum ContentMode {
+    /**
+     * content of loaded entries will be needed for the current operation
+     * (i.e. post-processing of entries)
+     */
+    ENTRY_WITH_CONTENT,
+    /**
+     * content of loaded entries is not interesting for the current operation
+     * (basic information like id, name etc. is sufficient)
+     */
+    ENTRY_METADATA_ONLY
   }
 
   /**
@@ -107,6 +124,7 @@ public interface NessieClient extends AutoCloseable {
    * @param catalogPath Acts as the namespace filter. It will act as the root namespace.
    * @param resolvedVersion If the version is NOT_SPECIFIED, the default branch is used (if it exists).
    * @param nestingMode whether to include nested elements
+   * @param contentMode whether the actual entry content should be loaded
    * @param contentTypeFilter optional content type to filter for (null or empty means no filtering)
    * @param celFilter optional CEL filter
    *
@@ -118,6 +136,7 @@ public interface NessieClient extends AutoCloseable {
     @Nullable List<String> catalogPath,
     ResolvedVersionContext resolvedVersion,
     NestingMode nestingMode,
+    ContentMode contentMode,
     @Nullable Set<ExternalNamespaceEntry.Type> contentTypeFilter,
     @Nullable String celFilter
   );
@@ -216,29 +235,6 @@ public interface NessieClient extends AutoCloseable {
   void assignTag(String tagName, VersionContext sourceVersion);
 
   /**
-   * Gets the metadata location for the given reference.
-   *
-   * @param catalogKey The catalog key
-   * @param version    The source reference name
-   * @param jobId      The JobId of the query
-   *                   Note : JobId param is only used when Executor calls this API. It sends the jobId to the controlplane
-   *                   to  lookup the userId .
-   * @throws ReferenceConflictException If the tag hash or source reference hash changes during update
-   * @throws ReferenceNotFoundException If the given tag or source reference cannot be found*
-   */
-  String getMetadataLocation(List<String> catalogKey, ResolvedVersionContext version, String jobId);
-
-  /**
-   * Return the dialect for the given view.
-   *
-   * @param catalogKey The path for the given view
-   * @param version The resolved version used as a reference
-   * @return Optional<String> containing the dialect if the view's dialect is not null
-   */
-  Optional<String> getViewDialect(List<String> catalogKey, ResolvedVersionContext version);
-
-
-  /**
    * Commits to the table.
    *
    * @param catalogKey                The catalog key
@@ -246,6 +242,7 @@ public interface NessieClient extends AutoCloseable {
    * @param nessieClientTableMetadata The table metadata
    * @param version                   The source reference name
    * @param baseContentId             The content id of the object that we started the commit operation on
+   * @param commitOrigin              Info about the origin of the commit i.e. "CREATE VIEW", "INSERT TABLE"
    * @param jobId                     The JobId of the query
    * @param userName                  The username executing the query
    *                                  Note : JobId param is only used when Executor calls this API. It sends the jobId to the controlplane
@@ -259,6 +256,7 @@ public interface NessieClient extends AutoCloseable {
     NessieClientTableMetadata nessieClientTableMetadata,
     ResolvedVersionContext version,
     String baseContentId,
+    @Nullable IcebergCommitOrigin commitOrigin,
     String jobId,
     String userName);
 
@@ -270,34 +268,24 @@ public interface NessieClient extends AutoCloseable {
     String dialect,
     ResolvedVersionContext version,
     String baseContentId,
+    @Nullable IcebergCommitOrigin commitOrigin,
     String userName);
 
-  void deleteCatalogEntry(List<String> catalogKey, ResolvedVersionContext version, String userName);
+  void deleteCatalogEntry(
+    List<String> catalogKey,
+    VersionedPlugin.EntityType entityType,
+    ResolvedVersionContext version,
+    String userName
+  );
+
+  Optional<NessieContent> getContent(List<String> catalogKey, ResolvedVersionContext version, String jobId);
+
+  NessieApiV2 getNessieApi();
 
   /**
-   *
-   * @param tableKey
-   * @param version
-   * @return Optional<IcebergTable>
+   * Call within the NessieClient context
    */
-  VersionedPlugin.EntityType getVersionedEntityType(List<String> tableKey, ResolvedVersionContext version);
-
-  /**
-   * Gets the Content for the given reference.
-   *
-   * @param tableKey The catalog key
-   * @param version  The resolved version context
-   * @param jobId    The JobId of the query
-   *                 Note : JobId param is only used when Executor calls this API. It sends the jobId to the controlplane
-   *                 to  lookup the userId .
-   * @return A stable id that remains constant for the lifetime of a versioned object (until it is dropped)
-   * This corresponds to the ContentId in Nessie for the table with key = catalogKey at version
-   * @throws ReferenceConflictException If the tag hash or source reference hash changes during update
-   * @throws ReferenceNotFoundException If the given tag or source reference cannot be found*
-   */
-  String getContentId(List<String> tableKey, ResolvedVersionContext version, String jobId);
-
-  NessieApi getNessieApi();
+  <T> T callWithContext(String jobId, Callable<T> callable) throws Exception;
 
   // Overridden to remove 'throws Exception' as per NessieApi interface
   @Override

@@ -19,7 +19,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.dremio.service.catalog.SearchQuery;
-import com.google.common.base.Preconditions;
 
 /**
  * This class converts SearchQuery into INFORMATION_SCHEMA SPECIFIC CEL filter that is being used by nessie
@@ -58,16 +57,14 @@ public final class InformationSchemaCelFilter {
     String nameOnly = sourceNameAsCelRawStringLiteral + " + '.' + entry.name";
     if (isSchemata) {
       return String.format(
-        "(%s).matches(%s) || (%s).matches(%s) || (%s).matches(%s)",
-        sourceNameAsCelRawStringLiteral,
-        regexPatternAsRawCelStringLiteral,
+        "(%s).matches(%s) || (%s).matches(%s) && entry.namespace == ''",
         nameElements,
         regexPatternAsRawCelStringLiteral,
         nameOnly,
         regexPatternAsRawCelStringLiteral);
     }
     return String.format(
-      "(%s).matches(%s) || (%s).matches(%s)",
+      "((%s).matches(%s) && entry.namespace == '') || (%s).matches(%s)",
       sourceNameAsCelRawStringLiteral,
       regexPatternAsRawCelStringLiteral,
       namespace,
@@ -96,15 +93,10 @@ public final class InformationSchemaCelFilter {
       case LIKE:
         String regexPattern = SearchQueryToCelConversionUtilities.likeQueryToRe2Regex(searchQuery.getLike());
         fieldName = searchQuery.getLike().getField();
-        path = resolvePath(regexPattern, sourceName, isSchemata);
         if (fieldName.equals(SEARCH_NAME)) {
           return String.format("entry.name.matches(%s)", SearchQueryToCelConversionUtilities.convertToRawCelStringLiteral(regexPattern));
         } else if (fieldName.equals(SEARCH_SCHEMA)) {
-          if (!containsWildCard(searchQuery.getLike())) { // you don't have wildcard, it is same as equal
-            return getEqualSearchSchema(isSchemata, searchQuery.getLike().getPattern(), path, sourceName);
-          } else {
             return getLikeSearchSchema(isSchemata, regexPattern, sourceName);
-          }
         } else {
           throw new IllegalStateException(String.format("Field should be SEARCH_NAME or SEARCH_SCHEMA. Provided = %s",fieldName));
         }
@@ -192,34 +184,5 @@ public final class InformationSchemaCelFilter {
       }
     }
     return path.toString();
-  }
-
-  private static boolean containsWildCard(SearchQuery.Like likeQuery) {
-    String pattern = likeQuery.getPattern();
-    String escape = likeQuery.getEscape();
-    Preconditions.checkArgument("".equals(escape) || escape.length() == 1, "An escape must be a single character.");
-    final char e = "".equals(escape) ? '\\' : escape.charAt(0);
-    boolean escaped = false;
-    for (int i = 0; i < pattern.length(); i++) {
-      char c = pattern.charAt(i);
-      if (escaped) {
-        escaped = false;
-        continue;
-      }
-
-      if (c == e) {
-        escaped = true;
-        continue;
-      }
-
-      switch (c) {
-        case '%':
-          return true;
-
-        default:
-          break;
-      }
-    }
-    return false;
   }
 }

@@ -27,6 +27,7 @@ import com.dremio.context.TenantContext;
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.FindByCondition;
 import com.dremio.datastore.api.FindByRange;
+import com.dremio.datastore.api.IncrementCounter;
 import com.dremio.datastore.api.IndexedStore;
 import com.dremio.datastore.api.KVStore;
 import com.dremio.telemetry.api.metrics.Histogram;
@@ -56,6 +57,8 @@ public class TimedKVStore<K, V> implements KVStore<K, V> {
     getCounts,
     findForAllTenants,
     reindex,
+    bulkIncrement,
+    bulkDelete
   }
 
   private final KVStore<K, V> delegate;
@@ -138,6 +141,20 @@ public class TimedKVStore<K, V> implements KVStore<K, V> {
   public void applyForAllTenants(BiConsumer<K, V> consumer, ExecutorService executor, BiFunction<String, V, TenantContext> documentToTenantConverter, FindOption... options) {
     try(final OpTimer ctx = time(Ops.applyForAllTenants)) {
       delegate.applyForAllTenants(consumer, executor, documentToTenantConverter, options);
+    }
+  }
+
+  @Override
+  public void bulkIncrement(Map<K, List<IncrementCounter>> keysToIncrement, IncrementOption option) {
+    try(final OpTimer ctx = time(Ops.bulkIncrement)) {
+      delegate.bulkIncrement(keysToIncrement, option);
+    }
+  }
+
+  @Override
+  public void bulkDelete(List<K> keysToDelete) {
+    try (final OpTimer ctx = time(Ops.bulkDelete)) {
+      delegate.bulkDelete(keysToDelete);
     }
   }
 

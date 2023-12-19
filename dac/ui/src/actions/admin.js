@@ -102,7 +102,7 @@ export function createFirstUser(form, meta) {
   const metaSuccess = {
     invalidateViewIds: [USERS_VIEW_ID],
     notification: {
-      message: la("Successfully created."),
+      message: laDeprecated("Successfully created."),
       level: "success",
     },
     form,
@@ -133,7 +133,7 @@ function deleteUser(user) {
   const meta = {
     invalidateViewIds: [USERS_VIEW_ID],
     notification: {
-      message: la("Successfully removed."),
+      message: laDeprecated("Successfully removed."),
       level: "success",
     },
   };

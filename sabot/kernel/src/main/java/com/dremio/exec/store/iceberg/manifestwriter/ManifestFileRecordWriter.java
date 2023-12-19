@@ -23,14 +23,19 @@ import static java.lang.Math.min;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.arrow.vector.VarCharVector;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.PartitionSpec;
+import org.immutables.value.Value;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.acceleration.UpdateIdWrapper;
 import com.dremio.exec.record.BatchSchema;
@@ -48,13 +53,39 @@ import com.dremio.exec.store.iceberg.SchemaConverter;
 import com.dremio.exec.store.parquet.ParquetRecordWriter;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.annotations.VisibleForTesting;
 
 public class ManifestFileRecordWriter implements RecordWriter {
 
+  @JsonDeserialize(builder = ImmutableWritingContext.Builder.class)
+  @Value.Immutable
+  public interface WritingContext {
+
+    LazyManifestWriter getManifestWriter();
+
+    long getAddedRowCount();
+
+    long getLength();
+
+    long getDataFilesSize();
+
+    UpdateIdWrapper getUpdateIdWrapper();
+
+    byte[] getSchema();
+
+    Set<IcebergPartitionData> getPartitionDataInCurrentManifest();
+
+    static ImmutableWritingContext.Builder builder() {
+      return new ImmutableWritingContext.Builder();
+    }
+  }
+
+  private static final Logger logger = LoggerFactory.getLogger(ManifestFileRecordWriter.class);
+  private final OperatorContext context;
   private final OperatorStats operatorStats;
   private final WriterOptions writerOptions;
-  private OutputEntryListener listener;
+  private AtomicReference<OutputEntryListener> listener;
 
   /* Metrics */
   private int numFilesWritten = 0;
@@ -68,6 +99,9 @@ public class ManifestFileRecordWriter implements RecordWriter {
   private VarBinaryVector metadataVector;
   private BigIntVector fileSizeVector;
   private BigIntVector totalInsertedRecords;
+  private IntVector operationTypeVector;
+  private VarCharVector pathVector;
+  private BigIntVector rejectedRecordsVector;
   private final ManifestWritesHelper manifestWritesHelper;
   private boolean readMetadataVector = true;
 
@@ -75,16 +109,20 @@ public class ManifestFileRecordWriter implements RecordWriter {
   private long dataFilesSize = 0;
   private long addedRowCount = 0;
 
+  private final boolean singleWriter;
+
   public ManifestFileRecordWriter(OperatorContext context, IcebergManifestWriterPOP writer) {
+    this.context = context;
     writerOptions = writer.getOptions();
     operatorStats = context.getStats();
-    manifestWritesHelper = getManifestWritesHelper(writer, (int) context.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX));
+    manifestWritesHelper = getManifestWritesHelper(writer, context);
     readMetadataVector = !writer.getOptions().getTableFormatOptions().getIcebergSpecificOptions().getIcebergTableProps().isMetadataRefresh();
+    this.singleWriter = writer.isSingleWriter();
   }
 
   @VisibleForTesting
-  ManifestWritesHelper getManifestWritesHelper(IcebergManifestWriterPOP writer, int columnLimit) {
-    return ManifestWritesHelper.getInstance(writer, columnLimit);
+  ManifestWritesHelper getManifestWritesHelper(IcebergManifestWriterPOP writer, OperatorContext context) {
+    return ManifestWritesHelper.getInstance(writer, context);
   }
 
   @Override
@@ -95,10 +133,19 @@ public class ManifestFileRecordWriter implements RecordWriter {
     }
     if (isInsertOperation(writerOptions)) {
       totalInsertedRecords = (BigIntVector) getVectorFromSchemaPath(incoming, RecordWriter.RECORDS_COLUMN);
+      pathVector = (VarCharVector) getVectorFromSchemaPath(incoming, RecordWriter.PATH_COLUMN);
+      if (metadataVector == null) {
+        metadataVector = (VarBinaryVector) getVectorFromSchemaPath(incoming, RecordWriter.METADATA_COLUMN);
+      }
+      if (fileSizeVector == null) {
+        fileSizeVector = (BigIntVector) getVectorFromSchemaPath(incoming, RecordWriter.FILESIZE_COLUMN);
+      }
+      rejectedRecordsVector = (BigIntVector) getVectorFromSchemaPath(incoming, RecordWriter.REJECTED_RECORDS_COLUMN);
     }
+    operationTypeVector = (IntVector) getVectorFromSchemaPath(incoming, RecordWriter.OPERATION_TYPE_COLUMN);
 
-
-    this.listener = listener;
+    this.listener = new AtomicReference<>();
+    this.listener.set(listener);
     manifestWritesHelper.setIncoming(incoming);
     manifestWritesHelper.startNewWriter();
   }
@@ -115,25 +162,76 @@ public class ManifestFileRecordWriter implements RecordWriter {
         manifestWritesHelper.startNewWriter();
         updateIdWrapper = new UpdateIdWrapper();
         dataFilesSize = 0;
+        addedRowCount = 0;
       }
 
       if (readMetadataVector) {
-        if (!metadataVector.isNull(i)) {
+        if (!metadataVector.isNull(i) && !(isInsertOperation(writerOptions) && isErrorRecord(i))) {
           updateIdWrapper.update(UpdateIdWrapper.deserialize(metadataVector.get(i)));
         }
-        if (!fileSizeVector.isNull(i)) {
+        if (!fileSizeVector.isNull(i) && !(isInsertOperation(writerOptions) && isErrorRecord(i))) {
           dataFilesSize += fileSizeVector.get(i);
         }
       }
 
-      if (isInsertOperation(writerOptions) && !totalInsertedRecords.isNull(i)) {
+      if (isInsertOperation(writerOptions) && !totalInsertedRecords.isNull(i) && !isErrorRecord(i)) {
         addedRowCount += totalInsertedRecords.get(i);
       }
 
       manifestWritesHelper.processIncomingRow(i);
       processDeletedDataFiles();
+      if (isInsertOperation(writerOptions) && isErrorRecord(i)) {
+        processErrorRecords(i);
+      }
+
+      if (isOrphanFileRecord(i)) {
+        processOrphanDataFiles();
+      }
+
     }
     return length - offset + 1;
+  }
+
+  /**
+   * Checks the record at an arbitrary index if it's connected to a copy into error.
+   * @param row record index
+   * @return true, if the operation type of the record equals {@link OperationType#COPY_INTO_ERROR}
+   */
+  private boolean isErrorRecord(int row) {
+    return OperationType.COPY_INTO_ERROR.value == operationTypeVector.get(row);
+  }
+
+  /**
+   * If the processed record is a copy into error record, just pass it through.
+   * @param row record index
+   */
+  private void processErrorRecords(int row) {
+    listener.get().recordsWritten(
+      totalInsertedRecords.get(row),
+      fileSizeVector.get(row),
+      new String(pathVector.get(row)),
+      metadataVector.get(row),
+      null,
+      null,
+      null,
+      null,
+      operationTypeVector.get(row),
+      null,
+      rejectedRecordsVector.get(row)
+    );
+  }
+
+  private boolean isOrphanFileRecord(int row) {
+    return OperationType.ORPHAN_DATAFILE.value == operationTypeVector.get(row);
+  }
+
+  private void processOrphanDataFiles() {
+    manifestWritesHelper.processOrphanFiles((orphanFile) -> {
+        listener.get().recordsWritten(orphanFile.recordCount(), orphanFile.fileSizeInBytes(),
+          orphanFile.path().toString(), null, orphanFile.specId(),
+          null, manifestWritesHelper.getWrittenSchema(),
+          null, OperationType.ORPHAN_DATAFILE.value, null, 0L);
+      });
   }
 
   private void processDeletedDataFiles() {
@@ -148,10 +246,10 @@ public class ManifestFileRecordWriter implements RecordWriter {
         partitionData = IcebergPartitionData.fromStructLike(icebergPartitionSpec, deleteDataFile.partition());
       }
 
-      listener.recordsWritten(deleteDataFile.recordCount(), deleteDataFile.fileSizeInBytes(),
+      listener.get().recordsWritten(deleteDataFile.recordCount(), deleteDataFile.fileSizeInBytes(),
               deleteDataFile.path().toString(), null, deleteDataFile.specId(),
               metaInfoBytes, manifestWritesHelper.getWrittenSchema(),
-        Collections.singleton(partitionData), OperationType.DELETE_DATAFILE.value);
+        Collections.singleton(partitionData), OperationType.DELETE_DATAFILE.value, null, 0L);
     });
   }
 
@@ -165,27 +263,55 @@ public class ManifestFileRecordWriter implements RecordWriter {
   @Override
   public void close() throws Exception {
     writeGeneratedManifestFileToDisk();
+
+    manifestWritesHelper.getFutureResults();
   }
 
   private void writeGeneratedManifestFileToDisk() throws IOException {
-    final Optional<ManifestFile> generatedManifestFile = manifestWritesHelper.write();
-    if (generatedManifestFile.isPresent()) {
-      final ManifestFile manifestFile = generatedManifestFile.get();
-      //In case of Insert or CTAS recordCount should be total added rows.
-      long recordCount = isInsertOperation(writerOptions) ? addedRowCount : manifestFile.addedFilesCount();
-      addedRowCount = 0;
-      byte[] manifestMetaInfo = IcebergSerDe.serializeToByteArray(
-              new IcebergMetadataInformation(IcebergSerDe.serializeManifestFile(manifestFile)));
-      listener.recordsWritten(recordCount, manifestWritesHelper.length() + dataFilesSize, manifestFile.path(),
-              updateIdWrapper.getUpdateId() != null ? updateIdWrapper.serialize() : null,
-              manifestFile.partitionSpecId(), manifestMetaInfo, manifestWritesHelper.getWrittenSchema(),
-              manifestWritesHelper.partitionDataInCurrentManifest(), OperationType.ADD_MANIFESTFILE.value);
-      updateStats(manifestFile.length(), manifestFile.addedFilesCount());
+    manifestWritesHelper.prepareWrite();
+
+    if (!manifestWritesHelper.canWrite()) {
+      return;
+    }
+
+    WritingContext writingContext = WritingContext.builder()
+      .setManifestWriter(manifestWritesHelper.getManifestWriter())
+      .setDataFilesSize(dataFilesSize)
+      .setPartitionDataInCurrentManifest(manifestWritesHelper.partitionDataInCurrentManifest())
+      .setUpdateIdWrapper(updateIdWrapper)
+      .setAddedRowCount(addedRowCount)
+      .setLength(manifestWritesHelper.length())
+      .setSchema(manifestWritesHelper.getWrittenSchema())
+      .build();
+    if (singleWriter) {
+      manifestWritesHelper.write(writingContext, this::processGeneratedManifestFile);
+    } else {
+      final ManifestFile generatedManifestFile = manifestWritesHelper.write();
+      processGeneratedManifestFile(generatedManifestFile, writingContext);
     }
   }
 
+  private void processGeneratedManifestFile(ManifestFile manifestFile,
+                                            WritingContext writingContext) {
+    //In case of Insert or CTAS recordCount should be total added rows.
+    long recordCount = isInsertOperation(writerOptions) ? writingContext.getAddedRowCount() : manifestFile.addedFilesCount();
+    byte[] manifestMetaInfo = null;
+    try {
+      manifestMetaInfo = IcebergSerDe.serializeToByteArray(
+        new IcebergMetadataInformation(IcebergSerDe.serializeManifestFile(manifestFile)));
+    } catch (IOException ex) {
+      logger.error("Error while serializing manifest file {}", manifestFile, ex);
+      return;
+    }
+    listener.get().recordsWritten(recordCount, writingContext.getLength() + writingContext.getDataFilesSize(), manifestFile.path(),
+      writingContext.getUpdateIdWrapper().getUpdateId() != null ? writingContext.getUpdateIdWrapper().serialize() : null,
+      manifestFile.partitionSpecId(), manifestMetaInfo, writingContext.getSchema(),
+      writingContext.getPartitionDataInCurrentManifest(), OperationType.ADD_MANIFESTFILE.value, null, 0L);
+    updateStats(manifestFile.length(), manifestFile.addedFilesCount());
+  }
+
   @VisibleForTesting
-  protected void updateStats(long memSize, long recordCount) {
+  protected synchronized void updateStats(long memSize, long recordCount) {
     minFileSize = min(minFileSize, memSize);
     maxFileSize = max(maxFileSize, memSize);
     avgFileSize = (avgFileSize * numFilesWritten + memSize) / (numFilesWritten + 1);

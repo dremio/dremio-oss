@@ -18,6 +18,8 @@ package com.dremio.exec.store.iceberg;
 import java.io.IOException;
 import java.util.regex.Pattern;
 
+import org.apache.hadoop.security.AccessControlException;
+
 import com.dremio.exec.store.dfs.FileSelection;
 import com.dremio.exec.store.dfs.FormatMatcher;
 import com.dremio.exec.store.dfs.FormatPlugin;
@@ -78,8 +80,12 @@ public class IcebergFormatMatcher extends FormatMatcher {
   }
 
   private boolean isIcebergTable(FileSystem fs, String tableRootPath) throws IOException {
-    Path rootDir = Path.of(tableRootPath);
-    Path metaDir = rootDir.resolve(METADATA_DIR_NAME);
-    return fs.isDirectory(rootDir) && fs.exists(metaDir) && fs.isDirectory(metaDir);
+    try {
+      Path metaDir = Path.of(tableRootPath).resolve(METADATA_DIR_NAME);
+      return fs.isDirectory(metaDir);
+    } catch (AccessControlException ex) {
+      // HadoopFileSystem::isDirectory throws AccessControlException if the root itself is not a directory.
+      return false;
+    }
   }
 }

@@ -55,7 +55,7 @@ function AccelerationFormMixin(input) {
               </Button>
             </EllipsedText>
           </div>
-          <FormTitle>{la("Reflections")}</FormTitle>
+          <FormTitle>{laDeprecated("Reflections")}</FormTitle>
         </div>
       );
     },

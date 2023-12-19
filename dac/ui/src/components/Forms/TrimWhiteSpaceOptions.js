@@ -48,7 +48,9 @@ class TrimWhiteSpaceOptions extends Component {
     } = this.props;
     return (
       <div style={{ ...styles.base }}>
-        <h3 style={{ ...styles.title, ...formLabel }}>{la("Options")}</h3>
+        <h3 style={{ ...styles.title, ...formLabel }}>
+          {laDeprecated("Options")}
+        </h3>
         <div style={{ ...styles.items }}>
           <Radio {...action} radioValue="BOTH" label="Trim from both sides" />
           <Radio

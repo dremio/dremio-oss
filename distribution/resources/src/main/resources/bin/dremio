@@ -48,7 +48,6 @@ fi
 export DREMIO_IN_CONTAINER
 export DREMIO_LOG_TO_CONSOLE
 export DREMIO_ENV_SCRIPT="dremio-env"
-export DREMIO_ADMIN_ONLY=false
 . "$bin"/dremio-config
 
 # get arguments
@@ -113,7 +112,10 @@ dremio_internal_start() {
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Ddremio.plugins.path=${DREMIO_PLUGINS_DIR}"
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Xmx${DREMIO_MAX_HEAP_MEMORY_SIZE_MB}m"
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:MaxDirectMemorySize=${DREMIO_MAX_DIRECT_MEMORY_SIZE_MB}m"
-    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${DREMIO_LOG_DIR}"
+
+    [ -z "$DREMIO_DISABLE_HEAPDUMP" ] && \
+        DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${DREMIO_LOG_DIR}"
+
     # netty options
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Dio.netty.maxDirectMemory=${DREMIO_NETTY_MAX_DIRECT_MEMORY:-0} -Dio.netty.tryReflectionSetAccessible=true"
     # MapRFS specific options
@@ -121,8 +123,6 @@ dremio_internal_start() {
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS $DREMIO_GC_OPTS"
     # User options
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS $DREMIO_JAVA_SERVER_EXTRA_OPTS $DREMIO_JAVA_EXTRA_OPTS "
-    # Start in administrator only mode
-    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Ddremio.admin-only-mode=${DREMIO_ADMIN_ONLY}"
     # Add this option only if it is Java 8
     if [ "$JAVA_MAJOR_VERSION" -eq 8 ]; then
       DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:+PrintClassHistogramBeforeFullGC"
@@ -142,7 +142,6 @@ dremio_internal_start() {
     fi
 
     DREMIO_DAEMON_MAIN_CLASS=${DREMIO_DAEMON_MAIN_CLASS:-"com.dremio.dac.daemon.DremioDaemon"}
-
     exec $JAVA $DREMIO_JAVA_OPTS -cp "$DREMIO_CLASSPATH" $DREMIO_DAEMON_MAIN_CLASS $DREMIO_DAC_DAEMON_EXTRA_OPTIONS
 }
 

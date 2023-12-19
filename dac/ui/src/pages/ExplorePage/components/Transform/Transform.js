@@ -101,7 +101,7 @@ export class Transform extends PureComponent {
     });
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     if (!this.props.transform.equals(nextProps.transform)) {
       this.loadTransformCards(nextProps);
     }

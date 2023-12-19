@@ -25,10 +25,10 @@ import java.util.Map;
 
 import org.junit.Test;
 
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.dac.explore.model.VersionContextReq;
 import com.dremio.dac.proto.model.dataset.SourceVersionReference;
 import com.dremio.dac.proto.model.dataset.VersionContextType;
-import com.dremio.exec.catalog.VersionContext;
 
 public class TestDatasetResourceUtils {
 
@@ -42,7 +42,7 @@ public class TestDatasetResourceUtils {
     Map<String, VersionContext> sourceVersionMappingExpected = new HashMap<>();
     sourceVersionMappingExpected.put("source1", VersionContext.ofBranch("branch"));
     sourceVersionMappingExpected.put("source2", VersionContext.ofTag("tag"));
-    sourceVersionMappingExpected.put("source3", VersionContext.ofBareCommit("d0628f078890fec234b98b873f9e1f3cd140988a"));
+    sourceVersionMappingExpected.put("source3", VersionContext.ofCommit("d0628f078890fec234b98b873f9e1f3cd140988a"));
 
     assertThat(DatasetResourceUtils.createSourceVersionMapping(references)).usingRecursiveComparison().isEqualTo(sourceVersionMappingExpected);
   }

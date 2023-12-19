@@ -17,7 +17,6 @@ package com.dremio.dac.resource;
 
 import javax.inject.Inject;
 
-import org.projectnessie.client.api.NessieApi;
 import org.projectnessie.client.api.NessieApiV2;
 
 import com.dremio.exec.store.CatalogService;
@@ -36,7 +35,7 @@ public class NessieTestSourceResource extends NessieSourceResource {
   }
 
   @Override
-  protected ProxyV2TreeResource getTreeResource(NessieApi nessieApi) {
-    return new ProxyV2TreeResource((NessieApiV2) nessieApi);
+  protected ProxyV2TreeResource getTreeResource(NessieApiV2 nessieApi) {
+    return new ProxyV2TreeResource(nessieApi);
   }
 }

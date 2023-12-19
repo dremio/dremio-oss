@@ -23,9 +23,9 @@ import java.util.List;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult;
 import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
@@ -43,7 +43,7 @@ import com.dremio.sabot.rpc.user.UserSession;
  * Handler for creating a tag.
  *
  * CREATE TAG [ IF NOT EXISTS ] tagName
- * [ AT ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue ]
+ * [ AT ( REF[ERENCE] | BRANCH | TAG | COMMIT ) refValue [AS OF timestamp] ]
  * [ IN sourceName ]
  */
 public class CreateTagHandler extends BaseVersionHandler<SimpleCommandResult> {
@@ -65,11 +65,11 @@ public class CreateTagHandler extends BaseVersionHandler<SimpleCommandResult> {
       (sourceIdentifier,
       userSession.getDefaultSchemaPath());
 
-    final boolean existenceCheck = createTag.getExistenceCheck().booleanValue();
+    final boolean shouldErrorIfVersionExists = createTag.shouldErrorIfVersionExists().booleanValue();
     final String tagName = requireNonNull(createTag.getTagName()).toString();
 
     VersionContext statementSourceVersion =
-      ReferenceTypeUtils.map(createTag.getRefType(), createTag.getRefValue());
+      ReferenceTypeUtils.map(createTag.getRefType(), createTag.getRefValue(), createTag.getTimestamp());
     VersionContext sessionVersion = userSession.getSessionVersionForSource(sourceName);
     VersionContext sourceVersion = statementSourceVersion.orElse(sessionVersion);
 
@@ -77,7 +77,7 @@ public class CreateTagHandler extends BaseVersionHandler<SimpleCommandResult> {
     try {
       versionedPlugin.createTag(tagName, sourceVersion);
     } catch (ReferenceAlreadyExistsException e) {
-      if (existenceCheck) {
+      if (shouldErrorIfVersionExists) {
         throw UserException.validationError(e)
             .message(HandlerUtils.REFERENCE_ALREADY_EXISTS_MESSAGE, tagName, sourceName)
             .buildSilently();

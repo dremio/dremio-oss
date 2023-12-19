@@ -21,15 +21,16 @@ import * as PATHS from "@app/exports/paths";
 //@ts-ignore
 import * as commonPaths from "dremio-ui-common/paths/common";
 //@ts-ignore
-import { PROJECT_STATES } from "@inject/pages/SettingPage/subpages/projects/ProjectConst";
+import PROJECT_STATES from "@inject/constants/projectStates";
 //@ts-ignore
 import { useProjectContext } from "@inject/utils/storageUtils/localStorageUtils";
 import BreadcrumbLink from "../../Common/BreadcrumbLink/BreadcrumbLink";
 import { SonarProjectsResource } from "@app/exports/resources/SonarProjectsResource";
-import { ArcticCatalogsResource } from "@app/exports/resources/ArcticCatalogsResource";
+import { ArcticCatalogsResource } from "@inject/arctic/resources/ArcticCatalogsResource";
 import { useResourceSnapshot } from "smart-resource/react";
 import { useDispatch } from "react-redux";
 import { resetNessieState } from "@app/actions/nessie/nessie";
+import { handleSonarProjectChange } from "@app/utils/projects";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
 
@@ -58,6 +59,9 @@ const CatalogSelector = () => {
 
   const changeProject = (newProject: Record<string, any>) => {
     if (isArctic) {
+      if (splitPath?.[1] && splitPath[1] === newProject?.id) {
+        return;
+      }
       dispatch(resetNessieState() as any);
       browserHistory.push({
         pathname: PATHS.arcticCatalogDataBase({
@@ -70,6 +74,7 @@ const CatalogSelector = () => {
     if (sonarProjectId === newProject?.id) {
       return;
     }
+    handleSonarProjectChange(newProject);
   };
 
   const getToRoute = (newProject: Record<string, any>) => {

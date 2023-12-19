@@ -43,5 +43,4 @@ public class LogicalPlanCaptureListener implements PlanTransformationListener {
   public String getPlan() {
     return plan;
   }
-
 }

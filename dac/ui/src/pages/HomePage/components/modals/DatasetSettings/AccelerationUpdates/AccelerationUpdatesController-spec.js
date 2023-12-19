@@ -96,7 +96,7 @@ describe.skip("AccelerationUpdatesController", () => {
       );
       const instance = wrapper.instance();
       const nextProps = { entity: {} };
-      instance.componentWillReceiveProps(nextProps);
+      instance.UNSAFE_componentWillReceiveProps(nextProps);
       expect(instance.receiveProps).to.be.calledWith(nextProps, minimalProps);
       AccelerationUpdatesController.prototype.receiveProps.restore();
     });
@@ -107,7 +107,10 @@ describe.skip("AccelerationUpdatesController", () => {
     let instance;
     let props;
     beforeEach(() => {
-      sinon.stub(AccelerationUpdatesController.prototype, "componentWillMount");
+      sinon.stub(
+        AccelerationUpdatesController.prototype,
+        "UNSAFE_componentWillMount"
+      );
       props = {
         ...commonProps,
         loadSummaryDataset: sinon.stub().returns({ then: (f) => f() }),
@@ -125,7 +128,7 @@ describe.skip("AccelerationUpdatesController", () => {
       );
     });
     afterEach(() => {
-      AccelerationUpdatesController.prototype.componentWillMount.restore();
+      AccelerationUpdatesController.prototype.UNSAFE_componentWillMount.restore();
     });
 
     it("should load settings when entity changed", (done) => {

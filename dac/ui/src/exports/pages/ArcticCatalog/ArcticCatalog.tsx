@@ -41,7 +41,7 @@ import {
   SET_REF_REQUEST,
 } from "@app/actions/nessie/nessie";
 import { NotFound } from "@app/exports/components/ErrorViews/NotFound";
-import { ArcticCatalogProvider } from "@app/exports/providers/ArcticCatalogProvider";
+import { ArcticCatalogProvider } from "@inject/arctic/providers/ArcticCatalogProvider";
 import { getTracingContext } from "dremio-ui-common/contexts/TracingContext.js";
 import { ARCTIC_STATE_PREFIX } from "@app/constants/nessie";
 
@@ -83,7 +83,11 @@ export const ArcticCatalog = (props: ArcticCatalogProps): JSX.Element => {
     baseUrl,
   } = useNessieContext();
   const intl = useIntl();
-  const [reservedNamespace, setReservedNamespace] = useState(splat ?? "");
+  const [reservedNamespace, setReservedNamespace] = useState(
+    branchName && splat
+      ? `${branchName ? encodeURIComponent(branchName) : ""}${`/${splat}`}`
+      : splat ?? ""
+  );
   const isCatalog = useMemo(
     () => baseUrl.startsWith(PATHS.arcticCatalogs()),
     [baseUrl]
@@ -108,7 +112,7 @@ export const ArcticCatalog = (props: ArcticCatalogProps): JSX.Element => {
           type: isCatalog ? "catalog" : "source",
           baseUrl,
           tab: endOfUrl,
-          namespace: reference?.name ?? "",
+          namespace: encodeURIComponent(reference?.name) ?? "",
           hash: hash ? `?hash=${hash}` : "",
         })
       );
@@ -123,7 +127,9 @@ export const ArcticCatalog = (props: ArcticCatalogProps): JSX.Element => {
 
   useEffect(() => {
     if ((activeTab === "data" || activeTab === "commits") && branchName) {
-      setReservedNamespace(`${branchName}${splat ? `/${splat}` : ""}`);
+      setReservedNamespace(
+        `${encodeURIComponent(branchName)}${splat ? `/${splat}` : ""}`
+      );
     }
   }, [activeTab, splat, branchName]);
 
@@ -142,10 +148,11 @@ export const ArcticCatalog = (props: ArcticCatalogProps): JSX.Element => {
   const arcticContext = useMemo(
     () => ({
       reservedNamespace: reservedNamespace,
+      catalogId: arcticCatalogId,
       activeTab: activeTab ?? arcticCatalogTabs[0],
       isCatalog: isCatalog, // TODO: better way to do this?
     }),
-    [activeTab, isCatalog, reservedNamespace]
+    [activeTab, isCatalog, reservedNamespace, arcticCatalogId]
   );
 
   const ArcticContentWithErrorWrapper = (

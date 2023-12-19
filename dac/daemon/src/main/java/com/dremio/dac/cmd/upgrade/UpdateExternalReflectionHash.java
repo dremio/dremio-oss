@@ -26,6 +26,7 @@ import com.dremio.service.DirectProvider;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.reflection.DatasetHashUtils;
 import com.dremio.service.reflection.proto.ExternalReflection;
@@ -61,7 +62,7 @@ public class UpdateExternalReflectionHash extends UpgradeTask implements LegacyU
 
   @Override
   public void upgrade(UpgradeContext context) {
-    namespace = new NamespaceServiceImpl(context.getLegacyKVStoreProvider());
+    namespace = new NamespaceServiceImpl(context.getLegacyKVStoreProvider(), new CatalogStatusEventsImpl());
     store = new ExternalReflectionStore(DirectProvider.wrap(context.getLegacyKVStoreProvider()));
 
     final Iterable<ExternalReflection> reflections = store.getExternalReflections();

@@ -42,25 +42,28 @@ public class SqlAlterTableAddColumns extends SqlAlterTable {
 
     @Override
     public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 2, "SqlAlterTableAddColumns.createCall() " +
-          "has to get 2 operands!");
+      Preconditions.checkArgument(operands.length == 3, "SqlAlterTableAddColumns.createCall() " +
+          "has to get 3 operands!");
 
       if (((SqlNodeList) operands[1]).getList().size() == 0) {
         throw UserException.parseError().message("Columns not specified.").buildSilently();
       }
 
       return new SqlAlterTableAddColumns(
-          pos,
-          (SqlIdentifier) operands[0],
-          (SqlNodeList) operands[1]);
+        pos,
+        (SqlIdentifier) operands[0],
+        (SqlNodeList) operands[1],
+        (SqlTableVersionSpec) operands[2]);
     }
   };
 
   protected final SqlNodeList columnList;
+  private final SqlTableVersionSpec tableVersionSpec;
 
-  public SqlAlterTableAddColumns(SqlParserPos pos, SqlIdentifier tblName, SqlNodeList columnList) {
+  public SqlAlterTableAddColumns(SqlParserPos pos, SqlIdentifier tblName, SqlNodeList columnList, SqlTableVersionSpec tableVersionSpec) {
     super(pos, tblName);
     this.columnList = columnList;
+    this.tableVersionSpec = tableVersionSpec;
   }
 
   @Override
@@ -78,11 +81,14 @@ public class SqlAlterTableAddColumns extends SqlAlterTable {
 
   @Override
   public List<SqlNode> getOperandList() {
-    return Lists.newArrayList(tblName, columnList);
+    return Lists.newArrayList(tblName, columnList, tableVersionSpec);
   }
 
   public SqlNodeList getColumnList() {
     return columnList;
   }
 
+  public SqlTableVersionSpec getSqlTableVersionSpec() {
+    return tableVersionSpec;
+  }
 }

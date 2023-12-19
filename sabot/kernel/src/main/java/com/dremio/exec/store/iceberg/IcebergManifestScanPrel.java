@@ -17,6 +17,7 @@ package com.dremio.exec.store.iceberg;
 
 import static com.dremio.exec.planner.physical.PlannerSettings.ICEBERG_MANIFEST_SCAN_RECORDS_PER_THREAD;
 
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.calcite.plan.RelOptCluster;
@@ -26,10 +27,10 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.iceberg.ManifestContent;
 import org.apache.iceberg.expressions.Expression;
 
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.config.ManifestScanFilters;
 import com.dremio.exec.physical.config.ManifestScanTableFunctionContext;
 import com.dremio.exec.physical.config.TableFunctionConfig;
@@ -47,6 +48,10 @@ import com.dremio.exec.util.LongRange;
  */
 public class IcebergManifestScanPrel extends TableFunctionPrel {
 
+  //if includeIcebergPartitionInfo is set we will include some additional information from the Iceberg partition spec
+  // such as the transform and the raw Iceberg value
+  private boolean includeIcebergPartitionInfo;
+
   public IcebergManifestScanPrel(
     RelOptCluster cluster,
     RelTraitSet traitSet,
@@ -57,7 +62,9 @@ public class IcebergManifestScanPrel extends TableFunctionPrel {
     List<SchemaPath> projectedColumns,
     ManifestScanFilters manifestScanFilters,
     Long survivingRecords,
-    ManifestContent manifestContent) {
+    ManifestContentType manifestContentType,
+    String user,
+    final boolean includeIcebergPartitionInfo) {
     this(
       cluster,
       traitSet,
@@ -65,9 +72,40 @@ public class IcebergManifestScanPrel extends TableFunctionPrel {
       child,
       tableMetadata,
       TableFunctionUtil.getManifestScanTableFunctionConfig(tableMetadata, projectedColumns, schema, null,
-        manifestContent, manifestScanFilters, false),
+        manifestContentType, manifestScanFilters, false,includeIcebergPartitionInfo),
       ScanRelBase.getRowTypeFromProjectedColumns(projectedColumns, schema, cluster),
-      survivingRecords);
+      survivingRecords,
+      user,
+      includeIcebergPartitionInfo);
+  }
+
+  /**
+   * Table agnostic manifest reads doesn't publish partition values, or any other attribute that requires table
+   * configuration.
+   */
+  public IcebergManifestScanPrel(
+    RelOptCluster cluster,
+    RelTraitSet traitSet,
+    RelNode child,
+    StoragePluginId storagePluginId,
+    StoragePluginId internalStoragePlugin,
+    List<SchemaPath> projectedCols,
+    BatchSchema schema,
+    RelDataType rowType,
+    Long survivingRecords,
+    String user,
+    boolean includeIcebergPartitionInfo) {
+    this(
+      cluster,
+      traitSet,
+      null,
+      child,
+      null,
+      TableFunctionUtil.getTableAgnosticManifestScanFunctionConfig(storagePluginId, internalStoragePlugin, projectedCols, schema),
+      rowType,
+      survivingRecords,
+      user,
+      includeIcebergPartitionInfo);
   }
 
   public IcebergManifestScanPrel(
@@ -76,40 +114,20 @@ public class IcebergManifestScanPrel extends TableFunctionPrel {
       RelOptTable table,
       RelNode child,
       TableMetadata tableMetadata,
-      BatchSchema schema,
-      List<SchemaPath> projectedColumns,
-      ManifestScanFilters manifestScanFilters,
-      Long survivingRecords,
-      ManifestContent manifestContent,
-      boolean enableCarryForward) {
-    this(
-        cluster,
-        traitSet,
-        table,
-        child,
-        tableMetadata,
-        TableFunctionUtil.getManifestScanTableFunctionConfig(tableMetadata, projectedColumns, schema, null,
-            manifestContent, manifestScanFilters, enableCarryForward),
-        ScanRelBase.getRowTypeFromProjectedColumns(projectedColumns, schema, cluster),
-        survivingRecords);
-  }
-
-  protected IcebergManifestScanPrel(
-      RelOptCluster cluster,
-      RelTraitSet traitSet,
-      RelOptTable table,
-      RelNode child,
-      TableMetadata tableMetadata,
       TableFunctionConfig functionConfig,
       RelDataType rowType,
-      Long survivingRecords) {
-    super(cluster, traitSet, table, child, tableMetadata, functionConfig, rowType, survivingRecords);
+      Long survivingRecords,
+      String user,
+      boolean includeIcebergPartitionInfo) {
+    super(cluster, traitSet, table, child, tableMetadata, functionConfig, rowType, null,
+      survivingRecords, Collections.emptyList(), user);
+    this.includeIcebergPartitionInfo = includeIcebergPartitionInfo;
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
     return new IcebergManifestScanPrel(getCluster(), getTraitSet(), getTable(), sole(inputs), getTableMetadata(),
-        getTableFunctionConfig(), getRowType(), getSurvivingRecords());
+        getTableFunctionConfig(), getRowType(), getSurvivingRecords(), user,this.includeIcebergPartitionInfo);
   }
 
   @Override
@@ -131,8 +149,8 @@ public class IcebergManifestScanPrel extends TableFunctionPrel {
       LongRange range = manifestScanFilters.getSkipDataFileSizeRange();
       pw.item("data_file.file_size_in_bytes between", range);
     }
-    pw.item("manifestContent", context.getManifestContent());
-
+    //write as manifestContent (instead of manifestContentType) to not cause a regression for normal cases
+    pw.item("manifestContent", context.getManifestContentType());
     return pw;
   }
 

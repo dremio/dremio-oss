@@ -26,8 +26,10 @@ import java.util.Arrays;
 import org.apache.hadoop.conf.Configuration;
 import org.junit.Test;
 
+import com.dremio.BaseTestQuery;
 import com.dremio.common.util.FileUtils;
 import com.dremio.exec.hadoop.HadoopFileSystem;
+import com.dremio.exec.server.SabotContext;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.google.common.collect.ImmutableList;
@@ -36,13 +38,14 @@ import com.google.common.collect.Lists;
 /**
  * Tests for {@link DeltaLogCommitJsonReader}
  */
-public class TestDeltaLogCommitJsonReader {
+public class TestDeltaLogCommitJsonReader extends BaseTestQuery {
 
     public static DeltaLogSnapshot parseCommitJson(String fileName) throws IOException {
       Configuration conf = new Configuration();
       final FileSystem fs = HadoopFileSystem.get(org.apache.hadoop.fs.FileSystem.getLocal(conf));
+      final SabotContext context = getSabotContext();
       DeltaLogCommitJsonReader jsonReader = new DeltaLogCommitJsonReader();
-      return jsonReader.parseMetadata(null, null, fs, new ArrayList<>(Arrays.asList(fs.getFileAttributes(Path.of(FileUtils.getResourceAsFile(fileName).toURI())))), -1);
+      return jsonReader.parseMetadata(null, context, fs, new ArrayList<>(Arrays.asList(fs.getFileAttributes(Path.of(FileUtils.getResourceAsFile(fileName).toURI())))), -1);
     }
 
     @Test

@@ -22,6 +22,7 @@ import org.apache.calcite.sql.SqlIdentifier;
 import org.junit.Assert;
 import org.junit.Test;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.service.jobs.SqlQuery;
@@ -71,7 +72,7 @@ public class TestQueryParser extends BaseTestServer {
     validateAncestors("select a from cp.\"json/nested.json\" order by a", "cp.json/nested.json");
   }
 
-  @Test
+  @Test(expected = UserException.class)
   public void testMultipleOrder() {
     validateAncestors("select a, b from cp.\"json/nested.json\" order by b desc, a asc", "cp.json/nested.json");
   }

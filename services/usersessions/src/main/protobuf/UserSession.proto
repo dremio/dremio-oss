@@ -72,4 +72,7 @@ message UserSessionRPC {
   optional SubstitutionSettingsRPC substitutionSettings = 17;
   map<string, string> sourceVersionMapping = 18;
   optional string queryLabel = 19;
+  optional bool checkMetadataValidity = 20;
+  optional bool neverPromote = 21;
+  optional bool errorOnUnspecifiedVersion = 22;
 }

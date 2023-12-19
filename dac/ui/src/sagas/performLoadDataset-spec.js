@@ -222,7 +222,8 @@ describe("performLoadDataset saga", () => {
           datasetWithoutVersion,
           "foo.path.to.dataset",
           viewId,
-          undefined
+          undefined,
+          {}
         )
       );
     });
@@ -237,6 +238,7 @@ describe("performLoadDataset saga", () => {
     beforeEach(() => {
       // common generator flow
       loadTableDataGen = loadTableData(datasetVersion, forceLoad);
+      next = loadTableDataGen.next();
       next = loadTableDataGen.next();
       // cancelation of previous calls
       expect(next.value).to.be.eql(call(cancelDataLoad));

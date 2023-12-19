@@ -64,7 +64,7 @@ public class BootStrapContext implements AutoCloseable {
     this.config = config.getSabotConfig();
     this.classpathScan = classpathScan;
     this.allocator = RootAllocatorFactory.newRoot(config);
-    this.executor = new ContextMigratingCloseableExecutorService<>(new CloseableThreadPool("dremio-general-"), registry.lookup(Tracer.class));
+    this.executor = new ContextMigratingCloseableExecutorService<>(new CloseableThreadPool("dremio-general-"));
     this.lpPersistance = new LogicalPlanPersistence(config.getSabotConfig(), classpathScan);
     this.dremioConfig = config;
 

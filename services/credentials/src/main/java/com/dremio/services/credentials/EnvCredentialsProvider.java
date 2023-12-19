@@ -24,6 +24,7 @@ import com.google.inject.Inject;
 /**
  * Env Credential Provider.
  */
+@RemoteRestricted
 public class EnvCredentialsProvider extends AbstractSimpleCredentialsProvider implements CredentialsProvider {
   private final Map<String, String> env;
 

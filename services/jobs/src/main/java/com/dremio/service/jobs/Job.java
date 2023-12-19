@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import com.dremio.common.utils.PathUtils;
+import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobResult;
@@ -42,6 +43,8 @@ public class Job {
   private final JobResultsStore resultsStore;
   private volatile long recordCount;
   private volatile boolean isInternal;
+  private QueryProfile profile;
+  private boolean profileDetailsCapturedPostTermination; // indicates whether job profile details were fetched after job completed/failed/cancelled
 
   private JobData data;
   /**
@@ -64,6 +67,7 @@ public class Job {
     this.resultsStore = null;
     this.completed = jobResult.getCompleted();
     attempts.addAll(jobResult.getAttemptsList());
+    this.profileDetailsCapturedPostTermination = jobResult.getProfileDetailsCapturedPostTermination();
   }
 
   /**
@@ -79,6 +83,7 @@ public class Job {
     this.attempts.addAll(jobResult.getAttemptsList());
     this.resultsStore = checkNotNull(resultsStore);
     this.completed = jobResult.getCompleted();
+    this.profileDetailsCapturedPostTermination = jobResult.getProfileDetailsCapturedPostTermination();
   }
 
   void setRecordCount(long recordCount) {
@@ -189,7 +194,25 @@ public class Job {
     if (sessionId != null) {
       jobResult.setSessionId(sessionId);
     }
+    jobResult.setProfileDetailsCapturedPostTermination(job.profileDetailsCapturedPostTermination());
     return jobResult;
   }
+
+  public void setProfile(QueryProfile profile) {
+    this.profile = profile;
+  }
+
+  public QueryProfile getProfile() {
+    return this.profile;
+  }
+
+  public void setProfileDetailsCapturedPostTermination(boolean value) {
+    this.profileDetailsCapturedPostTermination = value;
+  }
+
+  public boolean profileDetailsCapturedPostTermination() {
+    return this.profileDetailsCapturedPostTermination;
+  }
+
 
 }

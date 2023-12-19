@@ -15,6 +15,7 @@
  */
 package com.dremio.common.expression.visitors;
 
+import com.dremio.common.expression.ArrayLiteralExpression;
 import com.dremio.common.expression.BooleanOperator;
 import com.dremio.common.expression.CaseExpression;
 import com.dremio.common.expression.CastExpression;
@@ -209,4 +210,8 @@ final class ConstantChecker implements ExprVisitor<Boolean, ErrorCollector, Runt
     return false;
   }
 
+  @Override
+  public Boolean visitArrayLiteralExpression(ArrayLiteralExpression e, ErrorCollector value) throws RuntimeException {
+    return false;
+  }
 }

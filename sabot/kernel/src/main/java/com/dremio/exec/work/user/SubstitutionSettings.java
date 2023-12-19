@@ -36,6 +36,14 @@ public class SubstitutionSettings {
     this.exclusions = ImmutableList.copyOf(exclusions);
   }
 
+  public SubstitutionSettings(SubstitutionSettings substitutionSettings) {
+    this.exclusions = substitutionSettings.exclusions != null ?
+      ImmutableList.copyOf(substitutionSettings.exclusions) : ImmutableList.of();
+    this.inclusions = substitutionSettings.inclusions != null ?
+      ImmutableList.copyOf(substitutionSettings.inclusions) : ImmutableList.of();
+    this.excludeFileBasedIncremental = substitutionSettings.excludeFileBasedIncremental;
+  }
+
   public void setExclusions(List<String> exclusions) {
     Preconditions.checkArgument(inclusions.isEmpty());
     this.exclusions = ImmutableList.copyOf(exclusions);

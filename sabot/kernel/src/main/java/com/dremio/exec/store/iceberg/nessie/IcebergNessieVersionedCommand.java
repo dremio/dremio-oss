@@ -17,9 +17,9 @@ package com.dremio.exec.store.iceberg.nessie;
 
 import org.apache.hadoop.conf.Configuration;
 
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.iceberg.model.IcebergBaseCommand;
 import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
-import com.dremio.io.file.FileSystem;
 
 public class IcebergNessieVersionedCommand extends IcebergBaseCommand {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(IcebergNessieVersionedCommand.class);
@@ -27,9 +27,10 @@ public class IcebergNessieVersionedCommand extends IcebergBaseCommand {
 
   public IcebergNessieVersionedCommand(IcebergTableIdentifier tableIdentifier,
                                        Configuration configuration,
-                                       FileSystem fs,
-                                       IcebergNessieVersionedTableOperations tableOperations) {
-    super(configuration, ((IcebergNessieVersionedTableIdentifier) tableIdentifier).getTableFolder(), fs, tableOperations);
+                                       IcebergNessieVersionedTableOperations tableOperations,
+                                       UserBitShared.QueryId queryId) {
+    super(configuration, ((IcebergNessieVersionedTableIdentifier) tableIdentifier).getTableFolder(), tableOperations,
+        queryId);
     this.versionedTableOperations = tableOperations;
   }
 

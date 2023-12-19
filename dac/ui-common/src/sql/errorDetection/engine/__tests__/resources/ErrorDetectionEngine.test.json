@@ -1,0 +1,188 @@
+{
+  "eofEmptyQuery": {
+    "sqlErrors": []
+  },
+  "eofNonEmptyQuery": {
+    "sqlErrors": [
+      {
+        "range": {
+          "startLineNumber": 1,
+          "startColumn": 9,
+          "endLineNumber": 1,
+          "endColumn": 10
+        },
+        "message": "Unexpected end of query. Expecting identifier or IF."
+      }
+    ]
+  },
+  "eofNoViableAlt": {
+    "sqlErrors": [
+      {
+        "range": {
+          "startLineNumber": 1,
+          "startColumn": 4,
+          "endLineNumber": 1,
+          "endColumn": 5
+        },
+        "message": "Unexpected end of query."
+      }
+    ]
+  },
+  "noViableAltMulti": {
+    "sqlErrors": [
+      {
+        "range": {
+          "startLineNumber": 1,
+          "startColumn": 14,
+          "endLineNumber": 1,
+          "endColumn": 21
+        },
+        "message": "Unexpected tokens 'WITH AS'."
+      },
+      {
+        "range": {
+          "startLineNumber": 1,
+          "startColumn": 24,
+          "endLineNumber": 1,
+          "endColumn": 25
+        },
+        "message": "Unexpected end of query. Expecting FOR."
+      }
+    ]
+  },
+  "noViableAltMulti2": {
+    "sqlErrors": [
+      {
+        "range": {
+          "startLineNumber": 1,
+          "startColumn": 7,
+          "endLineNumber": 1,
+          "endColumn": 19
+        },
+        "message": "Unexpected tokens 'OWNERSHIP TO'."
+      }
+    ]
+  },
+  "identifierOnly": {
+    "sqlErrors": [
+      {
+        "range": {
+          "startLineNumber": 1,
+          "startColumn": 19,
+          "endLineNumber": 1,
+          "endColumn": 20
+        },
+        "message": "Unexpected end of query. Expecting identifier."
+      }
+    ]
+  },
+  "identifierOrExpression": {
+    "sqlErrors": [
+      {
+        "range": {
+          "startLineNumber": 1,
+          "startColumn": 23,
+          "endLineNumber": 1,
+          "endColumn": 24
+        },
+        "message": "Unexpected end of query. Expecting identifier or expression."
+      }
+    ]
+  },
+  "noSelectList": {
+    "sqlErrors": [
+      {
+        "range": {
+          "startLineNumber": 1,
+          "startColumn": 6,
+          "endLineNumber": 1,
+          "endColumn": 7
+        },
+        "message": "Unexpected end of query. Expecting identifier, expression, or {ALL, DISTINCT, STREAM, STAR}."
+      }
+    ]
+  },
+  "missingToken": {
+    "sqlErrors": [
+      {
+        "range": {
+          "startLineNumber": 1,
+          "startColumn": 8,
+          "endLineNumber": 1,
+          "endColumn": 11
+        },
+        "message": "Missing token 'FROM'."
+      }
+    ]
+  },
+  "extraneousToken": {
+    "sqlErrors": [
+      {
+        "range": {
+          "startLineNumber": 1,
+          "startColumn": 13,
+          "endLineNumber": 1,
+          "endColumn": 18
+        },
+        "message": "Extraneous token 'TABLE'."
+      }
+    ]
+  },
+  "badToken": {
+    "sqlErrors": [
+      {
+        "range": {
+          "startLineNumber": 1,
+          "startColumn": 10,
+          "endLineNumber": 1,
+          "endColumn": 11
+        },
+        "message": "Unrecognized token '#'."
+      },
+      {
+        "range": {
+          "startLineNumber": 1,
+          "startColumn": 18,
+          "endLineNumber": 1,
+          "endColumn": 25
+        },
+        "message": "Unexpected token 'comment'."
+      }
+    ]
+  },
+  "singleTokenMultiLine": {
+    "sqlErrors": [
+      {
+        "range": {
+          "startLineNumber": 1,
+          "startColumn": 7,
+          "endLineNumber": 2,
+          "endColumn": 4
+        },
+        "message": "Unexpected token ''t\nbl''."
+      }
+    ]
+  },
+  "multiTokenMultiLine": {
+    "sqlErrors": [
+      {
+        "range": {
+          "startLineNumber": 1,
+          "startColumn": 14,
+          "endLineNumber": 2,
+          "endColumn": 3
+        },
+        "message": "Unexpected tokens 'WITH AS'."
+      },
+      {
+        "range": {
+          "startLineNumber": 2,
+          "startColumn": 6,
+          "endLineNumber": 2,
+          "endColumn": 7
+        },
+        "message": "Unexpected end of query. Expecting FOR."
+      }
+    ]
+  }
+}

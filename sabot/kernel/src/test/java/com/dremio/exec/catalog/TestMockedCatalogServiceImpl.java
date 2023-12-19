@@ -61,9 +61,8 @@ public class TestMockedCatalogServiceImpl {
       mock(DremioConfig.class),
       mock(EnumSet.class),
       mock(CatalogServiceMonitor.class),
-      mock(Provider.class)
-      )
-    );
+      mock(Provider.class),
+      () -> mock(VersionedDatasetAdapterFactory.class)));
     QueryContext queryContext = mock(QueryContext.class);
     when(queryContext.getCatalogService()).thenReturn(catalogService);
 

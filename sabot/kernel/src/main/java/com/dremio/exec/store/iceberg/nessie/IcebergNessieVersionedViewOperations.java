@@ -19,19 +19,23 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 import org.apache.iceberg.io.FileIO;
-import org.apache.iceberg.view.BaseMetastoreViewOperations;
-import org.apache.iceberg.view.ViewVersionMetadata;
-import org.apache.iceberg.view.ViewVersionMetadataParser;
+import org.apache.iceberg.viewdepoc.BaseMetastoreViewOperations;
+import org.apache.iceberg.viewdepoc.ViewVersionMetadata;
 import org.projectnessie.model.IcebergView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.exec.catalog.ResolvedVersionContext;
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.VersionContext;
+import com.dremio.exec.catalog.VersionedPlugin.EntityType;
+import com.dremio.exec.store.iceberg.model.IcebergCommitOrigin;
 import com.dremio.plugins.NessieClient;
-import com.google.common.base.Preconditions;
+import com.dremio.plugins.NessieContent;
 
 /**
  * Versioned iceberg view operations.
@@ -47,8 +51,10 @@ public class IcebergNessieVersionedViewOperations extends BaseMetastoreViewOpera
   private final NessieClient nessieClient;
   private final List<String> viewKey;
   private final String dialect;
-  private final ResolvedVersionContext version;
+  private ResolvedVersionContext version;
   private final String userName;
+  private final Function<String, ViewVersionMetadata> metadataLoader;
+  private final IcebergCommitOrigin commitOrigin;
   private IcebergView icebergView;
   private String baseContentId;
 
@@ -56,41 +62,44 @@ public class IcebergNessieVersionedViewOperations extends BaseMetastoreViewOpera
       FileIO fileIO,
       NessieClient nessieClient,
       List<String> viewKey,
+      IcebergCommitOrigin commitOrigin,
       String dialect,
       ResolvedVersionContext version,
-      String userName) {
+      String userName,
+      Function<String, ViewVersionMetadata> metadataLoader) {
     this.fileIO = fileIO;
     this.nessieClient = requireNonNull(nessieClient);
     this.viewKey = requireNonNull(viewKey);
+    this.commitOrigin = commitOrigin;
     this.dialect = dialect;
     this.version = version;
     this.baseContentId = null;
     this.userName = userName;
+    this.metadataLoader = metadataLoader;
   }
 
   @Override
   public ViewVersionMetadata refresh() {
-    baseContentId = nessieClient.getContentId(viewKey, version, null);
-    String metadataLocation = null;
-    if (baseContentId != null) {
-      metadataLocation = nessieClient.getMetadataLocation(viewKey, version, null);
-      Preconditions.checkState(metadataLocation != null,
-        "No metadataLocation for iceberg view: " + viewKey + " ref: " + version);
+    if (version.isBranch()) {
+      version = nessieClient.resolveVersionContext(VersionContext.ofBranch(version.getRefName()));
     }
-    refreshFromMetadataLocation(metadataLocation, RETRY_IF, MAX_RETRIES, this::loadViewMetadata);
-
+    baseContentId = null;
+    String metadataLocation = null;
+    Optional<NessieContent> maybeNessieContent = nessieClient.getContent(viewKey, version, null);
+    if (maybeNessieContent.isPresent()) {
+      NessieContent nessieContent = maybeNessieContent.get();
+      baseContentId = nessieContent.getContentId();
+      metadataLocation = nessieContent.getMetadataLocation().orElseThrow(
+        () -> new IllegalStateException("No metadataLocation for iceberg view: " + viewKey + " ref: " + version));
+    }
+    refreshFromMetadataLocation(metadataLocation, RETRY_IF, MAX_RETRIES, this.metadataLoader);
     return current();
-  }
-
-  private ViewVersionMetadata loadViewMetadata(String metadataLocation) {
-    logger.debug("Loading view metadata from location {} ", metadataLocation);
-    return ViewVersionMetadataParser.read(io().newInputFile(metadataLocation));
   }
 
   @Override
   public void drop(String viewIdentifier) {
     logger.debug("Deleting key for view {} at version {} from Nessie ", viewKey, version);
-    nessieClient.deleteCatalogEntry(viewKey, version, userName);
+    nessieClient.deleteCatalogEntry(viewKey, EntityType.ICEBERG_VIEW, version, userName);
   }
 
   @Override
@@ -102,7 +111,17 @@ public class IcebergNessieVersionedViewOperations extends BaseMetastoreViewOpera
 
     boolean isFailedOperation = true;
     try {
-      nessieClient.commitView(viewKey, newMetadataLocation, icebergView, target, dialect, version, baseContentId, userName);
+      nessieClient.commitView(
+        viewKey,
+        newMetadataLocation,
+        icebergView,
+        target,
+        dialect,
+        version,
+        baseContentId,
+        commitOrigin,
+        userName
+      );
       isFailedOperation = false;
     } finally {
       if (isFailedOperation) {

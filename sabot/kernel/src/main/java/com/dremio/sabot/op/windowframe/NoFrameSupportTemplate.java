@@ -84,18 +84,14 @@ public abstract class NoFrameSupportTemplate implements WindowFramer {
   @Override
   public void doWork() throws Exception {
     int currentRow = 0;
-
     this.current = batches.get(0);
-
     outputCount = current.getRecordCount();
 
     while (currentRow < outputCount) {
       if (partition != null) {
         assert currentRow == 0 : "pending windows are only expected at the start of the batch";
-
         // we have a pending window we need to handle from a previous call to doWork()
         logger.trace("we have a pending partition {}", partition);
-
         if (!requireFullPartition) {
           // we didn't compute the whole partition length in the previous partition, we need to update the length now
           updatePartitionSize(partition, currentRow);
@@ -103,7 +99,6 @@ public abstract class NoFrameSupportTemplate implements WindowFramer {
       } else {
         newPartition(current, currentRow);
       }
-
       currentRow = processPartition(currentRow);
       if (partition.isDone()) {
         cleanPartition();
@@ -114,7 +109,6 @@ public abstract class NoFrameSupportTemplate implements WindowFramer {
   private void newPartition(final VectorAccessible current, final int currentRow) throws SchemaChangeException {
     partition = new Partition();
     updatePartitionSize(partition, currentRow);
-
     setupPartition(context, current, container);
   }
 
@@ -139,37 +133,30 @@ public abstract class NoFrameSupportTemplate implements WindowFramer {
    */
   private int processPartition(final int currentRow) throws Exception {
     logger.trace("process partition {}, currentRow: {}, outputCount: {}", partition, currentRow, outputCount);
-
     setupCopyNext(current, container);
-
     copyPrevFromInternal();
-
     // copy remaining from current
     setupCopyPrev(current, container);
-
     int row = currentRow;
+    partition.setFirstRowInPartition(currentRow);
 
     // process all rows except the last one of the batch/partition
     while (row < outputCount && !partition.isDone()) {
-      if (row != currentRow) { // this is not the first row of the partition
-        copyPrev(row - 1, row);
-      }
-
+      partition.setCurrentRowInPartition(row);
+      copyPrev(row, row, partition);
       processRow(row);
-
-      if (row < outputCount - 1 && !partition.isDone()) {
-        copyNext(row + 1, row);
+      if (!partition.isDone()) {
+        copyNext(row, row, partition);
       }
-
       row++;
     }
 
     // if we didn't reach the end of partition yet
     if (!partition.isDone() && batches.size() > 1) {
       // copy next value onto the current one
-      setupCopyNext(batches.get(1), container);
-      copyNext(0, row - 1);
-
+      partition.setCurrentRowInPartition(row);
+      setupCopyFromFirst(batches.get(1), container);
+      copyFromFirst(0, row, partition);
       copyPrevToInternal(current, row);
     }
 
@@ -177,9 +164,9 @@ public abstract class NoFrameSupportTemplate implements WindowFramer {
   }
 
   private void copyPrevToInternal(VectorAccessible current, int row) {
-    logger.trace("copying {} into internal", row - 1);
-    setupCopyPrev(current, internal);
-    copyPrev(row - 1, 0);
+    logger.trace("copying {} into internal", row);
+    setupCopyToFirst(current, internal);
+    copyToFirst(row, 0, partition);
     lagCopiedToInternal = true;
   }
 
@@ -197,9 +184,7 @@ public abstract class NoFrameSupportTemplate implements WindowFramer {
       final long peers = countPeers(row);
       partition.newFrame(peers);
     }
-
     outputRow(row, partition);
-
     partition.rowAggregated();
   }
 
@@ -309,8 +294,11 @@ public abstract class NoFrameSupportTemplate implements WindowFramer {
    * @param inIndex source row of the copy
    * @param outIndex destination row of the copy.
    */
-  public abstract void copyNext(@Named("inIndex") int inIndex, @Named("outIndex") int outIndex);
+  public abstract void copyNext(@Named("inIndex") int inIndex, @Named("outIndex") int outIndex, @Named("partition") Partition partition);
   public abstract void setupCopyNext(@Named("incoming") VectorAccessible incoming, @Named("outgoing") VectorAccessible outgoing);
+
+  public abstract void copyFromFirst(@Named("inIndex") int inIndex, @Named("outIndex") int outIndex, @Named("partition") Partition partition);
+  public abstract void setupCopyFromFirst(@Named("incoming") VectorAccessible incoming, @Named("outgoing") VectorAccessible outgoing);
 
   /**
    * copies value(s) from inIndex row to outIndex row. Mostly used by LAG. inIndex always points to the previous row
@@ -318,8 +306,11 @@ public abstract class NoFrameSupportTemplate implements WindowFramer {
    * @param inIndex source row of the copy
    * @param outIndex destination row of the copy.
    */
-  public abstract void copyPrev(@Named("inIndex") int inIndex, @Named("outIndex") int outIndex);
+  public abstract void copyPrev(@Named("inIndex") int inIndex, @Named("outIndex") int outIndex, @Named("partition") Partition partition);
   public abstract void setupCopyPrev(@Named("incoming") VectorAccessible incoming, @Named("outgoing") VectorAccessible outgoing);
+
+  public abstract void copyToFirst(@Named("inIndex") int inIndex, @Named("outIndex") int outIndex, @Named("partition") Partition partition);
+  public abstract void setupCopyToFirst(@Named("incoming") VectorAccessible incoming, @Named("outgoing") VectorAccessible outgoing);
 
   public abstract void copyFromInternal(@Named("inIndex") int inIndex, @Named("outIndex") int outIndex);
   public abstract void setupCopyFromInternal(@Named("incoming") VectorAccessible incoming, @Named("outgoing") VectorAccessible outgoing);

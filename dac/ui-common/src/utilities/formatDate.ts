@@ -54,7 +54,7 @@ const dateTimestamp: Intl.DateTimeFormatOptions & {
   second: "2-digit",
   timeZoneName: "short",
   fractionalSecondDigits: 2,
-  hour12: false,
+  hourCycle: "h23",
 };
 
 const dateTimestampShort: Intl.DateTimeFormatOptions = {
@@ -65,7 +65,7 @@ const dateTimestampShort: Intl.DateTimeFormatOptions = {
   minute: "2-digit",
   second: "2-digit",
   timeZoneName: "short",
-  hour12: false,
+  hourCycle: "h23",
 };
 
 const dateTimestampShortNoTZ: Intl.DateTimeFormatOptions = {

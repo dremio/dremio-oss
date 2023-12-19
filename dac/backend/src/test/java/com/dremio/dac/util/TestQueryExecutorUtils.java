@@ -43,10 +43,10 @@ public class TestQueryExecutorUtils {
     referencesList.add(new SourceVersionReference("source2", versionContext2));
     referencesList.add(new SourceVersionReference("source3", versionContext3));
 
-    Map<String, com.dremio.exec.catalog.VersionContext> sourceVersionMappingExpected = new HashMap<>();
-    sourceVersionMappingExpected.put("source1", com.dremio.exec.catalog.VersionContext.ofBranch("branch"));
-    sourceVersionMappingExpected.put("source2", com.dremio.exec.catalog.VersionContext.ofTag("tag"));
-    sourceVersionMappingExpected.put("source3", com.dremio.exec.catalog.VersionContext.ofBareCommit("d0628f078890fec234b98b873f9e1f3cd140988a"));
+    Map<String, com.dremio.catalog.model.VersionContext> sourceVersionMappingExpected = new HashMap<>();
+    sourceVersionMappingExpected.put("source1", com.dremio.catalog.model.VersionContext.ofBranch("branch"));
+    sourceVersionMappingExpected.put("source2", com.dremio.catalog.model.VersionContext.ofTag("tag"));
+    sourceVersionMappingExpected.put("source3", com.dremio.catalog.model.VersionContext.ofCommit("d0628f078890fec234b98b873f9e1f3cd140988a"));
 
     assertThat(QueryExecutorUtils.createSourceVersionMapping(referencesList)).usingRecursiveComparison().isEqualTo(sourceVersionMappingExpected);
   }

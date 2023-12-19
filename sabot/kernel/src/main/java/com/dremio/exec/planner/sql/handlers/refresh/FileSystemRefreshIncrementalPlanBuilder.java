@@ -61,7 +61,7 @@ public class FileSystemRefreshIncrementalPlanBuilder extends FileSystemFullRefre
     super(config, sqlNode, metadataProvider);
     logger.debug("Doing a filesystem incremental refresh on dataset. Dataset's full path is {}", datasetPath);
     isPartialRefresh = sqlNode.isPartialRefresh();
-    icebergCommandType = IcebergCommandType.INCREMENTAL_METADATA_REFRESH;
+    icebergCommandType = isPartialRefresh ? IcebergCommandType.PARTIAL_METADATA_REFRESH : IcebergCommandType.INCREMENTAL_METADATA_REFRESH;
   }
 
   @Override

@@ -35,6 +35,7 @@ import com.dremio.plugins.s3.store.S3PluginConfig;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.source.proto.SourceConfig;
@@ -81,7 +82,7 @@ public class TestUpdateS3CredentialType extends DremioTest {
       UpgradeContext context = new UpgradeContext(kvStoreProvider, legacyKVStoreProvider, lpPersistence, connectionReader, null);
       task.upgrade(context);
 
-      final NamespaceService namespaceService = new NamespaceServiceImpl(context.getLegacyKVStoreProvider());
+      final NamespaceService namespaceService = new NamespaceServiceImpl(context.getLegacyKVStoreProvider(), new CatalogStatusEventsImpl());
       List<SourceConfig> sources = namespaceService.getSources();
       assertEquals(1, sources.size());
 

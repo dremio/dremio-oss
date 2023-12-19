@@ -17,15 +17,11 @@ package com.dremio.exec.planner.acceleration.substitution;
 
 
 import java.util.List;
-import java.util.Optional;
 
 import org.apache.calcite.rel.RelNode;
 
-import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.TableVersionContext;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.sql.handlers.RelTransformer;
-import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Preconditions;
 
 /**
@@ -33,8 +29,7 @@ import com.google.common.base.Preconditions;
  */
 public abstract class AbstractSubstitutionProvider implements SubstitutionProvider {
   private final MaterializationProvider provider;
-  protected List<RelTransformer> postSubstitutionTransformers;
-  protected RelNode currentPlan;
+  protected RelTransformer postSubstitutionTransformer;
 
   protected AbstractSubstitutionProvider(
     final MaterializationProvider materializations) {
@@ -46,28 +41,12 @@ public abstract class AbstractSubstitutionProvider implements SubstitutionProvid
     return provider;
   }
 
-  public List<DremioMaterialization> getMaterializations() {
-    return getMaterializationProvider().getApplicableMaterializations();
-  }
-
-  public List<DremioMaterialization> buildApplicableMaterializations(final RelNode origRoot) {
-    return getMaterializationProvider().buildApplicableMaterializations(origRoot);
-  }
-
-  public Optional<DremioMaterialization> getDefaultRawMaterialization(NamespaceKey path,
-                                                                      TableVersionContext versionContext, List<String> vdsFields, Catalog catalog) {
-    return getMaterializationProvider().getDefaultRawMaterialization(path, versionContext, vdsFields, catalog);
+  public List<DremioMaterialization> buildConsideredMaterializations(final RelNode origRoot) {
+    return getMaterializationProvider().buildConsideredMaterializations(origRoot);
   }
 
   @Override
-  public void setPostSubstitutionTransformers(List<RelTransformer> transformers) {
-    this.postSubstitutionTransformers = transformers;
+  public void setPostSubstitutionTransformer(RelTransformer transformer) {
+    this.postSubstitutionTransformer = transformer;
   }
-
-  @Override
-  public void setCurrentPlan(RelNode currentPlan) {
-    this.currentPlan = currentPlan;
-  }
-
-
 }

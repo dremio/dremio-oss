@@ -16,15 +16,20 @@
 package com.dremio.exec.store.hive;
 
 import static com.dremio.common.util.MajorTypeHelper.getMinorTypeFromArrowMinorType;
+import static org.apache.hadoop.hive.serde.serdeConstants.COLLECTION_DELIM;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
+import java.sql.Date;
+import java.time.LocalDate;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 import org.apache.arrow.vector.types.Types.MinorType;
 import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hive.ql.exec.Utilities;
 import org.apache.hadoop.hive.ql.io.AcidUtils;
 import org.apache.hadoop.hive.ql.io.IOConstants;
@@ -55,6 +60,7 @@ import com.dremio.common.types.TypeProtos.DataMode;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.util.Closeable;
 import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.store.hive.exec.HiveAbstractReader;
 import com.dremio.exec.work.ExecErrorConstants;
 import com.dremio.hive.proto.HiveReaderProto.Prop;
 import com.dremio.hive.proto.HiveReaderProto.SerializedInputSplit;
@@ -69,6 +75,9 @@ public class HiveUtilities {
   private static final String ERROR_MSG = "Unsupported Hive data type %s. \n"
       + "Following Hive data types are supported in Dremio for querying: "
       + "BOOLEAN, TINYINT, SMALLINT, INT, BIGINT, FLOAT, DOUBLE, DATE, TIMESTAMP, BINARY, DECIMAL, STRING, VARCHAR and CHAR";
+
+  private static final long MILLIS_PER_DAY = TimeUnit.DAYS.toMillis(1L);
+  private static final long EPOCH_DAY_FOR_1582_10_15 = LocalDate.parse("1582-10-15").toEpochDay();
 
   public static void throwUnsupportedHiveDataTypeError(String unsupportedType) {
     throw UserException.unsupportedError()
@@ -106,6 +115,14 @@ public class HiveUtilities {
   public static final AbstractSerDe createSerDe(final JobConf jobConf, final String sLib, final Properties properties) throws Exception {
     final Class<? extends AbstractSerDe> c = Class.forName(sLib).asSubclass(AbstractSerDe.class);
     final AbstractSerDe serde = c.getConstructor().newInstance();
+    if (HiveConfFactory.isHive2SourceType(jobConf)) {
+      // See HIVE-16922... We might bump into Hive 2 tables where the typo version of this property is read from HMS.
+      // But Hive 3's object inspectors will expect the corrected version while reading.
+      String hive2CompatCollectionDelimeter = (String) properties.get("colelction.delim");
+      if (!StringUtils.isEmpty(hive2CompatCollectionDelimeter)) {
+        properties.put(COLLECTION_DELIM, hive2CompatCollectionDelimeter);
+      }
+    }
     serde.initialize(jobConf, properties);
 
     return serde;
@@ -310,5 +327,33 @@ public class HiveUtilities {
     try (Input input = new Input(Base64.decodeBase64(kryoBase64EncodedFilter))) {
       return new Kryo().readObject(input, SearchArgumentImpl.class);
     }
+  }
+
+  /**
+   * Hive 2.x uses DateWritable for converting date to epoch days and the conversion is buggy because
+   * of the Julian and Gregorian calendar changes. This issue does not occur for Hive 3.x which uses
+   * DateWritableV2 which uses {@link LocalDate#toEpochDay} to do the conversion
+   *
+   * Hence we do the appropriate conversion if the date is prior to 1582-10-15
+   * Else, no conversion is required
+   */
+  public static long getTrueEpochInMillis(boolean shouldConvertJulianDate, long epochInDays) {
+    if (epochInDays <= EPOCH_DAY_FOR_1582_10_15 && shouldConvertJulianDate) {
+      return new Date(epochInDays * MILLIS_PER_DAY).toLocalDate().toEpochDay() * MILLIS_PER_DAY;
+    } else {
+      return epochInDays * MILLIS_PER_DAY;
+    }
+  }
+
+  /**
+   * Checks Hive version and file format to see if a conversion is needed for Julian dates
+   * @param options HiveOperatorContextOptions
+   * @return true if conversion is required
+   */
+  public static boolean requiresDateConversionForJulian(HiveAbstractReader.HiveOperatorContextOptions options) {
+    HiveAbstractReader.HiveFileFormat hiveFileFormat = options.getHiveFileFormat();
+    return options.getHiveVersion() == 2 &&
+      (HiveAbstractReader.HiveFileFormat.Orc.equals(hiveFileFormat) ||
+        HiveAbstractReader.HiveFileFormat.Avro.equals(hiveFileFormat));
   }
 }

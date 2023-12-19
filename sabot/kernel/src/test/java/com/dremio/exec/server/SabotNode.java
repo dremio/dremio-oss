@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -28,11 +29,13 @@ import javax.inject.Provider;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.zookeeper.Environment;
-import org.projectnessie.client.api.NessieApiV1;
+import org.projectnessie.client.api.NessieApiV2;
 import org.projectnessie.client.http.HttpClientBuilder;
 
+import com.dremio.authenticator.Authenticator;
 import com.dremio.common.GuiceServiceModule;
 import com.dremio.common.StackTrace;
+import com.dremio.common.concurrent.ContextMigratingExecutorService;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.ClassPathScanner;
@@ -51,6 +54,7 @@ import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.catalog.DatasetCatalogServiceImpl;
 import com.dremio.exec.catalog.InformationSchemaServiceImpl;
 import com.dremio.exec.catalog.MetadataRefreshInfoBroadcaster;
+import com.dremio.exec.catalog.VersionedDatasetAdapterFactory;
 import com.dremio.exec.exception.NodeStartupException;
 import com.dremio.exec.maestro.GlobalKeysService;
 import com.dremio.exec.maestro.MaestroForwarder;
@@ -63,9 +67,7 @@ import com.dremio.exec.planner.observer.QueryObserverFactory;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.rpc.RpcConstants;
 import com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl;
-import com.dremio.exec.server.options.DefaultOptionManager;
 import com.dremio.exec.server.options.OptionChangeBroadcaster;
-import com.dremio.exec.server.options.OptionManagerWrapper;
 import com.dremio.exec.server.options.OptionNotificationService;
 import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
@@ -92,6 +94,9 @@ import com.dremio.exec.work.rpc.CoordTunnelCreator;
 import com.dremio.exec.work.user.LocalQueryExecutor;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
+import com.dremio.options.impl.DefaultOptionManager;
+import com.dremio.options.impl.OptionManagerWrapper;
+import com.dremio.partitionstats.storeprovider.PartitionStatsCacheStoreProvider;
 import com.dremio.resource.ClusterResourceInformation;
 import com.dremio.resource.GroupResourceInformation;
 import com.dremio.resource.QueryCancelTool;
@@ -110,7 +115,6 @@ import com.dremio.sabot.rpc.ExecToCoordResultsHandler;
 import com.dremio.sabot.rpc.ExecToCoordStatusHandler;
 import com.dremio.sabot.rpc.user.UserServer;
 import com.dremio.sabot.task.TaskPool;
-import com.dremio.security.CredentialsService;
 import com.dremio.service.BindingCreator;
 import com.dremio.service.BindingProvider;
 import com.dremio.service.SingletonRegistry;
@@ -149,6 +153,8 @@ import com.dremio.service.listing.DatasetListingServiceImpl;
 import com.dremio.service.maestroservice.MaestroClientFactory;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEvents;
+import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.nessie.NessieService;
 import com.dremio.service.orphanage.Orphanage;
 import com.dremio.service.orphanage.OrphanageImpl;
@@ -158,6 +164,9 @@ import com.dremio.service.scheduler.ModifiableSchedulerService;
 import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.service.spill.SpillService;
 import com.dremio.service.spill.SpillServiceImpl;
+import com.dremio.service.users.BasicAuthenticator;
+import com.dremio.service.users.LocalUsernamePasswordAuthProvider;
+import com.dremio.service.users.SimpleUserService;
 import com.dremio.service.users.UserService;
 import com.dremio.services.fabric.FabricServiceImpl;
 import com.dremio.services.fabric.api.FabricService;
@@ -471,8 +480,15 @@ public class SabotNode implements AutoCloseable {
           new MultiTenantGrpcServerBuilderFactory(TracerFacade.INSTANCE);
         bind(GrpcServerBuilderFactory.class).toInstance(gRpcServerBuilderFactory);
 
-        // no authentication
-        bind(UserService.class).toInstance(new UserServiceTestImpl());
+        // setup authentication
+        final UserServiceTestImpl userServiceTestImpl = new UserServiceTestImpl();
+        bind(UserService.class).toInstance(userServiceTestImpl);
+        bind(SimpleUserService.class).toInstance(userServiceTestImpl);
+        bind(LocalUsernamePasswordAuthProvider.class).toInstance(
+          new LocalUsernamePasswordAuthProvider(getProvider(SimpleUserService.class)));
+        bind(Authenticator.class).toInstance(new BasicAuthenticator(
+          getProvider(LocalUsernamePasswordAuthProvider.class)
+        ));
         bind(Orphanage.Factory.class).to(OrphanageImpl.Factory.class);
         bind(NamespaceService.Factory.class).to(NamespaceServiceImpl.Factory.class);
 
@@ -493,6 +509,8 @@ public class SabotNode implements AutoCloseable {
           () -> registry.provider(SabotContext.class).get().getEndpoint()
         );
 
+        bind(CatalogStatusEvents.class).toInstance(new CatalogStatusEventsImpl());
+
         // CatalogService is expensive to create so we eagerly create it
         bind(CatalogService.class).toInstance(new CatalogServiceImpl(
                 getProvider(SabotContext.class),
@@ -508,8 +526,8 @@ public class SabotNode implements AutoCloseable {
                 () -> broadcaster,
                 config,
                 EnumSet.allOf(ClusterCoordinator.Role.class),
-                getProvider(ModifiableSchedulerService.class)
-        ));
+                getProvider(ModifiableSchedulerService.class),
+                getProvider(VersionedDatasetAdapterFactory.class)));
 
         conduitServiceRegistry.registerService(new InformationSchemaServiceImpl(getProvider(CatalogService.class),
           bootstrap::getExecutor));
@@ -535,6 +553,7 @@ public class SabotNode implements AutoCloseable {
                 config,
                 getProvider(ExecutorService.class),
                 getProvider(BufferAllocator.class),
+                getProvider(Authenticator.class),
                 getProvider(UserService.class),
                 getProvider(NodeEndpoint.class),
                 getProvider(UserWorker.class),
@@ -617,7 +636,8 @@ public class SabotNode implements AutoCloseable {
         bind(LocalJobTelemetryServer.class).toInstance(new LocalJobTelemetryServer(
           gRpcServerBuilderFactory, getProvider(LegacyKVStoreProvider.class),
           getProvider(NodeEndpoint.class),
-          new GrpcTracerFacade(TracerFacade.INSTANCE)));
+          new GrpcTracerFacade(TracerFacade.INSTANCE),
+          new ContextMigratingExecutorService(Executors.newCachedThreadPool())));
 
         bind(MaestroForwarder.class).toInstance(new NoOpMaestroForwarder());
         bind(RuleBasedEngineSelector.class).toInstance(RuleBasedEngineSelector.NO_OP);
@@ -625,6 +645,7 @@ public class SabotNode implements AutoCloseable {
         bind(StatisticsAdministrationService.Factory.class).toInstance((context) -> StatisticsService.MOCK_STATISTICS_SERVICE);
         bind(StatisticsListManager.class).toProvider(Providers.of(null));
         bind(UserDefinedFunctionService.class).toProvider(Providers.of(null));
+        bind(PartitionStatsCacheStoreProvider.class).toInstance(new MockPartitionStatsStoreProvider());
         bind(RelMetadataQuerySupplier.class).toInstance(DremioRelMetadataQuery.getSupplier(StatisticsService.MOCK_STATISTICS_SERVICE));
       } catch (Exception e) {
         throw new RuntimeException(e);
@@ -728,7 +749,7 @@ public class SabotNode implements AutoCloseable {
             Provider<OptionManager> optionManagerProvider,
             Provider<SystemOptionManager> systemOptionManagerProvider,
             Provider<OptionValidatorListing> optionValidatorListingProvider,
-            Provider<NessieApiV1> nessieClientProvider,
+            Provider<NessieApiV2> nessieApiProvider,
             Provider<StatisticsService> statisticsService,
             Provider<StatisticsAdministrationService.Factory> statisticsAdministrationServiceFactory,
             Provider<StatisticsListManager> statisticsListManagerProvider,
@@ -765,7 +786,7 @@ public class SabotNode implements AutoCloseable {
               Providers.of(null),
               spillService,
               connectionReader,
-              CredentialsService::new,
+              Providers.of(null),
               () -> JobResultInfoProvider.NOOP,
               optionManagerProvider,
               systemOptionManagerProvider,
@@ -774,7 +795,7 @@ public class SabotNode implements AutoCloseable {
               optionValidatorListingProvider,
               allRoles,
               () -> new SoftwareCoordinatorModeInfo(),
-              nessieClientProvider,
+              nessieApiProvider,
               statisticsService,
               statisticsAdministrationServiceFactory,
               statisticsListManagerProvider,
@@ -799,7 +820,7 @@ public class SabotNode implements AutoCloseable {
     @Singleton
     @Provides
     com.dremio.services.credentials.CredentialsService getCredentialsServiceProvider() {
-      return com.dremio.services.credentials.CredentialsService.newInstance(config, classpathScan);
+      return com.dremio.services.credentials.CredentialsService.newInstance(config, registry, classpathScan);
     }
 
     @Singleton
@@ -850,20 +871,22 @@ public class SabotNode implements AutoCloseable {
             Provider<JobTelemetryClient> jobTelemetryClient,
             Provider<MaestroForwarder> forwarderProvider,
             Provider<RuleBasedEngineSelector> ruleBasedEngineSelectorProvider,
-            Provider<RequestContext> requestContextProvider
+            Provider<RequestContext> requestContextProvider,
+            Provider<PartitionStatsCacheStoreProvider> transientStoreProvider
     ) {
       final BufferAllocator jobResultsAllocator = bootstrap.getAllocator().newChildAllocator("JobResultsGrpcServer", 0, Long.MAX_VALUE);
       return new ForemenWorkManager(
-              fabricService,
-              sabotContext,
-              commandPool,
-              maestroService,
-              jobTelemetryClient,
-              forwarderProvider,
-              TracerFacade.INSTANCE,
-              ruleBasedEngineSelectorProvider,
-              jobResultsAllocator,
-              requestContextProvider
+          fabricService,
+          sabotContext,
+          commandPool,
+          maestroService,
+          jobTelemetryClient,
+          forwarderProvider,
+          TracerFacade.INSTANCE,
+          ruleBasedEngineSelectorProvider,
+          jobResultsAllocator,
+          requestContextProvider,
+          transientStoreProvider
       );
     }
 
@@ -1029,12 +1052,12 @@ public class SabotNode implements AutoCloseable {
     }
 
     @Provides
-    NessieApiV1 getNessieClientInstance(Provider<ConduitProvider> conduitProvider) {
+    NessieApiV2 newNessieApi(Provider<ConduitProvider> conduitProvider) {
       String endpoint = config.getString(DremioConfig.NESSIE_SERVICE_REMOTE_URI);
       if (endpoint == null || endpoint.isEmpty()) {
-        return GrpcClientBuilder.builder().withChannel(conduitProvider.get().getOrCreateChannelToMaster()).build(NessieApiV1.class);
+        return GrpcClientBuilder.builder().withChannel(conduitProvider.get().getOrCreateChannelToMaster()).build(NessieApiV2.class);
       }
-      return HttpClientBuilder.builder().withUri(URI.create(endpoint)).build(NessieApiV1.class);
+      return HttpClientBuilder.builder().withUri(URI.create(endpoint)).build(NessieApiV2.class);
     }
 
     @Provides

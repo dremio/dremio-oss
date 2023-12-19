@@ -17,6 +17,7 @@ package com.dremio.exec.store;
 
 import static com.dremio.sabot.op.scan.ScanOperator.Metric.RUNTIME_COL_FILTER_DROP_COUNT;
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import java.util.ArrayList;
@@ -81,7 +82,7 @@ public class RuntimeFilter implements AutoCloseable {
   }
 
   public static RuntimeFilter getInstance(final ExecProtos.RuntimeFilter protoFilter,
-                                          final ArrowBuf msgBuf,
+                                          final List<ArrowBuf> buffers,
                                           final String senderInfo,
                                           final String sourceJoinId,
                                           final ExecProtos.FragmentHandle fragmentHandle,
@@ -90,15 +91,24 @@ public class RuntimeFilter implements AutoCloseable {
                                           final OptionManager optionManager) {
     ExecProtos.CompositeColumnFilter partitionColFilterProto = protoFilter.getPartitionColumnFilter();
     CompositeColumnFilter partitionColFilter = null;
-    long nextSliceStart = 0L;
     List<UserBitShared.RunTimeFilterDetailsInfoInScan> filterDetails = new ArrayList<>();
-    if (partitionColFilterProto != null && !partitionColFilterProto.getColumnsList().isEmpty()) {
-      checkArgument(msgBuf.capacity() >= partitionColFilterProto.getSizeBytes(), "Invalid filter size. " +
-              "Buffer capacity is %s, expected filter size %s", msgBuf.capacity(), partitionColFilterProto.getSizeBytes());
+
+    int pcFilterCount = (partitionColFilterProto != null && !partitionColFilterProto.getColumnsList().isEmpty()) ? 1 : 0;
+    int npcFilterCount = protoFilter.getNonPartitionColumnFilterCount();
+    checkNotNull(buffers);
+    checkArgument(buffers.size() == pcFilterCount + npcFilterCount,
+      "Buffer count does not match total filter count. Buffer count is %s, " +
+        "partition column filter count is %s, non-partition column filter count is %s",
+      buffers.size(), pcFilterCount, npcFilterCount);
+
+    int idx = 0;  // buffer idx
+    if (pcFilterCount == 1) {
+      ArrowBuf pcBuffer = buffers.get(idx++); // get buffer for partition column runtime filter
+      checkArgument(pcBuffer.capacity() >= partitionColFilterProto.getSizeBytes(), "Invalid filter size. " +
+              "Buffer capacity is %s, expected filter size %s", pcBuffer.capacity(), partitionColFilterProto.getSizeBytes());
       UserBitShared.RunTimeFilterDetailsInfoInScan.Builder runTimeFilterDetails = UserBitShared.RunTimeFilterDetailsInfoInScan.newBuilder();
       try {
-        final BloomFilter bloomFilter = BloomFilter.prepareFrom(msgBuf.slice(nextSliceStart, partitionColFilterProto.getSizeBytes()));
-        nextSliceStart += partitionColFilterProto.getSizeBytes();
+        final BloomFilter bloomFilter = BloomFilter.prepareFrom(pcBuffer);
         checkState(bloomFilter.getNumBitsSet()==partitionColFilterProto.getValueCount(),
                 "BloomFilter value count mismatched. Expected %s, Actual %s", partitionColFilterProto.getValueCount(), bloomFilter.getNumBitsSet());
         partitionColFilter = new CompositeColumnFilter.Builder().setProtoFields(protoFilter.getPartitionColumnFilter())
@@ -122,17 +132,16 @@ public class RuntimeFilter implements AutoCloseable {
       filterDetails.add(runTimeFilterDetails.build());
     }
 
-    final List<CompositeColumnFilter> nonPartitionColFilters = new ArrayList<>(protoFilter.getNonPartitionColumnFilterCount());
-    for (int i =0; i < protoFilter.getNonPartitionColumnFilterCount(); i++) {
+    final List<CompositeColumnFilter> nonPartitionColFilters = new ArrayList<>(npcFilterCount);
+    for (int i = 0; i < npcFilterCount; i++) {
       final ExecProtos.CompositeColumnFilter nonPartitionColFilterProto = protoFilter.getNonPartitionColumnFilter(i);
       final String fieldName = nonPartitionColFilterProto.getColumns(0);
-      checkArgument(msgBuf.capacity() >= nextSliceStart + nonPartitionColFilterProto.getSizeBytes(),
+      ArrowBuf npcBuffer = buffers.get(idx++); // get buffer for non-partition column runtime filter
+      checkArgument(npcBuffer.capacity() >= nonPartitionColFilterProto.getSizeBytes(),
               "Invalid filter buffer size for non partition col %s.", fieldName);
       UserBitShared.RunTimeFilterDetailsInfoInScan.Builder runTimeFilterDetails = UserBitShared.RunTimeFilterDetailsInfoInScan.newBuilder();
       try {
-        final ValueListFilter valueListFilter = ValueListFilterBuilder
-                .fromBuffer(msgBuf.slice(nextSliceStart, nonPartitionColFilterProto.getSizeBytes()));
-        nextSliceStart += nonPartitionColFilterProto.getSizeBytes();
+        final ValueListFilter valueListFilter = ValueListFilterBuilder.fromBuffer(npcBuffer);
         checkState(valueListFilter.getValueCount()==nonPartitionColFilterProto.getValueCount(),
                 "ValueListFilter %s count mismatched. Expected %s, found %s", fieldName,
                 nonPartitionColFilterProto.getValueCount(), valueListFilter.getValueCount());
@@ -145,6 +154,7 @@ public class RuntimeFilter implements AutoCloseable {
         valueListFilter.buf().getReferenceManager().retain();
         if (rowLevelRuntimeFilteringEnable) {
           ArrowBuf buf = manager.getManagedBuffer(valueListFilter.buf().capacity() + ValueListFilter.BLOOM_FILTER_SIZE);
+          buf.setZero(0, buf.capacity());
           final ValueListWithBloomFilter valueListFilterWithBloomFilter = ValueListFilterBuilder
             .fromBufferWithBloomFilter(buf, valueListFilter);
           valueListFilterWithBloomFilter.buf().getReferenceManager().retain();

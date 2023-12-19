@@ -15,43 +15,60 @@
  */
 package com.dremio.exec.store.iceberg.nessie;
 
+import javax.annotation.Nullable;
 import javax.inject.Provider;
 
 import org.apache.hadoop.conf.Configuration;
-import org.projectnessie.client.api.NessieApiV1;
+import org.apache.iceberg.io.FileIO;
+import org.projectnessie.client.api.NessieApiV2;
 
 import com.dremio.exec.store.iceberg.SupportsIcebergMutablePlugin;
 import com.dremio.exec.store.iceberg.model.IcebergBaseModel;
 import com.dremio.exec.store.iceberg.model.IcebergCommand;
+import com.dremio.exec.store.iceberg.model.IcebergCommitOrigin;
 import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
 import com.dremio.exec.store.metadatarefresh.committer.DatasetCatalogGrpcClient;
-import com.dremio.io.file.FileSystem;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorContext;
 
 /**
  * Iceberg nessie model
  */
 public class IcebergNessieModel extends IcebergBaseModel {
-    private final Provider<NessieApiV1> nessieApi;
-    private final SupportsIcebergMutablePlugin plugin;
 
-    public IcebergNessieModel(String namespace, Configuration configuration,
-                              Provider<NessieApiV1> api,
-                              FileSystem fs, OperatorContext context,
-                              DatasetCatalogGrpcClient datasetCatalogGrpcClient,
-                              SupportsIcebergMutablePlugin plugin) {
-        super(namespace, configuration, fs, context, datasetCatalogGrpcClient, plugin);
-        this.nessieApi = api;
-        this.plugin = plugin;
-    }
+  private final OptionManager optionManager;
+  private final Provider<NessieApiV2> nessieApi;
+  private final SupportsIcebergMutablePlugin plugin;
+
+  public IcebergNessieModel(
+    OptionManager optionManager,
+    String namespace,
+    Configuration configuration,
+    Provider<NessieApiV2> nessieApi,
+    FileIO fileIO,
+    OperatorContext operatorContext,
+    DatasetCatalogGrpcClient datasetCatalogGrpcClient,
+    SupportsIcebergMutablePlugin plugin
+  ) {
+      super(namespace, configuration, fileIO, operatorContext, datasetCatalogGrpcClient, plugin);
+      this.optionManager = optionManager;
+      this.nessieApi = nessieApi;
+      this.plugin = plugin;
+  }
 
   @Override
-  protected IcebergCommand getIcebergCommand(IcebergTableIdentifier tableIdentifier) {
-    IcebergNessieTableOperations tableOperations = new IcebergNessieTableOperations((context == null ? null : context.getStats()),
+  protected IcebergCommand getIcebergCommand(
+    IcebergTableIdentifier tableIdentifier,
+    @Nullable IcebergCommitOrigin commitOrigin
+  ) {
+    IcebergNessieTableOperations tableOperations = new IcebergNessieTableOperations(
+      (operatorContext == null ? null : operatorContext.getStats()),
       nessieApi,
-      plugin.createIcebergFileIO(fs, context, null, null, null),
-      ((IcebergNessieTableIdentifier) tableIdentifier));
-    return new IcebergNessieCommand(tableIdentifier, configuration, fs, tableOperations);
+      fileIO,
+      ((IcebergNessieTableIdentifier) tableIdentifier),
+      commitOrigin,
+      optionManager);
+    return new IcebergNessieCommand(tableIdentifier, configuration, tableOperations, currentQueryId());
   }
 
     @Override
@@ -63,5 +80,9 @@ public class IcebergNessieModel extends IcebergBaseModel {
   public void deleteTable(IcebergTableIdentifier tableIdentifier) {
     super.deleteTable(tableIdentifier);
 
+  }
+
+  public Provider<NessieApiV2> getNessieApi() {
+      return nessieApi;
   }
 }

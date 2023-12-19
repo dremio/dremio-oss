@@ -71,11 +71,12 @@ public class RollbackTests extends ITDmlQueryBase {
       addRows(table, 1);
 
       final String timestampStr = getTimestampFromMillis(timestampMillisToExpire);
+      String tableNameInMsg = "hive".equals(source) ? source + "." + "\"default\"" + "." + table.name : table.fqn;
       testQueryValidateStatusSummary(allocator,
         "ROLLBACK TABLE %s TO TIMESTAMP '%s'", new Object[]{table.fqn, timestampStr},
         table,
         true,
-        String.format("Table [%s] rollbacked", table.fqn),
+        String.format("Table [%s] rollbacked", tableNameInMsg),
         ArrayUtils.subarray(table.originalData, 0, table.originalData.length));
     }
   }
@@ -323,7 +324,7 @@ public class RollbackTests extends ITDmlQueryBase {
       String nonExistenceTablePath = "src";
       UserExceptionAssert.assertThatThrownBy(() -> test("ROLLBACK TABLE %s TO SNAPSHOT '%s'",  nonExistenceTablePath, rollbackToSnapshotId))
         .hasErrorType(ErrorType.VALIDATION)
-        .hasMessageContaining(String.format("Table [%s.%s] does not exist.", source, nonExistenceTablePath));
+        .hasMessageContaining(String.format("Table [%s] does not exist.", nonExistenceTablePath));
 
       // Iceberg table should not be updated.
       Table icebergTable2 = getIcebergTable(tableFolder, IcebergCatalogType.HADOOP);
@@ -350,6 +351,26 @@ public class RollbackTests extends ITDmlQueryBase {
       final String expectedTimestamp = String.format("ROLLBACK TABLE %s TO TIMESTAMP '%s'",
         "\"" + source + "\"" + "." + addQuotes(tableName), getTimestampFromMillis(timestampMillisToExpire));
       parseAndValidateSqlNode(rollbackTimestampQuery, expectedTimestamp);
+    }
+  }
+
+  public static void testRollbackPartialPath(BufferAllocator allocator, String source) throws Exception {
+    final String additionalPath = "path";
+    final String sourceWithPath = source + "." + additionalPath;
+    try (DmlQueryTestUtils.Table table = createBasicTable(sourceWithPath,2, 1)) {
+      final long timestampMillisToExpire = waitUntilAfter(System.currentTimeMillis());
+
+      // Insert more rows to increase snapshots
+      addRows(table, 1);
+      addRows(table, 1);
+
+      final String tablePathWithoutSource = additionalPath + "." + table.name;
+      testQueryValidateStatusSummary(allocator,
+        "ROLLBACK TABLE %s TO TIMESTAMP '%s'", new Object[]{tablePathWithoutSource, getTimestampFromMillis(timestampMillisToExpire)},
+        table,
+        true,
+        String.format("Table [%s] rollbacked", table.fqn),
+        ArrayUtils.subarray(table.originalData, 0, table.originalData.length));
     }
   }
 }

@@ -24,6 +24,7 @@ import org.apache.calcite.plan.RelTrait;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.InvalidRelException;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
@@ -51,8 +52,12 @@ public class HashAggPrule extends AggPruleBase {
 
   @Override
   public boolean matches(RelOptRuleCall call) {
-    PlannerSettings settings = PrelUtil.getPlannerSettings(call.getPlanner());
-    return settings.isHashAggEnabled();
+    Aggregate agg = call.rel(0);
+    if (agg.groupSets == null || agg.groupSets.size() < 2) {
+      PlannerSettings settings = PrelUtil.getPlannerSettings(call.getPlanner());
+      return settings.isHashAggEnabled();
+    }
+    return false;
   }
 
   @Override
@@ -64,7 +69,7 @@ public class HashAggPrule extends AggPruleBase {
     final AggregateRel aggregate = (AggregateRel) call.rel(0);
     final RelNode input = call.rel(1);
 
-    if (MoreRelOptUtil.containsUnsupportedDistinctCall(aggregate) || (aggregate.getGroupCount() == 0 && !aggregate.containsSupportedListAggCall())) {
+    if (MoreRelOptUtil.containsUnsupportedDistinctCall(aggregate) || (aggregate.getGroupCount() == 0 && !aggregate.containsSupportedListAggregation())) {
       // currently, don't use HashAggregate if any of the logical aggrs contains unsupported DISTINCT or
       // if there are no grouping keys. Using empty grouping key with listagg is supported.
       return;

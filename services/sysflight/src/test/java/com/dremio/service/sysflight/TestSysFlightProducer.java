@@ -27,6 +27,7 @@ import org.apache.arrow.flight.Criteria;
 import org.apache.arrow.flight.FlightClient;
 import org.apache.arrow.flight.FlightDescriptor;
 import org.apache.arrow.flight.FlightInfo;
+import org.apache.arrow.flight.FlightRuntimeException;
 import org.apache.arrow.flight.FlightServer;
 import org.apache.arrow.flight.FlightStream;
 import org.apache.arrow.flight.Location;
@@ -46,7 +47,6 @@ import com.dremio.service.job.ActiveJobSummary;
 import com.dremio.service.sysflight.SystemTableManager.TABLES;
 import com.google.common.collect.ImmutableList;
 
-import io.grpc.StatusRuntimeException;
 
 /**
  * Tests for SysFlight producer
@@ -78,7 +78,7 @@ public class TestSysFlightProducer extends BaseTestQuery {
                   .build();
       }
     }
-    server.start();
+    server = server.start();
     client = FlightClient.builder()
       .allocator(allocator)
       .location(location).build();
@@ -121,7 +121,7 @@ public class TestSysFlightProducer extends BaseTestQuery {
   public void testUnsupportedDataset() {
     final String random = "random";
     assertThatThrownBy(() -> client.getSchema(FlightDescriptor.path(random)))
-      .isInstanceOf(StatusRuntimeException.class)
+      .isInstanceOf(FlightRuntimeException.class)
       .hasMessageContaining("'" + random + "' system table is not supported");
   }
   @Test

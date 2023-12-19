@@ -53,7 +53,7 @@ describe("AddFileModal", () => {
     it("should call resetViewState", () => {
       const wrapper = shallow(<AddFileModal {...commonProps} />, { context });
       const instance = wrapper.instance();
-      instance.componentWillMount();
+      instance.UNSAFE_componentWillMount();
       expect(commonProps.resetViewState).to.have.been.calledWith(
         PREVIEW_VIEW_ID
       );

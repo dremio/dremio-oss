@@ -21,6 +21,7 @@ import static com.dremio.service.jobs.JobsConstant.AGGREGATION;
 import static com.dremio.service.jobs.JobsConstant.ALGEBRAIC_REFLECTIONS;
 import static com.dremio.service.jobs.JobsConstant.DATASETGRAPH;
 import static com.dremio.service.jobs.JobsConstant.DATASET_GRAPH_ERROR;
+import static com.dremio.service.jobs.JobsConstant.DOT;
 import static com.dremio.service.jobs.JobsConstant.DOT_BACKSLASH;
 import static com.dremio.service.jobs.JobsConstant.EXTERNAL_QUERY;
 import static com.dremio.service.jobs.JobsConstant.OTHERS;
@@ -41,6 +42,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.calcite.util.Util;
 import org.apache.commons.collections4.CollectionUtils;
@@ -88,6 +90,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Strings;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.ProtocolStringList;
+
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 
 /**
  * Builds response of Job Details page
@@ -257,6 +261,7 @@ public class JobInfoDetailsUI {
     this.datasetPaths = datasetPaths;
   }
 
+  @WithSpan
   public JobInfoDetailsUI of(JobDetails jobDetails, UserBitShared.QueryProfile profile, CatalogServiceHelper catalogServiceHelper, ReflectionServiceHelper reflectionServiceHelper, NamespaceService namespaceService, int detailLevel, int attemptIndex) throws NamespaceException {
     JobProtobuf.JobAttempt jobAttempt = jobDetails.getAttemptsList().get(attemptIndex);
     final List<JobAttempt> attempts = jobDetails.getAttemptsList().stream().map(JobsProtoUtil::toStuff).collect(Collectors.toList());
@@ -605,8 +610,24 @@ public class JobInfoDetailsUI {
               datasetName = reflection.getReflectionName() + " (" + reflection.getDatasetName() + ")";
             }
           } else {
-            datasetName = getScannedDatasetName(parentsList, grandParentsList, dataset);
+            // For versioned table/view the parentsList/grandParentsList are empty, so
+            // getScannedDatasetName will return an empty dataset name. And we will get the
+            // dataset name from profile directly instead. For other cases we will compare
+            // the dataset name in profile to the paths in parentsList/grandParentsList,
+            // we will return it if we find a matching one.
+            datasetName =
+                StringUtils.defaultIfEmpty(
+                    getScannedDatasetName(parentsList, grandParentsList, dataset),
+                    getDatasetName(
+                        StringUtils.join(
+                            dataset
+                                .getDatasetProfile()
+                                .getDatasetPathsList()
+                                .get(0)
+                                .getDatasetPathList(),
+                            DOT)));
           }
+
           String type = isReflection ? REFLECTION : PDS;
           scannedDataset.setDatasetType(type);
           scannedDataset.setNrScanThreads(dataset.getDatasetProfile().getParallelism());
@@ -619,6 +640,15 @@ public class JobInfoDetailsUI {
       }
     );
     return scannedDatasetList;
+  }
+
+  public static String getDatasetName(String datasetFullPath) {
+    return Stream.of(
+            datasetFullPath.endsWith(QUOTES)
+                ? datasetFullPath.split(QUOTES)
+                : datasetFullPath.split("[.]"))
+        .reduce((first, second) -> second)
+        .get();
   }
 
   // To get custom datasetname in case of query on non reflection datasets.

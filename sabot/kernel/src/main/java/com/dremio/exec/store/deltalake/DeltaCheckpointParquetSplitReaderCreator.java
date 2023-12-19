@@ -136,7 +136,7 @@ public class DeltaCheckpointParquetSplitReaderCreator {
                     dataset,
                     parquetXAttr.getLastModificationTime(),
                     isArrowCachingEnabled,
-                    false, ParquetFilters.NONE, ParquetFilterCreator.DEFAULT);
+                    false, ParquetFilters.NONE, ParquetFilterCreator.DEFAULT, InputStreamProviderFactory.DEFAULT_NON_PARTITION_COLUMN_RF);
           rollbackCloseable.add(inputStreamProvider);
           lastFooter = inputStreamProvider.getFooter();
           lastPath = inputStreamProvider.getStreamPath().toString();
@@ -178,7 +178,7 @@ public class DeltaCheckpointParquetSplitReaderCreator {
                     false,
                     true,
                     inputStreamProvider,
-                    Collections.EMPTY_LIST
+                    InputStreamProviderFactory.DEFAULT_NON_PARTITION_COLUMN_RF
             );
             unifiedParquetReader.setIgnoreSchemaLearning(true);
             final CompositeReaderConfig readerConfig = CompositeReaderConfig.getCompound(opCtx, parquetSubScanConfig.getFullSchema(),

@@ -142,7 +142,7 @@ public class TestArrowFormatPlugin extends PlanTestBase {
 
     String query = "SELECT t.a.\"Tuesday\" as col FROM TABLE(dfs_test.complexPpd(type => 'arrow')) as t";
 
-    testPlanMatchingPatterns(query, new String[]{"columns=\\[`a`.`Tuesday`\\]"}, null);
+    testPlanMatchingPatterns(query, new String[]{"columns=\\[`a`\\]"}, null);
 
     testBuilder()
         .unOrdered()
@@ -162,7 +162,7 @@ public class TestArrowFormatPlugin extends PlanTestBase {
 
     String query = "SELECT t.a[0].b as col FROM TABLE(dfs_test.complexPpd2(type => 'arrow')) as t";
 
-    testPlanMatchingPatterns(query, new String[]{"columns=\\[`a`\\[0\\].`b`\\]"}, null);
+    testPlanMatchingPatterns(query, new String[]{"columns=\\[`a`\\]"}, null);
 
     testBuilder()
         .unOrdered()

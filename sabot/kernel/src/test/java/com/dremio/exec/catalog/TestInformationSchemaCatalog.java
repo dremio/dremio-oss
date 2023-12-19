@@ -35,6 +35,7 @@ import com.dremio.service.catalog.View;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.namespace.NamespaceTestUtils;
+import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.test.DremioTest;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
@@ -64,7 +65,7 @@ public class TestInformationSchemaCatalog {
     kvStoreProvider = LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
     kvStoreProvider.start();
 
-    namespaceService = new NamespaceServiceImpl(kvStoreProvider);
+    namespaceService = new NamespaceServiceImpl(kvStoreProvider, new CatalogStatusEventsImpl());
 
     NamespaceTestUtils.addSource(namespaceService, SOURCE);
     NamespaceTestUtils.addSpace(namespaceService, EMPTYSPACE);

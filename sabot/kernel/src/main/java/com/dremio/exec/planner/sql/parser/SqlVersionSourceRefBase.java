@@ -15,27 +15,36 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import java.time.Instant;
+
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlLiteral;
+import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
+import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
+
 /**
- * Base class that contains a reference (by type and value), as well as the
- * underlying versioned source name.
+ * Base class that contains a reference (by type and value), an optional
+ * requested timestamp, and an optional versioned source name.
  */
 public abstract class SqlVersionSourceRefBase extends SqlVersionBase {
 
   private final ReferenceType refType;
   private final SqlIdentifier refValue;
+  private final SqlNode timestamp;
 
   protected SqlVersionSourceRefBase(
       SqlParserPos pos,
       SqlIdentifier sourceName,
       ReferenceType refType,
-      SqlIdentifier refValue) {
+      SqlIdentifier refValue,
+      SqlNode timestamp) {
     super(pos, sourceName);
     this.refType = refType;
     this.refValue = refValue;
+    this.timestamp = timestamp;
   }
 
   public ReferenceType getRefType() {
@@ -46,12 +55,26 @@ public abstract class SqlVersionSourceRefBase extends SqlVersionBase {
     return refValue;
   }
 
+  public Instant getTimestamp() {
+    if (timestamp == null) {
+      return null;
+    }
+    return Instant.ofEpochMilli(SqlHandlerUtil.convertToTimeInMillis(((SqlLiteral) timestamp).getValueAs(String.class), timestamp.getParserPosition()));
+  }
+
+  public SqlNode getTimestampAsSqlNode() { return timestamp; }
+
   public void unparseRef(SqlWriter writer, int leftPrec, int rightPrec, String prefix) {
     if (refType != null && refValue != null) {
       writer.keyword(prefix);
       writer.keyword(getRefType().toString());
       getRefValue().unparse(writer, leftPrec, rightPrec);
+
+      if (timestamp != null) {
+        writer.keyword("AS");
+        writer.keyword("OF");
+        writer.keyword(getTimestamp().toString());
+      }
     }
   }
-
 }

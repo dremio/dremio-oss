@@ -15,6 +15,9 @@
  */
 package com.dremio.exec.planner.sql.handlers.direct;
 
+import static com.dremio.exec.planner.sql.parser.SqlCreateEmptyTable.getPartitionTransformsFromSqlNodeList;
+
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +40,7 @@ import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.ops.ReflectionContext;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
+import com.dremio.exec.planner.sql.PartitionTransform;
 import com.dremio.exec.planner.sql.SchemaUtilities;
 import com.dremio.exec.planner.sql.SchemaUtilities.TableWithPath;
 import com.dremio.exec.planner.sql.parser.SqlCreateReflection;
@@ -87,6 +91,16 @@ public class AccelCreateReflectionHandler extends SimpleDirectHandler {
       name = "Unnamed-" + ThreadLocalRandom.current().nextLong();
     }
 
+    List<PartitionTransform> partitionTransformList = getPartitionTransformsFromSqlNodeList(addLayout.getPartitionList());
+    //qualify all columns in partitionTransformList, otherwise they might be the wrong upper/lower case
+    //qualify fixes the case by following the upper/lower case of the table column itself
+    for(int i = 0; i < partitionTransformList.size(); i++){
+      List<String> colList = new ArrayList<>();
+      colList.add(partitionTransformList.get(i).getColumnName());
+      List<String> qualifiedName = table.qualifyColumns(colList);
+      partitionTransformList.set(i,PartitionTransform.withColumnName(qualifiedName.get(0),partitionTransformList.get(i)));
+    }
+
     final LayoutDefinition layout = new LayoutDefinition(name,
         addLayout.isRaw() ? LayoutDefinition.Type.RAW : LayoutDefinition.Type.AGGREGATE,
         table.qualifyColumns(addLayout.getDisplayList()),
@@ -96,7 +110,7 @@ public class AccelCreateReflectionHandler extends SimpleDirectHandler {
           optionManager.getOption(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT)),
         table.qualifyColumns(addLayout.getSortList()),
         table.qualifyColumns(addLayout.getDistributionList()),
-        table.qualifyColumns(addLayout.getPartitionList()),
+        partitionTransformList,
         addLayout.getArrowCachingEnabled(),
         addLayout.getPartitionDistributionStrategy()
     );

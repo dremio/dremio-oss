@@ -237,6 +237,9 @@ public class ScanOperatorTest {
         int probeOpId = 131074;
         int buildOpId = 65541;
         ArrowBuf[] bufs = new ArrowBuf[] {oobMessageBuf};
+        ArrayList<Integer> bufferLengths = new ArrayList<>();
+        bufferLengths.add((int)filter.getPartitionColumnFilter().getSizeBytes());
+        filter.getNonPartitionColumnFilterList().forEach(v -> bufferLengths.add((int)v.getSizeBytes()));
         return new OutOfBandMessage(
                 UserBitShared.QueryId.newBuilder().build(),
                 probeScanId,
@@ -247,6 +250,7 @@ public class ScanOperatorTest {
                 buildOpId,
                 new OutOfBandMessage.Payload(filter),
                 bufs,
+                bufferLengths,
                 false);
     }
 

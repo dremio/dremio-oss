@@ -66,11 +66,13 @@ public class MemoryTaskAndShrinkableOperator {
   @Override
   public String toString() {
     if (stringToDisplay == null) {
-      StringBuffer buffer = new StringBuffer();
+      final StringBuffer buffer = new StringBuffer();
       buffer
         .append(memoryArbiterTask.getTaskId())
         .append(":")
-        .append(shrinkableOperator.getOperatorId());
+        .append(shrinkableOperator.getOperatorId())
+        .append("(shrinkable memory: ").append(shrinkableOperator.shrinkableMemory()).append(")")
+        .append("(operator state: ").append(shrinkableOperator.getOperatorStateToPrint()).append(")");
       stringToDisplay = buffer.toString();
     }
 

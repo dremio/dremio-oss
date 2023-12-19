@@ -20,8 +20,8 @@ import java.util.concurrent.TimeUnit;
 
 import javax.inject.Provider;
 
+import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
-import com.dremio.exec.catalog.CatalogEntityKey;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.EntityExplorer;
 import com.dremio.exec.store.CatalogService;

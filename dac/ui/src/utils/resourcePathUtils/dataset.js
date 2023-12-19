@@ -21,13 +21,6 @@ class DatasetResourcePathUtils {
     return parts[2];
   }
 
-  toSQLpath(fullPathList) {
-    // will be changed when will fixed backend bug
-    return fullPathList.reduce((parent, child, i) =>
-      i === 1 ? `\`${parent}\`.${child}` : `${parent}.${child}`
-    );
-  }
-
   toHref(resourcePath) {
     const fullPath = this.toFullPath(resourcePath);
     const pathParts = fullPath.split(".");

@@ -36,12 +36,12 @@ import org.junit.Test;
 
 import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
-import com.dremio.exec.server.options.DefaultOptionManager;
-import com.dremio.exec.server.options.OptionManagerWrapper;
 import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValue;
+import com.dremio.options.impl.DefaultOptionManager;
+import com.dremio.options.impl.OptionManagerWrapper;
 import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.test.DremioTest;
 

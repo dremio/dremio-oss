@@ -29,6 +29,7 @@ import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.planner.CachedAccelDetails;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
+import com.dremio.exec.planner.acceleration.RelWithInfo;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.physical.Prel;
@@ -87,6 +88,16 @@ public class DelegatingAttemptObserver implements AttemptObserver {
     observer.planConvertedToRel(converted, millisTaken);
   }
 
+  /**
+   * Gets the refresh decision and how long it took to make the refresh decision
+   * @param text A string describing if we decided to do full or incremental refresh
+   * @param millisTaken time taken in planning the refresh decision
+   */
+  @Override
+  public void planRefreshDecision(String text, long millisTaken){
+    observer.planRefreshDecision(text, millisTaken);
+  }
+
   @Override
   public void planConvertedScan(RelNode converted, long millisTaken) {
     observer.planConvertedScan(converted, millisTaken);
@@ -134,13 +145,18 @@ public class DelegatingAttemptObserver implements AttemptObserver {
   }
 
   @Override
-  public void planNormalized(long millisTaken, List<RelNode> normalizedQueryPlans) {
+  public void planNormalized(long millisTaken, List<RelWithInfo> normalizedQueryPlans) {
     observer.planNormalized(millisTaken, normalizedQueryPlans);
   }
 
   @Override
-  public void planSubstituted(DremioMaterialization materialization, List<RelNode> substitutions,
-    RelNode target, long millisTaken, boolean defaultReflection) {
+  public void planSubstituted(long millisTaken) {
+    observer.planSubstituted(millisTaken);
+  }
+
+  @Override
+  public void planSubstituted(DremioMaterialization materialization, List<RelWithInfo> substitutions,
+                              RelWithInfo target, long millisTaken, boolean defaultReflection) {
     observer.planSubstituted(materialization, substitutions, target, millisTaken,
       defaultReflection);
   }

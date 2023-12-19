@@ -45,7 +45,19 @@ import com.google.protobuf.InvalidProtocolBufferException;
 
 @Options
 public interface FileDatasetHandle extends DatasetTypeHandle {
+  /**
+   * Default max files for all file formats
+   */
   TypeValidators.LongValidator DFS_MAX_FILES = new TypeValidators.RangeLongValidator("dremio.store.dfs.max_files", 1L, Integer.MAX_VALUE, 20000000L);
+  /**
+   * Max files supported for Excel datasets
+   */
+  TypeValidators.LongValidator DFS_MAX_EXCEL_FILES = new TypeValidators.RangeLongValidator("dremio.store.dfs.max_excel_files", 1L, Integer.MAX_VALUE, 10_000L);
+  /**
+   * Max files supported for Arrow datasets
+   */
+  TypeValidators.LongValidator DFS_MAX_ARROW_FILES = new TypeValidators.RangeLongValidator("dremio.store.dfs.max_arrow_files", 1L, Integer.MAX_VALUE, 10_000L);
+
   final Logger logger = LoggerFactory.getLogger(FileDatasetHandle.class);
 
   DatasetMetadata getDatasetMetadata(GetMetadataOption... options) throws ConnectorException;
@@ -59,18 +71,19 @@ public interface FileDatasetHandle extends DatasetTypeHandle {
    *
    * @param datasetName         The name of the dataset being tested for too many files.
    * @param numFilesInDirectory The number of actual files in the dataset.
-   * @param context             The context the check is being run within.
-   * @param isInternal          Flag to indicate if the check is being done with an internal source such as the AccelerationStoragePlugin.
+   * @param maxFiles            The maximum number of files supported
    */
-  static void checkMaxFiles(String datasetName, int numFilesInDirectory, SabotContext context, boolean isInternal) throws FileCountTooLargeException {
-    if (!isInternal) {
-      final int maxFiles = getMaxFilesLimit(context);
-      if (numFilesInDirectory > maxFiles) {
-        throw new FileCountTooLargeException(datasetName, numFilesInDirectory, maxFiles);
-      }
+  static void checkMaxFiles(String datasetName, int numFilesInDirectory, int maxFiles) throws FileCountTooLargeException {
+    if (numFilesInDirectory > maxFiles) {
+      throw new FileCountTooLargeException(datasetName, numFilesInDirectory, maxFiles);
     }
   }
 
+  /**
+   * Every FormatPlugin has a different limit for the max files supported
+   *
+   * Please use that method instead - this is intended to be used only when the FormatPlugin is not known
+   */
   static int getMaxFilesLimit(SabotContext context) {
     return Math.toIntExact(context.getOptionManager().getOption(FileDatasetHandle.DFS_MAX_FILES));
   }

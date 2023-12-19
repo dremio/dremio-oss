@@ -19,6 +19,7 @@ import javax.annotation.Nullable;
 
 import org.immutables.value.Value;
 
+import com.dremio.catalog.model.ResolvedVersionContext;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 

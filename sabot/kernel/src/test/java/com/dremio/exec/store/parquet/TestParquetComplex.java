@@ -344,8 +344,8 @@ public class TestParquetComplex extends BaseTestQuery {
       .ordered()
       .baselineColumns("intcol", "bigintcol", "floatcol", "doublecol", "decimalcol",
         "charcol", "varcharcol", "stringcol", "datecol", "timestampcol")
-      .baselineValues(new Integer(4), new Long(4), new Float("4.4"),
-        new Double("4.4"), new BigDecimal("4"), "d", "d", "d", null, null)
+      .baselineValues(4, 4L, 4.4F,
+        4.4D, new BigDecimal("4"), "d", "d", "d", null, null)
       .build()
       .run();
   }

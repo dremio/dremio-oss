@@ -37,12 +37,14 @@ export function showUnsavedChangesConfirmDialog({ text, confirm }) {
   return (dispatch) =>
     dispatch(
       showConfirmationDialog({
-        title: la("Unsaved Changes"),
-        confirmText: la("Leave"),
-        cancelText: la("Stay"),
+        title: laDeprecated("Unsaved Changes"),
+        confirmText: laDeprecated("Leave"),
+        cancelText: laDeprecated("Stay"),
         text:
           text ||
-          la("You have unsaved changes. Are you sure you want to leave?"),
+          laDeprecated(
+            "You have unsaved changes. Are you sure you want to leave?"
+          ),
         confirm,
         isCentered: true, // This is so that the modal header doesn't overlap with the modal header of the form.
       })
@@ -53,14 +55,14 @@ export function showConflictConfirmationDialog({ text, confirm } = {}) {
   return (dispatch) =>
     dispatch(
       showConfirmationDialog({
-        title: la("Configuration Modified"),
+        title: laDeprecated("Configuration Modified"),
         text:
           text ||
-          la(
+          laDeprecated(
             "This configuration has been modified. To continue, Dremio must update to the latest configuration."
           ),
         hideCancelButton: true,
-        confirmText: la("Update"),
+        confirmText: laDeprecated("Update"),
         showOnlyConfirm: true,
         confirm,
       })
@@ -71,9 +73,9 @@ export function showClearReflectionDialog({ confirm, reflectionName } = {}) {
   return (dispatch) =>
     dispatch(
       showConfirmationDialog({
-        title: la("Remove Reflection"),
-        confirmText: la("Remove"),
-        text: la(
+        title: laDeprecated("Remove Reflection"),
+        confirmText: laDeprecated("Remove"),
+        text: laDeprecated(
           `Are you sure you want to remove Reflection “${reflectionName}”?`
         ), // todo: sub loc
         confirm,

@@ -15,11 +15,10 @@
  */
 package com.dremio.services.nessie.grpc.client.impl;
 
+import static com.dremio.services.nessie.grpc.GrpcExceptionMapper.handle;
 import static com.dremio.services.nessie.grpc.ProtoUtil.fromProto;
 import static com.dremio.services.nessie.grpc.ProtoUtil.toProto;
-import static com.dremio.services.nessie.grpc.client.GrpcExceptionMapper.handle;
 
-import org.projectnessie.api.v1.params.ImmutableTransplant;
 import org.projectnessie.client.api.TransplantCommitsBuilder;
 import org.projectnessie.client.builder.BaseTransplantCommitsBuilder;
 import org.projectnessie.error.NessieConflictException;
@@ -45,26 +44,11 @@ final class GrpcTransplantCommits extends BaseTransplantCommitsBuilder {
 
   @Override
   public MergeResponse transplant() throws NessieNotFoundException, NessieConflictException {
-    ImmutableTransplant.Builder transplant =
-      ImmutableTransplant.builder()
-        .fromRefName(fromRefName)
-        .hashesToTransplant(hashesToTransplant)
-        .isDryRun(dryRun)
-        .isReturnConflictAsResult(returnConflictAsResult)
-        .isFetchAdditionalInfo(fetchAdditionalInfo)
-        .keepIndividualCommits(keepIndividualCommits);
-
-    if (defaultMergeMode != null) {
-      transplant.defaultKeyMergeMode(defaultMergeMode);
-    }
-
-    if (mergeModes != null) {
-      transplant.keyMergeModes(mergeModes.values());
-    }
-
     return handle(
       () -> fromProto(
         stub.transplantCommitsIntoBranch(
-          toProto(branchName, hash, message, transplant.build()))));
+          toProto(branchName, hash, message, fromRefName, hashesToTransplant, keepIndividualCommits, dryRun,
+            returnConflictAsResult, fetchAdditionalInfo, defaultMergeMode,
+            mergeModes == null ? null : mergeModes.values()))));
   }
 }

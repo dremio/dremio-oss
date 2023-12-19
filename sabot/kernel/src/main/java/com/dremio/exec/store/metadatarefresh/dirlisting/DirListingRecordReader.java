@@ -31,10 +31,12 @@ import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
+import org.apache.commons.lang3.StringUtils;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.Retryer;
 import com.dremio.common.utils.PathUtils;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.iceberg.IcebergPartitionData;
@@ -100,6 +102,8 @@ public class DirListingRecordReader implements RecordReader {
   private boolean hasVersion;
   private boolean hasFiles;
   private List<String> files;
+  private String globPattern;
+  private final boolean excludeFutureModTimes;
 
   //Output Vectors
   private BigIntVector mtimeVector;
@@ -132,6 +136,7 @@ public class DirListingRecordReader implements RecordReader {
     if(this.hasFiles) {
       this.files = dirListInputSplit.getFilesList();
     }
+    this.globPattern = dirListInputSplit.getGlobPattern();
     this.isRecursive = isRecursive;
     this.discoverPartitions = discoverPartitions;
     this.maxBatchSize = context.getTargetBatchSize();
@@ -140,6 +145,7 @@ public class DirListingRecordReader implements RecordReader {
       currPartitionInfo = IcebergSerDe.partitionValueToIcebergPartition(partitionValues, tableSchema);
     }
     partitionParser = PartitionParser.getInstance(rootPath, inferPartitions);
+    this.excludeFutureModTimes = context.getOptions().getOption(ExecConstants.DIR_LISTING_EXCLUDE_FUTURE_MOD_TIMES);
     logger.debug(String.format("Initialized DirListRecordReader with configs %s", this));
   }
 
@@ -166,16 +172,20 @@ public class DirListingRecordReader implements RecordReader {
 
   @Override
   public int next() {
+    return nextBatch(0, batchSize);
+  }
+
+  public int nextBatch(int startOutIndex, int maxOutIndex) {
     //Default value will never be used.
-    int generatedRecords = 0;
+    int generatedRecords = startOutIndex;
     try {
-      generatedRecords = iterateDirectory();
+      generatedRecords = iterateDirectory(startOutIndex, maxOutIndex);
     } catch (RuntimeException | IOException e) {
       boolean hasExceptionHandled = true;
       String errorMessage = "Failed to list files of directory " + operatingPath.toString();
       if (isRateLimitingException(e)) {
         try {
-          generatedRecords = retryer.call(() -> iterateDirectory());
+          generatedRecords = retryer.call(() -> iterateDirectory(startOutIndex, maxOutIndex));
         } catch (Retryer.OperationFailedAfterRetriesException retriesException) {
           hasExceptionHandled = false;
           errorMessage = "With retry attempt failed to list files of directory " + operatingPath.toString();
@@ -198,7 +208,7 @@ public class DirListingRecordReader implements RecordReader {
     outgoing.getVectors().forEach(valueVector -> valueVector.setValueCount(finalGeneratedRecords));
 
     logger.debug("Directory listing record reader finished. Output Records = {}", generatedRecords);
-    return generatedRecords;
+    return finalGeneratedRecords - startOutIndex;
   }
 
   @Override
@@ -217,17 +227,29 @@ public class DirListingRecordReader implements RecordReader {
   }
 
   protected int iterateDirectory() throws IOException {
-    int generatedRecords = 0;
+    return iterateDirectory(0, batchSize);
+  }
+
+  private int iterateDirectory(int outIndex, int maxIndex) throws IOException {
     logger.debug(String.format("Performing directory listing on path %s", rootPath));
-    while (dirIterator != null && generatedRecords < batchSize && dirIterator.hasNext()) {
+    while (dirIterator != null && outIndex < maxIndex && dirIterator.hasNext()) {
       FileAttributes attributes = dirIterator.next();
-      if (!attributes.isDirectory() && isValidPath(attributes.getPath()) && attributes.lastModifiedTime().toMillis() <= startTime) {
-        generatedRecords++;
+      if (!attributes.isDirectory() && isValidPath(attributes.getPath()) &&
+        (attributes.lastModifiedTime().toMillis() <= startTime || !excludeFutureModTimes)) {
         logger.debug(String.format("Add path %s to the output", attributes.getPath()));
-        addToOutput(attributes, generatedRecords - 1);
+        addToOutput(attributes, outIndex++);
+      } else {
+        if (excludeFutureModTimes && attributes.lastModifiedTime().toMillis() > startTime) {
+          logger.info("Excluding path {} - mod time {} is greater than query start time {}",
+            attributes.getPath(), attributes.lastModifiedTime().toMillis(), startTime);
+        } else if (!isValidPath(attributes.getPath())) {
+          logger.info("Excluding path {} - not a valid path", attributes.getPath());
+        } else {
+          logger.debug("Excluding path {} - is a directory", attributes.getPath());
+        }
       }
     }
-    return generatedRecords;
+    return outIndex;
   }
 
   @VisibleForTesting
@@ -242,12 +264,12 @@ public class DirListingRecordReader implements RecordReader {
       } else if(hasFiles) {
           dirIterator = getFilesIterator();
       } else {
-        dirIterator = fs.listFiles(operatingPath, isRecursive).iterator();
+        dirIterator = getPathIterator();
       }
     } catch (IOException e) {
       if (isRateLimitingException(e)) {
         try {
-          dirIterator = retryer.call(() -> fs.listFiles(operatingPath, isRecursive).iterator());
+          dirIterator = retryer.call(this::getPathIterator);
         } catch (Retryer.OperationFailedAfterRetriesException retriesException) {
           String retryErrorMessage = "Retry attempted ";
           if (e.getMessage() != null) {
@@ -277,6 +299,13 @@ public class DirListingRecordReader implements RecordReader {
           .build(logger);
       }
     });
+  }
+
+  private Iterator<FileAttributes> getPathIterator() throws IOException {
+    if (StringUtils.isNotEmpty(globPattern)) {
+      return fs.glob(operatingPath.resolve(globPattern), PathFilters.ALL_FILES).iterator();
+    }
+    return fs.listFiles(operatingPath, isRecursive).iterator();
   }
 
   private boolean isRateLimitingException(Exception e) {
@@ -323,8 +352,8 @@ public class DirListingRecordReader implements RecordReader {
   }
 
   private void addMtimeAndSize(FileAttributes fileStatus, int index) {
-    mtimeVector.set(index, fileStatus.lastModifiedTime().toMillis());
-    sizeVector.set(index, fileStatus.size());
+    mtimeVector.setSafe(index, fileStatus.lastModifiedTime().toMillis());
+    sizeVector.setSafe(index, fileStatus.size());
   }
 
   private void addPartitionInfo(FileAttributes fileStatus, int index) throws IOException {

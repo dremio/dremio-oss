@@ -27,6 +27,12 @@ import { PALE_GREY } from "uiTheme/radium/colors";
 import DatasetList from "components/DatasetList/DatasetList";
 import SearchDatasetsPopover from "@app/components/DatasetList/SearchDatasetsPopover";
 import exploreUtils from "@app/utils/explore/exploreUtils";
+import { compose } from "redux";
+import { withCatalogARSFlag } from "@inject/utils/arsUtils";
+import { getHomeSource, getSortedSources } from "@app/selectors/home";
+import { clearResourceTree } from "@app/actions/resources/tree";
+import { TreeConfigContext } from "@app/components/Tree/treeConfigContext";
+import { defaultConfigContext } from "@app/components/Tree/treeConfigContext";
 
 export const PARENTS_TAB = "PARENTS_TAB";
 export const BROWSE_TAB = "BROWSE_TAB";
@@ -53,6 +59,12 @@ export class DatasetsPanel extends Component {
     intl: PropTypes.object.isRequired,
     insertFullPathAtCursor: PropTypes.func,
     location: PropTypes.object,
+    isArsEnabled: PropTypes.bool,
+    isArsLoading: PropTypes.bool,
+    homeSource: PropTypes.any,
+    clearResourceTree: PropTypes.func,
+    isSourcesLoading: PropTypes.bool,
+    handleDatasetDetails: PropTypes.func,
   };
 
   static contextTypes = {
@@ -90,12 +102,17 @@ export class DatasetsPanel extends Component {
     };
   }
 
-  componentWillMount() {
+  UNSAFE_componentWillMount() {
     this.receiveProps(this.props, {});
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     this.receiveProps(nextProps, this.props);
+  }
+
+  // Workaround for double-fetch bug that has existed for a while when exiting->entering sql runner page
+  componentWillUnmount() {
+    this.props.clearResourceTree();
   }
 
   getActiveTabId() {
@@ -170,6 +187,11 @@ export class DatasetsPanel extends Component {
       location,
       handleSidebarCollapse,
       sidebarCollapsed,
+      homeSource,
+      isArsEnabled,
+      isArsLoading,
+      isSourcesLoading,
+      handleDatasetDetails,
     } = this.props;
 
     switch (activeTabId) {
@@ -193,11 +215,20 @@ export class DatasetsPanel extends Component {
           />
         );
       case BROWSE_TAB:
+        if (isArsLoading || isSourcesLoading) return null; // Don't show tree until spaces filtered out and homeSource fetched
         return (
-          <>
+          <TreeConfigContext.Provider
+            value={{
+              ...defaultConfigContext,
+              handleDatasetDetails: handleDatasetDetails,
+            }}
+          >
             <ResourceTreeContainer
               style={{ minHeight: "initial", maxHeight: "initial" }}
-              preselectedNodeId={this.context.routeParams.resourceId}
+              preselectedNodeId={
+                // May want to eventually decouple the homeSource expansion from the preselectedNodeId
+                homeSource?.get("name") || this.context.routeParams.resourceId
+              }
               insertFullPathAtCursor={insertFullPathAtCursor}
               dragType={dragType}
               isSqlEditorTab={exploreUtils.isSqlEditorTab(location)}
@@ -210,7 +241,7 @@ export class DatasetsPanel extends Component {
               shouldShowOverlay
               shouldAllowAdd
             />
-          </>
+          </TreeConfigContext.Provider>
         );
       default:
         throw new Error("unknown tab id");
@@ -239,12 +270,20 @@ export class DatasetsPanel extends Component {
 
 DatasetsPanel = injectIntl(DatasetsPanel);
 
-const mapStateToProps = (state) => ({
+const mapStateToProps = (state, { isArsEnabled }) => ({
+  isSourcesLoading:
+    getViewState(state, "AllSources")?.get("isInProgress") ?? true,
+  ...(isArsEnabled && {
+    homeSource: getHomeSource(getSortedSources(state)),
+  }),
   parentList: getParentList(state),
   parentListViewState: getViewState(state, PARENT_LIST_VIEW_ID),
 });
 
-export default connect(mapStateToProps, { loadParents })(DatasetsPanel);
+export default compose(
+  withCatalogARSFlag,
+  connect(mapStateToProps, { loadParents, clearResourceTree })
+)(DatasetsPanel);
 
 const styles = {
   datasetList: {

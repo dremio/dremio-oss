@@ -30,6 +30,7 @@ import com.google.common.io.Resources;
 public class TestParquetScan extends BaseTestQuery {
 
   static FileSystem fs;
+  private static final String DISABLE_VECTORIZED_READ = "alter system set \"store.parquet.vectorize\" = %s";
 
   @BeforeClass
   public static void initFs() throws Exception {
@@ -271,4 +272,16 @@ public class TestParquetScan extends BaseTestQuery {
       .build()
       .run();
   }
+
+  @Test
+  public void testParquetRecordReaderWithPruning() throws Exception {
+    testBuilder()
+            .optionSettingQueriesForTestQuery(DISABLE_VECTORIZED_READ, false)
+            .sqlQuery("select int_col c from cp.\"parquet/alltypes_required.parquet\" where int_col > 1")
+            .unOrdered()
+            .expectsEmptyResultSet()
+            .build()
+            .run();
+  }
+
 }

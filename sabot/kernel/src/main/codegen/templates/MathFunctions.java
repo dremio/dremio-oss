@@ -87,7 +87,7 @@ public class GMathFunctions{
   <#list mathFunc.binaryMathFunctions as func>
   <#list func.types as type>
 
-  @FunctionTemplate(name = "${func.funcName}", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  @FunctionTemplate(<#if func.funcAlias ??>names = { "${func.funcName}", "${func.funcAlias}" }<#else>name = "${func.funcName}"</#if>, scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class ${func.className}${type.input} implements SimpleFunction {
 
     @Param ${type.input}Holder input1;
@@ -239,8 +239,6 @@ public static class ${func.className}${type.input} implements SimpleFunction {
 }
 </#list>
 </#list>
-
-
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -321,6 +319,26 @@ public class TrigoMathFunctions{
 
     public void eval() {
       out.value = ${func.javaFunc}(in1.value, in2.value);
+    }
+  }
+ </#list>
+ </#list>
+
+  <#list mathFunc.dualOpWithCast as func>
+  <#list func.types as type>
+
+  @FunctionTemplate(name = "${func.funcName}", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  public static class ${func.className}${type.input} implements SimpleFunction {
+
+    @Param ${type.input}Holder in1;
+    @Param ${type.input}Holder in2;
+    @Output ${type.output}Holder out;
+
+    public void setup() {
+    }
+
+    public void eval() {
+      out.value = (${type.cast})${func.javaFunc}((${func.callType})in1.value, (${func.callType})in2.value);
     }
   }
  </#list>

@@ -30,6 +30,7 @@ export default function (object, functions) {
         return (this[symbol] = this[symbol] || value.bind(this));
       },
       set(newValue) {
+        // eslint-disable-next-line no-setter-return
         return (this[symbol] = newValue);
       },
     });

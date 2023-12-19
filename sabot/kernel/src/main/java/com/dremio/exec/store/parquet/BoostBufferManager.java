@@ -183,7 +183,7 @@ public class BoostBufferManager {
       new ArrowFormatPluginConfig(), HadoopFileSystem.get(spillDirectory.getFileSystem()));
 
     RecordWriter.WriteStatsListener byteCountListener = (b) -> {};
-    RecordWriter.OutputEntryListener fileWriteListener = (a, b, c, d, e, f, g, partition, h) -> {};
+    RecordWriter.OutputEntryListener fileWriteListener = (a, b, c, d, e, f, g, partition, h, p, r) -> {};
 
     writer.setup(container, fileWriteListener, byteCountListener);
   }

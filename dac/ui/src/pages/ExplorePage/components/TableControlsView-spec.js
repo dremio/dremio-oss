@@ -16,7 +16,7 @@
 import { shallow } from "enzyme";
 import Immutable from "immutable";
 
-import TableControlsView from "./TableControlsView";
+import { TableControlsView } from "./TableControlsView";
 
 describe("TableControlsView", () => {
   let commonProps;

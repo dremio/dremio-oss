@@ -24,11 +24,14 @@ import static org.junit.Assert.fail;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -36,11 +39,15 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.RemoteIterator;
+import org.apache.parquet.format.PageHeader;
+import org.apache.parquet.format.PageType;
+import org.apache.parquet.format.Util;
 import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.hadoop.util.PageHeaderUtil;
 import org.joda.time.Period;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -733,7 +740,13 @@ public class TestParquetWriter extends BaseTestQuery {
     runTestAndValidate(selection, validationSelection, inputTable, outputFile, sort, false);
   }
 
-  public void runTestAndValidate(String selection, String validationSelection, String inputTable, String outputFile, boolean sort, boolean keepOutput) throws Exception {
+  public void runTestAndValidate(String selection, String validationSelection, String inputTable, String outputFile,
+    boolean sort, boolean keepOutput) throws Exception {
+    runTestAndValidate(selection, validationSelection, inputTable, outputFile, sort, keepOutput, file -> {});
+  }
+
+  public void runTestAndValidate(String selection, String validationSelection, String inputTable, String outputFile,
+    boolean sort, boolean keepOutput, Consumer<Path> fileValidator) throws Exception {
     try {
       deleteTableIfExists(outputFile);
       test("use dfs_test");
@@ -758,6 +771,7 @@ public class TestParquetWriter extends BaseTestQuery {
         String version = footer.getFileMetaData().getKeyValueMetaData().get(DREMIO_VERSION_PROPERTY);
         assertEquals(DremioVersionInfo.getVersion(), version);
         PageHeaderUtil.validatePageHeaders(file.getPath(), footer);
+        fileValidator.accept(file.getPath());
       }
     } finally {
       if (!keepOutput) {
@@ -908,5 +922,41 @@ public class TestParquetWriter extends BaseTestQuery {
             .sqlQuery(query, parquetTable)
             .sqlBaselineQuery(query, jsonFile)
             .go();
+  }
+
+  @Test
+  public void testWriterVersionV1() throws Exception {
+    // Parquet writer version "v1" is currently the default; no additional setting is required
+    runTestAndValidateFirstPageType(PageType.DATA_PAGE);
+  }
+
+  @Test
+  public void testWriterVersionV2() throws Exception {
+    try {
+      test(String.format("ALTER SESSION SET %s = 'v2'", ExecConstants.PARQUET_WRITER_VERSION.getOptionName()));
+      runTestAndValidateFirstPageType(PageType.DATA_PAGE_V2);
+    } finally {
+      test(String.format("ALTER SESSION RESET %s", ExecConstants.PARQUET_WRITER_VERSION.getOptionName()));
+    }
+  }
+
+  private void runTestAndValidateFirstPageType(PageType pageType) throws Exception {
+    try {
+      // Disable dictionary encoding, so we can check the data page type
+      test(String.format("ALTER SESSION SET %s = false", ExecConstants.PARQUET_WRITER_ENABLE_DICTIONARY_ENCODING));
+
+      runTestAndValidate("*", "*", "cp.\"donuts.json\"", "testParquetWriterVersion_donuts_json_" + pageType.name(),
+        false, false, file -> {
+        try (InputStream is = file.getFileSystem(new Configuration()).open(file)) {
+          is.skip(4L); // Skip magic header
+          PageHeader pageHeader = Util.readPageHeader(is);
+          Assert.assertEquals(pageType, pageHeader.getType());
+        } catch (IOException e) {
+          throw new UncheckedIOException(e);
+        }
+      });
+    } finally {
+      test(String.format("ALTER SESSION RESET %s", ExecConstants.PARQUET_WRITER_ENABLE_DICTIONARY_ENCODING));
+    }
   }
 }

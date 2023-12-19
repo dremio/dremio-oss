@@ -25,7 +25,6 @@ import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
-import com.dremio.exec.expr.annotations.Workspace;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
 
 public class ArrayContains {
@@ -37,15 +36,15 @@ public class ArrayContains {
     @Param(constant = true) private FieldReader value;
     @Output private NullableBitHolder out;
     @Inject private FunctionErrorContext errCtx;
-    @Workspace private Object inputValue;
 
     @Override
     public void setup() {
-      inputValue = value.readObject();
     }
 
     @Override
     public void eval() {
+      Object inputValue = value.readObject();
+
       if (!in.isSet() || in.readObject() == null || inputValue == null) {
         out.isSet = 0;
         return;

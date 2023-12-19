@@ -37,7 +37,7 @@ public class MapFunctions {
 
   public static final String LAST_MATCHING_ENTRY_FUNC = "last_matching_map_entry_for_key";
 
-  @FunctionTemplate(names = {"map_keys"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, isDeterministic = false, derivation = ListOfKeys.class)
+  @FunctionTemplate(names = {"map_keys"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, derivation = ListOfKeys.class)
   public static class GetMapKeys implements SimpleFunction {
     @Param
     FieldReader input;
@@ -61,7 +61,7 @@ public class MapFunctions {
     }
   }
 
-  @FunctionTemplate(names = {"map_values"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, isDeterministic = false, derivation = ListOfValues.class)
+  @FunctionTemplate(names = {"map_values"}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, derivation = ListOfValues.class)
   public static class GetMapValues implements SimpleFunction {
     @Param
     FieldReader input;

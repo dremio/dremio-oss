@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 import { Component } from "react";
+import { connect } from "react-redux";
 import Immutable from "immutable";
 import PropTypes from "prop-types";
 import { get } from "lodash/object";
@@ -36,6 +37,12 @@ import {
   findAllMeasureTypes,
   getDefaultMeasureTypes,
 } from "utils/accelerationUtils";
+import { getSupportFlags } from "@app/selectors/supportFlags";
+import { ALLOW_REFLECTION_PARTITION_TRANFORMS } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
+import {
+  PartitionTransformations,
+  ReflectionDataType,
+} from "dremio-ui-common/sonar/reflections/ReflectionDataTypes.js";
 
 // AccelerationGridController is used for behavior definition cells on Raw/Aggregation
 // Aggregation:
@@ -50,13 +57,15 @@ import {
 // In Raw mode: at least one display per layout is required
 
 @AccelerationGridControllerMixin
-class AccelerationGridController extends Component {
+export class AccelerationGridController extends Component {
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map).isRequired,
     reflections: PropTypes.instanceOf(Immutable.Map).isRequired,
     layoutFields: PropTypes.array,
     activeTab: PropTypes.string,
     canAlter: PropTypes.any,
+    allowPartitionTransform: PropTypes.bool,
+    loadingRecommendations: PropTypes.bool,
   };
 
   state = {
@@ -103,7 +112,10 @@ class AccelerationGridController extends Component {
     }
 
     return this.props.layoutFields[colIndex][field].findIndex((col) => {
-      if (col.name && col.name.value === currentColumn.name) {
+      if (
+        col.name &&
+        (col.name.value?.name ?? col.name.value) === currentColumn.name
+      ) {
         return true;
       }
     });
@@ -118,7 +130,7 @@ class AccelerationGridController extends Component {
     return (
       layoutFields[columnIndex] &&
       layoutFields[columnIndex][field].find(
-        (col) => col.name.value === currentColumn.name
+        (col) => (col.name.value.name ?? col.name.value) === currentColumn.name
       )
     );
   };
@@ -171,6 +183,50 @@ class AccelerationGridController extends Component {
     }
   };
 
+  findPartitionIndex = (updatedRow, columnIndex) => {
+    const { layoutFields } = this.props;
+
+    const allPartitions = layoutFields[columnIndex][fieldTypes.partition];
+
+    for (const [index, partition] of allPartitions.entries()) {
+      const curPartitionName =
+        partition.name.value.name ?? partition.name.value;
+
+      if (curPartitionName === (updatedRow.name.name ?? updatedRow.name)) {
+        return index;
+      }
+    }
+
+    return -1;
+  };
+
+  updatePartitionTransformationField = (updatedRow, columnIndex) => {
+    const { layoutFields } = this.props;
+
+    const partitionIndex = this.findPartitionIndex(updatedRow, columnIndex);
+
+    if (partitionIndex !== -1) {
+      layoutFields[columnIndex][fieldTypes.partition].removeField(
+        partitionIndex
+      );
+    }
+
+    layoutFields[columnIndex][fieldTypes.partition].addField(updatedRow);
+  };
+
+  applyPartitionRecommendations = (columnIndex, partitionRecommendations) => {
+    const { layoutFields } = this.props;
+
+    const partitionFields = layoutFields[columnIndex][fieldTypes.partition];
+
+    partitionFields.forEach(() => partitionFields.removeField());
+
+    partitionRecommendations.forEach((partitionRecommendation) => {
+      partitionFields.addField({ name: { ...partitionRecommendation } });
+      this.applyRecommendationConstraints(columnIndex, partitionRecommendation);
+    });
+  };
+
   getFieldTypeByFieldName = (fieldName) => {
     const { dataset } = this.props;
     const allFieldTypes = dataset ? dataset.toJS().fields : [];
@@ -184,7 +240,49 @@ class AccelerationGridController extends Component {
     return this.getFieldTypeByFieldName(fieldName) === TIMESTAMP;
   };
 
+  // If a Dimension field's granularity is changed from Original -> Date we need to check if
+  // a partition transformation exists and reset it to IDENTITY if it was set to HOUR.
+  resetPartitionTransformationIfNeeded = (newValue, columnIndex, rowIndex) => {
+    const { layoutFields } = this.props;
+
+    const granularity = this.getColumnGranularity(rowIndex, columnIndex);
+
+    if (
+      granularity.alt === "Original" &&
+      newValue === ReflectionDataType.DATE
+    ) {
+      const currentRow = this.getRowByIndex(rowIndex);
+
+      const partitionIndex = this.findPartitionIndex(currentRow, columnIndex);
+
+      if (partitionIndex !== -1) {
+        const partition =
+          layoutFields[columnIndex][fieldTypes.partition][partitionIndex];
+
+        const partitionType = partition.name.value.transform?.type;
+
+        if (partitionType === PartitionTransformations.HOUR) {
+          layoutFields[columnIndex][fieldTypes.partition].removeField(
+            partitionIndex
+          );
+
+          layoutFields[columnIndex][fieldTypes.partition].addField(currentRow);
+        }
+      }
+    }
+  };
+
   setFieldGranularity = (newValue, columnIndex, rowIndex) => {
+    const { allowPartitionTransform } = this.props;
+
+    if (allowPartitionTransform) {
+      this.resetPartitionTransformationIfNeeded(
+        newValue,
+        columnIndex,
+        rowIndex
+      );
+    }
+
     const selectedField = this.findCurrentColumnInLayouts(
       fieldTypes.dimension,
       rowIndex,
@@ -341,6 +439,10 @@ class AccelerationGridController extends Component {
     this.applyConstraintsNext(field, columnIndex, rowIndex);
   };
 
+  handleOnPartitionMenuItem = (updatedRow, columnIndex) => {
+    this.updatePartitionTransformationField(updatedRow, columnIndex);
+  };
+
   applyConstraintsNext = (field, columnIndex, rowIndex) => {
     //addField and removeField work async so constraints should calculated on next run
     setTimeout(() => this.applyConstraints(field, columnIndex, rowIndex), 0);
@@ -402,6 +504,44 @@ class AccelerationGridController extends Component {
         this.removeFieldByIndex(currentRow, subField, columnIndex);
       }
     }
+  };
+
+  applyRecommendationConstraints = (columnIndex, partitionRecommendation) => {
+    const { activeTab } = this.props;
+
+    this.addFieldByIndex(
+      { name: partitionRecommendation.name },
+      activeTab === "raw" ? fieldTypes.display : fieldTypes.dimension,
+      columnIndex
+    );
+  };
+
+  // all Dimension fields have DATE granularity by default, but it should only be read for TIMESTAMP columns
+  getColumnGranularity = (rowIndex, columnIndex) => {
+    const { activeTab } = this.props;
+
+    const isRaw = activeTab === "raw";
+
+    let granularity;
+
+    if (!isRaw) {
+      const currentRow = this.getRowByIndex(rowIndex);
+
+      if (currentRow.type.name === ReflectionDataType.TIMESTAMP) {
+        const currentColumn = this.findCurrentColumnInLayouts(
+          fieldTypes.dimension,
+          rowIndex,
+          columnIndex
+        );
+
+        granularity =
+          get(currentColumn, "granularity.value") === granularityValue.normal
+            ? { code: "O", alt: "Original" }
+            : { code: "D", alt: "Date" }; //TODO i18n
+      }
+    }
+
+    return granularity;
   };
 
   renderCell = (fieldType, rowIndex, columnIndex) => {
@@ -549,6 +689,62 @@ class AccelerationGridController extends Component {
     );
   };
 
+  renderPartitionCell = (rowIndex, columnIndex) => {
+    const selectedField = this.findCurrentColumnInLayouts(
+      fieldTypes.partition,
+      rowIndex,
+      columnIndex
+    );
+
+    const currentRow = this.getRowByIndex(rowIndex);
+
+    const granularity = this.getColumnGranularity(rowIndex, columnIndex);
+
+    const onCheckClick = () =>
+      this.handleOnCheckboxItem(fieldTypes.partition, columnIndex, rowIndex);
+
+    const setPartitionTransformation = (transformType, count) => {
+      const updatedRow = { ...currentRow };
+
+      updatedRow.name = {
+        name: updatedRow.name,
+        transform: {
+          type: transformType,
+          ...(transformType === PartitionTransformations.BUCKET && {
+            bucketTransform: { bucketCount: count },
+          }),
+          ...(transformType === PartitionTransformations.TRUNCATE && {
+            truncateTransform: { truncateLength: count },
+          }),
+        },
+      };
+
+      this.handleOnPartitionMenuItem(updatedRow, columnIndex);
+    };
+
+    const isChecked = !!this.findCurrentColumnInLayouts(
+      fieldTypes.partition,
+      rowIndex,
+      columnIndex
+    );
+
+    const isLastCell = !this.shouldShowDistribution();
+
+    return (
+      <AccelerationGridSubCell
+        onClick={onCheckClick}
+        isChecked={isChecked}
+        altText="Partition transform"
+        currentRow={currentRow}
+        selectedField={selectedField}
+        granularity={granularity}
+        isLastCell={isLastCell}
+        setPartitionTransformation={setPartitionTransformation}
+        hasPermission={this.checkForPermissionToAlter()}
+      />
+    );
+  };
+
   /**
    * Render AccelerationGrid cell, whis is really a row of selected cell types from
    *   [display, dimension, measure, sort, partition, distribution]
@@ -557,7 +753,7 @@ class AccelerationGridController extends Component {
    * @return {*}
    */
   renderBodyCell = (rowIndex, columnIndex) => {
-    const { canAlter } = this.props;
+    const { allowPartitionTransform, canAlter } = this.props;
     const backgroundColor =
       rowIndex % 2 ? "--bgColor-advEnDark" : "--bgColor-advEnLight";
     const disabledBackgroundColor =
@@ -577,7 +773,9 @@ class AccelerationGridController extends Component {
         {!isRaw && this.renderDimensionCell(rowIndex, columnIndex)}
         {!isRaw && this.renderMeasureCell(rowIndex, columnIndex)}
         {this.renderSortCell(rowIndex, columnIndex)}
-        {this.renderCell(fieldTypes.partition, rowIndex, columnIndex)}
+        {allowPartitionTransform
+          ? this.renderPartitionCell(rowIndex, columnIndex)
+          : this.renderCell(fieldTypes.partition, rowIndex, columnIndex)}
         {showDistributionCell &&
           this.renderCell(fieldTypes.distribution, rowIndex, columnIndex)}
       </div>
@@ -585,8 +783,14 @@ class AccelerationGridController extends Component {
   };
 
   render() {
-    const { layoutFields, dataset, reflections, activeTab, canAlter } =
-      this.props;
+    const {
+      layoutFields,
+      dataset,
+      reflections,
+      activeTab,
+      canAlter,
+      loadingRecommendations,
+    } = this.props;
     const { columnIndex } = this.state.currentCell;
     const allColumns = dataset.get("fields");
     const columns = this.filterFieldList(allColumns);
@@ -597,12 +801,15 @@ class AccelerationGridController extends Component {
           activeTab={activeTab}
           renderBodyCell={this.renderBodyCell}
           columns={columns}
+          allColumns={allColumns}
           shouldShowDistribution={this.shouldShowDistribution()}
+          applyPartitionRecommendations={this.applyPartitionRecommendations}
           filter={this.state.filter}
           onFilterChange={this.onFilterChange}
           layoutFields={layoutFields}
           reflections={reflections}
           hasPermission={canAlter}
+          loadingRecommendations={loadingRecommendations}
         />
         <CellPopover
           currentCell={this.state.currentCell}
@@ -618,4 +825,12 @@ class AccelerationGridController extends Component {
     );
   }
 }
-export default AccelerationGridController;
+
+const mapStateToProps = (state) => {
+  return {
+    allowPartitionTransform:
+      getSupportFlags(state)[ALLOW_REFLECTION_PARTITION_TRANFORMS],
+  };
+};
+
+export default connect(mapStateToProps)(AccelerationGridController);

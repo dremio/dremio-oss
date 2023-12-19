@@ -34,6 +34,9 @@ public class RecordedStats implements Partition.Stats {
   private final long probeListTimeNanos;
   private final long probeCopyNanos;
   private final long probeUnmatchedKeyCount;
+  private final long evaluationCount;
+  private final long evaluationMatchedCount;
+  private final long evaluationSetupTimeNanos;
 
   RecordedStats() {
     buildNumEntries = 0;
@@ -54,6 +57,9 @@ public class RecordedStats implements Partition.Stats {
     probeListTimeNanos = 0;
     probeCopyNanos = 0;
     probeUnmatchedKeyCount = 0;
+    evaluationCount = 0;
+    evaluationMatchedCount = 0;
+    evaluationSetupTimeNanos = 0;
   }
 
   RecordedStats(Partition.Stats save) {
@@ -75,6 +81,9 @@ public class RecordedStats implements Partition.Stats {
     probeListTimeNanos = save.getProbeListTimeNanos();
     probeCopyNanos = save.getProbeCopyNanos();
     probeUnmatchedKeyCount = save.getProbeUnmatchedKeyCount();
+    evaluationCount = save.getEvaluationCount();
+    evaluationMatchedCount = save.getEvaluationMatchedCount();
+    evaluationSetupTimeNanos = save.getSetupNanos();
   }
 
   @Override
@@ -165,5 +174,20 @@ public class RecordedStats implements Partition.Stats {
   @Override
   public long getProbeUnmatchedKeyCount() {
     return probeUnmatchedKeyCount;
+  }
+
+  @Override
+  public long getEvaluationCount() {
+    return evaluationCount;
+  }
+
+  @Override
+  public long getEvaluationMatchedCount() {
+    return evaluationMatchedCount;
+  }
+
+  @Override
+  public long getSetupNanos() {
+    return evaluationSetupTimeNanos;
   }
 }

@@ -41,6 +41,7 @@ import com.dremio.connector.sample.SampleSourceMetadata;
 import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.LegacyIndexedStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
@@ -64,7 +65,7 @@ public class TestDatasetMetadataSaver {
     kvStoreProvider =
         LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
     kvStoreProvider.start();
-    namespaceService = new NamespaceServiceImpl(kvStoreProvider);
+    namespaceService = new NamespaceServiceImpl(kvStoreProvider, new CatalogStatusEventsImpl());
   }
 
   @After

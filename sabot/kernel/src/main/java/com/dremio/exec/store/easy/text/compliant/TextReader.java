@@ -17,10 +17,18 @@ package com.dremio.exec.store.easy.text.compliant;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.OptionalInt;
 
 import org.apache.arrow.memory.ArrowBuf;
 
+import com.dremio.common.exceptions.FieldSizeLimitExceptionHelper;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.physical.config.SimpleQueryContext;
+import com.dremio.exec.physical.config.copyinto.CopyIntoErrorInfo;
+import com.dremio.exec.physical.config.copyinto.CopyIntoQueryProperties;
+import com.dremio.exec.store.dfs.ErrorInfo;
+import com.dremio.exec.util.ColumnUtils;
+import com.dremio.service.namespace.file.proto.FileType;
 import com.univocity.parsers.common.TextParsingException;
 import com.univocity.parsers.csv.CsvParserSettings;
 
@@ -46,7 +54,9 @@ final class TextReader implements AutoCloseable {
 
   private final ArrowBuf workBuf;
 
-  // Records count i.e, comments are excluded
+  private boolean skipEmptyLine;
+
+  // Records count i.e, comments are excluded and empty rows are excluded depending upon @skipEmptyLine
   private long recordCount = 0;
 
   private byte ch;
@@ -81,7 +91,7 @@ final class TextReader implements AutoCloseable {
     private final TextOutput output;
 
     public OutputWrapper(TextOutput output) { this.output = output; }
-    public TextOutput Output() { return this.output; }
+    public TextOutput output() { return this.output; }
 
     public boolean canAppend() { return canAppend; }
     public void setCanAppend(boolean append) { canAppend = append; }
@@ -132,25 +142,33 @@ final class TextReader implements AutoCloseable {
   /** Temp buffer to save white spaces conditionally while parsing */
   private NettyArrowBuf tempWhiteSpaceBuff;
 
+  /** savedWhitespaces controls whether tempWhiteSpaceBuff should be used to store the saved white spaces */
+  private boolean savedWhitespaces = false;
+
   /** Key Parameters **/
   private final byte[] comment;
   private final byte[] fieldDelimiter;
   private final byte[] quote;
   private final byte[] quoteEscape;
   final byte[] lineDelimiter;
-
   private String filePath;
   private boolean schemaImposedMode;
+  private CopyIntoQueryProperties copyIntoQueryProperties;
+  private SimpleQueryContext queryContext;
+  private int recordsRejectedCount;
+  private final boolean isValidationMode;
 
   /**
    * The CsvParser supports all settings provided by {@link CsvParserSettings}, and requires this configuration to be
    * properly initialized.
-   * @param settings  the parser configuration
-   * @param input  input stream
-   * @param output  interface to produce output record batch
-   * @param workBuf  working buffer to handle whitespaces
+   *
+   * @param settings         the parser configuration
+   * @param input            input stream
+   * @param output           interface to produce output record batch
+   * @param workBuf          working buffer to handle whitespaces
+   * @param isValidationMode true if this is a copy_errors use case
    */
-  public TextReader(TextParsingSettings settings, TextInput input, TextOutput output, ArrowBuf workBuf) {
+  public TextReader(TextParsingSettings settings, TextInput input, TextOutput output, ArrowBuf workBuf, boolean isValidationMode) {
     this.context = new TextParsingContext(input, output);
     this.workBuf = workBuf;
     this.settings = settings;
@@ -166,18 +184,23 @@ final class TextReader implements AutoCloseable {
     this.comment = settings.getComment();
     this.schemaImposedMode = false;
     this.lineDelimiter = settings.getNewLineDelimiter();
+    this.skipEmptyLine = settings.isSkipEmptyLine();
     this.input = input;
     this.output = new OutputWrapper(output);
+    this.isValidationMode = isValidationMode;
   }
 
-  public TextReader(TextParsingSettings settings, TextInput input, TextOutput output, ArrowBuf workBuf, String filePath, boolean schemaImposedMode) {
-    this(settings, input, output, workBuf);
+  public TextReader(TextParsingSettings settings, TextInput input, TextOutput output, ArrowBuf workBuf, String filePath,
+                    boolean schemaImposedMode, CopyIntoQueryProperties copyIntoQueryProperties, SimpleQueryContext queryContext, boolean isValidationMode) {
+    this(settings, input, output, workBuf, isValidationMode);
     this.filePath = filePath;
     this.schemaImposedMode = schemaImposedMode;
+    this.copyIntoQueryProperties = copyIntoQueryProperties;
+    this.queryContext = queryContext;
   }
 
   public TextOutput getOutput(){
-    return this.output.Output();
+    return this.output.output();
   }
 
   /* Check if the given byte is a white space. As per the univocity text reader
@@ -207,11 +230,6 @@ final class TextReader implements AutoCloseable {
   private void parseRecord() throws IOException {
     // index of the field within this record
     int fieldIndex = 0;
-
-
-    if (isWhite(ch) && ignoreLeadingWhitespace) {
-      parseWhiteSpaces(true);
-    }
 
     try{
       while ( !chIsLineDelimiter() ) {
@@ -363,19 +381,27 @@ final class TextReader implements AutoCloseable {
           isPrevQuote = true;
         }
       }
-      parseNextChar();
+      try {
+        parseNextChar();
+      } catch (StreamFinishedPseudoException e) {
+        if (isPrevQuote) {
+          // (unescaped i.e. field terminating) quote symbol is the last char of the file
+          return;
+        } else {
+          throw e;
+        }
+      }
     }
   }
 
   private boolean isEndOfQuotedField() throws IOException {
-    boolean savedWhitespaces = false;
     if (isWhite(ch)) {
       // Handles whitespaces after quoted value:
       // Whitespaces are ignored (i.e., ch <= ' ') if they are not used as delimiters (i.e., ch != ' ')
       // For example, in tab-separated files (TSV files), '\t' is used as delimiter and should not be ignored
-      savedWhitespaces = true;
       parseWhiteSpaces(false);
       if ( chIsDelimiter() ) {
+        savedWhitespaces = false;
         return true;
       }
     }
@@ -389,6 +415,7 @@ final class TextReader implements AutoCloseable {
       for (int i = 0; i < tempWhiteSpaceBuff.writerIndex(); i++) {
         output.append(tempWhiteSpaceBuff.getByte(i));
       }
+      savedWhitespaces = false;
     }
     return false;
   }
@@ -401,20 +428,46 @@ final class TextReader implements AutoCloseable {
 
     output.startField(fieldIndex);
 
-    if (isWhite(ch) && ignoreLeadingWhitespace) {
-      parseWhiteSpaces(true);
+    if (isWhite(ch)) {
+      parseWhiteSpaces(ignoreLeadingWhitespace);
     }
 
-    if ( chIsDelimiter() ) {
-      output.endEmptyField();
+    if ( chIsFieldDelimiter() ) {
+      if (savedWhitespaces) {
+        for (int i = 0; i < tempWhiteSpaceBuff.writerIndex(); i++) {
+          output.append(tempWhiteSpaceBuff.getByte(i));
+        }
+        savedWhitespaces = false;
+        output.endField();
+      } else {
+        output.endEmptyField();
+      }
     } else {
       if (input.match(ch, quote)) {
+        savedWhitespaces = false;
+        long quoteStartLine = context.currentLine() + 1;
         parseNextChar();
-        parseQuotedValue();
+        try {
+          parseQuotedValue();
+        } catch (Exception e) {
+          // handling cases where a processing limit was reached: EOF or size limit exception
+          if (e instanceof StreamFinishedPseudoException) {
+            throw new UnmatchedQuoteException(quoteStartLine, context.currentLine());
+          } else if (e.getCause() instanceof FieldSizeLimitExceptionHelper.FieldSizeLimitException) {
+            throw new UnmatchedQuoteException(quoteStartLine, context.currentLine(), e);
+          } else {
+            throw e;
+          }
+        }
       } else {
+        if (savedWhitespaces) {
+          for (int i = 0; i < tempWhiteSpaceBuff.writerIndex(); i++) {
+            output.append(tempWhiteSpaceBuff.getByte(i));
+          }
+          savedWhitespaces = false;
+        }
         parseValue();
       }
-
       output.endField();
     }
   }
@@ -432,9 +485,12 @@ final class TextReader implements AutoCloseable {
       if(bufferOn) {
         tempWhiteSpaceBuff = NettyArrowBuf.unwrapBuffer(this.workBuf);
         tempWhiteSpaceBuff.resetWriterIndex();
+        if (!ignoreWhitespaces){
+          savedWhitespaces = true;
+        }
       }
       while (!chIsDelimiter() && isWhite(ch)) {
-        if (!ignoreWhitespaces && bufferOn) {
+        if (savedWhitespaces && bufferOn) {
           tempWhiteSpaceBuff.writeByte(ch);
         }
         parseNextChar();
@@ -449,13 +505,21 @@ final class TextReader implements AutoCloseable {
   public void start() throws IOException {
     context.stopped = false;
     if (input.start() || settings.isSkipFirstLine()) {
+      if (settings.isHeaderExtractionEnabled()) {
+        // *also* ignore up empty Lines when isSkipFirstLine is set
+        skipEmptyLine = true;
+      }
       // block output
       output.setCanAppend(false);
       parseNext();
+      skipEmptyLine = settings.isSkipEmptyLine();  // reset in case modified above
       if (recordCount == 0) {
         // end of file most likely
         throw new IllegalArgumentException("Only one data line detected. Please consider changing line delimiter.");
       }
+    } else if (settings.getSkipLines() > 0) {
+      // skipLines can only be set for COPY INTO CSV, and is exclusive with skipFirstLine
+      input.skipLines(settings.getSkipLines());
     }
   }
 
@@ -463,17 +527,31 @@ final class TextReader implements AutoCloseable {
   /**
    * Parses the next record from the input. Will skip the line if it is a comment,
    * this is required when the file contains headers
+   * @return the status of the reading
    * @throws IOException will rethrow some exceptions
    */
-  public boolean parseNext() throws IOException {
+  public RecordReaderStatus parseNext() throws IOException {
     try {
       while (!context.stopped) {
+        savedWhitespaces = false;
         parseNextChar();
+        if (isWhite(ch)) {
+          parseWhiteSpaces(ignoreLeadingWhitespace);
+        }
         if (chIsLineDelimiter()) { // empty line
+          if (skipEmptyLine) { // don't exit 'while' if allowed to skip
+            continue;
+          }
           break;
         } else if (chIsFieldDelimiter()) {
           break;
         } else if (input.match(ch, comment)) {
+          // Comment lines (ex. those with leading '#') are not allowed to contain newlines
+          //   ... so skipLines() is adequate to index past comment line
+          // TODO[tp]: MARKER - we could attempt to hijack onto this when skipping header lines
+          //   it's a bit tricky because parseNext() would only have to do this once, the first
+          //   for each file
+          //   we definitely need a test with multiple files to catch any errors in that logic
           input.skipLines(1);
           continue;
         }
@@ -484,14 +562,14 @@ final class TextReader implements AutoCloseable {
       if (recordsToRead > 0 && context.currentRecord() >= recordsToRead) {
         context.stop();
       }
-      return true;
+      return RecordReaderStatus.SUCCESS;
 
     } catch (StreamFinishedPseudoException ex) {
       stopParsing();
-      return false;
+      return writeError();
     } catch (Exception ex) {
       try {
-        throw handleException(ex);
+        return handleOrRaiseException(ex);
       } finally {
         stopParsing();
       }
@@ -520,12 +598,57 @@ final class TextReader implements AutoCloseable {
 
   /**
    * Helper method to handle exceptions caught while processing text files and generate better error messages associated with
-   * the exception.
+   * the exception. In case the {@link TextReader#copyIntoQueryProperties} is set to {@link CopyIntoQueryProperties.OnErrorOption#CONTINUE}
+   * the exception will be ignored.
    * @param ex  Exception raised
    * @return Exception replacement
    * @throws IOException Selectively augments exception error messages and rethrows
    */
-  private TextParsingException handleException(Exception ex) throws IOException {
+  private RecordReaderStatus handleOrRaiseException(Exception ex) throws IOException {
+    CopyIntoQueryProperties.OnErrorOption onErrorOption = null;
+    if (copyIntoQueryProperties != null) {
+      onErrorOption = copyIntoQueryProperties.getOnErrorOption();
+      if (logger.isDebugEnabled()) {
+        logger.debug(String.format("Encountered error while reading text file. TextReader is running in '%s' mode.",
+          copyIntoQueryProperties.getOnErrorOption()), ex);
+      }
+    }
+    if (CopyIntoQueryProperties.OnErrorOption.CONTINUE == onErrorOption || isValidationMode) {
+      if (isValidationMode) {
+        // if error was seen during a copy_errors use case we write the details to the output
+        SchemaImposedOutput schemaImposedOutput = (SchemaImposedOutput) output.output();
+
+        // if error happened mid (unfinished with parsing) line we need to increment currentLine()
+        long lineOfError = chIsLineDelimiter() ? context.currentLine() : context.currentLine() + 1;
+
+        if (ex instanceof UnmatchedQuoteException) {
+          lineOfError = ((UnmatchedQuoteException) ex).quoteStartLine;
+        }
+
+        schemaImposedOutput.writeValidationError(recordCount + recordsRejectedCount, lineOfError, collapseExceptionMessages(ex));
+      }
+      recordsRejectedCount++;
+      //try to skip to the next line, if we are not at the end of the line or file
+      if (chIsFieldDelimiter()) {
+        try {
+          input.skipLines(1);
+        } catch (StreamFinishedPseudoException e) {
+          // we are at the end of the file
+          return RecordReaderStatus.SKIP;
+        }
+      }
+
+      if (ex instanceof UnmatchedQuoteException) {
+        // UnmatchedQuoteException is a structural error in CSV, need to stop processing this file
+        input.close();
+      }
+
+      if (isValidationMode) {
+        return RecordReaderStatus.VALIDATION_ERROR;
+      } else {
+        return RecordReaderStatus.SKIP;
+      }
+    }
 
     if (ex instanceof TextParsingException) {
       throw (TextParsingException) ex;
@@ -586,6 +709,37 @@ final class TextReader implements AutoCloseable {
   }
 
   /**
+   * Prepare and write error metadata to the target table {@link ColumnUtils#COPY_INTO_ERROR_COLUMN_NAME} column.
+   * The metadata definition is declared by {@link CopyIntoErrorInfo} and it is serialized to json format.
+   */
+  private RecordReaderStatus writeError() {
+    if (schemaImposedMode && output.output() instanceof SchemaImposedOutput && recordsRejectedCount > 0) {
+      SchemaImposedOutput schemaImposedOutput = (SchemaImposedOutput) output.output();
+      OptionalInt errorColIndex = schemaImposedOutput.getErrorColIndex();
+      if (errorColIndex.isPresent()) {
+        output.startField(errorColIndex.getAsInt());
+        long recordsLoadedCount = settings.isHeaderExtractionEnabled() ? recordCount - 1 : recordCount;
+        String infoJson = ErrorInfo.Util.getJson(new CopyIntoErrorInfo.Builder(queryContext.getQueryId(),
+          queryContext.getUserName(), queryContext.getTableNamespace(), copyIntoQueryProperties.getStorageLocation(), filePath,
+          schemaImposedOutput.getExtendedFormatOptions(), FileType.CSV.name(),
+          recordsLoadedCount == 0 ? CopyIntoErrorInfo.CopyIntoFileState.SKIPPED : CopyIntoErrorInfo.CopyIntoFileState.PARTIALLY_LOADED)
+          .setRecordsLoadedCount(recordsLoadedCount)
+          .setRecordsRejectedCount(recordsRejectedCount)
+          .setRecordDelimiter(new String(lineDelimiter)).setFieldDelimiter(new String(fieldDelimiter))
+          .setQuoteChar(new String(quote)).setEscapeChar(new String(quoteEscape)).build());
+        output.append(infoJson.getBytes());
+        schemaImposedOutput.endErrorField();
+        output.setCanAppend(true);
+        recordCount++;
+        output.finishRecord();
+        recordsRejectedCount = 0;
+        return RecordReaderStatus.ERROR;
+      }
+    }
+    return RecordReaderStatus.END;
+  }
+
+  /**
    * Finish the processing of a batch, indicates to the output
    * interface to wrap up the batch
    */
@@ -610,5 +764,47 @@ final class TextReader implements AutoCloseable {
    */
   public TextInput getInput() {
     return input;
+  }
+
+  private String collapseExceptionMessages(Throwable throwable) {
+    StringBuilder sb = new StringBuilder();
+
+    while (throwable != null) {
+      String message = throwable.getMessage();
+      if (message != null) {
+        sb.append(message).append(' ');
+      }
+      throwable = throwable.getCause();
+    }
+
+    sb.deleteCharAt(sb.length() - 1);
+    return sb.toString();
+  }
+
+  public enum RecordReaderStatus {
+    SUCCESS, SKIP, END, ERROR, VALIDATION_ERROR
+  }
+
+  class UnmatchedQuoteException extends IOException {
+
+    private static final String ERROR_MESSAGE =
+      "Malformed CSV file: expected closing quote symbol for a quoted value, started in line %d, but encountered %s" +
+        " in line %d.%s";
+
+    final long quoteStartLine;
+
+    // EOF case
+    UnmatchedQuoteException(long quoteStartLine, long lineOfException) {
+      super(String.format(ERROR_MESSAGE, quoteStartLine, "EOF", lineOfException, ""));
+      this.quoteStartLine = quoteStartLine;
+    }
+
+    // Size limit case
+    UnmatchedQuoteException(long quoteStartLine, long lineOfException, Throwable cause) {
+      super(String.format(ERROR_MESSAGE, quoteStartLine, "a size limit exception", lineOfException, " No further lines " +
+            "will be processed from this file."), cause);
+      this.quoteStartLine = quoteStartLine;
+    }
+
   }
 }

@@ -43,9 +43,25 @@ public class TestInfoSchemaFilterPushDown extends PlanTestBase {
   }
 
   @Test
-  public void testFilterPushdown_Like() throws Exception {
+  public void testFilterPushdown_LikeWithPercent() throws Exception {
     final String query = "SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE TABLE_SCHEMA LIKE '%SCH%'";
     final String scan = "query=[like {   field: \"SEARCH_SCHEMA\"   pattern: \"%SCH%\" } ]";
+
+    testHelper(query, scan, false);
+  }
+
+  @Test
+  public void testFilterPushdown_LikeWithUnderscore() throws Exception {
+    final String query = "SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE TABLE_SCHEMA LIKE 'SOURCE_1.FOLDER_'";
+    final String scan = "query=[like {   field: \"SEARCH_SCHEMA\"   pattern: \"SOURCE_1.FOLDER_\" } ]";
+
+    testHelper(query, scan, false);
+  }
+
+  @Test
+  public void testFilterPushdown_LikeMixedWithPercentAndUnderscore() throws Exception {
+    final String query = "SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE TABLE_SCHEMA LIKE 'SOURCE%1.FOLDER_'";
+    final String scan = "query=[like {   field: \"SEARCH_SCHEMA\"   pattern: \"SOURCE%1.FOLDER_\" } ]";
 
     testHelper(query, scan, false);
   }

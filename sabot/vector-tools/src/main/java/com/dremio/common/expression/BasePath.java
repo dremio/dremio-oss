@@ -155,7 +155,7 @@ public abstract class BasePath implements ProvidesUnescapedPath {
         sb.append(seg.getNameSegment().getPath());
       } else {
         sb.append('[');
-        sb.append(seg.getArraySegment().getIndex());
+        sb.append(seg.getArraySegment().getOptionalIndex());
         sb.append(']');
       }
     }

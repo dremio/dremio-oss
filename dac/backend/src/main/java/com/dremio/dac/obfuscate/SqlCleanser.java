@@ -67,7 +67,7 @@ class SqlCleanser {
     return cleansedSql;
   }
 
-  private class FromVisitor extends SqlShuttle {
+  private final class FromVisitor extends SqlShuttle {
     @Override
     public SqlNode visit(SqlCall call) {
       switch (call.getKind()) {
@@ -170,7 +170,7 @@ class SqlCleanser {
     }
   }
 
-  private class IdentifierAndLiteralFinder extends SqlShuttle {
+  private final class IdentifierAndLiteralFinder extends SqlShuttle {
 
     @Override
     public SqlNode visit(SqlCall call) {

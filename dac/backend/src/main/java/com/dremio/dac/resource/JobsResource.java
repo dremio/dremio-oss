@@ -46,6 +46,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.escape.Escaper;
 import com.google.common.net.UrlEscapers;
 
+import io.opentelemetry.instrumentation.annotations.WithSpan;
+
 /**
  * Resource for getting all jobs, jobs for dataset with filtering and sorting.
  */
@@ -72,6 +74,7 @@ public class JobsResource {
   }
 
   // Get jobs using filters and set order
+  @WithSpan
   @GET
   @Produces(APPLICATION_JSON)
   public JobsUI getJobs(
@@ -152,6 +155,7 @@ public class JobsResource {
   }
 
   // Get jobs using filters and set order
+  @WithSpan
   @GET
   @Path("/reflection/{reflectionId}")
   @Produces(APPLICATION_JSON)

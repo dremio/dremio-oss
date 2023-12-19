@@ -17,12 +17,10 @@ import DatasetSettingsModal from "pages/HomePage/components/modals/DatasetSettin
 import UpdateDataset from "pages/HomePage/components/modals/UpdateDataset/UpdateDataset";
 import QlikStateModal from "./QlikStateModal";
 import SaveAsDatasetModal from "./SaveAsDatasetModal";
-import NessieDatasetSettingsModal from "pages/HomePage/components/modals/NessieDatasetModal/NessieDatasetSettingsModal.tsx";
 
 export {
   QlikStateModal,
   SaveAsDatasetModal,
   DatasetSettingsModal,
   UpdateDataset,
-  NessieDatasetSettingsModal,
 };

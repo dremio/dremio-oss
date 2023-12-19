@@ -45,7 +45,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
-import org.projectnessie.client.api.NessieApiV1;
 import org.projectnessie.client.api.NessieApiV2;
 import org.projectnessie.error.NessieNotFoundException;
 import org.projectnessie.model.Content;
@@ -60,12 +59,12 @@ import org.projectnessie.tools.compatibility.api.NessieBaseUri;
 import org.projectnessie.tools.compatibility.api.NessieServerProperty;
 import org.projectnessie.tools.compatibility.internal.OlderNessieServersExtension;
 
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.CatalogUser;
-import com.dremio.exec.catalog.ResolvedVersionContext;
 import com.dremio.exec.catalog.TableMutationOptions;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.catalog.conf.NessieAuthType;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.physical.base.WriterOptions;
@@ -92,16 +91,16 @@ import io.findify.s3mock.S3Mock;
  *
  * TODO DX-54476: This was originally intended to be unit tests for
  *   DataplanePlugin, but it has expanded and become a little cluttered. These
- *   should be cleaned up and moved to TestDataplanePlugin or
- *   TestIntegrationDataplanePlugin.
+ *   should be cleaned up and moved to TestDataplanePlugin or ITDataplanePlugin.
  *
  * This class should be considered legacy, new tests should not be added here.
  * Instead, use one of:
- *  - TestDataplanePlugin for unit tests
- *  - TestIntegrationDataplanePlugin for integration tests
+ *  - {@link TestDataplanePlugin} for unit tests
+ *  - ITDataplanePlugin for integration tests
  */
 @ExtendWith(OlderNessieServersExtension.class)
-@NessieServerProperty(name = "nessie.store.validate.namespaces", value = "false")
+@NessieServerProperty(name = "nessie.test.storage.kind", value = "PERSIST")  //PERSIST is the new model in Nessie Server
+@NessieServerProperty(name = "nessie.store.namespace-validation", value = "false")
 public class TestDataplanePlugin2 {
   // Constants
   private static final String S3_PREFIX = "s3://";
@@ -133,7 +132,7 @@ public class TestDataplanePlugin2 {
   @NessieBaseUri
   private static URI nessieBaseUri;
   @NessieAPI
-  private static NessieApiV1 nessieClient;
+  private static NessieApiV2 nessieClient;
 
   // Dataplane Plugin
   private static DataplanePlugin dataplanePlugin;
@@ -205,35 +204,6 @@ public class TestDataplanePlugin2 {
       null));
   }
 
-  private static void setUpDataplanePluginInvalidAWSBucket() {
-    NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
-    nessiePluginConfig.nessieEndpoint = nessieUri;
-    nessiePluginConfig.nessieAuthType = NessieAuthType.NONE;
-    nessiePluginConfig.secure = false;
-    nessiePluginConfig.awsAccessKey = "foo"; // Unused, just needs to be set
-    nessiePluginConfig.awsAccessSecret = "bar"; // Unused, just needs to be set
-    nessiePluginConfig.awsRootPath = "/";
-
-    SabotContext context = mock(SabotContext.class);
-    OptionManager optionManager = mock(OptionManager.class);
-    UserService userService = mock(UserService.class);
-    when(optionManager.getOption(NESSIE_PLUGIN_ENABLED)).thenReturn(true);
-    when(context.getOptionManager()).thenReturn(optionManager);
-    when(context.getUserService()).thenReturn(userService);
-
-    // S3Mock settings
-    nessiePluginConfig.propertyList = Arrays.asList(
-      new Property("fs.s3a.endpoint", "localhost:" + S3_PORT),
-      new Property("fs.s3a.path.style.access", "true"),
-      new Property(S3FileSystem.COMPATIBILITY_MODE, "true")
-    );
-
-    dataplanePluginInvalidAWSBucket = spy(nessiePluginConfig.newPlugin(
-      context,
-      DATAPLANE_PLUGIN_NAME,
-      null));
-  }
-
   private static void setUpDataplanePlugin() throws Exception {
     NessiePluginConfig nessiePluginConfig = new NessiePluginConfig();
     nessiePluginConfig.nessieEndpoint = nessieUri;
@@ -273,13 +243,6 @@ public class TestDataplanePlugin2 {
       s3Mock.shutdown();
       s3Mock = null;
     }
-  }
-
-  @Test
-  public void testInvalidAWSRootPathErrorDuringSetup() {
-    assertThatThrownBy(TestDataplanePlugin2::setUpDataplanePluginInvalidAWSBucket)
-      .isInstanceOf(UserException.class)
-      .hasMessageContaining("Failure creating or updating Nessie source. Invalid AWS Root Path.");
   }
 
   @Test

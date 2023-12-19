@@ -39,8 +39,8 @@ import com.dremio.service.namespace.DatasetMetadataSaver;
 import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.NamespaceOptions;
 import com.dremio.service.namespace.NamespaceService;
-import com.dremio.service.namespace.NamespaceService.SplitCompression;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.users.SystemUser;
@@ -246,9 +246,9 @@ public class DatasetSaverImpl implements DatasetSaver {
       datasetConfig.setId(new EntityId(UUID.randomUUID().toString()));
     }
 
-    SplitCompression splitCompression = NamespaceService.SplitCompression.valueOf(optionManager.getOption(CatalogOptions.SPLIT_COMPRESSION_TYPE).toUpperCase());
+    NamespaceService.SplitCompression splitCompression = NamespaceService.SplitCompression.valueOf(optionManager.getOption(CatalogOptions.SPLIT_COMPRESSION_TYPE).toUpperCase());
     try (DatasetMetadataSaver saver = systemNamespace.newDatasetMetadataSaver(canonicalKey, datasetConfig.getId(), splitCompression,
-            optionManager.getOption(CatalogOptions.SINGLE_SPLIT_PARTITION_MAX), optionManager.getOption(NamespaceService.DATASET_METADATA_CONSISTENCY_VALIDATE))) {
+            optionManager.getOption(CatalogOptions.SINGLE_SPLIT_PARTITION_MAX), optionManager.getOption(NamespaceOptions.DATASET_METADATA_CONSISTENCY_VALIDATE))) {
       final PartitionChunkListing chunkListing = sourceMetadata.listPartitionChunks(handle,
               options.asListPartitionChunkOptions(datasetConfig));
 

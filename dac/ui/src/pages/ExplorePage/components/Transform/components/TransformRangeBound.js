@@ -45,7 +45,7 @@ export class TransformRangeBound extends Component {
     };
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     const {
       field: { value },
     } = nextProps;
@@ -121,7 +121,9 @@ export class TransformRangeBound extends Component {
           checked={hasBound}
         />
         <span style={{ ...formContext, marginLeft: 20 }}>
-          {fieldName === "lower" ? la("inclusive") : la("exclusive")}
+          {fieldName === "lower"
+            ? laDeprecated("inclusive")
+            : laDeprecated("exclusive")}
         </span>
       </div>
     );

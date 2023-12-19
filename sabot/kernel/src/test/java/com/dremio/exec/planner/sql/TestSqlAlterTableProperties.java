@@ -36,7 +36,6 @@ import com.dremio.common.utils.SqlUtils;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableProperties;
 import com.dremio.exec.proto.UserBitShared;
-import com.dremio.test.UserExceptionAssert;
 import com.google.common.collect.Sets;
 
 public class TestSqlAlterTableProperties extends BaseTestQuery {
@@ -88,12 +87,6 @@ public class TestSqlAlterTableProperties extends BaseTestQuery {
     for (Map.Entry<String,String> entry : queryExpectedStrings.entrySet())  {
       parseAndVerifyUnparse(entry.getKey(), entry.getValue());
     }
-  }
-
-  @Test
-  public void testExecuteWithoutTablePropertiesSupportKey() throws Exception {
-    UserExceptionAssert.assertThatThrownBy(() -> BaseTestQuery.test("ALTER TABLE t1 SET TBLPROPERTIES ('property_name' = 'property_value')"))
-            .hasMessageContaining("TBLPROPERTIES is not supported in the query");
   }
 
   private void parseAndVerifyWellFormat(String sql) {

@@ -17,8 +17,6 @@ package com.dremio.exec.planner.sql.handlers.direct;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
@@ -38,36 +36,52 @@ import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.BasicSqlType;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
+import com.dremio.BaseTestQuery;
 import com.dremio.connector.metadata.AttributeValue;
-import com.dremio.exec.catalog.DremioCatalogReader;
-import com.dremio.exec.catalog.DremioPrepareTable;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.catalog.EntityExplorer;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.store.ColumnExtendedProperty;
+import com.dremio.options.OptionManager;
+import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.collect.Lists;
 
 @RunWith(MockitoJUnitRunner.class)
-public class TestDescribeTableHandler {
+public class TestDescribeTableHandler extends BaseTestQuery {
   private DescribeTableHandler describeTableHandler;
+  private static List<String> TABLE = Collections.singletonList("mytable");
   @Mock private QueryContext queryContext;
-  @Mock private DremioCatalogReader catalog;
-  @Mock private DremioPrepareTable table;
+  @Mock private EntityExplorer catalog;
+  @Mock private DremioTable table;
+  @Mock private DatasetConfig datasetConfig;
+  @Mock private OptionManager mockOptions;
 
   @Before
   public void setup() {
+    BaseTestQuery.setSystemOption(ExecConstants.ENABLE_ICEBERG_SORT_ORDER, "true");
     describeTableHandler = new DescribeTableHandler(catalog, queryContext);
 
-    final DremioTable dremioTable = mock(DremioTable.class);
-    when(catalog.getTableUnchecked(anyList())).thenReturn(table);
-    when(table.getTable()).thenReturn(dremioTable);
-    when(table.getRowType()).thenReturn(createTableSchema());
+    when(catalog.getTable(new NamespaceKey(TABLE))).thenReturn(table);
+    when(table.getRowType(any())).thenReturn(createTableSchema());
+    when(table.getDatasetConfig()).thenReturn(datasetConfig);
+    when(datasetConfig.getFullPathList()).thenReturn(TABLE);
     when(catalog.getColumnExtendedProperties(any(DremioTable.class))).thenReturn(generateExtendedProperties());
+    when(queryContext.getOptions()).thenReturn(mockOptions);
+    when(mockOptions.getOption(ExecConstants.ENABLE_ICEBERG_SORT_ORDER)).thenReturn(true);
+  }
+
+  @After
+  public void reset() {
+    resetSystemOption(ExecConstants.ENABLE_ICEBERG_SORT_ORDER.getOptionName());
   }
 
   private RelDataType createTableSchema() {
@@ -99,7 +113,7 @@ public class TestDescribeTableHandler {
 
   @Test
   public void testToResult() throws Exception {
-    SqlDescribeTable describeTable = new SqlDescribeTable(SqlParserPos.ZERO, new SqlIdentifier(Collections.singletonList("mytable"), SqlParserPos.ZERO), null);
+    SqlDescribeTable describeTable = new SqlDescribeTable(SqlParserPos.ZERO, new SqlIdentifier(TABLE, SqlParserPos.ZERO), null);
     final List<DescribeTableHandler.DescribeResult> actualResults = describeTableHandler.toResult("foo", describeTable);
 
     final List<DescribeTableHandler.DescribeResult> expectedResults = Lists.newArrayList(
@@ -109,14 +123,16 @@ public class TestDescribeTableHandler {
         null,
         null,
         "[]",
-        "[]"),
+        "[]",
+        null),
       new DescribeTableHandler.DescribeResult(
         "col2",
         "BOOLEAN",
         null,
         null,
         "[{\"key\":\"one\",\"value\":\"foo\"}]",
-        "[]"),
+        "[]",
+        null),
 
       new DescribeTableHandler.DescribeResult(
         "col3",
@@ -124,11 +140,12 @@ public class TestDescribeTableHandler {
         5,
         2,
         "[{\"key\":\"two\",\"value\":\"bar\"},{\"key\":\"three\",\"value\":\"baz\"}]",
-        "[]")
+        "[]",
+        null)
     );
 
     assertEquals(expectedResults.size(), actualResults.size());
-    for (int i = 0;i < expectedResults.size();i++) {
+    for (int i = 0; i < expectedResults.size();i++) {
       verifyDescribeResult(expectedResults.get(i), actualResults.get(i));
     }
   }
@@ -140,5 +157,6 @@ public class TestDescribeTableHandler {
     assertEquals(expected.NUMERIC_PRECISION, actual.NUMERIC_PRECISION);
     assertEquals(expected.NUMERIC_SCALE, actual.NUMERIC_SCALE);
     assertEquals(expected.EXTENDED_PROPERTIES, actual.EXTENDED_PROPERTIES);
+    assertEquals(expected.SORT_ORDER_PRIORITY, actual.SORT_ORDER_PRIORITY);
   }
 }

@@ -41,16 +41,16 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 
 public class BridgeReaderPrel extends AbstractRelNode implements Prel {
-  private final BatchSchema schema;
+  private BatchSchema schema;
+
   private final String bridgeSetId;
   private final double estimatedRowCount;
 
   public BridgeReaderPrel(RelOptCluster cluster, RelTraitSet traitSet, RelDataType rowType, double estimatedRowCount,
-                          BatchSchema schema, String bridgeSetId) {
+                          String bridgeSetId) {
     super(cluster, traitSet);
     this.rowType = rowType;
     this.estimatedRowCount = estimatedRowCount;
-    this.schema = schema;
     this.bridgeSetId = bridgeSetId;
   }
 
@@ -58,16 +58,25 @@ public class BridgeReaderPrel extends AbstractRelNode implements Prel {
     return schema;
   }
 
+  public BridgeReaderPrel copyWithSchema(BatchSchema schema) {
+    BridgeReaderPrel prel = new BridgeReaderPrel(getCluster(), traitSet, rowType, estimatedRowCount, bridgeSetId);
+    prel.schema = schema;
+    return prel;
+  }
+
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new BridgeReaderPrel(getCluster(), traitSet, rowType, estimatedRowCount, schema, bridgeSetId);
+    BridgeReaderPrel prel = new BridgeReaderPrel(getCluster(), traitSet, rowType, estimatedRowCount, bridgeSetId);
+    prel.schema = schema;
+    return prel;
   }
 
   @Override
   public RelWriter explainTerms(RelWriter pw) {
-    return pw
+    pw
       .item("bridgeSetId", bridgeSetId)
-      .item("schema", schema.toString());
+      .itemIf("schema", schema, schema != null);
+    return pw;
   }
 
   @Override
@@ -124,5 +133,9 @@ public class BridgeReaderPrel extends AbstractRelNode implements Prel {
   @Override
   public boolean needsFinalColumnReordering() {
     return false;
+  }
+
+  public String getBridgeSetId() {
+    return bridgeSetId;
   }
 }

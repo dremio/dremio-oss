@@ -22,7 +22,7 @@ import DocumentTitle from "react-document-title";
 import { injectIntl } from "react-intl";
 import urlParse from "url-parse";
 
-import MainInfoMixin from "dyn-load/pages/HomePage/components/MainInfoMixin";
+import MainInfoMixin from "@inject/pages/HomePage/components/MainInfoMixin";
 import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
 import { loadWiki } from "@app/actions/home";
 import DatasetMenu from "components/Menus/HomePage/DatasetMenu";
@@ -42,7 +42,6 @@ import { tableStyles } from "../tableStyles";
 import BrowseTable from "./BrowseTable";
 import { HeaderButtons } from "./HeaderButtons";
 import MainInfoItemNameAndTag from "./MainInfoItemNameAndTag";
-import WikiView from "./WikiView";
 import SourceBranchPicker from "./SourceBranchPicker/SourceBranchPicker";
 import { getSortedSources } from "@app/selectors/home";
 import { getSourceByName } from "@app/utils/nessieUtils";
@@ -52,9 +51,10 @@ import { constructArcticUrl } from "@app/exports/pages/ArcticCatalog/arctic-cata
 import { isVersionedSource as checkIsVersionedSource } from "@app/utils/sourceUtils";
 import { fetchSupportFlagsDispatch } from "@inject/actions/supportFlags";
 import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
-import WikiDrawerWrapper from "@app/components/WikiDrawerWrapper";
-import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
-import { getCommonWikiDrawerTitle } from "@app/utils/WikiDrawerUtils";
+import { compose } from "redux";
+import { withCatalogARSFlag } from "@inject/utils/arsUtils";
+import { Wiki } from "@app/pages/ExplorePage/components/Wiki/Wiki";
+import { isEntityWikiEditAllowed } from "dyn-load/utils/entity-utils";
 
 const folderPath = "/folder/";
 
@@ -89,6 +89,10 @@ export class MainInfoView extends Component {
     rootEntityType: PropTypes.string,
     nessieState: PropTypes.object,
     dispatchFetchSupportFlags: PropTypes.func,
+
+    // HOC
+    isArsEnabled: PropTypes.bool,
+    isArsLoading: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -96,9 +100,8 @@ export class MainInfoView extends Component {
   };
 
   state = {
-    isWikiShown: localStorageUtils.getWikiVisibleState(),
-    datasetDetails: Immutable.Map({}),
-    isDrawerOpen: false,
+    isDetailsPanelShown: localStorageUtils.getWikiVisibleState(),
+    datasetDetails: null,
   };
 
   componentDidMount() {
@@ -113,8 +116,9 @@ export class MainInfoView extends Component {
   fetchWiki(prevProps) {
     const oldId = getEntityId(prevProps);
     const newId = getEntityId(this.props);
-    if (newId && oldId !== newId && !this.isArctic()) {
+    if (newId && oldId !== newId && this.shouldShowDetailsPanelIcon()) {
       this.props.fetchWiki(newId);
+      this.setState({ datasetDetails: null });
     }
   }
 
@@ -163,6 +167,7 @@ export class MainInfoView extends Component {
       this.checkToRenderConvertFolderButton(isFileSystemFolder, permissions)
     ) {
       return [
+        this.getDetailsPanelBtn(folder),
         this.renderConvertButton(folder, {
           icon: <dremio-icon name="interface/format-folder" />,
           tooltip: "Folder.FolderFormat",
@@ -171,7 +176,9 @@ export class MainInfoView extends Component {
             state: {
               modal: "DatasetSettingsModal",
               tab: "format",
+              entityName: folder.get("fullPathList").last(),
               entityType: folder.get("entityType"),
+              type: folder.get("entityType"),
               entityId: folder.get("id"),
               query: { then: "query" },
               isHomePage: true,
@@ -191,10 +198,13 @@ export class MainInfoView extends Component {
           permissions.canEditAccessControlList ||
           permissions.canDelete))
     ) {
-      return this.getSettingsBtnByType(
-        <FolderMenu folder={folder} isVersionedSource={isVersionedSource} />,
-        folder
-      );
+      return [
+        this.getDetailsPanelBtn(folder),
+        this.getSettingsBtnByType(
+          <FolderMenu folder={folder} isVersionedSource={isVersionedSource} />,
+          folder
+        ),
+      ];
     } else {
       return;
     }
@@ -217,7 +227,9 @@ export class MainInfoView extends Component {
             state: {
               modal: "DatasetSettingsModal",
               tab: "format",
+              entityName: file.get("fullPathList").last(),
               entityType: file.get("entityType"),
+              type: file.get("entityType"),
               entityId: file.get("id"),
               queryable: file.get("queryable"),
               fullPath: file.get("filePath"),
@@ -240,6 +252,7 @@ export class MainInfoView extends Component {
       shortcutBtnTypes
     );
     return [
+      this.getDetailsPanelBtn(item),
       ...allBtns
         // select buttons to be shown
         .filter((btn) => btn.isShown)
@@ -260,7 +273,7 @@ export class MainInfoView extends Component {
         <DatasetMenu
           entity={item}
           entityType={entityType}
-          openWikiDrawer={this.openWikiDrawer}
+          openWikiDrawer={(dataset) => this.openDetailsPanel(dataset, true)}
         />,
         item
       ),
@@ -277,16 +290,33 @@ export class MainInfoView extends Component {
     return `${parseUrl.pathname}/wiki${parseUrl.query}`;
   }
 
+  getDetailsPanelBtn(item) {
+    const showButton = this.shouldShowDetailsPanelIcon(item);
+    return (
+      showButton && (
+        <IconButton
+          tooltip="Open details panel"
+          onClick={(e) => {
+            e.preventDefault();
+            this.openDetailsPanel(item, true);
+          }}
+          tooltipPortal
+          tooltipPlacement="top"
+          className="main-settings-btn min-btn catalog-btn"
+        >
+          <dremio-icon name="interface/meta" />
+        </IconButton>
+      )
+    );
+  }
+
   getSettingsBtnByType(menu, item) {
     return (
       <SettingsBtn
-        handleSettingsClose={this.handleSettingsClose.bind(this)}
-        handleSettingsOpen={this.handleSettingsOpen.bind(this)}
         dataQa={item.get("name")}
         menu={menu}
         classStr="main-settings-btn min-btn catalog-btn"
         key={`${item.get("name")}-${item.get("id")}`}
-        tooltip="Common.More"
         hideArrowIcon
       >
         {this.getInlineIcon("interface/more")}
@@ -298,17 +328,13 @@ export class MainInfoView extends Component {
     const [name, jobs, action] = this.getTableColumns();
     const jobsCount =
       item.get("jobCount") || item.getIn(["extendedConfig", "jobCount"]) || 0;
-    const versionContext = getVersionContextFromId(item.get("id"));
-    const isNeitherNessieOrArctic = this.isNeitherNessieOrArctic();
     return {
-      rowClassName: item.get("name"),
       data: {
         [name.key]: {
           node: () => (
             <MainInfoItemNameAndTag
-              isIceberg={!!versionContext}
-              showMetadataCard={isNeitherNessieOrArctic}
               item={item}
+              openDetailsPanel={this.openDetailsPanel}
             />
           ),
           value: item.get("name"),
@@ -388,14 +414,6 @@ export class MainInfoView extends Component {
     return rows;
   }
 
-  handleSettingsClose(settingsWrap) {
-    $(settingsWrap).parents("tr").removeClass("hovered");
-  }
-
-  handleSettingsOpen(settingsWrap) {
-    $(settingsWrap).parents("tr").addClass("hovered");
-  }
-
   isReadonly(spaceList) {
     const { pathname } = this.context.location;
     if (spaceList !== undefined) {
@@ -408,11 +426,16 @@ export class MainInfoView extends Component {
     return false;
   }
 
-  toggleWikiShow = () => {
+  toggleDetailsPanel = () => {
+    const { entity } = this.props;
     let newValue;
     this.setState(
       (prevState) => ({
-        isWikiShown: (newValue = !prevState.isWikiShown),
+        isDetailsPanelShown: (newValue = !prevState.isDetailsPanelShown),
+        datasetDetails: Immutable.fromJS({
+          ...entity.toJS(),
+          fullPath: entity.get("fullPath") || entity.get("fullPathList"),
+        }),
       }),
       () => {
         localStorageUtils.setWikiVisibleState(newValue);
@@ -443,14 +466,14 @@ export class MainInfoView extends Component {
     const { hash, reference } = nessieState;
     const { pathname } = this.context.location;
     const versionBase = this.isArctic() ? "arctic" : "nessie";
-    let namespace = reference?.name || "";
+    let namespace = encodeURIComponent(reference?.name) || "";
     if (pathname.includes(folderPath)) {
       namespace = pathname.substring(
         pathname.indexOf(folderPath) + folderPath.length,
         pathname.length
       );
       if (reference) {
-        namespace = `${reference?.name}/${namespace}`;
+        namespace = `${encodeURIComponent(reference?.name)}/${namespace}`;
       }
     }
     return constructArcticUrl({
@@ -482,15 +505,33 @@ export class MainInfoView extends Component {
     return <SourceBranchPicker source={source.toJS()} />;
   };
 
-  openWikiDrawer = (dataset) => {
+  openDetailsPanel = async (dataset) => {
+    const { datasetDetails } = this.state;
+    const currentDatasetId = dataset.get("id") || dataset?.get("entityId");
+    if (currentDatasetId === datasetDetails?.get("entityId")) {
+      return;
+    }
+
     this.setState({
+      isDetailsPanelShown: true,
       datasetDetails: dataset,
-      isDrawerOpen: true,
     });
   };
 
+  handleUpdatePanelDetails = (dataset) => {
+    if (dataset.get("error")) {
+      this.setState({
+        datasetDetails: this.state.datasetDetails.merge(dataset),
+      });
+    } else if (
+      dataset?.get("entityId") !== this.state.datasetDetails?.get("entityId")
+    ) {
+      this.setState({ datasetDetails: dataset });
+    }
+  };
+
   openDatasetInNewTab = () => {
-    const { datasetDetails } = this.state;
+    const { datasetDetails = Immutable.fromJS({}) } = this.state;
 
     const selfLink = datasetDetails.getIn(["links", "query"]);
     const editLink = datasetDetails.getIn(["links", "edit"]);
@@ -501,25 +542,6 @@ export class MainInfoView extends Component {
     window.open(wrapBackendLink(pathname), "_blank");
   };
 
-  closeWikiDrawer = (e) => {
-    e.stopPropagation();
-    e.preventDefault();
-    this.setState({
-      datasetDetails: Immutable.fromJS({}),
-      isDrawerOpen: false,
-    });
-  };
-
-  wikiDrawerTitle = () => {
-    const { datasetDetails } = this.state;
-
-    return getCommonWikiDrawerTitle(
-      datasetDetails,
-      datasetDetails?.get("fullPath"),
-      this.closeWikiDrawer
-    );
-  };
-
   render() {
     const {
       canUploadFile,
@@ -528,10 +550,13 @@ export class MainInfoView extends Component {
       isVersionedSource,
       rootEntityType,
     } = this.props;
-    const { datasetDetails, isWikiShown, isDrawerOpen } = this.state;
+    const { datasetDetails, isDetailsPanelShown } = this.state;
+    const panelItem = datasetDetails
+      ? datasetDetails
+      : this.shouldShowDetailsPanelIcon()
+      ? entity
+      : null;
     const { pathname } = this.context.location;
-    const showWiki =
-      entity && !entity.get("fileSystemFolder") && !this.isArctic(); // should be removed when DX-13804 would be fixed
 
     const buttons = entity && (
       <HeaderButtons
@@ -547,6 +572,8 @@ export class MainInfoView extends Component {
     return (
       <>
         <BrowseTable
+          item={entity}
+          panelItem={panelItem}
           title={
             entity && (
               <BreadCrumbs
@@ -561,9 +588,21 @@ export class MainInfoView extends Component {
           buttons={buttons}
           key={pathname} /* trick to clear out the searchbox on navigation */
           columns={this.getTableColumns()}
-          rightSidebar={showWiki ? <WikiView item={entity} /> : null}
-          rightSidebarExpanded={isWikiShown}
-          toggleSidebar={this.toggleWikiShow}
+          rightSidebar={
+            panelItem ? (
+              <Wiki
+                entityId={panelItem?.get("entityId") || panelItem?.get("id")}
+                isEditAllowed={isEntityWikiEditAllowed(panelItem)}
+                className="bottomContent"
+                dataset={panelItem}
+                handlePanelDetails={this.handleUpdatePanelDetails}
+                isPanel
+              />
+            ) : null
+          }
+          rightSidebarExpanded={isDetailsPanelShown}
+          rightSidebarIcon={this.shouldShowDetailsPanelIcon()}
+          toggleSidebar={this.toggleDetailsPanel}
           tableData={this.getTableData()}
           viewState={viewState}
           renderExternalLink={this.renderExternalLink}
@@ -578,11 +617,6 @@ export class MainInfoView extends Component {
             }
           />
         </BrowseTable>
-        <WikiDrawerWrapper
-          drawerIsOpen={isDrawerOpen}
-          wikiDrawerTitle={this.wikiDrawerTitle()}
-          datasetDetails={datasetDetails}
-        />
       </>
     );
   }
@@ -612,8 +646,8 @@ function mapStateToProps(state, props) {
     const entityJS = props.entity.toJS();
     const parentSource = getSourceByName(
       entityJS.fullPathList[0],
-      sources.toJS()
-    );
+      sources
+    )?.toJS();
 
     isVersionedSource = checkIsVersionedSource(parentSource?.type);
   } else if (entityType === ENTITY_TYPES.source) {
@@ -630,7 +664,10 @@ function mapStateToProps(state, props) {
   };
 }
 
-export default connect(mapStateToProps, (dispatch) => ({
-  fetchWiki: loadWiki(dispatch),
-  dispatchFetchSupportFlags: fetchSupportFlagsDispatch?.(dispatch),
-}))(MainInfoView);
+export default compose(
+  withCatalogARSFlag,
+  connect(mapStateToProps, (dispatch) => ({
+    fetchWiki: loadWiki(dispatch),
+    dispatchFetchSupportFlags: fetchSupportFlagsDispatch?.(dispatch),
+  }))
+)(MainInfoView);

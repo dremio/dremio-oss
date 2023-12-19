@@ -47,8 +47,8 @@ public class V2TreeResource extends ProxyV2TreeResource {
 
   @Override
   @JsonView(Views.V2.class)
-  public SingleReferenceResponse assignReference(Reference.ReferenceType type, String ref, Reference assignTo) throws NessieConflictException, NessieNotFoundException {
-    throw new WebApplicationException("transplantCommitsIntoBranch is not supported", Response.Status.FORBIDDEN);
+  public SingleReferenceResponse assignReference(String typeName, String ref, Reference assignTo) {
+    throw new WebApplicationException("assignReference is not supported", Response.Status.FORBIDDEN);
   }
 
   @Override

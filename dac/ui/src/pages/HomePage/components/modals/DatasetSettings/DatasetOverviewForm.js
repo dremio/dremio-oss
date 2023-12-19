@@ -26,6 +26,7 @@ import DatasetItemLabel from "components/Dataset/DatasetItemLabel";
 import {
   getIconDataTypeFromEntity,
   getIcebergIconTypeFromEntity,
+  getIconByEntityType,
 } from "utils/iconUtils";
 import { isArcticSource, isVersionedSource } from "@app/utils/sourceUtils";
 
@@ -49,6 +50,13 @@ export default class DatasetOverviewForm extends PureComponent {
     const typeIcon = isArcticSource(source?.type)
       ? getIcebergIconTypeFromEntity(entity)
       : getIconDataTypeFromEntity(entity);
+
+    // this is used when opening a versioned datasest's settings while in the SQL Editor
+    const alternateIcon = getIconByEntityType(
+      entity.get("datasetType"),
+      isVersionedSource(source?.type)
+    );
+
     // todo: if a real form likely want wrapped in ModalForm like siblings?
     return (
       <FormBody>
@@ -57,11 +65,14 @@ export default class DatasetOverviewForm extends PureComponent {
         </FormTitle>
         <div style={{ display: "inline-block" }}>
           <DatasetItemLabel
-            name={entity.get("name")}
-            fullPath={entity.get("fullPathList")}
+            name={entity.get("name") || entity.get("displayFullPath")?.last()}
+            fullPath={
+              entity.get("fullPathList") || entity.get("displayFullPath")
+            }
             showFullPath
-            typeIcon={typeIcon}
+            typeIcon={typeIcon === "FileEmpty" ? alternateIcon : typeIcon}
             showSummaryOverlay={!isVersionedSource(source?.type)}
+            hideOverlayActionButtons
           />
         </div>
       </FormBody>

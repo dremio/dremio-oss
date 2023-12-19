@@ -15,6 +15,9 @@
  */
 package com.dremio.service.scheduler;
 
+import java.util.Optional;
+
+import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.service.Service;
 
 /**
@@ -34,4 +37,20 @@ public interface SchedulerService extends Service {
    * @return a {@code Cancellable} instance, to cancel the periodic execution
    */
   Cancellable schedule(Schedule schedule, Runnable task);
+
+  /**
+   * Gets the endpoint of the current task owner.
+   * <p>
+   * If task is not a clustered singleton, this call returns empty.
+   * An empty optional can be assumed by the caller to mean that the current task owner is local (for local schedules)
+   * or that there has been an error (for clustered singleton schedules). So if a distributed task returns an empty
+   * optional, the caller can assyme that there has been an internal error situation which made it difficult to
+   * ascertain the leader.
+   * </p>
+   * @param taskName name of the task
+   * @return an optional containing the endpoint of the current task owner node
+   */
+  default Optional<CoordinationProtos.NodeEndpoint> getCurrentTaskOwner(String taskName) {
+    return Optional.empty();
+  }
 }

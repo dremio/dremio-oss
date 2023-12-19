@@ -59,21 +59,28 @@ public class ProjectOutputHandler implements WriterCommitterOutputHandler {
     } else {
       replacement = SchemaPath.getSimplePath(RecordWriter.PATH.getName());
     }
+    ImmutableList<NamedExpression> namedExpressions = ImmutableList.of(
+      new NamedExpression(SchemaPath.getSimplePath(RecordWriter.FRAGMENT.getName()), new FieldReference(RecordWriter.FRAGMENT.getName())),
+      new NamedExpression(SchemaPath.getSimplePath(RecordWriter.RECORDS.getName()), new FieldReference(RecordWriter.RECORDS.getName())),
+      new NamedExpression(replacement, new FieldReference(RecordWriter.PATH.getName())),
+      new NamedExpression(SchemaPath.getSimplePath(RecordWriter.METADATA.getName()), new FieldReference(RecordWriter.METADATA.getName())),
+      new NamedExpression(SchemaPath.getSimplePath(RecordWriter.PARTITION.getName()), new FieldReference(RecordWriter.PARTITION.getName())),
+      new NamedExpression(SchemaPath.getSimplePath(RecordWriter.FILESIZE.getName()), new FieldReference(RecordWriter.FILESIZE.getName())),
+      new NamedExpression(SchemaPath.getSimplePath(RecordWriter.ICEBERG_METADATA.getName()), new FieldReference(RecordWriter.ICEBERG_METADATA.getName())),
+      new NamedExpression(SchemaPath.getSimplePath(RecordWriter.FILE_SCHEMA.getName()), new FieldReference(RecordWriter.FILE_SCHEMA.getName())),
+      new NamedExpression(SchemaPath.getSimplePath(RecordWriter.PARTITION_DATA.getName()), new FieldReference(RecordWriter.PARTITION_DATA.getName())),
+      new NamedExpression(SchemaPath.getSimplePath(RecordWriter.OPERATION_TYPE.getName()), new FieldReference(RecordWriter.OPERATION_TYPE.getName())),
+      new NamedExpression(SchemaPath.getSimplePath(RecordWriter.PARTITION_VALUE.getName()), new FieldReference(RecordWriter.PARTITION_VALUE.getName())),
+      new NamedExpression(SchemaPath.getSimplePath(RecordWriter.REJECTED_RECORDS.getName()), new FieldReference(RecordWriter.REJECTED_RECORDS.getName()))
+    );
+
+    assert namedExpressions.size() == RecordWriter.SCHEMA.getFields().size() : "Named expressions schema doesn't match RecordWriter Schema";
+
     Project projectConfig = new Project(
       config.getProps(),
       null,
-      ImmutableList.of(
-        new NamedExpression(SchemaPath.getSimplePath(RecordWriter.FRAGMENT.getName()), new FieldReference(RecordWriter.FRAGMENT.getName())),
-        new NamedExpression(SchemaPath.getSimplePath(RecordWriter.RECORDS.getName()), new FieldReference(RecordWriter.RECORDS.getName())),
-        new NamedExpression(replacement, new FieldReference(RecordWriter.PATH.getName())),
-        new NamedExpression(SchemaPath.getSimplePath(RecordWriter.METADATA.getName()), new FieldReference(RecordWriter.METADATA.getName())),
-        new NamedExpression(SchemaPath.getSimplePath(RecordWriter.PARTITION.getName()), new FieldReference(RecordWriter.PARTITION.getName())),
-        new NamedExpression(SchemaPath.getSimplePath(RecordWriter.FILESIZE.getName()), new FieldReference(RecordWriter.FILESIZE.getName())),
-        new NamedExpression(SchemaPath.getSimplePath(RecordWriter.ICEBERG_METADATA.getName()), new FieldReference(RecordWriter.ICEBERG_METADATA.getName())),
-        new NamedExpression(SchemaPath.getSimplePath(RecordWriter.FILE_SCHEMA.getName()), new FieldReference(RecordWriter.FILE_SCHEMA.getName())),
-        new NamedExpression(SchemaPath.getSimplePath(RecordWriter.PARTITION_DATA.getName()), new FieldReference(RecordWriter.PARTITION_DATA.getName())),
-        new NamedExpression(SchemaPath.getSimplePath(RecordWriter.OPERATION_TYPE.getName()), new FieldReference(RecordWriter.OPERATION_TYPE.getName()))
-      ));
+      namedExpressions
+      );
     this.project = new ProjectOperator(context, projectConfig);
     return project.setup(accessible);
   }

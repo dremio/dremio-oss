@@ -16,9 +16,13 @@
 package com.dremio.service.jobtelemetry.server;
 
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.concurrent.ContextMigratingExecutorService;
 import com.dremio.common.nodes.EndpointHelper;
 import com.dremio.common.util.Retryer;
 import com.dremio.common.utils.protos.QueryIdHelper;
@@ -42,7 +46,9 @@ import com.dremio.service.jobtelemetry.server.store.MetricsStore;
 import com.dremio.service.jobtelemetry.server.store.ProfileStore;
 import com.dremio.telemetry.utils.GrpcTracerFacade;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
 import com.google.inject.Inject;
+import com.google.inject.name.Named;
 import com.google.protobuf.Empty;
 
 import io.grpc.Status;
@@ -63,22 +69,23 @@ public class JobTelemetryServiceImpl extends JobTelemetryServiceGrpc.JobTelemetr
   private final BackgroundProfileWriter bgProfileWriter;
   private final boolean saveFullProfileOnQueryTermination;
   private final Retryer retryer;
+  private final ContextMigratingExecutorService executorService;
 
   @Inject
-  JobTelemetryServiceImpl(MetricsStore metricsStore, ProfileStore profileStore, GrpcTracerFacade tracer) {
+  JobTelemetryServiceImpl(MetricsStore metricsStore, ProfileStore profileStore, GrpcTracerFacade tracer, @Named("requestThreadPool") ContextMigratingExecutorService executorService) {
     this(metricsStore, profileStore, tracer, false,
-      METRICS_PUBLISH_FREQUENCY_MILLIS);
+      METRICS_PUBLISH_FREQUENCY_MILLIS, executorService);
   }
 
   JobTelemetryServiceImpl(MetricsStore metricsStore, ProfileStore profileStore, GrpcTracerFacade tracer,
-                          boolean saveFullProfileOnQueryTermination) {
+                          boolean saveFullProfileOnQueryTermination, ContextMigratingExecutorService executorService) {
     this(metricsStore, profileStore, tracer, saveFullProfileOnQueryTermination,
-      METRICS_PUBLISH_FREQUENCY_MILLIS);
+      METRICS_PUBLISH_FREQUENCY_MILLIS, executorService);
   }
 
   public JobTelemetryServiceImpl(MetricsStore metricsStore, ProfileStore profileStore, GrpcTracerFacade tracer,
                           boolean saveFullProfileOnQueryTermination,
-                          int metricsPublishFrequencyMillis) {
+                          int metricsPublishFrequencyMillis, ContextMigratingExecutorService executorService) {
     this.metricsStore = metricsStore;
     this.profileStore = profileStore;
     this.progressMetricsPublisher = new ProgressMetricsPublisher(metricsStore,
@@ -89,6 +96,7 @@ public class JobTelemetryServiceImpl extends JobTelemetryServiceGrpc.JobTelemetr
       .retryIfExceptionOfType(DatastoreException.class)
       .setMaxRetries(MAX_RETRIES)
       .build();
+    this.executorService = executorService;
   }
 
   @Override
@@ -139,7 +147,7 @@ public class JobTelemetryServiceImpl extends JobTelemetryServiceGrpc.JobTelemetr
     } catch (Exception ex) {
       logger.error("put tail profile failed", ex);
       responseObserver.onError(
-        Status.INTERNAL.withDescription(ex.getMessage()).asRuntimeException());
+        Status.INTERNAL.withDescription(Throwables.getRootCause(ex).getMessage()).asRuntimeException());
     }
   }
 
@@ -267,16 +275,16 @@ public class JobTelemetryServiceImpl extends JobTelemetryServiceGrpc.JobTelemetr
     } catch (IllegalArgumentException e) {
       responseObserver.onError(
           Status.INVALID_ARGUMENT
-              .withDescription("get query profile failed " + e.getMessage())
+              .withDescription("Unable to get query profile. " + e.getMessage())
               .asRuntimeException());
     } catch (Exception ex) {
-      logger.error("get query profile failed", ex);
+      logger.error("Unable to get query profile.", ex);
       responseObserver.onError(
-          Status.INTERNAL.withDescription(ex.getMessage()).asRuntimeException());
+          Status.INTERNAL.withDescription(Throwables.getRootCause(ex).getMessage()).asRuntimeException());
     }
   }
 
-  private QueryProfile fetchOrBuildMergedProfile(QueryId queryId) {
+  private QueryProfile fetchOrBuildMergedProfile(QueryId queryId) throws ExecutionException, InterruptedException {
     Optional<QueryProfile> fullProfile = profileStore.getFullProfile(queryId);
     if (fullProfile.isPresent()) {
       return fullProfile.get();
@@ -291,7 +299,7 @@ public class JobTelemetryServiceImpl extends JobTelemetryServiceGrpc.JobTelemetr
   }
 
   // build and save the full profile, delete the sub-profiles and metrics.
-  private void saveFullProfileAndDeletePartial(QueryId queryId) {
+  private void saveFullProfileAndDeletePartial(QueryId queryId) throws ExecutionException, InterruptedException {
     QueryProfile fullProfile = buildFullProfile(queryId);
 
     this.retryer.call(() -> {
@@ -303,17 +311,19 @@ public class JobTelemetryServiceImpl extends JobTelemetryServiceGrpc.JobTelemetr
 
   }
 
-  private QueryProfile buildFullProfile(QueryId queryId) {
-    QueryProfile planningProfile = profileStore.getPlanningProfile(queryId).orElse(null);
-    QueryProfile tailProfile = profileStore.getTailProfile(queryId).orElse(null);
-    if (planningProfile == null && tailProfile == null) {
-      throw new IllegalArgumentException("profile not found for the given queryId");
+  private QueryProfile buildFullProfile(QueryId queryId) throws ExecutionException, InterruptedException {
+    CompletableFuture<QueryProfile> planningProfileFuture = CompletableFuture.supplyAsync(() -> (QueryProfile) profileStore.getPlanningProfile(queryId).orElse(null), executorService);
+    CompletableFuture<QueryProfile> tailProfileFuture = CompletableFuture.supplyAsync(() -> (QueryProfile) profileStore.getTailProfile(queryId).orElse(null), executorService);
+    CompletableFuture<Stream<ExecutorQueryProfile>> executorsProfilesFuture = CompletableFuture.supplyAsync(() -> profileStore.getAllExecutorProfiles(queryId), executorService);
+
+    if (planningProfileFuture.get() == null && tailProfileFuture.get() == null) {
+      throw new IllegalArgumentException("Profile not found for the given queryId.");
     }
 
     return ProfileMerger.merge(
-      planningProfile,
-      tailProfile,
-      profileStore.getAllExecutorProfiles(queryId)
+      planningProfileFuture.get(),
+      tailProfileFuture.get(),
+      executorsProfilesFuture.get()
     );
   }
 

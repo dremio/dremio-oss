@@ -15,46 +15,22 @@
  */
 package com.dremio.services.nessie.grpc.client.impl;
 
-import static com.dremio.services.nessie.grpc.ProtoUtil.refFromProtoResponse;
-import static com.dremio.services.nessie.grpc.client.GrpcExceptionMapper.handle;
-
 import org.projectnessie.client.api.DeleteBranchBuilder;
-import org.projectnessie.client.builder.BaseOnBranchBuilder;
-import org.projectnessie.error.NessieConflictException;
-import org.projectnessie.error.NessieNotFoundException;
 import org.projectnessie.model.Branch;
+import org.projectnessie.model.Reference;
 
-import com.dremio.services.nessie.grpc.api.DeleteReferenceRequest;
-import com.dremio.services.nessie.grpc.api.ReferenceResponse;
-import com.dremio.services.nessie.grpc.api.ReferenceType;
 import com.dremio.services.nessie.grpc.api.TreeServiceGrpc.TreeServiceBlockingStub;
 
-final class GrpcDeleteBranch extends BaseOnBranchBuilder<DeleteBranchBuilder>
+final class GrpcDeleteBranch extends BaseGrpcDeleteReference<Branch, DeleteBranchBuilder>
     implements DeleteBranchBuilder {
 
-  private final TreeServiceBlockingStub stub;
-
   public GrpcDeleteBranch(TreeServiceBlockingStub stub) {
-    this.stub = stub;
+    super(stub);
+    refType(Reference.ReferenceType.BRANCH);
   }
 
   @Override
-  public Branch getAndDelete() throws NessieConflictException, NessieNotFoundException {
-    return handle(
-      () ->
-      {
-        ReferenceResponse response = stub.deleteReference(
-          DeleteReferenceRequest.newBuilder()
-            .setReferenceType(ReferenceType.BRANCH)
-            .setNamedRef(branchName)
-            .setHash(hash)
-            .build());
-        return (Branch) refFromProtoResponse(response);
-      });
-  }
-
-  @Override
-  public void delete() throws NessieConflictException, NessieNotFoundException {
-    getAndDelete();
+  public DeleteBranchBuilder branchName(String branchName) {
+    return refName(branchName);
   }
 }

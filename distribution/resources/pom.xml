@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.distribution</groupId>
     <artifactId>dremio-distribution-parent</artifactId>
-    <version>24.1.0-202306130653310132-d30779f6</version>
+    <version>24.3.0-202312190021150029-52db2faf</version>
   </parent>
 
   <artifactId>dremio-distribution-resources</artifactId>
@@ -71,6 +71,13 @@
         <groupId>com.mycila</groupId>
         <artifactId>license-maven-plugin</artifactId>
         <configuration>
+          <licenseSets>
+            <licenseSet>
+              <excludes combine.children="append">
+                <exclude>**/dremio.tmpfiles.conf</exclude>
+              </excludes>
+            </licenseSet>
+          </licenseSets>
           <mapping>
             <!-- full file names -->
             <dremio>SCRIPT_STYLE</dremio>
@@ -78,9 +85,6 @@
             <dremio-config>SCRIPT_STYLE</dremio-config>
             <dremio-env>SCRIPT_STYLE</dremio-env>
           </mapping>
-          <excludes combine.children="append">
-            <exclude>**/dremio.tmpfiles.conf</exclude>
-          </excludes>
         </configuration>
       </plugin>
       <plugin>

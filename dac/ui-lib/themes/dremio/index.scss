@@ -13,14 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@use "./tokens.scss";
+@use "./tokens";
 @use "./utility-classes/index";
-@use "./components.scss";
-@use "./mantine.scss";
+@use "./components";
+@use "./mantine";
+@use "./global";
 @use "../utilities";
-
-:root {
-  @extend %dremio-typography-main;
-  @extend .dremio-light;
-  @extend .bg-background;
-}

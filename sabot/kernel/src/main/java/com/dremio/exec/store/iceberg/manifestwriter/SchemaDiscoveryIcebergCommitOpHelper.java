@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.store.iceberg.manifestwriter;
 
+import static com.dremio.exec.store.iceberg.IcebergUtils.isIncrementalRefresh;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -33,7 +35,10 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.common.types.SchemaUpPromotionRules;
 import com.dremio.common.types.SupportsTypeCoercionsAndUpPromotions;
+import com.dremio.common.types.TypeCoercionRules;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.catalog.ColumnCountTooLargeException;
 import com.dremio.exec.exception.NoSupportedUpPromotionOrCoercionException;
@@ -45,8 +50,8 @@ import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.exec.store.iceberg.IcebergPartitionData;
+import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.iceberg.SupportsIcebergMutablePlugin;
-import com.dremio.exec.store.iceberg.model.IcebergCommandType;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.exec.util.VectorUtil;
 import com.dremio.io.file.FileSystem;
@@ -128,7 +133,7 @@ public class SchemaDiscoveryIcebergCommitOpHelper extends IcebergCommitOpHelper 
 
     int existingPartitionDepth = partitionColumns.size() - implicitColSize;
     if(config.getIcebergTableProps().isDetectSchema() && manifestFile.partitions().size() > existingPartitionDepth
-      && config.getIcebergTableProps().getIcebergOpType() == IcebergCommandType.INCREMENTAL_METADATA_REFRESH) {
+      && isIncrementalRefresh(config.getIcebergTableProps().getIcebergOpType())) {
       throw new UnsupportedOperationException ("Addition of a new level dir is not allowed in incremental refresh. Please forget and " +
           "promote the table again.");
     }
@@ -151,16 +156,15 @@ public class SchemaDiscoveryIcebergCommitOpHelper extends IcebergCommitOpHelper 
   private void initializeIcebergOpCommitter() throws Exception {
     // TODO: doesn't track wait times currently. need to use dremioFileIO after implementing newOutputFile method
     IcebergModel icebergModel = ((SupportsIcebergMutablePlugin)config.getPlugin()).
-      getIcebergModel(config.getIcebergTableProps(), config.getProps().getUserName(), context, fs);
+      getIcebergModel(config.getIcebergTableProps(), config.getProps().getUserName(), context, fileIO);
     IcebergTableProps icebergTableProps = config.getIcebergTableProps();
-
     switch (icebergTableProps.getIcebergOpType()) {
       case CREATE:
         icebergOpCommitter = icebergModel.getCreateTableCommitter(
                 icebergTableProps.getTableName(),
                 icebergModel.getTableIdentifier(icebergTableProps.getTableLocation()),
                 currentSchema,
-                partitionColumns, context.getStats(), null);
+                partitionColumns, context.getStats(), null, null, icebergTableProps.getTableProperties());
         break;
       case INSERT:
         icebergOpCommitter = icebergModel.getInsertTableCommitter(icebergModel.getTableIdentifier(icebergTableProps.getTableLocation()), context.getStats());
@@ -177,10 +181,16 @@ public class SchemaDiscoveryIcebergCommitOpHelper extends IcebergCommitOpHelper 
           partitionColumns,
           config.getDatasetConfig().orElseThrow(() -> new IllegalStateException("DatasetConfig not found")),
           context.getStats(),
-          null
-        );
+          null,
+          icebergTableProps.getFileType());
         break;
+      case PARTIAL_METADATA_REFRESH:
       case INCREMENTAL_METADATA_REFRESH:
+
+        Path icebergTableLocation = (!config.getDatasetConfig().isPresent() || config.getDatasetConfig().get().getPhysicalDataset().getIcebergMetadata() == null) ?
+          Path.of(icebergTableProps.getTableLocation()) :
+          IcebergUtils.getPreviousTableMetadataRoot(config.getDatasetConfig().get().getPhysicalDataset().getIcebergMetadata());
+
         createReadSignProvider(icebergTableProps, false);
           icebergOpCommitter = icebergModel.getIncrementalMetadataRefreshCommitter(
             context,
@@ -188,11 +198,15 @@ public class SchemaDiscoveryIcebergCommitOpHelper extends IcebergCommitOpHelper 
             config.getDatasetPath().getPathComponents(),
             icebergTableProps.getDataTableLocation(),
             icebergTableProps.getUuid(),
-            icebergModel.getTableIdentifier(icebergTableProps.getTableLocation()),
+            icebergModel.getTableIdentifier(icebergTableLocation.toString()),
             icebergTableProps.getFullSchema(),
             partitionColumns,
             true,
-            config.getDatasetConfig().orElseThrow(() -> new IllegalStateException("DatasetConfig not found"))
+            config.getDatasetConfig().orElseThrow(() -> new IllegalStateException("DatasetConfig not found")),
+            getFS(config),
+            icebergTableProps.getMetadataExpireAfterMs(),
+            icebergTableProps.getIcebergOpType(),
+            icebergTableProps.getFileType()
           );
         icebergOpCommitter.updateSchema(currentSchema);
         break;
@@ -218,5 +232,26 @@ public class SchemaDiscoveryIcebergCommitOpHelper extends IcebergCommitOpHelper 
         throw UserException.ioExceptionError(e).buildSilently();
       }
     };
+  }
+
+  @Override
+  public TypeCoercionRules getTypeCoercionRules() {
+    if (context.getOptions().getOption(ExecConstants.ENABLE_PARQUET_MIXED_TYPES_COERCION)) {
+      return COMPLEX_INCOMPATIBLE_TO_VARCHAR_COERCION;
+    }
+    return STANDARD_TYPE_COERCION_RULES;
+  }
+
+  @Override
+  public SchemaUpPromotionRules getUpPromotionRules() {
+    if (context.getOptions().getOption(ExecConstants.ENABLE_PARQUET_MIXED_TYPES_COERCION)) {
+      return COMPLEX_INCOMPATIBLE_TO_VARCHAR_PROMOTION;
+    }
+    return STANDARD_TYPE_UP_PROMOTION_RULES;
+  }
+
+  @Override
+  public boolean isComplexToVarcharCoercionSupported() {
+    return context.getOptions().getOption(ExecConstants.ENABLE_PARQUET_MIXED_TYPES_COERCION);
   }
 }

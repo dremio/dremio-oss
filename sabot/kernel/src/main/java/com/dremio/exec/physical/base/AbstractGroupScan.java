@@ -93,7 +93,7 @@ public abstract class AbstractGroupScan extends AbstractBase implements GroupSca
   }
 
   @Override
-  public DistributionAffinity getDistributionAffinity() {
+  public final DistributionAffinity getDistributionAffinity() {
     return dataset.getStoragePluginId().getCapabilities().getCapability(SourceCapabilities.REQUIRES_HARD_AFFINITY) ? DistributionAffinity.HARD : DistributionAffinity.SOFT;
   }
 

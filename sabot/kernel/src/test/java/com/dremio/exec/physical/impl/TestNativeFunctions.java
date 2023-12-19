@@ -18,12 +18,10 @@ package com.dremio.exec.physical.impl;
 import static com.dremio.sabot.Fixtures.NULL_BIGINT;
 import static com.dremio.sabot.Fixtures.NULL_BINARY;
 import static com.dremio.sabot.Fixtures.NULL_BOOLEAN;
-import static com.dremio.sabot.Fixtures.NULL_DATE;
 import static com.dremio.sabot.Fixtures.NULL_DECIMAL;
 import static com.dremio.sabot.Fixtures.NULL_DOUBLE;
 import static com.dremio.sabot.Fixtures.NULL_FLOAT;
 import static com.dremio.sabot.Fixtures.NULL_INT;
-import static com.dremio.sabot.Fixtures.NULL_TIMESTAMP;
 import static com.dremio.sabot.Fixtures.NULL_VARCHAR;
 import static com.dremio.sabot.Fixtures.date;
 import static com.dremio.sabot.Fixtures.interval_day;
@@ -1191,20 +1189,6 @@ public class TestNativeFunctions extends BaseTestFunction {
       {"hashSHA256(c0)", 12345, "2dbcbc659508f21be09acdbe180465ded85327f3fd4c00cc746bf3cb4838e95d"},
       {"hashSHA256(c0)", NULL_DECIMAL, nullHash256},
       {"hashSHA256(c0)", BigDecimal.valueOf(10, 2), "3aeae1c06c3eeeb5c12b00ddfe28e936ceeca6e735b275915fe3381e1c9def4f"},
-    });
-  }
-
-  @Test
-  public void testLastDay() throws Exception {
-    testFunctionsCompiledOnly(new Object[][]{
-      {"extractDay(last_day(c0))", date("2000-05-01"), 31L},
-      {"extractDay(last_day(c0))", date("2000-06-01"), 30L},
-      {"extractDay(last_day(c0))", date("2021-12-12"), 31L},
-      {"extractDay(last_day(c0))", NULL_DATE, NULL_BIGINT},
-      {"extractDay(last_day(c0))", ts("2000-05-01"), 31L},
-      {"extractDay(last_day(c0))", ts("2000-06-01"), 30L},
-      {"extractDay(last_day(c0))", ts("2021-12-12"), 31L},
-      {"extractDay(last_day(c0))", NULL_TIMESTAMP, NULL_BIGINT},
     });
   }
 

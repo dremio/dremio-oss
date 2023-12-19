@@ -40,7 +40,7 @@ public class TestFilterSplitOnMapEntryFunction extends PlanTestBase {
           ".*Project"+
           "(?s).*SelectionVectorRemover.*EXPR.*7" +
           "(?s).*Filter.*'test'" +
-          "(?s).*Project.*EXPR.*7.*MAP_ENTRY.*'stats.put.failure'",
+          "(?s).*Project.*last_matching_map_entry_for_key.*'stats.put.failure'"
       });
     }
   }

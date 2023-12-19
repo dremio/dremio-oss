@@ -85,12 +85,11 @@ export class JobsContent extends PureComponent {
     $(window).on("mouseup", this.handleMouseReleaseOutOfBrowser);
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     if (nextProps.jobs !== this.props.jobs) {
       this.runActionForJobs(nextProps.jobs, false, (jobId) =>
         socket.startListenToJobProgress(jobId)
       );
-
       // if we don't have an active job id highlight the first job
       if (!nextProps.jobId) {
         this.setActiveJob(nextProps.jobs.get(0), true);
@@ -100,9 +99,9 @@ export class JobsContent extends PureComponent {
 
   componentWillUnmount() {
     $(window).off("mouseup", this.handleMouseReleaseOutOfBrowser);
-    this.runActionForJobs(this.props.jobs, true, (jobId) =>
-      socket.stopListenToJobProgress(jobId)
-    );
+    this.runActionForJobs(this.props.jobs, true, (jobId) => {
+      return socket.stopListenToJobProgress(jobId);
+    });
   }
 
   render() {

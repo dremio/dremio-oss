@@ -45,7 +45,6 @@ import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.StreamingAggregate;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.cost.DremioCost.Factory;
-import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.options.Options;
@@ -173,11 +172,6 @@ public class StreamAggPrel extends AggregatePrel implements Prel{
   @Override
   public Iterator<Prel> iterator() {
     return PrelUtil.iter(getInput());
-  }
-
-  @Override
-  public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value) throws E {
-    return logicalVisitor.visitPrel(this, value);
   }
 
   @Override

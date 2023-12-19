@@ -15,23 +15,29 @@
  */
 package com.dremio.sabot.exec;
 
+import static com.dremio.sabot.task.single.DedicatedTaskPool.DUMMY_GROUP_MANAGER;
+import static com.dremio.test.DremioTest.CLASSPATH_SCAN_RESULT;
+import static com.dremio.test.DremioTest.DEFAULT_SABOT_CONFIG;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
+import org.junit.Before;
 import org.junit.Test;
 import org.mockito.stubbing.Answer;
 
+import com.dremio.common.config.SabotConfig;
+import com.dremio.common.memory.DremioRootAllocator;
+import com.dremio.config.DremioConfig;
 import com.dremio.exec.planner.fragment.PlanFragmentFull;
 import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.exec.proto.CoordExecRPC.ActiveQueriesOnForeman;
@@ -44,11 +50,11 @@ import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.UserBitShared.QueryId;
+import com.dremio.exec.server.BootStrapContext;
 import com.dremio.options.OptionManager;
 import com.dremio.options.TypeValidators;
 import com.dremio.sabot.exec.fragment.FragmentExecutor;
 import com.dremio.sabot.exec.fragment.FragmentExecutorBuilder;
-import com.dremio.sabot.memory.MemoryArbiter;
 import com.dremio.sabot.task.AsyncTask;
 import com.dremio.sabot.task.AsyncTaskWrapper;
 import com.dremio.sabot.task.SchedulingGroup;
@@ -59,6 +65,7 @@ import com.dremio.sabot.threads.AvailabilityCallback;
 import com.dremio.sabot.threads.sharedres.SharedResourceType;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.typesafe.config.ConfigFactory;
 
 import io.grpc.stub.StreamObserver;
 
@@ -139,6 +146,13 @@ public class TestFragmentExecutors {
     }
   }
 
+  protected BufferAllocator mockedRootAlloc;
+
+  @Before
+  public void setup() {
+    mockedRootAlloc = DremioRootAllocator.create(Long.MAX_VALUE, Long.MAX_VALUE);
+  }
+
   @SuppressWarnings("unchecked") // needed for the unchecked cast below
   private SchedulingGroup<AsyncTaskWrapper> mockSchedulingGroup() {
     return (SchedulingGroup<AsyncTaskWrapper>)mock(SchedulingGroup.class);
@@ -201,14 +215,17 @@ public class TestFragmentExecutors {
 
     final MaestroProxy mockMaestroProxy = mock(MaestroProxy.class);
     when(mockMaestroProxy.tryStartQuery(any(), any(), any())).thenReturn(true);
-    final MemoryArbiter mockMemoryArbiter = mock(MemoryArbiter.class);
+
+    WorkloadTicketDepot ticketDepot = new WorkloadTicketDepot(mockedRootAlloc, mock(SabotConfig.class), DUMMY_GROUP_MANAGER);
 
     final FragmentExecutors fe = new FragmentExecutors(
+      new BootStrapContext(DremioConfig.create(null, DEFAULT_SABOT_CONFIG), CLASSPATH_SCAN_RESULT),
+      new SabotConfig(ConfigFactory.empty()),
+      new QueriesClerk(ticketDepot),
       mockMaestroProxy,
       mock(FragmentWorkManager.ExitCallback.class),
       mockTaskPool,
-      mockOptionManager,
-      mockMemoryArbiter);
+      mockOptionManager);
 
     final QueryId queryId = QueryId
       .newBuilder()

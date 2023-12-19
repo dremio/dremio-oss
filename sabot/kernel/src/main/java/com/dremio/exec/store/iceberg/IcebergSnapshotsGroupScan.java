@@ -15,39 +15,70 @@
  */
 package com.dremio.exec.store.iceberg;
 
-import static com.dremio.exec.store.iceberg.IcebergUtils.getMetadataLocation;
-import static com.dremio.exec.store.iceberg.IcebergUtils.getSplitAndPartitionInfo;
-
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
-import com.dremio.exec.physical.base.AbstractGroupScan;
+import com.dremio.exec.physical.base.AbstractBase;
+import com.dremio.exec.physical.base.GroupScan;
 import com.dremio.exec.physical.base.OpProps;
+import com.dremio.exec.physical.base.PhysicalOperator;
+import com.dremio.exec.physical.base.PhysicalVisitor;
 import com.dremio.exec.physical.base.SubScan;
+import com.dremio.exec.planner.fragment.DistributionAffinity;
+import com.dremio.exec.planner.fragment.ExecutionNodeMap;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.SplitWork;
-import com.dremio.exec.store.TableMetadata;
-import com.dremio.exec.store.dfs.IcebergTableProps;
+import com.dremio.service.namespace.PartitionChunkMetadata;
+import com.dremio.service.namespace.capabilities.SourceCapabilities;
 
 /**
  * Iceberg snapshots group scan
  */
-public class IcebergSnapshotsGroupScan extends AbstractGroupScan {
-  private final IcebergTableProps icebergTableProps;
+public class IcebergSnapshotsGroupScan extends AbstractBase implements GroupScan<SplitWork> {
   private final SnapshotsScanOptions snapshotsScanOptions;
+  private final List<SchemaPath> columns;
+  private final StoragePluginId storagePluginId;
+  private final Iterator<PartitionChunkMetadata> splits;
+  private final int maxParallelizationWidth;
 
-  public IcebergSnapshotsGroupScan(OpProps props, TableMetadata dataset, IcebergTableProps icebergTableProps,
-                                         List<SchemaPath> columns, SnapshotsScanOptions snapshotsScanOptions) {
-    super(props, dataset, columns);
-    this.icebergTableProps = icebergTableProps;
+  public IcebergSnapshotsGroupScan(OpProps props, StoragePluginId storagePluginId,
+                                   List<SchemaPath> columns, SnapshotsScanOptions snapshotsScanOptions,
+                                   Iterator<PartitionChunkMetadata> splits, int maxParallelizationWidth) {
+    super(props);
     this.snapshotsScanOptions = snapshotsScanOptions;
+    this.columns = columns;
+    this.storagePluginId = storagePluginId;
+    this.splits = splits;
+    this.maxParallelizationWidth = maxParallelizationWidth;
   }
 
   @Override
   public int getMaxParallelizationWidth() {
-    return 1;
+    return this.maxParallelizationWidth;
+  }
+
+  @Override
+  public int getMinParallelizationWidth() {
+    return 1; // Will carry only one split
+  }
+
+  @Override
+  public DistributionAffinity getDistributionAffinity() {
+    return storagePluginId.getCapabilities().getCapability(SourceCapabilities.REQUIRES_HARD_AFFINITY) ? DistributionAffinity.HARD : DistributionAffinity.SOFT;
+  }
+
+  @Override
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E {
+    return physicalVisitor.visitGroupScan(this, value);
+  }
+
+  @Override
+  public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) throws ExecutionSetupException {
+    return this;
   }
 
   @Override
@@ -56,25 +87,28 @@ public class IcebergSnapshotsGroupScan extends AbstractGroupScan {
   }
 
   @Override
-  public SubScan getSpecificScan(List<SplitWork> works) throws ExecutionSetupException {
-    final StoragePluginId pluginId;
-    if (dataset instanceof InternalIcebergScanTableMetadata) {
-      InternalIcebergScanTableMetadata icebergDataset = (InternalIcebergScanTableMetadata) dataset;
-      pluginId = icebergDataset.getIcebergTableStoragePlugin();
-    } else {
-      pluginId = dataset.getStoragePluginId();
-    }
+  public Iterator<SplitWork> getSplits(ExecutionNodeMap nodeMap) {
+    return SplitWork.transform(splits, nodeMap, getDistributionAffinity());
+  }
 
-    final String metadataLocation = getMetadataLocation(dataset, works);
+  @Override
+  public SubScan getSpecificScan(List<SplitWork> works) throws ExecutionSetupException {
     return new IcebergSnapshotsSubScan(
       props,
       props.getSchema(),
-      getSplitAndPartitionInfo(metadataLocation),
-      getDataset().getName().getPathComponents(),
-      pluginId,
-      dataset.getStoragePluginId(),
+      storagePluginId,
       columns,
-      icebergTableProps,
-      snapshotsScanOptions);
+      snapshotsScanOptions,
+      works);
+  }
+
+  @Override
+  public List<SchemaPath> getColumns() {
+    return this.columns;
+  }
+
+  @Override
+  public Iterator<PhysicalOperator> iterator() {
+    return Collections.emptyIterator();
   }
 }

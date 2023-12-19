@@ -84,7 +84,7 @@ public class IcebergExecutionDatasetAccessor extends BaseIcebergExecutionDataset
     try {
       Path metaDir = Path.of(getTableLocation()).resolve(IcebergFormatMatcher.METADATA_DIR_NAME);
       metaDir = Path.of(Path.getContainerSpecificRelativePath(metaDir));
-      if (!fs.exists(metaDir) || !fs.isDirectory(metaDir)) {
+      if (!fs.isDirectory(metaDir)) {
         throw new IllegalStateException("missing metadata dir for iceberg table");
       }
 

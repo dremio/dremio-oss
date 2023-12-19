@@ -61,6 +61,7 @@ abstract class BaseVarBinaryAccumulator implements Accumulator {
   private final int accumIndex;
   private final VectorizedHashAggOperator.VarLenVectorResizer varLenVectorResizer;
   private final AccumStats accumStats;
+  private boolean isAccumulatorAtMinimum;
 
   /**
    * @param input
@@ -166,6 +167,7 @@ abstract class BaseVarBinaryAccumulator implements Accumulator {
       }
       /* add a single batch */
       addBatchHelper(dataBuffer, validityBuffer);
+      this.isAccumulatorAtMinimum = false;
     } catch (Exception e) {
       /* this will be caught by LBlockHashTable and subsequently handled by VectorizedHashAggOperator */
       Throwables.propagate(e);
@@ -276,6 +278,9 @@ abstract class BaseVarBinaryAccumulator implements Accumulator {
    */
   @Override
   public long getSizeInBytes() {
+    if (this.isAccumulatorAtMinimum) {
+      return 0;
+    }
     long size = 0;
     for (int i = 0; i < batches; i++) {
       MutableVarcharVector mv = (MutableVarcharVector) accumulators[i];
@@ -308,6 +313,7 @@ abstract class BaseVarBinaryAccumulator implements Accumulator {
     batches = 1;
 
     AutoCloseables.close(asList(Arrays.copyOfRange(oldAccumulators, 1, oldAccumulators.length)));
+    this.isAccumulatorAtMinimum = true;
   }
 
   private void resetFirstAccumulatorVector() {

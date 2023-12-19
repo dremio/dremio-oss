@@ -17,6 +17,7 @@ package com.dremio.exec.planner.sql.parser;
 
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlLiteral;
+import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
@@ -27,28 +28,28 @@ import com.google.common.base.Preconditions;
  */
 public abstract class SqlCreateVersionBase extends SqlVersionSourceRefBase {
 
-  private final SqlLiteral existenceCheck;
+  private final SqlLiteral shouldErrorIfVersionExists;
 
   protected SqlCreateVersionBase(
       SqlParserPos pos,
-      SqlLiteral existenceCheck,
+      SqlLiteral shouldErrorIfVersionExists,
       ReferenceType refType,
       SqlIdentifier refValue,
+      SqlNode timestamp,
       SqlIdentifier sourceName) {
-    super(pos, sourceName, refType, refValue);
-    this.existenceCheck = Preconditions.checkNotNull(existenceCheck);
+    super(pos, sourceName, refType, refValue, timestamp);
+    this.shouldErrorIfVersionExists = Preconditions.checkNotNull(shouldErrorIfVersionExists);
   }
 
-  public SqlLiteral getExistenceCheck() {
-    return existenceCheck;
+  public SqlLiteral shouldErrorIfVersionExists() {
+    return shouldErrorIfVersionExists;
   }
 
   public void unparseExistenceCheck(SqlWriter writer) {
-    if (existenceCheck.booleanValue()) {
+    if (shouldErrorIfVersionExists.booleanValue()) {
       writer.keyword("IF");
       writer.keyword("NOT");
       writer.keyword("EXISTS");
     }
   }
-
 }

@@ -56,7 +56,7 @@ public class BoostTableFunctionContext extends TableFunctionContext {
                                    @JsonProperty("convertedIcebergDataset") boolean isConvertedIcebergDataset,
                                    @JsonProperty("icebergMetadata") boolean isIcebergMetadata,
                                    @JsonProperty("userDefinedSchemaSettings") UserDefinedSchemaSettings userDefinedSchemaSettings) {
-    super(formatSettings, fullSchema, tableSchema, tablePath, scanFilter, pluginId, internalTablePluginId, columns, partitionColumns, globalDictionaryEncodedColumns, extendedProperty, arrowCachingEnabled, isConvertedIcebergDataset, isIcebergMetadata, userDefinedSchemaSettings);
+    super(formatSettings, fullSchema, tableSchema, tablePath, scanFilter, null, pluginId, internalTablePluginId, columns, partitionColumns, globalDictionaryEncodedColumns, extendedProperty, arrowCachingEnabled, isConvertedIcebergDataset, isIcebergMetadata, userDefinedSchemaSettings);
     this.arrowFileDir = arrowFileDir;
   }
 

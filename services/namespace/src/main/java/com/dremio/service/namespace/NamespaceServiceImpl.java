@@ -15,7 +15,6 @@
  */
 package com.dremio.service.namespace;
 
-import static com.dremio.service.namespace.NamespaceInternalKeyDumpUtil.parseKey;
 import static com.dremio.service.namespace.NamespaceUtils.getIdOrNull;
 import static com.dremio.service.namespace.NamespaceUtils.isListable;
 import static com.dremio.service.namespace.NamespaceUtils.isPhysicalDataset;
@@ -32,9 +31,9 @@ import static java.lang.String.format;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.AbstractMap;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -76,6 +75,8 @@ import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.datastore.api.LegacyStoreBuildingFactory;
 import com.dremio.datastore.format.Format;
 import com.dremio.datastore.indexed.IndexKey;
+import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEvents;
+import com.dremio.service.namespace.catalogstatusevents.events.DatasetDeletionCatalogStatusEvent;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.MultiSplit;
@@ -116,40 +117,50 @@ public class NamespaceServiceImpl implements NamespaceService {
   private static final int LOG_BATCH = 99;
   public static final int LATEST_VERSION = 1;
   public static final int MAX_ENTITIES_PER_QUERY = 1000;
+  private static final int MAX_EXCEPTIONS_ALLOWED = 100;
+  private static final int NUM_EXAMINED_SPLITS_BEFORE_LOGGING = 1_000_000;
+  private static final int MAX_DELETE_SPLIT_RETRIES = 1;
 
   private final LegacyIndexedStore<String, NameSpaceContainer> namespace;
   private final LegacyIndexedStore<PartitionChunkId, PartitionChunk> partitionChunkStore;
   private final LegacyKVStore<PartitionChunkId, MultiSplit> multiSplitStore;
+  private final CatalogStatusEvents catalogStatusEvents;
 
   /**
    * Factory for {@code NamespaceServiceImpl}
    */
   public static final class Factory implements NamespaceService.Factory {
     private final LegacyKVStoreProvider kvStoreProvider;
+    private final CatalogStatusEvents catalogStatusEvents;
 
     @Inject
-    public Factory(LegacyKVStoreProvider kvStoreProvider) {
+    public Factory(final LegacyKVStoreProvider kvStoreProvider,
+                   final CatalogStatusEvents catalogStatusEvents) {
       this.kvStoreProvider = kvStoreProvider;
+      this.catalogStatusEvents = catalogStatusEvents;
     }
 
     @Override
     public NamespaceService get(String userName) {
       Preconditions.checkNotNull(userName, "requires userName"); // per method contract
-      return new NamespaceServiceImpl(kvStoreProvider);
+      return new NamespaceServiceImpl(kvStoreProvider, catalogStatusEvents);
     }
 
     @Override
     public NamespaceService get(NamespaceIdentity identity) {
       Preconditions.checkNotNull(identity, "requires identity"); // per method contract
-      return new NamespaceServiceImpl(kvStoreProvider);
+      return new NamespaceServiceImpl(kvStoreProvider, catalogStatusEvents);
     }
   }
 
   @Inject
-  public NamespaceServiceImpl(final LegacyKVStoreProvider kvStoreProvider) {
+  public NamespaceServiceImpl(
+    final LegacyKVStoreProvider kvStoreProvider,
+    final CatalogStatusEvents catalogStatusEvents) {
     this.namespace = createStore(kvStoreProvider);
     this.partitionChunkStore = kvStoreProvider.getStore(PartitionChunkCreator.class);
     this.multiSplitStore = kvStoreProvider.getStore(MultiSplitStoreCreator.class);
+    this.catalogStatusEvents = catalogStatusEvents;
   }
 
   LegacyIndexedStore<String, NameSpaceContainer> getNamespaceStore() {
@@ -208,7 +219,7 @@ public class NamespaceServiceImpl implements NamespaceService {
    * Comparator for partition chunk ranges
    */
   private static final Comparator<Range<PartitionChunkId>> PARTITION_CHUNK_RANGE_COMPARATOR =
-      Comparator.comparing(Range::lowerEndpoint);
+    Comparator.comparing(Range::lowerEndpoint);
 
   /**
    * KVStore creator for multisplits table
@@ -225,7 +236,70 @@ public class NamespaceServiceImpl implements NamespaceService {
     }
   }
 
+  /**
+   * Delete split with retry
+   */
+  private void deleteSplitWithRetry(final LegacyKVStore store, final PartitionChunkId key, int numberOfRetries, ExpiredSplitsTracker expiredSplitsTracker) throws RuntimeException {
+    while (true) {
+      try {
+        store.delete(key);
+        return;
+      } catch (final RuntimeException exception) {
+        expiredSplitsTracker.trackException(exception);
+        if (--numberOfRetries < 0) {
+          throw exception;
+        }
+        try {
+          TimeUnit.SECONDS.sleep(1);
+        } catch (InterruptedException ignore) {
+        }
+      }
+    }
+  }
+
+  private void processSplit(final ArrayList<LegacyKVStore> kvStores, PartitionChunkId id, List<Range<PartitionChunkId>> splitsToRetain, ExpiredSplitsTracker expiredSplitsTracker) {
+    final int item = Collections.binarySearch(splitsToRetain, Range.singleton(id), PARTITION_CHUNK_RANGE_COMPARATOR);
+
+    // we should never find a match since we're searching for a split key and that dataset
+    // split range endpoints are excluded/not valid split keys
+    Preconditions.checkState(item < 0);
+
+    final int insertionPoint = (-item) - 1;
+    final int consideredRange = insertionPoint - 1; // since a normal match would come directly after the start range, we need to check the range directly above the insertion point.
+
+    boolean deleteSplit = (consideredRange < 0 || !splitsToRetain.get(consideredRange).contains(id));
+    try {
+      if (deleteSplit) {
+        // delete from the kvstore in order
+        for (int i = 0; i < kvStores.size(); i++) {
+          deleteSplitWithRetry(kvStores.get(i), id, MAX_DELETE_SPLIT_RETRIES, expiredSplitsTracker);
+        }
+      }
+    } finally {
+      expiredSplitsTracker.trackPartitionChunk(id, deleteSplit);
+    }
+  }
+
+  Optional<MetadataPolicy> getMetadataPolicyForDataset(
+    final DatasetConfig dataset,
+    final Map<String, SourceConfig> sourceConfigs,
+    Set<String> unknownSources,
+    String unknownSourceMessage) {
+    final String sourceName = dataset.getFullPathList().get(0).toLowerCase(Locale.ROOT);
+    SourceConfig source = sourceConfigs.get(sourceName);
+    if (source == null) {
+      if (unknownSources.add(sourceName)) {
+        logger.info("Source {} not found for dataset {}. {}", sourceName, PathUtils.constructFullPath(dataset.getFullPathList()), unknownSourceMessage);
+      }
+
+      return Optional.empty();
+    }
+
+    return Optional.of(source.getMetadataPolicy());
+  }
+
   @Override
+  @WithSpan
   public int deleteSplitOrphans(PartitionChunkId.SplitOrphansRetentionPolicy policy, boolean datasetMetadataConsistencyValidate) {
     final Map<String, SourceConfig> sourceConfigs = new HashMap<>();
     final List<Range<PartitionChunkId>> ranges = new ArrayList<>();
@@ -233,74 +307,102 @@ public class NamespaceServiceImpl implements NamespaceService {
     // Iterate over all entries in the namespace to collect source
     // and datasets with splits to create a map of the valid split ranges.
     final Set<String> missingSources = new HashSet<>();
-    for(Map.Entry<String, NameSpaceContainer> entry : namespace.find()) {
+    final Set<String> maybeMissingSources = new HashSet<>();
+    // For a given (PDS, Source), the below logic is optimised for when the source is returned first by the iterator
+    // When the PDS is returned first by the iterator, such PDSes are tracked here for later processing
+    final List<DatasetConfig> datasetsWithUnknownSources = new ArrayList<>();
+    for (Map.Entry<String, NameSpaceContainer> entry : namespace.find()) {
       NameSpaceContainer container = entry.getValue();
-      switch(container.getType()) {
-      case SOURCE: {
-        final SourceConfig source = container.getSource();
-        // Normalize source name because no guarantee that the dataset source path will use same capitalization
-        final String sourceName = source.getName().toLowerCase(Locale.ROOT);
-        final SourceConfig existing = sourceConfigs.putIfAbsent(sourceName, source);
-        if (existing != null) {
-          logger.warn("Two different sources with different names under the same key: {} and {}. This might cause metadata issues.", existing.getName(), source.getName());
-        }
-        continue;
-      }
-
-      case DATASET:
-        final DatasetConfig dataset = container.getDataset();
-        final ReadDefinition readDefinition = dataset.getReadDefinition();
-        if (readDefinition == null || readDefinition.getSplitVersion() == null) {
+      switch (container.getType()) {
+        case SOURCE: {
+          final SourceConfig source = container.getSource();
+          // Normalize source name because no guarantee that the dataset source path will use same capitalization
+          final String sourceName = source.getName().toLowerCase(Locale.ROOT);
+          final SourceConfig existing = sourceConfigs.putIfAbsent(sourceName, source);
+          if (existing != null) {
+            logger.warn("Two different sources with different names under the same key: {} and {}. This might cause metadata issues.", existing.getName(), source.getName());
+          }
           continue;
         }
 
-        // Create a range from now - expiration to future...
-        // Note that because entries are ordered, source should have been visited before the dataset
-        final MetadataPolicy metadataPolicy;
-        switch (dataset.getType()) {
-        case PHYSICAL_DATASET_HOME_FILE:
-        case PHYSICAL_DATASET_HOME_FOLDER:
-          // Home dataset. Home doesn't have a configurable metadata policy/never refreshes
-          metadataPolicy = null;
-          break;
-
-        case PHYSICAL_DATASET:
-        case PHYSICAL_DATASET_SOURCE_FILE:
-        case PHYSICAL_DATASET_SOURCE_FOLDER:
-          final String sourceName = dataset.getFullPathList().get(0).toLowerCase(Locale.ROOT);
-          SourceConfig source = sourceConfigs.get(sourceName);
-          if (source == null) {
-            if (missingSources.add(sourceName)) {
-              logger.info("Source {} not found for dataset {}. Considering it as orphaned", sourceName, PathUtils.constructFullPath(dataset.getFullPathList()));
-            }
+        case DATASET:
+          final DatasetConfig dataset = container.getDataset();
+          final ReadDefinition readDefinition = dataset.getReadDefinition();
+          if (readDefinition == null || readDefinition.getSplitVersion() == null) {
             continue;
           }
-          metadataPolicy = source.getMetadataPolicy();
-          break;
 
-        case VIRTUAL_DATASET:
-          // Virtual datasets don't have splits
+          // Create a range from now - expiration to future...
+          // Note that because entries are ordered, source should have been visited before the dataset
+          final MetadataPolicy metadataPolicy;
+          switch (dataset.getType()) {
+            case PHYSICAL_DATASET_HOME_FILE:
+            case PHYSICAL_DATASET_HOME_FOLDER:
+              // Home dataset. Home doesn't have a configurable metadata policy/never refreshes
+              metadataPolicy = null;
+              break;
+
+            case PHYSICAL_DATASET:
+            case PHYSICAL_DATASET_SOURCE_FILE:
+            case PHYSICAL_DATASET_SOURCE_FOLDER:
+              Optional<MetadataPolicy> datasetPolicy = getMetadataPolicyForDataset(dataset, sourceConfigs, maybeMissingSources, "Will check again");
+              if (!datasetPolicy.isPresent()) {
+                // remember the dataset for later processing
+                datasetsWithUnknownSources.add(dataset);
+                continue;
+              }
+              metadataPolicy = datasetPolicy.get();
+              break;
+
+            case VIRTUAL_DATASET:
+              // Virtual datasets don't have splits
+              continue;
+
+            default:
+              logger.error("Unknown dataset type {}. Cannot check for orphan splits", dataset.getType());
+              return 0;
+          }
+
+          Range<PartitionChunkId> versionRange = policy.apply(metadataPolicy, dataset);
+          logger.debug("Split range to retain for dataset {} is {}", PathUtils.constructFullPath(dataset.getFullPathList()), versionRange);
+          // min version is based on when dataset definition would expire
+          // but it has to be at least positive
+          ranges.add(versionRange);
+
+          if (datasetMetadataConsistencyValidate) {
+            logger.info("Deleting splitOrphans dataset {} with valid version {}.", dataset.getFullPathList(), versionRange);
+          }
+
           continue;
 
         default:
-          logger.error("Unknown dataset type {}. Cannot check for orphan splits", dataset.getType());
-          return 0;
-        }
-
-        Range<PartitionChunkId> versionRange = policy.apply(metadataPolicy, dataset);
-        // min version is based on when dataset definition would expire
-        // but it has to be at least positive
-        ranges.add(versionRange);
-
-        if (datasetMetadataConsistencyValidate) {
-          logger.info("Deleting splitOrphans dataset {} with valid version {}.", dataset.getFullPathList(), versionRange);
-        }
-
-        continue;
-
-      default:
       }
     }
+
+    maybeMissingSources.clear();
+
+    // Process the datasets for which sources were unknown in the first iteration and finalise the range for these datasets
+    for (DatasetConfig dataset : datasetsWithUnknownSources) {
+      Optional<MetadataPolicy> datasetPolicy = getMetadataPolicyForDataset(dataset, sourceConfigs, missingSources, "Considering it as orphaned");
+      if (!datasetPolicy.isPresent()) {
+        continue;
+      }
+
+      final MetadataPolicy metadataPolicy = datasetPolicy.get();
+      Range<PartitionChunkId> versionRange = policy.apply(metadataPolicy, dataset);
+      logger.debug("Split range to retain for dataset {} is {}", PathUtils.constructFullPath(dataset.getFullPathList()), versionRange);
+      // min version is based on when dataset definition would expire
+      // but it has to be at least positive
+      ranges.add(versionRange);
+
+      if (datasetMetadataConsistencyValidate) {
+        logger.info("Deleting splitOrphans dataset {} with valid version {}.", dataset.getFullPathList(), versionRange);
+      }
+    }
+
+    datasetsWithUnknownSources.clear();
+    missingSources.clear();
+    sourceConfigs.clear();
 
     // Ranges need to be sorted for binary search to be working
     Collections.sort(ranges, PARTITION_CHUNK_RANGE_COMPARATOR);
@@ -313,77 +415,81 @@ public class NamespaceServiceImpl implements NamespaceService {
     // already present in the list (this is the insertion point, see Collections.binarySort
     // javadoc), which should be just after the corresponding dataset range as ranges items
     // are sorted based on their lower endpoint.
-    int elementCount = 0;
-    int count = 0;
-    final StringBuilder sb = new StringBuilder();
-    for (Map.Entry<PartitionChunkId, PartitionChunk> e : partitionChunkStore.find()) {
-      PartitionChunkId id = e.getKey();
-      final int item = Collections.binarySearch(ranges, Range.singleton(id), PARTITION_CHUNK_RANGE_COMPARATOR);
 
-      // we should never find a match since we're searching for a split key and that dataset
-      // split range endpoints are excluded/not valid split keys
-      Preconditions.checkState(item < 0);
+    // Any key that is expired in multiSplitStore is also expired in partitionChunkStore. This fact is used to
+    // identify orphaned splits from multiSplitStore and delete from both stores at the same time
+    //
+    // multiSplitStore has less load since this store is looked up only for specific splits after searching through
+    // partitionChunkStore to identify the splits to read
+    try (ExpiredSplitsTracker expiredSplitsTracker = new ExpiredMultiSplitTracker(datasetMetadataConsistencyValidate)) {
+      final ArrayList<LegacyKVStore> kvStores = new ArrayList<LegacyKVStore>(2);
+      // delete from partitionChunkStore before deleting from multiSplitStore
+      kvStores.add(partitionChunkStore);
+      kvStores.add(multiSplitStore);
+      for (Map.Entry<PartitionChunkId, MultiSplit> e : multiSplitStore.find()) {
+        PartitionChunkId id = e.getKey();
 
-      final int insertionPoint = (-item) - 1;
-      final int consideredRange = insertionPoint - 1; // since a normal match would come directly after the start range, we need to check the range directly above the insertion point.
-
-      if (consideredRange < 0 || !ranges.get(consideredRange).contains(id)) {
-        if (datasetMetadataConsistencyValidate) {
-          if (count > LOG_BATCH) {
-            logger.info("Deleting partition chunk associated with keys {}.", sb);
-            sb.delete(0, sb.length());
-            count = 0;
+        try {
+          processSplit(kvStores, id, ranges, expiredSplitsTracker);
+        } catch (final RuntimeException exception) {
+          if (expiredSplitsTracker.getNumExceptionsIgnored() > MAX_EXCEPTIONS_ALLOWED) {
+            logger.warn("Maximum number of exceptions occurred in deleting multi splits. The last exception is: ", exception);
+            break;
           }
-          sb.append(id).append(" ");
-          count++;
-        } else {
-          logger.debug("Deleting partition chunk associated with key {} from the partition chunk store.", e.getKey());
         }
-        partitionChunkStore.delete(e.getKey());
-        ++elementCount;
+
+        if ((expiredSplitsTracker.getSplitsExamined() % NUM_EXAMINED_SPLITS_BEFORE_LOGGING) == 0) {
+          // log after examining every million splits
+          logger.info("Examined {} multi splits, deleted {}",
+            expiredSplitsTracker.getSplitsExamined(), expiredSplitsTracker.getDeletedSplits());
+        }
+      }
+
+      if (expiredSplitsTracker.getDeletedSplits() > 0) {
+        logger.info("Examined {} multi splits in total, deleted {} multi splits",
+          expiredSplitsTracker.getSplitsExamined(), expiredSplitsTracker.getDeletedSplits());
+      }
+      if (expiredSplitsTracker.getNumExceptionsIgnored() > 0) {
+        logger.warn("{} exceptions occurred and ignored in deleting multi splits.",
+          expiredSplitsTracker.getNumExceptionsIgnored());
       }
     }
 
-    if (datasetMetadataConsistencyValidate && (count > 0)) {
-      logger.info("Deleting partition chunk associated with keys {}.", sb);
-    }
+    int numPartitionChunksDeleted;
+    try (ExpiredSplitsTracker expiredSplitsTracker = new ExpiredSplitsTracker("partition chunks", datasetMetadataConsistencyValidate)) {
+      final ArrayList<LegacyKVStore> kvStores = new ArrayList<LegacyKVStore>(1);
+      kvStores.add(partitionChunkStore);
+      for (Map.Entry<PartitionChunkId, PartitionChunk> e : partitionChunkStore.find()) {
+        PartitionChunkId id = e.getKey();
 
-    sb.delete(0, sb.length());
-    count = 0;
-    for (Map.Entry<PartitionChunkId, MultiSplit> e : multiSplitStore.find()) {
-      PartitionChunkId id = e.getKey();
-      final int item = Collections.binarySearch(ranges, Range.singleton(id), PARTITION_CHUNK_RANGE_COMPARATOR);
-
-      // we should never find a match since we're searching for a split key and that dataset
-      // split range endpoints are excluded/not valid split keys
-      Preconditions.checkState(item < 0);
-
-      final int insertionPoint = (-item) - 1;
-      final int consideredRange = insertionPoint - 1; // since a normal match would come directly after the start range, we need to check the range directly above the insertion point.
-
-      if (consideredRange < 0 || !ranges.get(consideredRange).contains(id)) {
-        if (datasetMetadataConsistencyValidate) {
-          if (count > LOG_BATCH) {
-            logger.info("Deleting multi splits associated with keys {}.", sb);
-            sb.delete(0, sb.length());
-            count = 0;
+        try {
+          processSplit(kvStores, id, ranges, expiredSplitsTracker);
+        } catch (final RuntimeException exception) {
+          if (expiredSplitsTracker.getNumExceptionsIgnored() > MAX_EXCEPTIONS_ALLOWED) {
+            logger.warn("Maximum number of exceptions occurred in deleting partition chunks. The last exception is: ", exception);
+            break;
           }
-          sb.append(id).append(" ");
-          count++;
-          if (partitionChunkStore.contains(id)) {
-            logger.warn("MultiSplit being deleted, but PartitionChunk exists for id {}.", id.getSplitId());
-          }
-        } else {
-          logger.debug("Deleting multi split associated with key {} from the multi split store.", e.getKey());
         }
-        multiSplitStore.delete(e.getKey());
+
+        if ((expiredSplitsTracker.getSplitsExamined() % NUM_EXAMINED_SPLITS_BEFORE_LOGGING) == 0) {
+          // log after examining every million splits
+          logger.info("Examined {} partition chunks, deleted {}",
+            expiredSplitsTracker.getSplitsExamined(), expiredSplitsTracker.getDeletedSplits());
+        }
+      }
+
+      numPartitionChunksDeleted = expiredSplitsTracker.getDeletedSplits();
+      if (expiredSplitsTracker.getDeletedSplits() > 0) {
+        logger.info("Examined {} partition chunks in total, deleted {} partition chunks",
+          expiredSplitsTracker.getSplitsExamined(), expiredSplitsTracker.getDeletedSplits());
+      }
+      if (expiredSplitsTracker.getNumExceptionsIgnored() > 0) {
+        logger.warn("{} exceptions occurred and ignored in deleting partition chunks.",
+          expiredSplitsTracker.getNumExceptionsIgnored());
       }
     }
-    if (datasetMetadataConsistencyValidate && (count > 0)) {
-      logger.info("Deleting multi splits associated with keys {}.", sb);
-    }
 
-    return elementCount;
+    return numPartitionChunksDeleted;
   }
 
   protected LegacyIndexedStore<String, NameSpaceContainer> getStore() {
@@ -404,13 +510,26 @@ public class NamespaceServiceImpl implements NamespaceService {
   }
 
   protected void doCreateOrUpdateEntity(final NamespaceEntity entity, List<NameSpaceContainer> entitiesOnPath, NamespaceAttribute... attributes) throws NamespaceException {
-    final NameSpaceContainer prevContainer = lastElement(entitiesOnPath);
-    ensureIdExistsTypeMatches(entity, prevContainer);
+    validateEntity(entity, entitiesOnPath);
 
     // update to latest version
     entity.getContainer().setVersion(LATEST_VERSION);
 
     namespace.put(entity.getPathKey().getKey(), entity.getContainer());
+  }
+
+  private void validateEntity(final NamespaceEntity entity, List<NameSpaceContainer> entitiesOnPath) throws InvalidNamespaceNameException {
+    final NameSpaceContainer existingEntity = lastElement(entitiesOnPath);
+    final boolean isNewTmpRootEntity = entitiesOnPath.size() == 1
+      && existingEntity == null
+      && entity.getPathKey().getPath().getRoot().equalsIgnoreCase("tmp");
+    if (isNewTmpRootEntity) {
+      // Tmp is used as a hardcoded name for new untitled queries (tmp.UNTITLED) so it cannot be allowed for
+      // user-created top-level entities. Allow updating it in case they already have one from previous to when this
+      // check was added.
+      throw new InvalidNamespaceNameException(entity.getPathKey().getPath().getRoot());
+    }
+    ensureIdExistsTypeMatches(entity, existingEntity);
   }
 
   /**
@@ -423,7 +542,7 @@ public class NamespaceServiceImpl implements NamespaceService {
    * @throws NamespaceException
    */
   // TODO: Remove this operation and move to kvstore
-  protected boolean ensureIdExistsTypeMatches(NamespaceEntity newOrUpdatedEntity, NameSpaceContainer existingContainer) throws NamespaceException{
+  protected boolean ensureIdExistsTypeMatches(NamespaceEntity newOrUpdatedEntity, NameSpaceContainer existingContainer) {
     final String idInContainer = getIdOrNull(newOrUpdatedEntity.getContainer());
 
     if (existingContainer == null) {
@@ -466,7 +585,7 @@ public class NamespaceServiceImpl implements NamespaceService {
     // Note, this duplicates the version check operation that is done inside the kvstore.
     final String newVersion = extractor.getTag(newOrUpdatedEntity.getContainer());
     final String oldVersion = extractor.getTag(existingContainer);
-    if(!Objects.equals(newVersion, oldVersion)) {
+    if (!Objects.equals(newVersion, oldVersion)) {
       final String expectedAction = newVersion == null ? "create" : "update version " + newVersion;
       final String previousValueDesc = oldVersion == null ? "no previous version" : "previous version " + oldVersion;
       throw new ConcurrentModificationException(format("tried to %s, found %s", expectedAction, previousValueDesc));
@@ -477,7 +596,7 @@ public class NamespaceServiceImpl implements NamespaceService {
     // TODO: Could throw a null pointer exception if idInExistingContainer == null.
     if (!idInExistingContainer.equals(idInContainer)) {
       throw UserException.invalidMetadataError().message("There already exists an entity of type [%s] at given path [%s] with Id %s. Unable to replace with Id %s",
-          existingContainer.getType(), newOrUpdatedEntity.getPathKey().getPath(), idInExistingContainer, idInContainer).buildSilently();
+        existingContainer.getType(), newOrUpdatedEntity.getPathKey().getPath(), idInExistingContainer, idInContainer).buildSilently();
     }
 
     return true;
@@ -494,12 +613,12 @@ public class NamespaceServiceImpl implements NamespaceService {
   }
 
   @Override
-  public void addOrUpdateFunction(NamespaceKey udfPath, FunctionConfig functionConfig, NamespaceAttribute... attributes) throws NamespaceException {
-    if(functionConfig.getCreatedAt() == null){
+  public void addOrUpdateFunction(NamespaceKey functionPath, FunctionConfig functionConfig, NamespaceAttribute... attributes) throws NamespaceException {
+    if (functionConfig.getCreatedAt() == null) {
       functionConfig.setCreatedAt(System.currentTimeMillis());
     }
     functionConfig.setLastModified(System.currentTimeMillis());
-    createOrUpdateEntity(NamespaceEntity.toEntity(FUNCTION, udfPath, functionConfig, new ArrayList<>()), attributes);
+    createOrUpdateEntity(NamespaceEntity.toEntity(FUNCTION, functionPath, functionConfig, new ArrayList<>()), attributes);
   }
 
   @Override
@@ -519,14 +638,14 @@ public class NamespaceServiceImpl implements NamespaceService {
       case PHYSICAL_DATASET_SOURCE_FILE:
       case PHYSICAL_DATASET_SOURCE_FOLDER: {
         createSourceFolders(datasetPath);
-        if(dataset.getPhysicalDataset() == null){
+        if (dataset.getPhysicalDataset() == null) {
           dataset.setPhysicalDataset(new PhysicalDataset());
         }
       }
       break;
       case PHYSICAL_DATASET_HOME_FILE:
       case PHYSICAL_DATASET_HOME_FOLDER: {
-        if(dataset.getPhysicalDataset() == null){
+        if (dataset.getPhysicalDataset() == null) {
           dataset.setPhysicalDataset(new PhysicalDataset());
         }
       }
@@ -613,14 +732,14 @@ public class NamespaceServiceImpl implements NamespaceService {
       }
       String splitKey = Long.toString(partitionChunkCount);
       PartitionChunk.Builder builder = PartitionChunk.newBuilder()
-          .setSize(accumulatedSizeInBytes)
-          .setRowCount(accumulatedRecordCount)
-          .setPartitionExtendedProperty(MetadataProtoUtils.toProtobuf(partitionChunk.getExtraInfo()))
-          .addAllPartitionValues(partitionChunk.getPartitionValues().stream()
-              .map(MetadataProtoUtils::toProtobuf)
-              .collect(Collectors.toList()))
-          .setSplitKey(splitKey)
-          .setSplitCount(accumulatedSplits.size());
+        .setSize(accumulatedSizeInBytes)
+        .setRowCount(accumulatedRecordCount)
+        .setPartitionExtendedProperty(MetadataProtoUtils.toProtobuf(partitionChunk.getExtraInfo()))
+        .addAllPartitionValues(partitionChunk.getPartitionValues().stream()
+          .map(MetadataProtoUtils::toProtobuf)
+          .collect(Collectors.toList()))
+        .setSplitKey(splitKey)
+        .setSplitCount(accumulatedSplits.size());
       // Only a limited number of partition chunks are allowed to be saved with a single dataset split.
       // Once it reaches this limit(=maxSinglePartitionChunks), save splits separately in multi-split store.
       final boolean singleSplitPartitionAllowed = isSingleSplitPartitionAllowed();
@@ -666,12 +785,13 @@ public class NamespaceServiceImpl implements NamespaceService {
 
     /**
      * Create a MultiSplit from the accumulated splits
+     *
      * @return
      */
     private MultiSplit createMultiSplitFromAccumulated(String splitKey) throws IOException {
       ByteString.Output output = ByteString.newOutput();
       OutputStream wrappedOutput = wrapIfNeeded(output);
-      for (DatasetSplit split: accumulatedSplits) {
+      for (DatasetSplit split : accumulatedSplits) {
         MetadataProtoUtils.toProtobuf(split).writeDelimitedTo(wrappedOutput);
       }
       wrappedOutput.flush();
@@ -751,7 +871,8 @@ public class NamespaceServiceImpl implements NamespaceService {
 
   /**
    * Return true if new splits are not same as old splits
-   * @param dataset dataset config
+   *
+   * @param dataset   dataset config
    * @param newSplits new splits to be added
    * @param oldSplits existing old splits
    * @return false if old and new splits are same
@@ -769,7 +890,7 @@ public class NamespaceServiceImpl implements NamespaceService {
     }
 
     final Map<PartitionChunkId, PartitionChunk> newSplitsMap = new HashMap<>();
-    for (PartitionChunk newSplit: newSplits) {
+    for (PartitionChunk newSplit : newSplits) {
       final PartitionChunkId splitId = PartitionChunkId.of(dataset, newSplit, dataset.getReadDefinition().getSplitVersion());
       newSplitsMap.put(splitId, newSplit);
     }
@@ -800,7 +921,7 @@ public class NamespaceServiceImpl implements NamespaceService {
 
   @Override
   public void deleteSplits(Iterable<PartitionChunkId> splits) {
-    for (PartitionChunkId split: splits) {
+    for (PartitionChunkId split : splits) {
       partitionChunkStore.delete(split);
       multiSplitStore.delete(split);
     }
@@ -808,7 +929,7 @@ public class NamespaceServiceImpl implements NamespaceService {
 
   @Override
   @WithSpan
-  public void addOrUpdateFolder(NamespaceKey folderPath, FolderConfig folderConfig,  NamespaceAttribute... attributes) throws NamespaceException {
+  public void addOrUpdateFolder(NamespaceKey folderPath, FolderConfig folderConfig, NamespaceAttribute... attributes) throws NamespaceException {
     createOrUpdateEntity(NamespaceEntity.toEntity(FOLDER, folderPath, folderConfig, new ArrayList<>()), attributes);
   }
 
@@ -826,7 +947,7 @@ public class NamespaceServiceImpl implements NamespaceService {
   @Override
   public DatasetConfig findDatasetByUUID(String uuid) {
     NameSpaceContainer namespaceContainer = getByIndex(DatasetIndexKeys.DATASET_UUID, uuid);
-    return (namespaceContainer!=null)?namespaceContainer.getDataset():null;
+    return (namespaceContainer != null) ? namespaceContainer.getDataset() : null;
   }
 
   @Override
@@ -847,9 +968,9 @@ public class NamespaceServiceImpl implements NamespaceService {
   }
 
   @Override
-  public NameSpaceContainer getEntityByPath(NamespaceKey datasetPath)
-      throws NamespaceException {
-    final List<NameSpaceContainer> entities = getEntities(Collections.singletonList(datasetPath));
+  public NameSpaceContainer getEntityByPath(NamespaceKey entityPath)
+    throws NamespaceException {
+    final List<NameSpaceContainer> entities = getEntities(Collections.singletonList(entityPath));
 
     return entities.get(0);
   }
@@ -949,7 +1070,7 @@ public class NamespaceServiceImpl implements NamespaceService {
   @Override
   @WithSpan
   public NameSpaceContainer getEntityById(String id) throws NamespaceNotFoundException {
-    final SearchQuery query = SearchQueryUtils.or(
+    SearchQuery query = SearchQueryUtils.or(
       SearchQueryUtils.newTermQuery(DatasetIndexKeys.DATASET_UUID, id),
       SearchQueryUtils.newTermQuery(NamespaceIndexKeys.SOURCE_ID, id),
       SearchQueryUtils.newTermQuery(NamespaceIndexKeys.SPACE_ID, id),
@@ -965,7 +1086,7 @@ public class NamespaceServiceImpl implements NamespaceService {
 
     final Iterable<Entry<String, NameSpaceContainer>> result = namespace.find(condition);
     final Iterator<Entry<String, NameSpaceContainer>> it = result.iterator();
-    return it.hasNext()?it.next().getValue():null;
+    return it.hasNext() ? it.next().getValue() : null;
   }
 
   @Override
@@ -978,7 +1099,7 @@ public class NamespaceServiceImpl implements NamespaceService {
         MAX_ENTITIES_PER_QUERY));
     }
 
-    final SearchQuery query = SearchQueryUtils.or(
+    SearchQuery query = SearchQueryUtils.or(
       SearchQueryUtils.or(
         ids.stream()
           .map(id -> SearchQueryUtils.newTermQuery(DatasetIndexKeys.DATASET_UUID, id))
@@ -1004,11 +1125,11 @@ public class NamespaceServiceImpl implements NamespaceService {
           .map(id -> SearchQueryUtils.newTermQuery(NamespaceIndexKeys.FOLDER_ID, id))
           .collect(Collectors.toList())
       ),
-    SearchQueryUtils.or(
-      ids.stream()
-        .map(id -> SearchQueryUtils.newTermQuery(NamespaceIndexKeys.UDF_ID, id))
-        .collect(Collectors.toList())
-    ));
+      SearchQueryUtils.or(
+        ids.stream()
+          .map(id -> SearchQueryUtils.newTermQuery(NamespaceIndexKeys.UDF_ID, id))
+          .collect(Collectors.toList())
+      ));
 
     final LegacyFindByCondition condition = new LegacyFindByCondition()
       .setCondition(query);
@@ -1060,16 +1181,16 @@ public class NamespaceServiceImpl implements NamespaceService {
    * @return
    */
   protected List<NameSpaceContainer> doGetRootNamespaceContainers(final Type requiredType) {
-    final Iterable<Map.Entry<String, NameSpaceContainer>> containerEntries;
+    final List<NameSpaceContainer> containers = Lists.newArrayList();
 
+    final Iterable<Map.Entry<String, NameSpaceContainer>> containerEntries;
     // if a scarce type, use the index.
-    if(requiredType != Type.DATASET) {
+    if (requiredType != Type.DATASET) {
       containerEntries = namespace.find(new LegacyFindByCondition().setCondition(SearchQueryUtils.newTermQuery(NamespaceIndexKeys.ENTITY_TYPE.getIndexFieldName(), requiredType.getNumber())));
     } else {
       containerEntries = namespace.find(new LegacyFindByRange<>(NamespaceInternalKey.getRootLookupStartKey(), false, NamespaceInternalKey.getRootLookupEndKey(), false));
     }
 
-    final List<NameSpaceContainer> containers = Lists.newArrayList();
     for (final Map.Entry<String, NameSpaceContainer> entry : containerEntries) {
       final NameSpaceContainer container = entry.getValue();
       if (container.getType() == requiredType) {
@@ -1096,7 +1217,7 @@ public class NamespaceServiceImpl implements NamespaceService {
   }
 
   @Override
-  public List<FunctionConfig> getFunctions(){
+  public List<FunctionConfig> getFunctions() {
     return Lists.newArrayList(
       Iterables.transform(doGetRootNamespaceContainers(FUNCTION), new Function<NameSpaceContainer, FunctionConfig>() {
         @Override
@@ -1389,18 +1510,18 @@ public class NamespaceServiceImpl implements NamespaceService {
 
   @Override
   @WithSpan
-  public List<NameSpaceContainer> list(NamespaceKey root) throws NamespaceException {
+  public List<NameSpaceContainer> list(NamespaceKey entityPath) throws NamespaceException {
     // TODO: Do we need to get entitiesOnPath?
-    final List<NameSpaceContainer> entitiesOnPath = getEntitiesOnPath(root);
+    final List<NameSpaceContainer> entitiesOnPath = getEntitiesOnPath(entityPath);
     final NameSpaceContainer rootContainer = lastElement(entitiesOnPath);
     if (rootContainer == null) {
-      throw new NamespaceNotFoundException(root, "not found");
+      throw new NamespaceNotFoundException(entityPath, "not found");
     }
 
     if (!isListable(rootContainer.getType())) {
-      throw new NamespaceNotFoundException(root, "no listable entity found");
+      throw new NamespaceNotFoundException(entityPath, "no listable entity found");
     }
-    return doList(root);
+    return doList(entityPath);
   }
 
   protected List<NameSpaceContainer> doList(NamespaceKey root) throws NamespaceException {
@@ -1452,6 +1573,7 @@ public class NamespaceServiceImpl implements NamespaceService {
           callback.onDatasetDelete(child.getDataset());
         }
         namespace.delete(childKey.getKey(), child.getDataset().getTag());
+        catalogStatusEvents.publish(new DatasetDeletionCatalogStatusEvent(child.getDataset().toString()));
         break;
       case FUNCTION:
         namespace.delete(childKey.getKey(), child.getFunction().getTag());
@@ -1463,20 +1585,19 @@ public class NamespaceServiceImpl implements NamespaceService {
   }
 
   @VisibleForTesting
-  NameSpaceContainer deleteEntityWithCallback(final NamespaceKey path, final Type type, String version, boolean deleteRoot,
+  NameSpaceContainer deleteEntityWithCallback(final NamespaceKey path, String version, boolean deleteRoot,
                                               DeleteCallback callback) throws NamespaceException {
     final List<NameSpaceContainer> entitiesOnPath = getEntitiesOnPath(path);
     final NameSpaceContainer container = lastElement(entitiesOnPath);
     if (container == null) {
       throw new NamespaceNotFoundException(path, String.format("Entity %s not found", path));
     }
-    return doDeleteEntity(path, type, version, entitiesOnPath, deleteRoot, callback);
+    return doDeleteEntity(path, version, container, deleteRoot, callback);
   }
 
   @WithSpan
-  protected NameSpaceContainer doDeleteEntity(final NamespaceKey path, final Type type, String version, List<NameSpaceContainer> entitiesOnPath, boolean deleteRoot, DeleteCallback callback) throws NamespaceException {
+  protected NameSpaceContainer doDeleteEntity(final NamespaceKey path, String version, NameSpaceContainer container, boolean deleteRoot, DeleteCallback callback) throws NamespaceException {
     final NamespaceInternalKey key = new NamespaceInternalKey(path);
-    final NameSpaceContainer container = lastElement(entitiesOnPath);
     traverseAndDeleteChildren(key, container, callback);
     if (deleteRoot) {
       namespace.delete(key.getKey(), version);
@@ -1485,36 +1606,37 @@ public class NamespaceServiceImpl implements NamespaceService {
   }
 
   @Override
-  public void deleteHome(final NamespaceKey sourcePath, String version) throws NamespaceException {
-    deleteEntityWithCallback(sourcePath, HOME, version, true, null);
+  public void deleteHome(final NamespaceKey homePath, String version) throws NamespaceException {
+    deleteEntityWithCallback(homePath, version, true, null);
   }
 
   @Override
   public void deleteSourceChildren(final NamespaceKey sourcePath, String version, DeleteCallback callback) throws NamespaceException {
-    deleteEntityWithCallback(sourcePath, SOURCE, version, false, callback);
+    deleteEntityWithCallback(sourcePath, version, false, callback);
   }
 
   @Override
   public void deleteSource(final NamespaceKey sourcePath, String version) throws NamespaceException {
-    deleteEntityWithCallback(sourcePath, SOURCE, version, true, null);
+    deleteEntityWithCallback(sourcePath, version, true, null);
   }
 
   @Override
   public void deleteSourceWithCallBack(final NamespaceKey sourcePath, String version, DeleteCallback callback) throws NamespaceException {
-    deleteEntityWithCallback(sourcePath, SOURCE, version, true, callback);
+    deleteEntityWithCallback(sourcePath, version, true, callback);
   }
 
   @Override
   public void deleteSpace(final NamespaceKey spacePath, String version) throws NamespaceException {
-    deleteEntityWithCallback(spacePath, SPACE, version, true, null);
+    deleteEntityWithCallback(spacePath, version, true, null);
   }
 
   @Override
-  public void deleteFunction(NamespaceKey udfPath) throws NamespaceException {
-    deleteEntity(udfPath);
+  public void deleteFunction(NamespaceKey functionPath) throws NamespaceException {
+    deleteEntity(functionPath);
   }
 
 
+  @Deprecated
   @Override
   public void deleteEntity(NamespaceKey entityPath) throws NamespaceException {
     namespace.delete(new NamespaceInternalKey(entityPath).getKey());
@@ -1523,7 +1645,7 @@ public class NamespaceServiceImpl implements NamespaceService {
   @Override
   @WithSpan
   public void deleteDataset(final NamespaceKey datasetPath, String version, final NamespaceAttribute... attributes) throws NamespaceException {
-    NameSpaceContainer container = deleteEntityWithCallback(datasetPath, DATASET, version, true, null);
+    NameSpaceContainer container = deleteEntityWithCallback(datasetPath, version, true, null);
     if (container.getDataset().getType() == PHYSICAL_DATASET_SOURCE_FOLDER) {
       // create a folder so that any existing datasets under the folder are now visible
       addOrUpdateFolder(datasetPath,
@@ -1533,12 +1655,13 @@ public class NamespaceServiceImpl implements NamespaceService {
         attributes
       );
     }
+    catalogStatusEvents.publish(new DatasetDeletionCatalogStatusEvent(datasetPath.toString()));
   }
 
   @Override
   @WithSpan
   public void deleteFolder(final NamespaceKey folderPath, String version) throws NamespaceException {
-    deleteEntityWithCallback(folderPath, FOLDER, version, true, null);
+    deleteEntityWithCallback(folderPath, version, true, null);
   }
 
   @Override
@@ -1574,7 +1697,7 @@ public class NamespaceServiceImpl implements NamespaceService {
     datasetConfig.setTag(null);
 
     final NamespaceEntity newValue = NamespaceEntity.toEntity(DATASET, newDatasetPath, datasetConfig,
-        container.getAttributesList());
+      container.getAttributesList());
 
     namespace.put(newValue.getPathKey().getKey(), newValue.getContainer());
     namespace.delete(oldKey.getKey());
@@ -1649,9 +1772,9 @@ public class NamespaceServiceImpl implements NamespaceService {
           if (currentConfig != null) {
             if (
               (
-                  Objects.equals(currentConfig.getPhysicalDataset(), datasetConfig.getPhysicalDataset()) ||
+                Objects.equals(currentConfig.getPhysicalDataset(), datasetConfig.getPhysicalDataset()) ||
                   Objects.equals(currentConfig.getPhysicalDataset().getFormatSettings(), datasetConfig.getPhysicalDataset().getFormatSettings())) &&
-              Objects.equals(DatasetHelper.getSchemaBytes(currentConfig), DatasetHelper.getSchemaBytes(datasetConfig))) {
+                Objects.equals(DatasetHelper.getSchemaBytes(currentConfig), DatasetHelper.getSchemaBytes(datasetConfig))) {
               return false;
             }
             datasetConfig.setId(currentConfig.getId());
@@ -1683,13 +1806,13 @@ public class NamespaceServiceImpl implements NamespaceService {
   @Override
   public Iterable<Map.Entry<NamespaceKey, NameSpaceContainer>> find(LegacyFindByCondition condition) {
     return Iterables.transform(condition == null ? namespace.find() : namespace.find(condition),
-        new Function<Map.Entry<String, NameSpaceContainer>, Map.Entry<NamespaceKey, NameSpaceContainer>>() {
-          @Override
-          public Map.Entry<NamespaceKey, NameSpaceContainer> apply(Map.Entry<String, NameSpaceContainer> input) {
-            return new AbstractMap.SimpleEntry<>(
-                new NamespaceKey(input.getValue().getFullPathList()), input.getValue());
-          }
-        });
+      new Function<Map.Entry<String, NameSpaceContainer>, Map.Entry<NamespaceKey, NameSpaceContainer>>() {
+        @Override
+        public Map.Entry<NamespaceKey, NameSpaceContainer> apply(Map.Entry<String, NameSpaceContainer> input) {
+          return new AbstractMap.SimpleEntry<>(
+            new NamespaceKey(input.getValue().getFullPathList()), input.getValue());
+        }
+      });
   }
 
   private Iterable<PartitionChunkMetadata> partitionChunkValuesAsMetadata(Iterable<Map.Entry<PartitionChunkId, PartitionChunk>> partitionChunks) {
@@ -1718,26 +1841,7 @@ public class NamespaceServiceImpl implements NamespaceService {
     return partitionChunkStore.getCounts(condition.getCondition()).get(0);
   }
 
-  @Override
-  public String dumpSplits() {
-    try {
-      StringBuilder builder = new StringBuilder();
-      builder.append("Partition Chunks: \n");
-      for (Map.Entry<PartitionChunkId, PartitionChunk> partitionChunk : partitionChunkStore.find()) {
-        builder.append(format("%s: %s\n", partitionChunk.getKey(), partitionChunk.getValue()));
-      }
-      builder.append("MultiSplits: \n");
-      for (Map.Entry<PartitionChunkId, MultiSplit> multiSplit : multiSplitStore.find()) {
-        builder.append(format("%s: %s\n", multiSplit.getKey(), multiSplit.getValue()));
-      }
-      return builder.toString();
-    } catch (Exception e) {
-      return "Error: " + e;
-    }
-  }
-
   // BFS traversal of a folder/space/home.
-  // For debugging purposes only
   private Collection<NameSpaceContainer> traverseEntity(final NamespaceKey root) throws NamespaceException {
     final LinkedList<NameSpaceContainer> toBeTraversed = new LinkedList<>(listEntity(root));
     final LinkedList<NameSpaceContainer> visited = new LinkedList<>();
@@ -1749,74 +1853,6 @@ public class NamespaceServiceImpl implements NamespaceService {
       visited.add(container);
     }
     return visited;
-  }
-
-  // For debugging purposes only
-  @Override
-  public String dump() {
-    try {
-      final Iterable<Map.Entry<String, NameSpaceContainer>> containers = namespace.find(new LegacyFindByRange<>(
-        NamespaceInternalKey.getRootLookupStartKey(), false, NamespaceInternalKey.getRootLookupEndKey(), false));
-
-      final List<NamespaceInternalKey> sourcesKeys = new ArrayList<>();
-      final List<NamespaceInternalKey> spacesKeys = new ArrayList<>();
-      final List<NamespaceInternalKey> homeKeys = new ArrayList<>();
-
-      for (Map.Entry<String, NameSpaceContainer> entry : containers) {
-        try {
-          Type type = entry.getValue().getType();
-          switch (type) {
-            case HOME:
-              homeKeys.add(parseKey(entry.getKey().getBytes(StandardCharsets.UTF_8)));
-              break;
-            case SOURCE:
-              sourcesKeys.add(parseKey(entry.getKey().getBytes(StandardCharsets.UTF_8)));
-              break;
-            case SPACE:
-              spacesKeys.add(parseKey(entry.getKey().getBytes(StandardCharsets.UTF_8)));
-              break;
-            default:
-          }
-        } catch (Exception e) {
-          // no op
-        }
-      }
-
-      StringBuilder builder = new StringBuilder();
-      builder.append("Sources");
-      builder.append("\n");
-      for (NamespaceInternalKey key : sourcesKeys) {
-        builder.append(getSource(key.getPath()).toString());
-        builder.append("\n");
-        for (NameSpaceContainer container : traverseEntity(key.getPath())) {
-          builder.append(container.toString());
-          builder.append("\n");
-        }
-      }
-      builder.append("Spaces");
-      builder.append("\n");
-      for (NamespaceInternalKey key : spacesKeys) {
-        builder.append(getSpace(key.getPath()).toString());
-        builder.append("\n");
-        for (NameSpaceContainer container : traverseEntity(key.getPath())) {
-          builder.append(container.toString());
-          builder.append("\n");
-        }
-      }
-      builder.append("Homes");
-      builder.append("\n");
-      for (NamespaceInternalKey key : homeKeys) {
-        builder.append(getHome(key.getPath()).toString());
-        builder.append("\n");
-        for (NameSpaceContainer container : traverseEntity(key.getPath())) {
-          builder.append(container.toString());
-          builder.append("\n");
-        }
-      }
-      return builder.toString();
-    } catch (Exception e) {
-      return "Error: " + e;
-    }
   }
 
   /**
@@ -1864,6 +1900,7 @@ public class NamespaceServiceImpl implements NamespaceService {
 
   /**
    * find a container using index
+   *
    * @param key
    * @param value
    * @return
@@ -1872,8 +1909,8 @@ public class NamespaceServiceImpl implements NamespaceService {
     final SearchQuery query = SearchQueryUtils.newTermQuery(key, value);
 
     final LegacyFindByCondition condition = new LegacyFindByCondition()
-        .setOffset(0)
-        .setLimit(1)
+      .setOffset(0)
+      .setLimit(1)
       .setCondition(query);
 
     final Iterable<Entry<String, NameSpaceContainer>> result = namespace.find(condition);
@@ -1900,5 +1937,89 @@ public class NamespaceServiceImpl implements NamespaceService {
     }
 
     return rootContainer;
+  }
+
+  // inner class to track expired splits
+  // tracks the total number of splits examined, number deleted, the keys themselves if required
+  private class ExpiredSplitsTracker implements AutoCloseable {
+    // number of examined splits
+    private int splitsExamined;
+    // number of deleted splits
+    private int deletedSplits;
+    private boolean verifyMetadataConsistency;
+    // buffer for debugging - keeps track of deleted keys
+    private final List<String> deletedSplitsForDebug = new ArrayList<>(LOG_BATCH);
+    // number of exceptions ignored
+    private int numExceptionsIgnored;
+    private final String desc;
+
+    ExpiredSplitsTracker(String desc, boolean datasetMetadataConsistencyValidate) {
+      this.verifyMetadataConsistency = datasetMetadataConsistencyValidate;
+      this.splitsExamined = 0;
+      this.deletedSplits = 0;
+      this.numExceptionsIgnored = 0;
+      this.desc = desc;
+    }
+
+    void verifySplitConsistency(PartitionChunkId id) {
+    }
+
+    void trackPartitionChunk(PartitionChunkId id, boolean deleteSplit) {
+      splitsExamined++;
+      if (deleteSplit) {
+        deletedSplits++;
+        if (verifyMetadataConsistency) {
+          if (deletedSplitsForDebug.size() >= LOG_BATCH) {
+            logger.info("Deleting {} associated with keys {}.", desc,
+              Arrays.toString(deletedSplitsForDebug.toArray()));
+            deletedSplitsForDebug.clear();
+          }
+          deletedSplitsForDebug.add(id.toString());
+          verifySplitConsistency(id);
+        } else {
+          logger.debug("Deleting {} associated with key {} from the store.", desc, id);
+        }
+      }
+    }
+
+    void trackException(final RuntimeException exception) {
+      numExceptionsIgnored++;
+    }
+
+    public int getSplitsExamined() {
+      return splitsExamined;
+    }
+
+    public int getDeletedSplits() {
+      return deletedSplits;
+    }
+
+    public int getNumExceptionsIgnored() {
+      return numExceptionsIgnored;
+    }
+
+    @Override
+    public void close() {
+      if (verifyMetadataConsistency) {
+        logger.info("Deleting {} associated with keys {}.", desc,
+          Arrays.toString(deletedSplitsForDebug.toArray()));
+        deletedSplitsForDebug.clear();
+      }
+    }
+  }
+
+  // Tracks expired splits in metadata-multi-splits
+  private final class ExpiredMultiSplitTracker extends ExpiredSplitsTracker {
+    ExpiredMultiSplitTracker(boolean datasetMetadataConsistencyValidate) {
+      super("multi splits", datasetMetadataConsistencyValidate);
+    }
+
+    // overrides this method to log a warning if the split to be deleted is present in metadata-dataset-splits
+    @Override
+    void verifySplitConsistency(PartitionChunkId id) {
+      if (partitionChunkStore.contains(id)) {
+        logger.warn("MultiSplit being deleted, but PartitionChunk exists for id {}.", id.getSplitId());
+      }
+    }
   }
 }

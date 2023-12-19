@@ -17,7 +17,7 @@ package com.dremio.exec.store.iceberg;
 
 import java.util.Objects;
 
-import org.apache.iceberg.view.ViewVersionMetadata;
+import org.apache.iceberg.viewdepoc.ViewVersionMetadata;
 
 import com.dremio.connector.metadata.EntityPath;
 import com.dremio.exec.catalog.DremioTable;

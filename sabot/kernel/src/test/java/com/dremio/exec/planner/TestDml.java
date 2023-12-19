@@ -15,14 +15,18 @@
  */
 package com.dremio.exec.planner;
 
+import static com.dremio.PlanTestBase.testMatchingPatterns;
 import static com.dremio.exec.ExecConstants.CTAS_CAN_USE_ICEBERG;
 import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG;
 import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_ADVANCED_DML;
-import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
+import static com.dremio.exec.planner.common.TestPlanHelper.findFirstNode;
+import static com.dremio.exec.planner.common.TestPlanHelper.findNodes;
+import static com.dremio.exec.planner.common.TestPlanHelper.findSingleNode;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
@@ -31,7 +35,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.util.Collections;
+import java.io.File;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -39,7 +43,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.core.TableModify;
@@ -48,29 +51,27 @@ import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
-import com.dremio.BaseTestQuery;
+import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.util.TestTools;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.ExecTest;
-import com.dremio.exec.PassthroughQueryObserver;
 import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.calcite.logical.TableModifyCrel;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DatasetCatalog;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.planner.common.TestPlanHelper.NodeFinder;
 import com.dremio.exec.planner.common.TestPlanHelper.TargetNodeDescriptor;
-import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.physical.DistributionTrait;
 import com.dremio.exec.planner.physical.DmlPlanGenerator.MergeType;
 import com.dremio.exec.planner.physical.FilterPrel;
@@ -83,10 +84,9 @@ import com.dremio.exec.planner.physical.TableFunctionPrel;
 import com.dremio.exec.planner.physical.UnionAllPrel;
 import com.dremio.exec.planner.physical.WriterCommitterPrel;
 import com.dremio.exec.planner.physical.WriterPrel;
-import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.planner.sql.handlers.ConvertedRelNode;
-import com.dremio.exec.planner.sql.handlers.PrelTransformer;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
+import com.dremio.exec.planner.sql.handlers.SqlToRelTransformer;
 import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
 import com.dremio.exec.planner.sql.handlers.direct.TruncateTableHandler;
 import com.dremio.exec.planner.sql.handlers.query.DataAdditionCmdHandler;
@@ -97,16 +97,13 @@ import com.dremio.exec.planner.sql.handlers.query.MergeHandler;
 import com.dremio.exec.planner.sql.handlers.query.TableManagementHandler;
 import com.dremio.exec.planner.sql.handlers.query.UpdateHandler;
 import com.dremio.exec.planner.sql.parser.DmlUtils;
+import com.dremio.exec.planner.sql.parser.PartitionDistributionStrategy;
 import com.dremio.exec.planner.sql.parser.SqlDeleteFromTable;
 import com.dremio.exec.planner.sql.parser.SqlDmlOperator;
 import com.dremio.exec.planner.sql.parser.SqlInsertTable;
 import com.dremio.exec.planner.sql.parser.SqlMergeIntoTable;
 import com.dremio.exec.planner.sql.parser.SqlTruncateTable;
 import com.dremio.exec.planner.sql.parser.SqlUpdateTable;
-import com.dremio.exec.proto.UserBitShared;
-import com.dremio.exec.proto.UserProtos;
-import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.server.options.SessionOptionManagerImpl;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.iceberg.IcebergManifestWriterPrel;
@@ -115,7 +112,6 @@ import com.dremio.exec.store.sys.SystemStoragePlugin;
 import com.dremio.exec.util.ColumnUtils;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValue;
-import com.dremio.options.TypeValidators;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.collect.ImmutableList;
@@ -124,65 +120,7 @@ import com.google.common.collect.ImmutableMap;
 /**
  * Tests Advanced DML - DELETE, UPDATE, and MERGE
  */
-public class TestDml extends BaseTestQuery {
-
-  private static IcebergTestTables.Table table;
-  private static SqlConverter converter;
-  private static SqlHandlerConfig config;
-  private static int userColumnCount;
-  private static List<RelDataTypeField> userColumnList;
-
-  //===========================================================================
-  // Test class and Test cases setUp and tearDown
-  //===========================================================================
-  @BeforeClass
-  public static void setUp() throws Exception {
-    SabotContext context = getSabotContext();
-
-    UserSession session = UserSession.Builder.newBuilder()
-      .withSessionOptionManager(
-        new SessionOptionManagerImpl(getSabotContext().getOptionValidatorListing()),
-        getSabotContext().getOptionManager())
-      .withUserProperties(UserProtos.UserProperties.getDefaultInstance())
-      .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName(SYSTEM_USERNAME).build())
-      .setSupportComplexTypes(true)
-      .build();
-
-    final QueryContext queryContext = new QueryContext(session, context, UserBitShared.QueryId.getDefaultInstance());
-    queryContext.setGroupResourceInformation(context.getClusterResourceInformation());
-    final AttemptObserver observer = new PassthroughQueryObserver(ExecTest.mockUserClientConnection(null));
-
-    converter = new SqlConverter(
-      queryContext.getPlannerSettings(),
-      queryContext.getOperatorTable(),
-      queryContext,
-      queryContext.getMaterializationProvider(),
-      queryContext.getFunctionRegistry(),
-      queryContext.getSession(),
-      observer,
-      queryContext.getCatalog(),
-      queryContext.getSubstitutionProviderFactory(),
-      queryContext.getConfig(),
-      queryContext.getScanResult(),
-      queryContext.getRelMetadataQuerySupplier());
-
-    config = new SqlHandlerConfig(queryContext, converter, observer, null);
-    userColumnList = getOriginalFieldList();
-    userColumnCount = userColumnList.size();
-    // table has at least one column
-    assertThat(userColumnCount).isGreaterThan(0);
-  }
-
-  @Before
-  public void init() throws Exception {
-    table = IcebergTestTables.V2_ORDERS.get();
-    table.enableIcebergSystemOptions();
-  }
-
-  @After
-  public void tearDown() throws Exception {
-    table.close();
-  }
+public class TestDml extends TestTableManagementBase {
 
   //===========================================================================
   // Test Cases
@@ -251,30 +189,31 @@ public class TestDml extends BaseTestQuery {
     String sql = "Delete from " + table.getTableName() + " where order_id > 10";
     final SqlNode node = converter.parse(sql);
     NamespaceKey path = SqlNodeUtil.unwrap(node, SqlDeleteFromTable.class).getPath();
+    CatalogEntityKey catalogEntityKey = CatalogEntityKey.fromNamespaceKey(path);
 
     when(mockQueryContext.getOptions().getOption(ENABLE_ICEBERG)).thenReturn(Boolean.FALSE);
     when(mockQueryContext.getOptions().getOption(CTAS_CAN_USE_ICEBERG)).thenReturn(Boolean.TRUE);
     when(mockQueryContext.getOptions().getOption(ENABLE_ICEBERG_ADVANCED_DML)).thenReturn(Boolean.TRUE);
-    assertThatThrownBy(() -> DmlHandler.validateDmlRequest(mockCatalog, mockConfig, path, SqlDeleteFromTable.OPERATOR))
+    assertThatThrownBy(() -> DmlHandler.validateDmlRequest(mockCatalog, mockConfig, catalogEntityKey, SqlDeleteFromTable.OPERATOR))
       .isInstanceOf(UserException.class);
 
     when(mockQueryContext.getOptions().getOption(ENABLE_ICEBERG)).thenReturn(Boolean.TRUE);
     when(mockQueryContext.getOptions().getOption(CTAS_CAN_USE_ICEBERG)).thenReturn(Boolean.FALSE);
     when(mockQueryContext.getOptions().getOption(ENABLE_ICEBERG_ADVANCED_DML)).thenReturn(Boolean.TRUE);
-    assertThatThrownBy(() -> DmlHandler.validateDmlRequest(mockCatalog, mockConfig, path, SqlDeleteFromTable.OPERATOR))
+    assertThatThrownBy(() -> DmlHandler.validateDmlRequest(mockCatalog, mockConfig, catalogEntityKey, SqlDeleteFromTable.OPERATOR))
       .isInstanceOf(UserException.class);
 
     when(mockQueryContext.getOptions().getOption(ENABLE_ICEBERG)).thenReturn(Boolean.TRUE);
     when(mockQueryContext.getOptions().getOption(CTAS_CAN_USE_ICEBERG)).thenReturn(Boolean.TRUE);
     when(mockQueryContext.getOptions().getOption(ENABLE_ICEBERG_ADVANCED_DML)).thenReturn(Boolean.FALSE);
-    assertThatThrownBy(() -> DmlHandler.validateDmlRequest(mockCatalog, mockConfig, path, SqlDeleteFromTable.OPERATOR))
+    assertThatThrownBy(() -> DmlHandler.validateDmlRequest(mockCatalog, mockConfig, catalogEntityKey, SqlDeleteFromTable.OPERATOR))
       .isInstanceOf(UserException.class);
 
     when(mockQueryContext.getOptions().getOption(ENABLE_ICEBERG)).thenReturn(Boolean.TRUE);
     when(mockQueryContext.getOptions().getOption(CTAS_CAN_USE_ICEBERG)).thenReturn(Boolean.TRUE);
     when(mockQueryContext.getOptions().getOption(ENABLE_ICEBERG_ADVANCED_DML)).thenReturn(Boolean.TRUE);
     when(mockCatalog.getSource(path.getRoot())).thenReturn(mock(SystemStoragePlugin.class));
-    assertThatThrownBy(() -> DmlHandler.validateDmlRequest(mockCatalog, mockConfig, path, SqlDeleteFromTable.OPERATOR))
+    assertThatThrownBy(() -> DmlHandler.validateDmlRequest(mockCatalog, mockConfig, catalogEntityKey, SqlDeleteFromTable.OPERATOR))
       .isInstanceOf(UserException.class);
   }
 
@@ -284,13 +223,17 @@ public class TestDml extends BaseTestQuery {
     QueryContext mockQueryContext = Mockito.mock(QueryContext.class);
     Catalog mockCatalog = Mockito.mock(Catalog.class);
     OptionManager mockOptionManager = Mockito.mock(OptionManager.class);
+    UserSession mockUserSession = Mockito.mock(UserSession.class);
+
+    String sql = "TRUNCATE " + table.getTableName();
+    final SqlNode node = converter.parse(sql);
+    NamespaceKey path = SqlNodeUtil.unwrap(node, SqlTruncateTable.class).getPath();
 
     when(mockConfig.getContext()).thenReturn(mockQueryContext);
     when(mockQueryContext.getCatalog()).thenReturn(mockCatalog);
     when(mockQueryContext.getOptions()).thenReturn(mockOptionManager);
-    String sql = "TRUNCATE " + table.getTableName();
-    final SqlNode node = converter.parse(sql);
-    NamespaceKey path = SqlNodeUtil.unwrap(node, SqlTruncateTable.class).getPath();
+    when(mockQueryContext.getSession()).thenReturn(mockUserSession);
+    when(mockUserSession.getSessionVersionForSource(path.getRoot())).thenReturn(VersionContext.NOT_SPECIFIED);
 
     when(mockQueryContext.getOptions().getOption(ENABLE_ICEBERG)).thenReturn(Boolean.TRUE);
     when(mockQueryContext.getOptions().getOption(CTAS_CAN_USE_ICEBERG)).thenReturn(Boolean.TRUE);
@@ -311,11 +254,12 @@ public class TestDml extends BaseTestQuery {
     String sql = "INSERT INTO " + table.getTableName() + " SELECT * FROM " + table.getTableName() + " where order_id > 10";
     final SqlNode node = converter.parse(sql);
     NamespaceKey path = SqlNodeUtil.unwrap(node, SqlInsertTable.class).getPath();
+    CatalogEntityKey catalogEntityKey = CatalogEntityKey.fromNamespaceKey(path);
 
     when(mockQueryContext.getOptions().getOption(ENABLE_ICEBERG)).thenReturn(Boolean.TRUE);
     when(mockQueryContext.getOptions().getOption(CTAS_CAN_USE_ICEBERG)).thenReturn(Boolean.TRUE);
     when(mockCatalog.getSource(path.getRoot())).thenReturn(mock(SystemStoragePlugin.class));
-    assertThatThrownBy(() -> InsertTableHandler.validateDmlRequest(mockCatalog, mockConfig, path, node))
+    assertThatThrownBy(() -> InsertTableHandler.validateDmlRequest(mockCatalog, mockConfig, catalogEntityKey, node))
       .isInstanceOf(UserException.class);
   }
 
@@ -323,7 +267,7 @@ public class TestDml extends BaseTestQuery {
   public void testTableModifyScanCrelSubstitutionRewriterRewriteSingleScanCrel() throws Exception {
     String sql = format("DELETE FROM %s", table.getTableName());
     final SqlNode node = converter.parse(sql);
-    final ConvertedRelNode convertedRelNode = PrelTransformer.validateAndConvert(config, node);
+    final ConvertedRelNode convertedRelNode = SqlToRelTransformer.validateAndConvertForDml(config, node, null);
     assertThat(convertedRelNode.getValidatedRowType().getFieldCount()).isEqualTo(userColumnCount);
 
     // find TableModifyCrel
@@ -346,21 +290,21 @@ public class TestDml extends BaseTestQuery {
     String sql = format("merge into %s using %s as s on s.order_id = %s.order_id when matched then update set order_id = -1 ",
       table.getTableName(), table.getTableName(), table.getTableName());
     final SqlNode node = converter.parse(sql);
-    final ConvertedRelNode convertedRelNode = PrelTransformer.validateAndConvert(config, node);
+    final ConvertedRelNode convertedRelNode = SqlToRelTransformer.validateAndConvertForDml(config, node, null);
     assertThat(convertedRelNode.getValidatedRowType().getFieldCount()).isEqualTo(userColumnCount);
 
     // find TableModifyCrel
     TableModifyCrel tableModifyCrel = findSingleNode(convertedRelNode.getConvertedNode(), TableModifyCrel.class, null);
 
     // find the ScanCrel inside TableModifyCrel
-    List<ScanCrel> scanCrels = findNodesMoreThanOne(tableModifyCrel, ScanCrel.class, null);
+    List<ScanCrel> scanCrels = findNodes(tableModifyCrel, ScanCrel.class, null);
     scanCrels.stream().forEach(scanCrel -> assertThat(scanCrel.isSubstitutable()).as("scanCrel should be substitutable before rewrite").isTrue());
 
     // disable substitution of TableModifyCrel's target table ScanCrel
     RelNode rewrite = TableManagementHandler.ScanCrelSubstitutionRewriter.disableScanCrelSubstitution(convertedRelNode.getConvertedNode());
 
     // find the ScanCrel from rewritten TableModifyCrel
-    scanCrels = findNodesMoreThanOne(rewrite, ScanCrel.class, null);
+    scanCrels = findNodes(rewrite, ScanCrel.class, null);
     scanCrels.stream().forEach(scanCrel -> assertThat(scanCrel.isSubstitutable()).as("scanCrel should not be substitutable after rewrite").isFalse());
   }
 
@@ -372,21 +316,21 @@ public class TestDml extends BaseTestQuery {
     String sql = format("merge into %s using (select * from %s) as s on s.n_nationkey = %s.order_id when matched then update set order_id = -1 ",
       table.getTableName(), nation.getTableName(), table.getTableName());
     final SqlNode node = converter.parse(sql);
-    final ConvertedRelNode convertedRelNode = PrelTransformer.validateAndConvert(config, node);
+    final ConvertedRelNode convertedRelNode = SqlToRelTransformer.validateAndConvertForDml(config, node, null);
     assertThat(convertedRelNode.getValidatedRowType().getFieldCount()).isEqualTo(userColumnCount);
 
     // find TableModifyCrel
     TableModifyCrel tableModifyCrel = findSingleNode(convertedRelNode.getConvertedNode(), TableModifyCrel.class, null);
 
     // find the ScanCrel inside TableModifyCrel
-    List<ScanCrel> scanCrels = findNodesMoreThanOne(tableModifyCrel, ScanCrel.class, null);
+    List<ScanCrel> scanCrels = findNodes(tableModifyCrel, ScanCrel.class, null);
     scanCrels.stream().forEach(scanCrel -> assertThat(scanCrel.isSubstitutable()).as("scanCrel should be substitutable before rewrite").isTrue());
 
     // disable substitution of TableModifyCrel's target table ScanCrel
     RelNode rewrite = TableManagementHandler.ScanCrelSubstitutionRewriter.disableScanCrelSubstitution(convertedRelNode.getConvertedNode());
 
     // find the ScanCrel from rewritten TableModifyCrel
-    scanCrels = findNodesMoreThanOne(rewrite, ScanCrel.class, null);
+    scanCrels = findNodes(rewrite, ScanCrel.class, null);
     scanCrels.stream().forEach(
       scanCrel ->  {
         if (scanCrel.getTableMetadata().getName().toString().equals(table.getTableName())) {
@@ -488,14 +432,78 @@ public class TestDml extends BaseTestQuery {
     testMerge(mergeUpdateWithInsert, 1, MergeType.UPDATE_INSERT);
   }
 
+  private void testDmlDistributionForWrites(PartitionDistributionStrategy distributionStrategy) throws Exception {
+    setPartitionDistributionStrategy(config, distributionStrategy.toString());
+
+    final String tableName = "supplier";
+    try {
+      // create a decent size partitioned table so that partition distribution can be applied
+      final String testWorkingPath = TestTools.getWorkingPath();
+      final String parquetFiles = testWorkingPath + "/src/test/resources/iceberg/supplier";
+
+      final String ctasQuery = String.format("CREATE TABLE %s.%s partition by (S_NATIONKEY) " +
+        " AS SELECT * from " + "dfs_hadoop" + ".\"" + parquetFiles + "\"", TEMP_SCHEMA_HADOOP, tableName);
+      test(ctasQuery);
+
+      final String delete = String.format("Delete from %s.%s", TEMP_SCHEMA_HADOOP, tableName);
+      SqlNode deleteNode = converter.parse(delete);
+      DmlHandler dmlHandler = getDmlHandler(deleteNode);
+      dmlHandler.getPlan(config, null, deleteNode, CatalogUtil.getResolvePathForTableManagement(config.getContext().getCatalog(), dmlHandler.getTargetTablePath(deleteNode)));
+      String expectedExchange = distributionStrategy == PartitionDistributionStrategy.HASH ? "HashToRandomExchange" : "RoundRobinExchange";
+      testMatchingPatterns(dmlHandler.getTextPlan(), new String[]{
+        // We should have all these operators
+        "WriterCommitter",
+        "UnionExchange",
+        "Writer",
+        "Project",
+        "UnionExchange",
+        "Writer",
+        expectedExchange,
+        "HashJoin",
+        "IcebergManifestList",
+
+        // The operators should be in this order
+        "(?s)" +
+          "WriterCommitter.*" +
+          "UnionAll.*" +
+          "Project.*" +
+          "UnionExchange.*" +
+          "Writer.*" +
+          expectedExchange + ".*" +
+          "HashJoin.*" +
+          "IcebergManifestList.*"});
+    } finally {
+      test(String.format("drop table if exists %s.%s", TEMP_SCHEMA_HADOOP, tableName));
+      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      setPartitionDistributionStrategy(config, ExecConstants.WRITER_PARTITION_DISTRIBUTION_MODE.getDefault().getStringVal());
+    }
+  }
+
   @Test
-  public void testDmlUseHashDistributionForWrites() throws Exception {
-    setBooleanOption(config, ExecConstants.ENABLE_ICEBERG_DML_USE_HASH_DISTRIBUTION_FOR_WRITES, true);
+  public void testSingletonIcebergManifestWriterPrel() throws Exception {
+    config.getContext().getOptions().setOption(OptionValue.createBoolean(
+      OptionValue.OptionType.SYSTEM,
+      "dremio.iceberg.single_manifest_writer.enabled",true));
+
     final String delete = "Delete from " + table.getTableName() + " where order_id > 10";
     Prel plan = getDmlPlan(delete);
-    validateHashDistributionTraitsForWrites(plan);
+    IcebergManifestWriterPrel manifestWriterPrel = findSingleNode(plan, IcebergManifestWriterPrel.class, null);
+    assertTrue(manifestWriterPrel.getTraitSet().contains(DistributionTrait.SINGLETON));
 
-    setBooleanOption(config, ExecConstants.ENABLE_ICEBERG_DML_USE_HASH_DISTRIBUTION_FOR_WRITES, ExecConstants.ENABLE_ICEBERG_DML_USE_HASH_DISTRIBUTION_FOR_WRITES.getDefault().getBoolVal());
+    config.getContext().getOptions().setOption(OptionValue.createBoolean(
+      OptionValue.OptionType.SYSTEM,
+      "dremio.iceberg.single_manifest_writer.enabled",
+      ExecConstants.ENABLE_ICEBERG_SINGLE_MANIFEST_WRITER.getDefault().getBoolVal()));
+  }
+
+  @Test
+  public void testDmlUseHashDistributionForWrites() throws Exception {
+    testDmlDistributionForWrites(PartitionDistributionStrategy.HASH);
+  }
+
+  @Test
+  public void testDmlUseRoundRobinDistributionForWrites() throws Exception {
+    testDmlDistributionForWrites(PartitionDistributionStrategy.ROUND_ROBIN);
   }
 
   //===========================================================================
@@ -514,23 +522,11 @@ public class TestDml extends BaseTestQuery {
     return null;
   }
 
-  private static void setBooleanOption(SqlHandlerConfig configuration, TypeValidators.BooleanValidator option, boolean flag) {
-    configuration.getContext().getOptions().setOption(OptionValue.createBoolean(
-            OptionValue.OptionType.SYSTEM,
-            option.getOptionName(),
-            flag));
-  }
-
-  private static List<RelDataTypeField> getOriginalFieldList(){
-    final String select = "select * from " + IcebergTestTables.V2_ORDERS.get().getTableName() + " limit 1";
-    try {
-      final SqlNode node = converter.parse(select);
-      final ConvertedRelNode convertedRelNode = PrelTransformer.validateAndConvert(config, node);
-      return convertedRelNode.getValidatedRowType().getFieldList();
-    } catch (Exception ex) {
-      fail(String.format("Query %s failed, exception: %s", select, ex));
-    }
-    return Collections.emptyList();
+  private static void setPartitionDistributionStrategy(SqlHandlerConfig configuration, String strategy) {
+    configuration.getContext().getOptions().setOption(OptionValue.createString(
+      OptionValue.OptionType.SYSTEM,
+      "store.writer.partition_distribution_mode",
+      strategy));
   }
 
   private void testResultColumnName(String query) throws Exception {
@@ -545,7 +541,7 @@ public class TestDml extends BaseTestQuery {
       fail("This should never happen - DELETE/UPDATE/MERGE only");
     }
 
-    assertThat(PrelTransformer.validateAndConvert(config, converter.parse(query))
+    assertThat(SqlToRelTransformer.validateAndConvertForDml(config, converter.parse(query), null)
             .getConvertedNode().getRowType().getFieldNames().get(0)).isEqualTo(DmlUtils.DML_OUTPUT_COLUMN_NAMES.get(operation));
   }
 
@@ -556,14 +552,14 @@ public class TestDml extends BaseTestQuery {
     return insertHandler.getTextPlan();
   }
 
-  private Prel getDmlPlan(Catalog catalog, SqlNode sqlNode) throws Exception {
+  public static Prel getDmlPlan(SqlHandlerConfig config, SqlNode sqlNode) throws Exception {
     DmlHandler dmlHandler = getDmlHandler(sqlNode);
-    dmlHandler.getPlan(catalog, config, null, sqlNode, DmlUtils.getTablePath(catalog, dmlHandler.getTargetTablePath(sqlNode)));
+    dmlHandler.getPlan(config, null, sqlNode, CatalogUtil.getResolvePathForTableManagement(config.getContext().getCatalog(), dmlHandler.getTargetTablePath(sqlNode)));
     return dmlHandler.getPrel();
   }
 
   private Prel getDmlPlan(String sql) throws Exception {
-    return getDmlPlan(config.getContext().getCatalog(), converter.parse(sql));
+    return getDmlPlan(config, converter.parse(sql));
   }
 
   // get CopyOnWriteJoin condition, left.file_path = right.file_path and left.row_index = right.row_index
@@ -571,33 +567,6 @@ public class TestDml extends BaseTestQuery {
     return String.format("AND(=($%d, $%d), =($%d, $%d))",
       userColumnCount,  (mergeType == MergeType.UPDATE_INSERT ? userColumnCount : 0) + userColumnCount + 2, // file_path column
       userColumnCount + 1, (mergeType == MergeType.UPDATE_INSERT ? userColumnCount : 0) + userColumnCount + 3); // row_index column
-  }
-
-  private static <TPlan extends RelNode, TClass> TClass findSingleNode(TPlan plan, Class<TClass> clazz, Map<String, String> attributes) {
-    return findFirstNode(plan, clazz, attributes, true);
-  }
-
-  private static <TPlan extends RelNode, TClass> TClass findFirstNode(TPlan plan, Class<TClass> clazz, Map<String, String> attributes, boolean isSingle) {
-    TargetNodeDescriptor descriptor =  new TargetNodeDescriptor(clazz, attributes);
-    List<TClass> nodes= NodeFinder.find(plan, descriptor);
-    assertThat(nodes).isNotNull();
-    if (isSingle) {
-      assertThat(nodes.size()).as("1 node is expected").isEqualTo(1);
-    }
-
-    TClass node = nodes.get(0);
-    assertThat(node).as("Node is expected").isNotNull();
-
-    return node;
-  }
-
-  private static <TPlan extends RelNode, TClass> List<TClass> findNodesMoreThanOne(TPlan plan, Class<TClass> clazz, Map<String, String> attributes) {
-    TargetNodeDescriptor descriptor =  new TargetNodeDescriptor(clazz, attributes);
-    List<TClass> nodes= NodeFinder.find(plan, descriptor);
-    assertThat(nodes).isNotNull();
-    assertThat(nodes.size() > 1).as("Multiple nodes are expected").isTrue();
-
-    return nodes;
   }
 
   private List<FilterPrel> findDeletePlanFilter(Prel joinPrel) {
@@ -610,43 +579,6 @@ public class TestDml extends BaseTestQuery {
     TargetNodeDescriptor descriptor =
       new TargetNodeDescriptor(FilterPrel.class, attributes);
     return NodeFinder.find(joinPrel, descriptor);
-  }
-
-  private void validateHashDistributionTraitsForWrites(Prel plan) {
-    Map<String, String> attributes = Collections.EMPTY_MAP;
-    TargetNodeDescriptor manifestWriteDescriptor =
-      new TargetNodeDescriptor(IcebergManifestWriterPrel.class, attributes);
-    List<IcebergManifestWriterPrel> manifestWriterPrels =NodeFinder.find(plan, manifestWriteDescriptor);
-
-    // ManifestWriterPrel has an input ProjectPrel that has distribution trait on the RecordWriter.ICEBERG_METADATA field.
-    // WriterPrule.getManifestWriterPrelIfNeeded adds the hash distribution trait.
-    assertThat(manifestWriterPrels).as("Manifest writer is expected").isNotNull();
-    assertThat(manifestWriterPrels.size()).as("Manifest writer is expected").isEqualTo(1);
-    IcebergManifestWriterPrel manifestWriterPrel = manifestWriterPrels.get(0);
-    assertThat(manifestWriterPrels).as("Manifest writer is expected").isNotNull();
-    validateHashDistributionInProjectPrel(manifestWriterPrel.getInput(0));
-
-    // WriterUpdater.getTableFunctionOnPartitionColumns adds a TableFunctionPrel on partition columns with
-    // hash distribution trait. We need to verify that as well.
-    attributes = ImmutableMap.of(
-      "rowType", "RecordType(INTEGER order_id, INTEGER order_year, TIMESTAMP(3) order_date, VARCHAR(65536) product_name, DOUBLE amount, INTEGER order_year_identity)");
-    TargetNodeDescriptor tableFunctionDescriptor =
-      new TargetNodeDescriptor(TableFunctionPrel.class, attributes);
-    List<TableFunctionPrel> tableFunctionPrels =NodeFinder.find(plan, tableFunctionDescriptor);
-    assertThat(tableFunctionPrels).as("Table function is expected").isNotNull();
-    assertThat(tableFunctionPrels.size()).as("Table function is expected").isEqualTo(1);
-
-    validateHashDistributionInProjectPrel(tableFunctionPrels.get(0).getInput(0));
-  }
-
-  private void validateHashDistributionInProjectPrel(RelNode relNode) {
-    assertThat(relNode instanceof ProjectPrel).as("Project is expected").isTrue();
-    ProjectPrel prel = (ProjectPrel) relNode;
-    RelTraitSet traits = prel.getTraitSet();
-    assertThat(prel.getTraitSet().size() >= 3).as("Project has at least three trait").isTrue();
-    assertThat(traits.getTrait(1) instanceof DistributionTrait).as("Second trait is DistributionTrait").isTrue();
-    DistributionTrait distributionTrait = (DistributionTrait) traits.getTrait(1);
-    assertThat(distributionTrait.getType().equals(DistributionTrait.DistributionType.HASH_DISTRIBUTED)).as("HASH_DISTRIBUTED is expected").isTrue();
   }
 
   private void validateDeleteSpecificOperationsAfterCopyOnWriteJoin(Prel plan, Boolean expectFilter) {
@@ -835,7 +767,7 @@ public class TestDml extends BaseTestQuery {
     final SqlNode node = converter.parse(query);
     SqlDmlOperator sqlDmlOperator = (SqlDmlOperator) node;
     sqlDmlOperator.extendTableWithDataFileSystemColumns();
-    final ConvertedRelNode convertedRelDeleteNode = PrelTransformer.validateAndConvert(config, node);
+    final ConvertedRelNode convertedRelDeleteNode = SqlToRelTransformer.validateAndConvertForDml(config, node, null);
     List<RelDataTypeField> fields = convertedRelDeleteNode.getValidatedRowType().getFieldList();
     int totalColumnCount = convertedRelDeleteNode.getValidatedRowType().getFieldCount();
     assertThat(totalColumnCount).isEqualTo(userColumnCount + 2);

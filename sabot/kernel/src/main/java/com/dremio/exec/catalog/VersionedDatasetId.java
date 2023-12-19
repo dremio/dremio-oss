@@ -21,6 +21,8 @@ import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.catalog.model.dataset.TableVersionContext;
+import com.dremio.catalog.model.dataset.TableVersionType;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -35,6 +37,7 @@ public class VersionedDatasetId {
   private List<String> tableKey;
   private String contentId;
   private TableVersionContext versionContext;
+  private static final  ObjectMapper objectMapper = new ObjectMapper();
 
   @JsonCreator
   VersionedDatasetId(@JsonProperty("tableKey") List<String> tableKey,
@@ -51,9 +54,8 @@ public class VersionedDatasetId {
   public TableVersionContext getVersionContext() { return versionContext; };
 
   public String asString()  {
-    ObjectMapper om = new ObjectMapper();
     try {
-      return om.writeValueAsString(this);
+      return objectMapper.writeValueAsString(this);
     } catch (JsonProcessingException e) {
       logger.debug("Could not map VersionedDatasetId to String", e);
       return null;
@@ -62,7 +64,6 @@ public class VersionedDatasetId {
 
   public static VersionedDatasetId fromString(String idAsString) throws JsonProcessingException {
     //parse the dataset id
-    ObjectMapper objectMapper = new ObjectMapper();
     return objectMapper.readValue(idAsString, VersionedDatasetId.class);
   }
 

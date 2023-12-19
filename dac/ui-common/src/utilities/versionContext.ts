@@ -23,3 +23,7 @@ export function getShortHash(hash?: string) {
 export function isDefaultBranch(versionContext?: VersionContext) {
   return versionContext?.type === "BRANCH" && versionContext.value === "main";
 }
+
+export function hideForNonDefaultBranch(versionContext?: VersionContext) {
+  return !versionContext || isDefaultBranch(versionContext);
+}

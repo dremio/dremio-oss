@@ -322,9 +322,6 @@ public class TestSelectWithOption extends BaseTestQuery {
     String jsonTableName = genCSVTable("testVariationsJSON",
         "{\"columns\": [\"f\",\"g\"]}");
     // the extension is actually csv
-    testWithResult(format("select columns from %s", jsonTableName),
-        listOf("{\"columns\": [\"f\"", "g\"]}\n")
-        );
     String[] jsonQueries = {
         format("select columns from table(%s ('JSON'))", jsonTableName),
         format("select columns from table(%s(type => 'JSON'))", jsonTableName),

@@ -83,8 +83,11 @@ abstract class MetadataOperations {
   @WithSpan
   protected void checkAndRepair() {
     RepairKvstoreFromIcebergMetadata repairOperation = new RepairKvstoreFromIcebergMetadata(
-      datasetConfig, context.getCatalogService().getSource(METADATA_STORAGE_PLUGIN_NAME),
-      context.getNamespaceService(SystemUser.SYSTEM_USERNAME), storagePlugin, context.getOptionManager().getOption(ExecConstants.ENABLE_MAP_DATA_TYPE));
+      datasetConfig,
+      context.getCatalogService().getSource(METADATA_STORAGE_PLUGIN_NAME),
+      context.getNamespaceService(SystemUser.SYSTEM_USERNAME),
+      storagePlugin,
+      context.getOptionManager());
     repairOperation.checkAndRepairDatasetWithQueryRetry();
   }
 

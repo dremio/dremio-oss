@@ -63,6 +63,7 @@ public class ConduitProviderImpl implements ConduitProvider, Service {
   private static final List<String> serviceNames = Arrays.asList("dremio.job.JobsService", "dremio" +
     ".catalog.InformationSchemaService", "dremio.job.Chronicle", "dremio.maestroservice.MaestroService");
 
+  @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
   public ConduitProviderImpl(
     Provider<NodeEndpoint> masterEndpoint,
     Optional<SSLEngineFactory> sslEngineFactory
@@ -103,6 +104,7 @@ public class ConduitProviderImpl implements ConduitProvider, Service {
       });
   }
 
+  @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
   public ConduitProviderImpl(
     Provider<NodeEndpoint> masterEndpoint,
     GrpcChannelBuilderFactory channelBuilderFactory
@@ -129,6 +131,7 @@ public class ConduitProviderImpl implements ConduitProvider, Service {
    * @param masterEndpoint
    * @param factoryProvider
    */
+  @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
   public ConduitProviderImpl(
     Provider<NodeEndpoint> masterEndpoint,
     Provider<GrpcChannelBuilderFactory> factoryProvider,

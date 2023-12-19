@@ -23,9 +23,9 @@ import java.util.List;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult;
 import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
@@ -35,13 +35,12 @@ import com.dremio.exec.store.ReferenceNotFoundException;
 import com.dremio.exec.work.foreman.ForemanSetupException;
 import com.dremio.options.OptionResolver;
 import com.dremio.sabot.rpc.user.UserSession;
-import com.google.common.base.Strings;
 
 /**
  * Handler for dropping branch.
  *
  * DROP BRANCH [ IF EXISTS ] branchName
- * ( AT COMMIT commitHash | FORCE )
+ * [ AT COMMIT commitHash | FORCE ]
  * [ IN sourceName ]
  */
 public class DropBranchHandler extends BaseVersionHandler<SimpleCommandResult> {
@@ -66,17 +65,11 @@ public class DropBranchHandler extends BaseVersionHandler<SimpleCommandResult> {
 
     String commitHash = (dropBranch.getCommitHash() != null)
       ? dropBranch.getCommitHash().toString()
-      : ""; // Will imply force drop
+      : "";
     final String branchName = requireNonNull(dropBranch.getBranchName()).toString();
+    //This value is no longer being used. Leaving for reference.
     final boolean forceDrop = dropBranch.getForceDrop().booleanValue();
-    final boolean existenceCheck = dropBranch.getExistenceCheck().booleanValue();
-
-    if (!forceDrop && Strings.isNullOrEmpty(commitHash)) {
-      // This shouldn't be possible, enforced by SQL parser
-      throw UserException.validationError()
-          .message("Need commit hash to drop branch %s on source %s.", branchName, sourceName)
-          .buildSilently();
-    }
+    final boolean shouldErrorIfBranchDoesNotExist = dropBranch.shouldErrorIfBranchDoesNotExist().booleanValue();
 
     //Prevent dropping current branch
     VersionContext currentSessionVersion = userSession.getSessionVersionForSource(sourceName);
@@ -95,7 +88,7 @@ public class DropBranchHandler extends BaseVersionHandler<SimpleCommandResult> {
           .message("Branch %s has conflict on source %s.", branchName, sourceName)
           .buildSilently();
     } catch (ReferenceNotFoundException e) {
-      if (existenceCheck) {
+      if (shouldErrorIfBranchDoesNotExist) {
         throw UserException.validationError(e)
             .message("Branch %s not found on source %s.", branchName, sourceName)
             .buildSilently();

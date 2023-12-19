@@ -218,7 +218,7 @@ public class TestS3FileSystem {
     return bucketAcl;
   }
 
-  private class TestExtendedS3FileSystem extends S3FileSystem {
+  private static final class TestExtendedS3FileSystem extends S3FileSystem {
     private AmazonS3 s3;
 
     void setCustomClient(AmazonS3 s3) {

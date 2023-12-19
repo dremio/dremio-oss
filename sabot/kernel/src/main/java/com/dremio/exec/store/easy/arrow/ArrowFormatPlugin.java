@@ -24,6 +24,7 @@ import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.RecordWriter;
+import com.dremio.exec.store.dfs.FileDatasetHandle;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.easy.EasyFormatPlugin;
 import com.dremio.exec.store.dfs.easy.EasyWriter;
@@ -38,7 +39,6 @@ import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf.EasyDatasetSplitXAttr
  * so if the sharing files across different endian-ness machines is not supported.
  */
 public class ArrowFormatPlugin extends EasyFormatPlugin<ArrowFormatPluginConfig> {
-
   public static final String ARROW_DEFAULT_NAME = "arrow";
 
   /**
@@ -86,5 +86,10 @@ public class ArrowFormatPlugin extends EasyFormatPlugin<ArrowFormatPluginConfig>
   @Override
   public int getWriterOperatorType() {
     return CoreOperatorType.ARROW_WRITER_VALUE;
+  }
+
+  @Override
+  public int getMaxFilesLimit() {
+    return Math.toIntExact(getContext().getOptionManager().getOption(FileDatasetHandle.DFS_MAX_ARROW_FILES));
   }
 }

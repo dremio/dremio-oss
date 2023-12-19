@@ -21,6 +21,8 @@ import Modal from "@app/components/Modals/Modal";
 import ApiUtils from "utils/apiUtils/apiUtils";
 import { addNotification } from "@app/actions/notification";
 import SQLScriptForm from "./SQLScriptForm";
+import { getReferencesListForScript } from "@app/utils/nessieUtils";
+import { store } from "@app/store/store";
 
 type SQLScriptDialogProps = {
   title: string;
@@ -33,6 +35,8 @@ type SQLScriptDialogProps = {
   push?: (payload?: any) => void;
   hideFail: boolean;
   addNotification: any;
+  saveAsDialogError: any;
+  submit?: (payload: any) => void;
 };
 
 function SQLScriptDialog(props: SQLScriptDialogProps): React.ReactElement {
@@ -46,18 +50,25 @@ function SQLScriptDialog(props: SQLScriptDialogProps): React.ReactElement {
     postSubmit,
     intl,
     hideFail,
+    saveAsDialogError,
     addNotification,
   } = props;
   const { content, context } = script;
 
-  const onFormSubmit = (values: any): void => {
-    const newContext = context.toJS ? context.toJS() : context;
+  const onFormSubmit = (values: any) => {
     const payload: any = {
       name: values.name,
       content,
-      context: newContext,
+      context: context.toJS ? context.toJS() : context,
       description: "",
+      referencesList: getReferencesListForScript(store.getState().nessie),
     };
+
+    if (props.submit) {
+      return ApiUtils.attachFormSubmitHandlers(props.submit(payload));
+    }
+
+    //Tabs: Remove below code after SQLRUNNER_TABS_UI is removed
     return ApiUtils.attachFormSubmitHandlers(
       onSubmit(payload, script.id, hideFail)
     ).then((res: any) => {
@@ -86,6 +97,7 @@ function SQLScriptDialog(props: SQLScriptDialogProps): React.ReactElement {
       modalHeight={"250px"}
     >
       <SQLScriptForm
+        saveAsDialogError={saveAsDialogError}
         initialValues={script}
         onFormSubmit={onFormSubmit}
         intl={intl}

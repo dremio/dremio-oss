@@ -83,7 +83,7 @@ public class TestSchemaPathMaterialization extends BaseTestQuery {
 
   @Test //DRILL-1962
   public void testProjectionMultipleFiles() throws Exception {
-    final String query="select t.oooa.oa.oab.oabc[1].rowValue1 rowValue from dfs.\"${WORKING_PATH}/src/test/resources/complex/json/multiple/*.json\" t";
+    final String query="select t.oooa.oa.oab.oabc[1].rowValue1 rowValue from dfs.\"${WORKING_PATH}/src/test/resources/complex/json/multiple\" t";
 
     testBuilder()
       .sqlQuery(query)

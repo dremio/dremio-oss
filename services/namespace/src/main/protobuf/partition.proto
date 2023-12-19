@@ -120,12 +120,23 @@ message MultiSplit {
   optional bytes split_data = 5;        // a serialized sequence of DatasetSplit(s).
 }
 
+enum IcebergTransformType {
+    IDENTITY = 0;
+    YEAR = 1;
+    MONTH = 2;
+    DAY = 3;
+    HOUR = 4;
+    BUCKET = 5;
+    TRUNCATE = 6;
+ }
+
 message NormalizedPartitionInfo {
   optional string id = 1;                          // key to use in references from splits.
   optional string split_key = 2;                   // Provided by the storage plugin. Used in exception messages
   optional int64 size = 3;                         // size in bytes
   repeated PartitionValue values = 4;              // partition(s) covered by this request
   optional bytes extended_property = 5;            // source specific information about the partition chunk this split belong to
+  repeated PartitionValue iceberg_values = 6;      // contains the raw iceberg partition(s) covered by this request
 }
 
 // Message sent to the executors when creating operators that need partition and-or split information

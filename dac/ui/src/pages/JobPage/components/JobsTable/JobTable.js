@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import $ from "jquery";
 import { createRef, PureComponent } from "react";
 import Immutable, { Map } from "immutable";
 import PropTypes from "prop-types";
@@ -96,7 +97,7 @@ export class JobTable extends PureComponent {
     this.handleResize();
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     if (
       nextProps.jobs !== this.props.jobs ||
       nextProps.isResizing !== this.props.isResizing ||

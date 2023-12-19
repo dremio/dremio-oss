@@ -46,6 +46,7 @@ import com.dremio.service.namespace.dataset.proto.ParentDataset;
 import com.dremio.service.namespace.dataset.proto.ViewFieldType;
 import com.dremio.service.namespace.dataset.proto.VirtualDataset;
 import com.dremio.service.namespace.function.proto.FunctionConfig;
+import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.FolderConfig;
@@ -60,7 +61,7 @@ import io.protostuff.ByteString;
  * Namespace search indexing. for now only support pds, vds, source and space indexing.
  */
 public class NamespaceConverter implements DocumentConverter<String, NameSpaceContainer> {
-  private Integer version = 0;
+  private Integer version = 2;
 
   @Override
   public Integer getVersion() {
@@ -87,6 +88,7 @@ public class NamespaceConverter implements DocumentConverter<String, NameSpaceCo
       writer.write(UNQUOTED_LC_SCHEMA, lkey.toUnescapedString());
     }
 
+    EntityId entityId = null;
     switch (container.getType()) {
       case DATASET: {
         final DatasetConfig datasetConfig = container.getDataset();
@@ -102,6 +104,7 @@ public class NamespaceConverter implements DocumentConverter<String, NameSpaceCo
         writer.write(DatasetIndexKeys.DATASET_ID, new NamespaceKey(container.getFullPathList()).getSchemaPath());
 
         writer.write(DATASET_UUID, datasetConfig.getId().getId());
+        entityId = datasetConfig.getId();
         if (datasetConfig.getOwner() != null) {
           writer.write(DATASET_OWNER, datasetConfig.getOwner());
         }
@@ -135,6 +138,7 @@ public class NamespaceConverter implements DocumentConverter<String, NameSpaceCo
       case HOME: {
         HomeConfig homeConfig = container.getHome();
         writer.write(NamespaceIndexKeys.HOME_ID, homeConfig.getId().getId());
+        entityId = homeConfig.getId();
         break;
       }
 
@@ -142,6 +146,7 @@ public class NamespaceConverter implements DocumentConverter<String, NameSpaceCo
         final SourceConfig sourceConfig = container.getSource();
         writer.write(NamespaceIndexKeys.SOURCE_ID, sourceConfig.getId().getId());
         writer.write(NamespaceIndexKeys.LAST_MODIFIED, sourceConfig.getCtime());
+        entityId = sourceConfig.getId();
         break;
       }
 
@@ -149,23 +154,27 @@ public class NamespaceConverter implements DocumentConverter<String, NameSpaceCo
         final SpaceConfig spaceConfig = container.getSpace();
         writer.write(NamespaceIndexKeys.SPACE_ID, spaceConfig.getId().getId());
         writer.write(NamespaceIndexKeys.LAST_MODIFIED, spaceConfig.getCtime());
+        entityId = spaceConfig.getId();
         break;
       }
     case FUNCTION:{
         final FunctionConfig udfConfig = container.getFunction();
         writer.write(NamespaceIndexKeys.UDF_ID, udfConfig.getId().getId());
+        entityId = udfConfig.getId();
         break;
     }
 
       case FOLDER: {
         final FolderConfig folderConfig = container.getFolder();
         writer.write(NamespaceIndexKeys.FOLDER_ID, folderConfig.getId().getId());
+        entityId = folderConfig.getId();
         break;
       }
 
       default:
         break;
     }
+    writer.write(NamespaceIndexKeys.ENTITY_ID, entityId.getId());
   }
 
   private void addColumns(DocumentWriter writer, DatasetConfig datasetConfig) {

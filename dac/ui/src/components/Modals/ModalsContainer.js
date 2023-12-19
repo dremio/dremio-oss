@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { createElement, PureComponent, Fragment } from "react";
-
+import $ from "jquery";
 import PropTypes from "prop-types";
 import { withLocation } from "containers/dremioLocation";
 import { MODAL_CLOSE_ANIMATION_DURATION } from "@app/components/Modals/Modal";
@@ -82,16 +82,18 @@ class ModalsContainer extends PureComponent {
     const { modals, location } = this.props;
     const { modal, query, ...state } = location.state || {};
 
-    return modals[key] &&
-    createElement(modals[key], {
-      key,
-      isOpen: modal === key,
-      hide: this.handleHide,
-      location,
-      pathname: location.pathname,
-      query: query || {},
-      ...state,
-    });
+    return (
+      modals[key] &&
+      createElement(modals[key], {
+        key,
+        isOpen: modal === key,
+        hide: this.handleHide,
+        location,
+        pathname: location.pathname,
+        query: query || {},
+        ...state,
+      })
+    );
   };
 
   render() {

@@ -20,9 +20,9 @@ import { Link } from "react-router";
 import { getRootEntityLinkUrl } from "@app/selectors/home";
 import { link } from "uiTheme/radium/allSpacesAndAllSources";
 
-const mapStateToProps = (state, { entityId }) => {
+const mapStateToProps = (state, { entityId, linkTo }) => {
   return {
-    linkTo: getRootEntityLinkUrl(state, entityId),
+    linkTo: linkTo || getRootEntityLinkUrl(state, entityId),
   };
 };
 
@@ -36,13 +36,15 @@ export class EntityLink extends PureComponent {
     className: PropTypes.string,
     activeClassName: PropTypes.string,
     children: PropTypes.any,
+    onlyActiveOnIndex: PropTypes.bool,
 
     //connected
     linkTo: PropTypes.string.isRequired,
   };
 
   render() {
-    const { children, className, activeClassName, linkTo } = this.props;
+    const { children, className, activeClassName, linkTo, onlyActiveOnIndex } =
+      this.props;
 
     return (
       <Link
@@ -50,6 +52,7 @@ export class EntityLink extends PureComponent {
         activeClassName={activeClassName}
         style={link}
         className={className}
+        onlyActiveOnIndex={onlyActiveOnIndex}
       >
         {children}
       </Link>

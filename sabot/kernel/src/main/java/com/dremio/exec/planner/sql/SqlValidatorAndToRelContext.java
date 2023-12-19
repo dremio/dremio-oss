@@ -27,8 +27,6 @@ import javax.annotation.Nullable;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
-import org.apache.calcite.rel.hint.HintStrategies;
-import org.apache.calcite.rel.hint.HintStrategyTable;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlExplainLevel;
 import org.apache.calcite.sql.SqlKind;
@@ -41,14 +39,17 @@ import org.apache.calcite.sql.util.SqlOperatorTables;
 import org.apache.calcite.sql2rel.SqlRexConvertletTable;
 import org.apache.calcite.sql2rel.SqlToRelConverter;
 
+import com.dremio.catalog.model.VersionContext;
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogIdentity;
-import com.dremio.exec.catalog.DremioCatalogReader;
-import com.dremio.exec.catalog.VersionContext;
+import com.dremio.exec.ops.DremioCatalogReader;
+import com.dremio.exec.ops.PlannerCatalog;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.handlers.RexSubQueryUtils;
+import com.dremio.exec.planner.sql.parser.DremioHint;
 import com.dremio.options.OptionResolver;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.collect.ImmutableList;
@@ -58,24 +59,20 @@ import com.google.common.collect.ImmutableList;
  */
 public class SqlValidatorAndToRelContext {
   private static final org.slf4j.Logger logger = getLogger(SqlValidatorAndToRelContext.class);
-
   private final SqlConverter sqlConverter;
   private final DremioCatalogReader dremioCatalogReader;
   private final SqlValidatorImpl validator;
-  private final boolean isInnerQuery;
-  private final boolean allowSubqueryExpansion;
+  private final ExpansionType expansionType;
 
   public SqlValidatorAndToRelContext(
     SqlConverter sqlConverter,
     DremioCatalogReader dremioCatalogReader,
     @Nullable SqlOperatorTable contextualSqlOperatorTable,
-    boolean isInnerQuery,
-    boolean allowSubqueryExpansion) {
+    ExpansionType expansionType) {
     this.sqlConverter = sqlConverter;
     this.dremioCatalogReader = dremioCatalogReader;
     this.validator = createValidator(sqlConverter, dremioCatalogReader, contextualSqlOperatorTable);
-    this.isInnerQuery = isInnerQuery;
-    this.allowSubqueryExpansion = allowSubqueryExpansion;
+    this.expansionType = expansionType;
   }
 
   public SqlNode validate(final SqlNode parsedNode) {
@@ -85,11 +82,8 @@ public class SqlValidatorAndToRelContext {
     return node;
   }
 
-  public RelNode getPlanForFunctionExpression(final SqlNode sqlNode) {
-    SqlToRelConverter.ConfigBuilder configBuilder = createDefaultSqlToRelConfigBuilder(sqlConverter.getSettings());
-    if (!allowSubqueryExpansion) {
-      configBuilder = configBuilder.withExpand(false);
-    }
+  public RelNode validateAndConvertForExpression(final SqlNode sqlNode) {
+    SqlToRelConverter.ConfigBuilder configBuilder = createDefaultSqlToRelConfigBuilder();
 
     final SqlToRelConverter.Config config = configBuilder.build();
     final DremioSqlToRelConverter sqlToRelConverter = new DremioSqlToRelConverter(
@@ -108,22 +102,21 @@ public class SqlValidatorAndToRelContext {
    *
    * Used for serialization.
    */
-  public SqlConverter.RelRootPlus toConvertibleRelRoot(final SqlNode validatedNode, boolean expand, boolean flatten) {
-    return toConvertibleRelRoot(validatedNode, expand, flatten, true);
+  public SqlConverter.RelRootPlus toConvertibleRelRoot(final SqlNode validatedNode, boolean flatten) {
+    return toConvertibleRelRoot(validatedNode, flatten, true);
   }
 
-  public SqlConverter.RelRootPlus toConvertibleRelRoot(final SqlNode validatedNode, boolean expand, boolean flatten, boolean withConvertTableAccess) {
+  public SqlConverter.RelRootPlus toConvertibleRelRoot(final SqlNode validatedNode, boolean flatten, boolean withConvertTableAccess) {
 
     final OptionResolver o = sqlConverter.getSettings().options;
     ReflectionAllowedMonitoringConvertletTable.ConvertletTableNotes convertletTableNotes =
       sqlConverter.getConvertletTableNotes();
     SqlRexConvertletTable convertletTable = sqlConverter.getConvertletTable();
     final long inSubQueryThreshold =  o.getOption(ExecConstants.FAST_OR_ENABLE) ? o.getOption(ExecConstants.FAST_OR_MAX_THRESHOLD) : o.getOption(ExecConstants.PLANNER_IN_SUBQUERY_THRESHOLD);
-    final SqlToRelConverter.Config config = createDefaultSqlToRelConfigBuilder(this.sqlConverter.getSettings())
+    final SqlToRelConverter.Config config = createDefaultSqlToRelConfigBuilder()
       .withInSubQueryThreshold((int) inSubQueryThreshold)
-      .withExpand(expand && sqlConverter.getSettings().options.getOption(PlannerSettings.USE_SQL_TO_REL_SUB_QUERY_EXPANSION))
       .withConvertTableAccess(withConvertTableAccess && o.getOption(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT))
-      .withHintStrategyTable(HintStrategyTable.builder().addHintStrategy("BROADCAST", HintStrategies.TABLE_SCAN).build())
+      .withHintStrategyTable(DremioHint.buildHintStrategyTable())
       .build();
     final SqlToRelConverter sqlToRelConverter = new DremioSqlToRelConverter(sqlConverter, dremioCatalogReader, validator, convertletTable, config);
     final boolean isComplexTypeSupport = o.getOption(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT);
@@ -140,29 +133,18 @@ public class SqlValidatorAndToRelContext {
     }
 
     final RelNode rel3;
-    if (expand && !isComplexTypeSupport) {
+    if (!isComplexTypeSupport) {
       rel3 = rel2.accept(new RexSubQueryUtils.RelsWithRexSubQueryFlattener(sqlToRelConverter));
     } else {
       rel3 = rel2;
     }
 
     if (logger.isDebugEnabled()) {
-      logger.debug("ConvertQuery with expand = {}:\n{}", expand, RelOptUtil.toString(rel3, SqlExplainLevel.ALL_ATTRIBUTES));
+      logger.debug("ConvertQuery:\n{}", RelOptUtil.toString(rel3, SqlExplainLevel.ALL_ATTRIBUTES));
     }
     return SqlConverter.RelRootPlus.of(rel3, rel.validatedRowType, rel.kind, convertletTableNotes.isReflectionDisallowed(), convertletTableNotes.isPlanCacheable());
   }
 
-  /**
-   * This performs a special pass over the SqlNode AST to resolve any versioned table references containing constant
-   * expressions to an equivalent form with those expressions resolved to a SqlLiteral.  This is necessary so that
-   * catalog lookups performed during validation can be provided with the resolved version context.
-   */
-  private void resolveVersionedTableExpressions(final SqlNode parsedNode) {
-    final SqlToRelConverter.Config config = createDefaultSqlToRelConfigBuilder(this.sqlConverter.getSettings()).build();
-    final SqlToRelConverter sqlToRelConverter = new DremioSqlToRelConverter(sqlConverter, dremioCatalogReader, validator, sqlConverter.getConvertletTable(), config);
-    VersionedTableExpressionResolver resolver = new VersionedTableExpressionResolver(validator, sqlConverter.getCluster().getRexBuilder());
-    resolver.resolve(sqlToRelConverter, parsedNode);
-  }
 
   public RelDataType getValidatedRowType(String sql) {
     SqlNode sqlNode = sqlConverter.parse(sql);
@@ -178,20 +160,45 @@ public class SqlValidatorAndToRelContext {
     return dremioCatalogReader;
   }
 
-  public static Builder builder(SqlConverter sqlConverter) {
-    return new Builder(sqlConverter,
-      sqlConverter.getCatalog(),
-      null,
-      false,
-      true);
+
+  /**
+   * This performs a special pass over the SqlNode AST to resolve any versioned table references containing constant
+   * expressions to an equivalent form with those expressions resolved to a SqlLiteral.  This is necessary so that
+   * catalog lookups performed during validation can be provided with the resolved version context.
+   */
+  private void resolveVersionedTableExpressions(final SqlNode parsedNode) {
+    final SqlToRelConverter.Config config = createDefaultSqlToRelConfigBuilder().build();
+    final SqlToRelConverter sqlToRelConverter = new DremioSqlToRelConverter(sqlConverter, dremioCatalogReader, validator, sqlConverter.getConvertletTable(), config);
+    VersionedTableExpressionResolver resolver = new VersionedTableExpressionResolver(validator, sqlConverter.getCluster().getRexBuilder());
+    resolver.resolve(sqlToRelConverter, parsedNode);
   }
 
-  public static Builder builder(SqlValidatorAndToRelContext sqlValidatorAndToRelContext) {
-    return new Builder(sqlValidatorAndToRelContext.sqlConverter,
-      sqlValidatorAndToRelContext.sqlConverter.getCatalog(),
+  private SqlToRelConverter.ConfigBuilder createDefaultSqlToRelConfigBuilder() {
+    final OptionResolver options = sqlConverter.getSettings().options;
+
+    SqlToRelConverter.ConfigBuilder configBuilder = SqlToRelConverter.configBuilder()
+      .withTrimUnusedFields(true);
+
+    switch (expansionType) {
+      case DEFAULT:
+        configBuilder =
+          configBuilder.withExpand(options.getOption(PlannerSettings.USE_SQL_TO_REL_SUB_QUERY_EXPANSION));
+        break;
+      case SQL_TO_REL:
+        configBuilder = configBuilder.withExpand(true);
+        break;
+      case REX_SUB_QUERY:
+        configBuilder = configBuilder.withExpand(false);
+        break;
+    }
+    return configBuilder;
+  }
+
+  public static Builder builder(SqlConverter sqlConverter) {
+    return new Builder(sqlConverter,
+      sqlConverter.getPlannerCatalog(),
       null,
-      sqlValidatorAndToRelContext.isInnerQuery,
-      true);
+      ExpansionType.DEFAULT);
   }
 
   public SqlConverter getSqlConverter() {
@@ -200,22 +207,19 @@ public class SqlValidatorAndToRelContext {
 
   public static class Builder {
     final SqlConverter sqlConverter;
-    final Catalog catalog;
-    final boolean isSubQuery;
-    final boolean allowSubqueryExpansion;
+    final PlannerCatalog catalog;
+    final ExpansionType expansionType;
     @Nullable final SqlOperatorTable contextualSqlOperatorTable;
 
     public Builder(
       SqlConverter sqlConverter,
-      Catalog catalog,
+      PlannerCatalog catalog,
       SqlOperatorTable contextualSqlOperatorTable,
-      boolean isSubQuery,
-      boolean allowSubqueryExpansion) {
+      ExpansionType expansionType) {
       this.sqlConverter = sqlConverter;
       this.catalog = catalog;
       this.contextualSqlOperatorTable = contextualSqlOperatorTable;
-      this.isSubQuery = isSubQuery;
-      this.allowSubqueryExpansion = allowSubqueryExpansion;
+      this.expansionType = expansionType;
     }
 
     public Builder withSchemaPath(List<String> schemaPath) {
@@ -223,49 +227,50 @@ public class SqlValidatorAndToRelContext {
 
       return new Builder(
         sqlConverter,
-        catalog.resolveCatalog(withSchemaPath),
+        catalog.resolvePlannerCatalog(withSchemaPath),
         contextualSqlOperatorTable,
-        isSubQuery,
-        allowSubqueryExpansion);
+        expansionType);
     }
 
     public Builder withCatalog(final Function<Catalog, Catalog> catalogTransformer) {
       return new Builder(
         sqlConverter,
-        catalogTransformer.apply(catalog),
+        catalog.resolvePlannerCatalog(catalogTransformer),
         contextualSqlOperatorTable,
-        isSubQuery,
-        allowSubqueryExpansion);
+        expansionType);
     }
 
     public Builder withUser(CatalogIdentity user) {
       return new Builder(
         sqlConverter,
-        catalog.resolveCatalog(user),
+        catalog.resolvePlannerCatalog(user),
         contextualSqlOperatorTable,
-        isSubQuery,
-        allowSubqueryExpansion);
+        expansionType);
     }
 
-    public Builder withVersionContext(String source, VersionContext versionContext) {
+    public Builder withVersionContext(String source, TableVersionContext versionContext) {
       final Map<String, VersionContext> sourceVersionMapping = new HashMap<>();
-      sourceVersionMapping.put(source, versionContext);
+      sourceVersionMapping.put(source, versionContext.asVersionContext());
       return new Builder(
         sqlConverter,
-        catalog.resolveCatalog(sourceVersionMapping),
+        catalog.resolvePlannerCatalog(sourceVersionMapping),
         contextualSqlOperatorTable,
-        isSubQuery,
-        allowSubqueryExpansion);
+        expansionType);
     }
-
     public Builder withContextualSqlOperatorTable(SqlOperatorTable contextualSqlOperatorTable) {
-      return new Builder(sqlConverter, catalog, contextualSqlOperatorTable, isSubQuery,
-        allowSubqueryExpansion);
+      return new Builder(
+        sqlConverter,
+        catalog,
+        contextualSqlOperatorTable,
+        expansionType);
     }
 
     public Builder withSystemDefaultParserConfig() {
-      return new Builder(sqlConverter.withSystemDefaultParserConfig(), catalog, contextualSqlOperatorTable, isSubQuery,
-        allowSubqueryExpansion);
+      return new Builder(
+        sqlConverter.withSystemDefaultParserConfig(),
+        catalog,
+        contextualSqlOperatorTable,
+        expansionType);
     }
 
     public Builder disallowSubqueryExpansion() {
@@ -273,22 +278,33 @@ public class SqlValidatorAndToRelContext {
         sqlConverter.withSystemDefaultParserConfig(),
         catalog,
         contextualSqlOperatorTable,
-        isSubQuery,
-        false);
+        ExpansionType.REX_SUB_QUERY);
+    }
+
+    public Builder requireSubqueryExpansion() {
+      return new Builder(
+        sqlConverter.withSystemDefaultParserConfig(),
+        catalog,
+        contextualSqlOperatorTable,
+        ExpansionType.SQL_TO_REL);
     }
 
     public SqlValidatorAndToRelContext build() {
       return new SqlValidatorAndToRelContext(sqlConverter,
-        new DremioCatalogReader(catalog, sqlConverter.getTypeFactory()),
+        new DremioCatalogReader(catalog),
         contextualSqlOperatorTable,
-        isSubQuery,
-        allowSubqueryExpansion);
+        expansionType);
+    }
+
+    public Catalog getMetadataCatalog() {
+      return catalog.getMetadataCatalog();
     }
   }
 
-  private static SqlValidatorImpl createValidator(SqlConverter sqlConverter,
-      DremioCatalogReader catalogReader,
-      @Nullable SqlOperatorTable contextualSqlOperatorTable) {
+  private static SqlValidatorImpl createValidator(
+    SqlConverter sqlConverter,
+    DremioCatalogReader catalogReader,
+    @Nullable SqlOperatorTable contextualSqlOperatorTable) {
     SqlValidatorImpl validator =  new SqlValidatorImpl(sqlConverter.getFlattenCounter(),
       createOperatorTable(
         sqlConverter,
@@ -318,13 +334,9 @@ public class SqlValidatorAndToRelContext {
     }
   }
 
-  private static SqlToRelConverter.ConfigBuilder createDefaultSqlToRelConfigBuilder(PlannerSettings settings) {
-    return SqlToRelConverter.configBuilder()
-      .withExpand(settings.options.getOption(PlannerSettings.USE_SQL_TO_REL_SUB_QUERY_EXPANSION))
-      .withTrimUnusedFields(true);
-  }
-
   private static SqlNode toQuery(SqlNode node) {
+    // This is here since we might have some old UDFs that are not in a normalized format
+    // But the main logic should happen now in CreateFunctionHandler
     final SqlKind kind = node.getKind();
     switch (kind) {
       // These are the node types that we know are already a query.
@@ -344,5 +356,11 @@ public class SqlValidatorAndToRelContext {
             SqlParserPos.ZERO),
           null, null, null, null, null, null, null, null, null, null);
     }
+  }
+
+  public enum ExpansionType {
+    DEFAULT,
+    SQL_TO_REL,
+    REX_SUB_QUERY;
   }
 }

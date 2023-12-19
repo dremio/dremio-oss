@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio.distribution</groupId>
     <artifactId>dremio-distribution-parent</artifactId>
-    <version>24.1.0-202306130653310132-d30779f6</version>
+    <version>24.3.0-202312190021150029-52db2faf</version>
   </parent>
 
   <artifactId>dremio-jdbc-driver</artifactId>
@@ -278,7 +278,7 @@
           <groupId>com.fasterxml.jackson.jaxrs</groupId>
         </exclusion>
         <exclusion>
-          <artifactId>mongodb-driver-legacy</artifactId>
+          <artifactId>mongodb-driver-sync</artifactId>
           <groupId>org.mongodb</groupId>
         </exclusion>
         <exclusion>
@@ -486,15 +486,6 @@
       </plugin>
       <plugin>
         <artifactId>maven-failsafe-plugin</artifactId>
-        <executions>
-          <execution>
-            <goals>
-              <goal>integration-test</goal>
-              <goal>verify</goal>
-            </goals>
-          </execution>
-        </executions>
-
         <configuration>
           <additionalClasspathElements>
             <additionalClasspathElement>${junit:junit:jar}</additionalClasspathElement>
@@ -507,19 +498,10 @@
             <additionalClasspathElement>${org.slf4j:slf4j-api:jar}</additionalClasspathElement>
             <additionalClasspathElement>${ch.qos.logback:logback-classic:jar}</additionalClasspathElement>
             <additionalClasspathElement>${ch.qos.logback:logback-core:jar}</additionalClasspathElement>
-            <additionalClasspathElement>${de.huxhorn.lilith:de.huxhorn.lilith.logback.appender.multiplex-classic:jar}</additionalClasspathElement>
             <additionalClasspathElement>${de.huxhorn.sulky:de.huxhorn.sulky.codec:jar}</additionalClasspathElement>
             <additionalClasspathElement>${de.huxhorn.sulky:de.huxhorn.sulky.io:jar}</additionalClasspathElement>
             <additionalClasspathElement>${de.huxhorn.sulky:de.huxhorn.sulky.ulid:jar}</additionalClasspathElement>
-            <additionalClasspathElement>${de.huxhorn.lilith:de.huxhorn.lilith.logback.converter-classic:jar}</additionalClasspathElement>
-            <additionalClasspathElement>${de.huxhorn.lilith:de.huxhorn.lilith.data.converter:jar}</additionalClasspathElement>
-            <additionalClasspathElement>${de.huxhorn.lilith:de.huxhorn.lilith.logback.classic:jar}</additionalClasspathElement>
-            <additionalClasspathElement>${de.huxhorn.lilith:de.huxhorn.lilith.data.logging:jar}</additionalClasspathElement>
             <additionalClasspathElement>${de.huxhorn.sulky:de.huxhorn.sulky.formatting:jar}</additionalClasspathElement>
-            <additionalClasspathElement>${de.huxhorn.lilith:de.huxhorn.lilith.data.eventsource:jar}</additionalClasspathElement>
-            <additionalClasspathElement>${de.huxhorn.lilith:de.huxhorn.lilith.logback.appender.multiplex-core:jar}</additionalClasspathElement>
-            <additionalClasspathElement>${de.huxhorn.lilith:de.huxhorn.lilith.sender:jar}</additionalClasspathElement>
-            <additionalClasspathElement>${de.huxhorn.lilith:de.huxhorn.lilith.data.logging.protobuf:jar}</additionalClasspathElement>
             <additionalClasspathElement>${com.google.protobuf:protobuf-java:jar}</additionalClasspathElement>
           </additionalClasspathElements>
 
@@ -844,7 +826,7 @@
         </property>
       </activation>
       <properties>
-        <dremio.distribution.jar.maxSize>41000000</dremio.distribution.jar.maxSize>
+        <dremio.distribution.jar.maxSize>42500000</dremio.distribution.jar.maxSize>
       </properties>
     </profile>
   </profiles>

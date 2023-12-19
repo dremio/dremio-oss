@@ -17,10 +17,11 @@ import type { CommonTokenStream, RuleContext, Token } from "antlr4ts";
 import type { ParseTreeListener } from "antlr4ts/tree/ParseTreeListener";
 import type { ParseTreeVisitor } from "antlr4ts/tree/ParseTreeVisitor";
 import type { TerminalNode } from "antlr4ts/tree/TerminalNode";
-import { DremioLexer } from "../../../dist-antlr/DremioLexer";
-import { DremioParser } from "../../../dist-antlr/DremioParser";
-import type { DremioParserVisitor } from "../../../dist-antlr/DremioParserVisitor";
-import { AbstractSQLLexer } from "../../../dist-antlr/AbstractSQLLexer";
+import { DremioLexer } from "../../../target/generated-sources/antlr/DremioLexer";
+import { DremioParser } from "../../../target/generated-sources/antlr/DremioParser";
+import type { DremioParserVisitor } from "../../../target/generated-sources/antlr/DremioParserVisitor";
+import { AbstractSQLLexer } from "../../../target/generated-sources/antlr/AbstractSQLLexer";
+import { findAncestor } from "../parser/utils/ruleUtils";
 
 enum RuleType {
   Command,
@@ -104,14 +105,9 @@ const RULE_TYPES: { [K in RuleName]: RuleType } = {
   sqlAssignBranch: RuleType.Command,
   sqlAssignTag: RuleType.Command,
   sqlSelect: RuleType.Command,
-  sqlExplain: RuleType.Command,
   sqlQueryOrDml: RuleType.Command,
   sqlDescribe: RuleType.Command,
   sqlProcedureCall: RuleType.Command,
-  sqlInsert: RuleType.Command,
-  sqlDelete: RuleType.Command,
-  sqlUpdate: RuleType.Command,
-  sqlMerge: RuleType.Command,
   natural: RuleType.Command,
   joinType: RuleType.Command,
   joinTable: RuleType.Command,
@@ -142,6 +138,20 @@ const RULE_TYPES: { [K in RuleName]: RuleType } = {
   explainDetailLevel: RuleType.Command,
   explainDepth: RuleType.Command,
   scope: RuleType.Command,
+  sqlVacuumTable: RuleType.Command,
+  sqlVacuumCatalog: RuleType.Command,
+  sqlExplainQueryDML: RuleType.Command,
+  sqlCreateFolder: RuleType.Command,
+  sqlDropFolder: RuleType.Command,
+  parseReferenceType: RuleType.Command,
+  aTVersionSpec: RuleType.Command,
+  aTBranchVersionOrReferenceSpec: RuleType.Command,
+  qualifyOpt: RuleType.Command,
+  sqlShowCreate: RuleType.Command,
+  sqlShowTableProperties: RuleType.Command,
+  sqlCreatePipe: RuleType.Command,
+  sqlDescribePipe: RuleType.Command,
+  sqlShowPipes: RuleType.Command,
 
   // These comprise identifier tokens
   // Note: Identifier list rules should not be added here
@@ -155,19 +165,28 @@ const RULE_TYPES: { [K in RuleName]: RuleType } = {
   nonReservedKeyWord1of3: RuleType.Identifier,
   nonReservedKeyWord2of3: RuleType.Identifier,
 
-  // These are usually named like "FunctionCall" and contain a function name, left paren, args, right paren
-  tableFunctionCall: RuleType.Function,
+  // These are usually named like "FunctionCall" and contain a function name, (and usually) left paren, args, right paren
   extendedBuiltinFunctionCall: RuleType.Function,
   builtinFunctionCall: RuleType.Function,
   timestampAddFunctionCall: RuleType.Function,
   timestampDiffFunctionCall: RuleType.Function,
   matchRecognizeFunctionCall: RuleType.Function,
   namedFunctionCall: RuleType.Function,
+  namedRoutineCall: RuleType.Function,
   jdbcFunctionCall: RuleType.Function,
   parseFunctionFieldList: RuleType.Function,
   policy: RuleType.Function,
+  policyWithoutArgs: RuleType.Function,
   luceneQuery: RuleType.Function,
+  jsonExistsFunctionCall: RuleType.Function,
+  jsonValueFunctionCall: RuleType.Function,
+  jsonQueryFunctionCall: RuleType.Function,
+  jsonObjectFunctionCall: RuleType.Function,
+  jsonObjectAggFunctionCall: RuleType.Function,
+  jsonArrayFunctionCall: RuleType.Function,
+  jsonArrayAggFunctionCall: RuleType.Function,
 
+  // Catch-all
   extendedTableRef: RuleType.Other,
   floorCeilOptions: RuleType.Other,
   orderedQueryOrExpr: RuleType.Other,
@@ -201,12 +220,11 @@ const RULE_TYPES: { [K in RuleName]: RuleType } = {
   parseRequiredPartitionList: RuleType.Other,
   keyValueCommaList: RuleType.Other,
   keyValuePair: RuleType.Other,
-  parseRequiredFieldListWithGranularity: RuleType.Other,
+  parseFieldListWithGranularity: RuleType.Other,
   simpleIdentifierCommaListWithGranularity: RuleType.Other,
-  parseRequiredFieldListWithMeasures: RuleType.Other,
+  parseFieldListWithMeasures: RuleType.Other,
   simpleIdentifierCommaListWithMeasures: RuleType.Other,
   measureList: RuleType.Other,
-  policyWithoutArgs: RuleType.Other,
   parseColumns: RuleType.Other,
   identifierCommaList: RuleType.Other,
   typedElement: RuleType.Other,
@@ -218,7 +236,6 @@ const RULE_TYPES: { [K in RuleName]: RuleType } = {
   privilegeCommaList: RuleType.Other,
   privilege: RuleType.Other,
   tableWithVersionContext: RuleType.Other,
-  namedRoutineCall: RuleType.Other,
   whenMatchedClause: RuleType.Other,
   whenNotMatchedClause: RuleType.Other,
   selectList: RuleType.Other,
@@ -321,6 +338,7 @@ const RULE_TYPES: { [K in RuleName]: RuleType } = {
   join: RuleType.Other,
   tableRef1: RuleType.Other,
   tableRef3: RuleType.Other,
+  tableFunctionCall: RuleType.Other, // Not actually a function but a subquery (usually)
   tablesample: RuleType.Other,
   addSetOpQuery: RuleType.Other,
   sqlTypeName1: RuleType.Other,
@@ -332,6 +350,28 @@ const RULE_TYPES: { [K in RuleName]: RuleType } = {
   dateTimeTypeName: RuleType.Other,
   precisionOpt: RuleType.Other,
   timeZoneOpt: RuleType.Other,
+  parseTableProperty: RuleType.Other,
+  vacuumTableExpireSnapshotOptions: RuleType.Other,
+  vacuumTableRemoveOrphanFilesOptions: RuleType.Other,
+  sqlQueryOrTableDml: RuleType.Other,
+  parenthesizedKeyValueOptionCommaList: RuleType.Other,
+  keyValueOption: RuleType.Other,
+  commaSepatatedSqlHints: RuleType.Other,
+  tableRefWithHintsOpt: RuleType.Other,
+  jsonRepresentation: RuleType.Other,
+  jsonInputClause: RuleType.Other,
+  jsonReturningClause: RuleType.Other,
+  jsonOutputClause: RuleType.Other,
+  jsonValueExpression: RuleType.Other,
+  jsonPathSpec: RuleType.Other,
+  jsonApiCommonSyntax: RuleType.Other,
+  jsonExistsErrorBehavior: RuleType.Other,
+  jsonValueEmptyOrErrorBehavior: RuleType.Other,
+  jsonQueryEmptyOrErrorBehavior: RuleType.Other,
+  jsonQueryWrapperBehavior: RuleType.Other,
+  jsonName: RuleType.Other,
+  jsonNameAndValue: RuleType.Other,
+  jsonConstructorNullClause: RuleType.Other,
 };
 
 // These are tokens that are not considered part of commands (even when directly
@@ -355,6 +395,12 @@ const NON_COMMAND_START_WORDS = [
   DremioLexer.AND,
   DremioLexer.OR,
   DremioLexer.AS,
+  DremioLexer.AT,
+  DremioLexer.REF,
+  DremioLexer.REFERENCE,
+  DremioLexer.BRANCH,
+  DremioLexer.TAG,
+  DremioLexer.COMMIT,
 ];
 
 // Overrides NON_COMMAND_START_WORDS on a per-rule basis
@@ -724,14 +770,10 @@ export class AbstractSqlGenerator implements ParseTreeListener {
     context: TerminalNode | RuleContext,
     ruleType: RuleType
   ): boolean {
-    let ruleContext: RuleContext | undefined = context._parent?.ruleContext;
-    while (ruleContext) {
+    const isType = (ruleContext: RuleContext) => {
       const ruleName = this.getRuleName(ruleContext);
-      if (this.isRuleOfType(ruleName, ruleType)) {
-        return true;
-      }
-      ruleContext = ruleContext.parent;
-    }
-    return false;
+      return this.isRuleOfType(ruleName, ruleType);
+    };
+    return !!findAncestor(context, isType);
   }
 }

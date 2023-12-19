@@ -54,6 +54,7 @@ import com.dremio.exec.planner.observer.QueryObserver;
 import com.dremio.exec.planner.physical.HashAggPrel;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.handlers.commands.PreparedPlan;
+import com.dremio.exec.planner.sql.handlers.query.SupportsSystemIcebergTables;
 import com.dremio.exec.proto.GeneralRPCProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.ExternalId;
@@ -66,10 +67,13 @@ import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.exec.rpc.UserRpcException;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaConfig;
+import com.dremio.exec.store.dfs.system.SystemIcebergTablesStoragePlugin;
+import com.dremio.exec.store.dfs.system.SystemIcebergTablesStoragePluginConfig;
 import com.dremio.exec.work.foreman.AttemptManager;
 import com.dremio.exec.work.user.OptionProvider;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValue;
+import com.dremio.partitionstats.cache.PartitionStatsCache;
 import com.dremio.proto.model.attempts.AttemptReason;
 import com.dremio.resource.RuleBasedEngineSelector;
 import com.dremio.sabot.rpc.user.UserSession;
@@ -83,6 +87,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.cache.Cache;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.Empty;
@@ -108,7 +113,7 @@ public class Foreman {
   // we need all these to start new attemptManager instances if we have to
   private final Executor executor; // unlimited thread pool
   private final CommandPool commandPool;
-  private final SabotContext context;
+  private final SabotContext sabotContext;
   private final CompletionListener listener;
   private final UserSession session;
   private final UserRequest request;
@@ -117,6 +122,7 @@ public class Foreman {
   private final ReAttemptHandler attemptHandler;
   private final Cache<Long, PreparedPlan> preparedPlans;
   private final PlanCache planCache;
+  private final PartitionStatsCache partitionStatsCache;
   protected final MaestroService maestroService;
   protected final JobTelemetryClient jobTelemetryClient;
   private RuleBasedEngineSelector ruleBasedEngineSelector;
@@ -130,7 +136,7 @@ public class Foreman {
   private volatile boolean canceled; // did the user cancel the query ?
 
   protected Foreman(
-    final SabotContext context,
+    final SabotContext sabotContext,
     final Executor executor,
     final CommandPool commandPool,
     final CompletionListener listener,
@@ -144,12 +150,13 @@ public class Foreman {
     PlanCache planCache,
     final MaestroService maestroService,
     final JobTelemetryClient jobTelemetryClient,
-    final RuleBasedEngineSelector ruleBasedEngineSelector) {
+    final RuleBasedEngineSelector ruleBasedEngineSelector,
+    final PartitionStatsCache partitionStatsCache) {
 
     this.attemptId = AttemptId.of(externalId);
     this.executor = executor;
     this.commandPool = commandPool;
-    this.context = context;
+    this.sabotContext = sabotContext;
     this.listener = listener;
     this.session = session;
     this.request = request;
@@ -161,6 +168,7 @@ public class Foreman {
     this.maestroService = maestroService;
     this.jobTelemetryClient = jobTelemetryClient;
     this.ruleBasedEngineSelector = ruleBasedEngineSelector;
+    this.partitionStatsCache = partitionStatsCache;
   }
 
   public void start() {
@@ -188,8 +196,8 @@ public class Foreman {
         optionProvider = new LowMemOptionProvider(config);
       }
 
-      attemptManager = newAttemptManager(context, attemptId, request, attemptObserver, session,
-        optionProvider, preparedPlans, planCache, datasetValidityChecker, commandPool);
+      attemptManager = newAttemptManager(attemptId, request, attemptObserver, session,
+        optionProvider, preparedPlans, planCache, datasetValidityChecker, commandPool, partitionStatsCache);
 
     } catch (Throwable t) {
       UserException uex = UserException.systemError(t).addContext("Failure while submitting the Query").build(logger);
@@ -229,13 +237,13 @@ public class Foreman {
     }
   }
 
-  protected AttemptManager newAttemptManager(SabotContext context, AttemptId attemptId, UserRequest queryRequest,
+  protected AttemptManager newAttemptManager(AttemptId attemptId, UserRequest queryRequest,
      AttemptObserver observer, UserSession session, OptionProvider options,
      Cache<Long, PreparedPlan> preparedPlans, PlanCache planCache,
-     Predicate<DatasetConfig> datasetValidityChecker, CommandPool commandPool) {
-    final QueryContext queryContext = new QueryContext(session, context, attemptId.toQueryId(),
-       queryRequest.getPriority(), queryRequest.getMaxAllocation(), datasetValidityChecker, planCache);
-    return new AttemptManager(context, attemptId, queryRequest, observer, options, preparedPlans,
+     Predicate<DatasetConfig> datasetValidityChecker, CommandPool commandPool, PartitionStatsCache partitionStatsCache) {
+    final QueryContext queryContext = new QueryContext(session, sabotContext, attemptId.toQueryId(),
+       queryRequest.getPriority(), queryRequest.getMaxAllocation(), datasetValidityChecker, planCache, partitionStatsCache);
+    return new AttemptManager(sabotContext, attemptId, queryRequest, observer, options, preparedPlans,
       queryContext, commandPool, maestroService, jobTelemetryClient, ruleBasedEngineSelector,
       queryRequest.runInSameThread());
   }
@@ -244,7 +252,7 @@ public class Foreman {
     final AttemptManager manager = attemptManager;
     if (manager == null) {
       logger.warn("Dropping data from screen, no active attempt manager.");
-      sender.sendFailure(new UserRpcException(context.getEndpoint(),
+      sender.sendFailure(new UserRpcException(sabotContext.getEndpoint(),
         "Query Already Terminated", new Throwable("Query Already Terminated")));
       return;
     }
@@ -347,10 +355,6 @@ public class Foreman {
     }
   }
 
-  protected SabotContext getSabotContext() {
-    return context;
-  }
-
   protected RuleBasedEngineSelector getRuleBasedEngineSelector() {
     return ruleBasedEngineSelector;
   }
@@ -372,6 +376,7 @@ public class Foreman {
   private class Observer extends DelegatingAttemptObserver {
 
     private boolean isCTAS = false;
+    private List<String> systemIcebergTablesToRefresh;
     private boolean containsHashAgg = false;
 
     Observer(final AttemptObserver delegate) {
@@ -397,6 +402,9 @@ public class Foreman {
     @Override
     public void planValidated(RelDataType rowType, SqlNode node, long millisTaken) {
       isCTAS = node.getKind() == SqlKind.CREATE_TABLE;
+      if (node instanceof SupportsSystemIcebergTables) {
+        systemIcebergTablesToRefresh = ((SupportsSystemIcebergTables) node).systemTableNames();
+      }
       super.planValidated(rowType, node, millisTaken);
     }
 
@@ -417,7 +425,7 @@ public class Foreman {
           NamespaceKey datasetKey = new NamespaceKey(data.getTableSchemaPath());
           final String queryUserName = session.getCredentials().getUserName();
           final DatasetCatalog datasetCatalog =
-              context.getCatalogService().getCatalog(MetadataRequestOptions.of(
+              sabotContext.getCatalogService().getCatalog(MetadataRequestOptions.of(
                   SchemaConfig.newBuilder(CatalogUser.from(queryUserName))
                       .build()));
           datasetCatalog.updateDatasetSchema(datasetKey, data.getNewSchema());
@@ -444,7 +452,7 @@ public class Foreman {
         try {
           NamespaceKey datasetKey = new NamespaceKey(data.getOriginTablePath());
           final DatasetCatalog datasetCatalog =
-              context.getCatalogService()
+              sabotContext.getCatalogService()
                   .getCatalog(MetadataRequestOptions.of(SchemaConfig.newBuilder(CatalogUser.from(SYSTEM_USERNAME))
                     .build()));
           datasetCatalog.updateDatasetField(datasetKey, data.getFieldName(), data.getFieldSchema());
@@ -459,6 +467,17 @@ public class Foreman {
       }
 
       return result;
+    }
+
+    // Ingest operations might write into internal tables that need to be refreshed thereafter from the coordinator side
+    private void handleSystemIcebergTableRefreshes() {
+      if (systemIcebergTablesToRefresh != null && !systemIcebergTablesToRefresh.isEmpty()) {
+        SystemIcebergTablesStoragePlugin plugin =
+            sabotContext.getCatalogService().getSource(SystemIcebergTablesStoragePluginConfig.SYSTEM_ICEBERG_TABLES_PLUGIN_NAME);
+        for (String tableName : systemIcebergTablesToRefresh) {
+          plugin.refreshDataset(ImmutableList.of(tableName));
+        }
+      }
     }
 
     @Override
@@ -530,6 +549,8 @@ public class Foreman {
           }
         }
       }
+
+      handleSystemIcebergTableRefreshes();
 
       // no more attempts are needed/possible
       observer.execCompletion(result);

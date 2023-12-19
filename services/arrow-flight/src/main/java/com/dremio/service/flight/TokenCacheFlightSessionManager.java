@@ -53,6 +53,7 @@ public class TokenCacheFlightSessionManager implements DremioFlightSessionsManag
   private final Provider<TokenManager> tokenManagerProvider;
   private final OptionManager optionManager;
 
+  @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
   public TokenCacheFlightSessionManager(Provider<SabotContext> sabotContextProvider,
                                      Provider<TokenManager> tokenManagerProvider) {
     this.sabotContextProvider = sabotContextProvider;

@@ -14,19 +14,22 @@
  * limitations under the License.
  */
 import { Component } from "react";
+import { compose } from "redux";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import Immutable from "immutable";
 import urlParse from "url-parse";
 import copy from "copy-to-clipboard";
+import { injectIntl } from "react-intl";
 
 import { removeDataset, removeFile } from "actions/resources/spaceDetails";
 import { showConfirmationDialog } from "actions/confirmation";
 import { constructFullPath, getFullPathListFromEntity } from "utils/pathUtils";
 import { UpdateMode } from "pages/HomePage/components/modals/UpdateDataset/UpdateDatasetView";
 import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
-import { loadSummaryDataset } from "actions/resources/dataset";
 import DatasetMenuMixin from "dyn-load/components/Menus/HomePage/DatasetMenuMixin";
+import { withCatalogARSFlag } from "@inject/utils/arsUtils";
+import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";
 
 // todo: all these entities have a lot of similarities (they are all Datasets of some sort)
 // but do not share a protocol/interface. This code *should* be able to
@@ -36,13 +39,14 @@ export const getSettingsLocation = (location, entity, entityType) => ({
   ...location,
   state: {
     modal: "DatasetSettingsModal",
-    entityName: entity.get("datasetName"),
+    entityName: entity.get("fullPathList").last(),
     // todo: normalize
     entityId:
       entity.get("versionedResourcePath") || // VDS
       entity.get("id"), // file, folder, PDS (see resourceDecorators)
 
     entityType,
+    type: entityType,
     isHomePage: true,
   },
 });
@@ -61,32 +65,22 @@ export class DatasetMenu extends Component {
     removeDataset: PropTypes.func.isRequired,
     removeFile: PropTypes.func.isRequired,
     showConfirmationDialog: PropTypes.func,
-    summaryDataset: PropTypes.instanceOf(Immutable.Map),
-    loadSummaryDataset: PropTypes.func,
     openWikiDrawer: PropTypes.func,
   };
 
-  componentDidMount() {
+  getMenuItemUrl(itemCode) {
     const { entity } = this.props;
-    this.props.loadSummaryDataset(
-      entity.get("fullPathList").join("/"),
-      "SummaryDataset"
-    );
-  }
 
-  getMenuItemUrl(itemCode, hideTabs) {
-    const { entity } = this.props;
-    // todo: seems very brittle, and it should be a computed prop of the entity
-    const url = wrapBackendLink(entity.getIn(["links", "query"]));
-    const parseUrl = urlParse(url);
+    const queryLink = entity.getIn(["links", "query"]);
+    const editLink = entity.getIn(["links", "edit"]);
+    const canAlter = entity.getIn(["permissions", "canAlter"]);
+    const canSelect = entity.getIn(["permissions", "canSelect"]);
 
-    if (hideTabs) {
-      return parseUrl.query
-        ? `${parseUrl.pathname}/${itemCode}${parseUrl.query}&hideTabs=true`
-        : `${parseUrl.pathname}/${itemCode}?hideTabs=true`;
-    } else {
-      return `${parseUrl.pathname}/${itemCode}${parseUrl.query}`;
-    }
+    const toLink = (canAlter || canSelect) && editLink ? editLink : queryLink;
+    const urldetails = new URL(window.location.origin + toLink);
+    const pathname = urldetails.pathname + `/${itemCode}` + urldetails.search;
+
+    return wrapBackendLink(pathname);
   }
 
   getLocationConfig = (mode) => {
@@ -131,12 +125,16 @@ export class DatasetMenu extends Component {
   }
 
   handleRemoveFile = () => {
+    const { t } = getIntlContext();
     const { closeMenu, entity } = this.props;
     this.props.showConfirmationDialog({
-      text: la(`Are you sure you want to remove file "${entity.get("name")}"?`),
-      confirmText: la("Remove"),
+      text: t("Delete.Confirmation", {
+        name: entity.get("name"),
+      }),
+      confirmText: t("Common.Actions.Delete"),
       confirm: () => this.props.removeFile(entity),
-      title: la("Remove File"),
+      title: t("File.Delete"),
+      confirmButtonStyle: "danger",
     });
     closeMenu();
   };
@@ -150,27 +148,12 @@ export class DatasetMenu extends Component {
   };
 }
 
-function mapStateToProps(state, ownProps) {
-  const allSummaries = state.resources.entities.get("summaryDataset")?.toJS();
-  let summaryDataset;
-
-  for (const dataset in allSummaries) {
-    if (
-      allSummaries[dataset].fullPath.join("/") ===
-      ownProps.entity.get("fullPathList").join("/")
-    ) {
-      summaryDataset = Immutable.fromJS(allSummaries[dataset]);
-    }
-  }
-
-  return {
-    summaryDataset,
-  };
-}
-
-export default connect(mapStateToProps, {
-  removeDataset,
-  removeFile,
-  showConfirmationDialog,
-  loadSummaryDataset,
-})(DatasetMenu);
+export default compose(
+  withCatalogARSFlag,
+  connect(null, {
+    removeDataset,
+    removeFile,
+    showConfirmationDialog,
+  }),
+  injectIntl
+)(DatasetMenu);

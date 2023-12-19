@@ -263,7 +263,7 @@ public class IcebergFormatPlugin extends EasyFormatPlugin<IcebergFormatConfig> {
     Table table = icebergTableLoader.getIcebergTable();
 
     // Transform to lazy iteration and retrieve file attributes on demand
-    final int maxFilesLimit = FileDatasetHandle.getMaxFilesLimit(context);
+    final int maxFilesLimit = getMaxFilesLimit();
     Iterable<FileAttributes> fileAttributesIterable = Iterables.filter(
       Iterables.transform(
         Iterables.limit(table.newScan().planFiles(), maxFilesLimit),

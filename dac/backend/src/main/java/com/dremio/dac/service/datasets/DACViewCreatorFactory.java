@@ -78,7 +78,7 @@ public class DACViewCreatorFactory implements ViewCreatorFactory {
 
   @Override
   public ViewCreator get(String userName) {
-    return new DACViewCreator(userName);
+    return new DACViewCreator(userName, contextService.get());
   }
 
   /**
@@ -89,16 +89,18 @@ public class DACViewCreatorFactory implements ViewCreatorFactory {
     private final JobsService jobsService = DACViewCreatorFactory.this.jobsService.get();
     private final DatasetVersionMutator datasetService;
     private final NamespaceService namespaceService;
+    private final ContextService contextService;
 
-    DACViewCreator(String userName) {
+    DACViewCreator(String userName, final ContextService contextService) {
       this.userName = userName;
       namespaceService = namespaceServiceFactory.get().get(userName);
+      this.contextService = contextService;
       datasetService = new DatasetVersionMutator(initializerRegistry.get(), kvStoreProvider.get(), namespaceService,
-        jobsService, catalogService.get(), contextService.get().get().getOptionManager());
+        jobsService, catalogService.get(), this.contextService.get().getOptionManager(), this.contextService);
     }
 
     @Override
-    public void createView(List<String> path, String sql, List<String> sqlContext, NamespaceAttribute... attributes) {
+    public void createView(List<String> path, String sql, List<String> sqlContext, boolean isVersionedSource, NamespaceAttribute... attributes) {
       SecurityContext securityContext = getSecurityContext();
       QueryExecutor executor = new QueryExecutor(jobsService, null, securityContext);
       DatasetTool tool = newDatasetTool(securityContext, executor);
@@ -108,8 +110,10 @@ public class DACViewCreatorFactory implements ViewCreatorFactory {
         DatasetPath datasetPath = new DatasetPath(path);
         InitialPreviewResponse response = tool.newUntitled(allocator, new FromSQL(sql), version, sqlContext, null,true, 0, true);
         DatasetPath tmpPath = new DatasetPath(response.getDataset().getFullPath());
-        VirtualDatasetUI vds = datasetService.getVersion(tmpPath, response.getDataset().getDatasetVersion());
-        newDatasetVersionResource(securityContext, tool, version, tmpPath, allocator).save(vds, datasetPath, null, attributes);
+        VirtualDatasetUI vds = datasetService.getVersion(tmpPath, response.getDataset().getDatasetVersion(), isVersionedSource);
+
+        // TODO - Remove dependency on a Resource file.
+        newDatasetVersionResource(securityContext, tool, version, tmpPath, allocator).save(vds, datasetPath, null, null, isVersionedSource, attributes);
       } catch (Exception e) {
         throw Throwables.propagate(e);
       }
@@ -129,7 +133,7 @@ public class DACViewCreatorFactory implements ViewCreatorFactory {
         DatasetPath datasetPath = new DatasetPath(path);
         final VirtualDatasetUI virtualDataset = datasetService.get(datasetPath);
 
-        Transformer transformer = new Transformer(contextService.get().get(), jobsService, namespaceService, datasetService, executor, securityContext, catalogService.get());
+        Transformer transformer = new Transformer(contextService.get(), jobsService, namespaceService, datasetService, executor, securityContext, catalogService.get());
         TransformUpdateSQL transformUpdateSQL = new TransformUpdateSQL();
         transformUpdateSQL.setSql(sql);
         transformUpdateSQL.setSqlContextList(sqlContext);
@@ -181,8 +185,8 @@ public class DACViewCreatorFactory implements ViewCreatorFactory {
 
     protected DatasetVersionResource newDatasetVersionResource(SecurityContext securityContext, DatasetTool tool,
         DatasetVersion version, DatasetPath tmpPath, BufferAllocator allocator) {
-      return new DatasetVersionResource(null, datasetService, jobsService, null, null, null,
-        tool, null, securityContext, tmpPath, version, allocator, catalogService.get());
+      return new DatasetVersionResource(null, datasetService, null, null, null,
+        tool, null, securityContext, tmpPath, version, allocator);
     }
 
     @Override

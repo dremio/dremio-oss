@@ -17,7 +17,7 @@ import { Component } from "react";
 import PropTypes from "prop-types";
 import deepEqual from "deep-equal";
 import Immutable from "immutable";
-import uuid from "uuid";
+import { v4 as uuidv4 } from "uuid";
 import { connectComplexForm } from "components/Forms/connectComplexForm";
 
 import { getExploreState } from "@app/selectors/explore";
@@ -79,8 +79,8 @@ export class ReplaceValuesForm extends Component {
     if (!replaceValues.length && !replaceNull) {
       return Promise.reject({
         _error: {
-          message: la("Please select at least one value."),
-          id: uuid.v4(),
+          message: laDeprecated("Please select at least one value."),
+          id: uuidv4(),
         },
       });
     }

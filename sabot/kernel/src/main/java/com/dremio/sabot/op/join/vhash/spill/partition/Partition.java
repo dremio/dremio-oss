@@ -142,5 +142,11 @@ public interface Partition extends AutoCloseable {
     long getProbeCopyNanos();
 
     long getProbeUnmatchedKeyCount();
+
+    long getEvaluationCount();
+
+    long getEvaluationMatchedCount();
+
+    long getSetupNanos();
   }
 }

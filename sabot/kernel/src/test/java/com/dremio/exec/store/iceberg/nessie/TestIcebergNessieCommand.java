@@ -23,6 +23,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import com.dremio.exec.store.iceberg.DremioFileIO;
 import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
 import com.dremio.io.file.FileSystem;
 
@@ -34,8 +35,11 @@ class TestIcebergNessieCommand {
   @Test
   void testDeleteTableFailure() throws Exception {
     FileSystem fs = Mockito.mock(FileSystem.class);
+    DremioFileIO io = Mockito.mock(DremioFileIO.class);
+    Mockito.when(io.getFs()).thenReturn(fs);
     IcebergNessieTableOperations ops = Mockito.mock(IcebergNessieTableOperations.class);
-    IcebergNessieCommand command = new IcebergNessieCommand(ID, conf, fs, ops);
+    Mockito.when(ops.io()).thenReturn(io);
+    IcebergNessieCommand command = new IcebergNessieCommand(ID, conf, ops, null);
     Mockito.when(fs.delete(any(), anyBoolean())).thenThrow(new RuntimeException("test-exception-1"));
     assertThatThrownBy(command::deleteTable).isInstanceOf(RuntimeException.class).hasMessage("test-exception-1");
     Mockito.verify(ops, Mockito.times(1)).deleteKey();
@@ -44,8 +48,11 @@ class TestIcebergNessieCommand {
   @Test
   void testDoubleFailure() throws Exception {
     FileSystem fs = Mockito.mock(FileSystem.class);
+    DremioFileIO io = Mockito.mock(DremioFileIO.class);
+    Mockito.when(io.getFs()).thenReturn(fs);
     IcebergNessieTableOperations ops = Mockito.mock(IcebergNessieTableOperations.class);
-    IcebergNessieCommand command = new IcebergNessieCommand(ID, conf, fs, ops);
+    Mockito.when(ops.io()).thenReturn(io);
+    IcebergNessieCommand command = new IcebergNessieCommand(ID, conf, ops, null);
     RuntimeException innerException = new RuntimeException("test-exception-1");
     Mockito.doThrow(innerException).when(ops).deleteKey();
     Mockito.when(fs.delete(any(), anyBoolean())).thenThrow(new RuntimeException("test-exception-2"));

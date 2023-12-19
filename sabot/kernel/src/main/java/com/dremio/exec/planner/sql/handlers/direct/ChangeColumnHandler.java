@@ -24,18 +24,18 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.rel.InvalidRelException;
 import org.apache.calcite.sql.SqlNode;
 
+import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.catalog.ResolvedVersionContext;
 import com.dremio.exec.catalog.TableMutationOptions;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.planner.sql.handlers.query.DataAdditionCmdHandler;
-import com.dremio.exec.planner.sql.parser.DmlUtils;
 import com.dremio.exec.planner.sql.parser.DremioSqlColumnDeclaration;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableChangeColumn;
 import com.dremio.exec.planner.sql.parser.SqlGrant;
@@ -58,10 +58,22 @@ public class ChangeColumnHandler extends SimpleDirectHandler {
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
     SqlAlterTableChangeColumn sqlChangeColumn = SqlNodeUtil.unwrap(sqlNode, SqlAlterTableChangeColumn.class);
 
-    NamespaceKey path = DmlUtils.getTablePath(catalog, sqlChangeColumn.getTable());
+    NamespaceKey sqlPath = catalog.resolveSingle(sqlChangeColumn.getTable());
+    final String sourceName = sqlPath.getRoot();
+    VersionContext statementSourceVersion = sqlChangeColumn.getSqlTableVersionSpec().getTableVersionSpec().getTableVersionContext().asVersionContext();
+    final VersionContext sessionVersion = config.getContext().getSession().getSessionVersionForSource(sourceName);
+    VersionContext sourceVersion = statementSourceVersion.orElse(sessionVersion);
+    ResolvedVersionContext resolvedVersionContext = CatalogUtil.resolveVersionContext(catalog, sourceName, sourceVersion);
+    final CatalogEntityKey catalogEntityKey = CatalogUtil.getResolvedCatalogEntityKey(
+        catalog,
+        sqlPath,
+        resolvedVersionContext);
+    NamespaceKey path = new NamespaceKey(catalogEntityKey.getKeyComponents());
+
     catalog.validatePrivilege(path, SqlGrant.Privilege.ALTER);
 
-    DremioTable table = catalog.getTableNoResolve(path);
+    DremioTable table = CatalogUtil.getTableNoResolve(catalogEntityKey, catalog);
+
     SimpleCommandResult result = SqlHandlerUtil.validateSupportForDDLOperations(catalog, config, path, table);
 
     if (!result.ok) {
@@ -81,11 +93,6 @@ public class ChangeColumnHandler extends SimpleDirectHandler {
       throw UserException.validationError().message("Column [%s] cannot be renamed",
         currentColumnName).buildSilently();
     }
-
-    final String sourceName = path.getRoot();
-    final VersionContext sessionVersion = config.getContext().getSession().getSessionVersionForSource(sourceName);
-    ResolvedVersionContext resolvedVersionContext = CatalogUtil.resolveVersionContext(catalog, sourceName, sessionVersion);
-    CatalogUtil.validateResolvedVersionIsBranch(resolvedVersionContext);
     TableMutationOptions tableMutationOptions = TableMutationOptions.newBuilder()
       .setResolvedVersionContext(resolvedVersionContext)
       .build();

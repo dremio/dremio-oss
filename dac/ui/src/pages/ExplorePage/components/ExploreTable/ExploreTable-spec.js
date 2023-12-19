@@ -257,13 +257,13 @@ describe("ExploreTable", () => {
       sinon.stub(instance, "needUpdateColumns").returns(false);
     });
     it("should not update columns when column data is not changed", () => {
-      instance.componentWillReceiveProps(commonProps);
+      instance.UNSAFE_componentWillReceiveProps(commonProps);
       expect(instance.updateColumns).to.have.not.been.called;
     });
     it("should update columns when columns changed", () => {
       instance.needUpdateColumns.restore();
       sinon.stub(instance, "needUpdateColumns").returns(true);
-      instance.componentWillReceiveProps(commonProps);
+      instance.UNSAFE_componentWillReceiveProps(commonProps);
       expect(instance.updateColumns).to.have.been.called;
     });
   });

@@ -26,7 +26,7 @@ import java.util.concurrent.ExecutorService;
 import javax.inject.Provider;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.projectnessie.client.api.NessieApiV1;
+import org.projectnessie.client.api.NessieApiV2;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,7 +64,6 @@ import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
 import com.dremio.resource.GroupResourceInformation;
 import com.dremio.resource.common.ReflectionRoutingManager;
-import com.dremio.security.CredentialsService;
 import com.dremio.service.catalog.DatasetCatalogServiceGrpc.DatasetCatalogServiceBlockingStub;
 import com.dremio.service.catalog.InformationSchemaServiceGrpc.InformationSchemaServiceBlockingStub;
 import com.dremio.service.conduit.client.ConduitProvider;
@@ -78,10 +77,14 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.orphanage.Orphanage;
 import com.dremio.service.spill.SpillService;
 import com.dremio.service.users.UserService;
+import com.dremio.services.credentials.CredentialsService;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 
+/* SabotContext
+* TODO - Add description for SabotContext's responsibility.
+*/
 public class SabotContext implements AutoCloseable {
   private static final Logger logger = LoggerFactory.getLogger(SabotContext.class);
 
@@ -128,7 +131,7 @@ public class SabotContext implements AutoCloseable {
   private final ExecutorService executorService;
   private final JdbcSchemaFetcherFactoryContext jdbcSchemaFetcherFactoryContext;
   private final Provider<CoordinatorModeInfo> coordinatorModeInfoProvider;
-  private final Provider<NessieApiV1> nessieClientProvider;
+  private final Provider<NessieApiV2> nessieApiProvider;
   private final Provider<StatisticsAdministrationService.Factory> statisticsAdministrationFactory;
   private final Provider<StatisticsListManager> statisticsListManagerProvider;
   private final Provider<UserDefinedFunctionService> userDefinedFunctionListManagerProvider;
@@ -177,7 +180,7 @@ public class SabotContext implements AutoCloseable {
       OptionValidatorListing optionValidatorListing,
       ExecutorService executorService,
       Provider<CoordinatorModeInfo> coordinatorModeInfoProvider,
-      Provider<NessieApiV1> nessieClientProvider,
+      Provider<NessieApiV2> nessieApiProvider,
       Provider<StatisticsService> statisticsService,
       Provider<StatisticsAdministrationService.Factory> statisticsAdministrationFactory,
       Provider<StatisticsListManager> statisticsListManagerProvider,
@@ -243,7 +246,7 @@ public class SabotContext implements AutoCloseable {
     this.executorService = executorService;
     this.jdbcSchemaFetcherFactoryContext = new JdbcSchemaFetcherFactoryContext(optionManager, credentialsService);
     this.coordinatorModeInfoProvider = coordinatorModeInfoProvider;
-    this.nessieClientProvider = nessieClientProvider;
+    this.nessieApiProvider = nessieApiProvider;
     this.statisticsAdministrationFactory = statisticsAdministrationFactory;
     this.statisticsListManagerProvider = statisticsListManagerProvider;
     this.userDefinedFunctionListManagerProvider = userDefinedFunctionListManagerProvider;
@@ -309,7 +312,7 @@ public class SabotContext implements AutoCloseable {
     OptionValidatorListing optionValidatorListing,
     ExecutorService executorService,
     Provider<CoordinatorModeInfo> coordinatorModeInfoProvider,
-    Provider<NessieApiV1> nessieClientProvider,
+    Provider<NessieApiV2> nessieApiProvider,
     Provider<StatisticsService> statisticsService,
     Provider<StatisticsAdministrationService.Factory> statisticsAdministrationFactory,
     Provider<StatisticsListManager> statisticsListManagerProvider,
@@ -366,7 +369,7 @@ public class SabotContext implements AutoCloseable {
     this.executorService = executorService;
     this.jdbcSchemaFetcherFactoryContext = new JdbcSchemaFetcherFactoryContext(optionManager, credentialsService);
     this.coordinatorModeInfoProvider = coordinatorModeInfoProvider;
-    this.nessieClientProvider = nessieClientProvider;
+    this.nessieApiProvider = nessieApiProvider;
     this.statisticsService = statisticsService;
     this.statisticsAdministrationFactory = statisticsAdministrationFactory;
     this.statisticsListManagerProvider = statisticsListManagerProvider;
@@ -664,8 +667,8 @@ public class SabotContext implements AutoCloseable {
     return null;
   }
 
-  public Provider<NessieApiV1> getNessieClientProvider() {
-    return nessieClientProvider;
+  public Provider<NessieApiV2> getNessieApiProvider() {
+    return nessieApiProvider;
   }
 
   public Provider<SimpleJobRunner> getJobsRunner() {

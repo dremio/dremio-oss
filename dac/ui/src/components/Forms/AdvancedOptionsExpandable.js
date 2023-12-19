@@ -38,8 +38,8 @@ export default class AdvancedOptionsExpandable extends Component {
       <div>
         <a style={styles.link} onClick={this.handleClick}>
           {!expanded
-            ? la("Show advanced options…")
-            : la("Hide advanced options…")}
+            ? laDeprecated("Show advanced options…")
+            : laDeprecated("Hide advanced options…")}
         </a>
         <div
           style={{

@@ -19,6 +19,7 @@ import static com.dremio.common.map.CaseInsensitiveImmutableBiMap.newImmutableMa
 import static com.dremio.exec.util.VectorUtil.getVectorFromSchemaPath;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -27,7 +28,13 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.VarBinaryVector;
@@ -41,6 +48,7 @@ import org.apache.iceberg.io.FileIO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.common.concurrent.NamedThreadFactory;
 import com.dremio.common.map.CaseInsensitiveImmutableBiMap;
 import com.dremio.datastore.LegacyProtobufSerializer;
 import com.dremio.exec.physical.base.WriterOptions;
@@ -59,6 +67,7 @@ import com.dremio.exec.store.iceberg.SchemaConverter;
 import com.dremio.exec.store.iceberg.SupportsIcebergRootPointer;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
+import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
 import com.dremio.service.users.SystemUser;
 import com.google.common.base.Preconditions;
@@ -68,6 +77,30 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import io.protostuff.ByteString;
 
 public class ManifestWritesHelper {
+  private static class LazyManifestWriterPool {
+    static Integer DEFAULT_POOL_SIZE = 5;
+    private ThreadPoolExecutor executor;
+    int poolSize;
+
+    public LazyManifestWriterPool(final int poolSize) {
+      this.poolSize = poolSize;
+      this.executor = null;
+    }
+
+    public LazyManifestWriterPool() {
+      this(DEFAULT_POOL_SIZE);
+    }
+
+    public ThreadPoolExecutor getPool() {
+      if (executor == null) {
+        executor = new ThreadPoolExecutor(poolSize, poolSize, 1, TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
+          new NamedThreadFactory("manifest-writers"));
+        executor.allowCoreThreadTimeOut(true);
+      }
+      return executor;
+    }
+  }
+
   private static final Logger logger = LoggerFactory.getLogger(ManifestWritesHelper.class);
   private static final String outputExtension = "avro";
   private static final int DATAFILES_PER_MANIFEST_THRESHOLD = 10000;
@@ -79,19 +112,24 @@ public class ManifestWritesHelper {
   protected IcebergManifestWriterPOP writer;
   protected long currentNumDataFileAdded = 0;
   protected DataFile currentDataFile;
+  protected FileSystem fs;
   protected FileIO fileIO;
-
   protected VarBinaryVector inputDatafiles;
   protected IntVector operationTypes;
   protected Map<DataFile, byte[]> deletedDataFiles = new LinkedHashMap<>(); // required that removed file is cleared with each row.
   protected Optional<Integer> partitionSpecId = Optional.empty();
   private final Set<IcebergPartitionData> partitionDataInCurrentManifest = new HashSet<>();
   private final byte[] schema;
+  private Set<DataFile> orphanFiles = new HashSet<>();
 
-  public static ManifestWritesHelper getInstance(IcebergManifestWriterPOP writer, int columnLimit) {
+  private final LazyManifestWriterPool threadPool;
+
+  private final List<CompletableFuture> manifestWriterFutures = new ArrayList<>();
+
+  public static ManifestWritesHelper getInstance(IcebergManifestWriterPOP writer, OperatorContext context) {
     if (writer.getOptions().getTableFormatOptions()
       .getIcebergSpecificOptions().getIcebergTableProps().isDetectSchema()) {
-      return new SchemaDiscoveryManifestWritesHelper(writer, columnLimit);
+      return new SchemaDiscoveryManifestWritesHelper(writer, context);
     } else {
       return new ManifestWritesHelper(writer);
     }
@@ -103,7 +141,6 @@ public class ManifestWritesHelper {
       .getIcebergSpecificOptions().getIcebergTableProps();
     this.schema = tableProps.getFullSchema().serialize();
     this.listOfFilesCreated = Lists.newArrayList();
-    FileSystem fs  = null;
     try {
       fs = writer.getPlugin().createFS(tableProps.getTableLocation(), SystemUser.SYSTEM_USERNAME, null);
     } catch (IOException e) {
@@ -113,6 +150,7 @@ public class ManifestWritesHelper {
     Preconditions.checkArgument(writer.getPlugin() instanceof SupportsIcebergRootPointer,
         "Invalid plugin in ManifestWritesHelper - plugin does not support Iceberg");
     this.fileIO = ((SupportsIcebergRootPointer) writer.getPlugin()).createIcebergFileIO(fs, null, null, null, null);
+    this.threadPool = new LazyManifestWriterPool();
   }
 
   public void setIncoming(VectorAccessible incoming) {
@@ -134,13 +172,20 @@ public class ManifestWritesHelper {
     this.manifestWriter = new LazyManifestWriter(fileIO, manifestLocation, partitionSpec);
   }
 
+  public LazyManifestWriter getManifestWriter() {
+    return manifestWriter;
+  }
+
   public void processIncomingRow(int recordIndex) throws IOException {
     try {
       Preconditions.checkNotNull(manifestWriter);
       final byte[] metaInfoBytes = inputDatafiles.get(recordIndex);
       final Integer operationTypeValue = operationTypes.get(recordIndex);
-      final IcebergMetadataInformation icebergMetadataInformation = IcebergSerDe.deserializeFromByteArray(metaInfoBytes);
       final OperationType operationType = OperationType.valueOf(operationTypeValue);
+      if (operationType == OperationType.COPY_INTO_ERROR) {
+        return;
+      }
+      final IcebergMetadataInformation icebergMetadataInformation = IcebergSerDe.deserializeFromByteArray(metaInfoBytes);
       currentDataFile = IcebergSerDe.deserializeDataFile(icebergMetadataInformation.getIcebergMetadataFileByte());
       if (currentDataFile == null) {
         throw new IOException("Iceberg data file cannot be empty or null.");
@@ -152,6 +197,9 @@ public class ManifestWritesHelper {
           break;
         case DELETE_DATAFILE:
           deletedDataFiles.put(currentDataFile, metaInfoBytes);
+          break;
+        case ORPHAN_DATAFILE:
+          orphanFiles.add(currentDataFile);
           break;
         case DELETE_DELETEFILE:
           break;
@@ -179,6 +227,11 @@ public class ManifestWritesHelper {
     deletedDataFiles.clear();
   }
 
+  public void processOrphanFiles(Consumer<DataFile> processLogic) {
+    orphanFiles.forEach(processLogic);
+    orphanFiles.clear();
+  }
+
   public long length() {
     Preconditions.checkNotNull(manifestWriter);
     return manifestWriter.getInstance().length();
@@ -189,13 +242,61 @@ public class ManifestWritesHelper {
             || (currentNumDataFileAdded >= DATAFILES_PER_MANIFEST_THRESHOLD);
   }
 
-  public Optional<ManifestFile> write() throws IOException {
+  public void prepareWrite() {}
+
+  public boolean canWrite() {
     if (currentNumDataFileAdded == 0) {
       deleteRunningManifestFile();
-      return Optional.empty();
+      return false;
     }
+    return true;
+  }
+
+  public ManifestFile write() throws IOException {
     manifestWriter.getInstance().close();
-    return Optional.of(manifestWriter.getInstance().toManifestFile());
+    return manifestWriter.getInstance().toManifestFile();
+  }
+
+  /**
+   * Async version of writer()
+   */
+  public void write(ManifestFileRecordWriter.WritingContext context,
+                    BiConsumer<ManifestFile,
+                      ManifestFileRecordWriter.WritingContext> processGeneratedManifestFileCall) throws IOException {
+    CompletableFuture writerFuture = CompletableFuture.supplyAsync(() -> {
+      try {
+        context.getManifestWriter().getInstance().close();
+        return context.getManifestWriter().getInstance().toManifestFile();
+      } catch (Exception ex) {
+        throw new CompletionException(ex);
+      }
+      },
+        threadPool.getPool())
+      .whenComplete((manifestFile, ex) -> {
+        if (ex != null) {
+          throw new CompletionException(ex);
+        }
+
+        try {
+          processGeneratedManifestFileCall.accept(manifestFile, context);
+        } catch (Exception e) {
+          throw new CompletionException(e);
+        }
+
+      })
+      .exceptionally(e -> {
+        CompletionException exp = (CompletionException) e;
+        if (exp.getCause() instanceof IOException) {
+          logger.error("Error while writing manifest file", exp);
+        }
+        throw new CompletionException(e);
+      });
+
+    manifestWriterFutures.add(writerFuture);
+  }
+
+  public void getFutureResults() {
+    manifestWriterFutures.forEach(CompletableFuture::join);
   }
 
   public byte[] getWrittenSchema() {

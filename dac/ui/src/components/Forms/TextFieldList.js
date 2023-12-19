@@ -50,8 +50,14 @@ function PropertyItem({ item, onRemove, fieldKey, disabled, classess }) {
         errorPlacement="top"
         {...field}
         className={inputContainer}
+        style={{ flex: 1 }}
       >
-        <TextField {...field} disabled={disabled} className={inputBox} />
+        <TextField
+          {...field}
+          disabled={disabled}
+          className={inputBox}
+          style={{ width: "100%" }}
+        />
       </FieldWithError>
       {!disabled && onRemove && (
         <RemoveButton onClick={onRemove} className={removeBtnClass} />
@@ -104,7 +110,7 @@ export default class TextFieldList extends Component {
       classess,
     } = this.props;
     return (
-      <div>
+      <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
         {this.props.label && <div style={label}>{this.props.label}</div>}
         <FieldList items={arrayField} minItems={minItems}>
           <PropertyItem

@@ -66,6 +66,7 @@ import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.users.UserService;
@@ -189,7 +190,7 @@ public class TestHdfsAsyncParquet extends BaseTestMiniDFS {
   @Before
   public void setup() throws Exception {
     {
-      SampleDataPopulator.addDefaultFirstUser(l(UserService.class), new NamespaceServiceImpl(l(LegacyKVStoreProvider.class)));
+      SampleDataPopulator.addDefaultFirstUser(l(UserService.class), new NamespaceServiceImpl(l(LegacyKVStoreProvider.class), new CatalogStatusEventsImpl()));
       final HDFSConf hdfsConfig = new HDFSConf();
       hdfsConfig.hostname = host;
       hdfsConfig.port = port;

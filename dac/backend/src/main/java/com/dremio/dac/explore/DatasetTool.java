@@ -34,6 +34,7 @@ import javax.ws.rs.core.SecurityContext;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.types.pojo.Field;
 
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.SqlUtils;
@@ -80,7 +81,6 @@ import com.dremio.dac.service.errors.NewDatasetQueryException;
 import com.dremio.dac.util.InvalidQueryErrorConverter;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUtil;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.RecordBatchHolder;
 import com.dremio.exec.util.ViewFieldsHelper;
@@ -102,6 +102,7 @@ import com.dremio.service.jobs.metadata.proto.QueryMetadata;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.DatasetVersion;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.FieldOrigin;
 import com.dremio.service.namespace.dataset.proto.Origin;
@@ -1066,7 +1067,6 @@ public class DatasetTool {
       Optional<BatchSchema> batchSchema, Optional<List<FieldOrigin>> fieldOrigins, Optional<List<ParentDataset>> grandParents,
       QueryMetadata metadata) {
     final List<ViewFieldType> viewFieldTypesList = JobsProtoUtil.toStuff(metadata.getFieldTypeList());
-    dataset.setCalciteFieldsList(viewFieldTypesList);
     if (batchSchema.isPresent()) {
       dataset.setSqlFieldsList(ViewFieldsHelper.getBatchSchemaFields(batchSchema.get()));
       dataset.setRecordSchema(batchSchema.get().toByteString());
@@ -1132,18 +1132,24 @@ public class DatasetTool {
    * @param from
    * @param newVersion
    * @param context
-   * @param parentType
-   * @param parentFullPathList
+   * @param datasetConfig
    * @param references
    * @return
    * @throws NamespaceException
    */
   @WithSpan
-  protected InitialPreviewResponse createPreviewResponseForPhysicalDataset(FromBase from, DatasetVersion newVersion, List<String> context,
-                                                                           DatasetType parentType, List<String> parentFullPathList, Map<String, VersionContextReq> references)
+  protected InitialPreviewResponse createPreviewResponseForPhysicalDataset(
+    FromBase from,
+    DatasetVersion newVersion,
+    List<String> context,
+    DatasetConfig datasetConfig,
+    Map<String, VersionContextReq> references,
+    String sql)
     throws NamespaceException {
     final VirtualDatasetUI newDataset = createNewUntitledMetadataOnly(from, newVersion, context, references);
     List<ParentDataset> parents = new ArrayList<>();
+    DatasetType parentType = datasetConfig.getType();
+    List<String> parentFullPathList = datasetConfig.getFullPathList();
     final ParentDataset parent = new ParentDataset().setDatasetPathList(parentFullPathList).setType(parentType);
     parents.add(parent);
     newDataset.setParentsList(parents);
@@ -1162,6 +1168,10 @@ public class DatasetTool {
 
       default:
         newDataset.setDerivation(Derivation.DERIVED_UNKNOWN);
+    }
+
+    if (sql != null) {
+      newDataset.setSql(sql);
     }
 
     // Save the incomplete dataset (without metadata) to allow data graph and catalog working on UI.

@@ -21,7 +21,7 @@ import { menuListStyle } from "@app/components/SideNav/SideNavConstants";
 import { useIntl } from "react-intl";
 import * as PATHS from "../../exports/paths";
 import { FeatureSwitch } from "@app/exports/components/FeatureSwitch/FeatureSwitch";
-import { ARCTIC_CATALOG } from "@app/exports/flags/ARCTIC_CATALOG";
+import { ARCTIC_CATALOG } from "@inject/featureFlags/flags/ARCTIC_CATALOG";
 //@ts-ignore
 import * as commonPaths from "dremio-ui-common/paths/common.js";
 
@@ -31,7 +31,7 @@ const CatalogsMenu = () => {
   const sonarLabel = intl.formatMessage({ id: "SideNav.SonarProjects" });
   return (
     <Menu style={menuListStyle}>
-      <MenuItem classname={classes["catalog-menu-item"]}>
+      <MenuItem className={classes["catalog-menu-item"]}>
         <Link to={commonPaths.projectsList.link()}>
           <dremio-icon
             name="corporate/sonar"
@@ -44,7 +44,7 @@ const CatalogsMenu = () => {
       <FeatureSwitch
         flag={ARCTIC_CATALOG}
         renderEnabled={() => (
-          <MenuItem classname={classes["catalog-menu-item"]}>
+          <MenuItem className={classes["catalog-menu-item"]}>
             <Link to={PATHS.arcticCatalogs()}>
               <dremio-icon
                 name="corporate/arctic"

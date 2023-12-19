@@ -50,6 +50,10 @@
     inline-size: var(--dremio-tooltip--arrow--size);
   }
 
+  &__child-wrap {
+    display: inline-block;
+  }
+
   transition-property: opacity, transform;
   will-change: transform;
 }

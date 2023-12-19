@@ -43,34 +43,43 @@ import com.google.common.collect.Lists;
  * GRANT priv1 [,...] ON entityType entity TO granteeType grantee
  */
 public class SqlGrantOnCatalog extends SqlCall implements SimpleDirectHandler.Creator {
+  private static final SqlLiteral sqlLiteralNull = SqlLiteral.createNull(SqlParserPos.ZERO);
   private final SqlNodeList privilegeList;
   private final SqlLiteral entityType;
   private final SqlIdentifier entity;
   private final SqlLiteral granteeType;
   private final SqlIdentifier grantee;
+  private final ReferenceType refType;
+  private final SqlIdentifier refValue;
 
-  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("GRANT", SqlKind.OTHER) {
-    @Override
-    public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 5, "SqlGrantOnEntity.createCall() has to get 5 operands!");
+  public static final SqlSpecialOperator OPERATOR =
+      new SqlSpecialOperator("GRANT", SqlKind.OTHER) {
+        @Override
+        public SqlCall createCall(
+            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+          Preconditions.checkArgument(
+              operands.length == 7, "SqlGrantOnEntity.createCall() has to get 7 operands!");
 
-      return new SqlGrantOnCatalog(
-        pos,
-        (SqlNodeList) operands[0],
-        (SqlLiteral) operands[1],
-        (SqlIdentifier) operands[2],
-        (SqlLiteral) operands[3],
-        (SqlIdentifier) operands[4]
-      );
-    }
-  };
+          return new SqlGrantOnCatalog(
+              pos,
+              (SqlNodeList) operands[0],
+              (SqlLiteral) operands[1],
+              (SqlIdentifier) operands[2],
+              (SqlLiteral) operands[3],
+              (SqlIdentifier) operands[4],
+              ((SqlLiteral) operands[5]).symbolValue(ReferenceType.class),
+              (SqlIdentifier) operands[6]);
+        }
+      };
 
   public SqlGrantOnCatalog(SqlParserPos pos,
                            SqlNodeList privilegeList,
                            SqlLiteral entityType,
                            SqlIdentifier entity,
                            SqlLiteral granteeType,
-                           SqlIdentifier grantee) {
+                           SqlIdentifier grantee,
+                           ReferenceType refType,
+                           SqlIdentifier refValue) {
     super(pos);
 
     this.privilegeList = privilegeList;
@@ -78,6 +87,8 @@ public class SqlGrantOnCatalog extends SqlCall implements SimpleDirectHandler.Cr
     this.entity = entity;
     this.granteeType = granteeType;
     this.grantee = grantee;
+    this.refType = refType;
+    this.refValue = refValue;
   }
 
   @Override
@@ -93,6 +104,9 @@ public class SqlGrantOnCatalog extends SqlCall implements SimpleDirectHandler.Cr
     ops.add(entity);
     ops.add(granteeType);
     ops.add(grantee);
+    ops.add(
+        (refType == null) ? sqlLiteralNull : SqlLiteral.createSymbol(refType, SqlParserPos.ZERO));
+    ops.add(refValue);
 
     return ops;
   }
@@ -103,6 +117,13 @@ public class SqlGrantOnCatalog extends SqlCall implements SimpleDirectHandler.Cr
     privilegeList.unparse(writer, leftPrec, rightPrec);
     writer.keyword("ON");
     entityType.unparse(writer, 0, 0);
+
+    if (refType != null && refValue != null) {
+      writer.keyword("AT");
+      writer.keyword(refType.toString());
+      refValue.unparse(writer, leftPrec, rightPrec);
+    }
+
     writer.keyword("TO");
     grantee.unparse(writer, leftPrec, rightPrec);
   }
@@ -136,5 +157,13 @@ public class SqlGrantOnCatalog extends SqlCall implements SimpleDirectHandler.Cr
 
   public SqlIdentifier getGrantee() {
     return grantee;
+  }
+
+  public ReferenceType getRefType() {
+    return refType;
+  }
+
+  public SqlIdentifier getRefValue() {
+    return refValue;
   }
 }

@@ -24,12 +24,8 @@ import com.google.common.collect.Maps;
 public class PlanningSet implements Iterable<Wrapper> {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PlanningSet.class);
 
-  private final Map<Fragment, Wrapper> fragmentMap;
+  private final Map<Fragment, Wrapper> fragmentMap = Maps.newHashMap();
   private int majorFragmentIdIndex = 0;
-
-  public PlanningSet() {
-    fragmentMap = Maps.newHashMap();
-  }
 
   public Map<Fragment, Wrapper> getFragmentWrapperMap() {
     return Collections.unmodifiableMap(fragmentMap);

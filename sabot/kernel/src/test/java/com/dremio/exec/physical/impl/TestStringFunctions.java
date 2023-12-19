@@ -45,11 +45,53 @@ public class TestStringFunctions extends BaseTestFunction {
   }
 
   @Test
+  public void md5HashTest() {
+    testFunctions(new Object[][]{
+      {"md5(c0)",
+        "ði ıntəˈnæʃənəl fəˈnɛtık əsoʊsiˈeıʃnY [ˈʏpsilɔn], Yen [jɛn], Yoga [ˈjoːgɑ]",
+        "a633460644425b44e0e023d6980849cc"},
+      {"hashMD5(c0)",
+        "ði ıntəˈnæʃənəl fəˈnɛtık əsoʊsiˈeıʃnY [ˈʏpsilɔn], Yen [jɛn], Yoga [ˈjoːgɑ]".getBytes(),
+        "a633460644425b44e0e023d6980849cc"},
+    });
+  }
+
+  @Test
+  public void sha1HashTest() {
+    testFunctions(new Object[][]{
+      {"sha1(c0)",
+        "ði ıntəˈnæʃənəl fəˈnɛtık əsoʊsiˈeıʃnY [ˈʏpsilɔn], Yen [jɛn], Yoga [ˈjoːgɑ]",
+        "8c6a880ce350769627caa70f3526aeedcc4c959d"},
+      {"hashSHA1(c0)",
+        "ði ıntəˈnæʃənəl fəˈnɛtık əsoʊsiˈeıʃnY [ˈʏpsilɔn], Yen [jɛn], Yoga [ˈjoːgɑ]".getBytes(),
+        "8c6a880ce350769627caa70f3526aeedcc4c959d"},
+    });
+  }
+
+  @Test
+  public void sha256HashTest() {
+    testFunctions(new Object[][]{
+      {"sha256(c0)",
+        "ði ıntəˈnæʃənəl fəˈnɛtık əsoʊsiˈeıʃnY [ˈʏpsilɔn], Yen [jɛn], Yoga [ˈjoːgɑ]",
+        "68e676f563660bbebf718d3e062e1a56339b7ba61e48a116c9844298b1d41641"},
+      {"hashSHA256(c0)",
+        "ði ıntəˈnæʃənəl fəˈnɛtık əsoʊsiˈeıʃnY [ˈʏpsilɔn], Yen [jɛn], Yoga [ˈjoːgɑ]".getBytes(),
+        "68e676f563660bbebf718d3e062e1a56339b7ba61e48a116c9844298b1d41641"},
+    });
+  }
+
+  @Test
   public void hexConversion(){
     testFunctions(new Object[][]{
       {"to_hex(binary_string('\\\\x11\\\\x22'))", "1122"},
       {"string_binary(from_hex('1112'))", "\\x11\\x12"},
+      {"string_binary(unhex('1112'))", "\\x11\\x12"},
       {"to_hex(repeatstr(binary_string('\\\\x11\\\\x22'),256))", repeat("1122", 256)},
+      {"hex(repeatstr(binary_string('\\\\x11\\\\x22'),256))", repeat("1122", 256)},
+      {"to_hex(binary_string(repeatstr('\\\\x11\\\\x22',256)))", repeat("1122", 256)},
+      {"hex(binary_string(repeatstr('\\\\x11\\\\x22',256)))", repeat("1122", 256)},
+      {"to_hex(c0)", 6713199L, "666F6F"},
+      {"hex(c0)", 6713199L, "666F6F"},
     });
   }
 
@@ -182,7 +224,8 @@ public class TestStringFunctions extends BaseTestFunction {
     testFunctions(new Object[][]{
       { "lower('ABcEFgh')", "abcefgh"},
       { "lower('aBc')", "abc"},
-      { "lower('')", ""}
+      { "lower('')", ""},
+      { "lower('ÂbĆDËFgh')", "âbćdëfgh"}
     });
   }
 
@@ -300,6 +343,19 @@ public class TestStringFunctions extends BaseTestFunction {
   }
 
   @Test
+  public void testRegexpExtract() {
+    testFunctions(new Object[][]{
+      {"regexp_extract(c0, 'foo(.*?)(bar)', 2)", "foothebar", "bar"},
+      {"regexp_extract(c0, '@(.*)', 0)", "john@test.com", "@test.com"},
+      {"regexp_extract(c0, '(.*) (D.*)', 2)", "John Doe", "Doe"},
+      {"regexp_extract(c0,'([a-z]+) ([a-z]+) - ([0-9]+)',c1)", "john doe - 124", 1, "john"},
+      {"regexp_extract(c0,'([a-z]+) ([a-z]+) - ([0-9]+)',c1)", "john doe - 124", 2, "doe"},
+      {"regexp_extract(c0,'([a-z]+) ([a-z]+) - ([0-9]+)',c1)", "john doe - 124", 0, "john doe - 124"},
+      {"regexp_extract(c0,'([a-z]+) ([a-z]+) - ([0-9]+)',c1)", "stringdonotmatch", 0, ""},
+    });
+  }
+
+  @Test
   public void rpad(){
     testFunctions(new Object[][]{
       { "rpad('abcdef', 0, 'abc')", ""},
@@ -317,11 +373,12 @@ public class TestStringFunctions extends BaseTestFunction {
   }
 
   @Test
-  public void upper(){
+  public void upper() {
     testFunctions(new Object[][]{
-      { "upper('ABcEFgh')", "ABCEFGH"},
-      { "upper('aBc')", "ABC"},
-      { "upper('')", ""}
+      {"upper('ABcEFgh')", "ABCEFGH"},
+      {"upper('aBc')", "ABC"},
+      {"upper('')", ""},
+      {"upper('âBćDëFGH')", "ÂBĆDËFGH"}
     });
   }
 
@@ -337,6 +394,8 @@ public class TestStringFunctions extends BaseTestFunction {
       {" repeatstr('हकुना मताता ', 2) ", "हकुना मताता हकुना मताता "},
       {" reverse('tictak') ", "katcit"},
       {" toascii('âpple','ISO-8859-1') ", "\u00C3\u00A2pple"},
+      {" to_utf8('âpple','ISO-8859-1') ", "\u00C3\u00A2pple"},
+      {" to_utf8(c0,'ISO-8859-1') ",NULL_VARCHAR, NULL_VARCHAR},
       {" reverse('मदन') ", "नदम"},
       {"substring(c0, 1, 4)", "alpha", "alph"},
       {"byte_substr(c0, -3, 2)", "alpha".getBytes(), "ph".getBytes()}
@@ -369,6 +428,89 @@ public class TestStringFunctions extends BaseTestFunction {
       {"concat_ws(c0, c1, c2, c3)", "#", NULL_VARCHAR, NULL_VARCHAR, "wow", "wow"},
       {"concat_ws(c0, c1, c2, c3, c4)", "=", "hey", "hello","wow", "awesome", "hey=hello=wow=awesome"},
       {"concat_ws(c0, c1, c2, c3, c4, c5)", "&&", "hey", "hello", "wow", "awesome", "super", "hey&&hello&&wow&&awesome&&super"},
+    });
+  }
+
+  @Test
+  public void formatNumber() {
+    testFunctions(new Object[][]{
+      {"format_number(c0, c1)", 10123.4444, 2, "10,123.44"},
+      {"format_number(c0, c1)", 123456789.1234, 3, "123,456,789.123"},
+      {"format_number(c0, c1)", 987654321.987654, 0, "987,654,322"},
+      {"format_number(c0, c1)", 987654321.987654, -1, "987,654,322"},
+      {"format_number(c0, c1)", -987321654.97853, 1, "-987,321,655.0"},
+    });
+  }
+
+  @Test
+  public void testFindInSet(){
+    testFunctions(new Object[][]{
+      {"find_in_set(c0, c1)", "A", "A,B,C", 1},
+      {"find_in_set(c0, c1)", "", "A,B,C,", 4},
+      {"find_in_set(c0, c1)", "", ",A,B,C,", 1},
+      {"find_in_set(c0, c1)", "", "A,B,,C,", 3}
+    });
+  }
+
+  @Test
+  public void testCrc32(){
+    testFunctions(new Object[][]{
+      {"crc32(c0)", "ABC", 2743272264L},
+      {"crc32(c0)", "Hello", 4157704578L},
+      {"crc32(c0)", "hive", 3698179064L},
+      {"crc32(c0)", "372189372123", 2607335846L},
+      {"crc32(c0)", "", 0L},
+    });
+  }
+
+  @Test
+  public void testBinaryRepresentation(){
+    // Bin Hive function - returns the binary representation of a specified integer or long
+    testFunctions(new Object[][]{
+      {"bin(c0)", 0, "0"},
+      {"bin(c0)", 7, "111"},
+      {"bin(c0)", 28550, "110111110000110"},
+      {"bin(c0)", -28550, "11111111111111111001000001111010"},
+      {"bin(c0)", Long.MAX_VALUE, "111111111111111111111111111111111111111111111111111111111111111"},
+      {"bin(c0)", Long.MIN_VALUE, "1000000000000000000000000000000000000000000000000000000000000000"},
+    });
+  }
+
+  @Test
+  public void parseUrl(){
+    testFunctions(new Object[][]{
+      {"parse_url('http://dremio.com/path/p1.php?query=1', 'PROTOCOL')", "http"},
+      {"parse_url('https://dremio.com/path/p1.php?query=1&k1=v1', 'PROTOCOL')", "https"},
+      {"parse_url('ftp://dremio.com/path/p1.php?query=1&k1=v1', 'PROTOCOL')", "ftp"},
+      {"parse_url('www.dremio.com/path/p1.php?query=1&k1=v1', 'PROTOCOL')", NULL_VARCHAR},
+      {"parse_url('http://dremio.com/path/p1.php?query=1', 'HOST')", "dremio.com"},
+      {"parse_url('http://127.0.0.0:8080/path/p1.php?query=1', 'HOST')", "127.0.0.0"},
+      {"parse_url('www.dremio.com/path/p1.php?query=1&k1=v1', 'HOST')", NULL_VARCHAR},
+      {"parse_url('$$$$$$$invalid url#######', 'HOST')", NULL_VARCHAR},
+      {"parse_url('http://dremio.com/path/p1.php?query=1', 'AUTHORITY')", "dremio.com"},
+      {"parse_url('http://127.0.0.0:8080/path/p1.php?query=1', 'AUTHORITY')", "127.0.0.0:8080"},
+      {"parse_url('http://dremio.com/path/p1.php?query=1#ref', 'REF')", "ref"},
+      {"parse_url('http://dremio.com/path/p1.php?query=1', 'REF')", NULL_VARCHAR},
+      {"parse_url('http://dremio.com/path/p1.php?query=1', 'QUERY')", "query=1"},
+      {"parse_url('http://dremio.com/path/p1.php?query=1', 'QUERY', 'query')", "1"},
+      {"parse_url('http://dremio.com/path/p1.php', 'QUERY', 'query')", NULL_VARCHAR},
+      {"parse_url('http://dremio.com/path/p1.php?query=1&k1=v1', 'QUERY', 'query')", "1"},
+      {"parse_url('http://dremio.com/path/p1.php?query=1&k1=v1', 'QUERY', 'k1')", "v1"},
+      {"parse_url('http://dremio.com/path/p1.php?query=1&k1=v1', 'QUERY', 'k3')", NULL_VARCHAR},
+      {"parse_url('http://dremio.com/path/p1.php?query=1', 'FILE')", "/path/p1.php?query=1"},
+      {"parse_url('http://dremio.com', 'FILE')", ""},
+      {"parse_url('http://dremio.com/path/p1.php?query=1', 'PATH')", "/path/p1.php"},
+      {"parse_url('http://dremio.com', 'PATH')", ""},
+      {"parse_url('http://userinfo@dremio.com/path/p1.php?query=1', 'USERINFO')", "userinfo"},
+      {"parse_url('http://dremio.com/path/p1.php?query=1', 'USERINFO')", NULL_VARCHAR},
+      {"parse_url('http://dremio.com/path/p1.php?query=1', 'ERR')", NULL_VARCHAR},
+      {"parse_url(c0, c1)", NULL_VARCHAR, NULL_VARCHAR, NULL_VARCHAR},
+      {"parse_url(c0, c1)", "http://dremio.com/path/p1.php?query=1", NULL_VARCHAR, NULL_VARCHAR},
+      {"parse_url(c0, c1)", NULL_VARCHAR, "USERINFO", NULL_VARCHAR},
+      {"parse_url(c0, c1, c2)", NULL_VARCHAR, NULL_VARCHAR, NULL_VARCHAR, NULL_VARCHAR},
+      {"parse_url(c0, c1, c2)", "http://dremio.com/path/p1.php?query=1", NULL_VARCHAR, NULL_VARCHAR, NULL_VARCHAR},
+      {"parse_url(c0, c1, c2)", NULL_VARCHAR, "USERINFO", NULL_VARCHAR, NULL_VARCHAR},
+      {"parse_url(c0, c1, c2)", NULL_VARCHAR, NULL_VARCHAR, "v1", NULL_VARCHAR},
     });
   }
 

@@ -25,6 +25,7 @@ import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.DistributedSemaphore;
 import com.dremio.service.coordinator.ElectionListener;
 import com.dremio.service.coordinator.ElectionRegistrationHandle;
+import com.dremio.service.coordinator.LinearizableHierarchicalStore;
 import com.dremio.service.coordinator.ServiceSet;
 import com.google.common.annotations.VisibleForTesting;
 
@@ -122,6 +123,12 @@ public class ZKClusterCoordinator extends ClusterCoordinator {
   public ElectionRegistrationHandle joinElection(String name, ElectionListener listener) {
     return zkClusterServiceSetManager.joinElection(name, listener);
   }
+
+  @Override
+  public LinearizableHierarchicalStore getHierarchicalStore() {
+    return zkClusterServiceSetManager.getZkClient().getHierarchicalStore();
+  }
+
 
   @Override
   public void close() throws Exception {

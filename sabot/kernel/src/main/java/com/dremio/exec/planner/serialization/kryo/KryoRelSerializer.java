@@ -26,9 +26,9 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.hadoop.io.Writable;
 import org.objenesis.strategy.StdInstantiatorStrategy;
 
-import com.dremio.exec.catalog.DremioCatalogReader;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.ConnectionConf;
+import com.dremio.exec.ops.DremioCatalogReader;
 import com.dremio.exec.planner.serialization.kryo.serializers.AggregateCallSerializer;
 import com.dremio.exec.planner.serialization.kryo.serializers.BatchSchemaSerializer;
 import com.dremio.exec.planner.serialization.kryo.serializers.ImmutableCollectionSerializers;

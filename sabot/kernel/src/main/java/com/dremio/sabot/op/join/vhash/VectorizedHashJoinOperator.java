@@ -363,7 +363,6 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
   // Get the field vector of a field
   private FieldVector getField(VectorAccessible accessible, LogicalExpression expr){
     return accessible.getValueAccessorById(FieldVector.class, getFieldIds(accessible, expr)).getValueVector();
-
   }
 
   // Get the id of a field
@@ -504,6 +503,11 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
       stats.setLongStat(Metric.HASHCOMPUTATION_TIME_NANOS, table.getBuildHashComputationTime(ns));
       stats.setLongStat(Metric.RUNTIME_FILTER_DROP_COUNT, filterManager.getFilterDropCount());
       stats.setLongStat(Metric.RUNTIME_COL_FILTER_DROP_COUNT, filterManager.getSubFilterDropCount());
+
+      stats.setLongStat(Metric.PROBE_PIVOT_NANOS, table.getProbePivotTime(ns));
+      stats.setLongStat(Metric.PROBE_FIND_NANOS, table.getProbeFindTime(ns));
+      stats.setLongStat(Metric.PROBE_HASHCOMPUTATION_TIME_NANOS, table.getProbeHashComputationTime(ns));
+
     }
 
     stats.setLongStat(Metric.VECTORIZED, mode.ordinal());
@@ -511,9 +515,6 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
     stats.setLongStat(Metric.DUPLICATE_BUILD_RECORD_COUNT, duplicateBuildRecordCount);
 
     if(probe != null){
-      stats.setLongStat(Metric.PROBE_PIVOT_NANOS, table.getProbePivotTime(ns));
-      stats.setLongStat(Metric.PROBE_FIND_NANOS, table.getProbeFindTime(ns));
-
       stats.setLongStat(Metric.PROBE_LIST_NANOS, probe.getProbeListTime());
       stats.setLongStat(Metric.PROBE_COPY_NANOS, probe.getProbeCopyTime());
       stats.setLongStat(Metric.BUILD_COPY_NANOS, probe.getBuildCopyTime());
@@ -522,7 +523,6 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
       stats.setLongStat(Metric.UNMATCHED_BUILD_KEY_COUNT, probe.getUnmatchedBuildKeyCount());
       stats.setLongStat(Metric.UNMATCHED_PROBE_COUNT, probe.getUnmatchedProbeCount());
       stats.setLongStat(Metric.OUTPUT_RECORDS, outputRecords);
-      stats.setLongStat(Metric.PROBE_HASHCOMPUTATION_TIME_NANOS, table.getProbeHashComputationTime(ns));
 
       stats.setLongStat(Metric.EXTRA_CONDITION_EVALUATION_COUNT, probe.getEvaluationCount());
       stats.setLongStat(Metric.EXTRA_CONDITION_EVALUATION_MATCHED, probe.getEvaluationMatchedCount());
@@ -534,14 +534,17 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
   public void noMoreToConsumeRight() throws Exception {
     state.is(State.CAN_CONSUME_R);
 
+    if (runtimeFilterEnabled && (!config.getRuntimeFilterInfo().isBroadcastJoin() || table.size() > 0)) {
+      // for shuffled hash join case, need push runtime filer even though build side
+      // size is 0, because merge points are waiting for runtime filter pieces from all
+      // siblings.
+      tryPushRuntimeFilter();
+    }
+
     if ((table.size() == 0) && !(joinType == JoinRelType.LEFT || joinType == JoinRelType.FULL)) {
       // nothing needs to be read on the left side as right side is empty
       state = State.DONE;
       return;
-    }
-
-    if (runtimeFilterEnabled) {
-      tryPushRuntimeFilter();
     }
 
     this.probe = new VectorizedProbe();

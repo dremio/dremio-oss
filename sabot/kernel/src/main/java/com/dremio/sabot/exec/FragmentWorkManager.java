@@ -29,8 +29,8 @@ import org.apache.curator.utils.CloseableExecutorService;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.ExtendedLatch;
 import com.dremio.common.config.SabotConfig;
-import com.dremio.common.memory.DremioRootAllocator;
 import com.dremio.common.utils.protos.QueryIdHelper;
+import com.dremio.config.DremioConfig;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
@@ -56,7 +56,6 @@ import com.dremio.sabot.exec.rpc.ExecTunnel;
 import com.dremio.sabot.exec.rpc.FabricExecTunnel;
 import com.dremio.sabot.exec.rpc.InProcessExecTunnel;
 import com.dremio.sabot.memory.MemoryArbiter;
-import com.dremio.sabot.memory.MemoryArbiterFactory;
 import com.dremio.sabot.task.TaskPool;
 import com.dremio.service.Service;
 import com.dremio.service.coordinator.ClusterCoordinator;
@@ -91,7 +90,7 @@ public class FragmentWorkManager implements Service, SafeExit {
   private ThreadsStatsCollector statsCollectorThread;
 
   private final Provider<TaskPool> pool;
-  private final MemoryArbiter memoryArbiter;
+  private MemoryArbiter memoryArbiter;
   private FragmentExecutors fragmentExecutors;
   private MaestroProxy maestroProxy;
   private SabotContext bitContext;
@@ -109,6 +108,8 @@ public class FragmentWorkManager implements Service, SafeExit {
   private HeapMonitorManager heapMonitorManager = null;
   private SpillingOperatorHeapController heapLowMemController = null;
 
+  private SabotConfig sabotConfig;
+
   public FragmentWorkManager(
     final BootStrapContext context,
     final SabotConfig sabotConfig,
@@ -123,7 +124,6 @@ public class FragmentWorkManager implements Service, SafeExit {
     final Provider<JobTelemetryExecutorClientFactory> jobTelemetryClientFactoryProvider,
     final Provider<JobResultsClientFactory> jobResultsClientFactoryProvider) {
     this.context = context;
-    this.memoryArbiter = MemoryArbiterFactory.newInstance(sabotConfig, (DremioRootAllocator) context.getAllocator());
     this.identity = identity;
     this.sources = sources;
     this.fabricServiceProvider = fabricServiceProvider;
@@ -136,6 +136,7 @@ public class FragmentWorkManager implements Service, SafeExit {
     this.maestroServiceClientFactoryProvider = maestroServiceClientFactoryProvider;
     this.jobTelemetryClientFactoryProvider = jobTelemetryClientFactoryProvider;
     this.jobResultsClientFactoryProvider = jobResultsClientFactoryProvider;
+    this.sabotConfig = sabotConfig;
   }
 
   /**
@@ -153,8 +154,9 @@ public class FragmentWorkManager implements Service, SafeExit {
       exitLatch = new ExtendedLatch();
     }
 
-    // Wait for at most 5 seconds or until the latch is released.
-    exitLatch.awaitUninterruptibly(5000);
+    // Wait for at most the configured graceful timeout or until the latch is released.
+    exitLatch.awaitUninterruptibly(bitContext.getDremioConfig().getLong(
+      DremioConfig.DREMIO_TERMINATION_GRACE_PERIOD_SECONDS) * 1000);
   }
 
   /**
@@ -323,7 +325,7 @@ public class FragmentWorkManager implements Service, SafeExit {
       jobTelemetryClientFactoryProvider,
       bitContext.getClusterCoordinator(),
       identity, bitContext.getOptionManager());
-    fragmentExecutors = new FragmentExecutors(maestroProxy, callback, pool.get(), bitContext.getOptionManager(), this.memoryArbiter);
+    fragmentExecutors = new FragmentExecutors(context, sabotConfig, clerk ,maestroProxy, callback, pool.get(), bitContext.getOptionManager());
 
     final ExecConnectionCreator connectionCreator = new ExecConnectionCreator(fabricServiceProvider.get().registerProtocol(new ExecProtocol(bitContext.getConfig(), allocator, fragmentExecutors)),
       bitContext.getOptionManager());
@@ -389,16 +391,16 @@ public class FragmentWorkManager implements Service, SafeExit {
 
   public class ExecConnectionCreator {
     private final FabricRunnerFactory factory;
-    private boolean inProcessTunnelEnabled;
+    private final OptionManager options;
 
     public ExecConnectionCreator(FabricRunnerFactory factory, OptionManager options) {
       super();
       this.factory = factory;
-      this.inProcessTunnelEnabled = options.getOption(ExecConstants.ENABLE_IN_PROCESS_TUNNEL);
+      this.options = options;
     }
 
     public ExecTunnel getTunnel(NodeEndpoint endpoint) {
-      return inProcessTunnelEnabled && isInProcessTarget(endpoint) ?
+      return this.options.getOption(ExecConstants.ENABLE_IN_PROCESS_TUNNEL) && isInProcessTarget(endpoint) ?
         new InProcessExecTunnel(fragmentExecutors, allocator) :
         new FabricExecTunnel(factory.getCommandRunner(endpoint.getAddress(), endpoint.getFabricPort()));
     }

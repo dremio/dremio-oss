@@ -34,4 +34,16 @@ public interface Cancellable {
   boolean isCancelled();
 
   boolean isDone();
+
+  /**
+   * Whether this task is scheduled to run locally
+   * <p>
+   * On a single node, a task may always be scheduled to run locally. But on a multi-node cluster running
+   * a clustered singleton task, only one node will locally schedule the task.
+   * </p>
+   * @return true if locally scheduled, false otherwise
+   */
+  default boolean isScheduled() {
+    return true;
+  }
 }

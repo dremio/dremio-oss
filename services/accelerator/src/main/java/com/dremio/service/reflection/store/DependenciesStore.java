@@ -77,16 +77,6 @@ public class DependenciesStore {
   }
 
   private static final class DependenciesVersionExtractor implements VersionExtractor<ReflectionDependencies> {
-    @Override
-    public Long getVersion(ReflectionDependencies value) {
-      return value.getVersion();
-    }
-
-    @Override
-    public void setVersion(ReflectionDependencies value, Long version) {
-      value.setVersion(version);
-    }
-
     @Override public String getTag(ReflectionDependencies value) {
       return value.getTag();
     }

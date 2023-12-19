@@ -16,6 +16,7 @@
 
 import { Component, createRef } from "react";
 import { connect } from "react-redux";
+import { compose } from "redux";
 import classNames from "clsx";
 import { FormattedMessage, injectIntl } from "react-intl";
 import Immutable from "immutable";
@@ -59,6 +60,9 @@ import {
 } from "dremio-ui-common/utilities/projectBase.js";
 import * as commonPaths from "dremio-ui-common/paths/common.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
+import { withCatalogARSFlag, ARSFeatureSwitch } from "@inject/utils/arsUtils";
+import { getHomeSource } from "@app/selectors/home";
+import HomeSourceSection from "./HomeSourceSection";
 
 import "./LeftTree.less";
 @injectIntl
@@ -98,6 +102,11 @@ export class LeftTree extends Component {
     currentProject: PropTypes.string,
     isAdmin: PropTypes.bool,
     canCreateSource: PropTypes.bool,
+    homeSourceUrl: PropTypes.string,
+
+    // HOC
+    isArsLoading: PropTypes.bool,
+    isArsEnabled: PropTypes.bool,
   };
 
   addSampleSource = () => {
@@ -179,6 +188,9 @@ export class LeftTree extends Component {
       externalSourcesExpanded,
       metastoreSourcesExpanded,
       objectStorageSourcesExpanded,
+      homeSourceUrl,
+      isArsLoading,
+      isArsEnabled,
     } = this.props;
     const { location } = this.context;
     const { formatMessage } = intl;
@@ -202,9 +214,15 @@ export class LeftTree extends Component {
         !isDataPlaneSourceType(source.get("type"))
     );
 
-    const dataPlaneSources = sources.filter((source) =>
-      isDataPlaneSourceType(source.get("type"))
-    );
+    const dataPlaneSources = sources.filter((source) => {
+      const isVersioned = isDataPlaneSourceType(source.get("type"));
+      if (isArsLoading || !isArsEnabled) {
+        return isVersioned;
+      } else {
+        const homeSource = getHomeSource(sources);
+        return isVersioned && source !== homeSource;
+      }
+    });
 
     return (
       <div className={classes}>
@@ -226,13 +244,31 @@ export class LeftTree extends Component {
           )}
         </h3>
         <div className="scrolling-container" onScroll={(e) => this.onScroll(e)}>
-          <ul className="home-wrapper">
-            <FinderNavItem item={homeItem} isHomeActive={isHomeActive} />
-          </ul>
-          <SpacesSection
-            isCollapsed={datasetsExpanded}
-            isCollapsible
-            onToggle={toggleDatasetsExpanded}
+          <ARSFeatureSwitch
+            renderEnabled={() => (
+              <>
+                {homeSourceUrl && (
+                  <HomeSourceSection
+                    homeSourceUrl={homeSourceUrl}
+                    isCollapsed={datasetsExpanded}
+                    isCollapsible
+                    onToggle={toggleDatasetsExpanded}
+                  />
+                )}
+              </>
+            )}
+            renderDisabled={() => (
+              <>
+                <ul className="home-wrapper">
+                  <FinderNavItem item={homeItem} isHomeActive={isHomeActive} />
+                </ul>
+                <SpacesSection
+                  isCollapsed={datasetsExpanded}
+                  isCollapsible
+                  onToggle={toggleDatasetsExpanded}
+                />
+              </>
+            )}
           />
           <div className="sources-title">
             {formatMessage({ id: "Source.Sources" })}
@@ -371,16 +407,18 @@ function mapStateToProps(state) {
   };
 }
 
-export default withErrorBoundary({
-  title: intl.formatMessage(
-    { id: "Support.error.section" },
-    {
-      section: intl.formatMessage({
-        id: "SectionLabel.catalog.sources.browser",
-      }),
-    }
-  ),
-})(
+export default compose(
+  withErrorBoundary({
+    title: intl.formatMessage(
+      { id: "Support.error.section" },
+      {
+        section: intl.formatMessage({
+          id: "SectionLabel.catalog.sources.browser",
+        }),
+      }
+    ),
+  }),
+  withCatalogARSFlag,
   connect(mapStateToProps, {
     createSampleSource,
     toggleDataplaneSourcesExpanded,
@@ -388,5 +426,5 @@ export default withErrorBoundary({
     toggleObjectStorageSourcesExpanded,
     toggleMetastoreSourcesExpanded,
     toggleDatasetsExpanded,
-  })(LeftTree)
-);
+  })
+)(LeftTree);

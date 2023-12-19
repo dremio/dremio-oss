@@ -19,7 +19,7 @@ import java.util.List;
 
 import org.apache.calcite.schema.TranslatableTable;
 
-import com.dremio.exec.catalog.TableVersionContext;
+import com.dremio.catalog.model.dataset.TableVersionContext;
 
 /**
  * Resolve the path to a table.

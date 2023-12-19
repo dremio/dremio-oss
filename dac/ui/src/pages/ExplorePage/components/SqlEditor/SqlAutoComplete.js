@@ -20,43 +20,49 @@ import PropTypes from "prop-types";
 import Immutable from "immutable";
 import deepEqual from "deep-equal";
 import classNames from "clsx";
+import { compose } from "redux";
 
 import { connect } from "react-redux";
 import exploreUtils from "utils/explore/exploreUtils";
 import { splitFullPath, constructFullPath } from "utils/pathUtils";
 
-import Modal from "components/Modals/Modal";
 import SQLEditor from "components/SQLEditor";
 
 import DragTarget from "components/DragComponents/DragTarget";
-import { Tooltip } from "components/Tooltip";
-import { Tooltip as NewTooltip } from "dremio-ui-lib";
+import { Tooltip as OldTooltip } from "components/Tooltip";
+import { IconButton } from "dremio-ui-lib/components";
 
 import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
+import { getExploreState } from "@app/selectors/explore";
 import { getSupportFlags } from "@app/selectors/supportFlags";
 import { fetchSupportFlags } from "@app/actions/supportFlags";
 import config from "@inject/utils/config";
 import { isEnterprise, isCommunity } from "dyn-load/utils/versionUtils";
-import SelectContextForm from "../forms/SelectContextForm";
+import { SQL_DARK_THEME, SQL_LIGHT_THEME } from "@app/utils/sql-editor";
+import { ContextPicker } from "./components/ContextPicker";
+import { addDatasetATSyntax } from "@app/utils/nessieUtils";
+import {
+  renderExtraSQLToolbarIcons,
+  EXTRA_KEYBOARD_BINDINGS_MAC,
+  EXTRA_KEYBOARD_BINDINGS_WINDOWS,
+  renderExtraSQLKeyboardShortcutMessages,
+} from "@inject/utils/sql-editor-extra";
 
 import "./SqlAutoComplete.less";
-import RefPicker from "./components/RefPicker";
-
-const DEFAULT_CONTEXT = "<none>";
 
 export class SqlAutoComplete extends Component {
   // todo: pull SQLEditor into this class (and rename)
   static propTypes = {
     onChange: PropTypes.func,
     onFunctionChange: PropTypes.func,
+    toggleExtraSQLPanel: PropTypes.func,
     pageType: PropTypes.oneOf(["details", "recent"]),
     defaultValue: PropTypes.string,
     isGrayed: PropTypes.bool,
     context: PropTypes.instanceOf(Immutable.List),
-    errors: PropTypes.instanceOf(Immutable.List),
     name: PropTypes.string,
     sqlSize: PropTypes.number,
-    funcHelpPanel: PropTypes.bool,
+    sidePanelEnabled: PropTypes.bool,
     changeQueryContext: PropTypes.func,
     style: PropTypes.object,
     dragType: PropTypes.string,
@@ -64,8 +70,10 @@ export class SqlAutoComplete extends Component {
     fetchSupportFlags: PropTypes.func,
     supportFlags: PropTypes.object,
     sidebarCollapsed: PropTypes.bool,
-    customDecorations: PropTypes.array,
+    serverSqlErrors: PropTypes.array,
     editorWidth: PropTypes.any,
+    isMultiQueryRunning: PropTypes.bool,
+    hasExtraSQLPanelContent: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -83,31 +91,23 @@ export class SqlAutoComplete extends Component {
   constructor(props) {
     super(props);
 
-    this.handleClickEditContext = this.handleClickEditContext.bind(this);
-    this.renderSelectContextModal = this.renderSelectContextModal.bind(this);
-    this.hideSelectContextModal = this.hideSelectContextModal.bind(this);
-    this.updateContext = this.updateContext.bind(this);
     this.onMouseEnter = this.onMouseEnter.bind(this);
     this.onMouseLeave = this.onMouseLeave.bind(this);
-    this.addContextTooltip = this.addContextTooltip.bind(this);
 
     this.ref = {
-      showContextTooltipRef: createRef(),
       targetRef: createRef(),
     };
     this.state = {
-      showSelectContextModal: false,
       isContrast: localStorageUtils.getSqlThemeContrast(),
       isAutocomplete: localStorageUtils.getSqlAutocomplete(),
-      funcHelpPanel: this.props.funcHelpPanel,
+      sidePanelEnabled: this.props.sidePanelEnabled,
       manuallyEnableAutocomplete: false,
       tooltipHover: false,
-      showContextTooltip: false,
       os: "windows",
     };
   }
 
-  componentDidMount() {
+  async componentDidMount() {
     //  fetch supportFlags only if its not enterprise edition
     const isEnterpriseFlag = isEnterprise && isEnterprise();
     const isCommunityFlag = isCommunity && isCommunity();
@@ -127,17 +127,18 @@ export class SqlAutoComplete extends Component {
       nextProps.context !== this.props.context ||
       nextContext.location.query.version !==
         this.context.location.query.version ||
-      nextProps.funcHelpPanel !== this.props.funcHelpPanel ||
+      nextProps.sidePanelEnabled !== this.props.sidePanelEnabled ||
       nextProps.isGrayed !== this.props.isGrayed ||
       nextProps.sqlSize !== this.props.sqlSize ||
       nextProps.supportFlags !== this.props.supportFlags ||
       nextProps.sidebarCollapsed !== this.props.sidebarCollapsed ||
-      nextProps.customDecorations !== this.props.customDecorations ||
+      nextProps.serverSqlErrors !== this.props.serverSqlErrors ||
+      nextProps.editorWidth !== this.props.editorWidth ||
       !deepEqual(nextState, this.state)
     );
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     // reset this when it is rest at the project settings level
     const isEnterpriseFlag = isEnterprise && isEnterprise();
     const isCommunityFlag = isCommunity && isCommunity();
@@ -177,15 +178,19 @@ export class SqlAutoComplete extends Component {
   }
 
   handleDrop = ({ id, args }) => {
-    // because we move the cursor as we drag around, we can simply insert at the current position in the editor (default)
+    const { isMultiQueryRunning } = this.props;
 
-    // duck-type check pending drag-n-drop revamp
-    if (args !== undefined) {
-      this.insertFunction(id, args);
-    } else if (typeof id === "string") {
-      this.insertFieldName(id);
-    } else {
-      this.insertFullPath(id);
+    if (!isMultiQueryRunning) {
+      // because we move the cursor as we drag around, we can simply insert at the current position in the editor (default)
+
+      // duck-type check pending drag-n-drop revamp
+      if (args !== undefined) {
+        this.insertFunction(id, args);
+      } else if (typeof id === "string") {
+        this.insertFieldName(id);
+      } else {
+        this.insertFullPath(id);
+      }
     }
   };
 
@@ -198,6 +203,7 @@ export class SqlAutoComplete extends Component {
   }
 
   getKeyboardShortcuts() {
+    const { hasExtraSQLPanelContent } = this.props;
     const isFormatterEnabled = this.isFormatterEnabled();
     return this.state.os === "windows"
       ? {
@@ -207,6 +213,7 @@ export class SqlAutoComplete extends Component {
           find: "CTRL + F",
           autocomplete: "CTRL + Space",
           ...(isFormatterEnabled ? { format: "CTRL + Shift + F" } : {}),
+          ...(hasExtraSQLPanelContent && EXTRA_KEYBOARD_BINDINGS_WINDOWS),
         }
       : {
           run: "⌘⇧↵",
@@ -215,6 +222,7 @@ export class SqlAutoComplete extends Component {
           find: "⌘F",
           autocomplete: "⌃ Space",
           ...(isFormatterEnabled ? { format: "⌘⇧F" } : {}),
+          ...(hasExtraSQLPanelContent && EXTRA_KEYBOARD_BINDINGS_MAC),
         };
   }
 
@@ -229,7 +237,9 @@ export class SqlAutoComplete extends Component {
   };
 
   focus() {
-    if (this.sqlAutoCompleteRef) {
+    const { isMultiQueryRunning } = this.props;
+
+    if (this.sqlAutoCompleteRef && !isMultiQueryRunning) {
       this.sqlAutoCompleteRef.focus();
     }
   }
@@ -242,24 +252,15 @@ export class SqlAutoComplete extends Component {
     this.updateCode();
   };
 
-  handleClickEditContext() {
-    this.setState({ showSelectContextModal: true });
-  }
-
-  hideSelectContextModal() {
-    this.setState({ showSelectContextModal: false });
-  }
-
-  updateContext(resource) {
+  updateContext = (value) => {
     this.props.changeQueryContext(
-      Immutable.fromJS(resource.context && splitFullPath(resource.context))
+      Immutable.fromJS(value && splitFullPath(value))
     );
-    this.hideSelectContextModal();
-  }
+  };
 
   insertFullPath(pathList, ranges) {
     const text = constructFullPath(pathList);
-    this.insertAtRanges(text, ranges);
+    this.insertAtRanges(text + addDatasetATSyntax(pathList.toJS()), ranges);
   }
 
   insertFieldName(name, ranges) {
@@ -387,102 +388,7 @@ export class SqlAutoComplete extends Component {
     }
   }
 
-  renderSelectContextModal() {
-    if (!this.state.showSelectContextModal) return null;
-
-    const contextValue = constructFullPath(this.props.context);
-    return (
-      <Modal
-        isOpen
-        hide={this.hideSelectContextModal}
-        size="small"
-        title={la("Select Context")}
-        modalHeight="600px"
-      >
-        <SelectContextForm
-          onFormSubmit={this.updateContext}
-          onCancel={this.hideSelectContextModal}
-          initialValues={{ context: contextValue }}
-        />
-      </Modal>
-    );
-  }
-
-  addContextTooltip() {
-    const current = this.ref.showContextTooltipRef?.current;
-    if (current.offsetWidth < current.scrollWidth) {
-      this.setState({
-        showContextTooltip: true,
-      });
-    }
-  }
-
-  renderContext() {
-    const contextValue = this.props.context
-      ? constructFullPath(this.props.context, true)
-      : DEFAULT_CONTEXT;
-    const showContext = this.props.pageType === "details";
-    const emptyContext =
-      typeof contextValue === "string" && contextValue.trim() === "";
-    const isContrast = this.state.isContrast;
-    const contextClassName = isContrast
-      ? "sqlAutocomplete__contextText-dark"
-      : "sqlAutocomplete__contextText-light";
-
-    return (
-      <div
-        className="sqlAutocomplete__context"
-        style={{ ...styles.context, ...(!!showContext && { display: "none" }) }}
-      >
-        {emptyContext ? (
-          <span
-            className={contextClassName}
-            onClick={this.handleClickEditContext}
-          >
-            Context
-          </span>
-        ) : (
-          <>
-            Context:
-            {this.state.showContextTooltip ? (
-              <NewTooltip title={contextValue}>
-                <span
-                  className={contextClassName}
-                  onClick={this.handleClickEditContext}
-                >
-                  {contextValue}
-                </span>
-              </NewTooltip>
-            ) : (
-              <span
-                ref={this.ref.showContextTooltipRef}
-                onMouseEnter={this.addContextTooltip}
-                className={contextClassName}
-                onClick={this.handleClickEditContext}
-              >
-                {contextValue}
-              </span>
-            )}
-          </>
-        )}
-      </div>
-    );
-  }
-
-  renderReferencePicker() {
-    const isContrast = this.state.isContrast;
-    const contextClassName = isContrast
-      ? "sqlAutocomplete__contextText-dark"
-      : "sqlAutocomplete__contextText-light";
-    return (
-      <RefPicker
-        hide={this.props.pageType === "details"}
-        contextClassName={contextClassName}
-      />
-    );
-  }
-
-  handleClick() {
+  handleThemeClick() {
     localStorageUtils.setSqlThemeContrast(!this.state.isContrast);
     this.setState((state) => {
       return { isContrast: !state.isContrast };
@@ -496,6 +402,33 @@ export class SqlAutoComplete extends Component {
     });
   }
 
+  renderIconButton = ({
+    onClick,
+    tooltip,
+    className,
+    source,
+    id,
+    dataQa,
+    ...props
+  }) => {
+    return (
+      <IconButton
+        onClick={onClick}
+        tooltip={tooltip}
+        className={className}
+        id={id || dataQa}
+        data-qa={dataQa || id}
+        {...props}
+      >
+        <dremio-icon
+          name={source}
+          alt=""
+          style={{ width: "24px", height: "24px" }}
+        ></dremio-icon>
+      </IconButton>
+    );
+  };
+
   showAutocomplete() {
     const { supportFlags } = this.props;
 
@@ -507,32 +440,19 @@ export class SqlAutoComplete extends Component {
         ? config.allowAutoComplete
         : supportFlags && supportFlags["ui.autocomplete.allow"];
     if (showAutoCompleteOption) {
-      return (
-        <span
-          data-qa="toggle-autocomplete-icon"
-          id="toggle--autocomplete-icon"
-          className="sql__autocompleteIcon"
-          onClick={this.handleAutocompleteClick.bind(this)}
-        >
-          <NewTooltip
-            title={
-              this.state.isAutocomplete
-                ? "Autocomplete enabled"
-                : "Autocomplete disabled"
-            }
-          >
-            <dremio-icon
-              name={
-                this.state.isAutocomplete
-                  ? "sql-editor/sqlAutoCompleteEnabled"
-                  : "sql-editor/sqlAutoCompleteDisabled"
-              }
-              class={this.state.isContrast ? "sql__darkIcon" : "sql__lightIcon"}
-            ></dremio-icon>
-          </NewTooltip>
-        </span>
-      );
-    }
+      return this.renderIconButton({
+        onClick: this.handleAutocompleteClick.bind(this),
+        tooltip: this.state.isAutocomplete
+          ? "Autocomplete enabled"
+          : "Autocomplete disabled",
+        source: this.state.isAutocomplete
+          ? "sql-editor/sqlAutoCompleteEnabled"
+          : "sql-editor/sqlAutoCompleteDisabled",
+        className: this.state.isContrast ? "sql__darkIcon" : "sql__lightIcon",
+        id: "toggle--autocomplete-icon",
+        dataQa: "toggle-autocomplete-icon",
+      });
+    } else return null;
   }
 
   onMouseEnter() {
@@ -555,17 +475,18 @@ export class SqlAutoComplete extends Component {
     const height = this.props.sqlSize;
 
     const {
-      funcHelpPanel,
+      sidePanelEnabled,
       isGrayed,
-      errors,
       context,
       onFunctionChange,
-      customDecorations,
+      serverSqlErrors,
+      hasExtraSQLPanelContent,
+      toggleExtraSQLPanel,
     } = this.props;
 
     const { query } = this.context.location;
 
-    const widthSqlEditor = funcHelpPanel
+    const widthSqlEditor = sidePanelEnabled
       ? styles.smallerSqlEditorWidth
       : this.props.editorWidth
       ? { width: this.props.editorWidth }
@@ -573,6 +494,9 @@ export class SqlAutoComplete extends Component {
 
     const keyboardShortcuts = this.getKeyboardShortcuts();
     const isFormatterEnabled = this.isFormatterEnabled();
+    const iconColor = this.state.isContrast
+      ? "sql__darkIcon"
+      : "sql__lightIcon";
 
     return (
       <DragTarget
@@ -583,7 +507,7 @@ export class SqlAutoComplete extends Component {
         <div
           className={classNames(
             "sqlAutocomplete",
-            this.state.isContrast ? "vs-dark" : "vs"
+            this.state.isContrast ? SQL_DARK_THEME : SQL_LIGHT_THEME
           )}
           name={this.props.name}
           style={{
@@ -594,52 +518,47 @@ export class SqlAutoComplete extends Component {
           }}
         >
           <div className="sqlAutocomplete__actions text-sm">
-            {this.renderSelectContextModal()}
-            {query.type !== "transform" && this.renderContext()}
-            {query.type !== "transform" && this.renderReferencePicker()}
-            <span
-              data-qa="toggle-icon"
-              id="toggle-icon"
-              className="function__toggleIcon"
-              onClick={onFunctionChange}
-            >
-              <NewTooltip title={"Functions"}>
-                <dremio-icon
-                  name="sql-editor/function"
-                  class={
-                    this.state.isContrast ? "sql__darkIcon" : "sql__lightIcon"
+            {query.type !== "transform" &&
+              this.props.pageType !== "details" && (
+                <ContextPicker
+                  value={this.props.context}
+                  onChange={this.updateContext}
+                  className={`sqlAutocomplete__contextText-${
+                    this.state.isContrast ? "dark" : "light"
+                  }`}
+                />
+              )}
+            {this.renderIconButton({
+              onClick: onFunctionChange,
+              className: iconColor,
+              source: "sql-editor/function",
+              tooltip: "Functions",
+              id: "toggle-icon",
+            })}
+            {this.renderIconButton({
+              onClick: this.handleThemeClick.bind(this),
+              className: iconColor,
+              source: "sql-editor/sqlThemeSwitcher",
+              tooltip: (
+                <FormattedMessage
+                  id={
+                    this.state.isContrast
+                      ? "Common.Theme.Dark"
+                      : "Common.Theme.Light"
                   }
-                ></dremio-icon>
-              </NewTooltip>
-            </span>
-
-            <span
-              data-qa="toggle-icon"
-              id="toggle-icon"
-              className="sqlEditor__toggleIcon"
-              onClick={this.handleClick.bind(this)}
-            >
-              <NewTooltip
-                title={
-                  this.state.isContrast
-                    ? "Common.Theme.Dark"
-                    : "Common.Theme.Light"
-                }
-              >
-                <dremio-icon
-                  name="sql-editor/sqlThemeSwitcher"
-                  class={
-                    this.state.isContrast ? "sql__darkIcon" : "sql__lightIcon"
-                  }
-                ></dremio-icon>
-              </NewTooltip>
-            </span>
+                />
+              ),
+              id: "toggle-icon",
+            })}
             {this.showAutocomplete()}
             <span
               className="keyboard__shortcutsIcon"
               onMouseEnter={this.onMouseEnter}
               onMouseLeave={this.onMouseLeave}
+              onFocus={this.onMouseEnter}
+              onBlur={this.onMouseLeave}
               ref={this.ref.targetRef}
+              tabIndex={0}
             >
               <dremio-icon
                 name="sql-editor/keyboard"
@@ -647,7 +566,7 @@ export class SqlAutoComplete extends Component {
                   this.state.isContrast ? "sql__darkIcon" : "sql__lightIcon"
                 }
               ></dremio-icon>
-              <Tooltip
+              <OldTooltip
                 key="tooltip"
                 type="info"
                 placement="left-start"
@@ -695,28 +614,38 @@ export class SqlAutoComplete extends Component {
                   ) : (
                     <></>
                   )}
+                  {renderExtraSQLKeyboardShortcutMessages({
+                    keyboardShortcuts: keyboardShortcuts,
+                    hasExtraSQLPanelContent: hasExtraSQLPanelContent,
+                  })}
                 </ul>
-              </Tooltip>
+              </OldTooltip>
             </span>
+            {hasExtraSQLPanelContent &&
+              renderExtraSQLToolbarIcons({
+                renderIconButton: this.renderIconButton,
+                toggleExtraSQLPanel: toggleExtraSQLPanel,
+                isContrast: this.state.isContrast,
+              })}
           </div>
-
           <SQLEditor
             height={height - 2} // .sql-autocomplete has 1px top and bottom border. Have to substract border width
             ref={(ref) => (this.sqlAutoCompleteRef = ref)}
             defaultValue={this.props.defaultValue}
             onChange={this.handleChange}
-            errors={errors}
             autoCompleteEnabled={this.state.isAutocomplete}
             formatterEnabled={isFormatterEnabled}
             sqlContext={context}
             customTheme
-            theme={this.state.isContrast ? "vs-dark" : "vs"}
+            theme={this.state.isContrast ? SQL_DARK_THEME : SQL_LIGHT_THEME}
             background={this.state.isContrast ? "#333333" : "#FFFFFF"}
             selectionBackground={this.state.isContrast ? "#304D6D" : "#B5D5FB"}
             inactiveSelectionBackground={
               this.state.isContrast ? "#505862" : "#c6e9ef"
             }
-            customDecorations={customDecorations}
+            serverSqlErrors={serverSqlErrors}
+            hasExtraSQLPanelContent={this.props.hasExtraSQLPanelContent}
+            toggleExtraSQLPanel={this.props.toggleExtraSQLPanel}
           />
           {this.props.children}
         </div>
@@ -726,7 +655,10 @@ export class SqlAutoComplete extends Component {
 }
 
 const mapStateToProps = (state) => {
+  const explorePageState = getExploreState(state);
+
   return {
+    isMultiQueryRunning: explorePageState?.view.isMultiQueryRunning,
     supportFlags: getSupportFlags(state),
   };
 };
@@ -735,9 +667,11 @@ const mapDispatchToProps = {
   fetchSupportFlags,
 };
 
-export default connect(mapStateToProps, mapDispatchToProps, null, {
-  forwardRef: true,
-})(SqlAutoComplete);
+export default compose(
+  connect(mapStateToProps, mapDispatchToProps, null, {
+    forwardRef: true,
+  })(SqlAutoComplete)
+);
 
 const styles = {
   base: {
@@ -768,11 +702,5 @@ const styles = {
       alignItems: "center",
       cursor: "pointer",
     },
-  },
-  contextInput: {
-    minWidth: 139,
-    height: 19,
-    outline: "none",
-    paddingLeft: 3,
   },
 };

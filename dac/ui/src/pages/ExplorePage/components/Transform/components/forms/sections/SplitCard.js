@@ -69,7 +69,7 @@ class SplitCard extends Component {
     return (
       <div>
         <div style={{ ...styles.title, marginBottom: 0 }}>
-          {la("Edit Selection")}
+          {laDeprecated("Edit Selection")}
         </div>
         <div className="transform-card-content">
           <SplitContent

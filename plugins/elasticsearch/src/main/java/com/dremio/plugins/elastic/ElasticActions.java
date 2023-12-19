@@ -16,6 +16,7 @@
 package com.dremio.plugins.elastic;
 
 
+import static javax.ws.rs.core.HttpHeaders.ACCEPT;
 import static javax.ws.rs.core.HttpHeaders.CONTENT_TYPE;
 
 import java.io.InputStream;
@@ -42,6 +43,7 @@ import com.google.gson.JsonParser;
 
 public class ElasticActions {
 
+  public static final String APPLICATION_ES_JSON = "application/vnd.elasticsearch+json; compatible-with=7";
   private static final String APPLICATION_JSON = "application/json";
 
   static JsonParser parser = new JsonParser();
@@ -56,7 +58,7 @@ public class ElasticActions {
      * @param target
      * @return
      */
-    abstract Result getResult(WebTarget target);
+    abstract Result getResult(WebTarget target, int version);
   }
 
   public abstract static class Result {
@@ -142,9 +144,10 @@ public class ElasticActions {
 
   public static class NodesInfo extends ElasticAction {
     @Override
-    public Result getResult(WebTarget target) {
+    public Result getResult(WebTarget target, int version) {
       try {
-        return new JsonResult(target.path("_nodes").request().header(CONTENT_TYPE, APPLICATION_JSON).buildGet().invoke(byte[].class));
+        Invocation.Builder builder = addHeader(target.path("_nodes").request(), version, false);
+        return new JsonResult(builder.buildGet().invoke(byte[].class));
       } catch (WebApplicationException e) {
         return new FailureResult(e.getResponse().getStatus(), e.getMessage());
       }
@@ -153,13 +156,27 @@ public class ElasticActions {
 
   public static class Health extends ElasticAction {
     @Override
-    public Result getResult(WebTarget target) {
+    public Result getResult(WebTarget target, int version) {
       try {
-        return new JsonResult(target.path("_cluster/health").request().header(CONTENT_TYPE, APPLICATION_JSON).buildGet().invoke(byte[].class));
+        Invocation.Builder builder = addHeader(target.path("_cluster/health").request(), version, false);
+        return new JsonResult(builder.buildGet().invoke(byte[].class));
       } catch (WebApplicationException e) {
         return new FailureResult(e.getResponse().getStatus(), e.getMessage());
       }
     }
+  }
+
+  public static Invocation.Builder addHeader(Invocation.Builder builder, int majorVersion, boolean sendLegacyAccept) {
+    if (majorVersion > 7) {
+      builder.header(ACCEPT, APPLICATION_ES_JSON)
+        .header(CONTENT_TYPE, APPLICATION_ES_JSON);
+    } else {
+      if (sendLegacyAccept) {
+        builder.header(ACCEPT, APPLICATION_JSON);
+      }
+      builder.header(CONTENT_TYPE, APPLICATION_JSON);
+    }
+    return builder;
   }
 
   public static class SearchBytes extends Search<byte[]> {
@@ -205,7 +222,7 @@ public class ElasticActions {
     }
 
     @Override
-    Invocation buildRequest(WebTarget initial, ContextListener context, boolean enable7vFeatures) {
+    Invocation buildRequest(WebTarget initial, ContextListener context, int version) {
       WebTarget t = initial
         .path(resource)
         .path("_search");
@@ -215,9 +232,10 @@ public class ElasticActions {
 
       context.addContext(t);
       context.addContext("Query", query);
-      return t.request().header(CONTENT_TYPE, APPLICATION_JSON).build("POST", Entity.json(query));
+      context.addContext("version", Integer.toString(version));
+      Invocation.Builder builder = addHeader(t.request(), version, false);
+      return builder.build("POST", version == 8 ? Entity.entity(query, APPLICATION_ES_JSON) : Entity.json(query));
     }
-
   }
 
   public static class SearchScroll extends ElasticAction2<byte[]> {
@@ -242,10 +260,12 @@ public class ElasticActions {
     }
 
     @Override
-    Invocation buildRequest(WebTarget initial, ContextListener context, boolean enable7vFeatures) {
+    Invocation buildRequest(WebTarget initial, ContextListener context, int version) {
       WebTarget target = initial.path("_search/scroll");
       context.addContext(target);
-      return target.request().header(CONTENT_TYPE, APPLICATION_JSON).buildPost(Entity.json(this));
+
+      Invocation.Builder builder = addHeader(target.request(), version, false);
+      return builder.buildPost(version > 7 ? Entity.entity(this, APPLICATION_ES_JSON) : Entity.json(this));
     }
   }
 
@@ -256,8 +276,9 @@ public class ElasticActions {
       this.scrollId = scrollId;
     }
 
-    public void delete(WebTarget target, InvocationCallback<Response> callback) {
-      target.path("_search/scroll").path(scrollId).request().header(CONTENT_TYPE, APPLICATION_JSON).buildDelete().submit(callback);
+    public void delete(WebTarget target, InvocationCallback<Response> callback, int version) {
+      addHeader(target.path("_search/scroll").path(scrollId).request(), version, false)
+        .buildDelete().submit(callback);
     }
   }
 
@@ -275,9 +296,12 @@ public class ElasticActions {
     }
 
     @Override
-    public Result getResult(WebTarget target) {
+    public Result getResult(WebTarget target, int version) {
       try {
-        return new JsonResult(target.path(Joiner.on(",").join(indexes)).path("_search_shards").request().header(CONTENT_TYPE, APPLICATION_JSON).buildGet().invoke(byte[].class));
+        Invocation.Builder builder = addHeader(
+          target.path(Joiner.on(",").join(indexes))
+            .path("_search_shards").request(), version, false);
+        return new JsonResult(builder.buildGet().invoke(byte[].class));
       } catch (WebApplicationException e) {
         return new FailureResult(e.getResponse().getStatus(), e.getMessage());
       }
@@ -312,9 +336,17 @@ public class ElasticActions {
     }
 
     @Override
-    public Result getResult(WebTarget target) {
+    public Result getResult(WebTarget target, int version) {
       try {
-        return new CountResult(parse(target.path(Joiner.on(",").join(indexes)).path(Joiner.on(",").join(types)).path("_count").request().header(CONTENT_TYPE, APPLICATION_JSON).buildGet().invoke(String.class)).get("count").getAsLong());
+          Invocation.Builder builder = target.path(Joiner.on(",").join(indexes))
+            .path(Joiner.on(",").join(types))
+            .path("_count")
+            .request();
+
+        addHeader(builder, version, false);
+
+        return new CountResult(parse(builder
+          .buildGet().invoke(String.class)).get("count").getAsLong());
       } catch (WebApplicationException e) {
         return new FailureResult(e.getResponse().getStatus(), e.getMessage());
       }
@@ -327,9 +359,10 @@ public class ElasticActions {
       this.alias = alias;
     }
     @Override
-    public Result getResult(WebTarget target) {
+    public Result getResult(WebTarget target, int version) {
       try {
-        return new JsonResult(target.path("_alias").path(alias).request().header("Accept", APPLICATION_JSON).header("content-type", APPLICATION_JSON).buildGet().invoke(byte[].class));
+        Invocation.Builder builder = addHeader(target.path("_alias").path(alias).request(), version, true);
+        return new JsonResult(builder.buildGet().invoke(byte[].class));
       } catch (WebApplicationException e) {
         return new FailureResult(e.getResponse().getStatus(), e.getMessage());
       }
@@ -345,8 +378,10 @@ public class ElasticActions {
     }
 
     @Override
-    public Result getResult(WebTarget target) {
-      final Response obj = target.path(index).request().header(CONTENT_TYPE, APPLICATION_JSON).build("HEAD").invoke();
+    public Result getResult(WebTarget target, int version) {
+
+      final Invocation.Builder builder = addHeader(target.path(index).request(), version, false);
+      final Response obj = builder.build("HEAD").invoke();
       return new Result() {
         @Override
         public int getAsInt() {
@@ -386,7 +421,7 @@ public class ElasticActions {
       return action;
     }
 
-    abstract Invocation buildRequest(WebTarget initial, ContextListener context, boolean enable7vFeatures);
+    abstract Invocation buildRequest(WebTarget initial, ContextListener context, int version);
   }
 
   public static class GetClusterMetadata extends ElasticAction2<ClusterMetadata> {
@@ -402,16 +437,17 @@ public class ElasticActions {
     }
 
     @Override
-    Invocation buildRequest(WebTarget target, ContextListener context, boolean enable7vFeatures) {
+    Invocation buildRequest(WebTarget target, ContextListener context, int version) {
       target = target.path("_cluster/state/metadata");
       if(indexName != null){
         target = target.path(indexName);
       }
 
       context.addContext(target);
-      return target.request().header(CONTENT_TYPE, APPLICATION_JSON).buildGet();
-    }
 
+      Invocation.Builder builder = addHeader(target.request(), version, false);
+      return builder.buildGet();
+    }
   }
 
   public interface ContextListener {

@@ -43,7 +43,7 @@ import {
 import addAlwaysPresent, {
   LOOSE_ELEMENT_IGNORE_LIST,
 } from "@inject/utils/FormUtils/globalSourceConfigUtil";
-import { isVersionedSource } from "../sourceUtils";
+import { isVersionedSource, isNessieSource } from "../sourceUtils";
 
 export default class SourceFormJsonPolicy {
   static deepCopyConfig(config) {
@@ -406,10 +406,17 @@ export default class SourceFormJsonPolicy {
       // add Reflection Refresh tab based on config.metadataRefresh
       this.addReflectionRefreshTab(config, functionalElements);
     }
+    const isNotNessieSourceButVersioned =
+      isVersionedSource(config.sourceType) &&
+      !isNessieSource(config.sourceType);
 
     // add Sharing tab
     const notCME = !isCME || !isCME();
-    if (SHARING_TAB_JSON_TEMPLATE.name && notCME) {
+    if (
+      SHARING_TAB_JSON_TEMPLATE.name &&
+      notCME &&
+      !isNotNessieSourceButVersioned
+    ) {
       const sharingTabJson = this.deepCopyConfig(SHARING_TAB_JSON_TEMPLATE);
       config.form.addTab(new FormTabConfig(sharingTabJson, functionalElements));
     }
@@ -502,7 +509,7 @@ export default class SourceFormJsonPolicy {
           elements: [
             {
               type: "checkbox",
-              label: la(
+              label: laDeprecated(
                 "Remove dataset definitions if underlying data is unavailable."
               ),
               propName: "metadataPolicy.deleteUnavailableDatasets",
@@ -510,7 +517,7 @@ export default class SourceFormJsonPolicy {
             },
             isFileSystemSource && {
               type: "checkbox",
-              label: la(
+              label: laDeprecated(
                 "Automatically format files into physical datasets when users issue queries."
               ),
               propName: "metadataPolicy.autoPromoteDatasets",

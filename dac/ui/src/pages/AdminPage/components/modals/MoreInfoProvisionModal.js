@@ -38,7 +38,12 @@ export class MoreInfoProvisionModal extends Component {
     const { isOpen, hide, provision } = this.props;
 
     return (
-      <Modal title={la("More Info")} size="small" isOpen={isOpen} hide={hide}>
+      <Modal
+        title={laDeprecated("More Info")}
+        size="small"
+        isOpen={isOpen}
+        hide={hide}
+      >
         <ProvisionInfoTable provision={provision} />
       </Modal>
     );

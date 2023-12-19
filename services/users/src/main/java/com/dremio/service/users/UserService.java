@@ -20,12 +20,16 @@ import java.io.IOException;
 
 import com.dremio.datastore.SearchTypes;
 import com.dremio.datastore.SearchTypes.SortOrder;
+import com.dremio.service.users.events.UserServiceEvent;
+import com.dremio.service.users.events.UserServiceEventSubscriber;
+import com.dremio.service.users.events.UserServiceEventTopic;
+import com.dremio.service.users.events.UserServiceEvents;
 import com.dremio.service.users.proto.UID;
 
 /**
  * User service interface.
  */
-public interface UserService {
+public interface UserService extends UserServiceEvents {
 
   // Only admin and logged in user should be able to get user's info.
   User getUser(String userName) throws UserNotFoundException;
@@ -78,7 +82,11 @@ public interface UserService {
     throw new UnsupportedOperationException();
   }
 
-  // TODO(DX-33891): use @CheckReturnValue
+  /**
+   * TODO(DX-33891): use @CheckReturnValue
+   * @deprecated TODO DX-82990: Remove UserService#authenticate. Uses Authenticator#authenticate instead
+   */
+  @Deprecated
   AuthResult authenticate(String userName, String password) throws UserLoginException;
 
   Iterable<? extends User> getAllUsers(Integer pageSize) throws IOException;
@@ -130,5 +138,13 @@ public interface UserService {
    */
    default Integer getNumUsers(SearchTypes.SearchQuery searchQuery) {
     throw new UnsupportedOperationException("Not yet supported");
+  }
+
+  @Override
+  default void subscribe(UserServiceEventTopic userServiceEventTopic, UserServiceEventSubscriber subscriber) {
+  }
+
+  @Override
+  default void publish(UserServiceEvent event) {
   }
 }

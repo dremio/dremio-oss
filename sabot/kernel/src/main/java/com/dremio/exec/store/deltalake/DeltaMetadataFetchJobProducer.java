@@ -24,86 +24,75 @@ import com.dremio.io.file.Path;
  * Given a version and readLatest will generate a {@link DeltaMetadataFetchJob} which attempts to read that
  * version commit or json file. If readLatest is true then the versions generated will move forward.
  * version, version + 1 ..
- * Otherwise the version will move backward from version till 0.
+ * Otherwise, the version will move backward from version till 0.
  * version, version - 1, .. 0
  */
 public class DeltaMetadataFetchJobProducer {
 
-  public FileSystem fs;
-  public SabotContext context;
-  public Path metaDir;
-  public Long version;
-  public Long subparts;
-  public boolean readLatest;
+  private final FileSystem fs;
+  private final SabotContext context;
+  private final Path metadataDir;
+  private final DeltaVersion startVersion;
+  private long version;
+  private int subparts;
 
-  private long startTimeStamp;
-  private long startVersion;
 
-  DeltaMetadataFetchJobProducer(SabotContext context, FileSystem fs, Path metaDir, Long version, long subparts, boolean readLatest) {
+  DeltaMetadataFetchJobProducer(SabotContext context, FileSystem fs, Path metadataDir, DeltaVersion version) {
     this.fs = fs;
     this.context = context;
-    this.metaDir = metaDir;
-    this.version = version;
-    this.subparts = subparts;
-    this.readLatest = readLatest;
-    startTimeStamp = System.currentTimeMillis();
+    this.metadataDir = metadataDir;
     this.startVersion = version;
+    this.version = version.getVersion();
+    this.subparts = version.getSubparts();
   }
 
   public boolean hasNext() {
     /*
-    If readLatest then next version to read is version + 1.
-    Producer doesn't know weather the version + 1 exists or not.
+    If reading from checkpoint then next version to read is version + 1.
+    Producer doesn't know whether the version + 1 exists or not.
     That check is performed in DeltaMetadataFetchJob
     */
 
-    if(readLatest) {
+    if (startVersion.isCheckpoint()) {
       return true;
     }
 
     /*
-    If readLatest is false versions are moving backwards.
+    If reading from commit then versions are moving backwards (to checkpoint or 0).
     The smallest version to read is 0.
     */
-    if(version >= 0) {
-      return true;
-    }
-
-    return false;
+    return version >= 0;
   }
 
   public DeltaMetadataFetchJob next() {
-    if(!hasNext()) {
+    if (!hasNext()) {
       throw new IllegalStateException("Cannot produce new Job. Iterator completed");
     }
-    boolean readCheckpoint = getTryCheckpointReadFlag();
-    Long currentVersion = version;
-    Long currentSubparts = subparts;
+    DeltaVersion currentVersion = DeltaVersion.of(version, subparts, getTryCheckpointReadFlag());
     moveToNextVersion();
-    return new DeltaMetadataFetchJob(context, metaDir, fs, startTimeStamp, readCheckpoint, currentVersion, currentSubparts);
+    return new DeltaMetadataFetchJob(context, metadataDir, fs, currentVersion);
   }
-
 
   public long currentVersion() {
     return version;
   }
 
   private void moveToNextVersion() {
-    if (readLatest) {
+    if (startVersion.isCheckpoint()) {
       ++version;
     } else {
       --version;
     }
-    subparts = 1L;
+    subparts = 1;
   }
 
   private boolean getTryCheckpointReadFlag() {
-    if (readLatest) {
+    if (startVersion.isCheckpoint()) {
       //While moving forward first file is always a checkpoint
       //While moving forward all files other than the first are commit json/
-      return version == startVersion;
+      return version == startVersion.getVersion();
     } else {
-      //Moving backward so don't know weather the file is checkpoint or parquet.
+      //Moving backward so don't know whether the file is checkpoint or parquet.
       return true;
     }
   }

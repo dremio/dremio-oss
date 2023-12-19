@@ -113,6 +113,18 @@ public class DeltaLakeCommitLogScanPrel extends AbstractRelNode implements LeafP
     this.columns = getPathScanColumns(partitionCols);
   }
 
+  public TableMetadata getTableMetadata() {
+    return tableMetadata;
+  }
+
+  public boolean isArrowCachingEnabled() {
+    return arrowCachingEnabled;
+  }
+
+  public boolean isScanForAddedPaths() {
+    return scanForAddedPaths;
+  }
+
   @Override
   public double estimateRowCount(RelMetadataQuery mq) {
     if (scanForAddedPaths && tableMetadata.getReadDefinition().getManifestScanStats() != null) {

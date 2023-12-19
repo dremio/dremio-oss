@@ -21,7 +21,6 @@ import org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCostFactory;
 import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelNode;
@@ -36,7 +35,6 @@ import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql2rel.SqlRexConvertletTable;
 import org.apache.calcite.util.ImmutableIntList;
-import org.apache.calcite.util.Litmus;
 import org.apache.calcite.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,9 +42,10 @@ import org.slf4j.LoggerFactory;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.scanner.persistence.ScanResult;
-import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
+import com.dremio.exec.ops.PlannerCatalog;
+import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.ops.ViewExpansionContext;
 import com.dremio.exec.planner.DremioRexBuilder;
 import com.dremio.exec.planner.DremioVolcanoPlanner;
@@ -66,10 +65,13 @@ import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 
 /**
  * Class responsible for managing parsing, validation and toRel conversion for sql statements.
+ * Owns the PlannerCatalog.
  */
 public class SqlConverter {
   private static final Logger logger = LoggerFactory.getLogger(SqlConverter.class);
@@ -91,29 +93,28 @@ public class SqlConverter {
   private final FlattenOpCounter flattenCounter;
   private final ScanResult scanResult;
   private final SabotConfig config;
-  private final Catalog catalog;
+  private final Supplier<PlannerCatalog> plannerCatalog;
   private final SqlRexConvertletTable convertletTable;
   private final ReflectionAllowedMonitoringConvertletTable.ConvertletTableNotes convertletTableNotes;
 
   public SqlConverter(
       final PlannerSettings settings,
       final SqlOperatorTable operatorTable,
-      final FunctionContext functionContext,
+      final QueryContext context,
       final MaterializationDescriptorProvider materializationProvider,
       final FunctionImplementationRegistry functions,
       final UserSession session,
       final AttemptObserver observer,
-      final Catalog catalog,
       final SubstitutionProviderFactory factory,
       final SabotConfig config,
       final ScanResult scanResult,
       final RelMetadataQuerySupplier relMetadataQuerySupplier
       ) {
-    this.catalog = catalog;
+    this.plannerCatalog = Suppliers.memoize(() -> context.createPlannerCatalog(this));
     this.flattenCounter = new FlattenOpCounter();
     this.observer = observer;
     this.settings = settings;
-    this.functionContext = functionContext;
+    this.functionContext = context;
     this.functions = functions;
     this.session = Preconditions.checkNotNull(session, "user session is required");
     this.parserConfig = ParserConfig.newInstance(session, settings);
@@ -121,8 +122,7 @@ public class SqlConverter {
     this.opTab = operatorTable;
     this.costFactory = (settings.useDefaultCosting()) ? null : new DremioCost.Factory();
     this.materializations = new MaterializationList(this, session, materializationProvider);
-    this.substitutions = AccelerationAwareSubstitutionProvider.of(factory.getSubstitutionProvider(config,  materializations, this.settings.getOptions(),
-      operatorTable instanceof OperatorTable ? (OperatorTable) operatorTable : new OperatorTable(functions)));
+    this.substitutions = AccelerationAwareSubstitutionProvider.of(factory.getSubstitutionProvider(config,  materializations, this.settings.getOptions()));
     this.planner = DremioVolcanoPlanner.of(this);
     this.cluster = RelOptCluster.create(planner, new DremioRexBuilder(typeFactory));
     this.cluster.setMetadataQuery(relMetadataQuerySupplier);
@@ -134,7 +134,7 @@ public class SqlConverter {
       new ChainedSqlRexConvertletTable(
         new ReflectionAllowedMonitoringConvertletTable(convertletTableNotes),
         new ConvertletTable(
-          functionContext.getContextInformation(),
+          context.getContextInformation(),
           settings.getOptions().getOption(PlannerSettings.IEEE_754_DIVIDE_SEMANTICS)));
   }
 
@@ -156,7 +156,7 @@ public class SqlConverter {
     this.viewExpansionContext = parent.viewExpansionContext;
     this.config = parent.config;
     this.scanResult = parent.scanResult;
-    this.catalog = parent.catalog;
+    this.plannerCatalog = parent.plannerCatalog;
     this.convertletTable = parent.convertletTable;
     this.convertletTableNotes = parent.convertletTableNotes;
   }
@@ -181,10 +181,6 @@ public class SqlConverter {
 
       throw builder.build(logger);
     }
-  }
-
-  public SqlNodeList parseMultipleStatements(String sql) {
-    return parseMultipleStatementsImpl(sql, getParserConfig(), false);
   }
 
   @VisibleForTesting
@@ -284,8 +280,24 @@ public class SqlConverter {
     return convertletTable;
   }
 
-  public Catalog getCatalog() {
-    return catalog;
+  public PlannerCatalog getPlannerCatalog() {
+    return plannerCatalog.get();
+  }
+
+  /**
+   * When the plans generated by this converter are going to be long lived such as in the plan cache
+   * or materialization cache, then it is critical to de-reference objects that are no longer needed
+   * for garbage collection.
+   *
+   * Specifically, the plan will hold on to these objects and contents that aren't explicitly disposed.
+   * {@link RelNode#getCluster()} {@link RelOptCluster#getPlanner()} {@link RelOptPlanner#getContext()}
+   * {@link PlannerSettings} {@link DremioVolcanoPlanner}
+   * {@link QueryContext} is also held so some clean up is done in {@link QueryContext#close()}
+   */
+  public void dispose() {
+    final DremioVolcanoPlanner planner = (DremioVolcanoPlanner) this.planner;
+    planner.dispose();
+    plannerCatalog.get().dispose();
   }
 
   /**
@@ -323,17 +335,6 @@ public class SqlConverter {
 
     public boolean isPlanCacheable() {
       return planCacheable;
-    }
-
-    /**
-     * Converts the RelRootPlus to a RelRoot with an ExpansionNode at the root
-     * @param node
-     * @return
-     */
-    public RelRoot withExpansionNode(RelNode node) {
-      assert node instanceof ExpansionNode;
-      assert RelOptUtil.equal("query", rel.getRowType(), "expansion", node.getRowType(), Litmus.THROW);
-      return new RelRoot(node, validatedRowType, kind, fields, collation, ImmutableList.of());
     }
   }
 

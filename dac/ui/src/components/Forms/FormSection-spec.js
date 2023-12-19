@@ -16,6 +16,7 @@
 import { shallow } from "enzyme";
 
 import FormSection from "./FormSection";
+import { VisibilityControl } from "./VisibilityControl";
 
 describe("FormSection", () => {
   const minimalProps = {
@@ -40,54 +41,30 @@ describe("FormSection", () => {
   });
 
   it("should render no children if visibilityControl is false", () => {
-    const instance = shallow(<FormSection {...minimalProps} />).instance();
-    const render = instance.renderElements({
-      getConfig() {
-        return {};
-      },
-
-      getDirectElements() {
-        return [
-          {
-            getConfig() {
-              return {
-                visibilityControl: {
-                  config: "allowFileUploads",
-                  showCondition: false,
-                },
-              };
-            },
-          },
-        ];
-      },
-    });
-
-    expect(shallow(render).children()).to.have.length(0);
+    const wrapper = shallow(
+      <VisibilityControl
+        visibilityControl={{
+          config: "allowFileUploads",
+          showCondition: false,
+        }}
+      >
+        <div />
+      </VisibilityControl>
+    );
+    expect(wrapper.contains(<div />)).to.equal(false);
   });
 
   it("should render children if visibilityControl is true", () => {
-    const instance = shallow(<FormSection {...minimalProps} />).instance();
-    const render = instance.renderElements({
-      getConfig() {
-        return {};
-      },
-
-      getDirectElements() {
-        return [
-          {
-            getConfig() {
-              return {
-                visibilityControl: {
-                  config: "allowFileUploads",
-                  showCondition: true,
-                },
-              };
-            },
-          },
-        ];
-      },
-    });
-
-    expect(shallow(render).children()).to.have.length(1);
+    const wrapper = shallow(
+      <VisibilityControl
+        visibilityControl={{
+          config: "allowFileUploads",
+          showCondition: true,
+        }}
+      >
+        <div />
+      </VisibilityControl>
+    );
+    expect(wrapper.contains(<div />)).to.equal(true);
   });
 });

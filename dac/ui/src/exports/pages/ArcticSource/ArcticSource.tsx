@@ -66,7 +66,6 @@ function ArcticSourceHomePage(props: any) {
             source={sourceInfo}
             baseUrl={baseUrl}
             viewState={undefined}
-            isBareMinimumNessie
             initialRef={{
               name: props.params?.branchName,
               hash: props.location?.query?.hash,

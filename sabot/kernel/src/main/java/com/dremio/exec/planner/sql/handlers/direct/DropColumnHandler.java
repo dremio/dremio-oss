@@ -23,18 +23,18 @@ import java.util.List;
 import org.apache.calcite.rel.InvalidRelException;
 import org.apache.calcite.sql.SqlNode;
 
+import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.catalog.ResolvedVersionContext;
 import com.dremio.exec.catalog.TableMutationOptions;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.planner.sql.handlers.query.DataAdditionCmdHandler;
-import com.dremio.exec.planner.sql.parser.DmlUtils;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableDropColumn;
 import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.service.namespace.NamespaceKey;
@@ -56,10 +56,21 @@ public class DropColumnHandler extends SimpleDirectHandler {
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
     SqlAlterTableDropColumn sqlDropColumn = SqlNodeUtil.unwrap(sqlNode, SqlAlterTableDropColumn.class);
 
-    NamespaceKey path = DmlUtils.getTablePath(catalog, sqlDropColumn.getTable());
+    NamespaceKey sqlPath = catalog.resolveSingle(sqlDropColumn.getTable());
+    final String sourceName = sqlPath.getRoot();
+    VersionContext statementSourceVersion = sqlDropColumn.getSqlTableVersionSpec().getTableVersionSpec().getTableVersionContext().asVersionContext();
+    final VersionContext sessionVersion = config.getContext().getSession().getSessionVersionForSource(sourceName);
+    VersionContext sourceVersion = statementSourceVersion.orElse(sessionVersion);
+    ResolvedVersionContext resolvedVersionContext = CatalogUtil.resolveVersionContext(catalog, sourceName, sourceVersion);
+    final CatalogEntityKey catalogEntityKey = CatalogUtil.getResolvedCatalogEntityKey(
+        catalog,
+        sqlPath,
+        resolvedVersionContext);
+    NamespaceKey path = new NamespaceKey(catalogEntityKey.getKeyComponents());
+
     catalog.validatePrivilege(path, SqlGrant.Privilege.ALTER);
 
-    DremioTable table = catalog.getTableNoResolve(path);
+    DremioTable table = CatalogUtil.getTableNoResolve(catalogEntityKey, catalog);
 
     SimpleCommandResult validate = SqlHandlerUtil.validateSupportForDDLOperations(catalog, config, path, table);
 
@@ -76,9 +87,6 @@ public class DropColumnHandler extends SimpleDirectHandler {
     if (table.getSchema().getFieldCount() == 1) {
       throw UserException.validationError().message("Cannot drop all columns of a table").buildSilently();
     }
-    final String sourceName = path.getRoot();
-    final VersionContext sessionVersion = config.getContext().getSession().getSessionVersionForSource(sourceName);
-    ResolvedVersionContext resolvedVersionContext = CatalogUtil.resolveVersionContext(catalog, sourceName, sessionVersion);
     CatalogUtil.validateResolvedVersionIsBranch(resolvedVersionContext);
     TableMutationOptions tableMutationOptions = TableMutationOptions.newBuilder()
       .setResolvedVersionContext(resolvedVersionContext)

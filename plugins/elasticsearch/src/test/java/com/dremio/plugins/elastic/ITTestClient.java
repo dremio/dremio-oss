@@ -92,7 +92,7 @@ public class ITTestClient extends ElasticBaseTestQuery {
         .setParameter("scroll", "10s")
         .setParameter("size", Integer.toString(batchSize));
 
-    byte[] result = connection.execute(search, false);
+    byte[] result = connection.execute(search, connection.getESVersionInCluster().getMajor());
     totalHitsReceived = ElasticsearchCluster.asJsonObject(result).get(ElasticsearchConstants.HITS).getAsJsonObject().get(ElasticsearchConstants.TOTAL_HITS).getAsInt();
     assertThat(totalHitsReceived).isEqualTo(docs);
   }
@@ -128,7 +128,7 @@ public class ITTestClient extends ElasticBaseTestQuery {
           .setParameter("scroll", "10s")
           .setParameter("preference", "_shards:" + routing.getId())
           .setParameter("size", Integer.toString(batchSize));
-      byte[] result = connection.execute(search, false);
+      byte[] result = connection.execute(search, connection.getESVersionInCluster().getMajor());
 
       totalHitsReceived += ElasticsearchCluster.asJsonObject(result).get("hits").getAsJsonObject().get("total").getAsInt();
     }

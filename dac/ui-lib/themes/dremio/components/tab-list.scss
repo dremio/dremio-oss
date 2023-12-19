@@ -1,0 +1,104 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@import "../../utilities/scrollbar";
+
+@mixin tabBorder {
+  border-inline-end: 1px solid var(--color--neutral--100);
+  content: "";
+  position: absolute;
+  height: var(--scale-3);
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.tab-list {
+  align-items: center;
+  background: var(--bg--default);
+  display: flex;
+  flex-direction: row;
+  overflow: hidden;
+}
+
+.tab-list-tabs {
+  display: inline-flex;
+  flex-direction: row;
+  flex: 1;
+  overflow: hidden;
+  overflow-x: auto;
+  @include scrollbar-hidden;
+}
+
+.tab-list-tab {
+  align-items: center;
+  background: inherit;
+  block-size: var(--scale-5);
+  border: none;
+  border-block: 2px solid transparent;
+  color: var(--color--deemphasized);
+  display: inline-flex;
+  flex-shrink: 1;
+  flex-grow: 1;
+  flex-direction: row;
+  font-variant-numeric: lining-nums tabular-nums;
+  letter-spacing: -0.025em;
+  gap: var(--scale-1);
+  min-inline-size: 110px;
+  max-inline-size: 260px;
+  padding: var(--scale-1);
+  position: relative;
+  overflow: hidden;
+  text-align: start;
+  white-space: nowrap;
+
+  &__label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__close-icon {
+    margin-inline-start: auto;
+    padding: 0;
+  }
+
+  &:hover .tab-list-tab__label {
+    color: var(--dremio--color--link);
+  }
+
+  &[aria-selected="true"] {
+    border-block-end-color: #008489;
+    font-weight: 600;
+    letter-spacing: -0.0375em;
+  }
+
+  &::after {
+    @include tabBorder;
+  }
+
+  .tab-list__tab-menu button {
+    visibility: hidden;
+    &[aria-expanded="true"] {
+      visibility: visible;
+    }
+  }
+
+  &:hover {
+    .tab-list__tab-menu button {
+      visibility: visible;
+    }
+  }
+}

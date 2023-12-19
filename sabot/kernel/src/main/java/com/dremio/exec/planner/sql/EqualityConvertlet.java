@@ -44,7 +44,6 @@ import com.google.common.collect.Lists;
 public class EqualityConvertlet implements SqlRexConvertlet {
 
   public static final EqualityConvertlet INSTANCE = new EqualityConvertlet();
-  private static final int MAX_PRECISION = 38;
 
   private EqualityConvertlet() {
   }

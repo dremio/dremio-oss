@@ -30,6 +30,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.junit.Before;
@@ -42,6 +43,8 @@ import com.dremio.datastore.api.LegacyIndexedStore;
 import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.beans.AttemptEvent;
+import com.dremio.service.job.NodeStatusRequest;
+import com.dremio.service.job.NodeStatusResponse;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobInfo;
@@ -58,11 +61,14 @@ import com.google.common.collect.Sets;
 public class TestLocalJobsServiceStartup {
   private LegacyIndexedStore<JobId, JobResult> jobStore;
   private StructuredLogger<Job> jobResultLogger;
+  private RemoteJobServiceForwarder forwarder;
   private Collection<NodeEndpoint> availableCoords;
   private static final String issuingAddress = "issuingAddress";
-  private static final com.dremio.exec.proto.beans.NodeEndpoint nodeEndpoint =
+  private static final com.dremio.exec.proto.beans.NodeEndpoint issuingNodeEndpointBean =
     com.dremio.exec.proto.beans.NodeEndpoint.getDefaultInstance().setAddress(issuingAddress);
   private static final String currentAddress = "currentAddress";
+  private static final com.dremio.exec.proto.beans.NodeEndpoint currNodeEndpointBean =
+    new com.dremio.exec.proto.beans.NodeEndpoint();
 
   private List<JobResult> returns;
   private static final NodeEndpoint currentEndpoint;
@@ -70,6 +76,7 @@ public class TestLocalJobsServiceStartup {
   private static final NodeEndpoint restartedIssuerEndpoint;
 
   static {
+    currNodeEndpointBean.setAddress(currentAddress);
     currentEndpoint = NodeEndpoint.newBuilder()
       .setAddress(currentAddress)
       .build();
@@ -89,6 +96,8 @@ public class TestLocalJobsServiceStartup {
     jobStore = (LegacyIndexedStore<JobId, JobResult>) mock(LegacyIndexedStore.class);
 
     jobResultLogger = (StructuredLogger<Job>) mock(StructuredLogger.class);
+
+    forwarder = mock(RemoteJobServiceForwarder.class);
 
     when(jobStore.find(any(LegacyFindByCondition.class)))
       .thenReturn(Sets.difference(EnumSet.allOf(JobState.class), finalJobStates)
@@ -114,8 +123,11 @@ public class TestLocalJobsServiceStartup {
   @Test
   public void cleanupJobStateOnStartUp() throws Exception {
     availableCoords = issuerRestart();
+    when(forwarder.getNodeStatus(any(NodeEndpoint.class), any(NodeStatusRequest.class)))
+      .thenReturn(NodeStatusResponse.newBuilder().setStartTime(99).build());
 
-    LocalJobsService.setAbandonedJobsToFailedState(jobStore, availableCoords, jobResultLogger);
+    LocalJobsService.setAbandonedJobsToFailedState(jobStore, availableCoords, jobResultLogger, forwarder,
+      currNodeEndpointBean, System.currentTimeMillis() + TimeUnit.HOURS.toMillis(1));
 
     assertTrue("all job states must be final, or handled by the above method",
         allJobsCleanedUp(returns));
@@ -127,8 +139,11 @@ public class TestLocalJobsServiceStartup {
   public void cleanupJobsWithIssuingCoordPresentOnStartup() throws Exception {
     // The issuing coordinator is present, so no jobs are cleaned up on startup
     availableCoords = issuerPresent();
+    when(forwarder.getNodeStatus(any(NodeEndpoint.class), any(NodeStatusRequest.class)))
+      .thenReturn(NodeStatusResponse.newBuilder().setStartTime(0).build());
 
-    LocalJobsService.setAbandonedJobsToFailedState(jobStore, availableCoords, jobResultLogger);
+    LocalJobsService.setAbandonedJobsToFailedState(jobStore, availableCoords, jobResultLogger, forwarder,
+      currNodeEndpointBean, System.currentTimeMillis() + TimeUnit.HOURS.toMillis(1));
 
     assertTrue("All job states are final and not issued by the current restarted coordinator",
       noJobsCleanedUp(returns));
@@ -139,8 +154,11 @@ public class TestLocalJobsServiceStartup {
     // The issuing coordinator of some non final state jobs has been restarted,
     // so its jobs are cleaned up
     availableCoords = issuerRestart();
+    when(forwarder.getNodeStatus(any(NodeEndpoint.class), any(NodeStatusRequest.class)))
+      .thenReturn(NodeStatusResponse.newBuilder().setStartTime(99).build());
 
-    LocalJobsService.setAbandonedJobsToFailedState(jobStore, availableCoords, jobResultLogger);
+    LocalJobsService.setAbandonedJobsToFailedState(jobStore, availableCoords, jobResultLogger, forwarder,
+      currNodeEndpointBean, System.currentTimeMillis() + TimeUnit.HOURS.toMillis(1));
 
     assertTrue("All job states are final and issued by the current restarted coordinator, " +
         "and must have failed", allJobsCleanedUp(returns));
@@ -152,8 +170,11 @@ public class TestLocalJobsServiceStartup {
   public void cleanupJobsWithIssuingCoordPresentRecurrent() throws Exception {
     // The issuing coordinator is present during the cleanup task, so no jobs are cleaned up
     availableCoords = issuerPresent();
+    when(forwarder.getNodeStatus(any(NodeEndpoint.class), any(NodeStatusRequest.class)))
+      .thenReturn(NodeStatusResponse.newBuilder().setStartTime(0).build());
 
-    LocalJobsService.setAbandonedJobsToFailedState(jobStore, availableCoords, jobResultLogger);
+    LocalJobsService.setAbandonedJobsToFailedState(jobStore, availableCoords, jobResultLogger, forwarder,
+      currNodeEndpointBean, System.currentTimeMillis() + TimeUnit.HOURS.toMillis(1));
 
     assertTrue("All job states must be final, and jobs issued by a present coordinator, ",
       noJobsCleanedUp(returns));
@@ -163,8 +184,11 @@ public class TestLocalJobsServiceStartup {
   public void cleanupJobsWithIssuingCoordAbsentRecurrent() throws Exception {
     // The issuing coordinator is absent during the cleanup task, so all jobs are cleaned up
     availableCoords = issuerAbsent();
+    when(forwarder.getNodeStatus(any(NodeEndpoint.class), any(NodeStatusRequest.class)))
+      .thenThrow(new RuntimeException());
 
-    LocalJobsService.setAbandonedJobsToFailedState(jobStore, availableCoords, jobResultLogger);
+    LocalJobsService.setAbandonedJobsToFailedState(jobStore, availableCoords, jobResultLogger, forwarder,
+      currNodeEndpointBean, System.currentTimeMillis() + TimeUnit.HOURS.toMillis(1));
 
     assertTrue("All job states must be final, and jobs issued by an absent coordinator, ",
       allJobsCleanedUp(returns));
@@ -236,7 +260,7 @@ public class TestLocalJobsServiceStartup {
               .setInfo(new JobInfo(id, "sql", "dataset-version", QueryType.UI_RUN))
               .setState(jobState)
               .setStateListList(new ArrayList<>(Collections.singleton(JobsServiceUtil.createAttemptEvent(JobsServiceUtil.jobStatusToAttemptStatus(jobState), System.currentTimeMillis()))))
-              .setEndpoint(nodeEndpoint)));
+              .setEndpoint(issuingNodeEndpointBean)));
 
       @Override
       public JobId getKey() {

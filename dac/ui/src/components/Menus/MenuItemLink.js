@@ -18,6 +18,8 @@ import { Link } from "react-router";
 import PropTypes from "prop-types";
 
 import MenuItem from "./MenuItem";
+import clsx from "clsx";
+
 import "./MenuItemLink.less";
 
 class MenuItemLink extends Component {
@@ -30,6 +32,7 @@ class MenuItemLink extends Component {
     newWindow: PropTypes.bool,
     rightIcon: PropTypes.object,
     leftIcon: PropTypes.object,
+    className: PropTypes.string,
   };
 
   constructor(props) {
@@ -46,14 +49,22 @@ class MenuItemLink extends Component {
   }
 
   render() {
-    const { href, text, disabled, external, newWindow, leftIcon, rightIcon } =
-      this.props;
+    const {
+      href,
+      text,
+      disabled,
+      external,
+      newWindow,
+      leftIcon,
+      rightIcon,
+      className,
+    } = this.props;
 
     const target = newWindow ? "_blank" : null;
 
     const menuItem = (
       <MenuItem disabled={disabled} leftIcon={leftIcon} rightIcon={rightIcon}>
-        <div className="menuItemLink__item">{text}</div>
+        <div className={clsx("menuItemLink__item", className)}>{text}</div>
       </MenuItem>
     );
 

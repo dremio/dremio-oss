@@ -117,10 +117,17 @@ public class BaseTestHiveImpersonation extends BaseTestImpersonation {
   public static Hive2StoragePluginConfig createHiveStoragePlugin(final Map<String, String> hiveConfig) throws Exception {
     Hive2StoragePluginConfig pluginConfig = new Hive2StoragePluginConfig();
     pluginConfig.hostname = "dummy";
+
     pluginConfig.propertyList = new ArrayList<>();
     for(Entry<String, String> e : hiveConfig.entrySet()) {
       pluginConfig.propertyList.add(new Property(e.getKey(), e.getValue()));
     }
+
+    pluginConfig.secretPropertyList = new ArrayList<>();
+    for(Entry<String, String> e : hiveConfig.entrySet()) {
+      pluginConfig.secretPropertyList.add(new Property(e.getKey(), e.getValue()));
+    }
+
     return pluginConfig;
   }
 

@@ -22,6 +22,7 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.collect.ImmutableList;
 
@@ -43,7 +44,7 @@ public class DeleteSysMaterializationsMetadata extends UpgradeTask {
 
   @Override
   public void upgrade(UpgradeContext context) {
-    final NamespaceService namespaceService = new NamespaceServiceImpl(context.getLegacyKVStoreProvider());
+    final NamespaceService namespaceService = new NamespaceServiceImpl(context.getLegacyKVStoreProvider(), new CatalogStatusEventsImpl());
     try {
       final NamespaceKey key = new DatasetPath(ImmutableList.of("sys", "materializations")).toNamespaceKey();
       final DatasetConfig dataset = namespaceService.getDataset(key);

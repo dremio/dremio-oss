@@ -23,31 +23,6 @@ import com.dremio.common.AutoCloseables;
  * @param <T> the entity type
  */
 public interface VersionExtractor<T> {
-
-  /**
-   * Retrieves the numeric version.
-   *
-   * This is deprecated, using set/get tag for string versioning.
-   *
-   * @param value to extract the version from
-   * @return the current version
-   */
-  @Deprecated
-  default Long getVersion(T value) {
-    return null;
-  }
-
-  /**
-   * Sets the numeric version on value
-   *
-   * This is deprecated, using set/get tag for string versioning.
-   *
-   * @param value to set version on
-   * @param version version to set
-   */
-  @Deprecated
-  default void setVersion(T value, Long version) { }
-
   /**
    * Called before committing the KV value to the store (and before incrementVersion is called).
    *

@@ -18,11 +18,16 @@ package com.dremio.service.script;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
 
@@ -32,17 +37,24 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
 
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.config.SabotConfig;
+import com.dremio.common.map.CaseInsensitiveMap;
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.context.RequestContext;
 import com.dremio.context.UserContext;
+import com.dremio.dac.proto.model.dataset.DatasetProtobuf;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.SearchTypes;
+import com.dremio.datastore.api.options.ImmutableVersionOption;
+import com.dremio.datastore.api.options.VersionOption;
+import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.script.proto.ScriptProto;
+import com.dremio.service.usersessions.UserSessionService;
 
 /**
  * Test for script service
@@ -58,8 +70,7 @@ public class TestScriptServiceImpl {
   private ScriptStore scriptStore;
   private LocalKVStoreProvider kvStoreProvider;
   private ScriptService scriptService;
-  @Mock
-  private ScriptStore mockedScriptStore;
+  private UserSessionService mockUserSessionService;
 
   @Before
   public void setUp() throws Exception {
@@ -70,8 +81,10 @@ public class TestScriptServiceImpl {
     scriptStore = new ScriptStoreImpl(() -> kvStoreProvider);
     scriptStore.start();
 
+    mockUserSessionService = Mockito.mock(UserSessionService.class);
+
     // get script service
-    scriptService = new ScriptServiceImpl(() -> scriptStore);
+    scriptService = new ScriptServiceImpl(() -> scriptStore, () -> mockUserSessionService);
     scriptService.start();
   }
 
@@ -87,10 +100,34 @@ public class TestScriptServiceImpl {
     throws Exception {
     //-----------------------create----------------------------
     // given script request
+    List<DatasetProtobuf.SourceVersionReference> references = new ArrayList<>(Arrays.asList(
+      DatasetProtobuf.SourceVersionReference.newBuilder()
+        .setSourceName("Source 1")
+        .setReference(DatasetProtobuf.VersionContext.newBuilder()
+          .setType(DatasetProtobuf.VersionContextType.BRANCH)
+          .setValue("dev")
+          .build())
+        .build(),
+      DatasetProtobuf.SourceVersionReference.newBuilder()
+        .setSourceName("Source 2")
+        .setReference(DatasetProtobuf.VersionContext.newBuilder()
+          .setType(DatasetProtobuf.VersionContextType.TAG)
+          .setValue("tag_1")
+          .build())
+        .build(),
+      DatasetProtobuf.SourceVersionReference.newBuilder()
+        .setSourceName("Source 3")
+        .setReference(DatasetProtobuf.VersionContext.newBuilder()
+          .setType(DatasetProtobuf.VersionContextType.COMMIT)
+          .setValue("932505776779430053766113965c21cfb7ab823a")
+          .build())
+        .build()
+    ));
     ScriptProto.ScriptRequest scriptRequest = ScriptProto.ScriptRequest.newBuilder()
       .setName("testScript")
       .setDescription("test description")
       .addAllContext(new ArrayList<>(Arrays.asList("a", "b", "c")))
+      .addAllReferences(references)
       .setContent("select * from xyz")
       .build();
 
@@ -104,6 +141,7 @@ public class TestScriptServiceImpl {
     Assert.assertEquals(scriptRequest.getDescription(), script.getDescription());
     Assert.assertEquals(USER_ID_1, script.getModifiedBy());
     Assert.assertEquals(scriptRequest.getContextList(), script.getContextList());
+    Assert.assertEquals(scriptRequest.getReferencesList(), script.getReferencesList());
     Assert.assertEquals(scriptRequest.getContent(), script.getContent());
 
     //--------------------update-----------------------------
@@ -129,6 +167,31 @@ public class TestScriptServiceImpl {
     Assert.assertEquals(updateRequest.getContextList(), updatedScript.getContextList());
     Assert.assertEquals(updateRequest.getContent(), updatedScript.getContent());
 
+    //--------------------update context---------------------
+
+    CaseInsensitiveMap<VersionContext> referenceMap = CaseInsensitiveMap.newConcurrentMap();
+    referenceMap.put("Source 1", VersionContext.ofTag("new_tag"));
+    referenceMap.put("Source 2", VersionContext.ofCommit("9325057"));
+    referenceMap.put("Source 3", VersionContext.ofBranch("new_brnch"));
+
+    final List<String> newContext = new ArrayList<>(Arrays.asList("d", "e"));
+    final UserSession newSession = UserSession.Builder.newBuilder()
+      .withDefaultSchema(newContext)
+      .withSourceVersionMapping(referenceMap)
+      .build();
+    final VersionOption version = new ImmutableVersionOption.Builder().setTag("version").build();
+    when(mockUserSessionService.getSession(anyString())).thenReturn(new UserSessionService.UserSessionAndVersion(newSession, version));
+
+    runWithUserContext(USER_ID_1,
+      () -> scriptService.updateScriptContext(script.getScriptId(), UUID.randomUUID().toString()));
+
+    //---------------validate context/references-------------
+
+    ScriptProto.Script contextUpdatedScript =
+      runWithUserContext(USER_ID_1, () -> scriptService.getScriptById(script.getScriptId()));
+    Assert.assertEquals(newContext, contextUpdatedScript.getContextList());
+    Assert.assertEquals(SourceVersionReferenceUtils.createSourceVersionReferenceListFromContextMap(referenceMap),
+      contextUpdatedScript.getReferencesList());
 
     //--------------------delete-----------------------------
 
@@ -136,7 +199,6 @@ public class TestScriptServiceImpl {
       scriptService.deleteScriptById(script.getScriptId());
       return null;
     });
-
 
     //----------------------get------------------------------
     // assert get of script raise scriptnot found exception
@@ -433,10 +495,11 @@ public class TestScriptServiceImpl {
       .setContent("select * from xyz")
       .build();
 
-    long maxNumberOfScriptsPerUser = 100L;
+    long maxNumberOfScriptsPerUser = 1000L;
     ScriptStore mockedScriptStore = mock(ScriptStore.class);
     when(mockedScriptStore.getCountByCondition(any(SearchTypes.SearchQuery.class))).thenReturn(maxNumberOfScriptsPerUser);
-    ScriptService testScriptService = new ScriptServiceImpl(() -> mockedScriptStore);
+    UserSessionService mockUserSessionService = Mockito.mock(UserSessionService.class);
+    ScriptService testScriptService = new ScriptServiceImpl(() -> mockedScriptStore, () -> mockUserSessionService);
     testScriptService.start();
 
     // assert createScript raise MaxScriptsLimitReachedException

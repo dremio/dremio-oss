@@ -26,7 +26,6 @@ import java.util.function.Function;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.projectnessie.client.api.NessieApi;
-import org.projectnessie.client.api.NessieApiV1;
 import org.projectnessie.client.api.NessieApiV2;
 import org.projectnessie.model.ContentKey;
 
@@ -61,7 +60,7 @@ public class TestNessieGrpcClient extends AbstractTestNessieGrpcClient{
       () ->
         GrpcClientBuilder.builder()
           .withUri((URI) null)
-          .build(NessieApiV1.class))
+          .build(NessieApiV2.class))
       .isInstanceOf(UnsupportedOperationException.class)
       .hasMessage("withUri is not supported for gRPC");
 
@@ -69,7 +68,7 @@ public class TestNessieGrpcClient extends AbstractTestNessieGrpcClient{
       () ->
         GrpcClientBuilder.builder()
           .withUri("http://localhost")
-          .build(NessieApiV1.class))
+          .build(NessieApiV2.class))
       .isInstanceOf(UnsupportedOperationException.class)
       .hasMessage("withUri is not supported for gRPC");
 
@@ -77,7 +76,7 @@ public class TestNessieGrpcClient extends AbstractTestNessieGrpcClient{
       () ->
         GrpcClientBuilder.builder()
           .fromConfig(Function.identity())
-          .build(NessieApiV1.class))
+          .build(NessieApiV2.class))
       .isInstanceOf(UnsupportedOperationException.class)
       .hasMessage("fromConfig is not supported for gRPC");
 
@@ -85,7 +84,7 @@ public class TestNessieGrpcClient extends AbstractTestNessieGrpcClient{
       () ->
         GrpcClientBuilder.builder()
           .withAuthenticationFromConfig(Function.identity())
-          .build(NessieApiV1.class))
+          .build(NessieApiV2.class))
       .isInstanceOf(UnsupportedOperationException.class)
       .hasMessage("withAuthenticationFromConfig is not supported for gRPC");
 
@@ -93,7 +92,7 @@ public class TestNessieGrpcClient extends AbstractTestNessieGrpcClient{
       () ->
         GrpcClientBuilder.builder()
           .withAuthentication(null)
-          .build(NessieApiV1.class))
+          .build(NessieApiV2.class))
       .isInstanceOf(UnsupportedOperationException.class)
       .hasMessage("withAuthentication is not supported for gRPC");
 
@@ -101,7 +100,7 @@ public class TestNessieGrpcClient extends AbstractTestNessieGrpcClient{
       () ->
         GrpcClientBuilder.builder()
           .fromSystemProperties()
-          .build(NessieApiV1.class))
+          .build(NessieApiV2.class))
       .isInstanceOf(UnsupportedOperationException.class)
       .hasMessage("fromSystemProperties is not supported for gRPC");
   }
@@ -109,7 +108,7 @@ public class TestNessieGrpcClient extends AbstractTestNessieGrpcClient{
   @Test
   public void testNull() {
     assertThatThrownBy(
-      () -> GrpcClientBuilder.builder().withChannel(null).build(NessieApiV1.class))
+      () -> GrpcClientBuilder.builder().withChannel(null).build(NessieApiV2.class))
       .isInstanceOf(IllegalArgumentException.class)
       .hasMessage("Channel must be configured");
   }
@@ -118,10 +117,10 @@ public class TestNessieGrpcClient extends AbstractTestNessieGrpcClient{
   public void testApiCalls() throws IOException {
     ServiceWithChannel serviceWithChannel = startGrpcServer();
     assertThat(serviceWithChannel.getServer().getServices()).hasSize(3);
-    NessieApiV1 api =
+    NessieApiV2 api =
       GrpcClientBuilder.builder()
         .withChannel(serviceWithChannel.getChannel())
-        .build(NessieApiV1.class);
+        .build(NessieApiV2.class);
     assertThat(api.getConfig().getDefaultBranch()).isEqualTo(REF_NAME);
     assertThat(api.getDefaultBranch().getName()).isEqualTo(REF_NAME);
     assertThat(api.getAllReferences().get().getReferences()).containsExactly(REF);
@@ -151,11 +150,11 @@ public class TestNessieGrpcClient extends AbstractTestNessieGrpcClient{
     Metadata clientHeaders = new Metadata();
     String headerValue = "some-dummy-value";
     clientHeaders.put(TEST_HEADER_KEY, headerValue);
-    NessieApiV1 api =
+    NessieApiV2 api =
       GrpcClientBuilder.builder()
         .withChannel(serviceWithChannel.getChannel())
         .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(clientHeaders))
-        .build(NessieApiV1.class);
+        .build(NessieApiV2.class);
     assertThat(api.getConfig().getDefaultBranch()).isEqualTo(REF_NAME);
     assertThat(api.getDefaultBranch().getName()).isEqualTo(REF_NAME);
     assertThat(api.getAllReferences().get().getReferences()).containsExactly(REF);

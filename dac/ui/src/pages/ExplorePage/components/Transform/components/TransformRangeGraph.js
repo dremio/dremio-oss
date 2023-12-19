@@ -52,7 +52,7 @@ class TransformRangeGraph extends Component {
     this.setActiveSlider = this.setActiveSlider.bind(this);
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     this.resetRangeOffsets(nextProps);
   }
 

@@ -35,13 +35,14 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
+import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.catalog.model.VersionContext;
+import com.dremio.catalog.model.dataset.TableVersionContext;
+import com.dremio.catalog.model.dataset.TableVersionType;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.catalog.TableVersionContext;
-import com.dremio.exec.catalog.TableVersionType;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.ops.ReflectionContext;
@@ -101,7 +102,7 @@ public class TestAccelDropHandler {
     SqlDropReflection sqlDropReflection = new SqlDropReflection(SqlParserPos.ZERO, tableIdentifier1, layoutIdentifier, SqlTableVersionSpec.NOT_SPECIFIED);
     when(catalog.resolveSingle(any(NamespaceKey.class))).thenReturn(tableNamespaceKey1);
     when(catalog.getSource("mysource1")).thenReturn(versionedPlugin);
-    when(queryContext.getOptions().getOption(CatalogOptions.REFLECTION_ARCTIC_ENABLED)).thenReturn(false);
+    when(queryContext.getOptions().getOption(CatalogOptions.REFLECTION_VERSIONED_SOURCE_ENABLED)).thenReturn(false);
     // Act and Assert
     assertThatThrownBy(() -> accelDropReflectionHandler.toResult("",sqlDropReflection))
       .isInstanceOf(UserException.class)
@@ -113,10 +114,11 @@ public class TestAccelDropHandler {
     List<String> tablePath = Arrays.asList("s3", "myfolder","mytable");
     SqlIdentifier tableIdentifier = new SqlIdentifier(TABLE_NAME_V1, SqlParserPos.ZERO);
     NamespaceKey tableNamespaceKey = new NamespaceKey(tablePath);
+    CatalogEntityKey tableKey = CatalogEntityKey.fromNamespaceKey(tableNamespaceKey);
     SqlDropReflection sqlDropReflection = new SqlDropReflection(SqlParserPos.ZERO, tableIdentifier, layoutIdentifier, SqlTableVersionSpec.NOT_SPECIFIED);
     when(dremioTable.getPath().getPathComponents()).thenReturn(tablePath);
     when(catalog.resolveSingle(any(NamespaceKey.class))).thenReturn(tableNamespaceKey);
-    when(catalog.getTable(tableNamespaceKey)).thenReturn(dremioTable);
+    when(catalog.getTable(tableKey)).thenReturn(dremioTable);
     when(catalog.getSource("s3")).thenReturn(nonVersionedPlugin);
     List<SimpleCommandResult> result = accelDropReflectionHandler.toResult("",sqlDropReflection);
     assertThat(result).isNotEmpty();
@@ -129,6 +131,7 @@ public class TestAccelDropHandler {
     List<String> tablePath = Arrays.asList("s3", "myfolder","mytable");
     SqlIdentifier tableIdentifier = new SqlIdentifier(TABLE_NAME_V1, SqlParserPos.ZERO);
     NamespaceKey tableNamespaceKey = new NamespaceKey(tablePath);
+    CatalogEntityKey tableKey = CatalogEntityKey.fromNamespaceKey(tableNamespaceKey);
     SqlDropReflection sqlDropReflection = new SqlDropReflection(SqlParserPos.ZERO, tableIdentifier, layoutIdentifier, SqlTableVersionSpec.NOT_SPECIFIED);
     final Map<String, VersionContext> sourceVersionMapping = ImmutableMap.of(
       "mysource1", VersionContext.ofBranch("branch1"),
@@ -136,7 +139,7 @@ public class TestAccelDropHandler {
     );
     when(dremioTable.getPath().getPathComponents()).thenReturn(tablePath);
     when(catalog.resolveSingle(any(NamespaceKey.class))).thenReturn(tableNamespaceKey);
-    when(catalog.getTable(tableNamespaceKey)).thenReturn(dremioTable);
+    when(catalog.getTable(tableKey)).thenReturn(dremioTable);
     when(catalog.getSource("s3")).thenReturn(nonVersionedPlugin);
     when(queryContext.getSession().getSessionVersionForSource("mysource2")).thenReturn(sourceVersionMapping.get("mysource2"));
     List<SimpleCommandResult> result = accelDropReflectionHandler.toResult("",sqlDropReflection);
@@ -158,11 +161,15 @@ public class TestAccelDropHandler {
       "mysource2", VersionContext.ofRef("ref1")
     );
     final TableVersionContext tableVersionContext = new TableVersionContext(TableVersionType.REFERENCE, "ref1");
+    CatalogEntityKey tableKey = CatalogEntityKey.newBuilder()
+      .keyComponents(tablePath)
+      .tableVersionContext(tableVersionContext)
+      .build();
     when(dremioTable.getPath().getPathComponents()).thenReturn(tablePath);
     when(catalog.resolveSingle(any(NamespaceKey.class))).thenReturn(tableNamespaceKey);
-    when(catalog.getTableSnapshot(tableNamespaceKey, tableVersionContext)).thenReturn(dremioTable);
+    when(catalog.getTable(tableKey)).thenReturn(dremioTable);
     when(catalog.getSource("mysource2")).thenReturn(versionedPlugin);
-    when(queryContext.getOptions().getOption(CatalogOptions.REFLECTION_ARCTIC_ENABLED)).thenReturn(true);
+    when(queryContext.getOptions().getOption(CatalogOptions.REFLECTION_VERSIONED_SOURCE_ENABLED)).thenReturn(true);
     when(queryContext.getSession().getSessionVersionForSource("mysource2")).thenReturn(sourceVersionMapping.get("mysource2"));
     // Act and Assert
     List<SimpleCommandResult> result = accelDropReflectionHandler.toResult("",sqlDropReflection);
@@ -182,11 +189,16 @@ public class TestAccelDropHandler {
       new SqlTableVersionSpec(SqlParserPos.ZERO, TableVersionType.REFERENCE, versionSpec));
 
     final TableVersionContext tableVersionContext = new TableVersionContext(TableVersionType.REFERENCE, "ref1");
+    CatalogEntityKey tableKey = CatalogEntityKey.newBuilder()
+      .keyComponents(tablePath)
+      .tableVersionContext(tableVersionContext)
+      .build();
+    when(dremioTable.getPath().getPathComponents()).thenReturn(tablePath);
+    when(catalog.getTable(tableKey)).thenReturn(dremioTable);
     when(dremioTable.getPath().getPathComponents()).thenReturn(tablePath);
     when(catalog.resolveSingle(any(NamespaceKey.class))).thenReturn(tableNamespaceKey);
-    when(catalog.getTableSnapshot(tableNamespaceKey, tableVersionContext)).thenReturn(dremioTable);
     when(catalog.getSource("mysource2")).thenReturn(versionedPlugin);
-    when(queryContext.getOptions().getOption(CatalogOptions.REFLECTION_ARCTIC_ENABLED)).thenReturn(true);
+    when(queryContext.getOptions().getOption(CatalogOptions.REFLECTION_VERSIONED_SOURCE_ENABLED)).thenReturn(true);
     // Act and Assert
     List<SimpleCommandResult> result = accelDropReflectionHandler.toResult("",sqlDropReflection);
     VersionContext expectedVersionContext = VersionContext.ofRef("ref1");

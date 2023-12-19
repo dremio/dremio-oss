@@ -16,6 +16,7 @@
 
 package com.dremio.exec.store.deltalake;
 
+import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_FIELD_ADD;
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_FIELD_COMMIT_INFO;
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_FIELD_METADATA;
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_FIELD_METADATA_PARTITION_COLS;
@@ -37,6 +38,9 @@ import static com.dremio.exec.store.deltalake.DeltaConstants.OP_NUM_TARGET_FILES
 import static com.dremio.exec.store.deltalake.DeltaConstants.OP_NUM_TARGET_ROWS_DELETED;
 import static com.dremio.exec.store.deltalake.DeltaConstants.OP_NUM_TARGET_ROWS_INSERTED;
 import static com.dremio.exec.store.deltalake.DeltaConstants.PROTOCOL_MIN_READER_VERSION;
+import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_DATA_CHANGE;
+import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_STATS;
+import static com.dremio.exec.store.deltalake.DeltaLogReaderUtils.parseStatsFromJson;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -44,6 +48,7 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Function;
 
 import org.slf4j.Logger;
@@ -81,40 +86,139 @@ public class DeltaLogCommitJsonReader implements DeltaLogReader {
 
     @Override
     public DeltaLogSnapshot parseMetadata(Path rootFolder, SabotContext context, FileSystem fs, List<FileAttributes> fileAttributes, long version) throws IOException {
-        final Path commitFilePath = fileAttributes.get(0).getPath();
-        try (final FSInputStream commitFileIs = fs.open(commitFilePath);
-             final BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(commitFileIs))) {
-            /*
-             * Apart from commitInfo, other sections are optional.
-             */
-            DeltaLogSnapshot snapshot = new DeltaLogSnapshot();
-            String nextLine;
-            boolean foundMetadata = false, foundCommitInfo = false;
-            JsonNode metadataNode = null;
-            while (!(foundCommitInfo && foundMetadata) && (nextLine = bufferedReader.readLine())!=null) {
-                final JsonNode json = OBJECT_MAPPER.readTree(nextLine);
-                if (json.has(DELTA_FIELD_METADATA)) {
-                    metadataNode = json.get(DELTA_FIELD_METADATA);
-                    foundMetadata = true;
-                } else if (json.has(DELTA_FIELD_PROTOCOL)) {
-                    final int minReaderVersion = get(json, 1, JsonNode::intValue, DELTA_FIELD_PROTOCOL,
-                            PROTOCOL_MIN_READER_VERSION);
-                    Preconditions.checkState(minReaderVersion <= 1,
-                            "Protocol version %s is incompatible for Dremio plugin", minReaderVersion);
-                } else if (json.has(DELTA_FIELD_COMMIT_INFO)) {
-                    snapshot = OBJECT_MAPPER.readValue(nextLine, DeltaLogSnapshot.class);
-                    foundCommitInfo = true;
+      if (DeltaLogReaderUtils.isFullRowcountEnabled(context.getOptionManager())) {
+        return parseMetadataWithFullRowCount(rootFolder, context, fs, fileAttributes, version);
+      } else {
+        return parseMetadataWithRowCountEstimation(rootFolder, context, fs, fileAttributes, version);
+      }
+    }
+
+    private DeltaLogSnapshot parseMetadataWithFullRowCount(Path rootFolder, SabotContext context, FileSystem fs, List<FileAttributes> fileAttributes, long version) throws IOException {
+
+      final Path commitFilePath = fileAttributes.get(0).getPath();
+      try (final FSInputStream commitFileIs = fs.open(commitFilePath);
+           final BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(commitFileIs))
+           ) {
+
+        DeltaLogSnapshot snapshot = new DeltaLogSnapshot();
+        String nextLine;
+        long numRecords = 0L;
+        JsonNode metadataNode = null;
+        boolean opMetricsFound = false;
+
+        /*
+         * Apart from commitInfo, other sections are optional.
+         * but if there are stats in Add/Remove, we will get the full stats value and use it in snapshot instead of the
+         * operationMetrics from CommitInfo
+         */
+        while ((nextLine = bufferedReader.readLine()) != null) {
+          final JsonNode json = OBJECT_MAPPER.readTree(nextLine);
+          if (json.has(DELTA_FIELD_METADATA)) {
+            metadataNode = json.get(DELTA_FIELD_METADATA);
+          } else if (json.has(DELTA_FIELD_PROTOCOL)) {
+            final int minReaderVersion = get(json, 1, JsonNode::intValue, DELTA_FIELD_PROTOCOL,
+              PROTOCOL_MIN_READER_VERSION);
+            Preconditions.checkState(minReaderVersion <= 1,
+              "Protocol version %s is incompatible for Dremio plugin", minReaderVersion);
+          } else if (json.has(DELTA_FIELD_COMMIT_INFO)) {
+            JsonNode commitInfoNode = json.get(DELTA_FIELD_COMMIT_INFO);
+            if (commitInfoNode.has(OP_METRICS)) {
+              opMetricsFound = true;
+            }
+            snapshot = OBJECT_MAPPER.readValue(nextLine, DeltaLogSnapshot.class);
+          } else if (json.has(DELTA_FIELD_ADD) && !opMetricsFound) {
+            // parse ADD rows as a fallback of not being able to get operationMetrics
+            JsonNode addNode = json.get(DELTA_FIELD_ADD);
+            if (addNode.has(SCHEMA_DATA_CHANGE) && addNode.get(SCHEMA_DATA_CHANGE).asBoolean()) {
+              if (addNode.has(SCHEMA_STATS)) {
+                Optional<Long> numRecord = parseStatsFromJson(addNode.get(SCHEMA_STATS).textValue());
+                if (numRecord.isPresent()) {
+                  numRecords += numRecord.get();
                 }
+              }
             }
-            if(metadataNode != null) {
-                populateSchema(snapshot, metadataNode);
-            }
-
-            snapshot.setSplits(generateSplits(fileAttributes.get(0), snapshot.getDataFileEntryCount(), version));
-
-            logger.debug("For file {}, snaspshot is {}", commitFilePath, snapshot.toString());
-            return snapshot;
+          }
         }
+        if(metadataNode != null) {
+          populateSchema(snapshot, metadataNode);
+        }
+
+        if(numRecords != 0L && !opMetricsFound) {
+          snapshot.setNetOutputRows(numRecords);
+        }
+
+        snapshot.setSplits(generateSplits(fileAttributes.get(0), snapshot.getDataFileEntryCount(), version));
+
+        logger.debug("For file {}, snaspshot is {}", commitFilePath, snapshot.toString());
+        return snapshot;
+      }
+    }
+
+    private DeltaLogSnapshot parseMetadataWithRowCountEstimation(Path rootFolder, SabotContext context, FileSystem fs, List<FileAttributes> fileAttributes, long version) throws IOException {
+      final Path commitFilePath = fileAttributes.get(0).getPath();
+      try (final FSInputStream commitFileIs = fs.open(commitFilePath);
+           final BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(commitFileIs))) {
+        /*
+         * Apart from commitInfo, other sections are optional.
+         */
+        DeltaLogSnapshot snapshot = new DeltaLogSnapshot();
+        String nextLine;
+        boolean foundMetadata = false, foundCommitInfo = false;
+        JsonNode metadataNode = null;
+        while (!(foundCommitInfo && foundMetadata) && (nextLine = bufferedReader.readLine())!=null) {
+          final JsonNode json = OBJECT_MAPPER.readTree(nextLine);
+          if (json.has(DELTA_FIELD_METADATA)) {
+            metadataNode = json.get(DELTA_FIELD_METADATA);
+            foundMetadata = true;
+          } else if (json.has(DELTA_FIELD_PROTOCOL)) {
+            final int minReaderVersion = get(json, 1, JsonNode::intValue, DELTA_FIELD_PROTOCOL,
+              PROTOCOL_MIN_READER_VERSION);
+            Preconditions.checkState(minReaderVersion <= 1,
+              "Protocol version %s is incompatible for Dremio plugin", minReaderVersion);
+          } else if (json.has(DELTA_FIELD_COMMIT_INFO)) {
+            snapshot = OBJECT_MAPPER.readValue(nextLine, DeltaLogSnapshot.class);
+            foundCommitInfo = true;
+          }
+        }
+        if(metadataNode != null) {
+          populateSchema(snapshot, metadataNode);
+        }
+
+        snapshot.setSplits(generateSplits(fileAttributes.get(0), snapshot.getDataFileEntryCount(), version));
+
+        logger.debug("For file {}, snaspshot is {}", commitFilePath, snapshot.toString());
+        return snapshot;
+      }
+    }
+
+    public static long parseTimestamp(FileSystem fs, FileAttributes file) throws IOException {
+      try (final FSInputStream commitFileIs = fs.open(file.getPath());
+           final BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(commitFileIs))) {
+        String nextLine;
+        while ((nextLine = bufferedReader.readLine()) != null) {
+          final JsonNode json = OBJECT_MAPPER.readTree(nextLine);
+          if (json.has(DELTA_FIELD_COMMIT_INFO)) {
+            return get(json, 0L, JsonNode::asLong, DELTA_FIELD_COMMIT_INFO, "timestamp");
+          }
+        }
+        throw new IOException(DELTA_FIELD_COMMIT_INFO + " section not found in json commit " + file.getPath());
+      }
+    }
+
+    public static DeltaLogSnapshot parseCommitInfo(FileSystem fs, Path commitPath) throws IOException {
+      try (final FSInputStream commitFileIs = fs.open(commitPath);
+           final BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(commitFileIs))) {
+        String nextLine;
+        while ((nextLine = bufferedReader.readLine()) != null) {
+          final JsonNode json = OBJECT_MAPPER.readTree(nextLine);
+          if (json.has(DELTA_FIELD_COMMIT_INFO)) {
+            DeltaLogSnapshot snapshot = OBJECT_MAPPER.convertValue(json, DeltaLogSnapshot.class);
+            snapshot.setVersionId(DeltaFilePathResolver.getVersionFromPath(commitPath));
+            return snapshot;
+          }
+        }
+        throw new IOException(DELTA_FIELD_COMMIT_INFO + " section not found in json commit " + commitPath);
+      }
     }
 
     public void populateSchema(DeltaLogSnapshot snapshot, JsonNode metadata) throws IOException {

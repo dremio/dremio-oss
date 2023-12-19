@@ -46,6 +46,7 @@ import com.dremio.exec.store.iceberg.deletes.RowLevelDeleteFilterFactory.DeleteF
 import com.dremio.exec.util.BloomFilter;
 import com.dremio.sabot.Generator;
 import com.dremio.sabot.RecordBatchValidator;
+import com.dremio.sabot.RecordBatchValidatorDefaultImpl;
 import com.dremio.sabot.RecordSet;
 import com.dremio.sabot.RecordSet.Record;
 import com.dremio.sabot.exec.context.OperatorStats;
@@ -300,7 +301,7 @@ public class TestParquetScanTableFunctionWithPositionalDeletes extends BaseTestP
 
     // run with the runtime filter, which will be applied immediately after the first rowgroup in DATA_2021_00
     // is processed, resulting in the 2nd rowgroup in DATA_2021_00 and all of DATA_2021_01 being skipped
-    validateWithRuntimeFilter(input, output, msg, 1);
+    validateWithRuntimeFilter(input, new RecordBatchValidatorDefaultImpl(output), msg, 1);
   }
 
   private Record inputRow(String relativePath) throws Exception {
@@ -339,7 +340,7 @@ public class TestParquetScanTableFunctionWithPositionalDeletes extends BaseTestP
     TableFunctionPOP pop = getPopForIceberg(table, IcebergTestTables.V2_ORDERS_SCHEMA, COLUMNS, PARTITION_COLUMNS,
         EXTENDED_PROPS);
     try (AutoCloseable closeable = with(ExecConstants.PARQUET_READER_VECTORIZE, false)) {
-      validateSingle(pop, TableFunctionOperator.class, input, output, BATCH_SIZE);
+      validateSingle(pop, TableFunctionOperator.class, input, new RecordBatchValidatorDefaultImpl(output), BATCH_SIZE);
     }
   }
 
@@ -440,6 +441,8 @@ public class TestParquetScanTableFunctionWithPositionalDeletes extends BaseTestP
     ArrowBuf buf = bloomFilter.getDataBuffer();
     buf.readerIndex(0);
     buf.writerIndex(bloomFilter.getSizeInBytes());
+    ArrayList<Integer> bufferLengths = new ArrayList<>();
+    bufferLengths.add((int)runtimeFilter.getPartitionColumnFilter().getSizeBytes());
 
     return new OutOfBandMessage(
         null,
@@ -451,6 +454,7 @@ public class TestParquetScanTableFunctionWithPositionalDeletes extends BaseTestP
         0,
         new OutOfBandMessage.Payload(runtimeFilter.build()),
         new ArrowBuf[] {buf},
+        bufferLengths,
         false);
   }
 }

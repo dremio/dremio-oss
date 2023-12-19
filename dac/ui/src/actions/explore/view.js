@@ -16,7 +16,6 @@
 import Immutable from "immutable";
 import actionUtils from "utils/actionUtils/actionUtils";
 
-export const SET_CURRENT_SQL = "SET_CURRENT_SQL";
 export const SET_PREVIOUS_MULTI_SQL = "SET_PREVIOUS_MULTI_SQL";
 export const SET_PREVIOUS_AND_CURRENT_SQL = "SET_PREVIOUS_AND_CURRENT_SQL";
 export const SET_SELECTED_SQL = "SET_SELECTED_SQL";
@@ -28,20 +27,36 @@ export const SET_QUERY_STATUSES = "SET_QUERY_STATUSES";
 export const SET_QUERY_TAB_NUMBER = "SET_QUERY_TAB_NUMBER";
 export const SET_QUERY_SELECTIONS = "SET_QUERY_SELECTIONS";
 export const SET_QUERY_FILTER = "SET_QUERY_FILTER";
+export const SET_ACTION_STATE = "SET_ACTION_STATE";
 export const RESET_NEW_QUERY = "RESET_NEW_QUERY";
 export const RESET_QUERY_STATE = "RESET_QUERY_STATE";
 export const FOCUS_EDITOR = "FOCUS_SQL_EDITOR";
+export const RESET_TABLE_STATE = "RESET_TABLE_STATE";
+
+/**
+ * Used to initialize / reset the contents of the SQL runner
+ */
+export const SET_CURRENT_SQL = "SET_CURRENT_SQL";
+
+/**
+ * Indicates that the contents of the SQL runner have been modified after being initialized
+ */
+export const MODIFY_CURRENT_SQL = "MODIFY_CURRENT_SQL";
 
 export function setCurrentSql({ sql }) {
   return { type: SET_CURRENT_SQL, sql };
 }
 
-export function setPreviousMultiSql({ sql }) {
-  return { type: SET_PREVIOUS_MULTI_SQL, sql };
+export function modifyCurrentSql({ sql }) {
+  return { type: MODIFY_CURRENT_SQL, sql };
 }
 
-export function setPreviousAndCurrentSql({ sql }) {
-  return { type: SET_PREVIOUS_AND_CURRENT_SQL, sql };
+export function setPreviousMultiSql({ sql, tabId }) {
+  return { type: SET_PREVIOUS_MULTI_SQL, sql, tabId };
+}
+
+export function setPreviousAndCurrentSql({ sql, tabId }) {
+  return { type: SET_PREVIOUS_AND_CURRENT_SQL, sql, tabId };
 }
 
 export function setSelectedSql({ sql }) {
@@ -56,8 +71,8 @@ export function setUpdateSqlFromHistory({ updateSql }) {
   return { type: SET_UPDATE_SQL_FROM_HISTORY, updateSql };
 }
 
-export function setIsMultiQueryRunning({ running }) {
-  return { type: SET_IS_MULTI_QUERY_RUNNING, running };
+export function setIsMultiQueryRunning({ running, tabId }) {
+  return { type: SET_IS_MULTI_QUERY_RUNNING, running, tabId };
 }
 
 const defaultContext = new Immutable.List();
@@ -65,20 +80,24 @@ export function setQueryContext({ context }) {
   return { type: SET_QUERY_CONTEXT, context: context || defaultContext };
 }
 
-export function setQueryStatuses({ statuses = [] }) {
-  return { type: SET_QUERY_STATUSES, statuses };
+export function setQueryStatuses({ statuses = [], tabId = "" }) {
+  return { type: SET_QUERY_STATUSES, statuses, tabId };
 }
 
 export function setQueryTabNumber({ tabNumber = 0 }) {
   return { type: SET_QUERY_TAB_NUMBER, tabNumber };
 }
 
-export function setQuerySelections({ selections = [] }) {
-  return { type: SET_QUERY_SELECTIONS, selections };
+export function setQuerySelections({ selections = [], tabId }) {
+  return { type: SET_QUERY_SELECTIONS, selections, tabId };
 }
 
 export function setQueryFilter({ term = "" }) {
   return { type: SET_QUERY_FILTER, term };
+}
+
+export function setActionState({ actionState }) {
+  return { type: SET_ACTION_STATE, actionState };
 }
 
 export function resetNewQuery(viewId) {
@@ -89,10 +108,15 @@ export function resetQueryState(obj = {}) {
   return { type: RESET_QUERY_STATE, ...obj };
 }
 
+export function resetTableState(obj = {}) {
+  return { type: RESET_TABLE_STATE, ...obj };
+}
+
 export const UPDATE_COLUMN_FILTER = "UPDATE_COLUMN_FILTER";
-export const updateColumnFilter = (columnFilter) => ({
+export const updateColumnFilter = (columnFilter, datasetVersion) => ({
   type: UPDATE_COLUMN_FILTER,
   columnFilter,
+  datasetVersion,
 });
 
 export const focusSqlEditor = () => ({ type: FOCUS_EDITOR });

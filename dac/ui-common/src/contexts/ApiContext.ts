@@ -16,6 +16,7 @@
 
 export type ApiContext = Record<string, any> & {
   fetch: typeof window.fetch;
+  createSonarUrl: (path: string) => URL;
 };
 
 let apiContext: ApiContext;

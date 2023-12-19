@@ -35,6 +35,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
@@ -49,13 +50,13 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.rex.RexVisitorImpl;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
-import org.apache.iceberg.ManifestContent;
 import org.apache.iceberg.expressions.Expression;
 
 import com.dremio.common.expression.FieldReference;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.ops.OptimizerRulesContext;
+import com.dremio.exec.ops.SnapshotDiffContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.ImmutableManifestScanFilters;
 import com.dremio.exec.physical.config.ManifestScanFilters;
@@ -85,6 +86,7 @@ import com.dremio.exec.store.iceberg.model.ImmutableManifestScanOptions;
 import com.dremio.exec.store.iceberg.model.ManifestScanOptions;
 import com.dremio.exec.store.parquet.ParquetFilterCondition;
 import com.dremio.exec.store.parquet.ParquetScanFilter;
+import com.dremio.exec.store.parquet.ParquetScanRowGroupFilter;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 /**
@@ -92,6 +94,7 @@ import com.google.common.collect.ImmutableList;
  */
 public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizable, FilterableScan {
   private final ScanFilter filter;
+  private final ParquetScanRowGroupFilter rowGroupFilter;
   private final boolean arrowCachingEnabled;
   private final PruneFilterCondition pruneCondition;
   private final OptimizerRulesContext context;
@@ -101,15 +104,18 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
   private final boolean isPruneConditionOnImplicitCol;
   private final boolean canUsePartitionStats;
   private final ManifestScanFilters manifestScanFilters;
+  private final boolean partitionValuesEnabled;
 
   public IcebergScanPrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId,
                          TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment,
-                         List<RelHint> hints, ScanFilter filter, boolean arrowCachingEnabled,
+                         List<RelHint> hints, ScanFilter filter, ParquetScanRowGroupFilter rowGroupFilter, boolean arrowCachingEnabled,
                          PruneFilterCondition pruneCondition, OptimizerRulesContext context,
                          boolean isConvertedIcebergDataset, Long survivingRowCount, Long survivingFileCount,
-                         boolean canUsePartitionStats, ManifestScanFilters manifestScanFilters) {
-    super(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment, hints);
+                         boolean canUsePartitionStats, ManifestScanFilters manifestScanFilters,
+                         SnapshotDiffContext snapshotDiffContext) {
+    super(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment, hints, snapshotDiffContext);
     this.filter = filter;
+    this.rowGroupFilter = rowGroupFilter;
     this.arrowCachingEnabled = arrowCachingEnabled;
     this.pruneCondition = pruneCondition;
     this.context = context;
@@ -119,13 +125,37 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
     this.survivingFileCount = survivingFileCount == null ? tableMetadata.getDatasetConfig().getReadDefinition().getManifestScanStats().getRecordCount() : survivingFileCount;
     this.canUsePartitionStats = canUsePartitionStats;
     this.manifestScanFilters = manifestScanFilters;
+    this.partitionValuesEnabled = false;
+  }
+
+  public IcebergScanPrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId,
+                         TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment,
+                         List<RelHint> hints, ScanFilter filter, ParquetScanRowGroupFilter rowGroupFilter, boolean arrowCachingEnabled,
+                         PruneFilterCondition pruneCondition, OptimizerRulesContext context,
+                         boolean isConvertedIcebergDataset, Long survivingRowCount, Long survivingFileCount,
+                         boolean canUsePartitionStats, ManifestScanFilters manifestScanFilters,
+                         SnapshotDiffContext snapshotDiffContext, boolean partitionValuesEnabled) {
+    super(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment, hints, snapshotDiffContext);
+    this.filter = filter;
+    this.rowGroupFilter = rowGroupFilter;
+    this.arrowCachingEnabled = arrowCachingEnabled;
+    this.pruneCondition = pruneCondition;
+    this.context = context;
+    this.isConvertedIcebergDataset = isConvertedIcebergDataset;
+    this.isPruneConditionOnImplicitCol = pruneCondition != null && isConditionOnImplicitCol();
+    this.survivingRowCount = survivingRowCount == null ? tableMetadata.getApproximateRecordCount() : survivingRowCount;
+    this.survivingFileCount = survivingFileCount == null ? tableMetadata.getDatasetConfig().getReadDefinition().getManifestScanStats().getRecordCount() : survivingFileCount;
+    this.canUsePartitionStats = canUsePartitionStats;
+    this.manifestScanFilters = manifestScanFilters;
+    this.partitionValuesEnabled = partitionValuesEnabled;
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
     return new IcebergScanPrel(getCluster(), traitSet, getTable(), pluginId, tableMetadata, getProjectedColumns(),
-      observedRowcountAdjustment, hints, this.filter, this.arrowCachingEnabled, this.pruneCondition, context,
-      isConvertedIcebergDataset, survivingRowCount, survivingFileCount, canUsePartitionStats, manifestScanFilters);
+      observedRowcountAdjustment, hints, this.filter, this.rowGroupFilter, this.arrowCachingEnabled, this.pruneCondition, context,
+      isConvertedIcebergDataset, survivingRowCount, survivingFileCount, canUsePartitionStats, manifestScanFilters,
+      snapshotDiffContext);
   }
 
   @Override
@@ -134,9 +164,12 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
       ((ParquetScanFilter) filter).applyProjection(projection, rowType, getCluster(), getBatchSchema()) : filter;
     PruneFilterCondition pruneFilterCondition = pruneCondition == null ? null :
       pruneCondition.applyProjection(projection, rowType, getCluster(), getBatchSchema());
+    ParquetScanRowGroupFilter rowGroupFilter = getRowGroupFilter() == null ? null:
+      getRowGroupFilter().applyProjection(projection, rowType, getCluster(), getBatchSchema());
     return new IcebergScanPrel(getCluster(), getTraitSet(), table, pluginId, tableMetadata, projection,
-      observedRowcountAdjustment, hints, newFilter, this.arrowCachingEnabled, pruneFilterCondition, context,
-      isConvertedIcebergDataset, survivingRowCount, survivingFileCount, canUsePartitionStats, manifestScanFilters);
+      observedRowcountAdjustment, hints, newFilter, rowGroupFilter, this.arrowCachingEnabled, pruneFilterCondition, context,
+      isConvertedIcebergDataset, survivingRowCount, survivingFileCount, canUsePartitionStats, manifestScanFilters,
+      snapshotDiffContext);
   }
 
   @Override
@@ -160,19 +193,34 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
   }
 
   @Override
+  public ParquetScanRowGroupFilter getRowGroupFilter() {
+    return rowGroupFilter;
+  }
+
+  @Override
+  public FilterableScan applyRowGroupFilter(ParquetScanRowGroupFilter rowGroupFilter) {
+    return new IcebergScanPrel(getCluster(), getTraitSet(), getTable(), getPluginId(), getTableMetadata(),
+      getProjectedColumns(), getObservedRowcountAdjustment(), hints, getFilter(), rowGroupFilter,
+      arrowCachingEnabled, getPartitionFilter(), context, isConvertedIcebergDataset,
+      survivingRowCount, survivingFileCount, canUsePartitionStats, manifestScanFilters,
+      snapshotDiffContext);
+  }
+
+  @Override
   public FilterableScan applyFilter(ScanFilter scanFilter) {
     return new IcebergScanPrel(getCluster(), getTraitSet(), getTable(), getPluginId(), getTableMetadata(),
-                               getProjectedColumns(), getObservedRowcountAdjustment(), hints, scanFilter,
+                               getProjectedColumns(), getObservedRowcountAdjustment(), hints, scanFilter, rowGroupFilter,
                                arrowCachingEnabled, getPartitionFilter(), context, isConvertedIcebergDataset,
-                               survivingRowCount, survivingFileCount, canUsePartitionStats, manifestScanFilters);
+                               survivingRowCount, survivingFileCount, canUsePartitionStats, manifestScanFilters,
+                               snapshotDiffContext);
   }
 
   @Override
   public FilterableScan applyPartitionFilter(PruneFilterCondition partitionFilter, Long survivingRowCount, Long survivingFileCount) {
     return new IcebergScanPrel(getCluster(), getTraitSet(), getTable(), getPluginId(), getTableMetadata(),
-      getProjectedColumns(), getObservedRowcountAdjustment(), hints, getFilter(), arrowCachingEnabled, partitionFilter,
-      context, isConvertedIcebergDataset, survivingRowCount, survivingFileCount, canUsePartitionStats,
-      manifestScanFilters);
+      getProjectedColumns(), getObservedRowcountAdjustment(), hints, getFilter(), getRowGroupFilter(), arrowCachingEnabled,
+      partitionFilter, context, isConvertedIcebergDataset, survivingRowCount, survivingFileCount, canUsePartitionStats,
+      manifestScanFilters, snapshotDiffContext);
   }
 
   @Override
@@ -236,10 +284,15 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
     if (manifestScanOptions.includesSplitGen()) {
       manifestFileReaderSchema = RecordReader.SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA;
     } else {
-      if (manifestScanOptions.getManifestContent() == ManifestContent.DATA) {
+      if (manifestScanOptions.getManifestContentType() == ManifestContentType.DATA ||
+           manifestScanOptions.getManifestContentType() == ManifestContentType.ALL) {
         manifestFileReaderSchema = SystemSchemas.ICEBERG_MANIFEST_SCAN_SCHEMA;
       } else {
         manifestFileReaderSchema = SystemSchemas.ICEBERG_DELETE_MANIFEST_SCAN_SCHEMA;
+        if(manifestScanOptions.includesIcebergPartitionInfo()){
+          Field fieldToAdd = Field.nullable(SystemSchemas.PARTITION_INFO, Types.MinorType.VARBINARY.getType());
+          manifestFileReaderSchema = manifestFileReaderSchema.addColumn(fieldToAdd);
+        }
       }
 
       if (manifestScanOptions.includesIcebergMetadata()) {
@@ -282,19 +335,43 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
    */
   @Override
   public Prel finalizeRel() {
+    if (partitionValuesEnabled) {
+      // If partitionValuesEnabled flag is set, we can optimize plan by skipping data file scan.
+      return new IcebergPartitionAggregationPlanBuilder(this)
+        .buildManifestScanPlanForPartitionAggregation();
+    }
     ManifestScanOptions manifestScanOptions = new ImmutableManifestScanOptions.Builder().setIncludesSplitGen(true).build();
     RelNode output = buildManifestScan(survivingFileCount, manifestScanOptions);
     return buildDataFileScan(output);
   }
 
-  public Prel buildManifestScan(Long survivingManifestRecordCount, ManifestScanOptions manifestScanOptions) {
+  public Prel buildManifestScan(
+    final Long survivingManifestRecordCount,
+    final ManifestScanOptions manifestScanOptions) {
+    final boolean specEvolTransEnabled = context.getPlannerSettings()
+      .getOptions().getOption(ENABLE_ICEBERG_SPEC_EVOL_TRANFORMATION);
+
+    final List<SchemaPath> manifestFileReaderColumns = new ArrayList<>();
+    final BatchSchema manifestFileReaderSchema = getManifestFileReaderSchema(
+      manifestFileReaderColumns, specEvolTransEnabled, manifestScanOptions);
+
+    return buildManifestScan(
+      survivingManifestRecordCount,
+      manifestScanOptions,
+      manifestFileReaderColumns,
+      manifestFileReaderSchema);
+  }
+
+  public Prel buildManifestScan(
+    final Long survivingManifestRecordCount,
+    final ManifestScanOptions manifestScanOptions,
+    final List<SchemaPath> manifestFileReaderColumns,
+    final BatchSchema manifestFileReaderSchema) {
+    TableMetadata tableMetadataToUse = manifestScanOptions.getTableMetadata() != null ? manifestScanOptions.getTableMetadata() : tableMetadata;
     boolean specEvolTransEnabled = context.getPlannerSettings().getOptions().getOption(ENABLE_ICEBERG_SPEC_EVOL_TRANFORMATION);
     List<SchemaPath> manifestListReaderColumns = new ArrayList<>(Arrays.asList(SchemaPath.getSimplePath(SPLIT_IDENTITY), SchemaPath.getSimplePath(SPLIT_INFORMATION), SchemaPath.getSimplePath(COL_IDS)));
     BatchSchema manifestListReaderSchema = RecordReader.SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA;
 
-    List<SchemaPath> manifestFileReaderColumns = new ArrayList<>();
-    BatchSchema manifestFileReaderSchema = getManifestFileReaderSchema(manifestFileReaderColumns, specEvolTransEnabled,
-        manifestScanOptions);
     if (pruneCondition != null && !isPruneConditionOnImplicitCol && !specEvolTransEnabled) {
       manifestListReaderSchema = getSchemaWithMinMaxUsedColumns(pruneCondition.getPartitionRange(), manifestListReaderColumns, manifestListReaderSchema);
     }
@@ -314,11 +391,10 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
       mfconditions.add(pruneCondition.getPartitionRange());
     }
 
-    ManifestContentType contentType = manifestScanOptions.getManifestContent().equals(ManifestContent.DATA) ?
-      ManifestContentType.DATA : ManifestContentType.DELETES;
+    ManifestContentType contentType = manifestScanOptions.getManifestContentType();
     IcebergManifestListPrel manifestListPrel = new IcebergManifestListPrel(getCluster(),
       getTraitSet(),
-      tableMetadata,
+      tableMetadataToUse,
       manifestListReaderSchema, manifestListReaderColumns,
       getRowTypeFromProjectedColumns(manifestListReaderColumns, manifestListReaderSchema, getCluster()),
       icebergPartitionPruneExpression,
@@ -336,7 +412,7 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
 
     // exchange above manifest list scan, which is a leaf level easy scan
     HashToRandomExchangePrel manifestSplitsExchange = new HashToRandomExchangePrel(getCluster(), relTraitSet,
-        input, distributionTrait.getFields(), TableFunctionUtil.getHashExchangeTableFunctionCreator(tableMetadata, true));
+        input, distributionTrait.getFields(), TableFunctionUtil.getHashExchangeTableFunctionCreator(tableMetadataToUse, true));
 
     ImmutableManifestScanFilters.Builder manifestScanFilterBuilder = new ImmutableManifestScanFilters.Builder()
       .from(manifestScanFilters);
@@ -358,17 +434,18 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
     Prel manifestScanTF;
     if (manifestScanOptions.includesSplitGen()) {
       TableFunctionConfig manifestScanTableFunctionConfig = TableFunctionUtil.getSplitGenManifestScanTableFunctionConfig(
-          tableMetadata, manifestFileReaderColumns, manifestFileReaderSchema, null, manifestScanFilterBuilder.build());
+        tableMetadataToUse, manifestFileReaderColumns, manifestFileReaderSchema, null, manifestScanFilterBuilder.build());
 
       RelDataType rowTypeFromProjectedColumns = getRowTypeFromProjectedColumns(manifestFileReaderColumns, manifestFileReaderSchema, getCluster());
       manifestScanTF = new TableFunctionPrel(getCluster(), getTraitSet().plus(DistributionTrait.ANY),
-          getTable(), manifestSplitsExchange, tableMetadata, manifestScanTableFunctionConfig, rowTypeFromProjectedColumns,
+          getTable(), manifestSplitsExchange, tableMetadataToUse, manifestScanTableFunctionConfig, rowTypeFromProjectedColumns,
           survivingManifestRecordCount);
 
     } else {
       manifestScanTF = new IcebergManifestScanPrel(getCluster(), getTraitSet().plus(DistributionTrait.ANY), getTable(),
-          manifestSplitsExchange, tableMetadata, manifestFileReaderSchema, manifestFileReaderColumns,
-        manifestScanFilterBuilder.build(), survivingManifestRecordCount, manifestScanOptions.getManifestContent());
+          manifestSplitsExchange, tableMetadataToUse, manifestFileReaderSchema, manifestFileReaderColumns,
+        manifestScanFilterBuilder.build(), survivingManifestRecordCount,
+        manifestScanOptions.getManifestContentType(), tableMetadataToUse.getUser(), manifestScanOptions.includesIcebergPartitionInfo());
     }
 
     Prel input2 = manifestScanTF;
@@ -399,7 +476,7 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
 
     // table scan phase
     TableFunctionConfig tableFunctionConfig = TableFunctionUtil.getDataFileScanTableFunctionConfig(
-      tableMetadata, filter, getProjectedColumns(), arrowCachingEnabled, isConvertedIcebergDataset,
+      tableMetadata, filter, rowGroupFilter, getProjectedColumns(), arrowCachingEnabled, isConvertedIcebergDataset,
       limitDataScanParallelism, survivingFileCount, implicitPartitionCols);
 
     return new TableFunctionPrel(getCluster(), getTraitSet().plus(DistributionTrait.ANY), getTable(), parquetSplitsExchange, tableMetadata,
@@ -416,7 +493,8 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
     return super.explainTerms(pw)
       .itemIf("arrowCachingEnable", arrowCachingEnabled, arrowCachingEnabled)
       .itemIf("filter", filter, filter != null)
-      .itemIf("pruneCondition", pruneCondition, pruneCondition != null);
+      .itemIf("pruneCondition", pruneCondition, pruneCondition != null)
+      .itemIf("rowGroupFilter", rowGroupFilter, rowGroupFilter != null);
   }
 
   private boolean isConditionOnImplicitCol() {
@@ -541,5 +619,16 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
       .map(f -> new Field(f.getName() + "_val", f.getFieldType(), f.getChildren()))
       .collect(Collectors.toList());
     return schema.cloneWithFields(fields);
+  }
+
+  public OptimizerRulesContext getContext() {
+    return context;
+  }
+  public ManifestScanFilters getManifestScanFilters() {
+    return manifestScanFilters;
+  }
+
+  public boolean isPartitionValuesEnabled() {
+    return partitionValuesEnabled;
   }
 }

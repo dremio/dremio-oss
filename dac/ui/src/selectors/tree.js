@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 import { createSelector } from "reselect";
+import Immutable from "immutable";
 
 const getResourceTreeData = (state) => {
   return (

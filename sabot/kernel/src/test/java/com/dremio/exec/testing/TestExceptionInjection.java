@@ -19,14 +19,16 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 import java.io.IOException;
+import java.util.Properties;
 
+import org.apache.curator.test.TestingServer;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
-import com.dremio.exec.ZookeeperHelper;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.exception.NodeStartupException;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.proto.UserBitShared;
@@ -219,86 +221,88 @@ public class TestExceptionInjection extends BaseTestQuery {
   @SuppressWarnings("static-method")
   @Test
   public void injectionOnSpecificBit() throws Exception {
-    final ZookeeperHelper zkHelper = new ZookeeperHelper();
-    zkHelper.startZookeeper(1);
+    try (TestingServer zk = new TestingServer(true)) {
+      Properties overrides = new Properties();
+      overrides.setProperty(ExecConstants.ZK_CONNECTION, zk.getConnectString());
+      final SabotConfig config = SabotConfig.create(overrides);
 
-    final SabotConfig config = zkHelper.getConfig();
-    final ScanResult classpathScanResult = ClassPathScanner.fromPrescan(config);
-    // Creating two nodes
-    try (
+      final ScanResult classpathScanResult = ClassPathScanner.fromPrescan(config);
+      // Creating two nodes
+      try (
         ClusterCoordinator clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
         SabotNode node1 = SabotNode.start(config, clusterCoordinator, classpathScanResult);
         SabotNode node2 = SabotNode.start(config, clusterCoordinator, classpathScanResult)) {
 
 
-      final SabotContext nodeContext1 = node1.getContext();
-      final SabotContext nodeContext2 = node2.getContext();
+        final SabotContext nodeContext1 = node1.getContext();
+        final SabotContext nodeContext2 = node2.getContext();
 
-      final UserSession session = UserSession.Builder.newBuilder()
-        .withSessionOptionManager(
-          new SessionOptionManagerImpl(nodeContext1.getOptionValidatorListing()),
-          nodeContext1.getOptionManager())
-        .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName(UserServiceTestImpl.TEST_USER_1).build())
-        .withUserProperties(UserProperties.getDefaultInstance())
-        .build();
+        final UserSession session = UserSession.Builder.newBuilder()
+          .withSessionOptionManager(
+            new SessionOptionManagerImpl(nodeContext1.getOptionValidatorListing()),
+            nodeContext1.getOptionManager())
+          .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName(UserServiceTestImpl.TEST_USER_1).build())
+          .withUserProperties(UserProperties.getDefaultInstance())
+          .build();
 
-      final String passthroughDesc = "<<injected from descPassthrough>>";
-      final int nSkip = 7;
-      final int nFire = 3;
-      final Class<? extends Throwable> exceptionClass = RuntimeException.class;
-      // only node1's (address, port)
-      final String controls = Controls.newBuilder()
+        final String passthroughDesc = "<<injected from descPassthrough>>";
+        final int nSkip = 7;
+        final int nFire = 3;
+        final Class<? extends Throwable> exceptionClass = RuntimeException.class;
+        // only node1's (address, port)
+        final String controls = Controls.newBuilder()
           .addExceptionOnNode(DummyClass.class, passthroughDesc, exceptionClass, nodeContext1.getEndpoint(), nSkip, nFire)
           .build();
 
-      ControlsInjectionUtil.setControls(session, controls);
+        ControlsInjectionUtil.setControls(session, controls);
 
-      {
-        final QueryContext queryContext1 = new QueryContext(session, nodeContext1, QueryId.getDefaultInstance());
-        final DummyClass class1 = new DummyClass(queryContext1);
+        {
+          final QueryContext queryContext1 = new QueryContext(session, nodeContext1, QueryId.getDefaultInstance());
+          final DummyClass class1 = new DummyClass(queryContext1);
 
-        // these shouldn't throw
-        for (int i = 0; i < nSkip; ++i) {
+          // these shouldn't throw
+          for (int i = 0; i < nSkip; ++i) {
+            class1.descPassthroughMethod(passthroughDesc);
+          }
+
+          // these should throw
+          for (int i = 0; i < nFire; ++i) {
+            assertPassthroughThrows(class1, exceptionClass.getName(), passthroughDesc);
+          }
+
+          // this shouldn't throw
           class1.descPassthroughMethod(passthroughDesc);
+          try {
+            queryContext1.close();
+          } catch (Exception e) {
+            fail();
+          }
         }
+        {
+          final QueryContext queryContext2 = new QueryContext(session, nodeContext2, QueryId.getDefaultInstance());
+          final DummyClass class2 = new DummyClass(queryContext2);
 
-        // these should throw
-        for (int i = 0; i < nFire; ++i) {
-          assertPassthroughThrows(class1, exceptionClass.getName(), passthroughDesc);
-        }
+          // these shouldn't throw
+          for (int i = 0; i < nSkip; ++i) {
+            class2.descPassthroughMethod(passthroughDesc);
+          }
 
-        // this shouldn't throw
-        class1.descPassthroughMethod(passthroughDesc);
-        try {
-          queryContext1.close();
-        } catch (Exception e) {
-          fail();
-        }
-      }
-      {
-        final QueryContext queryContext2 = new QueryContext(session, nodeContext2, QueryId.getDefaultInstance());
-        final DummyClass class2 = new DummyClass(queryContext2);
+          // these shouldn't throw
+          for (int i = 0; i < nFire; ++i) {
+            class2.descPassthroughMethod(passthroughDesc);
+          }
 
-        // these shouldn't throw
-        for (int i = 0; i < nSkip; ++i) {
+          // this shouldn't throw
           class2.descPassthroughMethod(passthroughDesc);
+          try {
+            queryContext2.close();
+          } catch (Exception e) {
+            fail();
+          }
         }
-
-        // these shouldn't throw
-        for (int i = 0; i < nFire; ++i) {
-          class2.descPassthroughMethod(passthroughDesc);
-        }
-
-        // this shouldn't throw
-        class2.descPassthroughMethod(passthroughDesc);
-        try {
-          queryContext2.close();
-        } catch (Exception e) {
-          fail();
-        }
+      } catch (NodeStartupException e) {
+        throw new RuntimeException("Failed to start nodes.", e);
       }
-    } catch (NodeStartupException e) {
-      throw new RuntimeException("Failed to start nodes.", e);
     }
   }
 }

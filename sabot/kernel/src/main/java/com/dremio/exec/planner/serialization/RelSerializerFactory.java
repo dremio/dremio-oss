@@ -16,11 +16,11 @@
 package com.dremio.exec.planner.serialization;
 
 import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.sql.SqlOperatorTable;
 
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.persistence.ScanResult;
-import com.dremio.exec.catalog.DremioCatalogReader;
-import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
+import com.dremio.exec.ops.DremioCatalogReader;
 import com.dremio.exec.planner.serialization.kryo.KryoRelSerializerFactory;
 import com.dremio.exec.store.CatalogService;
 
@@ -39,26 +39,26 @@ public abstract class RelSerializerFactory {
    * @param cluster The cluster to serialize from.
    * @return
    */
-  public abstract LogicalPlanSerializer getSerializer(RelOptCluster cluster, FunctionImplementationRegistry registry);
+  public abstract LogicalPlanSerializer getSerializer(RelOptCluster cluster, SqlOperatorTable sqlOperatorTable);
 
   /**
    * Get a deserializer for the given cluster and catalog.
    * @param cluster Cluster to read into.
    * @param catalog Catalog to use for deserializing tables.
-   * @param registry FunctionImplementationRegistry to use for deserializing Dremio operators.
+   * @param sqlOperatorTable SqlOperatorTable to use for deserializing Dremio operators.
    * @return The plan deserializer.
    */
   public abstract LogicalPlanDeserializer getDeserializer(
       final RelOptCluster cluster,
       final DremioCatalogReader catalog,
-      final FunctionImplementationRegistry registry,
+      final SqlOperatorTable sqlOperatorTable,
       final CatalogService catalogService);
 
   public LogicalPlanDeserializer getDeserializer(
     final RelOptCluster cluster,
     final DremioCatalogReader catalog,
-    final FunctionImplementationRegistry registry) {
-    return getDeserializer(cluster, catalog, registry, null);
+    final SqlOperatorTable sqlOperatorTable) {
+    return getDeserializer(cluster, catalog, sqlOperatorTable, null);
   }
 
   public static RelSerializerFactory getPlanningFactory(SabotConfig config, ScanResult scanResult) {

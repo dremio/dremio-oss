@@ -178,7 +178,7 @@ public class MathFunctions{
     }
   }
 
-  @FunctionTemplate(names = {"sample"}, isDeterministic = false)
+  @FunctionTemplate(names = "sample", isDeterministic = false)
   public static class Sample implements SimpleFunction {
     @Param Float8Holder rate;
     @Output private NullableBitHolder out;
@@ -307,4 +307,33 @@ public class MathFunctions{
     }
   }
 
+  @FunctionTemplate(name = "factorial", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  public static class Factorial implements SimpleFunction {
+
+    @Param BigIntHolder in;
+    @Output BigIntHolder out;
+    @Inject FunctionErrorContext errCtx;
+
+    @Override
+    public void setup() {
+    }
+
+    @Override
+    public void eval() {
+      final Long[] factorialLookupTable = {1L, 1L, 2L, 6L, 24L, 120L, 720L, 5040L, 40320L, 362880L,
+        3628800L, 39916800L, 479001600L, 6227020800L, 87178291200L, 1307674368000L, 20922789888000L,
+        355687428096000L, 6402373705728000L, 121645100408832000L, 2432902008176640000L};
+      if (in.value > 20) {
+        throw errCtx.error()
+          .message("Numbers greater than 20 cause overflow!")
+          .build();
+      } else if (in.value < 0) {
+        throw errCtx.error()
+          .message("Factorial of negative number not exist!")
+          .build();
+      } else {
+        out.value = factorialLookupTable[Long.valueOf(in.value).intValue()];
+      }
+    }
+  }
 }

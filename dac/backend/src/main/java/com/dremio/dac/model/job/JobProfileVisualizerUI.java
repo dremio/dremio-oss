@@ -36,6 +36,7 @@ import java.util.stream.Collectors;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 
 import com.dremio.common.utils.PathUtils;
+import com.dremio.dac.model.job.diagnostics.ProfileObservationUtil;
 import com.dremio.dac.server.admin.profile.AccelerationWrapper;
 import com.dremio.dac.server.admin.profile.HostProcessingRate;
 import com.dremio.dac.util.QueryProfileConstant;
@@ -59,6 +60,8 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Table;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 
 /**
  * class for building profile Phase data
@@ -88,6 +91,7 @@ public class JobProfileVisualizerUI {
   /**
    * This Method will return JobProfile Information
    */
+  @WithSpan
   public List<PhaseData> getJobProfileInfo() {
     List<PhaseData> phaseData = new ArrayList<>();
     buildQueryProfileGraph(); // get details to build a Graph
@@ -100,6 +104,7 @@ public class JobProfileVisualizerUI {
   /**
    * This Method will build Create map of Profile.Json and calling function to build the Graph details
    */
+  @WithSpan
   private void buildQueryProfileGraph() {
     String profileJson = profile.getJsonPlan();
     if (!profileJson.isEmpty()) {
@@ -114,6 +119,7 @@ public class JobProfileVisualizerUI {
   /**
    * This Method will build "graphObjectMap" map to add MergeNode Name and SuccessorIdList features.
    */
+  @WithSpan
   private void buildGraphDetails(Map<String, Object> phaseNodeMap) {
     for (Map.Entry<String, Object> keySet : phaseNodeMap.entrySet()) {  //PhaseId-OperatorIndex combination like 02-07 for Phase 2 OperatorIndex 7
       String keySetValue = keySet.getKey();
@@ -260,6 +266,7 @@ public class JobProfileVisualizerUI {
       reflectionDatasetMap.put(viewProfile.getLayoutId(), datasetNameReflectionName);
     }
   }
+  @WithSpan
   private List<PhaseData> getPhaseDetails() {
     if (!profile.getFragmentProfileList().isEmpty()) {
       try {
@@ -302,7 +309,7 @@ public class JobProfileVisualizerUI {
        QueryProfileUtil.buildBaseMetrics(threadLevelMetrics, baseMetrics); //build BaseMetrics
 
         //This will build OperatorDataList for Phase.
-        buildOperatorDataList(phaseId, operatorId, operatorType, baseMetrics, operatorData, graphObjectMap);
+        operatorData.add(operatorDataList(phaseId, operatorId, operatorType, baseMetrics, graphObjectMap));
       }
     );
 
@@ -313,9 +320,12 @@ public class JobProfileVisualizerUI {
     long recordsProcessed = hostProcessingRateSet.stream().collect(Collectors.summarizingLong(records->Long.valueOf(String.valueOf(records.getNumRecords())))).getSum();
     long totalBufferForIncomingMemory = major.getMinorFragmentProfileList().stream().mapToLong(minor -> minor.getMaxIncomingMemoryUsed()).sum();
 
-    phaseDataList.add(new PhaseData(
+    List<PhaseData.PhaseObservationType> notableObservationAtPhaseLevelList = ProfileObservationUtil.getNotableObservationAtPhaseLevel(major,profile);
+    PhaseData phaseData = new PhaseData(
       phaseId, processTime, peakMemory, recordsProcessed, -1L, TimeUnit.MILLISECONDS.toNanos(runTime), totalMemory, totalBufferForIncomingMemory
-    ));
+    );
+    phaseData.setPhaseObservationTypeList(notableObservationAtPhaseLevelList);
+    phaseDataList.add(phaseData);
     phaseDataList.get(phaseDataList.size() -1).setOperatorDataList(operatorData);
   }
 
@@ -424,7 +434,8 @@ public class JobProfileVisualizerUI {
       }
       return new ArrayList<>(Arrays.asList(reflectionName, dataset));
   }
-  private static void buildOperatorDataList(String phaseId, String operatorId, int operatorType, BaseMetrics baseMetrics, List<OperatorData> operatorData, Map<String, Object> stringObjectMap) {
+
+  private OperatorData operatorDataList(String phaseId, String operatorId, int operatorType, BaseMetrics baseMetrics, Map<String, Object> stringObjectMap) {
     String mapIndex = phaseId + "_" + operatorId;
     GraphNodeDetails graphNodeDetails = (GraphNodeDetails) stringObjectMap.get(mapIndex);
     String key = phaseId + "-" + operatorId;
@@ -436,8 +447,7 @@ public class JobProfileVisualizerUI {
       datasetName = list.get(1);
     }
 
-
-    operatorData.add(new OperatorData(
+    OperatorData operatorData = new OperatorData(
       operatorId ,
       getOperatorName("", operatorType),
       operatorType,
@@ -446,7 +456,11 @@ public class JobProfileVisualizerUI {
       graphNodeDetails.getSuccessorId(),
       datasetName,
       reflectionName
-    ));
+    );
+    List<OperatorData.OperatorObservationType> notableObservationAtOperatorLevelList = ProfileObservationUtil.getNotableObservationsAtOperatorLevel(profile,Integer.parseInt(phaseId),Integer.parseInt(operatorId));
+    operatorData.setOperatorObservationTypeList(notableObservationAtOperatorLevelList);
+
+    return operatorData;
   }
 
   /**

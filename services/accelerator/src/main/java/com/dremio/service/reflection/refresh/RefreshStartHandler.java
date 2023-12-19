@@ -22,7 +22,9 @@ import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.options.OptionManager;
 import com.dremio.service.job.proto.JobId;
+import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.reflection.ReflectionManager;
 import com.dremio.service.reflection.ReflectionManager.WakeUpCallback;
 import com.dremio.service.reflection.ReflectionUtils;
 import com.dremio.service.reflection.WakeUpManagerWhenJobDone;
@@ -35,6 +37,8 @@ import com.dremio.service.reflection.proto.Refresh;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
+
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 
 /**
  * called when a materialization job is started
@@ -56,6 +60,7 @@ public class RefreshStartHandler {
     this.wakeUpCallback = Preconditions.checkNotNull(wakeUpCallback, "wakeup callback required");
   }
 
+  @WithSpan
   public JobId startJob(ReflectionEntry entry, long jobSubmissionTime, OptionManager optionManager, Long previousIcebergSnapshot) {
     ReflectionId reflectionId = entry.getId();
 
@@ -79,7 +84,7 @@ public class RefreshStartHandler {
 
     final String sql = String.format("REFRESH REFLECTION '%s' AS '%s'", reflectionId.getId(), materialization.getId().getId());
 
-    final JobId jobId = ReflectionUtils.submitRefreshJob(jobsService, catalogService, entry, materialization, sql,
+    final JobId jobId = ReflectionUtils.submitRefreshJob(jobsService, catalogService, entry, materialization.getId(), sql, QueryType.ACCELERATOR_CREATE,
       new WakeUpManagerWhenJobDone(wakeUpCallback, "materialization job done"));
 
     logger.debug("Submitted REFRESH REFLECTION job {} for {}", jobId.getId(), ReflectionUtils.getId(entry, materialization));
@@ -87,6 +92,7 @@ public class RefreshStartHandler {
     materialization.setInitRefreshJobId(jobId.getId());
 
     materializationStore.save(materialization);
+    ReflectionManager.setSpanAttributes(entry, materialization);
 
     return jobId;
   }

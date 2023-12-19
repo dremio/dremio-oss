@@ -20,14 +20,14 @@ import java.util.stream.Collectors;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.sql.SqlOperatorTable;
 
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.scanner.persistence.ScanResult;
-import com.dremio.exec.catalog.DremioCatalogReader;
 import com.dremio.exec.catalog.DremioPrepareTable;
 import com.dremio.exec.catalog.DremioTranslatableTable;
-import com.dremio.exec.catalog.TableVersionContext;
-import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
+import com.dremio.exec.ops.DremioCatalogReader;
 import com.dremio.exec.planner.logical.DremioRelFactories;
 import com.dremio.exec.planner.serialization.DeserializationException;
 import com.dremio.exec.planner.serialization.LogicalPlanDeserializer;
@@ -71,7 +71,7 @@ public class ProtoRelSerializerFactory extends RelSerializerFactory {
   }
 
   @Override
-  public LogicalPlanSerializer getSerializer(RelOptCluster cluster, FunctionImplementationRegistry registry) {
+  public LogicalPlanSerializer getSerializer(RelOptCluster cluster, SqlOperatorTable sqlOperatorTable) {
     return new LogicalPlanSerializer() {
 
       @Override
@@ -84,8 +84,8 @@ public class ProtoRelSerializerFactory extends RelSerializerFactory {
       }
 
       private PRelList ser(RelNode plan) {
-        SqlOperatorConverter sqlOperatorConverter = new SqlOperatorConverter(registry);
-        PRelList list = RelSerializer.serializeList(serdeRegistry, plan, sqlOperatorConverter);
+        SqlOperatorSerde sqlOperatorSerde = new SqlOperatorSerde(sqlOperatorTable);
+        PRelList list = RelSerializer.serializeList(serdeRegistry, plan, sqlOperatorSerde);
         return list;
       }
 
@@ -101,7 +101,11 @@ public class ProtoRelSerializerFactory extends RelSerializerFactory {
   }
 
   @Override
-  public LogicalPlanDeserializer getDeserializer(RelOptCluster cluster, DremioCatalogReader catalogReader, FunctionImplementationRegistry registry, CatalogService catalogService) {
+  public LogicalPlanDeserializer getDeserializer(
+    RelOptCluster cluster,
+    DremioCatalogReader catalogReader,
+    SqlOperatorTable sqlOperatorTable,
+    CatalogService catalogService) {
     final TableRetriever tableRetriever = new TableRetriever() {
 
       @Override
@@ -116,14 +120,21 @@ public class ProtoRelSerializerFactory extends RelSerializerFactory {
     };
 
     final PluginRetriever pluginRetriever = t -> catalogService.getSource(t);
-    final SqlOperatorConverter sqlOperatorConverter = new SqlOperatorConverter(registry);
+    final SqlOperatorSerde sqlOperatorSerde = new SqlOperatorSerde(sqlOperatorTable);
     return new LogicalPlanDeserializer() {
 
       @Override
       public RelNode deserialize(byte[] data) {
         try {
           PRelList list = PRelList.parseFrom(data);
-          return RelDeserializer.deserialize(serdeRegistry, DremioRelFactories.CALCITE_LOGICAL_BUILDER, tableRetriever, pluginRetriever, registry, list, cluster, sqlOperatorConverter);
+          return RelDeserializer.deserialize(
+            serdeRegistry,
+            DremioRelFactories.CALCITE_LOGICAL_BUILDER,
+            tableRetriever,
+            pluginRetriever,
+            list,
+            cluster,
+            sqlOperatorSerde);
         } catch (Exception ex) {
           throw new DeserializationException(ex);
         }
@@ -134,7 +145,14 @@ public class ProtoRelSerializerFactory extends RelSerializerFactory {
         PRelList.Builder builder = PRelList.newBuilder();
         try {
           JsonFormat.parser().usingTypeRegistry(REGISTRY).merge(data, builder);
-          return RelDeserializer.deserialize(serdeRegistry, DremioRelFactories.CALCITE_LOGICAL_BUILDER, tableRetriever, pluginRetriever, registry, builder.build(), cluster, sqlOperatorConverter);
+          return RelDeserializer.deserialize(
+            serdeRegistry,
+            DremioRelFactories.CALCITE_LOGICAL_BUILDER,
+            tableRetriever,
+            pluginRetriever,
+            builder.build(),
+            cluster,
+            sqlOperatorSerde);
         } catch (Exception ex) {
           throw UserException.validationError(ex).message("Failure deserializing plan.").build(logger);
         }

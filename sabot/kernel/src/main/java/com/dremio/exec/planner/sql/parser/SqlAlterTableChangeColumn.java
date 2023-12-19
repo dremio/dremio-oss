@@ -39,24 +39,27 @@ public class SqlAlterTableChangeColumn extends SqlAlterTable {
 
     @Override
     public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 3, "SqlAlterTableChangeColumn.createCall() " +
-          "has to get 3 operands!");
+      Preconditions.checkArgument(operands.length == 4, "SqlAlterTableChangeColumn.createCall() " +
+          "has to get 4 operands!");
 
       return new SqlAlterTableChangeColumn(
           pos,
           (SqlIdentifier) operands[0],
           (SqlIdentifier) operands[1],
-          (DremioSqlColumnDeclaration) operands[2]);
+          (DremioSqlColumnDeclaration) operands[2],
+          (SqlTableVersionSpec) operands[3]);
     }
   };
 
   protected final SqlIdentifier column;
   protected final DremioSqlColumnDeclaration newColumnSpec;
+  protected final SqlTableVersionSpec sqlTableVersionSpec;
 
-  public SqlAlterTableChangeColumn(SqlParserPos pos, SqlIdentifier tblName, SqlIdentifier column, DremioSqlColumnDeclaration newColumnSpec) {
+  public SqlAlterTableChangeColumn(SqlParserPos pos, SqlIdentifier tblName, SqlIdentifier column, DremioSqlColumnDeclaration newColumnSpec, SqlTableVersionSpec sqlTableVersionSpec) {
     super(pos, tblName);
     this.column = column;
     this.newColumnSpec = newColumnSpec;
+    this.sqlTableVersionSpec = sqlTableVersionSpec;
   }
 
   @Override
@@ -74,7 +77,7 @@ public class SqlAlterTableChangeColumn extends SqlAlterTable {
 
   @Override
   public List<SqlNode> getOperandList() {
-    return Lists.newArrayList(tblName, column, newColumnSpec);
+    return Lists.newArrayList(tblName, column, newColumnSpec, sqlTableVersionSpec);
   }
 
   public String getColumnToChange() {
@@ -83,5 +86,9 @@ public class SqlAlterTableChangeColumn extends SqlAlterTable {
 
   public DremioSqlColumnDeclaration getNewColumnSpec() {
     return newColumnSpec;
+  }
+
+  public SqlTableVersionSpec getSqlTableVersionSpec() {
+    return sqlTableVersionSpec;
   }
 }

@@ -38,11 +38,11 @@ export class Users extends PureComponent {
     intl: PropTypes.object,
   };
 
-  componentWillMount() {
+  UNSAFE_componentWillMount() {
     this.loadPageData(this.props.location);
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     if (
       !shallowEqual(this.props.location.query, nextProps.location.query) ||
       nextProps.viewState.get("invalidated")

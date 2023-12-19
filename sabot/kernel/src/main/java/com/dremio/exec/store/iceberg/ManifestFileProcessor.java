@@ -22,6 +22,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.ContentFile;
 import org.apache.iceberg.DremioManifestReaderUtils;
@@ -234,7 +235,7 @@ public class ManifestFileProcessor implements AutoCloseable {
   private static List<String> getDataset(TableFunctionConfig functionConfig) {
     TableFunctionContext functionContext = functionConfig.getFunctionContext();
     Collection<List<String>> referencedTables = functionContext.getReferencedTables();
-    return referencedTables != null ? referencedTables.iterator().next() : null;
+    return CollectionUtils.isEmpty(referencedTables) ? null : referencedTables.iterator().next();
   }
 
   private static Configuration getConfiguration(SupportsIcebergRootPointer fileSystemPlugin) {

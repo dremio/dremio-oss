@@ -60,8 +60,6 @@ import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.server.options.DefaultOptionManager;
-import com.dremio.exec.server.options.OptionManagerWrapper;
 import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.SchemaConfig;
@@ -69,6 +67,8 @@ import com.dremio.exec.store.StoragePluginRulesFactory;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
+import com.dremio.options.impl.DefaultOptionManager;
+import com.dremio.options.impl.OptionManagerWrapper;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.listing.DatasetListingService;
 import com.dremio.service.namespace.NamespaceKey;
@@ -86,6 +86,7 @@ import com.dremio.service.scheduler.LocalSchedulerService;
 import com.dremio.service.scheduler.ModifiableLocalSchedulerService;
 import com.dremio.service.scheduler.ModifiableSchedulerService;
 import com.dremio.service.scheduler.Schedule;
+import com.dremio.service.scheduler.ScheduleTaskGroup;
 import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.services.credentials.CredentialsService;
 import com.dremio.test.DremioTest;
@@ -232,6 +233,15 @@ public class TestFailedToStartPlugin extends DremioTest {
           Schedule.Builder.everyMillis(100).asClusteredSingleton("metadata-refresh-test")
             .build(), arg1);
       }
+
+      @Override
+      public void addTaskGroup(ScheduleTaskGroup taskGroup) {
+      }
+
+      @Override
+      public void modifyTaskGroup(String groupName, ScheduleTaskGroup taskGroup) {
+      }
+
     };
 
   }

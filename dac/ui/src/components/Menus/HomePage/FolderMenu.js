@@ -22,6 +22,7 @@ import { removeSpaceFolder } from "actions/resources/spaceDetails";
 import { showConfirmationDialog } from "actions/confirmation";
 
 import FolderMenuMixin from "dyn-load/components/Menus/HomePage/FolderMenuMixin";
+import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";
 
 @FolderMenuMixin
 export class FolderMenu extends Component {
@@ -43,12 +44,16 @@ export class FolderMenu extends Component {
   }
 
   removeFolder() {
+    const { t } = getIntlContext();
     const { folder, closeMenu } = this.props;
     this.props.showConfirmationDialog({
-      title: la("Remove Folder"),
-      text: la(`Are you sure you want to remove "${folder.get("name")}"?`),
-      confirmText: la("Remove"),
+      title: t("Folder.Delete"),
+      text: t("Delete.Confirmation", {
+        name: folder.get("name"),
+      }),
+      confirmText: t("Common.Actions.Delete"),
       confirm: () => this.props.removeSpaceFolder(folder),
+      confirmButtonStyle: "danger",
     });
     closeMenu();
   }
@@ -70,7 +75,7 @@ export class FolderMenu extends Component {
   //           ...location,
   //           state: {modal: 'RenameModal', entityId: folder.get('id'), entityType: 'folder'}
   //         }}
-  //         text={la('Rename Folder')}
+  //         text={laDeprecated('Rename Folder')}
   //         closeMenu={closeMenu}/>
   //     );
   //   }

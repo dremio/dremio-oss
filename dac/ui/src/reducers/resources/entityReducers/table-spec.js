@@ -168,8 +168,11 @@ describe("table", () => {
       const result = table(initialState, {
         type: UPDATE_COLUMN_FILTER,
         columnFilter: "test",
+        datasetVersion: "1234",
       });
-      expect(result.getIn(["tableData", "columnFilter"])).to.equal("test");
+      expect(result.getIn(["tableData", "1234", "columnFilter"])).to.equal(
+        "test"
+      );
     });
   });
 

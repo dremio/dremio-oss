@@ -26,15 +26,17 @@ import java.util.Map;
 
 import org.apache.calcite.sql.SqlNode;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.SortOrder;
 
+import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.ColumnCountTooLargeException;
 import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.catalog.ResolvedVersionContext;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.base.IcebergWriterOptions;
 import com.dremio.exec.physical.base.ImmutableIcebergWriterOptions;
@@ -48,6 +50,7 @@ import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.planner.sql.handlers.query.DataAdditionCmdHandler;
 import com.dremio.exec.planner.sql.parser.DremioSqlColumnDeclaration;
+import com.dremio.exec.planner.sql.parser.ReferenceTypeUtils;
 import com.dremio.exec.planner.sql.parser.SqlCreateEmptyTable;
 import com.dremio.exec.planner.sql.parser.SqlGrant.Privilege;
 import com.dremio.exec.record.BatchSchema;
@@ -159,6 +162,8 @@ public class CreateEmptyTableHandler extends SimpleDirectHandler {
         .buildSilently();
     }
 
+    IcebergUtils.validateIcebergLocalSortIfDeclared(sql, config.getContext().getOptions());
+
     if (!(sqlCreateEmptyTable.getTablePropertyNameList() == null || sqlCreateEmptyTable.getTablePropertyNameList().isEmpty())) {
       IcebergUtils.validateTablePropertiesRequest(optionManager);
       tableProperties = IcebergUtils.convertTableProperties(sqlCreateEmptyTable.getTablePropertyNameList(), sqlCreateEmptyTable.getTablePropertyValueList(), false);
@@ -180,8 +185,19 @@ public class CreateEmptyTableHandler extends SimpleDirectHandler {
 
     SqlHandlerUtil.checkForDuplicateColumns(columnDeclarations, BatchSchema.of(), sql);
     BatchSchema batchSchema = SqlHandlerUtil.batchSchemaFromSqlSchemaSpec(config, columnDeclarations, sql);
-    PartitionSpec partitionSpec = IcebergUtils.getIcebergPartitionSpecFromTransforms(batchSchema, sqlCreateEmptyTable.getPartitionTransforms(null), null);
-    IcebergTableProps icebergTableProps = new IcebergTableProps(ByteString.copyFrom(IcebergSerDe.serializePartitionSpec(partitionSpec)), serializedSchemaAsJson(SchemaConverter.getBuilder().build().toIcebergSchema(batchSchema)));
+    PartitionSpec partitionSpec = IcebergUtils.getIcebergPartitionSpecFromTransforms(
+            batchSchema,
+            sqlCreateEmptyTable.getPartitionTransforms(null),
+            null);
+    SortOrder sortOrder = IcebergUtils.getIcebergSortOrder(
+            batchSchema,
+            sqlCreateEmptyTable.getSortColumns(),
+            partitionSpec.schema(),
+            config.getContext().getOptions());
+    IcebergTableProps icebergTableProps = new IcebergTableProps(
+            ByteString.copyFrom(IcebergSerDe.serializePartitionSpec(partitionSpec)),
+            serializedSchemaAsJson(SchemaConverter.getBuilder().build().toIcebergSchema(batchSchema)),
+            IcebergSerDe.serializeSortOrderAsJson(sortOrder), tableProperties);
     IcebergWriterOptions icebergWriterOptions = new ImmutableIcebergWriterOptions.Builder()
       .setIcebergTableProps(icebergTableProps).build();
     TableFormatWriterOptions tableFormatOptions = new ImmutableTableFormatWriterOptions.Builder()
@@ -197,7 +213,8 @@ public class CreateEmptyTableHandler extends SimpleDirectHandler {
       sqlCreateEmptyTable.isSingleWriter(),
       Long.MAX_VALUE,
       tableFormatOptions,
-      null
+      null,
+      tableProperties
     );
 
     DremioTable table = catalog.getTableNoResolve(key);
@@ -232,20 +249,41 @@ public class CreateEmptyTableHandler extends SimpleDirectHandler {
         .buildSilently();
     }
 
+    IcebergUtils.validateIcebergLocalSortIfDeclared(sql, config.getContext().getOptions());
+
+    if (!(sqlCreateEmptyTable.getTablePropertyNameList() == null || sqlCreateEmptyTable.getTablePropertyNameList().isEmpty())) {
+      IcebergUtils.validateTablePropertiesRequest(optionManager);
+      tableProperties = IcebergUtils.convertTableProperties(sqlCreateEmptyTable.getTablePropertyNameList(), sqlCreateEmptyTable.getTablePropertyValueList(), false);
+    }
+
     // validate if source supports providing table location
     DataAdditionCmdHandler.validateCreateTableLocation(this.catalog, key, sqlCreateEmptyTable);
 
     final long ringCount = optionManager.getOption(PlannerSettings.RING_COUNT);
 
     final String sourceName = key.getRoot();
+    VersionContext statementSourceVersion =
+      ReferenceTypeUtils.map(sqlCreateEmptyTable.getRefType(), sqlCreateEmptyTable.getRefValue(), null);
     final VersionContext sessionVersion = userSession.getSessionVersionForSource(sourceName);
-    final ResolvedVersionContext version = CatalogUtil.resolveVersionContext(catalog, sourceName, sessionVersion);
-    CatalogUtil.validateResolvedVersionIsBranch(version);
+    VersionContext sourceVersion = statementSourceVersion.orElse(sessionVersion);
+    final ResolvedVersionContext resolvedVersionContext = CatalogUtil.resolveVersionContext(catalog, sourceName, sourceVersion);
+    CatalogUtil.validateResolvedVersionIsBranch(resolvedVersionContext);
     List<DremioSqlColumnDeclaration> columnDeclarations = SqlHandlerUtil.columnDeclarationsFromSqlNodes(sqlCreateEmptyTable.getFieldList(), sql);
     SqlHandlerUtil.checkForDuplicateColumns(columnDeclarations, BatchSchema.of(), sql);
     BatchSchema batchSchema = SqlHandlerUtil.batchSchemaFromSqlSchemaSpec(config, columnDeclarations, sql);
-    PartitionSpec partitionSpec = IcebergUtils.getIcebergPartitionSpecFromTransforms(batchSchema, sqlCreateEmptyTable.getPartitionTransforms(null), null);
-    IcebergTableProps icebergTableProps = new IcebergTableProps(ByteString.copyFrom(IcebergSerDe.serializePartitionSpec(partitionSpec)), serializedSchemaAsJson(SchemaConverter.getBuilder().build().toIcebergSchema(batchSchema)));
+    PartitionSpec partitionSpec = IcebergUtils.getIcebergPartitionSpecFromTransforms(
+            batchSchema,
+            sqlCreateEmptyTable.getPartitionTransforms(null),
+            null);
+    SortOrder sortOrder = IcebergUtils.getIcebergSortOrder(
+            batchSchema,
+            sqlCreateEmptyTable.getSortColumns(),
+            partitionSpec.schema(),
+            config.getContext().getOptions());
+    IcebergTableProps icebergTableProps = new IcebergTableProps(
+            ByteString.copyFrom(IcebergSerDe.serializePartitionSpec(partitionSpec)),
+            serializedSchemaAsJson(SchemaConverter.getBuilder().build().toIcebergSchema(batchSchema)),
+            IcebergSerDe.serializeSortOrderAsJson(sortOrder), tableProperties);
     IcebergWriterOptions icebergWriterOptions = new ImmutableIcebergWriterOptions.Builder()
       .setIcebergTableProps(icebergTableProps).build();
     TableFormatWriterOptions tableFormatOptions = new ImmutableTableFormatWriterOptions.Builder()
@@ -262,10 +300,15 @@ public class CreateEmptyTableHandler extends SimpleDirectHandler {
       Long.MAX_VALUE,
       tableFormatOptions,
       null,
-      version
+      resolvedVersionContext
     );
 
-    DremioTable table = catalog.getTableNoResolve(key);
+    CatalogEntityKey catalogEntityKey = CatalogUtil.getCatalogEntityKey(
+      key,
+      resolvedVersionContext,
+      catalog);
+    final DremioTable table = CatalogUtil.getTableNoResolve(catalogEntityKey, catalog);
+
     if (table != null) {
       if(ifNotExists){
         return Collections.singletonList(new SimpleCommandResult(true, String.format("Table [%s] already exists.", key)));

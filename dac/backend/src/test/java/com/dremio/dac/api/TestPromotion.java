@@ -57,7 +57,7 @@ public class TestPromotion extends BaseTestServer {
     nasConf.path = TestTools.getWorkingPath() + "/src/test/resources";
 
     source = new Source();
-    source.setName("catalog-test");
+    source.setName("catalog-test-promotion");
     source.setType("NAS");
     source.setConfig(nasConf);
     source.setMetadataPolicy(new MetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY));

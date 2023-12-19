@@ -29,7 +29,7 @@ import DragAreaColumn from "../../DragComponents/DragAreaColumn";
 
 // todo: loc (needs build fix)
 const DEFAULT_DRAG_AREA_TEXT =
-  "Drag and drop a field here or click “Add a Dimension”.";
+  "Drag and drop a column here or click “Add a Dimension”.";
 
 class ColumnDragArea extends Component {
   static propTypes = {

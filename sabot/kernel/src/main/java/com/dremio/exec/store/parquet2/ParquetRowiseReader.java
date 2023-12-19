@@ -43,6 +43,7 @@ import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
 import org.apache.parquet.hadoop.metadata.ColumnPath;
 import org.apache.parquet.io.ColumnIOFactory;
+import org.apache.parquet.io.EmptyRecordReader;
 import org.apache.parquet.io.InvalidRecordException;
 import org.apache.parquet.io.MessageColumnIO;
 import org.apache.parquet.io.RecordReader;
@@ -278,6 +279,11 @@ public class ParquetRowiseReader extends AbstractParquetReader {
           "Parquet file '%s' footer does not have information about row group %s",
           this.path, rowGroupIndex);
 
+         if (!inputStreamProvider.isRowGroupFilteredForReading()) {
+          recordReader = new EmptyRecordReader<>(recordMaterializer);
+          setupRowIndexGenerator(output);
+          return;
+        }
         recordCount = blockMetaData.getRowCount();
 
         pageReadStore = new ColumnChunkIncReadStore(recordCount,
@@ -317,7 +323,7 @@ public class ParquetRowiseReader extends AbstractParquetReader {
             recordReader = columnIO.getRecordReader(pageReadStore, recordMaterializer);
           }
         } else {
-          recordReader = null;
+          recordReader = new EmptyRecordReader<>(recordMaterializer);
         }
       }
       setupRowIndexGenerator(output);

@@ -727,23 +727,26 @@ public class TestJobService extends BaseTestServer {
         .setDatasetVersion(new DatasetVersion("v1")).build()
     );
 
-    assertEquals(1, (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
+    assertEquals(Integer.valueOf(1), jobsService.getJobCounts(JobCountsRequest.newBuilder()
         .addDatasets(VersionedDatasetPath.newBuilder()
             .addAllPath(ds1.toNamespaceKey().getPathComponents()))
+        .setJobCountsAgeInDays(30)
         .build())
         .getCountList()
         .get(0));
 
-    assertEquals(1, (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
+    assertEquals(Integer.valueOf(1), jobsService.getJobCounts(JobCountsRequest.newBuilder()
         .addDatasets(VersionedDatasetPath.newBuilder()
             .addAllPath(ds2.toNamespaceKey().getPathComponents()))
+        .setJobCountsAgeInDays(30)
         .build())
         .getCountList()
         .get(0));
 
-    assertEquals(1, (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
+    assertEquals(Integer.valueOf(1), jobsService.getJobCounts(JobCountsRequest.newBuilder()
         .addDatasets(VersionedDatasetPath.newBuilder()
             .addAllPath(ds3.toNamespaceKey().getPathComponents()))
+        .setJobCountsAgeInDays(30)
         .build())
         .getCountList()
         .get(0));
@@ -767,63 +770,71 @@ public class TestJobService extends BaseTestServer {
         .setDatasetVersion(new DatasetVersion("v2")).build()
     );
 
-    assertEquals(3, (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
+    assertEquals(Integer.valueOf(3), jobsService.getJobCounts(JobCountsRequest.newBuilder()
         .addDatasets(VersionedDatasetPath.newBuilder()
             .addAllPath(ds1.toNamespaceKey().getPathComponents()))
+        .setJobCountsAgeInDays(30)
         .build())
         .getCountList()
         .get(0));
 
-    assertEquals(2, (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
+    assertEquals(Integer.valueOf(2), jobsService.getJobCounts(JobCountsRequest.newBuilder()
         .addDatasets(VersionedDatasetPath.newBuilder()
             .addAllPath(ds2.toNamespaceKey().getPathComponents()))
+        .setJobCountsAgeInDays(30)
         .build())
         .getCountList()
         .get(0));
 
-    assertEquals(1, (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
+    assertEquals(Integer.valueOf(1), jobsService.getJobCounts(JobCountsRequest.newBuilder()
         .addDatasets(VersionedDatasetPath.newBuilder()
             .addAllPath(ds3.toNamespaceKey().getPathComponents()))
+        .setJobCountsAgeInDays(30)
         .build())
         .getCountList()
         .get(0));
 
-    assertEquals(2, (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
+    assertEquals(Integer.valueOf(2), jobsService.getJobCounts(JobCountsRequest.newBuilder()
         .addDatasets(VersionedDatasetPath.newBuilder()
             .addAllPath(ds1.toNamespaceKey().getPathComponents())
             .setVersion(new DatasetVersion("1").getVersion()))
+        .setJobCountsAgeInDays(30)
         .build())
         .getCountList()
         .get(0));
 
-    assertEquals(1, (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
+    assertEquals(Integer.valueOf(1), jobsService.getJobCounts(JobCountsRequest.newBuilder()
         .addDatasets(VersionedDatasetPath.newBuilder()
             .addAllPath(ds1.toNamespaceKey().getPathComponents())
             .setVersion(new DatasetVersion("2").getVersion()))
+        .setJobCountsAgeInDays(30)
         .build())
         .getCountList()
         .get(0));
 
-    assertEquals(1, (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
+    assertEquals(Integer.valueOf(1), jobsService.getJobCounts(JobCountsRequest.newBuilder()
         .addDatasets(VersionedDatasetPath.newBuilder()
             .addAllPath(ds2.toNamespaceKey().getPathComponents())
             .setVersion(new DatasetVersion("1").getVersion()))
+        .setJobCountsAgeInDays(30)
         .build())
         .getCountList()
         .get(0));
 
-    assertEquals(1, (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
+    assertEquals(Integer.valueOf(1), jobsService.getJobCounts(JobCountsRequest.newBuilder()
         .addDatasets(VersionedDatasetPath.newBuilder()
             .addAllPath(ds2.toNamespaceKey().getPathComponents())
             .setVersion(new DatasetVersion("2").getVersion()))
+        .setJobCountsAgeInDays(30)
         .build())
         .getCountList()
         .get(0));
 
-    assertEquals(1, (int) jobsService.getJobCounts(JobCountsRequest.newBuilder()
+    assertEquals(Integer.valueOf(1), jobsService.getJobCounts(JobCountsRequest.newBuilder()
         .addDatasets(VersionedDatasetPath.newBuilder()
             .addAllPath(ds3.toNamespaceKey().getPathComponents())
             .setVersion(new DatasetVersion("1").getVersion()))
+        .setJobCountsAgeInDays(30)
         .build())
         .getCountList()
         .get(0));

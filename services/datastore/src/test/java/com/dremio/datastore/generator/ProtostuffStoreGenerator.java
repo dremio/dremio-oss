@@ -63,7 +63,7 @@ public class ProtostuffStoreGenerator extends ProtoGeneratorMixin implements Dat
   /**
    * Comparator class that compares protostuff DummyId objects.
    */
-  private class DummyIdProtostuffComparator implements Comparator<DummyId> {
+  private static final class DummyIdProtostuffComparator implements Comparator<DummyId> {
     @Override
     public int compare(DummyId o1, DummyId o2) {
       return o1.getId().compareTo(o2.getId());

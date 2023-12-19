@@ -17,10 +17,14 @@ import { PureComponent } from "react";
 import { connect } from "react-redux";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
-import { injectIntl } from "react-intl";
 
 import Modal, { ModalSize } from "components/Modals/Modal";
-import { CANCEL, CUSTOM, NEXT } from "components/Buttons/ButtonTypes";
+import {
+  CANCEL,
+  CUSTOM,
+  NEXT,
+  PRIMARY_DANGER,
+} from "components/Buttons/ButtonTypes";
 import {
   moveDataSet,
   createDatasetFromExisting,
@@ -40,8 +44,8 @@ import { constructFullPath, splitFullPath } from "utils/pathUtils";
 import { TOGGLE_VIEW_ID } from "components/RightContext/FolderContext";
 
 import UpdateDatasetView, { UpdateMode } from "./UpdateDatasetView";
+import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";
 
-@injectIntl
 export class UpdateDataset extends PureComponent {
   static propTypes = {
     routeParams: PropTypes.object,
@@ -66,33 +70,33 @@ export class UpdateDataset extends PureComponent {
   };
 
   constructor(props) {
+    const { t } = getIntlContext();
     super(props);
-    const { intl } = props;
     this.config = {
       [UpdateMode.rename]: (dependentDatasets) => {
         const hasDeps = dependentDatasets && dependentDatasets.length;
         const buttons = [
           {
-            name: intl.formatMessage({ id: "Common.Cancel" }),
+            name: t("Common.Actions.Cancel"),
             key: "cancel",
             type: CANCEL,
           },
           {
-            name: intl.formatMessage({ id: "Common.MakeCopy" }),
+            name: t("Common.Actions.MakeCopy"),
             key: "copyDataset",
             type: hasDeps ? NEXT : CUSTOM,
           },
           {
-            name: intl.formatMessage({
-              id: hasDeps ? "Common.RenameAnyway" : "Common.Rename",
-            }),
+            name: t(
+              hasDeps ? "Common.Actions.RenameAnyway" : "Common.Actions.Rename"
+            ),
             key: "renameDataset",
             type: hasDeps ? CUSTOM : NEXT,
           },
         ];
 
         return {
-          title: intl.formatMessage({ id: "Dataset.RenameDataset" }),
+          title: t("Dataset.RenameDataset"),
           hidePath: true,
           buttons,
         };
@@ -101,55 +105,55 @@ export class UpdateDataset extends PureComponent {
         const hasDeps = dependentDatasets && dependentDatasets.length;
         const buttons = [
           {
-            name: intl.formatMessage({ id: "Common.Cancel" }),
+            name: t("Common.Actions.Cancel"),
             key: "cancel",
             type: CANCEL,
           },
           {
-            name: intl.formatMessage({ id: "Common.MakeCopy" }),
+            name: t("Common.Actions.MakeCopy"),
             key: "copyDataset",
             type: hasDeps ? NEXT : CUSTOM,
           },
           {
-            name: intl.formatMessage({
-              id: hasDeps ? "Common.MoveAnyway" : "Common.Move",
-            }),
+            name: t(
+              hasDeps ? "Common.Actions.MoveAnyway" : "Common.Actions.Move"
+            ),
             key: "moveDataset",
             type: hasDeps ? CUSTOM : NEXT,
           },
         ];
         return {
-          title: intl.formatMessage({ id: "Dataset.MoveDataset" }),
+          title: t("Dataset.MoveDataset"),
           buttons,
         };
       },
       [UpdateMode.remove]: () => ({
-        title: intl.formatMessage({ id: "Dataset.RemoveDataset" }),
+        title: t("Dataset.DeleteDataset"),
         hidePath: true,
         buttons: [
           {
-            name: intl.formatMessage({ id: "Common.Cancel" }),
+            name: t("Common.Actions.Cancel"),
             key: "cancel",
             type: CANCEL,
           },
           {
-            name: intl.formatMessage({ id: "Common.Remove" }),
+            name: t("Common.Actions.Delete"),
             key: "removeDataset",
-            type: NEXT,
+            type: PRIMARY_DANGER,
           },
         ],
       }),
       [UpdateMode.removeFormat]: () => ({
-        title: intl.formatMessage({ id: "Dataset.RemoveFormat" }),
+        title: t("Dataset.Actions.RemoveFormat"),
         hidePath: true,
         buttons: [
           {
-            name: intl.formatMessage({ id: "Common.Cancel" }),
+            name: t("Common.Actions.Cancel"),
             key: "cancel",
             type: CANCEL,
           },
           {
-            name: intl.formatMessage({ id: "Dataset.RemoveFormat" }),
+            name: t("Dataset.Actions.RemoveFormat"),
             key: "removeFormat",
             type: NEXT,
           },
@@ -158,11 +162,11 @@ export class UpdateDataset extends PureComponent {
     };
   }
 
-  componentWillMount() {
+  UNSAFE_componentWillMount() {
     this.receiveProps(this.props, {});
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     this.receiveProps(nextProps, this.props);
   }
 

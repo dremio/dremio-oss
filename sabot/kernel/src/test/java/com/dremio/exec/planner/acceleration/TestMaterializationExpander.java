@@ -29,6 +29,7 @@ import org.junit.Test;
 import org.mockito.Mockito;
 
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.ops.PlannerCatalogImpl;
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
 import com.dremio.exec.store.CatalogService;
@@ -183,9 +184,11 @@ public class TestMaterializationExpander {
     NamespaceKey key = new NamespaceKey(Arrays.asList("__accelerator","r1", "m1"));
     SqlConverter converter = Mockito.mock(SqlConverter.class);
     CatalogService catalogService = Mockito.mock(CatalogService.class);
-    Catalog catalog = Mockito.mock(Catalog.class);
-    when(converter.getCatalog()).thenReturn(catalog);
-    when(catalog.getTableForQuery(key)).thenThrow(new IllegalStateException("Some underlying storage plugin issue"));
+    PlannerCatalogImpl catalog = Mockito.mock(PlannerCatalogImpl.class);
+    Catalog simpleCatalog = Mockito.mock(Catalog.class);
+    when(catalog.getCatalog()).thenReturn(simpleCatalog);
+    when(catalog.getValidatedTableWithSchema(key)).thenThrow(new IllegalStateException("Some underlying storage plugin issue"));
+    when(converter.getPlannerCatalog()).thenReturn(catalog);
     MaterializationExpander expander = MaterializationExpander.of(converter, catalogService);
     try {
       expander.expandSchemaPath(key.getPathComponents());

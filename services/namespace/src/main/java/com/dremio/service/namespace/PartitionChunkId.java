@@ -23,6 +23,7 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Comparator;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
 
@@ -311,6 +312,20 @@ public final class PartitionChunkId implements Comparable<PartitionChunkId> {
    */
   @FunctionalInterface
   public interface SplitOrphansRetentionPolicy {
+
+    public static Range<PartitionChunkId> getSplitRangeForExpiration(long expirationMs, DatasetConfig dataset) {
+      // Anything less than expiredVersion is considered expired
+      long expiredVersion = Math.max(0, System.currentTimeMillis() - expirationMs);
+      // (assuming split info do not change)
+      long minVersion = Math.min(dataset.getReadDefinition().getSplitVersion(), expiredVersion);
+
+      return getSplitRange(dataset.getId(), minVersion, Long.MAX_VALUE);
+    }
+
+    public static long getExpirationMs(MetadataPolicy metadataPolicy) {
+      return Optional.ofNullable(metadataPolicy).map(MetadataPolicy::getDatasetDefinitionExpireAfterMs).orElse(Long.MAX_VALUE);
+    }
+
     /**
      * Only keep splits for a dataset matching the current dataset's split version
      */
@@ -321,17 +336,26 @@ public final class PartitionChunkId implements Comparable<PartitionChunkId> {
      *
      * Keep current version, even if expired
      */
-    public static final SplitOrphansRetentionPolicy KEEP_VALID_SPLITS = (metadataPolicy, dataset) -> {
-      long expirationMs = Optional.ofNullable(metadataPolicy).map(MetadataPolicy::getDatasetDefinitionExpireAfterMs).orElse(Long.MAX_VALUE);
+    public static final SplitOrphansRetentionPolicy KEEP_VALID_SPLITS = (metadataPolicy, dataset) ->
+      getSplitRangeForExpiration(getExpirationMs(metadataPolicy), dataset);
 
-      // Anything less than expiredVersion is considered expired
-      long expiredVersion = Math.max(0, System.currentTimeMillis() - expirationMs);
+    /**
+     * Only keep splits based on the following smart expiry setting.
+     * 1) Delete all splits older than smartThresholdMillis
+     * 2) Keep current version, even if expired
+     */
+    public final class SmartExpirationPolicyForSplits implements SplitOrphansRetentionPolicy {
+      private final long smartThresholdMillis;
 
-      // Make sure current version (or higher) is still valid. Some sources don't change split version if dataset is refreshed
-      // (assuming split info do not change)
-      long minVersion = Math.min(dataset.getReadDefinition().getSplitVersion(), expiredVersion);
+      public SmartExpirationPolicyForSplits(long smartThresholdHours) {
+        this.smartThresholdMillis = TimeUnit.HOURS.toMillis(smartThresholdHours);
+      }
 
-      return getSplitRange(dataset.getId(), minVersion, Long.MAX_VALUE);
+      @Override
+      public Range<PartitionChunkId> apply(@Nullable MetadataPolicy metadataPolicy, DatasetConfig dataset) {
+        long smartThreshold = (metadataPolicy == null) ? Long.MAX_VALUE : smartThresholdMillis;
+        return getSplitRangeForExpiration(smartThreshold, dataset);
+      }
     };
 
     /**

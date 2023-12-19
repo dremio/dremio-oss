@@ -18,6 +18,7 @@ package com.dremio.exec.server;
 import java.util.List;
 import java.util.Optional;
 
+import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.record.BatchSchema;
 import com.google.common.base.Preconditions;
 
@@ -28,7 +29,17 @@ public interface JobResultInfoProvider {
 
   String JOB_RESULTS = "job_results";
 
-  JobResultInfoProvider NOOP = (jobId, username) -> Optional.empty();
+  JobResultInfoProvider NOOP = new JobResultInfoProvider() {
+    @Override
+    public Optional<JobResultInfo> getJobResultInfo(String jobId, String username) {
+      return Optional.empty();
+    }
+
+    @Override
+    public Optional<QueryProfile> getProfile(String jobId, String username) {
+      return Optional.empty();
+    }
+  };
 
   /**
    * Get Job Result info for given job id if job is complete.
@@ -40,11 +51,19 @@ public interface JobResultInfoProvider {
   Optional<JobResultInfo> getJobResultInfo(String jobId, String username);
 
   /**
-   * Check if a table is job results table.
-   *
-   * @param tableSchemaPath    path components of the table
-   * @return ture if the table is a job results table
+   * Get the QueryProfile for the last attempt of the given jobId.
+   * @param jobId job id
+   * @param username username to run under
+   * @return optional QueryProfile
    */
+  Optional<QueryProfile> getProfile(String jobId, String username);
+
+    /**
+     * Check if a table is job results table.
+     *
+     * @param tableSchemaPath    path components of the table
+     * @return ture if the table is a job results table
+     */
   static boolean isJobResultsTable(List<String> tableSchemaPath) {
     return tableSchemaPath.size() == 3 &&
       "sys".equalsIgnoreCase(tableSchemaPath.get(0)) &&

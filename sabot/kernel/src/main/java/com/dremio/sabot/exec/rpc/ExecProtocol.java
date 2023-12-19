@@ -106,7 +106,7 @@ public class ExecProtocol implements FabricProtocol {
 
   private void handleOobMessage(final OOBMessage message, final ByteBuf body) {
     final ArrowBuf buf = Optional.ofNullable(body).map(b -> ((NettyArrowBuf) b).arrowBuf()).orElse(null);
-    fragmentsManager.handle(new OutOfBandMessage(message, buf));
+    fragmentsManager.handle(new OutOfBandMessage(message, buf == null ? null : new ArrowBuf[]{buf}));
   }
 
   private void handleReceiverFinished(final FinishedReceiver finishedReceiver) throws RpcException {

@@ -33,11 +33,11 @@ class NodeActivity extends PureComponent {
     super(props);
   }
 
-  componentWillMount() {
+  UNSAFE_componentWillMount() {
     this.props.loadNodeCredentials(NODE_ACTIVITY_VIEW_ID);
   }
 
-  componentWillReceiveProps() {
+  UNSAFE_componentWillReceiveProps() {
     clearTimeout(this.updateNode);
     const skipStartAction = true;
     this.updateNode = setTimeout(

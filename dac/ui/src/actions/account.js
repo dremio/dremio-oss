@@ -15,7 +15,6 @@
  */
 import { RSAA } from "redux-api-middleware";
 
-import { addNotification } from "actions/notification";
 import { APIV2Call } from "@app/core/APICall";
 
 export const LOGIN_USER_START = "LOGIN_USER_START";
@@ -88,7 +87,7 @@ export const getLogInFailedBaseDescriptor = (userName) => ({
   type: LOGIN_USER_FAILURE,
   meta: {
     ...getLoginMeta(userName),
-    errorMessage: la("Invalid username or password."),
+    errorMessage: laDeprecated("Invalid username or password."),
   },
 });
 

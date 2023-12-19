@@ -32,6 +32,8 @@ import org.junit.Test;
 
 import com.dremio.dac.util.DateUtils;
 import com.dremio.edition.EditionProvider;
+import com.dremio.exec.ExecConstants;
+import com.dremio.options.OptionManager;
 import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.QueryType;
 import com.dremio.service.job.SearchJobsRequest;
@@ -45,6 +47,9 @@ public class TestUserStatsResource {
   public void testActiveUserStats() {
     EditionProvider editionProvider = mock(EditionProvider.class);
     when(editionProvider.getEdition()).thenReturn("oss-test");
+
+    OptionManager optionManager = mock(OptionManager.class);
+    when(optionManager.getOption(ExecConstants.ENABLE_DEPRECATED_JOBS_USER_STATS_API)).thenReturn(true);
 
     LocalDate now = LocalDate.now();
 
@@ -75,7 +80,7 @@ public class TestUserStatsResource {
     JobsService jobsService = mock(JobsService.class);
     when(jobsService.searchJobs(any(SearchJobsRequest.class))).thenReturn(testJobResults);
 
-    UserStatsResource resource = new UserStatsResource(jobsService, editionProvider);
+    UserStatsResource resource = new UserStatsResource(jobsService, editionProvider, optionManager);
     UserStats stats = resource.getActiveUserStats(0,0, "false");
 
     List<Map<String, Object>> statsByDate = stats.getUserStatsByDate();

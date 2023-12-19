@@ -41,7 +41,7 @@ which does not have propTypes defined`);
       this.checkProps(this.props);
     }
 
-    componentWillReceiveProps(newProps) {
+    UNSAFE_componentWillReceiveProps(newProps) {
       this.checkProps(newProps);
     }
 

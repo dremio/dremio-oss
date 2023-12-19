@@ -42,6 +42,7 @@ import AccountSettingsModalContainer from "@app/containers/AccountSettingsModalC
 import AboutModal from "@app/pages/HomePage/components/modals/AboutModal/AboutModal";
 import AppHOC from "@inject/containers/AppHOC";
 import NotificationContainer from "@app/containers/Notification";
+import AddUsersContainer from "@app/containers/AddUsers";
 import ConfirmationContainer from "@app/containers/Confirmation";
 import ProdErrorContainer from "@app/containers/ProdError";
 import { LocationProvider } from "@app/containers/dremioLocation";
@@ -139,7 +140,7 @@ export class App extends Component {
     socket.dispatch = this.props.dispatch;
   }
 
-  componentWillReceiveProps(props) {
+  UNSAFE_componentWillReceiveProps(props) {
     App.redirectForServerStatus(props);
   }
 
@@ -199,6 +200,7 @@ export class App extends Component {
             </StyledEngineProvider>
             <AccountSettingsModalContainer />
             <NotificationContainer />
+            <AddUsersContainer />
             <ConfirmationContainer />
             <PATModalContainer />
             <ModalsContainer modals={{ AboutModal }} />

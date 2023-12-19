@@ -24,6 +24,7 @@ import java.util.Set;
 
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.type.SqlTypeName;
 
@@ -729,6 +730,7 @@ public class TypeCastRules {
   }
 
   public static boolean isCastableWithNullHandling(CompleteType from, CompleteType to, NullHandling nullHandling) {
+
     if(from.isComplex() || to.isComplex()){
       return false;
     }
@@ -885,6 +887,17 @@ public class TypeCastRules {
           FloatingPointPrecision.SINGLE) {
           // do not allow decimals to be cast to float;
           return -1;
+        }
+      }
+
+      if (argType.isList() && parmType.isList()) {
+        List<Field> fromChildren = argType.getChildren();
+        List<Field> toChildren = parmType.getChildren();
+        if (!fromChildren.isEmpty() && !toChildren.isEmpty()) {
+          if (fromChildren.get(0).getType().getTypeID()
+            == toChildren.get(0).getType().getTypeID()) {
+            continue;
+          }
         }
       }
 

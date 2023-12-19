@@ -114,14 +114,18 @@ class FieldWithError extends Component {
           }}
         >
           <label
-            className={classNames({
-              [labelClass]: !!labelClass,
-            })}
+            className={classNames(
+              {
+                [labelClass]: !!labelClass,
+              },
+              "no-select"
+            )}
             style={{
               ...forms.label,
               ...styles.label,
               ...(this.props.labelStyle || {}),
             }}
+            htmlFor={this.props.name}
           >
             <div
               onMouseEnter={this.onMouseEnterLabel}
@@ -155,7 +159,7 @@ const styles = {
   label: {
     display: "flex",
     alignItems: "center",
-    color: "#202124",
+    color: "var(--color--default)",
     fontWeight: 400,
     height: "32px",
     marginBottom: "0px",

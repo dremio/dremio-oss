@@ -16,6 +16,7 @@
 package com.dremio.exec.store.iceberg.model;
 
 import static com.dremio.exec.planner.sql.handlers.SqlHandlerUtil.getTimestampFromMillis;
+import static org.apache.iceberg.TableProperties.GC_ENABLED;
 import static org.apache.iceberg.Transactions.createTableTransaction;
 
 import java.io.IOException;
@@ -35,7 +36,6 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.iceberg.AppendFiles;
-import org.apache.iceberg.BaseTable;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DeleteFile;
 import org.apache.iceberg.DeleteFiles;
@@ -44,8 +44,11 @@ import org.apache.iceberg.ManageSnapshots;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.OverwriteFiles;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.ReplaceSortOrder;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.SnapshotUpdate;
+import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.TableOperations;
@@ -58,18 +61,24 @@ import org.apache.iceberg.expressions.Term;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.types.TypeUtil;
 import org.apache.iceberg.types.Types;
+import org.apache.iceberg.util.PropertyUtil;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.catalog.PartitionSpecAlterOption;
 import com.dremio.exec.catalog.RollbackOption;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.planner.sql.PartitionTransform;
 import com.dremio.exec.planner.sql.parser.SqlAlterTablePartitionColumns;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.iceberg.DremioFileIO;
 import com.dremio.exec.store.iceberg.FieldIdBroker;
+import com.dremio.exec.store.iceberg.IcebergExpiryAction;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.iceberg.SchemaConverter;
+import com.dremio.exec.store.iceberg.SnapshotEntry;
 import com.dremio.io.file.FileSystem;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
@@ -80,33 +89,34 @@ import com.google.common.collect.Iterables;
  * Base Iceberg catalog
  */
 public class IcebergBaseCommand implements IcebergCommand {
+    public static final String DREMIO_JOB_ID_ICEBERG_PROPERTY = "dremio-job-id";
     private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(IcebergBaseCommand.class);
     private static final String MANIFEST_FILE_DEFAULT_SIZE = "153600";
     private Transaction transaction;
-    private TableOperations tableOperations;
+    private final TableOperations tableOperations;
     private AppendFiles appendFiles;
     private DeleteFiles deleteFiles;
     private OverwriteFiles overwriteFiles;
     private final Configuration configuration;
     protected final Path fsPath;
-    private final FileSystem fs;
     private Snapshot currentSnapshot;
+    private final UserBitShared.QueryId queryId;
 
     public IcebergBaseCommand(Configuration configuration,
                               String tableFolder,
-                              FileSystem fs,
-                              TableOperations tableOperations) {
+                              TableOperations tableOperations,
+                              UserBitShared.QueryId queryId) {
         this.configuration = configuration;
         transaction = null;
         currentSnapshot = null;
         fsPath = new Path(tableFolder);
-        this.fs = fs;
         this.tableOperations = tableOperations;
+        this.queryId = queryId;
     }
 
     @Override
     public void beginCreateTableTransaction(String tableName, BatchSchema writerSchema,
-                                            List<String> partitionColumns, Map<String, String> tableParameters, PartitionSpec partitionSpec) {
+                                            List<String> partitionColumns, Map<String, String> tableProperties, PartitionSpec partitionSpec, SortOrder sortOrder) {
         Preconditions.checkState(transaction == null, "Unexpected state - transaction should be null");
         Preconditions.checkNotNull(tableOperations);
         Schema schema;
@@ -119,10 +129,15 @@ public class IcebergBaseCommand implements IcebergCommand {
         if(partitionSpec == null){
           partitionSpec = IcebergUtils.getIcebergPartitionSpec(writerSchema, partitionColumns, null);
         }
-        Map<String, String> tableProp = new HashMap<>(tableParameters);
+        if(sortOrder == null){
+          SortOrder.Builder sortOrderBuilder = SortOrder.builderFor(partitionSpec.schema());
+          sortOrder = sortOrderBuilder.build();
+        }
+
+        Map<String, String> tableProp = tableProperties == null ? Collections.emptyMap() : new HashMap<>(tableProperties);
         tableProp.put(TableProperties.SNAPSHOT_ID_INHERITANCE_ENABLED, "true");
         tableProp.put(TableProperties.MANIFEST_TARGET_SIZE_BYTES,  MANIFEST_FILE_DEFAULT_SIZE);
-        TableMetadata metadata = TableMetadata.newTableMetadata(schema, partitionSpec, getTableLocation(), tableProp);
+        TableMetadata metadata = TableMetadata.newTableMetadata(schema, partitionSpec, sortOrder, getTableLocation(), tableProp);
 
         if ( tableOperations.current() != null ) {
           throw UserException.validationError().message("A table with the given name already exists").buildSilently();
@@ -156,6 +171,7 @@ public class IcebergBaseCommand implements IcebergCommand {
 
     @Override
     public Snapshot finishOverwrite() {
+      stampSnapshotUpdateWithDremioJobId(overwriteFiles);
       overwriteFiles.commit();
       return transaction.table().currentSnapshot();
     }
@@ -195,6 +211,7 @@ public class IcebergBaseCommand implements IcebergCommand {
 
     @Override
     public Snapshot finishDelete() {
+      stampSnapshotUpdateWithDremioJobId(deleteFiles);
       deleteFiles.commit();
       return transaction.table().currentSnapshot();
     }
@@ -218,7 +235,8 @@ public class IcebergBaseCommand implements IcebergCommand {
     @Override
     public void consumeAddedColumns(List<Types.NestedField> columns) {
       UpdateSchema updateSchema = transaction.updateSchema();
-      columns.forEach(c -> updateSchema.addColumn(c.name(), c.type()));
+      // DX-66623: Call the api that omits to check dot or '.' in the column name.
+      columns.forEach(c -> updateSchema.addColumn(null, c.name(), c.type()));
       updateSchema.commit();
     }
 
@@ -230,24 +248,34 @@ public class IcebergBaseCommand implements IcebergCommand {
 
     @Override
     public Snapshot finishInsert() {
-        appendFiles.commit();
-        return transaction.table().currentSnapshot();
+      stampSnapshotUpdateWithDremioJobId(appendFiles);
+      appendFiles.commit();
+      return transaction.table().currentSnapshot();
+    }
+
+    private void stampSnapshotUpdateWithDremioJobId(SnapshotUpdate snapshotUpdate) {
+      if (queryId == null) {
+        logger.warn("Not adding jobId as Iceberg snapshot update property for {}", getTableName());
+        return;
+      }
+      snapshotUpdate.set(DREMIO_JOB_ID_ICEBERG_PROPERTY, QueryIdHelper.getQueryId(queryId));
     }
 
     @Override
-    public Map<Long, String> expireSnapshots(long olderThanInMillis, int retainLast) {
+    public List<SnapshotEntry> expireSnapshots(long olderThanInMillis, int retainLast) {
       Stopwatch stopwatch = Stopwatch.createStarted();
+
       // perform expiration
-      Table table = loadTable();
-      ExpireSnapshots expireSnapshots = table.expireSnapshots();
       String olderThanTimestamp = getTimestampFromMillis(olderThanInMillis);
       try {
-        logger.info("Trying to expire snapshots older than {}, and retain last {} snapshots.", olderThanTimestamp, retainLast);
-        expireSnapshots
-          .expireOlderThan(olderThanInMillis)
-          .retainLast(retainLast)
-          .cleanExpiredFiles(false)
-          .commit();
+        Table table = loadTable();
+        if (PropertyUtil.propertyAsBoolean(table.properties(), GC_ENABLED, true)) {
+          logger.info("Trying to expire {}'s snapshots, which are older than {}, min {} snapshots will be retained.",
+            table.name(), olderThanTimestamp, retainLast);
+          IcebergExpiryAction.getIcebergExpireSnapshots(table, olderThanInMillis, retainLast).commit();
+        } else {
+          logger.warn("Skipping expiry on {} because {} is set to 'false'", table.name(), GC_ENABLED);
+        }
         table.refresh();
         return findSnapshots(tableOperations.refresh());
       } catch (Exception e) {
@@ -259,15 +287,29 @@ public class IcebergBaseCommand implements IcebergCommand {
           .buildSilently();
       } finally {
         long totalCommitTime = stopwatch.elapsed(TimeUnit.MILLISECONDS);
-        logger.info("Iceberg ExpireSnapshots call takes {} milliseconds.", totalCommitTime);
+        logger.debug("Iceberg ExpireSnapshots call took {} ms.", totalCommitTime);
       }
     }
 
-    private Map<Long, String> findSnapshots(TableMetadata metadata) {
+    private List<SnapshotEntry> findSnapshots(TableMetadata metadata) {
       if (metadata.snapshots() == null) {
-        return Collections.emptyMap();
+        return Collections.emptyList();
       }
-      return metadata.snapshots().stream().collect(Collectors.toMap(Snapshot::snapshotId, Snapshot::manifestListLocation));
+      return metadata.snapshots().stream()
+          .map(s -> new SnapshotEntry(metadata.metadataFileLocation(), s))
+          .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<SnapshotEntry> collectExpiredSnapshots(long olderThanInMillis, int retainLast) {
+      Table table = loadTable();
+      ExpireSnapshots expireSnapshots = IcebergExpiryAction.getIcebergExpireSnapshots(table, olderThanInMillis, retainLast);
+      String metadataLocation = tableOperations.current().metadataFileLocation();
+      return expireSnapshots
+        .expireOlderThan(olderThanInMillis)
+        .retainLast(retainLast)
+        .apply().stream().map(s -> new SnapshotEntry(metadataLocation, s))
+        .collect(Collectors.toList());
     }
 
     @Override
@@ -376,12 +418,44 @@ public class IcebergBaseCommand implements IcebergCommand {
   }
 
   @Override
+  public void updateProperties(Map<String, String> tblProperties, boolean useTransaction) {
+    Stopwatch stopwatch = Stopwatch.createStarted();
+    UpdateProperties properties;
+    if (useTransaction) {
+      properties = transaction.table().updateProperties();
+    } else {
+      properties = loadTable().updateProperties();
+    }
+    if (tblProperties == null || tblProperties.isEmpty()) {
+      logger.warn("Skipping updateProperties because properties to be set is empty");
+    } else {
+      tblProperties.forEach(properties::set);
+      properties.commit();
+      long totalCommitTime = stopwatch.elapsed(TimeUnit.MILLISECONDS);
+      logger.info("Iceberg UpdateProperties call takes {} milliseconds.", totalCommitTime);
+    }
+  }
+
+  @Override
+  public void removeProperties(List<String> tblProperties) {
+    if (tblProperties == null || tblProperties.isEmpty()) {
+      logger.warn("Skipping removeProperties because properties to be removed is empty");
+    } else {
+      Stopwatch stopwatch = Stopwatch.createStarted();
+      UpdateProperties properties;
+      properties = loadTable().updateProperties();
+      tblProperties.forEach(properties::remove);
+      properties.commit();
+      long totalCommitTime = stopwatch.elapsed(TimeUnit.MILLISECONDS);
+      logger.info("Iceberg removeProperties call takes {} milliseconds.", totalCommitTime);
+    }
+  }
+
+  @Override
   public void addColumns(List<Types.NestedField> columnsToAdd) {
     Table table = loadTable();
     UpdateSchema updateSchema = table.updateSchema();
-    columnsToAdd.stream().forEach(x -> {
-      updateSchema.addColumn(x.name(), x.type());
-    });
+    columnsToAdd.forEach(x -> updateSchema.addColumn(null, x.name(), x.type(), x.doc()));
     updateSchema.commit();
   }
 
@@ -389,7 +463,7 @@ public class IcebergBaseCommand implements IcebergCommand {
   public void deleteTable() {
       try {
         com.dremio.io.file.Path p = com.dremio.io.file.Path.of(fsPath.toString());
-        fs.delete(p, true);
+        getFs().delete(p, true);
       } catch (IOException e) {
         String message = String.format("The dataset is now forgotten by dremio, but there was an error while cleaning up respective data and metadata files residing at %s.", fsPath);
         logger.error(message);
@@ -440,7 +514,7 @@ public class IcebergBaseCommand implements IcebergCommand {
     UpdateSchema updateSchema = transaction.updateSchema();
     SchemaConverter schemaConverter = SchemaConverter.getBuilder().build();
     List<Types.NestedField> icebergFields = schemaConverter.toIcebergFields(columnsToAdd);
-    icebergFields.forEach(c -> updateSchema.addColumn(c.name(), c.type()));
+    icebergFields.forEach(c -> updateSchema.addColumn(null, c.name(), c.type(), c.doc()));
     updateSchema.commit();
   }
 
@@ -455,17 +529,8 @@ public class IcebergBaseCommand implements IcebergCommand {
     dropColumn(columnToChange, transaction.table(), schema, false);
     SchemaConverter converter = SchemaConverter.getBuilder().build();
     List<Types.NestedField> nestedFields = converter.toIcebergFields(ImmutableList.of(batchField));
-    schema.addColumn(nestedFields.get(0).name(),nestedFields.get(0).type());
+    schema.addColumn(null, nestedFields.get(0).name(), nestedFields.get(0).type(), nestedFields.get(0).doc());
     schema.commit();
-  }
-
-  @Override
-  public void updatePropertiesMap(Map<String, String> propertiesMap) {
-    UpdateProperties properties = transaction.table().updateProperties();
-    for (Map.Entry<String, String> property : propertiesMap.entrySet()) {
-      properties.set(property.getKey(), property.getValue());
-    }
-    properties.commit();
   }
 
   @Override
@@ -506,10 +571,21 @@ public class IcebergBaseCommand implements IcebergCommand {
         table.updateSchema().renameColumn(name, newName).commit();
     }
 
+    @Override
+    public void replaceSortOrder(List<String> sortOrder) {
+      Table table = loadTable();
+      ReplaceSortOrder newSortOrder = table.replaceSortOrder();
+      for (String sortColumn : sortOrder) {
+        newSortOrder = newSortOrder.asc(sortColumn);
+      }
+
+      newSortOrder.commit();
+    }
+
   @Override
   public void updatePrimaryKey(List<Field> columns) {
     beginTransaction();
-    updatePropertiesMap(PrimaryKeyUpdateCommitter.getPropertiesMap(columns));
+    updateProperties(PrimaryKeyUpdateCommitter.getPropertiesMap(columns), true);
     endTransaction();
   }
 
@@ -527,13 +603,13 @@ public class IcebergBaseCommand implements IcebergCommand {
         return fsPath.getName();
     }
 
-    public String getTableLocation() {
-      return IcebergUtils.getValidIcebergPath(fsPath, configuration, fs.getScheme());
-    }
+  public String getTableLocation() {
+    return IcebergUtils.getValidIcebergPath(fsPath, configuration, getFs().getScheme());
+  }
 
     @Override
     public Table loadTable() {
-        Table table = new BaseTable(getTableOps(), getTableName());
+        Table table = new DremioBaseTable(getTableOps(), getTableName());
         table.refresh();
         if (getTableOps().current() == null) {
             throw UserException.ioExceptionError(new IOException(
@@ -670,5 +746,9 @@ public class IcebergBaseCommand implements IcebergCommand {
   @Override
   public FileIO getFileIO() {
     return getTableOps().io();
+  }
+
+  private FileSystem getFs() {
+    return ((DremioFileIO) tableOperations.io()).getFs();
   }
 }

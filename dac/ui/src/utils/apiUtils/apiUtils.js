@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import uuid from "uuid";
+import { v4 as uuidv4 } from "uuid";
 import Immutable from "immutable";
 
 import localStorageUtils from "@inject/utils/storageUtils/localStorageUtils";
@@ -121,7 +121,7 @@ class ApiUtils {
         if (action && action.error) {
           const error = action.payload;
           const { response } = error;
-          const errorId = uuid.v4();
+          const errorId = uuidv4();
           if (response) {
             return this.handleError(response);
           }
@@ -136,7 +136,7 @@ class ApiUtils {
     if (error.errorMessage) {
       const errorFields = this.parseErrorsToObject(error);
       const errors = {
-        _error: { message: Immutable.Map(error), id: uuid.v4() },
+        _error: { message: Immutable.Map(error), id: uuidv4() },
         ...errorFields,
       };
       throw errors;
@@ -149,7 +149,7 @@ class ApiUtils {
       throw {
         _error: {
           message: "Request Error: " + error.statusText,
-          id: uuid.v4(),
+          id: uuidv4(),
         },
       }; // todo: loc
     }

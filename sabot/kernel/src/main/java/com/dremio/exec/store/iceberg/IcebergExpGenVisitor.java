@@ -16,6 +16,8 @@
 package com.dremio.exec.store.iceberg;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -46,7 +48,7 @@ public class IcebergExpGenVisitor extends RexVisitorImpl<Expression> {
     private final RelOptCluster relOptCluster;
     private Set<String> usedColumns;
 
-    IcebergExpGenVisitor(RelDataType rowType, RelOptCluster cluster) {
+    public IcebergExpGenVisitor(RelDataType rowType, RelOptCluster cluster) {
         super(true);
         this.fieldNames = rowType.getFieldNames();
         this.rexBuilder = cluster.getRexBuilder();
@@ -106,9 +108,7 @@ public class IcebergExpGenVisitor extends RexVisitorImpl<Expression> {
                     } else {
                         Expression orExpression = Expressions.or(left, right);
                         if (expressions != null) {
-                            for (int i = 0; i < expressions.length; i++) {
-                                orExpression = Expressions.or(orExpression, expressions[i]);
-                            }
+                          orExpression = buildOrTree(left, right, expressions);
                         }
                         return orExpression;
                     }
@@ -119,7 +119,29 @@ public class IcebergExpGenVisitor extends RexVisitorImpl<Expression> {
         }
     }
 
-    private Object getValueAsInputRef(RexInputRef inputRef, RexLiteral literal) {
+  private Expression buildOrTree(Expression left, Expression right, Expression[] expressions) {
+    List<Expression> workList = new ArrayList<>(expressions.length + 2);
+    workList.add(left);
+    workList.add(right);
+    Collections.addAll(workList, expressions);
+    int expressionsCount = workList.size();
+    int i, j;
+    while (expressionsCount > 1) {
+      for (i = 0, j = 0; i < expressionsCount; ) {
+        if (i + 1 < expressionsCount) {
+          workList.set(j, Expressions.or(workList.get(i), workList.get(i + 1)));
+        } else {
+          workList.set(j, workList.get(i));
+        }
+        i += 2;
+        j++;
+      }
+      expressionsCount = j;
+    }
+    return workList.get(0);
+  }
+
+  private Object getValueAsInputRef(RexInputRef inputRef, RexLiteral literal) {
         SqlTypeName sqlTypeName = inputRef.getType().getSqlTypeName();
         try {
             switch (sqlTypeName) {
@@ -218,7 +240,7 @@ public class IcebergExpGenVisitor extends RexVisitorImpl<Expression> {
         }
     }
 
-    Expression convertToIcebergExpression(RexNode condition) {
+    public Expression convertToIcebergExpression(RexNode condition) {
         usedColumns = new HashSet<>();
         Expression icebergExpression = condition.accept(this);
         return getNullCheckExpression(icebergExpression);

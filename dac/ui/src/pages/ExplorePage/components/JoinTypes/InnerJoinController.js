@@ -16,7 +16,7 @@
 import { Component } from "react";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
-import uuid from "uuid";
+import { v4 as uuidv4 } from "uuid";
 import { connect } from "react-redux";
 import { getExploreState } from "@app/selectors/explore";
 
@@ -62,7 +62,7 @@ export class InnerJoinController extends Component {
     return Immutable.Map({
       default: leftColumn,
       custom: rightColumn,
-      id: uuid.v4(),
+      id: uuidv4(),
     });
   }
 
@@ -86,7 +86,7 @@ export class InnerJoinController extends Component {
     };
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     const isLeftColumnsChanged =
       nextProps.leftColumns.size && !this.props.leftColumns.size;
     const isRightColumnsChanged =

@@ -16,12 +16,15 @@
 package com.dremio.exec.work.protector;
 
 import static com.dremio.exec.ExecConstants.MAX_FOREMEN_PER_COORDINATOR;
+import static com.dremio.proto.model.PartitionStats.PartitionStatsKey;
+import static com.dremio.proto.model.PartitionStats.PartitionStatsValue;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import javax.inject.Provider;
 
@@ -41,6 +44,7 @@ import com.dremio.common.utils.protos.ExternalIdHelper;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.config.DremioConfig;
 import com.dremio.context.RequestContext;
+import com.dremio.datastore.format.Format;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.maestro.MaestroForwarder;
 import com.dremio.exec.maestro.MaestroService;
@@ -70,6 +74,8 @@ import com.dremio.exec.work.user.LocalExecutionConfig;
 import com.dremio.exec.work.user.LocalQueryExecutor;
 import com.dremio.exec.work.user.OptionProvider;
 import com.dremio.options.OptionManager;
+import com.dremio.partitionstats.cache.PartitionStatsCache;
+import com.dremio.partitionstats.storeprovider.PartitionStatsCacheStoreProvider;
 import com.dremio.resource.QueryCancelTool;
 import com.dremio.resource.RuleBasedEngineSelector;
 import com.dremio.sabot.exec.CancelQueryContext;
@@ -123,6 +129,7 @@ public class ForemenWorkManager implements Service, SafeExit {
   private static final int PROFILE_SEND_INTERVAL_SECONDS = 5;
 
   // cache of prepared statement queries.
+  @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
   private final Cache<Long, PreparedPlan> preparedHandles = CacheBuilder.newBuilder()
           .maximumSize(1000)
           // Prepared statement handles are memory intensive. If there is memory pressure,
@@ -154,18 +161,21 @@ public class ForemenWorkManager implements Service, SafeExit {
   private Cache<String, CachedPlan> cachedPlans;
   private PlanCache planCache;
   private final Provider<RequestContext> requestContextProvider;
+  private final Provider<PartitionStatsCacheStoreProvider> transientStoreProvider;
+  private PartitionStatsCache partitionStatsCache;
 
   public ForemenWorkManager(
-          final Provider<FabricService> fabric,
-          final Provider<SabotContext> dbContext,
-          final Provider<CommandPool> commandPool,
-          final Provider<MaestroService> maestroService,
-          final Provider<JobTelemetryClient> jobTelemetryClient,
-          final Provider<MaestroForwarder> forwarder,
-          final Tracer tracer,
-          final Provider<RuleBasedEngineSelector> ruleBasedEngineSelector,
-          final BufferAllocator jobResultsAllocator,
-          final Provider<RequestContext> requestContextProvider) {
+    final Provider<FabricService> fabric,
+    final Provider<SabotContext> dbContext,
+    final Provider<CommandPool> commandPool,
+    final Provider<MaestroService> maestroService,
+    final Provider<JobTelemetryClient> jobTelemetryClient,
+    final Provider<MaestroForwarder> forwarder,
+    final Tracer tracer,
+    final Provider<RuleBasedEngineSelector> ruleBasedEngineSelector,
+    final BufferAllocator jobResultsAllocator,
+    final Provider<RequestContext> requestContextProvider,
+    final Provider<PartitionStatsCacheStoreProvider> transientStoreProvider) {
     this.dbContext = dbContext;
     this.fabric = fabric;
     this.commandPool = commandPool;
@@ -173,7 +183,7 @@ public class ForemenWorkManager implements Service, SafeExit {
     this.jobTelemetryClient = jobTelemetryClient;
     this.forwarder = forwarder;
 
-    this.pool = new ContextMigratingCloseableExecutorService<>(new CloseableThreadPool("foreman"), tracer);
+    this.pool = new ContextMigratingCloseableExecutorService<>(new CloseableThreadPool("foreman"));
     this.ruleBasedEngineSelector = ruleBasedEngineSelector;
     this.execToCoordResultsHandler = new NoExecToCoordResultsHandler();
     this.foremenTool = new ForemenToolImpl();
@@ -181,6 +191,7 @@ public class ForemenWorkManager implements Service, SafeExit {
     this.profileSender = new CloseableSchedulerThreadPool("profile-sender", 1);
     this.jobResultsAllocator = jobResultsAllocator;
     this.requestContextProvider = requestContextProvider;
+    this.transientStoreProvider = transientStoreProvider;
   }
 
   public ExecToCoordResultsHandler getExecToCoordResultsHandler() {
@@ -211,6 +222,7 @@ public class ForemenWorkManager implements Service, SafeExit {
     return planCache;
   }
 
+  @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
   @Override
   public void start() throws Exception {
     Metrics.newGauge(Metrics.join("jobs","active"), () -> externalIdToForeman.size());
@@ -246,6 +258,10 @@ public class ForemenWorkManager implements Service, SafeExit {
 
     planCache = new PlanCache(cachedPlans, Multimaps.synchronizedListMultimap(ArrayListMultimap.create()));
 
+    partitionStatsCache = new PartitionStatsCache(this.transientStoreProvider.get().getStore(
+        Format.ofProtobuf(PartitionStatsKey.class),
+        Format.ofProtobuf(PartitionStatsValue.class),
+        dbContext.get().getDremioConfig().getInt(DremioConfig.PARTITION_STATS_CACHE_TTL)));
   }
 
   @Override
@@ -274,7 +290,7 @@ public class ForemenWorkManager implements Service, SafeExit {
 
     final DelegatingCompletionListener delegate = new DelegatingCompletionListener();
     final Foreman foreman = newForeman(pool, commandPool.get(), delegate, externalId, observer, session, request,
-            config, attemptHandler, preparedHandles, planCache);
+            config, attemptHandler, preparedHandles, planCache, partitionStatsCache);
     final ManagedForeman managed = new ManagedForeman(registry, foreman);
     externalIdToForeman.put(foreman.getExternalId(), managed);
     delegate.setListener(managed);
@@ -284,9 +300,10 @@ public class ForemenWorkManager implements Service, SafeExit {
   protected Foreman newForeman(Executor executor, CommandPool commandPool, CompletionListener listener, ExternalId externalId,
                                QueryObserver observer, UserSession session, UserRequest request, OptionProvider config,
                                ReAttemptHandler attemptHandler, Cache<Long, PreparedPlan> preparedPlans,
-                               PlanCache planCache) {
+                               PlanCache planCache, PartitionStatsCache partitionStatsCache) {
     return new Foreman(dbContext.get(), executor, commandPool, listener, externalId, observer, session, request, config,
-            attemptHandler, preparedPlans, planCache, maestroService.get(), jobTelemetryClient.get(), ruleBasedEngineSelector.get());
+            attemptHandler, preparedPlans, planCache, maestroService.get(), jobTelemetryClient.get(), ruleBasedEngineSelector.get(),
+            partitionStatsCache);
   }
 
   /**
@@ -510,8 +527,9 @@ public class ForemenWorkManager implements Service, SafeExit {
       exitLatch = new ExtendedLatch();
     }
 
-    // Wait for at most 5 seconds or until the latch is released.
-    exitLatch.awaitUninterruptibly(5000);
+    // Wait for at most the configured graceful timeout or until the latch is released.
+    exitLatch.awaitUninterruptibly(dbContext.get().getDremioConfig().getLong(
+      DremioConfig.DREMIO_TERMINATION_GRACE_PERIOD_SECONDS) * 1000);
   }
 
   /**
@@ -759,5 +777,15 @@ public class ForemenWorkManager implements Service, SafeExit {
       logger.warn("Couldn't find retiring Foreman for query " + externalId);
     }
 
+  }
+
+  @VisibleForTesting
+  public List<QueryProfile> getActiveProfiles() {
+    return externalIdToForeman.values()
+      .stream()
+      .map(managed -> managed.foreman.getCurrentProfile())
+      .filter(Optional::isPresent)
+      .map(Optional::get)
+      .collect(Collectors.toList());
   }
 }

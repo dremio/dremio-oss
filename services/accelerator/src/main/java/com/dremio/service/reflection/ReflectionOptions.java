@@ -65,11 +65,28 @@ public interface ReflectionOptions {
   BooleanValidator STRICT_INCREMENTAL_REFRESH = new BooleanValidator("reflection.manager.strict_incremental_refresh.enabled", false);
   StringValidator NESSIE_REFLECTIONS_NAMESPACE = new StringValidator("reflection.manager.nessie_iceberg_namespace", "dremio.reflections");
   BooleanValidator AUTO_REBUILD_PLAN = new BooleanValidator("reflection.manager.auto_plan_rebuild", true);
-  BooleanValidator REFRESH_AFTER_DESERIALIZATION_FAILURE = new BooleanValidator("reflection.manager.auto_refresh_failed", false);
   // should reflection settings and refresh cache be enabled during reflection manager syncs
   BooleanValidator REFLECTION_MANAGER_SYNC_CACHE = new BooleanValidator("reflection.manager.sync.cache.enabled", true);
   // Allow default raw reflections to be used in REFRESH REFLECTION jobs
   BooleanValidator ACCELERATION_ENABLE_DEFAULT_RAW_REFRESH = new BooleanValidator("accelerator.enable_default_raw_reflection_refresh", true);
   // should incrementally refreshed default raw reflections containing filters/aggs be used
   BooleanValidator ENABLE_INCREMENTAL_DEFAULT_RAW_REFLECTIONS_WITH_AGGS = new BooleanValidator("reflection.manager.enable_incremental_default_raw_with_aggs", true);
+  // should OPTIMIZE TABLE be run on incrementally refreshed reflections
+  BooleanValidator ENABLE_OPTIMIZE_TABLE_FOR_INCREMENTAL_REFLECTIONS = new BooleanValidator("reflection.manager.enable_optimize_table_for_incremental_reflections", true);
+  // number of refreshes between OPTIMIZE runs
+  PositiveLongValidator OPTIMIZE_REFLECTION_REQUIRED_REFRESHES_BETWEEN_RUNS = new PositiveLongValidator("reflection.manager.optimize_refreshes_between_runs", Integer.MAX_VALUE, 5);
+  // Enable snapshot based incremental as default refresh method for iceberg tables
+  BooleanValidator REFLECTION_ICEBERG_SNAPSHOT_BASED_INCREMENTAL_ENABLED = new BooleanValidator("reflection.iceberg.snapshot_based_incremental.enabled", true);
+  // Enable Snapshot Based Incremental Refresh by Partition for reflections
+  BooleanValidator INCREMENTAL_REFRESH_BY_PARTITION = new BooleanValidator("reflection.enable_incremental_refresh_by_partition", true);
+  // Enable snapshot based incremental as default refresh method for Unlimited Splits tables
+  BooleanValidator REFLECTION_UNLIMITED_SPLITS_SNAPSHOT_BASED_INCREMENTAL = new BooleanValidator("reflection.unlimited_splits.snapshot_based_incremental", true);
+  // Maximum number of UNIONS allowed in snapshot based incremental refresh plan (due to optimize commands on base table)
+  PositiveLongValidator REFLECTION_SNAPSHOT_BASED_INCREMENTAL_MAX_UNIONS = new PositiveLongValidator("reflection.snapshot_based_incremental.max_unions", Long.MAX_VALUE, 50);
+  // Enable automatic VACUUM jobs on incremental reflections
+  BooleanValidator ENABLE_VACUUM_FOR_INCREMENTAL_REFLECTIONS = new BooleanValidator("reflection.manager.enable_vacuum_table_for_incremental_reflections", true);
+  // Enable REFRESH_PENDING state for a reflection when its direct or indirect reflection dependencies are due for refresh or refreshing.
+  BooleanValidator REFLECTION_MANAGER_REFRESH_PENDING_ENABLED = new BooleanValidator("reflection.manager.refresh_pending.enabled", true);
+  // Timeout in minutes for REFRESH_PENDING state. If a reflection has been in REFRESH_PENDING state longer than this period it will be forced to refresh.
+  PositiveLongValidator REFLECTION_MANAGER_REFRESH_PENDING_TIMEOUT_MINUTES = new PositiveLongValidator("reflection.manager.refresh_pending.timeout", Long.MAX_VALUE, 30);
 }

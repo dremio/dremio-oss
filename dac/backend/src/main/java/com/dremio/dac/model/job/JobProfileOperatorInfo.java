@@ -26,12 +26,15 @@ import java.util.List;
 import java.util.LongSummaryStatistics;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 import javax.ws.rs.NotFoundException;
 
 import org.apache.commons.text.WordUtils;
 
+import com.dremio.dac.model.job.diagnostics.ProfileObservationUtil;
+import com.dremio.dac.util.Filters;
 import com.dremio.dac.util.OperatorMetricsUtil;
 import com.dremio.dac.util.QueryProfileUtil;
 import com.dremio.exec.proto.UserBitShared;
@@ -39,9 +42,11 @@ import com.dremio.service.job.proto.OperationType;
 import com.dremio.service.jobAnalysis.proto.BaseMetrics;
 import com.dremio.service.jobAnalysis.proto.OperatorSpecificDetails;
 import com.dremio.service.jobAnalysis.proto.ThreadData;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.google.common.collect.Collections2;
+import com.google.common.math.StatsAccumulator;
+
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 
 
 public class JobProfileOperatorInfo {
@@ -54,102 +59,46 @@ public class JobProfileOperatorInfo {
   private final int operatorType;
   private final long setupTime;
   private final long waitTime;
+  private final List<Double> waitTimeSkew;
   private final long peakMemory;
   private final long processTime;
+  private final List<Double> wallClockTimeSkew;
   private final long bytesProcessed;
   private final long batchesProcessed;
+  private final List<Double> batchesProcessedSkew;
   private final long recordsProcessed;
-  private final Map<String,String> operatorMetricsMap;
+  private final Map<String, String> operatorMetricsMap;
   private final OperatorSpecificDetails operatorSpecificDetails;
   private final long numberOfThreads;
   private final long outputRecords;
   private final long outputBytes;
+  private final long sleepingDuration;
+  private final long cpuWaitTime;
   private final JobProfileOperatorHealth jpOperatorHealth;
-  private final Map<String,JobProfileMetricDetails> metricsDetailsMap;
+  private final Map<String, JobProfileMetricDetails> metricsDetailsMap;
+
   @JsonSerialize(using = JobProfileRelNodeInfoSerializer.class)
   private final UserBitShared.RelNodeInfo attributes;
 
-  @JsonCreator
-  public JobProfileOperatorInfo(
-    @JsonProperty("phaseId") String phaseId,
-    @JsonProperty("operatorId") String operatorId,
-    @JsonProperty("operatorName") String operatorName,
-    @JsonProperty("operatorType") Integer operatorType,
-    @JsonProperty("setupTime") Long setupTime,
-    @JsonProperty("waitTime") Long waitTime,
-    @JsonProperty("peakMemory") Long peakMemory,
-    @JsonProperty("processTime") Long processTime,
-    @JsonProperty("bytesProcessed") Long bytesProcessed,
-    @JsonProperty("batchesProcessed") Long batchesProcessed,
-    @JsonProperty("recordsProcessed") Long recordsProcessed,
-    @JsonProperty("operatorMetricsMap") Map<String,String> operatorMetricsMap,
-    @JsonProperty("operatorSpecificDetails") OperatorSpecificDetails operatorSpecificDetails,
-    @JsonProperty("numberOfThreads") Long numberOfThreads,
-    @JsonProperty("outputRecords") Long outputRecords,
-    @JsonProperty("outputBytes") Long outputBytes,
-    @JsonProperty("jpOperatorHealth") JobProfileOperatorHealth jpOperatorHealth,
-    @JsonProperty("metricsDetailsMap") Map<String,JobProfileMetricDetails> metricsDetailsMap,
-    @JsonProperty("attributes") UserBitShared.RelNodeInfo attributes) {
-    super();
-    this.phaseId = phaseId;
-    this.operatorId = operatorId;
-    this.operatorName = operatorName;
-    this.operatorType = operatorType;
-    this.setupTime = setupTime;
-    this.waitTime = waitTime;
-    this.peakMemory = peakMemory;
-    this.processTime = processTime;
-    this.bytesProcessed = bytesProcessed;
-    this.batchesProcessed = batchesProcessed;
-    this.recordsProcessed = recordsProcessed;
-    this.operatorMetricsMap = operatorMetricsMap;
-    this.operatorSpecificDetails = operatorSpecificDetails;
-    this.numberOfThreads = numberOfThreads;
-    this.outputRecords = outputRecords;
-    this.outputBytes = outputBytes;
-    this.jpOperatorHealth = jpOperatorHealth;
-    this.metricsDetailsMap = metricsDetailsMap;
-    this.attributes = attributes;
-  }
-
-  public JobProfileOperatorInfo(String phaseId, String operatorId, String operatorName, int operatorType, long setupTime, long waitTime, long peakMemory, long processTime, long bytesProcessed, long batchesProcessed, long recordsProcessed, Map<String,String> operatorMetricsMap, OperatorSpecificDetails operatorSpecificDetails, long numberOfThreads, long outputRecords, long outputBytes, JobProfileOperatorHealth jpOperatorHealth, Map<String,JobProfileMetricDetails> metricsDetailsMap, UserBitShared.RelNodeInfo attributes) {
-    this.phaseId = phaseId;
-    this.operatorId = operatorId;
-    this.operatorName = operatorName;
-    this.operatorType = operatorType;
-    this.setupTime = setupTime;
-    this.waitTime = waitTime;
-    this.peakMemory = peakMemory;
-    this.processTime = processTime;
-    this.bytesProcessed = bytesProcessed;
-    this.batchesProcessed = batchesProcessed;
-    this.recordsProcessed = recordsProcessed;
-    this.operatorMetricsMap = operatorMetricsMap;
-    this.operatorSpecificDetails = operatorSpecificDetails;
-    this.numberOfThreads = numberOfThreads;
-    this.outputRecords = outputRecords;
-    this.outputBytes = outputBytes;
-    this.jpOperatorHealth = jpOperatorHealth;
-    this.metricsDetailsMap = metricsDetailsMap;
-    this.attributes = attributes;
-  }
-
-
+  @WithSpan
   public JobProfileOperatorInfo(UserBitShared.QueryProfile profile, int phaseId, int operatorId) {
 
     if (!profile.getFragmentProfileList().isEmpty()) {
       List<ThreadData> threadLevelMetricsList = new ArrayList<>();
       BaseMetrics baseMetrics = new BaseMetrics();
-      UserBitShared.MajorFragmentProfile majorFragmentProfile = getPhaseDetails(profile, phaseId);
+      UserBitShared.MajorFragmentProfile majorFragmentProfile = ProfileObservationUtil.getPhaseDetails(profile, phaseId);
       int operatorType = getOperatorTypeHelper(operatorId, majorFragmentProfile);
       OperatorSpecificDetails opsDetails = new OperatorSpecificDetails();
       JobProfileOperatorHealth jpOperatorHealth = new JobProfileOperatorHealth();
       Map<String, JobProfileMetricDetails> metricsDetailsMap = new HashMap<>();
-       Map<String, String> operatorMetricMap = getOperatorMetricMap(profile.getOperatorTypeMetricsMap(), operatorId, majorFragmentProfile, operatorType,opsDetails, metricsDetailsMap); // get OperatorMetricsMap
-
+      Map<String, String> operatorMetricMap = getOperatorMetricMap(profile.getOperatorTypeMetricsMap(), operatorId, majorFragmentProfile, operatorType, opsDetails, metricsDetailsMap); // get OperatorMetricsMap
+      String operatorName = String.valueOf(UserBitShared.CoreOperatorType.forNumber(operatorType));
       long batchesProcessed = getBatchSize(majorFragmentProfile, operatorId);
 
-      long bytesProcessed = operatorMetricMap.entrySet().stream().filter(name->name.getKey().toUpperCase().contains("BYTES_")).collect(Collectors.summarizingLong(bytes-> new Long(bytes.getValue()))).getMax();
+      long bytesProcessed = operatorMetricMap.entrySet().stream()
+        .filter(name -> name.getKey().toUpperCase().contains("BYTES_"))
+        .map(Map.Entry::getValue)
+        .collect(Collectors.summarizingLong(Long::parseLong)).getMax();
 
       bytesProcessed = (bytesProcessed > -1) ? bytesProcessed : -1;
 
@@ -157,24 +106,26 @@ public class JobProfileOperatorInfo {
       QueryProfileUtil.buildTheadLevelMetrics(majorFragmentProfile, threadLevelMetricsList);
 
       //below function build the BaseMetrics information.
-      threadLevelMetricsList.stream().filter(operator->Integer.parseInt(operator.getOperatorId()) == operatorId)
+      threadLevelMetricsList.stream().filter(operator -> Integer.parseInt(operator.getOperatorId()) == operatorId)
         .collect(Collectors.groupingBy(thread -> thread.getOperatorId(), Collectors.toList())).forEach(
-        (opId, threadLevelMetrics) -> {
-          QueryProfileUtil.buildBaseMetrics(threadLevelMetrics, baseMetrics);
-          QueryProfileUtil.getJobProfileOperatorHealth(threadLevelMetrics, jpOperatorHealth, baseMetrics);
-        }
-      );
-
+          (opId, threadLevelMetrics) -> {
+            QueryProfileUtil.buildBaseMetrics(threadLevelMetrics, baseMetrics);
+            QueryProfileUtil.getJobProfileOperatorHealth(threadLevelMetrics, jpOperatorHealth, baseMetrics);
+          }
+        );
       this.phaseId = QueryProfileUtil.getStringIds(phaseId);
       this.operatorId = QueryProfileUtil.getStringIds(operatorId);
-      this.operatorName = String.valueOf(UserBitShared.CoreOperatorType.forNumber(operatorType));
+      this.operatorName = operatorName;
       this.operatorType = operatorType;
       this.setupTime = baseMetrics.getSetupTime();
       this.waitTime = baseMetrics.getIoWaitTime();
+      this.waitTimeSkew = getTotalBlockedOrWaitTimeSkew(majorFragmentProfile);
       this.peakMemory = baseMetrics.getPeakMemory();
       this.processTime = baseMetrics.getProcessingTime();
+      this.wallClockTimeSkew = getWallClockTimeSkewFromAllMinorFragments(majorFragmentProfile);
       this.bytesProcessed = bytesProcessed;
       this.batchesProcessed = batchesProcessed;
+      this.batchesProcessedSkew = getBatchSizesFromAllMinorFragments(majorFragmentProfile, operatorId);
       this.recordsProcessed = baseMetrics.getRecordsProcessed();
       this.operatorMetricsMap = operatorMetricMap;
       this.operatorSpecificDetails = opsDetails;
@@ -184,10 +135,14 @@ public class JobProfileOperatorInfo {
       this.jpOperatorHealth = jpOperatorHealth;
       this.metricsDetailsMap = metricsDetailsMap;
       this.attributes = QueryProfileUtil.getOperatorAttributes(profile, phaseId, operatorId);
+      this.sleepingDuration = getMaxBlockedTime(majorFragmentProfile);
+      this.cpuWaitTime = getCPUWaitTime(majorFragmentProfile,operatorId);
+
     } else {
       throw new NotFoundException(format("Profile Fragment is not available"));
     }
   }
+
 
   public String getPhaseId() {
     return phaseId;
@@ -264,18 +219,6 @@ public class JobProfileOperatorInfo {
   public UserBitShared.RelNodeInfo getAttributes() {
     return attributes;
   }
-  /**
-   * This Method Will return Fragment information from Profile Object for requested phase Id
-   */
-  private UserBitShared.MajorFragmentProfile getPhaseDetails(UserBitShared.QueryProfile profile, int phaseId) {
-    UserBitShared.MajorFragmentProfile major;
-    try {
-      major = profile.getFragmentProfile(phaseId);
-    } catch (Exception ex) {
-      throw new IllegalArgumentException("Phase Id : " + phaseId + " not Exists in Profile");
-    }
-    return major;
-  }
 
   /**
    * This Method Will return operator Type for given Operator ID
@@ -298,7 +241,7 @@ public class JobProfileOperatorInfo {
   /**
    * This Method will build the OperatorSpecificDetails
    */
-  private void addOperatorSpecificDetails(UserBitShared.OperatorProfile operatorProfile, OperatorSpecificDetails opsDetails ) {
+  private void addOperatorSpecificDetails(UserBitShared.OperatorProfile operatorProfile, OperatorSpecificDetails opsDetails) {
     OperationType operationType = com.dremio.service.job.proto.OperationType.valueOf(operatorProfile.getOperatorType());
     operatorProfile.getDetails().getSlowIoInfosList().stream().forEach(
       slowIOInfo -> {
@@ -310,6 +253,7 @@ public class JobProfileOperatorInfo {
       }
     );
   }
+
   /**
    * This method to add the information to MetricsValue to Add all the Operators
    */
@@ -323,9 +267,9 @@ public class JobProfileOperatorInfo {
       List<String> validMetricsList = Arrays.asList(nodeValues).stream().map(n -> n.toLowerCase()).collect(Collectors.toList());
       String listString = validMetricsList.stream().map(Object::toString).collect(Collectors.joining(", "));
       if (containsName(validMetricsList, metricName.toLowerCase()) || listString.isEmpty()) {
-       long metricLong = 0L;
-       double metricDouble = 0D;
-        for(UserBitShared.MetricValue metricValue : metricValueList)  {
+        long metricLong = 0L;
+        double metricDouble = 0D;
+        for (UserBitShared.MetricValue metricValue : metricValueList) {
           if (metricValue.hasDoubleValue()) {
             metricDouble += metricValue.getDoubleValue();
           } else if (metricValue.hasLongValue()) {
@@ -334,7 +278,7 @@ public class JobProfileOperatorInfo {
         }
 
         UserBitShared.MetricValue metricValue;
-        if(metricDouble !=0 ) {
+        if (metricDouble != 0) {
           metricValue = UserBitShared.MetricValue.newBuilder().setMetricId(id).setDoubleValue(metricDouble).build();
         } else {
           metricValue = UserBitShared.MetricValue.newBuilder().setMetricId(id).setLongValue(metricLong).build();
@@ -359,49 +303,49 @@ public class JobProfileOperatorInfo {
    * This Method Will return a Indicator which specifies if Metrics information need to send to response
    */
   private boolean containsName(final List<String> columnList, final String name) {
-    return columnList.stream().anyMatch(names->names.equals(name));
+    return columnList.stream().anyMatch(names -> names.equals(name));
   }
 
   /**
    * This is the Method which will return Sum/min/Max Operator Metrics value
    */
-  public static Map<String,String> buildOperatorMetricsMap(List<UserBitShared.MetricValue> tempMetricsList, int operatorType, UserBitShared.CoreOperatorTypeMetricsMap coreOperatorTypeMetricsMap, Map<String, JobProfileMetricDetails> metricsDetailsMap) {
-    Map<String,String> operatorMetricsMap = new HashMap<>();
+  public static Map<String, String> buildOperatorMetricsMap(List<UserBitShared.MetricValue> tempMetricsList, int operatorType, UserBitShared.CoreOperatorTypeMetricsMap coreOperatorTypeMetricsMap, Map<String, JobProfileMetricDetails> metricsDetailsMap) {
+    Map<String, String> operatorMetricsMap = new HashMap<>();
     tempMetricsList.stream().collect(Collectors.groupingBy(metricId -> metricId.getMetricId())).forEach((id, metric) -> {
-        Optional<UserBitShared.MetricDef> mapMetricsDef = getMetricById(coreOperatorTypeMetricsMap, operatorType, id);
-        if (mapMetricsDef.isPresent()) {
-          String name = mapMetricsDef.get().getName();
-          String metricValue = "";
-          UserBitShared.MetricDef.DisplayType displayType = mapMetricsDef.get().getDisplayType();
-          if(displayType == UserBitShared.MetricDef.DisplayType.DISPLAY_BY_DEFAULT) {
-            if(metric.get(0).hasDoubleValue()) {
-              DoubleSummaryStatistics value = metric.stream().collect(Collectors.summarizingDouble(UserBitShared.MetricValue::getDoubleValue));
-              UserBitShared.MetricDef.AggregationType aggregationType = mapMetricsDef.get().getAggregationType();
-              if (aggregationType == UserBitShared.MetricDef.AggregationType.SUM) {
-                metricValue = String.valueOf(value.getSum());
-              } else if (aggregationType == UserBitShared.MetricDef.AggregationType.MAX) {
-                metricValue = String.valueOf(value.getMax());
-              } else {
-                logger.warn("Aggregation value not provided for operator type {} and metric id {} ", operatorType, id);
-              }
+      Optional<UserBitShared.MetricDef> mapMetricsDef = getMetricById(coreOperatorTypeMetricsMap, operatorType, id);
+      if (mapMetricsDef.isPresent()) {
+        String name = mapMetricsDef.get().getName();
+        String metricValue = "";
+        UserBitShared.MetricDef.DisplayType displayType = mapMetricsDef.get().getDisplayType();
+        if (displayType == UserBitShared.MetricDef.DisplayType.DISPLAY_BY_DEFAULT) {
+          if (metric.get(0).hasDoubleValue()) {
+            DoubleSummaryStatistics value = metric.stream().collect(Collectors.summarizingDouble(UserBitShared.MetricValue::getDoubleValue));
+            UserBitShared.MetricDef.AggregationType aggregationType = mapMetricsDef.get().getAggregationType();
+            if (aggregationType == UserBitShared.MetricDef.AggregationType.SUM) {
+              metricValue = String.valueOf(value.getSum());
+            } else if (aggregationType == UserBitShared.MetricDef.AggregationType.MAX) {
+              metricValue = String.valueOf(value.getMax());
             } else {
-              LongSummaryStatistics value = metric.stream().collect(Collectors.summarizingLong(UserBitShared.MetricValue::getLongValue));
-              UserBitShared.MetricDef.AggregationType aggregationType = mapMetricsDef.get().getAggregationType();
-              if (aggregationType == UserBitShared.MetricDef.AggregationType.SUM) {
-                metricValue = String.valueOf(value.getSum());
-              } else if (aggregationType == UserBitShared.MetricDef.AggregationType.MAX) {
-                metricValue = String.valueOf(value.getMax());
-              } else {
-                logger.warn("Aggregation value not provided for operator type {} and metric id {} ", operatorType, id);
-              }
+              logger.warn("Aggregation value not provided for operator type {} and metric id {} ", operatorType, id);
             }
-            String displayCode = mapMetricsDef.get().getDisplayCode();
-            operatorMetricsMap.put(WordUtils.capitalizeFully(name, '_'), metricValue);
-            metricsDetailsMap.put(WordUtils.capitalizeFully(name, '_'), new JobProfileMetricDetails(true, displayCode));
+          } else {
+            LongSummaryStatistics value = metric.stream().collect(Collectors.summarizingLong(UserBitShared.MetricValue::getLongValue));
+            UserBitShared.MetricDef.AggregationType aggregationType = mapMetricsDef.get().getAggregationType();
+            if (aggregationType == UserBitShared.MetricDef.AggregationType.SUM) {
+              metricValue = String.valueOf(value.getSum());
+            } else if (aggregationType == UserBitShared.MetricDef.AggregationType.MAX) {
+              metricValue = String.valueOf(value.getMax());
+            } else {
+              logger.warn("Aggregation value not provided for operator type {} and metric id {} ", operatorType, id);
+            }
           }
-        } else {
-          logger.warn("Metric details are not available in coreOperatorTypeMetricsMap for operator type {} and metric id {} ", operatorType, id);
+          String displayCode = mapMetricsDef.get().getDisplayCode();
+          operatorMetricsMap.put(WordUtils.capitalizeFully(name, '_'), metricValue);
+          metricsDetailsMap.put(WordUtils.capitalizeFully(name, '_'), new JobProfileMetricDetails(true, displayCode));
         }
+      } else {
+        logger.warn("Metric details are not available in coreOperatorTypeMetricsMap for operator type {} and metric id {} ", operatorType, id);
+      }
     });
     return operatorMetricsMap;
   }
@@ -409,13 +353,13 @@ public class JobProfileOperatorInfo {
   /**
    * This Method Will return Metric List for operator
    */
-  private Map<String,String> getOperatorMetricMap(UserBitShared.CoreOperatorTypeMetricsMap coreOperatorTypeMetricsMap, int nodeId, UserBitShared.MajorFragmentProfile major, int operatorType,OperatorSpecificDetails opsDetails, Map<String,JobProfileMetricDetails> metricsDetailsMap) {
+  private Map<String, String> getOperatorMetricMap(UserBitShared.CoreOperatorTypeMetricsMap coreOperatorTypeMetricsMap, int nodeId, UserBitShared.MajorFragmentProfile major, int operatorType, OperatorSpecificDetails opsDetails, Map<String, JobProfileMetricDetails> metricsDetailsMap) {
     List<UserBitShared.MetricValue> tempMetricsList = new ArrayList<>();
     major.getMinorFragmentProfileList().stream()
       .flatMap(minorFragmentProfile -> minorFragmentProfile.getOperatorProfileList().stream().filter(minor -> minor.getOperatorId() == nodeId))
       .forEach(
         operatorProfile -> {
-          addOperatorSpecificDetails(operatorProfile,opsDetails );
+          addOperatorSpecificDetails(operatorProfile, opsDetails);
           operatorProfile.getMetricList().stream().collect(Collectors.groupingBy(id -> id.getMetricId(), Collectors.toList()))
             .forEach(
               (id, metricValueList) -> {
@@ -446,5 +390,109 @@ public class JobProfileOperatorInfo {
       });
     long totalBatchSize = maxBatchSizeList.stream().filter(value -> !value.equals(-1L)).collect(Collectors.summarizingLong(Long::longValue)).getSum();
     return totalBatchSize;
+  }
+
+  private Long getCPUWaitTime(UserBitShared.MajorFragmentProfile major, int operatorId) {
+
+    AtomicLong cpuWaitTime = new AtomicLong();
+    major.getMinorFragmentProfileList().stream().forEach(
+      minor -> {
+        minor.getOperatorProfileList().stream().filter(op -> op.getOperatorId() == operatorId).forEach(
+          ops -> {
+            cpuWaitTime.set(Math.max(cpuWaitTime.get(), ops.getWaitNanos()));
+          });
+      });
+
+    return cpuWaitTime.get();
+
+  }
+
+  private Long getMaxBlockedTime(UserBitShared.MajorFragmentProfile major) {
+    AtomicLong maxBlockedTime= new AtomicLong();
+    major.getMinorFragmentProfileList().stream().forEach(
+      minor -> {
+        if(minor.hasSleepingDuration()){
+          maxBlockedTime.set(Math.max(minor.getBlockedDuration(), maxBlockedTime.get()));
+        }
+
+      });
+      return maxBlockedTime.get();
+  }
+
+  private List<Double> getWallClockTimeSkewFromAllMinorFragments(UserBitShared.MajorFragmentProfile major) {
+    // Use only minor fragments that have complete profiles
+    // Complete iff the fragment profile has at least one operator profile, and start and end times.
+    final List<UserBitShared.MinorFragmentProfile> complete = new ArrayList<>(
+      Collections2.filter(major.getMinorFragmentProfileList(), Filters.hasOperatorsAndTimes));
+
+
+    int n = complete.size();
+    double[] deviation = new double[n];
+    for (int i = 0; i < n; i++) {
+      final UserBitShared.MinorFragmentProfile minor = complete.get(i);
+      final long wallClockTime = minor.getEndTime() - minor.getStartTime();
+      deviation[i] = wallClockTime;
+    }
+    List<Double> result = getSDFromOperatorMetrics(deviation);
+    return result;
+  }
+
+
+  /**
+   * Calculate the deviation between batch sizes from all minor fragments of the same operator.
+   * Each operator profile can have more than one input profile so it is taking the max.
+   * @param major
+   * @param operatorId
+   * @return
+   */
+  private List<Double> getBatchSizesFromAllMinorFragments(UserBitShared.MajorFragmentProfile major, int operatorId) {
+
+    double[] deviation = new double[major.getMinorFragmentProfileList().size()];
+
+    for (int i = 0; i < major.getMinorFragmentProfileList().size(); i++) {
+      UserBitShared.MinorFragmentProfile minor = major.getMinorFragmentProfileList().get(i);
+
+      for (int j = 0; j < minor.getOperatorProfileList().size(); j++) {
+
+        UserBitShared.OperatorProfile operatorProfile = minor.getOperatorProfileList().get(j);
+        if (operatorProfile.getOperatorId() == operatorId) {
+
+          long batchSize = operatorProfile.getInputProfileList().stream().collect(Collectors.summarizingLong(bt -> bt.getBatches())).getMax();
+          deviation[i] = batchSize;
+        }
+
+      }
+    }
+    List<Double> result = getSDFromOperatorMetrics(deviation);
+    return result;
+  }
+
+  private List<Double> getTotalBlockedOrWaitTimeSkew(UserBitShared.MajorFragmentProfile major) {
+
+    double[] deviation = new double[major.getMinorFragmentProfileList().size()];
+
+    for (int i = 0; i < major.getMinorFragmentProfileList().size(); i++) {
+      deviation[i] = major.getMinorFragmentProfileList().get(i).getBlockedOnMemoryDuration();
+    }
+    List<Double> result = getSDFromOperatorMetrics(deviation);
+    return result;
+  }
+
+  private List<Double> getSDFromOperatorMetrics(double[] metricArray) {
+    StatsAccumulator statsAccumulator = new StatsAccumulator();
+
+    List<Double> deviation =new ArrayList<>();
+
+    for (int i = 0; i < metricArray.length; i++) {
+      statsAccumulator.add(metricArray[i]);
+      deviation.add(metricArray[i]);
+    }
+
+    double mean = statsAccumulator.mean();
+    double sd = statsAccumulator.populationStandardDeviation();
+    for (int i = 0; i < deviation.size(); i++) {
+      deviation.set(i, sd == 0 ? 0 : (deviation.get(i) - mean) / sd);
+    }
+    return deviation;
   }
 }

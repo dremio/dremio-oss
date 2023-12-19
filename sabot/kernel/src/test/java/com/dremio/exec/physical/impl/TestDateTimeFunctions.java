@@ -16,7 +16,13 @@
 package com.dremio.exec.physical.impl;
 
 import static com.dremio.common.util.JodaDateUtility.formatDate;
+import static com.dremio.sabot.Fixtures.NULL_BIGINT;
+import static com.dremio.sabot.Fixtures.NULL_DATE;
+import static com.dremio.sabot.Fixtures.NULL_TIMESTAMP;
+import static com.dremio.sabot.Fixtures.date;
+import static com.dremio.sabot.Fixtures.time;
 import static com.dremio.sabot.Fixtures.ts;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -69,11 +75,78 @@ public class TestDateTimeFunctions extends BaseTestFunction {
   }
 
   @Test
+  public void toDateShortFormat() {
+    testFunctions(new Object[][]{
+      {"cast(to_date(c0, 'YYYY-MM') as TIMESTAMP)", "2018-11", ts("2018-11-01T00:00:00")},
+      {"cast(to_date(c0, 'YYYY-MM',0) as TIMESTAMP)", "2018-11", ts("2018-11-01T00:00:00")},
+      {"cast(to_date(c0, 'YYYY') as TIMESTAMP)", "2018", ts("2018-01-01T00:00:00")},
+      {"cast(to_date(c0, 'YYYY',0) as TIMESTAMP)", "2018", ts("2018-01-01T00:00:00")},
+    });
+  }
+
+  @Test
   public void testUnixTimestampWithTZOffset() {
     testFunctions(new Object[][]{
       {"unix_timestamp(c0, 'YYYY-MM-DD\"T\"HH24:MI:SS.FFFTZO')", "1970-01-01T01:00:00.000-01:00", 7200L /*1970-01-01T02:00:00*/},
       {"unix_timestamp(c0, 'YYYY-MM-DD\"T\"HH24:MI:SS.FFFTZO')", "1970-01-01T01:00:00.000+01:00", 0L /*1970-01-01T00:00:00*/},
       {"unix_timestamp(c0, 'YYYY-MM-DD\"T\"HH24:MI:SS.FFFTZO')", "1970-01-01T02:00:00.000+01:00", 3600L /*1970-01-01T01:00:00*/},
+    });
+  }
+
+
+  @Test
+  public void testFromTimeStamp() {
+    testFunctions(new Object[][]{
+      {"extractMinute(c0)", ts("1970-01-02T10:20:33"), 20L},
+      {"extractHour(c0)", ts("1970-01-02T10:20:33"), 10L},
+      {"extractDay(c0)", ts("1970-01-02T10:20:33"), 2L},
+      {"extractMonth(c0)", ts("1970-01-02T10:20:33"), 1L},
+      {"extractYear(c0)", ts("1970-01-02T10:20:33"), 1970L},
+      {"extractSecond(c0)", ts("1970-01-02T10:20:33"), 33L},
+    });
+  }
+
+  @Test
+  public void testFromDate() {
+    testFunctions(new Object[][]{
+      {"extractDay(c0)", date("1970-01-02"), 2L},
+      {"extractMonth(c0)", date("1970-01-02"), 1L},
+      {"extractYear(c0)", date("1970-01-02"), 1970L},
+    });
+  }
+
+  @Test
+  public void testWeekOfYear() {
+    testFunctions(new Object[][]{
+      {"weekofyear(c0)", ts("1970-01-02T10:20:33"), 1L},
+      {"yearweek(c0)", ts("1970-01-02T10:20:33"), 1L},
+      {"yearweek(c0)", ts("2023-06-13T20:37:00"), 24L},
+      {"weekofyear(c0)", ts("2023-06-13T20:37:00"), 24L},
+      {"weekofyear(c0)", date("2023-06-13"), 24L},
+      {"yearweek(c0)", date("2023-06-13"), 24L}
+    });
+  }
+
+  @Test
+  public void testLastDay() throws Exception {
+    testFunctions(new Object[][]{
+      {"extractDay(last_day(c0))", date("2000-05-01"), 31L},
+      {"extractDay(last_day(c0))", date("2000-06-01"), 30L},
+      {"extractDay(last_day(c0))", date("2021-12-12"), 31L},
+      {"extractDay(last_day(c0))", NULL_DATE, NULL_BIGINT},
+      {"extractDay(last_day(c0))", ts("2000-05-01"), 31L},
+      {"extractDay(last_day(c0))", ts("2000-06-01"), 30L},
+      {"extractDay(last_day(c0))", ts("2021-12-12"), 31L},
+      {"extractDay(last_day(c0))", NULL_TIMESTAMP, NULL_BIGINT},
+    });
+  }
+
+  @Test
+  public void testFromTime() {
+    testFunctions(new Object[][]{
+      {"extractMinute(c0)", time("10:20:33"), 20L},
+      {"extractHour(c0)", time("10:20:33"), 10L},
+      {"extractSecond(c0)", time("10:20:33"), 33L},
     });
   }
 
@@ -205,4 +278,27 @@ public class TestDateTimeFunctions extends BaseTestFunction {
       {"date_add(c0, 1)", ts("2020-10-09T02:02:02.123"), ts("2020-10-10T02:02:02.123")},
     });
   }
+
+  @Test
+  public void testDateType() {
+    testFunctions(new Object[][]{
+      {"cast(datetype(2020, 10, 5) as TIMESTAMP)", ts("2020-10-05T00:00:00.000")},
+      {"cast(datetype(2021, 1, 1) as TIMESTAMP)", ts("2021-1-1T00:00:00.000")},
+    });
+
+    assertThatThrownBy(() -> testFunction("cast(datetype(2020, 1, 0) as TIMESTAMP)", ts("2020-1-1T00:00:00.000")))
+      .cause().cause().hasMessageContaining("Unable to convert");
+  }
+
+  @Test
+  public void testTimestampType() {
+    testFunctions(new Object[][]{
+      {"timestamptype(2020, 10, 5, 1, 2, 3, 500) ", ts("2020-10-05T01:02:03.500")},
+      {"timestamptype(2021, 1, 1, 1, 2, 3, 500)", ts("2021-1-1T01:02:03.500")},
+    });
+
+    assertThatThrownBy(() -> testFunction("timestamptype(2021, 1, 0, 1, 2, 3, 500)", ts("2021-1-1T01:02:03.500")))
+      .cause().cause().hasMessageContaining("Unable to convert");
+  }
+
 }

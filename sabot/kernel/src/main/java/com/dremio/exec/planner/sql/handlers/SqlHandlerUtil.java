@@ -546,7 +546,7 @@ public class SqlHandlerUtil {
       }
     } else {
       // For NativeIceberg tables in different catalogs supported
-      validate = IcebergUtils.checkTableExistenceAndMutability(catalog, config, path, null, false);
+      validate = IcebergUtils.checkTableExistenceAndMutability(catalog, config, path, null, true);
     }
     return validate.isPresent() ? validate.get() : new SimpleCommandResult(true, "");
   }
@@ -590,7 +590,7 @@ public class SqlHandlerUtil {
 
   public static void validateSupportForVersionedReflections(String source, Catalog catalog, OptionManager optionManager) {
     if (CatalogUtil.requestedPluginSupportsVersionedTables(source, catalog)) {
-      if (!optionManager.getOption(CatalogOptions.REFLECTION_ARCTIC_ENABLED)) {
+      if (!optionManager.getOption(CatalogOptions.REFLECTION_VERSIONED_SOURCE_ENABLED)) {
         throw UserException.unsupportedError()
           .message("Versioned source does not support reflection.")
           .build(logger);

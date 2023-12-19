@@ -13,17 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { getIconByType, getUrlByType } from "./utils";
+import { getIconByType } from "./utils";
 
 describe("NessieHomePage - utils", () => {
-  it("Returns the correct URL", () => {
-    expect(getUrlByType("UNKNOWN", "a.b.c")).to.equal("/namespace/a.b.c");
-    expect(getUrlByType(null, "a.b.c")).to.equal("/namespace/a.b.c");
-    expect(getUrlByType(null, "")).to.equal("/namespace/");
-    expect(getUrlByType("ICEBERG_TABLE", "a.b.c")).to.equal("/table/a.b.c");
-    expect(getUrlByType("ICEBERG_TABLE", "")).to.equal("/table/");
-  });
-
   it("Returns the correct icon", () => {
     const namespace = { type: "Space", id: "Nessie.Namespace" };
     const iceberg = { type: "PhysicalDataset", id: "Nessie.ICEBERG_TABLE" };

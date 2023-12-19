@@ -120,6 +120,7 @@ public class RuntimeFilterUtil {
       // No valid bloomfilter for partition pruning
       logger.debug("No valid partition column filter for {}", probeTarget.toTargetIdString());
     } else {
+      Preconditions.checkState(partitionColFilter.get().getDataBuffer().refCnt() > 0, "Reference count for partitionColFilter buffer < 1.");
       Preconditions.checkState(!CollectionUtils.isEmpty(probeTarget.getPartitionBuildTableKeys()));
       Preconditions.checkState(!partitionColFilter.get().isCrossingMaxFPP());
 
@@ -178,7 +179,7 @@ public class RuntimeFilterUtil {
     } else if (fmEntry != null && fmEntry.isComplete() && !fmEntry.isDropped()) {
       // All other filter pieces have already arrived. This one was last one to join.
       // Send merged filter to probe scan and close this individual piece explicitly.
-      sendRuntimeFilterToProbeScan(runtimeFilter, Optional.ofNullable(fmEntry.getPartitionColFilter()),
+      sendRuntimeFilterToProbeScan(fmEntry.getCompositeFilter(), Optional.ofNullable(fmEntry.getPartitionColFilter()),
         fmEntry.getNonPartitionColFilters(), operatorContext, hashJoinConfig);
       runtimeFilterManager.remove(fmEntry);
 
@@ -226,6 +227,20 @@ public class RuntimeFilterUtil {
     return runTimeFilterDetailsInfos;
   }
 
+  private static void collectRuntimeFilterBuffers(RuntimeFilter filter,
+                                                  Optional<BloomFilter> partitionColFilter,
+                                                  List<ValueListFilter> nonPartitionColFilters,
+                                                  List<ArrowBuf> buffers,
+                                                  List<Integer> bufLengths
+                                                  ) {
+    final ArrowBuf bloomFilterBuf = partitionColFilter.map(bf -> bf.getDataBuffer()).orElse(null);
+    partitionColFilter.ifPresent(bf -> buffers.add(bloomFilterBuf));
+    nonPartitionColFilters.forEach(v -> buffers.add(v.buf()));
+
+    partitionColFilter.ifPresent(v -> bufLengths.add((int)filter.getPartitionColumnFilter().getSizeBytes()));
+    filter.getNonPartitionColumnFilterList().forEach(v -> bufLengths.add((int)v.getSizeBytes()));
+  }
+
   @VisibleForTesting
   static void sendRuntimeFilterToProbeScan(RuntimeFilter filter, Optional<BloomFilter> partitionColFilter,
                                            List<ValueListFilter> nonPartitionColFilters,
@@ -235,10 +250,10 @@ public class RuntimeFilterUtil {
     logger.debug("Partition col filter fpp {}",
       partitionColFilter.map(BloomFilter::getExpectedFPP).orElse(-1D));
 
-    final List<ArrowBuf> orderedBuffers = new ArrayList<>(nonPartitionColFilters.size() + 1);
-    final ArrowBuf bloomFilterBuf = partitionColFilter.map(bf -> bf.getDataBuffer()).orElse(null);
-    partitionColFilter.ifPresent(bf -> orderedBuffers.add(bloomFilterBuf));
-    nonPartitionColFilters.forEach(v -> orderedBuffers.add(v.buf()));
+    // if bloom filter is empty, initial capacity maybe allocate 1 more than necessary, should be ok.
+    final List<ArrowBuf> orderedBuffers = new ArrayList<ArrowBuf>(nonPartitionColFilters.size() + 1);
+    final List<Integer> bufLengths = new ArrayList<Integer>(nonPartitionColFilters.size() + 1);
+    collectRuntimeFilterBuffers(filter, partitionColFilter, nonPartitionColFilters, orderedBuffers, bufLengths);
 
     final MajorFragmentAssignment majorFragmentAssignment =
       operatorContext.getExtMajorFragmentAssignments(filter.getProbeScanMajorFragmentId());
@@ -263,6 +278,7 @@ public class RuntimeFilterUtil {
           hashJoinConfig.getProps().getOperatorId(),
           new OutOfBandMessage.Payload(filter),
           orderedBuffers.toArray(new ArrowBuf[orderedBuffers.size()]),
+          bufLengths,
           true);
         final NodeEndpoint endpoint = operatorContext.getEndpointsIndex().getNodeEndpoint(assignment.getAssignmentIndex());
         operatorContext.getTunnelProvider().getExecTunnel(endpoint).sendOOBMessage(message);
@@ -283,10 +299,9 @@ public class RuntimeFilterUtil {
   static void sendRuntimeFilterAtMergePoints(RuntimeFilter filter, Optional<BloomFilter> bloomFilter,
                                              List<ValueListFilter> nonPartitionColFilters,
                                              OperatorContext operatorContext, HashJoinPOP hashJoinConfig) throws Exception {
-    final List<ArrowBuf> orderedBuffers = new ArrayList<>(nonPartitionColFilters.size() + 1);
-    final ArrowBuf bloomFilterBuf = bloomFilter.map(bf -> bf.getDataBuffer()).orElse(null);
-    bloomFilter.ifPresent(bf -> orderedBuffers.add(bloomFilterBuf));
-    nonPartitionColFilters.forEach(vlf -> orderedBuffers.add(vlf.buf()));
+    final List<ArrowBuf> orderedBuffers = new ArrayList<ArrowBuf>(nonPartitionColFilters.size() + 1);
+    final List<Integer> bufLengths = new ArrayList<Integer>(nonPartitionColFilters.size() + 1);
+    collectRuntimeFilterBuffers(filter, bloomFilter, nonPartitionColFilters, orderedBuffers, bufLengths);
 
     // Sends the filters to node endpoints running minor fragments 0,1,2.
     for (FragmentAssignment a : operatorContext.getAssignments()) {
@@ -313,6 +328,7 @@ public class RuntimeFilterUtil {
           hashJoinConfig.getProps().getOperatorId(),
           new OutOfBandMessage.Payload(filter),
           orderedBuffers.toArray(new ArrowBuf[orderedBuffers.size()]),
+          bufLengths,
           true);
         final NodeEndpoint endpoint = operatorContext.getEndpointsIndex().getNodeEndpoint(a.getAssignmentIndex());
         operatorContext.getTunnelProvider().getExecTunnel(endpoint).sendOOBMessage(message);
@@ -324,39 +340,38 @@ public class RuntimeFilterUtil {
 
   public static void workOnOOB(OutOfBandMessage message, RuntimeFilterManager filterManager,
                                OperatorContext context, HashJoinPOP config) {
-    if (message.getBuffers() == null || message.getBuffers().length != 1) {
+    if (message.getBuffers() == null || message.getBuffers().length == 0) {
       logger.warn("Empty runtime filter received from minor fragment: " + message.getSendingMinorFragmentId());
       return;
     }
-    // check above ensures there is only one element in the array. This is a merged message buffer.
-    final ArrowBuf msgBuf = message.getBuffers()[0];
+
+    final List<ArrowBuf> buffers = message.getOriginalBuffers();
+    int idx = 0;
 
     try {
       final RuntimeFilter runtimeFilter = message.getPayload(RuntimeFilter.parser());
-      long nextSliceStart = 0L;
       ExecProtos.CompositeColumnFilter partitionColFilterProto = runtimeFilter.getPartitionColumnFilter();
 
       // Partition col filters
       BloomFilter bloomFilterPiece = null;
       if (partitionColFilterProto != null && !partitionColFilterProto.getColumnsList().isEmpty()) {
-        Preconditions.checkArgument(msgBuf.capacity() >= partitionColFilterProto.getSizeBytes(), "Invalid filter size. " +
-          "Buffer capacity is %s, expected filter size %s", msgBuf.capacity(), partitionColFilterProto.getSizeBytes());
-        bloomFilterPiece = BloomFilter.prepareFrom(msgBuf.slice(nextSliceStart, partitionColFilterProto.getSizeBytes()));
+        ArrowBuf pcBuffer = buffers.get(idx++);
+        Preconditions.checkArgument(pcBuffer.capacity() >= partitionColFilterProto.getSizeBytes(), "Invalid filter size. " +
+          "Buffer capacity is %s, expected filter size %s", pcBuffer.capacity(), partitionColFilterProto.getSizeBytes());
+        bloomFilterPiece = BloomFilter.prepareFrom(pcBuffer);
         Preconditions.checkState(bloomFilterPiece.getNumBitsSet() == partitionColFilterProto.getValueCount(),
           "Bloomfilter value count mismatched. Expected %s, Actual %s", partitionColFilterProto.getValueCount(), bloomFilterPiece.getNumBitsSet());
-        nextSliceStart += partitionColFilterProto.getSizeBytes();
         logger.debug("Received runtime filter piece {}, attempting merge.", bloomFilterPiece.getName());
       }
 
       final List<ValueListFilter> valueListFilterPieces = new ArrayList<>(runtimeFilter.getNonPartitionColumnFilterCount());
       for (int i =0; i < runtimeFilter.getNonPartitionColumnFilterCount(); i++) {
+        ArrowBuf npcBuffer = buffers.get(idx++);
         ExecProtos.CompositeColumnFilter nonPartitionColFilterProto = runtimeFilter.getNonPartitionColumnFilter(i);
         final String fieldName = nonPartitionColFilterProto.getColumns(0);
-        Preconditions.checkArgument(msgBuf.capacity() >= nextSliceStart + nonPartitionColFilterProto.getSizeBytes(),
+        Preconditions.checkArgument(npcBuffer.capacity() >= nonPartitionColFilterProto.getSizeBytes(),
           "Invalid filter buffer size for non partition col %s.", fieldName);
-        final ValueListFilter valueListFilter = ValueListFilterBuilder
-          .fromBuffer(msgBuf.slice(nextSliceStart, nonPartitionColFilterProto.getSizeBytes()));
-        nextSliceStart += nonPartitionColFilterProto.getSizeBytes();
+        final ValueListFilter valueListFilter = ValueListFilterBuilder.fromBuffer(npcBuffer);
         valueListFilter.setFieldName(fieldName);
         Preconditions.checkState(valueListFilter.getValueCount() == nonPartitionColFilterProto.getValueCount(),
           "ValueListFilter %s count mismatched. Expected %s, found %s", fieldName,

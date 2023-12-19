@@ -111,7 +111,7 @@ public final class LegacyStoreBuilderHelper<K, V> {
     return info;
   }
 
-  private static class FormatInfoFactory implements FormatVisitor<KVFormatInfo> {
+  private static final class FormatInfoFactory implements FormatVisitor<KVFormatInfo> {
 
     private static FormatInfoFactory INSTANCE = new FormatInfoFactory();
 

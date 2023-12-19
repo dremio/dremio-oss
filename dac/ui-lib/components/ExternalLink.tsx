@@ -2,17 +2,19 @@ import * as React from "react";
 import clsx from "clsx";
 
 //@ts-ignore
-const externalIcon = (
-  //@ts-ignore
-  <dremio-icon
-    name="interface/external-link"
-    class="dremio-external-link__icon"
-    //@ts-ignore
-  ></dremio-icon>
-);
+// const externalIcon = (
+//   //@ts-ignore
+//   <dremio-icon
+//     name="interface/external-link"
+//     class="dremio-external-link__icon"
+//     //@ts-ignore
+//   ></dremio-icon>
+// );
+
+const externalIcon = null;
 
 type ExternalLinkProps = {
-  children: JSX.Element;
+  children: JSX.Element | string;
   className?: string;
   variant?: "inline" | "list";
   hideIcon?: boolean;

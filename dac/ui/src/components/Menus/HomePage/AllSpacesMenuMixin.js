@@ -16,13 +16,16 @@
 import Menu from "components/Menus/Menu";
 import MenuItem from "components/Menus/MenuItem";
 import MenuItemLink from "components/Menus/MenuItemLink";
+import DividerHr from "components/Menus/DividerHr";
 import { EntityLinkProvider } from "@app/pages/HomePage/components/EntityLink";
 import { FormattedMessage } from "react-intl";
+import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";
 
 export default function (input) {
   Object.assign(input.prototype, {
     // eslint-disable-line no-restricted-properties
     render() {
+      const { t } = getIntlContext();
       const { spaceId, closeMenu } = this.props;
       const { location } = this.context;
       return (
@@ -48,9 +51,10 @@ export default function (input) {
               closeMenu={closeMenu}
             />
           }
+          {<DividerHr />}
           {
-            <MenuItem onClick={this.handleRemoveSpace}>
-              {<FormattedMessage id="Space.RemoveSpace" />}
+            <MenuItem onClick={this.handleRemoveSpace} className="danger">
+              {<span>{t("Common.Actions.Delete")}</span>}
             </MenuItem>
           }
         </Menu>

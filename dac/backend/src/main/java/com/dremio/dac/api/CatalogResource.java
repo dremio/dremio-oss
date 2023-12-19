@@ -83,7 +83,8 @@ public class CatalogResource {
   }
 
   @POST
-  public CatalogEntity createCatalogItem(CatalogEntity entity) throws NamespaceException, BadRequestException {
+  public CatalogEntity createCatalogItem(CatalogEntity entity)
+    throws NamespaceException, BadRequestException {
     try {
       return catalogServiceHelper.createCatalogItem(entity);
     } catch (UnsupportedOperationException e) {

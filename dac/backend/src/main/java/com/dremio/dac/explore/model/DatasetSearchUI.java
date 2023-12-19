@@ -83,6 +83,10 @@ public class DatasetSearchUI {
     }
   }
 
+  public static DatasetSearchUI newInstance(DatasetConfig datasetConfig, CollaborationTag collaborationTag) {
+    return new DatasetSearchUI(datasetConfig, collaborationTag);
+  }
+
   @JsonCreator
   public DatasetSearchUI(@JsonProperty("id") String id,
                          @JsonProperty("fullPath") List<String> fullPath,

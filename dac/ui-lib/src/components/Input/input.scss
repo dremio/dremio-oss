@@ -28,7 +28,7 @@
     border: solid 1px $border-color;
     display: flex;
     align-items: center;
-    background-color: $white;
+    background-color: var(--bg--default);
 
     &:hover {
       border: 1px solid $FIGMA_NEUTRAL_300;
@@ -117,6 +117,7 @@
       font-size: inherit;
       font-weight: inherit;
       color: inherit;
+      background: inherit;
 
       &.--prefixed {
         border-top-left-radius: 0px;

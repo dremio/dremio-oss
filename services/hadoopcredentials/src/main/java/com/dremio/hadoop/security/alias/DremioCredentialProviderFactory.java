@@ -42,7 +42,7 @@ public class DremioCredentialProviderFactory extends CredentialProviderFactory {
       this.credentialsService = credentialsServiceProvider.get();
     }
 
-    private static class SingletonHelper {
+    private static final class SingletonHelper {
       private static final CredentialsServiceSingleton INSTANCE = new CredentialsServiceSingleton();
     }
 

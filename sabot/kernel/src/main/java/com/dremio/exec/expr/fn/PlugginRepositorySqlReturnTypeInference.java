@@ -53,7 +53,7 @@ public class PlugginRepositorySqlReturnTypeInference implements SqlReturnTypeInf
     }
 
     final FunctionCall functionCall = TypeInferenceUtils.convertSqlOperatorBindingToFunctionCall(opBinding);
-    final AbstractFunctionHolder funcHolder = registry.getFunction(functionCall);
+    final AbstractFunctionHolder funcHolder = registry.findFunction(functionCall);
     if(funcHolder == null) {
       final StringBuilder operandTypes = new StringBuilder();
       for(int j = 0; j < opBinding.getOperandCount(); ++j) {

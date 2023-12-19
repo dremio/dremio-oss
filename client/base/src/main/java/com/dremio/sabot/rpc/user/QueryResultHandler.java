@@ -197,7 +197,7 @@ public class QueryResultHandler {
     return resultsListener;
   }
 
-  private static class BufferingResultsListener implements UserResultsListener {
+  private static final class BufferingResultsListener implements UserResultsListener {
 
     private ConcurrentLinkedQueue<QueryDataBatch> results = Queues.newConcurrentLinkedQueue();
     private volatile UserException ex;

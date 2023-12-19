@@ -16,10 +16,12 @@
 package com.dremio.exec.store.parquet;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
 
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.store.RuntimeFilter;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.options.OptionManager;
@@ -31,18 +33,21 @@ import com.dremio.sabot.exec.context.OperatorContext;
 public interface InputStreamProviderFactory {
 
   String KEY = "dremio.plugins.parquet.input_stream_factory";
+  List<RuntimeFilter> DEFAULT_NON_PARTITION_COLUMN_RF = Collections.emptyList();
 
   InputStreamProvider create(FileSystem fs, OperatorContext context,
                              Path path, long fileLength, long splitSize, ParquetScanProjectedColumns projectedColumns,
                              MutableParquetMetadata footerIfKnown, InputStreamProvider inputStreamProviderIfKnown, Function<MutableParquetMetadata, Integer> rowGroupIndexProvider,
-                             boolean readFullFile, List<String> dataset, long mTime, boolean enableBoosting, boolean readIndices, ParquetFilters parquetFilters, ParquetFilterCreator parquetFilterCreator) throws IOException;
+                             boolean readFullFile, List<String> dataset, long mTime, boolean enableBoosting, boolean readIndices, ParquetFilters parquetFilters,
+                             ParquetFilterCreator parquetFilterCreator, List<RuntimeFilter> nonPartitionColumnRFs) throws IOException;
 
   InputStreamProviderFactory DEFAULT = new InputStreamProviderFactory() {
     @Override
     public InputStreamProvider create(FileSystem fs, OperatorContext context,
                                       Path path, long fileLength, long splitSize, ParquetScanProjectedColumns projectedColumns,
                                       MutableParquetMetadata footerIfKnown, InputStreamProvider inputStreamProviderIfKnown, Function<MutableParquetMetadata, Integer> rowGroupIndexProvider,
-                                      boolean readFullFile, List<String> dataset, long mTime, boolean enableBoosting, boolean readColumnIndices, ParquetFilters parquetFilters, ParquetFilterCreator parquetFilterCreator) throws IOException {
+                                      boolean readFullFile, List<String> dataset, long mTime, boolean enableBoosting, boolean readColumnIndices, ParquetFilters parquetFilters, ParquetFilterCreator parquetFilterCreator,
+                                      List<RuntimeFilter> nonPartitionColumnRFs) throws IOException {
       OptionManager options = context.getOptions();
       boolean useSingleStream =
         // option is set for single stream

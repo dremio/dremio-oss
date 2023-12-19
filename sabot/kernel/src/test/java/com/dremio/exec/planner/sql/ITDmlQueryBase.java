@@ -17,10 +17,21 @@ package com.dremio.exec.planner.sql;
 
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
+import java.io.IOException;
+import java.util.UUID;
+
 import org.apache.calcite.config.NullCollation;
 import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.pretty.SqlPrettyWriter;
+import org.apache.iceberg.DataFile;
+import org.apache.iceberg.DataFiles;
+import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.ManifestFile;
+import org.apache.iceberg.ManifestFiles;
+import org.apache.iceberg.ManifestWriter;
+import org.apache.iceberg.Table;
+import org.apache.iceberg.io.OutputFile;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
@@ -77,7 +88,6 @@ public class ITDmlQueryBase extends BaseTestQuery {
       queryContext.getFunctionRegistry(),
       queryContext.getSession(),
       observer,
-      queryContext.getCatalog(),
       queryContext.getSubstitutionProviderFactory(),
       queryContext.getConfig(),
       queryContext.getScanResult(),
@@ -91,6 +101,8 @@ public class ITDmlQueryBase extends BaseTestQuery {
     setSystemOption(ExecConstants.ENABLE_ICEBERG_ADVANCED_DML_MERGE_STAR, "true");
     setSystemOption(ExecConstants.ENABLE_COPY_INTO, "true");
     setSystemOption(ExecConstants.ENABLE_ICEBERG_VACUUM, "true");
+    setSystemOption(ExecConstants.ENABLE_ICEBERG_VACUUM_REMOVE_ORPHAN_FILES, "true");
+    setSystemOption(ExecConstants.ENABLE_ICEBERG_SORT_ORDER, "true");
   }
 
   @AfterClass
@@ -105,6 +117,10 @@ public class ITDmlQueryBase extends BaseTestQuery {
       ExecConstants.ENABLE_COPY_INTO.getDefault().getBoolVal().toString());
     setSystemOption(ExecConstants.ENABLE_ICEBERG_VACUUM,
       ExecConstants.ENABLE_ICEBERG_VACUUM.getDefault().getBoolVal().toString());
+    setSystemOption(ExecConstants.ENABLE_ICEBERG_VACUUM_REMOVE_ORPHAN_FILES,
+      ExecConstants.ENABLE_ICEBERG_VACUUM_REMOVE_ORPHAN_FILES.getDefault().getBoolVal().toString());
+    setSystemOption(ExecConstants.ENABLE_ICEBERG_SORT_ORDER,
+      ExecConstants.ENABLE_ICEBERG_SORT_ORDER.getDefault().getBoolVal().toString());
   }
 
   @Before
@@ -122,5 +138,23 @@ public class ITDmlQueryBase extends BaseTestQuery {
     node.unparse(writer, 0, 0);
     String actual = writer.toString();
     Assert.assertEquals(expected.toLowerCase(), actual.toLowerCase());
+  }
+
+  protected static ManifestFile writeManifestFile(Table icebergTable, int noOfDataFiles) throws IOException {
+    final OutputFile manifestLocation = icebergTable.io().newOutputFile(
+      String.format("%s/metadata/%s-mx.avro", icebergTable.location(), UUID.randomUUID()));
+    ManifestWriter<DataFile> writer = ManifestFiles.write(icebergTable.spec(), manifestLocation);
+
+    for (int i = 0; i < noOfDataFiles; i++) {
+      writer.add(DataFiles.builder(icebergTable.spec())
+        .withPath(String.format("/data/fake-%d.parquet", i))
+        .withFormat(FileFormat.PARQUET)
+        .withFileSizeInBytes(20 * 1024 * 1024L)
+        .withRecordCount(1_000_000)
+        .build());
+    }
+
+    writer.close();
+    return writer.toManifestFile();
   }
 }

@@ -79,7 +79,10 @@ export function* handleStartDatasetDownload({ meta }) {
       yield put(hideConfirmationDialog());
       if (jobDone.payload.update.state !== "COMPLETED") {
         yield put(
-          addNotification(la("Error preparing job download."), "error")
+          addNotification(
+            laDeprecated("Error preparing job download."),
+            "error"
+          )
         );
         return;
       }

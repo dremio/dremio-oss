@@ -75,6 +75,12 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
   private HashAggPartitionWritableBatch inProgressWritableBatch;
   private final OperatorStats operatorStats;
   private final long warnMaxSpillTime; //in milliseconds
+
+  /*
+  Since we are also spilling in VectorizedHashAggOperator's OUTPUT_INMEMORY_PARTITIONS state,
+  we only spill batches in the partition which are not yet processed in output.
+   */
+  private int spillStartIndex;
   /**
    * Used to serialize a HashAggPartition to disk. Caller should use
    * this constructor when they decide a particular partition
@@ -92,6 +98,7 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
     this.partitionToLoadSpilledData = null;
     this.operatorStats = stats;
     this.warnMaxSpillTime = warnMaxSpillTime;
+    this.spillStartIndex = hashAggPartition.getNextBatchToOutput();
     initLocalStats();
   }
 
@@ -363,7 +370,7 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
     final HashAggPartitionWritableBatch hashTableWritableBatch =
       new HashAggPartitionWritableBatch(hashTable, fixedBlockBuffers, variableBlockBuffers,
                                         hashAggPartition.blockWidth, hashAggPartition.accumulator,
-                                        hashTable.getMaxValuesPerBatch());
+                                        hashTable.getMaxValuesPerBatch(), hashAggPartition.getNextBatchToOutput());
     HashAggPartitionBatchDefinition batchDefinition;
     /* spill entire partition -- one batch at a time */
     while ((batchDefinition = hashTableWritableBatch.getNextWritableBatch()) != null) {
@@ -419,7 +426,7 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
                                   "ERROR: inconsistent number of buffers in hash table");
       inProgressWritableBatch = new HashAggPartitionWritableBatch(hashTable, fixedBlockBuffers, variableBlockBuffers,
                                                                   hashAggPartition.blockWidth, hashAggPartition.accumulator,
-                                                                  hashTable.getMaxValuesPerBatch());
+                                                                  hashTable.getMaxValuesPerBatch(), this.spillStartIndex);
     }
 
     HashAggPartitionBatchDefinition batchDefinition = inProgressWritableBatch.getNextWritableBatch();

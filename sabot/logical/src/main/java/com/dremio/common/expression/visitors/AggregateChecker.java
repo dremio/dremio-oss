@@ -15,6 +15,7 @@
  */
 package com.dremio.common.expression.visitors;
 
+import com.dremio.common.expression.ArrayLiteralExpression;
 import com.dremio.common.expression.BooleanOperator;
 import com.dremio.common.expression.CaseExpression;
 import com.dremio.common.expression.CastExpression;
@@ -206,4 +207,8 @@ public final class AggregateChecker implements ExprVisitor<Boolean, ErrorCollect
     return false;
   }
 
+  @Override
+  public Boolean visitArrayLiteralExpression(ArrayLiteralExpression e, ErrorCollector value) throws RuntimeException {
+    return true;
+  }
 }

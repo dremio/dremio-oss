@@ -15,6 +15,7 @@
  */
 
 @use "./helpers";
+@use "./transition";
 
 .bg-background {
   background: white;
@@ -137,6 +138,15 @@
   @extend .bg-warning-500;
 }
 .bg-disabled {
-  background-color: var(--color--neutral--25);
+  background-color: var(--color--neutral--50) !important;
   color: var(--color--neutral--200);
+}
+.bg-none {
+  background: none;
+}
+
+.hover\:bg-brand-subtle:hover {
+  @extend .bg-brand-subtle;
+  @extend .transition-medium;
+  transition-property: background;
 }

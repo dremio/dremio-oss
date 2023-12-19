@@ -26,6 +26,7 @@ import { getSpaceVersion, getSpaceName } from "@app/selectors/home";
 import * as commonPaths from "dremio-ui-common/paths/common.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
+import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";
 
 const mapStateToProps = (state, { spaceId }) => {
   return {
@@ -63,6 +64,7 @@ export class AllSpacesMenu extends PureComponent {
   };
 
   handleRemoveSpace = () => {
+    const { t } = getIntlContext();
     const {
       spaceId,
       spaceName,
@@ -76,9 +78,11 @@ export class AllSpacesMenu extends PureComponent {
     // copied from menuUtils.showConfirmRemove. Should be moved back to utils, when source would be
     // migrated to v3 api
     showDialog({
-      title: la("Remove Space"),
-      text: la(`Are you sure you want to remove "${spaceName}"?`),
-      confirmText: la("Remove"),
+      title: t("Space.Delete"),
+      text: t("Delete.Confirmation", {
+        name: spaceName,
+      }),
+      confirmText: t("Common.Actions.Delete"),
       confirm: () => {
         removeItem(spaceId, spaceVersion);
         if (
@@ -89,6 +93,7 @@ export class AllSpacesMenu extends PureComponent {
           router.push(commonPaths.projectBase.link({ projectId }));
         }
       },
+      confirmButtonStyle: "danger",
     });
     closeMenu();
   };

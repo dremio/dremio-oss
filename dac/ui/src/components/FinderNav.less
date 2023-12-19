@@ -23,8 +23,8 @@
     height: 100%;
 
     a.pointer {
-      padding-left: 8px;
-      padding-right: 16px;
+      padding-left: var(--dremio--spacing--1);
+      padding-right: var(--dremio--spacing--1);
       cursor: pointer;
     }
 
@@ -43,15 +43,16 @@
       }
     }
 
+    .finder-nav-item {
+      a.finder-nav-item-link {
+        padding-left: 24px;
+      }
+    }
+
     &.finder-nav--collapsible {
       // Show collapse control only if the finder nav is collapsible
       .finder-nav__collapse-control {
         display: inline-block;
-      }
-      .finder-nav-item {
-        a.finder-nav-item-link {
-          padding-left: 24px;
-        }
       }
       a.pointer {
         padding-left: 0;
@@ -83,11 +84,18 @@
       width: 100%;
       cursor: pointer;
 
+      .finder-nav-item {
+        width: 100%;
+      }
+      .finder-nav-item-link {
+        padding-left: var(--dremio--spacing--1) !important;
+      }
+
       &:hover {
         background-color: var(--color--brand--25);
       }
 
-      a {
+      a:not(.add-button) {
         height: 100%;
         width: 100%;
         display: flex;
@@ -103,6 +111,10 @@
           font-weight: 600;
           background-color: var(--color--brand--50);
         }
+      }
+
+      .dremio-tooltip__child-wrap {
+        margin-left: auto;
       }
 
       .pull-right.dremio-icon-button {

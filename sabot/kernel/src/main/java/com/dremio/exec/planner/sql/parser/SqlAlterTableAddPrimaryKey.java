@@ -45,8 +45,8 @@ public class SqlAlterTableAddPrimaryKey extends SqlAlterTable implements SimpleD
 
     @Override
     public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 2, "SqlAlterTableAddPrimaryKey.createCall() " +
-          "has to get 2 operands!");
+      Preconditions.checkArgument(operands.length == 3, "SqlAlterTableAddPrimaryKey.createCall() " +
+          "has to get 3 operands!");
 
       if (((SqlNodeList) operands[1]).getList().size() == 0) {
         throw UserException.parseError().message("Columns not specified.").buildSilently();
@@ -55,15 +55,18 @@ public class SqlAlterTableAddPrimaryKey extends SqlAlterTable implements SimpleD
       return new SqlAlterTableAddPrimaryKey(
           pos,
           (SqlIdentifier) operands[0],
-          (SqlNodeList) operands[1]);
+          (SqlNodeList) operands[1],
+          (SqlTableVersionSpec) operands[2]);
     }
   };
 
   protected final SqlNodeList columnList;
+  protected final SqlTableVersionSpec sqlTableVersionSpec;
 
-  public SqlAlterTableAddPrimaryKey(SqlParserPos pos, SqlIdentifier tblName, SqlNodeList columnList) {
+  public SqlAlterTableAddPrimaryKey(SqlParserPos pos, SqlIdentifier tblName, SqlNodeList columnList, SqlTableVersionSpec sqlTableVersionSpec) {
     super(pos, tblName);
     this.columnList = columnList;
+    this.sqlTableVersionSpec = sqlTableVersionSpec;
   }
 
   @Override
@@ -82,7 +85,7 @@ public class SqlAlterTableAddPrimaryKey extends SqlAlterTable implements SimpleD
 
   @Override
   public List<SqlNode> getOperandList() {
-    return Lists.newArrayList(tblName, columnList);
+    return Lists.newArrayList(tblName, columnList, sqlTableVersionSpec);
   }
 
   public SqlNodeList getColumnList() {
@@ -92,5 +95,9 @@ public class SqlAlterTableAddPrimaryKey extends SqlAlterTable implements SimpleD
   @Override
   public SimpleDirectHandler toDirectHandler(QueryContext context) {
     return new AddPrimaryKeyHandler(context.getCatalog());
+  }
+
+  public SqlTableVersionSpec getSqlTableVersionSpec() {
+    return sqlTableVersionSpec;
   }
 }

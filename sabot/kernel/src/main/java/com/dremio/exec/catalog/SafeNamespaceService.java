@@ -160,16 +160,6 @@ class SafeNamespaceService implements NamespaceService {
   }
 
   @Override
-  public String dump() {
-    return runner.doSafe(() -> delegate.dump());
-  }
-
-  @Override
-  public String dumpSplits() {
-    return runner.doSafe(() -> delegate.dumpSplits());
-  }
-
-  @Override
   public boolean exists(NamespaceKey arg0) {
     return runner.doSafe(() -> delegate.exists(arg0));
   }
@@ -262,8 +252,8 @@ class SafeNamespaceService implements NamespaceService {
   }
 
   @Override
-  public NameSpaceContainer getEntityByPath(NamespaceKey arg0) throws NamespaceException {
-    return runner.doSafe(() -> delegate.getEntityByPath(arg0));
+  public NameSpaceContainer getEntityByPath(NamespaceKey entityPath) throws NamespaceException {
+    return runner.doSafe(() -> delegate.getEntityByPath(entityPath));
   }
 
   @Override
@@ -334,8 +324,8 @@ class SafeNamespaceService implements NamespaceService {
   }
 
   @Override
-  public List<NameSpaceContainer> list(NamespaceKey arg0) throws NamespaceException {
-    return runner.doSafe(() -> delegate.list(arg0));
+  public List<NameSpaceContainer> list(NamespaceKey entityPath) throws NamespaceException {
+    return runner.doSafe(() -> delegate.list(entityPath));
   }
 
   @Override

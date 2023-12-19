@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.hive.exec;
 
+import static com.dremio.exec.store.hive.HiveUtilities.getTrueEpochInMillis;
 import static com.dremio.exec.store.hive.HiveUtilities.throwUnsupportedHiveDataTypeError;
 
 import java.lang.reflect.InvocationTargetException;
@@ -87,6 +88,7 @@ import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.io.Text;
 
 import com.dremio.common.exceptions.FieldSizeLimitExceptionHelper;
+import com.dremio.exec.store.hive.HiveUtilities;
 import com.dremio.exec.store.hive.exec.HiveAbstractReader.HiveOperatorContextOptions;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.google.common.collect.Maps;
@@ -96,7 +98,7 @@ public abstract class HiveFieldConverter {
   public abstract void setSafeValue(ObjectInspector oi, Object hiveFieldValue, ValueVector outputVV, int outputIndex);
 
   private static Map<PrimitiveCategory, Class< ? extends HiveFieldConverter>> primMap = Maps.newHashMap();
-  private HiveOperatorContextOptions contextOptions;
+  protected HiveOperatorContextOptions contextOptions;
   public HiveFieldConverter(HiveOperatorContextOptions options) {
     this.contextOptions = options;
   }
@@ -377,7 +379,7 @@ public abstract class HiveFieldConverter {
     private void writeText(VarCharWriter writer, Text value) {
       checkSizeLimit(value.getLength());
       try (ArrowBuf buf = getContext().getAllocator().buffer(value.getLength())) {
-        buf.setBytes(0, value.getBytes());
+        buf.setBytes(0, value.getBytes(), 0, value.getLength());
         writer.writeVarChar(0, value.getLength(), buf);
       }
     }
@@ -630,15 +632,18 @@ public abstract class HiveFieldConverter {
   }
 
   public static class Date extends HiveFieldConverter {
+
+    private final boolean requiresDateConversionForJulian;
     public Date(HiveOperatorContextOptions options) {
       super(options);
+      this.requiresDateConversionForJulian = HiveUtilities.requiresDateConversionForJulian(options);
     }
     public static final long MILLIS_PER_DAY = TimeUnit.DAYS.toMillis(1L);
 
     @Override
     public void setSafeValue(ObjectInspector oi, Object hiveFieldValue, ValueVector outputVV, int outputIndex) {
       final DateWritableV2 writeable = ((DateObjectInspector)oi).getPrimitiveWritableObject(hiveFieldValue);
-      ((DateMilliVector) outputVV).setSafe(outputIndex, writeable.getDays() * MILLIS_PER_DAY);
+      ((DateMilliVector) outputVV).setSafe(outputIndex, getTrueEpochInMillis(requiresDateConversionForJulian, writeable.getDays()));
     }
   }
 

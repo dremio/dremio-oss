@@ -25,6 +25,7 @@ import java.util.AbstractList;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
@@ -86,9 +87,11 @@ import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexLocalRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexOver;
+import org.apache.calcite.rex.RexPatternFieldRef;
 import org.apache.calcite.rex.RexRangeRef;
 import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.rex.RexSubQuery;
+import org.apache.calcite.rex.RexTableInputRef;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.rex.RexVisitorImpl;
 import org.apache.calcite.sql.SqlExplainLevel;
@@ -114,9 +117,11 @@ import com.dremio.common.types.Types;
 import com.dremio.exec.planner.RoutingShuttle;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.exec.planner.physical.PrelUtil;
+import com.dremio.exec.planner.sql.TypeInferenceUtils;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.resolver.TypeCastRules;
 import com.dremio.exec.store.NamespaceTable;
+import com.dremio.exec.store.parquet.ParquetTypeHelper;
 import com.dremio.service.Pointer;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.google.common.base.Preconditions;
@@ -148,6 +153,151 @@ public final class MoreRelOptUtil {
       }
     });
     return inputs.build();
+  }
+
+  public static ImmutableBitSet buildColumnSet (
+    RelNode filterableScan,
+    Collection<String> columnNames) {
+    if (columnNames == null) {
+      return ImmutableBitSet.of();
+    }
+
+    final List<String> fieldNames = filterableScan.getRowType().getFieldNames();
+
+    final Map<String, Integer> fieldMap = IntStream.range(0, fieldNames.size())
+      .boxed()
+      .collect(Collectors.toMap(fieldNames::get, i->i));
+
+
+    final ImmutableBitSet.Builder partitionColumnBitSetBuilder = ImmutableBitSet.builder();
+
+    for (String field : columnNames) {
+      int partitionIndex = fieldMap.getOrDefault(field, -1);
+      if (-1 != partitionIndex) {
+        partitionColumnBitSetBuilder.set(partitionIndex);
+      }
+    }
+    return partitionColumnBitSetBuilder.build();
+  }
+
+  /**
+   * Returns a set of columns from the relNode that are primitive type.
+   */
+  public static ImmutableBitSet buildParquetPrimitiveTypeSetForColumns(RelNode relNode){
+    ImmutableBitSet.Builder builder = ImmutableBitSet.builder();
+    RelDataType rowType = relNode.getRowType();
+    for (int i = 0; i < rowType.getFieldCount(); i++) {
+      if (isParquetPrimitiveType(rowType.getFieldList().get(i).getType())){
+        builder.set(i);
+      }
+    }
+    return builder.build();
+  }
+
+  /**
+   * Returns true if the type is primitive.
+   */
+  public static boolean isParquetPrimitiveType(RelDataType type) {
+    return null != ParquetTypeHelper.getPrimitiveTypeNameForMinorType(
+      TypeInferenceUtils.getMinorTypeFromCalciteType(type));
+  }
+
+  /**
+   *
+   * @param invalidColumns - set of invalid columns.
+   * @param rexNode - predicate to evaluate
+   * @return true if the rex call does not contain any invalid columns and the data types of operands are equal
+   * without the need of casting. Otherwise, it returns false.
+   */
+  public static boolean checkIsValidComparison(ImmutableBitSet invalidColumns, RexNode rexNode) {
+    if (!(rexNode instanceof RexCall)) {
+      return false;
+    }
+
+    switch (rexNode.getKind()) {
+      case LESS_THAN:
+      case GREATER_THAN:
+      case LESS_THAN_OR_EQUAL:
+      case GREATER_THAN_OR_EQUAL:
+      case NOT_EQUALS:
+      case EQUALS: {
+        RexCall rexCall = (RexCall)rexNode;
+        RexNode operand1 = rexCall.getOperands().get(0);
+        RexNode operand2 = rexCall.getOperands().get(1);
+        final RelDataType leftType = operand1.getType();
+        final RelDataType rightType = operand2.getType();
+        if (!MoreRelOptUtil.areDataTypesEqualWithoutRequiringCast(leftType, rightType)) {
+          return false;
+        }
+        return (operand1 instanceof RexInputRef && operand2 instanceof RexLiteral
+          && !invalidColumns.get(((RexInputRef)operand1).getIndex()))
+          || (operand2 instanceof RexInputRef && operand1 instanceof RexLiteral
+          && !invalidColumns.get(((RexInputRef)operand2).getIndex()));
+      }
+      default:
+        return false;
+    }
+  }
+
+  /**
+   * Checks if a {@link RexNode} does not contains a {@link RexCorrelVariable},
+   * {@link RexFieldAccess}, or a non deterministic function.
+   */
+  public static boolean isNotComplexFilter(RexNode rexNode) {
+    return rexNode.accept(new ComplexityChecker());
+  }
+
+  private static class ComplexityChecker extends RexVisitorImpl<Boolean> {
+    protected ComplexityChecker() {
+      super(true);
+    }
+
+    @Override public Boolean visitInputRef(RexInputRef rexInputRef) {
+      return true;
+    }
+
+    @Override public Boolean visitLiteral(RexLiteral rexLiteral) {
+      return true;
+    }
+
+    @Override public Boolean visitCall(RexCall rexCall) {
+      return !rexCall.getOperator().isDynamicFunction()
+        && rexCall.getOperator().isDeterministic()
+        && (rexCall.getOperands().isEmpty()
+        || rexCall.getOperands().stream().allMatch(op -> op.accept(this)));
+    }
+
+    @Override public Boolean visitCorrelVariable(RexCorrelVariable rexCorrelVariable) {
+      return false;
+    }
+
+    @Override public Boolean visitFieldAccess(RexFieldAccess rexFieldAccess) {
+      return false;
+    }
+
+    @Override public Boolean visitLocalRef(RexLocalRef rexLocalRef) {
+      throw new IllegalArgumentException("Unexpected RexLocalRef");
+    }
+
+    @Override public Boolean visitDynamicParam(RexDynamicParam rexDynamicParam) {
+      throw new IllegalArgumentException("Unexpected RexDynamicParam");
+    }
+
+    @Override public Boolean visitRangeRef(RexRangeRef rexRangeRef) {
+      throw new IllegalArgumentException("Unexpected RexRangeRef");
+    }
+
+    @Override public Boolean visitSubQuery(RexSubQuery rexSubQuery) {
+      throw new IllegalArgumentException("Unexpected RexSubQuery");
+    }
+
+    @Override public Boolean visitTableInputRef(RexTableInputRef rexTableInputRef) {
+      throw new IllegalArgumentException("Unexpected RexTableInputRef");
+    }
+
+    @Override public Boolean visitPatternFieldRef(RexPatternFieldRef rexPatternFieldRef) {
+      throw new IllegalArgumentException("Unexpected RexPatternFieldRef");
+    }
   }
 
   /**
@@ -183,12 +333,53 @@ public final class MoreRelOptUtil {
     return minDepth + 1;
   }
 
+  public static int countJoins(RelNode relNode) {
+    return countRelNodes(relNode, Join.class::isInstance);
+  }
+
+  public static int countRelNodes(RelNode rel, Predicate<RelNode> relNodePredicate) {
+    int sum = relNodePredicate.test(rel) ? 1 : 0;
+    for (RelNode sub : rel.getInputs()) {
+      sum += countRelNodes(sub, relNodePredicate);
+    }
+    return sum;
+  }
+
   public static int countRelNodes(RelNode rel) {
     int count = 1; // Current node
     for (RelNode child : rel.getInputs()) { // Add children
       count += countRelNodes(child);
     }
     return count;
+  }
+
+
+  /**
+   * Given a view SQL, is the Calcite validated row type of this SQL equal to the Arrow batch type
+   * last seen for this SQL?
+   */
+  public static boolean areRowTypesEqualForViewSchemaLearning(RelDataType calciteRowType, RelDataType arrowRowType) {
+    if (arrowRowType.getFieldCount() != calciteRowType.getFieldCount()) {
+      return false;
+    }
+    final List<RelDataTypeField> f1 = calciteRowType.getFieldList();
+    final List<RelDataTypeField> f2 = arrowRowType.getFieldList();
+    for (Pair<RelDataTypeField, RelDataTypeField> pair : Pair.zip(f1, f2)) {
+      final RelDataType type1 = pair.left.getType();
+      final RelDataType type2 = pair.right.getType();
+      if (type1.getSqlTypeName() == SqlTypeName.NULL) {
+        continue; // Arrow batch schema does not retain null type
+      }
+      // Arrow batch schema does not retain nullability or precision so we can only compare type names
+      if (!type1.getSqlTypeName().equals(type2.getSqlTypeName())) {
+        return false;
+      }
+      // Field names must always match
+      if (!pair.left.getName().equalsIgnoreCase(pair.right.getName())) {
+        return false;
+      }
+    }
+    return true;
   }
 
   public static boolean areRowTypesCompatibleForInsert(
@@ -883,8 +1074,6 @@ public final class MoreRelOptUtil {
     }
   }
 
-
-
   public static class NodeRemover extends  RelShuttleImpl{
 
     private final Predicate<RelNode> predicate;
@@ -911,16 +1100,16 @@ public final class MoreRelOptUtil {
    * @return
    */
   public static List<Integer> findPathToNode(final RelNode root, final Predicate<RelNode> predicate) {
-    final Deque<Integer> stack = new ArrayDeque<>();
+    final Deque<Integer> localStack = new ArrayDeque<>();
     final List<Integer> result = new ArrayList<>();
     final Pointer<Boolean> found = new Pointer<>(false);
     root.accept(new RoutingShuttle() {
       @Override
       public RelNode visitChildren(RelNode rel) {
         for (Ord<RelNode> input : Ord.zip(rel.getInputs())) {
-          stack.addLast(input.i);
+          localStack.addLast(input.i);
           rel = visitChild(rel, input.i, input.e);
-          stack.removeLast();
+          localStack.removeLast();
           if (found.value) {
             return rel;
           }
@@ -933,7 +1122,7 @@ public final class MoreRelOptUtil {
           return other;
         }
         if (predicate.test(other)) {
-          result.addAll(stack);
+          result.addAll(localStack);
           found.value = true;
           return other;
         }
@@ -1357,34 +1546,37 @@ public final class MoreRelOptUtil {
   }
 
   public static class RexNodeCountVisitor extends RexShuttle {
+    private final Pointer<Integer> totalCount = new Pointer<>(0);
+    private final Pointer<Integer> inputRefCount = new Pointer<>(0);
 
     public static int count(RexNode node) {
       RexNodeCountVisitor v = new RexNodeCountVisitor();
       node.accept(v);
-      return v.count.value;
+      return v.totalCount.value;
     }
 
-    private Pointer<Integer> count = new Pointer<>(0);
-
-    public int getRexNodeCount() {
-      return count.value;
+    public static int inputRefCount(RexNode node) {
+      RexNodeCountVisitor v = new RexNodeCountVisitor();
+      node.accept(v);
+      return v.inputRefCount.value;
     }
 
     @Override
     public RexNode visitCall(RexCall call) {
-      count.value++;
+      totalCount.value++;
       return super.visitCall(call);
     }
 
     @Override
     public RexNode visitInputRef(RexInputRef input) {
-      count.value++;
+      totalCount.value++;
+      inputRefCount.value++;
       return super.visitInputRef(input);
     }
 
     @Override
     public RexNode visitLiteral(RexLiteral literal) {
-      count.value++;
+      totalCount.value++;
       return super.visitLiteral(literal);
     }
   }

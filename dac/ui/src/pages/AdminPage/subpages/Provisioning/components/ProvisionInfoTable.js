@@ -32,17 +32,17 @@ export default class ProvisionInfoTable extends Component {
     if (clusterType === "YARN") {
       // DX-11577 NOTE regarding widths. Previously reactable component was used to display this data. Widths below are taken from actual dom that is rendered by reactable component.
       return [
-        { key: "status", label: la("Status"), flexGrow: 2 },
-        { key: "host", label: la("Host"), flexGrow: 4 }, // fills a rest of the available space
+        { key: "status", label: laDeprecated("Status"), flexGrow: 2 },
+        { key: "host", label: laDeprecated("Host"), flexGrow: 4 }, // fills a rest of the available space
         {
           key: "memoryMB",
-          label: la("Memory (MB)"),
+          label: laDeprecated("Memory (MB)"),
           align: "right",
           width: 131,
         },
         {
           key: "virtualCoreCount",
-          label: la("Virtual Cores"),
+          label: laDeprecated("Virtual Cores"),
           align: "right",
           width: 126,
         },
@@ -50,10 +50,10 @@ export default class ProvisionInfoTable extends Component {
     }
     if (clusterType === "EC2") {
       return [
-        { key: "status", label: la("Status"), flexGrow: 2 },
-        { key: "host", label: la("Host"), flexGrow: 4 },
-        { key: "instanceId", label: la("Instance ID"), width: 150 },
-        { key: "privateIp", label: la("Private ip"), width: 100 },
+        { key: "status", label: laDeprecated("Status"), flexGrow: 2 },
+        { key: "host", label: laDeprecated("Host"), flexGrow: 4 },
+        { key: "instanceId", label: laDeprecated("Instance ID"), width: 150 },
+        { key: "privateIp", label: laDeprecated("Private ip"), width: 100 },
       ];
     }
     return [];
@@ -69,7 +69,7 @@ export default class ProvisionInfoTable extends Component {
           <TableViewer tableData={tableData} rowHeight={42} columns={columns} />
         ) : (
           <ViewCheckContent
-            message={la("No Workers")}
+            message={laDeprecated("No Workers")}
             dataIsNotAvailable={tableData.size === 0}
             customStyle={styles.emptyMessageStyle}
           />

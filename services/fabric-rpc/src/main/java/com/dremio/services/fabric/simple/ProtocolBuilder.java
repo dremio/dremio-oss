@@ -183,7 +183,7 @@ public final class ProtocolBuilder {
   /**
    * A fabric runner factory that proxies another, checking it is set before returning any command runners.
    */
-  private class ProxyFactory implements FabricRunnerFactory {
+  private final class ProxyFactory implements FabricRunnerFactory {
     private FabricRunnerFactory factory;
     @Override
     public FabricCommandRunner getCommandRunner(String address, int port) {

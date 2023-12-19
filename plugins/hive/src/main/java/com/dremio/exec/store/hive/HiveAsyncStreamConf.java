@@ -69,7 +69,7 @@ public final class HiveAsyncStreamConf implements AsyncStreamConf {
     return new HiveCacheProperties();
   }
 
-  private class HiveCacheProperties implements CacheProperties {
+  private final class HiveCacheProperties implements CacheProperties {
 
     @Override
     public boolean isCachingEnabled(OptionManager optionManager) {

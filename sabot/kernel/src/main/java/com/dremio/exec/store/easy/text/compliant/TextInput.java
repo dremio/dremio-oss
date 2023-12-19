@@ -392,5 +392,7 @@ final class TextInput {
 
   public void close() throws IOException{
     input.close();
+    // Prevent downstream consumers to read pre-loaded chunk of bytes after closing.
+    length = -1;
   }
 }

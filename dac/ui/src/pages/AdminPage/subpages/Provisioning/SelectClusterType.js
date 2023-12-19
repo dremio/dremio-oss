@@ -41,7 +41,7 @@ class SelectClusterType extends Component {
         label={cluster.get("label")}
         dremioIcon={cluster.get("dremioIcon")}
         disabled={!cluster.get("connected")}
-        pillText={cluster.get("connected") ? "" : la("coming soon")}
+        pillText={cluster.get("connected") ? "" : laDeprecated("coming soon")}
         onClick={this.handleSelectClusterType.bind(this, cluster)}
       />
     ));

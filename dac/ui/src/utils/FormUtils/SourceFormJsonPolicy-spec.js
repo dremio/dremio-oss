@@ -379,7 +379,7 @@ describe("SourceFormJsonPolicy", () => {
       uiConfig = {
         sourceType: "S3",
         metadataRefresh: { a: "a" },
-        form: { tabs: [{}, { sections: [] }] },
+        form: { tabs: [{}, { name: "Advanced Options", sections: [] }] },
       };
 
       const config =

@@ -213,8 +213,8 @@ public class TestIcebergSerDe extends BaseTestQuery {
 
     List<PartitionValue> partitionValues = new ArrayList<>();
     partitionValues.add(PartitionValue.of("integerCol", 20));
-    partitionValues.add(PartitionValue.of("floatCol", new Float("20.22")));
-    partitionValues.add(PartitionValue.of("doubleCol", new Double("40.2342")));
+    partitionValues.add(PartitionValue.of("floatCol", 20.22F));
+    partitionValues.add(PartitionValue.of("doubleCol", 40.2342D));
     partitionValues.add(PartitionValue.of("bitCol", true));
     partitionValues.add(PartitionValue.of("varCharCol", "tempVarCharValue"));
     partitionValues.add(PartitionValue.of("bigIntCol", 200000000L));
@@ -265,7 +265,7 @@ public class TestIcebergSerDe extends BaseTestQuery {
 
     List<PartitionValue> partitionValues = new ArrayList<>();
     partitionValues.add(PartitionValue.of("integerCol", 20));
-    partitionValues.add(PartitionValue.of("randomCol", new Float("20.22")));
+    partitionValues.add(PartitionValue.of("randomCol", 20.22F));
 
     //Convert to partitionProtos
     List<PartitionProtobuf.PartitionValue> partitionValueProtos = partitionValues.stream()

@@ -15,11 +15,12 @@
  */
 package com.dremio.sabot.exec.context;
 
+import static com.dremio.proto.model.PartitionStats.PartitionStatsValue;
+
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.vector.holders.ValueHolder;
 import org.apache.arrow.vector.types.Types.MinorType;
-import org.apache.commons.lang3.tuple.Pair;
 
 import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.exec.planner.common.ScanRelBase;
@@ -148,5 +149,5 @@ public interface FunctionContext {
    */
   ValueHolder getConstantValueHolder(String value, MinorType type, Function<ArrowBuf, ValueHolder> holderInitializer);
 
-  Pair<Long, Long> getSurvivingRowCountWithPruneFilter(ScanRelBase scan, PruneFilterCondition pruneCondition) throws Exception;
+  PartitionStatsValue getSurvivingRowCountWithPruneFilter(ScanRelBase scan, PruneFilterCondition pruneCondition) throws Exception;
 }

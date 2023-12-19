@@ -60,6 +60,7 @@ public class Wrapper {
 
   private int assignedWeight = 0;
 
+
   public Wrapper(Fragment node, int majorFragmentId) {
     this.majorFragmentId = majorFragmentId;
     this.node = node;

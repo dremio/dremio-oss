@@ -21,41 +21,28 @@ import { createSelector } from "reselect";
 import { injectIntl } from "react-intl";
 import { LINE_NOROW_START_STRETCH } from "uiTheme/radium/flexStyle";
 import { selectSourceByName } from "@app/selectors/home";
-
+import { getDataset } from "@app/selectors/explore";
 import { loadDatasetForDatasetType } from "actions/resources";
-//@ts-ignore
 import Message from "@app/components/Message";
 import ViewStateWrapper from "components/ViewStateWrapper";
 import { getViewState, getEntity } from "selectors/resources";
 import { getHomeEntityOrChild } from "@app/selectors/home";
-
 import AccelerationController from "components/Acceleration/AccelerationController";
-
 import DatasetSettingsMixin from "dyn-load/pages/HomePage/components/modals/DatasetSettings/DatasetSettingsMixin";
-
 import { showUnsavedChangesConfirmDialog } from "actions/confirmation";
 import { fetchSupportFlags } from "@app/actions/supportFlags";
 import NavPanel from "components/Nav/NavPanel";
 import FileFormatController from "./FileFormatController";
 import AccelerationUpdatesController from "./AccelerationUpdates/AccelerationUpdatesController";
 import DatasetOverviewForm from "./DatasetOverviewForm";
-import DatasetCompactionForm from "@inject/pages/HomePage/components/modals/DatasetSettings/DatasetCompaction/DatasetCompactionForm";
-import {
-  postCompactionData,
-  getAllCompactionData,
-  patchCompactionData,
-  startCompaction,
-  clearCompactionStateData,
-} from "@inject/actions/resources/compaction";
-import {
-  getArcticProjectId,
-  getActiveBranch,
-} from "@inject/pages/HomePage/components/modals/DatasetSettings/compactionUtils";
-import { NESSIE } from "@app/constants/sourceTypes";
+import { ARCTIC } from "@app/constants/sourceTypes";
 import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
 import { isCommunity } from "dyn-load/utils/versionUtils";
 import config from "@inject/utils/config";
 import { REFLECTION_ARCTIC_ENABLED } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
+import { TableOptimizationWrapper } from "@inject/pages/ArcticCatalog/components/ArcticCatalogDataItemSettings/ArcticTableOptimization/TableOptimizationWrapper/TableOptimizationWrapper";
+import ArcticEntityPrivilegesWrapper from "@inject/pages/ArcticCatalog/components/ArcticCatalogDataItemSettings/ArcticEntityPrivileges/ArcticEntityPrivilegesWrapper/ArcticEntityPrivilegesWrapper";
+import { ARCTIC_ENTITY_PRIVILEGES } from "@inject/featureFlags/flags/ARCTIC_ENTITY_PRIVILEGES";
 
 const COMPACTION = "COMPACTION";
 const DATASET_SETTINGS_VIEW_ID = "DATASET_SETTINGS_VIEW_ID";
@@ -81,16 +68,10 @@ export class DatasetSettings extends PureComponent {
     showUnsavedChangesConfirmDialog: PropTypes.func,
     loadDatasetForDatasetType: PropTypes.func.isRequired,
     source: PropTypes.object,
-    postCompactionData: PropTypes.func,
-    startCompaction: PropTypes.func,
-    getAllCompactionData: PropTypes.func,
-    patchCompactionData: PropTypes.func,
-    getCompactionData: PropTypes.func,
-    clearCompactionStateData: PropTypes.func,
-    compactionTasks: PropTypes.array,
     enableCompaction: PropTypes.bool,
     isAdmin: PropTypes.bool,
     fetchSupportFlags: PropTypes.func,
+    isDatasetReflectionPage: PropTypes.bool,
   };
 
   state = {
@@ -99,8 +80,9 @@ export class DatasetSettings extends PureComponent {
     loadingCompactionError: null,
   };
 
-  componentWillMount() {
+  UNSAFE_componentWillMount() {
     const { datasetUrl, datasetType } = this.props;
+
     if (datasetUrl) {
       return this.props
         .loadDatasetForDatasetType(
@@ -132,35 +114,14 @@ export class DatasetSettings extends PureComponent {
     const {
       location,
       tab,
-      getAllCompactionData: dispatchGetAllCompactionData,
       entity,
       source,
-      isAdmin,
       enableCompaction,
       fetchSupportFlags,
     } = this.props;
 
     if (!isCommunity?.()) {
       fetchSupportFlags?.(REFLECTION_ARCTIC_ENABLED);
-    }
-
-    if (enableCompaction && isAdmin && source?.type === NESSIE && entity) {
-      const activeBranch = getActiveBranch(source?.name);
-      const arcticProjectId = getArcticProjectId(source);
-
-      const spaceName = [...entity.get("fullPathList").remove(0)].join(".");
-      dispatchGetAllCompactionData({
-        projectId: arcticProjectId,
-        filter: `tableIdentifier=='${spaceName}'&&ref=='${activeBranch}'&&actionType=='${COMPACTION}'`,
-        maxResults: "1",
-      })
-        .then(() => this.setState({ taskLoading: false }))
-        .catch((error) => {
-          this.setState({
-            taskLoading: false,
-            loadingCompactionError: error.errorMessage,
-          });
-        });
     }
 
     if (!tab) {
@@ -214,18 +175,7 @@ export class DatasetSettings extends PureComponent {
   );
 
   renderContent() {
-    const {
-      hide,
-      location,
-      entity,
-      source,
-      compactionTasks,
-      clearCompactionStateData: dispatchClearCompactionStateData,
-      startCompaction: dispatchStartCompaction,
-      patchCompactionData: dispatchPatchCompactionData,
-      postCompactionData: dispatchPostCompactionData,
-      isAdmin,
-    } = this.props;
+    const { hide, location, entity, source } = this.props;
 
     if (!entity) {
       return null;
@@ -237,37 +187,11 @@ export class DatasetSettings extends PureComponent {
       location,
     };
 
-    const renderDataOptimization =
-      source?.type === NESSIE &&
-      isAdmin &&
-      entity.get("entityType") === "physicalDataset"
+    const renderDataOptimizationForArctic =
+      source?.type === ARCTIC && entity.get("entityType") === "physicalDataset"
         ? {
             dataOptimization: () => {
-              return this.state.loadingCompactionError ? (
-                <Message
-                  messageType="error"
-                  inFlow={false}
-                  message={this.state.loadingCompactionError}
-                  messageId={this.state.loadingCompactionError}
-                />
-              ) : (
-                <DatasetCompactionForm
-                  {...commonProps}
-                  compactionTasks={compactionTasks}
-                  spaceName={[...entity.get("fullPathList").remove(0)]}
-                  entity={entity}
-                  projectId={getArcticProjectId(source)}
-                  dispatchClearCompactionStateData={
-                    dispatchClearCompactionStateData
-                  }
-                  taskLoading={this.state.taskLoading}
-                  dispatchStartCompaction={dispatchStartCompaction}
-                  dispatchPatchCompactionData={dispatchPatchCompactionData}
-                  dispatchPostCompactionData={dispatchPostCompactionData}
-                  branchName={getActiveBranch(source.name)}
-                  updateFormDirtyState={this.updateFormDirtyState}
-                />
-              );
+              return <TableOptimizationWrapper tableId={entity.get("id")} />;
             },
           }
         : {};
@@ -316,7 +240,16 @@ export class DatasetSettings extends PureComponent {
           />
         );
       },
-      ...renderDataOptimization,
+      ...renderDataOptimizationForArctic,
+
+      entityPrivileges: () => {
+        return (
+          <ArcticEntityPrivilegesWrapper
+            entity={entity}
+            setChildDirtyState={this.updateFormDirtyState}
+          />
+        );
+      },
     };
 
     contentRenderers = this.extendContentRenderers(
@@ -354,12 +287,13 @@ const mapStateToProps = (state, { isHomePage }) => {
   // Loaction Related variables
   const location = state.routing.locationBeforeTransitions;
   const { entityType, entityId } = location.state || {};
+  const { version } = location.query || {};
   const loc = rmProjectBase(location.pathname || "");
   const sourceName = loc.split("/")[2] || "";
   const source = selectSourceByName(sourceName)(state);
-  const compactionTasks = state.compactionTasks;
-  const isAdmin = state.privileges?.organization?.isAdmin || false;
-  const enableCompaction = state.featureFlag?.data_optimization === "ENABLED";
+  const isAdmin = state.privileges?.organization?.isAdmin;
+  const enableArcticEntityPrivileges =
+    state.featureFlag?.[ARCTIC_ENTITY_PRIVILEGES] === "ENABLED";
   // Entity could be stored in different places of redux state, depending on current page
   // Entity is used to be stored in resources, but now for home page it is stored in separate place.
   // We need support both options. At this moment an only place where entity is stored in resources
@@ -375,11 +309,12 @@ const mapStateToProps = (state, { isHomePage }) => {
 
   return {
     source,
-    compactionTasks,
     location,
     isAdmin,
-    enableCompaction,
-    entity: entityId && finalEntitySelector(state, entityId, entityType),
+    enableArcticEntityPrivileges,
+    entity: entityId
+      ? finalEntitySelector(state, entityId, entityType)
+      : getDataset(state, version),
     viewState: getViewState(state, DATASET_SETTINGS_VIEW_ID),
     supportFlags,
   };
@@ -389,11 +324,6 @@ export default connect(mapStateToProps, {
   loadDatasetForDatasetType,
   showUnsavedChangesConfirmDialog,
   fetchSupportFlags,
-  startCompaction,
-  postCompactionData,
-  getAllCompactionData,
-  patchCompactionData,
-  clearCompactionStateData,
 })(DatasetSettings);
 
 const styles = {

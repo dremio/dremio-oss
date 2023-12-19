@@ -15,9 +15,9 @@
  */
 package com.dremio.services.nessie.grpc.client.impl;
 
+import static com.dremio.services.nessie.grpc.GrpcExceptionMapper.handleNessieNotFoundEx;
 import static com.dremio.services.nessie.grpc.ProtoUtil.fromProto;
 import static com.dremio.services.nessie.grpc.ProtoUtil.toProto;
-import static com.dremio.services.nessie.grpc.client.GrpcExceptionMapper.handleNessieNotFoundEx;
 
 import java.util.stream.Stream;
 
@@ -25,8 +25,8 @@ import javax.annotation.Nullable;
 
 import org.projectnessie.api.v1.params.RefLogParams;
 import org.projectnessie.api.v1.params.RefLogParamsBuilder;
-import org.projectnessie.client.StreamingUtil;
 import org.projectnessie.client.api.GetRefLogBuilder;
+import org.projectnessie.client.builder.StreamingUtil;
 import org.projectnessie.error.NessieNotFoundException;
 import org.projectnessie.model.RefLogResponse;
 

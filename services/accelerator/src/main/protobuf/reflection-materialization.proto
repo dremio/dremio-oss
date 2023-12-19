@@ -101,6 +101,7 @@ message JobDetails {
 
 message RefreshDecision {
   optional bool initial_refresh = 1;
+  // For incremental refresh, the update_id info copied from last refresh and to be used in plan generation.
   optional UpdateId update_id = 2;
   optional int64 series_id = 3;
   optional com.dremio.service.namespace.dataset.proto.AccelerationSettings acceleration_settings = 4;
@@ -109,6 +110,13 @@ message RefreshDecision {
   optional int64 logical_plan_stripped_hash = 9;
   repeated ScanPath scan_paths = 7;
   optional int32 series_ordinal = 8 [default = 0];
+  // For incremental refresh, the update_id info determined during planning time and to be saved into refresh entry
+  // when refresh is done.
+  // - For MTime/Field based incremental, this is empty (not used). When refresh is done the update_id info is extracted
+  //   from query result.
+  // - For snapshot based incremental, this is used to preserve the base table snapshot id info. When refresh is done
+  //   it's saved into refresh entry directly.
+  optional UpdateId output_update_id = 10;
 }
 
 // data partition host address

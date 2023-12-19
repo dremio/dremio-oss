@@ -22,6 +22,8 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
+import com.dremio.catalog.model.ResolvedVersionContext;
+
 public class TestResolvedVersionContext {
 
   private static final String BRANCH_NAME = "branchName";
@@ -33,7 +35,7 @@ public class TestResolvedVersionContext {
     ResolvedVersionContext version = ResolvedVersionContext.ofBranch(BRANCH_NAME, REASONABLE_HASH);
 
     assertTrue(version.isBranch());
-    assertFalse(version.isBareCommit());
+    assertFalse(version.isCommit());
 
     assertEquals(ResolvedVersionContext.Type.BRANCH, version.getType());
     assertEquals(BRANCH_NAME, version.getRefName());
@@ -45,7 +47,7 @@ public class TestResolvedVersionContext {
     ResolvedVersionContext version = ResolvedVersionContext.ofTag(TAG_NAME, REASONABLE_HASH);
 
     assertFalse(version.isBranch());
-    assertFalse(version.isBareCommit());
+    assertFalse(version.isCommit());
 
     assertEquals(ResolvedVersionContext.Type.TAG, version.getType());
     assertEquals(TAG_NAME, version.getRefName());
@@ -54,12 +56,12 @@ public class TestResolvedVersionContext {
 
   @Test
   public void bareCommit() {
-    ResolvedVersionContext version = ResolvedVersionContext.ofBareCommit(REASONABLE_HASH);
+    ResolvedVersionContext version = ResolvedVersionContext.ofCommit(REASONABLE_HASH);
 
     assertFalse(version.isBranch());
-    assertTrue(version.isBareCommit());
+    assertTrue(version.isCommit());
 
-    assertEquals(ResolvedVersionContext.Type.BARE_COMMIT, version.getType());
+    assertEquals(ResolvedVersionContext.Type.COMMIT, version.getType());
     assertEquals(ResolvedVersionContext.DETACHED_REF_NAME, version.getRefName());
     assertEquals(REASONABLE_HASH, version.getCommitHash());
   }
@@ -70,7 +72,7 @@ public class TestResolvedVersionContext {
       .isInstanceOf(NullPointerException.class);
     assertThatThrownBy(() -> ResolvedVersionContext.ofTag(TAG_NAME, null))
       .isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> ResolvedVersionContext.ofBareCommit(null))
+    assertThatThrownBy(() -> ResolvedVersionContext.ofCommit(null))
       .isInstanceOf(NullPointerException.class);
   }
 

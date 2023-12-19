@@ -18,13 +18,12 @@ package com.dremio.dac.service.source;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.dac.model.resourcetree.ResourceTreeEntity;
 import com.dremio.dac.model.resourcetree.ResourceTreeEntity.ResourceType;
-import com.dremio.exec.catalog.TableVersionContext;
 import com.dremio.exec.catalog.VersionedDatasetId;
 import com.dremio.plugins.ExternalNamespaceEntry;
 import com.dremio.service.namespace.NamespaceKey;
@@ -36,7 +35,7 @@ public final class ExternalResourceTreeUtils {
   private ExternalResourceTreeUtils() {}
 
   public static List<ResourceTreeEntity> generateResourceTreeEntityList(
-      NamespaceKey path, List<ExternalNamespaceEntry> entries) {
+      NamespaceKey path, Stream<ExternalNamespaceEntry> entries, ResourceType rootType) {
     Objects.requireNonNull(path);
 
     final String sourceName = path.getRoot();
@@ -46,10 +45,8 @@ public final class ExternalResourceTreeUtils {
         entry -> {
           final String id = entry.getId();
           final String name = entry.getName();
-          final List<String> namespace = entry.getNamespace();
           final List<String> fullPathList =
-              Stream.of(Stream.of(sourceName), entry.getNameElements().stream())
-                  .flatMap(Function.identity())
+              Stream.concat(Stream.of(sourceName), entry.getNameElements().stream())
                   .collect(Collectors.toList());
           final TableVersionContext tableVersionContext = entry.getTableVersionContext();
           final String versionedDatasetId =
@@ -69,7 +66,7 @@ public final class ExternalResourceTreeUtils {
               final String url = "/resourcetree/" + path.toUrlEncodedString();
               resources.add(
                   new ResourceTreeEntity(
-                      ResourceType.FOLDER, name, fullPathList, url, null, versionedDatasetId));
+                      ResourceType.FOLDER, name, fullPathList, url, null, versionedDatasetId, rootType));
               break;
             case ICEBERG_TABLE:
               resources.add(
@@ -79,7 +76,8 @@ public final class ExternalResourceTreeUtils {
                       fullPathList,
                       null,
                       null,
-                      versionedDatasetId));
+                      versionedDatasetId,
+                      rootType));
               break;
             case ICEBERG_VIEW:
               resources.add(
@@ -89,7 +87,8 @@ public final class ExternalResourceTreeUtils {
                       fullPathList,
                       null,
                       null,
-                      versionedDatasetId));
+                      versionedDatasetId,
+                      rootType));
               break;
             default:
               throw new IllegalStateException("Unexpected value: " + entry.getType());

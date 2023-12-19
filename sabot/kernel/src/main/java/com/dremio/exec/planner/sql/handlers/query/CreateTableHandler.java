@@ -20,22 +20,26 @@ import java.lang.reflect.InvocationTargetException;
 
 import org.apache.calcite.sql.SqlNode;
 
+import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.VersionContext;
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DatasetCatalog;
 import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.catalog.ResolvedVersionContext;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
 import com.dremio.exec.planner.sql.SqlValidatorImpl;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
+import com.dremio.exec.planner.sql.parser.ReferenceTypeUtils;
 import com.dremio.exec.planner.sql.parser.SqlCreateTable;
 import com.dremio.exec.planner.sql.parser.SqlGrant.Privilege;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.options.OptionManager;
@@ -61,6 +65,8 @@ public class CreateTableHandler extends DataAdditionCmdHandler {
         .build(logger);
     }
 
+    IcebergUtils.validateIcebergLocalSortIfDeclared(sql, config.getContext().getOptions());
+
     // this map has properties specified using 'STORE AS' in sql
     // will be null if 'STORE AS' is not in query
     createStorageOptionsMap(sqlCreateTable.getFormatOptions());
@@ -68,18 +74,20 @@ public class CreateTableHandler extends DataAdditionCmdHandler {
       return doVersionedCtas(config, path, catalog, sql, sqlCreateTable);
     }
     return doCtas(config, path, catalog, sql, sqlCreateTable);
-
   }
 
   private PhysicalPlan doVersionedCtas(SqlHandlerConfig config, NamespaceKey path, Catalog catalog, String sql, SqlCreateTable sqlCreateTable) throws Exception {
     final String sourceName = path.getRoot();
+    VersionContext statementSourceVersion =
+      ReferenceTypeUtils.map(sqlCreateTable.getRefType(), sqlCreateTable.getRefValue(), null);
     final VersionContext sessionVersion = config.getContext().getSession().getSessionVersionForSource(sourceName);
-    final ResolvedVersionContext version = CatalogUtil.resolveVersionContext(catalog, sourceName, sessionVersion);
+    VersionContext sourceVersion = statementSourceVersion.orElse(sessionVersion);
+    final ResolvedVersionContext version = CatalogUtil.resolveVersionContext(catalog, sourceName, sourceVersion);
 
     try {
       CatalogUtil.validateResolvedVersionIsBranch(version);
       validateVersionedTableFormatOptions(catalog, path);
-      checkExistenceValidity(path, getDremioTable(catalog, path));
+      checkExistenceValidity(path, getVersionedTableHelper(catalog, path, version));
       logger.debug("Creating versioned table '{}'  at version '{}' resolved version {} ",
         path,
         sessionVersion,
@@ -110,7 +118,7 @@ public class CreateTableHandler extends DataAdditionCmdHandler {
   public void validateCreateTableFormatOptions(Catalog catalog, NamespaceKey path, OptionManager options) {
     validateTableFormatOptions(catalog, path, options);
     DremioTable table = catalog.getTableNoResolve(path);
-    if(table != null) {
+    if (table != null) {
       throw UserException.validationError()
         .message("A table or view with given name [%s] already exists.", path)
         .build(logger);
@@ -139,7 +147,7 @@ public class CreateTableHandler extends DataAdditionCmdHandler {
     try {
       CreateTableEntry tableEntry = getTableEntry();
       String tableLocation = isIcebergTable() ?
-        tableEntry.getIcebergTableProps().getTableLocation():
+        tableEntry.getIcebergTableProps().getTableLocation() :
         tableEntry.getLocation();
       FileSystem fs = tableEntry.getPlugin().createFS(tableLocation, tableEntry.getUserName(), null);
 
@@ -150,7 +158,7 @@ public class CreateTableHandler extends DataAdditionCmdHandler {
       }
       fs.delete(path, true);
 
-      if(!(tableEntry.getPlugin() instanceof FileSystemPlugin)){
+      if (!(tableEntry.getPlugin() instanceof FileSystemPlugin)) {
         //try deleting table from hive and glue metastore
         datasetCatalog.dropTable(key, null);
       } else {
@@ -159,6 +167,15 @@ public class CreateTableHandler extends DataAdditionCmdHandler {
       }
     } catch (Exception e) {
       logger.warn(String.format("cleanup failed for CTAS query + %s", e.getMessage()));
+    }
+  }
+
+  public DremioTable getVersionedTableHelper(Catalog catalog, NamespaceKey path, ResolvedVersionContext version) {
+    try {
+      return getDremioTable(catalog, CatalogEntityKey.namespaceKeyToCatalogEntityKey(path, TableVersionContext.of(version)));
+    } catch (UserException userException) {
+      //In the case where the table is not found we just want to return null since this is related to creating the table.
+      return null;
     }
   }
 }

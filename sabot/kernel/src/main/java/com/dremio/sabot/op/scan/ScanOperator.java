@@ -177,7 +177,7 @@ public class ScanOperator implements ProducerOperator {
     MAX_RECORD_READ_PER_READER, // Maximum number of record read from Reader
     ICEBERG_COMMIT_TIME,  // Time to commit an operation to Iceberg table
     ORPHAN_FILE_DISCOVERY_TIME, // Time to discover the orphan files
-    NUM_ORPHAN_FILES  // Number of orphan files
+    NUM_ORPHAN_FILES,  // Number of orphan files
     ;
 
     private final DisplayType displayType;
@@ -409,7 +409,7 @@ public class ScanOperator implements ProducerOperator {
   @Override
   public void workOnOOB(OutOfBandMessage message) {
     final String senderInfo = String.format("Frag %d, OpId %d", message.getSendingMajorFragmentId(), message.getSendingOperatorId());
-    if (message.getBuffers()==null || message.getBuffers().length!=1) {
+    if (message.getBuffers() == null || message.getBuffers().length == 0) {
       logger.warn("Empty runtime filter received from {}", senderInfo);
       return;
     }
@@ -420,11 +420,10 @@ public class ScanOperator implements ProducerOperator {
               config.getProps().getOperatorId());
       // scan operator handles the OOB message that it gets from the join operator
       final ExecProtos.RuntimeFilter protoFilter = message.getPayload(ExecProtos.RuntimeFilter.parser());
-
-      final ArrowBuf msgBuf = message.getIfSingleBuffer().get();
       String sourceJoinId = String.format("%02d-%02d", message.getSendingMajorFragmentId(), message.getSendingOperatorId() & 0xFF);
 
-      final RuntimeFilter filter = RuntimeFilter.getInstance(protoFilter, msgBuf, senderInfo, sourceJoinId, context.getFragmentHandle(), context.getStats(), context.getBufferManager(), context.getOptions());
+      final RuntimeFilter filter = RuntimeFilter.getInstance(protoFilter, message.getOriginalBuffers(), senderInfo,
+        sourceJoinId, context.getFragmentHandle(), context.getStats(), context.getBufferManager(), context.getOptions());
       rollbackCloseable.add(filter);
 
       boolean isAlreadyPresent = this.runtimeFilters.stream()
@@ -611,6 +610,7 @@ public class ScanOperator implements ProducerOperator {
     OperatorStats operatorStats = context.getStats();
     operatorStats.setReadIOStats();
     operatorStats.setScanRuntimeFilterDetailsInProfile();
+    operatorStats.setParquetDecodingDetailsInfosInProfile();
     onScanDone();
   }
 

@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.planner.fragment;
 
+import static com.dremio.exec.ExecConstants.ENABLE_SPILLABLE_OPERATORS;
+
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -62,6 +64,7 @@ import com.dremio.resource.GroupResourceInformation;
 import com.dremio.resource.ResourceSchedulingDecisionInfo;
 import com.dremio.resource.SelectedExecutorsResourceInformation;
 import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator;
+import com.dremio.sabot.op.join.vhash.spill.VectorizedSpillingHashJoinOperator;
 import com.dremio.sabot.op.sort.external.ExternalSortOperator;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.Pointer;
@@ -559,7 +562,10 @@ public class SimpleParallelizer implements ParallelizationParameters {
       final List<FragmentAssignment> assignments = new ArrayList<>();
 
       if(queryContext.getOptions().getOption(VectorizedHashAggOperator.OOB_SPILL_TRIGGER_ENABLED) ||
-        queryContext.getOptions().getOption(ExternalSortOperator.OOB_SORT_TRIGGER_ENABLED)) {
+        queryContext.getOptions().getOption(ExternalSortOperator.OOB_SORT_TRIGGER_ENABLED) ||
+        queryContext.getOptions().getOption(VectorizedSpillingHashJoinOperator.OOB_SPILL_TRIGGER_ENABLED) ||
+          queryContext.getOptions().getOption(ENABLE_SPILLABLE_OPERATORS)
+      ) {
 
         // collate by node.
         ArrayListMultimap<Integer, Integer> assignMap = ArrayListMultimap.create();

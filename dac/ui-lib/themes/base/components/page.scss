@@ -22,7 +22,6 @@
   inline-size: 100%;
 
   &__header {
-    background: var(--dremio--page--header--background);
     z-index: 10;
 
     > * {
@@ -31,8 +30,6 @@
   }
 
   &__content {
-    background: var(--dremio--page--background);
-
     // The content window should fill the available space (minus the size of the header and footer)
     flex: 1;
 

@@ -20,6 +20,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import java.util.Arrays;
 
 import com.dremio.exec.store.easy.text.TextFormatPlugin.TextFormatConfig;
+import com.google.common.base.Preconditions;
 import com.univocity.parsers.common.TextParsingException;
 
 public class TextParsingSettings {
@@ -39,13 +40,16 @@ public class TextParsingSettings {
   private byte[] newLineDelimiter = {normalizedNewLine};
   private boolean ignoreLeadingWhitespaces = false;
   private boolean ignoreTrailingWhitespaces = false;
+  private boolean skipEmptyLine = false;
   private boolean skipFirstLine = false;
   private boolean autoGenerateColumnNames = false;
   private boolean trimHeader = false;
 
   private boolean headerExtractionEnabled = false;
+  private int skipLines = 0;
   private boolean useRepeatedVarChar = true;
   private int numberOfRecordsToRead = -1;
+
 
   public void set(TextFormatConfig config){
     this.quote = config.getQuote().getBytes(UTF_8);
@@ -55,6 +59,7 @@ public class TextParsingSettings {
     this.comment = config.getComment().getBytes(UTF_8);
     this.skipFirstLine = config.isSkipFirstLine();
     this.headerExtractionEnabled = config.isHeaderExtractionEnabled();
+    this.skipLines = config.getSkipLines();
     this.autoGenerateColumnNames = config.isAutoGenerateColumnNames();
     this.trimHeader = config.isTrimHeaderEnabled();
 
@@ -74,6 +79,14 @@ public class TextParsingSettings {
 
   public void setSkipFirstLine(boolean skipFirstLine) {
     this.skipFirstLine = skipFirstLine;
+  }
+
+  public boolean isSkipEmptyLine() {
+    return skipEmptyLine;
+  }
+
+  public void setSkipEmptyLine(boolean skipEmptyLine) {
+    this.skipEmptyLine = skipEmptyLine;
   }
 
   public boolean isUseRepeatedVarChar() {
@@ -228,6 +241,24 @@ public class TextParsingSettings {
   }
 
   /**
+   * Number of lines to skip or ignore from the beginning of the file.
+   * @return number of lines, a non-negative value
+   */
+  public int getSkipLines() {
+    return skipLines;
+  }
+
+  /**
+   * Defines the number of lines to be skipped at the beginning of a scanned file.
+   * @param skipLines number of lines to skip, must be >= 0
+   */
+  public void setSkipLines(int skipLines) {
+    Preconditions.checkArgument(skipLines >= 0,
+      "number of lines to skip must be equal to or greater than 0");
+    this.skipLines = skipLines;
+  }
+
+  /**
    * The number of valid records to be parsed before the process is stopped. A negative value indicates there's no limit (defaults to -1).
    * @return the number of records to read before stopping the parsing process.
    */
@@ -286,4 +317,5 @@ public class TextParsingSettings {
   public void setTrimHeader(boolean trimHeaders) {
     this.trimHeader = trimHeaders;
   }
+
 }

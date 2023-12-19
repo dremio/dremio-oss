@@ -52,9 +52,9 @@ public class TestTDigestFunctions extends PlanTestBase {
   }
 
   private void runTestExpected(boolean twoPhase) throws Exception {
-    final String sql = "select tdigest(distinct l_orderkey, true) as td from cp.\"tpch/lineitem.parquet\"";
+    final String sql = "select tdigest(distinct l_orderkey) as td from cp.\"tpch/lineitem.parquet\"";
     final String twoPhase1 = "StreamAgg(group=[{}], td=[TDIGEST_MERGE($0)])";
-    final String twoPhase2 = "StreamAgg(group=[{}], td=[TDIGEST($0, $1)])";
+    final String twoPhase2 = "StreamAgg(group=[{}], td=[TDIGEST($0)])";
     if (twoPhase) {
       test("set planner.slice_target = 1");
       testPlanSubstrPatterns(sql, new String[]{twoPhase1, twoPhase2}, null);
@@ -66,7 +66,7 @@ public class TestTDigestFunctions extends PlanTestBase {
 
   @Test
   public void q90() throws Exception {
-    String query = "select tdigest(l_extendedprice, true) q90 from cp.\"tpch/lineitem.parquet\"";
+    String query = "select tdigest(l_extendedprice) q90 from cp.\"tpch/lineitem.parquet\"";
     Map<String, DremioTestWrapper.BaselineValuesForTDigest> tolerances = new HashMap<>();
     tolerances.put("`q90`", new DremioTestWrapper.BaselineValuesForTDigest(1e-3, 0.9));
     testBuilder()
@@ -80,7 +80,7 @@ public class TestTDigestFunctions extends PlanTestBase {
 
   @Test
   public void q99() throws Exception {
-    String query = "select tdigest(l_extendedprice, true) q99 from cp.\"tpch/lineitem.parquet\"";
+    String query = "select tdigest(l_extendedprice) q99 from cp.\"tpch/lineitem.parquet\"";
     Map<String, DremioTestWrapper.BaselineValuesForTDigest> tolerances = new HashMap<>();
     tolerances.put("`q99`", new DremioTestWrapper.BaselineValuesForTDigest(1e-3, 0.99));
     testBuilder()
@@ -94,7 +94,7 @@ public class TestTDigestFunctions extends PlanTestBase {
 
   @Test
   public void median() throws Exception {
-    String query = "select tdigest(l_extendedprice, true) med from cp.\"tpch/lineitem.parquet\"";
+    String query = "select tdigest(l_extendedprice) med from cp.\"tpch/lineitem.parquet\"";
     Map<String, DremioTestWrapper.BaselineValuesForTDigest> tolerances = new HashMap<>();
     tolerances.put("`med`", new DremioTestWrapper.BaselineValuesForTDigest(1e-3, 0.5));
     testBuilder()
@@ -109,7 +109,7 @@ public class TestTDigestFunctions extends PlanTestBase {
   @Test
   public void twoPhaseQ90() throws Exception {
     test("set planner.slice_target = 1");
-    String query = "select tdigest(l_extendedprice, true) q90 from cp.\"tpch/lineitem.parquet\"";
+    String query = "select tdigest(l_extendedprice) q90 from cp.\"tpch/lineitem.parquet\"";
     Map<String, DremioTestWrapper.BaselineValuesForTDigest> tolerances = new HashMap<>();
     tolerances.put("`q90`", new DremioTestWrapper.BaselineValuesForTDigest(1e-3, 0.9));
     testBuilder()
@@ -124,7 +124,7 @@ public class TestTDigestFunctions extends PlanTestBase {
   @Test
   public void twoPhaseQ99() throws Exception {
     test("set planner.slice_target = 1");
-    String query = "select tdigest(l_extendedprice, true) q99 from cp.\"tpch/lineitem.parquet\"";
+    String query = "select tdigest(l_extendedprice) q99 from cp.\"tpch/lineitem.parquet\"";
     Map<String, DremioTestWrapper.BaselineValuesForTDigest> tolerances = new HashMap<>();
     tolerances.put("`q99`", new DremioTestWrapper.BaselineValuesForTDigest(1e-3, 0.99));
     testBuilder()
@@ -139,7 +139,7 @@ public class TestTDigestFunctions extends PlanTestBase {
   @Test
   public void twoPhaseMedian() throws Exception {
     test("set planner.slice_target = 1");
-    String query = "select tdigest(l_extendedprice, true) med from cp.\"tpch/lineitem.parquet\"";
+    String query = "select tdigest(l_extendedprice) med from cp.\"tpch/lineitem.parquet\"";
     Map<String, DremioTestWrapper.BaselineValuesForTDigest> tolerances = new HashMap<>();
     tolerances.put("`med`", new DremioTestWrapper.BaselineValuesForTDigest(1e-3, 0.5));
     testBuilder()
@@ -155,7 +155,7 @@ public class TestTDigestFunctions extends PlanTestBase {
   public void tDigestDateQ0() throws Exception {
     try (AutoCloseable ac = withSystemOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES_VALIDATOR, true)) {
       test("set planner.slice_target = 1");
-      String query = "select tdigest(l_shipdate, true) ship from cp.\"tpch/lineitem.parquet\"";
+      String query = "select tdigest(l_shipdate) ship from cp.\"tpch/lineitem.parquet\"";
       Map<String, DremioTestWrapper.BaselineValuesForTDigest> tolerances = new HashMap<>();
       tolerances.put("`ship`", new DremioTestWrapper.BaselineValuesForTDigest(0.6, 0.01));
 
@@ -175,7 +175,7 @@ public class TestTDigestFunctions extends PlanTestBase {
   @Test
   public void tDigestTimeQ0() throws Exception {
     test("set planner.slice_target = 1");
-    String query = "select tdigest(time_col, true) t FROM cp.parquet.\"all_scalar_types.parquet\"";
+    String query = "select tdigest(time_col) t FROM cp.parquet.\"all_scalar_types.parquet\"";
     Map<String, DremioTestWrapper.BaselineValuesForTDigest> tolerances = new HashMap<>();
     tolerances.put("`t`", new DremioTestWrapper.BaselineValuesForTDigest(0, 0.01));
 
@@ -195,7 +195,7 @@ public class TestTDigestFunctions extends PlanTestBase {
   @Test
   public void tDigestTimeStampQ0() throws Exception {
     test("set planner.slice_target = 1");
-    String query = "select tdigest(timestamp_col, true) t FROM cp.parquet.\"all_scalar_types.parquet\"";
+    String query = "select tdigest(timestamp_col) t FROM cp.parquet.\"all_scalar_types.parquet\"";
     Map<String, DremioTestWrapper.BaselineValuesForTDigest> tolerances = new HashMap<>();
     tolerances.put("`t`", new DremioTestWrapper.BaselineValuesForTDigest(0.1, 0.01));
 
@@ -214,11 +214,11 @@ public class TestTDigestFunctions extends PlanTestBase {
   @Test
   public void testTDigestNumericDataTypes() throws Exception {
     String sql = "SELECT \n" +
-      "    tdigest(bool_col, true) as a, \n" +
-      "    tdigest(int_col, true) as b,\n" +
-      "    tdigest(bigint_col, true) as c, \n" +
-      "    tdigest(float4_col, true) as d, \n" +
-      "    tdigest(float8_col, true) as e \n" +
+      "    tdigest(bool_col) as a, \n" +
+      "    tdigest(int_col) as b,\n" +
+      "    tdigest(bigint_col) as c, \n" +
+      "    tdigest(float4_col) as d, \n" +
+      "    tdigest(float8_col) as e \n" +
       "FROM cp.parquet.\"all_scalar_types.parquet\"";
     Map<String, DremioTestWrapper.BaselineValuesForTDigest> tolerances = new HashMap<>();
     tolerances.put("`a`", new DremioTestWrapper.BaselineValuesForTDigest(0, 0));
@@ -231,7 +231,7 @@ public class TestTDigestFunctions extends PlanTestBase {
       .sqlQuery(sql)
       .ordered()
       .baselineColumns("a", "b", "c", "d", "e")
-      .baselineValues(new Double(1), new Double(1), new Double(1), new Double(0.5), new Double(0.5))
+      .baselineValues(1.0D, 1.0D, 1.0D, 0.5D, 0.5D)
       .baselineTolerancesForTDigest(tolerances)
       .go();
   }

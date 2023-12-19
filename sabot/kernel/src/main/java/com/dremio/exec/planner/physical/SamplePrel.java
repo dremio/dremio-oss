@@ -26,14 +26,13 @@ import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
-import com.dremio.exec.calcite.logical.SampleCrel;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.common.SampleRelBase;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 
 /**
- * Dremio physical for {@link SampleCrel}
+ * Dremio physical for {@link com.dremio.exec.planner.logical.SampleRel}
  */
 public class SamplePrel extends SampleRelBase implements Prel {
 

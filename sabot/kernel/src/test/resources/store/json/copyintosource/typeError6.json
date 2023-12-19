@@ -1,0 +1,18 @@
+{
+  "name" : "Sam",
+  "age" : 30,
+  "profession" : "gardener",
+  "salary" : 80
+}
+{
+  "name" : "Angela",
+  "age" : 40,
+  "profession" : "nurse",
+  "salary" : "90"
+}
+{
+  "name" : "Chris",
+  "age" : "some",
+  "profession" : "engineer",
+  "salary" : "120"
+}

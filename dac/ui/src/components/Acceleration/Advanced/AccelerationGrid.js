@@ -19,6 +19,8 @@ import PropTypes from "prop-types";
 import Immutable from "immutable";
 import { injectIntl } from "react-intl";
 
+import { IconButton as OldIconButton } from "dremio-ui-lib";
+import { IconButton, Spinner } from "dremio-ui-lib/components";
 import FontIcon from "components/Icon/FontIcon";
 import { Column, Table } from "fixed-data-table-2";
 import { AutoSizer } from "react-virtualized";
@@ -32,13 +34,20 @@ import ModalForm from "components/Forms/ModalForm";
 import FormBody from "components/Forms/FormBody";
 import Message from "components/Message";
 
+import {
+  getAggregationRecommendation,
+  getRawRecommendation,
+} from "@app/selectors/reflectionRecommendations";
 import AccelerationGridMixin from "@inject/components/Acceleration/Advanced/AccelerationGridMixin.js";
 import EllipsedText from "@app/components/EllipsedText";
 
 import { typeToIconType } from "@app/constants/DataTypes";
+import { PartitionTransformations } from "dremio-ui-common/sonar/reflections/ReflectionDataTypes.js";
+import { ColumnTypeIcons } from "@app/exports/components/PartitionTransformation/PartitionTransformationUtils";
+import { getSupportFlags } from "@app/selectors/supportFlags";
+import { ALLOW_REFLECTION_PARTITION_TRANFORMS } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
 
 import "@app/uiTheme/less/commonModifiers.less";
-import { displayNone } from "@app/uiTheme/less/commonStyles.less";
 import "@app/uiTheme/less/Acceleration/Acceleration.less";
 import "@app/uiTheme/less/Acceleration/AccelerationGrid.less";
 import LayoutInfo from "../LayoutInfo";
@@ -53,6 +62,7 @@ const GRID_PADDING = 20;
 export class AccelerationGrid extends Component {
   static propTypes = {
     columns: PropTypes.instanceOf(Immutable.List),
+    allColumns: PropTypes.instanceOf(Immutable.List),
     shouldShowDistribution: PropTypes.bool,
     renderBodyCell: PropTypes.func,
     renderHeaderCellData: PropTypes.func,
@@ -64,6 +74,10 @@ export class AccelerationGrid extends Component {
     location: PropTypes.object.isRequired,
     intl: PropTypes.object.isRequired,
     hasPermission: PropTypes.any,
+    applyPartitionRecommendations: PropTypes.func,
+    allowPartitionTransform: PropTypes.bool,
+    recommendation: PropTypes.object,
+    loadingRecommendations: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -95,7 +109,7 @@ export class AccelerationGrid extends Component {
     }
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     if (nextProps.activeTab !== this.props.activeTab) {
       this.focusedColumn = undefined;
     } else if (nextProps.layoutFields.length > this.props.layoutFields.length) {
@@ -127,12 +141,12 @@ export class AccelerationGrid extends Component {
             inputClassName={"AccelerationGrid__input"} // SHAWN: change according to Shashi's comment
             showCloseIcon
             value={this.props.filter}
-            placeholder={la("Search fields…")}
+            placeholder={laDeprecated("Search columns…")}
             onChange={this.props.onFilterChange}
             style={{ paddingBottom: 0 }}
           />
           <div className={"AccelerationGrid__fields"}>
-            <h4>{la("Fields")}</h4>
+            <h4>{laDeprecated("Columns")}</h4>
           </div>
         </div>
       </div>
@@ -179,9 +193,9 @@ export class AccelerationGrid extends Component {
             <div>
               {this.props.intl.formatMessage(
                 {
-                  id: "Reflection.LostFieldsPreamble",
+                  id: "Reflection.LostColumnsPreamble",
                 },
-                { fieldNames: value }
+                { columnNames: value }
               )}
               <ul style={{ listStyle: "disc", margin: ".5em 0 1em 2em" }}>
                 {lostFields[fieldListName].map((field) => {
@@ -217,11 +231,11 @@ export class AccelerationGrid extends Component {
 
     let textMessage;
     if (shouldDelete) {
-      textMessage = la("will remove");
+      textMessage = laDeprecated("will remove");
     } else if (!enabled) {
-      textMessage = la("disabled");
+      textMessage = laDeprecated("disabled");
     } else if (!layoutData) {
-      textMessage = la("new");
+      textMessage = laDeprecated("new");
     }
 
     // todo: loc, ax
@@ -237,7 +251,130 @@ export class AccelerationGrid extends Component {
     );
   }
 
+  // update this if BUCKET is ever added to the recommendations
+  formatRecommendation = (partitionTransformation) => {
+    const transformationType = partitionTransformation.type;
+
+    switch (transformationType) {
+      case PartitionTransformations.TRUNCATE:
+        return `by truncation length ${partitionTransformation.truncateTransform.truncateLength}`;
+      default:
+        return `by ${partitionTransformation.type.toLowerCase()}`;
+    }
+  };
+
+  generateTooltipMessage = () => {
+    const {
+      allColumns,
+      intl: { formatMessage },
+      recommendation: { partitionFields },
+    } = this.props;
+
+    const partitionFieldsWithColumnTypes = partitionFields.map(
+      (partitionField) => ({
+        ...partitionField,
+        columnType: allColumns
+          .find((column) => column.get("name") === partitionField.name)
+          .getIn(["type", "name"]),
+      })
+    );
+
+    return (
+      <>
+        <p>
+          {formatMessage({ id: "Acceleration.PartitionRecommendations.Title" })}
+        </p>
+        <br />
+        <p>
+          {formatMessage({
+            id: "Acceleration.PartitionRecommendations.SubTitle",
+          })}
+        </p>
+        <br />
+        <p>
+          {partitionFieldsWithColumnTypes?.map((partitionField) => (
+            <span
+              className="flex --alignCenter"
+              style={{ gap: "var(--dremio--spacing--05)" }}
+              key={partitionField.name}
+            >
+              <dremio-icon
+                name={`column-types/${
+                  ColumnTypeIcons[partitionField.columnType]
+                }`}
+              />
+              {`${partitionField.name} (${this.formatRecommendation(
+                partitionField.transform
+              )})`}
+            </span>
+          ))}
+        </p>
+      </>
+    );
+  };
+
+  // also update this if BUCKET is ever added to the recommendations
+  doCurrentPartitionsMatchRecommendations = (columnIndex) => {
+    const {
+      layoutFields,
+      recommendation: { partitionFields },
+    } = this.props;
+
+    const curPartitionFields = layoutFields[columnIndex].partitionFields;
+
+    if (partitionFields.length !== curPartitionFields.length) {
+      return false;
+    }
+
+    return curPartitionFields.every((curPartitionField) => {
+      const curPartitionValue = curPartitionField.name.value;
+
+      // if a partition is recommended it will always include a transformation
+      if (typeof curPartitionValue === "string") {
+        return false;
+      } else {
+        // return false in cases where:
+        // 1) no recommendation for the column exists
+        // 2) the column's current transformation does not match the recommendation
+        // 3) the recommended transformation is TRUNCATE and the lengths do not match
+
+        const recommendedPartition = partitionFields.find(
+          (partitionField) => partitionField.name === curPartitionValue.name
+        );
+
+        const recommendedTransformation = recommendedPartition?.transform;
+        const currentTransformation = curPartitionValue.transform;
+
+        if (!recommendedPartition) {
+          return false;
+        }
+
+        if (recommendedTransformation.type !== currentTransformation.type) {
+          return false;
+        }
+
+        if (
+          recommendedTransformation.type === PartitionTransformations.TRUNCATE
+        ) {
+          return (
+            recommendedTransformation.truncateTransform.truncateLength ===
+            currentTransformation.truncateTransform.truncateLength
+          );
+        }
+
+        return true;
+      }
+    });
+  };
+
   renderHeaderCell = (rowIndex, columnIndex, shouldJumpTo = false) => {
+    const {
+      allowPartitionTransform,
+      applyPartitionRecommendations,
+      recommendation: { partitionFields } = {},
+      loadingRecommendations,
+    } = this.props;
+
     //todo: loc
     const fields = this.props.layoutFields[columnIndex];
     const shouldDelete = fields.shouldDelete.value;
@@ -249,6 +386,16 @@ export class AccelerationGrid extends Component {
     const name =
       this.props.layoutFields[columnIndex].name.value || placeholderName;
     const isAdminOrHasCanAlter = this.checkIfUserHasCanAlter();
+
+    const shouldShowRecommendationsLoader =
+      isAdminOrHasCanAlter && allowPartitionTransform && loadingRecommendations;
+
+    const shouldShowRecommendations =
+      isAdminOrHasCanAlter &&
+      allowPartitionTransform &&
+      !loadingRecommendations &&
+      !!partitionFields?.length &&
+      !this.doCurrentPartitionsMatchRecommendations(columnIndex);
 
     return (
       <div
@@ -280,28 +427,54 @@ export class AccelerationGrid extends Component {
                 if (e.key === "Enter") e.preventDefault();
               }}
             />
-            {
-              <FontIcon
-                type={shouldDelete ? "Add" : "Minus"}
-                iconClass={
-                  isAdminOrHasCanAlter
-                    ? "AccelerationGrid__layoutHeaderDeleteIcon"
-                    : displayNone
+            {shouldShowRecommendationsLoader && (
+              <Spinner className="AccelerationGrid__layoutHeaderRecommendationSpinner" />
+            )}
+            {/* FIXME: the tooltip in the new IconButton component causes an infinite render loop
+            when switching between Raw and Aggregate so we have to use the older version here */}
+            {shouldShowRecommendations && (
+              <OldIconButton
+                tooltip={this.generateTooltipMessage()}
+                tooltipPlacement="top"
+                onClick={() =>
+                  applyPartitionRecommendations(columnIndex, partitionFields)
                 }
-                onClick={() => fields.shouldDelete.onChange(!shouldDelete)}
-              />
-            }
-            <FontIcon
-              type="SettingsMediumFilled"
-              iconClass={
-                isAdminOrHasCanAlter
-                  ? "AccelerationGrid__layoutHeaderSettingsIcon"
-                  : displayNone
-              }
-              onClick={() =>
-                this.setState({ visibleLayoutExtraSettingsIndex: columnIndex })
-              }
-            />
+                className="AccelerationGrid__layoutHeaderRecommendationButton"
+              >
+                <dremio-icon
+                  name="interface/warning"
+                  class="AccelerationGrid__layoutHeaderRecommendationButton__icon"
+                />
+              </OldIconButton>
+            )}
+            {isAdminOrHasCanAlter && (
+              <>
+                <IconButton
+                  aria-label={shouldDelete ? "Add" : "Delete"}
+                  onClick={() => fields.shouldDelete.onChange(!shouldDelete)}
+                  className="AccelerationGrid__layoutHeaderDeleteButton"
+                >
+                  <dremio-icon
+                    name={shouldDelete ? "interface/add" : "interface/delete"}
+                    class="AccelerationGrid__layoutHeaderDeleteButton__icon"
+                  />
+                </IconButton>
+                <IconButton
+                  aria-label="Settings"
+                  onClick={() =>
+                    this.setState({
+                      visibleLayoutExtraSettingsIndex: columnIndex,
+                    })
+                  }
+                  className="AccelerationGrid__layoutHeaderSettingsButton"
+                >
+                  <dremio-icon
+                    name="interface/settings"
+                    class="AccelerationGrid__layoutHeaderSettingsButton__icon"
+                  />
+                </IconButton>
+              </>
+            )}
           </div>
         </div>
         {this.renderStatus(fields)}
@@ -321,22 +494,31 @@ export class AccelerationGrid extends Component {
       <Modal
         size="smallest"
         style={{ width: 500, height: 250 }}
-        title={la("Settings: ") + name} //todo: text sub loc
+        title={laDeprecated("Settings: ") + name} //todo: text sub loc
         isOpen={this.state.visibleLayoutExtraSettingsIndex === columnIndex}
         hide={hide}
       >
-        <ModalForm onSubmit={hide} confirmText={la("Close")} isNestedForm>
+        <ModalForm
+          onSubmit={hide}
+          confirmText={laDeprecated("Close")}
+          isNestedForm
+        >
           <FormBody>
-            <FieldWithError label={la("Reflection execution strategy")}>
+            <FieldWithError
+              label={laDeprecated("Reflection execution strategy")}
+            >
               <Select
                 {...fields.partitionDistributionStrategy}
                 style={{ width: 275 }}
                 items={[
                   {
-                    label: la("Minimize Number of Files Produced"),
+                    label: laDeprecated("Minimize Number of Files Produced"),
                     option: "CONSOLIDATED",
                   },
-                  { label: la("Minimize Refresh Time"), option: "STRIPED" },
+                  {
+                    label: laDeprecated("Minimize Refresh Time"),
+                    option: "STRIPED",
+                  },
                 ]}
               />
             </FieldWithError>
@@ -351,15 +533,21 @@ export class AccelerationGrid extends Component {
     return (
       <div className={"AccelerationGrid__subCellHeader"}>
         {isRaw && (
-          <div className={"AccelerationGrid__cell"}>{la("Display")}</div>
+          <div className={"AccelerationGrid__cell"}>
+            {laDeprecated("Display")}
+          </div>
         )}
         {!isRaw && (
-          <div className={"AccelerationGrid__cell"}>{la("Dimension")}</div>
+          <div className={"AccelerationGrid__cell"}>
+            {laDeprecated("Dimension")}
+          </div>
         )}
         {!isRaw && (
-          <div className={"AccelerationGrid__cell"}>{la("Measure")}</div>
+          <div className={"AccelerationGrid__cell"}>
+            {laDeprecated("Measure")}
+          </div>
         )}
-        <div className={"AccelerationGrid__cell"}>{la("Sort")}</div>
+        <div className={"AccelerationGrid__cell"}>{laDeprecated("Sort")}</div>
         <div
           className={
             this.props.shouldShowDistribution
@@ -367,11 +555,11 @@ export class AccelerationGrid extends Component {
               : "AccelerationGrid__lastCell"
           }
         >
-          {la("Partition")}
+          {laDeprecated("Partition")}
         </div>
         {this.props.shouldShowDistribution && (
           <div className={"AccelerationGrid__lastCell"}>
-            {la("Distribution")}
+            {laDeprecated("Distribution")}
           </div>
         )}
       </div>
@@ -486,10 +674,19 @@ export class AccelerationGrid extends Component {
 
 AccelerationGrid = injectIntl(AccelerationGrid);
 
-const mapStateToProps = (state) => {
+const mapStateToProps = (state, ownProps) => {
+  const { activeTab } = ownProps;
+
   const location = state.routing.locationBeforeTransitions;
+
   return {
+    allowPartitionTransform:
+      getSupportFlags(state)[ALLOW_REFLECTION_PARTITION_TRANFORMS],
     location,
+    recommendation:
+      activeTab === "raw"
+        ? getRawRecommendation(state)
+        : getAggregationRecommendation(state),
   };
 };
 

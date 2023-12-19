@@ -22,8 +22,6 @@ import { getArcticUrlForCatalog } from "@app/exports/pages/ArcticCatalog/arctic-
 import { TopAction } from "@app/components/SideNav/components/TopAction";
 import { isActive } from "@app/components/SideNav//SideNavUtils";
 import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
-import { FeatureSwitch } from "../FeatureSwitch/FeatureSwitch";
-import { DATA_OPTIMIZATION } from "@app/exports/flags/DATA_OPTIMIZATION";
 
 export const ArcticSideNav = (props: any) => {
   const { className, ...rest } = props;
@@ -55,21 +53,17 @@ export const ArcticSideNav = (props: any) => {
             })}
             tooltipProps={{ placement: "right" }}
           />
-          <FeatureSwitch
-            flag={DATA_OPTIMIZATION}
-            renderEnabled={() => (
-              <TopAction
-                url={getArcticUrlForCatalog(pathname, "jobs", "")}
-                icon="navigation-bar/jobs"
-                alt="SideNav.Jobs"
-                active={isActive({
-                  loc: pathname,
-                  name: "jobs",
-                  isArctic: true,
-                })}
-                tooltipProps={{ placement: "right" }}
-              />
-            )}
+
+          <TopAction
+            url={getArcticUrlForCatalog(pathname, "jobs", "")}
+            icon="navigation-bar/jobs"
+            alt="SideNav.Jobs"
+            active={isActive({
+              loc: pathname,
+              name: "jobs",
+              isArctic: true,
+            })}
+            tooltipProps={{ placement: "right" }}
           />
 
           <TopAction

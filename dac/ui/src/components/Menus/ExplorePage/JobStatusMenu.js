@@ -57,7 +57,7 @@ export class JobStatusMenu extends PureComponent {
               },
             }}
           >
-            {la("View Details")}
+            {laDeprecated("View Details")}
           </Link>
         </MenuItem>
         <MenuItem
@@ -65,7 +65,7 @@ export class JobStatusMenu extends PureComponent {
           onClick={this.clickCancel}
           disabled={!isCancellable}
         >
-          {la("Cancel Job")}
+          {laDeprecated("Cancel Job")}
         </MenuItem>
       </Menu>
     );

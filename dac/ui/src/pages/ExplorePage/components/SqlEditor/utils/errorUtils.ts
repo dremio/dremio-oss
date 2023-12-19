@@ -16,11 +16,17 @@
 
 import { QueryRange } from "@app/utils/statements/statement";
 
+export type RawErrorInfo = {
+  readonly message: string;
+  readonly range?: QueryRangeResponse;
+};
+
 export type ErrorResponse = {
   readonly errorMessage?: string;
   readonly details?: {
-    readonly errors?: SqlError<QueryRangeResponse>[];
+    readonly errors?: RawErrorInfo[];
   };
+  readonly range?: QueryRangeResponse;
 };
 
 export type QueryRangeResponse = {
@@ -30,9 +36,9 @@ export type QueryRangeResponse = {
   readonly endColumn: number;
 };
 
-export type SqlError<TRange> = {
+export type SqlError = {
   readonly message: string;
-  readonly range: TRange;
+  readonly range: QueryRange;
 };
 
 export const DEFAULT_ERROR_MESSAGE = "Error";
@@ -43,7 +49,7 @@ export const DEFAULT_ERROR_MESSAGE = "Error";
  */
 const getSqlError = (
   errorResponse: ErrorResponse | undefined
-): SqlError<QueryRangeResponse | undefined> | undefined => {
+): RawErrorInfo | undefined => {
   return errorResponse?.details?.errors?.[0];
 };
 
@@ -88,12 +94,14 @@ const getErrorRange = (
 export const extractSqlErrorFromResponse = (
   errorResponse: ErrorResponse | undefined,
   queryRange: QueryRange
-): SqlError<QueryRange> => {
+): SqlError => {
   const sqlError = getSqlError(errorResponse);
   if (!sqlError) {
     return {
       message: errorResponse?.errorMessage ?? DEFAULT_ERROR_MESSAGE,
-      range: queryRange,
+      range: errorResponse?.range
+        ? getErrorRange(queryRange, errorResponse.range)
+        : queryRange,
     };
   }
   return {

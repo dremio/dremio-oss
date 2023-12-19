@@ -15,6 +15,8 @@
  */
 package com.dremio.service.scheduler;
 
+import java.util.concurrent.ThreadPoolExecutor;
+
 import javax.inject.Provider;
 
 import com.dremio.exec.proto.CoordinationProtos;
@@ -26,13 +28,12 @@ import com.dremio.service.coordinator.ClusterServiceSetManager;
 /**
  * A LocalScheduleService in which the corePoolSize and maxPoolSize of the underlying
  * threadPoolExecutor is dynamically modified based on changes to option value.
- *
  * CorePoolSize and MaxPoolSize are always kept equal.
+ * TODO DX-68199; remove this altogether when the old clustered singleton gets decommissioned
  */
 public class ModifiableLocalSchedulerService extends LocalSchedulerService implements ModifiableSchedulerService {
   private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(ModifiableLocalSchedulerService.class);
 
-  private final ModifiableThreadPoolExecutor threadPoolModifier;
   private final Provider<OptionManager> optionManagerProvider;
   private final PositiveLongValidator option;
 
@@ -41,7 +42,6 @@ public class ModifiableLocalSchedulerService extends LocalSchedulerService imple
     super(corePoolSize, threadNamePrefix);
     this.optionManagerProvider = optionManagerProvider;
     this.option = option;
-    this.threadPoolModifier = new ModifiableThreadPoolExecutor(getExecutorService(), option, optionManagerProvider);
   }
 
   public ModifiableLocalSchedulerService(int corePoolSize,
@@ -49,21 +49,56 @@ public class ModifiableLocalSchedulerService extends LocalSchedulerService imple
                                          Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider,
                                          Provider<ClusterElectionManager> clusterElectionManagerProvider,
                                          Provider<CoordinationProtos.NodeEndpoint> currentNode,
-                                         boolean assumeTaskLeadership,
+                                         boolean isDistributedCoordinator,
                                          PositiveLongValidator option,
                                          Provider<OptionManager> optionManagerProvider) {
-    super(corePoolSize, threadNamePrefix, clusterServiceSetManagerProvider, clusterElectionManagerProvider, currentNode, assumeTaskLeadership);
+    super(corePoolSize, threadNamePrefix, clusterServiceSetManagerProvider, clusterElectionManagerProvider, currentNode,
+      isDistributedCoordinator);
     this.optionManagerProvider = optionManagerProvider;
     this.option = option;
-    this.threadPoolModifier = new ModifiableThreadPoolExecutor(getExecutorService(), option, optionManagerProvider);
   }
 
   @Override
   public void start() throws Exception {
     LOGGER.info("ModifiableLocalSchedulerService is starting");
     super.start();
-    threadPoolModifier.setInitialPoolSize((int) optionManagerProvider.get().getOption(option));
-    optionManagerProvider.get().addOptionChangeListener(threadPoolModifier);
+    final int poolSize = (int) optionManagerProvider.get().getOption(option);
+    getExecutorService().setCorePoolSize(poolSize);
+    getExecutorService().setMaximumPoolSize(poolSize);
     LOGGER.info("ModifiableLocalSchedulerService is up");
+  }
+
+  @Override
+  public void addTaskGroup(ScheduleTaskGroup taskGroup) {
+    // noop as the task group has a 1-to-1 dependency to this scheduler instance and there are
+    // no external calls.
+  }
+
+  /**
+   * Modifies a task group.
+   * <p>
+   * Called from the associated task group change listener {@code TaskGroupChangeListener}
+   * </p>
+   * @param groupName name of the group
+   * @param taskGroup The modified group
+   */
+  @Override
+  public void modifyTaskGroup(String groupName, ScheduleTaskGroup taskGroup) {
+    final ThreadPoolExecutor threadPoolExecutor = getExecutorService();
+    int newPoolSize = (int) optionManagerProvider.get().getOption(option);
+    int currentPoolSize = threadPoolExecutor.getCorePoolSize();
+    if (currentPoolSize == newPoolSize) {
+      return;
+    }
+    LOGGER.info("Task group `{}` capacity modified from {} to {}", groupName, currentPoolSize, newPoolSize);
+    // increase/decrease core pool and max pool size in correct order
+    if (currentPoolSize > newPoolSize) {
+      threadPoolExecutor.setCorePoolSize(newPoolSize);
+      threadPoolExecutor.setMaximumPoolSize(newPoolSize);
+    } else {
+      threadPoolExecutor.setMaximumPoolSize(newPoolSize);
+      threadPoolExecutor.setCorePoolSize(newPoolSize);
+    }
+    LOGGER.info("CorePoolSize and MaxPoolSize are updated from {} to {}", currentPoolSize, newPoolSize);
   }
 }

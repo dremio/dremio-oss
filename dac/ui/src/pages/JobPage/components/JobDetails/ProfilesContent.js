@@ -37,14 +37,14 @@ export default class ProfilesContent extends PureComponent {
           return (
             <div style={{ display: "flex", marginBottom: 5 }} key={i}>
               <div style={{ width: 200 }}>
-                {la("Attempt")} {length - i} {reason}
+                {laDeprecated("Attempt")} {length - i} {reason}
               </div>
               <a
                 onClick={() =>
                   this.props.showJobProfile(profile.get("profileUrl"))
                 }
               >
-                {la("Profile")} »
+                {laDeprecated("Profile")} »
               </a>
             </div>
           );
@@ -55,7 +55,7 @@ export default class ProfilesContent extends PureComponent {
   render() {
     return (
       <div style={styles.base} className="profiles">
-        <h4>{la("Attempts")}</h4>
+        <h4>{laDeprecated("Attempts")}</h4>
         {this.renderProfiles()}
       </div>
     );

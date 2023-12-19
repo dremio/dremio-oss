@@ -245,22 +245,6 @@ class TransformViewMapper {
       };
     });
   }
-
-  mapRecJoin(payload) {
-    return (payload.recommendations || []).map((data) => {
-      const dpath = datasetUtils.toFullPath(data.dataset.resourcePath);
-      return {
-        joinType: data.joinType,
-        matchingKey: data.matchingKeys,
-        dataset: {
-          dpath,
-          datasetName: data.dataset.datasetName,
-          resourcePath: data.dataset.resourcePath,
-          version: data.dataset.datasetConfig.version,
-        },
-      };
-    });
-  }
 }
 
 const transformViewMapper = new TransformViewMapper();

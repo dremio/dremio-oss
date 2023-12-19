@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.calcite.schema.Function;
 import org.slf4j.Logger;
@@ -109,8 +110,8 @@ public final class FormatPluginOptionExtractor {
     if (optionsDescriptor == null) {
       throw UserException.parseError()
           .message(
-              "unknown type %s, expected one of %s",
-              type, optionsByTypeName.keySet())
+              "unknown type %s, expected one of [%s]",
+              type, optionsByTypeName.keySet().stream().sorted().collect(Collectors.joining(", ")))
           .addContext("table", t.getSig().getName())
           .build(logger);
     }
@@ -136,7 +137,7 @@ public final class FormatPluginOptionExtractor {
     FormatPluginOptionsDescriptor optionsDescriptor = optionsByTypeName.get(type.toLowerCase());
     if (optionsDescriptor == null) {
       throw UserException.parseError()
-          .message("unknown type %s, expected one of %s", type, optionsByTypeName.keySet())
+          .message("unknown type %s, expected one of [%s]", type, optionsByTypeName.keySet().stream().sorted().collect(Collectors.joining(", ")))
           .addContext("Given options: %s", formatOptions)
           .build(logger);
     }

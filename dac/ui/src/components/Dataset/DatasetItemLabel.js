@@ -27,13 +27,13 @@ import { getIsStarred } from "@app/components/Tree/resourceTreeUtils";
 // need this util as MainInfoItemName.js wraps label into a link. If we do not block event bubbling
 // redirect would occur
 import { stopPropagation } from "@app/utils/reactEventUtils";
-import { IconButton, Tooltip } from "dremio-ui-lib";
+import { IconButton } from "dremio-ui-lib";
+import { Popover } from "dremio-ui-lib/components";
 import DatasetOverlayContent from "./DatasetOverlayContent";
 import DatasetSummaryOverlay from "./DatasetSummaryOverlay";
 import WikiDrawerWrapper from "@app/components/WikiDrawerWrapper";
-import { FeatureSwitch } from "@app/exports/components/FeatureSwitch/FeatureSwitch";
-import { CATALOG_ARS_ENABLED } from "@app/exports/flags/CATALOG_ARS_ENABLED";
-import { getCommonWikiDrawerTitle } from "@app/utils/WikiDrawerUtils";
+import { ARSFeatureSwitch } from "@inject/utils/arsUtils";
+import { getExploreState } from "@app/selectors/explore";
 
 import "./DatasetItemLabel.less";
 
@@ -65,6 +65,9 @@ export class DatasetItemLabel extends PureComponent {
     showSummaryOverlay: PropTypes.bool,
     versionContext: PropTypes.object,
     tooltipPlacement: PropTypes.string,
+    isMultiQueryRunning: PropTypes.bool,
+    openDetailsPanel: PropTypes.func,
+    hideOverlayActionButtons: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -169,17 +172,6 @@ export class DatasetItemLabel extends PureComponent {
     });
   };
 
-  wikiDrawerTitle = () => {
-    const { fullPath } = this.props;
-    const { datasetDetails } = this.state;
-
-    return getCommonWikiDrawerTitle(
-      datasetDetails,
-      fullPath,
-      this.closeWikiDrawer
-    );
-  };
-
   render() {
     const {
       fullPath,
@@ -198,7 +190,10 @@ export class DatasetItemLabel extends PureComponent {
       isStarredLimitReached,
       showSummaryOverlay = true,
       versionContext,
-      tooltipPlacement,
+      tooltipPlacement = "right",
+      isMultiQueryRunning,
+      openDetailsPanel,
+      hideOverlayActionButtons,
     } = this.props;
 
     const { isOpenOverlay, drawerIsOpen, datasetDetails } = this.state;
@@ -265,26 +260,32 @@ export class DatasetItemLabel extends PureComponent {
             labelTypeIcon !== "Script" &&
             labelTypeIcon !== "FileEmpty" ? (
               <>
-                <Tooltip
-                  type="richTooltip"
-                  enterDelay={1000}
+                <Popover
+                  role="tooltip"
+                  showArrow
+                  delay={750}
                   placement={tooltipPlacement}
-                  title={
+                  mode="hover"
+                  portal
+                  content={
                     <DatasetSummaryOverlay
+                      datasetType={labelTypeIcon}
                       inheritedTitle={fullPath.last()}
                       fullPath={fullPath}
-                      openWikiDrawer={this.openWikiDrawer}
+                      openWikiDrawer={openDetailsPanel || this.openWikiDrawer}
                       showColumns
                       versionContext={versionContext}
+                      hideMainActionButtons={hideOverlayActionButtons}
                     />
                   }
                 >
                   {renderDataItemLabel()}
-                </Tooltip>
+                </Popover>
                 <WikiDrawerWrapper
-                  drawerIsOpen={drawerIsOpen}
-                  wikiDrawerTitle={this.wikiDrawerTitle()}
                   datasetDetails={datasetDetails}
+                  fullPath={fullPath}
+                  drawerIsOpen={drawerIsOpen}
+                  closeWikiDrawer={this.closeWikiDrawer}
                 />
               </>
             ) : (
@@ -297,11 +298,11 @@ export class DatasetItemLabel extends PureComponent {
                     tooltip="Add to SQL editor"
                     onClick={() => addtoEditor(fullPath)}
                     className="datasetItemLabel-item__add"
+                    disabled={isMultiQueryRunning}
                   >
                     <dremio-icon name="interface/add-small" />
                   </IconButton>
-                  <FeatureSwitch
-                    flag={CATALOG_ARS_ENABLED}
+                  <ARSFeatureSwitch
                     renderEnabled={() => null}
                     renderDisabled={() =>
                       nodeId && (
@@ -375,9 +376,11 @@ export class DatasetItemLabel extends PureComponent {
 
 function mapStateToProps(state, props) {
   const { nodeId } = props;
+  const explorePageState = getExploreState(state);
   const starredList = getStarredItemIds(state);
   const isStarred = getIsStarred(starredList, nodeId);
   return {
+    isMultiQueryRunning: explorePageState?.view.isMultiQueryRunning,
     isStarred,
   };
 }

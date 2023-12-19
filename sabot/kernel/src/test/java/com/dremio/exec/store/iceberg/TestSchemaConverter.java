@@ -247,7 +247,7 @@ public class TestSchemaConverter extends DremioTest {
     when(fileSystemPlugin.getIcebergModel()).thenReturn(icebergHadoopModel);
 
     IcebergOpCommitter createTableCommitter = icebergHadoopModel.getCreateTableCommitter("testTableName",
-            icebergHadoopModel.getTableIdentifier(rootPath), schema, Collections.emptyList(), null, null);
+            icebergHadoopModel.getTableIdentifier(rootPath), schema, Collections.emptyList(), null, null, null, Collections.emptyMap());
     createTableCommitter.commit();
 
 

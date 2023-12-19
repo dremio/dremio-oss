@@ -50,10 +50,10 @@ export class ContainerDatasetCount extends Component {
       if (isBounded) {
         if (count === 0) {
           // we found nothing and were count/time bound, so display '-'
-          displayedValue = la("-");
+          displayedValue = laDeprecated("-");
         } else {
           // we found some datasets and were count/time bound, so add '+' to the dataset number
-          displayedValue = count + la("+");
+          displayedValue = count + laDeprecated("+");
         }
       } else {
         displayedValue = count;

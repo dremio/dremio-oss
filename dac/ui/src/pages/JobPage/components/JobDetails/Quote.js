@@ -83,7 +83,9 @@ export class Quote extends PureComponent {
                     <div style={styles.truncatedText}>
                       &nbsp; Automatic Truncation{" "}
                       <HoverHelp
-                        content={la("UI Jobs are automatically truncated.")}
+                        content={laDeprecated(
+                          "UI Jobs are automatically truncated."
+                        )}
                       />
                     </div>
                   ) : (

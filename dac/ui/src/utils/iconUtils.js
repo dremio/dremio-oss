@@ -16,8 +16,6 @@
 import {
   DATASET_TYPES_TO_ICEBERG_TYPES,
   DATASET_TYPES_TO_ICON_TYPES,
-  PHYSICAL_DATASET,
-  VIRTUAL_DATASET,
 } from "@app/constants/datasetTypes";
 import { NESSIE, ARCTIC } from "@app/constants/sourceTypes";
 import { formatMessage } from "./locale";
@@ -63,12 +61,6 @@ export function getIconDataTypeFromDatasetType(datasetType) {
   return DATASET_TYPES_TO_ICON_TYPES[datasetType];
 }
 
-export function getIcebergIconDataTypeFromDatasetType(datasetType) {
-  if ([VIRTUAL_DATASET, PHYSICAL_DATASET].includes(datasetType)) {
-    return DATASET_TYPES_TO_ICEBERG_TYPES[datasetType];
-  } else return getIconDataTypeFromDatasetType(datasetType);
-}
-
 const STATUSES_ICON_POSTFIX = {
   good: "",
   bad: "-Bad",
@@ -89,21 +81,27 @@ export function getIconStatusDatabase(status, sourceType) {
   return getSourceIcon(sourceType) + (STATUSES_ICON_POSTFIX[status] || "");
 }
 
-export function getIconByEntityType(type, sourceType = "") {
+export function getIconByEntityType(type, isVersioned) {
   switch (type && type.toUpperCase()) {
     case "DATASET":
     case "VIRTUAL":
     case "VIRTUAL_DATASET":
-      return "VirtualDataset";
+      if (isVersioned) {
+        return DATASET_TYPES_TO_ICEBERG_TYPES[type];
+      } else {
+        return "VirtualDataset";
+      }
     case "PHYSICALDATASET":
     case "PHYSICAL_DATASET":
     case "PHYSICAL":
     case "TABLE":
-      return "PhysicalDataset";
+      if (isVersioned) {
+        return DATASET_TYPES_TO_ICEBERG_TYPES[type];
+      } else {
+        return "PhysicalDataset";
+      }
     case "SPACE":
       return "Space";
-    case "SOURCE":
-      return getSourceIcon(sourceType);
     case "HOME":
       return "Home";
     case "FILE":
@@ -123,14 +121,10 @@ export function getIconByEntityType(type, sourceType = "") {
   }
 }
 
-export function getIconTypeByEntityTypeAndStatus(
-  entityType,
-  sourceStatus,
-  sourceType
-) {
+export function getSourceStatusIcon(sourceStatus, sourceType) {
   const iconType =
     sourceStatus === null
-      ? getIconByEntityType(entityType, sourceType)
+      ? getSourceIcon(sourceType)
       : getIconStatusDatabase(sourceStatus, sourceType);
   return iconType;
 }
@@ -141,6 +135,10 @@ export function getFormatMessageIdByEntityIconType(iconType) {
       return "Dataset.VirtualDataset";
     case "PhysicalDataset":
       return "Dataset.PhysicalDataset";
+    case "IcebergView":
+      return "Dataset.IcebergView";
+    case "IcebergTable":
+      return "Dataset.IcebergTable";
     case "Space":
       return "Space.Space";
     case "Database":
@@ -168,11 +166,4 @@ export function getFormatMessageIdByEntityIconType(iconType) {
 
 export function getIconAltTextByEntityIconType(iconType) {
   return formatMessage(getFormatMessageIdByEntityIconType(iconType));
-}
-
-export function getArtPropsByEntityIconType(iconType) {
-  return {
-    src: `${iconType}.svg`,
-    alt: getIconAltTextByEntityIconType(iconType),
-  };
 }

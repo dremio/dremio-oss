@@ -25,6 +25,8 @@ export const FETCH_MINE_SCRIPTS_START = "FETCH_MINE_SCRIPTS_START";
 export const FETCH_MINE_SCRIPTS_SUCCESS = "FETCH_MINE_SCRIPTS_SUCCESS";
 export const FETCH_MINE_SCRIPTS_FAILURE = "FETCH_MINE_SCRIPTS_FAILURE";
 
+export const REPLACE_SCRIPT_CONTENTS = "REPLACE_SCRIPT_CONTENTS";
+
 export function fetchScripts({
   maxResults,
   searchTerm,
@@ -146,6 +148,41 @@ export const SELECT_ACTIVE_SCRIPT = "SELECT_ACTIVE_SCRIPT";
 export const setActiveScript = (script: any) => ({
   type: SELECT_ACTIVE_SCRIPT,
   script,
+});
+
+export const SET_TAB_VIEW = "SET_TAB_VIEW";
+
+export const setTabView = (
+  script: Record<string, any>,
+  prevScript: Record<string, any>
+) => ({
+  type: SET_TAB_VIEW,
+  script,
+  prevScript,
+});
+
+export const REMOVE_TAB_VIEW = "REMOVE_TAB_VIEW";
+
+export const removeTabView = (scriptId: string) => ({
+  type: REMOVE_TAB_VIEW,
+  scriptId,
+});
+
+export const POLL_SCRIPT_JOBS = "POLL_SCRIPT_JOBS";
+
+export const pollScriptJobs = (
+  script: Record<string, any>,
+  queryStatuses: Record<string, any>[]
+) => ({
+  type: POLL_SCRIPT_JOBS,
+  script,
+  queryStatuses,
+});
+
+export const REFRESH_SCRIPTS_RESOURCE = "REFRESH_SCRIPTS_RESOURCE";
+
+export const refreshScriptsResource = () => ({
+  type: REFRESH_SCRIPTS_RESOURCE,
 });
 
 export const CLEAR_SCRIPT_STATE = "CLEAR_SCRIPT_STATE";

@@ -77,6 +77,7 @@ public class CommandCreatorTest {
   private final QueryContext queryContext = mock(QueryContext.class);
   private final OptionManager optionManager = mock(OptionManager.class);
   private final AttemptObserver attemptObserver = mock(AttemptObserver.class);
+  @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
   private final Cache<Long, PreparedPlan> plans = CacheBuilder.newBuilder().build();
 
   @Before

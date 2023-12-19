@@ -46,6 +46,7 @@ public final class ScaffoldingRel {
   public static final RelDataType CHAR_NULL_TYPE =
     TYPE_FACTORY.createTypeWithNullability(TYPE_FACTORY.createSqlType(CHAR), true);
   public static final RelDataType FLOAT_TYPE = TYPE_FACTORY.createSqlType(FLOAT);
+  public static final RelDataType BIG_INT_TYPE = TYPE_FACTORY.createSqlType(BIGINT);
   public static final RelDataType BIG_INT_NULL_TYPE =
     TYPE_FACTORY.createTypeWithNullability(TYPE_FACTORY.createSqlType(BIGINT), true);
   public static final RelDataType INT_TYPE = TYPE_FACTORY.createSqlType(INTEGER);
@@ -64,6 +65,10 @@ public final class ScaffoldingRel {
     TYPE_FACTORY.createSqlType(SqlTypeName.DATE);
   public static final RelDataType DATE_NULL_TYPE =
       TYPE_FACTORY.createTypeWithNullability(DATE_TYPE, true);
+  public static final RelDataType TIMESTAMP_TYPE =
+    TYPE_FACTORY.createSqlType(SqlTypeName.TIMESTAMP);
+  public static final RelDataType TIMESTAMP_NULL_TYPE =
+    TYPE_FACTORY.createTypeWithNullability(TIMESTAMP_TYPE, true);
   public static final RelDataType BOOLEAN_TYPE = TYPE_FACTORY.createSqlType(BOOLEAN);
   public static final RelDataType BOOLEAN_NULL_TYPE =
       TYPE_FACTORY.createTypeWithNullability(BOOLEAN_TYPE, true);

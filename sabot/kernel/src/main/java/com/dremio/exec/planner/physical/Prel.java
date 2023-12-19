@@ -29,7 +29,7 @@ import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 /**
  * Physical Relation Node
  */
-public interface Prel extends RelNode, Iterable<Prel>{
+public interface Prel extends RelNode, Iterable<Prel> {
 
   final long DEFAULT_RESERVE = 1_000_000;
   final long DEFAULT_LIMIT = Long.MAX_VALUE;

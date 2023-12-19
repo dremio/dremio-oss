@@ -47,6 +47,8 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.types.MinorType;
+import com.dremio.exec.calcite.logical.ScanCrel;
+import com.dremio.exec.ops.SnapshotDiffContext;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.proto.model.UpdateId;
 import com.dremio.service.Pointer;
@@ -286,18 +288,29 @@ public class IncrementalUpdateUtils {
         return newScan;
       }
 
-      // build new filter to apply refresh condition.
-      final RexBuilder rexBuilder = tableScan.getCluster().getRexBuilder();
-      RelDataTypeField field = newScan.getRowType().getField(UPDATE_COLUMN, false, false);
-      final RexNode inputRef = rexBuilder.makeInputRef(newScan, field.getIndex());
-      final Optional<RexNode> literal = generateLiteral(rexBuilder, tableScan.getCluster().getTypeFactory(), field.getType().getSqlTypeName());
-      RexNode condition;
-      if (literal.isPresent()) {
-        condition = tableScan.getCluster().getRexBuilder().makeCall(SqlStdOperatorTable.GREATER_THAN, ImmutableList.of(inputRef, literal.get()));
+      // For file-based datasets, perform direct pruning on in-memory splits if split modified times are not
+      // kept as partition values
+      if (value.getUpdateIdType() == UpdateId.IdType.MTIME && value.getType() == MinorType.BIGINT &&
+          newScan instanceof TableScan &&
+          FileBasedDatasetUpdateTimePruner.scanSupportsSplitUpdateTimePruning((TableScan) newScan)) {
+        return FileBasedDatasetUpdateTimePruner.prune((TableScan) newScan, value.getLongUpdateId());
       } else {
-        condition = tableScan.getCluster().getRexBuilder().makeCall(SqlStdOperatorTable.IS_NOT_NULL, ImmutableList.of(inputRef));
+        // build new filter to apply refresh condition.
+        final RexBuilder rexBuilder = tableScan.getCluster().getRexBuilder();
+        RelDataTypeField field = newScan.getRowType().getField(UPDATE_COLUMN, false, false);
+        final RexNode inputRef = rexBuilder.makeInputRef(newScan, field.getIndex());
+        final Optional<RexNode> literal = generateLiteral(rexBuilder, tableScan.getCluster().getTypeFactory(),
+            field.getType().getSqlTypeName());
+        RexNode condition;
+        if (literal.isPresent()) {
+          condition = tableScan.getCluster().getRexBuilder()
+              .makeCall(SqlStdOperatorTable.GREATER_THAN, ImmutableList.of(inputRef, literal.get()));
+        } else {
+          condition = tableScan.getCluster().getRexBuilder()
+              .makeCall(SqlStdOperatorTable.IS_NOT_NULL, ImmutableList.of(inputRef));
+        }
+        return LogicalFilter.create(newScan, condition);
       }
-      return LogicalFilter.create(newScan, condition);
     }
 
     @Override
@@ -335,6 +348,85 @@ public class IncrementalUpdateUtils {
     public RelNode visit(TableScan tableScan) {
       if(tableScan instanceof IncrementallyUpdateable){
         return ((IncrementallyUpdateable) tableScan).projectInvisibleColumn(UPDATE_COLUMN);
+      }
+
+      return tableScan;
+    }
+  }
+
+  /**
+   * For snapshot based incremental update, there is no UPDATE_COLUMN in plan. A DUMMY_COLUMN ($_dremio_$_dummy_$)
+   * needs to be added as a grouping key in aggregates.
+   * This is to ensure built-in substitution rules to add proper roll up aggregates.
+   */
+  public static class AddDummyGroupingFieldShuttle extends StatelessRelShuttleImpl {
+    private static final String DUMMY_COLUMN = "$_dremio_$_dummy_$";
+    @Override
+    public RelNode visit(LogicalAggregate aggregate) {
+      RelNode input = aggregate.getInput();
+
+      // Create a new project with null DUMMY_COLUMN below aggregate
+      final RelBuilder relBuilder = newCalciteRelBuilderWithoutContext(aggregate.getCluster());
+      relBuilder.push(input);
+      List<RexNode> nodes = input.getRowType().getFieldList().stream().map(q -> {
+        return relBuilder.getRexBuilder().makeInputRef(q.getType(), q.getIndex());
+      }).collect(Collectors.toList());
+      nodes.add(relBuilder.getRexBuilder().makeNullLiteral(aggregate.getCluster().getTypeFactory().createSqlType(SqlTypeName.NULL)));
+      List<String> projectFieldNames = FluentIterable
+        .from(input.getRowType().getFieldList())
+          .transform(new Function<RelDataTypeField, String>() {
+            @Override
+            public String apply(RelDataTypeField field) {
+              return field.getName();
+            }
+          })
+        .append(DUMMY_COLUMN)
+        .toList();
+      relBuilder.project(nodes, projectFieldNames);
+
+      // create a new aggregate with null DUMMY_COLUMN in groupSet
+      RelDataType incomingRowType = relBuilder.peek().getRowType();
+      RelDataTypeField modField = incomingRowType.getFieldList().get(incomingRowType.getFieldCount() - 1);
+      ImmutableBitSet newGroupSet = aggregate.getGroupSet().rebuild().set(modField.getIndex()).build();
+      GroupKey groupKey = relBuilder.groupKey(newGroupSet, null);
+
+      final int groupCount = aggregate.getGroupCount();
+      final Pointer<Integer> ind = new Pointer<>(groupCount-1);
+      final List<String> fieldNames = aggregate.getRowType().getFieldNames();
+      final List<AggregateCall> aggCalls = aggregate.getAggCallList().stream().map(q -> {
+        ind.value++;
+        if (q.getName() == null) {
+          return q.rename(fieldNames.get(ind.value));
+        }
+        return q;
+      }).collect(Collectors.toList());
+
+      relBuilder.aggregate(groupKey, aggCalls);
+
+      // create a new project on top to preserve rowType
+      Iterable<RexInputRef> projects = FluentIterable.from(aggregate.getRowType().getFieldNames())
+        .transform(new Function<String, RexInputRef>() {
+          @Override
+          public RexInputRef apply(String fieldName) {
+            return relBuilder.field(fieldName);
+          }
+        });
+
+      relBuilder.project(projects);
+
+      return relBuilder.build();
+    }
+  }
+
+  public static class AddSnapshotDiffContextShuttle extends StatelessRelShuttleImpl {
+    private final SnapshotDiffContext snapshotDiffContext;
+    public AddSnapshotDiffContextShuttle(SnapshotDiffContext snapshotDiffContext) {
+      this.snapshotDiffContext = snapshotDiffContext;
+    }
+    @Override
+    public RelNode visit(TableScan tableScan) {
+     if(tableScan instanceof ScanCrel){
+        return ((ScanCrel) tableScan).withSnapshotDiffContext(snapshotDiffContext);
       }
 
       return tableScan;

@@ -15,52 +15,40 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+
 import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlCharStringLiteral;
-import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
-import org.apache.calcite.sql.SqlUnresolvedFunction;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.dremio.exec.catalog.TableVersionContext;
-import com.dremio.exec.catalog.TableVersionType;
-
 /**
  * Implementation of SqlCall which wraps TableMacro calls that have time travel version specifications.
- * This call expects that it's operator is always either a {@link SqlUnresolvedFunction} (prior to TableMacro
- * resolution) or a {@link SqlVersionedTableMacro} operator.  It serves as a conduit for passing the parsed
- * version specification, kept in a {@link TableVersionSpec} instance.
+ * This call expects that it's operator is always either a {@link SqlUnresolvedVersionedTableMacro} (prior to TableMacro
+ * resolution) or a {@link SqlVersionedTableMacro} operator.  It serves as a conduit for transferring the parsed
+ * version specification during resolution, kept in a {@link TableVersionSpec} instance.
  */
 public class SqlVersionedTableMacroCall extends SqlBasicCall {
 
-  private final TableVersionSpec tableVersionSpec;
-  private final SqlIdentifier alias;
-
-  public SqlVersionedTableMacroCall(SqlOperator operator, SqlNode[] operands, TableVersionType tableVersionType,
-                                    SqlNode versionSpecifier, SqlIdentifier alias, SqlParserPos pos) {
+  public SqlVersionedTableMacroCall(SqlOperator operator, SqlNode[] operands, SqlParserPos pos) {
     super(operator, operands, pos);
-    this.tableVersionSpec = new TableVersionSpec(tableVersionType, versionSpecifier);
-    this.alias = alias;
   }
 
   public TableVersionSpec getTableVersionSpec() {
-    return tableVersionSpec;
-  }
-
-  public TableVersionContext getResolvedTableVersionContext() {
-    return tableVersionSpec.getResolvedTableVersionContext();
-  }
-
-  public SqlIdentifier getAlias() {
-    return alias;
+    return ((HasTableVersion) getOperator()).getTableVersionSpec();
   }
 
   @Override
   public void setOperator(SqlOperator operator) {
-    if (!(operator instanceof SqlVersionedTableMacro || operator instanceof SqlUnresolvedFunction)) {
+    if (!(operator instanceof HasTableVersion)) {
       throw new UnsupportedOperationException("Function does not support time travel version specifications");
+    }
+
+    // retain the version spec from the previous operator when the operator gets resolved
+    if (getOperator() != null) {
+      HasTableVersion previousOperator = (HasTableVersion) getOperator();
+      ((HasTableVersion) operator).setTableVersionSpec(previousOperator.getTableVersionSpec());
     }
     super.setOperator(operator);
   }
@@ -72,5 +60,4 @@ public class SqlVersionedTableMacroCall extends SqlBasicCall {
     writer.keyword("AT");
     getTableVersionSpec().unparseVersionSpec(writer, leftPrec, rightPrec);
   }
-
 }

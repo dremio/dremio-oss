@@ -53,6 +53,7 @@ import com.dremio.exec.store.iceberg.SupportsIcebergRootPointer;
 import com.dremio.exec.store.metadatarefresh.MetadataRefreshUtils;
 import com.dremio.exec.store.metadatarefresh.SupportsUnlimitedSplits;
 import com.dremio.options.OptionManager;
+import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -61,6 +62,7 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.SourceState.SourceStatus;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.SourceInternalData;
 import com.dremio.service.namespace.source.proto.UpdateMode;
@@ -70,6 +72,7 @@ import com.dremio.service.scheduler.Schedule;
 import com.dremio.service.users.SystemUser;
 import com.dremio.telemetry.api.metrics.Counter;
 import com.dremio.telemetry.api.metrics.Metrics;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Stopwatch;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -104,14 +107,17 @@ class SourceMetadataManager implements AutoCloseable {
     "failed_15m"), Metrics.ResetType.PERIODIC_15M);
   private static final Counter SUCCESS_15M = Metrics.newCounter(Metrics.join("metadata_refresh",
     "success_15m"), Metrics.ResetType.PERIODIC_15M);
+  private static final String METADATA_REFRESH_TASK_NAME_PREFIX = "metadata-refresh-";
 
   // Stores the time (in milliseconds, obtained from System.currentTimeMillis()) at which a dataset was locally updated
+  @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
   private final Cache<NamespaceKey, Long> localUpdateTime =
     CacheBuilder.newBuilder()
     .maximumSize(MAXIMUM_CACHE_SIZE)
     .build();
 
   // Stores the time (in milliseconds, obtained from System.currentTimeMillis()) at which a dataset metadata validity check was done
+  @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
   private final Cache<NamespaceKey, Long> metadataValidityCheckTime =
     CacheBuilder.newBuilder()
       .maximumSize(MAXIMUM_CACHE_SIZE)
@@ -130,6 +136,7 @@ class SourceMetadataManager implements AutoCloseable {
   private final Lock runLock = new ReentrantLock();
   private volatile boolean initialized = false;
   private final Provider<MetadataRefreshInfoBroadcaster> broadcasterProvider;
+  private ClusterCoordinator clusterCoordinator;
 
   public SourceMetadataManager(
       NamespaceKey sourceName,
@@ -139,8 +146,9 @@ class SourceMetadataManager implements AutoCloseable {
       final ManagedStoragePlugin.MetadataBridge bridge,
       final OptionManager options,
       final CatalogServiceMonitor monitor,
-      final Provider<MetadataRefreshInfoBroadcaster> broadcasterProvider
-      ) {
+      final Provider<MetadataRefreshInfoBroadcaster> broadcasterProvider,
+      final ClusterCoordinator clusterCoordinator
+  ) {
     this.sourceKey = sourceName;
     this.sourceDataStore = sourceDataStore;
     this.bridge = bridge;
@@ -154,12 +162,27 @@ class SourceMetadataManager implements AutoCloseable {
       // we can schedule on all nodes since this is a clustered singleton and will only run on a single node.
       this.wakeupTask = modifiableScheduler.schedule(
           Schedule.Builder.everyMillis(WAKEUP_FREQUENCY_MS)
-            .asClusteredSingleton("metadata-refresh-" + sourceKey)
+            .asClusteredSingleton(METADATA_REFRESH_TASK_NAME_PREFIX + sourceKey)
             .build(),
             new WakeupWorker());
     } else {
       wakeupTask = null;
     }
+    this.clusterCoordinator = clusterCoordinator;
+  }
+
+  @VisibleForTesting
+  public SourceMetadataManager(
+      NamespaceKey sourceName,
+      ModifiableSchedulerService modifiableScheduler,
+      boolean isMaster,
+      LegacyKVStore<NamespaceKey, SourceInternalData> sourceDataStore,
+      final ManagedStoragePlugin.MetadataBridge bridge,
+      final OptionManager options,
+      final CatalogServiceMonitor monitor,
+      final Provider<MetadataRefreshInfoBroadcaster> broadcasterProvider
+      ) {
+    this(sourceName, modifiableScheduler, isMaster, sourceDataStore, bridge, options, monitor, broadcasterProvider, null);
   }
 
   DatasetSaver getSaver() {
@@ -317,7 +340,7 @@ class SourceMetadataManager implements AutoCloseable {
    * @param config dataset config
    * @return true iff entry is valid
    */
-  boolean isStillValid(MetadataRequestOptions options, DatasetConfig config, SourceMetadata plugin, NamespaceService userNamespaceService) {
+  boolean isStillValid(MetadataRequestOptions options, DatasetConfig config, SourceMetadata plugin) {
     final NamespaceKey key = new NamespaceKey(config.getFullPathList());
     final Long updateTime = localUpdateTime.getIfPresent(key);
     final long currentTime = System.currentTimeMillis();
@@ -353,7 +376,7 @@ class SourceMetadataManager implements AutoCloseable {
       SupportsIcebergRootPointer pluginForIceberg = (SupportsIcebergRootPointer) plugin;
       if (!pluginForIceberg.isMetadataValidityCheckRecentEnough(lastMetadataValidityCheckTime, currentTime, optionManager)) {
         metadataValidityCheckTime.put(key, currentTime);
-        if (!pluginForIceberg.isIcebergMetadataValid(config, key, userNamespaceService)) {
+        if (!pluginForIceberg.isIcebergMetadataValid(config, key)) {
           return false;
         }
       }
@@ -583,6 +606,7 @@ class SourceMetadataManager implements AutoCloseable {
    * @return
    * @throws ConnectorException
    * @throws NamespaceException
+   * @throws UserException
    */
   UpdateStatus refreshDataset(NamespaceKey datasetKey, DatasetRetrievalOptions options)
       throws ConnectorException, NamespaceException {
@@ -613,6 +637,12 @@ class SourceMetadataManager implements AutoCloseable {
     final DatasetConfig currentConfig = knownConfig;
     final boolean exists = currentConfig != null;
     final boolean isExtended = exists && currentConfig.getReadDefinition() != null;
+    final boolean isView = exists && currentConfig.getType() == DatasetType.VIRTUAL_DATASET;
+
+    if (isView) {
+      throw UserException.validationError().message("Only tables can be refreshed. Dataset %s is a view.", datasetKey)
+        .buildSilently();
+    }
 
     if (exists) {
       entityPath = new EntityPath(currentConfig.getFullPathList());
@@ -787,4 +817,10 @@ class SourceMetadataManager implements AutoCloseable {
 
   }
 
+  public void deleteServiceSet() throws Exception {
+    if (clusterCoordinator == null) {
+      throw new IllegalStateException("Unable to delete service set as cluster coordinator instance is null");
+    }
+    clusterCoordinator.deleteServiceSet(METADATA_REFRESH_TASK_NAME_PREFIX + sourceKey);
+  }
 }

@@ -112,19 +112,7 @@ export class DetailsWizard extends PureComponent {
   }
 
   goToExplorePage() {
-    const { location, activeScript } = this.props;
-    const sliceIndex = location.pathname.indexOf("/details");
-    const newPath = location.pathname.slice(0, sliceIndex);
-    const { type, ...queryParams } = location.query || {}; // eslint-disable-line
-
-    this.context.router.push({
-      state: {
-        previewVersion: "",
-        renderScriptTab: !!activeScript.id,
-      },
-      pathname: newPath,
-      query: queryParams,
-    });
+    this.context.router.goBack();
   }
 
   handleFormTypeChange = (formType) => this.setState({ formType });

@@ -144,7 +144,7 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
 
     long memReserve = popConfig.getProps().getMemReserve();
     long memLimit = popConfig.getProps().getMemLimit();
-    if (options.getOption(ExecConstants.MEMORY_ARBITER_ENABLED)) {
+    if (options.getOption(ExecConstants.ENABLE_SPILLABLE_OPERATORS)) {
       memReserve = 0;
       memLimit = Long.MAX_VALUE;
     }

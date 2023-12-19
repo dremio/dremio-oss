@@ -18,10 +18,10 @@ package com.dremio.exec.store.iceberg.nessie;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.iceberg.view.View;
-import org.apache.iceberg.view.ViewDefinition;
+import org.apache.iceberg.viewdepoc.View;
+import org.apache.iceberg.viewdepoc.ViewDefinition;
 
-import com.dremio.exec.catalog.ResolvedVersionContext;
+import com.dremio.catalog.model.ResolvedVersionContext;
 
 /**
  * Generic interface for operating on an view implementation.

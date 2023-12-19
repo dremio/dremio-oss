@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import clsx from "clsx";
 import { useState, useMemo, useEffect } from "react";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
@@ -34,8 +35,11 @@ import TreeNode from "./TreeNode";
 import { TabsNavigationItem } from "dremio-ui-lib";
 import "./TreeBrowser.less";
 import * as classes from "./TreeBrowser.less";
-import { useFeatureFlag } from "@app/exports/providers/useFeatureFlag";
-import { CATALOG_ARS_ENABLED } from "@app/exports/flags/CATALOG_ARS_ENABLED";
+import { useFilterTreeArs } from "@app/utils/datasetTreeUtils";
+import { getHomeSource, getSortedSources } from "@app/selectors/home";
+import { useIsArsEnabled } from "@inject/utils/arsUtils";
+import { useMultiTabIsEnabled } from "../SQLScripts/useMultiTabIsEnabled";
+import { isTabbableUrl } from "@app/utils/explorePageTypeUtils";
 
 export const TreeBrowser = (props) => {
   const {
@@ -49,11 +53,12 @@ export const TreeBrowser = (props) => {
     unstarNode,
     changeStarredTab,
     selectedStarredTab,
+    homeSource: arsHomeSource,
   } = props;
 
-  const [selectedTab, setSelectedTab] = useState(
-    location?.query?.scriptId ? DATA_SCRIPT_TABS.Scripts : DATA_SCRIPT_TABS.Data
-  );
+  const isTabsRendered = useMultiTabIsEnabled() && isTabbableUrl(location);
+
+  const [selectedTab, setSelectedTab] = useState(DATA_SCRIPT_TABS.Data);
   const [sort, setSort] = useState(RESOURCE_LIST_SORT_MENU[1]);
 
   const [collapaseText, setCollapseText] = useState();
@@ -61,16 +66,16 @@ export const TreeBrowser = (props) => {
     intl.formatMessage({ id: "Resource.Tree.All" }),
   ]);
 
-  const [disableStarred, loading] = useFeatureFlag(CATALOG_ARS_ENABLED);
+  const [isArsLoading, isArsEnabled] = useIsArsEnabled();
   useEffect(() => {
-    if (loading || disableStarred) return;
+    if (isArsLoading || isArsEnabled) return;
 
     setStarredTabsArray([
       intl.formatMessage({ id: "Resource.Tree.All" }),
       intl.formatMessage({ id: "Resource.Tree.Starred" }) +
         ` (${starredItems && starredItems.length})`,
     ]);
-  }, [disableStarred, starredItems, loading]);
+  }, [isArsEnabled, starredItems, isArsLoading]);
 
   useEffect(() => {
     if (location && location.state && location.state.renderScriptTab) {
@@ -92,20 +97,43 @@ export const TreeBrowser = (props) => {
     );
   }, [sidebarCollapsed]);
 
+  const treeFilterFunc = useFilterTreeArs();
+
   const [homeSource, sortedTree] = useMemo(() => {
-    const tempHomeSource = Array.from(resourceTree)[0];
+    let tempResourceTree = resourceTree;
+    if (isArsLoading) tempResourceTree = Immutable.fromJS([]); //Don't render while loading
+
+    if (isArsEnabled && treeFilterFunc) {
+      const sorted = treeFilterFunc(resourceTree);
+      tempResourceTree = sorted;
+    }
+
+    const tempHomeSource = Array.from(tempResourceTree)[0];
+
+    const hasHomeNode =
+      tempHomeSource &&
+      (tempHomeSource.get("type") === "HOME" ||
+        (arsHomeSource &&
+          tempHomeSource.get("name") === arsHomeSource.get("name")));
+
     // Remove home item for new copied list
-    const tempOtherSources =
-      tempHomeSource && tempHomeSource.get("type") === "HOME"
-        ? Array.from(resourceTree).splice(1)
-        : Array.from(resourceTree);
+    const tempOtherSources = hasHomeNode
+      ? Array.from(tempResourceTree).splice(1)
+      : Array.from(tempResourceTree);
 
     const tempSortedTree = tempOtherSources.sort(sort.compare);
 
-    return tempHomeSource && tempHomeSource.get("type") === "HOME"
+    return hasHomeNode
       ? [tempHomeSource, tempSortedTree]
       : [undefined, tempSortedTree];
-  }, [resourceTree, sort]);
+  }, [
+    resourceTree,
+    sort,
+    isArsEnabled,
+    isArsLoading,
+    treeFilterFunc,
+    arsHomeSource,
+  ]);
 
   const renderSubHeadingTabs = () => {
     return (
@@ -230,7 +258,11 @@ export const TreeBrowser = (props) => {
   };
 
   return (
-    <div className="TreeBrowser">
+    <div
+      className={clsx("TreeBrowser", {
+        "--withTabs": isTabsRendered,
+      })}
+    >
       <div
         className={`TreeBrowser-heading ${!isSqlEditorTab ? "--dataset" : ""} ${
           sidebarCollapsed ? "--collapsed" : ""
@@ -246,7 +278,6 @@ export const TreeBrowser = (props) => {
 
 TreeBrowser.propTypes = {
   resourceTree: PropTypes.instanceOf(Immutable.List),
-  sources: PropTypes.instanceOf(Immutable.List),
   isNodeExpanded: PropTypes.func,
   selectedNodeId: PropTypes.string,
   addtoEditor: PropTypes.func,
@@ -269,11 +300,11 @@ TreeBrowser.propTypes = {
   unstarNode: PropTypes.func,
   changeStarredTab: PropTypes.func,
   selectedStarredTab: PropTypes.string,
+  homeSource: PropTypes.object,
 };
 
 TreeBrowser.defaultProps = {
   resourceTree: Immutable.List(),
-  sources: Immutable.List(),
 };
 
 TreeBrowser.contextTypes = {
@@ -281,6 +312,7 @@ TreeBrowser.contextTypes = {
 };
 
 const mapStateToProps = (state) => ({
+  homeSource: getHomeSource(getSortedSources(state)),
   location: getLocation(state),
 });
 

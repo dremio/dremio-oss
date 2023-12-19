@@ -15,12 +15,32 @@
  */
 package com.dremio.exec.physical.impl.flatten;
 
+import static com.dremio.exec.planner.common.TestPlanHelper.findSingleNode;
+import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.sql.SqlNode;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
 import com.dremio.PlanTestBase;
 import com.dremio.config.DremioConfig;
+import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.planner.acceleration.ExpansionNode;
+import com.dremio.exec.planner.common.MoreRelOptUtil;
+import com.dremio.exec.planner.observer.AbstractAttemptObserver;
+import com.dremio.exec.planner.sql.SqlConverter;
+import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
+import com.dremio.exec.planner.sql.handlers.SqlToRelTransformer;
+import com.dremio.exec.proto.UserBitShared;
+import com.dremio.exec.proto.UserProtos;
+import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.server.options.SessionOptionManagerImpl;
+import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.test.TemporarySystemProperties;
 
 public class TestFlattenPlanning extends PlanTestBase {
@@ -126,4 +146,74 @@ public class TestFlattenPlanning extends PlanTestBase {
 
   }
 
+  // Test flatten nullability in RelNode. Flatten's is nullable should always be true. Incorrect handling of nullability
+  // may cause ExpansionNode to have different row type then its input node (DX-68750).
+  @Test
+  public void testFattenNullabilityDX68750() throws Exception {
+    class MyAttemptObserver extends AbstractAttemptObserver {
+      private RelNode convertedRel;
+      public RelNode getConvertedRel() {
+        return convertedRel;
+      }
+      @Override
+      public void planConvertedToRel(RelNode converted, long millisTaken) {
+        convertedRel = converted;
+      }
+    }
+
+    try {
+      SqlConverter converter;
+      SqlHandlerConfig config;
+      SabotContext context = getSabotContext();
+      UserSession session = UserSession.Builder.newBuilder()
+        .withSessionOptionManager(
+          new SessionOptionManagerImpl(getSabotContext().getOptionValidatorListing()),
+          getSabotContext().getOptionManager())
+        .withUserProperties(UserProtos.UserProperties.getDefaultInstance())
+        .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName(SYSTEM_USERNAME).build())
+        .setSupportComplexTypes(true)
+        .build();
+      final QueryContext queryContext = new QueryContext(session, context, UserBitShared.QueryId.getDefaultInstance());
+      queryContext.setGroupResourceInformation(context.getClusterResourceInformation());
+      final MyAttemptObserver observer = new MyAttemptObserver();
+      converter = new SqlConverter(
+        queryContext.getPlannerSettings(),
+        queryContext.getOperatorTable(),
+        queryContext,
+        queryContext.getMaterializationProvider(),
+        queryContext.getFunctionRegistry(),
+        queryContext.getSession(),
+        observer,
+        queryContext.getSubstitutionProviderFactory(),
+        queryContext.getConfig(),
+        queryContext.getScanResult(),
+        queryContext.getRelMetadataQuerySupplier());
+
+      config = new SqlHandlerConfig(queryContext, converter, observer, null);
+
+      properties.set(DremioConfig.LEGACY_STORE_VIEWS_ENABLED, "true");
+      String createViewSql = String.format("CREATE VDS dfs_test.v_test as SELECT n_nationkey, FLATTEN(CONVERT_FROM(n_name, 'JSON')) AS flat from cp.\"tpch/nation.parquet\" ");
+      runSQL(createViewSql);
+
+      String sql = String.format("select * from dfs_test.v_test");
+
+      SqlNode node = converter.parse(sql);
+      SqlToRelTransformer.validateAndConvert(config, node);
+      RelNode convertedRel = observer.getConvertedRel();
+      ExpansionNode expansionNode = findSingleNode(convertedRel, ExpansionNode.class, null);
+      RelNode input = expansionNode.getInput();
+
+      assertNotNull(expansionNode.getRowType());
+      assertNotNull(input.getRowType());
+      assertEquals(2, expansionNode.getRowType().getFieldList().size());
+      assertEquals(2, input.getRowType().getFieldList().size());
+      assertEquals("flat", expansionNode.getRowType().getFieldList().get(1).getKey());
+      assertEquals("flat", input.getRowType().getFieldList().get(1).getKey());
+      assertTrue(expansionNode.getRowType().getFieldList().get(1).getValue().isNullable());
+      assertTrue(input.getRowType().getFieldList().get(1).getValue().isNullable());
+      assertTrue(MoreRelOptUtil.areRowTypesEqual(expansionNode.getRowType(), input.getRowType(), true, true));
+    } finally {
+      properties.clear(DremioConfig.LEGACY_STORE_VIEWS_ENABLED);
+    }
+  }
 }

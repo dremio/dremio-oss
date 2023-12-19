@@ -32,7 +32,6 @@ import com.dremio.dac.explore.JSONElementLocator.ArrayJsonPathElement;
 import com.dremio.dac.explore.JSONElementLocator.JsonPath;
 import com.dremio.dac.explore.JSONElementLocator.JsonSelection;
 import com.dremio.dac.explore.model.extract.Selection;
-import com.dremio.dac.explore.udfs.ExtractList;
 import com.dremio.dac.proto.model.dataset.DataType;
 import com.dremio.dac.proto.model.dataset.Direction;
 import com.dremio.dac.proto.model.dataset.ExtractListRule;
@@ -148,7 +147,7 @@ public class ExtractListRecommender extends Recommender<ExtractListRule, Selecti
       final String subList = getFunctionExpr(input);
 
       // If the sublist contains at least one element, then a match is found.
-      return String.format("%s(%s) > 0", ExtractList.LIST_LENGTH, subList);
+      return String.format("%s(%s) > 0", "array_length", subList);
     }
 
     @Override
@@ -165,7 +164,7 @@ public class ExtractListRecommender extends Recommender<ExtractListRule, Selecti
     public String getFunctionExpr(String expr, Object... args) {
       final ListSelection sel = rule.getMultiple().getSelection();
       return String.format("%s(%s, %d, %s)",
-          ExtractList.SUB_LIST,
+          "sublist",
           expr,
           getOffset(sel.getStart()),
           getLength(expr, sel.getStart(), sel.getEnd())

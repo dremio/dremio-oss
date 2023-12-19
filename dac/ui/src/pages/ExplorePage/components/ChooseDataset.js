@@ -41,7 +41,7 @@ class ChooseDataset extends Component {
         <div style={{ ...styles.header, ...formLabel }}>
           <div style={styles.name}>Dataset</div>
           <div style={styles.type}>Join Type</div>
-          <div style={styles.cur}>{la("Current Dataset Key")}</div>
+          <div style={styles.cur}>{laDeprecated("Current Dataset Key")}</div>
           <div style={{ ...styles.cur, left: 10 }}>Matching Key</div>
         </div>
         {this.props.recommendedJoins.size > 0 && (

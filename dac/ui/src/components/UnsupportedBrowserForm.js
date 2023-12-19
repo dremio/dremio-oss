@@ -29,7 +29,7 @@ class UnsupportedBrowserForm extends Component {
       <span style={{ display: "flex", alignItems: "center" }}>
         <FontIcon type="WarningSolid" theme={styles.theme} />
         <span>
-          {la(
+          {laDeprecated(
             "Dremio works best in the latest versions of Chrome, Safari, Firefox, Edge, and Internet\u00A0Explorer."
           )}
         </span>

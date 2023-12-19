@@ -20,8 +20,11 @@ import static com.dremio.sabot.Fixtures.t;
 import static com.dremio.sabot.Fixtures.th;
 import static com.dremio.sabot.Fixtures.tr;
 import static com.dremio.sabot.Fixtures.tuple;
+import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.stream.Collectors;
@@ -47,6 +50,8 @@ import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
 import com.dremio.sabot.op.tablefunction.TableFunctionOperator;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.NormalizedPartitionInfo;
+import com.dremio.service.namespace.file.proto.FileConfig;
+import com.dremio.service.namespace.file.proto.FileType;
 import com.google.common.collect.ImmutableList;
 
 public class TestIcebergSplitGenTableFunction extends BaseTestTableFunction {
@@ -211,6 +216,7 @@ public class TestIcebergSplitGenTableFunction extends BaseTestTableFunction {
                 null,
                 null,
                 null,
+                null,
                 pluginId,
                 null,
                 SystemSchemas.SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA.getFields().stream()
@@ -245,5 +251,30 @@ public class TestIcebergSplitGenTableFunction extends BaseTestTableFunction {
         .setExtendedProperty(splitExtended.toByteString());
 
     return IcebergSerDe.serializeToByteArray(new SplitAndPartitionInfo(partitionInfo, splitInfo.build()));
+  }
+
+  @Test
+  public void testGetFileType(){
+    TableFunctionContext tableFunctionContext = mock(TableFunctionContext.class);
+    //return parquet if no fileConfig
+    assertEquals(FileType.PARQUET, IcebergSplitGenTableFunction.getFileType(tableFunctionContext));
+
+    FileConfig fileConfig = mock(FileConfig.class);
+    doReturn(fileConfig).when(tableFunctionContext).getFormatSettings();
+    //return parquet if there is fileConfig, but it does not have a file format
+    assertEquals(FileType.PARQUET, IcebergSplitGenTableFunction.getFileType(tableFunctionContext));
+
+    //return PARQUET for ICEBERG, because we only support ICEBERG with parquet files
+    doReturn(FileType.ICEBERG).when(fileConfig).getType();
+    assertEquals(FileType.PARQUET, IcebergSplitGenTableFunction.getFileType(tableFunctionContext));
+
+    doReturn(FileType.PARQUET).when(fileConfig).getType();
+    assertEquals(FileType.PARQUET, IcebergSplitGenTableFunction.getFileType(tableFunctionContext));
+
+    doReturn(FileType.ORC).when(fileConfig).getType();
+    assertEquals(FileType.ORC, IcebergSplitGenTableFunction.getFileType(tableFunctionContext));
+
+    doReturn(FileType.AVRO).when(fileConfig).getType();
+    assertEquals(FileType.AVRO, IcebergSplitGenTableFunction.getFileType(tableFunctionContext));
   }
 }

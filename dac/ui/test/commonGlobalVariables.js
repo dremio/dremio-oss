@@ -37,4 +37,4 @@ global.Immutable = Immutable;
 global.React = React;
 global.WebSocket = WebSocket;
 // i18n function
-global.la = (text) => text;
+global.laDeprecated = (text) => text;

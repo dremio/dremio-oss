@@ -47,6 +47,9 @@ import { cloneDeep } from "lodash";
 import Immutable from "immutable";
 import apiUtils from "@app/utils/apiUtils/apiUtils";
 import exploreUtils from "@app/utils/explore/exploreUtils";
+import { getLoggingContext } from "dremio-ui-common/contexts/LoggingContext.js";
+
+const logger = getLoggingContext().createLogger("sagas/performTransformNew.ts");
 
 export function* newPerformTransformSingle({
   dataset,
@@ -181,6 +184,7 @@ export function* handlePostNewQueryJobSuccess({
   queryStatuses,
   curIndex,
   callback,
+  tabId,
 }: HandlePostNewQueryJobSuccessProps) {
   const {
     dataset,
@@ -194,17 +198,28 @@ export function* handlePostNewQueryJobSuccess({
   const versionToUse = datasetVersion ?? newVersion;
 
   const mostRecentStatuses = queryStatuses;
-  mostRecentStatuses[curIndex].jobId = jobId;
-  mostRecentStatuses[curIndex].version = versionToUse;
 
-  if (mostRecentStatuses[curIndex].cancelled) {
-    mostRecentStatuses[curIndex].cancelled = false;
+  //Tabs: mostRecentStatuses[curIndex] is undefined when switching tabs sometimes
+  if (mostRecentStatuses[curIndex]) {
+    mostRecentStatuses[curIndex].jobId = jobId;
+    mostRecentStatuses[curIndex].sessionId = sessionId;
+    mostRecentStatuses[curIndex].version = versionToUse;
+    mostRecentStatuses[curIndex].paginationUrl = paginationUrl;
+
+    if (mostRecentStatuses[curIndex].cancelled) {
+      mostRecentStatuses[curIndex].cancelled = false;
+    }
+  } else {
+    logger.debug(
+      `handlePostNewQueryJobSuccess: Could not find curIndex '${curIndex}' in mostRecentStatuses. Nothing updated`,
+      mostRecentStatuses
+    );
   }
 
   // updated queryStatuses in Redux after job is submitted
   // and only if user is not trying to save a new view
   if (!callback) {
-    yield put(setQueryStatuses({ statuses: mostRecentStatuses }));
+    yield put(setQueryStatuses({ statuses: mostRecentStatuses, tabId }));
   }
 
   return [dataset, datasetPath, versionToUse, jobId, paginationUrl, sessionId];
@@ -242,20 +257,25 @@ export function* fetchJobFailureInfo(
 
   if (!callback && !isLastQuery) {
     // canceling a job throws a cancellation error, exit the multi-sql loop
-    if (cancellationInfo) {
-      willProceed = false;
-    } else {
+    if (!cancellationInfo) {
       const isParseError = failureInfo.get("type") === "PARSE";
 
-      // if a job wasn't cancelled but still failed, show the dialog
-      willProceed = yield call(
-        showFailedJobDialog,
-        curIndex,
-        mostRecentStatuses[curIndex].sqlStatement,
-        isParseError
-          ? undefined
-          : error?.get("message") ?? failureInfo.get("message")
-      );
+      // Tabs: mostRecentStatuses[curIndex] is sometimes undefined
+      if (
+        mostRecentStatuses[curIndex] &&
+        //Prevent showing error dialog for cancelled queries (Switching tabs will cancel errored queries, see scriptUpdates)
+        !mostRecentStatuses[curIndex].cancelled
+      ) {
+        // if a job wasn't cancelled but still failed, show the dialog
+        willProceed = yield call(
+          showFailedJobDialog,
+          curIndex,
+          mostRecentStatuses[curIndex].sqlStatement,
+          isParseError
+            ? undefined
+            : error?.get("message") ?? failureInfo.get("message")
+        );
+      }
     }
   } else if (callback) {
     willProceed = false;

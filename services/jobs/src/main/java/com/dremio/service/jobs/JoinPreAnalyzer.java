@@ -30,7 +30,7 @@ import org.apache.calcite.rel.metadata.RelColumnOrigin;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.util.Pair;
 
-import com.dremio.exec.catalog.TableVersionContext;
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.exec.planner.RoutingShuttle;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionUtils;
 import com.dremio.exec.planner.common.ContainerRel;

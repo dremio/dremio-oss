@@ -17,6 +17,7 @@ package com.dremio.sabot.memory;
 
 import java.util.List;
 
+import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.sabot.op.spi.Operator;
 
 /**
@@ -85,4 +86,10 @@ public interface MemoryArbiterTask {
    */
   default void unblockOnMemory() {
   }
+
+  default long getBlockedOnMemoryStartTime() {
+    return 0;
+  }
+
+  default QueryId getQueryId() { return null; }
 }

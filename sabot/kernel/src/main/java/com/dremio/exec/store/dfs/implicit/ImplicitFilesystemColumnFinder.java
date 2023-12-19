@@ -43,6 +43,7 @@ import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.options.OptionManager;
+import com.dremio.options.OptionResolver;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.BooleanValidator;
 import com.dremio.options.TypeValidators.StringValidator;
@@ -54,7 +55,18 @@ import com.google.common.collect.ImmutableList;
 @Options
 public class ImplicitFilesystemColumnFinder {
 
-  public static final StringValidator IMPLICIT_PATH_FIELD_LABEL = new StringValidator("dremio.store.file.file-field-label", "$file");
+  public enum Mode {
+    /**
+     * Include all columns, including file path and modified time implicit columns.
+     */
+    ALL_IMPLICIT_COLUMNS,
+    /**
+     * Only include partition columns inferred from the directory structure.
+     */
+    PARTITION_COLUMNS
+  }
+
+  public static final StringValidator IMPLICIT_FILE_FIELD_LABEL = new StringValidator("dremio.store.file.file-field-label", "$file");
   public static final StringValidator IMPLICIT_MOD_FIELD_LABEL = new StringValidator("dremio.store.file.mod-field-label", "$mtime");
   public static final BooleanValidator IMPLICIT_FILE_FIELD_ENABLE = new BooleanValidator("dremio.store.file.file-field-enabled", false);
   public static final BooleanValidator IMPLICIT_DIRS_FIELD_ENABLE = new BooleanValidator("dremio.store.file.dir-field-enabled", true);
@@ -73,9 +85,11 @@ public class ImplicitFilesystemColumnFinder {
   private final boolean enableDirsFields;
   private final boolean enableModTimeField;
   private final Set<Integer> selectedPartitions;
+  private final Mode mode;
 
-  public ImplicitFilesystemColumnFinder(OptionManager options, FileSystem fs, List<SchemaPath> columns) {
-    this(options, fs, columns, false);
+
+  public ImplicitFilesystemColumnFinder(OptionManager options, FileSystem fs, List<SchemaPath> columns, Mode mode) {
+    this(options, fs, columns, false, mode);
   }
 
   /**
@@ -83,16 +97,18 @@ public class ImplicitFilesystemColumnFinder {
    * between actual table columns, partition columns and implicit file columns.
    * Also populates map with implicit columns names as keys and their values
    */
-  public ImplicitFilesystemColumnFinder(OptionManager options, FileSystem fs, List<SchemaPath> columns, boolean isAccelerator) {
+  public ImplicitFilesystemColumnFinder(OptionManager options, FileSystem fs, List<SchemaPath> columns,
+      boolean isAccelerator, Mode mode) {
     this.partitionDesignator = options.getOption(ExecConstants.FILESYSTEM_PARTITION_COLUMN_LABEL_VALIDATOR);
-    this.fileDesignator = options.getOption(IMPLICIT_PATH_FIELD_LABEL);
+    this.fileDesignator = options.getOption(IMPLICIT_FILE_FIELD_LABEL);
     this.modTimeDesignator = options.getOption(IMPLICIT_MOD_FIELD_LABEL);
     this.isAccelerator = isAccelerator;
     this.enableDirsFields = !isAccelerator && options.getOption(IMPLICIT_DIRS_FIELD_ENABLE);
-    this.enableFileField = options.getOption(IMPLICIT_FILE_FIELD_ENABLE);
-    this.enableModTimeField = options.getOption(IMPLICIT_MOD_FIELD_ENABLE);
+    this.enableFileField = options.getOption(IMPLICIT_FILE_FIELD_ENABLE) && (mode == Mode.ALL_IMPLICIT_COLUMNS);
+    this.enableModTimeField = options.getOption(IMPLICIT_MOD_FIELD_ENABLE) && (mode == Mode.ALL_IMPLICIT_COLUMNS);
     this.selectedPartitions = new HashSet<>();
     this.fs = fs;
+    this.mode = mode;
 
     final Matcher directoryMatcher = Pattern.compile(String.format("%s([0-9]+)", Pattern.quote(partitionDesignator))).matcher("");
     this.selectAllColumns = columns == null || ColumnUtils.isStarQuery(columns);
@@ -126,13 +142,13 @@ public class ImplicitFilesystemColumnFinder {
           continue;
         }
 
-        if (!isAccelerator && IncrementalUpdateUtils.UPDATE_COLUMN.equals(lowerName)) {
+        if (!isAccelerator && (mode == Mode.ALL_IMPLICIT_COLUMNS) &&
+            IncrementalUpdateUtils.UPDATE_COLUMN.equals(lowerName)) {
           extractors.add(new IncrementalModTimeExtractor());
           continue;
         }
 
         selectedPaths.add(column);
-
       }
     }
 
@@ -156,6 +172,27 @@ public class ImplicitFilesystemColumnFinder {
 
     // this is slightly more broad than necessary but it satisfies the selection.
     return hasImplicitColumns || selectAllColumns;
+  }
+
+  public static List<String> getEnabledNonPartitionColumns(OptionResolver options) {
+    ImmutableList.Builder<String> builder = ImmutableList.builder();
+    builder.add(IncrementalUpdateUtils.UPDATE_COLUMN);
+    if (options.getOption(IMPLICIT_FILE_FIELD_ENABLE)) {
+      builder.add(options.getOption(IMPLICIT_FILE_FIELD_LABEL));
+    }
+    if (options.getOption(IMPLICIT_MOD_FIELD_ENABLE)) {
+      builder.add(options.getOption(IMPLICIT_MOD_FIELD_LABEL));
+    }
+
+    return builder.build();
+  }
+
+  public static String getModifiedTimeColumnName(OptionResolver options) {
+    return options.getOption(IMPLICIT_MOD_FIELD_LABEL);
+  }
+
+  public static String getFileColumnName(OptionResolver options) {
+    return options.getOption(IMPLICIT_FILE_FIELD_LABEL);
   }
 
   private class DirectoryExtractor implements ImplicitColumnExtractor<String> {
@@ -292,7 +329,9 @@ public class ImplicitFilesystemColumnFinder {
       fields.add(new BigIntNameValuePair(modTimeDesignator, 0L));
     }
 
-    fields.add(new BigIntNameValuePair(IncrementalUpdateUtils.UPDATE_COLUMN, 0L));
+    if (mode == Mode.ALL_IMPLICIT_COLUMNS) {
+      fields.add(new BigIntNameValuePair(IncrementalUpdateUtils.UPDATE_COLUMN, 0L));
+    }
 
     return fields;
   }
@@ -320,7 +359,7 @@ public class ImplicitFilesystemColumnFinder {
    * @param workPaths
    * @return
    */
-  public List<List<NameValuePair<?>>> getImplicitFields(final String selectionRoot, final Iterable<? extends FileWork> workPaths) {
+  public List<List<NameValuePair<?>>> getImplicitFields(String selectionRoot, Iterable<? extends FileWork> workPaths) {
 
     final Pointer<Integer> max = new Pointer<>(0);
     final List<WorkAndComponent> componentizedPaths = FluentIterable.from(workPaths).transform(new Function<FileWork, WorkAndComponent>(){
@@ -378,7 +417,9 @@ public class ImplicitFilesystemColumnFinder {
         implicitColumns.add(new ModTimeExtractor(modTimeDesignator));
       }
 
-      implicitColumns.add(new IncrementalModTimeExtractor());
+      if (mode == Mode.ALL_IMPLICIT_COLUMNS) {
+        implicitColumns.add(new IncrementalModTimeExtractor());
+      }
     } else {
       implicitColumns = this.implicitColumns;
     }

@@ -17,7 +17,7 @@
 package com.dremio.plugins.azure;
 
 import static com.dremio.plugins.azure.ChecksumVerifyingCompletionHandler.CHECKSUM_RESPONSE_HEADER;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -46,11 +46,9 @@ class TestChecksumVerifyingCompletionHandler {
     Response response = mock(Response.class);
     when(response.getResponseBody()).thenReturn(responseBody);
     when(response.getHeader(CHECKSUM_RESPONSE_HEADER)).thenReturn("0");
-    try {
-      handler.onCompleted(response);
-    } catch (RuntimeException re) {
-      assertEquals(re.getMessage(), responseBody);
-    }
+    assertThatThrownBy(() -> handler.onCompleted(response))
+      .isInstanceOf(RuntimeException.class)
+      .hasMessage(responseBody);
   }
 
   @Test
@@ -70,12 +68,9 @@ class TestChecksumVerifyingCompletionHandler {
       new ChecksumVerifyingCompletionHandler(Unpooled.buffer(32), 0);
     handler.onStatusReceived(status);
 
-    try {
-      handler.onCompleted(response);
-    } catch (IOException ioE) {
-      assertEquals(ioE.getMessage(),
-        "mismatched MD5 checksum: got 1B2M2Y8AsgTpgAmY7PhCfg==, expected invalid");
-    }
+    assertThatThrownBy(() -> handler.onCompleted(response))
+      .isInstanceOf(IOException.class)
+      .hasMessage("mismatched MD5 checksum: got 1B2M2Y8AsgTpgAmY7PhCfg==, expected invalid");
   }
 
   @Test
@@ -94,12 +89,9 @@ class TestChecksumVerifyingCompletionHandler {
       new ChecksumVerifyingCompletionHandler(Unpooled.buffer(32), 0);
     handler.onStatusReceived(status);
 
-    try {
-      handler.onCompleted(response);
-    } catch (IOException ioE) {
-      assertEquals(ioE.getMessage(),
-        "MD5 checksum requested, but response header missing");
-    }
+    assertThatThrownBy(() -> handler.onCompleted(response))
+      .isInstanceOf(IOException.class)
+      .hasMessage("MD5 checksum requested, but response header missing");
   }
 
   @Test

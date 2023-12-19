@@ -69,7 +69,7 @@ public class AlterTableCommitter implements IcebergOpCommitter  {
         command.changeColumnForInternalTable(columnName, columnTypes.get(0));
         break;
     }
-    command.updatePropertiesMap(getPropertiesMap());
+    command.updateProperties(getPropertiesMap(), true);
     table = command.endAlterTableTransaction();
     rootPointer = command.getRootPointer();
     specMap = command.getPartitionSpecMap();

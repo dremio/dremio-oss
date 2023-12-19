@@ -38,10 +38,10 @@ export default class DurationInput extends Component {
 
   periodOptions = [
     // todo: proper (localized) pluralization
-    { label: la("Minute(s)"), option: MINUTES },
-    { label: la("Hour(s)"), option: HOURS },
-    { label: la("Day(s)"), option: DAYS },
-    { label: la("Week(s)"), option: WEEKS },
+    { label: laDeprecated("Minute(s)"), option: MINUTES },
+    { label: laDeprecated("Hour(s)"), option: HOURS },
+    { label: laDeprecated("Day(s)"), option: DAYS },
+    { label: laDeprecated("Week(s)"), option: WEEKS },
   ];
 
   static constructFields = (duration) => {

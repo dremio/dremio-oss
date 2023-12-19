@@ -27,7 +27,7 @@ final class ServiceInstanceHelper {
 
   public static final InstanceSerializer<NodeEndpoint> SERIALIZER = new DremioServiceInstanceSerializer();
 
-  private static class DremioServiceInstanceSerializer implements InstanceSerializer<NodeEndpoint>{
+  private static final class DremioServiceInstanceSerializer implements InstanceSerializer<NodeEndpoint>{
 
     @Override
     public byte[] serialize(ServiceInstance<NodeEndpoint> i) throws Exception {

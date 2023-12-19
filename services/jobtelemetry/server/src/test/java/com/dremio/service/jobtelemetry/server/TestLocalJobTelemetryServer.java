@@ -18,11 +18,14 @@ package com.dremio.service.jobtelemetry.server;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 
+import java.util.concurrent.Executors;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.concurrent.ContextMigratingExecutorService;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.AttemptEvent;
@@ -64,7 +67,7 @@ public class TestLocalJobTelemetryServer {
     server = new LocalJobTelemetryServer(grpcServerBuilderFactory,
       DirectProvider.wrap(TempLegacyKVStoreProviderCreator.create()),
       DirectProvider.wrap(node),
-      tracer);
+      tracer, new ContextMigratingExecutorService(Executors.newCachedThreadPool()));
     server.start();
 
     client = new JobTelemetryClient(grpcChannelBuilderFactory, DirectProvider.wrap(node));
@@ -147,6 +150,6 @@ public class TestLocalJobTelemetryServer {
           .setQueryId(queryId)
           .build()
       )).isInstanceOf(io.grpc.StatusRuntimeException.class)
-      .hasMessageContaining("profile not found for the given queryId");
+      .hasMessageContaining("Unable to get query profile. Profile not found for the given queryId.");
   }
 }

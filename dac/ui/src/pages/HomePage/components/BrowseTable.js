@@ -26,24 +26,33 @@ import EllipsedText from "components/EllipsedText";
 import { SearchField } from "components/Fields";
 import StatefulTableViewer from "components/StatefulTableViewer";
 import { SortDirection } from "@app/components/Table/TableUtils";
-import { WikiButton } from "@app/pages/HomePage/components/WikiButton";
-import { BrowseTableResizer } from "@app/pages/HomePage/components/BrowseTableResizer";
 import {
   Row,
   GridColumn,
   SidebarColumn,
 } from "@app/pages/HomePage/components/Columns";
 
+import { isVersionedSource } from "@app/utils/sourceUtils";
+import EmptyStateContainer from "./EmptyStateContainer";
 import { constructFullPath } from "utils/pathUtils";
 import { tableStyles } from "../tableStyles";
+import { IconButton } from "dremio-ui-lib/components";
+import { getIconType } from "@app/components/DatasetSummary/datasetSummaryUtils";
+import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
+import { PureEntityIcon } from "./EntityIcon";
+import { ENTITY_TYPES } from "@app/constants/Constants";
+import { getEntityTypeFromObject } from "@app/utils/entity-utils";
+import { getExtraSummaryPanelIcon } from "dyn-load/utils/summary-utils";
+
 import {
   activeWikiButton,
   searchField,
   searchFieldDivider,
+  panelIcon,
 } from "./BrowseTable.less";
 
 @injectIntl
-export default class BrowseTable extends Component {
+export class BrowseTable extends Component {
   static propTypes = {
     rightSidebar: PropTypes.node,
     rightSidebarExpanded: PropTypes.bool,
@@ -58,6 +67,8 @@ export default class BrowseTable extends Component {
     renderExternalLink: PropTypes.func,
     renderTitleExtraContent: PropTypes.func,
     className: PropTypes.string,
+    item: PropTypes.object,
+    rightSidebarIcon: PropTypes.bool,
     // extra props passed along to underlying Table impl
   };
 
@@ -131,8 +142,19 @@ export default class BrowseTable extends Component {
       toggleSidebar,
       renderExternalLink,
       renderTitleExtraContent,
+      item,
+      rightSidebarIcon,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      panelItem,
       ...passAlongProps
     } = this.props;
+    const versionContext = getVersionContextFromId(
+      panelItem?.get("entityId") || panelItem?.get("id")
+    );
+    const panelName =
+      panelItem?.get("name") || panelItem?.toJS()?.fullPath?.pop();
+    const panelIsSource = panelItem?.get("entityType") === ENTITY_TYPES.source;
+
     invariant(
       !title || typeof title === "string" || title.props.fullPath,
       "BrowseTable title must be string or BreadCrumbs."
@@ -219,8 +241,18 @@ export default class BrowseTable extends Component {
                       }`}
                     />
                     {buttons}
-                    {!rightSidebarExpanded && rightSidebar && (
-                      <WikiButton onClick={toggleSidebar} />
+                    {!rightSidebarExpanded && rightSidebarIcon && (
+                      <IconButton
+                        tooltip={intl.formatMessage({
+                          id: "Wiki.OpenDetails",
+                        })}
+                        onClick={toggleSidebar}
+                        tooltipPortal
+                        tooltipPlacement="top"
+                        className={panelIcon}
+                      >
+                        <dremio-icon name="interface/meta" />
+                      </IconButton>
                     )}
                   </div>
                 </GridColumn>
@@ -229,10 +261,43 @@ export default class BrowseTable extends Component {
                     style={{
                       display: "flex",
                       alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "0 10px",
                     }}
                   >
+                    <div className="flex items-center gap-1 text-ellipsis">
+                      {panelIsSource ? (
+                        <PureEntityIcon
+                          disableHoverListener
+                          entityType={panelItem.get("entityType")}
+                          sourceStatus={panelItem?.getIn(
+                            ["state", "status"],
+                            null
+                          )}
+                          sourceType={panelItem?.get("type")}
+                          style={{ width: 26, height: 26 }}
+                        />
+                      ) : (
+                        <dremio-icon
+                          name={`entities/${getIconType(
+                            getEntityTypeFromObject(panelItem),
+                            !!versionContext
+                          )}`}
+                          key={panelName} // <use> href doesn't always update
+                          style={{ width: 26, height: 26 }}
+                        />
+                      )}
+                      <p className="text-ellipsis">{panelName}</p>
+                      {getExtraSummaryPanelIcon(panelItem)}
+                    </div>
                     <div className={activeWikiButton}>
-                      <WikiButton onClick={toggleSidebar} />
+                      <IconButton
+                        tooltip="Close details panel"
+                        onClick={toggleSidebar}
+                        style={{ width: 24, height: 24 }}
+                      >
+                        <dremio-icon name="interface/close-big" />
+                      </IconButton>
                     </div>
                   </SidebarColumn>
                 )}
@@ -246,14 +311,29 @@ export default class BrowseTable extends Component {
                   tableData={this.filteredTableData()}
                   resetScrollTop={resetScrollTop}
                   style={{ width: "100%" }}
+                  {...(isVersionedSource(item?.get("type")) && {
+                    renderEmpty: () => {
+                      return (
+                        <div className="table-wrap__empty">
+                          <EmptyStateContainer
+                            icon="interface/empty-content"
+                            title={intl.formatMessage({
+                              id: "Arctic.Source.Empty.Title",
+                            })}
+                          >
+                            {intl.formatMessage({
+                              id: "Arctic.Source.Empty.Hint",
+                            })}
+                          </EmptyStateContainer>
+                        </div>
+                      );
+                    },
+                  })}
                   {...passAlongProps}
                 />
               </GridColumn>
               {rightSidebarExpanded && rightSidebar && (
                 <SidebarColumn style={{ position: "relative" }}>
-                  <BrowseTableResizer
-                    anchorElementGetter={this.getMainContainer}
-                  />
                   {rightSidebar}
                 </SidebarColumn>
               )}
@@ -274,3 +354,5 @@ const styles = {
 };
 const LRE = "\u202A"; // ... but make sure the text is treated as LTR by the text engine (e.g. render '@dremio', not 'dremio@')
 // note: wrapping in <div> with direction:ltr doesn't produce "..."
+
+export default BrowseTable;

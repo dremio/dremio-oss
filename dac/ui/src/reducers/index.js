@@ -31,6 +31,7 @@ import {
   PollingSonarProjectsResource,
   SonarProjectsResource,
 } from "@app/exports/resources/SonarProjectsResource";
+import { resetFeatureFlagsResource } from "@app/exports/resources/FeaturesFlagsResource";
 import { getExploreState } from "@app/selectors/explore";
 import { log } from "@app/utils/logger";
 
@@ -49,11 +50,15 @@ import serverStatus from "./serverStatus";
 
 import resources from "./resources";
 import notification from "./notification";
+import addUsers from "./addUsers";
 import confirmation from "./confirmation";
 import prodError, { getError, getErrorId } from "./prodError";
-import modulesState, { getData, isInitialized } from "./modulesState";
+import modulesState, { isInitialized } from "./modulesState";
+import { action } from "./action";
+import { getLoggingContext } from "dremio-ui-common/contexts/LoggingContext.js";
 
 const appReducers = combineReducers({
+  action,
   resources,
   ui,
   home,
@@ -66,6 +71,7 @@ const appReducers = combineReducers({
   search,
   developmentOptions,
   notification,
+  addUsers,
   serverStatus,
   form: formReducer,
   routing: routerReducer,
@@ -81,6 +87,8 @@ const appReducers = combineReducers({
 });
 
 const actionCancelGroups = {};
+
+const logger = getLoggingContext().createLogger("oss/reducers/index");
 
 const cancelAction = (reducer) => (state, action) => {
   const {
@@ -137,6 +145,12 @@ const cancelAction = (reducer) => (state, action) => {
 };
 
 export default cancelAction(function rootReducer(state, action) {
+  // Tabs: Log any action with tabId, child reducers may skip this action
+  const tabId = action?.tabId || action?.meta?.tabId;
+  if (tabId) {
+    logger.debug(`Action provided with tabId '${tabId}'`, action);
+  }
+
   let nextState = state;
   // we only needed to keep the user info around long enough to prep the /logout
   // so once we get LOGOUT_USER_START we are safe to clear things out without waiting any more
@@ -145,6 +159,7 @@ export default cancelAction(function rootReducer(state, action) {
   if (action.type === LOGOUT_USER_START || action.type === NO_USERS_ERROR) {
     PollingSonarProjectsResource.reset();
     SonarProjectsResource.reset();
+    resetFeatureFlagsResource(); //ARS Flag not fetching again after switching orgs
     window.sessionStorage.removeItem("projectContext");
     // reset the app state (but keep routing and init state)
     // (this needs to happen before other reducers so that they go back to their initial state - thus why this is in this file)
@@ -163,7 +178,5 @@ export const getIsDatasetMetadataLoaded = (state) => {
 export const getUser = (state) => state.account.get("user");
 export const isModuleInitialized = (state, moduleKey) =>
   isInitialized(state.modulesState, moduleKey);
-export const getModuleState = (state, moduleKey) =>
-  getData(state.modulesState, moduleKey);
 export const getAppError = (state) => getError(state.appError);
 export const getAppErrorId = (state) => getErrorId(state.appError);

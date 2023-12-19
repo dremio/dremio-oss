@@ -27,6 +27,7 @@ import com.dremio.exec.catalog.conf.DisplayMetadata;
 import com.dremio.exec.catalog.conf.DoNotDisplay;
 import com.dremio.exec.catalog.conf.NotMetadataImpacting;
 import com.dremio.exec.catalog.conf.Property;
+import com.dremio.exec.catalog.conf.Secret;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.dfs.MutablePluginConf;
 
@@ -101,6 +102,15 @@ public abstract class BaseHiveStoragePluginConfig<T extends ConnectionConf<T, P>
   @DoNotDisplay
   @DisplayMetadata(label = "Default CTAS Format")
   public DefaultCtasFormatSelection defaultCtasFormat = DefaultCtasFormatSelection.ICEBERG;
+
+  @Tag(16)
+  @DoNotDisplay
+  @DisplayMetadata(label = "Hive Major Version")
+  public int hiveMajorVersion = 3;
+
+  @Tag(20)
+  @Secret
+  public List<Property> secretPropertyList;
 
   @Override
   public String getDefaultCtasFormat() {

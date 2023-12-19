@@ -32,22 +32,22 @@ import org.apache.calcite.sql.util.ChainedSqlOperatorTable;
 
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUser;
-import com.dremio.exec.catalog.DremioCatalogReader;
 import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.catalog.SimpleCatalog;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
+import com.dremio.exec.ops.DelegatingPlannerCatalog;
+import com.dremio.exec.ops.DremioCatalogReader;
 import com.dremio.exec.ops.ViewExpansionContext;
 import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.planner.sql.OperatorTable;
-import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
+import com.dremio.exec.planner.sql.DremioCompositeSqlOperatorTable;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.server.options.DefaultOptionManager;
 import com.dremio.exec.server.options.EagerCachingOptionManager;
-import com.dremio.exec.server.options.OptionManagerWrapper;
 import com.dremio.exec.server.options.ProjectOptionManager;
 import com.dremio.exec.server.options.QueryOptionManager;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.options.OptionManager;
+import com.dremio.options.impl.DefaultOptionManager;
+import com.dremio.options.impl.OptionManagerWrapper;
 import com.dremio.service.functions.FunctionListDictionary;
 import com.dremio.service.functions.model.Function;
 import com.dremio.service.functions.model.FunctionCategory;
@@ -126,15 +126,13 @@ public final class FunctionsListService {
       functionImplementationRegistry = sabotContext.getFunctionImplementationRegistry();
     }
 
-    OperatorTable operatorTable = new OperatorTable(functionImplementationRegistry);
+    SqlOperatorTable operatorTable = DremioCompositeSqlOperatorTable.create(functionImplementationRegistry);
 
     return new FunctionSource(catalog, operatorTable);
   }
 
   private static List<Function> getFunctions(FunctionSource functionSource) {
-    DremioCatalogReader catalogReader = new DremioCatalogReader(
-      functionSource.getCatalog(),
-      JavaTypeFactoryImpl.INSTANCE);
+    DremioCatalogReader catalogReader = new DremioCatalogReader(DelegatingPlannerCatalog.newInstance(functionSource.getCatalog()));
     SqlOperatorTable chainedOperatorTable = ChainedSqlOperatorTable.of(
       functionSource.getSqlOperatorTable(),
       catalogReader);

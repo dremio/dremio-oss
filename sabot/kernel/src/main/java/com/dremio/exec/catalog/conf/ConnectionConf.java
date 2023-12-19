@@ -20,10 +20,17 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.lang.reflect.Field;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 
 import javax.inject.Provider;
 
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 
 import com.dremio.exec.catalog.ConnectionReader;
@@ -97,7 +104,19 @@ public abstract class ConnectionConf<T extends ConnectionConf<T, P>, P extends S
     try {
       for(Field field : FieldUtils.getAllFields(getClass())) {
         if(predicate.apply(field)) {
-          if (isSecret && field.getType().equals(String.class)) {
+          //if field is a secret property list, clear all sensitive property values within the list
+          if (isSecret && isPropertyList(field)) {
+            final List<Property> propertyList = (List<Property>) field.get(this);
+            if (CollectionUtils.isNotEmpty(propertyList)) {
+              List<Property> secretList = new LinkedList<>();
+              for (Property prop : propertyList) {
+                secretList.add(new Property(prop.name, USE_EXISTING_SECRET_VALUE));
+              }
+              field.set(this, secretList);
+            } else {
+              field.set(this, null);
+            }
+          } else if (isSecret && (field.getType().equals(String.class))) {
             final String value = (String) field.get(this);
 
             if (Strings.isNullOrEmpty(value)) {
@@ -128,7 +147,37 @@ public abstract class ConnectionConf<T extends ConnectionConf<T, P>, P extends S
       }
 
       try {
-        if (field.getType().equals(String.class) && USE_EXISTING_SECRET_VALUE.equals(field.get(this))) {
+
+        //apply secrets for field type List<Property>
+        if (isPropertyList(field)) {
+          List<Property> thisPropertyList = (List<Property>) field.get(this);
+          if (thisPropertyList == null) {
+            continue;
+          }
+
+          //convert existing properties into map for easy access
+          List<Property> existingPropertyList = (List<Property>) field.get(existingConf);
+          Map<String, Property> existingPropertyMap = new HashMap<>();
+          if (existingPropertyList != null) {
+            for (Property property : existingPropertyList) {
+              existingPropertyMap.put(property.name, property);
+            }
+          }
+
+          //generate new property list. Apply secrets where applicable
+          List<Property> appliedPropertyList = new LinkedList<>();
+          for (Property prop : thisPropertyList) {
+            if (prop.value.equals(USE_EXISTING_SECRET_VALUE)) {
+              appliedPropertyList.add(existingPropertyMap.get(prop.name));
+            } else {
+              appliedPropertyList.add(new Property(prop.name, prop.value));
+            }
+          }
+
+          field.set(this, appliedPropertyList);
+
+        //apply secrets for field type String
+        } else if (field.getType().equals(String.class) && USE_EXISTING_SECRET_VALUE.equals(field.get(this))) {
           field.set(this, field.get(existingConf));
         }
       } catch (IllegalAccessException e) {
@@ -149,9 +198,28 @@ public abstract class ConnectionConf<T extends ConnectionConf<T, P>, P extends S
       if (field.getAnnotation(Secret.class) == null) {
         continue;
       }
-
       try {
-        if (field.getType().equals(String.class)) {
+
+        //resolve secrets for field type List<Property>
+        if (isPropertyList(field)) {
+          final List<Property> fieldList = (List<Property>) field.get(resolvedConf);
+          if (CollectionUtils.isNotEmpty(fieldList)) {
+            List<Property> resolvedSecretList = new LinkedList<>();
+            for (Property prop : fieldList) {
+              String resolvedSecretProp;
+              try {
+                resolvedSecretProp = credentialsService.lookup(prop.value);
+              } catch (IllegalArgumentException e) {
+                // If field is not a valid URI, fallback to treating it as a regular password
+                resolvedSecretProp = prop.value;
+              } catch (CredentialsException e) {
+                throw new RuntimeException(e);
+              }
+              resolvedSecretList.add(new Property(prop.name, resolvedSecretProp));
+            }
+            field.set(resolvedConf, resolvedSecretList);
+          }
+        } else if (field.getType().equals(String.class)) { ////resolve Secrets for field type String
           final String fieldString = (String) field.get(resolvedConf);
           if (Strings.isNullOrEmpty(fieldString)) {
             continue;
@@ -172,6 +240,21 @@ public abstract class ConnectionConf<T extends ConnectionConf<T, P>, P extends S
       }
     }
     return resolvedConf;
+  }
+
+  /**
+   * checks if field Type is a List of Property objects
+   */
+  private boolean isPropertyList(Field field) {
+    Type fieldType = field.getGenericType();
+    if (fieldType instanceof ParameterizedType) {
+      ParameterizedType parameterizedType = (ParameterizedType) fieldType;
+      Type[] typeArguments = parameterizedType.getActualTypeArguments();
+      if (typeArguments.length == 1 && typeArguments[0] == Property.class) {
+        return List.class.isAssignableFrom((Class<?>) parameterizedType.getRawType());
+      }
+    }
+    return false;
   }
 
   public static void registerSubTypes(ObjectMapper mapper, ConnectionReader connectionReader) {

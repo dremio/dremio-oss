@@ -51,15 +51,5 @@ public class CatalogSourceDataCreator implements LegacyKVStoreCreationFunction<N
     public void setTag(SourceInternalData value, String tag) {
       value.setTag(tag);
     }
-
-    @Override
-    public Long getVersion(SourceInternalData value) {
-      return value.getVersion();
-    }
-
-    @Override
-    public void setVersion(SourceInternalData value, Long version) {
-      value.setVersion(version);
-    }
   }
 }

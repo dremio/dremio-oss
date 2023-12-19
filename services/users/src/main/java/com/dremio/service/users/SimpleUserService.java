@@ -49,7 +49,12 @@ import com.dremio.datastore.api.LegacyStoreBuildingFactory;
 import com.dremio.datastore.format.Format;
 import com.dremio.datastore.indexed.IndexKey;
 import com.dremio.service.Service;
-import com.dremio.service.users.StatusUserLoginException.Status;
+import com.dremio.service.users.events.UserDeletionEvent;
+import com.dremio.service.users.events.UserServiceEvent;
+import com.dremio.service.users.events.UserServiceEventSubscriber;
+import com.dremio.service.users.events.UserServiceEventTopic;
+import com.dremio.service.users.events.UserServiceEvents;
+import com.dremio.service.users.events.UserServiceEventsImpl;
 import com.dremio.service.users.proto.UID;
 import com.dremio.service.users.proto.UserAuth;
 import com.dremio.service.users.proto.UserConfig;
@@ -88,6 +93,7 @@ public class SimpleUserService implements UserService, Service {
   private static final SecretKeyFactory secretKey = UserServiceUtils.buildSecretKey();
   private final Supplier<LegacyIndexedStore<UID, UserInfo>> userStore;
   private final Provider<LegacyKVStoreProvider> kvStoreProvider;
+  private final UserServiceEvents userServiceEvents;
   private final boolean isMaster;
 
   // when we call hasAnyUser() we cache the result in here so we never hit the kvStore once the value is true
@@ -97,6 +103,7 @@ public class SimpleUserService implements UserService, Service {
   public SimpleUserService(Provider<LegacyKVStoreProvider> kvStoreProvider, boolean isMaster) {
     this.userStore = Suppliers.memoize(() -> kvStoreProvider.get().getStore(UserGroupStoreBuilder.class));
     this.kvStoreProvider = kvStoreProvider;
+    this.userServiceEvents = new UserServiceEventsImpl();
     this.isMaster = isMaster;
   }
 
@@ -325,22 +332,28 @@ public class SimpleUserService implements UserService, Service {
   public AuthResult authenticate(String userName, String password) throws UserLoginException {
     final UserInfo userInfo = findUserByUserName(userName);
     if (userInfo == null) {
-      throw new UserLoginException(userName, "Invalid user credentials");
+      logger.debug("UserInfo not found for user: {}", userName);
+      throw new UserLoginException(userName, UserServiceUtils.USER_AUTHENTICATION_ERROR_MESSAGE);
     }
     if (!userInfo.getConfig().getActive()) {
-      throw new StatusUserLoginException(Status.INACTIVE, userName, "Inactive user");
+      logger.error("User: {} Inactive", userName);
+      throw new UserLoginException(userName, UserServiceUtils.USER_AUTHENTICATION_ERROR_MESSAGE);
     }
     if (userInfo.getConfig().getType() != UserType.LOCAL) {
-      throw new UserLoginException(userName, "User is not local.");
+      logger.error("User: {} is not LOCAL", userName);
+      throw new UserLoginException(userName, UserServiceUtils.USER_AUTHENTICATION_ERROR_MESSAGE);
     }
     try {
       UserAuth userAuth = userInfo.getAuth();
       final byte[] authKey = buildUserAuthKey(password, userAuth.getPrefix().toByteArray());
       if (!UserServiceUtils.slowEquals(authKey, userAuth.getAuthKey().toByteArray())) {
-        throw new UserLoginException(userName, "Login failed: Invalid username or password");
+        throw new UserLoginException(userName, UserServiceUtils.USER_AUTHENTICATION_ERROR_MESSAGE);
       }
 
-      return AuthResult.of(userName);
+      return AuthResult.builder()
+        .setUserName(userName)
+        .setUserId(userInfo.getConfig().getUid().getId())
+        .build();
     } catch (InvalidKeySpecException ikse) {
       throw new UserLoginException(userName, "Invalid user credentials");
     }
@@ -421,6 +434,16 @@ public class SimpleUserService implements UserService, Service {
   @Override
   public void close() throws Exception {
 
+  }
+
+  @Override
+  public void subscribe(UserServiceEventTopic userServiceEventTopic, UserServiceEventSubscriber subscriber) {
+    this.userServiceEvents.subscribe(userServiceEventTopic, subscriber);
+  }
+
+  @Override
+  public void publish(UserServiceEvent event) {
+    this.userServiceEvents.publish(event);
   }
 
   private static final class UserConverter implements DocumentConverter<UID, UserInfo> {
@@ -509,6 +532,8 @@ public class SimpleUserService implements UserService, Service {
     }
 
     userStore.get().delete(userInfo.getConfig().getUid(), version);
+    publish(new UserDeletionEvent(userInfo.getConfig().getUid().getId()));
+
     if (!getAllUsers(1).iterator().hasNext()) {
       anyUserFound.set(false);
     }
@@ -624,16 +649,6 @@ public class SimpleUserService implements UserService, Service {
     @Override
     public void setTag(UserInfo value, String tag) {
       value.getConfig().setTag(tag);
-    }
-
-    @Override
-    public Long getVersion(UserInfo value) {
-      return value.getConfig().getVersion();
-    }
-
-    @Override
-    public void setVersion(UserInfo value, Long version) {
-      value.getConfig().setVersion(version);
     }
   }
 

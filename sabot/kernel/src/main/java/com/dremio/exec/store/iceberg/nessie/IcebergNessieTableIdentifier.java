@@ -22,7 +22,7 @@ import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
 /**
  * Nessie Iceberg table identifier
  */
-class IcebergNessieTableIdentifier implements IcebergTableIdentifier {
+public class IcebergNessieTableIdentifier implements IcebergTableIdentifier {
     private final TableIdentifier tableIdentifier;
     private final String tableFolder;
 

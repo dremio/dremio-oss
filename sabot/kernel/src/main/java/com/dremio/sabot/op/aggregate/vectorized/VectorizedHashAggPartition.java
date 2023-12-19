@@ -56,6 +56,12 @@ public class VectorizedHashAggPartition implements SpaceCheckListener, AutoClose
   private final Stopwatch forceAccumTimer = Stopwatch.createUnstarted();
   private int numForceAccums = 0;
 
+  /*
+  When this VectorizedHashAggOperator picks this partition to output, it does it one batch at a time and serially.
+  Below member keeps track of current batch index to output.
+   */
+  private int nextBatchToOutput = 0;
+
   /**
    * Create a partition. Used by {@link VectorizedHashAggOperator} at setup
    * time to initialize all partitions. The operator allocates all the data
@@ -164,6 +170,7 @@ public class VectorizedHashAggPartition implements SpaceCheckListener, AutoClose
   public void resetToMinimumSize() throws Exception {
     /* hashtable internally resets the corresponding accumulator to minimum size */
     hashTable.resetToMinimumSize();
+    setNextBatchToOutput(0);
   }
 
   /**
@@ -571,10 +578,10 @@ public class VectorizedHashAggPartition implements SpaceCheckListener, AutoClose
   }
 
   private int getBatchUsedSpace(int batchIndex) {
-    if (batchIndex >= batchSpaceUsage.length) {
+    while (batchIndex >= batchSpaceUsage.length) {
       reallocateBatchSpaceAndCount();
-      Preconditions.checkArgument(batchIndex < batchSpaceUsage.length);
     }
+    Preconditions.checkArgument(batchIndex < batchSpaceUsage.length);
     return batchSpaceUsage[batchIndex];
   }
 
@@ -623,10 +630,29 @@ public class VectorizedHashAggPartition implements SpaceCheckListener, AutoClose
     }
 
     /* Still not enough space. Splice the batch and return false for hashtable to retry the insert. */
-    hashTable.splice(batchIndex, seed);
+    int newBatchIndex = hashTable.splice(batchIndex, seed);
+    spliceBatchSpaceUsageAndCount(batchIndex, newBatchIndex);
     return false;
   }
 
+  /**
+   * Batch 1 was spliced into two. Let batchSpaceUsage and batchValueCount arrays reflect that.
+   * @param batchIndex1
+   * @param batchIndex2
+   */
+  private void spliceBatchSpaceUsageAndCount(final int batchIndex1, final int batchIndex2) {
+    if (batchIndex1 >= batchSpaceUsage.length || batchIndex2 >= batchSpaceUsage.length) {
+      reallocateBatchSpaceAndCount();
+    }
+    final int originalCount = batchValueCount[batchIndex1];
+    final int originalSpace = batchSpaceUsage[batchIndex1];
+
+    batchSpaceUsage[batchIndex2] = originalSpace/ 2;
+    batchSpaceUsage[batchIndex1] = originalSpace - (originalSpace/ 2);
+
+    batchValueCount[batchIndex2] = originalCount / 2;
+    batchValueCount[batchIndex1] = originalCount - (originalCount / 2);
+  }
   private void forceAccumulateAndCompact(ResizeListener resizeListener, final int batchIndex, final int nextRecSize) {
     ++numForceAccums;
     forceAccumTimer.start();
@@ -648,5 +674,13 @@ public class VectorizedHashAggPartition implements SpaceCheckListener, AutoClose
 
   public long getForceAccumTime(TimeUnit unit) {
     return forceAccumTimer.elapsed(unit);
+  }
+
+  public int getNextBatchToOutput() {
+    return nextBatchToOutput;
+  }
+
+  public void setNextBatchToOutput(int nextBatchToOutput) {
+    this.nextBatchToOutput = nextBatchToOutput;
   }
 }

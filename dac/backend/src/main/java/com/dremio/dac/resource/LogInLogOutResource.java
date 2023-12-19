@@ -112,7 +112,7 @@ public class LogInLogOutResource {
       // Make sure the logged-in user has a home space. If not create one.
       try {
         final NamespaceService ns = dContext.getNamespaceService(SystemUser.SYSTEM_USERNAME);
-        CatalogServiceHelper.ensureUserHasHomespace(ns, userConfig.getUserName());
+        CatalogServiceHelper.ensureUserHasHomespace(ns, userConfig.getUserName(), dContext.getOptionManager());
       } catch (NamespaceException ex) {
         logger.error("Failed to make sure the user has home space setup.", ex);
         return Response.status(Status.INTERNAL_SERVER_ERROR).entity(new GenericErrorMessage(ex.getMessage())).build();
@@ -123,6 +123,7 @@ public class LogInLogOutResource {
         projectOptionManager.getOption(SupportService.USERS_DOWNLOAD),
         projectOptionManager.getOption(SupportService.USERS_EMAIL),
         projectOptionManager.getOption(SupportService.USERS_CHAT),
+        true,
         true,
         true,
         true,

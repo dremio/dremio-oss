@@ -195,7 +195,7 @@ public class FileCursorManagerImpl implements FileCursorManager {
   }
 
   private synchronized void checkAndCleanup() throws IOException {
-    if (allRegistrationsDone && writerMonitor == null && allReaderMonitors.isEmpty()) {
+    if (allRegistrationsDone && writerMonitor == null && allReaderMonitors.isEmpty() && fileStreamManager != null) {
       fileStreamManager.deleteAll();
     }
   }

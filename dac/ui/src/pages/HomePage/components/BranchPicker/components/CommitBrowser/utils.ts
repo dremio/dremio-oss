@@ -81,7 +81,9 @@ export function formatQuery(
   }
 
   if (tableName) {
-    opClauses.push(`op.name == '${tableName}'`);
+    opClauses.push(
+      `op.name == '${decodeURIComponent(tableName).replace(/"/g, "")}'`
+    );
   }
 
   if (opClauses.length) {

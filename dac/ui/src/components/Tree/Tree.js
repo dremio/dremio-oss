@@ -17,15 +17,11 @@ import { Component } from "react";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
 
-import { getSourceByName } from "@app/utils/nessieUtils";
-
 import TreeNode from "./TreeNode";
 
 class Tree extends Component {
   static propTypes = {
     resourceTree: PropTypes.instanceOf(Immutable.List),
-    sources: PropTypes.instanceOf(Immutable.List),
-    isSorted: PropTypes.bool,
     isNodeExpanded: PropTypes.func,
     selectedNodeId: PropTypes.string,
     formatIdFromNode: PropTypes.func,
@@ -49,40 +45,15 @@ class Tree extends Component {
   };
 
   renderNodes = () => {
-    const { resourceTree, sources, fromModal, starredItems, isSorted } =
-      this.props;
-    let tempResourceTree;
-    if (isSorted) {
-      tempResourceTree = resourceTree.sort((firstNode, secondNode) => {
-        const firstNodeName = firstNode.get("name").toLowerCase();
-        const secondNodeName = secondNode.get("name").toLowerCase();
-
-        if (firstNodeName > secondNodeName) return 1;
-        if (firstNodeName < secondNodeName) return -1;
-        return 0;
-      });
-    } else {
-      tempResourceTree = resourceTree;
-    }
-
-    return tempResourceTree.map((node, index) => {
-      const nessieSource = getSourceByName(node.get("name"), sources.toJS());
-
-      let showSource = true;
-      if (fromModal && node.get("type") === "SOURCE") {
-        showSource = false;
-      }
-      return (
-        (nessieSource || showSource) && (
-          <TreeNode
-            node={node}
-            key={index}
-            isStarredLimitReached={starredItems && starredItems.length === 25}
-            {...this.props}
-          />
-        )
-      );
-    });
+    const { resourceTree, starredItems } = this.props;
+    return resourceTree.map((node, index) => (
+      <TreeNode
+        node={node}
+        key={index}
+        isStarredLimitReached={starredItems && starredItems.length === 25}
+        {...this.props}
+      />
+    ));
   };
 
   render() {

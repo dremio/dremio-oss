@@ -32,7 +32,8 @@ import com.dremio.service.acceleration.ReflectionDescriptionServiceRPC.ListRefle
 import com.dremio.service.job.ActiveJobSummary;
 import com.dremio.service.job.ActiveJobsRequest;
 import com.dremio.service.job.ChronicleGrpc;
-import com.dremio.service.job.DCSActiveJobSummary;
+import com.dremio.service.job.RecentJobSummary;
+import com.dremio.service.job.RecentJobsRequest;
 import com.dremio.service.sysflight.ProtobufRecordReader;
 import com.dremio.service.sysflight.SysFlightDataProvider;
 import com.dremio.service.sysflight.SysFlightStreamObserver;
@@ -65,32 +66,6 @@ public class SysFlightTablesProvider {
     @Override
     public BatchSchema getSchema() {
       return ProtobufRecordReader.getSchema(ActiveJobSummary.getDescriptor());
-    }
-  }
-
-  /**
-   * DCS Jobs table
-   */
-  public static class DCSJobsTable implements SysFlightDataProvider {
-    private final Provider<ChronicleGrpc.ChronicleStub> jobsStub;
-    public DCSJobsTable(Provider<ChronicleGrpc.ChronicleStub> jobsStub) {
-      this.jobsStub = jobsStub;
-    }
-
-    @Override
-    public void streamData(SysFlightTicket ticket, ServerStreamListener listener, BufferAllocator allocator,
-      int recordBatchSize) {
-      ActiveJobsRequest.Builder requestBuilder = ActiveJobsRequest.newBuilder().setQuery(ticket.getQuery());
-      if(!(ticket.getUserName().equals(""))){
-        requestBuilder.setUserName(ticket.getUserName());
-      }
-      jobsStub.get().getActiveJobs(requestBuilder.build(), new SysFlightStreamObserver<>(allocator, listener,
-        DCSActiveJobSummary.getDescriptor(), recordBatchSize));
-    }
-
-    @Override
-    public BatchSchema getSchema() {
-      return ProtobufRecordReader.getSchema(DCSActiveJobSummary.getDescriptor());
     }
   }
 
@@ -164,6 +139,32 @@ public class SysFlightTablesProvider {
     @Override
     public BatchSchema getSchema() {
       return ProtobufRecordReader.getSchema(ListReflectionDependenciesResponse.getDescriptor());
+    }
+  }
+
+  /**
+   * Recent Jobs table
+   */
+  public static class RecentJobsTable implements SysFlightDataProvider {
+    private final Provider<ChronicleGrpc.ChronicleStub> jobsStub;
+    public RecentJobsTable(Provider<ChronicleGrpc.ChronicleStub> jobsStub) {
+      this.jobsStub = jobsStub;
+    }
+
+    @Override
+    public void streamData(SysFlightTicket ticket, ServerStreamListener listener, BufferAllocator allocator,
+                           int recordBatchSize) {
+      RecentJobsRequest.Builder requestBuilder = RecentJobsRequest.newBuilder().setQuery(ticket.getQuery());
+      if(!(ticket.getUserName().equals(""))){
+        requestBuilder.setUserName(ticket.getUserName());
+      }
+      jobsStub.get().getRecentJobs(requestBuilder.build(), new SysFlightStreamObserver<>(allocator, listener,
+        RecentJobSummary.getDescriptor(), recordBatchSize));
+    }
+
+    @Override
+    public BatchSchema getSchema() {
+      return ProtobufRecordReader.getSchema(RecentJobSummary.getDescriptor());
     }
   }
 }

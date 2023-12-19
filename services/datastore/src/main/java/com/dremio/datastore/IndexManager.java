@@ -41,6 +41,7 @@ class IndexManager implements AutoCloseable {
 
   private final DeferredException closeException = new DeferredException();
 
+  @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
   private final LoadingCache<String, LuceneSearchIndex> indexes = CacheBuilder.newBuilder()
       .removalListener(new RemovalListener<String, LuceneSearchIndex>() {
         @Override

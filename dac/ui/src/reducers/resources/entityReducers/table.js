@@ -57,7 +57,10 @@ export default function table(state, action) {
       });
     }
     case UPDATE_COLUMN_FILTER:
-      return state.setIn(["tableData", "columnFilter"], action.columnFilter);
+      return state.setIn(
+        ["tableData", action.datasetVersion, "columnFilter"],
+        action.columnFilter
+      );
     case INIT_EXPLORE_JOB_PROGRESS:
       return state.setIn(["tableData", "jobProgress"], {
         status: JOB_STATUS.starting,
@@ -112,6 +115,7 @@ export default function table(state, action) {
           jobUpdate.outputRecords
         );
       }
+
       return newState;
     }
     case SET_EXPLORE_JOBID_IN_PROGRESS: {

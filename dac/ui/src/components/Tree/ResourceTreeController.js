@@ -24,11 +24,11 @@ import { fetchAllAndMineScripts } from "@app/components/SQLScripts/sqlScriptsUti
 
 import ViewStateWrapper from "@app/components/ViewStateWrapper";
 import ResourceTree from "./ResourceTree";
+import sentryUtil from "@app/utils/sentryUtil";
 
-class ResourceTreeController extends PureComponent {
+export class ResourceTreeController extends PureComponent {
   static propTypes = {
     resourceTree: PropTypes.instanceOf(Immutable.List),
-    sources: PropTypes.instanceOf(Immutable.List), //Loaded from parent
     isDatasetsDisabled: PropTypes.bool,
     isSourcesHidden: PropTypes.bool,
     hideDatasets: PropTypes.bool,
@@ -87,6 +87,58 @@ class ResourceTreeController extends PureComponent {
     return constructFullPath(node.get("fullPath"), "");
   };
 
+  //Recursively fetch selected path and then expand
+  fetchAndExpandSelectedNode = (nodeArg) => {
+    try {
+      const { selectedNodeId } = this.state;
+      const node = nodeArg || selectedNodeId;
+      if (!node || node === "tmp") return;
+      const [root, ...rest] = node.split(".");
+      return this.fetchNodePath(root, rest.join("."));
+    } catch (e) {
+      sentryUtil.logException(e);
+    }
+  };
+
+  fetchNodePath = async (
+    root,
+    remain,
+    nodesToExpand = [],
+    skipLast = false // Skip expanding the last node
+  ) => {
+    if (!root) return;
+    const [next, ...remaining] = remain.split(".") || [];
+    const { updateTreeNodeData } = this.props;
+    try {
+      this.setLoading(true);
+      await updateTreeNodeData(true, root);
+    } catch (e) {
+      sentryUtil.logException(e);
+      this.setLoading(false);
+      return;
+    }
+
+    this.setState({
+      expandedNodes: Immutable.fromJS([
+        ...nodesToExpand,
+        constructFullPath(root.split(".")), //Wrap paths that have spaces in quotes, etc
+      ]),
+    });
+
+    if (next && (!skipLast || remaining.length)) {
+      return this.fetchNodePath([root, next].join("."), remaining.join("."), [
+        ...nodesToExpand,
+        root,
+      ]);
+    } else {
+      this.setLoading(false);
+      // No more to fetch, now select and expand to the node
+      this.props.onChange?.(
+        skipLast ? root.split(".").concat(remain).join(".") : root
+      );
+    }
+  };
+
   initializeTree = async (initialLoad) => {
     const {
       dispatchFetchScripts,
@@ -133,17 +185,16 @@ class ResourceTreeController extends PureComponent {
 
   // Async for testing purposes
   async componentDidMount() {
-    const { resourceTree, datasetsPanel, sidebarCollapsed, fromModal } =
-      this.props;
-    const INITIAL_LOAD = true;
+    const { resourceTree, datasetsPanel, sidebarCollapsed } = this.props;
     // Only create the Resource Tree if it has not been intialized || initialize resources when opening Save as Dataset modal
-    if (
-      ((resourceTree && resourceTree.size > 0 && !datasetsPanel) ||
-        (datasetsPanel && sidebarCollapsed)) &&
-      !fromModal
-    )
-      return;
-    return this.initializeTree(INITIAL_LOAD);
+    if (datasetsPanel && sidebarCollapsed) return;
+
+    if (resourceTree && resourceTree.size > 0) {
+      // Expand to the preselected node even when tree is already initialized
+      this.fetchAndExpandSelectedNode();
+    }
+
+    return this.initializeTree(true).then(this.fetchAndExpandSelectedNode);
   }
 
   componentDidUpdate(prevProps) {
@@ -152,16 +203,19 @@ class ResourceTreeController extends PureComponent {
       isSqlEditorTab,
       sidebarCollapsed,
       dispatchFetchScripts,
-      nessie,
       dispatchSetActiveScript,
       resourceTree,
       datasetsPanel,
+      preselectedNodeId,
     } = this.props;
+
     if (
       (!treeInitialized && !sidebarCollapsed && prevProps.sidebarCollapsed) ||
       (!treeInitialized && resourceTree.size === 0 && !datasetsPanel)
     ) {
-      this.initializeTree();
+      return this.initializeTree().then(() =>
+        this.fetchAndExpandSelectedNode(preselectedNodeId)
+      );
     }
 
     if (isSqlEditorTab && !prevProps.isSqlEditorTab) {
@@ -170,15 +224,6 @@ class ResourceTreeController extends PureComponent {
 
     if (!isSqlEditorTab && prevProps.isSqlEditorTab) {
       dispatchSetActiveScript({ script: {} });
-    }
-
-    if (prevProps.nessie !== nessie) {
-      //Collapse nodes when nessie state is changed
-      this.setState({
-        //eslint-disable-line
-        expandedNodes: Immutable.List(),
-        expandedStarredNodes: Immutable.List(),
-      });
     }
   }
 
@@ -236,7 +281,7 @@ class ResourceTreeController extends PureComponent {
     const selectedNodeId = ResourceTreeController.formatIdFromNode(clickedNode);
     const branchId = clickedNode.get("branchId");
 
-    const shouldExpandNode = !this.isNodeExpanded(clickedNode);
+    const shouldExpandNode = !isNodeExpanded;
 
     const nodeIdsToClose = new Set();
     const nodeIdsToOpen = new Set();
@@ -270,35 +315,17 @@ class ResourceTreeController extends PureComponent {
       clickedNode
     );
 
-    if (tabRendered.startsWith(starTabNames.starred)) {
-      this.setState((state) => {
-        state.expandedStarredNodes
-          .filter((nodeId) => {
-            return !nodeIdsToClose.has(nodeId);
-          })
-          .push(...nodeIdsToOpen);
-        return {
-          selectedNodeId,
-          expandedStarredNodes: state.expandedStarredNodes
-            .filter((nodeId) => !nodeIdsToClose.has(nodeId))
-            .push(...nodeIdsToOpen),
-        };
-      });
-    } else {
-      this.setState((state) => {
-        state.expandedNodes
-          .filter((nodeId) => {
-            return !nodeIdsToClose.has(nodeId);
-          })
-          .push(...nodeIdsToOpen);
-        return {
-          selectedNodeId,
-          expandedNodes: state.expandedNodes
-            .filter((nodeId) => !nodeIdsToClose.has(nodeId))
-            .push(...nodeIdsToOpen),
-        };
-      });
-    }
+    this.setState((state) => {
+      const key = tabRendered.startsWith(starTabNames.starred)
+        ? "expandedStarredNodes"
+        : "expandedNodes";
+      return {
+        selectedNodeId,
+        [key]: state[key]
+          .filter((nodeId) => !nodeIdsToClose.has(nodeId))
+          .push(...nodeIdsToOpen),
+      };
+    });
   };
 
   render() {
@@ -307,7 +334,6 @@ class ResourceTreeController extends PureComponent {
       isSourcesHidden,
       style,
       resourceTree,
-      sources,
       dragType,
       browser,
       isExpandable,
@@ -342,7 +368,6 @@ class ResourceTreeController extends PureComponent {
           isSourcesHidden={isSourcesHidden}
           style={style}
           resourceTree={resourceTree}
-          sources={sources}
           selectedNodeId={selectedNodeId}
           dragType={dragType}
           formatIdFromNode={ResourceTreeController.formatIdFromNode}

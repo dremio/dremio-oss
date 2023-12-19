@@ -16,6 +16,7 @@
 package com.dremio.exec.planner;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.calcite.rel.RelNode;
@@ -23,12 +24,15 @@ import org.apache.calcite.rel.RelNode;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.proto.UserBitShared.LayoutMaterializedViewProfile;
+import com.dremio.reflection.hints.ReflectionExplanationsAndQueryDistance;
 
 public final class CachedAccelDetails {
 
   private SubstitutionInfo substitutionInfo;
   private final Map<DremioMaterialization, RelNode> materializationStore = new HashMap<>();
   private final Map<String, LayoutMaterializedViewProfile> accelerationProfileStore = new HashMap<>();
+  private List<String> normalizedQueryPlans;
+  private ReflectionExplanationsAndQueryDistance reflectionExplanationsAndQueryDistance;
 
   public void setSubstitutionInfo(SubstitutionInfo info) {
     substitutionInfo = info;
@@ -54,4 +58,19 @@ public final class CachedAccelDetails {
     return materializationStore;
   }
 
+  public void setNormalizedQueryPlans(List<String> normalizedQueryPlans) {
+    this.normalizedQueryPlans = normalizedQueryPlans;
+  }
+
+  public List<String> getNormalizedQueryPlans() {
+    return normalizedQueryPlans;
+  }
+
+  public void setReflectionExplanationsAndQueryDistance(ReflectionExplanationsAndQueryDistance reflectionExplanationsAndQueryDistance) {
+    this.reflectionExplanationsAndQueryDistance = reflectionExplanationsAndQueryDistance;
+  }
+
+  public ReflectionExplanationsAndQueryDistance getReflectionExplanationsAndQueryDistance() {
+    return reflectionExplanationsAndQueryDistance;
+  }
 }

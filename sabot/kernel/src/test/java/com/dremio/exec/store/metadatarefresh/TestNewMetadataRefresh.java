@@ -60,10 +60,12 @@ import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.EntityPath;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.MetadataObjectsUtils;
+import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.test.UserExceptionAssert;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
@@ -95,8 +97,11 @@ public class TestNewMetadataRefresh extends BaseTestQuery {
     fs.mkdirs(p);
 
     copyFromJar("metadatarefresh/onlyFull", java.nio.file.Paths.get(testRootPath + "/onlyFull"));
+    copyFromJar("metadatarefresh/onlyFull", java.nio.file.Paths.get(testRootPath + "/onlyFull2"));
     copyFromJar("metadatarefresh/onlyFullWithPartition", java.nio.file.Paths.get(testRootPath + "/onlyFullWithPartition"));
     copyFromJar("metadatarefresh/onlyFullWithPartitionInference", java.nio.file.Paths.get(testRootPath + "/onlyFullWithPartitionInference"));
+    copyFromJar("metadatarefresh/onlyFullWithPartitionInference", java.nio.file.Paths.get(testRootPath + "/refreshWithPartitionInference"));
+    copyFromJar("metadatarefresh/onlyFullWithPartitionInferenceLevel2", java.nio.file.Paths.get(testRootPath + "/onlyFullWithPartitionInferenceLevel2"));
     copyFromJar("metadatarefresh/incrementalRefresh", java.nio.file.Paths.get(testRootPath + "/incrementalRefresh"));
     copyFromJar("metadatarefresh/incrementalRefreshDeleteFile", java.nio.file.Paths.get(testRootPath + "/incrementalRefreshDeleteFile"));
     copyFromJar("metadatarefresh/incrementalRefreshDeletePartition", java.nio.file.Paths.get(testRootPath + "/incrementalRefreshDeletePartition"));
@@ -161,7 +166,7 @@ public class TestNewMetadataRefresh extends BaseTestQuery {
   @Test
   public void testFullRefreshWithoutPartition() throws Exception {
     try (AutoCloseable c1 = enableUnlimitedSplitsSupportFlags()) {
-      final String sql = "alter table dfs.tmp.metadatarefresh.onlyFull refresh metadata";
+      final String sql = "alter table dfs.tmp.metadatarefresh.onlyFull2 refresh metadata";
 
       runSQL(sql);
 
@@ -178,14 +183,14 @@ public class TestNewMetadataRefresh extends BaseTestQuery {
 
       testBuilder()
               .ordered()
-              .sqlQuery("select * from dfs.tmp.metadatarefresh.onlyFull")
+              .sqlQuery("select * from dfs.tmp.metadatarefresh.onlyFull2")
               .baselineColumns("col1")
               .baselineRecords(recordBuilder.build())
               .go();
 
       testBuilder()
               .ordered()
-              .sqlQuery("select count(*) as cnt from dfs.tmp.metadatarefresh.onlyFull")
+              .sqlQuery("select count(*) as cnt from dfs.tmp.metadatarefresh.onlyFull2")
               .baselineColumns("cnt")
               .baselineValues(4L)
               .go();
@@ -1206,6 +1211,104 @@ public class TestNewMetadataRefresh extends BaseTestQuery {
 
     } catch (NamespaceException ex) {
       throw Throwables.propagate(ex);
+    }
+  }
+
+  @Test
+  public void testPartialRefreshWithPartitionInferenceErrors() throws Exception {
+    try (AutoCloseable c1 = enableUnlimitedSplitsSupportFlags()) {
+      final String sql1 = "alter table dfs_partition_inference.tmp.metadatarefresh.refreshWithPartitionInference refresh metadata";
+
+      runSQL(sql1);
+
+      Schema expectedSchema = new Schema(Arrays.asList(
+              Types.NestedField.optional(1, "col1", new Types.IntegerType()),
+              Types.NestedField.optional(2, "dir0", new Types.StringType()),
+              Types.NestedField.optional(3, "level1", new Types.StringType())
+      ));
+
+      verifyIcebergMetadata(finalIcebergMetadataLocation, 3, 0, expectedSchema , Sets.newHashSet("dir0", "level1"), 3);
+
+      testBuilder()
+              .sqlQuery("ALTER TABLE dfs_partition_inference.tmp.metadatarefresh.refreshWithPartitionInference REFRESH METADATA FOR PARTITIONS (\"dir0\"='level1=1') FORCE UPDATE")
+              .unOrdered()
+              .baselineColumns("ok", "summary")
+              .baselineValues(true, "Metadata for table 'dfs_partition_inference.tmp.metadatarefresh.refreshWithPartitionInference' refreshed.")
+              .build().run();
+
+      // Expected failure:
+      //    The column 'bogus' is not partition (the error message will provide hint)
+      final String sql3 = "ALTER TABLE dfs_partition_inference.tmp.metadatarefresh.refreshWithPartitionInference REFRESH METADATA FOR PARTITIONS (\"bogus\"='1') FORCE UPDATE";
+      UserExceptionAssert.assertThatThrownBy(() -> test(sql3))
+              .hasErrorType(ErrorType.VALIDATION)
+              .hasMessageContaining("Column 'bogus' not found in the list of partition columns: [level1]");
+
+    }
+  }
+
+  @Test
+  public void testPartialRefreshWithMultiplePartitionInferenceErrors() throws Exception {
+    try (AutoCloseable c1 = enableUnlimitedSplitsSupportFlags()) {
+      final String sql1 = "alter table dfs_partition_inference.tmp.metadatarefresh.onlyFullWithPartitionInferenceLevel2 refresh metadata";
+
+      runSQL(sql1);
+
+      Schema expectedSchema = new Schema(Arrays.asList(
+              Types.NestedField.optional(1, "col1", new Types.IntegerType()),
+              Types.NestedField.optional(2, "dir0", new Types.StringType()),
+              Types.NestedField.optional(3, "level1", new Types.StringType()),
+              Types.NestedField.optional(4, "dir1", new Types.StringType()),
+              Types.NestedField.optional(5, "level2", new Types.StringType())
+      ));
+
+      verifyIcebergMetadata(finalIcebergMetadataLocation, 6, 0, expectedSchema , Sets.newHashSet("dir0", "level1", "dir1", "level2"), 6);
+
+      // baseline for dirN
+      testBuilder()
+              .sqlQuery("ALTER TABLE dfs_partition_inference.tmp.metadatarefresh.onlyFullWithPartitionInferenceLevel2 REFRESH METADATA FOR PARTITIONS (\"dir0\"='level1=1', \"dir1\"='level2=11') FORCE UPDATE")
+              .unOrdered()
+              .baselineColumns("ok", "summary")
+              .baselineValues(true, "Metadata for table 'dfs_partition_inference.tmp.metadatarefresh.onlyFullWithPartitionInferenceLevel2' refreshed.")
+              .build().run();
+
+      // baseline for Inferred
+      testBuilder()
+              .sqlQuery("ALTER TABLE dfs_partition_inference.tmp.metadatarefresh.onlyFullWithPartitionInferenceLevel2 REFRESH METADATA FOR PARTITIONS (\"level1\"='1', \"level2\"='11') FORCE UPDATE")
+              .unOrdered()
+              .baselineColumns("ok", "summary")
+              .baselineValues(true, "Metadata for table 'dfs_partition_inference.tmp.metadatarefresh.onlyFullWithPartitionInferenceLevel2' refreshed.")
+              .build().run();
+
+      // Verify with inferred partitions out of order
+      testBuilder()
+              .sqlQuery("ALTER TABLE dfs_partition_inference.tmp.metadatarefresh.onlyFullWithPartitionInferenceLevel2 REFRESH METADATA FOR PARTITIONS (\"level2\"='11', \"level1\"='1') FORCE UPDATE")
+              .unOrdered()
+              .baselineColumns("ok", "summary")
+              .baselineValues(true, "Metadata for table 'dfs_partition_inference.tmp.metadatarefresh.onlyFullWithPartitionInferenceLevel2' refreshed.")
+              .build().run();
+
+      // Verify with dirN partitions out of order
+      testBuilder()
+              .sqlQuery("ALTER TABLE dfs_partition_inference.tmp.metadatarefresh.onlyFullWithPartitionInferenceLevel2 REFRESH METADATA FOR PARTITIONS (\"dir1\"='level2=11', \"dir0\"='level1=1') FORCE UPDATE")
+              .unOrdered()
+              .baselineColumns("ok", "summary")
+              .baselineValues(true, "Metadata for table 'dfs_partition_inference.tmp.metadatarefresh.onlyFullWithPartitionInferenceLevel2' refreshed.")
+              .build().run();
+
+      // Expected failure because partition names are not consistent
+      final String sql2 = "ALTER TABLE dfs_partition_inference.tmp.metadatarefresh.onlyFullWithPartitionInferenceLevel2 REFRESH METADATA FOR PARTITIONS (\"dir0\"='level1=1', \"level2\"='11') FORCE UPDATE";
+      UserExceptionAssert.assertThatThrownBy(() -> test(sql2))
+              .hasErrorType(ErrorType.VALIDATION)
+              .hasMessageContaining("Partition columns should be all 'dirN' columns or all inferred partition columns");
+
+      Thread.sleep(1001L);
+
+      // Expected failure because partition names are not consistent
+      final String sql3 = "ALTER TABLE dfs_partition_inference.tmp.metadatarefresh.onlyFullWithPartitionInferenceLevel2 REFRESH METADATA FOR PARTITIONS (\"level2\"='11', \"dir0\"='level1=1') FORCE UPDATE";
+      UserExceptionAssert.assertThatThrownBy(() -> test(sql3))
+              .hasErrorType(ErrorType.VALIDATION)
+              .hasMessageContaining("Partition columns should be all 'dirN' columns or all inferred partition columns");
+
     }
   }
 }

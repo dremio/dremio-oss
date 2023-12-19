@@ -17,11 +17,11 @@ package com.dremio.exec.store.iceberg;
 
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.io.FileIO;
 
 import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
-import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
 
 public interface SupportsIcebergMutablePlugin extends MutablePlugin, SupportsIcebergRootPointer {
@@ -30,11 +30,11 @@ public interface SupportsIcebergMutablePlugin extends MutablePlugin, SupportsIce
    * @param tableProps Iceberg table props
    * @param userName userName of current user
    * @param context  Operator Context
-   * @param fileSystem File System for creating the Iceberg Model
+   * @param fileIO FileIO instance for creating the Iceberg Model
    * @return IcebergModel which is used for performing Iceberg operations
    */
   IcebergModel getIcebergModel(IcebergTableProps tableProps, String userName,
-                               OperatorContext context, FileSystem fileSystem);
+                               OperatorContext context, FileIO fileIO);
 
   /**
    *

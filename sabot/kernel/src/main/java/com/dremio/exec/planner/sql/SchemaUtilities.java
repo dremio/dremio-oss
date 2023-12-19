@@ -16,22 +16,25 @@
 package com.dremio.exec.planner.sql;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.sql.SqlIdentifier;
 
+import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.catalog.model.dataset.TableVersionContext;
+import com.dremio.catalog.model.dataset.TableVersionType;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.utils.SqlUtils;
 import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.CatalogEntityKey;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.catalog.TableVersionContext;
-import com.dremio.exec.catalog.TableVersionType;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.planner.sql.parser.SqlTableVersionSpec;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.namespace.NamespaceKey;
@@ -56,12 +59,19 @@ public class SchemaUtilities {
       .tableVersionContext(tableVersionContext)
       .build();
 
-    DremioTable table = CatalogUtil.getTable(catalogEntityKey, catalog);
+    DremioTable table = catalog.getTable(catalogEntityKey);
     if (table == null) {
       throw UserException.parseError().message("Unable to find table %s.", path).build(logger);
     }
 
     return new TableWithPath(table);
+  }
+
+  /**
+   * Returns all column paths for full projections
+   */
+  public static List<SchemaPath> allColPaths(BatchSchema batchSchema) {
+    return batchSchema.getFields().stream().map(f -> SchemaPath.getSimplePath(f.getName())).collect(Collectors.toList());
   }
 
   public static class TableWithPath {

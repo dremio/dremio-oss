@@ -15,9 +15,9 @@
  */
 package com.dremio.services.nessie.grpc.client.impl;
 
+import static com.dremio.services.nessie.grpc.GrpcExceptionMapper.handle;
 import static com.dremio.services.nessie.grpc.ProtoUtil.refFromProto;
 import static com.dremio.services.nessie.grpc.ProtoUtil.refToProto;
-import static com.dremio.services.nessie.grpc.client.GrpcExceptionMapper.handle;
 
 import org.projectnessie.client.builder.BaseCreateReferenceBuilder;
 import org.projectnessie.error.NessieConflictException;

@@ -17,8 +17,13 @@ package com.dremio.exec.store.dfs;
 
 import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG;
 import static com.dremio.exec.planner.physical.PlannerSettings.UNLIMITED_SPLITS_SUPPORT;
+import static com.dremio.exec.store.iceberg.IncrementalReflectionByPartitionUtils.isUnlimitedSplitIncrementalRefresh;
 import static com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants.METADATA_STORAGE_PLUGIN_NAME;
+import static com.dremio.service.namespace.DatasetHelper.hasDeltaLakeParquetDataFiles;
+import static com.dremio.service.namespace.DatasetHelper.hasIcebergParquetDataFiles;
+import static com.dremio.service.namespace.DatasetHelper.hasParquetDataFiles;
 
+import java.util.Optional;
 import java.util.Set;
 
 import org.apache.calcite.plan.RelOptRule;
@@ -45,10 +50,13 @@ import com.dremio.exec.planner.physical.FileSystemTableOptimizePrule;
 import com.dremio.exec.planner.physical.FileSystemVacuumTablePrule;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.Prel;
+import com.dremio.exec.planner.physical.VacuumCatalogPrule;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePluginRulesFactory.StoragePluginTypeRulesFactory;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.common.SourceLogicalConverter;
+import com.dremio.exec.store.deltalake.DeltaLakeHistoryScanPlanBuilder;
+import com.dremio.exec.store.deltalake.DeltaLakeHistoryScanTableMetadata;
 import com.dremio.exec.store.deltalake.DeltaLakeScanPrel;
 import com.dremio.exec.store.dfs.easy.EasyScanPrel;
 import com.dremio.exec.store.iceberg.IcebergManifestFileContentScanPrel;
@@ -60,7 +68,10 @@ import com.dremio.exec.store.parquet.ParquetScanPrel;
 import com.dremio.options.OptionResolver;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
+import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
+import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -81,7 +92,8 @@ public class FileSystemRulesFactory extends StoragePluginTypeRulesFactory {
     public Rel convertScan(ScanCrel scan) {
       return new FilesystemScanDrel(scan.getCluster(), scan.getTraitSet().plus(Rel.LOGICAL), scan.getTable(),
                                     scan.getPluginId(), scan.getTableMetadata(), scan.getProjectedColumns(),
-                                    scan.getObservedRowcountAdjustment(), scan.getHints(), false);
+                                    scan.getObservedRowcountAdjustment(), scan.getHints(), false,
+                                    scan.getSnapshotDiffContext());
     }
   }
 
@@ -97,13 +109,14 @@ public class FileSystemRulesFactory extends StoragePluginTypeRulesFactory {
     public RelNode convert(RelNode rel) {
       FilesystemScanDrel drel = (FilesystemScanDrel) rel;
       return new ParquetScanPrel(drel.getCluster(), drel.getTraitSet().plus(Prel.PHYSICAL), drel.getTable(), drel.getPluginId(), drel.getTableMetadata(), drel.getProjectedColumns(),
-        drel.getObservedRowcountAdjustment(), drel.getHints(), drel.getFilter(), drel.isArrowCachingEnabled(), ImmutableList.of());
+        drel.getObservedRowcountAdjustment(), drel.getHints(), drel.getFilter(), drel.getRowGroupFilter(), drel.isArrowCachingEnabled(), ImmutableList.of());
     }
 
     @Override
     public boolean matches(RelOptRuleCall call) {
       FilesystemScanDrel drel = (FilesystemScanDrel) call.rel(0);
-      return !isTableFilesMetadataFunction(drel.getTableMetadata()) && pluginType.equals(drel.getPluginId().getType()) && isParquetDataset(drel.getTableMetadata());
+      return !isTableFilesMetadataFunction(drel.getTableMetadata()) && !isDeltaLakeHistoryFunction(drel.getTableMetadata())
+        && pluginType.equals(drel.getPluginId().getType()) && isParquetDataset(drel.getTableMetadata());
     }
   }
 
@@ -126,8 +139,13 @@ public class FileSystemRulesFactory extends StoragePluginTypeRulesFactory {
     @Override
     public boolean matches(RelOptRuleCall call) {
       FilesystemScanDrel drel = call.rel(0);
-      return !isTableFilesMetadataFunction(drel.getTableMetadata()) && !isParquetDataset(drel.getTableMetadata()) && !isIcebergDataset(drel.getTableMetadata())
-              && !isDeltaLakeDataset(drel.getTableMetadata()) && !isIcebergMetadata(drel.getTableMetadata());
+      return !isTableFilesMetadataFunction(drel.getTableMetadata())
+        && !isDeltaLakeHistoryFunction(drel.getTableMetadata())
+        && !isParquetDataset(drel.getTableMetadata())
+        && !isIcebergDataset(drel.getTableMetadata())
+        && !isDeltaLakeDataset(drel.getTableMetadata())
+        && !isIcebergMetadata(drel.getTableMetadata())
+        && !isUnlimitedSplitIncrementalRefresh(drel.getSnapshotDiffContext(), drel.getTableMetadata());
     }
   }
 
@@ -164,7 +182,13 @@ public class FileSystemRulesFactory extends StoragePluginTypeRulesFactory {
     @Override
     public RelNode convert(RelNode rel) {
       FilesystemScanDrel drel = (FilesystemScanDrel) rel;
-      return IcebergScanPlanBuilder.fromDrel(drel, context, drel.isArrowCachingEnabled(), drel.canUsePartitionStats()).build();
+      return IcebergScanPlanBuilder.fromDrel(
+          drel,
+          context,
+          drel.isArrowCachingEnabled(),
+          drel.canUsePartitionStats(),
+          drel.isPartitionValuesEnabled())
+        .build();
     }
 
     @Override
@@ -193,13 +217,31 @@ public class FileSystemRulesFactory extends StoragePluginTypeRulesFactory {
       return new DeltaLakeScanPrel(drel.getCluster(), drel.getTraitSet().plus(Prel.PHYSICAL), drel.getTable(),
                                    drel.getPluginId(), drel.getTableMetadata(), drel.getProjectedColumns(),
                                    drel.getObservedRowcountAdjustment(), drel.getHints(), drel.getFilter(),
-                                   drel.isArrowCachingEnabled(), drel.getPartitionFilter());
+                                   drel.getRowGroupFilter(), drel.isArrowCachingEnabled(), drel.getPartitionFilter());
     }
 
     @Override
     public boolean matches(RelOptRuleCall call) {
       FilesystemScanDrel drel = (FilesystemScanDrel) call.rel(0);
       return pluginType.equals(drel.getPluginId().getType()) && isDeltaLakeDataset(drel.getTableMetadata());
+    }
+  }
+
+  private static class DeltaLakeFilesystemHistoryScanPrule extends ConverterRule {
+    public DeltaLakeFilesystemHistoryScanPrule(SourceType pluginType) {
+      super(FilesystemScanDrel.class, Rel.LOGICAL, Prel.PHYSICAL, pluginType.value() + "DeltaLakeFilesystemHistoryScanPrule");
+    }
+
+    @Override
+    public RelNode convert(RelNode rel) {
+      FilesystemScanDrel drel = (FilesystemScanDrel) rel;
+      return DeltaLakeHistoryScanPlanBuilder.fromDrel(drel).build();
+    }
+
+    @Override
+    public boolean matches(RelOptRuleCall call) {
+      FilesystemScanDrel drel = call.rel(0);
+      return isDeltaLakeHistoryFunction(drel.getTableMetadata());
     }
   }
 
@@ -226,11 +268,13 @@ public class FileSystemRulesFactory extends StoragePluginTypeRulesFactory {
             new ParquetFilesystemScanPrule(pluginType),
             new IcebergFilesystemScanPrule(pluginType, optimizerContext),
             new DeltaLakeFilesystemScanPrule(pluginType, optimizerContext),
+            new DeltaLakeFilesystemHistoryScanPrule(pluginType),
             ConvertCountToDirectScan.getAggOnScan(pluginType),
             ConvertCountToDirectScan.getAggProjOnScan(pluginType),
             new TableFilesFunctionScanPrule(pluginType),
             new FileSystemTableOptimizePrule(optimizerContext),
-            new FileSystemVacuumTablePrule(optimizerContext)
+            new FileSystemVacuumTablePrule(optimizerContext),
+            new VacuumCatalogPrule()
             );
 
       default:
@@ -247,12 +291,16 @@ public class FileSystemRulesFactory extends StoragePluginTypeRulesFactory {
     return datasetPointer instanceof TableFilesFunctionTableMetadata;
   }
 
+  public static boolean isDeltaLakeHistoryFunction(TableMetadata datasetPointer) {
+    return datasetPointer instanceof DeltaLakeHistoryScanTableMetadata;
+  }
+
   public static boolean isIcebergDataset(TableMetadata datasetPointer) {
     return !isTableFilesMetadataFunction(datasetPointer) && datasetPointer.getFormatSettings() != null && !isIcebergMetadata(datasetPointer) && datasetPointer.getFormatSettings().getType() == FileType.ICEBERG;
   }
 
   public static boolean isDeltaLakeDataset(TableMetadata datasetPointer) {
-    return datasetPointer.getFormatSettings() != null && !isIcebergMetadata(datasetPointer) && datasetPointer.getFormatSettings().getType() == FileType.DELTA;
+    return !isDeltaLakeHistoryFunction(datasetPointer) && datasetPointer.getFormatSettings() != null && !isIcebergMetadata(datasetPointer) && datasetPointer.getFormatSettings().getType() == FileType.DELTA;
   }
 
   private static boolean isParquetDataset(TableMetadata datasetPointer) {
@@ -261,6 +309,26 @@ public class FileSystemRulesFactory extends StoragePluginTypeRulesFactory {
 
   public static boolean isIcebergMetadata(TableMetadata datasetPointer) {
     return datasetPointer.getDatasetConfig().getPhysicalDataset() != null && Boolean.TRUE.equals(datasetPointer.getDatasetConfig().getPhysicalDataset().getIcebergMetadataEnabled());
+  }
+
+  public static boolean checkSupportForParquetPushdown(TableMetadata tableMetadata) {
+    FileConfig fileConfig = tableMetadata.getFormatSettings();
+    if(fileConfig != null) {
+      return hasParquetDataFiles(fileConfig)
+        || hasIcebergParquetDataFiles(fileConfig)
+        || hasDeltaLakeParquetDataFiles(fileConfig);
+    }
+    if(isTableFilesMetadataFunction(tableMetadata)
+      || isDeltaLakeHistoryFunction(tableMetadata)){
+      return false;
+    }
+    Optional<FileType> filetype = Optional.ofNullable(tableMetadata.getDatasetConfig())
+      .map(DatasetConfig::getPhysicalDataset)
+      .map(PhysicalDataset::getIcebergMetadata)
+      .map(IcebergMetadata::getFileType);
+    return filetype.isPresent()
+      //we only support Parquet for native Iceberg
+      && (FileType.PARQUET.equals(filetype.get()) || FileType.ICEBERG.equals(filetype.get()));
   }
 
   public static class IcebergMetadataFilesystemScanPrule extends ConverterRule {
@@ -275,12 +343,20 @@ public class FileSystemRulesFactory extends StoragePluginTypeRulesFactory {
     public RelNode convert(RelNode rel) {
       FilesystemScanDrel drel = (FilesystemScanDrel) rel;
       InternalIcebergScanTableMetadata icebergTableMetadata = getInternalIcebergTableMetadata(drel.getTableMetadata(), context);
-      return new IcebergScanPrel(drel.getCluster(), drel.getTraitSet().plus(Prel.PHYSICAL), drel.getTable(),
+      IcebergScanPrel icebergScanPrel = new IcebergScanPrel(drel.getCluster(), drel.getTraitSet().plus(Prel.PHYSICAL), drel.getTable(),
                                  icebergTableMetadata.getIcebergTableStoragePlugin(), icebergTableMetadata,
                                  drel.getProjectedColumns(), drel.getObservedRowcountAdjustment(), drel.getHints(),
-                                 drel.getFilter(), drel.isArrowCachingEnabled(), drel.getPartitionFilter(), context,
+                                 drel.getFilter(), drel.getRowGroupFilter(), drel.isArrowCachingEnabled(), drel.getPartitionFilter(), context,
                                  true, drel.getSurvivingRowCount(), drel.getSurvivingFileCount(),
-                                 drel.canUsePartitionStats(), ManifestScanFilters.empty());
+                                 drel.canUsePartitionStats(), ManifestScanFilters.empty(), drel.getSnapshotDiffContext(),
+                                 drel.isPartitionValuesEnabled());
+      //generate query plans for cases when we are querying the data changes between snapshots
+      //for example Incremental Refresh by Snapshot (Append only or By Partition)
+      if(drel.getSnapshotDiffContext().isEnabled()) {
+        final IcebergScanPlanBuilder icebergScanPlanBuilder = new IcebergScanPlanBuilder(icebergScanPrel);
+        return icebergScanPlanBuilder.build();
+      }
+      return icebergScanPrel;
     }
 
     @Override
@@ -303,7 +379,7 @@ public class FileSystemRulesFactory extends StoragePluginTypeRulesFactory {
     }
 
     public static boolean supportsConvertedIcebergDataset(OptimizerRulesContext context, TableMetadata datasetPointer) {
-      if (isTableFilesMetadataFunction(datasetPointer)) {
+      if (isTableFilesMetadataFunction(datasetPointer) || isDeltaLakeHistoryFunction(datasetPointer)) {
         return false;
       }
       boolean isIcebergMetadata = isIcebergMetadata(datasetPointer);

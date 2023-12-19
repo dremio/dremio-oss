@@ -15,7 +15,7 @@
  */
 
 import { SmartResource } from "smart-resource";
-import { getSchedule } from "../endpoints/ArcticCatalogs/Optimization/getSchedule";
+import { getSchedule } from "@inject/arctic/endpoints/ArcticCatalogs/Optimization/getSchedule";
 
 export const optimizationScheduleResource = new SmartResource((params) =>
   getSchedule({ ...params })

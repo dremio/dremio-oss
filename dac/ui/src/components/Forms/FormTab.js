@@ -17,12 +17,9 @@ import { Component } from "react";
 
 import PropTypes from "prop-types";
 import FormSection from "components/Forms/FormSection";
+import { SourceSettingsMessage } from "@inject/components/SourceSettingsMessage/SourceSettingsMessage.tsx";
 import { HoverHelp } from "dremio-ui-lib";
-import {
-  tabTitle,
-  tabSections,
-  tabTallSections,
-} from "uiTheme/less/forms.less";
+import { tabTitle, tabSections } from "uiTheme/less/forms.less";
 
 export default class FormTab extends Component {
   static propTypes = {
@@ -43,8 +40,7 @@ export default class FormTab extends Component {
     } = this.props;
     const tabConfigJson = tabConfig.getConfig();
     const tabTitleText = tabConfig.getTitle(formConfig);
-    const tabSectionsClass =
-      tabConfigJson.layout === "tall" ? tabTallSections : tabSections;
+    const tabSectionsClass = tabSections;
 
     const isSectionDisabled = (section, propsFields, propDisabled) => {
       const controller = section.getConfig().checkboxController;
@@ -56,8 +52,14 @@ export default class FormTab extends Component {
           !propsFields.config[controller].value)
       );
     };
+
     return (
       <div>
+        <SourceSettingsMessage
+          sourceType={formConfig?.sourceType}
+          fields={fields}
+          tabConfig={tabConfig}
+        />
         {showTabTitle && !!tabTitleText && (
           <div className={tabTitle}>
             {tabTitleText}

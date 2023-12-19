@@ -169,10 +169,10 @@ public class TypeValidators {
   }
 
   /**
-   * AdminOptionValidator
+   * String validator which can only be set at the SYSTEM level scope
    */
-  public static class AdminOptionValidator extends StringValidator {
-    public AdminOptionValidator(String name, String def) {
+  public static class AdminStringValidator extends StringValidator {
+    public AdminStringValidator(String name, String def) {
       super(name, def);
     }
 
@@ -193,6 +193,26 @@ public class TypeValidators {
   public static class AdminBooleanValidator extends BooleanValidator {
     public AdminBooleanValidator(String name, boolean def) {
       super(name, def);
+    }
+
+    @Override
+    public void validate(OptionValue v) {
+      if (v.getType() != OptionType.SYSTEM) {
+        throw UserException.validationError()
+          .message("Admin related settings can only be set at SYSTEM level scope. Given scope '%s'.", v.getType())
+          .build(logger);
+      }
+      super.validate(v);
+    }
+  }
+
+  /**
+   * Positive Long validator which can only be set at the SYSTEM level scope
+   */
+  public static class AdminPositiveLongValidator extends PositiveLongValidator {
+
+    public AdminPositiveLongValidator(String name, long max, long def) {
+      super(name, max, def);
     }
 
     @Override

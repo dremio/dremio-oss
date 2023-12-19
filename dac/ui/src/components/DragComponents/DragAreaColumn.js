@@ -76,7 +76,7 @@ export class DragAreaColumn extends Component {
     pattern: "",
   };
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     if (nextProps.disabled) {
       this.setState({
         pattern: "",
@@ -223,7 +223,7 @@ export class DragAreaColumn extends Component {
               inputStyle={styles.searchInput}
               value={this.state.pattern}
               onChange={this.handlePatternChange}
-              placeholder={la("Choose field…")}
+              placeholder={laDeprecated("Choose field…")}
             />
           }
           className={preventDrag ? disabledContent : content}

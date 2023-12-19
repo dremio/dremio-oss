@@ -58,8 +58,8 @@ public class HiveIncrementalRefreshDatasetPlanBuilder extends HiveFullRefreshDat
   public HiveIncrementalRefreshDatasetPlanBuilder(SqlHandlerConfig config, SqlRefreshDataset sqlNode, UnlimitedSplitsMetadataProvider metadataProvider){
     super(config, sqlNode, metadataProvider);
     logger.debug("Doing a hive incremental refresh on dataset. Dataset's full path is {}", datasetPath);
-    icebergCommandType = IcebergCommandType.INCREMENTAL_METADATA_REFRESH;
     isPartialRefresh = sqlNode.isPartialRefresh();
+    icebergCommandType = isPartialRefresh ? IcebergCommandType.PARTIAL_METADATA_REFRESH : IcebergCommandType.INCREMENTAL_METADATA_REFRESH;
   }
 
   @Override

@@ -14,17 +14,13 @@
  * limitations under the License.
  */
 import { Component } from "react";
-import { compose } from "redux";
-import { withRouter } from "react-router";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
-import Immutable from "immutable";
 
 import Modal from "components/Modals/Modal";
 
 import ApiUtils from "utils/apiUtils/apiUtils";
 import { addNewFolderForSpace } from "actions/resources/spaceDetails";
-import { getRootEntityType } from "@app/utils/pathUtils";
 import { intl } from "@app/utils/intl";
 
 import AddFolderForm from "../forms/AddFolderForm";
@@ -35,55 +31,45 @@ export class AddFolderModal extends Component {
   static propTypes = {
     isOpen: PropTypes.bool,
     hide: PropTypes.func,
+    addToRoot: PropTypes.bool,
 
     //connected
-    parentEntity: PropTypes.instanceOf(Immutable.Map),
-    parentType: PropTypes.string,
     addNewFolderForSpace: PropTypes.func,
+    disabled: PropTypes.bool,
   };
 
-  static contextTypes = {
-    username: PropTypes.string,
-  };
-
-  constructor(props) {
-    super(props);
-    this.submit = this.submit.bind(this);
-  }
-
-  submit(values) {
+  submit = (values) => {
     return ApiUtils.attachFormSubmitHandlers(
-      this.props.addNewFolderForSpace(values.name)
+      this.props.addNewFolderForSpace(values.name, this.props.addToRoot)
     ).then(() => this.props.hide());
-  }
+  };
 
   render() {
-    const { isOpen, hide, parentType } = this.props;
+    const { isOpen, hide, disabled } = this.props;
     return (
       <Modal
         size="small"
         title={intl.formatMessage({ id: "Folder.AddFolder" })}
         isOpen={isOpen}
         hide={hide}
+        style={{ height: 250, top: "30%" }}
+        className="--newModalStyles"
       >
         <AddFolderForm
           onFormSubmit={this.submit}
           onCancel={hide}
-          parentType={parentType}
+          disabled={disabled}
         />
       </Modal>
     );
   }
 }
 
-function mapStateToProps(state, props) {
-  const parentType = getRootEntityType(props.location.pathname);
-  return {
-    parentType,
-  };
-}
-
-export default compose(
-  withRouter,
-  connect(mapStateToProps, { addNewFolderForSpace })
+export default connect(
+  (state) => {
+    return {
+      disabled: !state.form.addFolder?.name?.value,
+    };
+  },
+  { addNewFolderForSpace }
 )(AddFolderModal);

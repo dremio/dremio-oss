@@ -42,6 +42,8 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 
+import io.protostuff.ByteString;
+
 public class JSONFormatPlugin extends EasyFormatPlugin<JSONFormatConfig> {
 
   private static final boolean IS_COMPRESSIBLE = true;
@@ -61,8 +63,8 @@ public class JSONFormatPlugin extends EasyFormatPlugin<JSONFormatConfig> {
   }
 
   @Override
-  public RecordReader getRecordReader(OperatorContext context, FileSystem dfs, EasyDatasetSplitXAttr splitAttributes, List<SchemaPath> columns, ExtendedEasyReaderProperties properties) throws ExecutionSetupException {
-    return new JSONRecordReader(context, splitAttributes.getPath(), getFsPlugin().getCompressionCodecFactory(), dfs, columns, properties.isSchemaImposed(), properties.getExtendedFormatOptions());
+  public RecordReader getRecordReader(OperatorContext context, FileSystem dfs, EasyDatasetSplitXAttr splitAttributes, List<SchemaPath> columns, ExtendedEasyReaderProperties properties, ByteString extendedProperties) throws ExecutionSetupException {
+    return new JSONRecordReader(context, splitAttributes.getPath(), getFsPlugin().getCompressionCodecFactory(), dfs, columns, properties, extendedProperties);
   }
 
   @Override

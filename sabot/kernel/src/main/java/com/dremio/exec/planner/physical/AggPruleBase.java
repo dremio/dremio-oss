@@ -16,6 +16,9 @@
 
 package com.dremio.exec.planner.physical;
 
+import static com.dremio.exec.planner.sql.DremioSqlOperatorTable.ARRAY_AGG;
+import static com.dremio.exec.planner.sql.DremioSqlOperatorTable.PHASE1_ARRAY_AGG;
+
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -123,6 +126,25 @@ public abstract class AggPruleBase extends Prule {
             call.getArgList().stream().map(i ->
               aggregateRel.getInput().getRowType().getFieldList().get(i).getType()).collect(Collectors.toList())),
           call.name);
+      } else if (ARRAY_AGG.equals(call.getAggregation())) {
+        return AggregateCall.create(
+          PHASE1_ARRAY_AGG,
+          call.isDistinct(),
+          call.isApproximate(),
+          call.getArgList(),
+          call.filterArg,
+          call.collation,
+          PHASE1_ARRAY_AGG.inferReturnType(
+            relDataTypeFactory,
+            call.getArgList().stream().map(i ->
+              aggregateRel
+                .getInput()
+                .getRowType()
+                .getFieldList()
+                .get(i)
+                .getType())
+              .collect(Collectors.toList())),
+          PHASE1_ARRAY_AGG.getName());
       } else {
         return call;
       }

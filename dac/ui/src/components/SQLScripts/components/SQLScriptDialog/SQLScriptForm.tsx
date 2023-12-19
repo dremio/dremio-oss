@@ -32,6 +32,7 @@ type SQLScriptFormProps = {
   fields: any;
   intl: any;
   error: any;
+  saveAsDialogError: any;
   onCancel: () => void;
 };
 
@@ -49,10 +50,17 @@ function SQLScriptForm(props: SQLScriptFormProps): React.ReactElement {
     initialValues,
     intl,
     error,
+    saveAsDialogError,
   } = props;
-  const endpointError = error
-    ? { error: error.message.get("errorMessage"), touched: true }
-    : {};
+  const endpointError =
+    saveAsDialogError || error
+      ? {
+          error: error
+            ? error.message.get("errorMessage")
+            : saveAsDialogError?.responseBody?.errorMessage,
+          touched: true,
+        }
+      : {};
   return (
     <ModalForm
       {...modalFormProps(props)}

@@ -30,6 +30,7 @@ import org.apache.calcite.rex.RexLocalRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexOver;
 import org.apache.calcite.rex.RexRangeRef;
+import org.apache.calcite.rex.RexSubQuery;
 import org.apache.calcite.rex.RexVisitorImpl;
 
 import com.dremio.exec.planner.RoutingShuttle;
@@ -106,6 +107,16 @@ public class FlattenVisitors {
         }
       }
 
+      return false;
+    }
+
+    @Override
+    public Boolean visitSubQuery(RexSubQuery subQuery) {
+      for (RexNode sub: subQuery.getOperands()) {
+        if (sub.accept(this)) {
+          return true;
+        }
+      }
       return false;
     }
 

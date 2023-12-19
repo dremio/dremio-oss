@@ -18,18 +18,20 @@ import { useEffect } from "react";
 import { useResourceSnapshot } from "smart-resource/react";
 
 import SQLFunctionsResource from "@app/resources/SQLFunctionsResource";
+import { ModifiedSQLFunction } from "@app/endpoints/SQLFunctions/listSQLFunctions";
 
-let hasFetched: boolean = false;
-
-export const useSqlFunctions = () => {
-  const [sqlFunctions, sqlFunctionsErr] = useResourceSnapshot(SQLFunctionsResource);
+export const useSqlFunctions = (): [
+  sqlFunctions: ModifiedSQLFunction[] | null,
+  sqlFunctionsError: any
+] => {
+  const [sqlFunctions, sqlFunctionsErr] =
+    useResourceSnapshot(SQLFunctionsResource);
 
   useEffect(() => {
-    if (!hasFetched) {
-      hasFetched = true;
+    if (!sqlFunctions && !sqlFunctionsErr) {
       SQLFunctionsResource.fetch();
     }
-  });
+  }, [sqlFunctions, sqlFunctionsErr]);
 
   return [sqlFunctions, sqlFunctionsErr];
 };

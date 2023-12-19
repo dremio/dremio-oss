@@ -14,7 +14,69 @@
  * limitations under the License.
  */
 
+@import "~@app/uiTheme/less/mixins.less";
+@import "~@app/uiTheme/less/color-schema.less";
+
 :global {
+  .nessieBreadcrumb {
+    font-size: 16px;
+    font-weight: 400;
+    .flex-center;
+    .font-icon {
+      display: flex !important;
+    }
+
+    .MuiBreadcrumbs-separator {
+      margin-left: 4px;
+      margin-right: 4px;
+    }
+
+    &-menuTrigger {
+      cursor: pointer;
+    }
+
+    .MuiBreadcrumbs-root {
+      color: @MAIN_TEXT !important;
+      font-size: 16px !important;
+      margin-left: 4px;
+    }
+
+    .MuiBreadcrumbs-li.MuiBreadcrumbs-li > * {
+      max-width: 375px;
+      white-space: nowrap;
+      display: inline-block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      vertical-align: top;
+    }
+
+    &-repoIcon {
+      display: flex;
+      color: @FIGMA_TEXT_LESS_IMPORTANT;
+    }
+
+    .MuiBreadcrumbs-separator,
+    span.nessieBreadcrumb-item {
+      font-weight: 600;
+    }
+  }
+
+  @media screen and (max-width: 1692px) {
+    .nessieBreadcrumb {
+      .MuiBreadcrumbs-li.MuiBreadcrumbs-li > * {
+        max-width: 330px;
+      }
+    }
+  }
+
+  @media screen and (max-width: 1550px) {
+    .nessieBreadcrumb {
+      .MuiBreadcrumbs-li.MuiBreadcrumbs-li > * {
+        max-width: 240px;
+      }
+    }
+  }
+
   .arcticBreadcrumb {
     font-size: 14px !important;
 

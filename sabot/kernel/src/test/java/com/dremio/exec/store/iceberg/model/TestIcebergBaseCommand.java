@@ -49,7 +49,7 @@ public class TestIcebergBaseCommand extends BaseTestQuery {
 
   private class MockCommand extends IcebergBaseCommand {
     public MockCommand(File tableFolder) {
-      super(new Configuration(), tableFolder.getAbsolutePath(), null, TestIcebergBaseCommand.this.tableOperations);
+      super(new Configuration(), tableFolder.getAbsolutePath(), TestIcebergBaseCommand.this.tableOperations, null);
     }
   }
 }

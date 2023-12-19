@@ -43,6 +43,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.InvalidProtocolBufferException;
 
+import io.protostuff.ByteString;
+
 /**
  * A lightweight object used to manage the creation of a reader. Allows pre-initialization of data before reader
  * construction.
@@ -57,6 +59,7 @@ public class EasySplitReaderCreator extends SplitReaderCreator implements AutoCl
   private final EasyFormatPlugin formatPlugin;
   private final CompressionCodecFactory compressionCodecFactory;
   private final ExtendedFormatOptions extendedFormatOptions;
+  private final ByteString extendedProperty;
 
   public EasySplitReaderCreator(OperatorContext context,
                                 FileSystem fs,
@@ -65,7 +68,8 @@ public class EasySplitReaderCreator extends SplitReaderCreator implements AutoCl
                                 List<SchemaPath> columns,
                                 FormatPlugin formatPlugin,
                                 CompressionCodecFactory compressionCodecFactory,
-                                ExtendedFormatOptions extendedFormatOptions) {
+                                ExtendedFormatOptions extendedFormatOptions,
+                                ByteString extendedProperty) {
     this.datasetSplit = splitInfo;
 
     try {
@@ -90,6 +94,7 @@ public class EasySplitReaderCreator extends SplitReaderCreator implements AutoCl
     this.formatPlugin = (EasyFormatPlugin) formatPlugin;
     this.compressionCodecFactory = compressionCodecFactory;
     this.extendedFormatOptions = extendedFormatOptions;
+    this.extendedProperty = extendedProperty;
   }
 
   @Override
@@ -147,9 +152,13 @@ public class EasySplitReaderCreator extends SplitReaderCreator implements AutoCl
       if (logger.isDebugEnabled()) {
         logger.debug("'COPY INTO' Getting record reader for {}", easySplitXAttr.toString());
       }
-      return formatPlugin.getRecordReader(context, fs, easySplitXAttr, columns, new ExtendedEasyReaderProperties(true, extendedFormatOptions));
+      return formatPlugin.getRecordReader(context, fs, easySplitXAttr, columns, getExtendedEasyReaderProperties(), extendedProperty);
     } catch (ExecutionSetupException e) {
       throw UserException.dataReadError().message("Unable to get record reader").buildSilently();
     }
+  }
+
+  private ExtendedEasyReaderProperties getExtendedEasyReaderProperties() {
+    return new ExtendedEasyReaderProperties.Builder(true, extendedFormatOptions).build();
   }
 }

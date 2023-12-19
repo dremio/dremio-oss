@@ -16,9 +16,34 @@
 import { combineReducers } from "redux";
 
 import jobs from "./jobs";
+import { SET_TAB_VIEW } from "@app/actions/resources/scripts";
+import { tabJobsReducer } from "./tabJobsReducer";
+import { cloneDeep } from "lodash";
 
-const jobsReducer = combineReducers({
-  jobs,
-});
+const jobsReducer = (curState, action) => {
+  const state = combineReducers({
+    jobs,
+    tabJobs: (...args) => {
+      return tabJobsReducer({
+        jobs: jobs(curState?.jobs, action),
+      })(...args);
+    },
+  })(curState, action);
+
+  if (action.type === SET_TAB_VIEW) {
+    const {
+      script: { id: scriptId },
+    } = action;
+    const tabJobs = state.tabJobs?.[scriptId];
+    if (!tabJobs) return state;
+
+    return {
+      ...state,
+      jobs: cloneDeep(tabJobs),
+    };
+  }
+
+  return state;
+};
 
 export default jobsReducer;

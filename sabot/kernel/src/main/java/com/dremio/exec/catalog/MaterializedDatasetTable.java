@@ -15,9 +15,11 @@
  */
 package com.dremio.exec.catalog;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.config.CalciteConnectionConfig;
@@ -27,11 +29,14 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelReferentialConstraint;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.schema.Schema.TableType;
 import org.apache.calcite.schema.Statistic;
+import org.apache.calcite.schema.Table;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlNode;
 
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.datastore.SearchTypes;
 import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
@@ -58,14 +63,17 @@ public class MaterializedDatasetTable implements DremioTable {
   private final boolean complexTypeSupport;
   private final TableVersionContext versionContext;
 
+  private final List<RelDataTypeField> extendedFields;
+
   public MaterializedDatasetTable(
-      NamespaceKey canonicalPath,
-      StoragePluginId pluginId,
-      String user,
-      Supplier<DatasetConfig> datasetConfig,
-      Supplier<List<PartitionChunk>> partitionChunks,
-      boolean complexTypeSupport,
-      TableVersionContext versionContext
+    NamespaceKey canonicalPath,
+    StoragePluginId pluginId,
+    String user,
+    Supplier<DatasetConfig> datasetConfig,
+    Supplier<List<PartitionChunk>> partitionChunks,
+    boolean complexTypeSupport,
+    TableVersionContext versionContext,
+    List<RelDataTypeField> extendedFields
   ) {
     this.canonicalPath = canonicalPath;
     this.pluginId = pluginId;
@@ -74,6 +82,7 @@ public class MaterializedDatasetTable implements DremioTable {
     this.user = user;
     this.complexTypeSupport = complexTypeSupport;
     this.versionContext = versionContext;
+    this.extendedFields = new ArrayList<>(extendedFields);
   }
 
   @Override
@@ -84,21 +93,21 @@ public class MaterializedDatasetTable implements DremioTable {
   @Override
   public RelNode toRel(RelOptTable.ToRelContext context, RelOptTable relOptTable) {
     return new ScanCrel(
-        context.getCluster(),
-        context.getCluster().traitSetOf(Convention.NONE),
-        pluginId,
-        new MaterializedTableMetadata(pluginId, datasetConfig.get(), user, partitionChunks.get(), versionContext),
-        null,
-        1.0d,
-        ImmutableList.of(),
-        true,
-        true);
+      context.getCluster(),
+      context.getCluster().traitSetOf(Convention.NONE),
+      pluginId,
+      new MaterializedTableMetadata(pluginId, datasetConfig.get(), user, partitionChunks.get(), versionContext),
+      null,
+      1.0d,
+      ImmutableList.of(),
+      true,
+      true);
   }
 
   @Override
   public RelDataType getRowType(RelDataTypeFactory typeFactory) {
-    return CalciteArrowHelper.wrap(CalciteArrowHelper.fromDataset(datasetConfig.get()))
-        .toCalciteRecordType(typeFactory, (Field f) -> !NamespaceTable.SYSTEM_COLUMNS.contains(f.getName()), complexTypeSupport);
+    return CalciteArrowHelper.wrap(CalciteArrowHelper.fromDataset(getDatasetConfig()))
+      .toCalciteRecordType(typeFactory, (Field f) -> !NamespaceTable.SYSTEM_COLUMNS.contains(f.getName()), complexTypeSupport);
   }
 
   @Override
@@ -166,9 +175,9 @@ public class MaterializedDatasetTable implements DremioTable {
 
     private static long getSplitVersion(DatasetConfig datasetConfig) {
       return Optional.ofNullable(datasetConfig)
-          .map(DatasetConfig::getReadDefinition)
-          .map(ReadDefinition::getSplitVersion)
-          .orElse(0L);
+        .map(DatasetConfig::getReadDefinition)
+        .map(ReadDefinition::getSplitVersion)
+        .orElse(0L);
     }
 
     @Override
@@ -181,5 +190,58 @@ public class MaterializedDatasetTable implements DremioTable {
     public TableVersionContext getVersionContext() {
       return versionContext;
     }
+  }
+
+  @Override
+  public Table extend(List<RelDataTypeField> fields) {
+    boolean tryingToExtendExistingField = getSchema().getFields().stream().anyMatch(
+      field -> fields.stream().anyMatch(
+        extendingField -> extendingField.getName().equals(field.getName())));
+    if (tryingToExtendExistingField) {
+      return this;
+    }
+
+    return new MaterializedDatasetTable(
+      canonicalPath,
+      pluginId,
+      user,
+      datasetConfig,
+      partitionChunks,
+      complexTypeSupport,
+      versionContext,
+      fields
+    ) {
+      private BatchSchema schema;
+      @Override
+      public DatasetConfig getDatasetConfig() {
+        if (schema == null) {
+          schema = BatchSchema.deserialize((datasetConfig.get().getRecordSchema())).cloneWithFields(fields.stream().map(
+              field -> CalciteArrowHelper.fieldFromCalciteRowType(field.getName(), field.getType()).get())
+            .collect(ImmutableList.toImmutableList()));
+          return datasetConfig.get().setRecordSchema(schema.toByteString());
+        }
+        return datasetConfig.get();
+      }
+    };
+  }
+
+  @Override
+  public int getExtendedColumnOffset() {
+    return getSchema().getFieldCount() - extendedFields.size();
+  }
+
+  @Override
+  public String getExtendTableSql() {
+    if (extendedFields.isEmpty()) {
+      return "";
+    }
+
+    return String.format("EXTEND (%s)", extendedFields.stream().map(
+      field -> String.format("\"%s\" %s", field.getName(), field.getType())).collect(Collectors.joining(", ")));
+  }
+
+  @Override
+  public boolean hasAtSpecifier() {
+    return true;
   }
 }

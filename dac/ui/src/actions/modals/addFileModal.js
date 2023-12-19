@@ -148,7 +148,6 @@ export const FILE_FORMAT_SAVE_FAILURE = "FILE_FORMAT_SAVE_FAILURE";
 export function saveFileFormat(resourcePath, values, viewId) {
   const meta = {
     viewId,
-    invalidateViewIds: ["HomeContents"],
   };
   const abortInfo = apiUtils.getAbortInfo(loadAndSaveGroupName);
   const nonAbortableMeta = { ...meta, abortInfo };
@@ -159,7 +158,10 @@ export function saveFileFormat(resourcePath, values, viewId) {
     [RSAA]: {
       types: [
         { type: FILE_FORMAT_SAVE_REQUEST, meta: nonAbortableMeta },
-        { type: FILE_FORMAT_SAVE_SUCCESS, meta },
+        {
+          type: FILE_FORMAT_SAVE_SUCCESS,
+          meta: { ...meta, invalidateViewIds: ["HomeContents"] },
+        },
         { type: FILE_FORMAT_SAVE_FAILURE, meta },
       ],
       method: "PUT",
@@ -179,7 +181,6 @@ function postUploadFinish(file, values, viewId) {
   const resourcePath = file.getIn(["links", "upload_finish"]);
   const meta = {
     viewId,
-    invalidateViewIds: ["HomeContents"],
   };
 
   const apiCall = new APIV2Call().fullpath(resourcePath);
@@ -188,7 +189,10 @@ function postUploadFinish(file, values, viewId) {
     [RSAA]: {
       types: [
         { type: UPLOAD_FINISH_REQUEST, meta },
-        { type: UPLOAD_FINISH_SUCCESS, meta },
+        {
+          type: UPLOAD_FINISH_SUCCESS,
+          meta: { ...meta, invalidateViewIds: ["HomeContents"] },
+        },
         { type: UPLOAD_FINISH_FAILURE, meta },
       ],
       method: "POST",

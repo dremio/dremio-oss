@@ -68,7 +68,7 @@ export default class General extends Component {
           <div style={{ ...formRow, display: "flex", marginBottom: 10 }}>
             <FieldWithError
               errorPlacement="bottom"
-              label={la("Name")}
+              label={laDeprecated("Name")}
               {...name}
               style={fieldWithErrorStyle}
             >

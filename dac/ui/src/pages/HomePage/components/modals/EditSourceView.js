@@ -47,6 +47,9 @@ import { viewStateWrapper } from "uiTheme/less/forms.less";
 import { trimObjectWhitespace } from "./utils";
 import { isVersionedReflectionsEnabled } from "./AddEditSourceUtils";
 import { isVersionedSource } from "@app/utils/sourceUtils";
+import { getJSONElementOverrides } from "@inject/utils/FormUtils/formOverrideUtils";
+import clsx from "clsx";
+import * as classes from "./EditSourceView.module.less";
 
 export const VIEW_ID = "EditSourceView";
 
@@ -58,10 +61,7 @@ export const processUiConfig = (uiConfig) => {
       (el) => el.propertyName !== USE_LEGACY_DIALECT_PROPERTY_NAME
     );
   }
-  elements = elements.map((el) => ({
-    ...el,
-    propertyName: FormUtils.addFormPrefixToPropName(el.propertyName),
-  }));
+  elements = getJSONElementOverrides(uiConfig.elements, uiConfig.sourceType);
   return {
     ...uiConfig,
     elements,
@@ -201,11 +201,11 @@ export class EditSourceView extends PureComponent {
           .then((data) => {
             if (data && data.isMetadataImpacting) {
               this.props.showConfirmationDialog({
-                title: la("Warning"),
-                text: la(
+                title: laDeprecated("Warning"),
+                text: laDeprecated(
                   "You made a metadata impacting change.  This change will cause Dremio to clear permissions, formats and reflections on all datasets in this source."
                 ),
-                confirmText: la("Confirm"),
+                confirmText: laDeprecated("Confirm"),
                 dataQa: "metadata-impacting",
                 confirm: () => {
                   this.reallySubmitEdit(formData, sourceType)
@@ -282,6 +282,7 @@ export class EditSourceView extends PureComponent {
     if (didLoadFail || hasError) {
       vs = new Immutable.fromJS({
         isFailed: true,
+        // eslint-disable-next-line no-undef
         error: { message: hasError || errorMessage },
       });
     }
@@ -289,7 +290,7 @@ export class EditSourceView extends PureComponent {
     return (
       <ViewStateWrapper
         viewState={vs}
-        className={viewStateWrapper}
+        className={clsx(viewStateWrapper, classes["edit-source-form"])}
         hideChildrenWhenFailed={false}
         onDismissError={onDismissError}
       >

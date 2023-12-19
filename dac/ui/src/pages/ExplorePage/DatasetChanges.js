@@ -25,15 +25,13 @@ import {
   getExploreState,
 } from "@app/selectors/explore";
 import { isSqlChanged } from "@app/sagas/utils";
-import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
-import { newQuery } from "@app/exports/paths";
+import { isNewQueryUrl } from "@app/utils/explorePageTypeUtils";
 
 const mapStateToProp = (state, ownProps) => {
   const { location } = ownProps; // withRouter is required for this
   // urlability
-  const loc = rmProjectBase(location.pathname);
-  const isNewQuery = loc === newQuery();
   const { query } = location || {};
+  const isNewQuery = isNewQueryUrl(location);
   const explorePageState = getExploreState(state);
 
   let datasetSql = "";

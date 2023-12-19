@@ -15,6 +15,7 @@
  */
 
 @use "../../base/components/section-message";
+@use "../../utilities";
 
 .dremio-section-message {
   --dremio-section-message--color: var(--dremio--color--text--main);
@@ -66,6 +67,14 @@
 
     dremio-icon {
       color: var(--dremio--color--status--success--foreground);
+    }
+  }
+
+  &--discovery {
+    --dremio-section-message--background: lch(93 7.31 286.07);
+    --dremio-section-message--color: lch(5 36.31 292.07);
+    dremio-icon {
+      color: lch(26 61.31 292.07);
     }
   }
 }

@@ -26,9 +26,11 @@ type IconButtonProps =
       type?: "button" | "submit";
     }) & {
       tooltip: React.ReactNode;
+      tooltipPlacement: string;
       "aria-label"?: void;
     } & {
       tooltip?: void;
+      tooltipPlacement?: void;
       "aria-label": string;
     };
 
@@ -51,6 +53,7 @@ export const IconButton: React.FC<IconButtonProps> = (props) => {
     as = "button",
     className,
     tooltip,
+    tooltipPlacement,
     "aria-label": ariaLabel,
     ...rest
   } = props;
@@ -69,7 +72,11 @@ export const IconButton: React.FC<IconButtonProps> = (props) => {
   });
 
   if (tooltip) {
-    return <Tooltip title={tooltip}>{ButtonElement}</Tooltip>;
+    return (
+      <Tooltip title={tooltip} placement={tooltipPlacement}>
+        {ButtonElement}
+      </Tooltip>
+    );
   } else {
     return ButtonElement;
   }

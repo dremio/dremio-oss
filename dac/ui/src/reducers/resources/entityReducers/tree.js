@@ -16,10 +16,12 @@
 import {
   CLEAR_RESOURCE_TREE_BY_NAME,
   LOAD_RESOURCE_TREE_SUCCESS,
+  CLEAR_RESOURCE_TREE,
 } from "actions/resources/tree";
 import {
   resourceTreeNodeDecorator,
   clearResourcesByName,
+  clearResourceTree,
 } from "@app/components/Tree/resourceTreeUtils";
 
 export default (state, action) => {
@@ -30,6 +32,8 @@ export default (state, action) => {
     case CLEAR_RESOURCE_TREE_BY_NAME: {
       return clearResourcesByName(state, action);
     }
+    case CLEAR_RESOURCE_TREE:
+      return clearResourceTree(state, action);
     default:
       return state;
   }

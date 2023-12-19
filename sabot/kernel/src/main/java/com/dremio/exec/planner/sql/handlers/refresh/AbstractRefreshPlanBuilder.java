@@ -54,7 +54,6 @@ import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.DatasetSplit;
 import com.dremio.connector.metadata.PartitionChunk;
 import com.dremio.connector.metadata.PartitionChunkListing;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.catalog.CatalogUser;
@@ -104,7 +103,9 @@ import com.dremio.exec.store.metadatarefresh.RefreshExecTableMetadata;
 import com.dremio.exec.store.metadatarefresh.dirlisting.DirListingScanPrel;
 import com.dremio.io.file.Path;
 import com.dremio.service.namespace.MetadataProtoUtils;
+import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.PartitionChunkId;
 import com.dremio.service.namespace.PartitionChunkMetadata;
 import com.dremio.service.namespace.PartitionChunkMetadataImpl;
@@ -117,7 +118,8 @@ import com.dremio.service.namespace.dataset.proto.ScanStatsType;
 import com.dremio.service.namespace.dirlist.proto.DirListInputSplitProto;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.namespace.proto.EntityId;
-import com.dremio.service.users.SystemUser;
+import com.dremio.service.namespace.source.proto.MetadataPolicy;
+import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -211,10 +213,12 @@ public abstract class AbstractRefreshPlanBuilder implements MetadataRefreshPlanB
 
   @WithSpan
   protected boolean repairAndSaveDatasetConfigIfNecessary() {
-    RepairKvstoreFromIcebergMetadata repairOperation = new RepairKvstoreFromIcebergMetadata(datasetConfig, metaStoragePlugin,
-      config.getContext().getNamespaceService(SystemUser.SYSTEM_USERNAME),
+    RepairKvstoreFromIcebergMetadata repairOperation = new RepairKvstoreFromIcebergMetadata(
+      datasetConfig,
+      metaStoragePlugin,
+      config.getContext().getSystemNamespaceService(),
       catalog.getSource(tableNSKey.getRoot()),
-      config.getContext().getOptions().getOption(ExecConstants.ENABLE_MAP_DATA_TYPE));
+      config.getContext().getOptions());
     return repairOperation.checkAndRepairDatasetWithoutQueryRetry();
   }
 
@@ -299,7 +303,12 @@ public abstract class AbstractRefreshPlanBuilder implements MetadataRefreshPlanB
       final DistributionTrait childDist = childPrel.getTraitSet().getTrait(DistributionTraitDef.INSTANCE);
       final RelTraitSet childTraitSet = traitSet.plus(childDist).plus(Prel.PHYSICAL);
 
-      final IcebergManifestWriterPrel writerPrel = new IcebergManifestWriterPrel(cluster, childTraitSet, childPrel, fsCreateTableEntry);
+      final IcebergManifestWriterPrel writerPrel = new IcebergManifestWriterPrel(cluster,
+        childTraitSet,
+        childPrel,
+        fsCreateTableEntry,
+        // not single instance of manifest writer
+        false);
 
       final RelTraitSet singletonTraitSet = traitSet.plus(DistributionTrait.SINGLETON).plus(Prel.PHYSICAL);
       UnionExchangePrel exchangePrel = new UnionExchangePrel(cluster, singletonTraitSet, writerPrel);
@@ -311,16 +320,22 @@ public abstract class AbstractRefreshPlanBuilder implements MetadataRefreshPlanB
     protected IcebergTableProps getIcebergTableProps() {
       final String tableMappingPath = Path.of(metaStoragePlugin.getConfig().getPath().toString()).resolve(metadataProvider.getTableUUId()).toString();
       // If dist is local, ensure it is prefixed with the scheme in the dremio.conf - `file:///`
-      logger.info("Writing metadata for {} at {}", tableNSKey, tableMappingPath);
+      logger.info("Building the Iceberg metadata for {} at {}", tableNSKey, tableMappingPath);
 
       List<String> partitionPaths = readSignatureEnabled ? getPartitionPaths(() -> refreshExecTableMetadata.getSplits()) : new ArrayList<>(); // This is later used in the executors only when computing read signature
       final IcebergTableProps icebergTableProps = new IcebergTableProps(tableMappingPath, metadataProvider.getTableUUId(),
-        tableSchema, partitionCols, icebergCommandType, null,  tableNSKey.getSchemaPath(), tableRootPath, null, null, null);
+        tableSchema, partitionCols, icebergCommandType, null,  tableNSKey.getSchemaPath(), tableRootPath, null, null, null, null, null, Collections.emptyMap(), datasetFileType);
       icebergTableProps.setPartitionPaths(partitionPaths);
       icebergTableProps.setDetectSchema(!plugin.canGetDatasetMetadataInCoordinator());
       icebergTableProps.setMetadataRefresh(true);
       icebergTableProps.setPersistedFullSchema(metadataProvider.getTableSchema());
 
+      MetadataPolicy metadataPolicy = getMetadataPolicy();
+      Long metadataExpireAfterMs = null;
+      if (metadataPolicy != null) {
+        metadataExpireAfterMs = metadataPolicy.getDatasetDefinitionExpireAfterMs();
+      }
+      icebergTableProps.setMetadataExpireAfterMs(metadataExpireAfterMs);
       return icebergTableProps;
     }
 
@@ -544,5 +559,20 @@ public abstract class AbstractRefreshPlanBuilder implements MetadataRefreshPlanB
       }
     }
     return primaryKey;
+  }
+
+  /*
+   * We should introduce a new api into SourceCatalog to expose MetadataPolicy.
+   */
+  private MetadataPolicy getMetadataPolicy() {
+    String source = datasetConfig.getFullPathList().get(0);
+    NamespaceService namespaceService = config.getContext().getSystemNamespaceService();
+    try {
+      SourceConfig sourceConfig = namespaceService.getSource(new NamespaceKey(source));
+      return sourceConfig.getMetadataPolicy();
+    } catch (NamespaceException e) {
+      // No
+    }
+    return null;
   }
 }

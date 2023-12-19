@@ -379,7 +379,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
                + "FROM cp.\"employee.json\" LIMIT 1" )
     .unOrdered()
     .baselineColumns("ShouldBeFLOAT")
-    .baselineValues(new Float(1.5f))
+    .baselineValues(1.5F)
     .go();
   }
 
@@ -411,7 +411,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
                + "FROM cp.\"employee.json\" LIMIT 1" )
     .unOrdered()
     .baselineColumns("ShouldBeDOUBLE")
-    .baselineValues(new Double(1.25))
+    .baselineValues(1.25D)
     .go();
   }
 
@@ -422,7 +422,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
                + "FROM cp.\"employee.json\" LIMIT 1" )
     .unOrdered()
     .baselineColumns("ShouldBeBIGINT")
-    .baselineValues(new Long(64))
+    .baselineValues(64L)
     .go();
   }
 
@@ -433,7 +433,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
                + "FROM cp.\"employee.json\" LIMIT 1" )
     .unOrdered()
     .baselineColumns("ShouldBeINTEGER")
-    .baselineValues(new Integer(32))
+    .baselineValues(32)
     .go();
   }
 
@@ -445,7 +445,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
                + "FROM cp.\"employee.json\" LIMIT 1" )
     .unOrdered()
     .baselineColumns("ShouldBeSMALLINT")
-    .baselineValues(new Short((short) 16))
+    .baselineValues((short) 16)
     .go();
   }
 
@@ -457,7 +457,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
                + "FROM cp.\"employee.json\" LIMIT 1" )
     .unOrdered()
     .baselineColumns("ShouldBeTINYINT")
-    .baselineValues(new Byte((byte) 8))
+    .baselineValues((byte) 8)
     .go();
   }
 
@@ -1581,6 +1581,41 @@ public class TestFunctionsQuery extends BaseTestQuery {
       .baselineValues("P0Y2M")
       .build().run();
 
+  }
+
+  @Test
+  public void dateTruncOnTimeStampSimpleUnits() throws Exception {
+    final String query = "SELECT " +
+      "second(timestamp '2011-2-3 10:11:12.100') as \"second\", " +
+      "minute(timestamp '2011-2-3 10:11:12.100') as \"minute\", " +
+      "hour(timestamp '2011-2-3 10:11:12.100') as \"hour\", " +
+      "dayofmonth(timestamp '2011-2-3 10:11:12.100') as \"dayof\", " +
+      "dayofmonth(date '2011-2-3') as \"dayofdate\", " +
+      "\"day\"(timestamp '2011-2-3 10:11:12.100') as \"day\", " +
+      "\"day\"(date '2011-2-3') as \"daydate\", " +
+      "month(timestamp '2011-2-3 10:11:12.100') as \"month\", " +
+      "month(date '2011-2-3') as \"monthdate\", " +
+      "year(timestamp '2011-2-3 10:11:12.100') as \"year\", " +
+      "year(date '2011-2-3') as \"yeardate\" " +
+      "FROM INFORMATION_SCHEMA.CATALOGS";
+
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("second", "minute", "hour", "dayof", "dayofdate", "day", "daydate", "month", "monthdate", "year", "yeardate")
+      .baselineValues(
+        12L, // seconds
+        11L, // minute
+        10L, // hour
+        3L, // dayof
+        3L, // dayofdate
+        3L, // day
+        3L, // daydate
+        2L, // month
+        2L, // monthdate
+        2011L, // year
+        2011L) // yeardate
+      .go();
   }
 
 }

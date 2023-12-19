@@ -15,6 +15,7 @@
  */
 package com.dremio.common.expression.visitors;
 
+import com.dremio.common.expression.ArrayLiteralExpression;
 import com.dremio.common.expression.BooleanOperator;
 import com.dremio.common.expression.CaseExpression;
 import com.dremio.common.expression.CastExpression;
@@ -167,6 +168,11 @@ public abstract class AbstractExprVisitor<T, VAL, EXCEP extends Exception> imple
 
   @Override
   public T visitOrdering(Ordering e, VAL value) throws EXCEP {
+    return visitUnknown(e, value);
+  }
+
+  @Override
+  public T visitArrayLiteralExpression(ArrayLiteralExpression e, VAL value) throws EXCEP {
     return visitUnknown(e, value);
   }
 

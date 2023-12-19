@@ -54,6 +54,8 @@ import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobsService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 
+import io.opentelemetry.instrumentation.annotations.WithSpan;
+
 /**
  * Resource for getting Phase Level information from Dremio.
  */
@@ -73,6 +75,7 @@ public class JobProfileResource {
     this.projectOptionManager = projectOptionManager;
   }
 
+  @WithSpan
   @GET
   @Path("/{jobId}/JobProfile")
   @Produces(MediaType.APPLICATION_JSON)
@@ -99,12 +102,10 @@ public class JobProfileResource {
   }
 
 
+  @WithSpan
   @GET
-
   @Path("/{jobId}/JobProfile/OperatorDetails")
-
   @Produces(MediaType.APPLICATION_JSON)
-
   public JobProfileOperatorInfo getJobProfileOperator(@PathParam("jobId") String jobId,
                                                         @QueryParam("phaseId") @NotNull String phaseId,
                                                         @QueryParam("operatorId") @NotNull String  operatorId,
@@ -134,10 +135,11 @@ public class JobProfileResource {
       // TODO: should this be JobResourceNotFoundException?
       throw new NotFoundException(format("Profile for JobId [%s] and Attempt [%d] not found.", jobId, attemptIndex));
     }
-
-    return new JobProfileOperatorInfo(profile, intPhaseId, intOperatorId);
+    JobProfileOperatorInfo jobProfileOperatorInfo = new JobProfileOperatorInfo(profile, intPhaseId, intOperatorId);
+    return jobProfileOperatorInfo;
   }
 
+  @WithSpan
   @GET
   @Path("/GetJobProfileFromURL")
   @Produces(MediaType.APPLICATION_JSON)
@@ -147,6 +149,7 @@ public class JobProfileResource {
     return jobProfileVisualizerUI.getJobProfileInfo();
   }
 
+  @WithSpan
   @GET
   @Path("/GetJobProfileFromURL/OperatorDetails")
   @Produces(MediaType.APPLICATION_JSON)

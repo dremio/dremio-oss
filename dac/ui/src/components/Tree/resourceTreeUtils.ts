@@ -21,6 +21,8 @@ import {
 } from "@app/constants/Constants";
 import { TreeNode } from "./ResourceTree.types";
 import { uniqBy } from "lodash";
+import { store } from "@app/store/store";
+import { getResourceTree } from "@app/selectors/tree";
 
 export const starTabNames = {
   all: "All",
@@ -57,7 +59,7 @@ export const RESOURCE_LIST_SORT_MENU = [
   },
 ];
 
-function sortByName(direction: string) {
+export function sortByName(direction: string) {
   return (a: any, b: any) => {
     if (a.get("name").toLowerCase() < b.get("name").toLowerCase()) {
       return direction === "asc" ? -1 : 1;
@@ -69,13 +71,23 @@ function sortByName(direction: string) {
   };
 }
 
+// matches any "/" that isn't surrounded in double-quotes
+// used to split paths for datasets with forward-slashes in their name
+const findSlashesRegex = /(?!\B"[^"]*)\/(?![^"]*"\B)/;
+
 function getSummaryDatasetPayload(payload: any, fullPath: string) {
   const payloadPath = [
     "entities",
     "summaryDataset",
-    fullPath.split("/").join(","),
+    fullPath.split(findSlashesRegex).join(","),
     "fields",
   ];
+
+  // only called when datasets have "/" in their name
+  if (payloadPath[2].includes('"') && payloadPath[2].includes("/")) {
+    payloadPath[2] = payloadPath[2].split('"').join("");
+  }
+
   const fields = payload.getIn([...payloadPath]) || [];
   const resourcesFromPayload = fields.map((item: any) => {
     // these are needed to manipulate TreeNode.js
@@ -122,7 +134,19 @@ export function constructSummaryFullPath(pathParts: string) {
         firstBit = pathParts.slice(0, quoteIndex);
         possibleMiddleBit = pathParts.slice(quoteIndex + 1, endIndex);
         secondBit = pathParts.slice(endIndex + 1);
-        pathParts = firstBit + possibleMiddleBit + secondBit;
+
+        const middleBitWithQuotes = pathParts.slice(quoteIndex, endIndex + 1);
+        const hasSlash = middleBitWithQuotes.includes("/");
+
+        pathParts =
+          firstBit +
+          (hasSlash ? middleBitWithQuotes : possibleMiddleBit) +
+          secondBit;
+
+        if (hasSlash) {
+          break;
+        }
+
         i = endIndex - 1;
       } else {
         break;
@@ -272,7 +296,13 @@ export function resourceTreeNodeDecorator(
   } = action.meta;
   let nodes;
   if (isSummaryDatasetResponse) {
-    nodes = fullPath.split("/");
+    nodes = fullPath.split(findSlashesRegex);
+
+    // only called when datasets have "/" in their name
+    const lastIndex = nodes.length - 1;
+    if (nodes[lastIndex].includes('"') && nodes[lastIndex].includes("/")) {
+      nodes[lastIndex] = nodes[lastIndex].split('"').join("");
+    }
   } else {
     nodes = path.length ? splitFullPath(path) : [];
   }
@@ -313,8 +343,11 @@ export function resourceTreeNodeDecorator(
       ).sort((a, b) => a.name.localeCompare(b.name));
       return state.setIn(builtPath, Immutable.fromJS(sortedUniqueList));
     } else {
+      const sortedInitResources = resources.sort((a: any, b: any) =>
+        a.get("name").localeCompare(b.get("name"))
+      );
       // Create new resource(s) for item
-      return state.setIn(builtPath, resources);
+      return state.setIn(builtPath, sortedInitResources);
     }
   }
   // Initial load of the resource tree
@@ -338,4 +371,37 @@ export function clearResourcesByName(
   if (idx === -1) return;
   if (tree[idx].resources) delete tree[idx].resources;
   return state.set(treeContextName, Immutable.fromJS(tree));
+}
+
+export function clearResourceTree(
+  state: any,
+  action: { payload: { fromModal?: boolean } }
+) {
+  let treeContextName = "tree";
+  if (action.payload.fromModal) {
+    treeContextName = "treeModal";
+  }
+  return state.set(treeContextName, Immutable.fromJS([]));
+}
+
+export function getResourceByName(node: any, tree: any) {
+  return tree.find(
+    (child: any) => child.get("name") === node.getIn(["fullPath", 0])
+  );
+}
+
+export function getFullPathFromResourceTree(node: any) {
+  const state = store.getState();
+  const tree = getResourceTree(state);
+  let fullPath =
+    node
+      .get("fullPath")
+      ?.toJS()
+      ?.map((part: string) => encodeURIComponent(part)) || [];
+  if (node.get("type") === "FOLDER") {
+    const root = fullPath.shift();
+    fullPath = [root, "folder", ...fullPath];
+  }
+  const rootSource = getResourceByName(node, tree)?.toJS() || [];
+  return [rootSource?.type?.toLowerCase(), ...fullPath].join("/");
 }

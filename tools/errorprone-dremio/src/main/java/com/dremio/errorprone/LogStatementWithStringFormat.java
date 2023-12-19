@@ -20,6 +20,7 @@ import static com.google.errorprone.BugPattern.SeverityLevel.WARNING;
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableSet;
 import com.google.errorprone.BugPattern;
+import com.google.errorprone.BugPattern.LinkType;
 import com.google.errorprone.VisitorState;
 import com.google.errorprone.bugpatterns.BugChecker;
 import com.google.errorprone.bugpatterns.BugChecker.MethodInvocationTreeMatcher;
@@ -31,7 +32,10 @@ import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.MethodInvocationTree;
 import java.util.regex.Pattern;
 
-@BugPattern(summary = "A logging statement should not use String.format", severity = WARNING)
+@BugPattern(
+    summary = "A logging statement should not use String.format",
+    severity = WARNING,
+    linkType = LinkType.NONE)
 @AutoService(BugChecker.class)
 public class LogStatementWithStringFormat extends BugChecker
     implements MethodInvocationTreeMatcher {

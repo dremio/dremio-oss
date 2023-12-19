@@ -41,7 +41,7 @@ import com.google.common.collect.Lists;
  * Drops a tag under a source.
  *
  * DROP TAG [ IF EXISTS ] tagName
- * ( AT COMMIT commitHash | FORCE )
+ * [ AT COMMIT commitHash | FORCE ]
  * [ IN sourceName ]
  */
 public final class SqlDropTag extends SqlVersionBase {
@@ -62,20 +62,20 @@ public final class SqlDropTag extends SqlVersionBase {
         }
       };
 
-  private final SqlLiteral existenceCheck;
+  private final SqlLiteral shouldErrorIfTagDoesNotExist;
   private final SqlIdentifier tagName;
   private final SqlIdentifier commitHash;
   private final SqlLiteral forceDrop;
 
   public SqlDropTag(
       SqlParserPos pos,
-      SqlLiteral existenceCheck,
+      SqlLiteral shouldErrorIfTagDoesNotExist,
       SqlIdentifier tagName,
       SqlIdentifier commitHash,
       SqlLiteral forceDrop,
       SqlIdentifier sourceName) {
     super(pos, sourceName);
-    this.existenceCheck = Preconditions.checkNotNull(existenceCheck);
+    this.shouldErrorIfTagDoesNotExist = Preconditions.checkNotNull(shouldErrorIfTagDoesNotExist);
     this.tagName = Preconditions.checkNotNull(tagName);
     this.commitHash = commitHash;
     this.forceDrop = Preconditions.checkNotNull(forceDrop);
@@ -89,7 +89,7 @@ public final class SqlDropTag extends SqlVersionBase {
   @Override
   public List<SqlNode> getOperandList() {
     List<SqlNode> ops = Lists.newArrayList();
-    ops.add(existenceCheck);
+    ops.add(shouldErrorIfTagDoesNotExist);
     ops.add(tagName);
     ops.add(commitHash);
     ops.add(forceDrop);
@@ -103,7 +103,7 @@ public final class SqlDropTag extends SqlVersionBase {
     writer.keyword("DROP");
     writer.keyword("TAG");
 
-    if (existenceCheck.booleanValue()) {
+    if (shouldErrorIfTagDoesNotExist.booleanValue()) {
       writer.keyword("IF");
       writer.keyword("EXISTS");
     }
@@ -139,8 +139,8 @@ public final class SqlDropTag extends SqlVersionBase {
     }
   }
 
-  public SqlLiteral getExistenceCheck() {
-    return existenceCheck;
+  public SqlLiteral shouldErrorIfTagDoesNotExist() {
+    return shouldErrorIfTagDoesNotExist;
   }
 
   public SqlIdentifier getTagName() {

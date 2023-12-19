@@ -20,6 +20,8 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
@@ -29,9 +31,11 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlSelect;
+import org.apache.calcite.sql.SqlWith;
 import org.apache.calcite.sql.dialect.CalciteSqlDialect;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.Pair;
@@ -60,6 +64,7 @@ import com.dremio.exec.planner.sql.parser.SqlReturnField;
 import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
 import com.dremio.exec.store.sys.udf.FunctionOperatorTable;
 import com.dremio.exec.store.sys.udf.UserDefinedFunction;
+import com.dremio.exec.store.sys.udf.UserDefinedFunctionPlanSerde;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.collect.ImmutableList;
 
@@ -67,6 +72,7 @@ import com.google.common.collect.ImmutableList;
  * CreateFunctionHandler
  */
 public final class CreateFunctionHandler extends SimpleDirectHandler {
+  private static final boolean ALLOW_DEFAULT_EXPRESSIONS = false;
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CreateFunctionHandler.class);
   private static final RelDataTypeFactory TYPE_FACTORY = SqlTypeFactoryImpl.INSTANCE;
   private static final String DUPLICATE_PARAMETER_ERROR_MSG = "Parameter name %s appears more than once";
@@ -143,12 +149,40 @@ public final class CreateFunctionHandler extends SimpleDirectHandler {
      * The solution is to serialize the query before converting to a rel and saving it.
      * So we have to keep this code at the top of the method.
      */
-    String functionSql = createFunction.getExpression().toSqlString(CalciteSqlDialect.DEFAULT, true).getSql();
+    // We really need to find a better way to serialize the query so that it roundtrips with the parser.
+    // For some reason the with statement needs a parens to roundtrip.
+    boolean forceParens = createFunction.getExpression() instanceof SqlWith;
+    String normalizedQuery = toQuery(createFunction.getExpression())
+      // Query doesn't reparse if you force parens
+      .toSqlString(CalciteSqlDialect.DEFAULT, forceParens)
+      .getSql()
+      // For some reason identifiers are escape with a ` instead of a "
+      .replace('`', '"');
+
     SqlConverter sqlConverter = createConverter(context);
     List<UserDefinedFunction.FunctionArg> arguments = extractFunctionArguments(
       createFunction,
       sql,
       sqlConverter);
+
+    // This is the fun part ... the validator will only swap out identifiers with function calls if they are unquoted
+    // But the serialization of the query decides to add quotes for some identifiers.
+    for (UserDefinedFunction.FunctionArg arg : arguments) {
+      String quotedName = '"' + arg.getName() + '"';
+      normalizedQuery = normalizedQuery.replaceAll(Pattern.quote(quotedName), Matcher.quoteReplacement(arg.getName()));
+    }
+
+    // Reparse the query just to make sure that the normalized query roundtrips.
+    // If it fails here, then it will fail when we try to execute the UDF from just the sql text.
+    try {
+      parse(normalizedQuery, context);
+    } catch (Exception ex) {
+      throw UserException
+        .systemError(ex)
+        .message("Failed to deserialize the UDF trying to be created: " + sql)
+        .buildSilently();
+    }
+
     RelNode functionPlan = extractFunctionPlan(
       context,
       createFunction,
@@ -193,13 +227,44 @@ public final class CreateFunctionHandler extends SimpleDirectHandler {
     }
 
     CompleteType completeReturnType = CompleteType.fromField(expectedReturnRowTypeAndField.right);
-    UserDefinedFunction udf = new UserDefinedFunction(
+
+    UserDefinedFunction uncatalogedUserDefinedFunction = new UserDefinedFunction(
       functionKey.toString(),
-      functionSql,
+      normalizedQuery,
       completeReturnType,
       arguments,
       functionKey.getPathComponents(),
-      new byte[]{},
+      null,
+      null,
+      null);
+    byte[] serializedFunctionPlan = UserDefinedFunctionPlanSerde.serialize(
+      functionPlan,
+      context,
+      uncatalogedUserDefinedFunction);
+
+    // Also make sure we can deserialize the plan,
+    // because this code path will get used later when executing the UDF and during reflection,
+    // so we would rather fail creating the UDF than having an exception pop up later
+    try {
+      RelNode deserializedPlan = UserDefinedFunctionPlanSerde.deserialize(
+        serializedFunctionPlan,
+        functionPlan.getCluster(),
+        context,
+        uncatalogedUserDefinedFunction);
+    } catch (Exception ex) {
+      throw UserException
+        .systemError(ex)
+        .message("Failed to deserialize the UDF trying to be created: " + sql)
+        .buildSilently();
+    }
+
+    UserDefinedFunction udf = new UserDefinedFunction(
+      functionKey.toString(),
+      normalizedQuery,
+      completeReturnType,
+      arguments,
+      functionKey.getPathComponents(),
+      serializedFunctionPlan,
       null,
       null);
     return udf;
@@ -242,6 +307,18 @@ public final class CreateFunctionHandler extends SimpleDirectHandler {
       // Extract the default expression
       SqlNode defaultExpression = null;
       if (dataTypeSpec.getDefaultExpression() != null) {
+        // For now we are disabling default expressions,
+        // since we haven't updated the resolver to resolve optional parameters
+        // Basically we don't want a user to be able to create a function that they can't execute
+        if (!ALLOW_DEFAULT_EXPRESSIONS) {
+          throw UserException
+            .validationError()
+            .message(
+              "Default Expression Is Not Supported Yet.\n" +
+                "Create two overloads of the function (one with and one without the expression instead.")
+            .buildSilently();
+        }
+
         defaultExpression = extractScalarExpressionFromDefaultExpression(dataTypeSpec.getDefaultExpression());
         RelDataType actualType = getTypeFromSqlNode(sqlConverter, defaultExpression);
         RelDataType expectedType = relDataType;
@@ -338,7 +415,7 @@ public final class CreateFunctionHandler extends SimpleDirectHandler {
       .builder(converter)
       .disallowSubqueryExpansion()
       .build()
-      .getPlanForFunctionExpression(expressionNode);
+      .validateAndConvertForExpression(expressionNode);
 
     assert project.getProjects().size() == 1;
 
@@ -357,7 +434,7 @@ public final class CreateFunctionHandler extends SimpleDirectHandler {
           FunctionParameterImpl.createParameters(args)))
       .disallowSubqueryExpansion()
       .build()
-      .getPlanForFunctionExpression(createFunction.getExpression());
+      .validateAndConvertForExpression(createFunction.getExpression());
   }
 
   private static SqlConverter createConverter(QueryContext context) {
@@ -369,10 +446,47 @@ public final class CreateFunctionHandler extends SimpleDirectHandler {
       context.getFunctionRegistry(),
       context.getSession(),
       null,
-      context.getCatalog(),
       context.getSubstitutionProviderFactory(),
       context.getConfig(),
       context.getScanResult(),
       context.getRelMetadataQuerySupplier());
+  }
+
+  private static SqlNode parse(String sqlQueryText, QueryContext context) {
+    SqlConverter parser = createConverter(context);
+    return parser.parse(sqlQueryText);
+  }
+
+
+  private static SqlNode toQuery(SqlNode node) {
+    // This is here since we might have some old UDFs that are not in a normalized format
+    // But the main logic should happen now in CreateFunctionHandler
+    final SqlKind kind = node.getKind();
+    switch (kind) {
+      // These are the node types that we know are already a query.
+      case SELECT:
+      case UNION:
+      case INTERSECT:
+      case EXCEPT:
+      case WITH:
+      case VALUES:
+        return node;
+      default:
+        // We need to convert scalar values into a select statement
+        return new SqlSelect(
+          SqlParserPos.ZERO,
+          null,
+          new SqlNodeList(ImmutableList.of(node), SqlParserPos.ZERO),
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null);
+    }
   }
 }

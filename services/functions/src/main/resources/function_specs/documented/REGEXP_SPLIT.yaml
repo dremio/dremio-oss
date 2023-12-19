@@ -40,7 +40,7 @@ signatures:
     kind: REGULAR
     name: integer
     type: INT
-  returnType: LIST
+  returnType: ARRAY
   sampleCodes:
   - call: SELECT regexp_split('REGULAR AIR', 'R', 'FIRST', -1) AS R_LESS_SHIPMENT_TYPE
     result: "['', 'EGULAR AIR']"

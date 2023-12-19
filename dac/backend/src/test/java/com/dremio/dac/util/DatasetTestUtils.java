@@ -62,17 +62,18 @@ public class DatasetTestUtils {
     DatasetPath path1 = new DatasetPath(path);
     VirtualDatasetUI ds1 = new VirtualDatasetUI();
     ds1.setFullPathList(path1.toPathList());
+    ds1.setContextList(path1.toParentPathList());
     ds1.setVersion(version);
     ds1.setSavedTag(idVersionPair == null ? null : idVersionPair.getValue());
     ds1.setName(name);
     ds1.setState(new VirtualDatasetState()
       .setFrom(new FromTable(path1.toPathString()).wrap()));
     ds1.getState().setColumnsList(asList(new Column("foo", new ExpColumnReference("bar").wrap())));
+    ds1.getState().setContextList(path1.toParentPathList());
     ds1.setSql("select * from " + table);
     ds1.setId(idVersionPair == null ? null : idVersionPair.getKey());
     ViewFieldType type = new ViewFieldType("hello", "float");
     ds1.setSqlFieldsList(Collections.singletonList(type));
-    ds1.setCalciteFieldsList(Collections.singletonList(type));
     if (previousVersion != null) {
       ds1.setPreviousVersion(new NameDatasetRef(path).setDatasetVersion(previousVersion.getVersion()));
     }

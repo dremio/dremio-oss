@@ -31,6 +31,7 @@ import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExternalResource;
+import org.junit.rules.TemporaryFolder;
 
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.dac.daemon.DACDaemonModule;
@@ -74,7 +75,7 @@ public class TestServerTracing extends BaseTestServer {
         singletonRegistries.add(bootstrapRegistry);
         originalTracer = ((TracerFacade) bootstrapRegistry.lookup(Tracer.class)).getTracer();
       }
-    });
+    }, (TemporaryFolder) null, null, true);
   }
 
   @Before

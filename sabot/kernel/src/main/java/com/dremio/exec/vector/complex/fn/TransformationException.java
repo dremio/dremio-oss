@@ -23,13 +23,23 @@ import java.io.IOException;
 public class TransformationException extends IOException {
 
   private final int lineNumber;
+  private final String fieldName;
 
   public TransformationException(String message, int lineNumber) {
+    this(message, lineNumber, null);
+  }
+
+  public TransformationException(String message, int lineNumber, String fieldName) {
     super(message);
     this.lineNumber = lineNumber;
+    this.fieldName = fieldName;
   }
 
   public int getLineNumber() {
     return lineNumber;
+  }
+
+  public String getFieldName() {
+    return fieldName;
   }
 }

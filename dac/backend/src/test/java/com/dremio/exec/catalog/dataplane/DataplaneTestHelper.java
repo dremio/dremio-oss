@@ -15,19 +15,25 @@
  */
 package com.dremio.exec.catalog.dataplane;
 
-import static com.dremio.exec.catalog.VersionContext.NOT_SPECIFIED;
+import static com.dremio.catalog.model.VersionContext.NOT_SPECIFIED;
 import static com.dremio.exec.catalog.dataplane.DataplaneTestDefines.DATAPLANE_PLUGIN_NAME;
 import static com.dremio.exec.catalog.dataplane.DataplaneTestDefines.DEFAULT_BRANCH_NAME;
 import static com.dremio.exec.catalog.dataplane.DataplaneTestDefines.DEFAULT_COUNT_COLUMN;
 import static com.dremio.exec.catalog.dataplane.DataplaneTestDefines.fullyQualifiedTableName;
+import static com.dremio.exec.catalog.dataplane.DataplaneTestDefines.selectCountAtBranchQuery;
 import static com.dremio.exec.catalog.dataplane.DataplaneTestDefines.selectCountDataFilesQuery;
 import static com.dremio.exec.catalog.dataplane.DataplaneTestDefines.selectCountQuery;
 import static com.dremio.exec.catalog.dataplane.DataplaneTestDefines.selectCountSnapshotQuery;
+import static com.dremio.exec.catalog.dataplane.DataplaneTestDefines.selectCountTablePartitionQuery;
 import static com.dremio.exec.catalog.dataplane.DataplaneTestDefines.showBranchesQuery;
+import static com.dremio.exec.catalog.dataplane.DataplaneTestDefines.showTagQuery;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
+import java.util.stream.Collectors;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocatorFactory;
@@ -37,13 +43,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestInfo;
 
 import com.dremio.BaseTestQuery;
+import com.dremio.catalog.model.VersionContext;
+import com.dremio.catalog.model.dataset.TableVersionContext;
+import com.dremio.catalog.model.dataset.TableVersionType;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.catalog.TableVersionContext;
-import com.dremio.exec.catalog.TableVersionType;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.catalog.VersionedDatasetId;
 import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.exec.record.VectorWrapper;
@@ -88,6 +94,13 @@ public class DataplaneTestHelper extends BaseTestQuery {
       expectedNumRows);
   }
 
+  public void assertTableAtBranchHasExpectedNumRows(List<String> tablePath, String atBranch, long expectedNumRows) throws Exception {
+    assertSQLReturnsExpectedNumRows(
+      selectCountAtBranchQuery(tablePath, atBranch, DEFAULT_COUNT_COLUMN),
+      DEFAULT_COUNT_COLUMN,
+      expectedNumRows);
+  }
+
   public void assertTableHasExpectedNumOfSnapshots(List<String> tablePath, long expectedNumRows) throws Exception {
     assertSQLReturnsExpectedNumRows(
       selectCountSnapshotQuery(tablePath, DEFAULT_COUNT_COLUMN),
@@ -98,6 +111,13 @@ public class DataplaneTestHelper extends BaseTestQuery {
   public void assertTableHasExpectedNumOfDataFiles(List<String> tablePath, long expectedNumRows) throws Exception {
     assertSQLReturnsExpectedNumRows(
       selectCountDataFilesQuery(tablePath, DEFAULT_COUNT_COLUMN),
+      DEFAULT_COUNT_COLUMN,
+      expectedNumRows);
+  }
+
+  public void assertTableHasExpectedNumOfTablePartitionFiles(List<String> tablePath, long expectedNumRows) throws Exception {
+    assertSQLReturnsExpectedNumRows(
+      selectCountTablePartitionQuery(tablePath, DEFAULT_COUNT_COLUMN),
       DEFAULT_COUNT_COLUMN,
       expectedNumRows);
   }
@@ -156,6 +176,16 @@ public class DataplaneTestHelper extends BaseTestQuery {
     List<List<String>> rows = runSqlWithResults(showBranchesQuery());
     for (List<String> row : rows) {
       if (branchName.equals(row.get(1))) { // Column 1 is branchName
+        return row.get(2); // Column 2 is commitHash
+      }
+    }
+    return null;
+  }
+
+  String getCommitHashForTag(String tagName) throws Exception {
+    List<List<String>> rows = runSqlWithResults(showTagQuery());
+    for (List<String> row : rows) {
+      if (tagName.equals(row.get(1))) { // Column 1 is branchName
         return row.get(2); // Column 2 is commitHash
       }
     }
@@ -273,4 +303,46 @@ public class DataplaneTestHelper extends BaseTestQuery {
       .getLastModified();
   }
 
+  public void assertCommitLogTail(String... expectedCommitMessages) throws Exception {
+    assertCommitLogTail(
+      VersionContext.ofBranch(DEFAULT_BRANCH_NAME),
+      expectedCommitMessages
+    );
+  }
+
+  public void assertCommitLogTail(VersionContext versionContext, String... expectedCommitMessages) throws Exception {
+    // TODO: NPE without "AT xyz" part
+    // TODO: does not respect previous "USE BRANCH xyz" cmd
+    StringBuilder query = new StringBuilder("SHOW LOGS");
+    if (versionContext != null) {
+      query.append(" AT ");
+      switch(versionContext.getType()) {
+      case COMMIT:
+        query.append("COMMIT ");
+        break;
+      case TAG:
+        query.append("TAG ");
+        break;
+      case REF:
+        query.append("REF ");
+        break;
+      case BRANCH:
+        query.append("BRANCH ");
+        break;
+      default:
+        throw new IllegalArgumentException("Unsupported version type: " + versionContext.getType());
+      }
+      query.append(versionContext.getValue());
+    }
+    query.append(" IN ");
+    query.append(DATAPLANE_PLUGIN_NAME);
+    List<List<String>> commitLogRows = runSqlWithResults(query.toString());
+
+    List<String> commitLogMessages = commitLogRows.stream()
+      // hash, author, time, msg
+      .map(row -> row.get(3))
+      .collect(Collectors.toList());
+    Collections.reverse(commitLogMessages);
+    assertThat(commitLogMessages).endsWith(expectedCommitMessages);
+  }
 }

@@ -144,8 +144,8 @@ public class SqlCreateReflection extends SqlSystemCall {
     return toStrings(distributionList);
   }
 
-  public List<String> getPartitionList() {
-    return toStrings(partitionList);
+  public SqlNodeList getPartitionList() {
+    return partitionList;
   }
 
   public List<String> getSortList() {

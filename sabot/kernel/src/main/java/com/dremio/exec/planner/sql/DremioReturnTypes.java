@@ -23,12 +23,17 @@ import org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.calcite.sql.SqlCallBinding;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.type.SqlTypeTransforms;
 
 import com.dremio.exec.planner.types.RelDataTypeSystemImpl;
 
+/**
+ * Extension to Calcite's ReturnTypes utility class.
+ */
 public class DremioReturnTypes {
 
   private DremioReturnTypes() {
@@ -114,4 +119,57 @@ public class DremioReturnTypes {
    */
   public static final SqlReturnTypeInference NULLABLE_ROUND =
       ReturnTypes.chain(DECIMAL_ROUND_NULLABLE, ARG0_NULLABLE);
+
+  /**
+   * Returns an ARRAY type based on the type of the only argument
+   *
+   * This can be removed once we adopt the one from calcite.
+   *
+   * <p>For example, given <code>INTEGER</code>, returns
+   * <code>INTEGER ARRAY</code>.
+   */
+  public static final SqlReturnTypeInference TO_ARRAY = new SqlReturnTypeInference() {
+    @Override
+    public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
+      if (opBinding.getOperandCount() != 1) {
+        throw new UnsupportedOperationException("Expected to have exactly 1 arg type.");
+      }
+
+      RelDataType arrayItemType = opBinding.getOperandType(0);
+      RelDataType arrayType = opBinding.getTypeFactory().createArrayType(arrayItemType, -1);
+      return arrayType;
+    }
+  };
+
+  public static final SqlReturnTypeInference VARCHAR_MAX_PRECISION_NULLABLE = ReturnTypes.cascade(
+    ReturnTypes.explicit(SqlTypeName.VARCHAR),
+    DremioSqlTypeTransforms.MAX_PRECISION,
+    SqlTypeTransforms.TO_NULLABLE);
+
+  /**
+   * Return type inference that just returns the element type of the array in the first argument.
+   */
+  public static final SqlReturnTypeInference ARG0_ARRAY_ELEMENT = opBinding -> {
+    if (opBinding.getOperandCount() == 0) {
+      throw new UnsupportedOperationException("Expected at least one argument.");
+    }
+
+    RelDataType type = opBinding.getOperandType(0);
+    if (type.getSqlTypeName() != SqlTypeName.ARRAY) {
+      throw new UnsupportedOperationException("Expected the first argument to an array.");
+    }
+
+    return type.getComponentType();
+  };
+
+  /**
+   * Same as DECIMAL_QUOTIENT but with default DECIMAL, since the arguments aren't known until the rewrite.
+   */
+  public static final SqlReturnTypeInference DECIMAL_QUOTIENT_DEFAULT_PRECISION_SCALE = opBinding -> {
+    RelDataTypeFactory typeFactory = opBinding.getTypeFactory();
+    RelDataType defaultDecimal = typeFactory.createSqlType(SqlTypeName.DECIMAL);
+    RelDataType defaultDecimalDivision = typeFactory.createDecimalQuotient(defaultDecimal, defaultDecimal);
+    RelDataType withNullable = typeFactory.createTypeWithNullability(defaultDecimalDivision, true);
+    return withNullable;
+  };
 }

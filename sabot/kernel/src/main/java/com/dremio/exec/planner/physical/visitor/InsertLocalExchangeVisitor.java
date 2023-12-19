@@ -24,6 +24,7 @@ import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 import com.dremio.exec.planner.RoutingShuttle;
+import com.dremio.exec.planner.physical.AdaptiveHashExchangePrel;
 import com.dremio.exec.planner.physical.ExchangePrel;
 import com.dremio.exec.planner.physical.HashToMergeExchangePrel;
 import com.dremio.exec.planner.physical.HashToRandomExchangePrel;
@@ -45,7 +46,7 @@ public class InsertLocalExchangeVisitor extends BasePrelVisitor<Prel, Void, Runt
   private final GroupResourceInformation resourceInformation;
 
 
-  private InsertLocalExchangeVisitor(boolean isMuxEnabled, int muxFragmentsPerNode, boolean isDeMuxEnabled, GroupResourceInformation resourceInformation, OptionManager options) {
+  public InsertLocalExchangeVisitor(boolean isMuxEnabled, int muxFragmentsPerNode, boolean isDeMuxEnabled, GroupResourceInformation resourceInformation, OptionManager options) {
     this.isMuxEnabled = isMuxEnabled;
     this.muxFragmentsPerNode = muxFragmentsPerNode;
     this.isDeMuxEnabled = isDeMuxEnabled;
@@ -76,8 +77,7 @@ public class InsertLocalExchangeVisitor extends BasePrelVisitor<Prel, Void, Runt
       newPrel = new UnorderedMuxExchangePrel(child.getCluster(), child.getTraitSet(), child, muxFragmentsPerNode);
     }
 
-    newPrel = new HashToRandomExchangePrel(prel.getCluster(),
-        prel.getTraitSet(), newPrel, ((HashToRandomExchangePrel) prel).getFields());
+    newPrel = getNewHashExchange(prel, newPrel);
 
     if (isDeMuxEnabled) {
       HashToRandomExchangePrel hashExchangePrel = (HashToRandomExchangePrel) newPrel;
@@ -87,6 +87,16 @@ public class InsertLocalExchangeVisitor extends BasePrelVisitor<Prel, Void, Runt
     }
 
     return newPrel;
+  }
+
+  private Prel getNewHashExchange(ExchangePrel oldExchange, Prel child) {
+    if (oldExchange instanceof AdaptiveHashExchangePrel) {
+      return new AdaptiveHashExchangePrel(oldExchange.getCluster(), oldExchange.getTraitSet(), child,
+        ((AdaptiveHashExchangePrel) oldExchange).getFields());
+    } else {
+      return new HashToRandomExchangePrel(oldExchange.getCluster(),
+        oldExchange.getTraitSet(), child, ((HashToRandomExchangePrel) oldExchange).getFields());
+    }
   }
 
   @Override

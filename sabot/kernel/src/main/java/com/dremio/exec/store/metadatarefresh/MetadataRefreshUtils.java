@@ -38,6 +38,7 @@ public final class MetadataRefreshUtils {
     return options.getOption(ExecConstants.ENABLE_ICEBERG) &&
       options.getOption(PlannerSettings.UNLIMITED_SPLITS_SUPPORT);
   }
+
   /**
    * checks if metadata source is available and supports iceberg
    * @return

@@ -16,13 +16,13 @@
 package com.dremio.exec.store.iceberg;
 
 import static com.dremio.exec.planner.common.ScanRelBase.getRowTypeFromProjectedColumns;
+import static com.dremio.exec.store.SystemSchemas.CARRY_FORWARD_FILE_PATH_TYPE_SCHEMA;
 import static com.dremio.exec.store.SystemSchemas.ICEBERG_SNAPSHOTS_SCAN_SCHEMA;
 
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.apache.calcite.plan.RelOptCluster;
@@ -34,21 +34,17 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.PhysicalOperator;
-import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.fragment.DistributionAffinity;
 import com.dremio.exec.planner.physical.LeafPrel;
 import com.dremio.exec.planner.physical.PhysicalPlanCreator;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.store.TableMetadata;
-import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators;
-import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
-import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
+import com.dremio.service.namespace.PartitionChunkMetadata;
 import com.google.common.base.Preconditions;
 
 /**
@@ -59,52 +55,49 @@ public class IcebergSnapshotsPrel extends AbstractRelNode implements LeafPrel {
   public static final TypeValidators.LongValidator RESERVE = new TypeValidators.PositiveLongValidator("planner.op.scan.iceberg.snapshots.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
   public static final TypeValidators.LongValidator LIMIT = new TypeValidators.PositiveLongValidator("planner.op.scan.iceberg.snapshots.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
-  private static final BatchSchema SNAPSHOTS_READER_SCHEMA = ICEBERG_SNAPSHOTS_SCAN_SCHEMA;
+  private static final BatchSchema SNAPSHOTS_READER_SCHEMA = ICEBERG_SNAPSHOTS_SCAN_SCHEMA.merge(CARRY_FORWARD_FILE_PATH_TYPE_SCHEMA);
   private static final List<SchemaPath> PROJECTED_COLUMNS = SNAPSHOTS_READER_SCHEMA.getFields().stream().map(f -> SchemaPath.getSimplePath(f.getName())).collect(Collectors.toList());
 
-  protected final TableMetadata tableMetadata;
-  private final BatchSchema schema;
-  private final List<SchemaPath> projectedColumns;
+  private final String user;
   private final RelDataType relDataType;
-  private final IcebergTableProps icebergTableProps;
   private final SnapshotsScanOptions snapshotsScanOptions;
   private final long estimatedRows;
   private final int maxParallelizationWidth;
+  private final StoragePluginId storagePluginId;
+  private final Iterator<PartitionChunkMetadata> splits;
 
 
   public IcebergSnapshotsPrel(
     RelOptCluster cluster,
     RelTraitSet traitSet,
-    TableMetadata tableMetadata,
-    BatchSchema schema,
-    List<SchemaPath> projectedColumns,
     RelDataType relDataType,
-    IcebergTableProps icebergTableProps,
     SnapshotsScanOptions snapshotsScanOptions,
+    String user,
+    StoragePluginId storagePluginId,
+    Iterator<PartitionChunkMetadata> splits,
     long estimatedRows,
     int maxParallelizationWidth) {
     super(cluster, traitSet);
-    this.tableMetadata = tableMetadata;
-    this.schema = schema;
-    this.projectedColumns = projectedColumns;
     this.relDataType = relDataType;
-    this.icebergTableProps = icebergTableProps;
     this.snapshotsScanOptions = Preconditions.checkNotNull(snapshotsScanOptions, "snapshotsScanOption cannot be null");
+    this.storagePluginId = storagePluginId;
+    this.splits = splits;
     this.estimatedRows = estimatedRows;
     this.maxParallelizationWidth = maxParallelizationWidth;
+    this.user = user;
   }
 
   public IcebergSnapshotsPrel(
     RelOptCluster cluster,
     RelTraitSet traitSet,
-    TableMetadata tableMetadata,
-    IcebergTableProps icebergTableProps,
     SnapshotsScanOptions snapshotsScanOptions,
+    String user,
+    StoragePluginId storagePluginId,
+    Iterator<PartitionChunkMetadata> splits,
     long estimatedRows,
     int maxParallelizationWidth) {
-    this(cluster, traitSet, tableMetadata, SNAPSHOTS_READER_SCHEMA, PROJECTED_COLUMNS,
-      getRowTypeFromProjectedColumns(PROJECTED_COLUMNS, SNAPSHOTS_READER_SCHEMA, cluster), icebergTableProps,
-      snapshotsScanOptions, estimatedRows, maxParallelizationWidth);
+    this(cluster, traitSet, getRowTypeFromProjectedColumns(PROJECTED_COLUMNS, SNAPSHOTS_READER_SCHEMA, cluster),
+      snapshotsScanOptions, user, storagePluginId, splits, estimatedRows, maxParallelizationWidth);
   }
 
   @Override
@@ -136,11 +129,12 @@ public class IcebergSnapshotsPrel extends AbstractRelNode implements LeafPrel {
   @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
     return new IcebergSnapshotsGroupScan(
-      creator.props(this, tableMetadata.getUser(), schema, RESERVE, LIMIT),
-      tableMetadata,
-      icebergTableProps,
-      projectedColumns,
-      snapshotsScanOptions);
+      creator.props(this, user, SNAPSHOTS_READER_SCHEMA, RESERVE, LIMIT),
+      storagePluginId,
+      PROJECTED_COLUMNS,
+      snapshotsScanOptions,
+      splits,
+      maxParallelizationWidth);
   }
 
   @Override
@@ -148,12 +142,10 @@ public class IcebergSnapshotsPrel extends AbstractRelNode implements LeafPrel {
     return new IcebergSnapshotsPrel(
       getCluster(),
       getTraitSet(),
-      tableMetadata,
-      schema,
-      projectedColumns,
-      relDataType,
-      icebergTableProps,
       snapshotsScanOptions,
+      user,
+      storagePluginId,
+      splits,
       estimatedRows,
       maxParallelizationWidth);
   }
@@ -190,17 +182,6 @@ public class IcebergSnapshotsPrel extends AbstractRelNode implements LeafPrel {
 
   @Override
   public RelWriter explainTerms(RelWriter pw) {
-    pw = ScanRelBase.explainScanRel(pw, tableMetadata, null, 1.0);
-
-    /* To avoid NPE in the method chain Optional is used*/
-    Optional<String> metadataLocation = Optional.ofNullable(tableMetadata.getDatasetConfig())
-      .map(DatasetConfig::getPhysicalDataset)
-      .map(PhysicalDataset::getIcebergMetadata)
-      .map(IcebergMetadata::getMetadataFileLocation);
-
-    if (metadataLocation.isPresent()) {
-      pw.item("metadataFileLocation", metadataLocation.get());
-    }
     if (snapshotsScanOptions != null) {
       pw.item("options value", snapshotsScanOptions);
     }

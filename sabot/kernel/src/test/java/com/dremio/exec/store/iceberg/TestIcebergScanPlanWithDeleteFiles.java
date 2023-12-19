@@ -62,7 +62,7 @@ public class TestIcebergScanPlanWithDeleteFiles extends BaseTestIcebergScanPlan 
       String sql = String.format("SELECT order_id FROM %s", orders.getTableName());
       testPlanMatchingPatterns(sql, new String[] {
           dataFileScanWithRowCount(600),
-          splitGenManifestScanWithRowCount(600),
+          splitGenManifestScanWithRowCount(6),
           dataManifestList(),
       }, deleteManifestContent());
     }

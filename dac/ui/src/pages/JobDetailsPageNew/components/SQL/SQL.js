@@ -20,6 +20,8 @@ import { intl } from "@app/utils/intl";
 import CopyButton from "components/Buttons/CopyButton";
 import SqlEditor from "@app/components/SQLEditor.js";
 import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
+import { SQL_DARK_THEME, SQL_LIGHT_THEME } from "@app/utils/sql-editor";
+
 import "./SQL.less";
 
 const options = {
@@ -43,7 +45,7 @@ export const SQL = ({
   defaultContrast,
 }) => {
   const [isContrast, setIsContrast] = useState(defaultContrast);
-  const theme = isContrast ? "vs-dark" : "vs";
+  const theme = isContrast ? SQL_DARK_THEME : SQL_LIGHT_THEME;
   const background = isContrast ? "#333333" : "#F3F4F4";
   const selectionBackground = isContrast ? "#304D6D" : "#B5D5FB";
   const inactiveSelectionBackground = isContrast ? "#505862" : "#c6e9ef";

@@ -220,7 +220,6 @@ public class MetadataSynchronizer {
       logger.info("Source '{}' iterated through {} entities", sourceKey, entityCount);
     }
     // Intentionally leave without a catch block.
-    // TODO: Any unhandled exceptions will be handled by the caller if theory is confirmed.
   }
 
   /**
@@ -307,7 +306,7 @@ public class MetadataSynchronizer {
         final DatasetMetadata currentExtended = new DatasetMetadataAdapter(currentConfig);
         final ByteString readSignature = currentConfig.getReadDefinition().getReadSignature();
         final MetadataValidity metadataValidity = supportsReadSignature.validateMetadata(
-                readSignature==null ? BytesOutput.NONE:os -> ByteString.writeTo(os, readSignature),
+                readSignature==null || readSignature.size() == 0 ? BytesOutput.NONE:os -> ByteString.writeTo(os, readSignature),
                 datasetHandle, currentExtended);
         if (metadataValidity==MetadataValidity.VALID) {
           logger.trace("Dataset '{}' metadata is valid, skipping", datasetKey);

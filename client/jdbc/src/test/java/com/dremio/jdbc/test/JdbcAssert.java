@@ -30,6 +30,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.function.Consumer;
 
 import org.apache.calcite.linq4j.Ord;
 import org.junit.Assert;
@@ -304,13 +305,7 @@ public class JdbcAssert {
       final String[] plan0 = {null};
       Connection connection = null;
       Statement statement = null;
-      final Hook.Closeable x = Hook.LOGICAL_PLAN.add(new Function<String, Void>() {
-        @Override
-        public Void apply(String o) {
-          plan0[0] = o;
-          return null;
-        }
-      });
+      final Hook.Closeable x = Hook.LOGICAL_PLAN.add((Consumer<String>) s -> plan0[0] = s);
       try {
         connection = adapter.createConnection();
         statement = connection.prepareStatement(sql);

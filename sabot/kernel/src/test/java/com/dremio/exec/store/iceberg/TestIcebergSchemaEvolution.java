@@ -422,7 +422,7 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
         .sqlQuery(selectCommand)
         .unOrdered()
         .baselineColumns("col1", "col2", "col3")
-        .baselineValues(1, new Float("1.0"), new BigDecimal("1.000"))
+        .baselineValues(1, 1.0F, new BigDecimal("1.000"))
         .build()
         .run();
       changeColumn(testSchema + "." + up_promote_test, "col1", "c1", "bigint");
@@ -439,8 +439,8 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
         .sqlQuery(selectCommand)
         .unOrdered()
         .baselineColumns("c1", "c2", "c3")
-        .baselineValues(1L, new Double("1.0"), new BigDecimal("1.000"))
-        .baselineValues(2L, new Double("2.0"), new BigDecimal("22.000"))
+        .baselineValues(1L, 1.0D, new BigDecimal("1.000"))
+        .baselineValues(2L, 2.0D, new BigDecimal("22.000"))
         .build()
         .run();
     } finally {
@@ -470,7 +470,7 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
         .sqlQuery(selectCommand)
         .unOrdered()
         .baselineColumns("col1", "col2", "col3")
-        .baselineValues(1, new Float("1.0"), new BigDecimal("1.000"))
+        .baselineValues(1, 1.0F, new BigDecimal("1.000"))
         .build()
         .run();
       changeColumn(testSchema + "." + up_promote_and_rename_test, "col1", "temp", "int");
@@ -487,8 +487,8 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
         .sqlQuery(selectCommand)
         .unOrdered()
         .baselineColumns("col2", "col1", "col3")
-        .baselineValues(1, new Float("1.0"), new BigDecimal("1.000"))
-        .baselineValues(2, new Float("2.0"), new BigDecimal("2.000"))
+        .baselineValues(1, 1.0F, new BigDecimal("1.000"))
+        .baselineValues(2, 2.0F, new BigDecimal("2.000"))
         .build()
         .run();
 
@@ -506,9 +506,9 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
         .sqlQuery(selectCommand)
         .unOrdered()
         .baselineColumns("col2", "col1", "col3")
-        .baselineValues(1L, new Double("1.0"), new BigDecimal("1.000"))
-        .baselineValues(2L, new Double("2.0"), new BigDecimal("2.000"))
-        .baselineValues(3L, new Double("3.0"), new BigDecimal("33.000"))
+        .baselineValues(1L, 1.0D, new BigDecimal("1.000"))
+        .baselineValues(2L, 2.0D, new BigDecimal("2.000"))
+        .baselineValues(3L, 3.0D, new BigDecimal("33.000"))
         .build()
         .run();
     } finally {

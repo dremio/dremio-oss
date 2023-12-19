@@ -27,6 +27,7 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.EasyCoercionReader;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.RecordWriter;
+import com.dremio.exec.store.dfs.FileDatasetHandle;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.easy.EasyFormatPlugin;
 import com.dremio.exec.store.dfs.easy.EasySubScan;
@@ -115,5 +116,10 @@ public class ExcelFormatPlugin extends EasyFormatPlugin<ExcelFormatPluginConfig>
         .unsupportedError()
         .message("Writing output in Excel format is not supported")
         .build(logger);
+  }
+
+  @Override
+  public int getMaxFilesLimit() {
+    return Math.toIntExact(getContext().getOptionManager().getOption(FileDatasetHandle.DFS_MAX_EXCEL_FILES));
   }
 }

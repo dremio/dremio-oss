@@ -83,7 +83,7 @@ class UserForm extends Component {
       // only require password for a new user
       validators.push(
         isRequired("password"),
-        isRequired("passwordVerify", la("Confirm Password"))
+        isRequired("passwordVerify", laDeprecated("Confirm Password"))
       );
     }
     validators.push(confirmPassword("password", "passwordVerify"));
@@ -119,7 +119,7 @@ class UserForm extends Component {
       <div style={style} className={className}>
         <div style={styles.formRow}>
           <FieldWithError
-            label={la("First Name")}
+            label={laDeprecated("First Name")}
             errorPlacement="top"
             labelStyle={styles.label}
             {...fields.firstName}
@@ -132,7 +132,7 @@ class UserForm extends Component {
             />
           </FieldWithError>
           <FieldWithError
-            label={la("Last Name")}
+            label={laDeprecated("Last Name")}
             errorPlacement="top"
             labelStyle={styles.label}
             {...fields.lastName}
@@ -143,7 +143,7 @@ class UserForm extends Component {
         </div>
         <div style={styles.formRow}>
           <FieldWithError
-            label={la("Username")}
+            label={laDeprecated("Username")}
             errorPlacement="top"
             labelStyle={styles.label}
             {...fields.userName}
@@ -155,7 +155,7 @@ class UserForm extends Component {
             />
           </FieldWithError>
           <FieldWithError
-            label={la("Email")}
+            label={laDeprecated("Email")}
             errorPlacement="top"
             labelStyle={styles.label}
             {...fields.email}
@@ -168,7 +168,7 @@ class UserForm extends Component {
             <div style={styles.formRow}>
               <div className="field-item" style={styles.formItem}>
                 <FieldWithError
-                  label={la("Password")}
+                  label={laDeprecated("Password")}
                   errorPlacement="right"
                   labelStyle={styles.label}
                   {...fields.password}
@@ -180,7 +180,7 @@ class UserForm extends Component {
             <div style={styles.formRow}>
               <div className="field-item" style={styles.formItem}>
                 <FieldWithError
-                  label={la("Confirm Password")}
+                  label={laDeprecated("Confirm Password")}
                   errorPlacement="right"
                   labelStyle={styles.label}
                   {...fields.passwordVerify}
@@ -194,7 +194,7 @@ class UserForm extends Component {
         {!noExtras && !isAuthed && isME && (
           <div style={styles.formRow}>
             <FieldWithError
-              label={la("Instance-id for Authentication")}
+              label={laDeprecated("Instance-id for Authentication")}
               errorPlacement="top"
               labelStyle={styles.label}
               {...fields.extra}

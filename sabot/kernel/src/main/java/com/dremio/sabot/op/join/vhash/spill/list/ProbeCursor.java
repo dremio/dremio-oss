@@ -103,6 +103,7 @@ public class ProbeCursor {
 
     int nullKeyCount = 0;
     boolean someMismatched = false;
+    boolean someMatched = false;
     while (outputRecords < maxOutRecords && currentProbeSV2Index < inRecords) {
       // we're starting a new probe match
       final int indexInBuild = PlatformDependent.getInt(inTableMatchOrdinalStartAddr + currentProbeSV2Index * ORDINAL_SIZE);
@@ -140,17 +141,12 @@ public class ProbeCursor {
             SV2UnsignedUtil.writeAtOffsetUnsafe(outBuildProjectStartAddr, projectBuildOffsetStart + BATCH_INDEX_SIZE,
               recordIndexInBatch);
             outputRecords++;
+            someMatched = true;
           } else {
             someMismatched = true;
           }
           currentElementIndex = PlatformDependent.getInt(elementBufStartAddr + offsetInPage + NEXT_OFFSET);
 
-          if (currentElementIndex == TERMINAL) {
-            if (someMismatched) {
-              unMatchedProbeIndex = currentProbeSV2Index;
-              unmatchedProbeCount++;
-            }
-          }
           if (projectUnmatchedBuild) {
             if (currentElementIndex > 0) {
               if (!someMismatched) {
@@ -162,7 +158,15 @@ public class ProbeCursor {
               currentElementIndex = -currentElementIndex;
             }
           }
-          someMismatched = false;
+
+          if (currentElementIndex == TERMINAL) {
+            if (!someMatched) {
+              unMatchedProbeIndex = currentProbeSV2Index;
+              unmatchedProbeCount++;
+            }
+            someMatched = false;
+            someMismatched = false;
+          }
         }
         if (currentElementIndex != TERMINAL) {
           /*

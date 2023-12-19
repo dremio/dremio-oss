@@ -99,7 +99,7 @@ public class TestAliasExpansion extends PlanTestBase {
       testBuilder()
         .sqlQuery(query)
         .unOrdered()
-        .baselineColumns("n", "n1")
+        .baselineColumns("n", "n0")
         .baselineValues("Customer#000000001", "BUILDING")
         .baselineValues("Customer#000000008", "BUILDING")
         .baselineValues("Customer#000000011", "BUILDING")

@@ -49,6 +49,7 @@ public abstract class BaseNdvUnionAccumulator implements Accumulator {
   protected HllAccumHolder[] accumBatches;
   private boolean resizeInProgress;
   private BaseVariableWidthVector tempAccumulatorHolder;
+  private boolean isAccumulatorAtMinimum;
 
   public static class HllAccumHolder {
     private final int maxValuesPerBatch;
@@ -200,7 +201,10 @@ public abstract class BaseNdvUnionAccumulator implements Accumulator {
    */
   @Override
   public long getSizeInBytes() {
-    return batches * (SKETCH_SIZE * maxValuesPerBatch + getValidityBufferSize());
+    if (this.isAccumulatorAtMinimum) {
+      return 0;
+    }
+    return batches * ((long) SKETCH_SIZE * maxValuesPerBatch + getValidityBufferSize());
   }
 
   @Override
@@ -217,6 +221,7 @@ public abstract class BaseNdvUnionAccumulator implements Accumulator {
       accumBatches[batches] = new HllAccumHolder(maxValuesPerBatch, dataBuffer);
       ++batches;
       resizeInProgress = true;
+      this.isAccumulatorAtMinimum = false;
     } catch (Exception e) {
       /* this will be caught by LBlockHashTable and subsequently handled by VectorizedHashAggOperator */
       Throwables.throwIfUnchecked(e);
@@ -299,6 +304,7 @@ public abstract class BaseNdvUnionAccumulator implements Accumulator {
       }
     }
     batches = 1;
+    this.isAccumulatorAtMinimum = true;
   }
 
   @Override

@@ -15,9 +15,9 @@
  */
 
 import * as React from "react";
+import clsx from "clsx";
 import { Tooltip } from "./Tooltip/Tooltip";
 import { useHasClipboardPermissions } from "./utilities/useHasClipboardPermissions";
-import copy from "copy-to-clipboard";
 import { type Placement } from "@floating-ui/react-dom-interactions";
 
 const writeToClipboard = (text: string): Promise<void> => {
@@ -27,29 +27,46 @@ const writeToClipboard = (text: string): Promise<void> => {
 type Props = {
   children: JSX.Element;
   contents: string;
+  className?: string;
   placement?: Placement;
+  copyTooltipLabel?: string;
+  portal?: boolean;
 };
 
 export const CopyContainer = (props: Props) => {
+  const { copyTooltipLabel = "Copy", portal = true } = props;
   const hasPermission = useHasClipboardPermissions();
   const [hasCopied, setHasCopied] = React.useState(false);
 
+  const tooltipText = hasPermission ? (
+    hasCopied ? (
+      <span>Copied</span>
+    ) : (
+      <span>{copyTooltipLabel}</span>
+    )
+  ) : (
+    <span>Copy is disabled on unsecure connections</span>
+  );
+
   return (
     <Tooltip
+      portal={portal}
       placement={props.placement || "top"}
-      content={hasCopied ? <span>Copied</span> : <span>Copy</span>}
+      content={tooltipText}
       onClose={() => {
         setHasCopied(false);
       }}
     >
-      {React.cloneElement(props.children, {
-        onClick: () => {
-          hasPermission
-            ? writeToClipboard(props.contents)
-            : copy(props.contents);
-          setHasCopied(true);
-        },
-      })}
+      <div className={clsx("max-w-max", props.className)}>
+        {React.cloneElement(props.children, {
+          onClick: (e: any) => {
+            e.stopPropagation();
+            writeToClipboard(props.contents);
+            setHasCopied(true);
+          },
+          disabled: !hasPermission,
+        })}
+      </div>
     </Tooltip>
   );
 };

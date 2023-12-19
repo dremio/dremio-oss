@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import static com.dremio.exec.store.SystemSchemas.FILE_CONTENT;
 import static com.dremio.exec.store.iceberg.IcebergUtils.writeToVector;
 
 import java.io.IOException;
@@ -23,6 +24,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -46,21 +48,23 @@ import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.physical.config.TableFunctionContext;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
+import com.dremio.exec.store.SystemSchemas;
 import com.dremio.sabot.exec.context.OperatorContext;
 
 /**
  * Datafile processor implementation which generates data files info
  */
 public class DataFileContentReader implements ManifestEntryProcessor {
+  private static final Set<String> SKIP_FIELDS = SystemSchemas.CARRY_FORWARD_FILE_PATH_TYPE_SCHEMA.getFields()
+    .stream().map(f -> f.getName().toLowerCase()).collect(Collectors.toSet());
 
   private final BatchSchema outputSchema;
   private final List<ValueVector> valueVectorList = new LinkedList<>();
-  private Schema fileSchema;
   private PartitionSpec icebergPartitionSpec;
   private boolean doneWithCurrentDatafile;
   private Map<Integer, Type> idTypeMap;
   private ArrowBuf tmpBuf;
-  private BufferManager bufferManager;
+  private final BufferManager bufferManager;
 
   public DataFileContentReader(OperatorContext context, TableFunctionContext functionContext) {
     outputSchema = functionContext.getFullSchema();
@@ -71,6 +75,9 @@ public class DataFileContentReader implements ManifestEntryProcessor {
   @Override
   public void setup(VectorAccessible incoming, VectorAccessible outgoing) {
     for (Field field : outputSchema.getFields()) {
+      if (SKIP_FIELDS.contains(field.getName().toLowerCase())) {
+        continue;
+      }
       ValueVector vector = outgoing.getValueAccessorById(TypeHelper.getValueVectorClass(field),
         outgoing.getSchema().getFieldId(SchemaPath.getSimplePath(field.getName())).getFieldIds()).getValueVector();
       valueVectorList.add(vector);
@@ -90,7 +97,7 @@ public class DataFileContentReader implements ManifestEntryProcessor {
   @Override
   public void initialise(PartitionSpec partitionSpec, int row) {
     icebergPartitionSpec = partitionSpec;
-    fileSchema = icebergPartitionSpec.schema();
+    Schema fileSchema = icebergPartitionSpec.schema();
     idTypeMap = fileSchema.columns().stream().collect(
       Collectors.toMap(Types.NestedField::fieldId, Types.NestedField::type));
   }
@@ -120,8 +127,9 @@ public class DataFileContentReader implements ManifestEntryProcessor {
     return 1;
   }
 
-  private Supplier<Object> getFieldValueSupplier(String fieldName, ContentFile currentDataFile) {
+  private Supplier<Object> getFieldValueSupplier(String fieldName, ContentFile<?> currentDataFile) {
     switch (fieldName){
+      case FILE_CONTENT:
       case "content": return () -> currentDataFile.content().name();
       case "file_path":
       case "datafilePath":
@@ -154,9 +162,6 @@ public class DataFileContentReader implements ManifestEntryProcessor {
 
   /**
    * convert to list from Map or list<int/long>
-   * @param vector
-   * @param outIndex
-   * @param data
    */
   private void writeToListVector(ListVector vector, int outIndex, Object data) {
     UnionListWriter writer = vector.getWriter();
@@ -221,10 +226,8 @@ public class DataFileContentReader implements ManifestEntryProcessor {
 
   /**
    * Convert partition by data to String. Data file return structLike. it's trusting on partition spec for correct order for position
-   * @param currentDataFile
-   * @return
    */
-  private String getPartitionData(ContentFile currentDataFile) {
+  private String getPartitionData(ContentFile<?> currentDataFile) {
     StringBuilder stringBuilder = new StringBuilder();
     stringBuilder.append("{");
     List<Types.NestedField> fields = icebergPartitionSpec.partitionType().asStructType().fields();

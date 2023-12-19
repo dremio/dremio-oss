@@ -17,6 +17,7 @@ package com.dremio.exec.store.sys.accel;
 
 import java.util.List;
 
+import com.dremio.exec.planner.sql.PartitionTransform;
 import com.dremio.exec.planner.sql.parser.PartitionDistributionStrategy;
 import com.dremio.exec.planner.sql.parser.SqlCreateReflection.NameAndGranularity;
 import com.dremio.exec.planner.sql.parser.SqlCreateReflection.NameAndMeasures;
@@ -31,7 +32,7 @@ public class LayoutDefinition {
   private final List<NameAndMeasures> measure;
   private final List<String> sort;
   private final List<String> distribution;
-  private final List<String> partition;
+  private final List<PartitionTransform> partition;
   private final Boolean arrowCachingEnabled;
   private final PartitionDistributionStrategy partitionDistributionStrategy;
   private final String name;
@@ -43,7 +44,7 @@ public class LayoutDefinition {
     List<NameAndMeasures> measure,
     List<String> sort,
     List<String> distribution,
-    List<String> partition,
+    List<PartitionTransform> partition,
     Boolean arrowCachingEnabled,
     PartitionDistributionStrategy partitionDistributionStrategy) {
     super();
@@ -93,7 +94,7 @@ public class LayoutDefinition {
   }
 
 
-  public List<String> getPartition() {
+  public List<PartitionTransform> getPartition() {
     return partition;
   }
 

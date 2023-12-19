@@ -1,0 +1,757 @@
+{
+  "^": {
+    "keywords": [
+      "SHOW",
+      "DESC",
+      "DESCRIBE",
+      "USE",
+      [
+        "COPY",
+        "INTO"
+      ],
+      "CREATE",
+      "DROP",
+      [
+        "INSERT",
+        "INTO"
+      ],
+      [
+        "DELETE",
+        "FROM"
+      ],
+      "MERGE",
+      "UPDATE",
+      [
+        "ROLLBACK",
+        "TABLE"
+      ],
+      "TRUNCATE",
+      "ALTER",
+      "REFRESH",
+      [
+        "LOAD",
+        "MATERIALIZATION",
+        "METADATA"
+      ],
+      [
+        "COMPACT",
+        "MATERIALIZATION"
+      ],
+      "EXPLAIN",
+      "GRANT",
+      "REVOKE",
+      [
+        "ANALYZE",
+        "TABLE"
+      ],
+      [
+        "OPTIMIZE",
+        "TABLE"
+      ],
+      "VACUUM",
+      "SET",
+      "RESET",
+      "WITH",
+      "SELECT",
+      "VALUES",
+      "TABLE",
+      "CALL"
+    ],
+    "functions": false,
+    "identifiers": false
+  },
+  "S^": {
+    "keywords": [
+      "SHOW",
+      "SET",
+      "SELECT"
+    ],
+    "functions": false,
+    "identifiers": false
+  },
+  "SELEC^": {
+    "keywords": [
+      "SELECT"
+    ],
+    "functions": false,
+    "identifiers": false
+  },
+  "^SELECT": {
+    "keywords": [
+      "SHOW",
+      "DESC",
+      "DESCRIBE",
+      "USE",
+      [
+        "COPY",
+        "INTO"
+      ],
+      "CREATE",
+      "DROP",
+      [
+        "INSERT",
+        "INTO"
+      ],
+      [
+        "DELETE",
+        "FROM"
+      ],
+      "MERGE",
+      "UPDATE",
+      [
+        "ROLLBACK",
+        "TABLE"
+      ],
+      "TRUNCATE",
+      "ALTER",
+      "REFRESH",
+      [
+        "LOAD",
+        "MATERIALIZATION",
+        "METADATA"
+      ],
+      [
+        "COMPACT",
+        "MATERIALIZATION"
+      ],
+      "EXPLAIN",
+      "GRANT",
+      "REVOKE",
+      [
+        "ANALYZE",
+        "TABLE"
+      ],
+      [
+        "OPTIMIZE",
+        "TABLE"
+      ],
+      "VACUUM",
+      "SET",
+      "RESET",
+      "WITH",
+      "SELECT",
+      "VALUES",
+      "TABLE",
+      "CALL"
+    ],
+    "functions": false,
+    "identifiers": false
+  },
+  "SELECT SELECT^": {
+    "keywords": [],
+    "functions": false,
+    "identifiers": true
+  },
+  "SELECT ^ FROM abc": {
+    "keywords": [
+      "ALL",
+      "DISTINCT",
+      "STREAM",
+      "EXISTS",
+      "NOT",
+      "FALSE",
+      "NULL",
+      "TRUE",
+      "UNKNOWN",
+      "DATE",
+      "TIME",
+      "TIMESTAMP",
+      "INTERVAL",
+      "CEIL",
+      "MATCH_NUMBER",
+      "FINAL",
+      "RUNNING",
+      "FIRST",
+      "LAST",
+      "NEXT",
+      "PREV",
+      "JSON_EXISTS",
+      "JSON_VALUE",
+      "JSON_QUERY",
+      "JSON_OBJECT",
+      "JSON_OBJECTAGG",
+      "JSON_ARRAY",
+      "JSON_ARRAYAGG",
+      "MULTISET",
+      "ARRAY",
+      "MAP",
+      "PERIOD",
+      "SPECIFIC",
+      "NEW",
+      "CASE",
+      [
+        "CURRENT",
+        "VALUE",
+        "FOR"
+      ],
+      "CURSOR",
+      "ROW"
+    ],
+    "functions": true,
+    "identifiers": true
+  },
+  "SELECT * FROM ^": {
+    "keywords": [
+      "LATERAL",
+      "UNNEST",
+      "TABLE"
+    ],
+    "functions": false,
+    "identifiers": true
+  },
+  "SELECT FROM ^": {
+    "keywords": [
+      "LATERAL",
+      "UNNEST",
+      "TABLE"
+    ],
+    "functions": false,
+    "identifiers": true
+  },
+  "FROM ^": {
+    "keywords": [
+      "LATERAL",
+      "UNNEST",
+      "TABLE"
+    ],
+    "functions": false,
+    "identifiers": true
+  },
+  "SELECT * FROM tbl ^": {
+    "keywords": [
+      "TABLESAMPLE",
+      "AS",
+      "UNPIVOT",
+      "PIVOT",
+      "MATCH_RECOGNIZE",
+      "EXTEND",
+      "AT",
+      "NATURAL",
+      "JOIN",
+      [
+        "INNER",
+        "JOIN"
+      ],
+      "LEFT",
+      "RIGHT",
+      "FULL",
+      "CROSS",
+      [
+        "OUTER",
+        "APPLY"
+      ],
+      "WHERE",
+      [
+        "GROUP",
+        "BY"
+      ],
+      "HAVING",
+      "WINDOW",
+      "UNION",
+      "INTERSECT",
+      "EXCEPT",
+      "SET_MINUS",
+      [
+        "ORDER",
+        "BY"
+      ],
+      "LIMIT",
+      "OFFSET",
+      "FETCH"
+    ],
+    "functions": false,
+    "identifiers": true
+  },
+  "SELECT ABS(^": {
+    "keywords": [
+      "DEFAULT_",
+      "WITH",
+      "EXISTS",
+      "NOT",
+      "FALSE",
+      "NULL",
+      "TRUE",
+      "UNKNOWN",
+      "DATE",
+      "TIME",
+      "TIMESTAMP",
+      "INTERVAL",
+      "CEIL",
+      "MATCH_NUMBER",
+      "FINAL",
+      "RUNNING",
+      "FIRST",
+      "LAST",
+      "NEXT",
+      "PREV",
+      "JSON_EXISTS",
+      "JSON_VALUE",
+      "JSON_QUERY",
+      "JSON_OBJECT",
+      "JSON_OBJECTAGG",
+      "JSON_ARRAY",
+      "JSON_ARRAYAGG",
+      "MULTISET",
+      "ARRAY",
+      "MAP",
+      "PERIOD",
+      "SPECIFIC",
+      "NEW",
+      "CASE",
+      [
+        "CURRENT",
+        "VALUE",
+        "FOR"
+      ],
+      "CURSOR",
+      "ROW",
+      "SELECT",
+      "VALUES",
+      "TABLE",
+      "ALL",
+      "DISTINCT"
+    ],
+    "functions": true,
+    "identifiers": true
+  },
+  "SELECT * FROM (^)": {
+    "keywords": [
+      "WITH",
+      "SELECT",
+      "VALUES",
+      "TABLE",
+      "LATERAL",
+      "UNNEST"
+    ],
+    "functions": false,
+    "identifiers": true
+  },
+  "CREATE ^": {
+    "keywords": [
+      "PIPE",
+      "FOLDER",
+      "USER",
+      "ROLE",
+      "TAG",
+      "TABLE",
+      "BRANCH",
+      "VIEW",
+      "VDS",
+      "FUNCTION",
+      [
+        "OR",
+        "REPLACE"
+      ]
+    ],
+    "functions": false,
+    "identifiers": false
+  },
+  "DELETE ^": {
+    "keywords": [
+      "FROM"
+    ],
+    "functions": false,
+    "identifiers": false
+  },
+  "SHOW ^": {
+    "keywords": [
+      "PIPES",
+      "TBLPROPERTIES",
+      "CREATE",
+      "FUNCTIONS",
+      "VIEWS",
+      "FILES",
+      "LOG",
+      "LOGS",
+      "TAGS",
+      "BRANCHES",
+      "DATABASES",
+      "SCHEMAS",
+      "TABLES"
+    ],
+    "functions": false,
+    "identifiers": false
+  },
+  "DESCRIBE ^": {
+    "keywords": [
+      "WITH",
+      "SELECT",
+      "VALUES",
+      "TABLE",
+      "STATEMENT",
+      "CATALOG",
+      "DATABASE",
+      "SCHEMA",
+      "PIPE",
+      "FUNCTION"
+    ],
+    "functions": false,
+    "identifiers": true
+  },
+  "USE ^": {
+    "keywords": [
+      "COMMIT",
+      "REF",
+      "BRANCH",
+      "TAG",
+      "REFERENCE"
+    ],
+    "functions": false,
+    "identifiers": true
+  },
+  "MERGE ^": {
+    "keywords": [
+      "UNION",
+      "INTERSECT",
+      "EXCEPT",
+      "SET_MINUS",
+      [
+        "ORDER",
+        "BY"
+      ],
+      "LIMIT",
+      "OFFSET",
+      "FETCH",
+      "BRANCH",
+      "INTO"
+    ],
+    "functions": false,
+    "identifiers": false
+  },
+  "UPDATE ^": {
+    "keywords": [],
+    "functions": false,
+    "identifiers": true
+  },
+  "TRUNCATE ^": {
+    "keywords": [
+      [
+        "IF",
+        "EXISTS"
+      ],
+      "TABLE"
+    ],
+    "functions": false,
+    "identifiers": true
+  },
+  "ALTER ^": {
+    "keywords": [
+      "UNION",
+      "INTERSECT",
+      "EXCEPT",
+      "SET_MINUS",
+      [
+        "ORDER",
+        "BY"
+      ],
+      "LIMIT",
+      "OFFSET",
+      "FETCH",
+      "SESSION",
+      "SYSTEM",
+      "TAG",
+      "BRANCH",
+      "USER",
+      "TABLE",
+      "VIEW",
+      "PDS",
+      "VDS",
+      "DATASET",
+      "FOLDER",
+      "SPACE",
+      "SOURCE"
+    ],
+    "functions": false,
+    "identifiers": false
+  },
+  "REFRESH ^": {
+    "keywords": [
+      "DATASET",
+      "REFLECTION"
+    ],
+    "functions": false,
+    "identifiers": false
+  },
+  "GRANT ^": {
+    "keywords": [
+      "VIEW",
+      "ALTER",
+      "SELECT",
+      "MODIFY",
+      [
+        "MANAGE",
+        "GRANTS"
+      ],
+      "CREATE",
+      "DROP",
+      [
+        "EXTERNAL",
+        "QUERY"
+      ],
+      "OWNERSHIP",
+      "MONITOR",
+      "OPERATE",
+      "USAGE",
+      "COMMIT",
+      [
+        "CONFIGURE",
+        "SECURITY"
+      ],
+      "INSERT",
+      "TRUNCATE",
+      "DELETE",
+      "UPDATE",
+      "EXECUTE",
+      "UPLOAD",
+      "WRITE",
+      "ALL",
+      "ROLE"
+    ],
+    "functions": false,
+    "identifiers": false
+  },
+  "REVOKE ^": {
+    "keywords": [
+      "ROLE",
+      "VIEW",
+      "ALTER",
+      "SELECT",
+      "MODIFY",
+      [
+        "MANAGE",
+        "GRANTS"
+      ],
+      "CREATE",
+      "DROP",
+      [
+        "EXTERNAL",
+        "QUERY"
+      ],
+      "OWNERSHIP",
+      "MONITOR",
+      "OPERATE",
+      "USAGE",
+      "COMMIT",
+      [
+        "CONFIGURE",
+        "SECURITY"
+      ],
+      "INSERT",
+      "TRUNCATE",
+      "DELETE",
+      "UPDATE",
+      "EXECUTE",
+      "UPLOAD",
+      "WRITE",
+      "ALL"
+    ],
+    "functions": false,
+    "identifiers": false
+  },
+  "SET ^": {
+    "keywords": [],
+    "functions": false,
+    "identifiers": true
+  },
+  "RESET ^": {
+    "keywords": [
+      "ALL"
+    ],
+    "functions": false,
+    "identifiers": true
+  },
+  "WITH ^": {
+    "keywords": [],
+    "functions": false,
+    "identifiers": true
+  },
+  "VALUES ^": {
+    "keywords": [
+      "ROW",
+      "EXISTS",
+      "NOT",
+      "FALSE",
+      "NULL",
+      "TRUE",
+      "UNKNOWN",
+      "DATE",
+      "TIME",
+      "TIMESTAMP",
+      "INTERVAL",
+      "CEIL",
+      "MATCH_NUMBER",
+      "FINAL",
+      "RUNNING",
+      "FIRST",
+      "LAST",
+      "NEXT",
+      "PREV",
+      "JSON_EXISTS",
+      "JSON_VALUE",
+      "JSON_QUERY",
+      "JSON_OBJECT",
+      "JSON_OBJECTAGG",
+      "JSON_ARRAY",
+      "JSON_ARRAYAGG",
+      "MULTISET",
+      "ARRAY",
+      "MAP",
+      "PERIOD",
+      "SPECIFIC",
+      "NEW",
+      "CASE",
+      [
+        "CURRENT",
+        "VALUE",
+        "FOR"
+      ],
+      "CURSOR"
+    ],
+    "functions": true,
+    "identifiers": true
+  },
+  "TABLE ^": {
+    "keywords": [],
+    "functions": false,
+    "identifiers": true
+  },
+  "CALL ^": {
+    "keywords": [],
+    "functions": false,
+    "identifiers": true
+  },
+  "SHOW TABLES AT ^": {
+    "keywords": [
+      "COMMIT",
+      "REF",
+      "BRANCH",
+      "TAG",
+      "REFERENCE"
+    ],
+    "functions": false,
+    "identifiers": false
+  },
+  "COPY INTO tbl FROM '' (^)": {
+    "keywords": [
+      "DATE_FORMAT",
+      "TIME_FORMAT",
+      "TIMESTAMP_FORMAT",
+      "TRIM_SPACE",
+      "RECORD_DELIMITER",
+      "FIELD_DELIMITER",
+      "QUOTE_CHAR",
+      "ESCAPE_CHAR",
+      "EMPTY_AS_NULL",
+      "ON_ERROR",
+      "EXTRACT_HEADER",
+      "SKIP_LINES",
+      "NULL_IF"
+    ],
+    "functions": false,
+    "identifiers": false
+  },
+  "ALTER TABLE tbl ^": {
+    "keywords": [
+      "SET",
+      "RESET",
+      [
+        "LOCALSORT",
+        "BY"
+      ],
+      "DISABLE",
+      "ENABLE",
+      [
+        "REFRESH",
+        "METADATA"
+      ],
+      [
+        "FORGET",
+        "METADATA"
+      ],
+      "CREATE",
+      "DROP",
+      "ALTER",
+      "CHANGE",
+      "MODIFY",
+      "ADD",
+      [
+        "UNSET",
+        "TBLPROPERTIES"
+      ],
+      "ROUTE",
+      "AT"
+    ],
+    "functions": false,
+    "identifiers": false
+  },
+  "SELECT * FROM tbl WHERE col ^": {
+    "keywords": [
+      [
+        "GROUP",
+        "BY"
+      ],
+      "HAVING",
+      "WINDOW",
+      "UNION",
+      "INTERSECT",
+      "EXCEPT",
+      "SET_MINUS",
+      [
+        "ORDER",
+        "BY"
+      ],
+      "LIMIT",
+      "OFFSET",
+      "FETCH",
+      "IS",
+      "AND",
+      "OR",
+      [
+        "MEMBER",
+        "OF"
+      ],
+      [
+        "SUBMULTISET",
+        "OF"
+      ],
+      "NOT",
+      "CONTAINS",
+      "OVERLAPS",
+      "EQUALS",
+      "PRECEDES",
+      "SUCCEEDS",
+      "IMMEDIATELY",
+      "MULTISET",
+      [
+        "SIMILAR",
+        "TO"
+      ],
+      "LIKE",
+      "BETWEEN",
+      "IN"
+    ],
+    "functions": false,
+    "identifiers": false
+  },
+  "SELECT * FROM tbl WHERE col1 NOT LIKE 'test' AND col2 IS ^": {
+    "keywords": [
+      "JSON",
+      "EMPTY",
+      "UNKNOWN",
+      "FALSE",
+      "TRUE",
+      "NULL",
+      "NOT",
+      [
+        "A",
+        "SET"
+      ],
+      [
+        "DISTINCT",
+        "FROM"
+      ]
+    ],
+    "functions": false,
+    "identifiers": false
+  }
+}

@@ -16,6 +16,7 @@
 package com.dremio.exec.store.iceberg;
 
 import static com.dremio.exec.store.iceberg.IcebergSerDe.deserializedJsonAsSchema;
+import static com.dremio.exec.store.iceberg.IcebergUtils.isIdentityPartitionColumn;
 import static com.dremio.exec.store.iceberg.IcebergUtils.writeToVector;
 import static com.dremio.exec.util.VectorUtil.getVectorFromSchemaPath;
 
@@ -74,8 +75,11 @@ public class IcebergPartitionTransformTableFunction extends AbstractTableFunctio
         }
 
         for (PartitionField partitionField: partitionSpec.fields()) {
-            ValueVector vvOut = getVectorFromSchemaPath(outgoing, IcebergUtils.getPartitionFieldName(partitionField));
-            outputValueVectorMap.put(IcebergUtils.getPartitionFieldName(partitionField), vvOut);
+          if (isIdentityPartitionColumn(partitionField)) {
+            continue;
+          }
+          ValueVector vvOut = getVectorFromSchemaPath(outgoing, IcebergUtils.getPartitionFieldName(partitionField));
+          outputValueVectorMap.put(IcebergUtils.getPartitionFieldName(partitionField), vvOut);
         }
 
         for (Field field : incoming.getSchema()) {
@@ -97,14 +101,18 @@ public class IcebergPartitionTransformTableFunction extends AbstractTableFunctio
         }
 
         for (PartitionField partitionField: partitionSpec.fields()) {
-            ValueVector inputVector = getInputVectorForPartitionField(partitionField, schema);
-            String inputColumnName = schema.findField(partitionField.sourceId()).name();
-            Object columnValue = null;
-            columnValue = getValue(startOutIndex, inputVector, inputColumnName);
-            Transform transform= partitionField.transform();
-            Object transformedValue = transform.apply(columnValue);
-            ValueVector outputVector = outputValueVectorMap.get(IcebergUtils.getPartitionFieldName(partitionField));
-            writeToVector(outputVector, startOutIndex, transformedValue);
+          // skip identity transform since it returns the original value
+          if (isIdentityPartitionColumn(partitionField)) {
+            continue;
+          }
+          ValueVector inputVector = getInputVectorForPartitionField(partitionField, schema);
+          String inputColumnName = schema.findField(partitionField.sourceId()).name();
+          Object columnValue = null;
+          columnValue = getValue(startOutIndex, inputVector, inputColumnName);
+          Transform transform= partitionField.transform();
+          Object transformedValue = transform.apply(columnValue);
+          ValueVector outputVector = outputValueVectorMap.get(IcebergUtils.getPartitionFieldName(partitionField));
+          writeToVector(outputVector, startOutIndex, transformedValue);
         }
 
         if(startOutIndex == incoming.getRecordCount() - 1) {

@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import { useMemo } from "react";
 import { connect } from "react-redux";
 import { withRouter } from "react-router";
 import { compose } from "redux";
 
 import LinkWithRef from "@app/components/LinkWithRef/LinkWithRef";
-import { addNotification } from "@app/actions/notification";
 import RealTimeTimer from "@app/components/RealTimeTimer";
 import SampleDataMessage from "@app/pages/ExplorePage/components/SampleDataMessage";
 import jobsUtils from "@app/utils/jobsUtils";
@@ -28,7 +28,7 @@ import {
   getJobProgress,
   getRunStatus,
 } from "@app/selectors/explore";
-import { getCurrentSessionJobList, getJobList } from "selectors/jobs";
+import { getJobList } from "@app/selectors/jobs";
 import { intl } from "@app/utils/intl";
 // @ts-ignore
 import { Tooltip } from "dremio-ui-lib";
@@ -131,12 +131,22 @@ const ExploreTableJobStatus = (props: ExploreTableJobStatusProps) => {
       ? formatMessage({ id: "Explore.Preview" })
       : jobProgressStatus;
 
+  const showResultsWarning = useMemo(() => {
+    return isComplete && jobDetails?.stats?.isOutputLimited;
+  }, [isComplete, jobDetails?.stats?.isOutputLimited]);
+
   const jobStatus = {
     label: formatMessage({
       id: `Explore.${isComplete ? "Rows" : "Status"}`,
     }),
     value: isComplete
-      ? jobDetails?.outputRecords?.toLocaleString() ?? "-"
+      ? !jobDetails?.outputRecords
+        ? "-"
+        : showResultsWarning
+        ? jobDetails.outputRecords > 100000
+          ? ">100K"
+          : "<100K"
+        : jobDetails?.outputRecords?.toLocaleString() ?? "-"
       : jobStatusNames[jobProgress?.status],
   };
 
@@ -174,6 +184,8 @@ const ExploreTableJobStatus = (props: ExploreTableJobStatusProps) => {
           {jobId && (
             <Tooltip title={`Jobs Detail Page for #${jobId}`}>
               <LinkWithRef
+                target="_blank"
+                rel="noreferrer noopener"
                 to={{
                   pathname: jobPaths.job.link({ jobId, projectId }),
                   query: {
@@ -192,7 +204,38 @@ const ExploreTableJobStatus = (props: ExploreTableJobStatusProps) => {
 
         <div className="exploreJobStatus__item">
           <span style={styles.label}>{jobStatus.label}: </span>
-          {jobStatus.value}
+          {showResultsWarning ? (
+            <Tooltip
+              placement="top"
+              title={
+                <>
+                  <div className="exploreJobStatus__limitWarning__title">
+                    {formatMessage({ id: "Explore.Run.NewWarning.Header" })}
+                  </div>
+                  <p>
+                    {formatMessage(
+                      {
+                        id: "Explore.Run.NewWarning",
+                      },
+                      {
+                        rows:
+                          jobDetails?.outputRecords?.toLocaleString() ?? "-",
+                      }
+                    )}
+                  </p>
+                </>
+              }
+            >
+              <span className="exploreJobStatus__limitWarning">
+                {jobStatus.value}
+                {jobStatus.value !== "-" && (
+                  <dremio-icon name="interface/warning" alt="output limited" />
+                )}
+              </span>
+            </Tooltip>
+          ) : (
+            jobStatus.value
+          )}
         </div>
 
         <div className="exploreJobStatus__item">{renderTime()}</div>
@@ -211,8 +254,6 @@ function mapStateToProps(
   const queryTabNumber = explorePageState.view.queryTabNumber;
   const jobId = queryStatuses[queryTabNumber - 1]?.jobId;
   const jobProgress = getJobProgress(state, version);
-  const jobDetails = getCurrentSessionJobList(state)?.toJS();
-  const curJobDetails = jobDetails?.[jobId];
 
   const jobList = getJobList(state);
   const selectedJob = jobList.find((job: any) => job.get("id") === jobId);
@@ -233,7 +274,6 @@ function mapStateToProps(
   }
 
   return {
-    jobDetails: curJobDetails,
     haveRows,
     jobProgress,
     jobId,
@@ -243,7 +283,7 @@ function mapStateToProps(
 }
 
 export default compose(
-  connect(mapStateToProps, { addNotification }),
+  connect(mapStateToProps),
   withRouter
 )(ExploreTableJobStatus);
 

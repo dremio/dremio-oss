@@ -15,7 +15,7 @@
  */
 import Immutable from "immutable";
 import { normalize } from "normalizr";
-import { contentLoadActions } from "@app/actions/home";
+import { RESET_HOME_CONTENTS, contentLoadActions } from "@app/actions/home";
 import { applyDecorators } from "@app/utils/decorators";
 
 /**
@@ -29,10 +29,8 @@ export default function content(state = null, action) {
     case contentLoadActions.start:
       return null;
     case contentLoadActions.success: {
-      const {
-        meta: { entitySchema },
-        payload,
-      } = action;
+      const { meta: { entitySchema } = {}, payload } = action;
+      if (!entitySchema) return state;
       const entityType = entitySchema.getKey();
       const data = normalize(payload, entitySchema);
       return {
@@ -41,6 +39,8 @@ export default function content(state = null, action) {
         entities: applyDecorators(Immutable.fromJS(data.entities)),
       };
     }
+    case RESET_HOME_CONTENTS:
+      return null;
     case contentLoadActions.failure:
     default:
       return state;

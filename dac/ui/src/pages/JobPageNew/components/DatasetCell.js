@@ -21,15 +21,13 @@ import FontIcon from "components/Icon/FontIcon";
 import { getIconByEntityType } from "utils/iconUtils";
 import DatasetSummaryOverlay from "components/Dataset/DatasetSummaryOverlay";
 import { checkTypeToShowOverlay } from "utils/datasetUtils";
-import { Tooltip as DremioTooltip } from "dremio-ui-lib";
-import WikiDrawerWrapper from "@app/components/WikiDrawerWrapper";
-import { getCommonWikiDrawerTitle } from "@app/utils/WikiDrawerUtils";
+import { Popover } from "dremio-ui-lib/components";
+import VersionContext from "dremio-ui-common/components/VersionContext.js";
+
 import "./JobsContent.less";
 
 const DatasetCell = ({ job, isContextMenuOpen }) => {
   const [tooltipOpen, setTooltipOpen] = useState(false);
-  const [datasetDetails, setDatasetDetails] = useState(Immutable.fromJS({}));
-  const [drawerIsOpen, setDrawerIsOpen] = useState(false);
 
   const TooltipInnerStyle = {
     width: "auto",
@@ -52,37 +50,24 @@ const DatasetCell = ({ job, isContextMenuOpen }) => {
     setTooltipOpen(false);
   };
 
-  const openWikiDrawer = (dataset) => {
-    setDatasetDetails(dataset);
-    setDrawerIsOpen(true);
-  };
-
-  const closeWikiDrawer = (e) => {
-    e.stopPropagation();
-    e.preventDefault();
-    setDatasetDetails(Immutable.fromJS({}));
-    setDrawerIsOpen(false);
-  };
-
-  const wikiDrawerTitle = () => {
-    return getCommonWikiDrawerTitle(
-      datasetDetails,
-      datasetDetails?.get("fullPath"),
-      closeWikiDrawer
-    );
-  };
-
   const datasetRef = useRef(null);
   const datasetArray = job.get("queriedDatasets");
   const isInternalQuery =
     job.get("queryType") && job.get("queryType") === "UI_INITIAL_PREVIEW";
-  const datasetType = datasetArray.getIn([0, "datasetType"]);
-  const versionContextObj = datasetArray.getIn([0, "versionContext"]);
 
   if (!datasetArray) {
     return null;
   }
-  const iconType = getIconByEntityType(isInternalQuery ? "OTHER" : datasetType);
+
+  const datasetType = datasetArray.getIn([0, "datasetType"]);
+  const versionContextObj = datasetArray.getIn([0, "versionContext"]);
+  let versionContext;
+  try {
+    versionContext = JSON.parse(versionContextObj);
+  } catch (e) {
+    // nothing
+  }
+
   const datasetTitle = datasetArray.getIn([0, "datasetName"]);
 
   const showOverlay =
@@ -93,7 +78,10 @@ const DatasetCell = ({ job, isContextMenuOpen }) => {
       <div className="jobsContent-dataset">
         <span className="jobsContent-dataset__dataset">
           <FontIcon
-            type={iconType}
+            type={getIconByEntityType(
+              !isInternalQuery ? datasetType : "OTHER",
+              !!versionContext
+            )}
             iconStyle={{
               verticalAlign: "middle",
               flexShrink: 0,
@@ -102,6 +90,13 @@ const DatasetCell = ({ job, isContextMenuOpen }) => {
         </span>
         <div className="jobsContent-dataset__name">
           {datasetArray.getIn([0, "datasetName"])}
+          {versionContext && (
+            <span className="jobsContent-dataset__versionContext">
+              {"("}
+              <VersionContext versionContext={versionContext} />
+              {")"}
+            </span>
+          )}
         </div>
       </div>
     );
@@ -118,32 +113,27 @@ const DatasetCell = ({ job, isContextMenuOpen }) => {
       >
         {showOverlay && !isContextMenuOpen ? (
           <>
-            <DremioTooltip
-              interactive
-              type="richTooltip"
-              enterDelay={1000}
-              title={
+            <Popover
+              role="tooltip"
+              placement="right"
+              delay={750}
+              mode="hover"
+              portal
+              showArrow
+              content={
                 <DatasetSummaryOverlay
                   inheritedTitle={datasetTitle}
                   datasetType={datasetType}
                   fullPath={datasetArray.getIn([0, "datasetPathsList"])}
-                  openWikiDrawer={openWikiDrawer}
+                  openWikiDrawer={() => {}}
                   showColumns
-                  versionContext={
-                    versionContextObj
-                      ? JSON.parse(versionContextObj)
-                      : undefined
-                  }
+                  versionContext={versionContext}
+                  hideMainActionButtons
                 />
               }
             >
               {renderNameAndIcon()}
-            </DremioTooltip>
-            <WikiDrawerWrapper
-              drawerIsOpen={drawerIsOpen}
-              wikiDrawerTitle={wikiDrawerTitle()}
-              datasetDetails={datasetDetails}
-            />
+            </Popover>
           </>
         ) : (
           renderNameAndIcon()

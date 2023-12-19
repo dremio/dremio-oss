@@ -31,284 +31,258 @@
     }
   }
 
-  .table-controls {
-    background-color: @FIGMA_NEUTRAL_100;
-    display: flex;
-    height: 48px;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    padding: 8px;
-    margin: 0 8px 0 8px;
-    user-select: none;
-
-    input {
-      user-select: none;
-    }
-
-    &__actions {
+  .table-controls-wrapper {
+    .table-controls {
+      background-color: @FIGMA_NEUTRAL_100;
+      display: flex;
+      height: 48px;
+      flex-direction: row;
       align-items: center;
-      display: flex;
-      font-size: 14px;
       justify-content: space-between;
-      margin-right: 10px;
-      padding-right: 10px;
-      white-space: nowrap;
-    }
+      padding: 8px;
+      margin: 0 8px 0 8px;
+      user-select: none;
 
-    .tooltip-warn {
-      position: absolute;
-      top: -74px;
-      left: -20px;
-      width: 480px;
-      font-size: 12px;
-      display: flex;
-      flex-wrap: wrap;
-      background-color: #272727;
-      color: #fff;
-      padding: 10px;
-      border-radius: 3px;
-      overflow: visible;
-
-      .triangle {
-        width: 0;
-        height: 0;
-        border-style: solid;
-        border-width: 10px 10px 0px 10px;
-        border-color: #272727 transparent transparent transparent;
-        position: absolute;
-        left: 25px;
-        top: 63px;
+      input {
+        user-select: none;
       }
 
-      .run-again {
-        margin-top: 10px;
+      &__actions {
+        align-items: center;
+        display: flex;
+        font-size: 14px;
+        justify-content: space-between;
+        margin-right: 10px;
+        padding-right: 10px;
+        white-space: nowrap;
+      }
+
+      .tooltip-warn {
+        position: absolute;
+        top: -74px;
+        left: -20px;
+        width: 480px;
+        font-size: 12px;
+        display: flex;
+        flex-wrap: wrap;
+        background-color: #272727;
+        color: #fff;
+        padding: 10px;
+        border-radius: 3px;
+        overflow: visible;
+
+        .triangle {
+          width: 0;
+          height: 0;
+          border-style: solid;
+          border-width: 10px 10px 0px 10px;
+          border-color: #272727 transparent transparent transparent;
+          position: absolute;
+          left: 25px;
+          top: 63px;
+        }
+
+        .run-again {
+          margin-top: 10px;
+          color: #0096ff;
+          cursor: pointer;
+        }
+      }
+
+      .active-data-graph {
+        background-color: darken(#efefef, 10%) !important;
+      }
+
+      .columns-text {
         color: #0096ff;
         cursor: pointer;
       }
-    }
 
-    .active-data-graph {
-      background-color: darken(#efefef, 10%) !important;
-    }
-
-    .columns-text {
-      color: #0096ff;
-      cursor: pointer;
-    }
-
-    .dropdown-for-actions {
-      top: 40px;
-      left: 180px;
-      position: absolute;
-      z-index: 100;
-    }
-
-    .control-wrap {
-      display: flex;
-      align-items: center;
-      min-width: 521px;
-      justify-content: flex-end;
-
-      &.inactive-element {
-        background-color: transparent;
-        opacity: 0.4;
-
-        &:hover {
-          background-color: transparent !important;
-        }
+      .dropdown-for-actions {
+        top: 40px;
+        left: 180px;
+        position: absolute;
+        z-index: 100;
       }
 
-      .black-triangle {
-        position: relative;
-        left: 10px;
-        display: inline-block;
-        height: 9px;
-        width: 5px;
-        background: #000;
-        z-index: 0;
-      }
-    }
+      .control-wrap {
+        display: flex;
+        align-items: center;
+        min-width: 521px;
+        justify-content: flex-end;
 
-    .setting-dot-item {
-      height: 28px;
-      margin-right: 0;
-
-      &.inactive-element {
-        background-color: transparent;
-        opacity: 0.4;
-        cursor: default;
-
-        &:hover {
-          background-color: transparent !important;
-        }
-      }
-    }
-
-    .info-button {
-      border: 1px solid #ccc;
-      width: 90px;
-      height: 28px;
-      border-radius: 4px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      background-color: #efefef;
-      font-size: 14px;
-      margin-left: 15px;
-
-      &.inactive-element {
-        background-color: transparent;
-        opacity: 0.4;
-
-        &:hover {
-          background-color: transparent !important;
-        }
-      }
-
-      &.add-columns {
-        width: 115px;
-        margin-left: 0;
-      }
-
-      &.group-by {
-        width: 95px;
-      }
-
-      &.join {
-        width: 80px;
-      }
-
-      &:hover {
-        background-color: darken(#efefef, 10%);
-      }
-
-      &.data-graph-button {
-        cursor: pointer;
-        margin-left: 20px;
-        min-width: 120px;
-        background-color: #ffffff;
-
-        .fa {
-          font-size: 17px;
-          margin-right: 6px;
-          position: relative;
-          top: 1px;
-        }
-      }
-
-      &.blue-button {
-        background-color: #0094fb;
-        color: #fff;
-        border-color: #0094fb;
-
-        &:hover {
-          background-color: darken(#0094fb, 10%);
-        }
-      }
-
-      &:hover {
-        background-color: darken(#efefef, 10%);
-      }
-    }
-
-    .title {
-      font-weight: 700;
-    }
-
-    .controls {
-      display: flex;
-      align-items: center; // make sure all the buttons line up nicely
-      flex: 1;
-      gap: 8px;
-    }
-
-    .left-controls {
-      display: flex;
-      align-items: center;
-      flex: 1;
-
-      .controls {
-        button,
-        input {
-          font-size: 14px;
-          width: fit-content;
-        }
-
-        &-addField {
-          width: 120px;
-        }
-        &-groupBy {
-          width: 102px;
-        }
-        &-join {
-          width: 69px;
-          min-width: 0;
-        }
-
-        &-addField,
-        &-groupBy,
-        &-join {
-          &-icon {
-            height: 20px;
-            width: 20px;
-            color: var(--color--neutral--600);
-          }
-
-          &-icon--disabled {
-            height: 20px;
-            width: 20px;
-            color: var(--color--neutral--100);
-          }
-        }
-      }
-
-      .table-controls__right {
-        .dropdownMenu {
-          cursor: pointer;
+        &.inactive-element {
+          background-color: transparent;
+          opacity: 0.4;
 
           &:hover {
-            .dropdownMenu__iconWrap,
-            .fa {
-              .gray-icon-hover();
+            background-color: transparent !important;
+          }
+        }
+
+        .black-triangle {
+          position: relative;
+          left: 10px;
+          display: inline-block;
+          height: 9px;
+          width: 5px;
+          background: #000;
+          z-index: 0;
+        }
+      }
+
+      .setting-dot-item {
+        height: 28px;
+        margin-right: 0;
+
+        &.inactive-element {
+          background-color: transparent;
+          opacity: 0.4;
+          cursor: default;
+
+          &:hover {
+            background-color: transparent !important;
+          }
+        }
+      }
+
+      .info-button {
+        border: 1px solid #ccc;
+        width: 90px;
+        height: 28px;
+        border-radius: 4px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background-color: #efefef;
+        font-size: 14px;
+        margin-left: 15px;
+
+        &.inactive-element {
+          background-color: transparent;
+          opacity: 0.4;
+
+          &:hover {
+            background-color: transparent !important;
+          }
+        }
+
+        &.add-columns {
+          width: 115px;
+          margin-left: 0;
+        }
+
+        &.group-by {
+          width: 95px;
+        }
+
+        &.join {
+          width: 80px;
+        }
+
+        &:hover {
+          background-color: darken(#efefef, 10%);
+        }
+
+        &.data-graph-button {
+          cursor: pointer;
+          margin-left: 20px;
+          min-width: 120px;
+          background-color: #ffffff;
+
+          .fa {
+            font-size: 17px;
+            margin-right: 6px;
+            position: relative;
+            top: 1px;
+          }
+        }
+
+        &.blue-button {
+          background-color: #0094fb;
+          color: #fff;
+          border-color: #0094fb;
+
+          &:hover {
+            background-color: darken(#0094fb, 10%);
+          }
+        }
+
+        &:hover {
+          background-color: darken(#efefef, 10%);
+        }
+      }
+
+      .title {
+        font-weight: 700;
+      }
+
+      .controls {
+        display: flex;
+        align-items: center; // make sure all the buttons line up nicely
+        flex: 1;
+        gap: 8px;
+      }
+
+      .left-controls {
+        display: flex;
+        align-items: center;
+        flex: 1;
+
+        .controls {
+          button,
+          input {
+            font-size: 14px;
+            width: fit-content;
+          }
+
+          &-addField {
+            width: 120px;
+          }
+          &-groupBy {
+            width: 102px;
+          }
+          &-join {
+            width: 69px;
+            min-width: 0;
+          }
+
+          &-addField,
+          &-groupBy,
+          &-join {
+            &-icon {
+              height: 20px;
+              width: 20px;
+              color: var(--color--neutral--600);
+            }
+
+            &-icon--disabled {
+              height: 20px;
+              width: 20px;
+              color: var(--color--neutral--100);
+            }
+          }
+        }
+
+        .table-controls__right {
+          .dropdownMenu {
+            cursor: pointer;
+
+            &:hover {
+              .dropdownMenu__iconWrap,
+              .fa {
+                .gray-icon-hover();
+              }
             }
           }
         }
       }
     }
 
-    .right-controls {
-      display: flex;
-      width: auto;
-      margin-left: auto;
-      margin-right: 30px;
-
-      .controls {
-        margin-right: 4px;
-        overflow: visible;
-        height: 24px;
-      }
-
-      .setting-item {
-        height: 26px;
-        margin-left: 0;
-      }
-
-      .filter {
-        position: relative;
-        float: right;
-        margin-right: 20px;
-        min-width: 290px;
-        border-radius: 6px;
-        box-shadow: none;
-        border: 1px solid #e1e1e1;
-        padding: 4px;
-        height: 26px;
-
-        &:focus {
-          outline: none;
-        }
-      }
+    .message.warning {
+      width: auto !important;
+      margin: var(--dremio--spacing--1) !important;
+      margin-bottom: 0 !important;
     }
   }
 }

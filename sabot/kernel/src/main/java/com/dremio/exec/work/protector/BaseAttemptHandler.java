@@ -29,9 +29,8 @@ import com.google.common.base.Preconditions;
  */
 abstract class BaseAttemptHandler implements ReAttemptHandler {
 
-  private static final int MAX_ATTEMPTS = 10; //TODO make this configurable ?
-
-  private OptionManager options;
+  private final long maxAttempts;
+  private final OptionManager options;
 
   private boolean recoveringFromOOM;
 
@@ -39,6 +38,7 @@ abstract class BaseAttemptHandler implements ReAttemptHandler {
 
   BaseAttemptHandler(OptionManager options) {
     this.options = Preconditions.checkNotNull(options, "options shouldn't be null");
+    this.maxAttempts = options.getOption(ExecConstants.REATTEMPT_LIMIT);
   }
 
   @Override
@@ -61,7 +61,7 @@ abstract class BaseAttemptHandler implements ReAttemptHandler {
       return AttemptReason.NONE;
     }
 
-    if (attemptId.getAttemptNum() == MAX_ATTEMPTS-1) {
+    if (attemptId.getAttemptNum() == maxAttempts - 1) {
       logger.info("{}: reached maximum allowed number of attempts", attemptId);
       return AttemptReason.NONE; // we exceeded max allowed attempts
     }

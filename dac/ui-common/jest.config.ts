@@ -22,6 +22,10 @@ export default {
       "@swc/jest",
       {
         jsc: {
+          parser: {
+            syntax: "typescript",
+            decorators: true,
+          },
           transform: {
             react: {
               runtime: "automatic",
@@ -32,4 +36,6 @@ export default {
     ],
   },
   testMatch: ["<rootDir>/src/**/__tests__/**/*.[jt]s?(x)"],
+  testPathIgnorePatterns: ["/__utils__/"],
+  modulePathIgnorePatterns: ["/resources/*.actual.json"],
 };

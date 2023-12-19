@@ -41,7 +41,7 @@ import com.google.common.collect.Lists;
  * Drops a branch under a source.
  *
  * DROP BRANCH [ IF EXISTS ] branchName
- * ( AT COMMIT commitHash | FORCE )
+ * [ AT COMMIT commitHash | FORCE ]
  * [ IN sourceName ]
  */
 public final class SqlDropBranch extends SqlVersionBase {
@@ -62,20 +62,20 @@ public final class SqlDropBranch extends SqlVersionBase {
         }
       };
 
-  private final SqlLiteral existenceCheck;
+  private final SqlLiteral shouldErrorIfBranchDoesNotExist;
   private final SqlIdentifier branchName;
   private final SqlIdentifier commitHash;
   private final SqlLiteral forceDrop;
 
   public SqlDropBranch(
       SqlParserPos pos,
-      SqlLiteral existenceCheck,
+      SqlLiteral shouldErrorIfBranchDoesNotExist,
       SqlIdentifier branchName,
       SqlIdentifier commitHash,
       SqlLiteral forceDrop,
       SqlIdentifier sourceName) {
     super(pos, sourceName);
-    this.existenceCheck = Preconditions.checkNotNull(existenceCheck);
+    this.shouldErrorIfBranchDoesNotExist = Preconditions.checkNotNull(shouldErrorIfBranchDoesNotExist);
     this.branchName = Preconditions.checkNotNull(branchName);
     this.commitHash = commitHash;
     this.forceDrop = Preconditions.checkNotNull(forceDrop);
@@ -89,7 +89,7 @@ public final class SqlDropBranch extends SqlVersionBase {
   @Override
   public List<SqlNode> getOperandList() {
     List<SqlNode> ops = Lists.newArrayList();
-    ops.add(existenceCheck);
+    ops.add(shouldErrorIfBranchDoesNotExist);
     ops.add(branchName);
     ops.add(commitHash);
     ops.add(forceDrop);
@@ -103,7 +103,7 @@ public final class SqlDropBranch extends SqlVersionBase {
     writer.keyword("DROP");
     writer.keyword("BRANCH");
 
-    if (existenceCheck.booleanValue()) {
+    if (shouldErrorIfBranchDoesNotExist.booleanValue()) {
       writer.keyword("IF");
       writer.keyword("EXISTS");
     }
@@ -139,8 +139,8 @@ public final class SqlDropBranch extends SqlVersionBase {
     }
   }
 
-  public SqlLiteral getExistenceCheck() {
-    return existenceCheck;
+  public SqlLiteral shouldErrorIfBranchDoesNotExist() {
+    return shouldErrorIfBranchDoesNotExist;
   }
 
   public SqlIdentifier getBranchName() {

@@ -17,7 +17,7 @@ import { cloneElement, createRef, PureComponent } from "react";
 import classNames from "clsx";
 import PropTypes from "prop-types";
 import Popover from "@mui/material/Popover";
-import { Tooltip } from "dremio-ui-lib";
+import { IconButton } from "dremio-ui-lib/components";
 
 import FontIcon from "../Icon/FontIcon";
 import "./SettingsBtn.less";
@@ -33,7 +33,6 @@ class SettingsBtn extends PureComponent {
     position: PropTypes.any,
     hideArrowIcon: PropTypes.bool,
     children: PropTypes.node,
-    style: PropTypes.object,
     stopPropagation: PropTypes.bool,
     disabled: PropTypes.bool,
     tooltip: PropTypes.string,
@@ -79,47 +78,36 @@ class SettingsBtn extends PureComponent {
     });
   }
 
-  wrapComponent(button) {
-    const { tooltip } = this.props;
-
-    return tooltip ? (
-      <Tooltip title={tooltip}>{button}</Tooltip>
-    ) : (
-      <>{button}</>
-    );
-  }
-
   render() {
     const {
       hasDropdown,
       classStr,
-      style,
       hideArrowIcon,
       children,
       position,
       disabled,
+      tooltip,
     } = this.props;
     const wrapClasses = classNames(classStr, { active: this.state.open });
 
     return (
       <span className={wrapClasses} ref={this.settingsWrapRef}>
-        {this.wrapComponent(
-          <button
-            className="settings-button"
-            data-qa={this.props.dataQa || "settings-button"}
-            onClick={this.handleTouchTap}
-            style={{ ...styles.button, ...(style || {}) }}
-            aria-label={this.props["aria-label"]}
-          >
-            {children}
-            {hasDropdown && !disabled && !hideArrowIcon && (
-              <FontIcon
-                type="Arrow-Down-Small"
-                theme={{ Icon: { width: 12, backgroundPosition: "-7px 2px" } }}
-              />
-            )}
-          </button>
-        )}
+        <IconButton
+          className="settings-button"
+          data-qa={this.props.dataQa || "settings-button"}
+          onClick={this.handleTouchTap}
+          tooltip={tooltip ?? "More"}
+          tooltipPortal
+        >
+          {children}
+          {hasDropdown && !disabled && !hideArrowIcon && (
+            <FontIcon
+              type="Arrow-Down-Small"
+              theme={{ Icon: { width: 12, backgroundPosition: "-7px 2px" } }}
+            />
+          )}
+        </IconButton>
+
         {hasDropdown && !disabled && (
           <Popover
             open={this.state.open}
@@ -144,13 +132,4 @@ class SettingsBtn extends PureComponent {
   }
 }
 
-const styles = {
-  popover: {
-    width: "",
-    margin: 0,
-  },
-  button: {
-    display: "flex",
-  },
-};
 export default SettingsBtn;

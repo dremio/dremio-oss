@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 import { PureComponent, Fragment } from "react";
+import { compose } from "redux";
 import { connect } from "react-redux";
 import PropTypes from "prop-types";
 import Immutable from "immutable";
@@ -37,7 +38,7 @@ import { needsTransform, isSqlChanged } from "sagas/utils";
 
 import { PHYSICAL_DATASET_TYPES } from "@app/constants/datasetTypes";
 import explorePageInfoHeaderConfig from "@inject/pages/ExplorePage/components/explorePageInfoHeaderConfig";
-
+import SQLScriptDeletedDialog from "@app/components/SQLScripts/components/SQLScriptDeletedDialog/SQLScriptDeletedDialog";
 //actions
 import { saveDataset, saveAsDataset } from "actions/explore/dataset/save";
 import {
@@ -61,7 +62,7 @@ import config from "dyn-load/utils/config";
 import { getAnalyzeToolsConfig } from "@app/utils/config";
 import exploreUtils from "@app/utils/explore/exploreUtils";
 import { VIEW_ID as SCRIPTS_VIEW_ID } from "@app/components/SQLScripts/SQLScripts";
-
+import { closeTab } from "dremio-ui-common/sonar/SqlRunnerSession/resources/SqlRunnerSessionResource.js";
 import SaveMenu, {
   DOWNLOAD_TYPES,
 } from "components/Menus/ExplorePage/SaveMenu";
@@ -72,16 +73,17 @@ import { getIconPath } from "@app/utils/getIconPath";
 import { Button } from "dremio-ui-lib";
 import { showQuerySpinner } from "@inject/pages/ExplorePage/utils";
 import { getIconDataTypeFromDatasetType } from "utils/iconUtils";
-
+import { NoticeTag } from "dremio-ui-common/components/NoticeTag.js";
 import {
   getHistory,
   getTableColumns,
   getJobProgress,
   getRunStatus,
-  getExploreJobId,
   getExploreState,
   isWikAvailable,
 } from "selectors/explore";
+import { getScriptsSyncPending } from "@app/selectors/scriptsSyncPending";
+import { getExploreJobId } from "@app/selectors/exploreJobs";
 import {
   getActiveScript,
   getActiveScriptPermissions,
@@ -90,7 +92,12 @@ import {
 import { HANDLE_THROUGH_API } from "@inject/pages/HomePage/components/HeaderButtonConstants";
 import { cancelJobAndShowNotification } from "@app/actions/jobs/jobs";
 import SQLScriptDialog from "@app/components/SQLScripts/components/SQLScriptDialog/SQLScriptDialog";
-import { setQueryStatuses, resetQueryState } from "actions/explore/view";
+import {
+  setQueryStatuses,
+  setActionState,
+  resetQueryState,
+  resetTableState,
+} from "actions/explore/view";
 import {
   createScript,
   fetchScripts,
@@ -99,15 +106,26 @@ import {
 } from "actions/resources/scripts";
 import {
   fetchAllAndMineScripts,
+  handleOpenTabScript,
   MAX_MINE_SCRIPTS_ALLOWANCE,
   openPrivilegesModalForScript,
 } from "@app/components/SQLScripts/sqlScriptsUtils";
-
+import {
+  DisabledEngineActions,
+  ExploreHeaderActions,
+} from "@app/pages/ExplorePage/components/ExploreHeaderUtils";
 import { addNotification } from "@app/actions/notification";
 import { ExploreActions } from "./ExploreActions";
 import ExploreTableJobStatusSpinner from "./ExploreTable/ExploreTableJobStatusSpinner";
 import * as sqlPaths from "dremio-ui-common/paths/sqlEditor.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
+import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
+import { hideForNonDefaultBranch } from "dremio-ui-common/utilities/versionContext.js";
+import { withIsMultiTabEnabled } from "@app/components/SQLScripts/useMultiTabIsEnabled";
+import { isTabbableUrl } from "@app/utils/explorePageTypeUtils";
+import sentryUtil from "@app/utils/sentryUtil";
+import { newPopulatedTab } from "dremio-ui-common/sonar/SqlRunnerSession/resources/SqlRunnerSessionResource.js";
+import { ScriptsResource } from "dremio-ui-common/sonar/scripts/resources/ScriptsResource.js";
 
 import * as classes from "./ExploreHeader.module.less";
 import "./ExploreHeader.less";
@@ -150,6 +168,7 @@ export class ExploreHeader extends PureComponent {
     activeScript: PropTypes.object,
     queryStatuses: PropTypes.array,
     isMultiQueryRunning: PropTypes.bool,
+    actionState: PropTypes.string,
 
     // actions
     transformHistoryCheck: PropTypes.func.isRequired,
@@ -168,12 +187,14 @@ export class ExploreHeader extends PureComponent {
     fetchScripts: PropTypes.func,
     updateScript: PropTypes.func,
     setActiveScript: PropTypes.func,
+    setActionState: PropTypes.func,
     resetQueryState: PropTypes.func,
     supportFlagsObj: PropTypes.object,
     activeScriptPermissions: PropTypes.array,
     user: PropTypes.instanceOf(Immutable.Map),
     numberOfMineScripts: PropTypes.number,
     addNotification: PropTypes.func,
+    resetTableState: PropTypes.func,
   };
 
   componentDidUpdate(prevProps) {
@@ -217,37 +238,67 @@ export class ExploreHeader extends PureComponent {
     this.downloadDataset = this.downloadDataset.bind(this);
 
     this.state = {
-      actionState: null,
       isSaveAsModalOpen: false,
+      saveAsDialogError: null,
+      isSQLScriptDeletedDialogOpen: false,
+      SQLScriptDeletedDialogProps: {
+        onCancel: async () => {
+          closeTab(this.props.activeScript.id);
+          await ScriptsResource.fetch();
+          fetchAllAndMineScripts(this.props.fetchScripts, null);
+          handleOpenTabScript(this.props.router)(
+            ScriptsResource.getResource().value[0]
+          );
+          this.setState({
+            isSQLScriptDeletedDialogOpen: false,
+          });
+        },
+        onConfirm: () => {
+          this.setState({
+            isSaveAsModalOpen: true,
+            isSQLScriptDeletedDialogOpen: false,
+          });
+          closeTab(this.props.activeScript.id);
+        },
+      },
       supportFlags: {},
       nextAction: null,
+    };
+
+    window.sqlUtils = {
+      handleDeletedScript: this.handleDeletedScript,
+      handleSaveScriptAs: this.handleSaveScriptAs,
+      handleSaveViewAs: this.handleSaveViewAs,
     };
   }
 
   doButtonAction(actionType) {
+    const { cancelJob, jobId, resetSqlTabs, setActionState, setQueryStatuses } =
+      this.props;
+
     switch (actionType) {
-      case "run":
-        this.setState({ actionState: "run" });
-        this.props.resetSqlTabs();
+      case ExploreHeaderActions.RUN:
+        setActionState({ actionState: ExploreHeaderActions.RUN });
+        resetSqlTabs();
         return this.handleRunClick();
-      case "preview":
-        this.setState({ actionState: "preview" });
-        this.props.resetSqlTabs();
+      case ExploreHeaderActions.PREVIEW:
+        setActionState({ actionState: ExploreHeaderActions.PREVIEW });
+        resetSqlTabs();
         return this.handlePreviewClick();
-      case "discard":
+      case ExploreHeaderActions.DISCARD:
         return this.handleDiscardConfirm();
-      case "saveView":
+      case ExploreHeaderActions.SAVE:
         return this.handleSaveView();
-      case "saveViewAs":
-        this.setState({ actionState: "savingAs" });
+      case ExploreHeaderActions.SAVE_AS:
+        setActionState({ actionState: ExploreHeaderActions.SAVE_AS });
         return this.handleSaveViewAs();
-      case "saveScript":
+      case ExploreHeaderActions.SAVE_SCRIPT:
         return this.handleSaveScript();
-      case "saveScriptAs":
+      case ExploreHeaderActions.SAVE_SCRIPT_AS:
         return this.handleSaveScriptAs();
-      case "cancel":
-        this.props.setQueryStatuses(this.handleCancelAllJobs());
-        return this.props.cancelJob(this.props.jobId);
+      case ExploreHeaderActions.CANCEL:
+        setQueryStatuses(this.handleCancelAllJobs());
+        return cancelJob(jobId);
       case DOWNLOAD_TYPES.json:
       case DOWNLOAD_TYPES.csv:
       case DOWNLOAD_TYPES.parquet:
@@ -256,6 +307,12 @@ export class ExploreHeader extends PureComponent {
         break;
     }
   }
+
+  handleDeletedScript = () => {
+    this.setState({
+      isSQLScriptDeletedDialogOpen: true,
+    });
+  };
 
   handleRunClick() {
     const { getSelectedSql } = this.props;
@@ -567,7 +624,7 @@ export class ExploreHeader extends PureComponent {
     );
   }
 
-  wrapWithTooltip(button, title, cmd, disabled) {
+  wrapWithTooltip(button, title, cmd, disabled, disabledTooltip) {
     const tooltip = cmd ? (
       <div
         className="exploreHeaderLeft__tooltip-content"
@@ -582,8 +639,11 @@ export class ExploreHeader extends PureComponent {
 
     // https://stackoverflow.com/questions/57527896/material-ui-tooltip-doesnt-display-on-custom-component-despite-spreading-props
     return (
-      <Tooltip title={tooltip} placement="top">
-        <span {...(disabled && { style: { pointerEvents: "none" } })}>
+      <Tooltip title={disabledTooltip ?? tooltip} placement="top">
+        <span
+          {...(disabled &&
+            !disabledTooltip && { style: { pointerEvents: "none" } })}
+        >
           {button}
         </span>
       </Tooltip>
@@ -591,8 +651,14 @@ export class ExploreHeader extends PureComponent {
   }
 
   renderHeader() {
-    const { statusesArray, isMultiQueryRunning, jobId, disableButtons, intl } =
-      this.props;
+    const {
+      actionState,
+      statusesArray,
+      isMultiQueryRunning,
+      jobId,
+      disableButtons,
+      intl,
+    } = this.props;
 
     // Fix later: jobProgress watchers are inconsistent since multi queries now run sequentially
     // const isJobCancellable = this.props.jobProgress ? this.getCancellable(this.props.jobProgress.status) : null;
@@ -604,25 +670,30 @@ export class ExploreHeader extends PureComponent {
       statusesArray.filter((status) => exploreUtils.getCancellable(status));
     const isCancellable = !!cancellableJobs.length || isMultiQueryRunning;
     const disableEnginePickMenu =
-      isCancellable &&
-      (this.state.actionState === "run" ||
-        this.state.actionState === "preview" ||
-        this.state.actionState === "savingAs");
+      isCancellable && DisabledEngineActions.includes(actionState);
     const cancelText = intl.formatMessage({ id: "Common.Cancel" });
     const runText = intl.formatMessage({ id: "Common.Run" });
     const previewText = intl.formatMessage({ id: "Common.Preview" });
     const discardText = intl.formatMessage({ id: "Common.Discard" });
 
+    const disabledTooltip = disableRunButton
+      ? intl.formatMessage({ id: "Explore.RunPreview.Disabled.Support" })
+      : disableButtons
+      ? intl.formatMessage({ id: "Explore.RunPreview.Disabled.Empty" })
+      : undefined;
+
     return (
       <>
         <div className="ExploreHeader__left">
-          {isCancellable && jobId && this.state.actionState === "run"
+          {isCancellable && jobId && actionState === ExploreHeaderActions.RUN
             ? this.wrapWithTooltip(
                 <Button
                   color="secondary"
                   type={ButtonTypes.SECONDARY}
                   data-qa="qa-cancel"
-                  onClick={() => this.doButtonAction("cancel")}
+                  onClick={() =>
+                    this.doButtonAction(ExploreHeaderActions.CANCEL)
+                  }
                   style={{ width: 75, fontSize: 14 }}
                   disableMargin
                 >
@@ -636,7 +707,7 @@ export class ExploreHeader extends PureComponent {
                   color="primary"
                   type={ButtonTypes.PRIMARY}
                   data-qa="qa-run"
-                  onClick={() => this.doButtonAction("run")}
+                  onClick={() => this.doButtonAction(ExploreHeaderActions.RUN)}
                   style={{ width: 75, fontSize: 14 }}
                   disabled={disableRunButton || disableButtons}
                   disableMargin
@@ -654,15 +725,20 @@ export class ExploreHeader extends PureComponent {
                 </Button>,
                 runText,
                 this.props.keyboardShortcuts.run,
-                disableRunButton || disableButtons
+                disableRunButton || disableButtons,
+                disabledTooltip
               )}
-          {isCancellable && jobId && this.state.actionState === "preview"
+          {isCancellable &&
+          jobId &&
+          actionState === ExploreHeaderActions.PREVIEW
             ? this.wrapWithTooltip(
                 <Button
                   color="secondary"
                   type={ButtonTypes.SECONDARY}
                   data-qa="qa-cancel"
-                  onClick={() => this.doButtonAction("cancel")}
+                  onClick={() =>
+                    this.doButtonAction(ExploreHeaderActions.CANCEL)
+                  }
                   style={{ width: 98, fontSize: 14 }}
                   disableMargin
                 >
@@ -676,7 +752,9 @@ export class ExploreHeader extends PureComponent {
                   className="preview-btn"
                   variant={ButtonTypes.OUTLINED}
                   data-qa="qa-preview"
-                  onClick={() => this.doButtonAction("preview")}
+                  onClick={() =>
+                    this.doButtonAction(ExploreHeaderActions.PREVIEW)
+                  }
                   style={{ width: 98, fontSize: 14 }}
                   disabled={disablePreviewButton || disableButtons}
                   disableMargin
@@ -694,17 +772,21 @@ export class ExploreHeader extends PureComponent {
                 </Button>,
                 previewText,
                 this.props.keyboardShortcuts.preview,
-                disablePreviewButton || disableButtons
+                disablePreviewButton || disableButtons,
+                disabledTooltip
               )}
 
-          {exploreUtils.isSqlEditorTab(this.props.location) &&
+          {!this.props.isMultiTabEnabled &&
+            exploreUtils.isSqlEditorTab(this.props.location) &&
             this.wrapWithTooltip(
               <Button
                 color="primary"
                 className="discard-btn"
                 variant={ButtonTypes.OUTLINED}
                 data-qa="qa-discard"
-                onClick={() => this.doButtonAction("discard")}
+                onClick={() =>
+                  this.doButtonAction(ExploreHeaderActions.DISCARD)
+                }
                 style={{ width: 98, fontSize: 14 }}
                 disableMargin
                 disabled={isCancellable || disableButtons}
@@ -731,16 +813,49 @@ export class ExploreHeader extends PureComponent {
             exploreViewState={this.props.exploreViewState}
             disableEnginePickMenu={!!disableEnginePickMenu}
           />
-          {showQuerySpinner() && (
+          {showQuerySpinner() && !this.props.isMultiTabEnabled && (
             <ExploreTableJobStatusSpinner
               jobProgress={this.props.jobProgress}
               jobId={this.props.jobId}
-              action={this.state.actionState}
+              action={actionState}
               message="Running"
             />
           )}
         </div>
         <div className="ExploreHeader__right">
+          {this.props.isMultiTabEnabled &&
+            exploreUtils.isSqlEditorTab(this.props.location) && (
+              <NoticeTag
+                inProgressMessage={
+                  <>
+                    <div
+                      style={{
+                        display: "inline-flex",
+                        blockSize: "20px",
+                        inlineSize: "20px",
+                        flexShrink: "0",
+                        verticalAlign: "middle",
+                      }}
+                    ></div>
+                    Saving...
+                  </>
+                }
+                completedMessage={
+                  <>
+                    <dremio-icon
+                      name="interface/check"
+                      alt=""
+                      style={{ marginTop: "-2px", color: "#505862" }}
+                    ></dremio-icon>{" "}
+                    Saved!
+                  </>
+                }
+                inProgress={this.props.scriptsSyncPending.has(
+                  this.props.activeScript?.id
+                )}
+                hideDelay={2000}
+              />
+            )}
           {this.renderShowHideSQLPane()}
           {this.renderPrivilegesIconButton()}
           {this.renderAnalyzeButtons()}
@@ -855,9 +970,12 @@ export class ExploreHeader extends PureComponent {
   };
 
   renderAnalyzeButtons = () => {
-    const { showWiki } = this.props;
+    const { dataset, showWiki } = this.props;
     const { supportFlags } = this.state;
-    if (!showWiki) return;
+
+    const versionContext = getVersionContextFromId(dataset.get("entityId"));
+
+    if (!showWiki || !hideForNonDefaultBranch(versionContext)) return;
 
     const analyzeToolsConfig = getAnalyzeToolsConfig(config);
     let showTableau = analyzeToolsConfig.tableau.enabled;
@@ -879,7 +997,7 @@ export class ExploreHeader extends PureComponent {
       <Fragment>
         {showTableau &&
           this.renderAnalyzeButton(
-            la("Tableau"),
+            laDeprecated("Tableau"),
             "corporate/tableau",
             this.openTableau,
             24,
@@ -887,7 +1005,7 @@ export class ExploreHeader extends PureComponent {
           )}
         {showPowerBI &&
           this.renderAnalyzeButton(
-            la("Power BI"),
+            laDeprecated("Power BI"),
             "corporate/power-bi",
             this.openPowerBi,
             24,
@@ -919,28 +1037,55 @@ export class ExploreHeader extends PureComponent {
             alt="+"
             class="show-hide-sql-btn__icon"
           />
-          {message}
+          <span className="noText">{message}</span>
         </div>
       </Tooltip>
     );
   };
 
+  getTabSaveButton = () => {
+    const { intl } = this.props;
+    return {
+      qaLabel: "save-view-btn",
+      text: intl.formatMessage({ id: "NewQuery.SaveAsViewBtn" }),
+      onClick: this.handleSaveViewAs,
+    };
+  };
+
   getDefaultSaveButton = () => {
-    const { location, activeScript, numberOfMineScripts, intl } = this.props;
+    const {
+      location,
+      activeScript,
+      numberOfMineScripts,
+      intl,
+      dataset,
+      isMultiTabEnabled,
+    } = this.props;
     const isUntitledScript = !activeScript.id;
     const isCreateView = !!location.query?.create;
     const isSqlEditorTab = exploreUtils.isSqlEditorTab(location);
+    const canAlter = dataset.getIn(["permissions", "canAlter"]);
+    const canSelect = dataset.getIn(["permissions", "canSelect"]);
     const canAddMoreScripts = numberOfMineScripts < MAX_MINE_SCRIPTS_ALLOWANCE;
     const canModify = activeScript?.permissions
       ? exploreUtils.hasPermissionToModify(activeScript)
       : !!activeScript.id; // DX-55721: should be able to update if user owns the script (CE edition)
 
-    if (isCreateView) {
+    if (
+      (isMultiTabEnabled && isTabbableUrl(location)) ||
+      isCreateView ||
+      (!canAlter && canSelect)
+    ) {
       return {
+        qaLabel: "save-view-btn",
         text: intl.formatMessage({ id: "NewQuery.SaveViewAsBtn" }),
         onClick: this.handleSaveViewAs,
       };
-    } else if (isSqlEditorTab && (!isUntitledScript || canAddMoreScripts)) {
+    } else if (
+      isSqlEditorTab &&
+      !isMultiTabEnabled &&
+      (!isUntitledScript || canAddMoreScripts)
+    ) {
       return {
         text: intl.formatMessage({
           id: canModify ? "NewQuery.SaveScript" : "NewQuery.SaveScriptAsBtn",
@@ -962,8 +1107,12 @@ export class ExploreHeader extends PureComponent {
       location,
       activeScript,
       numberOfMineScripts,
+      isMultiTabEnabled,
     } = this.props;
-    const mustSaveDatasetAs = dataset.getIn(["fullPath", 0]) === "tmp";
+    const canAlter = dataset.getIn(["permissions", "canAlter"]);
+    const canSelect = dataset.getIn(["permissions", "canSelect"]);
+    const mustSaveDatasetAs =
+      dataset.getIn(["fullPath", 0]) === "tmp" || (!canAlter && canSelect);
     const isUntitledScript = !activeScript.id;
     const isExtraDisabled = this.getExtraSaveDisable(dataset);
     const isSqlEditorTab = exploreUtils.isSqlEditorTab(location);
@@ -974,7 +1123,11 @@ export class ExploreHeader extends PureComponent {
           className="explore-save-button"
           disabled={disableButtons}
           isButton
-          groupDropdownProps={this.getDefaultSaveButton()}
+          groupDropdownProps={
+            isMultiTabEnabled && isTabbableUrl(location)
+              ? this.getTabSaveButton()
+              : this.getDefaultSaveButton()
+          }
           menu={
             <SaveMenu
               action={this.doButtonAction}
@@ -1019,21 +1172,61 @@ export class ExploreHeader extends PureComponent {
     }
   }
 
+  submitScript = async (payload) => {
+    const { router, intl, addNotification } = this.props;
+    try {
+      const result = await newPopulatedTab(payload);
+      this.setState({ isSaveAsModalOpen: false });
+      addNotification(
+        intl.formatMessage({ id: "NewQuery.ScriptSaved" }),
+        "success"
+      );
+      handleOpenTabScript(router)(result);
+
+      ScriptsResource.fetch();
+      fetchAllAndMineScripts(this.props.fetchScripts, null);
+      this.setState({ saveAsDialogError: null });
+    } catch (e) {
+      this.setState({ saveAsDialogError: e });
+      sentryUtil.logException(e);
+    }
+  };
+
   render() {
     const { dataset, location, router } = this.props;
-    const { isSaveAsModalOpen } = this.state;
+    const {
+      isSaveAsModalOpen,
+      SQLScriptDeletedDialogProps,
+      isSQLScriptDeletedDialogOpen,
+    } = this.state;
     const isDatasetPage = exploreUtils.isExploreDatasetPage(location);
     const projectId = getSonarContext()?.getSelectedProjectId?.();
     return (
       <div className="ExploreHeader__container">
         {this.renderHeaders()}
+        <SQLScriptDeletedDialog
+          isOpen={isSQLScriptDeletedDialogOpen}
+          sqlContent={
+            this.props.currentSql != null
+              ? this.props.currentSql
+              : this.props.datasetSql
+          }
+          {...SQLScriptDeletedDialogProps}
+        />
         {isSaveAsModalOpen && (
           <SQLScriptDialog
             title="Save Script as..."
             mustSaveAs={dataset.getIn(["fullPath", 0]) === "tmp"}
             isOpen={isSaveAsModalOpen}
-            onCancel={() => this.setState({ isSaveAsModalOpen: false })}
-            // eslint-disable-next-line
+            {...(this.props.isMultiTabEnabled && {
+              submit: this.submitScript,
+            })}
+            onCancel={() =>
+              this.setState({
+                isSaveAsModalOpen: false,
+                saveAsDialogError: null,
+              })
+            }
             script={{
               context: this.props.queryContext,
               content:
@@ -1043,9 +1236,11 @@ export class ExploreHeader extends PureComponent {
             }}
             onSubmit={this.props.createScript}
             postSubmit={(payload) => {
+              this.props.resetTableState();
               fetchAllAndMineScripts(this.props.fetchScripts, null);
               this.props.setActiveScript({ script: payload });
             }}
+            saveAsDialogError={this.state.saveAsDialogError}
             push={(payload) => {
               isDatasetPage
                 ? router.push({
@@ -1064,7 +1259,6 @@ export class ExploreHeader extends PureComponent {
     );
   }
 }
-ExploreHeader = injectIntl(ExploreHeader);
 
 function mapStateToProps(state, props) {
   const { location = {} } = props;
@@ -1087,11 +1281,16 @@ function mapStateToProps(state, props) {
     activeScriptPermissions: getActiveScriptPermissions(state),
     queryStatuses: explorePageState.view.queryStatuses,
     isMultiQueryRunning: explorePageState.view.isMultiQueryRunning,
+    actionState: explorePageState.view.actionState,
     user: state.account.get("user"),
+    scriptsSyncPending: getScriptsSyncPending(state),
   };
 }
 
-export default withRouter(
+export default compose(
+  injectIntl,
+  withRouter,
+  withIsMultiTabEnabled,
   connect(mapStateToProps, {
     transformHistoryCheck,
     performTransform,
@@ -1109,10 +1308,13 @@ export default withRouter(
     fetchScripts,
     updateScript,
     setActiveScript,
+    setActionState,
     resetQueryState,
     addNotification,
-  })(withDatasetChanges(ExploreHeader))
-);
+    resetTableState,
+  }),
+  withDatasetChanges
+)(ExploreHeader);
 
 const style = {
   dbName: {

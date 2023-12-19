@@ -140,6 +140,23 @@ public final class TestDataplaneAssertions {
     assertThat(namespace).isPresent();
   }
 
+  public static void assertNessieDoesNotHaveNamespace(List<String> namespaceComponents,
+                                              String branchName,
+                                              ITDataplanePluginTestSetup base) throws NessieNotFoundException {
+
+    Reference branch = base.getNessieClient().getReference()
+      .refName(branchName)
+      .get();
+    Map<ContentKey, Content> contentsMap = base.getNessieClient()
+      .getContent()
+      .reference(branch)
+      .key(ContentKey.of(namespaceComponents))
+      .get();
+
+    ContentKey expectedContentsKey = ContentKey.of(namespaceComponents);
+    assertThat(contentsMap).doesNotContainKey(expectedContentsKey);
+  }
+
   public static void assertLastCommitMadeBySpecifiedAuthor(String branchName,
                                                            ITDataplanePluginTestSetup base) throws NessieNotFoundException {
     final List<LogResponse.LogEntry> logEntries = base.getNessieClient()
@@ -233,5 +250,29 @@ public final class TestDataplaneAssertions {
       .collect(Collectors.toList())
       .size()
     ).isEqualTo(expectedNumParquetFiles);
+  }
+
+  public static void assertNessieDoesHotHaveBranch(String branchName, ITDataplanePluginTestSetup base) {
+    try {
+      Reference branch = base.getNessieClient().getReference()
+        .refName(branchName)
+        .get();
+      //this will always throw.
+      assertThat(branch).isNull();
+    } catch (NessieNotFoundException e) {
+      // Intentionally left blank.
+    }
+  }
+
+  public static void assertNessieDoesHotHaveTag(String tagName, ITDataplanePluginTestSetup base) {
+    try {
+      Reference tag = base.getNessieClient().getReference()
+        .refName(tagName)
+        .get();
+      //this will always throw.
+      assertThat(tag).isNull();
+    } catch (NessieNotFoundException e) {
+      // Intentionally left blank.
+    }
   }
 }

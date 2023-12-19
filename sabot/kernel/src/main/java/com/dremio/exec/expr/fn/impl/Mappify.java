@@ -60,7 +60,7 @@ public class Mappify {
    * scalar value fields
    * value fields need to be of the same data type
    */
-  @FunctionTemplate(names = {"mappify", "kvgen"}, isDeterministic = false, derivation = KvGenOutput.class)
+  @FunctionTemplate(names = {"mappify", "kvgen"}, derivation = KvGenOutput.class)
   public static class ConvertMapToKeyValuePairs implements SimpleFunction {
 
     @Param  FieldReader reader;

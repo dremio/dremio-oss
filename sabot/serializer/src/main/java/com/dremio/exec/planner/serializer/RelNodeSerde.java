@@ -23,10 +23,9 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.tools.RelBuilder;
 
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.exec.catalog.DremioPrepareTable;
 import com.dremio.exec.catalog.DremioTranslatableTable;
-import com.dremio.exec.catalog.TableVersionContext;
-import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.plan.serialization.PRelDataType;
 import com.dremio.plan.serialization.PRexNode;
@@ -118,10 +117,10 @@ public interface RelNodeSerde<REL_NODE extends RelNode, PROTO_NODE extends Messa
     PSqlOperator toProto(SqlOperator op);
 
     /**
-     * Get a Operator Converted.
+     * Get the Serde for SqlOperators
      * @return SqlOperatorConverter instance
      */
-    SqlOperatorConverter getSqlOperatorConverter();
+    SqlOperatorSerde getSqlOperatorSerde();
   }
 
 
@@ -177,12 +176,6 @@ public interface RelNodeSerde<REL_NODE extends RelNode, PROTO_NODE extends Messa
      * @return The new RelBuilder.
      */
     RelBuilder builder();
-
-    /**
-     * Get the function registry to use for deserializing funcitons.
-     * @return A FunctionImplementationRegistry.
-     */
-    FunctionImplementationRegistry funcs();
 
     /**
      * Get an interface for retrieving tables.

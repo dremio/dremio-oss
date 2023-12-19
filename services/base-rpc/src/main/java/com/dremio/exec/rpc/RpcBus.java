@@ -258,7 +258,7 @@ public abstract class RpcBus<T extends EnumLite, C extends RemoteConnection> imp
       future.addListener(failureHandler);
     }
 
-    private class FirstFailureHandler implements ChannelFutureListener {
+    private final class FirstFailureHandler implements ChannelFutureListener {
 
       @Override
       public void operationComplete(ChannelFuture future) {
@@ -324,7 +324,7 @@ public abstract class RpcBus<T extends EnumLite, C extends RemoteConnection> imp
   @SuppressWarnings("checkstyle:MemberName")
   private final SecondFailureHandler RESPONSE_FAILURE_FAILURE = new SecondFailureHandler();
 
-  private class SecondFailureHandler implements ChannelFutureListener {
+  private final class SecondFailureHandler implements ChannelFutureListener {
 
     @Override
     public void operationComplete(ChannelFuture future) {
@@ -335,7 +335,7 @@ public abstract class RpcBus<T extends EnumLite, C extends RemoteConnection> imp
     }
   }
 
-  private class SameExecutor implements Executor {
+  private final class SameExecutor implements Executor {
 
     @Override
     public void execute(Runnable command) {

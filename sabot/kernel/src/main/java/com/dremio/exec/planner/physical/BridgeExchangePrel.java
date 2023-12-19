@@ -47,7 +47,6 @@ public class BridgeExchangePrel extends ExchangePrel {
     super(cluster, traits, child);
     this.bridgeSetId = bridgeSetId;
   }
-
   /**
    *
    */
@@ -109,4 +108,5 @@ public class BridgeExchangePrel extends ExchangePrel {
     return super.explainTerms(pw)
       .item("bridgeSetId", bridgeSetId);
   }
+
 }

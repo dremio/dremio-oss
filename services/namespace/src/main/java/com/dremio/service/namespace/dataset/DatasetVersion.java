@@ -191,7 +191,7 @@ public class DatasetVersion implements Comparable<DatasetVersion> {
    * The random number generator used by this class to create random
    * based versions. In a holder class to defer initialization until needed.
    */
-  private static class Holder {
+  private static final class Holder {
     static final SecureRandom numberGenerator = new SecureRandom();
   }
 

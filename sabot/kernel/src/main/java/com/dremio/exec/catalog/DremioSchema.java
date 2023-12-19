@@ -21,6 +21,7 @@ import org.apache.calcite.schema.Schema;
 import org.apache.calcite.schema.SchemaVersion;
 import org.apache.calcite.schema.Table;
 
+import com.dremio.exec.ops.PlannerCatalog;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedMap;
@@ -28,11 +29,11 @@ import com.google.common.collect.ImmutableSortedSet;
 
 public class DremioSchema extends CalciteSchema {
 
-  private final SimpleCatalog<?> catalog;
+  private final PlannerCatalog catalog;
   private final NamespaceKey namespaceKey;
 
   public DremioSchema(
-      SimpleCatalog<?> catalog,
+      PlannerCatalog catalog,
       NamespaceKey namespaceKey) {
     super(
         null,
@@ -64,7 +65,7 @@ public class DremioSchema extends CalciteSchema {
   protected TableEntry getImplicitTable(String s, boolean b) {
 
     NamespaceKey newNamespaceKey = namespaceKey.getChild(s);
-    DremioTable dremioTable = catalog.getTable(newNamespaceKey);
+    DremioTable dremioTable = catalog.getTableWithSchema(newNamespaceKey);
     if (null == dremioTable) {
       return null;
     } else {

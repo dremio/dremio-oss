@@ -36,6 +36,7 @@ import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.DistributedSemaphore;
 import com.dremio.service.coordinator.ElectionListener;
 import com.dremio.service.coordinator.ElectionRegistrationHandle;
+import com.dremio.service.coordinator.LinearizableHierarchicalStore;
 import com.dremio.service.coordinator.RegistrationHandle;
 import com.dremio.service.coordinator.ServiceSet;
 import com.google.common.annotations.VisibleForTesting;
@@ -118,12 +119,17 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
     return serviceSets.keySet();
   }
 
+  @VisibleForTesting
+  public LocalServiceSet getServiceSet(String name) {
+    return serviceSets.get(name);
+  }
+
   private final class LocalServiceSet extends AbstractServiceSet implements AutoCloseable {
     private final Map<RegistrationHandle, NodeEndpoint> endpoints = new ConcurrentHashMap<>();
 
     private final String serviceName;
 
-    private class Handle implements RegistrationHandle {
+    private final class Handle implements RegistrationHandle {
       private final UUID id = UUID.randomUUID();
 
       @Override
@@ -204,6 +210,11 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
       elections.putIfAbsent(name, new Election());
     }
     return elections.get(name).joinElection(listener);
+  }
+
+  @Override
+  public LinearizableHierarchicalStore getHierarchicalStore() {
+    throw new UnsupportedOperationException("Hierarchical Store is not supported in Local");
   }
 
   private class LocalSemaphore implements DistributedSemaphore {

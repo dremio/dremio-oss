@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.catalog;
 
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.exec.store.NoDefaultBranchException;
 import com.dremio.exec.store.ReferenceConflictException;
 import com.dremio.exec.store.ReferenceNotFoundException;

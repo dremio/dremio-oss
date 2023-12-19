@@ -120,16 +120,6 @@ public class CollaborationTagStore {
 
   private static final class CollaborationTagVersionExtractor implements VersionExtractor<CollaborationTag> {
     @Override
-    public Long getVersion(CollaborationTag value) {
-      return value.getVersion();
-    }
-
-    @Override
-    public void setVersion(CollaborationTag value, Long version) {
-      value.setVersion(version == null ? 0 : version);
-    }
-
-    @Override
     public String getTag(CollaborationTag value) {
       return value.getTag();
     }

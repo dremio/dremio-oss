@@ -27,6 +27,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.EntityExplorer;
+import com.dremio.exec.ops.SnapshotDiffContext;
 import com.dremio.exec.planner.acceleration.ExpansionNode;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils.MaterializationShuttle;
@@ -39,6 +40,7 @@ import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.options.OptionManager;
 import com.dremio.proto.model.UpdateId;
+import com.dremio.service.Pointer;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.RefreshMethod;
@@ -69,8 +71,10 @@ class ReflectionPlanNormalizer implements RelTransformer {
   private final OptionManager optionManager;
   private final boolean forceFullUpdate;
   private final int stripVersion;
+  private final boolean isRebuildPlan;
 
   private RefreshDecision refreshDecision;
+  private SnapshotDiffContext snapshotDiffContext = SnapshotDiffContext.NO_SNAPSHOT_DIFF;
 
   public ReflectionPlanNormalizer(
     SqlHandlerConfig sqlHandlerConfig,
@@ -82,7 +86,8 @@ class ReflectionPlanNormalizer implements RelTransformer {
     ReflectionSettings reflectionSettings,
     MaterializationStore materializationStore,
     boolean forceFullUpdate,
-    int stripVersion) {
+    int stripVersion,
+    boolean isRebuildPlan) {
     this.sqlHandlerConfig = sqlHandlerConfig;
     this.goal = goal;
     this.entry = entry;
@@ -94,6 +99,7 @@ class ReflectionPlanNormalizer implements RelTransformer {
     this.optionManager = sqlHandlerConfig.getContext().getOptions();
     this.forceFullUpdate = forceFullUpdate;
     this.stripVersion = stripVersion;
+    this.isRebuildPlan = isRebuildPlan;
   }
 
   public RefreshDecision getRefreshDecision() {
@@ -144,7 +150,7 @@ class ReflectionPlanNormalizer implements RelTransformer {
     // to get the proper stripping
     ReflectionService service = sqlHandlerConfig.getContext().getAccelerationManager().unwrap(ReflectionService.class);
 
-    if (IncrementalUpdateServiceUtils.extractRefreshSettings(strippedPlan, reflectionSettings, service).getMethod() == RefreshMethod.INCREMENTAL) {
+    if (IncrementalUpdateServiceUtils.extractRefreshDetails(strippedPlan, reflectionSettings, service, optionManager, isRebuildPlan, entry).getRefreshMethod() == RefreshMethod.INCREMENTAL) {
       strippedPlan = factory.strip(plan, mapReflectionType(goal.getType()), true, stripVersion).getNormalized();
     }
 
@@ -157,6 +163,8 @@ class ReflectionPlanNormalizer implements RelTransformer {
         RelSerializerFactory.getLegacyPlanningFactory(config, sqlHandlerConfig.getScanResult()) :
         RelSerializerFactory.getPlanningFactory(config, sqlHandlerConfig.getScanResult());
 
+
+    final Pointer<SnapshotDiffContext> snapshotDiffContextPointer = new Pointer<>();
     this.refreshDecision = RefreshDecisionMaker.getRefreshDecision(
       entry,
       materialization,
@@ -170,28 +178,43 @@ class ReflectionPlanNormalizer implements RelTransformer {
       strictRefresh,
       forceFullUpdate,
       sqlHandlerConfig.getContext().getFunctionRegistry(),
-      service);
-
-    if (isIncremental(refreshDecision)) {
+      service,
+      optionManager,
+      snapshotDiffContextPointer,
+      sqlHandlerConfig,
+      isRebuildPlan);
+    this.snapshotDiffContext = snapshotDiffContextPointer.value;
+    if (isIncremental(refreshDecision) && !isSnapshotBased(refreshDecision)) {
       strippedPlan = strippedPlan.accept(getIncremental(refreshDecision));
+    }
+
+    if (isSnapshotBased(refreshDecision) && !refreshDecision.getInitialRefresh()) {
+      strippedPlan = strippedPlan.accept(new IncrementalUpdateUtils.AddSnapshotDiffContextShuttle(snapshotDiffContextPointer.value));
     }
 
     return strippedPlan;
   }
 
-
   private static boolean isIncremental(RefreshDecision decision) {
     return decision.getAccelerationSettings().getMethod() == RefreshMethod.INCREMENTAL;
   }
 
+  private static boolean isSnapshotBased (RefreshDecision decision) {
+    return decision.getAccelerationSettings().getSnapshotBased();
+  }
+
   private static RelShuttle getIncremental(RefreshDecision decision) {
-    Preconditions.checkArgument(isIncremental(decision));
+    Preconditions.checkArgument(isIncremental(decision) && !isSnapshotBased(decision));
     return getShuttle(decision.getAccelerationSettings(), decision.getInitialRefresh(), decision.getUpdateId());
   }
 
   private static RelShuttle getShuttle(AccelerationSettings settings, boolean isInitialRefresh, UpdateId updateId) {
     return new MaterializationShuttle(
         Optional.ofNullable(settings.getRefreshField()).orElse(IncrementalUpdateUtils.UPDATE_COLUMN), isInitialRefresh, updateId);
+  }
+
+  public SnapshotDiffContext getSnapshotDiffContext() {
+    return snapshotDiffContext;
   }
 
 }

@@ -36,9 +36,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.projectnessie.model.ContentKey;
 
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult;
 import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
 import com.dremio.exec.planner.sql.parser.ReferenceType;
@@ -133,7 +133,7 @@ public class TestCreateFolderHandler extends DremioTest {
   /**
    * CREATE FOLDER SQL SYNTAX
    * CREATE FOLDER [ IF NOT EXISTS ] [source.]parentFolderName[.childFolder]
-   * [ AT ( REF[ERENCE) | BRANCH | TAG | COMMIT ) refValue ]
+   * [ AT ( REF[ERENCE) | BRANCH ) refValue ]
    */
   @Test
   public void createFolderOnNonExistentSource() throws Exception{

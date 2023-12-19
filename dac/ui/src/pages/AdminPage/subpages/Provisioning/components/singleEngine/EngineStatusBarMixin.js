@@ -20,22 +20,22 @@ export const getItems = (statusCounts) => {
   const items = [
     {
       status: CLUSTER_STATE.running,
-      label: la("Online"),
+      label: laDeprecated("Online"),
       count: statusCounts.active,
     },
     {
       status: CLUSTER_STATE.starting,
-      label: la("Starting"),
+      label: laDeprecated("Starting"),
       count: statusCounts.pending,
     },
     {
       status: CLUSTER_STATE.provisioning,
-      label: la("Provisioning"),
+      label: laDeprecated("Provisioning"),
       count: statusCounts.disconnected,
     },
     {
       status: CLUSTER_STATE.stopping,
-      label: la("Stopping"),
+      label: laDeprecated("Stopping"),
       count: statusCounts.decommissioning,
     },
   ];

@@ -37,6 +37,7 @@ import com.dremio.exec.store.metadatarefresh.committer.DatasetCatalogRequestBuil
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.service.catalog.UpdatableDatasetConfigFields;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.file.proto.FileType;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.protobuf.ByteString;
@@ -58,17 +59,21 @@ public class FullMetadataRefreshCommitter extends IcebergTableCreationCommitter 
   private final String tableLocation;
   private final List<String> datasetPath;
   private final MutablePlugin plugin;
+  private final FileType fileType;
 
-  private static final Map<String, String> internalIcebergTableParameter = Stream.of(new String[][] {
-          { TableProperties.COMMIT_NUM_RETRIES, "0" }}).collect(Collectors.toMap(d->d[0], d->d[1]));
+  public static final Map<String, String> internalIcebergTableProperties = Stream.of(new String[][] {
+          { TableProperties.COMMIT_NUM_RETRIES, "0" },
+          { TableProperties.METADATA_DELETE_AFTER_COMMIT_ENABLED, "true" },
+          { TableProperties.METADATA_PREVIOUS_VERSIONS_MAX, String.valueOf(TableProperties.METADATA_PREVIOUS_VERSIONS_MAX_DEFAULT) }
+          }).collect(Collectors.toMap(d->d[0], d->d[1]));
 
   public FullMetadataRefreshCommitter(String tableName, List<String> datasetPath, String tableLocation,
                                       String tableUuid, BatchSchema batchSchema,
                                       Configuration configuration, List<String> partitionColumnNames,
                                       IcebergCommand icebergCommand, DatasetCatalogGrpcClient client,
                                       DatasetConfig datasetConfig, OperatorStats operatorStats, PartitionSpec partitionSpec,
-                                      MutablePlugin plugin) {
-    super(tableName, batchSchema, partitionColumnNames, icebergCommand, internalIcebergTableParameter, operatorStats, partitionSpec); // Full MetadataRefresh is a only way to create internal iceberg table
+                                      MutablePlugin plugin, FileType fileType) {
+    super(tableName, batchSchema, partitionColumnNames, icebergCommand, internalIcebergTableProperties, operatorStats, partitionSpec, null); // Full MetadataRefresh is the only way to create internal iceberg table
 
     Preconditions.checkNotNull(client, "Metadata requires DatasetCatalog service client");
     this.client = client;
@@ -77,6 +82,7 @@ public class FullMetadataRefreshCommitter extends IcebergTableCreationCommitter 
     this.tableLocation = tableLocation;
     this.isPartitioned = partitionColumnNames != null && !partitionColumnNames.isEmpty();
     this.datasetPath = datasetPath;
+    this.fileType = fileType;
     datasetCatalogRequestBuilder = DatasetCatalogRequestBuilder.forFullMetadataRefresh(datasetPath,
       tableLocation,
       batchSchema,
@@ -97,7 +103,8 @@ public class FullMetadataRefreshCommitter extends IcebergTableCreationCommitter 
     ImmutableDremioFileAttrs partitionStatsFileAttrs = IcebergUtils.getPartitionStatsFileAttrs(getRootPointer(), snapshot.snapshotId(),
         icebergCommand.getFileIO());
     datasetCatalogRequestBuilder.setIcebergMetadata(getRootPointer(), tableUuid, snapshot.snapshotId(),
-        getCurrentSpecMap(), getCurrentSchema(), partitionStatsFileAttrs.fileName(), partitionStatsFileAttrs.fileLength());
+        getCurrentSpecMap(), getCurrentSchema(), partitionStatsFileAttrs.fileName(),
+        partitionStatsFileAttrs.fileLength(), fileType);
 
     try {
       addOrUpdateDataSet();

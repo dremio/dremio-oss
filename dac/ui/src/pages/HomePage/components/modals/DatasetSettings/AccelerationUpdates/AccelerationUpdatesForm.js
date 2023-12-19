@@ -55,22 +55,16 @@ export class AccelerationUpdatesForm extends Component {
       this.props.entityType === "physicalDataset" &&
       !this.props.datasetFields.size
     ) {
-      return la(
-        "Incremental updating is not available for datasets without any Int, BigInt, Decimal, Float, Double, Varchar, Date, or Timestamp fields."
-      );
+      return "no columns";
     }
     if (this.props.entityType === "file") {
-      return la(
-        "Incremental updating is not available for file-based datasets."
-      );
+      return "file-based";
     }
     if (this.props.fileFormatType === "Iceberg") {
-      return la("Incremental updating is not available for Iceberg datasets.");
+      return "Iceberg";
     }
     if (this.props.fileFormatType === "Delta") {
-      return la(
-        "Incremental updating is not available for DeltaLake datasets."
-      );
+      return "DeltaLake";
     }
     return undefined;
   }
@@ -110,16 +104,64 @@ export class AccelerationUpdatesForm extends Component {
     return this.props.submit(this.mapFormValues(values));
   };
 
+  showRefreshMethodOptions() {
+    const { accelerationSettings, entityType, fields } = this.props;
+
+    const { formatMessage } = intl;
+    const refreshMethod = accelerationSettings?.get("method");
+    const incrementalLabel =
+      entityType === "folder"
+        ? formatMessage({ id: "Incremental.Update.NewFiles" })
+        : formatMessage({ id: "Incremental.Update" });
+
+    if (refreshMethod === "AUTO") {
+      return <p>{intl.formatMessage({ id: "Refresh.Method.Auto" })}</p>;
+    } else if (!this.canUseIncremental()) {
+      const reasonForDisablingIncremental = this.whyCannotUseIncremental();
+      const isPhysicalTableWithoutColumns =
+        reasonForDisablingIncremental === "no columns";
+
+      return (
+        <p>
+          {intl.formatMessage(
+            {
+              id: isPhysicalTableWithoutColumns
+                ? "Refresh.Method.Full.NoColumns"
+                : "Refresh.Method.Full",
+            },
+            {
+              datasetType: reasonForDisablingIncremental,
+              b: (chunk) => <b>{chunk}</b>,
+            }
+          )}
+        </p>
+      );
+    } else {
+      return (
+        <>
+          <Radio
+            {...fields.method}
+            radioValue={FULL}
+            style={styles.margin}
+            label={formatMessage({ id: "Full.Update" })}
+          />
+          <Radio
+            {...fields.method}
+            radioValue={INCREMENTAL}
+            style={styles.margin}
+            label={incrementalLabel}
+          />
+        </>
+      );
+    }
+  }
+
   renderContent() {
     const { fields, values, entity } = this.props;
     const { formatMessage } = intl;
     const helpContent = formatMessage({
       id: "Refresh.Method.ForReflectionsUsingDataFromThisMethod",
     });
-    const incrementalLabel =
-      this.props.entityType === "folder"
-        ? formatMessage({ id: "Incremental.Update.NewFiles" })
-        : formatMessage({ id: "Incremental.Update" });
     return (
       <div>
         <div style={{ ...section, marginBottom: 26 }}>
@@ -128,25 +170,12 @@ export class AccelerationUpdatesForm extends Component {
             <HoverHelp content={helpContent} />
           </span>
           <div style={styles.items}>
-            <Radio
-              {...fields.method}
-              radioValue={FULL}
-              style={styles.margin}
-              label={formatMessage({ id: "Full.Update" })}
-            />
-            <Radio
-              {...fields.method}
-              radioValue={INCREMENTAL}
-              style={styles.margin}
-              disabled={!this.canUseIncremental()}
-              label={incrementalLabel}
-            />
-            <i>{this.whyCannotUseIncremental()}</i>
+            {this.showRefreshMethodOptions()}
             {this.requiresIncrementalFieldSelection(values) ? (
               <label style={styles.fieldSelectWrap}>
                 <span style={label}>
                   {formatMessage({
-                    id: "Identify.NewRows.UsingTheField",
+                    id: "Identify.NewRows.UsingTheColumn",
                   })}
                 </span>
                 <FieldSelect

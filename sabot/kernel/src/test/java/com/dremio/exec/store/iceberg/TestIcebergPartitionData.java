@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
@@ -233,7 +234,7 @@ public class TestIcebergPartitionData extends BaseTestQuery {
       SchemaConverter schemaConverter = SchemaConverter.getBuilder().setTableName(tableName).build();
       IcebergOpCommitter committer = icebergHadoopModel.getCreateTableCommitter(tableName,
         icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()),
-        schemaConverter.fromIceberg(schema), Lists.newArrayList(columnName), null, null);
+        schemaConverter.fromIceberg(schema), Lists.newArrayList(columnName), null, null, null, Collections.emptyMap());
       committer.commit();
 
       committer = icebergHadoopModel.getInsertTableCommitter(icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()), operatorStats);

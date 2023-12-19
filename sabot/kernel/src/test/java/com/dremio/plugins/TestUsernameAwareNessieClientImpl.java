@@ -31,10 +31,10 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.mockito.quality.Strictness;
 
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.context.RequestContext;
 import com.dremio.context.UserContext;
 import com.dremio.context.UsernameContext;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.service.users.User;
 import com.dremio.service.users.UserNotFoundException;
 import com.dremio.service.users.UserService;

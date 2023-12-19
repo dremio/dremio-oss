@@ -577,7 +577,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
         .unOrdered()
         .sqlQuery("select * from " + schema + "." + newTable + "_2")
         .baselineColumns("col1", "col2", "col3")
-        .baselineValues(new Long("1"), new BigDecimal("12345.340"), new Double("0.3"))
+        .baselineValues(1L, new BigDecimal("12345.340"), 0.3D)
         .go();
     } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_1"));
@@ -816,11 +816,11 @@ public class TestInsertIntoTable extends BaseTestQuery {
         .unOrdered()
         .sqlQuery("select * from " + schema + "." + newTable + "_2")
         .baselineColumns("col1", "col2", "col3")
-        .baselineValues(new Long("1"), new BigDecimal("12345.340"), new Double("0.3"))
+        .baselineValues(1L, new BigDecimal("12345.340"), 0.3D)
         .go();
 
       File tableFolder = new File(getDfsTestTmpSchemaLocation(), newTable + "_2");
-      checkSinglePartitionValue(tableFolder, Long.class, new Long(1), catalogType);
+      checkSinglePartitionValue(tableFolder, Long.class, 1L, catalogType);
     } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_1"));
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_2"));
@@ -865,11 +865,11 @@ public class TestInsertIntoTable extends BaseTestQuery {
         .unOrdered()
         .sqlQuery("select * from " + schema + "." + newTable + "_2")
         .baselineColumns("col1", "col2", "col3")
-        .baselineValues(new Long("1"), new BigDecimal("12345.340"), new Double("0.3"))
+        .baselineValues(1L, new BigDecimal("12345.340"), 0.3D)
         .go();
 
       File tableFolder = new File(getDfsTestTmpSchemaLocation(), newTable + "_2");
-      checkSinglePartitionValue(tableFolder, Long.class, new Long(1), catalogType);
+      checkSinglePartitionValue(tableFolder, Long.class, 1L, catalogType);
     } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_1"));
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_2"));
@@ -1180,7 +1180,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
         .unOrdered()
         .sqlQuery("select * from " + schema + "." + newTable + "_2")
         .baselineColumns("col2")
-        .baselineValues(new Double("12345.34"))
+        .baselineValues(12345.34D)
         .go();
       String table3 = "create table " + schema + "." + newTable + "_3" +
         "(col3 decimal(25,3))";
@@ -1197,7 +1197,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
         .unOrdered()
         .sqlQuery("select count(*) c from " + schema + "." + newTable + "_2")
         .baselineColumns("c")
-        .baselineValues(new Long(2))
+        .baselineValues(2L)
         .go();
     } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_1"));
@@ -1235,7 +1235,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
         .unOrdered()
         .sqlQuery("select * from " + schema + "." + newTable + "_2")
         .baselineColumns("col2")
-        .baselineValues(new Float("12345.34"))
+        .baselineValues(12345.34F)
         .go();
       String table3 = "create table " + schema + "." + newTable + "_3" +
         "(col3 decimal(10,1))";
@@ -1252,7 +1252,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
         .unOrdered()
         .sqlQuery("select count(*) c from " + schema + "." + newTable + "_2")
         .baselineColumns("c")
-        .baselineValues(new Long(2))
+        .baselineValues(2L)
         .go();
     } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_1"));
@@ -1387,7 +1387,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
           .unOrdered()
           .sqlQuery("select * from " + testSchema + "." + newTable + "_2")
           .baselineColumns("col1", "col2", "col3")
-          .baselineValues(new Long("1"), new BigDecimal("12345.340"), new Double("0.3"))
+          .baselineValues(1L, new BigDecimal("12345.340"), 0.3D)
           .go();
     } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_1"));
@@ -1719,7 +1719,7 @@ public class TestInsertIntoTable extends BaseTestQuery {
           .unOrdered()
           .sqlQuery("select * from " + schema + "." + newTable + "_2")
           .baselineColumns("col1", "col2", "col3")
-          .baselineValues(new Long("1"), new BigDecimal("12345.340"), new Double("0.3"))
+          .baselineValues(1L, new BigDecimal("12345.340"), 0.3D)
           .go();
     } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_1"));

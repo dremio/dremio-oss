@@ -16,12 +16,14 @@
 package com.dremio.plugins;
 
 import java.util.List;
+import java.util.Optional;
 
 import javax.annotation.Nullable;
 
 import org.projectnessie.model.Content;
 
-import com.dremio.exec.catalog.TableVersionContext;
+import com.dremio.catalog.model.dataset.TableVersionContext;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
 public final class ExternalNamespaceEntry {
@@ -43,15 +45,36 @@ public final class ExternalNamespaceEntry {
         throw new IllegalArgumentException("toNessieContentType failed: " + this);
       }
     }
+
+    public static Type fromNessieContentType(Content.Type nessieContentType) {
+      Preconditions.checkNotNull(nessieContentType);
+      if (Content.Type.ICEBERG_TABLE.equals(nessieContentType)) {
+        return Type.ICEBERG_TABLE;
+      }
+      if (Content.Type.ICEBERG_VIEW.equals(nessieContentType)) {
+        return Type.ICEBERG_VIEW;
+      }
+      if (Content.Type.NAMESPACE.equals(nessieContentType)) {
+        return Type.FOLDER;
+      }
+      return Type.UNKNOWN;
+    }
   }
 
   private final Type type;
   private final List<String> nameElements;
-  private final String id;
-  private final TableVersionContext tableVersionContext;
+  private final @Nullable String id;
+  private final @Nullable TableVersionContext tableVersionContext;
+  private final @Nullable Optional<NessieContent> nessieContent;
 
   private ExternalNamespaceEntry(
-      Type type, List<String> nameElements, String id, TableVersionContext tableVersionContext) {
+    Type type,
+    List<String> nameElements,
+    @Nullable String id,
+    @Nullable TableVersionContext tableVersionContext,
+    @Nullable Optional<NessieContent> nessieContent
+  ) {
+    Preconditions.checkNotNull(type);
     Preconditions.checkNotNull(nameElements);
     Preconditions.checkArgument(nameElements.size() >= 1);
 
@@ -59,17 +82,31 @@ public final class ExternalNamespaceEntry {
     this.nameElements = nameElements;
     this.id = id;
     this.tableVersionContext = tableVersionContext;
+    this.nessieContent = nessieContent;
   }
 
-  public static ExternalNamespaceEntry of(String type, List<String> nameElements) {
-    Preconditions.checkNotNull(type);
-    return new ExternalNamespaceEntry(mapType(type), nameElements, null, null);
+  public static ExternalNamespaceEntry of(Type type, List<String> nameElements) {
+    return of(type, nameElements, null, null, null);
+  }
+
+  @VisibleForTesting
+  public static ExternalNamespaceEntry of(
+    Type type,
+    List<String> nameElements,
+    @Nullable String id,
+    @Nullable TableVersionContext tableVersionContext
+  ) {
+    return of(type, nameElements, id, tableVersionContext, null);
   }
 
   public static ExternalNamespaceEntry of(
-      String type, List<String> nameElements, String id, TableVersionContext tableVersionContext) {
-    Preconditions.checkNotNull(type);
-    return new ExternalNamespaceEntry(mapType(type), nameElements, id, tableVersionContext);
+    Type type,
+    List<String> nameElements,
+    @Nullable String id,
+    @Nullable TableVersionContext tableVersionContext,
+    @Nullable Optional<NessieContent> nessieContent
+  ) {
+    return new ExternalNamespaceEntry(type, nameElements, id, tableVersionContext, nessieContent);
   }
 
   public Type getType() {
@@ -88,26 +125,30 @@ public final class ExternalNamespaceEntry {
     return nameElements.get(nameElements.size() - 1);
   }
 
-  @Nullable
-  public String getId() {
+  public @Nullable String getId() {
     return id;
   }
 
-  @Nullable
-  public TableVersionContext getTableVersionContext() {
+  public @Nullable TableVersionContext getTableVersionContext() {
     return tableVersionContext;
   }
 
-  private static Type mapType(String type) {
-    switch(type) {
-      case "NAMESPACE":
-        return Type.FOLDER;
-      case "ICEBERG_TABLE":
-        return Type.ICEBERG_TABLE;
-      case "ICEBERG_VIEW":
-        return Type.ICEBERG_VIEW;
-      default:
-        return Type.UNKNOWN;
-    }
+  /**
+   * returns null when no content was requested.
+   * returns Optional instance when content was requested.
+   */
+  public @Nullable Optional<NessieContent> getNessieContent() {
+    return nessieContent;
+  }
+
+  @Override
+  public String toString() {
+    return "ExternalNamespaceEntry{" +
+      "type=" + type +
+      ", nameElements=" + nameElements +
+      ", id=" + id +
+      ", tableVersionContext=" + tableVersionContext +
+      ", nessieContent=" + nessieContent +
+      '}';
   }
 }

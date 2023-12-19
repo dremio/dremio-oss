@@ -18,7 +18,12 @@
 import { getApiContext } from "dremio-ui-common/contexts/ApiContext.js";
 import { APIV2Call } from "@app/core/APICall";
 
-export type OwnershipInfo = { owner: string };
+export type OwnershipInfo = {
+  owner: string;
+  id: string;
+  type: "ROLE" | "USER";
+  name: string;
+};
 
 export const getOwnershipUrl = () =>
   new APIV2Call()

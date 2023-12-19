@@ -113,6 +113,10 @@ public class PartitionTransform {
     this.arguments = validateAndConvertArguments(type, arguments);
   }
 
+  public static PartitionTransform withColumnName(String columnName, PartitionTransform copyFrom){
+    return new PartitionTransform(columnName, copyFrom.getType(), copyFrom.arguments);
+  }
+
   public String getColumnName() {
     return columnName;
   }
@@ -155,7 +159,7 @@ public class PartitionTransform {
   }
 
   private static List<Object> validateAndConvertArguments(Type type, List<Object> arguments) {
-    if (arguments.size() != type.getArgTypes().size()) {
+    if (arguments == null || arguments.size() != type.getArgTypes().size()) {
       throw UserException.validationError().message("Invalid arguments for partition transform '%s'", type.getName())
         .buildSilently();
     }
@@ -169,9 +173,19 @@ public class PartitionTransform {
   }
 
   private static Object tryConvertArgumentValue(Type type, Object value, Class<?> argumentType) {
+    //for now this code is only used for BUCKET and TRUNCATE transforms
+    //the rest of the supported transforms do not take additional arguments,
+    //so the arguments.size() would be zero and this function is never called
     if (argumentType == Integer.class) {
       if (value instanceof Number) {
         return ((Number) value).intValue();
+      } else if(value instanceof String){
+        try {
+          return Integer.parseInt((String) value);
+        }catch(final NumberFormatException e){
+          throw UserException.validationError().message("Invalid argument '%s' for partition transform '%s'", value, type.getName())
+            .buildSilently();
+        }
       }
     }
 
@@ -218,5 +232,9 @@ public class PartitionTransform {
     transformation.append(columnName);
     transformation.append(")");
     return transformation.toString();
+  }
+
+  public boolean isIdentity(){
+    return Type.IDENTITY.equals(getType());
   }
 }

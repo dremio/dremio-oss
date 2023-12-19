@@ -17,6 +17,7 @@ package com.dremio.exec.catalog;
 
 import static com.dremio.exec.catalog.CatalogUtil.getTimeTravelRequest;
 
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.service.namespace.NamespaceKey;

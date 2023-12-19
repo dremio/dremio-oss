@@ -145,7 +145,7 @@ class DataTypeConverterView extends Component {
       : [{ label: defaultValue, disabled: true }, ...this.options];
     return (
       <div className={padding}>
-        <div style={styles.convertToLabel}>{la("Convert to")}</div>
+        <div style={styles.convertToLabel}>{laDeprecated("Convert to")}</div>
         <div className={rowMargin}>
           <Select
             dataQa="dataTypeSelect"
@@ -180,7 +180,7 @@ class DataTypeConverterView extends Component {
         className={clsx(cancelButton, classes["secondaryButtonPsuedoClasses"])}
         onClick={this.props.cancel}
       >
-        {la("Cancel")}
+        {laDeprecated("Cancel")}
       </SimpleButton>
     );
   }

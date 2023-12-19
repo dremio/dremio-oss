@@ -16,11 +16,19 @@
 package com.dremio.exec.planner.physical;
 
 import org.apache.calcite.plan.RelOptRuleOperand;
+import org.apache.iceberg.Table;
 
+import com.dremio.exec.catalog.DremioPrepareTable;
+import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.planner.VacuumPlanGenerator;
+import com.dremio.exec.planner.VacuumTableExpireSnapshotsPlanGenerator;
+import com.dremio.exec.planner.VacuumTableRemoveOrphansPlanGenerator;
+import com.dremio.exec.planner.cost.iceberg.IcebergCostEstimates;
 import com.dremio.exec.planner.logical.VacuumTableRel;
 import com.dremio.exec.store.TableMetadata;
+import com.dremio.exec.store.iceberg.IcebergUtils;
+import com.google.common.collect.ImmutableList;
 
 /**
  * A base physical plan generator for VACUUM
@@ -34,14 +42,38 @@ public abstract class VacuumTablePruleBase extends Prule {
     this.context = context;
   }
 
-  public Prel getPhysicalPlan(VacuumTableRel vacuumTableRel, TableMetadata tableMetadata) {
-    VacuumPlanGenerator planBuilder = new VacuumPlanGenerator(
-      vacuumTableRel.getTable(),
-      vacuumTableRel.getCluster(),
-      vacuumTableRel.getTraitSet().plus(Prel.PHYSICAL),
-      tableMetadata,
-      vacuumTableRel.getCreateTableEntry(),
-      vacuumTableRel.getVacuumOptions());
+  public Prel getPhysicalPlan(VacuumTableRel vacuumTableRel) {
+    TableMetadata tableMetadata = ((DremioPrepareTable) vacuumTableRel.getTable()).getTable().getDataset();
+    StoragePluginId internalStoragePlugin = TableFunctionUtil.getInternalTablePluginId(tableMetadata);
+    StoragePluginId storagePluginId = tableMetadata.getStoragePluginId();
+
+    Table icebergTable = IcebergUtils.getIcebergTable(vacuumTableRel.getCreateTableEntry());
+    IcebergCostEstimates icebergCostEstimates = new IcebergCostEstimates(icebergTable);
+
+    VacuumPlanGenerator planBuilder;
+    if (vacuumTableRel.getVacuumOptions().isRemoveOrphans()) {
+      planBuilder = new VacuumTableRemoveOrphansPlanGenerator(
+        vacuumTableRel.getCluster(),
+        vacuumTableRel.getTraitSet().plus(Prel.PHYSICAL),
+        ImmutableList.copyOf(tableMetadata.getSplits()),
+        icebergCostEstimates,
+        vacuumTableRel.getVacuumOptions(),
+        internalStoragePlugin,
+        storagePluginId,
+        tableMetadata.getUser(),
+        icebergTable.location());
+    } else {
+      planBuilder = new VacuumTableExpireSnapshotsPlanGenerator(
+        vacuumTableRel.getCluster(),
+        vacuumTableRel.getTraitSet().plus(Prel.PHYSICAL),
+        ImmutableList.copyOf(tableMetadata.getSplits()),
+        icebergCostEstimates,
+        vacuumTableRel.getVacuumOptions(),
+        internalStoragePlugin,
+        storagePluginId,
+        tableMetadata.getUser(),
+        icebergTable.location());
+    }
 
     return planBuilder.buildPlan();
   }

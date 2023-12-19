@@ -16,6 +16,7 @@
 package com.dremio.exec.catalog;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -24,6 +25,7 @@ import java.util.stream.Collectors;
 
 import javax.inject.Provider;
 
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.DatasetHandle;
@@ -96,7 +98,7 @@ public class MaterializedDatasetTableProvider implements Provider<MaterializedDa
 
     return new MaterializedDatasetTable(MetadataObjectsUtils.toNamespaceKey(handle.getDatasetPath()), pluginId,
         schemaConfig.getUserName(), datasetConfig, partitionChunks,
-        optionManager.getOption(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT), versionContext);
+        optionManager.getOption(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT), versionContext, Collections.emptyList());
   }
 
   private PartitionChunkListing getPartitionChunkListing() {

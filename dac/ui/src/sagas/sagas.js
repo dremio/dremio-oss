@@ -29,6 +29,8 @@ import performLoadDataset from "./performLoadDataset";
 import transformHistoryCheck from "./transformHistoryCheck";
 import transformCardPreview from "./transformCardPreview";
 import resourceTree from "./resourceTree";
+import currentSql from "./currentSql";
+import scriptUpdates from "./scriptUpdates";
 
 export default function* rootSaga() {
   yield all([
@@ -46,5 +48,7 @@ export default function* rootSaga() {
     fork(transformHistoryCheck),
     fork(transformCardPreview),
     fork(resourceTree),
+    fork(currentSql),
+    fork(scriptUpdates),
   ]);
 }

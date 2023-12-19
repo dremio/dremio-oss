@@ -26,7 +26,7 @@ public class FunctionCallArgsTest {
   public void testToStringOfFunctionCall() {
     FunctionCall functionCall = new FunctionCall("test", null);
     String s = functionCall.toString();
-    Assert.assertEquals("FunctionCall toString() returned unexpected results","FunctionCall [func=test, args=]", s);
+    Assert.assertEquals("FunctionCall toString() returned unexpected results","FunctionCall [func=test, args=[]]", s);
     List<LogicalExpression> exps = new ArrayList<>();
     LogicalExpression exp = new ValueExpressions.IntExpression(2);
     exps.add(exp);
@@ -46,7 +46,7 @@ public class FunctionCallArgsTest {
     exps.add(exp7);
     functionCall = new FunctionCall("test", exps);
     s = functionCall.toString();
-    Assert.assertEquals("FunctionCall toString() returned unexpected result","FunctionCall [func=test, args=Int(32, true), Int(32, true), Int(32, true), Int(32, true), Int(32, true), Int(32, true), Int(32, true), Int(32, true)]", s);
+    Assert.assertEquals("FunctionCall [func=test, args=[ValueExpression[int=2], ValueExpression[int=3], ValueExpression[int=4], ValueExpression[int=5], ValueExpression[int=6], ValueExpression[int=7], ValueExpression[int=8], ValueExpression[int=9]]]", s);
     LogicalExpression exp8 = new ValueExpressions.IntExpression(10);
     exps.add(exp8);
     LogicalExpression exp9 = new ValueExpressions.IntExpression(11);
@@ -55,6 +55,6 @@ public class FunctionCallArgsTest {
     exps.add(exp10);
     functionCall = new FunctionCall("test", exps);
     s = functionCall.toString();
-    Assert.assertEquals("FunctionCall toString() returned unexpected result","FunctionCall [func=test, args=Int(32, true), Int(32, true), Int(32, true), Int(32, true), Int(32, true), Int(32, true), Int(32, true), Int(32, true), Int(32, true), Int(32, true)]", s);
+    Assert.assertEquals("FunctionCall [func=test, args=[ValueExpression[int=2], ValueExpression[int=3], ValueExpression[int=4], ValueExpression[int=5], ValueExpression[int=6], ValueExpression[int=7], ValueExpression[int=8], ValueExpression[int=9], ValueExpression[int=10], ValueExpression[int=11]]]", s);
   }
 }

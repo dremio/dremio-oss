@@ -552,7 +552,7 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
     store.put(cluster.getId(), cluster);
   }
 
-  private class InfoFunctionTransformer implements Function<Map.Entry<ClusterId, Cluster>, ClusterEnriched> {
+  private final class InfoFunctionTransformer implements Function<Map.Entry<ClusterId, Cluster>, ClusterEnriched> {
 
     @Nullable
     @Override
@@ -872,17 +872,6 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
   }
 
   private static final class ClusterVersion implements VersionExtractor<Cluster> {
-
-    @Override
-    public Long getVersion(final Cluster value) {
-      return value.getClusterConfig().getVersion();
-    }
-
-    @Override
-    public void setVersion(final Cluster value, final Long version) {
-      value.getClusterConfig().setVersion(version);
-    }
-
     @Override
     public String getTag(Cluster value) {
       return value.getClusterConfig().getTag();

@@ -13,65 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent, Component } from "react";
+import { PureComponent } from "react";
 import PropTypes from "prop-types";
 import classNames from "clsx";
 import Immutable from "immutable";
 import { withRouter } from "react-router";
-import { connect } from "react-redux";
-import { isWikAvailable } from "@app/selectors/explore";
 import { PageTypes, pageTypesProp } from "@app/pages/ExplorePage/pageTypes";
 import { changePageTypeInUrl } from "@app/pages/ExplorePage/pageTypeUtils";
 import { formatMessage } from "@app/utils/locale";
-import { fetchFeatureFlag } from "@inject/actions/featureFlag";
-import PageTypeButtonsMixin from "dyn-load/pages/ExplorePage/components/PageTypeButtonsMixin";
 import exploreUtils from "@app/utils/explore/exploreUtils";
-import {
-  buttonsContainer,
-  button,
-  buttonActive,
-  icon as iconClass,
-  iconActive,
-} from "./PageTypeButtons.less";
+import { buttonsContainer } from "./PageTypeButtons.less";
 import * as classes from "./PageTypeButtons.less";
-import { isCommunity } from "dyn-load/utils/versionUtils";
-import config from "@inject/utils/config";
-import { REFLECTION_ARCTIC_ENABLED } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
-
-export class SinglePageTypeButton extends Component {
-  static propTypes = {
-    text: PropTypes.string,
-    icon: PropTypes.string,
-    isSelected: PropTypes.bool,
-    onClick: PropTypes.func,
-    dataQa: PropTypes.string,
-    classname: PropTypes.string,
-    disabled: PropTypes.bool,
-  };
-
-  render() {
-    const { isSelected, onClick, text, icon, dataQa, classname } = this.props;
-
-    return (
-      <span
-        className={classNames(button, isSelected && buttonActive, classname, {
-          [classes["disabled"]]: this.props.disabled,
-        })}
-        onClick={onClick}
-        data-qa={dataQa}
-      >
-        {icon && (
-          <dremio-icon
-            name={icon}
-            class={classNames(iconClass, isSelected && iconActive)}
-            alt={text}
-          />
-        )}
-        {text}
-      </span>
-    );
-  }
-}
+import { compose } from "redux";
+import { withAvailablePageTypes } from "dyn-load/utils/explorePageTypes";
+import { Tab, TabList, getControlledTabProps } from "dremio-ui-lib/components";
+import { PHYSICAL_DATASET } from "@app/constants/datasetTypes";
+import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
 
 class ButtonController extends PureComponent {
   static propTypes = {
@@ -111,14 +68,24 @@ class ButtonController extends PureComponent {
     const { selectedPageType, pageType, text, icon, dataQa } = this.props;
 
     return (
-      <SinglePageTypeButton
-        isSelected={selectedPageType === pageType}
-        text={text}
-        icon={icon}
+      <Tab
+        className={classNames({
+          [classes["disabled"]]: this.props.disabled,
+        })}
         onClick={this.setPageType}
-        dataQa={dataQa}
+        data-qa={dataQa}
+        {...getControlledTabProps({
+          id: pageType,
+          controls: `${pageType}Panel`,
+          currentTab: selectedPageType,
+        })}
         disabled={this.props.disabled}
-      />
+      >
+        <div className="dremio-icon-label">
+          <dremio-icon name={icon} alt={text} />
+          {text}
+        </div>
+      </Tab>
     );
   }
 }
@@ -133,7 +100,7 @@ const buttonsConfigs = {
   },
   [PageTypes.wiki]: {
     intlId: "Common.Details",
-    icon: "sql-editor/catalog",
+    icon: "interface/dataset-details",
     dataQa: "Wiki",
   },
   [PageTypes.graph]: {
@@ -153,21 +120,6 @@ const buttonsConfigs = {
   },
 };
 
-const mapStateToProps = (state, { location }) => {
-  let supportFlags = state.supportFlags;
-  if (isCommunity?.()) {
-    supportFlags = {
-      [REFLECTION_ARCTIC_ENABLED]: config.arcticReflectionsEnabled,
-    };
-  }
-
-  return {
-    showWiki: isWikAvailable(state, location),
-    supportFlags,
-  };
-};
-
-@PageTypeButtonsMixin
 export class PageTypeButtonsView extends PureComponent {
   static propTypes = {
     selectedPageType: pageTypesProp,
@@ -176,38 +128,62 @@ export class PageTypeButtonsView extends PureComponent {
     dataQa: PropTypes.string,
     location: PropTypes.object,
     fetchFeatureFlag: PropTypes.func,
+    availablePageTypes: PropTypes.arrayOf(PropTypes.string).isRequired,
   };
 
-  getAvailablePageTypes() {
-    return [PageTypes.default];
-  }
-
   render() {
-    const { selectedPageType, dataQa, location } = this.props;
-    const pageTypes = this.getAvailablePageTypes();
+    const {
+      selectedPageType,
+      dataQa,
+      location,
+      availablePageTypes: pageTypes,
+      dataset,
+    } = this.props;
     const isDatasetPage = exploreUtils.isExploreDatasetPage(location);
     const shouldHideTabs = location.query?.hideTabs;
 
     // Show tabbed content for dataset
     if (pageTypes.length > 1 && isDatasetPage && !shouldHideTabs) {
+      const isVersionedTable =
+        dataset.get("datasetType") === PHYSICAL_DATASET &&
+        !!getVersionContextFromId(dataset.get("entityId"));
+
       return (
-        <span className={buttonsContainer} data-qa={dataQa}>
+        <TabList
+          aria-label="Page type tabs"
+          className={buttonsContainer}
+          data-qa={dataQa}
+        >
           {pageTypes.map((pageType) => {
-            let { intlId, ...rest } = buttonsConfigs[pageType];
-            if (pageType === "wiki") intlId = "Common.Details";
+            const { intlId, ...rest } = buttonsConfigs[pageType];
+
+            const showDefinitionTab =
+              pageType === PageTypes.default && isVersionedTable;
+
+            const message = showDefinitionTab ? "Common.Definition" : intlId;
+
+            const newProps = {
+              ...rest,
+              ...(showDefinitionTab && {
+                intlId: "Common.Definition",
+                icon: "navigation-bar/dataset",
+                dataQa: "Definition",
+              }),
+            };
+
             return (
               <PageTypeButton
                 key={pageType}
                 selectedPageType={selectedPageType}
-                text={formatMessage(intlId)}
+                text={formatMessage(message)}
                 pageType={pageType}
                 //Disable for join,groupBy, etc which use "type" param
                 disabled={!!location.query?.type}
-                {...rest}
+                {...newProps}
               />
             );
           })}
-        </span>
+        </TabList>
       );
     } else {
       // Hide all tabs for New Query and Updated Queries
@@ -216,6 +192,7 @@ export class PageTypeButtonsView extends PureComponent {
   }
 }
 
-export const PageTypeButtons = withRouter(
-  connect(mapStateToProps, { fetchFeatureFlag })(PageTypeButtonsView)
-);
+export const PageTypeButtons = compose(
+  withAvailablePageTypes,
+  withRouter
+)(PageTypeButtonsView);

@@ -15,6 +15,7 @@
  */
 import { Component } from "react";
 import PropTypes from "prop-types";
+import { compose } from "redux";
 import { connect } from "react-redux";
 import Immutable from "immutable";
 
@@ -27,8 +28,13 @@ import { getSearchResult, getViewState } from "selectors/resources";
 
 import ResourceTreeContainer from "../Tree/ResourceTreeContainer";
 import searchComponentConfig from "@inject/components/formsForAddData/searchComponentConfig";
+import { withFilterTreeArs } from "@app/utils/datasetTreeUtils";
 
 import "./ExistingForm.less";
+import {
+  TreeConfigContext,
+  defaultConfigContext,
+} from "../Tree/treeConfigContext";
 
 export class ExistingForm extends Component {
   static propTypes = {
@@ -44,6 +50,9 @@ export class ExistingForm extends Component {
     children: PropTypes.node,
     nameDataset: PropTypes.string,
     style: PropTypes.object,
+
+    // HOC
+    filterTree: PropTypes.func,
   };
 
   static defaultProps = {
@@ -61,7 +70,7 @@ export class ExistingForm extends Component {
     };
   }
 
-  componentWillMount() {
+  UNSAFE_componentWillMount() {
     this.props.loadSourceListData();
     this.props.loadSearchData("");
   }
@@ -80,8 +89,15 @@ export class ExistingForm extends Component {
   }
 
   render() {
-    const enterpriseTabs = Immutable.Map({
-      Browse: (
+    const { filterTree } = this.props;
+
+    const ResourceTreeComponent = (
+      <TreeConfigContext.Provider
+        value={{
+          ...defaultConfigContext,
+          filterTree,
+        }}
+      >
         <ResourceTreeContainer
           onChange={this.props.changeSelectedNode}
           stopAtDatasets
@@ -91,7 +107,11 @@ export class ExistingForm extends Component {
           style={{ flex: 1, minHeight: 0, height: 210 }}
           shouldShowOverlay={false}
         />
-      ),
+      </TreeConfigContext.Provider>
+    );
+
+    const enterpriseTabs = Immutable.Map({
+      Browse: ResourceTreeComponent,
       Search: (
         <SearchDatasets
           searchData={this.props.search}
@@ -105,17 +125,7 @@ export class ExistingForm extends Component {
     });
 
     const cloudTabs = Immutable.Map({
-      Browse: (
-        <ResourceTreeContainer
-          onChange={this.props.changeSelectedNode}
-          stopAtDatasets
-          showFolders
-          showDataSets
-          showSources
-          style={{ flex: 1, minHeight: 0, height: 210 }}
-          shouldShowOverlay={false}
-        />
-      ),
+      Browse: ResourceTreeComponent,
     });
 
     return (
@@ -136,7 +146,10 @@ function mapStateToProps(state) {
   };
 }
 
-export default connect(mapStateToProps, {
-  loadSourceListData,
-  loadSearchData,
-})(ExistingForm);
+export default compose(
+  withFilterTreeArs,
+  connect(mapStateToProps, {
+    loadSourceListData,
+    loadSearchData,
+  })
+)(ExistingForm);

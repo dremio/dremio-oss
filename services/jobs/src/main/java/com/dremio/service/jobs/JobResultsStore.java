@@ -85,7 +85,7 @@ public class JobResultsStore implements Service {
     Optional<JobResult> jobResult = Optional.ofNullable(store.get(jobId));
     return jobResult
         .map(result -> getLastAttempt(result).getOutputTableList())
-        .orElse(Arrays.asList(storageName, jobId.toString()));
+        .orElse(Arrays.asList(storageName, jobId.getId()));
   }
 
   /** Helper method to get the job output directory */
@@ -101,6 +101,8 @@ public class JobResultsStore implements Service {
       if (doesQueryResultsDirExists(jobOutputDir, jobId)) {
         deleteQueryResults(jobOutputDir, true, jobId);
         logger.debug("Deleted job output directory : {}", jobOutputDir);
+      } else {
+        logger.debug("Output dir doesn't exist {}", jobOutputDir);
       }
       return true;
     } catch (IOException e) {
@@ -262,14 +264,15 @@ public class JobResultsStore implements Service {
    */
   protected boolean doesQueryResultsDirExists(Path jobOutputDir, JobId jobId) throws IOException {
     if (shouldSkipJobResults(jobId)) {
+      logger.debug("{} Skipping as result metadata has unions that use an outdated IPC format.", jobId);
       return false;
     }
 
     if (dfs.isPdfs()) {
       Set<NodeEndpoint> nodeEndpoints = getNodeEndpoints(jobId);
       if (nodeEndpoints == null || nodeEndpoints.isEmpty()) {
-        logger.debug("There are no nodeEndpoints where query results dir existence need to be checked." +
-          "For eg: for jdbc queries, results are not stored on executors.");
+        logger.debug("{} There are no nodeEndpoints where query results dir existence need to be checked." +
+          "For eg: for jdbc queries, results are not stored on executors.", jobId);
         return false;
       }
 

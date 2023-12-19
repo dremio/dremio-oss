@@ -27,12 +27,14 @@ import java.util.List;
 
 import javax.inject.Provider;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.TableMutationOptions;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaConfig;
+import com.dremio.io.file.Path;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.reflection.ReflectionServiceImpl;
 import com.dremio.service.reflection.proto.Materialization;
@@ -43,11 +45,13 @@ import com.dremio.service.reflection.proto.Refresh;
 import com.dremio.service.reflection.proto.RefreshId;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 
 /**
  * tests for {@link AccelerationStoragePlugin}
  */
 public class TestAccelerationStoragePlugin {
+
   @Test
   public void testIncrementalMaterializationDoesNotDuplicateDeletes() {
     ReflectionId reflectionId = new ReflectionId("r_id");
@@ -101,5 +105,46 @@ public class TestAccelerationStoragePlugin {
     accelerationStoragePlugin.dropTable(tableSchemaPath, schemaConfig, tableMutationOptions);
     verify(accelerationStoragePlugin, times(1)).fileSystemPluginDropTable(any(NamespaceKey.class), any(SchemaConfig.class), any(TableMutationOptions.class));
     verify(materializationStore, times(2)).delete(any(RefreshId.class));
+  }
+
+  @Test
+  public void testGetPath() {
+    ReflectionId reflectionId = new ReflectionId("r_id");
+    MaterializationId materializationId = new MaterializationId("m_id");
+
+    Materialization materialization = new Materialization()
+      .setId(materializationId)
+      .setSeriesId(5L)
+      .setReflectionId(reflectionId);
+
+    Refresh refresh = new Refresh()
+      .setIsIcebergRefresh(true)
+      .setPath("r_id/m_id_0")
+      .setBasePath("m_id_0");
+
+    AccelerationStoragePluginConfig accelerationStoragePluginConfig = mock(AccelerationStoragePluginConfig.class);
+    when(accelerationStoragePluginConfig.getPath()).thenReturn(Path.of(ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME));
+    SabotContext sabotContext = mock(SabotContext.class);
+    Provider<StoragePluginId> storagePluginIdProvider = mock(Provider.class);
+    MaterializationStore materializationStore = mock(MaterializationStore.class);
+    AccelerationStoragePlugin accelerationStoragePlugin = spy(new AccelerationStoragePlugin(
+      accelerationStoragePluginConfig,
+      sabotContext,
+      "testAccelerationStoragePlugin",
+      storagePluginIdProvider,
+      materializationStore
+    ));
+
+    when(materializationStore.get(materializationId)).thenReturn(materialization);
+    when(materializationStore.getMostRecentRefresh(reflectionId, 5L)).thenReturn(refresh);
+
+    // TEST
+    NamespaceKey namespaceKey = new NamespaceKey(
+      Lists.newArrayList(ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME,
+        reflectionId.getId(),
+        materializationId.getId()));
+    Path path = accelerationStoragePlugin.getPath(namespaceKey, "dremio");
+    Assert.assertEquals(ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME
+      +"/r_id/m_id_0", path.toString());
   }
 }

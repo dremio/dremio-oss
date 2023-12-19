@@ -30,9 +30,8 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.ws.rs.core.SecurityContext;
 
-import com.dremio.service.namespace.NamespaceNotFoundException;
-import com.dremio.service.namespace.NamespaceService;
-import com.dremio.service.namespace.proto.NameSpaceContainer;
+import com.dremio.catalog.model.CatalogEntityId;
+import com.dremio.exec.catalog.factory.CatalogSupplier;
 import com.dremio.service.userpreferences.proto.UserPreferenceProto;
 import com.dremio.service.userpreferences.proto.UserPreferenceProto.Preference;
 import com.dremio.service.users.UserNotFoundException;
@@ -51,17 +50,17 @@ public class UserPreferenceServiceImpl implements UserPreferenceService {
   private static final Long MAX_COUNT_OF_ENTITIES = 25L;
 
   private final UserPreferenceStore userPreferenceStore;
-  private final Provider<NamespaceService> namespaceServiceProvider;
+  private final CatalogSupplier catalogSupplier;
   private final UserService userService;
   private final SecurityContext securityContext;
 
   @Inject
   public UserPreferenceServiceImpl(final Provider<UserPreferenceStore> userPreferenceStoreProvider,
-                                   final Provider<NamespaceService> namespaceServiceProvider,
+                                   final CatalogSupplier catalogSupplier,
                                    final UserService userService,
                                    final SecurityContext securityContext) {
     this.userPreferenceStore = userPreferenceStoreProvider.get();
-    this.namespaceServiceProvider = namespaceServiceProvider;
+    this.catalogSupplier = catalogSupplier;
     this.userService = userService;
     this.securityContext = securityContext;
   }
@@ -183,15 +182,7 @@ public class UserPreferenceServiceImpl implements UserPreferenceService {
   }
 
   protected void validateEntityId(UUID entityId) throws IllegalAccessException {
-    try {
-      NameSpaceContainer container =
-        namespaceServiceProvider.get().getEntityById(entityId.toString());
-      if (container == null) {
-        throw new IllegalArgumentException(String.format(
-          "entityId %s provided is not a valid catalog entity.",
-          entityId));
-      }
-    } catch (NamespaceNotFoundException exception) {
+    if (!catalogSupplier.get().existsById(CatalogEntityId.fromString(entityId.toString()))) {
       throw new IllegalArgumentException(String.format(
         "entityId %s provided is not a valid catalog entity.",
         entityId));
@@ -280,8 +271,7 @@ public class UserPreferenceServiceImpl implements UserPreferenceService {
     // if preference of given type not present, return -1
     return -1;
   }
-
-  protected UUID getCurrentUserId() throws UserNotFoundException {
-      return UUID.fromString(userService.getUser(securityContext.getUserPrincipal().getName()).getUID().getId());
-    }
+  private UUID getCurrentUserId() throws UserNotFoundException {
+    return UUID.fromString(userService.getUser(securityContext.getUserPrincipal().getName()).getUID().getId());
+  }
 }

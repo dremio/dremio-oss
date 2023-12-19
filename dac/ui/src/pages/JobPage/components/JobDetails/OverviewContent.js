@@ -113,6 +113,8 @@ class OverviewContent extends PureComponent {
         return "Job.AcceleratorRefresh";
       case "ACCELERATOR_DROP":
         return "Job.AcceleratorRemoval";
+      case "ACCELERATOR_OPTIMIZE":
+        return "Job.AcceleratorOptimize";
       case "FLIGHT":
         if (isPrepareCreate) {
           return "Job.FlightCreate";

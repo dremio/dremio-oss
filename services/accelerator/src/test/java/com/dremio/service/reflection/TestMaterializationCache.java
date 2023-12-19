@@ -37,6 +37,7 @@ import com.dremio.exec.store.CatalogService;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.reflection.proto.Materialization;
 import com.dremio.service.reflection.proto.MaterializationId;
+import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.test.DremioTest;
 
 public class TestMaterializationCache extends DremioTest {
@@ -58,7 +59,9 @@ public class TestMaterializationCache extends DremioTest {
   public void testMaterializationCacheUpdate() throws Exception {
     MaterializationCache materializationCache = spy(new MaterializationCache(provider, reflectionStatusService, catalogService));
     Materialization m1 = new Materialization();
+    m1.setReflectionId(new ReflectionId("r1"));
     Materialization m2 = new Materialization();
+    m2.setReflectionId(new ReflectionId("r2"));
     CachedMaterializationDescriptor descriptor = mock(CachedMaterializationDescriptor.class);
     MaterializationId mId1 = new MaterializationId("abc");
     MaterializationId mId2 = new MaterializationId("def");
@@ -78,7 +81,7 @@ public class TestMaterializationCache extends DremioTest {
         // and during this time the cache entry has been refreshed. Before DX-54194's fix this will
         // cause MaterializationCache.update(Materialization m) runs into infinite loop.
         materializationCache.resetCache();
-        materializationCache.refresh();
+        materializationCache.refreshMaterializationCache();
         // The sleep here is to avoid exhausting CPU time in case infinite loop happens.
         try {
           Thread.sleep(100);

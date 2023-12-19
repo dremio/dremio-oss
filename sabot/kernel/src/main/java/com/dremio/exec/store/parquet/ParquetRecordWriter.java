@@ -32,6 +32,7 @@ import static org.apache.parquet.schema.Type.Repetition.REQUIRED;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -40,6 +41,8 @@ import javax.annotation.Nullable;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.complex.NonNullableStructVector;
 import org.apache.arrow.vector.complex.UnionVectorHelper;
 import org.apache.arrow.vector.complex.impl.SingleStructReaderImpl;
@@ -52,6 +55,7 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType.Null;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.DataFiles;
 import org.apache.iceberg.FileFormat;
@@ -62,9 +66,10 @@ import org.apache.parquet.bytes.BytesInput;
 import org.apache.parquet.column.ColumnWriteStore;
 import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.column.ParquetProperties.WriterVersion;
-import org.apache.parquet.column.impl.ColumnWriteStoreV1;
 import org.apache.parquet.column.page.PageWriteStore;
 import org.apache.parquet.column.values.factory.DefaultV1ValuesWriterFactory;
+import org.apache.parquet.column.values.factory.DefaultV2ValuesWriterFactory;
+import org.apache.parquet.column.values.factory.ValuesWriterFactory;
 import org.apache.parquet.compression.CompressionCodecFactory;
 import org.apache.parquet.compression.CompressionCodecFactory.BytesInputCompressor;
 import org.apache.parquet.hadoop.CodecFactory;
@@ -94,17 +99,21 @@ import com.dremio.datastore.LegacyProtobufSerializer;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.hadoop.DremioHadoopUtils;
+import com.dremio.exec.physical.config.copyinto.CopyIntoErrorInfo;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.planner.acceleration.UpdateIdWrapper;
 import com.dremio.exec.planner.physical.WriterPrel;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.record.selection.SelectionVector2;
 import com.dremio.exec.store.EventBasedRecordWriter;
 import com.dremio.exec.store.EventBasedRecordWriter.FieldConverter;
 import com.dremio.exec.store.OperationType;
 import com.dremio.exec.store.ParquetOutputRecordWriter;
+import com.dremio.exec.store.SVFilteredEventBasedRecordWriter;
 import com.dremio.exec.store.WritePartition;
+import com.dremio.exec.store.dfs.ErrorInfo;
 import com.dremio.exec.store.iceberg.FieldIdBroker.SeededFieldIdBroker;
 import com.dremio.exec.store.iceberg.IcebergMetadataInformation;
 import com.dremio.exec.store.iceberg.IcebergSerDe;
@@ -113,6 +122,8 @@ import com.dremio.exec.store.iceberg.SchemaConverter;
 import com.dremio.exec.testing.ControlsInjector;
 import com.dremio.exec.testing.ControlsInjectorFactory;
 import com.dremio.exec.testing.ExecutionControls;
+import com.dremio.exec.util.ColumnUtils;
+import com.dremio.exec.util.VectorUtil;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.options.OptionManager;
@@ -121,11 +132,13 @@ import com.dremio.sabot.exec.context.MetricDef;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
+import com.dremio.sabot.op.filter.VectorContainerWithSV;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Streams;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import io.protostuff.ByteString;
@@ -176,7 +189,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
   private boolean enableDictionary = false;
   private boolean enableDictionaryForBinary = false;
   private CompressionCodecName codec = CompressionCodecName.SNAPPY;
-  private WriterVersion writerVersion = WriterVersion.PARQUET_1_0;
+  private final WriterVersion writerVersion;
   private CompressionCodecFactory codecFactory;
   private FileSystem fs;
   private Path path;
@@ -214,6 +227,9 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
 
   private final int parquetFileWriteTimeThresholdMilliSecs;
   private final double parquetFileWriteIoRateThresholdMbps;
+  private long fileSize;
+  private VectorContainerWithSV filteredContainer;
+  private VarCharVector copyIntoErrorRecordVector;
 
   // metrics workspace variables
   int numFilesWritten = 0;
@@ -262,9 +278,16 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     }
 
     memoryThreshold = (int) context.getOptions().getOption(ExecConstants.PARQUET_MEMORY_THRESHOLD_VALIDATOR);
+    blockSize = context.getOptions().getOption(ExecConstants.PARQUET_BLOCK_SIZE_VALIDATOR);
+    Long combinedSmallFileTargetFileSize = writer.getOptions().getCombineSmallFileOptions() == null ? null : writer.getOptions().getCombineSmallFileOptions().getTargetFileSize();
+    if (combinedSmallFileTargetFileSize != null && combinedSmallFileTargetFileSize.longValue() != 0L) {
+      blockSize = combinedSmallFileTargetFileSize;
+    }
     Long targetFileSize = writer.getOptions().getTableFormatOptions().getTargetFileSize();
-    blockSize = (long) ((targetFileSize != null && targetFileSize.longValue() != 0L) ? targetFileSize
-      : context.getOptions().getOption(ExecConstants.PARQUET_BLOCK_SIZE_VALIDATOR));
+    if (targetFileSize != null && targetFileSize.longValue() != 0L) {
+      blockSize = targetFileSize;
+    }
+
     pageSize = (int) context.getOptions().getOption(ExecConstants.PARQUET_PAGE_SIZE_VALIDATOR);
     final String codecName = context.getOptions().getOption(ExecConstants.PARQUET_WRITER_COMPRESSION_TYPE_VALIDATOR).toLowerCase();
     switch(codecName) {
@@ -294,6 +317,12 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     minRecordsForFlush = context.getOptions().getOption(ExecConstants.PARQUET_MIN_RECORDS_FOR_FLUSH_VALIDATOR);
     parquetFileWriteTimeThresholdMilliSecs = (int)context.getOptions().getOption(ExecConstants.PARQUET_WRITE_TIME_THRESHOLD_MILLI_SECS_VALIDATOR);
     parquetFileWriteIoRateThresholdMbps = context.getOptions().getOption(ExecConstants.PARQUET_WRITE_IO_RATE_THRESHOLD_MBPS_VALIDATOR);
+    writerVersion = parseWriterVersion(context.getOptions().getOption(ExecConstants.PARQUET_WRITER_VERSION));
+  }
+
+  private static WriterVersion parseWriterVersion(String name) {
+    // name should not be null in production but it is easier to handle here for unit test mocks
+    return WriterVersion.fromString(name == null ? "v1" : name.toLowerCase());
   }
 
   private Configuration createConfigForCodecFactory(OptionManager options) {
@@ -325,6 +354,120 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
       }
     }
     newSchema();
+  }
+
+  /**
+   * Filter out the "copy into error" column from the incoming VectorContainer and return a new VectorContainer with the filtered data.
+   *
+   * This method takes a VarCharVector containing serialized CopyIntoErrorInfo objects, a SelectionVector2 (copyIntoErrorSV2) for filtering,
+   * an offset, and a length. It filters out the "copy into error" column from the incoming VectorContainer (incoming) and constructs a new VectorContainer
+   * (filteredContainer) without the "copy into error" column. The filteredContainer is then returned.
+   *
+   * @param copyIntoErrorRecordVector The VarCharVector containing serialized CopyIntoErrorInfo objects.
+   * @param copyIntoErrorSV2 The SelectionVector2 used for filtering the incoming VectorContainer.
+   * @param offset The offset indicating the starting position of the elements to be filtered.
+   * @param length The length of the elements to be filtered.
+   * @return A new VectorContainer (filteredContainer) with the "copy into error" column filtered out.
+   */
+  private VectorContainerWithSV filterCopyIntoErrorColumn(VarCharVector copyIntoErrorRecordVector, SelectionVector2 copyIntoErrorSV2, int offset, int length) {
+    // Create a new VectorContainer (filteredContainer) to hold the filtered data.
+    if (filteredContainer == null) {
+      // Filter out the "copy into error" column from the incoming VectorContainer.
+      Iterator<ValueVector> filteredIterator = Streams.stream(incoming)
+        .filter(v -> !v.getField().getName().equalsIgnoreCase(ColumnUtils.COPY_INTO_ERROR_COLUMN_NAME))
+        .map(v -> (ValueVector) v.getValueVector())
+        .iterator();
+
+      filteredContainer = new VectorContainerWithSV(context.getAllocator(), copyIntoErrorSV2);
+
+      // Add the filtered data to the filteredContainer.
+      filteredContainer.addCollection(() -> filteredIterator);
+
+      // Build the schema for the filteredContainer.
+      filteredContainer.buildSchema();
+    }
+
+    // Prepare the copyIntoErrorSV2 using the provided offset and length.
+    prepareCopyIntoErrorSV2(copyIntoErrorRecordVector, copyIntoErrorSV2, offset, length);
+
+    // Set the record count for the filteredContainer based on the copyIntoErrorSV2 count.
+    filteredContainer.setRecordCount(copyIntoErrorSV2.getCount());
+
+    // Return the filteredContainer.
+    return filteredContainer;
+  }
+
+  /**
+   * Writes a batch of records to the output stream.
+   *
+   * This method writes a batch of records to the output stream. It first checks if the incoming records contain a "copy into error" column.
+   * If such a column is present, it extracts the error records, processes them, and writes them to the error output.
+   * The method then filters out the "copy into error" column from the incoming records to create a new filtered container.
+   * Finally, it delegates the actual writing of the batch to an event-based record writer, either creating a new one if none exists or using the existing one.
+   *
+   * @param offset The offset at which to start writing records.
+   * @param length The number of records to write.
+   * @return The number of records written.
+   * @throws IOException If an I/O error occurs during the writing process.
+   */
+  @Override
+  public int writeBatch(int offset, int length) throws IOException {
+    // Check if the incoming records contain a "copy into error" column.
+    boolean hasCopyIntoErrorColumn = Streams.stream(incoming).anyMatch(v -> v.getField().getName().equalsIgnoreCase(ColumnUtils.COPY_INTO_ERROR_COLUMN_NAME));
+
+    // If a "copy into error" column is present, process the error records and write them to the error output.
+    if (hasCopyIntoErrorColumn) {
+      try (SelectionVector2 copyIntoErrorSV2 = filteredContainer != null ? filteredContainer.getSelectionVector2() : new SelectionVector2(context.getAllocator())) {
+        try {
+          if (copyIntoErrorRecordVector == null) {
+            copyIntoErrorRecordVector = (VarCharVector) VectorUtil.getVectorFromSchemaPath(incoming, ColumnUtils.COPY_INTO_ERROR_COLUMN_NAME);
+          }
+          filteredContainer = filterCopyIntoErrorColumn(copyIntoErrorRecordVector, copyIntoErrorSV2, offset, length);
+          processErrorRecords(copyIntoErrorRecordVector, offset, length);
+
+          // Create or update the event-based record writer to use the filtered container for writing.
+          if (this.eventBasedRecordWriter == null) {
+            this.eventBasedRecordWriter = new SVFilteredEventBasedRecordWriter(filteredContainer, this);
+          } else {
+            ((SVFilteredEventBasedRecordWriter) eventBasedRecordWriter).setBatch(filteredContainer);
+          }
+
+          // Write the batch using the event-based record writer.
+          return eventBasedRecordWriter.write(offset, length);
+        } finally {
+          if (offset + length == incoming.getRecordCount()) {
+            filteredContainer.close();
+            filteredContainer = null;
+            copyIntoErrorRecordVector.close();
+            copyIntoErrorRecordVector = null;
+          }
+        }
+      }
+    } else {
+      // If no "copy into error" column is present, write the batch using the superclass method.
+      return super.writeBatch(offset, length);
+    }
+  }
+
+
+  /**
+   * Initialize the selection vector using the copy into error value vector. A record will be considered selected if
+   * the value in the error vector is null.
+   */
+  private void prepareCopyIntoErrorSV2(VarCharVector copyIntoErrorRecordVector, SelectionVector2 copyIntoErrorSV2, int offset, int length) {
+    if (copyIntoErrorSV2.getCount() < length) {
+      copyIntoErrorSV2.allocateNew(length);
+    }
+
+    int svIndex = 0;
+    for (int i = offset; i < offset + length; i++) {
+      byte[] bytes = copyIntoErrorRecordVector.get(i);
+      if (bytes == null) {
+        copyIntoErrorSV2.setIndex(svIndex, (char)(i));
+        svIndex++;
+      }
+    }
+    copyIntoErrorSV2.setRecordCount(svIndex);
   }
 
   private void initIcebergColumnIDList(PartitionSpec partitionSpec) {
@@ -366,12 +509,23 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
    * @throws IOException
    */
   private void initRecordWriter() throws IOException {
+    initRecordWriter(partition.getQualifiedPath(location, prefix + "_" + index + "." + extension));
+  }
 
-    this.path = fs.canonicalizePath(partition.qualified(location, prefix + "_" + index + "." + extension));
+  public void initRecordWriter(Path dataFilePath) throws IOException {
+    this.path = fs.canonicalizePath(dataFilePath);
     parquetFileWriter = new ParquetFileWriter(OutputFile.of(fs, path), checkNotNull(schema),
-        ParquetFileWriter.Mode.CREATE, DEFAULT_BLOCK_SIZE, MAX_PADDING_SIZE_DEFAULT,
-        DEFAULT_COLUMN_INDEX_TRUNCATE_LENGTH, false);
+      ParquetFileWriter.Mode.CREATE, DEFAULT_BLOCK_SIZE, MAX_PADDING_SIZE_DEFAULT,
+      DEFAULT_COLUMN_INDEX_TRUNCATE_LENGTH, false);
     parquetFileWriter.start();
+  }
+
+  /**
+   * Gets the written file size. It should be called after the {@link ParquetRecordWriter#close()} was called.
+   * @return parquet file size
+   */
+  public long getFileSize() {
+    return fileSize;
   }
 
   @VisibleForTesting
@@ -386,6 +540,9 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
         continue;
       }
       if (field.getName().equalsIgnoreCase(IncrementalUpdateUtils.UPDATE_COLUMN)) {
+        continue;
+      }
+      if (field.getName().equalsIgnoreCase(ColumnUtils.COPY_INTO_ERROR_COLUMN_NAME)) {
         continue;
       }
       Type childType = getTypeWithId(field, field.getName(), OPTIONAL);
@@ -428,7 +585,9 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     final ParquetProperties parquetProperties = ParquetProperties.builder()
       .withDictionaryPageSize(dictionarySize)
       .withWriterVersion(writerVersion)
-      .withValuesWriterFactory(new DefaultV1ValuesWriterFactory())
+      // Creating a new ValuesWriterFactory for each ParquetRecordWriter because parquet-mr would share the same static
+      // instance that leads to memory leakage
+      .withValuesWriterFactory(createValuesWriterFactory())
       .withDictionaryEncoding(enableDictionary)
       .withAllocator(new ParquetDirectByteBufferAllocator(columnEncoderAllocator))
       .withPageSize(pageSize)
@@ -438,10 +597,21 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
       .build();
     pageStore = ColumnChunkPageWriteStoreExposer.newColumnChunkPageWriteStore(
         toDeprecatedBytesCompressor(codecFactory.getCompressor(codec)), schema, parquetProperties);
-    store = new ColumnWriteStoreV1(pageStore, parquetProperties);
+    store = parquetProperties.newColumnWriteStore(schema, pageStore);
     MessageColumnIO columnIO = new ColumnIOFactory(false).getColumnIO(this.schema);
     consumer = columnIO.getRecordWriter(store);
     setUp(schema, consumer, isIcebergWriter);
+  }
+
+  private ValuesWriterFactory createValuesWriterFactory() {
+    switch (writerVersion) {
+      case PARQUET_1_0:
+        return new DefaultV1ValuesWriterFactory();
+      case PARQUET_2_0:
+        return new DefaultV2ValuesWriterFactory();
+      default:
+        throw new IllegalArgumentException("Unknown parquet writer version: " + writerVersion);
+    }
   }
 
   private PrimitiveType getPrimitiveType(Field field, boolean convertMillisToMicros, Repetition repetition) {
@@ -730,10 +900,12 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
       logSlowIoWrite(writeFileStartTimeMillis, footerWriteAndFlushStartTimeMillis,  writeFileEndTimeMillis,
         parquetFileWriter.getPos(), recordsWritten, path);
 
-      byte[] metadata = this.trackingConverter == null ? null : trackingConverter.getMetadata();
-      final long fileSize = parquetFileWriter.getPos();
-      listener.recordsWritten(recordsWritten, fileSize, path.toString(), metadata /** TODO: add parquet footer **/,
-        partition.getBucketNumber(), getIcebergMetaData(), null, null, OperationType.ADD_DATAFILE.value);
+      fileSize = parquetFileWriter.getPos();
+      if (listener != null) {
+        byte[] metadata = this.trackingConverter == null ? null : trackingConverter.getMetadata();
+        listener.recordsWritten(recordsWritten, fileSize, path.toString(), metadata /** TODO: add parquet footer **/,
+          partition.getBucketNumber(), getIcebergMetaData(), null, null, OperationType.ADD_DATAFILE.value, partition.getPartitionValues(), 0L);
+      }
       parquetFileWriter = null;
 
       if(executionControls != null) {
@@ -752,6 +924,77 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     pageStore = null;
     index++;
   }
+
+  /**
+   * Process error records from a VarCharVector containing serialized CopyIntoErrorInfo objects.
+   * <p>
+   * This method takes a VarCharVector containing serialized CopyIntoErrorInfo objects and processes each error record.
+   * For each error record, it calls the listener's `recordsWritten` method to notify the listener about the error.
+   * The `recordsWritten` method is called with information about the number of records rejected, the file path,
+   * and the serialized CopyIntoErrorInfo object associated with the error record.
+   *
+   * @param copyIntoErrorRecordVector The VarCharVector containing serialized CopyIntoErrorInfo objects.
+   * @param offset The offset at which to start writing records.
+   * @param length The number of records to write.
+   * @throws IOException If an I/O error occurs while processing the error records or notifying the listener.
+   */
+  private void processErrorRecords(VarCharVector copyIntoErrorRecordVector, int offset, int length) {
+    Map<String, Pair<Long, CopyIntoErrorInfo>> aggregatedErrors = aggregateErrorRecords(copyIntoErrorRecordVector, offset, length);
+    for (Map.Entry<String, Pair<Long, CopyIntoErrorInfo>> entry : aggregatedErrors.entrySet()) {
+      String filePath = entry.getKey();
+      Pair<Long, CopyIntoErrorInfo> errorInfoPair = entry.getValue();
+      long recordsRejectedCount = errorInfoPair.getLeft();
+      CopyIntoErrorInfo errorInfo = errorInfoPair.getRight();
+
+      // Convert the serialized CopyIntoErrorInfo object to a byte array.
+      byte[] errorInfoBytes = ErrorInfo.Util.getJson(errorInfo).getBytes();
+
+      // Call the listener's recordsWritten method to notify about the error.
+      // The listener will receive information about the number of rejected records, the file path, and the serialized error info.
+      listener.recordsWritten(0L,
+        0L,
+        filePath,
+        errorInfoBytes,
+        null,
+        null,
+        null,
+        null,
+        OperationType.COPY_INTO_ERROR.value,
+        null,
+        recordsRejectedCount);
+    }
+  }
+
+
+  /**
+   * Aggregates error records from a VarCharVector containing serialized CopyIntoErrorInfo objects.
+   * <p>
+   * This method takes a VarCharVector containing serialized CopyIntoErrorInfo objects, and aggregates the error records
+   * based on the file path. It creates a map where the key is the file path, and the value is a Pair consisting of the
+   * total number of records rejected for that file path and the latest CopyIntoErrorInfo object associated with the file path.
+   *
+   * @param copyIntoErrorRecordVector The VarCharVector containing serialized CopyIntoErrorInfo objects.
+   * @param offset The offset at which to start writing records.
+   * @param length The number of records to write.
+   * @return A Map where the key is the file path and the value is a Pair consisting of the total number of records rejected
+   * for that file path and the latest CopyIntoErrorInfo object associated with the file path.
+   */
+  private Map<String, Pair<Long, CopyIntoErrorInfo>> aggregateErrorRecords(VarCharVector copyIntoErrorRecordVector, int offset, int length) {
+    Map<String, Pair<Long, CopyIntoErrorInfo>> aggregatedErrors = new HashMap<>();
+    for (int i = offset; i < offset + length; i++) {
+      if (i < copyIntoErrorRecordVector.getValueCount()) {
+        byte[] bytes = copyIntoErrorRecordVector.get(i);
+        if (bytes != null) {
+          CopyIntoErrorInfo errorInfo = ErrorInfo.Util.getInfo(new String(bytes), CopyIntoErrorInfo.class);
+          aggregatedErrors
+            .compute(errorInfo.getFilePath(),
+              (k, v) -> v == null ? Pair.of(errorInfo.getRecordsRejectedCount(), errorInfo) : Pair.of(v.getLeft() + errorInfo.getRecordsRejectedCount(), v.getValue()));
+        }
+      }
+    }
+    return aggregatedErrors;
+  }
+
 
   private void logSlowIoWrite(long writeFileStartTimeMillis, long footerWriteAndFlushStartTimeMillis,
                              long writeFileEndTimeMillis, long size, long recordsWritten, Path path) {

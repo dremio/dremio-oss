@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 const UNITS = [
   // { label: "d", divider: 86400000 },
   { label: "", divider: 3600000 },
@@ -49,4 +50,53 @@ export const formatDuration = (remainder: number, unitIndex = 0): string => {
   // }
 
   return `${formattedString}:${nextString}`;
+};
+
+const LABELLED_UNITS = [
+  { label: "h", divider: 3600000 },
+  { label: "m", divider: 60000 },
+  { label: "s", divider: 1000 },
+] as const;
+
+export const formatDurationMetric = (
+  remainder: number,
+  unitIndex = 0
+): string => {
+  const result = ~~(remainder / LABELLED_UNITS[unitIndex].divider);
+
+  const formattedString = `${result.toLocaleString("default", {
+    minimumIntegerDigits: 1,
+  })}${LABELLED_UNITS[unitIndex].label}`;
+
+  if (
+    remainder < LABELLED_UNITS[2].divider &&
+    unitIndex !== LABELLED_UNITS.length - 1
+  ) {
+    return `${remainder.toLocaleString("default", {
+      minimumIntegerDigits: 1,
+    })}ms`;
+  }
+
+  if (unitIndex === LABELLED_UNITS.length - 1) {
+    return formattedString;
+  }
+
+  const nextRemainder = remainder % LABELLED_UNITS[unitIndex].divider;
+  const nextString = formatDurationMetric(nextRemainder, unitIndex + 1);
+
+  if (result === 0) {
+    return nextString;
+  }
+
+  return `${formattedString}:${nextString}`;
+};
+
+export const formatDurationUnderSecond = (
+  remainder: number,
+  unitIndex = 0
+): string => {
+  if (remainder < UNITS[2].divider) {
+    return "<1s";
+  }
+  return formatDuration(remainder, unitIndex);
 };

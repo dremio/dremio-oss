@@ -13,15 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import Immutable from "immutable";
 import { RSAA } from "redux-api-middleware";
 import { push, replace } from "react-router-redux";
 import urlParse from "url-parse";
 import { collapseExploreSql } from "@app/actions/explore/ui";
 import { PageTypes } from "@app/pages/ExplorePage/pageTypes";
-import {
-  changePageTypeInUrl,
-  getPathPart,
-} from "@app/pages/ExplorePage/pageTypeUtils";
+import { changePageTypeInUrl } from "@app/pages/ExplorePage/pageTypeUtils";
 
 import { APIV2Call } from "@app/core/APICall";
 import schemaUtils from "utils/apiUtils/schemaUtils";
@@ -31,9 +29,15 @@ import exploreUtils from "@app/utils/explore/exploreUtils";
 export const RUN_TABLE_TRANSFORM_START = "RUN_TABLE_TRANSFORM_START";
 export const RUN_TABLE_TRANSFORM_SUCCESS = "RUN_TABLE_TRANSFORM_SUCCESS";
 export const RUN_TABLE_TRANSFORM_FAILURE = "RUN_TABLE_TRANSFORM_FAILURE";
-import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
+import {
+  addProjectBase as wrapBackendLink,
+  rmProjectBase,
+} from "dremio-ui-common/utilities/projectBase.js";
 import * as sqlPaths from "dremio-ui-common/paths/sqlEditor.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
+import { SQLRUNNER_TABS_UI } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
+import { getSupportFlags } from "@app/selectors/supportFlags";
+import { getSupportFlag } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
 
 /**
  * common helper for different table operations
@@ -103,7 +107,7 @@ export function _getNextJobId(fullDataset) {
 export function navigateToNextDataset(
   response,
   {
-    replaceNav,
+    // replaceNav, TODO: remove replaceNav. Editor will always replace here
     linkName,
     isSaveAs,
     preserveTip,
@@ -133,21 +137,21 @@ export function navigateToNextDataset(
     let keepQuery = false;
     let collapseSqlEditor = false;
 
-    //for graph, reflections, and wiki we have to keep query parameters and redirect to corresponding page
-    for (const pageType of [
+    // pathnames in the dataset editor have the format "/{space|source|home}/{top-level name}/{dataset path}/{tab name}"
+    // to make sure datasets named after tabs don't auto-switch we need to check the 4th index for the tab name
+    const tabName = rmProjectBase(location.pathname).split("/")[4];
+
+    const validTabs = [
       PageTypes.graph,
       PageTypes.wiki,
       PageTypes.reflections,
       PageTypes.history,
-    ]) {
-      const urlPart = getPathPart(pageType);
-      //check if url ends with page type
-      if (location.pathname.endsWith(urlPart) && !openResults) {
-        targetPageType = pageType;
-        keepQuery = true;
-        collapseSqlEditor = true; // collapse an editor for wiki and graph pages
-        break;
-      }
+    ];
+
+    if (validTabs.includes(tabName) && !openResults) {
+      targetPageType = tabName;
+      keepQuery = true;
+      collapseSqlEditor = true;
     }
 
     if (collapseSqlEditor) {
@@ -187,14 +191,14 @@ export function navigateToNextDataset(
         wrapBackendLink(nextDataset.getIn(["links", linkName || "self"]))) ||
       "";
     if (goToSqlRunner)
-      link = `${sqlPaths.unsavedDatasetPath.link({
+      link = `${sqlPaths.newQuery.link({
         projectId,
       })}?version=${nextVersion}`;
 
     const parsedLink = urlParse(link, true);
 
     const nextPath = goToSqlRunner
-      ? sqlPaths.unsavedDatasetPath.link({
+      ? sqlPaths.newQuery.link({
           projectId,
         })
       : location.pathname;
@@ -203,17 +207,19 @@ export function navigateToNextDataset(
       targetPageType
     );
 
-    // if coming from Open Results, root space needs to be updated if dataset exists in /source or /home
+    // The URL links from the JobsListing, JobDetails, and DatasetSummary API all have the root level of /space
+    // This needs to be replaced/updated if the dataset actually exists in /source or /home
     if (
-      openResults &&
-      pathname.startsWith("/space") &&
+      rmProjectBase(pathname).startsWith("/space") &&
       (nextDataset.getIn(["links", "self"]).startsWith("/source") ||
         nextDataset.getIn(["links", "self"]).startsWith("/home"))
     ) {
       const editLink = nextDataset.getIn(["links", "edit"]);
-      pathname = `${editLink.substring(0, editLink.indexOf("?"))}`;
+      pathname = changePageTypeInUrl(
+        `${editLink.substring(0, editLink.indexOf("?"))}`,
+        targetPageType
+      );
     }
-
     const create = location.query?.create;
     const jobId = _getNextJobId(fullDataset);
     const mode = isSaveAs ? "edit" : location.query?.mode;
@@ -226,8 +232,9 @@ export function navigateToNextDataset(
       version: nextVersion,
       tipVersion: preserveTip ? tipVersion || nextVersion : nextVersion,
       ...(openResults ? { openResults: "true" } : {}),
+      // Tabs: keep scriptId
+      ...(location.query?.scriptId && { scriptId: location.query.scriptId }),
     };
-    const action = replaceNav ? replace : push;
 
     const nextState = {
       ...(isTransform ? { isTransform } : {}),
@@ -236,6 +243,6 @@ export function navigateToNextDataset(
 
     const state = isSaveAs ? { afterDatasetSave: true } : nextState;
 
-    return dispatch(action({ pathname, query, state }));
+    return dispatch(replace({ pathname, query, state }));
   };
 }

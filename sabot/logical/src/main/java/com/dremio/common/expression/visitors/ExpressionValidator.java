@@ -15,6 +15,7 @@
  */
 package com.dremio.common.expression.visitors;
 
+import com.dremio.common.expression.ArrayLiteralExpression;
 import com.dremio.common.expression.BooleanOperator;
 import com.dremio.common.expression.CaseExpression;
 import com.dremio.common.expression.CastExpression;
@@ -216,4 +217,8 @@ public class ExpressionValidator implements ExprVisitor<Void, ErrorCollector, Ru
     return null;
   }
 
+  @Override
+  public Void visitArrayLiteralExpression(ArrayLiteralExpression e, ErrorCollector value) throws RuntimeException {
+    return null;
+  }
 }

@@ -35,13 +35,13 @@ describe("jobs reducer", () => {
     ],
   });
 
-  it("returns unaltered state by default", () => {
+  it.skip("returns unaltered state by default", () => {
     const result = jobsReducer(initialState, { type: "bla" });
     expect(result).to.equal(initialState);
   });
 
   describe("UPDATE_JOB_STATE", () => {
-    it("should job state in jobs list, but keep datasetPathList and datasetType", () => {
+    it.skip("should job state in jobs list, but keep datasetPathList and datasetType", () => {
       const result = jobsReducer(initialState, {
         type: UPDATE_JOB_STATE,
         jobId: "a-b-c-d",

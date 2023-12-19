@@ -41,9 +41,6 @@
     .mtk7 {
       color: @monaco-persian-green;
     }
-    .mtk20 {
-      color: @monaco-orange;
-    }
     .margin {
       margin: 0px !important;
     }
@@ -66,16 +63,29 @@
     .find-widget .monaco-checkbox .label {
       margin: 0 !important;
     }
+
+    // monaco gives the context menu a z-index of 100 when on localhost, but changes to 8 when on any other instance
+    // this forces the context menu to behave consistently
+    .context-view.monaco-menu-container {
+      z-index: 1000;
+    }
+  }
+
+  .monaco-editor-hover {
+    z-index: 151 !important; // Needs to be above autocomplete suggest-widget which itself has z-index
   }
 
   //autocomplete styles ------------------------------
   .react-monaco-editor-container .monaco-editor .suggest-widget {
-    z-index: 150;
+    z-index: 150; // Needs to be above Messages.js (e.g. job error message in content table) which itself has z-index
 
     .font-basic();
 
-    & > .tree,
     & > .message {
+      display: none;
+    }
+
+    & > .tree {
       background-color: @WHITE !important;
       border: none !important;
       border-radius: 4px;
@@ -149,12 +159,15 @@
           background-size: 70%;
         }
 
-        &.keyword,
-        &.property {
+        &.keyword {
           background-image: url(../components/Icon/icons/Keyword.svg) !important;
         }
 
-        &.operator {
+        &.property {
+          background-image: url(../components/Icon/icons/Database.svg) !important;
+        }
+
+        &.enum {
           background-image: url(../components/Icon/icons/Boolean.svg) !important;
         }
 
@@ -174,7 +187,7 @@
           background-image: url(../components/Icon/icons/Varchar.svg) !important;
         }
 
-        &.references {
+        &.reference {
           background-image: url(../components/Icon/icons/NumDouble.svg) !important;
         }
 
@@ -184,6 +197,14 @@
 
         &.variable {
           background-image: url(../components/Icon/icons/Type-List.svg) !important;
+        }
+
+        &.field {
+          background-image: url(../components/Icon/icons/Type-Map.svg) !important;
+        }
+
+        &.value {
+          background-image: url(../components/Icon/icons/Type-Other.svg) !important;
         }
       }
 
@@ -202,6 +223,13 @@
         > .contents > .main > .type-label {
           text-align: left;
           margin: 0;
+        }
+
+        > .contents > .main > .type-label > span {
+          color: var(--dremio--color--link);
+          &:hover {
+            text-decoration: underline;
+          }
         }
       }
 

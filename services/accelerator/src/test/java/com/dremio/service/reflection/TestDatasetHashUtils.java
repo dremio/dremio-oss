@@ -30,11 +30,12 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 
+import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.catalog.model.dataset.TableVersionContext;
+import com.dremio.catalog.model.dataset.TableVersionType;
 import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.catalog.TableVersionContext;
-import com.dremio.exec.catalog.TableVersionType;
 import com.dremio.exec.planner.acceleration.ExpansionNode;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionUtils;
 import com.dremio.exec.store.CatalogService;
@@ -88,6 +89,7 @@ public class TestDatasetHashUtils {
     when(t1RelOptTable.unwrap(DremioTable.class)).thenReturn(t1Table);
     when(t1Node.getTable()).thenReturn(t1RelOptTable);
     when(catalog.getTable(new NamespaceKey(ImmutableList.of("t1")))).thenReturn(t1Table);
+    when(catalog.getTable(CatalogEntityKey.fromNamespaceKey(new NamespaceKey(ImmutableList.of("t1"))))).thenReturn(t1Table);
 
     // Create datasetconfig and relnode for view v1
     v1Config = new DatasetConfig()
@@ -106,6 +108,7 @@ public class TestDatasetHashUtils {
       .setDatasetPathList(ImmutableList.of("t1"));
     virtualDataset.setParentsList(ImmutableList.of(parentDataset));
     when(catalog.getTable(new NamespaceKey("v1"))).thenReturn(v1Table);
+    when(catalog.getTable(CatalogEntityKey.fromNamespaceKey(new NamespaceKey("v1")))).thenReturn(v1Table);
     when(v1Node.getInput(0)).thenReturn(t1Node);
 
     // Create datasetconfig and relnode for view v2
@@ -125,6 +128,7 @@ public class TestDatasetHashUtils {
       .setDatasetPathList(ImmutableList.of("v1"));
     virtualDataset2.setParentsList(ImmutableList.of(parentDataset2));
     when(catalog.getTable(new NamespaceKey("v2"))).thenReturn(v2Table);
+    when(catalog.getTable(CatalogEntityKey.fromNamespaceKey(new NamespaceKey("v2")))).thenReturn(v2Table);
     when(v2Node.getInput(0)).thenReturn(v1Node);
   }
 

@@ -1,0 +1,13 @@
+@mixin bgLight {
+  --bg--sunken: white;
+  --bg--default: white;
+
+  --bg--nav--sonar: #2a394a;
+}
+
+@mixin bgDark {
+  --bg--sunken: #101214;
+  --bg--default: #101214;
+
+  --bg--nav--sonar: #202124;
+}

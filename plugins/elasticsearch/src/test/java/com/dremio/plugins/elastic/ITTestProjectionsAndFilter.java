@@ -1036,11 +1036,7 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
         "  \"from\":0,\n" +
         "  \"size\":4000,\n" +
         "  \"query\":{\n" +
-        "    \"script\":{\n" +
-        "      \"script\":{\n" +
-        "        \"source\":\"(def) ((doc[\\\"stars\\\"].empty) ? false : ( ( ( doc[\\\"stars\\\"].value < 2 ) ) ? (def) ( (doc[\\\"city\\\"].empty) ? null : ( doc[\\\"city\\\"].value == 'San Francisco' ) ) : (def) ( (doc[\\\"state\\\"].empty) ? null : ( doc[\\\"state\\\"].value == 'San Francisco' ) ) ))\",\n" +
-        "        \"lang\":\"painless\"\n" +
-        "       },\n" +
+        "    \"match_all\" : {" +
         "       \"boost\":1.0\n" +
         "       }\n" +
         "     },\n" +

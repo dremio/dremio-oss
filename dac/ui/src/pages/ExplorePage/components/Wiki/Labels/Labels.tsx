@@ -20,13 +20,19 @@ import classNames from "clsx";
 import keyCodes from "@app/constants/Keys.json";
 import * as classes from "./Labels.module.less";
 import { Tag } from "@app/pages/ExplorePage/components/TagsEditor/Tag";
-import { IconButton, TagList } from "dremio-ui-lib";
+import { TagList } from "dremio-ui-lib";
+import { IconButton } from "dremio-ui-lib/components";
+import AdditionalLabelControls from "@inject/shared/AdditionalLabelControls";
 import { intl } from "@app/utils/intl";
 import { useClickOutside } from "@mantine/hooks";
 
 interface TagsViewProps {
   placeholder?: string;
   tags: ImmutablePropTypes<string>;
+  tagsVersion: string | null;
+  setOriginalTags: any;
+  entityId: string;
+  fullPath: string[];
   className?: string;
   //if this handler is not provided, then input for new tags will not be displayed
   onAddTag?: (tagName: string) => void;
@@ -46,6 +52,10 @@ const TagsView = ({
   onTagClick: onTagClickProp,
   onChange: onChangeProp,
   isEditAllowed,
+  tagsVersion,
+  setOriginalTags,
+  fullPath,
+  entityId,
 }: TagsViewProps) => {
   const [value, setValue] = useState<string>("");
   const [selectedTagIndex, setSelectedTagIndex] = useState<number>(-1);
@@ -261,6 +271,7 @@ const TagsView = ({
 
   return (
     <div
+      aria-label="Dataset labels"
       className={!editEnabled && tags.size === 0 ? "flex --alignCenter" : ""}
     >
       {(!isEditAllowed || !editEnabled) && tags.size > 0 ? (
@@ -283,19 +294,30 @@ const TagsView = ({
         ref={onTagsRef}
         data-qa="tagsContainer"
       >
-        <div ref={ref}>
+        <div ref={ref} className="color-faded">
           {isEditAllowed && editEnabled && tagElements}
           {isEditAllowed && !editEnabled && (
-            <IconButton
-              tooltip="Common.Edit"
-              onClick={onEditClick}
-              className={classNames("gutter-left", classes["editTag"])}
-            >
-              <dremio-icon
-                name="interface/edit"
-                class={classes["editTagsIcon"]}
+            <div className="flex">
+              <IconButton
+                tooltip={intl.formatMessage({ id: "Common.Edit" })}
+                onClick={onEditClick}
+                tooltipPlacement="top"
+                className={classNames("gutter-left", classes["editTag"])}
+                data-qa="edit-labels"
+              >
+                <dremio-icon
+                  name="interface/edit"
+                  class={classes["editTagsIcon"]}
+                />
+              </IconButton>
+              <AdditionalLabelControls
+                tags={tags.toJS()}
+                tagsVersion={tagsVersion}
+                entityId={entityId}
+                fullPath={fullPath}
+                setOriginalTags={setOriginalTags}
               />
-            </IconButton>
+            </div>
           )}
           {showInputField() && editEnabled && (
             <input

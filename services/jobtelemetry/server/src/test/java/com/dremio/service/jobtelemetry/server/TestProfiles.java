@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
 import java.util.stream.Stream;
 
 import org.junit.After;
@@ -39,6 +40,7 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.concurrent.ContextMigratingExecutorService;
 import com.dremio.datastore.DatastoreException;
 import com.dremio.exec.proto.CoordExecRPC.ExecutorQueryProfile;
 import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
@@ -86,6 +88,7 @@ public class TestProfiles {
   private JobTelemetryServiceGrpc.JobTelemetryServiceBlockingStub server;
   private JobTelemetryServiceGrpc.JobTelemetryServiceStub asyncServer;
   private JobTelemetryServiceImpl profileService;
+  private ContextMigratingExecutorService executorService = new ContextMigratingExecutorService(Executors.newCachedThreadPool());
 
   @Before
   public void setUp() throws Exception {
@@ -100,7 +103,8 @@ public class TestProfiles {
     final String serverName = InProcessServerBuilder.generateName();
     profileService =
       new JobTelemetryServiceImpl(metricsStore, profileStore,
-        new GrpcTracerFacade(TracerFacade.INSTANCE), false, 100);
+        new GrpcTracerFacade(TracerFacade.INSTANCE), false, 100,
+        executorService);
 
     grpcCleanupRule.register(InProcessServerBuilder
       .forName(serverName)
@@ -220,7 +224,7 @@ public class TestProfiles {
           .setQueryId(queryId)
           .build()
       )).isInstanceOf(io.grpc.StatusRuntimeException.class)
-      .hasMessageContaining("profile not found for the given queryId");
+      .hasMessageContaining("Unable to get query profile. Profile not found for the given queryId.");
   }
 
   @Test
@@ -428,7 +432,7 @@ public class TestProfiles {
         .setQueryId(profileSet.queryId)
         .build()
     )).isInstanceOf(io.grpc.StatusRuntimeException.class)
-      .hasMessageContaining("profile not found for the given queryId");
+      .hasMessageContaining("Unable to get query profile. Profile not found for the given queryId.");
   }
 
   @Test
@@ -440,7 +444,7 @@ public class TestProfiles {
 
     final JobTelemetryServiceImpl tmpService =
       new JobTelemetryServiceImpl(mockedMetricsStore, mockedProfileStore,
-        mock(GrpcTracerFacade.class), true, 100);
+        mock(GrpcTracerFacade.class), true, 100, executorService);
 
     when(mockedProfileStore.getPlanningProfile(any(QueryId.class)))
       .thenReturn(Optional.of(profileSet.planningProfileRequest.getProfile()));

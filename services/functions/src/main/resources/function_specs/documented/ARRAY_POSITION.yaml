@@ -1,0 +1,47 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+name: "ARRAY_POSITION"
+signatures:
+  -
+    returnType: "INT"
+    parameters:
+      -
+        kind: "REGULAR"
+        type: "ANY"
+        name: "element"
+        description: "Element for search in array."
+      -
+        kind: "REGULAR"
+        type: "ARRAY"
+        name: "arr"
+        description: "The array to be searched."
+    sampleCodes:
+      -
+        call: SELECT ARRAY_POSITION(3, ARRAY[1, 2, 3])
+        result: "2"
+      -
+        call: SELECT ARRAY_POSITION(4, ARRAY[1, 2, 3])
+        result: "NULL"
+      -
+        call: "# array_value is ARRAY[1, NULL, 3]\nSELECT ARRAY_POSITION(NULL, array_value)"
+        result: "1"
+      -
+        call: SELECT ARRAY_POSITION(ARRAY[2,3], ARRAY[ARRAY[1,2], ARRAY[2,3]])
+        result: "1"
+functionCategories: [ARRAY]
+description: "Returns the index of the first occurrence of an element in an array.\n"

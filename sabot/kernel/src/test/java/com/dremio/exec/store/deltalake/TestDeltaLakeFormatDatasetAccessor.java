@@ -27,6 +27,7 @@ import org.junit.Test;
 
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetMetadata;
+import com.dremio.connector.metadata.options.TimeTravelOption;
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.store.dfs.FileSelection;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
@@ -40,13 +41,15 @@ public class TestDeltaLakeFormatDatasetAccessor {
   @Test
   public void testMetadataStaleCheckNoSignature() throws IOException {
     FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
-    FileSelection selection = FileSelection.create(fs, Path.of(new File("dummy").getAbsolutePath()));
+    FileSelection selection = FileSelection.createNotExpanded(fs, Path.of(new File("dummy").getAbsolutePath()));
     BytesOutput signature = BytesOutput.NONE;
     DatasetType dt = DatasetType.PHYSICAL_DATASET_SOURCE_FILE;
     FileSystemPlugin fileSystemPlugin = mock(FileSystemPlugin.class);
     DeltaLakeFormatPlugin deltaLakeFormatPlugin = mock(DeltaLakeFormatPlugin.class);
     NamespaceKey key = new NamespaceKey("dummy");
-    DeltaLakeFormatDatasetAccessor deltaLakeFormatDatasetAccessor = new DeltaLakeFormatDatasetAccessor(dt, fs, fileSystemPlugin, selection, key, deltaLakeFormatPlugin);
+    DeltaLakeFormatDatasetAccessor deltaLakeFormatDatasetAccessor = new DeltaLakeFormatDatasetAccessor(dt, fs,
+      fileSystemPlugin, selection, key, deltaLakeFormatPlugin,
+      TimeTravelOption.newTimestampRequest(System.currentTimeMillis()));
 
     // when there is no read signature, metadataValid should return false
     assertFalse(deltaLakeFormatDatasetAccessor.metadataValid(signature, deltaLakeFormatDatasetAccessor, mock(DatasetMetadata.class), fs));

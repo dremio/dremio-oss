@@ -20,14 +20,17 @@ import FormUtils from "utils/FormUtils/FormUtils";
 import FormElement from "components/Forms/FormElement";
 import FormSection from "components/Forms/FormSection";
 import Checkbox from "components/Fields/Checkbox";
+import Toggle from "components/Fields/Toggle";
 import FormSectionConfig from "utils/FormUtils/FormSectionConfig";
 import FormElementConfig from "utils/FormUtils/FormElementConfig";
-import { HoverHelp } from "dremio-ui-lib";
+import { HoverHelp, Label } from "dremio-ui-lib";
 
 import {
   flexContainer,
   flexElementAuto,
   flexColumnContainer,
+  noMargin,
+  flexJustifyBetween,
 } from "@app/uiTheme/less/layout.less";
 import {
   checkboxMargin,
@@ -68,6 +71,7 @@ export default class CheckEnabledContainer extends Component {
     this.setCheckboxFieldCheckedProp(checkField); // to avoid react controlled/uncontrolled field warning
 
     const enableContainer = checkField.checked;
+    const isToggle = elementConfigJson.isToggle;
     const isInverted = elementConfigJson.inverted ? { inverted: true } : null;
     const isInvertedContainer = elementConfigJson.invertContainer;
     const container = elementConfig.getContainer();
@@ -82,16 +86,38 @@ export default class CheckEnabledContainer extends Component {
 
     return (
       <div className={flexColumnContainer}>
-        <div className={flexContainer}>
-          <Checkbox
-            {...checkField}
-            {...isInverted}
-            disabled={mainCheckboxIsDisabled}
-            className={checkboxMargin}
-            label={elementConfigJson.label}
-          />
-          {elementConfigJson.checkTooltip && (
-            <HoverHelp content={elementConfigJson.checkTooltip} />
+        <div
+          className={classNames([
+            flexContainer,
+            isToggle && flexJustifyBetween,
+          ])}
+        >
+          {isToggle ? (
+            <>
+              <Label
+                value={elementConfigJson.label}
+                helpText={elementConfigJson.checkTooltip}
+                className={noMargin}
+              />
+              <Toggle
+                {...checkField}
+                value={checkField.checked}
+                disabled={mainCheckboxIsDisabled}
+              />
+            </>
+          ) : (
+            <>
+              <Checkbox
+                {...checkField}
+                {...isInverted}
+                disabled={mainCheckboxIsDisabled}
+                className={checkboxMargin}
+                label={elementConfigJson.label}
+              />
+              {elementConfigJson.checkTooltip && (
+                <HoverHelp content={elementConfigJson.checkTooltip} />
+              )}
+            </>
           )}
         </div>
         {(elementConfigJson.whenNotChecked !== "hide" || enableContainer) && (

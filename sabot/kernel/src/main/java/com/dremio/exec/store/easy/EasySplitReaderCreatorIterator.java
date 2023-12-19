@@ -47,30 +47,33 @@ import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.google.common.base.Preconditions;
 
+import io.protostuff.ByteString;
+
 /**
  * An object that holds the relevant creation fields so we don't have to have an really long lambda.
  */
 public class EasySplitReaderCreatorIterator implements SplitReaderCreatorIterator {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(EasySplitReaderCreatorIterator.class);
-  private final SupportsIcebergRootPointer plugin;
-  private final FileSystem fs;
+  protected final SupportsIcebergRootPointer plugin;
+  protected final FileSystem fs;
   private final boolean prefetchReader;
-  private final OperatorContext context;
+  protected final OperatorContext context;
   private final FragmentExecutionContext fragmentExecutionContext;
-  private final List<List<String>> tablePath;
-  private final List<SchemaPath> columns;
+  protected final List<List<String>> tablePath;
+  protected List<SchemaPath> columns;
   private List<SplitAndPartitionInfo> inputSplits;
 
-  private Iterator<ParquetProtobuf.ParquetDatasetSplitScanXAttr> rowGroupSplitIterator;
-  private Iterator<SplitAndPartitionInfo> splitAndPartitionInfoIterator; // used only if the main splits are row group based
+  protected Iterator<ParquetProtobuf.ParquetDatasetSplitScanXAttr> rowGroupSplitIterator;
+  protected Iterator<SplitAndPartitionInfo> splitAndPartitionInfoIterator; // used only if the main splits are row group based
 
   private SplitReaderCreator first;
-  private SplitAndPartitionInfo currentSplitInfo;
+  protected SplitAndPartitionInfo currentSplitInfo;
   private InputStreamProvider lastInputStreamProvider;
   private final List<RuntimeFilter> runtimeFilters = new ArrayList<>();
 
-  private final FormatPlugin formatPlugin;
-  private final ExtendedFormatOptions extendedFormatOptions;
+  protected final FormatPlugin formatPlugin;
+  protected final ExtendedFormatOptions extendedFormatOptions;
+  private final ByteString extendedProperty;
 
   public EasySplitReaderCreatorIterator(FragmentExecutionContext fragmentExecContext, final OperatorContext context, OpProps props, final TableFunctionConfig config, boolean produceFromBufferedSplits) throws ExecutionSetupException {
     this.inputSplits = null;
@@ -80,6 +83,7 @@ public class EasySplitReaderCreatorIterator implements SplitReaderCreatorIterato
     this.prefetchReader = context.getOptions().getOption(ExecConstants.PREFETCH_READER);
     this.plugin = fragmentExecContext.getStoragePlugin(config.getFunctionContext().getPluginId());
     this.extendedFormatOptions = ((EasyScanTableFunctionContext) config.getFunctionContext()).getExtendedFormatOptions();
+    this.extendedProperty = config.getFunctionContext().getExtendedProperty();
     try {
         this.fs = plugin.createFS(config.getFunctionContext().getFormatSettings().getLocation(),
                 props.getUserName(), context);
@@ -151,11 +155,11 @@ public class EasySplitReaderCreatorIterator implements SplitReaderCreatorIterato
     return curr;
   }
 
-  private SplitReaderCreator createSplitReaderCreator() {
+  protected SplitReaderCreator createSplitReaderCreator() {
 
     SplitReaderCreator creator = new EasySplitReaderCreator(context,
-      fs, currentSplitInfo, tablePath, columns, formatPlugin,((FileSystemPlugin)this.plugin).getCompressionCodecFactory(), extendedFormatOptions);
-
+      fs, currentSplitInfo, tablePath, columns, formatPlugin,
+      ((FileSystemPlugin<?>) this.plugin).getCompressionCodecFactory(), extendedFormatOptions, extendedProperty);
     if (splitAndPartitionInfoIterator.hasNext()) {
       currentSplitInfo = splitAndPartitionInfoIterator.next();
     } else {

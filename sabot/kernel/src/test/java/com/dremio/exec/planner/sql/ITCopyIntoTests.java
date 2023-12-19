@@ -88,8 +88,8 @@ public class ITCopyIntoTests extends ITDmlQueryBase {
   }
 
   @Test
-  public void testCSVWithEmpyData() throws Exception {
-    CopyIntoTests.testCSVWithEmpyData(allocator, SOURCE);
+  public void testCSVWithEmptyData() throws Exception {
+    CopyIntoTests.testCSVWithEmptyData(allocator, SOURCE);
   }
 
   @Test
@@ -111,6 +111,17 @@ public class ITCopyIntoTests extends ITDmlQueryBase {
   public void testFilesKeywordWithCSV() throws Exception {
     CopyIntoTests.testFilesKeywordWithCSV(allocator, SOURCE);
   }
+
+  @Test
+  public void testCSVSkipHeader() throws Exception {
+    CopyIntoTests.testCSVSkipHeader(allocator, SOURCE);
+  }
+
+  @Test
+  public void testCSVSkipLines() throws Exception {
+    CopyIntoTests.testCSVSkipLines(allocator, SOURCE);
+  }
+
   @Test
   public void testJSONWithDateType() throws Exception {
     CopyIntoTests.testJSONWithDateType(allocator, SOURCE);
@@ -285,5 +296,70 @@ public class ITCopyIntoTests extends ITDmlQueryBase {
   @Test
   public void testDifferentFieldDelimitersForCsv() throws Exception{
     CopyIntoTests.testDifferentFieldDelimitersForCsv(allocator, SOURCE);
+  }
+
+  @Test
+  public void testContinueFeatureFlag() throws Exception {
+    CopyIntoErrorsTests.testFeatureFlag(SOURCE);
+  }
+
+  @Test
+  public void testTypeErrorWithContinue() throws Exception {
+    CopyIntoErrorsTests.testTypeError(allocator, SOURCE);
+  }
+
+  @Test
+  public void testTypeErrorWithContinueOnPartialSchema() throws Exception {
+    CopyIntoErrorsTests.testPartialSchema(allocator, SOURCE);
+  }
+
+  @Test
+  public void testSyntaxErrorWithContinue() throws Exception {
+    CopyIntoErrorsTests.testSyntaxError(allocator, SOURCE);
+  }
+
+  @Test
+  public void testErrorMultipleFilesWithContinue() throws Exception {
+    CopyIntoErrorsTests.testMultipleInputFiles(allocator, SOURCE);
+  }
+
+  @Test
+  public void testErrorFromDifferentFormatsWithContinue() throws Exception {
+    CopyIntoErrorsTests.testDifferentFileFormats(allocator, SOURCE);
+  }
+
+  @Test
+  public void testOnErrorContinueNoError() throws Exception {
+    CopyIntoErrorsTests.testNoError(allocator, SOURCE);
+  }
+
+  @Test
+  public void testOnErrorContinueWithExtractHeaderAndSkipLines() throws Exception {
+    CopyIntoErrorsTests.testCSVExtractHeaderAndSkipLines(allocator, SOURCE);
+  }
+
+  @Test
+  public void testOnErrorContinueWithSkipLines() throws Exception {
+    CopyIntoErrorsTests.testCSVSkipLines(allocator, SOURCE);
+  }
+
+  @Test
+  public void testCopyIntoErrorOutput() throws Exception {
+    CopyIntoErrorsTests.testCopyIntoErrorOutput(allocator, SOURCE);
+  }
+
+  @Test
+  public void testNonExistingSource() throws Exception {
+    CopyIntoTests.testNonExistingSource(allocator, SOURCE + "_missing");
+  }
+
+  @Test
+  public void testOnErrorContinueOnIdentityPartitionedTable() throws Exception {
+    CopyIntoErrorsTests.testOnIdentityPartitionedTable(allocator, SOURCE);
+  }
+
+  @Test
+  public void testOnErrorContinueOnMultiPartitionedTable() throws Exception {
+    CopyIntoErrorsTests.testOnMultiPartitionedTable(allocator, SOURCE);
   }
 }

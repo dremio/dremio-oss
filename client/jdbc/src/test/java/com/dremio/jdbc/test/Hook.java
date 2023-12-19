@@ -17,35 +17,29 @@ package com.dremio.jdbc.test;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
-
-import com.google.common.base.Function;
+import java.util.function.Consumer;
 
 public enum Hook {
   /** Called with the logical plan. */
   LOGICAL_PLAN;
 
-  private final List<Function<Object, Object>> handlers =
+  private final List<Consumer<Object>> handlers =
       new CopyOnWriteArrayList<>();
 
-  public Closeable add(final Function handler) {
+  public Closeable add(final Consumer handler) {
     handlers.add(handler);
-    return new Closeable() {
-      @Override
-      public void close() {
-        remove(handler);
-      }
-    };
+    return () -> remove(handler);
   }
 
   /** Removes a handler from this Hook. */
-  private boolean remove(Function handler) {
+  private boolean remove(Consumer handler) {
     return handlers.remove(handler);
   }
 
   /** Runs all handlers registered for this Hook, with the given argument. */
   public void run(Object arg) {
-    for (Function<Object, Object> handler : handlers) {
-      handler.apply(arg);
+    for (Consumer<Object> handler : handlers) {
+      handler.accept(arg);
     }
   }
 
@@ -55,5 +49,3 @@ public enum Hook {
     void close(); // override, removing "throws"
   }
 }
-
-// End Hook.java

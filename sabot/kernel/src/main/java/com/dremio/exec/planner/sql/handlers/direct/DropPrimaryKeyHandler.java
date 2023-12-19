@@ -37,12 +37,12 @@ public class DropPrimaryKeyHandler extends SimpleDirectHandler {
 
   @Override
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
-    SqlAlterTableDropPrimaryKey sqlAddPrimaryKey = SqlNodeUtil.unwrap(sqlNode, SqlAlterTableDropPrimaryKey.class);
+    SqlAlterTableDropPrimaryKey sqlDropPrimaryKey = SqlNodeUtil.unwrap(sqlNode, SqlAlterTableDropPrimaryKey.class);
 
-    NamespaceKey path = catalog.resolveSingle(sqlAddPrimaryKey.getTable());
+    NamespaceKey path = catalog.resolveSingle(sqlDropPrimaryKey.getTable());
     catalog.validatePrivilege(path, SqlGrant.Privilege.ALTER);
 
-    catalog.dropPrimaryKey(path);
+    catalog.dropPrimaryKey(path, sqlDropPrimaryKey.getSqlTableVersionSpec().getTableVersionSpec().getTableVersionContext().asVersionContext(), catalog);
 
     return Collections.singletonList(SimpleCommandResult.successful("Primary key dropped."));
   }

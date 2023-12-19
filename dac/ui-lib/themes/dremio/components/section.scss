@@ -15,10 +15,9 @@
  */
 
 @use "../../base/components/section";
+@use "../../utilities/bg";
 
 .dremio-section {
-  --dremio--section--background: white;
-  --dremio--section--color: var(--dremio--color--text--main);
   --dremio--section--padding: var(--dremio--spacing--2);
 
   --dremio--section--header--line-height: 24px;

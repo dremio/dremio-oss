@@ -482,7 +482,7 @@ export class DeferredRenderer extends Component {
   state = {
     initial: this.props.defer,
   };
-  componentWillMount() {
+  UNSAFE_componentWillMount() {
     if (this.props.defer) this.constructor._deferredRendererSet.add(this);
   }
   componentWillUnmount() {

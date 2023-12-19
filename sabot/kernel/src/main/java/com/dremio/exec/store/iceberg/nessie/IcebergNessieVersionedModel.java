@@ -17,16 +17,19 @@ package com.dremio.exec.store.iceberg.nessie;
 
 import java.util.List;
 
-import org.apache.hadoop.conf.Configuration;
+import javax.annotation.Nullable;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.io.FileIO;
+
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.utils.protos.QueryIdHelper;
-import com.dremio.exec.catalog.ResolvedVersionContext;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.store.iceberg.SupportsIcebergMutablePlugin;
 import com.dremio.exec.store.iceberg.model.IcebergBaseModel;
 import com.dremio.exec.store.iceberg.model.IcebergCommand;
+import com.dremio.exec.store.iceberg.model.IcebergCommitOrigin;
 import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
-import com.dremio.io.file.FileSystem;
 import com.dremio.plugins.NessieClient;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.google.common.base.Preconditions;
@@ -37,15 +40,17 @@ public class IcebergNessieVersionedModel extends IcebergBaseModel {
   private ResolvedVersionContext version;
   private final String userName;
 
-  public IcebergNessieVersionedModel(List<String> tableKey,
-                                     Configuration fsConf,
-                                     FileSystem fs,
-                                     final NessieClient nessieClient,
-                                     OperatorContext context, // Used to create DremioInputFile (valid only for insert/ctas)
-                                     ResolvedVersionContext version,
-                                     SupportsIcebergMutablePlugin plugin,
-                                     String userName) {
-    super(null, fsConf, fs, context, null, plugin);
+  public IcebergNessieVersionedModel(
+    List<String> tableKey,
+    Configuration fsConf,
+    FileIO fileIO,
+    final NessieClient nessieClient,
+    OperatorContext operatorContext, // Used to create DremioInputFile (valid only for insert/ctas)
+    ResolvedVersionContext version,
+    SupportsIcebergMutablePlugin plugin,
+    String userName
+  ) {
+    super(null, fsConf, fileIO, operatorContext, null, plugin);
 
     this.tableKey = tableKey;
     this.nessieClient = nessieClient;
@@ -56,14 +61,20 @@ public class IcebergNessieVersionedModel extends IcebergBaseModel {
   }
 
   @Override
-  protected IcebergCommand getIcebergCommand(IcebergTableIdentifier tableIdentifier) {
+  protected IcebergCommand getIcebergCommand(
+    IcebergTableIdentifier tableIdentifier,
+    @Nullable IcebergCommitOrigin commitOrigin
+  ) {
     IcebergNessieVersionedTableOperations tableOperations = new IcebergNessieVersionedTableOperations(
-      context == null ? null : context.getStats(),
-      plugin.createIcebergFileIO(fs, context, null, null, null),
+      operatorContext == null ? null : operatorContext.getStats(),
+      fileIO,
       nessieClient,
-      ((IcebergNessieVersionedTableIdentifier) tableIdentifier), getJobId(), userName);
-
-    return new IcebergNessieVersionedCommand(tableIdentifier, configuration,  fs, tableOperations);
+      ((IcebergNessieVersionedTableIdentifier) tableIdentifier),
+      commitOrigin,
+      getJobId(),
+      userName
+    );
+    return new IcebergNessieVersionedCommand(tableIdentifier, configuration,  tableOperations, currentQueryId());
   }
 
   @Override
@@ -91,8 +102,8 @@ public class IcebergNessieVersionedModel extends IcebergBaseModel {
     String jobId = null;
 
     //context is only available for executors
-    if (context != null) {
-      jobId = QueryIdHelper.getQueryId(context.getFragmentHandle().getQueryId());
+    if (operatorContext != null) {
+      jobId = QueryIdHelper.getQueryId(operatorContext.getFragmentHandle().getQueryId());
     }
     return jobId;
   }

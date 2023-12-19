@@ -19,7 +19,9 @@ import static com.dremio.common.util.MajorTypeHelper.getArrowMinorType;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.arrow.vector.complex.reader.FieldReader;
 
@@ -230,6 +232,7 @@ public abstract class BaseFunctionHolder extends AbstractFunctionHolder {
 
   protected void addProtectedBlock(ClassGenerator<?> g, JBlock sub, String body, HoldingContainer[] inputVariables,
       JVar[] workspaceJVars, boolean decConstInputOnly) {
+    Map<JVar, JVar> inputStartPositionMap = new HashMap<>();
     if (inputVariables != null) {
       for (int i = 0; i < inputVariables.length; i++) {
         if (decConstInputOnly && !inputVariables[i].isConstant()) {
@@ -242,7 +245,15 @@ public abstract class BaseFunctionHolder extends AbstractFunctionHolder {
           JType singularReaderClass = g.getModel()._ref(TypeHelper.getHolderReaderImpl(getArrowMinorType(inputVariable.getCompleteType().toMinorType())));
           JType fieldReadClass = g.getModel()._ref(FieldReader.class);
           sub.decl(fieldReadClass, parameter.name, JExpr._new(singularReaderClass).arg(inputVariable.getHolder()));
-        } else {
+        }else if(parameter.isFieldReader && inputVariable.isReader() && (inputVariable.getCompleteType().isList() ||
+          inputVariable.getCompleteType().isMap())) {
+          // Need this block to store the start position of the list reader for case when the list reader used for different
+          // functions in the same expression and function iterate by each element.
+          JVar input = sub.decl(inputVariable.getJType(), parameter.name, inputVariable.getHolder());
+          JVar listStartPosition = sub.decl(g.getModel().INT, "listStartPosition" + i,
+            input.invoke("getPosition"));
+          inputStartPositionMap.put(input, listStartPosition);
+        }else {
           sub.decl(inputVariable.getJType(), parameter.name, inputVariable.getHolder());
         }
       }
@@ -261,6 +272,12 @@ public abstract class BaseFunctionHolder extends AbstractFunctionHolder {
     Preconditions.checkNotNull(body);
     sub.directStatement(body);
 
+    if(!inputStartPositionMap.isEmpty()) {
+      for (Map.Entry<JVar, JVar> entry : inputStartPositionMap.entrySet()) {
+        sub.add(entry.getKey().invoke("reset"));
+        sub.add(entry.getKey().invoke("setPosition").arg(entry.getValue()));
+      }
+    }
     // reassign workspace variables back to global space.
     for (int i = 0; i < workspaceJVars.length; i++) {
       sub.assign(workspaceJVars[i], internalVars[i]);
@@ -312,10 +329,6 @@ public abstract class BaseFunctionHolder extends AbstractFunctionHolder {
 
   @Override
   public CompleteType getReturnType(final List<LogicalExpression> args) {
-    if (derivation instanceof OutputDerivation.Dummy) {
-      String functionName = registeredNames.length != 0 ? registeredNames[0] : "unknown";
-      throw new UnsupportedOperationException(String.format("Unable to determine output type for %s function.", functionName));
-    }
     return derivation.getOutputType(returnValue.type, args);
   }
 

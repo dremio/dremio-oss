@@ -18,7 +18,8 @@ import { connect } from "react-redux";
 import PropTypes from "prop-types";
 import {
   getIconAltTextByEntityIconType,
-  getIconTypeByEntityTypeAndStatus,
+  getSourceStatusIcon,
+  getIconByEntityType,
 } from "utils/iconUtils";
 import { ENTITY_TYPES } from "@app/constants/Constants";
 import { getEntity } from "@app/selectors/resources";
@@ -26,6 +27,7 @@ import { getRootEntityTypeByIdV3 } from "@app/selectors/home";
 import { Tooltip } from "dremio-ui-lib";
 
 import FontIcon from "@app/components/Icon/FontIcon";
+import { isVersionedSource } from "@app/utils/sourceUtils";
 
 const mapStateToPropsForEntityIcon = (state, { entityId }) => {
   const type = getRootEntityTypeByIdV3(state, entityId);
@@ -54,12 +56,13 @@ export class EntityIcon extends PureComponent {
   static propTypes = {
     //public api entityId
     entityId: PropTypes.string,
-    //connected
     entityType: PropTypes.oneOf([
       ENTITY_TYPES.home,
       ENTITY_TYPES.source,
       ENTITY_TYPES.space,
     ]).isRequired,
+
+    //connected
     sourceStatus: PropTypes.string, // available only for sources
     sourceType: PropTypes.string, // available only for sources
   };
@@ -78,6 +81,7 @@ export class EntityIcon extends PureComponent {
 
 export class PureEntityIcon extends PureComponent {
   static propTypes = {
+    disableHoverListener: PropTypes.bool,
     entityType: PropTypes.string.isRequired,
     sourceStatus: PropTypes.string,
     sourceType: PropTypes.string,
@@ -85,16 +89,21 @@ export class PureEntityIcon extends PureComponent {
   };
 
   render() {
-    const { entityType, sourceStatus, sourceType, style } = this.props;
-    const iconType = getIconTypeByEntityTypeAndStatus(
+    const {
+      disableHoverListener,
       entityType,
       sourceStatus,
-      sourceType
-    );
+      sourceType,
+      style,
+    } = this.props;
+    const iconType =
+      entityType?.toLowerCase() === "source"
+        ? getSourceStatusIcon(sourceStatus, sourceType)
+        : getIconByEntityType(entityType, isVersionedSource(sourceType));
     const iconAltText = getIconAltTextByEntityIconType(iconType) || "";
 
     return (
-      <Tooltip title={iconAltText}>
+      <Tooltip disableHoverListener={disableHoverListener} title={iconAltText}>
         <span>
           <FontIcon type={iconType} theme={{ ...iconStyle, ...style }} />
         </span>

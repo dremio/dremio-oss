@@ -1,0 +1,42 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+syntax="proto3";
+
+option java_package = "com.dremio.service.jobcounts";
+option optimize_for = SPEED;
+option java_generate_equals_and_hash = true;
+option java_multiple_files = true;
+option java_outer_classname = "JobCountsServiceStore";
+
+package dremio.jobcounts;
+
+import "job_counts_common.proto";
+
+message JobCountInfo {
+  string id = 1; // identifier for catalog, reflection entities
+  repeated DailyJobCount daily_count = 2; // 30 days of data
+  int64 last_modified_at = 3;
+}
+
+message DailyJobCount {
+  message JobCountWithType {
+    JobCountType type = 1;
+    int32 count = 2;
+  }
+
+  repeated JobCountWithType type_count = 1; // count array for above defined types
+  int64 time_stamp = 2; // timestamp for the day
+}

@@ -15,11 +15,11 @@
  */
 
 :root {
-  --font-family--sans: "Inter", sans-serif;
+  --font-family--default: "Inter", sans-serif;
   --font-family--mono: "Fira Code", monospace;
 
   /* @deprecated */
-  --dremio--font-family: var(--font-family--sans);
+  --dremio--font-family: var(--font-family--default);
 
   /* @deprecated */
   --dremio--font-family--monospace: var(--font-family--mono);

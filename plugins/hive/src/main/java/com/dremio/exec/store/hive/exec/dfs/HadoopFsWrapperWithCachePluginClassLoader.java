@@ -74,6 +74,7 @@ import com.google.common.cache.RemovalNotification;
  */
 public class HadoopFsWrapperWithCachePluginClassLoader extends FileSystem {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HadoopFsWrapperWithCachePluginClassLoader.class);
+  @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
   static final LoadingCache<String, HadoopFsCacheWrapperPluginClassLoader> cache = CacheBuilder.newBuilder()
     .softValues()
     .removalListener(new RemovalListener<String, HadoopFsCacheWrapperPluginClassLoader>() {

@@ -24,6 +24,7 @@ import { rmProjectBase } from "dremio-ui-common/utilities/projectBase.js";
 
 type ArcticCatalogContextType = {
   reservedNamespace: string;
+  catalogId: string;
   activeTab: ArcticCatalogTabsType;
   isCatalog: boolean;
 };
@@ -31,9 +32,8 @@ type ArcticCatalogContextType = {
 export const ArcticCatalogContext =
   createContext<ArcticCatalogContextType | null>(null);
 
-export function useArcticCatalogContext(): ArcticCatalogContextType | null {
+export function useArcticCatalogContext(): ArcticCatalogContextType {
   const context = useContext(ArcticCatalogContext);
-  if (context === null) return null;
   return context as ArcticCatalogContextType;
 }
 
@@ -91,7 +91,7 @@ export function parseArcticCatalogUrl(
   branchName: string
 ) {
   if (url === "/") return undefined;
-  else if (url.includes(`/${tab}/${branchName}/`)) {
+  else if (url.includes(`/${tab}/${encodeURIComponent(branchName)}/`)) {
     return url.replace(`${path}/`, "").split("/");
   } else {
     return [];

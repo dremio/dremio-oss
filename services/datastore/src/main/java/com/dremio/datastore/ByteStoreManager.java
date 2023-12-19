@@ -105,6 +105,7 @@ class ByteStoreManager implements AutoCloseable {
 
   // on #start all the existing tables are loaded, and if new stores are requested, #newStore is used
   private final ConcurrentMap<Integer, String> handleIdToNameMap = Maps.newConcurrentMap();
+  @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
   private final LoadingCache<String, ByteStore> maps = CacheBuilder.newBuilder()
     .removalListener((RemovalListener<String, ByteStore>) notification -> {
       try {
@@ -311,7 +312,7 @@ class ByteStoreManager implements AutoCloseable {
           return rocksDBOpenDelegate.open(dboptions, path, columnNames, familyHandles);
         }
     } catch (RocksDBException e) {
-        if (e.getStatus().getCode() != Status.Code.IOError || !e.getStatus().getState().contains("While lock")) {
+        if (!(e.getStatus().getCode() == Status.Code.IOError || e.getStatus().getState().contains("While lock") || e.getStatus().getState().contains("lock hold by"))) {
           throw e;
         }
 

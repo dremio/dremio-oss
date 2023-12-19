@@ -27,11 +27,11 @@ import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
-import com.dremio.exec.calcite.logical.SampleCrel;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
+import com.dremio.exec.planner.common.SampleRelBase;
 import com.dremio.exec.planner.physical.PhysicalPlanCreator;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.PrelUtil;
@@ -212,7 +212,7 @@ public class ElasticsearchIntermediatePrel extends SinglePrel implements PrelFin
       }
 
       if(sample != null){
-        long sampleFetch = SampleCrel.getSampleSizeAndSetMinSampleSize(PrelUtil.getPlannerSettings(getCluster().getPlanner()), ElasticsearchSample.SAMPLE_SIZE_DENOMINATOR);
+        long sampleFetch = SampleRelBase.getSampleSizeAndSetMinSampleSize(PrelUtil.getPlannerSettings(getCluster().getPlanner()), ElasticsearchSample.SAMPLE_SIZE_DENOMINATOR);
         fetch = fetch == null ? sampleFetch : Math.min(fetch,  sampleFetch);
       }
 

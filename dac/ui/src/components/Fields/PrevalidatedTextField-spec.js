@@ -51,7 +51,7 @@ describe("PrevalidatedTextField", () => {
       };
       const wrapper = shallow(<PrevalidatedTextField {...props} />);
       const instance = wrapper.instance();
-      instance.componentWillReceiveProps(nextProps);
+      instance.UNSAFE_componentWillReceiveProps(nextProps);
       expect(wrapper.state("internalValue")).to.equal(nextProps.value);
     });
     it("should set state with nextProps if value from props was changed", () => {
@@ -61,7 +61,7 @@ describe("PrevalidatedTextField", () => {
       };
       const wrapper = shallow(<PrevalidatedTextField {...props} />);
       const instance = wrapper.instance();
-      instance.componentWillReceiveProps(nextProps);
+      instance.UNSAFE_componentWillReceiveProps(nextProps);
       expect(wrapper.state("internalValue")).to.equal(nextProps.value);
     });
   });

@@ -16,7 +16,7 @@
 
 import sentryUtil from "@app/utils/sentryUtil";
 import { useState } from "react";
-import CopyButton from "components/Buttons/CopyButton";
+import { CopyButton } from "dremio-ui-lib/components";
 import * as classes from "./SupportInfo.module.less";
 import clsx from "clsx";
 import { intl } from "@app/utils/intl";
@@ -44,11 +44,7 @@ const renderSupportInfoItem = ({
         <span className={classes["support-info__item-title-text"]}>
           {title}
         </span>
-        <CopyButton
-          className={classes["support-info__item-copy-button"]}
-          text={contents}
-          title={intl.formatMessage({ id: "Common.Copy" })}
-        />
+        <CopyButton contents={contents}>{contents}</CopyButton>
       </div>
       <div
         className={clsx(

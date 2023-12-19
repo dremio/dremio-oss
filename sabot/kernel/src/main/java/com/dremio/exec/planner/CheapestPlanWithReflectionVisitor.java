@@ -41,6 +41,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
@@ -56,6 +57,7 @@ public class CheapestPlanWithReflectionVisitor {
   private Map<RelNode,Result> map = new HashMap<>();
 
   private Set<RelNode> currentlyVisiting = new HashSet<>();
+  private Set<String> reflectionsToSearch;
 
   private static final Map<String,RelCostPair> EMPTY_MAP = ImmutableMap.of();
   private static final Result EMPTY_RESULT = new Result(null, null, EMPTY_MAP);
@@ -63,22 +65,23 @@ public class CheapestPlanWithReflectionVisitor {
   private boolean tooDeepFailure = false;
   private int MAX_DEPTH = PlannerSettings.MAX_RECURSION_STACK_DEPTH;
 
-  public CheapestPlanWithReflectionVisitor(VolcanoPlanner planner) {
+  public CheapestPlanWithReflectionVisitor(VolcanoPlanner planner, Set<String> reflectionsToSearch) {
     this.root = planner.getRoot();
     this.planner = planner;
+    this.reflectionsToSearch = ImmutableSet.copyOf(reflectionsToSearch);
   }
 
-  public Map<String,RelNode> getBestPlansWithReflections() {
+  public Map<String,RelCostPair> getBestPlansWithReflections() {
     Result r = visit(root, 0);
 
-    ImmutableMap.Builder<String,RelNode> builder = ImmutableMap.builder();
+    ImmutableMap.Builder<String,RelCostPair> builder = ImmutableMap.builder();
 
     if (tooDeepFailure) {
       return builder.build();
     }
 
     for (Entry<String,RelCostPair> e : r.bestWithReflectionMap.entrySet()) {
-      builder.put(e.getKey(), convertRelSubsets(e.getValue().rel));
+      builder.put(e.getKey(), RelCostPair.of(convertRelSubsets(e.getValue().rel), e.getValue().cost));
     }
     return builder.build();
   }
@@ -154,14 +157,16 @@ public class CheapestPlanWithReflectionVisitor {
       if (p instanceof TableScan && p.getTable().getQualifiedName().get(0).equals(ACCELERATOR_STORAGEPLUGIN_NAME)) {
         TableScan tableScan = (TableScan) p;
         String reflection = tableScan.getTable().getQualifiedName().get(1);
-        result = new Result(tableScan, cost, ImmutableMap.of(reflection, RelCostPair.of(p, cost)));
-        map.put(p, result);
-        return result;
-      } else {
-        result = new Result(p, cost, EMPTY_MAP);
-        map.put(p, result);
-        return result;
+        if (reflectionsToSearch.isEmpty() || reflectionsToSearch.contains(reflection)) {
+          result = new Result(tableScan, cost, ImmutableMap.of(reflection, RelCostPair.of(p, cost)));
+          map.put(p, result);
+          return result;
+        }
       }
+
+      result = new Result(p, cost, EMPTY_MAP);
+      map.put(p, result);
+      return result;
     }
 
     List<RelNode> oldInputs = p.getInputs();
@@ -284,9 +289,10 @@ public class CheapestPlanWithReflectionVisitor {
     }
   }
 
-  private static class RelCostPair extends Pair<RelNode,RelOptCost> {
-    public RelNode rel;
-    public RelOptCost cost;
+  public static final class RelCostPair extends Pair<RelNode,RelOptCost> {
+    private RelNode rel;
+
+    private RelOptCost cost;
 
     private RelCostPair(RelNode rel, RelOptCost cost) {
       super(rel, cost);
@@ -296,6 +302,14 @@ public class CheapestPlanWithReflectionVisitor {
 
     private static RelCostPair of(RelNode rel, RelOptCost cost) {
       return new RelCostPair(rel, cost);
+    }
+
+    public RelNode getRel() {
+      return rel;
+    }
+
+    public RelOptCost getCost() {
+      return cost;
     }
   }
 }

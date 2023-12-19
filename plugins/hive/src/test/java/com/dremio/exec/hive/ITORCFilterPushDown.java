@@ -257,7 +257,7 @@ public class ITORCFilterPushDown extends HiveTestBase {
       .sqlQuery(query)
       .unOrdered()
       .baselineColumns("col1")
-      .baselineValues(new Float("-0.1"))
+      .baselineValues(-0.1F)
       .go();
   }
 

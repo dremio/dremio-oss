@@ -15,23 +15,23 @@
  */
 package com.dremio.exec.planner.acceleration;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.calcite.rel.RelNode;
 
-import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.TableVersionContext;
 import com.dremio.exec.planner.acceleration.substitution.MaterializationProvider;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionUtils;
+import com.dremio.exec.planner.logical.ViewTable;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.namespace.NamespaceKey;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -39,15 +39,17 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 /**
- * MaterializationList contains a deep copy of DremioMaterialization instances that are used for the lifetime
- * of a single command or query.  The actual list of DremioMaterialization instances are lazily built during logical planning phase.
- * When materialization cache is enabled, we can trim the DremioMaterialization instances to only those that
- * overlap between the user query and scan, views and external queries within the materializations.
+ * MaterializationList builds a list of "considered" {@link DremioMaterialization} instances that are used for the lifetime
+ * of a single query.  A {@link DremioMaterialization} is usually retrieved from cache and then deep-copied so that
+ * it can be mutated by the planner during target normalization.
+ *
+ * DremioMaterialization instances are lazily built during SqlToRel (for default raw reflections) and logical planning phases
+ * from {@link MaterializationDescriptor} instances.
  */
 public class MaterializationList implements MaterializationProvider {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MaterializationList.class);
 
-  private final Map<TablePath, MaterializationDescriptor> mapping = Maps.newHashMap();
+  private final Map<NamespaceKey, MaterializationDescriptor> materializationDescriptors = Maps.newHashMap();
   private List<DremioMaterialization> materializations = ImmutableList.of();
 
   private final MaterializationDescriptorProvider provider;
@@ -61,54 +63,72 @@ public class MaterializationList implements MaterializationProvider {
     this.session = Preconditions.checkNotNull(session, "session is required");
   }
 
-  /**
-   * Returns list of applicable materializations.
-   */
   @Override
-  public List<DremioMaterialization> getApplicableMaterializations() {
+  public List<DremioMaterialization> getConsideredMaterializations() {
     return Preconditions.checkNotNull(materializations);
   }
 
   @Override
-  public java.util.Optional<DremioMaterialization> getDefaultRawMaterialization(NamespaceKey path,
-    TableVersionContext versionContext,
-    List<String> vdsFields, Catalog catalog) {
-    return getDefaultRawMaterialization(provider, path, versionContext, vdsFields, catalog);
+  public java.util.Optional<DremioMaterialization> getDefaultRawMaterialization(ViewTable table) {
+
+      if (isNoReflections()) {
+        return java.util.Optional.empty();
+      }
+      final Set<String> exclusions = getExclusions();
+      final Set<String> inclusions = getInclusions();
+      final boolean hasInclusions = !inclusions.isEmpty();
+      final java.util.Optional<MaterializationDescriptor> opt = provider.getDefaultRawMaterialization(table);
+
+      if (opt.isPresent()) {
+        MaterializationDescriptor descriptor = opt.get();
+        if ((hasInclusions && !inclusions.contains(descriptor.getLayoutId())) || exclusions.contains(descriptor.getLayoutId())) {
+          return java.util.Optional.empty();
+        } else {
+          try {
+            DremioMaterialization materialization = descriptor.getMaterializationFor(converter);
+            materializationDescriptors.put(new NamespaceKey(descriptor.getPath()), descriptor);
+            return java.util.Optional.of(materialization);
+          } catch (Throwable e) {
+            logger.warn("Failed to expand materialization {}", descriptor.getMaterializationId(), e);
+          }
+        }
+      }
+      return java.util.Optional.empty();
   }
 
   public Optional<MaterializationDescriptor> getDescriptor(final List<String> path) {
-    return getDescriptor(TablePath.of(path));
-  }
-
-  public Optional<MaterializationDescriptor> getDescriptor(final TablePath path) {
-    final MaterializationDescriptor descriptor = mapping.get(path);
+    final MaterializationDescriptor descriptor = materializationDescriptors.get(new NamespaceKey(path));
     return Optional.ofNullable(descriptor);
   }
 
   @Override
-  public List<DremioMaterialization> buildApplicableMaterializations(RelNode userQueryNode) {
+  public List<DremioMaterialization> buildConsideredMaterializations(RelNode userQueryNode) {
+    if (isNoReflections()) {
+      return ImmutableList.of();
+    }
+
     final Set<SubstitutionUtils.VersionedPath> queryTablesUsed = SubstitutionUtils.findTables(userQueryNode);
     final Set<SubstitutionUtils.VersionedPath> queryVdsUsed = SubstitutionUtils.findExpansionNodes(userQueryNode);
     final Set<SubstitutionUtils.ExternalQueryDescriptor> externalQueries = SubstitutionUtils.findExternalQueries(userQueryNode);
 
-    final Set<String> exclusions = Sets.newHashSet(session.getSubstitutionSettings().getExclusions());
-    final Set<String> inclusions = Sets.newHashSet(session.getSubstitutionSettings().getInclusions());
+    final Set<String> exclusions = getExclusions();
+    final Set<String> inclusions = getInclusions();
     final boolean hasInclusions = !inclusions.isEmpty();
     final List<DremioMaterialization> materializations = Lists.newArrayList();
     for (final MaterializationDescriptor descriptor : provider.get()) {
 
-      if(
-          (hasInclusions && !inclusions.contains(descriptor.getLayoutId()))
-          ||
-          exclusions.contains(descriptor.getLayoutId())
-         ) {
-          continue;
+      if((hasInclusions && !inclusions.contains(descriptor.getLayoutId())) || exclusions.contains(descriptor.getLayoutId())) {
+        continue;
       }
 
       try {
-        if (session.getSubstitutionSettings().isExcludeFileBasedIncremental() && descriptor.getIncrementalUpdateSettings().isFileBasedUpdate()) {
+        if (session.getSubstitutionSettings().isExcludeFileBasedIncremental() &&
+            (descriptor.getIncrementalUpdateSettings().isFileMtimeBasedUpdate() ||
+             //TODO: support using snapshot based incremental reflection to accelerate other incremental reflection refresh
+             descriptor.getIncrementalUpdateSettings().isSnapshotBasedUpdate())) {
           continue;
         }
+        // Prune the reflection early if the descriptor is already expanded
         if (!descriptor.isApplicable(queryTablesUsed, queryVdsUsed, externalQueries)) {
           continue;
         }
@@ -116,9 +136,13 @@ public class MaterializationList implements MaterializationProvider {
         if (materialization == null) {
           continue;
         }
-
-        mapping.put(TablePath.of(descriptor.getPath()), descriptor);
+        if (!SubstitutionUtils.usesTableOrVds(queryTablesUsed, queryVdsUsed, externalQueries, materialization.getQueryRel())) {
+          continue;
+        }
+        final NamespaceKey path = new NamespaceKey(descriptor.getPath());
+        materializationDescriptors.put(path, descriptor);
         materializations.add(materialization);
+
       } catch (Throwable e) {
         logger.warn("failed to expand materialization {}", descriptor.getMaterializationId(), e);
       }
@@ -127,72 +151,27 @@ public class MaterializationList implements MaterializationProvider {
     return materializations;
   }
 
-  /**
-   * Returns available default raw materialization from the given provider and the path for the VDS/PDS
-   *
-   * @param provider materialization provider.
-   * @param path     dataset path
-   * @param vdsFields
-   * @return materializations used by planner
-   */
-  @VisibleForTesting
-  protected java.util.Optional<DremioMaterialization> getDefaultRawMaterialization(
-    final MaterializationDescriptorProvider provider, NamespaceKey path,
-    TableVersionContext versionContext, List<String> vdsFields, Catalog catalog) {
-
-    final Set<String> exclusions = Sets.newHashSet(session.getSubstitutionSettings().getExclusions());
-    final Set<String> inclusions = Sets.newHashSet(session.getSubstitutionSettings().getInclusions());
-    final boolean hasInclusions = !inclusions.isEmpty();
-    final java.util.Optional<MaterializationDescriptor> opt = provider.getDefaultRawMaterialization(path,
-      versionContext, vdsFields, catalog);
-
-    if (opt.isPresent()) {
-      MaterializationDescriptor descriptor = opt.get();
-      if (
-        !(
-          (hasInclusions && !inclusions.contains(descriptor.getLayoutId()))
-            ||
-            exclusions.contains(descriptor.getLayoutId())
-        )
-      ) {
-        try {
-          return java.util.Optional.of(descriptor.getMaterializationFor(converter));
-        } catch (Throwable e) {
-          logger.warn("Failed to expand materialization {}", descriptor.getMaterializationId(), e);
-        }
-      }
-    }
-    return java.util.Optional.empty();
+  public Set<String> getInclusions() {
+    Set<String> inclusions = Sets.newHashSet(session.getSubstitutionSettings().getInclusions());
+    inclusions.addAll(parseReflectionIds(converter.getFunctionContext().getOptions().getOption(PlannerSettings.CONSIDER_REFLECTIONS)));
+    return inclusions;
   }
 
-  static final class TablePath {
-    private final List<String> path;
+  public Set<String> getExclusions() {
+    Set<String> exclusions = Sets.newHashSet(session.getSubstitutionSettings().getExclusions());
+    exclusions.addAll(parseReflectionIds(converter.getFunctionContext().getOptions().getOption(PlannerSettings.EXCLUDE_REFLECTIONS)));
+    return exclusions;
+  }
 
-    private TablePath(final List<String> path) {
-      this.path = path;
-    }
+  public boolean isNoReflections() {
+    return converter.getFunctionContext().getOptions().getOption(PlannerSettings.NO_REFLECTIONS);
+  }
 
-    @Override
-    public boolean equals(final Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      final TablePath tablePath = (TablePath) o;
-      return Objects.equals(path, tablePath.path);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(path);
-    }
-
-    public static TablePath of(final List<String> paths) {
-      return new TablePath(ImmutableList.copyOf(Preconditions.checkNotNull(paths)));
-    }
-
+  public static Set<String> parseReflectionIds(String value) {
+    return Arrays.asList(value.split(",")).stream()
+      .map(x -> x.trim())
+      .filter(x -> !x.isEmpty())
+      .collect(Collectors.toSet());
   }
 
 }

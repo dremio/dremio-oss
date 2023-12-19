@@ -72,7 +72,7 @@ export class FileFormatController extends Component {
     this.loadFormat(this.props);
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     if (!this.props.formatUrl) {
       this.loadFormat(nextProps);
     }

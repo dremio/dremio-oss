@@ -25,9 +25,9 @@ const InternalSupportEmail = (props) => {
         borderBottom: "1px solid hsla(0, 0%, 0%, 0.1)",
       }}
     >
-      <h3>{la("Internal Support Email")}</h3>
+      <h3>{laDeprecated("Internal Support Email")}</h3>
       <div style={props.descriptionStyle}>
-        {la("Note: Users will see changes when they next reload.")}
+        {laDeprecated("Note: Users will see changes when they next reload.")}
       </div>
       {props.renderSettings("support.email.addr", { allowEmpty: true })}
       {props.renderSettings("support.email.jobs.subject", { allowEmpty: true })}

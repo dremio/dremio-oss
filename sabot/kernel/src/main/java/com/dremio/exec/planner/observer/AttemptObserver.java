@@ -30,6 +30,7 @@ import com.dremio.exec.planner.CachedAccelDetails;
 import com.dremio.exec.planner.CachedPlan;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
+import com.dremio.exec.planner.acceleration.RelWithInfo;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.physical.Prel;
@@ -131,6 +132,13 @@ public interface AttemptObserver {
   void planConvertedScan(RelNode converted, long millisTaken);
 
   /**
+   * Display the refresh decision - full refresh, incremental refresh, incremental refresh by partition, etc.
+   * @param text Decision text
+   * @param millisTaken time taken in planning
+   */
+  public void planRefreshDecision(String text, long millisTaken);
+
+  /**
    * A view just expanded into a rel tree.
    * @param expanded The new rel tree that will be used in place of the defined view.
    * @param schemaPath The schema path of the view.
@@ -184,24 +192,32 @@ public interface AttemptObserver {
   void plansDistributionComplete(QueryWorkUnit unit);
 
   /**
-   * Report applicable materializations
+   * Report considered materializations
    */
   void planFindMaterializations(long millisTaken);
 
   /**
    * Report normalization completion
    */
-  void planNormalized(long millisTaken, List<RelNode> normalizedQueryPlans);
+  void planNormalized(long millisTaken, List<RelWithInfo> normalizedQueryPlans);
 
   /**
-   * Report substitution
+   * Report BUPFinder time across all materializations excluding normalization times
+   */
+  void planSubstituted(long millisTaken);
+
+  /**
+   * Report considered target materializations and substitution matches.
+   *
    * @param materialization
-   * @param substitutions number of plans returned after substitution finished
+   * @param substitutions
    * @param target
+   * @param millisTaken - Time to generate the match including query and target normalization
+   * @param defaultReflection
    */
   void planSubstituted(DremioMaterialization materialization,
-                       List<RelNode> substitutions,
-                       RelNode target, long millisTaken, boolean defaultReflection);
+                       List<RelWithInfo> substitutions,
+                       RelWithInfo target, long millisTaken, boolean defaultReflection);
 
   /**
    * Report errors occurred during substitution.
@@ -211,7 +227,7 @@ public interface AttemptObserver {
   void substitutionFailures(Iterable<String> errors);
 
   /**
-   * Report materializations used to accelerate incoming query only if query is accelerated.
+   * Report materializations that have been chosen by VolcanoPlanner to accelerate query.
    *
    * @param info acceleration info.
    */

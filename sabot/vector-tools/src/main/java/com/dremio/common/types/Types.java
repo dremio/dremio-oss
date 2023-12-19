@@ -597,6 +597,7 @@ public final class Types {
     case "json":
     case "simplejson":
     case "extendedjson":
+    case "compactjson":
       return MinorType.LATE;
     case "array":
       return MinorType.LIST;

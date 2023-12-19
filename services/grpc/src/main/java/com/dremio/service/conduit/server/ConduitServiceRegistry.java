@@ -19,6 +19,7 @@ package com.dremio.service.conduit.server;
 import com.dremio.service.grpc.CloseableBindableService;
 
 import io.grpc.BindableService;
+import io.grpc.HandlerRegistry;
 import io.grpc.ServerServiceDefinition;
 
 
@@ -47,4 +48,9 @@ public interface ConduitServiceRegistry {
    * @param serverServiceDefinition server service
    */
   void registerServerService(ServerServiceDefinition serverServiceDefinition);
+
+  /**
+   * Used for proxying. Only one fallback handler can be used.
+   */
+  void registerFallbackHandler(HandlerRegistry handlerRegistry);
 }

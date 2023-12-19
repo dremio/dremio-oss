@@ -192,6 +192,7 @@ public class TestIcebergDmlMergeDuplicateCheckTableFunction extends BaseTestTabl
                 null,
                 null,
                 null,
+                null,
                     ICEBERG_TEST_SCHEMA.getFields().stream()
                     .map(f -> SchemaPath.getSimplePath(f.getName())).collect(Collectors.toList()),
                 null,

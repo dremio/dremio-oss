@@ -15,97 +15,93 @@
  */
 package com.dremio.dac.service.datasets;
 
-import static java.util.Collections.emptyList;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.stream.Collectors;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
-import org.junit.Before;
-import org.junit.Test;
-
+import com.dremio.common.exceptions.UserException;
+import com.dremio.dac.explore.model.DatasetName;
 import com.dremio.dac.explore.model.DatasetPath;
-import com.dremio.dac.explore.model.DatasetUI;
-import com.dremio.dac.explore.model.InitialPreviewResponse;
-import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
-import com.dremio.dac.server.BaseTestServer;
-import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
+import com.dremio.dac.model.sources.SourceName;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.exec.server.ContextService;
+import com.dremio.exec.store.CatalogService;
+import com.dremio.options.OptionManager;
+import com.dremio.plugins.dataplane.store.DataplanePlugin;
+import com.dremio.service.InitializerRegistry;
+import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceException;
-import com.dremio.service.namespace.dataset.DatasetVersion;
-import com.google.common.collect.Lists;
+import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.proto.NameSpaceContainer;
 
-public class TestDatasetVersionMutator extends BaseTestServer {
+@MockitoSettings(strictness = Strictness.WARN)
+public class TestDatasetVersionMutator {
+  @Mock
+  private OptionManager optionManager;
+  @Mock
+  private NamespaceService namespaceService;
+  @Mock
+  private CatalogService catalogService;
+  @Mock
+  private InitializerRegistry initializerRegistry;
+  @Mock
+  private LegacyKVStoreProvider legacyKVStoreProvider;
+  @Mock
+  private JobsService jobsService;
+  @Mock
+  private ContextService contextService;
+  @Mock
+  private DataplanePlugin dataplanePlugin;
 
-  private final DatasetVersionMutator service = newDatasetVersionMutator();
-  private LegacyKVStoreProvider provider;
+  private static final String versionedSourceName = "nessie";
 
-  @Before
+  private DatasetVersionMutator datasetVersionMutator;
+
+  @BeforeEach
   public void setup() throws Exception {
-    clearAllDataExceptUser();
-    provider = l(LegacyKVStoreProvider.class);
+    datasetVersionMutator = new DatasetVersionMutator(
+      initializerRegistry,
+      legacyKVStoreProvider,
+      namespaceService,
+      jobsService,
+      catalogService,
+      optionManager,
+      contextService);
   }
 
   @Test
-  public void testDeleteDatasetVersion() {
-    final InitialPreviewResponse showSchemasResponse = createDatasetFromSQL("SHOW SCHEMAS", emptyList());
-    final List<String> path = showSchemasResponse.getDataset().getFullPath();
-    final String version = showSchemasResponse.getDataset().getDatasetVersion().getVersion();
-    final DatasetPath datasetPath = new DatasetPath(path);
-    final DatasetVersion datasetVersion = new DatasetVersion(version);
-    final VirtualDatasetUI versionBefore = service.getVersion(datasetPath, datasetVersion);
-    assertNotNull("Dataset cannot be null after its creation", versionBefore);
+  public void testRenameDatasetForVersionedSource() throws Exception {
+    setupForVersionedSource();
+    DatasetPath oldDatasetPath = new DatasetPath(new SourceName(versionedSourceName), new DatasetName("testTable"));
+    DatasetPath newDatasetPath = new DatasetPath(new SourceName(versionedSourceName), new DatasetName("testMoveTable"));
 
-    DatasetVersionMutator.deleteDatasetVersion(provider, path, version);
-
-    assertThatThrownBy(() -> service.getVersion(datasetPath, datasetVersion))
-      .isInstanceOf(DatasetVersionNotFoundException.class)
-      .hasMessageContaining(String.format("dataset %s version %s", String.join(".", path), version));
+    assertThatThrownBy(() -> datasetVersionMutator.renameDataset(oldDatasetPath, newDatasetPath))
+      .isInstanceOf(UserException.class)
+      .hasMessageContaining("not allowed in Versioned source");
   }
 
   @Test
-  public void testDeleteDatasetVersion_deleteOtherSamePath_willNotChangeHistory() throws NamespaceException {
-    final InitialPreviewResponse showSchemasResponse = createDatasetFromSQL("SHOW SCHEMAS", emptyList());
-    final List<String> path = showSchemasResponse.getDataset().getFullPath();
-    final String version = showSchemasResponse.getDataset().getDatasetVersion().getVersion();
-    final DatasetPath datasetPath = new DatasetPath(path);
-    final DatasetVersion datasetVersion = new DatasetVersion(version);
-    final VirtualDatasetUI versionBefore = service.getVersion(datasetPath, datasetVersion);
-    assertNotNull("Dataset cannot be null after its creation", versionBefore);
-    List<VirtualDatasetUI> allVersions = Lists.newArrayList(service.getAllVersions(datasetPath));
-    assertEquals("Dataset must have just one version", 1, allVersions.size());
+  public void testCopyFromDatasetForVersionedSource() throws Exception {
+    setupForVersionedSource();
+    DatasetPath datasetPath = new DatasetPath(new SourceName(versionedSourceName), new DatasetName("testTable"));
 
-    DatasetVersionMutator.deleteDatasetVersion(provider, path, "00000000000");
-
-    final VirtualDatasetUI versionAfter = service.getVersion(datasetPath, datasetVersion);
-    assertEquals("Version must exist", datasetVersion, versionAfter.getVersion());
-    allVersions = Lists.newArrayList(service.getAllVersions(datasetPath));
-    assertEquals("Dataset must have just one version", 1, allVersions.size());
+    assertThatThrownBy(() -> datasetVersionMutator.createDatasetFrom(datasetPath, datasetPath, "userName"))
+      .isInstanceOf(UserException.class)
+      .hasMessageContaining("not allowed within Versioned source");
   }
 
-  @Test
-  public void testGetDatasetVersionWithDifferentCase() throws NamespaceException, IOException {
-    setSpace();
-    final DatasetPath datasetPath = new DatasetPath("spacefoo.folderbar.tEsTcAsE");
-    final DatasetUI datasetUI =createDatasetFromSQLAndSave(datasetPath, "SHOW SCHEMAS", emptyList());
-    final DatasetVersion datasetVersion = datasetUI.getDatasetVersion();
-    final VirtualDatasetUI vds = service.getVersion(datasetPath, datasetVersion);
-    assertNotNull("Dataset cannot be null after its creation", vds);
-
-    // All upper case
-    final List<String> upperCasePath = datasetPath.toPathList().stream().map(String::toUpperCase).collect(Collectors.toList());
-    final DatasetPath uppercaseDatasetPath = new DatasetPath(upperCasePath);
-    final VirtualDatasetUI vds1 = service.getVersion(uppercaseDatasetPath, datasetVersion);
-    assertNotNull("Must be able to get Dataset version using all upper case path", vds1);
-
-    // All lower case
-    final List<String> lowerCasePath = datasetPath.toPathList().stream().map(String::toLowerCase).collect(Collectors.toList());
-    final DatasetPath lowercaseDatasetPath = new DatasetPath(lowerCasePath);
-    final VirtualDatasetUI vds2 = service.getVersion(lowercaseDatasetPath, datasetVersion);
-    assertNotNull("Must be able to get Dataset version using all lower case path", vds2);
+  private void setupForVersionedSource() throws NamespaceException {
+    NameSpaceContainer nameSpaceContainer = mock(NameSpaceContainer.class);
+    when(namespaceService.getEntityByPath(new NamespaceKey(versionedSourceName))).thenReturn(nameSpaceContainer);
+    when(nameSpaceContainer.getType()).thenReturn(NameSpaceContainer.Type.SOURCE);
+    when(catalogService.getSource(versionedSourceName)).thenReturn(dataplanePlugin);
   }
 
 }

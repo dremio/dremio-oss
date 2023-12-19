@@ -34,12 +34,12 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.catalog.model.dataset.TableVersionContext;
+import com.dremio.catalog.model.dataset.TableVersionType;
 import com.dremio.dac.server.JobsServiceTestUtils;
-import com.dremio.exec.catalog.CatalogEntityKey;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.catalog.TableVersionContext;
-import com.dremio.exec.catalog.TableVersionType;
 import com.dremio.service.jobs.JobStatusListener;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceKey;
@@ -83,10 +83,10 @@ public class ITTestReflectionSuggester extends ITBaseTestReflection {
   public void testBranchSuggestions() {
     // Analyze the table and collect stats
     ReflectionAnalyzer analyzer = new ReflectionAnalyzer(getJobsService(), getSabotContext().getCatalogService(), allocator);
-    DremioTable table = CatalogUtil.getTable(CatalogEntityKey.newBuilder()
+    DremioTable table = getCatalog().getTable(CatalogEntityKey.newBuilder()
       .keyComponents(tablePath)
       .tableVersionContext(new TableVersionContext(TableVersionType.BRANCH, DEFAULT_BRANCH_NAME))
-      .build(), getCatalog());
+      .build());
     ReflectionAnalyzer.TableStats tableStats = analyzer.analyze(table.getDatasetConfig().getId().getId());
     assertEquals(25, tableStats.getCount().longValue());
     assertEquals(2, tableStats.getColumns().size());
@@ -110,10 +110,10 @@ public class ITTestReflectionSuggester extends ITBaseTestReflection {
 
     // Analyze the table and collect stats
     ReflectionAnalyzer analyzer = new ReflectionAnalyzer(getJobsService(), getSabotContext().getCatalogService(), allocator);
-    DremioTable table = CatalogUtil.getTable(CatalogEntityKey.newBuilder()
+    DremioTable table = getCatalog().getTable(CatalogEntityKey.newBuilder()
       .keyComponents(tablePath)
       .tableVersionContext(new TableVersionContext(TableVersionType.SNAPSHOT_ID, snapshotId))
-      .build(), getCatalog());
+      .build());
     ReflectionAnalyzer.TableStats tableStats = analyzer.analyze(table.getDatasetConfig().getId().getId());
     assertEquals(25, tableStats.getCount().longValue());
     assertEquals(2, tableStats.getColumns().size());
@@ -133,10 +133,10 @@ public class ITTestReflectionSuggester extends ITBaseTestReflection {
   public void testTagSuggestions() {
     // Analyze the table and collect stats
     ReflectionAnalyzer analyzer = new ReflectionAnalyzer(getJobsService(), getSabotContext().getCatalogService(), allocator);
-    DremioTable table = CatalogUtil.getTable(CatalogEntityKey.newBuilder()
+    DremioTable table = getCatalog().getTable(CatalogEntityKey.newBuilder()
       .keyComponents(tablePath)
       .tableVersionContext(new TableVersionContext(TableVersionType.TAG, "dev"))
-      .build(), getCatalog());
+      .build());
     ReflectionAnalyzer.TableStats tableStats = analyzer.analyze(table.getDatasetConfig().getId().getId());
     assertEquals(25, tableStats.getCount().longValue());
     assertEquals(2, tableStats.getColumns().size());

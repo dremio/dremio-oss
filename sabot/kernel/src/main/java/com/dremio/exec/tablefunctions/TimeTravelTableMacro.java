@@ -21,7 +21,7 @@ import org.apache.calcite.schema.FunctionParameter;
 import org.apache.calcite.schema.TranslatableTable;
 import org.apache.calcite.schema.impl.ReflectiveFunctionBase;
 
-import com.dremio.exec.catalog.TableVersionContext;
+import com.dremio.catalog.model.dataset.TableVersionContext;
 
 /**
  * Provides support for querying tables at a specific version or point in time.  Table references of the form

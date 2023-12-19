@@ -20,13 +20,6 @@
 
   <contextListener class="ch.qos.logback.classic.jul.LevelChangePropagator"/>
 
-  <appender name="SOCKET" class="de.huxhorn.lilith.logback.appender.ClassicMultiplexSocketAppender">
-    <Compressing>true</Compressing>
-    <ReconnectionDelay>10000</ReconnectionDelay>
-    <IncludeCallerData>true</IncludeCallerData>
-    <RemoteHosts>${LILITH_HOSTNAME:-localhost}</RemoteHosts>
-  </appender>
-
   <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
     <encoder>
       <pattern>[%d{HH:mm:ss}] [%thread] %-5level %logger{36} - %msg%n</pattern>

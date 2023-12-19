@@ -24,14 +24,17 @@ import java.util.Map;
 
 import org.apache.calcite.sql.SqlNode;
 
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.catalog.TableMutationOptions;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.sql.SqlValidatorImpl;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.planner.sql.handlers.query.DataAdditionCmdHandler;
-import com.dremio.exec.planner.sql.parser.DmlUtils;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableProperties;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.options.OptionManager;
@@ -58,7 +61,7 @@ public class AlterTablePropertiesHandler extends SimpleDirectHandler {
     IcebergUtils.validateTablePropertiesRequest(optionManager);
     Map<String, String> tableProperties = IcebergUtils.convertTableProperties(sqlAlterTableProperties.getTablePropertyNameList(), sqlAlterTableProperties.getTablePropertyValueList(), mode == UNSET);
 
-    NamespaceKey path = DmlUtils.getTablePath(catalog, sqlAlterTableProperties.getTable());
+    NamespaceKey path = CatalogUtil.getResolvePathForTableManagement(catalog, sqlAlterTableProperties.getTable());
 
     DremioTable table = catalog.getTableNoResolve(path);
     SimpleCommandResult result = SqlHandlerUtil.validateSupportForDDLOperations(catalog, config, path, table);
@@ -67,7 +70,18 @@ public class AlterTablePropertiesHandler extends SimpleDirectHandler {
       return Collections.singletonList(result);
     }
 
-    // TODO - logic to actual alter table to set/unset table properties
+    final String sourceName = path.getRoot();
+    final VersionContext sessionVersion = config.getContext().getSession().getSessionVersionForSource(sourceName);
+    ResolvedVersionContext resolvedVersionContext = CatalogUtil.resolveVersionContext(catalog, sourceName, sessionVersion);
+    CatalogUtil.validateResolvedVersionIsBranch(resolvedVersionContext);
+    TableMutationOptions tableMutationOptions = TableMutationOptions.newBuilder()
+      .setResolvedVersionContext(resolvedVersionContext)
+      .build();
+    if (mode == UNSET) {
+      catalog.updateTableProperties(path, table.getDatasetConfig(), table.getSchema(), tableProperties, tableMutationOptions, true);
+    } else {
+      catalog.updateTableProperties(path, table.getDatasetConfig(), table.getSchema(), tableProperties, tableMutationOptions, false);
+    }
 
     DataAdditionCmdHandler.refreshDataset(catalog, path, false);
     String message = "";

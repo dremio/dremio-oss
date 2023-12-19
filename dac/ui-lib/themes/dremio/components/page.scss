@@ -17,8 +17,8 @@
 @use "../../base/components/page";
 
 .dremio-page {
-  --dremio--page--header--background: var(--dremio--page--background);
-  --dremio--page--background: white;
+  background-color: var(--bg--sunken);
+  color: var(--color--sunken);
   --dremio--page--padding: var(--dremio--spacing--2);
 }
 

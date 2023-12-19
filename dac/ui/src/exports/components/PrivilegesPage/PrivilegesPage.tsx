@@ -16,24 +16,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
-import { compose } from "redux";
-
-import FormUnsavedRouteLeave from "@app/components/Forms/FormUnsavedRouteLeave";
-import { FormSubmit } from "@app/exports/pages/ArcticCatalog/components/ArcticCatalogDataItemSettings/ArcticTableOptimization/components/FormSubmit/FormSubmit";
-// @ts-ignore
-import GrantOwnershipDialog from "dremio-ui-common/components/PrivilegesTable/components/GrantOwnershipDialog/GrantOwnershipDialog.js";
-// @ts-ignore
+import Message from "@app/components/Message";
+import { FormSubmit } from "@inject/pages/ArcticCatalog/components/ArcticCatalogDataItemSettings/ArcticTableOptimization/components/FormSubmit/FormSubmit";
 import RemoveGranteeDialog from "dremio-ui-common/components/PrivilegesTable/components/RemoveGranteeDialog/RemoveGranteeDialog.js";
-// @ts-ignore
 import { PrivilegesTable } from "dremio-ui-common/components/PrivilegesTable/PrivilegesTable.js";
 import AddToPrivileges, {
   UserOrRole,
 } from "./components/AddToPrivileges/AddToPrivileges";
-import {
-  getPrivilegesColumns,
-  GrantActions,
-  GrantActionsType,
-} from "./privileges-page-utils";
+import { getPrivilegesColumns } from "./privileges-page-utils";
 import {
   Grant,
   GrantsResponse,
@@ -50,6 +40,7 @@ import EmptyPrivileges from "./components/EmptyPrivileges/EmptyPrivileges";
 import { useUserDetails } from "@app/exports/providers/useUserDetails";
 import { useDispatch } from "react-redux";
 import { addNotification } from "@app/actions/notification";
+import SelectOwnership from "./components/SelectOwnership/SelectOwnership";
 
 import * as classes from "./PrivilegesPage.module.less";
 
@@ -64,7 +55,7 @@ type PrivilegesPageProps = {
   isLoading: boolean;
   nameColumnLabel: string;
   privilegeTooltipIds: any;
-  entityOwnerId: string;
+  entityName: string;
   addedDefaultGrantValues?: any;
   handleUpdateOwnership: (id: string) => void;
   onSubmit: (
@@ -75,7 +66,23 @@ type PrivilegesPageProps = {
     setDirtyStateForLeaving: () => void
   ) => void;
   setChildDirtyState: any;
+  pageType: "organization" | "catalog" | "entity";
+  isAdmin?: boolean;
+  ownership: {
+    id: string;
+    owner: string;
+    type: "USER" | "ROLE";
+    name: string;
+  } | null;
   granteeError?: string;
+  buttonPlacement?: "LEFT" | "RIGHT";
+  infoMessage?: string;
+  message?: {
+    text: string;
+    messageType: string;
+  };
+  setMessage?: (arg: string) => void;
+  insideOfTab?: boolean;
 };
 
 const INITIAL_DIALOG_STATE = {
@@ -86,23 +93,31 @@ const INITIAL_DIALOG_STATE = {
 const PRIVILEGES_KEY = "PRIVILEGES";
 
 const PrivilegesPage = ({
+  isAdmin,
   granteeData,
   isLoading,
   nameColumnLabel,
   privilegeTooltipIds,
-  entityOwnerId,
+  entityName,
   addedDefaultGrantValues,
   handleUpdateOwnership,
   onSubmit,
   setChildDirtyState,
   granteeError,
+  buttonPlacement = "LEFT",
+  infoMessage,
+  message,
+  ownership,
+  pageType,
+  setMessage,
+  insideOfTab = false,
 }: PrivilegesPageProps) => {
   const dispatch = useDispatch();
   const addPrivilegesRef = useRef(null);
-  const [ownershipDialogState, setOwnershipDialogState] =
-    useState(INITIAL_DIALOG_STATE);
-  const [removeDialogState, setRemoveDialogState] =
-    useState(INITIAL_DIALOG_STATE);
+  const [removeDialogState, setRemoveDialogState] = useState<{
+    openDialog: boolean;
+    granteeId?: string;
+  }>(INITIAL_DIALOG_STATE);
   const [user] = useUserDetails();
   const currentRolesAndUserIds = useMemo(() => {
     // Get the user id and roles' ids that the user is a member of
@@ -113,7 +128,7 @@ const PrivilegesPage = ({
     } else return [];
   }, [user]);
   const isCurrentUserAnOwner = currentRolesAndUserIds.includes(
-    entityOwnerId ?? ""
+    ownership?.id ?? ""
   );
 
   const [tableItems, setTableItems] = useState<GrantObject[]>([]);
@@ -148,9 +163,11 @@ const PrivilegesPage = ({
       setDeletedTableItems([]);
       // reset the form with default values after data is retrieved
       reset(defaultValues);
-      setChildDirtyState(PRIVILEGES_KEY)(false);
+      insideOfTab
+        ? setChildDirtyState(false)
+        : setChildDirtyState(PRIVILEGES_KEY)(false);
     }
-  }, [granteeData, reset, defaultValues, setChildDirtyState]);
+  }, [granteeData, reset, defaultValues, setChildDirtyState, insideOfTab]);
 
   // Whenever data is retrieved, the form should reset
   useEffect(() => {
@@ -159,15 +176,17 @@ const PrivilegesPage = ({
 
   useEffect(() => {
     if (formState.isDirty) {
-      setChildDirtyState(PRIVILEGES_KEY)(true);
+      insideOfTab
+        ? setChildDirtyState(true)
+        : setChildDirtyState(PRIVILEGES_KEY)(true);
     }
-  }, [formState.isDirty, setChildDirtyState]);
+  }, [formState.isDirty, setChildDirtyState, insideOfTab]);
 
   useEffect(() => {
-    if (granteeError) {
+    if (granteeError && !insideOfTab) {
       dispatch(addNotification(granteeError, "error"));
     }
-  }, [dispatch, granteeError]);
+  }, [dispatch, granteeError, insideOfTab]);
 
   const handleAddTableItems = (displayValues: UserOrRole[]) => {
     setTableItems((items: GrantObject[]) => {
@@ -207,19 +226,12 @@ const PrivilegesPage = ({
     setTableItems((items) => items.filter((item) => item.granteeId !== id));
   };
 
-  const handleOpenDialog = useCallback(
-    (type: GrantActionsType, dialogState: any) => {
-      if (type === GrantActions.GRANT_OWNERSHIP) {
-        setOwnershipDialogState(dialogState);
-      } else {
-        setRemoveDialogState(dialogState);
-      }
-    },
-    []
-  );
+  const handleOpenDialog = (dialogState: {
+    openDialog: boolean;
+    granteeId?: string;
+  }) => setRemoveDialogState(dialogState);
 
   const closeDialog = () => {
-    setOwnershipDialogState(INITIAL_DIALOG_STATE);
     setRemoveDialogState(INITIAL_DIALOG_STATE);
   };
 
@@ -230,17 +242,9 @@ const PrivilegesPage = ({
         handleOpenDialog,
         nameColumnLabel,
         privilegeTooltipIds,
-        entityOwnerId,
-        isCurrentUserAnOwner
+        ownership?.id
       ),
-    [
-      granteeData,
-      handleOpenDialog,
-      nameColumnLabel,
-      privilegeTooltipIds,
-      entityOwnerId,
-      isCurrentUserAnOwner,
-    ]
+    [ownership?.id, granteeData, nameColumnLabel, privilegeTooltipIds]
   );
 
   const disableSubmitButtons =
@@ -249,6 +253,28 @@ const PrivilegesPage = ({
   return (
     <div className={classes["privileges"]}>
       <div className={classes["privileges__page"]}>
+        {message?.text && (
+          <Message
+            message={message.text}
+            messageType={message.messageType}
+            onDismiss={setMessage}
+          />
+        )}
+        {infoMessage && (
+          <Message
+            isDismissable={false}
+            message={infoMessage}
+            messageType="info"
+            className={classes["privileges__page__info-message"]}
+          />
+        )}
+        <SelectOwnership
+          pageType={pageType}
+          ownership={ownership}
+          handleUpdateOwnership={handleUpdateOwnership}
+          entityName={entityName}
+          canTransferOwnership={isCurrentUserAnOwner || isAdmin}
+        />
         <AddToPrivileges
           ref={addPrivilegesRef}
           tableItems={tableItems}
@@ -263,7 +289,10 @@ const PrivilegesPage = ({
                 tableItems,
                 deletedTableItems,
                 cachedData,
-                () => setChildDirtyState(PRIVILEGES_KEY)(false)
+                () =>
+                  insideOfTab
+                    ? setChildDirtyState(false)
+                    : setChildDirtyState(PRIVILEGES_KEY)(false)
               )
             )}
             className={classes["privileges__form"]}
@@ -287,19 +316,13 @@ const PrivilegesPage = ({
               )}
             </div>
             <FormSubmit
+              buttonPlacement={buttonPlacement}
               onCancel={handleReset}
               disabled={disableSubmitButtons}
             />
           </form>
         </FormProvider>
       </div>
-      <GrantOwnershipDialog
-        open={ownershipDialogState.openDialog}
-        closeDialog={closeDialog}
-        granteeId={ownershipDialogState?.granteeId}
-        className={classes["privileges__dialog"]}
-        onUpdate={handleUpdateOwnership}
-      />
       <RemoveGranteeDialog
         open={removeDialogState.openDialog}
         closeDialog={closeDialog}
@@ -313,4 +336,4 @@ const PrivilegesPage = ({
   );
 };
 
-export default compose(FormUnsavedRouteLeave)(PrivilegesPage);
+export default PrivilegesPage;

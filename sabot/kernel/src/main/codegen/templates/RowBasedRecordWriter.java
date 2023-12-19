@@ -39,8 +39,7 @@ public abstract class RowBasedRecordWriter implements RecordWriter {
   protected VectorAccessible incoming;
   protected OutputEntryListener listener;
   protected WriteStatsListener writeStatsListener;
-
-  private EventBasedRecordWriter eventBasedRecordWriter;
+  protected EventBasedRecordWriter eventBasedRecordWriter;
 
   public final void setup(final VectorAccessible incoming, OutputEntryListener listener,
                           WriteStatsListener statsListener) throws IOException {
@@ -53,7 +52,7 @@ public abstract class RowBasedRecordWriter implements RecordWriter {
   public abstract void setup() throws IOException;
 
   @Override
-  public final int writeBatch(int offset, int length) throws IOException {
+  public int writeBatch(int offset, int length) throws IOException {
     if (this.eventBasedRecordWriter == null) {
       this.eventBasedRecordWriter = new EventBasedRecordWriter(incoming, this);
     }

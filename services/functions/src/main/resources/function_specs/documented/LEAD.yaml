@@ -28,14 +28,21 @@ signatures:
     name: expression
     type: ANY
   - description: An optional parameter. The number of rows after the current row from
-      which to obtain a value. Supports only a value of 1.
+      which to obtain a value.
     kind: OPTIONAL
     name: offset
     type: INT
   returnType: ANY
   sampleCodes:
   - call: "SELECT \"Category\", \n  \"Descript\", \n  \"DayOfWeek\",\n  LEAD(DayOfWeek,\
-      \ 1) \n    OVER (\n      PARTITION BY \"Category\" \n      ORDER BY \"DayOfWeek\"\
+      \ 3) \n    OVER (\n      PARTITION BY \"Category\" \n      ORDER BY \"DayOfWeek\"\
+      )\nFROM Samples.\"samples.dremio.com\".\"SF_incidents2016.json\"\n"
+    result: "Category, Descript, DayOfWeek, EXPR$3\n-- ARSON, ARSON, Friday, Friday\
+      \ \n-- ARSON, ARSON, Friday, null\
+      \ \n-- ARSON, ARSON OF AN INHABITED DWELLING, Friday, null\
+      \ \n-- ARSON, ARSON OF A VEHICLE, Wednesday, null\n"
+  - call: "SELECT \"Category\", \n  \"Descript\", \n  \"DayOfWeek\",\n  LEAD(DayOfWeek)\ 
+      \n    OVER (\n      PARTITION BY \"Category\" \n      ORDER BY \"DayOfWeek\"\
       )\nFROM Samples.\"samples.dremio.com\".\"SF_incidents2016.json\"\n"
     result: "Category, Descript, DayOfWeek, EXPR$3\n-- ARSON, ARSON, Friday, Friday\
       \ \n-- ARSON, ARSON OF A VEHICLE, Wednesday, null\n"

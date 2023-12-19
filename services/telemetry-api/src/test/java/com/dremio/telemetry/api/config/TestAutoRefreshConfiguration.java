@@ -38,7 +38,7 @@ public class TestAutoRefreshConfiguration {
   /**
    * Listens for changes to our test config. Our test config just contains an Integer and Auto refresh settings.
    */
-  private class TestConfListener implements Consumer<Integer> {
+  private final class TestConfListener implements Consumer<Integer> {
     private volatile List<Integer> log = new ArrayList<>();
 
     @Override

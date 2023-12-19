@@ -16,6 +16,7 @@
 package com.dremio.dac.service.catalog;
 
 import static com.dremio.dac.util.DatasetsUtil.toDatasetConfig;
+import static com.dremio.exec.ExecConstants.VERSIONED_VIEW_ENABLED;
 import static com.dremio.service.namespace.dataset.proto.DatasetType.VIRTUAL_DATASET;
 
 import java.io.IOException;
@@ -24,6 +25,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.ConcurrentModificationException;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -34,9 +36,19 @@ import java.util.stream.Stream;
 import javax.inject.Inject;
 import javax.ws.rs.core.SecurityContext;
 
+import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.tools.RelConversionException;
+import org.apache.calcite.tools.ValidationException;
+import org.apache.commons.collections4.CollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.catalog.exception.SourceDoesNotExistException;
+import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.VersionContext;
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
@@ -48,14 +60,19 @@ import com.dremio.dac.api.Folder;
 import com.dremio.dac.api.Home;
 import com.dremio.dac.api.Source;
 import com.dremio.dac.api.Space;
+import com.dremio.dac.explore.QueryParser;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.VersionContextUtils;
 import com.dremio.dac.homefiles.HomeFileSystemStoragePlugin;
 import com.dremio.dac.homefiles.HomeFileTool;
+import com.dremio.dac.model.folder.SourceFolderPath;
+import com.dremio.dac.model.namespace.NamespaceTree;
 import com.dremio.dac.model.sources.PhysicalDatasetPath;
+import com.dremio.dac.model.sources.SourceName;
 import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.model.spaces.HomePath;
 import com.dremio.dac.model.spaces.SpaceName;
+import com.dremio.dac.service.autocomplete.model.SuggestionsType;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.ClientErrorException;
 import com.dremio.dac.service.errors.SourceNotFoundException;
@@ -65,14 +82,20 @@ import com.dremio.dac.service.search.SearchService;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.CatalogEntityKey;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.catalog.TableVersionContext;
-import com.dremio.exec.catalog.VersionContext;
+import com.dremio.exec.catalog.TableMutationOptions;
 import com.dremio.exec.catalog.VersionedDatasetId;
 import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.dotfile.View;
+import com.dremio.exec.physical.base.ViewOptions;
+import com.dremio.exec.planner.logical.ViewTable;
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
+import com.dremio.exec.planner.sql.parser.ParserUtil;
+import com.dremio.exec.planner.sql.parser.SqlGrant;
+import com.dremio.exec.proto.UserBitShared;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.record.SchemaBuilder;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.NoDefaultBranchException;
 import com.dremio.exec.store.ReferenceInfo;
@@ -81,12 +104,14 @@ import com.dremio.exec.store.ReferenceTypeConflictException;
 import com.dremio.exec.store.SchemaEntity;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.options.OptionManager;
 import com.dremio.plugins.ExternalNamespaceEntry;
+import com.dremio.service.jobs.SqlQuery;
+import com.dremio.service.jobs.metadata.QueryMetadata;
 import com.dremio.service.namespace.BoundedDatasetCount;
 import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -104,7 +129,9 @@ import com.dremio.service.namespace.space.proto.HomeConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.dremio.service.users.SystemUser;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
@@ -178,6 +205,7 @@ public class CatalogServiceHelper {
   private final HomeFileTool homeFileTool;
   private final DatasetVersionMutator datasetVersionMutator;
   private final SearchService searchService;
+  private final OptionManager optionManager;
 
   @Inject
   public CatalogServiceHelper(
@@ -189,7 +217,8 @@ public class CatalogServiceHelper {
     ReflectionServiceHelper reflectionServiceHelper,
     HomeFileTool homeFileTool,
     DatasetVersionMutator datasetVersionMutator,
-    SearchService searchService
+    SearchService searchService,
+    OptionManager optionManager
   ) {
     this.catalog = catalog;
     this.securityContext = securityContext;
@@ -200,6 +229,7 @@ public class CatalogServiceHelper {
     this.homeFileTool = homeFileTool;
     this.datasetVersionMutator = datasetVersionMutator;
     this.searchService = searchService;
+    this.optionManager = optionManager;
   }
 
   @WithSpan
@@ -270,31 +300,56 @@ public class CatalogServiceHelper {
       final String versionType,
       final String versionValue)
       throws NamespaceException {
-    final boolean isSource = path.size() == 1;
+    final boolean isRoot = path.size() == 1;
     final NamespaceKey namespaceKey = new NamespaceKey(path);
+    final boolean includeChildren = !exclude.contains(DetailType.children.name());
 
-    if (!isSource && CatalogUtil.requestedPluginSupportsVersionedTables(namespaceKey, catalog)) {
-      final TableVersionContext tableVersionContext = generateTableVersionContext(versionType, versionValue);
-      final CatalogEntityKey catalogEntityKey =
-          CatalogEntityKey.newBuilder()
-              .keyComponents(path)
-              .tableVersionContext(tableVersionContext)
-              .build();
-      final DremioTable table = CatalogUtil.getTable(catalogEntityKey, catalog);
+    if (!isRoot && CatalogUtil.requestedPluginSupportsVersionedTables(namespaceKey, catalog)) {
+      final Optional<TableVersionContext> tableVersionContext =
+          TableVersionContext.tryParse(versionType, versionValue);
+      final CatalogEntityKey.Builder builder = CatalogEntityKey.newBuilder().keyComponents(path);
 
-      if (table == null) {
-        return Optional.empty();
+      if (tableVersionContext.isPresent()) {
+        builder.tableVersionContext(tableVersionContext.get());
+      } else if (!Strings.isNullOrEmpty(versionType) || !Strings.isNullOrEmpty(versionValue)) {
+        throw new ClientErrorException(
+            "Missing a valid versionType/versionValue pair for versioned dataset");
       }
 
-      final DatasetConfig datasetConfig = table.getDatasetConfig();
-      final Optional<AccelerationSettings> settings =
-          getStoredReflectionSettingsForDataset(datasetConfig);
-      final Dataset dataset =
-          toDatasetAPI(
-              datasetConfig,
-            settings.map(Dataset.RefreshSettings::new).orElse(null));
+      VersionContext versionContext = tableVersionContext.isPresent()
+        ? tableVersionContext.get().asVersionContext()
+        : VersionContext.NOT_SPECIFIED;
+      VersionedPlugin.EntityType entityType = getVersionedEntityType(path, versionContext);
+      switch (entityType) {
+        case ICEBERG_TABLE:
+        case ICEBERG_VIEW:
+          final CatalogEntityKey catalogEntityKey = builder.build();
+          final DremioTable table = catalog.getTable(catalogEntityKey);
 
-      return Optional.of(dataset);
+          if (table == null) {
+            return Optional.empty();
+          }
+
+          final DatasetConfig datasetConfig = table.getDatasetConfig();
+          final Optional<AccelerationSettings> settings =
+            getStoredReflectionSettingsForDataset(datasetConfig);
+          final Dataset dataset =
+            toDatasetAPI(
+              datasetConfig,
+              settings.map(Dataset.RefreshSettings::new).orElse(null));
+
+          return Optional.of(dataset);
+        case FOLDER:
+          final String id = catalog.getDatasetId(namespaceKey);
+          final Folder folder = createCatalogItemForVersionedFolder(path, id, includeChildren, versionType, versionValue);
+          return Optional.of(folder);
+        case UNKNOWN:
+          logger.warn("Could not find versioned entity with path {}", path);
+          return Optional.empty();
+        default:
+          logger.warn("Unrecognized type of versioned entity with path {}", path);
+          return Optional.empty();
+      }
     }
 
     final NameSpaceContainer entity = getNamespaceEntity(namespaceKey);
@@ -306,39 +361,39 @@ public class CatalogServiceHelper {
         return Optional.empty();
       }
 
-      return getCatalogEntityFromCatalogItem(internalItem.get(), !exclude.contains(DetailType.children.name()));
+      return getCatalogEntityFromCatalogItem(internalItem.get(), includeChildren);
     } else {
-      return getCatalogEntityFromNamespaceContainer(entity, !exclude.contains(DetailType.children.name()));
+      return getCatalogEntityFromNamespaceContainer(entity, includeChildren, versionType, versionValue);
     }
-  }
-
-  private TableVersionContext generateTableVersionContext(String versionType, String versionValue) {
-    final Optional<TableVersionContext> tableVersionContext =
-        TableVersionContext.tryParse(versionType, versionValue);
-
-    if (tableVersionContext.isPresent()) {
-      return tableVersionContext.get();
-    }
-
-    throw new ClientErrorException("Missing a versionType/versionValue pair for versioned dataset");
   }
 
   @WithSpan
-  public Optional<CatalogEntity> getCatalogEntityById(String id, final List<String> include,
-                                                      final List<String> exclude) throws NamespaceException {
-    Optional<?> entity = getById(id);
+  public Optional<CatalogEntity> getCatalogEntityById(
+    String id,
+    final List<String> include,
+    final List<String> exclude) throws NamespaceException {
+    boolean includeChildren = !exclude.contains(DetailType.children.name());
+    Optional<?> entity = getById(id, includeChildren);
 
     if (!entity.isPresent()) {
       return Optional.empty();
     }
 
-    return getCatalogEntity(entity.get(), !exclude.contains(DetailType.children.name()));
+    String refType = null;
+    String refValue = null;
+    VersionedDatasetId versionedDatasetId = VersionedDatasetId.tryParse(id);
+    if (versionedDatasetId != null) {
+      VersionContext versionContext = versionedDatasetId.getVersionContext().asVersionContext();
+      refType = versionContext.getType().name();
+      refValue = versionContext.getValue();
+    }
+    return getCatalogEntity(entity.get(), includeChildren, refType, refValue);
   }
 
   @WithSpan
-  private Optional<CatalogEntity> getCatalogEntity(Object object, boolean includeChildren) throws NamespaceException {
+  private Optional<CatalogEntity> getCatalogEntity(Object object, boolean includeChildren, String refType, String refValue) throws NamespaceException {
     if (object instanceof NameSpaceContainer) {
-      return getCatalogEntityFromNamespaceContainer((NameSpaceContainer) object, includeChildren);
+      return getCatalogEntityFromNamespaceContainer((NameSpaceContainer) object, includeChildren, refType, refValue);
     } else if (object instanceof CatalogEntity) {
       // this is something not in the namespace, a file/folder from a filesystem source
       CatalogEntity catalogEntity = (CatalogEntity) object;
@@ -348,13 +403,17 @@ public class CatalogServiceHelper {
     }
   }
 
-  private Optional<CatalogEntity> getCatalogEntityFromNamespaceContainer(NameSpaceContainer container, boolean includeChildren)
+  private Optional<CatalogEntity> getCatalogEntityFromNamespaceContainer(
+    NameSpaceContainer container,
+    boolean includeChildren,
+    String refType,
+    String refValue)
     throws NamespaceException {
 
     switch (container.getType()) {
       case SOURCE:
         Source source = toSourceAPI(container,
-          includeChildren ? getChildrenForPath(new NamespaceKey(container.getFullPathList())) : Collections.emptyList());
+          includeChildren ? getChildrenForPath(new NamespaceKey(container.getFullPathList()), refType, refValue) : Collections.emptyList());
         return Optional.of(source);
       case SPACE:
         SpaceConfig config = container.getSpace();
@@ -393,7 +452,7 @@ public class CatalogServiceHelper {
         FolderConfig folderConfig = container.getFolder();
 
         Folder folder = toFolderAPI(container,
-          includeChildren ? getChildrenForPath(new NamespaceKey(folderConfig.getFullPathList())) : Collections.emptyList());
+          includeChildren ? getChildrenForPath(new NamespaceKey(folderConfig.getFullPathList()), refType, refValue) : Collections.emptyList());
         return Optional.of(folder);
       default:
         throw new IllegalArgumentException(String.format("Unexpected catalog type found [%s].", container.getType()));
@@ -408,7 +467,7 @@ public class CatalogServiceHelper {
    * items it returns the appropriate CatalogEntity item (Folder/File only).
    */
   @WithSpan
-  private Optional<?> getById(String id) {
+  private Optional<?> getById(String id, boolean includeChildren) {
     try {
       if (isInternalId(id)) {
         Optional<CatalogItem> catalogItem = getInternalItemByPath(getPathFromInternalId(id));
@@ -421,16 +480,36 @@ public class CatalogServiceHelper {
 
         // sometimes we can get back a namespace entity for an internal id (like a folder that gets ACLs)
         if (!isInternalId(item.getId())) {
-          return getById(item.getId());
+          return getById(item.getId(), includeChildren);
         }
 
-        return getCatalogEntityFromCatalogItem(item);
+        return getCatalogEntityFromCatalogItem(item, includeChildren);
       } else if (VersionedDatasetId.tryParse(id) != null) {
-        final DatasetConfig datasetConfig = catalog.getTable(id).getDatasetConfig();
-        final Optional<AccelerationSettings> settings = getStoredReflectionSettingsForDataset(datasetConfig);
-        final Dataset dataset = toDatasetAPI(datasetConfig, settings.map(Dataset.RefreshSettings::new).orElse(null));
+        VersionedDatasetId versionedDatasetId = VersionedDatasetId.tryParse(id);
+        assert versionedDatasetId != null;
+        final VersionedPlugin.EntityType entityType = getVersionedEntityType(versionedDatasetId);
+        switch (entityType) {
+          case ICEBERG_VIEW:
+          case ICEBERG_TABLE:
+            final DatasetConfig datasetConfig = catalog.getTable(id).getDatasetConfig();
+            final Optional<AccelerationSettings> settings = getStoredReflectionSettingsForDataset(datasetConfig);
+            final Dataset dataset = toDatasetAPI(datasetConfig, settings.map(Dataset.RefreshSettings::new).orElse(null));
 
-        return Optional.of(dataset);
+            return Optional.of(dataset);
+          case FOLDER:
+            final List<String> path = versionedDatasetId.getTableKey();
+            VersionContext versionContext = versionedDatasetId.getVersionContext().asVersionContext();
+            String refType = versionContext.getType().name();
+            String refValue = versionContext.getValue();
+            final Folder folder = createCatalogItemForVersionedFolder(path, id, includeChildren, refType, refValue);
+            return Optional.of(folder);
+          case UNKNOWN:
+            logger.debug("Could not find entity with versioned id [{}]", id);
+            return Optional.empty();
+          default:
+            logger.debug("Unrecognized entity type [{}] for versioned id [{}]", entityType, id);
+            return Optional.empty();
+        }
       } else {
         NameSpaceContainer container = namespaceService.getEntityById(id);
         if (container == null) {
@@ -442,9 +521,6 @@ public class CatalogServiceHelper {
       logger.debug("Failed to get entity ", e);
       return Optional.empty();
     }
-  }
-  private Optional<CatalogEntity> getCatalogEntityFromCatalogItem(CatalogItem catalogItem) throws NamespaceException {
-    return getCatalogEntityFromCatalogItem(catalogItem, true);
   }
 
   private Optional<CatalogEntity> getCatalogEntityFromCatalogItem(CatalogItem catalogItem, boolean includeChildren) throws NamespaceException {
@@ -494,6 +570,43 @@ public class CatalogServiceHelper {
     SchemaEntity entity = ((FileSystemPlugin) plugin).get(path, securityContext.getUserPrincipal().getName());
 
     return convertSchemaEntityToCatalogItem(entity, path.subList(0, path.size() - 1));
+  }
+
+  /**
+   * This is only for namespace tree created for versioned plugin as regular fs plugin/non fs creates
+   * promoted iceberg tables as entity type folder, whereas versioned creates them as type dataset
+   */
+  private List<CatalogItem> convertVersionedNamespaceTreeToCatalogItems(NamespaceTree nsTree) {
+    List<CatalogItem> items = new ArrayList<>();
+
+    for (com.dremio.dac.model.folder.Folder folder : nsTree.getFolders()) {
+      items.add(new CatalogItem.Builder()
+        .setId(folder.getId())
+        .setPath(folder.getFullPathList())
+        .setType(CatalogItem.CatalogItemType.CONTAINER)
+        .setContainerType(CatalogItem.ContainerSubType.FOLDER)
+        .build());
+    }
+
+    for (com.dremio.dac.model.sources.PhysicalDataset physicalDataset : nsTree.getPhysicalDatasets()) {
+      items.add(new CatalogItem.Builder()
+        .setId(physicalDataset.getDatasetConfig().getId())
+        .setPath(physicalDataset.getDatasetConfig().getFullPathList())
+        .setType(CatalogItem.CatalogItemType.DATASET)
+        .setDatasetType(CatalogItem.DatasetSubType.PROMOTED)
+        .build());
+    }
+
+    for (com.dremio.dac.explore.model.Dataset dataset : nsTree.getDatasets()) {
+      items.add(new CatalogItem.Builder()
+        .setId(dataset.getDatasetConfig().getId())
+        .setPath(dataset.getDatasetConfig().getFullPathList())
+        .setType(CatalogItem.CatalogItemType.DATASET)
+        .setDatasetType(CatalogItem.DatasetSubType.VIRTUAL)
+        .build());
+    }
+
+    return items;
   }
 
   private CatalogItem convertSchemaEntityToCatalogItem(SchemaEntity entity, List<String> parentPath) {
@@ -566,13 +679,17 @@ public class CatalogServiceHelper {
   }
 
   public List<CatalogItem> getChildrenForPath(NamespaceKey path) throws NamespaceException {
+    return getChildrenForPath(path, null, null);
+  }
+
+  public List<CatalogItem> getChildrenForPath(NamespaceKey path, String refType, String refValue) throws NamespaceException {
     final List<CatalogItem> catalogItems = new ArrayList<>();
 
     // get parent info
     NameSpaceContainer rootEntity = getRootContainer(path.getPathComponents());
 
     if (rootEntity.getType() == NameSpaceContainer.Type.SOURCE) {
-      catalogItems.addAll(getChildrenForSourcePath(rootEntity, path.getPathComponents()));
+      catalogItems.addAll(getChildrenForSourcePath(rootEntity, path.getPathComponents(), refType, refValue));
     } else {
       // for non-source roots, go straight to the namespace
       catalogItems.addAll(getNamespaceChildrenForPath(path));
@@ -600,12 +717,24 @@ public class CatalogServiceHelper {
   /**
    *  Returns all children of the listingPath for a source
    */
-  protected List<CatalogItem> getChildrenForSourcePath(NameSpaceContainer source, List<String> listingPath) {
+  protected List<CatalogItem> getChildrenForSourcePath(
+    NameSpaceContainer source,
+    List<String> listingPath,
+    String refType,
+    String refValue) throws NamespaceException {
     final List<CatalogItem> catalogItems = new ArrayList<>();
     final String sourceName = source.getSource().getName();
 
     final StoragePlugin plugin = getStoragePlugin(sourceName);
-    if (plugin instanceof FileSystemPlugin) {
+    if (plugin instanceof VersionedPlugin) {
+      final String userName = securityContext.getUserPrincipal().getName();
+      final NamespaceTree namespaceTree = listingPath.size() > 1
+        ? sourceService.listFolder(
+          new SourceName(source.getSource().getName()), new SourceFolderPath(listingPath), userName, refType, refValue)
+        : sourceService.listSource(
+          new SourceName(source.getSource().getName()), source.getSource(), userName, refType, refValue);
+      catalogItems.addAll(convertVersionedNamespaceTreeToCatalogItems(namespaceTree));
+    } else if (plugin instanceof FileSystemPlugin) {
       // For file based plugins, use the list method to get the listing.  That code will merge in any promoted datasets
       // that are in the namespace for us.  This is in line with what the UI does.
       final List<SchemaEntity> list = ((FileSystemPlugin) plugin).list(listingPath, securityContext.getUserPrincipal().getName());
@@ -626,7 +755,8 @@ public class CatalogServiceHelper {
   }
 
   @WithSpan
-  public CatalogEntity createCatalogItem(CatalogEntity entity) throws NamespaceException, UnsupportedOperationException, ExecutionSetupException {
+  public CatalogEntity createCatalogItem(CatalogEntity entity)
+    throws NamespaceException, UnsupportedOperationException, ExecutionSetupException {
     if (entity instanceof Space) {
       Space space = (Space) entity;
       return createSpace(space, getNamespaceAttributes(entity));
@@ -656,20 +786,35 @@ public class CatalogServiceHelper {
 
     // verify we can save
     NamespaceKey topLevelKey = new NamespaceKey(dataset.getPath().get(0));
-    NamespaceKey parentNamespaceKey = new NamespaceKey(dataset.getPath().subList(0, dataset.getPath().size() - 1));
     NamespaceKey namespaceKey = new NamespaceKey(dataset.getPath());
-    Preconditions.checkArgument(namespaceService.exists(parentNamespaceKey), String.format("Dataset parent path [%s] doesn't exist.", parentNamespaceKey.toString()));
 
-    // can only create VDs in a space or home
-    NameSpaceContainer entity = getNamespaceEntity(topLevelKey);
-    List<NameSpaceContainer.Type> types = Arrays.asList(NameSpaceContainer.Type.SPACE, NameSpaceContainer.Type.HOME);
-    Preconditions.checkArgument(types.contains(entity.getType()), "Virtual datasets can only be saved into spaces or home space.");
+    final boolean isVersionedSource = CatalogUtil.requestedPluginSupportsVersionedTables(namespaceKey, catalog);
+    final boolean isVersionedViewEnabled = optionManager.getOption(VERSIONED_VIEW_ENABLED);
+    if (isVersionedSource && !isVersionedViewEnabled) {
+      throw UserException.unsupportedError().message("Versioned view is not enabled").buildSilently();
+    }
 
-    sabotContext.getViewCreator(securityContext.getUserPrincipal().getName()).createView(dataset.getPath(), dataset.getSql(), dataset.getSqlContext(), attributes);
+    // Can create VDS in a space, home or versioned source
+    NameSpaceContainer rootEntity = getNamespaceEntity(topLevelKey);
+    List<NameSpaceContainer.Type> types = new ArrayList<>(Arrays.asList(NameSpaceContainer.Type.SPACE, NameSpaceContainer.Type.HOME));
+    if (isVersionedSource) {
+      types.add(NameSpaceContainer.Type.SOURCE);
+    }
+    Preconditions.checkArgument(types.contains(rootEntity.getType()), "Virtual datasets can only be saved into spaces, home space or versioned sources.");
 
-    NameSpaceContainer created = namespaceService.getEntityByPath(namespaceKey);
+    sabotContext.getViewCreator(securityContext.getUserPrincipal().getName()).createView(dataset.getPath(), dataset.getSql(), dataset.getSqlContext(), isVersionedSource, attributes);
 
-    return toDatasetAPI(created, null);
+    if (isVersionedSource) {
+      DatasetConfig datasetConfig = CatalogUtil.getDatasetConfig(catalog, namespaceKey);
+      if (datasetConfig == null) {
+        throw new RuntimeException(String.format("Could not retrieve newly created view [%s]!", namespaceKey));
+      }
+      Optional<AccelerationSettings> settings = getStoredReflectionSettingsForDataset(datasetConfig);
+      return toDatasetAPI(datasetConfig, settings.isPresent() ? new Dataset.RefreshSettings(settings.get()) : null);
+    } else {
+      NameSpaceContainer created = namespaceService.getEntityByPath(namespaceKey);
+      return toDatasetAPI(created, null);
+    }
   }
 
   /**
@@ -736,6 +881,102 @@ public class CatalogServiceHelper {
   }
 
   private void updateDataset(Dataset dataset, NamespaceAttribute... attributes) throws NamespaceException, IOException {
+    validateDataset(dataset);
+
+    final boolean isVersionedSource = CatalogUtil.requestedPluginSupportsVersionedTables(new NamespaceKey(dataset.getPath()), catalog);
+    if (isVersionedSource) {
+      updateVersionedDataset(dataset);
+    } else {
+      updateNonVersionedDataset(dataset, attributes);
+    }
+  }
+
+  private void updateVersionedDataset(Dataset dataset) throws IOException {
+    validateVersionedDataset(dataset);
+
+    NamespaceKey namespaceKey = new NamespaceKey(dataset.getPath());
+    catalog.validatePrivilege(namespaceKey, SqlGrant.Privilege.ALTER);
+
+    DremioTable currentView = catalog.getTable(dataset.getId());
+    if (currentView == null) {
+      throw new IllegalArgumentException(String.format("Could not find dataset with id [%s]", dataset.getId()));
+    } else if (!(currentView instanceof ViewTable)) {
+      throw UserException.validationError().message("Expecting getting a view but returns a entity of type %s", currentView.getDatasetConfig().getType()).buildSilently();
+    } else if (!namespaceKey.equals(currentView.getPath())) {
+      throw UserException.unsupportedError().message("Renaming/moving a versioned view is not supported yet.").buildSilently();
+    }
+
+    VersionContext versionContext = VersionedDatasetId.fromString(dataset.getId()).getVersionContext().asVersionContext();
+    Map<String, VersionContext> contextMap = ImmutableMap.of(namespaceKey.getRoot(), versionContext);
+    SchemaBuilder schemaBuilder = BatchSchema.newBuilder();
+    View view = getViewAndUpdateBatchSchema(dataset, contextMap, schemaBuilder);
+
+    ResolvedVersionContext resolvedVersionContext = CatalogUtil.resolveVersionContext(catalog, namespaceKey.getRoot(), versionContext);
+    CatalogUtil.validateResolvedVersionIsBranch(resolvedVersionContext);
+    final ViewOptions viewOptions =
+      new ViewOptions.ViewOptionsBuilder()
+        .version(resolvedVersionContext)
+        .batchSchema(schemaBuilder.build())
+        .actionType(ViewOptions.ActionType.UPDATE_VIEW)
+        .build();
+
+    catalog.updateView(namespaceKey, view, viewOptions);
+    catalog.clearDatasetCache(namespaceKey, currentView.getVersionContext());
+  }
+
+  private void validateVersionedDataset(Dataset dataset) {
+    Preconditions.checkArgument(VersionedDatasetId.isVersionedDatasetId(dataset.getId()), "Versioned Dataset Id must be provided for updating versioned dataset.");
+    Preconditions.checkArgument(dataset.getType() == Dataset.DatasetType.VIRTUAL_DATASET, "Updating versioned table is not supported yet.");
+    Preconditions.checkArgument(dataset.getPath().size() > 1, "View path " + PathUtils.constructFullPath(dataset.getPath()) + " is not valid.");
+
+    if (!optionManager.getOption(VERSIONED_VIEW_ENABLED)) {
+      throw UserException.unsupportedError().message("Versioned view is not enabled").buildSilently();
+    }
+
+    if (ParserUtil.checkTimeTravelOnView(dataset.getSql())) {
+      throw UserException.unsupportedError()
+        .message("Versioned views not supported for time travel queries. Please use AT TAG or AT COMMIT instead")
+        .buildSilently();
+    }
+  }
+
+  private View getViewAndUpdateBatchSchema(Dataset dataset, Map<String, VersionContext> contextMap, SchemaBuilder schemaBuilder) {
+    final SqlQuery query = new SqlQuery(dataset.getSql(), dataset.getSqlContext(), securityContext.getUserPrincipal().getName());
+    QueryMetadata queryMetadata = QueryParser.extract(query, sabotContext);
+
+    validateParsedViewQuery(queryMetadata.getSqlNode());
+    validateVersions(query, contextMap);
+
+    for (RelDataTypeField f : queryMetadata.getRowType().getFieldList()) {
+      CalciteArrowHelper.fieldFromCalciteRowType(f.getKey(), f.getValue()).ifPresent(schemaBuilder::addField);
+    }
+
+    return new View(PathUtils.constructFullPath(dataset.getPath()), query.getSql(), queryMetadata.getRowType(), null, dataset.getSqlContext());
+  }
+
+  private void validateParsedViewQuery(Optional<SqlNode> viewQuery) {
+    if (!viewQuery.isPresent()) {
+      throw UserException.unsupportedError().message("Invalid view query.").buildSilently();
+    }
+    ParserUtil.validateParsedViewQuery(viewQuery.get());
+  }
+
+  private void validateVersions(SqlQuery query, Map<String, VersionContext> sourceVersionMapping) {
+    try {
+      QueryParser.validateVersions(query, sabotContext, sourceVersionMapping);
+    } catch (ValidationException | RelConversionException e ) {
+      // Calcite exception could wrap exceptions in layers.  Find the root cause to get the original error message.
+      Throwable rootCause = e;
+      while (rootCause.getCause() != null  && rootCause.getCause() != rootCause) {
+        rootCause = rootCause.getCause();
+      }
+      throw UserException.validationError().message(rootCause.getMessage()).buildSilently();
+    } catch (Exception e) {
+      throw UserException.validationError().message("Validation of view sql failed. %s ", e.getMessage()).buildSilently();
+    }
+  }
+
+  private void updateNonVersionedDataset(Dataset dataset, NamespaceAttribute... attributes) throws NamespaceException, IOException {
     Preconditions.checkArgument(dataset.getId() != null, "Dataset Id is missing.");
 
     NameSpaceContainer container = namespaceService.getEntityById(dataset.getId());
@@ -743,8 +984,6 @@ public class CatalogServiceHelper {
     if (currentDatasetConfig == null) {
       throw new IllegalArgumentException(String.format("Could not find dataset with id [%s]", dataset.getId()));
     }
-
-    validateDataset(dataset);
 
     // use the version of the dataset to check for concurrency issues
     currentDatasetConfig.setTag(dataset.getTag());
@@ -864,12 +1103,15 @@ public class CatalogServiceHelper {
   private void validateDataset(Dataset dataset) {
     Preconditions.checkArgument(dataset.getType() != null, "Dataset type is required.");
     Preconditions.checkArgument(dataset.getPath() != null, "Dataset path is required.");
+    Preconditions.checkArgument(dataset.getPath().size() >= 2, "Dataset path should be fully qualified.");
 
     if (dataset.getType() == Dataset.DatasetType.VIRTUAL_DATASET) {
       // VDS requires sql
       Preconditions.checkArgument(dataset.getSql() != null, "Virtual dataset must have sql defined.");
       Preconditions.checkArgument(dataset.getSql().trim().length() > 0, "Virtual dataset cannot have empty sql defined.");
       Preconditions.checkArgument(dataset.getFormat() == null, "Virtual dataset cannot have a format defined.");
+      Preconditions.checkArgument(dataset.getApproximateStatisticsAllowed() == null,  "Virtual dataset cannot have a approximateStatisticsAllowed defined.");
+      ParserUtil.validateViewQuery(dataset.getSql());
     } else {
       // PDS
       Preconditions.checkArgument(dataset.getSql() == null, "Physical dataset can not have sql defined.");
@@ -920,6 +1162,7 @@ public class CatalogServiceHelper {
 
   @WithSpan
   public CatalogEntity updateCatalogItem(CatalogEntity entity, String id) throws NamespaceException, UnsupportedOperationException, ExecutionSetupException, IOException {
+    Preconditions.checkArgument(entity.getId() != null, "Entity id is required.");
     Preconditions.checkArgument(entity.getId().equals(id), "Ids must match.");
     String finalId = id;
 
@@ -956,7 +1199,7 @@ public class CatalogServiceHelper {
 
   @WithSpan
   public void deleteCatalogItem(String id, String tag) throws NamespaceException, UnsupportedOperationException {
-    Optional<?> entity = getById(id);
+    Optional<?> entity = getById(id, false);
 
     if (!entity.isPresent()) {
       throw new IllegalArgumentException(String.format("Could not find entity with id [%s].", id));
@@ -965,62 +1208,135 @@ public class CatalogServiceHelper {
     Object object = entity.get();
 
     if (object instanceof NameSpaceContainer) {
-      NameSpaceContainer container = (NameSpaceContainer) object;
-      switch (container.getType()) {
-        case SOURCE:
-          Span.current().setAttribute("dremio.catalog.entityType", "Source");
-          SourceConfig config = container.getSource();
-
-          if (tag != null) {
-            config.setTag(tag);
-          }
-
-          sourceService.deleteSource(config);
-          break;
-        case SPACE:
-          Span.current().setAttribute("dremio.catalog.entityType", "Space");
-          SpaceConfig spaceConfig = container.getSpace();
-
-          String version = spaceConfig.getTag();
-
-          if (tag != null) {
-            version = tag;
-          }
-          deleteSpace(spaceConfig, version);
-          break;
-        case DATASET:
-          Span.current().setAttribute("dremio.catalog.entityType", "Dataset");
-
-          DatasetConfig datasetConfig = container.getDataset();
-
-          try {
-            deleteDataset(datasetConfig, tag);
-          } catch (IOException e) {
-            throw new IllegalArgumentException(e);
-          }
-          break;
-        case FOLDER:
-          Span.current().setAttribute("dremio.catalog.entityType", "Folder");
-
-          FolderConfig folderConfig = container.getFolder();
-
-          String folderVersion = folderConfig.getTag();
-
-          if (tag != null) {
-            folderVersion = tag;
-          }
-
-          namespaceService.deleteFolder(new NamespaceKey(folderConfig.getFullPathList()), folderVersion);
-          break;
-        default:
-          throw new UnsupportedOperationException(String.format("Catalog item [%s] of type [%s] can not be deleted.", id, container.getType()));
-      }
+      deleteCatalogItemFromNamespace((NameSpaceContainer) object, tag);
+    } else if (object instanceof CatalogEntity && VersionedDatasetId.isVersionedDatasetId(id)) {
+      deleteCatalogEntityFromVersionedPlugin((CatalogEntity) object);
     } else {
       throw new UnsupportedOperationException(String.format("Catalog item [%s] of type [%s] can not be deleted.", id, object.getClass().getName()));
     }
   }
 
+  private void deleteCatalogItemFromNamespace(NameSpaceContainer container, String tag) throws NamespaceException, UnsupportedOperationException {
+    switch (container.getType()) {
+      case SOURCE:
+        Span.current().setAttribute("dremio.catalog.entityType", "Source");
+        SourceConfig config = container.getSource();
+
+        if (tag != null) {
+          config.setTag(tag);
+        }
+
+        sourceService.deleteSource(config);
+        break;
+      case SPACE:
+        Span.current().setAttribute("dremio.catalog.entityType", "Space");
+        SpaceConfig spaceConfig = container.getSpace();
+
+        String version = spaceConfig.getTag();
+
+        if (tag != null) {
+          version = tag;
+        }
+        deleteSpace(spaceConfig, version);
+        break;
+      case DATASET:
+        Span.current().setAttribute("dremio.catalog.entityType", "Dataset");
+
+        DatasetConfig datasetConfig = container.getDataset();
+
+        try {
+          deleteDataset(datasetConfig, tag);
+        } catch (IOException e) {
+          throw new IllegalArgumentException(e);
+        }
+        break;
+      case FOLDER:
+        Span.current().setAttribute("dremio.catalog.entityType", "Folder");
+
+        FolderConfig folderConfig = container.getFolder();
+
+        String folderVersion = folderConfig.getTag();
+
+        if (tag != null) {
+          folderVersion = tag;
+        }
+
+        namespaceService.deleteFolder(new NamespaceKey(folderConfig.getFullPathList()), folderVersion);
+        break;
+      default:
+        throw new UnsupportedOperationException(String.format("Namespace container of type [%s] can not be deleted.", container.getType()));
+    }
+  }
+
+  private void deleteCatalogEntityFromVersionedPlugin(CatalogEntity entity) {
+    VersionedDatasetId id = VersionedDatasetId.tryParse(entity.getId());
+    Preconditions.checkArgument(id != null);
+    if (entity instanceof Folder) {
+      Folder folder = (Folder) entity;
+      SourceFolderPath folderPath = new SourceFolderPath(folder.getPath());
+      VersionContext versionContext = id.getVersionContext().asVersionContext();
+      sourceService.deleteFolder(
+          folderPath, versionContext.getType().name(), versionContext.getValue());
+    } else if (entity instanceof Dataset) {
+      Dataset dataset = (Dataset) entity;
+      NamespaceKey namespaceKey = new NamespaceKey(dataset.getPath());
+      ResolvedVersionContext resolvedVersionContext =
+          CatalogUtil.resolveVersionContext(
+              catalog, id.getTableKey().get(0), id.getVersionContext().asVersionContext());
+      if (dataset.getType() == Dataset.DatasetType.PHYSICAL_DATASET) {
+        catalog.validatePrivilege(namespaceKey, SqlGrant.Privilege.DROP);
+        TableMutationOptions tableMutationOptions =
+            TableMutationOptions.newBuilder()
+                .setResolvedVersionContext(resolvedVersionContext)
+                .build();
+        catalog.dropTable(namespaceKey, tableMutationOptions);
+      } else if (dataset.getType() == Dataset.DatasetType.VIRTUAL_DATASET) {
+        catalog.validatePrivilege(namespaceKey, SqlGrant.Privilege.ALTER);
+        ViewOptions viewOptions =
+            new ViewOptions.ViewOptionsBuilder().version(resolvedVersionContext).build();
+        try {
+          catalog.dropView(namespaceKey, viewOptions);
+        } catch (IOException e) {
+          throw new RuntimeException(String.format("View [%s] could not be dropped", id), e);
+        }
+      } else {
+        throw new UnsupportedOperationException(
+            String.format(
+                "Deleting dataset [%s] of type [%s] is not supported.",
+                dataset.getId(), dataset.getType()));
+      }
+    } else {
+      throw new UnsupportedOperationException(
+          String.format(
+              "Catalog entity [%s] of type [%s] can not be deleted.",
+              entity.getId(), entity.getClass().getSimpleName()));
+    }
+  }
+
   protected Folder createFolder(Folder folder, NamespaceAttribute... attributes) throws NamespaceException {
+    validateFolder(folder);
+    final boolean isVersionedSource = CatalogUtil.requestedPluginSupportsVersionedTables(new NamespaceKey(folder.getPath()), catalog);
+    if (isVersionedSource) {
+      return createFolderInVersionedSource(folder, null, null, attributes);
+    } else {
+      return createFolderInNamespace(folder, attributes);
+    }
+  }
+
+  private void validateFolder(Folder folder) {
+    Preconditions.checkArgument(CollectionUtils.isNotEmpty(folder.getPath()), "Folder path can't be empty.");
+    Preconditions.checkArgument(folder.getPath().size() >= 2, "Folder path should be fully qualified.");
+  }
+
+  private Folder createFolderInVersionedSource(Folder folder, final String refType, final String refValue, NamespaceAttribute... attributes) {
+    SourceFolderPath folderPath = new SourceFolderPath(folder.getPath());
+    com.dremio.dac.model.folder.Folder createdFolder = sourceService.createFolder(new SourceName(folder.getPath().get(0)),
+      folderPath, securityContext.getUserPrincipal().getName(), null, null);
+    return toFolderAPI(createdFolder, securityContext.getUserPrincipal().getName(), null);
+  }
+
+  private Folder createFolderInNamespace(Folder folder, NamespaceAttribute... attributes)
+    throws NamespaceException {
     NamespaceKey parentKey = new NamespaceKey(folder.getPath().subList(0, folder.getPath().size() - 1));
     List<NameSpaceContainer> entities = namespaceService.getEntities(Collections.singletonList(parentKey));
 
@@ -1045,7 +1361,6 @@ public class CatalogServiceHelper {
         throw new UnsupportedOperationException(String.format("Can not create a folder inside a [%s].", container.getType()));
       }
     }
-
     return toFolderAPI(namespaceService.getEntityByPath(key), null);
   }
 
@@ -1200,7 +1515,15 @@ public class CatalogServiceHelper {
 
   protected Folder toFolderAPI(NameSpaceContainer container, List<CatalogItem> children) {
     FolderConfig config = container.getFolder();
-    return new Folder(config.getId().getId(), config.getFullPathList(), String.valueOf(config.getTag()), children);
+    return new Folder(config.getId().getId(), config.getFullPathList(), config.getTag(), children);
+  }
+
+  protected Folder toFolderAPI(FolderConfig config, List<CatalogItem> children) {
+    return new Folder(config.getId().getId(), config.getFullPathList(), config.getTag(), children);
+  }
+
+  protected Folder toFolderAPI(com.dremio.dac.model.folder.Folder createdFolder, String userName, List<CatalogItem> children) {
+    return new Folder(createdFolder.getId(), createdFolder.getFullPathList(), null, null);
   }
 
   public static FolderConfig getFolderConfig(Folder folder) {
@@ -1282,37 +1605,42 @@ public class CatalogServiceHelper {
     }
   }
 
-  public static void ensureUserHasHomespace(NamespaceService namespaceService, String userName) throws NamespaceException {
+  public static void ensureUserHasHomespace(NamespaceService namespaceService, String userName, OptionManager optionManager) throws NamespaceException {
+    ensureUserHasHomespace(namespaceService, userName);
+  }
+
+    private static void ensureUserHasHomespace(NamespaceService namespaceService, String userName) throws NamespaceException {
     final NamespaceKey homeKey = new HomePath(HomeName.getUserHomePath(userName)).toNamespaceKey();
     try {
-      namespaceService.getHome(homeKey);
-    } catch (NamespaceNotFoundException ignored) {
-      namespaceService.addOrUpdateHome(homeKey,
-        new HomeConfig().setCtime(System.currentTimeMillis()).setOwner(userName)
-      );
+      if (!namespaceService.exists(homeKey, NameSpaceContainer.Type.HOME)) {
+        namespaceService.addOrUpdateHome(homeKey,
+          new HomeConfig().setCtime(System.currentTimeMillis()).setOwner(userName)
+        );
+      }
+    } catch (NamespaceException ex) {
+      if (!namespaceService.exists(homeKey, NameSpaceContainer.Type.HOME)) {
+        throw ex;
+      }
+    } catch (ConcurrentModificationException ignored) {
+      // Ignore, ConcurrentModificationException is only thrown when the key already exists
     }
   }
 
   /**
-   * Retrieve the children for a catalog entity based on the entity path.
-   * If the path represents a versioned source, use VersionedPlugin to look for the children;
-   * Otherwise, look for them in Namespace.
-   * So far this is specifically used by Autocomplete V2.
+   * Retrieve the children for a catalog entity based on the entity path. If the path represents a
+   * versioned source, use VersionedPlugin to look for the children; Otherwise, look for them in
+   * Namespace. So far this is specifically used by Autocomplete V2.
    */
-  public List<CatalogItem> getCatalogChildrenForPath(List<String> path, String refType, String refValue) throws NamespaceException {
-    NamespaceKey sourceKey = new NamespaceKey(path);
-    // TODO: we should remove the call to NamespaceSerivce since we should have known if it's a versioned source or not. Need to coordinate with the frontend.
-    // We can use SourceConfig.type to tell a VersionedSource if it's NESSIE or ARCTIC.
-    // Add SourceSubType {Versioned, Non-Versioned} in CatalogItem, then send it properly to FE.
+  public List<CatalogItem> getCatalogChildrenForPath(List<String> path, String refType, String refValue) {
+    NamespaceKey key = new NamespaceKey(path);
     try {
       final StoragePlugin plugin = getStoragePlugin(path.get(0));
       if (plugin instanceof VersionedPlugin) {
-        return getChildrenForVersionedSourcePath((VersionedPlugin) plugin, sourceKey, refType, refValue);
+        return getChildrenForVersionedSourcePath((VersionedPlugin) plugin, key, refType, refValue);
       }
-    } catch (UserException | SourceNotFoundException e) {
-      // ignore
-    }
-    return getNamespaceChildrenForPath(sourceKey);
+    } catch (UserException | SourceNotFoundException ignored) {}
+
+    return getNamespaceChildrenForPath(key);
   }
 
   private List<CatalogItem> getChildrenForVersionedSourcePath(
@@ -1321,18 +1649,18 @@ public class CatalogServiceHelper {
     String refType,
     String refValue
   ) {
+    final List<CatalogItem> catalogItems = new ArrayList<>();
     VersionContext version = VersionContextUtils.parse(refType, refValue);
     try {
-      List<ExternalNamespaceEntry> entities = plugin.listEntries(sourceKey.getPathWithoutRoot(), version).collect(Collectors.toList());
-      return generateCatalogItemList(sourceKey.getRoot(), entities);
-    } catch (ReferenceNotFoundException | NoDefaultBranchException | ReferenceTypeConflictException e) {
-      // ignore
-      return Collections.emptyList();
+      Stream<ExternalNamespaceEntry> entities = plugin.listEntries(sourceKey.getPathWithoutRoot(), version);
+      catalogItems.addAll(generateCatalogItemList(sourceKey.getRoot(), entities));
+    } catch (ReferenceNotFoundException | NoDefaultBranchException | ReferenceTypeConflictException ignored) {
     }
+    return catalogItems;
   }
 
-  private List<CatalogItem> generateCatalogItemList(String sourceName, List<ExternalNamespaceEntry> entities) {
-    return entities.stream()
+  private List<CatalogItem> generateCatalogItemList(String sourceName, Stream<ExternalNamespaceEntry> entities) {
+    return entities
       .map((entity) -> {
         CatalogItem.Builder builder = new CatalogItem.Builder();
         switch (entity.getType()) {
@@ -1348,7 +1676,7 @@ public class CatalogServiceHelper {
 
           case ICEBERG_TABLE:
             builder.setType(CatalogItem.CatalogItemType.DATASET)
-              .setDatasetType(CatalogItem.DatasetSubType.PROMOTED);
+              .setDatasetType(CatalogItem.DatasetSubType.DIRECT);
             break;
 
           case UNKNOWN:
@@ -1360,15 +1688,66 @@ public class CatalogServiceHelper {
           .setPath(Stream.concat(Stream.of(sourceName), entity.getNameElements().stream()).collect(Collectors.toList()))
           .build();
       })
-      .filter(entity -> entity != null)
+      .filter(Objects::nonNull)
       .collect(Collectors.toList());
   }
 
-  public Stream<ReferenceInfo> getReferencesForVersionedSource(String sourceName) throws SourceNotFoundException {
-    final StoragePlugin plugin = getStoragePlugin(sourceName);
-    if (!(plugin instanceof VersionedPlugin)) {
-      throw new SourceNotFoundException(sourceName + " is not a versioned source.");
+  public Stream<ReferenceInfo> getReferencesForVersionedSource(
+    String sourceName,
+    SuggestionsType refType) throws SourceNotFoundException {
+    try {
+      final StoragePlugin plugin = getStoragePlugin(sourceName);
+      if (!(plugin instanceof VersionedPlugin)) {
+        throw new SourceNotFoundException(sourceName + " is not a versioned source.");
+      }
+      switch(refType) {
+        case BRANCH:
+          return ((VersionedPlugin) plugin).listBranches();
+
+        case TAG:
+          return ((VersionedPlugin) plugin).listTags();
+
+        case REFERENCE:
+          return ((VersionedPlugin) plugin).listReferences();
+
+        default:
+          throw new RuntimeException("Unknown reference type " + refType);
+      }
+    } catch (UserException e) {
+      if (e.getErrorType() == UserBitShared.DremioPBError.ErrorType.VALIDATION && e.getCause().toString().contains("NamespaceNotFoundException")) {
+        return Stream.empty();
+      }
+      throw e;
     }
-    return ((VersionedPlugin) plugin).listReferences();
+  }
+
+  private VersionedPlugin.EntityType getVersionedEntityType(List<String> fullPath, VersionContext versionContext) {
+    try {
+      return CatalogUtil.getVersionedEntityType(catalog, fullPath, versionContext);
+    } catch (SourceDoesNotExistException e) {
+      throw new SourceNotFoundException(e.getSourceName());
+    }
+  }
+
+  public VersionedPlugin.EntityType getVersionedEntityType(VersionedDatasetId id) {
+    List<String> fullPath = id.getTableKey();
+    VersionContext versionContext = id.getVersionContext().asVersionContext();
+    return getVersionedEntityType(fullPath, versionContext);
+  }
+
+  private Folder createCatalogItemForVersionedFolder(
+    List<String> path,
+    String id,
+    boolean includeChildren,
+    String refType,
+    String refValue) throws NamespaceException {
+    FolderConfig folderConfig = new FolderConfig()
+      .setFullPathList(path)
+      .setName(path.get(path.size() - 1))
+      .setId(new EntityId(id));
+    List<CatalogItem> children = includeChildren
+      ? getChildrenForPath(new NamespaceKey(path), refType, refValue)
+      : null;
+    return toFolderAPI(folderConfig, children);
   }
 }

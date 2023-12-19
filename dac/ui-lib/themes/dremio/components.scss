@@ -19,9 +19,11 @@
 @use "components/button-group";
 @use "components/button";
 @use "components/card";
+@use "components/code-view";
 @use "components/description-list";
 @use "components/dialog-content";
 @use "components/drawer";
+@use "components/elevation";
 @use "components/empty-overlay";
 @use "components/error-display";
 @use "components/external-link";
@@ -32,11 +34,13 @@
 @use "components/layout-container";
 @use "components/layout-grid";
 @use "components/layout-stack";
+@use "components/link";
 @use "components/listbox";
 @use "components/focus";
 @use "components/form-control";
 @use "components/modal-container";
 @use "components/page";
+@use "components/popover";
 @use "components/prose";
 @use "components/scroll-shadow";
 @use "components/section";
@@ -45,8 +49,11 @@
 @use "components/skeleton";
 @use "components/spinner-overlay";
 @use "components/spinner";
+@use "components/syntax-highlighter";
+@use "components/tab-list";
 @use "components/tag";
 @use "components/tooltip";
 @use "components/divider";
 @use "components/label.scss";
 @use "components/dataset-summary-overlay.scss";
+@use "components/tabpanel.scss";

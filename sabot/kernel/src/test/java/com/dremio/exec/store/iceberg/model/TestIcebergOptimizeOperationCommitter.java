@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.UUID;
 
+import org.apache.iceberg.ContentFile;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataFiles;
 import org.apache.iceberg.DeleteFile;
@@ -130,9 +131,9 @@ public class TestIcebergOptimizeOperationCommitter {
     opCommitter.consumeDeleteDeleteFile(getDeletefile("/pd1.parquet"));
     opCommitter.consumeDeleteDeleteFile(getDeletefile("/pd2.parquet"));
 
-    assertThat(opCommitter.getAddedDataFiles()).extracting("path").contains("/a1.parquet", "/a2.parquet");
-    assertThat(opCommitter.getRemovedDataFiles()).extracting("path").contains("/d1.parquet", "/d2.parquet");
-    assertThat(opCommitter.getRemovedDeleteFiles()).extracting("path").contains("/pd1.parquet", "/pd2.parquet");
+    assertThat(opCommitter.getAddedDataFiles()).extracting(ContentFile::path).contains("/a1.parquet", "/a2.parquet");
+    assertThat(opCommitter.getRemovedDataFiles()).extracting(ContentFile::path).contains("/d1.parquet", "/d2.parquet");
+    assertThat(opCommitter.getRemovedDeleteFiles()).extracting(ContentFile::path).contains("/pd1.parquet", "/pd2.parquet");
 
     Snapshot commitSnapshot = opCommitter.commit(outputHandler);
     assertThat(commitSnapshot).isEqualTo(rewriteSnapshot).isNotEqualTo(currentSnapshot);
@@ -170,9 +171,9 @@ public class TestIcebergOptimizeOperationCommitter {
     opCommitter.consumeDeleteDeleteFile(getDeletefile("/pd1.parquet"));
     opCommitter.consumeDeleteDeleteFile(getDeletefile("/pd2.parquet"));
 
-    assertThat(opCommitter.getAddedDataFiles()).extracting("path").contains("/a1.parquet", "/a2.parquet");
-    assertThat(opCommitter.getRemovedDataFiles()).extracting("path").contains("/d1.parquet", "/d2.parquet");
-    assertThat(opCommitter.getRemovedDeleteFiles()).extracting("path").contains("/pd1.parquet", "/pd2.parquet");
+    assertThat(opCommitter.getAddedDataFiles()).extracting(ContentFile::path).contains("/a1.parquet", "/a2.parquet");
+    assertThat(opCommitter.getRemovedDataFiles()).extracting(ContentFile::path).contains("/d1.parquet", "/d2.parquet");
+    assertThat(opCommitter.getRemovedDeleteFiles()).extracting(ContentFile::path).contains("/pd1.parquet", "/pd2.parquet");
 
     Snapshot commitSnapshot = opCommitter.commit(outputHandler);
     assertThat(commitSnapshot).isEqualTo(currentSnapshot).isNotEqualTo(rewriteSnapshot);
@@ -236,7 +237,7 @@ public class TestIcebergOptimizeOperationCommitter {
   private IcebergTableProps getTableProps() {
     return new IcebergTableProps("s3://testdata/table_location/", UUID.randomUUID().toString(),
       BatchSchema.EMPTY, Collections.emptyList(), IcebergCommandType.OPTIMIZE, "db", "table_location",
-      "", null, ByteString.copyFrom(IcebergSerDe.serializePartitionSpec(PartitionSpec.unpartitioned())), null);
+      "", null, ByteString.copyFrom(IcebergSerDe.serializePartitionSpec(PartitionSpec.unpartitioned())), null, null, null, Collections.emptyMap(), null);
   }
 
   private OperatorStats getOperatorStats() {

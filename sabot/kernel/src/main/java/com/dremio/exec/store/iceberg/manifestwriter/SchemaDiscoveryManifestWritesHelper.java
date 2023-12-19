@@ -20,7 +20,7 @@ import static com.dremio.exec.util.VectorUtil.getVectorFromSchemaPath;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
+import java.util.function.BiConsumer;
 
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.iceberg.DataFile;
@@ -30,7 +30,11 @@ import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.types.SchemaUpPromotionRules;
 import com.dremio.common.types.SupportsTypeCoercionsAndUpPromotions;
+import com.dremio.common.types.TypeCoercionRules;
+import com.dremio.exec.ExecConstants;
+import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.catalog.ColumnCountTooLargeException;
 import com.dremio.exec.exception.NoSupportedUpPromotionOrCoercionException;
 import com.dremio.exec.physical.base.WriterOptions;
@@ -40,46 +44,50 @@ import com.dremio.exec.store.iceberg.IcebergManifestWriterPOP;
 import com.dremio.exec.store.iceberg.IcebergPartitionData;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants;
+import com.dremio.sabot.exec.context.OperatorContext;
 
 /**
  * Uses the last non-null schema from the incoming vectors. In case schema gets changed, complete manifest gets
  * re-loaded at the time of flush.
  */
-public class SchemaDiscoveryManifestWritesHelper extends ManifestWritesHelper implements SupportsTypeCoercionsAndUpPromotions{
-    private BatchSchema currentSchema = BatchSchema.EMPTY;
-    private List<String> partitionColumns = new ArrayList<>();
-    private boolean hasSchemaChanged = false;
+public class SchemaDiscoveryManifestWritesHelper extends ManifestWritesHelper implements SupportsTypeCoercionsAndUpPromotions {
+  private BatchSchema currentSchema = BatchSchema.EMPTY;
+  private List<String> partitionColumns = new ArrayList<>();
+  private boolean hasSchemaChanged = false;
 
-    private List<DataFile> dataFiles = new ArrayList<>();
-    private VarBinaryVector schemaVector;
-    private int columnLimit;
+  private List<DataFile> dataFiles = new ArrayList<>();
+  private VarBinaryVector schemaVector;
+  private int columnLimit;
 
-  public SchemaDiscoveryManifestWritesHelper(IcebergManifestWriterPOP writer, int columnLimit) {
-        super(writer);
-        this.columnLimit = columnLimit;
+  private OperatorContext context;
+
+  public SchemaDiscoveryManifestWritesHelper(IcebergManifestWriterPOP writer, OperatorContext context) {
+    super(writer);
+    this.columnLimit = (int) context.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX);
+    this.context = context;
   }
 
-    @Override
-    public void setIncoming(VectorAccessible incoming) {
-        super.setIncoming(incoming);
-        schemaVector = (VarBinaryVector) getVectorFromSchemaPath(incoming, MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.FILE_SCHEMA);
-        // TODO: Setup partition info vector
-    }
+  @Override
+  public void setIncoming(VectorAccessible incoming) {
+    super.setIncoming(incoming);
+    schemaVector = (VarBinaryVector) getVectorFromSchemaPath(incoming, MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.FILE_SCHEMA);
+    // TODO: Setup partition info vector
+  }
 
-    @Override
-    public void processIncomingRow(int recordIndex) throws IOException {
-        try {
-            super.processIncomingRow(recordIndex);
+  @Override
+  public void processIncomingRow(int recordIndex) throws IOException {
+    try {
+      super.processIncomingRow(recordIndex);
 
-            if (schemaVector.isSet(recordIndex)!=0) {
-                byte[] schemaSer = schemaVector.get(recordIndex);
-                if (schemaSer.length==0) {
-                    return;
-                }
-                final BatchSchema newSchema = BatchSchema.deserialize(schemaSer);
-                if (newSchema.equals(currentSchema)) {
-                    return;
-                }
+      if (schemaVector.isSet(recordIndex) != 0) {
+        byte[] schemaSer = schemaVector.get(recordIndex);
+        if (schemaSer.length == 0) {
+          return;
+        }
+        final BatchSchema newSchema = BatchSchema.deserialize(schemaSer);
+        if (newSchema.equals(currentSchema)) {
+          return;
+        }
 
         hasSchemaChanged = true;
         try {
@@ -101,40 +109,52 @@ public class SchemaDiscoveryManifestWritesHelper extends ManifestWritesHelper im
     }
   }
 
-    @Override
-    protected void addDataFile(DataFile dataFile) {
-        manifestWriter.getInstance().add(dataFile);
-        dataFiles.add(dataFile);
+  @Override
+  protected void addDataFile(DataFile dataFile) {
+    manifestWriter.getInstance().add(dataFile);
+    dataFiles.add(dataFile);
 
-        // File system partitions follow dremio-derived nomenclature - dir[idx]. Example - dir0, dir1.. and so on.
-        int existingPartitionDepth = partitionColumns.size();
-        if (dataFile.partition().size() > existingPartitionDepth) {
-          partitionColumns = InternalIcebergUtil.getPartitionNames(dataFile);
-        }
+    // File system partitions follow dremio-derived nomenclature - dir[idx]. Example - dir0, dir1.. and so on.
+    int existingPartitionDepth = partitionColumns.size();
+    if (dataFile.partition().size() > existingPartitionDepth) {
+      partitionColumns = InternalIcebergUtil.getPartitionNames(dataFile);
     }
+  }
 
-    @Override
-    public void startNewWriter() {
-        hasSchemaChanged = false;
-        dataFiles.clear();
-        super.startNewWriter();
+  @Override
+  public void startNewWriter() {
+    hasSchemaChanged = false;
+    dataFiles.clear();
+    super.startNewWriter();
+  }
+
+  @Override
+  public void prepareWrite() {
+    addPartitionData();
+    if (hasSchemaChanged) {
+      deleteRunningManifestFile();
+      super.startNewWriter(); // using currentSchema
+      addPartitionData();
+      dataFiles.stream().forEach(manifestWriter.getInstance()::add);
+      hasSchemaChanged = false;
+      currentNumDataFileAdded = dataFiles.size();
+      dataFiles.clear();
     }
+  }
 
-    @Override
-    public Optional<ManifestFile> write() throws IOException {
-        addPartitionData();
-        if (hasSchemaChanged) {
-            deleteRunningManifestFile();
-            super.startNewWriter(); // using currentSchema
-            addPartitionData();
-            dataFiles.stream().forEach(manifestWriter.getInstance()::add);
-            hasSchemaChanged = false;
-            currentNumDataFileAdded = dataFiles.size();
-            dataFiles.clear();
-        }
+  @Override
+  public ManifestFile write() throws IOException {
+    prepareWrite();
+    return super.write();
+  }
 
-        return super.write();
-    }
+  @Override
+  public void write(ManifestFileRecordWriter.WritingContext context,
+                    BiConsumer<ManifestFile,
+                      ManifestFileRecordWriter.WritingContext> processGeneratedManifestFileCall) throws IOException {
+    prepareWrite();
+    super.write(context, processGeneratedManifestFileCall);
+  }
 
   private void addPartitionData() {
     dataFiles.stream()
@@ -143,23 +163,44 @@ public class SchemaDiscoveryManifestWritesHelper extends ManifestWritesHelper im
       .forEach(ipd -> partitionDataInCurrentManifest().add(ipd));
   }
 
-    @Override
-    public byte[] getWrittenSchema() {
-        return (currentSchema.getFieldCount() == 0) ? null : currentSchema.serialize();
+  @Override
+  public byte[] getWrittenSchema() {
+    return (currentSchema.getFieldCount() == 0) ? null : currentSchema.serialize();
+  }
+
+  @Override
+  PartitionSpec getPartitionSpec(WriterOptions writerOptions) {
+    Schema icebergSchema = null;
+    if (writerOptions.getExtendedProperty() != null) {
+      icebergSchema = getIcebergSchema(writerOptions.getExtendedProperty(), currentSchema,
+        writerOptions.getTableFormatOptions().getIcebergSpecificOptions().getIcebergTableProps().getTableName());
     }
 
-    @Override
-    PartitionSpec getPartitionSpec(WriterOptions writerOptions) {
-        Schema icebergSchema = null;
-        if (writerOptions.getExtendedProperty()!=null) {
-            icebergSchema = getIcebergSchema(writerOptions.getExtendedProperty(), currentSchema,
-              writerOptions.getTableFormatOptions().getIcebergSpecificOptions().getIcebergTableProps().getTableName());
-        }
+    return IcebergUtils.getIcebergPartitionSpec(currentSchema, partitionColumns, icebergSchema);
+    /*
+     TODO: currently we don't support partition spec update for by default spec ID will be 0. in future if
+           we start supporting partition spec id. then Id must be inherited from data files(input to this writer)
+     */
+  }
 
-        return IcebergUtils.getIcebergPartitionSpec(currentSchema, partitionColumns, icebergSchema);
-        /*
-         TODO: currently we don't support partition spec update for by default spec ID will be 0. in future if
-               we start supporting partition spec id. then Id must be inherited from data files(input to this writer)
-         */
+  @Override
+  public TypeCoercionRules getTypeCoercionRules() {
+    if (context.getOptions().getOption(ExecConstants.ENABLE_PARQUET_MIXED_TYPES_COERCION)) {
+      return COMPLEX_INCOMPATIBLE_TO_VARCHAR_COERCION;
     }
+    return STANDARD_TYPE_COERCION_RULES;
+  }
+
+  @Override
+  public SchemaUpPromotionRules getUpPromotionRules() {
+    if (context.getOptions().getOption(ExecConstants.ENABLE_PARQUET_MIXED_TYPES_COERCION)) {
+      return COMPLEX_INCOMPATIBLE_TO_VARCHAR_PROMOTION;
+    }
+    return STANDARD_TYPE_UP_PROMOTION_RULES;
+  }
+
+  @Override
+  public boolean isComplexToVarcharCoercionSupported() {
+    return context.getOptions().getOption(ExecConstants.ENABLE_PARQUET_MIXED_TYPES_COERCION);
+  }
 }

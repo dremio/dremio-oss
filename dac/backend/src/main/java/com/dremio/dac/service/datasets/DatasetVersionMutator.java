@@ -36,19 +36,26 @@ import java.util.concurrent.TimeUnit;
 import javax.inject.Inject;
 import javax.inject.Provider;
 
+import org.apache.calcite.tools.RelConversionException;
+import org.apache.calcite.tools.ValidationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.perf.Timer;
 import com.dremio.common.perf.Timer.TimedBlock;
 import com.dremio.dac.daemon.DACDaemonModule;
+import com.dremio.dac.explore.QueryParser;
 import com.dremio.dac.explore.model.DatasetPath;
+import com.dremio.dac.explore.model.VersionContextUtils;
 import com.dremio.dac.model.common.RootEntity.RootType;
 import com.dremio.dac.proto.model.dataset.NameDatasetRef;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetVersion;
 import com.dremio.dac.service.datasets.DatasetDownloadManager.DownloadDataResponse;
+import com.dremio.dac.service.errors.ClientErrorException;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
 import com.dremio.datastore.SearchQueryUtils;
@@ -65,20 +72,21 @@ import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.MetadataRequestOptions;
-import com.dremio.exec.catalog.ResolvedVersionContext;
-import com.dremio.exec.catalog.VersionContext;
+import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.physical.base.ViewOptions;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.server.ContextService;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.Views;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.InternalFileConf;
 import com.dremio.exec.store.easy.arrow.ArrowFileMetadata;
+import com.dremio.exec.util.OptionUtil;
 import com.dremio.exec.util.ViewFieldsHelper;
 import com.dremio.options.OptionManager;
 import com.dremio.service.InitializerRegistry;
@@ -86,6 +94,7 @@ import com.dremio.service.job.JobCountsRequest;
 import com.dremio.service.job.VersionedDatasetPath;
 import com.dremio.service.job.proto.DownloadInfo;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceException;
@@ -114,23 +123,25 @@ public class DatasetVersionMutator {
   private final InitializerRegistry init;
   protected final JobsService jobsService;
   protected final CatalogService catalogService;
-
+  private final ContextService contextService;
   private final LegacyKVStore<VersionDatasetKey, VirtualDatasetVersion> datasetVersions;
   protected final OptionManager optionManager;
 
   @Inject
   public DatasetVersionMutator(
-      final InitializerRegistry init,
-      final LegacyKVStoreProvider kv,
-      final NamespaceService namespaceService,
-      final JobsService jobsService,
-      final CatalogService catalogService,
-      final OptionManager optionManager) {
+    final InitializerRegistry init,
+    final LegacyKVStoreProvider kv,
+    final NamespaceService namespaceService,
+    final JobsService jobsService,
+    final CatalogService catalogService,
+    final OptionManager optionManager,
+    final ContextService contextService) {
     this.namespaceService = namespaceService;
     this.jobsService = jobsService;
     this.datasetVersions = kv.getStore(VersionStoreCreator.class);
     this.catalogService = catalogService;
     this.init = init;
+    this.contextService = contextService;
     this.optionManager = optionManager;
   }
 
@@ -170,10 +181,35 @@ public class DatasetVersionMutator {
     putVersion(ds, false);
   }
 
+  public VirtualDatasetUI createDatasetFrom(DatasetPath existingDatasetPath, DatasetPath newDatasetPath, String ownerName) throws NamespaceException {
+    if (isVersionedPluginSource(existingDatasetPath) || isVersionedPluginSource(newDatasetPath)) {
+      throw UserException.unsupportedError().message("Copy of entity is not allowed within Versioned source").buildSilently();
+    }
+    VirtualDatasetUI ds = get(existingDatasetPath);
+    // Set a new version, name.
+    ds.setFullPathList(newDatasetPath.toPathList());
+    ds.setVersion(DatasetVersion.newVersion());
+    ds.setName(newDatasetPath.getLeaf().getName());
+    ds.setSavedTag(null);
+    ds.setId(null);
+    ds.setPreviousVersion(null);
+    ds.setOwner(ownerName);
+    putVersion(ds);
+
+    try {
+      put(ds);
+    } catch(NamespaceNotFoundException nfe) {
+      throw new ClientErrorException(format("Parent folder %s doesn't exist", existingDatasetPath.toParentPath()), nfe);
+    }
+    return ds;
+  }
+
   public void put(VirtualDatasetUI ds, NamespaceAttribute... attributes) throws DatasetNotFoundException, NamespaceException {
     DatasetPath path = new DatasetPath(ds.getFullPathList());
     validatePaths(path, null);
     validate(path, ds);
+    final SqlQuery query = new SqlQuery(ds.getSql(), ds.getState().getContextList(), ds.getOwner());
+    validateVersions(query, null);
     DatasetConfig datasetConfig = toVirtualDatasetVersion(ds).getDataset();
     namespaceService.addOrUpdateDataset(path.toNamespaceKey(), datasetConfig, attributes);
     ds.setId(datasetConfig.getId().getId());
@@ -187,17 +223,19 @@ public class DatasetVersionMutator {
     throws DatasetNotFoundException, IOException, NamespaceException {
     DatasetConfig datasetConfig = toVirtualDatasetVersion(ds).getDataset();
     Preconditions.checkNotNull(path);
-    VersionContext versionContext = VersionContext.ofBranch(branchName);
+    VersionContext versionContext = VersionContextUtils.parse(VersionContext.Type.BRANCH.toString(), branchName);
     Map<String, VersionContext> contextMap = ImmutableMap.of(path.getRoot().toString(), versionContext);
     Catalog catalog = getCatalog().resolveCatalog(contextMap);
+    final SqlQuery query = new SqlQuery(ds.getSql(), ds.getState().getContextList(),ds.getOwner() );
 
     //TODO: Once DX-65418 is fixed, injected catalog will validate the right entity accordingly
     catalog.validatePrivilege(new NamespaceKey(path.getRoot().getName()), SqlGrant.Privilege.ALTER);
+    validateVersions(query, contextMap);
     BatchSchema schema = DatasetHelper.getSchemaBytes(datasetConfig) != null ? CalciteArrowHelper.fromDataset(datasetConfig) : null;
     View view = Views.fieldTypesToView(
       Iterables.getLast(datasetConfig.getFullPathList()),
       datasetConfig.getVirtualDataset().getSql(),
-      ViewFieldsHelper.getCalciteViewFields(datasetConfig),
+      ViewFieldsHelper.getViewFields(datasetConfig),
       datasetConfig.getVirtualDataset().getContextList(),
       null
     );
@@ -264,6 +302,9 @@ public class DatasetVersionMutator {
   public VirtualDatasetUI renameDataset(final DatasetPath oldPath, final DatasetPath newPath)
       throws NamespaceException, DatasetNotFoundException, DatasetVersionNotFoundException {
     try {
+      if (isVersionedPluginSource(newPath) || isVersionedPluginSource(oldPath)) {
+        throw UserException.unsupportedError().message("Moving or Renaming of entity is not allowed in Versioned source").buildSilently();
+      }
       validatePaths(newPath, oldPath);
       VirtualDatasetVersion latestVersion = null; // the one that matches in the namespace
       final DatasetConfig datasetConfig =
@@ -305,6 +346,16 @@ public class DatasetVersionMutator {
     } catch (NamespaceNotFoundException nfe) {
       throw new DatasetNotFoundException(oldPath, nfe);
     }
+  }
+
+  public boolean isVersionedPluginSource(DatasetPath datasetPath) throws NamespaceException {
+    String sourceName = datasetPath.getRoot().getName();
+    NameSpaceContainer nameSpaceContainer = namespaceService.getEntityByPath(new NamespaceKey(sourceName));
+    if (nameSpaceContainer != null && nameSpaceContainer.getType() == NameSpaceContainer.Type.SOURCE) {
+      //catalogService does not store the spaces, home etc
+      return catalogService.getSource(sourceName) instanceof VersionedPlugin;
+    }
+    return false;
   }
 
   public VirtualDatasetUI getVersion(DatasetPath path, DatasetVersion version)
@@ -492,6 +543,7 @@ public class DatasetVersionMutator {
     JobCountsRequest.Builder builder = JobCountsRequest.newBuilder();
     builder.addDatasets(VersionedDatasetPath.newBuilder()
         .addAllPath(path.getPathComponents()));
+    builder.setJobCountsAgeInDays(OptionUtil.getJobCountsAgeInDays(optionManager.getOption(ExecConstants.JOB_MAX_AGE_IN_DAYS)));
     return jobsService.getJobCounts(builder.build()).getCountList().get(0);
   }
 
@@ -501,6 +553,7 @@ public class DatasetVersionMutator {
     datasetPaths.forEach(datasetPath ->
         builder.addDatasets(VersionedDatasetPath.newBuilder()
             .addAllPath(datasetPath.getPathComponents())));
+    builder.setJobCountsAgeInDays(OptionUtil.getJobCountsAgeInDays(optionManager.getOption(ExecConstants.JOB_MAX_AGE_IN_DAYS)));
     for (Integer count : jobsService.getJobCounts(builder.build()).getCountList()) {
       if (count != null) {
         jobCount += count;
@@ -602,6 +655,21 @@ public class DatasetVersionMutator {
     final long daysThresholdMillis = TimeUnit.DAYS.toMillis(daysThreshold);
     final Long dsCreation = next.getValue().getDataset().getCreatedAt();
     return dsCreation != null && now - dsCreation < daysThresholdMillis;
+  }
+
+  private void validateVersions(SqlQuery query, Map<String, VersionContext> sourceVersionMapping) {
+    try {
+      QueryParser.validateVersions(query, contextService.get(), sourceVersionMapping);
+    } catch (ValidationException | RelConversionException e ) {
+      // Calcite exception could wrap exceptions in layers.  Find the root cause to get the original error message.
+      Throwable rootCause = e;
+      while (rootCause.getCause() != null  && rootCause.getCause() != rootCause) {
+        rootCause = rootCause.getCause();
+      }
+      throw UserException.validationError().message(rootCause.getMessage()).buildSilently();
+    } catch (Exception e) {
+      throw UserException.validationError().message("Validation of view sql failed. %s ", e.getMessage()).buildSilently();
+    }
   }
 
   /**

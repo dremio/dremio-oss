@@ -48,6 +48,10 @@
                     "container": {}
                   },
                   {
+                    "value": "AP_SOUTH_2",
+                    "container": {}
+                  },
+                  {
                     "value": "AP_NORTHEAST_3",
                     "container": {}
                   },
@@ -61,6 +65,14 @@
                   },
                   {
                     "value": "AP_SOUTHEAST_2",
+                    "container": {}
+                  },
+                  {
+                    "value": "AP_SOUTHEAST_3",
+                    "container": {}
+                  },
+                  {
+                    "value": "AP_SOUTHEAST_4",
                     "container": {}
                   },
                   {
@@ -84,6 +96,10 @@
                     "container": {}
                   },
                   {
+                    "value": "EU_CENTRAL_2",
+                    "container": {}
+                  },
+                  {
                     "value": "EU_WEST_1",
                     "container": {}
                   },
@@ -96,11 +112,23 @@
                     "container": {}
                   },
                   {
+                    "value": "EU_SOUTH_2",
+                    "container": {}
+                  },
+                  {
                     "value": "EU_WEST_3",
                     "container": {}
                   },
                   {
                     "value": "EU_NORTH_1",
+                    "container": {}
+                  },
+                  {
+                    "value": "IL_CENTRAL_1",
+                    "container": {}
+                  },
+                  {
+                    "value": "ME_CENTRAL_1",
                     "container": {}
                   },
                   {

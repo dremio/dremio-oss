@@ -22,9 +22,9 @@ import AnalyzeMenuItem from "components/Menus/HomePage/AnalyzeMenuItem";
 import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
 import { abilities } from "utils/datasetUtils";
 import { shouldUseNewDatasetNavigation } from "@app/utils/datasetNavigationUtils";
-import { constructFullPath } from "@app/utils/pathUtils";
 import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
 import * as sqlPaths from "dremio-ui-common/paths/sqlEditor.js";
+import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";
 
 export default function (input) {
   Object.assign(input.prototype, {
@@ -34,8 +34,8 @@ export default function (input) {
     },
 
     newMenuDropdown() {
-      const { entity, closeMenu, entityType, summaryDataset, openWikiDrawer } =
-        this.props;
+      const { t } = getIntlContext();
+      const { entity, closeMenu, entityType, openWikiDrawer } = this.props;
 
       const versionContext = getVersionContextFromId(entity.get("id"));
       const { type: refType, value: refValue } = versionContext ?? {};
@@ -44,7 +44,7 @@ export default function (input) {
         abilities(entity, entityType);
 
       const resourceId = entity.getIn(["fullPathList", 0]);
-      const newFullPath = constructFullPath(entity.get("fullPathList"));
+      const newFullPath = JSON.stringify(entity.get("fullPathList").toJS());
 
       return (
         <Menu>
@@ -53,9 +53,9 @@ export default function (input) {
               pathname: sqlPaths.sqlEditor.link(),
               search: `?context="${encodeURIComponent(
                 resourceId
-              )}"&queryPath=${newFullPath}`,
+              )}"&queryPath=${encodeURIComponent(newFullPath)}`,
             }}
-            text={la("Query")}
+            text={t("Dataset.Actions.Query")}
             closeMenu={closeMenu}
           />
           {canEdit && (
@@ -67,74 +67,86 @@ export default function (input) {
                     : ""
                 }`
               )}
-              text={la("Edit")}
+              text={t("Common.Actions.Edit")}
             />
           )}
           {isPhysical && (
             <MenuItemLink
-              href={wrapBackendLink(entity.getIn(["links", "query"]))}
-              text={la("Go to Table")}
+              href={wrapBackendLink(
+                `${entity.getIn(["links", "query"])}${
+                  refType && refValue && resourceId
+                    ? `?refType=${refType}&refValue=${refValue}&sourceName=${resourceId}`
+                    : ""
+                }`
+              )}
+              text={t("Dataset.Actions.GoTo.Table")}
               closeMenu={closeMenu}
             />
           )}
-          {summaryDataset && (
-            <MenuItem
-              onClick={() => {
-                closeMenu();
-                openWikiDrawer(summaryDataset);
-              }}
-            >
-              {la("Open Details Panel")}
-            </MenuItem>
-          )}
+          <MenuItem
+            onClick={() => {
+              closeMenu();
+              openWikiDrawer(entity);
+            }}
+            disabled={!entity}
+          >
+            {t("Dataset.Actions.OpenDetails")}
+          </MenuItem>
           <AnalyzeMenuItem entity={entity} closeMenu={closeMenu} />
           <DividerHr />
-          {canDelete &&
-            ((entityType !== "file" && (
-              <MenuItemLink
-                closeMenu={closeMenu}
-                href={this.getRemoveLocation()}
-                text={la("Remove")}
-              />
-            )) ||
-              (entityType === "file" && (
-                <MenuItem onClick={this.handleRemoveFile}>
-                  {la("Remove")}
-                </MenuItem>
-              )))}
           {canMove && (
             <MenuItemLink
               closeMenu={closeMenu}
               href={this.getRenameLocation()}
-              text={la("Rename")}
+              text={t("Common.Actions.Rename")}
             />
           )}
           {canMove && (
             <MenuItemLink
               closeMenu={closeMenu}
               href={this.getMoveLocation()}
-              text={la("Move")}
+              text={t("Common.Actions.Move")}
             />
           )}
-          <MenuItem onClick={this.copyPath}>{la("Copy Path")}</MenuItem>
-          <DividerHr />
+          <MenuItem onClick={this.copyPath}>
+            {t("Common.Actions.CopyPath")}
+          </MenuItem>
           <MenuItemLink
             closeMenu={closeMenu}
             href={this.getSettingsLocation()}
-            text={la("Settings")}
+            text={t("Common.Settings")}
           />
+          {(canRemoveFormat || canDelete) && <DividerHr />}
           {canRemoveFormat && (
             <MenuItemLink
               closeMenu={closeMenu}
               href={this.getRemoveFormatLocation()}
-              text={la("Remove Format")}
+              text={t("Dataset.Actions.RemoveFormat")}
             />
+          )}
+          {canDelete && (
+            <>
+              {(entityType !== "file" && (
+                <MenuItemLink
+                  className="danger"
+                  closeMenu={closeMenu}
+                  href={this.getRemoveLocation()}
+                  text={t("Common.Actions.Delete")}
+                />
+              )) ||
+                (entityType === "file" && (
+                  <MenuItem onClick={this.handleRemoveFile} className="danger">
+                    {t("Common.Actions.Delete")}
+                  </MenuItem>
+                ))}
+            </>
           )}
         </Menu>
       );
     },
 
     oldMenuDropdown() {
+      const { t } = getIntlContext();
       const { entity, closeMenu, entityType } = this.props;
 
       const { canRemoveFormat, canEdit, canMove, canDelete } = abilities(
@@ -147,7 +159,7 @@ export default function (input) {
           {
             <MenuItemLink
               href={wrapBackendLink(entity.getIn(["links", "query"]))}
-              text={la("Query")}
+              text={t("Dataset.Actions.Query")}
               closeMenu={closeMenu}
             />
           }
@@ -156,7 +168,7 @@ export default function (input) {
             // feature has a bug see DX-7054
             /*
           entityType === 'folder' && <MenuItemLink
-            text={la('Browse Contents')}
+            text={laDeprecated('Browse Contents')}
             href={entity.getIn(['links', 'self'])}
             closeMenu={closeMenu} />
           */
@@ -165,14 +177,14 @@ export default function (input) {
           {canEdit && (
             <MenuItemLink
               href={wrapBackendLink(entity.getIn(["links", "edit"]))}
-              text={la("Edit")}
+              text={t("Common.Actions.Edit")}
             />
           )}
 
           {
             <MenuItemLink
               href={this.getMenuItemUrl("wiki")}
-              text={la("Details")}
+              text={t("Common.Actions.Details")}
             />
           }
 
@@ -184,25 +196,11 @@ export default function (input) {
 
           <DividerHr />
 
-          {canDelete &&
-            ((entityType !== "file" && (
-              <MenuItemLink
-                closeMenu={closeMenu}
-                href={this.getRemoveLocation()}
-                text={la("Remove")}
-              />
-            )) ||
-              (entityType === "file" && (
-                <MenuItem onClick={this.handleRemoveFile}>
-                  {la("Remove")}
-                </MenuItem>
-              )))}
-
           {canMove && (
             <MenuItemLink
               closeMenu={closeMenu}
               href={this.getRenameLocation()}
-              text={la("Rename")}
+              text={t("Common.Actions.Rename")}
             />
           )}
 
@@ -210,26 +208,46 @@ export default function (input) {
             <MenuItemLink
               closeMenu={closeMenu}
               href={this.getMoveLocation()}
-              text={la("Move")}
+              text={t("Common.Actions.Move")}
             />
           )}
 
-          <MenuItem onClick={this.copyPath}>{la("Copy Path")}</MenuItem>
-
-          <DividerHr />
+          <MenuItem onClick={this.copyPath}>
+            {t("Common.Actions.CopyPath")}
+          </MenuItem>
 
           <MenuItemLink
             closeMenu={closeMenu}
             href={this.getSettingsLocation()}
-            text={la("Settings")}
+            text={t("Common.Settings")}
           />
+
+          {(canRemoveFormat || canDelete) && <DividerHr />}
 
           {canRemoveFormat && (
             <MenuItemLink
               closeMenu={closeMenu}
               href={this.getRemoveFormatLocation()}
-              text={la("Remove Format")}
+              text={t("Dataset.Actions.RemoveFormat")}
             />
+          )}
+
+          {canDelete && (
+            <>
+              {(entityType !== "file" && (
+                <MenuItemLink
+                  className="danger"
+                  closeMenu={closeMenu}
+                  href={this.getRemoveLocation()}
+                  text={t("Common.Actions.Delete")}
+                />
+              )) ||
+                (entityType === "file" && (
+                  <MenuItem onClick={this.handleRemoveFile} className="danger">
+                    {t("Common.Actions.Delete")}
+                  </MenuItem>
+                ))}
+            </>
           )}
         </Menu>
       );

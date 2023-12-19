@@ -13,28 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 import FontIcon from "@app/components/Icon/FontIcon";
 import { useIntl } from "react-intl";
 import { EntryV1 as Entry } from "@app/services/nessie/client";
 import NessieLink from "@app/pages/NessieHomePage/components/NessieLink/NessieLink";
-import { FeatureSwitch } from "@app/exports/components/FeatureSwitch/FeatureSwitch";
 import { withRouter, type WithRouterProps } from "react-router";
 import {
   constructArcticUrl,
-  getArcticTabFromPathname,
   useArcticCatalogContext,
   getIconByType,
 } from "@app/exports/pages/ArcticCatalog/arctic-catalog-utils";
+import { ARCTIC_ENTITY_PRIVILEGES } from "@inject/featureFlags/flags/ARCTIC_ENTITY_PRIVILEGES";
+import { useFeatureFlag } from "@app/exports/providers/useFeatureFlag";
 import { useNessieContext } from "@app/pages/NessieHomePage/utils/context";
-import { ArcticCatalogDataItemSettings } from "../ArcticCatalogDataItemSettings/ArcticCatalogDataItemSettings";
-import "./ArcticCatalogDataItem.less";
-import { DATA_OPTIMIZATION } from "@app/exports/flags/DATA_OPTIMIZATION";
+import ArcticCatalogDataItemSettings from "@inject/pages/ArcticCatalog/components/ArcticCatalogDataItemSettings/ArcticCatalogDataItemSettings";
 import "@app/pages/NessieHomePage/components/NamespaceItem/NamespaceItem.less";
 import { type EngineStateRead } from "@app/exports/endpoints/ArcticCatalogs/Configuration/CatalogConfiguration.types";
-//@ts-ignore
-import { useModalContainer } from "dremio-ui-lib/components";
+import {
+  ICEBERG_TABLE,
+  ICEBERG_VIEW,
+} from "@inject/pages/ArcticCatalog/components/ArcticCatalogDataItemSettings/settings-utils";
 import { Type } from "@app/types/nessie";
+import "./ArcticCatalogDataItem.less";
 
 type ArcticCatalogDataIconProps = {
   type: string | null;
@@ -49,7 +49,6 @@ export function ArcticCatalogDataIcon({ type }: ArcticCatalogDataIconProps) {
 function ArcticCatalogDataItem({
   entry,
   configState,
-  location,
   params,
 }: {
   entry: Entry;
@@ -57,23 +56,38 @@ function ArcticCatalogDataItem({
 } & WithRouterProps) {
   const arcticCtx = useArcticCatalogContext();
   const {
-    state: { hash },
+    state: { hash, reference },
   } = useNessieContext();
-  const optimizationModal = useModalContainer();
-  if (!entry.name || entry.name.elements.length === 0) return null;
+  const [entityPrivilegesFlag] = useFeatureFlag(ARCTIC_ENTITY_PRIVILEGES);
+
+  if (!entry.name || entry.name.elements.length === 0 || !reference)
+    return null;
   const { elements } = entry.name;
   const fullPath = elements.map((c) => encodeURIComponent(c)).join("/");
   const tableId = elements?.join(".");
-  const activeTab = arcticCtx
-    ? arcticCtx?.activeTab
-    : getArcticTabFromPathname(location.pathname) ?? "data";
+  const activeTab = arcticCtx.activeTab;
   const url = constructArcticUrl({
-    type: arcticCtx?.isCatalog ? "catalog" : "source",
+    type: arcticCtx.isCatalog ? "catalog" : "source",
     baseUrl: "",
     tab: activeTab,
-    namespace: `${params?.branchName}/${fullPath}`,
+    namespace: `${encodeURIComponent(params?.branchName)}/${fullPath}`,
     hash: hash ? `?hash=${hash}` : "",
   });
+  const isOnTagOrCommit = reference.type === "TAG" || !!hash;
+  const renderSettingsButton = (): boolean => {
+    if (
+      entry.type === ICEBERG_VIEW &&
+      entityPrivilegesFlag &&
+      !isOnTagOrCommit
+    ) {
+      return true;
+    }
+    if (entry.type === ICEBERG_TABLE && entityPrivilegesFlag) {
+      return true;
+    }
+    return false;
+  };
+
   const mainContent = (
     <>
       <ArcticCatalogDataIcon type={entry.type} />
@@ -83,19 +97,16 @@ function ArcticCatalogDataItem({
       >
         {elements[elements.length - 1]}
       </span>
-      {entry.type === Type.IcebergTable && (
-        <FeatureSwitch
-          flag={DATA_OPTIMIZATION}
-          renderEnabled={() => (
-            <ArcticCatalogDataItemSettings
-              reference={params?.branchName}
-              tableId={tableId}
-              catalogId={params?.arcticCatalogId}
-              optimizationModal={optimizationModal}
-              title={elements[elements.length - 1]}
-              configState={configState}
-            />
-          )}
+      {renderSettingsButton() && (
+        <ArcticCatalogDataItemSettings
+          refValue={hash ?? reference.name}
+          fullPath={elements}
+          tableId={tableId}
+          catalogId={params?.arcticCatalogId}
+          title={elements[elements.length - 1]}
+          configState={configState}
+          entryType={entry.type}
+          isOnTagOrCommit={isOnTagOrCommit}
         />
       )}
     </>

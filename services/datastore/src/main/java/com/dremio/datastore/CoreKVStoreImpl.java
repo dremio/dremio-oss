@@ -17,10 +17,13 @@ package com.dremio.datastore;
 
 import java.util.ConcurrentModificationException;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.FindByRange;
 import com.dremio.datastore.api.ImmutableFindByRange;
+import com.dremio.datastore.api.IncrementCounter;
 import com.dremio.datastore.api.options.VersionOption;
 import com.google.common.base.Function;
 import com.google.common.base.Strings;
@@ -125,6 +128,21 @@ public class CoreKVStoreImpl<KEY, VALUE> implements CoreKVStore<KEY, VALUE> {
 
     final Iterable<Document<byte[], byte[]>> range = rawStore.find(rangeBuilder.build(), options);
     return Iterables.transform(range, this::fromDocument);
+  }
+
+  @Override
+  public void bulkIncrement(Map<KVStoreTuple<KEY>, List<IncrementCounter>> keysToIncrement, IncrementOption option) {
+    final Map<byte[], List<IncrementCounter>> convertedKeyMap = keysToIncrement.entrySet().stream()
+      .collect(Collectors.toMap(e -> e.getKey().getSerializedBytes(), Map.Entry::getValue));
+    rawStore.bulkIncrement(convertedKeyMap, option);
+  }
+
+  @Override
+  public void bulkDelete(List<KVStoreTuple<KEY>> keysToDelete) {
+    final List<byte[]> convertedKeys = keysToDelete.stream()
+      .map(KVStoreTuple::getSerializedBytes)
+      .collect(Collectors.toList());
+    rawStore.bulkDelete(convertedKeys);
   }
 
   @Override

@@ -100,7 +100,7 @@ public final class ParameterizedQueryParameterReplacer {
         // It's probably a function like CONVERT_FROM that type validation bug that needs to be fixed.
         // Now if the types don't match and we know the correct type, then add a cast
         // If it's not castable, then we will get the appropriate error message.
-        value = rexBuilder.makeCast(parameterType, value);
+        value = rexBuilder.makeCast(parameterType, value, true);
       }
 
       replacementMapping.put(key, value);

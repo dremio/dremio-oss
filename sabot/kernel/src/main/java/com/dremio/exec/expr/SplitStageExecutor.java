@@ -21,6 +21,7 @@ import org.apache.arrow.gandiva.exceptions.GandivaException;
 import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.FixedWidthVector;
 import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.impl.ComplexWriterImpl;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -268,6 +269,9 @@ class SplitStageExecutor implements AutoCloseable {
 
   private void allocateNew(int recordsToConsume) {
     for(ValueVector vv : allocationVectors) {
+      if (vv instanceof ListVector) {
+        ((ListVector)vv).setInitialCapacity(recordsToConsume);
+      }
       AllocationHelper.allocateNew(vv, recordsToConsume);
     }
 

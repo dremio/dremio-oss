@@ -201,14 +201,6 @@ describe("SqlEditorController", () => {
       });
     });
 
-    describe("toggleDatasetPanel", () => {
-      it("should toggle dataset panel state", () => {
-        instance.toggleDatasetPanel();
-        expect(instance.state.datasetsPanel).to.be.true;
-        expect(instance.state.funcHelpPanel).to.be.false;
-      });
-    });
-
     describe("toggleFunctionsHelpPanel", () => {
       it("should toggle function help panel state", () => {
         instance.toggleFunctionsHelpPanel();

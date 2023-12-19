@@ -16,6 +16,8 @@
 package com.dremio.datastore;
 
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 
 import com.dremio.common.scanner.persistence.ScanResult;
@@ -25,7 +27,6 @@ import com.dremio.datastore.api.KVStore;
 import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.datastore.api.StoreCreationFunction;
 import com.dremio.datastore.format.Format;
-import com.dremio.datastore.utility.StoreLoader;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -38,11 +39,15 @@ public class TimedKVStoreProvider implements KVStoreProvider {
 
   private final KVStoreProvider kvProvider;
   private ImmutableMap<Class<? extends StoreCreationFunction<?, ?, ?>>, KVStore<?, ?>> stores;
-  private ScanResult scan;
+  private final StoreCreatorSupplier storeCreatorSupplier;
 
   public TimedKVStoreProvider(KVStoreProvider delegate, ScanResult scan) {
+    this(delegate, StoreCreatorSupplier.of(scan));
+  }
+
+  public TimedKVStoreProvider(KVStoreProvider delegate, StoreCreatorSupplier storeCreatorSupplier) {
     this.kvProvider = delegate;
-    this.scan = scan;
+    this.storeCreatorSupplier = storeCreatorSupplier;
   }
 
   @Override
@@ -126,7 +131,26 @@ public class TimedKVStoreProvider implements KVStoreProvider {
   @Override
   public void start() throws Exception {
     kvProvider.start();
-    stores = StoreLoader.buildStores(scan, TimedKVStoreProvider.this::newStore);
+    //KVProvider will create the required physical KVStores. We need to wrap them with timed instances.
+    ImmutableMap.Builder<Class<? extends StoreCreationFunction<?, ?, ?>>, KVStore<?, ?>> mapBuilder = ImmutableMap.builder();
+    //Same store can be mapped to multiple creators. So wrap them only once.
+    Map<KVStore<?, ?>, TimedKVStore<?, ?>> storeWrapperMap = new HashMap<>();
+    for (Class<? extends StoreCreationFunction> creator : storeCreatorSupplier.get()) {
+      KVStore<Object, Object> kvStore = kvProvider.getStore((Class<? extends StoreCreationFunction<Object, Object, KVStore<Object, Object>>>) creator);
+      if (kvStore != null) {
+        TimedKVStore<?, ?> wrappedStore = storeWrapperMap.get(kvStore);
+        if (null == wrappedStore) {
+          if (kvStore instanceof IndexedStore) {
+            wrappedStore = TimedKVStore.TimedIndexedStore.of((IndexedStore) kvStore);
+          } else {
+            wrappedStore = TimedKVStore.of(kvStore);
+          }
+          storeWrapperMap.put(kvStore, wrappedStore);
+        }
+        mapBuilder.put((Class<? extends StoreCreationFunction<?, ?, ?>>) creator, wrappedStore);
+      }
+    }
+    stores = mapBuilder.build();
   }
 
   @Override

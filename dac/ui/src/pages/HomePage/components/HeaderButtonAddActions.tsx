@@ -13,39 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { withRouter, WithRouterProps } from "react-router";
+import { browserHistory } from "react-router";
 import { useIntl } from "react-intl";
 import { Divider } from "@mui/material";
-import PropTypes from "prop-types";
-//@ts-ignore
 import config from "dyn-load/utils/config";
-
-/* @ts-ignore */
 import { SHOW_ADD_FOLDER } from "@inject/pages/HomePage/components/HeaderButtonConstants";
-/* @ts-ignore */
 import { SHOW_ADD_FILE } from "@inject/pages/HomePage/components/HeaderButtonConstants";
-/* @ts-ignore */
 import { HANDLE_THROUGH_API } from "@inject/pages/HomePage/components/HeaderButtonConstants";
 import MenuItem from "@app/components/Menus/MenuItem";
-import { parseResourceId } from "@app/utils/pathUtils";
-import * as sqlPaths from "dremio-ui-common/paths/sqlEditor.js";
-import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 
 import * as classes from "./HeaderButtonAddActions.module.less";
 
 type HeaderButtonAddActionsProps = {
-  allowFileUpload: boolean;
-  allowTable: boolean;
   canUploadFile: boolean;
 };
-const HeaderButtonAddActions = (
-  props: HeaderButtonAddActionsProps & WithRouterProps,
-  context: { username: string }
-) => {
-  const { allowFileUpload, allowTable, canUploadFile, location, router } =
-    props;
+const HeaderButtonAddActions = (props: HeaderButtonAddActionsProps) => {
+  const { canUploadFile } = props;
 
   const intl = useIntl();
+  const location = browserHistory.getCurrentLocation();
 
   let displayUploadFile = SHOW_ADD_FILE && config.allowFileUploads;
   if (HANDLE_THROUGH_API) {
@@ -55,13 +41,9 @@ const HeaderButtonAddActions = (
       displayUploadFile = true;
     }
   }
-  const projectId = getSonarContext()?.getSelectedProjectId?.();
-  const newQueryUrl = sqlPaths.sqlEditor.link({ projectId });
-  const resourceId = parseResourceId(location.pathname, context.username);
-  const newQueryUrlParams = "?context=" + encodeURIComponent(resourceId);
 
   const ACTIONS = [
-    ...(allowFileUpload && (canUploadFile || displayUploadFile)
+    ...(canUploadFile || displayUploadFile
       ? [
           {
             name: "File.Upload",
@@ -72,40 +54,6 @@ const HeaderButtonAddActions = (
             qa: "add-file",
             iconClass: "headerButtons__uploadIcon",
             hasDivider: true,
-          },
-        ]
-      : []),
-    {
-      name: "Common.NewView",
-      key: "view",
-      icon: "interface/add-view",
-      to: {
-        pathname: newQueryUrl,
-        search: newQueryUrlParams + "&create=view",
-        state: {
-          createView: true,
-        },
-      },
-      tooltip: "Common.NewView",
-      qa: "new-view",
-      iconClass: "",
-    },
-    ...(allowTable
-      ? [
-          {
-            name: "Common.NewTable",
-            key: "table",
-            icon: "interface/add-dataset",
-            to: {
-              pathname: newQueryUrl,
-              search: newQueryUrlParams,
-              state: {
-                createTable: true,
-              },
-            },
-            tooltip: "Common.NewTable",
-            qa: "new-table",
-            iconClass: "",
           },
         ]
       : []),
@@ -132,8 +80,8 @@ const HeaderButtonAddActions = (
         return (
           <div key={key}>
             <MenuItem
-              classname="full-width gutter--none"
-              onClick={() => router.push(to)}
+              className="full-width gutter--none"
+              onClick={() => browserHistory.push(to)}
             >
               <div className={classes["headerButtons__addActions__content"]}>
                 <dremio-icon
@@ -158,6 +106,4 @@ const HeaderButtonAddActions = (
   );
 };
 
-HeaderButtonAddActions.contextTypes = { username: PropTypes.string };
-
-export default withRouter(HeaderButtonAddActions);
+export default HeaderButtonAddActions;

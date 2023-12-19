@@ -14,12 +14,14 @@
  * limitations under the License.
  */
 import Immutable from "immutable";
-//@ts-ignore
+import clsx from "clsx";
 import { Tooltip } from "dremio-ui-lib";
 import { PageTypes } from "../../pageTypes";
 import TimeDot from "./TimeDot";
 import * as classes from "./HistoryLine.module.less";
 import { getSessionContext } from "dremio-ui-common/contexts/SessionContext.js";
+import { useMultiTabIsEnabled } from "@app/components/SQLScripts/useMultiTabIsEnabled";
+import { isTabbableUrl } from "@app/utils/explorePageTypeUtils";
 
 type HistoryLineProps = {
   historyItems?: any;
@@ -40,9 +42,13 @@ const HistoryLine = (props: HistoryLineProps) => {
   const organizationLanding =
     typeof getSessionContext().getOrganizationId === "function";
 
-  const adjustMaxHeight = !organizationLanding
-    ? { maxHeight: "calc(100vh - 55px)" }
-    : {};
+  const tabsEnabled = useMultiTabIsEnabled();
+  const isTabsRendered = tabsEnabled && isTabbableUrl(location);
+
+  const adjustMaxHeight =
+    !organizationLanding && !isTabsRendered
+      ? { maxHeight: "calc(100vh - 55px)" }
+      : {};
 
   const renderContent = () => {
     switch (pageType) {
@@ -55,7 +61,9 @@ const HistoryLine = (props: HistoryLineProps) => {
       case PageTypes.default:
         return (
           <div
-            className={classes["historyLine"]}
+            className={clsx(classes["historyLine"], {
+              [classes["--withTabs"]]: isTabsRendered,
+            })}
             style={{ ...adjustMaxHeight }}
           >
             <div className={classes["historyLine__clock-wrapper"]}>

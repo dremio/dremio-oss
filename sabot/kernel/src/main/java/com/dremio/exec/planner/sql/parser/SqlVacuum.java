@@ -18,7 +18,10 @@ package com.dremio.exec.planner.sql.parser;
 import static org.apache.iceberg.TableProperties.MAX_SNAPSHOT_AGE_MS_DEFAULT;
 import static org.apache.iceberg.TableProperties.MIN_SNAPSHOTS_TO_KEEP_DEFAULT;
 
-import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -26,7 +29,6 @@ import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlNumericLiteral;
-import org.apache.calcite.sql.SqlSelect;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.validate.SqlValidator;
@@ -37,57 +39,78 @@ import com.dremio.exec.catalog.VacuumOptions;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
 import com.dremio.service.namespace.NamespaceKey;
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 
 public abstract class SqlVacuum extends SqlCall implements SqlToPlanHandler.Creator {
-  protected static final List<String> OPTION_KEYS = ImmutableList.of(
-    "older_than",
-    "retain_last"
-  );
+  public static final long MAX_FILE_AGE_MS_DEFAULT = TimeUnit.DAYS.toMillis(3);  // 3 days
 
   protected final SqlNodeList optionsList;
   protected final SqlNodeList optionsValueList;
-  protected String oldThanTimestamp;
-  protected Integer retainLastValue;
+  protected String olderThanTimestamp;
+  protected Integer retainLastSnapshots;
+  protected String location;
 
-  private SqlSelect sourceSelect;
-
-  public SqlSelect getSourceSelect() {
-    return sourceSelect;
-  }
+  private final Map<String, Consumer<SqlNode>> optionsConsumer;
+  protected SqlLiteral expireSnapshots;
+  protected SqlLiteral removeOrphans;
 
   /**
    * Creates a SqlVacuum.
    */
   public SqlVacuum(
     SqlParserPos pos,
+    SqlLiteral expireSnapshots,
+    SqlLiteral removeOrphans,
     SqlNodeList optionsList,
     SqlNodeList optionsValueList) {
     super(pos);
+    this.expireSnapshots = expireSnapshots;
+    this.removeOrphans = removeOrphans;
     this.optionsList = optionsList;
     this.optionsValueList = optionsValueList;
-    populateOptions(optionsList, optionsValueList);
-  }
+    this.optionsConsumer = ImmutableMap.of(
+      "older_than", sqlNode -> this.olderThanTimestamp = extractStringValue(sqlNode),
+      "retain_last", sqlNode -> this.retainLastSnapshots = extractRetainLast(sqlNode),
+      "location", sqlNode -> this.location = extractStringValue(sqlNode));
 
-  public void setSourceSelect(SqlSelect select) {
-    this.sourceSelect = select;
+    populateOptions(optionsList, optionsValueList);
   }
 
   public abstract NamespaceKey getPath();
 
-  public VacuumOptions getVacuumOptions() {
-    long olderThanInMillis;
-    if (oldThanTimestamp != null) {
-      olderThanInMillis = SqlHandlerUtil.convertToTimeInMillis(oldThanTimestamp, pos);
-    } else {
-      long currentTime = System.currentTimeMillis();
-      olderThanInMillis = currentTime - MAX_SNAPSHOT_AGE_MS_DEFAULT;
-    }
-    int retainLast = retainLastValue != null ? retainLastValue : MIN_SNAPSHOTS_TO_KEEP_DEFAULT;
-    return new VacuumOptions(VacuumOptions.Type.TABLE, olderThanInMillis, retainLast);
+  public Optional<Consumer<SqlNode>> getOptionsConsumer(String optionName) {
+    return Optional.ofNullable(optionsConsumer.get(optionName));
   }
 
-  private void populateOptions(SqlNodeList optionsList, SqlNodeList optionsValueList) {
+  public VacuumOptions getVacuumOptions() {
+    long olderThanInMillis;
+    if (expireSnapshots.booleanValue()) {
+      if (olderThanTimestamp != null) {
+        olderThanInMillis = SqlHandlerUtil.convertToTimeInMillis(olderThanTimestamp, pos);
+      } else {
+        long currentTime = System.currentTimeMillis();
+        olderThanInMillis = currentTime - MAX_SNAPSHOT_AGE_MS_DEFAULT;
+      }
+      int retainLast = retainLastSnapshots != null ? retainLastSnapshots : MIN_SNAPSHOTS_TO_KEEP_DEFAULT;
+      return new VacuumOptions(expireSnapshots.booleanValue(), removeOrphans.booleanValue(), olderThanInMillis, retainLast, null, null);
+    }
+
+    if (removeOrphans.booleanValue()) {
+      if (olderThanTimestamp != null) {
+        olderThanInMillis = SqlHandlerUtil.convertToTimeInMillis(olderThanTimestamp, pos);
+      } else {
+        long currentTime = System.currentTimeMillis();
+        // By default, try to clean orphan files which are at least 3 days old.
+        olderThanInMillis = currentTime - MAX_FILE_AGE_MS_DEFAULT;
+      }
+
+      return new VacuumOptions(expireSnapshots.booleanValue(), removeOrphans.booleanValue(), olderThanInMillis, 1, location, null);
+    }
+
+    return new VacuumOptions(expireSnapshots.booleanValue(), removeOrphans.booleanValue(), null, null, null, null);
+  }
+
+  protected void populateOptions(SqlNodeList optionsList, SqlNodeList optionsValueList) {
     if (optionsList == null) {
       return;
     }
@@ -96,33 +119,33 @@ public abstract class SqlVacuum extends SqlCall implements SqlToPlanHandler.Crea
     for (SqlNode option : optionsList) {
       SqlIdentifier optionIdentifier = (SqlIdentifier) option;
       String optionName = optionIdentifier.getSimple();
-      switch (OPTION_KEYS.indexOf(optionName.toLowerCase())) {
-        case 0:
-          this.oldThanTimestamp = ((SqlLiteral) optionsValueList.get(idx)).getValueAs(String.class);
-          break;
-        case 1:
-          SqlNumericLiteral optionValueNumLiteral = (SqlNumericLiteral) optionsValueList.get(idx);
-          Integer retainLastValue = Integer.valueOf(optionValueNumLiteral.intValue(true));
-          if (retainLastValue <= 0) {
-            throw UserException.unsupportedError()
-              .message("Minimum number of snapshots to retain can be 1")
-              .buildSilently();
-          }
-          this.retainLastValue = retainLastValue;
-          break;
-        default:
-          try {
-            throw new SqlParseException(String.format("Unsupported option '%s' for VACUUM TABLE.", optionName), pos, null, null, null);
-          } catch (SqlParseException e) {
-            throw new RuntimeException(e);
-          }
-      }
+
+      Consumer<SqlNode> optionConsumer = getOptionsConsumer(optionName.toLowerCase())
+        .orElseThrow(() -> new RuntimeException(new SqlParseException(
+          String.format("Unsupported option '%s' for VACUUM.", optionName), pos, null, null, null)));
+
+      optionConsumer.accept(optionsValueList.get(idx));
       idx++;
     }
   }
 
+  protected String extractStringValue(SqlNode sqlNode) {
+    return ((SqlLiteral) sqlNode).getValueAs(String.class);
+  }
+
+  protected Integer extractRetainLast(SqlNode sqlNode) {
+    SqlNumericLiteral optionValueNumLiteral = (SqlNumericLiteral) sqlNode;
+    Integer retainLastValue = Integer.valueOf(optionValueNumLiteral.intValue(true));
+    if (retainLastValue <= 0) {
+      throw UserException.unsupportedError()
+        .message("Minimum number of snapshots to retain can be 1")
+        .buildSilently();
+    }
+    return retainLastValue;
+  }
+
   @Override
   public void validate(SqlValidator validator, SqlValidatorScope scope) {
-    validator.validate(this.sourceSelect);
+    // No custom select clause. Hence, skip validation.
   }
 }

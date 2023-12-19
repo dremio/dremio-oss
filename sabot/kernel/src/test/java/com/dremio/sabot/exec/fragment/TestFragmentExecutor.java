@@ -22,6 +22,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
 import java.util.Collections;
 
 import org.apache.arrow.memory.ArrowBuf;
@@ -67,11 +68,13 @@ public class TestFragmentExecutor {
             FragmentExecutor exec = spy(getTestFragmentExecutor());
             doNothing().when(exec).setupExecution();
             ArrowBuf[] bufs = new ArrowBuf[]{messageBuf};
+            ArrayList<Integer> bufferLengths = new ArrayList<>();
             ExecProtos.RuntimeFilter filter = ExecProtos.RuntimeFilter.newBuilder().setProbeScanOperatorId(101).setProbeScanMajorFragmentId(1)
                     .setPartitionColumnFilter(ExecProtos.CompositeColumnFilter.newBuilder().setSizeBytes(64).addAllColumns(Lists.newArrayList("col1")).build())
                     .build();
+            bufferLengths.add((int)filter.getPartitionColumnFilter().getSizeBytes());
             OutOfBandMessage oobm = new OutOfBandMessage(UserBitShared.QueryId.newBuilder().build(), 1, Collections.EMPTY_LIST, 101, 1, 1,
-                    101, new OutOfBandMessage.Payload(filter), bufs, false);
+                    101, new OutOfBandMessage.Payload(filter), bufs, bufferLengths,false);
 
             FragmentExecutor.FragmentExecutorListener listener = exec.getListener();
             listener.handle(oobm);

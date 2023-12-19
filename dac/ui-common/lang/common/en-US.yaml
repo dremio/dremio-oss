@@ -20,6 +20,31 @@ Common.Actions.Accept: Accept
 Common.Actions.Cancel: Cancel
 Common.Actions.OK: OK
 Common.Actions.Yes: "Yes"
+Common.Actions.Delete: "Delete"
+Common.Actions.BrowseContents: "Browse Contents"
+Common.Actions.Move: "Move"
+Common.Actions.MoveAnyway: "Move Anyway"
+Common.Actions.MakeCopy: "Make a Copy"
+Common.Actions.Rename: "Rename"
+Common.Actions.RenameAnyway: "Rename Anyway"
+Common.Actions.CopyPath: "Copy Path"
+Common.Actions.Details: "Details"
+Common.Actions.Edit: "Edit"
+Common.Actions.Disable: "Disable"
+Common.Actions.Save: "Save"
+Common.Actions.Append: Append
+Common.Actions.Overwrite: Overwrite
+Common.Actions.Create: Create
+Common.Actions.Continue: Continue
+
+# Common
+Common.Average: Average
+Common.Date: Date
+Common.Remove: Remove
+Common.More: More
+Common.Owner: Owner
+Common.Transfer: Transfer
+Common.Or: or
 
 # Route leave warning dialog messages
 Common.RouteLeaveDialog.Title: Unsaved Changes
@@ -35,6 +60,8 @@ Common.Errors.Unexpected: An unexpected error occurred.
 Common.Errors.404: The page you are looking for doesn’t exist.
 Common.Errors.UnexpectedError.Root: An unexpected error occurred when we tried to load the page.
 
+Common.History: History
+
 Common.Settings: Settings
 
 Common.LoadingMore: Loading more…
@@ -45,6 +72,85 @@ NetworkConnectivity.WebsocketFailure: There was a problem establishing a WebSock
 
 # Privileges table messages
 Admin.Privileges.OwnerChangeTitle: Make this user/role the owner?
-Admin.Privileges.OwnerChangeContent: The new owner can perform all actions on this object and objects within the object. Actions include modifying object settings, granting/revoking user and role access, and deleting the object. You might also lose the ability to change privileges settings.
+Admin.Privileges.Organization.TransferOwnerContent: The new owner can perform all actions on this object and objects within the object. Actions include modifying object settings, granting/revoking user and role access, and deleting the object. You might also lose the ability to change privileges settings.
+Admin.Privileges.Catalog.TransferOwnerContent: This will transfer ownership of “{entity}” to “{newOwner}”. The new owner will be able to perform all actions on this catalog, and objects within the catalog (such as folders, tables, and views). Actions include modifying object settings, managing user/role access, and deleting the object.
+Admin.Privileges.Entity.TransferOwnerContent: This will transfer ownership of “{entity}” to “{newOwner}”. The new owner will be able to perform all actions on this table. Actions include modifying object settings, managing user/role access, and deleting the object.
 Admin.Privileges.RemoveGranteeTitle: Remove user/role?
 Admin.Privileges.RemoveGranteeContent: “{name}” will not be able to perform any actions on this object, are you sure?
+Admin.Privileges.TransferOwnership: Transfer Ownership
+Admin.Privileges.TransferOwnerTitle: Transfer ownership to this user/role?
+Admin.Privileges.GrantOwnership: Grant OWNERSHIP,
+Admin.Privileges.Catalog.Usage: Allows the user read-only access (view, settings and add as a source in Sonar) to an Arctic catalog and its entities (folders, tables, views, branches and tags).
+Admin.Privileges.Catalog.Commit: Allows the user to write-only access to an Arctic catalog and its entities (folders, tables, views).
+Admin.Privileges.Catalog.ManageGrants: Allows a customer to modify the privileges set on a an Arctic catalog (USAGE, WRITE_SETTING, etc.).
+Admin.Privileges.Catalog.Modify: Allows the user to edit the Arctic catalog settings and the editing of the data optimization settings.
+Admin.Privileges.Catalog.CreateBranch: Allows users to create branches.
+Admin.Privileges.Catalog.CreateTag: Allows users to create tags.
+Admin.Privileges.Organization.CreateCloud: Create a new cloud.
+Admin.Privileges.Organization.CreateUser: Create a new user.
+Admin.Privileges.Organization.CreateRole: Create a new role.
+Admin.Privileges.Organization.CreateProject: Create a new project.
+Admin.Privileges.Organization.ManageGrants: Edit privileges for other roles and users.
+Admin.Privileges.Organization.CreateCatalog: Create a new Arctic catalog.
+Admin.Privileges.Organization.ConfigureSecurity: Edit all security configurations for the organization.
+Admin.Privileges.NoOwner: This user/role was removed
+
+# Autocomplete
+Autocomplete.UnnamedDerivedTable: Unnamed derived table
+
+Space.Delete: "Delete Space"
+Folder.Delete: "Delete Folder"
+Source.Delete: "Delete Source"
+File.Delete: "Delete File"
+Dataset.DeleteDataset: "Delete Dataset"
+Dataset.MoveDataset: "Move Dataset"
+Dataset.Actions.RemoveFormat: "Remove Format"
+Dataset.RenameDataset: "Rename Dataset"
+Delete.Confirmation: 'Are you sure you want to delete "{name}"?'
+RemoveFormat.Confirmation: 'Are you sure you want to remove format for "{name}"?'
+Dataset.Name: "Dataset name..."
+Dataset.Actions.ExploreGraph: "Explore Data Graph"
+Dataset.Actions.Lineage: "Open Lineage"
+Dataset.Actions.Query: "Query"
+Dataset.Actions.GoTo.Dataset: "Go to Dataset"
+Dataset.Actions.GoTo.Table: "Go to Table"
+Dataset.Actions.OpenDetails: "Open Details Panel"
+
+# Acceleration
+Acceleration.Footprint: Footprint
+
+# App info
+About.Dremio: About Dremio
+About.Tabs.Build: Build Information
+About.Tabs.Usage: Cluster Usage Data
+App.Dremio: Dremio
+App.DremioBeta: Dremio (beta)
+App.ProductionWarning: Not for production use
+App.Copyright: Copyright © 2017-2023 Dremio Corporation
+App.Build: Build
+App.Edition: Edition
+App.BuildTime: Build Time
+App.ChangeHash: Change Hash
+App.ChangeTime: Change Time
+App.UniqueUsers: Unique Users
+App.JobsExecuted: Jobs Executed
+
+# Create folder
+Create.Folder: Create Folder
+Add.To: Add to...
+Folder.Name: Folder name
+
+#SQLScriptsLeaveTabDialog
+Dialog.LeaveTab.Title: Confirm Navigation
+Dialog.LeaveTab.Description: All queries have not yet been submitted. The pending queries will be canceled if you navigate away from the current tab.<br></br><br></br>Do you want to leave this tab?
+
+#SQLScriptsDeletedDialog
+Dialog.DeletedScript.Title: This script has been deleted
+Dialog.DeletedScript.Description: The script you were editing has been deleted by another user. If you'd like to keep your changes, you can save the below SQL as a new script.
+Dialog.DeletedScript.CancelAction: Discard
+Dialog.DeletedScript.CopyAction: Copy SQL
+Dialog.DeletedScript.SaveScriptAs: Save script as
+
+# Scripts
+Script.Rename: Rename Script
+Script.Name: Script Name

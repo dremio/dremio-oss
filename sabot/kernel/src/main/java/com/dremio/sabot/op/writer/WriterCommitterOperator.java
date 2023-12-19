@@ -15,6 +15,8 @@
  */
 package com.dremio.sabot.op.writer;
 
+import static com.dremio.exec.store.iceberg.IcebergUtils.isIncrementalRefresh;
+
 import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -75,6 +77,10 @@ public class WriterCommitterOperator implements SingleInputOperator {
     NUM_IO_WRITE,      // Total Number of IO writes
     SNAPSHOT_COMMIT_STATUS, // Set to -1 when skipped intentionally, 1 when committed a snapshot, 0 by default
     CLEAR_ORPHANS_TIME, // Time taken to clean orphan files during write
+    NUM_TOTAL_SNAPSHOTS, //  Number of total snapshots
+    NUM_EXPIRED_SNAPSHOTS, // Number of expired snapshots
+    NUM_ORPHAN_FILES_DELETED,  // Number of orphan files deleted
+    CLEAR_EXPIRE_SNAPSHOTS_TIME, // Time taken to clean old expire snapshots
     ;
     @Override
     public int metricId() {
@@ -263,7 +269,7 @@ public class WriterCommitterOperator implements SingleInputOperator {
       return;
     }
 
-    if(!success && config.getIcebergTableProps().getIcebergOpType() == IcebergCommandType.INCREMENTAL_METADATA_REFRESH){
+    if(!success && isIncrementalRefresh(config.getIcebergTableProps().getIcebergOpType())){
       cleanUpIcebergTables();
     }
   }

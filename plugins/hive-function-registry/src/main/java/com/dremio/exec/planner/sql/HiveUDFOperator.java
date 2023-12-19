@@ -40,7 +40,7 @@ public class HiveUDFOperator extends SqlFunctionImpl{
   }
 
   /** Argument Checker for variable number of arguments */
-  private static class ArgChecker implements SqlOperandTypeChecker {
+  private static final class ArgChecker implements SqlOperandTypeChecker {
 
     public static ArgChecker INSTANCE = new ArgChecker();
 

@@ -26,6 +26,7 @@ import Profile from "@app/pages/JobDetailsPageNew/components/Profile/Profile.js"
 import timeUtils from "./timeUtils";
 import * as jobPaths from "dremio-ui-common/paths/jobs.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
+import { getPrivilegeContext } from "dremio-ui-common/contexts/PrivilegeContext.js";
 
 // see AttemptEvent.State
 export const JobState = {
@@ -33,6 +34,7 @@ export const JobState = {
   METADATA_RETRIEVAL: "METADATA_RETRIEVAL",
   PLANNING: "PLANNING",
   QUEUED: "QUEUED",
+  ENQUEUED: "ENQUEUED",
   ENGINE_START: "ENGINE_START",
   EXECUTION_PLANNING: "EXECUTION_PLANNING",
   STARTING: "STARTING",
@@ -45,9 +47,7 @@ export const JobState = {
 const RECORD_STEP = 1000;
 const RECORDS_IN_THOUSTHAND = RECORD_STEP;
 
-export function getTabs() {
-  return ["Overview", "SQL", "Profile"];
-}
+export const jobDetailsTabs = ["Overview", "SQL", "Profile"];
 
 export function getIconName(tab) {
   switch (tab) {
@@ -347,10 +347,17 @@ export class JobsUtils {
   navigationURLForLayoutId(id, createFullUrl) {
     let url;
     const projectId = getSonarContext()?.getSelectedProjectId?.();
-    if (!localStorageUtils.getUserData()?.admin) {
-      url = jobPaths.reflection.link({ projectId, reflectionId: id });
+    if (!getPrivilegeContext().isAdmin()) {
+      url = `${jobPaths.reflection.link({
+        projectId,
+        reflectionId: id,
+      })}?filters=${encodeURIComponent(
+        JSON.stringify({ sql: ["*" + id + "*"], qt: ["ACCELERATION"] })
+      )}`;
     } else {
-      url = `${jobPaths.jobs.link({ projectId })}?filters=${encodeURIComponent(
+      url = `${jobPaths.jobs.link({
+        projectId,
+      })}?filters=${encodeURIComponent(
         JSON.stringify({ sql: ["*" + id + "*"], qt: ["ACCELERATION"] })
       )}`;
     }

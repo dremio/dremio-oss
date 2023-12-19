@@ -23,6 +23,7 @@ import java.util.Map;
 
 import org.junit.Test;
 
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.map.CaseInsensitiveMap;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.sabot.rpc.user.UserSession;

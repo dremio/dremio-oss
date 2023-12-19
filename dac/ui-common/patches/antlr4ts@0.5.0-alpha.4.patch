@@ -1,0 +1,16 @@
+diff --git a/atn/LL1Analyzer.js b/atn/LL1Analyzer.js
+index 322f3683799123d32631a642299c1084ad178f03..ed32f069e9ebcea8d22061888abaa5a15788a4dc 100644
+--- a/atn/LL1Analyzer.js
++++ b/atn/LL1Analyzer.js
+@@ -152,6 +152,11 @@ let LL1Analyzer = class LL1Analyzer {
+                     calledRuleStack.set(s.ruleIndex);
+                 }
+             }
++            // Pull request opened for antlr4 optimized fork (that antlr4ts is derived from), but not merged
++            // https://github.com/tunnelvisionlabs/antlr4/pull/85
++            if (!PredictionContext_1.PredictionContext.isEmptyLocal(ctx)) {
++                return;
++            }
+         }
+         let n = s.numberOfTransitions;
+         for (let i = 0; i < n; i++) {

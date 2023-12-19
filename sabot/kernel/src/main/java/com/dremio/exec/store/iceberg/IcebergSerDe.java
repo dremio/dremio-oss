@@ -37,6 +37,8 @@ import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.PartitionSpecParser;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.SchemaParser;
+import org.apache.iceberg.SortOrder;
+import org.apache.iceberg.SortOrderParser;
 import org.apache.iceberg.exceptions.RuntimeIOException;
 
 import com.dremio.exec.record.BatchSchema;
@@ -203,6 +205,19 @@ public class IcebergSerDe {
     } catch (IOException ioe) {
       throw new UncheckedIOException(ioe);
     }
+  }
+
+  public static String serializeSortOrderAsJson(SortOrder sortOrder) {
+    return SortOrderParser.toJson(sortOrder);
+  }
+
+  /**
+   * @param schema Iceberg Table Schema
+   * @param sortOrderJson SortOrder serialized value with JSON as a String. {Refer: serializeSortOrder}
+   * @return SortOrder with schema details
+   */
+  public static SortOrder deserializeSortOrderFromJson(Schema schema, String sortOrderJson) {
+    return SortOrderParser.fromJson(schema, sortOrderJson);
   }
 
   public static byte[] serializeToByteArray(Object object) throws IOException {

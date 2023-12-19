@@ -18,6 +18,7 @@ package com.dremio.exec.catalog;
 import static com.dremio.test.DremioTest.CLASSPATH_SCAN_RESULT;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -60,8 +61,6 @@ import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.server.options.DefaultOptionManager;
-import com.dremio.exec.server.options.OptionManagerWrapper;
 import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.CatalogService;
@@ -70,6 +69,8 @@ import com.dremio.exec.store.StoragePlugin;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
+import com.dremio.options.impl.DefaultOptionManager;
+import com.dremio.options.impl.OptionManagerWrapper;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.ClusterCoordinator.Role;
 import com.dremio.service.listing.DatasetListingService;
@@ -319,6 +320,94 @@ public class TestPluginsManager {
   }
 
   @Test
+  public void testSynchronizePluginToSameVersionDifferentTag() throws Exception {
+    final SourceConfig inspectorConfig = new SourceConfig()
+      .setType(INSPECTOR)
+      .setName(INSPECTOR)
+      .setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY)
+      .setConfig(new Inspector(true).toBytesString())
+      .setCtime(0L)
+      .setConfigOrdinal(0L)
+      .setTag("fcf85527-1f76-4276-8b93-6d76f82d3f4b");
+
+    // create one; lock required
+    final ManagedStoragePlugin plugin;
+    plugin = plugins.create(inspectorConfig, SystemUser.SYSTEM_USERNAME);
+    plugin.startAsync().get();
+
+    // replace it with same config with different tag
+    final SourceConfig newConfig = new SourceConfig()
+      .setType(INSPECTOR)
+      .setName(INSPECTOR)
+      .setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY)
+      .setConfig(new Inspector(true).toBytesString())
+      .setCtime(0L)
+      .setConfigOrdinal(0L)
+      .setTag("21c31b70-f331-4833-9994-1531930f2dfc");
+    final ManagedStoragePlugin newPlugin = plugins.getSynchronized(newConfig, (String _pred) -> false);
+    assertEquals(newConfig.getTag(), newPlugin.sourceConfig.getTag());
+  }
+
+  @Test
+  public void testSynchronizePluginToSameVersionDifferentValue() throws Exception {
+    final SourceConfig inspectorConfig = new SourceConfig()
+      .setType(INSPECTOR)
+      .setName(INSPECTOR)
+      .setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY)
+      .setConfig(new Inspector(true).toBytesString())
+      .setCtime(0L)
+      .setConfigOrdinal(0L)
+      .setTag("fcf85527-1f76-4276-8b93-6d76f82d3f4b");
+
+    // create one; lock required
+    final ManagedStoragePlugin plugin;
+    plugin = plugins.create(inspectorConfig, SystemUser.SYSTEM_USERNAME);
+    plugin.startAsync().get();
+
+    // replace it with same config with different value
+    final SourceConfig newConfig = new SourceConfig()
+      .setType(INSPECTOR)
+      .setName(INSPECTOR)
+      .setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY)
+      .setConfig(new Inspector(true).toBytesString())
+      .setCtime(0L)
+      .setConfigOrdinal(0L)
+      .setTag("21c31b70-f331-4833-9994-1531930f2dfc")
+      .setAccelerationGracePeriod(999L);
+    assertThrows(IllegalStateException.class, () -> plugins.getSynchronized(newConfig, (String _pred) -> false));
+  }
+
+  @Test
+  public void testSynchronizePluginToNewVersion() throws Exception {
+    final SourceConfig inspectorConfig = new SourceConfig()
+      .setType(INSPECTOR)
+      .setName(INSPECTOR)
+      .setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY)
+      .setConfig(new Inspector(true).toBytesString())
+      .setCtime(0L)
+      .setConfigOrdinal(0L)
+      .setTag("fcf85527-1f76-4276-8b93-6d76f82d3f4b");
+
+    // create one; lock required
+    final ManagedStoragePlugin plugin;
+    plugin = plugins.create(inspectorConfig, SystemUser.SYSTEM_USERNAME);
+    plugin.startAsync().get();
+
+    // replace it with same config with different value
+    final SourceConfig newConfig = new SourceConfig()
+      .setType(INSPECTOR)
+      .setName(INSPECTOR)
+      .setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY)
+      .setConfig(new Inspector(true).toBytesString())
+      .setCtime(1L)
+      .setConfigOrdinal(1L)
+      .setTag("21c31b70-f331-4833-9994-1531930f2dfc")
+      .setAccelerationGracePeriod(999L);
+    final ManagedStoragePlugin newPlugin = plugins.getSynchronized(newConfig, (String _pred) -> false);
+    assertEquals(newConfig.getAccelerationGracePeriod(), newPlugin.sourceConfig.getAccelerationGracePeriod());
+  }
+
+  @Test
   public void testCreateSource() throws Exception {
     final SourceConfig newConfig = new SourceConfig()
       .setType(INSPECTOR)
@@ -367,7 +456,7 @@ public class TestPluginsManager {
       .setSchemaConfig(SchemaConfig.newBuilder(CatalogUser.from("dremio")).build())
       .setCheckValidity(false)
       .build();
-    assertFalse(pluginWithValidityCheck.isCompleteAndValid(incompleteDatasetConfig, metadataRequestOptions, mockNamespaceService));
+    assertFalse(pluginWithValidityCheck.isCompleteAndValid(incompleteDatasetConfig, metadataRequestOptions));
 
     final SourceConfig sourceConfigDisableValidity = new SourceConfig()
       .setType(INSPECTOR)
@@ -381,7 +470,7 @@ public class TestPluginsManager {
     pluginWithDisableValidity.startAsync().get();
 
     // Ensure for an incomplete datasetConfig, validity is not checked even if SourceConfig to disable validity is set
-    assertFalse(pluginWithDisableValidity.isCompleteAndValid(incompleteDatasetConfig, ImmutableMetadataRequestOptions.copyOf(metadataRequestOptions).withCheckValidity(true), mockNamespaceService));
+    assertFalse(pluginWithDisableValidity.isCompleteAndValid(incompleteDatasetConfig, ImmutableMetadataRequestOptions.copyOf(metadataRequestOptions).withCheckValidity(true)));
 
     final ReadDefinition readDefinition = new ReadDefinition();
     readDefinition.setSplitVersion(0L);
@@ -395,16 +484,16 @@ public class TestPluginsManager {
     completeDatasetConfig.setTotalNumSplits(0);
 
     // Ensure for a complete config, isStillValid is called and expiry is ignored if request option is set.
-    assertTrue(pluginWithValidityCheck.isCompleteAndValid(completeDatasetConfig, metadataRequestOptions, mockNamespaceService));
+    assertTrue(pluginWithValidityCheck.isCompleteAndValid(completeDatasetConfig, metadataRequestOptions));
 
     // Ensure for a complete config, isStillValid is called and expiry is ignored if request option is not set but source config option is set to disable.
-    assertTrue(pluginWithDisableValidity.isCompleteAndValid(completeDatasetConfig, metadataRequestOptions, mockNamespaceService));
+    assertTrue(pluginWithDisableValidity.isCompleteAndValid(completeDatasetConfig, metadataRequestOptions));
 
     // Ensure for a complete config, isStillValid is called and expiry is ignored if request option is set to true but source config option is set to disable.
-    assertTrue(pluginWithDisableValidity.isCompleteAndValid(completeDatasetConfig, ImmutableMetadataRequestOptions.copyOf(metadataRequestOptions).withCheckValidity(true), mockNamespaceService));
+    assertTrue(pluginWithDisableValidity.isCompleteAndValid(completeDatasetConfig, ImmutableMetadataRequestOptions.copyOf(metadataRequestOptions).withCheckValidity(true)));
 
     // Ensure for a complete config, isStillValid is called and expiry is checked and fails if request option is set to false and source config option is not set to disable .
-    assertFalse(pluginWithValidityCheck.isCompleteAndValid(completeDatasetConfig, ImmutableMetadataRequestOptions.copyOf(metadataRequestOptions).withCheckValidity(true), mockNamespaceService));
+    assertFalse(pluginWithValidityCheck.isCompleteAndValid(completeDatasetConfig, ImmutableMetadataRequestOptions.copyOf(metadataRequestOptions).withCheckValidity(true)));
   }
 
 }

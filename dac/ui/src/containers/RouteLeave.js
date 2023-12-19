@@ -17,7 +17,7 @@ import { Component, createContext, Fragment } from "react";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import { createSelector } from "reselect";
-import uuid from "uuid";
+import { v4 as uuidv4 } from "uuid";
 import { isUnauthorisedReason } from "store/authMiddleware";
 import { showConfirmationDialog } from "actions/confirmation";
 import { resetQueryState } from "@app/actions/explore/view";
@@ -100,10 +100,12 @@ export class HookProviderView extends Component {
     if (result.hasChanges) {
       result.userChoiceToLeaveOrStayPromise = new Promise((resolve) => {
         this.props.showConfirmationDialog({
-          title: la("Unsaved Changes"),
-          text: la("Are you sure you want to leave without saving changes?"),
-          confirmText: la("Leave"),
-          cancelText: la("Stay"),
+          title: laDeprecated("Unsaved Changes"),
+          text: laDeprecated(
+            "Are you sure you want to leave without saving changes?"
+          ),
+          confirmText: laDeprecated("Leave"),
+          cancelText: laDeprecated("Stay"),
           confirm: () => {
             this.props.resetQueryState();
             resolve(true);
@@ -212,7 +214,7 @@ export class HookConsumer extends Component {
 
   // should be a new selector for each HookConsumer instance
   singleArgFnGetter = singleArgFnGenerator(
-    uuid.v4(), // generate a unique id for each consumer.
+    uuidv4(), // generate a unique id for each consumer.
     (callback) => {
       this.removeCallback = callback;
     }
@@ -280,7 +282,12 @@ export class RouteLeaveEventView extends Component {
       .then((leaveTheChanges) => {
         if (leaveTheChanges) {
           this.ignoreUnsavedChanges = true;
-          this.props.router.push(nextLocation);
+
+          const { router } = this.props;
+
+          nextLocation.action === "POP"
+            ? router.goBack()
+            : router.push(nextLocation);
         }
         return null;
       })

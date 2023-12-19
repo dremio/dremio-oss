@@ -50,12 +50,13 @@ import com.dremio.sabot.op.copier.Copier;
 import com.dremio.sabot.op.copier.CopierOperator;
 import com.dremio.sabot.op.sort.SortRecordBatchBuilder;
 import com.dremio.sabot.op.sort.external.Sv4HyperContainer;
+import com.dremio.sabot.op.spi.Operator.ShrinkableOperator;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.google.common.base.Stopwatch;
 import com.sun.codemodel.JConditional;
 import com.sun.codemodel.JExpr;
 
-public class TopNOperator implements SingleInputOperator {
+public class TopNOperator implements SingleInputOperator, ShrinkableOperator {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TopNOperator.class);
 
   private final int batchPurgeThreshold;
@@ -145,7 +146,7 @@ public class TopNOperator implements SingleInputOperator {
       // only increment sv4 after first return
       final boolean hasMore = finalOrder.next();
 
-      if(!hasMore){
+      if(!hasMore || finalOrder.getCount() == 0){
         state = State.DONE;
         return 0;
       }
@@ -248,6 +249,38 @@ public class TopNOperator implements SingleInputOperator {
     q.init(hyperBatch, config.getLimit(), context.getFunctionContext(), context.getAllocator(), incoming.getSchema().getSelectionVectorMode() == BatchSchema.SelectionVectorMode.TWO_BYTE, context.getTargetBatchSize());
     return q;
 
+  }
+
+  @Override
+  public int getOperatorId() {
+    return this.config.getProps().getLocalOperatorId();
+  }
+
+  @Override
+  public long shrinkableMemory() {
+    if (state != State.CAN_CONSUME) {
+      return 0;
+    }
+    long shrinkableMemory = 0;
+
+    if (countSincePurge > config.getLimit()) {
+      shrinkableMemory = (context.getAllocator().getAllocatedMemory()/countSincePurge)*(countSincePurge - config.getLimit());
+    }
+
+    return shrinkableMemory;
+  }
+
+  @Override
+  public boolean shrinkMemory(long size) throws Exception {
+    if (state != State.CAN_CONSUME) {
+      return true;
+    }
+    if (countSincePurge > config.getLimit()) {
+      purge();
+      countSincePurge = 0;
+      batchCount = 0;
+    }
+    return true;
   }
 
   @Override

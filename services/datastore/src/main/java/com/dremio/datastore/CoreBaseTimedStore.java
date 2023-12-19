@@ -18,12 +18,14 @@ package com.dremio.datastore;
 import static com.dremio.common.perf.Timer.time;
 
 import java.util.List;
+import java.util.Map;
 
 import com.dremio.common.perf.Timer.TimedBlock;
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.FindByCondition;
 import com.dremio.datastore.api.FindByRange;
+import com.dremio.datastore.api.IncrementCounter;
 
 /**
  * Adds timing instrumentation to KVStore interface
@@ -97,6 +99,20 @@ abstract class CoreBaseTimedStore<K, V> implements CoreKVStore<K, V> {
   public Iterable<Document<KVStoreTuple<K>, KVStoreTuple<V>>> get(List<KVStoreTuple<K>> keys, GetOption... options) {
     try (TimedBlock b = time(name + ".get(List)")) {
       return kvStore.get(keys, options);
+    }
+  }
+
+  @Override
+  public void bulkIncrement(Map<KVStoreTuple<K>, List<IncrementCounter>> keysToIncrement, IncrementOption option) {
+    try (TimedBlock b = time(name + ".bulkIncrement")) {
+      kvStore.bulkIncrement(keysToIncrement, option);
+    }
+  }
+
+  @Override
+  public void bulkDelete(List<KVStoreTuple<K>> keysToDelete) {
+    try (TimedBlock b = time(name + ".bulkDelete")) {
+      kvStore.bulkDelete(keysToDelete);
     }
   }
 

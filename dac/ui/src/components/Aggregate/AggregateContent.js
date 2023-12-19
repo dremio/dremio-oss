@@ -67,7 +67,7 @@ class AggregateContent extends Component {
     this.receiveProps(props, {});
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     this.receiveProps(nextProps, this.props);
   }
 
@@ -151,7 +151,7 @@ class AggregateContent extends Component {
             handleDragStart={handleDragStart}
             onDragEnd={onDragEnd}
             dragType={dragType}
-            name={`${this.props.path} (${la("Current")})`}
+            name={`${this.props.path} (${laDeprecated("Current")})`}
             canAlter={canAlter}
           />
         </div>

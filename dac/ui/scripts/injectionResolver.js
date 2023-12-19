@@ -16,7 +16,7 @@
 const path = require("path");
 const forEachBail = require("enhanced-resolve/lib/forEachBail");
 
-const stubModule = path.resolve(__dirname, "./stubModule.js");
+const stubModule = path.resolve(__dirname, "../src/stubModule.js");
 const alias = "@inject/";
 
 // optional path that allows controlling where injection happens - used by the dev server

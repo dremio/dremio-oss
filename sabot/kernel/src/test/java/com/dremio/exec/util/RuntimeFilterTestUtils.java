@@ -43,6 +43,7 @@ public class RuntimeFilterTestUtils {
                                    ArrowBuf bloomFilterBuf, ValueListFilter... nonPartitionColFilters) {
         List<Integer> allFragments = Lists.newArrayList(1, 2, 3, 4);
         allFragments.removeIf(val -> val==sendingMinorFragment);
+        List<Integer> bufferLengths = new ArrayList<>();
 
         ExecProtos.RuntimeFilter.Builder runtimeFilter = ExecProtos.RuntimeFilter.newBuilder().setProbeScanOperatorId(101).setProbeScanMajorFragmentId(1);
         List<ArrowBuf> bufsToMerge = new ArrayList<>(nonPartitionColFilters.length + 1);
@@ -57,6 +58,7 @@ public class RuntimeFilterTestUtils {
             bloomFilterBuf.readerIndex(0);
             bloomFilterBuf.writerIndex(bloomFilterBuf.capacity());
             bufsToMerge.add(bloomFilterBuf);
+            bufferLengths.add((int)runtimeFilter.getPartitionColumnFilter().getSizeBytes());
         }
 
         if (nonPartitionColFilters.length > 0) {
@@ -70,12 +72,13 @@ public class RuntimeFilterTestUtils {
                 runtimeFilter.addNonPartitionColumnFilter(nonPartitionColFilter);
                 bufsToMerge.add(vlf.buf());
             }
+            runtimeFilter.getNonPartitionColumnFilterList().forEach(v -> bufferLengths.add((int)v.getSizeBytes()));
         }
         ArrowBuf mergedBuf = getMergedBuf(bufsToMerge);
         final int targetMajorFragment = 1;
         final int targetOperator = 1001;
         OutOfBandMessage msg = new OutOfBandMessage(null, targetMajorFragment, allFragments, targetOperator, sendingMajorFragment, sendingMinorFragment,
-                sendingOperator, new OutOfBandMessage.Payload(runtimeFilter.build()), new ArrowBuf[]{mergedBuf}, true);
+                sendingOperator, new OutOfBandMessage.Payload(runtimeFilter.build()), new ArrowBuf[]{mergedBuf}, bufferLengths, true);
         msg.getBuffers()[0].close(); // Compensate for retain in this constructor
         return msg;
     }

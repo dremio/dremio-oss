@@ -247,6 +247,7 @@ public class PushProjectPastFlattenRule extends RelOptRule {
         flatten.getTraitSet(),
         newInput,
         newFlatten,
+        null,
         flatten.getNumProjectsPushed() + 1);
     ProjectRel newProjectRel = ProjectRel.create(
         project.getCluster(),

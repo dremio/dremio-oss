@@ -139,7 +139,7 @@ public final class RexFieldAccessUtils {
   /**
    *
    */
-  private static final class StructuredReferenceWrapper extends RexShuttle {
+  static final class StructuredReferenceWrapper extends RexShuttle {
 
     private RexBuilder builder;
     private boolean wrap;
@@ -166,7 +166,10 @@ public final class RexFieldAccessUtils {
     public RexNode visitCall(RexCall rexCall) {
       if (!wrap) {
         if(rexCall.getOperator().equals(STRUCTURED_WRAPPER)) {
-          return rexCall.getOperands().get(0);
+          final RexNode result = rexCall.getOperands().get(0);
+          //there can be multiple layers of nesting
+          //call recursively on the result to remove all layers
+          return result.accept(this);
         }
       }
       if("item".equals(rexCall.getOperator().getName().toLowerCase(Locale.ROOT))

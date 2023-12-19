@@ -160,7 +160,6 @@ public class NessieProxyJaxRsExtension extends NessieClientResolver
             config.register(ProxyDiffResource.class);
             config.register(ProxyContentResource.class);
             config.register(ProxyConfigResource.class);
-            config.register(ProxyRefLogResource.class);
             config.register(ProxyNamespaceResource.class);
             config.register(ContentKeyParamConverterProvider.class);
             config.register(NamespaceParamConverterProvider.class);

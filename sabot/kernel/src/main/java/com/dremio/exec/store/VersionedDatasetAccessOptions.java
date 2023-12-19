@@ -17,11 +17,11 @@ package com.dremio.exec.store;
 
 import java.util.stream.Stream;
 
+import com.dremio.catalog.model.ResolvedVersionContext;
 import com.dremio.connector.metadata.GetDatasetOption;
 import com.dremio.connector.metadata.GetMetadataOption;
 import com.dremio.connector.metadata.ListPartitionChunkOption;
 import com.dremio.connector.metadata.MetadataOption;
-import com.dremio.exec.catalog.ResolvedVersionContext;
 
 public class VersionedDatasetAccessOptions implements GetDatasetOption, GetMetadataOption, ListPartitionChunkOption {
   private final ResolvedVersionContext versionContext;

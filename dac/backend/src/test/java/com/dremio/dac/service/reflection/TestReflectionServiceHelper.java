@@ -15,7 +15,7 @@
  */
 package com.dremio.dac.service.reflection;
 
-import static com.dremio.exec.catalog.CatalogOptions.REFLECTION_ARCTIC_ENABLED;
+import static com.dremio.exec.catalog.CatalogOptions.REFLECTION_VERSIONED_SOURCE_ENABLED;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.Mockito.when;
@@ -62,7 +62,7 @@ public class TestReflectionServiceHelper {
   public void testIsVersionedSourceEnabledForVersionedSource() {
     String datasetId = "{\"tableKey\":[\"nessie_without_auth\",\"test\"],\"contentId\":\"cf3c730a-98c0-43a1-855d-02fb97a046c6" +
       "\",\"versionContext\":{\"type\":\"BRANCH\",\"value\":\"main\"}}";
-    when(optionManager.getOption(REFLECTION_ARCTIC_ENABLED)).thenReturn(true);
+    when(optionManager.getOption(REFLECTION_VERSIONED_SOURCE_ENABLED)).thenReturn(true);
     assertDoesNotThrow(() -> reflectionServiceHelper.isVersionedSourceEnabled(datasetId));
   }
 

@@ -104,7 +104,7 @@ public class PhysicalDataset implements AddressableResource {
     final PhysicalDatasetPath path = new PhysicalDatasetPath(fullPathList);
 
     return new PhysicalDataset(
-      new PhysicalDatasetResourcePath(new SourceName(rootEntity.getName()), path),
+      new PhysicalDatasetResourcePath(path),
       new PhysicalDatasetName(path.getFileName().getName()),
       new PhysicalDatasetConfig()
         .setId((id == null) ? UUID.randomUUID().toString() : id)

@@ -15,15 +15,19 @@
  */
 package com.dremio.exec.expr.fn.tdigest;
 
+import static org.apache.calcite.sql.type.OperandTypes.family;
+
 import java.util.List;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.SqlAggFunction;
+import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.ReturnTypes;
+import org.apache.calcite.sql.type.SqlTypeFamily;
 
 import com.google.common.collect.ImmutableList;
 
@@ -56,6 +60,65 @@ public class TDigest {
 
     public RelDataType getReturnType(RelDataTypeFactory typeFactory) {
       return type;
+    }
+
+  }
+
+  public static final class SqlTDigestAggFunction extends SqlAggFunction {
+    private final RelDataType type;
+
+    public SqlTDigestAggFunction(RelDataType type) {
+      super("TDIGEST",
+        null,
+        SqlKind.OTHER_FUNCTION,
+        ReturnTypes.DOUBLE,
+        null,
+        OperandTypes.family(SqlTypeFamily.NUMERIC),
+        SqlFunctionCategory.USER_DEFINED_FUNCTION,
+        false,
+        false);
+
+      this.type = type;
+    }
+
+    public List<RelDataType> getParameterTypes(RelDataTypeFactory typeFactory) {
+      return ImmutableList.of(type);
+    }
+
+    public RelDataType getType() {
+      return type;
+    }
+
+    public RelDataType getReturnType(RelDataTypeFactory typeFactory) {
+      return type;
+    }
+
+  }
+
+  public static final class SqlApproximatePercentileFunction extends SqlAggFunction {
+    public SqlApproximatePercentileFunction() {
+      super("APPROX_PERCENTILE",
+        null,
+        SqlKind.OTHER_FUNCTION,
+        ReturnTypes.DOUBLE,
+        null,
+        family(SqlTypeFamily.NUMERIC, SqlTypeFamily.NUMERIC),
+        SqlFunctionCategory.SYSTEM,
+        false,
+        false);
+    }
+
+  }
+
+  public static final class SqlTDigestQuantileFunction extends SqlFunction {
+    public SqlTDigestQuantileFunction() {
+      super("TDIGEST_QUANTILE",
+        SqlKind.OTHER_FUNCTION,
+        ReturnTypes.DOUBLE,
+        null,
+        family(SqlTypeFamily.NUMERIC, SqlTypeFamily.BINARY),
+        SqlFunctionCategory.SYSTEM
+      );
     }
 
   }

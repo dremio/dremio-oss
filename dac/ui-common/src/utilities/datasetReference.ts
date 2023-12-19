@@ -14,7 +14,10 @@
  * limitations under the License.
  */
 
-import { type VersionContext } from "../types/VersionContext.types";
+import {
+  type VersionContext,
+  type DatasetReference,
+} from "../types/VersionContext.types";
 
 export const getVersionContextFromId = (
   id: string
@@ -25,4 +28,19 @@ export const getVersionContextFromId = (
   } catch (e) {
     return;
   }
+};
+
+export const getDatasetReferenceFromId = (
+  id: string
+): DatasetReference | undefined => {
+  try {
+    const datasetReference = JSON.parse(id);
+    return datasetReference;
+  } catch (e) {
+    return;
+  }
+};
+
+export const isOnCommitOrTag = (datasetReference: DatasetReference) => {
+  return datasetReference.versionContext.type !== "BRANCH";
 };

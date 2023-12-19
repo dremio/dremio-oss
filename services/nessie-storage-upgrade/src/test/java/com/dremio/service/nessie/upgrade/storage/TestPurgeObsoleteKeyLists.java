@@ -15,6 +15,8 @@
  */
 package com.dremio.service.nessie.upgrade.storage;
 
+import static com.dremio.test.DremioTest.CLASSPATH_SCAN_RESULT;
+
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,7 +29,7 @@ import com.dremio.service.nessie.DatastoreDatabaseAdapterFactory;
 import com.dremio.service.nessie.ImmutableDatastoreDbConfig;
 import com.dremio.service.nessie.NessieDatastoreInstance;
 
-class TestPurgeObsoleteKeyLists extends AbstractNessieUpgradeTest {
+class TestPurgeObsoleteKeyLists {
 
   private PurgeObsoleteKeyLists task;
   private LocalKVStoreProvider storeProvider;
@@ -35,7 +37,7 @@ class TestPurgeObsoleteKeyLists extends AbstractNessieUpgradeTest {
   @BeforeEach
   void createKVStore() throws Exception {
     task = new PurgeObsoleteKeyLists();
-    storeProvider = new LocalKVStoreProvider(scanResult, null, true, false); // in-memory
+    storeProvider = new LocalKVStoreProvider(CLASSPATH_SCAN_RESULT, null, true, false); // in-memory
     storeProvider.start();
 
     NessieDatastoreInstance nessieDatastore = new NessieDatastoreInstance();

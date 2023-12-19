@@ -29,6 +29,7 @@ describe("AccelerationAdvanced", () => {
       reflections: Immutable.Map(),
       updateFormDirtyState: sinon.spy(),
       updateDirtyState: sinon.spy(),
+      fetchSupportFlags: sinon.spy(),
       fields: {},
       initialValues: null,
       values: {

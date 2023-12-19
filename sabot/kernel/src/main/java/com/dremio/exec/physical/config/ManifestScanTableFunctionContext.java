@@ -16,32 +16,38 @@
 package com.dremio.exec.physical.config;
 
 import java.util.List;
-
-import org.apache.iceberg.ManifestContent;
+import java.util.Map;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.ScanFilter;
+import com.dremio.exec.store.iceberg.ManifestContentType;
+import com.dremio.exec.util.SchemaPathMapDeserializer;
 import com.dremio.service.namespace.dataset.proto.UserDefinedSchemaSettings;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 import io.protostuff.ByteString;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeName("manifest-scan")
-public class ManifestScanTableFunctionContext extends TableFunctionContext {
+public class ManifestScanTableFunctionContext extends CarryForwardAwareTableFunctionContext {
 
     private final ByteString partitionSpecMap;
     private final ByteString jsonPartitionSpecMap;
     private String icebergSchema;
-    private final ManifestContent manifestContent;
+    private final ManifestContentType manifestContentType;
     private final ManifestScanFilters manifestScanFilters;
-    private final boolean isCarryForwardEnabled;    // Enable TF to carry forward processed rows' info
+    private final boolean publishPartitionInfo; // Process and output partitions only if the flag is turned ON, skipped otherwise.
+
+    //Only has effect if publishPartitionInfo is on.
+    //If enabled IcebergPartitionValue is populated in the PartitionProtobuf.NormalizedPartitionInfo
+    private final boolean includeIcebergPartitionInfo;
 
     public ManifestScanTableFunctionContext(
         @JsonProperty("partitionSpecMap") ByteString partitionSpecMap,
@@ -62,16 +68,24 @@ public class ManifestScanTableFunctionContext extends TableFunctionContext {
         @JsonProperty("convertedIcebergDataset") boolean isConvertedIcebergDataset,
         @JsonProperty("icebergMetadata") boolean isIcebergMetadata,
         @JsonProperty("userDefinedSchemaSettings") UserDefinedSchemaSettings userDefinedSchemaSettings,
-        @JsonProperty("manifestContent") ManifestContent manifestContent,
+        @JsonProperty("manifestContentType") final ManifestContentType manifestContentType,
         @JsonProperty("metadataFilters") ManifestScanFilters manifestScanFilters,
-        @JsonProperty("carryForwardEnabled") boolean isCarryForwardEnabled) {
-        super(formatSettings, fullSchema, tableSchema, tablePath, scanFilter, pluginId, internalTablePluginId, columns, partitionColumns, globalDictionaryEncodedColumns, extendedProperty, arrowCachingEnabled, isConvertedIcebergDataset, isIcebergMetadata, userDefinedSchemaSettings);
+        @JsonProperty("carryForwardEnabled") boolean isCarryForwardEnabled,
+        @JsonProperty("inputColMap") @JsonDeserialize(using = SchemaPathMapDeserializer.class) Map<SchemaPath, SchemaPath> inputColMap,
+        @JsonProperty("constValueCol") String constValCol,
+        @JsonProperty("constValue") String constVal,
+        @JsonProperty("publishPartitionInfo") boolean publishPartitionInfo,
+        @JsonProperty("includeIcebergPartitionInfo") boolean includeIcebergPartitionInfo){
+        super(formatSettings, fullSchema, tableSchema, tablePath, scanFilter, pluginId, internalTablePluginId, columns,
+          partitionColumns, globalDictionaryEncodedColumns, extendedProperty, arrowCachingEnabled,
+          isConvertedIcebergDataset, isIcebergMetadata, userDefinedSchemaSettings, isCarryForwardEnabled, inputColMap, constValCol, constVal);
         this.partitionSpecMap = partitionSpecMap;
         this.icebergSchema = icebergSchema;
         this.jsonPartitionSpecMap = jsonPartitionSpecMap;
         this.manifestScanFilters = manifestScanFilters;
-        this.manifestContent = manifestContent;
-        this.isCarryForwardEnabled = isCarryForwardEnabled;
+        this.manifestContentType = manifestContentType;
+        this.publishPartitionInfo = publishPartitionInfo;
+        this.includeIcebergPartitionInfo = includeIcebergPartitionInfo;
     }
 
     public ByteString getPartitionSpecMap() {
@@ -90,11 +104,13 @@ public class ManifestScanTableFunctionContext extends TableFunctionContext {
         return manifestScanFilters;
     }
 
-    public ManifestContent getManifestContent() {
-      return manifestContent;
+    public ManifestContentType getManifestContentType() {
+      return manifestContentType;
     }
 
-    public boolean isCarryForwardEnabled() {
-      return isCarryForwardEnabled;
+    public boolean getIncludeIcebergPartitionInfo() {return includeIcebergPartitionInfo;}
+
+    public boolean isPublishPartitionInfo() {
+      return publishPartitionInfo;
     }
 }

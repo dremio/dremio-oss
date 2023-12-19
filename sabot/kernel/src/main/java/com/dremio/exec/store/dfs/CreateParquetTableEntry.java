@@ -26,6 +26,8 @@ import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.StoragePluginResolver;
+import com.dremio.exec.store.dfs.copyinto.CopyIntoErrorPluginAwareCreateTableEntry;
+import com.dremio.exec.store.dfs.system.SystemIcebergTablesStoragePlugin;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.parquet.ParquetWriter;
 import com.dremio.service.namespace.NamespaceKey;
@@ -39,7 +41,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
  * Implements <code>CreateTableEntry</code> interface to create new tables in FileSystem storage.
  */
 @JsonTypeName("createParquetTableEntry")
-public class CreateParquetTableEntry implements CreateTableEntry {
+public class CreateParquetTableEntry implements CreateTableEntry, CopyIntoErrorPluginAwareCreateTableEntry {
   private final String userName;
   private final MutablePlugin plugin;
   private final String location;
@@ -47,6 +49,10 @@ public class CreateParquetTableEntry implements CreateTableEntry {
   private final IcebergTableProps icebergTableProps;
   private final NamespaceKey datasetPath;
   private final StoragePluginId sourceTablePluginId;
+  private StoragePluginId systemIcebergTablesPluginId;
+  private SystemIcebergTablesStoragePlugin systemIcebergTablesPlugin;
+  private StoragePluginResolver storagePluginResolver;
+
 
   @JsonCreator
   public CreateParquetTableEntry(
@@ -66,6 +72,7 @@ public class CreateParquetTableEntry implements CreateTableEntry {
     this.icebergTableProps = icebergTableProps;
     this.datasetPath = datasetPath;
     this.sourceTablePluginId = sourceTablePluginId;
+    this.storagePluginResolver = storagePluginResolver;
   }
 
   /**
@@ -171,5 +178,27 @@ public class CreateParquetTableEntry implements CreateTableEntry {
   @Override
   public NamespaceKey getDatasetPath() {
     return datasetPath;
+  }
+
+  @Override
+  @JsonIgnore
+  public SystemIcebergTablesStoragePlugin getSystemIcebergTablesPlugin() {
+    if (systemIcebergTablesPlugin != null) {
+      return systemIcebergTablesPlugin;
+    }
+
+    if (systemIcebergTablesPluginId != null && storagePluginResolver != null) {
+      return storagePluginResolver.getSource(systemIcebergTablesPluginId);
+    }
+
+    return null;
+  }
+
+  @Override
+  public void setSystemIcebergTablesPlugin(SystemIcebergTablesStoragePlugin systemIcebergTablesPlugin) {
+    this.systemIcebergTablesPlugin = systemIcebergTablesPlugin;
+    if (systemIcebergTablesPlugin != null) {
+      this.systemIcebergTablesPluginId = systemIcebergTablesPlugin.getId();
+    }
   }
 }

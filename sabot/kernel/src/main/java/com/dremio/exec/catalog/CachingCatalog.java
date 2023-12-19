@@ -21,23 +21,30 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import javax.annotation.Nonnull;
+
 import org.apache.calcite.schema.Function;
 import org.apache.calcite.util.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.catalog.model.VersionContext;
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.physical.base.ViewOptions;
-import com.dremio.exec.planner.logical.ViewTable;
-import com.dremio.exec.store.NamespaceTable;
 import com.dremio.exec.tablefunctions.TimeTravelTableMacro;
 import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
 
 import io.opentelemetry.instrumentation.annotations.WithSpan;
@@ -46,6 +53,8 @@ import io.opentelemetry.instrumentation.annotations.WithSpan;
  * {@link Catalog} implementation that caches table requests.
  */
 public class CachingCatalog extends DelegatingCatalog {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(CachingCatalog.class);
 
   private final Map<String, DremioTable> tablesByDatasetId;
 
@@ -89,12 +98,16 @@ public class CachingCatalog extends DelegatingCatalog {
     if (table == null) {
       return null;
     }
-    final DatasetConfig dataset = table.getDatasetConfig();
-    if (dataset != null) {
-      final NamespaceKey canonicalizedKey = new NamespaceKey(dataset.getFullPathList());
-      tablesByNamespaceKey.put(TableCacheKey.of(requestKey.getCatalogIdentity(), canonicalizedKey.getPathComponents(), requestKey.getTableVersionContext()), table);
-    }
+    final NamespaceKey canonicalizedKey = table.getPath();
+    tablesByNamespaceKey.put(TableCacheKey.of(requestKey.getCatalogIdentity(), canonicalizedKey.getPathComponents(), requestKey.getTableVersionContext()), table);
     tablesByNamespaceKey.put(requestKey, table);
+
+    final TableCacheKey canonicalKey = TableCacheKey.of(getCatalogIdentity(), table);
+    canonicalKeyResolutionCount.compute(canonicalKey, (k, v) -> (v == null) ? 1 : v + 1);
+    if (!requestKey.getKeyComponents().equals(canonicalizedKey.asLowerCase().getPathComponents())) {
+      // When request key and canonical key do not match, then we know for certain two calls were made into dataset manager
+      canonicalKeyResolutionCount.compute(canonicalKey, (k, v) -> (v == null) ? 1 : v + 1);
+    }
     return table;
   }
 
@@ -106,72 +119,95 @@ public class CachingCatalog extends DelegatingCatalog {
     return tablesByNamespaceKey.get(key);
   }
 
-  private void removeByNamespaceKey(final NamespaceKey key) {
-    // remove table from cache for all users
-    tablesByNamespaceKey.entrySet().removeIf(entry -> entry.getKey().getKeyComponents().equals(key.getPathComponents()));
-    invalidateNamespaceCache(key);
+  @Override
+  public DremioTable getTableNoResolve(NamespaceKey key) {
+    Stopwatch stopwatch = Stopwatch.createStarted();
+    final TableCacheKey tableKey = TableCacheKey.of(getCatalogIdentity(), key.getPathComponents(), getVersionContextIfVersioned(key));
+    if (!containsNamespaceKey(tableKey)) {
+      return putTable(tableKey, timedGet(stopwatch, () -> super.getTableNoResolve(key), tableKey));
+    }
+    return getByNamespaceKey(tableKey);
   }
 
   @Override
-  public DremioTable getTableNoResolve(NamespaceKey key) {
-    final TableCacheKey tableKey = TableCacheKey.of(getCatalogIdentity(), key.getPathComponents(), null);
+  public DremioTable getTableSnapshotNoResolve(NamespaceKey key, TableVersionContext context) {
+    Stopwatch stopwatch = Stopwatch.createStarted();
+    TableCacheKey tableKey = TableCacheKey.of(getCatalogIdentity(), key.getPathComponents(), context);
     if (!containsNamespaceKey(tableKey)) {
-      return putTable(tableKey, timedGet(() -> super.getTableNoResolve(key)));
+      return putTable(tableKey, timedGet(stopwatch, () -> super.getTableSnapshotNoResolve(key, context), tableKey));
     }
     return getByNamespaceKey(tableKey);
   }
 
   @Override
   public DremioTable getTableNoColumnCount(NamespaceKey key) {
-    TableCacheKey tableKey = TableCacheKey.of(getCatalogIdentity(), key.getPathComponents(), null);
+    Stopwatch stopwatch = Stopwatch.createStarted();
+    TableCacheKey tableKey = TableCacheKey.of(getCatalogIdentity(), key.getPathComponents(), getVersionContextIfVersioned(key));
     if (!containsNamespaceKey(tableKey)) {
-      return putTable(tableKey, timedGet(() -> super.getTableNoColumnCount(key)));
+      return putTable(tableKey, timedGet(stopwatch, () -> super.getTableNoColumnCount(key), tableKey));
     }
     return getByNamespaceKey(tableKey);
   }
 
   @Override
   public void updateView(final NamespaceKey key, View view, ViewOptions viewOptions, NamespaceAttribute... attributes) throws IOException {
-    removeByNamespaceKey(key);
+    clearDatasetCache(key, null);
     super.updateView(key, view, viewOptions, attributes);
   }
 
   @Override
   public void dropView(final NamespaceKey key, ViewOptions viewOptions) throws IOException {
-    removeByNamespaceKey(key);
+    clearDatasetCache(key, null);
     super.dropView(key, viewOptions);
   }
 
   @Override
   @WithSpan
   public DremioTable getTable(NamespaceKey key) {
+    Stopwatch stopwatch = Stopwatch.createStarted();
     NamespaceKey resolved = resolveToDefault(key);
     if (resolved == null) {
       resolved = key;
     }
-    TableCacheKey tableKey = TableCacheKey.of(getCatalogIdentity(), resolved.getPathComponents(), null);
+    TableCacheKey tableKey = TableCacheKey.of(getCatalogIdentity(), resolved.getPathComponents(), getVersionContextIfVersioned(resolved));
     if (!containsNamespaceKey(tableKey)) {
-      return putTable(tableKey, timedGet(() -> super.getTable(key)));
+      return putTable(tableKey, timedGet(stopwatch, () -> super.getTable(key), tableKey));
     }
     return getByNamespaceKey(tableKey);
   }
 
   @Override
   public DremioTable getTableForQuery(NamespaceKey key) {
+    Stopwatch stopwatch = Stopwatch.createStarted();
     NamespaceKey resolved = resolveToDefault(key);
     if (resolved == null) {
       resolved = key;
     }
-    TableCacheKey tableKey = TableCacheKey.of(getCatalogIdentity(), resolved.getPathComponents(), null);
+
+    TableCacheKey tableKey = TableCacheKey.of(getCatalogIdentity(), resolved.getPathComponents(), getVersionContextIfVersioned(resolved));
     if (!containsNamespaceKey(tableKey)) {
-      return putTable(tableKey, timedGet(() -> super.getTableForQuery(key)));
+      return putTable(tableKey, timedGet(stopwatch, () -> super.getTableForQuery(key), tableKey));
     }
     return getByNamespaceKey(tableKey);
   }
 
+  private TableVersionContext getVersionContextIfVersioned(NamespaceKey key) {
+    if (CatalogUtil.requestedPluginSupportsVersionedTables(key, this)) {
+      return TableVersionContext.of(getMetadataRequestOptions().getVersionForSource(key.getRoot(), key));
+    }
+    return null;
+  }
+
+  private TableVersionContext getVersionContextIfVersioned(NamespaceKey key, TableVersionContext tableVersionContext) {
+    if (CatalogUtil.requestedPluginSupportsVersionedTables(key, this) || tableVersionContext.isTimeTravelType()) {
+      return tableVersionContext;
+    }
+    return null;
+  }
+
   @Override
   public Iterable<DremioTable> getAllRequestedTables() {
-    return ImmutableList.copyOf(tablesByNamespaceKey.values());
+    return ImmutableList.copyOf(canonicalKeyTables.values());
   }
 
   @Override
@@ -185,11 +221,6 @@ public class CachingCatalog extends DelegatingCatalog {
   }
 
   @Override
-  public boolean supportsVersioning(NamespaceKey namespaceKey) {
-    return delegate.supportsVersioning(namespaceKey);
-  }
-
-  @Override
   public Catalog resolveCatalogResetContext(String sourceName, VersionContext versionContext) {
     return new CachingCatalog(delegate.resolveCatalogResetContext(sourceName, versionContext));
   }
@@ -197,21 +228,6 @@ public class CachingCatalog extends DelegatingCatalog {
   @Override
   public Catalog resolveCatalog(NamespaceKey newDefaultSchema) {
     return new CachingCatalog(delegate.resolveCatalog(newDefaultSchema), this);
-  }
-
-  @Override
-  public Catalog resolveCatalog(CatalogIdentity subject, NamespaceKey newDefaultSchema) {
-    return new CachingCatalog(delegate.resolveCatalog(subject, newDefaultSchema), this);
-  }
-
-  @Override
-  public Catalog resolveCatalog(CatalogIdentity subject, NamespaceKey newDefaultSchema, boolean checkValidity) {
-    return new CachingCatalog(delegate.resolveCatalog(subject, newDefaultSchema, checkValidity), this);
-  }
-
-  @Override
-  public Catalog resolveCatalog(boolean checkValidity) {
-    return new CachingCatalog(delegate.resolveCatalog(checkValidity), this);
   }
 
   @Override
@@ -224,15 +240,29 @@ public class CachingCatalog extends DelegatingCatalog {
     }
   }
 
-  private DremioTable timedGet(Supplier<DremioTable> s) {
-    long start = System.currentTimeMillis();
-    DremioTable table = s.get();
-    long end = System.currentTimeMillis();
-    if (table != null) {
-      TableCacheKey key = TableCacheKey.of(getCatalogIdentity(), table.getPath().getPathComponents(), getTableVersionContext(table));
-      canonicalKeyResolutionCount.compute(key, (k, v) -> (v == null) ? 1 : v + 1);
-      canonicalKeyAccessTime.compute(key, (k, v) -> (v == null) ? end - start : v + (end - start));
-      canonicalKeyTables.put(key, table);
+  private DremioTable timedGet(Stopwatch stopwatch, Supplier<DremioTable> s, TableCacheKey key) {
+    DremioTable table = null;
+    try {
+      table = s.get();
+    } finally {
+      long elapsed = stopwatch.elapsed(TimeUnit.MILLISECONDS);
+      if (table != null) {
+        TableCacheKey canonicalKey = TableCacheKey.of(getCatalogIdentity(), table);
+        canonicalKeyAccessTime.compute(canonicalKey, (k, v) -> (v == null) ? elapsed : v + elapsed);
+        canonicalKeyTables.put(canonicalKey, table);
+        LOGGER.debug("Successful catalog lookup - table=[{}] versionContext=[{}] elapsed={}ms",
+            PathUtils.constructFullPath(canonicalKey.getKeyComponents()),
+            canonicalKey.getTableVersionContext() != null ? canonicalKey.getTableVersionContext() :
+                TableVersionContext.NOT_SPECIFIED,
+            elapsed);
+      } else {
+        if (key != null) {
+          LOGGER.debug("Failed catalog lookup - table=[{}] versionContext=[{}] elapsed={}ms",
+              PathUtils.constructFullPath(key.getKeyComponents()),
+              key.getTableVersionContext() != null ? key.getTableVersionContext() : TableVersionContext.NOT_SPECIFIED,
+              elapsed);
+        }
+      }
     }
     return table;
   }
@@ -283,27 +313,36 @@ public class CachingCatalog extends DelegatingCatalog {
 
   @Override
   public DremioTable getTableSnapshotForQuery(NamespaceKey key, TableVersionContext context) {
-    TableCacheKey tableKey = TableCacheKey.of(getCatalogIdentity(), key.getPathComponents(), context);
+    Stopwatch stopwatch = Stopwatch.createStarted();
+    TableCacheKey tableKey = TableCacheKey.of(getCatalogIdentity(), key.getPathComponents(), getVersionContextIfVersioned(key, context));
     if (!containsNamespaceKey(tableKey)) {
-      return putTable(tableKey, timedGet(() -> super.getTableSnapshotForQuery(key, context)));
+      return putTable(tableKey, timedGet(stopwatch, () -> super.getTableSnapshotForQuery(key, context), tableKey));
     }
     return getByNamespaceKey(tableKey);
   }
 
   @Override
   public DremioTable getTableSnapshot(NamespaceKey key, TableVersionContext context) {
+    Stopwatch stopwatch = Stopwatch.createStarted();
     TableCacheKey tableKey = TableCacheKey.of(getCatalogIdentity(), key.getPathComponents(), context);
     if (!containsNamespaceKey(tableKey)) {
-      return putTable(tableKey, timedGet(() -> super.getTableSnapshot(key, context)));
+      return putTable(tableKey, timedGet(stopwatch, () -> super.getTableSnapshot(key, context), tableKey));
     }
     return getByNamespaceKey(tableKey);
   }
 
+  @Nonnull
+  @Override
+  public Optional<TableMetadataVerifyResult> verifyTableMetadata(NamespaceKey key, TableMetadataVerifyRequest metadataVerifyRequest) {
+    return super.verifyTableMetadata(key, metadataVerifyRequest);
+  }
+
   @Override
   public DremioTable getTable(String datasetId) {
+    Stopwatch stopwatch = Stopwatch.createStarted();
     DremioTable table;
     if (!tablesByDatasetId.containsKey(datasetId)) {
-      table = timedGet(() -> super.getTable(datasetId));
+      table = timedGet(stopwatch, () -> super.getTable(datasetId), null);
       if (table != null) {
         tablesByDatasetId.put(datasetId, table);
       }
@@ -374,8 +413,23 @@ public class CachingCatalog extends DelegatingCatalog {
       super(subject, entityKey);
     }
 
+    /**
+     * Creates a normalized TableCacheKey so that we can recognize cache hits for SCHEMA.TABLE1 or schema.table1 table paths
+     * @param subject
+     * @param keyComponents
+     * @param versionContext
+     * @return
+     */
     public static TableCacheKey of(CatalogIdentity subject, List<String> keyComponents, TableVersionContext versionContext) {
-      return new TableCacheKey(subject, CatalogEntityKey.newBuilder().keyComponents(keyComponents).tableVersionContext(versionContext).build());
+      return new TableCacheKey(subject, CatalogEntityKey.newBuilder()
+        .keyComponents(keyComponents.stream().map(String::toLowerCase).collect(Collectors.toList()))
+        .tableVersionContext(versionContext).build());
+    }
+
+    public static TableCacheKey of(CatalogIdentity subject, DremioTable table) {
+      return new TableCacheKey(subject, CatalogEntityKey.newBuilder()
+        .keyComponents(table.getPath().getPathComponents())
+        .tableVersionContext(table.getVersionContext()).build());
     }
 
     CatalogIdentity getCatalogIdentity() {
@@ -391,23 +445,6 @@ public class CachingCatalog extends DelegatingCatalog {
     }
   }
 
-  /**
-   * Utility function to get the table version context for a given DremioTable.
-   * TODO: Refactor DremioTable interface so TableVersionContext can be directly accessed.
-   */
-  private TableVersionContext getTableVersionContext(DremioTable table) {
-    try {
-      if (table instanceof NamespaceTable || table instanceof MaterializedDatasetTable) {
-        return table.getDataset().getVersionContext();
-      } else if (table instanceof ViewTable) {
-        return TableVersionContext.of(((ViewTable) table).getVersionContext());
-      }
-    } catch (Exception e) {
-      return null;
-    }
-    return null;
-  }
-
   private CatalogIdentity getCatalogIdentity() {
     try {
       return getMetadataRequestOptions().getSchemaConfig().getAuthContext().getSubject();
@@ -416,4 +453,14 @@ public class CachingCatalog extends DelegatingCatalog {
     }
     return null;
   }
+
+  @Override
+  public void clearDatasetCache(NamespaceKey dataset, TableVersionContext context) {
+    super.clearDatasetCache(dataset, context);
+    tablesByDatasetId.values().removeIf(t -> t.getPath().equals(dataset));
+    tablesByNamespaceKey.values().removeIf(t -> t.getPath().equals(dataset));
+    canonicalKeyTables.values().removeIf(t -> t.getPath().equals(dataset));
+    invalidateNamespaceCache(dataset);
+  }
+
 }

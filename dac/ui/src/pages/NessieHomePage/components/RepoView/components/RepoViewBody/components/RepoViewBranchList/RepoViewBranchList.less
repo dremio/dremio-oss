@@ -51,9 +51,6 @@
 
     &-container {
       height: calc(100% - 36px);
-      dremio-icon {
-        color: var(--dremio--color--icon--main);
-      }
 
       & > div:nth-child(1) {
         height: 100% !important;
@@ -112,9 +109,6 @@
         color: var(--dremio--color--text--main);
         font-weight: 600;
         text-decoration: none;
-        &-icon {
-          margin-right: 2px;
-        }
         &:hover,
         &:focus {
           text-decoration: none;
@@ -146,20 +140,6 @@
         margin-left: 4px;
       }
 
-      &-icon {
-        cursor: pointer;
-        dremio-icon {
-          margin-right: 8px;
-          block-size: 24px;
-          inline-size: 24px;
-          min-width: 24px;
-        }
-        &:hover {
-          dremio-icon {
-            color: var(--dremio--color--link);
-          }
-        }
-      }
       &-settings-icon .settings-button {
         background: transparent;
         border: none;
@@ -171,6 +151,7 @@
         display: flex;
         align-items: center;
         white-space: nowrap;
+        color: var(--dremio--color--text--faded);
       }
     }
 

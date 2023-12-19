@@ -29,8 +29,6 @@ const WikiLanding = ({ datasetDetails }: any) => {
           entityId={datasetDetails.get("entityId")}
           isEditAllowed={isWikiEditAllowed}
           className="bottomContent"
-          showTags
-          showWikiContent
           dataset={datasetDetails}
           overlay
         />

@@ -18,10 +18,13 @@ package com.dremio.service.conduit.server;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import com.dremio.service.grpc.CloseableBindableService;
+import com.google.common.base.Preconditions;
 
 import io.grpc.BindableService;
+import io.grpc.HandlerRegistry;
 import io.grpc.ServerServiceDefinition;
 
 
@@ -33,6 +36,7 @@ public class ConduitServiceRegistryImpl implements ConduitServiceRegistry {
   private final List<BindableService> serviceList;
   private final List<CloseableBindableService> closeableServiceList;
   private final List<ServerServiceDefinition> serverServiceDefinitionList;
+  private Optional<HandlerRegistry> fallbackHandler = Optional.empty();
 
   public ConduitServiceRegistryImpl() {
     this.serviceList = new ArrayList<>();
@@ -55,6 +59,12 @@ public class ConduitServiceRegistryImpl implements ConduitServiceRegistry {
     serverServiceDefinitionList.add(serverServiceDefinition);
   }
 
+  @Override
+  public void registerFallbackHandler(HandlerRegistry handlerRegistry) {
+    Preconditions.checkState(!fallbackHandler.isPresent(), "Fallback handler is already registered.");
+    fallbackHandler = Optional.of(handlerRegistry);
+  }
+
   List<BindableService> getServiceList() {
     return serviceList;
   }
@@ -67,4 +77,7 @@ public class ConduitServiceRegistryImpl implements ConduitServiceRegistry {
     return serverServiceDefinitionList;
   }
 
+  public Optional<HandlerRegistry> getFallbackHandler() {
+    return fallbackHandler;
+  }
 }

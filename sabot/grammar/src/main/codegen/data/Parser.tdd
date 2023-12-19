@@ -24,7 +24,7 @@
     "com.dremio.exec.planner.sql.parser.*",
     "org.apache.calcite.sql.SqlBasicCall",
     "org.apache.calcite.util.*",
-    "com.dremio.exec.catalog.TableVersionType",
+    "com.dremio.catalog.model.dataset.TableVersionType",
     "com.dremio.exec.tablefunctions.TableMacroNames",
     "com.dremio.exec.util.*",
     "com.dremio.exec.planner.sql.parser.SqlCreateReflection.MeasureType",
@@ -119,6 +119,7 @@
     "BRANCHES",
     "TAG",
     "TAGS",
+    "LOG",
     "LOGS",
     "APPLICATION",
     "OAUTH",
@@ -157,12 +158,24 @@
     "ESCAPE_CHAR",
     "EMPTY_AS_NULL",
     "ON_ERROR",
+    "EXTRACT_HEADER",
+    "SKIP_LINES",
     "VACUUM",
     "EXPIRE",
     "SNAPSHOTS",
     "OLDER_THAN",
     "RETAIN_LAST",
-    "TBLPROPERTIES"
+    "TBLPROPERTIES",
+    "COMMITS_OLDER_THAN",
+    "RETAIN_LAST_COMMITS",
+    "REMOVE",
+    "ORPHAN",
+    "SNAPSHOTS_OLDER_THAN",
+    "RETAIN_LAST_SNAPSHOTS",
+    "PIPE",
+    "PIPES",
+    "NOTIFICATION_PROVIDER",
+    "NOTIFICATION_QUEUE_REFERENCE"
   ]
 
   nonReservedKeywords: [
@@ -326,6 +339,7 @@
     "LOCALSORT"
     "LOCATION"
     "LOCATOR"
+    "LOG"
     "LOGS"
     "M"
     "MAINTAIN"
@@ -354,8 +368,9 @@
     "MUMPS"
     "NAME"
     "NAMES"
+    "NANOSECOND"
     "NESTING"
-    "NORMALIZED"
+    "NORMALIZED",
     "NULLABLE"
     "NULLS"
     "NUMBER"
@@ -602,7 +617,13 @@
     "SqlShowFunctions()",
     "SqlOptimize()",
     "SqlVacuum()",
-    "SqlCreateFolder()"
+    "SqlCreateFolder()",
+    "SqlDropFolder()",
+    "SqlShowCreate()",
+    "SqlCreatePipe()",
+    "SqlShowTableProperties()"
+    "SqlDescribePipe()",
+    "SqlShowPipes()"
   ]
 
   # List of methods for parsing custom literals.

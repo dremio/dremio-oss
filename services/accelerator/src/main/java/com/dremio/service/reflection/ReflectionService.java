@@ -24,7 +24,7 @@ import java.util.concurrent.FutureTask;
 
 import javax.inject.Provider;
 
-import com.dremio.exec.catalog.CatalogEntityKey;
+import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.exec.store.sys.accel.AccelerationManager.ExcludedReflectionsProvider;
 import com.dremio.service.Service;
@@ -92,7 +92,7 @@ public interface ReflectionService extends Service, ReflectionAdministrationServ
     }
 
     @Override
-    public Iterable<ReflectionGoal> getReflectionsByDatasetId(String datasetid) {
+    public Iterable<ReflectionGoal> getReflectionsByDatasetId(String datasetId) {
       return Collections.emptyList();
     }
 
@@ -102,7 +102,7 @@ public interface ReflectionService extends Service, ReflectionAdministrationServ
     }
 
     @Override
-    public ReflectionId createExternalReflection(String name, List<String> dataset, List<String> targetDataset) {
+    public ReflectionId createExternalReflection(String name, List<String> datasetPath, List<String> targetDatasetPath) {
       return null;
     }
 
@@ -203,7 +203,7 @@ public interface ReflectionService extends Service, ReflectionAdministrationServ
     }
 
     @Override
-    public int getEnabledReflectionCountForDataset(String datasetid) {
+    public int getEnabledReflectionCountForDataset(String datasetId) {
       return 0;
     }
 

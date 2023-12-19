@@ -48,7 +48,7 @@ public class TestForemenWorkManager {
     doReturn(false).when(config).getBoolean(any());
     Provider<CommandPool> commandPoolProvider = ()-> CommandPoolFactory.INSTANCE.newPool(config, null);
     ForemenWorkManager foremenWorkManager = new ForemenWorkManager(null, null, commandPoolProvider,
-      null, null, null, null, null, null,null);
+      null, null, null, null, null, null,null, null);
 
     foremenWorkManager = spy(foremenWorkManager);
     UserException userException = UserException.resourceError().message(UserException.QUERY_REJECTED_MSG).buildSilently();

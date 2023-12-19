@@ -20,6 +20,9 @@ import java.util.Set;
 
 import javax.inject.Inject;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.dremio.common.DeferredException;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.config.DremioConfig;
@@ -36,6 +39,7 @@ import com.google.inject.multibindings.Multibinder;
  * CredentialsProvider management.
  */
 public class SimpleCredentialsService implements CredentialsService {
+  private static final Logger logger = LoggerFactory.getLogger(SimpleCredentialsService.class);
 
 
   static SimpleCredentialsService newInstance(DremioConfig config, ScanResult result) {
@@ -103,6 +107,7 @@ public class SimpleCredentialsService implements CredentialsService {
 
     for (CredentialsProvider provider : providers) {
       if (provider.isSupported(uri)) {
+        logger.trace("Credentials lookup using {}", provider.getClass());
         return provider.lookup(uri);
       }
     }

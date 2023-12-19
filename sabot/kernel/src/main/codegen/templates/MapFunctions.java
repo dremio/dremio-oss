@@ -39,7 +39,7 @@ public class GMapFunctions {
 
   <#list MapFunctions.types as holder>
 
-  @FunctionTemplate(names = {MapFunctions.LAST_MATCHING_ENTRY_FUNC}, isDeterministic = false, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = NullHandling.INTERNAL, derivation = MapFunctions.KeyValueOutputLastMatching.class)
+  @FunctionTemplate(names = {MapFunctions.LAST_MATCHING_ENTRY_FUNC}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = NullHandling.INTERNAL, derivation = MapFunctions.KeyValueOutputLastMatching.class)
   public static class GetLastMatchingMapEntryFor${holder}Key implements SimpleFunction {
 
     @Param FieldReader input;

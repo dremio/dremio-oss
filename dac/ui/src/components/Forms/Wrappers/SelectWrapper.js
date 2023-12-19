@@ -22,6 +22,7 @@ import {
   selectWrapper,
   selectBody,
   selectFieldWithError,
+  fieldWithError,
 } from "./FormWrappers.less";
 
 export default class SelectWrapper extends Component {
@@ -53,6 +54,7 @@ export default class SelectWrapper extends Component {
           {...hoverHelpText}
           label={elementConfig.getConfig().label}
           labelClass={selectFieldWithError}
+          className={fieldWithError}
         >
           <div className={selectWrapper}>
             <Select

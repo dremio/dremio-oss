@@ -23,6 +23,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -36,12 +37,16 @@ import java.util.stream.StreamSupport;
 import org.junit.After;
 import org.junit.Assume;
 import org.junit.Before;
+import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.parameterized.ParametersRunnerFactory;
 
+import com.dremio.common.util.TestTools;
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.FindByRange;
 import com.dremio.datastore.api.ImmutableFindByRange;
@@ -74,6 +79,13 @@ import com.google.common.collect.Iterables;
  */
 @RunWith(Parameterized.class)
 public abstract class AbstractTestKVStore<K, V> {
+
+  @ClassRule
+  public static final TestRule CLASS_TIMEOUT = TestTools.getTimeoutRule(Duration.ofMinutes(10));
+
+  @Rule
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(Duration.ofMinutes(2));
+
   private static final String TAG_ASSERT_FAILURE_MSG = "All documents should have a non-null, non-empty tag";
   private KVStore<K, V> kvStore;
   private static final int SAMPLING_SIZE = 30;

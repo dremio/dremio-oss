@@ -22,6 +22,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
+import org.apache.calcite.plan.Convention;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.prepare.Prepare;
+import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.runtime.CalciteException;
@@ -41,15 +46,19 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorScope;
 
+import com.dremio.exec.calcite.logical.TableOptimizeCrel;
 import com.dremio.exec.planner.sql.handlers.query.OptimizeHandler;
+import com.dremio.exec.planner.sql.handlers.query.OptimizeOptions;
 import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
+import com.dremio.exec.planner.sql.handlers.query.SupportsSelection;
+import com.dremio.exec.planner.sql.handlers.query.SupportsSqlToRelConversion;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.collect.ImmutableList;
 
 /**
  * SQL node tree for the internal <code>OPTIMIZE TABLE table_identifier</code> command.
  */
-public class SqlOptimize extends SqlCall implements SqlToPlanHandler.Creator {
+public class SqlOptimize extends SqlCall implements SqlToPlanHandler.Creator, SupportsSelection, SupportsSqlToRelConversion {
 
   public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("OPTIMIZE", SqlKind.OTHER) {
 
@@ -97,6 +106,7 @@ public class SqlOptimize extends SqlCall implements SqlToPlanHandler.Creator {
 
   private SqlSelect sourceSelect;
 
+  @Override
   public SqlSelect getSourceSelect() {
     return sourceSelect;
   }
@@ -311,4 +321,11 @@ public class SqlOptimize extends SqlCall implements SqlToPlanHandler.Creator {
   }
 
 
+  @Override
+  public RelNode convertToRel(RelOptCluster cluster, Prepare.CatalogReader catalogReader, RelNode input,
+                              RelOptTable.ToRelContext relContext) {
+    Prepare.PreparingTable nsTable = catalogReader.getTable(getPath().getPathComponents());
+    return new TableOptimizeCrel(cluster, cluster.traitSetOf(Convention.NONE), input, nsTable,
+        null, OptimizeOptions.createInstance(this));
+  }
 }

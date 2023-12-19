@@ -55,6 +55,7 @@ import { listenToJobProgress } from "@app/sagas/performLoadDatasetNew";
 import { transformHistoryCheck } from "sagas/transformHistoryCheck";
 import { getExploreState, getExplorePageDataset } from "selectors/explore";
 import { getExploreViewState } from "selectors/resources";
+import { getLocation } from "@app/selectors/routing";
 import { updateTransformData } from "@inject/actions/explore/dataset/updateLocation";
 import {
   setQuerySelections,
@@ -63,7 +64,8 @@ import {
   setSelectedSql,
   setIsMultiQueryRunning,
   setPreviousAndCurrentSql,
-} from "actions/explore/view";
+  setActionState,
+} from "@app/actions/explore/view";
 
 import apiUtils from "utils/apiUtils/apiUtils";
 import localStorageUtils from "@app/utils/storageUtils/localStorageUtils";
@@ -97,6 +99,14 @@ import {
 } from "./performTransformNew";
 import { getFeatureFlag } from "@app/selectors/featureFlagsSelector";
 import { PHYSICAL_DATASET_TYPES } from "@app/constants/datasetTypes";
+import { SQL_DARK_THEME, SQL_LIGHT_THEME } from "@app/utils/sql-editor";
+import Immutable from "immutable";
+import { getLoggingContext } from "dremio-ui-common/contexts/LoggingContext.js";
+import { EXPLORE_VIEW_ID } from "@app/reducers/explore/view";
+
+const logger = getLoggingContext().createLogger(
+  "oss/sagas/performTransform.ts"
+);
 
 export default function* watchPerformTransform() {
   yield all([
@@ -122,6 +132,19 @@ export function* handlePerformTransform({ payload }) {
   yield* performTransform(payload);
 }
 
+function* getActiveScriptId() {
+  return (yield select(getExploreState))?.view?.activeScript?.id;
+}
+
+// Checks the passed in script ID agains the current activeScriptId in the explorePage.view.activeScript
+// Returns the passed in tab (for the actions when originally dispatched) if they differ
+function* getTabForActions(activeScriptId) {
+  const id = yield getActiveScriptId();
+
+  if (id !== activeScriptId) return activeScriptId;
+  else return "";
+}
+
 // wrapper for multiple queries
 export function* performTransform(payload) {
   try {
@@ -138,8 +161,16 @@ export function* performTransform(payload) {
       queryContext,
       transformData,
       useOptimizedJobFlow,
+      activeScriptId,
     } = payload;
-    yield put(setIsMultiQueryRunning({ running: true }));
+
+    //
+    yield put(
+      setIsMultiQueryRunning({
+        running: true,
+        tabId: yield getTabForActions(payload.activeScriptId),
+      })
+    );
 
     let queryStatuses = [];
     const [rawQueries, selections] = yield call(getParsedSql, {
@@ -153,14 +184,23 @@ export function* performTransform(payload) {
     const queries = rawQueries.map((q) => q.trimEnd());
 
     queries.forEach((query) =>
-      queryStatuses.push({ sqlStatement: query, cancelled: false })
+      queryStatuses.push({
+        sqlStatement: query,
+        cancelled: false /*!!curTabId*/,
+      })
     );
 
     // callback is passed in when clicking on actions
     if (!callback && indexToModify == undefined) {
+      const curTabId = yield getTabForActions(activeScriptId);
       yield put(resetFilteredJobsList());
       yield put(resetUniqueSavingJob());
-      yield put(setQueryStatuses({ statuses: queryStatuses }));
+      yield put(
+        setQueryStatuses({
+          statuses: queryStatuses,
+          tabId: curTabId,
+        })
+      );
       yield put(setQuerySelections({ selections }));
       yield put(setPreviousMultiSql({ sql: currentSql }));
     }
@@ -174,11 +214,35 @@ export function* performTransform(payload) {
         break;
       }
 
-      const preUpdatedQueryStatuses = exploreState
-        ? exploreState.view.queryStatuses
-        : queryStatuses;
+      //Tabs: May need to remove this for background jobs
+      const curTabId = yield getTabForActions(activeScriptId);
+      const hasChangedTabsSinceRun = !!curTabId;
+      if (hasChangedTabsSinceRun) {
+        const newStatuses = (
+          curTabId ? exploreState.tabViews[curTabId].queryStatuses : []
+        ).map((status) => ({
+          ...status,
+          cancelled: true,
+        }));
+        const action = setQueryStatuses({
+          statuses: newStatuses,
+          tabId: curTabId,
+        });
+        logger.debug(
+          `${activeScriptId}: Cancelling previous queryStatuses`,
+          action
+        );
+        yield put(action);
+        break;
+      }
+
+      let curTab = yield getTabForActions(activeScriptId);
+      const qStatuses = curTab
+        ? exploreState?.tabViews?.[activeScriptId]?.queryStatuses
+        : exploreState?.view?.queryStatuses;
+      const preUpdatedQueryStatuses = exploreState ? qStatuses : queryStatuses;
       if (
-        preUpdatedQueryStatuses.length &&
+        preUpdatedQueryStatuses?.length &&
         preUpdatedQueryStatuses[i].cancelled
       ) {
         continue;
@@ -214,15 +278,24 @@ export function* performTransform(payload) {
         "job_status_in_sql_runner"
       );
 
+      const location = yield select(getLocation);
+      const { jobId } = location.query || {};
+
+      const shouldTriggerJobForSaving =
+        isNotDataset ||
+        finalTransformData ||
+        // this will trigger the new flow when creating a view from a PDS that wasn't executed
+        (PHYSICAL_DATASET_TYPES.has(datasetType) && !jobId);
+
       // The process for running/previewing a new query is now handled differently.
       // submit job request -> listen to job progress -> fetch dataset data,
       // if job fails -> call jobs API to fetch error details.
-      // useOptimizedQueryFlow guarantees that this logic is only followed when cliking on run/preview
-      // OR trying to save a new or modified query that hasn't been ran/previewed yet
+      // useOptimizedQueryFlow guarantees that this logic is only followed when cliking on run/preview,
+      // trying to save a new or modified query that hasn't been ran/previewed yet, or creating
+      // a new view from a PDS
       if (
         useNewQueryFlow !== "DISABLED" &&
-        (useOptimizedJobFlow ||
-          (isSaveViewAs && (isNotDataset || finalTransformData)))
+        (useOptimizedJobFlow || (isSaveViewAs && shouldTriggerJobForSaving))
       ) {
         const [response, navigateOptions, newVersion] = yield call(
           newPerformTransformSingle,
@@ -243,12 +316,15 @@ export function* performTransform(payload) {
         }
 
         // fetch queryStatuses from Redux
+        curTab = yield getTabForActions(activeScriptId);
         const updatedQueryStatuses = cloneDeep(
-          exploreState?.view?.queryStatuses
+          curTab
+            ? exploreState?.tabViews?.[activeScriptId]?.queryStatuses
+            : exploreState?.view?.queryStatuses
         );
 
         // if queryStatuses does not exist, use the manually generated statuses
-        const mostRecentStatuses = updatedQueryStatuses.length
+        const mostRecentStatuses = updatedQueryStatuses?.length
           ? updatedQueryStatuses
           : cloneDeep(queryStatuses);
 
@@ -275,15 +351,16 @@ export function* performTransform(payload) {
             curIndex: i,
             indexToModify,
             callback,
+            tabId: yield getTabForActions(activeScriptId),
           });
 
-          // add job definition to jobs table
           yield put(
             fetchFilteredJobsList(
               jobId,
               JOB_PAGE_NEW_VIEW_ID,
               undefined,
-              isSaveViewAs
+              isSaveViewAs,
+              activeScriptId
             )
           );
 
@@ -300,7 +377,8 @@ export function* performTransform(payload) {
             callback,
             i,
             sessionId,
-            viewId
+            viewId,
+            yield getTabForActions(activeScriptId) //
           );
         }
 
@@ -308,12 +386,15 @@ export function* performTransform(payload) {
           exploreState = yield select(getExploreState);
 
           // fetch queryStatuses from Redux
+          curTab = yield getTabForActions(activeScriptId);
           const updatedQueryStatuses = cloneDeep(
-            exploreState?.view?.queryStatuses
+            curTab
+              ? exploreState?.tabViews?.[activeScriptId]?.queryStatuses
+              : exploreState?.view?.queryStatuses
           );
 
           // if queryStatuses does not exist, use the manually generated statuses
-          const mostRecentStatuses = updatedQueryStatuses.length
+          const mostRecentStatuses = updatedQueryStatuses?.length
             ? updatedQueryStatuses
             : cloneDeep(queryStatuses);
 
@@ -321,7 +402,12 @@ export function* performTransform(payload) {
             mostRecentStatuses[idx].cancelled = true;
           }
 
-          yield put(setQueryStatuses({ statuses: mostRecentStatuses }));
+          yield put(
+            setQueryStatuses({
+              statuses: mostRecentStatuses,
+              tabId: yield getTabForActions(activeScriptId),
+            })
+          );
           break;
         }
 
@@ -350,21 +436,27 @@ export function* performTransform(payload) {
         shouldBreak = true;
         break;
       }
+      curTab = yield getTabForActions(activeScriptId);
       const updatedQueryStatuses = cloneDeep(
-        exploreState.view && exploreState.view.queryStatuses
+        curTab
+          ? exploreState?.tabViews?.[activeScriptId]?.queryStatuses
+          : exploreState?.view?.queryStatuses
       );
-      const mostRecentStatuses = updatedQueryStatuses.length
+      const mostRecentStatuses = updatedQueryStatuses?.length
         ? updatedQueryStatuses
         : cloneDeep(queryStatuses);
 
       // handle success
       if (response && response.payload) {
+        curTab = yield getTabForActions(activeScriptId);
         [sessionId] = yield call(handlePerformTransformSuccess, {
           response,
           queryStatuses: mostRecentStatuses,
           curIndex: i,
           indexToModify,
           callback,
+          // Skips redirection
+          tabId: curTab,
         });
 
         const resultDataset = apiUtils.getEntityFromResponse(
@@ -373,14 +465,33 @@ export function* performTransform(payload) {
         );
         const [, jobId] = apiUtils.getFromResponse(response);
 
+        curTab = yield getTabForActions(activeScriptId);
+
+        //Try just breaking here;
+        if (curTab) {
+          shouldBreak = true;
+          break;
+        }
+
         if (!isSaveViewAs) {
-          // add job definition to jobs table
           yield put(
-            fetchFilteredJobsList(jobId, JOB_PAGE_NEW_VIEW_ID, indexToModify)
+            fetchFilteredJobsList(
+              jobId,
+              JOB_PAGE_NEW_VIEW_ID,
+              indexToModify,
+              undefined,
+              activeScriptId
+            )
           );
           // we successfully loaded a dataset metadata. We need load table data for it
           yield call(loadTableData, resultDataset.get("datasetVersion"), isRun);
         }
+      }
+
+      // Skip if user has switched tabs
+      curTab = yield getTabForActions(activeScriptId);
+      if (curTab) {
+        return;
       }
 
       // handle failure
@@ -403,7 +514,12 @@ export function* performTransform(payload) {
         for (let idx = i + 1; idx < mostRecentStatuses.length; idx++) {
           mostRecentStatuses[idx].cancelled = true;
         }
-        yield put(setQueryStatuses({ statuses: mostRecentStatuses }));
+        yield put(
+          setQueryStatuses({
+            statuses: mostRecentStatuses,
+            tabId: yield getTabForActions(activeScriptId),
+          })
+        );
         break;
       }
       // eslint-disable-next-line require-atomic-updates
@@ -415,7 +531,13 @@ export function* performTransform(payload) {
       throw e;
     }
   } finally {
-    yield put(setIsMultiQueryRunning({ running: false }));
+    yield put(
+      setIsMultiQueryRunning({
+        running: false,
+        tabId: yield getTabForActions(payload.activeScriptId),
+      })
+    );
+    yield put(setActionState({ actionState: null })); // tabId
   }
 }
 
@@ -494,8 +616,10 @@ export function* handlePerformTransformSuccess({
   curIndex,
   indexToModify,
   callback,
+  tabId,
 }) {
   const mostRecentStatuses = queryStatuses;
+  // Session ID in here
   const [sqlStatement, jobId, sessionId, version] =
     apiUtils.getFromResponse(response);
 
@@ -512,7 +636,7 @@ export function* handlePerformTransformSuccess({
   // store queryStatuses in redux store after a job succeeds
   // this results in the job query also having the jobId
   if (!callback) {
-    yield put(setQueryStatuses({ statuses: queryStatuses }));
+    yield put(setQueryStatuses({ statuses: queryStatuses, tabId }));
 
     if (indexToModify != null) {
       let newSql = "";
@@ -523,8 +647,8 @@ export function* handlePerformTransformSuccess({
 
       const newSelections = extractSelections(newSql);
 
-      yield put(setPreviousAndCurrentSql({ sql: newSql }));
-      yield put(setQuerySelections({ selections: newSelections }));
+      yield put(setPreviousAndCurrentSql({ sql: newSql, tabId }));
+      yield put(setQuerySelections({ selections: newSelections, tabId }));
     }
   }
 
@@ -539,6 +663,7 @@ export function* handlePerformTransformFailure({
   curIndex,
   newVersion,
   isSaveViewAs,
+  activeScriptId,
 }) {
   const mostRecentStatuses = queryStatuses;
 
@@ -582,7 +707,15 @@ export function* handlePerformTransformFailure({
     yield put(setQueryStatuses({ statuses: mostRecentStatuses }));
 
     if (jobIdObj.id) {
-      yield put(fetchFilteredJobsList(jobIdObj.id, "JOB_PAGE_NEW_VIEW_ID"));
+      yield put(
+        fetchFilteredJobsList(
+          jobIdObj.id,
+          "JOB_PAGE_NEW_VIEW_ID",
+          undefined,
+          undefined,
+          activeScriptId
+        )
+      );
     }
   }
 
@@ -619,6 +752,8 @@ export function* handleRunDatasetSql({
       queryContext,
       viewId,
       useOptimizedJobFlow,
+      activeScriptId: exploreState?.view?.activeScript?.id,
+      // Session id should be passed in from script session state
     };
 
     if (isPreview) {
@@ -895,7 +1030,7 @@ export function* showFailedJobDialog(i, sql, errorMessage) {
               maxHeight={190}
               contextMenu={false}
               customTheme
-              theme={isContrast ? "vs-dark" : "vs"}
+              theme={isContrast ? SQL_DARK_THEME : SQL_LIGHT_THEME}
               background={isContrast ? "#333333" : "#FFFFFF"}
               selectionBackground={isContrast ? "#304D6D" : "#B5D5FB"}
               inactiveSelectionBackground={isContrast ? "#505862" : "#c6e9ef"}
@@ -934,4 +1069,55 @@ export function getParsedSql({ dataset, currentSql, runningSql }) {
     statements.map((s) => extractSql(sql, s)),
     statements.map(toQueryRange),
   ];
+}
+
+export function* doJobFetch({ queryStatus, activeScriptId, index }) {
+  try {
+    let newDataset = undefined;
+    let datasetPath = ["tmp", "UNTITLED"];
+    let datasetVersion = queryStatus.version;
+    let jobId = queryStatus.jobId;
+    let paginationUrl = queryStatus.paginationUrl;
+    let sessionId = queryStatus.sessionId;
+
+    yield put(
+      setIsMultiQueryRunning({
+        running: true,
+        tabId: yield getTabForActions(activeScriptId),
+      })
+    );
+
+    yield put(
+      fetchFilteredJobsList(
+        jobId,
+        JOB_PAGE_NEW_VIEW_ID,
+        undefined,
+        false, //isSaveViewAs,
+        activeScriptId
+      )
+    );
+
+    yield call(
+      listenToJobProgress,
+      newDataset,
+      datasetVersion,
+      jobId,
+      paginationUrl,
+      {}, // navigateOptions
+      true, // isRun, Only used for tracking event, move the tracking event somewhere else
+      datasetPath,
+      undefined, // callback, used for save as view
+      index,
+      sessionId,
+      EXPLORE_VIEW_ID,
+      yield getTabForActions(activeScriptId) //Send appropriate tabId if user has switched tabs again
+    );
+  } finally {
+    yield put(
+      setIsMultiQueryRunning({
+        running: false,
+        tabId: yield getTabForActions(activeScriptId),
+      })
+    );
+  }
 }

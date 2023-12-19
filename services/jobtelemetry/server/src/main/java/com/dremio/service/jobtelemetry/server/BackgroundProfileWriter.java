@@ -44,8 +44,7 @@ public class BackgroundProfileWriter implements AutoCloseable {
 
   BackgroundProfileWriter(ProfileStore profileStore, Tracer tracer) {
     this.profileStore = profileStore;
-    this.executor = new ContextMigratingCloseableExecutorService<>(
-      new CloseableThreadPool("bg-profile-writer"), tracer);
+    this.executor = new ContextMigratingCloseableExecutorService<>(new CloseableThreadPool("bg-profile-writer"));
   }
 
   Optional<CompletableFuture<Void>> tryWriteAsync(UserBitShared.QueryId queryId,

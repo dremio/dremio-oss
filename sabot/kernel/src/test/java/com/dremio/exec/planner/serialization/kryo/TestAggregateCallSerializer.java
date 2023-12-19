@@ -37,7 +37,7 @@ import org.mockito.junit.MockitoJUnitRunner;
 import org.objenesis.strategy.StdInstantiatorStrategy;
 
 import com.dremio.PlanTestBase;
-import com.dremio.exec.catalog.DremioCatalogReader;
+import com.dremio.exec.ops.DremioCatalogReader;
 import com.dremio.exec.planner.serialization.LogicalPlanDeserializer;
 import com.dremio.exec.planner.serialization.LogicalPlanSerializer;
 import com.dremio.exec.planner.serialization.kryo.serializers.AggregateCallSerializer;

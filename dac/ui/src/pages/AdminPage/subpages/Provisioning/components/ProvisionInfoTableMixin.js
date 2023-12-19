@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import Immutable from "immutable";
 export const getTableData = () => {
   if (!this.props.provision) return new Immutable.List();
 
@@ -37,10 +38,10 @@ export const getTableData = () => {
 
   // Note: 'Running' is not a term we use elsewhere in the UI
   // but in this list we can't distinguish "Active" from "Decomissioning"
-  const runningData = getRows("runningList", la("Running"));
+  const runningData = getRows("runningList", laDeprecated("Running"));
   const disconnectedData = getRows(
     "disconnectedList",
-    la("Provisioning or Disconnected")
+    laDeprecated("Provisioning or Disconnected")
   );
 
   return disconnectedData.concat(runningData);

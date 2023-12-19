@@ -42,6 +42,7 @@ const QueriedDataset = ({ queriedDataSet, intl }) => {
     }
     return queriedDataSet && queriedDataSet.slice(0, MAX_ITEMS);
   };
+
   return (
     <div className="queriedDataset">
       <div className="queriedDataset-title">
@@ -49,6 +50,11 @@ const QueriedDataset = ({ queriedDataSet, intl }) => {
       </div>
       <div className="queriedDataset-dataWrapper">
         {getRenderedItems().map((dataset, index) => {
+          const typeIcon = getIconByEntityType(
+            dataset.get("datasetType"),
+            !!dataset.get("versionContext")
+          );
+
           return (
             <div
               className="queriedDataset-dataWrapper__wrapper"
@@ -56,10 +62,11 @@ const QueriedDataset = ({ queriedDataSet, intl }) => {
             >
               <DatasetItemLabel
                 name=" "
-                typeIcon={getIconByEntityType(dataset.get("datasetType"))}
+                typeIcon={typeIcon}
                 className="queriedDataset-dataWrapper__label"
                 fullPath={dataset.get("datasetPathsList")}
                 shouldShowOverlay={ShowOverlay(dataset.get("datasetType"))}
+                hideOverlayActionButtons
                 customNode={
                   <span className="queriedDataset-dataWrapper__wrapper__dataHeader">
                     <Label

@@ -49,14 +49,15 @@ import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobResult;
 import com.dremio.service.jobs.ExternalCleaner;
+import com.dremio.service.jobs.JobsStoreCreator;
 import com.dremio.service.jobs.LocalJobsService;
-import com.dremio.service.jobs.LocalJobsService.JobsStoreCreator;
 import com.dremio.service.jobtelemetry.server.store.LocalProfileStore;
 import com.dremio.service.jobtelemetry.server.store.LocalProfileStore.KVProfileStoreCreator;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.namespace.PartitionChunkId;
+import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.HomeConfig;
@@ -363,7 +364,7 @@ public class Clean {
 
   private static void deleteSplitOrphans(LegacyKVStoreProvider provider) {
     AdminLogger.log("Deleting split orphans... ");
-    NamespaceServiceImpl service = new NamespaceServiceImpl(provider);
+    NamespaceServiceImpl service = new NamespaceServiceImpl(provider, new CatalogStatusEventsImpl());
     AdminLogger.log("Completed. Deleted {} orphans.",
       service.deleteSplitOrphans(PartitionChunkId.SplitOrphansRetentionPolicy.KEEP_CURRENT_VERSION_ONLY, true));
   }
@@ -378,7 +379,7 @@ public class Clean {
     AdminLogger.log("Deleting dataset orphans... ");
 
     int deleted = 0;
-    NamespaceServiceImpl service = new NamespaceServiceImpl(provider);
+    NamespaceServiceImpl service = new NamespaceServiceImpl(provider, new CatalogStatusEventsImpl());
     Set<String> rootPaths = new HashSet<>();
     List<SourceConfig> sourceConfigs = service.getSources();
     for (SourceConfig s: sourceConfigs) {

@@ -39,19 +39,99 @@ const sizes = [
 
 export const Default = () => {
   return (
-    <div>
-      {sizes.map((size) => (
-        <div
-          key={size}
-          className={`bg-neutral-50 m-4 p-${size} rounded`}
-          style={{ display: "inline-flex" }}
-        >
-          <div className={`bg-brand-300 rounded`}>
-            <code>.m-{size}</code>
+    <>
+      <div>
+        {sizes.map((size) => (
+          <div
+            key={size}
+            className={`bg-neutral-50 m-4 p-${size} rounded`}
+            style={{ display: "inline-flex" }}
+          >
+            <div className={`bg-brand-300 rounded`}>
+              <code>.m-{size}</code>
+            </div>
           </div>
-        </div>
-      ))}
-    </div>
+        ))}
+      </div>
+      <div>
+        {sizes.map((size) => (
+          <div
+            key={size}
+            className={`bg-neutral-50 m-4 px-${size} rounded`}
+            style={{ display: "inline-flex" }}
+          >
+            <div className={`bg-brand-300 rounded`}>
+              <code>.mx-{size}</code>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div>
+        {sizes.map((size) => (
+          <div
+            key={size}
+            className={`bg-neutral-50 m-4 py-${size} rounded`}
+            style={{ display: "inline-flex" }}
+          >
+            <div className={`bg-brand-300 rounded`}>
+              <code>.my-{size}</code>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div>
+        {sizes.map((size) => (
+          <div
+            key={size}
+            className={`bg-neutral-50 m-4 pl-${size} rounded`}
+            style={{ display: "inline-flex" }}
+          >
+            <div className={`bg-brand-300 rounded`}>
+              <code>.ml-{size}</code>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div>
+        {sizes.map((size) => (
+          <div
+            key={size}
+            className={`bg-neutral-50 m-4 pr-${size} rounded`}
+            style={{ display: "inline-flex" }}
+          >
+            <div className={`bg-brand-300 rounded`}>
+              <code>.mr-{size}</code>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div>
+        {sizes.map((size) => (
+          <div
+            key={size}
+            className={`bg-neutral-50 m-4 pt-${size} rounded`}
+            style={{ display: "inline-flex" }}
+          >
+            <div className={`bg-brand-300 rounded`}>
+              <code>.mt-{size}</code>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div>
+        {sizes.map((size) => (
+          <div
+            key={size}
+            className={`bg-neutral-50 m-4 pb-${size} rounded`}
+            style={{ display: "inline-flex" }}
+          >
+            <div className={`bg-brand-300 rounded`}>
+              <code>.mb-{size}</code>
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
   );
 };
 

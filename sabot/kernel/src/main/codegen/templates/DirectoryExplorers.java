@@ -34,7 +34,7 @@ import org.apache.arrow.vector.holders.VarCharHolder;
 import javax.inject.Inject;
 
 /**
- * This file is generated with Freemarker using the template exec/java-exec/src/main/codegen/templates/DirectoryExplorers.java
+ * This file is generated with Freemarker using the template sabot/kernel/src/main/codegen/templates/DirectoryExplorers.java
  */
 public class DirectoryExplorers {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DirectoryExplorers.class);
@@ -49,8 +49,8 @@ public class DirectoryExplorers {
   @FunctionTemplate(name = ${dirAggrProps.name}, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = FunctionTemplate.NullHandling.INTERNAL)
   public static class ${dirAggrProps.functionClassName} implements SimpleFunction {
 
-    @Param VarCharHolder schema;
-    @Param VarCharHolder table;
+    @Param NullableVarCharHolder schema;
+    @Param NullableVarCharHolder table;
     @Output NullableVarCharHolder out;
     @Inject ArrowBuf buffer;
     @Inject com.dremio.exec.store.PartitionExplorer partitionExplorer;
@@ -64,8 +64,8 @@ public class DirectoryExplorers {
       Iterable<String> subPartitions;
       try {
         subPartitions = partitionExplorer.getSubPartitions(
-            com.dremio.exec.expr.fn.impl.StringFunctionHelpers.getStringFromVarCharHolder(schema),
-            com.dremio.exec.expr.fn.impl.StringFunctionHelpers.getStringFromVarCharHolder(table),
+            com.dremio.exec.expr.fn.impl.StringFunctionHelpers.getStringFromNullableVarCharHolder(schema),
+            com.dremio.exec.expr.fn.impl.StringFunctionHelpers.getStringFromNullableVarCharHolder(table),
             new java.util.ArrayList<String>(),
             new java.util.ArrayList<String>());
       } catch (com.dremio.exec.store.PartitionNotFoundException e) {
@@ -73,8 +73,8 @@ public class DirectoryExplorers {
           .message(
             String.format("Error in %s function: Table %s does not exist in schema %s ",
                 ${dirAggrProps.name},
-                com.dremio.exec.expr.fn.impl.StringFunctionHelpers.getStringFromVarCharHolder(table),
-                com.dremio.exec.expr.fn.impl.StringFunctionHelpers.getStringFromVarCharHolder(schema))
+                com.dremio.exec.expr.fn.impl.StringFunctionHelpers.getStringFromNullableVarCharHolder(table),
+                com.dremio.exec.expr.fn.impl.StringFunctionHelpers.getStringFromNullableVarCharHolder(schema))
           )
           .build();
       }
@@ -84,24 +84,27 @@ public class DirectoryExplorers {
           .message(
             String.format("Error in %s function: Table %s in schema %s does not contain sub-partitions.",
                 ${dirAggrProps.name},
-                com.dremio.exec.expr.fn.impl.StringFunctionHelpers.getStringFromVarCharHolder(table),
-                com.dremio.exec.expr.fn.impl.StringFunctionHelpers.getStringFromVarCharHolder(schema)
+                com.dremio.exec.expr.fn.impl.StringFunctionHelpers.getStringFromNullableVarCharHolder(table),
+                com.dremio.exec.expr.fn.impl.StringFunctionHelpers.getStringFromNullableVarCharHolder(schema)
             )
           )
           .build();
       }
-      String subPartitionStr = partitionIterator.next();
+
+      // Add type casting to work around Janino language feature restriction
+      // reference http://janino-compiler.github.io/janino/
+      String subPartitionStr = (String)partitionIterator.next();
       String curr;
       // find the ${dirAggrProps.goal} directory in the list using a ${dirAggrProps.comparisonType} string comparison
       while (partitionIterator.hasNext()){
-        curr = partitionIterator.next();
+        curr = (String)partitionIterator.next();
         if (subPartitionStr.${dirAggrProps.comparison}) {
           subPartitionStr = curr;
         }
       }
       String[] subPartitionParts = subPartitionStr.split("/");
       subPartitionStr = subPartitionParts[subPartitionParts.length - 1];
-      byte[] result = subPartitionStr.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+      byte[] result = (byte[])subPartitionStr.getBytes(java.nio.charset.StandardCharsets.UTF_8);
       out.buffer = buffer = buffer.reallocIfNeeded(result.length);
 
       out.buffer.setBytes(0, subPartitionStr.getBytes(), 0, result.length);

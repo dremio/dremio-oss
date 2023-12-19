@@ -26,6 +26,7 @@ import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.types.Types;
@@ -33,6 +34,7 @@ import org.apache.iceberg.types.Types;
 import com.dremio.exec.catalog.PartitionSpecAlterOption;
 import com.dremio.exec.catalog.RollbackOption;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.iceberg.SnapshotEntry;
 
 /**
  * represents an Iceberg catalog
@@ -41,12 +43,14 @@ public interface IcebergCommand {
 
   /**
    * Start of Create table command
-   * @param tableName name of the table
-   * @param writerSchema schema of the table
+   *
+   * @param tableName        name of the table
+   * @param writerSchema     schema of the table
    * @param partitionColumns partition specification of the table
-   * @param tableParameters icebeg table parameters
-   */
-  void beginCreateTableTransaction(String tableName, BatchSchema writerSchema, List<String> partitionColumns, Map<String, String> tableParameters, PartitionSpec partitionSpec);
+   * @param tableParameters  icebeg table parameters
+   * @param sortOrder
+     */
+  void beginCreateTableTransaction(String tableName, BatchSchema writerSchema, List<String> partitionColumns, Map<String, String> tableParameters, PartitionSpec partitionSpec, SortOrder sortOrder);
 
   /**
    * Start of a tansaction
@@ -116,7 +120,13 @@ public interface IcebergCommand {
    * Expire older snapshots, but don't clean orphan files.
    * @return Live snapshots and their manifest list file paths
   */
- Map<Long, String> expireSnapshots(long olderThanInMillis, int retainLast);
+  List<SnapshotEntry> expireSnapshots(long olderThanInMillis, int retainLast);
+
+  /**
+   * Collect the expired snapshot ids, but not actually make table snapshots expired.
+   * @return Exipired snapshots and their timestamp
+   */
+  List<SnapshotEntry> collectExpiredSnapshots(long olderThanInMillis, int retainLast);
 
   /**
    * Roll a table's data back to a specific snapshot identified either by id or before a given timestamp.
@@ -190,6 +200,13 @@ public interface IcebergCommand {
   void changeColumn(String columnToChange, Field batchField);
 
   /**
+   * replace the table sort order with a newly created order.
+   * @param sortOrder the names of columns in the new sort order.
+   *                  Columns are sorted from high priority to low priority
+   */
+  void replaceSortOrder(List<String> sortOrder);
+
+  /**
    * change column name
    * @param name existing column name
    * @param newName new column name
@@ -214,6 +231,16 @@ public interface IcebergCommand {
    * @param snapshotId The snapshotId that was used to read the transaction
    */
   Snapshot setIsReadModifyWriteTransaction(long snapshotId);
+
+  /**
+   * Update table's properties.
+   */
+  void updateProperties(Map<String, String> tblProperties, boolean useTransaction);
+
+  /**
+   * remove table's properties.
+   */
+  void removeProperties(List<String> tblProperties);
 
   /**
    * Load an Iceberg table from disk
@@ -252,8 +279,6 @@ public interface IcebergCommand {
   void dropColumnInternalTable(String columnToDrop);
 
   void changeColumnForInternalTable(String columnToChange, Field batchField);
-
-  void updatePropertiesMap(Map<String, String> propertiesMap);
 
   void updatePartitionSpec(PartitionSpecAlterOption partitionSpecAlterOption);
 

@@ -21,6 +21,7 @@ import java.util.Map;
 import org.apache.hadoop.conf.Configuration;
 
 import com.dremio.common.logical.FormatPluginConfig;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.deltalake.DeltaLakeFormatConfig;
 import com.dremio.exec.store.deltalake.DeltaLakeFormatPlugin;
@@ -30,12 +31,17 @@ import com.dremio.exec.store.iceberg.IcebergFormatConfig;
 import com.dremio.exec.store.iceberg.IcebergFormatPlugin;
 import com.dremio.exec.store.iceberg.SupportsIcebergRootPointer;
 import com.dremio.io.file.FileSystem;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorContext;
 
 /**
  * Base class which all hive storage plugins extend
  */
 public abstract class BaseHiveStoragePlugin implements SupportsIcebergRootPointer {
+
+  //Advanced option to set default ctas format
+  public static final String HIVE_DEFAULT_CTAS_FORMAT = "hive.default.ctas.format";
+
   private final SabotContext sabotContext;
   private final String name;
 
@@ -70,6 +76,15 @@ public abstract class BaseHiveStoragePlugin implements SupportsIcebergRootPointe
     return conf;
   }
 
+  public abstract String getConfEntry(String key, String defaultValue);
+
+  @Override
+  public boolean isMetadataValidityCheckRecentEnough(Long lastMetadataValidityCheckTime, Long currentTime, OptionManager optionManager) {
+    final long metadataAggressiveExpiryTime = Long.parseLong(getConfEntry(PlannerSettings.METADATA_EXPIRY_CHECK_INTERVAL_SECS.getOptionName(),
+      String.valueOf(optionManager.getOption(PlannerSettings.METADATA_EXPIRY_CHECK_INTERVAL_SECS)))) * 1000;
+    return (lastMetadataValidityCheckTime != null && (lastMetadataValidityCheckTime + metadataAggressiveExpiryTime >= currentTime)); // dataset metadata validity was checked too long ago (or never)
+  }
+
   @Override
   public FormatPlugin getFormatPlugin(FormatPluginConfig formatConfig) {
     if (formatConfig instanceof IcebergFormatConfig) {
@@ -87,10 +102,7 @@ public abstract class BaseHiveStoragePlugin implements SupportsIcebergRootPointe
 
 
   public String getDefaultCtasFormat() {
-    return getDefaultCtasFormatProperty();
+    return getConfEntry(HIVE_DEFAULT_CTAS_FORMAT, null);
   }
-
-  public abstract String getDefaultCtasFormatProperty();
-
 
 }

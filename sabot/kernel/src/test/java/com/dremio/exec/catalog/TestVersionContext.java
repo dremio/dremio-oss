@@ -23,6 +23,8 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
+import com.dremio.catalog.model.VersionContext;
+
 public class TestVersionContext {
   private static final String NOT_HEXADECIMAL = "nothexadecimal";
   private static final String EMPTY_STRING = "";
@@ -43,7 +45,7 @@ public class TestVersionContext {
     assertFalse(versionContext.isTag());
     assertFalse(versionContext.isBareCommit());
 
-    assertEquals(VersionContext.Type.UNSPECIFIED, versionContext.getType());
+    assertEquals(VersionContext.Type.NOT_SPECIFIED, versionContext.getType());
     assertNull(versionContext.getValue());
   }
 
@@ -94,7 +96,7 @@ public class TestVersionContext {
 
   @Test
   public void bareCommit() {
-    VersionContext versionContext = VersionContext.ofBareCommit(REASONABLE_HASH);
+    VersionContext versionContext = VersionContext.ofCommit(REASONABLE_HASH);
 
     assertTrue(versionContext.isSpecified());
     assertTrue(versionContext.isBareCommit());
@@ -103,25 +105,25 @@ public class TestVersionContext {
     assertFalse(versionContext.isBranch());
     assertFalse(versionContext.isTag());
 
-    assertEquals(VersionContext.Type.BARE_COMMIT, versionContext.getType());
+    assertEquals(VersionContext.Type.COMMIT, versionContext.getType());
     assertEquals(REASONABLE_HASH, versionContext.getValue());
   }
 
   @Test
   public void bareCommitHashNotHexadecimal() {
-    assertThatThrownBy(() -> VersionContext.ofBareCommit(NOT_HEXADECIMAL))
+    assertThatThrownBy(() -> VersionContext.ofCommit(NOT_HEXADECIMAL))
       .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
   public void bareCommitHashEmptyString() {
-    assertThatThrownBy(() -> VersionContext.ofBareCommit(EMPTY_STRING))
+    assertThatThrownBy(() -> VersionContext.ofCommit(EMPTY_STRING))
       .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
   public void bareCommitHashTooLong() {
-    assertThatThrownBy(() -> VersionContext.ofBareCommit(HASH_TOO_LONG))
+    assertThatThrownBy(() -> VersionContext.ofCommit(HASH_TOO_LONG))
       .isInstanceOf(IllegalArgumentException.class);
   }
 }

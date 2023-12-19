@@ -15,6 +15,9 @@
  */
 package com.dremio.exec;
 
+import java.util.Properties;
+
+import org.apache.curator.test.TestingServer;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
@@ -22,20 +25,35 @@ import com.dremio.common.config.SabotConfig;
 
 public class TestWithZookeeper extends ExecTest {
 
-  private static ZookeeperHelper zkHelper;
+  private static TestingServer zk;
+  private static volatile SabotConfig config;
 
   @BeforeClass
   public static void setUp() throws Exception {
-    zkHelper = new ZookeeperHelper();
-    zkHelper.startZookeeper(1);
+    zk = new TestingServer(true);
   }
 
   @AfterClass
   public static void tearDown() throws Exception {
-    zkHelper.stopZookeeper();
+    if (zk != null) {
+      zk.close();
+    }
   }
 
   public static SabotConfig getConfig() {
-    return zkHelper.getConfig();
+    if (config == null) {
+      synchronized (TestWithZookeeper.class) {
+        if (config == null) {
+          if (zk == null) {
+            throw new IllegalStateException("ZooKeeper server is not running.");
+          }
+          Properties overrides = new Properties();
+          overrides.setProperty(ExecConstants.ZK_CONNECTION, zk.getConnectString());
+          config = SabotConfig.create(overrides);
+        }
+      }
+    }
+    return config;
   }
+
 }

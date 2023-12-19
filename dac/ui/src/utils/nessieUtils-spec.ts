@@ -19,7 +19,9 @@ import {
   getNessieReferencePayload,
   getReferenceListForTransform,
   getRefQueryParams,
+  getSqlATSyntax,
   getTypeAndValue,
+  getEndpointFromSource,
 } from "./nessieUtils";
 import {
   empty,
@@ -27,8 +29,18 @@ import {
   noRef,
   nullStates,
 } from "./nessieUtils-spec/getNessieReferencePayload";
+import { setStore } from "@app/store/store";
 
 describe("nessieUtils", () => {
+  describe("encode source name correctly", () => {
+    it("nessie%demo", () => {
+      expect(
+        getEndpointFromSource({ type: "NESSIE", name: "nessie%demo" })
+      ).to.equal(
+        `//${window.location.host}/nessie-proxy/v2/source/nessie%25demo`
+      );
+    });
+  });
   describe("getTypeAndValue", () => {
     it("empty state", () => {
       expect(getTypeAndValue(null)).to.equal(null);
@@ -153,6 +165,93 @@ describe("nessieUtils", () => {
           sourceName: "ref/dataplane3",
         },
       ]);
+    });
+  });
+
+  describe("getSqlATSyntax", () => {
+    // const storeStub = sinon.stub(store, "getState");
+    const sampleState = {
+      nessie1: {
+        defaultReference: {
+          type: "BRANCH",
+          name: "main",
+          hash: "9d409c1c146b490ec394872b0343c39b3163947bb957983de205d2e7eae28ba0",
+        },
+        reference: {
+          type: "BRANCH",
+          name: "CrimeBranch",
+          hash: "b31fcc38982adcf44e94cee9eaaed1a46edc417cc04ba345c4ce99f0b9fee030",
+        },
+        hash: null,
+        date: null,
+        loading: {
+          NESSIE_DEFAULT_REF_REQUEST: false,
+        },
+        errors: {},
+      },
+    };
+
+    it("AT BRANCH BRANCHNAME", () => {
+      setStore({
+        getState: () => ({ nessie: sampleState }),
+      });
+
+      expect(getSqlATSyntax("nessie1")).to.eql(
+        ` AT BRANCH "${sampleState.nessie1.reference.name}"`
+      );
+    });
+
+    it("AT COMMIT HASH", () => {
+      setStore({
+        getState: () => ({
+          nessie: {
+            ...sampleState,
+            nessie1: {
+              ...sampleState.nessie1,
+              hash: sampleState.nessie1.defaultReference.hash,
+            },
+          },
+        }),
+      });
+
+      expect(getSqlATSyntax("nessie1")).to.eql(
+        ` AT COMMIT "${sampleState.nessie1.defaultReference.hash}"`
+      );
+    });
+
+    it("AT TAG TAGNAME", () => {
+      setStore({
+        getState: () => ({
+          nessie: {
+            ...sampleState,
+            nessie1: {
+              ...sampleState.nessie1,
+              reference: {
+                type: "TAG",
+                name: "TAGNAME",
+              },
+            },
+          },
+        }),
+      });
+
+      expect(getSqlATSyntax("nessie1")).to.eql(' AT TAG "TAGNAME"');
+    });
+
+    it("No state", () => {
+      setStore({
+        getState: () => ({ nessie: null }),
+      });
+
+      expect(getSqlATSyntax("nessie1")).to.eql("");
+    });
+
+    it("Empty", () => {
+      expect(getSqlATSyntax("")).to.eql("");
+    });
+
+    it("Undefined", () => {
+      expect(getSqlATSyntax()).to.eql("");
     });
   });
 });

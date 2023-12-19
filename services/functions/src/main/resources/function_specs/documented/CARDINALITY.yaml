@@ -22,7 +22,7 @@ signatures:
     parameters:
       -
         kind: "REGULAR"
-        type: "LIST"
+        type: "ARRAY"
         name: "List"
         description: "List to count elements from"
   -
@@ -37,5 +37,5 @@ signatures:
       -
         call: SELECT CARDINALITY(CONVERT_FROM('[1, 2, 3, 4, 5]', 'json'))
         result: 5
-functionCategories: []
-description: "Returns the number of elements in LIST or MAP.\n"
+functionCategories: [ARRAY]
+description: "Returns the number of elements in ARRAY or MAP.\n"

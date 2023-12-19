@@ -15,7 +15,7 @@
  */
 import Immutable from "immutable";
 import $ from "jquery";
-import uuid from "uuid";
+import { v4 as uuidv4 } from "uuid";
 import { HISTORY_PANEL_SIZE } from "uiTheme/radium/sizes";
 import { HIGHLIGHTED_TABLE, PALE_ORANGE } from "uiTheme/radium/colors";
 
@@ -147,7 +147,7 @@ class GridMap {
       json &&
       json.map((item) => {
         return {
-          id: uuid.v4(),
+          id: uuidv4(),
           ...item,
         };
       });

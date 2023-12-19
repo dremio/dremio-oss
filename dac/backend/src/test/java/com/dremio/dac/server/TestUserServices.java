@@ -124,8 +124,8 @@ public class TestUserServices extends BaseTestServer {
     doc("update user");
     final User uc2 = SimpleUser.newBuilder(u1.getUser()).setEmail("test22@dremio.test").build();
     expectSuccess(getBuilder(getAPIv2().path("user/" + testUserName("test11"))).buildPost(Entity.json(new UserForm(uc2))), UserUI.class);
-    UserUI u2 = expectSuccess(getBuilder(getAPIv2().path("user/" + testUserName("test11"))).buildGet(), UserUI.class);
-    assertEquals(uc2.getEmail(), u2.getUser().getEmail());
+    UserUI u2 = expectSuccess(getBuilder(getUserApiV2(testUserName("test11"))).buildGet(), UserUI.class);
+    assertEquals(uc2.getUserName(), u2.getUser().getUserName());
 
     doc("delete with missing version");
     final GenericErrorMessage errorDelete = expectStatus(BAD_REQUEST, getBuilder(getAPIv2().path("user/" + testUserName("test11"))).buildDelete(), GenericErrorMessage.class);
@@ -133,44 +133,45 @@ public class TestUserServices extends BaseTestServer {
 
     doc("delete with bad version");
     long badVersion = 1234L;
+    final String actualVersion = getUserVersionFromStore(testUserName("test11"));
     String expectedErrorMessage = String.format("Cannot delete user \"%s\", version provided \"%s\" is different from version found \"%s\"",
-      u2.getName(), badVersion, u2.getUser().getVersion());
+      u2.getName(), badVersion, actualVersion);
     final GenericErrorMessage errorDelete2 = expectStatus(CONFLICT, getBuilder(getAPIv2().path("user/" + testUserName("test11")).queryParam("version", badVersion)).buildDelete(), GenericErrorMessage.class);
     assertErrorMessage(errorDelete2, expectedErrorMessage);
 
     doc("delete");
-    expectSuccess(getBuilder(getAPIv2().path("user/" + testUserName("test11")).queryParam("version", u2.getUser().getVersion())).buildDelete());
+    String version = getUserVersionFromStore(testUserName("test11"));
+    expectSuccess(getBuilder(getAPIv2().path("user/" + testUserName("test11")).queryParam("version", version)).buildDelete());
   }
 
   @Test
   public void testUser() throws Exception {
     getPopulator().populateTestUsers();
     doc("getting user info");
-    UserUI u1 = expectSuccess(getBuilder(getAPIv2().path("user/" + SampleDataPopulator.DEFAULT_USER_NAME)).buildGet(), UserUI.class);
+    UserUI u1 = expectSuccess(getBuilder(getUserApiV2(SampleDataPopulator.DEFAULT_USER_NAME)).buildGet(), UserUI.class);
     assertEquals(SampleDataPopulator.DEFAULT_USER_NAME, u1.getUserName().getName());
-    assertEquals(SampleDataPopulator.DEFAULT_USER_NAME + "@dremio.test", u1.getUser().getEmail());
+
     // TODO: Expected error is going to change after refactoring of DAC/dependent services into a common module.
     expectError(CLIENT_ERROR, getBuilder(getAPIv2().path("user/dac")).buildGet(), GenericErrorMessage.class);
     doc("Creating user");
     final User userConfig2 = SimpleUser.newBuilder().setUserName(testUserName("test11")).setEmail("test11@dremio.test").setFirstName("test11")
       .setLastName("dremio").build();
     expectSuccess(getBuilder(getAPIv2().path("user/" +  testUserName("test11"))).buildPut(Entity.json(new UserForm(userConfig2, testPassword("test11")))), UserUI.class);
-
-    UserUI u2 = expectSuccess(getBuilder(getAPIv2().path("user/" + testUserName("test11"))).buildGet(), UserUI.class);
-    assertEquals(userConfig2.getEmail(), u2.getUser().getEmail());
+    UserUI u2 = expectSuccess(getBuilder(getUserApiV2(testUserName("test11"))).buildGet(), UserUI.class);
     assertEquals(userConfig2.getFirstName(), u2.getUser().getFirstName());
     assertEquals(userConfig2.getLastName(), u2.getUser().getLastName());
 
     doc("updating user");
     User uc3 = SimpleUser.newBuilder(u2.getUser()).setEmail("test2@dremio.test").build();
     expectSuccess(getBuilder(getAPIv2().path("user/" + testUserName("test11"))).buildPost(Entity.json(new UserForm(uc3))), UserUI.class);
-    UserUI u3 = expectSuccess(getBuilder(getAPIv2().path("user/" + testUserName("test11"))).buildGet(), UserUI.class);
-    assertEquals(u3.getUser().getEmail(), uc3.getEmail());
+    UserUI u3 = expectSuccess(getBuilder(getUserApiV2(testUserName("test11"))).buildGet(), UserUI.class);
     assertEquals(u3.getUser().getFirstName(), uc3.getFirstName());
     assertEquals(u3.getUser().getLastName(), uc3.getLastName());
 
     doc("deleting user");
-    expectSuccess(getBuilder(getAPIv2().path("user/" + testUserName("test11")).queryParam("version", u3.getUser().getVersion())).buildDelete());
+    // Get version from store
+    String version = getUserVersionFromStore(testUserName("test11"));
+    expectSuccess(getBuilder(getAPIv2().path("user/" + testUserName("test11")).queryParam("version", version)).buildDelete());
 
     // TODO: Expected error is going to change after refactoring of DAC/dependent services into a common module.
     expectError(CLIENT_ERROR, getBuilder(getAPIv2().path("user/" + testUserName("test11"))).buildGet(), GenericErrorMessage.class);
@@ -197,13 +198,11 @@ public class TestUserServices extends BaseTestServer {
     dw = userService.createUser(dw, dw.getFirstName() + "1234");
     mj = userService.createUser(mj, mj.getFirstName() + "1234");
 
-    UserUI u = expectSuccess(getBuilder(getAPIv2().path("user/" + md.getUserName())).buildGet(), UserUI.class);
-    assertEquals(md.getEmail(), u.getUser().getEmail());
+    UserUI u = expectSuccess(getBuilder(getUserApiV2(md.getUserName())).buildGet(), UserUI.class);
     assertEquals(md.getFirstName(), u.getUser().getFirstName());
     assertEquals(md.getLastName(), u.getUser().getLastName());
 
-    u = expectSuccess(getBuilder(getAPIv2().path("user/" + mj.getUserName())).buildGet(), UserUI.class);
-    assertEquals(mj.getEmail(), u.getUser().getEmail());
+    u = expectSuccess(getBuilder(getUserApiV2(mj.getUserName())).buildGet(), UserUI.class);
     assertEquals(mj.getFirstName(), u.getUser().getFirstName());
     assertEquals(mj.getLastName(), u.getUser().getLastName());
 
@@ -426,13 +425,13 @@ public class TestUserServices extends BaseTestServer {
   @Test
   public void testNoSelfDelete() throws Exception {
     // Get the current user info
-    UserUI u1 = expectSuccess(getBuilder(getAPIv2().path("user/" + SampleDataPopulator.DEFAULT_USER_NAME)).buildGet(), UserUI.class);
+    UserUI u1 = expectSuccess(getBuilder(getUserApiV2(SampleDataPopulator.DEFAULT_USER_NAME)).buildGet(), UserUI.class);
     assertEquals(SampleDataPopulator.DEFAULT_USER_NAME, u1.getUserName().getName());
-
+    String version = getUserVersionFromStore(SampleDataPopulator.DEFAULT_USER_NAME);
     final GenericErrorMessage errorDelete = expectStatus(FORBIDDEN,
         getBuilder(
             getAPIv2().path("user/" + SampleDataPopulator.DEFAULT_USER_NAME)
-                .queryParam("version", u1.getUser().getVersion())
+                .queryParam("version", version)
         ).buildDelete(),
         GenericErrorMessage.class);
 
@@ -483,6 +482,17 @@ public class TestUserServices extends BaseTestServer {
     User invalidUserConfig3 = SimpleUser.newBuilder(validUserConfig).setUserName(testUserName("\"valid\"")).build();
     expectStatus(BAD_REQUEST, getBuilder(getAPIv2().path("user/" + testUserName("valid"))).buildPost(
       Entity.json(new UserForm(invalidUserConfig3, testPassword("valid")))));
+  }
+
+  /**
+   * Helper to find user version from store, as the REST API won't return version anymore.
+   * @param userName
+   * @return
+   * @throws UserNotFoundException
+   */
+  private String getUserVersionFromStore(String userName) throws UserNotFoundException {
+    final UserService userService = l(UserService.class);
+    return userService.getUser(userName).getVersion();
   }
 
 }

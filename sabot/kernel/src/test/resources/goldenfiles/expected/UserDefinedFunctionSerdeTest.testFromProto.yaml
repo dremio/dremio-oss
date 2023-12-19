@@ -19,15 +19,16 @@
  -
   description: "No Args"
   input:
-    fullPathList:
-      - "dir"
-      - "space"
     createdAt: null
+    fullPathList:
+     - "dir"
+     - "space"
     functionDefinitionsList:
-      -
-        functionArgList: []
-        functionBody:
-          rawBody: "SELECT 1"
+     -
+      functionArgList: []
+      functionBody:
+        rawBody: "SELECT 1"
+        serializedPlan: null
     id: null
     lastModified: null
     name: "foo"
@@ -36,11 +37,11 @@
         empty: false
     tag: null
   output:
-    fullPath:
-      - "dir"
-      - "space"
     createdAt: null
-    functionArgsList: [ ]
+    fullPath:
+     - "dir"
+     - "space"
+    functionArgsList: []
     functionSql: "SELECT 1"
     modifiedAt: null
     name: "foo"
@@ -48,18 +49,23 @@
       EAAAAAAACgAMAAAACAAEAAoAAAAIAAAACAAAAAAAAAABAAAAGAAAAAAAEgAYABQAEwASAAwAAAAI
       AAQAEgAAABQAAAAUAAAAHAAAAAAAAgEgAAAAAAAAAAAAAAAIAAwACAAHAAgAAAAAAAABIAAAAAEA
       AABmAAAA
+    serializedFunctionPlan: null
  -
   description: "1 arg"
   input:
     createdAt: null
     fullPathList: null
     functionDefinitionsList:
-      - functionArgList:
-          - name: "bar"
-            rawDataType:
-              empty: false
-        functionBody:
-          rawBody: "SELECT 1"
+     -
+      functionArgList:
+       -
+        defaultExpression: null
+        name: "bar"
+        rawDataType:
+          empty: false
+      functionBody:
+        rawBody: "SELECT 1"
+        serializedPlan: null
     id: null
     lastModified: null
     name: "foo"
@@ -75,6 +81,7 @@
       dataType: !!binary |-
         EAAAAAAACgAMAAAACAAEAAoAAAAIAAAACAAAAAAAAAABAAAAGAAAAAAAEgAYABQAEwASAAwAAAAI
         AAQAEgAAABQAAAAUAAAAGAAAAAAABQEUAAAAAAAAAAAAAAAEAAQABAAAAAEAAABmAAAA
+      defaultExpression: null
       name: "bar"
     functionSql: "SELECT 1"
     modifiedAt: null
@@ -83,3 +90,4 @@
       EAAAAAAACgAMAAAACAAEAAoAAAAIAAAACAAAAAAAAAABAAAAGAAAAAAAEgAYABQAEwASAAwAAAAI
       AAQAEgAAABQAAAAUAAAAHAAAAAAAAgEgAAAAAAAAAAAAAAAIAAwACAAHAAgAAAAAAAABIAAAAAEA
       AABmAAAA
+    serializedFunctionPlan: null

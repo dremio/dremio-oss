@@ -19,14 +19,6 @@
 <configuration>
   <timestamp key="bySecond" datePattern="yyyyMMdd'T'HHmmss"/>
 
-  <appender name="SOCKET"
-    class="de.huxhorn.lilith.logback.appender.ClassicMultiplexSocketAppender">
-    <Compressing>true</Compressing>
-    <ReconnectionDelay>10000</ReconnectionDelay>
-    <IncludeCallerData>true</IncludeCallerData>
-    <RemoteHosts>${LILITH_HOSTNAME:-localhost}</RemoteHosts>
-  </appender>
-
   <appender name="FILE" class="ch.qos.logback.core.FileAppender">
     <!-- The property 'logback.log.dir' is defined in pom.xml -->
     <file>${logback.log.dir:-./target/surefire-reports}/hive-tests-${bySecond}.log</file>

@@ -20,8 +20,17 @@ import "./contexts/TracingContext";
 import { setupLang } from "./setupLang";
 import "./contexts/ApiContext";
 import "./contexts/SessionContext";
+import "./contexts/PrivilegeContext";
+import { initIntercom } from "./intercom/initIntercom";
+import { getIntercomAppId } from "./intercom/getIntercomAppId";
 
 export const additionalSetup = async () => {
+  const intercomAppId = getIntercomAppId();
+
+  if (intercomAppId && !window.dremioConfig?.outsideCommunicationDisabled) {
+    initIntercom(intercomAppId);
+  }
+
   await setupLang();
   getLoggingContext().registerHandler(consoleLogger);
 };

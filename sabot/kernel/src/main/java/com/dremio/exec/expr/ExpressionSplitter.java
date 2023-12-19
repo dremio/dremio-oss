@@ -767,6 +767,10 @@ public class ExpressionSplitter implements AutoCloseable {
       return true;
     }
 
+    if (e instanceof CodeGenContext) {
+      return candidateForSplit(((CodeGenContext)e).getChild());
+    }
+
     return false;
   }
 

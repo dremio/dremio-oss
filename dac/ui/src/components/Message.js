@@ -20,7 +20,8 @@ import Linkify from "linkifyjs/react";
 import PropTypes from "prop-types";
 import { Link } from "react-router";
 import { FormattedMessage } from "react-intl";
-import uuid from "uuid";
+import { v4 as uuidv4 } from "uuid";
+import { Checkbox } from "dremio-ui-lib/components";
 
 import { fixedWidthDefault } from "uiTheme/radium/typography";
 import Modal from "components/Modals/Modal";
@@ -33,6 +34,7 @@ import { haveLocKey } from "utils/locale";
 import "./Message.less";
 
 export const RENDER_NO_DETAILS = Symbol("RENDER_NO_DETAILS");
+const HIDDEN_MESSAGES = "hiddenMessages";
 
 class Message extends PureComponent {
   // must be a superset of the notification system `level` options
@@ -49,6 +51,7 @@ class Message extends PureComponent {
     inFlow: true,
     useModalShowMore: false,
     disableCustomRightButtonStyle: false,
+    allowHideForever: false,
   };
 
   static propTypes = {
@@ -70,6 +73,8 @@ class Message extends PureComponent {
     multilineMessage: PropTypes.bool,
     customRightButton: PropTypes.any,
     messageAction: PropTypes.any,
+    allowHideForever: PropTypes.bool,
+    localStorageKey: PropTypes.string,
   };
 
   constructor(props) {
@@ -81,25 +86,58 @@ class Message extends PureComponent {
       Message.MESSAGE_TYPES.indexOf(this.props.messageType) !== -1,
       messageText
     );
+
+    const hideForeverErrorMessage =
+      "local storage key required to permanently hide message";
+    invariant(
+      this.props.allowHideForever ? !!this.props.localStorageKey : true,
+      hideForeverErrorMessage
+    );
   }
 
   state = {
     dismissed: false,
     showMore: false,
+    hideForever: false,
   };
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     if (this.props.messageId !== nextProps.messageId) {
       this.setState({ dismissed: false, showMore: false });
     }
   }
 
+  getHiddenMessages = () => {
+    const hiddenMessages = localStorage.getItem(HIDDEN_MESSAGES) ?? "[]";
+    try {
+      return JSON.parse(hiddenMessages);
+    } catch (err) {
+      console.error("INVALID DATA TO PARSE");
+      return [];
+    }
+  };
+
   onDismiss = () => {
-    if (this.props.onDismiss) {
-      if (this.props.onDismiss() === false) {
+    const { localStorageKey, onDismiss } = this.props;
+    const { hideForever } = this.state;
+
+    if (onDismiss) {
+      if (onDismiss() === false) {
         return;
       }
     }
+
+    if (hideForever) {
+      const hiddenMessages = this.getHiddenMessages();
+
+      if (!hiddenMessages.includes(localStorageKey)) {
+        localStorage.setItem(
+          HIDDEN_MESSAGES,
+          JSON.stringify([...hiddenMessages, localStorageKey])
+        );
+      }
+    }
+
     this.setState({ dismissed: true });
   };
 
@@ -222,7 +260,7 @@ class Message extends PureComponent {
       borderTop: "1px solid hsla(0, 0%, 0%, 0.2)",
     };
     details = details.map((e, i) => (
-      <div key={uuid()} style={i ? separatedStyle : {}}>
+      <div key={uuidv4()} style={i ? separatedStyle : {}}>
         {e}
       </div>
     ));
@@ -239,10 +277,14 @@ class Message extends PureComponent {
     switch (code) {
       case "PIPELINE_FAILURE":
         return (
-          <span>{la("There was an error in the Reflection pipeline.")}</span>
+          <span>
+            {laDeprecated("There was an error in the Reflection pipeline.")}
+          </span>
         );
       case "MATERIALIZATION_FAILURE": {
-        const messageForCode = la("There was an error building a Reflection");
+        const messageForCode = laDeprecated(
+          "There was an error building a Reflection"
+        );
         // todo: #materializationFailure should become generic #details
         const url = jobsUtils.navigationURLForJobId({
           id: message.getIn(["materializationFailure", "jobId"]),
@@ -250,12 +292,16 @@ class Message extends PureComponent {
         });
         return (
           <span>
-            {messageForCode} (<Link to={url}>{la("show job")}</Link>).
+            {messageForCode} (<Link to={url}>{laDeprecated("show job")}</Link>).
           </span>
         ); // todo: better loc
       }
       case "DROP_FAILURE":
-        return <span>{la("There was an error dropping a Reflection.")}</span>;
+        return (
+          <span>
+            {laDeprecated("There was an error dropping a Reflection.")}
+          </span>
+        );
       case "COMBINED_REFLECTION_SAVE_ERROR": {
         const totalCount = message.getIn(["details", "totalCount"]);
         const countSuccess =
@@ -286,15 +332,19 @@ class Message extends PureComponent {
       case "COMBINED_REFLECTION_CONFIG_INVALID":
         return (
           <span>
-            {la(
+            {laDeprecated(
               "Some Reflections had to be updated to work with the latest version of the dataset. Please review all Reflections before saving."
             )}
           </span>
         );
       case "REQUESTED_REFLECTION_MISSING":
-        return <span>{la("The requested Reflection no longer exists.")}</span>;
+        return (
+          <span>
+            {laDeprecated("The requested Reflection no longer exists.")}
+          </span>
+        );
       case "REFLECTION_LOST_FIELDS":
-        return <span>{la("Review changes")}</span>;
+        return <span>{laDeprecated("Review changes")}</span>;
       default: {
         const asLocKey = `Message.Code.${code}.Message`;
         if (haveLocKey(asLocKey)) return <FormattedMessage id={asLocKey} />;
@@ -363,7 +413,11 @@ class Message extends PureComponent {
         isOpen={this.state.showMore}
         hide={hide}
       >
-        <ModalForm onSubmit={hide} confirmText={la("Close")} isNestedForm>
+        <ModalForm
+          onSubmit={hide}
+          confirmText={laDeprecated("Close")}
+          isNestedForm
+        >
           {" "}
           {/* best to assume isNestedForm */}
           <FormBody className="message-content">
@@ -384,7 +438,13 @@ class Message extends PureComponent {
       isDismissable,
       customRightButton,
       messageAction,
+      allowHideForever,
+      localStorageKey,
     } = this.props;
+
+    if (this.getHiddenMessages().includes(localStorageKey)) {
+      return;
+    }
 
     if (
       this.props.dismissed ||
@@ -427,16 +487,26 @@ class Message extends PureComponent {
             {details && this.renderShowMoreToggle()}
           </span>
           {messageAction}
-          {isDismissable && (
-            <div style={styles.rightButton}>
-              <dremio-icon
-                name="interface/close-small"
-                alt="Dismiss"
-                onClick={this.onDismiss}
-                class="dismiss-btn"
+          <div className="flex --alignCenter">
+            {allowHideForever && (
+              <Checkbox
+                label={<FormattedMessage id="Message.Hide.Forever" />}
+                onChange={(e) =>
+                  this.setState({ hideForever: e.target.checked })
+                }
               />
-            </div>
-          )}
+            )}
+            {isDismissable && (
+              <div style={styles.rightButton}>
+                <dremio-icon
+                  name="interface/close-small"
+                  alt="Dismiss"
+                  onClick={this.onDismiss}
+                  class="dismiss-btn"
+                />
+              </div>
+            )}
+          </div>
           {!isDismissable && customRightButton ? (
             <div style={styles.rightButton}>{customRightButton}</div>
           ) : null}
@@ -504,7 +574,6 @@ const styles = {
     padding: 5,
     marginRight: 12,
     marginLeft: 12,
-    marginTop: 6,
   },
   icon: {
     marginRight: 8,

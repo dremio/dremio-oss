@@ -45,7 +45,11 @@ public class AddPrimaryKeyHandler extends SimpleDirectHandler {
     NamespaceKey path = catalog.resolveSingle(sqlAddPrimaryKey.getTable());
     catalog.validatePrivilege(path, SqlGrant.Privilege.ALTER);
 
-    catalog.addPrimaryKey(path, toStrings(sqlAddPrimaryKey.getColumnList()));
+    catalog.addPrimaryKey(
+      path,
+      toStrings(sqlAddPrimaryKey.getColumnList()),
+      sqlAddPrimaryKey.getSqlTableVersionSpec().getTableVersionSpec().getTableVersionContext().asVersionContext(),
+      catalog);
 
     return Collections.singletonList(SimpleCommandResult.successful("Primary key added."));
   }

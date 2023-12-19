@@ -22,6 +22,7 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 
 import com.dremio.common.expression.CompleteType;
+import com.dremio.exec.catalog.VacuumOptions;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.record.BatchSchema;
 
@@ -39,8 +40,10 @@ public class VacuumOutputSchema {
   public static final String DELETE_MANIFEST_FILES_COUNT = "deleted_manifest_files_count";
   public static final String DELETE_MANIFEST_LISTS_COUNT = "deleted_manifest_lists_count";
   public static final String DELETE_PARTITION_STATS_FILES_COUNT = "deleted_partition_stats_files_count";
+  public static final String DELETED_FILES_COUNT = "deleted_files_count";
+  public static final String DELETED_FILES_SIZE_MB = "deleted_files_total_size_mb";
 
-  public static final BatchSchema OUTPUT_SCHEMA = BatchSchema.newBuilder()
+  public static final BatchSchema EXPIRE_SNAPSHOTS_OUTPUT_SCHEMA = BatchSchema.newBuilder()
     .addField(Field.nullable(DELETE_DATA_FILE_COUNT, Types.MinorType.BIGINT.getType()))
     .addField(Field.nullable(DELETE_POSITION_DELETE_FILES_COUNT, Types.MinorType.BIGINT.getType()))
     .addField(Field.nullable(DELETE_EQUALITY_DELETE_FILES_COUNT, Types.MinorType.BIGINT.getType()))
@@ -50,8 +53,23 @@ public class VacuumOutputSchema {
     .setSelectionVectorMode(BatchSchema.SelectionVectorMode.NONE)
     .build();
 
-  public static RelDataType getRelDataType(RelDataTypeFactory typeFactory) {
-    return getRowType(OUTPUT_SCHEMA, typeFactory);
+  public static final BatchSchema REMOVE_ORPHANS_OUTPUT_SCHEMA = BatchSchema.newBuilder()
+    .addField(Field.nullable(DELETED_FILES_COUNT, Types.MinorType.BIGINT.getType()))
+    .addField(Field.nullable(DELETED_FILES_SIZE_MB, Types.MinorType.BIGINT.getType()))
+    .build();
+
+  public static RelDataType getTableOutputRelDataType(RelDataTypeFactory typeFactory, VacuumOptions vacuumOptions) {
+    if (vacuumOptions.isRemoveOrphans()) {
+      return getRowType(REMOVE_ORPHANS_OUTPUT_SCHEMA, typeFactory);
+    }
+    if (vacuumOptions.isExpireSnapshots()) {
+      return getRowType(EXPIRE_SNAPSHOTS_OUTPUT_SCHEMA, typeFactory);
+    }
+    throw new IllegalArgumentException("Invalid vacuum options: " + vacuumOptions);
+  }
+
+  public static RelDataType getCatalogOutputRelDataType(RelDataTypeFactory typeFactory) {
+    return getRowType(REMOVE_ORPHANS_OUTPUT_SCHEMA, typeFactory);
   }
 
   public static RelDataType getRowType(BatchSchema schema, RelDataTypeFactory factory) {

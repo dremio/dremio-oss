@@ -23,7 +23,7 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-jobtelemetry</artifactId>
-    <version>24.1.0-202306130653310132-d30779f6</version>
+    <version>24.3.0-202312190021150029-52db2faf</version>
   </parent>
 
   <artifactId>dremio-services-jobtelemetry-common</artifactId>
@@ -46,21 +46,7 @@
       <plugin>
         <groupId>org.xolstice.maven.plugins</groupId>
         <artifactId>protobuf-maven-plugin</artifactId>
-        <configuration>
-          <clearOutputDirectory>false</clearOutputDirectory>
-        </configuration>
         <executions>
-          <execution>
-            <id>generate-proto</id>
-            <phase>generate-sources</phase>
-            <goals>
-              <goal>compile</goal>
-            </goals>
-            <configuration>
-              <protoSourceRoot>${project.basedir}/src/main/protobuf</protoSourceRoot>
-              <outputDirectory>${project.build.directory}/generated-sources/protobuf</outputDirectory>
-            </configuration>
-          </execution>
           <execution>
             <id>generate-protobuf</id>
             <phase>generate-sources</phase>
@@ -72,24 +58,6 @@
               <protoSourceRoot>${project.basedir}/src/main/protobuf</protoSourceRoot>
               <pluginId>grpc-java</pluginId>
               <pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}</pluginArtifact>
-              <outputDirectory>${project.build.directory}/generated-sources/protobuf</outputDirectory>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>proto-jar-resources</id>
-            <phase>package</phase>
-            <goals>
-              <goal>jar</goal>
-            </goals>
-            <configuration>
-              <classesDirectory>src/main/protobuf</classesDirectory>
-              <classifier>proto</classifier>
             </configuration>
           </execution>
         </executions>

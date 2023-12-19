@@ -1,0 +1,18 @@
+.elevation {
+  &-sunken {
+    background-color: var(--bg--sunken);
+    color: var(--color--sunken);
+  }
+  &-default {
+    background-color: var(--bg--default);
+    color: var(--color--default);
+  }
+  &-raised {
+    background-color: var(--bg--raised);
+    color: var(--color--raised);
+  }
+  &-overlay {
+    background-color: var(--bg--overlay);
+    color: var(--color--overlay);
+  }
+}

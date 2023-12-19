@@ -24,6 +24,7 @@ import com.google.inject.Inject;
 /**
  * Data Credential Provider.
  */
+@RemoteRestricted
 public class DataCredentialsProvider extends AbstractSimpleCredentialsProvider implements CredentialsProvider {
 
   @Inject

@@ -164,13 +164,13 @@ describe("Transform", () => {
       sinon.stub(instance, "loadTransformCards");
     });
     it("should loadTransformCards when transform property was changed ", () => {
-      instance.componentWillReceiveProps({
+      instance.UNSAFE_componentWillReceiveProps({
         transform: { transformType: "type2", columnType: "cType2" },
       });
       expect(instance.loadTransformCards).to.be.calledOnce;
     });
     it("shouldn't loadTransformCards when transform property wasn't changed ", () => {
-      instance.componentWillReceiveProps({ transform });
+      instance.UNSAFE_componentWillReceiveProps({ transform });
       expect(instance.loadTransformCards).to.not.be.called;
     });
   });

@@ -21,13 +21,12 @@ import static com.dremio.io.file.PathFilters.NO_HIDDEN_FILES;
 import java.io.IOException;
 import java.nio.file.DirectoryIteratorException;
 import java.nio.file.DirectoryStream;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.StreamSupport;
-
-import org.apache.commons.io.FilenameUtils;
 
 import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.util.Utilities;
@@ -42,7 +41,6 @@ import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 
 /**
  * Jackson serializable description of a file selection.
@@ -55,15 +53,16 @@ public class FileSelection {
   private ImmutableList<FileAttributes> fileAttributesList;
   private final String selectionRoot;
   private final Path originalRootPath;
+  private final boolean isRootPathDirectory; // true if root path is a directory, false if it's a file
 
   private enum StatusType {
     NO_DIRS,             // no directories in this selection
-    HAS_DIRS,            // directories were found in the selection
     EXPANDED,            // whether this selection has been expanded to files
     NOT_EXPANDED         // selection will only have selectionRoot info and no information about sub-dir/subfiles
   }
 
   private StatusType dirStatus;
+  private Optional<FileAttributes> firstFileAttributes = null;
 
   /**
    * Creates a {@link FileSelection selection} out of given file statuses/files and selection root.
@@ -72,26 +71,17 @@ public class FileSelection {
    * @param selectionRoot
    * @param originalRootPath
    */
-  private FileSelection(StatusType status, final ImmutableList<FileAttributes> fileAttributesList, final String selectionRoot, final Path originalRootPath) {
+  private FileSelection(StatusType status, final ImmutableList<FileAttributes> fileAttributesList, final String selectionRoot,
+                        final Path originalRootPath, final boolean isRootPathDirectory) {
     this.fileAttributesList = Preconditions.checkNotNull(fileAttributesList);
     this.selectionRoot = Preconditions.checkNotNull(selectionRoot);
     this.dirStatus = status;
     this.originalRootPath = originalRootPath;
+    this.isRootPathDirectory = isRootPathDirectory;
   }
 
   public boolean isEmpty() {
     return fileAttributesList.isEmpty();
-  }
-
-  /**
-   * Copy constructor for convenience.
-   */
-  protected FileSelection(final FileSelection selection) {
-    Preconditions.checkNotNull(selection, "selection cannot be null");
-    this.fileAttributesList = selection.fileAttributesList;
-    this.selectionRoot = selection.selectionRoot;
-    this.originalRootPath = selection.originalRootPath;
-    this.dirStatus = selection.dirStatus;
   }
 
   public String getSelectionRoot() {
@@ -100,21 +90,6 @@ public class FileSelection {
 
   public List<FileAttributes> getFileAttributesList() {
     return fileAttributesList;
-  }
-
-  public boolean containsDirectories() throws IOException {
-    if (dirStatus == StatusType.EXPANDED) {
-      for (final FileAttributes status : getFileAttributesList()) {
-        if (status.isDirectory()) {
-          return true;
-        }
-      }
-    }
-    return dirStatus == StatusType.HAS_DIRS;
-  }
-
-  public List<FileAttributes> getAllDirectories() throws IOException {
-    return Lists.newArrayList(Iterables.filter(fileAttributesList, FileAttributes::isDirectory));
   }
 
   public FileSelection minusDirectories() throws IOException {
@@ -142,12 +117,16 @@ public class FileSelection {
     return maxDepth;
   }
 
-  public Optional<FileAttributes> getFirstFile() throws IOException {
-    return fileAttributesList.stream().filter(FileAttributes::isRegularFile).findFirst();
-  }
-
   public Optional<FileAttributes> getFirstFileIteratively(FileSystem fs) throws IOException {
-    return getFirstFileIteratively(fs, originalRootPath);
+    if (firstFileAttributes != null) {
+      return firstFileAttributes;
+    }
+    if (isExpanded()) {
+      firstFileAttributes = fileAttributesList.stream().filter(FileAttributes::isRegularFile).findFirst();
+      return firstFileAttributes;
+    }
+    firstFileAttributes = getFirstFileIteratively(fs, originalRootPath);
+    return firstFileAttributes;
   }
 
   public static Optional<FileAttributes> getFirstFileIteratively(FileSystem fs, Path path) throws IOException {
@@ -184,12 +163,16 @@ public class FileSelection {
   public boolean isNoDirs() { return dirStatus == StatusType.NO_DIRS;}
 
   public static FileSelection create(FileAttributes fileAttributes) throws IOException {
-    return new FileSelection(StatusType.EXPANDED, ImmutableList.of(fileAttributes), fileAttributes.getPath().toString(), fileAttributes.getPath());
+    return new FileSelection(StatusType.EXPANDED,
+      ImmutableList.of(fileAttributes),
+      fileAttributes.getPath().toString(),
+      fileAttributes.getPath(),
+      fileAttributes.isDirectory());
   }
 
-  public void expand(FileSystem fs) throws IOException {
-    if(dirStatus == StatusType.NOT_EXPANDED) {
-      this.fileAttributesList = generateListOfFileAttributes(fs, originalRootPath);
+  public void expand(String datasetName, FileSystem fs, int maxFiles) throws IOException {
+    if (dirStatus == StatusType.NOT_EXPANDED) {
+      this.fileAttributesList = generateListOfFileAttributes(datasetName, fs, originalRootPath, maxFiles);
       this.dirStatus = StatusType.EXPANDED;
     }
   }
@@ -204,34 +187,13 @@ public class FileSelection {
     return Path.of(parent).resolve(removeLeadingSlash(path));
   }
 
-  public static FileSelection create(final FileSystem fs, final List<String> fullPath) throws IOException {
-    return create(fs, getPathBasedOnFullPath(fullPath));
-  }
-
-  public static FileSelection createNotExpanded(final FileSystem fs, final List<String> fullPath) throws IOException {
-    return createNotExpanded(fs, getPathBasedOnFullPath(fullPath));
-  }
-
-  // Check if path is actually a full schema path
-  public static FileSelection createWithFullSchema(final FileSystem fs, final String parent, final String fullSchemaPath) throws IOException {
-    final Path combined = Path.mergePaths(Path.of(parent), PathUtils.toFSPath(fullSchemaPath));
-    return create(fs, combined);
-  }
-
   public static FileSelection createWithFullSchemaNotExpanded(final FileSystem fs, final String parent, final String fullSchemaPath) throws IOException {
     final Path combined = Path.mergePaths(Path.of(parent), PathUtils.toFSPath(fullSchemaPath));
     return createNotExpanded(fs, combined);
   }
 
-  public static FileSelection create(final FileSystem fs, Path combined) throws IOException {
-    Stopwatch timer = Stopwatch.createStarted();
-    final ImmutableList<FileAttributes> fileAttributes = generateListOfFileAttributes(fs, combined);
-    if (fileAttributes.isEmpty()) {
-      return null;
-    }
-    final FileSelection fileSel = createFromExpanded(fileAttributes, combined.toURI().getPath());
-    logger.debug("FileSelection.create() took {} ms ", timer.elapsed(TimeUnit.MILLISECONDS));
-    return fileSel;
+  public static FileSelection createNotExpanded(final FileSystem fs, final List<String> fullPath) throws IOException {
+    return createNotExpanded(fs, getPathBasedOnFullPath(fullPath));
   }
 
   public static FileSelection createNotExpanded(final FileSystem fs, Path root) throws IOException {
@@ -242,8 +204,24 @@ public class FileSelection {
     if (!fs.exists(rootPath)) {
       return null;
     }
+    boolean isRootPathDirectory = fs.isDirectory(rootPath);
     final String selectionRoot = Path.withoutSchemeAndAuthority(rootPath).toString();
-    return new FileSelection(StatusType.NOT_EXPANDED, ImmutableList.of(), selectionRoot, root);
+    return new FileSelection(StatusType.NOT_EXPANDED, ImmutableList.of(), selectionRoot, root, isRootPathDirectory);
+  }
+
+  // These set of methods create a FileSelection that is EXPANDED - that is, it does a recursive listing
+  // of a folder and holds the attributes of files in the folder in memory
+  public static FileSelection create(final String datasetName, final FileSystem fs, final List<String> fullPath, int maxFiles) throws IOException {
+    return create(datasetName, fs, getPathBasedOnFullPath(fullPath), maxFiles);
+  }
+
+  public static FileSelection create(final String datasetName, final FileSystem fs, Path combined, int maxFiles) throws IOException {
+    final ImmutableList<FileAttributes> fileAttributes = generateListOfFileAttributes(datasetName, fs, combined, maxFiles);
+    if (fileAttributes.isEmpty()) {
+      return null;
+    }
+    final FileSelection fileSel = createFromExpanded(fileAttributes, combined.toURI().getPath());
+    return fileSel;
   }
 
   public static FileSelection createFromExpanded(final ImmutableList<FileAttributes> fileAttributes, final String root) {
@@ -268,7 +246,7 @@ public class FileSelection {
     final Path originalRootPath = Path.of(root);
     final Path rootPath = handleWildCard(root);
     String selectionRoot = Path.withoutSchemeAndAuthority(rootPath).toString();
-    return new FileSelection(status, fileAttributes, selectionRoot, originalRootPath);
+    return new FileSelection(status, fileAttributes, selectionRoot, originalRootPath, fileAttributes.size() > 1);
   }
 
   private static Path handleWildCard(final String root) {
@@ -282,10 +260,6 @@ public class FileSelection {
     }
   }
 
-  public boolean supportDirPruning() {
-    return isExpanded(); // currently we only support pruning if the directories have been expanded (this may change in the future)
-  }
-
   @Override
   public int hashCode() {
     return Objects.hash(fileAttributesList.size(), selectionRoot);
@@ -297,42 +271,76 @@ public class FileSelection {
       return false;
     }
     FileSelection that = (FileSelection) obj;
-    return Objects.equals(this.selectionRoot, that.selectionRoot)
-        && Utilities.listsUnorderedEquals(this.fileAttributesList, that.fileAttributesList);
-  }
-
-  public List<String> getExtensions() {
-    final List<String> extensions = Lists.newArrayList();
-    for (FileAttributes fileStatus : fileAttributesList) {
-      if (fileStatus.isRegularFile()) {
-        final String ext = FilenameUtils.getExtension(fileStatus.getPath().getName());
-        if (ext != null && !ext.isEmpty()) {
-          extensions.add(ext);
-        }
-      }
+    if (this.isExpanded() != that.isExpanded()) {
+      return false;
     }
-    return extensions;
+
+    if (!Objects.equals(this.selectionRoot, that.selectionRoot)) {
+      return false;
+    }
+
+    if (!isExpanded()) {
+      // FileSelection is not expanded and the selectionRoots are the same
+      return true;
+    }
+
+    // both are expanded
+    // TODO: This looks bad - fileAttributesList can be large. This is using an O(N^2) algorithm here
+    return Utilities.listsUnorderedEquals(this.fileAttributesList, that.fileAttributesList);
   }
 
-  private static ImmutableList<FileAttributes> generateListOfFileAttributes(FileSystem fs, Path combined) throws IOException {
+  public boolean isRootPathDirectory() {
+    return isRootPathDirectory;
+  }
+
+  /**
+   * Holds the FileAttributes of at most maxFiles in memory. Passing a large value for maxFiles can lead to coordinator crashes
+   * when the argument combined has a lot of files in the folder
+   */
+  private static ImmutableList<FileAttributes> generateListOfFileAttributes(String datasetName, FileSystem fs, Path combined, int maxFiles) throws IOException {
     // NFS filesystems has delay before files written by executor shows up in the coordinator.
     // For NFS, fs.exists() will force a refresh if the directory is not found
     // No action is taken if it returns false as the code path already handles the Exception case
-    fs.exists(combined);
+    Stopwatch timer = Stopwatch.createStarted();
+    int numObjectsListed = 0;
+    try {
+      fs.exists(combined);
 
-    ImmutableList<FileAttributes> fileAttributes;
-    try(DirectoryStream<FileAttributes> stream = FileSystemUtils.globRecursive(fs, combined, NO_HIDDEN_FILES)) {
-      fileAttributes = ImmutableList.copyOf(stream);
-      if (logger.isTraceEnabled()) {
-        for (FileAttributes fa : fileAttributes) {
-          logger.trace("File Path : " + fa.getPath().toString() + "; lastModifiedTime :" + fa.lastModifiedTime().toString());
+      ImmutableList<FileAttributes> fileAttributes;
+      ImmutableList.Builder<FileAttributes> fileAttributesBuilder = new ImmutableList.Builder<>();
+      int numFilesSeen = 0;
+      try (DirectoryStream<FileAttributes> stream = FileSystemUtils.globRecursive(fs, combined, NO_HIDDEN_FILES)) {
+        Iterator<FileAttributes> iterator = stream.iterator();
+        while (iterator.hasNext()) {
+          numObjectsListed++;
+          FileAttributes fileAttribute = iterator.next();
+          fileAttributesBuilder.add(fileAttribute);
+          if (!fileAttribute.isDirectory()) {
+            numFilesSeen++;
+            if (numFilesSeen > maxFiles) {
+              // reached the limit of files that can be loaded into memory
+              throw new FileCountTooLargeException(datasetName, numFilesSeen, maxFiles);
+            }
+          }
         }
-      }
-    } catch (DirectoryIteratorException e) {
-      throw e.getCause();
-    }
 
-    logger.trace("Returned files are: {}", fileAttributes);
-    return fileAttributes;
+        fileAttributes = fileAttributesBuilder.build();
+        if (logger.isTraceEnabled()) {
+          for (FileAttributes fa : fileAttributes) {
+            logger.trace("File Path : " + fa.getPath().toString() + "; lastModifiedTime :" + fa.lastModifiedTime().toString());
+          }
+        }
+      } catch (DirectoryIteratorException e) {
+        throw e.getCause();
+      }
+
+      logger.trace("Returned files are: {}", fileAttributes);
+      return fileAttributes;
+    } finally {
+      long elapsedTime = timer.elapsed(TimeUnit.SECONDS);
+      if (elapsedTime > 60) {
+        logger.warn("Expanding dataset {} with path {} took {} seconds for {} objects", datasetName, combined, elapsedTime, numObjectsListed);
+      }
+    }
   }
 }

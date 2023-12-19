@@ -299,13 +299,13 @@ public class JobUtil {
     }
   }
 
-  private static void populateQueriedDataset(
-      List<DataSet> queriedDatasets,
-      String datasetName,
-      String datasetType,
-      String datasetPath,
-      List<String> datasetPathList,
-      String versionContext) {
+  public static void populateQueriedDataset(
+    List<DataSet> queriedDatasets,
+    String datasetName,
+    String datasetType,
+    String datasetPath,
+    List<String> datasetPathList,
+    String versionContext) {
     final DataSet dataset =
         new DataSet()
             .setDatasetName(datasetName)

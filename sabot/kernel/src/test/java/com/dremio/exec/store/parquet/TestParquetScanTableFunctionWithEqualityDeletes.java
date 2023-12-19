@@ -37,6 +37,7 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.SystemSchemas;
 import com.dremio.exec.store.iceberg.IcebergTestTables;
 import com.dremio.exec.store.iceberg.deletes.RowLevelDeleteFilterFactory.DeleteFileInfo;
+import com.dremio.sabot.RecordBatchValidatorDefaultImpl;
 import com.dremio.sabot.RecordSet;
 import com.dremio.sabot.op.tablefunction.TableFunctionOperator;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
@@ -284,7 +285,7 @@ public class TestParquetScanTableFunctionWithEqualityDeletes extends BaseTestPar
     TableFunctionPOP pop = getPopForIceberg(table, IcebergTestTables.PRODUCTS_SCHEMA, projectedColumns,
         PARTITION_COLUMNS, EXTENDED_PROPS);
     try (AutoCloseable closeable = with(ExecConstants.PARQUET_READER_VECTORIZE, false)) {
-      validateSingle(pop, TableFunctionOperator.class, input, output, BATCH_SIZE);
+      validateSingle(pop, TableFunctionOperator.class, input, new RecordBatchValidatorDefaultImpl(output), BATCH_SIZE);
     }
   }
 

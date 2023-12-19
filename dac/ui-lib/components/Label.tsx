@@ -75,7 +75,7 @@ export const Label = (props: LabelProps) => {
     <div
       className={clsx(
         classes?.root,
-        "dremio-label margin-bottom--half flex",
+        "dremio-label flex",
         helpVariant === "tooltip" ? "--alignCenter" : "dremio-label-inline"
       )}
     >

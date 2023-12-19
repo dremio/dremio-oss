@@ -37,6 +37,7 @@ import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.options.OptionManager;
 import com.dremio.service.DirectProvider;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -101,6 +102,7 @@ public class TestReflectionStatusService {
     final ReflectionValidator validator = mock(ReflectionValidator.class);
     final CatalogService catalogService = mock(CatalogService.class);
     final Catalog entityExplorer = mock(Catalog.class);
+    final OptionManager optionManager = mock(OptionManager.class);
 
     statusService = new ReflectionStatusServiceImpl(
       sabotContext::getExecutors,
@@ -110,7 +112,8 @@ public class TestReflectionStatusService {
       materializationStore,
       externalReflectionStore,
       validator,
-      DirectProvider.wrap(catalogService)
+      DirectProvider.wrap(catalogService),
+      DirectProvider.wrap(optionManager)
     );
 
     reflectionId = new ReflectionId(UUID.randomUUID().toString());
@@ -247,6 +250,7 @@ public class TestReflectionStatusService {
     final ReflectionSettings reflectionSettings = mock(ReflectionSettings.class);
     final ReflectionValidator validator = mock(ReflectionValidator.class);
     final CatalogService catalogService = mock(CatalogService.class);
+    final OptionManager optionManager = mock(OptionManager.class);
 
     ReflectionStatusServiceImpl reflectionStatusService = new ReflectionStatusServiceImpl(
       sabotContext::getExecutors,
@@ -256,7 +260,8 @@ public class TestReflectionStatusService {
       materializationStore,
       externalReflectionStore,
       validator,
-      DirectProvider.wrap(catalogService)
+      DirectProvider.wrap(catalogService),
+      DirectProvider.wrap(optionManager)
     );
 
     final Catalog catalog = mock(Catalog.class);

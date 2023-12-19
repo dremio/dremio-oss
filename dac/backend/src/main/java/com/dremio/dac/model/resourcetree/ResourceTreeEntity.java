@@ -46,6 +46,7 @@ public class ResourceTreeEntity {
   private final List<String> fullPath;
   private final String url; // only if its a listable entity
   private List<ResourceTreeEntity> resources = null; // filled in only on expansion.
+  private final ResourceType rootType; // can only be top level types i.e. SOURCE, SPACE, or HOME
 
   public ResourceTreeEntity(SourceConfig sourceConfig) throws UnsupportedEncodingException {
     this.type = ResourceType.SOURCE;
@@ -53,6 +54,7 @@ public class ResourceTreeEntity {
     this.fullPath = Collections.singletonList(this.name);
     this.url = null; // TODO can't explore sources yet
     this.id = sourceConfig.getId().getId();
+    this.rootType = ResourceType.SOURCE;
   }
 
   public ResourceTreeEntity(SpaceConfig spaceConfig) throws UnsupportedEncodingException {
@@ -61,6 +63,7 @@ public class ResourceTreeEntity {
     this.fullPath = Collections.singletonList(this.name);
     this.url = "/resourcetree/" + new NamespaceKey(this.fullPath).toUrlEncodedString();
     this.id = spaceConfig.getId().getId();
+    this.rootType = ResourceType.SPACE;
   }
 
   public ResourceTreeEntity(HomeConfig homeConfig) throws UnsupportedEncodingException {
@@ -69,23 +72,26 @@ public class ResourceTreeEntity {
     this.fullPath = Collections.singletonList(this.name);
     this.url = "/resourcetree/" + new NamespaceKey(this.fullPath).toUrlEncodedString();
     this.id = homeConfig.getId().getId();
+    this.rootType = ResourceType.HOME;
   }
 
-  public ResourceTreeEntity(FolderConfig folderConfig) throws UnsupportedEncodingException {
+  public ResourceTreeEntity(FolderConfig folderConfig, ResourceType rootType) throws UnsupportedEncodingException {
     this.type = ResourceType.FOLDER;
     this.name = folderConfig.getName();
     this.fullPath = folderConfig.getFullPathList();
     this.url = "/resourcetree/" + new NamespaceKey(this.fullPath).toUrlEncodedString();
     this.id = folderConfig.getId().getId();
+    this.rootType = rootType;
   }
 
-  public ResourceTreeEntity(DatasetConfig datasetConfig) throws UnsupportedEncodingException {
+  public ResourceTreeEntity(DatasetConfig datasetConfig, ResourceType rootType) throws UnsupportedEncodingException {
     // TODO File system folder datasets can further be explored.
     this.type = getResourceType(datasetConfig.getType());
     this.name = datasetConfig.getName();
     this.fullPath = datasetConfig.getFullPathList();
     this.url = null;
     this.id = datasetConfig.getId().getId();
+    this.rootType = rootType;
   }
 
   @JsonCreator
@@ -95,13 +101,15 @@ public class ResourceTreeEntity {
     @JsonProperty("fullPath") List<String> fullPath,
     @JsonProperty("url") String url,
     @JsonProperty("resources") List<ResourceTreeEntity> resources,
-    @JsonProperty("id") String id) {
+    @JsonProperty("id") String id,
+    @JsonProperty("rootType") ResourceType rootType) {
     this.type = type;
     this.name = name;
     this.fullPath = fullPath;
     this.url = url;
     this.resources = resources;
     this.id = id;
+    this.rootType = rootType;
   }
 
   public ResourceType getType() {
@@ -122,6 +130,10 @@ public class ResourceTreeEntity {
 
   public String getId() {
     return id;
+  }
+
+  public ResourceType getRootType() {
+    return rootType;
   }
 
   public static ResourceType getResourceType(DatasetType type) {
@@ -175,7 +187,7 @@ public class ResourceTreeEntity {
     SOURCE, // always at the top of tree
     SPACE, // always at the top of tree
     FOLDER,
-    HOME,
+    HOME, // always at the top of tree
     VIRTUAL_DATASET,
     PHYSICAL_DATASET,
     PHYSICAL_DATASET_SOURCE_FILE,

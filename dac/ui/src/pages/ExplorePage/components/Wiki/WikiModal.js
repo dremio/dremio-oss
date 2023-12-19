@@ -37,6 +37,10 @@ export class WikiModalView extends PureComponent {
     isReadMode: PropTypes.bool,
     save: PropTypes.func, // (newWikiValue) => void;
     cancel: PropTypes.func, // () => void;
+    entityId: PropTypes.string,
+    entityType: PropTypes.string,
+    fullPath: PropTypes.any,
+    wikiSummary: PropTypes.bool,
   };
   editor = null; // stores editor ref
 
@@ -71,6 +75,10 @@ export class WikiModalView extends PureComponent {
       wikiViewState,
       isReadMode,
       topSectionButtons,
+      entityId,
+      entityType,
+      fullPath,
+      wikiSummary,
     } = this.props;
 
     const wrapperStylesFix = {
@@ -81,7 +89,12 @@ export class WikiModalView extends PureComponent {
     };
 
     return (
-      <Modal size="medium" title={la("Wiki")} isOpen={isOpen} hide={cancel}>
+      <Modal
+        size="large"
+        title={laDeprecated("Wiki")}
+        isOpen={isOpen}
+        hide={cancel}
+      >
         <div className={modalBody}>
           <div className={content} data-qa="wikiModal">
             {topSectionButtons && <SectionTitle buttons={topSectionButtons} />}
@@ -92,9 +105,13 @@ export class WikiModalView extends PureComponent {
             >
               <MarkdownEditor
                 ref={this.onEditorRef}
+                fullPath={fullPath}
                 value={wikiValue}
                 readMode={isReadMode}
                 onChange={onChange}
+                entityId={entityId}
+                showSummary={wikiSummary}
+                entityType={entityType}
                 className={editor}
                 isModal
                 fitToContainer
@@ -122,6 +139,9 @@ const mapDispatchToProps = {
 export class WikiModalWithSave extends PureComponent {
   static propTypes = {
     entityId: PropTypes.string,
+    entityType: PropTypes.string,
+    wikiSummary: PropTypes.bool,
+    fullPath: PropTypes.any,
     isOpen: PropTypes.bool,
     wikiValue: PropTypes.string,
     wikiVersion: PropTypes.number,
@@ -168,7 +188,7 @@ export class WikiModalWithSave extends PureComponent {
             isFailed: true,
             error: {
               message: await ApiUtils.getErrorMessage(
-                la("Wiki is not saved."),
+                laDeprecated("Wiki is not saved."),
                 response
               ),
               id: "" + Math.random(),
@@ -213,11 +233,24 @@ export class WikiModalWithSave extends PureComponent {
   };
 
   render() {
-    const { isOpen, wikiValue, isReadMode, topSectionButtons } = this.props;
+    const {
+      isOpen,
+      wikiValue,
+      isReadMode,
+      topSectionButtons,
+      entityId,
+      entityType,
+      fullPath,
+      wikiSummary,
+    } = this.props;
 
     const props = {
       isOpen,
       wikiValue,
+      entityId,
+      entityType,
+      fullPath,
+      wikiSummary,
       isReadMode,
       topSectionButtons,
       onChange: this.onChange,

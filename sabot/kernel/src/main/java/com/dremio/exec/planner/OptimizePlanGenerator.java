@@ -62,12 +62,12 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Pair;
-import org.apache.iceberg.ManifestContent;
 import org.apache.iceberg.PartitionSpec;
 
 import com.dremio.common.JSONOptions;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ops.OptimizerRulesContext;
+import com.dremio.exec.ops.SnapshotDiffContext;
 import com.dremio.exec.physical.config.ImmutableManifestScanFilters;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.physical.config.TableFunctionContext;
@@ -77,7 +77,9 @@ import com.dremio.exec.planner.logical.partition.PruneFilterCondition;
 import com.dremio.exec.planner.physical.DistributionTrait;
 import com.dremio.exec.planner.physical.FilterPrel;
 import com.dremio.exec.planner.physical.HashAggPrel;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.Prel;
+import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.physical.ProjectPrel;
 import com.dremio.exec.planner.physical.StreamAggPrel;
 import com.dremio.exec.planner.physical.TableFunctionPrel;
@@ -91,10 +93,9 @@ import com.dremio.exec.store.OperationType;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.iceberg.IcebergScanPlanBuilder;
+import com.dremio.exec.store.iceberg.ManifestContentType;
 import com.dremio.exec.store.iceberg.OptimizeManifestsTableFunctionContext;
 import com.dremio.exec.store.iceberg.model.ImmutableManifestScanOptions;
-import com.dremio.exec.store.iceberg.model.ManifestScanOptions;
-import com.dremio.exec.util.ColumnUtils;
 import com.dremio.exec.util.LongRange;
 import com.dremio.service.namespace.dataset.proto.ScanStats;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -108,8 +109,7 @@ import com.google.common.collect.ImmutableList;
  */
 public class
 OptimizePlanGenerator extends TableManagementPlanGenerator {
-  private static ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-  private static final List<String> deleteFilesMetadataInputCols = ImmutableList.of(ColumnUtils.ROW_COUNT_COLUMN_NAME, ColumnUtils.FILE_PATH_COLUMN_NAME, ICEBERG_METADATA);;
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   private final IcebergScanPlanBuilder planBuilder;
   private final OptimizeOptions optimizeOptions;
@@ -232,7 +232,7 @@ OptimizePlanGenerator extends TableManagementPlanGenerator {
       }
 
       Prel rewritePlan = planBuilder.hasDeleteFiles() ? deleteAwareOptimizePlan()
-        : getDataWriterPlan(planBuilder.build(), deleteDataFilePlan());
+        : getDataWriterPlan(planBuilder.build(), deleteDataFilePlan(planBuilder, SnapshotDiffContext.NO_SNAPSHOT_DIFF));
       if (optimizeOptions.isOptimizeManifestFiles()) { // Optimize data files as well as manifests
         rewritePlan = getOptimizeManifestTableFunctionPrel(rewritePlan, RecordWriter.SCHEMA);
       }
@@ -305,7 +305,7 @@ OptimizePlanGenerator extends TableManagementPlanGenerator {
           buildRemoveSideDataFilePlan(), buildRemoveSideDeleteFilePlan())),
       manifestWriterPlan -> {
         try {
-          return getMetadataWriterPlan(deleteDataFilePlan(), removeDeleteFilePlan(), manifestWriterPlan);
+          return getMetadataWriterPlan(deleteDataFilePlan(planBuilder, SnapshotDiffContext.NO_SNAPSHOT_DIFF), removeDeleteFilePlan(), manifestWriterPlan);
         } catch (InvalidRelException e) {
           throw new RuntimeException(e);
         }
@@ -335,39 +335,6 @@ OptimizePlanGenerator extends TableManagementPlanGenerator {
   }
 
   /**
-   * Scan the manifests to return the deleted data files.
-   *
-   *        Project
-   *          |
-   *          |
-   *  IcebergManifestScanPrel
-   *          |
-   *          |
-   * IcebergManifestListPrel
-   */
-  private Prel deleteDataFilePlan() {
-    ManifestScanOptions manifestScanOptions = new ImmutableManifestScanOptions.Builder()
-      .setIncludesSplitGen(false)
-      .setIncludesIcebergMetadata(true)
-      .build();
-
-    RelNode output = planBuilder.hasDeleteFiles() ? buildRemoveSideDataFilePlan()
-      : planBuilder.buildManifestRel(manifestScanOptions);
-    RexBuilder rexBuilder = cluster.getRexBuilder();
-
-    Pair<Integer, RelDataTypeField> datafilePathCol = MoreRelOptUtil.findFieldWithIndex(output.getRowType().getFieldList(), DATAFILE_PATH);
-    Pair<Integer, RelDataTypeField> icebergMetadataCol = MoreRelOptUtil.findFieldWithIndex(output.getRowType().getFieldList(), ICEBERG_METADATA);
-
-    final List<RexNode> projectExpressions = ImmutableList.of(rexBuilder.makeBigintLiteral(BigDecimal.ONE),
-      rexBuilder.makeInputRef(datafilePathCol.right.getType(), datafilePathCol.left),
-      rexBuilder.makeInputRef(icebergMetadataCol.right.getType(), icebergMetadataCol.left));
-
-    RelDataType newRowType = RexUtil.createStructType(rexBuilder.getTypeFactory(), projectExpressions, deleteFilesMetadataInputCols, SqlValidatorUtil.F_SUGGESTER);
-
-    return ProjectPrel.create(output.getCluster(), output.getTraitSet(), output, projectExpressions, newRowType);
-  }
-
-  /**
    * Scan the manifests to return the purged delete files.
    * Plan same as {@link #deleteDataFilePlan} with manifest scan operator reading DELETE manifests instead of DATA.
    */
@@ -381,7 +348,7 @@ OptimizePlanGenerator extends TableManagementPlanGenerator {
       rexBuilder.makeInputRef(outputFilePathCol.right.getType(), outputFilePathCol.left),
       rexBuilder.makeInputRef(outputIcebergMetadataCol.right.getType(), outputIcebergMetadataCol.left));
 
-    RelDataType outputRowType = RexUtil.createStructType(rexBuilder.getTypeFactory(), outputExpressions, deleteFilesMetadataInputCols, SqlValidatorUtil.F_SUGGESTER);
+    RelDataType outputRowType = RexUtil.createStructType(rexBuilder.getTypeFactory(), outputExpressions, OptimizePlanGenerator.deleteFilesMetadataInputCols, SqlValidatorUtil.F_SUGGESTER);
 
     return ProjectPrel.create(output.getCluster(), output.getTraitSet(), output, outputExpressions, outputRowType);
   }
@@ -395,15 +362,19 @@ OptimizePlanGenerator extends TableManagementPlanGenerator {
       getProjectedColumns(), TableFunctionUtil.getDeletedFilesMetadataTableFunctionContext(
         OperationType.DELETE_DELETEFILE, RecordWriter.SCHEMA, getProjectedColumns(), true));
 
+    PlannerSettings plannerSettings = PrelUtil.getPlannerSettings(cluster);
+
     RelNode deletedDataAndDeleteFilesTableFunction = new UnionAllPrel(cluster,
       deleteFileAggrPlan.getTraitSet(),
-      ImmutableList.of(deletedDataFilesTableFunctionPrel, deletedDeleteFilesTableFunctionPrel),
+      ImmutableList.of(
+        fixRoundRobinTraits(deletedDataFilesTableFunctionPrel, plannerSettings),
+        fixRoundRobinTraits(deletedDeleteFilesTableFunctionPrel, plannerSettings)),
       true);
 
     final RelTraitSet traits = traitSet.plus(DistributionTrait.SINGLETON).plus(Prel.PHYSICAL);
 
     // Union the updating of the deleted data's metadata with the rest
-    return getUnionPrel(traits, manifestWriterPlan, deletedDataAndDeleteFilesTableFunction);
+    return getUnionPrel(plannerSettings, traits, manifestWriterPlan, deletedDataAndDeleteFilesTableFunction);
   }
 
   /**
@@ -489,7 +460,8 @@ OptimizePlanGenerator extends TableManagementPlanGenerator {
   /**
    * [*A*] from {@link #deleteAwareOptimizePlan}
    */
-  private RelNode buildRemoveSideDataFilePlan(){
+  @Override
+  protected RelNode buildRemoveSideDataFilePlan(){
     return subOptimalDataFilesFilter(planBuilder.buildDataManifestScanWithDeleteJoin(
       aggregateDeleteFiles(planBuilder.buildDeleteFileScan(context))));
   }
@@ -499,7 +471,7 @@ OptimizePlanGenerator extends TableManagementPlanGenerator {
    */
   private RelNode buildRemoveSideDeleteFilePlan(){
     return planBuilder.buildManifestRel(new ImmutableManifestScanOptions.Builder().setIncludesSplitGen(false)
-      .setIncludesIcebergMetadata(true).setManifestContent(ManifestContent.DELETES).build(), false);
+      .setIncludesIcebergMetadata(true).setManifestContentType(ManifestContentType.DELETES).build(), false);
   }
 
   /**

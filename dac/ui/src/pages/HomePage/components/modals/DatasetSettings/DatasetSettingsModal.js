@@ -19,12 +19,11 @@ import PropTypes from "prop-types";
 
 import Modal from "components/Modals/Modal";
 import FormUnsavedWarningHOC from "components/Modals/FormUnsavedWarningHOC";
-import { injectIntl } from "react-intl";
 
 import DatasetSettings from "./DatasetSettings.js";
 import "./../Modal.less";
+import { getModalTitle } from "./DatasetSettingsModal-utils";
 
-@injectIntl
 export class DatasetSettingsModal extends Component {
   static propTypes = {
     isOpen: PropTypes.bool,
@@ -34,6 +33,7 @@ export class DatasetSettingsModal extends Component {
     fullPath: PropTypes.string,
     tab: PropTypes.string,
     entityName: PropTypes.string,
+    type: PropTypes.string,
     // connected from FormUnsavedWarningHOC
     updateFormDirtyState: PropTypes.func,
     location: PropTypes.object,
@@ -44,21 +44,11 @@ export class DatasetSettingsModal extends Component {
     const {
       isOpen,
       updateFormDirtyState,
-      intl,
       entityName,
+      type,
       ...datasetSettingsProps
     } = this.props;
-
-    const modalTitle = entityName
-      ? intl.formatMessage(
-          {
-            id: "Dataset.Settings.for",
-          },
-          { title: entityName }
-        )
-      : intl.formatMessage({
-          id: "Dataset.Settings",
-        });
+    const modalTitle = getModalTitle(type, entityName);
 
     return (
       <Modal

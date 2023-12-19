@@ -566,7 +566,7 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
 
   private static int estimateFieldSize(Field field, int listSizeEstimate, int varFieldSizeEstimate) {
     ArrowTypeID typeID = field.getType().getTypeID();
-    final int estimatedFieldSize;
+    final int estimatedFieldSize, elemSize;
     switch (typeID) {
       case Int:
         estimatedFieldSize = ((Int) field.getType()).getBitWidth() / 8;
@@ -580,15 +580,23 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
         break;
       case Struct:
         int childrenSize = 0;
-        for(Field child : field.getChildren()) {
-          childrenSize += estimateFieldSize(child, listSizeEstimate, varFieldSizeEstimate);
+        if (!field.getChildren().isEmpty()) {
+          for (Field child : field.getChildren()) {
+            childrenSize += estimateFieldSize(child, listSizeEstimate, varFieldSizeEstimate);
+          }
+          estimatedFieldSize = childrenSize;
+        } else {
+          estimatedFieldSize = varFieldSizeEstimate;
         }
-        estimatedFieldSize = childrenSize;
         break;
       case List:
-        // assume an average of 5 elements in a list.
-        int elemSize = estimateFieldSize(field.getChildren().get(0), listSizeEstimate, varFieldSizeEstimate);
-        estimatedFieldSize = elemSize * listSizeEstimate;
+        if (!field.getChildren().isEmpty()) {
+          // assume an average of 5 elements in a list.
+          elemSize = estimateFieldSize(field.getChildren().get(0), listSizeEstimate, varFieldSizeEstimate);
+          estimatedFieldSize = elemSize * listSizeEstimate;
+        } else {
+          estimatedFieldSize = varFieldSizeEstimate;
+        }
         break;
       case FixedSizeList:
         final int fixedListSize = ((FixedSizeList)field.getType()).getListSize();
@@ -597,7 +605,7 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
         break;
       case Union:
         // Take average of fields in a union
-        if (field.getChildren().size() > 0) {
+        if (!field.getChildren().isEmpty()) {
           int size = 0;
           for(Field child : field.getChildren()) {
             size += estimateFieldSize(child, listSizeEstimate, varFieldSizeEstimate);

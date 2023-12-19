@@ -14,18 +14,26 @@
  * limitations under the License.
  */
 
+import { ReactNode, useMemo } from "react";
 import classNames from "clsx";
+//@ts-ignore
+import ImmutablePropTypes from "react-immutable-proptypes";
+import { useIntl } from "react-intl";
+
 import TagsView from "../Labels/Labels";
 import ViewStateWrapper from "@app/components/ViewStateWrapper";
 import DataColumns from "../DataColumns/DataColumns";
 import WikiModalWithSave from "./WikiModalWithSave";
 import Collapsible from "../Collapsible/Collapsible";
-import * as classes from "./WikiWrapper.module.less";
-import { ReactNode } from "react";
 import DatasetSummaryOverlay from "@app/components/Dataset/DatasetSummaryOverlay";
-import { useIntl } from "react-intl";
+import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
+import { hideForNonDefaultBranch } from "dremio-ui-common/utilities/versionContext.js";
 //@ts-ignore
-import ImmutablePropTypes from "react-immutable-proptypes";
+import { isNotSoftware } from "dyn-load/utils/versionUtils";
+import { getEntityTypeFromObject } from "@app/utils/entity-utils";
+import { ENTITY_TYPES_LIST } from "@app/constants/Constants";
+
+import * as classes from "./WikiWrapper.module.less";
 
 type SaveProps = {
   saveVal: { text: string; version: string };
@@ -41,7 +49,6 @@ type toolbarProps = {
 interface WikiWrapperProps {
   getLoadViewState: (showLoadMask: boolean) => void;
   showLoadMask: boolean;
-  showWikiContent: boolean;
   extClassName: string;
   wikiViewState: ImmutablePropTypes.map;
   wrapperStylesFix: { height: string };
@@ -62,21 +69,27 @@ interface WikiWrapperProps {
   getTags: (tags: string) => void;
   tags: ImmutablePropTypes.orderedMap;
   isEditAllowed: boolean;
-  addTag?: (tagName: string) => void;
-  removeTag?: (tagName: string) => void;
+  tagsVersion: string | null;
+  setOriginalTags: any;
   startSearch: () => void;
-  showTags: boolean;
   renderCollapseIcon: () => ReactNode;
   isReadMode: boolean;
   dataset: ImmutablePropTypes.map;
+  wikiSummary?: boolean;
+  addTag?: (tagName: string) => void;
+  removeTag?: (tagName: string) => void;
   overlay?: boolean;
   searchTerm?: string;
+  isPanel?: boolean;
+  hideSqlEditorIcon?: boolean;
+  hideGoToButton?: boolean;
+  isPanelError?: boolean;
+  handlePanelDetails?: (dataset: any) => void;
 }
 
 const WikiWrapper = ({
   getLoadViewState,
   showLoadMask,
-  showWikiContent,
   extClassName,
   wikiViewState,
   wrapperStylesFix,
@@ -98,26 +111,40 @@ const WikiWrapper = ({
   tags,
   isEditAllowed,
   addTag,
+  tagsVersion,
+  setOriginalTags,
   removeTag,
   startSearch,
-  showTags,
   renderCollapseIcon,
   isReadMode = false,
   dataset,
+  wikiSummary = false,
   overlay = false,
   searchTerm,
+  isPanel = false,
+  hideSqlEditorIcon = false,
+  hideGoToButton = false,
+  isPanelError,
+  handlePanelDetails,
 }: WikiWrapperProps) => {
   const intl = useIntl();
+  const versionContext = getVersionContextFromId(entityId);
+  const shouldShowWikiSection = hideForNonDefaultBranch(versionContext);
+  const isSmallerView = isPanel || overlay;
+  let fullPath = dataset?.get("fullPath") || dataset.get("fullPathList");
+  if (dataset?.getIn(["fullPath", "0"]) === "tmp") {
+    fullPath = dataset?.get("displayFullPath");
+  }
+  const type = getEntityTypeFromObject(dataset);
+  const isEntity =
+    ENTITY_TYPES_LIST.includes(type?.toLowerCase()) &&
+    !dataset.get("queryable");
 
   const datasetOverviewComponent = () => {
-    let fullPath = dataset?.get("fullPath");
-    if (dataset?.getIn(["fullPath", "0"]) === "tmp") {
-      fullPath = dataset?.get("displayFullPath");
-    }
     return (
       <div
         className={
-          !overlay
+          !isSmallerView
             ? classes["dataset-wrapper"]
             : classes["dataset-wrapper-overlay"]
         }
@@ -125,25 +152,35 @@ const WikiWrapper = ({
         <DatasetSummaryOverlay
           fullPath={fullPath}
           detailsView
+          isPanel={isPanel}
+          versionContext={versionContext}
+          hideSqlEditorIcon={hideSqlEditorIcon}
+          hideGoToButton={hideGoToButton}
+          handlePanelDetails={handlePanelDetails}
           tagsComponent={
-            showTags ? (
-              <ViewStateWrapper
-                viewState={tagsViewState}
-                className={classes["sectionItem"]}
-                style={wrapperStylesFix}
-                hideChildrenWhenFailed={false}
-                messageStyle={messageStyle}
-              >
-                <TagsView
-                  className={classes["tags"]}
-                  tags={getTags(tags)}
-                  onAddTag={isEditAllowed ? addTag : null}
-                  onRemoveTag={isEditAllowed ? removeTag : null}
-                  onTagClick={startSearch}
-                  isEditAllowed={isEditAllowed}
-                />
-              </ViewStateWrapper>
-            ) : null
+            <ViewStateWrapper
+              viewState={tagsViewState}
+              className={classNames(
+                classes["sectionItem"],
+                isPanel && classes["tab-wrapper-panel"]
+              )}
+              style={wrapperStylesFix}
+              hideChildrenWhenFailed={false}
+              messageStyle={messageStyle}
+            >
+              <TagsView
+                className={classes["tags"]}
+                tags={getTags(tags)}
+                onAddTag={isEditAllowed ? addTag : null}
+                onRemoveTag={isEditAllowed ? removeTag : null}
+                tagsVersion={tagsVersion}
+                fullPath={fullPath}
+                onTagClick={startSearch}
+                setOriginalTags={setOriginalTags}
+                isEditAllowed={isEditAllowed}
+                entityId={entityId}
+              />
+            </ViewStateWrapper>
           }
         />
       </div>
@@ -164,20 +201,13 @@ const WikiWrapper = ({
               searchTerm={searchTerm}
             />
           ) : (
-            <div
-              className={classNames(
-                classes["noColumns"],
-                overlay
-                  ? classes["noColumnsOverlayHeight"]
-                  : classes["noColumnsHeight"]
-              )}
-            >
+            <div className={classNames(classes["noColumns"])}>
               {intl.formatMessage({ id: "Wiki.NoColumn" })}
             </div>
           )
         }
-        bodyClass={overlay ? classes["collapsibleBodyOverlay"] : ""}
-        bodyStyle={overlay ? undefined : { height: "100%" }}
+        bodyClass={isSmallerView ? classes["collapsibleBodyOverlay"] : ""}
+        bodyStyle={isSmallerView ? { height: "33%" } : { height: "50%" }}
       />
     );
   };
@@ -188,49 +218,49 @@ const WikiWrapper = ({
         title={intl.formatMessage({ id: "Common.Wiki" })}
         toolbar={wikiToolbar}
         body={<>{renderWikiContent()}</>}
-        bodyClass={overlay ? classes["collapsibleBodyOverlay"] : ""}
-        bodyStyle={overlay ? undefined : { height: "100%" }}
+        bodyClass={isSmallerView ? classes["collapsibleBodyOverlay"] : ""}
+        bodyStyle={isSmallerView ? { height: "33%" } : { height: "50%" }}
       />
     );
   };
 
   return (
     <>
-      {!overlay ? (
+      {!isSmallerView ? (
         <ViewStateWrapper
           viewState={getLoadViewState(showLoadMask)}
-          style={{ height: "100vh", display: "flex", flex: 1, minHeight: 0 }} //todo
+          style={{
+            height: `calc(100vh - 65px - ${isNotSoftware() ? 39 : 60}px)`, // to be refactored
+            display: "flex",
+            flex: 1,
+            minHeight: 0,
+          }}
         >
           <div className={classes["layout"]} data-qa="wikiSection">
-            {showWikiContent && (
-              <div
-                className={classNames(
-                  classes["leftColumn"],
-                  classes["sectionsContainer"],
-                  extClassName
-                )}
-                data-qa="wikiWrapper"
+            <div
+              className={classNames(
+                classes["leftColumn"],
+                classes["sectionsContainer"],
+                sidebarCollapsed && classes["leftColumnCollapsedRightSection"],
+                extClassName
+              )}
+              data-qa="wikiWrapper"
+            >
+              <ViewStateWrapper
+                viewState={wikiViewState}
+                style={{
+                  ...wrapperStylesFix,
+                  height: "100%",
+                  display: "flex",
+                  flexDirection: "column",
+                }}
+                hideChildrenWhenFailed={false}
+                messageStyle={messageStyle}
               >
-                <ViewStateWrapper
-                  viewState={wikiViewState}
-                  style={{
-                    ...wrapperStylesFix,
-                    height: "100%",
-                    display: "flex",
-                    flexDirection: "column",
-                  }}
-                  hideChildrenWhenFailed={false}
-                  messageStyle={messageStyle}
-                >
-                  <div className={classes["sectionItem"]}>
-                    {dataColumnsComponent()}
-                  </div>
-                  <div className={classes["sectionItem"]}>
-                    {wikiDetailsComponent()}
-                  </div>
-                </ViewStateWrapper>
-              </div>
-            )}
+                {dataColumnsComponent()}
+                {shouldShowWikiSection && wikiDetailsComponent()}
+              </ViewStateWrapper>
+            </div>
             {!sidebarCollapsed ? (
               <div
                 className={classNames(
@@ -268,20 +298,26 @@ const WikiWrapper = ({
             display: "flex",
             flexDirection: "column",
             minHeight: 0,
-            width: "400px",
+            width: isPanel ? 320 : 400,
+            overflowY: "auto",
           }} //todo
         >
-          <Collapsible
-            title={intl.formatMessage({ id: "Wiki.DatasetOverview" })}
-            toolbar={[]}
-            body={datasetOverviewComponent()}
-            bodyClass={classes["collapsibleBodyOverview"]}
-          />
-          {dataColumnsComponent()}
-          {wikiDetailsComponent()}
+          {!isEntity && ( // Hide Overview section for entities until BE supports entity metadata
+            <Collapsible
+              title={intl.formatMessage({ id: "Wiki.DatasetOverview" })}
+              toolbar={[]}
+              body={datasetOverviewComponent()}
+              bodyStyle={isSmallerView ? { flex: "0" } : {}}
+            />
+          )}
+          {!isEntity && !isPanelError && dataColumnsComponent()}
+          {shouldShowWikiSection && !isPanelError && wikiDetailsComponent()}
         </ViewStateWrapper>
       )}
       <WikiModalWithSave
+        wikiSummary={wikiSummary}
+        fullPath={fullPath}
+        entityType={dataset?.get("datasetType")}
         isOpen={isWikiInEditMode}
         entityId={entityId}
         onChange={onChange}

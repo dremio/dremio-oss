@@ -30,7 +30,7 @@ import java.util.UUID;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.dremio.exec.catalog.VersionContext;
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.service.job.SqlQuery;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobCancellationInfo;
@@ -165,7 +165,7 @@ public class TestJobsProtoUtil {
     Map<String, VersionContext> sourceVersionMappingExpected = new HashMap<>();
     sourceVersionMappingExpected.put("source1", VersionContext.ofBranch("branch"));
     sourceVersionMappingExpected.put("source2", VersionContext.ofTag("tag"));
-    sourceVersionMappingExpected.put("source3", VersionContext.ofBareCommit("d0628f078890fec234b98b873f9e1f3cd140988a"));
+    sourceVersionMappingExpected.put("source3", VersionContext.ofCommit("d0628f078890fec234b98b873f9e1f3cd140988a"));
 
     assertEquals(sourceVersionMappingExpected, JobsProtoUtil.toSourceVersionMapping(sourceWithVersionContextMap));
   }

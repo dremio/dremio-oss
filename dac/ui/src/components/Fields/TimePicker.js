@@ -44,7 +44,7 @@ export default class TimePicker extends Component {
     };
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     this.setState({
       value: moment(
         nextProps.value,

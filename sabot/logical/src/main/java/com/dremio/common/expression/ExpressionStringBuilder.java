@@ -146,7 +146,7 @@ public class ExpressionStringBuilder extends AbstractExprVisitor<Void, StringBui
         sb.append('`');
       } else {
         sb.append('[');
-        sb.append(seg.getArraySegment().getIndex());
+        sb.append(seg.getArraySegment().getOptionalIndex());
         sb.append(']');
       }
     }
@@ -443,6 +443,22 @@ public class ExpressionStringBuilder extends AbstractExprVisitor<Void, StringBui
     sb.append("','");
     sb.append(e.getNullDirection());
     sb.append("')");
+    return null;
+  }
+
+  @Override
+  public Void visitArrayLiteralExpression(ArrayLiteralExpression e, StringBuilder sb) throws RuntimeException {
+    sb.append("ARRAY(");
+
+    for (int i = 0; i < e.getItems().size(); i++) {
+      if (i != 0) {
+        sb.append(",");
+      }
+
+      e.getItems().get(i).accept(this, sb);
+    }
+
+    sb.append(")");
     return null;
   }
 }

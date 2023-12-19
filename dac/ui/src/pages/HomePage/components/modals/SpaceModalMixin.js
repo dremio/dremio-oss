@@ -22,6 +22,7 @@ export const getSpaceUpdated = (values, props) => {
     : props.createNewSpace(values);
 };
 
-export const getAdminStatus = () => {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export const getAdminStatus = (state) => {
   return localStorageUtils.isUserAnAdmin();
 };

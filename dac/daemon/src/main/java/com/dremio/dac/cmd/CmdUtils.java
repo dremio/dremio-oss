@@ -28,12 +28,12 @@ import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.config.DremioConfig;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
-import com.dremio.exec.server.options.DefaultOptionManager;
-import com.dremio.exec.server.options.OptionManagerWrapper;
 import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
+import com.dremio.options.impl.DefaultOptionManager;
+import com.dremio.options.impl.OptionManagerWrapper;
 
 /**
  * cmd utils.

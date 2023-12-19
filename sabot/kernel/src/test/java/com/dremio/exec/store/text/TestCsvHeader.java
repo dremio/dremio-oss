@@ -73,7 +73,7 @@ public class TestCsvHeader extends BaseTestQuery{
     testBuilder()
             .sqlQuery(query)
             .unOrdered()
-            .baselineColumns("Year", "Make", "Model", "Description", "Price", "Make5")
+            .baselineColumns("Year", "Make", "Model", "Description", "Price", "Make0")
             .baselineValues("1999", "Chevy", "Venture \"Extended Edition\"", "", "4900.00", "Chevy")
             .baselineValues("1999", "Chevy", "Venture \"Extended Edition, Very Large\"", "", "5000.00", "Chevy")
             .go();

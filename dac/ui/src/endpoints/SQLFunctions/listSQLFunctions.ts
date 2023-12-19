@@ -14,18 +14,14 @@
  * limitations under the License.
  */
 
-import { APIV2Call } from "@app/core/APICall";
-import {
-  FunctionSignature,
-  ModelFunction,
-  Parameter,
-  ParameterKindEnum,
-} from "@app/types/sqlFunctions";
+import { FunctionSignature, ModelFunction } from "@app/types/sqlFunctions";
 import localStorageUtils from "@inject/utils/storageUtils/localStorageUtils";
 import { cloneDeep } from "lodash";
 // @ts-ignore
 import { getDocsLink } from "@inject/utils/versionUtils";
 import { FunctionCategoryLabels } from "@app/utils/sqlFunctionUtils";
+import apiUtils from "@app/utils/apiUtils/apiUtils";
+import { constructLabel, isLetter } from "./utils";
 
 export type ModifiedSQLFunction = ModelFunction & {
   key: string;
@@ -36,35 +32,26 @@ export type ModifiedSQLFunction = ModelFunction & {
   snippet: string;
 };
 
-const listSqlFunctionsURL = new APIV2Call().paths("sql/functions").toString();
+const listSqlFunctionsURL = "sql/functions";
 
-function isLetter(c: string) {
-  return c.toLowerCase() != c.toUpperCase();
-}
-
-function constructParamName(label: string, isOptional: boolean) {
-  return isOptional ? `[${label}]` : `${label}`;
-}
-
-function constructParamNameWithComma(label: string, isOptional: boolean) {
-  return isOptional ? ` [,${label}]` : `, ${label}`;
-}
-
-export const listSqlFunctions = (): Promise<ModifiedSQLFunction[]> =>
-  fetch(listSqlFunctionsURL, {
-    headers: {
-      Authorization: (localStorageUtils as any)?.getAuthToken?.(),
-    },
-  })
+export const listSqlFunctions = async (): Promise<ModifiedSQLFunction[]> =>
+  await apiUtils
+    .fetch(
+      listSqlFunctionsURL,
+      {
+        headers: {
+          Authorization: (localStorageUtils as any)?.getAuthToken?.(),
+        },
+      },
+      2
+    )
     .then((res: any) => res.json())
     .then((res: any) => {
-      const documentedFunctions = (res?.functions ?? []).filter(
-        (fn: ModelFunction) => fn.description != null
-      );
-      const nonAlphabetFunctions = documentedFunctions.filter(
+      const functions = res?.functions ?? [];
+      const nonAlphabetFunctions = functions.filter(
         (fn: ModelFunction) => !isLetter(fn?.name[0])
       );
-      const sortedFunctions = documentedFunctions
+      const sortedFunctions = functions
         .filter((fn: ModelFunction) => isLetter(fn?.name[0]))
         .sort((a: ModelFunction, b: ModelFunction) => {
           if (a.name.toLowerCase() > b.name.toLowerCase()) return 1;
@@ -75,32 +62,13 @@ export const listSqlFunctions = (): Promise<ModifiedSQLFunction[]> =>
       allSortedFunctions.forEach((fn: ModelFunction) => {
         fn.functionCategories = fn.functionCategories?.sort();
       });
+
       return allSortedFunctions.flatMap((fn: ModelFunction) => {
         return fn?.signatures?.map(
           (signature: FunctionSignature, idx: number) => {
             const { parameters = [], returnType, snippetOverride } = signature;
 
-            let params = "";
-            if (parameters.length > 0) {
-              parameters.forEach((param: Parameter, idx: number) => {
-                const name = `${param.type}${
-                  param?.name ? ` ${param.name}` : ""
-                }`;
-                if (idx === 0) {
-                  params += constructParamName(
-                    name,
-                    param?.kind === ParameterKindEnum.OPTIONAL
-                  );
-                } else {
-                  params += constructParamNameWithComma(
-                    name,
-                    param?.kind === ParameterKindEnum.OPTIONAL
-                  );
-                }
-              });
-            }
-
-            let snippet = "($1)";
+            let snippet = parameters.length > 0 ? "($1)" : "()"; // Put cursor inside the snippet if there are params
             if (snippetOverride) {
               // BE response snippet is `<name>()`, and monaco only reads `()`
               snippet = snippetOverride.substring(
@@ -109,7 +77,13 @@ export const listSqlFunctions = (): Promise<ModifiedSQLFunction[]> =>
               );
             }
 
-            const label = `(${params}) → ${returnType}`;
+            const label = `(${constructLabel(
+              parameters,
+              snippetOverride?.substring(
+                fn.name.length + 1,
+                snippetOverride.length - 1
+              ) || ""
+            )}) → ${returnType}`;
             const tags =
               fn.functionCategories?.map(
                 (cat) => FunctionCategoryLabels[cat]

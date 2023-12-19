@@ -253,6 +253,16 @@ public class TestSQLCreateEmptyTable {
     }
   }
 
+  @Test
+  public void testLocalSortNoTransforms() {
+    List<String> expected = ImmutableList.of("col1");
+    String sql = "CREATE TABLE t1 (col1 int, col2 date) LOCALSORT BY (col1)";
+    SqlNode sqlNode = SqlConverter.parseSingleStatementImpl(sql, parserConfig, false);
+    SqlCreateEmptyTable sqlCreateEmptyTable = (SqlCreateEmptyTable) sqlNode;
+
+    assertThat(expected).usingRecursiveComparison().isEqualTo(sqlCreateEmptyTable.getSortColumns());
+  }
+
   private List<PartitionTransform> parseAndGetPartitionTransforms(String sql) {
     SqlNode sqlNode = SqlConverter.parseSingleStatementImpl(sql, parserConfig, false);
     SqlCreateEmptyTable sqlCreateEmptyTable = (SqlCreateEmptyTable) sqlNode;

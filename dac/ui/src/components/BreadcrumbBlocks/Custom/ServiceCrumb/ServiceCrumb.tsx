@@ -27,7 +27,7 @@ const ServiceCrumb = (props: WithRouterProps) => {
   return (
     <BreadcrumbLink
       to={isArctic ? PATHS.arcticCatalogs() : commonPaths.projectsList.link()}
-      text={isArctic ? "Arctic (Preview)" : "Sonar"}
+      text={isArctic ? "Arctic" : "Sonar"}
       iconName={isArctic ? "corporate/arctic" : "corporate/sonar"}
     />
   );

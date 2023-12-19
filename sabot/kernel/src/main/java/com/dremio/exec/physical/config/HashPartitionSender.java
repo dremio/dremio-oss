@@ -40,6 +40,23 @@ public class HashPartitionSender extends AbstractSender implements OpWithMinorSp
   private List<MinorFragmentIndexEndpoint> destinations;
   private final LogicalExpression expr;
 
+  private final boolean adaptiveHash;
+
+  public HashPartitionSender(
+    OpProps props,
+    BatchSchema schema,
+    PhysicalOperator child,
+    int receiverMajorFragmentId,
+    List<MinorFragmentIndexEndpoint> destinations,
+    LogicalExpression expr,
+    boolean adaptiveHash
+  ) {
+    super(props, schema, child, receiverMajorFragmentId);
+    this.destinations = destinations;
+    this.expr = expr;
+    this.adaptiveHash = adaptiveHash;
+  }
+
   public HashPartitionSender(
     OpProps props,
     BatchSchema schema,
@@ -48,9 +65,7 @@ public class HashPartitionSender extends AbstractSender implements OpWithMinorSp
     List<MinorFragmentIndexEndpoint> destinations,
     LogicalExpression expr
   ) {
-    super(props, schema, child, receiverMajorFragmentId);
-    this.destinations = destinations;
-    this.expr = expr;
+    this(props, schema, child, receiverMajorFragmentId, destinations, expr, false);
   }
 
   @JsonCreator
@@ -59,18 +74,23 @@ public class HashPartitionSender extends AbstractSender implements OpWithMinorSp
       @JsonProperty("schema") BatchSchema schema,
       @JsonProperty("child") PhysicalOperator child,
       @JsonProperty("receiverMajorFragmentId") int receiverMajorFragmentId,
-      @JsonProperty("expr") LogicalExpression expr
+      @JsonProperty("expr") LogicalExpression expr,
+      @JsonProperty("adaptiveHash") boolean adaptiveHash
       ) {
-    this(props, schema, child, receiverMajorFragmentId, null, expr);
+    this(props, schema, child, receiverMajorFragmentId, null, expr, adaptiveHash);
   }
 
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new HashPartitionSender(props, schema, child, receiverMajorFragmentId, destinations, expr);
+    return new HashPartitionSender(props, schema, child, receiverMajorFragmentId, destinations, expr, adaptiveHash);
   }
 
   public LogicalExpression getExpr() {
     return expr;
+  }
+
+  public boolean getAdaptiveHash() {
+    return adaptiveHash;
   }
 
   @Override

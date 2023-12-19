@@ -35,6 +35,8 @@ public class Partition {
   public int dense_rank;
   public double percent_rank;
   public double cume_dist;
+  public int firstRowInPartition;
+  public int currentRowInPartition;
 
   /**
    * @return number of rows not yet aggregated in this partition
@@ -97,6 +99,27 @@ public class Partition {
     return peers == 0;
   }
 
+  public void setFirstRowInPartition(int firstRowInPartition) {
+    this.firstRowInPartition = firstRowInPartition;
+  }
+
+  /**
+   * @return index of first row in partition. Needed for LEAD/LAG functions
+   */
+  public int getFirstRowInPartition() {
+    return firstRowInPartition;
+  }
+
+  public void setCurrentRowInPartition(int currentRowInPartition) {
+    this.currentRowInPartition = currentRowInPartition;
+  }
+
+  /**
+   * @return index of current row in partition. Needed for LEAD/LAG functions
+   */
+  public int getCurrentRowInPartition() {
+    return currentRowInPartition;
+  }
   @Override
   public String toString() {
     return String.format("{length: %d, remaining partition: %d, remaining peers: %d}", length, remaining, peers);

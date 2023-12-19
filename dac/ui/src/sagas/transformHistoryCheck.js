@@ -68,13 +68,13 @@ export function* confirmTransform() {
   let action;
   const confirmPromise = new Promise((resolve, reject) => {
     action = showConfirmationDialog({
-      title: la("History Warning"),
+      title: laDeprecated("History Warning"),
       text: [
-        la("Performing this action will cause you to lose history."),
-        la("Are you sure you want to continue?"),
+        laDeprecated("Performing this action will cause you to lose history."),
+        laDeprecated("Are you sure you want to continue?"),
       ],
-      confirmText: la("Continue"),
-      cancelText: la("Cancel"),
+      confirmText: laDeprecated("Continue"),
+      cancelText: laDeprecated("Cancel"),
       confirm: () => resolve(true), // resolves to true so that confirm below has a truthy value
       cancel: reject,
     });

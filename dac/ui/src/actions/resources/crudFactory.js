@@ -19,6 +19,7 @@ import { arrayOf, Schema } from "normalizr";
 import schemaUtils from "utils/apiUtils/schemaUtils";
 import Immutable from "immutable";
 import { APIV2Call } from "@app/core/APICall";
+import { ApiError } from "redux-api-middleware";
 
 const COMMON = { headers: { "Content-Type": "application/json" } };
 
@@ -67,7 +68,17 @@ export default (schemaOrName, { useLegacyPluralization = false } = {}) => {
               schema,
               successMeta
             ),
-            { type: `${upper}_${method}_FAILURE`, meta }, // todo: failure not called? start called instead?!
+            {
+              type: `${upper}_${method}_FAILURE`,
+              meta,
+              payload: (action, state, res) => {
+                return res
+                  .json()
+                  .catch(
+                    () => new ApiError(res.status, res.statusText, undefined)
+                  );
+              },
+            }, // todo: failure not called? start called instead?!
           ],
           method,
           body: METHODS_WITH_REQUEST_BODY.has(method)

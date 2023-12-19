@@ -69,6 +69,12 @@ public class NoOpClusterCoordinator extends ClusterCoordinator {
   }
 
   @Override
+  public LinearizableHierarchicalStore getHierarchicalStore() {
+    throw new UnsupportedOperationException("Hierarchical Store is not supported in NoOpClusterCoordinator");
+  }
+
+
+  @Override
   public void close() throws Exception {
     logger.info("Stopped NoOp Cluster coordinator.");
   }

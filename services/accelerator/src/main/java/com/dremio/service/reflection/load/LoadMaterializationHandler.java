@@ -160,7 +160,9 @@ public class LoadMaterializationHandler extends SimpleDirectHandler {
     if (!CollectionUtils.isEmpty(primaryKey)) {
       catalog.addPrimaryKey(
         materializationPath,
-        primaryKey);
+        primaryKey,
+        null,
+        catalog);
     }
   }
 

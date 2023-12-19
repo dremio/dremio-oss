@@ -111,17 +111,17 @@ public class HiveTestUDFImpls {
         case BOOLEAN:
           return ((BooleanObjectInspector)argumentOI).get(input) ? Boolean.TRUE : Boolean.FALSE;
         case BYTE:
-          return new Byte(((ByteObjectInspector)argumentOI).get(input));
+          return ((ByteObjectInspector)argumentOI).get(input);
         case SHORT:
-          return new Short(((ShortObjectInspector)argumentOI).get(input));
+          return ((ShortObjectInspector)argumentOI).get(input);
         case INT:
-          return new Integer(((IntObjectInspector)argumentOI).get(input));
+          return ((IntObjectInspector)argumentOI).get(input);
         case LONG:
-          return new Long(((LongObjectInspector)argumentOI).get(input));
+          return ((LongObjectInspector)argumentOI).get(input);
         case FLOAT:
-          return new Float(((FloatObjectInspector)argumentOI).get(input));
+          return ((FloatObjectInspector)argumentOI).get(input);
         case DOUBLE:
-          return new Double(((DoubleObjectInspector)argumentOI).get(input));
+          return ((DoubleObjectInspector)argumentOI).get(input);
         case STRING:
           return PrimitiveObjectInspectorUtils.getString(input, (StringObjectInspector)argumentOI);
         case BINARY:

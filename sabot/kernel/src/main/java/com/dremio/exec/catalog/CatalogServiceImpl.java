@@ -38,6 +38,7 @@ import org.apache.calcite.tools.RuleSets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.catalog.exception.SourceAlreadyExistsException;
 import com.dremio.common.DeferredException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.config.DremioConfig;
@@ -79,15 +80,21 @@ import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceUser;
 import com.dremio.service.namespace.SourceState;
+import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEvent;
+import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventTopic;
+import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEvents;
+import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
+import com.dremio.service.namespace.catalogstatusevents.CatalogStatusSubscriber;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
+import com.dremio.service.namespace.source.SourceNamespaceService;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.source.proto.SourceInternalData;
 import com.dremio.service.scheduler.Cancellable;
 import com.dremio.service.scheduler.ModifiableSchedulerService;
-import com.dremio.service.scheduler.ScheduleUtils;
+import com.dremio.service.scheduler.Schedule;
 import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.service.users.SystemUser;
 import com.dremio.service.users.User;
@@ -147,7 +154,10 @@ public class CatalogServiceImpl implements CatalogService {
   protected final CatalogServiceMonitor monitor;
   private final Set<String> influxSources; //will contain any sources influx(i.e actively being modified). Otherwise empty.
   protected final Predicate<String> isInfluxSource;
-  protected Provider<ModifiableSchedulerService> modifiableSchedulerService;
+  protected final Provider<ModifiableSchedulerService> modifiableSchedulerServiceProvider;
+  protected volatile ModifiableSchedulerService modifiableSchedulerService;
+  protected final CatalogStatusEvents catalogStatusEvents;
+  private final Provider<VersionedDatasetAdapterFactory> versionedDatasetAdapterFactoryProvider;
 
   public CatalogServiceImpl(
     Provider<SabotContext> sabotContext,
@@ -163,10 +173,10 @@ public class CatalogServiceImpl implements CatalogService {
     Provider<MetadataRefreshInfoBroadcaster> broadcasterProvider,
     DremioConfig config,
     EnumSet<Role> roles,
-    Provider<ModifiableSchedulerService> modifiableSchedulerService
-  ) {
+    Provider<ModifiableSchedulerService> modifiableSchedulerService,
+    Provider<VersionedDatasetAdapterFactory> versionedDatasetAdapterFactoryProvider) {
     this(sabotContext, scheduler, sysTableConfProvider, sysFlightTableConfProvider, fabric, connectionReaderProvider, bufferAllocator,
-      kvStoreProvider, datasetListingService, optionManager, broadcasterProvider, config, roles, CatalogServiceMonitor.DEFAULT, modifiableSchedulerService);
+      kvStoreProvider, datasetListingService, optionManager, broadcasterProvider, config, roles, CatalogServiceMonitor.DEFAULT, modifiableSchedulerService, versionedDatasetAdapterFactoryProvider);
   }
 
   @VisibleForTesting
@@ -185,8 +195,8 @@ public class CatalogServiceImpl implements CatalogService {
     DremioConfig config,
     EnumSet<Role> roles,
     final CatalogServiceMonitor monitor,
-    Provider<ModifiableSchedulerService> modifiableSchedulerService
-  ) {
+    Provider<ModifiableSchedulerService> modifiableSchedulerService,
+    Provider<VersionedDatasetAdapterFactory> versionedDatasetAdapterFactoryProvider) {
     this.sabotContext = sabotContext;
     this.scheduler = scheduler;
     this.sysTableConfProvider = sysTableConfProvider;
@@ -201,9 +211,11 @@ public class CatalogServiceImpl implements CatalogService {
     this.config = config;
     this.roles = roles;
     this.monitor = monitor;
+    this.versionedDatasetAdapterFactoryProvider = versionedDatasetAdapterFactoryProvider;
     this.influxSources = ConcurrentHashMap.newKeySet();
     this.isInfluxSource = this::isInfluxSource;
-    this.modifiableSchedulerService = modifiableSchedulerService;
+    this.modifiableSchedulerServiceProvider = modifiableSchedulerService;
+    this.catalogStatusEvents = new CatalogStatusEventsImpl();
   }
 
   @Override
@@ -212,7 +224,8 @@ public class CatalogServiceImpl implements CatalogService {
     this.allocator = bufferAllocator.get().newChildAllocator("catalog-protocol", 0, Long.MAX_VALUE);
     this.systemNamespace = context.getNamespaceService(SystemUser.SYSTEM_USERNAME);
     this.sourceDataStore = kvStoreProvider.get().getStore(CatalogSourceDataCreator.class);
-    modifiableSchedulerService.get().start();
+    this.modifiableSchedulerService = modifiableSchedulerServiceProvider.get();
+    this.modifiableSchedulerService.start();
     this.plugins = newPluginsManager();
     plugins.start();
     this.protocol =  new CatalogProtocol(allocator, new CatalogChangeListener(), config.getSabotConfig());
@@ -222,8 +235,12 @@ public class CatalogServiceImpl implements CatalogService {
       && roles.contains(Role.COORDINATOR);
     if(roles.contains(Role.MASTER) || isDistributedCoordinator) {
       final CountDownLatch wasRun = new CountDownLatch(1);
-      final Cancellable task = scheduler.get().schedule(ScheduleUtils.scheduleToRunOnceNow(
-        optionManager.get().getOption(ExecConstants.CATALOG_SERVICE_LOCAL_TASK_LEADER_NAME)), () -> {
+      final String taskName = optionManager.get().getOption(ExecConstants.CATALOG_SERVICE_LOCAL_TASK_LEADER_NAME);
+      final Cancellable task = scheduler.get().schedule(Schedule.SingleShotBuilder
+        .now()
+        .asClusteredSingleton(taskName)
+        .inLockStep()
+        .build(), () -> {
           try {
             if (createSourceIfMissing(new SourceConfig()
               .setConfig(new InfoSchemaConf().toBytesString())
@@ -271,15 +288,18 @@ public class CatalogServiceImpl implements CatalogService {
             } catch (NamespaceException e) {
               throw new RuntimeException(e);
             }
-
           } finally {
             wasRun.countDown();
           }
         }
       );
-      if (!task.isDone()) {
-        // wait till task is done only if task leader
+      if (task.isScheduled()) {
+        // wait till task is done only if the task is scheduled locally
+        logger.debug("Awaiting local lock step schedule completion for task {}", taskName);
         wasRun.await();
+        logger.debug("Lock step schedule completed for task {}", taskName);
+      } else {
+        logger.debug("Lock step schedule for task {} completed remotely", taskName);
       }
     }
   }
@@ -287,7 +307,7 @@ public class CatalogServiceImpl implements CatalogService {
   protected PluginsManager newPluginsManager() {
     return new PluginsManager(sabotContext.get(), systemNamespace, sabotContext.get().getOrphanageFactory().get(), datasetListingService.get(), optionManager.get(),
       config, sourceDataStore, scheduler.get(), connectionReaderProvider.get(), monitor, broadcasterProvider,
-      isInfluxSource, modifiableSchedulerService.get());
+      isInfluxSource, modifiableSchedulerService);
   }
 
   public void communicateChange(SourceConfig config, RpcType rpcType) {
@@ -491,7 +511,7 @@ public class CatalogServiceImpl implements CatalogService {
    * @param subject
    */
   @WithSpan
-  private void deleteSource(SourceConfig config, CatalogIdentity subject, NamespaceService.DeleteCallback callback) {
+  private void deleteSource(SourceConfig config, CatalogIdentity subject, SourceNamespaceService.DeleteCallback callback) {
     NamespaceService namespaceService = sabotContext.get().getNamespaceService(subject.getName());
     boolean afterUnknownEx = false;
 
@@ -677,7 +697,9 @@ public class CatalogServiceImpl implements CatalogService {
       sabotContext.get().getDatasetListing(),
       sabotContext.get().getViewCreatorFactoryProvider().get(),
       identityProvider,
-      new VersionContextResolverImpl(retriever));
+      new VersionContextResolverImpl(retriever),
+      catalogStatusEvents,
+      versionedDatasetAdapterFactoryProvider.get());
   }
 
   @Override
@@ -792,7 +814,7 @@ public class CatalogServiceImpl implements CatalogService {
       CatalogServiceImpl.this.updateSource(sourceConfig, subject, attributes);
     }
 
-    public void deleteSource(SourceConfig sourceConfig , NamespaceService.DeleteCallback callback) {
+    public void deleteSource(SourceConfig sourceConfig , SourceNamespaceService.DeleteCallback callback) {
       CatalogServiceImpl.this.deleteSource(sourceConfig, subject, callback);
     }
   }
@@ -863,5 +885,15 @@ public class CatalogServiceImpl implements CatalogService {
   @Override
   public Stream<VersionedPlugin> getAllVersionedPlugins() {
     return getPlugins().getAllVersionedPlugins();
+  }
+
+  @Override
+  public void subscribe(CatalogStatusEventTopic topic, CatalogStatusSubscriber subscriber) {
+    catalogStatusEvents.subscribe(topic, subscriber);
+  }
+
+  @Override
+  public void publish(CatalogStatusEvent event) {
+    catalogStatusEvents.publish(event);
   }
 }

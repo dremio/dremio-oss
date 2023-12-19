@@ -17,6 +17,7 @@ import { Component } from "react";
 import PropTypes from "prop-types";
 import FontIcon from "components/Icon/FontIcon";
 import EllipsedText from "@app/components/EllipsedText";
+import PartitionTransformationMenu from "@app/exports/components/PartitionTransformation/components/PartitionTransformationMenu/PartitionTransformationMenu";
 import { injectIntl } from "react-intl";
 import "@app/uiTheme/less/Acceleration/Acceleration.less";
 
@@ -28,6 +29,10 @@ class AccelerationGridSubCell extends Component {
     subValue: PropTypes.string,
     subValueAltText: PropTypes.string,
     onValueClick: PropTypes.func,
+    currentRow: PropTypes.object,
+    selectedField: PropTypes.object,
+    granularity: PropTypes.object,
+    setPartitionTransformation: PropTypes.func,
     hasPermission: PropTypes.bool,
     intl: PropTypes.any,
   };
@@ -40,6 +45,10 @@ class AccelerationGridSubCell extends Component {
       subValue,
       subValueAltText,
       onValueClick,
+      currentRow,
+      selectedField,
+      granularity,
+      setPartitionTransformation,
       hasPermission,
       intl: { formatMessage },
     } = this.props;
@@ -58,11 +67,11 @@ class AccelerationGridSubCell extends Component {
         className={`${cellStyle} ${
           hasPermission ? "" : "--disabled hover-help"
         }`}
-        onClick={hasPermission ? onClick : null}
       >
         <EllipsedText
           className={"AccelerationGridSubCell__subVal"}
           title={hasPermission ? null : formatMessage({ id: "Read.Only" })}
+          onClick={hasPermission ? onClick : null}
         >
           <FontIcon
             type={hasPermission ? iconType : disabledIconType}
@@ -80,8 +89,21 @@ class AccelerationGridSubCell extends Component {
             }`}
           >
             {subValue}
-            {onValueClick && <dremio-icon name="interface/caret-down" />}
+            {onValueClick && (
+              <dremio-icon
+                name="interface/caret-down"
+                class="AccelerationGridSubCell__subValClickable--icon"
+              />
+            )}
           </div>
+        )}
+        {isChecked && currentRow && setPartitionTransformation && (
+          <PartitionTransformationMenu
+            currentRow={currentRow}
+            selectedField={selectedField}
+            granularity={granularity}
+            setPartitionTransformation={setPartitionTransformation}
+          />
         )}
       </div>
     );

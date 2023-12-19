@@ -15,20 +15,15 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import static com.dremio.exec.planner.sql.parser.TestParserUtil.parse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.stream.Stream;
 
-import org.apache.calcite.avatica.util.Quoting;
-import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParseException;
-import org.apache.calcite.sql.parser.SqlParser;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-
-import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.planner.sql.ParserConfig;
 
 /**
  * Tests for optimize command
@@ -68,11 +63,5 @@ public class TestOptimizeParse {
     } else {
       parse(query);
     }
-  }
-
-  private SqlNode parse(String toParse) throws SqlParseException {
-    ParserConfig config = new ParserConfig(Quoting.DOUBLE_QUOTE, 255, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
-    SqlParser parser = SqlParser.create(toParse, config);
-    return parser.parseStmt();
   }
 }

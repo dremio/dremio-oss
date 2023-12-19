@@ -20,11 +20,13 @@ import static com.dremio.exec.planner.sql.handlers.SqlHandlerUtil.PLANNER_SOURCE
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
@@ -42,8 +44,14 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.NlsString;
 import org.apache.calcite.util.Pair;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Schema;
+import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.io.FileIO;
 
+import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.ExecConstants;
@@ -55,9 +63,9 @@ import com.dremio.exec.catalog.DatasetCatalog;
 import com.dremio.exec.catalog.DatasetCatalog.UpdateStatus;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.MutablePlugin;
-import com.dremio.exec.catalog.ResolvedVersionContext;
 import com.dremio.exec.catalog.SourceCatalog;
 import com.dremio.exec.physical.PhysicalPlan;
+import com.dremio.exec.physical.base.CombineSmallFileOptions;
 import com.dremio.exec.physical.base.IcebergWriterOptions;
 import com.dremio.exec.physical.base.ImmutableIcebergWriterOptions;
 import com.dremio.exec.physical.base.ImmutableTableFormatWriterOptions;
@@ -77,28 +85,35 @@ import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
 import com.dremio.exec.planner.sql.handlers.ConvertedRelNode;
+import com.dremio.exec.planner.sql.handlers.DrelTransformer;
+import com.dremio.exec.planner.sql.handlers.PlanLogUtil;
 import com.dremio.exec.planner.sql.handlers.PrelTransformer;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
-import com.dremio.exec.planner.sql.handlers.ViewAccessEvaluator;
+import com.dremio.exec.planner.sql.handlers.SqlToRelTransformer;
 import com.dremio.exec.planner.sql.parser.DataAdditionCmdCall;
 import com.dremio.exec.planner.sql.parser.SqlCopyIntoTable;
 import com.dremio.exec.planner.sql.parser.SqlCreateEmptyTable;
+import com.dremio.exec.planner.sql.parser.SqlCreateTable;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
+import com.dremio.exec.store.dfs.copyinto.CopyIntoErrorPluginAwareCreateTableEntry;
+import com.dremio.exec.store.dfs.system.SystemIcebergTablesStoragePluginConfig;
 import com.dremio.exec.store.iceberg.IcebergSerDe;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.iceberg.SchemaConverter;
 import com.dremio.exec.store.iceberg.SupportsIcebergMutablePlugin;
 import com.dremio.exec.store.iceberg.model.IcebergCommandType;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
+import com.dremio.exec.util.ColumnUtils;
 import com.dremio.exec.work.foreman.SqlUnsupportedException;
 import com.dremio.io.file.FileSystem;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.file.proto.FileType;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
@@ -154,8 +169,7 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
   ) throws Exception {
     try {
       Span.current().setAttribute(PLANNER_SOURCE_TARGET_SOURCE_TYPE_SPAN_ATTRIBUTE_NAME, SqlHandlerUtil.getSourceType(catalog, path.getRoot()));
-      final ConvertedRelNode convertedRelNode = PrelTransformer.validateAndConvert(config, sqlCmd.getQuery());
-      try (ViewAccessEvaluator ignored = ViewAccessEvaluator.createAsyncEvaluator(config, convertedRelNode)) {
+      final ConvertedRelNode convertedRelNode = SqlToRelTransformer.validateAndConvert(config, sqlCmd.getQuery());
       final RelDataType validatedRowType = convertedRelNode.getValidatedRowType();
 
       long maxColumnCount = config.getContext().getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX);
@@ -163,10 +177,20 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
         throw new ColumnCountTooLargeException((int) maxColumnCount);
       }
 
-      // Get and cache table info (if not already retrieved) to avoid multiple retrievals
-      getDremioTable(catalog, path);
-      final RelNode queryRelNode = convertedRelNode.getConvertedNode();
-      final RelNode newTblRelNode = SqlHandlerUtil.resolveNewTableRel(false, sqlCmd.getFieldNames(),
+        // Get and cache table info (if not already retrieved) to avoid multiple retrievals
+      if (version == null) {
+        getDremioTable(catalog, path);
+      } else {
+        getDremioTable(catalog, CatalogEntityKey.namespaceKeyToCatalogEntityKey(path, TableVersionContext.of(version)));
+      }
+        final RelNode queryRelNode = convertedRelNode.getConvertedNode();
+        // Table field names should resolve to validated query fields for CTAS
+        // with unspecified field names. This helps to prevent unexpected table
+        // field names for CTAS (DX-65794).
+        final List<String> tableFieldNames = isCreate() && sqlCmd.getFieldNames().size() == 0
+          ? validatedRowType.getFieldNames()
+          : sqlCmd.getFieldNames();
+        final RelNode newTblRelNode = SqlHandlerUtil.resolveNewTableRel(false, tableFieldNames,
           validatedRowType, queryRelNode, !isCreate());
 
       final long ringCount = config.getContext().getOptions().getOption(PlannerSettings.RING_COUNT);
@@ -183,13 +207,16 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
           sqlCmd.getPartitionColumns(null /*param is unused in this interface for create */) :
           Lists.newArrayList());
 
-      PrelTransformer.log("Calcite", newTblRelNodeWithPCol, logger, null);
+      PlanLogUtil.log("Calcite", newTblRelNodeWithPCol, logger, null);
 
       final List<String> partitionFieldNames = sqlCmd.getPartitionColumns(cachedDremioTable);
       final Set<String> fieldNames = validatedRowType.getFieldNames().stream().collect(Collectors.toSet());
       TableFormatWriterOptions tableFormatOptions = new ImmutableTableFormatWriterOptions.Builder()
         .setOperation(getIcebergWriterOperation()).build();
-      final WriterOptions options = new WriterOptions(
+        Map<String, String> tableProperties = isCreate() ?
+          IcebergUtils.convertTableProperties(((SqlCreateTable)sqlCmd).getTablePropertyNameList(), ((SqlCreateTable)sqlCmd).getTablePropertyValueList(), false) :
+          Collections.emptyMap();
+      WriterOptions options = new WriterOptions(
         (int) ringCount,
         partitionFieldNames,
         sqlCmd.getSortColumns(),
@@ -200,8 +227,17 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
         Long.MAX_VALUE,
         tableFormatOptions,
         extendedByteString,
-        version
+        version,
+        tableProperties
       );
+
+      if (config.getContext().getOptions().getOption(ExecConstants.ENABLE_ICEBERG_COMBINE_SMALL_FILES_FOR_DML)) {
+        CombineSmallFileOptions combineSmallFileOptions = CombineSmallFileOptions.builder()
+          .setSmallFileSize(Double.valueOf(config.getContext().getOptions().getOption(ExecConstants.PARQUET_BLOCK_SIZE_VALIDATOR) *
+            config.getContext().getOptions().getOption(ExecConstants.SMALL_PARQUET_BLOCK_SIZE_RATIO)).longValue())
+          .build();
+        options = options.withCombineSmallFileOptions(combineSmallFileOptions);
+      }
 
       // Convert the query to Dremio Logical plan and insert a writer operator on top.
       drel = this.convertToDrel(
@@ -224,9 +260,8 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
           : null,
         () -> cleanUp(catalog, path));
 
-      PrelTransformer.log(config, "Dremio Plan", plan, logger);
-        return plan;
-      }
+      PlanLogUtil.log(config, "Dremio Plan", plan, logger);
+      return plan;
 
     } catch(Exception ex){
       throw SqlExceptionHelper.coerceException(logger, sql, ex, true);
@@ -241,6 +276,14 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
     if (!dremioTableFetched) {
       cachedDremioTable = datasetCatalog.getTable(path);
       dremioTableFetched = true;
+    }
+    return cachedDremioTable;
+  }
+
+  protected DremioTable getDremioTable(Catalog catalog, CatalogEntityKey key) {
+    if (!dremioTableFetched) {
+      dremioTableFetched = true;
+      cachedDremioTable = catalog.getTableSnapshot(key.toNamespaceKey(), key.getTableVersionContext());
     }
     return cachedDremioTable;
   }
@@ -274,7 +317,7 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
   private Rel convertToDrel(
     SqlHandlerConfig config,
     RelNode relNode,
-    DatasetCatalog datasetCatalog,
+    Catalog datasetCatalog,
     NamespaceKey key,
     WriterOptions options,
     RelDataType queryRowType,
@@ -282,7 +325,7 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
     final List<String> fieldNames,
     DataAdditionCmdCall sqlCmd)
       throws SqlUnsupportedException {
-    Rel convertedRelNode = PrelTransformer.convertToDrel(config, relNode);
+    Rel convertedRelNode = DrelTransformer.convertToDrel(config, relNode);
 
     // Put a non-trivial topProject to ensure the final output field name is preserved, when necessary.
     // Only insert project when the field count from the child is same as that of the queryRowType.
@@ -292,13 +335,18 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
     if (isIcebergTable()) {
       queryId = QueryIdHelper.getQueryId(config.getContext().getQueryId());
       ByteString partitionSpec = null;
+      String sortOrder = null;
       BatchSchema tableSchema = null;
       String icebergSchema = null;
+      Long snapshotId = null;
+      List<String> sortColumns;
       if (!isCreate()) {
         tableSchemaFromKVStore = cachedDremioTable.getSchema();
         partitionColumns = cachedDremioTable.getDatasetConfig().getReadDefinition().getPartitionColumnsList();
         partitionSpec = IcebergUtils.getCurrentPartitionSpec(cachedDremioTable.getDatasetConfig().getPhysicalDataset(), cachedDremioTable.getSchema(), options.getPartitionColumns());
+        sortOrder = IcebergUtils.getCurrentSortOrder(cachedDremioTable.getDatasetConfig().getPhysicalDataset(), config.getContext().getOptions());
         tableSchema = cachedDremioTable.getSchema();
+        snapshotId = cachedDremioTable.getDataset().getDatasetConfig().getPhysicalDataset().getIcebergMetadata().getSnapshotId();
         icebergSchema = IcebergUtils.getCurrentIcebergSchema(cachedDremioTable.getDatasetConfig().getPhysicalDataset(), cachedDremioTable.getSchema());
         // This is insert statement update  key to use existing table from catalog
         DremioTable table = datasetCatalog.getTable(key);
@@ -309,20 +357,27 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
         tableSchema = CalciteArrowHelper.fromCalciteRowType(queryRowType);
         PartitionSpec partitionSpecBytes = IcebergUtils.getIcebergPartitionSpecFromTransforms(tableSchema, sqlCmd.getPartitionTransforms(null), null);
         partitionSpec = ByteString.copyFrom(IcebergSerDe.serializePartitionSpec(partitionSpecBytes));
+        sortOrder = IcebergSerDe.serializeSortOrderAsJson(IcebergUtils.getIcebergSortOrder(tableSchema, sqlCmd.getSortColumns(), partitionSpecBytes.schema(), config.getContext().getOptions()));
         icebergSchema = IcebergSerDe.serializedSchemaAsJson(partitionSpecBytes.schema());
       }
+      Schema schema = SchemaConverter.getBuilder().build().toIcebergSchema(tableSchema);
+      SortOrder deserializedSortOrder = IcebergSerDe.deserializeSortOrderFromJson(schema, sortOrder);
+      sortColumns = IcebergUtils.getColumnsFromSortOrder(deserializedSortOrder, config.getContext().getOptions());
       icebergTableProps = new IcebergTableProps(null, queryId,
         null,
-        options.getPartitionColumns() ,
+        options.getPartitionColumns(),
         isCreate() ? IcebergCommandType.CREATE : IcebergCommandType.INSERT,
-        null, key.getName(), null, options.getVersion(), partitionSpec, icebergSchema); // TODO: DX-43311 Should we allow null version?
+        null, key.getName(), null, options.getVersion(), partitionSpec, icebergSchema, null, sortOrder, options.getTableProperties(), FileType.PARQUET); // TODO: DX-43311 Should we allow null version?
       icebergTableProps.setPersistedFullSchema(tableSchema);
       IcebergWriterOptions icebergOptions = new ImmutableIcebergWriterOptions.Builder()
         .from(options.getTableFormatOptions().getIcebergSpecificOptions())
         .setIcebergTableProps(icebergTableProps).build();
       TableFormatWriterOptions tableFormatWriterOptions = new ImmutableTableFormatWriterOptions.Builder()
         .from(options.getTableFormatOptions())
-        .setIcebergSpecificOptions(icebergOptions).build();
+        .setIcebergSpecificOptions(icebergOptions)
+        .setSnapshotId(snapshotId)
+        .build();
+      options.setSortColumns(sortColumns);
       options.setTableFormatOptions(tableFormatWriterOptions);
     }
 
@@ -335,6 +390,14 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
       icebergTableProps,
       options,
       storageOptions);
+
+    // we are running COPY INTO with CONTINUE option
+    if (sqlCmd instanceof SqlCopyIntoTable && ((SqlCopyIntoTable) sqlCmd).isTableExtended()
+      && tableEntry instanceof CopyIntoErrorPluginAwareCreateTableEntry) {
+      ((CopyIntoErrorPluginAwareCreateTableEntry) tableEntry)
+        .setSystemIcebergTablesPlugin((datasetCatalog.getSource(SystemIcebergTablesStoragePluginConfig.SYSTEM_ICEBERG_TABLES_PLUGIN_NAME)));
+    }
+
     if (isIcebergTable()) {
       Preconditions.checkState(tableEntry.getIcebergTableProps().getTableLocation() != null &&
             !tableEntry.getIcebergTableProps().getTableLocation().isEmpty(),
@@ -392,6 +455,7 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
       } else {
         castExpr = rexBuilder.makeAbstractCast(type, rexNode);
       }
+
       castExprs.add(castExpr);
     }
 
@@ -405,13 +469,12 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
 
   private boolean isCastSupportedForType(RelDataType type) {
     SqlTypeName typeName = type.getSqlTypeName();
-    return typeName != SqlTypeName.ARRAY &&
-      typeName != SqlTypeName.ROW &&
+    return typeName != SqlTypeName.ROW &&
       typeName != SqlTypeName.STRUCTURED &&
       typeName != SqlTypeName.MAP;
   }
 
-  public void validateIcebergSchemaForInsertCommand(List<String> fieldNames, SqlHandlerConfig config) {
+  public void validateIcebergSchemaForInsertCommand(DataAdditionCmdCall sqlInsertTable, SqlHandlerConfig config) {
     IcebergTableProps icebergTableProps = tableEntry.getIcebergTableProps();
     Preconditions.checkState(icebergTableProps.getIcebergOpType() == IcebergCommandType.INSERT,
       "unexpected state found");
@@ -420,7 +483,8 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
     Preconditions.checkState(tableEntry.getPlugin() instanceof SupportsIcebergMutablePlugin, "Plugin not instance of SupportsIcebergMutablePlugin");
     SupportsIcebergMutablePlugin plugin = (SupportsIcebergMutablePlugin) tableEntry.getPlugin();
     try (FileSystem fs = plugin.createFS(icebergTableProps.getTableLocation(), tableEntry.getUserName(), null)) {
-      IcebergModel icebergModel = plugin.getIcebergModel(icebergTableProps, tableEntry.getUserName(), null, fs);
+      FileIO fileIO = plugin.createIcebergFileIO(fs, null, null, null, null);
+      IcebergModel icebergModel = plugin.getIcebergModel(icebergTableProps, tableEntry.getUserName(), null, fileIO);
       Table table = icebergModel.getIcebergTable(icebergModel.getTableIdentifier(icebergTableProps.getTableLocation()));
       SchemaConverter schemaConverter = SchemaConverter.getBuilder().setTableName(table.name())
           .setMapTypeEnabled(config.getContext().getOptions().getOption(ExecConstants.ENABLE_MAP_DATA_TYPE)).build();
@@ -432,8 +496,12 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
             tableSchemaFromKVStore, icebergSchema).buildSilently();
       }
 
-      BatchSchema partSchemaWithSelectedFields = tableSchemaFromKVStore.subset(fieldNames)
+      BatchSchema partSchemaWithSelectedFields = tableSchemaFromKVStore.subset(sqlInsertTable.getFieldNames())
           .orElse(tableSchemaFromKVStore);
+      if (sqlInsertTable instanceof SqlCopyIntoTable && ((SqlCopyIntoTable) sqlInsertTable).isTableExtended()) {
+        querySchema = BatchSchema.of(querySchema.getFields().stream().filter(f -> !f.getName().equalsIgnoreCase(ColumnUtils.COPY_INTO_ERROR_COLUMN_NAME))
+          .collect(Collectors.toList()).toArray(new Field[querySchema.getFieldCount() - 1]));
+      }
       if (!querySchema.equalsTypesWithoutPositions(partSchemaWithSelectedFields)) {
         throw UserException.validationError().message("Table %s doesn't match with query %s.",
             partSchemaWithSelectedFields, querySchema).buildSilently();

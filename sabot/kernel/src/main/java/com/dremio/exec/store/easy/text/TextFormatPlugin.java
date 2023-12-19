@@ -51,6 +51,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableList;
 
+import io.protostuff.ByteString;
+
 public class TextFormatPlugin extends EasyFormatPlugin<TextFormatPlugin.TextFormatConfig> {
   private static final String DEFAULT_NAME = "text";
 
@@ -75,7 +77,7 @@ public class TextFormatPlugin extends EasyFormatPlugin<TextFormatPlugin.TextForm
   }
 
   @Override
-  public RecordReader getRecordReader(OperatorContext context, FileSystem dfs, EasyDatasetSplitXAttr splitAttributes, List<SchemaPath> columns, ExtendedEasyReaderProperties properties) throws ExecutionSetupException {
+  public RecordReader getRecordReader(OperatorContext context, FileSystem dfs, EasyDatasetSplitXAttr splitAttributes, List<SchemaPath> columns, ExtendedEasyReaderProperties properties, ByteString extendedProperties) throws ExecutionSetupException {
     Path path = new Path(dfs.makeQualified(com.dremio.io.file.Path.of(splitAttributes.getPath())).toURI());
     FileSplit split = new FileSplit(path, splitAttributes.getStart(), splitAttributes.getLength(), new String[]{""});
     TextParsingSettings settings = new TextParsingSettings();
@@ -84,11 +86,11 @@ public class TextFormatPlugin extends EasyFormatPlugin<TextFormatPlugin.TextForm
       settings.setIgnoreTrailingWhitespaces(properties.getExtendedFormatOptions().getTrimSpace());
       settings.setIgnoreLeadingWhitespaces(properties.getExtendedFormatOptions().getTrimSpace());
     }
-    return new CompliantTextRecordReader(split, getFsPlugin().getCompressionCodecFactory(), dfs, context, settings, columns, properties.isSchemaImposed(), properties.getExtendedFormatOptions());
+    return new CompliantTextRecordReader(split, getFsPlugin().getCompressionCodecFactory(), dfs, context, settings, columns, properties, extendedProperties);
   }
 
   @Override
-  protected ScanStats getScanStats(final EasyGroupScanUtils scan) {
+  public ScanStats getScanStats(final EasyGroupScanUtils scan) {
     long data = 0;
     for (final CompleteFileWork work : scan.getWorkIterable()) {
       data += work.getTotalBytes();
@@ -117,6 +119,8 @@ public class TextFormatPlugin extends EasyFormatPlugin<TextFormatPlugin.TextForm
     public boolean extractHeader = false;
     public boolean autoGenerateColumnNames = false;
     public boolean trimHeader = true;
+
+    public int skipLines = 0;
 
     /**
      * Extension of files written out with config as part of CTAS.
@@ -171,6 +175,11 @@ public class TextFormatPlugin extends EasyFormatPlugin<TextFormatPlugin.TextForm
       return trimHeader;
     }
 
+    @JsonProperty("skipLines")
+    public int getSkipLines() {
+      return skipLines;
+    }
+
     @Override
     public int hashCode() {
       final int prime = 31;
@@ -186,6 +195,7 @@ public class TextFormatPlugin extends EasyFormatPlugin<TextFormatPlugin.TextForm
       result = prime * result + (autoGenerateColumnNames ? 1231 : 1237);
       result = prime * result + ((outputExtension == null) ? 0 : outputExtension.hashCode());
       result = prime * result + (trimHeader? 1231 : 1237);
+      result = prime * result + skipLines;
       return result;
     }
 
@@ -237,6 +247,9 @@ public class TextFormatPlugin extends EasyFormatPlugin<TextFormatPlugin.TextForm
         return false;
       }
       if (trimHeader != other.trimHeader) {
+        return false;
+      }
+      if (skipLines != other.skipLines) {
         return false;
       }
       return Objects.equals(outputExtension, other.outputExtension);

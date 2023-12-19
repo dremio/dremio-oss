@@ -44,7 +44,7 @@ public abstract class FutureBitCommand<T extends MessageLite, C extends RemoteCo
     connectionAvailable(connection);
   }
 
-  private class DeferredRpcOutcome implements RpcOutcomeListener<T> {
+  private final class DeferredRpcOutcome implements RpcOutcomeListener<T> {
 
     @Override
     public void failed(RpcException ex) {

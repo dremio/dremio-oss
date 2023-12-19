@@ -20,6 +20,9 @@ import java.util.Map;
 
 import org.apache.arrow.vector.types.pojo.Field;
 
+import com.dremio.catalog.exception.UnsupportedForgetTableException;
+import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.connector.metadata.AttributeValue;
 import com.dremio.exec.physical.base.WriterOptions;
@@ -32,6 +35,7 @@ import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.dataset.proto.DatasetType;
 
 /**
  * Interface to perform actions on datasets.
@@ -58,7 +62,7 @@ public interface DatasetCatalog extends PrivilegeCatalog {
 
   void alterTable(NamespaceKey key, DatasetConfig datasetConfig, AlterTableOption alterTableOption, TableMutationOptions tableMutationOptions);
 
-  void forgetTable(NamespaceKey key);
+  void forgetTable(NamespaceKey key) throws UnsupportedForgetTableException;
 
   /**
    * Create a new dataset at this location and mutate the dataset before saving.
@@ -108,23 +112,28 @@ public interface DatasetCatalog extends PrivilegeCatalog {
 
   void changeColumn(NamespaceKey datasetKey, DatasetConfig datasetConfig, String columnToChange, Field fieldFromSqlColDeclaration, TableMutationOptions tableMutationOptions);
 
-  boolean alterDataset(final NamespaceKey key, final Map<String, AttributeValue> attributes);
+  boolean alterDataset(final CatalogEntityKey catalogEntityKey, final Map<String, AttributeValue> attributes);
 
   boolean alterColumnOption(final NamespaceKey key, String columnToChange,
                             final String attributeName, final AttributeValue attributeValue);
 
-  void addPrimaryKey(final NamespaceKey namespaceKey, List<String> columns);
+  void addPrimaryKey(final NamespaceKey namespaceKey, List<String> columns, VersionContext statementSourceVersion, Catalog catalog);
 
-  void dropPrimaryKey(final NamespaceKey namespaceKey);
+  void dropPrimaryKey(final NamespaceKey namespaceKey, VersionContext statementSourceVersion, Catalog catalog);
 
   List<String> getPrimaryKey(final NamespaceKey namespaceKey);
 
   boolean toggleSchemaLearning(NamespaceKey path, boolean enableSchemaLearning);
 
+  void alterSortOrder(NamespaceKey path, DatasetConfig datasetConfig, BatchSchema schema, List<String> sortOrderColumns, TableMutationOptions tableMutationOptions);
+
+  void updateTableProperties(NamespaceKey table, DatasetConfig datasetConfig, BatchSchema schema, Map<String, String> tableProperties, TableMutationOptions tableMutationOptions, boolean isRemove);
+
   Catalog resolveCatalog(Map<String, VersionContext> sourceVersionMapping);
 
   Catalog resolveCatalogResetContext(String sourceName, VersionContext versionContext);
 
+  //TODO(DX-83443) Move read interfaces to EntityExplorer
   /**
    * Retrieve a table
    *
@@ -141,7 +150,17 @@ public interface DatasetCatalog extends PrivilegeCatalog {
    */
   DremioTable getTable(NamespaceKey key);
 
+  //TODO(DX-83443) Move read interfaces to EntityExplorer
+  /**
+   * Get a DremioTable
+   * @param catalogEntityKey
+   * @return DremioTable. Null if table not found
+   */
+  DremioTable getTable(CatalogEntityKey catalogEntityKey);
+
   String getDatasetId(NamespaceKey key);
+
+  DatasetType getDatasetType(CatalogEntityKey key);
 
   enum UpdateStatus {
     /**

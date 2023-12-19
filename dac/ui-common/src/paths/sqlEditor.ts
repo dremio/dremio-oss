@@ -21,19 +21,38 @@ type ExistingDataset = {
   tableId: string;
   pageType: string;
 };
-type resourceIdParam = {
-  resourceId: string;
+type NewQueryParam = {
+  projectId?: string;
+  resourceId?: string;
+  version?: string;
+  tipVersion?: string;
+  jobId?: string;
+};
+type SqlEditorParam = {
+  pageType?: string;
 };
 
-export const sqlEditor = projectBase.extend(() => "new_query");
+export const sqlEditor = projectBase.extend(
+  (params: SqlEditorParam = {}) =>
+    `new_query${params.pageType ? `(/${params?.pageType})` : ""}`
+);
+
 export const existingDataset = projectBase.extend(
   (params: ExistingDataset) =>
     `${params.resources}(/${params.resourceId})/${params.tableId}(/${params.pageType})`
 );
 
 export const newQuery = projectBase.extend(
-  (params: resourceIdParam) =>
-    `new_query?context=${encodeURIComponent(params.resourceId)}`
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  ({ projectId: _ignored, ...params }: NewQueryParam = {}) => {
+    const searchParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value)
+        searchParams.set(key === "resourceId" ? "context" : key, value);
+    });
+    const qs = searchParams.toString();
+    return "new_query" + (qs ? `?${qs}` : "");
+  }
 );
 
 export const unsavedDatasetPath = projectBase.extend(() => "tmp/tmp/UNTITLED");

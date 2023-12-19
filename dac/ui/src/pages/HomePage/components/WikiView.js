@@ -40,6 +40,8 @@ import {
   editor,
   wikiTitle,
 } from "./WikiView.less";
+import { WikiEmptyStateARS } from "@app/components/WikiEmptyStateARS";
+import { isVersionedSource } from "@app/utils/sourceUtils";
 
 const ViewModes = ["default", "edit", "expanded"].reduce(
   (enumResult, value) => {
@@ -53,7 +55,7 @@ const getEntityId = (item) => {
   return item && item.get("id");
 };
 
-const getCanEditWiki = (item) => {
+export const getCanEditWiki = (item) => {
   if (!item || !item.get) return false;
 
   // can edit if entity has no permissions (true for home space and in CE) or explicit canEdit permission is present
@@ -86,6 +88,7 @@ const mapStateToProps = (state, /* ownProps */ { item }) => {
 export default class WikiView extends Component {
   static propTypes = {
     intl: PropTypes.object.isRequired,
+    item: PropTypes.object.isRequired,
 
     // connected
     entityId: PropTypes.string,
@@ -96,15 +99,31 @@ export default class WikiView extends Component {
     errorMessage: PropTypes.string,
     errorId: PropTypes.string,
     wikiSaved: PropTypes.func, // (entityId, text, version) => void
+    isArsEnabled: PropTypes.bool,
+    isArsLoading: PropTypes.bool,
+    setRef: PropTypes.func.isRequired,
   };
 
   state = {
+    wikiSummary: false,
     viewMode: ViewModes.default,
   };
 
-  editWiki = () => {
+  editWiki = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
     this.setState({
       viewMode: ViewModes.edit,
+      wikiSummary: false,
+    });
+  };
+
+  addSummary = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    this.setState({
+      viewMode: ViewModes.edit,
+      wikiSummary: true,
     });
   };
 
@@ -128,6 +147,17 @@ export default class WikiView extends Component {
       viewMode: ViewModes.default,
     });
   };
+
+  componentDidMount() {
+    this.props.setRef({
+      editWiki: this.editWiki,
+      expandWiki: this.expandWiki,
+    });
+  }
+
+  componentWillUnmount() {
+    this.props.setRef(null);
+  }
 
   getTitleButtons() {
     const { canEditWiki, wikiText } = this.props;
@@ -168,7 +198,7 @@ export default class WikiView extends Component {
 
   getViewState() {
     //todo apply reselect here
-    const { isLoading, errorMessage, errorId } = this.props;
+    const { isLoading, errorMessage, errorId, isArsLoading } = this.props;
 
     if (errorMessage) {
       return fromJS({
@@ -179,13 +209,38 @@ export default class WikiView extends Component {
         },
       });
     }
-    return fromJS({ isInProgress: isLoading });
+    return fromJS({ isInProgress: isLoading || isArsLoading });
   }
 
   render() {
-    const { viewMode } = this.state;
+    const { viewMode, wikiSummary } = this.state;
 
-    const { wikiText, wikiVersion, canEditWiki, entityId } = this.props;
+    const {
+      wikiText,
+      wikiVersion,
+      canEditWiki,
+      entityId,
+      item,
+      isArsEnabled,
+      isArsLoading,
+    } = this.props;
+    const entityType =
+      item && (item.get("entityType") || item.get("type") || item.get("@type"));
+    let Empty = (
+      <WikiEmptyState
+        className={emptyContainer}
+        onAddWiki={canEditWiki ? this.editWiki : null}
+        onAddSummary={this.addSummary}
+      />
+    );
+
+    const showArsWiki =
+      isArsEnabled && item && isVersionedSource(item.get("type"));
+    if (showArsWiki) {
+      Empty = (
+        <WikiEmptyStateARS onAddWiki={canEditWiki ? this.editWiki : null} />
+      );
+    }
 
     return (
       <ViewStateWrapper
@@ -194,25 +249,27 @@ export default class WikiView extends Component {
         style={styles.wrapperStylesFix}
       >
         <div className={wikiWrapper} data-qa="wikiWrapper">
-          <SectionTitle
-            title={la("Wiki")}
-            titleClass={wikiTitle}
-            buttons={this.getTitleButtons()}
-          />
+          {!showArsWiki && (
+            <SectionTitle
+              title={laDeprecated("Wiki")}
+              titleClass={wikiTitle}
+              buttons={this.getTitleButtons()}
+            />
+          )}
           {wikiText.length ? (
             <div className={wikiWidget} data-qa="wikiWidget">
               <MarkdownEditor
+                fullPath={item?.get("fullPathList")}
                 value={wikiText}
                 className={editor}
+                entityId={entityId}
+                entityType={entityType}
                 readMode
                 fitToContainer
               />
             </div>
           ) : (
-            <WikiEmptyState
-              className={emptyContainer}
-              onAddWiki={canEditWiki ? this.editWiki : null}
-            />
+            <>{!isArsLoading && Empty}</>
           )}
           <WikiModal
             isOpen={viewMode !== ViewModes.default}
@@ -222,11 +279,14 @@ export default class WikiView extends Component {
                 ? [this.getEditButton()]
                 : null
             }
+            fullPath={item?.get("fullPathList")}
             entityId={entityId}
+            entityType={entityType}
             wikiValue={wikiText}
             wikiVersion={wikiVersion}
             save={this.onSaveWiki}
             cancel={this.stopEditWiki}
+            wikiSummary={wikiSummary}
           />
         </div>
       </ViewStateWrapper>

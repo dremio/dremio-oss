@@ -578,7 +578,7 @@ public class ElasticsearchCluster implements Closeable {
     json.close();
     putMapping.setMapping(baos.toString("UTF-8"));
     try {
-      connection.execute(putMapping, elasticVersionBehaviorProvider.isEnable7vFeatures() || elasticVersionBehaviorProvider.isEs68Version());
+      connection.execute(putMapping, elasticVersionBehaviorProvider.geMajorVersion());
     } catch (Exception e) {
       throw new IOException(e);
     }
@@ -778,7 +778,7 @@ public class ElasticsearchCluster implements Closeable {
   private Result getResultWithRetries(ElasticActions.ElasticAction action) {
     for (int i = 0; i <= actionRetries; i++) {
       try {
-        return action.getResult(webTarget);
+        return action.getResult(webTarget, elasticVersionBehaviorProvider.geMajorVersion()); // set to true if testing against ElasticSearch V7 or greater.
       } catch (Exception e) {
         if (i == actionRetries) {
           throw e;
@@ -1116,7 +1116,7 @@ public class ElasticsearchCluster implements Closeable {
       .setQuery(String.format("{\"query\": %s }", newQuery))
       .setResource(String.format("%s/%s", schema, table))
       .setParameter("size", "1000")
-    , false);
+    , elasticVersionBehaviorProvider.geMajorVersion());
 
     JsonObject hits = asJsonObject(response).get("hits").getAsJsonObject();
     final int totalHits = elasticVersionBehaviorProvider.getSearchResults(hits);

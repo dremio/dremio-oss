@@ -62,7 +62,9 @@ export const getDefinedSettings =
             ...meta,
             notification: {
               level: "error",
-              message: la("Failed to load settings from the server. "),
+              message: laDeprecated(
+                "Failed to load settings from the server. "
+              ),
             },
           },
         });

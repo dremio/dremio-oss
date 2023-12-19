@@ -188,7 +188,7 @@ public abstract class AbstractTestFlightSqlServerCatalogMethods extends BaseFlig
 
   @Test
   public void testGetSchemaWithFlightSql() {
-    FlightSql.CommandGetTables command = FlightSql.CommandGetTables.newBuilder().build();
+    FlightSql.CommandGetTables command = FlightSql.CommandGetTables.newBuilder().setIncludeSchema(true).build();
     FlightDescriptor descriptor = FlightDescriptor.command(Any.pack(command).toByteArray());
     SchemaResult schema = flightSqlClient.getSchema(descriptor, getCallOptions());
 

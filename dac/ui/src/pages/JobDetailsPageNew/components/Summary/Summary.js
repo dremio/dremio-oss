@@ -33,7 +33,7 @@ const Summary = ({ jobSummary, intl: { formatMessage } }) => {
                 </span>
                 {item.label !== "Common.User" ? (
                   <span className="summary__contentValue">{item.content}</span>
-                ) : item.content.length > 24 ? (
+                ) : item.content?.length > 24 ? (
                   <Tooltip title={item.content}>
                     <EllipsedText
                       text={item.content}

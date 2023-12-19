@@ -16,6 +16,7 @@
 package com.dremio.exec.catalog.dataplane;
 
 import static com.dremio.dac.server.JobsServiceTestUtils.submitJobAndGetData;
+import static com.dremio.exec.catalog.dataplane.DataplaneTestDefines.showBranchesQuery;
 import static com.dremio.options.OptionValue.OptionType.SYSTEM;
 import static com.dremio.service.accelerator.proto.SubstitutionState.CHOSEN;
 import static com.dremio.service.reflection.ReflectionOptions.MATERIALIZATION_CACHE_ENABLED;
@@ -25,11 +26,12 @@ import static com.dremio.service.reflection.ReflectionOptions.REFLECTION_PERIODI
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static com.google.common.collect.Iterables.isEmpty;
 import static java.util.concurrent.TimeUnit.HOURS;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -43,6 +45,7 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 
+import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.DatasetUI;
 import com.dremio.dac.model.job.JobDataFragment;
@@ -52,10 +55,10 @@ import com.dremio.dac.server.JobsServiceTestUtils;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.CatalogEntityKey;
 import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.server.ContextService;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
 import com.dremio.exec.store.CatalogService;
@@ -65,6 +68,7 @@ import com.dremio.service.accelerator.AccelerationDetailsUtils;
 import com.dremio.service.accelerator.proto.AccelerationDetails;
 import com.dremio.service.accelerator.proto.ReflectionRelationship;
 import com.dremio.service.job.JobDetailsRequest;
+import com.dremio.service.job.QueryProfileRequest;
 import com.dremio.service.job.proto.JobDetails;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobProtobuf;
@@ -133,6 +137,7 @@ public abstract class ITBaseTestReflection extends ITBaseTestVersioned {
     materializationStore = new MaterializationStore(p(LegacyKVStoreProvider.class));
     entriesStore = new ReflectionEntriesStore(p(LegacyKVStoreProvider.class));
     setSystemOption(PlannerSettings.QUERY_PLAN_CACHE_ENABLED.getOptionName(), "false");
+    setMaterializationCacheSettings(false, 1000);
   }
 
   @AfterAll
@@ -293,12 +298,12 @@ public abstract class ITBaseTestReflection extends ITBaseTestVersioned {
             .filter(input -> input.getLayoutId().equals(rId.getId()))
             .map(descriptor -> new MaterializationId(descriptor.getMaterializationId()))
             .collect(Collectors.toList());
-    assertEquals(
-        "only one materialization expected, but got " + mIds.toString(), 1, Iterables.size(mIds));
+    assertEquals(1, Iterables.size(mIds),
+        "only one materialization expected, but got " + mIds);
 
     final MaterializationId mId = mIds.iterator().next();
     final Optional<Materialization> m = getReflectionService().getMaterialization(mId);
-    assertTrue("materialization not found", m.isPresent());
+    assertTrue(m.isPresent(), "materialization not found: " + mId);
     return m.get();
   }
 
@@ -446,11 +451,11 @@ public abstract class ITBaseTestReflection extends ITBaseTestVersioned {
   }
 
   protected DatasetDependency dependency(final String datasetId, final NamespaceKey datasetKey) {
-    return DependencyEntry.of(datasetId, datasetKey.getPathComponents());
+    return DependencyEntry.of(datasetId, datasetKey.getPathComponents(), 0L);
   }
 
   protected ReflectionDependency dependency(final ReflectionId reflectionId) {
-    return DependencyEntry.of(reflectionId);
+    return DependencyEntry.of(reflectionId, 0L);
   }
 
   protected boolean dependsOn(ReflectionId rId, final DependencyEntry... entries) {
@@ -468,18 +473,21 @@ public abstract class ITBaseTestReflection extends ITBaseTestVersioned {
 
   protected void assertDependsOn(ReflectionId rId, final DependencyEntry... entries) {
     assertTrue(
-        String.format(
-            "Unexpected state %s",
-            DependencyUtils.describeDependencies(rId, getReflectionService().getDependencies(rId))),
-        dependsOn(rId, entries));
+        dependsOn(rId, entries),
+      () -> String.format(
+        "Unexpected state %s",
+        DependencyUtils.describeDependencies(rId, getReflectionService().getDependencies(rId)))
+    );
   }
 
   protected void assertNotDependsOn(ReflectionId rId, final DependencyEntry... entries) {
     assertFalse(
-        String.format(
+      dependsOn(rId, entries),
+        () ->
+          String.format(
             "Unexpected state %s",
-            DependencyUtils.describeDependencies(rId, getReflectionService().getDependencies(rId))),
-        dependsOn(rId, entries));
+            DependencyUtils.describeDependencies(rId, getReflectionService().getDependencies(rId)))
+      );
   }
 
   protected String dumpState(final Materialization m) {
@@ -618,16 +626,18 @@ public abstract class ITBaseTestReflection extends ITBaseTestVersioned {
                 .getAccelerationDetails());
     List<ReflectionRelationship> chosen = getChosen(details.getReflectionRelationshipsList());
     assertTrue(
-        "child refresh wasn't accelerated with parent's latest materialization",
         chosen.stream()
-            .anyMatch(r -> r.getMaterialization().getId().equals(parent.getId().getId())));
+            .anyMatch(r -> r.getMaterialization().getId().equals(parent.getId().getId())),
+      "child refresh wasn't accelerated with parent's latest materialization"
+    );
 
     assertTrue(
-        "child refresh started before parent load materialization job finished",
         JobsProtoUtil.getLastAttempt(childRefreshReflectionJobDetails).getInfo().getStartTime()
             >= JobsProtoUtil.getLastAttempt(parentRefreshReflectionJobDetails)
                 .getInfo()
-                .getFinishTime());
+                .getFinishTime(),
+      "child refresh started before parent load materialization job finished"
+    );
   }
 
   /**
@@ -679,5 +689,40 @@ public abstract class ITBaseTestReflection extends ITBaseTestVersioned {
       allocator);
   }
 
+  protected String getReflectionId(CatalogEntityKey key, String reflectionName) {
+    Iterator<ReflectionGoal> iterator =
+      getReflectionService().getReflectionsByDatasetPath(key).iterator();
+    String reflectionId = null;
+    while (iterator.hasNext()) {
+      ReflectionGoal rg = iterator.next();
+      if (reflectionName.equals(rg.getName())) {
+        reflectionId = rg.getId().getId();
+      }
+    }
+    return reflectionId;
+  }
 
+  protected String getLatestCommitHash(String branchName, BufferAllocator allocator) throws JobNotFoundException {
+    try (final JobDataFragment data = getQueryData(getJobsService(), showBranchesQuery(), 100, allocator)) {
+      int total = data.getReturnedRowCount();
+      for (int i = total - 1; i >= 0; i--) {
+        if (branchName.equals(data.extractString("refName", i))) {
+          return data.extractString("commitHash", i);
+        }
+      }
+    }
+    return null;
+  }
+
+  protected static String getReflectionPlan(final Materialization materialization) throws JobNotFoundException {
+    final QueryProfileRequest request = QueryProfileRequest.newBuilder()
+      .setJobId(JobProtobuf.JobId.newBuilder()
+        .setId(materialization.getInitRefreshJobId())
+        .build())
+      .setAttempt(0)
+      .setUserName(SYSTEM_USERNAME)
+      .build();
+    final UserBitShared.QueryProfile profile = getJobsService().getProfile(request);
+    return profile.getPlan();
+  }
 }

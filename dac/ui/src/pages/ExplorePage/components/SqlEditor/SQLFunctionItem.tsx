@@ -14,9 +14,12 @@
  * limitations under the License.
  */
 import React from "react";
+import { useSelector } from "react-redux";
+import { createSelector } from "reselect";
 import { ExternalLink, IconButton } from "dremio-ui-lib/components";
 import DragSource from "components/DragComponents/DragSource";
 import { intl } from "@app/utils/intl";
+import { getExploreState } from "@app/selectors/explore";
 import { ModifiedSQLFunction } from "@app/endpoints/SQLFunctions/listSQLFunctions";
 import {
   Parameter,
@@ -37,6 +40,11 @@ type SQLFunctionItemProps = {
   searchKey: string;
 };
 
+const selectIsMultiQueryRunning = createSelector(
+  (state) => getExploreState(state)?.view.isMultiQueryRunning,
+  (isMultiQueryRunning: boolean) => isMultiQueryRunning
+);
+
 const SQLFunctionItem = ({
   sqlFunction,
   addFuncToSqlEditor,
@@ -45,6 +53,7 @@ const SQLFunctionItem = ({
   dragType,
   searchKey,
 }: SQLFunctionItemProps) => {
+  const isMultiQueryRunning = useSelector(selectIsMultiQueryRunning);
   const {
     name,
     signature,
@@ -82,6 +91,7 @@ const SQLFunctionItem = ({
                 e?.stopPropagation();
                 addFuncToSqlEditor(name, functionSnippet);
               }}
+              disabled={isMultiQueryRunning}
               className={classes["function-item__icon"]}
             >
               <dremio-icon

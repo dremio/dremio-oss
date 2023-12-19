@@ -61,6 +61,11 @@ public class NoOpScriptServiceImpl implements ScriptService {
   }
 
   @Override
+  public ScriptProto.Script updateScriptContext(String scriptId, String sessionId) {
+    throw new UnsupportedOperationException("updateScriptContext not implemented in NoOpScriptServiceImpl");
+}
+
+  @Override
   public ScriptProto.Script getScriptById(String scriptId)
     throws ScriptNotFoundException, ScriptNotAccessible {
     throw new UnsupportedOperationException("getScriptById not implemented in NoOpScriptServiceImpl");

@@ -35,9 +35,9 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.junit.Before;
 import org.junit.Test;
 
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult;
 import com.dremio.exec.planner.sql.parser.ReferenceType;
@@ -97,6 +97,7 @@ public class TestAssignTagHandler extends DremioTest {
             new SqlIdentifier(TARGET_TAG, SqlParserPos.ZERO),
             ReferenceType.TAG,
             new SqlIdentifier(DEFAULT_REFERENCE, SqlParserPos.ZERO),
+            null,
             new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO));
 
     assignTagToItself =
@@ -105,6 +106,7 @@ public class TestAssignTagHandler extends DremioTest {
             new SqlIdentifier(TARGET_TAG, SqlParserPos.ZERO),
             ReferenceType.TAG,
             new SqlIdentifier(TARGET_TAG, SqlParserPos.ZERO),
+            null,
             new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO));
 
     assignTagWithBranch =
@@ -113,6 +115,7 @@ public class TestAssignTagHandler extends DremioTest {
             new SqlIdentifier(TARGET_TAG, SqlParserPos.ZERO),
             ReferenceType.BRANCH,
             new SqlIdentifier(DEFAULT_REFERENCE, SqlParserPos.ZERO),
+            null,
             new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO));
 
     assignTagWithDefaultSource =
@@ -121,6 +124,7 @@ public class TestAssignTagHandler extends DremioTest {
         new SqlIdentifier(TARGET_TAG, SqlParserPos.ZERO),
         ReferenceType.TAG,
         new SqlIdentifier(DEFAULT_REFERENCE, SqlParserPos.ZERO),
+        null,
         null);
   }
 

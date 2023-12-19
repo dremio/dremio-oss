@@ -19,6 +19,8 @@ import org.projectnessie.services.config.ServerConfig;
 
 public class ProxyNessieConfig implements ServerConfig {
 
+  public static final ProxyNessieConfig INSTANCE = new ProxyNessieConfig();
+
   private static final String NESSIE_DEFAULT_BRANCH = "main";
 
   @Override

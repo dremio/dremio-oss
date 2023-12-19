@@ -81,7 +81,7 @@ export default class DateTimeInput extends PureComponent {
     this.state = { currentMoment: this.props.date.clone() };
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     if (this.props.date !== nextProps.date) {
       this.setState({ currentMoment: nextProps.date.clone() });
     }

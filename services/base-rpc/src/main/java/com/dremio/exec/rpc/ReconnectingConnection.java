@@ -228,7 +228,7 @@ public abstract class ReconnectingConnection<CONNECTION_TYPE extends RemoteConne
   /**
    * The class is responsible for establishing a connection if one does not exist, returning one if it does exist.
    */
-  private class ConnectionRunner implements Runnable {
+  private final class ConnectionRunner implements Runnable {
 
     private final CompletableFuture<ConnectionResult> futureConnection = new CompletableFuture<ConnectionResult>();
 
@@ -407,7 +407,7 @@ public abstract class ReconnectingConnection<CONNECTION_TYPE extends RemoteConne
    * A connection handler that also synchronizes whether the connection attempt was completed within the serialized
    * executor (and thus usable).
    */
-  private class ConnectionHandle implements RpcConnectionHandler<CONNECTION_TYPE> {
+  private final class ConnectionHandle implements RpcConnectionHandler<CONNECTION_TYPE> {
 
     private CompletableFuture<ConnectionResult> conn = new CompletableFuture<>();
 

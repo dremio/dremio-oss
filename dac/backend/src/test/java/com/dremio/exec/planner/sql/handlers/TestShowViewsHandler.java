@@ -40,9 +40,9 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.mockito.quality.Strictness;
 
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.planner.sql.handlers.direct.ShowViewsHandler;
 import com.dremio.exec.planner.sql.parser.ReferenceType;
 import com.dremio.exec.planner.sql.parser.SqlShowViews;
@@ -51,6 +51,7 @@ import com.dremio.exec.store.ReferenceNotFoundException;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.options.OptionManager;
 import com.dremio.plugins.ExternalNamespaceEntry;
+import com.dremio.plugins.ExternalNamespaceEntry.Type;
 import com.dremio.plugins.dataplane.store.DataplanePlugin;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.namespace.NamespaceKey;
@@ -436,13 +437,13 @@ public class TestShowViewsHandler {
   private ExternalNamespaceEntry createRandomViewEntry()
   {
     String randomName = UUID.randomUUID().toString();
-    return ExternalNamespaceEntry.of("ICEBERG_VIEW", ImmutableList.of(randomName));
+    return ExternalNamespaceEntry.of(Type.ICEBERG_VIEW, ImmutableList.of(randomName));
   }
 
   private ExternalNamespaceEntry createRandomViewEntryWithSpecificPrefix(String prefix)
   {
     String randomName = prefix + UUID.randomUUID();
-    return ExternalNamespaceEntry.of("ICEBERG_VIEW", ImmutableList.of(randomName));
+    return ExternalNamespaceEntry.of(Type.ICEBERG_VIEW, ImmutableList.of(randomName));
   }
 
   private ShowViewsHandler.ShowViewResult createExpectedShowViewResult(String sourceName, ExternalNamespaceEntry viewEntry)
@@ -505,6 +506,7 @@ public class TestShowViewsHandler {
         SqlParserPos.ZERO,
         referenceType,
         reference != null ? new SqlIdentifier(reference, SqlParserPos.ZERO) : null,
+        null,
         sourceName != null ? new SqlIdentifier(sourceName, SqlParserPos.ZERO) : null,
         likePattern != null ? SqlLiteral.createCharString(likePattern, SqlParserPos.ZERO) : null);
     }

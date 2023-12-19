@@ -1,0 +1,25 @@
+{
+  col1 : "abc",
+  col2 : {
+    col3 : 106,
+    col4 : "str1"
+  },
+  col5 : [5, 6, 7]
+}
+{
+  col1 : "pqr",
+  col2 : {
+    col3 : 108,
+    col4 : "str2"
+  },
+  col5 : [8, 9, 99]
+}
+""
+{
+  col1 : "sss",
+  col2 : {
+    col3 : 21,
+    col4 : "str3"
+  },
+  col5 : [0, 1, 2, 3]
+}

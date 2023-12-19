@@ -23,9 +23,9 @@ import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
+import com.dremio.catalog.model.VersionContext;
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.dac.explore.model.DatasetUI;
-import com.dremio.exec.catalog.TableVersionContext;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.catalog.VersionedDatasetId;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
@@ -34,35 +34,35 @@ public class TestDatasetUI {
   private final List<String> homeDatasetFullPath = Arrays.asList("@dremio", "table1");
   private final List<String> spaceDatasetFullPath = Arrays.asList("view1");
   private final List<String> sourceDatasetFullPath = Arrays.asList("other", "table1");
-  private final List<String> arcticPhysicalDatasetFullPath = Arrays.asList("versioned", "table1");
-  private final List<String> arcticVirtualDatasetFullPath = Arrays.asList("versioned", "view1");
+  private final List<String> versionedPhysicalDatasetFullPath = Arrays.asList("versioned", "table1");
+  private final List<String> versionedVirtualDatasetFullPath = Arrays.asList("versioned", "view1");
 
   private final String branchName = "main";
   private final DatasetVersion datasetVersion = DatasetVersion.MAX_VERSION;
   private final TableVersionContext versionContext =
       TableVersionContext.of(VersionContext.ofBranch(branchName));
-  private final VersionedDatasetId arcticPhysicalDatasetId =
+  private final VersionedDatasetId versionedPhysicalDatasetId =
       VersionedDatasetId.newBuilder()
-          .setTableKey(arcticPhysicalDatasetFullPath)
+          .setTableKey(versionedPhysicalDatasetFullPath)
           .setContentId("5befad6b-9d77-4e36-a26c-a4b0c4eb0d08")
           .setTableVersionContext(versionContext)
           .build();
-  private final VersionedDatasetId arcticVirtualDatasetId =
+  private final VersionedDatasetId versionedVirtualDatasetId =
       VersionedDatasetId.newBuilder()
-          .setTableKey(arcticVirtualDatasetFullPath)
+          .setTableKey(versionedVirtualDatasetFullPath)
           .setContentId("5befad6b-9d77-4e36-a26c-a4b0c4eb0d09")
           .setTableVersionContext(versionContext)
           .build();
 
   @Test
-  public void testCreateLinksForArcticPhysicalDataset() throws Exception {
+  public void testCreateLinksForVersionedPhysicalDataset() throws Exception {
     final Map<String, String> linksMap =
         DatasetUI.createLinks(
-            arcticPhysicalDatasetFullPath,
-            arcticPhysicalDatasetFullPath,
+          versionedPhysicalDatasetFullPath,
+          versionedPhysicalDatasetFullPath,
             datasetVersion,
             false,
-            arcticPhysicalDatasetId.asString(),
+            versionedPhysicalDatasetId.asString(),
             DatasetType.PHYSICAL_DATASET);
 
     assertThat(linksMap.get("edit"))
@@ -71,14 +71,14 @@ public class TestDatasetUI {
   }
 
   @Test
-  public void testCreateLinksForArcticVirtualDataset() throws Exception {
+  public void testCreateLinksForVersionedVirtualDataset() throws Exception {
     final Map<String, String> linksMap =
         DatasetUI.createLinks(
-            arcticVirtualDatasetFullPath,
-            arcticVirtualDatasetFullPath,
+          versionedVirtualDatasetFullPath,
+          versionedVirtualDatasetFullPath,
             datasetVersion,
             false,
-            arcticVirtualDatasetId.asString(),
+            versionedVirtualDatasetId.asString(),
             DatasetType.VIRTUAL_DATASET);
 
     assertThat(linksMap.get("edit"))

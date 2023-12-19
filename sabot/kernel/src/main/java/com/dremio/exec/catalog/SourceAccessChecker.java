@@ -21,10 +21,19 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Supplier;
+
+import javax.annotation.Nonnull;
 
 import org.apache.arrow.vector.types.pojo.Field;
 
+import com.dremio.catalog.exception.UnsupportedForgetTableException;
+import com.dremio.catalog.model.CatalogEntityId;
+import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.VersionContext;
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.connector.metadata.AttributeValue;
@@ -53,6 +62,7 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.users.SystemUser;
 import com.google.common.base.Function;
@@ -81,6 +91,13 @@ class SourceAccessChecker implements Catalog {
         !"$scratch".equalsIgnoreCase(root);
   }
 
+  private boolean isInvisible(CatalogEntityKey key) {
+    final String root = key.getRootEntity();
+    return isInternal(root) &&
+      !"__home".equalsIgnoreCase(root) &&
+      !"$scratch".equalsIgnoreCase(root);
+  }
+
   private void throwIfInvisible(NamespaceKey key) {
     if (isInvisible(key)) {
       throw UserException.validationError()
@@ -98,14 +115,23 @@ class SourceAccessChecker implements Catalog {
     return table == null || isInvisible(table.getPath()) ? null : table;
   }
 
-  @Override
-  public void validateSelection() {
-    delegate.validateSelection();
+  private DremioTable getIfVisible(CatalogEntityKey key, Supplier<DremioTable> tableSupplier) {
+    if (key != null && isInvisible(key)) {
+      return null;
+    }
+
+    final DremioTable table = tableSupplier.get();
+    return table == null || isInvisible(table.getPath()) ? null : table;
   }
 
   @Override
   public DremioTable getTableNoResolve(NamespaceKey key) {
     return getIfVisible(key, () -> delegate.getTableNoResolve(key));
+  }
+
+  @Override
+  public DremioTable getTableSnapshotNoResolve(NamespaceKey key, TableVersionContext context) {
+    return delegate.getTableSnapshotNoResolve(key, context);
   }
 
   @Override
@@ -120,11 +146,16 @@ class SourceAccessChecker implements Catalog {
 
   @Override
   public DremioTable getTable(String datasetId) {
-    return getIfVisible(null, () -> delegate.getTable(datasetId));
+    return getIfVisible((CatalogEntityKey) null, () -> delegate.getTable(datasetId));
   }
 
   @Override
   public DremioTable getTable(NamespaceKey key) {
+    return getIfVisible(key, () -> delegate.getTable(key));
+  }
+
+  @Override
+  public DremioTable getTable(CatalogEntityKey key) {
     return getIfVisible(key, () -> delegate.getTable(key));
   }
 
@@ -148,8 +179,23 @@ class SourceAccessChecker implements Catalog {
   }
 
   @Override
+  public DatasetType getDatasetType(CatalogEntityKey key) {
+    if (isInvisible(key.toNamespaceKey())) {
+      return null;
+    }
+
+    return delegate.getDatasetType(key);
+  }
+
+  @Override
   public DremioTable getTableSnapshot(NamespaceKey key, TableVersionContext context) {
     return delegate.getTableSnapshot(key, context);
+  }
+
+  @Nonnull
+  @Override
+  public Optional<TableMetadataVerifyResult> verifyTableMetadata(NamespaceKey key, TableMetadataVerifyRequest metadataVerifyRequest) {
+    throw new UnsupportedOperationException();
   }
 
   @Override
@@ -268,7 +314,7 @@ class SourceAccessChecker implements Catalog {
   }
 
   @Override
-  public void forgetTable(NamespaceKey key) {
+  public void forgetTable(NamespaceKey key) throws UnsupportedForgetTableException {
     throwIfInvisible(key);
     delegate.forgetTable(key);
   }
@@ -421,27 +467,9 @@ class SourceAccessChecker implements Catalog {
   }
 
   @Override
-  public Catalog resolveCatalog(boolean checkValidity) {
-    return secureIfNeeded(options.cloneWith(options.getSchemaConfig().getAuthContext().getSubject(),
-      options.getSchemaConfig().getDefaultSchema(), checkValidity), delegate.resolveCatalog(checkValidity));
-  }
-
-  @Override
   public Catalog resolveCatalog(CatalogIdentity subject) {
     return secureIfNeeded(options.cloneWith(subject, options.getSchemaConfig().getDefaultSchema(), options.checkValidity()),
       delegate.resolveCatalog(subject));
-  }
-
-  @Override
-  public Catalog resolveCatalog(CatalogIdentity subject, NamespaceKey newDefaultSchema) {
-    return secureIfNeeded(options.cloneWith(subject, newDefaultSchema, options.checkValidity()),
-      delegate.resolveCatalog(subject, newDefaultSchema));
-  }
-
-  @Override
-  public Catalog resolveCatalog(CatalogIdentity subject, NamespaceKey newDefaultSchema, boolean checkValidity) {
-    return secureIfNeeded(options.cloneWith(subject, newDefaultSchema, checkValidity),
-      delegate.resolveCatalog(subject, newDefaultSchema, checkValidity));
   }
 
   @Override
@@ -474,9 +502,9 @@ class SourceAccessChecker implements Catalog {
   }
 
   @Override
-  public boolean alterDataset(final NamespaceKey key, final Map<String, AttributeValue> attributes) {
-    throwIfInvisible(key);
-    return delegate.alterDataset(key, attributes);
+  public boolean alterDataset(final CatalogEntityKey catalogEntityKey, final Map<String, AttributeValue> attributes) {
+    throwIfInvisible(catalogEntityKey.toNamespaceKey());
+    return delegate.alterDataset(catalogEntityKey, attributes);
   }
 
   @Override
@@ -487,13 +515,13 @@ class SourceAccessChecker implements Catalog {
   }
 
   @Override
-  public void addPrimaryKey(NamespaceKey namespaceKey, List<String> columns) {
-    delegate.addPrimaryKey(namespaceKey, columns);
+  public void addPrimaryKey(NamespaceKey namespaceKey, List<String> columns, VersionContext statementSourceVersion, Catalog catalog) {
+    delegate.addPrimaryKey(namespaceKey, columns, statementSourceVersion, catalog);
   }
 
   @Override
-  public void dropPrimaryKey(NamespaceKey namespaceKey) {
-    delegate.dropPrimaryKey(namespaceKey);
+  public void dropPrimaryKey(NamespaceKey namespaceKey, VersionContext statementSourceVersion, Catalog catalog) {
+    delegate.dropPrimaryKey(namespaceKey, statementSourceVersion, catalog);
   }
 
   @Override
@@ -505,6 +533,16 @@ class SourceAccessChecker implements Catalog {
   public boolean toggleSchemaLearning(NamespaceKey table, boolean enableSchemaLearning) {
     throwIfInvisible(table);
     return delegate.toggleSchemaLearning(table, enableSchemaLearning);
+  }
+
+  @Override
+  public void alterSortOrder(NamespaceKey table, DatasetConfig datasetConfig, BatchSchema schema, List<String> sortOrderColumns, TableMutationOptions tableMutationOptions) {
+    delegate.alterSortOrder(table, datasetConfig, schema, sortOrderColumns, tableMutationOptions);
+  }
+
+  @Override
+  public void updateTableProperties(NamespaceKey table, DatasetConfig datasetConfig, BatchSchema schema, Map<String, String> tableProperties, TableMutationOptions tableMutationOptions, boolean isRemove) {
+    delegate.updateTableProperties(table, datasetConfig, schema, tableProperties, tableMutationOptions, isRemove);
   }
 
   @Override
@@ -538,11 +576,6 @@ class SourceAccessChecker implements Catalog {
   }
 
   @Override
-  public boolean supportsVersioning(NamespaceKey namespaceKey) {
-    return delegate.supportsVersioning(namespaceKey);
-  }
-
-  @Override
   public Catalog visit(java.util.function.Function<Catalog, Catalog> catalogRewrite) {
     Catalog newDelegate = delegate.visit(catalogRewrite);
     return catalogRewrite.apply(new SourceAccessChecker(options, newDelegate));
@@ -559,11 +592,6 @@ class SourceAccessChecker implements Catalog {
   }
 
   @Override
-  public boolean hasPrivilege(NamespaceKey key, SqlGrant.Privilege privilege) {
-    return delegate.hasPrivilege(key, privilege);
-  }
-
-  @Override
   public void validateOwnership(NamespaceKey key) {
     delegate.validateOwnership(key);
   }
@@ -576,5 +604,15 @@ class SourceAccessChecker implements Catalog {
   @Override
   public MetadataRequestOptions getMetadataRequestOptions() {
     return options;
+  }
+
+  @Override
+  public void clearDatasetCache(NamespaceKey dataset, TableVersionContext context) {
+    delegate.clearDatasetCache(dataset, context);
+  }
+
+  @Override
+  public boolean existsById(CatalogEntityId id) {
+    return delegate.existsById(id);
   }
 }

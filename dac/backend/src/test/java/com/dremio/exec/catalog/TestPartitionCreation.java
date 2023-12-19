@@ -63,11 +63,13 @@ public class TestPartitionCreation extends BaseTestQuery {
     BaseTestQuery.setupDefaultTestCluster();
     TestSysFlightResource.addSysFlightPlugin(nodes[0]);
     disableUnlimitedSplitsSupportFlags = disableUnlimitedSplitsSupportFlags();
+    setSystemOption(ExecConstants.ENABLE_ICEBERG_SORT_ORDER, "true");
   }
 
   @AfterClass
   public static void resetFlags() throws Exception {
     AutoCloseables.close(disableUnlimitedSplitsSupportFlags);
+    resetSystemOption(ExecConstants.ENABLE_ICEBERG_SORT_ORDER.getOptionName());
   }
 
   @Test

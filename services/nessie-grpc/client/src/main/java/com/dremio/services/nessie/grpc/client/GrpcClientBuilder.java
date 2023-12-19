@@ -22,6 +22,9 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
+
 import org.projectnessie.client.NessieClientBuilder;
 import org.projectnessie.client.api.NessieApi;
 import org.projectnessie.client.api.NessieApiV2;
@@ -39,7 +42,7 @@ import io.grpc.ManagedChannel;
  * provided via {@link GrpcClientBuilder#withChannel(ManagedChannel)}, unless {@link
  * GrpcClientBuilder#shutdownChannel(boolean)} is set to <code>true</code>.
  */
-public final class GrpcClientBuilder implements NessieClientBuilder<GrpcClientBuilder> {
+public final class GrpcClientBuilder implements NessieClientBuilder {
 
   private GrpcClientBuilder() {
   }
@@ -47,6 +50,56 @@ public final class GrpcClientBuilder implements NessieClientBuilder<GrpcClientBu
   private ManagedChannel channel;
   private boolean shutdownChannel = false;
   private List<ClientInterceptor> clientInterceptors = new ArrayList<>();
+
+  @Override
+  public String name() {
+    return "GRPC-DREMIO";
+  }
+
+  @Override
+  public int priority() {
+    return 150;
+  }
+
+  @Override
+  public <I extends NessieClientBuilder> I asInstanceOf(Class<I> builderInterfaceType) {
+    return builderInterfaceType.cast(this);
+  }
+
+  @Override
+  public NessieClientBuilder withApiCompatibilityCheck(boolean enable) {
+    return this; // Note: Current gRPC protocol supports all OSS API versions
+  }
+
+  @Override
+  public NessieClientBuilder withTracing(boolean tracing) {
+    return this; // Client tracing is controlled by OTel SDK/instrumentation
+  }
+
+  @Override
+  public NessieClientBuilder withReadTimeout(int readTimeoutMillis) {
+    throw new UnsupportedOperationException("withReadTimeout is not supported for gRPC");
+  }
+
+  @Override
+  public NessieClientBuilder withConnectionTimeout(int connectionTimeoutMillis) {
+    throw new UnsupportedOperationException("withConnectionTimeout is not supported for gRPC");
+  }
+
+  @Override
+  public NessieClientBuilder withDisableCompression(boolean disableCompression) {
+    throw new UnsupportedOperationException("withDisableCompression is not supported for gRPC");
+  }
+
+  @Override
+  public NessieClientBuilder withSSLContext(SSLContext sslContext) {
+    throw new UnsupportedOperationException("withSSLContext is not supported for gRPC");
+  }
+
+  @Override
+  public NessieClientBuilder withSSLParameters(SSLParameters sslParameters) {
+    throw new UnsupportedOperationException("withSSLParameters is not supported for gRPC");
+  }
 
   /**
    * Returns a new {@link GrpcClientBuilder} instance.

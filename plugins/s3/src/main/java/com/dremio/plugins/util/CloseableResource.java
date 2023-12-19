@@ -54,7 +54,7 @@ public class CloseableResource<T> implements AutoCloseable {
             closerFunc.accept(resource);
             resource = null;
         }
-        if (logger.isDebugEnabled()) {
+        if (logger.isDebugEnabled() && resource != null) {
             logger.debug("Class {} released the ref for {}:{}, Current ref count:{}", getCallingClass(),
                     resource.getClass().getSimpleName(), System.identityHashCode(resource), refCnt.get());
         }

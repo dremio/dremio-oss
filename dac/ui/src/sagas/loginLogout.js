@@ -112,7 +112,7 @@ export function* handleLogout() {
   log("clear user data and token");
   yield call([localStorageUtils, localStorageUtils.clearUserData]);
   log("go to login page");
-  yield put(push(getLoginUrl()));
+  window.location.assign(getLoginUrl());
 }
 
 export default function* loginLogoutSagas() {

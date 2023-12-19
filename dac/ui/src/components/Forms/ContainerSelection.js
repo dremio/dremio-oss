@@ -36,6 +36,7 @@ export default class ContainerSelection extends Component {
     fields: PropTypes.object,
     elementConfig: PropTypes.object,
     disabled: PropTypes.bool,
+    hidden: PropTypes.bool,
   };
 
   renderRadioSelector = (elementConfig, selectedValue, radioProps) => {
@@ -48,13 +49,15 @@ export default class ContainerSelection extends Component {
       "containerSelection",
       { "--horizontal": layoutType === "row" }
     );
+
     return (
       <>
-        {label && <div className="topLabel">{label}</div>}
-        <div className={className}>
+        {label && !this.props.hidden && <div className="topLabel">{label}</div>}
+        <div className={this.props.hidden ? "" : className}>
           {elementConfig.getOptions().map((option, index) => {
             return (
               <Radio
+                {...(this.props.hidden && { style: { display: "none" } })}
                 radioValue={option.value}
                 value={selectedValue}
                 key={index}

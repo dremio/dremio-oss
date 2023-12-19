@@ -21,12 +21,17 @@
 }
 
 .left-column {
-  border-right: 1px solid var(--color--neutral--50);
   width: 100%;
+  max-width: calc(100vw - 385px - 64px);
+  border-right: 1px solid var(--color--neutral--50);
+}
+
+.left-column__collapsed-right-section {
+  max-width: calc(100vw - 37px - 64px);
 }
 
 .right-column {
-  width: 500px;
+  width: 384px;
 }
 
 .dataset-wrapper {
@@ -43,8 +48,20 @@
   }
 }
 
-.sections-container .section-item {
-  max-height: calc(100vh - 200px);
+.sections-container {
+  .tab-wrapper {
+    width: calc(384px - 64px - 1px);
+  }
+}
+
+.tab-wrapper-panel {
+  width: calc(300px - 64px - 1px);
+
+  :global {
+    input {
+      width: 280px;
+    }
+  }
 }
 
 .collapsed-right-section {
@@ -64,7 +81,6 @@
 }
 
 .tags {
-  display: flex;
   &:focus-visible {
     outline: none;
   }
@@ -79,15 +95,9 @@
   border-bottom: 1px solid var(--color--neutral--50);
 }
 
-// overlay view
-.collapsibleBodyOverview {
-  max-height: none;
-  min-height: fit-content;
-}
 .collapsibleBodyOverlay {
   overflow-y: auto;
-  max-height: 26.5vh;
-  min-height: 15vh;
+  height: 100%;
 }
 
 .noColumns {
@@ -96,16 +106,7 @@
   display: flex;
   font-size: var(--dremio--font-size--default);
   color: var(--dremio--color--text--faded);
-}
-
-.noColumnsOverlayHeight {
-  max-height: 30vh;
-  min-height: 20vh;
-}
-
-.noColumnsHeight {
-  max-height: 40vh;
-  min-height: 36vh;
+  height: 100%;
 }
 
 :global {

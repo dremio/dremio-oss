@@ -37,7 +37,7 @@ import {
   LogEntryV2 as LogEntry,
   LogResponseV2 as LogResponse,
 } from "@app/services/nessie/client";
-import { Reference } from "@app/types/nessie";
+import { type Reference } from "@app/types/nessie";
 import Radio from "@mui/material/Radio";
 import RadioGroup from "@mui/material/RadioGroup";
 import FormControlLabel from "@mui/material/FormControlLabel";
@@ -71,7 +71,7 @@ type BranchPickerProps = {
   redirectUrl?: string;
   getAnchorEl?: () => HTMLElement | undefined;
   position?: any;
-  onApply?: () => void;
+  onApply?: (stateKey: string, state: SetReferenceAction["payload"]) => void;
 };
 
 function BranchPicker({
@@ -109,12 +109,17 @@ function BranchPicker({
   function submitForm() {
     setReference(refState, stateKey);
     if (redirectUrl) router.push(redirectUrl);
-    if (onApply) onApply();
-    closeDialog();
+    if (onApply) onApply(stateKey, refState);
+    popupState.close();
   }
 
-  function closeDialog() {
+  function cancel() {
     popupState.close();
+    setRefState({
+      reference: state.reference,
+      hash: state.hash,
+      date: state.date,
+    });
   }
 
   function changeReference(newReference?: Reference | null) {
@@ -207,13 +212,13 @@ function BranchPicker({
         />
       </div>
       {reference && state.defaultReference && (
-        <ClickAwayListener onClickAway={closeDialog}>
+        <ClickAwayListener onClickAway={cancel}>
           <Popover
             {...bindPopper(popupState)}
             transitionDuration={200}
             {...position}
             {...(getAnchorEl && { anchorEl: getAnchorEl })}
-            onClose={closeDialog}
+            onClose={cancel}
           >
             <div
               className="branchPicker-popup"
@@ -224,7 +229,7 @@ function BranchPicker({
               <DialogContent
                 actions={
                   <>
-                    <Button variant="secondary" onClick={closeDialog}>
+                    <Button variant="secondary" onClick={cancel}>
                       <FormattedMessage id="Common.Cancel" />
                     </Button>
                     <Button variant="primary" onClick={submitForm}>

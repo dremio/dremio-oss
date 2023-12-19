@@ -19,6 +19,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
 import java.io.File;
+import java.util.Collections;
 
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -47,7 +48,7 @@ public class TestIcebergHadoopCommand {
     IcebergOpCommitter createTableCommitter = icebergHadoopModel.getCreateTableCommitter(
             tableName, icebergHadoopModel.getTableIdentifier(Path.of(tempDir.getRoot().getPath()).resolve(tableName).toString()),
       schema,
-      null, null, null);
+      null, null, null, null, Collections.emptyMap());
     createTableCommitter.commit();
 
     File tableFolder = new File(tempDir.getRoot(), tableName);

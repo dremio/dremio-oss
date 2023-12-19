@@ -55,6 +55,10 @@ public class SabotNodeRule extends ExternalResource {
     return String.format("jdbc:dremio:direct=localhost:%d", endpoint.getUserPort());
   }
 
+  public int getPort() {
+    return node.getContext().getEndpoint().getUserPort();
+  }
+
   @Override
   public Statement apply(Statement base, Description description) {
     // Wrap statement with temporary folder one

@@ -1,3 +1,5 @@
+# Dremio DAC Daemon
+
 The single container for all of the services in Dremio.
 
 This daemon currently this manages the Dremio Web UI,

@@ -189,7 +189,7 @@ public class ElasticPredicatePushdownBase extends ElasticBaseTestQuery {
     AttemptObserver observer = new PassthroughQueryObserver(ExecTest.mockUserClientConnection(null));
     SqlConverter converter = new SqlConverter(context.getPlannerSettings(),
       context.getOperatorTable(), context, context.getMaterializationProvider(), context.getFunctionRegistry(),
-      context.getSession(), observer, context.getCatalog(), context.getSubstitutionProviderFactory(), context.getConfig(),
+      context.getSession(), observer, context.getSubstitutionProviderFactory(), context.getConfig(),
       context.getScanResult(), context.getRelMetadataQuerySupplier());
     SqlNode node = converter.parse(sql);
     SqlHandlerConfig config = new SqlHandlerConfig(context, converter, observer, null);

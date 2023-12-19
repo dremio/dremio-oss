@@ -104,7 +104,7 @@ public class TestIntegrationMetricsInstrumenter {
     // This class is only needed to get a hold of the MetricRegistry
     // In the eventuality we want to expose the Registry through other means
     // we should remove this class and use that instead.
-    private static class DummyReporterConfigurator extends ReporterConfigurator {
+    private static final class DummyReporterConfigurator extends ReporterConfigurator {
       private MetricRegistry registry;
 
       @Override

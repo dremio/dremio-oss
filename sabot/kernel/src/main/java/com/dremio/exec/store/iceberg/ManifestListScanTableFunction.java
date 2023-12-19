@@ -16,15 +16,18 @@
 package com.dremio.exec.store.iceberg;
 
 import static com.dremio.exec.planner.physical.TableFunctionUtil.getDataset;
+import static com.dremio.exec.store.SystemSchemas.MANIFEST_LIST_PATH;
 import static com.dremio.exec.store.SystemSchemas.METADATA_FILE_PATH;
 import static com.dremio.exec.store.SystemSchemas.SNAPSHOT_ID;
 import static com.dremio.exec.util.VectorUtil.getVectorFromSchemaPath;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Optional;
 
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.VarCharVector;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.iceberg.expressions.Expressions;
 
 import com.dremio.exec.physical.base.OpProps;
@@ -58,6 +61,7 @@ public class ManifestListScanTableFunction extends AbstractTableFunction {
   private IcebergManifestListRecordReader manifestListRecordReader;
 
   private VarCharVector inputMetadataLocation;
+  private VarCharVector inputManifestListLocation;
   private BigIntVector inputSnapshotId;
 
   private int inputIndex;
@@ -81,6 +85,7 @@ public class ManifestListScanTableFunction extends AbstractTableFunction {
     tablePath = getDataset(functionConfig);
 
     inputMetadataLocation = (VarCharVector) getVectorFromSchemaPath(incoming, METADATA_FILE_PATH);
+    inputManifestListLocation = (VarCharVector) getVectorFromSchemaPath(incoming, MANIFEST_LIST_PATH);
     inputSnapshotId = (BigIntVector) getVectorFromSchemaPath(incoming, SNAPSHOT_ID);
 
     VectorContainer outgoing = (VectorContainer) super.setup(incoming);
@@ -91,26 +96,40 @@ public class ManifestListScanTableFunction extends AbstractTableFunction {
   }
 
   @Override
+  public void startBatch(int records) {
+    outgoing.allocateNew();
+  }
+
+  @Override
   public void startRow(int row) throws Exception {
     inputIndex = row;
-
-    // Initialize the reader for the current processing snapshot id
-    byte[] pathBytes = inputMetadataLocation.get(inputIndex);
-    String metadataLocation = new String(pathBytes, StandardCharsets.UTF_8);
-    Long snapshotId = inputSnapshotId.get(inputIndex);
     TableFunctionContext functionContext = functionConfig.getFunctionContext();
 
-    final IcebergExtendedProp icebergExtendedProp = new IcebergExtendedProp(
-      null,
-      IcebergSerDe.serializeToByteArray(Expressions.alwaysTrue()),
-      snapshotId,
-      null
-    );
+    if (!inputManifestListLocation.isNull(inputIndex)) {
+      byte[] manifestListPathBytes = inputManifestListLocation.get(inputIndex);
+      String manifestListLocation = new String(manifestListPathBytes, StandardCharsets.UTF_8);
+      if (StringUtils.isNotBlank(manifestListLocation)) {
+        manifestListRecordReader = new LeanIcebergManifestListRecordReader(context, manifestListLocation,
+          icebergMutablePlugin, tablePath,functionContext.getPluginId().getName(), functionContext.getFullSchema(),
+          props, functionContext.getPartitionColumns(), Optional.empty());
+      }
+    } else {
+      // Initialize the reader for the current processing snapshot id
+      byte[] pathBytes = inputMetadataLocation.get(inputIndex);
+      String metadataLocation = new String(pathBytes, StandardCharsets.UTF_8);
+      Long snapshotId = inputSnapshotId.get(inputIndex);
 
-    manifestListRecordReader = new IcebergManifestListRecordReader(context, metadataLocation, icebergMutablePlugin,
-      tablePath, functionContext.getPluginId().getName(), functionContext.getFullSchema(), props,
-      functionContext.getPartitionColumns(), icebergExtendedProp, ManifestContentType.ALL);
+      final IcebergExtendedProp icebergExtendedProp = new IcebergExtendedProp(
+        null,
+        IcebergSerDe.serializeToByteArray(Expressions.alwaysTrue()),
+        snapshotId,
+        null
+      );
 
+      manifestListRecordReader = new IcebergManifestListRecordReader(context, metadataLocation, icebergMutablePlugin,
+        tablePath, functionContext.getPluginId().getName(), functionContext.getFullSchema(), props,
+        functionContext.getPartitionColumns(), icebergExtendedProp, ManifestContentType.ALL);
+    }
     manifestListRecordReader.setup(mutator);
     operatorStats.addLongStat(TableFunctionOperator.Metric.NUM_SNAPSHOT_IDS, 1L);
   }
@@ -125,8 +144,16 @@ public class ManifestListScanTableFunction extends AbstractTableFunction {
   }
 
   @Override
+  public void close() throws Exception {
+    closeRow();
+    super.close();
+  }
+
+  @Override
   public void closeRow() throws Exception {
-    manifestListRecordReader.close();
-    manifestListRecordReader = null;
+    if (manifestListRecordReader != null) {
+      manifestListRecordReader.close();
+      manifestListRecordReader = null;
+    }
   }
 }

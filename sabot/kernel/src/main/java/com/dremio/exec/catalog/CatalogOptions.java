@@ -63,10 +63,15 @@ public final class CatalogOptions {
   // Enable secrets field look up/resolution on sources
   public static final TypeValidators.BooleanValidator SOURCE_SECRETS_RESOLUTION_ENABLED =
     new TypeValidators.BooleanValidator("auth.source-secrets-resolution.enabled", false);
-  // Enable reflection tab in NESSIE and ARCTIC source dialogs
-  public static final BooleanValidator REFLECTION_ARCTIC_ENABLED = new BooleanValidator("reflection.arctic.enabled", false);
-  // Enable Arctic Replacing Spaces
-  public static final BooleanValidator CATALOG_ARS_ENABLED = new TypeValidators.BooleanValidator("catalog_ars_enabled", false);
+  // Enable reflection tab in any versioned source dialogs
+  public static final BooleanValidator REFLECTION_VERSIONED_SOURCE_ENABLED = new BooleanValidator("reflection.arctic.enabled", true);
+
+  //Enable Wiki and Label support in default branch for Versioned sources.
+  public static final BooleanValidator WIKILABEL_ENABLED_FOR_VERSIONED_SOURCE_DEFAULT_BRANCH = new TypeValidators.BooleanValidator("arctic.wikilabel.defaultbranch.enabled", true);
+  // User-Defined Functions for versioned sources
+  public static final BooleanValidator VERSIONED_SOURCE_UDF_ENABLED = new BooleanValidator("versioned.source.udf.enabled", false);
+  // View delegation for a versioned source
+  public static final BooleanValidator VERSIONED_SOURCE_VIEW_DELEGATION_ENABLED = new BooleanValidator("versioned.source.view_delegation.enabled", false);
   // Do not instantiate
   private CatalogOptions() {
   }

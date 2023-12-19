@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>24.1.0-202306130653310132-d30779f6</version>
+    <version>24.3.0-202312190021150029-52db2faf</version>
   </parent>
 
   <artifactId>dremio-ui-common</artifactId>
@@ -41,13 +41,19 @@
         <groupId>com.mycila</groupId>
         <artifactId>license-maven-plugin</artifactId>
         <configuration>
+          <licenseSets>
+            <licenseSet>
+              <excludes combine.children="append">
+                <exclude>**/.antlr/*</exclude>
+                <exclude>.prettierignore</exclude>
+                <exclude>Makefile</exclude>
+              </excludes>
+            </licenseSet>
+          </licenseSets>
           <mapping>
             <run>SCRIPT_STYLE</run>
             <g4>SLASHSTAR_STYLE</g4>
           </mapping>
-          <excludes combine.children="append">
-            <exclude>**/.antlr/*</exclude>
-          </excludes>
         </configuration>
       </plugin>
       <plugin>
@@ -59,16 +65,17 @@
             <phase>initialize</phase>
             <goals>
               <goal>install-node-and-npm</goal>
+              <goal>install-node-and-pnpm</goal>
             </goals>
           </execution>
           <execution>
             <id>pnpm install</id>
             <phase>initialize</phase>
             <goals>
-              <goal>npx</goal>
+              <goal>pnpm</goal>
             </goals>
             <configuration>
-              <arguments>${pnpm.execinstallscript}</arguments>
+              <arguments>${pnpm.installscript}</arguments>
             </configuration>
           </execution>
           <!-- <execution>
@@ -113,6 +120,7 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-clean-plugin</artifactId>
         <configuration>
+          <skip>${skip.uiclean}</skip>
           <filesets>
             <fileset>
               <directory>${project.basedir}/node_modules</directory>
@@ -122,6 +130,13 @@
               <directory>${project.basedir}</directory>
               <includes>
                 <include>dist-*/</include>
+              </includes>
+              <followSymlinks>false</followSymlinks>
+            </fileset>
+            <fileset>
+              <directory>${project.basedir}/src</directory>
+              <includes>
+                <include>**/__tests__/**/*.actual.json</include>
               </includes>
               <followSymlinks>false</followSymlinks>
             </fileset>

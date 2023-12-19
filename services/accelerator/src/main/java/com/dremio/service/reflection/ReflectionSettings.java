@@ -17,7 +17,7 @@ package com.dremio.service.reflection;
 
 import java.util.Optional;
 
-import com.dremio.exec.catalog.CatalogEntityKey;
+import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 

@@ -30,6 +30,7 @@ export class ExploreCopyTableButton extends PureComponent {
   static propTypes = {
     title: PropTypes.string,
     version: PropTypes.string,
+    isActionDisabled: PropTypes.bool,
     // connected
     addNotification: PropTypes.func.isRequired,
     jobId: PropTypes.string,
@@ -98,14 +99,16 @@ export class ExploreCopyTableButton extends PureComponent {
     this.setState({ isPreparing: false });
     if (success) {
       const message = this.isMaxReached
-        ? la(
+        ? laDeprecated(
             `The first ${MAX_ROWS_TO_CLIPBOARD.toLocaleString()} were copied to the clipboard. Use download if you want to extract the entire result set.`
           )
-        : la("Table data is copied to clipboard.");
+        : laDeprecated("Table data is copied to clipboard.");
       this.props.addNotification(message, "success", MSG_CLEAR_DELAY_SEC);
     } else {
       this.props.addNotification(
-        la("Failed to copy to clipboard. Please use download feature."),
+        laDeprecated(
+          "Failed to copy to clipboard. Please use download feature."
+        ),
         "warning",
         MSG_CLEAR_DELAY_SEC
       );
@@ -124,7 +127,7 @@ export class ExploreCopyTableButton extends PureComponent {
     const { jobId } = this.props;
     if (!jobId) {
       this.props.addNotification(
-        la("Missing job id to fetch data for clipboard."),
+        laDeprecated("Missing job id to fetch data for clipboard."),
         "error",
         MSG_CLEAR_DELAY_SEC
       );
@@ -144,7 +147,7 @@ export class ExploreCopyTableButton extends PureComponent {
       },
       (error) => {
         // handle error for both api and json parse
-        const msg = la("Error fetching data for clipboard.");
+        const msg = laDeprecated("Error fetching data for clipboard.");
         this.props.addNotification(
           `${msg}: ${error.errorMessage}`,
           "error",
@@ -159,8 +162,8 @@ export class ExploreCopyTableButton extends PureComponent {
   };
 
   render() {
-    const { title, jobId } = this.props;
-    const isDisabled = !jobId;
+    const { title, jobId, isActionDisabled } = this.props;
+    const isDisabled = !jobId || isActionDisabled;
 
     return (
       <CopyButtonIcon

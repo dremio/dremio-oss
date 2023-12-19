@@ -17,6 +17,7 @@ syntax="proto2";
 package com.dremio.dac.proto.model.dataset;
 
 import "dataset.proto";
+import "SourceVersionReference.proto"
 
 option java_package = "com.dremio.dac.proto.model.dataset";
 option optimize_for = SPEED;
@@ -457,19 +458,6 @@ message TransformUpdateSQL {
   optional string engineName = 3;
   optional string sessionId = 4;
   repeated SourceVersionReference references = 5;
-}
-enum VersionContextType {
- BRANCH = 0;
- TAG = 1;
- COMMIT = 2;
-}
-message VersionContext {
- required VersionContextType type = 1;
- required string value = 2;
-}
-message SourceVersionReference {
- required string sourceName = 1;
- required VersionContext reference = 2;
 }
 message TransformField {
   option (extends_class) = "com.dremio.dac.explore.model.TransformBase";

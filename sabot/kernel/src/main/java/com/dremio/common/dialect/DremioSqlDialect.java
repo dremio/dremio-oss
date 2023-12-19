@@ -136,10 +136,9 @@ public class DremioSqlDialect extends org.apache.calcite.sql.SqlDialect {
 
   @Override
   public boolean supportsFunction(SqlOperator operator, RelDataType type, List<RelDataType> paramTypes) {
-    // Non-ARP dialects do not allow UDFs but do allow everything else.
-    // TODO: DX-13199. Some functions such as Flatten are Dremio functions but not subclasses
-    // of SqlOperatorImpl so they could pass this check and we'll try to push them down.
-    return !(operator instanceof SqlFunctionImpl);
+    // Non-ARP dialects do not allow UDFs but do allow everything else
+    // We need to change this check to enumerate all the supported functions (similar to the base class)
+    return !(operator instanceof SqlFunctionImpl) && !operator.getName().toUpperCase().startsWith("CONVERT_");
   }
 
   @Override
@@ -155,7 +154,7 @@ public class DremioSqlDialect extends org.apache.calcite.sql.SqlDialect {
         writer,
         PI_FUNCTION.createCall(new SqlNodeList(call.getOperandList(), SqlParserPos.ZERO)),
         leftPrec, rightPrec);
-    } else if (call.getOperator().equals(DremioSqlOperatorTable.E_FUNCTION)) {
+    } else if (call.getOperator().equals(DremioSqlOperatorTable.E)) {
       // Translate the E() function call to EXP(1)
       final SqlCall newCall = SqlStdOperatorTable.EXP.createCall(
         SqlParserPos.ZERO, SqlLiteral.createExactNumeric("1", SqlParserPos.ZERO));

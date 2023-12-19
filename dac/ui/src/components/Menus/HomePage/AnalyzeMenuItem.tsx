@@ -32,7 +32,7 @@ import {
 } from "actions/explore/download";
 import { useDispatch } from "react-redux";
 import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
-import { useIsBIToolsEnabled } from "@app/utils/arsUtils";
+import { hideForNonDefaultBranch } from "dremio-ui-common/utilities/versionContext.js";
 
 type AnalyzeMenuItemProps = {
   entity: Immutable.Map<string, any>;
@@ -56,7 +56,7 @@ export default function AnalyzeMenuItem({
   const dispatch = useDispatch();
 
   const versionContext = getVersionContextFromId(entity.get("id"));
-  const isBIToolsEnabled = useIsBIToolsEnabled(versionContext);
+  const isBIToolsEnabled = hideForNonDefaultBranch(versionContext);
 
   const handleTableauClick = useCallback(() => {
     dispatch(openTableau(entity));

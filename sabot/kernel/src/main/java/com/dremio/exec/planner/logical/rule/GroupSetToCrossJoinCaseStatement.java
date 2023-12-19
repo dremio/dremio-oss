@@ -30,8 +30,8 @@ import java.util.stream.Stream;
 
 import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.plan.RelRule;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.AggregateCall;
@@ -53,40 +53,14 @@ import org.apache.calcite.util.mapping.MappingType;
 import org.apache.calcite.util.mapping.Mappings;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.planner.logical.RelOptHelper;
+import com.dremio.exec.planner.logical.RollupWithBridgeExchangeRule;
+import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.physical.PrelUtil;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 
 public class GroupSetToCrossJoinCaseStatement {
   public static final int MAX_GROUPING_ARGS = 63; // number of bits in positive signed long
-
-  public static final RelOptRule RULE = new RelOptRule(
-      RelOptHelper.any(Aggregate.class, RelNode.class),
-      "GroupSetToCrossJoinCaseStatement") {
-
-    @Override
-    public boolean matches(RelOptRuleCall call) {
-      Aggregate agg = call.rel(0);
-      // if we have an AVG functions, we want to make sure we run DremioAggregateReduceFunctionsRule first
-      return agg.getAggCallList().stream().noneMatch(c -> c.getAggregation().getKind().belongsTo(AVG_AGG_FUNCTIONS));
-    }
-
-    @Override
-    public void onMatch(RelOptRuleCall call) {
-      Aggregate agg = call.rel(0);
-      RelOptCluster cluster = agg.getCluster();
-      if(agg.groupSets.size() <= 1 && !containsGrouping(agg.getAggCallList())){
-        return;
-      }
-
-      RelNode newAgg =
-          new GroupSetToCrossJoinCaseStatement(cluster.getRexBuilder(), canPreAggregate(agg))
-              .rewriteGroupSet(call::builder, agg);
-      if(newAgg!= agg) {
-        call.transformTo(newAgg);
-      }
-    }
-  };
 
   private final RexBuilder rexBuilder;
   private final boolean preAggregate;
@@ -379,6 +353,49 @@ public class GroupSetToCrossJoinCaseStatement {
       return false;
     }
     return agg.getAggCallList().stream()
-      .allMatch(a -> PRE_AGGREGATION_FUNCTIONS.contains(a.getAggregation().getKind()));
+      .allMatch(a -> PRE_AGGREGATION_FUNCTIONS.contains(a.getAggregation().getKind()) && !a.isDistinct());
+  }
+
+  public static final class Rule extends RelRule<Rule.Config> {
+    Rule(Config config) {
+      super(config);
+    }
+
+    @Override
+    public void onMatch(RelOptRuleCall call) {
+      Aggregate agg = call.rel(0);
+      RelOptCluster cluster = agg.getCluster();
+      if(agg.groupSets.size() <= 1 && !containsGrouping(agg.getAggCallList())){
+        return;
+      }
+
+      if (PrelUtil.getSettings(cluster).getOptions().getOption(PlannerSettings.ROLLUP_BRIDGE_EXCHANGE)
+        && RollupWithBridgeExchangeRule.isRollup(agg.getGroupSets())
+        && !agg.containsDistinctCall()) {
+        return;
+      }
+
+      RelNode newAgg =
+        new GroupSetToCrossJoinCaseStatement(cluster.getRexBuilder(), canPreAggregate(agg))
+          .rewriteGroupSet(call::builder, agg);
+      if(newAgg!= agg) {
+        call.transformTo(newAgg);
+      }
+    }
+
+    public interface Config extends RelRule.Config {
+      Rule.Config DEFUALT = RelRule.Config.EMPTY
+        .withDescription("GroupSetToCrossJoinCaseStatement")
+        .withOperandSupplier(os ->
+          os.operand(Aggregate.class)
+            .predicate(agg ->
+              agg.getAggCallList().stream().noneMatch(c -> c.getAggregation().getKind().belongsTo(AVG_AGG_FUNCTIONS)))
+            .anyInputs())
+        .as(Rule.Config.class);
+
+      @Override default Rule toRule() {
+        return new Rule(this);
+      }
+    }
   }
 }

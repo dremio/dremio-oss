@@ -89,11 +89,11 @@ describe("DatasetsPanel", () => {
           datasetVersion: "123",
         }),
       };
-      sinon.stub(DatasetsPanel.prototype, "componentWillMount");
+      sinon.stub(DatasetsPanel.prototype, "UNSAFE_componentWillMount");
       wrapper = shallow(<DatasetsPanel {...props} />, { context });
     });
     afterEach(() => {
-      DatasetsPanel.prototype.componentWillMount.restore();
+      DatasetsPanel.prototype.UNSAFE_componentWillMount.restore();
     });
 
     it("should load parents when dataset version is changed only if isVisible", () => {

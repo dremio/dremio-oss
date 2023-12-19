@@ -292,7 +292,7 @@ public class TestByteStoreManager {
       fail("ByteStoreManager shouldn't have been able to open a locked instance");
     } catch (RocksDBException e) {
       assertTrue("RocksDBException isn't IOError type", Status.Code.IOError.equals(e.getStatus().getCode()));
-      assertTrue("Incorrect error message", e.getStatus().getState().contains("While lock"));
+      assertTrue("Incorrect error message", e.getStatus().getState().contains("lock hold by"));
     }
   }
 

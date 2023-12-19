@@ -22,7 +22,6 @@ import * as orgPaths from "dremio-ui-common/paths/organization.js";
 import * as commonPaths from "dremio-ui-common/paths/common.js";
 //@ts-ignore
 import narwhal404 from "dremio-ui-lib/icons/dremio/narwhal/narwhal-404.svg";
-import { FeatureSwitch } from "../FeatureSwitch/FeatureSwitch";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
 import { getSessionContext } from "dremio-ui-common/contexts/SessionContext.js";
 

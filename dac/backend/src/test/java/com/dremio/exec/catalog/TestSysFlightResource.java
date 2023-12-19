@@ -24,6 +24,7 @@ import org.junit.rules.ExternalResource;
 
 import com.dremio.dac.service.sysflight.SysFlightTablesProvider.JobsTable;
 import com.dremio.dac.service.sysflight.SysFlightTablesProvider.MaterializationsTable;
+import com.dremio.dac.service.sysflight.SysFlightTablesProvider.RecentJobsTable;
 import com.dremio.dac.service.sysflight.SysFlightTablesProvider.ReflectionDependenciesTable;
 import com.dremio.dac.service.sysflight.SysFlightTablesProvider.ReflectionsTable;
 import com.dremio.exec.server.SabotNode;
@@ -40,6 +41,8 @@ import com.dremio.service.acceleration.ReflectionDescriptionServiceRPC.ListRefle
 import com.dremio.service.job.ActiveJobSummary;
 import com.dremio.service.job.ActiveJobsRequest;
 import com.dremio.service.job.ChronicleGrpc;
+import com.dremio.service.job.RecentJobSummary;
+import com.dremio.service.job.RecentJobsRequest;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.sysflight.SysFlightDataProvider;
 import com.dremio.service.sysflight.SystemTableManager.TABLES;
@@ -76,6 +79,21 @@ public class TestSysFlightResource extends ExternalResource {
               .setErrorMsg("err")
               .build());
             responseObserver.onNext(ActiveJobSummary.getDefaultInstance());
+            responseObserver.onCompleted();
+          }
+
+          @Override
+          public void getRecentJobs(RecentJobsRequest recentJobsRequest,
+                                    io.grpc.stub.StreamObserver<com.dremio.service.job.RecentJobSummary> responseObserver){
+            responseObserver.onNext(RecentJobSummary.newBuilder()
+              .setJobId("2")
+              .setStatus("RUNNING")
+              .setQueryType("UI_RUN")
+              .setUserName("user")
+              .setAccelerated(true)
+              .setErrorMsg("errmsg")
+              .build());
+            responseObserver.onNext(RecentJobSummary.getDefaultInstance());
             responseObserver.onCompleted();
           }
         }
@@ -138,6 +156,7 @@ public class TestSysFlightResource extends ExternalResource {
     tablesMap.put(TABLES.REFLECTIONS, new ReflectionsTable(this::getReflectionStub));
     tablesMap.put(TABLES.MATERIALIZATIONS, new MaterializationsTable(this::getReflectionStub));
     tablesMap.put(TABLES.REFLECTION_DEPENDENCIES, new ReflectionDependenciesTable(this::getReflectionStub));
+    tablesMap.put(TABLES.JOBS_RECENT, new RecentJobsTable(this::getChronicleStub));
     return tablesMap;
   }
 

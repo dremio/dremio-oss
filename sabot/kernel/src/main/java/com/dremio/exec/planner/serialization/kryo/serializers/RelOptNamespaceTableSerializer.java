@@ -21,8 +21,8 @@ import java.util.List;
 
 import org.apache.calcite.plan.RelOptCluster;
 
-import com.dremio.exec.catalog.DremioCatalogReader;
 import com.dremio.exec.catalog.DremioPrepareTable;
+import com.dremio.exec.ops.DremioCatalogReader;
 import com.dremio.exec.store.NamespaceTable;
 import com.dremio.exec.store.RelOptNamespaceTable;
 import com.dremio.service.namespace.NamespaceKey;

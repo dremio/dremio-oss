@@ -99,7 +99,7 @@ class ReplacePattern extends Component {
             </FieldWithError>
           )}
           <div style={styles.input}>
-            <Checkbox {...ignoreCase} label={la("Ignore case")} />
+            <Checkbox {...ignoreCase} label={laDeprecated("Ignore case")} />
           </div>
         </div>
       </div>

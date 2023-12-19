@@ -66,7 +66,7 @@ export class AddFileModal extends Component {
 
   static contextTypes = { username: PropTypes.string };
 
-  tooLargeMsg = la(
+  tooLargeMsg = laDeprecated(
     `The file is too large. Dremio UI supports file uploads up to ${NumberFormatUtils.formatMemoryInMB(
       MAX_UPLOAD_FILE_SIZE
     )}.`
@@ -77,12 +77,12 @@ export class AddFileModal extends Component {
     this.state = { page: 0, tooLarge: false };
   }
 
-  componentWillMount() {
+  UNSAFE_componentWillMount() {
     this.success = false;
     this.props.resetViewState(PREVIEW_VIEW_ID);
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     if (
       nextProps.fileName && // fileName is undefined after success
       nextProps.fileName !== this.props.fileName

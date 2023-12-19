@@ -393,6 +393,21 @@ public final class MultiPartition implements Partition, CanSwitchToSpilling {
       public long getProbeUnmatchedKeyCount() {
         return sumOverAllPartitions(allStats, Partition.Stats::getProbeUnmatchedKeyCount);
       }
+
+      @Override
+      public long getEvaluationCount() {
+        return sumOverAllPartitions(allStats, Partition.Stats::getEvaluationCount);
+      }
+
+      @Override
+      public long getEvaluationMatchedCount() {
+        return sumOverAllPartitions(allStats, Partition.Stats::getEvaluationMatchedCount);
+      }
+
+      @Override
+      public long getSetupNanos() {
+        return sumOverAllPartitions(allStats, Partition.Stats::getSetupNanos);
+      }
     };
   }
 

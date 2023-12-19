@@ -34,7 +34,7 @@ public class WriterRel extends WriterRelBase implements Rel {
     super(LOGICAL, cluster, traitSet, input, createTableEntry);
     this.expectedInboundRowType = expectedInboundRowType;
     if (DmlUtils.isInsertOperation(createTableEntry)) {
-      rowType = DmlUtils.evaluateOutputRowType(getCluster(), TableModify.Operation.INSERT);
+      rowType = DmlUtils.evaluateOutputRowType(getInput(), getCluster(), TableModify.Operation.INSERT);
     }
   }
 

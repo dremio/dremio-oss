@@ -432,7 +432,7 @@ export default class FilterSelectMenu extends Component {
           checkBoxClass={checkBoxClass}
           disabled={item.disabled}
           ellipsedTextClass={ellipsedTextClass}
-          isDraggable={isDraggable}
+          isDraggable={item.isDraggable ?? isDraggable}
           onDragMove={onDragMove}
           onDragEnd={onDragEnd}
           onDragStart={onDragStart}

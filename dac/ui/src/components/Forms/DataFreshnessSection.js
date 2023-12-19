@@ -70,11 +70,11 @@ class DataFreshnessSection extends Component {
       values.accelerationRefreshPeriod < window.subhourMinDuration
     ) {
       if (window.subhourMinDuration === DURATION_ONE_HOUR) {
-        errors.accelerationRefreshPeriod = la(
+        errors.accelerationRefreshPeriod = laDeprecated(
           "Reflection refresh must be at least 1 hour."
         );
       } else {
-        errors.accelerationRefreshPeriod = la(
+        errors.accelerationRefreshPeriod = laDeprecated(
           "Reflection refresh must be at least 1 minute."
         );
       }
@@ -85,11 +85,11 @@ class DataFreshnessSection extends Component {
       values.accelerationGracePeriod < window.subhourMinDuration
     ) {
       if (window.subhourMinDuration === DURATION_ONE_HOUR) {
-        errors.accelerationGracePeriod = la(
+        errors.accelerationGracePeriod = laDeprecated(
           "Reflection expiry must be at least 1 hour."
         );
       } else {
-        errors.accelerationGracePeriod = la(
+        errors.accelerationGracePeriod = laDeprecated(
           "Reflection expiry must be at least 1 minute."
         );
       }
@@ -98,7 +98,7 @@ class DataFreshnessSection extends Component {
       !values.accelerationNeverExpire &&
       values.accelerationRefreshPeriod > values.accelerationGracePeriod
     ) {
-      errors.accelerationGracePeriod = la(
+      errors.accelerationGracePeriod = laDeprecated(
         "Reflections cannot be configured to expire faster than they refresh."
       );
     }
@@ -135,7 +135,9 @@ class DataFreshnessSection extends Component {
       { method: "POST" }
     );
 
-    const message = la("All dependent reflections will be refreshed.");
+    const message = laDeprecated(
+      "All dependent reflections will be refreshed."
+    );
     const level = "success";
 
     const handleDismiss = () => {
@@ -182,7 +184,7 @@ class DataFreshnessSection extends Component {
         accelerationNeverExpire,
       },
     } = this.props;
-    const helpContent = la(
+    const helpContent = laDeprecated(
       "How often reflections are refreshed and how long data can be served before expiration."
     );
 
@@ -191,7 +193,7 @@ class DataFreshnessSection extends Component {
       editing &&
       accelerationGracePeriod.value !== accelerationGracePeriod.initialValue
     ) {
-      message = la(
+      message = laDeprecated(
         `Please note that reflections dependent on this ${
           entityType === "dataset" ? "dataset" : "source"
         } will not use the updated expiration configuration until their next scheduled refresh. Use "Refresh Dependent Reflections" on ${
@@ -210,7 +212,7 @@ class DataFreshnessSection extends Component {
           autoDismiss={0}
           dismissible={false}
         />
-        <span style={styles.label}>{la("Refresh Policy")}</span>
+        <span style={styles.label}>{laDeprecated("Refresh Policy")}</span>
         <div style={styles.info}>{helpContent}</div>
         <table>
           <tbody>
@@ -219,14 +221,16 @@ class DataFreshnessSection extends Component {
                 <div style={styles.inputLabel}>
                   <Checkbox
                     {...accelerationNeverRefresh}
-                    label={la("Never refresh")}
+                    label={laDeprecated("Never refresh")}
                   />
                 </div>
               </td>
             </tr>
             <tr>
               <td>
-                <div style={styles.inputLabel}>{la("Refresh every")}</div>
+                <div style={styles.inputLabel}>
+                  {laDeprecated("Refresh every")}
+                </div>
               </td>
               {/* todo: ax: <label> */}
               <td>
@@ -264,14 +268,16 @@ class DataFreshnessSection extends Component {
                 <div style={styles.inputLabel}>
                   <Checkbox
                     {...accelerationNeverExpire}
-                    label={la("Never expire")}
+                    label={laDeprecated("Never expire")}
                   />
                 </div>
               </td>
             </tr>
             <tr>
               <td>
-                <div style={styles.inputLabel}>{la("Expire after")}</div>{" "}
+                <div style={styles.inputLabel}>
+                  {laDeprecated("Expire after")}
+                </div>{" "}
                 {/* todo: ax: <label> */}
               </td>
               <td>

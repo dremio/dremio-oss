@@ -79,7 +79,8 @@ public class HiveParquetSplitReaderIterator implements RecordReaderIterator {
     private final HiveReaderProto.HiveTableXattr tableXattr;
     private final HiveSplitsPathRowGroupsMap pathRowGroupsMap;
     private final List<RuntimeFilterEvaluator> runtimeFilterEvaluators;
-    private final List<RuntimeFilter> runtimeFilters;
+    private final List<RuntimeFilter> partitionColumnRFs;
+    private final List<RuntimeFilter> nonPartitionColumnRFs;
     private final BatchSchema fullSchema;
     private final Collection<List<String>> referencedTables;
     private boolean produceFromBufferedSplits;
@@ -123,9 +124,10 @@ public class HiveParquetSplitReaderIterator implements RecordReaderIterator {
 
         pathRowGroupsMap = new HiveSplitsPathRowGroupsMap(sortedSplits);
         this.runtimeFilterEvaluators = new ArrayList<>();
-        this.runtimeFilters = new ArrayList<>();
+        this.partitionColumnRFs = new ArrayList<>();
+        this.nonPartitionColumnRFs = new ArrayList<>();
         this.produceFromBufferedSplits = produceBuffered;
-    }
+  }
 
     @Override
     public boolean hasNext() {
@@ -229,7 +231,8 @@ public class HiveParquetSplitReaderIterator implements RecordReaderIterator {
                     readerUGI,
                     hiveSchema,
                     pathRowGroupsMap,
-                    compositeReader
+                    compositeReader,
+                    nonPartitionColumnRFs
               );
         }
     }
@@ -240,14 +243,17 @@ public class HiveParquetSplitReaderIterator implements RecordReaderIterator {
             final RuntimeFilterEvaluator filterEvaluator =
                     new RuntimeFilterEvaluator(context.getAllocator(), context.getStats(), context.getOptions(), runtimeFilter);
             this.runtimeFilterEvaluators.add(filterEvaluator);
-            this.runtimeFilters.add(runtimeFilter);
+            this.partitionColumnRFs.add(runtimeFilter);
             logger.debug("Runtime filter added to the iterator [{}]", runtimeFilter);
-        }
+        } else {
+            logger.debug("Non-partition Column Runtime filter added to the iterator [{}]", runtimeFilter);
+            this.nonPartitionColumnRFs.add(runtimeFilter);
+      }
     }
 
     @Override
     public List<RuntimeFilter> getRuntimeFilters() {
-        return runtimeFilters;
+        return partitionColumnRFs;
     }
 
     @Override

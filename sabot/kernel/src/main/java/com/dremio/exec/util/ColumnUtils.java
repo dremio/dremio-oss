@@ -38,6 +38,8 @@ public final class ColumnUtils {
    */
   public static final String ROW_COUNT_COLUMN_NAME = "D_R_E_M_I_O_D_A_T_A_F_I_L_E_R_O_W_C_O_U_N_T";
 
+  public static final String COPY_INTO_ERROR_COLUMN_NAME = "D_R_E_M_I_O_C_O_P_Y_I_N_T_O_E_R_R_O_R";
+
   private static final Set<String> SYSTEM_COLUMNS = new HashSet<String>() {{
     add(FILE_PATH_COLUMN_NAME);
     add(ROW_INDEX_COLUMN_NAME);

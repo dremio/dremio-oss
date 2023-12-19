@@ -70,7 +70,7 @@
       align-items: center;
       display: flex;
       gap: 10px;
-      height: 54px;
+      height: 64px;
       justify-content: space-between;
 
       form {
@@ -92,6 +92,59 @@
       }
     }
 
+    .code-view {
+      height: fit-content;
+      max-height: calc(100% - 16px);
+      max-width: calc(100vw - 64px);
+      margin: var(--dremio--spacing--1);
+      overflow: auto;
+      position: relative;
+
+      &__header {
+        display: none;
+      }
+
+      &__content {
+        overflow: auto;
+
+        .inner-actions {
+          display: flex;
+          position: absolute;
+          top: var(--dremio--spacing--05);
+          right: var(--dremio--spacing--1);
+
+          .dremio-icon-button {
+            color: var(--dremio--color--icon--main);
+
+            dremio-icon {
+              block-size: 24px !important;
+              inline-size: 24px !important;
+            }
+
+            &:disabled {
+              color: var(--color--neutral--100);
+            }
+
+            &:hover {
+              color: var(--dremio--color--link);
+              background-color: var(--color--gray--25);
+              opacity: 1;
+            }
+          }
+        }
+
+        .language-sql {
+          font-family: Consolas, "Fira Code";
+        }
+      }
+    }
+
+    &__spinner {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
     &__actions {
       display: flex;
       justify-content: space-between;
@@ -102,8 +155,14 @@
     // Catalog, Graph, Reflections content area
     &__content {
       border-left: 1px solid var(--color--neutral--50);
+      border-right: 1px solid var(--color--neutral--50);
+
       height: 100%;
       overflow: auto;
+    }
+
+    &__content-tabpanel {
+      display: contents;
     }
 
     &__table {
@@ -122,6 +181,10 @@
     }
   }
 
+  .dremioContent.--withTabs {
+    grid-template-rows: 1fr;
+  }
+
   // SQL content column is less than 1000px wide
   // Text will be removed from buttons
   .dremioContent__content.--minimal {
@@ -134,18 +197,12 @@
     .dremioContent__table .left-controls {
       .btn.--outlined {
         min-width: 36px !important;
-        text-indent: -99999px; // stopped working for Safari 16
         width: 36px !important;
-
-        .btn__content {
-          gap: 0;
-        }
       }
     }
     .ExploreHeader__right {
       .show-hide-sql-btn {
         min-width: 32px !important;
-        text-indent: -99999px;
         width: 32px !important;
       }
     }
@@ -156,7 +213,7 @@
     &.-default {
       .dremioContent__main {
         display: grid;
-        grid-template-columns: auto auto 1fr;
+        grid-template-columns: auto auto 1fr auto;
         overflow: hidden;
       }
 
@@ -165,6 +222,10 @@
         grid-template-rows: auto auto auto 1fr;
         height: 100%;
         position: relative;
+      }
+
+      .dremioContent__content--withTabs {
+        grid-template-rows: max-content auto auto auto 1fr;
       }
     }
 
@@ -267,6 +328,7 @@
       padding: 10px;
       min-width: 160px;
       li {
+        gap: 12px;
         display: flex;
         font-size: 14px;
         justify-content: space-between;

@@ -38,6 +38,7 @@ public class SqlFunctionImpl extends SqlFunction {
     boolean isDynamic,
     SqlSyntax sqlSyntax) {
     super(name,
+      // We want these functions to behave like builtin and calcite denotes that by leaving the identifier as null.
       null,
       SqlKind.OTHER_FUNCTION,
       sqlReturnTypeInference,
@@ -61,6 +62,7 @@ public class SqlFunctionImpl extends SqlFunction {
       sqlOperandTypeChecker,
       Source.DREMIO);
   }
+
   public static SqlFunction create(
     String name,
     SqlReturnTypeInference sqlReturnTypeInference,

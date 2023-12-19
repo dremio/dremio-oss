@@ -17,6 +17,7 @@ package com.dremio.dac.api;
 
 import static java.util.Arrays.asList;
 import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -39,6 +40,7 @@ import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.Response;
 
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -58,12 +60,17 @@ import com.dremio.dac.server.FamilyExpectation;
 import com.dremio.dac.server.ValidationErrorMessage;
 import com.dremio.dac.service.catalog.CatalogServiceHelper;
 import com.dremio.dac.util.DatasetsUtil;
+import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogServiceImpl;
+import com.dremio.exec.catalog.CatalogUser;
+import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.server.ContextService;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.exec.store.dfs.PDFSConf;
 import com.dremio.io.file.Path;
@@ -93,6 +100,7 @@ import com.dremio.service.namespace.file.proto.JsonFileConfig;
 import com.dremio.service.namespace.file.proto.ParquetFileConfig;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
+import com.dremio.service.users.SystemUser;
 import com.dremio.test.UserExceptionAssert;
 import com.google.common.collect.ImmutableList;
 
@@ -393,6 +401,96 @@ public class TestCatalogResource extends BaseTestServer {
     folder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId())).buildGet(), new GenericType<Folder>() {});
     assertEquals(0, folder.getChildren().size());
 
+    newNamespaceService().deleteSpace(new NamespaceKey(space.getName()), space.getTag());
+  }
+
+  /**
+   * Verifies that updating a Sonar Catalog view doesn't cause the catalog to lose the complex type information.
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testViewUpdateWithComplexType() throws Exception {
+    Space space = createSpace("final frontier");
+
+    final List<String> viewPath = Arrays.asList(space.getName(), "myVDS");
+    Dataset newVDS = getVDSConfig(viewPath, "SELECT REGEXP_SPLIT('REGULAR AIR', 'R', 'LAST', -1) AS R_LESS_SHIPMENT_TYPE");
+    Dataset vds = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newVDS)), new GenericType<Dataset>() {});
+
+    Catalog catalog = getSabotContext().getCatalogService().getCatalog(MetadataRequestOptions.newBuilder()
+      .setSchemaConfig(SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build())
+      .build());
+    DremioTable viewTable = catalog.getTable(new NamespaceKey(viewPath));
+    assertThat(viewTable.getSchema().getColumn(0).getType().getTypeID()).isEqualTo(ArrowType.ArrowTypeID.List);
+
+    // Update the view and re-verify the view schema
+    Dataset updatedVDS = new Dataset(
+      vds.getId(),
+      vds.getType(),
+      Arrays.asList(space.getName(), "myVDS"),
+      null,
+      null,
+      vds.getTag(),
+      null,
+      vds.getSql() + " -- SALT", // A little salt to make the SQL different
+      null,
+      null,
+      null
+    );
+    vds = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(updatedVDS.getId())).buildPut(Entity.json(updatedVDS)), new GenericType<Dataset>() {});
+
+    // Grab a new catalog since we don't want to hit caching catalog cache
+    catalog = getSabotContext().getCatalogService().getCatalog(MetadataRequestOptions.newBuilder()
+      .setSchemaConfig(SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build())
+      .build());
+    viewTable = catalog.getTable(new NamespaceKey(viewPath));
+    assertThat(viewTable.getSchema().getColumn(0).getType().getTypeID()).isEqualTo(ArrowType.ArrowTypeID.List);
+
+    // Clean up
+    expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(vds.getId())).buildDelete());
+    newNamespaceService().deleteSpace(new NamespaceKey(space.getName()), space.getTag());
+  }
+
+  /**
+   * Verifies that querying a Sonar View with a null field type doesn't result in schema learning.
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testViewWithNullColumn() throws Exception {
+    Space space = createSpace("final frontier");
+
+    final List<String> viewPath = Arrays.asList(space.getName(), "sl_bug");
+    Dataset newVDS = getVDSConfig(viewPath, "select null as foo;");
+    Dataset vds = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newVDS)), new GenericType<Dataset>() {});
+
+    Catalog catalog = getSabotContext().getCatalogService().getCatalog(MetadataRequestOptions.newBuilder()
+      .setSchemaConfig(SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build())
+      .build());
+    DremioTable viewTable = catalog.getTable(new NamespaceKey(viewPath));
+    assertThat(viewTable.getSchema().getColumn(0).getType().getTypeID()).isEqualTo(ArrowType.ArrowTypeID.Int);
+    String originalViewTag = viewTable.getDatasetConfig().getTag();
+
+    final JobId jobId = submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery("select * from sl_bug", ImmutableList.of("final frontier"), DEFAULT_USERNAME))
+        .setQueryType(QueryType.UI_INTERNAL_RUN)
+        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+        .build());
+
+    final JobSummary job = l(JobsService.class).getJobSummary(JobSummaryRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
+    assertTrue(JobsProtoUtil.toStuff(job.getJobState()) == JobState.COMPLETED);
+
+    // Grab a new catalog since we don't want to hit caching catalog cache
+    catalog = getSabotContext().getCatalogService().getCatalog(MetadataRequestOptions.newBuilder()
+      .setSchemaConfig(SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build())
+      .build());
+    viewTable = catalog.getTable(new NamespaceKey(viewPath));
+    assertThat(viewTable.getSchema().getColumn(0).getType().getTypeID()).isEqualTo(ArrowType.ArrowTypeID.Int);
+    assertThat(viewTable.getDatasetConfig().getTag()).isEqualTo(originalViewTag);
+
+    // Clean up
+    expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(vds.getId())).buildDelete());
     newNamespaceService().deleteSpace(new NamespaceKey(space.getName()), space.getTag());
   }
 
@@ -887,8 +985,12 @@ public class TestCatalogResource extends BaseTestServer {
     final JobSummary job = l(JobsService.class).getJobSummary(JobSummaryRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
     assertTrue(JobsProtoUtil.toStuff(job.getJobState()) == JobState.COMPLETED);
 
-    // Expect to receive an UserException if try to forget metadata on the deleted metadata in kv store
-    final String msg = String.format("PARSE ERROR: Unable to find table %s.\"myFile.json\"", sourceName);
+    // Expect to receive an UserException if try to forget metadata on the deleted metadata in kv
+    // store
+    final String msg =
+        String.format(
+            "VALIDATION ERROR: Dataset %s.\"myFile.json\" does not exist or is not a table.",
+            sourceName);
 
     // Forget metadata again
     UserExceptionAssert.assertThatThrownBy(() -> submitJobAndWaitUntilCompletion(
@@ -897,7 +999,7 @@ public class TestCatalogResource extends BaseTestServer {
         .setQueryType(QueryType.UI_INTERNAL_RUN)
         .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
         .build()))
-      .hasErrorType(ErrorType.PARSE)
+      .hasErrorType(ErrorType.VALIDATION)
       .hasMessageContaining(msg);
   }
 
@@ -1297,7 +1399,6 @@ public class TestCatalogResource extends BaseTestServer {
 
     // test getting a file with a url character in name (?)
     expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path("by-path").path(createdSource.getName()).path("testfiles").path("file_with_?.json")).buildGet(), new GenericType<File>() {});
-
   }
 
   @Test

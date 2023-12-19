@@ -40,12 +40,14 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
 public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall {
+  private static final SqlLiteral sqlLiteralNull = SqlLiteral.createNull(SqlParserPos.ZERO);
+
 
   public static final SqlSpecialOperator CREATE_EMPTY_TABLE_OPERATOR = new SqlSpecialOperator("CREATE_EMPTY_TABLE", SqlKind.OTHER_DDL) {
     @Override
     public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 13, "SqlCreateEmptyTable.createCall() " +
-              "has to get 13 operands!");
+      Preconditions.checkArgument(operands.length == 15, "SqlCreateEmptyTable.createCall() " +
+              "has to get 15 operands!");
 
 
       if (((SqlNodeList) operands[1]).getList().size() == 0) {
@@ -72,7 +74,9 @@ public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall 
         (SqlNodeList) operands[8],
         (SqlPolicy) operands[10],
         (SqlNodeList) operands[11],
-        (SqlNodeList) operands[12]);
+        (SqlNodeList) operands[12],
+        ((SqlLiteral) operands[13]).symbolValue(ReferenceType.class),
+        (SqlIdentifier) operands[14]);
     }
   };
 
@@ -89,6 +93,8 @@ public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall 
   protected final boolean ifNotExists;
   protected final SqlNodeList tablePropertyNameList;
   protected final SqlNodeList tablePropertyValueList;
+  protected final ReferenceType refType;
+  protected SqlIdentifier refValue;
 
   public SqlCreateEmptyTable(
     SqlParserPos pos,
@@ -104,7 +110,9 @@ public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall 
     SqlNodeList distributionColumns,
     SqlPolicy policy,
     SqlNodeList  tablePropertyNameList,
-    SqlNodeList  tablePropertyValueList) {
+    SqlNodeList  tablePropertyValueList,
+    ReferenceType refType,
+    SqlIdentifier refValue) {
     super(pos);
     this.tblName = tblName;
     this.fieldList = fieldList;
@@ -119,6 +127,8 @@ public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall 
     this.policy = policy;
     this.tablePropertyNameList = tablePropertyNameList;
     this.tablePropertyValueList = tablePropertyValueList;
+    this.refType = refType;
+    this.refValue = refValue;
   }
 
   @Override
@@ -142,6 +152,12 @@ public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall 
     ops.add(policy);
     ops.add(tablePropertyNameList);
     ops.add(tablePropertyValueList);
+    if (refType == null) {
+      ops.add(sqlLiteralNull);
+    } else {
+      ops.add(SqlLiteral.createSymbol(getRefType(), SqlParserPos.ZERO));
+    }
+    ops.add(refValue);
     return ops;
   }
 
@@ -153,6 +169,13 @@ public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall 
     if (fieldList.size() > 0) {
       SqlHandlerUtil.unparseSqlNodeList(writer, leftPrec, rightPrec, fieldList);
     }
+
+    if (refType != null && refValue != null) {
+      writer.keyword("AT");
+      writer.keyword(refType.toString());
+      refValue.unparse(writer, leftPrec, rightPrec);
+    }
+
     if (partitionTransforms.size() > 0) {
       switch (partitionDistributionStrategy) {
         case UNSPECIFIED:
@@ -201,7 +224,7 @@ public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall 
       writer.keyword("POLICY");
       policy.unparse(writer, leftPrec, rightPrec);
     }
-    if(tablePropertyNameList != null) {
+    if(tablePropertyNameList != null && tablePropertyNameList.size() > 0) {
       writer.keyword("TBLPROPERTIES");
       writer.keyword("(");
       for (int i = 0; i < tablePropertyNameList.size(); i++) {
@@ -275,6 +298,10 @@ public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall 
 
   @Override
   public List<PartitionTransform> getPartitionTransforms(DremioTable dremioTable) {
+    return getPartitionTransformsFromSqlNodeList(partitionTransforms);
+  }
+
+  public static List<PartitionTransform> getPartitionTransformsFromSqlNodeList(final SqlNodeList partitionTransforms) {
     return partitionTransforms.getList().stream()
       .map(n -> (SqlPartitionTransform) n)
       .map(PartitionTransform::from)
@@ -318,5 +345,13 @@ public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall 
   public PartitionDistributionStrategy getPartitionDistributionStrategy(
     SqlHandlerConfig config, List<String> partitionFieldNames, Set<String> fieldNames) {
     return partitionDistributionStrategy;
+  }
+
+  public ReferenceType getRefType() {
+    return refType;
+  }
+
+  public SqlIdentifier getRefValue() {
+    return refValue;
   }
 }

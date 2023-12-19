@@ -31,6 +31,7 @@ import { sonarEvents } from "dremio-ui-common/sonar/sonarEvents.js";
 export default class SelectConnectionButton extends Component {
   static propTypes = {
     sampleSource: PropTypes.bool,
+    isSampleDB: PropTypes.bool,
     label: PropTypes.string.isRequired,
     dremioIcon: PropTypes.string,
     pillText: PropTypes.string,
@@ -52,6 +53,7 @@ export default class SelectConnectionButton extends Component {
       isCommunity,
       onClick,
       sampleSource = false,
+      isSampleDB = false,
     } = this.props;
 
     const buttonClass = classNames({
@@ -70,6 +72,9 @@ export default class SelectConnectionButton extends Component {
           }
         }}
         data-qa={dremioIcon}
+        data-actionid={
+          sampleSource ? "add-sample-source" : isSampleDB ? "add-sample-db" : ""
+        }
       >
         <div className={iconContainer}>
           <SourceIcon dremioIcon={dremioIcon} style={styles.iconStyle} />

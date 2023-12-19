@@ -28,10 +28,13 @@ type SaveProps = {
 
 interface WikiModalWithSaveProps {
   entityId: string;
+  entityType: string;
+  fullPath: any;
   isOpen: boolean;
   wikiValue: string;
   wikiVersion: number;
   isReadMode: boolean;
+  wikiSummary: boolean;
   // topSectionButtons: typeof SectionTitle.propTypes.buttons;
   onChange: () => void;
   save: (saveVal: SaveProps) => void;
@@ -41,10 +44,13 @@ interface WikiModalWithSaveProps {
 const WikiModalWithSave = ({
   wikiVersion,
   entityId,
+  entityType,
+  fullPath,
   save,
   onChange,
   isOpen,
   wikiValue,
+  wikiSummary,
   isReadMode = false,
   // topSectionButtons,
   cancel: cancelProp,
@@ -128,6 +134,10 @@ const WikiModalWithSave = ({
     isOpen,
     wikiValue: wikiVal,
     isReadMode,
+    entityId,
+    entityType,
+    fullPath,
+    wikiSummary,
     // topSectionButtons,
     onChange: onChangeVal,
     save: saveWiki,

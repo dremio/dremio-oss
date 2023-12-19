@@ -28,8 +28,8 @@ import {
   CommandContext,
   NoncommandContext,
   SeparatorContext,
-} from "../../../dist-antlr/AbstractSQLParser";
-import type { AbstractSQLParserVisitor } from "../../../dist-antlr/AbstractSQLParserVisitor";
+} from "../../../target/generated-sources/antlr/AbstractSQLParser";
+import type { AbstractSQLParserVisitor } from "../../../target/generated-sources/antlr/AbstractSQLParserVisitor";
 import {
   type HiddenTokens,
   HiddenTokenType,

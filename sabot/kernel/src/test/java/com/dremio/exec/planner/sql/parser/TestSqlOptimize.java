@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
+import static com.dremio.exec.calcite.SqlNodes.DREMIO_DIALECT;
+import static com.dremio.exec.planner.sql.parser.TestParserUtil.parse;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -22,26 +24,16 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.Optional;
 
-import org.apache.calcite.avatica.util.Quoting;
-import org.apache.calcite.config.NullCollation;
-import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.parser.SqlParseException;
-import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.pretty.SqlPrettyWriter;
 import org.junit.Test;
 
-import com.dremio.common.utils.SqlUtils;
-import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.planner.sql.ParserConfig;
-
 public class TestSqlOptimize {
-  private static SqlDialect DREMIO_DIALECT =
-    new SqlDialect(SqlDialect.DatabaseProduct.UNKNOWN, "Dremio", Character.toString(SqlUtils.QUOTE), NullCollation.FIRST);
   private SqlPrettyWriter writer = new SqlPrettyWriter(DREMIO_DIALECT);
 
   @Test
@@ -211,11 +203,5 @@ public class TestSqlOptimize {
 
     assertThatThrownBy(() -> parse("OPTIMIZE TABLE a.b.c REWRITE MANIFESTS (\"target_file_size_mb\" = 2, \"min_input_files\" = 5)"))
       .isInstanceOf(SqlParseException.class);
-  }
-
-  public static SqlNode parse(String toParse) throws SqlParseException {
-    ParserConfig config = new ParserConfig(Quoting.DOUBLE_QUOTE, 255, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
-    SqlParser parser = SqlParser.create(toParse, config);
-    return parser.parseStmt();
   }
 }

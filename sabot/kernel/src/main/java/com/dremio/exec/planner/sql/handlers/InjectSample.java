@@ -18,8 +18,8 @@ package com.dremio.exec.planner.sql.handlers;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.TableScan;
 
-import com.dremio.exec.calcite.logical.SampleCrel;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
+import com.dremio.exec.planner.logical.SampleRel;
 
 public class InjectSample extends StatelessRelShuttleImpl {
 
@@ -35,10 +35,9 @@ public class InjectSample extends StatelessRelShuttleImpl {
 
   @Override
   public RelNode visit(TableScan scan) {
-    RelNode toReturn = scan;
     if (addSample) {
-      return SampleCrel.create(toReturn);
+      return SampleRel.create(scan);
     }
-    return toReturn;
+    return scan;
   }
 }

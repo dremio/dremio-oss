@@ -87,7 +87,7 @@ public abstract class AbstractTestByteSerializerFactory extends FormatTestArtifa
     /**
      * Used by the wrapped format to convert the Nesting to a string.
      */
-    private static class NestingConverter extends Converter<Nesting, String> {
+    private static final class NestingConverter extends Converter<Nesting, String> {
 
       @Override
       public String convert(Nesting n) {

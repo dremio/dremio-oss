@@ -15,6 +15,11 @@
  */
 package com.dremio.exec.planner.sql.handlers;
 
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelNode;
@@ -51,6 +56,49 @@ public final class RexSubQueryUtils {
       }
     }
     return false;
+  }
+
+  public static Map<RelNode, Set<RexFieldAccess>> mapCorrelateVariables(RelNode relNode) {
+    Map<RelNode, Set<RexFieldAccess>> mapping = new HashMap<>();
+    fillCorrelateVariableMap(mapping, relNode);
+    return mapping;
+  }
+
+  private static void fillCorrelateVariableMap(Map<RelNode, Set<RexFieldAccess>> mapping, RelNode node) {
+    Set<RexFieldAccess> correlatedVariables = new HashSet<>();
+    for (RelNode child : node.getInputs()) {
+      fillCorrelateVariableMap(mapping, child);
+      Set<RexFieldAccess> childCorrelatedVariables = mapping.get(child);
+      correlatedVariables.addAll(childCorrelatedVariables);
+    }
+
+    Set<RexFieldAccess> parentCorrelatedVariables = CorrelateVariableFinder.find(node);
+    correlatedVariables.addAll(parentCorrelatedVariables);
+    mapping.put(node, correlatedVariables);
+  }
+
+  private static final class CorrelateVariableFinder extends RexShuttle {
+    private final Set<RexFieldAccess> correlatedVariables;
+
+    private CorrelateVariableFinder() {
+      this.correlatedVariables = new HashSet<>();
+    }
+
+    public static Set<RexFieldAccess> find(RelNode node) {
+      CorrelateVariableFinder finder = new CorrelateVariableFinder();
+      node.accept(finder);
+      return finder.correlatedVariables;
+    }
+
+    @Override
+    public RexNode visitFieldAccess(RexFieldAccess fieldAccess) {
+      RexNode referenceExpr = fieldAccess.getReferenceExpr();
+      if (referenceExpr instanceof RexCorrelVariable) {
+        correlatedVariables.add(fieldAccess);
+      }
+
+      return super.visitFieldAccess(fieldAccess);
+    }
   }
 
   /*
@@ -109,7 +157,7 @@ public final class RexSubQueryUtils {
     public RexNode visitSubQuery(RexSubQuery subQuery) {
       RelNode transformed;
       try {
-        transformed = PrelTransformer.transform(config, PlannerType.HEP_AC, PlannerPhase.JDBC_PUSHDOWN, subQuery.rel, traitSet, false);
+        transformed = PlannerUtil.transform(config, PlannerType.HEP_AC, PlannerPhase.JDBC_PUSHDOWN, subQuery.rel, traitSet, false);
 
         // We may need to run the planner again on the sub-queries in the sub-tree this produced.
         final RelsWithRexSubQueryTransformer nestedSubqueryTransformer = new RelsWithRexSubQueryTransformer(config);

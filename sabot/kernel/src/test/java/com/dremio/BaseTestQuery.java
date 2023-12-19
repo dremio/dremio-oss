@@ -82,18 +82,23 @@ import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.hadoop.HadoopFileSystemConfigurationAdapter;
 import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.sql.CopyErrorsTests;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserBitShared.QueryResult.QueryState;
 import com.dremio.exec.proto.UserBitShared.QueryType;
 import com.dremio.exec.proto.UserProtos.PreparedStatementHandle;
+import com.dremio.exec.record.RecordBatchHolder;
 import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.rpc.ConnectionThrottle;
+import com.dremio.exec.rpc.RpcException;
+import com.dremio.exec.server.MockPartitionStatsStoreProvider;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.SabotNode;
 import com.dremio.exec.server.SimpleJobRunner;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.iceberg.DremioFileIO;
@@ -114,6 +119,7 @@ import com.dremio.options.TypeValidators.BooleanValidator;
 import com.dremio.options.TypeValidators.DoubleValidator;
 import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.StringValidator;
+import com.dremio.partitionstats.storeprovider.PartitionStatsCacheStoreProvider;
 import com.dremio.sabot.rpc.user.AwaitableUserResultsListener;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.sabot.rpc.user.UserResultsListener;
@@ -122,6 +128,7 @@ import com.dremio.service.BindingCreator;
 import com.dremio.service.BindingProvider;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
+import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.services.credentials.CredentialsService;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -147,6 +154,7 @@ public class BaseTestQuery extends ExecTest {
   protected static FileSystem localFs;
 
   protected static Properties defaultProperties = null;
+  private static CatalogService catalogService;
 
   protected static String setTableOptionQuery(String table, String optionName, String optionValue) {
     return String.format("ALTER TABLE %s SET %s = %s", table, optionName, optionValue);
@@ -238,20 +246,33 @@ public class BaseTestQuery extends ExecTest {
 
   private int[] columnWidths = new int[] { 8 };
 
-  private static AbstractModule getDefaultModule() {
-
-    SimpleJobRunner internalRefreshQueryRunner = (query, userName, queryType, queryLabel) -> {
+  private static SimpleJobRunner INTERNAL_REFRESH_QUERY_RUNNER = new SimpleJobRunner() {
+    @Override
+    public void runQueryAsJob(String query, String userName, String queryType, String queryLabel) {
       try {
         runSQL(query); // queries we get here are inner 'refresh dataset' queries
       } catch (Exception e) {
         throw new IllegalStateException(e);
       }
-    };
+    }
 
+    @Override
+    public List<RecordBatchHolder> runQueryAsJobForResults(
+      String query, String userName, String queryType, String queryLabel, int offset, int limit) throws Exception {
+      // stub to cover for lack of SysFlight plugin (and inited CopyIntoErrorsStoragePluginConfigProvider) in tests
+      if ("COPY_ERRORS_PLAN".equals(queryType)) {
+        return CopyErrorsTests.handleCopyErrorsTest(query);
+      } else {
+        throw new UnsupportedOperationException();
+      }
+    }
+  };
+
+  private static AbstractModule getDefaultModule() {
     return new AbstractModule() {
       @Override
       protected void configure() {
-        bind(SimpleJobRunner.class).toInstance(internalRefreshQueryRunner);
+        bind(SimpleJobRunner.class).toInstance(INTERNAL_REFRESH_QUERY_RUNNER);
       }
     };
   }
@@ -301,7 +322,7 @@ public class BaseTestQuery extends ExecTest {
    *
    * @return SabotContext of first SabotNode in the cluster.
    */
-  protected static SabotContext getSabotContext() {
+  public static SabotContext getSabotContext() {
     Preconditions.checkState(nodes != null && nodes[0] != null, "Nodes are not setup.");
     return nodes[0].getContext();
   }
@@ -347,7 +368,8 @@ public class BaseTestQuery extends ExecTest {
       nodes[i] = SABOT_NODE_RULE.newSabotNode(new SabotProviderConfig(i == 0));
       nodes[i].run();
       if(i == 0) {
-        TestUtilities.addDefaultTestPlugins(nodes[i].getContext().getCatalogService(), dfsTestTmpSchemaLocation, true);
+        catalogService = nodes[i].getContext().getCatalogService();
+        TestUtilities.addDefaultTestPlugins(catalogService, dfsTestTmpSchemaLocation, true);
       }
     }
 
@@ -362,11 +384,21 @@ public class BaseTestQuery extends ExecTest {
     runSQL("ALTER SYSTEM SET " + SqlUtils.QUOTE + ExecConstants.ENABLE_REATTEMPTS.getOptionName() + SqlUtils.QUOTE + " = " + enabled);
   }
 
+  protected void createSource(SourceConfig sourceConfig) throws RpcException {
+    catalogService.createSourceIfMissingWithThrow(sourceConfig);
+  }
+
   protected static void disablePlanCache() throws Exception {
     final String alterSessionSetSql = "ALTER SESSION SET planner.query_plan_cache_enabled = false";
     runSQL(alterSessionSetSql);
   }
 
+  protected MockPartitionStatsStoreProvider getPartitionStatsStoreProvider(int coordinatorNodeIndex){
+    return (MockPartitionStatsStoreProvider) nodes[coordinatorNodeIndex]
+      .getBindingProvider()
+      .provider(PartitionStatsCacheStoreProvider.class)
+      .get();
+  }
 
   private static void closeCurrentClient() {
       Preconditions.checkState(nodes != null && nodes[0] != null, "Nodes are not setup.");
@@ -804,6 +836,13 @@ public class BaseTestQuery extends ExecTest {
     }
   }
 
+  protected static AutoCloseable disableDeltaTableFullRowCount() {
+    setSystemOption(ExecConstants.DELTA_LAKE_ENABLE_FULL_ROWCOUNT, "false");
+    return () ->
+      setSystemOption(ExecConstants.DELTA_LAKE_ENABLE_FULL_ROWCOUNT,
+        ExecConstants.DELTA_LAKE_ENABLE_FULL_ROWCOUNT.getDefault().getBoolVal().toString());
+  }
+
   protected static AutoCloseable enableHiveAsync() {
     setSystemOption(ExecConstants.ENABLE_HIVE_ASYNC, "true");
     return () ->
@@ -858,6 +897,14 @@ public class BaseTestQuery extends ExecTest {
     };
   }
 
+  protected static AutoCloseable disableIcebergSortOrder() {
+    setSystemOption(ExecConstants.ENABLE_ICEBERG_SORT_ORDER, "false");
+    return () -> {
+      setSystemOption(ExecConstants.ENABLE_ICEBERG_SORT_ORDER,
+        ExecConstants.ENABLE_ICEBERG_SORT_ORDER.getDefault().getBoolVal().toString());
+    };
+  }
+
   protected static AutoCloseable disablePartitionPruning() {
     setSystemOption(PlannerSettings.ENABLE_PARTITION_PRUNING, "false");
     return () ->
@@ -894,6 +941,15 @@ public class BaseTestQuery extends ExecTest {
         PlannerSettings.UNLIMITED_SPLITS_SUPPORT.getDefault().getBoolVal().toString());
       setSystemOption(ExecConstants.ENABLE_ICEBERG,
         ExecConstants.ENABLE_ICEBERG.getDefault().getBoolVal().toString());
+    };
+  }
+
+  protected static AutoCloseable enableIcebergTablePropertiesSupportFlag() {
+    setSystemOption(ExecConstants.ENABLE_ICEBERG_TABLE_PROPERTIES, "true");
+
+    return () -> {
+      setSystemOption(ExecConstants.ENABLE_ICEBERG_TABLE_PROPERTIES,
+        ExecConstants.ENABLE_ICEBERG_TABLE_PROPERTIES.getDefault().getBoolVal().toString());
     };
   }
 
@@ -1008,6 +1064,20 @@ public class BaseTestQuery extends ExecTest {
       setSystemOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX,
               CatalogOptions.METADATA_LEAF_COLUMN_MAX.getDefault().getValue().toString());
     };
+  }
+
+  protected static AutoCloseable enableJavaExecution() {
+    setSystemOption(ExecConstants.QUERY_EXEC_OPTION, "'Java'");
+    return () ->
+      setSystemOption(ExecConstants.QUERY_EXEC_OPTION,
+        "'Gandiva'");
+  }
+
+  protected static AutoCloseable enableSARGableFilterTransform() {
+    setSystemOption(PlannerSettings.SARGABLE_FILTER_TRANSFORM, "true");
+    return () ->
+      setSystemOption(PlannerSettings.SARGABLE_FILTER_TRANSFORM,
+        PlannerSettings.SARGABLE_FILTER_TRANSFORM.getDefault().getBoolVal().toString());
   }
 
   public static class SilentListener implements UserResultsListener {
@@ -1225,7 +1295,8 @@ public class BaseTestQuery extends ExecTest {
     StoragePlugin plugin = getSabotContext().getCatalogService().getSource(pluginName);
     if (plugin instanceof SupportsIcebergMutablePlugin) {
       SupportsIcebergMutablePlugin icebergMutablePlugin = (SupportsIcebergMutablePlugin) plugin;
-      return icebergMutablePlugin.getIcebergModel(null, null, null, localFs);
+      return icebergMutablePlugin.getIcebergModel(null, null, null,
+          icebergMutablePlugin.createIcebergFileIO(localFs, null, null, null, null));
     } else {
       throw new UnsupportedOperationException(
           String.format("Plugin %s does not implement SupportsIcebergMutablePlugin", pluginName));

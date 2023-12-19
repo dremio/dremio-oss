@@ -24,7 +24,7 @@ import com.dremio.exec.store.easy.arrow.ArrowFileMetadata;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobResult;
-import com.dremio.service.jobs.LocalJobsService.JobsStoreCreator;
+import com.dremio.service.jobs.JobsStoreCreator;
 import com.google.common.collect.ImmutableList;
 
 /**

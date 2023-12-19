@@ -24,7 +24,7 @@ import org.apache.calcite.rel.RelNode;
 import com.dremio.exec.planner.common.SampleRelBase;
 
 /**
- * Dremio logical for {@link SampleCrel}
+ * Dremio logical for {@link SampleRelBase}
  */
 public class SampleRel extends SampleRelBase implements Rel {
 
@@ -35,5 +35,9 @@ public class SampleRel extends SampleRelBase implements Rel {
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
     return new SampleRel(getCluster(), traitSet, sole(inputs));
+  }
+
+  public static SampleRel create(RelNode input) {
+    return new SampleRel(input.getCluster(), input.getTraitSet().plus(Rel.LOGICAL), input);
   }
 }

@@ -18,7 +18,6 @@ package com.dremio.dac.service.errors;
 import com.dremio.dac.model.common.NamespacePath;
 import com.dremio.dac.model.sources.PhysicalDatasetPath;
 import com.dremio.dac.model.sources.PhysicalDatasetResourcePath;
-import com.dremio.dac.model.sources.SourceName;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 
 /**
@@ -30,11 +29,10 @@ public class PhysicalDatasetNotFoundException extends NotFoundException {
   private final NamespacePath path;
 
   public PhysicalDatasetNotFoundException(
-      SourceName sourceName,
       PhysicalDatasetPath physicalDatasetPath,
       Exception error) {
     super(
-        new PhysicalDatasetResourcePath(sourceName, physicalDatasetPath),
+        new PhysicalDatasetResourcePath(physicalDatasetPath),
         "physical dataset " + physicalDatasetPath.toPathString(),
         error);
     this.path = physicalDatasetPath;

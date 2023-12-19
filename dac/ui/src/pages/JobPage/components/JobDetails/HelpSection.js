@@ -111,9 +111,9 @@ export class HelpSection extends PureComponent {
   handleEmail = () => {
     const subject =
       config.supportEmailSubjectForJobs ||
-      la("Can I get some help on a Dremio job?");
+      laDeprecated("Can I get some help on a Dremio job?");
     const body =
-      la("Hi,\n\nCan you help me with this Dremio job?\n\n") +
+      laDeprecated("Hi,\n\nCan you help me with this Dremio job?\n\n") +
       window.location.origin +
       jobsUtils.navigationURLForJobId({
         id: this.props.jobId,

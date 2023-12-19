@@ -79,7 +79,7 @@ export default class FilterSelectMenuWrapper extends PureComponent {
     } = this.props;
     const selectedValues = Immutable.List(this.getValues());
     const items = filterItems[menuType];
-    const label = la(filterLabels[menuType]);
+    const label = laDeprecated(filterLabels[menuType]);
     return (
       <FilterSelectMenu
         selectedToTop={false}

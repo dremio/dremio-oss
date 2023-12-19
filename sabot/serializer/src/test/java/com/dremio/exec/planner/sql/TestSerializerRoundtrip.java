@@ -37,13 +37,15 @@ import java.util.stream.Stream;
 
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.poi.util.HexDump;
 import org.junit.Assert;
 import org.junit.Test;
 
 import com.dremio.exec.ExecTest;
-import com.dremio.exec.catalog.DremioCatalogReader;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
+import com.dremio.exec.ops.DelegatingPlannerCatalog;
+import com.dremio.exec.ops.DremioCatalogReader;
 import com.dremio.exec.planner.serializer.ProtoRelSerializerFactory;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.service.namespace.NamespaceKey;
@@ -85,12 +87,12 @@ public class TestSerializerRoundtrip {
       .add(createTable(REGION, "cp", "tpch/region.parquet"))
       .add(createTable(SUPPLIER, "cp", "tpch/supplier.parquet"))
       .build());
-  public static final DremioCatalogReader CATALOG_READER = new DremioCatalogReader(CATALOG, JavaTypeFactoryImpl.INSTANCE);
+  public static final DremioCatalogReader CATALOG_READER = new DremioCatalogReader(DelegatingPlannerCatalog.newInstance(CATALOG));
   public static final ProtoRelSerializerFactory FACTORY = new ProtoRelSerializerFactory(ExecTest.CLASSPATH_SCAN_RESULT);
   public static final FunctionImplementationRegistry FUNCTIONS = FunctionImplementationRegistry.create(
       ExecTest.DEFAULT_SABOT_CONFIG,
       ExecTest.CLASSPATH_SCAN_RESULT);
-  public static final OperatorTable OPERATOR_TABLE = new OperatorTable(FUNCTIONS);
+  public static final SqlOperatorTable OPERATOR_TABLE = DremioCompositeSqlOperatorTable.create(FUNCTIONS);
 
   private static final ConcurrentMap<String, Object> fileSystemLocks = new ConcurrentHashMap<>();
 
@@ -172,6 +174,8 @@ public class TestSerializerRoundtrip {
       .add("ROUND", "SELECT ROUND(CAST(9.9 AS DECIMAL(2,1)))FROM (VALUES (1)) AS t(a)")
       .add("TRUNCATE", "SELECT TRUNCATE(CAST(9.9 AS DECIMAL(2,1))) FROM (VALUES (1)) AS t(a)")
       .add("MEDAIN", "SELECT MEDIAN(A) OVER (PARTITION BY b) FROM (VALUES(1, 2)) AS t(a, b)")
+      .add("CONCAT FUNCTION", "SELECT CONCAT(a, b) FROM (VALUES('hello', 'world')) AS t(a, b)")
+      .add("CONCAT OPERATOR", "SELECT a || b FROM (VALUES('hello', 'world')) AS t(a, b)")
       .add("PERCENTILE_CONT", "SELECT PERCENTILE_CONT(0.5) WITHIN GROUP(ORDER BY b)\n"
         + "FROM (VALUES (1, 2)) AS t(a, b)")
       .runTests();
@@ -1104,14 +1108,18 @@ public class TestSerializerRoundtrip {
     RelNode root = tool.toRel(queryText);
 
     String queryPlanText = RelOptUtil.toString(root);
-    byte[] queryPlanBinary = FACTORY.getSerializer(root.getCluster(), FUNCTIONS).serializeToBytes(root);
+    byte[] queryPlanBinary = FACTORY
+      .getSerializer(
+        root.getCluster(),
+        OPERATOR_TABLE)
+      .serializeToBytes(root);
 
     MockDremioQueryParser tool2 = new MockDremioQueryParser(OPERATOR_TABLE, CATALOG, "user1");
     RelNode newRoot = FACTORY
       .getDeserializer(
         tool2.getCluster(),
         CATALOG_READER,
-        FUNCTIONS,
+        OPERATOR_TABLE,
         null)
       .deserialize(queryPlanBinary);
 

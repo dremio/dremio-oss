@@ -64,7 +64,7 @@ public class BasicFormatMatcher extends FormatMatcher {
 
   @Override
   public boolean matches(FileSystem fs, FileSelection selection, CompressionCodecFactory codecFactory) throws IOException {
-    Optional<FileAttributes> firstFileO = selection.getFirstFile();
+    Optional<FileAttributes> firstFileO = selection.getFirstFileIteratively(fs);
     if(!firstFileO.isPresent()) {
       return false;
     }

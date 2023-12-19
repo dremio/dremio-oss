@@ -33,6 +33,7 @@ export default class Property extends Component {
 
   static propTypes = {
     fields: PropTypes.object,
+    secure: PropTypes.bool,
     style: PropTypes.object,
     onRemove: PropTypes.func,
   };
@@ -43,6 +44,7 @@ export default class Property extends Component {
 
   render() {
     const {
+      secure = false,
       onRemove,
       fields: { name, value },
     } = this.props;
@@ -66,7 +68,11 @@ export default class Property extends Component {
           style={fieldStyle}
           errorPlacement="top"
         >
-          <TextField {...value} style={textStyle} />
+          <TextField
+            {...value}
+            type={secure ? "password" : undefined}
+            style={textStyle}
+          />
         </FieldWithError>
         {onRemove && (
           <RemoveButton

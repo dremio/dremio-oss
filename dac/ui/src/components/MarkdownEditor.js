@@ -15,20 +15,22 @@
  */
 import { PureComponent } from "react";
 import PropTypes from "prop-types";
-import uuid from "uuid";
+import { v4 as uuidv4 } from "uuid";
 import classNames from "clsx";
 import { debounce } from "lodash";
 import SimpleMDE from "simplemde";
 import "simplemde/dist/simplemde.min.css";
 import "@app/components/markedjsOverrides.js";
 import { withErrorBoundary } from "@app/components/OldErrorBoundary";
+import additionalWikiControls from "@inject/shared/AdditionalWikiControls";
+import { Spinner } from "dremio-ui-lib";
 import {
   editor as editorCls,
   readMode as readModeCls,
   saveButton,
   cancelButton,
+  loader,
   fitToParent as fitToParentCls,
-  wikiModalHeight,
 } from "./MarkdownEditor.less";
 import "./MarkdownEditorIcons.less";
 
@@ -84,36 +86,60 @@ export class MarkdownEditorView extends PureComponent {
     fullScreenAvailable: PropTypes.bool,
     onFullScreenChanged: PropTypes.func, // (fullScreenMode: bool) => {}
     isModal: PropTypes.any,
+    entityId: PropTypes.string,
+    fullPath: PropTypes.any,
+    setTutorialWikiEditor: PropTypes.func,
+    showSummary: PropTypes.bool,
   };
 
   static defaultProps = {
     readMode: true,
   };
 
-  _id = uuid.v4();
+  _id = uuidv4();
   _hasScroll = false;
+  _isMounted = false;
 
   state = {
+    isLoading: true,
+    showSummary: this.props.showSummary,
     fullScreenMode: false, //only works if readMode = false. Defined whether editor in a full screen side by side mode
   };
 
-  componentDidMount() {
-    this.createEditor();
+  async componentDidMount() {
+    this._isMounted = true;
+    if (additionalWikiControls()?.summary) {
+      const additionalToolbarButton =
+        await additionalWikiControls()?.additionalToolbarButton(
+          this.toggleSummary
+        );
+      if (!this._isMounted) return;
+      this.setState({ isLoading: false });
+      this.createEditor(additionalToolbarButton);
+    } else {
+      this.setState({ isLoading: false });
+      this.createEditor();
+    }
+
     this.handlePropsChange(undefined, undefined, this.props, this.state); // we should set initial editor state. Reuse componentDidUpdate for that purposes.
     this.updateHasScroll();
   }
 
   componentWillUnmount() {
-    this.editor.toTextArea();
+    if (this.editor) {
+      this.editor.toTextArea();
+      this.props.setTutorialWikiEditor?.(null);
+    }
     this.editor = null; // release resources
+    this._isMounted = false;
   }
 
-  createEditor = () => {
+  createEditor = (additionalToolbarButton) => {
     const { value } = this.props;
 
     this.editor = new SimpleMDE({
       autoDownloadFontAwesome: false,
-      toolbar: this.getToolbar(), // should be rendered in any mode. Toolbar would be hidden via styles in read mode
+      toolbar: this.getToolbar(additionalToolbarButton), // should be rendered in any mode. Toolbar would be hidden via styles in read mode
       initialValue: value,
       spellChecker: false,
       status: false,
@@ -133,6 +159,8 @@ export class MarkdownEditorView extends PureComponent {
         onChange(this.editor.value());
       }
     });
+
+    this.props.setTutorialWikiEditor?.(this.editor);
   };
 
   static getDerivedStateFromProps(nextProps, prevState) {
@@ -259,12 +287,18 @@ export class MarkdownEditorView extends PureComponent {
     );
   };
 
+  toggleSummary = () => {
+    this.setState({
+      showSummary: !this.state.showSummary,
+    });
+  };
+
   getMdeInstance = (editor) => {
     this.editor = editor;
   };
 
   focus() {
-    this.editor.codemirror.focus();
+    if (this.editor) this.editor.codemirror.focus();
   }
 
   //needed as instance method for tests
@@ -315,7 +349,7 @@ export class MarkdownEditorView extends PureComponent {
     }
   };
 
-  getToolbar = () => {
+  getToolbar = (additionalToolbarButton) => {
     const { onCancelClick, onSaveClick, fullScreenAvailable } = this.props;
 
     // simple mde has a bug, that menu items should be presented to use some functionality.
@@ -333,6 +367,10 @@ export class MarkdownEditorView extends PureComponent {
       "link",
       "image",
     ];
+
+    if (additionalToolbarButton) {
+      buttons.push(additionalToolbarButton);
+    }
 
     if (fullScreenAvailable) {
       buttons.push("|", {
@@ -368,20 +406,34 @@ export class MarkdownEditorView extends PureComponent {
   };
 
   render() {
-    const { readMode, className, fitToContainer, isModal } = this.props;
-
+    const { readMode, className, fitToContainer, isModal, entityId, fullPath } =
+      this.props;
     return (
-      <div
-        className={classNames(
-          editorCls,
-          isModal && wikiModalHeight,
-          readMode && readModeCls,
-          fitToContainer && fitToParentCls,
-          className
-        )}
-      >
-        <textarea id={this._id} />
-      </div>
+      <>
+        <div
+          className={classNames(
+            editorCls,
+            readMode && readModeCls,
+            fitToContainer && fitToParentCls,
+            className
+          )}
+        >
+          <textarea
+            id={this._id}
+            style={{ display: this.state.isLoading ? "none" : "default" }}
+          />
+          {this.state.isLoading && (
+            <div className={loader}>
+              <Spinner size="xl" />
+            </div>
+          )}
+        </div>
+        {additionalWikiControls()?.summary?.({
+          entityId,
+          fullPath,
+          shouldRender: !this.state.isLoading && this.state.showSummary,
+        })}
+      </>
     );
   }
 }

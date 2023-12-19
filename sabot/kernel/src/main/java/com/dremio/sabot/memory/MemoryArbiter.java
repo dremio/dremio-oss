@@ -15,11 +15,28 @@
  */
 package com.dremio.sabot.memory;
 
+import org.apache.arrow.memory.RootAllocator;
+
+import com.dremio.common.config.SabotConfig;
+import com.dremio.options.OptionManager;
+import com.dremio.sabot.exec.FragmentExecutors;
+import com.dremio.sabot.exec.QueriesClerk;
+
+
 /**
  * This interface defines the MemoryArbiter. The MemoryArbiter allows sharing of memory by
  * various tasks
  */
-public interface MemoryArbiter {
+public interface MemoryArbiter extends AutoCloseable {
+  static MemoryArbiter newInstance(SabotConfig sabotConfig, RootAllocator rootAllocator,
+                                   FragmentExecutors fragmentExecutors, QueriesClerk clerk,
+                                   final OptionManager options) {
+    MemoryArbiterFactory memoryArbiterFactory = sabotConfig.getInstance(MemoryArbiterFactory.DREMIO_MEMORY_ARBITER_FACTORY_CLASS,
+      MemoryArbiterFactory.class, DefaultMemoryArbiter.Factory.class);
+
+    return memoryArbiterFactory.newInstance(sabotConfig, rootAllocator, fragmentExecutors, clerk, options);
+  }
+
   /**
    * This method notifies that the task is done
    *
@@ -27,13 +44,17 @@ public interface MemoryArbiter {
    */
   void taskDone(MemoryArbiterTask memoryArbiterTask);
 
-  default void startTask(MemoryArbiterTask memoryArbiterTask) {
-  }
+  /**
+   * This method notifies that the task starts
+   *
+   * @param memoryArbiterTask The task that is starting
+   */
+  void startTask(MemoryArbiterTask memoryArbiterTask);
 
   /**
    * Acquires a grant of memory to run the task
    *
-   * @param memoryArbiterTask The task that is requesting the grant
+   * @param memoryArbiterTask  The task that is requesting the grant
    * @param memoryGrantInBytes The memory size in bytes
    * @return true, if the request has been granted
    */
@@ -49,17 +70,17 @@ public interface MemoryArbiter {
   /**
    * Removes the task from blocked tasks
    *
-   * @param memoryArbiterTask  The task that needs to be removed from blocked tasks
+   * @param memoryArbiterTask The task that needs to be removed from blocked tasks
    */
-  default boolean removeFromBlocked(MemoryArbiterTask memoryArbiterTask) {
-    return false;
-  }
+  boolean removeFromBlocked(MemoryArbiterTask memoryArbiterTask);
 
-  /**
-   * Sets the memory set-aside by the MemoryArbiter
-   *
-   * @param memorySetAsidePct: percentage of memory that needs to be set-aside
-   */
-  default void setMemorySetAsidePct(double memorySetAsidePct) {
+  void addTaskToQueue(MemoryArbiterTask memoryArbiterTask);
+
+  public static interface MemoryArbiterFactory {
+    String DREMIO_MEMORY_ARBITER_FACTORY_CLASS = "dremio.memory.arbiter.factory.class";
+
+    MemoryArbiter newInstance(SabotConfig sabotConfig, RootAllocator rootAllocator,
+                              FragmentExecutors fragmentExecutors, QueriesClerk clerk,
+                              OptionManager options);
   }
 }

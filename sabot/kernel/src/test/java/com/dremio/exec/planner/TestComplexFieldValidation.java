@@ -29,13 +29,13 @@ public class TestComplexFieldValidation extends PlanTestBase {
   @Test
   public void testAnyTypeWithArrayMissingColumn1() throws Exception {
     errorMsgTestHelper("select complex.a[0].b.this_column_does_not_exist from (select CONVERT_FROM('{\"a\":[{\"b\":{\"c\":2}}]}','JSON') complex)",
-      "VALIDATION ERROR: Unable to find the referenced field: [EXPR$1.a[0].b.this_column_does_not_exist]");
+      "VALIDATION ERROR: Unable to find the referenced field: [FIELD_ACCESS_EXPR.this_column_does_not_exist]");
   }
 
   @Test
   public void testAnyTypeWithArrayMissingColumn2() throws Exception {
     errorMsgTestHelper("select complex.a[0].this_column_does_not_exist from (select CONVERT_FROM('{\"a\":[{\"b\":{\"c\":2}}]}','JSON') complex)",
-      "VALIDATION ERROR: Unable to find the referenced field: [EXPR$1.a[0].this_column_does_not_exist]");
+      "VALIDATION ERROR: Unable to find the referenced field: [FIELD_ACCESS_EXPR.this_column_does_not_exist]");
   }
 
   @Test
@@ -46,13 +46,13 @@ public class TestComplexFieldValidation extends PlanTestBase {
   @Test
   public void testAnyTypeMissingColumn1() throws Exception {
     errorMsgTestHelper("select complex.a.b.this_column_does_not_exist from (select CONVERT_FROM('{\"a\":{\"b\":{\"c\":2}}}','JSON') complex)",
-      "VALIDATION ERROR: Unable to find the referenced field: [EXPR$1.a.b.this_column_does_not_exist]");
+      "VALIDATION ERROR: Unable to find the referenced field: [FIELD_ACCESS_EXPR.this_column_does_not_exist]");
   }
 
   @Test
   public void testAnyTypeMissingColumn2() throws Exception {
     errorMsgTestHelper("select complex.a.this_column_does_not_exist from (select CONVERT_FROM('{\"a\":{\"b\":{\"c\":2}}}','JSON') complex)",
-      "VALIDATION ERROR: Unable to find the referenced field: [EXPR$1.a.this_column_does_not_exist]");
+      "VALIDATION ERROR: Unable to find the referenced field: [FIELD_ACCESS_EXPR.this_column_does_not_exist]");
   }
 
   @Test

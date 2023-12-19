@@ -39,6 +39,7 @@ import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.op.sender.BaseSender;
 import com.dremio.sabot.op.sender.SenderLatencyTracker;
+import com.dremio.sabot.op.sender.partition.vectorized.AdaptiveVectorizedPartitionSenderOperator;
 import com.dremio.sabot.op.sender.partition.vectorized.VectorizedPartitionSenderOperator;
 import com.dremio.sabot.op.spi.TerminalOperator;
 import com.google.common.annotations.VisibleForTesting;
@@ -96,7 +97,13 @@ public class PartitionSenderOperator extends BaseSender {
     NUM_FLUSHES,
     BUCKET_SIZE,
     SUM_ACK_MILLIS,
-    MAX_ACK_MILLIS;
+    MAX_ACK_MILLIS,
+
+    // OOB related metrics
+    OOB_PARTITION_COUNTERS_SENDS, // Number of times operator informed others of local seen partition counters
+    OOB_PARTITION_COUNTERS_RECEIVES, // Number of times operator received a notification of partition counters from peers.
+
+    OOB_DOP; // Adjusted DOP based on oob messages
 
     @Override
     public int metricId() {
@@ -313,7 +320,11 @@ public class PartitionSenderOperator extends BaseSender {
     public TerminalOperator create(TunnelProvider tunnelProvider, OperatorContext context, HashPartitionSender operator)
         throws ExecutionSetupException {
       if (context.getOptions().getOption(ExecConstants.ENABLE_VECTORIZED_PARTITIONER)) {
-        return new VectorizedPartitionSenderOperator(context, tunnelProvider, operator);
+        if (operator.getAdaptiveHash()) {
+          return new AdaptiveVectorizedPartitionSenderOperator(context, tunnelProvider, operator);
+        } else {
+          return new VectorizedPartitionSenderOperator(context, tunnelProvider, operator);
+        }
       } else {
       return new PartitionSenderOperator(context, tunnelProvider, operator);
       }

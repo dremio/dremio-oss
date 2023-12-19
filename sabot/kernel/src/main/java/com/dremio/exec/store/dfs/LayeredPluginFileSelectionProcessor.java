@@ -17,7 +17,6 @@ package com.dremio.exec.store.dfs;
 
 import java.io.IOException;
 
-import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.file.proto.FileProtobuf;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
@@ -49,17 +48,7 @@ public class LayeredPluginFileSelectionProcessor implements FileSelectionProcess
   }
 
   @Override
-  public void assertCompatibleFileCount(SabotContext config, boolean isInternal) {
-    // Do not check, because we don't do a listing on folder.
-  }
-
-  @Override
   public FileSelection normalizeForPlugin(FileSelection selection) {
     return selection;
-  }
-
-  @Override
-  public void expandIfNecessary() {
-    // No need to expand for layered plugins
   }
 }

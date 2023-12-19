@@ -53,7 +53,7 @@ class AdminPage extends PureComponent {
   render() {
     const { routeParams, location, children } = this.props;
     return (
-      <DocumentTitle title={la("Settings")}>
+      <DocumentTitle title={laDeprecated("Settings")}>
         <AdminPageView
           routeParams={routeParams}
           sections={this.state.sections}

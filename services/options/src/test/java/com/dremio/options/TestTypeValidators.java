@@ -236,9 +236,9 @@ public class TestTypeValidators {
   /**
    * Tests for {@code TypeValidators.AdminOptionValidator}
    */
-  public static class TestAdminOptionValidator {
+  public static class TestAdminStringValidator {
     protected TypeValidator newValidator(String def) {
-      return new TypeValidators.AdminOptionValidator("test-option", def);
+      return new TypeValidators.AdminStringValidator("test-option", def);
     }
 
     @Test
@@ -296,6 +296,28 @@ public class TestTypeValidators {
     public void invalidOption() {
       OptionValidator validator = newValidator("foo");
       validator.validate(newStringValue("bar"));
+    }
+  }
+
+  /**
+   * Tests for {@code TypeValidators.AdminLevelOptionValidation}
+   */
+  public static class TestAdminPositiveLongValidator {
+    protected OptionValidator newValidator(long def) {
+      return new TypeValidators.AdminPositiveLongValidator("test-option", Integer.MAX_VALUE, def);
+    }
+
+    @Test
+    public void ok() {
+      OptionValidator validator = newValidator(10);
+      // check no fail...
+      validator.validate(newLongValue(2));
+    }
+
+    @Test(expected = UserException.class)
+    public void invalidOption() {
+      OptionValidator validator = newValidator(20);
+      validator.validate(OptionValue.createLong(OptionValue.OptionType.QUERY, "test-option", 20));
     }
   }
 

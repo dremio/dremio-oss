@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.distribution</groupId>
     <artifactId>dremio-distribution-parent</artifactId>
-    <version>24.1.0-202306130653310132-d30779f6</version>
+    <version>24.3.0-202312190021150029-52db2faf</version>
   </parent>
 
   <artifactId>dremio-distribution</artifactId>
@@ -36,8 +36,8 @@
     <dremio.hive.plugin-group-id>com.dremio.plugins</dremio.hive.plugin-group-id>
     <dremio.hive.plugin-artifact-id-prefix>dremio</dremio.hive.plugin-artifact-id-prefix>
     <!-- You will also need to increase the maxSize for the MapR version, under a profile in this file  -->
-    <dremio.distribution.tar.maxSize>820000000</dremio.distribution.tar.maxSize>
-    <dremio.distribution.rpm.maxSize>800000000</dremio.distribution.rpm.maxSize>
+    <dremio.distribution.tar.maxSize>930000000</dremio.distribution.tar.maxSize>
+    <dremio.distribution.rpm.maxSize>920000000</dremio.distribution.rpm.maxSize>
   </properties>
 
   <dependencies>
@@ -140,10 +140,6 @@
     <dependency>
       <groupId>ch.qos.logback</groupId>
       <artifactId>logback-classic</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>de.huxhorn.lilith</groupId>
-      <artifactId>de.huxhorn.lilith.logback.appender.multiplex-classic</artifactId>
     </dependency>
     <dependency>
       <groupId>net.logstash.logback</groupId>
@@ -569,8 +565,8 @@ exit 0
         </property>
       </activation>
       <properties>
-        <dremio.distribution.tar.maxSize>928000000</dremio.distribution.tar.maxSize>
-        <dremio.distribution.rpm.maxSize>920000000</dremio.distribution.rpm.maxSize>
+        <dremio.distribution.tar.maxSize>991400000</dremio.distribution.tar.maxSize>
+        <dremio.distribution.rpm.maxSize>980000000</dremio.distribution.rpm.maxSize>
       </properties>
       <dependencies>
         <dependency>
@@ -642,6 +638,29 @@ exit 0
         <dremio.hive.plugin-artifact-id-prefix>dremio-ce</dremio.hive.plugin-artifact-id-prefix>
         <dremio.hive.plugin-group-id>com.dremio.community.plugins</dremio.hive.plugin-group-id>
       </properties>
+    </profile>
+    <profile>
+      <id>hive-universal</id>
+      <activation>
+        <property>
+          <name>hive-universal</name>
+        </property>
+      </activation>
+      <dependencies>
+        <!-- overriding the scope to 'provided' will effectively exclude hive2 plugin jar -->
+        <dependency>
+          <groupId>${dremio.hive.plugin-group-id}</groupId>
+          <artifactId>${dremio.hive.plugin-artifact-id-prefix}-hive2-plugin</artifactId>
+          <version>${project.version}</version>
+          <exclusions>
+            <exclusion>
+              <groupId>*</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+          </exclusions>
+          <scope>provided</scope>
+        </dependency>
+      </dependencies>
     </profile>
   </profiles>
 </project>

@@ -15,6 +15,7 @@
  */
 package com.dremio.datastore.indexed;
 
+import static com.dremio.datastore.indexed.LuceneSearchIndex.MergeSchedulerInfoStream.MAX_THRESHOLD;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -318,7 +319,7 @@ public class TestLuceneIndexer {
 
   @Test(expected = StaleSearcherException.class)
   public void testSearcherCacheTTL() throws Exception {
-    try (LuceneSearchIndex index = new LuceneSearchIndex(null, "multithreaded-search", true, CommitWrapper.NO_OP, 500)) {
+    try (LuceneSearchIndex index = new LuceneSearchIndex(null, "multithreaded-search", true, CommitWrapper.NO_OP, 500, new LuceneSearchIndex.MergeSchedulerInfoStream("multithreaded-search"))) {
       for (int i = 0; i < 10; ++i) {
         final Document doc = new Document();
         doc.add(
@@ -430,5 +431,45 @@ public class TestLuceneIndexer {
 
     assertTrue(opens.get() >= 3); // committer thread might commit as well
     assertEquals(opens.get(), closes.get());
+  }
+
+  @Test
+  public void testPrintMergeScheduler() throws Exception {
+    // Ensure the Merge Scheduler prints everything. It will lead to print the message that
+    // we want to see
+    LuceneSearchIndex.MergeSchedulerInfoStream infoStream = new LuceneSearchIndex.MergeSchedulerInfoStream("catalog-search") {
+      @Override
+      public boolean isEnabled(String component) {
+        return true;
+      }
+    };
+    try (LuceneSearchIndex index = new LuceneSearchIndex(null, "catalog-search", true, CommitWrapper.NO_OP, 500, infoStream)) {
+      for (int i = 0 ; i < 500_000 ; i++) {
+        final Document doc = new Document();
+        doc.add(new StringField(CoreIndexedStore.ID_FIELD_NAME, new BytesRef("1".getBytes()), Store.YES));
+        doc.add(new StringField("ds", "space1.ds" + i, Field.Store.NO));
+        doc.add(new StringField("job", "job" + i, Field.Store.YES));
+        doc.add(new StringField("version", "v" + i, Field.Store.NO));
+        doc.add(new SortedDocValuesField("version", new BytesRef("v" + i)));
+        doc.add(new StringField("foo", "bar" + i, Store.NO));
+        doc.add(new SortedDocValuesField("foo", new BytesRef("bar" + i)));
+        index.add(doc);
+      }
+    }
+    // Ensure we have printed message
+    assertTrue(infoStream.getNbMessages() > 150L);
+    assertTrue(infoStream.generateNextPrintThreshold() > 400L);
+  }
+
+  @Test
+  public void testGenerateNextPrintThreshold() {
+    long[] expectedValues = {30, 60, 120, 240, 480, 960, 1920, 3840, 7680, 15360, MAX_THRESHOLD, MAX_THRESHOLD, MAX_THRESHOLD, MAX_THRESHOLD, MAX_THRESHOLD};
+    try(LuceneSearchIndex.MergeSchedulerInfoStream stream = new LuceneSearchIndex.MergeSchedulerInfoStream("catalog-search")) {
+      long currentThreshold = 30;
+      for (int i = 0 ; i < 15 ; i++) {
+        assertEquals(expectedValues[i], currentThreshold);
+        currentThreshold = stream.generateNextPrintThreshold();
+      }
+    }
   }
 }

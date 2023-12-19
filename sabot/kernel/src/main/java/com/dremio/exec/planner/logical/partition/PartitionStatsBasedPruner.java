@@ -15,8 +15,8 @@
  */
 package com.dremio.exec.planner.logical.partition;
 
-import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_SPEC_EVOL_TRANFORMATION;
-import static com.dremio.exec.store.iceberg.IcebergUtils.getUsedIndices;
+import static com.dremio.common.expression.CompleteType.fromMajorType;
+import static com.dremio.proto.model.PartitionStats.PartitionStatsValue;
 import static org.apache.calcite.sql.SqlKind.AND;
 import static org.apache.calcite.sql.SqlKind.EQUALS;
 import static org.apache.calcite.sql.SqlKind.GREATER_THAN;
@@ -24,7 +24,6 @@ import static org.apache.calcite.sql.SqlKind.GREATER_THAN_OR_EQUAL;
 import static org.apache.calcite.sql.SqlKind.LESS_THAN;
 import static org.apache.calcite.sql.SqlKind.LESS_THAN_OR_EQUAL;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -32,13 +31,11 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
-import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
@@ -53,16 +50,14 @@ import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
-import org.apache.calcite.rex.RexInputRef;
-import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.rex.RexVisitorImpl;
 import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionSpec;
@@ -70,38 +65,27 @@ import org.apache.iceberg.PartitionStatsEntry;
 import org.apache.iceberg.PartitionStatsReader;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.io.CloseableIterator;
-import org.apache.iceberg.io.FileIO;
-import org.apache.iceberg.io.InputFile;
+import org.apache.iceberg.types.Type;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.VM;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.common.types.TypeProtos;
 import com.dremio.common.types.TypeProtos.MajorType;
-import com.dremio.exec.catalog.MutablePlugin;
-import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.exec.ops.OptimizerRulesContext;
-import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
-import com.dremio.exec.planner.common.ImmutableDremioFileAttrs;
-import com.dremio.exec.planner.common.PartitionStatsHelper;
+import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.logical.partition.FindSimpleFilters.StateHolder;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.TableMetadata;
+import com.dremio.exec.store.iceberg.FieldIdBroker;
 import com.dremio.exec.store.iceberg.IcebergUtils;
-import com.dremio.exec.store.iceberg.SupportsIcebergRootPointer;
-import com.dremio.io.file.FileSystem;
-import com.dremio.sabot.exec.context.OpProfileDef;
-import com.dremio.sabot.exec.context.OperatorContextImpl;
-import com.dremio.sabot.exec.context.OperatorStats;
+import com.dremio.exec.store.iceberg.SchemaConverter;
+import com.dremio.extra.exec.store.dfs.parquet.pushdownfilter.FilterExtractor;
 import com.dremio.service.Pointer;
-import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Multimap;
 
-import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 
 /**
@@ -115,19 +99,30 @@ public class PartitionStatsBasedPruner extends RecordPruner {
   private final CloseableIterator<PartitionStatsEntry> statsEntryIterator;
   private Map<Integer, Integer> partitionColIdToSpecColIdMap; // partition col ID to col ID in Iceberg partition spec
   private Map<String, Integer> partitionColNameToSpecColIdMap; // col name to col ID in Iceberg partition spec
+  private Map<String, MajorType> partitionColNameToPartitionFunctionOutputType; //col name to output type of the partition function
   private String fileLocation;
+  private final ScanRelBase scan;
+
+  public Map<String, MajorType> getPartitionColNameToPartitionFunctionOutputType() {
+    return partitionColNameToPartitionFunctionOutputType;
+  }
+
+  public PartitionSpec getPartitionSpec(){
+    return partitionSpec;
+  }
 
   public PartitionStatsBasedPruner(String fileLocation, PartitionStatsReader partitionStatsReader, OptimizerRulesContext rulesContext,
-                                   PartitionSpec partitionSpec) {
+                                   PartitionSpec partitionSpec, ScanRelBase scan) {
     super(rulesContext);
     this.statsEntryIterator = partitionStatsReader.iterator();
     this.partitionSpec = partitionSpec;
     this.fileLocation = fileLocation;
+    this.scan = scan;
   }
 
   @WithSpan("partitions-stats-prune")
   @Override
-  public Pair<Long, Long> prune(
+  public PartitionStatsValue prune(
     Map<Integer, String> inUseColIdToNameMap,
     Map<String, Integer> partitionColToIdMap,
     Function<RexNode, List<Integer>> usedIndexes,
@@ -148,20 +143,40 @@ public class PartitionStatsBasedPruner extends RecordPruner {
       rexConditions = holder.getConditions();
     }
 
+    RexNode remainingExpressionWithPartitionTransformsRemoved = holder.hasRemainingExpression() ?
+      removeFilterOnNonTransformationPartitionedColumns(cluster, holder.getNode()) : null;
+
     long qualifiedRecordCount = 0, qualifiedFileCount = 0;
-    ConditionsByColumn conditionsByColumn = buildSargPrunableConditions(usedIndexes, projectedColumns, rexVisitor, rexConditions);
-    if (canPruneWhollyWithSarg(holder, conditionsByColumn)) {
-      Pair<Long, Long> counts = evaluateWithSarg(conditionsByColumn, tableMetadata);
+    SargPrunableEvaluator sargPrunableEvaluator = SargPrunableEvaluator.newInstance(
+      this, usedIndexes, projectedColumns, rexVisitor, rexConditions, rowType, cluster) ;
+    if (canPruneWhollyWithSarg(holder, sargPrunableEvaluator)
+        || canPrunePartiallyWithSargAndNoEvalPruningPossible(sargPrunableEvaluator, remainingExpressionWithPartitionTransformsRemoved )) {
+      Pair<Long, Long> counts = sargPrunableEvaluator.evaluateWithSarg(tableMetadata);
       qualifiedFileCount = counts.getRight();
       qualifiedRecordCount = counts.getLeft();
+      updateCounters(true);
     } else {
+      //eval pruning
+      RexNode pruneConditionWithPartitionTransformsRemoved = removeFilterOnNonTransformationPartitionedColumns(cluster, pruneCondition);
+      if(pruneConditionWithPartitionTransformsRemoved == null ||
+        pruneConditionWithPartitionTransformsRemoved.isAlwaysTrue()){
+        //it is possible that all the partition filters were on columns that have Iceberg Transform defined on them
+        //unfortunately, we cannot prune those with eval pruning
+        //if all the filters were removed, we will consider all the rows qualified
+        qualifiedRecordCount = tableMetadata.getApproximateRecordCount();
+        qualifiedFileCount = tableMetadata.getDatasetConfig().getReadDefinition().getManifestScanStats().getRecordCount();
+        return PartitionStatsValue.newBuilder()
+          .setRowcount(qualifiedRecordCount)
+          .setFilecount(getNoOfSplitsAdjustedNumberOfFiles(qualifiedFileCount))
+          .build();
+      }
       int batchIndex = 0;
       long[] recordCounts = null;
       long[] fileCounts = null;
       LogicalExpression materializedExpr = null;
       boolean countOverflowFound = false;
       while (!countOverflowFound && statsEntryIterator.hasNext()) {
-        List<PartitionStatsEntry> entriesInBatch = createRecordBatch(conditionsByColumn, batchIndex);
+        List<PartitionStatsEntry> entriesInBatch = createRecordBatch(sargPrunableEvaluator, batchIndex);
         int batchSize = entriesInBatch.size();
         if (batchSize == 0) {
           logger.debug("batch: {} is empty as sarg pruned all entries", batchIndex);
@@ -170,7 +185,7 @@ public class PartitionStatsBasedPruner extends RecordPruner {
 
         if (batchIndex == 0) {
           setupVectors(inUseColIdToNameMap, partitionColToIdMap, batchSize);
-          materializedExpr = materializePruneExpr(pruneCondition, rowType, cluster);
+          materializedExpr = materializePruneExpr(pruneConditionWithPartitionTransformsRemoved, rowType, cluster);
           recordCounts = new long[batchSize];
           fileCounts = new long[batchSize];
         }
@@ -201,11 +216,67 @@ public class PartitionStatsBasedPruner extends RecordPruner {
         qualifiedRecordCount = tableMetadata.getApproximateRecordCount();
         qualifiedFileCount = tableMetadata.getDatasetConfig().getReadDefinition().getManifestScanStats().getRecordCount();
       }
+      if(sargPrunableEvaluator.hasConditions()){ //we apply SargPrunable conditions too for eval case in createRecordBatch()
+        updateCounters(true);
+      }
+      updateCounters(false);
     }
     qualifiedRecordCount = ( qualifiedRecordCount < 0 ) ? tableMetadata.getApproximateRecordCount() : qualifiedRecordCount;
     qualifiedFileCount = (qualifiedFileCount < 0) ? tableMetadata.getDatasetConfig().getReadDefinition().getManifestScanStats().getRecordCount() : qualifiedFileCount;
-    updateCounters(holder);
-    return Pair.of(qualifiedRecordCount, qualifiedFileCount * optimizerContext.getPlannerSettings().getNoOfSplitsPerFile());
+
+    return PartitionStatsValue.newBuilder()
+      .setRowcount(qualifiedRecordCount)
+      .setFilecount(getNoOfSplitsAdjustedNumberOfFiles(qualifiedFileCount))
+      .build();
+  }
+
+  /**
+   * Returns true if the partition stats can be partially pruned by sargPrunableEvaluator
+   * and there are no conditions that can be pruned by Eval pruning
+   * @param sargPrunableEvaluator sarg prunable evaluator built for this filter
+   * @param pruneConditionWithPartitionTransformsRemoved remaining filter for eval pruning
+   * @return true if the partition stats can be partially pruned by sargPrunableEvaluator, and no eval pruning possible
+   */
+  private boolean canPrunePartiallyWithSargAndNoEvalPruningPossible(SargPrunableEvaluator sargPrunableEvaluator, RexNode pruneConditionWithPartitionTransformsRemoved) {
+    return sargPrunableEvaluator.hasConditions()
+      && (pruneConditionWithPartitionTransformsRemoved == null || pruneConditionWithPartitionTransformsRemoved.isAlwaysTrue());
+  }
+
+  /**
+   * Returns the number of splits using number of files and getPlannerSettings().getNoOfSplitsPerFile()
+   * @param qualifiedFileCount files count
+   * @return the number of splits adjusted by getPlannerSettings().getNoOfSplitsPerFile()
+   */
+  private long getNoOfSplitsAdjustedNumberOfFiles(long qualifiedFileCount) {
+    return qualifiedFileCount * optimizerContext.getPlannerSettings().getNoOfSplitsPerFile();
+  }
+
+  /**
+   * Removes any filter on Partition transformed columns by making them (true/none)
+   * The remaining filter is returned
+   * @param cluster RelOptCluster to use
+   * @param pruneCondition condition to prune
+   * @return the filter pruned to remove any filter on partition columns transformed by an Iceberg transform
+   */
+  private RexNode removeFilterOnNonTransformationPartitionedColumns(RelOptCluster cluster, RexNode pruneCondition) {
+    if(pruneCondition == null){
+      return null;
+    }
+    RexBuilder rexBuilder = cluster.getRexBuilder();
+    final ImmutableBitSet partitionColumnsIdentityTransformOnly = MoreRelOptUtil.buildColumnSet(scan,
+      partitionSpec
+        .fields()
+        .stream()
+        .filter(partitionField -> partitionField.transform().isIdentity())
+        .map(partitionField->partitionField.name())
+        .collect(Collectors.toList()));
+
+    RexNode partitionFilter =
+      FilterExtractor.extractFilter(rexBuilder, pruneCondition, rexNode -> {
+        ImmutableBitSet inputs = RelOptUtil.InputFinder.bits(rexNode);
+        return partitionColumnsIdentityTransformOnly.contains(inputs);
+      });
+    return partitionFilter;
   }
 
   @Override
@@ -213,62 +284,27 @@ public class PartitionStatsBasedPruner extends RecordPruner {
     AutoCloseables.close(RuntimeException.class, statsEntryIterator, super::close);
   }
 
-  protected void updateCounters(StateHolder holder) {
+  protected void updateCounters(boolean isSarge) {
     // Update test counters only when assertions are enabled, which is the case for test flow
     if (VM.areAssertsEnabled()) {
-      boolean hasDecimalCols = hasDecimalCols(holder);
-      if (holder.hasConditions() && !hasDecimalCols) {
+      if(isSarge) {
         TestCounters.incrementRecordCountEvaluatedWithSargCounter(); // expression was partly or wholly evaluated with sarg
-      }
-
-      if (holder.hasRemainingExpression() || hasDecimalCols) {
+      } else{
         TestCounters.incrementRecordCountEvaluatedWithEvalCounter();
       }
     }
   }
 
-  private Pair<Long, Long> evaluateWithSarg(ConditionsByColumn conditionsByColumn, TableMetadata tableMetadata) {
-    timer.start();
-    long qualifiedCount = 0, qualifiedFileCount = 0;
-    while (statsEntryIterator.hasNext()) {
-      PartitionStatsEntry statsEntry = statsEntryIterator.next();
-      StructLike partitionData = statsEntry.getPartition();
-      if (isRecordMatch(conditionsByColumn, partitionData)) {
-       long statsEntryReocrdCount = statsEntry.getRecordCount();
-       long statsEntryFileCount = statsEntry.getFileCount();
-       qualifiedCount += statsEntryReocrdCount;
-       qualifiedFileCount += statsEntryFileCount;
-
-        if (statsEntryReocrdCount < 0 || qualifiedCount < 0) {
-          qualifiedCount = tableMetadata.getApproximateRecordCount();
-          logger.info("Record count overflowed while evaluating partition filter. Partition stats file {}. Partition Expression {}", this.fileLocation, conditionsByColumn.toString());
-          break;
-        }
-
-        if (statsEntryFileCount < 0 || qualifiedFileCount < 0) {
-          qualifiedFileCount = tableMetadata.getDatasetConfig().getReadDefinition().getManifestScanStats().getRecordCount();
-          logger.info("File count overflowed while evaluating partition filter. Partition stats file {}. Partition Expression {}", this.fileLocation, conditionsByColumn.toString());
-          break;
-        }
-      }
-    }
-    logger.debug("Elapsed time to find surviving records: {}ms", timer.elapsed(TimeUnit.MILLISECONDS));
-    timer.reset();
-
-    return Pair.of(qualifiedCount, qualifiedFileCount);
-  }
-
-  private List<PartitionStatsEntry> createRecordBatch(ConditionsByColumn conditionsByColumn, int batchIndex) {
+  private List<PartitionStatsEntry> createRecordBatch(SargPrunableEvaluator sargPrunableEvaluator, int batchIndex) {
     timer.start();
     List<PartitionStatsEntry> entriesInBatch = new ArrayList<>();
     while (entriesInBatch.size() < PARTITION_BATCH_SIZE && statsEntryIterator.hasNext()) {
       PartitionStatsEntry statsEntry = statsEntryIterator.next();
       StructLike partitionData = statsEntry.getPartition();
-      if (!conditionsByColumn.hasConditions() || isRecordMatch(conditionsByColumn, partitionData)) {
+      if (!sargPrunableEvaluator.hasConditions() || sargPrunableEvaluator.isRecordMatch(partitionData)) {
         entriesInBatch.add(statsEntry);
       }
     }
-
     logger.debug("Elapsed time to get list of partition stats entries for the current batch: {}ms within batchIndex: {}",
       timer.elapsed(TimeUnit.MILLISECONDS), batchIndex);
     timer.reset();
@@ -290,54 +326,29 @@ public class PartitionStatsBasedPruner extends RecordPruner {
     timer.reset();
   }
 
-  private boolean canPruneWhollyWithSarg(StateHolder holder, ConditionsByColumn conditionsByColumn) {
+  private boolean canPruneWhollyWithSarg(StateHolder holder, SargPrunableEvaluator conditionsByColumn) {
     return !holder.hasRemainingExpression() && conditionsByColumn.hasConditions();
   }
 
-  private ConditionsByColumn buildSargPrunableConditions(Function<RexNode, List<Integer>> usedIndexes,
-                                                         List<SchemaPath> projectedColumns,
-                                                         FindSimpleFilters rexVisitor,
-                                                         ImmutableList<RexCall> rexConditions) {
-    ConditionsByColumn conditionsByColumn = new ConditionsByColumn();
-    for (RexCall condition : rexConditions) {
-      ImmutableList<RexNode> ops = condition.operands;
-      if (ops.size() != 2) {
-        continue; // We're only interested in conditions with two operands
-      }
-
-      StateHolder a = ops.get(0).accept(rexVisitor);
-      StateHolder b = ops.get(1).accept(rexVisitor);
-      if (a.getType() == FindSimpleFilters.Type.LITERAL && b.getType() == FindSimpleFilters.Type.INPUT) {
-        // e.g. '2020' = year
-        addCondition(usedIndexes, projectedColumns, condition, conditionsByColumn, b, a);
-      } else if (a.getType() == FindSimpleFilters.Type.INPUT && b.getType() == FindSimpleFilters.Type.LITERAL) {
-        // e.g. year = '2020'
-        addCondition(usedIndexes, projectedColumns, condition, conditionsByColumn, a, b);
-      }
-    }
-    return conditionsByColumn;
+  /**
+   * Given an input type, calculate the output type after an iceberg transform is performed on it
+   * @param inputMajorType input type
+   * @param partitionField partition field, containing a transform
+   * @return the resulting output type
+   */
+  private MajorType getPartitionFunctionOutputType(final MajorType inputMajorType, final PartitionField partitionField) {
+  if (partitionField.transform().isIdentity()) {
+    //identity will not change the type, just return the inputMajorType
+    return inputMajorType;
   }
-
-  private void addCondition(Function<RexNode, List<Integer>> usedIndexes, List<SchemaPath> projectedColumns,
-                            RexCall condition, ConditionsByColumn conditionsByColumn,
-                            StateHolder input, StateHolder literal) {
-    int colIndex = usedIndexes.apply(input.getNode()).stream().findFirst().get();
-    String colName = projectedColumns.get(colIndex).getAsUnescapedPath();
-    Comparable<?> value = getValueFromFilter(colName, literal.getNode());
-    conditionsByColumn.addCondition(colName, new Condition(condition.getKind(), value));
-  }
-
-  private boolean isRecordMatch(ConditionsByColumn conditionsByColumn, StructLike partitionData) {
-    for (String colName : conditionsByColumn.getColumnNames()) {
-      Integer indexInPartitionSpec = partitionColNameToSpecColIdMap.get(colName);
-      Comparable<?> valueFromPartitionData = getValueFromPartitionData(indexInPartitionSpec, colName, partitionData);
-      if (!conditionsByColumn.satisfiesComparison(colName, valueFromPartitionData)) {
-        return false;
-      }
-    }
-    return true;
-  }
-
+  //convert to Iceberg type, ask the transform what would the be Iceberg return type of the transform
+  //then convert the result back to MajorType and return it
+  final SchemaConverter schemaConverter = SchemaConverter.getBuilder().build();
+  final Type inputType = schemaConverter.toIcebergType(fromMajorType(inputMajorType), null, new FieldIdBroker.UnboundedFieldIdBroker());
+  final Type outputType = partitionField.transform().getResultType(inputType);
+  final MinorType minorType = schemaConverter.fromIcebergType(outputType).toMinorType();
+  return MajorType.newBuilder().setMinorType(minorType).build();
+}
   protected boolean hasDecimalCols(StateHolder holder) {
     Pointer<Boolean> hasDecimalCols = new Pointer<>(false);
     holder.getConditions().forEach(condition -> condition.getOperands().forEach(
@@ -349,69 +360,21 @@ public class PartitionStatsBasedPruner extends RecordPruner {
     return hasDecimalCols.value;
   }
 
-  private Comparable getValueFromFilter(String colName, RexNode node) {
-    TypeProtos.MinorType minorType = partitionColNameToTypeMap.get(colName).getMinorType();
-    RexLiteral literal = (RexLiteral) node;
-    switch (minorType) {
-      case BIT:
-        return literal.getValueAs(Boolean.class);
-      case INT:
-      case DATE:
-      case TIME:
-        return literal.getValueAs(Integer.class);
-      case BIGINT:
-      case TIMESTAMP:
-        return literal.getValueAs(Long.class);
-      case FLOAT4:
-        return literal.getValueAs(Float.class);
-      case FLOAT8:
-        return literal.getValueAs(Double.class);
-      case VARCHAR:
-        return literal.getValueAs(String.class);
-      default:
-        throw new UnsupportedOperationException("Unsupported type: " + minorType);
-    }
-  }
-
-  private Comparable getValueFromPartitionData(int indexInPartitionSpec, String colName, StructLike partitionData) {
-    MajorType majorType = partitionColNameToTypeMap.get(colName);
-    switch (majorType.getMinorType()) {
-      case BIT:
-        return partitionData.get(indexInPartitionSpec, Boolean.class);
-      case INT:
-      case DATE:
-        return partitionData.get(indexInPartitionSpec, Integer.class);
-      case BIGINT:
-        return partitionData.get(indexInPartitionSpec, Long.class);
-      case TIME:
-      case TIMESTAMP:
-        // Divide by 1000 to convert microseconds to millis
-        return partitionData.get(indexInPartitionSpec, Long.class) / 1000;
-      case FLOAT4:
-        return partitionData.get(indexInPartitionSpec, Float.class);
-      case FLOAT8:
-        return partitionData.get(indexInPartitionSpec, Double.class);
-      case VARBINARY:
-        return partitionData.get(indexInPartitionSpec, ByteBuffer.class);
-      case FIXEDSIZEBINARY:
-      case VARCHAR:
-        return partitionData.get(indexInPartitionSpec, String.class);
-      default:
-        throw new UnsupportedOperationException("Unsupported type: " + majorType);
-    }
-  }
-
   private void populateMaps(Map<Integer, String> fieldNameMap) {
     Set<Integer> partitionColIds = partitionColIdToTypeMap.keySet();
     partitionColIdToSpecColIdMap = new HashMap<>(partitionColIds.size());
     partitionColNameToSpecColIdMap = new HashMap<>(partitionColIds.size());
+    partitionColNameToPartitionFunctionOutputType = new HashMap<>(partitionColIds.size());
     for (Integer partitionColIndex : partitionColIds) {
-      String colName = fieldNameMap.get(partitionColIndex);
+      final String colName = fieldNameMap.get(partitionColIndex);
       List<PartitionField> fields = partitionSpec.fields();
       for (int i = 0; i < fields.size(); i++) {
-        if (fields.get(i).name().equalsIgnoreCase(colName)) {
+        final String fieldColName = IcebergUtils.getColumnName(fields.get(i),partitionSpec.schema());
+        if (fieldColName.equalsIgnoreCase(colName)) {
           partitionColIdToSpecColIdMap.put(partitionColIndex, i);
           partitionColNameToSpecColIdMap.put(colName, partitionColIndex);
+          partitionColNameToPartitionFunctionOutputType.put(colName,
+            getPartitionFunctionOutputType(partitionColNameToTypeMap.get(colName),fields.get(i)));
           break;
         }
       }
@@ -520,140 +483,16 @@ public class PartitionStatsBasedPruner extends RecordPruner {
     }
   }
 
-  public static OperatorContextImpl newOperatorContext(OptimizerRulesContext optimizerRulesContext, ScanRelBase scan) {
-    return new OperatorContextImpl(
-      optimizerRulesContext.getPlannerSettings().getSabotConfig(),
-      null, // DremioConfig
-      null, // FragmentHandle
-      null, // popConfig
-      optimizerRulesContext.getAllocator().newChildAllocator("p-s-r-" + scan.getTableMetadata().getDatasetConfig().getName(), 0, Long.MAX_VALUE),
-      null, // output allocator
-      null, // code compiler
-      new OperatorStats(new OpProfileDef(0, 0, 0, 0), optimizerRulesContext.getAllocator()), // stats
-      null, // execution controls
-      null, // fragment executor builder
-      null, // executor service
-      null, // function lookup context
-      null, // context information
-      optimizerRulesContext.getFunctionRegistry().getOptionManager(), // option manager
-      null, // spill service
-      null, // node debug context provider
-      1000, // target batch size
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null
-    );
+  public CloseableIterator<PartitionStatsEntry> getStatsEntryIterator() {
+    return statsEntryIterator;
   }
 
-  @WithSpan("prune-partition-stats")
-  public static Optional<Pair<Long, Long>> prune(OptimizerRulesContext context, ScanRelBase scan, PruneFilterCondition pruneCondition)
-  throws Exception {
-    final TableMetadata tableMetadata = scan.getTableMetadata();
-    final RelDataType rowType = scan.getRowType();
-    final List<SchemaPath> projectedColumns = scan.getProjectedColumns();
-    boolean specEvolTransEnabled = context.getPlannerSettings().getOptions().getOption(ENABLE_ICEBERG_SPEC_EVOL_TRANFORMATION);
-    Span.current().setAttribute("dremio.table.name", tableMetadata.getName().getSchemaPath());
-    BatchSchema batchSchema = tableMetadata.getSchema();
-    List<String> partitionColumns = tableMetadata.getReadDefinition().getPartitionColumnsList();
-    ImmutableDremioFileAttrs partitionStatsFileInfo = PartitionStatsHelper.getPartitionStatsFileAttrs(scan);
-    String partitionStatsFile = partitionStatsFileInfo.fileName();
-    Long partionStatsFileLength = partitionStatsFileInfo.fileLength();
-    Optional<Pair<Long, Long>> survivingRecords = Optional.empty();
-    StoragePluginId storagePluginId = scan.getIcebergStatisticsPluginId(context);
-    StoragePluginId tablePluginId = scan.getPluginId();
-    if (shouldPrune(pruneCondition, partitionColumns, partitionStatsFile, projectedColumns, specEvolTransEnabled, storagePluginId)) {
-      /*
-       * Build a mapping between partition column name and partition column ID.
-       * The partition columns can have special columns added by Dremio. The ID is artificial,
-       * i.e. it has nothing to do with the column ID or order of the column in the table.
-       */
-      Map<String, Integer> partitionColToIdMap = Maps.newHashMap();
-      int index = 0;
-      for (String column : partitionColumns) {
-        partitionColToIdMap.put(column, index++);
-      }
-
-      /*
-       * Build a mapping between partition column ID and the partition columns which are used
-       * in the query. For example, for
-       * partitionColToIdMap = {col2 -> 0, col4 -> 1, $_dremio_ -> 2, col6 -> 3}, and
-       * getRowType().getFieldNames() = [col1, col3, col4, col6]
-       * inUseColIdToNameMap would be {1 -> col4, 3 -> col6}
-       */
-      Map<Integer, String> inUseColIdToNameMap = Maps.newHashMap();
-      for (String col : rowType.getFieldNames()) {
-        Integer partitionIndex = partitionColToIdMap.get(col);
-        if (partitionIndex != null) {
-          inUseColIdToNameMap.put(partitionIndex, col);
-        }
-      }
-
-      MutablePlugin plugin = context.getCatalogService().getSource(storagePluginId);
-      if (plugin instanceof SupportsIcebergRootPointer) {
-        SupportsIcebergRootPointer icebergRootPointerPlugin = (SupportsIcebergRootPointer) plugin;
-        PartitionSpec spec = IcebergUtils.getIcebergPartitionSpec(batchSchema, partitionColumns, null);
-        try (OperatorContextImpl operatorContext = newOperatorContext(context, scan)) {
-          FileSystem fs = icebergRootPointerPlugin.createFS(partitionStatsFile,
-              context.getContextInformation().getQueryUser(), operatorContext);
-          FileIO io = icebergRootPointerPlugin.createIcebergFileIO(fs, operatorContext, scan.getTableMetadata().getDatasetConfig().getFullPathList(), tablePluginId.getName(), partionStatsFileLength);
-          InputFile inputFile = io.newInputFile(partitionStatsFile);
-          PartitionStatsReader partitionStatsReader = new PartitionStatsReader(inputFile, spec);
-          if(!partitionStatsReader.iterator().hasNext()){
-            //handle the case where the stats are empty or not successfully generated
-            logger.warn(String.format("Encountered empty partition stats file for table %s during row count estimation. File %s.",
-              tableMetadata.getName().toString(), partitionStatsFile));
-            //Returning an empty Optional indicates a problem with partition pruning
-            //the upper layers handle it by considering all the rows of the table as qualified
-            return Optional.empty();
-          }
-          try (RecordPruner pruner = new PartitionStatsBasedPruner(inputFile.location(), partitionStatsReader, context,
-              spec)) {
-            RexNode finalPruneCondition = pruneCondition.getPartitionExpression();
-            if (specEvolTransEnabled && pruneCondition.getPartitionRange() != null) {
-              finalPruneCondition = finalPruneCondition == null ? pruneCondition.getPartitionRange()
-                : scan.getCluster().getRexBuilder().makeCall(SqlStdOperatorTable.AND, pruneCondition.getPartitionRange(), finalPruneCondition);
-            }
-            survivingRecords = Optional.of(
-                pruner.prune(inUseColIdToNameMap, partitionColToIdMap, getUsedIndices, projectedColumns,
-                    tableMetadata, finalPruneCondition, batchSchema, rowType, scan.getCluster()));
-
-          }
-        } catch (RuntimeException | IOException e) {
-          logger.error("Encountered exception during row count estimation: ", e);
-        }
-      }
-    }
-
-    return survivingRecords;
+  public String getFileLocation() {
+    return fileLocation;
   }
 
-  private static boolean shouldPrune(PruneFilterCondition pruneCondition, List<String> partitionColumns, String partitionStatsFile, List<SchemaPath> projectedColumns, boolean specEvolTransEnabled, StoragePluginId storagePluginId) {
-    boolean pruneConditionExists = pruneCondition != null && (pruneCondition.getPartitionExpression() != null
-      || specEvolTransEnabled && pruneCondition.getPartitionRange() != null);
-
-    return storagePluginId != null && pruneConditionExists && partitionColumns != null && StringUtils.isNotEmpty(partitionStatsFile) && !isConditionOnImplicitCol(pruneCondition, projectedColumns);
-  }
-
-  private static boolean isConditionOnImplicitCol(PruneFilterCondition pruneCondition, List<SchemaPath> projectedColumns) {
-    if (pruneCondition.getPartitionExpression() == null) {
-      return false;
-    }
-
-    int updateColIndex = projectedColumns.indexOf(SchemaPath.getSimplePath(IncrementalUpdateUtils.UPDATE_COLUMN));
-    final AtomicBoolean isImplicit = new AtomicBoolean(false);
-    pruneCondition.getPartitionExpression().accept(new RexVisitorImpl<Void>(true) {
-      @Override
-      public Void visitInputRef(RexInputRef inputRef) {
-        isImplicit.set(updateColIndex==inputRef.getIndex());
-        return null;
-      }
-    });
-    return isImplicit.get();
+  public Map<String, Integer> getPartitionColNameToSpecColIdMap() {
+    return partitionColNameToSpecColIdMap;
   }
 
   /**
@@ -686,58 +525,4 @@ public class PartitionStatsBasedPruner extends RecordPruner {
     }
   }
 
-  private static class ConditionsByColumn {
-    Multimap<String, Condition> queryConditions = HashMultimap.create();
-
-    void addCondition(String colName, Condition condition) {
-      queryConditions.put(colName, condition);
-    }
-
-    boolean hasConditions() {
-      return !queryConditions.isEmpty();
-    }
-
-    boolean satisfiesComparison(String colName, Comparable valueFromPartitionData) {
-      for (Condition condition : queryConditions.get(colName)) {
-        if (valueFromPartitionData == null || !condition.matches(valueFromPartitionData)) {
-          return false;
-        }
-      }
-      return true;
-    }
-
-    public Set<String> getColumnNames() {
-      return queryConditions.keySet();
-    }
-  }
-
-  private static class Condition {
-    final Predicate<Comparable> matcher;
-
-    Condition(SqlKind sqlKind, Comparable<?> valueFromCondition) {
-      switch (sqlKind) {
-        case EQUALS:
-          matcher = valueFromPartitionData -> valueFromPartitionData.compareTo(valueFromCondition) == 0;
-          break;
-        case LESS_THAN:
-          matcher = valueFromPartitionData -> valueFromPartitionData.compareTo(valueFromCondition) < 0;
-          break;
-        case LESS_THAN_OR_EQUAL:
-          matcher = valueFromPartitionData -> valueFromPartitionData.compareTo(valueFromCondition) <= 0;
-          break;
-        case GREATER_THAN:
-          matcher = valueFromPartitionData -> valueFromPartitionData.compareTo(valueFromCondition) > 0;
-          break;
-        case GREATER_THAN_OR_EQUAL:
-          matcher = valueFromPartitionData -> valueFromPartitionData.compareTo(valueFromCondition) >= 0;
-          break;
-        default:
-          throw new IllegalStateException("Unsupported SQL operator type: " + sqlKind);
-      }
-    }
-
-    boolean matches(Comparable valueFromPartitionData) {
-      return matcher.test(valueFromPartitionData);
-    }
-  }
 }

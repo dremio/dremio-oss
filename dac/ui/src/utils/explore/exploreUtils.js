@@ -13,6 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import Immutable from "immutable";
+import $ from "jquery";
 import { sortedIndex } from "lodash/array";
 import { customAlphabet } from "nanoid/non-secure";
 import transformModelMapper from "utils/mappers/ExplorePage/Transform/transformModelMapper";
@@ -145,6 +147,10 @@ class ExploreUtils {
       );
     }
     return { pathname, state, query };
+  }
+
+  hasUnsubmittedQueries(queryStatuses) {
+    return (queryStatuses || []).filter(({ jobId }) => !jobId).length > 0;
   }
 
   getInitialTransformMethod(columnType, transformType, selection) {
@@ -584,14 +590,15 @@ class ExploreUtils {
   };
 
   getHrefForTransform({ resourceId, tableId }, location) {
-    // TODO this should be moved into dataset decorator
     const { version } = location.query;
+
     const fullPath =
-      location.query.mode === "edit"
+      location.query.mode === "edit" && !!resourceId
         ? `${encodeURIComponent(`"${resourceId}"`)}.${encodeURIComponent(
             tableId
           )}`
         : "tmp.UNTITLED";
+
     const resourcePath = `dataset/${fullPath}`;
 
     const apiCall = new APIV2Call().paths(`${resourcePath}/version/${version}`);
@@ -600,15 +607,6 @@ class ExploreUtils {
   }
 
   getNewDatasetVersion = () => "000" + rand();
-
-  getFullPath = ({ resourceId, tableId, mode }) =>
-    mode === "edit" ? `${resourceId}.${tableId}` : "tmp.UNTITLED";
-
-  getVersionedResoursePath = ({ resourceId, tableId, version, mode }) => {
-    const fullPath = this.getFullPath({ resourceId, tableId, mode });
-    const resourcePath = `/dataset/${fullPath}`;
-    return `${resourcePath}/version/${version}`;
-  };
 
   getPreviewTransformationLink(dataset, newVersion) {
     const end = `transformAndPreview?newVersion=${encodeURIComponent(

@@ -1,19 +1,24 @@
 {
-  "extends": "./tsconfig.base.json",
   "include": ["./src/**/*"],
   "compilerOptions": {
-    "baseUrl": "./src",
+    "allowJs": true,
+    "baseUrl": "./",
+    "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "noEmit": true,
+    "noFallthroughCasesInSwitch": true,
     "paths": {
-      "@app/*": ["./*"],
-      "dyn-load/*": ["./*"],
-      "@dcs/*": ["./*"],
-      "@inject/*": [
-        "{@dcs}/*",
-        "{dyn-load}/*",
-        "./*",
-        "../scripts/stubModule.js"
-      ]
-    }
+      "@app/*": ["./src/*"],
+      "@inject/*": ["./src/*", "./src/stubModule.js"],
+      "dyn-load/*": ["./src/*"]
+    },
+    "resolveJsonModule": true,
+    "strict": true,
+    "target": "ES2020"
   },
   "ts-node": {
     "compilerOptions": {

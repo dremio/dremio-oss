@@ -130,7 +130,7 @@ public class UserStats {
       totalStats.getActiveUsers().get("total").add(user);
     }
 
-    private class UserJobTypeStats {
+    private final class UserJobTypeStats {
       private final Map<String, Set<String>> activeUsers = new HashMap<>();
       public Map<String, Set<String>> getActiveUsers() {
         return activeUsers;

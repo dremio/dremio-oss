@@ -90,6 +90,10 @@ public final class Metrics {
       REGISTRY.registerAll(scoped("memory", new MemoryUsageGaugeSet()));
       REGISTRY.registerAll(scoped("threads", new ThreadStatesGaugeSet()));
     }
+
+    public static MetricRegistry getRegistry() {
+      return REGISTRY;
+    }
   }
 
   /**
@@ -168,7 +172,12 @@ public final class Metrics {
         @Override
         public void decrement(long value, String... tags) {
           inner.dec(value);
-        }};
+        }
+        @Override
+        public String toString() {
+          return String.valueOf(inner.getCount());
+        }
+      };
 
     case ON_SNAPSHOT:
       return registerWindowCounter(name, new ResetOnSnapshotCounter());
@@ -195,6 +204,10 @@ public final class Metrics {
       @Override
       public void decrement(long value, String... tags) {
         counter.add(-value);
+      }
+      @Override
+      public String toString() {
+        return String.valueOf(counter.getSum());
       }
 
     };

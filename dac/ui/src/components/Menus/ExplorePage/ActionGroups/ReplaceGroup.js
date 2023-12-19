@@ -34,7 +34,7 @@ class ReplaceGroup extends PureComponent {
         key="EXTRACT_TEXT"
         columnType={columnType}
         actionType="EXTRACT_TEXT"
-        title={la("Extract Text…")}
+        title={laDeprecated("Extract Text…")}
         availableTypes={[TEXT]}
         onClick={onClick}
       />,
@@ -42,7 +42,7 @@ class ReplaceGroup extends PureComponent {
         key="REPLACE_TEXT"
         columnType={columnType}
         actionType="REPLACE_TEXT"
-        title={la("Replace Text…")}
+        title={laDeprecated("Replace Text…")}
         availableTypes={[TEXT]}
         onClick={onClick}
       />,
@@ -50,7 +50,7 @@ class ReplaceGroup extends PureComponent {
         key="REPLACE"
         columnType={columnType}
         actionType="REPLACE"
-        title={la("Replace…")}
+        title={laDeprecated("Replace…")}
         availableTypes={REPLACEABLE_TYPES}
         onClick={onClick}
       />,
@@ -58,7 +58,7 @@ class ReplaceGroup extends PureComponent {
         key="SPLIT"
         columnType={columnType}
         actionType="SPLIT"
-        title={la("Split…")}
+        title={laDeprecated("Split…")}
         availableTypes={[TEXT]}
         onClick={onClick}
       />,

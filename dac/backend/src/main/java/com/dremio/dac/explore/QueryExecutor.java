@@ -29,6 +29,7 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.common.util.DremioEdition;
 import com.dremio.dac.explore.model.DatasetPath;
@@ -43,7 +44,6 @@ import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.EntityExplorer;
 import com.dremio.exec.catalog.MetadataRequestOptions;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;

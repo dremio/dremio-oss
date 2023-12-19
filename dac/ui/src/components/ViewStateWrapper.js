@@ -85,7 +85,7 @@ export class ViewStateWrapper extends Component {
     clearTimeout(this.timer);
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     const inProgress = nextProps.viewState.get("isInProgress");
     if (inProgress) {
       if (inProgress !== this.props.viewState.get("isInProgress")) {

@@ -22,9 +22,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.datastore.LegacyProtobufSerializer;
 import com.dremio.datastore.SearchTypes;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.AttemptEvent;
@@ -631,6 +631,8 @@ public final class JobsProtoUtil {
         return com.dremio.service.job.QueryType.PREPARE_INTERNAL;
       case ACCELERATOR_EXPLAIN:
         return com.dremio.service.job.QueryType.ACCELERATOR_EXPLAIN;
+      case ACCELERATOR_OPTIMIZE:
+        return com.dremio.service.job.QueryType.ACCELERATOR_OPTIMIZE;
       case UI_INITIAL_PREVIEW:
         return com.dremio.service.job.QueryType.UI_INITIAL_PREVIEW;
       case FLIGHT:
@@ -792,6 +794,8 @@ public final class JobsProtoUtil {
         return com.dremio.service.job.proto.QueryType.ACCELERATOR_DROP;
       case ACCELERATOR_EXPLAIN:
         return com.dremio.service.job.proto.QueryType.ACCELERATOR_EXPLAIN;
+      case ACCELERATOR_OPTIMIZE:
+        return com.dremio.service.job.proto.QueryType.ACCELERATOR_OPTIMIZE;
       case ODBC:
         return com.dremio.service.job.proto.QueryType.ODBC;
       case D2D:
@@ -889,7 +893,7 @@ public final class JobsProtoUtil {
       } else if (entry.getValue().getType() == SqlQuery.VersionContextType.TAG) {
         sourceVersionMapping.put(entry.getKey(), VersionContext.ofTag(entry.getValue().getValue()));
       } else if (entry.getValue().getType() == SqlQuery.VersionContextType.BARE_COMMIT) {
-        sourceVersionMapping.put(entry.getKey(), VersionContext.ofBareCommit(entry.getValue().getValue()));
+        sourceVersionMapping.put(entry.getKey(), VersionContext.ofCommit(entry.getValue().getValue()));
       }
     }
 

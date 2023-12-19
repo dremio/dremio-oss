@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { PureComponent } from "react";
-import uuid from "uuid";
+import { v4 as uuidv4 } from "uuid";
 
 import PropTypes from "prop-types";
 
@@ -61,7 +61,7 @@ class FieldValues extends PureComponent {
                 ? styles.nullwrap
                 : {};
             return (
-              <tr key={uuid()}>
+              <tr key={uuidv4()}>
                 <td>
                   <FontIcon
                     type={FontIcon.getIconTypeForDataType(option.type)}

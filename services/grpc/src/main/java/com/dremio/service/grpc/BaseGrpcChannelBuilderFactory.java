@@ -43,6 +43,8 @@ public class BaseGrpcChannelBuilderFactory implements GrpcChannelBuilderFactory 
   private final Provider<Map<String, Object>> defaultServiceConfigProvider;
   private Integer idleTimeoutSeconds;
 
+  private Integer keepAliveTimeSeconds;
+
   public BaseGrpcChannelBuilderFactory(Tracer tracer) {
     this(tracer, Collections.emptySet(), () -> Maps.newHashMap());
   }
@@ -56,6 +58,11 @@ public class BaseGrpcChannelBuilderFactory implements GrpcChannelBuilderFactory 
 
   public BaseGrpcChannelBuilderFactory withIdleTimeout(int idleTimeoutSeconds) {
     this.idleTimeoutSeconds = idleTimeoutSeconds;
+    return this;
+  }
+
+  public BaseGrpcChannelBuilderFactory withKeepAlive(int keepAliveTimeSeconds) {
+    this.keepAliveTimeSeconds = keepAliveTimeSeconds;
     return this;
   }
 
@@ -131,6 +138,10 @@ public class BaseGrpcChannelBuilderFactory implements GrpcChannelBuilderFactory 
 
     if (idleTimeoutSeconds != null) {
       builder.idleTimeout(idleTimeoutSeconds, TimeUnit.SECONDS);
+    }
+
+    if (keepAliveTimeSeconds != null) {
+      builder.keepAliveTime(keepAliveTimeSeconds, TimeUnit.SECONDS);
     }
 
     if (builder instanceof NettyChannelBuilder) {

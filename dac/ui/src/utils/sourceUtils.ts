@@ -20,8 +20,13 @@ export function sourceTypesIncludeS3(sourceTypes: { sourceType: string }[]) {
   return sourceTypes && !!sourceTypes.find((type) => type.sourceType === "S3");
 }
 
-export function sourceTypesIncludeSampleSource(sourceTypes: { sourceType: string }[]) {
-  return sourceTypes && !!sourceTypes.find((type) => type.sourceType === "SAMPLE_SOURCE");
+export function sourceTypesIncludeSampleSource(
+  sourceTypes: { sourceType: string }[]
+) {
+  return (
+    sourceTypes &&
+    !!sourceTypes.find((type) => type.sourceType === "SAMPLE_SOURCE")
+  );
 }
 
 export function isVersionedSource(type: string) {
@@ -36,4 +41,8 @@ export function isVersionedSource(type: string) {
 
 export function isArcticSource(type?: string) {
   return type === ARCTIC;
+}
+
+export function isNessieSource(type?: string) {
+  return type === NESSIE;
 }

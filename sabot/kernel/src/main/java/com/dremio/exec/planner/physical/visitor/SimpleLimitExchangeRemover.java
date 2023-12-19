@@ -29,7 +29,9 @@ import com.dremio.exec.planner.physical.LeafPrel;
 import com.dremio.exec.planner.physical.LimitPrel;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.Prel;
+import com.dremio.exec.planner.physical.ScanPrelBase;
 import com.dremio.exec.planner.physical.SortPrel;
+import com.dremio.exec.planner.physical.TableFunctionPrel;
 import com.dremio.exec.planner.physical.TopNPrel;
 import com.dremio.exec.planner.physical.WindowPrel;
 
@@ -39,7 +41,7 @@ import com.dremio.exec.planner.physical.WindowPrel;
  *   Plan has no joins, window operators or aggregates (union alls are okay)
  *   Plan has at least one subpattern that is scan > project > limit or scan > limit,
  *   The limit is slice target or less
- *   All scans are soft affinity
+ *   All scans are soft affinity and there are no filters pushed into them.
  */
 public class SimpleLimitExchangeRemover {
 
@@ -58,7 +60,7 @@ public class SimpleLimitExchangeRemover {
 
     @Override
     public Boolean visitPrel(Prel prel, Boolean isTrivial) {
-      if(prel instanceof WindowPrel || prel instanceof JoinPrel || prel instanceof AggregatePrel || prel instanceof SortPrel || prel instanceof TopNPrel || prel instanceof FilterPrel){
+      if (prel instanceof WindowPrel || prel instanceof SortPrel || prel instanceof TopNPrel) {
         return false;
       }
       for(Prel p : prel) {
@@ -79,8 +81,34 @@ public class SimpleLimitExchangeRemover {
     }
 
     @Override
+    public Boolean visitTableFunction(TableFunctionPrel prel, Boolean isTrivial) throws RuntimeException {
+      // Do not remove exchanges when we have filters inside scans.
+      if (prel.hasFilter()) {
+        return false;
+      }
+      return isTrivial;
+    }
+
+    @Override
+    public Boolean visitAggregate(AggregatePrel prel, Boolean value) throws RuntimeException {
+      return false;
+    }
+
+    @Override
+    public Boolean visitJoin(JoinPrel prel, Boolean value) throws RuntimeException {
+      return false;
+    }
+
+    @Override
+    public Boolean visitFilter(FilterPrel prel, Boolean value) throws RuntimeException {
+      return false;
+    }
+
+    @Override
     public Boolean visitLeaf(LeafPrel prel, Boolean isTrivial) {
-      if(prel.getDistributionAffinity() == DistributionAffinity.HARD){
+      // Do not remove exchanges when we have filters inside scans.
+      if (prel.getDistributionAffinity() == DistributionAffinity.HARD
+          || (prel instanceof ScanPrelBase && ((ScanPrelBase) prel).hasFilter())) {
         return false;
       }
 

@@ -65,11 +65,11 @@ public class TestDatasetService extends BaseTestServer {
     config.setName("c");
     namespaceService.addOrUpdateSpace(new SpacePath(new SpaceName(config.getName())).toNamespaceKey(), config);
 
-    Pair<String, String> vds1 = createDS(service, "a.ds1", "ds1", "sky1", "11", null);
-    createDS(service, "b.ds2", "ds2", "sky2", "11", null);
-    createDS(service, "b.ds3", "ds3", "sky3", "11", null);
-    createDS(service, "a.ds4", "ds4", "sky4", "11", null);
-    createDS(service, "c.ds5", "ds5", "sky5", "11", null);
+    Pair<String, String> vds1 = createDS(service, "a.ds1", "ds1", "information_schema.catalogs", "11", null);
+    createDS(service, "b.ds2", "ds2", "information_schema.catalogs", "11", null);
+    createDS(service, "b.ds3", "ds3", "information_schema.catalogs", "11", null);
+    createDS(service, "a.ds4", "ds4", "information_schema.catalogs", "11", null);
+    createDS(service, "c.ds5", "ds5", "information_schema.catalogs", "11", null);
 
     List<NamespaceKey> spaceA = Lists.newArrayList(service.getNamespaceService()
         .getAllDatasets(new SpacePath(new SpaceName("a")).toNamespaceKey()));
@@ -86,11 +86,11 @@ public class TestDatasetService extends BaseTestServer {
     final DatasetVersion v1 = DatasetVersion.newVersion();
     final DatasetVersion v2 = DatasetVersion.newVersion();
     final DatasetVersion v3 = DatasetVersion.newVersion();
-    Pair<String, String> vds1_1 = createDS(service, "a.ds1", "ds1", "sky1", "100", vds1);
-    Pair<String, String> vds1_2 = createDS(service, "a.ds1", "ds1", "sky1", v1, vds1_1);
-    Pair<String, String> vds1_3 = createDS(service, "a.ds1", "ds1", "sky1", v2, vds1_2);
-    Pair<String, String> vds1_4 = createDS(service, "a.ds1", "ds1", "sky1", "001", vds1_3);
-    createDS(service, "a.ds1", "ds1", "sky1", v3, vds1_4);
+    Pair<String, String> vds1_1 = createDS(service, "a.ds1", "ds1", "information_schema.catalogs", "100", vds1);
+    Pair<String, String> vds1_2 = createDS(service, "a.ds1", "ds1", "information_schema.catalogs", v1, vds1_1);
+    Pair<String, String> vds1_3 = createDS(service, "a.ds1", "ds1", "information_schema.catalogs", v2, vds1_2);
+    Pair<String, String> vds1_4 = createDS(service, "a.ds1", "ds1", "information_schema.catalogs", "001", vds1_3);
+    createDS(service, "a.ds1", "ds1", "information_schema.catalogs", v3, vds1_4);
 
     Set<DatasetVersion> versions = new HashSet<>();
     for (VirtualDatasetUI ds: service.getAllVersions(new DatasetPath("a.ds1"))) {

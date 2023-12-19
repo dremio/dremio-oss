@@ -56,16 +56,6 @@ public class RefreshRequestsStore {
 
   private static final class VExtractor implements VersionExtractor<RefreshRequest> {
     @Override
-    public Long getVersion(RefreshRequest value) {
-      return value.getVersion();
-    }
-
-    @Override
-    public void setVersion(RefreshRequest value, Long version) {
-      value.setVersion(version);
-    }
-
-    @Override
     public String getTag(RefreshRequest value) {
       return value.getTag();
     }

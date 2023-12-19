@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -55,6 +56,7 @@ import com.dremio.common.concurrent.AutoCloseableLock;
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.FindByRange;
 import com.dremio.datastore.api.ImmutableDocument;
+import com.dremio.datastore.api.IncrementCounter;
 import com.dremio.datastore.api.options.KVStoreOptionUtility;
 import com.dremio.datastore.api.options.VersionOption;
 import com.dremio.datastore.rocks.Rocks;
@@ -293,7 +295,7 @@ class RocksDBStore implements ByteStore {
     return name;
   }
 
-  private class RocksKVAdmin extends KVAdmin {
+  private final class RocksKVAdmin extends KVAdmin {
 
     @Override
     public String getStats() {
@@ -611,6 +613,16 @@ class RocksDBStore implements ByteStore {
   }
 
   @Override
+  public void bulkIncrement(Map<byte[], List<IncrementCounter>> keysToIncrement, IncrementOption option) {
+    throw new UnsupportedOperationException("BulkIncrement is not supported in RocksDB.");
+  }
+
+  @Override
+  public void bulkDelete(List<byte[]> keysToDelete) {
+    throw new UnsupportedOperationException("BulkDelete is not supported in RocksDB.");
+  }
+
+  @Override
   public Iterable<Document<byte[], byte[]>> find(FindOption... options) {
     cleanReferences();
     return new RockIterable(null);
@@ -720,6 +732,16 @@ class RocksDBStore implements ByteStore {
     private byte[] nextValue;
 
     public FindByRangeIterator(RocksDB db, ColumnFamilyHandle handle, FindByRange<byte[]> range, MetaManager blob) {
+      Preconditions.checkNotNull(handle);
+      try {
+        // the column family handle descriptor is lazy loaded (and it especially contains the timestamp).
+        // if the GC is passing before creating the new iterator, RocksDB native part throws SIGSEGV because the
+        // descriptor is null.
+        // Here, we ensure the descriptor is loaded before creating the new iterator.
+        Preconditions.checkNotNull(handle.getDescriptor());
+      } catch (RocksDBException rdbe) {
+        throw new IllegalStateException("ColumnFamilyHandle descriptor check failed", rdbe);
+      }
       this.iter = db.newIterator(handle);
       this.end = range == null ? null : range.getEnd();
       this.endInclusive = range == null ? false : range.isEndInclusive();

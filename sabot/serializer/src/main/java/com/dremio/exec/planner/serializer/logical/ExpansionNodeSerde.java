@@ -20,7 +20,7 @@ import java.util.List;
 
 import org.apache.calcite.rel.RelNode;
 
-import com.dremio.exec.catalog.TableVersionContext;
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.exec.planner.acceleration.ExpansionNode;
 import com.dremio.exec.planner.serializer.RelNodeSerde;
 import com.dremio.plan.serialization.PExpansionNode;

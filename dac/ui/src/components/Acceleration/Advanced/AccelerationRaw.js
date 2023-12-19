@@ -35,6 +35,9 @@ export default class AccelerationRaw extends Component {
     reflections: PropTypes.instanceOf(Immutable.Map).isRequired,
     fields: PropTypes.object,
     canAlter: PropTypes.any,
+    allowPartitionTransform: PropTypes.bool,
+    rawRecommendation: PropTypes.object,
+    loadingRecommendations: PropTypes.bool,
   };
 
   static getFields() {
@@ -59,12 +62,15 @@ export default class AccelerationRaw extends Component {
   }
 
   addNewLayout = () => {
+    const { allowPartitionTransform, rawRecommendation } = this.props;
     const { rawReflections } = this.props.fields;
 
     const reflection = createReflectionFormValues(
-      {
-        type: "RAW",
-      },
+      allowPartitionTransform && rawRecommendation
+        ? rawRecommendation
+        : {
+            type: "RAW",
+          },
       rawReflections.map((e) => e.name.value)
     );
 
@@ -76,7 +82,7 @@ export default class AccelerationRaw extends Component {
       <div className={"AccelerationRaw__header"}>
         <h3 className={"AccelerationRaw__toggleLabel"}>
           <FontIcon type="RawMode" theme={commonThemes.rawIconTheme} />
-          {la("Raw Reflections")}
+          {laDeprecated("Raw Reflections")}
         </h3>
         <SimpleButton
           onClick={this.addNewLayout}
@@ -90,7 +96,7 @@ export default class AccelerationRaw extends Component {
           }
           type="button"
         >
-          {la("New Reflection")}
+          {laDeprecated("New Reflection")}
         </SimpleButton>
       </div>
     );
@@ -102,6 +108,7 @@ export default class AccelerationRaw extends Component {
       reflections,
       fields: { rawReflections },
       canAlter,
+      loadingRecommendations,
     } = this.props;
     return (
       <div className={"AccelerationRaw"}>
@@ -111,6 +118,7 @@ export default class AccelerationRaw extends Component {
           dataset={dataset}
           reflections={reflections}
           layoutFields={rawReflections}
+          loadingRecommendations={loadingRecommendations}
           activeTab="raw"
         />
       </div>

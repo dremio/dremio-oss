@@ -16,16 +16,19 @@
 package com.dremio.exec.catalog;
 
 import java.util.Collection;
-import java.util.List;
 import java.util.Map;
 
 import org.apache.calcite.schema.Function;
 
-import com.dremio.exec.store.ColumnExtendedProperty;
+import com.dremio.catalog.model.VersionContext;
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.service.namespace.NamespaceKey;
 
 /**
- * Simplified catalog object needed for use with DremioCatalogReader. A simplified version of Catalog.
+ * Simplified catalog object needed for use with PlannerCatalog. A simplified version of Catalog.
+ *
+ * APIs needed for planning that aren't covered by the other specialized Catalog interfaces and aren't needed
+ * for the REST or UI should go here.
  */
 public interface SimpleCatalog<T extends SimpleCatalog<T>> extends EntityExplorer {
 
@@ -45,33 +48,6 @@ public interface SimpleCatalog<T extends SimpleCatalog<T>> extends EntityExplore
   NamespaceKey getDefaultSchema();
 
   /**
-   * Return a new Catalog contextualized to the validity check flag
-   *
-   * @param checkValidity
-   * @return
-   */
-  T resolveCatalog(boolean checkValidity);
-
-  /**
-   * Return a new Catalog contextualized to the provided subject and default schema
-   *
-   * @param subject
-   * @param newDefaultSchema
-   * @return
-   */
-  T resolveCatalog(CatalogIdentity subject, NamespaceKey newDefaultSchema);
-
-  /**
-   * Return a new Catalog contextualized to the provided subject, default schema, and validity check flag
-   *
-   * @param subject
-   * @param newDefaultSchema
-   * @param checkValidity
-   * @return
-   */
-  T resolveCatalog(CatalogIdentity subject, NamespaceKey newDefaultSchema, boolean checkValidity);
-
-  /**
    * Return a new Catalog contextualized to the provided default schema
    * @param newDefaultSchema
    * @return A new schema with the same user but with the newly provided default schema.
@@ -83,21 +59,25 @@ public interface SimpleCatalog<T extends SimpleCatalog<T>> extends EntityExplore
    * @param  sourceVersionMapping
    * @return A new catalog contextualized to the provided version context.
    */
-  T resolveCatalog(Map<String, VersionContext>  sourceVersionMapping);
+  T resolveCatalog(Map<String, VersionContext> sourceVersionMapping);
 
   /**
-   * Validate if there is a violation of cross source selection
+   * Visits each catalog in a depth first order.
+   * @param catalogRewrite function for transforming the catalog
+   * @return resulting transformed catalog
    */
-  void validateSelection();
+  default Catalog visit(java.util.function.Function<Catalog, Catalog> catalogRewrite) {throw new UnsupportedOperationException();}
 
   /**
-   * Retrieve the column extended properties for a table.
-   * @param table the table to get the column extended properties for
-   * @return the column extended properties grouped by column name
+   * @return all tables that have been requested from this catalog.
    */
-  Map<String, List<ColumnExtendedProperty>> getColumnExtendedProperties(DremioTable table);
+  default Iterable<DremioTable> getAllRequestedTables() {throw new UnsupportedOperationException();}
 
-  boolean supportsVersioning(NamespaceKey namespaceKey) ;
+  /**
+   * Clears all caches associated to a particular dataset
+   * @param dataset
+   */
+  default void clearDatasetCache(final NamespaceKey dataset, final TableVersionContext context) {};
 
   enum FunctionType {
     SCALAR,

@@ -35,9 +35,9 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.junit.Before;
 import org.junit.Test;
 
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult;
 import com.dremio.exec.planner.sql.parser.ReferenceType;
@@ -92,36 +92,40 @@ public class TestAssignBranchHandler extends DremioTest {
     handler = new AssignBranchHandler(context);
 
     assignBranch =
-        new SqlAssignBranch(
-            SqlParserPos.ZERO,
-            new SqlIdentifier(TARGET_BRANCH, SqlParserPos.ZERO),
-            ReferenceType.BRANCH,
-            new SqlIdentifier(DEFAULT_REFERENCE, SqlParserPos.ZERO),
-            new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO));
+      new SqlAssignBranch(
+        SqlParserPos.ZERO,
+        new SqlIdentifier(TARGET_BRANCH, SqlParserPos.ZERO),
+        ReferenceType.BRANCH,
+        new SqlIdentifier(DEFAULT_REFERENCE, SqlParserPos.ZERO),
+        null,
+        new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO));
 
     assignBranchWithDefaultSource =
-        new SqlAssignBranch(
-            SqlParserPos.ZERO,
-            new SqlIdentifier(TARGET_BRANCH, SqlParserPos.ZERO),
-            ReferenceType.BRANCH,
-            new SqlIdentifier(DEFAULT_REFERENCE, SqlParserPos.ZERO),
-            null);
+      new SqlAssignBranch(
+        SqlParserPos.ZERO,
+        new SqlIdentifier(TARGET_BRANCH, SqlParserPos.ZERO),
+        ReferenceType.BRANCH,
+        new SqlIdentifier(DEFAULT_REFERENCE, SqlParserPos.ZERO),
+        null,
+        null);
 
     assignBranchWithTag =
-        new SqlAssignBranch(
-            SqlParserPos.ZERO,
-            new SqlIdentifier(TARGET_BRANCH, SqlParserPos.ZERO),
-            ReferenceType.TAG,
-            new SqlIdentifier(DEFAULT_REFERENCE, SqlParserPos.ZERO),
-            null);
+      new SqlAssignBranch(
+        SqlParserPos.ZERO,
+        new SqlIdentifier(TARGET_BRANCH, SqlParserPos.ZERO),
+        ReferenceType.TAG,
+        new SqlIdentifier(DEFAULT_REFERENCE, SqlParserPos.ZERO),
+        null,
+        null);
 
     assignBranchToItself =
-        new SqlAssignBranch(
-            SqlParserPos.ZERO,
-            new SqlIdentifier(TARGET_BRANCH, SqlParserPos.ZERO),
-            ReferenceType.BRANCH,
-            new SqlIdentifier(TARGET_BRANCH, SqlParserPos.ZERO),
-            new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO));
+      new SqlAssignBranch(
+        SqlParserPos.ZERO,
+        new SqlIdentifier(TARGET_BRANCH, SqlParserPos.ZERO),
+        ReferenceType.BRANCH,
+        new SqlIdentifier(TARGET_BRANCH, SqlParserPos.ZERO),
+        null,
+        new SqlIdentifier(DEFAULT_SOURCE_NAME, SqlParserPos.ZERO));
 
   }
 

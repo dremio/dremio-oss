@@ -26,7 +26,7 @@ public class TestCaseSensitivity extends BaseTestQuery {
     testBuilder()
         .sqlQuery("select n_nationkey as XYZ, n_name as xyz FROM cp.\"tpch/nation.parquet\" order by n_nationkey limit 1")
         .ordered()
-        .baselineColumns("XYZ", "xyz1")
+        .baselineColumns("XYZ", "xyz0")
         .baselineValues(0, "ALGERIA")
         .build()
         .run();
@@ -35,7 +35,7 @@ public class TestCaseSensitivity extends BaseTestQuery {
     testBuilder()
         .sqlQuery("select n_nationkey as XYZ, n_regionkey as xyz FROM cp.\"tpch/nation.parquet\" order by n_nationkey limit 1")
         .ordered()
-        .baselineColumns("XYZ", "xyz1")
+        .baselineColumns("XYZ", "xyz0")
         .baselineValues(0, 0)
         .build()
         .run();
@@ -44,7 +44,7 @@ public class TestCaseSensitivity extends BaseTestQuery {
     testBuilder()
         .sqlQuery("select n.n_nationkey as XYZ, r.r_name as xyz from cp.\"tpch/nation.parquet\" n, cp.\"tpch/region.parquet\" r where n.n_regionkey = r.r_regionkey order by n.n_nationkey limit 1")
         .ordered()
-        .baselineColumns("XYZ", "xyz1")
+        .baselineColumns("XYZ", "xyz0")
         .baselineValues(0, "AFRICA")
         .build()
         .run();

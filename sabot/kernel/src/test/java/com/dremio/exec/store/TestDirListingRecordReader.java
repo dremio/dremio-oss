@@ -49,6 +49,7 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.hadoop.HadoopFileSystem.FetchOnDemandDirectoryStream;
 import com.dremio.exec.physical.config.MinorFragmentEndpoint;
@@ -68,7 +69,8 @@ import com.google.common.collect.ImmutableList;
 
 public class TestDirListingRecordReader extends BaseTestQuery {
 
-  private BufferAllocator testAllocator;
+  static final long START_TIME = 10000;
+  private static BufferAllocator testAllocator;
   private SampleMutator mutator;
   private RecordReader reader;
 
@@ -88,15 +90,20 @@ public class TestDirListingRecordReader extends BaseTestQuery {
   }
 
   private OperatorContext getCtx() {
+    return getCtx(true);
+  }
+
+  private OperatorContext getCtx(boolean excludeFutureModTimes) {
     OperatorContext operatorContext = mock(OperatorContext.class, RETURNS_DEEP_STUBS);
     when(operatorContext.getAllocator()).thenReturn(testAllocator);
     when(operatorContext.getTargetBatchSize()).thenReturn(4000);
     when(operatorContext.getMinorFragmentEndpoints()).thenReturn(ImmutableList.of(new MinorFragmentEndpoint(0,null)));
-    when(operatorContext.getFunctionContext().getContextInformation().getQueryStartTime()).thenReturn(System.currentTimeMillis());
+    when(operatorContext.getFunctionContext().getContextInformation().getQueryStartTime()).thenReturn(START_TIME);
+    when(operatorContext.getOptions().getOption(ExecConstants.DIR_LISTING_EXCLUDE_FUTURE_MOD_TIMES)).thenReturn(excludeFutureModTimes);
     return operatorContext;
   }
 
-  private OperatorStats getOperatorStats() {
+  public static OperatorStats getOperatorStats(BufferAllocator testAllocator) {
     OpProfileDef prof = new OpProfileDef(1, 1, 1);
     final OperatorStats operatorStats = new OperatorStats(prof, testAllocator);
     return operatorStats;
@@ -113,7 +120,7 @@ public class TestDirListingRecordReader extends BaseTestQuery {
   }
 
 
-  private FetchOnDemandDirectoryStream newRemoteIterator(Path path, final FileStatus... statuses) {
+  private static FetchOnDemandDirectoryStream newRemoteIterator(Path path, BufferAllocator testAllocator, final FileStatus... statuses) {
     final Iterator<FileStatus> iterator = Arrays.asList(statuses).iterator();
     final AtomicBoolean closed = new AtomicBoolean(false);
 
@@ -134,7 +141,7 @@ public class TestDirListingRecordReader extends BaseTestQuery {
       }
     };
 
-    return new FetchOnDemandDirectoryStream(wrapper, path, getOperatorStats());
+    return new FetchOnDemandDirectoryStream(wrapper, path, getOperatorStats(testAllocator));
   }
 
   private static org.apache.hadoop.fs.Path toHadoopPath(Path path) {
@@ -168,7 +175,7 @@ public class TestDirListingRecordReader extends BaseTestQuery {
     mutator.getContainer().buildSchema();
   }
 
-  private void setupFsListIteratorMock(HadoopFileSystem fs, Path inputPath) throws IOException {
+  protected static void setupFsListIteratorMock(HadoopFileSystem fs, Path inputPath) throws IOException {
 
     /*FS Structure
 
@@ -204,7 +211,7 @@ public class TestDirListingRecordReader extends BaseTestQuery {
       toHadoopPath(Path.of(inputPath.resolve("bar/subBar1/subBar2/file5.parquet").toString())),   //Dir1/Dir2/Dir3/File
     };
 
-    FetchOnDemandDirectoryStream statusesIterator1 = newRemoteIterator(inputPath,
+    FetchOnDemandDirectoryStream statusesIterator1 = newRemoteIterator(inputPath, testAllocator,
       new FileStatus(20, false, 1, 4096, 1, 2, FsPermission.getFileDefault(), "testowner", "testgroup", testPaths[0]),
       new FileStatus(40, true, 0, 0, 32, 4, FsPermission.getDirDefault(), "testowner", "testgroup", testPaths[1]),
       new FileStatus(70, false, 0, 0, 31, 4, FsPermission.getDirDefault(), "testowner", "testgroup", testPaths[2]),
@@ -213,10 +220,10 @@ public class TestDirListingRecordReader extends BaseTestQuery {
       new FileStatus(400, true, 0, 0, 13, 4, FsPermission.getDirDefault(), "testowner", "testgroup", testPaths[5]),
       new FileStatus(1200, false, 0, 0, 312, 4, FsPermission.getDirDefault(), "testowner", "testgroup", testPaths[6]),
       new FileStatus(1400, false, 0, 0, 331, 4, FsPermission.getDirDefault(), "testowner", "testgroup", testPaths[7]),
-      new FileStatus(1320, false, 0, 0, System.currentTimeMillis() + 1000000, 4, FsPermission.getDirDefault(), "testowner", "testgroup", testPaths[8])
+      new FileStatus(1320, false, 0, 0, START_TIME + 1, 4, FsPermission.getDirDefault(), "testowner", "testgroup", testPaths[8])
     );
 
-    FetchOnDemandDirectoryStream statusesIterator2 = newRemoteIterator(inputPath,
+    FetchOnDemandDirectoryStream statusesIterator2 = newRemoteIterator(inputPath, testAllocator,
       new FileStatus(20, false, 1, 4096, 1, 2, FsPermission.getFileDefault(), "testowner", "testgroup", relativePathToSubBar[0]),
       new FileStatus(40, true, 0, 0, 32, 4, FsPermission.getDirDefault(), "testowner", "testgroup", relativePathToSubBar[1]),
       new FileStatus(70, false, 0, 0, 31, 4, FsPermission.getDirDefault(), "testowner", "testgroup", relativePathToSubBar[2]),
@@ -241,7 +248,7 @@ public class TestDirListingRecordReader extends BaseTestQuery {
             toHadoopPath(Path.of(inputPath.resolve("bar/subBar1/_subBar3/file5.parquet").toString())),   //Dir1/Dir2/Dir3/File
     };
 
-    FetchOnDemandDirectoryStream statusesIterator1 = newRemoteIterator(inputPath,
+    FetchOnDemandDirectoryStream statusesIterator1 = newRemoteIterator(inputPath, testAllocator,
             new FileStatus(20, false, 1, 4096, 1, 2, FsPermission.getFileDefault(), "testowner", "testgroup", testPaths[0]),
             new FileStatus(40, true, 0, 0, 32, 4, FsPermission.getDirDefault(), "testowner", "testgroup", testPaths[1]),
             new FileStatus(70, false, 0, 0, 31, 4, FsPermission.getDirDefault(), "testowner", "testgroup", testPaths[2]),
@@ -254,7 +261,7 @@ public class TestDirListingRecordReader extends BaseTestQuery {
     when(fs.listFiles(inputPath, true)).thenReturn(statusesIterator1);
   }
 
-  private void setupFsListIteratorMockWithPartitions(HadoopFileSystem fs, Path inputPath) throws IOException {
+  public static void setupFsListIteratorMockWithPartitions(HadoopFileSystem fs, Path inputPath) throws IOException {
     org.apache.hadoop.fs.Path[] testPaths = {
       toHadoopPath(Path.of(inputPath.resolve("id=1/data=name/file1.parquet").toString())),
       toHadoopPath(Path.of(inputPath.resolve("id=1/data=name/file2.parquet").toString())),
@@ -266,7 +273,7 @@ public class TestDirListingRecordReader extends BaseTestQuery {
     };
 
 
-    FetchOnDemandDirectoryStream statusesIterator1 = newRemoteIterator(inputPath,
+    FetchOnDemandDirectoryStream statusesIterator1 = newRemoteIterator(inputPath, testAllocator,
       new FileStatus(20, false, 1, 4096, 1, 2, FsPermission.getFileDefault(), "testowner", "testgroup", testPaths[0]),
       new FileStatus(40, false, 0, 0, 2, 4, FsPermission.getDirDefault(), "testowner", "testgroup", testPaths[1]),
       new FileStatus(70, false, 0, 0, 3, 4, FsPermission.getDirDefault(), "testowner", "testgroup", testPaths[2]),
@@ -285,7 +292,7 @@ public class TestDirListingRecordReader extends BaseTestQuery {
       toHadoopPath(Path.of(inputPath.resolve("id/data=name/file2.parquet").toString())),
     };
 
-    FetchOnDemandDirectoryStream statusesIterator1 = newRemoteIterator(inputPath,
+    FetchOnDemandDirectoryStream statusesIterator1 = newRemoteIterator(inputPath, testAllocator,
       new FileStatus(20, false, 1, 4096, 1, 2, FsPermission.getFileDefault(), "testowner", "testgroup", testPaths[0]),
       new FileStatus(40, false, 0, 0, 2, 4, FsPermission.getDirDefault(), "testowner", "testgroup", testPaths[1])
       );
@@ -301,7 +308,7 @@ public class TestDirListingRecordReader extends BaseTestQuery {
       toHadoopPath(Path.of(inputPath.resolve("id=/data=__HIVE_DEFAULT_PARTITION__/file2.parquet").toString())),
     };
 
-    FetchOnDemandDirectoryStream statusesIterator1 = newRemoteIterator(inputPath,
+    FetchOnDemandDirectoryStream statusesIterator1 = newRemoteIterator(inputPath, testAllocator,
       new FileStatus(20, false, 1, 4096, 1, 2, FsPermission.getFileDefault(), "testowner", "testgroup", testPaths[0]),
       new FileStatus(40, false, 0, 0, 2, 4, FsPermission.getDirDefault(), "testowner", "testgroup", testPaths[1]),
       new FileStatus(40, false, 0, 0, 3, 4, FsPermission.getDirDefault(), "testowner", "testgroup", testPaths[2]),
@@ -346,7 +353,7 @@ public class TestDirListingRecordReader extends BaseTestQuery {
       statuses[i] = new FileStatus(20, false, 1, 4096, 1, 2, FsPermission.getFileDefault(), "testowner", "testgroup", hadoopPath);
     }
 
-    when(fs.listFiles(inputPath, true)).thenReturn(newRemoteIterator(inputPath, statuses));
+    when(fs.listFiles(inputPath, true)).thenReturn(newRemoteIterator(inputPath, testAllocator, statuses));
   }
 
   @Test
@@ -415,7 +422,7 @@ public class TestDirListingRecordReader extends BaseTestQuery {
 
     List<PartitionProtobuf.PartitionValue> partitionValues = new ArrayList<>();
     partitionValues.add(PartitionProtobuf.PartitionValue.newBuilder().setColumn("integerCol").setIntValue(20).build());
-    partitionValues.add(PartitionProtobuf.PartitionValue.newBuilder().setColumn("doubleCol").setDoubleValue(new Double("20")).build());
+    partitionValues.add(PartitionProtobuf.PartitionValue.newBuilder().setColumn("doubleCol").setDoubleValue(20.0D).build());
     partitionValues.add(PartitionProtobuf.PartitionValue.newBuilder().setColumn("bitField").setBitValue(true).build());
     partitionValues.add(PartitionProtobuf.PartitionValue.newBuilder().setColumn("varCharField").setStringValue("tempVarCharValue").build());
 
@@ -719,7 +726,7 @@ public class TestDirListingRecordReader extends BaseTestQuery {
       toHadoopPath(Path.of(inputPath.resolve("id/data=value/file2.parquet").toString())),
     };
 
-    FetchOnDemandDirectoryStream statusesIterator1 = newRemoteIterator(inputPath,
+    FetchOnDemandDirectoryStream statusesIterator1 = newRemoteIterator(inputPath, testAllocator,
       new FileStatus(20, false, 1, 4096, 1, 2, FsPermission.getFileDefault(), "testowner", "testgroup", testPaths[0]),
       new FileStatus(40, false, 0, 0, 2, 4, FsPermission.getDirDefault(), "testowner", "testgroup", testPaths[1])
     );
@@ -756,13 +763,39 @@ public class TestDirListingRecordReader extends BaseTestQuery {
     mutator.close();
   }
 
+  @Test
+  public void testDirListReaderCanIncludeFilesWithFutureModTimes() throws Exception {
+    Path inputPath = Path.of("/randompath/");
+    HadoopFileSystem fs = (HadoopFileSystem) setUpFs();
+
+    setupMutator();
+    setupFsListIteratorMock(fs, inputPath);
+    DirListInputSplitProto.DirListInputSplit split = getDirListInputSplit(inputPath.toString(), inputPath.toString());
+    reader = new DirListingRecordReader(getCtx(false), fs, split, true, null, null,true, false);
+    reader.allocate(mutator.getFieldVectorMap());
+    reader.setup(mutator);
+
+    int generatedRecords = reader.next();
+    assertEquals(6, generatedRecords);
+
+    Map<String, ValueVector> fieldVectorMap = mutator.getFieldVectorMap();
+    VarCharVector outputpaths = (VarCharVector) fieldVectorMap.get("filepath");
+
+    assertEquals("/randompath/foo.parquet?version=1", outputpaths.getObject(0).toString());
+    assertEquals("/randompath/bar/file1.parquet?version=31", outputpaths.getObject(1).toString());
+    assertEquals("/randompath/bar/subBar1/file2.parquet?version=32", outputpaths.getObject(2).toString());
+    assertEquals("/randompath/bar/subBar1/file3.parquet?version=312", outputpaths.getObject(3).toString());
+    assertEquals("/randompath/bar/subBar1/file4.parquet?version=331", outputpaths.getObject(4).toString());
+    assertEquals("/randompath/bar/subBar1/subBar2/file5.parquet?version=10001", outputpaths.getObject(5).toString());
+  }
+
   private void setupFsListIteratorMockForInvalidPartitions2(HadoopFileSystem fs, Path inputPath) throws IOException {
     org.apache.hadoop.fs.Path[] testPaths = {
       toHadoopPath(Path.of(inputPath.resolve("id=1/data=name/file1.parquet").toString())),
       toHadoopPath(Path.of(inputPath.resolve("otherColumn=1/data=value/file2.parquet").toString())),
     };
 
-    FetchOnDemandDirectoryStream statusesIterator1 = newRemoteIterator(inputPath,
+    FetchOnDemandDirectoryStream statusesIterator1 = newRemoteIterator(inputPath, testAllocator,
       new FileStatus(20, false, 1, 4096, 1, 2, FsPermission.getFileDefault(), "testowner", "testgroup", testPaths[0]),
       new FileStatus(40, false, 0, 0, 2, 4, FsPermission.getDirDefault(), "testowner", "testgroup", testPaths[1])
     );
@@ -805,7 +838,7 @@ public class TestDirListingRecordReader extends BaseTestQuery {
       toHadoopPath(Path.of(inputPath.resolve("id=1/data=value/file1.parquet").toString()))
     };
 
-    FetchOnDemandDirectoryStream statusesIterator3 = newRemoteIterator(inputPath,
+    FetchOnDemandDirectoryStream statusesIterator3 = newRemoteIterator(inputPath, testAllocator,
       new FileStatus(20, false, 1, 4096, 1, 2, FsPermission.getFileDefault(), "testowner", "testgroup", testPaths[0]),
       new FileStatus(20, false, 1, 4096, 2, 2, FsPermission.getFileDefault(), "testowner", "testgroup", testPaths[1])
     );
@@ -850,7 +883,7 @@ public class TestDirListingRecordReader extends BaseTestQuery {
       toHadoopPath(Path.of(inputPath.resolve("temp1/temp2/file1.parquet").toString()))
     };
 
-    FetchOnDemandDirectoryStream statusesIterator4 = newRemoteIterator(inputPath,
+    FetchOnDemandDirectoryStream statusesIterator4 = newRemoteIterator(inputPath, testAllocator,
       new FileStatus(20, false, 1, 4096, 1, 2, FsPermission.getFileDefault(), "testowner", "testgroup", testPaths[0]),
       new FileStatus(20, false, 1, 4096, 2, 2, FsPermission.getFileDefault(), "testowner", "testgroup", testPaths[1])
     );
@@ -894,7 +927,7 @@ public class TestDirListingRecordReader extends BaseTestQuery {
       toHadoopPath(Path.of(inputPath.resolve("id=1/data=value/file1.parquet").toString()))
     };
 
-    FetchOnDemandDirectoryStream statusesIterator3 = newRemoteIterator(inputPath,
+    FetchOnDemandDirectoryStream statusesIterator3 = newRemoteIterator(inputPath, testAllocator,
       new FileStatus(20, false, 1, 4096, 1, 2, FsPermission.getFileDefault(), "testowner", "testgroup", testPaths[0]),
       new FileStatus(20, false, 1, 4096, 1, 2, FsPermission.getFileDefault(), "testowner", "testgroup", testPaths[1]),
       new FileStatus(20, false, 1, 4096, 2, 2, FsPermission.getFileDefault(), "testowner", "testgroup", testPaths[2])
@@ -936,7 +969,7 @@ public class TestDirListingRecordReader extends BaseTestQuery {
       toHadoopPath(Path.of(inputPath.resolve("id=1/da=ta=value/file1.parquet").toString())) //directories with more
     };
 
-    FetchOnDemandDirectoryStream statusesIterator3 = newRemoteIterator(inputPath,
+    FetchOnDemandDirectoryStream statusesIterator3 = newRemoteIterator(inputPath, testAllocator,
       new FileStatus(20, false, 1, 4096, 1, 2, FsPermission.getFileDefault(), "testowner", "testgroup", testPaths[0])
     );
 

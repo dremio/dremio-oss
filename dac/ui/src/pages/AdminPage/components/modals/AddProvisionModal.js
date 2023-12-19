@@ -67,12 +67,9 @@ export class AddProvisionModal extends Component {
   }
 
   getModalTitle() {
-    const provision = this.getProvisionManager();
-    const label = provision.get("label");
-
-    return `${this.isEditMode() ? la("Edit") : la("Set Up")}${
-      label ? ` ${label}` : ""
-    }`; // todo: proper sub-pattern loc
+    return this.isEditMode()
+      ? laDeprecated("Edit Engine")
+      : laDeprecated("Add Engine");
   }
 
   handleSelectClusterType = (clusterType) => {
@@ -87,15 +84,15 @@ export class AddProvisionModal extends Component {
   promptEditProvisionRestart(values) {
     return new Promise((resolve, reject) => {
       this.props.showConfirmationDialog({
-        title: la("Restart Engine"),
-        confirmText: la("Restart"),
+        title: laDeprecated("Restart Engine"),
+        confirmText: laDeprecated("Restart"),
         confirm: () => resolve(this.editProvision(values)),
         cancel: reject,
         text: [
-          la(
+          laDeprecated(
             "Saving these settings requires a restart of the engine. Existing jobs will be halted."
           ),
-          la("Are you sure you want to continue?"),
+          laDeprecated("Are you sure you want to continue?"),
         ],
       });
     });
@@ -132,7 +129,6 @@ export class AddProvisionModal extends Component {
     const { isOpen, hide, updateFormDirtyState, provision, clusterType } =
       this.props;
     const title = this.getModalTitle();
-
     const clusterTypeForm = clusterType && provisioningForms[clusterType];
     invariant(
       !clusterType || clusterTypeForm,
@@ -143,7 +139,7 @@ export class AddProvisionModal extends Component {
       <Modal
         title={title}
         size="medium"
-        style={{ width: 775 }}
+        style={{ width: 600 }}
         isOpen={isOpen}
         hide={hide}
       >
@@ -183,7 +179,7 @@ export default connect(mapStateToProps, {
 
 const styles = {
   formBody: {
-    width: 770,
+    width: 595,
     margin: "0 auto",
   },
   stepOneStyle: {

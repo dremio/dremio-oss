@@ -1,1 +1,4 @@
 dist-*
+!Makefile
+!.vscode
+!patches/*.patch

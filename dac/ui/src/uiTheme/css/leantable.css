@@ -19,10 +19,10 @@
 
 :root {
   --leantable--column--gap: 0;
-  --leantable--header--background: white;
+  --leantable--header--background: var(--bg--default);
   --leantable--header--padding-block: 10px;
   --leantable--header--text-align: left;
-  --leantable--row--background: white;
+  --leantable--row--background: var(--bg--default);
   --leantable--row--border: 1px solid #eeeef1;
   --leantable--row--hover--background: #e9f5f9;
 }
@@ -39,7 +39,7 @@
 }
 
 .leantable__body-row[aria-disabled="true"]:hover .leantable__body-cell {
-  background-color: white !important;
+  background-color: var(--bg--default) !important;
 }
 
 .leantable__header-cell {

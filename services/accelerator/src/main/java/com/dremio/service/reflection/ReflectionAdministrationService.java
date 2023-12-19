@@ -18,7 +18,7 @@ package com.dremio.service.reflection;
 import java.util.List;
 import java.util.Optional;
 
-import com.dremio.exec.catalog.CatalogEntityKey;
+import com.dremio.catalog.model.CatalogEntityKey;
 import com.dremio.exec.ops.ReflectionContext;
 import com.dremio.service.reflection.proto.ExternalReflection;
 import com.dremio.service.reflection.proto.Materialization;
@@ -33,7 +33,7 @@ public interface ReflectionAdministrationService {
 
   Iterable<ReflectionGoal> getReflectionsByDatasetPath(CatalogEntityKey path);
 
-  Iterable<ReflectionGoal> getReflectionsByDatasetId(String datasetid);
+  Iterable<ReflectionGoal> getReflectionsByDatasetId(String datasetId);
 
   ReflectionId create(ReflectionGoal goal);
 
@@ -47,7 +47,7 @@ public interface ReflectionAdministrationService {
 
   Optional<Materialization> getLastDoneMaterialization(ReflectionId reflectionId);
 
-  ReflectionId createExternalReflection(String name, List<String> dataset, List<String> targetDataset);
+  ReflectionId createExternalReflection(String name, List<String> datasetPath, List<String> targetDatasetPath);
 
   Iterable<ExternalReflection> getExternalReflectionByDatasetPath(List<String> datasetPath);
 
@@ -68,7 +68,7 @@ public interface ReflectionAdministrationService {
 
   void requestRefresh(String datasetId);
 
-  int getEnabledReflectionCountForDataset(String datasetid);
+  int getEnabledReflectionCountForDataset(String datasetId);
 
   boolean isReflectionIncremental(ReflectionId reflectionId);
 

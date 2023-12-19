@@ -20,7 +20,6 @@ import SourceBranchPicker from "../SourceBranchPicker/SourceBranchPicker";
 import { spacesSourcesListSpinnerStyleFinderNav } from "@app/pages/HomePage/HomePageConstants";
 import * as commonPaths from "dremio-ui-common/paths/common.js";
 import { getSonarContext } from "dremio-ui-common/contexts/SonarContext.js";
-import { isNotSoftware } from "dyn-load/utils/versionUtils";
 
 type DataPlaneSectionProps = {
   dataPlaneSources: any;
@@ -44,6 +43,12 @@ function DataPlaneSection({
   isCollapsible = false,
 }: DataPlaneSectionProps) {
   const intl = useIntl();
+  const hasProjectId = getSonarContext()?.getSelectedProjectId?.();
+  const linkTo = hasProjectId
+    ? commonPaths.arctic.link({
+        projectId: getSonarContext()?.getSelectedProjectId?.(),
+      })
+    : commonPaths.nessie.link({});
   return (
     <div
       className="left-tree-wrap"
@@ -64,20 +69,18 @@ function DataPlaneSection({
           location={location}
           navItems={dataPlaneSources}
           title={intl.formatMessage({
-            id: isNotSoftware()
+            id: hasProjectId
               ? "Source.ArcticCatalogs"
               : "Source.NessieCatalogs",
           })}
           addTooltip={intl.formatMessage({
-            id: isNotSoftware()
+            id: hasProjectId
               ? "Source.AddArcticCatalog"
               : "Source.AddNessieCatalog",
           })}
           isInProgress={sourcesViewState.get("isInProgress")}
           addHref={addHref}
-          listHref={commonPaths.dataplane.link({
-            projectId: getSonarContext()?.getSelectedProjectId?.(),
-          })}
+          listHref={linkTo}
           renderExtra={(item: any, targetRef: any) => (
             <SourceBranchPicker
               source={item}

@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+import { useMultiTabIsEnabled } from "@app/components/SQLScripts/useMultiTabIsEnabled";
+
 export const SaveScriptAsMenuItem = {
   label: "NewQuery.SaveScriptAs",
   id: "saveScriptAs",
@@ -33,6 +35,16 @@ export const SaveViewAsMenuItem = {
   label: "NewQuery.SaveViewAs",
   id: "saveViewAs",
   class: "save-as-menu-item",
+};
+
+export const SaveAsViewMenuItem = {
+  label: "NewQuery.SaveAsView",
+  id: "saveViewAs",
+  class: "save-as-menu-item",
+};
+
+export const getTabSaveMenuItms = () => {
+  return [SaveScriptAsMenuItem, SaveAsViewMenuItem];
 };
 
 export const getSaveMenuItems = ({

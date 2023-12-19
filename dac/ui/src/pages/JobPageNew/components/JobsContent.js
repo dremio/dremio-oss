@@ -19,7 +19,6 @@ import classNames from "clsx";
 import Immutable, { List } from "immutable";
 import PropTypes from "prop-types";
 import { injectIntl } from "react-intl";
-import DocumentTitle from "react-document-title";
 import socket from "@inject/utils/socket";
 import { flexColumnContainer } from "@app/uiTheme/less/layout.less";
 import StatefulTableViewer from "@app/components/StatefulTableViewer";
@@ -183,7 +182,7 @@ export class JobsContent extends PureComponent {
     this.getDefaultColumns();
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     const { jobs, jobId } = this.props;
     if (nextProps.jobs !== jobs) {
       this.runActionForJobs(nextProps.jobs, false, (jobIdForCallback) =>
@@ -377,7 +376,14 @@ export class JobsContent extends PureComponent {
               ),
             value: formattedRowsReturned.toString(),
           },
-          buttons: { node: () => renderButtons(job.get("state"), jobIdForMap) },
+          buttons: {
+            node: () =>
+              renderButtons(
+                job.get("state"),
+                jobIdForMap,
+                job.get("attemptDetails")?.size
+              ),
+          },
         },
       };
     });
@@ -430,9 +436,6 @@ export class JobsContent extends PureComponent {
 
     return (
       <div style={{ height: "100%" }}>
-        {!isFromExplorePage && (
-          <DocumentTitle title={intl.formatMessage({ id: "Job.Jobs" })} />
-        )}
         <div className={"jobsPageBody"}>
           {showSideNav && <SonarSideNav />}
           <div className={"jobPageContentDiv"}>

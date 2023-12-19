@@ -105,7 +105,7 @@ export class InnerJoin extends Component {
     this.receiveProps(props, {});
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     this.receiveProps(nextProps, this.props);
   }
 
@@ -196,7 +196,7 @@ export class InnerJoin extends Component {
       >
         <div style={styles.wrap}>
           <div style={styles.item}>
-            <span style={styles.font}>{la("Type: ")}</span>
+            <span style={styles.font}>{laDeprecated("Type: ")}</span>
             <Select
               dataQa="selectedJoinType"
               items={this.items}
@@ -243,7 +243,7 @@ export class InnerJoin extends Component {
             {/* todo: ax, consistency: button */}
             <FontIcon type="Add" />
             <span style={{ marginBottom: 3 }}>
-              {la("Add a Join Condition")}
+              {laDeprecated("Add a Join Condition")}
             </span>
           </div>
         </div>

@@ -16,7 +16,7 @@
 package com.dremio.exec.server;
 
 import com.dremio.options.OptionManager;
-import com.dremio.security.CredentialsService;
+import com.dremio.services.credentials.CredentialsService;
 
 /**
  * Context for {@link JdbcSchemaFetcherFactory}.

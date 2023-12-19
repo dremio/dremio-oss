@@ -38,11 +38,14 @@ import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
 
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.tablefunctions.ExternalQueryScanCrel;
 import com.dremio.exec.work.user.SubstitutionSettings;
+import com.dremio.options.OptionResolver;
+import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.collect.ImmutableList;
@@ -77,6 +80,18 @@ public class TestMaterializationList {
   @Mock
   private RelNode node2;
 
+  @Mock
+  private ExternalMaterializationDescriptor externalMaterializationDescriptor1;
+
+  @Mock
+  private ExternalMaterializationDescriptor externalMaterializationDescriptor2;
+
+  @Mock
+  private FunctionContext functionContext;
+
+  @Mock
+  private OptionResolver optionResolver;
+
   @Before
   public void setup() {
     when(desc1.getMaterializationFor(converter)).thenReturn(relOptMat1);
@@ -92,6 +107,69 @@ public class TestMaterializationList {
     when(desc2.getMaterializationId()).thenReturn("m-2");
     when(desc2.getPath()).thenReturn(ImmutableList.of());
     when(relOptMat2.getReflectionId()).thenReturn("rid-2");
+
+    when(externalMaterializationDescriptor1.isApplicable(any(), any(), any())).thenCallRealMethod();
+    when(externalMaterializationDescriptor2.isApplicable(any(), any(), any())).thenCallRealMethod();
+
+    when(converter.getFunctionContext()).thenReturn(functionContext);
+    when(functionContext.getOptions()).thenReturn(optionResolver);
+    when(optionResolver.getOption(PlannerSettings.EXCLUDE_REFLECTIONS)).thenReturn("");
+    when(optionResolver.getOption(PlannerSettings.CONSIDER_REFLECTIONS)).thenReturn("");
+  }
+
+  /**
+   * Verifies that reflections can be excluded through session level reflection hints
+   */
+  @Test
+  public void testListDiscardsGivenHintExclusions() {
+    when(desc1.isApplicable(any(), any(), any())).thenReturn(true);
+    when(desc2.isApplicable(any(), any(), any())).thenReturn(true);
+    RelNode relOptMat2QueryNode = createTableScan(Arrays.asList("schema","t2"));
+    when(relOptMat2.getQueryRel()).thenReturn(relOptMat2QueryNode);
+    when(relOptMat2.accept(any(RelShuttle.class))).thenReturn(relOptMat2);
+
+    SubstitutionSettings materializationSettings = new SubstitutionSettings(ImmutableList.of("rid-1"));
+
+    when(session.getSubstitutionSettings()).thenReturn(materializationSettings);
+    when(provider.get()).thenReturn(ImmutableList.of(desc1, desc2));
+
+    when(optionResolver.getOption(PlannerSettings.EXCLUDE_REFLECTIONS)).thenReturn("rid-2");
+
+    final MaterializationList materializations = new MaterializationList(converter, session, provider);
+    RelNode userQuery = createTableScan(Arrays.asList("schema","t2"));
+    List<DremioMaterialization> dremioMaterializations =  materializations.buildConsideredMaterializations(userQuery);
+
+    verify(desc1, never()).getMaterializationFor(any(SqlConverter.class));
+    verify(desc2, never()).getMaterializationFor(converter);
+    assertEquals(0, dremioMaterializations.size());
+  }
+
+  /**
+   * Verifies that reflections can be included through session level reflection hints
+   */
+  @Test
+  public void testListKeepsGivenHintIncludes() {
+    when(desc1.isApplicable(any(), any(), any())).thenReturn(true);
+    when(desc2.isApplicable(any(), any(), any())).thenReturn(true);
+    RelNode relOptMat2QueryNode = createTableScan(Arrays.asList("schema","t2"));
+    when(relOptMat2.getQueryRel()).thenReturn(relOptMat2QueryNode);
+    when(relOptMat2.accept(any(RelShuttle.class))).thenReturn(relOptMat2);
+
+    SubstitutionSettings materializationSettings = new SubstitutionSettings(ImmutableList.of());
+
+    when(session.getSubstitutionSettings()).thenReturn(materializationSettings);
+    when(provider.get()).thenReturn(ImmutableList.of(desc1, desc2));
+
+    when(optionResolver.getOption(PlannerSettings.CONSIDER_REFLECTIONS)).thenReturn("rid-2");
+
+    final MaterializationList materializations = new MaterializationList(converter, session, provider);
+    RelNode userQuery = createTableScan(Arrays.asList("schema","t2"));
+    List<DremioMaterialization> dremioMaterializations =  materializations.buildConsideredMaterializations(userQuery);
+
+    verify(desc1, never()).getMaterializationFor(any(SqlConverter.class));
+    verify(desc2, atLeastOnce()).getMaterializationFor(converter);
+    assertEquals(1, dremioMaterializations.size());
+    assertEquals(relOptMat2, dremioMaterializations.stream().findFirst().get());
   }
 
   /**
@@ -101,6 +179,9 @@ public class TestMaterializationList {
   public void testListDiscardsGivenExclusions() {
     when(desc1.isApplicable(any(), any(), any())).thenReturn(true);
     when(desc2.isApplicable(any(), any(), any())).thenReturn(true);
+    RelNode relOptMat2QueryNode = createTableScan(Arrays.asList("schema","t2"));
+    when(relOptMat2.getQueryRel()).thenReturn(relOptMat2QueryNode);
+    when(relOptMat2.accept(any(RelShuttle.class))).thenReturn(relOptMat2);
 
     SubstitutionSettings materializationSettings = new SubstitutionSettings(ImmutableList.of("rid-1"));
 
@@ -108,12 +189,13 @@ public class TestMaterializationList {
     when(provider.get()).thenReturn(ImmutableList.of(desc1, desc2));
 
     final MaterializationList materializations = new MaterializationList(converter, session, provider);
-    List<DremioMaterialization> dremioMaterializations =  materializations.buildApplicableMaterializations(Mockito.mock(RelNode.class));
+    RelNode userQuery = createTableScan(Arrays.asList("schema","t2"));
+    List<DremioMaterialization> dremioMaterializations =  materializations.buildConsideredMaterializations(userQuery);
 
     verify(desc1, never()).getMaterializationFor(any(SqlConverter.class));
     verify(desc2, atLeastOnce()).getMaterializationFor(converter);
     assertEquals(1, dremioMaterializations.size());
-    assertEquals(relOptMat2, dremioMaterializations.get(0));
+    assertEquals(relOptMat2, dremioMaterializations.stream().findFirst().get());
   }
 
   /**
@@ -138,10 +220,10 @@ public class TestMaterializationList {
 
     final MaterializationList materializations = new MaterializationList(converter, session, provider);
     RelNode userQuery = createTableScan(Arrays.asList("schema","t1"));
-    List<DremioMaterialization> dremioMaterializations =  materializations.buildApplicableMaterializations(userQuery);
+    List<DremioMaterialization> dremioMaterializations =  materializations.buildConsideredMaterializations(userQuery);
 
     assertEquals(1, dremioMaterializations.size());
-    assertEquals("rid-1", dremioMaterializations.get(0).getReflectionId());
+    assertEquals("rid-1", dremioMaterializations.stream().findFirst().get().getReflectionId());
   }
 
   private RelNode createTableScan(List<String> path) {
@@ -175,10 +257,10 @@ public class TestMaterializationList {
 
     final MaterializationList materializations = new MaterializationList(converter, session, provider);
     RelNode userQuery = createExpansionNode(Arrays.asList("schema","v1"));
-    List<DremioMaterialization> dremioMaterializations =  materializations.buildApplicableMaterializations(userQuery);
+    List<DremioMaterialization> dremioMaterializations = materializations.buildConsideredMaterializations(userQuery);
 
     assertEquals(1, dremioMaterializations.size());
-    assertEquals("rid-1", dremioMaterializations.get(0).getReflectionId());
+    assertEquals("rid-1", dremioMaterializations.stream().findFirst().get().getReflectionId());
   }
 
   private RelNode createExpansionNode(List<String> path) {
@@ -210,10 +292,10 @@ public class TestMaterializationList {
 
     final MaterializationList materializations = new MaterializationList(converter, session, provider);
     RelNode userQuery = createExternalQueryScanCrel("plugin","select 1");
-    List<DremioMaterialization> dremioMaterializations =  materializations.buildApplicableMaterializations(userQuery);
+    List<DremioMaterialization> dremioMaterializations =  materializations.buildConsideredMaterializations(userQuery);
 
     assertEquals(1, dremioMaterializations.size());
-    assertEquals("rid-1", dremioMaterializations.get(0).getReflectionId());
+    assertEquals("rid-1", dremioMaterializations.stream().findFirst().get().getReflectionId());
   }
 
   private RelNode createExternalQueryScanCrel(String pluginName, String sql) {
@@ -224,5 +306,33 @@ public class TestMaterializationList {
     when(node.getSql()).thenReturn(sql);
     when(node.accept(any(RelShuttle.class))).thenCallRealMethod();
     return node;
+  }
+
+  /**
+   * Verifies external reflection without materialization cache is pruned
+   */
+  @Test
+  public void testExternalReflection() {
+
+    when(externalMaterializationDescriptor1.getMaterializationFor(any())).thenReturn(relOptMat1);
+    RelNode relOptMat1QueryNode = createTableScan(Arrays.asList("schema","t1"));
+    when(relOptMat1.getQueryRel()).thenReturn(relOptMat1QueryNode);
+    when(relOptMat1.accept(any(RelShuttle.class))).thenReturn(relOptMat1);
+
+    when(externalMaterializationDescriptor2.getMaterializationFor(any())).thenReturn(relOptMat2);
+    RelNode relOptMat2QueryNode = createTableScan(Arrays.asList("schema","t2"));
+    when(relOptMat2.getQueryRel()).thenReturn(relOptMat2QueryNode);
+    when(relOptMat2.accept(any(RelShuttle.class))).thenReturn(relOptMat2);
+
+    SubstitutionSettings materializationSettings = SubstitutionSettings.of();
+    when(session.getSubstitutionSettings()).thenReturn(materializationSettings);
+    when(provider.get()).thenReturn(ImmutableList.of(externalMaterializationDescriptor1, externalMaterializationDescriptor2));
+
+    final MaterializationList materializations = new MaterializationList(converter, session, provider);
+    RelNode userQuery = createTableScan(Arrays.asList("schema","t1"));
+    List<DremioMaterialization> dremioMaterializations = materializations.buildConsideredMaterializations(userQuery);
+
+    assertEquals(1, dremioMaterializations.size());
+    assertEquals("rid-1", dremioMaterializations.stream().findFirst().get().getReflectionId());
   }
 }

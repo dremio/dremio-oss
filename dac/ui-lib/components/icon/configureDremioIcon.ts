@@ -23,6 +23,9 @@ import { define, SVGUseAdapter } from "smart-icon";
 export const configureDremioIcon = (iconsRoot: string): void => {
   define("dremio-icon", {
     adapter: SVGUseAdapter,
+    aliases: {
+      "interface/select-expand": "interface/caretDown",
+    },
     resolvePath: (name) => `${iconsRoot}/${name}.svg#${name}`,
   });
 };

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import ArcticDataset, { DatasetType } from "./ArcticDataset";
+import VersionedDataset, { DatasetType } from "./VersionedDataset";
 
 type DatasetSummaryOverlayProps = {
   datasetType: DatasetType;
@@ -27,7 +27,7 @@ const DatasetSummaryOverlay = (props: DatasetSummaryOverlayProps) => {
   return (
     <div className="dataset-summary-overlay">
       <div className="dataset-summary-overlay__title">
-        <ArcticDataset type={props.datasetType} />
+        <VersionedDataset type={props.datasetType} />
         {props.name}
       </div>
       <div className="dataset-summary-overlay__secondary-content">

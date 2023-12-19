@@ -44,6 +44,7 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.mockito.quality.Strictness;
 
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.explore.QueryExecutor;
 import com.dremio.dac.explore.model.Dataset;
@@ -63,7 +64,6 @@ import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.catalog.SourceCatalog;
 import com.dremio.exec.catalog.StoragePluginId;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.server.ContextService;
 import com.dremio.exec.server.SabotContext;
@@ -76,6 +76,7 @@ import com.dremio.exec.store.dfs.PDFSConf;
 import com.dremio.exec.store.sys.SystemPluginConf;
 import com.dremio.file.File;
 import com.dremio.plugins.ExternalNamespaceEntry;
+import com.dremio.plugins.ExternalNamespaceEntry.Type;
 import com.dremio.plugins.dataplane.store.DataplanePlugin;
 import com.dremio.service.namespace.BoundedDatasetCount;
 import com.dremio.service.namespace.NamespaceException;
@@ -91,8 +92,6 @@ import com.google.common.collect.ImmutableList;
 
 public class TestSourceService {
   private static final String SOURCE_NAME = "sourceName";
-  private static final String NAMESPACE = "NAMESPACE";
-  private static final String ICEBERG_TABLE = "ICEBERG_TABLE";
   private static final String DEFAULT_REF_TYPE = VersionContextReq.VersionContextType.BRANCH.toString();
   private static final String DEFAULT_BRANCH_NAME = "somebranch";
   private static final VersionContext DEFAULT_VERSION_CONTEXT =
@@ -101,9 +100,9 @@ public class TestSourceService {
   private static final String FOLDER_NAME_2 = "folder2";
   private static final String TABLE_NAME_1 = "table1";
   private static final List<ExternalNamespaceEntry> DEFAULT_ENTRIES = Arrays.asList(
-    ExternalNamespaceEntry.of(NAMESPACE, Collections.singletonList(FOLDER_NAME_1)),
-    ExternalNamespaceEntry.of(NAMESPACE, Collections.singletonList(FOLDER_NAME_2)),
-    ExternalNamespaceEntry.of(ICEBERG_TABLE, Collections.singletonList(TABLE_NAME_1)));
+    ExternalNamespaceEntry.of(Type.FOLDER, Collections.singletonList(FOLDER_NAME_1)),
+    ExternalNamespaceEntry.of(Type.FOLDER, Collections.singletonList(FOLDER_NAME_2)),
+    ExternalNamespaceEntry.of(Type.ICEBERG_TABLE, Collections.singletonList(TABLE_NAME_1)));
 
   @Rule
   public MockitoRule rule = MockitoJUnit.rule().strictness(Strictness.STRICT_STUBS);
@@ -116,7 +115,7 @@ public class TestSourceService {
   @Mock private SecurityContext securityContext;
   @Mock private CatalogService catalogService;
 
-  private static class NonInternalConf extends ConnectionConf<NonInternalConf, StoragePlugin> {
+  private static final class NonInternalConf extends ConnectionConf<NonInternalConf, StoragePlugin> {
 
     @Override
     public StoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
@@ -133,13 +132,13 @@ public class TestSourceService {
   private SourceService getSourceService() {
     return new SourceService(
       mock(SabotContext.class),
-      mock(NamespaceService.class),
+      namespaceService,
       mock(DatasetVersionMutator.class),
-      mock(CatalogService.class),
+      catalogService,
       mock(ReflectionServiceHelper.class),
       mock(CollaborationHelper.class),
-      mock(ConnectionReader.class),
-      mock(SecurityContext.class));
+      connectionReader,
+      securityContext);
   }
 
   private static final List<ConnectionConf<?, ?>> validConnectionConfs = ImmutableList.of(new NonInternalConf());
@@ -295,6 +294,16 @@ public class TestSourceService {
         DEFAULT_VERSION_CONTEXT);
   }
 
+  @Test
+  public void deletePhysicalDatasetForVersionedSource() {
+    when(catalogService.getSource("nessie")).thenReturn(dataplanePlugin);
+    SourceService sourceService = getSourceService();
+
+    assertThatThrownBy(() -> sourceService.deletePhysicalDataset(new SourceName("nessie"), null, "0001", null))
+      .isInstanceOf(UserException.class)
+      .hasMessageContaining("not allowed for Versioned source");
+  }
+
   private void assertMatchesDefaultEntries(NamespaceTree contents) {
 
     List<Folder> folders = contents.getFolders();
@@ -322,15 +331,7 @@ public class TestSourceService {
     when(principal.getName()).thenReturn("username");
     when(securityContext.getUserPrincipal()).thenReturn(principal);
 
-    final SourceService sourceService = new SourceService(
-      mock(SabotContext.class),
-      namespaceService,
-      mock(DatasetVersionMutator.class),
-      catalogService,
-      mock(ReflectionServiceHelper.class),
-      mock(CollaborationHelper.class),
-      connectionReader,
-      mock(SecurityContext.class));
+    final SourceService sourceService = getSourceService();
 
     return new SourceResource(
       namespaceService,

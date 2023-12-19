@@ -18,12 +18,14 @@ package com.dremio.exec.planner.sql.handlers.query;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 
+import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.VersionContext;
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.CatalogUtil;
-import com.dremio.exec.catalog.ResolvedVersionContext;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
@@ -45,10 +47,14 @@ public class InsertTableHandler extends DataAdditionCmdHandler {
   @Override
   public PhysicalPlan getPlan(SqlHandlerConfig config, String sql, SqlNode sqlNode) throws Exception {
     try {
-      final SqlDmlOperator sqlDmlOperator = SqlNodeUtil.unwrap(sqlNode, SqlDmlOperator.class);
+      final SqlDmlOperator sqlDmlOperator =
+        SqlNodeUtil.unwrap(sqlNode, SqlDmlOperator.class);
       final Catalog catalog = config.getContext().getCatalog();
-      final NamespaceKey path = DmlUtils.getTablePath(catalog, sqlDmlOperator.getPath());
-      validateDmlRequest(catalog, config, path, sqlNode);
+      if (sqlNode instanceof SqlCopyIntoTable) {
+        sqlDmlOperator.extendTableWithDataFileSystemColumns();
+      }
+      final NamespaceKey path = CatalogUtil.getResolvePathForTableManagement(catalog, sqlDmlOperator.getPath(),  DmlUtils.getVersionContext(sqlNode));
+      validateDmlRequest(catalog, config, CatalogEntityKey.namespaceKeyToCatalogEntityKey(path, DmlUtils.getVersionContext((SqlDmlOperator) sqlNode)), sqlNode);
       catalog.validatePrivilege(path, Privilege.INSERT);
 
       final DataAdditionCmdCall sqlInsertTable = SqlNodeUtil.unwrap(sqlNode, DataAdditionCmdCall.class);
@@ -60,7 +66,15 @@ public class InsertTableHandler extends DataAdditionCmdHandler {
           .build(logger);
       }
       if (CatalogUtil.requestedPluginSupportsVersionedTables(path, catalog)) {
-        return doVersionedInsert(catalog, config, path, sql, sqlInsertTable);
+        final String sourceName = path.getRoot();
+        VersionContext statementSourceVersion = DmlUtils.getVersionContext((SqlDmlOperator) sqlInsertTable).asVersionContext();
+        final VersionContext sessionVersion = config.getContext().getSession().getSessionVersionForSource(sourceName);
+        VersionContext sourceVersion = statementSourceVersion.orElse(sessionVersion);
+        CatalogEntityKey catalogEntityKey = CatalogEntityKey.newBuilder()
+          .keyComponents(path.getPathComponents())
+          .tableVersionContext(TableVersionContext.of(sourceVersion))
+          .build();
+        return doVersionedInsert(catalog, config, catalogEntityKey, sql, sqlInsertTable);
       } else {
         return doInsert(catalog, config, path, sql, sqlInsertTable);
       }
@@ -69,7 +83,7 @@ public class InsertTableHandler extends DataAdditionCmdHandler {
     }
   }
 
-  public static void validateDmlRequest(Catalog catalog, SqlHandlerConfig config, NamespaceKey path, SqlNode sqlNode) {
+  public static void validateDmlRequest(Catalog catalog, SqlHandlerConfig config, CatalogEntityKey catalogEntityKey, SqlNode sqlNode) {
     Preconditions.checkArgument(sqlNode != null, "SqlDmlOperator can't be null");
 
     if (!config.getContext().getOptions().getOption(ExecConstants.ENABLE_COPY_INTO) && (sqlNode instanceof SqlCopyIntoTable)) {
@@ -86,7 +100,7 @@ public class InsertTableHandler extends DataAdditionCmdHandler {
     }
     Preconditions.checkArgument(sqlOperator != null, "SqlNode %s is not a right type of insert Operator", sqlNode);
 
-    IcebergUtils.checkTableExistenceAndMutability(catalog, config, path, sqlOperator, false);
+    IcebergUtils.checkTableExistenceAndMutability(catalog, config, catalogEntityKey, sqlOperator, true);
   }
 
   @VisibleForTesting
@@ -99,24 +113,27 @@ public class InsertTableHandler extends DataAdditionCmdHandler {
     PhysicalPlan plan = super.getPlan(catalog, path, config, sql, sqlInsertTable, null);
     // dont validate Iceberg schema since the writer is not created
     if (!config.getContext().getOptions().getOption(ExecConstants.ENABLE_DML_DISPLAY_RESULT_ONLY) || !(sqlInsertTable instanceof SqlCopyIntoTable)) {
-      super.validateIcebergSchemaForInsertCommand(sqlInsertTable.getFieldNames(), config);
+      super.validateIcebergSchemaForInsertCommand(sqlInsertTable, config);
     }
     return plan;
   }
 
-  protected PhysicalPlan doVersionedInsert(Catalog catalog, SqlHandlerConfig config, NamespaceKey path, String sql, DataAdditionCmdCall sqlInsertTable) throws Exception {
+  protected PhysicalPlan doVersionedInsert(Catalog catalog, SqlHandlerConfig config, CatalogEntityKey catalogEntityKey, String sql, DataAdditionCmdCall sqlInsertTable) throws Exception {
+    NamespaceKey path = catalogEntityKey.toNamespaceKey();
+    VersionContext statementSourceVersion = catalogEntityKey.getTableVersionContext().asVersionContext();
     final String sourceName = path.getRoot();
     final VersionContext sessionVersion = config.getContext().getSession().getSessionVersionForSource(sourceName);
-    final ResolvedVersionContext version = CatalogUtil.resolveVersionContext(catalog, sourceName, sessionVersion);
+    VersionContext sourceVersion = statementSourceVersion.orElse(sessionVersion);
+    ResolvedVersionContext resolvedVersionContext = CatalogUtil.resolveVersionContext(catalog, sourceName, sourceVersion);
     try {
-      CatalogUtil.validateResolvedVersionIsBranch(version);
+      CatalogUtil.validateResolvedVersionIsBranch(resolvedVersionContext);
       validateVersionedTableFormatOptions(catalog, path);
-      checkExistenceValidity(path, getDremioTable(catalog, path));
+      checkExistenceValidity(path, catalog.getTable(catalogEntityKey));
       logger.debug("Insert into versioned table '{}' at version '{}' resolved version '{}' ",
         path,
         sessionVersion,
-        version);
-      return super.getPlan(catalog, path, config, sql, sqlInsertTable, version);
+        resolvedVersionContext);
+      return super.getPlan(catalog, path, config, sql, sqlInsertTable, resolvedVersionContext);
     } catch (Exception e) {
       throw SqlExceptionHelper.coerceException(logger, sql, e, true);
     }

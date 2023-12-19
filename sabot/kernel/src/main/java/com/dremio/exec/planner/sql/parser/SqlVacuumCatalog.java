@@ -15,10 +15,15 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
-import static com.dremio.exec.planner.VacuumOutputSchema.getRelDataType;
-
 import java.util.List;
+import java.util.Optional;
+import java.util.function.Consumer;
 
+import org.apache.calcite.plan.Convention;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.prepare.Prepare;
+import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.SqlCall;
@@ -34,29 +39,31 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorScope;
 
+import com.dremio.exec.calcite.logical.VacuumCatalogCrel;
+import com.dremio.exec.planner.VacuumOutputSchema;
 import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
+import com.dremio.exec.planner.sql.handlers.query.SupportsSqlToRelConversion;
 import com.dremio.exec.planner.sql.handlers.query.VacuumCatalogHandler;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
-public class SqlVacuumCatalog extends SqlVacuum implements SqlToPlanHandler.Creator {
-  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("VACUUM", SqlKind.OTHER) {
+public class SqlVacuumCatalog extends SqlVacuum implements SqlToPlanHandler.Creator, SupportsSqlToRelConversion {
+
+  public static final SqlSpecialOperator VACUUM_CATALOG_OPERATOR = new SqlSpecialOperator("VACUUM_CATALOG_OPERATOR", SqlKind.OTHER) {
     @Override
     public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 3, "SqlVacuumCatalog.createCall() " +
-        "has 3 operands!");
+      Preconditions.checkArgument(operands.length == 1, "SqlVacuumCatalog.createCall() " +
+        "has 1 operand!");
       return new SqlVacuumCatalog(
         pos,
-        (SqlIdentifier) operands[0],
-        (SqlNodeList) operands[1],
-        (SqlNodeList) operands[2]);
+        (SqlIdentifier) operands[0]);
     }
 
     @Override
     public RelDataType deriveType(SqlValidator validator, SqlValidatorScope scope, SqlCall call) {
       final RelDataTypeFactory typeFactory = validator.getTypeFactory();
-      return getRelDataType(typeFactory);
+      return VacuumOutputSchema.getCatalogOutputRelDataType(typeFactory);
     }
   };
 
@@ -67,16 +74,15 @@ public class SqlVacuumCatalog extends SqlVacuum implements SqlToPlanHandler.Crea
    */
   public SqlVacuumCatalog(
     SqlParserPos pos,
-    SqlIdentifier catalogSource,
-    SqlNodeList optionsList,
-    SqlNodeList optionsValueList) {
-    super(pos, optionsList, optionsValueList);
+    SqlIdentifier catalogSource) {
+    super(pos, SqlLiteral.createBoolean(true, pos), SqlLiteral.createBoolean(true, pos),
+        SqlNodeList.EMPTY, SqlNodeList.EMPTY);
     this.catalogSource = catalogSource;
   }
 
   @Override
   public SqlOperator getOperator() {
-    return OPERATOR;
+    return VACUUM_CATALOG_OPERATOR;
   }
 
   public SqlIdentifier getCatalogSource() {
@@ -85,17 +91,22 @@ public class SqlVacuumCatalog extends SqlVacuum implements SqlToPlanHandler.Crea
 
   @Override
   public List<SqlNode> getOperandList() {
-    final List<SqlNode> ops =
-      ImmutableList.of(
-        catalogSource,
-        optionsList,
-        optionsValueList);
-    return ops;
+    return ImmutableList.of(catalogSource);
   }
 
   @Override
   public NamespaceKey getPath() {
-    return new NamespaceKey(catalogSource.names);
+    return new NamespaceKey(catalogSource.getSimple());
+  }
+
+  @Override
+  protected void populateOptions(SqlNodeList optionsList, SqlNodeList optionsValueList) {
+    // Nothing to do
+  }
+
+  @Override
+  public Optional<Consumer<SqlNode>> getOptionsConsumer(String optionName) {
+    return Optional.empty();
   }
 
   @Override
@@ -103,17 +114,16 @@ public class SqlVacuumCatalog extends SqlVacuum implements SqlToPlanHandler.Crea
     writer.keyword("VACUUM");
     writer.keyword("CATALOG");
     catalogSource.unparse(writer, leftPrec, rightPrec);
-
-    if(optionsList != null) {
-      for (int i = 0; i < optionsList.size(); i++) {
-        optionsList.get(i).unparse(writer, leftPrec, rightPrec);
-        optionsValueList.get(i).unparse(writer, leftPrec, rightPrec);
-      }
-    }
   }
 
   @Override
   public SqlToPlanHandler toPlanHandler() {
     return new VacuumCatalogHandler();
+  }
+
+  @Override
+  public RelNode convertToRel(RelOptCluster cluster, Prepare.CatalogReader catalogReader, RelNode inputRel,
+                              RelOptTable.ToRelContext relContext) {
+      return new VacuumCatalogCrel(cluster, cluster.traitSetOf(Convention.NONE), null, null, getCatalogSource().getSimple(), null,null);
   }
 }

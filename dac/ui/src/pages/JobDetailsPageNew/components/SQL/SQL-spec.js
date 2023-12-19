@@ -21,7 +21,7 @@ describe("SQL", () => {
     sqlString: "select * from test",
     contrast: true,
     showContrast: true,
-    sqlClass: "classname",
+    sqlClass: "className",
   };
   const wrapper = shallow(<SQL {...minimalProps} />);
   it("should render with minimal props without exploding", () => {

@@ -15,10 +15,11 @@
  */
 package com.dremio.exec.planner.serializer.logical;
 
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.catalog.DremioPrepareTable;
 import com.dremio.exec.catalog.DremioTranslatableTable;
-import com.dremio.exec.catalog.TableVersionContext;
+import com.dremio.exec.planner.serialization.DeserializationException;
 import com.dremio.exec.planner.serializer.RelNodeSerde;
 import com.dremio.plan.serialization.PScanCrel;
 import com.dremio.service.namespace.NamespaceKey;
@@ -54,13 +55,16 @@ public final class ScanCrelSerde implements RelNodeSerde<ScanCrel, PScanCrel> {
   public ScanCrel deserialize(PScanCrel node, RelFromProto s) {
     if (Strings.isNullOrEmpty(node.getVersionContext())) {
       DremioPrepareTable table = s.tables().getTable(new NamespaceKey(node.getPathList()));
-      if(table == null) {
-        throw new UnsupportedOperationException("Unable to find table.");
+      if (table == null) {
+        throw new DeserializationException("Table no longer exists in source: " + node.getPathList());
       }
       return (ScanCrel) table.toRel(s.toRelContext());
     } else {
       DremioTranslatableTable table = s.tables().getTableSnapshot(new NamespaceKey(node.getPathList()),
         node.getVersionContext() == null ?  null : TableVersionContext.deserialize(node.getVersionContext()));
+      if (table == null) {
+        throw new DeserializationException("Table no longer exists in source: " + node.getPathList());
+      }
       return (ScanCrel) table.toRel(s.toRelContext(), null);
     }
   }

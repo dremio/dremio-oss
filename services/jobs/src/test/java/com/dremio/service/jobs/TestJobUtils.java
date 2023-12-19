@@ -46,21 +46,22 @@ public class TestJobUtils {
     @Parameterized.Parameters(name = "PB2 QueryType:{0}, PB3 QueryType:{1}")
     public static List<Object[]> parameters() {
       return Arrays.asList(
-        new Object[] {com.dremio.service.job.proto.QueryType.UNKNOWN,             QueryType.UNKNOWN},
-        new Object[] {com.dremio.service.job.proto.QueryType.UI_RUN,              QueryType.UI_RUN},
-        new Object[] {com.dremio.service.job.proto.QueryType.UI_PREVIEW,          QueryType.UI_PREVIEW},
-        new Object[] {com.dremio.service.job.proto.QueryType.UI_INTERNAL_PREVIEW, QueryType.UI_INTERNAL_PREVIEW},
-        new Object[] {com.dremio.service.job.proto.QueryType.UI_INTERNAL_RUN,     QueryType.UI_INTERNAL_RUN},
-        new Object[] {com.dremio.service.job.proto.QueryType.UI_EXPORT,           QueryType.UI_EXPORT},
-        new Object[] {com.dremio.service.job.proto.QueryType.ODBC,                QueryType.ODBC},
-        new Object[] {com.dremio.service.job.proto.QueryType.JDBC,                QueryType.JDBC},
-        new Object[] {com.dremio.service.job.proto.QueryType.REST,                QueryType.REST},
-        new Object[] {com.dremio.service.job.proto.QueryType.ACCELERATOR_CREATE,  QueryType.ACCELERATOR_CREATE},
-        new Object[] {com.dremio.service.job.proto.QueryType.ACCELERATOR_DROP,    QueryType.ACCELERATOR_DROP},
-        new Object[] {com.dremio.service.job.proto.QueryType.PREPARE_INTERNAL,    QueryType.PREPARE_INTERNAL},
-        new Object[] {com.dremio.service.job.proto.QueryType.UI_INITIAL_PREVIEW,  QueryType.UI_INITIAL_PREVIEW},
-        new Object[] {com.dremio.service.job.proto.QueryType.FLIGHT,              QueryType.FLIGHT},
-        new Object[] {com.dremio.service.job.proto.QueryType.D2D,                 QueryType.D2D});
+        new Object[] {com.dremio.service.job.proto.QueryType.UNKNOWN,              QueryType.UNKNOWN},
+        new Object[] {com.dremio.service.job.proto.QueryType.UI_RUN,               QueryType.UI_RUN},
+        new Object[] {com.dremio.service.job.proto.QueryType.UI_PREVIEW,           QueryType.UI_PREVIEW},
+        new Object[] {com.dremio.service.job.proto.QueryType.UI_INTERNAL_PREVIEW,  QueryType.UI_INTERNAL_PREVIEW},
+        new Object[] {com.dremio.service.job.proto.QueryType.UI_INTERNAL_RUN,      QueryType.UI_INTERNAL_RUN},
+        new Object[] {com.dremio.service.job.proto.QueryType.UI_EXPORT,            QueryType.UI_EXPORT},
+        new Object[] {com.dremio.service.job.proto.QueryType.ODBC,                 QueryType.ODBC},
+        new Object[] {com.dremio.service.job.proto.QueryType.JDBC,                 QueryType.JDBC},
+        new Object[] {com.dremio.service.job.proto.QueryType.REST,                 QueryType.REST},
+        new Object[] {com.dremio.service.job.proto.QueryType.ACCELERATOR_CREATE,   QueryType.ACCELERATOR_CREATE},
+        new Object[] {com.dremio.service.job.proto.QueryType.ACCELERATOR_DROP,     QueryType.ACCELERATOR_DROP},
+        new Object[] {com.dremio.service.job.proto.QueryType.ACCELERATOR_OPTIMIZE, QueryType.ACCELERATOR_OPTIMIZE},
+        new Object[] {com.dremio.service.job.proto.QueryType.PREPARE_INTERNAL,     QueryType.PREPARE_INTERNAL},
+        new Object[] {com.dremio.service.job.proto.QueryType.UI_INITIAL_PREVIEW,   QueryType.UI_INITIAL_PREVIEW},
+        new Object[] {com.dremio.service.job.proto.QueryType.FLIGHT,               QueryType.FLIGHT},
+        new Object[] {com.dremio.service.job.proto.QueryType.D2D,                  QueryType.D2D});
     }
 
     public QueryTypeBufStuffMappingTest(com.dremio.service.job.proto.QueryType pb2Type, QueryType pb3Type) {
@@ -144,6 +145,7 @@ public class TestJobUtils {
         new Object[]{com.dremio.service.job.proto.QueryType.PREPARE_INTERNAL,     UserBitShared.WorkloadType.DDL,               UserBitShared.WorkloadClass.NRT},
         new Object[]{com.dremio.service.job.proto.QueryType.ACCELERATOR_CREATE,   UserBitShared.WorkloadType.ACCELERATOR,       UserBitShared.WorkloadClass.BACKGROUND},
         new Object[]{com.dremio.service.job.proto.QueryType.ACCELERATOR_EXPLAIN,  UserBitShared.WorkloadType.ACCELERATOR,       UserBitShared.WorkloadClass.BACKGROUND},
+        new Object[]{com.dremio.service.job.proto.QueryType.ACCELERATOR_OPTIMIZE, UserBitShared.WorkloadType.ACCELERATOR,       UserBitShared.WorkloadClass.BACKGROUND},
         new Object[]{com.dremio.service.job.proto.QueryType.FLIGHT,               UserBitShared.WorkloadType.FLIGHT,            UserBitShared.WorkloadClass.GENERAL},
         new Object[]{com.dremio.service.job.proto.QueryType.D2D,                  UserBitShared.WorkloadType.D2D,               UserBitShared.WorkloadClass.GENERAL}
       );

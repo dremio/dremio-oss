@@ -39,7 +39,9 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.common.arrow.DremioArrowSchema;
 import com.dremio.common.expression.CompleteType;
+import com.dremio.common.types.SchemaUpPromotionRules;
 import com.dremio.common.types.SupportsTypeCoercionsAndUpPromotions;
+import com.dremio.common.types.TypeCoercionRules;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.catalog.ColumnCountTooLargeException;
@@ -243,4 +245,24 @@ public class ParquetFooterReader implements FooterReader, SupportsTypeCoercionsA
     return opContext.getOptions().getOption(ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR);
   }
 
+  @Override
+  public TypeCoercionRules getTypeCoercionRules() {
+    if (opContext.getOptions().getOption(ExecConstants.ENABLE_PARQUET_MIXED_TYPES_COERCION)) {
+      return COMPLEX_INCOMPATIBLE_TO_VARCHAR_COERCION;
+    }
+    return STANDARD_TYPE_COERCION_RULES;
+  }
+
+  @Override
+  public SchemaUpPromotionRules getUpPromotionRules() {
+    if (opContext.getOptions().getOption(ExecConstants.ENABLE_PARQUET_MIXED_TYPES_COERCION)) {
+      return COMPLEX_INCOMPATIBLE_TO_VARCHAR_PROMOTION;
+    }
+    return STANDARD_TYPE_UP_PROMOTION_RULES;
+  }
+
+  @Override
+  public boolean isComplexToVarcharCoercionSupported() {
+    return opContext.getOptions().getOption(ExecConstants.ENABLE_PARQUET_MIXED_TYPES_COERCION);
+  }
 }

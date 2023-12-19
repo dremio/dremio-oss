@@ -23,16 +23,15 @@ import com.dremio.options.TypeValidators;
  */
 public final class HiveSettings {
 
-  /**
-   * Options for tuning the number of bytes to reserve and limit in Hive Scans.
-   */
-  public static final TypeValidators.LongValidator RESERVE = HivePluginOptions.RESERVE;
-  public static final TypeValidators.LongValidator LIMIT = HivePluginOptions.LIMIT;
-
   private final OptionResolver options;
 
   public HiveSettings(OptionResolver options) {
     this.options = options;
+  }
+
+  // Compatibility constructor
+  public HiveSettings(OptionResolver options, boolean unused) {
+    this(options);
   }
   /**
    * Options to enable vectorized ORC reader and filter pushdown into vectorized ORC reader
@@ -80,5 +79,19 @@ public final class HiveSettings {
    */
   public boolean useDirectMemoryForOrcReaders() {
     return options.getOption(HivePluginOptions.HIVE_ORC_READER_USE_DIRECT_MEMORY);
+  }
+
+  /**
+   * Option for tuning the number of bytes to reserve in Hive Scans.
+   */
+  public TypeValidators.LongValidator getReserveValidator() {
+    return HivePluginOptions.RESERVE;
+  }
+
+  /**
+   * Option for tuning the number of bytes to limit in Hive Scans.
+   */
+  public TypeValidators.LongValidator getLimitValidator() {
+    return HivePluginOptions.LIMIT;
   }
 }

@@ -15,6 +15,7 @@
  */
 package com.dremio.service.nessie.upgrade.storage;
 
+import static com.dremio.test.DremioTest.CLASSPATH_SCAN_RESULT;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.AfterEach;
@@ -28,14 +29,14 @@ import com.dremio.service.nessie.NessieRefLogStoreBuilder;
 /**
  * Unit tests for {@link TestDeleteReflogData}.
  */
-class TestDeleteReflogData extends AbstractNessieUpgradeTest {
+class TestDeleteReflogData {
 
   private final DeleteReflogData task = new DeleteReflogData();
   private LocalKVStoreProvider storeProvider;
 
   @BeforeEach
   void createKVStore() throws Exception {
-    storeProvider = new LocalKVStoreProvider(scanResult, null, true, false); // in-memory
+    storeProvider = new LocalKVStoreProvider(CLASSPATH_SCAN_RESULT, null, true, false); // in-memory
     storeProvider.start();
   }
 

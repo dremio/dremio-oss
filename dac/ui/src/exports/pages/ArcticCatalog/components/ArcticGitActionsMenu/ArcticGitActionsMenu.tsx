@@ -16,6 +16,7 @@
 
 import { FormattedMessage } from "react-intl";
 import { Reference } from "@app/types/nessie";
+import { CatalogPrivilegeSwitch } from "@app/exports/components/CatalogPrivilegeSwitch/CatalogPrivilegeSwitch";
 
 import * as classes from "./ArcticGitActionsMenu.module.less";
 
@@ -40,26 +41,37 @@ function ArcticGitActionsMenu({
 
   return (
     <ul className={classes["git-arctic-actions-menu"]}>
-      <li
-        onClick={(e: any) => {
-          handleOpenDialog("BRANCH", { openDialog: true, fromRef });
-          e.stopPropagation();
-          closeMenu();
-        }}
-        key="create-branch"
-      >
-        <FormattedMessage id="ArcticCatalog.Tags.CreateBranch" />
-      </li>
-      <li
-        onClick={(e: any) => {
-          handleOpenDialog("TAG", { openDialog: true, fromRef });
-          e.stopPropagation();
-          closeMenu();
-        }}
-        key="add-tag"
-      >
-        <FormattedMessage id="ArcticCatalog.Tags.AddTag" />
-      </li>
+      <CatalogPrivilegeSwitch
+        privilege={["branch", "canCreate"]}
+        renderEnabled={() => (
+          <li
+            onClick={(e: any) => {
+              handleOpenDialog("BRANCH", { openDialog: true, fromRef });
+              e.stopPropagation();
+              closeMenu();
+            }}
+            key="create-branch"
+          >
+            <FormattedMessage id="ArcticCatalog.Tags.CreateBranch" />
+          </li>
+        )}
+      />
+      <CatalogPrivilegeSwitch
+        privilege={["tag", "canCreate"]}
+        renderEnabled={() => (
+          <li
+            onClick={(e: any) => {
+              handleOpenDialog("TAG", { openDialog: true, fromRef });
+              e.stopPropagation();
+              closeMenu();
+            }}
+            key="add-tag"
+          >
+            <FormattedMessage id="ArcticCatalog.Tags.AddTag" />
+          </li>
+        )}
+      />
+
       {canDeleteTag && (
         <li
           onClick={(e: any) => {

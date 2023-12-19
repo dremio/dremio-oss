@@ -60,9 +60,9 @@ public interface DataAdditionCmdCall {
    */
   default PartitionDistributionStrategy getPartitionDistributionStrategy(
     SqlHandlerConfig config, List<String> partitionFieldNames, Set<String> fieldNames) {
-      if (!config.getContext().getOptions().getOption(ExecConstants.ENABLE_ICEBERG_DML_USE_HASH_DISTRIBUTION_FOR_WRITES)) {
-        return PartitionDistributionStrategy.UNSPECIFIED;
-      }
+    PartitionDistributionStrategy partitionDistributionStrategy =
+      PartitionDistributionStrategy.getPartitionDistributionStrategy(
+        config.getContext().getOptions().getOption(ExecConstants.WRITER_PARTITION_DISTRIBUTION_MODE));
 
       // DX-50375: when we use VALUES clause in INSERT command, the field names end up with using expr, e.g., "EXPR%$0",
       // which are not the real underlying field names. Keep to use 'UNSPECIFIED' for this scenario.
@@ -72,7 +72,7 @@ public interface DataAdditionCmdCall {
         }
       }
 
-      return PartitionDistributionStrategy.HASH;
+      return partitionDistributionStrategy;
   }
 
   /**

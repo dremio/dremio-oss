@@ -25,12 +25,17 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.NlsString;
 
+import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.connector.metadata.AttributeValue;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableSetOption;
+import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.collect.ImmutableMap;
 
@@ -40,10 +45,12 @@ import com.google.common.collect.ImmutableMap;
 public class AlterTableSetOptionHandler extends SimpleDirectHandler {
 
   private final Catalog catalog;
+  private final UserSession userSession;
 
-  public AlterTableSetOptionHandler(Catalog catalog) {
+  public AlterTableSetOptionHandler(Catalog catalog, UserSession userSession) {
     super();
     this.catalog = catalog;
+    this.userSession = userSession;
   }
 
   @Override
@@ -66,8 +73,15 @@ public class AlterTableSetOptionHandler extends SimpleDirectHandler {
                          .buildSilently();
     }
 
-    final DremioTable table = catalog.getTableNoResolve(path);
-
+    VersionContext statementSourceVersion = sqlTableOption.getSqlTableVersionSpec().getTableVersionSpec().getTableVersionContext().asVersionContext();
+    final VersionContext sessionVersion = userSession.getSessionVersionForSource(path.getRoot());
+    VersionContext sourceVersion = statementSourceVersion.orElse(sessionVersion);
+    final ResolvedVersionContext resolvedVersionContext = CatalogUtil.resolveVersionContext(catalog, path.getRoot(), sourceVersion);
+    final CatalogEntityKey catalogEntityKey = CatalogUtil.getCatalogEntityKey(
+      path,
+      resolvedVersionContext,
+      catalog);
+    final DremioTable table = CatalogUtil.getTableNoResolve(catalogEntityKey, catalog);
     if (table == null) {
       throw UserException.validationError()
                          .message("Table [%s] does not exist", path)
@@ -90,7 +104,7 @@ public class AlterTableSetOptionHandler extends SimpleDirectHandler {
                          .buildSilently();
     }
 
-    boolean changed = catalog.alterDataset(path, tableOptionsMapBuilder.build());
+    boolean changed = catalog.alterDataset(catalogEntityKey, tableOptionsMapBuilder.build());
     String changedMessage = changed ? "updated" : "did not change";
     return Collections.singletonList(SimpleCommandResult.successful(
       "Table [%s] options %s", path, changedMessage));
@@ -130,4 +144,11 @@ public class AlterTableSetOptionHandler extends SimpleDirectHandler {
     return AttributeValue.of(identifier.names);
   }
 
+  public Catalog getCatalog() {
+    return catalog;
+  }
+
+  protected boolean isVersioned(NamespaceKey path) {
+    return CatalogUtil.requestedPluginSupportsVersionedTables(path, catalog);
+  }
 }

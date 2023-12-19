@@ -15,7 +15,7 @@
  */
 package com.dremio.dac.server;
 
-import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Arrays;
 import java.util.List;
@@ -116,8 +116,9 @@ public class TestDropView extends BaseTestServer {
     expectSuccess(getBuilder(target).buildDelete(), new GenericType<DatasetUI>() {});
   }
 
-  private void verifyViewDeleted(List<String> path) throws NamespaceException {
+  private void verifyViewDeleted(List<String> path) {
     NamespaceKey datasetPath = new NamespaceKey(path);
-    assertThrowsExactly(NamespaceNotFoundException.class, () -> newNamespaceService().getDataset(datasetPath));
+    assertThatThrownBy(() -> newNamespaceService().getDataset(datasetPath))
+      .isExactlyInstanceOf(NamespaceNotFoundException.class);
   }
 }

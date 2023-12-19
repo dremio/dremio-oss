@@ -31,6 +31,7 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.iceberg.expressions.Expression;
 
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.ops.SnapshotDiffContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.fragment.DistributionAffinity;
@@ -155,7 +156,7 @@ public class IcebergManifestListPrel extends AbstractRelNode  implements LeafPre
 
   @Override
   public RelWriter explainTerms(RelWriter pw) {
-    pw = ScanRelBase.explainScanRel(pw, tableMetadata, projectedColumns, 1.0);
+    pw = ScanRelBase.explainScanRel(pw, tableMetadata, projectedColumns, 1.0, SnapshotDiffContext.NO_SNAPSHOT_DIFF);
 
     /* To avoid NPE in the method chain Optional is used*/
     Optional<String> metadataLocation = Optional.ofNullable(tableMetadata.getDatasetConfig())

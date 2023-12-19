@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import uuid from "uuid";
+import { v4 as uuidv4 } from "uuid";
 import { additionalColumns } from "@inject/pages/JobPageNew/AdditionalJobPageColumns";
 
 export const HISTORY_LOAD_DELAY = 2500;
@@ -50,7 +50,7 @@ export const DATASET_SUMMARY_ENTITY_TYPES = new Set([
   "PHYSICAL_DATASET_HOME_FOLDER",
 ]);
 
-export const HOME_SPACE_NAME = `@home-${uuid.v4()}`; // better to have Symbol here, but there is several problems with it
+export const HOME_SPACE_NAME = `@home-${uuidv4()}`; // better to have Symbol here, but there is several problems with it
 export const MSG_CLEAR_DELAY_SEC = 3;
 
 export const EXTRA_POPPER_CONFIG = {
@@ -68,9 +68,15 @@ export const ENTITY_TYPES = {
   folder: "folder",
 };
 
+export const ENTITY_TYPES_LIST = [
+  ENTITY_TYPES.home,
+  ENTITY_TYPES.space,
+  ENTITY_TYPES.source,
+  ENTITY_TYPES.folder,
+];
+
 export const PROJECT_TYPE = {
   queryEngine: "QUERY_ENGINE",
-  dataPlane: "DATA_PLANE",
 };
 
 export const CLIENT_TOOL_ID = {

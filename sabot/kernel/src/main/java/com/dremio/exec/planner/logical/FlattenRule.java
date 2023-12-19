@@ -42,6 +42,7 @@ public class FlattenRule extends RelOptRule {
         flattenRel.getInput().getTraitSet().plus(Rel.LOGICAL),
         convertedInput,
         flattenRel.getToFlatten(),
+        flattenRel.getAliases(),
         flattenRel.getNumProjectsPushed()));
   }
 }

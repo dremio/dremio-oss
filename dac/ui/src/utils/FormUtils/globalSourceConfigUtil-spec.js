@@ -33,7 +33,7 @@ describe("globalSourceConfigUtil", () => {
           name: "General",
         },
         {
-          name: "Advanced",
+          name: "Advanced Options",
           sections: [
             {
               elements: [
@@ -79,7 +79,7 @@ describe("globalSourceConfigUtil", () => {
             name: "General",
           },
           {
-            name: "Advanced",
+            name: "Advanced Options",
           },
         ],
       },

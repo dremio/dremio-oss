@@ -1,9 +1,5 @@
 {
   "private": true,
-  "scripts": {
-    "start": "storybook dev -p 6006",
-    "build": "storybook build"
-  },
   "dependencies": {
     "leantable": "^0.4.12",
     "react": "^18.2.0",
@@ -11,22 +7,22 @@
     "storybook-dark-mode": "^3.0.0"
   },
   "devDependencies": {
-    "@storybook/addon-essentials": "^7.0.2",
-    "@storybook/addon-interactions": "^7.0.2",
-    "@storybook/addon-links": "^7.0.2",
-    "@storybook/addon-storysource": "^7.0.3",
-    "@storybook/blocks": "^7.0.2",
-    "@storybook/builder-vite": "^7.0.2",
-    "@storybook/react": "^7.0.2",
-    "@storybook/react-vite": "^7.0.2",
+    "@storybook/addon-essentials": "^7.4.6",
+    "@storybook/addon-interactions": "^7.4.6",
+    "@storybook/addon-links": "^7.4.6",
+    "@storybook/addon-storysource": "^7.4.6",
+    "@storybook/blocks": "^7.4.6",
+    "@storybook/builder-vite": "^7.4.6",
+    "@storybook/react": "^7.4.6",
+    "@storybook/react-vite": "^7.4.6",
     "@types/react": "^18.0.28",
     "@types/react-dom": "^18.0.11",
-    "@vitejs/plugin-react": "^3.1.0",
+    "@vitejs/plugin-react": "^4.1.0",
     "prop-types": "^15.8.1",
-    "storybook": "^7.0.2",
-    "typescript": "5.0.4",
-    "vite": "^4.2.0",
-    "vite-plugin-static-copy": "^0.13.1"
+    "storybook": "^7.4.6",
+    "typescript": "5.2.2",
+    "vite": "^4.4.11",
+    "vite-plugin-static-copy": "^0.17.0"
   },
-  "packageManager": "pnpm@8.1.0"
+  "packageManager": "pnpm@8.9.0"
 }

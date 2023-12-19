@@ -76,7 +76,7 @@ message VirtualDataset {
   repeated string required_fields = 8; // DEPRECATED
 
   // The fields of the dataset from a View perspective. This is generated from the view's rowType
-  repeated ViewFieldType calcite_fields = 9;
+  repeated ViewFieldType calcite_fields = 9; // DEPRECATED
   optional bool default_reflection_enabled = 10;
 }
 
@@ -121,10 +121,14 @@ message AccelerationSettings {
   optional bool neverExpire = 7 [default = false];
   optional bool neverRefresh = 8 [default = false];
   optional string tag = 9;
+  // if the incremental refresh is snapshot based
+  optional bool snapshotBased = 10 [default = false];
 }
 
 enum RefreshMethod {
   FULL = 1;
   INCREMENTAL = 2;
+  // For GET "acceleration/settings" REST API, this value represents the refresh method is managed by Dremio automatically.
+  AUTO = 3;
 }
 

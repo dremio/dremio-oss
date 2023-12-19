@@ -15,10 +15,14 @@
  */
 package com.dremio.service.jobs;
 
+import java.util.Set;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 import javax.inject.Provider;
 
+import com.dremio.common.util.Retryer;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.service.conduit.client.ConduitProvider;
@@ -29,10 +33,15 @@ import com.dremio.service.job.JobEvent;
 import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.JobSummaryRequest;
 import com.dremio.service.job.JobsServiceGrpc;
+import com.dremio.service.job.NodeStatusRequest;
+import com.dremio.service.job.NodeStatusResponse;
 import com.dremio.service.job.QueryProfileRequest;
 import com.dremio.service.job.proto.JobProtobuf;
+import com.google.common.collect.ImmutableSet;
 
 import io.grpc.ManagedChannel;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 
 
@@ -40,10 +49,18 @@ import io.grpc.stub.StreamObserver;
  * forwards the request to target jobserver
  */
 public class RemoteJobServiceForwarder {
+  private static final int MAX_RETRIES = 3;
+  private static final Set<Status.Code> retriableGrpcStatuses =
+    ImmutableSet.of(Status.UNAVAILABLE.getCode(), Status.DEADLINE_EXCEEDED.getCode());
   private final Provider<ConduitProvider> conduitProvider;
+  private final Retryer retryer;
 
   public RemoteJobServiceForwarder(final Provider<ConduitProvider> conduitProvider) {
     this.conduitProvider = conduitProvider;
+    this.retryer = Retryer.newBuilder()
+      .retryOnExceptionFunc(this::isRetriableException)
+      .setMaxRetries(MAX_RETRIES)
+      .build();
   }
 
   public void subscribeToJobEvents(CoordinationProtos.NodeEndpoint target,
@@ -70,6 +87,12 @@ public class RemoteJobServiceForwarder {
     final ManagedChannel channel = conduitProvider.get().getOrCreateChannel(target);
     final ChronicleGrpc.ChronicleBlockingStub stub = ChronicleGrpc.newBlockingStub(channel);
     return stub.getProfile(queryProfileRequest);
+  }
+
+  public NodeStatusResponse getNodeStatus(CoordinationProtos.NodeEndpoint target, NodeStatusRequest request) {
+    final ManagedChannel channel = conduitProvider.get().getOrCreateChannel(target);
+    final ChronicleGrpc.ChronicleBlockingStub stub = ChronicleGrpc.newBlockingStub(channel);
+    return retryer.call(() -> stub.withDeadlineAfter(10, TimeUnit.SECONDS).getNodeStatus(request));
   }
 
   /**
@@ -100,4 +123,17 @@ public class RemoteJobServiceForwarder {
     }
   }
 
+  private boolean isRetriableException(Throwable e) {
+    if (e instanceof StatusRuntimeException) {
+      if (retriableGrpcStatuses.contains(((StatusRuntimeException)e).getStatus().getCode())) {
+        return true;
+      }
+    }
+    if (e instanceof CompletionException || e instanceof ExecutionException) {
+      if (e.getCause() instanceof StatusRuntimeException) {
+        return retriableGrpcStatuses.contains(((StatusRuntimeException) e.getCause()).getStatus().getCode());
+      }
+    }
+    return false;
+  }
 }

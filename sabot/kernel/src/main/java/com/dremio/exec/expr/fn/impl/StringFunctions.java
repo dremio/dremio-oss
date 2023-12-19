@@ -15,15 +15,15 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
-import static com.dremio.exec.expr.fn.impl.StringFunctionHelpers.getStringFromVarCharHolder;
-
 import java.nio.charset.Charset;
+import java.util.regex.Pattern;
 
 import javax.inject.Inject;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.holders.BigIntHolder;
 import org.apache.arrow.vector.holders.BitHolder;
+import org.apache.arrow.vector.holders.Float8Holder;
 import org.apache.arrow.vector.holders.IntHolder;
 import org.apache.arrow.vector.holders.NullableVarCharHolder;
 import org.apache.arrow.vector.holders.VarBinaryHolder;
@@ -111,35 +111,21 @@ public class StringFunctions{
   public static class ColLike implements SimpleFunction {
     @Param VarCharHolder input;
     @Param VarCharHolder pattern;
+    @Workspace com.dremio.exec.expr.fn.impl.CharSequenceWrapper charSequenceWrapper;
+    @Workspace com.dremio.exec.expr.fn.impl.CharSequenceWrapper patternWrapper;
     @Output BitHolder out;
-    @Workspace java.util.Map<String, java.util.regex.Pattern> compiledPatternCache;
-    @Inject FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
-      compiledPatternCache = new java.util.HashMap<>();
+      charSequenceWrapper = new com.dremio.exec.expr.fn.impl.CharSequenceWrapper();
+      patternWrapper = new com.dremio.exec.expr.fn.impl.CharSequenceWrapper();
     }
 
     @Override
     public void eval() {
-      final int maxPatternCacheSize = 100;
-
-      com.dremio.exec.expr.fn.impl.CharSequenceWrapper charSequenceWrapper =
-        new com.dremio.exec.expr.fn.impl.CharSequenceWrapper(input.start, input.end, input.buffer);
-      String pat = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(pattern.start,  pattern.end,  pattern.buffer);
-      java.util.regex.Pattern compiledPattern;
-      if (compiledPatternCache.containsKey(pat)) {
-        compiledPattern = (java.util.regex.Pattern)compiledPatternCache.get(pat);
-      } else {
-        compiledPattern = com.dremio.exec.expr.fn.impl.StringFunctionUtil.compilePattern(
-          com.dremio.exec.expr.fn.impl.RegexpUtil.sqlToRegexLike(pat, errCtx), java.util.regex.Pattern.DOTALL, errCtx);
-        // bounding the size of the cache to avoid excess heap usage
-        if (compiledPatternCache.size() < maxPatternCacheSize) {
-          compiledPatternCache.put(pat, compiledPattern);
-        }
-      }
-      java.util.regex.Matcher matcher = compiledPattern.matcher(charSequenceWrapper);
-      out.value = matcher.matches()? 1:0;
+      charSequenceWrapper.setBuffer(input.start,  input.end,  input.buffer);
+      patternWrapper.setBuffer(pattern.start,  pattern.end,  pattern.buffer);
+      out.value = com.dremio.exec.expr.fn.impl.StringFunctionUtil.like(charSequenceWrapper, patternWrapper)? 1:0;
     }
   }
 
@@ -321,6 +307,57 @@ public class StringFunctions{
         out.buffer = buffer;
         out.buffer.setBytes(0, input.buffer, input.start, input.end - input.start);
         out.end = input.end - input.start;
+      }
+    }
+  }
+
+  /*
+   * Replace all substring that match the regular expression with replacement.
+   */
+  @FunctionTemplate(name = "regexp_extract", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  public static class RegexpExtract implements SimpleFunction {
+
+    @Param VarCharHolder input;
+    @Param(constant=true) VarCharHolder pattern;
+    @Param IntHolder index;
+    @Inject ArrowBuf buffer;
+    @Workspace java.util.regex.Matcher matcher;
+    @Output VarCharHolder out;
+    @Inject FunctionErrorContext errCtx;
+
+    @Override
+    public void setup() {
+      matcher = com.dremio.exec.expr.fn.impl.StringFunctionUtil.compilePattern(
+        com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(pattern.start, pattern.end, pattern.buffer),
+        errCtx
+      ).matcher("");
+    }
+
+    @Override
+    public void eval() {
+      out.start = 0;
+      matcher.reset(
+        com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(input.start, input.end, input.buffer));
+      boolean result = matcher.find();
+      if (result) {
+        String r;
+        try {
+          r = matcher.group(index.value);
+        } catch (IndexOutOfBoundsException e) {
+          throw errCtx.error()
+            .message("Invalid group index '%s'", index.value)
+            .addContext("exception", e.getMessage())
+            .build();
+        }
+        final byte [] bytea = r.getBytes(java.nio.charset.Charset.forName("UTF-8"));
+        buffer = buffer.reallocIfNeeded(bytea.length);
+        out.buffer = buffer;
+        out.buffer.setBytes(out.start, bytea);
+        out.end = bytea.length;
+      }else {
+        // There is no matches, return empty string
+        out.buffer = input.buffer;
+        out.end = 0;
       }
     }
   }
@@ -676,11 +713,85 @@ public class StringFunctions{
     }
   }
 
+  /*
+   * Find substring in a string subset separated by comma.
+   */
+  @FunctionTemplate(name = "find_in_set", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  public static class FindInSet implements SimpleFunction {
+
+    @Param VarCharHolder in;
+    @Param VarCharHolder text;
+    @Output IntHolder out;
+
+    @Override
+    public void setup() {
+    }
+
+    @Override
+    public void eval() {
+      final String look = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(in.start, in.end, in.buffer);
+      final String[] set =
+        com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(text.start, text.end, text.buffer).split(",", -1);
+
+      for (int i = 0; i < set.length; i++) {
+        if (set[i].equals(look)) {
+          out.value = i + 1;
+          break;
+        }
+      }
+    }
+  }
+
+  /*
+   * Define the crc32 checksum value
+   */
+  @FunctionTemplate(name = "crc32", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  public static class Crc32VarChar implements SimpleFunction {
+
+    @Param VarCharHolder in;
+    @Output BigIntHolder out;
+
+    @Override
+    public void setup() {
+    }
+
+    @Override
+    public void eval() {
+      byte[] buf = new byte[in.end - in.start];
+      in.buffer.getBytes(in.start, buf);
+      java.util.zip.CRC32 crc = new java.util.zip.CRC32();
+      crc.update(buf);
+      out.value = crc.getValue();
+    }
+  }
+
+  /*
+   * Define the crc32 checksum value
+   */
+  @FunctionTemplate(name = "crc32", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  public static class Crc32VarBinary implements SimpleFunction {
+
+    @Param VarBinaryHolder in;
+    @Output BigIntHolder out;
+
+    @Override
+    public void setup() {
+    }
+
+    @Override
+    public void eval() {
+      byte[] buf = new byte[in.end - in.start];
+      in.buffer.getBytes(in.start, buf);
+      java.util.zip.CRC32 crc = new java.util.zip.CRC32();
+      crc.update(buf);
+      out.value = crc.getValue();
+    }
+  }
 
   // Follow Postgre.
   //  -- Valid "offset": [1, string_length],
   //  -- Valid "length": [1, up to string_length - offset + 1], if length > string_length - offset +1, get the substr up to the string_lengt.
-  @FunctionTemplate(names = {"substring", "substr"}, scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  @FunctionTemplate(names = {"substring", "substr", "charsubstring", "substring2", "substr2"}, scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class Substring implements SimpleFunction {
     @Param VarCharHolder string;
     @Param BigIntHolder offset;
@@ -1005,7 +1116,7 @@ public class StringFunctions{
   @FunctionTemplate(name = "lpad", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class Lpad implements SimpleFunction {
     @Param  VarCharHolder text;
-    @Param  BigIntHolder length;
+    @Param  IntHolder length;
     @Param  VarCharHolder fill;
     @Inject ArrowBuf buffer;
 
@@ -1018,8 +1129,8 @@ public class StringFunctions{
 
     @Override
     public void eval() {
-      final long theLength = length.value;
-      final int lengthNeeded = (int) (theLength <= 0 ? 0 : theLength * 2);
+      final int theLength = length.value;
+      final long lengthNeeded = theLength <= 0 ? 0 : theLength * 2L;
       buffer = buffer.reallocIfNeeded(lengthNeeded);
       byte currentByte = 0;
       int id = 0;
@@ -1046,7 +1157,7 @@ public class StringFunctions{
         out.buffer = text.buffer;
         out.start = text.start;
         out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(io.netty.buffer.NettyArrowBuf.unwrapBuffer(text.buffer),
-          text.start, text.end, (int) theLength, errCtx);
+          text.start, text.end, theLength, errCtx);
       } else if (theLength > textCharCount) {
         //case 4: copy "fill" on left. Total # of char to copy : theLength - textCharCount
         int count = 0;
@@ -1061,7 +1172,7 @@ public class StringFunctions{
             }
 
             currentByte = fill.buffer.getByte(id);
-            if (currentByte < 0x128  ||           // 1-byte char. First byte is 0xxxxxxx.
+            if ( currentByte >= 0||           // 1-byte char. First byte is 0xxxxxxx.
                 (currentByte & 0xE0) == 0xC0 ||   // 2-byte char. First byte is 110xxxxx
                 (currentByte & 0xF0) == 0xE0 ||   // 3-byte char. First byte is 1110xxxx
                 (currentByte & 0xF8) == 0xF0) {   //4-byte char. First byte is 11110xxx
@@ -1086,7 +1197,7 @@ public class StringFunctions{
   @FunctionTemplate(name = "lpad", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class LpadTwoArg implements SimpleFunction {
     @Param  VarCharHolder text;
-    @Param  BigIntHolder length;
+    @Param  IntHolder length;
     @Inject ArrowBuf buffer;
 
     @Output VarCharHolder out;
@@ -1100,8 +1211,8 @@ public class StringFunctions{
 
     @Override
     public void eval() {
-      final long theLength = length.value;
-      final int lengthNeeded = (int) (theLength <= 0 ? 0 : theLength * 2);
+      final int theLength = length.value;
+      final long lengthNeeded = theLength <= 0 ? 0 : theLength * 2L;
       buffer = buffer.reallocIfNeeded(lengthNeeded);
       //get the char length of text.
       int textCharCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(
@@ -1122,7 +1233,7 @@ public class StringFunctions{
         out.buffer = text.buffer;
         out.start = text.start;
         out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(
-          io.netty.buffer.NettyArrowBuf.unwrapBuffer(text.buffer), text.start, text.end, (int) theLength, errCtx);
+          io.netty.buffer.NettyArrowBuf.unwrapBuffer(text.buffer), text.start, text.end, theLength, errCtx);
       } else if (theLength > textCharCount) {
         //case 4: copy " " on left. Total # of char to copy : theLength - textCharCount
         int count = 0;
@@ -1150,7 +1261,7 @@ public class StringFunctions{
   @FunctionTemplate(name = "rpad", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class Rpad implements SimpleFunction {
     @Param  VarCharHolder text;
-    @Param  BigIntHolder length;
+    @Param  IntHolder length;
     @Param  VarCharHolder fill;
     @Inject ArrowBuf buffer;
 
@@ -1163,8 +1274,8 @@ public class StringFunctions{
 
     @Override
     public void eval() {
-      final long theLength = length.value;
-      final int lengthNeeded = (int) (theLength <= 0 ? 0 : theLength * 2);
+      final int theLength = length.value;
+      final long lengthNeeded = theLength <= 0 ? 0 : theLength * 2L;
       buffer = buffer.reallocIfNeeded(lengthNeeded);
 
       byte currentByte = 0;
@@ -1192,7 +1303,7 @@ public class StringFunctions{
         out.buffer = text.buffer;
         out.start = text.start;
         out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(
-          io.netty.buffer.NettyArrowBuf.unwrapBuffer(text.buffer), text.start, text.end, (int) theLength, errCtx);
+          io.netty.buffer.NettyArrowBuf.unwrapBuffer(text.buffer), text.start, text.end, theLength, errCtx);
       } else if (theLength > textCharCount) {
         //case 4: copy "text" into "out", then copy "fill" on the right.
         out.buffer = buffer;
@@ -1213,7 +1324,7 @@ public class StringFunctions{
             }
 
             currentByte = fill.buffer.getByte(id);
-            if (currentByte < 0x128  ||           // 1-byte char. First byte is 0xxxxxxx.
+            if (currentByte  >= 0 ||           // 1-byte char. First byte is 0xxxxxxx.
                 (currentByte & 0xE0) == 0xC0 ||   // 2-byte char. First byte is 110xxxxx
                 (currentByte & 0xF0) == 0xE0 ||   // 3-byte char. First byte is 1110xxxx
                 (currentByte & 0xF8) == 0xF0) {   //4-byte char. First byte is 11110xxx
@@ -1234,7 +1345,7 @@ public class StringFunctions{
   @FunctionTemplate(name = "rpad", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class RpadTwoArg implements SimpleFunction {
     @Param  VarCharHolder text;
-    @Param  BigIntHolder length;
+    @Param  IntHolder length;
     @Inject ArrowBuf buffer;
 
     @Output VarCharHolder out;
@@ -1248,8 +1359,8 @@ public class StringFunctions{
 
     @Override
     public void eval() {
-      final long theLength = length.value;
-      final int lengthNeeded = (int) (theLength <= 0 ? 0 : theLength * 2);
+      final int theLength = length.value;
+      final long lengthNeeded = theLength <= 0 ? 0 : theLength * 2L;
       buffer = buffer.reallocIfNeeded(lengthNeeded);
 
       //get the char length of text.
@@ -1271,7 +1382,7 @@ public class StringFunctions{
         out.buffer = text.buffer;
         out.start = text.start;
         out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(
-          io.netty.buffer.NettyArrowBuf.unwrapBuffer(text.buffer), text.start, text.end, (int) theLength, errCtx);
+          io.netty.buffer.NettyArrowBuf.unwrapBuffer(text.buffer), text.start, text.end, theLength, errCtx);
       } else if (theLength > textCharCount) {
         //case 4: copy "text" into "out", then copy " " on the right.
         out.buffer = buffer;
@@ -1579,7 +1690,7 @@ public class StringFunctions{
     }
   }
 
-  @FunctionTemplate(name = "from_hex", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  @FunctionTemplate(names = {"unhex", "from_hex"}, scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class FromHex implements SimpleFunction {
     @Param  VarCharHolder in;
     @Output VarBinaryHolder out;
@@ -1602,7 +1713,7 @@ public class StringFunctions{
     }
   }
 
-  @FunctionTemplate(name = "to_hex", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  @FunctionTemplate(names = {"hex", "to_hex"}, scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class ToHex implements SimpleFunction {
     @Param  VarBinaryHolder in;
     @Output VarCharHolder   out;
@@ -1627,6 +1738,148 @@ public class StringFunctions{
       out.start = 0;
       out.end = buf.length;
       out.buffer = buffer;
+    }
+  }
+
+  @FunctionTemplate(names = {"hex", "to_hex"}, scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  public static class ToHexVarChar implements SimpleFunction {
+    @Param  VarCharHolder   in;
+    @Output VarCharHolder   out;
+    @Workspace Charset charset;
+    @Inject ArrowBuf buffer;
+
+    @Override
+    public void setup() {
+      charset = java.nio.charset.StandardCharsets.UTF_8;
+    }
+
+    @Override
+    public void eval() {
+      byte[] buf = com.dremio.common.util.DremioStringUtils.toBinaryStringNoFormat(io.netty.buffer.NettyArrowBuf.unwrapBuffer(in.buffer), in
+        .start, in.end).getBytes(charset);
+      buffer = buffer.reallocIfNeeded(buf.length);
+      out.buffer = buffer;
+      buffer.setBytes(0, buf);
+      buffer.readerIndex(0);
+      buffer.writerIndex(buf.length);
+
+      out.start = 0;
+      out.end = buf.length;
+      out.buffer = buffer;
+    }
+  }
+
+  @FunctionTemplate(names = {"hex", "to_hex"}, scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  public static class ToHexBigInt implements SimpleFunction{
+    @Param BigIntHolder in;
+    @Output VarCharHolder   out;
+    @Inject ArrowBuf buffer;
+
+    @Override
+    public void setup() {
+    }
+
+    @Override
+    public void eval() {
+      String hex_format = String.format("%X", in.value);
+      byte[] buf = hex_format.getBytes();
+      buffer.setBytes(0, buf);
+      out.start = 0;
+      out.end = buf.length;
+      out.buffer = buffer;
+    }
+  }
+
+  @FunctionTemplate(name = "parse_url", scope = FunctionScope.SIMPLE, nulls = NullHandling.INTERNAL)
+  public static class ParseURL implements SimpleFunction{
+    @Param NullableVarCharHolder   in;
+    @Param NullableVarCharHolder   partToExtract;
+    @Output NullableVarCharHolder   out;
+    @Inject ArrowBuf buffer;
+
+    @Inject FunctionErrorContext errCtx;
+
+    @Workspace String urlPart;
+
+    @Override
+    public void setup() {
+    }
+
+    @Override
+    public void eval() {
+      out.buffer = buffer;
+      if(in.isSet==0 || partToExtract.isSet==0){
+        out.isSet=0;
+        return;
+      }
+      urlPart = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(partToExtract.start,
+        partToExtract.end, partToExtract.buffer);
+      String url = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(in.start, in.end, in.buffer);
+      String extractedPart = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.parseURL(url, urlPart, errCtx);
+
+      if(extractedPart != null){
+        out.isSet = 1;
+        byte[] buf = extractedPart.getBytes();
+        buffer.setBytes(0, buf);
+
+        out.start = 0;
+        out.end = buf.length;
+      } else {
+        out.isSet=0;
+      }
+    }
+  }
+
+  @FunctionTemplate(name = "parse_url", scope = FunctionScope.SIMPLE, nulls = NullHandling.INTERNAL)
+  public static class ParseURLQueryKey implements SimpleFunction{
+    @Param NullableVarCharHolder   in;
+    @Param NullableVarCharHolder   partToExtract;
+    @Param NullableVarCharHolder   queryKey;
+    @Output NullableVarCharHolder   out;
+    @Inject ArrowBuf buffer;
+    @Inject FunctionErrorContext errCtx;
+
+    @Workspace String urlPart;
+    @Workspace String lastKey;
+    @Workspace Pattern pattern;
+
+    @Override
+    public void setup() {
+    }
+
+    @Override
+    public void eval() {
+      out.buffer = buffer;
+      if(in.isSet==0 || partToExtract.isSet==0 || queryKey.isSet==0){
+        out.isSet=0;
+        return;
+      }
+      lastKey = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(queryKey.start, queryKey.end,
+        queryKey.buffer);
+      pattern = java.util.regex.Pattern.compile("(&|^)" + lastKey + "=([^&]*)");
+      urlPart = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(partToExtract.start,
+        partToExtract.end, partToExtract.buffer);
+      String key = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(queryKey.start, queryKey.end,
+        queryKey.buffer);
+      if (!key.equals(lastKey)) {
+        pattern = java.util.regex.Pattern.compile("(&|^)" + key + "=([^&]*)");
+      }
+      lastKey = key;
+
+      String url = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(in.start, in.end, in.buffer);
+      String extractValue = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.parseURLQueryKey(url, urlPart,
+        pattern, errCtx);
+      if(extractValue != null){
+        out.isSet = 1;
+        byte[] buf = extractValue.getBytes();
+        buffer.setBytes(0, buf);
+
+        out.start = 0;
+        out.end = buf.length;
+        out.buffer = buffer;
+      } else {
+        out.isSet=0;
+      }
     }
   }
 
@@ -1700,6 +1953,56 @@ public class StringFunctions{
   }
 
   /**
+   * Returns a string binary representation of a specified integer.
+   */
+  @FunctionTemplate(names = {"bin"}, scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  public static class BinaryRepresentationInt implements SimpleFunction {
+
+    @Param IntHolder in;
+    @Output VarCharHolder out;
+    @Inject ArrowBuf buffer;
+
+    @Override
+    public void setup() {
+    }
+
+    @Override
+    public void eval() {
+      byte[] buf = Integer.toBinaryString(in.value).getBytes();
+      buffer.setBytes(0, buf);
+
+      out.start = 0;
+      out.end = buf.length;
+      out.buffer = buffer;
+    }
+  }
+
+  /**
+   * Returns a string binary representation of a specified long (big integer).
+   */
+  @FunctionTemplate(names = {"bin"}, scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  public static class BinaryRepresentationBigInt implements SimpleFunction {
+
+    @Param BigIntHolder in;
+    @Output VarCharHolder out;
+    @Inject ArrowBuf buffer;
+
+    @Override
+    public void setup() {
+    }
+
+    @Override
+    public void eval() {
+      byte[] buf = Long.toBinaryString(in.value).getBytes();
+      buffer.setBytes(0, buf);
+
+      out.start = 0;
+      out.end = buf.length;
+      out.buffer = buffer;
+    }
+  }
+
+  /**
   * Returns the input char sequences repeated nTimes.
   */
   @FunctionTemplate(names = {"repeat", "repeatstr"}, scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
@@ -1731,7 +2034,7 @@ public class StringFunctions{
   /**
   * Convert string to ASCII from another encoding input.
   */
-  @FunctionTemplate(name = "toascii", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  @FunctionTemplate(names = {"toascii", "to_utf8"}, scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class AsciiEndode implements SimpleFunction {
     @Param  VarCharHolder in;
     @Param  VarCharHolder enc;
@@ -1817,7 +2120,8 @@ public class StringFunctions{
 
     @Override
     public void eval() {
-      final byte[] outBytea = org.apache.commons.lang3.StringUtils.replaceChars(getStringFromVarCharHolder(in), getStringFromVarCharHolder(searchChars), getStringFromVarCharHolder(replaceChars)).getBytes();
+      final byte[] outBytea = org.apache.commons.lang3.StringUtils.replaceChars(
+        com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(in.start, in.end, in.buffer), com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(searchChars.start, searchChars.end, searchChars.buffer), com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(replaceChars.start, replaceChars.end, replaceChars.buffer)).getBytes();
 
       buffer = buffer.reallocIfNeeded(outBytea.length);
       out.buffer = buffer;
@@ -2241,6 +2545,93 @@ public class StringFunctions{
         default:
           out.isSet = 0;
       }
+    }
+  }
+
+  /**
+   * Returns the formatted number as a string with a format like '#,###,###.##', rounded to 'd' decimal places.
+   * If 'd' is 0, the result has no decimal point or fractional part.
+   */
+  @FunctionTemplate(names = {"format_number"}, scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  public static class FormatNumber implements SimpleFunction {
+
+    @Param Float8Holder number;
+    @Param IntHolder d;
+    @Output VarCharHolder out;
+    @Inject ArrowBuf buffer;
+
+    @Override
+    public void setup() {
+    }
+
+    @Override
+    public void eval() {
+
+      StringBuilder pattern = new StringBuilder("");
+
+      // append the thousands separator
+      pattern.append(",###,##0");
+
+      // append the decimal separator and decimal places
+      if (d.value > 0) {
+        pattern.append(".");
+        for (int i = 0; i < d.value; i++) {
+          pattern.append("0");
+        }
+      }
+
+      java.text.DecimalFormat df = new java.text.DecimalFormat(pattern.toString(), new java.text.DecimalFormatSymbols(java.util.Locale.ENGLISH));
+      df.setRoundingMode(java.math.RoundingMode.HALF_UP);
+      String result_str = df.format(number.value);
+
+      byte[] resultBuf = result_str.getBytes();
+      buffer.setBytes(0, resultBuf);
+
+      out.start = 0;
+      out.end = resultBuf.length;
+      out.buffer = buffer;
+    }
+  }
+
+  @FunctionTemplate(name="normalize_string", scope = FunctionScope.SIMPLE, nulls = NullHandling.INTERNAL)
+  public static class Normalize implements SimpleFunction {
+    @Param NullableVarCharHolder value;
+    @Param NullableVarCharHolder formStr;
+    @Output NullableVarCharHolder out;
+    @Inject FunctionErrorContext errCtx;
+    @Inject ArrowBuf buffer;
+
+    @Override
+    public void setup() {
+    }
+
+    @Override
+    public void eval() {
+      java.text.Normalizer.Form form;
+      out.buffer = buffer;
+      if (value.isSet == 0) {
+        out.buffer = buffer;
+        out.isSet = 0;
+        return;
+      }
+      String inputString = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(value.start, value.end, value.buffer);
+      try {
+        String formValue = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(
+          formStr.start, formStr.end, formStr.buffer);
+        form = java.text.Normalizer.Form.valueOf(formValue.toUpperCase());
+      } catch (Exception e) {
+        throw errCtx.error()
+          .message("Unknown normalization form specified, valid values are: NFD, NFC, NFKD, NFKC")
+          .build();
+      }
+
+      byte[] resultBytes = java.text.Normalizer.normalize(inputString, form).getBytes(java.nio.charset.StandardCharsets.UTF_8);
+      buffer = buffer.reallocIfNeeded(resultBytes.length);
+      out.buffer = buffer;
+      out.buffer.setBytes(0, resultBytes);
+      out.start = 0;
+      out.end = resultBytes.length;
+      out.isSet = 1;
     }
   }
 }

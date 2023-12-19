@@ -22,7 +22,6 @@ import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
-import com.dremio.exec.ExecConstants;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.op.common.ht2.FixedBlockVector;
 import com.dremio.sabot.op.common.ht2.HashTable;
@@ -52,8 +51,7 @@ public class BlockJoinTable implements JoinTable {
     this.buildPivot = buildPivot;
     Preconditions.checkState(buildPivot.getBlockWidth() != 0);
     this.table = HashTable.getInstance(sabotConfig,
-      optionManager.getOption(ExecConstants.ENABLE_NATIVE_HASHTABLE_FOR_JOIN),
-      new HashTable.HashTableCreateArgs(HashConfig.getDefault(), buildPivot,
+      optionManager, new HashTable.HashTableCreateArgs(HashConfig.getDefault(), buildPivot,
         allocator, minSize, varFieldAverageSize, false,
         MAX_VALUES_PER_BATCH, nullMask, runtimeFilterEnabled));
     this.tableTracing = false;

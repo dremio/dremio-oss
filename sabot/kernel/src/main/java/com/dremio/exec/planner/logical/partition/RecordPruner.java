@@ -16,6 +16,7 @@
 package com.dremio.exec.planner.logical.partition;
 
 import static com.dremio.exec.expr.ExpressionTreeMaterializer.materializeAndCheckErrors;
+import static com.dremio.proto.model.PartitionStats.PartitionStatsValue;
 
 import java.util.List;
 import java.util.Map;
@@ -30,7 +31,6 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
-import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,7 +80,7 @@ public abstract class RecordPruner implements AutoCloseable {
    * Prune splits based on filters in the input filter condition.
    * @return Pair of count of the surviving records and surviving files
    */
-  public abstract Pair prune(
+  public abstract PartitionStatsValue prune(
     Map<Integer, String> inUseColIdToNameMap,
     Map<String, Integer> partitionColToIdMap,
     Function<RexNode, List<Integer>> usedIndexes,
@@ -163,5 +163,9 @@ public abstract class RecordPruner implements AutoCloseable {
       inputContainer.setRecordCount(batchSize);
       outputVector.setValueCount(batchSize);
     }
+  }
+
+  public static Logger getLogger() {
+    return logger;
   }
 }

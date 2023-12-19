@@ -47,6 +47,7 @@ import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValue.OptionType;
 import com.dremio.options.OptionValueProto;
 import com.dremio.options.OptionValueProtoList;
+import com.dremio.options.impl.BaseOptionManager;
 import com.dremio.service.Pointer;
 import com.dremio.service.Service;
 import com.dremio.service.scheduler.Schedule;

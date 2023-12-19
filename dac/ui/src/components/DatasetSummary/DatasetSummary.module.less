@@ -16,8 +16,11 @@
 
 .dataset-summary {
   &-container {
+    background: white;
     display: flex;
+    padding: var(--dremio--spacing--2) 0;
     flex-direction: column;
+    box-shadow: var(--dremio--shadow--layer-1);
     font-size: var(--dremio--font-size--default);
     width: 300px;
   }
@@ -26,9 +29,12 @@
     flex-direction: column;
     font-size: var(--dremio--font-size--default);
     width: 368px;
-    padding-top: var(--dremio--spacing--1);
-    padding-left: var(--dremio--spacing--1);
-    padding-bottom: 0;
+    padding: var(--dremio--spacing--1) 0 0 var(--dremio--spacing--1);
+  }
+  &-wiki-container-panel {
+    padding: var(--dremio--spacing--1) var(--dremio--spacing--1) 0
+      var(--dremio--spacing--1);
+    width: 100%;
   }
   &-top-section {
     padding: 0 var(--dremio--spacing--2);

@@ -57,6 +57,10 @@ message MetricValue {
 }
 
 message OperatorData {
+  enum OperatorObservationType {
+    HIGH_OPERATOR_SPAN = 0;
+    HIGH_OPERATOR_OVERHEAD = 1;
+  }
   required string nodeId = 1;
   required string operatorName = 2;
   required int32 OperatorType = 3;
@@ -65,9 +69,15 @@ message OperatorData {
   required SuccessorNodes successorId = 6;
   required string dataSetName = 7;
   required string reflectionName = 8;
+  repeated OperatorObservationType operatorObservationType = 9;
 }
 
 message PhaseData {
+  enum PhaseObservationType {
+    HIGH_QUEUE_LOAD = 0;
+    HIGH_SLEEP_DURATION = 1;
+    HIGH_BLOCKED_TIME_ON_DOWNSTREAM = 2;
+  }
   required string phaseId = 1;
   required int64 processingTime = 2;
   required int64 peakMemory = 3;
@@ -77,6 +87,7 @@ message PhaseData {
   required int64 runTime = 7;
   required int64 totalMemory = 8;
   required int64 totalBufferForIncomingMemory = 9;
+  repeated PhaseObservationType phaseObservationType = 10;
 }
 
 message GraphNodeDetails {

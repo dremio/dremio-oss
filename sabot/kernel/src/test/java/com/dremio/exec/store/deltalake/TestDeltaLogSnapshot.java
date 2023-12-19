@@ -24,12 +24,13 @@ import java.util.List;
 
 import org.junit.Test;
 
+import com.dremio.BaseTestQuery;
 import com.google.common.collect.ImmutableList;
 
 /**
  * Tests for {@link DeltaLogSnapshot}
  */
-public class TestDeltaLogSnapshot {
+public class TestDeltaLogSnapshot extends BaseTestQuery {
 
     private DeltaLogSnapshot parseSnapshot(String fileName, long version) throws IOException {
         DeltaLogSnapshot snapshot = TestDeltaLogCommitJsonReader.parseCommitJson(fileName);

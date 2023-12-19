@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.lucene.document.Document;
@@ -42,6 +43,7 @@ import com.dremio.datastore.SearchTypes.SortOrder;
 import com.dremio.datastore.api.DocumentConverter;
 import com.dremio.datastore.api.FindByCondition;
 import com.dremio.datastore.api.FindByRange;
+import com.dremio.datastore.api.IncrementCounter;
 import com.dremio.datastore.api.options.KVStoreOptionUtility;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
@@ -364,6 +366,16 @@ public class CoreIndexedStoreImpl<K, V> implements CoreIndexedStore<K, V> {
     }
 
     return documents;
+  }
+
+  @Override
+  public void bulkIncrement(Map<KVStoreTuple<K>, List<IncrementCounter>> keysToIncrement, IncrementOption option) {
+    base.bulkIncrement(keysToIncrement, option);
+  }
+
+  @Override
+  public void bulkDelete(List<KVStoreTuple<K>> keysToDelete) {
+    base.bulkDelete(keysToDelete);
   }
 
   @Override

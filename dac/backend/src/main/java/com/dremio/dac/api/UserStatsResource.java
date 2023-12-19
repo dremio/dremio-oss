@@ -33,6 +33,7 @@ import javax.ws.rs.Consumes;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.InternalServerErrorException;
+import javax.ws.rs.NotFoundException;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
@@ -43,6 +44,8 @@ import org.slf4j.LoggerFactory;
 import com.dremio.dac.annotations.APIResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.edition.EditionProvider;
+import com.dremio.exec.ExecConstants;
+import com.dremio.options.OptionManager;
 import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.SearchJobsRequest;
 import com.dremio.service.job.UniqueUserStatsRequest;
@@ -57,6 +60,7 @@ import com.google.protobuf.Timestamp;
 @Path("/stats/user")
 @Consumes(APPLICATION_JSON)
 @Produces(APPLICATION_JSON)
+@Deprecated
 public class UserStatsResource {
   private static final Logger logger = LoggerFactory.getLogger(UserStatsResource.class);
   private static final String FILTER = "(st=gt=%d;st=lt=%d)";
@@ -66,17 +70,22 @@ public class UserStatsResource {
 
   private final JobsService jobsService;
   private final String edition;
+  private final OptionManager optionManager;
 
   @Inject
-  public UserStatsResource(JobsService jobsService, EditionProvider editionProvider) {
+  public UserStatsResource(JobsService jobsService, EditionProvider editionProvider, OptionManager optionManager) {
     this.jobsService = jobsService;
     this.edition = editionProvider.getEdition();
+    this.optionManager = optionManager;
   }
 
   @GET
   public UserStats getActiveUserStats(@QueryParam("start") @DefaultValue("0") long startEpoch ,
                                       @QueryParam("end") @DefaultValue("0") long endEpoch,
                                       @QueryParam("onlyUniqueUsersByDate") @DefaultValue("false") String onlyUniqueUsersByDate) {
+    if (!optionManager.getOption(ExecConstants.ENABLE_DEPRECATED_JOBS_USER_STATS_API)) {
+      throw new NotFoundException("/stats/user is not supported");
+    }
     if (Boolean.parseBoolean(onlyUniqueUsersByDate)) {
       return getUniqueUsersByDate(startEpoch, endEpoch) ;
     }

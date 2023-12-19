@@ -117,3 +117,21 @@
     }
   }
 }
+
+.dremio-light {
+  .bg-brand-600 .dremio-button {
+    &--primary {
+      @extend .bg-brand-700;
+      &:hover {
+        @extend .bg-brand-800;
+      }
+    }
+    &--tertiary {
+      @extend .bg-none;
+      color: inherit;
+      &:hover {
+        @extend .bg-none;
+      }
+    }
+  }
+}

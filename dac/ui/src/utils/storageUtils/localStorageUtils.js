@@ -235,6 +235,10 @@ export class LocalStorageUtils {
     );
   }
 
+  clearJobColumns() {
+    localStorage.removeItem("columns");
+  }
+
   setSqlThemeContrast(theme) {
     this._safeSave("isContrast", theme);
   }
@@ -286,10 +290,6 @@ export class LocalStorageUtils {
     );
   }
 
-  isDataPlaneOnly() {
-    return false;
-  }
-
   isQueryEngine() {
     return false;
   }
@@ -300,6 +300,14 @@ export class LocalStorageUtils {
 
   getProjectSwitcherState() {
     return localStorage.getItem("projectSwitcherState");
+  }
+
+  setJobsFilters(state) {
+    localStorage.setItem("jobsFilters", state);
+  }
+
+  getJobsFiltersState() {
+    return localStorage.getItem("jobsFilters");
   }
 }
 

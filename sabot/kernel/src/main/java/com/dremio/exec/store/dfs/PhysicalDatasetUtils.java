@@ -15,12 +15,10 @@
  */
 package com.dremio.exec.store.dfs;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 import com.dremio.common.logical.FormatPluginConfig;
-import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.store.deltalake.DeltaLakeFormatConfig;
 import com.dremio.exec.store.deltalake.DeltaLakeFormatPlugin;
 import com.dremio.exec.store.easy.arrow.ArrowFormatPlugin;
@@ -35,11 +33,6 @@ import com.dremio.exec.store.iceberg.IcebergFormatConfig;
 import com.dremio.exec.store.iceberg.IcebergFormatPlugin;
 import com.dremio.exec.store.parquet.ParquetFormatConfig;
 import com.dremio.exec.store.parquet.ParquetFormatPlugin;
-import com.dremio.io.file.Path;
-import com.dremio.service.namespace.NamespaceException;
-import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.NamespaceService;
-import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.file.FileFormat;
 import com.dremio.service.namespace.file.proto.ArrowFileConfig;
 import com.dremio.service.namespace.file.proto.DeltalakeFileConfig;
@@ -59,34 +52,6 @@ import com.dremio.service.namespace.file.proto.XlsFileConfig;
  */
 public class PhysicalDatasetUtils {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PhysicalDatasetUtils.class);
-  /**
-   * Check with namespace format setting on a file/directory.
-   * @param namespaceService PhysicalDatasetService namespaceService
-   * @param schemaPath parent path
-   * @param tableName table name (file/directory name)
-   * @param fileSelection file/files selected under directory.
-   * @return {@code FormatPluginConfig} that should be used for creating Dremio table.
-   */
-  public static FormatPluginConfig getPhysicalDatasetProperties(NamespaceService namespaceService,
-                                                          final List<String> schemaPath, final String tableName,
-                                                          final FileSelection fileSelection) {
-
-    // If the execution engine is being tested outside the context of a Dremio instance, there won't be a dataset service.
-    if(namespaceService == null) {
-      return null;
-    }
-
-    final List<String> tableSchemaPath = new ArrayList<>(schemaPath);
-    tableSchemaPath.addAll(PathUtils.toPathComponents(Path.of(tableName)));
-
-    try {
-      final DatasetConfig config = namespaceService.getDataset(new NamespaceKey(tableSchemaPath));
-      return toFormatPlugin(config.getPhysicalDataset().getFormatSettings(), fileSelection.getExtensions());
-    } catch (NamespaceException e) {
-      logger.debug("Failed to get physical dataset properties for table {}", PathUtils.constructFullPath(tableSchemaPath), e);
-    }
-    return null;
-  }
 
   private static ParquetFormatConfig toParquetFormatConfig(ParquetFileConfig fileConfig) {
     ParquetFormatConfig parquetFormatConfig = new ParquetFormatConfig();
@@ -119,6 +84,7 @@ public class PhysicalDatasetUtils {
         textFormatConfig.comment = textFileConfig.getComment();
         textFormatConfig.escape = textFileConfig.getEscape();
         textFormatConfig.extractHeader = textFileConfig.getExtractHeader();
+        textFormatConfig.skipLines = textFileConfig.getSkipLines();
         textFormatConfig.skipFirstLine = textFileConfig.getSkipFirstLine();
         textFormatConfig.fieldDelimiter = textFileConfig.getFieldDelimiter();
         textFormatConfig.lineDelimiter = textFileConfig.getLineDelimiter();
@@ -225,6 +191,7 @@ public class PhysicalDatasetUtils {
       textFileConfig.setLineDelimiter(new String(settings.getNewLineDelimiter()));
       textFileConfig.setAutoGenerateColumnNames(settings.isAutoGenerateColumnNames());
       textFileConfig.setTrimHeader(settings.isTrimHeader());
+      textFileConfig.setSkipLines(settings.getSkipLines());
       return textFileConfig;
     }
     if (formatPlugin instanceof ExcelFormatPlugin) {

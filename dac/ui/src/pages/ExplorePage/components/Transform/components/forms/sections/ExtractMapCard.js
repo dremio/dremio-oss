@@ -40,7 +40,7 @@ class ExtractMapCard extends Component {
     const { fields } = this.props;
     return (
       <div>
-        <div style={styles.title}>{la("Path:")}</div>
+        <div style={styles.title}>{laDeprecated("Path:")}</div>
         <div className="transform-card-content">
           <ExtractMap path={fields.path} />
         </div>

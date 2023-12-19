@@ -19,6 +19,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.junit.ClassRule;
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
 
@@ -29,6 +30,10 @@ public class TestTpchDistributedStreaming extends BaseTestQuery{
 
   @ClassRule
   public static final TestRule CLASS_TIMEOUT = TestTools.getTimeoutRule(200, TimeUnit.SECONDS);
+
+  @Rule
+  public final TestRule timeoutRule = TestTools.getTimeoutRule(100, TimeUnit.SECONDS);
+
 
   private void testDistributed(String fileName) throws Exception{
     String query = getFile(fileName);

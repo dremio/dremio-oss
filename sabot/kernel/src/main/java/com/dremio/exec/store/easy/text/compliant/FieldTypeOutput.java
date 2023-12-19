@@ -47,6 +47,7 @@ abstract class FieldTypeOutput extends TextOutput {
   protected boolean rowHasData = false;
   protected int recordCount = 0;
   protected int maxField = 0;
+  protected boolean isValidationMode = false;
 
   /**
    * We initialize and add the varchar vector for each incoming field in this
@@ -107,7 +108,7 @@ abstract class FieldTypeOutput extends TextOutput {
     FieldSizeLimitExceptionHelper.checkSizeLimit(currentDataPointer, maxCellLimit, currentFieldIndex, logger);
 
     if(collect) {
-      assert currentVector != null;
+      assert isValidationMode || currentVector != null;
       writeValueInCurrentVector(recordCount, fieldBytes, 0, currentDataPointer);
     }
 

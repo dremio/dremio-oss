@@ -142,7 +142,7 @@ class NodeActivityView extends PureComponent {
     return <NodeTableCellStatus icon={icon} />;
   }
   getToolTipForIncompatibleNode() {
-    return la(
+    return laDeprecated(
       "Please ensure that the version of dremio is the same on all coordinators and executors."
     );
   }
@@ -240,19 +240,19 @@ class NodeActivityView extends PureComponent {
     const header = endChildren ? (
       <SettingHeader
         icon="settings/node-activity"
-        title={la("Node Activity")}
+        title={laDeprecated("Node Activity")}
         endChildren={endChildren}
       />
     ) : (
       <SettingHeader
         icon="settings/node-activity"
-        title={la("Node Activity")}
+        title={laDeprecated("Node Activity")}
       />
     );
     return (
       <div id="admin-nodeActivity" style={page}>
         {header}
-        <div className="gutter-left--double">
+        <div className="node-table-container">
           {this.getSubHeader()}
           <div style={pageContent}>
             <StatefulTableViewer

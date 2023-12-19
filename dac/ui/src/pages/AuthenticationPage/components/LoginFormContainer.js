@@ -51,7 +51,7 @@ export class LoginFormContainer extends PureComponent {
       <div id="login-form" style={styles.base}>
         <LoginTitle
           style={{ marginBottom: 10 }}
-          subTitle={la("Welcome to Dremio, please log in.")}
+          subTitle={laDeprecated("Welcome to Dremio, please log in.")}
         />
         {this.renderForm(this.state.loginScreen)}
         {renderSSOLoginToggleLink(this.setLoginScreen.bind(this))}

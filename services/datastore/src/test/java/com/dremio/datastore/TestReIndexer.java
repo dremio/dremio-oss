@@ -47,7 +47,7 @@ public class TestReIndexer {
   private static final IndexKey indexKey = IndexKey.newBuilder("test", "TEST", String.class).setStored(true)
     .build();
 
-  private static class TestConverter implements DocumentConverter<String, String> {
+  private static final class TestConverter implements DocumentConverter<String, String> {
 
     @Override
     public void convert(DocumentWriter writer, String key, String record) {

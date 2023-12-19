@@ -28,7 +28,9 @@ import com.dremio.exec.calcite.logical.TableModifyCrel;
 import com.dremio.exec.calcite.logical.TableOptimizeCrel;
 import com.dremio.exec.calcite.logical.VacuumTableCrel;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioPrepareTable;
+import com.dremio.exec.ops.PlannerCatalog;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
@@ -54,22 +56,22 @@ public abstract class TableManagementHandler implements SqlToPlanHandler {
 
   /**
    * Run  {@link #checkValidations(Catalog, SqlHandlerConfig, NamespaceKey, SqlNode)}
-   * and return Plan {@link #getPlan(Catalog, SqlHandlerConfig, String, SqlNode, NamespaceKey)}
+   * and return Plan {@link #getPlan(SqlHandlerConfig, String, SqlNode, NamespaceKey)}
    */
   @WithSpan
   @Override
   public final PhysicalPlan getPlan(SqlHandlerConfig config, String sql, SqlNode sqlNode) throws Exception {
     final Catalog catalog = config.getContext().getCatalog();
-    final NamespaceKey path = DmlUtils.getTablePath(catalog, getTargetTablePath(sqlNode));
+    final NamespaceKey path = CatalogUtil.getResolvePathForTableManagement(config.getContext().getCatalog(), getTargetTablePath(sqlNode), DmlUtils.getVersionContext(sqlNode));
     Span.current().setAttribute(PLANNER_SOURCE_TARGET_SOURCE_TYPE_SPAN_ATTRIBUTE_NAME, SqlHandlerUtil.getSourceType(catalog, path.getRoot()));
     checkValidations(catalog, config, path, sqlNode);
-    return getPlan(catalog, config, sql, sqlNode, path);
+    return getPlan(config, sql, sqlNode, path);
   }
 
   /**
    * Build the physical plan if SQL is valid.
    */
-  protected abstract PhysicalPlan getPlan(Catalog catalog, SqlHandlerConfig config, String sql, SqlNode sqlNode, NamespaceKey path) throws Exception;
+  protected abstract PhysicalPlan getPlan(SqlHandlerConfig config, String sql, SqlNode sqlNode, NamespaceKey path) throws Exception;
 
   /**
    * A single place to do all the SQL validations.
@@ -86,7 +88,7 @@ public abstract class TableManagementHandler implements SqlToPlanHandler {
    */
   protected abstract void validatePrivileges(Catalog catalog, NamespaceKey path, SqlNode sqlNode) throws Exception;
 
-  protected abstract Rel convertToDrel(SqlHandlerConfig config, SqlNode sqlNode, NamespaceKey path, Catalog catalog, RelNode relNode) throws Exception;
+  protected abstract Rel convertToDrel(SqlHandlerConfig config, SqlNode sqlNode, NamespaceKey path, PlannerCatalog catalog, RelNode relNode) throws Exception;
 
   @Override
   public String getTextPlan() {
@@ -189,7 +191,8 @@ public abstract class TableManagementHandler implements SqlToPlanHandler {
         oldScan.getObservedRowcountAdjustment(),
         oldScan.getHints(),
         oldScan.isDirectNamespaceDescendent(),
-        false);
+        false,
+        oldScan.getSnapshotDiffContext());
       return super.visit(newScan);
     }
   }
@@ -217,6 +220,6 @@ public abstract class TableManagementHandler implements SqlToPlanHandler {
 
   protected void validateTableExistenceAndMutability(Catalog catalog, SqlHandlerConfig config, NamespaceKey namespaceKey) {
     // Validate table exists and is Iceberg table
-    IcebergUtils.checkTableExistenceAndMutability(catalog, config, namespaceKey, getSqlOperator(), false);
+    IcebergUtils.checkTableExistenceAndMutability(catalog, config, namespaceKey, getSqlOperator(), true);
   }
 }

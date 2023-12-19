@@ -15,17 +15,18 @@
  */
 package com.dremio.exec.expr.fn;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.calcite.sql.SqlOperator;
 
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.expression.FunctionCall;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.scanner.persistence.ScanResult;
-import com.dremio.exec.planner.sql.OperatorTable;
 import com.dremio.exec.resolver.FunctionResolver;
 import com.dremio.exec.resolver.FunctionResolverFactory;
 import com.dremio.options.OptionManager;
@@ -161,20 +162,19 @@ public final class FunctionImplementationRegistry implements FunctionLookupConte
     return ((FunctionRegistry) this.primaryFunctionRegistries.get(0)).getRegisteredFunctions();
   }
 
-  /**
-   * Register functions in given operator table.
-   *
-   * @param operatorTable table of all supported sql operators
-   */
-  public void register(OperatorTable operatorTable) {
+  public List<SqlOperator> listOperators() {
+    List<SqlOperator> operators = new ArrayList<>();
+
     // Register Dremio functions first and move to pluggable function registries.
     for (PrimaryFunctionRegistry registry : primaryFunctionRegistries) {
-      registry.register(operatorTable, isDecimalV2Enabled);
+      operators.addAll(registry.listOperators(isDecimalV2Enabled));
     }
 
     for (PluggableFunctionRegistry registry : pluggableFuncRegistries) {
-      registry.register(operatorTable, isDecimalV2Enabled);
+      operators.addAll(registry.listOperators(isDecimalV2Enabled));
     }
+
+    return operators;
   }
 
   /**
@@ -218,7 +218,7 @@ public final class FunctionImplementationRegistry implements FunctionLookupConte
         continue;
       }
 
-      List<AbstractFunctionHolder> methods = registry.getMethods(functionCallToResolve.getName());
+      List<AbstractFunctionHolder> methods = registry.lookupMethods(functionCallToResolve.getName());
       primaryFunctions.addAll(methods);
     }
 
@@ -255,7 +255,7 @@ public final class FunctionImplementationRegistry implements FunctionLookupConte
   @Override
   public AbstractFunctionHolder findNonFunction(FunctionCall functionCall) {
     for(PluggableFunctionRegistry registry : pluggableFuncRegistries) {
-      AbstractFunctionHolder h = registry.getFunction(functionCall);
+      AbstractFunctionHolder h = registry.findFunction(functionCall);
       if (h != null) {
         return h;
       }
@@ -271,7 +271,7 @@ public final class FunctionImplementationRegistry implements FunctionLookupConte
 
   // Method to find if the output type of a dremio function if of complex type
   public boolean isFunctionComplexOutput(String name) {
-    List<AbstractFunctionHolder> methods = this.primaryFunctionRegistries.get(0).getMethods(name);
+    List<AbstractFunctionHolder> methods = this.primaryFunctionRegistries.get(0).lookupMethods(name);
     for (AbstractFunctionHolder holder : methods) {
       if (((BaseFunctionHolder)holder).getReturnValue().isComplexWriter()) {
         return true;

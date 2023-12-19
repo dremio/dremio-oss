@@ -30,7 +30,7 @@ class RpcFutureImpl<V> extends ForwardingListenableFuture.SimpleForwardingListen
     super(new InnerFuture<V>());
   }
 
-  private static class InnerFuture<T> extends AbstractFuture<T> {
+  private static final class InnerFuture<T> extends AbstractFuture<T> {
     // we rewrite these so that the parent can see them
 
     void setValue(T value) {

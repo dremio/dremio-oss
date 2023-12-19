@@ -164,6 +164,10 @@ public class ClassGenerator<T> {
     return mappings.getCurrentMapping();
   }
 
+  public boolean hasVVDeclaration(DirectExpression batchName, TypedFieldId fieldId) {
+    return vvDeclaration.get(new ValueVectorSetup(batchName, fieldId))!=null;
+  }
+
   public JBlock getBlock(String methodName) {
     JBlock blk = this.blocks[sig.get(methodName)].getLast().getBlock();
     Preconditions.checkNotNull(blk, "Requested method name of %s was not available for signature %s.",  methodName, this.sig);
@@ -653,6 +657,10 @@ public class ClassGenerator<T> {
     public JFieldRef getIsSet() {
       Preconditions.checkNotNull(isSet, "You cannot access the isSet variable when operating on a non-nullable output value.");
       return isSet;
+    }
+
+    public boolean getIsNullable() {
+      return isSet != null;
     }
 
     public JType getJType() {

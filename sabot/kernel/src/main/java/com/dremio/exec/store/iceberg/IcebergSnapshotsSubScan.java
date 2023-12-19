@@ -15,7 +15,10 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
@@ -27,11 +30,10 @@ import com.dremio.exec.planner.fragment.SplitNormalizer;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.SplitAndPartitionInfo;
-import com.dremio.exec.store.dfs.IcebergTableProps;
+import com.dremio.exec.store.SplitWork;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.google.common.collect.ImmutableList;
 
 /**
  * Iceberg snapshots subscan POP
@@ -39,53 +41,28 @@ import com.google.common.collect.ImmutableList;
 @JsonTypeName("iceberg-snapshots-sub-scan")
 public class IcebergSnapshotsSubScan extends SubScanWithProjection {
   private final StoragePluginId pluginId;
-  private final StoragePluginId datasourcePluginId;
-  private final IcebergTableProps icebergTableProps;
   private final SnapshotsScanOptions snapshotsScanOptions;
-
   @JsonIgnore
   private List<SplitAndPartitionInfo> splits;
+  private static final Collection<List<String>> NO_REFERENCED_TABLES = Collections.EMPTY_LIST;
 
   public IcebergSnapshotsSubScan(
     @JsonProperty("props") OpProps props,
     @JsonProperty("fullSchema") BatchSchema fullSchema,
-    @JsonProperty("tableSchemaPath") List<String> tablePath,
     @JsonProperty("pluginId") StoragePluginId pluginId,
-    @JsonProperty("datasourcePluginId") StoragePluginId datasourcePluginId,
     @JsonProperty("columns") List<SchemaPath> columns,
-    @JsonProperty("icebergTableProps") IcebergTableProps icebergTableProps,
-    @JsonProperty("snapshotsScanOptions") SnapshotsScanOptions snapshotsScanOptions) {
-    this(props, fullSchema, null, tablePath, pluginId, datasourcePluginId, columns, icebergTableProps, snapshotsScanOptions);
-  }
-
-  public IcebergSnapshotsSubScan(
-    OpProps props,
-    BatchSchema fullSchema,
-    List<SplitAndPartitionInfo> splits,
-    List<String> tablePath,
-    StoragePluginId pluginId,
-    StoragePluginId datasourcePluginId,
-    List<SchemaPath> columns,
-    IcebergTableProps icebergTableProps,
-    SnapshotsScanOptions snapshotsScanOptions) {
-    super(props, fullSchema, (tablePath == null) ? null : ImmutableList.of(tablePath), columns);
+    @JsonProperty("snapshotsScanOptions") SnapshotsScanOptions snapshotsScanOptions,
+    @JsonProperty("splitWorks") List<SplitWork> splitWorks) {
+    super(props, fullSchema, NO_REFERENCED_TABLES, columns);
     this.pluginId = pluginId;
-    this.datasourcePluginId = datasourcePluginId;
-    this.splits = splits;
-    this.icebergTableProps = icebergTableProps;
     this.snapshotsScanOptions = snapshotsScanOptions;
+    if (splitWorks != null) {
+      this.splits = splitWorks.stream().map(SplitWork::getSplitAndPartitionInfo).collect(Collectors.toList());
+    }
   }
 
   public StoragePluginId getPluginId() {
     return pluginId;
-  }
-
-  public StoragePluginId getDatasourcePluginId() {
-    return datasourcePluginId;
-  }
-
-  public IcebergTableProps getIcebergTableProps() {
-    return icebergTableProps;
   }
 
   public List<SplitAndPartitionInfo> getSplits() {

@@ -35,14 +35,14 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
+import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.catalog.model.VersionContext;
+import com.dremio.catalog.model.dataset.TableVersionContext;
+import com.dremio.catalog.model.dataset.TableVersionType;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.CatalogEntityKey;
 import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.catalog.TableVersionContext;
-import com.dremio.exec.catalog.TableVersionType;
-import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.ops.ReflectionContext;
@@ -89,7 +89,7 @@ public class TestAccelToggleHandler {
     when(dremioTable.getPath().getPathComponents()).thenReturn(tablePath1);
     when(catalog.resolveSingle(any(NamespaceKey.class))).thenReturn(tableNamespaceKey1);
     when(catalog.getSource("mysource1")).thenReturn(versionedPlugin);
-    when(queryContext.getOptions().getOption(CatalogOptions.REFLECTION_ARCTIC_ENABLED)).thenReturn(false);
+    when(queryContext.getOptions().getOption(CatalogOptions.REFLECTION_VERSIONED_SOURCE_ENABLED)).thenReturn(false);
     // Act and Assert
     assertThatThrownBy(() -> accelToggleHandler.toResult("",sqlAccelToggle))
       .isInstanceOf(UserException.class)
@@ -104,9 +104,11 @@ public class TestAccelToggleHandler {
     when(dremioTable.getPath().getPathComponents()).thenReturn(tablePath1);
     when(catalog.resolveSingle(any(NamespaceKey.class))).thenReturn(tableNamespaceKey1);
     final TableVersionContext tableVersionContext = new TableVersionContext(TableVersionType.REFERENCE, "ref1");
-    when(catalog.getTableSnapshot(tableNamespaceKey1, tableVersionContext)).thenReturn(dremioTable);
+    when(catalog.getTable(CatalogEntityKey.newBuilder()
+      .keyComponents(tablePath1)
+      .tableVersionContext( tableVersionContext).build())).thenReturn(dremioTable);
     when(catalog.getSource("mysource1")).thenReturn(versionedPlugin);
-    when(queryContext.getOptions().getOption(CatalogOptions.REFLECTION_ARCTIC_ENABLED)).thenReturn(true);
+    when(queryContext.getOptions().getOption(CatalogOptions.REFLECTION_VERSIONED_SOURCE_ENABLED)).thenReturn(true);
 
     // Act and Assert
     List<SimpleCommandResult> result = accelToggleHandler.toResult("",sqlAccelToggle);
@@ -128,9 +130,11 @@ public class TestAccelToggleHandler {
     when(catalog.resolveSingle(any(NamespaceKey.class))).thenReturn(tableNamespaceKey1);
     final TableVersionContext tableVersionContext = new TableVersionContext(TableVersionType.REFERENCE, "ref1");
     CatalogEntityKey catalogEntityKey= CatalogEntityKey.newBuilder().keyComponents(tablePath1).tableVersionContext(tableVersionContext).build();
-    when(catalog.getTableSnapshot(tableNamespaceKey1, tableVersionContext)).thenReturn(dremioTable);
+    when(catalog.getTable(CatalogEntityKey.newBuilder()
+      .keyComponents(tablePath1)
+      .tableVersionContext( tableVersionContext).build())).thenReturn(dremioTable);
     when(catalog.getSource("mysource1")).thenReturn(versionedPlugin);
-    when(queryContext.getOptions().getOption(CatalogOptions.REFLECTION_ARCTIC_ENABLED)).thenReturn(true);
+    when(queryContext.getOptions().getOption(CatalogOptions.REFLECTION_VERSIONED_SOURCE_ENABLED)).thenReturn(true);
     when(queryContext.getSession().getSessionVersionForSource("mysource1")).thenReturn(sourceVersionMapping.get("mysource2"));
     // Act and Assert
     List<SimpleCommandResult> result = accelToggleHandler.toResult("",sqlAccelToggle);

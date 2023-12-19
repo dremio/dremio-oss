@@ -23,7 +23,7 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-jobtelemetry</artifactId>
-    <version>24.1.0-202306130653310132-d30779f6</version>
+    <version>24.3.0-202312190021150029-52db2faf</version>
   </parent>
 
   <artifactId>dremio-services-jobtelemetry-server</artifactId>
@@ -79,32 +79,7 @@
           </execution>
         </executions>
       </plugin>
-      <plugin>
-        <groupId>org.xolstice.maven.plugins</groupId>
-        <artifactId>protobuf-maven-plugin</artifactId>
-        <configuration>
-          <clearOutputDirectory>false</clearOutputDirectory>
-        </configuration>
-        <executions>
-          <execution>
-            <id>generate-protobuf</id>
-            <phase>generate-sources</phase>
-            <goals>
-              <goal>compile</goal>
-              <goal>compile-custom</goal>
-            </goals>
-            <configuration>
-              <protoSourceRoot>${project.basedir}/src/main/protobuf</protoSourceRoot>
-              <pluginId>grpc-java</pluginId>
-              <pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}</pluginArtifact>
-              <outputDirectory>${project.build.directory}/generated-sources/protobuf</outputDirectory>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
     </plugins>
   </build>
-
-
 
 </project>

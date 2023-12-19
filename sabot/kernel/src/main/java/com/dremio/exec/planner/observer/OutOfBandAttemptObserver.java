@@ -36,6 +36,7 @@ import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.planner.CachedAccelDetails;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
+import com.dremio.exec.planner.acceleration.RelWithInfo;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.physical.Prel;
@@ -134,6 +135,16 @@ public class OutOfBandAttemptObserver implements AttemptObserver {
     execute(() -> innerObserver.planRelTransform(phase, planner, before, after, millisTaken, timeBreakdownPerRule));
   }
 
+  /**
+   * Gets the refresh decision and how long it took to make the refresh decision
+   * @param text A string describing if we decided to do full or incremental refresh
+   * @param millisTaken time taken in planning the refresh decision
+   */
+  @Override
+  public void planRefreshDecision(String text, long millisTaken){
+    execute(() -> innerObserver.planRefreshDecision(text, millisTaken));
+  }
+
   @Override
   public void planParallelStart() {
     execute(innerObserver::planParallelStart);
@@ -150,14 +161,19 @@ public class OutOfBandAttemptObserver implements AttemptObserver {
   }
 
   @Override
-  public void planNormalized(final long millisTaken, final List<RelNode> normalizedQueryPlans) {
+  public void planNormalized(final long millisTaken, final List<RelWithInfo> normalizedQueryPlans) {
     execute(() -> innerObserver.planNormalized(millisTaken, normalizedQueryPlans));
   }
 
   @Override
+  public void planSubstituted(final long millisTaken) {
+    execute(() -> innerObserver.planSubstituted(millisTaken));
+  }
+
+  @Override
   public void planSubstituted(final DremioMaterialization materialization,
-                              final List<RelNode> substitutions,
-                              final RelNode target, final long millisTaken, boolean defaultReflection) {
+                              final List<RelWithInfo> substitutions,
+                              final RelWithInfo target, final long millisTaken, boolean defaultReflection) {
     execute(() -> innerObserver.planSubstituted(materialization, substitutions, target, millisTaken, defaultReflection));
   }
 

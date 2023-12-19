@@ -56,7 +56,7 @@ public class PrimaryKeyUpdateCommitter implements IcebergOpCommitter {
 
   @Override
   public Snapshot commit() {
-    command.updatePropertiesMap(getPropertiesMap(columns));
+    command.updateProperties(getPropertiesMap(columns), true);
     icebergTable = command.endTransaction();
     rootPointer = command.getRootPointer();
     specMap = command.getPartitionSpecMap();

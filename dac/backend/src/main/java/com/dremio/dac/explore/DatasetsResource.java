@@ -34,6 +34,9 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.SecurityContext;
 
+import org.apache.calcite.rel.type.RelDataTypeField;
+
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
@@ -49,6 +52,7 @@ import com.dremio.dac.explore.model.InitialUntitledRunResponse;
 import com.dremio.dac.explore.model.NewUntitledFromParentRequest;
 import com.dremio.dac.explore.model.VersionContextReq;
 import com.dremio.dac.model.spaces.HomeName;
+import com.dremio.dac.proto.model.collaboration.CollaborationTag;
 import com.dremio.dac.proto.model.dataset.FromSQL;
 import com.dremio.dac.proto.model.dataset.FromTable;
 import com.dremio.dac.resource.BaseResourceWithAllocator;
@@ -66,7 +70,10 @@ import com.dremio.datastore.SearchTypes.SortOrder;
 import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DatasetCatalog;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.planner.sql.parser.TableDefinitionGenerator;
+import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.file.FilePath;
+import com.dremio.options.OptionManager;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -95,6 +102,7 @@ public class DatasetsResource extends BaseResourceWithAllocator {
   private final CollaborationHelper collaborationService;
   private final ReflectionServiceHelper reflectionServiceHelper;
   private final UserService userService;
+  private final OptionManager optionManager;
 
   @Inject
   public DatasetsResource(
@@ -107,10 +115,11 @@ public class DatasetsResource extends BaseResourceWithAllocator {
     BufferAllocatorFactory allocatorFactory,
     CollaborationHelper collaborationService,
     ReflectionServiceHelper reflectionServiceHelper,
-    UserService userService) {
+    UserService userService,
+    OptionManager optionManager) {
     this(datasetService,
       new DatasetTool(datasetService, jobsService, executor, securityContext),
-      datasetCatalog, catalogServiceHelper, allocatorFactory, collaborationService, reflectionServiceHelper, userService);
+      datasetCatalog, catalogServiceHelper, allocatorFactory, collaborationService, reflectionServiceHelper, userService, optionManager);
   }
 
   protected DatasetsResource(
@@ -121,7 +130,8 @@ public class DatasetsResource extends BaseResourceWithAllocator {
       BufferAllocatorFactory allocatorFactory,
       CollaborationHelper collaborationService,
       ReflectionServiceHelper reflectionServiceHelper,
-      UserService userService
+      UserService userService,
+      OptionManager optionManager
       )
    {
      super(allocatorFactory);
@@ -132,22 +142,28 @@ public class DatasetsResource extends BaseResourceWithAllocator {
     this.collaborationService = collaborationService;
     this.reflectionServiceHelper = reflectionServiceHelper;
     this.userService = userService;
+    this.optionManager = optionManager;
   }
 
-  private DatasetConfig getDatasetConfig(DatasetPath datasetPath, Map<String, VersionContextReq> references) {
+  protected OptionManager getOptionManager() {
+    return optionManager;
+  }
+
+  private DremioTable getTable(DatasetPath datasetPath, Map<String, VersionContextReq> references) {
     DatasetCatalog datasetNewCatalog = datasetCatalog.resolveCatalog(DatasetResourceUtils.createSourceVersionMapping(references));
     NamespaceKey namespaceKey = datasetPath.toNamespaceKey();
     final DremioTable table = datasetNewCatalog.getTable(namespaceKey);
     if (table == null) {
       throw new DatasetNotFoundException(datasetPath);
     }
-    return table.getDatasetConfig();
+    return table;
   }
 
   private DatasetSummary getDatasetSummary(DatasetPath datasetPath,
                                            Map<String, VersionContextReq> references) throws NamespaceException, DatasetNotFoundException {
     NamespaceKey namespaceKey = datasetPath.toNamespaceKey();
-    final DatasetConfig datasetConfig = getDatasetConfig(datasetPath, references);
+    final DremioTable table = getTable(datasetPath, references);
+    final DatasetConfig datasetConfig = table.getDatasetConfig();
 
     return newDatasetSummary(datasetConfig,
       datasetService.getJobsCount(namespaceKey),
@@ -172,9 +188,27 @@ public class DatasetsResource extends BaseResourceWithAllocator {
       DatasetSummary summary = getDatasetSummary(fromDatasetPath, references);
       return newUntitled(from, newVersion, fromDatasetPath.toParentPathList(), summary, limit, engineName, sessionId, references);
     } else {
-      DatasetConfig datasetConfig = getDatasetConfig(fromDatasetPath, references);
-      return tool.createPreviewResponseForPhysicalDataset(from, newVersion, fromDatasetPath.toParentPathList(),
-        datasetConfig.getType(), datasetConfig.getFullPathList(), references);
+      DremioTable table = getTable(fromDatasetPath, references);
+      DatasetConfig datasetConfig = table.getDatasetConfig();
+
+      String sql;
+      if (!CatalogUtil.isDatasetTypeATable(datasetConfig.getType())) {
+        sql = null;
+      } else {
+        NamespaceKey path = fromDatasetPath.toNamespaceKey();
+        Map<String, VersionContext> sourceVersion = DatasetResourceUtils.createSourceVersionMapping(references);
+        VersionContext versionContext = sourceVersion.get(path.getRoot());
+
+        sql = getTableDefinition(
+          datasetConfig,
+          path,
+          table.getRowType(JavaTypeFactoryImpl.INSTANCE).getFieldList(),
+          versionContext == null ? null : versionContext.getType().toString(),
+          versionContext == null ? null : versionContext.getValue(),
+          CatalogUtil.requestedPluginSupportsVersionedTables(path.getRoot(), datasetService.getCatalog()));
+      }
+
+      return tool.createPreviewResponseForPhysicalDataset(from, newVersion, fromDatasetPath.toParentPathList(), datasetConfig, references, sql);
     }
   }
 
@@ -341,10 +375,14 @@ public class DatasetsResource extends BaseResourceWithAllocator {
     final DatasetSearchUIs datasets = new DatasetSearchUIs();
     for (SearchContainer searchEntity : catalogServiceHelper.searchByQuery(filters)) {
       if (searchEntity.getNamespaceContainer().getType().equals(NameSpaceContainer.Type.DATASET)) {
-        datasets.add(new DatasetSearchUI(searchEntity.getNamespaceContainer().getDataset(), searchEntity.getCollaborationTag()));
+        datasets.add(newDatasetSearchUI(searchEntity.getNamespaceContainer().getDataset(), searchEntity.getCollaborationTag()));
       }
     }
     return datasets;
+  }
+
+  protected DatasetSearchUI newDatasetSearchUI(DatasetConfig datasetConfig, CollaborationTag collaborationTag) throws NamespaceException {
+    return DatasetSearchUI.newInstance(datasetConfig, collaborationTag);
   }
 
   /**
@@ -380,15 +418,16 @@ public class DatasetsResource extends BaseResourceWithAllocator {
                                            Map<String, VersionContextReq> references)
     throws NamespaceException, DatasetNotFoundException {
     NamespaceKey namespaceKey = datasetPath.toNamespaceKey();
-    final DatasetConfig datasetConfig = getDatasetConfig(datasetPath, references);
+    final DremioTable table = getTable(datasetPath, references);
+    final DatasetConfig datasetConfig = table.getDatasetConfig();
 
     String entityId = datasetConfig.getId().getId();
     Optional<Tags> tags = Optional.empty();
     String sourceName = namespaceKey.getRoot();
     boolean isVersioned = CatalogUtil.requestedPluginSupportsVersionedTables(sourceName, datasetService.getCatalog());
     if (!isVersioned) {
-      // only use CollaborationHelper for non-versioned dataset from non-arctic source
-      // arctic source doesn't rely on NamespaceService while CollaborationHelper use NamespaceService underneath
+      // only use CollaborationHelper for non-versioned dataset from non-versioned source
+      // versioned source doesn't rely on NamespaceService while CollaborationHelper use NamespaceService underneath
       tags = collaborationService.getTags(entityId);
     }
 
@@ -422,5 +461,16 @@ public class DatasetsResource extends BaseResourceWithAllocator {
     User owner,
     User lastModifyingUser) throws NamespaceException {
     return DatasetSummary.newInstance(datasetConfig, jobCount, descendants, references, tags, hasReflection, owner, lastModifyingUser);
+  }
+
+  protected String getTableDefinition(
+    DatasetConfig datasetConfig,
+    NamespaceKey resolvedPath,
+    List<RelDataTypeField> fields,
+    String refType,
+    String refValue,
+    boolean isVersioned) {
+    return new TableDefinitionGenerator(datasetConfig, resolvedPath, fields, refType, refValue, isVersioned, optionManager)
+      .generateTableDefinition();
   }
 }

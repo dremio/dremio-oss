@@ -28,6 +28,8 @@ import com.dremio.exec.proto.UserBitShared;
 import com.dremio.service.grpc.OnReadyHandler;
 import com.dremio.service.job.ActiveJobSummary;
 import com.dremio.service.job.ChronicleGrpc;
+import com.dremio.service.job.JobAndUserStats;
+import com.dremio.service.job.JobAndUserStatsRequest;
 import com.dremio.service.job.JobCounts;
 import com.dremio.service.job.JobCountsRequest;
 import com.dremio.service.job.JobDetails;
@@ -37,7 +39,10 @@ import com.dremio.service.job.JobStatsRequest;
 import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.JobSummaryRequest;
 import com.dremio.service.job.JobsWithParentDatasetRequest;
+import com.dremio.service.job.NodeStatusRequest;
+import com.dremio.service.job.NodeStatusResponse;
 import com.dremio.service.job.QueryProfileRequest;
+import com.dremio.service.job.RecentJobSummary;
 import com.dremio.service.job.ReflectionJobDetailsRequest;
 import com.dremio.service.job.ReflectionJobProfileRequest;
 import com.dremio.service.job.ReflectionJobSummaryRequest;
@@ -90,6 +95,11 @@ public class Chronicle extends ChronicleGrpc.ChronicleImplBase {
   @Override
   public void getUniqueUserStats(UniqueUserStatsRequest request, StreamObserver<UniqueUserStats> responseObserver) {
     handleUnaryCall(getJobsService()::getUniqueUserStats, request, responseObserver);
+  }
+
+  @Override
+  public void getJobAndUserStats(JobAndUserStatsRequest request, StreamObserver<JobAndUserStats> responseObserver) {
+    handleUnaryCall(getJobsService()::getJobAndUserStats, request, responseObserver);
   }
 
   @Override
@@ -171,6 +181,63 @@ public class Chronicle extends ChronicleGrpc.ChronicleImplBase {
   }
 
   @Override
+  public void getRecentJobs(com.dremio.service.job.RecentJobsRequest request,
+                            io.grpc.stub.StreamObserver<RecentJobSummary> responseObserver) {
+    final ServerCallStreamObserver<RecentJobSummary> streamObserver = (ServerCallStreamObserver<RecentJobSummary>) responseObserver;
+    final Iterator<RecentJobSummary> wrapperIterator = new Iterator<RecentJobSummary>() {
+      // skip nulls
+      private final Iterator<RecentJobSummary> inner = getJobsService().getRecentJobs(request).iterator();
+      private RecentJobSummary prefetched;
+      private boolean isFirst = true;
+
+      @Override
+      public boolean hasNext() {
+        if (isFirst) {
+          prefetch();
+          isFirst = false;
+        }
+        return prefetched != null;
+      }
+
+      @Override
+      public RecentJobSummary next() {
+        RecentJobSummary ret = prefetched;
+        prefetch();
+        return ret;
+      }
+
+      private void prefetch() {
+        prefetched = null;
+        try {
+          while (inner.hasNext()) {
+            prefetched = inner.next();
+            // skip nulls
+            if (prefetched != null) {
+              return;
+            }
+          }
+        } catch (EnumSearchValueNotFoundException ex) {
+          LOGGER.info("Got EnumSearchValueNotFoundException returning empty response, query {}", request.getQuery(), ex);
+          // ignore exception, returning here ends the iterator.
+        } catch (Exception ex) {
+          LOGGER.error("Exception while fetching recent jobs for request {}", request, ex);
+          throw ex;
+        }
+      }
+    };
+
+    final class RecentJobs extends OnReadyHandler<RecentJobSummary> {
+      RecentJobs() {
+        super("recent-jobs", Chronicle.this.executor.get(), streamObserver, wrapperIterator);
+      }
+    }
+
+    final RecentJobs recentJobs = new RecentJobs();
+    streamObserver.setOnReadyHandler(recentJobs);
+    streamObserver.setOnCancelHandler(recentJobs::cancel);
+  }
+
+  @Override
   public void getJobsForParent(JobsWithParentDatasetRequest request, StreamObserver<JobDetails> responseObserver) {
     final ServerCallStreamObserver<JobDetails> streamObserver = (ServerCallStreamObserver<JobDetails>) responseObserver;
 
@@ -232,6 +299,11 @@ public class Chronicle extends ChronicleGrpc.ChronicleImplBase {
   @Override
   public void getReflectionJobProfile(ReflectionJobProfileRequest request, StreamObserver<UserBitShared.QueryProfile> responseObserver) {
     handleUnaryCall(getJobsService()::getReflectionJobProfile, request, responseObserver);
+  }
+
+  @Override
+  public void getNodeStatus(NodeStatusRequest request, StreamObserver<NodeStatusResponse> responseObserver) {
+    handleUnaryCall(getJobsService()::getNodeStatus, request, responseObserver);
   }
 
   private static class ErrorConvertingIterator<E> implements Iterator<E> {

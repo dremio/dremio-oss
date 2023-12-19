@@ -43,7 +43,7 @@ class TabsContent extends Component {
     this.holderRef = createRef();
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     if (nextProps.activeTab !== this.props.activeTab) {
       this.holderRef.current.scrollTop = 0;
     }
@@ -55,7 +55,9 @@ class TabsContent extends Component {
     if (jobDetails && jobDetails.get("isEmptyJob")) {
       return (
         <div style={styles.spinner}>
-          <span style={{ fontSize: 20 }}>{la("No job info available.")}</span>
+          <span style={{ fontSize: 20 }}>
+            {laDeprecated("No job info available.")}
+          </span>
         </div>
       );
     }

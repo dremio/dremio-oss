@@ -377,7 +377,7 @@ public abstract class HiveFieldConverter {
     private void writeText(VarCharWriter writer, Text value) {
       checkSizeLimit(value.getLength());
       try (ArrowBuf buf = getContext().getAllocator().buffer(value.getLength())) {
-        buf.setBytes(0, value.getBytes());
+        buf.setBytes(0, value.getBytes(), 0, value.getLength());
         writer.writeVarChar(0, value.getLength(), buf);
       }
     }

@@ -18,10 +18,8 @@ package com.dremio.exec.server;
 import java.util.List;
 import java.util.Optional;
 
-import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.TableVersionContext;
 import com.dremio.exec.planner.acceleration.MaterializationDescriptor;
-import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.exec.planner.logical.ViewTable;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -40,9 +38,7 @@ public interface MaterializationDescriptorProvider {
    * for the VDS with the given path
    * @return The default reflection for the VDS
    */
-  Optional<MaterializationDescriptor> getDefaultRawMaterialization(NamespaceKey path,
-                                                                   TableVersionContext versionContext,
-                                                                   List<String> vdsFields, Catalog catalog);
+  Optional<MaterializationDescriptor> getDefaultRawMaterialization(ViewTable table);
 
   /**
    * Empty materialization provider.
@@ -55,9 +51,7 @@ public interface MaterializationDescriptorProvider {
     }
 
     @Override
-    public Optional<MaterializationDescriptor> getDefaultRawMaterialization(NamespaceKey path,
-                                                                            TableVersionContext versionContext,
-                                                                            List<String> vdsFields, Catalog catalog) {
+    public Optional<MaterializationDescriptor> getDefaultRawMaterialization(ViewTable table) {
       return Optional.empty();
     }
   };

@@ -36,12 +36,12 @@ export const getReflectionColumnLabels = () => {
     reflectionType: t("Sonar.Reflection.Column.Type.Label"),
     datasetName: t("Sonar.Reflection.Column.Dataset.Label"),
     refreshStatus: t("Sonar.Reflection.Column.RefreshStatus.Label"),
+    recordCount: t("Sonar.Reflection.Column.RecordCount.Label"),
     currentFootprint: t("Sonar.Reflection.Column.CurrentFootprint.Label"),
     totalFootprint: t("Sonar.Reflection.Column.TotalFootprint.Label"),
     lastRefresh: t("Sonar.Reflection.Column.LastRefreshDuration.Label"),
     refreshMethod: t("Sonar.Reflection.Column.RefreshMethod.Label"),
     availableUntil: t("Sonar.Reflection.Column.AvailableUntil.Label"),
-    recordCount: t("Sonar.Reflection.Column.RecordCount.Label"),
     consideredCount: t("Sonar.Reflection.Column.ConsideredCount.Label"),
     matchedCount: t("Sonar.Reflection.Column.MatchedCount.Label"),
     acceleratedCount: t("Sonar.Reflection.Column.AcceleratedCount.Label"),
@@ -95,7 +95,16 @@ export const reflectionsTableColumns = ({
           <ClickableCell onClick={() => onRowClick(row.id)}>
             <div className="dremio-icon-label">
               <ReflectionStatus reflection={row.data} />
-              {row.data.name}
+              <div
+                style={{
+                  maxWidth: "45ch",
+                  whiteSpace: "normal",
+                  overflowWrap: "break-word",
+                  width: "max-content",
+                }}
+              >
+                {row.data.name}
+              </div>
             </div>
           </ClickableCell>
         );
@@ -194,6 +203,40 @@ export const reflectionsTableColumns = ({
         ) : (
           <Skeleton width="11ch" />
         ),
+    },
+    {
+      id: "recordCount",
+      class: "leantable--align-right",
+      renderHeaderCell: () => (
+        <Tooltip
+          portal
+          content={
+            <div
+              className="dremio-prose"
+              style={{ width: "max-content", maxWidth: "40ch" }}
+            >
+              {getIntlContext().t("Sonar.Reflection.Column.RecordCount.Hint")}
+            </div>
+          }
+        >
+          <span style={{ cursor: "default" }}>
+            {reflectionColumnLabels["recordCount"]}
+          </span>
+        </Tooltip>
+      ),
+      renderCell: (row) => (
+        <NumericCell>
+          {row.data ? (
+            row.data.outputRecords === -1 ? (
+              <NullCell />
+            ) : (
+              row.data.outputRecords.toLocaleString()
+            )
+          ) : (
+            <Skeleton width="6ch" />
+          )}
+        </NumericCell>
+      ),
     },
     {
       id: "currentFootprint",
@@ -356,40 +399,6 @@ export const reflectionsTableColumns = ({
             <Skeleton width="23ch" />
           </NumericCell>
         ),
-    },
-    {
-      id: "recordCount",
-      class: "leantable--align-right",
-      renderHeaderCell: () => (
-        <Tooltip
-          portal
-          content={
-            <div
-              className="dremio-prose"
-              style={{ width: "max-content", maxWidth: "40ch" }}
-            >
-              {getIntlContext().t("Sonar.Reflection.Column.RecordCount.Hint")}
-            </div>
-          }
-        >
-          <span style={{ cursor: "default" }}>
-            {reflectionColumnLabels["recordCount"]}
-          </span>
-        </Tooltip>
-      ),
-      renderCell: (row) => (
-        <NumericCell>
-          {row.data ? (
-            row.data.outputRecords === -1 ? (
-              <NullCell />
-            ) : (
-              row.data.outputRecords.toLocaleString()
-            )
-          ) : (
-            <Skeleton width="6ch" />
-          )}
-        </NumericCell>
-      ),
     },
     {
       id: "consideredCount",

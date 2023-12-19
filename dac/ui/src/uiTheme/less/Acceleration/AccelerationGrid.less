@@ -158,21 +158,37 @@
       border-bottom: 1px solid @BORDER_TABLE;
     }
 
-    &__layoutHeaderDeleteIcon {
-      // todo: ax; hover
-      flex-grow: 0;
-      flex-shrink: 0;
-      cursor: pointer;
-      height: 26px;
+    &__layoutHeaderRecommendationButton,
+    &__layoutHeaderDeleteButton,
+    &__layoutHeaderSettingsButton {
+      height: 24px;
+      width: 24px;
+      color: var(--color--neutral--600) !important;
+
+      &__icon {
+        inline-size: 18.5px !important;
+        block-size: 20px !important;
+      }
+
+      &:hover {
+        color: var(--dremio--color--link) !important;
+      }
     }
 
-    &__layoutHeaderSettingsIcon {
-      // todo: ax; hover
-      flex-grow: 0;
-      flex-shrink: 0;
-      cursor: pointer;
-      height: 26px;
-      margin-right: 4px;
+    &__layoutHeaderRecommendationSpinner {
+      --dremio--spinner--size: 24px;
+    }
+
+    &__layoutHeaderRecommendationButton {
+      color: #ff981b !important;
+
+      &:hover {
+        color: #ff981b !important;
+      }
+    }
+
+    &__layoutHeaderSettingsButton {
+      margin-right: var(--dremio--spacing--1);
     }
 
     &__layoutMessage {
@@ -251,6 +267,12 @@
       display: flex;
       align-items: center;
       padding-left: 12px;
+    }
+  }
+
+  .dremio-modal.large-modal {
+    .AccelerationGrid {
+      height: 100% !important;
     }
   }
 }

@@ -26,6 +26,7 @@ import com.google.inject.Inject;
 /**
  * File Credential Provider.
  */
+@RemoteRestricted
 public class FileCredentialsProvider extends AbstractSimpleCredentialsProvider implements CredentialsProvider {
 
   @Inject

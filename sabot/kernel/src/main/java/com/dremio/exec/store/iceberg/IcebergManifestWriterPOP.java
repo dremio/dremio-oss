@@ -36,6 +36,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 public class IcebergManifestWriterPOP extends AbstractWriter {
     private final String location;
     private final MutablePlugin plugin;
+    private final boolean singleWriter;
 
     @JsonCreator
     public IcebergManifestWriterPOP(
@@ -44,11 +45,13 @@ public class IcebergManifestWriterPOP extends AbstractWriter {
             @JsonProperty("location") String location,
             @JsonProperty("options") WriterOptions options,
             @JsonProperty("pluginId") StoragePluginId pluginId,
-            @JacksonInject StoragePluginResolver storagePluginResolver
+            @JacksonInject StoragePluginResolver storagePluginResolver,
+            @JsonProperty("singleWriter") boolean singleWriter
     ) {
         super(props, child, options);
         this.plugin = storagePluginResolver.getSource(pluginId);
         this.location = location;
+        this.singleWriter = singleWriter;
     }
 
     public IcebergManifestWriterPOP(
@@ -56,10 +59,12 @@ public class IcebergManifestWriterPOP extends AbstractWriter {
             PhysicalOperator child,
             String location,
             WriterOptions options,
-            MutablePlugin plugin) {
+            MutablePlugin plugin,
+            boolean singleWriter) {
         super(props, child, options);
         this.plugin = plugin;
         this.location = location;
+        this.singleWriter = singleWriter;
     }
 
     @JsonProperty("location")
@@ -71,9 +76,13 @@ public class IcebergManifestWriterPOP extends AbstractWriter {
         return plugin.getId();
     }
 
-    @Override
+    public boolean isSingleWriter() {
+      return singleWriter;
+    }
+
+  @Override
     protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-        return new IcebergManifestWriterPOP(props, child, location, options, plugin);
+        return new IcebergManifestWriterPOP(props, child, location, options, plugin, singleWriter);
     }
 
     @Override

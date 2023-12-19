@@ -15,7 +15,7 @@
  */
 import { createSelector } from "reselect";
 import Immutable from "immutable";
-import { getModuleState } from "@app/reducers";
+import { getModuleState } from "@app/selectors/moduleState";
 import { getLocation } from "selectors/routing";
 import { getExploreViewState, getEntity } from "selectors/resources";
 import {
@@ -23,8 +23,7 @@ import {
   getRouteParamsFromLocation,
   constructFullPathAndEncode,
 } from "utils/pathUtils";
-import { newQuery } from "@app/exports/paths";
-import { getJobList } from "./jobs";
+import { isNewQueryUrl } from "@app/utils/explorePageTypeUtils";
 
 const emptyTable = Immutable.fromJS({
   columns: [],
@@ -59,9 +58,9 @@ function getTableData(state, datasetVersion) {
   return getTableDataRaw(state, datasetVersion) || emptyTable;
 }
 
-export function getColumnFilter(state) {
+export function getColumnFilter(state, version) {
   const { entities } = state.resources;
-  return entities.getIn(["tableData", "columnFilter"]) || "";
+  return entities.getIn(["tableData", version, "columnFilter"]) || "";
 }
 
 export function getJobProgress(state, version) {
@@ -105,24 +104,6 @@ export function oldGetExploreJobId(state) {
   const version = getDatasetVersionFromLocation(location);
   const fullDataset = getFullDataset(state, version);
   return fullDataset ? fullDataset.getIn(["jobId", "id"], "") : "";
-}
-
-export function getExploreJobId(state) {
-  // this selector will have to change once we move jobId out of fullDataset and load it prior to metadata
-  const location = getLocation(state);
-  const version = getDatasetVersionFromLocation(location);
-  const fullDataset = getFullDataset(state, version);
-  const jobIdFromDataset = fullDataset?.getIn(["jobId", "id"]);
-
-  // a dataset is not returned in the first response of the new_tmp_untitled_sql endpoints
-  // so we need to get jobId from the jobList where the last job is the most recently submitted
-  const jobListArray = getJobList(state).toArray();
-  const jobIdFromList =
-    jobListArray?.[jobListArray.length - 1]?.get("id") ?? "";
-
-  return jobIdFromDataset !== jobIdFromList && jobIdFromList
-    ? jobIdFromList
-    : jobIdFromDataset;
 }
 
 export function getSavingJob(state) {
@@ -209,12 +190,13 @@ export const getNewDatasetFromState = createSelector(
 
 const getInitialDataset = (location, viewState) => {
   const routeParams = getRouteParamsFromLocation(location);
-  const version = location.query.version;
-  const displayFullPath = viewState.getIn([
-    "error",
-    "details",
-    "displayFullPath",
-  ]) || [routeParams.resourceId, ...splitFullPath(routeParams.tableId)];
+  const version = location.query.version || location.query.tipVersion;
+  const displayFullPath =
+    viewState.getIn(["error", "details", "displayFullPath"]) ||
+    (routeParams.resourceId !== "undefined"
+      ? [routeParams.resourceId, ...splitFullPath(routeParams.tableId)] //Handle old /tmp/tmp/UNTITLED URL
+      : ["tmp", "UNTITLED"]);
+
   const fullPath =
     location.query.mode === "edit" ? displayFullPath : ["tmp", "UNTITLED"];
 
@@ -244,12 +226,11 @@ export const getIntialDatasetFromState = createSelector(
 
 export const getExplorePageDataset = (state, curDataset) => {
   const location = getLocation(state);
-  const isNewQuery = location.pathname.includes(newQuery());
   const { query } = location || {};
+  const isNewQuery = !curDataset && isNewQueryUrl(location);
   const curQuery = curDataset ? curDataset : query;
 
   let dataset;
-
   if (isNewQuery) {
     dataset = getNewDatasetFromState(state);
   } else {
@@ -334,4 +315,20 @@ export const getExploreState = (state) =>
 export const getCurrentRouteParams = (state) => {
   const exploreState = getExploreState(state);
   return exploreState ? exploreState.currentRouteState : null;
+};
+
+export const selectTabView = (state, scriptId) => {
+  const tabViews = getExploreState(state)?.tabViews;
+  if (!tabViews) return null;
+  return tabViews[scriptId];
+};
+
+const selectMultiQueryDataset = (view, queryTabNumber = 1) => {
+  const { queryStatuses = [] } = view || {};
+  return queryStatuses[queryTabNumber - 1];
+};
+
+export const selectTabDataset = (state, scriptId) => {
+  const metadata = selectMultiQueryDataset(selectTabView(state, scriptId));
+  return metadata ? getExplorePageDataset(state, metadata) : null;
 };

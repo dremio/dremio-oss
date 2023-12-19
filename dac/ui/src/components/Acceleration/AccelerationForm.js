@@ -17,7 +17,7 @@ import { Component } from "react";
 import ReactDOM from "react-dom";
 import Immutable from "immutable";
 import PropTypes from "prop-types";
-import uuid from "uuid";
+import { v4 as uuidv4 } from "uuid";
 import deepEqual from "deep-equal";
 
 import {
@@ -27,6 +27,8 @@ import {
   modalFormProps,
 } from "@app/components/Forms";
 import reflectionActions from "@app/actions/resources/reflection";
+import { setReflectionRecommendations } from "@app/actions/resources/reflectionRecommendations";
+import { getRawRecommendation } from "@app/selectors/reflectionRecommendations";
 import { getListErrorsFromNestedReduxFormErrorEntity } from "@app/utils/validation";
 import {
   areReflectionFormValuesBasic,
@@ -35,6 +37,9 @@ import {
   fixupReflection,
   forceChangesForDatasetChange,
 } from "@app/utils/accelerationUtils";
+import { fetchSupportFlags } from "@app/actions/supportFlags";
+import { getSupportFlags } from "@app/selectors/supportFlags";
+import { ALLOW_REFLECTION_PARTITION_TRANFORMS } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
 import ApiUtils from "@app/utils/apiUtils/apiUtils";
 
 import { DEFAULT_ERR_MSG } from "@inject/constants/errors";
@@ -42,6 +47,10 @@ import { DEFAULT_ERR_MSG } from "@inject/constants/errors";
 import "@app/uiTheme/less/commonModifiers.less";
 import "@app/uiTheme/less/Acceleration/Acceleration.less";
 import { AccelerationFormWithMixin } from "@inject/components/Acceleration/AccelerationFormMixin.js";
+import {
+  formatPartitionFields,
+  preparePartitionFieldsAsFormValues,
+} from "@app/exports/components/PartitionTransformation/PartitionTransformationUtils";
 import Message from "../Message";
 import AccelerationBasic from "./Basic/AccelerationBasic";
 import AccelerationAdvanced from "./Advanced/AccelerationAdvanced";
@@ -66,11 +75,15 @@ export class AccelerationForm extends Component {
     isModal: PropTypes.bool,
     canAlter: PropTypes.any,
     canSubmit: PropTypes.bool,
+    allowPartitionTransform: PropTypes.bool,
+    rawRecommendation: PropTypes.object,
 
     putReflection: PropTypes.func.isRequired,
     postReflection: PropTypes.func.isRequired,
     deleteReflection: PropTypes.func.isRequired,
     reloadReflections: PropTypes.func,
+    fetchSupportFlags: PropTypes.func,
+    setReflectionRecommendations: PropTypes.func.isRequired,
   };
 
   static defaultProps = {
@@ -122,16 +135,19 @@ export class AccelerationForm extends Component {
 
   unmounted = false;
   componentWillUnmount() {
+    this.props.setReflectionRecommendations([]);
     this.unmounted = true;
   }
 
-  componentWillMount() {
+  async UNSAFE_componentWillMount() {
+    const { fetchSupportFlags } = this.props;
+    await fetchSupportFlags(ALLOW_REFLECTION_PARTITION_TRANFORMS);
     this.initializeForm();
   }
 
   initializeForm() {
     let { dataset } = this.props;
-    const { reflections } = this.props;
+    const { allowPartitionTransform, reflections } = this.props;
     dataset = dataset.toJS();
 
     const lostFieldsByReflection = {};
@@ -154,7 +170,10 @@ export class AccelerationForm extends Component {
 
     const { rawReflections, aggregationReflections } = this.props.fields;
 
-    if (this.state.mode === "BASIC" && !aggregationReflectionValues.length) {
+    if (
+      (this.state.mode === "BASIC" && !aggregationReflectionValues.length) ||
+      allowPartitionTransform
+    ) {
       this.fetchRecommendations();
     }
 
@@ -180,12 +199,29 @@ export class AccelerationForm extends Component {
       rawReflectionValues.push(firstRaw);
     }
 
-    aggregationReflectionValues.forEach((v) =>
+    const updatedAggregationReflectionValues = aggregationReflectionValues.map(
+      (v) => {
+        return {
+          ...v,
+          partitionFields: preparePartitionFieldsAsFormValues(v),
+        };
+      }
+    );
+
+    const updatedRawReflectionValues = rawReflectionValues.map((v) => {
+      return {
+        ...v,
+        partitionFields: preparePartitionFieldsAsFormValues(v),
+      };
+    });
+
+    updatedAggregationReflectionValues.forEach((v) =>
       aggregationReflections.addField(v)
     );
-    rawReflectionValues.forEach((v) => rawReflections.addField(v));
 
-    this.syncAdvancedToBasic(aggregationReflectionValues[0]);
+    updatedRawReflectionValues.forEach((v) => rawReflections.addField(v));
+
+    this.syncAdvancedToBasic(updatedAggregationReflectionValues[0]);
 
     this.updateInitialValues();
   }
@@ -202,8 +238,11 @@ export class AccelerationForm extends Component {
         //handle json with data
         ReactDOM.unstable_batchedUpdates(() => {
           if (!this.state.waitingForRecommendations || this.unmounted) return;
+
+          const isAdvancedMode = this.state.mode === "ADVANCED";
+
           if (
-            this.state.mode === "ADVANCED" ||
+            (isAdvancedMode && !this.props.allowPartitionTransform) ||
             !reflections.length ||
             !reflections.some((r) => r.type === "AGGREGATION")
           ) {
@@ -212,18 +251,56 @@ export class AccelerationForm extends Component {
             return;
           }
 
-          const { aggregationReflections } = this.props.fields;
-          aggregationReflections.forEach(() =>
-            aggregationReflections.removeField()
+          this.props.setReflectionRecommendations(reflections);
+
+          const { aggregationReflections, rawReflections } = this.props.fields;
+          const { reflections: curReflections } = this.props;
+
+          const curReflectionsAsArray = Object.values(
+            curReflections?.toJS() ?? {}
           );
 
+          const hasExistingRawReflection = curReflectionsAsArray.some(
+            (curReflection) => curReflection.type === "RAW"
+          );
+
+          const hasExistingAggregationReflection = curReflectionsAsArray.some(
+            (curReflection) => curReflection.type === "AGGREGATION"
+          );
+
+          if (!hasExistingAggregationReflection && !isAdvancedMode) {
+            aggregationReflections.forEach(() =>
+              aggregationReflections.removeField()
+            );
+          }
+
+          if (!hasExistingRawReflection & !isAdvancedMode) {
+            rawReflections.forEach(() => rawReflections.removeField());
+          }
+
           for (const reflection of reflections) {
-            if (reflection.type !== "AGGREGATION") continue;
+            // do not update the grid if the user goes to advanced mode before recommendations finish loading
+            // this keeps the user from losing any changes they might've made
+            if (isAdvancedMode) {
+              break;
+            }
+
+            if (
+              (reflection.type === "RAW" && hasExistingRawReflection) ||
+              (reflection.type === "AGGREGATION" &&
+                hasExistingAggregationReflection)
+            ) {
+              continue;
+            }
+
             // we want to disable recommendations
             reflection.enabled = false;
             const values = createReflectionFormValues(reflection);
             this.suggestions[values.id] = values;
-            aggregationReflections.addField(values);
+
+            reflection.type === "RAW"
+              ? rawReflections.addField(values)
+              : aggregationReflections.addField(values);
           }
 
           this.setState({ waitingForRecommendations: false });
@@ -266,44 +343,55 @@ export class AccelerationForm extends Component {
     }, 0);
   }
 
-  componentWillReceiveProps(nextProps) {
-    if (this.state.saving) {
+  componentDidUpdate(prevProps) {
+    const { updateFormDirtyState, values } = this.props;
+
+    const { formIsDirty, mode, saving } = this.state;
+
+    const { values: prevValues } = prevProps;
+
+    if (saving) {
       return;
     }
 
-    const nextFirstAggValues = nextProps.values.aggregationReflections[0];
-    const currFirstAggValues = this.props.values.aggregationReflections[0];
-    if (!deepEqual(nextFirstAggValues, currFirstAggValues)) {
-      this.syncAdvancedToBasic(nextFirstAggValues, nextProps);
+    const firstAggReflection = values.aggregationReflections[0];
+    const prevFirstAggReflection = prevValues.aggregationReflections[0];
+
+    // sync any changes made to the first aggregation reflection in ADVANCED to BASIC
+    if (!deepEqual(firstAggReflection, prevFirstAggReflection)) {
+      this.syncAdvancedToBasic(firstAggReflection);
     }
 
+    const { columnsDimensions, columnsMeasures } = values;
+    const {
+      columnsDimensions: prevColumnsDimensions,
+      columnsMeasures: prevColumnsMeasures,
+    } = prevValues;
+
+    // sync any changes made to the aggregation'sdimensions / measures in BASIC to ADVANCED
     if (
-      !deepEqual(
-        nextProps.values.columnsDimensions,
-        this.props.values.columnsDimensions
-      ) ||
-      !deepEqual(
-        nextProps.values.columnsMeasures,
-        this.props.values.columnsMeasures
-      )
+      !deepEqual(columnsDimensions, prevColumnsDimensions) ||
+      !deepEqual(columnsMeasures, prevColumnsMeasures)
     ) {
-      this.syncBasicToAdvanced(nextProps);
+      this.syncBasicToAdvanced();
     }
 
-    if (this.state.mode === "BASIC" && this.getMustBeInAdvancedMode(nextProps))
+    // will force the form to ADVANCED mode if the recommendations contain non-basic values,
+    // if a reflection with non-basic values exists, or multiple reflections exist
+    if (mode === "BASIC" && this.getMustBeInAdvancedMode(this.props)) {
       this.setState({ mode: "ADVANCED" });
+    }
 
-    // manually calculate the dirty state depending on if values equals the initial values we computed in componentWillMount
-    // TODO: not sure why an initializeForm call doesn't work property to reset the redux-form's state.  Sadly we
-    // can't just call updateFormDirtyState in componentWillMount as redux-form thinks its dirty already and won't send
-    // the set dirty calls even if more changes are made.
-    const isDirty = !deepEqual(nextProps.values, this.initialValues);
-    this.setState({ formIsDirty: isDirty });
-    this.props.updateFormDirtyState(isDirty);
+    const isDirty = !deepEqual(values, this.initialValues);
+
+    if (formIsDirty !== isDirty) {
+      this.setState({ formIsDirty: isDirty });
+      updateFormDirtyState(isDirty);
+    }
   }
 
-  syncAdvancedToBasic(firstAggValues, props = this.props) {
-    const { columnsDimensions, columnsMeasures } = props.fields;
+  syncAdvancedToBasic(firstAggValues) {
+    const { columnsDimensions, columnsMeasures } = this.props.fields;
 
     columnsDimensions.forEach(() => columnsDimensions.removeField());
     columnsMeasures.forEach(() => columnsMeasures.removeField());
@@ -318,10 +406,10 @@ export class AccelerationForm extends Component {
     );
   }
 
-  syncBasicToAdvanced(props = this.props) {
-    const columnsDimensionsValues = props.values.columnsDimensions;
-    const columnsMeasuresValues = props.values.columnsMeasures;
-    const firstAgg = props.fields.aggregationReflections[0];
+  syncBasicToAdvanced() {
+    const columnsDimensionsValues = this.props.values.columnsDimensions;
+    const columnsMeasuresValues = this.props.values.columnsMeasures;
+    const firstAgg = this.props.fields.aggregationReflections[0];
 
     // Note: we are careful to preserve granularity when syncing this direction
 
@@ -378,8 +466,6 @@ export class AccelerationForm extends Component {
       }
 
       if (
-        mode === "BASIC" &&
-        reflection.type === "AGGREGATION" &&
         !reflection.enabled &&
         areReflectionFormValuesUnconfigured(reflection)
       ) {
@@ -407,8 +493,8 @@ export class AccelerationForm extends Component {
 
       if (reflection.type === "RAW") {
         if (!reflection.displayFields.length) {
-          errors[reflection.id] = la(
-            "At least one display field per raw Reflection is required."
+          errors[reflection.id] = laDeprecated(
+            "At least one display column per raw Reflection is required."
           );
         }
       } else {
@@ -418,8 +504,8 @@ export class AccelerationForm extends Component {
           !reflection.measureFields.length
         ) {
           // eslint-disable-line no-lonely-if
-          errors[reflection.id] = la(
-            "At least one dimension or measure field per aggregation Reflection is required."
+          errors[reflection.id] = laDeprecated(
+            "At least one dimension or measure column per aggregation Reflection is required."
           );
         }
       }
@@ -440,7 +526,7 @@ export class AccelerationForm extends Component {
   }
 
   submitForm = (values) => {
-    const { reloadReflections } = this.props;
+    const { allowPartitionTransform, reloadReflections } = this.props;
     const { reflections, errors } = this.prepare(values);
 
     this.setState({ saving: true });
@@ -454,6 +540,10 @@ export class AccelerationForm extends Component {
 
       // add the datasetid before we send the reflections out
       reflection.datasetId = this.props.dataset.get("id");
+
+      if (allowPartitionTransform) {
+        reflection.partitionFields = formatPartitionFields(reflection);
+      }
 
       let promise;
       let cleanup;
@@ -472,7 +562,7 @@ export class AccelerationForm extends Component {
           this.updateReflection(reflectionId, {
             // it's now new
             tag: "",
-            id: uuid.v4(),
+            id: uuidv4(),
           });
         };
       } else {
@@ -532,13 +622,13 @@ export class AccelerationForm extends Component {
   createSubmitErrorWrapper(reflectionSaveErrors, totalCount) {
     reflectionSaveErrors = Immutable.Map(reflectionSaveErrors).map((message) =>
       Immutable.fromJS({
-        id: uuid.v4(),
+        id: uuidv4(),
         message,
       })
     );
     return Promise.reject({
       _error: {
-        id: uuid.v4(),
+        id: uuidv4(),
         message: Immutable.fromJS({
           // no #message needed, code used
           code: "COMBINED_REFLECTION_SAVE_ERROR",
@@ -556,6 +646,8 @@ export class AccelerationForm extends Component {
       ? props.values
       : this.props.values;
 
+    const { rawRecommendation } = this.props;
+
     if (aggregationReflections.length > 1 || rawReflections.length > 1) {
       return true;
     }
@@ -571,7 +663,11 @@ export class AccelerationForm extends Component {
 
     return [...aggregationReflections, ...rawReflections].some(
       (reflection) =>
-        !areReflectionFormValuesBasic(reflection, this.props.dataset.toJS())
+        !areReflectionFormValuesBasic(
+          reflection,
+          this.props.dataset.toJS(),
+          rawRecommendation
+        )
     );
   }
 
@@ -614,6 +710,7 @@ export class AccelerationForm extends Component {
           reflections={reflections}
           fields={fields}
           values={values}
+          loadingRecommendations={waitingForRecommendations}
           updateFormDirtyState={updateFormDirtyState}
           updateDirtyState={this.updateDirtyState}
           initialValues={this.initialValues}
@@ -692,7 +789,9 @@ export class AccelerationForm extends Component {
     const { formIsDirty } = this.state;
     const modalFormStyle = isModal ? {} : modalStyles.noModalForm;
     const confirmStyle = isModal ? {} : modalStyles.noModalConfirmCancel;
-    const cancelText = isModal ? la("Cancel") : la("Revert");
+    const cancelText = isModal
+      ? laDeprecated("Cancel")
+      : laDeprecated("Revert");
     const onCancelClick = isModal ? onCancel : this.resetForm;
     const updatedCanSubmit = (canSubmit && isModal) || formIsDirty;
     const canCancel = isModal || formIsDirty;
@@ -737,7 +836,10 @@ const modalStyles = {
 
 function mapStateToProps(state) {
   return {
+    allowPartitionTransform:
+      getSupportFlags(state)[ALLOW_REFLECTION_PARTITION_TRANFORMS],
     location: state.routing.locationBeforeTransitions,
+    rawRecommendation: getRawRecommendation(state),
   };
 }
 
@@ -752,5 +854,7 @@ export default connectComplexForm(
     putReflection: reflectionActions.put.dispatch,
     postReflection: reflectionActions.post.dispatch,
     deleteReflection: reflectionActions.delete.dispatch,
+    fetchSupportFlags,
+    setReflectionRecommendations,
   }
 )(AccelerationFormWithMixin(AccelerationForm));

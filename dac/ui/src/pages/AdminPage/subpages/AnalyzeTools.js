@@ -47,12 +47,12 @@ const AnalyzeTools = (props) => {
         borderBottom: "1px solid hsla(0, 0%, 0%, 0.1)",
       }}
     >
-      <h3>{la("Client Tools")}</h3>
+      <h3>{laDeprecated("Client Tools")}</h3>
       <div style={props.descriptionStyle}>
-        {la("Note: Users will see changes when they next reload.")}
+        {laDeprecated("Note: Users will see changes when they next reload.")}
       </div>
       <div style={styles.toolsTable}>
-        <div style={styles.tableRightHeader}>{la("Enabled")}</div>
+        <div style={styles.tableRightHeader}>{laDeprecated("Enabled")}</div>
         {renderTool(CLIENT_TOOL_ID.tableau, "Tableau:", "corporate/tableau")}
         {renderTool(CLIENT_TOOL_ID.powerbi, "Power BI:", "corporate/power-bi")}
         {qlikEnabled &&

@@ -15,7 +15,10 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BoundsChecking;
@@ -223,6 +226,57 @@ public class StringFunctionHelpers {
     }
     int[] dateFields = memGetDate(buf.memoryAddress(), start, end);
     return CHRONOLOGY.getDateTimeMillis(dateFields[0], dateFields[1], dateFields[2], 0);
+  }
+
+  public static String parseURL(String urlStr, String partToExtract, FunctionErrorContext errCtx){
+    final URL url;
+    try {
+      url = new URL(urlStr);
+    } catch (Exception e) {
+      return null;
+    }
+
+    if ("HOST".equalsIgnoreCase(partToExtract)) {
+      return url.getHost();
+    }
+    if ("PATH".equalsIgnoreCase(partToExtract)) {
+      return url.getPath();
+    }
+    if ("QUERY".equalsIgnoreCase(partToExtract)) {
+      return url.getQuery();
+    }
+    if ("REF".equalsIgnoreCase(partToExtract)) {
+      return url.getRef();
+    }
+    if ("PROTOCOL".equalsIgnoreCase(partToExtract)) {
+      return url.getProtocol();
+    }
+    if ("FILE".equalsIgnoreCase(partToExtract)) {
+      return url.getFile();
+    }
+    if ("AUTHORITY".equalsIgnoreCase(partToExtract)) {
+      return url.getAuthority();
+    }
+    if ("USERINFO".equalsIgnoreCase(partToExtract)) {
+      return url.getUserInfo();
+    }
+
+    return null;
+  }
+
+  public static String parseURLQueryKey(String urlStr, String partToExtract, Pattern keyPattern, FunctionErrorContext errCtx){
+    if (!"QUERY".equalsIgnoreCase(partToExtract)) {
+      return null;
+    }
+    String query = parseURL(urlStr, partToExtract, errCtx);
+    if (query == null){
+      return null;
+    }
+    Matcher m = keyPattern.matcher(query);
+    if (!m.find()) {
+      return null;
+    }
+    return m.group(2);
   }
 
   /**

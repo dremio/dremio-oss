@@ -16,7 +16,6 @@
 package com.dremio.exec.planner.sql.handlers.direct;
 
 import static com.dremio.exec.planner.sql.parser.SqlAlterDatasetReflectionRouting.RoutingType;
-import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
 import java.util.Collections;
 import java.util.List;
@@ -45,14 +44,14 @@ public abstract class CommonReflectionRoutingHandler extends SimpleDirectHandler
 
   private final Catalog catalog;
   protected final ReflectionRoutingManager reflectionRoutingManager;
-  private final NamespaceService namespaceService;
+  private final NamespaceService systemNamespaceService;
   private final QueryContext context;
 
   public CommonReflectionRoutingHandler(QueryContext context){
     this.catalog = context.getCatalog();
     this.context = context;
     reflectionRoutingManager = context.getReflectionRoutingManager();
-    this.namespaceService = context.getNamespaceService(SYSTEM_USERNAME);
+    this.systemNamespaceService = context.getSystemNamespaceService();
   }
 
   @Override
@@ -118,7 +117,7 @@ public abstract class CommonReflectionRoutingHandler extends SimpleDirectHandler
 
     //If folder config is in namespace, grab it. Otherwise, create it and add to namespace.
     try {
-      folderConfig = namespaceService.getFolder(folderKey);
+      folderConfig = systemNamespaceService.getFolder(folderKey);
     } catch (NamespaceNotFoundException ex) {
       folderConfig = new FolderConfig()
         .setName(folderKey.getLeaf())
@@ -128,7 +127,7 @@ public abstract class CommonReflectionRoutingHandler extends SimpleDirectHandler
     //set destination
     setRoutingDestination(folderConfig, destinationName);
     //refresh catalog
-    namespaceService.addOrUpdateFolder(folderKey, folderConfig);
+    systemNamespaceService.addOrUpdateFolder(folderKey, folderConfig);
 
     return String.format("OK: Reflections inside folder %s will be refreshed using ",
       folderConfig.getFullPathList());
@@ -140,7 +139,7 @@ public abstract class CommonReflectionRoutingHandler extends SimpleDirectHandler
     SpaceConfig spaceConfig;
 
     try {
-      spaceConfig = namespaceService.getSpace(spaceKey);
+      spaceConfig = systemNamespaceService.getSpace(spaceKey);
     } catch (NamespaceNotFoundException ex) {
       throw new UnsupportedOperationException(
         String.format("cannot find space %s", spaceKey.getName()));
@@ -149,7 +148,7 @@ public abstract class CommonReflectionRoutingHandler extends SimpleDirectHandler
     //set destination
     setRoutingDestination(spaceConfig, destinationName);
     //refresh catalog
-    namespaceService.addOrUpdateSpace(new NamespaceKey(spaceConfig.getName()), spaceConfig);
+    systemNamespaceService.addOrUpdateSpace(new NamespaceKey(spaceConfig.getName()), spaceConfig);
 
     return String.format("OK: Reflections inside space %s will be refreshed using ",
       spaceConfig.getName());

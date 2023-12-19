@@ -214,7 +214,7 @@ export class SettingsMicroForm extends PureComponent {
             className={clsx(classes["secondaryButtonPsuedoClasses"])}
             style={saveButtonStyle}
           >
-            {la("Save")}
+            {laDeprecated("Save")}
           </SimpleButton>
           {this.props.resetSetting && (
             <SimpleButton
@@ -224,7 +224,7 @@ export class SettingsMicroForm extends PureComponent {
               className={clsx(classes["secondaryButtonPsuedoClasses"])}
               style={buttonStyle}
             >
-              {la("Reset")}
+              {laDeprecated("Reset")}
             </SimpleButton>
           )}
         </div>

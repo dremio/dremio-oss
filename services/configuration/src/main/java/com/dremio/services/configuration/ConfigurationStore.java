@@ -68,16 +68,6 @@ public class ConfigurationStore {
    */
   public static final class ConfigurationEntryVersionExtractor implements VersionExtractor<ConfigurationEntry> {
     @Override
-    public Long getVersion(ConfigurationEntry value) {
-      return value.getVersion();
-    }
-
-    @Override
-    public void setVersion(ConfigurationEntry value, Long tag) {
-      value.setVersion(tag);
-    }
-
-    @Override
     public String getTag(ConfigurationEntry value) {
       return value.getTag();
     }

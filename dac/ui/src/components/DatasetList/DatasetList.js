@@ -52,7 +52,7 @@ class DatasetList extends PureComponent {
     };
   }
 
-  componentWillReceiveProps(newProps) {
+  UNSAFE_componentWillReceiveProps(newProps) {
     if (newProps.data !== this.props.data) {
       this.resetSelectedData();
     }
@@ -135,7 +135,9 @@ class DatasetList extends PureComponent {
       data && data.size && data.size > 0 ? (
         this.getDatasetsList(data, inputValue)
       ) : (
-        <div className={classes["notFound"]}>{la("No results found")}</div>
+        <div className={classes["notFound"]}>
+          {laDeprecated("No results found")}
+        </div>
       );
     return (
       <div className={clsx(classes["dataSetsList"], "datasets-list")}>

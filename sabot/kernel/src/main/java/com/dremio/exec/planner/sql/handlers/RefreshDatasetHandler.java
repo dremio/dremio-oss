@@ -73,7 +73,7 @@ public class RefreshDatasetHandler implements SqlToPlanHandler {
       final PhysicalOperator pop = PrelTransformer.convertToPop(config, transformedPrel.left);
       final PhysicalPlan plan = PrelTransformer.convertToPlan(config, pop);
       if (logger.isTraceEnabled()) {
-        PrelTransformer.log(config, "Dremio Plan", plan, logger);
+        PlanLogUtil.log(config, "Dremio Plan", plan, logger);
       }
 
       setTextPlan(transformedPrel.right);

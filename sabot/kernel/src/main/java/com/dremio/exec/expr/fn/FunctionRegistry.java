@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.expr.fn;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -22,6 +23,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import org.apache.calcite.sql.SqlFunction;
+import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSyntax;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -30,12 +32,10 @@ import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionSyntax;
 import com.dremio.exec.planner.sql.Checker;
-import com.dremio.exec.planner.sql.OperatorTable;
 import com.dremio.exec.planner.sql.SqlAggOperator;
 import com.dremio.exec.planner.sql.SqlFunctionImpl;
 import com.dremio.exec.planner.sql.TypeInferenceUtils;
 import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 
 /**
@@ -43,23 +43,6 @@ import com.google.common.collect.Lists;
  */
 public class FunctionRegistry implements PrimaryFunctionRegistry {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FunctionRegistry.class);
-
-  private static final ImmutableMap<String, Pair<Integer, Integer>> funcToRange = ImmutableMap.<String, Pair<Integer, Integer>> builder()
-      // CONCAT is allowed to take [1, infinity) number of arguments.
-      // Currently, this flexibility is offered by RexToExpr to rewrite it as
-      // a nested structure
-      .put("CONCAT", Pair.of(1, Integer.MAX_VALUE))
-
-      // When LENGTH is given two arguments, this function relies on RexToExpr to rewrite it as
-      // another function based on the second argument (encodingType)
-      .put("LENGTH", Pair.of(1, 2))
-
-      // Dummy functions
-      .put("CONVERT_TO", Pair.of(2, 2))
-      .put("CONVERT_FROM", Pair.of(2, 3))
-      .put("FLATTEN", Pair.of(1, 1)).build();
-
-
 
   // key: function name (lowercase) value: list of functions with that name
   private final ArrayListMultimap<String, AbstractFunctionHolder> registeredFunctions = ArrayListMultimap.create();
@@ -95,9 +78,9 @@ public class FunctionRegistry implements PrimaryFunctionRegistry {
           String existingImplementation = functionSignatureMap.get(functionSignature);
           if (existingImplementation != null) {
             throw new AssertionError(
-                String.format(
-                    "Conflicting functions with similar signature found. Func Name: %s, Class name: %s " +
-                        " Class name: %s", functionName, func.getClassName(), existingImplementation));
+              String.format(
+                "Conflicting functions with similar signature found. Func Name: %s, Class name: %s " +
+                  " Class name: %s", functionName, func.getClassName(), existingImplementation));
           } else if (holder.isAggregating() && !holder.isDeterministic() ) {
             logger.warn("Aggregate functions must be deterministic, did not register function {}", func.getClassName());
           } else {
@@ -125,12 +108,13 @@ public class FunctionRegistry implements PrimaryFunctionRegistry {
 
   /** Returns functions with given name. Function name is case insensitive. */
   @Override
-  public List<AbstractFunctionHolder> getMethods(String name) {
+  public List<AbstractFunctionHolder> lookupMethods(String name) {
     return this.registeredFunctions.get(name.toLowerCase());
   }
 
   @Override
-  public void register(OperatorTable operatorTable, boolean isDecimalV2Enabled) {
+  public List<SqlOperator> listOperators(boolean isDecimalV2Enabled) {
+    List<SqlOperator> operators = new ArrayList<>();
     for (Entry<String, Collection<AbstractFunctionHolder>> function : registeredFunctions.asMap().entrySet()) {
       final ArrayListMultimap<Pair<Integer, Integer>, BaseFunctionHolder> functions = ArrayListMultimap.create();
       final ArrayListMultimap<Integer, BaseFunctionHolder> aggregateFunctions = ArrayListMultimap.create();
@@ -145,11 +129,7 @@ public class FunctionRegistry implements PrimaryFunctionRegistry {
           aggregateFunctions.put(paramCount, functionHolder);
         } else {
           final Pair<Integer, Integer> argNumberRange;
-          if(funcToRange.containsKey(name)) {
-            argNumberRange = funcToRange.get(name);
-          } else {
-            argNumberRange = Pair.of(func.getParamCount(), func.getParamCount());
-          }
+          argNumberRange = Pair.of(func.getParamCount(), func.getParamCount());
           functions.put(argNumberRange, functionHolder);
         }
 
@@ -184,25 +164,23 @@ public class FunctionRegistry implements PrimaryFunctionRegistry {
         final int min = range.getLeft();
         final SqlFunction sqlOperator = SqlFunctionImpl.create(
           name,
-          TypeInferenceUtils.getSqlReturnTypeInference(
-            name,
-            Lists.newArrayList(entry.getValue()),
-            isDecimalV2Enabled),
+          TypeInferenceUtils.getSqlReturnTypeInference(Lists.newArrayList(entry.getValue())),
           Checker.between(min, max),
           SqlFunctionImpl.Source.JAVA,
           isDeterministic,
           isDynamic,
           sqlSyntax);
-        operatorTable.add(name, sqlOperator);
+        operators.add(sqlOperator);
       }
       for (Entry<Integer, Collection<BaseFunctionHolder>> entry : aggregateFunctions.asMap().entrySet()) {
-        operatorTable.add(name, new SqlAggOperator(
-            name,
-            entry.getKey(),
-            entry.getKey(),
-            TypeInferenceUtils.getSqlReturnTypeInference(name, Lists.newArrayList(entry.getValue
-              ()), isDecimalV2Enabled)));
+        operators.add(new SqlAggOperator(
+          name,
+          entry.getKey(),
+          entry.getKey(),
+          TypeInferenceUtils.getSqlReturnTypeInference(Lists.newArrayList(entry.getValue()))));
       }
     }
+
+    return operators;
   }
 }

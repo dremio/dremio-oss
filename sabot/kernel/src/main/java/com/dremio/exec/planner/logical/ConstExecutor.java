@@ -78,6 +78,7 @@ import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.expr.fn.impl.StringFunctionHelpers;
 import com.dremio.exec.expr.fn.interpreter.InterpreterEvaluator;
 import com.dremio.exec.planner.DremioRexBuilder;
+import com.dremio.exec.planner.common.MoreRexUtil;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.TypeInferenceUtils;
 import com.dremio.sabot.exec.context.ContextInformation;
@@ -139,6 +140,14 @@ public class ConstExecutor implements RexExecutor {
 
       // If we fail to reduce anything, catch the exception and return the same expression.
       try {
+        if (MoreRexUtil.hasFunction(newCall, op -> op.getName().equalsIgnoreCase("CONVERT_FROMJSON"))) {
+          // This is a quick hack.
+          // This code needs to be refactored to try to reduce the function and if it can't just leave it as is
+          logger.debug("Constant expression not folded due to having a CONVERT_FROMJSON, which doesn't have a function execution");
+          reducedValues.set(index, newCall);
+          continue;
+        }
+
         LogicalExpression logEx = RexToExpr.toExpr(new ParseContext(plannerSettings), null /* input rowtype */, rexBuilder, newCall, false);
         LogicalExpression materializedExpr = ExpressionTreeMaterializer.materializeAndCheckErrors(logEx, null, funcImplReg);
 
@@ -432,6 +441,5 @@ public class ConstExecutor implements RexExecutor {
           return null;
       }
     }
-
   }
 }

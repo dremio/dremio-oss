@@ -15,14 +15,37 @@
  */
 package com.dremio.exec.ops;
 
+import static com.dremio.exec.ops.ViewExpansionContext.DefaultReflectionHintBehavior.PLAN_CONTAINS_DISALLOWED_DRR;
+import static com.dremio.exec.ops.ViewExpansionContext.DefaultReflectionHintBehavior.SUCCESS;
+
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelOptTable.ToRelContext;
+import org.apache.calcite.rel.RelNode;
 
 import com.carrotsearch.hppc.ObjectIntHashMap;
+import com.dremio.catalog.model.dataset.TableVersionContext;
 import com.dremio.exec.catalog.CatalogIdentity;
+import com.dremio.exec.planner.StatelessRelShuttleImpl;
+import com.dremio.exec.planner.acceleration.DefaultExpansionNode;
+import com.dremio.exec.planner.acceleration.DremioMaterialization;
+import com.dremio.exec.planner.acceleration.ExpansionNode;
+import com.dremio.exec.planner.acceleration.MaterializationList;
+import com.dremio.exec.planner.acceleration.RelWithInfo;
+import com.dremio.exec.planner.acceleration.substitution.SubstitutionUtils;
+import com.dremio.exec.planner.observer.AttemptObserver;
+import com.dremio.service.Pointer;
+import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 
 /**
  * Contains context information about view expansion(s) in a query. Part of {@link com.dremio.exec.ops
@@ -70,12 +93,14 @@ public class ViewExpansionContext {
   private final CatalogIdentity catalogIdentity;
   private final ObjectIntHashMap<CatalogIdentity> userTokens = new ObjectIntHashMap<>();
 
+  private Map<SubstitutionUtils.VersionedPath, DefaultSubstitutionInfo> defaultSubstitutionInfos;
   private boolean substitutedWithDRR = false;
 
   public ViewExpansionContext(CatalogIdentity catalogIdentity) {
     super();
 
     this.catalogIdentity = catalogIdentity;
+    this.defaultSubstitutionInfos = new HashMap<>();
   }
 
   /**
@@ -158,5 +183,99 @@ public class ViewExpansionContext {
    */
   public void setSubstitutedWithDRR() {
     this.substitutedWithDRR = true;
+  }
+
+  /**
+   * Tracks all the default raw reflection substitutions made during validation
+   */
+  public void addDefaultSubstitutionInfo(NamespaceKey path, TableVersionContext context,
+                                         DremioMaterialization materialization, RelNode substitution, Duration elapsed,
+                                         RelNode target) {
+    defaultSubstitutionInfos.put(SubstitutionUtils.VersionedPath.of(path.getPathComponents(), context),
+      new DefaultSubstitutionInfo(materialization, substitution, elapsed, target));
+  }
+
+  public enum DefaultReflectionHintBehavior {
+    // Plan contains a DRR which wasn't in the consider_reflections hint or was explicitly excluded
+    PLAN_CONTAINS_DISALLOWED_DRR,
+    // Plan does not have a DRR or does have DRR and doesn't conflict with reflection hints
+    SUCCESS
+  }
+
+  /**
+   * Reports default raw reflections to observers by only reporting the top level DRRs.
+   *
+   * @return Returns SUCCESS if successfully reported.  Returns PLAN_CONTAINS_DISALLOWED_DRR if we find a DRR that
+   * isn't compatible with a query level reflection hint
+   */
+  public DefaultReflectionHintBehavior reportDefaultMaterializations(AttemptObserver observer, RelNode converted, Optional<MaterializationList> list) {
+    if (!list.isPresent()) {
+      return SUCCESS;
+    }
+    Set<String> inclusions = list.get().getInclusions();
+    Set<String> exclusions = list.get().getExclusions();
+    List<DefaultSubstitutionInfo> topLevelDRRs = new ArrayList<>();
+    Pointer<Boolean> reconvert = new Pointer<>(false);
+    converted.accept(new StatelessRelShuttleImpl() {
+      @Override
+      public RelNode visit(RelNode other) {
+        if (other instanceof DefaultExpansionNode) {
+          final ExpansionNode expansionNode = (ExpansionNode) other;
+          DefaultSubstitutionInfo info = defaultSubstitutionInfos.get(SubstitutionUtils.VersionedPath.of(expansionNode.getPath().getPathComponents(), expansionNode.getVersionContext()));
+          if (list.get().isNoReflections() // DRR substituted after we parsed out the no_reflections hint
+              || (!inclusions.isEmpty() && !inclusions.contains(info.materialization.getLayoutInfo().getReflectionId())) // DRR not found in consider_reflections hint
+              || (exclusions.contains(info.materialization.getLayoutInfo().getReflectionId()))) // DRR found in exclude_reflections hint
+          {
+            reconvert.value = true;
+          }
+          topLevelDRRs.add(info);
+          return other;
+        }
+        if (reconvert.value) {
+          return other; // short circuit since we have to reconvert anyway
+        }
+        return super.visit(other);
+      }
+    });
+    if (reconvert.value) {
+      return PLAN_CONTAINS_DISALLOWED_DRR;
+    }
+    // DRR compatible with hints or no hints specified so now we can report the substitutions
+    topLevelDRRs.stream().distinct().forEach(info -> {
+      observer.planSubstituted(info.materialization, ImmutableList.of(RelWithInfo.create(info.substitution, "default_raw_reflection_matching", info.elapsed)),
+        RelWithInfo.create(info.target, "default_raw_reflection_matching_target", Duration.ZERO), 0, true);
+    });
+    return SUCCESS;
+  }
+
+  private static final class DefaultSubstitutionInfo {
+    private final DremioMaterialization materialization;
+    private final RelNode substitution;
+    private final Duration elapsed;
+    private final RelNode target;
+
+    private DefaultSubstitutionInfo(DremioMaterialization materialization, RelNode substitution, Duration elapsed, RelNode target) {
+      this.materialization = materialization;
+      this.substitution = substitution;
+      this.elapsed = elapsed;
+      this.target = target;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      DefaultSubstitutionInfo that = (DefaultSubstitutionInfo) o;
+      return materialization.getMaterializationId().equals(that.materialization.getMaterializationId());
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(materialization.getMaterializationId());
+    }
   }
 }

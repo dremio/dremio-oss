@@ -1329,7 +1329,7 @@ public class ITHiveStorage extends HiveTestBase {
       .sqlQuery("SELECT col1 from hive.orcdecimalcompare where col1 < 0")
       .unOrdered()
       .baselineColumns("col1")
-      .baselineValues(new Float("-0.1"))
+      .baselineValues(-0.1F)
       .go();
 
     //double column
@@ -1337,7 +1337,7 @@ public class ITHiveStorage extends HiveTestBase {
       .sqlQuery("SELECT col2 from hive.orcdecimalcompare where col2 < 0")
       .unOrdered()
       .baselineColumns("col2")
-      .baselineValues(new Double("-0.1"))
+      .baselineValues(-0.1D)
       .go();
 
     //decimal column
@@ -1477,7 +1477,7 @@ public class ITHiveStorage extends HiveTestBase {
   }
 
   private void readFieldSizeLimit(String table, String column) throws Exception {
-    String exceptionMessage = "UNSUPPORTED_OPERATION ERROR: Field exceeds the size limit of 32000 bytes.";
+    String exceptionMessage = "UNSUPPORTED_OPERATION ERROR: Field exceeds the size limit of 32000 bytes, actual size is 32001 bytes.";
     String query = "SELECT " + column + " FROM " + table;
     assertThatThrownBy(() -> testBuilder().sqlQuery(query)
         .ordered()

@@ -13,14 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { IndexRoute, Redirect, Route, IndexRedirect } from "react-router";
-import NamespaceTable from "./components/NamespaceTable/NamespaceTable";
-import TableDetailsPage from "./components/TableDetailsPage/TableDetailsPage";
+import { Route, IndexRedirect } from "react-router";
 import RepoView from "./components/RepoView/RepoView";
-import CommitDetailsPage from "./components/CommitDetailsPage/CommitDetailsPage";
-import BranchHistory from "./components/BranchHistory/BranchHistory";
-import NessieProjectHomePage from "./components/NessieProjectHomePage/NessieProjectHomePage";
-import NessieSourceHomePage from "./components/NessieSourceHomePage/NessieSourceHomePage";
 import ArcticSourceWithNessie from "@app/exports/pages/ArcticSource/ArcticSource";
 import { ArcticSourceRoutes } from "@inject/additionalRequiredRoutes";
 import ArcticCatalogCommits from "@app/exports/pages/ArcticCatalog/components/ArcticCatalogCommits/ArcticCatalogCommits";
@@ -28,32 +22,6 @@ import ArcticCatalogTags from "@app/exports/pages/ArcticCatalog/components/Arcti
 import ArcticCommitDetails from "@app/exports/pages/ArcticCatalog/components/ArcticCommitDetails/ArcticCommitDetails";
 
 import * as PATHS from "@app/exports/paths";
-
-const CommonRoutes = [
-  <Route key="branches" path="branches" component={RepoView} />,
-  <Route
-    key="commitDetails"
-    path="commit/:branchName/:commitHash"
-    component={CommitDetailsPage}
-  />,
-  <Route
-    key="branchHistory"
-    path="branches/:branchName"
-    component={BranchHistory}
-  />,
-  <Route key="tableDetails" path="table/*" component={TableDetailsPage} />,
-  <Route key="viewDetails" path="view/*" component={TableDetailsPage} />,
-];
-
-function nessieRoutes() {
-  return (
-    <Route component={NessieProjectHomePage}>
-      <IndexRoute component={NamespaceTable} />
-      <Route path="namespace/*" component={NamespaceTable} />
-      {CommonRoutes}
-    </Route>
-  );
-}
 
 export const NessieHistorySourceRoutes = [
   <Route
@@ -151,5 +119,3 @@ export function arcticSourceRoutes() {
     </Route>,
   ];
 }
-
-export default nessieRoutes;

@@ -13,6 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import Immutable from "immutable";
+
 import { AUTO_PREVIEW_DELAY } from "@app/constants/Constants";
 
 import { DEFAULT_ERR_MSG } from "@inject/constants/errors";
@@ -38,7 +40,7 @@ class ActionUtils {
     (payload, showDefaultMoreInfo = true) => {
       const defaultMessage =
         payload && payload.status === 409
-          ? la(
+          ? laDeprecated(
               "The data has been changed since you last accessed it. Please reload the page."
             )
           : DEFAULT_ERR_MSG;

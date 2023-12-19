@@ -16,66 +16,89 @@
 package com.dremio.exec.planner.sql.handlers.direct;
 
 
+import static com.dremio.exec.planner.sql.handlers.query.DataAdditionCmdHandler.refreshDataset;
+
 import java.util.Collections;
 import java.util.List;
 
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 
+import com.dremio.catalog.model.CatalogEntityKey;
+import com.dremio.catalog.model.ResolvedVersionContext;
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.CatalogUtil;
+import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.TableMutationOptions;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
-import com.dremio.exec.planner.sql.parser.SqlGrant;
 import com.dremio.exec.planner.sql.parser.SqlRollbackTable;
+import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 
-public class RollbackHandler extends TableManagementDirectHandler {
+public class RollbackHandler extends SimpleDirectHandler {
+  private final Catalog catalog;
+  private final SqlHandlerConfig config;
 
   public RollbackHandler(Catalog catalog, SqlHandlerConfig config) {
-    super(catalog, config);
+    this.catalog = catalog;
+    this.config = config;
   }
 
   @Override
-  public NamespaceKey getTablePath(SqlNode sqlNode) throws Exception {
+  public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
+    final NamespaceKey path = CatalogUtil.getResolvePathForTableManagement(catalog, getTablePath (sqlNode));
+    CatalogEntityKey key = CatalogEntityKey.fromNamespaceKey(path);
+    validateCommand(catalog, config, key);
+    DremioTable table = catalog.getTable(path);
+
+    final String sourceName = path.getRoot();
+    final VersionContext sessionVersion = config.getContext().getSession().getSessionVersionForSource(sourceName);
+    ResolvedVersionContext resolvedVersionContext = CatalogUtil.resolveVersionContext(catalog, sourceName, sessionVersion);
+    CatalogUtil.validateResolvedVersionIsBranch(resolvedVersionContext);
+    TableMutationOptions tableMutationOptions = TableMutationOptions.newBuilder()
+      .setResolvedVersionContext(resolvedVersionContext)
+      .build();
+
+    execute(catalog, sqlNode, path, table.getDatasetConfig(), tableMutationOptions);
+
+    // Table is modified and invalidate the cached plan that refers this table.
+    String datasetId = table.getDataset().getDatasetConfig().getId().getId();
+    config.getContext().getPlanCache().invalidateCacheOnDataset(datasetId);
+
+    // Refresh the dataset to update table's metadata.
+    refreshDataset(catalog, path, false);
+
+    return getCommandResult(path);
+  }
+
+  protected void validateCommand(Catalog catalog, SqlHandlerConfig config, CatalogEntityKey key) throws Exception {
+    validateFeatureEnabled(config);
+    IcebergUtils.checkTableExistenceAndMutability(catalog, config, key, getSqlOperator(), true);
+  }
+
+  private NamespaceKey getTablePath(SqlNode sqlNode) throws Exception {
     return SqlNodeUtil.unwrap(sqlNode, SqlRollbackTable.class).getPath();
   }
 
-  @Override
-  protected SqlOperator getSqlOperator() {
+  private SqlOperator getSqlOperator() {
     return SqlRollbackTable.OPERATOR;
   }
 
-  @Override
-  protected void validatePrivileges(Catalog catalog, NamespaceKey path, String identityName) throws Exception {
-    // User has Admin or ALL privileges. Or User should have any DML privileges: i.e., INSERT, DELETE, UPDATE.
-    // Overall, only needs to check whether a user has one of three DML privilege, as if user has Admin or ALL privileges,
-    // this user automatically has any of those three DML privileges.
-    if (!catalog.hasPrivilege(path, SqlGrant.Privilege.INSERT)
-      && !catalog.hasPrivilege(path, SqlGrant.Privilege.DELETE)
-      && !catalog.hasPrivilege(path, SqlGrant.Privilege.UPDATE) ) {
-      throw UserException.permissionError()
-        .message(String.format("Identity [%s] not authorized to ROLLBACK [%s].", identityName, path))
-        .buildSilently();
-    }
-  }
-
-  @Override
-  protected void validateFeatureEnabled(SqlHandlerConfig config) {
+  private void validateFeatureEnabled(SqlHandlerConfig config) {
     if (!config.getContext().getOptions().getOption(ExecConstants.ENABLE_ICEBERG_ROLLBACK)) {
       throw UserException.unsupportedError().message("ROLLBACK TABLE command is not supported.").buildSilently();
     }
   }
 
-  @Override
-  protected List<SimpleCommandResult> getCommandResult(NamespaceKey path) {
+  private List<SimpleCommandResult> getCommandResult(NamespaceKey path) {
     return Collections.singletonList(SimpleCommandResult.successful("Table [%s] rollbacked", path));
   }
 
-  @Override
-  protected void execute(Catalog catalog,
+  private void execute(Catalog catalog,
                          SqlNode sqlNode,
                          NamespaceKey path,
                          DatasetConfig datasetConfig,

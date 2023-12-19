@@ -22,6 +22,9 @@ import com.dremio.datastore.indexed.IndexKey;
  * Index keys for the namespace service.
  */
 public interface NamespaceIndexKeys {
+  IndexKey ENTITY_ID = IndexKey.newBuilder("entid", "ENTITY_ID", String.class)
+    .setSortedValueType(SearchFieldSorting.FieldType.STRING)
+    .build();
   IndexKey SOURCE_ID = IndexKey.newBuilder("id", "SOURCE_ID", String.class)
     .setSortedValueType(SearchFieldSorting.FieldType.STRING)
     .build();

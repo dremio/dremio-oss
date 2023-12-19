@@ -19,6 +19,7 @@ import { ModelFunctionFunctionCategoriesEnum as FunctionCategories } from "@app/
 
 export const FunctionCategoryLabels = {
   [FunctionCategories.AGGREGATE]: "Aggregate",
+  [FunctionCategories.ARRAY]: "Array",
   [FunctionCategories.BINARY]: "Binary",
   [FunctionCategories.BOOLEAN]: "Boolean",
   [FunctionCategories.BITWISE]: "Bitwise",

@@ -16,7 +16,6 @@
 package com.dremio.exec.planner.acceleration.substitution;
 
 import com.dremio.common.config.SabotConfig;
-import com.dremio.exec.planner.sql.OperatorTable;
 import com.dremio.options.OptionResolver;
 
 /**
@@ -25,5 +24,5 @@ import com.dremio.options.OptionResolver;
  */
 public interface SubstitutionProviderFactory {
   SubstitutionProvider getSubstitutionProvider(SabotConfig config,
-      MaterializationProvider materializationProvider, OptionResolver options, OperatorTable operatorTable);
+      MaterializationProvider materializationProvider, OptionResolver options);
 }

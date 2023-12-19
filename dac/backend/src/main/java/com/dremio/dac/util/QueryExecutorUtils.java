@@ -19,8 +19,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.dremio.catalog.model.VersionContext;
 import com.dremio.dac.proto.model.dataset.SourceVersionReference;
-import com.dremio.exec.catalog.VersionContext;
 
 /**
  * Util class for QueryExecutor
@@ -42,7 +42,7 @@ public class QueryExecutorUtils {
             context = VersionContext.ofTag(versionContext.getValue());
             break;
           case COMMIT:
-            context = VersionContext.ofBareCommit(versionContext.getValue());
+            context = VersionContext.ofCommit(versionContext.getValue());
             break;
           default:
             throw new IllegalArgumentException("Unrecognized versionContextType: " + versionContext.getType());

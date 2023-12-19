@@ -57,6 +57,7 @@ import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
+import com.dremio.exec.server.ContextService;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.util.TestUtilities;
@@ -70,6 +71,7 @@ import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.namespace.catalogstatusevents.CatalogStatusEventsImpl;
 import com.dremio.service.users.SimpleUserService;
 import com.dremio.service.users.UserService;
 
@@ -91,7 +93,7 @@ public class TestResource {
   private final CatalogService catalogService;
   private final ReflectionServiceHelper reflectionHelper;
   private final OptionManager optionManager;
-
+  private final ContextService contextService;
   @Context
   private ResourceContext resourceContext;
 
@@ -100,7 +102,7 @@ public class TestResource {
                       LegacyKVStoreProvider provider, JobsService jobsService,
                       CatalogService catalogService, ReflectionServiceHelper reflectionHelper,
                       SecurityContext security, ConnectionReader connectionReader, CollaborationHelper collaborationService,
-                      OptionManager optionManager) {
+                      OptionManager optionManager, final ContextService contextService) {
     this.init = init;
     this.provider = provider;
     this.context = context;
@@ -112,6 +114,7 @@ public class TestResource {
     this.connectionReader = connectionReader;
     this.collaborationService = collaborationService;
     this.optionManager = optionManager;
+    this.contextService = contextService;
   }
 
   @Bootstrap
@@ -123,7 +126,7 @@ public class TestResource {
     refreshNow("cp");
 
     // TODO: Clean up this mess
-    SampleDataPopulator.addDefaultFirstUser(userService, new NamespaceServiceImpl(provider));
+    SampleDataPopulator.addDefaultFirstUser(userService, new NamespaceServiceImpl(provider, new CatalogStatusEventsImpl()));
     NamespaceService nsWithAuth = context.getNamespaceService(DEFAULT_USER_NAME);
     DatasetVersionMutator ds = newDS(nsWithAuth);
     // Closing sdp means remove the temporary directory
@@ -134,7 +137,7 @@ public class TestResource {
   }
 
   private DatasetVersionMutator newDS(NamespaceService nsWithAuth) {
-    return new DatasetVersionMutator(init, provider, nsWithAuth, jobsService, catalogService, optionManager);
+    return new DatasetVersionMutator(init, provider, nsWithAuth, jobsService, catalogService, optionManager, contextService);
   }
 
   private SourceService newSourceService(NamespaceService nsWithAuth, DatasetVersionMutator ds) {

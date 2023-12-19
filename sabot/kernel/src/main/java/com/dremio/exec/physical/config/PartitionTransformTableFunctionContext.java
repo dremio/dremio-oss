@@ -36,7 +36,7 @@ public class PartitionTransformTableFunctionContext extends TableFunctionContext
                                                   @JsonProperty("icebergSchema") String icebergSchema,
                                                   @JsonProperty("schema") BatchSchema fullSchema,
                                                   @JsonProperty("columns") List<SchemaPath> columns) {
-        super(null, fullSchema, null, null, null, null, null, columns, null, null, null, false, false, true, null);
+        super(null, fullSchema, null, null, null, null, null, null, columns, null, null, null, false, false, true, null);
         this.partitionSpec = partitionSpec;
         this.icebergSchema = icebergSchema;
     }

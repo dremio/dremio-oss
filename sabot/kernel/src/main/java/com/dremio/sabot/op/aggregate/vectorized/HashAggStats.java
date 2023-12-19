@@ -57,8 +57,8 @@ public class HashAggStats {
     PARTITIONS_SPILLED,       /* total number of partitions spilled */
     ITERATIONS,               /* number of iterations of hash aggregations (initial + recursive) */
     RAN_OUT_OF_MEMORY,        /* number of times operator ran out of memory while processing data */
-    SPILL_TIME,               /* cumulative time taken to spill all partitions */
-    READ_SPILLED_BATCH_TIME,  /* cumulative time taken to read all spilled batches */
+    SPILL_TIME(DisplayType.DISPLAY_BY_DEFAULT, AggregationType.SUM,"Cumulative time taken to spill all partition"), /* cumulative time taken to spill all partitions */
+    READ_SPILLED_BATCH_TIME(DisplayType.DISPLAY_BY_DEFAULT, AggregationType.SUM,"Cumulative time taken to read all spilled batches"), /* cumulative time taken to read all spilled batches */
     TOTAL_BATCHES_SPILLED,    /* total number of batches spilled across all spills */
     MAX_BATCHES_SPILLED,      /* maximum number of batches spilled across all spills */
     TOTAL_RECORDS_SPILLED(DisplayType.DISPLAY_BY_DEFAULT, AggregationType.SUM,"Number of records spilled"),    /* total number of records spilled across all spills */

@@ -146,6 +146,8 @@ public class ElasticConnectionPool implements AutoCloseable {
    */
   private boolean enable7vFeatures;
 
+  private int elasticVersion;
+
   public ElasticConnectionPool(
     List<Host> hosts,
     TLSValidationMode tlsMode,
@@ -184,7 +186,7 @@ public class ElasticConnectionPool implements AutoCloseable {
     final ClientBuilder builder = ClientBuilder.newBuilder()
       .withConfig(configuration);
 
-    switch(sslMode) {
+    switch (sslMode) {
       case UNSECURE:
         builder.sslContext(SSLHelper.newAllTrustingSSLContext("SSL"));
         // fall-through
@@ -195,6 +197,8 @@ public class ElasticConnectionPool implements AutoCloseable {
         break;
 
       case OFF:
+      default:
+        break;
         // no TLS/SSL configuration
     }
 
@@ -451,6 +455,8 @@ public class ElasticConnectionPool implements AutoCloseable {
 
     enable7vFeatures = minVersionInCluster.compareTo(ElasticsearchConstants.ELASTICSEARCH_VERSION_7_0_X) >= 0;
 
+    elasticVersion = minVersionInCluster.getMajor();
+
     return hosts;
   }
 
@@ -498,7 +504,7 @@ public class ElasticConnectionPool implements AutoCloseable {
 
   }
 
-  private static class ContextListenerImpl implements ContextListener {
+  private static final class ContextListenerImpl implements ContextListener {
 
     private WebTarget target;
     private final List<ContextInfo> contexts = new ArrayList<>();
@@ -624,7 +630,7 @@ public class ElasticConnectionPool implements AutoCloseable {
     public <T> ListenableFuture<T> executeAsync(final ElasticAction2<T> action){
       final ContextListenerImpl listener = new ContextListenerImpl();
       // need to cast to jersey since the core javax.ws.rs Invocation doesn't support a typed submission.
-      final JerseyInvocation invocation = (JerseyInvocation) action.buildRequest(target, listener, false);
+      final JerseyInvocation invocation = (JerseyInvocation) action.buildRequest(target, listener, elasticVersion);
       final SettableFuture<T> future = SettableFuture.create();
       invocation.submit(new GenericType<>(action.getResponseClass()),
         new CheckedAsyncCallback<>(future,  e -> {
@@ -647,14 +653,15 @@ public class ElasticConnectionPool implements AutoCloseable {
             throw e;
           }
           logger.warn("Failed to execute action for #{} try.", i + 1, e);
+          logger.warn("Invocation: " + invocation.toString());
         }
       }
       throw new RuntimeException(String.format("Failed to execute action after %d retries.", actionRetries));
     }
 
-    public <T> T execute(ElasticAction2<T> action, boolean enable7vFeatures){
+    public <T> T execute(ElasticAction2<T> action, int version){
       final ContextListenerImpl listener = new ContextListenerImpl();
-      final Invocation invocation = action.buildRequest(target, listener, enable7vFeatures);
+      final Invocation invocation = action.buildRequest(target, listener, version);
       try {
         return executeWithRetries(invocation, action.getResponseClass());
       } catch (Exception e){
@@ -665,7 +672,7 @@ public class ElasticConnectionPool implements AutoCloseable {
     private Result getResultWithRetries(ElasticAction action) {
       for (int i = 0; i <= actionRetries; i++) {
         try {
-          return action.getResult(target);
+          return action.getResult(target, elasticVersion);
         } catch (Exception e) {
           if (i == actionRetries) {
             logger.error("Failed to get result after {} retries.", actionRetries);
@@ -734,6 +741,10 @@ public class ElasticConnectionPool implements AutoCloseable {
 
     public Version getESVersionInCluster(){
       return ElasticConnectionPool.this.getMinVersionInCluster();
+    }
+
+    public boolean enable7vFeatures() {
+      return ElasticConnectionPool.this.enable7vFeatures;
     }
   }
 

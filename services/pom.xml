@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-parent</artifactId>
-    <version>24.1.0-202306130653310132-d30779f6</version>
+    <version>24.3.0-202312190021150029-52db2faf</version>
   </parent>
 
   <groupId>com.dremio.services</groupId>
@@ -49,6 +49,7 @@
     <module>jobtelemetry</module>
     <module>maestro</module>
     <module>namespace</module>
+    <module>catalog</module>
     <module>nessie-grpc</module>
     <module>nessie-proxy</module>
     <module>nessie</module>
@@ -57,6 +58,7 @@
     <module>resourcescheduler</module>
     <module>scheduler</module>
     <module>spill</module>
+    <module>sqlrunner</module>
     <module>telemetry-api</module>
     <module>telemetry-impl</module>
     <module>telemetry-utils</module>
@@ -71,10 +73,15 @@
     <module>orphanagecleaner</module>
     <module>reindexer</module>
     <module>script</module>
-    <module>autocomplete</module>
     <module>userpreferences</module>
     <module>functions</module>
     <module>arrow-flight-common</module>
     <module>hadoopcredentials</module>
+    <module>jobcounts</module>
+    <module>partition-stats</module>
+    <module>nessie-validation</module>
+    <module>nessie-metadata-cache</module>
+    <module>authenticator</module>
+    <module>systemicebergtablescleaner</module>
   </modules>
 </project>

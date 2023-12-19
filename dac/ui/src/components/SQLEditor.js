@@ -13,8 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { formatQuery } from "dremio-ui-common/sql/formatter/sqlFormatter.js";
-import { isNotSoftware } from "dyn-load/utils/versionUtils";
+
 import { debounce } from "lodash";
 import { forwardRef, PureComponent } from "react";
 import PropTypes from "prop-types";
@@ -23,20 +22,35 @@ import MonacoEditor from "react-monaco-editor";
 import Immutable from "immutable";
 import * as SQLLanguage from "monaco-editor/dev/vs/basic-languages/src/sql";
 
+import { setActionState } from "actions/explore/view";
+import { ExploreHeaderActions } from "@app/pages/ExplorePage/components/ExploreHeaderUtils";
+import { formatQuery } from "dremio-ui-common/sql/formatter/sqlFormatter.js";
+import { SQLEditorExtension } from "dremio-ui-common/sql/worker/client/SQLParsingWorkerClient.js";
 import { fetchSupportFlags } from "@app/actions/supportFlags";
 import { MSG_CLEAR_DELAY_SEC } from "@app/constants/Constants";
-import { AUTOCOMPLETE_UI_V2 as AUTOCOMPLETE_V2_SUPPORTFLAG } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
-import { AUTOCOMPLETE_UI_V2 as AUTOCOMPLETE_V2_FEATUREFLAG } from "@app/exports/flags/AUTOCOMPLETE_UI_V2";
-import { getFeatureFlag } from "@app/selectors/featureFlagsSelector";
+import { APIV2Call } from "@app/core/APICall";
+import { LIVE_SYNTAX_ERROR_DETECTION } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
 import { getSupportFlags } from "@app/selectors/supportFlags";
 import { intl } from "@app/utils/intl";
 import { useSqlFunctions } from "@app/pages/ExplorePage/components/SqlEditor/hooks/useSqlFunctions";
 import { fetchFeatureFlag } from "@inject/actions/featureFlag";
+import localStorageUtils from "@inject/utils/storageUtils/localStorageUtils";
 
-import { RESERVED_WORDS } from "utils/pathUtils";
+import {
+  EXCLUDE_FROM_FUNCTIONS,
+  NULL_VALUE,
+  RESERVED_TYPES,
+  RESERVED_WORDS,
+} from "utils/pathUtils";
 import { runDatasetSql, previewDatasetSql } from "actions/explore/dataset/run";
 import { addNotification } from "actions/notification";
-import { SQLAutoCompleteProvider } from "./SQLAutoCompleteProvider";
+import {
+  getSQLEditorThemeRules,
+  getSQLTokenNotationMap,
+  SQL_LIGHT_THEME,
+  TOKEN_NOTATION_REGEX,
+} from "@app/utils/sql-editor";
+import { renderExtraSQLKeyboardShortcuts } from "@inject/utils/sql-editor-extra";
 
 import "./SQLEditor.less";
 
@@ -48,7 +62,6 @@ const staticPropTypes = {
   height: PropTypes.number.isRequired, // pass-thru
   defaultValue: PropTypes.string, // pass-thru; do not update it via onChange, otherwise monaco will throw error.
   onChange: PropTypes.func,
-  errors: PropTypes.instanceOf(Immutable.List),
   readOnly: PropTypes.bool,
   fitHeightToContent: PropTypes.bool,
   maxHeight: PropTypes.number, // is only applicable for fitHeightToContent case
@@ -56,13 +69,17 @@ const staticPropTypes = {
   autoCompleteEnabled: PropTypes.bool,
   formatterEnabled: PropTypes.bool,
   sqlContext: PropTypes.instanceOf(Immutable.List),
-  customDecorations: PropTypes.array,
+  serverSqlErrors: PropTypes.array,
   runDatasetSql: PropTypes.func,
   previewDatasetSql: PropTypes.func,
   fetchFeatureFlag: PropTypes.func,
   fetchSupportFlags: PropTypes.func,
-  autocompleteV2Enabled: PropTypes.bool,
+  liveSyntaxErrorDetectionFlagEnabled: PropTypes.bool,
+  liveSyntaxErrorDetectionDisabled: PropTypes.bool,
   sqlFunctions: PropTypes.array,
+  setActionState: PropTypes.func,
+  hasExtraSQLPanelContent: PropTypes.bool,
+  toggleExtraSQLPanel: PropTypes.func,
 };
 
 const checkHeightAndFitHeightToContentFlags = (
@@ -104,13 +121,16 @@ export class SQLEditor extends PureComponent {
   monaco = null;
   editor = null;
   previousDecorations = [];
-  autoCompleteResources = []; // will store onDidTypeListener and auto completion provider for dispose purposes
+  autoCompleteDisposers = [];
+  liveErrorDetectionDisposers = [];
   _focusOnMount = false;
+  sqlEditorExtension = null;
 
   state = {
     language: "sql",
-    theme: "vs",
+    theme: SQL_LIGHT_THEME,
     treeUpdated: false,
+    liveErrors: [],
   };
   static defaultProps = {
     theme: null,
@@ -123,19 +143,19 @@ export class SQLEditor extends PureComponent {
 
     this.fitHeightToContent();
 
-    if (this.props.autocompleteV2Enabled == undefined) {
-      this.fetchAutocompleteV2Flag();
+    if (this.props.liveSyntaxErrorDetectionFlagEnabled == undefined) {
+      this.props.fetchSupportFlags?.(LIVE_SYNTAX_ERROR_DETECTION);
     }
   }
 
   // do this in componentDidUpdate so it only happens once mounted.
-  componentDidUpdate(prevProps) {
+  componentDidUpdate(prevProps, prevState) {
     if (this.props.defaultValue !== prevProps.defaultValue) {
       this.resetValue();
     }
     if (
-      this.props.errors !== prevProps.errors ||
-      this.props.customDecorations !== prevProps.customDecorations
+      this.props.serverSqlErrors !== prevProps.serverSqlErrors ||
+      this.state.liveErrors !== prevState?.liveErrors
     ) {
       this.applyDecorations();
     }
@@ -151,28 +171,45 @@ export class SQLEditor extends PureComponent {
       this.addFormattingShortcut(this.editor);
     }
 
-    if (this.props.autoCompleteEnabled !== prevProps.autoCompleteEnabled) {
-      this.setAutocompletion(this.props.autoCompleteEnabled);
+    if (
+      this.props.autoCompleteEnabled !== prevProps.autoCompleteEnabled ||
+      this.props.liveSyntaxErrorDetectionFlagEnabled !==
+        prevProps.liveSyntaxErrorDetectionFlagEnabled ||
+      this.props.sqlFunctions !== prevProps.sqlFunctions
+    ) {
+      this.setupSQLEditorExtension(
+        this.props.sqlFunctions,
+        this.props.autoCompleteEnabled,
+        this.props.liveSyntaxErrorDetectionFlagEnabled &&
+          !this.props.liveSyntaxErrorDetectionDisabled
+      );
     }
 
     if (this.props.theme !== prevProps.theme) {
       this.setEditorTheme();
     }
 
+    if (this.props.sqlFunctions !== prevProps.sqlFunctions && this.monaco) {
+      this.applySQLFunctionsToReservedKeywords();
+    }
+
     this.observeSuggestWidget();
   }
 
   componentWillUnmount() {
-    this.removeAutoCompletion();
+    this.removeLiveErrorDetection();
+    this.removeAutoCompletion(false);
   }
 
-  fetchAutocompleteV2Flag() {
-    if (isNotSoftware?.()) {
-      this.props.fetchFeatureFlag?.(AUTOCOMPLETE_V2_FEATUREFLAG);
-    } else {
-      this.props.fetchSupportFlags?.(AUTOCOMPLETE_V2_SUPPORTFLAG);
+  getSqlFunctionLink = (fName) => {
+    if (fName === undefined) return undefined;
+
+    const { sqlFunctions = [] } = this.props;
+    for (const sqlFunction of sqlFunctions) {
+      if (sqlFunction.name === fName) return sqlFunction.link;
     }
-  }
+    return undefined;
+  };
 
   observeSuggestWidget() {
     const suggestItemHeight = 35;
@@ -200,6 +237,41 @@ export class SQLEditor extends PureComponent {
             )[0];
             const suggestedRows =
               document.getElementsByClassName("monaco-list-rows")[0];
+            for (const row of suggestedRows.getElementsByClassName(
+              "monaco-list-row"
+            )) {
+              const isFunctionSuggestion =
+                row.getElementsByClassName("icon function")?.length === 1;
+              // If it's a function suggestion, append doc link to the function description
+              if (isFunctionSuggestion) {
+                let fName = row.attributes.getNamedItem("aria-label")?.value;
+                fName = fName?.substring(0, fName?.indexOf("("));
+                const link = this.getSqlFunctionLink(fName);
+                if (link !== undefined) {
+                  const label = row.getElementsByClassName("type-label")[0];
+                  // Skip appending doc link if there is no description for the function.
+                  // Meanwhile avoid appending the link more than once.
+                  if (label.textContent && label.childNodes.length < 2) {
+                    // Fix context and format
+                    label.textContent = label.textContent.trimEnd();
+                    if (!label.textContent.endsWith(".")) {
+                      label.textContent += ".";
+                    }
+                    label.textContent += " ";
+
+                    // Add doc link node
+                    const docLink = document.createElement("span");
+                    docLink.appendChild(document.createTextNode("Docs"));
+                    docLink.title = "Docs";
+                    docLink.addEventListener("mousedown", (e) => {
+                      window.open(link, "_blank");
+                      e.stopPropagation();
+                    });
+                    label.appendChild(docLink);
+                  }
+                }
+              }
+            }
             const treeHeight =
               (suggestedFocusItem &&
                 suggestedFocusItem.offsetHeight - suggestItemHeight) +
@@ -318,13 +390,14 @@ export class SQLEditor extends PureComponent {
   }
 
   applyDecorations() {
-    const { customDecorations, errors } = this.props;
+    const { serverSqlErrors } = this.props;
+    const { liveErrors } = this.state;
 
     if (!this.monacoEditorComponent || !this.monacoEditorComponent.editor)
       return;
 
     const monaco = this.monaco;
-    if (!errors && !customDecorations) {
+    if (serverSqlErrors?.length == 0 && liveErrors.length == 0) {
       this.previousDecorations =
         this.monacoEditorComponent.editor.deltaDecorations(
           this.previousDecorations,
@@ -333,56 +406,37 @@ export class SQLEditor extends PureComponent {
       return;
     }
 
-    // todo: filter errors to known types
-
-    const decorations = errors
-      ?.toJS()
-      .filter((error) => error.range)
-      .map((error) => {
-        let range = new monaco.Range(
-          error.range.startLine,
-          error.range.startColumn,
-          error.range.endLine,
-          error.range.endColumn + 1
-        );
-        if (range.isEmpty()) {
-          // note: Monaco seems fine with ranges that go out of bounds
-          range = new monaco.Range(
-            error.range.startLine,
-            error.range.startColumn - 1,
-            error.range.endLine,
-            error.range.endColumn + 1
-          );
-        }
-
-        // idea was taken from setModelMarkers (see https://github.com/Microsoft/monaco-editor/issues/255
-        // and https://github.com/Microsoft/monaco-typescript/blob/master/src/languageFeatures.ts#L140)
-        // however it is not possible to set stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
-        // for markers. That is why I copied styles, that are generated for markers decoration and applied them here
-        // I marked copied styles by comment // [marker-decoration-source]
-        return {
-          range,
-          options: {
-            hoverMessage: error.message, // todo: loc
-            linesDecorationsClassName: "dremio-error-line",
-            stickiness:
-              monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
-            className: "redsquiggly", // [marker-decoration-source]
-            overviewRuler: {
-              // [marker-decoration-source]
-              color: "rgba(255,18,18,0.7)", // [marker-decoration-source] // if change this value, also change @monaco-error variable in color-schema.scss
-              darkColor: "rgba(255,18,18,0.7)", // [marker-decoration-source]
-              hcColor: "rgba(255,50,50,1)", // [marker-decoration-source]
-              position: monaco.editor.OverviewRulerLane.Right, // [marker-decoration-source]
-            },
+    const errorToDecoration = (error) => {
+      // idea was taken from setModelMarkers (see https://github.com/Microsoft/monaco-editor/issues/255
+      // and https://github.com/Microsoft/monaco-typescript/blob/master/src/languageFeatures.ts#L140)
+      // however it is not possible to set stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
+      // for markers. That is why I copied styles, that are generated for markers decoration and applied them here
+      // I marked copied styles by comment // [marker-decoration-source]
+      return {
+        range: error.range,
+        options: {
+          hoverMessage: error.message, // todo: loc
+          linesDecorationsClassName: "dremio-error-line",
+          stickiness:
+            monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
+          className: "redsquiggly", // [marker-decoration-source]
+          overviewRuler: {
+            // [marker-decoration-source]
+            color: "rgba(255,18,18,0.7)", // [marker-decoration-source] // if change this value, also change @monaco-error variable in color-schema.scss
+            darkColor: "rgba(255,18,18,0.7)", // [marker-decoration-source]
+            hcColor: "rgba(255,50,50,1)", // [marker-decoration-source]
+            position: monaco.editor.OverviewRulerLane.Right, // [marker-decoration-source]
           },
-        };
-      });
+        },
+      };
+    };
 
     this.previousDecorations =
       this.monacoEditorComponent.editor.deltaDecorations(
         this.previousDecorations,
-        customDecorations ? customDecorations : decorations
+        serverSqlErrors?.length > 0
+          ? serverSqlErrors.map(errorToDecoration)
+          : liveErrors.map(errorToDecoration)
       );
   }
 
@@ -423,22 +477,41 @@ export class SQLEditor extends PureComponent {
     return Math.max(defaultHeight, editorHeight);
   }
 
-  setAutocompletion(enabled) {
+  setupSQLEditorExtension(
+    sqlFunctions,
+    autocompleteEnabled,
+    liveErrorDetectionEnabled
+  ) {
+    const getSuggestionsURL = new APIV2Call()
+      .paths("sql/autocomplete")
+      .toString();
+    const authToken = localStorageUtils?.getAuthToken() || "";
+    this.sqlEditorExtension = new SQLEditorExtension(
+      this.getSqlContext,
+      authToken,
+      getSuggestionsURL,
+      sqlFunctions
+    );
+    this.setupAutocompletion(autocompleteEnabled);
+    this.setupLiveErrorDetection(liveErrorDetectionEnabled);
+  }
+
+  setupAutocompletion(enabled) {
     this.removeAutoCompletion(enabled);
     const editor = this.editor;
 
     if (!enabled || !editor) return;
 
-    this.autoCompleteResources.push(
+    this.autoCompleteDisposers.push(
       this.monaco.languages.registerCompletionItemProvider(
         language,
-        SQLAutoCompleteProvider(this.monaco, this.getSqlContext)
+        this.sqlEditorExtension.completionItemProvider
       )
     );
 
-    this.autoCompleteResources.push(
+    this.autoCompleteDisposers.push(
       this.editor.onDidType((text) => {
-        if (text === "\n" || text === ";") {
+        if (text === "\n" || text === ";" || text === " ") {
           // Do not trigger autocomplete
           editor.trigger("", "hideSuggestWidget", null);
           return;
@@ -451,14 +524,33 @@ export class SQLEditor extends PureComponent {
         );
       })
     );
+  }
 
-    // Listner to remove autocomplete's 'No Suggetions' widget
-    this.autoCompleteResources.push(
-      this.editor.contentWidgets[
-        "editor.widget.suggestWidget"
-      ].widget.onDidShow(({ messageElement }) => {
-        if (messageElement.innerText === "No suggestions.") {
-          messageElement.hidden = true;
+  setupLiveErrorDetection(enabled) {
+    this.removeLiveErrorDetection(enabled);
+    const editor = this.editor;
+
+    if (!enabled || !editor) return;
+
+    this.liveErrorDetectionDisposers.push(
+      this.editor.onDidChangeModelContent(async () => {
+        if (this.state.liveErrors.length > 0) {
+          // Clear any existing live errors before starting the async request to resynchronize them
+          this.setState({ liveErrors: [] });
+        }
+        const getModelVersion = () => this.editor?.getModel()?.getVersionId();
+        const modelVersion = getModelVersion();
+        const liveErrors =
+          await this.sqlEditorExtension.errorDetectionProvider.getLiveErrors(
+            this.editor.getModel(),
+            modelVersion
+          );
+        if (modelVersion === getModelVersion()) {
+          if (liveErrors.length === 0 && this.state.liveErrors.length === 0) {
+            return;
+          }
+          // Update only if we are responding to the current model's live errors request
+          this.setState({ liveErrors });
         }
       })
     );
@@ -468,12 +560,12 @@ export class SQLEditor extends PureComponent {
     this.props.sqlContext ? this.props.sqlContext.toJS() : [];
 
   removeAutoCompletion(enabled) {
-    if (this.autoCompleteResources) {
-      this.autoCompleteResources.forEach((resource) => {
+    if (this.autoCompleteDisposers) {
+      this.autoCompleteDisposers.forEach((resource) => {
         resource.dispose();
       });
     }
-    this.autoCompleteResources = [];
+    this.autoCompleteDisposers = [];
 
     // Monaco Editor was still showing the suggestion window even if Autocomplete was turned off.
     // It's not built to toggle the autocomplete on/off. Therefore, this fix will hide the widget
@@ -489,6 +581,16 @@ export class SQLEditor extends PureComponent {
       }
     }
   }
+
+  removeLiveErrorDetection() {
+    if (this.liveErrorDetectionDisposers) {
+      this.liveErrorDetectionDisposers.forEach((resource) => {
+        resource.dispose();
+      });
+    }
+    this.liveErrorDetectionDisposers = [];
+  }
+
   setEditorTheme = () => {
     const {
       background,
@@ -502,7 +604,8 @@ export class SQLEditor extends PureComponent {
       this.monaco.editor.defineTheme("sqlEditorTheme", {
         base: theme,
         inherit: true,
-        rules: [],
+        rules: getSQLEditorThemeRules(theme),
+
         colors: {
           "editor.background": background,
           "editor.selectionBackground": selectionBackground,
@@ -534,6 +637,39 @@ export class SQLEditor extends PureComponent {
     });
   }
 
+  applySQLFunctionsToReservedKeywords = () => {
+    // This will only run if functions endpoint completes after the editor lazy-load has completed
+    const { sqlFunctions } = this.props;
+    if (!sqlFunctions) return;
+
+    const sqlFunctionNames = sqlFunctions.map((fn) => fn.name);
+    const { language: tokenProvider } = SQLLanguage;
+    tokenProvider.functions = [...sqlFunctionNames];
+    this.monaco.languages.setMonarchTokensProvider(language, tokenProvider);
+  };
+
+  getSQLKeywordsAndFunctions = () => {
+    const { sqlFunctions } = this.props;
+    if (!sqlFunctions) {
+      return [
+        [],
+        [...RESERVED_WORDS].filter(
+          (word) => ![...RESERVED_TYPES].includes(word.toUpperCase())
+        ),
+      ];
+    }
+
+    const sqlFunctionNames = sqlFunctions
+      .map((fn) => fn.name.toUpperCase())
+      .filter((fn) => !EXCLUDE_FROM_FUNCTIONS.includes(fn)); // Assign LEFT as a keyword. Wait until semantic syntax to implement this correctly
+    const sqlKeywords = [...RESERVED_WORDS].filter(
+      (word) =>
+        !sqlFunctionNames.includes(word.toUpperCase()) &&
+        ![...RESERVED_TYPES].includes(word.toUpperCase())
+    );
+    return [sqlFunctionNames, sqlKeywords];
+  };
+
   editorDidMount = (editor, monaco) => {
     this.monaco = monaco;
     this.setEditorTheme();
@@ -542,18 +678,30 @@ export class SQLEditor extends PureComponent {
     // if this is our first time using monaco it will lazy load
     // only once it's loaded can we set up languages, etc
     if (!haveLoaded) {
+      const [sqlFunctionNames, sqlKeywords] = this.getSQLKeywordsAndFunctions();
       const { language: tokenProvider, conf } = SQLLanguage;
       tokenProvider.builtinVariables = [];
-      tokenProvider.keywords = [...RESERVED_WORDS];
-      // currently mixed into .keywords due to RESERVED_WORDS; todo: factor out
-      tokenProvider.operators = [];
       tokenProvider.builtinFunctions = [];
-      tokenProvider.builtinVariables = [];
+      // TODO: limit operators to /[*+\-<>!=&|/~]/
+      tokenProvider.operators = [];
+      tokenProvider.keywords = sqlKeywords;
+      tokenProvider.functions = sqlFunctionNames;
+      tokenProvider.datatypes = [...RESERVED_TYPES];
+      tokenProvider.nullValue = [NULL_VALUE];
       tokenProvider.pseudoColumns = [];
 
-      // todo:
-      // limit operators to /[*+\-<>!=&|/~]/
       tokenProvider.tokenizer.comments.push([/\/\/+.*/, "comment"]);
+      const notationRule = tokenProvider.tokenizer.root.find(
+        (rules) => String(rules[0]) === String(TOKEN_NOTATION_REGEX) // rule for regex notation cases
+      );
+      if (!notationRule) {
+        tokenProvider.tokenizer.root.push([
+          TOKEN_NOTATION_REGEX,
+          getSQLTokenNotationMap(),
+        ]);
+      } else {
+        notationRule[1] = getSQLTokenNotationMap();
+      }
 
       monaco.languages.register({ id: language });
       monaco.languages.setMonarchTokensProvider(language, tokenProvider);
@@ -574,7 +722,12 @@ export class SQLEditor extends PureComponent {
 
     this.editor = editor;
     this.applyDecorations();
-    this.setAutocompletion(this.props.autoCompleteEnabled);
+    this.setupSQLEditorExtension(
+      this.props.sqlFunctions,
+      this.props.autoCompleteEnabled,
+      this.props.liveSyntaxErrorDetectionFlagEnabled &&
+        !this.props.liveSyntaxErrorDetectionDisabled
+    );
 
     this.fitHeightToContent();
 
@@ -587,6 +740,7 @@ export class SQLEditor extends PureComponent {
   };
 
   onKbdPreview = () => {
+    this.props.setActionState({ actionState: ExploreHeaderActions.PREVIEW });
     if (this.getSelectedSql() !== "") {
       this.props.previewDatasetSql({ selectedSql: this.getSelectedSql() });
     } else {
@@ -614,6 +768,7 @@ export class SQLEditor extends PureComponent {
   };
 
   onKbdRun = () => {
+    this.props.setActionState({ actionState: ExploreHeaderActions.RUN });
     if (this.getSelectedSql() !== "") {
       this.props.runDatasetSql({ selectedSql: this.getSelectedSql() });
     } else {
@@ -641,6 +796,12 @@ export class SQLEditor extends PureComponent {
       keybindingContext: null,
       run: this.onKbdRun,
     });
+    renderExtraSQLKeyboardShortcuts({
+      editor,
+      monaco,
+      toggleExtraSQLPanel: this.props.toggleExtraSQLPanel,
+      hasExtraSQLPanelContent: this.props.hasExtraSQLPanelContent,
+    });
     if (this.props.formatterEnabled) {
       this.addFormattingShortcut(editor);
     }
@@ -651,6 +812,7 @@ export class SQLEditor extends PureComponent {
   };
 
   addFormattingShortcut = (editor) => {
+    const monaco = this.monaco;
     editor.addAction({
       id: "keys-format",
       label: intl.formatMessage({ id: "SQL.Format" }),
@@ -743,17 +905,12 @@ const SqlEditorWithHooksProps = forwardRef((props, ref) => {
 });
 SqlEditorWithHooksProps.displayName = "SqlEditorWithHooksProps";
 
-const isAutocompleteV2Enabled = (state) => {
-  if (isNotSoftware?.()) {
-    const flagVal = getFeatureFlag(state, AUTOCOMPLETE_V2_FEATUREFLAG);
-    return flagVal ? flagVal == "ENABLED" : undefined;
-  } else {
-    return getSupportFlags(state)[AUTOCOMPLETE_V2_SUPPORTFLAG];
-  }
-};
+const isLiveSyntaxErrorDetectionFlagEnabled = (state) =>
+  getSupportFlags(state)[LIVE_SYNTAX_ERROR_DETECTION];
 
 const mapStateToProps = (state) => ({
-  autocompleteV2Enabled: isAutocompleteV2Enabled(state),
+  liveSyntaxErrorDetectionFlagEnabled:
+    isLiveSyntaxErrorDetectionFlagEnabled(state),
 });
 
 export default connect(
@@ -764,6 +921,7 @@ export default connect(
     addNotification,
     fetchFeatureFlag,
     fetchSupportFlags,
+    setActionState,
   },
   null,
   { forwardRef: true }

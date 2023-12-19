@@ -17,6 +17,7 @@ package com.dremio.exec.expr.fn;
 
 import static com.dremio.exec.ExecConstants.DISABLED_GANDIVA_FUNCTIONS;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -27,6 +28,9 @@ import java.util.stream.Collectors;
 
 import org.apache.arrow.gandiva.evaluator.FunctionSignature;
 import org.apache.arrow.gandiva.exceptions.GandivaException;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.calcite.sql.SqlOperator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,7 +38,6 @@ import org.slf4j.LoggerFactory;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.map.CaseInsensitiveMap;
 import com.dremio.exec.planner.sql.Checker;
-import com.dremio.exec.planner.sql.OperatorTable;
 import com.dremio.exec.planner.sql.SqlFunctionImpl;
 import com.dremio.exec.planner.sql.TypeInferenceUtils;
 import com.dremio.options.OptionChangeListener;
@@ -62,13 +65,33 @@ public class GandivaFunctionRegistry implements PrimaryFunctionRegistry, OptionC
         List<AbstractFunctionHolder> signaturesForName = this.supportedFunctions.getOrDefault(
           signature.getName(), Lists.newArrayList());
 
-        CompleteType retType = new CompleteType(signature.getReturnType());
+        //Build the return type.
+        final String dataFieldName = "$data$";
+        CompleteType retType = null;
+        if (!(signature.getReturnListType() instanceof ArrowType.Null)) {
+          List<Field> children = new ArrayList<Field>();
+          children.add(new Field(dataFieldName, new FieldType(true, signature.getReturnListType(),
+            null), null));
+          retType = new CompleteType(signature.getReturnType(), children);
+        } else {
+          retType = new CompleteType(signature.getReturnType());
+        }
+
+        //Build the argument types.
         CompleteType[] args = new CompleteType[signature.getParamTypes().size()];
-        signature.getParamTypes()
-          .stream()
-          .map(CompleteType::new)
-          .collect(Collectors.<CompleteType>toList())
-          .toArray(args);
+
+        List<List<ArrowType>> paramTypes = signature.getParamTypes();
+        int argIndex = 0;
+        for (List<ArrowType> param : paramTypes) {
+          if (param.size() == 1) {
+            args[argIndex++] = new CompleteType(param.get(0));
+          } else if (param.size() == 2 && param.get(0) instanceof ArrowType.List) {
+            List<Field> children = new ArrayList<Field>();
+            children.add(new Field(dataFieldName, new FieldType(true, param.get(1),
+              null), null));
+            args[argIndex++] = new CompleteType(param.get(0), children);
+          }
+        }
         AbstractFunctionHolder holder = new GandivaFunctionHolder(args, retType, signature.getName());
         signaturesForName.add(holder);
         this.supportedFunctions.put(signature.getName(), signaturesForName);
@@ -89,10 +112,12 @@ public class GandivaFunctionRegistry implements PrimaryFunctionRegistry, OptionC
   }
 
   @Override
-  public void register(OperatorTable operatorTable, boolean isDecimalV2Enabled) {
+  public List<SqlOperator> listOperators(boolean isDecimalV2Enabled) {
     if (!listenerAdded) {
       addListener();
     }
+
+    List<SqlOperator> operators = new ArrayList<>();
     final Set<String> disabledFunctions = disabledFunctionsRef.get();
     for (Map.Entry<String, List<AbstractFunctionHolder>> entry : supportedFunctions.entrySet()) {
       final String name = entry.getKey();
@@ -111,18 +136,17 @@ public class GandivaFunctionRegistry implements PrimaryFunctionRegistry, OptionC
 
       SqlOperator operator = SqlFunctionImpl.create(
         name,
-        TypeInferenceUtils.getSqlReturnTypeInference(
-          name,
-          supportedFunctions.get(name),
-          isDecimalV2Enabled),
+        TypeInferenceUtils.getSqlReturnTypeInference(supportedFunctions.get(name)),
         Checker.between(min, max),
         SqlFunctionImpl.Source.GANDIVA);
-      operatorTable.add(name, operator);
+      operators.add(operator);
     }
+
+    return operators;
   }
 
   @Override
-  public List<AbstractFunctionHolder> getMethods(String name) {
+  public List<AbstractFunctionHolder> lookupMethods(String name) {
     if (!listenerAdded) {
       addListener();
     }

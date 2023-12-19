@@ -29,6 +29,7 @@ import com.dremio.connector.metadata.ListPartitionChunkOption;
 import com.dremio.connector.metadata.MetadataOption;
 import com.dremio.connector.metadata.options.DirListInputSplitType;
 import com.dremio.connector.metadata.options.IgnoreAuthzErrors;
+import com.dremio.connector.metadata.options.InternalMetadataTableOption;
 import com.dremio.connector.metadata.options.MaxLeafFieldCount;
 import com.dremio.connector.metadata.options.MaxNestedFieldLevels;
 import com.dremio.connector.metadata.options.TimeTravelOption;
@@ -91,6 +92,7 @@ public class DatasetRetrievalOptions {
   private final Optional<MetadataRefreshQuery> refreshQuery;
   private final VersionedDatasetAccessOptions versionedDatasetAccessOptions;
   private final TimeTravelRequest timeTravelRequest;
+  private final InternalMetadataTableOption internalMetadataTableOption;
 
   private DatasetRetrievalOptions fallback;
 
@@ -108,6 +110,7 @@ public class DatasetRetrievalOptions {
     this.refreshQuery = Optional.ofNullable(builder.refreshQuery);
     this.versionedDatasetAccessOptions = builder.versionedDatasetAccessOptions;
     this.timeTravelRequest = builder.travelRequest;
+    this.internalMetadataTableOption = builder.internalMetadataTableOption;
   }
 
 
@@ -147,6 +150,10 @@ public class DatasetRetrievalOptions {
     return versionedDatasetAccessOptions;
   }
 
+  public InternalMetadataTableOption getInternalMetadataTableOption() {
+    return internalMetadataTableOption;
+  }
+
   public DatasetRetrievalOptions withFallback(DatasetRetrievalOptions fallback) {
     this.fallback = fallback;
     return this;
@@ -184,6 +191,7 @@ public class DatasetRetrievalOptions {
     private MetadataRefreshQuery refreshQuery;
     private VersionedDatasetAccessOptions versionedDatasetAccessOptions;
     private TimeTravelRequest travelRequest;
+    private InternalMetadataTableOption internalMetadataTableOption;
 
     private Builder() {
     }
@@ -243,6 +251,11 @@ public class DatasetRetrievalOptions {
       return this;
     }
 
+    public Builder setInternalMetadataTableOption(InternalMetadataTableOption internalMetadataTableOption) {
+      this.internalMetadataTableOption = internalMetadataTableOption;
+      return this;
+    }
+
     public Builder setVersionedDatasetAccessOptions(VersionedDatasetAccessOptions versionedDatasetAccessOptions) {
       this.versionedDatasetAccessOptions = versionedDatasetAccessOptions;
       return this;
@@ -285,6 +298,8 @@ public class DatasetRetrievalOptions {
         b.setVersionedDatasetAccessOptions((VersionedDatasetAccessOptions) o);
       } else if (o instanceof TimeTravelOption) {
         b.setTimeTravelRequest(((TimeTravelOption) o).getTimeTravelRequest());
+      } else if (o instanceof InternalMetadataTableOption) {
+        b.setInternalMetadataTableOption((InternalMetadataTableOption) o);
       }
     }
 
@@ -341,6 +356,10 @@ public class DatasetRetrievalOptions {
       options.add(TimeTravelOption.newTimeTravelOption(timeTravelRequest));
     }
 
+    if (internalMetadataTableOption != null) {
+      options.add(internalMetadataTableOption);
+    }
+
     addDatasetOptions(GetDatasetOption.class, datasetConfig, options);
 
     return options.toArray(new GetDatasetOption[options.size()]);
@@ -375,6 +394,9 @@ public class DatasetRetrievalOptions {
       options.add(TimeTravelOption.newTimeTravelOption(timeTravelRequest));
     }
 
+    if (internalMetadataTableOption != null) {
+      options.add(internalMetadataTableOption);
+    }
     addCustomOptions(options);
 
     addDatasetOptions(ListPartitionChunkOption.class, datasetConfig, options);

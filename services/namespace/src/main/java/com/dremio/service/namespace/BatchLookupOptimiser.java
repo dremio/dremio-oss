@@ -38,8 +38,10 @@ public class BatchLookupOptimiser<K, V> {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BatchLookupOptimiser.class);
   private static final int BATCH_SIZE = 100;
   private final Set<K> keySet = new HashSet<>();
+  @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
   private final Cache<K, Optional<V>> cache = CacheBuilder.newBuilder()
     .expireAfterWrite(Duration.ofSeconds(300))
+    .softValues()
     .build();
   private final Function<List<K>, List<V>> bulkGetter;
   private final AtomicLong numMisses = new AtomicLong();

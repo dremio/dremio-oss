@@ -265,7 +265,7 @@ public class TestFileSystemPlugin {
     }
   }
 
-  class MockFileSystemPlugin extends FileSystemPlugin<MockFileSystemConf> {
+  public static class MockFileSystemPlugin extends FileSystemPlugin<MockFileSystemConf> {
 
     public MockFileSystemPlugin(MockFileSystemConf config, SabotContext context, String name, Provider<StoragePluginId> idProvider) {
       super(config, context, name, idProvider);

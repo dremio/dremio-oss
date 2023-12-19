@@ -20,16 +20,11 @@ import java.util.List;
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.sql.SqlCallBinding;
 import org.apache.calcite.sql.SqlIntervalQualifier;
-import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.calcite.sql.type.ArraySqlType;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.sql.type.SqlTypeName;
-import org.apache.calcite.util.NlsString;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
@@ -42,8 +37,6 @@ import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.expr.fn.AbstractFunctionHolder;
 import com.dremio.exec.resolver.FunctionResolver;
 import com.dremio.exec.resolver.FunctionResolverFactory;
-import com.esotericsoftware.kryo.serializers.FieldSerializer;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 
@@ -119,24 +112,9 @@ public final class TypeInferenceUtils {
      .put(SqlTypeName.ROW, TypeProtos.MinorType.STRUCT)
       .build();
 
-  private static final ImmutableMap<String, SqlReturnTypeInference> funcNameToInference = ImmutableMap.<String, SqlReturnTypeInference> builder()
-      .put("CONCAT", ConcatSqlReturnTypeInference.INSTANCE)
-      .put("LENGTH", LengthSqlReturnTypeInference.INSTANCE)
-      .put("REPLACE", ReplaceSqlReturnTypeInference.INSTANCE)
-      .put("LPAD", PadTrimSqlReturnTypeInference.INSTANCE)
-      .put("RPAD", PadTrimSqlReturnTypeInference.INSTANCE)
-      .put("LTRIM", PadTrimSqlReturnTypeInference.INSTANCE)
-      .put("RTRIM", PadTrimSqlReturnTypeInference.INSTANCE)
-      .put("BTRIM", PadTrimSqlReturnTypeInference.INSTANCE)
-      .put("TRIM", PadTrimSqlReturnTypeInference.INSTANCE)
-      .put("CONVERT_TO", ConvertToSqlReturnTypeInference.INSTANCE)
-      .put("FLATTEN", FlattenReturnTypeInference.INSTANCE)
-      .put("KVGEN", DeferToExecSqlReturnTypeInference.INSTANCE)
-      .put("CONVERT_FROM", ConvertFromReturnTypeInference.INSTANCE)
-      .put("IS DISTINCT FROM", IsDistinctFromSqlReturnTypeInference.INSTANCE)
-      .put("IS NOT DISTINCT FROM", IsDistinctFromSqlReturnTypeInference.INSTANCE)
-      .put("TRUNC", DremioSqlOperatorTable.TRUNCATE.getReturnTypeInference())
-      .build();
+  private TypeInferenceUtils() {
+    // utility class
+  }
 
   /**
    * Given a Dremio's TypeProtos.MinorType, return a Calcite's corresponding SqlTypeName
@@ -168,27 +146,16 @@ public final class TypeInferenceUtils {
    * Give the name and BaseFunctionHolder list, return the inference mechanism.
    */
   public static SqlReturnTypeInference getSqlReturnTypeInference(
-    final String name,
-    final List<AbstractFunctionHolder> functions,
-    final boolean isDecimalV2Enabled) {
-
-    final String nameCap = name.toUpperCase();
-    if(funcNameToInference.containsKey(nameCap)) {
-      return funcNameToInference.get(nameCap);
-    } else {
-      return new DefaultSqlReturnTypeInference(functions, isDecimalV2Enabled);
-    }
+    final List<AbstractFunctionHolder> functions) {
+    return new DefaultSqlReturnTypeInference(functions);
   }
 
   private static class DefaultSqlReturnTypeInference implements SqlReturnTypeInference {
     private final List<AbstractFunctionHolder> functions;
-    @FieldSerializer.Optional("ignored")
-    private final boolean isDecimalV2Enabled;
 
     // This is created per query, so safe to use decimal setting as a variable.
-    public DefaultSqlReturnTypeInference(List<AbstractFunctionHolder> functions, boolean isDecimalV2Enabled) {
+    public DefaultSqlReturnTypeInference(List<AbstractFunctionHolder> functions) {
       this.functions = functions;
-      this.isDecimalV2Enabled = isDecimalV2Enabled;
     }
 
     @Override
@@ -227,11 +194,8 @@ public final class TypeInferenceUtils {
         }
       }
 
-      final AbstractFunctionHolder func = resolveFunctionHolder(opBinding, functions, isDecimalV2Enabled);
-      final RelDataType returnType = getReturnType(opBinding, func);
-      return returnType.getSqlTypeName() == SqlTypeName.VARBINARY
-          ? createCalciteTypeWithNullability(factory, SqlTypeName.ANY, returnType.isNullable(), null)
-              : returnType;
+      final AbstractFunctionHolder func = resolveFunctionHolder(opBinding, functions);
+      return getReturnType(opBinding, func);
     }
 
     private static RelDataType getReturnType(final SqlOperatorBinding opBinding, final AbstractFunctionHolder func) {
@@ -261,209 +225,9 @@ public final class TypeInferenceUtils {
     }
   }
 
-  private static class ConvertFromReturnTypeInference implements SqlReturnTypeInference {
-    private static final ConvertFromReturnTypeInference INSTANCE = new ConvertFromReturnTypeInference();
-
-    @Override
-    public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
-      final RelDataTypeFactory factory = opBinding.getTypeFactory();
-      SqlTypeName typeToCastTo = null;
-      if (opBinding instanceof SqlCallBinding) {
-        SqlCallBinding sqlCallBinding = (SqlCallBinding) opBinding;
-        if (sqlCallBinding.operand(1).getKind() == SqlKind.LITERAL) {
-          String type = null;
-          try {
-            SqlLiteral sqlLiteral = (SqlLiteral) sqlCallBinding.operand(1);
-            type = ((NlsString) sqlLiteral.getValue()).getValue();
-            switch(type) {
-              case "JSON":
-                typeToCastTo = SqlTypeName.ANY;
-                break;
-              case "UTF8":
-              case "UTF16":
-                typeToCastTo = SqlTypeName.VARCHAR;
-                break;
-              case "BOOLEAN_BYTE":
-                typeToCastTo = SqlTypeName.BOOLEAN;
-                break;
-              case "TINYINT_BE":
-              case "TINYINT":
-                typeToCastTo = SqlTypeName.TINYINT;
-                break;
-              case "SMALLINT_BE":
-              case "SMALLINT":
-                typeToCastTo = SqlTypeName.SMALLINT;
-                break;
-              case "INT_BE":
-              case "INT":
-              case "INT_HADOOPV":
-                typeToCastTo = SqlTypeName.INTEGER;
-                break;
-              case "BIGINT_BE":
-              case "BIGINT":
-              case "BIGINT_HADOOPV":
-                typeToCastTo = SqlTypeName.BIGINT;
-                break;
-              case "FLOAT":
-                typeToCastTo = SqlTypeName.FLOAT;
-                break;
-              case "DOUBLE":
-                typeToCastTo = SqlTypeName.DOUBLE;
-                break;
-              case "DATE_EPOCH_BE":
-              case "DATE_EPOCH":
-                typeToCastTo = SqlTypeName.DATE;
-                break;
-              case "TIME_EPOCH_BE":
-              case "TIME_EPOCH":
-                typeToCastTo = SqlTypeName.TIME;
-                break;
-              case "TIMESTAMP_EPOCH":
-              case "TIMESTAMP_IMPALA":
-                typeToCastTo = SqlTypeName.TIMESTAMP;
-                break;
-              default:
-                typeToCastTo = SqlTypeName.ANY;
-                break;
-            }
-          } catch (final ClassCastException e) {
-            logger.debug("Failed to parse string for convert_from()");
-          }
-        }
-      }
-
-      if (typeToCastTo == null) {
-        typeToCastTo = SqlTypeName.ANY;
-      }
-      return factory.createTypeWithNullability(
-          factory.createSqlType(typeToCastTo),
-          true);
-    }
-  }
-
-  private static class DeferToExecSqlReturnTypeInference implements SqlReturnTypeInference {
-    private static final DeferToExecSqlReturnTypeInference INSTANCE = new DeferToExecSqlReturnTypeInference();
-
-    @Override
-    public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
-      final RelDataTypeFactory factory = opBinding.getTypeFactory();
-      return factory.createTypeWithNullability(
-        factory.createSqlType(SqlTypeName.ANY),
-        true);
-    }
-  }
-
-  private static class ConcatSqlReturnTypeInference implements SqlReturnTypeInference {
-    private static final ConcatSqlReturnTypeInference INSTANCE = new ConcatSqlReturnTypeInference();
-
-    /**
-     * Calculate the expected return type of CONCAT based on the types of the operands.
-     * For simplicity, we just return a max-width VARCHAR type since it makes no difference in resource usage.
-     * @param opBinding Binding to the operands used in this function call.
-     * @return The return type for this call to CONCAT.
-     */
-    @Override
-    public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
-      final RelDataTypeFactory factory = opBinding.getTypeFactory();
-      final boolean isNullable =
-        opBinding.collectOperandTypes().stream().allMatch(relDataType -> relDataType.isNullable());
-
-      // Set precision to null because createCalciteTypeWithNullability always makes VARCHAR max-width.
-      // We do this to avoid having complex logic here to calculate the maximum width for the string
-      // representation of a value with a given type, and because it doesn't make a difference in
-      // resource usage.
-      final Integer precision = null;
-      return createCalciteTypeWithNullability(factory, SqlTypeName.VARCHAR, isNullable, precision);
-    }
-  }
-
-  private static class LengthSqlReturnTypeInference implements SqlReturnTypeInference {
-    private static final LengthSqlReturnTypeInference INSTANCE = new LengthSqlReturnTypeInference();
-
-    @Override
-    public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
-      final RelDataTypeFactory factory = opBinding.getTypeFactory();
-      final SqlTypeName sqlTypeName = SqlTypeName.INTEGER;
-
-      // We need to check only the first argument because
-      // the second one is used to represent encoding type
-      final boolean isNullable = opBinding.getOperandType(0).isNullable();
-      return createCalciteTypeWithNullability(factory, sqlTypeName, isNullable, null);
-    }
-  }
-
-  private static class ReplaceSqlReturnTypeInference implements SqlReturnTypeInference {
-    private static final ReplaceSqlReturnTypeInference INSTANCE = new ReplaceSqlReturnTypeInference();
-
-    @Override
-    public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
-      Preconditions.checkArgument(opBinding.getOperandCount() == 3);
-
-      boolean isNullable = opBinding.collectOperandTypes().stream().anyMatch(RelDataType::isNullable);
-      // TODO: calculate a more reasonable upper bound on the char length after replacement
-      return createCalciteTypeWithNullability(
-        opBinding.getTypeFactory(),
-        SqlTypeName.VARCHAR,
-        isNullable,
-        null /*VARCHAR just uses a default precision*/);
-    }
-  }
-
-  private static class PadTrimSqlReturnTypeInference implements SqlReturnTypeInference {
-    private static final PadTrimSqlReturnTypeInference INSTANCE = new PadTrimSqlReturnTypeInference();
-
-    @Override
-    public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
-      final RelDataTypeFactory factory = opBinding.getTypeFactory();
-      final SqlTypeName sqlTypeName = SqlTypeName.VARCHAR;
-
-      for(int i = 0; i < opBinding.getOperandCount(); ++i) {
-        if(opBinding.getOperandType(i).isNullable()) {
-          return createCalciteTypeWithNullability(factory, sqlTypeName, true, null);
-        }
-      }
-
-      return createCalciteTypeWithNullability(factory, sqlTypeName, false, null);
-    }
-  }
-
-  private static class ConvertToSqlReturnTypeInference implements SqlReturnTypeInference {
-    private static final ConvertToSqlReturnTypeInference INSTANCE = new ConvertToSqlReturnTypeInference();
-
-    @Override
-    public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
-      final RelDataTypeFactory factory = opBinding.getTypeFactory();
-      final SqlTypeName type = SqlTypeName.VARBINARY;
-
-      return createCalciteTypeWithNullability(factory, type, opBinding.getOperandType(0).isNullable(), null);
-    }
-  }
-  private static class FlattenReturnTypeInference implements SqlReturnTypeInference {
-    private static final FlattenReturnTypeInference INSTANCE = new FlattenReturnTypeInference();
-
-    @Override
-    public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
-      final RelDataType operandType = opBinding.getOperandType(0);
-      if (operandType instanceof ArraySqlType) {
-        return ((ArraySqlType) operandType).getComponentType();
-      } else {
-        return DynamicReturnType.INSTANCE.inferReturnType(opBinding);
-      }
-    }
-  }
-  private static class IsDistinctFromSqlReturnTypeInference implements SqlReturnTypeInference {
-    private static final IsDistinctFromSqlReturnTypeInference INSTANCE = new IsDistinctFromSqlReturnTypeInference();
-
-    @Override
-    public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
-      // The result of IS [NOT] DISTINCT FROM is NOT NULL because it can only return TRUE or FALSE.
-      return opBinding.getTypeFactory().createSqlType(SqlTypeName.BOOLEAN);
-    }
-  }
-
-  private static AbstractFunctionHolder resolveFunctionHolder(final SqlOperatorBinding opBinding,
-                                                          final List<AbstractFunctionHolder>  functions,
-                                                          boolean isDecimalV2On) {
+  private static AbstractFunctionHolder resolveFunctionHolder(
+    final SqlOperatorBinding opBinding,
+    final List<AbstractFunctionHolder>  functions) {
     final FunctionCall functionCall = convertSqlOperatorBindingToFunctionCall(opBinding);
     final FunctionResolver functionResolver = FunctionResolverFactory.getResolver(functionCall);
     final AbstractFunctionHolder func = functionResolver.getBestMatch(functions, functionCall);
@@ -489,33 +253,6 @@ public final class TypeInferenceUtils {
     return func;
   }
 
-  /**
-   * For Extract and date_part functions, infer the return types based on timeUnit
-   */
-  public static SqlTypeName getSqlTypeNameForTimeUnit(String timeUnit) {
-    switch (timeUnit.toUpperCase()){
-      case "YEAR":
-      case "MONTH":
-      case "DAY":
-      case "HOUR":
-      case "MINUTE":
-      case "SECOND":
-      case "CENTURY":
-      case "DECADE":
-      case "DOW":
-      case "DOY":
-      case "MILLENNIUM":
-      case "QUARTER":
-      case "WEEK":
-      case "EPOCH":
-        return SqlTypeName.BIGINT;
-      default:
-        throw UserException
-            .functionError()
-            .message("extract function supports the following time units: YEAR, MONTH, DAY, HOUR, MINUTE, SECOND")
-            .build(logger);
-    }
-  }
 
   /**
    * Given a {@link SqlTypeName} and nullability, create a RelDataType from the RelDataTypeFactory
@@ -590,9 +327,5 @@ public final class TypeInferenceUtils {
     final String funcName = FunctionCallFactory.replaceOpWithFuncName(opBinding.getOperator().getName());
     final FunctionCall functionCall = new FunctionCall(funcName, args);
     return functionCall;
-  }
-
-  private TypeInferenceUtils() {
-    // utility class
   }
 }

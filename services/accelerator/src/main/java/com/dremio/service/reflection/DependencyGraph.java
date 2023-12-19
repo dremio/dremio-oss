@@ -18,6 +18,7 @@ package com.dremio.service.reflection;
 import java.util.ArrayDeque;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 
@@ -88,6 +89,10 @@ public class DependencyGraph {
     return ImmutableList.copyOf(predecessors.get(reflectionId));
   }
 
+  synchronized List<ReflectionId> getSuccessors(final ReflectionId reflectionId) {
+    return ImmutableList.copyOf(successors.get(reflectionId));
+  }
+
   synchronized Set<ReflectionId> getSubGraph(final ReflectionId reflectionId) {
     Set<ReflectionId> subGraph = Sets.newHashSet();
     final Queue<ReflectionId> queue = new ArrayDeque<>();
@@ -142,8 +147,15 @@ public class DependencyGraph {
     // for each pair (R, R') such as R depends on id and id depends on R', R now depends on R'
     final Set<DependencyEntry> ps = predecessors.get(id);
     for (ReflectionId successor : successors.get(id)) {
-      predecessors.remove(successor, DependencyEntry.of(id)); // successor no longer depends on id
-      predecessors.putAll(successor, ps); // successor depends on all id predecessors
+      // Remove the specified reflection from the successor's set of predecessors.
+      // NB: This logic relies on the fact that we do not allow reflections to depend on the same reflection multiple
+      //     times with different snapshots, otherwise the same reflection ID could appear multiple times in the set.
+      Optional<DependencyEntry> predecessor = predecessors.get(successor)
+                                                          .stream().filter(p -> id.getId().equals(p.getId())).findAny();
+      predecessor.ifPresent(p -> predecessors.remove(successor, p));
+
+      // Update successor to depend on all of id's predecessors.
+      predecessors.putAll(successor, ps);
       // can't use "ps", as it may not be enough
       dependenciesStore.save(successor, predecessors.get(successor));
     }

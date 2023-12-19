@@ -15,19 +15,27 @@
  */
 
 import { useEffect, useState } from "react";
+import { waitForServerReachable } from "./waitForServerReachable";
 
 export const isNetworkAvailable = () => window.navigator.onLine;
 
-export const useNetworkAvailable = () => {
+export const useNetworkAvailable = (socket: any) => {
   const [networkAvailable, setNetworkAvailable] = useState(isNetworkAvailable);
 
   useEffect(() => {
-    const handleOnline = () => {
+    const handleOnline = async () => {
       setNetworkAvailable(true);
+      await waitForServerReachable();
+      if (!socket.checkIsOpen()) {
+        socket.open();
+      }
     };
 
     const handleOffline = () => {
       setNetworkAvailable(false);
+      if (socket.checkIsOpen()) {
+        socket.close(true);
+      }
     };
 
     window.addEventListener("online", handleOnline);

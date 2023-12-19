@@ -74,6 +74,7 @@ import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePluginRulesFactory;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.DatasetHelper;
+import com.dremio.service.namespace.InvalidNamespaceNameException;
 import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -83,11 +84,13 @@ import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.SourceState.Message;
 import com.dremio.service.namespace.SourceState.SourceStatus;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.source.SourceNamespaceService;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.source.proto.SourceInternalData;
 import com.dremio.service.orphanage.Orphanage;
 import com.dremio.service.scheduler.ModifiableSchedulerService;
+import com.dremio.service.users.SystemUser;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
@@ -96,6 +99,8 @@ import com.google.common.primitives.Ints;
 
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
+import io.protostuff.LinkedBuffer;
+import io.protostuff.ProtostuffIOUtil;
 
 /**
  * Manages the Dremio system state related to a StoragePlugin.
@@ -197,7 +202,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
         new MetadataBridge(),
         options,
         monitor,
-        broadcasterProvider);
+        broadcasterProvider, context.getClusterCoordinator());
   }
 
   /**
@@ -296,19 +301,36 @@ public class ManagedStoragePlugin implements AutoCloseable {
         }
 
         if (compareTo == 0) {
-          // in-memory source config has a different version but the same value
-          throw new IllegalStateException(String.format(
-            "Current and given configurations for source [%s] have same version (%d) but different values" +
-              " [current source: %s, given source: %s]",
-            currentConfig.getName(), currentConfig.getConfigOrdinal(),
-            reader.toStringWithoutSecrets(currentConfig),
-            reader.toStringWithoutSecrets(targetConfig)));
+          // in-memory source config has the same config ordinal (version)
+
+          if (sourceConfigDiffersTagAlone(targetConfig)) {
+            // warn but do not throw as this error is benign - if all coordinators and executors
+            // share the same effective source config value, they can all function to plan and execute
+            // the query without issue - the configs having a different tag value reflects a programming
+            // bug but one that can be gracefully recovered from
+            logger.warn(
+                "Current and given configurations for source [{}] have same version ({}) but different tags"
+                    + " [current source: {}, given source: {}]",
+                currentConfig.getName(),
+                currentConfig.getConfigOrdinal(),
+                reader.toStringWithoutSecrets(currentConfig),
+                reader.toStringWithoutSecrets(targetConfig));
+          } else {
+            // if the ordinal is the same but some property other than the tag differs, we do not know if
+            // we have the correct or the outdated config, so we must fail synchronization
+            throw new IllegalStateException(String.format(
+              "Current and given configurations for source [%s] have same version (%d) but different values" +
+                " [current source: %s, given source: %s]",
+              currentConfig.getName(), currentConfig.getConfigOrdinal(),
+              reader.toStringWithoutSecrets(currentConfig),
+              reader.toStringWithoutSecrets(targetConfig)));
+          }
         }
       }
       // else (creationTime < targetCreationTime), the source config is new but plugins has an entry with the same
       // name, so replace the plugin regardless of the checks
 
-      // in-memory storage plugin is older than the one persisted, update
+      // in-memory storage plugin is older than the one persisted or differs in tag alone, update
       replacePlugin(targetConfig, createWaitMillis(), false);
       return;
     }
@@ -405,7 +427,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
           if (!keepStaleMetadata()) {
             logger.debug("Old metadata data may be bad; deleting all descendants of source [{}]", config.getName());
             // TODO: expensive call on non-master coordinators (sends as many RPC requests as entries under the source)
-            NamespaceService.DeleteCallback deleteCallback = (DatasetConfig datasetConfig) -> {
+            SourceNamespaceService.DeleteCallback deleteCallback = (DatasetConfig datasetConfig) -> {
               CatalogUtil.addIcebergMetadataOrphan(datasetConfig, orphanage);
             };
             systemUserNamespaceService.deleteSourceChildren(config.getKey(), config.getTag(), deleteCallback);
@@ -451,6 +473,10 @@ public class ManagedStoragePlugin implements AutoCloseable {
     } catch (AccessControlException ex) {
       throw UserException.permissionError(ex).message(
         "Update privileges on source [%s] failed: %s", config.getName(), ex.getMessage()).build(logger);
+    } catch (InvalidNamespaceNameException ex) {
+      throw UserException.validationError(ex)
+        .message(String.format("Failure creating/updating this source [%s]: %s", config.getName(), ex.getMessage()))
+        .build(logger);
     } catch (Exception ex) {
       String suggestedUserAction = getState().getSuggestedUserAction();
       if (suggestedUserAction == null || suggestedUserAction.isEmpty()) {
@@ -608,6 +634,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
           if (config.getType() != MissingPluginConf.TYPE) {
             logger.warn("Error starting new source: {}", sourceConfig.getName(), e);
           }
+          //TODO: Throwables.gerRootCause(e)
           state = SourceState.badState(e.getMessage(), e.getMessage());
 
           try {
@@ -889,6 +916,10 @@ public class ManagedStoragePlugin implements AutoCloseable {
 
   @WithSpan("check-dataset-access")
   public void checkAccess(NamespaceKey key, DatasetConfig datasetConfig, String userName, final MetadataRequestOptions options) {
+    if (SystemUser.isSystemUserName(userName)) {
+      return;
+    }
+
     try(AutoCloseableLock l = readLock()) {
       checkState();
       if (!getPermissionsCache().hasAccess(userName, key, datasetConfig, options.getStatsCollector(), sourceConfig)) {
@@ -907,13 +938,13 @@ public class ManagedStoragePlugin implements AutoCloseable {
    * @return true iff the metadata is complete and meets validity constraints
    */
   @WithSpan
-  public boolean isCompleteAndValid(DatasetConfig datasetConfig, MetadataRequestOptions requestOptions, NamespaceService userNamespaceService) {
+  public boolean isCompleteAndValid(DatasetConfig datasetConfig, MetadataRequestOptions requestOptions) {
     try (AutoCloseableLock l = readLock()) {
       checkState();
       final boolean checkValidity = requestOptions.checkValidity() && !getConfig().getDisableMetadataValidityCheck();
       return isComplete(datasetConfig) &&
         metadataManager.isStillValid(ImmutableMetadataRequestOptions.copyOf(requestOptions)
-          .withCheckValidity(checkValidity), datasetConfig, this.unwrap(StoragePlugin.class), userNamespaceService);
+          .withCheckValidity(checkValidity), datasetConfig, this.unwrap(StoragePlugin.class));
     }
   }
 
@@ -1077,6 +1108,20 @@ public class ManagedStoragePlugin implements AutoCloseable {
     }
   }
 
+  private boolean sourceConfigDiffersTagAlone(SourceConfig theirs) {
+    byte[] bytesOurs = ProtostuffIOUtil.toByteArray(this.sourceConfig, SourceConfig.getSchema(), LinkedBuffer.allocate());
+    SourceConfig oursNoTag = new SourceConfig();
+    ProtostuffIOUtil.mergeFrom(bytesOurs, oursNoTag, SourceConfig.getSchema());
+    oursNoTag.setTag(null);
+
+    byte[] bytesTheirs = ProtostuffIOUtil.toByteArray(theirs, SourceConfig.getSchema(), LinkedBuffer.allocate());
+    SourceConfig theirsNoTag = new SourceConfig();
+    ProtostuffIOUtil.mergeFrom(bytesTheirs, theirsNoTag, SourceConfig.getSchema());
+    theirsNoTag.setTag(null);
+
+    return !this.sourceConfig.equals(theirs) && oursNoTag.equals(theirsNoTag);
+  }
+
   /**
    * Replace the plugin instance with one defined by the new SourceConfig. Do the minimal
    * changes necessary. Starts the new plugin.
@@ -1186,6 +1231,10 @@ public class ManagedStoragePlugin implements AutoCloseable {
       }
       return true;
     }
+  }
+
+  public void deleteServiceSet() throws Exception {
+    metadataManager.deleteServiceSet();
   }
 
   boolean refresh(UpdateType updateType, MetadataPolicy policy) throws NamespaceException {

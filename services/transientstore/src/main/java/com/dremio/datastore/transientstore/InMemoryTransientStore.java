@@ -56,6 +56,7 @@ public class InMemoryTransientStore<K, V> implements TransientStore<K, V> {
    * Creates an instance of this class.
    * @param ttlInSeconds the number of seconds after which entries are expired from the store since they
    */
+  @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
   public InMemoryTransientStore(int ttlInSeconds) {
     this.timeToLive = ttlInSeconds;
 
@@ -66,6 +67,7 @@ public class InMemoryTransientStore<K, V> implements TransientStore<K, V> {
       .build();
   }
 
+  @SuppressWarnings("NoGuavaCacheUsage") // TODO: fix as part of DX-51884
   @VisibleForTesting
   public InMemoryTransientStore(int ttlInSeconds, Ticker ticker) {
     this.timeToLive = ttlInSeconds;

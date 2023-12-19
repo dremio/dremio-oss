@@ -18,3 +18,9 @@ export type VersionContext = {
   type: "BRANCH" | "TAG" | "DETACHED";
   value: string;
 };
+
+export type DatasetReference = {
+  contentId: string;
+  tableKey: [];
+  versionContext: VersionContext;
+};

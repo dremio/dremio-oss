@@ -70,6 +70,7 @@ public class ListAggAccumulator implements Accumulator {
   private final BufferAllocator computationVectorAllocator;
   private final ListVector tempAccumulator;
   private final AccumStats accumStats;
+  private boolean isAccumulatorAtMinimum;
 
   public ListAggAccumulator(FieldVector incomingValues, FieldVector transferVector, int maxValuesPerBatch, BufferAllocator computationVectorAllocator,
                             AccumulatorBuilder.ListAggParams listAggParams, BaseValueVector tempAccumulator) {
@@ -116,6 +117,9 @@ public class ListAggAccumulator implements Accumulator {
    */
   @Override
   public long getSizeInBytes() {
+    if (this.isAccumulatorAtMinimum) {
+      return 0;
+    }
     long size = 0;
     for (int i = 0; i < batches; i++) {
       FixedListVarcharVector flv = (FixedListVarcharVector) accumulators[i];
@@ -168,6 +172,7 @@ public class ListAggAccumulator implements Accumulator {
       }
       /* add a single batch */
       addBatchHelper(dataBuffer, validityBuffer);
+      this.isAccumulatorAtMinimum = false;
     } catch (Exception e) {
       /* this will be caught by LBlockHashTable and subsequently handled by VectorizedHashAggOperator */
       Throwables.propagate(e);
@@ -259,6 +264,7 @@ public class ListAggAccumulator implements Accumulator {
     batches = 1;
 
     AutoCloseables.close(asList(Arrays.copyOfRange(oldAccumulators, 1, oldAccumulators.length)));
+    this.isAccumulatorAtMinimum = true;
   }
 
   @Override

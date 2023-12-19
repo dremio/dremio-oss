@@ -44,7 +44,7 @@ export class AccelerationModal extends Component {
     return (
       <Modal
         size="large"
-        title={la("Acceleration")}
+        title={laDeprecated("Acceleration")}
         isOpen={isOpen}
         hide={hide}
       >

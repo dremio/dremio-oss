@@ -49,7 +49,7 @@ message SourceConfig {
   optional bool allowCrossSourceSelection = 19 [default = false];
   optional bool checkTableAuthorizer = 20 [default = true];
   optional bool disableMetadataValidityCheck = 21 [default = false];
-
+  optional bool isPrimaryCatalog = 22 [default = false];
 }
 
 // Version notes:

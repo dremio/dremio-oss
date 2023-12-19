@@ -25,7 +25,7 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.Streams;
 
 /**
- * Helper class for {@link InfoSchemaCombinationTestCases}.
+ * Helper class for {@link InfoSchemaCombinationCases}.
  *
  * Represents a container (source or folder) that may contain tables, views, and
  * other folders. In the combination test, we are creating a similar set of
@@ -50,6 +50,8 @@ public class ContainerEntity {
     FOLDERS_ONLY,
     TABLES_ONLY,
     FOLDERS_AND_VIEWS,
+    FOLDERS_TABLES_AND_VIEWS,
+    FOLDERS_AND_TABLES,
     MAX_KEY_TABLE,
     EMPTY,
 
@@ -143,6 +145,10 @@ public class ContainerEntity {
         "TABLE"));
   }
 
+  public List<List<String>> getExpectedTablesForNonNessieContainers() {
+    return getExpectedTablesWithoutViews();
+  }
+
   public List<List<String>> getTableAOnly() {
     return Collections.singletonList(
       Arrays.asList(
@@ -174,6 +180,21 @@ public class ContainerEntity {
         DOT_JOINER.join(getFullPath()),
         viewDFourth,
         String.format("SELECT * FROM %s.%s", DOT_JOINER.join(getFullPath()), tableBSecond))
+    );
+  }
+
+  public List<List<String>> getExpectedViewsForSelect1Query() {
+    return Arrays.asList(
+      Arrays.asList(
+        "DREMIO",
+        DOT_JOINER.join(getFullPath()),
+        viewCThird,
+        "SELECT 1"),
+      Arrays.asList(
+        "DREMIO",
+        DOT_JOINER.join(getFullPath()),
+        viewDFourth,
+        "SELECT 1")
     );
   }
 

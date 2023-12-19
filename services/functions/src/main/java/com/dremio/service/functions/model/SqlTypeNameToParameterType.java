@@ -15,23 +15,6 @@
  */
 package com.dremio.service.functions.model;
 
-import static org.apache.calcite.sql.type.SqlTypeName.ANY;
-import static org.apache.calcite.sql.type.SqlTypeName.ARRAY;
-import static org.apache.calcite.sql.type.SqlTypeName.BIGINT;
-import static org.apache.calcite.sql.type.SqlTypeName.BINARY;
-import static org.apache.calcite.sql.type.SqlTypeName.BOOLEAN;
-import static org.apache.calcite.sql.type.SqlTypeName.CHAR;
-import static org.apache.calcite.sql.type.SqlTypeName.DATE;
-import static org.apache.calcite.sql.type.SqlTypeName.DECIMAL;
-import static org.apache.calcite.sql.type.SqlTypeName.DOUBLE;
-import static org.apache.calcite.sql.type.SqlTypeName.FLOAT;
-import static org.apache.calcite.sql.type.SqlTypeName.INTEGER;
-import static org.apache.calcite.sql.type.SqlTypeName.MAP;
-import static org.apache.calcite.sql.type.SqlTypeName.TIME;
-import static org.apache.calcite.sql.type.SqlTypeName.TIMESTAMP;
-import static org.apache.calcite.sql.type.SqlTypeName.VARBINARY;
-import static org.apache.calcite.sql.type.SqlTypeName.VARCHAR;
-
 import org.apache.calcite.sql.type.SqlTypeName;
 
 public final class SqlTypeNameToParameterType {
@@ -78,10 +61,10 @@ public final class SqlTypeNameToParameterType {
       return ParameterType.TIMESTAMP;
 
     case ARRAY:
-      return ParameterType.LIST;
+      return ParameterType.ARRAY;
 
     case MAP:
-      return ParameterType.STRUCT;
+      return ParameterType.MAP;
 
     default:
       throw new UnsupportedOperationException("UNKNOWN KIND: " + sqlTypeName);

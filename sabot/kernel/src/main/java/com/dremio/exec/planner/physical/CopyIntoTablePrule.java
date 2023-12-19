@@ -20,7 +20,7 @@ import org.apache.calcite.plan.RelOptRuleCall;
 
 import com.dremio.exec.catalog.DremioPrepareTable;
 import com.dremio.exec.ops.OptimizerRulesContext;
-import com.dremio.exec.planner.CopyIntoTablePlanBuilder;
+import com.dremio.exec.planner.CopyIntoPlanBuilder;
 import com.dremio.exec.planner.logical.CopyIntoTableRel;
 import com.dremio.exec.planner.logical.RelOptHelper;
 import com.dremio.exec.store.TableMetadata;
@@ -44,8 +44,9 @@ public class CopyIntoTablePrule extends RelOptRule {
   }
 
   public Prel getPhysicalPlan(CopyIntoTableRel copyIntoTableRel, TableMetadata tableMetadata) {
-    CopyIntoTablePlanBuilder planBuilder = new CopyIntoTablePlanBuilder(
+    CopyIntoPlanBuilder planBuilder = new CopyIntoPlanBuilder(
       copyIntoTableRel.getTable(),
+      copyIntoTableRel.getRowType(),
       copyIntoTableRel.getCluster(),
       copyIntoTableRel.getTraitSet().plus(Prel.PHYSICAL),
       tableMetadata,

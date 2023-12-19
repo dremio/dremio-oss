@@ -16,11 +16,13 @@
 package com.dremio.datastore;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.FindByRange;
 import com.dremio.datastore.api.ImmutableFindByRange;
+import com.dremio.datastore.api.IncrementCounter;
 import com.dremio.datastore.api.KVStore;
 import com.google.common.base.Objects;
 import com.google.common.collect.Iterables;
@@ -98,6 +100,21 @@ public class LocalKVStore<K, V> implements KVStore<K, V> {
       .build();
 
     return Iterables.transform(coreKVStore.find(convertedRange, options), this::fromDocument);
+  }
+
+  @Override
+  public void bulkIncrement(Map<K, List<IncrementCounter>> keysToIncrement, IncrementOption option) {
+    final Map<KVStoreTuple<K>, List<IncrementCounter>> convertedKeys = keysToIncrement.entrySet().stream()
+      .collect(Collectors.toMap(e -> buildKey(e.getKey()), Map.Entry::getValue));
+    coreKVStore.bulkIncrement(convertedKeys, option);
+  }
+
+  @Override
+  public void bulkDelete(List<K> keysToDelete) {
+    final List<KVStoreTuple<K>> convertedKeys = keysToDelete.stream()
+      .map(this::buildKey)
+      .collect(Collectors.toList());
+    coreKVStore.bulkDelete(convertedKeys);
   }
 
   @Override

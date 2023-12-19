@@ -196,7 +196,7 @@ class ReplaceFooter extends PureComponent {
         {select && (
           <div className={wrap}>
             <span style={{ ...formLabel, marginBottom: 8 }}>
-              {la("Replace")}
+              {laDeprecated("Replace")}
             </span>
             <div className={replacementType} style={{ background: "white" }}>
               {select}
@@ -205,7 +205,7 @@ class ReplaceFooter extends PureComponent {
         )}
         <div className={wrap}>
           <span style={{ ...formLabel, marginBottom: 8 }}>
-            {la("Replacement value")}
+            {laDeprecated("Replacement value")}
           </span>
           <div className={replacementValueCls}>
             <Radio {...replaceType} radioValue="VALUE" label="Value" />

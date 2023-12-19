@@ -200,13 +200,15 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
   }
 
   private static Type maxTemporal(Type t1, Type t2){
-    switch(t1) {
+    switch (t1) {
       case DATE:
         return t2.equals(Type.DATE) ? Type.DATE : Type.TIMESTAMP;
       case TIME:
         return t2.equals(Type.TIME) ? Type.TIME : Type.TIMESTAMP;
       case TIMESTAMP:
         return Type.TIMESTAMP;
+      default:
+        break;
     }
 
     throw new IllegalStateException("Only temporal types should be compared with this function.");
@@ -345,7 +347,7 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
         return null;
       }
 
-      if (!Objects.equal(formats, field.formats)) {
+      if (!dateFormatEquals(formats, field.formats)) {
         logDataReadErrorHelper(field, curr_mapping, other_mapping, curr_index, other_index, "date format schemes", formats.toString(), field.formats.toString());
         this.type = Type.UNKNOWN;
         field.type = Type.UNKNOWN;
@@ -364,6 +366,29 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
 
       // we just have different fields. Let's merge them.
       return new ElasticField(name, mergedType, indexing, normalized, formats, docValues, mergeFields(mapping, children, field.children, curr_mapping, other_mapping, curr_index, other_index), fields);
+    }
+
+    private boolean dateFormatEquals(List<String> formatListA, List<String> formatListB) {
+      // Compare two date formats.  If they are equal, we are good.  If not, check to
+      // see whether one has a Joda timestamp string and the other has a Java timestamp
+      // string and if so, treat them as equal.
+      if (Objects.equal(formatListA, formatListB)) {
+        return true;
+      }
+
+      // Treat date formats ending with .SSSZZ and .SSSXX as the same for comparison purposes.
+      final String timestampZ = ".SSSZZ"; // Specific to Joda time format
+      final String timestampX = ".SSSXX"; // Specific to Java time format
+      final List<String> a = new ArrayList<>();
+      final List<String> b = new ArrayList<>();
+
+      for (String fA : formatListA) {
+        a.add(fA.replace(timestampZ, timestampX));
+      }
+      for (String fB : formatListB) {
+        b.add(fB.replace(timestampZ, timestampX));
+      }
+      return Objects.equal(a, b);
     }
 
     public void logDataReadErrorHelper(ElasticField field, String curr_mapping, String other_mapping, String curr_index, String other_index, String diff, String first, String second) {

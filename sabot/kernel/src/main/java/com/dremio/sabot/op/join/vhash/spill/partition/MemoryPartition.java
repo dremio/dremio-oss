@@ -341,6 +341,21 @@ final class MemoryPartition implements Partition, CanSwitchToSpilling {
       public long getProbeUnmatchedKeyCount() {
         return probe == null ? 0 : probe.getUnmatchedProbeCount();
       }
+
+      @Override
+      public long getEvaluationCount() {
+        return probe == null ? 0 : probe.getEvaluationCount();
+      }
+
+      @Override
+      public long getEvaluationMatchedCount() {
+        return probe == null ? 0 : probe.getEvaluationMatchedCount();
+      }
+
+      @Override
+      public long getSetupNanos() {
+        return probe == null ? 0 : probe.getSetupNanos();
+      }
     };
   }
 

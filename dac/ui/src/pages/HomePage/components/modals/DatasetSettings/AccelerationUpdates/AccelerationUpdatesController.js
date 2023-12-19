@@ -68,11 +68,11 @@ export class AccelerationUpdatesController extends Component {
     dataset: null,
   };
 
-  componentWillMount() {
+  UNSAFE_componentWillMount() {
     this.receiveProps(this.props, {});
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     if (!this.props.formatUrl) {
       this.loadFormat(nextProps);
     }

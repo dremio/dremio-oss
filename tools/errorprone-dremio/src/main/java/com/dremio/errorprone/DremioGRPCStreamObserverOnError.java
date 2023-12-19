@@ -19,6 +19,7 @@ import static com.google.errorprone.BugPattern.SeverityLevel.ERROR;
 
 import com.google.auto.service.AutoService;
 import com.google.errorprone.BugPattern;
+import com.google.errorprone.BugPattern.LinkType;
 import com.google.errorprone.VisitorState;
 import com.google.errorprone.bugpatterns.BugChecker;
 import com.google.errorprone.bugpatterns.BugChecker.MethodInvocationTreeMatcher;
@@ -37,7 +38,8 @@ import java.util.List;
 
 @BugPattern(
     summary = "StreamObserver.onError must be called with io.grpc.Status(Runtime)Exception",
-    severity = ERROR)
+    severity = ERROR,
+    linkType = LinkType.NONE)
 @AutoService(BugChecker.class)
 public class DremioGRPCStreamObserverOnError extends BugChecker
     implements MethodInvocationTreeMatcher {

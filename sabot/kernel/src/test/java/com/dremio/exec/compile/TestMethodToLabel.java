@@ -23,7 +23,7 @@ import com.dremio.exec.expr.fn.FunctionInitializer;
 
 public class TestMethodToLabel {
   private static final String TEST_CLAZZ_FQN_PREFIX = "com.dremio.exec.expr.fn.impl";
-  private static final String TEST_CLAZZ_NAME = "CharSubstring";
+  private static final String TEST_CLAZZ_NAME = "ByteSubstring";
   private static final String TEST_CLAZZ_FQN = TEST_CLAZZ_FQN_PREFIX + "." + TEST_CLAZZ_NAME;
 
   @Test

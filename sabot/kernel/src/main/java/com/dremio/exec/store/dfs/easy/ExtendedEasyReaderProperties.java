@@ -18,15 +18,15 @@ package com.dremio.exec.store.dfs.easy;
 import com.dremio.exec.physical.config.ExtendedFormatOptions;
 
 /**
- * Holds extra properties require to constructor RecordReaders
+ * Holds extra properties require to construct RecordReaders
  */
-public class ExtendedEasyReaderProperties {
-  boolean schemaImposed;
-  ExtendedFormatOptions extendedFormatOptions;
+public final class ExtendedEasyReaderProperties {
+  private final boolean schemaImposed;
+  private final ExtendedFormatOptions extendedFormatOptions;
 
-  public ExtendedEasyReaderProperties(boolean schemaImposed, ExtendedFormatOptions extendedFormatOptions) {
-    this.schemaImposed = schemaImposed;
-    this.extendedFormatOptions = extendedFormatOptions;
+  private ExtendedEasyReaderProperties(Builder builder) {
+    this.schemaImposed = builder.schemaImposed;
+    this.extendedFormatOptions = builder.extendedFormatOptions;
   }
 
   public boolean isSchemaImposed() {
@@ -35,5 +35,19 @@ public class ExtendedEasyReaderProperties {
 
   public ExtendedFormatOptions getExtendedFormatOptions() {
     return extendedFormatOptions;
+  }
+
+  public static class Builder {
+    private final boolean schemaImposed;
+    private final ExtendedFormatOptions extendedFormatOptions;
+
+    public Builder(boolean schemaImposed, ExtendedFormatOptions extendedFormatOptions) {
+      this.schemaImposed = schemaImposed;
+      this.extendedFormatOptions = extendedFormatOptions;
+    }
+
+    public ExtendedEasyReaderProperties build() {
+      return new ExtendedEasyReaderProperties(this);
+    }
   }
 }

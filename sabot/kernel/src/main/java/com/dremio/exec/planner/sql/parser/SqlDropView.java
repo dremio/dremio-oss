@@ -28,27 +28,48 @@ import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
 import com.dremio.service.namespace.NamespaceKey;
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 
 public class SqlDropView extends SqlCall {
+  private static final SqlLiteral sqlLiteralNull = SqlLiteral.createNull(SqlParserPos.ZERO);
+
   public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("DROP_VIEW", SqlKind.DROP_VIEW) {
     @Override
     public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      return new SqlDropView(pos, (SqlIdentifier) operands[0], (SqlLiteral) operands[1]);
+      return new SqlDropView(
+        pos,
+        (SqlIdentifier) operands[0],
+        (SqlLiteral) operands[1],
+        ((SqlLiteral) operands[2]).symbolValue(ReferenceType.class),
+        (SqlIdentifier) operands[3]);
     }
   };
 
   private SqlIdentifier viewName;
-  private boolean viewExistenceCheck;
+  private boolean shouldErrorIfViewDoesNotExist;
+  private ReferenceType refType;
+  private SqlIdentifier refValue;
 
-  public SqlDropView(SqlParserPos pos, SqlIdentifier viewName, SqlLiteral viewExistenceCheck) {
-    this(pos, viewName, viewExistenceCheck.booleanValue());
+  public SqlDropView(
+    SqlParserPos pos,
+    SqlIdentifier viewName,
+    SqlLiteral shouldErrorIfViewDoesNotExist,
+    ReferenceType referenceType,
+    SqlIdentifier refValue) {
+    this(pos, viewName, shouldErrorIfViewDoesNotExist.booleanValue(), referenceType, refValue);
   }
 
-  public SqlDropView(SqlParserPos pos, SqlIdentifier viewName, boolean viewExistenceCheck) {
+  public SqlDropView(
+    SqlParserPos pos,
+    SqlIdentifier viewName,
+    boolean shouldErrorIfViewDoesNotExist,
+    ReferenceType referenceType,
+    SqlIdentifier refValue) {
     super(pos);
     this.viewName = viewName;
-    this.viewExistenceCheck = viewExistenceCheck;
+    this.shouldErrorIfViewDoesNotExist = shouldErrorIfViewDoesNotExist;
+    this.refType = referenceType;
+    this.refValue = refValue;
   }
 
   @Override
@@ -58,11 +79,11 @@ public class SqlDropView extends SqlCall {
 
   @Override
   public List<SqlNode> getOperandList() {
-    final List<SqlNode> ops =
-        ImmutableList.of(
-            viewName,
-            SqlLiteral.createBoolean(viewExistenceCheck, SqlParserPos.ZERO)
-        );
+    List<SqlNode> ops = Lists.newArrayList();
+    ops.add(viewName);
+    ops.add(SqlLiteral.createBoolean(shouldErrorIfViewDoesNotExist, SqlParserPos.ZERO));
+    ops.add(getRefType() == null ? sqlLiteralNull: SqlLiteral.createSymbol(getRefType(), SqlParserPos.ZERO));
+    ops.add(refValue);
     return ops;
   }
 
@@ -70,19 +91,32 @@ public class SqlDropView extends SqlCall {
   public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
     writer.keyword("DROP");
     writer.keyword("VIEW");
-    if (viewExistenceCheck) {
+    if (!shouldErrorIfViewDoesNotExist) {
       writer.keyword("IF");
       writer.keyword("EXISTS");
     }
     viewName.unparse(writer, leftPrec, rightPrec);
+    if (refType != null && refValue != null) {
+      writer.keyword("AT");
+      writer.keyword(refType.toString());
+      refValue.unparse(writer, leftPrec, rightPrec);
+    }
   }
 
   public NamespaceKey getPath() {
     return new NamespaceKey(viewName.names);
   }
 
-  public boolean checkViewExistence() {
-    return viewExistenceCheck;
+  public ReferenceType getRefType() {
+    return refType;
+  }
+
+  public SqlIdentifier getRefValue() {
+    return refValue;
+  }
+
+  public boolean shouldErrorIfViewDoesNotExist() {
+    return shouldErrorIfViewDoesNotExist;
   }
 
 }

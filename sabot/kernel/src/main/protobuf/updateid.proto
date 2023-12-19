@@ -21,10 +21,16 @@ option java_package = "com.dremio.proto.model";
 option optimize_for = SPEED;
 
 message UpdateId {
+  enum IdType {
+    MTIME = 1;
+    FIELD = 2;
+    SNAPSHOT = 3;
+  }
   optional common.MinorType type = 1;
   optional int32 int_update_id = 2;
   optional int64 long_update_id = 3;
   optional string string_update_id = 4;
   optional double double_update_id = 5;
   optional float float_update_id = 6;
+  optional IdType update_id_type = 7;
 }

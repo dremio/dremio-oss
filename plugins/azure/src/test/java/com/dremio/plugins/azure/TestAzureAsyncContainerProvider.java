@@ -45,7 +45,6 @@ import org.asynchttpclient.HttpResponseStatus;
 import org.asynchttpclient.ListenableFuture;
 import org.asynchttpclient.Request;
 import org.asynchttpclient.Response;
-import org.junit.Assert;
 import org.junit.Test;
 
 import com.dremio.common.util.Retryer;
@@ -121,9 +120,9 @@ public class TestAzureAsyncContainerProvider {
     });
 
     AzureStorageFileSystem parentClass = mock(AzureStorageFileSystem.class);
-    AzureAuthTokenProvider authTokenProvider = getMockAuthTokenProvider();
+    AzureStorageCredentials credentials = getMockStorageCredentials();
     AzureAsyncContainerProvider containerProvider = new AzureAsyncContainerProvider(
-      client, AZURE_ENDPOINT, "azurestoragev2hier", authTokenProvider, parentClass, true);
+      client, AZURE_ENDPOINT, "azurestoragev2hier", credentials, parentClass, true);
 
     List<String> receivedContainers = containerProvider.getContainerCreators()
       .map(AzureStorageFileSystem.ContainerCreatorImpl.class::cast)
@@ -168,9 +167,9 @@ public class TestAzureAsyncContainerProvider {
     });
 
     AzureStorageFileSystem parentClass = mock(AzureStorageFileSystem.class);
-    AzureAuthTokenProvider authTokenProvider = getMockAuthTokenProvider();
+    AzureStorageCredentials credentials = getMockStorageCredentials();
     AzureAsyncContainerProvider containerProvider = new AzureAsyncContainerProvider(
-      client, AZURE_ENDPOINT, "azurestoragev2hier", authTokenProvider, parentClass, true);
+      client, AZURE_ENDPOINT, "azurestoragev2hier", credentials, parentClass, true);
 
     List<String> receivedContainers = containerProvider.getContainerCreators()
       .map(AzureStorageFileSystem.ContainerCreatorImpl.class::cast)
@@ -184,7 +183,7 @@ public class TestAzureAsyncContainerProvider {
   @Test
   public void testDoesContainerExists() throws ExecutionException, InterruptedException {
     AzureStorageFileSystem parentClass = mock(AzureStorageFileSystem.class);
-    AzureAuthTokenProvider authTokenProvider = getMockAuthTokenProvider();
+    AzureStorageCredentials credentials = getMockStorageCredentials();
     AsyncHttpClient client = mock(AsyncHttpClient.class);
     Response response = mock(Response.class);
     when(response.getHeader(any(String.class))).thenReturn("");
@@ -194,14 +193,14 @@ public class TestAzureAsyncContainerProvider {
     when(client.executeRequest(any(Request.class))).thenReturn(future);
 
     AzureAsyncContainerProvider containerProvider = new AzureAsyncContainerProvider(
-      client, AZURE_ENDPOINT, "azurestoragev2hier", authTokenProvider, parentClass, true);
+      client, AZURE_ENDPOINT, "azurestoragev2hier", credentials, parentClass, true);
     containerProvider.assertContainerExists("container");
   }
 
   @Test
   public void testWhiteListValidation() throws IOException, ExecutionException, InterruptedException {
     AzureStorageFileSystem parentClass = mock(AzureStorageFileSystem.class);
-    AzureAuthTokenProvider authTokenProvider = getMockAuthTokenProvider();
+    AzureStorageCredentials credentials = getMockStorageCredentials();
     AsyncHttpClient client = mock(AsyncHttpClient.class);
     Response response = mock(Response.class);
     when(response.getHeader(any(String.class))).thenReturn("");
@@ -211,7 +210,7 @@ public class TestAzureAsyncContainerProvider {
     when(client.executeRequest(any(Request.class))).thenReturn(future);
 
     AzureAsyncContainerProvider containerProvider = new AzureAsyncContainerProvider(
-      client, AZURE_ENDPOINT, "azurestoragev2hier", authTokenProvider, parentClass, true, new String[] {"tempContainer"}, null);
+      client, AZURE_ENDPOINT, "azurestoragev2hier", credentials, parentClass, true, new String[] {"tempContainer"}, null);
 
     UserExceptionAssert.assertThatThrownBy(containerProvider::verfiyContainersExist)
       .hasMessageContaining("Failure while validating existence of container tempContainer. Error: rootPath null  in container tempContainer is not found - [404 null]");
@@ -220,7 +219,7 @@ public class TestAzureAsyncContainerProvider {
   @Test
   public void testDoesContainerExistsNotFound() throws ExecutionException, InterruptedException {
     AzureStorageFileSystem parentClass = mock(AzureStorageFileSystem.class);
-    AzureAuthTokenProvider authTokenProvider = getMockAuthTokenProvider();
+    AzureStorageCredentials credentials = getMockStorageCredentials();
     AsyncHttpClient client = mock(AsyncHttpClient.class);
     Response response = mock(Response.class);
     when(response.getHeader(any(String.class))).thenReturn("");
@@ -231,7 +230,7 @@ public class TestAzureAsyncContainerProvider {
     when(client.executeRequest(any(Request.class))).thenReturn(future);
 
     AzureAsyncContainerProvider containerProvider = new AzureAsyncContainerProvider(
-            client, AZURE_ENDPOINT, "azurestoragev2hier", authTokenProvider, parentClass, true);
+            client, AZURE_ENDPOINT, "azurestoragev2hier", credentials, parentClass, true);
     try {
       containerProvider.assertContainerExists("container");
       fail("Expecting exception");
@@ -247,7 +246,7 @@ public class TestAzureAsyncContainerProvider {
   @Test
   public void testDoesContainerExistsAccessDenied() throws ExecutionException, InterruptedException {
     AzureStorageFileSystem parentClass = mock(AzureStorageFileSystem.class);
-    AzureAuthTokenProvider authTokenProvider = getMockAuthTokenProvider();
+    AzureStorageCredentials credentials = getMockStorageCredentials();
     AsyncHttpClient client = mock(AsyncHttpClient.class);
     Response response = mock(Response.class);
     when(response.getHeader(any(String.class))).thenReturn("");
@@ -257,7 +256,7 @@ public class TestAzureAsyncContainerProvider {
     when(client.executeRequest(any(Request.class))).thenReturn(future);
 
     AzureAsyncContainerProvider containerProvider = new AzureAsyncContainerProvider(
-      client, AZURE_ENDPOINT, "azurestoragev2hier", authTokenProvider, parentClass, true);
+      client, AZURE_ENDPOINT, "azurestoragev2hier", credentials, parentClass, true);
     try {
       containerProvider.assertContainerExists("container");
       fail("Expecting exception");
@@ -330,9 +329,9 @@ public class TestAzureAsyncContainerProvider {
     });
 
     AzureStorageFileSystem parentClass = mock(AzureStorageFileSystem.class);
-    AzureAuthTokenProvider authTokenProvider = getMockAuthTokenProvider();
+    AzureStorageCredentials credentials = getMockStorageCredentials();
     AzureAsyncContainerProvider containerProvider = new AzureAsyncContainerProvider(
-            client, AZURE_ENDPOINT, "azurestoragev2hier", authTokenProvider, parentClass, true);
+            client, AZURE_ENDPOINT, "azurestoragev2hier", credentials, parentClass, true);
 
     List<String> receivedContainers = containerProvider.getContainerCreators()
             .map(AzureStorageFileSystem.ContainerCreatorImpl.class::cast)
@@ -343,54 +342,6 @@ public class TestAzureAsyncContainerProvider {
     assertEquals(expectedContainers, receivedContainers);
   }
 
-  @Test
-  public void testOAuthURLValidation() {
-    List<String> emptyOauthURLs = Arrays.asList(null, "");
-    List<String> validOauthURLs = Arrays.asList(
-      "https://login.microsoftonline.com/tenantid/oauth2/token",
-      "https://www.microsoftonline.com/tenantid/oauth2/token");
-    List<String> invalidOauthURLs = Arrays.asList(
-      "http:///",
-      "https:///",
-      "https://login.microsoftonline.com/",
-      "https://login.microsoftonline.com/tenantid",
-      "https://login.microsoftonline.com/tenantid/",
-      "https://login.microsoftonline.com/tenantid/oauth2",
-      "https://login.microsoftonline.com/tenantid/oauth2.0/token",
-      "http://login.microsoftonline.com/tenantid/oauth2/token",
-      "https://login.microsoftonline.com/tenantid/oauth2/tokens");
-    int emptyOauthURLsCount = 0;
-    int validOauthURLsCount = 0;
-    int invalidOauthURLsCount = 0;
-    for(String url : emptyOauthURLs) {
-      try {
-        AzureOAuthTokenProvider.validateOAuthURL(url);
-      } catch (Exception exception) {
-        emptyOauthURLsCount++;
-        Assert.assertEquals(exception.getMessage(), "OAuth 2.0 Token Endpoint cannot be empty.");
-      }
-    }
-    for(String url : validOauthURLs) {
-      try {
-        AzureOAuthTokenProvider.validateOAuthURL(url);
-        validOauthURLsCount++;
-      } catch (Exception ignore) {
-        System.out.println(ignore);
-      }
-    }
-    for(String url : invalidOauthURLs) {
-      try {
-        AzureOAuthTokenProvider.validateOAuthURL(url);
-      } catch (Exception exception) {
-        invalidOauthURLsCount++;
-        Assert.assertEquals(exception.getMessage(), "Invalid OAuth 2.0 Token Endpoint. Expected format is https://<host>/<tenantId>/oauth2/token");
-      }
-    }
-    Assert.assertEquals(emptyOauthURLsCount, emptyOauthURLs.size());
-    Assert.assertEquals(validOauthURLsCount, validOauthURLs.size());
-    Assert.assertEquals(invalidOauthURLsCount, invalidOauthURLs.size());
-  }
-
   private byte[] readStaticResponse(String fileName) throws IOException {
     // response is big, hence kept in a separate file within test/resources folder
     try (InputStream is = this.getClass().getClassLoader().getResourceAsStream(fileName)) {
@@ -398,10 +349,10 @@ public class TestAzureAsyncContainerProvider {
     }
   }
 
-  private AzureAuthTokenProvider getMockAuthTokenProvider() {
-    AzureAuthTokenProvider authTokenProvider = mock(AzureAuthTokenProvider.class);
-    when(authTokenProvider.checkAndUpdateToken()).thenReturn(false);
-    when(authTokenProvider.getAuthzHeaderValue(any(Request.class))).thenReturn("Bearer testtoken");
-    return authTokenProvider;
+  private AzureStorageCredentials getMockStorageCredentials() {
+    AzureStorageCredentials credentials= mock(AzureStorageCredentials.class);
+    when(credentials.checkAndUpdateToken()).thenReturn(false);
+    when(credentials.getAuthzHeaderValue(any(Request.class))).thenReturn("Bearer testtoken");
+    return credentials;
   }
 }

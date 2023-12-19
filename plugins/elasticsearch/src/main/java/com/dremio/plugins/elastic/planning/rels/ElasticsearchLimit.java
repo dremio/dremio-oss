@@ -33,11 +33,11 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.exec.calcite.logical.SampleCrel;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.common.LimitRelBase;
+import com.dremio.exec.planner.common.SampleRelBase;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.cost.DremioCost.Factory;
 import com.dremio.exec.planner.physical.PhysicalPlanCreator;
@@ -105,7 +105,7 @@ public class ElasticsearchLimit extends LimitRelBase implements ElasticsearchPre
       return this;
     }
 
-    long sampleSize = SampleCrel.getSampleSizeAndSetMinSampleSize(PrelUtil.getPlannerSettings(getCluster().getPlanner()), ElasticSampleRule.SAMPLE_SIZE_DENOMINATOR);
+    long sampleSize = SampleRelBase.getSampleSizeAndSetMinSampleSize(PrelUtil.getPlannerSettings(getCluster().getPlanner()), ElasticSampleRule.SAMPLE_SIZE_DENOMINATOR);
     int limitAmount = RexLiteral.intValue(getFetch());
     int finalLimit = Math.min((int) sampleSize,  limitAmount);
     RexNode offset = getCluster().getRexBuilder().makeExactLiteral(BigDecimal.valueOf(0), getCluster().getTypeFactory().createSqlType(SqlTypeName.INTEGER));

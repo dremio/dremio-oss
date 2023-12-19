@@ -304,6 +304,17 @@ public class VectorizedProbe implements AutoCloseable {
     return unmatchedCursor == null ? 0 : unmatchedCursor.getUnmatchedBuildKeyCount();
   }
 
+  public long getEvaluationCount() {
+    return extraMatcher.getEvaluationCount();
+  }
+
+  public long getEvaluationMatchedCount() {
+    return extraMatcher.getEvaluationMatchedCount();
+  }
+
+  public long getSetupNanos() {
+    return extraMatcher.getSetupNanos();
+  }
   @Override
   public void close() throws Exception {
   }

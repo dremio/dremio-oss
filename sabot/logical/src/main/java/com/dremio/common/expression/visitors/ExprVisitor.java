@@ -15,6 +15,7 @@
  */
 package com.dremio.common.expression.visitors;
 
+import com.dremio.common.expression.ArrayLiteralExpression;
 import com.dremio.common.expression.BooleanOperator;
 import com.dremio.common.expression.CaseExpression;
 import com.dremio.common.expression.CastExpression;
@@ -70,6 +71,7 @@ public interface ExprVisitor<T, VAL, EXCEP extends Exception> {
   T visitInputReference(InputReference e, VAL value) throws EXCEP;
   T visitOrdering(Ordering e, VAL value) throws EXCEP;
   T visitListAggExpression(ListAggExpression e, VAL value) throws EXCEP;
+  T visitArrayLiteralExpression(ArrayLiteralExpression e, VAL value) throws EXCEP;
   default T visitInExpression(InExpression e, VAL value) throws EXCEP {
     return visitUnknown(e, value);
   }

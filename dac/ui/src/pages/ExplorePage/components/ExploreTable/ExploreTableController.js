@@ -103,6 +103,7 @@ export class ExploreTableController extends PureComponent {
     getTableHeight: PropTypes.func,
     shouldRenderInvisibles: PropTypes.bool,
     columnFilter: PropTypes.string,
+    isMultiQueryRunning: PropTypes.bool,
     // Actions
     resetViewState: PropTypes.func,
     transformHistoryCheck: PropTypes.func,
@@ -157,7 +158,7 @@ export class ExploreTableController extends PureComponent {
     };
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     const { isGrayed } = this.state;
     const isContextChanged = this.isContextChanged(nextProps);
 
@@ -183,7 +184,8 @@ export class ExploreTableController extends PureComponent {
   }
 
   componentDidUpdate(prevProps) {
-    const { jobIdList, sqlList, currentJobsMap } = this.props;
+    const { jobIdList, sqlList, currentJobsMap, isMultiQueryRunning } =
+      this.props;
     if (
       currentJobsMap &&
       (prevProps.jobIdList.length !== jobIdList.length ||
@@ -193,6 +195,10 @@ export class ExploreTableController extends PureComponent {
         prevProps.jobIdList.length !== jobIdList.length,
         prevProps.sqlList.length !== sqlList.length
       );
+    }
+
+    if (isMultiQueryRunning && !prevProps.isMultiQueryRunning) {
+      this.hideDrop();
     }
   }
 
@@ -479,7 +485,7 @@ export class ExploreTableController extends PureComponent {
     ) : null;
   }
 
-  renderButtonsForJobsList(status, jobId) {
+  renderButtonsForJobsList(status, jobId, jobAttempts) {
     const { cancelJob } = this.props;
     const projectId = getSonarContext().getSelectedProjectId?.();
 
@@ -500,7 +506,9 @@ export class ExploreTableController extends PureComponent {
           tooltip="Job.Open.External"
           onClick={() => {
             const jobTabPath = jobsUtils.isNewJobsPage()
-              ? jobPaths.job.link({ jobId, projectId })
+              ? `${jobPaths.job.link({ jobId, projectId })}${
+                  jobAttempts ? `?attempts=${jobAttempts || 1}` : ""
+                }`
               : `/jobs#${jobId}`;
             window.open(jobTabPath, "_blank");
           }}
@@ -761,6 +769,7 @@ function mapStateToProps(state, ownProps) {
       previousMultiSql: exploreState.view.previousMultiSql,
       queryStatuses: exploreState.view.queryStatuses,
       queryFilter: exploreState.view.queryFilter,
+      isMultiQueryRunning: exploreState.view.isMultiQueryRunning,
     };
     queryStatuses = exploreState.view.queryStatuses;
   }
@@ -772,6 +781,7 @@ function mapStateToProps(state, ownProps) {
   const previewVersion = location.state && location.state.previewVersion;
   const currentDataset =
     queryStatuses && queryStatuses[ownProps.queryTabNumber - 1];
+
   const curDatasetVersion =
     currentDataset && queryStatuses.length === 1
       ? location.query.version
@@ -792,7 +802,7 @@ function mapStateToProps(state, ownProps) {
 
   return {
     tableData: tableData || Immutable.fromJS({ rows: null, columns: [] }),
-    columnFilter: getColumnFilter(state),
+    columnFilter: getColumnFilter(state, curDatasetVersion),
     previewVersion,
     paginationUrl,
     location,

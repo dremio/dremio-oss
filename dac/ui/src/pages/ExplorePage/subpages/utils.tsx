@@ -43,7 +43,7 @@ export const assemblePendingOrRunningTabContent = (
   const tabStatusArr = queryStatuses.map((query, index) => {
     const obj = {} as StatusObjectType;
 
-    if (statusesArray[index] === "RUNNING") {
+    if (statusesArray[index] === JOB_STATUS.running) {
       obj.renderIcon = statusesArray[index];
       obj.text = <FormattedMessage id="NewQuery.Running" />;
       obj.buttonFunc = () => {
@@ -89,20 +89,22 @@ export const assemblePendingOrRunningTabContent = (
   return tabStatusArr;
 };
 
-const EXPLORE_HEADER_HEIGHT = 54;
+export const EXPLORE_HEADER_HEIGHT = 54;
 const NAV_CRUMBS_HEIGHT = 40;
 
-export const getExploreContentHeight = memoOne((offsetHeight, windowHeight) => {
-  let contentHeight =
-    windowHeight <= EXPLORE_PAGE_MIN_HEIGHT
-      ? EXPLORE_PAGE_MIN_HEIGHT
-      : windowHeight;
+export const getExploreContentHeight = memoOne(
+  (offsetHeight, windowHeight, headerHeight) => {
+    let contentHeight =
+      windowHeight <= EXPLORE_PAGE_MIN_HEIGHT
+        ? EXPLORE_PAGE_MIN_HEIGHT
+        : windowHeight;
 
-  if (offsetHeight) {
-    contentHeight = contentHeight - offsetHeight;
+    if (offsetHeight) {
+      contentHeight = contentHeight - offsetHeight;
+    }
+    if (showNavCrumbs) {
+      contentHeight = contentHeight - NAV_CRUMBS_HEIGHT;
+    }
+    return contentHeight - headerHeight;
   }
-  if (showNavCrumbs) {
-    contentHeight = contentHeight - NAV_CRUMBS_HEIGHT;
-  }
-  return contentHeight - EXPLORE_HEADER_HEIGHT;
-});
+);

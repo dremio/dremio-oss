@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.dremio.common.expression.ArrayLiteralExpression;
 import com.dremio.common.expression.BooleanOperator;
 import com.dremio.common.expression.CaseExpression;
 import com.dremio.common.expression.CastExpression;
@@ -177,6 +178,11 @@ public class ConstantExpressionIdentifier implements ExprVisitor<Boolean, Consta
 
   @Override
   public Boolean visitListAggExpression(ListAggExpression e, ConstantExtractor value) throws RuntimeException {
+    return false;
+  }
+
+  @Override
+  public Boolean visitArrayLiteralExpression(ArrayLiteralExpression e, ConstantExtractor value) throws RuntimeException {
     return false;
   }
 
@@ -463,6 +469,14 @@ public class ConstantExpressionIdentifier implements ExprVisitor<Boolean, Consta
       }
       return constants;
     }
-  }
 
+    @Override
+    public Set<LogicalExpression> visitArrayLiteralExpression(ArrayLiteralExpression e, Set<LogicalExpression> constants) throws RuntimeException {
+      for (LogicalExpression arg : e.getItems()) {
+        arg.accept(this, constants);
+      }
+
+      return constants;
+    }
+  }
 }

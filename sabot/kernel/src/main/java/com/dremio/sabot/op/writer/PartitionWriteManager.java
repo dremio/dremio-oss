@@ -15,7 +15,7 @@
  */
 package com.dremio.sabot.op.writer;
 
-import static java.lang.String.format;
+import static com.dremio.exec.store.iceberg.IcebergUtils.isIdentityPartitionColumn;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -93,13 +93,14 @@ class PartitionWriteManager {
     }
 
     List<String> partitionColumns = null;
+    Set<String> nonIdentityPartitionColumns = null;
     boolean isIcebergPartitionSpecNull = true;
     PartitionSpec partitionSpec = Optional.ofNullable(options.getTableFormatOptions().getIcebergSpecificOptions()
         .getIcebergTableProps()).map(props -> props.getDeserializedPartitionSpec()).orElse(null);
-
     if (isIcebergWriter && partitionSpec != null) {
       icebergPartitionSpec = partitionSpec;
       partitionColumns = getPartitionSpecColumns(icebergPartitionSpec);
+      nonIdentityPartitionColumns = getNonIdentityPartitionSpecColumns(icebergPartitionSpec);
       isIcebergPartitionSpecNull = false;
     } else {
       partitionColumns = options.getPartitionColumns();
@@ -110,7 +111,7 @@ class PartitionWriteManager {
       if (partitionValueField != null) {
         partitionFields.add(partitionValueField.getFinalType());
         partitions.add(incoming.getValueAccessorById(ValueVector.class, partitionValueField.getFieldIds()).getValueVector());
-        if (isIcebergWriter && !isIcebergPartitionSpecNull) {
+        if (isIcebergWriter && !isIcebergPartitionSpecNull && nonIdentityPartitionColumns.contains(column)) {
           maskedIds.add(partitionValueField.getFieldIds()[0]); // Mask in case of icebergWriter
         }
       } else {
@@ -151,9 +152,9 @@ class PartitionWriteManager {
     if (isIcebergWriter && icebergPartitionSpec != null) {
       icebergPartitionData = new IcebergPartitionData(this.icebergPartitionSpec.partitionType());
     }
-    String[] paths = new String[partitions.size()];
-    for(int i = 0; i < paths.length; i++){
-      paths[i] = format("%s_%s", offset, fromObj(partitions.get(i).getObject(offset)));
+    String[] partitionValues = new String[partitions.size()];
+    for(int i = 0; i < partitionValues.length; i++){
+      partitionValues[i] = fromObj(partitions.get(i).getObject(offset));
       if (icebergPartitionData != null) {
         icebergPartitionData.set(i, partitionFields.get(i), partitions.get(i), offset);
       }
@@ -161,7 +162,7 @@ class PartitionWriteManager {
 
     final Integer bucketNumberValue = bucketNumber == null ? null : bucketNumber.get(offset);
 
-    return new WritePartition(paths, bucketNumberValue, icebergPartitionData);
+    return new WritePartition(partitionValues, offset, bucketNumberValue, icebergPartitionData);
   }
 
 
@@ -191,6 +192,21 @@ class PartitionWriteManager {
   }
 
   List<String> getPartitionSpecColumns(PartitionSpec partitionSpec) {
-    return partitionSpec.fields().stream().map(IcebergUtils::getPartitionFieldName).collect(Collectors.toList());
+    return partitionSpec
+      .fields()
+      .stream()
+      // the original partition column name is used for identity partition columns
+      // we don't add "_identity" suffix
+      .map(IcebergUtils::getPartitionFieldName)
+      .collect(Collectors.toList());
+  }
+
+  private Set<String> getNonIdentityPartitionSpecColumns(PartitionSpec partitionSpec) {
+    return partitionSpec
+      .fields()
+      .stream()
+      .filter(partitionField -> !isIdentityPartitionColumn(partitionField))
+      .map(IcebergUtils::getPartitionFieldName) // column name from schema
+      .collect(Collectors.toSet());
   }
 }

@@ -26,7 +26,6 @@ import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
-import com.dremio.exec.calcite.logical.SampleCrel;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
@@ -51,7 +50,7 @@ public class ElasticsearchSample extends SampleRelBase implements ElasticsearchP
     super(cluster, traits, input);
     this.pluginId = pluginId;
     final PlannerSettings plannerSettings = PrelUtil.getPlannerSettings(cluster.getPlanner());
-    fetchSize = (int) SampleCrel.getSampleSizeAndSetMinSampleSize(plannerSettings, SAMPLE_SIZE_DENOMINATOR);
+    fetchSize = (int) SampleRelBase.getSampleSizeAndSetMinSampleSize(plannerSettings, SAMPLE_SIZE_DENOMINATOR);
   }
 
   @Override

@@ -31,7 +31,7 @@ import static javax.ws.rs.client.Entity.entity;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.glassfish.jersey.CommonProperties.FEATURE_AUTO_DISCOVERY_DISABLE;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.File;
 import java.io.IOException;
@@ -64,6 +64,7 @@ import org.assertj.core.api.AssertionsForClassTypes;
 import org.eclipse.jetty.http.HttpHeader;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.io.TempDir;
@@ -74,6 +75,7 @@ import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.perf.Timer;
 import com.dremio.common.perf.Timer.TimedBlock;
 import com.dremio.common.util.TestTools;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.daemon.DACDaemon;
 import com.dremio.dac.daemon.DACDaemon.ClusterMode;
@@ -117,9 +119,11 @@ import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.rpc.RpcException;
+import com.dremio.exec.server.NodeRegistration;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.util.TestUtilities;
+import com.dremio.exec.work.protector.ForemenWorkManager;
 import com.dremio.file.FilePath;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidator;
@@ -527,6 +531,7 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
                   .with(DremioConfig.METADATA_PATH_STRING, distpath + "/metadata")
                   .with(DremioConfig.ACCELERATOR_PATH_STRING, distpath + "/accelerator")
                   .with(DremioConfig.GANDIVA_CACHE_PATH_STRING, distpath + "/gandiva")
+                  .with(DremioConfig.SYSTEM_ICEBERG_TABLES_PATH_STRING, distpath + "/system_iceberg_tables")
                   .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
                   .with(DremioConfig.NESSIE_SERVICE_ENABLED_BOOLEAN, true)
                   .with(DremioConfig.NESSIE_SERVICE_IN_MEMORY_BOOLEAN, true)
@@ -643,21 +648,47 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
     return queryPlanningAllocator.getChildAllocators().size();
   }
 
+  private static void assertAllocatorsAreClosed() {
+    int resourceAllocatorCount = getResourceAllocatorCount();
+    int queryPlanningAllocatorCount = getQueryPlanningAllocatorCount();
+    assertEquals(
+      0,
+      resourceAllocatorCount + queryPlanningAllocatorCount,
+      () -> String.format("Not all allocators were closed. ResourceAllocator count = %d; QueryPlanningAllocatorCount = %d",
+        resourceAllocatorCount, queryPlanningAllocatorCount)
+    );
+  }
+
   @AfterAll
   public static void serverClose() throws Exception {
     if (dremioBinder == null) {
       return;
     }
     try (TimedBlock b = Timer.time("BaseTestServerJunit5.@AfterAll")) {
+      // Prevent new incoming job requests
+      final NodeRegistration nodeRegistration = l(NodeRegistration.class);
+      final ForemenWorkManager foremenWorkManager = l(ForemenWorkManager.class);
+      nodeRegistration.close();
+      foremenWorkManager.close();
 
-      await()
-          .atMost(Duration.ofSeconds(50))
-          .untilAsserted(
-              () ->
-                  assertEquals(
-                      String.format("Not all the resource/query planning allocators were closed. ResourceAllocator count = %d; QueryPlanningAllocatorCount = %d", getResourceAllocatorCount(), getQueryPlanningAllocatorCount()),
-                      0,
-                      getResourceAllocatorCount() + getQueryPlanningAllocatorCount()));
+      // Drain actively running jobs
+      await().atMost(Duration.ofSeconds(50))
+        .until(() -> foremenWorkManager.getActiveQueryCount() == 0);
+
+      // Fail if any jobs are still running and record query information
+      Assertions.assertEquals(0, foremenWorkManager.getActiveQueryCount(), () -> {
+        final StringBuilder msg = new StringBuilder();
+        msg.append("There are actively running queries that have not finished:\n");
+        foremenWorkManager.getActiveProfiles()
+          .forEach(profile -> msg.append("Query ")
+            .append(QueryIdHelper.getQueryId(profile.getId()))
+            .append(": ")
+            .append(profile.getQuery())
+            .append("\n\n"));
+        return msg.toString();
+      });
+
+      assertAllocatorsAreClosed();
 
       defaultUser =
           true; // in case another test disables the default user and forgets to enable it back
@@ -938,6 +969,18 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
     return expectSuccess(invocation, DatasetUIWithHistory.class);
   }
 
+  protected UserExceptionMapper.ErrorMessageWithContext saveAsExpectError(DatasetUI datasetUI, DatasetPath newName) {
+    final Invocation invocation =
+      getBuilder(
+        getAPIv2()
+          .path(versionedResourcePath(datasetUI) + "/save")
+          .queryParam("as", newName))
+        .buildPost(entity("", JSON));
+
+    //return expectSuccess(invocation, DatasetUIWithHistory.class);
+    return expectError(CLIENT_ERROR,invocation, UserExceptionMapper.ErrorMessageWithContext.class);
+  }
+
   protected DatasetUIWithHistory saveAsInBranch(DatasetUI datasetUI, DatasetPath newName, String savedTag, String branchName) {
     final Invocation invocation =
       getBuilder(
@@ -978,16 +1021,6 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
      return expectError(CLIENT_ERROR,invocation, UserExceptionMapper.ErrorMessageWithContext.class);
   }
 
-  protected void saveAsExpectError(DatasetUI datasetUI, DatasetPath newName) {
-    final Invocation invocation =
-        getBuilder(
-                getAPIv2()
-                    .path(versionedResourcePath(datasetUI) + "/save")
-                    .queryParam("as", newName))
-            .buildPost(entity("", JSON));
-
-    expectError(CLIENT_ERROR, invocation, ValidationErrorMessage.class);
-  }
 
   protected DatasetUI delete(String datasetResourcePath, String savedVersion) {
     final Invocation invocation =
@@ -1024,6 +1057,12 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
       DatasetPath datasetPath, String sql, List<String> context) {
     InitialPreviewResponse datasetCreateResponse = createDatasetFromSQL(sql, context);
     return saveAs(datasetCreateResponse.getDataset(), datasetPath).getDataset();
+  }
+
+  protected UserExceptionMapper.ErrorMessageWithContext createDatasetFromSQLAndSaveExpectError(
+    DatasetPath datasetPath, String sql, List<String> context) {
+    InitialPreviewResponse datasetCreateResponse = createDatasetFromSQL(sql, context);
+    return saveAsExpectError(datasetCreateResponse.getDataset(), datasetPath);
   }
 
   protected DatasetUI createVersionedDatasetFromSQLAndSave(
@@ -1133,7 +1172,7 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
     return JobsServiceTestUtils.submitJobAndWaitUntilCompletion(l(JobsService.class), request);
   }
 
-  protected JobSubmission getJobSubmissionAfterJobCompletion(JobRequest request) {
+  protected static JobSubmission getJobSubmissionAfterJobCompletion(JobRequest request) {
     return JobsServiceTestUtils.submitJobAndWaitUntilCompletion(
         l(JobsService.class), request, JobStatusListener.NO_OP);
   }
@@ -1295,13 +1334,13 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
       .build();
   }
 
-  protected void runQueryInSession(String sql , String sessionId){
+  protected static void runQueryInSession(String sql, String sessionId){
     String executedSesssionId = getJobSubmissionAfterJobCompletion(
         createJobRequestFromSqlAndSessionId(sql, sessionId)).getSessionId().getId();
     AssertionsForClassTypes.assertThat(executedSesssionId).isEqualTo(sessionId);
   }
 
-  protected String runQueryAndGetSessionId(String sql) {
+  protected static String runQueryAndGetSessionId(String sql) {
     return getJobSubmissionAfterJobCompletion(createNewJobRequestFromSql(sql)).getSessionId().getId();
   }
 
@@ -1342,7 +1381,7 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
         .build());
   }
 
-  protected JobId runQuery(String query, String sessionId) {
+  protected static JobId runQuery(String query, String sessionId) {
     final SqlQuery sqlQuery =
       (sessionId != null)
         ? new SqlQuery(query, Collections.emptyList(), DEFAULT_USERNAME, null, sessionId)
@@ -1352,6 +1391,14 @@ public abstract class BaseTestServerJunit5 extends BaseClientUtils {
         .setSqlQuery(sqlQuery)
         .setQueryType(QueryType.UI_RUN)
         .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+        .build());
+  }
+
+  protected static JobId runQuery(SqlQuery sqlQuery) {
+    return submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(sqlQuery)
+        .setQueryType(QueryType.UI_INTERNAL_RUN)
         .build());
   }
 }

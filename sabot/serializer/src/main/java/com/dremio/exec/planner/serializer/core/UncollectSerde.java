@@ -15,6 +15,10 @@
  */
 package com.dremio.exec.planner.serializer.core;
 
+import java.util.Collections;
+import java.util.stream.Collectors;
+
+import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.core.Uncollect;
 
 import com.dremio.exec.planner.serializer.RelNodeSerde;
@@ -41,11 +45,14 @@ public final class UncollectSerde implements RelNodeSerde<Uncollect, PUncollect>
         PSingleRel.newBuilder()
           .setAbstractRelNode(
             PAbstractRelNode.newBuilder()
-              .setTraitSet(RelTraitSetSerde.toProto(node.getTraitSet()))
+              // DX-68622: There is a bug in the trait set serializer so for now we are just using an empty trait set.
+              .setTraitSet(RelTraitSetSerde.toProto(RelTraitSet.createEmpty()))
               .build())
           .setInput(s.toProto(node.getInput()))
           .build())
       .setWithOrdinality(node.withOrdinality)
+      // This is empty for now, since unnest does not expose the aliases to us.
+      .addAllItemAliases(Collections.emptyList())
       .build();
   }
 
@@ -59,8 +66,10 @@ public final class UncollectSerde implements RelNodeSerde<Uncollect, PUncollect>
   @Override
   public Uncollect deserialize(PUncollect pUncollect, RelFromProto s) {
     return Uncollect.create(
-      RelTraitSetSerde.fromProto(pUncollect.getSingleRel().getAbstractRelNode().getTraitSet()),
+      // DX-68622: There is a bug in the trait set serializer so for now we are just using an empty trait set.
+      RelTraitSet.createEmpty(),
       s.toRel(pUncollect.getSingleRel().getInput()),
-      pUncollect.getWithOrdinality());
+      pUncollect.getWithOrdinality(),
+      pUncollect.getItemAliasesList().stream().collect(Collectors.toList()));
   }
 }

@@ -15,9 +15,10 @@
  */
 //@ts-ignore
 import { getApiContext } from "dremio-ui-common/contexts/ApiContext.js";
-import { getOwnershipUrl, OwnershipInfo } from "./getOwnership";
+import { getOwnershipUrl } from "./getOwnership";
 
-export const modifyOwnership = (payload: OwnershipInfo): Promise<any> =>
+export type ModifyOwnershipInfo = { owner: string };
+export const modifyOwnership = (payload: ModifyOwnershipInfo): Promise<any> =>
   getApiContext().fetch(getOwnershipUrl(), {
     method: "post",
     headers: {

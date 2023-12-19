@@ -27,32 +27,34 @@ export const Default: StoryFn<typeof Tag> = () => {
   return (
     <div className="dremio-prose">
       <div className="flex gap-05">
-        <Tag>default</Tag>
-        <Tag className="bg-brand-subtle">brand-subtle</Tag>
-        <Tag className="bg-success-subtle">success-subtle</Tag>
-        <Tag className="bg-info-subtle">info-subtle</Tag>
-        <Tag className="bg-danger-subtle">danger-subtle</Tag>
-        <Tag className="bg-warning-subtle">warning-subtle</Tag>
-        <Tag className="bg-warning-bold">warning-bold</Tag>
-        <Tag className="bg-danger-bold">danger-bold</Tag>
-        <Tag className="bg-info-bold">info-bold</Tag>{" "}
-        <Tag className="bg-success-bold">success-bold</Tag>
-        <Tag className="bg-brand-bold">brand-bold</Tag>
+        <Tag className="bg-neutral-50">bg-neutral-50</Tag>
+        <Tag className="bg-brand-subtle">bg-brand-subtle</Tag>
+        <Tag className="bg-success-subtle">bg-success-subtle</Tag>
+        <Tag className="bg-info-subtle">bg-info-subtle</Tag>
+        <Tag className="bg-warning-subtle">bg-warning-subtle</Tag>
+        <Tag className="bg-danger-subtle">bg-danger-subtle</Tag>
       </div>
       <div className="flex gap-05">
-        <Tag>
-          default{" "}
-          <IconButton
-            className="dremio-tag__hover-only"
-            tooltip="Delete"
-            style={{ margin: "-0.5em" }}
-            onClick={() => alert("Deleted!")}
-          >
-            <dremio-icon name="interface/close-small"></dremio-icon>
-          </IconButton>
+        <Tag className="bg-brand-bold">bg-brand-bold</Tag>
+        <Tag className="bg-success-bold">bg-success-bold</Tag>
+        <Tag className="bg-info-bold">bg-info-bold</Tag>
+        <Tag className="bg-warning-bold">bg-warning-bold</Tag>
+        <Tag className="bg-danger-bold">bg-danger-bold</Tag>
+      </div>
+      <div className="flex gap-05">
+        <Tag className="border border-solid border-neutral-100">
+          border-neutral-100
         </Tag>
-        <Tag>
-          default{" "}
+        <Tag className="border border-solid border-brand-300">
+          border-brand-300
+        </Tag>
+        <Tag className="border border-solid border-mint-300">
+          border-mint-300
+        </Tag>
+      </div>
+      <div className="flex gap-05">
+        <Tag className="bg-neutral-50">
+          bg-neutral-50{" "}
           <IconButton
             tooltip="Delete"
             style={{ margin: "-0.5em" }}

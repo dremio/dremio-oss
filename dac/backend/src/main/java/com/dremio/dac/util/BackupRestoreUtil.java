@@ -166,7 +166,7 @@ public final class BackupRestoreUtil {
   }
 
   private static <K, V> void dumpTable(FileSystem fs, Path backupRootDir, BackupFileInfo backupFileInfo,
-    CoreKVStore<K, V> coreKVStore, boolean binary,Compression compression) throws IOException {
+    CoreKVStore<K, V> coreKVStore, boolean binary,Compression compression, String tblKey) throws IOException {
     final Path backupFile = backupRootDir.resolve(format("%s%s", backupFileInfo.getKvstoreInfo().getTablename(),
       binary ? BACKUP_FILE_SUFFIX_BINARY : BACKUP_FILE_SUFFIX_JSON));
     final Iterator<Document<KVStoreTuple<K>, KVStoreTuple<V>>> iterator = coreKVStore.find().iterator();
@@ -202,6 +202,9 @@ public final class BackupRestoreUtil {
         final BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(fsout))) {
         while (iterator.hasNext()) {
           Document<KVStoreTuple<K>, KVStoreTuple<V>> keyval = iterator.next();
+          if (!tblKey.isEmpty() && !tblKey.equals( keyval.getKey().toJson())) {
+            continue;
+          }
           writer.write(objectMapper.writeValueAsString(new BackupRecord(keyval.getKey().toJson(),
             keyval.getValue().toJson())));
           writer.newLine();
@@ -378,15 +381,20 @@ public final class BackupRestoreUtil {
     private final boolean includeProfiles;
 
     private String compression;
+    private String table;
+    private String key;
 
     @JsonCreator
     public BackupOptions(@JsonProperty("backupDir") String backupDir, @JsonProperty("binary") boolean binary,
-      @JsonProperty("includeProfiles") boolean includeProfiles, @JsonProperty("compression") String compression) {
+      @JsonProperty("includeProfiles") boolean includeProfiles, @JsonProperty("compression") String compression,
+      @JsonProperty("table") String table, @JsonProperty("key") String key ) {
       super();
       this.backupDir = backupDir;
       this.binary = binary;
       this.includeProfiles = includeProfiles;
       this.compression = compression;
+      this.table = table;
+      this.key = key;
     }
 
     public String getBackupDir() {
@@ -408,6 +416,14 @@ public final class BackupRestoreUtil {
 
     public String getCompression() {
       return this.compression;
+    }
+
+    public String getTable() {
+      return this.table;
+    }
+
+    public String getKey() {
+      return this.key;
     }
 
   }
@@ -486,10 +502,14 @@ public final class BackupRestoreUtil {
           return;
         }
 
+        if (!options.table.isEmpty() && !options.table.equals( kvstoreInfo.getTablename())) {
+          return;
+        }
+
         final BackupFileInfo backupFileInfo = new BackupFileInfo().setKvstoreInfo(kvstoreInfo);
         Compression compression = validateSupportedCompression(options);
         backupFileInfo.setCompression(BackupFileInfo.Compression.valueOf(options.getCompression().toUpperCase()));
-        dumpTable(fs, backupDir, backupFileInfo, entry.getValue(), options.isBinary(), compression);
+        dumpTable(fs, backupDir, backupFileInfo, entry.getValue(), options.isBinary(), compression, options.key);
         backupStats.incrementTables();
       } catch(IOException ex) {
         throw new CompletionException(ex);

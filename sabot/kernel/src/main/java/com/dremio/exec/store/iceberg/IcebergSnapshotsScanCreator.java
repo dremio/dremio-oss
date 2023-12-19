@@ -40,24 +40,18 @@ public class IcebergSnapshotsScanCreator implements ProducerOperator.Creator<Ice
                                  OperatorContext context,
                                  IcebergSnapshotsSubScan config) throws ExecutionSetupException {
     final SupportsIcebergMutablePlugin plugin = fragmentExecContext.getStoragePlugin(config.getPluginId());
-    List<SplitAndPartitionInfo> splits = config.getSplits();
-    List<RecordReader> readers = splits.stream().map(s -> {
-      IcebergProtobuf.IcebergDatasetSplitXAttr splitXAttr;
-      try {
-        splitXAttr = LegacyProtobufSerializer.parseFrom(IcebergProtobuf.IcebergDatasetSplitXAttr.PARSER,
-          s.getDatasetSplitInfo().getExtendedProperty());
-      } catch (InvalidProtocolBufferException e) {
-        throw new RuntimeException("Could not deserialize split info", e);
-      }
-      return new IcebergSnapshotsReader(
-        context,
-        splitXAttr.getPath(),
-        plugin,
-        config.getProps(),
-        config.getIcebergTableProps(),
-        config.getSnapshotsScanOptions()
-      );
-    }).collect(Collectors.toList());
+    List<RecordReader> readers = config.getSplits().stream().map(split ->
+      new SingleTableIcebergExpirySnapshotsReader(context, toXAttrs(split), plugin, config.getProps(), config.getSnapshotsScanOptions()))
+      .collect(Collectors.toList());
     return new ScanOperator(config, context, RecordReaderIterator.from(readers.listIterator()));
+  }
+
+  private IcebergProtobuf.IcebergDatasetSplitXAttr toXAttrs(SplitAndPartitionInfo split) {
+    try {
+      return LegacyProtobufSerializer.parseFrom(IcebergProtobuf.IcebergDatasetSplitXAttr.PARSER,
+        split.getDatasetSplitInfo().getExtendedProperty());
+    } catch (InvalidProtocolBufferException e) {
+      throw new RuntimeException("Could not deserialize split info", e);
+    }
   }
 }

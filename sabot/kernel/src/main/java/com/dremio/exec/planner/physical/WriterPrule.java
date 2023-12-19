@@ -15,12 +15,17 @@
  */
 package com.dremio.exec.planner.physical;
 
+import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_SINGLE_MANIFEST_WRITER;
+
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 
+import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.plan.RelOptRuleOperand;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.InvalidRelException;
 import org.apache.calcite.rel.RelNode;
@@ -42,6 +47,7 @@ import com.dremio.exec.physical.base.ImmutableTableFormatWriterOptions;
 import com.dremio.exec.physical.base.TableFormatWriterOptions;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.CreateTableEntry;
+import com.dremio.exec.planner.logical.IncrementalRefreshByPartitionWriterRel;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.RelOptHelper;
 import com.dremio.exec.planner.logical.WriterRel;
@@ -49,6 +55,7 @@ import com.dremio.exec.planner.sql.parser.DmlUtils;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.dfs.IcebergTableProps;
+import com.dremio.exec.store.dfs.copyinto.CopyIntoErrorPluginAwareCreateTableEntry;
 import com.dremio.exec.store.iceberg.IcebergManifestWriterPrel;
 import com.dremio.exec.store.iceberg.model.IcebergCommandType;
 import com.dremio.io.file.Path;
@@ -64,14 +71,25 @@ public class WriterPrule extends Prule {
         "Prel.WriterPrule");
   }
 
+  protected WriterPrule(RelOptRuleOperand operand, String description) {
+    super(operand,description);
+  }
+
+  @Override
+  public boolean matches(RelOptRuleCall call) {
+    WriterRel writerRel = call.rel(0);
+    return ! (writerRel instanceof IncrementalRefreshByPartitionWriterRel);
+  }
   @Override
   public void onMatch(RelOptRuleCall call) {
     final WriterRel writer = call.rel(0);
     final RelNode input = call.rel(1);
 
+    final boolean addRoundRobin =
+      PrelUtil.getPlannerSettings(input.getCluster()).getOptions().getOption(PlannerSettings.CTAS_ROUND_ROBIN);
     final RelTraitSet requestedTraits = writer.getCreateTableEntry()
         .getOptions()
-        .inferTraits(input.getTraitSet(), input.getRowType());
+        .inferTraits(input.getTraitSet(), input.getRowType(), addRoundRobin);
     final RelNode convertedInput = convert(input, requestedTraits);
 
     if (!new WriteTraitPull(call).go(writer, convertedInput)) {
@@ -79,7 +97,7 @@ public class WriterPrule extends Prule {
     }
   }
 
-  private static class WriteTraitPull extends SubsetTransformer<WriterRel, RuntimeException> {
+  private class WriteTraitPull extends SubsetTransformer<WriterRel, RuntimeException> {
 
     public WriteTraitPull(RelOptRuleCall call) {
       super(call);
@@ -91,20 +109,22 @@ public class WriterPrule extends Prule {
     }
   }
 
-  public static Prel createWriter(RelNode relNode, RelDataType rowType, DatasetConfig datasetConfig, CreateTableEntry createTableEntry, Function<RelNode, Prel> finalize) {
+  public Prel createWriter(RelNode relNode, RelDataType rowType, DatasetConfig datasetConfig, CreateTableEntry createTableEntry, Function<RelNode, Prel> finalize) {
+    final boolean addRoundRobin =
+      PrelUtil.getPlannerSettings(relNode.getCluster()).getOptions().getOption(PlannerSettings.CTAS_ROUND_ROBIN);
     final RelTraitSet requestedTraits = createTableEntry
       .getOptions()
-      .inferTraits(relNode.getTraitSet(), rowType);
+      .inferTraits(relNode.getTraitSet(), rowType, addRoundRobin);
     final RelNode convertedInput = convert(relNode, requestedTraits);
 
     return convertWriter(relNode, convertedInput, rowType, datasetConfig, createTableEntry, finalize);
   }
 
-  private static Prel convertWriter(WriterRel writer, RelNode rel) {
+  protected Prel convertWriter(WriterRel writer, RelNode rel) {
     return convertWriter(writer, rel, writer.getExpectedInboundRowType(), null, writer.getCreateTableEntry(), null);
   }
 
-  private static Prel convertWriter(RelNode writer, RelNode rel, RelDataType rowType, DatasetConfig datasetConfig, CreateTableEntry createTableEntry, Function<RelNode, Prel> finalize) {
+  protected Prel convertWriter(RelNode writer, RelNode rel, RelDataType rowType, DatasetConfig datasetConfig, CreateTableEntry createTableEntry, Function<RelNode, Prel> finalize) {
     final boolean isSingleWriter = createTableEntry.getOptions().isSingleWriter();
     DistributionTrait childDist = rel.getTraitSet().getTrait(DistributionTraitDef.INSTANCE);
     final RelTraitSet traits = writer.getTraitSet()
@@ -149,9 +169,26 @@ public class WriterPrule extends Prule {
         rowType
       ),
       traits, writer, fileEntry, plugin, childDist);
-    WriterCommitterPrel writerCommitterPrel = new WriterCommitterPrel(writer.getCluster(), traits, finalize != null ? finalize.apply(newChild) : newChild,
-      plugin, tempPath, finalPath, userName, fileEntry, Optional.ofNullable(datasetConfig), false, false);
+    WriterCommitterPrel writerCommitterPrel = getWriterCommitterPrel(writer.getCluster(), traits,
+      finalize != null ? finalize.apply(newChild) : newChild, plugin, tempPath, finalPath, userName, fileEntry,
+      datasetConfig);
     return getInsertRowCountPlanIfNeeded(writerCommitterPrel, createTableEntry);
+  }
+
+  private static WriterCommitterPrel getWriterCommitterPrel(RelOptCluster cluster,
+                                                     RelTraitSet traits, RelNode newChild,
+                                                     MutablePlugin plugin, String tempPath, String finalPath,
+                                                     String userName, CreateTableEntry fileEntry,
+                                                     DatasetConfig datasetConfig) {
+    if (fileEntry instanceof CopyIntoErrorPluginAwareCreateTableEntry) {
+      if (((CopyIntoErrorPluginAwareCreateTableEntry) fileEntry).getSystemIcebergTablesPlugin() != null) {
+        return new CopyIntoErrorWriterCommitterPrel(cluster, traits, newChild, plugin, tempPath, finalPath, userName, fileEntry,
+          Optional.ofNullable(datasetConfig), false, false,
+          ((CopyIntoErrorPluginAwareCreateTableEntry) fileEntry).getSystemIcebergTablesPlugin());
+      }
+    }
+    return new WriterCommitterPrel(cluster, traits, newChild, plugin, tempPath, finalPath, userName, fileEntry,
+      Optional.ofNullable(datasetConfig), false, false);
   }
 
   /***
@@ -163,6 +200,13 @@ public class WriterPrule extends Prule {
     //For OPTIMIZE TABLE command IcebergManifestWriterPrel is not required.
     if(fileEntry.getIcebergTableProps() == null || fileEntry.getIcebergTableProps().getIcebergOpType() == IcebergCommandType.OPTIMIZE) {
       return convert(child, oldTraits);
+    }
+
+    boolean isSingleWriter = PrelUtil.getPlannerSettings(writer.getCluster()).getOptions().getOption(ENABLE_ICEBERG_SINGLE_MANIFEST_WRITER);
+    RelNode newChild;
+    if (isSingleWriter) {
+      final RelTraitSet singletonTraitSet = child.getTraitSet().plus(DistributionTrait.SINGLETON).plus(Prel.PHYSICAL);
+      newChild = new UnionExchangePrel(writer.getCluster(), singletonTraitSet, child);
     } else {
       DistributionTrait.DistributionField distributionField = new DistributionTrait.DistributionField(RecordWriter.SCHEMA.getFields().indexOf(RecordWriter.ICEBERG_METADATA));
       DistributionTrait distributionTrait = new DistributionTrait(DistributionTrait.DistributionType.HASH_DISTRIBUTED, ImmutableList.of(distributionField));
@@ -170,22 +214,23 @@ public class WriterPrule extends Prule {
         .plus(distributionTrait)
         .plus(Prel.PHYSICAL);
 
-      final RelNode newChild = new HashToRandomExchangePrel(
+      newChild = new HashToRandomExchangePrel(
         child.getCluster(),
         newTraits,
         child,
         distributionTrait.getFields(),
         HashPrelUtil.DATA_FILE_DISTRIBUTE_HASH_FUNCTION_NAME,
         null);
-
-      CreateTableEntry icebergCreateTableEntry = getCreateTableEntryForManifestWriter(fileEntry, plugin, fileEntry.getIcebergTableProps().getFullSchema(), fileEntry.getIcebergTableProps());
-      final WriterPrel manifestWriterPrel = new IcebergManifestWriterPrel(writer.getCluster(),
-        writer.getTraitSet()
-          .plus(childDist)
-          .plus(Prel.PHYSICAL),
-        newChild, icebergCreateTableEntry);
-      return convert(manifestWriterPrel, oldTraits);
     }
+
+    CreateTableEntry icebergCreateTableEntry = getCreateTableEntryForManifestWriter(fileEntry, plugin, fileEntry.getIcebergTableProps().getFullSchema(), fileEntry.getIcebergTableProps());
+    final WriterPrel manifestWriterPrel = new IcebergManifestWriterPrel(writer.getCluster(),
+      writer.getTraitSet()
+        .plus(childDist)
+        .plus(Prel.PHYSICAL),
+      newChild, icebergCreateTableEntry,
+      isSingleWriter);
+    return convert(manifestWriterPrel, oldTraits);
   }
 
   private static Prel getInsertRowCountPlanIfNeeded(Prel relNode, CreateTableEntry createTableEntry) {
@@ -193,11 +238,25 @@ public class WriterPrule extends Prule {
     if (!DmlUtils.isInsertOperation(createTableEntry)) {
       return relNode;
     }
+
+    boolean isCopyIntoErrors = relNode instanceof CopyIntoErrorWriterCommitterPrel;
+
     //Return as plan for insert command only with records columns. Same is not applicable in case of incremental reflections refresh
     RelDataTypeField recordsField  = relNode.getRowType()
       .getField(RecordWriter.RECORDS.getName(), false, false);
-    AggregateCall aggRowCount = AggregateCall.create(SqlStdOperatorTable.SUM, false, false, ImmutableList.of(recordsField.getIndex()),
-      -1, 0, relNode, null, RecordWriter.RECORDS.getName());
+
+    List<AggregateCall> aggregateCalls = new ArrayList<>();
+    aggregateCalls.add(AggregateCall.create(SqlStdOperatorTable.SUM, false, false, ImmutableList.of(recordsField.getIndex()),
+      -1, 0, relNode, null, RecordWriter.RECORDS.getName()));
+
+
+    if (isCopyIntoErrors) {
+      RelDataTypeField rejectedRecordsField = relNode.getRowType()
+        .getField(RecordWriter.REJECTED_RECORDS.getName(), false, false);
+      AggregateCall aggRejectedRecordCount = AggregateCall.create(SqlStdOperatorTable.SUM, false, false, ImmutableList.of(rejectedRecordsField.getIndex()),
+        -1, 0, relNode, null, RecordWriter.REJECTED_RECORDS.getName());
+      aggregateCalls.add(aggRejectedRecordCount);
+    }
 
     try {
       RexBuilder rexBuilder = relNode.getCluster().getRexBuilder();
@@ -207,21 +266,36 @@ public class WriterPrule extends Prule {
         relNode,
         ImmutableBitSet.of(),
         ImmutableList.of(),
-        ImmutableList.of(aggRowCount),
+        aggregateCalls,
         null);
       // Project: return 0 as row count in case there is no Agg record (i.e., no DMLed results)
       recordsField  = rowCountAgg.getRowType()
         .getField(RecordWriter.RECORDS.getName(), false, false);
-      List<String> projectNames = ImmutableList.of(recordsField.getName());
+      List<String> projectNames = new ArrayList<>();
+      projectNames.add(recordsField.getName());
       RexNode zeroLiteral = rexBuilder.makeLiteral(0, rowCountAgg.getCluster().getTypeFactory().createSqlType(SqlTypeName.INTEGER), true);
       // check if the count of row count records is 0 (i.e., records column is null)
       RexNode rowCountRecordExistsCheckCondition = rexBuilder.makeCall(SqlStdOperatorTable.IS_NULL,
         rexBuilder.makeInputRef(recordsField.getType(), recordsField.getIndex()));
       // case when the count of row count records is 0, return 0, else return aggregated row count
-      RexNode projectExpr = rexBuilder.makeCall(SqlStdOperatorTable.CASE,
+      RexNode rowCountProjectExpr = rexBuilder.makeCall(SqlStdOperatorTable.CASE,
         rowCountRecordExistsCheckCondition, zeroLiteral,
         rexBuilder.makeInputRef(recordsField.getType(), recordsField.getIndex()));
-      List<RexNode> projectExprs = ImmutableList.of(projectExpr);
+
+      List<RexNode> projectExprs = new ArrayList<>();
+      projectExprs.add(rowCountProjectExpr);
+
+      if (isCopyIntoErrors) {
+        RelDataTypeField rejectedRecordsField = rowCountAgg.getRowType()
+          .getField(RecordWriter.REJECTED_RECORDS.getName(), false, false);
+        projectNames.add(rejectedRecordsField.getName());
+        RexNode rowCountRejectedRecordExistsCheckCondition = rexBuilder.makeCall(SqlStdOperatorTable.IS_NULL,
+          rexBuilder.makeInputRef(rejectedRecordsField.getType(), rejectedRecordsField.getIndex()));
+        RexNode rejectedRowCountProjectExpr = rexBuilder.makeCall(SqlStdOperatorTable.CASE,
+          rowCountRejectedRecordExistsCheckCondition, zeroLiteral,
+          rexBuilder.makeInputRef(rejectedRecordsField.getType(), rejectedRecordsField.getIndex()));
+        projectExprs.add(rejectedRowCountProjectExpr);
+      }
 
       RelDataType projectRowType = RexUtil.createStructType(rowCountAgg.getCluster().getTypeFactory(), projectExprs,
         projectNames, null);

@@ -113,7 +113,7 @@ class RepeatedVarCharOutput extends TextOutput {
           if (path.getRootSegment().getChild() != null) {
             Preconditions.checkArgument(path.getRootSegment().getChild().isArray(),
               String.format("Selected column '%s' must be an array index", pathStr));
-            int index = path.getRootSegment().getChild().getArraySegment().getIndex();
+            int index = path.getRootSegment().getChild().getArraySegment().getOptionalIndex();
             columnIds.add(index);
           }
         }
@@ -238,7 +238,6 @@ class RepeatedVarCharOutput extends TextOutput {
       return null;
     }
 
-    //Currently only first line header is supported. Return only first record.
     int retSize = fieldIndex+1;
     String [] out = new String [retSize];
 

@@ -32,7 +32,7 @@ public final class UIOptions {
 
   public static final BooleanValidator ALLOW_AUTOCOMPLETE  = new BooleanValidator("ui.autocomplete.allow", true);
 
-  public static final BooleanValidator AUTOCOMPLETE_V2 = new BooleanValidator("ui.autocomplete.v2.enabled", false);
+  public static final BooleanValidator LIVE_SYNTAX_ERROR_DETECTION = new BooleanValidator("ui.live_syntax_error_detection.enabled", true);
 
   public static final BooleanValidator ALLOW_DOWNLOAD  = new BooleanValidator("ui.download.allow", true);
 
@@ -78,4 +78,9 @@ public final class UIOptions {
   * Specifies whether the UI will use the new dataset navigation behavior
   */
   public static final BooleanValidator DATASET_NAVIGATION_CHECK = new BooleanValidator("ui.dataset.navigation.new", true);
+
+  /*
+  * Specifies whether the UI will use the new reflection-jobs/jobs tables
+  */
+  public static final BooleanValidator JOBS_TABLES_UI_CHECK = new BooleanValidator("dremio.jobs.new.ui-tables", true);
 }

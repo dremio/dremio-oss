@@ -37,7 +37,6 @@ import com.dremio.dac.model.sources.PhysicalDataset;
 import com.dremio.dac.model.sources.PhysicalDatasetName;
 import com.dremio.dac.model.sources.PhysicalDatasetPath;
 import com.dremio.dac.model.sources.PhysicalDatasetResourcePath;
-import com.dremio.dac.model.sources.SourceName;
 import com.dremio.dac.proto.model.collaboration.CollaborationTag;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.service.collaboration.CollaborationHelper;
@@ -205,7 +204,7 @@ public class NamespaceTree {
             case PHYSICAL_DATASET:
               final PhysicalDatasetPath path = new PhysicalDatasetPath(datasetConfig.getFullPathList());
               tree.addPhysicalDataset(
-                new PhysicalDatasetResourcePath(new SourceName(container.getFullPathList().get(0)), path),
+                new PhysicalDatasetResourcePath(path),
                 new PhysicalDatasetName(path.getFileName().getName()),
                 DatasetsUtil.toPhysicalDatasetConfig(container.getDataset()),
                 datasetService.getJobsCount(datasetPath.toNamespaceKey(), optionManager),

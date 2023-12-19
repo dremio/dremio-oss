@@ -103,7 +103,7 @@ public class JsonRecordWriter extends JSONOutputRecordWriter {
     this.partition = partition;
 
     try {
-      this.fileName = fs.canonicalizePath(partition.qualified(location, prefix + "_0." + extension));
+      this.fileName = fs.canonicalizePath(partition.getQualifiedPath(location, prefix + "_0." + extension));
       stream = new DataOutputStream(fs.create(fileName));
       jsonGenerator = factory.createGenerator((OutputStream) stream)
         .disable(JsonGenerator.Feature.AUTO_CLOSE_TARGET)
@@ -320,7 +320,7 @@ public class JsonRecordWriter extends JSONOutputRecordWriter {
     jsonGenerator = null;
     stream = null;
     if (gen != null) {
-      listener.recordsWritten(recordCount, fileSize, fileName.toString(), null, partition.getBucketNumber(), null, null, null, null);
+      listener.recordsWritten(recordCount, fileSize, fileName.toString(), null, partition.getBucketNumber(), null, null, null, null, null, 0L);
       gen = null;
     }
 

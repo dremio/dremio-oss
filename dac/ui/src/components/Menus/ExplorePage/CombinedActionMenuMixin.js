@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import DividerHr from "@app/components/Menus/DividerHr";
 import ExportMenu from "./ExportMenu";
 
 export function CombinedActionMenuMixin(input) {
@@ -25,7 +24,6 @@ export function CombinedActionMenuMixin(input) {
       const { action, datasetColumns, updateDownloading } = this.props;
       return (
         <div className="combinedActionMenu">
-          <DividerHr />
           {this.renderDownloadSectionHeader()}
           <ExportMenu
             action={action}
