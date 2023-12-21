@@ -50,43 +50,42 @@ import com.google.common.base.Preconditions;
  */
 @Options
 public class GoogleStoragePlugin extends DirectorySupportLackingFileSystemPlugin<GCSConf> {
-  private static final Logger logger = LoggerFactory.getLogger(GoogleStoragePlugin.class);
-
   public static final BooleanValidator ASYNC_READS = new BooleanValidator("store.gcs.async", true);
   public static final String GCS_OUTPUT_STREAM_UPLOAD_CHUNK_SIZE_DEFAULT = "8388608";
+  private static final Logger logger = LoggerFactory.getLogger(GoogleStoragePlugin.class);
 
   public GoogleStoragePlugin(
-      GCSConf config,
-      SabotContext context,
-      String name,
-      Provider<StoragePluginId> idProvider) {
+    GCSConf config,
+    SabotContext context,
+    String name,
+    Provider<StoragePluginId> idProvider) {
     super(config, context, name, idProvider);
   }
 
   @Override
   protected List<Property> getProperties() {
     List<Property> properties = new ArrayList<>();
-    properties.add(new Property(String.format("fs.%s.impl", DREMIO_GCS_SCHEME),GoogleBucketFileSystem.class.getName()));
-    properties.add(new Property(String.format("fs.%s.impl.disable.cache", DREMIO_GCS_SCHEME),"true"));
+    properties.add(new Property(String.format("fs.%s.impl", DREMIO_GCS_SCHEME), GoogleBucketFileSystem.class.getName()));
+    properties.add(new Property(String.format("fs.%s.impl.disable.cache", DREMIO_GCS_SCHEME), "true"));
     properties.add(new Property(GoogleHadoopFileSystemConfiguration.GCS_OUTPUT_STREAM_UPLOAD_CHUNK_SIZE.getKey(),
-            GCS_OUTPUT_STREAM_UPLOAD_CHUNK_SIZE_DEFAULT));
+      GCS_OUTPUT_STREAM_UPLOAD_CHUNK_SIZE_DEFAULT));
 
     GCSConf conf = getConfig();
 
     if ("".equals(conf.projectId)) {
       throw UserException.validationError()
-              .message("Failure creating GCS connection. You must provide Project ID")
-              .build(logger);
+        .message("Failure creating GCS connection. You must provide Project ID")
+        .build(logger);
     }
     switch (conf.authMode) {
       case SERVICE_ACCOUNT_KEYS:
         if ("".equals(conf.clientEmail) ||
-            "".equals(conf.clientId) ||
-            "".equals(conf.privateKey) ||
-            "".equals(conf.privateKeyId)) {
+          "".equals(conf.clientId) ||
+          "".equals(conf.privateKey) ||
+          "".equals(conf.privateKeyId)) {
           throw UserException.validationError()
-                  .message("Failure creating GCS connection. You must provide Private Key ID, Private Key, Client E-mail and Client ID.")
-                  .build(logger);
+            .message("Failure creating GCS connection. You must provide Private Key ID, Private Key, Client E-mail and Client ID.")
+            .build(logger);
         }
         break;
       case AUTO:
@@ -107,10 +106,23 @@ public class GoogleStoragePlugin extends DirectorySupportLackingFileSystemPlugin
         properties.add(new Property(GoogleBucketFileSystem.DREMIO_KEY_FILE, "false"));
         break;
     }
+
     properties.add(new Property(GoogleBucketFileSystem.DREMIO_PROJECT_ID, conf.projectId));
-    properties.add(new Property(GoogleBucketFileSystem.DREMIO_WHITELIST_BUCKETS,
-            (conf.bucketWhitelist != null && !conf.bucketWhitelist.isEmpty()) ? String.join(",", conf.bucketWhitelist) : ""));
-    if(conf.getProperties() != null) {
+
+    switch (conf.allowlistedBucketsMode) {
+      case LIST:
+      default:
+        properties.add(new Property(GoogleBucketFileSystem.DREMIO_WHITELIST_MODE, "true"));
+        properties.add(new Property(GoogleBucketFileSystem.DREMIO_WHITELIST_BUCKETS,
+          (conf.bucketWhitelist != null && !conf.bucketWhitelist.isEmpty()) ? String.join(",", conf.bucketWhitelist) : ""));
+        break;
+      case REGEX:
+        properties.add(new Property(GoogleBucketFileSystem.DREMIO_WHITELIST_MODE, "false"));
+        properties.add(new Property(GoogleBucketFileSystem.DREMIO_WHITELIST_BUCKETS_REGEX, conf.bucketWhitelistRegexFilter));
+        break;
+    }
+
+    if (conf.getProperties() != null) {
       properties.addAll(conf.getProperties());
     }
     return properties;
@@ -128,8 +140,8 @@ public class GoogleStoragePlugin extends DirectorySupportLackingFileSystemPlugin
     final String containerName = tableSchemaPath.getPathComponents().get(1);
     if (tableSchemaPath.size() == 2) {
       throw UserException.validationError()
-          .message("Creating buckets is not supported (name: %s)", containerName)
-          .build(logger);
+        .message("Creating buckets is not supported (name: %s)", containerName)
+        .build(logger);
     }
 
     final CreateTableEntry entry = super.createNewTable(tableSchemaPath, config, icebergProps, writerOptions, storageOptions, isResultsTable);
@@ -138,8 +150,8 @@ public class GoogleStoragePlugin extends DirectorySupportLackingFileSystemPlugin
 
     if (!fs.containerExists(containerName)) {
       throw UserException.validationError()
-          .message("Cannot create the table because '%s' container does not exist.", containerName)
-          .build(logger);
+        .message("Cannot create the table because '%s' container does not exist.", containerName)
+        .build(logger);
     }
     return entry;
   }
@@ -155,11 +167,11 @@ public class GoogleStoragePlugin extends DirectorySupportLackingFileSystemPlugin
       GoogleBucketFileSystem fs = getSystemUserFS().unwrap(GoogleBucketFileSystem.class);
       fs.refreshFileSystems();
       List<ContainerFailure> failures = fs.getSubFailures();
-      if(failures.isEmpty()) {
+      if (failures.isEmpty()) {
         return SourceState.GOOD;
       }
       StringBuilder sb = new StringBuilder();
-      for(ContainerFailure f : failures) {
+      for (ContainerFailure f : failures) {
         sb.append(f.getName());
         sb.append(": ");
         sb.append(f.getException().getMessage());

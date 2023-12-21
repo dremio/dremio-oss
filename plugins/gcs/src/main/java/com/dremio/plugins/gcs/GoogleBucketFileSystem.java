@@ -48,6 +48,7 @@ import com.dremio.plugins.util.ContainerNotFoundException;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration;
+import com.google.cloud.storage.BucketInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.Storage.BlobListOption;
 import com.google.cloud.storage.Storage.BucketListOption;
@@ -67,6 +68,7 @@ public class GoogleBucketFileSystem extends ContainerFileSystem implements MayPr
   private static final Logger logger = LoggerFactory.getLogger(GoogleBucketFileSystem.class);
 
   private static final String EMPTY_STRING = "";
+  private static final String ANY_STRING_REGEX = ".*";
   private static final String CONF_ACCOUNT_EMAIL = "fs.gs.auth.service.account.email";
   private static final String CONF_PRIVATE_KEY_ID = "fs.gs.auth.service.account.private.key.id";
   private static final String CONF_PRIVATE_KEY = "fs.gs.auth.service.account.private.key";
@@ -78,7 +80,9 @@ public class GoogleBucketFileSystem extends ContainerFileSystem implements MayPr
   public static final String DREMIO_CLIENT_ID = "dremio.gcs.clientId";
   public static final String DREMIO_PRIVATE_KEY_ID = "dremio.gcs.privateKeyId";
   public static final String DREMIO_PRIVATE_KEY = "dremio.gcs.privateKey";
+  public static final String DREMIO_WHITELIST_MODE = "dremio.gcs.whitelisted.mode";
   public static final String DREMIO_WHITELIST_BUCKETS = "dremio.gcs.whitelisted.buckets";
+  public static final String DREMIO_WHITELIST_BUCKETS_REGEX = "dremio.gcs.whitelisted.regex";
 
   private static final List<String> UNIQUE_PROPERTIES = ImmutableList.<String>of(
       CONF_PROJECT_ID,
@@ -138,12 +142,19 @@ public class GoogleBucketFileSystem extends ContainerFileSystem implements MayPr
       gcsConf.authMode = AuthMode.AUTO;
     }
 
-      gcsConf.projectId = conf.get(DREMIO_PROJECT_ID, EMPTY_STRING);
+    gcsConf.projectId = conf.get(DREMIO_PROJECT_ID, EMPTY_STRING);
     if (gcsConf.projectId.equals(EMPTY_STRING)) {
       gcsConf.projectId = conf.get("fs.gs.project.id", EMPTY_STRING);
     }
     gcsConf.asyncEnabled = true;
-    gcsConf.bucketWhitelist = getWhiteListBuckets(conf);
+
+    if (conf.getBoolean(DREMIO_WHITELIST_MODE, true)) {
+      gcsConf.allowlistedBucketsMode = GCSConf.AllowlistedBucketsMode.LIST;
+      gcsConf.bucketWhitelist = getWhiteListBuckets(conf);
+    } else {
+      gcsConf.allowlistedBucketsMode = GCSConf.AllowlistedBucketsMode.REGEX;
+      gcsConf.bucketWhitelistRegexFilter = conf.get(DREMIO_WHITELIST_BUCKETS_REGEX, ANY_STRING_REGEX);
+    }
 
     this.connectionConf = gcsConf;
 
@@ -185,7 +196,7 @@ public class GoogleBucketFileSystem extends ContainerFileSystem implements MayPr
   }
 
   private List<String> getWhiteListBuckets(Configuration conf) {
-    String bucketList = conf.get(DREMIO_WHITELIST_BUCKETS,"");
+    String bucketList = conf.get(DREMIO_WHITELIST_BUCKETS, EMPTY_STRING);
     return Arrays.stream(bucketList.split(","))
             .map(String::trim)
             .filter(input -> !Strings.isNullOrEmpty(input))
@@ -194,20 +205,36 @@ public class GoogleBucketFileSystem extends ContainerFileSystem implements MayPr
 
   @Override
   protected Stream<ContainerCreator> getContainerCreators() throws IOException {
-    final Stream<String> bucketNames;
-    if (connectionConf.bucketWhitelist != null && !connectionConf.bucketWhitelist.isEmpty()) {
-      bucketNames = connectionConf.bucketWhitelist.stream();
-    } else {
-      try {
-        bucketNames = StreamSupport.stream(storage.list(BucketListOption.pageSize(100)).iterateAll().spliterator(), false).map(b -> b.getName());
-      } catch (StorageException se) {
-        throw UserException.validationError(se)
-                .message("Failed to list buckets.")
-                .build(logger);
-      }
-    }
+    return getBucketNames().map(GCSContainerCreator::new);
+  }
 
-    return bucketNames.map(b -> new GCSContainerCreator(b));
+  private Stream<String> getBucketNames() {
+    switch (connectionConf.allowlistedBucketsMode) {
+      case LIST:
+      default:
+        if (connectionConf.bucketWhitelist != null && !connectionConf.bucketWhitelist.isEmpty()) {
+          return connectionConf.bucketWhitelist.stream();
+        }
+        break;
+      case REGEX:
+        if (connectionConf.bucketWhitelistRegexFilter != null && !connectionConf.bucketWhitelistRegexFilter.equals("")) {
+          return getStorageBucketNameStream().filter(s -> s.matches(connectionConf.bucketWhitelistRegexFilter));
+        }
+        break;
+    }
+    return getStorageBucketNameStream();
+  }
+
+  private Stream<String> getStorageBucketNameStream() {
+    try {
+      return StreamSupport
+        .stream(storage.list(BucketListOption.pageSize(100)).iterateAll().spliterator(), false)
+        .map(BucketInfo::getName);
+    } catch (StorageException se) {
+      throw UserException.validationError(se)
+        .message("Failed to list buckets.")
+        .build(logger);
+    }
   }
 
   private final class FileSystemSupplierImpl extends FileSystemSupplier {
