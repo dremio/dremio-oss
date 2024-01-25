@@ -323,7 +323,8 @@ const extractStatement = (
 };
 
 export const extractStatements = (
-  query: string | null | undefined
+  query: string | null | undefined,
+  customStartingPosition?: { column: number; line: number }
 ): Statement[] => {
   if (query === null || query === undefined || query.length === 0) {
     return [];
@@ -331,8 +332,8 @@ export const extractStatements = (
   const statements: Statement[] = [];
 
   let positionCursor: Skippable<Position> = value({
-    column: 1,
-    line: 1,
+    column: customStartingPosition?.column ?? 1,
+    line: customStartingPosition?.line ?? 1,
     index: 0,
     isLineBreak: query[0] === "\n",
   });

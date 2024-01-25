@@ -17,9 +17,12 @@ package com.dremio.exec.catalog.udf;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.schema.FunctionParameter;
+import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
+import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlOperator;
-import org.apache.calcite.sql.fun.SqlBaseContextVariable;
+import org.apache.calcite.sql.SqlSyntax;
+import org.apache.calcite.sql.type.OperandTypes;
 
 import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
 
@@ -37,7 +40,7 @@ public class UserDefinedFunctionArgumentOperator {
       parameter.getType(SqlTypeFactoryImpl.INSTANCE));
   }
 
-  public abstract static class ArgumentOperator extends SqlBaseContextVariable {
+  public abstract static class ArgumentOperator extends SqlFunction {
     private final int ordinal;
     private final RelDataType returnRelDataType;
 
@@ -46,9 +49,20 @@ public class UserDefinedFunctionArgumentOperator {
       String name,
       RelDataType returnRelDataType,
       SqlFunctionCategory category) {
-      super(name, (sqlOperatorBinding)-> returnRelDataType, category);
+      super(
+        name,
+        SqlKind.OTHER_FUNCTION,
+        (sqlOperatorBinding)-> returnRelDataType,
+        null,
+        OperandTypes.NILADIC,
+        category);
       this.ordinal = ordinal;
       this.returnRelDataType = returnRelDataType;
+    }
+
+    @Override
+    public SqlSyntax getSyntax() {
+      return SqlSyntax.FUNCTION_ID;
     }
 
     public int getOrdinal() {

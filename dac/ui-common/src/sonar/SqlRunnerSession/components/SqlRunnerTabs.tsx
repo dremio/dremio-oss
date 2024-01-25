@@ -26,7 +26,6 @@ import {
 } from "../../scripts/resources/ScriptsResource";
 import { useEffect, useMemo, useRef } from "react";
 import { useScript } from "../../scripts/providers/useScript";
-import { Script } from "../../scripts/Script.type";
 import { getIntlContext } from "../../../contexts/IntlContext";
 import { useScriptsCount } from "../../scripts/providers/useScriptsCount";
 import { throttle } from "lodash";
@@ -37,7 +36,6 @@ type SqlRunnerTabsProps = {
   onTabSelected?: (tabId: string) => void;
   onTabClosed?: (tabId: string) => void;
   tabActions: (tabId: string) => JSX.Element | JSX.Element[];
-  generateReferencesList: () => Script["referencesList"];
 };
 
 const SqlRunnerTab = (props: {
@@ -75,22 +73,14 @@ export const SqlRunnerTabs = (props: SqlRunnerTabsProps) => {
   const onNewTabCreatedRef = useRef(props.onNewTabCreated);
   onNewTabCreatedRef.current = props.onNewTabCreated;
 
-  const generateReferencesListRef = useRef(props.generateReferencesList);
-  generateReferencesListRef.current = props.generateReferencesList;
-
-  const newPopulatedTabRef = useRef(sqlRunnerSession.newPopulatedTab);
-  newPopulatedTabRef.current = sqlRunnerSession.newPopulatedTab;
+  const newTabRef = useRef(sqlRunnerSession.newTab);
+  newTabRef.current = sqlRunnerSession.newTab;
 
   const handleNewTabButton = useMemo(() => {
     return throttle(
       () =>
-        newPopulatedTabRef
-          .current({
-            content: "",
-            context: [],
-            description: "",
-            referencesList: generateReferencesListRef.current(),
-          })
+        newTabRef
+          .current()
           .then(() => {
             onNewTabCreatedRef.current?.();
             return;

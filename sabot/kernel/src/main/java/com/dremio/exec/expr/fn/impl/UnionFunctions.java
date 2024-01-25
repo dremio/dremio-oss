@@ -283,7 +283,7 @@ public class UnionFunctions {
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 1) {
-        out.value = in.getMinorType() == MinorType.DECIMAL ? 1 : 0;
+        out.value = in.getMinorType() == org.apache.arrow.vector.types.Types.MinorType.DECIMAL ? 1 : 0;
       } else {
         out.value = 0;
       }

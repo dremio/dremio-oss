@@ -182,12 +182,6 @@ public abstract class IcebergBaseModel implements IcebergModel {
   }
 
   @Override
-  public List<SnapshotEntry> collectExpiredSnapshots(IcebergTableIdentifier tableIdentifier, long olderThanInMillis, int retainLast) {
-    IcebergCommand icebergCommand = getIcebergCommandWithMetricStat(tableIdentifier, IcebergCommitOrigin.EXPIRE_SNAPSHOTS);
-    return icebergCommand.collectExpiredSnapshots(olderThanInMillis, retainLast);
-  }
-
-  @Override
   public void truncateTable(IcebergTableIdentifier tableIdentifier) {
     IcebergCommand icebergCommand = getIcebergCommandWithMetricStat(tableIdentifier, IcebergCommitOrigin.TRUNCATE_TABLE);
     icebergCommand.truncateTable();

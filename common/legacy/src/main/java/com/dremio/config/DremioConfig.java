@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.Set;
 
 import org.reflections.util.ClasspathHelper;
 
@@ -35,6 +36,7 @@ import com.dremio.common.perf.Timer;
 import com.dremio.common.perf.Timer.TimedBlock;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableSet;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigParseOptions;
@@ -143,6 +145,8 @@ public class DremioConfig extends NestedConfig {
   public static final String METADATA_PATH_STRING = "paths.metadata";
   public static final String GANDIVA_CACHE_PATH_STRING = "paths.gandiva";
   public static final String SYSTEM_ICEBERG_TABLES_PATH_STRING = "paths.system_iceberg_tables";
+
+  public static final Set<String> DEPRECATED_PATHS = ImmutableSet.of("paths.copyintoerrors");
 
   public static final String ZOOKEEPER_QUORUM = "zookeeper";
   public static final String ZK_CLIENT_SESSION_TIMEOUT = "zk.client.session.timeout";
@@ -271,6 +275,10 @@ public class DremioConfig extends NestedConfig {
     // make sure we don't have any extra paths. these are typically typos.
     List<String> invalidPaths = new ArrayList<>();
     for(Entry<String, ConfigValue> entry : inner.entrySet()){
+      if (DEPRECATED_PATHS.contains(entry.getKey())) {
+        logger.warn("Property [{}] is deprecated. Please remove it from the conf file [dremio.conf].", entry.getKey());
+        continue;
+      }
       if(!ref.hasPath(entry.getKey())){
         invalidPaths.add(entry.getKey());
       }

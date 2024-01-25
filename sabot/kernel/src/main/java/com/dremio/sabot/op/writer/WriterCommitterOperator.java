@@ -79,8 +79,9 @@ public class WriterCommitterOperator implements SingleInputOperator {
     CLEAR_ORPHANS_TIME, // Time taken to clean orphan files during write
     NUM_TOTAL_SNAPSHOTS, //  Number of total snapshots
     NUM_EXPIRED_SNAPSHOTS, // Number of expired snapshots
+    NUM_VALID_SNAPSHOTS,   // Number of valid snapshots
     NUM_ORPHAN_FILES_DELETED,  // Number of orphan files deleted
-    CLEAR_EXPIRE_SNAPSHOTS_TIME, // Time taken to clean old expire snapshots
+    CLEAR_EXPIRE_SNAPSHOTS_TIME // Time taken to clean old expire snapshots
     ;
     @Override
     public int metricId() {

@@ -188,5 +188,37 @@ public class TestCorrelation extends PlanTestBase {
       .run();
   }
 
+  @Test
+  public void testInnerJoinWithMultipleConditionsOnSameCorrelatedVariable() throws Exception{
+    String query = ""
+      + "SELECT t1.t1_id, t2_id, t3_id\n"
+      + "FROM (VALUES ('t1.a'), ('t1.b'), ('t1.c')) AS t1(t1_id)\n"
+      + "LEFT JOIN LATERAL (\n"
+      + "    SELECT *\n"
+      + "    FROM (\n"
+      + "      SELECT *\n"
+      + "      FROM (VALUES ('t2.a', 't1.a'), ('t2.b', 't1.a'), ('t2.c', 't1.b')) AS t2(t2_id, t1_id)\n"
+      + "      WHERE t1.t1_id = t2.t1_id),\n"
+      + "    ("
+      + "      SELECT *\n"
+      + "      FROM (VALUES ('t3.a', 't1.a'), ('t3.b', 't1.a'), ('t3.c', 't1.b')) AS t3(t3_id, t1_id)\n"
+      + "      WHERE t1.t1_id = t3.t1_id))\n"
+      + "  ON TRUE\n"
+      + "ORDER BY t1.t1_id, t2_id, t3_id";
+
+
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("t1_id", "t2_id", "t3_id")
+      .baselineValues("t1.a", "t2.a", "t3.a")
+      .baselineValues("t1.a", "t2.a", "t3.b")
+      .baselineValues("t1.a", "t2.b", "t3.a")
+      .baselineValues("t1.a", "t2.b", "t3.b")
+      .baselineValues("t1.b", "t2.c", "t3.c")
+      .baselineValues("t1.c", null, null)
+      .build()
+      .run();
+  }
 
 }

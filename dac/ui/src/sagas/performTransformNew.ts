@@ -202,7 +202,6 @@ export function* handlePostNewQueryJobSuccess({
   //Tabs: mostRecentStatuses[curIndex] is undefined when switching tabs sometimes
   if (mostRecentStatuses[curIndex]) {
     mostRecentStatuses[curIndex].jobId = jobId;
-    mostRecentStatuses[curIndex].sessionId = sessionId;
     mostRecentStatuses[curIndex].version = versionToUse;
     mostRecentStatuses[curIndex].paginationUrl = paginationUrl;
 

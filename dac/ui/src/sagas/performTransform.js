@@ -152,6 +152,7 @@ export function* performTransform(payload) {
       dataset,
       runningSql,
       currentSql,
+      selectedRange,
       callback,
       indexToModify,
       isSaveViewAs,
@@ -177,6 +178,7 @@ export function* performTransform(payload) {
       dataset,
       currentSql,
       runningSql,
+      selectedRange,
     });
 
     // we can trim end of queries without any issues because they will never contribute to invalid sql and will not mess with query ranges
@@ -378,7 +380,7 @@ export function* performTransform(payload) {
             i,
             sessionId,
             viewId,
-            yield getTabForActions(activeScriptId) //
+            yield getTabForActions(activeScriptId)
           );
         }
 
@@ -741,7 +743,7 @@ export function* handleRunDatasetSql({
   const exploreState = yield select(getExploreState);
   const viewId = exploreViewState.get("viewId");
   const currentSql = exploreState.view.currentSql;
-  const runningSql = selectedSql != null ? selectedSql : currentSql;
+  const runningSql = selectedSql.sql ? selectedSql.sql : currentSql;
   const queryContext = exploreState.view.queryContext;
 
   if (yield call(proceedWithDataLoad, dataset, queryContext, runningSql)) {
@@ -749,20 +751,19 @@ export function* handleRunDatasetSql({
       dataset,
       currentSql,
       runningSql,
+      selectedRange: selectedSql.sql ? selectedSql.range : undefined,
       queryContext,
       viewId,
       useOptimizedJobFlow,
       activeScriptId: exploreState?.view?.activeScript?.id,
       // Session id should be passed in from script session state
+      ...(isPreview ? { forceDataLoad: true } : { isRun: true }),
     };
 
-    if (isPreview) {
-      performTransformParam.forceDataLoad = true;
-    } else {
-      performTransformParam.isRun = true;
-    }
+    yield put(
+      setSelectedSql({ sql: selectedSql.sql ? selectedSql.sql : undefined })
+    );
 
-    yield put(setSelectedSql({ sql: selectedSql }));
     yield call(performTransform, performTransformParam);
   }
 }
@@ -1061,24 +1062,37 @@ export function* showFailedJobDialog(i, sql, errorMessage) {
   return yield confirmPromise;
 }
 
-export function getParsedSql({ dataset, currentSql, runningSql }) {
+export function getParsedSql({
+  dataset,
+  currentSql,
+  runningSql,
+  selectedRange, // will be undefined if nothing is highlighted
+}) {
   const datasetSql = dataset.get("sql");
   const sql = runningSql || currentSql || datasetSql;
-  const statements = extractStatements(sql);
+  const statements = extractStatements(sql, {
+    column: selectedRange?.startColumn,
+    line: selectedRange?.startLineNumber,
+  });
+
   return [
     statements.map((s) => extractSql(sql, s)),
     statements.map(toQueryRange),
   ];
 }
 
-export function* doJobFetch({ queryStatus, activeScriptId, index }) {
+export function* doJobFetch({
+  queryStatus,
+  activeScriptId,
+  index,
+  sessionId = "",
+}) {
   try {
     let newDataset = undefined;
     let datasetPath = ["tmp", "UNTITLED"];
     let datasetVersion = queryStatus.version;
     let jobId = queryStatus.jobId;
     let paginationUrl = queryStatus.paginationUrl;
-    let sessionId = queryStatus.sessionId;
 
     yield put(
       setIsMultiQueryRunning({

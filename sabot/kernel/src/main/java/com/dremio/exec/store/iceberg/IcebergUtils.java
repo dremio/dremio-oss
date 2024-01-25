@@ -498,7 +498,7 @@ public class IcebergUtils {
   }
 
   @VisibleForTesting
-  static String resolvePath(String rootPointer, String partitionStatsMetadata) {
+  public static String resolvePath(String rootPointer, String partitionStatsMetadata) {
     String encodedRootPointer = URIUtil.encodePath(rootPointer);
     URI rootPointerUri = URI.create(encodedRootPointer);
     String scheme = rootPointerUri.getScheme();

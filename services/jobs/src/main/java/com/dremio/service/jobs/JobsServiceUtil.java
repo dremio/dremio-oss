@@ -707,6 +707,10 @@ public final class JobsServiceUtil {
       builder.setExecutionStartEpochMillis(helper.getStateTimeStamp(State.RUNNING));
       builder.setExecutionStartTs(Timestamp.newBuilder().setSeconds(helper.getStateTimeStamp(State.RUNNING)).build());
     }
+    if (helper.getFinalStateTimeStamp() != null) {
+      builder.setFinalStateEpochMillis(helper.getFinalStateTimeStamp());
+      builder.setFinalStateTs(Timestamp.newBuilder().setSeconds(helper.getFinalStateTimeStamp()).build());
+    }
 
     if (lastJobAttempt.getStats() != null) {
       if (lastJobAttempt.getStats().getInputRecords() != null) {
@@ -741,6 +745,10 @@ public final class JobsServiceUtil {
       if (lastJobAttemptInfo.getResourceSchedulingInfo().getEngineName() != null) {
         builder.setEngine(lastJobAttemptInfo.getResourceSchedulingInfo().getEngineName());
       }
+    }
+
+    if (lastJobAttemptInfo.getFailureInfo() != null) {
+      builder.setErrorMsg(lastJobAttemptInfo.getFailureInfo());
     }
 
     return builder.build();

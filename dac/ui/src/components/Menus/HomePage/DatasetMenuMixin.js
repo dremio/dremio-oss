@@ -52,7 +52,7 @@ export default function (input) {
             href={{
               pathname: sqlPaths.sqlEditor.link(),
               search: `?context="${encodeURIComponent(
-                resourceId
+                resourceId,
               )}"&queryPath=${encodeURIComponent(newFullPath)}`,
             }}
             text={t("Dataset.Actions.Query")}
@@ -65,7 +65,7 @@ export default function (input) {
                   refType && refValue
                     ? `&refType=${refType}&refValue=${refValue}`
                     : ""
-                }`
+                }`,
               )}
               text={t("Common.Actions.Edit")}
             />
@@ -77,7 +77,7 @@ export default function (input) {
                   refType && refValue && resourceId
                     ? `?refType=${refType}&refValue=${refValue}&sourceName=${resourceId}`
                     : ""
-                }`
+                }`,
               )}
               text={t("Dataset.Actions.GoTo.Table")}
               closeMenu={closeMenu}
@@ -149,16 +149,24 @@ export default function (input) {
       const { t } = getIntlContext();
       const { entity, closeMenu, entityType } = this.props;
 
+      const resourceId = entity.getIn(["fullPathList", 0]);
+      const newFullPath = JSON.stringify(entity.get("fullPathList").toJS());
+
       const { canRemoveFormat, canEdit, canMove, canDelete } = abilities(
         entity,
-        entityType
+        entityType,
       );
 
       return (
         <Menu>
           {
             <MenuItemLink
-              href={wrapBackendLink(entity.getIn(["links", "query"]))}
+              href={{
+                pathname: sqlPaths.sqlEditor.link(),
+                search: `?context="${encodeURIComponent(
+                  resourceId,
+                )}"&queryPath=${encodeURIComponent(newFullPath)}`,
+              }}
               text={t("Dataset.Actions.Query")}
               closeMenu={closeMenu}
             />

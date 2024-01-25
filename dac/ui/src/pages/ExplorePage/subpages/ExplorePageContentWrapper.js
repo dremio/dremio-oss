@@ -127,10 +127,7 @@ import {
 import QueryDataset from "@app/components/QueryDataset/QueryDataset";
 import { SqlRunnerTabs } from "dremio-ui-common/sonar/SqlRunnerSession/components/SqlRunnerTabs.js";
 import { EXPLORE_DRAG_TYPE } from "../constants";
-import {
-  addDatasetATSyntax,
-  getReferencesListForScript,
-} from "@app/utils/nessieUtils";
+import { addDatasetATSyntax } from "@app/utils/nessieUtils";
 import { withCatalogARSFlag } from "@inject/utils/arsUtils";
 import { PHYSICAL_DATASET } from "@app/constants/datasetTypes";
 import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
@@ -168,7 +165,6 @@ import { addNotification } from "@app/actions/notification";
 import { BadRequestError } from "dremio-ui-common/errors/BadRequestError";
 import SQLScriptRenameDialog from "@app/components/SQLScripts/components/SQLScriptRenameDialog/SQLScriptRenameDialog";
 import { getIntlContext } from "dremio-ui-common/contexts/IntlContext.js";
-import { store } from "@app/store/store";
 
 const newQueryLink = newQuery();
 const HISTORY_BAR_WIDTH = 34;
@@ -868,7 +864,6 @@ export class ExplorePageContentWrapper extends PureComponent {
     }
   }
 
-  // TODO: look into this, see if it needs to support query highlighting
   kbdShorthand = (e) => {
     if (!e) return;
 
@@ -880,9 +875,9 @@ export class ExplorePageContentWrapper extends PureComponent {
     );
 
     if (e.shiftKey) {
-      this.props.runDatasetSql();
+      this.props.runDatasetSql({ selectedSql: this.getSelectedSql() });
     } else {
-      this.props.previewDatasetSql();
+      this.props.previewDatasetSql({ selectedSql: this.getSelectedSql() });
     }
   };
 
@@ -956,7 +951,7 @@ export class ExplorePageContentWrapper extends PureComponent {
 
   getSelectedSql = () => {
     if (this.getMonacoEditorInstance() === undefined) {
-      return "";
+      return { sql: "", range: {} };
     }
 
     const selection = this.getMonacoEditorInstance().getSelection();
@@ -966,7 +961,11 @@ export class ExplorePageContentWrapper extends PureComponent {
       startColumn: selection.startColumn,
       startLineNumber: selection.startLineNumber,
     };
-    return this.getMonacoEditorInstance().getModel().getValueInRange(range);
+
+    return {
+      sql: this.getMonacoEditorInstance().getModel().getValueInRange(range),
+      range,
+    };
   };
 
   handleSidebarCollapse = () => {
@@ -1565,9 +1564,6 @@ export class ExplorePageContentWrapper extends PureComponent {
       }
     };
 
-    const generateReferencesList = () =>
-      getReferencesListForScript(store.getState().nessie);
-
     return (
       <>
         {/* <ExplorePage /> always assumes there are two HTML elements (grid-template-rows: auto 1fr)
@@ -1591,9 +1587,6 @@ export class ExplorePageContentWrapper extends PureComponent {
                 <ExploreInfoHeader
                   dataset={dataset}
                   pageType={pageType}
-                  toggleRightTree={this.props.toggleRightTree}
-                  rightTreeVisible={this.props.rightTreeVisible}
-                  exploreViewState={exploreViewState}
                   nessieState={this.props.nessieState}
                 />
               </div>
@@ -1748,7 +1741,6 @@ export class ExplorePageContentWrapper extends PureComponent {
                                 )
                               );
                             }}
-                            generateReferencesList={generateReferencesList}
                           />
                         )}
                       </MultiTabIsEnabledProvider>

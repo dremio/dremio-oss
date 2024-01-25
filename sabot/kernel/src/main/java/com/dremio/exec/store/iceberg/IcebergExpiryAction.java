@@ -110,8 +110,8 @@ public class IcebergExpiryAction {
           final long olderThanInMillis = getOlderThanInMillisWithTableProperties(
             tableMetadata.properties(), vacuumOptions.getOlderThanInMillis());
           final int retainLast = getRetainLastWithTableProperties(tableMetadata.properties(), vacuumOptions.getRetainLast());
-          IcebergExpirySnapshotsCollector collector = new IcebergExpirySnapshotsCollector(tableMetadata, olderThanInMillis, retainLast);
-          Pair<List<SnapshotEntry>, Set<Long>> candidates = collector.getRetainedSnapshotIDs();
+          IcebergExpirySnapshotsCollector collector = new IcebergExpirySnapshotsCollector(tableMetadata);
+          Pair<List<SnapshotEntry>, Set<Long>> candidates = collector.collect(olderThanInMillis, retainLast);
           this.expiredSnapshots = candidates.first();
           Set<Long> idsToRetain = candidates.second();
           this.liveSnapshots = allSnapshots.stream()

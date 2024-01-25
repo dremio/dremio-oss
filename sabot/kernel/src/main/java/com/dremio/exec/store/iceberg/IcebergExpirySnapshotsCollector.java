@@ -43,17 +43,15 @@ import com.google.common.collect.Sets;
 public class IcebergExpirySnapshotsCollector {
   private static final Logger LOGGER = LoggerFactory.getLogger(IcebergExpirySnapshotsCollector.class);
   private final TableMetadata tableMetadata;
-  private final long olderThanInMillis;
-  private final int retainLast;
 
-  private final List<SnapshotEntry> expiredSnapshots;
+  private List<SnapshotEntry> expiredSnapshots = Lists.newArrayList();
   private final Set<Long> idsToRetain = Sets.newHashSet();
 
-  public IcebergExpirySnapshotsCollector (TableMetadata tableMetadata, long olderThanInMillis, int retainLast) {
+  public IcebergExpirySnapshotsCollector (TableMetadata tableMetadata) {
     this.tableMetadata = tableMetadata;
-    this.olderThanInMillis = olderThanInMillis;
-    this.retainLast = retainLast;
+  }
 
+  public Pair<List<SnapshotEntry>, Set<Long>> collect(long olderThanInMillis, int retainLast) {
     // Identify refs that should be retained
     Map<String, SnapshotRef> retainedRefs = computeRetainedRefs(tableMetadata.refs());
     Map<Long, List<String>> retainedIdToRefs = Maps.newHashMap();
@@ -67,13 +65,11 @@ public class IcebergExpirySnapshotsCollector {
     idsToRetain.addAll(computeAllBranchSnapshotsToRetain(retainedRefs.values(), olderThanInMillis, retainLast));
     idsToRetain.addAll(unreferencedSnapshotsToRetain(retainedRefs.values(), olderThanInMillis));
 
-    this.expiredSnapshots =  tableMetadata.snapshots().stream()
+    expiredSnapshots =  tableMetadata.snapshots().stream()
       .filter(s -> !idsToRetain.contains(s.snapshotId()))
       .map(s -> new SnapshotEntry(tableMetadata.metadataFileLocation(), s))
       .collect(Collectors.toList());
-  }
 
-  public Pair<List<SnapshotEntry>, Set<Long>> getRetainedSnapshotIDs() {
     return Pair.of(expiredSnapshots, idsToRetain);
   }
 

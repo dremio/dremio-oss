@@ -115,12 +115,17 @@ export function getNessieReferencePayload(nessie?: NessieRootState | null) {
   const stateKeys = Object.keys(nessie).filter(
     (key) => key && key.startsWith(NESSIE_REF_PREFIX)
   );
+  const keysAdded: string[] = [];
   return stateKeys.reduce((acc, key) => {
     const refState = nessie[key];
     const source = key.substring(NESSIE_REF_PREFIX.length, key.length);
 
     const value = getTypeAndValue(refState);
-    if (value != null && source) acc[source] = value;
+    // Case insensitive, ignore duplicate keys that have different casing
+    if (value != null && source && !keysAdded.includes(source.toLowerCase())) {
+      acc[source] = value;
+      keysAdded.push(source.toLowerCase());
+    }
 
     return acc;
   }, {} as any);
@@ -167,17 +172,31 @@ export function convertReferencesListToRootState(
   const newState = { ...state };
 
   referencesList.forEach((reference: any) => {
-    newState[`${NESSIE_REF_PREFIX}${reference.sourceName}`] = {
-      reference: {
-        type: reference.reference.type,
-        name: reference.reference.value,
-      },
-      defaultReference: null,
-      hash: null,
-      date: null,
-      loading: {},
-      errors: {},
-    };
+    if (reference.reference.type === "COMMIT") {
+      newState[`${NESSIE_REF_PREFIX}${reference.sourceName}`] = {
+        reference: {
+          type: "BRANCH",
+          name: "main",
+        },
+        defaultReference: null,
+        hash: reference.reference.value,
+        date: null,
+        loading: {},
+        errors: {},
+      };
+    } else {
+      newState[`${NESSIE_REF_PREFIX}${reference.sourceName}`] = {
+        reference: {
+          type: reference.reference.type,
+          name: reference.reference.value,
+        },
+        defaultReference: null,
+        hash: null,
+        date: null,
+        loading: {},
+        errors: {},
+      };
+    }
   });
 
   return newState;

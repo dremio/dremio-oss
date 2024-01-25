@@ -231,7 +231,7 @@ public class AWSGlueStoragePlugin implements StoragePlugin, MutablePlugin, Suppo
     hiveConf.propertyList = finalProperties;
     hiveConf.enableAsync = config.enableAsync;
     hiveConf.isCachingEnabledForHDFS = config.isCachingEnabled;
-    hiveConf.isCachingEnabledForS3AndAzureStorage = config.isCachingEnabled;
+    hiveConf.isCachingEnabledForS3AzureAndGCS = config.isCachingEnabled;
     hiveConf.maxCacheSpacePct = config.maxCacheSpacePct;
     hiveConf.defaultCtasFormat = config.defaultCtasFormat;
 

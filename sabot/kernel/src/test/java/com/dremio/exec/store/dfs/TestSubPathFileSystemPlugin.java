@@ -120,9 +120,15 @@ public class TestSubPathFileSystemPlugin extends BaseTestQuery {
   }
 
   @Test
-  public void queryInvalidPath() throws Exception {
+  public void queryInvalidPath() {
     errorMsgTestHelper("SELECT * FROM subPathDfs.\"../tblOutside.csv\"",
-        "PERMISSION ERROR: Not allowed to access files outside of the source root");
+        "PERMISSION ERROR: Not allowed to perform directory traversal");
+  }
+
+  @Test
+  public void queryInvalidPath2() {
+    errorMsgTestHelper("SELECT * FROM subPathDfs.subFolder.\"../tblOutside.csv\"",
+      "PERMISSION ERROR: Not allowed to perform directory traversal");
   }
 
   @Test
@@ -132,15 +138,28 @@ public class TestSubPathFileSystemPlugin extends BaseTestQuery {
   }
 
   @Test
-  public void ctasInvalidPath() throws Exception {
+  public void ctasInvalidPath() {
     errorMsgTestHelper("CREATE TABLE subPathDfs.\"../ctas\" AS SELECT * FROM cp.\"region.json\"",
-        "PERMISSION ERROR: Not allowed to access files outside of the source root");
+        "PERMISSION ERROR: Not allowed to perform directory traversal");
   }
 
   @Test
-  public void dropTableInvalidPath() throws Exception {
+  public void ctasInvalidPath2() {
+    errorMsgTestHelper("CREATE TABLE subPathDfs.subFolder.\"../ctas\" AS SELECT * FROM cp.\"region.json\"",
+      "PERMISSION ERROR: Not allowed to perform directory traversal");
+  }
+
+
+  @Test
+  public void dropTableInvalidPath() {
     errorMsgTestHelper("DROP TABLE subPathDfs.\"../tblOutside.csv\"",
-        "PERMISSION ERROR: Not allowed to access files outside of the source root");
+        "PERMISSION ERROR: Not allowed to perform directory traversal");
+  }
+
+  @Test
+  public void dropTableInvalidPath2() {
+    errorMsgTestHelper("DROP TABLE subPathDfs.subFolder.\"../tblOutside.csv\"",
+      "PERMISSION ERROR: Not allowed to perform directory traversal");
   }
 
   @Test
@@ -150,9 +169,15 @@ public class TestSubPathFileSystemPlugin extends BaseTestQuery {
   }
 
   @Test
-  public void createViewInvalidPath() throws Exception {
+  public void createViewInvalidPath() {
     errorMsgTestHelper("CREATE VIEW subPathDfs.\"../view\" AS SELECT * FROM cp.\"region.json\"",
-        "PERMISSION ERROR: Not allowed to access files outside of the source root");
+        "PERMISSION ERROR: Not allowed to perform directory traversal");
+  }
+
+  @Test
+  public void createViewInvalidPath2() {
+    errorMsgTestHelper("CREATE VIEW subPathDfs.subFolder.\"../view\" AS SELECT * FROM cp.\"region.json\"",
+      "PERMISSION ERROR: Not allowed to perform directory traversal");
   }
 
   @Test

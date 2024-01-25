@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.text.StrTokenizer;
@@ -308,6 +309,21 @@ public class PathUtils {
     final String basePathNormalized = Path.withoutSchemeAndAuthority(basePath).toString();
     final String givenPathNormalized = Path.withoutSchemeAndAuthority(givenPath).toString();
     return (Paths.get(givenPathNormalized).startsWith(Paths.get(basePathNormalized)));
+  }
+
+  /**
+   * Throws an exception if <i>path</i> performs directory traversal, which is disallowed for security reasons.
+   * @param path
+   * @throws supplied exception if path performs directory traversal
+   */
+  public static void verifyNoDirectoryTraversal(List<String> path, Supplier<RuntimeException> exceptionSupplier) {
+    if (path.stream().anyMatch(pathComponent ->
+      pathComponent.equals("..")
+        || pathComponent.endsWith("/..")
+        || pathComponent.startsWith("../")
+        || pathComponent.contains("/../"))) {
+      throw exceptionSupplier.get();
+    }
   }
 
   /**

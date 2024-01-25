@@ -19,6 +19,7 @@ import static com.dremio.exec.store.ischema.InfoSchemaConstants.CATS_COL_CATALOG
 import static com.dremio.exec.store.ischema.InfoSchemaConstants.CATS_COL_CATALOG_DESCRIPTION;
 import static com.dremio.exec.store.ischema.InfoSchemaConstants.CATS_COL_CATALOG_NAME;
 
+import java.nio.file.Paths;
 import java.util.List;
 
 import org.junit.Ignore;
@@ -26,6 +27,7 @@ import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.TestBuilder;
+import com.dremio.common.util.TestTools;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -254,7 +256,7 @@ public class TestInfoSchema extends BaseTestQuery {
   @Test
   public void defaultSchemaDfs() throws Exception{
     testBuilder()
-        .sqlQuery("SELECT R_REGIONKEY FROM \"[WORKING_PATH]/../../sample-data/region.parquet\" LIMIT 1")
+        .sqlQuery(String.format("SELECT R_REGIONKEY FROM \"%s/sample-data/region.parquet\" LIMIT 1", Paths.get(TestTools.getWorkingPath()).getParent().getParent()))
         .unOrdered()
         .optionSettingQueriesForTestQuery("USE dfs")
         .baselineColumns("R_REGIONKEY")

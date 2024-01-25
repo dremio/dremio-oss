@@ -610,4 +610,8 @@ public class UserSession {
   public boolean errorOnUnspecifiedVersion() {
     return errorOnUnspecifiedVersion;
   }
+
+  void setErrorOnUnspecifiedVersion(boolean value) {
+    errorOnUnspecifiedVersion = value;
+  }
 }

@@ -40,6 +40,7 @@ import com.dremio.exec.proto.UserProtos;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.SessionOptionManagerImpl;
+import com.dremio.sabot.rpc.user.ChangeTrackingUserSession;
 import com.dremio.sabot.rpc.user.UserSession;
 
 /**
@@ -85,11 +86,19 @@ public class QueryVersionUtils {
 
   private static UserSession userSessionForVersionValidation(final SabotContext sabotContext, final List<String> pathContext, final Map<String, VersionContext> sourceVersionMapping, Optional<UserSession> userSession) {
     if (userSession.isPresent()) {
-      return UserSession.Builder.newBuilderWithCopy(userSession.get())
-        .withDefaultSchema(pathContext)
-        .withSourceVersionMapping(sourceVersionMapping)
-        .withErrorOnUnspecifiedVersion(true)
-        .build();
+      if (userSession.get() instanceof ChangeTrackingUserSession) {
+        return ChangeTrackingUserSession.Builder.newBuilderWithCopy((ChangeTrackingUserSession)userSession.get())
+          .withDefaultSchema(pathContext)
+          .withSourceVersionMapping(sourceVersionMapping)
+          .withErrorOnUnspecifiedVersion(true)
+          .build();
+      } else {
+        return UserSession.Builder.newBuilderWithCopy(userSession.get())
+          .withDefaultSchema(pathContext)
+          .withSourceVersionMapping(sourceVersionMapping)
+          .withErrorOnUnspecifiedVersion(true)
+          .build();
+      }
     } else {
       return UserSession.Builder.newBuilder()
         .withSessionOptionManager(

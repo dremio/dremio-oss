@@ -15,6 +15,7 @@
  */
 package com.dremio.service.reflection.materialization;
 
+import static com.dremio.test.DremioTest.CLASSPATH_SCAN_RESULT;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
@@ -33,8 +34,12 @@ import org.junit.Test;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.TableMutationOptions;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.io.file.Path;
+import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValidatorListing;
+import com.dremio.options.impl.DefaultOptionManager;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.reflection.ReflectionServiceImpl;
 import com.dremio.service.reflection.proto.Materialization;
@@ -134,9 +139,12 @@ public class TestAccelerationStoragePlugin {
       storagePluginIdProvider,
       materializationStore
     ));
+    OptionValidatorListing optionValidatorListing = new OptionValidatorListingImpl(CLASSPATH_SCAN_RESULT);
+    OptionManager optionManager = new DefaultOptionManager(optionValidatorListing);
 
     when(materializationStore.get(materializationId)).thenReturn(materialization);
     when(materializationStore.getMostRecentRefresh(reflectionId, 5L)).thenReturn(refresh);
+    when(sabotContext.getOptionManager()).thenReturn(optionManager);
 
     // TEST
     NamespaceKey namespaceKey = new NamespaceKey(

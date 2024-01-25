@@ -139,6 +139,8 @@ function* pollIncompleteJobs(action: any): any {
       return fork(doJobFetch, {
         queryStatus,
         activeScriptId: action.script.id,
+        // Tabs: Need to store sessionId in the script
+        sessionId: action.script.sessionId || "",
         index,
       });
     })

@@ -118,7 +118,7 @@ describe("performTransform saga", () => {
     });
 
     it("should do nothing if proceedWithDataLoad yields false", () => {
-      gen = handleRunDatasetSql({});
+      gen = handleRunDatasetSql({ selectedSql: { sql: "", range: {} } });
       next = gen.next();
       next = gen.next(dataSet);
       next = gen.next(exploreViewState);
@@ -146,8 +146,9 @@ describe("performTransform saga", () => {
         runningSql: "",
         useOptimizedJobFlow: undefined,
         activeScriptId: undefined,
+        selectedRange: undefined,
       };
-      gen = handleRunDatasetSql({});
+      gen = handleRunDatasetSql({ selectedSql: { sql: "", range: {} } });
       next = gen.next(); // yield dataset
       next = gen.next(dataSet); // use dataset, yield exploreViewState
       next = gen.next(exploreViewState); // use exploreViewState, yield exploreState
@@ -170,8 +171,12 @@ describe("performTransform saga", () => {
         runningSql: "",
         useOptimizedJobFlow: undefined,
         activeScriptId: undefined,
+        selectedRange: undefined,
       };
-      gen = handleRunDatasetSql({ isPreview: true });
+      gen = handleRunDatasetSql({
+        isPreview: true,
+        selectedSql: { sql: "", range: {} },
+      });
       next = gen.next(); // yield dataset
       next = gen.next(dataSet); // use dataset, yield exploreViewState
       next = gen.next(exploreViewState); // use exploreViewState, yield exploreState

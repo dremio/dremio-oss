@@ -31,7 +31,6 @@ import {
   closeTab,
   selectTab,
 } from "dremio-ui-common/sonar/SqlRunnerSession/resources/SqlRunnerSessionResource.js";
-import { getReferencesListForScript } from "@app/utils/nessieUtils";
 import { getLocation } from "@app/selectors/routing";
 import { isTabbableUrl } from "@app/utils/explorePageTypeUtils";
 
@@ -292,7 +291,6 @@ function doScriptSelect(
       script: {
         ...prevScript,
         content: getExploreState(store.getState()).view.currentSql,
-        referencesList: getReferencesListForScript(store.getState().nessie),
       },
     });
   }

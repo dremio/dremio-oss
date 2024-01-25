@@ -151,4 +151,99 @@ public class TestPathUtils {
     } catch (UserException ex) {
     }
   }
+
+  @Test
+  public void testVerifyNoDirectoryTraversal1() {
+    try {
+      PathUtils.verifyNoDirectoryTraversal(ImmutableList.of("a/../b"), RuntimeException::new);
+      fail();
+    } catch (RuntimeException ex) {
+    }
+  }
+
+  @Test
+  public void testVerifyNoDirectoryTraversal2() {
+    try {
+      PathUtils.verifyNoDirectoryTraversal(ImmutableList.of("a", "..", "b"), RuntimeException::new);
+      fail();
+    } catch (RuntimeException ex) {
+    }
+  }
+
+  @Test
+  public void testVerifyNoDirectoryTraversal3() {
+    try {
+      PathUtils.verifyNoDirectoryTraversal(ImmutableList.of("a/b/../../c"), RuntimeException::new);
+      fail();
+    } catch (RuntimeException ex) {
+    }
+  }
+  @Test
+  public void testVerifyNoDirectoryTraversal4() {
+    try {
+      PathUtils.verifyNoDirectoryTraversal(ImmutableList.of("a", "b", "../..", "c"), RuntimeException::new);
+      fail();
+    } catch (RuntimeException ex) {
+    }
+  }
+
+  @Test
+  public void testVerifyNoDirectoryTraversal5() {
+    try {
+      PathUtils.verifyNoDirectoryTraversal(ImmutableList.of("../b"), RuntimeException::new);
+      fail();
+    } catch (RuntimeException ex) {
+    }
+  }
+
+  @Test
+  public void testVerifyNoDirectoryTraversal6() {
+    try {
+      PathUtils.verifyNoDirectoryTraversal(ImmutableList.of("..", "b"), RuntimeException::new);
+      fail();
+    } catch (RuntimeException ex) {
+    }
+  }
+
+  @Test
+  public void testVerifyNoDirectoryTraversal7() {
+    try {
+      PathUtils.verifyNoDirectoryTraversal(ImmutableList.of("/../b"), RuntimeException::new);
+      fail();
+    } catch (RuntimeException ex) {
+    }
+  }
+
+  @Test
+  public void testVerifyNoDirectoryTraversal8() {
+    try {
+      PathUtils.verifyNoDirectoryTraversal(ImmutableList.of("a/.."), RuntimeException::new);
+      fail();
+    } catch (RuntimeException ex) {
+    }
+  }
+
+  @Test
+  public void testVerifyNoDirectoryTraversal9() {
+    try {
+      PathUtils.verifyNoDirectoryTraversal(ImmutableList.of("a", ".."), RuntimeException::new);
+      fail();
+    } catch (RuntimeException ex) {
+    }
+  }
+
+  @Test
+  public void testVerifyNoDirectoryTraversal10() {
+    PathUtils.verifyNoDirectoryTraversal(ImmutableList.of("a", "..b"), RuntimeException::new);
+  }
+
+  @Test
+  public void testVerifyNoDirectoryTraversal11() {
+    PathUtils.verifyNoDirectoryTraversal(ImmutableList.of("a..", "b"), RuntimeException::new);
+  }
+
+  @Test
+  public void testVerifyNoDirectoryTraversal12() {
+    PathUtils.verifyNoDirectoryTraversal(ImmutableList.of("a", ".", ".", "b"), RuntimeException::new);
+  }
 }

@@ -27,6 +27,7 @@ import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.ReduceTrigFunctionsRule;
 import com.dremio.exec.planner.normalizer.aggregaterewrite.AggregateFilterToCaseRule;
 import com.dremio.exec.planner.normalizer.aggregaterewrite.ApproxPercentileRewriteRule;
+import com.dremio.exec.planner.normalizer.aggregaterewrite.ArrayAggExpandDistinctAggregateRule;
 import com.dremio.exec.planner.normalizer.aggregaterewrite.CollectToArrayAggRule;
 import com.dremio.exec.planner.normalizer.aggregaterewrite.ConvertCountDistinctToHll;
 import com.dremio.exec.planner.normalizer.aggregaterewrite.MedianRewriteRule;
@@ -101,6 +102,7 @@ public class NormalizerRuleSets {
         .add(PercentileFunctionsRewriteRule.INSTANCE)
         .add(ApproxPercentileRewriteRule.INSTANCE)
         .add(CollectToArrayAggRule.INSTANCE)
+        .add(ArrayAggExpandDistinctAggregateRule.INSTANCE)
         .build());
   }
 

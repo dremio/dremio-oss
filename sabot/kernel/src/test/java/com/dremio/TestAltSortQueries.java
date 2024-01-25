@@ -15,22 +15,31 @@
  */
 package com.dremio;
 
+import java.nio.file.Paths;
+
 import org.junit.Test;
+
+import com.dremio.common.util.TestTools;
 
 public class TestAltSortQueries extends BaseTestQuery{
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestAltSortQueries.class);
 
+  private static final String SAMPLE_DATA_PATH;
+  static {
+    SAMPLE_DATA_PATH = Paths.get(TestTools.getWorkingPath()).getParent().getParent().resolve("sample-data").toAbsolutePath().toString();
+  }
+
   @Test
   public void testOrderBy() throws Exception{
     test("select R_REGIONKEY " +
-         "from dfs.\"[WORKING_PATH]/../../sample-data/region.parquet\" " +
+         String.format("from dfs.\"%s/region.parquet\" ", SAMPLE_DATA_PATH) +
          "order by R_REGIONKEY");
   }
 
   @Test
   public void testOrderBySingleFile() throws Exception{
     test("select R_REGIONKEY " +
-         "from dfs.\"[WORKING_PATH]/../../sample-data/regionsSF/\" " +
+         String.format("from dfs.\"%s/regionsSF/\" ", SAMPLE_DATA_PATH) +
          "order by R_REGIONKEY");
   }
 
@@ -58,9 +67,9 @@ public class TestAltSortQueries extends BaseTestQuery{
         "  nations.N_NAME,\n" +
         "  regions.R_NAME\n" +
         "FROM\n" +
-        "  dfs.\"[WORKING_PATH]/../../sample-data/nation.parquet\" nations\n" +
+        String.format("  dfs.\"%s/nation.parquet\" nations\n", SAMPLE_DATA_PATH) +
         "JOIN\n" +
-        "  dfs.\"[WORKING_PATH]/../../sample-data/region.parquet\" regions\n" +
+        String.format("  dfs.\"%s/region.parquet\" regions\n", SAMPLE_DATA_PATH) +
         "  on nations.N_REGIONKEY = regions.R_REGIONKEY" +
         " order by regions.R_NAME, nations.N_NAME " +
         " limit 5");

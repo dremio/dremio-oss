@@ -36,7 +36,6 @@
 |@dotlottie/player-component                                 |2.7.0               |MIT                 |
 |@emotion/babel-plugin                                       |11.9.2              |MIT                 |
 |@emotion/cache                                              |11.9.3              |MIT                 |
-|@emotion/css                                                |11.11.2             |MIT                 |
 |@emotion/hash                                               |0.8.0               |MIT                 |
 |@emotion/is-prop-valid                                      |1.1.3               |MIT                 |
 |@emotion/memoize                                            |0.7.5               |MIT                 |
@@ -50,10 +49,7 @@
 |@floating-ui/core                                           |0.7.3               |MIT                 |
 |@floating-ui/dom                                            |0.5.4               |MIT                 |
 |@floating-ui/react-dom                                      |0.7.2               |MIT                 |
-|@floating-ui/react-dom                                      |1.3.0               |MIT                 |
-|@floating-ui/react-dom                                      |2.0.1               |MIT                 |
 |@floating-ui/react-dom-interactions                         |0.6.6               |MIT                 |
-|@floating-ui/react-dom-interactions                         |0.9.3               |MIT                 |
 |@formatjs/ecma402-abstract                                  |1.9.8               |MIT                 |
 |@formatjs/fast-memoize                                      |1.2.0               |ISC                 |
 |@formatjs/icu-messageformat-parser                          |2.0.11              |MIT                 |
@@ -79,7 +75,6 @@
 |@mantine/utils                                              |5.0.2               |MIT                 |
 |@mantine/utils                                              |5.9.3               |MIT                 |
 |@mui/base                                                   |5.0.0-alpha.91      |MIT                 |
-|@mui/material                                               |5.9.0               |MIT                 |
 |@mui/material                                               |5.9.2               |MIT                 |
 |@mui/private-theming                                        |5.9.1               |MIT                 |
 |@mui/styled-engine                                          |5.8.7               |MIT                 |
@@ -109,15 +104,13 @@
 |@types/hast                                                 |2.3.4               |MIT                 |
 |@types/hoist-non-react-statics                              |3.3.1               |MIT                 |
 |@types/lodash                                               |4.14.168            |MIT                 |
-|@types/lodash                                               |4.14.191            |MIT                 |
 |@types/node                                                 |16.7.1              |MIT                 |
 |@types/parse-json                                           |4.0.0               |MIT                 |
 |@types/prop-types                                           |15.7.3              |MIT                 |
 |@types/prop-types                                           |15.7.5              |MIT                 |
+|@types/react                                                |16.14.23            |MIT                 |
 |@types/react                                                |17.0.44             |MIT                 |
 |@types/react                                                |18.0.14             |MIT                 |
-|@types/react                                                |18.0.24             |MIT                 |
-|@types/react                                                |18.0.25             |MIT                 |
 |@types/react-dom                                            |18.0.5              |MIT                 |
 |@types/react-is                                             |17.0.3              |MIT                 |
 |@types/react-transition-group                               |4.4.5               |MIT                 |
@@ -136,8 +129,6 @@
 |Antlr 3.4 Runtime                                           |3.4                 |BSD 3-clause        |
 |AntLR Parser Generator                                      |2.7.7               |Public Domain       |
 |ANTLR StringTemplate                                        |3.2.1               |BSD 3-clause        |
-|antlr4-c3                                                   |3.1.1               |MIT                 |
-|antlr4ts                                                    |0.5.0-alpha.4       |BSD-3-Clause        |
 |aopalliance version 1.0 repackaged as a module              |2.6.1               |CDDL 1.1            |
 |Apache Avro                                                 |1.11.3              |Apache 2.0          |
 |Apache Calcite Avatica                                      |1.23.0              |Apache 2.0          |
@@ -275,8 +266,8 @@
 |Byte Buddy                                                  |1.12.21             |Apache 2.0          |
 |c3                                                          |0.4.18              |MIT                 |
 |Caffeine cache                                              |2.9.3               |Apache 2.0          |
-|Calcite Core                                                |1.18.0-202309301303210605-b1457375|Apache 2.0          |
-|Calcite Linq4j                                              |1.18.0-202309301303210605-b1457375|Apache 2.0          |
+|Calcite Core                                                |1.18.0-202401051902030372-6526652f|Apache 2.0          |
+|Calcite Linq4j                                              |1.18.0-202401051902030372-6526652f|Apache 2.0          |
 |call-bind                                                   |1.0.2               |MIT                 |
 |callsites                                                   |3.1.0               |MIT                 |
 |CDI APIs                                                    |4.0.1               |Apache 2.0          |
@@ -363,8 +354,6 @@
 |define-data-property                                        |1.1.0               |MIT                 |
 |define-properties                                           |1.1.4               |MIT                 |
 |define-properties                                           |1.2.1               |MIT                 |
-|define-route                                                |0.3.1               |Apache-2.0          |
-|dialog-polyfill                                             |0.5.6               |BSD-3-Clause        |
 |Digester                                                    |1.8                 |Apache 2.0          |
 |Disruptor Framework                                         |3.4.2               |Apache 2.0          |
 |dnd-core                                                    |7.0.2               |MIT                 |
@@ -372,11 +361,10 @@
 |dom-helpers                                                 |2.4.0               |MIT                 |
 |dom-helpers                                                 |3.4.0               |MIT                 |
 |dom-helpers                                                 |5.2.1               |MIT                 |
-|downshift                                                   |7.2.0               |MIT                 |
-|Dremio Cache Manager                                        |24.3.0              |Dremio Free Software License 1.0|
+|Dremio Cache Manager                                        |24.3.2              |Dremio Free Software License 1.0|
 |Dremio Diagnostic Collector                                 |0.7.0               |Apache 2.0          |
-|Dremio Fast Operators                                       |24.3.0              |Dremio Free Software License 1.0|
-|Dremio Fast Threads                                         |24.3.0              |Dremio Free Software License 1.0|
+|Dremio Fast Operators                                       |24.3.2              |Dremio Free Software License 1.0|
+|Dremio Fast Threads                                         |24.3.2              |Dremio Free Software License 1.0|
 |easy-peasy                                                  |4.0.1               |MIT                 |
 |echarts                                                     |5.3.1               |Apache-2.0          |
 |EclipseLink                                                 |2.5.2               |Eclipse Public License 1.0 & Eclipse Distribution License v. 1.0|
@@ -512,7 +500,6 @@
 |inherits                                                    |2.0.4               |ISC                 |
 |IntelliJ IDEA Annotations                                   |12.0                |Apache 2.0          |
 |internal-slot                                               |1.0.5               |MIT                 |
-|intl-messageformat                                          |10.2.1              |BSD-3-Clause        |
 |intl-messageformat                                          |9.9.1               |BSD-3-Clause        |
 |invariant                                                   |2.2.4               |MIT                 |
 |Ion Java                                                    |1.0.2               |Apache 2.0          |
@@ -680,7 +667,6 @@
 |LatencyUtils                                                |2.0.3               |Public Domain, BSD 2-Clause License|
 |leantable                                                   |0.2.6               |Apache-2.0          |
 |leantable                                                   |0.4.11              |Apache-2.0          |
-|leantable                                                   |0.4.12              |Apache-2.0          |
 |leveldbjni-all                                              |1.8                 |BSD 3-clause        |
 |lines-and-columns                                           |1.2.4               |MIT                 |
 |linkifyjs                                                   |2.1.9               |MIT                 |
@@ -698,9 +684,9 @@
 |lodash.isplainobject                                        |4.0.6               |MIT                 |
 |lodash.omit                                                 |4.5.0               |MIT                 |
 |Log4j Implemented Over SLF4J                                |1.7.36              |MIT                 |
-|Logback Access Module                                       |1.2.12              |EPL 1.0             |
-|Logback Classic Module                                      |1.2.12              |EPL 1.0             |
-|Logback Core Module                                         |1.2.12              |EPL 1.0             |
+|Logback Access Module                                       |1.2.13              |EPL 1.0             |
+|Logback Classic Module                                      |1.2.13              |EPL 1.0             |
+|Logback Core Module                                         |1.2.13              |EPL 1.0             |
 |Logstash Logback Encoder                                    |7.2                 |Apache 2.0          |
 |loose-envify                                                |1.4.0               |MIT                 |
 |lottie-web                                                  |5.8.1               |MIT                 |
@@ -749,14 +735,12 @@
 |ModelMapper                                                 |2.3.0               |Apache 2.0          |
 |ModelMapper Protobuf Extension                              |2.3.0               |Apache 2.0          |
 |moize                                                       |6.1.0               |MIT                 |
-|moize                                                       |6.1.3               |MIT                 |
 |monaco-editor                                               |0.10.0              |MIT                 |
 |mongodb-driver-core                                         |4.11.0              |Apache 2.0          |
 |mongodb-driver-sync                                         |4.11.0              |Apache 2.0          |
 |mousetrap                                                   |1.6.1               |Apache-2.0          |
 |ms                                                          |2.1.2               |MIT                 |
 |Msal4j                                                      |1.13.10             |MIT License         |
-|msw                                                         |1.2.0               |MIT                 |
 |mumath                                                      |3.3.4               |Unlicense           |
 |nanoclone                                                   |0.2.1               |MIT                 |
 |nanoid                                                      |3.3.4               |MIT                 |
@@ -878,7 +862,6 @@
 |Prometheus Java Simpleclient Servlet                        |0.16.0              |Apache 2.0          |
 |Prometheus Java Simpleclient Servlet                        |0.16.0              |Apache 2.0          |
 |promise                                                     |7.3.1               |MIT                 |
-|prop-types                                                  |15.5.10             |BSD-3-Clause        |
 |prop-types                                                  |15.5.8              |BSD-3-Clause        |
 |prop-types                                                  |15.7.2              |MIT                 |
 |prop-types                                                  |15.8.1              |MIT                 |
@@ -921,7 +904,6 @@
 |react-flow-renderer                                         |8.8.0               |MIT                 |
 |react-hook-form                                             |7.34.0              |MIT                 |
 |react-immutable-proptypes                                   |2.1.0               |MIT                 |
-|react-intl                                                  |2.9.0               |BSD-3-Clause        |
 |react-intl                                                  |5.20.10             |BSD-3-Clause        |
 |react-is                                                    |16.13.1             |MIT                 |
 |react-is                                                    |18.2.0              |MIT                 |
@@ -950,7 +932,6 @@
 |react-syntax-highlighter                                    |15.5.0              |MIT                 |
 |react-textarea-autosize                                     |8.3.4               |MIT                 |
 |react-transition-group                                      |4.4.2               |BSD-3-Clause        |
-|react-transition-group                                      |4.4.5               |BSD-3-Clause        |
 |react-virtualized                                           |9.22.3              |MIT                 |
 |react-virtualized-tree                                      |3.4.1               |MIT                 |
 |Reactive Streams                                            |1.0.3               |CC0                 |
@@ -979,7 +960,6 @@
 |RocksDB JNI                                                 |7.10.2              |Apache 2.0          |
 |RSQL-parser                                                 |2.1.0               |MIT                 |
 |rxjs                                                        |7.5.5               |Apache-2.0          |
-|rxjs                                                        |7.8.1               |Apache-2.0          |
 |S2 Geometry Library                                         |0.9.0               |Apache 2.0          |
 |safe-array-concat                                           |1.0.1               |MIT                 |
 |safe-buffer                                                 |5.1.2               |MIT                 |
@@ -1001,7 +981,6 @@
 |Sketches Core                                               |0.9.0               |Apache 2.0          |
 |SLF4J API Module                                            |1.7.36              |MIT                 |
 |Slugify - Core                                              |2.1.7               |Apache 2.0          |
-|smart-icon                                                  |1.4.3               |Apache-2.0          |
 |smart-resource                                              |0.3.8               |Apache-2.0          |
 |smart-resource                                              |1.0.0               |Apache-2.0          |
 |SnakeYAML                                                   |2.2                 |Apache 2.0          |
@@ -1089,7 +1068,7 @@
 |yup                                                         |0.32.9              |MIT                 |
 |ZkClient                                                    |0.10                |Apache 2.0          |
 |zod                                                         |3.17.10             |MIT                 |
-|zookeeper                                                   |3.4.14              |Apache 2.0          |
+|zookeeper                                                   |3.5.6.0-mapr-2009   |Apache 2.0          |
 |zookeeper-jute                                              |3.6.2               |Apache 2.0          |
 |zrender                                                     |5.3.1               |BSD-3-Clause        |
 |zstd-jni                                                    |1.5.0-1             |https://github.com/luben/zstd-jni/blob/master/LICENSE|

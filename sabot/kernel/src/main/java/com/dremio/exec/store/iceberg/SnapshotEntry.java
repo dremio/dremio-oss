@@ -23,15 +23,17 @@ public class SnapshotEntry {
   private final long snapshotId;
   private final String manifestListPath;
   private final String metadataJsonPath;
+  private final Long timestampMillis;
 
   public SnapshotEntry(String metadataJsonPath, Snapshot snapshot) {
-    this(metadataJsonPath, snapshot.snapshotId(), snapshot.manifestListLocation());
+    this(metadataJsonPath, snapshot.snapshotId(), snapshot.manifestListLocation(), snapshot.timestampMillis());
   }
 
-  public SnapshotEntry(String metadataJsonPath, long snapshotId, String manifestListPath) {
+  public SnapshotEntry(String metadataJsonPath, long snapshotId, String manifestListPath, Long timestampMillis) {
     this.metadataJsonPath = metadataJsonPath;
     this.snapshotId = snapshotId;
     this.manifestListPath = manifestListPath;
+    this.timestampMillis = timestampMillis;
   }
 
   public long getSnapshotId() {
@@ -44,6 +46,10 @@ public class SnapshotEntry {
 
   public String getMetadataJsonPath() {
     return metadataJsonPath;
+  }
+
+  public Long getTimestampMillis() {
+    return timestampMillis;
   }
 
   @Override
@@ -70,6 +76,7 @@ public class SnapshotEntry {
         "snapshotId=" + snapshotId +
         ", manifestListPath='" + manifestListPath + '\'' +
         ", metadataJsonPath='" + metadataJsonPath + '\'' +
+        ", timestampMillis='" + timestampMillis + '\'' +
         '}';
   }
 }

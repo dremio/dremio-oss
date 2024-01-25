@@ -21,8 +21,6 @@ import Modal from "@app/components/Modals/Modal";
 import ApiUtils from "utils/apiUtils/apiUtils";
 import { addNotification } from "@app/actions/notification";
 import SQLScriptForm from "./SQLScriptForm";
-import { getReferencesListForScript } from "@app/utils/nessieUtils";
-import { store } from "@app/store/store";
 
 type SQLScriptDialogProps = {
   title: string;
@@ -61,7 +59,6 @@ function SQLScriptDialog(props: SQLScriptDialogProps): React.ReactElement {
       content,
       context: context.toJS ? context.toJS() : context,
       description: "",
-      referencesList: getReferencesListForScript(store.getState().nessie),
     };
 
     if (props.submit) {

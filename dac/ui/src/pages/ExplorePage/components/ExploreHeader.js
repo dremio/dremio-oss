@@ -315,20 +315,15 @@ export class ExploreHeader extends PureComponent {
   };
 
   handleRunClick() {
-    const { getSelectedSql } = this.props;
-
+    const { getSelectedSql, runDatasetSql } = this.props;
     this.navigateToExploreTableIfNecessary();
-    if (getSelectedSql() !== "") {
-      this.props.runDatasetSql({ selectedSql: getSelectedSql() });
-    } else {
-      this.props.runDatasetSql();
-    }
+    runDatasetSql({ selectedSql: getSelectedSql() });
   }
 
   handlePreviewClick() {
-    const { getSelectedSql } = this.props;
+    const { getSelectedSql, previewDatasetSql } = this.props;
     this.navigateToExploreTableIfNecessary();
-    this.props.previewDatasetSql({ selectedSql: getSelectedSql() });
+    previewDatasetSql({ selectedSql: getSelectedSql() });
   }
 
   handleCancelAllJobs() {

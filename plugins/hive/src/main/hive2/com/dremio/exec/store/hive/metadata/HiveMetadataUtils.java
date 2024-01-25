@@ -32,14 +32,19 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import javax.annotation.Nonnull;
 
+import com.dremio.exec.store.hive.HivePluginOptions;
+import com.dremio.exec.store.hive.HiveSettings;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -172,6 +177,8 @@ public class HiveMetadataUtils {
   private static final int INPUT_SPLIT_LENGTH_RUNNABLE_PARALLELISM = 16;
   private static final long MAX_NAMENODE_FS_CALL_TIMEOUT = 2000L;
   private static final Joiner PARTITION_FIELD_SPLIT_KEY_JOINER = Joiner.on("__");
+  private static final int FREQUENT_PREFIX_LENGTH = 4;
+  private static final int LARGE_PROPERTY_SET_THRESHOLD = 5000;
   public static final String TABLE_TYPE = "table_type";
   public static final String ICEBERG = "iceberg";
   public static final String METADATA_LOCATION = "metadata_location";
@@ -532,6 +539,7 @@ public class HiveMetadataUtils {
         throw new ConnectorException(String.format("Dataset path '%s', table not found.", datasetPath));
       }
       final Properties tableProperties = MetaStoreUtils.getSchema(table.getSd(), table.getSd(), table.getParameters(), table.getDbName(), table.getTableName(), table.getPartitionKeys());
+      filterProperties(tableProperties, table, context.getOptionManager());
       TableMetadata tableMetadata;
       if (isIcebergTable(table)) {
         tableMetadata = getTableMetadataFromIceberg(datasetPath, table, tableProperties, timeTravelOption, typeOptions, plugin);
@@ -1194,7 +1202,7 @@ public class HiveMetadataUtils {
         metadataAccumulator.accumulateReaderType(inputFormatClazz);
         metastoreStats = getStatsFromProps(tableProperties);
       } else {
-        final Properties partitionProperties = buildPartitionProperties(partition, table);
+        final Properties partitionProperties = buildPartitionProperties(partition, table, optionManager);
         final HiveStorageCapabilities partitionStorageCapabilities = getHiveStorageCapabilities(partition.getSd());
 
         final StorageDescriptor storageDescriptor = partition.getSd();
@@ -1599,7 +1607,7 @@ public class HiveMetadataUtils {
    * @param table     the source of table level parameters
    * @return properties
    */
-  public static Properties buildPartitionProperties(final Partition partition, final Table table) {
+  public static Properties buildPartitionProperties(final Partition partition, final Table table, final OptionManager optionManager) {
     final Properties properties = MetaStoreUtils.getPartitionMetadata(partition, table);
 
     // SerDe expects properties from Table, but above call doesn't add Table properties.
@@ -1610,6 +1618,8 @@ public class HiveMetadataUtils {
         properties.put(entry.getKey(), entry.getValue());
       }
     }
+
+    filterProperties(properties, table, optionManager);
 
     return properties;
   }
@@ -1857,6 +1867,76 @@ public class HiveMetadataUtils {
       throw new ConnectorException(e);
     }
     return Optional.empty();
+  }
+
+
+  /**
+   * Filters table or partition properties: excludes properties that match {@link HivePluginOptions#HIVE_PROPERTY_EXCLUSION_REGEX}
+   * @param properties the original properties set
+   * @param table Hive table
+   * @param optionManager option manager for current context
+   */
+  @VisibleForTesting
+  static void filterProperties(Properties properties, Table table, OptionManager optionManager) {
+
+    if (properties.size() > LARGE_PROPERTY_SET_THRESHOLD) {
+      logger.warn("Encountered large Hive table or partition property set in " + table.getTableName());
+      if (logger.isDebugEnabled()) {
+        logger.debug(printFrequentProperties(properties, table));
+      }
+    }
+
+    String exclusionRegex = new HiveSettings(optionManager).getPropertyExclusionRegex();
+    if ("(?!)".equals(exclusionRegex)) {
+      // fast path not to exclude anything (as this expression matches nothing)
+      return;
+    }
+    Pattern pattern = Pattern.compile(exclusionRegex);
+
+    int removeCount = 0;
+    Iterator<Map.Entry<Object, Object>> it = properties.entrySet().iterator();
+
+    while (it.hasNext()) {
+      Map.Entry<Object, Object> property = it.next();
+      String key = property.getKey().toString();
+      if (pattern.matcher(key).find()) {
+        it.remove();
+        ++removeCount;
+      }
+    }
+
+    logger.debug("Property filtering removed {} properties in table {}", removeCount, table.getTableName());
+  }
+
+  // investigates the property set and compiles a textual summary of the most frequent property prefixes
+  @VisibleForTesting
+  static String printFrequentProperties(Properties properties, Table table) {
+
+    Map<Object, List<String>> prefixMap = properties.entrySet().stream().map(e -> e.getKey().toString())
+      .collect(Collectors.groupingBy(s ->
+        s.length() < FREQUENT_PREFIX_LENGTH ? s : s.substring(0, FREQUENT_PREFIX_LENGTH)
+      ));
+
+    List<Map.Entry<Object, List<String>>> sortedPrefixGroups =
+      prefixMap.entrySet().stream().sorted(Comparator.comparingInt(e -> -e.getValue().size())).collect(Collectors.toList());
+
+    StringBuilder sb = new StringBuilder();
+    int topN = Math.min(sortedPrefixGroups.size(), 3);
+    sb.append("Top ").append(topN).append(" property prefixes for ").append(table.getTableName()).append(":");
+
+    for (int i = 0; i < topN; ++i) {
+      Map.Entry<Object, List<String>> prefixGroup = sortedPrefixGroups.get(i);
+      sb.append(" ").append(i + 1).append(": ").append(prefixGroup.getKey());
+      sb.append(" count=").append(prefixGroup.getValue().size()).append(" examples=[");
+      int exampleSize = Math.min(prefixGroup.getValue().size(), 3);
+      if (exampleSize > 0) {
+        sb.append(String.join(",", prefixGroup.getValue().subList(0, exampleSize)));
+      }
+      sb.append(", ...],");
+    }
+
+    sb.setLength(sb.length() - 1);
+    return sb.toString();
   }
 
 }

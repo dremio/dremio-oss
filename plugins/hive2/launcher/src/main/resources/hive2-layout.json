@@ -96,7 +96,7 @@
             "checkboxController": "enableAsync",
             "elements": [
               {
-                "propName": "config.isCachingEnabledForS3AndAzureStorage"
+                "propName": "config.isCachingEnabledForS3AzureAndGCS"
               },
               {
                 "propName": "config.isCachingEnabledForHDFS"

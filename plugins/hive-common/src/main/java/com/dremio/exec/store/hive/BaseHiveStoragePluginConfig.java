@@ -81,8 +81,8 @@ public abstract class BaseHiveStoragePluginConfig<T extends ConnectionConf<T, P>
 
   @Tag(12)
   @NotMetadataImpacting
-  @DisplayMetadata(label = "Enable local caching for Amazon S3 and Azure Storage datasets")
-  public boolean isCachingEnabledForS3AndAzureStorage = true;
+  @DisplayMetadata(label = "Enable local caching for Amazon S3, Azure Storage, and Google Cloud Storage datasets")
+  public boolean isCachingEnabledForS3AzureAndGCS = true;
 
   @Tag(13)
   @NotMetadataImpacting

@@ -17,6 +17,7 @@ package com.dremio.exec.catalog;
 
 import static com.dremio.exec.planner.physical.PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT;
 import static com.dremio.exec.store.Views.isComplexType;
+import static com.dremio.test.DremioTest.CLASSPATH_SCAN_RESULT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Fail.fail;
@@ -60,13 +61,17 @@ import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.store.AuthorizationContext;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.NessieReferenceException;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
+import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.ImpersonationConf;
 import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValidatorListing;
+import com.dremio.options.impl.DefaultOptionManager;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceIdentity;
 import com.dremio.service.namespace.NamespaceKey;
@@ -510,6 +515,46 @@ public class TestDatasetManager {
       return;
     }
     fail("getTable should have thrown exception");
+  }
+
+  @Test
+  public void checkPathTraversalNamespaceTableCannotBeAccessed() throws Exception {
+    final NamespaceKey namespaceKey = new NamespaceKey("test");
+
+    final SchemaConfig schemaConfig = mock(SchemaConfig.class);
+    when(schemaConfig.getUserName()).thenReturn("username");
+
+    final MetadataRequestOptions metadataRequestOptions = MetadataRequestOptions.newBuilder()
+      .setSchemaConfig(schemaConfig)
+      .setCheckValidity(false)
+      .setNeverPromote(true)
+      .build();
+
+    final DatasetConfig shallowDatasetConfig = new DatasetConfig();
+    shallowDatasetConfig.setType(DatasetType.PHYSICAL_DATASET);
+    shallowDatasetConfig.setId(new EntityId("test"));
+    shallowDatasetConfig.setFullPathList(ImmutableList.of("test", "folder", "..", "file"));
+    shallowDatasetConfig.setTotalNumSplits(0);
+
+    final ManagedStoragePlugin managedStoragePlugin = mock(ManagedStoragePlugin.class);
+    final StoragePlugin sp = mock(FileSystemPlugin.class);
+    when(managedStoragePlugin.isCompleteAndValid(any(), any())).thenReturn(true);
+    when(managedStoragePlugin.getPlugin()).thenReturn(sp);
+
+    final PluginRetriever pluginRetriever = mock(PluginRetriever.class);
+    when(pluginRetriever.getPlugin(namespaceKey.getRoot(), false)).thenReturn(managedStoragePlugin);
+
+    final NamespaceService namespaceService = mock(NamespaceService.class);
+    when(namespaceService.getDataset(namespaceKey)).thenReturn(shallowDatasetConfig);
+
+    OptionValidatorListing optionValidatorListing = new OptionValidatorListingImpl(CLASSPATH_SCAN_RESULT);
+    OptionManager optionManager = new DefaultOptionManager(optionValidatorListing);
+
+    final DatasetManager datasetManager = new DatasetManager(pluginRetriever, namespaceService, optionManager, "username",
+      null, null, null);
+    assertThatThrownBy(() -> datasetManager.getTable(namespaceKey, metadataRequestOptions, true))
+      .isInstanceOf(UserException.class)
+      .hasMessageContaining("Not allowed to perform directory traversal");
   }
 
   @Test

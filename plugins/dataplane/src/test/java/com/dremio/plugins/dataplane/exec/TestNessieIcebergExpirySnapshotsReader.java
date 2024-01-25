@@ -407,7 +407,7 @@ public class TestNessieIcebergExpirySnapshotsReader {
         metadataJsonPaths.add(new String(filePath.get(i), StandardCharsets.UTF_8));
       } else {
         SnapshotEntry snapshotEntry = new SnapshotEntry(new String(metadataVector.get(i), StandardCharsets.UTF_8),
-          snapshotIdVector.get(i), new String(manifestListVector.get(i), StandardCharsets.UTF_8));
+          snapshotIdVector.get(i), new String(manifestListVector.get(i), StandardCharsets.UTF_8), null);
         snapshotEntries.add(snapshotEntry);
       }
     }

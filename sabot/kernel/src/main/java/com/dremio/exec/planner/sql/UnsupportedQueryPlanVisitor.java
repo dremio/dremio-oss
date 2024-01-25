@@ -44,6 +44,7 @@ public final class UnsupportedQueryPlanVisitor extends StatelessRelShuttleImpl {
   @Override
   public RelNode visit(LogicalAggregate aggregate) {
     checkArrayAggContainsOrdering(aggregate);
+    checkArrayAggWithRollup(aggregate);
     return super.visit(aggregate);
   }
 
@@ -53,6 +54,14 @@ public final class UnsupportedQueryPlanVisitor extends StatelessRelShuttleImpl {
 
   private static void checkArrayAggContainsOrdering(LogicalAggregate aggregate) {
     aggregate.getAggCallList().forEach(UnsupportedQueryPlanVisitor::checkArrayAggContainsOrdering);
+  }
+
+  private static void checkArrayAggWithRollup(LogicalAggregate aggregate) {
+    if (aggregate.getGroupSets().size() > 1) {
+      if (aggregate.getAggCallList().stream().anyMatch(x -> ARRAY_AGG.equals(x.getAggregation()))) {
+        throw UserException.planError().message("ARRAY_AGG with ROLLUP is currently not supported.").buildSilently();
+      }
+    }
   }
 
   private static void checkArrayAggContainsOrdering(AggregateCall aggCall) {

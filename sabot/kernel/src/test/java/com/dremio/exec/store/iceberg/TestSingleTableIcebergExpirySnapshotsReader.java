@@ -249,7 +249,8 @@ public class TestSingleTableIcebergExpirySnapshotsReader {
       .mapToObj(i -> new SnapshotEntry(
         new String(metadataVector.get(i), StandardCharsets.UTF_8),
         snapshotIdVector.get(i),
-        new String(manifestListVector.get(i), StandardCharsets.UTF_8)))
+        new String(manifestListVector.get(i), StandardCharsets.UTF_8),
+        null))
       .collect(Collectors.toList());
   }
 

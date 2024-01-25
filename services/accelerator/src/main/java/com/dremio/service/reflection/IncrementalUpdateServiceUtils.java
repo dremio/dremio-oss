@@ -121,20 +121,22 @@ public class IncrementalUpdateServiceUtils {
   /**
    * compute refresh details from the plan
    */
- public static RefreshDetails extractRefreshDetails(
-   final RelNode normalizedPlan,
-   ReflectionSettings reflectionSettings,
-   ReflectionService service,
-   OptionManager optionManager,
-   boolean isRebuildPlan,
-   ReflectionEntry entry) {
-    final Pointer<String> fullRefreshReason = new Pointer<>();
-    final boolean incremental = getIncremental(normalizedPlan, reflectionSettings, service, optionManager, fullRefreshReason);
+  public static RefreshDetails extractRefreshDetails(
+    final RelNode normalizedPlan,
+    ReflectionSettings reflectionSettings,
+    ReflectionService service,
+    OptionManager optionManager,
+    boolean isRebuildPlan,
+    ReflectionEntry entry) {
 
     // When rebuilding the logical plan during upgrade, use the same refresh method of existing materialization.
     if (isRebuildPlan) {
       return new RefreshDetails(entry.getRefreshMethod(), entry.getRefreshField(), entry.getSnapshotBased(), null, null, null);
     }
+
+    final Pointer<String> fullRefreshReason = new Pointer<>();
+    final boolean incremental = getIncremental(normalizedPlan, reflectionSettings, service, optionManager, fullRefreshReason);
+
     if (!incremental) {
       return new RefreshDetails(RefreshMethod.FULL, null, false, null, null, fullRefreshReason.value);
     } else {

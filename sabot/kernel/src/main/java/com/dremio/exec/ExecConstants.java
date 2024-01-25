@@ -573,7 +573,7 @@ public interface ExecConstants {
   BooleanValidator ENABLE_ICEBERG_VACUUM_REMOVE_ORPHAN_FILES = new BooleanValidator("dremio.iceberg.vacuum.remove_orphan_files.enabled", false);
   BooleanValidator ENABLE_ICEBERG_SORT_ORDER = new BooleanValidator("dremio.iceberg.sort.order.enabled", true);
   LongValidator ICEBERG_VACUUM_CATALOG_RETENTION_PERIOD_MINUTES = new RangeLongValidator("dremio.iceberg.vacuum.catalog.default_retention.mins", 0, Long.MAX_VALUE, TimeUnit.DAYS.toMinutes(5));
-  BooleanValidator ENABLE_UNLIMITED_SPLITS_METADATA_CLEAN = new BooleanValidator("dremio.unlimited_splits.metadata.clean.enabled", false);
+  BooleanValidator ENABLE_UNLIMITED_SPLITS_METADATA_CLEAN = new BooleanValidator("dremio.unlimited_splits.metadata.clean.enabled", true);
 
   BooleanValidator ENABLE_HIVE_DATABASE_LOCATION = new BooleanValidator("dremio.hive.database.location", true);
   BooleanValidator ENABLE_QUERY_LABEL = new BooleanValidator("dremio.query.label.enabled", true);
@@ -849,5 +849,8 @@ public interface ExecConstants {
   PositiveLongValidator DEFAULT_PERIOD_TO_KEEP_SNAPSHOTS_MS = new PositiveLongValidator("dremio.unlimited_splits.metadata.snapshots.ttl", Long.MAX_VALUE, 8 * 24 * 3600 * 1000L); //8 days
 
   PositiveLongValidator HASHAGG_MAX_BATCH_SIZE = new PositiveLongValidator("dremio.hashagg_max_batch_size", Integer.MAX_VALUE, 0);
+
+  @Deprecated // The ability to disable path traversal prevention is slated to be fully removed in a future release
+  BooleanValidator FS_PATH_TRAVERSAL_PREVENTION_ENABLED = new AdminBooleanValidator("filesystem.path_traversal_prevention.enabled", true);
 
 }

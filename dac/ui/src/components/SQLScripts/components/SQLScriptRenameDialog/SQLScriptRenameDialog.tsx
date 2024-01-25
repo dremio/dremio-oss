@@ -34,8 +34,6 @@ import { useForm } from "react-hook-form";
 import Message from "@app/components/Message";
 import { fetchAllAndMineScripts } from "@app/components/SQLScripts/sqlScriptsUtils";
 import { fetchScripts } from "@app/actions/resources/scripts";
-import { getReferencesListForScript } from "@app/utils/nessieUtils";
-import { store } from "@app/store/store";
 import * as classes from "./SQLScriptRenameDialog.module.less";
 
 type SQLScriptRenameDialogProps = {
@@ -72,7 +70,6 @@ const SQLScriptRenameDialog = (
         content,
         context,
         description: "",
-        referencesList: getReferencesListForScript(store.getState().nessie),
       };
       await replaceScript(id, payload);
       ScriptsResource.fetch();

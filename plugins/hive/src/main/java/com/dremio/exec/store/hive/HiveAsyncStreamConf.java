@@ -62,6 +62,11 @@ public final class HiveAsyncStreamConf implements AsyncStreamConf {
               optionManager.getOption("store.azure.async").getBoolVal();
     }
 
+    if (AsyncReaderUtils.GCS_FILE_SYSTEM.contains(fsScheme)) {
+      // gcs storage async option defined in com.dremio.plugins.gcs.GCSOptions
+      return optionManager.getOption("store.gcs.async").getBoolVal();
+    }
+
     return jobConf.getBoolean(HiveConfFactory.HIVE_ENABLE_ASYNC, true);
   }
   @Override
@@ -84,6 +89,10 @@ public final class HiveAsyncStreamConf implements AsyncStreamConf {
 
       if (AsyncReaderUtils.AZURE_FILE_SYSTEM.contains(fsScheme)) {
         return jobConf.getBoolean(HiveConfFactory.HIVE_ENABLE_CACHE_FOR_S3_AND_AZURE_STORAGE, true);
+      }
+
+      if (AsyncReaderUtils.GCS_FILE_SYSTEM.contains(fsScheme)) {
+        return jobConf.getBoolean(HiveConfFactory.HIVE_ENABLE_CACHE_FOR_GCS, true);
       }
 
       return false;

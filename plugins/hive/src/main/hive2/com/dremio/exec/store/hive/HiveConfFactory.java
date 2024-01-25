@@ -40,6 +40,7 @@ public class HiveConfFactory {
   public static final String HIVE_ENABLE_ASYNC = "hive.async.enabled";
   public static final String HIVE_ENABLE_CACHE_FOR_S3_AND_AZURE_STORAGE = "hive.cache.enabledForS3AndADLSG2";
   public static final String HIVE_ENABLE_CACHE_FOR_HDFS = "hive.cache.enabledForHDFS";
+  public static final String HIVE_ENABLE_CACHE_FOR_GCS = "hive.cache.enabledForGCS";
   public static final String HIVE_MAX_HIVE_CACHE_SPACE = "hive.cache.maxspace";
   // Config is only used in tests and should not be set to true in production.
   public static final String ENABLE_DML_TESTS_WITHOUT_LOCKING = "enable.dml.tests.without.locking";
@@ -136,8 +137,9 @@ public class HiveConfFactory {
     }
     disableFileSystemCache(hiveConf);
     setConf(hiveConf, HIVE_ENABLE_ASYNC, config.enableAsync);
-    setConf(hiveConf, HIVE_ENABLE_CACHE_FOR_S3_AND_AZURE_STORAGE, config.isCachingEnabledForS3AndAzureStorage);
+    setConf(hiveConf, HIVE_ENABLE_CACHE_FOR_S3_AND_AZURE_STORAGE, config.isCachingEnabledForS3AzureAndGCS);
     setConf(hiveConf, HIVE_ENABLE_CACHE_FOR_HDFS, config.isCachingEnabledForHDFS);
+    setConf(hiveConf, HIVE_ENABLE_CACHE_FOR_GCS, config.isCachingEnabledForS3AzureAndGCS);
     setConf(hiveConf, HIVE_MAX_HIVE_CACHE_SPACE, config.maxCacheSpacePct);
 
     setConf(hiveConf, HIVE_DEFAULT_CTAS_FORMAT, config.getDefaultCtasFormat());

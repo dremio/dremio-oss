@@ -238,4 +238,14 @@ public class AttemptsHelper {
     }
     return null;
   }
+
+  public Long getFinalStateTimeStamp() {
+    if (!events.isEmpty()) {
+      AttemptEvent lastEvent = events.get(events.size() - 1);
+      if (isTerminal(lastEvent.getState())) {
+        return lastEvent.getStartTime();
+      }
+    }
+    return null;
+  }
 }

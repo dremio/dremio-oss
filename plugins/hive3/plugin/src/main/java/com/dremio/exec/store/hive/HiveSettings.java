@@ -106,4 +106,13 @@ public final class HiveSettings {
   public TypeValidators.LongValidator getLimitValidator() {
     return isHive2 ? HivePluginOptions.LIMIT : Hive3PluginOptions.LIMIT;
   }
+
+  /**
+   * Retrieves regex option where table/partition property exclusions are specified.
+   */
+  public String getPropertyExclusionRegex() {
+    return isHive2 ?
+      options.getOption(HivePluginOptions.HIVE_PROPERTY_EXCLUSION_REGEX) :
+      options.getOption(Hive3PluginOptions.HIVE_PROPERTY_EXCLUSION_REGEX);
+  }
 }

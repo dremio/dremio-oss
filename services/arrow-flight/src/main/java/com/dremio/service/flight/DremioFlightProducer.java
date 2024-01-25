@@ -71,6 +71,7 @@ import com.dremio.context.TenantContext;
 import com.dremio.exec.proto.UserProtos;
 import com.dremio.exec.work.protector.UserWorker;
 import com.dremio.options.OptionManager;
+import com.dremio.sabot.rpc.user.ChangeTrackingUserSession;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.flight.error.mapping.DremioFlightErrorMapper;
 import com.dremio.service.flight.impl.FlightPreparedStatement;
@@ -617,7 +618,9 @@ public class DremioFlightProducer implements FlightSqlProducer {
                                     ServerStreamListener serverStreamListener,
                                     UserProtos.PreparedStatementHandle preparedStatementHandle) {
     final UserSessionService.UserSessionData sessionData = getUserSessionData(callContext);
-    final ChangeTrackingUserSession userSession = new ChangeTrackingUserSession(sessionData.getSession());
+    final ChangeTrackingUserSession userSession = ChangeTrackingUserSession.Builder.newBuilder()
+      .withDelegate(sessionData.getSession())
+      .build();
 
     flightWorkManager.runPreparedStatement(preparedStatementHandle, serverStreamListener, allocator, userSession, () -> {
         if (userSession.isUpdated()) {

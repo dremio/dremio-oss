@@ -13,16 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.dremio.plugins.gcs;
 
-export default function (input) {
-  Object.assign(input.prototype, {
-    // eslint-disable-line no-restricted-properties
-    showAccelerationButton() {
-      return this.isCreatedAndNamedDataset();
-    },
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators;
 
-    getExtraSaveDisable() {
-      return false;
-    },
-  });
+/**
+ * System options for the GCS plugin
+ */
+@Options
+public final class GCSOptions {
+
+  // If enabled, use the asynchronous interface for files.
+  public static final TypeValidators.BooleanValidator ASYNC_READS = new TypeValidators.BooleanValidator("store.gcs.async", true);
+
+  private GCSOptions() {
+    // No-op
+  }
+
 }

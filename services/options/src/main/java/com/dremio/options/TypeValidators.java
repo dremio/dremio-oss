@@ -18,6 +18,8 @@ package com.dremio.options;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import java.util.Locale;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.options.OptionValue.Kind;
@@ -121,6 +123,27 @@ public class TypeValidators {
   public static class StringValidator extends TypeValidator {
     public StringValidator(String name, String def) {
       super(name, Kind.STRING, OptionValue.createString(OptionType.SYSTEM, name, def));
+    }
+  }
+
+  /**
+   * RegexStringValidator, expressions are validated
+   */
+  public static class RegexStringValidator extends StringValidator {
+    public RegexStringValidator(String name, String def) {
+      super(name, def);
+    }
+
+    @Override
+    public void validate(OptionValue v) {
+      super.validate(v);
+      try {
+        Pattern.compile(v.getStringVal());
+      } catch (PatternSyntaxException e) {
+        throw UserException.validationError(e)
+          .message(String.format("Option %s must be valid regular expression", getOptionName()))
+          .build(logger);
+      }
     }
   }
 

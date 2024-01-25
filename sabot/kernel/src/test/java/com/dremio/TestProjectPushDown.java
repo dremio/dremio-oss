@@ -16,8 +16,12 @@
 
 package com.dremio;
 
+import java.nio.file.Paths;
+
 import org.junit.Ignore;
 import org.junit.Test;
+
+import com.dremio.common.util.TestTools;
 
 // Test the optimizer plan in terms of project pushdown.
 // When a query refers to a subset of columns in a table, optimizer should push the list
@@ -27,6 +31,11 @@ import org.junit.Test;
 public class TestProjectPushDown extends PlanTestBase {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory
       .getLogger(TestProjectPushDown.class);
+
+  private static final String SAMPLE_DATA_PATH;
+  static {
+    SAMPLE_DATA_PATH = Paths.get(TestTools.getWorkingPath()).getParent().getParent().resolve("sample-data").toAbsolutePath().toString();
+  }
 
   @Test
   public void testGroupBy() throws Exception {
@@ -69,9 +78,9 @@ public class TestProjectPushDown extends PlanTestBase {
 
     testPhysicalPlan("SELECT\n" + "  nations.N_NAME,\n" + "  regions.R_NAME\n"
         + "FROM\n"
-        + "  dfs.\"[WORKING_PATH]/../../sample-data/nation.parquet\" nations\n"
+        + String.format("  dfs.\"%s/nation.parquet\" nations\n", SAMPLE_DATA_PATH)
         + "JOIN\n"
-        + "  dfs.\"[WORKING_PATH]/../../sample-data/region.parquet\" regions\n"
+        + String.format("  dfs.\"%s/region.parquet\" regions\n", SAMPLE_DATA_PATH)
         + "  on nations.N_REGIONKEY = regions.R_REGIONKEY", expectedColNames1,
         expectedColNames2);
   }

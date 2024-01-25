@@ -28,6 +28,7 @@ import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.TableOperations;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.types.Types;
 
@@ -247,6 +248,11 @@ public interface IcebergCommand {
    * @return Iceberg table instance
    */
   Table loadTable();
+
+  /**
+   *  @return return TableOperations instance
+   */
+  TableOperations getTableOps();
 
   /**
    * @return returns the latest snapshot on which the transaction is performed

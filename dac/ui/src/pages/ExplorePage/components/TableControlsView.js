@@ -72,8 +72,6 @@ export class TableControlsView extends PureComponent {
     saveDataset: PropTypes.func,
     saveAsDataset: PropTypes.func,
     performNextAction: PropTypes.func,
-    runDatasetSql: PropTypes.func,
-    previewDatasetSql: PropTypes.func,
     needsTransform: PropTypes.func,
     queryContext: PropTypes.func,
     performTransform: PropTypes.func,

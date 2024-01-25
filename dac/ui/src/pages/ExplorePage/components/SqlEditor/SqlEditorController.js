@@ -51,7 +51,6 @@ import {
 } from "@inject/utils/sql-editor-extra";
 import { selectTab } from "dremio-ui-common/sonar/SqlRunnerSession/resources/SqlRunnerSessionResource.js";
 import { isScriptUrl } from "@app/utils/explorePageTypeUtils";
-import { setRefsFromScript } from "@app/actions/nessie/nessie";
 
 const toolbarHeight = 42;
 
@@ -150,8 +149,6 @@ export class SqlEditorController extends PureComponent {
       this.props.setQueryContext({
         context: Immutable.fromJS(activeScript.context),
       });
-
-      this.props.setRefsFromScript(activeScript.referencesList || []);
     }
 
     if (
@@ -408,7 +405,6 @@ export class SqlEditorController extends PureComponent {
       setActiveScript,
       setCurrentSql,
       setQueryContext,
-      setRefsFromScript,
     } = this.props;
 
     let script = {};
@@ -424,7 +420,6 @@ export class SqlEditorController extends PureComponent {
       setActiveScript({ script });
       setCurrentSql({ sql: script.content });
       setQueryContext({ context: Immutable.fromJS(script.context) });
-      setRefsFromScript(script.referencesList || []);
 
       // if script does not exist, show error banner
       if (!Object.keys(script).length) {
@@ -539,7 +534,6 @@ export default compose(
       modifyCurrentSql,
       setQueryContext,
       setUpdateSqlFromHistory,
-      setRefsFromScript,
       replaceUrlAction: replace,
       showUnsavedChangesConfirmDialog,
     },

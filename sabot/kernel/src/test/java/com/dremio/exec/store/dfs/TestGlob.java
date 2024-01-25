@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.store.dfs;
 
+import java.nio.file.Paths;
+
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -24,7 +26,7 @@ import com.dremio.common.util.TestTools;
 @Ignore("revisit globbing")
 public class TestGlob extends BaseTestQuery {
 
-    String MULTILEVEL = TestTools.getWorkingPath() + "/../java-exec/src/test/resources/multilevel";
+    String MULTILEVEL = Paths.get(TestTools.getWorkingPath()).getParent() + "/java-exec/src/test/resources/multilevel";
 
     @Test
     public void testGlobSet() throws Exception {

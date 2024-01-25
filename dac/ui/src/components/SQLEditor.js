@@ -739,22 +739,13 @@ export class SQLEditor extends PureComponent {
     this.addKeyboardShortcuts(editor);
   };
 
-  onKbdPreview = () => {
-    this.props.setActionState({ actionState: ExploreHeaderActions.PREVIEW });
-    if (this.getSelectedSql() !== "") {
-      this.props.previewDatasetSql({ selectedSql: this.getSelectedSql() });
-    } else {
-      this.props.previewDatasetSql();
-    }
-  };
-
   getMonacoEditorInstance = () => {
     return this?.monacoEditorComponent?.editor;
   };
 
   getSelectedSql = () => {
     if (this.getMonacoEditorInstance() === undefined) {
-      return "";
+      return { sql: "", range: {} };
     }
 
     const selection = this.getMonacoEditorInstance().getSelection();
@@ -764,16 +755,23 @@ export class SQLEditor extends PureComponent {
       startColumn: selection.startColumn,
       startLineNumber: selection.startLineNumber,
     };
-    return this.getMonacoEditorInstance().getModel().getValueInRange(range);
+
+    return {
+      sql: this.getMonacoEditorInstance().getModel().getValueInRange(range),
+      range,
+    };
   };
 
   onKbdRun = () => {
-    this.props.setActionState({ actionState: ExploreHeaderActions.RUN });
-    if (this.getSelectedSql() !== "") {
-      this.props.runDatasetSql({ selectedSql: this.getSelectedSql() });
-    } else {
-      this.props.runDatasetSql();
-    }
+    const { runDatasetSql, setActionState } = this.props;
+    setActionState({ actionState: ExploreHeaderActions.RUN });
+    runDatasetSql({ selectedSql: this.getSelectedSql() });
+  };
+
+  onKbdPreview = () => {
+    const { previewDatasetSql, setActionState } = this.props;
+    setActionState({ actionState: ExploreHeaderActions.PREVIEW });
+    previewDatasetSql({ selectedSql: this.getSelectedSql() });
   };
 
   addKeyboardShortcuts = (editor) => {

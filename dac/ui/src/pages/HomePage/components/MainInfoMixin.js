@@ -19,6 +19,7 @@ import { getSettingsLocation } from "components/Menus/HomePage/DatasetMenu";
 import { addProjectBase as wrapBackendLink } from "dremio-ui-common/utilities/projectBase.js";
 import { getVersionContextFromId } from "dremio-ui-common/utilities/datasetReference.js";
 import { shouldUseNewDatasetNavigation } from "@app/utils/datasetNavigationUtils";
+import * as sqlPaths from "dremio-ui-common/paths/sqlEditor.js";
 
 export default function (input) {
   Object.assign(input.prototype, {
@@ -46,20 +47,23 @@ export default function (input) {
       const versionContext = getVersionContextFromId(item.get("id"));
       const { type, value } = versionContext ?? {};
       const resourceId = item.getIn(["fullPathList", 0]);
+      const newFullPath = JSON.stringify(item.get("fullPathList").toJS());
+      const isQueryOnClickEnabled = shouldUseNewDatasetNavigation();
 
       const allBtns = [
-        // Per DX-13304 we leave only Edit and Cog (Settings.svg) buttons
+        // edit button - for views
         {
           label: this.getInlineIcon("interface/edit"),
           tooltip: "Common.Edit",
           link: wrapBackendLink(
             `${item.getIn(["links", "edit"])}${
               type && value ? `&refType=${type}&refValue=${value}` : ""
-            }`
+            }`,
           ),
           type: btnTypes.edit,
-          isShown: entityType === "dataset",
+          isShown: isQueryOnClickEnabled && entityType === "dataset",
         },
+        // dataset button - for tables (files, formatted folders, and physical datasets)
         {
           label: this.getInlineIcon("navigation-bar/go-to-dataset"),
           tooltip: "Go.To.Table",
@@ -68,10 +72,23 @@ export default function (input) {
               type && value && resourceId
                 ? `?refType=${type}&refValue=${value}&sourceName=${resourceId}`
                 : ""
-            }`
+            }`,
           ),
           type: btnTypes.goToTable,
-          isShown: shouldUseNewDatasetNavigation() && entityType !== "dataset",
+          isShown: isQueryOnClickEnabled && entityType !== "dataset",
+        },
+        // query button - for tables and views when query-on-click is disabled
+        {
+          label: this.getInlineIcon("navigation-bar/sql-runner"),
+          tooltip: "Query.Dataset",
+          link: {
+            pathname: sqlPaths.sqlEditor.link(),
+            search: `?context="${encodeURIComponent(
+              resourceId,
+            )}"&queryPath=${encodeURIComponent(newFullPath)}`,
+          },
+          type: btnTypes.query,
+          isShown: !isQueryOnClickEnabled,
         },
         {
           label: this.getInlineIcon("interface/settings"),

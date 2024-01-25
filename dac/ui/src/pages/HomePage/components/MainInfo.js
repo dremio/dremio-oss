@@ -62,6 +62,7 @@ const shortcutBtnTypes = {
   edit: "edit",
   goToTable: "goToTable",
   settings: "settings",
+  query: "query",
 };
 
 const getEntityId = (props) => {
@@ -187,7 +188,7 @@ export class MainInfoView extends Component {
         }),
         this.getSettingsBtnByType(
           <FolderMenu folder={folder} isVersionedSource={isVersionedSource} />,
-          folder
+          folder,
         ),
       ];
     } else if (
@@ -202,7 +203,7 @@ export class MainInfoView extends Component {
         this.getDetailsPanelBtn(folder),
         this.getSettingsBtnByType(
           <FolderMenu folder={folder} isVersionedSource={isVersionedSource} />,
-          folder
+          folder,
         ),
       ];
     } else {
@@ -249,7 +250,7 @@ export class MainInfoView extends Component {
     const allBtns = this.getShortcutButtonsData(
       item,
       entityType,
-      shortcutBtnTypes
+      shortcutBtnTypes,
     );
     return [
       this.getDetailsPanelBtn(item),
@@ -275,7 +276,7 @@ export class MainInfoView extends Component {
           entityType={entityType}
           openWikiDrawer={(dataset) => this.openDetailsPanel(dataset, true)}
         />,
-        item
+        item,
       ),
     ];
   }
@@ -439,7 +440,7 @@ export class MainInfoView extends Component {
       }),
       () => {
         localStorageUtils.setWikiVisibleState(newValue);
-      }
+      },
     );
   };
 
@@ -470,7 +471,7 @@ export class MainInfoView extends Component {
     if (pathname.includes(folderPath)) {
       namespace = pathname.substring(
         pathname.indexOf(folderPath) + folderPath.length,
-        pathname.length
+        pathname.length,
       );
       if (reference) {
         namespace = `${encodeURIComponent(reference?.name)}/${namespace}`;
@@ -554,8 +555,8 @@ export class MainInfoView extends Component {
     const panelItem = datasetDetails
       ? datasetDetails
       : this.shouldShowDetailsPanelIcon()
-      ? entity
-      : null;
+        ? entity
+        : null;
     const { pathname } = this.context.location;
 
     const buttons = entity && (
@@ -632,7 +633,7 @@ ActionWrap.propTypes = {
 
 function mapStateToProps(state, props) {
   const rootEntityType = getRootEntityType(
-    wrapBackendLink(props.entity?.getIn(["links", "self"]))
+    wrapBackendLink(props.entity?.getIn(["links", "self"])),
   );
 
   let isVersionedSource = false;
@@ -646,7 +647,7 @@ function mapStateToProps(state, props) {
     const entityJS = props.entity.toJS();
     const parentSource = getSourceByName(
       entityJS.fullPathList[0],
-      sources
+      sources,
     )?.toJS();
 
     isVersionedSource = checkIsVersionedSource(parentSource?.type);
@@ -669,5 +670,5 @@ export default compose(
   connect(mapStateToProps, (dispatch) => ({
     fetchWiki: loadWiki(dispatch),
     dispatchFetchSupportFlags: fetchSupportFlagsDispatch?.(dispatch),
-  }))
+  })),
 )(MainInfoView);

@@ -46,7 +46,6 @@ import socket, {
 import { cloneDeep } from "lodash";
 import Immutable from "immutable";
 import apiUtils from "@app/utils/apiUtils/apiUtils";
-import { updateScriptContext } from "@app/sagas/scriptContext";
 
 class JobFailedError {
   name: string;
@@ -103,8 +102,6 @@ export function* loadDatasetMetadata(
 
     // Tabs: Skip navigation if activeScriptId has changed since original side-effect was started (user has changed tabs)
     if (!tabId) {
-      yield call(updateScriptContext, sessionId);
-
       yield put(
         // @ts-ignore
         navigateToNextDataset(newResponse, {

@@ -24,8 +24,6 @@ import java.util.List;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.AggregateCall;
 
-import com.dremio.common.expression.ListAggExpression;
-import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.planner.physical.AggregatePrel;
 import com.dremio.exec.planner.physical.Prel;
 import com.google.common.base.Preconditions;
@@ -34,23 +32,6 @@ public final class AggValidator extends BasePrelVisitor<Prel, Void, RuntimeExcep
   private static final AggValidator INSTANCE = new AggValidator();
   public static Prel validate(Prel prel) {
     return prel.accept(INSTANCE, null);
-  }
-
-  private void validateAggregateExpression(LogicalExpression agg) {
-    if (agg instanceof ListAggExpression) {
-      ListAggExpression lAgg = (ListAggExpression) agg;
-      Preconditions.checkArgument(!ARRAY_AGG.getName().equals(lAgg.getName()) || !lAgg.isDistinct(),
-        "Failure while planning to query. Please remove ARRAY_AGG(DISTINCT) and try again."
-        );
-      Preconditions.checkArgument(!ARRAY_AGG.getName().equals(lAgg.getName()) || lAgg.getOrderings() == null ||
-          lAgg.getOrderings().isEmpty(),
-        "Failure while planning to query. Please remove ARRAY_AGG and try again."
-      );
-      Preconditions.checkArgument(!ARRAY_AGG.getName().equals(lAgg.getName()) || lAgg.getExtraExpressions() == null ||
-          lAgg.getExtraExpressions().isEmpty(),
-        "Failure while planning to query. Please remove ARRAY_AGG and try again."
-      );
-    }
   }
 
   private void validateAggCall(AggregateCall aggCall) {

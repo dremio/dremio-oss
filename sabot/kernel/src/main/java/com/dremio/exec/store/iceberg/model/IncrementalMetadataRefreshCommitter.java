@@ -16,7 +16,6 @@
 package com.dremio.exec.store.iceberg.model;
 
 import static com.dremio.common.exceptions.UserException.REFRESH_METADATA_FAILED_CONCURRENT_UPDATE_MSG;
-import static com.dremio.exec.store.iceberg.IcebergUtils.getPartitionStatsFiles;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -36,15 +35,20 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.DataFile;
+import org.apache.iceberg.DremioManifestListReaderUtils;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.PartitionStatsFileLocations;
+import org.apache.iceberg.PartitionStatsMetadataUtil;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.exceptions.ValidationException;
+import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.types.Types;
+import org.apache.iceberg.util.Pair;
 import org.apache.iceberg.util.ThreadPools;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,6 +61,7 @@ import com.dremio.exec.exception.NoSupportedUpPromotionOrCoercionException;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.planner.common.ImmutableDremioFileAttrs;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.iceberg.IcebergExpirySnapshotsCollector;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.iceberg.SchemaConverter;
 import com.dremio.exec.store.iceberg.SnapshotEntry;
@@ -95,6 +100,7 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter, 
   @VisibleForTesting
   public static final int MAX_NUM_SNAPSHOTS_TO_EXPIRE = 15;
 
+  private static final int MIN_SNAPSHOTS_TO_KEEP = 5;
   private static final int DEFAULT_THREAD_POOL_SIZE  = 4;
   private static final ExecutorService EXECUTOR_SERVICE = ThreadPools.newWorkerPool(
     "metadata-refresh-delete", DEFAULT_THREAD_POOL_SIZE);
@@ -127,6 +133,7 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter, 
   private final boolean isMetadataCleanEnabled;
   private final IcebergCommandType icebergOpType;
   private boolean enableUseDefaultPeriod = true; // For unit test purpose only
+  private int minSnapshotsToKeep = MIN_SNAPSHOTS_TO_KEEP ;
   private final FileType fileType;
   public IncrementalMetadataRefreshCommitter(OperatorContext operatorContext, String tableName, List<String> datasetPath, String tableLocation,
                                              String tableUuid, BatchSchema batchSchema,
@@ -290,7 +297,8 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter, 
       Preconditions.checkNotNull(metadataExpireAfterMs, "Metadata expiry time not set.");
       periodToKeepSnapshots = metadataExpireAfterMs;
     }
-    cleanSnapshotsAndMetadataFiles(targetTable, periodToKeepSnapshots);
+    final long timestampExpiry = System.currentTimeMillis() - periodToKeepSnapshots;
+    cleanSnapshotsAndMetadataFiles(targetTable, timestampExpiry);
   }
 
   /**
@@ -298,14 +306,16 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter, 
    * the manifests, since data files belong to original tables.
    */
   @VisibleForTesting
-  public Set<String> cleanSnapshotsAndMetadataFiles(Table targetTable, long periodToKeepSnapshots) {
+  public Pair<Set<String>, Long> cleanSnapshotsAndMetadataFiles(Table targetTable, long timestampExpiry) {
     Stopwatch stopwatch = Stopwatch.createStarted();
     // Clean the metadata files through setting table properties.
     setTablePropertyToCleanOldMetadataFiles(targetTable);
 
+    TableMetadata tableMetadata = icebergCommand.getTableOps().refresh();
+    IcebergExpirySnapshotsCollector snapshotsCollector  = new IcebergExpirySnapshotsCollector(tableMetadata);
+
     // Collect the candidate snapshots to expire.
-    long timestampExpiry = System.currentTimeMillis() - periodToKeepSnapshots;
-    List<SnapshotEntry>  candidateSnapshots = icebergCommand.collectExpiredSnapshots(timestampExpiry, 1);
+    List<SnapshotEntry> candidateSnapshots = snapshotsCollector.collect(timestampExpiry, minSnapshotsToKeep).first();
 
     // The existing metadata tables might already have lots of snapshots. We don't try to expire them one time,
     // because it could dramatically increase metadata refresh query time.
@@ -317,47 +327,62 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter, 
     final int numSnapshotsRetain = numTotalSnapshots - numSnapshotsToExpire;
 
     // Call the api again to get the exact snapshots to expire.
-    List<SnapshotEntry> expiredSnapshots = icebergCommand.collectExpiredSnapshots(timestampExpiry, numSnapshotsRetain);
+    List<SnapshotEntry> expiredSnapshots = snapshotsCollector.collect(timestampExpiry, numSnapshotsRetain).first();
 
     operatorStats.addLongStat(WriterCommitterOperator.Metric.NUM_TOTAL_SNAPSHOTS, numTotalSnapshots);
     operatorStats.addLongStat(WriterCommitterOperator.Metric.NUM_EXPIRED_SNAPSHOTS, expiredSnapshots.size());
     if (expiredSnapshots.isEmpty()) {
-      return Collections.emptySet();
+      return Pair.of(Collections.emptySet(), 0L);
     }
 
     // Perform the expiry operation.
     final List<SnapshotEntry> liveSnapshots = icebergCommand.expireSnapshots(timestampExpiry, numSnapshotsRetain);
 
     // Collect the orphan files.
+    final FileIO io = targetTable.io();
     Set<String> orphanFiles = new HashSet<>();
     for (SnapshotEntry entry : expiredSnapshots) {
-      Snapshot snapshot = targetTable.snapshot(entry.getSnapshotId());
-      orphanFiles.addAll(collectFilesForSnapshot(targetTable, snapshot));
+      orphanFiles.addAll(collectFilesForSnapshot(io, entry, true));
     }
 
-    // Remove the files that are still used by live snapshots
+    // Remove the files that are still used by the valid snapshots. We only need to keep the snapshots that are within
+    // certain amount of time. Because, other snapshots are expired and not valid for in-flight queries.
+    Long numValidSnapshots = 0L;
     for (SnapshotEntry entry : liveSnapshots) {
-      Snapshot snapshot = targetTable.snapshot(entry.getSnapshotId());
-      orphanFiles.removeAll(collectFilesForSnapshot(targetTable, snapshot));
+      if (entry.getTimestampMillis() < timestampExpiry) {
+        continue;
+      }
+      numValidSnapshots += 1L;
+      // Partition stats files are organized by snapshot. Don't need to check partitions stats files for the snapshots
+      // that we try to keep.
+      orphanFiles.removeAll(collectFilesForSnapshot(io, entry, false));
     }
 
+    // Remove orphan files
     IcebergUtils.removeOrphanFiles(fs, logger, EXECUTOR_SERVICE, orphanFiles);
     long clearTime = stopwatch.elapsed(TimeUnit.MILLISECONDS);
     operatorStats.addLongStat(WriterCommitterOperator.Metric.NUM_ORPHAN_FILES_DELETED, orphanFiles.size());
     operatorStats.addLongStat(WriterCommitterOperator.Metric.CLEAR_EXPIRE_SNAPSHOTS_TIME, clearTime);
-    return orphanFiles;
+    operatorStats.addLongStat(WriterCommitterOperator.Metric.NUM_VALID_SNAPSHOTS, numValidSnapshots);
+    return Pair.of(orphanFiles, numValidSnapshots);
   }
 
-  private Set<String> collectFilesForSnapshot(Table targetTable, Snapshot snapshot) {
+  private Set<String> collectFilesForSnapshot(FileIO io, SnapshotEntry entry, boolean includePartitionStats) {
     Set<String> files = new HashSet<>();
     // Manifest list file
-    files.add(snapshot.manifestListLocation());
+    files.add(entry.getManifestListPath());
     // Manifest files
-    snapshot.dataManifests(targetTable.io()).stream().forEach(m -> files.add(m.path()));
+    try {
+      DremioManifestListReaderUtils.read(io, entry.getManifestListPath()).stream().forEach(m -> files.add(m.path()));
+    } catch (Exception e) {
+      // Skip to read this manifest files from the manifest list file.
+      logger.warn("Can't successfully read the manifest list file: {}", entry.getManifestListPath(), e);
+    }
 
-    if (snapshot.partitionStatsMetadata() != null) {
-      String partitionStatsMetadataLocation = snapshot.partitionStatsMetadata().metadataFileLocation();
-      PartitionStatsFileLocations partitionStatsLocations = getPartitionStatsFiles(targetTable.io(), partitionStatsMetadataLocation);
+    if (includePartitionStats) {
+      String partitionStatsMetadataFileName = PartitionStatsMetadataUtil.toFilename(entry.getSnapshotId());
+      String partitionStatsMetadataLocation = IcebergUtils.resolvePath(entry.getMetadataJsonPath(), partitionStatsMetadataFileName);
+      PartitionStatsFileLocations partitionStatsLocations = PartitionStatsMetadataUtil.readMetadata(io, partitionStatsMetadataLocation);
       if (partitionStatsLocations != null) {
         // Partition stats have metadata file and partition files.
         files.add(partitionStatsMetadataLocation);
@@ -583,6 +608,11 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter, 
   @VisibleForTesting
   public void disableUseDefaultPeriod () {
     enableUseDefaultPeriod = false;
+  }
+
+  @VisibleForTesting
+  public void setMinSnapshotsToKeep(int minSnapshotsToKeep) {
+    this.minSnapshotsToKeep = minSnapshotsToKeep;
   }
 
   @VisibleForTesting

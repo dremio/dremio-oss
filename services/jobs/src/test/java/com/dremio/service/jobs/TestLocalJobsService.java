@@ -22,7 +22,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyBoolean;
 import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -30,9 +29,11 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.RejectedExecutionException;
@@ -57,6 +58,8 @@ import com.dremio.datastore.api.LegacyIndexedStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.CoordinationProtos;
+import com.dremio.exec.proto.SearchProtos;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.ExternalId;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.proto.beans.AttemptEvent;
@@ -76,6 +79,8 @@ import com.dremio.service.job.JobDetailsRequest;
 import com.dremio.service.job.JobEvent;
 import com.dremio.service.job.JobState;
 import com.dremio.service.job.JobSummary;
+import com.dremio.service.job.RecentJobSummary;
+import com.dremio.service.job.RecentJobsRequest;
 import com.dremio.service.job.SubmitJobRequest;
 import com.dremio.service.job.proto.ExecutionNode;
 import com.dremio.service.job.proto.JobAttempt;
@@ -322,7 +327,6 @@ public class TestLocalJobsService {
       any(Runnable.class))).thenReturn(mockTask);
 
     when(jobTelemetryServiceStub.getQueryProfile(Mockito.any())).thenReturn(getQueryProfileResponse);
-    doNothing().when(legacyIndexedStore).put(Mockito.any(), Mockito.any());
     when(optionManager.getOption(ExecConstants.ENABLE_JOBS_USER_STATS_API)).thenReturn(true);
     when(optionManager.getOption(ExecConstants.JOBS_USER_STATS_CACHE_REFRESH_HRS)).thenReturn(12L);
 
@@ -433,17 +437,107 @@ public class TestLocalJobsService {
     verify(legacyIndexedStore, times(1)).get(any(JobId.class));
   }
 
+  @Test
+  public void testGetRecentJobs() throws Exception {
+    localJobsService = createLocalJobsService(true);
+    nodeEndpoint = CoordinationProtos.NodeEndpoint.newBuilder().build();
+    jobResultsStoreConfig = new JobResultsStoreConfig("dummy", Path.of("UNKNOWN"), null);
+
+    Cancellable mockTask = mock(Cancellable.class);
+    when(schedulerService.schedule(any(Schedule.class),
+      any(Runnable.class))).thenReturn(mockTask);
+    when(optionManager.getOption(ExecConstants.ENABLE_JOBS_USER_STATS_API)).thenReturn(true);
+    when(optionManager.getOption(ExecConstants.JOBS_USER_STATS_CACHE_REFRESH_HRS)).thenReturn(12L);
+
+    // Failed Job
+    ExternalId externalId = ExternalIdHelper.generateExternalId();
+    JobId jobId = JobsServiceUtil.getExternalIdAsJobId(externalId);
+    JobResult jobResult = getJobResult(jobId, AttemptEvent.State.FAILED, false);
+    RecentJobsRequest recentJobsRequest = RecentJobsRequest.newBuilder()
+      .setQuery(SearchProtos.SearchQuery.newBuilder()
+        .setEquals(SearchProtos.SearchQuery.Equals.newBuilder()
+          .setField("status")
+          .setStringValue(com.dremio.service.job.proto.JobState.FAILED.toString())
+          .build())
+        .build())
+      .build();
+    Map<JobId, JobResult> failedJobEntries = Collections.singletonMap(jobId, jobResult);
+    when(legacyIndexedStore.find(localJobsService.createRecentJobCondition(recentJobsRequest))).thenReturn(new ArrayList<>(failedJobEntries.entrySet()));
+    localJobsService.start();
+    Iterable<RecentJobSummary> failedJobs = localJobsService.getRecentJobs(recentJobsRequest);
+    for (RecentJobSummary recentJobSummary: failedJobs) {
+      Assert.assertEquals("Error Message: The job has failed.", recentJobSummary.getErrorMsg());
+      Assert.assertEquals(10, recentJobSummary.getFinalStateEpochMillis());
+    }
+
+    // Completed Job
+    externalId = ExternalIdHelper.generateExternalId();
+    jobId = JobsServiceUtil.getExternalIdAsJobId(externalId);
+    jobResult = getJobResult(jobId, AttemptEvent.State.COMPLETED, false);
+    recentJobsRequest = RecentJobsRequest.newBuilder()
+      .setQuery(SearchProtos.SearchQuery.newBuilder()
+        .setEquals(SearchProtos.SearchQuery.Equals.newBuilder()
+          .setField("status")
+          .setStringValue(com.dremio.service.job.proto.JobState.COMPLETED.toString())
+          .build())
+        .build())
+      .build();
+    Map<JobId, JobResult> completedJobEntries = Collections.singletonMap(jobId, jobResult);
+    when(legacyIndexedStore.find(localJobsService.createRecentJobCondition(recentJobsRequest))).thenReturn(new ArrayList<>(completedJobEntries.entrySet()));
+    localJobsService.start();
+    Iterable<RecentJobSummary> completedJobs = localJobsService.getRecentJobs(recentJobsRequest);
+    for (RecentJobSummary recentJobSummary: completedJobs) {
+      Assert.assertEquals("", recentJobSummary.getErrorMsg());
+      Assert.assertEquals(100, recentJobSummary.getFinalStateEpochMillis());
+    }
+
+    // Cancelled Job
+    externalId = ExternalIdHelper.generateExternalId();
+    jobId = JobsServiceUtil.getExternalIdAsJobId(externalId);
+    jobResult = getJobResult(jobId, AttemptEvent.State.CANCELED, false);
+    recentJobsRequest = RecentJobsRequest.newBuilder()
+      .setQuery(SearchProtos.SearchQuery.newBuilder()
+        .setEquals(SearchProtos.SearchQuery.Equals.newBuilder()
+          .setField("status")
+          .setStringValue(com.dremio.service.job.proto.JobState.CANCELED.toString())
+          .build())
+        .build())
+      .build();
+    Map<JobId, JobResult> cancelledJobEntries = Collections.singletonMap(jobId, jobResult);
+    when(legacyIndexedStore.find(localJobsService.createRecentJobCondition(recentJobsRequest))).thenReturn(new ArrayList<>(cancelledJobEntries.entrySet()));
+    localJobsService.start();
+    Iterable<RecentJobSummary> cancelledJobs = localJobsService.getRecentJobs(recentJobsRequest);
+    for (RecentJobSummary recentJobSummary: cancelledJobs) {
+      Assert.assertEquals("", recentJobSummary.getErrorMsg());
+      Assert.assertEquals(50, recentJobSummary.getFinalStateEpochMillis());
+    }
+  }
+
   private JobResult getJobResult(JobId jobId, AttemptEvent.State attemptState, boolean profileDetailsCapturedPostTermination) {
     JobInfo jobInfo = new JobInfo();
     jobInfo.setQueryType(QueryType.UI_RUN);
     jobInfo.setJobId(jobId);
     jobInfo.setSql("query");
     jobInfo.setDatasetVersion("version");
+    jobInfo.setUser("dremio");
+    if (attemptState == AttemptEvent.State.FAILED) {
+      jobInfo.setFailureInfo("Error Message: The job has failed.");
+    }
 
     JobAttempt jobAttempt = new JobAttempt();
     jobAttempt.setInfo(jobInfo);
-    jobAttempt.setState(com.dremio.service.job.proto.JobState.COMPLETED);
-    jobAttempt.setStateListList(Collections.singletonList(new com.dremio.exec.proto.beans.AttemptEvent().setState(attemptState)));
+    List<AttemptEvent> attemptEvents = new ArrayList<>();
+    if (attemptState == AttemptEvent.State.FAILED) {
+      jobAttempt.setState(com.dremio.service.job.proto.JobState.FAILED);
+      attemptEvents.add(JobsServiceUtil.createAttemptEvent(UserBitShared.AttemptEvent.State.FAILED, 10L));
+    } else if (attemptState == AttemptEvent.State.CANCELED) {
+      jobAttempt.setState(com.dremio.service.job.proto.JobState.CANCELED);
+      attemptEvents.add(JobsServiceUtil.createAttemptEvent(UserBitShared.AttemptEvent.State.CANCELED, 50L));
+    } else {
+      jobAttempt.setState(com.dremio.service.job.proto.JobState.COMPLETED);
+      attemptEvents.add(JobsServiceUtil.createAttemptEvent(UserBitShared.AttemptEvent.State.COMPLETED, 100L));
+    }
+    jobAttempt.setStateListList(attemptEvents);
 
     JobResult jobResult = new JobResult();
     jobResult.setCompleted(true);

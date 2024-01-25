@@ -13,9 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dremio.service.flight;
+package com.dremio.sabot.rpc.user;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 import org.apache.calcite.avatica.util.Quoting;
@@ -27,20 +28,114 @@ import com.dremio.exec.proto.UserProtos;
 import com.dremio.exec.server.options.SessionOptionManager;
 import com.dremio.exec.work.user.SubstitutionSettings;
 import com.dremio.options.OptionManager;
-import com.dremio.sabot.rpc.user.InboundImpersonationManager;
-import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.namespace.NamespaceKey;
+import com.google.common.base.Strings;
 
 /**
  * Tracks if an underlying UserSession was updated so that it can
  * be saved to the user session cache.
  */
 public class ChangeTrackingUserSession extends UserSession {
-  private final UserSession delegate;
+  private UserSession delegate;
   private boolean updated = false;
 
-  public ChangeTrackingUserSession(UserSession delegate) {
-    this.delegate = delegate;
+  public static class Builder {
+    private ChangeTrackingUserSession userSession;
+
+    /**
+     * Create a Builder instance with no values set.
+     * @return the Builder object
+     */
+    public static ChangeTrackingUserSession.Builder newBuilder() {
+      return new ChangeTrackingUserSession.Builder();
+    }
+
+    /**
+     * This newBuilder will assign the caller's session without making a copy
+     * !!Note!! that  this newBuilder could make modifications to the caller's session settings.
+     * @param session the session that could be modified by this Builder.
+     */
+    public static ChangeTrackingUserSession.Builder newBuilder(ChangeTrackingUserSession session) {
+      return new ChangeTrackingUserSession.Builder(session, false);
+    }
+
+    /**
+     * This newBuilderWithCopy will make a fresh copy of the session delegate attribute using the copy constructor
+     * so the caller's session remains unmodified.
+     * @param session the session whose attributes will be copied into the new instance
+     * @return the Builder object
+     */
+    public static ChangeTrackingUserSession.Builder newBuilderWithCopy(ChangeTrackingUserSession session) {
+      return new ChangeTrackingUserSession.Builder(session, true);
+    }
+
+    public ChangeTrackingUserSession.Builder withSessionOptionManager(SessionOptionManager sessionOptionManager, OptionManager fallback) {
+      userSession.delegate.setSessionOptionManager(sessionOptionManager, fallback);
+      return this;
+    }
+
+    public ChangeTrackingUserSession.Builder withSourceVersionMapping(Map<String, VersionContext> sourceVersionMapping) {
+      if (sourceVersionMapping != null) {
+        sourceVersionMapping.forEach((key, value) ->
+          userSession.delegate.setSessionVersionForSource(key, value));
+      }
+      return this;
+    }
+
+    public ChangeTrackingUserSession.Builder withDefaultSchema(List<String> defaultSchemaPath) {
+      userSession.delegate.setDefaultSchemaPath(defaultSchemaPath);
+      return this;
+    }
+
+    public ChangeTrackingUserSession.Builder withErrorOnUnspecifiedVersion(boolean value) {
+      userSession.delegate.setErrorOnUnspecifiedVersion(value);
+      return this;
+    }
+
+    public ChangeTrackingUserSession.Builder withEngineName(String engineName) {
+      if (Strings.isNullOrEmpty(engineName)) {
+        return this;
+      }
+      userSession.delegate.setRoutingEngine(engineName);
+      return this;
+    }
+
+    /**
+     * Copies the userSession object to the delegate.
+     * @param userSession UserSession whose reference will be copied
+     * @return the Builder with delegate referencing original userSession
+     */
+    public ChangeTrackingUserSession.Builder withDelegate(final UserSession userSession) {
+      this.userSession.delegate = userSession;
+      return this;
+    }
+
+    public ChangeTrackingUserSession build() {
+      final ChangeTrackingUserSession session = userSession;
+      userSession = null;
+      return session;
+    }
+
+    Builder() {
+      userSession = new ChangeTrackingUserSession();
+    }
+
+    Builder(ChangeTrackingUserSession session, boolean newInstance) {
+      if (newInstance) {
+        userSession = new ChangeTrackingUserSession(session);
+      } else {
+        //Note : This could potentially modify the passed in session since it does not make a new copy.
+        userSession = session;
+      }
+    }
+  }
+
+  protected ChangeTrackingUserSession() {
+    this.delegate = UserSession.Builder.newBuilder().build();
+  }
+
+  protected ChangeTrackingUserSession(ChangeTrackingUserSession userSession) {
+    this.delegate = UserSession.Builder.newBuilderWithCopy(userSession.delegate).build();
   }
 
   @Override

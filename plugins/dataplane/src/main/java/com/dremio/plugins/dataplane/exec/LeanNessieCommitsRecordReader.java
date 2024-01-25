@@ -51,7 +51,7 @@ public class LeanNessieCommitsRecordReader extends AbstractNessieCommitRecordsRe
   @Override
   protected CompletableFuture<Optional<SnapshotEntry>> getEntries(AtomicInteger idx, ContentReference contentReference) {
     return CompletableFuture.completedFuture(Optional.of(
-      new SnapshotEntry(contentReference.metadataLocation(), contentReference.snapshotId(), null)));
+      new SnapshotEntry(contentReference.metadataLocation(), contentReference.snapshotId(), null, null)));
   }
 
   @Override

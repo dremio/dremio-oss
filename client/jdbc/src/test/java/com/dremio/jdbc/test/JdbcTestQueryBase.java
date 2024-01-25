@@ -34,9 +34,9 @@ public class JdbcTestQueryBase extends JdbcWithServerTestBase {
   @Rule
   public final TestRule timeoutRule = TestTools.getTimeoutRule(40, TimeUnit.SECONDS);
 
-  protected static final String WORKING_PATH;
+  protected static final String SAMPLE_DATA_PATH;
   static{
-    WORKING_PATH = Paths.get("").toAbsolutePath().toString();
+    SAMPLE_DATA_PATH = Paths.get(TestTools.getWorkingPath()).getParent().getParent().resolve("sample-data").toAbsolutePath().toString();
   }
 
   protected static void testQuery(String sql) throws Exception{

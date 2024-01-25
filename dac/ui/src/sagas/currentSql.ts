@@ -25,7 +25,6 @@ import { selectActiveScript } from "@app/components/SQLScripts/sqlScriptsUtils";
 import { getSupportFlag } from "@app/exports/endpoints/SupportFlags/getSupportFlag";
 import { SQLRUNNER_TABS_UI } from "@app/exports/endpoints/SupportFlags/supportFlagConstants";
 import { throttle, isEqual } from "lodash";
-import { getReferencesListForScript } from "@app/utils/nessieUtils";
 
 export const scriptReplaceSideEffect = async (script) => {
   if (!(await getSupportFlag(SQLRUNNER_TABS_UI)).value) {
@@ -35,10 +34,7 @@ export const scriptReplaceSideEffect = async (script) => {
   store.dispatch({
     type: "REPLACE_SCRIPT_CONTENTS",
     scriptId: script.id,
-    script: {
-      ...script,
-      referencesList: getReferencesListForScript(store.getState().nessie),
-    },
+    script,
   });
 };
 

@@ -16,6 +16,7 @@
 package com.dremio.plugins.gcs;
 
 import static com.dremio.io.file.UriSchemes.DREMIO_GCS_SCHEME;
+import static com.dremio.plugins.gcs.GCSOptions.ASYNC_READS;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,8 +37,6 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.dfs.DirectorySupportLackingFileSystemPlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
-import com.dremio.options.Options;
-import com.dremio.options.TypeValidators.BooleanValidator;
 import com.dremio.plugins.util.ContainerFileSystem.ContainerFailure;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.service.namespace.NamespaceKey;
@@ -48,11 +47,8 @@ import com.google.common.base.Preconditions;
 /**
  * Plugin for Google Cloud Storage.
  */
-@Options
 public class GoogleStoragePlugin extends DirectorySupportLackingFileSystemPlugin<GCSConf> {
   private static final Logger logger = LoggerFactory.getLogger(GoogleStoragePlugin.class);
-
-  public static final BooleanValidator ASYNC_READS = new BooleanValidator("store.gcs.async", true);
   public static final String GCS_OUTPUT_STREAM_UPLOAD_CHUNK_SIZE_DEFAULT = "8388608";
 
   public GoogleStoragePlugin(

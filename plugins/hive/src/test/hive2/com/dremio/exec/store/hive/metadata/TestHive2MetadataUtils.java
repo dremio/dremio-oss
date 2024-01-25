@@ -16,18 +16,27 @@
 package com.dremio.exec.store.hive.metadata;
 
 import com.dremio.exec.store.TimedRunnable;
+import com.dremio.exec.store.hive.HiveConfFactory;
+import com.dremio.exec.store.hive.HivePluginOptions;
+import com.dremio.options.OptionManager;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.io.AcidInputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcSplit;
 import org.apache.hadoop.mapred.InputSplit;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 import java.util.Random;
+import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.when;
 
 public class TestHive2MetadataUtils {
   @Test
@@ -50,6 +59,54 @@ public class TestHive2MetadataUtils {
     p1 = getTimeOutAndMaxDeltas(inputSplitList);
     assertEquals(1, (long)p1.getLeft());
     assertEquals(2000l, (long)p1.getRight());
+  }
+
+  @Test
+  public void testPrintFrequentProperties() {
+    Properties properties = getTestProperties();
+
+    Table testTable = Mockito.mock(Table.class);
+    when(testTable.getTableName()).thenReturn("test_table");
+
+    assertEquals("Top 3 property prefixes for test_table: " +
+        "1: impa count=3 examples=[impala_random_key2,impala_random_key3,impala_random_key1, ...], " +
+        "2: spar count=2 examples=[spark_key,spark_key2, ...], " +
+        "3: bar count=1 examples=[bar, ...]",
+      HiveMetadataUtils.printFrequentProperties(properties, testTable));
+  }
+
+  @Test
+  public void testPropertiesFiltering() {
+    Table testTable = Mockito.mock(Table.class);
+    when(testTable.getTableName()).thenReturn("test_table");
+    OptionManager optionManager = Mockito.mock(OptionManager.class);
+
+    // testing Hive 2 source, filtering impala.* and spark.*
+    Properties properties = getTestProperties();
+    when(optionManager.getOption(HivePluginOptions.HIVE_PROPERTY_EXCLUSION_REGEX)).thenReturn("impala|spark");
+    HiveMetadataUtils.filterProperties(properties, testTable, optionManager);
+    List<String> filteredKeys = properties.entrySet().stream().map(e -> e.getKey().toString()).collect(Collectors.toList());
+    assertEquals(2, filteredKeys.size());
+    assertTrue(filteredKeys.contains("bar"));
+    assertTrue(filteredKeys.contains("foo"));
+
+    // test case for disabled filtering
+    properties = getTestProperties();
+    when(optionManager.getOption(HivePluginOptions.HIVE_PROPERTY_EXCLUSION_REGEX)).thenReturn("(?!)");
+    HiveMetadataUtils.filterProperties(properties, testTable, optionManager);
+    assertEquals(properties, getTestProperties());
+  }
+
+  private static Properties getTestProperties() {
+    Properties properties = new Properties();
+    properties.put("impala_random_key1", "some_value1");
+    properties.put("impala_random_key2", "some_value2");
+    properties.put("impala_random_key3", "some_value2");
+    properties.put("spark_key", "some_value3");
+    properties.put("spark_key2", "some_value4");
+    properties.put("foo", "small_key");
+    properties.put("bar", "small_key2");
+    return properties;
   }
 
   private Pair<Long,Long> getTimeOutAndMaxDeltas(List<InputSplit> inputSplitList) {

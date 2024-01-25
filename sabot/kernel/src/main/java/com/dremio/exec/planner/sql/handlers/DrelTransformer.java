@@ -33,7 +33,6 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
-import org.apache.calcite.sql2rel.DremioRelDecorrelator;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.tools.RelConversionException;
 import org.slf4j.Logger;
@@ -50,6 +49,7 @@ import com.dremio.exec.planner.common.ContainerRel;
 import com.dremio.exec.planner.common.JdbcRelImpl;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.cost.DremioCost;
+import com.dremio.exec.planner.logical.DremioRelDecorrelator;
 import com.dremio.exec.planner.logical.DremioRelFactories;
 import com.dremio.exec.planner.logical.ProjectRel;
 import com.dremio.exec.planner.logical.Rel;
@@ -236,8 +236,19 @@ public final class DrelTransformer {
     RelBuilder relBuilder = DremioRelFactories.LOGICAL_BUILDER.create(relNode.getCluster(), null);
     PlannerSettings plannerSettings = config.getContext().getPlannerSettings();
 
+    RelNode trimmedRel = new DremioFieldTrimmer(
+      relBuilder,
+      DremioFieldTrimmerParameters
+        .builder()
+        .shouldLog(false)
+        .isRelPlanning(true)
+        .trimProjectedColumn(true)
+        .trimJoinBranch(plannerSettings.trimJoinBranch())
+        .build())
+      .trim(relNode);
+
     Pointer<Boolean> hasJdbcPushDown = new Pointer<>(false);
-    RelNode injectJdbcCrel = relNode.accept(new RelShuttleImpl(){
+    RelNode injectJdbcCrel = trimmedRel.accept(new RelShuttleImpl(){
       @Override
       public RelNode visit(TableScan scan) {
         if(scan instanceof JdbcRelImpl){
@@ -264,17 +275,7 @@ public final class DrelTransformer {
       injectJdbcCrel.getTraitSet().plus(Rel.LOGICAL),
       true);
 
-    DremioFieldTrimmer dremioFieldTrimmer = new DremioFieldTrimmer(
-      relBuilder,
-      DremioFieldTrimmerParameters
-        .builder()
-        .shouldLog(false)
-        .isRelPlanning(true)
-        .trimProjectedColumn(true)
-        .trimJoinBranch(plannerSettings.trimJoinBranch())
-        .build());
-
-    return dremioFieldTrimmer.trim(relationPlanningRel)
+    return relationPlanningRel
       .accept(new ShortenJdbcColumnAliases())
       .accept(new ConvertJdbcLogicalToJdbcRel(DremioRelFactories.LOGICAL_BUILDER));
   }

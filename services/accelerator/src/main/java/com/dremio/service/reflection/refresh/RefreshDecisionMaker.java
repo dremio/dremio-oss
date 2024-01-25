@@ -101,15 +101,6 @@ class RefreshDecisionMaker {
 
     decision.setAccelerationSettings(settings);
 
-    // For snapshot based incremental refresh, save the base table's current snapshot id.
-    if (settings.getSnapshotBased()) {
-      checkState(refreshDetails.getBaseTableSnapshotId() != null);
-      decision.setOutputUpdateId(new UpdateId()
-        .setStringUpdateId(refreshDetails.getBaseTableSnapshotId())
-        .setType(MinorType.VARCHAR)
-        .setUpdateIdType(UpdateId.IdType.SNAPSHOT));
-    }
-
     if (requestedTables != null && !Iterables.isEmpty(requestedTables)) {
       // store all physical dataset paths in the refresh decision
       final List<ScanPath> scanPathsList = FluentIterable.from(requestedTables)
@@ -149,6 +140,15 @@ class RefreshDecisionMaker {
     // from the refresh decision. No need to proceed with further calculations.
     if (isRebuildPlan) {
       return decision;
+    }
+
+    // For snapshot based incremental refresh, save the base table's current snapshot id.
+    if (settings.getSnapshotBased()) {
+      checkState(refreshDetails.getBaseTableSnapshotId() != null);
+      decision.setOutputUpdateId(new UpdateId()
+        .setStringUpdateId(refreshDetails.getBaseTableSnapshotId())
+        .setType(MinorType.VARCHAR)
+        .setUpdateIdType(UpdateId.IdType.SNAPSHOT));
     }
 
     if(settings.getMethod() == RefreshMethod.FULL) {

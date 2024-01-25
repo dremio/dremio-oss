@@ -20,6 +20,7 @@ import com.dremio.options.Options;
 import com.dremio.options.TypeValidators;
 import com.dremio.options.TypeValidators.BooleanValidator;
 import com.dremio.options.TypeValidators.RangeLongValidator;
+import com.dremio.options.TypeValidators.RegexStringValidator;
 
 /**
  * Dremio advanced configuration options for Hive storage plugin
@@ -73,4 +74,12 @@ public interface Hive3PluginOptions {
    * Option to use bytebuffers using direct memory while reading ORC files
    */
   BooleanValidator HIVE_ORC_READER_USE_DIRECT_MEMORY = new BooleanValidator("store.hive3.orc.use_direct_memory", true);
+
+  /**
+   * Option to exclude Hive table or partition properties from loading into KV store.
+   * If no exclusion is intended set to (?!)
+   */
+  RegexStringValidator HIVE_PROPERTY_EXCLUSION_REGEX = new RegexStringValidator("store.hive3.property_exclusion_regex",
+    "impala_intermediate" // impala_intermediate_stats_chunk is a 4k chunk of base64 encoded column stat for each partition
+  );
 }

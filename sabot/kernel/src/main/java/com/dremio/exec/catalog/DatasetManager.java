@@ -43,6 +43,7 @@ import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.SourceMetadata;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogImpl.IdentityResolver;
 import com.dremio.exec.catalog.ManagedStoragePlugin.MetadataAccessType;
 import com.dremio.exec.catalog.conf.ConnectionConf;
@@ -57,6 +58,7 @@ import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.Views;
+import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.ImpersonationConf;
 import com.dremio.exec.util.ViewFieldsHelper;
 import com.dremio.options.OptionManager;
@@ -321,6 +323,15 @@ class DatasetManager {
                                                String accessUserName, MetadataRequestOptions options) {
     Span.current().setAttribute("dremio.namespace.key.schemapath", key.getSchemaPath());
     plugin.checkAccess(key, datasetConfig, accessUserName, options);
+
+    if (plugin.getPlugin() instanceof FileSystemPlugin && optionManager.getOption(ExecConstants.FS_PATH_TRAVERSAL_PREVENTION_ENABLED)) {
+      // DX-84516: Need to verify here and not just when accessing the path from FS plugin because the user may have
+      // already created/promoted a table they should not have access to - so we need to block the direct NS access too
+      List<String> pathComponents = key.getPathComponents();
+      PathUtils.verifyNoDirectoryTraversal(pathComponents, () ->
+        UserException.permissionError()
+          .message("Not allowed to perform directory traversal").addContext("Path", pathComponents.toString()).buildSilently());
+    }
 
     final TableMetadata tableMetadata = new TableMetadataImpl(plugin.getId(),
       datasetConfig,

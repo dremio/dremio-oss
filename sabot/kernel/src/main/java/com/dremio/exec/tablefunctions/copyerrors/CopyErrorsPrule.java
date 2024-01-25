@@ -38,7 +38,6 @@ import com.dremio.exec.planner.sql.handlers.query.CopyErrorContext;
 import com.dremio.exec.planner.sql.handlers.query.CopyIntoTableContext;
 import com.dremio.exec.record.RecordBatchData;
 import com.dremio.exec.record.RecordBatchHolder;
-import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.SimpleJobRunner;
 import com.dremio.exec.store.dfs.copyinto.CopyFileHistoryTableSchemaProvider;
 import com.dremio.exec.store.dfs.copyinto.CopyJobHistoryTableSchemaProvider;
@@ -75,9 +74,11 @@ public final class CopyErrorsPrule extends RelOptRule {
   public void onMatch(RelOptRuleCall call) {
     final CopyErrorsDrel drel = call.rel(0);
 
-    SabotContext sabotContext = ((QueryContext)optimizerRulesContext).getSabotContext();
-    long schemaVersion = sabotContext.getOptionManager().getOption(ExecConstants.SYSTEM_ICEBERG_TABLES_SCHEMA_VERSION);
-    long maxInputFiles = sabotContext.getOptionManager().getOption(ExecConstants.COPY_ERRORS_TABLE_FUNCTION_MAX_INPUT_FILES);
+    QueryContext context = (QueryContext) optimizerRulesContext;
+
+    // Need to use the OptionManager from the session otherwise session level settings won't work
+    long schemaVersion = context.getSession().getOptions().getOption(ExecConstants.SYSTEM_ICEBERG_TABLES_SCHEMA_VERSION);
+    long maxInputFiles = context.getSession().getOptions().getOption(ExecConstants.COPY_ERRORS_TABLE_FUNCTION_MAX_INPUT_FILES);
 
 
     // CopyErrorContext already stores validated user inputs
@@ -86,7 +87,7 @@ public final class CopyErrorsPrule extends RelOptRule {
     String jobId = copyErrorContext.getCopyIntoJobId();
     String user = copyErrorContext.getResolvedTargetTable().getTable().getDataset().getUser();
 
-    SimpleJobRunner jobRunner = sabotContext.getJobsRunner().get();
+    SimpleJobRunner jobRunner = context.getSabotContext().getJobsRunner().get();
 
     // 1. if not given, find out last COPY INTO jobId for specified table
     if (jobId == null) {

@@ -644,6 +644,11 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     for (String pathComponent : tableSchemaPath.subList(1 /* need to skip the source name */, tableSchemaPath.size())) {
       fullPath.add(PathUtils.removeQuotes(pathComponent));
     }
+    if (context.getOptionManager().getOption(ExecConstants.FS_PATH_TRAVERSAL_PREVENTION_ENABLED)) {
+      PathUtils.verifyNoDirectoryTraversal(fullPath, () ->
+        UserException.permissionError()
+          .message("Not allowed to perform directory traversal").addContext("Path", fullPath.toString()).buildSilently());
+    }
     PathUtils.verifyNoAccessOutsideBase(basePath, PathUtils.toFSPath(fullPath));
     return fullPath;
   }
@@ -657,6 +662,11 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   public Path resolveTablePathToValidPath(String tablePath) {
     String relativePathClean = PathUtils.removeLeadingSlash(tablePath);
     Path combined = basePath.resolve(relativePathClean);
+    if (context.getOptionManager().getOption(ExecConstants.FS_PATH_TRAVERSAL_PREVENTION_ENABLED)) {
+      PathUtils.verifyNoDirectoryTraversal(ImmutableList.of(tablePath), () ->
+        UserException.permissionError()
+          .message("Not allowed to perform directory traversal").addContext("Path", tablePath.toString()).buildSilently());
+    }
     PathUtils.verifyNoAccessOutsideBase(basePath, combined);
     return combined;
   }

@@ -75,4 +75,12 @@ public interface HivePluginOptions {
    * Option to use bytebuffers using direct memory while reading ORC files
    */
   BooleanValidator HIVE_ORC_READER_USE_DIRECT_MEMORY = new BooleanValidator("store.hive.orc.use_direct_memory", true);
+
+  /**
+   * Option to exclude Hive table or partition properties from loading into KV store.
+   * If no exclusion is intended set to (?!)
+   */
+  TypeValidators.RegexStringValidator HIVE_PROPERTY_EXCLUSION_REGEX = new TypeValidators.RegexStringValidator("store.hive.property_exclusion_regex",
+    "impala_intermediate" // impala_intermediate_stats_chunk is a 4k chunk of base64 encoded column stat for each partition
+  );
 }

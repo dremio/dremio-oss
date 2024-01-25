@@ -150,11 +150,6 @@ public interface IcebergModel {
   List<SnapshotEntry> expireSnapshots(IcebergTableIdentifier tableIdentifier, long olderThanInMillis, int retainLast);
 
   /**
-   * Collect the expired snapshot ids, but not actually make table snapshots expired.
-   */
-  List<SnapshotEntry> collectExpiredSnapshots(IcebergTableIdentifier tableIdentifier, long olderThanInMillis, int retainLast);
-
-  /**
    * Truncate a table
    *
    * @param tableIdentifier table identifier

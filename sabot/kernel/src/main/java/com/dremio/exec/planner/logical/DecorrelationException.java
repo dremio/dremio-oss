@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.calcite.sql2rel;
+package com.dremio.exec.planner.logical;
 
 public class DecorrelationException extends RuntimeException{
   public DecorrelationException(String message) {

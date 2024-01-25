@@ -715,6 +715,11 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
       Path basePath = pluginConfig.getPath();
       String relativePathClean = PathUtils.removeLeadingSlash(String.join("/", tablePath));
       Path combined = basePath.resolve(relativePathClean);
+      if (context.getOptionManager().getOption(ExecConstants.FS_PATH_TRAVERSAL_PREVENTION_ENABLED)) {
+        PathUtils.verifyNoDirectoryTraversal(tablePath, () ->
+          UserException.permissionError()
+            .message("Not allowed to perform directory traversal").addContext("Path", tablePath.toString()).buildSilently());
+      }
       PathUtils.verifyNoAccessOutsideBase(basePath, combined);
       return combined;
     }
@@ -1369,6 +1374,11 @@ public class DataplanePlugin extends FileSystemPlugin<AbstractDataplanePluginCon
                     .map(PathUtils::removeQuotes))
             .collect(Collectors.toList());
 
+    if (context.getOptionManager().getOption(ExecConstants.FS_PATH_TRAVERSAL_PREVENTION_ENABLED)) {
+      PathUtils.verifyNoDirectoryTraversal(fullPath, () ->
+        UserException.permissionError()
+          .message("Not allowed to perform directory traversal").addContext("Path", fullPath.toString()).buildSilently());
+    }
     PathUtils.verifyNoAccessOutsideBase(PathUtils.toFSPath(basePath), PathUtils.toFSPath(fullPath));
 
     return fullPath;

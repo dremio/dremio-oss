@@ -264,7 +264,6 @@ public class IcebergBaseCommand implements IcebergCommand {
     @Override
     public List<SnapshotEntry> expireSnapshots(long olderThanInMillis, int retainLast) {
       Stopwatch stopwatch = Stopwatch.createStarted();
-
       // perform expiration
       String olderThanTimestamp = getTimestampFromMillis(olderThanInMillis);
       try {
@@ -287,7 +286,7 @@ public class IcebergBaseCommand implements IcebergCommand {
           .buildSilently();
       } finally {
         long totalCommitTime = stopwatch.elapsed(TimeUnit.MILLISECONDS);
-        logger.debug("Iceberg ExpireSnapshots call took {} ms.", totalCommitTime);
+        logger.info("Iceberg ExpireSnapshots call took {} ms.", totalCommitTime);
       }
     }
 
@@ -734,7 +733,8 @@ public class IcebergBaseCommand implements IcebergCommand {
     return getTableOps().current().schema();
   }
 
-  private TableOperations getTableOps() {
+  @Override
+  public TableOperations getTableOps() {
     return tableOperations;
   }
 

@@ -184,12 +184,14 @@ class ReflectionPlanNormalizer implements RelTransformer {
       sqlHandlerConfig,
       isRebuildPlan);
     this.snapshotDiffContext = snapshotDiffContextPointer.value;
-    if (isIncremental(refreshDecision) && !isSnapshotBased(refreshDecision)) {
-      strippedPlan = strippedPlan.accept(getIncremental(refreshDecision));
-    }
+    if (!isRebuildPlan) {
+      if (isIncremental(refreshDecision) && !isSnapshotBased(refreshDecision)) {
+        strippedPlan = strippedPlan.accept(getIncremental(refreshDecision));
+      }
 
-    if (isSnapshotBased(refreshDecision) && !refreshDecision.getInitialRefresh()) {
-      strippedPlan = strippedPlan.accept(new IncrementalUpdateUtils.AddSnapshotDiffContextShuttle(snapshotDiffContextPointer.value));
+      if (isSnapshotBased(refreshDecision) && !refreshDecision.getInitialRefresh()) {
+        strippedPlan = strippedPlan.accept(new IncrementalUpdateUtils.AddSnapshotDiffContextShuttle(snapshotDiffContextPointer.value));
+      }
     }
 
     return strippedPlan;
