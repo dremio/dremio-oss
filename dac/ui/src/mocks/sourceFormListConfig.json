@@ -16,5 +16,6 @@
   { "label": "Sample Source", "sourceType": "SampleSource" },
   { "label": "AWS Glue Catalog", "sourceType": "AWSGLUE" },
   { "label": "Google Cloud Storage", "sourceType": "GCS" },
-  { "label": "Sample", "sourceType": "SAMPLE_SOURCE" }
+  { "label": "Sample", "sourceType": "SAMPLE_SOURCE" },
+  { "label":  "VASTDATA", "sourceType":  "VASTDATA"}
 ]
