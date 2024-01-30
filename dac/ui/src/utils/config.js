@@ -53,7 +53,7 @@ export default {
   analyzeTools: {
     tableau: { enabled: true },
     powerbi: { enabled: true },
-    qlik: { enabled: false },
+    qlik: { enabled: true },
   },
   crossSourceDisabled: false,
   queryBundleAdminsEnabled: false,
