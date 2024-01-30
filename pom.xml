@@ -3988,5 +3988,9 @@ limitations under the License.
         <enabled>false</enabled>
       </snapshots>
     </repository>
+    <repository>
+      <id>dremio-free</id>
+      <url>https://maven.dremio.com/free/</url>
+    </repository>
   </repositories>
 </project>
