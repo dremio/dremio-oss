@@ -261,7 +261,7 @@
               </descriptorRefs>
               <appendAssemblyId>false</appendAssemblyId>
               <finalName>${dremio.distribution.name}-${project.version}</finalName>
-              <tarLongFileMode>gnu</tarLongFileMode>
+              <tarLongFileMode>posix</tarLongFileMode>
             </configuration>
           </execution>
         </executions>
